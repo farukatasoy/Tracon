@@ -4,7 +4,9 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Projesine ekleyen geliştirici kendi AI harness'ini kolay ama esnek şekilde kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 0 tamamlandı — build ve paketleme altyapısı hazır. Ürün kodu Faz 1'den itibaren gelir. Yol haritası aşağıda.
+> **Durum:** Faz 1 tamamlandı — çekirdek runtime çalışıyor. Agent tanımlanır, çalıştırılır ve çalıştırma olay olay okunur; hiçbir altyapı gerekmez. Kalıcılık Faz 2'de, HTTP katmanı Faz 4'te, arayüz Faz 5'te gelir. Yol haritası aşağıda.
+
+**Hedef** (Faz 5 sonunda):
 
 ```csharp
 builder.AddAgentPrism()
@@ -12,12 +14,36 @@ builder.AddAgentPrism()
        .UseOpenAI(apiKey)
        .AddTool(GetOrderStatus);
 
-builder.AddAIAgent("support", "Sen bir destek asistanısın.");
-
 app.MapAgentPrism("/agentprism");
 ```
 
 İki satır. Çalışan bir agent, kalıcı oturumlar ve tarayıcıda bir kontrol düzlemi.
+
+**Bugün çalışan** (Faz 1):
+
+```csharp
+builder.AddAgentPrism()
+       .AddTool(OrderTools.GetOrderStatus, name: "get_order_status", description: "Kargo durumunu döndürür.")
+       .AddModelProvider(new MyModelProvider())
+       .AddAgent(new AgentDefinition
+       {
+           Name = "support",
+           Instructions = "Sen bir destek asistanısın.",
+           Model = new ModelBinding { Provider = "openai", Model = "gpt-5.4-mini" },
+           ToolNames = ["get_order_status"],
+       });
+
+// Çalıştır ve kaydı oku
+var agent = await catalog.ResolveAsync("support");
+var response = await agent!.RunAsync("Siparişim nerede?");
+
+await foreach (var e in runStore.ReadEventsAsync(runId))
+{
+    Console.WriteLine($"#{e.Sequence} {e.Type} {e.Text}");
+}
+```
+
+Veritabanı gerekmez — depolama bellek içine düşer. Çalışan örnek: [`samples/AgentPrism.Api`](samples/AgentPrism.Api).
 
 ---
 
@@ -46,12 +72,12 @@ AgentPrism bu boşluğu doldurur. DevUI'nin yerine geçmez — bıraktığı yer
 | Paket | Ne yapar |
 |-------|----------|
 | `AgentPrism` | Meta paket — hepsini tek referansla getirir |
-| `AgentPrism.Abstractions` | Sözleşmeler; kendi implementasyonunuzu yazacaksanız yeterli |
-| `AgentPrism.Core` | Çalışma zamanı, katalog, tanım derleyicisi, tool defteri. **Veritabanı gerektirmez.** |
-| `AgentPrism.PostgreSql` | Kalıcılık — gömülü SQL migration'ları ile |
-| `AgentPrism.OpenAI` | OpenAI sağlayıcı adaptörü |
-| `AgentPrism.AspNetCore` | HTTP katmanı — yönetim API'si + OpenAI uyumlu uçlar |
-| `AgentPrism.UI` | Gömülü React arayüzü |
+| `AgentPrism.Abstractions` | ✅ Sözleşmeler; kendi implementasyonunuzu yazacaksanız yeterli |
+| `AgentPrism.Core` | ✅ Çalışma zamanı, katalog, tanım derleyicisi, tool defteri. **Veritabanı gerektirmez.** |
+| `AgentPrism.PostgreSql` | ⬜ Kalıcılık — gömülü SQL migration'ları ile (Faz 2) |
+| `AgentPrism.OpenAI` | ⬜ OpenAI sağlayıcı adaptörü (Faz 3) |
+| `AgentPrism.AspNetCore` | ⬜ HTTP katmanı — yönetim API'si + OpenAI uyumlu uçlar (Faz 4) |
+| `AgentPrism.UI` | ⬜ Gömülü React arayüzü (Faz 5) |
 
 **Hedef framework:** `net8.0`, `net9.0`, `net10.0` · **Lisans:** MIT
 
@@ -97,8 +123,8 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | Faz | Konu | Durum |
 |-----|------|-------|
 | [0](docs/00-ALTYAPI.md) | Build ve paketleme altyapısı | ✅ Tamamlandı |
-| [1](docs/01-CEKIRDEK-SOYUTLAMALAR.md) | Çekirdek soyutlamalar ve runtime | Planlandı |
-| [2](docs/02-POSTGRESQL-KALICILIK.md) | PostgreSQL kalıcılık katmanı | Planlandı |
+| [1](docs/01-CEKIRDEK-SOYUTLAMALAR.md) | Çekirdek soyutlamalar ve runtime | ✅ Tamamlandı |
+| [2](docs/02-POSTGRESQL-KALICILIK.md) | PostgreSQL kalıcılık katmanı | 🔜 Sıradaki |
 | [3](docs/03-SAGLAYICI-VE-DERLEYICI.md) | OpenAI sağlayıcısı ve agent derleyici | Planlandı |
 | [4](docs/04-HTTP-API.md) | HTTP API katmanı | Planlandı |
 | [5](docs/05-AGENTPRISM-UI.md) | AgentPrismUI | Planlandı |
@@ -116,11 +142,13 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 ## Geliştirme
 
 ```bash
-dotnet build  AgentPrism.slnx -c Release      # 0 uyarı bekleniyor
-dotnet test   AgentPrism.slnx -c Release
+dotnet build  AgentPrism.slnx -c Release              # 0 uyarı bekleniyor
+dotnet test   AgentPrism.slnx -c Release --no-build   # 42 test
 dotnet pack   AgentPrism.slnx -c Release --no-build
 dotnet format AgentPrism.slnx --verify-no-changes
 ```
+
+`TreatWarningsAsErrors` açıktır — uyarı yoktur, hata vardır.
 
 Gereksinimler: .NET SDK 10.0.100+, Node.js 20.19+ (Faz 5'ten itibaren arayüz build'i için), Docker (entegrasyon testleri için).
 
@@ -139,8 +167,9 @@ dotnet run           # http://localhost:5080
 |--------|--------|
 | [docs/MIMARI.md](docs/MIMARI.md) | Mimari — katmanlar, veri modeli, MAF genişleme noktaları, güvenlik modeli |
 | [docs/KARARLAR.md](docs/KARARLAR.md) | Karar defteri — reddedilen yaklaşımlar ve kalıcı tercihler, gerekçeleriyle |
-| [docs/](docs/) | Faz dokümanları (00–07) |
-| [AGENTS.md](AGENTS.md) | Merkezi agent talimatları — proje kuralları, mimari konvansiyonlar (`CLAUDE.md` buna symlink) |
+| [docs/](docs/) | Faz dokümanları (00–07) — kapsam, tasarım kararları, DoD |
+| [.agents/skills/](.agents/skills/) | Tekrarlanan iş akışları — faz tamamlama protokolü, MAF API keşfi |
+| [AGENTS.md](AGENTS.md) | Merkezi agent talimatları — proje kuralları, faz akışı, doğrulama kapıları (`CLAUDE.md` buna symlink) |
 | [MEMORY.md](MEMORY.md) | Agent'ların oturumlar arası biriktirdiği kurumsal bilgi notları |
 
 ---
