@@ -1,0 +1,17 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace AgentPrism;
+
+/// <summary>
+/// <c>AgentPrism.Core</c> icinde serilestirilen tiplerin kaynak ureteci baglami.
+/// </summary>
+/// <remarks>
+/// Yansimaya dayanan <c>JsonSerializer</c> asiri yuklemeleri <c>IL2026</c> ve
+/// <c>IL3050</c> uretir; <c>AgentPrism.Core</c> AOT uyumlu isaretlidir ve bu
+/// tanilar build'i kirar. Serilestirilen her tip burada bildirilir.
+/// Gerekce: <c>docs/KARARLAR.md</c>, karar K-006.
+/// </remarks>
+[JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
+[JsonSerializable(typeof(string))]
+internal sealed partial class AgentPrismCoreJsonContext : JsonSerializerContext;

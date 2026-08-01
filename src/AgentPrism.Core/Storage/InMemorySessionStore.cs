@@ -14,11 +14,20 @@ public sealed class InMemorySessionStore : ISessionStore
     private readonly ConcurrentDictionary<string, SessionRecord> _sessions = new(StringComparer.Ordinal);
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Ayni kimlikle kayit varsa <see cref="SessionRecord.CreatedAt"/> korunur.
+    /// "Olusturulma zamani" ilk yazmaya aittir; kalici depo da ayni davranisi gosterir.
+    /// </remarks>
     public ValueTask SaveAsync(SessionRecord record, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(record);
 
-        _sessions[record.Id] = record;
+        _sessions.AddOrUpdate(
+            record.Id,
+            static (_, incoming) => incoming,
+            static (_, existing, incoming) => incoming with { CreatedAt = existing.CreatedAt },
+            record);
+
         return default;
     }
 

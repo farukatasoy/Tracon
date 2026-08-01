@@ -244,8 +244,10 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         return string.Join(", ", call.Arguments.Select(static pair => $"{pair.Key}={pair.Value}"));
     }
 
-    private static string? GetSessionId(AgentSession session)
-        => session.GetService<string>("SessionId") ?? session.GetType().Name;
+    // Oturum kimligi AgentSessionManager tarafindan oturuma damgalanir. Damga yoksa
+    // oturum AgentPrism disinda acilmis demektir; kayda yer tutucu bir deger yazmak
+    // yerine bos birakilir.
+    private static string? GetSessionId(AgentSession session) => AgentSessionIdentity.GetId(session);
 
     private static RunUsage? ToRunUsage(UsageDetails? usage)
         => usage is null
