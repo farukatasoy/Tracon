@@ -3,7 +3,9 @@
 > **Durum:** Planlandı
 > **Önkoşul:** [02-POSTGRESQL-KALICILIK.md](02-POSTGRESQL-KALICILIK.md)
 > **Sonraki:** [04-HTTP-API.md](04-HTTP-API.md)
-> **Paket:** `AgentPrism.OpenAI` (+ `AgentPrism.Core` içinde derleyici tamamlama)
+> **Paket:** `AgentPrism.OpenAI`
+>
+> ⚠️ **Faz 1 bu fazın işinin bir kısmını zaten yaptı.** `AgentDefinitionCompiler`, `IToolRegistry`, `IModelProviderRegistry` ve `ModelProviderRegistry` **tamamlandı ve testli**. Bu faza kalan iş: `IModelProvider` arayüzünün OpenAI uygulaması ve model kataloğu. Ayrıntı: aşağıdaki "Faz 1'de tamamlananlar" tablosu.
 
 ---
 
@@ -20,6 +22,31 @@ OpenAI'ı bağlamak ve `AgentDefinition` → çalışan `AIAgent` yolunu uçtan 
 `IModelProviderRegistry` birden çok sağlayıcıyı ada göre tutar. Bugün yalnız `openai` kayıtlıdır.
 
 Gerekçe: yarın `AgentPrism.Anthropic` veya `AgentPrism.AzureOpenAI` eklemek **breaking change olmamalıdır**. Modüler paketleme kararının ana sebebi budur. Soyutlama bugün tek implementasyonla bile bedelini öder.
+
+### Faz 1'de tamamlananlar — yeniden yazmayın
+
+| Bileşen | Durum | Konum |
+|---------|-------|-------|
+| `IModelProvider` arayüzü | ✅ | `AgentPrism.Abstractions/Models/` |
+| `IModelProviderRegistry` + `ModelProviderRegistry` | ✅ | `Abstractions` + `Core/Models/` |
+| `AgentDefinitionCompiler` (model + tool + harness) | ✅ | `Core/Compilation/` |
+| `IToolRegistry` + `ToolRegistry` | ✅ | `Abstractions/Tools/` + `Core/Tools/` |
+| `IAgentPrismBuilder.AddTool` / `AddModelProvider` | ✅ | `Core/` |
+| Bilinmeyen tool → `AgentPrismCompilationException` | ✅ testli | `AgentDefinitionCompilerTests` |
+
+Bu faza kalan iş:
+
+```csharp
+// AgentPrism.OpenAI içinde uygulanacak tek arayüz:
+public interface IModelProvider
+{
+    string Name { get; }                                 // "openai"
+    IReadOnlyList<ModelDescriptor> Models { get; }       // model kataloğu
+    IChatClient CreateChatClient(ModelBinding binding);  // istemci üretimi
+}
+```
+
+Referans uygulama: `samples/AgentPrism.Api/EchoModelProvider.cs` — ağa çıkmayan, çalışan bir örnek.
 
 ### API anahtarı asla veritabanına yazılmaz
 
@@ -88,9 +115,9 @@ Arayüz bu bilgiyi model seçim ekranında ve maliyet hesabında kullanır.
 
 ---
 
-## Derleyici Tamamlama
+## Derleyicinin Gerçek Sağlayıcı ile Doğrulanması
 
-Faz 1'de iskeleti kurulan `AgentDefinitionCompiler` bu fazda gerçek sağlayıcı ile tamamlanır.
+`AgentDefinitionCompiler` Faz 1'de tamamlandı ve sahte `IChatClient` ile test edildi. Bu fazda gerçek OpenAI istemcisiyle uçtan uca doğrulanır.
 
 ```
 AgentDefinition
@@ -107,6 +134,12 @@ AgentDefinition
 
 `HarnessSettings`, MAF'ın `HarnessAgentOptions` yapısını yansıtır: bağlam sıkıştırma, todo takibi, dosya erişimi, dosya belleği, tool otomatik onayı.
 
+`HarnessSettings` → `HarnessAgentOptions` eşlemesi Faz 1'de yazıldı (`AgentDefinitionCompiler.CompileHarnessAgent`). Yeni bir harness ayarı eklerken:
+
+1. `HarnessSettings` içine özellik ekle (`AgentPrism.Abstractions`)
+2. `CompileHarnessAgent` içindeki eşlemeye ekle
+3. `MAAI001` bastırması zaten o blokta — yeni üye de kapsanır
+
 **Bu fazda kapalı kalan yetenekler:** shell erişimi ve arka plan agent'ları. Bunlar ayrı bir güvenlik değerlendirmesi gerektirir ve Faz 6'da ele alınır.
 
 ---
@@ -115,18 +148,16 @@ AgentDefinition
 
 ```
 src/AgentPrism.OpenAI/
-├── OpenAIProviderExtensions.cs        (UseOpenAI)
+├── OpenAIProviderExtensions.cs        (UseOpenAI — IAgentPrismBuilder uzantısı)
 ├── OpenAIProviderOptions.cs
+├── OpenAIModelProvider.cs             (IModelProvider uygulaması)
 ├── OpenAIChatClientFactory.cs
-├── OpenAIModelCatalog.cs
-└── OpenAIModelDescriptors.cs
-
-src/AgentPrism.Core/
-├── Compilation/AgentDefinitionCompiler.cs     (tamamlanır)
-├── Compilation/AgentPrismCompilationException.cs
-├── Providers/ModelProviderRegistry.cs
-└── Tools/ToolDescriptorFactory.cs             (JSON şema üretimi)
+└── OpenAIModelCatalog.cs              (ModelDescriptor listesi)
 ```
+
+> `UseOpenAI()` yeni bir sağlayıcı **ekler**, mevcut bir servisi değiştirmez. Bu yüzden `AddModelProvider(...)` yeterlidir; `Replace` gerekmez. (Faz 2'nin `UsePostgreSql()` durumundan farklıdır — orada mevcut depo değiştirilir.)
+
+Faz 3'te ayrıca `AddToolsFrom<T>()` eklenir (attribute taramalı tool kaydı). Yansıma kullandığı için `[RequiresUnreferencedCode]` + `[RequiresDynamicCode]` ile işaretlenmelidir — bkz. `IAgentPrismBuilder.AddTool(Delegate, ...)` deseni.
 
 ---
 
