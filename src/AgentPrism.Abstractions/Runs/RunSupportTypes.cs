@@ -1,0 +1,93 @@
+namespace AgentPrism;
+
+/// <summary>Bir calistirmanin token kullanimi.</summary>
+public sealed record RunUsage
+{
+    /// <summary>Girdi token sayisi.</summary>
+    public long? InputTokens { get; init; }
+
+    /// <summary>Cikti token sayisi.</summary>
+    public long? OutputTokens { get; init; }
+
+    /// <summary>Toplam token sayisi.</summary>
+    public long? TotalTokens { get; init; }
+}
+
+/// <summary>Basarisiz bir calistirmanin hata bilgisi.</summary>
+public sealed record RunError
+{
+    /// <summary>Istisna tipinin adi.</summary>
+    public required string Type { get; init; }
+
+    /// <summary>Hata mesaji.</summary>
+    public required string Message { get; init; }
+}
+
+/// <summary>Yeni bir calistirma baslatmak icin gereken bilgiler.</summary>
+public sealed record RunStartInfo
+{
+    /// <summary>Calistirma kimligi. Cagiran taraf uretir, boylece kimligi hemen bilir.</summary>
+    public required Guid RunId { get; init; }
+
+    /// <summary>Calistirilan agent'in adi.</summary>
+    public required string AgentName { get; init; }
+
+    /// <summary>Baslangic zamani (UTC).</summary>
+    public required DateTimeOffset StartedAt { get; init; }
+
+    /// <summary>Kiraci kimligi.</summary>
+    public string? TenantId { get; init; }
+
+    /// <summary>Oturum kimligi.</summary>
+    public string? SessionId { get; init; }
+
+    /// <summary>Akisli calistirma mi.</summary>
+    public bool IsStreaming { get; init; }
+}
+
+/// <summary>Bir calistirmayi sonlandirmak icin gereken bilgiler.</summary>
+public sealed record RunCompletion
+{
+    /// <summary>Calistirma kimligi.</summary>
+    public required Guid RunId { get; init; }
+
+    /// <summary>Son durum.</summary>
+    public required RunStatus Status { get; init; }
+
+    /// <summary>Bitis zamani (UTC).</summary>
+    public required DateTimeOffset CompletedAt { get; init; }
+
+    /// <summary>Yazilmis toplam olay sayisi.</summary>
+    public long EventCount { get; init; }
+
+    /// <summary>Token kullanimi.</summary>
+    public RunUsage? Usage { get; init; }
+
+    /// <summary>Hata bilgisi. Yalnizca <see cref="RunStatus.Failed"/> durumunda dolu.</summary>
+    public RunError? Error { get; init; }
+}
+
+/// <summary>Calistirma listesini filtrelemek icin sorgu.</summary>
+public sealed record RunQuery
+{
+    /// <summary>Yalnizca bu agent'in calistirmalarini getirir.</summary>
+    public string? AgentName { get; init; }
+
+    /// <summary>Yalnizca bu durumdaki calistirmalari getirir.</summary>
+    public RunStatus? Status { get; init; }
+
+    /// <summary>Yalnizca bu kiracinin calistirmalarini getirir.</summary>
+    public string? TenantId { get; init; }
+
+    /// <summary>Yalnizca bu oturuma ait calistirmalari getirir.</summary>
+    public string? SessionId { get; init; }
+
+    /// <summary>Bu andan sonra baslayan calistirmalari getirir (UTC).</summary>
+    public DateTimeOffset? StartedAfter { get; init; }
+
+    /// <summary>Atlanacak kayit sayisi.</summary>
+    public int Skip { get; init; }
+
+    /// <summary>Getirilecek ust kayit sayisi.</summary>
+    public int Take { get; init; } = 50;
+}

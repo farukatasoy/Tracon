@@ -1,6 +1,22 @@
 # AgentPrism — Mimari
 
 > Bu doküman AgentPrism'in kalıcı mimari resmidir. Faz dokümanları (`00`–`07`) uygulama sırasını anlatır; bu doküman **ne** inşa ettiğimizi anlatır.
+>
+> **Bu dosya her fazın sonunda güncellenir.** Gerçekleşen tasarım ile bu doküman arasında fark varsa doküman yanlıştır — koda göre düzeltilir.
+
+## Güncel Durum (2026-08-02)
+
+| Paket | Durum | Faz |
+|-------|-------|-----|
+| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 |
+| `AgentPrism.Core` | ✅ Tamamlandı | 1 |
+| `AgentPrism.PostgreSql` | ⬜ İskelet | 2 |
+| `AgentPrism.OpenAI` | ⬜ İskelet | 3 |
+| `AgentPrism.AspNetCore` | ⬜ İskelet | 4 |
+| `AgentPrism.UI` | ⬜ İskelet | 5 |
+| `AgentPrism` (meta) | ✅ Paketleniyor | 0 |
+
+Testler: 42 birim testi geçiyor. Build, pack ve format kapıları sıfır uyarı.
 
 ---
 
@@ -52,8 +68,11 @@ DevUI'nin kaynak kodundan doğrulanan sınırları:
 │ PostgreSql         │ OpenAI              │                   │
 │ (kalıcılık)        │ (sağlayıcı)         │                   │
 ├────────────────────┴─────────────────────┴───────────────────┤
-│  AgentPrism.Core          katalog, derleyici, tool defteri,   │
-│                           çalıştırma kaydı, bellek içi store  │
+│  AgentPrism.Core                                              │
+│    IAgentCatalog ◄─ IAgentSource[]   (kod · MAF · veritabanı) │
+│                  └─ IAgentDecorator[] (çalıştırma kaydı)      │
+│    AgentDefinitionCompiler · CompiledAgentCache               │
+│    ToolRegistry · ModelProviderRegistry · InMemory*Store      │
 ├──────────────────────────────────────────────────────────────┤
 │  AgentPrism.Abstractions  sözleşmeler                         │
 └───────────────────────────┬──────────────────────────────────┘
@@ -101,10 +120,42 @@ Tüm servisler `TryAdd*` ile kaydedilir. Tüketici kendi implementasyonunu daha 
 
 ## 4. Kullandığımız MAF Genişleme Noktaları
 
-Aşağıdaki imzalar MAF kaynak kodundan alınmıştır (`microsoft/agent-framework`, `dotnet/src/`).
+Aşağıdaki imzalar **reflection ile doğrulanmıştır** (`Microsoft.Agents.AI` 1.16.0). Bir sonraki fazda yeni bir MAF tipi kullanacaksanız önce imzayı doğrulayın — `.agents/skills/maf-api-kesfi/SKILL.md`.
+
+### Faz 1'de kullanılanlar
 
 ```csharp
-// Microsoft.Agents.AI.Hosting/AgentSessionStore.cs — soyut, değiştirilebilir
+// Microsoft.Agents.AI.Abstractions
+abstract class AIAgent
+{
+    protected virtual Task<AgentResponse> RunCoreAsync(
+        IEnumerable<ChatMessage> messages, AgentSession? session = null,
+        AgentRunOptions? options = null, CancellationToken ct = default);
+
+    protected virtual IAsyncEnumerable<AgentResponseUpdate> RunCoreStreamingAsync(
+        IEnumerable<ChatMessage> messages, AgentSession? session = null,
+        AgentRunOptions? options = null, CancellationToken ct = default);
+}
+
+abstract class DelegatingAIAgent : AIAgent { protected DelegatingAIAgent(AIAgent innerAgent); }
+
+// DİKKAT: AgentResponse / AgentResponseUpdate — "AgentRunResponse" DEĞİL.
+sealed class AgentResponse       { IList<ChatMessage> Messages; string Text; UsageDetails? Usage; }
+sealed class AgentResponseUpdate { IList<AIContent> Contents; string Text; ChatRole? Role; }
+
+// Microsoft.Extensions.AI uzantıları
+static ChatClientAgent AsAIAgent(this IChatClient c, ChatClientAgentOptions o, ILoggerFactory? lf, IServiceProvider? sp);
+static HarnessAgent    AsHarnessAgent(this IChatClient c, HarnessAgentOptions o, ILoggerFactory? lf, IServiceProvider? sp);
+```
+
+**Tool çağrıları ayrı kanca gerektirmez.** MAF onları `FunctionCallContent` / `FunctionResultContent` olarak içeriklere koyar.
+
+**`HarnessAgentOptions` üyeleri `MAAI001` ("evaluation purposes only") tanısı üretir.** Bastırma tek dosyada toplanmıştır: `AgentDefinitionCompiler.CompileHarnessAgent`.
+
+### Faz 2 ve sonrası için hazır olanlar
+
+```csharp
+// Microsoft.Agents.AI.Hosting/AgentSessionStore.cs — soyut, değiştirilebilir  [Faz 2/4]
 public abstract class AgentSessionStore
 {
     public abstract ValueTask SaveSessionAsync(AIAgent agent, string sessionStoreId, AgentSession session, CancellationToken ct = default);
@@ -112,21 +163,21 @@ public abstract class AgentSessionStore
     public abstract ValueTask DeleteSessionAsync(AIAgent agent, string sessionStoreId, CancellationToken ct = default);
 }
 
-// Microsoft.Agents.AI/ChatHistoryProvider.cs — özel kalıcılık için taban sınıf
+// Microsoft.Agents.AI/ChatHistoryProvider — özel kalıcılık için taban sınıf  [Faz 2]
 protected virtual ValueTask<IEnumerable<ChatMessage>> ProvideChatHistoryAsync(InvokingContext ctx, CancellationToken ct);
 protected virtual ValueTask StoreChatHistoryAsync(InvokedContext ctx, CancellationToken ct);
 
-// Microsoft.Agents.AI/ProviderSessionState<T> — session içinde tipli durum
-// ÖNEMLİ: ChatHistoryProvider örneği tüm oturumlarda paylaşılır.
-// Oturuma özgü hiçbir durum alan olarak tutulamaz; AgentSession içinde saklanır.
+// Microsoft.Agents.AI/ProviderSessionState<T> — session içinde tipli durum  [Faz 2]
+ProviderSessionState(Func<AgentSession?, TState> stateInitializer, string stateKey, JsonSerializerOptions? opts);
+TState GetOrInitializeState(AgentSession session);
+void SaveState(AgentSession session, TState state);
 
-// Microsoft.Agents.AI.Hosting/HostApplicationBuilderAgentExtensions.cs
-public static IHostedAgentBuilder AddAIAgent(this IHostApplicationBuilder builder, string name, string? instructions, ...);
-public static IHostedAgentBuilder AddAIAgent(this IHostApplicationBuilder builder, string name, Func<IServiceProvider, string, AIAgent> createAgentDelegate, ...);
+// ÖNEMLİ: ChatHistoryProvider örneği TÜM oturumlarda paylaşılır.
+// Oturuma özgü hiçbir durum alan olarak tutulamaz; ProviderSessionState ile
+// AgentSession içinde saklanır.
 
-// Microsoft.Agents.AI.Hosting — çok kiracılılık için hazır yapılar
-IsolationKeyScopedAgentSessionStore
-SessionIsolationKeyProvider
+// Microsoft.Agents.AI.Hosting — çok kiracılılık  [Faz 6]
+IsolationKeyScopedAgentSessionStore · SessionIsolationKeyProvider
 ```
 
 **Kritik bulgu:** `Microsoft.Agents.AI.Hosting.OpenAI` depolama servislerini `TryAddSingleton` ile kaydeder. `AddOpenAIResponses()` çağrılmadan **önce** kendi implementasyonumuzu kaydedersek MAF'ın bellek içi sürümleri devre dışı kalır. Değiştirdiğimiz arayüzler: `IConversationStorage`, `IAgentConversationIndex`, `IResponsesService`, `IResponseExecutor`.
@@ -167,31 +218,41 @@ Kurallar:
 
 ```
 İstemci
-  │  POST /agentprism/api/agents/{name}/run   (veya /v1/responses)
+  │  POST /agentprism/api/agents/{name}/run   (veya /v1/responses)     [Faz 4]
   ▼
-AgentPrism.AspNetCore
-  │  erişim filtresi → loopback / token / policy
+AgentPrism.AspNetCore — erişim filtresi (loopback / token / policy)    [Faz 4]
   ▼
-IAgentCatalog.ResolveAsync(name)
-  │  kod agent'ı mı, DB tanımı mı?
-  ├─ kod   → MAF DI'sından çözülür
-  └─ DB    → AgentDefinitionCompiler
-              ├─ IModelProviderRegistry → IChatClient
-              ├─ IToolRegistry          → AIFunction[]
-              └─ HarnessSettings?       → AsHarnessAgent / AsAIAgent
+IAgentCatalog.ResolveAsync(name)                                       [Faz 1 ✅]
+  │
+  ├─ kaynaklar önceliğe göre denenir
+  │    CodeAgentSource (0) → MAF köprüsü (10) → DefinitionStoreAgentSource (100)
+  │
+  ├─ bildirimsel tanım ise → CompiledAgentCache.GetOrAdd(name, version)
+  │     └─ AgentDefinitionCompiler.Compile(definition)
+  │          ├─ IModelProviderRegistry → IChatClient
+  │          ├─ IToolRegistry          → AIFunction[]   (bilinmeyen ad → hata)
+  │          └─ Harness? AsHarnessAgent : AsAIAgent
+  │
+  └─ IAgentDecorator[] uygulanır (Order'a göre, büyük olan dışta)
+       └─ RunRecordingAgentDecorator → RunRecordingAgent
   ▼
-RunRecordingAgent  (DelegatingAIAgent)
+RunRecordingAgent : DelegatingAIAgent                                  [Faz 1 ✅]
+  │  RunEventWriter sıra numarasını üretir
   │  run.started → message.delta → tool.invoking → tool.invoked → run.completed
-  │  her olay IRunStore'a append edilir
+  │  FunctionCallContent / FunctionResultContent içeriklerden okunur
+  │  DEPO HATASI ÇALIŞTIRMAYI KESMEZ — yazıcı devre dışı kalır, loglanır
   ▼
-AIAgent.RunStreamingAsync(..., AgentSession)
-  │  ChatHistoryProvider oturum geçmişini yükler ve yazar
+AIAgent.RunAsync / RunStreamingAsync
+  │  ChatHistoryProvider oturum geçmişini yükler ve yazar               [Faz 2]
   ▼
-IChatClient → OpenAI
+IChatClient → OpenAI                                                   [Faz 3]
 ```
 
 **Neden `DelegatingAIAgent`, neden middleware değil?**
-MAF middleware zinciri agent'a özgüdür ve `HarnessAgent` kendi iç dekoratörlerini ekler. Dış sarmalayıcı, harness dahil **her** agent tipinde aynı şekilde çalışır. Bu yüzden çalıştırma kaydı bir sarmalayıcıdır.
+MAF middleware zinciri agent'a özgüdür ve `HarnessAgent` kendi iç dekoratörlerini ekler. Dış sarmalayıcı, harness dahil **her** agent tipinde aynı şekilde çalışır.
+
+**Neden sıra numarasını yazıcı üretir?**
+Tek bir yazıcıdan gelen numaralar deterministik sıra garantiler. Canlı akış (SSE) ve geçmişe dönük yeniden oynatma aynı sonucu verir; istemci `Last-Event-ID` ile kaldığı yerden devam edebilir.
 
 ---
 
@@ -239,6 +300,16 @@ Sonuç: MAF GA'ya geçtiğinde tek bir pakette sürüm güncellemesi yeterlidir.
 | `AgentPrism.UI` | Hayır | Gömülü varlık tarama + ASP.NET Core bağlantısı |
 
 Bu ayrım `src/Directory.Build.props` içindeki `AgentPrismAotCompatible` özelliği ile uygulanır.
+
+AOT uyumluluğu Faz 1'de üç somut kısıt getirdi:
+
+| Kısıt | Çözüm |
+|-------|-------|
+| `ValidateDataAnnotations()` yansıma kullanır | Elle yazılmış `AgentPrismOptionsValidator` |
+| `optionsBuilder.Bind()` yansıma kullanır | `EnableConfigurationBindingGenerator=true` (kaynak üreteci) |
+| Tool argümanlarını JSON'a çevirme | Elle biçimlendirme; `JsonSerializer` kullanılmaz |
+
+`AgentPrism.PostgreSql` (Faz 2) `jsonb` alanlarını serileştirirken **System.Text.Json kaynak üreteci** kullanmalıdır (`JsonSerializerContext`); yansımaya dayanan aşırı yüklemeler AOT vaadini bozar.
 
 ---
 

@@ -180,6 +180,11 @@ dotnet_diagnostic.IDE0055.severity = warning
 # Test projeleri - daha gevsek kurallar
 # ---------------------------------------------------------------------------
 [tests/**/*.cs]
+# xUnit1051: her cagriya TestContext.Current.CancellationToken gecirilmesini ister.
+# Testlerimiz bellek ici ve milisaniyeler surer; token gecirmek okunabilirligi
+# dusurur, karsiliginda bir sey kazandirmaz. Uzun suren test eklenirse
+# (Testcontainers, Playwright) o proje icin yeniden acilir.
+dotnet_diagnostic.xUnit1051.severity = none
 dotnet_diagnostic.CA1707.severity = none      # Test adlarinda alt cizgi serbest
 dotnet_diagnostic.CA2007.severity = none      # Testlerde ConfigureAwait gerekmez
 dotnet_diagnostic.MA0004.severity = none
@@ -188,4 +193,8 @@ dotnet_diagnostic.CA1861.severity = none
 
 [samples/**/*.cs]
 dotnet_diagnostic.CA1848.severity = none
+# CA2007 / MA0004: ConfigureAwait(false). Bu kurallar KUTUPHANE kodu icindir.
+# ASP.NET Core uygulamalarinda SynchronizationContext yoktur; ornek kodda
+# ConfigureAwait cagrilari yalnizca gurultu yapar ve ornegi okumasi zorlastirir.
 dotnet_diagnostic.CA2007.severity = none
+dotnet_diagnostic.MA0004.severity = none
