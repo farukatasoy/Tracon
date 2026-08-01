@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>AgentPrism icin OpenAI saglayici adaptoru. Model katalogu, IChatClient uretimi ve OpenAI'a ozgu calistirma secenekleri.</Description>
+    <PackageTags>$(CommonPackageTags);openai;gpt;provider</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../AgentPrism.Core/AgentPrism.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Agents.AI.OpenAI" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
+    <PackageReference Include="OpenAI" />
+  </ItemGroup>
+
+</Project>

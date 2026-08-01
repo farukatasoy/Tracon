@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>AgentPrism meta paketi. Microsoft Agent Framework uzerine kurulu, PostgreSQL destekli, gomulu yonetim arayuzu olan uretim seviyesi agent kontrol duzlemi. Bu paket tum AgentPrism bilesenlerini tek referansla getirir.</Description>
+    <PackageTags>$(CommonPackageTags);meta;all-in-one</PackageTags>
+    <!-- Meta paket kod icermez; bos assembly uretmemek icin derleme ciktisi paketlenmez. -->
+    <AgentPrismAotCompatible>false</AgentPrismAotCompatible>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>false</SuppressDependenciesWhenPacking>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup Label="Tum AgentPrism bilesenleri">
+    <ProjectReference Include="../AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj" />
+    <ProjectReference Include="../AgentPrism.OpenAI/AgentPrism.OpenAI.csproj" />
+    <ProjectReference Include="../AgentPrism.PostgreSql/AgentPrism.PostgreSql.csproj" />
+    <ProjectReference Include="../AgentPrism.UI/AgentPrism.UI.csproj" />
+  </ItemGroup>
+
+</Project>

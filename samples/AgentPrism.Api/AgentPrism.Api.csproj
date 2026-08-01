@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>AgentPrism.Api</RootNamespace>
+    <UserSecretsId>agentprism-sample-api</UserSecretsId>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/AgentPrism/AgentPrism.csproj" />
+  </ItemGroup>
+
+</Project>
