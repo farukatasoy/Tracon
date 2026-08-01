@@ -76,13 +76,24 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<IModelProviderRegistry>(),
             provider.GetRequiredService<IToolRegistry>(),
             provider.GetService<Microsoft.Extensions.Logging.ILoggerFactory>(),
-            provider));
+            provider,
+            // Kayitli degilse MAF'in bellek ici varsayilani kullanilir.
+            // AgentPrism.PostgreSql bunu PostgresChatHistoryProvider ile doldurur.
+            provider.GetService<Microsoft.Agents.AI.ChatHistoryProvider>()));
 
         // Bellek ici depolar. Kalicilik paketi (AgentPrism.PostgreSql) bunlari
         // kendi uygulamalariyla degistirir.
         services.TryAddSingleton<IAgentDefinitionStore, InMemoryAgentDefinitionStore>();
         services.TryAddSingleton<IRunStore, InMemoryRunStore>();
         services.TryAddSingleton<ISessionStore, InMemorySessionStore>();
+
+        // Oturum yasam dongusu. Depodan bagimsizdir.
+        // Acik fabrika kullaniliyor: yerlesik DI kabi varsayilan deger tasiyan
+        // kurucu parametrelerini doldurmaz, TimeProvider kayitli olmayabilir.
+        services.TryAddSingleton(static provider => new AgentSessionManager(
+            provider.GetRequiredService<ISessionStore>(),
+            provider.GetRequiredService<ITenantContext>(),
+            provider.GetService<TimeProvider>()));
 
         // Katalog kaynaklari. TryAddEnumerable ayni tipin iki kez eklenmesini engeller.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentSource, CodeAgentSource>());

@@ -7,6 +7,23 @@
 
 ---
 
+## Faz 2'den Devralınanlar
+
+Bu fazın dayandığı, **tamamlanmış ve testli** parçalar:
+
+| Ne | Nerede | Not |
+|----|--------|-----|
+| `conversations` + `conversation_items` tabloları | `0001_initial.sql` | `PostgresChatHistoryProvider` zaten yazıyor. OpenAI uyumlu Conversations API'si **aynı tabloları** kullanmalı; ikinci bir tablo açma. |
+| `responses` tablosu | `0001_initial.sql` | Boş. `PostgresResponsesService` bu fazda doldurur. |
+| `AgentSessionManager` | `Core/Sessions/` | MAF'ın `AgentSessionStore` uygulaması **buna delege eder** — kendi kalıcılık kodunu yazma. Karar K-026. |
+| `AgentSessionIdentity` | `Core/Sessions/` | Oturum kimliği `AgentSession.StateBag` içinde. `AgentSessionStore.sessionStoreId` bu damgayla eşleşmelidir. |
+| Kiracı yalıtımı | `Postgres*Store` + `ITenantContext` | Depolar zaten `ITenantContext.TenantId` ile sınırlı. HTTP katmanı yalnız doğru `ITenantContext`'i kaydetmekle yükümlü. |
+| `/api/meta` için depo tipi bilgisi | — | Örnek API `/health` içinde `runStore.GetType().Name` döndürüyor; aynı desen `/api/meta` için kullanılabilir (karar K-018). |
+
+🚨 **Tuzak:** `conversation_items.item` sütunu `json`, `jsonb` **değil** (karar K-027). Polimorfik `$type` ayracı ilk özellik olmak zorundadır ve `jsonb` anahtarları yeniden sıralar. Bu fazda `responses.payload` için de aynı soruyu sorun: yük polimorfik mi?
+
+---
+
 ## Amaç
 
 Arayüzün ve dış istemcilerin konuşacağı yüzeyi kurmak. Tek giriş noktası: `app.MapAgentPrism()`.

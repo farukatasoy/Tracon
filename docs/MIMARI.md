@@ -9,14 +9,15 @@
 | Paket | Durum | Faz |
 |-------|-------|-----|
 | `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 |
-| `AgentPrism.Core` | ✅ Tamamlandı | 1 |
-| `AgentPrism.PostgreSql` | ⬜ İskelet | 2 |
+| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) |
+| `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 |
 | `AgentPrism.OpenAI` | ⬜ İskelet | 3 |
 | `AgentPrism.AspNetCore` | ⬜ İskelet | 4 |
 | `AgentPrism.UI` | ⬜ İskelet | 5 |
 | `AgentPrism` (meta) | ✅ Paketleniyor | 0 |
 
-Testler: 42 birim testi geçiyor. Build, pack ve format kapıları sıfır uyarı.
+Testler: **130 test geçiyor** — 42 birim testi + 88 entegrasyon testi (Testcontainers, gerçek PostgreSQL).
+Build, test, pack ve format kapıları sıfır uyarı.
 
 ---
 
@@ -72,6 +73,7 @@ DevUI'nin kaynak kodundan doğrulanan sınırları:
 │    IAgentCatalog ◄─ IAgentSource[]   (kod · MAF · veritabanı) │
 │                  └─ IAgentDecorator[] (çalıştırma kaydı)      │
 │    AgentDefinitionCompiler · CompiledAgentCache               │
+│    AgentSessionManager · AgentSessionIdentity                 │
 │    ToolRegistry · ModelProviderRegistry · InMemory*Store      │
 ├──────────────────────────────────────────────────────────────┤
 │  AgentPrism.Abstractions  sözleşmeler                         │
@@ -152,29 +154,62 @@ static HarnessAgent    AsHarnessAgent(this IChatClient c, HarnessAgentOptions o,
 
 **`HarnessAgentOptions` üyeleri `MAAI001` ("evaluation purposes only") tanısı üretir.** Bastırma tek dosyada toplanmıştır: `AgentDefinitionCompiler.CompileHarnessAgent`.
 
-### Faz 2 ve sonrası için hazır olanlar
+### Faz 2'de kullanılanlar
+
+Aşağıdaki imzalar `AgentPrism.PostgreSql` içinde **gerçekten uygulandı** ve testlidir.
 
 ```csharp
-// Microsoft.Agents.AI.Hosting/AgentSessionStore.cs — soyut, değiştirilebilir  [Faz 2/4]
+// Microsoft.Agents.AI/ChatHistoryProvider — özel kalıcılık için taban sınıf
+public abstract class ChatHistoryProvider
+{
+    // DİKKAT: parametresiz protected ctor YOKTUR. Üç filtreyi de vermek gerekir.
+    protected ChatHistoryProvider(
+        Func<IEnumerable<ChatMessage>, IEnumerable<ChatMessage>>? provideOutputMessageFilter,
+        Func<IEnumerable<ChatMessage>, IEnumerable<ChatMessage>>? storeInputRequestMessageFilter,
+        Func<IEnumerable<ChatMessage>, IEnumerable<ChatMessage>>? storeInputResponseMessageFilter);
+
+    public virtual IReadOnlyList<string> StateKeys { get; }
+    protected virtual ValueTask<IEnumerable<ChatMessage>> ProvideChatHistoryAsync(InvokingContext ctx, CancellationToken ct = default);
+    protected virtual ValueTask StoreChatHistoryAsync(InvokedContext ctx, CancellationToken ct = default);
+}
+
+// İç içe bağlam tipleri — ChatHistoryProvider.InvokingContext / .InvokedContext
+sealed class InvokingContext { AIAgent Agent; AgentSession? Session; IEnumerable<ChatMessage> RequestMessages; }
+sealed class InvokedContext  { AIAgent Agent; AgentSession? Session; IEnumerable<ChatMessage> RequestMessages;
+                               IEnumerable<ChatMessage>? ResponseMessages; Exception? InvokeException; }
+
+// Microsoft.Agents.AI/ProviderSessionState<TState> — session içinde tipli durum
+ProviderSessionState(Func<AgentSession, TState> stateInitializer, string stateKey, JsonSerializerOptions? opts);
+TState GetOrInitializeState(AgentSession session);
+void   SaveState(AgentSession session, TState state);
+
+// Microsoft.Agents.AI.Abstractions/AgentSessionStateBag — oturumla birlikte kalıcılaşır
+JsonElement Serialize();
+void        SetValue<T>(string key, T value, JsonSerializerOptions? opts);
+bool        TryGetValue<T>(string key, out T value, JsonSerializerOptions? opts);
+
+// AIAgent — oturum yaşam döngüsü
+ValueTask<AgentSession> CreateSessionAsync(CancellationToken ct = default);
+ValueTask<JsonElement>  SerializeSessionAsync(AgentSession session, JsonSerializerOptions? opts, CancellationToken ct = default);
+ValueTask<AgentSession> DeserializeSessionAsync(JsonElement state, JsonSerializerOptions? opts, CancellationToken ct = default);
+
+// ChatClientAgentOptions ve HarnessAgentOptions — İKİSİNDE DE var:
+ChatHistoryProvider? ChatHistoryProvider { get; set; }
+```
+
+**ÖNEMLİ:** `ChatHistoryProvider` örneği **tüm oturumlarda paylaşılır**. Oturuma özgü hiçbir durum alan olarak tutulamaz; `ProviderSessionState` ile `AgentSession` içinde saklanır. `PostgresChatHistoryProvider` yalnız `NpgsqlDataSource` referansını tutar.
+
+### Faz 4 ve sonrası için hazır olanlar
+
+```csharp
+// Microsoft.Agents.AI.Hosting/AgentSessionStore.cs — ÖN SÜRÜM, K-008 gereği Faz 4  [Faz 4]
 public abstract class AgentSessionStore
 {
     public abstract ValueTask SaveSessionAsync(AIAgent agent, string sessionStoreId, AgentSession session, CancellationToken ct = default);
     public abstract ValueTask<AgentSession> GetSessionAsync(AIAgent agent, string sessionStoreId, CancellationToken ct = default);
     public abstract ValueTask DeleteSessionAsync(AIAgent agent, string sessionStoreId, CancellationToken ct = default);
 }
-
-// Microsoft.Agents.AI/ChatHistoryProvider — özel kalıcılık için taban sınıf  [Faz 2]
-protected virtual ValueTask<IEnumerable<ChatMessage>> ProvideChatHistoryAsync(InvokingContext ctx, CancellationToken ct);
-protected virtual ValueTask StoreChatHistoryAsync(InvokedContext ctx, CancellationToken ct);
-
-// Microsoft.Agents.AI/ProviderSessionState<T> — session içinde tipli durum  [Faz 2]
-ProviderSessionState(Func<AgentSession?, TState> stateInitializer, string stateKey, JsonSerializerOptions? opts);
-TState GetOrInitializeState(AgentSession session);
-void SaveState(AgentSession session, TState state);
-
-// ÖNEMLİ: ChatHistoryProvider örneği TÜM oturumlarda paylaşılır.
-// Oturuma özgü hiçbir durum alan olarak tutulamaz; ProviderSessionState ile
-// AgentSession içinde saklanır.
+// Uygulaması AgentPrism.Core'daki AgentSessionManager'a delege eder (karar K-026).
 
 // Microsoft.Agents.AI.Hosting — çok kiracılılık  [Faz 6]
 IsolationKeyScopedAgentSessionStore · SessionIsolationKeyProvider
@@ -194,9 +229,9 @@ Ayrı şema kullanılır. Tüketici uygulamanın `public` şemasına **hiç doku
 | `tenants` | Kiracı kaydı; tek kiracıda tek varsayılan satır |
 | `agent_definitions` | Agent tanımının güncel hali |
 | `agent_definition_versions` | Değişmez versiyon geçmişi, geri alma için |
-| `sessions` | Serileştirilmiş `AgentSession` (jsonb) + agent adı + kiracı |
-| `conversations` | OpenAI uyumlu konuşma kaydı |
-| `conversation_items` | Konuşma mesajları, sıralı |
+| `sessions` | Serileştirilmiş `AgentSession` (**`json`**) + agent adı + kiracı + `schema_version` |
+| `conversations` | Konuşma başlığı; `PostgresChatHistoryProvider` yazar, Faz 4'te Conversations API'si de kullanır |
+| `conversation_items` | Konuşma mesajları, sıralı (**`json`**) |
 | `responses` | Responses API yanıt kayıtları |
 | `runs` | Çalıştırma özeti: agent, oturum, durum, token, süre, maliyet |
 | `run_events` | Append-only olay akışı, `(run_id, seq)` birincil anahtar |
@@ -207,10 +242,14 @@ Ayrı şema kullanılır. Tüketici uygulamanın `public` şemasına **hiç doku
 Kurallar:
 
 - Zaman alanları `timestamptz`, her zaman UTC
-- Serbest yapılı alanlar `jsonb`; sorgulanan yollarda GIN index
-- Birincil anahtarlar `uuid` v7 — zaman sıralı, index dostu
-- Her tabloda `tenant_id`; tek kiracıda sabit varsayılan
-- `run_events` partition'a hazır (`created_at`), partition Faz 6'da açılır
+- **Sorgulanan** serbest yapılı alanlar `jsonb`, sorgulanan yollarda GIN index
+- 🚨 **Opak ve polimorfik yükler `json`, `jsonb` DEĞİL.** `jsonb` nesne anahtarlarını yeniden sıralar; System.Text.Json'ın `$type` ayracı ilk özellik olmak zorundadır. `sessions.state` ve `conversation_items.item` bu yüzden `json`. Karar K-027.
+- `run_events.payload` `text` — `RunEventWriter` argümanları AOT uyumlu kalmak için elle biçimlendirir, çıktı geçerli JSON olmayabilir
+- Birincil anahtarlar `uuid` v7 — zaman sıralı, index dostu; uygulama üretir (`AgentPrismId.NewId()`), `gen_random_uuid()` **kullanılmaz**
+- `RunStatus` ve `RunEventType` `smallint` olarak saklanır; enum değerleri kararlıdır
+- Her tabloda `tenant_id` (`text`); `tenants` tablosuna **yabancı anahtar yoktur** — kısıt Faz 6'da kiracı yönetimiyle gelir
+- Şema adı yapılandırılabilir (`AgentPrismPostgreSqlOptions.SchemaName`); `.sql` dosyalarındaki `{schema}` yer tutucusu katı doğrulamadan sonra değiştirilir (karar K-029)
+- `run_events` partition'a **aday** (`created_at`); açılırsa birincil anahtarın o sütunu da içermesi gerekir
 
 ---
 
@@ -243,10 +282,30 @@ RunRecordingAgent : DelegatingAIAgent                                  [Faz 1 �
   │  DEPO HATASI ÇALIŞTIRMAYI KESMEZ — yazıcı devre dışı kalır, loglanır
   ▼
 AIAgent.RunAsync / RunStreamingAsync
-  │  ChatHistoryProvider oturum geçmişini yükler ve yazar               [Faz 2]
+  │  PostgresChatHistoryProvider geçmişi conversation_items'tan yükler  [Faz 2 ✅]
+  │  ve çalıştırma sonunda geri yazar
   ▼
 IChatClient → OpenAI                                                   [Faz 3]
 ```
+
+**Oturum yolu** (Faz 2 ✅) — çalıştırmadan bağımsız, çağıran tarafından yönetilir:
+
+```
+AgentSessionManager.GetOrCreateSessionAsync(agent, sessionId)
+  │  ISessionStore.GetAsync(sessionId)          → sessions tablosu
+  │  kayıt varsa  → agent.DeserializeSessionAsync(record.State)
+  │  kayıt yoksa  → agent.CreateSessionAsync()
+  └─ AgentSessionIdentity.SetId(session, sessionId)   → StateBag'e damga
+  ▼
+agent.RunAsync(message, session)
+  │  RunRecordingAgent → AgentSessionIdentity.GetId(session) → RunRecord.SessionId
+  │  PostgresChatHistoryProvider → ProviderSessionState → conversation_id
+  ▼
+AgentSessionManager.SaveSessionAsync(agent, session)
+     agent.SerializeSessionAsync(session) → ISessionStore.SaveAsync()
+```
+
+Damga oturumun `StateBag` alanında yaşar ve `SerializeSessionAsync` çıktısına dahildir; bu yüzden geri yüklenen bir oturum kendi kimliğini bilir.
 
 **Neden `DelegatingAIAgent`, neden middleware değil?**
 MAF middleware zinciri agent'a özgüdür ve `HarnessAgent` kendi iç dekoratörlerini ekler. Dış sarmalayıcı, harness dahil **her** agent tipinde aynı şekilde çalışır.
