@@ -1,0 +1,70 @@
+<Project>
+
+  <!--
+    Kok seviyesi ortak ayarlar. Tum projeler bunu miras alir.
+    Paketleme metadata'si src/Directory.Build.props icinde; test ve ornek
+    projelerinin kendi Directory.Build.props dosyalari vardir.
+  -->
+
+  <PropertyGroup Label="Repo yollari">
+    <RepositoryRootPath>$(MSBuildThisFileDirectory)</RepositoryRootPath>
+    <ArtifactsPath>$(RepositoryRootPath)artifacts</ArtifactsPath>
+    <UseArtifactsOutput>true</UseArtifactsOutput>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Dil ve derleyici">
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Kalite kapilari">
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsNotAsErrors></WarningsNotAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <AnalysisMode>Recommended</AnalysisMode>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Deterministik build">
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition=" '$(CI)' == 'true' ">true</ContinuousIntegrationBuild>
+    <DebugType>portable</DebugType>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!--
+    Gecisli sabitleme (transitive pinning) bilerek KAPALI.
+    Acik oldugunda NuGet, gecisli bagimliliklari uretilen .nuspec dosyasina
+    DOGRUDAN bagimlilik olarak yazar. Bir uygulamada bu istenen davranistir
+    (guvenlik yamalarini zorlamak icin), ancak bir kutuphanede tuketicinin
+    bagimlilik grafigini kirletir ve onu bizim sabitledigimiz surumlere baglar.
+    Gecisli bir surumu zorlamamiz gerekirse bilincli bir PackageReference ekleriz.
+    Gerekce: docs/KARARLAR.md, karar K-007.
+  -->
+  <PropertyGroup Label="Merkezi paket yonetimi">
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <!--
+    Public API takibi Faz 7'de acilir. O ana kadar analyzer yuklu durur ancak
+    RS0016 (eksik kayit) ve kardesleri build'i kirmaz. Faz 7'de bu ozellik
+    true yapilir ve PublicAPI.Shipped.txt dosyalari donduruluyor.
+  -->
+  <PropertyGroup Label="Public API takibi">
+    <EnablePublicApiTracking>false</EnablePublicApiTracking>
+    <NoWarn Condition=" '$(EnablePublicApiTracking)' != 'true' ">$(NoWarn);RS0016;RS0017;RS0022;RS0024;RS0025;RS0026;RS0027;RS0036;RS0037;RS0041</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup Label="Tum projelerde gecerli analyzer'lar">
+    <PackageReference Include="Meziantou.Analyzer" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+  </ItemGroup>
+
+  <ItemGroup Label="Ortak dosyalar">
+    <None Include="$(RepositoryRootPath).editorconfig" Link=".editorconfig" Visible="false" />
+  </ItemGroup>
+
+</Project>

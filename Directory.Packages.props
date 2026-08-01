@@ -1,0 +1,89 @@
+<Project>
+
+  <!--
+    Merkezi Paket Yonetimi (Central Package Management).
+    Surumler yalnizca burada tanimlanir. Projeler <PackageReference Include="..." />
+    yazar, Version yazmaz. Boylece surum kaymasi imkansiz hale gelir.
+
+    Microsoft Agent Framework surum notu:
+      GA     -> Microsoft.Agents.AI, .Abstractions, .OpenAI, .Workflows, .Harness
+      preview-> Microsoft.Agents.AI.Hosting
+      alpha  -> Microsoft.Agents.AI.Hosting.OpenAI
+    Preview/alpha bagimliliklari yalnizca AgentPrism.AspNetCore icinde toplanir.
+    Ayrinti: docs/KARARLAR.md, karar K-008.
+  -->
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- Tum MAF GA paketleri ayni surumde ilerler. -->
+    <MicrosoftAgentsAIVersion>1.16.0</MicrosoftAgentsAIVersion>
+    <MicrosoftExtensionsVersion>10.0.10</MicrosoftExtensionsVersion>
+  </PropertyGroup>
+
+  <ItemGroup Label="Microsoft Agent Framework - GA">
+    <PackageVersion Include="Microsoft.Agents.AI" Version="$(MicrosoftAgentsAIVersion)" />
+    <PackageVersion Include="Microsoft.Agents.AI.Abstractions" Version="$(MicrosoftAgentsAIVersion)" />
+    <PackageVersion Include="Microsoft.Agents.AI.Harness" Version="$(MicrosoftAgentsAIVersion)" />
+    <PackageVersion Include="Microsoft.Agents.AI.OpenAI" Version="$(MicrosoftAgentsAIVersion)" />
+    <PackageVersion Include="Microsoft.Agents.AI.Workflows" Version="$(MicrosoftAgentsAIVersion)" />
+  </ItemGroup>
+
+  <ItemGroup Label="Microsoft Agent Framework - onsurum (yalnizca AgentPrism.AspNetCore)">
+    <PackageVersion Include="Microsoft.Agents.AI.Hosting" Version="1.16.0-preview.260730.1" />
+    <PackageVersion Include="Microsoft.Agents.AI.Hosting.OpenAI" Version="1.16.0-alpha.260730.1" />
+  </ItemGroup>
+
+  <ItemGroup Label="Microsoft.Extensions.AI">
+    <PackageVersion Include="Microsoft.Extensions.AI" Version="10.8.3" />
+    <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.8.3" />
+    <PackageVersion Include="Microsoft.Extensions.AI.OpenAI" Version="10.8.3" />
+  </ItemGroup>
+
+  <ItemGroup Label="Microsoft.Extensions - barindirma ve DI">
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageVersion Include="Microsoft.Extensions.Options.DataAnnotations" Version="$(MicrosoftExtensionsVersion)" />
+  </ItemGroup>
+
+  <ItemGroup Label="Saglayicilar">
+    <PackageVersion Include="OpenAI" Version="2.12.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Veri erisimi">
+    <PackageVersion Include="Npgsql" Version="10.0.3" />
+  </ItemGroup>
+
+  <ItemGroup Label="Gozlemlenebilirlik">
+    <PackageVersion Include="OpenTelemetry.Api" Version="1.17.0" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.17.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Analyzer'lar (PrivateAssets=all)">
+    <PackageVersion Include="Meziantou.Analyzer" Version="3.0.138" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="5.6.0" />
+    <PackageVersion Include="MinVer" Version="7.0.0" />
+  </ItemGroup>
+
+  <!--
+    Test yigini: xunit.v3 + Microsoft Testing Platform (MTP).
+    Microsoft.NET.Test.Sdk ve xunit.runner.visualstudio BILEREK YOK - bunlar VSTest icindir
+    ve xunit.v3 ile birlikte kullanildiklarinda `dotnet test` calismaz.
+    Microsoft.AspNetCore.Mvc.Testing (Faz 4) ve Testcontainers.PostgreSql (Faz 2)
+    surumleri simdiden sabitlenmistir; ilgili test projeleri o fazlarda eklenir.
+  -->
+  <ItemGroup Label="Test">
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.10" />
+    <!-- 1.x serisi: xunit.v3 3.2.2 Microsoft Testing Platform v1 uzerine kuruludur.
+         2.x TrxReport, Testing.Platform 2.x ceker ve calisma aninda TypeLoadException verir. -->
+    <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="1.9.1" />
+    <PackageVersion Include="NSubstitute" Version="6.0.0" />
+    <PackageVersion Include="Shouldly" Version="4.3.0" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.13.0" />
+    <PackageVersion Include="xunit.v3" Version="3.2.2" />
+  </ItemGroup>
+
+</Project>
