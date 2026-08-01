@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>AgentPrismUI - gomulu yonetim arayuzu. React + TypeScript ile yazilmis tek sayfa uygulama, assembly icine gomulur ve /agentprism altindan sunulur. Tuketici projede hicbir JavaScript bagimliligi olusturmaz.</Description>
+    <PackageTags>$(CommonPackageTags);ui;dashboard;devui;playground</PackageTags>
+    <!-- Gomulu varlik tarama ve ASP.NET Core baglantisi nedeniyle AOT vaadi verilemez. -->
+    <AgentPrismAotCompatible>false</AgentPrismAotCompatible>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Frontend build (Faz 5)">
+    <!--
+      Frontend kaynagi frontend/ altinda. Vite ciktisi wwwroot/ icine yazilir ve
+      EmbeddedResource olarak assembly'ye gomulur. Faz 5'te AgentPrism.UI.Frontend.targets
+      dosyasi 'npm ci && npm run build' adimini bu bayrakla calistirir.
+    -->
+    <AgentPrismFrontendEnabled>false</AgentPrismFrontendEnabled>
+    <AgentPrismFrontendRoot>$(MSBuildProjectDirectory)/frontend</AgentPrismFrontendRoot>
+    <AgentPrismFrontendOutput>$(MSBuildProjectDirectory)/wwwroot</AgentPrismFrontendOutput>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Label="Gomulu arayuz varliklari (Faz 5)">
+    <EmbeddedResource Include="wwwroot/**/*" LogicalName="AgentPrism.UI.wwwroot.%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>

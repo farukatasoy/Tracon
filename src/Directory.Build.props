@@ -1,0 +1,73 @@
+<Project>
+
+  <!-- Kok Directory.Build.props'u once yukle. -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <!--
+    src/ altindaki her proje yayinlanabilir bir NuGet paketidir.
+    Ortak paketleme metadata'si burada tanimlanir; her proje yalnizca
+    <Description> ve <PackageTags> degerlerini kendi csproj dosyasinda verir.
+  -->
+
+  <PropertyGroup Label="Hedef framework">
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+  </PropertyGroup>
+
+  <!--
+    Trim ve AOT uyumlulugu.
+    Varsayilan olarak aciktir; boylece kirpilmis ve native AOT uygulamalarda
+    calisan bir kutuphane elde ederiz. ASP.NET Core minimal API yonlendirmesi
+    ve gomulu arayuz varlik tarama yapisi dogasi geregi reflection kullanir,
+    bu yuzden AgentPrism.AspNetCore ve AgentPrism.UI kendi csproj dosyalarinda
+    AgentPrismAotCompatible=false yazarak devre disi birakir.
+    Gerekce: docs/KARARLAR.md, karar K-006.
+  -->
+  <PropertyGroup Label="Trim / AOT">
+    <AgentPrismAotCompatible Condition=" '$(AgentPrismAotCompatible)' == '' ">true</AgentPrismAotCompatible>
+    <IsAotCompatible Condition=" '$(AgentPrismAotCompatible)' == 'true' ">true</IsAotCompatible>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Paketleme">
+    <IsPackable>true</IsPackable>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <Authors>Faruk Atasoy</Authors>
+    <Company>Intelera</Company>
+    <Product>AgentPrism</Product>
+    <Copyright>Copyright (c) Faruk Atasoy</Copyright>
+    <PackageProjectUrl>https://github.com/farukatasoy/AgentPrism</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/farukatasoy/AgentPrism</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <!-- Ortak etiketler; projeler PackageTags icinde $(CommonPackageTags) kullanir. -->
+    <CommonPackageTags>agentprism;ai;agents;microsoft-agent-framework;llm;dotnet</CommonPackageTags>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Surumleme (MinVer - git tag'inden)">
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+    <MinVerAutoIncrement>minor</MinVerAutoIncrement>
+    <MinVerDefaultPreReleaseIdentifiers>preview.0</MinVerDefaultPreReleaseIdentifiers>
+  </PropertyGroup>
+
+  <ItemGroup Label="Paket dosyalari">
+    <None Include="README.md" Pack="true" PackagePath="\" Visible="true" />
+  </ItemGroup>
+
+  <ItemGroup Label="Yayinlanabilir paketlerde ek analyzer'lar">
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+    <PackageReference Include="MinVer" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+  </ItemGroup>
+
+  <ItemGroup Label="Ic gorunurluk - test projeleri">
+    <InternalsVisibleTo Include="$(MSBuildProjectName).UnitTests" />
+    <InternalsVisibleTo Include="$(MSBuildProjectName).IntegrationTests" />
+    <InternalsVisibleTo Include="$(MSBuildProjectName).FunctionalTests" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,55 @@
+<Solution>
+
+  <Folder Name="/src/">
+    <Project Path="src/AgentPrism.Abstractions/AgentPrism.Abstractions.csproj" />
+    <Project Path="src/AgentPrism.Core/AgentPrism.Core.csproj" />
+    <Project Path="src/AgentPrism.PostgreSql/AgentPrism.PostgreSql.csproj" />
+    <Project Path="src/AgentPrism.OpenAI/AgentPrism.OpenAI.csproj" />
+    <Project Path="src/AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj" />
+    <Project Path="src/AgentPrism.UI/AgentPrism.UI.csproj" />
+    <Project Path="src/AgentPrism/AgentPrism.csproj" />
+  </Folder>
+
+  <Folder Name="/samples/">
+    <Project Path="samples/AgentPrism.Api/AgentPrism.Api.csproj" />
+  </Folder>
+
+  <Folder Name="/tests/">
+    <!--
+      Diger test projeleri, test edecekleri sey geldiginde eklenir:
+        AgentPrism.PostgreSql.IntegrationTests  -> Faz 2
+        AgentPrism.AspNetCore.FunctionalTests   -> Faz 4
+        AgentPrism.Ui.E2ETests                  -> Faz 5
+      Gerekce: `dotnet test` sifir testli bir projede hata verir ve CI'i kirar.
+      Sahte test eklemek yerine proje, gercek testi ile birlikte olusturulur.
+    -->
+    <Project Path="tests/AgentPrism.Core.UnitTests/AgentPrism.Core.UnitTests.csproj" />
+  </Folder>
+
+  <Folder Name="/solution-items/">
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Build.targets" />
+    <File Path="Directory.Packages.props" />
+    <File Path="NuGet.config" />
+    <File Path="global.json" />
+    <File Path=".editorconfig" />
+    <File Path=".gitignore" />
+    <File Path="README.md" />
+    <File Path="AGENTS.md" />
+    <File Path="MEMORY.md" />
+  </Folder>
+
+  <Folder Name="/docs/">
+    <File Path="docs/MIMARI.md" />
+    <File Path="docs/KARARLAR.md" />
+    <File Path="docs/00-ALTYAPI.md" />
+    <File Path="docs/01-CEKIRDEK-SOYUTLAMALAR.md" />
+    <File Path="docs/02-POSTGRESQL-KALICILIK.md" />
+    <File Path="docs/03-SAGLAYICI-VE-DERLEYICI.md" />
+    <File Path="docs/04-HTTP-API.md" />
+    <File Path="docs/05-AGENTPRISM-UI.md" />
+    <File Path="docs/06-GOZLEMLENEBILIRLIK.md" />
+    <File Path="docs/07-SAGLAMLASTIRMA-VE-YAYIN.md" />
+  </Folder>
+
+</Solution>

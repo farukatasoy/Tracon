@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>AgentPrism icin PostgreSQL kalicilik katmani. Agent tanimlari, oturumlar, konusmalar, calistirmalar ve olaylar ayri bir 'agentprism' semasinda saklanir. Gomulu SQL migration'lari ile gelir.</Description>
+    <PackageTags>$(CommonPackageTags);postgresql;postgres;npgsql;persistence</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../AgentPrism.Core/AgentPrism.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+
+  <ItemGroup Label="Gomulu SQL migration'lari (Faz 2)">
+    <EmbeddedResource Include="Migrations/**/*.sql" />
+  </ItemGroup>
+
+</Project>
