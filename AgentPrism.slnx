@@ -17,13 +17,13 @@
   <Folder Name="/tests/">
     <!--
       Diger test projeleri, test edecekleri sey geldiginde eklenir:
-        AgentPrism.PostgreSql.IntegrationTests  -> Faz 2
         AgentPrism.AspNetCore.FunctionalTests   -> Faz 4
         AgentPrism.Ui.E2ETests                  -> Faz 5
       Gerekce: `dotnet test` sifir testli bir projede hata verir ve CI'i kirar.
       Sahte test eklemek yerine proje, gercek testi ile birlikte olusturulur.
     -->
     <Project Path="tests/AgentPrism.Core.UnitTests/AgentPrism.Core.UnitTests.csproj" />
+    <Project Path="tests/AgentPrism.PostgreSql.IntegrationTests/AgentPrism.PostgreSql.IntegrationTests.csproj" />
   </Folder>
 
   <Folder Name="/solution-items/">

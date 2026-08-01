@@ -152,7 +152,7 @@ CI'da `npm run build` sonrası gzip boyutu ölçülür. 250 KB aşılırsa build
 
 ```bash
 cd samples/AgentPrism.Api
-dotnet user-secrets set "AgentPrism:ConnectionString" "<host>"
+dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "<host>"
 dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" "<key>"
 dotnet run
 ```

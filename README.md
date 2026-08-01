@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Projesine ekleyen geliştirici kendi AI harness'ini kolay ama esnek şekilde kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 1 tamamlandı — çekirdek runtime çalışıyor. Agent tanımlanır, çalıştırılır ve çalıştırma olay olay okunur; hiçbir altyapı gerekmez. Kalıcılık Faz 2'de, HTTP katmanı Faz 4'te, arayüz Faz 5'te gelir. Yol haritası aşağıda.
+> **Durum:** Faz 2 tamamlandı — çekirdek runtime ve PostgreSQL kalıcılığı çalışıyor. Agent tanımlanır, çalıştırılır, oturum ve sohbet geçmişi yeniden başlatmayı atlatır. Veritabanı hâlâ **zorunlu değildir**; yapılandırılmazsa depolama bellek içine düşer. Sağlayıcı Faz 3'te, HTTP katmanı Faz 4'te, arayüz Faz 5'te gelir.
 
 **Hedef** (Faz 5 sonunda):
 
@@ -19,7 +19,7 @@ app.MapAgentPrism("/agentprism");
 
 İki satır. Çalışan bir agent, kalıcı oturumlar ve tarayıcıda bir kontrol düzlemi.
 
-**Bugün çalışan** (Faz 1):
+**Bugün çalışan** (Faz 2):
 
 ```csharp
 builder.AddAgentPrism()
@@ -31,19 +31,26 @@ builder.AddAgentPrism()
            Instructions = "Sen bir destek asistanısın.",
            Model = new ModelBinding { Provider = "openai", Model = "gpt-5.4-mini" },
            ToolNames = ["get_order_status"],
-       });
+       })
+       .UsePostgreSql(connectionString);      // ← Faz 2; isteğe bağlı
 
-// Çalıştır ve kaydı oku
+// Kalıcı oturumla çalıştır
 var agent = await catalog.ResolveAsync("support");
-var response = await agent!.RunAsync("Siparişim nerede?");
+var session = await sessions.GetOrCreateSessionAsync(agent!, "musteri-42");
 
+var response = await agent!.RunAsync("Siparişim nerede?", session);
+await sessions.SaveSessionAsync(agent, session);
+
+// Çalıştırmayı olay olay oku
 await foreach (var e in runStore.ReadEventsAsync(runId))
 {
     Console.WriteLine($"#{e.Sequence} {e.Type} {e.Text}");
 }
 ```
 
-Veritabanı gerekmez — depolama bellek içine düşer. Çalışan örnek: [`samples/AgentPrism.Api`](samples/AgentPrism.Api).
+`UsePostgreSql()` çağrılmazsa depolama bellek içine düşer ve hiçbir şey kırılmaz. Şema, gömülü SQL migration'ları ile ayrı bir `agentprism` şemasında oluşur; uygulamanızın `public` şemasına dokunulmaz.
+
+Çalışan örnek: [`samples/AgentPrism.Api`](samples/AgentPrism.Api).
 
 ---
 
@@ -73,8 +80,8 @@ AgentPrism bu boşluğu doldurur. DevUI'nin yerine geçmez — bıraktığı yer
 |-------|----------|
 | `AgentPrism` | Meta paket — hepsini tek referansla getirir |
 | `AgentPrism.Abstractions` | ✅ Sözleşmeler; kendi implementasyonunuzu yazacaksanız yeterli |
-| `AgentPrism.Core` | ✅ Çalışma zamanı, katalog, tanım derleyicisi, tool defteri. **Veritabanı gerektirmez.** |
-| `AgentPrism.PostgreSql` | ⬜ Kalıcılık — gömülü SQL migration'ları ile (Faz 2) |
+| `AgentPrism.Core` | ✅ Çalışma zamanı, katalog, tanım derleyicisi, tool defteri, oturum yönetimi. **Veritabanı gerektirmez.** |
+| `AgentPrism.PostgreSql` | ✅ Kalıcılık — gömülü SQL migration'ları, ayrı `agentprism` şeması |
 | `AgentPrism.OpenAI` | ⬜ OpenAI sağlayıcı adaptörü (Faz 3) |
 | `AgentPrism.AspNetCore` | ⬜ HTTP katmanı — yönetim API'si + OpenAI uyumlu uçlar (Faz 4) |
 | `AgentPrism.UI` | ⬜ Gömülü React arayüzü (Faz 5) |
@@ -96,8 +103,8 @@ Bağlantı dizesi ve API anahtarı repoya **hiç girmez**. `dotnet user-secrets`
 ```bash
 cd <projeniz>
 dotnet user-secrets init
-dotnet user-secrets set "AgentPrism:ConnectionString"        "Host=...;Port=5432;Database=AgentPrism;Username=...;Password=..."
-dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" "sk-..."
+dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=...;Port=5432;Database=AgentPrism;Username=...;Password=..."
+dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey"     "sk-..."
 ```
 
 `appsettings.json` yalnız şemayı gösterir, değer taşımaz.
@@ -124,8 +131,8 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 |-----|------|-------|
 | [0](docs/00-ALTYAPI.md) | Build ve paketleme altyapısı | ✅ Tamamlandı |
 | [1](docs/01-CEKIRDEK-SOYUTLAMALAR.md) | Çekirdek soyutlamalar ve runtime | ✅ Tamamlandı |
-| [2](docs/02-POSTGRESQL-KALICILIK.md) | PostgreSQL kalıcılık katmanı | 🔜 Sıradaki |
-| [3](docs/03-SAGLAYICI-VE-DERLEYICI.md) | OpenAI sağlayıcısı ve agent derleyici | Planlandı |
+| [2](docs/02-POSTGRESQL-KALICILIK.md) | PostgreSQL kalıcılık katmanı | ✅ Tamamlandı |
+| [3](docs/03-SAGLAYICI-VE-DERLEYICI.md) | OpenAI sağlayıcısı ve agent derleyici | 🔜 Sıradaki |
 | [4](docs/04-HTTP-API.md) | HTTP API katmanı | Planlandı |
 | [5](docs/05-AGENTPRISM-UI.md) | AgentPrismUI | Planlandı |
 | [6](docs/06-GOZLEMLENEBILIRLIK.md) | Gözlemlenebilirlik, workflows, çok kiracılılık | Planlandı |
@@ -143,14 +150,14 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 
 ```bash
 dotnet build  AgentPrism.slnx -c Release              # 0 uyarı bekleniyor
-dotnet test   AgentPrism.slnx -c Release --no-build   # 42 test
+dotnet test   AgentPrism.slnx -c Release --no-build   # 130 test (42 birim + 88 entegrasyon)
 dotnet pack   AgentPrism.slnx -c Release --no-build
 dotnet format AgentPrism.slnx --verify-no-changes
 ```
 
 `TreatWarningsAsErrors` açıktır — uyarı yoktur, hata vardır.
 
-Gereksinimler: .NET SDK 10.0.100+, Node.js 20.19+ (Faz 5'ten itibaren arayüz build'i için), Docker (entegrasyon testleri için).
+Gereksinimler: .NET SDK 10.0.100+, **Docker** (entegrasyon testleri Testcontainers ile gerçek PostgreSQL kaldırır), Node.js 20.19+ (Faz 5'ten itibaren arayüz build'i için).
 
 Örnek uygulamayı çalıştırma:
 

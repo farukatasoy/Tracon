@@ -31,7 +31,7 @@ public static class AgentPrismDiagnostics
 
 ### Kalıcılık
 
-`traces` ve `spans` tabloları Faz 2'de kuruldu, bu fazda doldurulur.
+`traces` ve `spans` tabloları Faz 2'de kuruldu (boş), bu fazda doldurulur. Aynı şey `tool_invocations` için de geçerlidir: şema hazır, yazan yok — `duration_ms` alanı `ToolInvoking`/`ToolInvoked` olay çiftinin korelasyonunu gerektirir.
 
 Yazma yolu **örneklenir** (sampling). Varsayılan: hatalı çalıştırmaların %100'ü, başarılıların yapılandırılabilir bir oranı. Gerekçe: her span'i yazmak yüksek hacimde veritabanını darboğaza sokar.
 
