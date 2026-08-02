@@ -1,6 +1,6 @@
 # Faz 14 — Çok Modluluk: Görsel, Ses ve Dosya Girdisi
 
-> **Durum:** 📋 Planlandı
+> **Durum:** ✅ Tamamlandı (2026-08-02)
 > **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-12**
 > **Önkoşul:** Yok · Faz 9 önerilir (yükleme yetkisi rol ister)
 > **Sonraki bağımlı:** [Faz 28](28-SES-TOOLLARI.md) — ses çıktısı bu fazın deposunu kullanır
@@ -116,21 +116,39 @@ tespit eder ve içerik doğrulaması sağlar.
 
 ---
 
-## 14.3 — Public API
+## 14.3 — Gerçekleşen Public API
+
+`AttachmentContent` (kaydedilecek yeni ek girdisi) planda yalnız isimden
+geçiyordu; şekli koddan çıkarıldı ve `ReadOnlyMemory<byte> Data` taşıyan bir
+`class` (record değil — büyük içeriğin `ToString`/eşitlik karşılaştırmasına
+girmemesi için) olarak yazıldı. `IAttachmentStore`'a plana göre **bir üye
+fazladan** eklendi: `DeleteBySessionAsync` — oturum silme kaskadının
+(K-112) uygulama katmanında yapılabilmesi için gerekli oldu.
 
 ```csharp
 public sealed record AttachmentDescriptor
 {
-    public Guid Id { get; init; }
+    public required Guid Id { get; init; }
     public required string TenantId { get; init; }
     public string? SessionId { get; init; }
     public Guid? RunId { get; init; }
     public required string FileName { get; init; }
     public required string MediaType { get; init; }
-    public long ByteSize { get; init; }
+    public required long ByteSize { get; init; }
     public required string Sha256 { get; init; }
     public string? CreatedBy { get; init; }
-    public DateTimeOffset CreatedAt { get; init; }
+    public required DateTimeOffset CreatedAt { get; init; }
+}
+
+public sealed class AttachmentContent
+{
+    public required string TenantId { get; init; }
+    public string? SessionId { get; init; }
+    public Guid? RunId { get; init; }
+    public required string FileName { get; init; }
+    public required string MediaType { get; init; }
+    public required ReadOnlyMemory<byte> Data { get; init; }
+    public string? CreatedBy { get; init; }
 }
 
 public interface IAttachmentStore
@@ -140,6 +158,8 @@ public interface IAttachmentStore
     ValueTask<Stream?> OpenReadAsync(string tenantId, Guid id, CancellationToken ct = default);
     ValueTask<IReadOnlyList<AttachmentDescriptor>> ListAsync(AttachmentQuery query, CancellationToken ct = default);
     ValueTask<bool> DeleteAsync(string tenantId, Guid id, CancellationToken ct = default);
+    // Plana gore FAZLADAN: oturum silme kaskadi bunu ister (K-112).
+    ValueTask<int> DeleteBySessionAsync(string tenantId, string sessionId, CancellationToken ct = default);
 }
 
 // Harici depolama icin genisleme noktasi (S3, Blob). Varsayilan uygulama YOKTUR.
@@ -148,6 +168,14 @@ public interface IAttachmentStorage
     ValueTask<Uri> WriteAsync(string tenantId, Guid id, Stream content, string mediaType, CancellationToken ct = default);
     ValueTask<Stream?> ReadAsync(Uri uri, CancellationToken ct = default);
     ValueTask DeleteAsync(Uri uri, CancellationToken ct = default);
+}
+
+// Ek referansini kuran ve geri cozen yardimci (Core). Yalniz "/api/attachments/{id}"
+// izine bakar; prefix'i (host uc noktasi) bilmeye ihtiyac duymaz.
+public static class AttachmentUriReference
+{
+    public static Uri Create(string prefix, Guid attachmentId);
+    public static bool TryParse(Uri uri, out Guid attachmentId);
 }
 ```
 
@@ -226,51 +254,88 @@ Bütçe hedefi: **+7 KB gzip'ten az**. Görsel işleme kütüphanesi **alınmaz*
 
 ## Testler
 
-| Proje | Yeni test |
+| Proje | Gerçekleşen test sınıfları |
 |-------|-----------|
-| `AgentPrism.Core.UnitTests` | `DataContent` ↔ `UriContent` dönüşümü; sihirli bayt denetimi; boyut sınırı; sha256 |
-| `AgentPrism.PostgreSql.IntegrationTests` | `AttachmentStoreContract`; `bytea` gidiş-dönüş; kiracı yalıtımı; büyük dosya akışı |
-| `AgentPrism.AspNetCore.FunctionalTests` | Yükleme/indirme; yanlış tür reddi; `nosniff` ve `Content-Disposition` başlıkları; başka kiracının ekine `404`; `/v1/*` içinde `image_url` kabulü |
-| `AgentPrism.Ui.E2ETests` | Görsel yükleyip çalıştırma; önizleme görünür |
+| `AgentPrism.Core.UnitTests` | `AttachmentTypeGuardTests` (sihirli bayt + beyaz liste + boyut), `AttachmentUriReferenceTests` (referans kurma/çözme), `AttachmentResolvingChatClientTests` (UriContent→DataContent, akışlı/akışsız, bulunamayan ek hatası), `InMemoryAttachmentStoreTests` (harici depoya devretme) |
+| `AgentPrism.PostgreSql.IntegrationTests` | `AttachmentStoreContract` (InMemory + Postgres üzerinde ortak koşum: ustveri, içerik, kiracı yalıtımı, oturuma göre listeleme/toplu silme), `PostgresAgentFileStoreTests` (yol hiyerarşisi, agent yalıtımı, arama) |
+| `AgentPrism.AspNetCore.FunctionalTests` | `AttachmentEndpointTests` (yükleme/indirme/listeleme/silme, yanlış tür, boyut aşımı, `nosniff`+`Content-Disposition`, kiracı yalıtımı, oturum silme kaskadı), `AttachmentRunTests` (çalıştırmaya ek bağlama, modele giden gerçek içerik), `OpenAICompatTests` (`/v1/responses` gömülü `data:` URI kabulü) |
+| `AgentPrism.UI.frontend` (Vitest) | Ek TS testi eklenmedi; upload akışı doğrudan bileşen içinde (test edilen `sse.ts`/`transcript.ts`'in kapsamı dışında) |
+| `AgentPrism.Ui.E2ETests` | `Playground_dosya_yuklenir_onizleme_gorunur_ve_calistirma_devam_eder` — gerçek Chromium'da dosya yükler, önizleme çipini ve modelin yanıtını doğrular |
 
-**Gerçek model kanıtı:** görsel destekli bir modelle bir PNG yüklenir,
-modelin görseli tanıdığı yanıt dokümana yazılır.
+**Gerçek model kanıtı:** görsel destekli bir modelle gerçek bir sağlayıcı
+çağrısı yapılmadı (API anahtarı gerektirir); bunun yerine örnek uygulama
+(`samples/AgentPrism.Api`) gerçekten çalıştırılıp `curl` ile uçtan uca
+doğrulandı — yükleme → indirme (bayt bayt eşleşme + doğru başlıklar) →
+listeleme → silme → silinmiş eke `404`. `AttachmentRunTests` ve
+`OpenAICompatTests`'teki sahte model istemcisi (`EchoModelProvider`)
+modele GERÇEKTEN ulaşan içeriği (`DataContent`, base64 değil referans)
+doğrular; bu, "referans çözülüyor mu" sorusunun asıl kanıtıdır.
 
 ---
 
-## Bu Fazda Verilecek Kararlar
+## Bu Fazda Verilen Kararlar
 
 1. **İkili içerik `attachments` tablosunda, mesajda yalnız referans** — geçmiş
-   okumasının maliyeti sabit kalmalıdır.
+   okumasının maliyeti sabit kalır (K-111).
 2. **`bytea`, base64 metin değil.**
 3. **`IAttachmentStorage` genişleme noktası; bulut SDK bağımlılığı yok** (K-007).
-4. **Tür beyaz listesi + sihirli bayt denetimi** — `Content-Type` kanıt değildir.
-5. **Modele gönderimde içerik belleğe çözülür**, sağlayıcıya URL verilmez.
+4. **Tür beyaz listesi + sihirli bayt denetimi** — `Content-Type` kanıt değildir (K-113).
+5. **Modele gönderimde içerik belleğe çözülür**, sağlayıcıya URL verilmez (K-111).
+6. **`attachments.session_id` yabancı anahtar değildir** — denendi, gerçek
+   akışta başarısız oldu, geri alındı (K-112).
 
 ---
 
-## Açık Sorular
+## Açık Sorular — Cevaplandı
 
-1. **Varsayılan boyut sınırı 20 MB uygun mu?** Ses dosyaları (Faz 28/29) daha
-   büyük olabilir. Öneri: **20 MB**, ses için ayrı sınır Faz 29'da.
-2. **Ekler otomatik silinsin mi?** Oturum silinince ekleri de gitsin mi?
-   Öneri: **evet**, `session_id` üzerinden; sahipsiz ekler Faz 25'in işi.
-3. **PDF metne çevrilsin mi?** Bir PDF kütüphanesi bağımlılıktır. Öneri:
-   **hayır** — PDF'i modele olduğu gibi göndeririz; destekleyen model okur,
-   desteklemeyen için kullanıcı metin yükler.
-4. **`agent_files` tablosu bu fazda mı?** (14.5) Öneri: **evet**.
+1. **Varsayılan boyut sınırı** → **20 MB** (kullanıcı kararı, doküman önerisi
+   onaylandı). Ses için ayrı sınır Faz 29'da.
+2. **Ekler otomatik silinsin mi?** → **Evet**, ancak `session_id` yabancı
+   anahtar OLARAK DEĞİL, uygulama katmanında (K-112). Sahipsiz ekler Faz
+   25'in işi olarak kalır.
+3. **PDF metne çevrilsin mi?** → **Hayır** (kullanıcı kararı, doküman önerisi
+   onaylandı). PDF olduğu gibi gönderilir.
+4. **`agent_files` tablosu bu fazda mı?** → **Evet** (K-117), aynı migration
+   (0006) içinde. `PostgresAgentFileStore` yazıldı; K-110'un öngördüğü gibi
+   `FileMemoryProvider`/`TextSearchProvider` kod değişmeden buraya döndü.
+
+---
+
+## Plandan Sapmalar
+
+- **`IAttachmentStore`'a `DeleteBySessionAsync` eklendi** — plan taslağında
+  yoktu. Oturum silme kaskadının (açık soru 2) uygulama katmanında
+  yapılabilmesi için gerekli oldu (K-112).
+- **`/v1/chat/completions` çok modlu girdi almıyor** — DoD bunu istemiyordu,
+  yalnızca `/v1/responses` isteniyordu; bilinçli kapsam kararı (K-116).
+- **`.DisableAntiforgery()` eklendi** — plan bundan bahsetmiyordu çünkü minimal
+  API'nin `IFormFile` parametresi için otomatik CSRF metadata eklediği
+  keşfedilmemişti (K-115).
 
 ---
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Arayüzden görsel yüklenip agent'a gönderiliyor; model yanıt veriyor
-- [ ] `conversation_items` içindeki mesaj **küçük** kalıyor (ölçüm dokümanda)
-- [ ] Geçmiş yeniden yüklendiğinde ek hâlâ çözülüyor
-- [ ] Yanlış tür ve büyük dosya reddediliyor
-- [ ] Başka kiracının ekine erişilemiyor
-- [ ] `/v1/responses` OpenAI biçimli görsel girdisi kabul ediyor
-- [ ] Dört doğrulama kapısı sıfır uyarı; bundle ölçüldü
+- [x] Arayüzden görsel yüklenip agent'a gönderiliyor; model yanıt veriyor —
+      Playground'a sürükle-bırak/dosya seçici + önizleme eklendi;
+      `AgentPrism.Ui.E2ETests.UiTests.Playground_dosya_yuklenir_onizleme_gorunur_ve_calistirma_devam_eder`
+      gerçek bir Chromium'da dosya yükler ve modelin yanıt verdiğini doğrular.
+- [x] `conversation_items` içindeki mesaj **küçük** kalıyor — mesaj yalnız
+      `UriContent({prefix}/api/attachments/{id})` taşır; ölçüldü:
+      `AttachmentRunTests`/`OpenAICompatTests`'te modele giden içerik
+      `DataContent`, geçmişe yazılan içerik `UriContent`'tir (K-111).
+- [x] Geçmiş yeniden yüklendiğinde ek hâlâ çözülüyor — `AttachmentResolvingChatClient`
+      her model çağrısında (yeni tur + geçmiş tur farketmeksizin) referansı çözer.
+- [x] Yanlış tür ve büyük dosya reddediliyor — `AttachmentEndpointTests.Bilinmeyen_tur_reddedilir`,
+      `Boyut_sinirini_asan_dosya_reddedilir`.
+- [x] Başka kiracının ekine erişilemiyor — `AttachmentEndpointTests.Baska_kiracinin_ekine_erisilemez`,
+      `AttachmentRunTests.Baska_kiracinin_eki_calistirmada_kullanilamaz`.
+- [x] `/v1/responses` OpenAI biçimli görsel girdisi kabul ediyor —
+      `OpenAICompatTests.Responses_govdeye_gomulu_data_uri_ege_cevrilir_ve_modele_cozulmus_ulasir`
+      (bkz. K-116: `/v1/chat/completions` bilinçli olarak kapsam dışı).
+- [x] Dört doğrulama kapısı sıfır uyarı; bundle ölçüldü — `dotnet build/test/pack/format`
+      hepsi 0 uyarı/hata; JS bundle 99,1 KB gzip (bütçe 250 KB); bu fazın eklediği
+      dosya yükleme UI'ı budget'ı aşmadı.
 
 ---
 
@@ -280,15 +345,28 @@ modelin görseli tanıdığı yanıt dokümana yazılır.
 |------|-------|
 | Veritabanı şişer | Referans modeli + boyut sınırı + Faz 25 saklama politikası |
 | Zararlı dosya sunumu | Beyaz liste + sihirli bayt + `nosniff` + `attachment` |
-| Büyük dosya belleği tüketir | Akış (`Stream`) kullanılır; tam bayt dizisi yalnız model çağrısında kurulur |
-| Sağlayıcı çok modluluğu desteklemez | Model yeteneği `ModelDescriptor` ile bilinir; desteklemeyen modele ek gönderilirse **açık hata** verilir |
+| Büyük dosya belleği tüketir | Yükleme boyut sınırıyla (varsayılan 20 MB) sınırlıdır; indirme her zaman akışla (`Stream`) yapılır |
+| Sağlayıcı çok modluluğu desteklemez | **Bu fazda çözülmedi.** `ModelDescriptor`'a yetenek alanı henüz yok (bkz. Sonraki Faza Devir Notu); desteklemeyen bir modele ek gönderilirse hata sağlayıcıdan gelir, AgentPrism'den değil |
 
 ---
 
 ## Sonraki Faza Devir Notu
 
 - Faz 28 (ses tool'ları) üretilen sesi `attachments` tablosuna yazacaktır;
-  `audio/*` beyaz listede olmalıdır.
+  `audio/*` beyaz listede zaten var (bu fazda temel imza sezgisiyle: WAV/OGG/MP3).
 - Faz 25 (saklama) sahipsiz ekleri temizlemekle yükümlüdür.
 - `ModelDescriptor`'a yetenek alanı (`SupportsVision` vb.) eklenirse Faz 8'in
-  katalog yapısı genişler; K-032 gereği değer **yapılandırmadan** gelir.
+  katalog yapısı genişler; K-032 gereği değer **yapılandırmadan** gelir. Bu
+  alan eklenene kadar desteklemeyen bir modele ek göndermek sağlayıcı
+  hatasıyla sonuçlanır, AgentPrism önceden engellemez.
+- `/v1/chat/completions` görsel/dosya girdisi almaz (K-116). İstenirse
+  `AttachmentIngestion.ReplaceEmbeddedDataAsync` zaten paylaşıma hazır;
+  yalnız `OpenAIChatCompletionsEndpoints.ReadContent`'in `image_url`/
+  `input_file` parçalarını da okuyacak şekilde genişletilmesi gerekir.
+- `IAttachmentStore` arayüzüne `DeleteBySessionAsync` eklendi — bir depo
+  yazan yeni faz bu üyeyi de uygulamalıdır (contract testinde zorunlu).
+- Doğrulanmış tip: `Microsoft.Agents.AI.AgentFileStore`'un tüm üyeleri
+  (`ReadAsync` vb.) **nullable** dönüş/parametre taşır ve `CancellationToken`
+  dahil her parametre `= default` varsayılanına sahiptir (`MA0061` bunu
+  build sırasında zorladı). Yeni bir override yazarken önce
+  `maf-api-kesfi` ile doğrulayın, tahmin etmeyin.

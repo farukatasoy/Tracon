@@ -8,18 +8,18 @@
 
 | Paket | Durum | Faz |
 |-------|-------|-----|
-| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) · 5 (`AgentPrismRunOptions`) · 6 (telemetri, tool çağrısı, onay, MCP, kiracı) · 8 (`IModelProviderHealthCheck`, `AgentPrismProviderUnavailableException`) · 9 (`IAuditLog`, `IAuditActorResolver`, `IAuditDecorated`) · 10 (`AgentSkillDefinition`, `IAgentSkillStore`) · 11 (script tanımı, `ISkillScriptGrantStore`) · 12 (`AgentRunBudget`, çalıştırma ağacı alanları, `CallableAgentNames`) · 13 (`CompactionSettings`, `CompactionStrategyKind`, `MemorySettings`, `RunEventType.HistoryCompacted`) |
-| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) · 5 (çağıranın verdiği çalıştırma kimliği) · 6 (span, metrik, onay kuralı) · 8 (devre kesici, sağlık önbelleği) · 9 (`AuditActorContext`, `AuditSecretFilter`, `Auditing*Store` dekoratörleri) · 10 (skill katalogu, MAF source, fingerprint cache) · 11 (`SandboxedSkillScriptRunner`, `AgentPrismRunContext`) · 12 (`AgentCallGraph`, `CallableAgentResolver`, `ChildAgentInvoker`, `AgentRunScope`) · 13 (`ObservedCompactionStrategy`, `CompactionUsageTrackingChatClient`, `CompactionUsageAccumulator`, `AgentPrismOptions.UtilityModel`) |
-| `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 · 4 (özet sorgusu) · 6 (migration 0002, dört yeni depo) · 9 (`PostgresAuditLog`, migration **yok** — şema Faz 0'dan hazırdı) · 10 (migration 0003, `PostgresAgentSkillStore`) · 11 (migration 0004) · 12 (migration 0005 — `runs` ağaç sütunları, **yeni tablo yok**) · 13 (`AgentDefinitionPayload` genişletildi, **yeni migration yok** — `agent_definitions.definition` opak JSON) |
+| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) · 5 (`AgentPrismRunOptions`) · 6 (telemetri, tool çağrısı, onay, MCP, kiracı) · 8 (`IModelProviderHealthCheck`, `AgentPrismProviderUnavailableException`) · 9 (`IAuditLog`, `IAuditActorResolver`, `IAuditDecorated`) · 10 (`AgentSkillDefinition`, `IAgentSkillStore`) · 11 (script tanımı, `ISkillScriptGrantStore`) · 12 (`AgentRunBudget`, çalıştırma ağacı alanları, `CallableAgentNames`) · 13 (`CompactionSettings`, `CompactionStrategyKind`, `MemorySettings`, `RunEventType.HistoryCompacted`) · 14 (`AttachmentDescriptor`, `AttachmentContent`, `IAttachmentStore`, `IAttachmentStorage`, `AttachmentQuery`) |
+| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) · 5 (çağıranın verdiği çalıştırma kimliği) · 6 (span, metrik, onay kuralı) · 8 (devre kesici, sağlık önbelleği) · 9 (`AuditActorContext`, `AuditSecretFilter`, `Auditing*Store` dekoratörleri) · 10 (skill katalogu, MAF source, fingerprint cache) · 11 (`SandboxedSkillScriptRunner`, `AgentPrismRunContext`) · 12 (`AgentCallGraph`, `CallableAgentResolver`, `ChildAgentInvoker`, `AgentRunScope`) · 13 (`ObservedCompactionStrategy`, `CompactionUsageTrackingChatClient`, `CompactionUsageAccumulator`, `AgentPrismOptions.UtilityModel`) · 14 (`AttachmentTypeGuard`, `InMemoryAttachmentStore`, `AttachmentResolvingChatClient`, `AttachmentUriReference`) |
+| `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 · 4 (özet sorgusu) · 6 (migration 0002, dört yeni depo) · 9 (`PostgresAuditLog`, migration **yok** — şema Faz 0'dan hazırdı) · 10 (migration 0003, `PostgresAgentSkillStore`) · 11 (migration 0004) · 12 (migration 0005 — `runs` ağaç sütunları, **yeni tablo yok**) · 13 (`AgentDefinitionPayload` genişletildi, **yeni migration yok** — `agent_definitions.definition` opak JSON) · 14 (migration 0006 — `attachments`, `agent_files`; `PostgresAttachmentStore`, `PostgresAgentFileStore`) |
 | `AgentPrism.OpenAI` | ✅ Tamamlandı | 3 · 8 (`UseOpenAICompatible`, sağlık denetimi) |
 | `AgentPrism.Mcp` | ✅ Tamamlandı | 6 |
-| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 · 5 (arayüz rota grubu) · 6 (çok kiracılılık, yönetişim uçları) · 8 (`/api/models/health`) · 9 (`AgentPrismPolicies`, rol dağıtımı, `/api/audit`, `/api/meta` rol alanı) · 10 (`/api/skills`) · 11 (script izin uçları) · 12 (çağrı grafiği denetimi, `/api/runs/{id}/tree`, `includeChildren`) · 13 (`AgentDefinitionRequest.Compaction`/`Memory`) |
-| `AgentPrism.UI` | ✅ Tamamlandı | 5 · 6 (waterfall, MCP ekranı, onay kartı) · 8 (sağlık rozeti) · 9 (Audit ekranı, rol tabanlı düğme gizleme) · 10 (Skills ekranı ve agent skill seçicisi) · 11 (script izin yüzeyi) · 12 (çağrı ağacı paneli, kök/alt filtresi, çağrılabilir agent seçicisi) · 13 (Context paneli, `HistoryCompacted` rozeti/transkript satırı) |
+| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 · 5 (arayüz rota grubu) · 6 (çok kiracılılık, yönetişim uçları) · 8 (`/api/models/health`) · 9 (`AgentPrismPolicies`, rol dağıtımı, `/api/audit`, `/api/meta` rol alanı) · 10 (`/api/skills`) · 11 (script izin uçları) · 12 (çağrı grafiği denetimi, `/api/runs/{id}/tree`, `includeChildren`) · 13 (`AgentDefinitionRequest.Compaction`/`Memory`) · 14 (`/api/attachments` uçları, `AgentRunRequest.AttachmentIds`, `/v1/responses` gömülü `data:` URI kabulü) |
+| `AgentPrism.UI` | ✅ Tamamlandı | 5 · 6 (waterfall, MCP ekranı, onay kartı) · 8 (sağlık rozeti) · 9 (Audit ekranı, rol tabanlı düğme gizleme) · 10 (Skills ekranı ve agent skill seçicisi) · 11 (script izin yüzeyi) · 12 (çağrı ağacı paneli, kök/alt filtresi, çağrılabilir agent seçicisi) · 13 (Context paneli, `HistoryCompacted` rozeti/transkript satırı) · 14 (Playground dosya yükleme, sürükle-bırak, ek çipi/önizleme) |
 | `AgentPrism` (meta) | ✅ Paketleniyor | 0 |
 
-Testler: **609 .NET testi + 42 frontend birim testi geçiyor** — 275 birim testi
-(198 Core + 77 OpenAI) + 149 fonksiyonel test (TestHost, gerçek HTTP) + 168 entegrasyon
-testi (Testcontainers, gerçek PostgreSQL) + 17 arayüz E2E testi (Playwright, gerçek
+Testler: **669 .NET testi + 42 frontend birim testi geçiyor** — 302 birim testi
+(225 Core + 77 OpenAI) + 162 fonksiyonel test (TestHost, gerçek HTTP) + 187 entegrasyon
+testi (Testcontainers, gerçek PostgreSQL) + 18 arayüz E2E testi (Playwright, gerçek
 Kestrel) + 42 Vitest testi (saf mantık; `npm run build` içinde koşar, dolayısıyla
 `dotnet build` de koşar). Build, test, pack ve format kapıları sıfır uyarı.
 
@@ -45,6 +45,19 @@ doğrulandı: `SlidingWindow` stratejisi 4. turda tetiklendi ve 7 mesajı 5'e
 indirdi. Vektör tabanlı `ChatHistoryMemoryProvider` bilinçli olarak kapsam
 dışı bırakıldı — gerçek kurucusu bir `VectorStore` istiyor, depoda somut bir
 implementasyon yok. Bkz. [`13-BAGLAM-SIKISTIRMA-VE-BELLEK.md`](13-BAGLAM-SIKISTIRMA-VE-BELLEK.md).
+
+Faz 14 sonunda bir agent'a **görsel/dosya eki** gönderilebiliyor. İkili
+içerik `attachments` tablosunda (`bytea`) yaşar; sohbet geçmişindeki mesaj
+yalnız küçük bir `UriContent` referansı taşır ve gerçek baytlara yalnız
+`AttachmentResolvingChatClient` içinde, gerçek sağlayıcı çağrısından hemen
+önce çözülür — geçmiş okumasının maliyeti ek boyutundan bağımsız kalır.
+Tür doğrulaması sihirli bayta dayanır, istemcinin `Content-Type`'ı
+güvenilmez. `attachments.session_id` **bilerek** yabancı anahtar değildir
+(gerçek akışta bir ek, kendi oturumu hiç açılmadan önce yüklenebilir);
+oturum silindiğinde eklerin gitmesi uygulama katmanında yapılır. Aynı
+migration (0006) `agent_files` tablosunu da getirdi: Faz 13'ten kalan
+`FileMemoryProvider`/`TextSearchProvider`, kod değişmeden kalıcı belleğe
+(`PostgresAgentFileStore`) döndü. Bkz. [`14-COK-MODLULUK.md`](14-COK-MODLULUK.md).
 
 Faz 5 sonunda kabul senaryosu tamamlandı: paket kurulur, `.UseUI()` +
 `app.MapAgentPrism()` yazılır ve tarayıcıda bir kontrol düzlemi açılır. Faz 6 ekranı
@@ -468,7 +481,9 @@ sealed class FileMemoryProvider(AgentFileStore, Func<AgentSession,FileMemoryStat
 sealed class TodoProvider(TodoProviderOptions?) : AIContextProvider;
 sealed class TextSearchProvider(Func<string,CancellationToken,Task<IEnumerable<TextSearchResult>>>, TextSearchProviderOptions?, ILoggerFactory?) : MessageAIContextProvider;
 abstract class AgentFileStore { ReadAsync/WriteAsync/ListChildrenAsync/SearchAsync/DeleteAsync/CreateDirectoryAsync/FileExistsAsync }
-sealed class InMemoryAgentFileStore : AgentFileStore;  // bu fazda kullanilan somut depo
+sealed class InMemoryAgentFileStore : AgentFileStore;   // varsayilan (bellek ici; AddAgentPrism)
+// PostgresAgentFileStore : AgentFileStore                // Faz 14 — UsePostgreSql() bunu koyar (K-110, K-114)
+// Agent adi arayuzde parametre olmadigi icin ambient AgentPrismRunContext.Current?.AgentName'den okunur.
 
 // HarnessAgentOptions'ta bu fazda baglanan uyeler
 CompactionStrategy CompactionStrategy; bool DisableCompaction;
@@ -527,6 +542,8 @@ erDiagram
     tenants ||..o{ runs : "tenant_id (FK YOK)"
     tenants ||..o{ conversations : "tenant_id (FK YOK)"
     tenants ||..o{ audit_log : "tenant_id (FK YOK)"
+    tenants ||..o{ attachments : "tenant_id (FK YOK)"
+    tenants ||..o{ agent_files : "tenant_id (FK YOK)"
 
     agent_definitions ||--o{ agent_definition_versions : "agent_id"
     conversations ||--o{ conversation_items : "conversation_id"
@@ -625,11 +642,26 @@ erDiagram
         jsonb before "sir suzgecinden gecmis"
         jsonb after "sir suzgecinden gecmis"
     }
+    attachments {
+        uuid id PK
+        text session_id "FK YOK (K-112) · run oncesi yuklenebilir"
+        bytea content "IAttachmentStorage kayitliysa NULL"
+        text external_uri "content NULL ise dolu"
+        text media_type "sihirli bayttan (Content-Type degil)"
+        text sha256
+    }
+    agent_files {
+        uuid id PK
+        text agent_name "UK (tenant_id, agent_name, path)"
+        text path
+        text content "metin · AgentFileStore.ReadAsync String doner"
+    }
 ```
 
 **Faz 6'da dolan tablolar:** `tool_invocations`, `traces`, `spans`. Faz 6'da eklenen
 tablolar: `tool_approval_rules`, `mcp_servers`. **Faz 9'da dolan tablo:** `audit_log`
-— şema Faz 0'da kurulmuştu, yazan kod Faz 9'da geldi; migration gerekmedi.
+— şema Faz 0'da kurulmuştu, yazan kod Faz 9'da geldi; migration gerekmedi. **Faz 14'te
+eklenen tablolar (migration 0006):** `attachments`, `agent_files`.
 
 **Span kimliği türetilir, üretilmez.** `spans.id = SHA-256(trace_id + ":" + span_id)`
 ilk 16 baytıdır. Sebep: bir span, ebeveyninden **önce** tamamlanabilir; türetilmiş
@@ -657,6 +689,8 @@ yazılırsa aynı satır güncellenir, tekrar kaydı oluşmaz.
 | `tool_invocations` | Tool çağrıları: ad, argüman, sonuç, süre, hata |
 | `traces` / `spans` | OpenTelemetry span'leri (Faz 6) |
 | `audit_log` | Kim, ne zaman, hangi tanımı değiştirdi |
+| `attachments` | Yüklenen ek ustverisi + ikili içerik (`bytea`); `session_id` FK **değil** (K-112) |
+| `agent_files` | Kalıcı `AgentFileStore`: agent başına yol→metin çifti (Faz 14, 14.5) |
 
 Kurallar:
 

@@ -36,6 +36,9 @@ public sealed class AgentPrismOptions
     /// <summary>Agent'in agent cagirmasi icin gecerli sinirlar.</summary>
     public AgentPrismAgentGraphOptions AgentGraph { get; set; } = new();
 
+    /// <summary>Ek (goruntu, ses, belge) yukleme sinirlari.</summary>
+    public AgentPrismAttachmentOptions Attachments { get; set; } = new();
+
     /// <summary>
     /// Baglam sikistirmasinda ozetleme icin kullanilacak varsayilan model.
     /// </summary>
@@ -208,6 +211,36 @@ public sealed class AgentPrismSkillScriptOptions
 
     /// <summary>Skill koklerinde inilecek en fazla dizin derinligi.</summary>
     public int SearchDepth { get; set; } = 2;
+}
+
+/// <summary>
+/// Ek yukleme sinirlari: boyut ve tur beyaz listesi.
+/// </summary>
+/// <remarks>
+/// Ikili icerik <c>attachments</c> tablosunda, mesajda yalnizca referans olarak
+/// yasar; bu ayarlar YALNIZ yukleme aninda uygulanir. Tur denetimi istemcinin
+/// bildirdigi <c>Content-Type</c>'a degil sihirli bayta dayanir — bkz.
+/// <see cref="AttachmentTypeGuard"/>. Gerekce: <c>docs/14-COK-MODLULUK.md</c>.
+/// </remarks>
+public sealed class AgentPrismAttachmentOptions
+{
+    /// <summary>Tek bir ekin en fazla bayt sayisi. Varsayilan 20 MB.</summary>
+    public long MaxBytes { get; set; } = 20 * 1024 * 1024;
+
+    /// <summary>
+    /// Izin verilen MIME turleri. <c>"audio/*"</c> gibi bir alt tur joker
+    /// karakteri kabul eder. Yurutulebilir icerik turleri BILEREK yoktur.
+    /// </summary>
+    public ISet<string> AllowedMediaTypes { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "image/gif",
+        "application/pdf",
+        "text/plain",
+        "audio/*",
+    };
 }
 
 /// <summary>Denetim izi aktor cozumlemesinin ayarlari.</summary>
