@@ -35,6 +35,15 @@ public sealed record AgentDefinitionRequest
     /// <summary>Calisma aninda yuklenebilecek skill adlari.</summary>
     public IReadOnlyList<string> SkillNames { get; init; } = [];
 
+    /// <summary>
+    /// Bu agent'in cagirabilecegi diger agent adlari.
+    /// </summary>
+    /// <remarks>
+    /// Cagri grafigi kaydetme aninda denetlenir: bilinmeyen ad, kendi kendini
+    /// cagirma ve dolayli dongu <c>400 Bad Request</c> ile reddedilir.
+    /// </remarks>
+    public IReadOnlyList<string> CallableAgentNames { get; init; } = [];
+
     /// <summary>Harness ayarlari. Bos birakilirsa duz sohbet agent'i derlenir.</summary>
     public HarnessSettings? Harness { get; init; }
 
@@ -50,6 +59,7 @@ public sealed record AgentDefinitionRequest
             Model = Model,
             ToolNames = ToolNames,
             SkillNames = SkillNames,
+            CallableAgentNames = CallableAgentNames,
             Harness = Harness,
             Origin = AgentDefinitionOrigin.Database,
         };

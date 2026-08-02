@@ -101,6 +101,12 @@ public static class AgentPrismServiceCollectionExtensions
 
         // Derleyici ve onbellek.
         services.TryAddSingleton<CompiledAgentCache>();
+
+        // Alt agent cozucusu. Katalogu KURUCUSUNDA degil ilk kullanimda ister;
+        // aksi halde IAgentCatalog -> IAgentSource -> AgentDefinitionCompiler ->
+        // cozucu -> IAgentCatalog dairesi kurulamazdi.
+        services.TryAddSingleton<CallableAgentResolver>();
+
         services.TryAddSingleton(static provider => new AgentDefinitionCompiler(
             provider.GetRequiredService<IModelProviderRegistry>(),
             provider.GetRequiredService<IToolRegistry>(),
@@ -111,7 +117,9 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetService<Microsoft.Agents.AI.ChatHistoryProvider>(),
             provider.GetRequiredService<AgentSkillCatalog>(),
             // Kayitli degilse script destegi yoktur: hicbir script calistirilamaz.
-            provider.GetService<SkillScriptSupport>()));
+            provider.GetService<SkillScriptSupport>(),
+            provider.GetRequiredService<CallableAgentResolver>(),
+            provider.GetRequiredService<ITenantContext>()));
 
         // Denetim izi. Aktor AuditActorContext'ten (AsyncLocal) okunur;
         // AgentPrism.AspNetCore her korumali istegin basinda oraya HttpContext.User'i
@@ -248,6 +256,42 @@ public static class AgentPrismServiceCollectionExtensions
         BindHealth(section.GetSection(nameof(AgentPrismOptions.Health)), options.Health);
         BindAudit(section.GetSection(nameof(AgentPrismOptions.Audit)), options.Audit);
         BindSkills(section.GetSection(nameof(AgentPrismOptions.Skills)), options.Skills);
+        BindAgentGraph(section.GetSection(nameof(AgentPrismOptions.AgentGraph)), options.AgentGraph);
+    }
+
+    private static void BindAgentGraph(IConfigurationSection section, AgentPrismAgentGraphOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismAgentGraphOptions.MaxDepth)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxDepth))
+        {
+            options.MaxDepth = maxDepth;
+        }
+
+        if (long.TryParse(
+                section[nameof(AgentPrismAgentGraphOptions.MaxTotalTokens)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxTokens))
+        {
+            options.MaxTotalTokens = maxTokens;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismAgentGraphOptions.MaxTotalRuns)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxRuns))
+        {
+            options.MaxTotalRuns = maxRuns;
+        }
     }
 
     private static void BindAudit(IConfigurationSection section, AgentPrismAuditOptions options)

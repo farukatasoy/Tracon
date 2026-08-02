@@ -72,6 +72,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
             // Model adi katalog ozetinden gelir. Kod agent'larinda bilinmeyebilir;
             // o durumda calistirma kaydi model tasimaz ve model kirilimina girmez.
             descriptor?.Model?.Model,
-            _timeProvider);
+            _timeProvider,
+            _options.Value.AgentGraph);
     }
 }

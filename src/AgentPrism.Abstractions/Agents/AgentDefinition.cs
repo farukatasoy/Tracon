@@ -48,6 +48,26 @@ public sealed record AgentDefinition
     public IReadOnlyList<string> SkillNames { get; init; } = [];
 
     /// <summary>
+    /// Bu agent'in cagirabilecegi diger agent'larin adlari.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Her ad katalogda cozulebilen bir agent'a karsilik gelmelidir. Cagri grafigi
+    /// <strong>kaydetme aninda</strong> denetlenir: kendi kendini cagirma ve dolayli
+    /// dongu reddedilir.
+    /// </para>
+    /// <para>
+    /// Statik denetim tek basina yeterli degildir - kod tarafindaki bir fabrika
+    /// agent'i grafigi tasimaz. Bu yuzden calisma aninda ayrica bir derinlik sayaci
+    /// isler (<see cref="AgentRunBudget.MaxDepth"/>).
+    /// </para>
+    /// <para>
+    /// Alt agent <strong>ayni kiracida</strong> calisir ve kiraci degistiremez.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<string> CallableAgentNames { get; init; } = [];
+
+    /// <summary>
     /// Harness ayarlari. <see langword="null"/> ise sade bir sohbet agent'i uretilir;
     /// dolu ise baglam sikistirma, todo takibi gibi harness yetenekleri devreye girer.
     /// </summary>

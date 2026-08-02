@@ -37,6 +37,7 @@ export function StatusBadge({ status }: { status: RunStatus }): ReactNode {
 export function RunsScreen(): ReactNode {
   const [agentName, setAgentName] = useState('');
   const [status, setStatus] = useState('');
+  const [includeChildren, setIncludeChildren] = useState(false);
   const [page, setPage] = useState(0);
 
   const agents = useQuery({ queryKey: ['agents'], queryFn: api.agents });
@@ -46,11 +47,12 @@ export function RunsScreen(): ReactNode {
   });
 
   const runs = useQuery({
-    queryKey: ['runs', agentName, status, page],
+    queryKey: ['runs', agentName, status, includeChildren, page],
     queryFn: () =>
       api.runs({
         agentName: agentName.length > 0 ? agentName : undefined,
         status: status.length > 0 ? (status as RunStatus) : undefined,
+        includeChildren: includeChildren ? true : undefined,
         skip: page * PAGE_SIZE,
         take: PAGE_SIZE,
       }),
@@ -62,7 +64,7 @@ export function RunsScreen(): ReactNode {
     <>
       <PageHeader
         title="Runs"
-        description="Every agent execution, with its event stream. Events are append-only, so a finished run replays exactly as it happened."
+        description="Every agent execution, with its event stream. Events are append-only, so a finished run replays exactly as it happened. Runs an agent started by calling another agent are folded into their root."
         actions={
           <>
             <Select
@@ -91,6 +93,16 @@ export function RunsScreen(): ReactNode {
               <option value="Completed">Completed</option>
               <option value="Failed">Failed</option>
               <option value="Canceled">Canceled</option>
+            </Select>
+            <Select
+              value={includeChildren ? 'all' : 'roots'}
+              onChange={(value) => {
+                setIncludeChildren(value === 'all');
+                setPage(0);
+              }}
+            >
+              <option value="roots">Root runs</option>
+              <option value="all">Include child runs</option>
             </Select>
           </>
         }
@@ -127,6 +139,7 @@ export function RunsScreen(): ReactNode {
                   <Th>Status</Th>
                   <Th>Duration</Th>
                   <Th>Tokens</Th>
+                  <Th>Tree tokens</Th>
                   <Th>Events</Th>
                   <Th>Started</Th>
                 </tr>
@@ -135,9 +148,17 @@ export function RunsScreen(): ReactNode {
                 {runs.data.map((run) => (
                   <tr key={run.id} className="hover:bg-raised">
                     <Td>
-                      <Link to={`runs/${encodeURIComponent(run.id)}`}>
-                        <Mono title={run.id}>{shortId(run.id, 13, 6)}</Mono>
-                      </Link>
+                      <span className="flex items-center gap-2">
+                        <Link to={`runs/${encodeURIComponent(run.id)}`}>
+                          <Mono title={run.id}>{shortId(run.id, 13, 6)}</Mono>
+                        </Link>
+                        {run.childRunCount > 0 && (
+                          <Badge tone="info">
+                            {run.childRunCount === 1 ? '1 child run' : `${run.childRunCount} child runs`}
+                          </Badge>
+                        )}
+                        {run.depth > 0 && <Badge tone="warn">depth {run.depth}</Badge>}
+                      </span>
                     </Td>
                     <Td>
                       <Link
@@ -150,6 +171,12 @@ export function RunsScreen(): ReactNode {
                     <Td><StatusBadge status={run.status} /></Td>
                     <Td className="text-muted">{duration(run.startedAt, run.completedAt)}</Td>
                     <Td className="text-muted">{count(run.usage?.totalTokens)}</Td>
+                    <Td
+                      className="text-muted"
+                      title="This run plus every run under it. Already includes the Tokens column — do not add the two."
+                    >
+                      {count(run.treeUsage?.totalTokens)}
+                    </Td>
                     <Td className="text-muted">{count(run.eventCount)}</Td>
                     <Td className="text-muted" title={absoluteTime(run.startedAt)}>
                       {relativeTime(run.startedAt)}

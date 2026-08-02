@@ -73,6 +73,7 @@ public sealed class CodeAgentSource : IAgentSource
                 Model = registration.Definition?.Model,
                 ToolNames = registration.Definition?.ToolNames ?? [],
                 SkillNames = registration.Definition?.SkillNames ?? [],
+                CallableAgentNames = registration.Definition?.CallableAgentNames ?? [],
                 UsesHarness = registration.Definition?.Harness is not null,
             });
         }
@@ -96,11 +97,13 @@ public sealed class CodeAgentSource : IAgentSource
         }
 
         var skills = await _compiler.ResolveSkillsAsync(definition, cancellationToken).ConfigureAwait(false);
+        var callable = await _compiler.ResolveCallableAgentsAsync(definition, cancellationToken).ConfigureAwait(false);
+
         var agent = _cache.GetOrAdd(
             definition.Name,
             definition.Version,
-            skills.Fingerprint,
-            () => _compiler.Compile(definition));
+            CompiledAgentCache.CombineFingerprints(skills.Fingerprint, callable.Fingerprint),
+            () => _compiler.Compile(definition, callable));
 
         return agent;
     }

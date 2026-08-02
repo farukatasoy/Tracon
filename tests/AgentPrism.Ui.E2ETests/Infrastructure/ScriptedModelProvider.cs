@@ -55,6 +55,44 @@ internal sealed class ScriptedModelProvider : IModelProvider, IDisposable
 
     private sealed class ScriptedChatClient : IChatClient
     {
+        /// <summary>Microsoft Agent Framework'un arka plan gorev tool'lari.</summary>
+        private const string StartTask = "background_agents_start_task";
+        private const string WaitForCompletion = "background_agents_wait_for_first_completion";
+
+        /// <summary>
+        /// Gecmiste sonucu donmus tool cagrilarinin adlarini cikarir.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="FunctionResultContent"/> tool adini tasimaz, yalnizca cagri
+        /// kimligini. Ad, ayni gecmisteki <see cref="FunctionCallContent"/> ile
+        /// eslestirilerek bulunur. "Herhangi bir sonuc geldi mi" diye bakmak,
+        /// birden cok adimli bir senaryoda ikinci adimi hic calistirmazdi.
+        /// </remarks>
+        private static HashSet<string> CompletedToolNames(IReadOnlyList<ChatMessage> history)
+        {
+            var callNames = new Dictionary<string, string>(StringComparer.Ordinal);
+            var completed = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (var content in history.SelectMany(static message => message.Contents))
+            {
+                switch (content)
+                {
+                    case FunctionCallContent call:
+                        callNames[call.CallId] = call.Name;
+                        break;
+
+                    case FunctionResultContent result when callNames.TryGetValue(result.CallId, out var name):
+                        completed.Add(name);
+                        break;
+
+                    default:
+                        break;
+                }
+            }
+
+            return completed;
+        }
+
         public async Task<ChatResponse> GetResponseAsync(
             IEnumerable<ChatMessage> messages,
             ChatOptions? options = null,
@@ -76,10 +114,47 @@ internal sealed class ScriptedModelProvider : IModelProvider, IDisposable
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             var history = messages.ToList();
-            var toolAlreadyRan = history.Any(static message =>
-                message.Contents.Any(static content => content is FunctionResultContent));
+            var finished = CompletedToolNames(history);
+            var tools = options?.Tools?.OfType<AIFunction>().ToList() ?? [];
 
-            var tool = options?.Tools?.OfType<AIFunction>().FirstOrDefault();
+            // Alt agent cagrisi: bu agent baska bir agent'i cagirabiliyorsa once
+            // gorevi baslat, sonra sonucunu al. Iki adim ayridir cunku MAF'in
+            // arka plan gorevi bloke etmez.
+            if (tools.Any(static tool => string.Equals(tool.Name, StartTask, StringComparison.Ordinal)))
+            {
+                if (!finished.Contains(StartTask))
+                {
+                    yield return new ChatResponseUpdate(
+                        ChatRole.Assistant,
+                        [
+                            new FunctionCallContent("call-start", StartTask, new Dictionary<string, object?>(StringComparer.Ordinal)
+                            {
+                                ["agentName"] = "support",
+                                ["input"] = "ORD-7 nerede",
+                                ["description"] = "siparis durumu arastirmasi",
+                            }),
+                        ]);
+
+                    yield break;
+                }
+
+                if (!finished.Contains(WaitForCompletion))
+                {
+                    yield return new ChatResponseUpdate(
+                        ChatRole.Assistant,
+                        [
+                            new FunctionCallContent("call-wait", WaitForCompletion, new Dictionary<string, object?>(StringComparer.Ordinal)
+                            {
+                                ["taskIds"] = new[] { 1 },
+                            }),
+                        ]);
+
+                    yield break;
+                }
+            }
+
+            var toolAlreadyRan = finished.Count > 0;
+            var tool = tools.FirstOrDefault();
 
             if (tool is not null && !toolAlreadyRan)
             {

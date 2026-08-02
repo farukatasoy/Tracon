@@ -80,6 +80,20 @@ internal sealed class UiHost : IAsyncDisposable
                 },
                 ToolNames = ["get_order_status"],
                 Origin = AgentDefinitionOrigin.Code,
+            })
+            .AddAgent(new AgentDefinition
+            {
+                Name = "yonlendirici",
+                DisplayName = "Router",
+                Description = "Isi support agent'ina devreden kod agent'i.",
+                Instructions = "Gerekirse support agent'ini cagir.",
+                Model = new ModelBinding
+                {
+                    Provider = ScriptedModelProvider.ProviderName,
+                    Model = ScriptedModelProvider.ModelName,
+                },
+                CallableAgentNames = ["support"],
+                Origin = AgentDefinitionOrigin.Code,
             });
 
         var app = builder.Build();

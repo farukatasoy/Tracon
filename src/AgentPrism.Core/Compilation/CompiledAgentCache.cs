@@ -30,24 +30,44 @@ public sealed class CompiledAgentCache
         => GetOrAdd(name, version, string.Empty, factory);
 
     /// <summary>
-    /// Agent'i skill parmak iziyle birlikte onbellekten getirir; yoksa
+    /// Agent'i bagimlilik parmak iziyle birlikte onbellekten getirir; yoksa
     /// <paramref name="factory"/> ile uretip ekler.
     /// </summary>
     /// <param name="name">Agent adi.</param>
     /// <param name="version">Tanim surumu.</param>
-    /// <param name="skillFingerprint">Bagli skill'lerin guncel parmak izi.</param>
+    /// <param name="dependencyFingerprint">
+    /// Tanimin <em>disindaki</em> bagimliliklarin guncel parmak izi: skill'ler ve
+    /// cagrilabilir alt agent'lar. Bunlar tanimin kendi surumunu artirmadan
+    /// degisebildigi icin ayri bir anahtar bileseni gerekir.
+    /// </param>
     /// <param name="factory">Onbellekte yoksa cagrilan uretici.</param>
     /// <returns>Derlenmis agent.</returns>
-    public AIAgent GetOrAdd(string name, int version, string skillFingerprint, Func<AIAgent> factory)
+    public AIAgent GetOrAdd(string name, int version, string dependencyFingerprint, Func<AIAgent> factory)
     {
         ArgumentNullException.ThrowIfNull(name);
-        ArgumentNullException.ThrowIfNull(skillFingerprint);
+        ArgumentNullException.ThrowIfNull(dependencyFingerprint);
         ArgumentNullException.ThrowIfNull(factory);
 
         // GetOrAdd(key, valueFactory) ayni anahtar icin fabrikayi birden cok kez
         // calistirabilir. Agent uretimi yan etkisizdir, bu yuzden sorun degil;
         // fazla uretilen ornek atilir.
-        return _entries.GetOrAdd(new CacheKey(name, version, skillFingerprint), _ => factory());
+        return _entries.GetOrAdd(new CacheKey(name, version, dependencyFingerprint), _ => factory());
+    }
+
+    /// <summary>Birden cok bagimlilik parmak izini tek bir anahtar bileseninde birlestirir.</summary>
+    /// <param name="first">Ilk parmak izi.</param>
+    /// <param name="second">Ikinci parmak izi.</param>
+    /// <returns>Birlesik parmak izi.</returns>
+    /// <remarks>
+    /// Ayrac zorunludur: parmak izleri sabit uzunlukta olmayabilir ve dogrudan
+    /// birlestirme iki farkli ciftin ayni dizeyi uretmesine izin verirdi.
+    /// </remarks>
+    public static string CombineFingerprints(string first, string second)
+    {
+        ArgumentNullException.ThrowIfNull(first);
+        ArgumentNullException.ThrowIfNull(second);
+
+        return second.Length == 0 ? first : string.Concat(first, "|", second);
     }
 
     /// <summary>Bir agent'in tum surumlerini onbellekten cikarir.</summary>
@@ -68,5 +88,5 @@ public sealed class CompiledAgentCache
     /// <summary>Onbellegi tamamen bosaltir.</summary>
     public void Clear() => _entries.Clear();
 
-    private readonly record struct CacheKey(string Name, int Version, string SkillFingerprint);
+    private readonly record struct CacheKey(string Name, int Version, string DependencyFingerprint);
 }

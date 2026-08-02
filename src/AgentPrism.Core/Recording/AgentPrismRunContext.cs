@@ -1,14 +1,15 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Suren calistirmanin kimligini, calistirma yolunun icindeki yardimci
-/// bilesenlere tasir.
+/// Suren calistirmanin kimligini, agactaki yerini ve butcesini calistirma
+/// yolunun icindeki yardimci bilesenlere tasir.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Skill script calistirmasi MAF'in icinden, kayit sarmalayicisinin
-/// <em>altinda</em> tetiklenir. Calistirma kimligini oraya parametre olarak
-/// gecirmenin yolu yoktur: cagri zinciri MAF'a aittir.
+/// Iki tuketicisi vardir. Skill script calistirmasi MAF'in icinden, kayit
+/// sarmalayicisinin <em>altinda</em> tetiklenir; alt agent cagrisi ise MAF'in
+/// arka plan gorev tool'undan tetiklenir. Ikisinde de calistirma kimligini
+/// parametre olarak gecirmenin yolu yoktur: cagri zinciri MAF'a aittir.
 /// </para>
 /// <para>
 /// 🚨 Deger bir <see cref="AsyncLocal{T}"/> icinde tutulur. Bu, atamanin
@@ -17,15 +18,64 @@ namespace AgentPrism;
 /// Ayni tuzak <see cref="System.Diagnostics.Activity.Current"/> ile Faz 6'da
 /// yasandi.
 /// </para>
+/// <para>
+/// Deger asagi dogru <strong>akar</strong>: Microsoft Agent Framework'un arka
+/// plan agent gorevi <c>ExecutionContext</c>'i yakaladigi icin baska bir is
+/// parcaciginda calisan alt agent de ayni kapsami gorur. Faz 12'de olculdu.
+/// </para>
 /// </remarks>
 public static class AgentPrismRunContext
 {
-   private static readonly AsyncLocal<Guid?> CurrentHolder = new();
+    private static readonly AsyncLocal<AgentRunScope?> ScopeHolder = new();
 
-   /// <summary>Suren calistirmanin kimligi. Calistirma disinda <see langword="null"/>.</summary>
-   public static Guid? CurrentRunId => CurrentHolder.Value;
+    /// <summary>Suren calistirmanin kapsami. Calistirma disinda <see langword="null"/>.</summary>
+    public static AgentRunScope? Current => ScopeHolder.Value;
 
-   /// <summary>Suren calistirmanin kimligini ayarlar.</summary>
-   /// <param name="runId">Calistirma kimligi.</param>
-   public static void SetCurrentRunId(Guid? runId) => CurrentHolder.Value = runId;
+    /// <summary>Suren calistirmanin kimligi. Calistirma disinda <see langword="null"/>.</summary>
+    public static Guid? CurrentRunId => ScopeHolder.Value?.RunId;
+
+    /// <summary>Suren calistirmanin kapsamini ayarlar.</summary>
+    /// <param name="scope">Kapsam. <see langword="null"/> ise kapsam temizlenir.</param>
+    public static void SetCurrent(AgentRunScope? scope) => ScopeHolder.Value = scope;
+}
+
+/// <summary>
+/// Suren bir calistirmanin, calistirma yolundaki yardimci bilesenlere acilan
+/// gorunumu.
+/// </summary>
+/// <remarks>
+/// Kapsam <see cref="RunRecordingAgent"/> tarafindan acilir. Alt agent cagrisi
+/// buradan okudugu degerlerle kendi <see cref="AgentPrismRunOptions"/> nesnesini
+/// kurar; boylece agac baglantisi, derinlik ve butce cagri zinciri boyunca
+/// tasinir.
+/// </remarks>
+public sealed record AgentRunScope
+{
+    /// <summary>Suren calistirmanin kimligi.</summary>
+    public required Guid RunId { get; init; }
+
+    /// <summary>Agacin kokundeki calistirmanin kimligi. Kokte <see cref="RunId"/> ile aynidir.</summary>
+    public required Guid RootRunId { get; init; }
+
+    /// <summary>Agactaki derinlik. Kok calistirma 0'dir.</summary>
+    public int Depth { get; init; }
+
+    /// <summary>Bu calistirmayi yuruten agent'in adi.</summary>
+    public string? AgentName { get; init; }
+
+    /// <summary>Calistirmanin kiracisi. Alt calistirma bu kiracidan cikamaz.</summary>
+    public string? TenantId { get; init; }
+
+    /// <summary>Agac boyunca paylasilan butce.</summary>
+    public AgentRunBudget? Budget { get; init; }
+
+    /// <summary>
+    /// Bu calistirmanin olay yazicisi. Alt calistirma ozet olaylari buraya yazilir.
+    /// </summary>
+    /// <remarks>
+    /// Sira numarasi <strong>tek bir yazicidan</strong> uretilir (karar K-014).
+    /// Alt cagri kendi yazicisini kursaydi ayni calistirmada iki bagimsiz sayac
+    /// olur ve sira numaralari cakisirdi.
+    /// </remarks>
+    public RunEventWriter? Writer { get; init; }
 }

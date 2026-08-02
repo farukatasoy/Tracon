@@ -21,7 +21,7 @@ import { TranscriptView } from '../components/transcript';
 import { Waterfall, formatMs } from '../components/waterfall';
 import { StatusBadge, Stat } from './runs';
 import { ApiError } from '../lib/api';
-import type { RunEvent, RunEventType, ToolInvocationRecord } from '../lib/types';
+import type { RunEvent, RunEventType, RunRecord, ToolInvocationRecord } from '../lib/types';
 
 /** Event name and hue per event type. Shapes and labels carry the meaning too. */
 const EVENT_STYLE: Record<RunEventType, { label: string; hue: string }> = {
@@ -33,6 +33,8 @@ const EVENT_STYLE: Record<RunEventType, { label: string; hue: string }> = {
   ToolFailed: { label: 'tool.failed', hue: 'var(--ap-danger)' },
   RunCompleted: { label: 'run.completed', hue: 'var(--ap-emerald)' },
   RunFailed: { label: 'run.failed', hue: 'var(--ap-danger)' },
+  ChildRunStarted: { label: 'child.started', hue: 'var(--ap-amber)' },
+  ChildRunCompleted: { label: 'child.completed', hue: 'var(--ap-amber)' },
 };
 
 /**
@@ -59,10 +61,13 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
   // Spans and tool rows are written when the run closes, so both are fetched
   // only after it has settled. A 404 on the trace is expected: successful runs
   // are sampled, so most of them carry no spans at all.
+  // Alt calistirmalar icin trace HIC istenmez: agactaki her calistirma ayni
+  // trace'i paylasir ve tamponun sahibi koktur, dolayisiyla cevap her zaman
+  // 404 olurdu.
   const trace = useQuery({
     queryKey: ['run-trace', id],
     queryFn: () => api.runTrace(id),
-    enabled: finished,
+    enabled: finished && run.data?.parentRunId == null,
     retry: (_, error) => !(error instanceof ApiError && error.status === 404),
   });
 
@@ -70,6 +75,19 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
     queryKey: ['run-tools', id],
     queryFn: () => api.runToolInvocations(id),
     enabled: finished,
+  });
+
+  // The tree is fetched whenever this run is part of one — either it has
+  // children of its own, or it is itself a child. A run with neither has no
+  // tree to draw and the request is skipped.
+  const partOfTree = run.data != null && (run.data.childRunCount > 0 || run.data.parentRunId != null);
+
+  const tree = useQuery({
+    queryKey: ['run-tree', id],
+    queryFn: () => api.runTree(id),
+    enabled: partOfTree,
+    refetchInterval: (query) =>
+      (query.state.data ?? []).some((entry) => entry.status === 'Running') ? 2_000 : false,
   });
 
   useEffect(() => {
@@ -135,16 +153,32 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
                 </Link>
               </>
             )}
+            {record.parentRunId != null && (
+              <>
+                , called by{' '}
+                <Link
+                  to={`runs/${encodeURIComponent(record.parentRunId)}`}
+                  className="text-accent underline"
+                >
+                  <Mono>{shortId(record.parentRunId, 12, 5)}</Mono>
+                </Link>
+              </>
+            )}
           </>
         }
         actions={<StatusBadge status={record.status} />}
       />
 
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-6">
         <Stat label="Duration" value={duration(record.startedAt, record.completedAt)} />
         <Stat label="Model" value={record.modelId ?? '—'} />
         <Stat label="Input tokens" value={count(record.usage?.inputTokens)} />
         <Stat label="Output tokens" value={count(record.usage?.outputTokens)} />
+        <Stat
+          label="Tree tokens"
+          value={count(record.treeUsage?.totalTokens)}
+          hint="This run plus every run under it. Already includes this run's own tokens — the two columns are not meant to be added."
+        />
         <Stat label="Events" value={count(record.eventCount)} />
       </div>
 
@@ -194,6 +228,20 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
         </Panel>
       </div>
 
+      {partOfTree && (
+        <div className="mt-4">
+          <Panel title="Call tree">
+            {tree.isPending ? (
+              <Loading />
+            ) : tree.isError ? (
+              <div className="p-4"><ErrorNote error={tree.error} /></div>
+            ) : (
+              <RunTree runs={tree.data ?? []} current={record.id} />
+            )}
+          </Panel>
+        </div>
+      )}
+
       {finished && (
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <Panel title="Trace">
@@ -201,6 +249,18 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
               <Loading />
             ) : trace.isSuccess ? (
               <Waterfall trace={trace.data} />
+            ) : record.parentRunId != null ? (
+              <Empty title="Spans live on the root run">
+                Every run in a call tree shares one trace, and the root run owns it. This run's
+                spans are nested inside the{' '}
+                <Link
+                  to={`runs/${encodeURIComponent(record.rootRunId ?? record.parentRunId)}`}
+                  className="text-accent underline"
+                >
+                  root run's
+                </Link>{' '}
+                waterfall.
+              </Empty>
             ) : (
               <Empty title="No spans recorded">
                 Span writing is sampled. Failed runs are kept by default; successful ones are
@@ -320,6 +380,94 @@ function EventRow({ event }: { event: RunEvent }): ReactNode {
           </div>
         )}
       </div>
+    </li>
+  );
+}
+
+/**
+ * The whole call tree this run belongs to, nested by parent.
+ *
+ * Rows are laid out from `parentRunId`, not from `depth`: depth alone cannot say
+ * *which* parent a run hangs off when a branch fans out. Orphans — a child whose
+ * parent row is missing, which the schema deliberately allows since there is no
+ * foreign key — are rendered at the top level rather than dropped.
+ */
+function RunTree({ runs, current }: { runs: RunRecord[]; current: string }): ReactNode {
+  if (runs.length === 0) {
+    return <Empty title="No tree" />;
+  }
+
+  const present = new Set(runs.map((run) => run.id));
+  const children = new Map<string, RunRecord[]>();
+  const roots: RunRecord[] = [];
+
+  for (const run of runs) {
+    const parent = run.parentRunId;
+
+    if (parent == null || !present.has(parent)) {
+      roots.push(run);
+      continue;
+    }
+
+    const bucket = children.get(parent);
+
+    if (bucket === undefined) {
+      children.set(parent, [run]);
+    } else {
+      bucket.push(run);
+    }
+  }
+
+  const rows: ReactNode[] = [];
+
+  const push = (run: RunRecord, indent: number): void => {
+    rows.push(<RunTreeRow key={run.id} run={run} indent={indent} isCurrent={run.id === current} />);
+
+    for (const child of children.get(run.id) ?? []) {
+      push(child, indent + 1);
+    }
+  };
+
+  for (const root of roots) {
+    push(root, 0);
+  }
+
+  return <ul className="divide-y divide-line">{rows}</ul>;
+}
+
+function RunTreeRow({
+  run,
+  indent,
+  isCurrent,
+}: {
+  run: RunRecord;
+  indent: number;
+  isCurrent: boolean;
+}): ReactNode {
+  return (
+    <li className={cx('flex flex-wrap items-center gap-2 px-4 py-2', isCurrent && 'bg-raised')}>
+      <span style={{ paddingLeft: `${indent * 1.25}rem` }} className="flex items-center gap-2">
+        {indent > 0 && <span aria-hidden="true" className="text-subtle">└</span>}
+        {isCurrent ? (
+          <Mono className="text-[12px] font-semibold">{shortId(run.id, 12, 5)}</Mono>
+        ) : (
+          <Link to={`runs/${encodeURIComponent(run.id)}`}>
+            <Mono className="text-[12px]" title={run.id}>{shortId(run.id, 12, 5)}</Mono>
+          </Link>
+        )}
+      </span>
+
+      <Link to={`agents/${encodeURIComponent(run.agentName)}`} className="text-[12px] text-muted hover:text-fg">
+        {run.agentName}
+      </Link>
+
+      <StatusBadge status={run.status} />
+      {isCurrent && <Badge tone="accent">this run</Badge>}
+
+      <span className="ml-auto flex items-center gap-3 text-[11px] text-subtle">
+        <span>{count(run.usage?.totalTokens)} tokens</span>
+        <span>{duration(run.startedAt, run.completedAt)}</span>
+      </span>
     </li>
   );
 }
