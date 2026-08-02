@@ -34,6 +34,7 @@ public sealed class PostgresTestContext : IAsyncDisposable
         McpServers = new PostgresMcpServerStore(dataSource, wrapped);
         Tenants = new PostgresTenantStore(dataSource, wrapped);
         ChatHistory = new PostgresChatHistoryProvider(dataSource, wrapped, TenantContext);
+        AuditLog = new PostgresAuditLog(dataSource, wrapped);
         Migrations = new MigrationRunner(dataSource, wrapped, NullLogger<MigrationRunner>.Instance);
     }
 
@@ -69,6 +70,9 @@ public sealed class PostgresTestContext : IAsyncDisposable
 
     /// <summary>Sohbet gecmisi saglayicisi.</summary>
     public PostgresChatHistoryProvider ChatHistory { get; }
+
+    /// <summary>Denetim izi defteri (Faz 9).</summary>
+    public PostgresAuditLog AuditLog { get; }
 
     /// <summary>Migration calistiricisi.</summary>
     public MigrationRunner Migrations { get; }

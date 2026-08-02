@@ -38,9 +38,11 @@ internal static class OpenAIChatCompletionsEndpoints
 
     /// <summary>Chat Completions ucunu baglar.</summary>
     /// <param name="builder">Uc grubu.</param>
-    public static void Map(IEndpointRouteBuilder builder)
+    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapPost("/v1/chat/completions", HandleAsync)
+            .RequireRole(roles.Operator)
             .WithName("AgentPrismOpenAIChatCompletions")
             .WithSummary("OpenAI Chat Completions API ile uyumlu calistirma ucu.")
             .WithDescription(

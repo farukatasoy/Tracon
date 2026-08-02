@@ -73,9 +73,14 @@ public static class AgentPrismEndpointRouteBuilderExtensions
 
         var normalizedPrefix = '/' + prefix.Trim('/');
 
+        // Rol policy'lerinin kayit durumu bir kez cozulur. Bir policy kayitli
+        // degilse ilgili alan null'dir ve RequireRole hicbir sey eklemez — uc
+        // yalnizca uc katmanli korumadan gecer (eski davranis).
+        var roles = AgentPrismRolePolicies.Resolve(services, options);
+
         // Meta grubu: kimlik dogrulamasi yok, filtre yok.
         var metaGroup = endpoints.MapGroup(normalizedPrefix).WithTags("AgentPrism");
-        MetaEndpoints.Map(metaGroup, options, normalizedPrefix);
+        MetaEndpoints.Map(metaGroup, options, normalizedPrefix, roles);
 
         // Korumali grup: loopback + bearer token filtresi, istege bagli policy.
         var group = endpoints.MapGroup(normalizedPrefix).WithTags("AgentPrism");
@@ -86,17 +91,18 @@ public static class AgentPrismEndpointRouteBuilderExtensions
             group.RequireAuthorization(policy);
         }
 
-        AgentEndpoints.Map(group);
-        SessionEndpoints.Map(group);
-        RunEndpoints.Map(group, options);
-        CatalogEndpoints.Map(group);
-        ModelHealthEndpoints.Map(group);
-        ObservabilityEndpoints.Map(group);
-        GovernanceEndpoints.Map(group);
+        AgentEndpoints.Map(group, roles);
+        SessionEndpoints.Map(group, roles);
+        RunEndpoints.Map(group, options, roles);
+        CatalogEndpoints.Map(group, roles);
+        ModelHealthEndpoints.Map(group, roles);
+        ObservabilityEndpoints.Map(group, roles);
+        GovernanceEndpoints.Map(group, roles);
+        AuditEndpoints.Map(group, roles);
 
-        OpenAIResponsesEndpoints.Map(group, ResolveSessionStore(services));
-        OpenAIChatCompletionsEndpoints.Map(group);
-        OpenAIConversationsEndpoints.Map(group);
+        OpenAIResponsesEndpoints.Map(group, ResolveSessionStore(services), roles);
+        OpenAIChatCompletionsEndpoints.Map(group, roles);
+        OpenAIConversationsEndpoints.Map(group, roles);
 
         MapUi(endpoints, services, options, normalizedPrefix);
 

@@ -77,6 +77,12 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
             }
         }
 
+        // Denetim izi aktorunu ortam (ambient) baglamina tasir. AgentPrism.Core'daki
+        // AmbientAuditActorResolver bunu bir AsyncLocal uzerinden okur; boylece Core,
+        // ASP.NET Core'a bagimlilik eklemeden "kim yapti" sorusunu yanitlayabilir.
+        // Gerekce: docs/09-YONETISIM-VE-DENETIM-IZI.md, bolum 9.2.
+        AuditActorContext.Current = httpContext.User;
+
         return next(context);
     }
 }

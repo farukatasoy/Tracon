@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
@@ -39,6 +40,8 @@ internal static class ToolApprovalResolver
     /// <param name="chatHistory">Sohbet gecmisi saglayicisi.</param>
     /// <param name="rules">Kalici kural deposu.</param>
     /// <param name="tenantContext">Kiraci baglami.</param>
+    /// <param name="auditLog">Denetim izi defteri.</param>
+    /// <param name="actorResolver">Aktor cozumleyici.</param>
     /// <param name="logger">Gunlukleyici.</param>
     /// <param name="cancellationToken">Iptal belirteci.</param>
     /// <returns>
@@ -53,6 +56,8 @@ internal static class ToolApprovalResolver
         ChatHistoryProvider chatHistory,
         IToolApprovalRuleStore rules,
         ITenantContext tenantContext,
+        IAuditLog auditLog,
+        IAuditActorResolver actorResolver,
         ILogger logger,
         CancellationToken cancellationToken)
     {
@@ -81,6 +86,19 @@ internal static class ToolApprovalResolver
             }
 
             contents.Add(request.CreateResponse(decision.Approved, decision.Reason ?? string.Empty));
+
+            var toolName = request.ToolCall is FunctionCallContent functionCall ? functionCall.Name : "unknown";
+
+            await AuditRecorder.WriteAsync(
+                auditLog,
+                actorResolver,
+                logger,
+                tenantContext.TenantId,
+                action: "approval.decision",
+                entity: $"tool:{toolName}",
+                before: null,
+                after: JsonSerializer.Serialize(new { approved = decision.Approved, reason = decision.Reason }),
+                cancellationToken).ConfigureAwait(false);
 
             if (decision is { Approved: true, Remember: true })
             {

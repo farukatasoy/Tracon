@@ -17,10 +17,11 @@ import {
   Th,
 } from '../components/ui';
 import { TrashIcon } from '../components/icons';
+import type { Meta } from '../lib/types';
 
 const PAGE_SIZE = 50;
 
-export function SessionsScreen(): ReactNode {
+export function SessionsScreen({ meta }: { meta: Meta }): ReactNode {
   const queryClient = useQueryClient();
   const [agentName, setAgentName] = useState('');
   const [page, setPage] = useState(0);
@@ -113,18 +114,20 @@ export function SessionsScreen(): ReactNode {
                       {relativeTime(session.updatedAt)}
                     </Td>
                     <Td className="text-right">
-                      <Button
-                        tone="ghost"
-                        title="Delete session"
-                        busy={remove.isPending && remove.variables === session.id}
-                        onClick={() => {
-                          if (window.confirm('Delete this session and its history?')) {
-                            remove.mutate(session.id);
-                          }
-                        }}
-                      >
-                        <TrashIcon className="size-3.5" />
-                      </Button>
+                      {meta.roles.canOperate && (
+                        <Button
+                          tone="ghost"
+                          title="Delete session"
+                          busy={remove.isPending && remove.variables === session.id}
+                          onClick={() => {
+                            if (window.confirm('Delete this session and its history?')) {
+                              remove.mutate(session.id);
+                            }
+                          }}
+                        >
+                          <TrashIcon className="size-3.5" />
+                        </Button>
+                      )}
                     </Td>
                   </tr>
                 ))}

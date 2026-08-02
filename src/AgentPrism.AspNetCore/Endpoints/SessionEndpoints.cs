@@ -16,7 +16,8 @@ internal static class SessionEndpoints
 {
     /// <summary>Oturum uclarini baglar.</summary>
     /// <param name="builder">Uc grubu.</param>
-    public static void Map(IEndpointRouteBuilder builder)
+    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/sessions", async Task<Ok<IReadOnlyList<SessionRecord>>> (
                 AgentSessionManager sessions,
@@ -36,10 +37,12 @@ internal static class SessionEndpoints
 
                 return TypedResults.Ok(records);
             })
+            .RequireRole(roles.Reader)
             .WithName("AgentPrismListSessions")
             .WithSummary("Oturumlari son guncellemeden eskiye listeler.");
 
         builder.MapGet("/api/sessions/{sessionId}", GetSessionAsync)
+            .RequireRole(roles.Reader)
             .WithName("AgentPrismGetSession")
             .WithSummary("Bir oturumun ustverisini ve sohbet gecmisini dondurur.");
 
@@ -53,6 +56,7 @@ internal static class SessionEndpoints
                         title: "Oturum bulunamadi",
                         detail: $"'{sessionId}' kimlikli bir oturum yok.",
                         statusCode: StatusCodes.Status404NotFound))
+            .RequireRole(roles.Operator)
             .WithName("AgentPrismDeleteSession")
             .WithSummary("Bir oturumu siler.");
     }

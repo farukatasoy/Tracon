@@ -23,6 +23,32 @@ public sealed record AgentPrismMetaResponse
 
     /// <summary>Aktif depolama uygulamalari.</summary>
     public required AgentPrismStorageMeta Storage { get; init; }
+
+    /// <summary>Gecerli caginin rol yetkileri.</summary>
+    public required AgentPrismRoleMeta Roles { get; init; }
+}
+
+/// <summary>
+/// Gecerli isteğin sahibinin hangi rol seviyelerini karsiladigini bildirir.
+/// </summary>
+/// <remarks>
+/// Arayuz yetkisi olmayan duzenleme dugmelerini bu alana gore gizler; sunucu
+/// tarafi yetkilendirme yine de tek gercektir, bu alan bir guvenlik onlemi
+/// <strong>degildir</strong>. Ilgili rol policy'si (<see cref="AgentPrismPolicies"/>)
+/// tuketicinin authorization yapilandirmasinda kayitli degilse karsilik gelen
+/// alan <see langword="true"/> doner: rol kisiti yoktur, uc yalnizca mevcut
+/// uc katmanli korumadan gecer.
+/// </remarks>
+public sealed record AgentPrismRoleMeta
+{
+    /// <summary>Agent, calistirma, oturum, trace ve istatistik okuma yetkisi var mi.</summary>
+    public required bool CanRead { get; init; }
+
+    /// <summary>Reader'a ek olarak calistirma baslatma, onay verme, oturum silme yetkisi var mi.</summary>
+    public required bool CanOperate { get; init; }
+
+    /// <summary>Agent tanimi yazma, MCP sunucusu ekleme, kiraci ve denetim izi yonetimi yetkisi var mi.</summary>
+    public required bool CanAdminister { get; init; }
 }
 
 /// <summary>
