@@ -1,0 +1,149 @@
+<Project>
+
+  <!--
+    Frontend derleme zinciri.
+
+    Vite ciktisi wwwroot/ icine yazilir ve EmbeddedResource olarak assembly'ye
+    gomulur. Kaynak agacinda wwwroot/ tutulmaz (.gitignore); tek gercek kaynak
+    frontend/ klasorudur.
+
+    Adimlar artimsaldir. package-lock.json degismediyse `npm ci` calismaz;
+    frontend kaynaklari degismediyse `npm run build` calismaz. Damga dosyalari
+    BaseIntermediateOutputPath altindadir - orasi hedef cerceveden bagimsizdir,
+    dolayisiyla uc hedef icin derlenen bu paket npm'i yalnizca bir kez calistirir.
+  -->
+
+  <PropertyGroup>
+    <AgentPrismNpmInstallStamp>$(BaseIntermediateOutputPath)agentprism-npm-install.stamp</AgentPrismNpmInstallStamp>
+    <AgentPrismFrontendStamp>$(BaseIntermediateOutputPath)agentprism-frontend.stamp</AgentPrismFrontendStamp>
+    <AgentPrismShellFile>$(AgentPrismFrontendOutput)/index.html</AgentPrismShellFile>
+  </PropertyGroup>
+
+  <ItemGroup Condition=" '$(AgentPrismFrontendEnabled)' == 'true' ">
+    <!--
+      Derlemeyi tetikleyen girdiler. node_modules BILEREK YOK: icerigi
+      package-lock.json ile belirlenir ve on binlerce dosyayi her derlemede
+      taramak artimsal kontrolun kendisini pahali hale getirirdi.
+    -->
+    <AgentPrismFrontendInput Include="$(AgentPrismFrontendRoot)/src/**/*" />
+    <AgentPrismFrontendInput Include="$(AgentPrismFrontendRoot)/scripts/**/*" />
+    <AgentPrismFrontendInput Include="$(AgentPrismFrontendRoot)/index.html" />
+    <AgentPrismFrontendInput Include="$(AgentPrismFrontendRoot)/package.json" />
+    <AgentPrismFrontendInput Include="$(AgentPrismFrontendRoot)/package-lock.json" />
+    <AgentPrismFrontendInput Include="$(AgentPrismFrontendRoot)/tsconfig.json" />
+    <AgentPrismFrontendInput Include="$(AgentPrismFrontendRoot)/vite.config.ts" />
+  </ItemGroup>
+
+  <!--
+    Node.js var mi. Yoksa derleme durmaz: onceden uretilmis wwwroot/ varsa
+    paket eksiksizdir. Yoksa uyari verilir ve `pack` asamasinda hataya donusur -
+    ici bos bir arayuz paketi yayinlanamaz.
+  -->
+  <Target Name="AgentPrismDetectNode" Condition=" '$(AgentPrismFrontendEnabled)' == 'true' ">
+    <Exec Command="npm --version"
+          WorkingDirectory="$(AgentPrismFrontendRoot)"
+          ContinueOnError="true"
+          StandardOutputImportance="low"
+          StandardErrorImportance="low">
+      <Output TaskParameter="ExitCode" PropertyName="AgentPrismNpmExitCode" />
+    </Exec>
+
+    <PropertyGroup>
+      <AgentPrismNodeAvailable Condition=" '$(AgentPrismNpmExitCode)' == '0' ">true</AgentPrismNodeAvailable>
+      <AgentPrismNodeAvailable Condition=" '$(AgentPrismNpmExitCode)' != '0' ">false</AgentPrismNodeAvailable>
+    </PropertyGroup>
+
+  </Target>
+
+  <Target Name="AgentPrismNpmInstall"
+          Condition=" '$(AgentPrismFrontendEnabled)' == 'true' AND '$(AgentPrismNodeAvailable)' == 'true' "
+          Inputs="$(AgentPrismFrontendRoot)/package-lock.json"
+          Outputs="$(AgentPrismNpmInstallStamp)">
+    <Message Importance="high" Text="AgentPrism.UI: bagimliliklar kuruluyor (npm ci)" />
+
+    <!--
+      `npm ci` kullanilir, `npm install` degil: kilit dosyasina birebir uyar ve
+      onu degistirmez. Derleme sirasinda kilit dosyasinin sessizce guncellenmesi
+      deterministik derleme vaadini bozardi.
+    -->
+    <Exec Command="npm ci --no-audit --no-fund" WorkingDirectory="$(AgentPrismFrontendRoot)" />
+
+    <Touch Files="$(AgentPrismNpmInstallStamp)" AlwaysCreate="true" />
+  </Target>
+
+  <Target Name="AgentPrismBuildFrontend"
+          Condition=" '$(AgentPrismFrontendEnabled)' == 'true' AND '$(AgentPrismNodeAvailable)' == 'true' "
+          Inputs="@(AgentPrismFrontendInput)"
+          Outputs="$(AgentPrismFrontendStamp)">
+    <Message Importance="high" Text="AgentPrism.UI: arayuz derleniyor (npm run build)" />
+
+    <!--
+      Bu komut tip denetimi, Vite derlemesi, Brotli sikistirmasi ve bundle
+      butcesi kapisini birlikte calistirir. Butce asilirsa komut hata verir ve
+      .NET derlemesi de kirilir - kapi CI'a ozgu degildir.
+    -->
+    <Exec Command="npm run build" WorkingDirectory="$(AgentPrismFrontendRoot)" />
+
+    <Touch Files="$(AgentPrismFrontendStamp)" AlwaysCreate="true" />
+  </Target>
+
+  <!--
+    Uretilen varliklari gomulu kaynak olarak ekler.
+
+    AssignTargetPaths'ten once calisir; kaynak adlari o noktadan sonra sabitlenir.
+    Mantiksal ad "AgentPrism.UI.wwwroot/" oneki ile verilir, boylece calisma
+    aninda dizin yapisi geri kurulabilir.
+  -->
+  <!--
+    Cok hedefli bir projede ic derlemeler (net8.0 / net9.0 / net10.0) PARALEL
+    calisir. Frontend derlemesi tek bir wwwroot/ dizinine yazar ve Vite o dizini
+    once bosaltir; uc ic derleme ayni anda baslarsa birbirinin dosyalarini siler.
+    Olculdu: "ENOENT: no such file or directory, unlink .../index-*.js".
+
+    Bu yuzden zincir DIS derlemede, ic derlemeler dagitilmadan ONCE calisir.
+    Ic derlemeler damgayi guncel bulur ve adimi atlar. Tek hedefle derlerken
+    (ornek: -f net10.0) dis derleme yoktur; o durumda asagidaki toplama hedefi
+    zinciri kendisi calistirir.
+  -->
+  <Target Name="AgentPrismFrontendOuterBuild"
+          BeforeTargets="DispatchToInnerBuilds"
+          DependsOnTargets="AgentPrismDetectNode;AgentPrismNpmInstall;AgentPrismBuildFrontend"
+          Condition=" '$(AgentPrismFrontendEnabled)' == 'true' " />
+
+  <!--
+    DIKKAT: Zincir DependsOnTargets ile burada kurulur, hedeflerin kendi
+    arasinda degil. MSBuild bir hedefin Condition'ini DependsOnTargets'tan ONCE
+    degerlendirir; bagimlilik zinciri hedefin uzerinde kurulsaydi
+    AgentPrismNpmInstall'in kosulu (henuz bos olan AgentPrismNodeAvailable)
+    false cikar ve AgentPrismDetectNode hic calismazdi. Olculdu: arayuz sessizce
+    derlenmiyordu.
+  -->
+  <Target Name="AgentPrismCollectFrontendAssets"
+          DependsOnTargets="AgentPrismDetectNode;AgentPrismNpmInstall;AgentPrismBuildFrontend"
+          BeforeTargets="AssignTargetPaths"
+          Condition=" '$(AgentPrismFrontendEnabled)' == 'true' ">
+    <ItemGroup>
+      <AgentPrismFrontendAsset Include="$(AgentPrismFrontendOutput)/**/*" />
+
+      <EmbeddedResource Include="@(AgentPrismFrontendAsset)"
+                        LogicalName="AgentPrism.UI.wwwroot/%(AgentPrismFrontendAsset.RecursiveDir)%(AgentPrismFrontendAsset.Filename)%(AgentPrismFrontendAsset.Extension)" />
+    </ItemGroup>
+
+    <Warning Condition=" '@(AgentPrismFrontendAsset)' == '' AND '$(AgentPrismNodeAvailable)' != 'true' "
+             Code="AGENTPRISM0002"
+             Text="AgentPrism.UI: Node.js bulunamadi ve onceden derlenmis arayuz varligi yok. Paket arayuzsuz derlenecek; MapAgentPrism arayuz rotalarini baglamayacak. Node.js 20.19+ kurun veya bu projeyi -p:AgentPrismFrontendEnabled=false ile atlayin." />
+  </Target>
+
+  <!--
+    Ici bos bir arayuz paketi yayinlanamaz. Derlemede uyari yeterlidir; pack
+    asamasinda ayni durum hatadir, cunku o nokta artik yayin yoludur.
+  -->
+  <Target Name="AgentPrismValidateFrontendAssets"
+          BeforeTargets="GenerateNuspec"
+          Condition=" '$(AgentPrismFrontendEnabled)' == 'true' ">
+    <Error Condition="!Exists('$(AgentPrismShellFile)')"
+           Code="AGENTPRISM0003"
+           Text="AgentPrism.UI: arayuz varligi uretilmemis ($(AgentPrismShellFile) yok). Ici bos bir arayuz paketi yayinlanamaz. Node.js 20.19+ kurun ve derlemeyi tekrarlayin." />
+  </Target>
+
+</Project>

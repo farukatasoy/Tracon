@@ -64,8 +64,8 @@ Faz bittiğinde **`faz-tamamlama` skill'i uygulanır**. Atlanmaz.
 | 2 | `docs/02-POSTGRESQL-KALICILIK.md` | ✅ Tamamlandı |
 | 3 | `docs/03-SAGLAYICI-VE-DERLEYICI.md` | ✅ Tamamlandı |
 | 4 | `docs/04-HTTP-API.md` | ✅ Tamamlandı |
-| 5 | `docs/05-AGENTPRISM-UI.md` | Sıradaki |
-| 6 | `docs/06-GOZLEMLENEBILIRLIK.md` | Planlandı |
+| 5 | `docs/05-AGENTPRISM-UI.md` | ✅ Tamamlandı |
+| 6 | `docs/06-GOZLEMLENEBILIRLIK.md` | Sıradaki |
 | 7 | `docs/07-SAGLAMLASTIRMA-VE-YAYIN.md` | Planlandı |
 
 ---
@@ -84,6 +84,10 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 `TreatWarningsAsErrors` açıktır — uyarı yoktur, hata vardır. Bir analyzer kuralını bastırmadan önce **neden** tetiklendiğini anla; bastırma gerekiyorsa gerekçesini koda ve `docs/KARARLAR.md`'ye yaz.
 
 **Sırlar asla dosyaya yazılmaz.** Bağlantı dizesi ve API anahtarı yalnız `dotnet user-secrets` içinde yaşar. `appsettings.json` boş placeholder taşır. Faz sonunda sır taraması yapılır — komut `faz-tamamlama` skill'inde.
+
+`dotnet build` **arayüzü de derler**: `npm ci` → `tsc --noEmit` → 40 Vitest testi →
+Vite → Brotli sıkıştırma → bundle bütçesi kapısı (250 KB gzip). Adımlar artımsaldır.
+Node.js 20.19+ gerekir; hızlı bir iç döngü için `-p:AgentPrismFrontendEnabled=false`.
 
 > ⚠️ `dotnet format`, `dotnet build`'in yakalamadığı analyzer tanılarını yakalayabilir (yaşandı: yapılandırma bağlama kaynak üreteci build'de tanıyı gizledi, format'ta ortaya çıktı). Dört kapının da çalıştırılması bu yüzden zorunludur.
 

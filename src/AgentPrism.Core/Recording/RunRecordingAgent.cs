@@ -65,7 +65,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             return await base.RunCoreAsync(messages, session, options, cancellationToken).ConfigureAwait(false);
         }
 
-        var writer = await BeginRunAsync(session, isStreaming: false, cancellationToken).ConfigureAwait(false);
+        var writer = await BeginRunAsync(session, options, isStreaming: false, cancellationToken).ConfigureAwait(false);
 
         try
         {
@@ -116,7 +116,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             yield break;
         }
 
-        var writer = await BeginRunAsync(session, isStreaming: true, cancellationToken).ConfigureAwait(false);
+        var writer = await BeginRunAsync(session, options, isStreaming: true, cancellationToken).ConfigureAwait(false);
         UsageDetails? usage = null;
         var enumerator = base.RunCoreStreamingAsync(messages, session, options, cancellationToken).GetAsyncEnumerator(cancellationToken);
 
@@ -169,10 +169,15 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
 
     private async ValueTask<RunEventWriter> BeginRunAsync(
         AgentSession? session,
+        AgentRunOptions? options,
         bool isStreaming,
         CancellationToken cancellationToken)
     {
-        var writer = new RunEventWriter(_runStore, _options, _logger, AgentPrismId.NewId());
+        // Cagiran kimligi verdiyse o kullanilir. Akisli bir uc, ilk cerceveyi
+        // yazmadan once kimligi bilmek zorundadir; kendi urettigi kimligi buraya
+        // gecerek istemciye dogru kimligi bildirebilir.
+        var runId = (options as AgentPrismRunOptions)?.RunId ?? AgentPrismId.NewId();
+        var writer = new RunEventWriter(_runStore, _options, _logger, runId);
 
         await writer.StartAsync(
             new RunStartInfo

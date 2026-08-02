@@ -251,9 +251,17 @@ internal static class AgentEndpoints
     /// Deneme calistirmasinin yanitini SSE olarak yazar.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Ayri bir <see cref="IResult"/> olarak yazilir cunku akis basladiktan sonra
     /// durum kodu degistirilemez; hata durumunda <c>event: error</c> cercevesi
     /// gonderilir.
+    /// </para>
+    /// <para>
+    /// Ilk cerceve <c>run</c>'dir ve calistirma kimligini tasir. Kimlik
+    /// <see cref="AgentPrismRunOptions"/> ile <em>cagiran tarafindan</em> uretilir;
+    /// aksi halde calistirma kaydini yazan sarmalayici kendi kimligini uretir ve
+    /// akan yanit hicbir zaman <c>/api/runs/{id}</c> kaydiyla iliskilendirilemezdi.
+    /// </para>
     /// </remarks>
     private sealed class AgentRunStream(
         Microsoft.Agents.AI.AIAgent agent,
@@ -268,6 +276,7 @@ internal static class AgentEndpoints
             var writer = await SseWriter.StartAsync(httpContext.Response, cancellationToken).ConfigureAwait(false);
 
             Microsoft.Agents.AI.AgentSession? session = null;
+            var runId = AgentPrismId.NewId();
             long sequence = 0;
 
             try
@@ -279,7 +288,17 @@ internal static class AgentEndpoints
                         .ConfigureAwait(false);
                 }
 
-                var updates = agent.RunStreamingAsync(request.Message, session, cancellationToken: cancellationToken);
+                await writer.WriteEventAsync(
+                    sequence++,
+                    "run",
+                    JsonSerializer.Serialize(new AgentRunAccepted(runId, request.SessionId), JsonOptions),
+                    cancellationToken).ConfigureAwait(false);
+
+                var updates = agent.RunStreamingAsync(
+                    request.Message,
+                    session,
+                    new AgentPrismRunOptions { RunId = runId },
+                    cancellationToken);
 
                 await foreach (var update in updates.ConfigureAwait(false))
                 {
@@ -313,6 +332,8 @@ internal static class AgentEndpoints
         }
 
         private static JsonSerializerOptions JsonOptions { get; } = new(JsonSerializerDefaults.Web);
+
+        private sealed record AgentRunAccepted(Guid RunId, string? SessionId);
 
         private sealed record AgentRunCompleted(string? SessionId);
 

@@ -1,0 +1,193 @@
+@import 'tailwindcss';
+
+/*
+  The theme is driven by a `data-theme` attribute on <html>, written before the
+  first paint by `theme.ts`. Relying on `prefers-color-scheme` alone would make
+  an explicit user choice flash the wrong palette on every load.
+*/
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/*
+  Neutral developer-tool base. Colour is information, not decoration: the prism
+  spectrum below is assigned to domains (agents, runs, tools, ...) so a glance at
+  a colour tells you what kind of thing you are looking at.
+*/
+:root,
+[data-theme='light'] {
+  --ap-bg: #f7f7f9;
+  --ap-panel: #ffffff;
+  --ap-raised: #f2f2f5;
+  --ap-line: #e3e3e9;
+  --ap-line-strong: #cfcfd8;
+  --ap-fg: #14141b;
+  --ap-muted: #61616f;
+  --ap-subtle: #8e8e9d;
+
+  --ap-accent: #7c3aed;
+  --ap-accent-hover: #6d28d9;
+  --ap-accent-fg: #ffffff;
+  --ap-accent-soft: #f2ecff;
+
+  --ap-success: #047857;
+  --ap-success-soft: #e6f6ef;
+  --ap-danger: #be123c;
+  --ap-danger-soft: #fdecef;
+  --ap-warn: #b45309;
+  --ap-warn-soft: #fdf3e3;
+  --ap-info: #1d4ed8;
+  --ap-info-soft: #e9efff;
+
+  --ap-violet: #7c3aed;
+  --ap-indigo: #4f46e5;
+  --ap-cyan: #0e7490;
+  --ap-emerald: #047857;
+  --ap-amber: #b45309;
+  --ap-rose: #be123c;
+
+  --ap-shadow: 0 1px 2px rgb(20 20 27 / 0.06), 0 8px 24px -12px rgb(20 20 27 / 0.18);
+}
+
+[data-theme='dark'] {
+  --ap-bg: #0a0a0f;
+  --ap-panel: #101017;
+  --ap-raised: #17171f;
+  --ap-line: #24242e;
+  --ap-line-strong: #34343f;
+  --ap-fg: #e9e9f2;
+  --ap-muted: #9b9bad;
+  --ap-subtle: #6e6e80;
+
+  --ap-accent: #a78bfa;
+  --ap-accent-hover: #c4b5fd;
+  --ap-accent-fg: #14101f;
+  --ap-accent-soft: #1e1730;
+
+  --ap-success: #34d399;
+  --ap-success-soft: #0d2a22;
+  --ap-danger: #fb7185;
+  --ap-danger-soft: #2c1218;
+  --ap-warn: #fbbf24;
+  --ap-warn-soft: #2b1f0a;
+  --ap-info: #60a5fa;
+  --ap-info-soft: #101d33;
+
+  --ap-violet: #a78bfa;
+  --ap-indigo: #818cf8;
+  --ap-cyan: #22d3ee;
+  --ap-emerald: #34d399;
+  --ap-amber: #fbbf24;
+  --ap-rose: #fb7185;
+
+  --ap-shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 12px 32px -16px rgb(0 0 0 / 0.8);
+}
+
+@theme inline {
+  --color-bg: var(--ap-bg);
+  --color-panel: var(--ap-panel);
+  --color-raised: var(--ap-raised);
+  --color-line: var(--ap-line);
+  --color-line-strong: var(--ap-line-strong);
+  --color-fg: var(--ap-fg);
+  --color-muted: var(--ap-muted);
+  --color-subtle: var(--ap-subtle);
+
+  --color-accent: var(--ap-accent);
+  --color-accent-hover: var(--ap-accent-hover);
+  --color-accent-fg: var(--ap-accent-fg);
+  --color-accent-soft: var(--ap-accent-soft);
+
+  --color-success: var(--ap-success);
+  --color-success-soft: var(--ap-success-soft);
+  --color-danger: var(--ap-danger);
+  --color-danger-soft: var(--ap-danger-soft);
+  --color-warn: var(--ap-warn);
+  --color-warn-soft: var(--ap-warn-soft);
+  --color-info: var(--ap-info);
+  --color-info-soft: var(--ap-info-soft);
+
+  --color-violet: var(--ap-violet);
+  --color-indigo: var(--ap-indigo);
+  --color-cyan: var(--ap-cyan);
+  --color-emerald: var(--ap-emerald);
+  --color-amber: var(--ap-amber);
+  --color-rose: var(--ap-rose);
+
+  --shadow-panel: var(--ap-shadow);
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono:
+    ui-monospace, 'SF Mono', 'JetBrains Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  [data-theme='dark'] {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--ap-bg);
+    color: var(--ap-fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ap-accent);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--ap-accent);
+    color: var(--ap-accent-fg);
+  }
+
+  /* Long event streams and JSON payloads dominate this UI; a heavy scrollbar
+     steals horizontal space from every one of them. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--ap-line-strong) transparent;
+  }
+}
+
+@layer components {
+  /*
+    The refraction strip. It is the one purely decorative use of the spectrum
+    and appears only at the top of the sidebar, where it reads as the product
+    mark rather than as data.
+  */
+  .ap-prism {
+    background: linear-gradient(
+      90deg,
+      var(--ap-violet),
+      var(--ap-indigo),
+      var(--ap-cyan),
+      var(--ap-emerald),
+      var(--ap-amber),
+      var(--ap-rose)
+    );
+  }
+
+  .ap-stream-caret::after {
+    content: '';
+    display: inline-block;
+    width: 0.5rem;
+    height: 1rem;
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    background: var(--ap-accent);
+    animation: ap-blink 1s steps(2, start) infinite;
+  }
+
+  @keyframes ap-blink {
+    to {
+      visibility: hidden;
+    }
+  }
+}
