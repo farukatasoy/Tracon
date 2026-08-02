@@ -32,6 +32,7 @@ interface FormState {
   topP: string;
   reasoningEffort: string;
   toolNames: string[];
+  skillNames: string[];
   harnessEnabled: boolean;
   harness: HarnessSettings;
 }
@@ -48,6 +49,7 @@ const emptyForm: FormState = {
   topP: '',
   reasoningEffort: '',
   toolNames: [],
+  skillNames: [],
   harnessEnabled: false,
   harness: {},
 };
@@ -79,6 +81,7 @@ function toRequest(form: FormState): AgentDefinitionRequest {
     instructions: form.instructions.trim().length > 0 ? form.instructions.trim() : null,
     model,
     toolNames: form.toolNames,
+    skillNames: form.skillNames,
     harness: form.harnessEnabled ? form.harness : null,
   };
 }
@@ -99,6 +102,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
   const [ready, setReady] = useState(!editing);
 
   const tools = useQuery({ queryKey: ['tools'], queryFn: api.tools });
+  const skills = useQuery({ queryKey: ['skills'], queryFn: api.skills });
   const providers = useQuery({ queryKey: ['models'], queryFn: api.models });
 
   const existing = useQuery({
@@ -132,6 +136,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
       topP: definition.model.topP?.toString() ?? '',
       reasoningEffort: definition.model.reasoningEffort ?? '',
       toolNames: [...definition.toolNames],
+      skillNames: [...definition.skillNames],
       harnessEnabled: definition.harness !== null && definition.harness !== undefined,
       harness: definition.harness ?? {},
     });
@@ -365,6 +370,50 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                         {tool.description !== null && tool.description !== undefined && (
                           <span className="block text-[12px] text-muted">{tool.description}</span>
                         )}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          </Panel>
+
+          <Panel title="Skills">
+            <div className="p-4">
+              {skills.isPending && <Loading />}
+              {skills.isError && <ErrorNote error={skills.error} />}
+              {skills.isSuccess && skills.data.length === 0 && (
+                <p className="text-[13px] text-subtle">No skills created for this tenant.</p>
+              )}
+              <p className="mb-3 text-[12px] text-muted">An agent can have at most 10 skills.</p>
+              <div className="flex flex-col gap-1.5">
+                {(skills.data ?? []).map((skill) => {
+                  const checked = form.skillNames.includes(skill.name);
+                  const limitReached = form.skillNames.length >= 10;
+
+                  return (
+                    <label
+                      key={skill.name}
+                      className="flex cursor-pointer items-start gap-2.5 rounded-md border border-line px-3 py-2 hover:bg-raised"
+                    >
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 accent-[var(--ap-accent)]"
+                        checked={checked}
+                        disabled={!skill.enabled || (!checked && limitReached)}
+                        onChange={() =>
+                          setForm({
+                            ...form,
+                            skillNames: checked
+                              ? form.skillNames.filter((item) => item !== skill.name)
+                              : [...form.skillNames, skill.name],
+                          })
+                        }
+                      />
+                      <span className="min-w-0">
+                        <Mono className="font-medium">{skill.name}</Mono>
+                        {!skill.enabled && <Badge tone="warn">disabled</Badge>}
+                        <span className="block text-[12px] text-muted">{skill.description}</span>
                       </span>
                     </label>
                   );

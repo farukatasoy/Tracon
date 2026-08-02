@@ -237,7 +237,8 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [7](docs/07-SAGLAMLASTIRMA-VE-YAYIN.md) | Sağlamlaştırma ve yayın | ⏸ Beklemede — yayın zamanı kullanıcı kararı (K-068) |
 | [8](docs/08-SAGLAYICI-GENISLEMESI.md) | Sağlayıcı genişlemesi ve sağlık denetimi (OpenAI uyumlu herhangi bir uç, devre kesici) | ✅ Tamamlandı |
 | [9](docs/09-YONETISIM-VE-DENETIM-IZI.md) | Yönetişim: rol tabanlı yetkilendirme (Reader/Operator/Admin) ve denetim izi | ✅ Tamamlandı |
-| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 10–30) | 📋 Planlandı — sıradaki Faz 10 |
+| [10](docs/10-AGENT-SKILLERI.md) | Agent skill'leri: markdown talimatlar, kaynaklar ve MAF onayı | ✅ Tamamlandı |
+| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 11–30) | 📋 Planlandı — sıradaki Faz 11 |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 > Faz 6, planındaki Workflows kalemini **yapmadı**; ertelendi ve gerekçesi
@@ -267,7 +268,7 @@ Gereksinimler: .NET SDK 10.0.100+, **Node.js 20.19+** (arayüz derlemesi), **Doc
 (entegrasyon testleri Testcontainers ile gerçek PostgreSQL kaldırır). Arayüz E2E
 testleri Chromium'u ilk çalıştırmada kendisi indirir.
 
-`dotnet build` arayüzü de derler: `npm ci` → tip denetimi → 40 Vitest testi →
+`dotnet build` arayüzü de derler: `npm ci` → tip denetimi → 42 Vitest testi →
 Vite → Brotli sıkıştırma → bundle bütçesi kapısı. Adımlar artımsaldır; kaynak
 değişmediyse atlanır. Hızlı bir iç döngü için `-p:AgentPrismFrontendEnabled=false`.
 

@@ -33,6 +33,9 @@ public sealed record AgentDescriptor
     /// <summary>Bu agent'in kullanabilecegi tool adlari.</summary>
     public IReadOnlyList<string> ToolNames { get; init; } = [];
 
+    /// <summary>Bu agent'in calisma aninda yukleyebilecegi skill adlari.</summary>
+    public IReadOnlyList<string> SkillNames { get; init; } = [];
+
     /// <summary>Harness yetenekleri acik mi.</summary>
     public bool UsesHarness { get; init; }
 

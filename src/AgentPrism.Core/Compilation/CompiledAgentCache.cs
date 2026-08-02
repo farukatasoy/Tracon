@@ -4,7 +4,7 @@ using Microsoft.Agents.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Derlenmis agent'lari <c>(ad, surum)</c> anahtariyla onbellege alir.
+/// Derlenmis agent'lari <c>(ad, surum, skill parmak izi)</c> anahtariyla onbellege alir.
 /// </summary>
 /// <remarks>
 /// Tanim guncellenince surum artar ve onbellek <em>dogal olarak</em> gecersizlesir.
@@ -27,14 +27,27 @@ public sealed class CompiledAgentCache
     /// <returns>Derlenmis agent.</returns>
     /// <exception cref="ArgumentNullException">Parametrelerden biri <see langword="null"/> ise.</exception>
     public AIAgent GetOrAdd(string name, int version, Func<AIAgent> factory)
+        => GetOrAdd(name, version, string.Empty, factory);
+
+    /// <summary>
+    /// Agent'i skill parmak iziyle birlikte onbellekten getirir; yoksa
+    /// <paramref name="factory"/> ile uretip ekler.
+    /// </summary>
+    /// <param name="name">Agent adi.</param>
+    /// <param name="version">Tanim surumu.</param>
+    /// <param name="skillFingerprint">Bagli skill'lerin guncel parmak izi.</param>
+    /// <param name="factory">Onbellekte yoksa cagrilan uretici.</param>
+    /// <returns>Derlenmis agent.</returns>
+    public AIAgent GetOrAdd(string name, int version, string skillFingerprint, Func<AIAgent> factory)
     {
         ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(skillFingerprint);
         ArgumentNullException.ThrowIfNull(factory);
 
         // GetOrAdd(key, valueFactory) ayni anahtar icin fabrikayi birden cok kez
         // calistirabilir. Agent uretimi yan etkisizdir, bu yuzden sorun degil;
         // fazla uretilen ornek atilir.
-        return _entries.GetOrAdd(new CacheKey(name, version), _ => factory());
+        return _entries.GetOrAdd(new CacheKey(name, version, skillFingerprint), _ => factory());
     }
 
     /// <summary>Bir agent'in tum surumlerini onbellekten cikarir.</summary>
@@ -55,5 +68,5 @@ public sealed class CompiledAgentCache
     /// <summary>Onbellegi tamamen bosaltir.</summary>
     public void Clear() => _entries.Clear();
 
-    private readonly record struct CacheKey(string Name, int Version);
+    private readonly record struct CacheKey(string Name, int Version, string SkillFingerprint);
 }

@@ -42,6 +42,12 @@ public sealed record AgentDefinition
     public IReadOnlyList<string> ToolNames { get; init; } = [];
 
     /// <summary>
+    /// Bu agent'in calisma aninda yukleyebilecegi skill adlari. Her ad, kodda
+    /// veya skill deposunda bulunan etkin bir skill'e karsilik gelmelidir.
+    /// </summary>
+    public IReadOnlyList<string> SkillNames { get; init; } = [];
+
+    /// <summary>
     /// Harness ayarlari. <see langword="null"/> ise sade bir sohbet agent'i uretilir;
     /// dolu ise baglam sikistirma, todo takibi gibi harness yetenekleri devreye girer.
     /// </summary>

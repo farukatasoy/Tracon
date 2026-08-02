@@ -30,6 +30,25 @@ Karar, kontrolsüz çalıştırma anlamına gelmez.
 4. [`MIMARI.md`](MIMARI.md) — bölüm 7 (güvenlik modeli)
 5. Bu doküman
 
+## Faz 10'dan Devralınan Sözleşmeler
+
+Faz 10 tamamlandı. Önce bu yüzeyleri oku; script desteği bunları genişletecek,
+yerine paralel bir skill zinciri kurmayacaktır.
+
+| Sözleşme | Mevcut davranış |
+|----------|-----------------|
+| `AgentSkillDefinition` | `Instructions`, frontmatter, `Resources`, `Enabled`, `Version`, UTC zamanları taşır. Script alanı yoktur. |
+| `IAgentSkillStore` | `ListAsync(tenantId)`, `GetAsync(tenantId, name)`, `SaveAsync(skill)`, `DeleteAsync(tenantId, name)`; PostgreSQL kaynakları `agent_skill_resources` tablosunda cascade bağlıdır. |
+| `AgentSkillCatalog` | Kod kaydı store kaydını aynı adda geçersiz kılar. Bilinmeyen skill derleme hatasıdır; `Enabled = false` MAF'a girmez. |
+| `AgentPrismSkillsSource` | `AgentSkillDefinition` değerini `AgentInlineSkill`e çevirir. Kaynak zinciri `Aggregating` → `Filtering` → tenant anahtarlı `Caching` → `Deduplicating` biçimindedir. |
+| `AgentDefinition.SkillNames` | Agent tanımının sürümlü JSON yükündedir. `CompiledAgentCache` anahtarı skill parmak izini içerir; script ekleme bu geçersiz kılma davranışını korumalıdır. |
+| Onay | `AgentSkillsProviderOptions.Disable*Approval` değerleri ayarlanmaz. Gerçek OpenRouter denemesinde `load_skill` onayı Playground'da göründü ve onaylanınca skill talimatı yüklendi. |
+
+🚨 `AgentInlineSkill.AddScript` Faz 10'da bilerek çağrılmadı. Faz 11 ekleme
+yaparsa `AgentSkillCatalog` ve `AgentPrismSkillsSource` üzerinden gitmeli;
+MAF'ın dosya tabanlı kaynaklarını doğrudan veritabanı verisi için kullanmak
+tenant yalıtımını ve cache parmak izini atlar.
+
 ---
 
 ## Doğrulanmış MAF API'si

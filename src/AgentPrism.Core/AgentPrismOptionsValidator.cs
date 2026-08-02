@@ -88,6 +88,29 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
             }
         }
 
+        var skills = options.Skills;
+
+        if (skills is null)
+        {
+            (failures ??= []).Add(
+                $"{nameof(AgentPrismOptions)}.{nameof(AgentPrismOptions.Skills)} bos olamaz.");
+        }
+        else
+        {
+            if (skills.MaxSkillsPerAgent < 1)
+            {
+                (failures ??= []).Add(
+                    $"{nameof(AgentPrismSkillOptions)}.{nameof(AgentPrismSkillOptions.MaxSkillsPerAgent)} " +
+                    $"en az 1 olmalidir. Gelen deger: {skills.MaxSkillsPerAgent}.");
+            }
+
+            if (skills.MaxInstructionsLength < 1 || skills.MaxResourceContentLength < 1 || skills.MaxResourcesPerSkill < 1)
+            {
+                (failures ??= []).Add(
+                    $"{nameof(AgentPrismSkillOptions)} sinirlari sifirdan buyuk olmalidir.");
+            }
+        }
+
         return failures is null
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);

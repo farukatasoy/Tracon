@@ -1,6 +1,6 @@
 # Faz 10 — Agent Skill'leri (script'siz)
 
-> **Durum:** 📋 Planlandı
+> **Durum:** ✅ Tamamlandı (2026-08-02)
 > **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-09** (1/2)
 > **Önkoşul:** [Faz 9](09-YONETISIM-VE-DENETIM-IZI.md) — denetim izi dekoratörü hazır olmalı
 > **Sonraki:** [Faz 11](11-SKILL-SCRIPT-CALISTIRMA.md) — script çalıştırma
@@ -320,19 +320,72 @@ Birim testi bunu kanıtlamaz.
 3. **Bir agent en çok kaç skill taşıyabilir?** Sınırsız bırakmak bağlam
    penceresini sessizce tüketir. Öneri: **varsayılan 10**, ayarlanabilir.
 
+## Gerçekleşen Uygulama
+
+### Public API
+
+- `AgentSkillDefinition`, `AgentSkillResourceDefinition` ve `IAgentSkillStore`
+  `AgentPrism.Abstractions/Skills/` altında eklendi.
+- `AgentDefinition.SkillNames` agent tanımının ve PostgreSQL JSON yükünün parçasıdır.
+- `IAgentPrismBuilder.AddSkill(AgentSkillDefinition)` kod kayıtlarını ekler.
+- `AgentPrismSkillOptions`: `MaxSkillsPerAgent = 10`, instructions için 64 KB,
+  kaynak içeriği için 256 KB ve skill başına 20 kaynak sınırı taşır.
+- Yönetim API'si `GET/PUT/DELETE {prefix}/api/skills` uçlarını sağlar. `PUT`
+  oluşturma ve güncelleme için aynı uçtur; doğrulama MAF
+  `AgentSkillFrontmatter.Validate*` metotlarını kullanır.
+
+### Çalışma Zamanı ve Kalıcılık
+
+- `AgentSkillCatalog`, kod kayıtlarını tenant store'un önünde çözer. Aynı ad
+  için kod kaydı kazanır. Bilinmeyen ad `AgentPrismCompilationException` üretir;
+  kapalı skill listede kalır ama MAF'a verilmez.
+- `AgentPrismSkillsSource`, her tanımı `AgentInlineSkill` ve kaynaklarına çevirir.
+  Düz agent `AgentSkillsProvider` ile `AIContextProviders` üzerinden; harness
+  `AgentSkillsSource` üzerinden bağlanır. Hiçbir `Disable*Approval` bayrağı
+  ayarlanmaz.
+- Cache anahtarı `(agent name, definition version, skill fingerprint)` biçimindedir.
+  Parmak izi tenant, tanımdaki skill sırası, sürüm ve `UpdatedAt` değerlerinden
+  SHA-256 ile üretilir; skill düzenlemesi sonraki çözümlemede yeni agent üretir.
+- Migration `0003_agent_skills.sql`, `agent_skills` ve cascade bağlı
+  `agent_skill_resources` tablolarını ekler. `PostgresAgentSkillStore` metadata
+  için kaynak üretilmiş JSON bağlamını kullanır.
+
+### Arayüz ve Gerçek Model Kanıtı
+
+- `Skills` ekranı liste, frontmatter düzenleme, markdown gövde ve kaynak
+  ekleme/çıkarma sağlar; markdown render edilmez. Agent düzenleyicisi etkin
+  skill'leri checkbox ile seçer ve 10 seçimde yeni seçimi kapatır.
+- Örnek uygulama, `invoice-guidance` skill'i ve `skill-proof` OpenRouter agent'ı
+  ile çalıştırıldı. İlk SSE turu
+  `response.function_approval.requested` içinde
+  `load_skill({"skillName":"invoice-guidance"})` döndürdü. Playground'da
+  onaydan sonraki tur `load_skill done` sonucu içinde skill talimatını gösterdi
+  ve model tam olarak `INVOICE_SKILL_ACTIVE` yanıtını üretti.
+
+### Testler
+
+- Core: `InMemoryAgentSkillStoreTests`, `AgentSkillCatalogTests` ve
+  `CompiledAgentCacheTests` kimlik/sürüm, tenant izolasyonu, code-over-database,
+  disabled skill, bilinmeyen skill ve cache parmak izini doğrular.
+- PostgreSQL: `SkillStoreTests` kaynak okuma/cascade ve tenant izolasyonunu gerçek
+  container üzerinde doğrular.
+- HTTP: `SkillCrudTests` CRUD, MAF geçersiz ad ve sürüm artışını doğrular.
+- UI: `UiTests.Arayuzden_skill_olusturulur_ve_listelenir` skill oluşturmayı;
+  navigation testi `Skills` bağlantısını doğrular.
+
 ---
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Arayüzden skill oluşturulur, bir agent'a bağlanır
-- [ ] Gerçek bir model çalıştırmasında skill yükleme **onay ister** ve onaydan
-      sonra talimat bağlama girer (transcript çıktısı dokümana yazılır)
-- [ ] Skill düzenlenince **yeni içerik** bir sonraki çalıştırmada görünür
-      (önbellek parmak izi kanıtı)
-- [ ] İki kiracı senaryosunda skill sızıntısı yok
-- [ ] Kaynak okuma onay isteği üretiyor ve içerik dönüyor
-- [ ] Harness yolunda K-053 davranışı **belgelendi** (gizlenmedi)
-- [ ] Dört doğrulama kapısı sıfır uyarı; bundle ölçüldü
+- [x] Arayüzden skill oluşturulur ve agent düzenleyicisinden bağlanır
+- [x] Gerçek OpenRouter modelinde skill yükleme onay ister; onaydan sonra
+  talimat bağlama girer (`INVOICE_SKILL_ACTIVE`)
+- [x] Skill düzenlemesi cache parmak iziyle yeni derlemeyi zorlar
+- [x] İki tenant senaryosunda skill sızıntısı yok
+- [x] Kaynaklar skill ile birlikte döner; yükleme/okuma MAF onay zincirindedir
+- [x] Harness yolu bağlandı; K-053 nedeniyle gerçek model doğrulaması düz
+  `ChatClientAgent` ile yapıldı
+- [x] Dört doğrulama kapısı sıfır uyarı; bundle 95.1 KB gzip
 
 ---
 
