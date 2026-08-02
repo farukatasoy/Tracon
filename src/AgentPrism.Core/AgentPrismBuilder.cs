@@ -46,6 +46,24 @@ internal sealed class AgentPrismBuilder : IAgentPrismBuilder
         return AddTool(tool, requiresApproval);
     }
 
+    [RequiresUnreferencedCode("Tool taramasi yansima kullanir; kirpilmis uygulamalarda metot bilgisi kaybolabilir.")]
+    [RequiresDynamicCode("Tool taramasi calisma aninda kod uretimi gerektirebilir.")]
+    public IAgentPrismBuilder AddToolsFrom<T>() => AddToolsFrom(typeof(T));
+
+    [RequiresUnreferencedCode("Tool taramasi yansima kullanir; kirpilmis uygulamalarda metot bilgisi kaybolabilir.")]
+    [RequiresDynamicCode("Tool taramasi calisma aninda kod uretimi gerektirebilir.")]
+    public IAgentPrismBuilder AddToolsFrom(Type type)
+    {
+        ArgumentNullException.ThrowIfNull(type);
+
+        foreach (var registration in ToolMethodScanner.Scan(type))
+        {
+            Services.AddSingleton(registration);
+        }
+
+        return this;
+    }
+
     public IAgentPrismBuilder AddAgent(AgentDefinition definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
