@@ -119,7 +119,7 @@ flowchart TD
 
 | Uç grubu | Rol |
 |----------|-----|
-| `GET /api/agents`, `/runs`, `/sessions`, `/tools`, `/models`, `/stats`, `/runs/{id}/trace` | Reader |
+| `GET /api/agents`, `/runs`, `/sessions`, `/tools`, `/models`, `/models/health*`, `/stats`, `/runs/{id}/trace` | Reader |
 | `POST /api/agents/{name}/run`, `/v1/*` | Operator |
 | `DELETE /api/sessions/{id}` | Operator |
 | Onay kararı (`approvals` gövdesi ile çalıştırma) | Operator |

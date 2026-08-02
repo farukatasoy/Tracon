@@ -1,3 +1,5 @@
+using Microsoft.Extensions.AI;
+
 namespace AgentPrism;
 
 /// <summary>AgentPrism'in calisma zamani ayarlari.</summary>
@@ -18,6 +20,65 @@ public sealed class AgentPrismOptions
 
     /// <summary>Telemetri ayarlari.</summary>
     public AgentPrismObservabilityOptions Observability { get; set; } = new();
+
+    /// <summary>Model saglayicisi devre kesici ayarlari.</summary>
+    public AgentPrismCircuitBreakerOptions CircuitBreaker { get; set; } = new();
+
+    /// <summary>Model saglayicisi saglik denetimi ayarlari.</summary>
+    public AgentPrismHealthOptions Health { get; set; } = new();
+}
+
+/// <summary>
+/// Bir model saglayicisi ardisik hata verdiginde istekleri gecici olarak kesen devre
+/// kesicinin ayarlari.
+/// </summary>
+/// <remarks>
+/// Devre kesici <see cref="IChatClient"/> boru hattina bir dekoratordur, saglayici
+/// uygulamasinin icine gomulmez — bu yuzden her saglayici (OpenAI, uyumlu sunucular,
+/// gelecekteki Anthropic/Gemini) ayni korumayi bedava alir.
+/// Gerekce: <c>docs/KARARLAR.md</c>, K-007 (yeni paket alinmadi) ve
+/// <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>, bolum 8.3.
+/// </remarks>
+public sealed class AgentPrismCircuitBreakerOptions
+{
+    /// <summary>
+    /// Devre kesici acik mi. Kapatilirsa istekler her zaman saglayiciya gider ve
+    /// hicbir ardisik hata sayaci tutulmaz.
+    /// </summary>
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// Devrenin acilmasi icin gereken ardisik hata sayisi.
+    /// </summary>
+    public int FailureThreshold { get; set; } = 5;
+
+    /// <summary>
+    /// Devre actiktan sonra tekrar tek bir deneme (yari-acik) icin beklenecek sure.
+    /// </summary>
+    public TimeSpan BreakDuration { get; set; } = TimeSpan.FromSeconds(30);
+}
+
+/// <summary>Model saglayicisi saglik denetiminin ayarlari.</summary>
+/// <remarks>
+/// Denetim <c>GET {endpoint}/models</c> ucuna gider ve ucret uretmez. Sonuc
+/// onbelleklenir; <c>/api/models/health</c> ucu her acilista saglayiciya gitmez.
+/// </remarks>
+public sealed class AgentPrismHealthOptions
+{
+    /// <summary>Bir denetim sonucunun onbellekte tazeliğini koruyacagi sure.</summary>
+    public TimeSpan CacheTtl { get; set; } = TimeSpan.FromSeconds(60);
+
+    /// <summary>
+    /// Arka planda otomatik denetim araligi. <see langword="null"/> ise (varsayilan)
+    /// arka plan zamanlayicisi hic calismaz; denetim yalnizca aray uzden "simdi
+    /// denetle" ile veya <c>/api/models/health</c> ucu cagrildiginda tetiklenir.
+    /// </summary>
+    /// <remarks>
+    /// Bos birakildi: bosta duran bir kurulumun saglayiciya duzenli istek atmasi
+    /// istenmeyen bir varsayilandir. Gerekce: <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>,
+    /// acik soru 3.
+    /// </remarks>
+    public TimeSpan? BackgroundInterval { get; set; }
 }
 
 /// <summary>

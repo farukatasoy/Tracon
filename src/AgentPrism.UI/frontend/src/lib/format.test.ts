@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { count, duration, percent, prettyJson, relativeTime, shortId } from './format';
+import { count, duration, latencyText, percent, prettyJson, relativeTime, shortId } from './format';
 import { matchRoute, toRelativePath } from './router';
 
 const NOW = Date.parse('2026-08-02T12:00:00Z');
@@ -44,6 +44,18 @@ describe('count and percent', () => {
 
   it('formats an error rate', () => {
     expect(percent(0.125)).toBe('12.5%');
+  });
+});
+
+describe('latencyText', () => {
+  it('switches units by magnitude', () => {
+    expect(latencyText('00:00:00.3400000')).toBe('340ms');
+    expect(latencyText('00:00:01.2400000')).toBe('1.24s');
+  });
+
+  it('returns an em dash for missing or unparsable values', () => {
+    expect(latencyText(null)).toBe('—');
+    expect(latencyText('not a timespan')).toBe('—');
   });
 });
 

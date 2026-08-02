@@ -51,4 +51,23 @@ public sealed class OpenAIProviderOptions
     /// </para>
     /// </remarks>
     public IList<ModelDescriptor> Models { get; } = [];
+
+    /// <summary>
+    /// <c>UseOpenAICompatible()</c> ile kaydedilen bir saglayici icin Responses API
+    /// yuzeyini de acar mi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Yalnizca <c>UseOpenAICompatible()</c> tarafindan okunur.</strong>
+    /// <c>UseOpenAI()</c> bu alani yok sayar; resmi OpenAI saglayicisi her zaman
+    /// iki yuzeyi de kaydeder (<see cref="OpenAIProviderNames.ChatCompletions"/> ve
+    /// <see cref="OpenAIProviderNames.Responses"/>).
+    /// </para>
+    /// <para>
+    /// Varsayilan <see langword="false"/>: cogu OpenAI uyumlu sunucu
+    /// <c>/v1/responses</c> ucunu uygulamaz. Acildiginda ikinci bir saglayici
+    /// <c>{ad}-responses</c> adiyla kaydedilir.
+    /// </para>
+    /// </remarks>
+    public bool EnableResponsesSurface { get; set; }
 }

@@ -42,4 +42,15 @@ public sealed record ModelProviderDescriptor
 
     /// <summary>Bu saglayicinin sundugu modeller.</summary>
     public IReadOnlyList<ModelDescriptor> Models { get; init; } = [];
+
+    /// <summary>
+    /// Saglayicinin son bilinen saglik durumu.
+    /// </summary>
+    /// <remarks>
+    /// Bu alan <strong>onbellekten</strong> doldurulur; <c>/api/models</c> ucu bu
+    /// alan icin sagliyaciya ag cagrisi yapmaz (varsayilan durum
+    /// <see cref="ModelProviderHealthStatus.Unknown"/>'dir). Guncel bir denetim icin
+    /// <c>/api/models/health</c> kullanin.
+    /// </remarks>
+    public ModelProviderHealthStatus Status { get; init; }
 }

@@ -148,10 +148,37 @@ export interface ModelDescriptor {
   outputCostPerMillionTokens?: number | null;
 }
 
+/**
+ * A provider's connectivity status.
+ *
+ * `Unknown` means the provider does not implement the optional health-check
+ * contract — not an error. Serialized as a name (decision K-040), matching
+ * `ModelProviderHealthStatus` in `AgentPrism.Abstractions`.
+ */
+export type ModelProviderHealthStatus = 'Unknown' | 'Healthy' | 'Degraded' | 'Unhealthy';
+
 export interface ModelProviderDescriptor {
   name: string;
   displayName?: string | null;
   models: ModelDescriptor[];
+  /** Cached status; this endpoint never makes a network call for it. */
+  status: ModelProviderHealthStatus;
+}
+
+/**
+ * A provider's last health-check result.
+ *
+ * `detail` never carries an API key or the raw response body — only an HTTP
+ * status code and a short reason, or a circuit-breaker note.
+ */
+export interface ModelProviderHealth {
+  providerName: string;
+  status: ModelProviderHealthStatus;
+  detail?: string | null;
+  /** A .NET `TimeSpan` wire string; parse with `latencyText`. */
+  latency?: string | null;
+  checkedAt: string;
+  models: string[];
 }
 
 export interface SessionRecord {

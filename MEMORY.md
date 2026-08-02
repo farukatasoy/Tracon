@@ -41,6 +41,8 @@
 - **Span kimliği `TraceSpanIdentity.ForSpan`** (2026-08-02): `SHA-256(traceId + ":" + spanId)` ilk 16 baytı. Testler bu türetmeyi birebir tekrarlar (`TraceStoreContract.DeriveId`) — uretim kodu değişirse test de değişmeli.
 - **MCP tool önbelleği kiracı bazlı** (2026-08-02): `McpToolCatalog._byTenant`, arka planda `McpDiscoveryService` tarafından tazelenir; `McpToolRegistry` `ITenantContext` ile dilim seçer. Bağlantılar tanım parmak izi değişmedikçe ayakta tutulur.
 - **Kiracı çözümleme tek dosyada** (2026-08-02): `AspNetCore/Tenancy/HttpTenantContext.cs`. Singleton'dır ve `IHttpContextAccessor` kullanır — scoped olsaydı `ITenantContext` enjekte eden singleton depolar yakalanmış bağımlılık hatası verirdi.
+- **Adlandırılmış OpenAI uyumlu sağlayıcılar tek dosyada** (2026-08-02, Faz 8): `OpenAI/OpenAICompatibleProviderExtensions.cs`. `OpenAIChatClientFactory` ad başına `OpenAI/OpenAINamedChatClientFactoryCache.cs` içinde önbelleklenir; anahtarsız (yerel) örnekler sabit bir yer tutucu kimlikle kurulur.
+- **Model sağlığı ve devre kesici üç dosyada** (2026-08-02, Faz 8): `Core/Models/ModelProviderHealthCache.cs` (TTL onbellek + devre durumu bindirmesi), `Core/Models/ModelProviderCircuitBreaker.cs` (CAS tabanlı üç durumlu makine, kilitsiz), `Core/Models/CircuitBreakingChatClient.cs` (`DelegatingChatClient` dekoratörü). Entegrasyon noktası `ModelProviderRegistry.CreateChatClient` — sağlayıcı paketlerinin içine girmez.
 
 ## Desenler & Kararlar (keşfedilen)
 
@@ -121,6 +123,12 @@
 - **Migration sayısını teste sabit yazma** (2026-08-02): `MigrationTests` "1 migration" bekliyordu, 0002 eklenince kırıldı ve kırılma testin doğruladığı davranışla ilgisizdi. Sayı gömülü kaynaklardan okunuyor artık.
 - **Postgres span deposu kiracı bağlamıyla okur** (2026-08-02): sözleşme testi span'leri `"test"` kiracısına yazıp varsayılan kiracıyla okuyunca trace hiç bulunamadı. Yazma ve okuma aynı kiracıya düşmelidir.
 - **Shouldly `ShouldContain(predicate)` void döner** (2026-08-02): bulunan öğeyi kullanmak için LINQ `Single(...)` gerekir.
+- **`MA0009` kaynak üretilmiş `[GeneratedRegex]`'i de yakalar** (2026-08-02, Faz 8): "regex DoS" analizi timeout kontrolü sağlanamayan her regex'i işaretler; `GeneratedRegexAttribute`'ün timeout aşırı yüklemesi yoktur. Basit sabit desenler (ör. `^[a-z0-9][a-z0-9-]{0,31}$`) için regex'ten tamamen vazgeçip elle karakter döngüsü yazmak hem analyzer'ı susturur hem daha az koddur.
+- **🚨 `OpenAIClientOptions`/`System.ClientModel` pipeline'ı 5xx/408/429'u sessizce yeniden dener** (2026-08-02, Faz 8): Ölçüldü — sahte bir sunucu her istekte HTTP 500 döndüğünde, TEK bir `GetResponseAsync` çağrısı sunucuya **4 kez** ulaştı (1 ilk deneme + 3 otomatik yeniden deneme). Devre kesici gibi ham istek sayısına bağımlı testler `400` (yeniden denenmeyen bir istemci hatası) kullanmalı, `500` değil.
+- **🚨 `HttpRequestException.Message` bağlantı hatalarında hedef adresi (host:port) gövdeye gömer** (2026-08-02, Faz 8): "sır/adres sızdırmaz" gereksinimi olan bir hata yolunda `.Message` kullanılamaz. `exception.HttpRequestError` (.NET 8+, enum kategori adı) adres taşımaz — `OpenAI/OpenAIProviderHealthCheck.cs` bunu kullanır.
+- **🚨 `WebApplicationBuilder` user-secrets'ı yalnız `Development` ortamında yükler** (2026-08-02, Faz 8): `dotnet run` varsayılan olarak `ASPNETCORE_ENVIRONMENT` ayarlanmamışsa `Production` görünüyor (launchSettings kullanılmazsa) ve sırlar sessizce boş kalıyor — hata vermez, sadece `ApiKey` boş gelir. Elle doğrulamada `ASPNETCORE_ENVIRONMENT=Development dotnet run` gerekir.
+- **OpenRouter model kimlikleri satıcı önekiyle gelir** (2026-08-02, Faz 8): `gpt-5.4-mini` değil `openai/gpt-5.4-mini`. Ölçüldü: `curl https://openrouter.ai/api/v1/models` ile doğrulanmadan model adı tahmin edilirse (K-032'nin aynı dersi) `model_not_found` benzeri bir hata alınır.
+- **🚨 OpenRouter'ın kredi kontrolü `max_tokens`'i "en kötü durum" maliyeti sayar** (2026-08-02, Faz 8): Varsayılan `max_tokens` (65536, MAF/OpenAI istemcisinin kendi varsayılanı) düşük bakiyeli bir anahtarla gerçek bir `HTTP 402 (insufficient credits)` üretti — AgentPrism'in hatası değil, hesap kısıtı. `ModelBinding.MaxOutputTokens` ile makul bir üst sınır vermek çözer.
 
 ## İkinci Faz Planlamasında Ölçülenler (2026-08-02)
 

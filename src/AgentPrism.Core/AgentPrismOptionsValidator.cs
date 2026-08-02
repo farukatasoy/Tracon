@@ -40,6 +40,54 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
                 $"0 ile 1048576 arasinda olmalidir. Gelen deger: {recording.MaxPayloadLength}.");
         }
 
+        var circuitBreaker = options.CircuitBreaker;
+
+        if (circuitBreaker is null)
+        {
+            (failures ??= []).Add(
+                $"{nameof(AgentPrismOptions)}.{nameof(AgentPrismOptions.CircuitBreaker)} bos olamaz.");
+        }
+        else
+        {
+            if (circuitBreaker.FailureThreshold < 1)
+            {
+                (failures ??= []).Add(
+                    $"{nameof(AgentPrismCircuitBreakerOptions)}.{nameof(AgentPrismCircuitBreakerOptions.FailureThreshold)} " +
+                    $"en az 1 olmalidir. Gelen deger: {circuitBreaker.FailureThreshold}.");
+            }
+
+            if (circuitBreaker.BreakDuration <= TimeSpan.Zero)
+            {
+                (failures ??= []).Add(
+                    $"{nameof(AgentPrismCircuitBreakerOptions)}.{nameof(AgentPrismCircuitBreakerOptions.BreakDuration)} " +
+                    $"sifirdan buyuk olmalidir. Gelen deger: {circuitBreaker.BreakDuration}.");
+            }
+        }
+
+        var health = options.Health;
+
+        if (health is null)
+        {
+            (failures ??= []).Add(
+                $"{nameof(AgentPrismOptions)}.{nameof(AgentPrismOptions.Health)} bos olamaz.");
+        }
+        else
+        {
+            if (health.CacheTtl <= TimeSpan.Zero)
+            {
+                (failures ??= []).Add(
+                    $"{nameof(AgentPrismHealthOptions)}.{nameof(AgentPrismHealthOptions.CacheTtl)} " +
+                    $"sifirdan buyuk olmalidir. Gelen deger: {health.CacheTtl}.");
+            }
+
+            if (health.BackgroundInterval is { } interval && interval <= TimeSpan.Zero)
+            {
+                (failures ??= []).Add(
+                    $"{nameof(AgentPrismHealthOptions)}.{nameof(AgentPrismHealthOptions.BackgroundInterval)} " +
+                    $"verilmisse sifirdan buyuk olmalidir. Gelen deger: {interval}.");
+            }
+        }
+
         return failures is null
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);

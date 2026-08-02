@@ -8,31 +8,39 @@
 
 | Paket | Durum | Faz |
 |-------|-------|-----|
-| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) · 5 (`AgentPrismRunOptions`) · 6 (telemetri, tool çağrısı, onay, MCP, kiracı) |
-| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) · 5 (çağıranın verdiği çalıştırma kimliği) · 6 (span, metrik, onay kuralı) |
+| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) · 5 (`AgentPrismRunOptions`) · 6 (telemetri, tool çağrısı, onay, MCP, kiracı) · 8 (`IModelProviderHealthCheck`, `AgentPrismProviderUnavailableException`) |
+| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) · 5 (çağıranın verdiği çalıştırma kimliği) · 6 (span, metrik, onay kuralı) · 8 (devre kesici, sağlık önbelleği) |
 | `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 · 4 (özet sorgusu) · 6 (migration 0002, dört yeni depo) |
-| `AgentPrism.OpenAI` | ✅ Tamamlandı | 3 |
+| `AgentPrism.OpenAI` | ✅ Tamamlandı | 3 · 8 (`UseOpenAICompatible`, sağlık denetimi) |
 | `AgentPrism.Mcp` | ✅ Tamamlandı | 6 |
-| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 · 5 (arayüz rota grubu) · 6 (çok kiracılılık, yönetişim uçları) |
-| `AgentPrism.UI` | ✅ Tamamlandı | 5 · 6 (waterfall, MCP ekranı, onay kartı) |
+| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 · 5 (arayüz rota grubu) · 6 (çok kiracılılık, yönetişim uçları) · 8 (`/api/models/health`) |
+| `AgentPrism.UI` | ✅ Tamamlandı | 5 · 6 (waterfall, MCP ekranı, onay kartı) · 8 (sağlık rozeti) |
 | `AgentPrism` (meta) | ✅ Paketleniyor | 0 |
 
-Testler: **383 .NET testi + 40 frontend birim testi geçiyor** — 133 birim testi
-(85 Core + 48 OpenAI) + 112 fonksiyonel test (TestHost, gerçek HTTP) + 128 entegrasyon
-testi (Testcontainers, gerçek PostgreSQL) + 10 arayüz E2E testi (Playwright, gerçek
-Kestrel) + 40 Vitest testi (saf mantık; `npm run build` içinde koşar, dolayısıyla
+Testler: **434 .NET testi + 42 frontend birim testi geçiyor** — 176 birim testi
+(99 Core + 77 OpenAI) + 119 fonksiyonel test (TestHost, gerçek HTTP) + 128 entegrasyon
+testi (Testcontainers, gerçek PostgreSQL) + 11 arayüz E2E testi (Playwright, gerçek
+Kestrel) + 42 Vitest testi (saf mantık; `npm run build` içinde koşar, dolayısıyla
 `dotnet build` de koşar). Build, test, pack ve format kapıları sıfır uyarı.
 
 Faz 5 sonunda kabul senaryosu tamamlandı: paket kurulur, `.UseUI()` +
 `app.MapAgentPrism()` yazılır ve tarayıcıda bir kontrol düzlemi açılır. Faz 6 ekranı
 sekize çıkardı (MCP & approvals) ve arayüz artık span waterfall'ı, tool çağrı
 sayılarını ve onay kartlarını gösteriyor. Arayüz assembly'ye Brotli sıkıştırılmış
-gömülüdür (84,6 KB), tüketici projede hiçbir JavaScript bağımlılığı oluşturmaz ve
-JavaScript bütçesi 92,4 KB / 250 KB gzip'tir.
+gömülüdür (85,1 KB), tüketici projede hiçbir JavaScript bağımlılığı oluşturmaz ve
+JavaScript bütçesi 93,0 KB / 250 KB gzip'tir.
 
 Faz 6 sonunda AgentPrism **işletilebilir**: her çalıştırmanın span ağacı ve metriği
 var, geri alınamaz tool'lar kullanıcı onayı bekliyor, tool'lar uzak MCP
 sunucularından da gelebiliyor ve kiracı istekten çözülüp hiçbir uçtan sızmıyor.
+
+Faz 8 sonunda AgentPrism **tek satıcıya bağlı değildir**: `UseOpenAICompatible(ad, ...)`
+herhangi bir OpenAI uyumlu uca (OpenRouter, Groq, vLLM, yerel Ollama/LM Studio)
+bağlanır, her sağlayıcı `GET {endpoint}/models` ile ücretsiz denetlenir ve ardışık
+hata veren bir sağlayıcı devre kesici tarafından geçici olarak durdurulur. Doğrulandı:
+gerçek OpenAI + gerçek OpenRouter anahtarlarıyla üç sağlayıcı (`openai`,
+`openai-responses`, `openrouter`) da gerçek yanıt üretti; ayrıntı
+[`08-SAGLAYICI-GENISLEMESI.md`](08-SAGLAYICI-GENISLEMESI.md).
 
 Dış yüzey Faz 4'ten beri açık: stok OpenAI SDK'sı `base_url` değiştirerek AgentPrism'e
 bağlanıyor, agent'ı `model` alanından seçiyor, tool döngüsü sunucuda tamamlanıyor,

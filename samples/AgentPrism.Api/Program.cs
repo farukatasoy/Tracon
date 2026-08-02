@@ -17,11 +17,18 @@
 //   - span'ler ve metrikler kendiliginden uretilir (AgentPrismDiagnostics)
 //   - `cancel_order` tool'u onay ister; arayuzde onay karti cikar
 //   - `.UseMcp()` uzak MCP sunucularinin tool'larini kesfeder
-// Bkz. docs/04-HTTP-API.md, docs/05-AGENTPRISM-UI.md, docs/06-GOZLEMLENEBILIRLIK.md
+// Faz 8 saglayici genislemesi ve saglik denetimi getirdi:
+//   - `.UseOpenAICompatible(ad, ...)` herhangi bir OpenAI uyumlu uca baglanir
+//     (OpenRouter, Groq, vLLM, yerel Ollama/LM Studio...)
+//   - `/agentprism/api/models/health` saglayicilarin erisilebilirligini denetler
+//     (ucret uretmez); devre kesici ardisik hatada saglayiciyi gecici durdurur
+// Bkz. docs/04-HTTP-API.md, docs/05-AGENTPRISM-UI.md, docs/06-GOZLEMLENEBILIRLIK.md,
+//      docs/08-SAGLAYICI-GENISLEMESI.md
 //
 // Calistirmadan once sirlari ayarlayin:
 //   dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=localhost;Database=AgentPrism;Username=...;Password=..."
 //   dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" "sk-..."
+//   dotnet user-secrets set "AgentPrism:Providers:OpenAICompatible:openrouter:ApiKey" "sk-or-..."
 
 using AgentPrism;
 using AgentPrism.Api;
@@ -65,6 +72,41 @@ else
 {
     agentPrism.AddModelProvider(new EchoModelProvider());
 }
+
+// OpenAI UYUMLU herhangi bir uc (F-03). Ayni yapilandirma sekli, farkli alt
+// bolum: AgentPrism:Providers:OpenAICompatible:openrouter:*. ApiKey yoksa
+// saglayici hic kaydedilmez — "sifir surpriz" kurali burada da gecerli.
+var openRouter = builder.Configuration.GetSection($"{OpenAICompatibleProviderOptions.SectionName}:openrouter");
+var openRouterEnabled = !string.IsNullOrWhiteSpace(openRouter["ApiKey"]);
+
+if (openRouterEnabled)
+{
+    agentPrism.UseOpenAICompatible("openrouter", openRouter);
+}
+
+// Yerel model sunucusu ornegi (F-05, Ollama/LM Studio). Kurulum F-03 ile AYNI
+// cagridir; tek fark ApiKey vermemek (yerel sunucu istemiyor) ve yerel adrese
+// isaret etmek. Bu ornek varsayilan olarak KAPALIDIR: cogu gelistirici
+// makinesinde Ollama calismiyor olabilir ve kapali bir port hicbir sey
+// bozmadan sadece o saglayiciyi listeden dusurur. Denemek icin:
+//
+//   ollama serve
+//   ollama pull llama3.1
+//
+// ve asagidaki iki satiri etkinlestirin:
+//
+// agentPrism.UseOpenAICompatible("ollama", o =>
+// {
+//     o.Endpoint = new Uri("http://localhost:11434/v1");
+//     o.DefaultModel = "llama3.1";
+//     // ApiKey YOK — yerel sunucu istemiyor. OpenAIClient bos kimlik kabul
+//     // etmedigi icin AgentPrism sabit bir yer tutucu kullanir (OPENAI001
+//     // ile ilgisizdir, saglayici bunu hic gormez).
+// });
+//
+// Bilinen fark: Ollama'nin tool_choice destegi modele gore degisir; akista
+// usage gondermeyen sunucularda RunRecord.TotalTokens null kalir — bu bir
+// hata degildir (bkz. docs/08-SAGLAYICI-GENISLEMESI.md, bolum 8.2).
 
 var model = openAiEnabled
     ? new ModelBinding
@@ -111,6 +153,33 @@ agentPrism
         },
     });
 
+if (openRouterEnabled)
+{
+    // Ayni destek senaryosu, farkli saglayici. F-03'un kaniti: agent tanimi
+    // yalnizca ModelBinding.Provider degistirerek OpenAI'dan tamamen farkli
+    // (resmi OpenAI olmayan) bir uca yonlenir.
+    agentPrism.AddAgent(new AgentDefinition
+    {
+        Name = "openrouter-destek",
+        DisplayName = "OpenRouter Destek",
+        Description = "Ayni destek senaryosu, OpenRouter uzerinden calisir.",
+        Instructions = "Sen bir destek asistanisin. Kisa ve net yanit ver. " +
+                       "Siparis sorularinda mutlaka tool kullan.",
+        Model = new ModelBinding
+        {
+            Provider = "openrouter",
+            // OpenRouter model kimlikleri saglayici onekiyle gelir; "gpt-5.4-mini"
+            // degil "openai/gpt-5.4-mini". Olculdu: docs/08-SAGLAYICI-GENISLEMESI.md.
+            Model = openRouter["DefaultModel"] ?? "openai/gpt-5.4-mini",
+            // OpenRouter'in kredi kontrolu max_tokens'i "en kotu durum" olarak
+            // hesaba katar; varsayilan (65536) dusuk bakiyeli anahtarlarda
+            // HTTP 402 uretir. Olculdu: docs/08-SAGLAYICI-GENISLEMESI.md.
+            MaxOutputTokens = 512,
+        },
+        ToolNames = ["get_order_status", "list_recent_orders", "cancel_order"],
+    });
+}
+
 // Kalicilik istege baglidir. Baglanti dizesi yoksa uygulama bellek ici
 // depolarla calisir; hicbir sey kirilmaz, yalnizca veri surecle birlikte biter.
 var postgreSql = builder.Configuration.GetSection(AgentPrismPostgreSqlOptions.SectionName);
@@ -144,7 +213,7 @@ app.UseStatusCodePages();
 app.MapGet("/health", (IRunStore runs, ISessionStore sessions) => Results.Ok(new
 {
     status = "healthy",
-    phase = "6 - gozlemlenebilirlik",
+    phase = "8 - saglayici genislemesi ve saglik denetimi",
     storage = new
     {
         persistent = persistenceEnabled,
@@ -158,6 +227,8 @@ app.MapGet("/health", (IRunStore runs, ISessionStore sessions) => Results.Ok(new
         model = model.Model,
         name = model.Provider,
     },
+    // Detayli, canli durum icin: GET /agentprism/api/models/health
+    openRouter = openRouterEnabled,
 }));
 
 app.MapOpenApi();

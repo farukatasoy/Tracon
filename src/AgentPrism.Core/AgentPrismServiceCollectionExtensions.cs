@@ -68,7 +68,25 @@ public static class AgentPrismServiceCollectionExtensions
 
         // Defterler.
         services.TryAddSingleton<IToolRegistry, ToolRegistry>();
+
+        // Devre kesici IModelProviderRegistry'den ONCE kaydedilir: ModelProviderRegistry
+        // onu kurucusunda cozer ve ureteceği her IChatClient'i onunla sarar.
+        // Acik fabrika kullaniliyor: yerlesik DI kabi varsayilan deger tasiyan kurucu
+        // parametrelerini doldurmaz, TimeProvider kayitli olmayabilir.
+        services.TryAddSingleton(static provider => new ModelProviderCircuitBreaker(
+            provider.GetRequiredService<IOptionsMonitor<AgentPrismOptions>>(),
+            provider.GetService<TimeProvider>()));
         services.TryAddSingleton<IModelProviderRegistry, ModelProviderRegistry>();
+
+        // Saglik onbellegi ve isteğe bagli arka plan tazeleyici. Acik fabrika: ayni
+        // gerekce, TimeProvider kayitli olmayabilir.
+        services.TryAddSingleton(static provider => new ModelProviderHealthCache(
+            provider.GetServices<IModelProvider>(),
+            provider.GetRequiredService<IOptionsMonitor<AgentPrismOptions>>(),
+            provider.GetService<ModelProviderCircuitBreaker>(),
+            provider.GetService<TimeProvider>()));
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, ModelProviderHealthBackgroundService>());
 
         // Sohbet gecmisi saglayicisi. Kayitli olmasaydi MAF her agent icin kendi
         // bellek ici saglayicisini kurardi ve o ornege disaridan erisilemezdi;
@@ -175,6 +193,62 @@ public static class AgentPrismServiceCollectionExtensions
         // yok sayiliyordu.
         BindRunRecording(section.GetSection(nameof(AgentPrismOptions.RunRecording)), options.RunRecording);
         BindObservability(section.GetSection(nameof(AgentPrismOptions.Observability)), options.Observability);
+        BindCircuitBreaker(section.GetSection(nameof(AgentPrismOptions.CircuitBreaker)), options.CircuitBreaker);
+        BindHealth(section.GetSection(nameof(AgentPrismOptions.Health)), options.Health);
+    }
+
+    private static void BindCircuitBreaker(IConfigurationSection section, AgentPrismCircuitBreakerOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismCircuitBreakerOptions.Enabled), out var enabled))
+        {
+            options.Enabled = enabled;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismCircuitBreakerOptions.FailureThreshold)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var failureThreshold))
+        {
+            options.FailureThreshold = failureThreshold;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(AgentPrismCircuitBreakerOptions.BreakDuration)],
+                CultureInfo.InvariantCulture,
+                out var breakDuration))
+        {
+            options.BreakDuration = breakDuration;
+        }
+    }
+
+    private static void BindHealth(IConfigurationSection section, AgentPrismHealthOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(AgentPrismHealthOptions.CacheTtl)],
+                CultureInfo.InvariantCulture,
+                out var cacheTtl))
+        {
+            options.CacheTtl = cacheTtl;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(AgentPrismHealthOptions.BackgroundInterval)],
+                CultureInfo.InvariantCulture,
+                out var backgroundInterval))
+        {
+            options.BackgroundInterval = backgroundInterval;
+        }
     }
 
     private static void BindRunRecording(IConfigurationSection recording, AgentPrismRunRecordingOptions options)

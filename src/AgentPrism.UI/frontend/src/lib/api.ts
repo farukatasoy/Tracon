@@ -11,6 +11,7 @@ import type {
   McpServerRequest,
   Meta,
   ModelProviderDescriptor,
+  ModelProviderHealth,
   RunEvent,
   RunRecord,
   RunStatistics,
@@ -187,6 +188,12 @@ export const api = {
 
   tools: () => request<ToolDescriptor[]>('api/tools'),
   models: () => request<ModelProviderDescriptor[]>('api/models'),
+  modelsHealth: (refresh = false) =>
+    request<ModelProviderHealth[]>(`api/models/health${query({ refresh: refresh ? 'true' : undefined })}`),
+  modelHealth: (name: string, refresh = false) =>
+    request<ModelProviderHealth>(
+      `api/models/health/${encodeURIComponent(name)}${query({ refresh: refresh ? 'true' : undefined })}`,
+    ),
   stats: (params: { agentName?: string; startedAfter?: string; maxAgents?: number } = {}) =>
     request<RunStatistics>(`api/stats${query(params)}`),
 
