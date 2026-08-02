@@ -48,6 +48,101 @@ public sealed class AgentPrismSkillOptions
 
     /// <summary>Bir skill'in tasiyabilecegi en fazla kaynak sayisi.</summary>
     public int MaxResourcesPerSkill { get; set; } = 20;
+
+    /// <summary>Script calistirma ayarlari. Varsayilan olarak kapalidir.</summary>
+    public AgentPrismSkillScriptOptions Scripts { get; set; } = new();
+}
+
+/// <summary>
+/// Skill script'lerinin sunucuda calistirilmasini yoneten ayarlar.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <strong>AgentPrism isletim sistemi duzeyinde yalitim saglamaz.</strong> Ag
+/// erisimini kesmek, dosya sistemini gercek anlamda kisitlamak, CPU ve bellek
+/// kotasi uygulamak ve ayricalik dusurmek .NET ile tasinabilir bicimde
+/// yapilamaz. Bunlar barindirma ortaminin isidir: script calistirma acikken
+/// AgentPrism <em>container icinde, ayricaliksiz bir kullaniciyla ve kisitli ag
+/// ile</em> calistirilmalidir.
+/// </para>
+/// <para>
+/// <see cref="PlatformIsolationAcknowledged"/> bu sinirin okundugunu bildiren
+/// bilincli onay adimidir; ayarlanmadan <see cref="Enabled"/> acilamaz ve
+/// uygulama acilista hata verir.
+/// </para>
+/// </remarks>
+public sealed class AgentPrismSkillScriptOptions
+{
+    /// <summary>Script calistirma acik mi. Varsayilan <see langword="false"/>.</summary>
+    public bool Enabled { get; set; }
+
+    /// <summary>
+    /// Tuketicinin isletim sistemi yalitiminin AgentPrism tarafindan
+    /// saglanmadigini kabul ettigini bildirir.
+    /// </summary>
+    public bool PlatformIsolationAcknowledged { get; set; }
+
+    /// <summary>
+    /// Veritabaninda saklanan script'ler calistirilabilir mi.
+    /// Varsayilan <see langword="false"/>.
+    /// </summary>
+    /// <remarks>
+    /// Acilirsa aray uze erisen bir Admin sunucuda calisacak kodu yazabilir.
+    /// Uc kapi birden gereklidir: bu bayrak, Admin rolu ve izin kaydi.
+    /// </remarks>
+    public bool AllowStoredScripts { get; set; }
+
+    /// <summary>
+    /// Diskteki skill dizinlerinin arandigi kokler.
+    /// </summary>
+    /// <remarks>
+    /// Kokler <strong>kodda veya yapilandirmada</strong> verilir; arayuzden
+    /// degistirilemez. Script icerigini yazan kisi, uygulamayi dagitan kisidir.
+    /// </remarks>
+    public IList<string> SkillRoots { get; } = [];
+
+    /// <summary>
+    /// Uzantidan yorumlayici yoluna beyaz liste. Ornek: <c>["py"] = "/usr/bin/python3"</c>.
+    /// </summary>
+    /// <remarks>
+    /// Liste bos oldugu surece <strong>hicbir script calismaz</strong>. Uzanti
+    /// noktasiz ve kucuk harfle yazilir.
+    /// </remarks>
+    public IDictionary<string, string> Interpreters { get; }
+        = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Script surecine aktarilacak ortam degiskenlerinin beyaz listesi.
+    /// </summary>
+    /// <remarks>
+    /// Listede olmayan hicbir degisken aktarilmaz. Baglanti dizesi ve API
+    /// anahtari bu sayede surece hic ulasmaz.
+    /// </remarks>
+    public IList<string> EnvironmentAllowList { get; } = ["PATH", "HOME"];
+
+    /// <summary>Tek bir script'in calisabilecegi en uzun sure.</summary>
+    public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>stdout ve stderr toplaminin en fazla bayt sayisi. Asan kisim kirpilir.</summary>
+    public int MaxOutputBytes { get; set; } = 256 * 1024;
+
+    /// <summary>Script'e verilecek JSON argumanlarinin en fazla bayt sayisi.</summary>
+    public int MaxArgumentBytes { get; set; } = 16 * 1024;
+
+    /// <summary>Veritabaninda saklanan bir script icerigi icin en fazla bayt sayisi.</summary>
+    public int MaxScriptContentLength { get; set; } = 64 * 1024;
+
+    /// <summary>Bir skill'in tasiyabilecegi en fazla script sayisi.</summary>
+    public int MaxScriptsPerSkill { get; set; } = 10;
+
+    /// <summary>Ayni anda calisabilecek script sayisi, kiraci basina.</summary>
+    public int MaxConcurrentPerTenant { get; set; } = 2;
+
+    /// <summary>Ayni anda calisabilecek toplam script sayisi.</summary>
+    public int MaxConcurrentTotal { get; set; } = 8;
+
+    /// <summary>Skill koklerinde inilecek en fazla dizin derinligi.</summary>
+    public int SearchDepth { get; set; } = 2;
 }
 
 /// <summary>Denetim izi aktor cozumlemesinin ayarlari.</summary>

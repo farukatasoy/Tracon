@@ -238,12 +238,43 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [8](docs/08-SAGLAYICI-GENISLEMESI.md) | Sağlayıcı genişlemesi ve sağlık denetimi (OpenAI uyumlu herhangi bir uç, devre kesici) | ✅ Tamamlandı |
 | [9](docs/09-YONETISIM-VE-DENETIM-IZI.md) | Yönetişim: rol tabanlı yetkilendirme (Reader/Operator/Admin) ve denetim izi | ✅ Tamamlandı |
 | [10](docs/10-AGENT-SKILLERI.md) | Agent skill'leri: markdown talimatlar, kaynaklar ve MAF onayı | ✅ Tamamlandı |
-| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 11–30) | 📋 Planlandı — sıradaki Faz 11 |
+| [11](docs/11-SKILL-SCRIPT-CALISTIRMA.md) | Skill script çalıştırma: sandbox, izin kaydı ve denetim izi | ✅ Tamamlandı |
+| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 11–30) | 📋 Planlandı — sıradaki Faz 12 |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 > Faz 6, planındaki Workflows kalemini **yapmadı**; ertelendi ve gerekçesi
 > [K-054](docs/KARARLAR.md) ile kayıt altına alındı. Ayrıntı:
 > [06-GOZLEMLENEBILIRLIK.md](docs/06-GOZLEMLENEBILIRLIK.md) sapma S1.
+
+### ⚠️ Skill script çalıştırma ve izolasyon sınırı
+
+Faz 11, skill script'lerinin **sunucuda** çalıştırılmasına izin verir. Özellik
+varsayılan olarak **kapalıdır** ve yalnız kodda açılır:
+
+```csharp
+builder.Services.AddAgentPrism()
+    .UseSkillScripts(options =>
+    {
+        options.PlatformIsolationAcknowledged = true;
+        options.Interpreters["py"] = "python3";
+    });
+```
+
+**AgentPrism işletim sistemi seviyesinde yalıtım sağlamaz.** Script, AgentPrism
+sürecinin kullanıcı hakları ve ağ erişimiyle çalışır.
+
+| Sağlanan | Sağlanmayan |
+|----------|-------------|
+| Yorumlayıcı beyaz listesi | Dosya sistemi hapsi |
+| Ortam değişkeni beyaz listesi | Ağ kısıtı |
+| Zaman aşımı + süreç ağacı öldürme | Bellek ve CPU kotası |
+| Çıktı kırpma, eşzamanlılık sınırı | Hak düşürme |
+| Kiracı bazlı izin kaydı + denetim izi | |
+
+Sağlanmayanlar barındırma ortamında kurulmalıdır: **container** içinde,
+**ayrıcalıksız bir kullanıcı** ile ve **kısıtlı ağ** ile çalıştırın.
+`PlatformIsolationAcknowledged` bayrağı bu tabloyu görmeden özelliğin
+açılmasını engeller; eksikse uygulama **açılışta** hata verir.
 
 ### Sürüm politikası
 

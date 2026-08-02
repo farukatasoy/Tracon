@@ -35,6 +35,7 @@ public sealed class PostgresTestContext : IAsyncDisposable
         Tenants = new PostgresTenantStore(dataSource, wrapped);
         ChatHistory = new PostgresChatHistoryProvider(dataSource, wrapped, TenantContext);
         AuditLog = new PostgresAuditLog(dataSource, wrapped);
+        SkillScriptGrants = new PostgresSkillScriptGrantStore(dataSource, wrapped);
         Migrations = new MigrationRunner(dataSource, wrapped, NullLogger<MigrationRunner>.Instance);
     }
 
@@ -73,6 +74,9 @@ public sealed class PostgresTestContext : IAsyncDisposable
 
     /// <summary>Denetim izi defteri (Faz 9).</summary>
     public PostgresAuditLog AuditLog { get; }
+
+    /// <summary>Script calistirma izni deposu (Faz 11).</summary>
+    public PostgresSkillScriptGrantStore SkillScriptGrants { get; }
 
     /// <summary>Migration calistiricisi.</summary>
     public MigrationRunner Migrations { get; }
