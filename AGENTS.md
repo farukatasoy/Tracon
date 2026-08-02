@@ -63,8 +63,8 @@ Faz bittiğinde **`faz-tamamlama` skill'i uygulanır**. Atlanmaz.
 | 1 | `docs/01-CEKIRDEK-SOYUTLAMALAR.md` | ✅ Tamamlandı |
 | 2 | `docs/02-POSTGRESQL-KALICILIK.md` | ✅ Tamamlandı |
 | 3 | `docs/03-SAGLAYICI-VE-DERLEYICI.md` | ✅ Tamamlandı |
-| 4 | `docs/04-HTTP-API.md` | Sıradaki |
-| 5 | `docs/05-AGENTPRISM-UI.md` | Planlandı |
+| 4 | `docs/04-HTTP-API.md` | ✅ Tamamlandı |
+| 5 | `docs/05-AGENTPRISM-UI.md` | Sıradaki |
 | 6 | `docs/06-GOZLEMLENEBILIRLIK.md` | Planlandı |
 | 7 | `docs/07-SAGLAMLASTIRMA-VE-YAYIN.md` | Planlandı |
 
@@ -117,6 +117,47 @@ Genel .NET kuralları `.editorconfig` içinde zorunlu kılınır. Aşağıdakile
 **Gözlemlenebilirlik işlevselliği bozmaz.** Çalıştırma kaydı deposu hata verirse çalıştırma devam eder; hata loglanır.
 
 **`ValueTask` dönen arayüzlerde `ConfigureAwait(false)`.** Kütüphane kodudur.
+
+---
+
+## Diyagram Kuralı
+
+**Her diyagram Mermaid ile yazılır.** ASCII kutu çizimi (`┌─┐│└┘`) kullanılmaz.
+
+````markdown
+```mermaid
+flowchart TD
+    A[İstemci] --> B[MapAgentPrism]
+```
+````
+
+**Neden:** ASCII diyagramlar elle hizalanır; bir kutuya kelime eklemek tüm satırları
+bozar ve bakım maliyeti yüzünden diyagram bayatlar. Mermaid metinden düzeni kendisi
+üretir, GitHub ve VS Code önizlemesinde çizilir, `git diff` anlamlı kalır.
+
+Kullanılacak diyagram tipleri:
+
+| Ne anlatılıyor | Tip |
+|----------------|-----|
+| Katman, akış, karar ağacı | `flowchart TD` / `flowchart LR` |
+| Bileşenler arası çağrı sırası, zamanlama | `sequenceDiagram` |
+| Veri modeli, tablo ilişkileri | `erDiagram` |
+| Durum makinesi (çalıştırma durumları) | `stateDiagram-v2` |
+| Paket bağımlılık grafiği | `flowchart` (yön okları ile) |
+| Faz/zaman planı | `gantt` |
+
+Kurallar:
+
+- **Türkçe etiket serbest**, teknik terim orijinal dilinde kalır (`AIAgent`, `IRunStore`)
+- Düğüm metninde `(`, `)`, `,` ve `:` karakterleri ayrıştırıcıyı bozar — tırnak kullan:
+  `A["RunAsync(messages, session)"]`
+- Bir diyagram **tek bir fikri** anlatır; on beş düğümü aşıyorsa ikiye böl
+- Vurgu gerekiyorsa `style`/`classDef` kullan, ASCII'ye dönme
+- Diyagram koddan sapmışsa **diyagram yanlıştır** — koda göre düzeltilir
+
+**İstisna — dizin ağaçları.** Dosya/klasör listeleri düz metin kod bloğu olarak kalır
+(`├──`, `└──`). Bunlar diyagram değil, dizindir; Mermaid'in ağaç gösterimi yoktur ve
+`flowchart`'a çevirmek okunabilirliği düşürür.
 
 ---
 

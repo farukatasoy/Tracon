@@ -111,13 +111,17 @@ Bunun üzerine:
 
 Akış:
 
-```
-tool.invoking → onay gerekli mi?
-                 ├─ hayır → çalıştır
-                 └─ evet  → beklet, arayüzde göster
-                             ├─ onayla → çalıştır
-                             ├─ reddet → tool hatası döndür
-                             └─ "bir daha sorma" → kural veritabanına yazılır
+```mermaid
+flowchart TD
+    A["tool.invoking"] --> B{"onay gerekli mi?"}
+    B -->|hayır| RUN["çalıştır"]
+    B -->|evet| W["beklet · arayüzde göster"]
+    W -->|onayla| RUN
+    W -->|reddet| ERR["tool hatası döndür"]
+    W -->|"bir daha sorma"| RULE["kural veritabanına yazılır"] --> RUN
+
+    classDef hata fill:#7a1f1f,stroke:#3d0f0f,color:#ffffff
+    class ERR hata
 ```
 
 "Bir daha sorma" kuralları kiracı + agent + tool üçlüsüne bağlıdır ve arayüzden geri alınabilir.

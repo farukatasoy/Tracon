@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Projesine ekleyen geliştirici kendi AI harness'ini kolay ama esnek şekilde kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 3 tamamlandı — uçtan uca çalışıyor. Veritabanındaki bir agent tanımı derleniyor, gerçek bir OpenAI yanıtı üretiyor, tool çağırıyor ve çağrı olay olay kaydediliyor. Veritabanı hâlâ **zorunlu değildir**; yapılandırılmazsa depolama bellek içine düşer. HTTP katmanı Faz 4'te, arayüz Faz 5'te gelir.
+> **Durum:** Faz 4 tamamlandı — dış yüzey açık. `app.MapAgentPrism()` yönetim API'sini ve OpenAI uyumlu çalıştırma uçlarını bağlar; stok OpenAI SDK'ları `base_url` değiştirerek doğrudan bağlanır. Veritabanı hâlâ **zorunlu değildir**; yapılandırılmazsa depolama bellek içine düşer. Arayüz Faz 5'te gelir.
 
 **Hedef** (Faz 5 sonunda):
 
@@ -19,7 +19,55 @@ app.MapAgentPrism("/agentprism");
 
 İki satır. Çalışan bir agent, kalıcı oturumlar ve tarayıcıda bir kontrol düzlemi.
 
-**Bugün çalışan** (Faz 3):
+**Bugün çalışan HTTP yüzeyi** (Faz 4):
+
+```csharp
+// Tek giris noktasi. Erisim varsayilan olarak loopback ile sinirli.
+app.MapAgentPrism("/agentprism", options =>
+{
+    options.RequireAuthorization("AgentPrismAdmin");   // uretimde kullanilan yol
+});
+```
+
+```
+GET    /agentprism/api/meta                    surum · kimlik yontemi · aktif depolar  [kimlik dogrulamasi YOK]
+GET    /agentprism/api/agents                  katalog (kod + veritabani)
+POST   /agentprism/api/agents                  yeni tanim        · PUT · DELETE · /versions · /rollback
+POST   /agentprism/api/agents/{name}/run       SSE akisli deneme calistirmasi
+GET    /agentprism/api/sessions[/{id}]         oturumlar ve sohbet gecmisi   · DELETE
+GET    /agentprism/api/runs[/{id}]             calistirma kayitlari
+GET    /agentprism/api/runs/{id}/events        SSE; canli veya replay, Last-Event-ID ile devam
+GET    /agentprism/api/tools · /api/models · /api/stats
+
+POST   /agentprism/v1/responses                OpenAI Responses API uyumlu
+POST   /agentprism/v1/chat/completions         OpenAI Chat Completions API uyumlu
+POST   /agentprism/v1/conversations            konusma ac · GET · DELETE · /items
+```
+
+Stok OpenAI SDK'si ile:
+
+```python
+from openai import OpenAI
+
+client = OpenAI(base_url="https://app.example.com/agentprism/v1", api_key="...")
+
+# 'model' alani agent adini tasir - ek alan gerekmez.
+r = client.responses.create(model="support", input="ORD-3 siparisim nerede")
+print(r.output_text)          # ORD-3 siparisiniz kargoya verilmis. Tahmini teslimat: 2 gun.
+
+# Konusma zincirleme — iki yol da calisir
+r2 = client.responses.create(model="support", input="Peki ya ORD-9?", previous_response_id=r.id)
+
+conv = client.conversations.create()
+client.responses.create(model="support", conversation=conv.id, input="Merhaba")
+for item in client.conversations.items.list(conv.id):
+    print(item.type, getattr(item, "role", ""))    # message / function_call / function_call_output
+```
+
+Tool döngüsü sunucuda tamamlanır; her çalıştırma olay olay kaydedilir ve SSE ile geri
+oynatılabilir.
+
+**Bugün çalışan** (Faz 4):
 
 ```csharp
 builder.AddAgentPrism()
@@ -97,7 +145,7 @@ AgentPrism bu boşluğu doldurur. DevUI'nin yerine geçmez — bıraktığı yer
 | `AgentPrism.Core` | ✅ Çalışma zamanı, katalog, tanım derleyicisi, tool defteri, oturum yönetimi. **Veritabanı gerektirmez.** |
 | `AgentPrism.PostgreSql` | ✅ Kalıcılık — gömülü SQL migration'ları, ayrı `agentprism` şeması |
 | `AgentPrism.OpenAI` | ✅ OpenAI sağlayıcı adaptörü — Chat Completions + Responses, tool çağrısı, OpenTelemetry |
-| `AgentPrism.AspNetCore` | ⬜ HTTP katmanı — yönetim API'si + OpenAI uyumlu uçlar (Faz 4) |
+| `AgentPrism.AspNetCore` | ✅ HTTP katmanı — yönetim API'si + OpenAI uyumlu uçlar |
 | `AgentPrism.UI` | ⬜ Gömülü React arayüzü (Faz 5) |
 
 **Hedef framework:** `net8.0`, `net9.0`, `net10.0` · **Lisans:** MIT
@@ -165,8 +213,8 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [1](docs/01-CEKIRDEK-SOYUTLAMALAR.md) | Çekirdek soyutlamalar ve runtime | ✅ Tamamlandı |
 | [2](docs/02-POSTGRESQL-KALICILIK.md) | PostgreSQL kalıcılık katmanı | ✅ Tamamlandı |
 | [3](docs/03-SAGLAYICI-VE-DERLEYICI.md) | OpenAI sağlayıcısı ve agent derleyici | ✅ Tamamlandı |
-| [4](docs/04-HTTP-API.md) | HTTP API katmanı | 🔜 Sıradaki |
-| [5](docs/05-AGENTPRISM-UI.md) | AgentPrismUI | Planlandı |
+| [4](docs/04-HTTP-API.md) | HTTP API katmanı | ✅ Tamamlandı |
+| [5](docs/05-AGENTPRISM-UI.md) | AgentPrismUI | 🔜 Sıradaki |
 | [6](docs/06-GOZLEMLENEBILIRLIK.md) | Gözlemlenebilirlik, workflows, çok kiracılılık | Planlandı |
 | [7](docs/07-SAGLAMLASTIRMA-VE-YAYIN.md) | Sağlamlaştırma ve yayın | Planlandı |
 

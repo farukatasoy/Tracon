@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Microsoft.AspNetCore.Mvc.Testing yerine TestHost kullaniliyor.
+      WebApplicationFactory<T> bir GIRIS NOKTASI derlemesi ister; AgentPrism bir
+      kutuphanedir ve boyle bir derlemesi yoktur. Testleri ornek uygulamaya
+      baglamak, kutuphane davranisini ornegin yapilandirmasina bagimli kilardi.
+      TestHost ile her test kendi barindiricisini kurar.
+    -->
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
+    <!-- OpenAPI belgesinin gercekten uretildigini dogrulamak icin. -->
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <!-- CVE zorlamasi; gerekce Directory.Packages.props icinde. -->
+    <PackageReference Include="Microsoft.OpenApi" />
+  </ItemGroup>
+
+</Project>

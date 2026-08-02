@@ -164,6 +164,36 @@ internal sealed class SqlQueries
             OFFSET @skip LIMIT @take;
             """;
 
+        // Iki sonuc kumesi tek gidis donuste alinir: once genel ozet, sonra agent
+        // kirilimi. Durum degerleri sabit sayi olarak gomulmez; RunStatus enum'undan
+        // parametre olarak gelir, boylece enum ile SQL arasindaki bag aciktir.
+        SelectRunStatistics = $"""
+            SELECT COUNT(*)::bigint,
+                   COUNT(*) FILTER (WHERE status = @status_completed)::bigint,
+                   COUNT(*) FILTER (WHERE status = @status_failed)::bigint,
+                   COUNT(*) FILTER (WHERE status = @status_canceled)::bigint,
+                   COUNT(*) FILTER (WHERE status = @status_running)::bigint,
+                   COALESCE(SUM(input_tokens), 0)::bigint,
+                   COALESCE(SUM(output_tokens), 0)::bigint,
+                   COALESCE(SUM(total_tokens), 0)::bigint
+            FROM {Schema}.runs
+            WHERE tenant_id = @tenant_id
+              AND (@agent_name IS NULL OR agent_name = @agent_name)
+              AND (@started_after IS NULL OR started_at > @started_after);
+
+            SELECT agent_name,
+                   COUNT(*)::bigint,
+                   COUNT(*) FILTER (WHERE status = @status_failed)::bigint,
+                   COALESCE(SUM(total_tokens), 0)::bigint
+            FROM {Schema}.runs
+            WHERE tenant_id = @tenant_id
+              AND (@agent_name IS NULL OR agent_name = @agent_name)
+              AND (@started_after IS NULL OR started_at > @started_after)
+            GROUP BY agent_name
+            ORDER BY COUNT(*) DESC, agent_name
+            LIMIT @max_agents;
+            """;
+
         InsertRunEvent = $"""
             INSERT INTO {Schema}.run_events (run_id, seq, type, text, tool_name, tool_call_id, payload, created_at)
             VALUES (@run_id, @seq, @type, @text, @tool_name, @tool_call_id, @payload, @created_at);
@@ -271,6 +301,9 @@ internal sealed class SqlQueries
 
     /// <summary>Calistirmalari filtreleyerek okur.</summary>
     public string SelectRuns { get; }
+
+    /// <summary>Calistirma ozetini ve agent kirilimini iki sonuc kumesi olarak dondurur.</summary>
+    public string SelectRunStatistics { get; }
 
     /// <summary>Calistirma olayi ekler.</summary>
     public string InsertRunEvent { get; }

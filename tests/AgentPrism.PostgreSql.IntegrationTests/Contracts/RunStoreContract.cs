@@ -242,4 +242,128 @@ public abstract class RunStoreContract : IAsyncLifetime
     [Fact]
     public async Task Olmayan_calistirma_null_doner()
         => (await Store.GetRunAsync(AgentPrismId.NewId())).ShouldBeNull();
+
+    [Fact]
+    public async Task Ozet_durumlari_ve_tokenlari_toplar()
+    {
+        await CompleteRunAsync("alpha", RunStatus.Completed, new RunUsage { InputTokens = 10, OutputTokens = 5, TotalTokens = 15 });
+        await CompleteRunAsync("alpha", RunStatus.Failed, new RunUsage { InputTokens = 2, OutputTokens = 1, TotalTokens = 3 });
+        await CompleteRunAsync("beta", RunStatus.Canceled, usage: null);
+        await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId(), "beta"));
+
+        var stats = await Store.GetStatisticsAsync(new RunStatisticsQuery());
+
+        stats.TotalRuns.ShouldBe(4);
+        stats.CompletedRuns.ShouldBe(1);
+        stats.FailedRuns.ShouldBe(1);
+        stats.CanceledRuns.ShouldBe(1);
+        stats.RunningRuns.ShouldBe(1);
+        stats.InputTokens.ShouldBe(12);
+        stats.OutputTokens.ShouldBe(6);
+        stats.TotalTokens.ShouldBe(18);
+    }
+
+    [Fact]
+    public async Task Ozet_hata_oranini_yalnizca_sonuclanmislar_uzerinden_hesaplar()
+    {
+        await CompleteRunAsync("alpha", RunStatus.Completed, usage: null);
+        await CompleteRunAsync("alpha", RunStatus.Failed, usage: null);
+
+        // Devam eden calistirma paydaya girmemelidir.
+        await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId(), "alpha"));
+
+        var stats = await Store.GetStatisticsAsync(new RunStatisticsQuery());
+
+        stats.ErrorRate.ShouldNotBeNull();
+        stats.ErrorRate.Value.ShouldBe(0.5, 0.0001);
+    }
+
+    [Fact]
+    public async Task Ozet_hic_sonuclanmis_calistirma_yoksa_hata_orani_vermez()
+    {
+        await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId(), "alpha"));
+
+        (await Store.GetStatisticsAsync(new RunStatisticsQuery())).ErrorRate.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Ozet_agent_kirilimini_calistirma_sayisina_gore_siralar()
+    {
+        await CompleteRunAsync("az-kullanilan", RunStatus.Completed, usage: null);
+        await CompleteRunAsync("cok-kullanilan", RunStatus.Completed, new RunUsage { TotalTokens = 100 });
+        await CompleteRunAsync("cok-kullanilan", RunStatus.Failed, new RunUsage { TotalTokens = 50 });
+
+        var stats = await Store.GetStatisticsAsync(new RunStatisticsQuery());
+
+        stats.ByAgent.Count.ShouldBe(2);
+        stats.ByAgent[0].AgentName.ShouldBe("cok-kullanilan");
+        stats.ByAgent[0].TotalRuns.ShouldBe(2);
+        stats.ByAgent[0].FailedRuns.ShouldBe(1);
+        stats.ByAgent[0].TotalTokens.ShouldBe(150);
+        stats.ByAgent[1].AgentName.ShouldBe("az-kullanilan");
+    }
+
+    [Fact]
+    public async Task Ozet_agent_adina_gore_filtreler()
+    {
+        await CompleteRunAsync("alpha", RunStatus.Completed, usage: null);
+        await CompleteRunAsync("beta", RunStatus.Completed, usage: null);
+
+        var stats = await Store.GetStatisticsAsync(new RunStatisticsQuery { AgentName = "alpha" });
+
+        stats.TotalRuns.ShouldBe(1);
+        stats.ByAgent.ShouldHaveSingleItem().AgentName.ShouldBe("alpha");
+    }
+
+    [Fact]
+    public async Task Ozet_baslangic_zamanina_gore_filtreler()
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId(), "alpha") with { StartedAt = now.AddHours(-2) });
+        await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId(), "alpha") with { StartedAt = now });
+
+        var stats = await Store.GetStatisticsAsync(
+            new RunStatisticsQuery { StartedAfter = now.AddHours(-1) });
+
+        stats.TotalRuns.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Ozet_agent_kirilimini_sinirlar()
+    {
+        await CompleteRunAsync("alpha", RunStatus.Completed, usage: null);
+        await CompleteRunAsync("beta", RunStatus.Completed, usage: null);
+        await CompleteRunAsync("gamma", RunStatus.Completed, usage: null);
+
+        var stats = await Store.GetStatisticsAsync(new RunStatisticsQuery { MaxAgents = 2 });
+
+        stats.TotalRuns.ShouldBe(3);
+        stats.ByAgent.Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task Bos_depo_ozeti_sifir_doner()
+    {
+        var stats = await Store.GetStatisticsAsync(new RunStatisticsQuery());
+
+        stats.TotalRuns.ShouldBe(0);
+        stats.TotalTokens.ShouldBe(0);
+        stats.ByAgent.ShouldBeEmpty();
+        stats.ErrorRate.ShouldBeNull();
+    }
+
+    private async Task CompleteRunAsync(string agentName, RunStatus status, RunUsage? usage)
+    {
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId, agentName));
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = status,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = usage,
+        });
+    }
 }

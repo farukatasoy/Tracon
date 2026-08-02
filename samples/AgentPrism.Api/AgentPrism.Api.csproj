@@ -10,4 +10,15 @@
     <ProjectReference Include="../../src/AgentPrism/AgentPrism.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!--
+      OpenAPI belgesi TUKETICININ tercihidir. AgentPrism.AspNetCore bu pakete
+      bagimli degildir; uclar paylasilan cerceveden gelen ustveriyi tasir ve
+      AddOpenApi() cagrildiginda belgede kendiliginden gorunur.
+    -->
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <!-- CVE zorlamasi; gerekce Directory.Packages.props icinde. -->
+    <PackageReference Include="Microsoft.OpenApi" />
+  </ItemGroup>
+
 </Project>
