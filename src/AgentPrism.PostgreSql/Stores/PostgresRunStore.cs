@@ -62,6 +62,7 @@ public sealed class PostgresRunStore : IRunStore
             StartedAt = info.StartedAt,
             TenantId = info.TenantId ?? _tenantContext.TenantId,
             SessionId = info.SessionId,
+            ModelId = info.ModelId,
             IsStreaming = info.IsStreaming,
         };
 
@@ -70,6 +71,7 @@ public sealed class PostgresRunStore : IRunStore
         command.Parameters.AddWithValue("tenant_id", record.TenantId!);
         command.Parameters.AddWithValue("agent_name", record.AgentName);
         AddNullableText(command, "session_id", record.SessionId);
+        AddNullableText(command, "model_id", record.ModelId);
         command.Parameters.AddWithValue("status", (short)record.Status);
         command.Parameters.AddWithValue("started_at", record.StartedAt.UtcDateTime);
         command.Parameters.AddWithValue("is_streaming", record.IsStreaming);
@@ -225,6 +227,25 @@ public sealed class PostgresRunStore : IRunStore
                     }
                 }
 
+                // Ucuncu sonuc kumesi: model kirilimi. model_id NULL olan
+                // calistirmalar sorguda elenir; toplamlarda ise sayilirlar.
+                var byModel = new List<RunModelStatistics>();
+
+                if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        byModel.Add(new RunModelStatistics
+                        {
+                            ModelId = reader.GetString(0),
+                            TotalRuns = reader.GetInt64(1),
+                            InputTokens = reader.GetInt64(2),
+                            OutputTokens = reader.GetInt64(3),
+                            TotalTokens = reader.GetInt64(4),
+                        });
+                    }
+                }
+
                 return new RunStatistics
                 {
                     TotalRuns = total,
@@ -236,6 +257,7 @@ public sealed class PostgresRunStore : IRunStore
                     OutputTokens = outputTokens,
                     TotalTokens = totalTokens,
                     ByAgent = byAgent,
+                    ByModel = byModel,
                 };
             }
         }
@@ -264,6 +286,79 @@ public sealed class PostgresRunStore : IRunStore
                 }
             }
         }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask RecordToolInvocationAsync(
+        ToolInvocationRecord invocation,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(invocation);
+
+        var command = CreateCommand(_sql.InsertToolInvocation);
+        command.Parameters.AddWithValue("id", invocation.Id);
+        command.Parameters.AddWithValue("run_id", invocation.RunId);
+        command.Parameters.AddWithValue("tool_name", invocation.ToolName);
+        AddNullableText(command, "tool_call_id", invocation.ToolCallId);
+        AddNullableText(command, "source", invocation.Source);
+        AddNullableText(command, "arguments", invocation.Arguments);
+        AddNullableText(command, "result", invocation.Result);
+        command.Parameters.Add(new NpgsqlParameter("duration_ms", NpgsqlDbType.Integer)
+        {
+            // Sure `integer` sutununda milisaniye olarak saklanir; 24 gunden
+            // uzun bir tool cagrisi gercekci degildir ve tasma olusmaz.
+            Value = invocation.Duration is { } duration
+                ? (object)(int)Math.Clamp(duration.TotalMilliseconds, 0, int.MaxValue)
+                : DBNull.Value,
+        });
+        AddNullableText(command, "error", invocation.Error);
+        command.Parameters.AddWithValue("created_at", invocation.CreatedAt.UtcDateTime);
+
+        try
+        {
+            await NpgsqlHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        }
+        catch (PostgresException ex) when (string.Equals(ex.SqlState, ForeignKeyViolation, StringComparison.Ordinal))
+        {
+            throw new AgentPrismException(
+                $"'{invocation.RunId}' kimlikli calistirma bulunamadi. " +
+                "Tool cagrisi kaydetmeden once StartRunAsync cagrilmalidir.",
+                ex);
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<IReadOnlyList<ToolInvocationRecord>> ListToolInvocationsAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default)
+    {
+        var command = CreateCommand(_sql.SelectToolInvocations);
+        command.Parameters.AddWithValue("run_id", runId);
+        command.Parameters.AddWithValue("tenant_id", _tenantContext.TenantId);
+
+        return await NpgsqlHelpers
+            .ReadListAsync(command, ReadToolInvocation, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<IReadOnlyList<ToolUsage>> GetToolUsageAsync(
+        ToolUsageQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var command = CreateCommand(_sql.SelectToolUsage);
+        command.Parameters.AddWithValue("tenant_id", query.TenantId ?? _tenantContext.TenantId);
+        command.Parameters.Add(new NpgsqlParameter("started_after", NpgsqlDbType.TimestampTz)
+        {
+            Value = query.StartedAfter is { } after ? (object)after.UtcDateTime : DBNull.Value,
+        });
+        command.Parameters.AddWithValue("max_tools", Math.Max(query.MaxTools, 0));
+
+        return await NpgsqlHelpers
+            .ReadListAsync(command, ReadToolUsage, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     /// <summary>Hic satir donmeyen ozet sorgusu icin notr sonuc.</summary>
@@ -313,6 +408,7 @@ public sealed class PostgresRunStore : IRunStore
             IsStreaming = reader.GetBoolean(7),
             Usage = ReadUsage(reader),
             EventCount = reader.GetInt64(11),
+            ModelId = NpgsqlHelpers.GetNullableString(reader, 14),
             Error = errorType is null
                 ? null
                 : new RunError
@@ -337,6 +433,31 @@ public sealed class PostgresRunStore : IRunStore
             TotalTokens = reader.IsDBNull(10) ? null : reader.GetInt64(10),
         };
     }
+
+    private static ToolInvocationRecord ReadToolInvocation(NpgsqlDataReader reader)
+        => new()
+        {
+            Id = reader.GetGuid(0),
+            RunId = reader.GetGuid(1),
+            ToolName = reader.GetString(2),
+            ToolCallId = NpgsqlHelpers.GetNullableString(reader, 3),
+            Source = NpgsqlHelpers.GetNullableString(reader, 4),
+            Arguments = NpgsqlHelpers.GetNullableString(reader, 5),
+            Result = NpgsqlHelpers.GetNullableString(reader, 6),
+            Duration = reader.IsDBNull(7) ? null : TimeSpan.FromMilliseconds(reader.GetInt32(7)),
+            Error = NpgsqlHelpers.GetNullableString(reader, 8),
+            CreatedAt = NpgsqlHelpers.GetTimestamp(reader, 9),
+        };
+
+    private static ToolUsage ReadToolUsage(NpgsqlDataReader reader)
+        => new()
+        {
+            ToolName = reader.GetString(0),
+            TotalCalls = reader.GetInt64(1),
+            FailedCalls = reader.GetInt64(2),
+            AverageDurationMs = reader.IsDBNull(3) ? null : reader.GetDouble(3),
+            LastCalledAt = reader.IsDBNull(4) ? null : NpgsqlHelpers.GetTimestamp(reader, 4),
+        };
 
     private static void AddNullableText(NpgsqlCommand command, string name, string? value)
         => command.Parameters.Add(new NpgsqlParameter(name, NpgsqlDbType.Text)

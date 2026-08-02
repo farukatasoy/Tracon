@@ -13,6 +13,7 @@ import { RunsScreen } from './screens/runs';
 import { RunDetailScreen } from './screens/run-detail';
 import { ToolsScreen } from './screens/tools';
 import { ModelsScreen } from './screens/models';
+import { McpScreen } from './screens/mcp';
 import { SettingsScreen } from './screens/settings';
 import type { Meta } from './lib/types';
 
@@ -36,6 +37,7 @@ const routes = (meta: Meta): RouteDefinition[] => [
   { pattern: 'runs/:id', render: (params) => <RunDetailScreen id={params['id'] ?? ''} /> },
   { pattern: 'tools', render: () => <ToolsScreen /> },
   { pattern: 'models', render: () => <ModelsScreen /> },
+  { pattern: 'mcp', render: () => <McpScreen /> },
   { pattern: 'settings', render: () => <SettingsScreen meta={meta} /> },
 ];
 

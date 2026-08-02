@@ -22,6 +22,7 @@ public sealed class InMemoryRunStore : IRunStore
 {
     private readonly ConcurrentDictionary<Guid, RunRecord> _runs = new();
     private readonly ConcurrentDictionary<Guid, List<RunEvent>> _events = new();
+    private readonly ConcurrentDictionary<Guid, List<ToolInvocationRecord>> _toolInvocations = new();
     private readonly ConcurrentQueue<Guid> _insertionOrder = new();
 
     /// <summary>
@@ -43,11 +44,13 @@ public sealed class InMemoryRunStore : IRunStore
             StartedAt = info.StartedAt,
             TenantId = info.TenantId,
             SessionId = info.SessionId,
+            ModelId = info.ModelId,
             IsStreaming = info.IsStreaming,
         };
 
         _runs[record.Id] = record;
         _events[record.Id] = [];
+        _toolInvocations[record.Id] = [];
         _insertionOrder.Enqueue(record.Id);
 
         TrimIfNeeded();
@@ -158,6 +161,7 @@ public sealed class InMemoryRunStore : IRunStore
         long total = 0, completed = 0, failed = 0, canceled = 0, running = 0;
         long inputTokens = 0, outputTokens = 0, totalTokens = 0;
         var perAgent = new Dictionary<string, AgentTally>(StringComparer.Ordinal);
+        var perModel = new Dictionary<string, ModelTally>(StringComparer.Ordinal);
 
         foreach (var record in _runs.Values)
         {
@@ -196,6 +200,18 @@ public sealed class InMemoryRunStore : IRunStore
                 tally.TotalRuns + 1,
                 tally.FailedRuns + (record.Status == RunStatus.Failed ? 1 : 0),
                 tally.TotalTokens + (record.Usage?.TotalTokens ?? 0));
+
+            // Model adi bilinmeyen calistirmalar kirilima girmez ancak
+            // toplamlarda sayilir; aksi halde iki rakam birbirini tutmazdi.
+            if (record.ModelId is { Length: > 0 } modelId)
+            {
+                perModel.TryGetValue(modelId, out var modelTally);
+                perModel[modelId] = new ModelTally(
+                    modelTally.TotalRuns + 1,
+                    modelTally.InputTokens + (record.Usage?.InputTokens ?? 0),
+                    modelTally.OutputTokens + (record.Usage?.OutputTokens ?? 0),
+                    modelTally.TotalTokens + (record.Usage?.TotalTokens ?? 0));
+            }
         }
 
         var byAgent = perAgent
@@ -222,7 +238,110 @@ public sealed class InMemoryRunStore : IRunStore
             OutputTokens = outputTokens,
             TotalTokens = totalTokens,
             ByAgent = byAgent,
+            ByModel = [.. perModel
+                .Select(static pair => new RunModelStatistics
+                {
+                    ModelId = pair.Key,
+                    TotalRuns = pair.Value.TotalRuns,
+                    InputTokens = pair.Value.InputTokens,
+                    OutputTokens = pair.Value.OutputTokens,
+                    TotalTokens = pair.Value.TotalTokens,
+                })
+                .OrderByDescending(static model => model.TotalRuns)
+                .ThenBy(static model => model.ModelId, StringComparer.Ordinal)],
         });
+    }
+
+    /// <inheritdoc />
+    public ValueTask RecordToolInvocationAsync(
+        ToolInvocationRecord invocation,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(invocation);
+
+        // Calistirma dusurulmusse (MaxRuns) cagri sessizce atilir: kayit
+        // gozlemlenebilirlik icindir ve calistirmayi kesmemelidir.
+        if (_toolInvocations.TryGetValue(invocation.RunId, out var log))
+        {
+            lock (log)
+            {
+                log.Add(invocation);
+            }
+        }
+
+        return default;
+    }
+
+    /// <inheritdoc />
+    public ValueTask<IReadOnlyList<ToolInvocationRecord>> ListToolInvocationsAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_toolInvocations.TryGetValue(runId, out var log))
+        {
+            return new ValueTask<IReadOnlyList<ToolInvocationRecord>>([]);
+        }
+
+        ToolInvocationRecord[] snapshot;
+
+        lock (log)
+        {
+            snapshot = [.. log];
+        }
+
+        Array.Sort(snapshot, static (left, right) => left.CreatedAt.CompareTo(right.CreatedAt));
+
+        return new ValueTask<IReadOnlyList<ToolInvocationRecord>>(snapshot);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<IReadOnlyList<ToolUsage>> GetToolUsageAsync(
+        ToolUsageQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var perTool = new Dictionary<string, ToolTally>(StringComparer.Ordinal);
+
+        foreach (var (runId, log) in _toolInvocations)
+        {
+            if (!_runs.TryGetValue(runId, out var run))
+            {
+                continue;
+            }
+
+            if (query.TenantId is { } tenantId && !string.Equals(run.TenantId, tenantId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (query.StartedAfter is { } after && run.StartedAt <= after)
+            {
+                continue;
+            }
+
+            ToolInvocationRecord[] snapshot;
+
+            lock (log)
+            {
+                snapshot = [.. log];
+            }
+
+            foreach (var invocation in snapshot)
+            {
+                perTool.TryGetValue(invocation.ToolName, out var tally);
+                perTool[invocation.ToolName] = tally.Add(invocation);
+            }
+        }
+
+        return new ValueTask<IReadOnlyList<ToolUsage>>(
+        [
+            .. perTool
+                .Select(static pair => pair.Value.ToUsage(pair.Key))
+                .OrderByDescending(static usage => usage.TotalCalls)
+                .ThenBy(static usage => usage.ToolName, StringComparer.Ordinal)
+                .Take(Math.Max(query.MaxTools, 0)),
+        ]);
     }
 
     /// <inheritdoc />
@@ -261,12 +380,47 @@ public sealed class InMemoryRunStore : IRunStore
     [StructLayout(LayoutKind.Auto)]
     private readonly record struct AgentTally(long TotalRuns, long FailedRuns, long TotalTokens);
 
+    /// <summary>Bir model icin biriken sayaclar.</summary>
+    [StructLayout(LayoutKind.Auto)]
+    private readonly record struct ModelTally(long TotalRuns, long InputTokens, long OutputTokens, long TotalTokens);
+
+    /// <summary>Bir tool icin biriken sayaclar.</summary>
+    [StructLayout(LayoutKind.Auto)]
+    private readonly record struct ToolTally(
+        long TotalCalls,
+        long FailedCalls,
+        double TotalDurationMs,
+        long TimedCalls,
+        DateTimeOffset? LastCalledAt)
+    {
+        public ToolTally Add(ToolInvocationRecord invocation)
+            => new(
+                TotalCalls + 1,
+                FailedCalls + (invocation.Succeeded ? 0 : 1),
+                TotalDurationMs + (invocation.Duration?.TotalMilliseconds ?? 0),
+                TimedCalls + (invocation.Duration is null ? 0 : 1),
+                LastCalledAt is { } last && last > invocation.CreatedAt ? last : invocation.CreatedAt);
+
+        public ToolUsage ToUsage(string toolName)
+            => new()
+            {
+                ToolName = toolName,
+                TotalCalls = TotalCalls,
+                FailedCalls = FailedCalls,
+                // Payda sureli cagrilardir: sure bildirmeyen cagrilari paydaya
+                // katmak ortalamayi yapay olarak dusururdu.
+                AverageDurationMs = TimedCalls == 0 ? null : TotalDurationMs / TimedCalls,
+                LastCalledAt = LastCalledAt,
+            };
+    }
+
     private void TrimIfNeeded()
     {
         while (_runs.Count > MaxRuns && _insertionOrder.TryDequeue(out var oldest))
         {
             _runs.TryRemove(oldest, out _);
             _events.TryRemove(oldest, out _);
+            _toolInvocations.TryRemove(oldest, out _);
         }
     }
 }

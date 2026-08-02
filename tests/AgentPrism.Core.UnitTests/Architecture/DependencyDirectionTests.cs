@@ -9,6 +9,7 @@ namespace AgentPrism.Core.UnitTests.Architecture;
 ///
 ///     Abstractions -- Core -- PostgreSql
 ///                       |  -- OpenAI
+///                       |  -- Mcp
 ///                       +----- AspNetCore -- UI
 ///                                              |
 ///                                       AgentPrism (meta)
@@ -31,9 +32,13 @@ public sealed class DependencyDirectionTests
         ["AgentPrism.Core"] = ["AgentPrism.Abstractions"],
         ["AgentPrism.PostgreSql"] = ["AgentPrism.Core"],
         ["AgentPrism.OpenAI"] = ["AgentPrism.Core"],
+        // Mcp yalnizca Core'a baglidir: HTTP katmani MCP tazelemesini
+        // IMcpToolRefresher soyutlamasi uzerinden tetikler, ters yonde bir
+        // referans YOKTUR. Boylece MCP istege bagli bir paket olarak kalir.
+        ["AgentPrism.Mcp"] = ["AgentPrism.Core"],
         ["AgentPrism.AspNetCore"] = ["AgentPrism.Core"],
         ["AgentPrism.UI"] = ["AgentPrism.AspNetCore"],
-        ["AgentPrism"] = ["AgentPrism.AspNetCore", "AgentPrism.OpenAI", "AgentPrism.PostgreSql", "AgentPrism.UI"],
+        ["AgentPrism"] = ["AgentPrism.AspNetCore", "AgentPrism.Mcp", "AgentPrism.OpenAI", "AgentPrism.PostgreSql", "AgentPrism.UI"],
     };
 
     [Fact]

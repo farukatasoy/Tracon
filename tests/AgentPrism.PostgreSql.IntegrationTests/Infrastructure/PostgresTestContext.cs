@@ -29,6 +29,10 @@ public sealed class PostgresTestContext : IAsyncDisposable
         AgentDefinitions = new PostgresAgentDefinitionStore(dataSource, wrapped, TenantContext);
         Runs = new PostgresRunStore(dataSource, wrapped, TenantContext);
         Sessions = new PostgresSessionStore(dataSource, wrapped, TenantContext);
+        Traces = new PostgresTraceStore(dataSource, wrapped, TenantContext);
+        ApprovalRules = new PostgresToolApprovalRuleStore(dataSource, wrapped);
+        McpServers = new PostgresMcpServerStore(dataSource, wrapped);
+        Tenants = new PostgresTenantStore(dataSource, wrapped);
         ChatHistory = new PostgresChatHistoryProvider(dataSource, wrapped, TenantContext);
         Migrations = new MigrationRunner(dataSource, wrapped, NullLogger<MigrationRunner>.Instance);
     }
@@ -50,6 +54,18 @@ public sealed class PostgresTestContext : IAsyncDisposable
 
     /// <summary>Oturum deposu.</summary>
     public PostgresSessionStore Sessions { get; }
+
+    /// <summary>Span deposu (Faz 6).</summary>
+    public PostgresTraceStore Traces { get; }
+
+    /// <summary>Kalici onay kurali deposu (Faz 6).</summary>
+    public PostgresToolApprovalRuleStore ApprovalRules { get; }
+
+    /// <summary>MCP sunucu deposu (Faz 6).</summary>
+    public PostgresMcpServerStore McpServers { get; }
+
+    /// <summary>Kiraci kaydi deposu (Faz 6).</summary>
+    public PostgresTenantStore Tenants { get; }
 
     /// <summary>Sohbet gecmisi saglayicisi.</summary>
     public PostgresChatHistoryProvider ChatHistory { get; }

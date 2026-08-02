@@ -92,6 +92,10 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         services.Replace(ServiceDescriptor.Singleton<IAgentDefinitionStore, PostgresAgentDefinitionStore>());
         services.Replace(ServiceDescriptor.Singleton<IRunStore, PostgresRunStore>());
         services.Replace(ServiceDescriptor.Singleton<ISessionStore, PostgresSessionStore>());
+        services.Replace(ServiceDescriptor.Singleton<ITraceStore, PostgresTraceStore>());
+        services.Replace(ServiceDescriptor.Singleton<IToolApprovalRuleStore, PostgresToolApprovalRuleStore>());
+        services.Replace(ServiceDescriptor.Singleton<IMcpServerStore, PostgresMcpServerStore>());
+        services.Replace(ServiceDescriptor.Singleton<ITenantStore, PostgresTenantStore>());
 
         // Sohbet gecmisi. AgentDefinitionCompiler bunu derledigi her agent'a baglar;
         // kayitli degilse MAF'in bellek ici varsayilani kullanilir.

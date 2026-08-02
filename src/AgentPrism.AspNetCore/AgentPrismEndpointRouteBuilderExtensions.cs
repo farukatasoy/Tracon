@@ -90,6 +90,8 @@ public static class AgentPrismEndpointRouteBuilderExtensions
         SessionEndpoints.Map(group);
         RunEndpoints.Map(group, options);
         CatalogEndpoints.Map(group);
+        ObservabilityEndpoints.Map(group);
+        GovernanceEndpoints.Map(group);
 
         OpenAIResponsesEndpoints.Map(group, ResolveSessionStore(services));
         OpenAIChatCompletionsEndpoints.Map(group);

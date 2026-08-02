@@ -18,8 +18,10 @@ import {
 } from '../components/ui';
 import { SpinnerIcon } from '../components/icons';
 import { TranscriptView } from '../components/transcript';
+import { Waterfall, formatMs } from '../components/waterfall';
 import { StatusBadge, Stat } from './runs';
-import type { RunEvent, RunEventType } from '../lib/types';
+import { ApiError } from '../lib/api';
+import type { RunEvent, RunEventType, ToolInvocationRecord } from '../lib/types';
 
 /** Event name and hue per event type. Shapes and labels carry the meaning too. */
 const EVENT_STYLE: Record<RunEventType, { label: string; hue: string }> = {
@@ -50,6 +52,24 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
     queryKey: ['run', id],
     queryFn: () => api.run(id),
     refetchInterval: (query) => (query.state.data?.status === 'Running' ? 2_000 : false),
+  });
+
+  const finished = run.data != null && run.data.status !== 'Running';
+
+  // Spans and tool rows are written when the run closes, so both are fetched
+  // only after it has settled. A 404 on the trace is expected: successful runs
+  // are sampled, so most of them carry no spans at all.
+  const trace = useQuery({
+    queryKey: ['run-trace', id],
+    queryFn: () => api.runTrace(id),
+    enabled: finished,
+    retry: (_, error) => !(error instanceof ApiError && error.status === 404),
+  });
+
+  const toolCalls = useQuery({
+    queryKey: ['run-tools', id],
+    queryFn: () => api.runToolInvocations(id),
+    enabled: finished,
   });
 
   useEffect(() => {
@@ -120,8 +140,9 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
         actions={<StatusBadge status={record.status} />}
       />
 
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
         <Stat label="Duration" value={duration(record.startedAt, record.completedAt)} />
+        <Stat label="Model" value={record.modelId ?? '—'} />
         <Stat label="Input tokens" value={count(record.usage?.inputTokens)} />
         <Stat label="Output tokens" value={count(record.usage?.outputTokens)} />
         <Stat label="Events" value={count(record.eventCount)} />
@@ -173,12 +194,93 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
         </Panel>
       </div>
 
+      {finished && (
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <Panel title="Trace">
+            {trace.isPending ? (
+              <Loading />
+            ) : trace.isSuccess ? (
+              <Waterfall trace={trace.data} />
+            ) : (
+              <Empty title="No spans recorded">
+                Span writing is sampled. Failed runs are kept by default; successful ones are
+                kept at the ratio in <Mono>AgentPrism:Observability:SuccessSampleRatio</Mono>.
+              </Empty>
+            )}
+          </Panel>
+
+          <Panel title={`Tool calls (${toolCalls.data?.length ?? 0})`}>
+            {toolCalls.isPending ? (
+              <Loading />
+            ) : (toolCalls.data ?? []).length === 0 ? (
+              <Empty title="No tool calls">This run did not invoke a tool.</Empty>
+            ) : (
+              <ul className="divide-y divide-line">
+                {(toolCalls.data ?? []).map((call) => (
+                  <ToolCallRow key={call.id} call={call} />
+                ))}
+              </ul>
+            )}
+          </Panel>
+        </div>
+      )}
+
       <p className="mt-3 text-[11px] text-subtle">
         Started <span title={absoluteTime(record.startedAt)}>{relativeTime(record.startedAt)}</span>
         {record.isStreaming ? ' · streamed' : ' · non-streaming'}
       </p>
     </>
   );
+}
+
+/**
+ * One recorded tool call.
+ *
+ * Duration is only measured for streaming runs: in a non-streaming run every
+ * message arrives at once, so the real time between the call and its result
+ * cannot be read. Writing a near-zero number would be worse than writing none.
+ */
+function ToolCallRow({ call }: { call: ToolInvocationRecord }): ReactNode {
+  return (
+    <li className="px-4 py-2.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <Mono className="text-[12px] font-semibold">{call.toolName}</Mono>
+        {call.source != null && (
+          <Badge tone="warn" title={`Discovered on the remote MCP server "${call.source}".`}>
+            mcp: {call.source}
+          </Badge>
+        )}
+        {call.succeeded ? <Badge tone="accent">ok</Badge> : <Badge tone="danger">failed</Badge>}
+        <span className="ml-auto text-[11px] text-subtle">
+          {call.duration != null ? formatMs(parseDuration(call.duration)) : 'not measured'}
+        </span>
+      </div>
+
+      {call.arguments != null && call.arguments.length > 0 && (
+        <div className="mt-1.5">
+          <CodeBlock code={call.arguments} maxHeight="max-h-28" />
+        </div>
+      )}
+
+      {call.error != null && <p className="mt-1.5 text-[12px] text-danger">{call.error}</p>}
+    </li>
+  );
+}
+
+/** Parses a .NET TimeSpan ("hh:mm:ss.fffffff") into milliseconds. */
+export function parseDuration(value: string): number {
+  const match = /^(?:(\d+)\.)?(\d{2}):(\d{2}):(\d{2}(?:\.\d+)?)$/.exec(value);
+
+  if (match === null) {
+    return 0;
+  }
+
+  const days = Number(match[1] ?? '0');
+  const hours = Number(match[2]);
+  const minutes = Number(match[3]);
+  const seconds = Number(match[4]);
+
+  return ((days * 24 + hours) * 60 + minutes) * 60_000 + seconds * 1_000;
 }
 
 function EventRow({ event }: { event: RunEvent }): ReactNode {

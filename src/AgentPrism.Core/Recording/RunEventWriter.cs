@@ -115,6 +115,35 @@ public sealed class RunEventWriter
         }
     }
 
+    /// <summary>
+    /// Sonuclanmis bir tool cagrisini kaydeder.
+    /// </summary>
+    /// <param name="invocation">Cagri ozeti.</param>
+    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <returns>Tamamlanma gorevi.</returns>
+    /// <remarks>
+    /// Olay akisindan ayridir: olaylar cagriyi <em>anlatir</em>, bu kayit onu
+    /// <em>olcer</em>. Hatasi da olay yazimiyla ayni sekilde yutulur.
+    /// </remarks>
+    public async ValueTask RecordToolInvocationAsync(
+        ToolInvocationRecord invocation,
+        CancellationToken cancellationToken = default)
+    {
+        if (IsDisabled)
+        {
+            return;
+        }
+
+        try
+        {
+            await _store.RecordToolInvocationAsync(invocation, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Disable(ex, "tool cagrisi kaydedilemedi");
+        }
+    }
+
     /// <summary>Calistirmayi sonlandirir.</summary>
     /// <param name="status">Son durum.</param>
     /// <param name="usage">Token kullanimi.</param>

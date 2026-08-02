@@ -17,13 +17,18 @@ public sealed class AgentPrismToolRegistration
     /// <summary>Yeni bir tool kaydi olusturur.</summary>
     /// <param name="function">Kaydedilecek tool.</param>
     /// <param name="requiresApproval">Cagri oncesi acik onay gerekip gerekmedigi.</param>
+    /// <param name="source">
+    /// Tool'un kaynagi. Kodda tanimli tool'larda <see langword="null"/>;
+    /// uzak bir MCP sunucusundan gelen tool'larda sunucu adi.
+    /// </param>
     /// <exception cref="ArgumentNullException"><paramref name="function"/> <see langword="null"/> ise.</exception>
-    public AgentPrismToolRegistration(AIFunction function, bool requiresApproval = false)
+    public AgentPrismToolRegistration(AIFunction function, bool requiresApproval = false, string? source = null)
     {
         ArgumentNullException.ThrowIfNull(function);
 
         Function = function;
         RequiresApproval = requiresApproval;
+        Source = source;
     }
 
     /// <summary>Kaydedilen tool.</summary>
@@ -31,4 +36,7 @@ public sealed class AgentPrismToolRegistration
 
     /// <summary>Cagri oncesi acik onay gerekip gerekmedigi.</summary>
     public bool RequiresApproval { get; }
+
+    /// <summary>Tool'un kaynagi. Kodda tanimli tool'larda <see langword="null"/>.</summary>
+    public string? Source { get; }
 }

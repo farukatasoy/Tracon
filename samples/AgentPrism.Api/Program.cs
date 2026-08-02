@@ -13,7 +13,11 @@
 // yonetim API'sini ve OpenAI uyumlu calistirma uclarini baglar.
 // Arayuz Faz 5'te geldi: `.UseUI()` cagrisi arayuz varliklarini kaydeder ve
 // http://localhost:5080/agentprism adresinde calisan bir kontrol duzlemi acilir.
-// Bkz. docs/04-HTTP-API.md, docs/05-AGENTPRISM-UI.md
+// Faz 6 gozlemlenebilirlik, tool onayi ve uzak MCP tool'lari getirdi:
+//   - span'ler ve metrikler kendiliginden uretilir (AgentPrismDiagnostics)
+//   - `cancel_order` tool'u onay ister; arayuzde onay karti cikar
+//   - `.UseMcp()` uzak MCP sunucularinin tool'larini kesfeder
+// Bkz. docs/04-HTTP-API.md, docs/05-AGENTPRISM-UI.md, docs/06-GOZLEMLENEBILIRLIK.md
 //
 // Calistirmadan once sirlari ayarlayin:
 //   dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=localhost;Database=AgentPrism;Username=...;Password=..."
@@ -37,6 +41,10 @@ var agentPrism = builder.AddAgentPrism()
     // tool kodu yazdirmaz. Bu bir guvenlik sinirdir.
     // [AgentPrismTool] ile isaretlenmemis metotlar taranmaz.
     .AddToolsFrom(typeof(OrderTools))
+    // Uzak MCP sunuculari. Sunucu tanimi arayuzden veya /api/mcp-servers
+    // ucundan eklenir; kesif arka planda yapilir. Kayitli sunucu yoksa hicbir
+    // sey olmaz. MCP tool'lari varsayilan olarak onay ister.
+    .UseMcp()
     // Gomulu yonetim arayuzu. Ayri bir esleme cagrisi gerekmez:
     // MapAgentPrism kaydi bulur ve arayuzu ayni onek altina baglar.
     .UseUI();
@@ -77,11 +85,15 @@ agentPrism
         Instructions = "Sen bir destek asistanisin. Kisa ve net yanit ver. " +
                        "Siparis sorularinda mutlaka tool kullan.",
         Model = model,
-        ToolNames = ["get_order_status", "list_recent_orders"],
+        // cancel_order onay ister: model cagirmaya kalktiginda calistirma
+        // durur ve arayuzde onay karti cikar.
+        ToolNames = ["get_order_status", "list_recent_orders", "cancel_order"],
     })
 
     // Harness ayarli agent: baglam sikistirma ve todo takibi devrede.
-    // Shell erisimi ve arka plan agent'lari HarnessSettings icinde bilerek yoktur.
+    // Dosya erisimi ve arka plan agent'lari HarnessSettings icinde bilerek
+    // yoktur; ikisi de MAF'ta yalnizca deger atandiginda etkinlesir ve
+    // AgentPrism o degerleri hic atamaz (karar K-062).
     .AddAgent(new AgentDefinition
     {
         Name = "arastirmaci",
@@ -109,6 +121,21 @@ if (persistenceEnabled)
     agentPrism.UsePostgreSql(postgreSql);
 }
 
+// Cok kiracililik istege baglidir ve VARSAYILAN OLARAK KAPALIDIR. Acildiginda
+// kiraci once claim'den, o yoksa (acikca izin verilmisse) baslikten cozulur.
+// Baslik sahtelenebilir; asagidaki kurulum yalnizca ornek icindir ve
+// yapilandirmadan acikca acilmadikca devreye girmez.
+if (builder.Configuration.GetValue<bool>("AgentPrism:Tenancy:Enabled"))
+{
+    agentPrism.UseTenancy(options =>
+    {
+        options.Enabled = true;
+        options.ClaimType = builder.Configuration["AgentPrism:Tenancy:ClaimType"];
+        options.AllowHeaderResolution =
+            builder.Configuration.GetValue<bool>("AgentPrism:Tenancy:AllowHeaderResolution");
+    });
+}
+
 var app = builder.Build();
 
 app.UseExceptionHandler();
@@ -117,7 +144,7 @@ app.UseStatusCodePages();
 app.MapGet("/health", (IRunStore runs, ISessionStore sessions) => Results.Ok(new
 {
     status = "healthy",
-    phase = "5 - agentprism ui",
+    phase = "6 - gozlemlenebilirlik",
     storage = new
     {
         persistent = persistenceEnabled,
