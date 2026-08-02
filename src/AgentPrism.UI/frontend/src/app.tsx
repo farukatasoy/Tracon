@@ -1,0 +1,60 @@
+import type { ReactNode } from 'react';
+import { AccessGate } from './components/access-gate';
+import { Layout } from './components/layout';
+import { Empty, Panel } from './components/ui';
+import { useRoute, type RouteDefinition } from './lib/router';
+import { AgentsScreen } from './screens/agents';
+import { AgentDetailScreen } from './screens/agent-detail';
+import { AgentEditorScreen } from './screens/agent-editor';
+import { PlaygroundScreen } from './screens/playground';
+import { SessionsScreen } from './screens/sessions';
+import { SessionDetailScreen } from './screens/session-detail';
+import { RunsScreen } from './screens/runs';
+import { RunDetailScreen } from './screens/run-detail';
+import { ToolsScreen } from './screens/tools';
+import { ModelsScreen } from './screens/models';
+import { SettingsScreen } from './screens/settings';
+import type { Meta } from './lib/types';
+
+/**
+ * Route table.
+ *
+ * Order matters: a literal segment must come before the dynamic pattern that
+ * would also match it, so `agents/new` is registered above `agents/:name`.
+ */
+const routes = (meta: Meta): RouteDefinition[] => [
+  { pattern: '', render: () => <AgentsScreen /> },
+  { pattern: 'agents', render: () => <AgentsScreen /> },
+  { pattern: 'agents/new', render: () => <AgentEditorScreen /> },
+  { pattern: 'agents/:name', render: (params) => <AgentDetailScreen name={params['name'] ?? ''} /> },
+  { pattern: 'agents/:name/edit', render: (params) => <AgentEditorScreen name={params['name'] ?? ''} /> },
+  { pattern: 'playground', render: () => <PlaygroundScreen /> },
+  { pattern: 'playground/:name', render: (params) => <PlaygroundScreen name={params['name'] ?? ''} /> },
+  { pattern: 'sessions', render: () => <SessionsScreen /> },
+  { pattern: 'sessions/:id', render: (params) => <SessionDetailScreen id={params['id'] ?? ''} /> },
+  { pattern: 'runs', render: () => <RunsScreen /> },
+  { pattern: 'runs/:id', render: (params) => <RunDetailScreen id={params['id'] ?? ''} /> },
+  { pattern: 'tools', render: () => <ToolsScreen /> },
+  { pattern: 'models', render: () => <ModelsScreen /> },
+  { pattern: 'settings', render: () => <SettingsScreen meta={meta} /> },
+];
+
+export function App(): ReactNode {
+  return <AccessGate>{(meta) => <Shell meta={meta} />}</AccessGate>;
+}
+
+function Shell({ meta }: { meta: Meta }): ReactNode {
+  const screen = useRoute(routes(meta));
+
+  return (
+    <Layout meta={meta}>
+      {screen ?? (
+        <Panel>
+          <Empty title="Page not found">
+            The address does not match any screen in this console.
+          </Empty>
+        </Panel>
+      )}
+    </Layout>
+  );
+}

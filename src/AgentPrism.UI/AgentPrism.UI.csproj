@@ -1,4 +1,19 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<!--
+  DIKKAT: Bu proje SDK'yi acik Import ile yukler, `Sdk="..."` niteligi ile degil.
+
+  Sebep olculdu: `Sdk` niteligi kullanildiginda SDK hedefleri projenin EN SONUNA
+  yerlestirilir. AgentPrism.UI.Frontend.targets ondan once yuklenir ve icindeki
+  BeforeTargets="AssignTargetPaths" hedefi soyle bir mesajla sessizce atilir:
+
+      The target "AssignTargetPaths" listed in a BeforeTargets attribute
+      does not exist in the project, and will be ignored.
+
+  Sonuc: arayuz varliklari hic gomulmez ve paket sessizce arayuzsuz uretilir.
+  Acik Import biciminde frontend hedefleri SDK hedeflerinden SONRA yuklenir.
+-->
+<Project>
+
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
 
   <PropertyGroup>
     <Description>AgentPrismUI - gomulu yonetim arayuzu. React + TypeScript ile yazilmis tek sayfa uygulama, assembly icine gomulur ve /agentprism altindan sunulur. Tuketici projede hicbir JavaScript bagimliligi olusturmaz.</Description>
@@ -7,13 +22,15 @@
     <AgentPrismAotCompatible>false</AgentPrismAotCompatible>
   </PropertyGroup>
 
-  <PropertyGroup Label="Frontend build (Faz 5)">
+  <PropertyGroup Label="Frontend build">
     <!--
       Frontend kaynagi frontend/ altinda. Vite ciktisi wwwroot/ icine yazilir ve
-      EmbeddedResource olarak assembly'ye gomulur. Faz 5'te AgentPrism.UI.Frontend.targets
-      dosyasi 'npm ci && npm run build' adimini bu bayrakla calistirir.
+      EmbeddedResource olarak assembly'ye gomulur. Zincir
+      AgentPrism.UI.Frontend.targets icinde tanimlidir ve artimsaldir.
+
+      Hizli bir ic dongu icin kapatilabilir:  dotnet build -p:AgentPrismFrontendEnabled=false
     -->
-    <AgentPrismFrontendEnabled>false</AgentPrismFrontendEnabled>
+    <AgentPrismFrontendEnabled Condition=" '$(AgentPrismFrontendEnabled)' == '' ">true</AgentPrismFrontendEnabled>
     <AgentPrismFrontendRoot>$(MSBuildProjectDirectory)/frontend</AgentPrismFrontendRoot>
     <AgentPrismFrontendOutput>$(MSBuildProjectDirectory)/wwwroot</AgentPrismFrontendOutput>
   </PropertyGroup>
@@ -26,8 +43,18 @@
     <ProjectReference Include="../AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj" />
   </ItemGroup>
 
-  <ItemGroup Label="Gomulu arayuz varliklari (Faz 5)">
-    <EmbeddedResource Include="wwwroot/**/*" LogicalName="AgentPrism.UI.wwwroot.%(RecursiveDir)%(Filename)%(Extension)" />
+  <!--
+    Frontend kaynaklarini IDE agacinda goster, derlemeye dahil etme.
+    node_modules ve derleme ciktisi haric tutulur.
+  -->
+  <ItemGroup>
+    <None Include="frontend/**/*"
+          Exclude="frontend/node_modules/**;frontend/dist/**"
+          Visible="true" />
   </ItemGroup>
+
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+
+  <Import Project="AgentPrism.UI.Frontend.targets" />
 
 </Project>

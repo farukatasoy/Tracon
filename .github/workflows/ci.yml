@@ -39,10 +39,14 @@ jobs:
         with:
           global-json-file: global.json
 
+      # Arayuz derlemesi icin. Vite 7, Node ^20.19 veya >=22.12 ister.
+      # npm onbellegi package-lock.json uzerinden anahtarlanir.
       - name: Node.js kur
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
+          cache-dependency-path: src/AgentPrism.UI/frontend/package-lock.json
 
       - name: NuGet paketlerini onbellekle
         uses: actions/cache@v4
@@ -60,6 +64,23 @@ jobs:
 
       - name: Derle
         run: dotnet build AgentPrism.slnx -c Release --no-restore
+
+      # Playwright'in tarayici ikilileri NuGet paketiyle gelmez. Test fixture'i
+      # eksikse indirir, ancak Linux'ta sistem bagimliliklari ayri bir adim ister
+      # ve o adim sudo gerektirir. Onbellek isabetinde indirme atlanir.
+      - name: Playwright tarayicisini onbellekle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ~/Library/Caches/ms-playwright
+            ~\AppData\Local\ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-1.61.0
+
+      - name: Playwright sistem bagimliliklari
+        if: runner.os == 'Linux'
+        run: |
+          pwsh artifacts/bin/AgentPrism.Ui.E2ETests/release/playwright.ps1 install --with-deps chromium
 
       - name: Test et
         # xunit.v3 Microsoft Testing Platform kullanir; rapor bayraklari VSTest'ten farklidir.
@@ -91,10 +112,13 @@ jobs:
         with:
           global-json-file: global.json
 
+      # Arayuz varliklari pack sirasinda gerekir; yoksa AGENTPRISM0003 hatasi verir.
       - name: Node.js kur
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
+          cache-dependency-path: src/AgentPrism.UI/frontend/package-lock.json
 
       - name: Paketleri uret
         run: |

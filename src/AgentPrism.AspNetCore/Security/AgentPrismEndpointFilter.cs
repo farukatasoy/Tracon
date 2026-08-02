@@ -23,8 +23,17 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
 
     /// <summary>Ayarlardan bir filtre kurar.</summary>
     /// <param name="options">Erisim ayarlari.</param>
+    /// <param name="requireBearerToken">
+    /// Bearer token katmani uygulansin mi. Arayuzun statik varliklari icin
+    /// <see langword="false"/> gecilir: bir tarayici <c>&lt;script src&gt;</c>
+    /// istegine <c>Authorization</c> basligi ekleyemez, dolayisiyla bu katman
+    /// kabugu kilitlerse arayuz hicbir zaman acilamaz ve kullanici token'i
+    /// girebilecegi bir ekran goremezdi. Kabuk veri tasimaz; loopback ve
+    /// authorization policy katmanlari yine uygulanir ve her veri ucu tam
+    /// korumada kalir.
+    /// </param>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> <see langword="null"/> ise.</exception>
-    public AgentPrismEndpointFilter(AgentPrismEndpointOptions options)
+    public AgentPrismEndpointFilter(AgentPrismEndpointOptions options, bool requireBearerToken = true)
     {
         ArgumentNullException.ThrowIfNull(options);
 
@@ -32,7 +41,7 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
         // degisiklik calisan uclari etkilememelidir; erisim kurallarinin calisma
         // aninda sessizce gevsemesi guvenlik acisindan kabul edilemez.
         _allowRemoteAccess = options.AllowRemoteAccess;
-        _authToken = options.AuthToken;
+        _authToken = requireBearerToken ? options.AuthToken : null;
     }
 
     /// <inheritdoc />

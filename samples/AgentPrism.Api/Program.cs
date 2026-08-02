@@ -11,7 +11,9 @@
 //
 // HTTP katmani Faz 4'te geldi: tek bir `app.MapAgentPrism("/agentprism")` cagrisi
 // yonetim API'sini ve OpenAI uyumlu calistirma uclarini baglar.
-// Bkz. docs/04-HTTP-API.md
+// Arayuz Faz 5'te geldi: `.UseUI()` cagrisi arayuz varliklarini kaydeder ve
+// http://localhost:5080/agentprism adresinde calisan bir kontrol duzlemi acilir.
+// Bkz. docs/04-HTTP-API.md, docs/05-AGENTPRISM-UI.md
 //
 // Calistirmadan once sirlari ayarlayin:
 //   dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=localhost;Database=AgentPrism;Username=...;Password=..."
@@ -31,10 +33,13 @@ builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 
 var agentPrism = builder.AddAgentPrism()
-    // Tool'lar YALNIZCA kodda tanimlanir. Arayuz (Faz 5) bu listeden secim
-    // yaptirir; tool kodu yazdirmaz. Bu bir guvenlik sinirdir.
+    // Tool'lar YALNIZCA kodda tanimlanir. Arayuz bu listeden secim yaptirir;
+    // tool kodu yazdirmaz. Bu bir guvenlik sinirdir.
     // [AgentPrismTool] ile isaretlenmemis metotlar taranmaz.
-    .AddToolsFrom(typeof(OrderTools));
+    .AddToolsFrom(typeof(OrderTools))
+    // Gomulu yonetim arayuzu. Ayri bir esleme cagrisi gerekmez:
+    // MapAgentPrism kaydi bulur ve arayuzu ayni onek altina baglar.
+    .UseUI();
 
 // Saglayici istege baglidir. API anahtari yoksa uygulama ag cagrisi yapmayan
 // ornek saglayici ile calisir; hicbir sey kirilmaz.
@@ -112,7 +117,7 @@ app.UseStatusCodePages();
 app.MapGet("/health", (IRunStore runs, ISessionStore sessions) => Results.Ok(new
 {
     status = "healthy",
-    phase = "4 - http api",
+    phase = "5 - agentprism ui",
     storage = new
     {
         persistent = persistenceEnabled,
@@ -130,8 +135,9 @@ app.MapGet("/health", (IRunStore runs, ISessionStore sessions) => Results.Ok(new
 
 app.MapOpenApi();
 
-// Faz 4'un tek giris noktasi. Yonetim API'si (/agentprism/api/*) ve OpenAI uyumlu
-// calistirma uclari (/agentprism/v1/*) bu tek cagriyla baglanir.
+// Tek giris noktasi. Yonetim API'si (/agentprism/api/*), OpenAI uyumlu
+// calistirma uclari (/agentprism/v1/*) ve gomulu arayuz (/agentprism) bu tek
+// cagriyla baglanir.
 //
 // Erisim varsayilan olarak loopback ile sinirlidir. Uretimde bir authorization
 // policy baglanir:

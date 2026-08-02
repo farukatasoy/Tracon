@@ -4,20 +4,33 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Projesine ekleyen geliştirici kendi AI harness'ini kolay ama esnek şekilde kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 4 tamamlandı — dış yüzey açık. `app.MapAgentPrism()` yönetim API'sini ve OpenAI uyumlu çalıştırma uçlarını bağlar; stok OpenAI SDK'ları `base_url` değiştirerek doğrudan bağlanır. Veritabanı hâlâ **zorunlu değildir**; yapılandırılmazsa depolama bellek içine düşer. Arayüz Faz 5'te gelir.
-
-**Hedef** (Faz 5 sonunda):
+> **Durum:** Faz 5 tamamlandı — arayüz çalışıyor. `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu çalıştırma uçlarını **ve gömülü yönetim arayüzünü** tek prefix altına bağlar. Veritabanı hâlâ **zorunlu değildir**; yapılandırılmazsa depolama bellek içine düşer.
 
 ```csharp
 builder.AddAgentPrism()
        .UsePostgreSql(connectionString)
        .UseOpenAI(apiKey)
-       .AddTool(GetOrderStatus);
+       .AddTool(GetOrderStatus)
+       .UseUI();
 
 app.MapAgentPrism("/agentprism");
 ```
 
-İki satır. Çalışan bir agent, kalıcı oturumlar ve tarayıcıda bir kontrol düzlemi.
+İki satır. Çalışan bir agent, kalıcı oturumlar ve `http://localhost:5080/agentprism`
+adresinde çalışan bir kontrol düzlemi.
+
+### Arayüz
+
+Yedi ekran: **Agents** (katalog, tanım editörü, versiyon geçmişi, geri alma),
+**Playground** (akışlı sohbet, tool kartları), **Sessions**, **Runs** (olay olay zaman
+çizelgesi), **Tools**, **Models**, **Settings**.
+
+React 19 + TypeScript ile yazılır, Vite ile derlenir ve assembly'ye **Brotli
+sıkıştırılmış gömülür**. Tüketici projede hiçbir JavaScript bağımlılığı oluşmaz;
+`node_modules` klasörü gerekmez. JavaScript bütçesi **88 KB gzip** (kapı: 250 KB).
+
+Arayüz herhangi bir prefix altında çalışır (`/agentprism`, `/panel`, …) ve prefix'i
+çalışma anında öğrenir. Açık ve koyu tema; varsayılan işletim sistemi tercihidir.
 
 **Bugün çalışan HTTP yüzeyi** (Faz 4):
 
@@ -67,7 +80,7 @@ for item in client.conversations.items.list(conv.id):
 Tool döngüsü sunucuda tamamlanır; her çalıştırma olay olay kaydedilir ve SSE ile geri
 oynatılabilir.
 
-**Bugün çalışan** (Faz 4):
+**Bugün çalışan** (Faz 5):
 
 ```csharp
 builder.AddAgentPrism()
@@ -80,7 +93,8 @@ builder.AddAgentPrism()
            Model = new ModelBinding { Provider = OpenAIProviderNames.ChatCompletions, Model = "gpt-5.4-mini" },
            ToolNames = ["get_order_status"],
        })
-       .UsePostgreSql(connectionString);      // ← Faz 2; isteğe bağlı
+       .UsePostgreSql(connectionString)       // ← Faz 2; isteğe bağlı
+       .UseUI();                              // ← Faz 5; gömülü arayüz
 
 // Kalıcı oturumla çalıştır
 var agent = await catalog.ResolveAsync("support");
@@ -146,7 +160,7 @@ AgentPrism bu boşluğu doldurur. DevUI'nin yerine geçmez — bıraktığı yer
 | `AgentPrism.PostgreSql` | ✅ Kalıcılık — gömülü SQL migration'ları, ayrı `agentprism` şeması |
 | `AgentPrism.OpenAI` | ✅ OpenAI sağlayıcı adaptörü — Chat Completions + Responses, tool çağrısı, OpenTelemetry |
 | `AgentPrism.AspNetCore` | ✅ HTTP katmanı — yönetim API'si + OpenAI uyumlu uçlar |
-| `AgentPrism.UI` | ⬜ Gömülü React arayüzü (Faz 5) |
+| `AgentPrism.UI` | ✅ Gömülü React arayüzü — yedi ekran, sıfır JavaScript bağımlılığı |
 
 **Hedef framework:** `net8.0`, `net9.0`, `net10.0` · **Lisans:** MIT
 
@@ -214,8 +228,8 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [2](docs/02-POSTGRESQL-KALICILIK.md) | PostgreSQL kalıcılık katmanı | ✅ Tamamlandı |
 | [3](docs/03-SAGLAYICI-VE-DERLEYICI.md) | OpenAI sağlayıcısı ve agent derleyici | ✅ Tamamlandı |
 | [4](docs/04-HTTP-API.md) | HTTP API katmanı | ✅ Tamamlandı |
-| [5](docs/05-AGENTPRISM-UI.md) | AgentPrismUI | 🔜 Sıradaki |
-| [6](docs/06-GOZLEMLENEBILIRLIK.md) | Gözlemlenebilirlik, workflows, çok kiracılılık | Planlandı |
+| [5](docs/05-AGENTPRISM-UI.md) | AgentPrismUI | ✅ Tamamlandı |
+| [6](docs/06-GOZLEMLENEBILIRLIK.md) | Gözlemlenebilirlik, workflows, çok kiracılılık | 🔜 Sıradaki |
 | [7](docs/07-SAGLAMLASTIRMA-VE-YAYIN.md) | Sağlamlaştırma ve yayın | Planlandı |
 
 ### Sürüm politikası
@@ -230,20 +244,33 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 
 ```bash
 dotnet build  AgentPrism.slnx -c Release              # 0 uyarı bekleniyor
-dotnet test   AgentPrism.slnx -c Release --no-build   # 198 test (110 birim + 88 entegrasyon)
+dotnet test   AgentPrism.slnx -c Release --no-build   # 310 test
 dotnet pack   AgentPrism.slnx -c Release --no-build
 dotnet format AgentPrism.slnx --verify-no-changes
 ```
 
 `TreatWarningsAsErrors` açıktır — uyarı yoktur, hata vardır.
 
-Gereksinimler: .NET SDK 10.0.100+, **Docker** (entegrasyon testleri Testcontainers ile gerçek PostgreSQL kaldırır), Node.js 20.19+ (Faz 5'ten itibaren arayüz build'i için).
+Gereksinimler: .NET SDK 10.0.100+, **Node.js 20.19+** (arayüz derlemesi), **Docker**
+(entegrasyon testleri Testcontainers ile gerçek PostgreSQL kaldırır). Arayüz E2E
+testleri Chromium'u ilk çalıştırmada kendisi indirir.
+
+`dotnet build` arayüzü de derler: `npm ci` → tip denetimi → 40 Vitest testi →
+Vite → Brotli sıkıştırma → bundle bütçesi kapısı. Adımlar artımsaldır; kaynak
+değişmediyse atlanır. Hızlı bir iç döngü için `-p:AgentPrismFrontendEnabled=false`.
 
 Örnek uygulamayı çalıştırma:
 
 ```bash
 cd samples/AgentPrism.Api
-dotnet run           # http://localhost:5080
+dotnet run           # http://localhost:5080/agentprism
+```
+
+Yalnız arayüz üzerinde çalışıyorsanız Vite geliştirme sunucusu daha hızlıdır:
+
+```bash
+cd src/AgentPrism.UI/frontend
+npm run dev          # http://localhost:5173 — /agentprism/* istekleri 5080'e vekillenir
 ```
 
 ---
