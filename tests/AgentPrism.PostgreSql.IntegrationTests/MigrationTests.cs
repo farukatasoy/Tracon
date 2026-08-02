@@ -32,6 +32,7 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
 
         // 0001_initial 13 tablo + migration defteri, 0002_observability 2 tablo,
         // 0003_agent_skills 2 tablo, 0004_skill_scripts 2 tablo daha.
+        // 0005_agent_call_graph YENI TABLO EKLEMEZ; runs tablosuna sutun ekler.
         tableCount.ShouldBe(20);
     }
 

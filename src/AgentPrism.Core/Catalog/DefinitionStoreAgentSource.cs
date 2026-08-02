@@ -56,6 +56,7 @@ public sealed class DefinitionStoreAgentSource : IAgentSource
                 Model = definition.Model,
                 ToolNames = definition.ToolNames,
                 SkillNames = definition.SkillNames,
+                CallableAgentNames = definition.CallableAgentNames,
                 UsesHarness = definition.Harness is not null,
                 UpdatedAt = definition.UpdatedAt,
             });
@@ -77,10 +78,12 @@ public sealed class DefinitionStoreAgentSource : IAgentSource
         }
 
         var skills = await _compiler.ResolveSkillsAsync(definition, cancellationToken).ConfigureAwait(false);
+        var callable = await _compiler.ResolveCallableAgentsAsync(definition, cancellationToken).ConfigureAwait(false);
+
         return _cache.GetOrAdd(
             definition.Name,
             definition.Version,
-            skills.Fingerprint,
-            () => _compiler.Compile(definition));
+            CompiledAgentCache.CombineFingerprints(skills.Fingerprint, callable.Fingerprint),
+            () => _compiler.Compile(definition, callable));
     }
 }

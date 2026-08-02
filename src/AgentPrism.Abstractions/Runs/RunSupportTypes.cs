@@ -49,6 +49,15 @@ public sealed record RunStartInfo
 
     /// <summary>Akisli calistirma mi.</summary>
     public bool IsStreaming { get; init; }
+
+    /// <summary>Bu calistirmayi baslatan calistirmanin kimligi. Kokte <see langword="null"/>.</summary>
+    public Guid? ParentRunId { get; init; }
+
+    /// <summary>Agacin kokundeki calistirmanin kimligi. Kokte <see langword="null"/>.</summary>
+    public Guid? RootRunId { get; init; }
+
+    /// <summary>Agactaki derinlik. Kok calistirma 0'dir.</summary>
+    public int Depth { get; init; }
 }
 
 /// <summary>Bir calistirmayi sonlandirmak icin gereken bilgiler.</summary>
@@ -90,6 +99,31 @@ public sealed record RunQuery
 
     /// <summary>Bu andan sonra baslayan calistirmalari getirir (UTC).</summary>
     public DateTimeOffset? StartedAfter { get; init; }
+
+    /// <summary>
+    /// Yalnizca kok calistirmalari getirir. Varsayilan <see langword="true"/>.
+    /// </summary>
+    /// <remarks>
+    /// Varsayilan bilerek <see langword="true"/>'dur: bir agent baska agent'lari
+    /// cagirdiginda her alt cagri ayri bir <c>runs</c> satiri uretir ve liste
+    /// kullanicinin baslatmadigi calistirmalarla dolar. Alt calistirmalar kendi
+    /// koklerinin detayinda agac olarak gorunur; tam liste gerekiyorsa deger
+    /// <see langword="false"/> yapilir.
+    /// </remarks>
+    public bool OnlyRootRuns { get; init; } = true;
+
+    /// <summary>
+    /// Yalnizca bu calistirmanin dogrudan alt calistirmalarini getirir.
+    /// </summary>
+    /// <remarks>
+    /// Deger verildiginde <see cref="OnlyRootRuns"/> yok sayilir: alt calistirma
+    /// istegi ile kok filtresi mantiksal olarak celisir ve sessizce bos liste
+    /// donmek hata ayiklanmasi zor bir davranistir.
+    /// </remarks>
+    public Guid? ParentRunId { get; init; }
+
+    /// <summary>Yalnizca bu agacin calistirmalarini getirir (kok dahil).</summary>
+    public Guid? RootRunId { get; init; }
 
     /// <summary>Atlanacak kayit sayisi.</summary>
     public int Skip { get; init; }

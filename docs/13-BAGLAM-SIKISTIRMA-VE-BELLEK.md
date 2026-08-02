@@ -10,10 +10,87 @@
 
 ## Bu Faza Başlarken
 
-1. [`02-POSTGRESQL-KALICILIK.md`](02-POSTGRESQL-KALICILIK.md) — `PostgresChatHistoryProvider`, oturum durumu
-2. [`KARARLAR.md`](KARARLAR.md) — **K-027** (`json` vs `jsonb`), **K-037** (`ChatHistoryProvider` kaydı), **K-062** (harness alanları kapalı)
-3. [`MIMARI.md`](MIMARI.md) — bölüm 4 "Hâlâ kullanılmayan MAF genişleme noktaları"
-4. Bu doküman
+1. [`12-AGENT-CAGRI-GRAFIGI.md`](12-AGENT-CAGRI-GRAFIGI.md) — **önceki faz**; §12.2 (ambient kapsam ve `AsyncLocal` kuralı) ve §12.4 (derleyicideki sağlayıcı listesi)
+2. [`02-POSTGRESQL-KALICILIK.md`](02-POSTGRESQL-KALICILIK.md) — `PostgresChatHistoryProvider`, oturum durumu
+3. [`KARARLAR.md`](KARARLAR.md) — **K-027** (`json` vs `jsonb`), **K-037** (`ChatHistoryProvider` kaydı), **K-062** (harness alanları kapalı), **K-097** (`AIContextProviders` birinci sınıf yoldur)
+4. [`MIMARI.md`](MIMARI.md) — bölüm 4 "Hâlâ kullanılmayan MAF genişleme noktaları"
+5. Bu doküman
+
+---
+
+## Faz 12'den Devralınanlar
+
+### Sağlayıcı listesi hazır
+
+`AgentDefinitionCompiler.CompileChatAgent` artık bir **liste** kurar; tek bir
+sağlayıcı ataması değildir:
+
+```csharp
+var providers = new List<AIContextProvider>(2);
+
+if (definition.SkillNames.Count > 0)
+{
+    providers.Add(CreateSkillsProvider(definition));
+}
+
+if (CreateBackgroundAgentsProvider(definition, callableAgents) is { } backgroundAgents)
+{
+    providers.Add(backgroundAgents);
+}
+
+if (providers.Count > 0)
+{
+    options.AIContextProviders = providers;
+}
+```
+
+`CompactionProvider` bu listeye üçüncü öğe olarak eklenir. Harness yolunda
+karşılığı `HarnessAgentOptions.DisableCompaction` bayrağıdır (zaten bağlı).
+
+### Önbellek anahtarı iki parmak izi taşıyor
+
+```csharp
+CompiledAgentCache.GetOrAdd(
+    definition.Name,
+    definition.Version,
+    CompiledAgentCache.CombineFingerprints(skills.Fingerprint, callable.Fingerprint),
+    () => _compiler.Compile(definition, callable));
+```
+
+Sıkıştırma ayarı agent tanımının **kendi** alanı olacaksa `Version` zaten artar
+ve ek parmak izi gerekmez. Ayar tanım dışında bir yerde yaşayacaksa
+(ör. kiracı düzeyinde) `CombineFingerprints` zincirlenmelidir.
+
+### Çalıştırma kapsamı
+
+```csharp
+public sealed record AgentRunScope
+{
+    public required Guid RunId { get; init; }
+    public required Guid RootRunId { get; init; }
+    public int Depth { get; init; }
+    public string? AgentName { get; init; }
+    public string? TenantId { get; init; }
+    public AgentRunBudget? Budget { get; init; }
+    public RunEventWriter? Writer { get; init; }
+}
+
+AgentPrismRunContext.Current            // okuma
+AgentPrismRunContext.SetCurrent(scope)  // yazma
+```
+
+Sıkıştırma olayını çalıştırma akışına yazmak isterseniz **tek yol**
+`AgentPrismRunContext.Current?.Writer`'dır. İkinci bir `RunEventWriter` kurmak
+sıra numaralarını çakıştırır (K-014).
+
+### 🚨 Bilinen tuzaklar (Faz 12'de ölçüldü)
+
+| Tuzak | Kural |
+|-------|-------|
+| `async IAsyncEnumerable` gövdesinde yapılan `AsyncLocal` ataması **`yield return` sınırını aşmaz** | Kapsam her `MoveNextAsync`'ten **hemen önce** yeniden yazılmalıdır. Döngü dışında bir kez yazmak yetmez. |
+| Ağaçtaki tüm çalıştırmalar aynı W3C trace kimliğini paylaşır | `RunTraceCollector` tamponunun sahibi yalnız kök çalıştırmadır (K-099). Yeni bir span tüketicisi eklerken aynı kural geçerlidir. |
+| MAF alt agent'ı `options = null` ile çağırır | Bir `AIContextProvider`'ın açtığı tool'dan tetiklenen çağrılarda gelen ayarlara güvenilemez. |
+| `BackgroundAgentsProvider` `MAAI001` işaretlidir | `CompactionProvider` de öyle olabilir — kullanmadan önce derleyin; bastırma tek dosyada toplanır ve `KARARLAR.md`'ye yazılır (K-020, K-097). |
 
 ---
 

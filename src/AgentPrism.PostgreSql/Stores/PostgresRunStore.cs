@@ -64,6 +64,9 @@ public sealed class PostgresRunStore : IRunStore
             SessionId = info.SessionId,
             ModelId = info.ModelId,
             IsStreaming = info.IsStreaming,
+            ParentRunId = info.ParentRunId,
+            RootRunId = info.RootRunId,
+            Depth = info.Depth,
         };
 
         var command = CreateCommand(_sql.InsertRun);
@@ -75,6 +78,12 @@ public sealed class PostgresRunStore : IRunStore
         command.Parameters.AddWithValue("status", (short)record.Status);
         command.Parameters.AddWithValue("started_at", record.StartedAt.UtcDateTime);
         command.Parameters.AddWithValue("is_streaming", record.IsStreaming);
+        AddNullableUuid(command, "parent_run_id", record.ParentRunId);
+        AddNullableUuid(command, "root_run_id", record.RootRunId);
+
+        // Derinlik smallint sutunudur; kaynagi butcenin MaxDepth degeridir ve
+        // hicbir kurulumda short sinirina yaklasmaz.
+        command.Parameters.AddWithValue("depth", (short)Math.Clamp(record.Depth, 0, short.MaxValue));
 
         await NpgsqlHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
 
@@ -162,6 +171,9 @@ public sealed class PostgresRunStore : IRunStore
         {
             Value = query.StartedAfter is { } after ? (object)after.UtcDateTime : DBNull.Value,
         });
+        AddNullableUuid(command, "parent_run_id", query.ParentRunId);
+        AddNullableUuid(command, "root_run_id", query.RootRunId);
+        command.Parameters.AddWithValue("only_root_runs", query.OnlyRootRuns);
         command.Parameters.AddWithValue("skip", Math.Max(query.Skip, 0));
         command.Parameters.AddWithValue("take", Math.Max(query.Take, 0));
 
@@ -395,6 +407,7 @@ public sealed class PostgresRunStore : IRunStore
     private static RunRecord ReadRun(NpgsqlDataReader reader)
     {
         var errorType = NpgsqlHelpers.GetNullableString(reader, 12);
+        var ownUsage = ReadUsage(reader);
 
         return new RunRecord
         {
@@ -406,9 +419,14 @@ public sealed class PostgresRunStore : IRunStore
             StartedAt = NpgsqlHelpers.GetTimestamp(reader, 5),
             CompletedAt = reader.IsDBNull(6) ? null : NpgsqlHelpers.GetTimestamp(reader, 6),
             IsStreaming = reader.GetBoolean(7),
-            Usage = ReadUsage(reader),
+            Usage = ownUsage,
             EventCount = reader.GetInt64(11),
             ModelId = NpgsqlHelpers.GetNullableString(reader, 14),
+            ParentRunId = reader.IsDBNull(15) ? null : reader.GetGuid(15),
+            RootRunId = reader.IsDBNull(16) ? null : reader.GetGuid(16),
+            Depth = reader.GetInt16(17),
+            ChildRunCount = reader.IsDBNull(18) ? 0 : reader.GetInt32(18),
+            TreeUsage = ReadTreeUsage(reader, ownUsage),
             Error = errorType is null
                 ? null
                 : new RunError
@@ -416,6 +434,30 @@ public sealed class PostgresRunStore : IRunStore
                     Type = errorType,
                     Message = NpgsqlHelpers.GetNullableString(reader, 13) ?? string.Empty,
                 },
+        };
+    }
+
+    /// <summary>Agacin token toplamini kaydin kendi kullanimiyla birlestirir.</summary>
+    /// <remarks>
+    /// Alt sorgu yalnizca <em>altindaki</em> calistirmalari toplar; kaydin kendi
+    /// kullanimi buraya eklenir. Ne kayitta ne agacta kullanim varsa deger
+    /// <see langword="null"/> kalir: sifir yazmak, "saglayici token bildirmedi"
+    /// ile "hic token harcanmadi" durumlarini ayirt edilemez hale getirirdi.
+    /// </remarks>
+    private static RunUsage? ReadTreeUsage(NpgsqlDataReader reader, RunUsage? ownUsage)
+    {
+        var descendantRows = reader.IsDBNull(22) ? 0 : reader.GetInt64(22);
+
+        if (descendantRows == 0 && ownUsage is null)
+        {
+            return null;
+        }
+
+        return new RunUsage
+        {
+            InputTokens = (reader.IsDBNull(19) ? 0 : reader.GetInt64(19)) + (ownUsage?.InputTokens ?? 0),
+            OutputTokens = (reader.IsDBNull(20) ? 0 : reader.GetInt64(20)) + (ownUsage?.OutputTokens ?? 0),
+            TotalTokens = (reader.IsDBNull(21) ? 0 : reader.GetInt64(21)) + (ownUsage?.TotalTokens ?? 0),
         };
     }
 
@@ -463,6 +505,12 @@ public sealed class PostgresRunStore : IRunStore
         => command.Parameters.Add(new NpgsqlParameter(name, NpgsqlDbType.Text)
         {
             Value = (object?)value ?? DBNull.Value,
+        });
+
+    private static void AddNullableUuid(NpgsqlCommand command, string name, Guid? value)
+        => command.Parameters.Add(new NpgsqlParameter(name, NpgsqlDbType.Uuid)
+        {
+            Value = value.HasValue ? (object)value.Value : DBNull.Value,
         });
 
     private static void AddNullableInt64(NpgsqlCommand command, string name, long? value)

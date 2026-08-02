@@ -226,6 +226,60 @@ public sealed class UiTests(BrowserFixture browsers)
     }
 
     [Fact]
+    public async Task Alt_agent_calistirmasi_agac_olarak_gorunur()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/playground/yonlendirici");
+        await session.Page.GetByTestId("playground-input").FillAsync("ORD-7 nerede");
+        await session.Page.GetByTestId("playground-send").ClickAsync();
+
+        await session.Page.GetByText("Echo:").First.WaitForAsync(new() { Timeout = 30_000 });
+
+        await session.Page.GetByRole(AriaRole.Link, new() { NameRegex = RunLinkPattern }).First.ClickAsync();
+
+        // Ozet olaylar kok akista gorunur; alt calistirmanin tam akisi
+        // aynalanmaz (olay hacmi agac boyunca katlanirdi).
+        await session.Page.GetByText("child.started", new() { Exact = true }).First
+            .WaitForAsync(new() { Timeout = 30_000 });
+
+        // Agac paneli hem koku hem alt calistirmayi gostermelidir.
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Call tree" })
+            .WaitForAsync(new() { Timeout = 30_000 });
+
+        await session.Page.GetByText("this run", new() { Exact = true }).First
+            .WaitForAsync(new() { Timeout = 30_000 });
+    }
+
+    [Fact]
+    public async Task Runs_ekrani_varsayilan_olarak_yalniz_kokleri_listeler()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/playground/yonlendirici");
+        await session.Page.GetByTestId("playground-input").FillAsync("ORD-7 nerede");
+        await session.Page.GetByTestId("playground-send").ClickAsync();
+
+        await session.Page.GetByText("Echo:").First.WaitForAsync(new() { Timeout = 30_000 });
+
+        await session.Page.GotoAsync($"{host.UiAddress}/runs");
+
+        // Varsayilan gorunum yalniz kokleri listeler ve alt calistirma sayisini
+        // rozetle bildirir.
+        await session.Page.GetByText("1 child run", new() { Exact = true }).First
+            .WaitForAsync(new() { Timeout = 30_000 });
+
+        (await session.Page.GetByText("depth 1", new() { Exact = true }).CountAsync()).ShouldBe(0);
+
+        await session.Page.GetByRole(AriaRole.Combobox).Last.SelectOptionAsync("all");
+
+        await session.Page.GetByText("depth 1", new() { Exact = true }).First
+            .WaitForAsync(new() { Timeout = 30_000 });
+    }
+
+    [Fact]
     public async Task Mcp_ekrani_guvenlik_sinirini_yazar_ve_sunucu_eklenir()
     {
         await using var host = await UiHost.StartAsync();

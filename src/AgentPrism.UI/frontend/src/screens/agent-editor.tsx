@@ -33,6 +33,7 @@ interface FormState {
   reasoningEffort: string;
   toolNames: string[];
   skillNames: string[];
+  callableAgentNames: string[];
   harnessEnabled: boolean;
   harness: HarnessSettings;
 }
@@ -50,6 +51,7 @@ const emptyForm: FormState = {
   reasoningEffort: '',
   toolNames: [],
   skillNames: [],
+  callableAgentNames: [],
   harnessEnabled: false,
   harness: {},
 };
@@ -82,6 +84,7 @@ function toRequest(form: FormState): AgentDefinitionRequest {
     model,
     toolNames: form.toolNames,
     skillNames: form.skillNames,
+    callableAgentNames: form.callableAgentNames,
     harness: form.harnessEnabled ? form.harness : null,
   };
 }
@@ -103,6 +106,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
 
   const tools = useQuery({ queryKey: ['tools'], queryFn: api.tools });
   const skills = useQuery({ queryKey: ['skills'], queryFn: api.skills });
+  const agents = useQuery({ queryKey: ['agents'], queryFn: api.agents });
   const providers = useQuery({ queryKey: ['models'], queryFn: api.models });
 
   const existing = useQuery({
@@ -137,6 +141,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
       reasoningEffort: definition.model.reasoningEffort ?? '',
       toolNames: [...definition.toolNames],
       skillNames: [...definition.skillNames],
+      callableAgentNames: [...(definition.callableAgentNames ?? [])],
       harnessEnabled: definition.harness !== null && definition.harness !== undefined,
       harness: definition.harness ?? {},
     });
@@ -418,6 +423,59 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                     </label>
                   );
                 })}
+              </div>
+            </div>
+          </Panel>
+
+          <Panel title="Callable agents">
+            <div className="p-4">
+              <p className="mb-3 text-[12px] text-muted">
+                Agents this one may call as a sub-task. The call graph is checked when you save:
+                self-calls and indirect cycles are rejected. Runtime limits (depth, shared token
+                budget) come from <Mono>AgentPrism:AgentGraph</Mono>. A sub-agent runs in the same
+                tenant and cannot ask for tool approval.
+              </p>
+
+              {agents.isPending && <Loading />}
+              {agents.isError && <ErrorNote error={agents.error} />}
+
+              {agents.isSuccess && agents.data.filter((agent) => agent.name !== form.name).length === 0 && (
+                <p className="text-[13px] text-subtle">No other agent exists to call.</p>
+              )}
+
+              <div className="flex flex-col gap-1.5">
+                {(agents.data ?? [])
+                  .filter((agent) => agent.name !== form.name)
+                  .map((agent) => {
+                    const checked = form.callableAgentNames.includes(agent.name);
+
+                    return (
+                      <label
+                        key={agent.name}
+                        className="flex cursor-pointer items-start gap-2.5 rounded-md border border-line px-3 py-2 hover:bg-raised"
+                      >
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 accent-[var(--ap-accent)]"
+                          checked={checked}
+                          onChange={() =>
+                            setForm({
+                              ...form,
+                              callableAgentNames: checked
+                                ? form.callableAgentNames.filter((item) => item !== agent.name)
+                                : [...form.callableAgentNames, agent.name],
+                            })
+                          }
+                        />
+                        <span className="min-w-0">
+                          <Mono className="font-medium">{agent.name}</Mono>
+                          {agent.description != null && (
+                            <span className="block text-[12px] text-muted">{agent.description}</span>
+                          )}
+                        </span>
+                      </label>
+                    );
+                  })}
               </div>
             </div>
           </Panel>

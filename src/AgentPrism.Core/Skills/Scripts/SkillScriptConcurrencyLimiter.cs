@@ -11,61 +11,61 @@ namespace AgentPrism;
 /// </remarks>
 internal sealed class SkillScriptConcurrencyLimiter : IDisposable
 {
-   private readonly ConcurrentDictionary<string, SemaphoreSlim> _perTenant = new(StringComparer.Ordinal);
-   private readonly SemaphoreSlim _total;
-   private readonly int _perTenantLimit;
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _perTenant = new(StringComparer.Ordinal);
+    private readonly SemaphoreSlim _total;
+    private readonly int _perTenantLimit;
 
-   public SkillScriptConcurrencyLimiter(AgentPrismSkillScriptOptions options)
-   {
-      _total = new SemaphoreSlim(options.MaxConcurrentTotal, options.MaxConcurrentTotal);
-      _perTenantLimit = options.MaxConcurrentPerTenant;
-   }
+    public SkillScriptConcurrencyLimiter(AgentPrismSkillScriptOptions options)
+    {
+        _total = new SemaphoreSlim(options.MaxConcurrentTotal, options.MaxConcurrentTotal);
+        _perTenantLimit = options.MaxConcurrentPerTenant;
+    }
 
-   /// <summary>Yer acilana kadar bekler ve birakilinca kotayi geri veren bir nesne dondurur.</summary>
-   public async ValueTask<IDisposable> AcquireAsync(string tenantId, CancellationToken cancellationToken)
-   {
-      var tenant = _perTenant.GetOrAdd(tenantId, _ => new SemaphoreSlim(_perTenantLimit, _perTenantLimit));
+    /// <summary>Yer acilana kadar bekler ve birakilinca kotayi geri veren bir nesne dondurur.</summary>
+    public async ValueTask<IDisposable> AcquireAsync(string tenantId, CancellationToken cancellationToken)
+    {
+        var tenant = _perTenant.GetOrAdd(tenantId, _ => new SemaphoreSlim(_perTenantLimit, _perTenantLimit));
 
-      await tenant.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await tenant.WaitAsync(cancellationToken).ConfigureAwait(false);
 
-      try
-      {
-         await _total.WaitAsync(cancellationToken).ConfigureAwait(false);
-      }
-      catch
-      {
-         tenant.Release();
-         throw;
-      }
+        try
+        {
+            await _total.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            tenant.Release();
+            throw;
+        }
 
-      return new Lease(this, tenant);
-   }
+        return new Lease(this, tenant);
+    }
 
-   public void Dispose()
-   {
-      _total.Dispose();
+    public void Dispose()
+    {
+        _total.Dispose();
 
-      foreach (var semaphore in _perTenant.Values)
-      {
-         semaphore.Dispose();
-      }
+        foreach (var semaphore in _perTenant.Values)
+        {
+            semaphore.Dispose();
+        }
 
-      _perTenant.Clear();
-   }
+        _perTenant.Clear();
+    }
 
-   private sealed class Lease(SkillScriptConcurrencyLimiter owner, SemaphoreSlim tenant) : IDisposable
-   {
-      private int _released;
+    private sealed class Lease(SkillScriptConcurrencyLimiter owner, SemaphoreSlim tenant) : IDisposable
+    {
+        private int _released;
 
-      public void Dispose()
-      {
-         if (Interlocked.Exchange(ref _released, 1) != 0)
-         {
-            return;
-         }
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _released, 1) != 0)
+            {
+                return;
+            }
 
-         owner._total.Release();
-         tenant.Release();
-      }
-   }
+            owner._total.Release();
+            tenant.Release();
+        }
+    }
 }

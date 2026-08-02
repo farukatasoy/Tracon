@@ -21,87 +21,87 @@ namespace AgentPrism;
 /// </remarks>
 internal static class SkillScriptArgumentValidator
 {
-   /// <summary>Argumanlari denetler; uygun degilse sebebi doner.</summary>
-   /// <param name="schema">JSON Schema nesnesi. <see langword="null"/> ise denetim yapilmaz.</param>
-   /// <param name="arguments">Modelin urettigi argumanlar.</param>
-   /// <param name="error">Uygun degilse hata sebebi.</param>
-   /// <returns>Argumanlar uygunsa <see langword="true"/>.</returns>
-   public static bool TryValidate(JsonElement? schema, JsonElement? arguments, out string? error)
-   {
-      error = null;
+    /// <summary>Argumanlari denetler; uygun degilse sebebi doner.</summary>
+    /// <param name="schema">JSON Schema nesnesi. <see langword="null"/> ise denetim yapilmaz.</param>
+    /// <param name="arguments">Modelin urettigi argumanlar.</param>
+    /// <param name="error">Uygun degilse hata sebebi.</param>
+    /// <returns>Argumanlar uygunsa <see langword="true"/>.</returns>
+    public static bool TryValidate(JsonElement? schema, JsonElement? arguments, out string? error)
+    {
+        error = null;
 
-      if (schema is not { ValueKind: JsonValueKind.Object } schemaElement)
-      {
-         return true;
-      }
+        if (schema is not { ValueKind: JsonValueKind.Object } schemaElement)
+        {
+            return true;
+        }
 
-      if (arguments is not { } argumentsElement || argumentsElement.ValueKind == JsonValueKind.Null)
-      {
-         argumentsElement = default;
-      }
+        if (arguments is not { } argumentsElement || argumentsElement.ValueKind == JsonValueKind.Null)
+        {
+            argumentsElement = default;
+        }
 
-      if (argumentsElement.ValueKind is not (JsonValueKind.Object or JsonValueKind.Undefined))
-      {
-         error = "Script argumanlari bir JSON nesnesi olmalidir.";
-         return false;
-      }
-
-      if (schemaElement.TryGetProperty("required", out var required) &&
-          required.ValueKind == JsonValueKind.Array)
-      {
-         foreach (var item in required.EnumerateArray())
-         {
-            if (item.ValueKind != JsonValueKind.String)
-            {
-               continue;
-            }
-
-            var name = item.GetString()!;
-
-            if (argumentsElement.ValueKind == JsonValueKind.Undefined ||
-                !argumentsElement.TryGetProperty(name, out _))
-            {
-               error = $"Zorunlu '{name}' argumani eksik.";
-               return false;
-            }
-         }
-      }
-
-      if (argumentsElement.ValueKind == JsonValueKind.Undefined ||
-          !schemaElement.TryGetProperty("properties", out var properties) ||
-          properties.ValueKind != JsonValueKind.Object)
-      {
-         return true;
-      }
-
-      foreach (var property in argumentsElement.EnumerateObject())
-      {
-         if (!properties.TryGetProperty(property.Name, out var propertySchema) ||
-             propertySchema.ValueKind != JsonValueKind.Object ||
-             !propertySchema.TryGetProperty("type", out var type) ||
-             type.ValueKind != JsonValueKind.String)
-         {
-            continue;
-         }
-
-         if (!Matches(type.GetString(), property.Value.ValueKind))
-         {
-            error = $"'{property.Name}' argumani '{type.GetString()}' tipinde olmalidir.";
+        if (argumentsElement.ValueKind is not (JsonValueKind.Object or JsonValueKind.Undefined))
+        {
+            error = "Script argumanlari bir JSON nesnesi olmalidir.";
             return false;
-         }
-      }
+        }
 
-      return true;
-   }
+        if (schemaElement.TryGetProperty("required", out var required) &&
+            required.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in required.EnumerateArray())
+            {
+                if (item.ValueKind != JsonValueKind.String)
+                {
+                    continue;
+                }
 
-   private static bool Matches(string? type, JsonValueKind kind) => type switch
-   {
-      "string" => kind == JsonValueKind.String,
-      "number" or "integer" => kind == JsonValueKind.Number,
-      "boolean" => kind is JsonValueKind.True or JsonValueKind.False,
-      "object" => kind == JsonValueKind.Object,
-      "array" => kind == JsonValueKind.Array,
-      "null" => kind == JsonValueKind.Null,
-      _ => true,
-   };
+                var name = item.GetString()!;
+
+                if (argumentsElement.ValueKind == JsonValueKind.Undefined ||
+                    !argumentsElement.TryGetProperty(name, out _))
+                {
+                    error = $"Zorunlu '{name}' argumani eksik.";
+                    return false;
+                }
+            }
+        }
+
+        if (argumentsElement.ValueKind == JsonValueKind.Undefined ||
+            !schemaElement.TryGetProperty("properties", out var properties) ||
+            properties.ValueKind != JsonValueKind.Object)
+        {
+            return true;
+        }
+
+        foreach (var property in argumentsElement.EnumerateObject())
+        {
+            if (!properties.TryGetProperty(property.Name, out var propertySchema) ||
+                propertySchema.ValueKind != JsonValueKind.Object ||
+                !propertySchema.TryGetProperty("type", out var type) ||
+                type.ValueKind != JsonValueKind.String)
+            {
+                continue;
+            }
+
+            if (!Matches(type.GetString(), property.Value.ValueKind))
+            {
+                error = $"'{property.Name}' argumani '{type.GetString()}' tipinde olmalidir.";
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool Matches(string? type, JsonValueKind kind) => type switch
+    {
+        "string" => kind == JsonValueKind.String,
+        "number" or "integer" => kind == JsonValueKind.Number,
+        "boolean" => kind is JsonValueKind.True or JsonValueKind.False,
+        "object" => kind == JsonValueKind.Object,
+        "array" => kind == JsonValueKind.Array,
+        "null" => kind == JsonValueKind.Null,
+        _ => true,
+    };
 }

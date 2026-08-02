@@ -248,8 +248,10 @@ internal sealed class SqlQueries
         // --- Calistirmalar ---
 
         InsertRun = $"""
-            INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, model_id, status, started_at, is_streaming, event_count)
-            VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @status, @started_at, @is_streaming, 0);
+            INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, model_id, status, started_at, is_streaming, event_count,
+                                       parent_run_id, root_run_id, depth)
+            VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @status, @started_at, @is_streaming, 0,
+                    @parent_run_id, @root_run_id, @depth);
             """;
 
         UpdateRunCompletion = $"""
@@ -265,23 +267,60 @@ internal sealed class SqlQueries
             WHERE id = @id;
             """;
 
+        // Agac toplamlari OKUMADA hesaplanir, saklanmaz. Saklansaydi her alt
+        // calistirmanin tamamlanmasi ustundeki her kaydi guncellemek zorunda kalir
+        // ve kayit yolu derinlikle birlikte pahalilasirdi. LATERAL alt sorgu
+        // runs_parent_idx ve runs_root_idx uzerinden calisir; sayfa basina en fazla
+        // `take` satir icin degerlendirilir.
+        var treeJoin = $"""
+            LEFT JOIN LATERAL (
+                SELECT COUNT(*)::int AS child_count
+                FROM {Schema}.runs AS child
+                WHERE child.parent_run_id = r.id
+            ) AS children ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT COALESCE(SUM(sub.input_tokens), 0)::bigint  AS input_tokens,
+                       COALESCE(SUM(sub.output_tokens), 0)::bigint AS output_tokens,
+                       COALESCE(SUM(sub.total_tokens), 0)::bigint  AS total_tokens,
+                       COUNT(sub.total_tokens)::bigint             AS usage_rows
+                FROM {Schema}.runs AS sub
+                WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id
+            ) AS tree ON TRUE
+            """;
+
+        const string runColumns = """
+            r.id, r.tenant_id, r.agent_name, r.session_id, r.status, r.started_at, r.completed_at, r.is_streaming,
+            r.input_tokens, r.output_tokens, r.total_tokens, r.event_count, r.error_type, r.error_message, r.model_id,
+            r.parent_run_id, r.root_run_id, r.depth,
+            children.child_count,
+            tree.input_tokens, tree.output_tokens, tree.total_tokens, tree.usage_rows
+            """;
+
         SelectRun = $"""
-            SELECT id, tenant_id, agent_name, session_id, status, started_at, completed_at, is_streaming,
-                   input_tokens, output_tokens, total_tokens, event_count, error_type, error_message, model_id
-            FROM {Schema}.runs
-            WHERE id = @id AND tenant_id = @tenant_id;
+            SELECT {runColumns}
+            FROM {Schema}.runs AS r
+            {treeJoin}
+            WHERE r.id = @id AND r.tenant_id = @tenant_id;
             """;
 
         SelectRuns = $"""
-            SELECT id, tenant_id, agent_name, session_id, status, started_at, completed_at, is_streaming,
-                   input_tokens, output_tokens, total_tokens, event_count, error_type, error_message, model_id
-            FROM {Schema}.runs
-            WHERE tenant_id = @tenant_id
-              AND (@agent_name IS NULL OR agent_name = @agent_name)
-              AND (@status     IS NULL OR status     = @status)
-              AND (@session_id IS NULL OR session_id = @session_id)
-              AND (@started_after IS NULL OR started_at > @started_after)
-            ORDER BY started_at DESC, id DESC
+            SELECT {runColumns}
+            FROM {Schema}.runs AS r
+            {treeJoin}
+            WHERE r.tenant_id = @tenant_id
+              AND (@agent_name IS NULL OR r.agent_name = @agent_name)
+              AND (@status     IS NULL OR r.status     = @status)
+              AND (@session_id IS NULL OR r.session_id = @session_id)
+              AND (@started_after IS NULL OR r.started_at > @started_after)
+              AND (@root_run_id IS NULL OR r.root_run_id = @root_run_id OR r.id = @root_run_id)
+              AND (
+                    -- Ebeveyn filtresi verildiyse kok filtresi BILEREK yok sayilir:
+                    -- ikisi mantiksal olarak celisir ve sessizce bos liste donmek
+                    -- hata ayiklanmasi zor bir davranistir.
+                    (@parent_run_id IS NOT NULL AND r.parent_run_id = @parent_run_id)
+                 OR (@parent_run_id IS NULL AND (NOT @only_root_runs OR r.parent_run_id IS NULL))
+              )
+            ORDER BY r.started_at DESC, r.id DESC
             OFFSET @skip LIMIT @take;
             """;
 

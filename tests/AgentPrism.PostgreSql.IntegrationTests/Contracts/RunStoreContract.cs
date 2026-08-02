@@ -353,6 +353,169 @@ public abstract class RunStoreContract : IAsyncLifetime
         stats.ErrorRate.ShouldBeNull();
     }
 
+    [Fact]
+    public async Task Agac_alanlari_gidip_gelir()
+    {
+        var rootId = AgentPrismId.NewId();
+        var childId = AgentPrismId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(rootId));
+        await Store.StartRunAsync(TestData.Run(childId, "arastirmaci") with
+        {
+            ParentRunId = rootId,
+            RootRunId = rootId,
+            Depth = 1,
+        });
+
+        var child = await Store.GetRunAsync(childId);
+
+        child.ShouldNotBeNull();
+        child.ParentRunId.ShouldBe(rootId);
+        child.RootRunId.ShouldBe(rootId);
+        child.Depth.ShouldBe(1);
+
+        var root = await Store.GetRunAsync(rootId);
+
+        root.ShouldNotBeNull();
+        root.ParentRunId.ShouldBeNull();
+
+        // Kok kaydin root_run_id alani BOS kalir. Kokun kendisine isaret eden bir
+        // deger yazmak, "kok mu, alt mi" sorusunu sorguda ikinci bir kosula
+        // dondururdu.
+        root.RootRunId.ShouldBeNull();
+        root.Depth.ShouldBe(0);
+        root.ChildRunCount.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Liste_varsayilan_olarak_yalniz_kok_calistirmalari_doner()
+    {
+        var rootId = AgentPrismId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(rootId));
+        await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId(), "arastirmaci") with
+        {
+            ParentRunId = rootId,
+            RootRunId = rootId,
+            Depth = 1,
+        });
+
+        var roots = await Store.QueryRunsAsync(new RunQuery());
+
+        roots.ShouldHaveSingleItem().Id.ShouldBe(rootId);
+
+        var all = await Store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false });
+
+        all.Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task Ebeveyn_filtresi_kok_filtresini_gecersiz_kilar()
+    {
+        var rootId = AgentPrismId.NewId();
+        var childId = AgentPrismId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(rootId));
+        await Store.StartRunAsync(TestData.Run(childId, "arastirmaci") with
+        {
+            ParentRunId = rootId,
+            RootRunId = rootId,
+            Depth = 1,
+        });
+
+        // OnlyRootRuns varsayilan olarak true'dur; ebeveyn filtresi verildiginde
+        // bilerek yok sayilir. Sessizce bos liste donmek, hata ayiklanmasi zor bir
+        // davranistir.
+        var children = await Store.QueryRunsAsync(new RunQuery { ParentRunId = rootId });
+
+        children.ShouldHaveSingleItem().Id.ShouldBe(childId);
+    }
+
+    [Fact]
+    public async Task Agac_sorgusu_koku_ve_tum_altini_doner()
+    {
+        var rootId = AgentPrismId.NewId();
+        var childId = AgentPrismId.NewId();
+        var grandChildId = AgentPrismId.NewId();
+        var yabanciId = AgentPrismId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(rootId));
+        await Store.StartRunAsync(TestData.Run(childId, "arastirmaci") with
+        {
+            ParentRunId = rootId,
+            RootRunId = rootId,
+            Depth = 1,
+        });
+        await Store.StartRunAsync(TestData.Run(grandChildId, "ozetleyici") with
+        {
+            ParentRunId = childId,
+            RootRunId = rootId,
+            Depth = 2,
+        });
+        await Store.StartRunAsync(TestData.Run(yabanciId, "baska"));
+
+        var tree = await Store.QueryRunsAsync(new RunQuery { RootRunId = rootId, OnlyRootRuns = false });
+
+        tree.Select(static run => run.Id).ShouldBe([rootId, childId, grandChildId], ignoreOrder: true);
+    }
+
+    [Fact]
+    public async Task Agac_toplami_kokun_ve_altinin_tokenlerini_birlestirir()
+    {
+        var rootId = AgentPrismId.NewId();
+        var childId = AgentPrismId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(rootId));
+        await Store.StartRunAsync(TestData.Run(childId, "arastirmaci") with
+        {
+            ParentRunId = rootId,
+            RootRunId = rootId,
+            Depth = 1,
+        });
+
+        await CompleteAsync(rootId, new RunUsage { InputTokens = 10, OutputTokens = 5, TotalTokens = 15 });
+        await CompleteAsync(childId, new RunUsage { InputTokens = 30, OutputTokens = 20, TotalTokens = 50 });
+
+        var root = await Store.GetRunAsync(rootId);
+
+        root.ShouldNotBeNull();
+        root.Usage!.TotalTokens.ShouldBe(15);
+
+        // Agac toplami kokun KENDI kullanimini da icerir; ikisi toplanmaz.
+        root.TreeUsage!.TotalTokens.ShouldBe(65);
+        root.TreeUsage.InputTokens.ShouldBe(40);
+        root.TreeUsage.OutputTokens.ShouldBe(25);
+
+        var child = await Store.GetRunAsync(childId);
+
+        // Alti olmayan bir calistirmada agac toplami kendi kullanimina esittir.
+        child!.TreeUsage!.TotalTokens.ShouldBe(50);
+    }
+
+    [Fact]
+    public async Task Token_bildirmeyen_agacta_toplam_bos_kalir()
+    {
+        var rootId = AgentPrismId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(rootId));
+        await CompleteAsync(rootId, usage: null);
+
+        var root = await Store.GetRunAsync(rootId);
+
+        // Sifir yazmak, "saglayici token bildirmedi" ile "hic token harcanmadi"
+        // durumlarini ayirt edilemez hale getirirdi.
+        root!.TreeUsage.ShouldBeNull();
+    }
+
+    private async Task CompleteAsync(Guid runId, RunUsage? usage)
+        => await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = usage,
+        });
+
     private async Task CompleteRunAsync(string agentName, RunStatus status, RunUsage? usage)
     {
         var runId = AgentPrismId.NewId();

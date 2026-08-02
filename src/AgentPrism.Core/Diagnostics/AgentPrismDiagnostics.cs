@@ -66,6 +66,12 @@ public static class AgentPrismDiagnostics
         /// <summary>Calistirma durumu.</summary>
         public const string Status = "agentprism.run.status";
 
+        /// <summary>Bu calistirmayi baslatan calistirmanin kimligi. Yalnizca alt calistirmalarda yazilir.</summary>
+        public const string ParentRunId = "agentprism.run.parent_id";
+
+        /// <summary>Cagri agacindaki derinlik. Yalnizca alt calistirmalarda yazilir.</summary>
+        public const string Depth = "agentprism.run.depth";
+
         /// <summary>Akisli calistirma mi.</summary>
         public const string Streaming = "agentprism.run.streaming";
 

@@ -32,6 +32,60 @@ public sealed class AgentPrismOptions
 
     /// <summary>Skill yukleme sinirlari.</summary>
     public AgentPrismSkillOptions Skills { get; set; } = new();
+
+    /// <summary>Agent'in agent cagirmasi icin gecerli sinirlar.</summary>
+    public AgentPrismAgentGraphOptions AgentGraph { get; set; } = new();
+}
+
+/// <summary>
+/// Bir agent baska bir agent'i cagirdiginda gecerli olan sinirlar.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Alt agent cagrisi maliyeti <strong>carpar</strong>: her katman kendi model
+/// cagrilarini yapar. Sinirsiz birakilirsa yanlis yazilmis tek bir tanim, tek bir
+/// istekte onlarca calistirma baslatabilir. Bu yuzden hem derinlik hem token hem
+/// de sayi sinirinin varsayilan bir degeri vardir.
+/// </para>
+/// <para>
+/// Sinirlar <em>agac basina</em> uygulanir: kok calistirma bir
+/// <see cref="AgentRunBudget"/> uretir, agactaki her calistirma ayni ornegi
+/// paylasir.
+/// </para>
+/// </remarks>
+public sealed class AgentPrismAgentGraphOptions
+{
+    /// <summary>
+    /// Izin verilen en buyuk cagri derinligi. Kok calistirma 0'dir, dolayisiyla
+    /// varsayilan deger uc katmanli bir agaca izin verir.
+    /// </summary>
+    public int MaxDepth { get; set; } = 3;
+
+    /// <summary>
+    /// Bir agac boyunca harcanabilecek en fazla token. 0 veya negatif deger
+    /// sinirlamayi kaldirir.
+    /// </summary>
+    /// <remarks>
+    /// Varsayilan deger bilerek <em>vardir</em>. Sinirsiz birakilan bir kurulumda
+    /// ilk yanlis tanim faturayla ogrenilir.
+    /// </remarks>
+    public long MaxTotalTokens { get; set; } = 200_000;
+
+    /// <summary>
+    /// Bir agac boyunca baslatilabilecek en fazla <em>alt</em> calistirma sayisi.
+    /// Kok calistirma sayilmaz. 0 veya negatif deger sinirlamayi kaldirir.
+    /// </summary>
+    public int MaxTotalRuns { get; set; } = 25;
+
+    /// <summary>Bu ayarlardan yeni bir agac butcesi uretir.</summary>
+    /// <returns>Kok calistirmanin agac boyunca paylasacagi butce.</returns>
+    public AgentRunBudget CreateBudget()
+        => new()
+        {
+            MaxDepth = Math.Max(MaxDepth, 0),
+            MaxTotalTokens = MaxTotalTokens > 0 ? MaxTotalTokens : null,
+            MaxTotalRuns = MaxTotalRuns > 0 ? MaxTotalRuns : null,
+        };
 }
 
 /// <summary>Skill icerigi ve agent baglantisi icin sinirlar.</summary>

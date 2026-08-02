@@ -41,4 +41,39 @@ public sealed record RunRecord
 
     /// <summary>Bu calistirmaya yazilmis olay sayisi.</summary>
     public long EventCount { get; init; }
+
+    /// <summary>
+    /// Bu calistirmayi baslatan calistirmanin kimligi. Kok calistirmada
+    /// <see langword="null"/>.
+    /// </summary>
+    public Guid? ParentRunId { get; init; }
+
+    /// <summary>
+    /// Agacin kokundeki calistirmanin kimligi. Kok calistirmada
+    /// <see langword="null"/>; alt calistirmalarda her zaman dolu.
+    /// </summary>
+    /// <remarks>
+    /// Denormalize edilmistir: bir agacin tamami bu alan uzerinden tek indeksli
+    /// bir sorguyla cekilir, <see cref="ParentRunId"/> uzerinden ozyinelemeli
+    /// CTE gerekmez.
+    /// </remarks>
+    public Guid? RootRunId { get; init; }
+
+    /// <summary>Agactaki derinlik. Kok calistirma 0'dir.</summary>
+    public int Depth { get; init; }
+
+    /// <summary>Bu calistirmanin <em>dogrudan</em> alt calistirma sayisi.</summary>
+    public int ChildRunCount { get; init; }
+
+    /// <summary>
+    /// Bu calistirmanin ve altindaki tum calistirmalarin toplam token kullanimi.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Usage"/> ile <strong>toplanmaz</strong>: bu deger zaten
+    /// <see cref="Usage"/> degerini icerir. Alt calistirmasi olmayan bir
+    /// calistirmada ikisi esittir. Arayuz ikisini ayri sutunda gosterir, cunku
+    /// "bu calistirma ne harcadi" ile "bu istek toplamda ne harcadi" farkli
+    /// sorulardir.
+    /// </remarks>
+    public RunUsage? TreeUsage { get; init; }
 }

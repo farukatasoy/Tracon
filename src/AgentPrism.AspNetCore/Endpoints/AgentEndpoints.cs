@@ -104,6 +104,11 @@ internal static class AgentEndpoints
             return invalid;
         }
 
+        if (await ValidateCallGraphAsync(catalog, request, cancellationToken).ConfigureAwait(false) is { } cycle)
+        {
+            return cycle;
+        }
+
         if (await FindDescriptorAsync(catalog, request.Name, cancellationToken).ConfigureAwait(false) is { } existing)
         {
             return TypedResults.Problem(
@@ -145,6 +150,11 @@ internal static class AgentEndpoints
         if (await GuardCodeAgentAsync(catalog, name, cancellationToken).ConfigureAwait(false) is { } conflict)
         {
             return conflict;
+        }
+
+        if (await ValidateCallGraphAsync(catalog, request, cancellationToken).ConfigureAwait(false) is { } cycle)
+        {
+            return cycle;
         }
 
         if (await definitions.GetAsync(name, cancellationToken).ConfigureAwait(false) is null)
@@ -426,6 +436,34 @@ internal static class AgentEndpoints
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Tanimin cagri grafigini denetler ve sorunluysa <c>400</c> uretir.
+    /// </summary>
+    /// <remarks>
+    /// Denetim <strong>kaydetme aninda</strong> yapilir. Calisma anina birakilsaydi
+    /// kullanici hatayi ancak agent'i calistirdiginda ve derinlik sayaci dolduktan
+    /// sonra - yani token harcadiktan sonra - gorurdu.
+    /// </remarks>
+    private static async ValueTask<ProblemHttpResult?> ValidateCallGraphAsync(
+        IAgentCatalog catalog,
+        AgentDefinitionRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.CallableAgentNames.Count == 0)
+        {
+            return null;
+        }
+
+        var descriptors = await catalog.ListAsync(cancellationToken).ConfigureAwait(false);
+
+        return AgentCallGraph.Validate(request.Name, request.CallableAgentNames, descriptors) is { } problem
+            ? TypedResults.Problem(
+                title: "Cagri grafigi gecersiz",
+                detail: problem,
+                statusCode: StatusCodes.Status400BadRequest)
+            : null;
     }
 
     private static async ValueTask<ProblemHttpResult?> GuardCodeAgentAsync(

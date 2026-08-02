@@ -32,7 +32,7 @@ Sıralama bu beş cevaba göre kuruldu. Cevaplar karar defterine de yazıldı
 | 9 | [09-YONETISIM-VE-DENETIM-IZI.md](09-YONETISIM-VE-DENETIM-IZI.md) | F-21 · F-20 | Faz 11'in (script) önkoşulu. Boş duran `audit_log` dolar | — | — |
 | 10 | [10-AGENT-SKILLERI.md](10-AGENT-SKILLERI.md) | F-09 (1/2) | Yetenek derinliğinin ilk adımı. Script **yok** | — | 0003 |
 | 11 | [11-SKILL-SCRIPT-CALISTIRMA.md](11-SKILL-SCRIPT-CALISTIRMA.md) | F-09 (2/2) | K2'nin ikinci bilinçli istisnası. Rol + denetim izi hazır olmadan yapılamaz | — | 0004 |
-| 12 | [12-AGENT-CAGRI-GRAFIGI.md](12-AGENT-CAGRI-GRAFIGI.md) | F-10 | Agent'ın agent'ı çağırması. `runs.parent_run_id` | — | 0005 |
+| 12 | [12-AGENT-CAGRI-GRAFIGI.md](12-AGENT-CAGRI-GRAFIGI.md) | F-10 | ✅ **Tamamlandı (2026-08-02)** — agent'ın agent'ı çağırması, çalıştırma ağacı, paylaşılan bütçe | — | 0005 |
 | 13 | [13-BAGLAM-SIKISTIRMA-VE-BELLEK.md](13-BAGLAM-SIKISTIRMA-VE-BELLEK.md) | F-11 | Uzun konuşma bu fazlardan sonra kaçınılmaz olur | — | — |
 | 14 | [14-COK-MODLULUK.md](14-COK-MODLULUK.md) | F-12 | Görsel, ses ve dosya girdisi | — | 0006 |
 | 15 | [15-WORKFLOWS-YURUTME.md](15-WORKFLOWS-YURUTME.md) | F-27 (1/2) | En büyük iş. Yürütme ve checkpoint kalıcılığı | `AgentPrism.Workflows` | 0007 |
