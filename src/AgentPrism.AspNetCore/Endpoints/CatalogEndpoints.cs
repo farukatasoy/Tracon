@@ -12,10 +12,12 @@ internal static class CatalogEndpoints
 {
     /// <summary>Defter uclarini baglar.</summary>
     /// <param name="builder">Uc grubu.</param>
-    public static void Map(IEndpointRouteBuilder builder)
+    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/tools", Ok<IReadOnlyList<ToolDescriptor>> (IToolRegistry tools)
                 => TypedResults.Ok(tools.List()))
+            .RequireRole(roles.Reader)
             .WithName("AgentPrismListTools")
             .WithSummary("Kayitli tool'lari ve JSON semalarini listeler.")
             .WithDescription(
@@ -38,6 +40,7 @@ internal static class CatalogEndpoints
 
                 return TypedResults.Ok<IReadOnlyList<ModelProviderDescriptor>>(withStatus);
             })
+            .RequireRole(roles.Reader)
             .WithName("AgentPrismListModels")
             .WithSummary("Kayitli model saglayicilarini ve modellerini listeler.")
             .WithDescription(
@@ -65,6 +68,7 @@ internal static class CatalogEndpoints
 
                 return TypedResults.Ok(statistics);
             })
+            .RequireRole(roles.Reader)
             .WithName("AgentPrismStats")
             .WithSummary("Calistirma sayilarini, token toplamlarini ve hata oranini dondurur.")
             .WithDescription(

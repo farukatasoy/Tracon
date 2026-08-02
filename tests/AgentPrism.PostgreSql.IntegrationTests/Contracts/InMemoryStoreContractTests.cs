@@ -52,3 +52,11 @@ public sealed class InMemoryTraceStoreContractTests : TraceStoreContract
     /// </summary>
     protected override ValueTask SeedRunAsync(Guid runId) => default;
 }
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryAuditLogContractTests : AuditLogContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<IAuditLog> CreateLogAsync()
+        => ValueTask.FromResult<IAuditLog>(new InMemoryAuditLog());
+}

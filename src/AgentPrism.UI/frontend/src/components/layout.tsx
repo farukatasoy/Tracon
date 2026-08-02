@@ -4,6 +4,7 @@ import { applyTheme, readThemePreference, writeThemePreference, type ThemePrefer
 import { cx } from './ui';
 import {
   AgentsIcon,
+  AuditIcon,
   McpIcon,
   ModelsIcon,
   MoonIcon,
@@ -33,6 +34,7 @@ const NAV = [
   { path: 'tools', label: 'Tools', icon: ToolsIcon, hue: 'var(--ap-rose)' },
   { path: 'models', label: 'Models', icon: ModelsIcon, hue: 'var(--ap-indigo)' },
   { path: 'mcp', label: 'MCP', icon: McpIcon, hue: 'var(--ap-amber)' },
+  { path: 'audit', label: 'Audit', icon: AuditIcon, hue: 'var(--ap-indigo)', adminOnly: true },
   { path: 'settings', label: 'Settings', icon: SettingsIcon, hue: 'var(--ap-muted)' },
 ] as const;
 
@@ -40,6 +42,10 @@ export function Layout({ meta, children }: { meta: Meta; children: ReactNode }):
   const path = usePath();
   const section = path.split('/')[0] ?? '';
   const active = section.length === 0 ? 'agents' : section;
+
+  // A hidden nav item is a UX courtesy, not a security boundary: the server
+  // is still the only real enforcement (docs/09-YONETISIM-VE-DENETIM-IZI.md).
+  const nav = NAV.filter((item) => !('adminOnly' in item && item.adminOnly) || meta.roles.canAdminister);
 
   return (
     <div className="flex min-h-screen">
@@ -52,7 +58,7 @@ export function Layout({ meta, children }: { meta: Meta; children: ReactNode }):
         </Link>
 
         <nav className="flex flex-1 flex-col gap-0.5 px-2">
-          {NAV.map((item) => {
+          {nav.map((item) => {
             const isActive = active === item.path;
             const Icon = item.icon;
 
@@ -84,14 +90,22 @@ export function Layout({ meta, children }: { meta: Meta; children: ReactNode }):
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar meta={meta} active={active} />
+        <TopBar meta={meta} active={active} nav={nav} />
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 md:px-8">{children}</main>
       </div>
     </div>
   );
 }
 
-function TopBar({ meta, active }: { meta: Meta; active: string }): ReactNode {
+function TopBar({
+  meta,
+  active,
+  nav,
+}: {
+  meta: Meta;
+  active: string;
+  nav: readonly (typeof NAV)[number][];
+}): ReactNode {
   return (
     <header className="sticky top-0 z-20 flex h-12 items-center justify-between gap-3 border-b border-line bg-panel/85 px-4 backdrop-blur md:px-8">
       <div className="flex items-center gap-2 md:hidden">
@@ -100,7 +114,7 @@ function TopBar({ meta, active }: { meta: Meta; active: string }): ReactNode {
       </div>
 
       <nav className="flex items-center gap-1 overflow-x-auto md:hidden">
-        {NAV.map((item) => (
+        {nav.map((item) => (
           <Link
             key={item.path}
             to={item.path}

@@ -22,40 +22,49 @@ internal static class AgentEndpoints
 {
     /// <summary>Agent uclarini baglar.</summary>
     /// <param name="builder">Uc grubu.</param>
-    public static void Map(IEndpointRouteBuilder builder)
+    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/agents", async Task<Ok<IReadOnlyList<AgentDescriptor>>> (
                 IAgentCatalog catalog,
                 CancellationToken cancellationToken)
                 => TypedResults.Ok(await catalog.ListAsync(cancellationToken).ConfigureAwait(false)))
+            .RequireRole(roles.Reader)
             .WithName("AgentPrismListAgents")
             .WithSummary("Kodda ve veritabaninda tanimli tum agent'lari listeler.");
 
         builder.MapGet("/api/agents/{name}", GetAgentAsync)
+            .RequireRole(roles.Reader)
             .WithName("AgentPrismGetAgent")
             .WithSummary("Bir agent'in katalog ozetini ve varsa kalici tanimini dondurur.");
 
         builder.MapPost("/api/agents", CreateAgentAsync)
+            .RequireRole(roles.Admin)
             .WithName("AgentPrismCreateAgent")
             .WithSummary("Yeni bir agent tanimi olusturur.");
 
         builder.MapPut("/api/agents/{name}", UpdateAgentAsync)
+            .RequireRole(roles.Admin)
             .WithName("AgentPrismUpdateAgent")
             .WithSummary("Bir agent tanimini gunceller ve yeni bir surum uretir.");
 
         builder.MapDelete("/api/agents/{name}", DeleteAgentAsync)
+            .RequireRole(roles.Admin)
             .WithName("AgentPrismDeleteAgent")
             .WithSummary("Bir agent tanimini ve surum gecmisini siler.");
 
         builder.MapGet("/api/agents/{name}/versions", ListVersionsAsync)
+            .RequireRole(roles.Reader)
             .WithName("AgentPrismListAgentVersions")
             .WithSummary("Bir tanimin surum gecmisini yeniden eskiye listeler.");
 
         builder.MapPost("/api/agents/{name}/rollback", RollbackAsync)
+            .RequireRole(roles.Admin)
             .WithName("AgentPrismRollbackAgent")
             .WithSummary("Bir tanimi onceki bir surumun icerigiyle yeni surum olarak yazar.");
 
         builder.MapPost("/api/agents/{name}/run", RunAsync)
+            .RequireRole(roles.Operator)
             .WithName("AgentPrismRunAgent")
             .WithSummary("Bir agent'i deneme amaciyla calistirir ve yaniti SSE ile akitir.");
     }
@@ -377,6 +386,8 @@ internal static class AgentEndpoints
                     services.GetRequiredService<Microsoft.Agents.AI.ChatHistoryProvider>(),
                     services.GetRequiredService<IToolApprovalRuleStore>(),
                     services.GetRequiredService<ITenantContext>(),
+                    services.GetRequiredService<IAuditLog>(),
+                    services.GetRequiredService<IAuditActorResolver>(),
                     loggerFactory.CreateLogger(typeof(ToolApprovalResolver).FullName!),
                     cancellationToken).ConfigureAwait(false);
 

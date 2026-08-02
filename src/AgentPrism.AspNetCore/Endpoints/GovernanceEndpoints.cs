@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
 
@@ -16,17 +17,19 @@ internal static class GovernanceEndpoints
 {
     /// <summary>Yonetisim uclarini baglar.</summary>
     /// <param name="builder">Uc grubu.</param>
-    public static void Map(IEndpointRouteBuilder builder)
+    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
-        MapTenants(builder);
-        MapMcpServers(builder);
-        MapApprovalRules(builder);
+        MapTenants(builder, roles);
+        MapMcpServers(builder, roles);
+        MapApprovalRules(builder, roles);
     }
 
-    private static void MapTenants(IEndpointRouteBuilder builder)
+    private static void MapTenants(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/tenants/current", Ok<CurrentTenantResponse> (ITenantContext tenants)
                 => TypedResults.Ok(new CurrentTenantResponse { TenantId = tenants.TenantId }))
+            .RequireRole(roles.Reader)
             .WithName("AgentPrismCurrentTenant")
             .WithSummary("Gecerli istegin kiracisini dondurur.")
             .WithDescription(
@@ -37,6 +40,7 @@ internal static class GovernanceEndpoints
                 ITenantStore tenants,
                 CancellationToken cancellationToken)
                 => TypedResults.Ok(await tenants.ListAsync(cancellationToken).ConfigureAwait(false)))
+            .RequireRole(roles.Reader)
             .WithName("AgentPrismListTenants")
             .WithSummary("Kayitli kiracilari listeler.")
             .WithDescription(
@@ -70,6 +74,7 @@ internal static class GovernanceEndpoints
 
                 return TypedResults.Ok(saved);
             })
+            .RequireRole(roles.Admin)
             .WithName("AgentPrismSaveTenant")
             .WithSummary("Bir kiraci kaydini ekler veya gunceller.");
 
@@ -83,12 +88,13 @@ internal static class GovernanceEndpoints
                         title: "Kiraci bulunamadi",
                         detail: $"'{slug}' anahtarli bir kiraci kaydi yok.",
                         statusCode: StatusCodes.Status404NotFound))
+            .RequireRole(roles.Admin)
             .WithName("AgentPrismDeleteTenant")
             .WithSummary("Bir kiraci kaydini siler.")
             .WithDescription("Yalnizca kayit silinir; kiracinin agent'lari, oturumlari ve calistirmalari kalir.");
     }
 
-    private static void MapMcpServers(IEndpointRouteBuilder builder)
+    private static void MapMcpServers(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/mcp-servers", async Task<Ok<IReadOnlyList<McpServerDefinition>>> (
                 IMcpServerStore servers,
@@ -96,6 +102,7 @@ internal static class GovernanceEndpoints
                 CancellationToken cancellationToken)
                 => TypedResults.Ok(
                     await servers.ListAsync(tenants.TenantId, cancellationToken).ConfigureAwait(false)))
+            .RequireRole(roles.Reader)
             .WithName("AgentPrismListMcpServers")
             .WithSummary("Kayitli uzak MCP sunucularini listeler.")
             .WithDescription(
@@ -132,6 +139,7 @@ internal static class GovernanceEndpoints
 
                 return TypedResults.Ok(saved);
             })
+            .RequireRole(roles.Admin)
             .WithName("AgentPrismSaveMcpServer")
             .WithSummary("Bir uzak MCP sunucusu ekler veya gunceller.")
             .WithDescription(
@@ -150,11 +158,16 @@ internal static class GovernanceEndpoints
                         title: "MCP sunucusu bulunamadi",
                         detail: $"'{name}' adinda bir sunucu yok.",
                         statusCode: StatusCodes.Status404NotFound))
+            .RequireRole(roles.Admin)
             .WithName("AgentPrismDeleteMcpServer")
             .WithSummary("Bir uzak MCP sunucusunu siler.");
 
         builder.MapPost("/api/mcp-servers/refresh", async Task<Results<Ok<McpRefreshResponse>, ProblemHttpResult>> (
                 IMcpToolRefresher? refresher,
+                IAuditLog auditLog,
+                IAuditActorResolver actorResolver,
+                ITenantContext tenants,
+                ILoggerFactory loggerFactory,
                 CancellationToken cancellationToken) =>
             {
                 if (refresher is null)
@@ -167,8 +180,22 @@ internal static class GovernanceEndpoints
 
                 var count = await refresher.RefreshAsync(cancellationToken).ConfigureAwait(false);
 
+                // Elle tazeleme, kayitli bir sunucuya yapilan yazma degildir; bu yuzden
+                // denetim izi burada, uc katmaninda yazilir.
+                await AuditRecorder.WriteAsync(
+                    auditLog,
+                    actorResolver,
+                    loggerFactory.CreateLogger("AgentPrism.GovernanceEndpoints"),
+                    tenants.TenantId,
+                    action: "mcp.refresh",
+                    entity: "mcp:*",
+                    before: null,
+                    after: $$"""{"toolCount":{{count}}}""",
+                    cancellationToken).ConfigureAwait(false);
+
                 return TypedResults.Ok(new McpRefreshResponse { ToolCount = count });
             })
+            .RequireRole(roles.Admin)
             .WithName("AgentPrismRefreshMcpTools")
             .WithSummary("Uzak MCP sunucularinin tool listesini simdi tazeler.")
             .WithDescription(
@@ -177,13 +204,14 @@ internal static class GovernanceEndpoints
                 "gorunmesi icindir.");
     }
 
-    private static void MapApprovalRules(IEndpointRouteBuilder builder)
+    private static void MapApprovalRules(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/approvals/rules", async Task<Ok<IReadOnlyList<ToolApprovalRule>>> (
                 IToolApprovalRuleStore rules,
                 ITenantContext tenants,
                 CancellationToken cancellationToken)
                 => TypedResults.Ok(await rules.ListAsync(tenants.TenantId, cancellationToken).ConfigureAwait(false)))
+            .RequireRole(roles.Admin)
             .WithName("AgentPrismListApprovalRules")
             .WithSummary("Kalici 'bir daha sorma' onay kurallarini listeler.");
 
@@ -198,6 +226,7 @@ internal static class GovernanceEndpoints
                         title: "Kural bulunamadi",
                         detail: $"'{ruleId}' kimlikli bir onay kurali yok.",
                         statusCode: StatusCodes.Status404NotFound))
+            .RequireRole(roles.Admin)
             .WithName("AgentPrismDeleteApprovalRule")
             .WithSummary("Bir kalici onay kuralini geri alir.")
             .WithDescription("Kural silindikten sonra o tool icin onay yeniden sorulur.");

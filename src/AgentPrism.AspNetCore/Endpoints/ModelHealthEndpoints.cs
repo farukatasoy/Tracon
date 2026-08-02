@@ -17,13 +17,15 @@ internal static class ModelHealthEndpoints
 {
     /// <summary>Saglik denetimi uclarini baglar.</summary>
     /// <param name="builder">Uc grubu.</param>
-    public static void Map(IEndpointRouteBuilder builder)
+    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/models/health", async Task<Ok<IReadOnlyList<ModelProviderHealth>>> (
                 ModelProviderHealthCache cache,
                 bool? refresh,
                 CancellationToken cancellationToken)
                 => TypedResults.Ok(await cache.GetAllAsync(refresh ?? false, cancellationToken).ConfigureAwait(false)))
+            .RequireRole(roles.Reader)
             .WithName("AgentPrismModelsHealth")
             .WithSummary("Tum kayitli saglayicilarin onbellekli saglik durumunu dondurur.")
             .WithDescription(
@@ -46,6 +48,7 @@ internal static class ModelHealthEndpoints
                         statusCode: StatusCodes.Status404NotFound)
                     : TypedResults.Ok(health);
             })
+            .RequireRole(roles.Reader)
             .WithName("AgentPrismModelHealth")
             .WithSummary("Tek bir saglayicinin onbellekli saglik durumunu dondurur.");
     }

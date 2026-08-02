@@ -104,4 +104,25 @@ public sealed class AgentPrismEndpointOptions
         ArgumentException.ThrowIfNullOrWhiteSpace(policyName);
         AuthorizationPolicy = policyName;
     }
+
+    /// <summary>
+    /// Uc rol policy'sinin (<see cref="AgentPrismPolicies"/>) tuketicinin
+    /// authorization yapilandirmasinda kayitli olmasini zorunlu kilar.
+    /// Varsayilan <see langword="false"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Kapaliyken</strong> (varsayilan) kayitli olmayan bir rol policy'si
+    /// sessizce atlanir; ilgili uc yalnizca mevcut uc katmanli korumadan gecer.
+    /// Bu, surum yukseltmesinin mevcut kurulumlari kirmamasi icindir.
+    /// </para>
+    /// <para>
+    /// <strong>Aciksa</strong> ve <c>AgentPrism.Reader</c>, <c>AgentPrism.Operator</c>,
+    /// <c>AgentPrism.Admin</c> policy'lerinden biri <c>AddAuthorization</c> ile
+    /// tanimlanmamissa <c>MapAgentPrism()</c> acilista hata verir. Uretim kurulumu
+    /// bunu acmalidir; sessizce acik kalmis bir kapi, kapali sanilan bir kapidan
+    /// kotudur.
+    /// </para>
+    /// </remarks>
+    public bool RequireRolePolicies { get; set; }
 }

@@ -14,7 +14,8 @@ internal static class RunEndpoints
     /// <summary>Calistirma uclarini baglar.</summary>
     /// <param name="builder">Uc grubu.</param>
     /// <param name="options">Erisim ve akis ayarlari.</param>
-    public static void Map(IEndpointRouteBuilder builder, AgentPrismEndpointOptions options)
+    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    public static void Map(IEndpointRouteBuilder builder, AgentPrismEndpointOptions options, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/runs", async Task<Ok<IReadOnlyList<RunRecord>>> (
                 IRunStore runs,
@@ -40,6 +41,7 @@ internal static class RunEndpoints
 
                 return TypedResults.Ok(records);
             })
+            .RequireRole(roles.Reader)
             .WithName("AgentPrismListRuns")
             .WithSummary("Calistirmalari en yeniden eskiye listeler.");
 
@@ -50,6 +52,7 @@ internal static class RunEndpoints
                 => await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false) is { } record
                     ? TypedResults.Ok(record)
                     : NotFound(runId))
+            .RequireRole(roles.Reader)
             .WithName("AgentPrismGetRun")
             .WithSummary("Tek bir calistirmanin ozetini dondurur.");
 
@@ -68,6 +71,7 @@ internal static class RunEndpoints
 
                 return new RunEventStream(runId, runs, options.RunEventPollInterval);
             })
+            .RequireRole(roles.Reader)
             .WithName("AgentPrismStreamRunEvents")
             .WithSummary("Bir calistirmanin olaylarini SSE ile akitir; canli ve gecmise donuk ayni yoldur.")
             .WithDescription(

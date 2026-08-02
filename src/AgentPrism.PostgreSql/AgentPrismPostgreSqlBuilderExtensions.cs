@@ -88,14 +88,50 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         services.TryAddSingleton<MigrationRunner>();
         services.AddHostedService<MigrationHostedService>();
 
+        // Denetim izi defteri de bellek icinin yerini alir.
+        services.Replace(ServiceDescriptor.Singleton<IAuditLog, PostgresAuditLog>());
+
         // Bellek ici depolarin yerini alir. TryAdd burada ise yaramaz.
-        services.Replace(ServiceDescriptor.Singleton<IAgentDefinitionStore, PostgresAgentDefinitionStore>());
+        //
+        // Yazma yapan bes deponun tumu, Faz 9'un denetim izi dekoratorleriyle
+        // sarilarak kaydedilir; boylece denetim izi bellek ici veya PostgreSQL
+        // fark etmeksizin ayni sekilde calisir. Gerekce: AgentPrism.Core'daki
+        // AddAgentPrism() kaydiyla ayni desen (docs/09-YONETISIM-VE-DENETIM-IZI.md).
+        services.Replace(ServiceDescriptor.Singleton<IAgentDefinitionStore, AuditingAgentDefinitionStore>(
+            static provider => new AuditingAgentDefinitionStore(
+                ActivatorUtilities.CreateInstance<PostgresAgentDefinitionStore>(provider),
+                provider.GetRequiredService<IAuditLog>(),
+                provider.GetRequiredService<ITenantContext>(),
+                provider.GetRequiredService<IAuditActorResolver>(),
+                provider.GetRequiredService<ILogger<AuditingAgentDefinitionStore>>())));
         services.Replace(ServiceDescriptor.Singleton<IRunStore, PostgresRunStore>());
-        services.Replace(ServiceDescriptor.Singleton<ISessionStore, PostgresSessionStore>());
+        services.Replace(ServiceDescriptor.Singleton<ISessionStore, AuditingSessionStore>(
+            static provider => new AuditingSessionStore(
+                ActivatorUtilities.CreateInstance<PostgresSessionStore>(provider),
+                provider.GetRequiredService<IAuditLog>(),
+                provider.GetRequiredService<ITenantContext>(),
+                provider.GetRequiredService<IAuditActorResolver>(),
+                provider.GetRequiredService<ILogger<AuditingSessionStore>>())));
         services.Replace(ServiceDescriptor.Singleton<ITraceStore, PostgresTraceStore>());
-        services.Replace(ServiceDescriptor.Singleton<IToolApprovalRuleStore, PostgresToolApprovalRuleStore>());
-        services.Replace(ServiceDescriptor.Singleton<IMcpServerStore, PostgresMcpServerStore>());
-        services.Replace(ServiceDescriptor.Singleton<ITenantStore, PostgresTenantStore>());
+        services.Replace(ServiceDescriptor.Singleton<IToolApprovalRuleStore, AuditingToolApprovalRuleStore>(
+            static provider => new AuditingToolApprovalRuleStore(
+                ActivatorUtilities.CreateInstance<PostgresToolApprovalRuleStore>(provider),
+                provider.GetRequiredService<IAuditLog>(),
+                provider.GetRequiredService<IAuditActorResolver>(),
+                provider.GetRequiredService<ILogger<AuditingToolApprovalRuleStore>>())));
+        services.Replace(ServiceDescriptor.Singleton<IMcpServerStore, AuditingMcpServerStore>(
+            static provider => new AuditingMcpServerStore(
+                ActivatorUtilities.CreateInstance<PostgresMcpServerStore>(provider),
+                provider.GetRequiredService<IAuditLog>(),
+                provider.GetRequiredService<IAuditActorResolver>(),
+                provider.GetRequiredService<ILogger<AuditingMcpServerStore>>())));
+        services.Replace(ServiceDescriptor.Singleton<ITenantStore, AuditingTenantStore>(
+            static provider => new AuditingTenantStore(
+                ActivatorUtilities.CreateInstance<PostgresTenantStore>(provider),
+                provider.GetRequiredService<IAuditLog>(),
+                provider.GetRequiredService<ITenantContext>(),
+                provider.GetRequiredService<IAuditActorResolver>(),
+                provider.GetRequiredService<ILogger<AuditingTenantStore>>())));
 
         // Sohbet gecmisi. AgentDefinitionCompiler bunu derledigi her agent'a baglar;
         // kayitli degilse MAF'in bellek ici varsayilani kullanilir.

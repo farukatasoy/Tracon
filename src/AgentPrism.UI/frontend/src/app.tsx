@@ -15,6 +15,7 @@ import { ToolsScreen } from './screens/tools';
 import { ModelsScreen } from './screens/models';
 import { McpScreen } from './screens/mcp';
 import { SettingsScreen } from './screens/settings';
+import { AuditScreen } from './screens/audit';
 import type { Meta } from './lib/types';
 
 /**
@@ -24,20 +25,24 @@ import type { Meta } from './lib/types';
  * would also match it, so `agents/new` is registered above `agents/:name`.
  */
 const routes = (meta: Meta): RouteDefinition[] => [
-  { pattern: '', render: () => <AgentsScreen /> },
-  { pattern: 'agents', render: () => <AgentsScreen /> },
+  { pattern: '', render: () => <AgentsScreen meta={meta} /> },
+  { pattern: 'agents', render: () => <AgentsScreen meta={meta} /> },
   { pattern: 'agents/new', render: () => <AgentEditorScreen /> },
-  { pattern: 'agents/:name', render: (params) => <AgentDetailScreen name={params['name'] ?? ''} /> },
+  {
+    pattern: 'agents/:name',
+    render: (params) => <AgentDetailScreen name={params['name'] ?? ''} meta={meta} />,
+  },
   { pattern: 'agents/:name/edit', render: (params) => <AgentEditorScreen name={params['name'] ?? ''} /> },
   { pattern: 'playground', render: () => <PlaygroundScreen /> },
   { pattern: 'playground/:name', render: (params) => <PlaygroundScreen name={params['name'] ?? ''} /> },
-  { pattern: 'sessions', render: () => <SessionsScreen /> },
+  { pattern: 'sessions', render: () => <SessionsScreen meta={meta} /> },
   { pattern: 'sessions/:id', render: (params) => <SessionDetailScreen id={params['id'] ?? ''} /> },
   { pattern: 'runs', render: () => <RunsScreen /> },
   { pattern: 'runs/:id', render: (params) => <RunDetailScreen id={params['id'] ?? ''} /> },
   { pattern: 'tools', render: () => <ToolsScreen /> },
   { pattern: 'models', render: () => <ModelsScreen /> },
-  { pattern: 'mcp', render: () => <McpScreen /> },
+  { pattern: 'mcp', render: () => <McpScreen meta={meta} /> },
+  { pattern: 'audit', render: () => <AuditScreen /> },
   { pattern: 'settings', render: () => <SettingsScreen meta={meta} /> },
 ];
 

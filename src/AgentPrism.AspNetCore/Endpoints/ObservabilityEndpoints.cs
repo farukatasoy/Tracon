@@ -12,7 +12,8 @@ internal static class ObservabilityEndpoints
 {
     /// <summary>Telemetri uclarini baglar.</summary>
     /// <param name="builder">Uc grubu.</param>
-    public static void Map(IEndpointRouteBuilder builder)
+    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/runs/{runId:guid}/trace", async Task<Results<Ok<RunTrace>, ProblemHttpResult>> (
                 Guid runId,
@@ -26,6 +27,7 @@ internal static class ObservabilityEndpoints
                                 "orneklenir: basarili calistirmalarin yalnizca bir kismi kaydedilir " +
                                 "(AgentPrism:Observability:SuccessSampleRatio).",
                         statusCode: StatusCodes.Status404NotFound))
+            .RequireRole(roles.Reader)
             .WithName("AgentPrismGetRunTrace")
             .WithSummary("Bir calistirmanin span agacini dondurur.")
             .WithDescription(
@@ -38,6 +40,7 @@ internal static class ObservabilityEndpoints
                 CancellationToken cancellationToken)
                 => TypedResults.Ok(
                     await runs.ListToolInvocationsAsync(runId, cancellationToken).ConfigureAwait(false)))
+            .RequireRole(roles.Reader)
             .WithName("AgentPrismListRunToolInvocations")
             .WithSummary("Bir calistirmanin tool cagrilarini zaman sirasina gore listeler.")
             .WithDescription(
@@ -56,6 +59,7 @@ internal static class ObservabilityEndpoints
                         MaxTools = maxTools is { } max ? Math.Clamp(max, 1, 200) : 50,
                     },
                     cancellationToken).ConfigureAwait(false)))
+            .RequireRole(roles.Reader)
             .WithName("AgentPrismToolUsage")
             .WithSummary("Tool bazinda cagri sayisi, hata orani ve ortalama sureyi dondurur.")
             .WithDescription("Ozet deponun kendisinde hesaplanir; sayfalanmis bir alt kume degildir.");

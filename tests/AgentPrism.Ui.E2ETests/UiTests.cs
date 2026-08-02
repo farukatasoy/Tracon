@@ -1,5 +1,8 @@
+using System.Net.Http.Json;
 using System.Text.RegularExpressions;
 using AgentPrism.Ui.E2ETests.Infrastructure;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Playwright;
 
 namespace AgentPrism.Ui.E2ETests;
@@ -271,6 +274,59 @@ public sealed class UiTests(BrowserFixture browsers)
         // Faz 5'te bu ekran "gozlemlenebilirlik fazinda gelir" notu tasiyordu
         // (sapma S5); artik gercek sayilar gosterilmelidir.
         await session.Page.GetByText("calls").First.WaitForAsync(new() { Timeout = 20_000 });
+    }
+
+    [Fact]
+    public async Task Audit_ekrani_denetim_kaydini_listeler()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        using var client = new HttpClient { BaseAddress = new Uri(host.BaseAddress) };
+
+        using (var created = await client.PostAsJsonAsync(
+            $"{host.Prefix}/api/agents",
+            new
+            {
+                name = "audit-e2e",
+                instructions = "test",
+                model = new { provider = ScriptedModelProvider.ProviderName, model = ScriptedModelProvider.ModelName },
+                toolNames = Array.Empty<string>(),
+            }))
+        {
+            created.EnsureSuccessStatusCode();
+        }
+
+        await session.Page.GotoAsync($"{host.UiAddress}/audit");
+
+        await session.Page.GetByText("agent.create").First.WaitForAsync(new() { Timeout = 10_000 });
+        await session.Page.GetByText("agent:audit-e2e").First.WaitForAsync();
+    }
+
+    [Fact]
+    public async Task Reader_rolunde_yazma_dugmeleri_gizlenir()
+    {
+        // Faz 9: Admin policy'si basarisiz olunca arayuz yazma dugmelerini
+        // gizlemelidir — sunucu tarafi yetkilendirme yine de tek gercektir,
+        // bu yalnizca kotu bir deneyimi (gostersin, 403 alsin) onler.
+        await using var host = await UiHost.StartAsync(
+            configureServices: services => TestAuthenticationHandler.Add(services)
+                .AddAuthorizationBuilder()
+                .AddPolicy(AgentPrismPolicies.Admin, policy => policy.RequireAssertion(_ => false)));
+
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/agents");
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Agents" }).WaitForAsync();
+
+        (await session.Page.GetByRole(AriaRole.Link, new() { Name = "New agent" }).CountAsync()).ShouldBe(0);
+
+        // Admin rolu karsilanmadigi icin Audit sekmesi de gezinme cubugunda
+        // gorunmemelidir.
+        (await session.Page.GetByRole(AriaRole.Link, new() { Name = "Audit" }).CountAsync()).ShouldBe(0);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/mcp");
+        (await session.Page.GetByRole(AriaRole.Button, new() { Name = "Add server" }).CountAsync()).ShouldBe(0);
     }
 
     /// <summary>Tek bir testin tarayici baglami.</summary>

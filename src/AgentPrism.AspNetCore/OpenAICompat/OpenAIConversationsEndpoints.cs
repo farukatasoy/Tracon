@@ -41,9 +41,11 @@ internal static class OpenAIConversationsEndpoints
 
     /// <summary>Conversations uclarini baglar.</summary>
     /// <param name="builder">Uc grubu.</param>
-    public static void Map(IEndpointRouteBuilder builder)
+    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapPost("/v1/conversations", CreateAsync)
+            .RequireRole(roles.Operator)
             .WithName("AgentPrismOpenAICreateConversation")
             .WithSummary("Yeni bir konusma kimligi uretir.")
             .WithDescription(
@@ -51,14 +53,17 @@ internal static class OpenAIConversationsEndpoints
                 "Donen kimlik dogrudan 'conversation' alaninda kullanilir.");
 
         builder.MapGet("/v1/conversations/{conversationId}", RetrieveAsync)
+            .RequireRole(roles.Operator)
             .WithName("AgentPrismOpenAIGetConversation")
             .WithSummary("Bir konusmanin ustverisini dondurur.");
 
         builder.MapDelete("/v1/conversations/{conversationId}", DeleteAsync)
+            .RequireRole(roles.Operator)
             .WithName("AgentPrismOpenAIDeleteConversation")
             .WithSummary("Bir konusmayi ve altindaki oturumu siler.");
 
         builder.MapGet("/v1/conversations/{conversationId}/items", ListItemsAsync)
+            .RequireRole(roles.Operator)
             .WithName("AgentPrismOpenAIListConversationItems")
             .WithSummary("Bir konusmanin mesajlarini OpenAI oge bicimiyle listeler.");
     }

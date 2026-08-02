@@ -184,3 +184,10 @@ export const HistoryIcon = ({ className }: IconProps): ReactNode => (
     <path d="M12 8v4.5l3 1.7" />
   </Icon>
 );
+
+export const AuditIcon = ({ className }: IconProps): ReactNode => (
+  <Icon className={className}>
+    <rect x="5" y="4" width="14" height="17" rx="2" />
+    <path d="M9 3.5h6v2H9zM8 10h8M8 13.5h8M8 17h5" />
+  </Icon>
+);

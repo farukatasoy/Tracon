@@ -33,6 +33,21 @@ export interface Meta {
     runStore: string;
     sessionStore: string;
   };
+  roles: RoleMeta;
+}
+
+/**
+ * Which role levels the caller of `/api/meta` currently satisfies.
+ *
+ * The UI hides buttons the caller cannot use; the server is still the only
+ * real enforcement. When a role's policy is not registered on the consumer's
+ * side, the corresponding flag is `true` — there is no role restriction, so
+ * nothing should be hidden for it.
+ */
+export interface RoleMeta {
+  canRead: boolean;
+  canOperate: boolean;
+  canAdminister: boolean;
 }
 
 export interface ModelBinding {
@@ -393,4 +408,24 @@ export interface Conversation {
   id: string;
   object: string;
   created_at: number;
+}
+
+/* ---------------------------------------------------------------- audit */
+
+/**
+ * One audit trail row: who changed what, when.
+ *
+ * Runs (an agent processing a message) are never written here — the `runs`
+ * table already keeps that full record. `before`/`after` are raw JSON text
+ * that has already passed the server's secret filter.
+ */
+export interface AuditEntry {
+  id: string;
+  tenantId: string;
+  actor?: string | null;
+  action: string;
+  entity: string;
+  before?: string | null;
+  after?: string | null;
+  createdAt: string;
 }
