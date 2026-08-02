@@ -6,15 +6,23 @@ import type {
   AgentDescriptor,
   AgentDetail,
   Conversation,
+  CurrentTenant,
+  McpServerDefinition,
+  McpServerRequest,
   Meta,
   ModelProviderDescriptor,
   RunEvent,
   RunRecord,
   RunStatistics,
   RunStatus,
+  RunTrace,
   SessionDetail,
   SessionRecord,
+  TenantDescriptor,
+  ToolApprovalRule,
   ToolDescriptor,
+  ToolInvocationRecord,
+  ToolUsage,
 } from './types';
 
 /**
@@ -165,10 +173,40 @@ export const api = {
   ) => request<RunRecord[]>(`api/runs${query(params)}`),
   run: (id: string) => request<RunRecord>(`api/runs/${encodeURIComponent(id)}`),
 
+  /**
+   * Span tree for a run.
+   *
+   * Spans are sampled: successful runs are persisted at a configurable ratio,
+   * so a 404 here is a normal outcome, not a failure.
+   */
+  runTrace: (id: string) => request<RunTrace>(`api/runs/${encodeURIComponent(id)}/trace`),
+  runToolInvocations: (id: string) =>
+    request<ToolInvocationRecord[]>(`api/runs/${encodeURIComponent(id)}/tools`),
+  toolUsage: (params: { startedAfter?: string; maxTools?: number } = {}) =>
+    request<ToolUsage[]>(`api/tools/usage${query(params)}`),
+
   tools: () => request<ToolDescriptor[]>('api/tools'),
   models: () => request<ModelProviderDescriptor[]>('api/models'),
   stats: (params: { agentName?: string; startedAfter?: string; maxAgents?: number } = {}) =>
     request<RunStatistics>(`api/stats${query(params)}`),
+
+  currentTenant: () => request<CurrentTenant>('api/tenants/current'),
+  tenants: () => request<TenantDescriptor[]>('api/tenants'),
+  saveTenant: (slug: string, displayName: string) =>
+    send<TenantDescriptor>('PUT', `api/tenants/${encodeURIComponent(slug)}`, { displayName }),
+  deleteTenant: (slug: string) =>
+    request<void>(`api/tenants/${encodeURIComponent(slug)}`, { method: 'DELETE' }),
+
+  mcpServers: () => request<McpServerDefinition[]>('api/mcp-servers'),
+  saveMcpServer: (name: string, body: McpServerRequest) =>
+    send<McpServerDefinition>('PUT', `api/mcp-servers/${encodeURIComponent(name)}`, body),
+  deleteMcpServer: (name: string) =>
+    request<void>(`api/mcp-servers/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+  refreshMcpTools: () => send<{ toolCount: number }>('POST', 'api/mcp-servers/refresh', {}),
+
+  approvalRules: () => request<ToolApprovalRule[]>('api/approvals/rules'),
+  deleteApprovalRule: (id: string) =>
+    request<void>(`api/approvals/rules/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
   /**
    * Reserves a conversation identifier.

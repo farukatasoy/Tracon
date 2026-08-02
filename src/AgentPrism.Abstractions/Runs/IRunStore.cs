@@ -71,4 +71,36 @@ public interface IRunStore
         Guid runId,
         long fromSequence = 0,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Sonuclanmis bir tool cagrisini kaydeder.</summary>
+    /// <param name="invocation">Cagri ozeti.</param>
+    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <returns>Tamamlanma gorevi.</returns>
+    /// <remarks>
+    /// Olay akisindan ayri tutulur cunku sure ve tool bazli toplamlar olay
+    /// akisini bastan sona taramadan sorgulanabilmelidir.
+    /// </remarks>
+    ValueTask RecordToolInvocationAsync(
+        ToolInvocationRecord invocation,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Bir calistirmanin tool cagrilarini zaman sirasina gore listeler.</summary>
+    /// <param name="runId">Calistirma kimligi.</param>
+    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <returns>Cagri kayitlari.</returns>
+    ValueTask<IReadOnlyList<ToolInvocationRecord>> ListToolInvocationsAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Tool bazinda kullanim ozetini cikarir.</summary>
+    /// <param name="query">Filtre.</param>
+    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <returns>Cagri sayilari, hata oranlari ve ortalama sureler.</returns>
+    /// <remarks>
+    /// <see cref="GetStatisticsAsync"/> ile ayni gerekce: ozet
+    /// <strong>deponun kendisinde</strong> hesaplanir.
+    /// </remarks>
+    ValueTask<IReadOnlyList<ToolUsage>> GetToolUsageAsync(
+        ToolUsageQuery query,
+        CancellationToken cancellationToken = default);
 }

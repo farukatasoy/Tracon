@@ -1,8 +1,52 @@
 # Faz 7 — Sağlamlaştırma ve Yayın
 
-> **Durum:** Planlandı
-> **Önkoşul:** [06-GOZLEMLENEBILIRLIK.md](06-GOZLEMLENEBILIRLIK.md)
+> **Durum:** 🔜 Sıradaki
+> **Önkoşul:** [06-GOZLEMLENEBILIRLIK.md](06-GOZLEMLENEBILIRLIK.md) — tamamlandı
 > **Sonraki:** Yok — bu faz 1.0 yayınını kapatır
+
+---
+
+## Bu Faza Başlarken
+
+Önce şunları bu sırayla okuyun:
+
+1. [`MIMARI.md`](MIMARI.md) — bölüm 2 (katmanlar), bölüm 5 (veri modeli), bölüm 7 (güvenlik)
+2. [`KARARLAR.md`](KARARLAR.md) — kapatılmış tartışmaları yeniden açmayın
+3. [`06-GOZLEMLENEBILIRLIK.md`](06-GOZLEMLENEBILIRLIK.md) — "Gerçekleşen Public API",
+   "Plandan Sapmalar" ve **"Faz 7'ye Devreden Notlar"**
+4. [`../MEMORY.md`](../MEMORY.md) — önceki oturumların keşfettiği tuzaklar
+5. Bu doküman
+
+Skill'ler: `.agents/skills/faz-tamamlama/` (faz sonu protokolü),
+`.agents/skills/maf-api-kesfi/` (MAF/MEAI/MCP imzalarını doğrulama).
+
+Çalışan bir arka uç ve arayüz:
+
+```bash
+cd samples/AgentPrism.Api && dotnet run
+# http://localhost:5080/agentprism
+```
+
+---
+
+## Devraldığınız Durum
+
+| Ne | Durum |
+|----|-------|
+| Paket sayısı | **8** (`Abstractions`, `Core`, `PostgreSql`, `OpenAI`, **`Mcp`**, `AspNetCore`, `UI`, meta) |
+| Test | 383 .NET + 40 Vitest, tamamı yeşil |
+| Migration | `0001_initial`, `0002_observability` |
+| Bundle | 92,4 / 250 KB gzip |
+| Doğrulama kapıları | Dördü de sıfır uyarı |
+
+**Faz 6'da eklenen ve Faz 7'yi doğrudan etkileyen şeyler:**
+
+- `AgentPrism.Mcp` yeni bir **yayınlanabilir pakettir**; ikon, README, sürüm
+  politikası ve yayın zinciri onu da kapsamalıdır. `AgentPrismAotCompatible` **false**.
+- Public API yüzeyi ciddi büyüdü — `PublicAPI.Shipped.txt` dosyaları faz 5 sonuna
+  göre belirgin biçimde uzun olacaktır. Tam liste faz 6 dokümanının
+  "Gerçekleşen Public API" bölümündedir.
+- `run_events` partition kararı **bu fazın yük testine bağlandı** (K-063).
 
 ---
 
@@ -52,15 +96,20 @@ Faz 0'dan devreden eksik. NuGet ikonu 128×128 PNG olmalıdır.
 <PackageIcon>icon.png</PackageIcon>
 ```
 
-`src/` altında tek bir `icon.png`, tüm paketlerde paylaşılır.
+`src/` altında tek bir `icon.png`, **sekiz** pakette paylaşılır (`AgentPrism.Mcp` dahil).
 
 ---
 
 ## 7.4 Depo Adresi Düzeltmesi
 
-Faz 0'da `PackageProjectUrl` ve `RepositoryUrl` varsayım olarak `https://github.com/farukatasoy/AgentPrism` yazıldı. Gerçek depo adresi ile güncellenir.
+Faz 0'da `PackageProjectUrl` ve `RepositoryUrl` varsayım olarak
+`https://github.com/farukatasoy/AgentPrism` yazıldı.
 
-Bu değerler yanlışsa NuGet sayfasındaki bağlantılar kırık olur ve SourceLink çalışmaz.
+**Durum (2026-08-02):** Kullanıcı gerçek adresin **henüz belli olmadığını** bildirdi;
+değer bilinçli olarak yer tutucu bırakıldı. Yayından **önce** doğrulanmalıdır:
+yanlışsa NuGet sayfasındaki bağlantılar kırık olur ve SourceLink çalışmaz.
+
+Aynı adres `src/AgentPrism.Mcp/README.md` içindeki doküman bağlantısında da geçer.
 
 ---
 
@@ -77,7 +126,16 @@ Kapsam raporu CI'da üretilir ve PR'da görünür. Sayısal bir eşik hedefi kon
 
 ### Yük testi
 
-`run_events` yazma yolu için hedef senaryo: saniyede 100 eşzamanlı çalıştırma, her biri ~50 olay. Darboğaz varsa toplu yazma ve partition ayarları düzeltilir.
+`run_events` yazma yolu için hedef senaryo: saniyede 100 eşzamanlı çalıştırma, her
+biri ~50 olay. Darboğaz varsa toplu yazma ve partition ayarları düzeltilir.
+
+**Bu test K-063'ün tetikleyicisidir.** Faz 6 partition'ı bilerek açmadı: birincil
+anahtarı değiştirmek ve tabloyu yeniden kurmak, ölçüm olmadan çözdüğünden fazla
+risk taşır. Darboğaz burada ölçülürse partition o kanıtla açılır.
+
+Aynı testte **span yazma yolu** da ölçülmelidir. Varsayılan örnekleme oranı 0,1'dir;
+`SuccessSampleRatio = 1` ile davranış farklı olacaktır ve `MaxSpansPerRun` (200)
+sınırının bellek etkisi bu senaryoda görülür.
 
 ---
 
@@ -91,6 +149,8 @@ BenchmarkDotNet ile:
 | `IRunStore.AppendEventAsync` gecikmesi | Akış hızını doğrudan etkiler |
 | `IAgentCatalog.ListAsync` | Arayüzün ana ekranı |
 | Gömülü varlık sunumu | İlk yükleme süresi |
+| `RunTraceCollector` span tamponu (bellek) | Örnekleme kararı sonda verilir; span'ler o ana kadar bellekte durur (K-056) |
+| `ToolApprovalRuleEvaluator.IsAutoApprovedAsync` | **Her** tool çağrısında kural deposunu okur; kural sayısı arttıkça maliyeti ölçülmeli |
 
 Sonuçlar `docs/` altında kayıt altına alınır. Pazarlama iddiası yazılmaz; ölçüm ve koşulları yazılır.
 
@@ -98,7 +158,8 @@ Sonuçlar `docs/` altında kayıt altına alınır. Pazarlama iddiası yazılmaz
 
 ## 7.7 Dokümantasyon
 
-- Her paketin `README.md`'si son hâline getirilir (NuGet sayfasında görünür)
+- Her paketin `README.md`'si son hâline getirilir (NuGet sayfasında görünür) —
+  `AgentPrism.Mcp/README.md` faz 6'da yazıldı, gözden geçirilmeli
 - `docs/MIMARI.md` uygulanan mimari ile hizalanır
 - XML doküman kapsamı: **tüm public API**
 - Kök `README.md`: kurulum, hızlı başlangıç, özellik matrisi, DevUI karşılaştırması, yol haritası
@@ -177,5 +238,7 @@ dotnet add package AgentPrism --prerelease
 | Risk | Önlem |
 |------|-------|
 | MAF GA'ya geçmezse 1.0 gecikir | `1.0.0-preview.N` yayınlanmaya devam eder; kullanıcı engellenmez |
-| Public API dondurma geç kaldığı için büyük bir tek seferlik iş çıkar | Faz 1–6 boyunca API yüzeyi `MIMARI.md`'de takip edilir |
+| Public API dondurma geç kaldığı için büyük bir tek seferlik iş çıkar | Faz 1–6 boyunca API yüzeyi `MIMARI.md`'de takip edildi; faz 6'nın "Gerçekleşen Public API" bölümü tam listedir |
 | Paket imzalama sertifikası yok | İmzalama olmadan da yayın yapılabilir; eksik dokümante edilir |
+| Depo adresi hâlâ yer tutucu | Yayından önce doğrulanır; bölüm 7.4 |
+| İkinci faz planı public API'yi büyütür | Yayın **önce** yapılırsa her yeni kalem `PublicAPI.Unshipped.txt` disiplinine girer — bu iyidir ama yavaşlatır. Sıra kullanıcı kararıdır; bkz. `BEYIN-FIRTINASI.md` açık soru 5 |

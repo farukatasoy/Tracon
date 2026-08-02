@@ -58,9 +58,13 @@ public sealed class AgentPrismToolAttribute : Attribute
     public string? Description { get; init; }
 
     /// <summary>
-    /// Cagri oncesi acik onay gerekip gerekmedigi. Onay akisi Faz 6'da devreye girer;
-    /// o zamana kadar deger yalnizca <see cref="ToolDescriptor.RequiresApproval"/>
-    /// uzerinden arayuze tasinir.
+    /// Cagri oncesi acik onay gerekip gerekmedigi.
     /// </summary>
+    /// <remarks>
+    /// Isaretli tool, defterde <c>ApprovalRequiredAIFunction</c> ile sarilir.
+    /// Microsoft Agent Framework tool'u calistirmak yerine bir onay istegi
+    /// uretir; cagri kullanicinin karari gelene kadar bekler. Geri alinamaz is
+    /// yapan tool'lari (iptal, silme, odeme) isaretleyin.
+    /// </remarks>
     public bool RequiresApproval { get; init; }
 }

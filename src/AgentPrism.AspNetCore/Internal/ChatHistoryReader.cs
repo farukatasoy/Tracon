@@ -57,19 +57,7 @@ internal static class ChatHistoryReader
                 .DeserializeSessionAsync(record.State, jsonSerializerOptions: null, cancellationToken)
                 .ConfigureAwait(false);
 
-            // MAAI001: InvokingContext kurucusu "for evaluation purposes only" isaretlidir
-            // ve TreatWarningsAsErrors ile build'i kirar. Bastirma bilincli ve TEK
-            // NOKTADADIR: gecmisi okumanin baska public yolu yoktur
-            // (ProvideChatHistoryAsync protected'tir) ve bu cagri yalnizca okur.
-            // MAF bu API'yi degistirirse yalnizca burasi guncellenir.
-            // Gerekce: docs/KARARLAR.md, karar K-037.
-#pragma warning disable MAAI001
-            var context = new ChatHistoryProvider.InvokingContext(agent, session, []);
-#pragma warning restore MAAI001
-
-            var messages = await chatHistory.InvokingAsync(context, cancellationToken).ConfigureAwait(false);
-
-            return [.. messages];
+            return await ReadAsync(agent, session, chatHistory, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is AgentPrismException or System.Text.Json.JsonException or InvalidOperationException or NotSupportedException)
         {
@@ -82,5 +70,40 @@ internal static class ChatHistoryReader
 
             return null;
         }
+    }
+
+    /// <summary>
+    /// Cozulmus bir agent ve acik bir oturumun sohbet gecmisini okur.
+    /// </summary>
+    /// <param name="agent">Cozulmus agent.</param>
+    /// <param name="session">Acik oturum.</param>
+    /// <param name="chatHistory">Kayitli sohbet gecmisi saglayicisi.</param>
+    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <returns>Mesajlar.</returns>
+    /// <remarks>
+    /// Bekleyen tool onay isteklerini bulmak icin de bu yol kullanilir: onay
+    /// yanitini uretebilmek icin ISTEGIN KENDISI gerekir
+    /// (<c>ToolApprovalRequestContent.CreateResponse</c>), ve istek yalnizca
+    /// oturum gecmisinde yasar.
+    /// </remarks>
+    public static async ValueTask<IReadOnlyList<ChatMessage>> ReadAsync(
+        AIAgent agent,
+        AgentSession session,
+        ChatHistoryProvider chatHistory,
+        CancellationToken cancellationToken)
+    {
+        // MAAI001: InvokingContext kurucusu "for evaluation purposes only" isaretlidir
+        // ve TreatWarningsAsErrors ile build'i kirar. Bastirma bilincli ve TEK
+        // NOKTADADIR: gecmisi okumanin baska public yolu yoktur
+        // (ProvideChatHistoryAsync protected'tir) ve bu cagri yalnizca okur.
+        // MAF bu API'yi degistirirse yalnizca burasi guncellenir.
+        // Gerekce: docs/KARARLAR.md, karar K-037.
+#pragma warning disable MAAI001
+        var context = new ChatHistoryProvider.InvokingContext(agent, session, []);
+#pragma warning restore MAAI001
+
+        var messages = await chatHistory.InvokingAsync(context, cancellationToken).ConfigureAwait(false);
+
+        return [.. messages];
     }
 }

@@ -25,4 +25,17 @@ internal static class OrderTools
     [AgentPrismTool("list_recent_orders", "Musterinin son siparislerini listeler.")]
     public static string ListRecentOrders(string customerId)
         => $"{customerId} musterisinin son siparisleri: ORD-1001, ORD-1002.";
+
+    /// <summary>Bir siparisi iptal eder.</summary>
+    /// <param name="orderId">Siparis numarasi.</param>
+    /// <returns>Iptal sonucu metni.</returns>
+    /// <remarks>
+    /// <c>RequiresApproval = true</c>: bu tool geri alinamaz bir is yapar ve
+    /// modelin karariyla kendiliginden calismamalidir. Isaretlenen tool defterde
+    /// <c>ApprovalRequiredAIFunction</c> ile sarilir; Microsoft Agent Framework
+    /// cagriyi calistirmak yerine onay istegi uretir ve arayuzde onay karti cikar.
+    /// </remarks>
+    [AgentPrismTool("cancel_order", "Bir siparisi iptal eder.", RequiresApproval = true)]
+    public static string CancelOrder(string orderId)
+        => $"{orderId} numarali siparis iptal edildi.";
 }

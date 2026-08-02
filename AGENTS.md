@@ -65,8 +65,12 @@ Faz bittiğinde **`faz-tamamlama` skill'i uygulanır**. Atlanmaz.
 | 3 | `docs/03-SAGLAYICI-VE-DERLEYICI.md` | ✅ Tamamlandı |
 | 4 | `docs/04-HTTP-API.md` | ✅ Tamamlandı |
 | 5 | `docs/05-AGENTPRISM-UI.md` | ✅ Tamamlandı |
-| 6 | `docs/06-GOZLEMLENEBILIRLIK.md` | Sıradaki |
-| 7 | `docs/07-SAGLAMLASTIRMA-VE-YAYIN.md` | Planlandı |
+| 6 | `docs/06-GOZLEMLENEBILIRLIK.md` | ✅ Tamamlandı |
+| 7 | `docs/07-SAGLAMLASTIRMA-VE-YAYIN.md` | Sıradaki |
+
+**İkinci faz planı:** `docs/BEYIN-FIRTINASI.md` — aday yetenekler, gerekçeleri ve
+öncelik önerisi. Bu belge bir plan **değildir**; kullanıcıyla birlikte faz
+dokümanlarına dönüştürülür.
 
 ---
 
@@ -112,11 +116,15 @@ Genel .NET kuralları `.editorconfig` içinde zorunlu kılınır. Aşağıdakile
 
 **MAF tiplerini sarmalama.** `AIAgent`, `AgentSession`, `ChatMessage`, `AIFunction` doğrudan kullanılır. AgentPrism bir kontrol düzlemidir, bir soyutlama katmanı değil.
 
+**`Activity.Current` async yardımcı metotta açılmaz.** `AsyncLocal` yazımı çağırana geri akmaz; span, çağıran metodun kendi gövdesinde başlatılmalıdır. Yaşandı: iç span'ler kök span'in çocuğu değil kardeşi oldu (Faz 6).
+
 **Tool'lar yalnızca kodda tanımlanır.** Arayüzden agent oluşturulabilir; tool **kodu** yazılamaz. Bu bir güvenlik sınırıdır ve gevşetilmez.
 
 **AOT uyumluluğu.** `Abstractions`, `Core`, `PostgreSql`, `OpenAI` paketleri AOT uyumludur. Yansımaya dayanan API kullanma. Sırayla dene: (1) elle yaz — yapılandırma bağlama ve ayar doğrulama böyle çözüldü; (2) kaynak üreteci kullan (`JsonSerializerContext`); (3) kaçınılmazsa metodu `[RequiresUnreferencedCode]` + `[RequiresDynamicCode]` ile işaretle — uyarıyı **bastırma**, çağırana ilet.
 
 **Ön sürüm MAF paketleri yalnızca `AgentPrism.AspNetCore` içinde.** Karar K-008.
+
+**Sırlar veritabanına da yazılmaz.** Bir sır gerekiyorsa kayıtta yalnızca değerin okunacağı **yapılandırma anahtarının adı** durur; değer çalışma anında `IConfiguration` üzerinden çözülür. Karar K-059 (MCP kimlik doğrulaması).
 
 **Gözlemlenebilirlik işlevselliği bozmaz.** Çalıştırma kaydı deposu hata verirse çalıştırma devam eder; hata loglanır.
 

@@ -16,8 +16,23 @@ public sealed record ToolDescriptor
     public string? JsonSchema { get; init; }
 
     /// <summary>
-    /// Cagri oncesi acik onay gerekip gerekmedigi. Onay akisi Faz 6'da devreye girer;
-    /// bu bayrak o zamana kadar yalnizca bilgi amaclidir.
+    /// Cagri oncesi acik onay gerekip gerekmedigi.
     /// </summary>
+    /// <remarks>
+    /// <see langword="true"/> ise derleyici tool'u
+    /// <c>ApprovalRequiredAIFunction</c> ile sarar; Microsoft Agent Framework
+    /// tool'u calistirmak yerine <c>ToolApprovalRequestContent</c> uretir ve
+    /// cagri kullanicinin onayini bekler.
+    /// </remarks>
     public bool RequiresApproval { get; init; }
+
+    /// <summary>
+    /// Tool'un kaynagi. Kodda tanimli tool'larda <see langword="null"/>;
+    /// uzak bir MCP sunucusundan gelen tool'larda sunucu adi.
+    /// </summary>
+    /// <remarks>
+    /// Arayuz bu alani <em>ayri bir rozet</em> olarak gosterir: tool tanimi
+    /// kodda degil, uzak bir sunucuda yasar ve o sunucu tanimi degistirebilir.
+    /// </remarks>
+    public string? Source { get; init; }
 }

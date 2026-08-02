@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>AgentPrism icin Model Context Protocol istemcisi. Uzak MCP sunucularinin tool'lari kesfedilir ve kodda kayitli tool'larin yaninda listelenir. Varsayilan olarak onay gerektirir.</Description>
+    <PackageTags>$(CommonPackageTags);mcp;model-context-protocol;tools</PackageTags>
+    <!--
+      MCP tool semalari calisma aninda cozulur ve ModelContextProtocol.Core
+      JSON serilestirmede yansima kullanir; AOT vaadi verilemez.
+    -->
+    <AgentPrismAotCompatible>false</AgentPrismAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../AgentPrism.Core/AgentPrism.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol.Core" />
+  </ItemGroup>
+
+</Project>

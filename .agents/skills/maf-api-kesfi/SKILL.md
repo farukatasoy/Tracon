@@ -1,6 +1,6 @@
 ---
 name: maf-api-kesfi
-description: Microsoft Agent Framework (Microsoft.Agents.AI) tiplerinin gerçek imzalarını reflection ile çıkarır. MAF'ın .NET dokümantasyonu eksik olduğu için tip ve metot adlarını tahmin etmek hataya yol açar; yeni bir MAF tipi kullanmadan önce bu skill ile imzayı doğrulayın.
+description: Microsoft Agent Framework (Microsoft.Agents.AI), Microsoft.Extensions.AI ve ModelContextProtocol tiplerinin gerçek imzalarını reflection ile çıkarır. Bu kütüphanelerin .NET dokümantasyonu eksik olduğu için tip ve metot adlarını tahmin etmek hataya yol açar; yeni bir tipi kullanmadan önce bu skill ile imzayı doğrulayın.
 ---
 
 # MAF API Keşfi
@@ -27,7 +27,32 @@ Argüman vermezsen paketlerdeki tüm public tiplerin adlarını listeler:
 .agents/skills/maf-api-kesfi/scripts/dump-api.sh
 ```
 
-Çıktı: her tip için ctor'lar, public/protected metotlar (virtual işaretli) ve property'ler.
+**Joker destekli** — bir konuyu tarayacaksan ad bilmene gerek yok:
+
+```bash
+.agents/skills/maf-api-kesfi/scripts/dump-api.sh '*Approval*'
+.agents/skills/maf-api-kesfi/scripts/dump-api.sh '*Skill*'
+```
+
+Çıktı: her tip için uyguladığı arayüzler, ctor'lar, public/protected metotlar
+(virtual işaretli), property'ler; enum'larda üye adları ve sayısal değerleri.
+
+### Hangi derlemeler taranıyor
+
+Varsayılan olarak üçü birden — sürümler `Directory.Packages.props`'tan okunur:
+
+| Önek | Ne için |
+|------|---------|
+| `Microsoft.Agents.AI*` | MAF çekirdeği ve Harness |
+| `Microsoft.Extensions.AI*` | `AIContent` türevleri (`ToolApprovalRequestContent`, `ApprovalRequiredAIFunction`) |
+| `ModelContextProtocol*` | MCP istemcisi (`McpClient`, `McpClientTool`) |
+
+Başka bir paketi incelemek için script'i **değiştirmeyin**, ortam değişkeni verin:
+
+```bash
+APIDUMP_PACKAGES="Azure.AI.OpenAI@2.6.0" APIDUMP_PREFIXES="Azure.AI" \
+  .agents/skills/maf-api-kesfi/scripts/dump-api.sh '*Client*'
+```
 
 ---
 
@@ -41,6 +66,10 @@ Argüman vermezsen paketlerdeki tüm public tiplerin adlarını listeler:
 | Özel geçmiş deposu nasıl yazılır? | `ChatHistoryProvider` → `ProvideChatHistoryAsync`, `StoreChatHistoryAsync` |
 | Agent nasıl kurulur? | `ChatClientExtensions.AsAIAgent`, `ChatClientHarnessExtensions.AsHarnessAgent` |
 | Tool çağrılarını nasıl görürüm? | `FunctionCallContent` / `FunctionResultContent` (Microsoft.Extensions.AI) |
+| Bir tool'u nasıl onaya bağlarım? | `ApprovalRequiredAIFunction` ile sar → MAF `ToolApprovalRequestContent` üretir |
+| Onay yanıtını nasıl üretirim? | `ToolApprovalRequestContent.CreateResponse(approved, reason)` |
+| Span'leri nasıl toplarım? | `OpenTelemetryAgent` (`MAAI001`) + `ActivityListener` |
+| Uzak MCP tool'u nasıl bağlarım? | `McpClient.CreateAsync` → `ListToolsAsync` → `McpClientTool : AIFunction` |
 
 ---
 
@@ -52,13 +81,22 @@ Argüman vermezsen paketlerdeki tüm public tiplerin adlarını listeler:
 - `#pragma warning disable MAAI001` üstüne gerekçe yaz
 - `docs/KARARLAR.md`'ye kaydet
 
-Bilinen örnek: `HarnessAgentOptions` üyeleri.
+Bilinen örnekler: `HarnessAgentOptions` üyeleri, `OpenTelemetryAgent` kurucusu,
+`ChatHistoryProvider.InvokingContext` kurucusu.
 
 **2. Ön sürüm paketleri.** `Microsoft.Agents.AI.Hosting` (preview) ve `.Hosting.OpenAI` (alpha) yalnızca `AgentPrism.AspNetCore` içinde kullanılabilir — karar K-008. Diğer paketler yalnız GA MAF paketlerine bağlanır.
 
 **3. Nullability reflection'da görünmez.** Script `AgentSession session` gösterir ama gerçek imza `AgentSession? session = null` olabilir. Override yazarken derleyici uyarısına güven; `MA0061` varsayılan değer farkını yakalar.
 
-**4. Sürümü sabitle.** Script `Directory.Packages.props` içindeki sürümü kullanır. Farklı bir sürümü incelemek için script'i düzenle.
+**4. Sürümü sabitle.** Script sürümleri `Directory.Packages.props`'tan okur. Başka bir sürümü incelemek için `APIDUMP_PACKAGES` ortam değişkenini kullan.
+
+**5. Paket var sanma, doğrula.** Faz 6 planı `Microsoft.Agents.AI.Mcp` paketini varsayıyordu; böyle bir paket **yok** ve planın merkezi varsayımı çöktü. Bir paketi ilk kez kullanmadan önce:
+
+```bash
+dotnet package search "<PaketAdi>" --exact-match --format json
+```
+
+Boş `packages` dizisi paketin var olmadığı anlamına gelir.
 
 ---
 

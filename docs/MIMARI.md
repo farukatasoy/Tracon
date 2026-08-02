@@ -8,24 +8,31 @@
 
 | Paket | Durum | Faz |
 |-------|-------|-----|
-| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) · 5 (`AgentPrismRunOptions`) |
-| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) · 5 (çağıranın verdiği çalıştırma kimliği) |
-| `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 · 4 (özet sorgusu) |
+| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) · 5 (`AgentPrismRunOptions`) · 6 (telemetri, tool çağrısı, onay, MCP, kiracı) |
+| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) · 5 (çağıranın verdiği çalıştırma kimliği) · 6 (span, metrik, onay kuralı) |
+| `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 · 4 (özet sorgusu) · 6 (migration 0002, dört yeni depo) |
 | `AgentPrism.OpenAI` | ✅ Tamamlandı | 3 |
-| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 · 5 (arayüz rota grubu) |
-| `AgentPrism.UI` | ✅ Tamamlandı | 5 |
+| `AgentPrism.Mcp` | ✅ Tamamlandı | 6 |
+| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 · 5 (arayüz rota grubu) · 6 (çok kiracılılık, yönetişim uçları) |
+| `AgentPrism.UI` | ✅ Tamamlandı | 5 · 6 (waterfall, MCP ekranı, onay kartı) |
 | `AgentPrism` (meta) | ✅ Paketleniyor | 0 |
 
-Testler: **310 .NET testi + 40 frontend birim testi geçiyor** — 110 birim testi
-(62 Core + 48 OpenAI) + 88 fonksiyonel test (TestHost, gerçek HTTP) + 104 entegrasyon
-testi (Testcontainers, gerçek PostgreSQL) + 8 arayüz E2E testi (Playwright, gerçek
+Testler: **383 .NET testi + 40 frontend birim testi geçiyor** — 133 birim testi
+(85 Core + 48 OpenAI) + 112 fonksiyonel test (TestHost, gerçek HTTP) + 128 entegrasyon
+testi (Testcontainers, gerçek PostgreSQL) + 10 arayüz E2E testi (Playwright, gerçek
 Kestrel) + 40 Vitest testi (saf mantık; `npm run build` içinde koşar, dolayısıyla
 `dotnet build` de koşar). Build, test, pack ve format kapıları sıfır uyarı.
 
 Faz 5 sonunda kabul senaryosu tamamlandı: paket kurulur, `.UseUI()` +
-`app.MapAgentPrism()` yazılır ve tarayıcıda yedi ekranlı bir kontrol düzlemi açılır.
-Arayüz assembly'ye Brotli sıkıştırılmış gömülüdür (80,9 KB), tüketici projede hiçbir
-JavaScript bağımlılığı oluşturmaz ve JavaScript bütçesi 88,1 KB / 250 KB gzip'tir.
+`app.MapAgentPrism()` yazılır ve tarayıcıda bir kontrol düzlemi açılır. Faz 6 ekranı
+sekize çıkardı (MCP & approvals) ve arayüz artık span waterfall'ı, tool çağrı
+sayılarını ve onay kartlarını gösteriyor. Arayüz assembly'ye Brotli sıkıştırılmış
+gömülüdür (84,6 KB), tüketici projede hiçbir JavaScript bağımlılığı oluşturmaz ve
+JavaScript bütçesi 92,4 KB / 250 KB gzip'tir.
+
+Faz 6 sonunda AgentPrism **işletilebilir**: her çalıştırmanın span ağacı ve metriği
+var, geri alınamaz tool'lar kullanıcı onayı bekliyor, tool'lar uzak MCP
+sunucularından da gelebiliyor ve kiracı istekten çözülüp hiçbir uçtan sızmıyor.
 
 Dış yüzey Faz 4'ten beri açık: stok OpenAI SDK'sı `base_url` değiştirerek AgentPrism'e
 bağlanıyor, agent'ı `model` alanından seçiyor, tool döngüsü sunucuda tamamlanıyor,
@@ -75,8 +82,9 @@ flowchart TD
 
     PG["<b>AgentPrism.PostgreSql</b><br/>kalıcılık"]
     OA["<b>AgentPrism.OpenAI</b><br/>openai · openai-responses"]
+    MCP["<b>AgentPrism.Mcp</b><br/>uzak MCP tool keşfi"]
 
-    CORE["<b>AgentPrism.Core</b><br/>IAgentCatalog ◄ IAgentSource[] · kod · MAF · veritabanı<br/>IAgentDecorator[] · çalıştırma kaydı<br/>AgentDefinitionCompiler · CompiledAgentCache<br/>AgentSessionManager · AgentSessionIdentity<br/>ToolRegistry · ToolMethodScanner · ModelProviderRegistry<br/>InMemory*Store"]
+    CORE["<b>AgentPrism.Core</b><br/>IAgentCatalog ◄ IAgentSource[] · kod · MAF · veritabanı<br/>IAgentDecorator[] · kayıt 0 · telemetri 10 · onay 20<br/>AgentDefinitionCompiler · CompiledAgentCache<br/>AgentSessionManager · AgentSessionIdentity<br/>ToolRegistry · ToolMethodScanner · ModelProviderRegistry<br/>AgentPrismMetrics · RunTraceCollector · ToolApprovalRuleEvaluator<br/>InMemory*Store"]
 
     ABS["<b>AgentPrism.Abstractions</b><br/>sözleşmeler"]
 
@@ -86,8 +94,10 @@ flowchart TD
     HTTP -->|"IAgentPrismUiProvider · kayıtlıysa"| UI
     HTTP --> PG
     HTTP --> OA
+    HTTP -.->|"IMcpToolRefresher · kayıtlıysa"| MCP
     PG --> CORE
     OA --> CORE
+    MCP --> CORE
     HTTP --> CORE
     CORE --> ABS --> MAF
 ```
@@ -98,20 +108,26 @@ flowchart TD
 flowchart RL
     PostgreSql --> Core
     OpenAI --> Core
+    Mcp --> Core
     AspNetCore --> Core
     UI --> AspNetCore
     Core --> Abstractions
     Meta["AgentPrism · meta"] --> UI
     Meta --> PostgreSql
     Meta --> OpenAI
+    Meta --> Mcp
 
     classDef aot fill:#1f6f4a,stroke:#0d3b27,color:#ffffff
     classDef notaot fill:#7a4a1f,stroke:#3d250f,color:#ffffff
     class Abstractions,Core,PostgreSql,OpenAI aot
-    class AspNetCore,UI,Meta notaot
+    class AspNetCore,UI,Mcp,Meta notaot
 ```
 
 > Yeşil paketler AOT uyumludur, turuncular değildir (karar K-006).
+>
+> `AgentPrism.Mcp`, `AspNetCore`'a **referans vermez**: HTTP katmanı tazelemeyi
+> `IMcpToolRefresher` soyutlaması üzerinden tetikler (kesikli ok). Böylece MCP
+> isteğe bağlı bir paket olarak kalır ve bağımlılık grafiği tek yönlü kalır.
 
 Bu grafiği bozan bir referans eklemek yasaktır. `AgentPrism.Core.UnitTests` içindeki
 mimari testi bunu Faz 1'den itibaren zorlar.
@@ -340,12 +356,59 @@ kendisi üretir. Tip `ChatOptions` **taşımaz** — örnekleme ayarları gereki
 kendi uçlarında örnekleme ayarlarını agent tanımından çözdüğü için pratikte kısıt
 oluşturmaz.
 
-### Faz 6 için hazır olanlar
+### Faz 6'da kullanılanlar
 
 ```csharp
-// Microsoft.Agents.AI.Hosting — cok kiracililik  [Faz 6]
+// Microsoft.Agents.AI — telemetri
+OpenTelemetryAgent(AIAgent innerAgent, string sourceName, bool autoWireChatClient)
+// [MAAI001] · autoWireChatClient: false — sohbet istemcisi boru hattinda zaten
+// UseOpenTelemetry("AgentPrism") var; otomatik baglama cift span uretirdi.
+
+// Microsoft.Agents.AI — tool onayi
+ToolApprovalAgent(AIAgent innerAgent, ToolApprovalAgentOptions options)
+ToolApprovalAgentOptions { IEnumerable<Func<ToolAutoApprovalRuleContext, ValueTask<bool>>> AutoApprovalRules }
+ToolAutoApprovalRuleContext { FunctionCallContent · Agent · Session · RequestMessages · RunOptions }
+
+// Microsoft.Extensions.AI — onay mekanizmasinin KALBI
+ApprovalRequiredAIFunction(AIFunction innerFunction)     // DelegatingAIFunction
+ToolApprovalRequestContent(string requestId, ToolCallContent toolCall)
+    → ToolApprovalResponseContent CreateResponse(bool approved, string reason)
+ToolApprovalResponseContent { bool Approved · string Reason · ToolCallContent ToolCall }
+
+// Microsoft.Agents.AI.Harness — telemetri kaynagi
+HarnessAgentOptions.OpenTelemetrySourceName = "AgentPrism"
+// Verilmezse harness ic span'leri MAF'in kendi kaynagina gider ve waterfall'da eksik kalir.
+
+// ModelContextProtocol.Core 2.0.0 — MCP istemcisi
+McpClient.CreateAsync(IClientTransport, McpClientOptions?, ILoggerFactory?, CancellationToken)
+McpClient.ListToolsAsync(RequestOptions?, CancellationToken) → IList<McpClientTool>
+McpClientTool : AIFunction                     // MAF'a dogrudan takilir, adaptor GEREKMEZ
+McpClientTool.WithName(string)                 // {sunucu}_{tool} onegi icin
+HttpClientTransport(HttpClientTransportOptions, ILoggerFactory)
+HttpClientTransportOptions { Endpoint · AdditionalHeaders · TransportMode · OAuth }
+```
+
+**Nasıl bir arada çalışıyor:** onay gereken tool `ToolRegistry` içinde
+`ApprovalRequiredAIFunction` ile sarılır → `FunctionInvokingChatClient` onu
+çalıştırmak yerine `ToolApprovalRequestContent` üretir → `ToolApprovalAgent`
+otomatik onay kurallarını dener → kural eşleşmezse istek yanıtta yüzeye çıkar ve
+çalıştırma biter → karar bir **sonraki turun** girdisi olarak gelir.
+
+### Hâlâ kullanılmayan MAF genişleme noktaları
+
+```csharp
+// Microsoft.Agents.AI.Hosting — cok kiracili oturum deposu
 IsolationKeyScopedAgentSessionStore · SessionIsolationKeyProvider
-// Tuketici kendi AgentSessionStore'unu MapAgentPrism'den once kaydederse onunki kazanir.
+// Faz 6 kiraciyi ITenantContext ile cozdu ve her sorguya filtre koydu; MAF'in
+// oturum deposu sarmalayicisi gerekmedi. Tuketici kendi AgentSessionStore'unu
+// MapAgentPrism'den once kaydederse onunki kazanir.
+
+// Microsoft.Agents.AI — degerlendirme, sikistirma, skill, arka plan agent'lari
+AgentSkill · AgentSkillsProvider · AgentFileStore      → BEYIN-FIRTINASI F-09
+BackgroundAgentsProvider · HarnessAgentOptions.BackgroundAgents → F-10 (K-062)
+CompactionProvider · SummarizationCompactionStrategy   → F-11
+AIJudgeLoopEvaluator · LoopAgent · EvalCheck           → F-14
+Microsoft.Agents.AI.Workflows                          → F-27 (K-054)
 ```
 
 ---
@@ -421,23 +484,49 @@ erDiagram
     tool_invocations {
         uuid id PK
         text tool_name
-        integer duration_ms "BOŞ · Faz 6 doldurur"
+        text source "MCP sunucu adı · kodda tanımlıysa NULL"
+        text arguments "text · geçerli JSON olmayabilir"
+        integer duration_ms "yalnız akışlı çalıştırmada"
     }
     traces {
         uuid id PK
-        text trace_id "BOŞ · Faz 6"
+        text trace_id "W3C · UK (tenant_id, trace_id)"
     }
     spans {
+        uuid id PK "SHA-256(trace_id:span_id) ilk 16 bayt"
+        text span_id "W3C · kendi APM'inizde arayın"
+        text name
+        smallint kind
+        jsonb attributes
+    }
+    tool_approval_rules {
         uuid id PK
-        text name "BOŞ · Faz 6"
+        text tool_name
+        text agent_name "NULL = tüm agent'lar"
+        text arguments_hash "NULL = tüm argümanlar"
+    }
+    mcp_servers {
+        uuid id PK
+        text name "UK (tenant_id, name)"
+        text endpoint "yalnız http/https"
+        text authorization_configuration_key "ANAHTAR ADI · SIR DEĞİL"
+        boolean requires_approval "varsayılan true"
     }
     audit_log {
         uuid id PK
-        text action
+        text action "HÂLÂ BOŞ · bkz. BEYIN-FIRTINASI F-20"
         jsonb before
         jsonb after
     }
 ```
+
+**Faz 6'da dolan tablolar:** `tool_invocations`, `traces`, `spans`. Faz 6'da eklenen
+tablolar: `tool_approval_rules`, `mcp_servers`. `audit_log` **hâlâ boştur**.
+
+**Span kimliği türetilir, üretilmez.** `spans.id = SHA-256(trace_id + ":" + span_id)`
+ilk 16 baytıdır. Sebep: bir span, ebeveyninden **önce** tamamlanabilir; türetilmiş
+kimlikte üst span'in kimliği haritasız hesaplanır. Ek fayda: aynı span iki kez
+yazılırsa aynı satır güncellenir, tekrar kaydı oluşmaz.
 
 > Kesikli çizgiler (`..`) **yabancı anahtar olmayan** mantıksal bağı gösterir.
 > `tenant_id` sütunlarına FK konmadı — gerekçe karar defterinde.
@@ -483,8 +572,10 @@ flowchart TD
     R["IAgentCatalog.ResolveAsync(name)"]
     SRC["Kaynaklar önceliğe göre<br/>CodeAgentSource 0 → MAF köprüsü 10 → DefinitionStoreAgentSource 100"]
     COMP["CompiledAgentCache.GetOrAdd(name, version)<br/>AgentDefinitionCompiler.Compile(definition)"]
-    DEC["IAgentDecorator[] — Order'a göre, büyük olan dışta"]
-    REC["<b>RunRecordingAgent</b> : DelegatingAIAgent<br/>RunEventWriter sıra numarasını üretir<br/>depo hatası çalıştırmayı KESMEZ"]
+    DEC["IAgentDecorator[] — Order'a göre, KÜÇÜK olan dışta"]
+    REC["<b>RunRecordingAgent</b> · Order 0<br/>kök span agentprism.run burada açılır<br/>RunEventWriter sıra numarasını üretir<br/>depo hatası çalıştırmayı KESMEZ"]
+    OTEL["<b>OpenTelemetryAgent</b> · Order 10<br/>invoke_agent span'i"]
+    APR["<b>ToolApprovalAgent</b> · Order 20<br/>otomatik onay kuralları"]
     RUN["AIAgent.RunAsync / RunStreamingAsync"]
     CHP["PostgresChatHistoryProvider<br/>geçmişi conversation_items'tan yükler, sonunda geri yazar"]
     LLM["IChatClient → OpenAI<br/>UseFunctionInvocation · UseOpenTelemetry"]
@@ -494,7 +585,7 @@ flowchart TD
     H --> V1 --> R --> SRC
     SRC -->|"bildirimsel tanım"| COMP --> DEC
     SRC -->|"fabrika agent'ı"| DEC
-    DEC --> REC --> RUN
+    DEC --> REC --> OTEL --> APR --> RUN
     RUN --> CHP --> LLM
 
     classDef faz4 fill:#1f4f7a,stroke:#0d2740,color:#ffffff
@@ -502,10 +593,21 @@ flowchart TD
     classDef faz2 fill:#5a3a7a,stroke:#2c1c3d,color:#ffffff
     classDef faz3 fill:#7a4a1f,stroke:#3d250f,color:#ffffff
     class H,V1 faz4
+    classDef faz6 fill:#5f4a1e,stroke:#302510,color:#ffffff
     class R,SRC,COMP,DEC,REC faz1
     class CHP faz2
     class LLM faz3
+    class OTEL,APR faz6
 ```
+
+> **Sıra neden böyle?** Kayıt en **dışta** olmalıdır ki iç katmanların harcadığı
+> süreyi de ölçsün. Onay ise model çağrısına en **yakın** katmandadır; dışına
+> alınsaydı telemetri onay beklemesini kendi süresine katardı.
+>
+> 🚨 Kök span `RunRecordingAgent`'ın **kendi metot gövdesinde** açılır.
+> `Activity.Current` bir `AsyncLocal`'dir ve async bir yardımcı metotta yapılan
+> atama çağırana geri akmaz; ölçüldü, iç span'ler kök span'in çocuğu değil
+> kardeşi oluyordu.
 
 Derleyicinin içi (`AgentDefinitionCompiler.Compile`):
 
@@ -628,9 +730,53 @@ Arayüz token'ı tarayıcıda `sessionStorage`'da tutar — sekme kapanınca sil
 
 Ek sınırlar:
 
-- Sırlar (`ApiKey`, bağlantı dizesi) **hiçbir zaman** veritabanına yazılmaz, API'den dönmez, arayüzde gösterilmez
-- Tüm tanım değişiklikleri `audit_log`'a yazılır
+- Sırlar (`ApiKey`, bağlantı dizesi, MCP kimlik doğrulama değeri) **hiçbir zaman** veritabanına yazılmaz, API'den dönmez, arayüzde gösterilmez
 - `previous_response_id` ve `conversation_id` güvenilmez girdi kabul edilir; her zaman kiracı sahipliği doğrulanır
+- ⚠️ `audit_log` tablosu kuruldu ancak **hâlâ yazılmıyor** — bkz. `BEYIN-FIRTINASI.md` F-20
+
+### Faz 6'nın eklediği sınırlar
+
+**Tool onayı.** `RequiresApproval = true` işaretli tool, `ToolRegistry` içinde
+`ApprovalRequiredAIFunction` ile sarılır. Sarmalama **defterde** yapılır çünkü
+defter, "bir agent yalnızca kayıtlı bir tool'a işaret edebilir" kuralının
+zorlandığı tek yerdir; başka bir kod yolunun sarmalamayı atlaması mümkün olmaz.
+
+**MCP sınırı.** MCP sunucusu eklemek, dışarıdan gelen tool tanımlarını kabul etmek
+demektir ve tasarım kuralı K2'nin bilinçli istisnasıdır:
+
+| Koruma | Nasıl |
+|--------|-------|
+| Yalnız uzak sunucu | Yalnız `http`/`https`. **Stdio yoktur** (K-058) — süreç başlatmak K2'yi bozar |
+| Onay zorunluluğu | MCP tool'ları varsayılan olarak `RequiresApproval = true` |
+| Ad ele geçirme yok | Kodda kayıtlı bir tool'un adını taşıyan MCP tool'u **yok sayılır** (K-060) |
+| Sır sızmaz | Kayıt kimlik doğrulama **değerini** değil, değerin okunacağı yapılandırma anahtarının **adını** taşır (K-059) |
+| Denetim izi | Her çağrı kaynak sunucu adıyla `tool_invocations`'a yazılır |
+
+**Kiracı çözümleme.** Varsayılan **kapalıdır**; açıldığında sıra:
+
+```mermaid
+flowchart TD
+    S{"Tenancy.Enabled?"} -->|hayır| D["varsayılan kiracı"]
+    S -->|evet| C{"ClaimType tanımlı mı?"}
+    C -->|evet| AU{"istek kimlik doğrulamasından geçti mi?"}
+    AU -->|evet| CL["claim değeri"]
+    AU -->|hayır| D
+    C -->|hayır| H{"AllowHeaderResolution?"}
+    H -->|evet| HD["başlık değeri"]
+    H -->|hayır| D
+    CL --> V{"biçim geçerli · beyaz listede mi?"}
+    HD --> V
+    V -->|evet| T["kiracı çözüldü"]
+    V -->|hayır| D
+
+    classDef green fill:#1f6f4a,stroke:#0d3b27,color:#ffffff
+    class T,D green
+```
+
+🚨 **Claim tanımlıysa başlık hiç okunmaz.** Aksi hâlde kimlik doğrulamasından
+geçmiş bir kullanıcı, bir başlık ekleyerek başka bir kiracının verisine
+erişebilirdi. Başlık yolu ayrıca `AllowHeaderResolution` ile **açıkça**
+açılmalıdır — bir HTTP başlığı kimlik kanıtı değildir.
 
 ---
 
@@ -684,5 +830,6 @@ AOT uyumluluğu Faz 1'de üç somut kısıt getirdi:
 | [03-SAGLAYICI-VE-DERLEYICI.md](03-SAGLAYICI-VE-DERLEYICI.md) | Faz 3 — OpenAI ve agent derleyici |
 | [04-HTTP-API.md](04-HTTP-API.md) | Faz 4 — HTTP katmanı |
 | [05-AGENTPRISM-UI.md](05-AGENTPRISM-UI.md) | Faz 5 — arayüz |
-| [06-GOZLEMLENEBILIRLIK.md](06-GOZLEMLENEBILIRLIK.md) | Faz 6 — telemetri, workflows, çok kiracılılık |
+| [06-GOZLEMLENEBILIRLIK.md](06-GOZLEMLENEBILIRLIK.md) | Faz 6 — telemetri, tool onayı, MCP, çok kiracılılık |
 | [07-SAGLAMLASTIRMA-VE-YAYIN.md](07-SAGLAMLASTIRMA-VE-YAYIN.md) | Faz 7 — sağlamlaştırma ve yayın |
+| [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) | İkinci faz planı için aday yetenekler — **plan değil, hammadde** |
