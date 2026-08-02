@@ -35,6 +35,17 @@ public sealed class AgentPrismOptions
 
     /// <summary>Agent'in agent cagirmasi icin gecerli sinirlar.</summary>
     public AgentPrismAgentGraphOptions AgentGraph { get; set; } = new();
+
+    /// <summary>
+    /// Baglam sikistirmasinda ozetleme icin kullanilacak varsayilan model.
+    /// </summary>
+    /// <remarks>
+    /// Bir agent tanimi kendi <c>CompactionSettings.SummarizationModel</c>'ini
+    /// vermezse bu deger kullanilir; o da bos ise agent'in kendi modeli
+    /// ozetleme icin de kullanilir. Amac: ozetleme gibi ucuz bir is icin
+    /// pahali bir modelle maliyet uretmemek.
+    /// </remarks>
+    public ModelBinding? UtilityModel { get; set; }
 }
 
 /// <summary>

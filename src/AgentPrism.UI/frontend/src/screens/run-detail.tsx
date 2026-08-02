@@ -35,6 +35,7 @@ const EVENT_STYLE: Record<RunEventType, { label: string; hue: string }> = {
   RunFailed: { label: 'run.failed', hue: 'var(--ap-danger)' },
   ChildRunStarted: { label: 'child.started', hue: 'var(--ap-amber)' },
   ChildRunCompleted: { label: 'child.completed', hue: 'var(--ap-amber)' },
+  HistoryCompacted: { label: 'history.compacted', hue: 'var(--ap-violet)' },
 };
 
 /**

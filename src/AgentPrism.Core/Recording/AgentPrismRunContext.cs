@@ -78,4 +78,10 @@ public sealed record AgentRunScope
     /// olur ve sira numaralari cakisirdi.
     /// </remarks>
     public RunEventWriter? Writer { get; init; }
+
+    /// <summary>
+    /// Baglam sikistirmasinin (ozetleme) urettigi ek token kullanimini
+    /// toplayan sayac. Calistirma sonunda nihai kullanima katilir.
+    /// </summary>
+    internal CompactionUsageAccumulator? ExtraUsage { get; init; }
 }

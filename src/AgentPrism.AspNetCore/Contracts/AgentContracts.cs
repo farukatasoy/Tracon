@@ -47,6 +47,12 @@ public sealed record AgentDefinitionRequest
     /// <summary>Harness ayarlari. Bos birakilirsa duz sohbet agent'i derlenir.</summary>
     public HarnessSettings? Harness { get; init; }
 
+    /// <summary>Baglam sikistirma ayarlari. Bos birakilirsa sikistirma uygulanmaz.</summary>
+    public CompactionSettings? Compaction { get; init; }
+
+    /// <summary>Bellek saglayicisi ayarlari. Bos birakilirsa hicbir bellek saglayicisi eklenmez.</summary>
+    public MemorySettings? Memory { get; init; }
+
     /// <summary>Istegi kalici bir tanima cevirir.</summary>
     /// <returns>Veritabanina yazilabilir tanim.</returns>
     public AgentDefinition ToDefinition()
@@ -61,6 +67,8 @@ public sealed record AgentDefinitionRequest
             SkillNames = SkillNames,
             CallableAgentNames = CallableAgentNames,
             Harness = Harness,
+            Compaction = Compaction,
+            Memory = Memory,
             Origin = AgentDefinitionOrigin.Database,
         };
 }

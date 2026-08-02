@@ -30,6 +30,9 @@ public static class AgentPrismDiagnostics
     /// <summary>Bir skill script calistirmasini temsil eden span'in adi.</summary>
     public const string SkillScriptActivityName = "execute_skill_script";
 
+    /// <summary>Baglam sikistirmasindaki ozetleme cagrisini temsil eden span'in adi.</summary>
+    public const string CompactHistoryActivityName = "compact_history";
+
     /// <summary>Skill script cagrilarinin metrikteki tool adi.</summary>
     public const string SkillScriptToolName = "skill_script";
 
@@ -95,5 +98,11 @@ public static class AgentPrismDiagnostics
 
         /// <summary>Script calistirma suresi (milisaniye).</summary>
         public const string DurationMs = "agentprism.script.duration_ms";
+
+        /// <summary>Ozetleme cagrisinin girdi token sayisi.</summary>
+        public const string CompactionInputTokens = "agentprism.compaction.input_tokens";
+
+        /// <summary>Ozetleme cagrisinin cikti token sayisi.</summary>
+        public const string CompactionOutputTokens = "agentprism.compaction.output_tokens";
     }
 }

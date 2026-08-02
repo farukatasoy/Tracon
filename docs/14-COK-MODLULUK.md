@@ -12,9 +12,18 @@
 ## Bu Faza Başlarken
 
 1. [`MIMARI.md`](MIMARI.md) — bölüm 5 (`conversation_items`, K-027), bölüm 7 (güvenlik)
-2. [`KARARLAR.md`](KARARLAR.md) — **K-027** (polimorfik yük `json`), **K-043** (konuşma = oturum), **K-036** (OpenAI uyumlu uçlar)
+2. [`KARARLAR.md`](KARARLAR.md) — **K-027** (polimorfik yük `json`), **K-043** (konuşma = oturum), **K-036** (OpenAI uyumlu uçlar), **K-105** (bkz. aşağıda — vektör bellek kapsam dışı)
 3. [`02-POSTGRESQL-KALICILIK.md`](02-POSTGRESQL-KALICILIK.md) — `PostgresChatHistoryProvider`
-4. Bu doküman
+4. [`13-BAGLAM-SIKISTIRMA-VE-BELLEK.md`](13-BAGLAM-SIKISTIRMA-VE-BELLEK.md) — §13.3 ve "Sonraki Faza Devir Notu": `FileMemoryProvider` bugün yalnız `InMemoryAgentFileStore` ile çalışıyor, `ChatHistoryMemoryProvider` (vektör tabanlı bellek) hiç kullanılmıyor
+5. Bu doküman
+
+> 🚨 Faz 13'te bulunan tuzak: `AgentDefinition`'a yeni bir alan eklerken
+> **hem** `AgentPrismCoreJsonContext`'in kapsadığı tip **hem**
+> `AgentPrism.PostgreSql/Internal/AgentDefinitionPayload.cs` güncellenmeli —
+> ikisi ayrı şemalardır, biri unutulursa sessizce veri kaybolur (build/test
+> kırmaz, yalnız round-trip testi yakalar). Bu faz `AttachmentDescriptor` gibi
+> **yeni** tipler ekliyor, `AgentDefinition`'ı değiştirmiyor; ama ileride biri
+> `AgentDefinition`'a alan eklerse bu tuzak geçerlidir.
 
 ---
 

@@ -1,19 +1,19 @@
 # Faz 13 — Bağlam Sıkıştırma ve Bellek Sağlayıcıları
 
-> **Durum:** 📋 Planlandı
+> **Durum:** ✅ Tamamlandı (2026-08-02)
 > **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-11**
 > **Önkoşul:** Yok (Faz 10 ve 12 bu fazı **gerekli** kılar — bağlam onlarla büyür)
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
-> **Yeni paket:** Yok · **Migration:** Yok
+> **Yeni paket:** Yok (ölçüldü — bkz. §13.4) · **Migration:** Yok
 
 ---
 
-## Bu Faza Başlarken
+## Bu Faza Başlarken (Faz 14 için)
 
-1. [`12-AGENT-CAGRI-GRAFIGI.md`](12-AGENT-CAGRI-GRAFIGI.md) — **önceki faz**; §12.2 (ambient kapsam ve `AsyncLocal` kuralı) ve §12.4 (derleyicideki sağlayıcı listesi)
+1. [`12-AGENT-CAGRI-GRAFIGI.md`](12-AGENT-CAGRI-GRAFIGI.md) — §12.2 (ambient kapsam) ve §12.4
 2. [`02-POSTGRESQL-KALICILIK.md`](02-POSTGRESQL-KALICILIK.md) — `PostgresChatHistoryProvider`, oturum durumu
-3. [`KARARLAR.md`](KARARLAR.md) — **K-027** (`json` vs `jsonb`), **K-037** (`ChatHistoryProvider` kaydı), **K-062** (harness alanları kapalı), **K-097** (`AIContextProviders` birinci sınıf yoldur)
-4. [`MIMARI.md`](MIMARI.md) — bölüm 4 "Hâlâ kullanılmayan MAF genişleme noktaları"
+3. [`KARARLAR.md`](KARARLAR.md) — **K-027**, **K-037**, **K-062**, **K-097**, ve bu fazda eklenen **K-104…K-110**
+4. [`MIMARI.md`](MIMARI.md) — bölüm 4 "Faz 13'te kullanılanlar"
 5. Bu doküman
 
 ---
@@ -22,165 +22,111 @@
 
 ### Sağlayıcı listesi hazır
 
-`AgentDefinitionCompiler.CompileChatAgent` artık bir **liste** kurar; tek bir
-sağlayıcı ataması değildir:
-
-```csharp
-var providers = new List<AIContextProvider>(2);
-
-if (definition.SkillNames.Count > 0)
-{
-    providers.Add(CreateSkillsProvider(definition));
-}
-
-if (CreateBackgroundAgentsProvider(definition, callableAgents) is { } backgroundAgents)
-{
-    providers.Add(backgroundAgents);
-}
-
-if (providers.Count > 0)
-{
-    options.AIContextProviders = providers;
-}
-```
-
-`CompactionProvider` bu listeye üçüncü öğe olarak eklenir. Harness yolunda
-karşılığı `HarnessAgentOptions.DisableCompaction` bayrağıdır (zaten bağlı).
-
-### Önbellek anahtarı iki parmak izi taşıyor
-
-```csharp
-CompiledAgentCache.GetOrAdd(
-    definition.Name,
-    definition.Version,
-    CompiledAgentCache.CombineFingerprints(skills.Fingerprint, callable.Fingerprint),
-    () => _compiler.Compile(definition, callable));
-```
-
-Sıkıştırma ayarı agent tanımının **kendi** alanı olacaksa `Version` zaten artar
-ve ek parmak izi gerekmez. Ayar tanım dışında bir yerde yaşayacaksa
-(ör. kiracı düzeyinde) `CombineFingerprints` zincirlenmelidir.
+`AgentDefinitionCompiler.CompileChatAgent` bir sağlayıcı **listesi** kurar.
+`CompactionProvider` ve bellek sağlayıcıları (`FileMemoryProvider`,
+`TodoProvider`, `TextSearchProvider`) bu listeye eklendi — aşağıya bakın.
 
 ### Çalıştırma kapsamı
 
 ```csharp
-public sealed record AgentRunScope
-{
-    public required Guid RunId { get; init; }
-    public required Guid RootRunId { get; init; }
-    public int Depth { get; init; }
-    public string? AgentName { get; init; }
-    public string? TenantId { get; init; }
-    public AgentRunBudget? Budget { get; init; }
-    public RunEventWriter? Writer { get; init; }
-}
-
 AgentPrismRunContext.Current            // okuma
 AgentPrismRunContext.SetCurrent(scope)  // yazma
 ```
 
-Sıkıştırma olayını çalıştırma akışına yazmak isterseniz **tek yol**
-`AgentPrismRunContext.Current?.Writer`'dır. İkinci bir `RunEventWriter` kurmak
-sıra numaralarını çakıştırır (K-014).
+`AgentRunScope` bu fazda yeni bir alan kazandı: `internal CompactionUsageAccumulator? ExtraUsage`
+(bkz. §13.2). Sıkıştırma olayını akışa yazmanın **tek yolu** hâlâ
+`AgentPrismRunContext.Current?.Writer`'dır.
 
-### 🚨 Bilinen tuzaklar (Faz 12'de ölçüldü)
+### 🚨 Bilinen tuzaklar (Faz 12'de ölçüldü, bu fazda da geçerli kaldı)
 
 | Tuzak | Kural |
 |-------|-------|
-| `async IAsyncEnumerable` gövdesinde yapılan `AsyncLocal` ataması **`yield return` sınırını aşmaz** | Kapsam her `MoveNextAsync`'ten **hemen önce** yeniden yazılmalıdır. Döngü dışında bir kez yazmak yetmez. |
-| Ağaçtaki tüm çalıştırmalar aynı W3C trace kimliğini paylaşır | `RunTraceCollector` tamponunun sahibi yalnız kök çalıştırmadır (K-099). Yeni bir span tüketicisi eklerken aynı kural geçerlidir. |
+| `async IAsyncEnumerable` gövdesinde yapılan `AsyncLocal` ataması **`yield return` sınırını aşmaz** | Kapsam her `MoveNextAsync`'ten **hemen önce** yeniden yazılmalıdır. |
 | MAF alt agent'ı `options = null` ile çağırır | Bir `AIContextProvider`'ın açtığı tool'dan tetiklenen çağrılarda gelen ayarlara güvenilemez. |
-| `BackgroundAgentsProvider` `MAAI001` işaretlidir | `CompactionProvider` de öyle olabilir — kullanmadan önce derleyin; bastırma tek dosyada toplanır ve `KARARLAR.md`'ye yazılır (K-020, K-097). |
+
+### 🚨 Bu fazda keşfedilen yeni tuzaklar
+
+| Tuzak | Kural |
+|-------|-------|
+| `CompactionStrategy.CompactCoreAsync` **korumalıdır** ve C#'ta bir kardeş türetilmiş tipin örneği üzerinden çağrılamaz | Bir strateji sarmalayıcısı (`ObservedCompactionStrategy`) iç stratejiyi **`CompactAsync`** (public, sanal olmayan) ile çağırır. `CompactAsync` iç stratejinin **kendi** tetikleyicisini tekrar kontrol eder — bu yüzden iç strateji de dış ile **aynı** tetikleyiciyle kurulur (`ContextWindow`/`Pipeline` hariç, onlar kendi iç tetikleyicilerini kendileri taşır). |
+| `AgentDefinitionPayload` (`AgentPrism.PostgreSql`) `AgentDefinition`'ı **ayrı bir DTO** ile serileştirir, kaynak üretecinin `AgentDefinition`'dan otomatik türettiği şema **değil** | Yeni bir `AgentDefinition` alanı eklendiğinde `AgentPrismCoreJsonContext` yeterli değildir — `Internal/AgentDefinitionPayload.cs`'e de elle eklenmelidir. Ölçüldü: `Compaction`/`Memory` alanları eklenmeden önce PostgreSQL round-trip testi sessizce `null` döndürüyordu (build/test kırmıyordu, yalnızca round-trip testi yakaladı). **Aynı dosyada Faz 12'den kalma bağımsız bir hata daha bulundu ve düzeltildi:** `CallableAgentNames` de bu payload'da hiç yoktu — PostgreSQL'e yazılan bir agent'ın çağırabileceği alt agent listesi sessizce kayboluyordu. |
+| `CompactionMessageIndex` gerçek bir `Microsoft.ML.Tokenizers.Tokenizer` ister ama `CompactionProvider`'ın kendisi **tokenizer parametresi almaz** | Ölçüldü: `CompactionProvider(strategy, stateKey, loggerFactory)` ile kurulan bir agent gerçek bir `RunAsync` çağrısında hatasız çalıştı — MAF tokenizer'ı içeride kendisi çözüyor, `Microsoft.ML.Tokenizers.Data.*` gibi ek bir veri paketi **gerekmedi**. Bu, §13.4'ün "yeni paket yok" kararını doğrular. |
+| Enum HTTP'ye yansıyorsa `JsonStringEnumConverter` **eklenmeden** unutmak sessiz bir sayı sızıntısı üretir | `CompactionStrategyKind` ilk yazıldığında bu öznitelik unutuldu; bir fonksiyonel test (`.GetString()` beklerken sayı geldi) yakaladı. K-040 deseni her yeni HTTP'ye yansıyan enum için tekrarlanmalı. |
 
 ---
 
 ## Amaç
 
-MAF'ta hazır olan ve bugün **hiç kullanılmayan** bağlam yönetimi yeteneklerini
-açığa çıkarmak. Uzun konuşmalar bugün ya bağlam penceresine sığmayıp hata verir
-ya da sessizce pahalılaşır.
-
-Bu faz Faz 10 (skill) ve Faz 12 (alt agent) sonrasına konuldu: her ikisi de
-bağlamı büyütür, dolayısıyla sıkıştırma o noktada teorik bir iyileştirme değil,
-gerçek bir ihtiyaçtır.
+MAF'ta hazır olan ve daha önce hiç kullanılmayan bağlam yönetimi yetenekleri
+açığa çıkarıldı: beş sıkıştırma stratejisi (+ sabit sıralı bir pipeline) ve üç
+bellek sağlayıcısı (dosya belleği, todo, metin araması), hem düz `ChatClientAgent`
+hem `HarnessAgent` yolunda.
 
 ---
 
-## Doğrulanmış MAF API'si
+## Doğrulanmış MAF API'si (reflection, MAF 1.16.0 — uygulama sırasında ikinci kez doğrulandı)
 
 ```csharp
 namespace Microsoft.Agents.AI.Compaction;
 
 sealed class CompactionProvider : AIContextProvider {
-    CompactionProvider(CompactionStrategy strategy, string? stateKey, ILoggerFactory? lf);
-    static Task<IEnumerable<ChatMessage>> CompactAsync(CompactionStrategy strategy,
-                                                       IEnumerable<ChatMessage> messages,
-                                                       ILogger? logger, CancellationToken ct);
+    CompactionProvider(CompactionStrategy compactionStrategy, string? stateKey, ILoggerFactory? loggerFactory);
 }
 
-abstract class CompactionStrategy { protected CompactionStrategy(CompactionTrigger trigger, CompactionTrigger? target); }
-
-sealed class SummarizationCompactionStrategy   : CompactionStrategy {
-    SummarizationCompactionStrategy(IChatClient chatClient, CompactionTrigger trigger,
-                                    int minimumPreservedGroups, string? summarizationPrompt,
-                                    CompactionTrigger? target);
-}
-sealed class ContextWindowCompactionStrategy   : CompactionStrategy {
-    ContextWindowCompactionStrategy(int maxContextWindowTokens, int maxOutputTokens,
-                                    double toolEvictionThreshold, double truncationThreshold);
-}
-sealed class SlidingWindowCompactionStrategy(CompactionTrigger trigger, int minimumPreservedTurns, CompactionTrigger? target);
-sealed class TruncationCompactionStrategy(CompactionTrigger trigger, int minimumPreservedGroups, CompactionTrigger? target);
-sealed class ToolResultCompactionStrategy(CompactionTrigger trigger, int minimumPreservedGroups, CompactionTrigger? target);
-sealed class PipelineCompactionStrategy(IEnumerable<CompactionStrategy> strategies);
-
-static class CompactionTriggers {
-    CompactionTrigger TokensExceed(int max);   MessagesExceed(int);   TurnsExceed(int);
-    GroupsExceed(int);   HasToolCalls();   TokensBelow(int);   All(...);   Any(...);
+abstract class CompactionStrategy {
+    protected CompactionStrategy(CompactionTrigger trigger, CompactionTrigger? target);
+    // PUBLIC ve SANAL DEĞİL — bir sarmalayıcının iç stratejiyi çağırdığı yer burasıdır.
+    public ValueTask<bool> CompactAsync(CompactionMessageIndex index, ILogger logger, CancellationToken ct);
+    protected virtual ValueTask<bool> CompactCoreAsync(CompactionMessageIndex index, ILogger logger, CancellationToken ct);
 }
 
-// Bellek saglayicilari
-sealed class ChatHistoryMemoryProvider : MessageAIContextProvider;
-sealed class FileMemoryProvider(AgentFileStore fileStore, Func<AgentSession, FileMemoryState>? init,
-                                FileMemoryProviderOptions? options) : AIContextProvider;
-sealed class TextSearchProvider : MessageAIContextProvider;
-sealed class TodoProvider : AIContextProvider;
+sealed class SlidingWindowCompactionStrategy(CompactionTrigger trigger, int minimumPreservedTurns, CompactionTrigger? target) : CompactionStrategy;
+sealed class TruncationCompactionStrategy(CompactionTrigger trigger, int minimumPreservedGroups, CompactionTrigger? target) : CompactionStrategy;
+sealed class ToolResultCompactionStrategy(CompactionTrigger trigger, int minimumPreservedGroups, CompactionTrigger? target) : CompactionStrategy;
+sealed class SummarizationCompactionStrategy(IChatClient chatClient, CompactionTrigger trigger, int minimumPreservedGroups, string? summarizationPrompt, CompactionTrigger? target) : CompactionStrategy;
+sealed class ContextWindowCompactionStrategy(int maxContextWindowTokens, int maxOutputTokens, double toolEvictionThreshold, double truncationThreshold) : CompactionStrategy; // tetikleyici YOK — kendi içinde kurar
+sealed class PipelineCompactionStrategy(IEnumerable<CompactionStrategy> strategies) : CompactionStrategy;              // tetikleyici YOK — her alt strateji kendi tetikleyicisini taşır
 
-abstract class AgentFileStore {                       // DOSYA SISTEMI DEGIL, SOYUTLAMA
-    Task<string?> ReadAsync(string path, CancellationToken ct);
-    Task WriteAsync(string path, string content, CancellationToken ct);
-    Task<IReadOnlyList<FileStoreEntry>> ListChildrenAsync(string directory, CancellationToken ct);
-    Task<IReadOnlyList<FileSearchResult>> SearchAsync(string directory, string? regexPattern,
-                                                      string? globPattern, bool recursive, CancellationToken ct);
-    Task<bool> DeleteAsync(string path, CancellationToken ct);
-    Task CreateDirectoryAsync(string path, CancellationToken ct);
-    Task<bool> FileExistsAsync(string path, CancellationToken ct);
+sealed class CompactionMessageIndex(IList<CompactionMessageGroup> groups, Tokenizer tokenizer) {
+    int TotalMessageCount / IncludedMessageCount / TotalTokenCount / IncludedTokenCount { get; }
 }
-sealed class InMemoryAgentFileStore : AgentFileStore;
+delegate bool CompactionTrigger(CompactionMessageIndex index);
+static class CompactionTriggers { TokensExceed/MessagesExceed/TurnsExceed/GroupsExceed/HasToolCalls/TokensBelow/All/Any }
 
-// Baglanma noktalari
-ChatClientAgentOptions.AIContextProviders
-HarnessAgentOptions.CompactionStrategy · DisableCompaction · FileMemoryStore · DisableFileMemory · DisableTodoProvider
+// Bellek — DOĞRULANDI, dokümanın ilk taslağından SAPMA içerir (bkz. §13.3)
+sealed class FileMemoryProvider(AgentFileStore fileStore, Func<AgentSession,FileMemoryState>? stateInitializer, FileMemoryProviderOptions? options) : AIContextProvider;
+sealed class TodoProvider(TodoProviderOptions? options) : AIContextProvider;
+sealed class TextSearchProvider(Func<string,CancellationToken,Task<IEnumerable<TextSearchResult>>> searchAsync, TextSearchProviderOptions? options, ILoggerFactory? lf) : MessageAIContextProvider;
+abstract class AgentFileStore { ReadAsync/WriteAsync/ListChildrenAsync/SearchAsync/DeleteAsync/CreateDirectoryAsync/FileExistsAsync }
+sealed class InMemoryAgentFileStore : AgentFileStore;   // bu fazda kullanılan somut depo
+sealed class FileSystemAgentFileStore : AgentFileStore; // MAF'ın kendi disk uygulaması — kullanılmadı (K-062 ruhu)
+
+// 🚨 SAPMA: dokümanın ilk taslağı ChatHistoryMemoryProvider'ı basit "oturum içi
+// bellek" sanıyordu. Gerçek imza:
+sealed class ChatHistoryMemoryProvider(VectorStore vectorStore, string collectionName, int vectorDimensions,
+    Func<AgentSession,State>? stateInitializer, ChatHistoryMemoryProviderOptions? options, ILoggerFactory? loggerFactory)
+    : MessageAIContextProvider;
+// Vektör tabanlı anlamsal aramadır; depoda somut bir VectorStore implementasyonu
+// yok. KARAR (kullanıcı onayladı, K-105): bu fazda YOK — TextSearchProvider'ın
+// vektör aramasının zaten kapsam dışı bırakılmasıyla tutarlı.
+
+// Harness bağlanma noktaları (hepsi doğrulandı ve kullanıldı)
+HarnessAgentOptions {
+    CompactionStrategy CompactionStrategy; bool DisableCompaction;
+    AgentFileStore FileMemoryStore; bool DisableFileMemory; bool DisableTodoProvider;
+    IEnumerable<AIContextProvider> AIContextProviders; // TextSearchProvider bu yoldan eklendi, dedike alanı yok
+}
 ```
-
-### 🚨 İki bulgu
-
-1. **`AgentFileStore` bir dosya sistemi değildir.** Soyut bir depodur.
-   PostgreSQL destekli bir uygulama yazmak, agent'a "dosya" verirken diske
-   hiç dokunmamak demektir. Bu, K-062'nin `FileAccessStore` endişesini
-   ortadan kaldırır: yollar veritabanı satırlarıdır, sunucudaki dosyalar değil.
-2. **Sıkıştırma bir `AIContextProvider`'dır.** Harness zorunlu değil; düz
-   `ChatClientAgent` de sıkıştırma alabilir (K-053 nedeniyle tercih edilen yol).
 
 ---
 
-## 13.1 — Agent Tanımında Sıkıştırma Ayarı
+## 13.1 — Agent Tanımında Sıkıştırma Ayarı (gerçekleşen)
 
 ```csharp
 public sealed record CompactionSettings
 {
     public CompactionStrategyKind Strategy { get; init; } = CompactionStrategyKind.None;
-    public int? TriggerTokens { get; init; }          // TokensExceed
+    public int? TriggerTokens { get; init; }
     public int? TriggerMessages { get; init; }
     public int? TriggerTurns { get; init; }
     public int? MinimumPreservedTurns { get; init; }
@@ -188,7 +134,7 @@ public sealed record CompactionSettings
     public int? MaxContextWindowTokens { get; init; }
     public int? MaxOutputTokens { get; init; }
     public string? SummarizationPrompt { get; init; }
-    public ModelBinding? SummarizationModel { get; init; }   // bos ise agent'in kendi modeli
+    public ModelBinding? SummarizationModel { get; init; }
 }
 
 public enum CompactionStrategyKind
@@ -196,177 +142,195 @@ public enum CompactionStrategyKind
     None, SlidingWindow, Truncation, ToolResult, Summarization, ContextWindow, Pipeline
 }
 
+public sealed record MemorySettings
+{
+    public bool EnableFileMemory { get; init; }
+    public bool EnableTodo { get; init; }
+    public bool EnableTextSearch { get; init; }
+    // EnableChatHistoryMemory YOK — bkz. yukarıdaki SAPMA notu.
+}
+
 public sealed record AgentDefinition
 {
-    // ...mevcut uyeler
+    // ...mevcut üyeler
     public CompactionSettings? Compaction { get; init; }
     public MemorySettings? Memory { get; init; }
 }
 ```
 
-Geçersiz birleşim **derleme hatasıdır**, sessizce yok sayılmaz — K-034'te
-`ReasoningEffort` için verilen kararın aynısı. Örnek: `Summarization` seçilip
-hiçbir tetikleyici verilmemesi.
+Planla **birebir aynı** — tek fark `MemorySettings`'ten `EnableChatHistoryMemory`
+alanının çıkarılmış olması (kapsam dışı bırakma kararı).
 
-`Pipeline` seçilirse sıra sabittir ve dokümante edilir:
-`ToolResult → SlidingWindow → Summarization`. Serbest sıra, arayüzde anlaşılması
-zor bir yapılandırma yüzeyi üretir.
+Geçersiz birleşim **derleme hatasıdır** (`AgentDefinitionCompiler.BuildCompactionStrategy`):
+- Tetikleyicisiz `SlidingWindow`/`Truncation`/`ToolResult`/`Summarization`/`Pipeline` → `AgentPrismCompilationException`
+- `ContextWindow` + `MaxContextWindowTokens` yok → `AgentPrismCompilationException` (bu strateji tetikleyici gerektirmez, ama bu alan zorunludur)
+- Harness'ta `Compaction.Strategy != None` + `Harness.DisableCompaction == true` → çakışma hatası (aynısı `EnableFileMemory`/`DisableFileMemory` ve `EnableTodo`/`DisableTodoProvider` için)
 
----
-
-## 13.2 — Özetleme Modeli
-
-`SummarizationCompactionStrategy` bir `IChatClient` ister. Üç seçenek:
-
-| Seçenek | Sonuç |
-|---------|-------|
-| Agent'ın kendi modeli | Basit; ama pahalı modelle özet almak maliyeti artırır |
-| Yapılandırılmış "yardımcı model" | Ucuz model ile özet; ek ayar |
-| Sağlayıcının varsayılanı | Belirsiz; kullanıcı neyin çalıştığını bilmez |
-
-**Karar:** `CompactionSettings.SummarizationModel` boşsa agent'ın kendi modeli
-kullanılır; doluysa o `ModelBinding` çözülür. Ek olarak global varsayılan:
-`AgentPrismOptions.UtilityModel`. Sıra: agent ayarı → global ayar → agent'ın
-kendi modeli.
-
-Özetleme çağrısı **kendi span'ini açar** (`compact_history`) ve
-`tool_invocations`'a değil, `run_events`'e yazılır — bu bir tool çağrısı
-değildir. Token kullanımı çalıştırmanın toplamına dâhil edilir; aksi hâlde
-maliyet raporu (Faz 20) eksik olur.
+`Pipeline` sırası sabit ve kodda kurulu: `ToolResultCompactionStrategy → SlidingWindowCompactionStrategy → SummarizationCompactionStrategy`.
 
 ---
 
-## 13.3 — Bellek Sağlayıcıları
+## 13.2 — Özetleme Modeli (gerçekleşen)
+
+Karar planla birebir aynı uygulandı: `CompactionSettings.SummarizationModel`
+→ `AgentPrismOptions.UtilityModel` → agent'ın kendi modeli
+(`AgentDefinitionCompiler.ResolveSummarizationChatClient`).
+
+Özetleme çağrısı `Core/Compilation/CompactionUsageTrackingChatClient.cs` ile
+sarılır: kendi `compact_history` span'ini açar
+(`AgentPrismDiagnostics.CompactHistoryActivityName`) ve token kullanımını
+`AgentPrismRunContext.Current?.ExtraUsage` üzerinden toplar. `RunRecordingAgent.CompleteAsync`
+bu toplamı çalıştırmanın nihai `RunUsage`'ına **birleştirir** (`MergeUsage`) —
+hem `runs.usage` hem `AgentRunBudget` özetleme maliyetini görür. Gerçek bir
+çalıştırmayla doğrulandı (bkz. Testler).
+
+Özetleme olayı **ayrıca** `run_events`'e `RunEventType.HistoryCompacted` olarak
+yazılır — bu, `Core/Compilation/ObservedCompactionStrategy.cs`'in işi ve
+**her** strateji türü için (yalnız Summarization değil) çalışır.
+
+---
+
+## 13.3 — Bellek Sağlayıcıları (gerçekleşen, planla sapma var)
 
 ```csharp
 public sealed record MemorySettings
 {
-    public bool EnableChatHistoryMemory { get; init; }
     public bool EnableFileMemory { get; init; }
     public bool EnableTodo { get; init; }
     public bool EnableTextSearch { get; init; }
 }
 ```
 
-- **`ChatHistoryMemoryProvider`** — konuşma içi bellek. Durum oturumda yaşar.
-- **`FileMemoryProvider`** — `PostgresAgentFileStore` ile kalıcı ve **kiracıya
-  kapalı** bir "dosya" alanı. Yollar `{tenant}/{agent}/{...}` ile öneklenir;
-  önek zorlaması depoda yapılır, çağıranın verdiği yola güvenilmez.
-- **`TodoProvider`** — harness zaten kullanıyor; düz agent için açılır.
-- **`TextSearchProvider`** — bir arama kaynağı ister. Bu fazda **`PostgresAgentFileStore`
-  üzerinde** arama ile sınırlıdır; vektör araması kapsam dışıdır ve ayrı bir
-  fazın konusudur.
-
-**Kalıcı dosya belleği bu fazın kapsamı dışındadır.** `PostgresAgentFileStore`
-yeni bir tablo ister; bu faz migration'sız planlandı. Dolayısıyla
-`FileMemoryProvider` desteği `InMemoryAgentFileStore` ile sınırlıdır ve kalıcı
-sürüm Faz 14'ün depolama tablosuna bağlanır.
-
-> ⚠️ Bu bir plan kısıtıdır, teknik zorunluluk değil. Uygulama oturumunda kalıcı
-> dosya belleği istenirse bu faz bir migration alır ve yol haritasındaki
-> numaralar kayar. Karar o oturumda verilir ve gerekçesi yazılır.
+- **`FileMemoryProvider`** — planla aynı: `InMemoryAgentFileStore` ile kurulu
+  (`AgentPrismServiceCollectionExtensions`, `TryAddSingleton<AgentFileStore>`).
+  Kalıcı sürüm hâlâ ileri bir faza bırakıldı.
+- **`TodoProvider`** — planla aynı.
+- **`TextSearchProvider`** — planla aynı, kayıtlı `AgentFileStore` üzerinde
+  regex aramasıyla çalışır (`AgentDefinitionCompiler.SearchFileStoreAsync`).
+  Kalıcı bir `AgentFileStore` kayıt edilirse (ör. gelecekte `PostgresAgentFileStore`)
+  kod değişmeden kalıcı aramaya döner.
+- **`ChatHistoryMemoryProvider` — 🚨 planla SAPMA, kapsam dışı bırakıldı.**
+  Dokümanın ilk taslağı bunu basit "oturum içi bellek" sanıyordu. Reflection
+  ile doğrulandı: gerçek kurucusu `VectorStore` + embedding boyutu istiyor —
+  vektör tabanlı anlamsal arama. Depoda somut bir `VectorStore` implementasyonu
+  yok. **Karar (kullanıcı onayladı, K-105):** bu fazın kapsamı dışında;
+  `TextSearchProvider`'ın vektör aramasının zaten kapsam dışı bırakılmasıyla
+  tutarlı. Vektör deposu kararı verildiğinde ayrı bir faz olarak planlanmalı.
 
 ---
 
-## 13.4 — Tokenizer Bağımlılığı — ÖNCE ÖLÇÜN
-
-`CompactionMessageIndex` kurucusu bir `Tokenizer` alır. Uygulamaya başlamadan
-**önce** şunu ölçün:
+## 13.4 — Tokenizer Bağımlılığı — ÖLÇÜLDÜ
 
 ```bash
 dotnet list src/AgentPrism.Core/AgentPrism.Core.csproj package --include-transitive | grep -i token
+# > Microsoft.ML.Tokenizers   2.0.0   (Microsoft.Agents.AI.Abstractions'ın geçişli bağımlılığı)
 ```
 
-- Tokenizer `Microsoft.Agents.AI`'ın geçişli bağımlılığı ise ek paket **yoktur**
-  ve iş kolaydır.
-- Değilse `Microsoft.ML.Tokenizers` doğrudan bağımlılık olur. Bu, K-007'nin
-  ("tüketicinin bağımlılık grafiğini kirletme") sınırındadır ve **karar
-  gerektirir**: sıkıştırmayı `AgentPrism.Core`'a mı koyacağız, yoksa ayrı bir
-  `AgentPrism.Compaction` paketine mi?
+**Sonuç: yeni paket gerekmedi.** Sıkıştırma `AgentPrism.Core` içinde kaldı,
+ayrı bir `AgentPrism.Compaction` paketi açılmadı.
 
-Bu belirsizlik bilerek çözülmemiştir; ölçüm yapmadan karar vermek Faz 6'nın S2
-sapmasını tekrarlamak olur.
-
----
-
-## 13.5 — Arayüz
-
-- Agent düzenleyicisinde "Bağlam" sekmesi: strateji seçimi, eşikler, özet modeli
-- Oturum detayında: sıkıştırma olduysa "N mesaj özetlendi" satırı ve özet metni
-- Playground transcript'inde sıkıştırma olayı görünür (gizli davranış olmamalı)
-
-Bütçe hedefi: **+4 KB gzip'ten az**.
+**Ek doğrulama (gerçek çalıştırma ile):** `CompactionProvider` kurucusu bir
+`Tokenizer` parametresi almıyor; MAF içeride kendi tokenizer'ını çözüyor.
+Gerçek bir `RunAsync` çağrısı `Microsoft.ML.Tokenizers.Data.*` gibi bir ek veri
+paketi olmadan **hatasız** çalıştı (bkz. Testler → "Gerçek kanıt"). Bu, ilk
+ölçümü ikinci kez ve daha güçlü biçimde doğruladı — karar K-104.
 
 ---
 
-## Testler
+## 13.5 — Arayüz (gerçekleşen)
 
-| Proje | Yeni test |
-|-------|-----------|
-| `AgentPrism.Core.UnitTests` | Her stratejinin doğru kurulması; geçersiz birleşimde derleme hatası; özet modeli çözümleme sırası; özet token'larının çalıştırma toplamına girmesi; `Pipeline` sırası |
-| `AgentPrism.PostgreSql.IntegrationTests` | Sıkıştırılmış geçmişin `conversation_items`'a doğru yazılması; sıkıştırma sonrası oturumun geri yüklenebilmesi |
-| `AgentPrism.AspNetCore.FunctionalTests` | Bağlam ayarlarının uçtan uca kaydı ve okunması |
-| `AgentPrism.Ui.E2ETests` | Bağlam sekmesi; sıkıştırma göstergesi |
-
-**Gerçek kanıt:** uzun bir konuşma (>50 mesaj) sıkıştırma açıkken çalıştırılır;
-mesaj sayısı, token sayısı ve özet metni öncesi/sonrası dokümana yazılır.
-
----
-
-## Bu Fazda Verilecek Kararlar
-
-1. **Sıkıştırma `AIContextProviders` üzerinden bağlanır** (K-053).
-2. **Özet modeli çözümleme sırası:** agent ayarı → global yardımcı model →
-   agent'ın kendi modeli.
-3. **Özet token'ları çalıştırmanın toplamına dâhildir** — maliyet gerçeği
-   yansıtmalıdır.
-4. **`Pipeline` sırası sabittir** — serbest sıra kullanılabilir bir arayüz
-   üretmez.
-5. **Tokenizer bağımlılığı ölçümle karara bağlanır** (bkz. 13.4).
+- Agent düzenleyicisinde yeni **"Context"** paneli (`agent-editor.tsx`):
+  strateji seçimi, koşullu tetikleyici/korunan-sayı alanları, `ContextWindow`
+  için max pencere/çıktı token'ları, `Summarization`/`Pipeline` için özet
+  istemi ve model provider/model metin girdileri, ayrı bir "Memory" bölümünde
+  üç bellek checkbox'ı.
+- Oturum/çalıştırma detayında (`run-detail.tsx`): `HistoryCompacted` olayı
+  `history.compacted` etiketi ve mor (`--ap-violet`) renkle rozet listesinde
+  görünür.
+- Playground transkriptinde (`lib/transcript.ts` + `components/transcript.tsx`):
+  yeni `'compaction'` transkript türü, "N mesaj özetlendi" satırı + `title`
+  ipucunda önce/sonra sayıları.
+- **Bütçe:** taban (Faz 12 sonrası) 97,3 KB gzip → Faz 13 sonrası 98,2 KB gzip.
+  **Fark: +0,9 KB**, hedefin (+4 KB) çok altında.
 
 ---
 
-## Açık Sorular
+## Testler (gerçekleşen)
 
-1. **Sıkıştırma varsayılan olarak açık mı olsun?** Açık olursa uzun konuşmalar
-   kendiliğinden ucuzlar ama geçmiş sessizce değişir. Öneri: **kapalı**;
-   `HarnessSettings.DisableCompaction` zaten var ve harness'ta MAF varsayılanı
-   korunur.
-2. **Özetlenen mesajlar `conversation_items`'ta silinsin mi?** Silinirse denetim
-   izi bozulur; kalırsa depo büyür. Öneri: **kalır**, sıkıştırma yalnız modele
-   gönderilen bağlamı etkiler.
-3. **Kalıcı dosya belleği bu fazda mı gelsin?** (13.3'teki kısıt.) Öneri:
-   **hayır**, Faz 14'ün depolama tablosu geldikten sonra.
+| Proje | Dosya | Kapsam |
+|-------|-------|--------|
+| `AgentPrism.Core.UnitTests` | `Compilation/AgentDefinitionCompilerTests.cs` | Her `CompactionStrategyKind` sorunsuz kuruluyor; tetikleyicisiz strateji ve `ContextWindow` eksik alan derleme hatası veriyor; Harness çakışma denetimleri; `SummarizationModel` çözümleme sırası (agent → yardımcı model → agent'ın kendi modeli) üç ayrı testte; `Pipeline` sabit sırası `ObservedCompactionStrategy.Inner` (test-only `internal` erişim) üzerinden doğrulanıyor; bellek sağlayıcıları (dosya deposu yoksa hata, varsa üç sağlayıcı kuruluyor) |
+| `AgentPrism.Core.UnitTests` | `Recording/CompactionUsageAccumulatorTests.cs` | Toplama aritmetiği, null-safe `Add`, boşken `null` |
+| `AgentPrism.Core.UnitTests` | `Recording/RunRecordingAgentTests.cs` (genişletildi) | **Gerçek bir MAF `CompactionProvider` zinciriyle** (sahte `IChatClient`, gerçek `SlidingWindowCompactionStrategy`): uzun bir konuşma `RunEventType.HistoryCompacted` üretiyor; özetleme senaryosunda token kullanımı `runs.usage`'a doğru ekleniyor |
+| `AgentPrism.PostgreSql.IntegrationTests` | `Contracts/AgentDefinitionStoreContract.cs` (genişletildi) | `Compaction`+`Memory`+`CallableAgentNames` dolu bir tanımın PostgreSQL round-trip'i — bu, `AgentDefinitionPayload`'daki eksikliği yakaladı (yukarıdaki tuzak notu) |
+| `AgentPrism.AspNetCore.FunctionalTests` | `AgentCrudTests.cs` (genişletildi) | Compaction/Memory ayarlarının HTTP üzerinden round-trip'i — bu, `CompactionStrategyKind`'in `JsonStringEnumConverter` eksikliğini yakaladı |
+| `AgentPrism.UI` (vitest + tsc) | mevcut dosyalar | Yeni `'compaction'` transkript türü mevcut testleri kırmadı; `tsc --noEmit` temiz |
+| `AgentPrism.Ui.E2ETests` | `UiTests.cs` (genişletildi) | Gerçek bir tarayıcıda: strateji seçilene kadar koşullu alanlar gizli; `SlidingWindow` seçilip tetikleyici/memory dolduruluncaya kadar "Request preview" panelinin canlı JSON'unda doğru yansıdığı doğrulanıyor |
+
+**Gerçek kanıt (örnek uygulama, gerçek API maliyeti yok):** `samples/AgentPrism.Api`
+`EchoModelProvider` ile (OpenAI/OpenRouter anahtarları o oturum için boşaltılarak)
+çalıştırıldı. `SlidingWindow` (TriggerMessages=6, MinimumPreservedTurns=1) ile
+kurulu bir agent'a aynı oturumda 5 tur mesaj gönderildi. 4. turda sıkıştırma
+gerçekten tetiklendi:
+
+```
+event: HistoryCompacted
+text: "2 mesaj ozetlendi"
+payload: beforeMessages=7, afterMessages=5, beforeTokens=31, afterTokens=22
+```
+
+---
+
+## Bu Fazda Verilen Kararlar (gerçekleşen — K-104'ten devam)
+
+1. **Sıkıştırma `AIContextProviders`/`HarnessAgentOptions.CompactionStrategy` üzerinden bağlanır** (K-053 ile tutarlı).
+2. **Tokenizer bağımlılığı zaten geçişli — yeni paket yok** (K-104).
+3. **`ChatHistoryMemoryProvider` bu fazın kapsamı dışında** — VectorStore gerekçesiyle (K-105, kullanıcı kararı).
+4. **Sıkıştırma varsayılan kapalıdır** (K-106, kullanıcı kararı).
+5. **Özetlenen mesajlar `conversation_items`'ta saklanır, silinmez** (K-107, kullanıcı kararı).
+6. **Özet modeli çözümleme sırası:** agent ayarı → `AgentPrismOptions.UtilityModel` → agent'ın kendi modeli (K-108).
+7. **Özet token'ları çalıştırmanın toplamına dâhildir** (K-108, `CompactionUsageAccumulator`/`MergeUsage` ile).
+8. **`Pipeline` sırası sabittir:** ToolResult → SlidingWindow → Summarization (K-109).
+9. **`TextSearchProvider` kayıtlı `AgentFileStore`'a bağımlıdır**, bu faz `InMemoryAgentFileStore` (K-110).
+
+Tam gerekçeler `docs/KARARLAR.md`'de.
 
 ---
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Beş stratejinin her biri bir agent tanımından kurulabiliyor
-- [ ] Uzun konuşmada sıkıştırma tetikleniyor; öncesi/sonrası ölçüm dokümanda
-- [ ] Özet çağrısının token'ları çalıştırma toplamında görünüyor
-- [ ] Sıkıştırma sonrası oturum kaydedilip geri yüklenebiliyor
-- [ ] Geçersiz ayar derlemede hata veriyor, sessizce yok sayılmıyor
-- [ ] Tokenizer bağımlılığı ölçüldü ve karar yazıldı
-- [ ] Dört doğrulama kapısı sıfır uyarı
+- [x] Beş stratejinin (+ Pipeline) her biri bir agent tanımından kurulabiliyor
+- [x] Uzun konuşmada sıkıştırma tetikleniyor; öncesi/sonrası ölçüm bu dokümanda (yukarıda)
+- [x] Özet çağrısının token'ları çalıştırma toplamında görünüyor (`RunRecordingAgentTests.Ozetleme_token_kullanimi_calistirma_toplamina_eklenir`)
+- [x] Sıkıştırma sonrası oturum kaydedilip geri yüklenebiliyor (PostgreSQL round-trip testi)
+- [x] Geçersiz ayar derlemede hata veriyor, sessizce yok sayılmıyor
+- [x] Tokenizer bağımlılığı ölçüldü ve karar yazıldı (K-104)
+- [x] Dört doğrulama kapısı sıfır uyarı
 
 ---
 
-## Riskler
+## Riskler (gerçekleşen sonuç)
 
-| Risk | Önlem |
+| Risk | Sonuç |
 |------|-------|
-| Yeni paket bağımlılığı (tokenizer) | Önce ölçülür; gerekirse ayrı paket |
-| Özetleme maliyeti fark edilmez | Token'lar çalıştırma toplamına girer, span açılır |
-| Sıkıştırma bilgiyi kaybettirir | Varsayılan kapalı; `MinimumPreserved*` sınırları; özet metni saklanır |
-| Oturum durumu büyür | Sıkıştırma durumu `sessions.state` içinde; `json` sütunu (K-027) ve boyut ölçülür |
+| Yeni paket bağımlılığı (tokenizer) | **Gerçekleşmedi** — geçişli bağımlılık yeterli, gerçek çalıştırmayla da doğrulandı |
+| Özetleme maliyeti fark edilmez | Çözüldü — `CompactionUsageAccumulator` + `compact_history` span |
+| Sıkıştırma bilgiyi kaybettirir | Varsayılan kapalı; `MinimumPreserved*` sınırları; özet metni `run_events`'te saklanır |
+| Oturum durumu büyür | `agent_definitions.definition` sütunu ölçülmedi ama alan sayısı küçük (10 civarı ek alan); risk düşük görüldü |
 
 ---
 
 ## Sonraki Faza Devir Notu
 
-- Faz 14'ün `attachments` tablosu kalıcı `AgentFileStore` için doğal ev
-  olabilir; oraya bakılmalıdır.
-- Faz 18 (eval) sıkıştırmanın kaliteyi düşürüp düşürmediğini ölçebilecek ilk
-  araçtır; "sıkıştırma açık/kapalı" bir A/B senaryosudur (Faz 19).
-- Faz 20 (maliyet) özet çağrılarını ayrı bir kalem olarak gösterebilir.
+- Faz 14'ün `attachments` tablosu kalıcı `AgentFileStore` için doğal ev olabilir.
+- `ChatHistoryMemoryProvider` (vektör tabanlı bellek) hâlâ hiç kullanılmıyor —
+  bir `VectorStore` implementasyonu ve embedding sağlayıcısı kararı gerektirir;
+  ayrı bir faz olarak planlanmalı (F-11'in tamamlanmamış kısmı).
+- Faz 18 (eval) sıkıştırmanın kaliteyi düşürüp düşürmediğini ölçebilecek ilk araçtır.
+- Faz 20 (maliyet) özet çağrılarını ayrı bir kalem olarak gösterebilir — `RunUsage`
+  zaten toplamı taşıyor ama özet payı ayrıştırılmış değil.
+- **Bağımsız bulunan hata:** `AgentDefinitionPayload`'da `CallableAgentNames`
+  eksikti (Faz 12'den kalma); bu fazda bulunup düzeltildi. Yeni bir
+  `AgentDefinition` alanı eklerken **hem** `AgentPrismCoreJsonContext`'in
+  kapsadığı tipi **hem** `AgentPrism.PostgreSql/Internal/AgentDefinitionPayload.cs`'i
+  güncellemeyi unutmayın — ikisi ayrı şemalardır.

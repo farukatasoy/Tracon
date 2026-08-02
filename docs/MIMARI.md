@@ -8,18 +8,18 @@
 
 | Paket | Durum | Faz |
 |-------|-------|-----|
-| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) · 5 (`AgentPrismRunOptions`) · 6 (telemetri, tool çağrısı, onay, MCP, kiracı) · 8 (`IModelProviderHealthCheck`, `AgentPrismProviderUnavailableException`) · 9 (`IAuditLog`, `IAuditActorResolver`, `IAuditDecorated`) · 10 (`AgentSkillDefinition`, `IAgentSkillStore`) · 11 (script tanımı, `ISkillScriptGrantStore`) · 12 (`AgentRunBudget`, çalıştırma ağacı alanları, `CallableAgentNames`) |
-| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) · 5 (çağıranın verdiği çalıştırma kimliği) · 6 (span, metrik, onay kuralı) · 8 (devre kesici, sağlık önbelleği) · 9 (`AuditActorContext`, `AuditSecretFilter`, `Auditing*Store` dekoratörleri) · 10 (skill katalogu, MAF source, fingerprint cache) · 11 (`SandboxedSkillScriptRunner`, `AgentPrismRunContext`) · 12 (`AgentCallGraph`, `CallableAgentResolver`, `ChildAgentInvoker`, `AgentRunScope`) |
-| `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 · 4 (özet sorgusu) · 6 (migration 0002, dört yeni depo) · 9 (`PostgresAuditLog`, migration **yok** — şema Faz 0'dan hazırdı) · 10 (migration 0003, `PostgresAgentSkillStore`) · 11 (migration 0004) · 12 (migration 0005 — `runs` ağaç sütunları, **yeni tablo yok**) |
+| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) · 5 (`AgentPrismRunOptions`) · 6 (telemetri, tool çağrısı, onay, MCP, kiracı) · 8 (`IModelProviderHealthCheck`, `AgentPrismProviderUnavailableException`) · 9 (`IAuditLog`, `IAuditActorResolver`, `IAuditDecorated`) · 10 (`AgentSkillDefinition`, `IAgentSkillStore`) · 11 (script tanımı, `ISkillScriptGrantStore`) · 12 (`AgentRunBudget`, çalıştırma ağacı alanları, `CallableAgentNames`) · 13 (`CompactionSettings`, `CompactionStrategyKind`, `MemorySettings`, `RunEventType.HistoryCompacted`) |
+| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) · 5 (çağıranın verdiği çalıştırma kimliği) · 6 (span, metrik, onay kuralı) · 8 (devre kesici, sağlık önbelleği) · 9 (`AuditActorContext`, `AuditSecretFilter`, `Auditing*Store` dekoratörleri) · 10 (skill katalogu, MAF source, fingerprint cache) · 11 (`SandboxedSkillScriptRunner`, `AgentPrismRunContext`) · 12 (`AgentCallGraph`, `CallableAgentResolver`, `ChildAgentInvoker`, `AgentRunScope`) · 13 (`ObservedCompactionStrategy`, `CompactionUsageTrackingChatClient`, `CompactionUsageAccumulator`, `AgentPrismOptions.UtilityModel`) |
+| `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 · 4 (özet sorgusu) · 6 (migration 0002, dört yeni depo) · 9 (`PostgresAuditLog`, migration **yok** — şema Faz 0'dan hazırdı) · 10 (migration 0003, `PostgresAgentSkillStore`) · 11 (migration 0004) · 12 (migration 0005 — `runs` ağaç sütunları, **yeni tablo yok**) · 13 (`AgentDefinitionPayload` genişletildi, **yeni migration yok** — `agent_definitions.definition` opak JSON) |
 | `AgentPrism.OpenAI` | ✅ Tamamlandı | 3 · 8 (`UseOpenAICompatible`, sağlık denetimi) |
 | `AgentPrism.Mcp` | ✅ Tamamlandı | 6 |
-| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 · 5 (arayüz rota grubu) · 6 (çok kiracılılık, yönetişim uçları) · 8 (`/api/models/health`) · 9 (`AgentPrismPolicies`, rol dağıtımı, `/api/audit`, `/api/meta` rol alanı) · 10 (`/api/skills`) · 11 (script izin uçları) · 12 (çağrı grafiği denetimi, `/api/runs/{id}/tree`, `includeChildren`) |
-| `AgentPrism.UI` | ✅ Tamamlandı | 5 · 6 (waterfall, MCP ekranı, onay kartı) · 8 (sağlık rozeti) · 9 (Audit ekranı, rol tabanlı düğme gizleme) · 10 (Skills ekranı ve agent skill seçicisi) · 11 (script izin yüzeyi) · 12 (çağrı ağacı paneli, kök/alt filtresi, çağrılabilir agent seçicisi) |
+| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 · 5 (arayüz rota grubu) · 6 (çok kiracılılık, yönetişim uçları) · 8 (`/api/models/health`) · 9 (`AgentPrismPolicies`, rol dağıtımı, `/api/audit`, `/api/meta` rol alanı) · 10 (`/api/skills`) · 11 (script izin uçları) · 12 (çağrı grafiği denetimi, `/api/runs/{id}/tree`, `includeChildren`) · 13 (`AgentDefinitionRequest.Compaction`/`Memory`) |
+| `AgentPrism.UI` | ✅ Tamamlandı | 5 · 6 (waterfall, MCP ekranı, onay kartı) · 8 (sağlık rozeti) · 9 (Audit ekranı, rol tabanlı düğme gizleme) · 10 (Skills ekranı ve agent skill seçicisi) · 11 (script izin yüzeyi) · 12 (çağrı ağacı paneli, kök/alt filtresi, çağrılabilir agent seçicisi) · 13 (Context paneli, `HistoryCompacted` rozeti/transkript satırı) |
 | `AgentPrism` (meta) | ✅ Paketleniyor | 0 |
 
-Testler: **583 .NET testi + 42 frontend birim testi geçiyor** — 251 birim testi
-(174 Core + 77 OpenAI) + 148 fonksiyonel test (TestHost, gerçek HTTP) + 168 entegrasyon
-testi (Testcontainers, gerçek PostgreSQL) + 16 arayüz E2E testi (Playwright, gerçek
+Testler: **609 .NET testi + 42 frontend birim testi geçiyor** — 275 birim testi
+(198 Core + 77 OpenAI) + 149 fonksiyonel test (TestHost, gerçek HTTP) + 168 entegrasyon
+testi (Testcontainers, gerçek PostgreSQL) + 17 arayüz E2E testi (Playwright, gerçek
 Kestrel) + 42 Vitest testi (saf mantık; `npm run build` içinde koşar, dolayısıyla
 `dotnet build` de koşar). Build, test, pack ve format kapıları sıfır uyarı.
 
@@ -34,6 +34,17 @@ span'leri kök span'in altında iç içe görünür ve ağaç boyunca **tek** bi
 `AgentRunBudget` nesnesi paylaşılır. Çağrı grafiği kaydetme anında döngüye karşı
 denetlenir; çalışma anında derinlik sayacı ikinci savunma hattıdır. Bkz.
 [`12-AGENT-CAGRI-GRAFIGI.md`](12-AGENT-CAGRI-GRAFIGI.md).
+
+Faz 13 sonunda bir agent'ın konuşma geçmişi **sıkıştırılabiliyor**: beş
+strateji (+ sabit sıralı bir pipeline) hem düz `ChatClientAgent` hem
+`HarnessAgent` yolunda çalışıyor, tetiklendiğinde `run_events`'e
+`HistoryCompacted` olarak yazılıyor ve özetleme çağrısının token'ları
+çalıştırmanın toplamına ekleniyor. Üç bellek sağlayıcısı (dosya belleği, todo,
+metin araması) da aynı yoldan açılabiliyor. Gerçek bir HTTP çalıştırmasında
+doğrulandı: `SlidingWindow` stratejisi 4. turda tetiklendi ve 7 mesajı 5'e
+indirdi. Vektör tabanlı `ChatHistoryMemoryProvider` bilinçli olarak kapsam
+dışı bırakıldı — gerçek kurucusu bir `VectorStore` istiyor, depoda somut bir
+implementasyon yok. Bkz. [`13-BAGLAM-SIKISTIRMA-VE-BELLEK.md`](13-BAGLAM-SIKISTIRMA-VE-BELLEK.md).
 
 Faz 5 sonunda kabul senaryosu tamamlandı: paket kurulur, `.UseUI()` +
 `app.MapAgentPrism()` yazılır ve tarayıcıda bir kontrol düzlemi açılır. Faz 6 ekranı
@@ -432,6 +443,45 @@ HttpClientTransportOptions { Endpoint · AdditionalHeaders · TransportMode · O
 otomatik onay kurallarını dener → kural eşleşmezse istek yanıtta yüzeye çıkar ve
 çalıştırma biter → karar bir **sonraki turun** girdisi olarak gelir.
 
+### Faz 13'te kullanılanlar
+
+```csharp
+// Microsoft.Agents.AI.Compaction
+sealed class CompactionProvider : AIContextProvider { CompactionProvider(CompactionStrategy, string?, ILoggerFactory?); }
+abstract class CompactionStrategy {
+    protected CompactionStrategy(CompactionTrigger trigger, CompactionTrigger? target);
+    public ValueTask<bool> CompactAsync(CompactionMessageIndex, ILogger, CancellationToken); // PUBLIC, sanal değil
+    protected virtual ValueTask<bool> CompactCoreAsync(CompactionMessageIndex, ILogger, CancellationToken);
+}
+sealed class SlidingWindowCompactionStrategy(CompactionTrigger, int minimumPreservedTurns, CompactionTrigger?) : CompactionStrategy;
+sealed class TruncationCompactionStrategy(CompactionTrigger, int minimumPreservedGroups, CompactionTrigger?) : CompactionStrategy;
+sealed class ToolResultCompactionStrategy(CompactionTrigger, int minimumPreservedGroups, CompactionTrigger?) : CompactionStrategy;
+sealed class SummarizationCompactionStrategy(IChatClient, CompactionTrigger, int minimumPreservedGroups, string? prompt, CompactionTrigger?) : CompactionStrategy;
+sealed class ContextWindowCompactionStrategy(int maxContextWindowTokens, int maxOutputTokens, double, double) : CompactionStrategy; // tetikleyici YOK
+sealed class PipelineCompactionStrategy(IEnumerable<CompactionStrategy>) : CompactionStrategy;                                       // tetikleyici YOK
+sealed class CompactionMessageIndex(IList<CompactionMessageGroup>, Tokenizer);  // Microsoft.ML.Tokenizers — gecisli bagimlilik, yeni paket YOK
+delegate bool CompactionTrigger(CompactionMessageIndex);
+static class CompactionTriggers { TokensExceed/MessagesExceed/TurnsExceed/GroupsExceed/HasToolCalls/TokensBelow/All/Any }
+
+// Microsoft.Agents.AI — bellek
+sealed class FileMemoryProvider(AgentFileStore, Func<AgentSession,FileMemoryState>?, FileMemoryProviderOptions?) : AIContextProvider;
+sealed class TodoProvider(TodoProviderOptions?) : AIContextProvider;
+sealed class TextSearchProvider(Func<string,CancellationToken,Task<IEnumerable<TextSearchResult>>>, TextSearchProviderOptions?, ILoggerFactory?) : MessageAIContextProvider;
+abstract class AgentFileStore { ReadAsync/WriteAsync/ListChildrenAsync/SearchAsync/DeleteAsync/CreateDirectoryAsync/FileExistsAsync }
+sealed class InMemoryAgentFileStore : AgentFileStore;  // bu fazda kullanilan somut depo
+
+// HarnessAgentOptions'ta bu fazda baglanan uyeler
+CompactionStrategy CompactionStrategy; bool DisableCompaction;
+AgentFileStore FileMemoryStore; bool DisableFileMemory; bool DisableTodoProvider;
+IEnumerable<AIContextProvider> AIContextProviders;  // TextSearchProvider bu yoldan eklendi
+```
+
+**🚨 Sapma:** `ChatHistoryMemoryProvider` kullanılmadı. Gerçek kurucusu
+`(VectorStore, string collectionName, int vectorDimensions, ...)` istiyor —
+vektör tabanlı anlamsal arama, basit oturum-içi bellek değil. Karar K-105
+(kullanıcı onayladı): depoda somut bir `VectorStore` implementasyonu olmadan
+kapsam dışı.
+
 ### Hâlâ kullanılmayan MAF genişleme noktaları
 
 ```csharp
@@ -441,10 +491,10 @@ IsolationKeyScopedAgentSessionStore · SessionIsolationKeyProvider
 // oturum deposu sarmalayicisi gerekmedi. Tuketici kendi AgentSessionStore'unu
 // MapAgentPrism'den once kaydederse onunki kazanir.
 
-// Microsoft.Agents.AI — degerlendirme, sikistirma, skill, arka plan agent'lari
-AgentSkill · AgentSkillsProvider · AgentFileStore      → Faz 10 · 11 (F-09)
+// Microsoft.Agents.AI — degerlendirme, skill, arka plan agent'lari, vektor bellek
+AgentSkill · AgentSkillsProvider                       → Faz 10 (F-09)
 BackgroundAgentsProvider · HarnessAgentOptions.BackgroundAgents → Faz 12 (F-10, K-062)
-CompactionProvider · SummarizationCompactionStrategy   → Faz 13 (F-11)
+ChatHistoryMemoryProvider · VectorStore                → planlanmadi (K-105 — VectorStore karari verilince)
 EvalItem · EvalCheck · LocalEvaluator · IAgentEvaluator → Faz 18 (F-14)
 AIJudgeLoopEvaluator · LoopAgent                       → planlanmadi (eval'den AYRI kavram)
 Microsoft.Agents.AI.Workflows                          → Faz 15 · 16 (F-27, K-054)
@@ -460,6 +510,9 @@ Microsoft.Agents.AI.Workflows                          → Faz 15 · 16 (F-27, K
 | `AgentFileStore` bir **soyutlamadır**, dosya sistemi değil | Veritabanı destekli uygulama, agent'a "dosya" verirken diske hiç dokunmaz (K-062 endişesini ortadan kaldırır) |
 | `WorkflowVisualizer.ToMermaidString(workflow)` **var** | Graf metni MAF'tan gelir; tarayıcıda render kararı ayrıdır (Faz 16) |
 | `HarnessAgentOptions` üyeleri: `AgentSkillsSource`, `CompactionStrategy`, `FileMemoryStore`, `LoopEvaluators`, `BackgroundAgents` | Harness zaten bunları içeride kullanıyor; düz agent için açığa çıkarmak gerekir |
+| `ChatHistoryMemoryProvider` **`VectorStore` istiyor**, basit bellek değil (Faz 13) | Kapsam dışı bırakıldı (K-105); vektör deposu kararı verilince ayrı bir faz |
+| `CompactionProvider` **tokenizer parametresi almaz**, MAF içeride kendi çözer (Faz 13) | `Microsoft.ML.Tokenizers.Data.*` gibi bir veri paketi gerekmedi; gerçek çalıştırmayla doğrulandı |
+| `CompactionStrategy.CompactAsync` **public ve sanal değil**, `CompactCoreAsync` korumalı (Faz 13) | Bir sarmalayıcı iç stratejiyi ancak `CompactAsync` ile çağırabilir — C#'ta korumalı üyeye kardeş tip üzerinden erişilemez |
 
 ---
 

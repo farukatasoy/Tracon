@@ -127,7 +127,17 @@ public abstract class AgentDefinitionStoreContract : IAsyncLifetime
     {
         var original = TestData.Definition("full") with
         {
+            CallableAgentNames = ["arastirmaci"],
             Harness = new HarnessSettings { MaxContextWindowTokens = 4096, DisableWebSearch = true },
+            Compaction = new CompactionSettings
+            {
+                Strategy = CompactionStrategyKind.Summarization,
+                TriggerTokens = 8_000,
+                MinimumPreservedGroups = 4,
+                SummarizationPrompt = "kisa ve oz ozetle",
+                SummarizationModel = new ModelBinding { Provider = "echo", Model = "echo-summarizer" },
+            },
+            Memory = new MemorySettings { EnableFileMemory = true, EnableTodo = true, EnableTextSearch = true },
             Metadata = new Dictionary<string, JsonElement>(StringComparer.Ordinal)
             {
                 ["owner"] = TestData.State("\"platform-ekibi\""),
@@ -146,9 +156,22 @@ public abstract class AgentDefinitionStoreContract : IAsyncLifetime
         loaded.Model.Model.ShouldBe("echo-1");
         loaded.Model.Temperature.ShouldBe(0.5f);
         loaded.ToolNames.ShouldBe(["alpha", "beta"]);
+        loaded.CallableAgentNames.ShouldBe(["arastirmaci"]);
         loaded.Harness.ShouldNotBeNull();
         loaded.Harness.MaxContextWindowTokens.ShouldBe(4096);
         loaded.Harness.DisableWebSearch.ShouldBeTrue();
+        loaded.Compaction.ShouldNotBeNull();
+        loaded.Compaction.Strategy.ShouldBe(CompactionStrategyKind.Summarization);
+        loaded.Compaction.TriggerTokens.ShouldBe(8_000);
+        loaded.Compaction.MinimumPreservedGroups.ShouldBe(4);
+        loaded.Compaction.SummarizationPrompt.ShouldBe("kisa ve oz ozetle");
+        loaded.Compaction.SummarizationModel.ShouldNotBeNull();
+        loaded.Compaction.SummarizationModel!.Provider.ShouldBe("echo");
+        loaded.Compaction.SummarizationModel.Model.ShouldBe("echo-summarizer");
+        loaded.Memory.ShouldNotBeNull();
+        loaded.Memory.EnableFileMemory.ShouldBeTrue();
+        loaded.Memory.EnableTodo.ShouldBeTrue();
+        loaded.Memory.EnableTextSearch.ShouldBeTrue();
         loaded.Metadata["owner"].GetString().ShouldBe("platform-ekibi");
         loaded.Metadata["priority"].GetInt32().ShouldBe(3);
     }
