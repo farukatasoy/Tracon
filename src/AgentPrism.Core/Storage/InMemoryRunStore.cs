@@ -40,6 +40,8 @@ public sealed class InMemoryRunStore : IRunStore
         {
             Id = info.RunId,
             AgentName = info.AgentName,
+            Kind = info.Kind,
+            WorkflowName = info.WorkflowName,
             Status = RunStatus.Running,
             StartedAt = info.StartedAt,
             TenantId = info.TenantId,

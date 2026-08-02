@@ -193,6 +193,17 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddSingleton<IAttachmentStore>(
             static provider => new InMemoryAttachmentStore(provider.GetService<IAttachmentStorage>()));
 
+        // Workflow tanimlari ve kontrol noktalari. Depolar HER ZAMAN kayitlidir;
+        // yurutme motoru ise UseWorkflows() cagrilana kadar KAPALIDIR. Bu ayrim
+        // bilinclidir: HTTP katmani tanimlari motor olmadan da listeleyip
+        // yonetebilmelidir, yalnizca "calistir" ucu 501 doner.
+        services.TryAddSingleton<IWorkflowDefinitionStore>(static provider => new AuditingWorkflowDefinitionStore(
+            new InMemoryWorkflowDefinitionStore(),
+            provider.GetRequiredService<IAuditLog>(),
+            provider.GetRequiredService<IAuditActorResolver>(),
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingWorkflowDefinitionStore>>()));
+        services.TryAddSingleton<IWorkflowCheckpointStore, InMemoryWorkflowCheckpointStore>();
+
         services.TryAddSingleton<ITenantStore>(static provider => new AuditingTenantStore(
             new InMemoryTenantStore(),
             provider.GetRequiredService<IAuditLog>(),

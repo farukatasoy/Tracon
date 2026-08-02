@@ -6,6 +6,7 @@
     <Project Path="src/AgentPrism.PostgreSql/AgentPrism.PostgreSql.csproj" />
     <Project Path="src/AgentPrism.OpenAI/AgentPrism.OpenAI.csproj" />
     <Project Path="src/AgentPrism.Mcp/AgentPrism.Mcp.csproj" />
+    <Project Path="src/AgentPrism.Workflows/AgentPrism.Workflows.csproj" />
     <Project Path="src/AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj" />
     <Project Path="src/AgentPrism.UI/AgentPrism.UI.csproj" />
     <Project Path="src/AgentPrism/AgentPrism.csproj" />
@@ -20,6 +21,7 @@
     <Project Path="tests/AgentPrism.Core.UnitTests/AgentPrism.Core.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.OpenAI.UnitTests/AgentPrism.OpenAI.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.PostgreSql.IntegrationTests/AgentPrism.PostgreSql.IntegrationTests.csproj" />
+    <Project Path="tests/AgentPrism.Workflows.UnitTests/AgentPrism.Workflows.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.Ui.E2ETests/AgentPrism.Ui.E2ETests.csproj" />
   </Folder>
 

@@ -388,6 +388,43 @@ public abstract class RunStoreContract : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Workflow_calistirmasi_ayni_tabloda_yasar()
+    {
+        // Workflow calistirmalari icin AYRI BIR TABLO YOKTUR (Faz 15). Ayrim
+        // `kind` sutunuyla yapilir ve icindeki agent'lar Faz 12'nin agac
+        // mekanizmasiyla ayni satirin altina baglanir.
+        var workflowRunId = AgentPrismId.NewId();
+        var agentRunId = AgentPrismId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(workflowRunId, "inceleme") with
+        {
+            Kind = RunKind.Workflow,
+            WorkflowName = "inceleme",
+        });
+
+        await Store.StartRunAsync(TestData.Run(agentRunId, "yazar") with
+        {
+            ParentRunId = workflowRunId,
+            RootRunId = workflowRunId,
+            Depth = 1,
+        });
+
+        var workflowRun = await Store.GetRunAsync(workflowRunId);
+
+        workflowRun.ShouldNotBeNull();
+        workflowRun.Kind.ShouldBe(RunKind.Workflow);
+        workflowRun.WorkflowName.ShouldBe("inceleme");
+        workflowRun.ChildRunCount.ShouldBe(1);
+
+        // Agent satirlari varsayilan turu korur; eski kayitlar da boyle okunur.
+        var agentRun = await Store.GetRunAsync(agentRunId);
+
+        agentRun.ShouldNotBeNull();
+        agentRun.Kind.ShouldBe(RunKind.Agent);
+        agentRun.WorkflowName.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task Liste_varsayilan_olarak_yalniz_kok_calistirmalari_doner()
     {
         var rootId = AgentPrismId.NewId();

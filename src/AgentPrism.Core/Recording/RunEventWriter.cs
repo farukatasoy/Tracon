@@ -85,14 +85,19 @@ public sealed class RunEventWriter
     /// <summary>Akisa bir olay ekler ve sira numarasini atar.</summary>
     /// <param name="draft">Olay taslagi.</param>
     /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
-    public async ValueTask AppendAsync(RunEventDraft draft, CancellationToken cancellationToken = default)
+    /// <returns>
+    /// Sira numarasi ve zaman damgasi atanmis olay. Depo hata verse veya yazici
+    /// devre disi olsa bile olay <strong>uretilir</strong>.
+    /// </returns>
+    /// <remarks>
+    /// Olayin geri dondurulmesi workflow calistirmasi icindir: akisli uc, ayni
+    /// olayi hem depoya yazip hem istemciye gondermek zorundadir ve ikinci bir
+    /// kez kurmak sira numarasini ikiye bolerdi. Devre disi bir yazicida da
+    /// deger donmesi bilinclidir - gozlemlenebilirligin kapanmasi, istemciye
+    /// akan yaniti kesmemelidir.
+    /// </remarks>
+    public async ValueTask<RunEvent> AppendAsync(RunEventDraft draft, CancellationToken cancellationToken = default)
     {
-        if (IsDisabled)
-        {
-            return;
-        }
-
         var runEvent = new RunEvent
         {
             RunId = RunId,
@@ -105,6 +110,11 @@ public sealed class RunEventWriter
             Payload = _options.RecordToolPayloads ? Truncate(draft.Payload) : null,
         };
 
+        if (IsDisabled)
+        {
+            return runEvent;
+        }
+
         try
         {
             await _store.AppendEventAsync(runEvent, cancellationToken).ConfigureAwait(false);
@@ -113,6 +123,8 @@ public sealed class RunEventWriter
         {
             Disable(ex, "calistirma olayi yazilamadi");
         }
+
+        return runEvent;
     }
 
     /// <summary>

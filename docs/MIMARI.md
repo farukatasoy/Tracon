@@ -4,24 +4,26 @@
 >
 > **Bu dosya her fazın sonunda güncellenir.** Gerçekleşen tasarım ile bu doküman arasında fark varsa doküman yanlıştır — koda göre düzeltilir.
 
-## Güncel Durum (2026-08-02)
+## Güncel Durum (2026-08-03)
 
 | Paket | Durum | Faz |
 |-------|-------|-----|
-| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) · 5 (`AgentPrismRunOptions`) · 6 (telemetri, tool çağrısı, onay, MCP, kiracı) · 8 (`IModelProviderHealthCheck`, `AgentPrismProviderUnavailableException`) · 9 (`IAuditLog`, `IAuditActorResolver`, `IAuditDecorated`) · 10 (`AgentSkillDefinition`, `IAgentSkillStore`) · 11 (script tanımı, `ISkillScriptGrantStore`) · 12 (`AgentRunBudget`, çalıştırma ağacı alanları, `CallableAgentNames`) · 13 (`CompactionSettings`, `CompactionStrategyKind`, `MemorySettings`, `RunEventType.HistoryCompacted`) · 14 (`AttachmentDescriptor`, `AttachmentContent`, `IAttachmentStore`, `IAttachmentStorage`, `AttachmentQuery`) |
-| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) · 5 (çağıranın verdiği çalıştırma kimliği) · 6 (span, metrik, onay kuralı) · 8 (devre kesici, sağlık önbelleği) · 9 (`AuditActorContext`, `AuditSecretFilter`, `Auditing*Store` dekoratörleri) · 10 (skill katalogu, MAF source, fingerprint cache) · 11 (`SandboxedSkillScriptRunner`, `AgentPrismRunContext`) · 12 (`AgentCallGraph`, `CallableAgentResolver`, `ChildAgentInvoker`, `AgentRunScope`) · 13 (`ObservedCompactionStrategy`, `CompactionUsageTrackingChatClient`, `CompactionUsageAccumulator`, `AgentPrismOptions.UtilityModel`) · 14 (`AttachmentTypeGuard`, `InMemoryAttachmentStore`, `AttachmentResolvingChatClient`, `AttachmentUriReference`) |
-| `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 · 4 (özet sorgusu) · 6 (migration 0002, dört yeni depo) · 9 (`PostgresAuditLog`, migration **yok** — şema Faz 0'dan hazırdı) · 10 (migration 0003, `PostgresAgentSkillStore`) · 11 (migration 0004) · 12 (migration 0005 — `runs` ağaç sütunları, **yeni tablo yok**) · 13 (`AgentDefinitionPayload` genişletildi, **yeni migration yok** — `agent_definitions.definition` opak JSON) · 14 (migration 0006 — `attachments`, `agent_files`; `PostgresAttachmentStore`, `PostgresAgentFileStore`) |
+| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) · 5 (`AgentPrismRunOptions`) · 6 (telemetri, tool çağrısı, onay, MCP, kiracı) · 8 (`IModelProviderHealthCheck`, `AgentPrismProviderUnavailableException`) · 9 (`IAuditLog`, `IAuditActorResolver`, `IAuditDecorated`) · 10 (`AgentSkillDefinition`, `IAgentSkillStore`) · 11 (script tanımı, `ISkillScriptGrantStore`) · 12 (`AgentRunBudget`, çalıştırma ağacı alanları, `CallableAgentNames`) · 13 (`CompactionSettings`, `CompactionStrategyKind`, `MemorySettings`, `RunEventType.HistoryCompacted`) · 14 (`AttachmentDescriptor`, `AttachmentContent`, `IAttachmentStore`, `IAttachmentStorage`, `AttachmentQuery`) · 15 (`RunKind`, `WorkflowDefinition`, `WorkflowKind`, `WorkflowDescriptor`, `IWorkflowRunner`, `IWorkflowDefinitionStore`, `IWorkflowCheckpointStore`, sekiz yeni `RunEventType`) |
+| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) · 5 (çağıranın verdiği çalıştırma kimliği) · 6 (span, metrik, onay kuralı) · 8 (devre kesici, sağlık önbelleği) · 9 (`AuditActorContext`, `AuditSecretFilter`, `Auditing*Store` dekoratörleri) · 10 (skill katalogu, MAF source, fingerprint cache) · 11 (`SandboxedSkillScriptRunner`, `AgentPrismRunContext`) · 12 (`AgentCallGraph`, `CallableAgentResolver`, `ChildAgentInvoker`, `AgentRunScope`) · 13 (`ObservedCompactionStrategy`, `CompactionUsageTrackingChatClient`, `CompactionUsageAccumulator`, `AgentPrismOptions.UtilityModel`) · 14 (`AttachmentTypeGuard`, `InMemoryAttachmentStore`, `AttachmentResolvingChatClient`, `AttachmentUriReference`) · 15 (`WorkflowDefinitionValidator`, `InMemoryWorkflow*Store`, `AuditingWorkflowDefinitionStore`, `RunEventWriter.AppendAsync` artık olayı döndürür) |
+| `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 · 4 (özet sorgusu) · 6 (migration 0002, dört yeni depo) · 9 (`PostgresAuditLog`, migration **yok** — şema Faz 0'dan hazırdı) · 10 (migration 0003, `PostgresAgentSkillStore`) · 11 (migration 0004) · 12 (migration 0005 — `runs` ağaç sütunları, **yeni tablo yok**) · 13 (`AgentDefinitionPayload` genişletildi, **yeni migration yok** — `agent_definitions.definition` opak JSON) · 14 (migration 0006 — `attachments`, `agent_files`; `PostgresAttachmentStore`, `PostgresAgentFileStore`) · 15 (migration 0007 — `workflows`, `workflow_checkpoints`, `runs.kind`/`workflow_name`; iki yeni depo) |
 | `AgentPrism.OpenAI` | ✅ Tamamlandı | 3 · 8 (`UseOpenAICompatible`, sağlık denetimi) |
 | `AgentPrism.Mcp` | ✅ Tamamlandı | 6 |
-| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 · 5 (arayüz rota grubu) · 6 (çok kiracılılık, yönetişim uçları) · 8 (`/api/models/health`) · 9 (`AgentPrismPolicies`, rol dağıtımı, `/api/audit`, `/api/meta` rol alanı) · 10 (`/api/skills`) · 11 (script izin uçları) · 12 (çağrı grafiği denetimi, `/api/runs/{id}/tree`, `includeChildren`) · 13 (`AgentDefinitionRequest.Compaction`/`Memory`) · 14 (`/api/attachments` uçları, `AgentRunRequest.AttachmentIds`, `/v1/responses` gömülü `data:` URI kabulü) |
+| `AgentPrism.Workflows` | ✅ Tamamlandı | 15 |
+| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 · 5 (arayüz rota grubu) · 6 (çok kiracılılık, yönetişim uçları) · 8 (`/api/models/health`) · 9 (`AgentPrismPolicies`, rol dağıtımı, `/api/audit`, `/api/meta` rol alanı) · 10 (`/api/skills`) · 11 (script izin uçları) · 12 (çağrı grafiği denetimi, `/api/runs/{id}/tree`, `includeChildren`) · 13 (`AgentDefinitionRequest.Compaction`/`Memory`) · 14 (`/api/attachments` uçları, `AgentRunRequest.AttachmentIds`, `/v1/responses` gömülü `data:` URI kabulü) · 15 (`/api/workflows` uçları, SSE çalıştırma ve sürdürme, `501` deseni) |
 | `AgentPrism.UI` | ✅ Tamamlandı | 5 · 6 (waterfall, MCP ekranı, onay kartı) · 8 (sağlık rozeti) · 9 (Audit ekranı, rol tabanlı düğme gizleme) · 10 (Skills ekranı ve agent skill seçicisi) · 11 (script izin yüzeyi) · 12 (çağrı ağacı paneli, kök/alt filtresi, çağrılabilir agent seçicisi) · 13 (Context paneli, `HistoryCompacted` rozeti/transkript satırı) · 14 (Playground dosya yükleme, sürükle-bırak, ek çipi/önizleme) |
 | `AgentPrism` (meta) | ✅ Paketleniyor | 0 |
 
-Testler: **669 .NET testi + 42 frontend birim testi geçiyor** — 302 birim testi
-(225 Core + 77 OpenAI) + 162 fonksiyonel test (TestHost, gerçek HTTP) + 187 entegrasyon
-testi (Testcontainers, gerçek PostgreSQL) + 18 arayüz E2E testi (Playwright, gerçek
-Kestrel) + 42 Vitest testi (saf mantık; `npm run build` içinde koşar, dolayısıyla
-`dotnet build` de koşar). Build, test, pack ve format kapıları sıfır uyarı.
+Testler: **758 .NET testi + 42 frontend birim testi geçiyor** — 344 birim testi
+(225 Core + 77 OpenAI + 42 Workflows) + 171 fonksiyonel test (TestHost, gerçek HTTP)
++ 225 entegrasyon testi (Testcontainers, gerçek PostgreSQL) + 18 arayüz E2E testi
+(Playwright, gerçek Kestrel) + 42 Vitest testi (saf mantık; `npm run build` içinde
+koşar, dolayısıyla `dotnet build` de koşar). Build, test, pack ve format kapıları
+sıfır uyarı; `dotnet pack` **9 paket** üretir.
 
 Faz 9 sonunda AgentPrism **denetlenebilir**: üç rol (Reader/Operator/Admin) uç
 grupları arasında ayrım yapıyor, `audit_log` gerçekten doluyor (agent, MCP sunucusu,
@@ -58,6 +60,22 @@ oturum silindiğinde eklerin gitmesi uygulama katmanında yapılır. Aynı
 migration (0006) `agent_files` tablosunu da getirdi: Faz 13'ten kalan
 `FileMemoryProvider`/`TextSearchProvider`, kod değişmeden kalıcı belleğe
 (`PostgresAgentFileStore`) döndü. Bkz. [`14-COK-MODLULUK.md`](14-COK-MODLULUK.md).
+
+Faz 15 sonunda katalogdaki agent'lar **workflow olarak zincirlenebiliyor**.
+Beş hazır desen (Sequential, Concurrent, Handoff, GroupChat, Magentic) arayüzden
+tanımlanabilir; serbest graf yalnızca kodda kurulur (K2 korunur). Her yürütme bir
+`runs` satırıdır (`kind = Workflow`) ve içinde çağrılan her agent Faz 12'nin
+`parent_run_id` mekanizmasıyla altına bağlanır — waterfall ek kod olmadan doğru
+çizilir. Her super-step'te bir kontrol noktası yazılır ve yarım kalan bir yürütme
+ortasından sürdürülebilir. Gerçek bir çalıştırmada doğrulandı: bir workflow + iki
+agent satırı, ağaç toplamı 329 token, üç zincirli kontrol noktası, hem kodda hem
+arayüzden tanımlı workflow için başarılı sürdürme.
+
+🚨 **Bilinen sınır:** MAF executor kimliklerini agent *örneğinden* türetir ve
+`AIAgent.Id` sanal değildir. `WorkflowAgentCache` kimlikleri süreç ömrü boyunca
+sabitler; uygulama yeniden başladığında eski kontrol noktaları kullanılamaz.
+Gerekçe ve seçenekler: [K-122](KARARLAR.md), karar Faz 16'da verilecek. Bkz.
+[`15-WORKFLOWS-YURUTME.md`](15-WORKFLOWS-YURUTME.md).
 
 Faz 5 sonunda kabul senaryosu tamamlandı: paket kurulur, `.UseUI()` +
 `app.MapAgentPrism()` yazılır ve tarayıcıda bir kontrol düzlemi açılır. Faz 6 ekranı
@@ -134,6 +152,7 @@ flowchart TD
     PG["<b>AgentPrism.PostgreSql</b><br/>kalıcılık"]
     OA["<b>AgentPrism.OpenAI</b><br/>openai · openai-responses"]
     MCP["<b>AgentPrism.Mcp</b><br/>uzak MCP tool keşfi"]
+    WF["<b>AgentPrism.Workflows</b><br/>workflow yürütme · beş desen"]
 
     CORE["<b>AgentPrism.Core</b><br/>IAgentCatalog ◄ IAgentSource[] · kod · MAF · veritabanı<br/>AgentSkillCatalog · AgentPrismSkillsSource<br/>IAgentDecorator[] · kayıt 0 · telemetri 10 · onay 20<br/>AgentDefinitionCompiler · CompiledAgentCache<br/>AgentSessionManager · AgentSessionIdentity<br/>ToolRegistry · ToolMethodScanner · ModelProviderRegistry<br/>AgentPrismMetrics · RunTraceCollector · ToolApprovalRuleEvaluator<br/>InMemory*Store"]
 
@@ -146,9 +165,11 @@ flowchart TD
     HTTP --> PG
     HTTP --> OA
     HTTP -.->|"IMcpToolRefresher · kayıtlıysa"| MCP
+    HTTP -.->|"IWorkflowRunner · kayıtlıysa"| WF
     PG --> CORE
     OA --> CORE
     MCP --> CORE
+    WF --> CORE
     HTTP --> CORE
     CORE --> ABS --> MAF
 ```
@@ -160,6 +181,7 @@ flowchart RL
     PostgreSql --> Core
     OpenAI --> Core
     Mcp --> Core
+    Workflows --> Core
     AspNetCore --> Core
     UI --> AspNetCore
     Core --> Abstractions
@@ -167,11 +189,12 @@ flowchart RL
     Meta --> PostgreSql
     Meta --> OpenAI
     Meta --> Mcp
+    Meta --> Workflows
 
     classDef aot fill:#1f6f4a,stroke:#0d3b27,color:#ffffff
     classDef notaot fill:#7a4a1f,stroke:#3d250f,color:#ffffff
     class Abstractions,Core,PostgreSql,OpenAI aot
-    class AspNetCore,UI,Mcp,Meta notaot
+    class AspNetCore,UI,Mcp,Workflows,Meta notaot
 ```
 
 > Yeşil paketler AOT uyumludur, turuncular değildir (karar K-006).
@@ -179,6 +202,10 @@ flowchart RL
 > `AgentPrism.Mcp`, `AspNetCore`'a **referans vermez**: HTTP katmanı tazelemeyi
 > `IMcpToolRefresher` soyutlaması üzerinden tetikler (kesikli ok). Böylece MCP
 > isteğe bağlı bir paket olarak kalır ve bağımlılık grafiği tek yönlü kalır.
+>
+> `AgentPrism.Workflows` aynı deseni izler: HTTP katmanı workflow'ları
+> `IWorkflowRunner` üzerinden çalıştırır. Motor kayıtlı değilse yalnızca
+> çalıştırma uçları `501` döner; tanım yönetimi çalışmaya devam eder (K-118).
 
 Bu grafiği bozan bir referans eklemek yasaktır. `AgentPrism.Core.UnitTests` içindeki
 mimari testi bunu Faz 1'den itibaren zorlar.
@@ -512,7 +539,14 @@ BackgroundAgentsProvider · HarnessAgentOptions.BackgroundAgents → Faz 12 (F-1
 ChatHistoryMemoryProvider · VectorStore                → planlanmadi (K-105 — VectorStore karari verilince)
 EvalItem · EvalCheck · LocalEvaluator · IAgentEvaluator → Faz 18 (F-14)
 AIJudgeLoopEvaluator · LoopAgent                       → planlanmadi (eval'den AYRI kavram)
-Microsoft.Agents.AI.Workflows                          → Faz 15 · 16 (F-27, K-054)
+Microsoft.Agents.AI.Workflows                          → Faz 15 TAMAMLANDI (F-27, K-054)
+  AgentWorkflowBuilder.Build{Sequential,Concurrent}      → hazir desen fabrikalari
+  AgentWorkflowBuilder.Create{Handoff,GroupChat,Magentic}BuilderWith
+  InProcessExecution.{Run,Resume}StreamingAsync          → yurutme
+  StreamingRun.TrySendMessageAsync(TurnToken)            → 🚨 ZORUNLU, yoksa graf calismaz
+  CheckpointManager.CreateJson(ICheckpointStore<JsonElement>, opts)
+  WorkflowVisualizer.ToMermaidString · Workflow.Reflect* → Faz 16 (graf cizimi)
+  RequestPort · ExternalRequest/Response                 → Faz 16 (human-in-the-loop)
 ```
 
 **2026-08-02'de reflection ile doğrulanan ve ikinci faz planına giren bulgular:**
@@ -661,7 +695,9 @@ erDiagram
 **Faz 6'da dolan tablolar:** `tool_invocations`, `traces`, `spans`. Faz 6'da eklenen
 tablolar: `tool_approval_rules`, `mcp_servers`. **Faz 9'da dolan tablo:** `audit_log`
 — şema Faz 0'da kurulmuştu, yazan kod Faz 9'da geldi; migration gerekmedi. **Faz 14'te
-eklenen tablolar (migration 0006):** `attachments`, `agent_files`.
+eklenen tablolar (migration 0006):** `attachments`, `agent_files`. **Faz 15'te
+eklenenler (migration 0007):** `workflows`, `workflow_checkpoints`; ayrıca `runs`
+tablosuna `kind` (`smallint`, 0=Agent 1=Workflow) ve `workflow_name` sütunları.
 
 **Span kimliği türetilir, üretilmez.** `spans.id = SHA-256(trace_id + ":" + span_id)`
 ilk 16 baytıdır. Sebep: bir span, ebeveyninden **önce** tamamlanabilir; türetilmiş
@@ -691,6 +727,8 @@ yazılırsa aynı satır güncellenir, tekrar kaydı oluşmaz.
 | `audit_log` | Kim, ne zaman, hangi tanımı değiştirdi |
 | `attachments` | Yüklenen ek ustverisi + ikili içerik (`bytea`); `session_id` FK **değil** (K-112) |
 | `agent_files` | Kalıcı `AgentFileStore`: agent başına yol→metin çifti (Faz 14, 14.5) |
+| `workflows` | Arayüzden tanımlanan workflow grafı (`jsonb`); sürüm **geçmişi yok** (K-126) |
+| `workflow_checkpoints` | Yürütme kontrol noktaları — durum **`json`**, `jsonb` değil (K-121) |
 
 Kurallar:
 

@@ -58,6 +58,8 @@ public sealed class PostgresRunStore : IRunStore
         {
             Id = info.RunId,
             AgentName = info.AgentName,
+            Kind = info.Kind,
+            WorkflowName = info.WorkflowName,
             Status = RunStatus.Running,
             StartedAt = info.StartedAt,
             TenantId = info.TenantId ?? _tenantContext.TenantId,
@@ -80,6 +82,8 @@ public sealed class PostgresRunStore : IRunStore
         command.Parameters.AddWithValue("is_streaming", record.IsStreaming);
         AddNullableUuid(command, "parent_run_id", record.ParentRunId);
         AddNullableUuid(command, "root_run_id", record.RootRunId);
+        command.Parameters.AddWithValue("kind", (short)record.Kind);
+        AddNullableText(command, "workflow_name", record.WorkflowName);
 
         // Derinlik smallint sutunudur; kaynagi butcenin MaxDepth degeridir ve
         // hicbir kurulumda short sinirina yaklasmaz.
@@ -427,6 +431,8 @@ public sealed class PostgresRunStore : IRunStore
             Depth = reader.GetInt16(17),
             ChildRunCount = reader.IsDBNull(18) ? 0 : reader.GetInt32(18),
             TreeUsage = ReadTreeUsage(reader, ownUsage),
+            Kind = (RunKind)reader.GetInt16(23),
+            WorkflowName = NpgsqlHelpers.GetNullableString(reader, 24),
             Error = errorType is null
                 ? null
                 : new RunError

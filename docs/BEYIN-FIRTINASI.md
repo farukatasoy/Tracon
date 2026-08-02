@@ -287,7 +287,12 @@ değerli olabilir; maliyeti bir çeviri katmanı + bundle artışı.
 
 ## F. Ertelenmiş Faz 6 Kalemleri
 
-### F-27 · Workflows (MAF `Microsoft.Agents.AI.Workflows`)
+### ~~F-27 · Workflows (MAF `Microsoft.Agents.AI.Workflows`)~~ — yürütme kısmı yapıldı
+
+> **Faz 15'te tamamlandı (2026-08-03):** workflow kataloğu, beş hazır desen,
+> PostgreSQL checkpoint kalıcılığı ve sürdürme. Graf görselleştirme,
+> human-in-the-loop ve bildirimsel tanım **Faz 16'dadır**.
+> Bkz. [`15-WORKFLOWS-YURUTME.md`](15-WORKFLOWS-YURUTME.md).
 
 Faz 6'dan ertelendi (K-054, sapma S1). Paket **GA** ve
 `Directory.Packages.props`'ta sürümü zaten sabit. Kapsam: workflow kataloğu,

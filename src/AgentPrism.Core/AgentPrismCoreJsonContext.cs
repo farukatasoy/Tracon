@@ -20,4 +20,5 @@ namespace AgentPrism;
 [JsonSerializable(typeof(ToolApprovalRule))]
 [JsonSerializable(typeof(SkillScriptGrant))]
 [JsonSerializable(typeof(AgentSkillScriptDefinition))]
+[JsonSerializable(typeof(WorkflowDefinition))]
 internal sealed partial class AgentPrismCoreJsonContext : JsonSerializerContext;

@@ -63,4 +63,57 @@ public enum RunEventType
     /// <c>Payload</c> once/sonra mesaj ve token sayilarini tasir.
     /// </summary>
     HistoryCompacted = 10,
+
+    /// <summary>
+    /// Bir workflow yurutmesi basladi. <c>Text</c> workflow adini tasir.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="RunStarted"/>'dan ayridir: o, <c>runs</c> satirinin acildigini
+    /// bildirir; bu ise Microsoft Agent Framework yurutme motorunun grafi
+    /// gercekten devraldigini bildirir. Ikisi arasinda derleme ve dogrulama yer
+    /// alir ve orada olusan bir hata graf hic baslamadan calistirmayi bitirir.
+    /// </remarks>
+    WorkflowStarted = 11,
+
+    /// <summary>
+    /// Bir super-step basladi. <c>Text</c> adim numarasini, <c>Payload</c> mesaj
+    /// gonderen executor adlarini tasir.
+    /// </summary>
+    SuperStepStarted = 12,
+
+    /// <summary>
+    /// Bir super-step tamamlandi. <c>Text</c> adim numarasini, <c>Payload</c>
+    /// etkinlesen executor adlarini ve varsa kontrol noktasi kimligini tasir.
+    /// </summary>
+    SuperStepCompleted = 13,
+
+    /// <summary>Bir executor cagrildi. <c>Text</c> executor kimligini tasir.</summary>
+    ExecutorInvoked = 14,
+
+    /// <summary>Bir executor tamamlandi. <c>Text</c> executor kimligini tasir.</summary>
+    ExecutorCompleted = 15,
+
+    /// <summary>
+    /// Bir executor hata verdi. <c>Text</c> executor kimligini, <c>Payload</c>
+    /// hata mesajini tasir.
+    /// </summary>
+    ExecutorFailed = 16,
+
+    /// <summary>
+    /// Workflow bir cikti uretti. <c>Text</c> ciktinin metin ozetini tasir.
+    /// </summary>
+    WorkflowOutput = 17,
+
+    /// <summary>
+    /// Workflow disaridan bir yanit bekliyor (human-in-the-loop).
+    /// <c>Text</c> istek kimligini tasir.
+    /// </summary>
+    /// <remarks>
+    /// Faz 15 bu istegi <strong>karsilamaz</strong>: yurutme
+    /// <c>blockOnPendingRequest: false</c> ile yapilir ve bekleyen istek varsa
+    /// calistirma anlasilir bir hata ile biter. Yanit verme yolu Faz 16'nin
+    /// konusudur; olay tipi simdiden ayrilmistir ki o faz deger sirasini
+    /// degistirmek zorunda kalmasin.
+    /// </remarks>
+    WorkflowRequest = 18,
 }

@@ -76,3 +76,19 @@ public sealed class InMemoryAttachmentStoreContractTests : AttachmentStoreContra
     protected override ValueTask<IAttachmentStore> CreateStoreAsync()
         => ValueTask.FromResult<IAttachmentStore>(new InMemoryAttachmentStore());
 }
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryWorkflowDefinitionStoreContractTests : WorkflowDefinitionStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<IWorkflowDefinitionStore> CreateStoreAsync()
+        => ValueTask.FromResult<IWorkflowDefinitionStore>(new InMemoryWorkflowDefinitionStore());
+}
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryWorkflowCheckpointStoreContractTests : WorkflowCheckpointStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<IWorkflowCheckpointStore> CreateStoreAsync()
+        => ValueTask.FromResult<IWorkflowCheckpointStore>(new InMemoryWorkflowCheckpointStore());
+}

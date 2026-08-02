@@ -16,6 +16,7 @@
     <ProjectReference Include="../AgentPrism.OpenAI/AgentPrism.OpenAI.csproj" />
     <ProjectReference Include="../AgentPrism.PostgreSql/AgentPrism.PostgreSql.csproj" />
     <ProjectReference Include="../AgentPrism.UI/AgentPrism.UI.csproj" />
+    <ProjectReference Include="../AgentPrism.Workflows/AgentPrism.Workflows.csproj" />
   </ItemGroup>
 
 </Project>

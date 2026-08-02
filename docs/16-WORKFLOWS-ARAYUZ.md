@@ -10,10 +10,72 @@
 
 ## Bu Faza Başlarken
 
-1. [`15-WORKFLOWS-YURUTME.md`](15-WORKFLOWS-YURUTME.md) — yürütme, kalıcılık, olay eşlemesi
+1. [`15-WORKFLOWS-YURUTME.md`](15-WORKFLOWS-YURUTME.md) — **özellikle "🚨 Ölçülen
+   MAF Davranışları" ve "Uygulama Sırasında Yaşanan Hatalar" bölümleri**
 2. [`05-AGENTPRISM-UI.md`](05-AGENTPRISM-UI.md) — arayüz mimarisi, bundle bütçesi
-3. [`KARARLAR.md`](KARARLAR.md) — **K-045** (yönlendirme elle yazıldı), **K-002** (bundle bütçesi), **K-012** (K2)
+3. [`KARARLAR.md`](KARARLAR.md) — **K-045** (yönlendirme elle yazıldı), **K-002**
+   (bundle bütçesi), **K-012** (K2), **K-115**–**K-122** (Faz 15 kararları)
 4. Bu doküman
+5. Kod: `src/AgentPrism.Workflows/Internal/WorkflowRunner.cs` — olay pompası ve
+   kapsam yönetimi buradadır; human-in-the-loop bu döngüye girer
+
+---
+
+## Devraldığı Sözleşmeler
+
+Faz 15 bitmiş hâliyle şunları verir. İmzalar **koddan alınmıştır**, plandan değil.
+
+```csharp
+public interface IWorkflowRunner
+{
+    ValueTask<IReadOnlyList<WorkflowDescriptor>> ListAsync(CancellationToken ct = default);
+    ValueTask<WorkflowDescriptor?> GetAsync(string name, CancellationToken ct = default);
+    IAsyncEnumerable<RunEvent> RunStreamingAsync(WorkflowRunRequest request, CancellationToken ct = default);
+    IAsyncEnumerable<RunEvent> ResumeStreamingAsync(WorkflowResumeRequest request, CancellationToken ct = default);
+}
+
+public interface IWorkflowCheckpointStore
+{
+    ValueTask<WorkflowCheckpointRecord> CreateAsync(WorkflowCheckpointRecord record, CancellationToken ct = default);
+    ValueTask<JsonElement?> ReadAsync(string tenantId, string sessionId, string checkpointId, CancellationToken ct = default);
+    ValueTask<IReadOnlyList<WorkflowCheckpointRecord>> ListAsync(string tenantId, string sessionId, CancellationToken ct = default);
+    ValueTask<IReadOnlyList<WorkflowCheckpointRecord>> ListByRunAsync(string tenantId, Guid runId, CancellationToken ct = default);
+    ValueTask<int> DeleteAsync(string tenantId, string sessionId, CancellationToken ct = default);
+}
+
+// Kodda tanimli workflow'larda agent'lar BUNUNLA baglanir — dogrudan katalogdan
+// alinan agent kendi kok runs satirini acar ve agac bozulur.
+public static AIAgent GetWorkflowAgent(this IServiceProvider services, string workflowName,
+                                       string agentName, string? description = null);
+```
+
+### Davranış sözleşmeleri (mevcut testlerin koruduğu kurallar)
+
+| Kural | Testi |
+|-------|-------|
+| Workflow çalıştırması `kind = Workflow`, içindeki agent'lar `parent_run_id` ile altına bağlanır | `Sequential_calistirmasi_agac_uretir` |
+| Beş desenin tamamı derlenir | `WorkflowDefinitionCompilerTests` |
+| Aynı tanım iki kez derlenirse executor kimlikleri **değişmez** | `Ayni_tanim_iki_kez_derlenirse_EXECUTOR_KIMLIKLERI_AYNI_KALIR` |
+| Sürdürme **yeni** bir `runs` satırı açar | `Kontrol_noktasindan_surdurulur` |
+| Başka kiracının çalıştırması sürdürülemez, "bulunamadı" der | `Baska_kiracinin_calistirmasi_surdurulemez` |
+| `$type` ayracı `json` sütununda sırasını korur | `Polimorfik_yuk_ANAHTAR_SIRASI_KORUNARAK_okunur` |
+| Motor kayıtlı değilse çalıştırma `501`, tanım yönetimi çalışır | `Motor_kayitli_degilse_calistirma_501_doner` |
+| `MaxSuperSteps` aşılırsa çalıştırma durdurulur | `Super_step_siniri_calistirmayi_durdurur` |
+
+### 🚨 Bilinen tuzaklar
+
+1. **`TurnToken` zorunludur.** `InProcessExecution.RunStreamingAsync` sonrası
+   `run.TrySendMessageAsync(new TurnToken(emitEvents: true))` çağrılmazsa graf
+   mesajı yutar ve sessizce `Idle` olur.
+2. **`AgentResponseEvent` ⊂ `WorkflowOutputEvent`.** `switch` dal sırası
+   bozulursa agent yanıtları çıktı sanılır.
+3. **Kapsam `RunStreamingAsync`'ten önce yazılmalıdır.** MAF yürütmeyi orada
+   başlattığı arka plan görevine devreder ve `ExecutionContext`'i o anda
+   yakalar. Yalnız `MoveNextAsync` öncesinde yazmak yetmez.
+4. **Executor kimlikleri agent örneğinden türer.** `WorkflowAgentCache` bunu
+   sabitler; önbelleği atlayan her yol kontrol noktalarını uyumsuz yapar.
+5. **Kontrol noktası kimlikleri süreç ömürlüdür.** Bu fazın DoD'unu doğrudan
+   etkiler — aşağıya bakınız.
 
 ---
 
@@ -128,6 +190,29 @@ tutmak, sunucu kaynağını insan hızında tüketir.
 Checkpoint bu yüzden **zorunludur** — bekleyen bir istek varsa çalıştırma
 durumu diske yazılmalıdır (Faz 15'in `workflow_checkpoints` tablosu).
 
+### 🚨 Süreç yeniden başlarsa sürdürme ÇALIŞMAZ
+
+Faz 15'te ölçüldü: Microsoft Agent Framework executor kimliklerini agent
+**örneğinden** türetir (`{Name}_{AIAgent.Id}`) ve `AIAgent.Id` sanal değildir.
+Faz 15 bunu `WorkflowAgentCache` ile sabitledi ama önbellek **süreç
+belleğindedir**; uygulama yeniden başladığında kimlikler değişir ve MAF eski
+kontrol noktasını `InvalidDataException` ile reddeder.
+
+Bu, bu fazın insan bekleyen akışını doğrudan etkiler: bir istek dakikalarca
+hatta saatlerce bekleyebilir ve o sürede bir dağıtım (deploy) olabilir.
+
+Seçenekler — **bu fazda karar verilmelidir**:
+
+| Yol | Bedel | Not |
+|-----|-------|-----|
+| Kabul et, belgele | Sıfır | Bekleyen istek dağıtımda kaybolur; kullanıcıya "yeniden başlat" denir |
+| Grafı `WorkflowBuilder` + `AIAgentBinding.Id` ile **elle** kur | Yüksek — hazır desenlerin `OutputMessages`/`Batcher`/`HandoffStart`/`ConcurrentEnd` executor'ları yeniden yazılır | Kimlik `{workflowName}:{agentName}` gibi deterministik olur |
+| MAF'a kimlik üretimini dışarıdan verilebilir kılması için istek aç | Belirsiz süre | Uzun vadeli doğru çözüm |
+
+`ExecutorBinding.Id` **settable**'dır (`prop String Id { get; set; }`) —
+ikinci yol teknik olarak mümkündür. Karar verilmeden human-in-the-loop
+"üretime hazır" sayılmamalıdır.
+
 ### Yeni uçlar
 
 | Uç | Rol | Ne yapar |
@@ -178,17 +263,29 @@ istenirse Faz 11'in izin/denetim deseni uygulanarak ayrı ele alınır.
 
 ---
 
-## 16.4 — Faz 15'ten Devreden Desenler
+## 16.4 — Magentic Plan Onayı
 
-Faz 15 üç desenle başlamıştı (Sequential, Concurrent, Handoff). Bu fazda
-`GroupChat` ve `Magentic` eklenir:
+> **Bu bölüm değişti.** Plan `GroupChat` ve `Magentic` desenlerini bu faza
+> bırakmıştı. Faz 15'te **beş desenin tamamı** uygulandı (kullanıcı kararı,
+> K-119). Geriye kalan iş yalnızca plan onayıdır.
 
-- İkisi de bir **yönetici agent** ister (`WorkflowDefinition.ManagerAgentName`)
-- `MagenticWorkflowBuilder` ayrıca plan gözden geçirme isteyebilir
-  (`MagenticPlanReviewRequest` / `MagenticPlanReviewResponse`) — bu, 16.2'nin
-  human-in-the-loop akışının doğrudan kullanıcısıdır
+Faz 15'te `MagenticWorkflowBuilder.RequirePlanSignoff(false)` çağrılır. Sebep
+ölçülmüştür: açık bırakıldığında MAF ilk super-step sonunda bir
+`RequestInfoEvent` yayınlar ve yürütme `PendingRequests` durumunda kalır — Faz
+15 bu isteğe yanıt veremediği için her Magentic çalıştırması yarım kalırdı.
+
+Bu faz human-in-the-loop akışını getirince onay **açılabilir**:
+
+- `MagenticPlanReviewRequest` / `MagenticPlanReviewResponse` tipleri 16.2'nin
+  akışının doğrudan tüketicisidir
+- `WorkflowDefinition`'a bir alan eklenir (ör. `RequirePlanApproval`); alan
+  yalnız `Magentic` deseninde anlamlıdır ve `WorkflowDefinitionValidator` bunu
+  diğer desenlerde reddetmelidir — mevcut `managerAgentName` kuralının aynısı
 - Maliyet uyarısı: yönetici agent her turda çalışır. Arayüz tanım ekranında
   bunu **açıkça** yazar
+
+`RunEventType.WorkflowRequest` (18) değeri Faz 15'te **şimdiden ayrıldı**; bu
+faz enum sırasını değiştirmek zorunda değildir.
 
 ---
 
@@ -214,6 +311,8 @@ cevap ve sürdürme adımlarının çıktısı dokümana yazılır.
 3. **Bildirimsel workflow yalnız kodda yüklenir** (bu fazda).
 4. **`RunStatus`'a `AwaitingInput` eklenir**, mevcut değerler korunur.
 5. **Declarative paketi sürüm uyumu sağlanmazsa alınmaz.**
+6. **Süreç yeniden başladığında sürdürme:** deterministik executor kimliği
+   uygulanacak mı, yoksa sınır kabul mü edilecek (bkz. 16.2).
 
 ---
 
@@ -235,9 +334,11 @@ cevap ve sürdürme adımlarının çıktısı dokümana yazılır.
 - [ ] Workflow grafı arayüzde çiziliyor; çalıştırma sırasında düğümler renkleniyor
 - [ ] Mermaid metni kopyalanabiliyor
 - [ ] İnsan girdisi isteyen workflow bekliyor, cevaplanıyor ve tamamlanıyor
-- [ ] Bekleyen çalıştırma yeniden başlatılan bir süreçte de sürdürülebiliyor
-      (checkpoint kalıcılığı kanıtı)
-- [ ] `GroupChat` ve `Magentic` desenleri çalışıyor
+- [ ] **Süreç yeniden başladığında sürdürme kararı verildi** — ya deterministik
+      executor kimliği uygulandı ve kanıtlandı, ya da sınır belgelendi ve
+      kullanıcıya anlaşılır bir hata gösteriliyor (bkz. 16.2)
+- [x] `GroupChat` ve `Magentic` desenleri çalışıyor — **Faz 15'te tamamlandı**
+- [ ] `Magentic` plan onayı açılabiliyor (`RequirePlanSignoff(true)`)
 - [ ] Declarative kararı verildi ve gerekçesi yazıldı
 - [ ] Bundle **+10 KB gzip'ten az** arttı (ölçüm dokümanda)
 - [ ] Dört doğrulama kapısı sıfır uyarı
