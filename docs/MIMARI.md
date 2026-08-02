@@ -865,6 +865,78 @@ ASP.NET Core bağımlılığı eklemeden "kim yaptı" sorusunu yanıtlamanın yo
 `"***"` ile değiştirilir. Denetim izi yazma hatası **çalıştırmayı kesmez**;
 Faz 6'nın "gözlemlenebilirlik işlevi bozmaz" kuralının aynısı.
 
+### Faz 11'in eklediği sınırlar — skill script çalıştırma
+
+Bu, K2'nin (**"tool'lar yalnız kodda tanımlanır"**) **ikinci bilinçli
+istisnasıdır**. Birincisi MCP'ydi ve orada süreç **uzakta** çalışıyordu; burada
+süreç **AgentPrism'in makinesinde** çalışır.
+
+Özellik **varsayılan olarak kapalıdır** ve yalnız kodda açılır:
+
+```csharp
+builder.Services.AddAgentPrism()
+    .UseSkillScripts(options =>
+    {
+        options.PlatformIsolationAcknowledged = true;   // zorunlu onay
+        options.Interpreters["py"] = "python3";         // beyaz liste boş başlar
+        options.SkillRoots.Add("/srv/agent-skills");    // kök yalnız koddan
+    });
+```
+
+Her çalıştırma şu kapılardan **sırayla** geçer; biri kapalıysa süreç hiç başlamaz:
+
+```mermaid
+flowchart TD
+    A["Script çağrısı"] --> B{"Enabled?"}
+    B -->|hayır| X["AgentPrismException"]
+    B -->|evet| C{"Kiracı için geçerli izin var mı?"}
+    C -->|hayır| X
+    C -->|evet| D{"Uzantı yorumlayıcı beyaz listesinde mi?"}
+    D -->|hayır| X
+    D -->|evet| E{"Argüman boyutu ve şeması uygun mu?"}
+    E -->|hayır| X
+    E -->|evet| F{"Denetim izine yazılabildi mi?"}
+    F -->|hayır| X
+    F -->|evet| G{"Eşzamanlılık kotası uygun mu?"}
+    G --> H["Ayrı süreç · temiz ortam · zaman aşımı"]
+
+    classDef red fill:#7a1f1f,stroke:#3d0f0f,color:#ffffff
+    classDef green fill:#1f6f4a,stroke:#0d3b27,color:#ffffff
+    class X red
+    class H green
+```
+
+🚨 Beşinci kapı Faz 9 kuralının **istisnasıdır**: denetim izine yazılamayan bir
+script çalıştırması, hiçbir kaydı olmayan bir uzaktan kod çalıştırma olurdu
+(K-089). Diğer tüm yazmalarda denetim hatası yutulur; burada yutulmaz.
+
+**AgentPrism'in sağladığı korumalar:**
+
+| Koruma | Nasıl |
+|--------|-------|
+| Yorumlayıcı beyaz listesi | Boş varsayılan; kayıtsız uzantı çalışmaz (K-088) |
+| Ortam temizliği | `ProcessStartInfo.Environment.Clear()`; yalnız beyaz listedeki değişkenler eklenir |
+| Argüman güvenliği | Argümanlar komut satırına değil **stdin'e** yazılır (K-091) |
+| Zaman aşımı | Varsayılan 30 sn; `Kill(entireProcessTree: true)` |
+| Çıktı sınırı | Varsayılan 256 KB; aşan çıktı kırpılır, boru hattı boşaltılmaya devam eder |
+| Eşzamanlılık | Kiracı başına 2, toplam 8 |
+| İzin kaydı | Kiracı bazlı `SkillScriptGrant`; iptal edilir, silinmez (K-092) |
+| Onay | MAF'ın `run_skill_script` onayı devrede kalır |
+| Denetim izi | `script.run`, `script.denied`, `script.grant`, `script.revoke` |
+
+**AgentPrism'in sağlamadığı korumalar** — bunlar barındırma ortamında kurulmalıdır:
+
+| Sağlanmıyor | Nasıl kurulmalı |
+|-------------|-----------------|
+| Dosya sistemi hapsi | Container (Docker/Kubernetes) içinde çalıştır |
+| Ağ kısıtı | Container ağ politikası veya güvenlik duvarı kuralı |
+| Bellek ve CPU kotası | Container kaynak limiti (cgroup) |
+| Hak düşürme | Süreci **ayrıcalıksız** bir kullanıcı ile çalıştır |
+
+`PlatformIsolationAcknowledged` bayrağı bu tabloyu görmeden özellik açılmasını
+engeller: `Enabled = true` iken bayrak `false` ise **açılışta** hata verilir
+(K-086).
+
 ---
 
 ## 8. Sürüm Politikası

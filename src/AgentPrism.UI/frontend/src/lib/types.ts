@@ -128,6 +128,34 @@ export interface AgentSkillResourceDefinition {
   content: string;
 }
 
+/** A script the server may execute. Storing one is not enough to run it: an active grant is also required. */
+export interface AgentSkillScriptDefinition {
+  name: string;
+  description?: string | null;
+  /** File extension without the dot. Must match a configured interpreter. */
+  extension: string;
+  content: string;
+  parametersSchema?: string | null;
+}
+
+/** Permission for a tenant to run a skill script. A null scriptName covers every script of the skill. */
+export interface SkillScriptGrant {
+  id: string;
+  tenantId: string;
+  skillName: string;
+  scriptName?: string | null;
+  grantedBy?: string | null;
+  grantedAt: string;
+  expiresAt?: string | null;
+  revokedAt?: string | null;
+}
+
+export interface SkillScriptGrantRequest {
+  skillName: string;
+  scriptName?: string | null;
+  expiresAt?: string | null;
+}
+
 export interface AgentSkillDefinition {
   id: string;
   tenantId: string;
@@ -141,6 +169,7 @@ export interface AgentSkillDefinition {
   enabled: boolean;
   version: number;
   resources: AgentSkillResourceDefinition[];
+  scripts: AgentSkillScriptDefinition[];
   createdAt: string;
   updatedAt: string;
 }
@@ -155,6 +184,7 @@ export interface AgentSkillRequest {
   metadata?: Record<string, unknown>;
   enabled: boolean;
   resources: AgentSkillResourceDefinition[];
+  scripts: AgentSkillScriptDefinition[];
 }
 
 export interface ToolDescriptor {

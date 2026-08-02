@@ -150,6 +150,71 @@ internal sealed class SqlQueries
             ORDER BY name;
             """;
 
+        // --- Skill script'leri ---
+
+        DeleteAgentSkillScripts = $"DELETE FROM {Schema}.agent_skill_scripts WHERE skill_id = @skill_id;";
+
+        InsertAgentSkillScript = $"""
+            INSERT INTO {Schema}.agent_skill_scripts
+                (id, skill_id, name, description, extension, content, parameters_schema, created_at)
+            VALUES
+                (@id, @skill_id, @name, @description, @extension, @content, @parameters_schema, @created_at);
+            """;
+
+        SelectAgentSkillScripts = $"""
+            SELECT name, description, extension, content, parameters_schema
+            FROM {Schema}.agent_skill_scripts
+            WHERE skill_id = @skill_id
+            ORDER BY name;
+            """;
+
+        // --- Script calistirma izinleri ---
+
+        SelectSkillScriptGrants = $"""
+            SELECT id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at
+            FROM {Schema}.skill_script_grants
+            WHERE tenant_id = @tenant_id
+            ORDER BY skill_name, COALESCE(script_name, '');
+            """;
+
+        // Dar izin genis olani yener: script'e ozgu kayit once gelsin diye
+        // script_name IS NOT NULL olanlar basa siralanir ve tek satir alinir.
+        SelectActiveSkillScriptGrant = $"""
+            SELECT id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at
+            FROM {Schema}.skill_script_grants
+            WHERE tenant_id = @tenant_id
+              AND skill_name = @skill_name
+              AND (script_name IS NULL OR script_name = @script_name)
+              AND revoked_at IS NULL
+              AND (expires_at IS NULL OR expires_at > @instant)
+            ORDER BY (script_name IS NULL)
+            LIMIT 1;
+            """;
+
+        UpsertSkillScriptGrant = $"""
+            INSERT INTO {Schema}.skill_script_grants
+                (id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at)
+            VALUES
+                (@id, @tenant_id, @skill_name, @script_name, @granted_by, @granted_at, @expires_at, NULL)
+            ON CONFLICT (tenant_id, skill_name, COALESCE(script_name, '')) DO UPDATE
+                SET granted_by = EXCLUDED.granted_by,
+                    granted_at = EXCLUDED.granted_at,
+                    expires_at = EXCLUDED.expires_at,
+                    revoked_at = NULL
+            RETURNING id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at;
+            """;
+
+        // Izin SILINMEZ, iptal edilir: "kim ne zaman izin verdi ve ne zaman geri
+        // aldi" sorusu denetim izinin disinda da cevaplanabilmelidir.
+        RevokeSkillScriptGrant = $"""
+            UPDATE {Schema}.skill_script_grants
+            SET revoked_at = @revoked_at
+            WHERE tenant_id = @tenant_id
+              AND skill_name = @skill_name
+              AND COALESCE(script_name, '') = COALESCE(@script_name, '')
+              AND revoked_at IS NULL;
+            """;
+
         // --- Oturumlar ---
 
         UpsertSession = $"""
@@ -603,6 +668,27 @@ internal sealed class SqlQueries
 
     /// <summary>Skill kaynaklarini listeler.</summary>
     public string SelectAgentSkillResources { get; }
+
+    /// <summary>Bir skill'in tum script'lerini siler.</summary>
+    public string DeleteAgentSkillScripts { get; }
+
+    /// <summary>Bir skill script'i ekler.</summary>
+    public string InsertAgentSkillScript { get; }
+
+    /// <summary>Bir skill'in script'lerini okur.</summary>
+    public string SelectAgentSkillScripts { get; }
+
+    /// <summary>Bir kiracinin tum script calistirma izinlerini okur.</summary>
+    public string SelectSkillScriptGrants { get; }
+
+    /// <summary>Belirli bir script icin gecerli izni okur.</summary>
+    public string SelectActiveSkillScriptGrant { get; }
+
+    /// <summary>Bir script calistirma izni ekler veya yeniler.</summary>
+    public string UpsertSkillScriptGrant { get; }
+
+    /// <summary>Bir script calistirma iznini iptal eder.</summary>
+    public string RevokeSkillScriptGrant { get; }
 
     /// <summary>Oturumu ekler veya gunceller.</summary>
     public string UpsertSession { get; }

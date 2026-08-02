@@ -3,7 +3,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { relativeTime } from '../lib/format';
 import { Link, useNavigate } from '../lib/router';
-import type { AgentSkillRequest, AgentSkillResourceDefinition, Meta } from '../lib/types';
+import type {
+  AgentSkillRequest,
+  AgentSkillResourceDefinition,
+  AgentSkillScriptDefinition,
+  Meta,
+} from '../lib/types';
 import {
   Badge,
   Button,
@@ -29,6 +34,14 @@ const emptyResource = (): AgentSkillResourceDefinition => ({
   content: '',
 });
 
+const emptyScript = (): AgentSkillScriptDefinition => ({
+  name: '',
+  description: '',
+  extension: 'py',
+  content: '',
+  parametersSchema: null,
+});
+
 const emptyRequest = (): AgentSkillRequest => ({
   name: '',
   description: '',
@@ -38,6 +51,7 @@ const emptyRequest = (): AgentSkillRequest => ({
   allowedTools: null,
   enabled: true,
   resources: [],
+  scripts: [],
 });
 
 export function SkillsScreen({ meta }: { meta: Meta }): ReactNode {
@@ -79,7 +93,79 @@ export function SkillsScreen({ meta }: { meta: Meta }): ReactNode {
           </Table>
         )}
       </Panel>
+      <div className="mt-4"><ScriptGrantsPanel meta={meta} /></div>
     </>
+  );
+}
+
+/**
+ * Grants let a tenant run skill scripts. Granting is a separate, admin-only act:
+ * storing a script never implies permission to execute it.
+ */
+function ScriptGrantsPanel({ meta }: { meta: Meta }): ReactNode {
+  const queryClient = useQueryClient();
+  const grants = useQuery({ queryKey: ['skill-script-grants'], queryFn: api.skillScriptGrants });
+  const [skillName, setSkillName] = useState('');
+  const [scriptName, setScriptName] = useState('');
+
+  const invalidate = async (): Promise<void> => {
+    await queryClient.invalidateQueries({ queryKey: ['skill-script-grants'] });
+  };
+
+  const grant = useMutation({
+    mutationFn: () => api.grantSkillScript({ skillName, scriptName: scriptName || null }),
+    onSuccess: async () => {
+      setSkillName('');
+      setScriptName('');
+      await invalidate();
+    },
+  });
+  const revoke = useMutation({
+    mutationFn: (target: { skillName: string; scriptName?: string | null }) =>
+      api.revokeSkillScript(target.skillName, target.scriptName),
+    onSuccess: invalidate,
+  });
+
+  const active = grants.isSuccess ? grants.data.filter((item) => item.revokedAt === null) : [];
+
+  return (
+    <Panel title="Script execution grants">
+      <div className="flex flex-col gap-3 p-4">
+        <div className="rounded border border-red-500 bg-red-500/10 px-3 py-2 text-[13px] font-medium text-red-500">
+          Bir izin vermek, bu kiracı adına sunucuda kod çalıştırılmasına yetki vermektir.
+        </div>
+        {grants.isError && <ErrorNote error={grants.error} />}
+        {grant.isError && <ErrorNote error={grant.error} />}
+        {grants.isSuccess && active.length === 0 && <p className="text-[13px] text-muted">No active grants.</p>}
+        {active.length > 0 && (
+          <Table>
+            <thead><tr><Th>Skill</Th><Th>Script</Th><Th>Granted by</Th><Th>Granted</Th><Th /></tr></thead>
+            <tbody>
+              {active.map((item) => (
+                <tr key={item.id} className="hover:bg-raised">
+                  <Td>{item.skillName}</Td>
+                  <Td><Mono>{item.scriptName ?? '*'}</Mono></Td>
+                  <Td className="text-muted">{item.grantedBy ?? 'unknown'}</Td>
+                  <Td className="text-muted">{relativeTime(item.grantedAt)}</Td>
+                  <Td className="text-right">
+                    {meta.roles.canAdminister && (
+                      <Button tone="danger" busy={revoke.isPending} onClick={() => revoke.mutate({ skillName: item.skillName, scriptName: item.scriptName })}>Revoke</Button>
+                    )}
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        )}
+        {meta.roles.canAdminister && (
+          <div className="grid gap-3 border-t border-line pt-3 sm:grid-cols-3">
+            <Field label="Skill"><TextInput value={skillName} placeholder="invoice-analysis" onChange={(event) => setSkillName(event.target.value)} /></Field>
+            <Field label="Script (blank = all)"><TextInput value={scriptName} placeholder="total" onChange={(event) => setScriptName(event.target.value)} /></Field>
+            <div className="flex items-end"><Button tone="primary" busy={grant.isPending} disabled={skillName.trim().length === 0} onClick={() => grant.mutate()}>Grant</Button></div>
+          </div>
+        )}
+      </div>
+    </Panel>
   );
 }
 
@@ -103,6 +189,7 @@ export function SkillEditorScreen({ name }: { name?: string }): ReactNode {
       metadata: skill.metadata,
       enabled: skill.enabled,
       resources: skill.resources,
+      scripts: skill.scripts ?? [],
     });
   }, [existing.isSuccess, existing.data]);
 
@@ -146,9 +233,34 @@ export function SkillEditorScreen({ name }: { name?: string }): ReactNode {
           {form.resources.map((resource, index) => <ResourceEditor key={`${resource.name}-${index}`} resource={resource} onChange={(value) => setForm({ ...form, resources: form.resources.map((item, itemIndex) => itemIndex === index ? value : item) })} onRemove={() => setForm({ ...form, resources: form.resources.filter((_, itemIndex) => itemIndex !== index) })} />)}
           <Button onClick={() => setForm({ ...form, resources: [...form.resources, emptyResource()] })}>Add resource</Button>
         </div></Panel>
+        <Panel title="Scripts"><div className="flex flex-col gap-3 p-4">
+          <div
+            data-testid="script-execution-warning"
+            className="rounded border border-red-500 bg-red-500/10 px-3 py-2 text-[13px] font-medium text-red-500"
+          >
+            Bu içerik sunucuda çalıştırılacaktır.
+          </div>
+          <p className="text-[12px] text-muted">
+            A script only runs when script execution is enabled in configuration and an active grant exists for this
+            tenant. Saving a script here does not grant permission.
+          </p>
+          {form.scripts.map((script, index) => <ScriptEditor key={`${script.name}-${index}`} script={script} onChange={(value) => setForm({ ...form, scripts: form.scripts.map((item, itemIndex) => itemIndex === index ? value : item) })} onRemove={() => setForm({ ...form, scripts: form.scripts.filter((_, itemIndex) => itemIndex !== index) })} />)}
+          <Button onClick={() => setForm({ ...form, scripts: [...form.scripts, emptyScript()] })}>Add script</Button>
+        </div></Panel>
       </div>
     </>
   );
+}
+
+function ScriptEditor({ script, onChange, onRemove }: { script: AgentSkillScriptDefinition; onChange: (value: AgentSkillScriptDefinition) => void; onRemove: () => void }): ReactNode {
+  return <div className="grid gap-3 border-t border-line pt-3 sm:grid-cols-2">
+    <Field label="Name"><TextInput value={script.name} placeholder="total" onChange={(event) => onChange({ ...script, name: event.target.value })} /></Field>
+    <Field label="Description"><TextInput value={script.description ?? ''} onChange={(event) => onChange({ ...script, description: event.target.value || null })} /></Field>
+    <Field label="Extension"><TextInput value={script.extension} placeholder="py" onChange={(event) => onChange({ ...script, extension: event.target.value })} /></Field>
+    <Field label="Parameters schema (JSON)"><TextInput value={script.parametersSchema ?? ''} onChange={(event) => onChange({ ...script, parametersSchema: event.target.value || null })} /></Field>
+    <div className="sm:col-span-2"><Field label="Content"><TextArea rows={8} value={script.content} onChange={(event) => onChange({ ...script, content: event.target.value })} /></Field></div>
+    <div><Button tone="danger" onClick={onRemove}>Remove script</Button><Mono className="ml-3 text-subtle">.{script.extension}</Mono></div>
+  </div>;
 }
 
 function ResourceEditor({ resource, onChange, onRemove }: { resource: AgentSkillResourceDefinition; onChange: (value: AgentSkillResourceDefinition) => void; onRemove: () => void }): ReactNode {

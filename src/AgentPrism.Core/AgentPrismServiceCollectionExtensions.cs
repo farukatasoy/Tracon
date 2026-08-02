@@ -109,7 +109,9 @@ public static class AgentPrismServiceCollectionExtensions
             // Kayitli degilse MAF'in bellek ici varsayilani kullanilir.
             // AgentPrism.PostgreSql bunu PostgresChatHistoryProvider ile doldurur.
             provider.GetService<Microsoft.Agents.AI.ChatHistoryProvider>(),
-            provider.GetRequiredService<AgentSkillCatalog>()));
+            provider.GetRequiredService<AgentSkillCatalog>(),
+            // Kayitli degilse script destegi yoktur: hicbir script calistirilamaz.
+            provider.GetService<SkillScriptSupport>()));
 
         // Denetim izi. Aktor AuditActorContext'ten (AsyncLocal) okunur;
         // AgentPrism.AspNetCore her korumali istegin basinda oraya HttpContext.User'i
@@ -135,6 +137,16 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<ITenantContext>(),
             provider.GetRequiredService<IOptions<AgentPrismOptions>>()));
         services.TryAddSingleton<IRunStore, InMemoryRunStore>();
+
+        // Script calistirma izinleri. Depo her zaman kayitlidir; calistirma
+        // ozelligi ise UseSkillScripts cagrilana kadar KAPALIDIR. Izin kaydinin
+        // varligi tek basina bir sey calistirmaz.
+        services.TryAddSingleton<ISkillScriptGrantStore>(static provider => new AuditingSkillScriptGrantStore(
+            new InMemorySkillScriptGrantStore(),
+            provider.GetRequiredService<IAuditLog>(),
+            provider.GetRequiredService<IAuditActorResolver>(),
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingSkillScriptGrantStore>>()));
+
         services.TryAddSingleton<ISessionStore>(static provider => new AuditingSessionStore(
             new InMemorySessionStore(),
             provider.GetRequiredService<IAuditLog>(),
@@ -276,6 +288,120 @@ public static class AgentPrismServiceCollectionExtensions
         if (int.TryParse(section[nameof(AgentPrismSkillOptions.MaxResourcesPerSkill)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxResources))
         {
             options.MaxResourcesPerSkill = maxResources;
+        }
+
+        BindSkillScripts(section.GetSection(nameof(AgentPrismSkillOptions.Scripts)), options.Scripts);
+    }
+
+    /// <summary>Script calistirma ayarlarini yapilandirmadan baglar.</summary>
+    /// <remarks>
+    /// <c>Enabled</c> ve <c>PlatformIsolationAcknowledged</c> bilerek buradan da
+    /// okunabilir: bir kurulum, ayni imaji farkli ortamlarda script destegi acik
+    /// veya kapali calistirabilmelidir. Dogrulama yine de her ikisini birlikte
+    /// arar; yalnizca <c>Enabled</c> acmak acilista hata verir.
+    /// </remarks>
+    private static void BindSkillScripts(IConfigurationSection section, AgentPrismSkillScriptOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismSkillScriptOptions.Enabled), out var enabled))
+        {
+            options.Enabled = enabled;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismSkillScriptOptions.PlatformIsolationAcknowledged), out var acknowledged))
+        {
+            options.PlatformIsolationAcknowledged = acknowledged;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismSkillScriptOptions.AllowStoredScripts), out var allowStored))
+        {
+            options.AllowStoredScripts = allowStored;
+        }
+
+        if (TimeSpan.TryParse(section[nameof(AgentPrismSkillScriptOptions.Timeout)], CultureInfo.InvariantCulture, out var timeout))
+        {
+            options.Timeout = timeout;
+        }
+
+        if (int.TryParse(section[nameof(AgentPrismSkillScriptOptions.MaxOutputBytes)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxOutput))
+        {
+            options.MaxOutputBytes = maxOutput;
+        }
+
+        if (int.TryParse(section[nameof(AgentPrismSkillScriptOptions.MaxArgumentBytes)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxArguments))
+        {
+            options.MaxArgumentBytes = maxArguments;
+        }
+
+        if (int.TryParse(section[nameof(AgentPrismSkillScriptOptions.MaxScriptContentLength)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxContent))
+        {
+            options.MaxScriptContentLength = maxContent;
+        }
+
+        if (int.TryParse(section[nameof(AgentPrismSkillScriptOptions.MaxScriptsPerSkill)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxScripts))
+        {
+            options.MaxScriptsPerSkill = maxScripts;
+        }
+
+        if (int.TryParse(section[nameof(AgentPrismSkillScriptOptions.MaxConcurrentPerTenant)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var perTenant))
+        {
+            options.MaxConcurrentPerTenant = perTenant;
+        }
+
+        if (int.TryParse(section[nameof(AgentPrismSkillScriptOptions.MaxConcurrentTotal)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var total))
+        {
+            options.MaxConcurrentTotal = total;
+        }
+
+        if (int.TryParse(section[nameof(AgentPrismSkillScriptOptions.SearchDepth)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var depth))
+        {
+            options.SearchDepth = depth;
+        }
+
+        BindList(section.GetSection(nameof(AgentPrismSkillScriptOptions.SkillRoots)), options.SkillRoots);
+        BindList(section.GetSection(nameof(AgentPrismSkillScriptOptions.EnvironmentAllowList)), options.EnvironmentAllowList);
+
+        foreach (var child in section.GetSection(nameof(AgentPrismSkillScriptOptions.Interpreters)).GetChildren())
+        {
+            if (child.Value is { Length: > 0 } interpreter)
+            {
+                options.Interpreters[child.Key] = interpreter;
+            }
+        }
+    }
+
+    /// <summary>Yapilandirma dizisini var olan bir listeye yazar.</summary>
+    /// <remarks>
+    /// Liste yapilandirmada tanimliysa varsayilan icerik <strong>tamamen</strong>
+    /// degistirilir. Birlestirme yapilsaydi, ortam degiskeni beyaz listesini
+    /// daraltmak imkansiz olurdu.
+    /// </remarks>
+    private static void BindList(IConfigurationSection section, IList<string> target)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        var values = section.GetChildren()
+            .Select(static child => child.Value)
+            .Where(static value => value is { Length: > 0 })
+            .ToArray();
+
+        if (values.Length == 0)
+        {
+            return;
+        }
+
+        target.Clear();
+
+        foreach (var value in values)
+        {
+            target.Add(value!);
         }
     }
 

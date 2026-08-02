@@ -31,8 +31,8 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
             $"SELECT count(*) FROM information_schema.tables WHERE table_schema = '{context.SchemaName}';");
 
         // 0001_initial 13 tablo + migration defteri, 0002_observability 2 tablo,
-        // 0003_agent_skills 2 tablo daha.
-        tableCount.ShouldBe(18);
+        // 0003_agent_skills 2 tablo, 0004_skill_scripts 2 tablo daha.
+        tableCount.ShouldBe(20);
     }
 
     [Fact]
