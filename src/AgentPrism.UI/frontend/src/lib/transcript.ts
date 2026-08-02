@@ -11,6 +11,8 @@ export type TranscriptItem =
   | { kind: 'text'; id: string; text: string }
   | { kind: 'reasoning'; id: string; text: string }
   | { kind: 'error'; id: string; message: string }
+  /** Context compaction ran. Not an error — a visible note that history was rewritten. */
+  | { kind: 'compaction'; id: string; message: string; detail: string | null }
   | {
       /**
        * A tool call waiting for the operator's decision.
@@ -348,6 +350,17 @@ export function foldRunEvents(events: readonly RunEvent[]): TranscriptState {
           kind: 'error',
           id: `error-${event.sequence}`,
           message: event.text ?? 'Run failed.',
+        });
+
+        break;
+      }
+
+      case 'HistoryCompacted': {
+        state.items.push({
+          kind: 'compaction',
+          id: `compaction-${event.sequence}`,
+          message: event.text ?? 'History was compacted.',
+          detail: event.payload ?? null,
         });
 
         break;

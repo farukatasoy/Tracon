@@ -1,5 +1,6 @@
 using AgentPrism.Core.UnitTests.Fakes;
 using Microsoft.Agents.AI;
+using Microsoft.Agents.AI.Compaction;
 using Microsoft.Extensions.AI;
 
 namespace AgentPrism.Core.UnitTests.Compilation;
@@ -155,6 +156,223 @@ public sealed class AgentDefinitionCompilerTests
         var compiler = CreateCompiler();
 
         Should.Throw<ArgumentNullException>(() => compiler.Compile(null!));
+    }
+
+    [Fact]
+    public void Sikistirma_ayari_yoksa_baglam_saglayicisi_eklenmez()
+    {
+        var compiler = CreateCompiler();
+
+        var agent = compiler.Compile(TestData.Definition());
+        var options = agent.GetService<ChatClientAgentOptions>();
+
+        options!.AIContextProviders.ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData(CompactionStrategyKind.SlidingWindow)]
+    [InlineData(CompactionStrategyKind.Truncation)]
+    [InlineData(CompactionStrategyKind.ToolResult)]
+    [InlineData(CompactionStrategyKind.Summarization)]
+    [InlineData(CompactionStrategyKind.Pipeline)]
+    public void Tetikleyicisiz_strateji_derlemeyi_durdurur(CompactionStrategyKind strategy)
+    {
+        // Sessizce yok saymak yanlis olurdu: tetikleyicisiz bir strateji hicbir
+        // zaman calismaz ve kullanici sebebini goremez (K-034 deseniyle ayni).
+        var compiler = CreateCompiler();
+
+        var definition = TestData.Definition() with
+        {
+            Compaction = new CompactionSettings { Strategy = strategy },
+        };
+
+        var exception = Should.Throw<AgentPrismCompilationException>(() => compiler.Compile(definition));
+
+        exception.AgentName.ShouldBe("test-agent");
+        exception.Message.ShouldContain(strategy.ToString());
+    }
+
+    [Fact]
+    public void ContextWindow_max_pencere_olmadan_derlemeyi_durdurur()
+    {
+        var compiler = CreateCompiler();
+
+        var definition = TestData.Definition() with
+        {
+            Compaction = new CompactionSettings { Strategy = CompactionStrategyKind.ContextWindow },
+        };
+
+        var exception = Should.Throw<AgentPrismCompilationException>(() => compiler.Compile(definition));
+
+        exception.Message.ShouldContain(nameof(CompactionSettings.MaxContextWindowTokens));
+    }
+
+    [Fact]
+    public void ContextWindow_stratejisi_tetikleyici_gerektirmez()
+    {
+        var compiler = CreateCompiler();
+
+        var definition = TestData.Definition() with
+        {
+            Compaction = new CompactionSettings
+            {
+                Strategy = CompactionStrategyKind.ContextWindow,
+                MaxContextWindowTokens = 8_000,
+            },
+        };
+
+        var agent = compiler.Compile(definition);
+        var options = agent.GetService<ChatClientAgentOptions>();
+
+        options!.AIContextProviders.ShouldNotBeNull();
+        options.AIContextProviders!.Count().ShouldBe(1);
+    }
+
+    [Theory]
+    [InlineData(CompactionStrategyKind.SlidingWindow)]
+    [InlineData(CompactionStrategyKind.Truncation)]
+    [InlineData(CompactionStrategyKind.ToolResult)]
+    [InlineData(CompactionStrategyKind.Summarization)]
+    [InlineData(CompactionStrategyKind.Pipeline)]
+    public void Gecerli_tetikleyiciyle_her_strateji_kuruluyor(CompactionStrategyKind strategy)
+    {
+        var compiler = CreateCompiler();
+
+        var definition = TestData.Definition() with
+        {
+            Compaction = new CompactionSettings { Strategy = strategy, TriggerMessages = 20 },
+        };
+
+        var agent = compiler.Compile(definition);
+        var options = agent.GetService<ChatClientAgentOptions>();
+
+        options!.AIContextProviders!.Count().ShouldBe(1);
+    }
+
+    [Fact]
+    public void Pipeline_sabit_sirada_uc_strateji_icerir()
+    {
+        var compiler = CreateCompiler();
+
+        var definition = TestData.Definition() with
+        {
+            Compaction = new CompactionSettings { Strategy = CompactionStrategyKind.Pipeline, TriggerMessages = 20 },
+        };
+
+#pragma warning disable MAAI001 // Microsoft.Agents.AI.Compaction.* "evaluation purposes only" — yapisal dogrulama icin.
+        var strategy = compiler.BuildCompactionStrategy(definition);
+        var pipeline = strategy!.Inner.ShouldBeOfType<PipelineCompactionStrategy>();
+
+        pipeline.Strategies[0].ShouldBeOfType<ToolResultCompactionStrategy>();
+        pipeline.Strategies[1].ShouldBeOfType<SlidingWindowCompactionStrategy>();
+        pipeline.Strategies[2].ShouldBeOfType<SummarizationCompactionStrategy>();
+#pragma warning restore MAAI001
+    }
+
+    [Fact]
+    public void Ozetleme_modeli_agent_ayarindan_cozulur()
+    {
+        var mainClient = new FakeChatClient();
+        var agentModelProvider = new FakeModelProvider(mainClient, name: "fake");
+        var summarizerClient = new FakeChatClient();
+        var summarizerProvider = new FakeModelProvider(summarizerClient, name: "agent-secti");
+
+        var compiler = new AgentDefinitionCompiler(
+            TestData.Providers(agentModelProvider, summarizerProvider),
+            TestData.Registry());
+
+        var definition = TestData.Definition() with
+        {
+            Compaction = new CompactionSettings
+            {
+                Strategy = CompactionStrategyKind.Summarization,
+                TriggerMessages = 20,
+                SummarizationModel = new ModelBinding { Provider = "agent-secti", Model = "m" },
+            },
+        };
+
+        compiler.Compile(definition);
+
+        summarizerProvider.LastBinding.ShouldNotBeNull();
+        agentModelProvider.LastBinding!.Provider.ShouldBe("fake");
+    }
+
+    [Fact]
+    public void Ozetleme_modeli_agent_ayari_yoksa_yardimci_modele_duser()
+    {
+        var mainClient = new FakeChatClient();
+        var agentModelProvider = new FakeModelProvider(mainClient, name: "fake");
+        var utilityClient = new FakeChatClient();
+        var utilityProvider = new FakeModelProvider(utilityClient, name: "yardimci");
+
+        var compiler = new AgentDefinitionCompiler(
+            TestData.Providers(agentModelProvider, utilityProvider),
+            TestData.Registry(),
+            utilityModel: new ModelBinding { Provider = "yardimci", Model = "m" });
+
+        var definition = TestData.Definition() with
+        {
+            Compaction = new CompactionSettings { Strategy = CompactionStrategyKind.Summarization, TriggerMessages = 20 },
+        };
+
+        compiler.Compile(definition);
+
+        utilityProvider.LastBinding.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void Ozetleme_modeli_hicbiri_yoksa_agentin_kendi_modeline_duser()
+    {
+        var mainClient = new FakeChatClient();
+        var agentModelProvider = new FakeModelProvider(mainClient, name: "fake");
+
+        var compiler = new AgentDefinitionCompiler(TestData.Providers(agentModelProvider), TestData.Registry());
+
+        var definition = TestData.Definition() with
+        {
+            Compaction = new CompactionSettings { Strategy = CompactionStrategyKind.Summarization, TriggerMessages = 20 },
+        };
+
+        compiler.Compile(definition);
+
+        // Ozetleme cagrisi da agent'in kendi saglayicisini kullandi (ayrica cozulen bir baglanti yok).
+        agentModelProvider.LastBinding.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void Dosya_bellegi_istenip_depo_kayitli_degilse_derlemeyi_durdurur()
+    {
+        var compiler = CreateCompiler();
+
+        var definition = TestData.Definition() with
+        {
+            Memory = new MemorySettings { EnableFileMemory = true },
+        };
+
+        var exception = Should.Throw<AgentPrismCompilationException>(() => compiler.Compile(definition));
+
+        exception.AgentName.ShouldBe("test-agent");
+    }
+
+    [Fact]
+    public void Todo_ve_metin_aramasi_dosya_deposu_kayitliyken_kuruluyor()
+    {
+#pragma warning disable MAAI001 // InMemoryAgentFileStore "evaluation purposes only" — yalniz test kurulumu icin.
+        var compiler = new AgentDefinitionCompiler(
+            TestData.Providers(new FakeModelProvider()),
+            TestData.Registry(),
+            fileStore: new Microsoft.Agents.AI.InMemoryAgentFileStore());
+#pragma warning restore MAAI001
+
+        var definition = TestData.Definition() with
+        {
+            Memory = new MemorySettings { EnableFileMemory = true, EnableTodo = true, EnableTextSearch = true },
+        };
+
+        var agent = compiler.Compile(definition);
+        var options = agent.GetService<ChatClientAgentOptions>();
+
+        options!.AIContextProviders!.Count().ShouldBe(3);
     }
 
     private static AgentDefinitionCompiler CreateCompiler()

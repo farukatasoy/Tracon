@@ -318,6 +318,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             TenantId = tenantId,
             Budget = prismOptions?.Budget ?? (depth == 0 ? _graphOptions.CreateBudget() : null),
             Writer = writer,
+            ExtraUsage = new CompactionUsageAccumulator(),
         };
 
         return new RunStart(scope, writer, sessionId, isStreaming, activity, prismOptions?.ParentRunId);
@@ -353,6 +354,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             start.Scope.TenantId!,
             _timeProvider.GetTimestamp(),
             start.Scope.Budget,
+            start.Scope.ExtraUsage,
             OwnsTrace: start.Scope.Depth == 0);
     }
 
@@ -380,6 +382,11 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             await scope.Writer.RecordToolInvocationAsync(unfinished, cancellationToken).ConfigureAwait(false);
             _metrics?.RecordToolInvocation(unfinished.ToolName, succeeded: false, unfinished.Duration);
         }
+
+        // Baglam sikistirmasinin (ozetleme) urettigi token'lar agent'in kendi
+        // AgentResponse'undan tamamen ayri bir yan-kanal cagrisidir; burada
+        // nihai kullanima katilmazsa maliyet raporu ve agac butcesi eksik kalir.
+        usage = MergeUsage(usage, scope.ExtraUsage?.ToRunUsage());
 
         await scope.Writer.CompleteAsync(status, usage, error, cancellationToken).ConfigureAwait(false);
 
@@ -514,6 +521,26 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     // yerine bos birakilir.
     private static string? GetSessionId(AgentSession session) => AgentSessionIdentity.GetId(session);
 
+    private static RunUsage? MergeUsage(RunUsage? primary, RunUsage? extra)
+    {
+        if (extra is null)
+        {
+            return primary;
+        }
+
+        if (primary is null)
+        {
+            return extra;
+        }
+
+        return new RunUsage
+        {
+            InputTokens = (primary.InputTokens ?? 0) + (extra.InputTokens ?? 0),
+            OutputTokens = (primary.OutputTokens ?? 0) + (extra.OutputTokens ?? 0),
+            TotalTokens = (primary.TotalTokens ?? 0) + (extra.TotalTokens ?? 0),
+        };
+    }
+
     private static RunUsage? ToRunUsage(UsageDetails? usage)
         => usage is null
             ? null
@@ -549,5 +576,6 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         string TenantId,
         long StartedAt,
         AgentRunBudget? Budget,
+        CompactionUsageAccumulator? ExtraUsage,
         bool OwnsTrace);
 }

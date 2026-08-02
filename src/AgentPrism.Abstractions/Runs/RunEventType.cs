@@ -57,4 +57,10 @@ public enum RunEventType
     /// adini, <c>Payload</c> alt calistirmanin kimligini tasir.
     /// </summary>
     ChildRunCompleted = 9,
+
+    /// <summary>
+    /// Konusma gecmisi sikistirildi. <c>Text</c> kisa bir ozet cumleyi,
+    /// <c>Payload</c> once/sonra mesaj ve token sayilarini tasir.
+    /// </summary>
+    HistoryCompacted = 10,
 }

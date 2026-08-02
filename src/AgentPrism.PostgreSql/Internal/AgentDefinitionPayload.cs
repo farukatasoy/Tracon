@@ -37,8 +37,17 @@ internal sealed record AgentDefinitionPayload
     /// <summary>Calisma aninda yuklenebilecek skill adlari.</summary>
     public IReadOnlyList<string> SkillNames { get; init; } = [];
 
+    /// <summary>Bu agent'in cagirabilecegi diger agent adlari.</summary>
+    public IReadOnlyList<string> CallableAgentNames { get; init; } = [];
+
     /// <summary>Harness ayarlari.</summary>
     public HarnessSettings? Harness { get; init; }
+
+    /// <summary>Baglam sikistirma ayarlari.</summary>
+    public CompactionSettings? Compaction { get; init; }
+
+    /// <summary>Bellek saglayicisi ayarlari.</summary>
+    public MemorySettings? Memory { get; init; }
 
     /// <summary>Uygulamaya ozgu serbest metadata.</summary>
     public Dictionary<string, JsonElement>? Metadata { get; init; }
@@ -55,7 +64,10 @@ internal sealed record AgentDefinitionPayload
             Model = definition.Model,
             ToolNames = definition.ToolNames,
             SkillNames = definition.SkillNames,
+            CallableAgentNames = definition.CallableAgentNames,
             Harness = definition.Harness,
+            Compaction = definition.Compaction,
+            Memory = definition.Memory,
             Metadata = definition.Metadata.Count == 0
                 ? null
                 : new Dictionary<string, JsonElement>(definition.Metadata, StringComparer.Ordinal),
@@ -77,7 +89,10 @@ internal sealed record AgentDefinitionPayload
             Model = Model,
             ToolNames = ToolNames,
             SkillNames = SkillNames,
+            CallableAgentNames = CallableAgentNames,
             Harness = Harness,
+            Compaction = Compaction,
+            Memory = Memory,
             Origin = AgentDefinitionOrigin.Database,
             Version = version,
             TenantId = tenantId,
