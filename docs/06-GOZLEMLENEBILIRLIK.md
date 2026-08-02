@@ -1,9 +1,113 @@
 # Faz 6 — Gözlemlenebilirlik, Workflows ve Çok Kiracılılık
 
-> **Durum:** Planlandı
-> **Önkoşul:** [05-AGENTPRISM-UI.md](05-AGENTPRISM-UI.md)
+> **Durum:** 🔜 Sıradaki
+> **Önkoşul:** [05-AGENTPRISM-UI.md](05-AGENTPRISM-UI.md) — tamamlandı
 > **Sonraki:** [07-SAGLAMLASTIRMA-VE-YAYIN.md](07-SAGLAMLASTIRMA-VE-YAYIN.md)
 > **Paketler:** `AgentPrism.Core`, `AgentPrism.PostgreSql`, `AgentPrism.AspNetCore`, `AgentPrism.UI`
+
+---
+
+## Bu Faza Başlarken
+
+Önce şunları bu sırayla okuyun:
+
+1. [`MIMARI.md`](MIMARI.md) — bölüm 4 (MAF genişleme noktaları), bölüm 5 (veri modeli), bölüm 6 (çalıştırma yolu)
+2. [`KARARLAR.md`](KARARLAR.md) — kapatılmış tartışmaları yeniden açmayın; özellikle K-032 (model kataloğu), K-041 (özet depoda hesaplanır)
+3. [`05-AGENTPRISM-UI.md`](05-AGENTPRISM-UI.md) — "Gerçekleşen Public API", "Plandan Sapmalar" ve "Faz 6'ya Devreden Notlar"
+4. [`../MEMORY.md`](../MEMORY.md) — önceki oturumların keşfettiği tuzaklar
+5. Bu doküman
+
+Skill'ler: `.agents/skills/maf-api-kesfi/` (MAF imzalarını doğrulama),
+`.agents/skills/faz-tamamlama/` (faz sonu protokolü).
+
+Çalışan bir arka uç ve arayüz:
+
+```bash
+cd samples/AgentPrism.Api && dotnet run
+# http://localhost:5080/agentprism
+```
+
+---
+
+## Devraldığınız Sözleşmeler
+
+Bu imzalar **tamamlandı ve testli**. Faz 6 bunları değiştirmez, kullanır.
+
+```csharp
+// AgentPrism.Abstractions — Faz 5
+public sealed class AgentPrismRunOptions : AgentRunOptions
+{
+    public Guid? RunId { get; init; }
+    public override AgentRunOptions Clone();   // yeni alan eklerseniz BURAYI da guncelleyin
+}
+
+// AgentPrism.AspNetCore — Faz 5; arayuz paketi bunu uygular
+public interface IAgentPrismUiProvider
+{
+    bool HasAssets { get; }
+    ValueTask<bool> TryServeAsync(HttpContext context, string basePath, string relativePath);
+}
+
+// AgentPrism.UI — Faz 5
+public static IAgentPrismBuilder UseUI(this IAgentPrismBuilder builder);
+
+// AgentPrism.Abstractions — Faz 4
+IRunStore.GetStatisticsAsync(RunStatisticsQuery, CancellationToken) -> RunStatistics
+```
+
+### Davranış sözleşmeleri (mevcut testlerin zorladığı kurallar)
+
+| Kural | Nerede doğrulanıyor |
+|-------|--------------------|
+| `/api/agents/{name}/run` akışının **ilk** çerçevesi `run`'dır ve `runId` taşır | `Calistirma_olaylari_ekranda_adim_adim_gorunur` |
+| Arayüz kabuğu bearer token'sız açılır; veri uçları açılmaz | `Token_gerektiginde_kabuk_acilir_ve_token_sorulur` |
+| Arayüz herhangi bir prefix altında çalışır, hiçbir istek `>=400` dönmez | `Farkli_onek_altinda_varliklar_yuklenir` |
+| Kodda tanımlı agent arayüzden düzenlenemez | `Kod_agenti_listede_gorunur_ve_duzenlenemez` |
+| Tool kartı argüman ve sonucu gösterir | `Playground_akisi_gelir_ve_tool_karti_dolar` |
+| Tema tercihi yeniden yüklemede korunur | `Koyu_tema_gecisi_calisir_ve_kalici_olur` |
+| gzip JavaScript < 250 KB | `frontend/scripts/postbuild.mjs` — `npm run build` içinde |
+| SSE çerçeveleme parçalı gövdede ve CRLF'te bozulmaz | `sse.test.ts` |
+| Olay birleştirme `$type` ayracı değişse de çalışır | `transcript.test.ts` |
+
+---
+
+## 🚨 Bilinen Tuzaklar
+
+**1. `tool_invocations` ve `traces`/`spans` tabloları BOŞ.** Şema Faz 2'de kuruldu,
+yazan yok. Arayüzdeki Tools ve Models ekranları bu yüzden "gözlemlenebilirlik fazında
+gelir" notu taşıyor (sapma S5). Bu fazda doldurulacaklar; notlar gerçek veriyle
+değiştirilmelidir.
+
+**2. `runs` tablosu model adı taşımaz.** Maliyet raporlaması bunu gerektirir ve yeni
+bir migration ister. `/api/stats` ve Settings ekranı bugün maliyeti bilerek göstermiyor.
+
+**3. `duration_ms` korelasyon ister.** `ToolInvoking`/`ToolInvoked` olay çiftini
+eşleştirmek tek yazıcılı `RunEventWriter` tasarımına ek durum sokar. Karar defteri
+bunu Faz 6'ya bu gerekçeyle erteledi.
+
+**4. Bundle bütçesinde 162 KB boşluk var** (88,1 / 250 KB gzip). Waterfall görüntüleyici
+ve grafikler bu boşluğa sığmalıdır. Kapı `postbuild.mjs` içindedir ve `dotnet build`'i kırar.
+
+**5. Frontend derlemesi dış (outer) MSBuild derlemesindedir** (K-050). Yeni bir npm
+adımı eklerken zinciri `AgentPrismCollectFrontendAssets`'in `DependsOnTargets`
+listesine ekleyin — hedeflerin kendi üzerine kurmayın, MSBuild `Condition`'ı
+`DependsOnTargets`'tan önce değerlendirir.
+
+**6. Arayüz kiracı seçmiyor.** `/api/meta` kiracı bilgisi döndürmez (kimlik doğrulaması
+olmayan bir uçtur). Çok kiracılılık geldiğinde arayüze bir kiracı seçici ve **korumalı**
+bir kiracı listesi ucu gerekir.
+
+**7. `dotnet format`, `dotnet build`'den fazlasını yakalar.** Dört kapıyı da çalıştırın.
+
+**8. `arastirmaci` (Harness + tool) örneği tool çağrısında kırılıyor** (K-053).
+Kanıtlandı: Playground'dan `arastirmaci` çalıştırılınca model `tool_calls` ile bitiyor
+ama `Microsoft.Agents.AI.Harness` fonksiyonu hiç çağırmıyor; akış `done` olmadan
+kesiliyor ve sonraki turda OpenAI `HTTP 400` ile geçmişi reddediyor. Aynı senaryo düz
+`ChatClientAgent` (`support`) ile temiz çalışıyor — hata Harness paketinin onay-bağlama
+zincirinde, AgentPrism kodunda değil. **Bu fazda `ToolInvoking`/`ToolInvoked` izleme
+senaryolarını `arastirmaci` üzerinden test etmeyin** — tool hiç çalışmadığı için olay
+çifti hiç üretilmez ve gözlemlenebilirlik kodunun kendisi sağlıklı görünüp aslında hiç
+tetiklenmemiş olabilir. `support` agent'ını kullanın.
 
 ---
 

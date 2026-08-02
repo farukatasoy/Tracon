@@ -8,19 +8,26 @@
 
 | Paket | Durum | Faz |
 |-------|-------|-----|
-| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) |
-| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) |
+| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) · 5 (`AgentPrismRunOptions`) |
+| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) · 5 (çağıranın verdiği çalıştırma kimliği) |
 | `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 · 4 (özet sorgusu) |
 | `AgentPrism.OpenAI` | ✅ Tamamlandı | 3 |
-| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 |
-| `AgentPrism.UI` | ⬜ İskelet | 5 |
+| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 · 5 (arayüz rota grubu) |
+| `AgentPrism.UI` | ✅ Tamamlandı | 5 |
 | `AgentPrism` (meta) | ✅ Paketleniyor | 0 |
 
-Testler: **302 test geçiyor** — 110 birim testi (62 Core + 48 OpenAI) + 88 fonksiyonel test
-(TestHost, gerçek HTTP) + 104 entegrasyon testi (Testcontainers, gerçek PostgreSQL).
-Build, test, pack ve format kapıları sıfır uyarı.
+Testler: **310 .NET testi + 40 frontend birim testi geçiyor** — 110 birim testi
+(62 Core + 48 OpenAI) + 88 fonksiyonel test (TestHost, gerçek HTTP) + 104 entegrasyon
+testi (Testcontainers, gerçek PostgreSQL) + 8 arayüz E2E testi (Playwright, gerçek
+Kestrel) + 40 Vitest testi (saf mantık; `npm run build` içinde koşar, dolayısıyla
+`dotnet build` de koşar). Build, test, pack ve format kapıları sıfır uyarı.
 
-Faz 4 sonunda dış yüzey açık: stok OpenAI SDK'sı `base_url` değiştirerek AgentPrism'e
+Faz 5 sonunda kabul senaryosu tamamlandı: paket kurulur, `.UseUI()` +
+`app.MapAgentPrism()` yazılır ve tarayıcıda yedi ekranlı bir kontrol düzlemi açılır.
+Arayüz assembly'ye Brotli sıkıştırılmış gömülüdür (80,9 KB), tüketici projede hiçbir
+JavaScript bağımlılığı oluşturmaz ve JavaScript bütçesi 88,1 KB / 250 KB gzip'tir.
+
+Dış yüzey Faz 4'ten beri açık: stok OpenAI SDK'sı `base_url` değiştirerek AgentPrism'e
 bağlanıyor, agent'ı `model` alanından seçiyor, tool döngüsü sunucuda tamamlanıyor,
 konuşma hem `previous_response_id` hem `conversations.create()` ile zincirleniyor ve
 her çalıştırma `run_events` tablosuna yazılıp SSE ile geri oynatılabiliyor.
@@ -62,7 +69,7 @@ DevUI'nin kaynak kodundan doğrulanan sınırları:
 flowchart TD
     T["Tüketici uygulama · ASP.NET Core<br/>builder.AddAgentPrism().UsePostgreSql(..).UseOpenAI(..)<br/>app.MapAgentPrism('/agentprism')"]
 
-    UI["<b>AgentPrism.UI</b><br/>gömülü React SPA + middleware"]
+    UI["<b>AgentPrism.UI</b><br/>gömülü React SPA · Brotli varlıklar<br/>UseUI() → IAgentPrismUiProvider"]
 
     HTTP["<b>AgentPrism.AspNetCore</b><br/>MapAgentPrism · /api/* yönetim API'si<br/>/v1/responses · /v1/chat/completions · /v1/conversations<br/>loopback · bearer · policy · SSE"]
 
@@ -75,7 +82,8 @@ flowchart TD
 
     MAF["<b>Microsoft Agent Framework</b><br/>AIAgent · AgentSession · ChatClientAgent · HarnessAgent<br/>ChatHistoryProvider · AgentSessionStore · Workflows"]
 
-    T --> UI --> HTTP
+    T --> HTTP
+    HTTP -->|"IAgentPrismUiProvider · kayıtlıysa"| UI
     HTTP --> PG
     HTTP --> OA
     PG --> CORE
@@ -306,6 +314,31 @@ servis tipleri dışarıdan **adlandırılamaz** (`svcPublic=False`), `Internals
 Microsoft'un test derlemesine açık. Bu yüzden MAF'ın `MapOpenAIResponses()` /
 `MapOpenAIConversations()` uçları kullanılmadı — kalıcılığı değiştirmek mümkün değil.
 Kararlar K-036 ve bölüm 1.
+
+### Faz 5'te kullanılanlar
+
+Faz 5 yeni bir MAF tipi kullanmadı; tek genişletme kendi tipimizdir.
+
+```csharp
+// AgentPrism.Abstractions — MAF'in AgentRunOptions tipinden turer
+public sealed class AgentPrismRunOptions : AgentRunOptions
+{
+    public Guid? RunId { get; init; }
+    public override AgentRunOptions Clone();   // RunId'yi KORUR
+}
+
+// Reflection ile dogrulandi: AgentRunOptions sealed DEGILDIR,
+// public parametresiz ctor'u ve protected kopya ctor'u vardir.
+//   ctor()
+//   protected ctor(AgentRunOptions options)
+//   virtual AgentRunOptions Clone()
+```
+
+`RunRecordingAgent` bu tipi `options as AgentPrismRunOptions` ile okur; boşsa kimliği
+kendisi üretir. Tip `ChatOptions` **taşımaz** — örnekleme ayarları gerekiyorsa MAF'ın
+`ChatClientAgentRunOptions` tipi kullanılır ve ikisi birlikte kullanılamaz. AgentPrism
+kendi uçlarında örnekleme ayarlarını agent tanımından çözdüğü için pratikte kısıt
+oluşturmaz.
 
 ### Faz 6 için hazır olanlar
 
@@ -579,6 +612,19 @@ flowchart TD
 3. **Authorization policy** — `RequireAuthorization("policy")` ile ASP.NET Core kimlik doğrulama boru hattına bağlanır. Üretimde kullanılan yol budur.
 
 `{prefix}/api/meta` kimlik doğrulaması olmadan erişilebilir. Arayüzün hangi kimlik yöntemini kullanacağını öğrenmesi için gereklidir; hiçbir hassas veri döndürmez.
+
+**Arayüz kabuğu (HTML, JS, CSS) bearer token katmanından muaftır** (karar K-046).
+Tarayıcı bir `<script src>` isteğine `Authorization` başlığı ekleyemez; kabuk
+kilitlenseydi kullanıcı token'ı girebileceği ekranı hiçbir zaman göremezdi. Kabuk
+veri taşımaz. Loopback kısıtı ve authorization policy kabuğa da uygulanır:
+
+| Katman | `/api/meta` | Arayüz kabuğu | Diğer tüm uçlar |
+|--------|-------------|---------------|------------------|
+| Loopback kısıtı | ❌ | ✅ | ✅ |
+| Authorization policy | ❌ | ✅ | ✅ |
+| Bearer token | ❌ | ❌ | ✅ |
+
+Arayüz token'ı tarayıcıda `sessionStorage`'da tutar — sekme kapanınca silinir (K-047).
 
 Ek sınırlar:
 

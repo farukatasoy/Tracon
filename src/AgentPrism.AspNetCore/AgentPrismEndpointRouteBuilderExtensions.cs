@@ -95,7 +95,50 @@ public static class AgentPrismEndpointRouteBuilderExtensions
         OpenAIChatCompletionsEndpoints.Map(group);
         OpenAIConversationsEndpoints.Map(group);
 
+        MapUi(endpoints, services, options, normalizedPrefix);
+
         return group;
+    }
+
+    /// <summary>
+    /// Kayitli bir arayuz kaynagi varsa statik varlik rotalarini baglar.
+    /// </summary>
+    /// <param name="endpoints">Uygulamanin yonlendirme olusturucusu.</param>
+    /// <param name="services">Servis saglayici.</param>
+    /// <param name="options">Erisim ayarlari.</param>
+    /// <param name="prefix">Normalize edilmis yol oneki.</param>
+    /// <remarks>
+    /// <para>
+    /// Arayuz ucuncu bir gruba baglanir. Sebebi guvenlik katmanlarinin farkli
+    /// olmasidir: kabuk loopback kisitindan ve authorization policy'den gecer,
+    /// ancak bearer token denetiminden muaftir. Ayrinti:
+    /// <see cref="AgentPrismEndpointFilter"/>.
+    /// </para>
+    /// <para>
+    /// Kayit yoksa hicbir rota eklenmez. <c>AgentPrism.UI</c> paketi kurulu
+    /// degilse veya <c>UseUI()</c> cagrilmamissa HTTP yuzeyi degismez.
+    /// </para>
+    /// </remarks>
+    private static void MapUi(
+        IEndpointRouteBuilder endpoints,
+        IServiceProvider services,
+        AgentPrismEndpointOptions options,
+        string prefix)
+    {
+        if (services.GetService<IAgentPrismUiProvider>() is not { HasAssets: true } provider)
+        {
+            return;
+        }
+
+        var uiGroup = endpoints.MapGroup(prefix).WithTags("AgentPrism");
+        uiGroup.AddEndpointFilter(new AgentPrismEndpointFilter(options, requireBearerToken: false));
+
+        if (options.AuthorizationPolicy is { Length: > 0 } policy)
+        {
+            uiGroup.RequireAuthorization(policy);
+        }
+
+        UiEndpoints.Map(uiGroup, provider, prefix);
     }
 
     /// <summary>

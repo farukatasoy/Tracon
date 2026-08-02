@@ -97,6 +97,12 @@
     <!-- 1.x serisi: xunit.v3 3.2.2 Microsoft Testing Platform v1 uzerine kuruludur.
          2.x TrxReport, Testing.Platform 2.x ceker ve calisma aninda TypeLoadException verir. -->
     <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="1.9.1" />
+    <!--
+      Playwright arayuz E2E testleri icin. Tarayici ikilisi NuGet paketiyle
+      gelmez; test fixture'i eksikse kendisi indirir (bkz.
+      tests/AgentPrism.Ui.E2ETests/Infrastructure/PlaywrightFixture.cs).
+    -->
+    <PackageVersion Include="Microsoft.Playwright" Version="1.61.0" />
     <PackageVersion Include="NSubstitute" Version="6.0.0" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.13.0" />

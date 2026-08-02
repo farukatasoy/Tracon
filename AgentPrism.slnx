@@ -15,16 +15,11 @@
   </Folder>
 
   <Folder Name="/tests/">
-    <!--
-      Diger test projeleri, test edecekleri sey geldiginde eklenir:
-        AgentPrism.Ui.E2ETests                  -> Faz 5
-      Gerekce: `dotnet test` sifir testli bir projede hata verir ve CI'i kirar.
-      Sahte test eklemek yerine proje, gercek testi ile birlikte olusturulur.
-    -->
     <Project Path="tests/AgentPrism.AspNetCore.FunctionalTests/AgentPrism.AspNetCore.FunctionalTests.csproj" />
     <Project Path="tests/AgentPrism.Core.UnitTests/AgentPrism.Core.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.OpenAI.UnitTests/AgentPrism.OpenAI.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.PostgreSql.IntegrationTests/AgentPrism.PostgreSql.IntegrationTests.csproj" />
+    <Project Path="tests/AgentPrism.Ui.E2ETests/AgentPrism.Ui.E2ETests.csproj" />
   </Folder>
 
   <Folder Name="/solution-items/">

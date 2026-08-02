@@ -1,6 +1,6 @@
-# Faz 5 — AgentPrismUI
+# Faz 5 — AgentPrism.UI
 
-> **Durum:** 🔜 Sıradaki
+> **Durum:** ✅ Tamamlandı (2026-08-02)
 > **Önkoşul:** [04-HTTP-API.md](04-HTTP-API.md) — tamamlandı
 > **Sonraki:** [06-GOZLEMLENEBILIRLIK.md](06-GOZLEMLENEBILIRLIK.md)
 > **Paket:** `AgentPrism.UI`
@@ -21,48 +21,34 @@ Arayüzü geliştirirken **çalışan bir arka uç** gerekir:
 
 ```bash
 cd samples/AgentPrism.Api && dotnet run
-# http://localhost:5080/agentprism/api/meta
+# http://localhost:5080/agentprism
 ```
 
 Örnek uygulama API anahtarı olmadan da çalışır (ağ çağrısı yapmayan `EchoModelProvider`).
+
+Frontend üzerinde çalışıyorsanız Vite geliştirme sunucusu daha hızlıdır:
+
+```bash
+cd src/AgentPrism.UI/frontend && npm run dev
+# http://localhost:5173  —  /agentprism/* istekleri 5080'e vekillenir
+```
 
 ---
 
 ## Devraldığınız HTTP Sözleşmesi
 
-Bu uçlar **tamamlandı ve testlidir** (78 fonksiyonel test). Faz 5 bunları değiştirmez, tüketir.
+Bu uçlar **tamamlandı ve testlidir**. Faz 5 bunları değiştirmedi, tüketti; tek ekleme
+`/api/agents/{name}/run` akışına konan `run` çerçevesidir (sapma S1).
 
 ```
 GET    {prefix}/api/meta                       [kimlik dogrulamasi YOK]
-       -> { version, prefix, authentication:{allowRemoteAccess,requiresBearerToken,
-            requiresAuthorizationPolicy}, storage:{persistent,agentDefinitionStore,runStore,sessionStore} }
-
-GET    {prefix}/api/agents                     -> AgentDescriptor[]
-GET    {prefix}/api/agents/{name}              -> { descriptor, definition|null, isEditable }
-POST   {prefix}/api/agents                     <- AgentDefinitionRequest        -> 201 | 409
-PUT    {prefix}/api/agents/{name}              <- AgentDefinitionRequest        -> 200 | 400 | 404 | 409
-DELETE {prefix}/api/agents/{name}              -> 204 | 404 | 409
-GET    {prefix}/api/agents/{name}/versions     -> AgentDefinition[]  (yeniden eskiye)
-POST   {prefix}/api/agents/{name}/rollback     <- { version }        -> 200 | 404 | 409
-POST   {prefix}/api/agents/{name}/run          <- { message, sessionId? }       -> SSE
-
-GET    {prefix}/api/sessions?agentName=&skip=&take=   -> SessionRecord[]
-GET    {prefix}/api/sessions/{id}              -> { id, agentName, tenantId, createdAt, updatedAt,
-                                                     messages|null, state }
-DELETE {prefix}/api/sessions/{id}              -> 204 | 404
-
-GET    {prefix}/api/runs?agentName=&status=&sessionId=&startedAfter=&skip=&take=  -> RunRecord[]
-GET    {prefix}/api/runs/{id}                  -> RunRecord | 404
+GET    {prefix}/api/agents · /{name} · POST · PUT · DELETE · /versions · /rollback
+POST   {prefix}/api/agents/{name}/run          -> SSE
+GET    {prefix}/api/sessions[?agentName=&skip=&take=] · /{id} · DELETE
+GET    {prefix}/api/runs[?agentName=&status=&sessionId=&startedAfter=&skip=&take=] · /{id}
 GET    {prefix}/api/runs/{id}/events           -> SSE  (canli veya replay)
-
-GET    {prefix}/api/tools                      -> ToolDescriptor[]
-GET    {prefix}/api/models                     -> ModelProviderDescriptor[]
-GET    {prefix}/api/stats?agentName=&startedAfter=&maxAgents=  -> RunStatistics
-
-POST   {prefix}/v1/responses                   OpenAI Responses API uyumlu
-POST   {prefix}/v1/chat/completions            OpenAI Chat Completions API uyumlu
-POST   {prefix}/v1/conversations               -> { id: "conv_...", object, created_at, metadata }
-GET    {prefix}/v1/conversations/{id}          DELETE · /items
+GET    {prefix}/api/tools · /api/models · /api/stats
+POST   {prefix}/v1/responses · /v1/chat/completions · /v1/conversations · GET · DELETE · /items
 ```
 
 ### SSE olay adları — **kararlı sözleşme**
@@ -75,13 +61,10 @@ tool.invoking · tool.invoked · tool.failed
 run.completed · run.failed
 ```
 
-Her çerçeve `id:` alanı taşır (olayın sıra numarası). Bağlantı koparsa istemci
-`Last-Event-ID: <son alinan id>` başlığıyla devam eder; sunucu **bir sonraki**
-sıradan yayına başlar.
-
 `{prefix}/api/agents/{name}/run`:
 
 ```
+run     -> { runId, sessionId }        ← Faz 5'te eklendi, ilk cerceve
 update  -> AgentResponseUpdate  (Microsoft.Extensions.AI serilestirmesi)
 done    -> { sessionId }
 error   -> { type, message }
@@ -90,62 +73,21 @@ error   -> { type, message }
 > Bu uçta `Last-Event-ID` ile devam **desteklenmez**: canlı bir model çağrısı
 > yeniden oynatılamaz. Devam yalnızca `/api/runs/{id}/events` üzerindedir.
 
-### Davranış sözleşmeleri (mevcut testlerin zorladığı kurallar)
-
-| Kural | Nerede doğrulanıyor |
-|-------|--------------------|
-| `/api/meta` token, loopback ve başarısız policy altında bile açıktır | `SecurityTests` |
-| `/api/meta` sır **ve policy adı** döndürmez | `MetaEndpointTests` |
-| Kodda tanımlı agent'ta POST/PUT/DELETE `409` döner | `AgentCrudTests` |
-| `isEditable=false` ise yazma uçları çalışmaz | `AgentCrudTests` |
-| Geri alma eski sürümü silmez, yeni sürüm üretir | `AgentCrudTests` |
-| Enum'lar JSON'da **ad** olarak gelir (`"Completed"`, `"Code"`) | `AgentCrudTests` |
-| `/api/*` hataları `application/problem+json` | `ProblemDetailsTests` |
-| `/v1/*` hataları OpenAI biçimi (`{"error":{...}}`) | `ProblemDetailsTests` |
-| SSE `X-Accel-Buffering: no` taşır | `StreamingTests` |
-| `Last-Event-ID` ile tekrar gönderim olmaz | `StreamingTests` |
-| Bearer token hiçbir yanıtta ve günlükte görünmez | `SecretLeakTests` |
-
----
-
-## 🚨 Bilinen Tuzaklar
-
-**1. Model kataloğu boş olabilir.** AgentPrism yerleşik model listesi taşımaz (K-032).
-`/api/models` boş liste dönebilir; bu bir hata **değildir**. Arayüz kullanıcıyı
-`AgentPrism:Providers:OpenAI:Models` ayarına yönlendirmelidir.
-
-**2. `/api/stats` maliyet döndürmez.** `runs` tablosu model adı taşımaz; maliyet Faz 6'da
-gelir. Maliyet sütunu göstermeyin veya "Faz 6" olarak işaretleyin.
-
-**3. Sohbet geçmişi `null` olabilir.** `/api/sessions/{id}` içindeki `messages`, agent
-katalogdan kalkmışsa veya MAF serileştirme biçimi değişmişse `null` gelir. Üstveri yine
-döner — arayüz bu durumu ele almalıdır.
-
-**4. `messages` biçimi MAF'ın `ChatMessage` dizisidir**, AgentPrism'e özel bir DTO değil
-(kural K3). İçerikler polimorfiktir ve `$type` ayracı taşır; `TextContent`,
-`FunctionCallContent`, `FunctionResultContent`, `UsageContent` ayrımı bu ayraçtan yapılır.
-
-**5. Konuşma ile oturum aynı şeydir** (K-043). `/v1/conversations` uçları vardır ancak
-konuşma listesi arayüzde `/api/sessions` üzerinden kurulur — aynı kimlik uzayıdır,
-`/api/sessions/{id}` daha zengin bilgi döner (opak durum + üstveri).
-
-**6. Canlı olay akışı yoklamayla çalışır.** Varsayılan aralık 250 ms
-(`AgentPrismEndpointOptions.RunEventPollInterval`). Devam eden bir çalıştırmada akış
-`: bekleniyor` yorum satırları gönderir — SSE istemcisi bunları yok saymalıdır.
-
-**7. Prefix sabit değildir.** `MapAgentPrism` herhangi bir prefix'e bağlanabilir; arayüz
-onu `/api/meta` yanıtındaki `prefix` alanından öğrenir. Mutlak varlık yolu kullanmayın.
-
-**8. `MapAgentPrism`'in döndürdüğü builder yalnız korumalı grubu temsil eder** (K-042).
-Arayüz middleware'ini eklerken meta ucunun açık kaldığını varsayabilirsiniz.
-
 ---
 
 ## Amaç
 
 Hafif ama eksiksiz bir yönetim arayüzü. Gömülü, sıfır kurulum. Tüketici projede hiçbir JavaScript bağımlılığı oluşmaz.
 
-Bu faz sonunda kabul senaryosu tamamlanır: paket kurulur, iki satır kod yazılır, tarayıcıda çalışan bir kontrol düzlemi açılır.
+Bu faz sonunda kabul senaryosu tamamlandı: paket kurulur, iki satır kod yazılır, tarayıcıda çalışan bir kontrol düzlemi açılır.
+
+```csharp
+builder.AddAgentPrism()
+       .UseOpenAI(apiKey)
+       .UseUI();            // ← arayuz varliklarini kaydeder
+
+app.MapAgentPrism("/agentprism");   // api + v1 + arayuz, tek onek
+```
 
 ---
 
@@ -153,47 +95,57 @@ Bu faz sonunda kabul senaryosu tamamlanır: paket kurulur, iki satır kod yazıl
 
 | Katman | Seçim | Gerekçe |
 |--------|-------|---------|
-| Çatı | React 19 + TypeScript | Streaming, SSE ve karmaşık durum yönetiminde olgun ekosistem |
-| Build | Vite 7 | Hızlı, çıktı küçük, statik varlık üretimi basit |
-| Veri | TanStack Query | Sunucu durumu, önbellek, yeniden deneme |
-| Yönlendirme | TanStack Router | Tip güvenli, base path desteği |
-| Stil | Tailwind CSS | Küçük çıktı, tema değişkenleri kolay |
+| Çatı | React 19.2 + TypeScript 5.9 | Streaming, SSE ve karmaşık durum yönetiminde olgun ekosistem |
+| Build | Vite 7.3 | Hızlı, çıktı küçük, statik varlık üretimi basit |
+| Veri | TanStack Query 5 | Sunucu durumu, önbellek, yeniden deneme |
+| Yönlendirme | **Elle yazılmış (~110 satır)** | Sapma S2 — TanStack Router yerine |
+| Stil | Tailwind CSS 4 | Küçük çıktı, tema değişkenleri kolay |
 | Bileşen | Elle yazılır | Ağır UI kütüphanesi çıktıyı şişirir |
+| Test | Vitest 3 (saf mantık) + Playwright (E2E) | |
 
-**Bütçe:** gzip sonrası **250 KB altı** JavaScript. Bu bir hedef değil, kapıdır — build bu sınırı aşarsa CI kırılır.
+**Bütçe:** gzip sonrası **250 KB altı** JavaScript. Ölçülen: **88,1 KB**.
+Kapı `npm run build` içindedir, dolayısıyla `dotnet build` de kırılır.
 
-Blazor WebAssembly değerlendirildi ve elendi: ilk yükleme boyutu (~2 MB+) "lite arayüz" hedefiyle çelişiyor. Blazor Server elendi: kalıcı SignalR bağlantısı gerektirir ve bir kütüphane olarak tüketicinin barındırma modelini kısıtlar.
+Blazor WebAssembly değerlendirildi ve elendi (bkz. KARARLAR.md).
 
 ---
 
 ## Ekranlar
 
-| Ekran | İşlev |
-|-------|-------|
-| **Agents** | Katalog listesi (kod/DB rozeti), tanım editörü, versiyon geçmişi, geri alma |
-| **Playground** | Akışlı sohbet; tool çağrıları, argümanlar, sonuçlar ve reasoning adımları açılır kartlar hâlinde |
-| **Sessions** | Oturum listesi, mesaj geçmişi, silme, ham JSON görünümü |
-| **Runs** | Çalıştırma listesi + zaman çizelgesi; olay akışı adım adım |
-| **Tools** | Kayıtlı tool'lar, JSON şemaları, kullanım istatistikleri |
-| **Models** | Sağlayıcılar, modeller, bağlantı sağlık kontrolü |
-| **Settings** | Kiracı, migration durumu, sürüm, yetenek matrisi |
+| Ekran | İşlev | Durum |
+|-------|-------|-------|
+| **Agents** | Katalog listesi (kod/DB rozeti), tanım editörü, versiyon geçmişi, geri alma | ✅ |
+| **Playground** | Akışlı sohbet; tool çağrıları, argümanlar, sonuçlar ve reasoning adımları açılır kartlar hâlinde | ✅ |
+| **Sessions** | Oturum listesi, mesaj geçmişi, silme, ham JSON görünümü | ✅ |
+| **Runs** | Çalıştırma listesi + özet kutuları; olay akışı adım adım zaman çizelgesi | ✅ |
+| **Tools** | Kayıtlı tool'lar, JSON şemaları, hangi agent'ların kullandığı | ✅ (istatistik Faz 6 — sapma S5) |
+| **Models** | Sağlayıcılar, modeller, yetenek bayrakları | ✅ (sağlık kontrolü Faz 6 — sapma S5) |
+| **Settings** | Sürüm, prefix, kimlik yöntemi, aktif depolar, tema, etkinlik özeti | ✅ |
 
 ### Agent editörü
 
-Tool seçimi **çoktan seçmeli listedir**, serbest metin değildir. Liste `{prefix}/api/tools` uçundan gelir. Arayüzden tool kodu yazılamaz — tasarım kuralı K2.
+Tool seçimi **çoktan seçmeli listedir**, serbest metin değildir. Liste `{prefix}/api/tools`
+uçundan gelir. Arayüzden tool kodu yazılamaz — tasarım kuralı K2.
+
+Sağ panelde gönderilecek gövdenin **salt okunur JSON önizlemesi** canlı görünür.
+Kullanıcı ne kaydedeceğini görür ama geçersiz JSON yazamaz; doğrulama tek yerde kalır.
+
+`isEditable=false` olan (kodda tanımlı) agent'larda düzenleme ve silme düğmeleri
+hiç çizilmez ve ekranda gerekçesi yazılıdır.
 
 ### Playground
 
-Akış `{prefix}/api/agents/{name}/run` uçundan SSE ile gelir. Olay tipleri doğrudan `RunEventType` ile eşleşir:
+Akış `{prefix}/api/agents/{name}/run` uçundan SSE ile gelir:
 
 ```
-run.started      → çalıştırma başlığı
-message.delta    → metin akışı
-tool.invoking    → tool kartı açılır (argümanlar görünür)
-tool.invoked     → tool kartı sonuçla dolar
-run.completed    → token ve süre özeti
-run.failed       → hata detayı
+run              → calistirma kimligi; "Runs ekraninda ac" baglantisi hemen kurulur
+update           → metin akisi + tool kartlari (FunctionCall/FunctionResultContent)
+done             → tur tamamlandi
+error            → hata detayi
 ```
+
+Oturum kimliği `POST /v1/conversations` ile **sunucudan** rezerve edilir (K-043);
+arayüz kendi kimlik biçimini uydurmaz.
 
 ---
 
@@ -201,16 +153,23 @@ run.failed       → hata detayı
 
 ```
 src/AgentPrism.UI/
-├── frontend/                    (Vite kaynağı, git'te tutulur)
+├── frontend/                          (Vite kaynagi, git'te tutulur)
 │   ├── src/
-│   ├── index.html
-│   ├── package.json
-│   ├── package-lock.json
-│   ├── tsconfig.json
-│   └── vite.config.ts
-├── wwwroot/                     (Vite çıktısı, .gitignore'da)
-├── AgentPrism.UI.Frontend.targets
-├── AgentPrismUiMiddleware.cs
+│   │   ├── lib/        api · sse · router · transcript · format · theme · auth · base
+│   │   ├── components/ ui · layout · icons · transcript · access-gate
+│   │   ├── screens/    agents · agent-detail · agent-editor · playground
+│   │   │               sessions · session-detail · runs · run-detail
+│   │   │               tools · models · settings
+│   │   ├── app.tsx · main.tsx · styles.css
+│   ├── scripts/postbuild.mjs          base yer tutucusu + Brotli + butce kapisi
+│   ├── index.html · package.json · package-lock.json
+│   ├── tsconfig.json · vite.config.ts · vitest.config.ts
+├── wwwroot/                           (Vite ciktisi, .gitignore'da)
+├── AgentPrism.UI.Frontend.targets     npm zinciri + EmbeddedResource toplama
+├── AgentPrismUiBuilderExtensions.cs   UseUI()
+├── Internal/EmbeddedUiProvider.cs     IAgentPrismUiProvider uygulamasi
+├── Internal/EmbeddedUiAssetCatalog.cs gomulu kaynak dizini
+├── Internal/UiAsset.cs
 └── AgentPrism.UI.csproj
 ```
 
@@ -218,94 +177,444 @@ src/AgentPrism.UI/
 
 `AgentPrism.UI.Frontend.targets`:
 
-1. `npm ci` (yalnız `package-lock.json` değiştiğinde — dosya damgası ile)
-2. `npm run build` → `wwwroot/`
-3. Çıktı `EmbeddedResource` olarak assembly'ye gömülür
+1. `npm --version` → Node var mı
+2. `npm ci` — yalnız `package-lock.json` değiştiğinde (damga dosyası)
+3. `npm run build` — yalnız frontend kaynağı değiştiğinde (damga dosyası)
+   → `tsc --noEmit` + `vitest run` + `vite build` + `postbuild.mjs`
+4. Çıktı `EmbeddedResource` olarak `AgentPrism.UI.wwwroot/<yol>` mantıksal adıyla gömülür
 
-`AgentPrismFrontendEnabled` özelliği (`AgentPrism.UI.csproj` içinde zaten tanımlı) bu adımı kontrol eder. Faz 5'te `true` yapılır.
+Damgalar `BaseIntermediateOutputPath` altındadır — orası hedef çerçeveden bağımsızdır.
 
-**Node.js bulunmazsa:** önceden derlenmiş `wwwroot/` varsa build devam eder. `dotnet pack` sırasında varlık yoksa **hata verir** — içi boş bir arayüz paketi yayınlanamaz.
+🚨 **Zincir dış (outer) derlemede çalışır.** Üç hedef çerçeve paralel derlenir ve
+üçü de aynı `wwwroot/` dizinine yazmaya kalkarsa birbirinin dosyasını siler.
+Ölçüldü: `ENOENT: no such file or directory, unlink .../index-*.js`. Bkz. sapma S3.
+
+**Node.js bulunmazsa:** önceden derlenmiş `wwwroot/` varsa build devam eder.
+Varlık yoksa `AGENTPRISM0002` uyarısı verilir; `dotnet pack` sırasında aynı durum
+`AGENTPRISM0003` **hatasıdır** — içi boş bir arayüz paketi yayınlanamaz.
 
 ### Base path
 
-`MapAgentPrism` herhangi bir prefix'e bağlanabilir. Bu yüzden Vite `base: './'` ile derlenir ve `index.html` sunulurken `<base href="...">` etiketi çalışma anında yazılır. Mutlak varlık yolu kullanılmaz.
+`MapAgentPrism` herhangi bir prefix'e bağlanabilir. Vite `base: './'` ile derlenir;
+`postbuild.mjs` `<head>` içine `<base href="__AGENTPRISM_BASE__">` yazar ve
+`EmbeddedUiProvider` bunu çalışma anında gerçek prefix ile değiştirir. Mutlak varlık
+yolu kullanılmaz.
 
 ### Sunum
 
-`AgentPrismUiMiddleware`:
+`EmbeddedUiProvider` (`IAgentPrismUiProvider` uygulaması):
 
-- Gömülü kaynakları okur, `ETag` ve `Cache-Control: immutable` ile sunar (hash'li dosya adları)
-- `index.html` için `no-cache`
-- Bilinmeyen yollarda SPA fallback → `index.html`
-- `{prefix}/api/*` ve `{prefix}/v1/*` middleware tarafından **ele alınmaz**, endpoint'lere geçer
+- Metin varlıklar **Brotli sıkıştırılmış** gömülür; istemci `br` kabul ediyorsa
+  olduğu gibi sunulur (çalışma anı maliyeti sıfır), etmiyorsa bir kez açılıp
+  bellekte tutulur
+- Hash'li dosyalar `Cache-Control: public,max-age=31536000,immutable`; `index.html` `no-cache`
+- `ETag` + `If-None-Match` → `304`
+- Sıkıştırılmış ve açılmış temsiller **farklı ETag** taşır (`"…-br"`)
+- Bilinmeyen yollarda SPA geri dönüşü → `index.html`; **uzantısı olan** yol `404` verir
+- `{prefix}/api/*` ve `{prefix}/v1/*` yakalayıcı rotada açıkça reddedilir
+- `GET` ve `HEAD` desteklenir
+- Kabuk `Content-Security-Policy`, `X-Content-Type-Options`, `Referrer-Policy` taşır
 
 ---
 
-## Tema
+## İstek Yolu
 
-Açık ve koyu tema. Varsayılan `prefers-color-scheme`. Kullanıcı seçimi `localStorage`'da tutulur. Tüm renkler CSS değişkeni üzerinden — tema değişimi tek sınıf değişikliğidir.
+```mermaid
+flowchart TD
+    REQ["Gelen istek · {prefix}/..."] --> R{"Yol hangi gruba düşüyor?"}
+    R -->|"/api/meta"| META["Meta grubu · filtre YOK"]
+    R -->|"/api/* · /v1/*"| API["Korumalı grup<br/>loopback + bearer + policy"]
+    R -->|"diğer · yakalayıcı"| UI["Arayüz grubu<br/>loopback + policy · bearer MUAF"]
+
+    UI --> RES{"Yol 'api/' ya da 'v1/' ile mi başlıyor?"}
+    RES -->|evet| P404["404 ProblemDetails"]
+    RES -->|hayır| PROV["IAgentPrismUiProvider.TryServeAsync"]
+
+    PROV --> HIT{"Bilinen varlık mı?"}
+    HIT -->|evet| SERVE["Brotli ya da açılmış gövde<br/>ETag · Cache-Control · Vary"]
+    HIT -->|"hayır · uzantısı var"| A404["404 ProblemDetails"]
+    HIT -->|"hayır · uzantısı yok"| SHELL["index.html<br/>base href yazılır · CSP eklenir"]
+
+    classDef red fill:#7a1f1f,stroke:#3d0f0f,color:#ffffff
+    classDef green fill:#1f6f4a,stroke:#0d3b27,color:#ffffff
+    class P404,A404 red
+    class SERVE,SHELL green
+```
+
+Yakalayıcı rota en düşük önceliğe sahiptir; harfi harfine segmentler her zaman
+kazanır. Buna rağmen `api/` ve `v1/` açıkça reddedilir: yanlış yazılmış bir API
+yolu (`/api/agentz`) aksi hâlde `index.html` alır ve bir API istemcisi için bu,
+hata ayıklanması zor bir sessiz başarısızlıktır.
+
+---
+
+## Derleme Zinciri
+
+```mermaid
+flowchart TD
+    OUTER["Dış derleme · DispatchToInnerBuilds öncesi"] --> NODE{"npm --version = 0 ?"}
+    NODE -->|hayır| WARN["AGENTPRISM0002 uyarısı<br/>pack'te AGENTPRISM0003 hatası"]
+    NODE -->|evet| CI{"package-lock.json değişti mi?"}
+    CI -->|evet| NPMCI["npm ci"] --> SRC
+    CI -->|hayır| SRC{"frontend kaynağı değişti mi?"}
+    SRC -->|hayır| SKIP["atla · damga güncel"]
+    SRC -->|evet| BUILD["npm run build"]
+
+    BUILD --> TSC["tsc --noEmit"]
+    TSC --> VITEST["vitest run · 40 test"]
+    VITEST --> VITE["vite build → wwwroot/"]
+    VITE --> POST["postbuild.mjs"]
+    POST --> BASE["base yer tutucusu"]
+    POST --> BUDGET{"gzip JS < 250 KB ?"}
+    POST --> BROTLI["Brotli sıkıştırma"]
+    BUDGET -->|hayır| FAIL["derleme kırılır"]
+
+    SKIP --> INNER["İç derlemeler · net8.0 · net9.0 · net10.0"]
+    BROTLI --> INNER
+    INNER --> EMBED["EmbeddedResource<br/>AgentPrism.UI.wwwroot/&lt;yol&gt;"]
+
+    classDef red fill:#7a1f1f,stroke:#0d3b27,color:#ffffff
+    class FAIL,WARN red
+```
+
+Zincirin dış derlemede olması zorunludur: iç derlemeler paralel koşar ve üçü de
+aynı `wwwroot/` dizinine yazar (sapma S3).
+
+---
+
+## Güvenlik
+
+Arayüz **üçüncü bir uç grubuna** bağlanır. Güvenlik katmanları API'den farklıdır:
+
+| Katman | API uçları | Arayüz kabuğu |
+|--------|-----------|---------------|
+| Loopback kısıtı | ✅ | ✅ |
+| Authorization policy | ✅ | ✅ |
+| Bearer token | ✅ | ❌ **muaf** |
+
+**Gerekçe:** tarayıcı bir `<script src>` isteğine `Authorization` başlığı ekleyemez.
+Kabuk token katmanıyla kilitlenseydi kullanıcı token'ı girebileceği ekranı hiçbir
+zaman göremezdi. Kabuk veri taşımaz; her veri ucu tam korumada kalır. Karar K-046.
+
+Token arayüzde `sessionStorage`'da tutulur — sekme kapanınca silinir. `localStorage`
+bilinçli olarak seçilmedi: token bir sırdır ve diskte kalma süresi en kısa olmalıdır
+(K-047).
 
 ---
 
 ## Test Stratejisi
 
-> **Bu faz `tests/AgentPrism.Ui.E2ETests` projesini oluşturur** (`Microsoft.Playwright` ile). Faz 0 yalnız `AgentPrism.Core.UnitTests`'i kurdu; test projeleri test edecekleri şeyle birlikte gelir.
-
-`tests/AgentPrism.Ui.E2ETests` — Playwright.
+`tests/AgentPrism.Ui.E2ETests` — **8 test**, Playwright + gerçek Kestrel.
 
 | Test | Neyi doğrular |
 |------|---------------|
-| `UiLoadsTest` | `/agentprism` açılır, ana ekran render olur |
-| `AgentListTest` | Kod ile tanımlı agent listede görünür |
-| `PlaygroundStreamingTest` | Mesaj gönderilir, akış gelir, tool kartı açılır |
-| `AgentCreateTest` | Arayüzden agent oluşturulur ve hemen çalıştırılır |
-| `PrefixTest` | Farklı prefix'e (`/panel`) bağlandığında varlıklar yüklenir |
-| `ThemeTest` | Koyu tema geçişi çalışır |
+| `Arayuz_acilir_ve_ana_ekran_cizilir` | `/agentprism` açılır, başlık ve yedi gezinme bağlantısı çizilir |
+| `Kod_agenti_listede_gorunur_ve_duzenlenemez` | Kod agent'ı listede; düzenleme düğmesi **yok**, gerekçe yazılı |
+| `Playground_akisi_gelir_ve_tool_karti_dolar` | Gerçek tool döngüsü: kart açılır, argüman ve sonuç dolar, metin akar, `run` bağlantısı kurulur |
+| `Arayuzden_agent_olusturulur_ve_hemen_calistirilir` | Editörden tanım kaydedilir, detay ekranı açılır, agent hemen çalıştırılır |
+| `Farkli_onek_altinda_varliklar_yuklenir` | `/panel` prefix'i: hiçbir istek `>=400` dönmez, derin rota kabuğu alır |
+| `Koyu_tema_gecisi_calisir_ve_kalici_olur` | `data-theme` değişir ve yeniden yüklemede korunur |
+| `Token_gerektiginde_kabuk_acilir_ve_token_sorulur` | Kabuk token muafiyeti; token girilince ekran açılır |
+| `Calistirma_olaylari_ekranda_adim_adim_gorunur` | Playground → Runs köprüsü; `run.started · tool.invoking · tool.invoked · run.completed` |
 
-Frontend birim testleri: Vitest, yalnız saf mantık (biçimlendirme, olay birleştirme) için.
+Tarayıcı ikilisi eksikse fixture onu kendisi indirir; `dotnet test` ek kurulum
+istemez. Süre: **5,6 sn** (ikili indirilmiş durumdayken).
+
+Frontend birim testleri: **Vitest, 40 test**, yalnız saf mantık.
+
+| Dosya | Adet | Kapsam |
+|-------|------|--------|
+| `sse.test.ts` | 9 | Çerçeveleme, parçalı gövde, CRLF, yorum satırı, çok satırlı `data` |
+| `transcript.test.ts` | 12 | Delta birleştirme, tool kartı eşleme, `$type` bilinmezken şekle göre sınıflama, kullanım |
+| `format.test.ts` | 19 | Zaman/süre/sayı biçimleme, rota eşleme, taban yol çözümleme |
+
+Bu testler `npm run build` içinde koşar, dolayısıyla **`dotnet build` de onları koşar**.
 
 ### Bundle boyutu kapısı
 
-CI'da `npm run build` sonrası gzip boyutu ölçülür. 250 KB aşılırsa build kırılır.
+`postbuild.mjs` gzip boyutunu ölçer ve 250 KB aşılırsa hata verir. Yerelde ve CI'da
+aynı kapıdır.
+
+---
+
+## Gerçekleşen Public API
+
+```csharp
+// AgentPrism.UI
+public static class AgentPrismUiBuilderExtensions
+{
+    // Ayri bir esleme cagrisi YOKTUR. MapAgentPrism kaydi DI'dan cozer.
+    public static IAgentPrismBuilder UseUI(this IAgentPrismBuilder builder);
+}
+
+// AgentPrism.AspNetCore — arayuz paketinin uyguladigi sozlesme
+public interface IAgentPrismUiProvider
+{
+    bool HasAssets { get; }
+    ValueTask<bool> TryServeAsync(HttpContext context, string basePath, string relativePath);
+}
+
+// AgentPrism.Abstractions — calistirma kimligini cagiran uretir
+public sealed class AgentPrismRunOptions : Microsoft.Agents.AI.AgentRunOptions
+{
+    public AgentPrismRunOptions();
+    public Guid? RunId { get; init; }
+    public override AgentRunOptions Clone();   // RunId'yi korur
+}
+```
+
+`IAgentPrismUiProvider` bilerek **tek metotludur**: varlık listesi, içerik tipi,
+`ETag`, önbellek başlıkları, sıkıştırma biçimi ve SPA geri dönüşü tamamen uygulamaya
+aittir. Arayüz paketi paketleme biçimini değiştirdiğinde HTTP katmanının public
+API'si değişmez.
+
+---
+
+## Plandan Sapmalar
+
+### S1 — `/api/agents/{name}/run` akışına `run` çerçevesi eklendi *(kullanıcı kararı)*
+
+Faz 5 planı kendi kendisiyle çelişiyordu: "Playground `/api/agents/{name}/run`
+kullanır" diyor, ama olay adlarını `/api/runs/{id}/events` sözleşmesinden
+(`run.started`, `tool.invoking`, …) listeliyordu. Gerçek uç `update`/`done`/`error`
+gönderir.
+
+Ayrıca akış başladığında çalıştırma kimliği **bilinmiyordu**; Playground ile Runs
+ekranı arasında köprü kurulamıyordu. `RunRecordingAgent` kimliği kendi içinde
+üretiyor ve dışarı bildirmiyordu.
+
+**Çözüm:** `AgentPrismRunOptions.RunId` eklendi (K-044). Uç kimliği kendisi üretir,
+ilk SSE çerçevesinde bildirir ve sarmalayıcıya geçer. Kırıcı olmayan bir eklemedir:
+mevcut `StreamingTests` değişmeden geçti.
+
+Değerlendirilen alternatifler: `OnRunStarted` geri çağrımı (kimlik ancak ilk
+olaydan sonra bilinir), `AsyncLocal` ortam bağlamı (gizli durum, akışlı
+numaralandırıcılarda hata ayıklaması zor).
+
+### S2 — TanStack Router yerine elle yazılmış router *(kullanıcı kararı)*
+
+Uygulamada yedi ekran ve iki dinamik parametre var. `History` API üzerine ~110
+satır yeterli oldu; base path çalışma anından doğal olarak geliyor (kütüphanelerin
+her birine ayrıca bildirilmesi gerekir). Bundle ~32 KB gzip küçüldü.
+
+Maliyet: rota tipleri elle tanımlanır. Karar K-045.
+
+### 🚨 S3 — Frontend derlemesi dış (outer) derlemeye taşındı
+
+İlk uygulamada zincir her hedef çerçevede çalışıyordu. Üç iç derleme **paralel**
+koşar ve Vite `emptyOutDir` ile aynı dizini boşaltır. Ölçülen hata:
+
+```
+EXEC : error : ENOENT: no such file or directory, unlink
+       .../src/AgentPrism.UI/wwwroot/assets/index-B9ruDlq1.js
+```
+
+Zincir `BeforeTargets="DispatchToInnerBuilds"` ile dış derlemeye alındı. İç
+derlemeler damgayı güncel bulup adımı atlar. Tek hedefle derlerken (`-f net10.0`)
+dış derleme yoktur; o durumda toplama hedefi zinciri kendisi çalıştırır.
+
+### 🚨 S4 — `AgentPrism.UI.csproj` açık `Import` biçimine geçti
+
+`Sdk="Microsoft.NET.Sdk"` niteliği kullanıldığında SDK hedefleri projenin **en
+sonuna** yerleştirilir. `AgentPrism.UI.Frontend.targets` ondan önce yüklenir ve
+içindeki `BeforeTargets="AssignTargetPaths"` hedefi şu mesajla **sessizce** atılır:
+
+```
+The target "AssignTargetPaths" listed in a BeforeTargets attribute
+does not exist in the project, and will be ignored.
+```
+
+Sonuç: arayüz varlıkları hiç gömülmüyor ve paket sessizce arayüzsüz üretiliyordu.
+Açık `<Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />` biçiminde frontend
+hedefleri SDK hedeflerinden sonra yüklenir.
+
+### S5 — Tool istatistikleri ve model sağlık kontrolü Faz 6'ya bırakıldı *(kullanıcı kararı)*
+
+Plan Tools ekranı için "kullanım istatistikleri", Models ekranı için "bağlantı
+sağlık kontrolü" diyordu. İkisi de **veri kaynağı olmadan** yazılamaz:
+
+- `tool_invocations` tablosu Faz 2'de kuruldu ama boş; yazan yok (KARARLAR, bölüm 1)
+- `/api/models` yapılandırmadan gelen listeyi döndürür ve sağlayıcıya hiç gitmez (K-032)
+
+Ekranlar bu bilgileri göstermek yerine Faz 6'ya işaret eden bir not taşıyor.
+Alternatifler değerlendirildi: çalıştırma olaylarından saymak yalnız sayfalanmış
+bir alt kümeyi kapsardı (K-041'de bilerek reddedilen hata), sağlık kontrolü ucu ise
+her denetimde ücretli bir model çağrısı harcardı.
+
+### S6 — Vitest `npm run build` içine alındı
+
+Frontend birim testleri yalnız CI adımı olsaydı `dotnet test` onları koşmazdı ve
+bir geliştirici onları sessizce kırabilirdi. Ölçüldü: 40 test **0,3 saniyede**
+koşuyor — her derlemeye eklemenin maliyeti yok denecek kadar az.
+
+### S7 — Middleware yerine endpoint
+
+Plan `AgentPrismUiMiddleware` diyordu. Bunun yerine üçüncü bir `MapGroup` ve
+yakalayıcı (`{**path}`) rota kullanıldı. Sebep: middleware sırası tüketicinin
+`app.Use...` çağrılarına duyarlıdır ve `MapAgentPrism` tek giriş noktası olma
+vaadini bozardı. Endpoint yönlendirmesinde harfi harfine segmentler yakalayıcıdan
+önce gelir, dolayısıyla `/api/*` ve `/v1/*` her zaman kazanır.
 
 ---
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `dotnet run` → `http://localhost:5080/agentprism` açılır
-- [ ] Yedi ekranın hepsi çalışır
-- [ ] Playground akışı token token gelir
-- [ ] Tool çağrısı kartı argüman ve sonuç gösterir
-- [ ] Arayüzden agent oluşturulur, kaydedilir, çalıştırılır
-- [ ] Uygulama yeniden başlatılır, her şey yerinde durur
-- [ ] Farklı prefix ile çalışır
-- [ ] gzip JS < 250 KB
-- [ ] Playwright testleri geçer
+| Ölçüt | Durum | Kanıt |
+|-------|-------|-------|
+| `dotnet run` → `http://localhost:5080/agentprism` açılır | ✅ | Aşağıda gerçek çıktı |
+| Yedi ekranın hepsi çalışır | ✅ | `Arayuz_acilir_ve_ana_ekran_cizilir` + elle doğrulama |
+| Playground akışı token token gelir | ✅ | `Playground_akisi_gelir_ve_tool_karti_dolar` |
+| Tool çağrısı kartı argüman ve sonuç gösterir | ✅ | Aynı test; ekran görüntüsünde `orderId: "ORD-7"` → `ORD-7 siparisi kargoya verildi.` |
+| Arayüzden agent oluşturulur, kaydedilir, çalıştırılır | ✅ | `Arayuzden_agent_olusturulur_ve_hemen_calistirilir` |
+| Uygulama yeniden başlatılır, her şey yerinde durur | ✅ | Gerçek PostgreSQL ile doğrulandı, aşağıda |
+| Farklı prefix ile çalışır | ✅ | `Farkli_onek_altinda_varliklar_yuklenir` (`/panel`) |
+| gzip JS < 250 KB | ✅ | **88,1 KB** — `postbuild.mjs` çıktısı |
+| Playwright testleri geçer | ✅ | 8/8, 5,6 sn |
+| Dört doğrulama kapısı temiz | ✅ | build / test / pack / format → 0 uyarı, 0 hata |
+| Sır taraması temiz | ✅ | Çıktı boş |
 
-### Uçtan uca kabul senaryosu
+### Gerçek çıktı — kabuk
 
 ```bash
-cd samples/AgentPrism.Api
-dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "<host>"
-dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" "<key>"
-dotnet run
+$ curl -si localhost:5080/agentprism | head -11
+HTTP/1.1 200 OK
+Content-Length: 844
+Content-Type: text/html; charset=utf-8
+Cache-Control: no-cache
+ETag: "5GEJhVqfXvyEXhrb"
+Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline';
+                         img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'self';
+                         form-action 'none'; frame-ancestors 'none'
+X-Content-Type-Options: nosniff
+Referrer-Policy: same-origin
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <base href="/agentprism/" />
 ```
 
-1. `http://localhost:5080/agentprism` açılır
-2. Agents ekranında kod ile tanımlı `support` agent'ı görünür
-3. Playground'da mesaj gönderilir, yanıt **akışlı** gelir, tool kartı görünür
-4. Arayüzden yeni agent tanımlanır, kaydedilir, hemen çalıştırılır
-5. Uygulama durdurulur ve yeniden başlatılır — oturum, tanım ve geçmiş yerinde
-6. Runs ekranında çalıştırma olay olay incelenir
-7. `psql` ile `agentprism` şeması denetlenir; `public` şemasının değişmediği doğrulanır
+### Gerçek çıktı — varlık sunumu
+
+```bash
+$ curl -sI -H 'Accept-Encoding: br' .../assets/index-B9ruDlq1.js
+Content-Length: 78295          # gomulu hali; calisma aninda sikistirma YOK
+Content-Encoding: br
+Cache-Control: public,max-age=31536000,immutable
+ETag: "KkqbyJDrS4D23N7P-br"
+Vary: Accept-Encoding
+
+$ curl -sI -H 'Accept-Encoding: identity' .../assets/index-B9ruDlq1.js
+Content-Length: 302133         # bir kez acilir ve onbelleklenir
+ETag: "f_SKsY4C1cggxDM8"       # farkli temsil, farkli etiket
+
+$ curl -H "If-None-Match: <etag>" .../agentprism        -> 304 Not Modified
+$ curl .../agentprism/runs/abc123                        -> 200 text/html  (SPA geri donusu)
+$ curl .../agentprism/assets/missing.js                  -> 404
+$ curl .../agentprism/api/agentz                         -> 404 application/problem+json
+```
+
+### Gerçek çıktı — `run` çerçevesi
+
+```bash
+$ curl -sN -X POST .../api/agents/faz5-agent/run -d '{"message":"merhaba faz5","sessionId":"conv_…"}'
+id: 0
+event: run
+data: {"runId":"019fc0ce-d8c2-7b3b-b061-0206dc301743","sessionId":"conv_019fc0ced85d7a65880977a2f4476c04"}
+
+id: 1
+event: update
+data: { "authorName": "faz5-agent", "role": "assistant", … }
+```
+
+### Gerçek çıktı — kalıcılık ve yeniden başlatma
+
+PostgreSQL 18 (Docker), örnek uygulama, iki tur, sonra süreç öldürülüp yeniden başlatıldı:
+
+```
+$ curl .../api/meta
+"storage":{"persistent":true,"agentDefinitionStore":"PostgresAgentDefinitionStore",
+           "runStore":"PostgresRunStore","sessionStore":"PostgresSessionStore"}
+
+=== YENIDEN BASLATMA SONRASI ===
+--- agent tanimi ---
+  arastirmaci    origin=Code      v1
+  faz5-agent     origin=Database  v1      ← arayuzden olusturulan tanim yerinde
+  support        origin=Code      v1
+--- oturum gecmisi ---
+  user       ['birinci']
+  assistant  ['Echo: birinci ']
+  user       ['ikinci']
+  assistant  ['Echo: ikinci ']            ← gecmis turlar arasi birikiyor
+--- calistirmalar ---
+  019fc0ce-d961-7633 faz5-agent   Completed  events=5
+  019fc0ce-d8c2-7b3b faz5-agent   Canceled   events=4   ← istemci akisi kesti
+--- OpenAI SDK uyumu ---
+  /v1/conversations/{id}/items -> 4 oge   ← konusma ile oturum ayni kimlik uzayi
+--- sema yalitimi ---
+  public sema tablo sayisi: 0
+  agentprism sema tablo sayisi: 14
+```
+
+> Kesilen akışın `Canceled` olması doğru davranıştır: oturum ancak akış tamamlandığında
+> kaydedilir, dolayısıyla yarım kalan turun geçmişi yazılmaz.
+
+### Ölçülen boyutlar
+
+```
+javascript : 88.1 KB gzipped (butce 250 KB)
+gomulu     : 80.9 KB brotli, 315.1 KB ham
+AgentPrism.UI.nupkg : 288 KB (uc hedef cerceve x gomulu varliklar)
+nuspec dogrudan bagimlilik : 1  (AgentPrism.AspNetCore)
+```
 
 ---
 
-## Riskler
+## Riskler — kapanış durumu
 
-| Risk | Önlem |
+| Risk | Sonuç |
 |------|-------|
-| CI'da Node.js gerekliliği build zincirini karmaşıklaştırır | CI'da Node adımı Faz 0'da eklendi; `pack` varlık yoksa anlaşılır hata verir |
-| Gömülü varlıklar assembly boyutunu büyütür | Bundle bütçesi CI kapısı; varlıklar Brotli sıkıştırılmış gömülür |
-| Ters vekil arkasında SSE arabelleği | Faz 4'teki `X-Accel-Buffering: no`; dokümanda vekil ayarı |
-| `npm ci` ağ hatası build'i kırar | `package-lock.json` sabit; CI'da npm önbelleği |
+| CI'da Node.js gerekliliği build zincirini karmaşıklaştırır | **Kapandı.** Node adımı Faz 0'da eklenmişti; zincir artımsal, `pack` varlık yoksa `AGENTPRISM0003` ile anlaşılır hata veriyor |
+| Gömülü varlıklar assembly boyutunu büyütür | **Kapandı.** Brotli gömme ile 315 KB → 81 KB; nupkg 288 KB |
+| Ters vekil arkasında SSE arabelleği | **Kapandı** (Faz 4). `X-Accel-Buffering: no` |
+| `npm ci` ağ hatası build'i kırar | **Açık.** `package-lock.json` sabit; CI'da npm önbelleği var. Ağsız bir ortamda ilk derleme başarısız olur |
+| Üç hedef çerçeve tek çıktı dizinine yazar | **Kapandı.** Sapma S3 |
+
+---
+
+## Faz 6'ya Devreden Notlar
+
+**1. `AgentPrismRunOptions` genişletilebilir.** Faz 6 örnekleme (sampling) oranı veya
+kiracı geçersiz kılma gibi çalıştırma başına ayarlar eklerse yeri burasıdır.
+`Clone()` her yeni alan için güncellenmelidir — aksi halde ayarları kopyalayan bir
+ara katman değeri sessizce düşürür.
+
+**2. Tools ve Models ekranlarında Faz 6 için yer hazır.** İkisi de altta "gözlemlenebilirlik
+fazında gelir" notu taşıyor (sapma S5). `tool_invocations` doldurulduğunda ve
+`runs.model` sütunu eklendiğinde bu notlar gerçek verilerle değiştirilir.
+
+**3. Runs ekranı trace görüntüleyiciye hazır.** `run-detail.tsx` iki panelli
+(transkript + olay zaman çizelgesi) düzendedir; waterfall üçüncü bir panel veya
+zaman çizelgesinin yanına bir sütun olarak eklenebilir. Olay hue'ları
+`EVENT_STYLE` sabitinde toplu.
+
+**4. Maliyet sütunu hâlâ yoktur.** `/api/stats` maliyet döndürmez; Settings ekranı
+bunun nedenini yazıyor. `runs.model` sütunu eklendiğinde hem uç hem ekran güncellenir.
+
+**5. Arayüz dili İngilizce, i18n altyapısı yoktur.** Çok dilli destek istenirse
+`lib/` altına küçük bir sözlük + hook eklenir; metinler bugün bileşenlerin içinde
+sabittir.
+
+**6. Frontend testleri `npm run build` içindedir.** Yeni bir saf mantık modülü
+yazarken testini de yazın; `dotnet build` onu koşar ve kırılırsa .NET derlemesi de kırılır.
+
+**7. Bundle bütçesinde 162 KB boşluk var** (88,1 / 250 KB). Faz 6'nın waterfall
+görüntüleyicisi ve grafikleri bu boşluğa sığmalıdır. Kapı `postbuild.mjs` içindedir.
+
+**8. `IAgentPrismUiProvider` tek metotlu kalmalıdır.** Arayüz paketi kendi paketleme
+biçimini değiştirebilsin diye böyle tasarlandı; yeni metot eklemek bu esnekliği
+harcar ve public API'de kırıcı olur.
+
+**9. Çok kiracılılıkta arayüz henüz kiracı seçtirmiyor.** `/api/meta` kiracı bilgisi
+döndürmez (bilerek — kimlik doğrulaması olmayan bir uçtur). Faz 6 kiracı yönetimi
+getirdiğinde arayüze bir kiracı seçici ve korumalı bir kiracı listesi ucu gerekir.
