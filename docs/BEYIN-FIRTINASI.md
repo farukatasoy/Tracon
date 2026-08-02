@@ -1,16 +1,36 @@
 # BEYIN-FIRTINASI.md — İkinci Faz Planı İçin Aday Yetenekler
 
-> **Durum:** Tartışmaya açık. Bu belge bir plan **değildir**; ikinci faz planının
-> hammaddesidir. Buradaki hiçbir kalem onaylanmış sayılmaz.
+> **Durum (2026-08-02): TAMAMI PLANLANDI.** Bu belge hammaddedir ve öyle kalır;
+> uygulanabilir plan **[`IKINCI-FAZ-YOL-HARITASI.md`](IKINCI-FAZ-YOL-HARITASI.md)**
+> ve `docs/08-*.md` … `docs/30-*.md` faz dokümanlarıdır.
 >
-> **Nasıl kullanılır:** Kullanıcı ile birlikte kalemler seçilir, seçilenler
-> `docs/08-*.md`, `09-*.md` … faz dokümanlarına dönüştürülür. Reddedilen kalemler
-> gerekçesiyle `docs/KARARLAR.md`'ye yazılır ve bu belgeden **silinmez**, üstü
-> çizilir.
+> **29 kalemin tamamı** faz dokümanına dönüştürüldü. Hiçbir kalem reddedilmedi.
+> Aşağıdaki kalem açıklamaları **değiştirilmemiştir** — planın gerekçesini
+> okumak isteyen buradan okur. Bir kalem ile faz dokümanı çelişirse **faz
+> dokümanı geçerlidir**; bu belge o günkü düşünceyi kaydeder.
 >
 > **Referans çerçevesi:** Hedef, OpenRouter ve OpenAI'ın konsol/arayüz
-> deneyimlerinin sunduğu her şeyi AgentPrism'de sunabilmektir. Her kalemde
-> "kim yapıyor" sütunu bu karşılaştırmayı taşır.
+> deneyimlerinin sunduğu her şeyi AgentPrism'de sunabilmektir.
+
+## Kalem → Faz Haritası
+
+| Kalem | Faz | Kalem | Faz |
+|-------|-----|-------|-----|
+| F-01 Anthropic | [26](26-ANTHROPIC-VE-GEMINI.md) | F-16 Sağlayıcı sağlığı | [8](08-SAGLAYICI-GENISLEMESI.md) |
+| F-02 Gemini | [26](26-ANTHROPIC-VE-GEMINI.md) | F-17 Maliyet | [20](20-MALIYET-VE-GOSTERGE-PANELI.md) |
+| F-03 OpenAI uyumlu | [8](08-SAGLAYICI-GENISLEMESI.md) | F-18 Kota | [21](21-KOTA-VE-OLAY-YAYINI.md) |
+| F-04 Azure | [27](27-AZURE-FOUNDRY.md) | F-19 Webhook | [21](21-KOTA-VE-OLAY-YAYINI.md) |
+| F-05 Yerel modeller | [8](08-SAGLAYICI-GENISLEMESI.md) | F-20 Denetim izi | [9](09-YONETISIM-VE-DENETIM-IZI.md) |
+| F-06 SQL Server | [23](23-SQL-SERVER.md) | F-21 Roller | [9](09-YONETISIM-VE-DENETIM-IZI.md) |
+| F-07 SQLite | [24](24-SQLITE.md) | F-22 Toplu/zamanlanmış | [17](17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) |
+| F-08 Veri saklama | [25](25-VERI-SAKLAMA-VE-ARSIVLEME.md) | F-23 Grafikler | [20](20-MALIYET-VE-GOSTERGE-PANELI.md) |
+| F-09 Skill'ler | [10](10-AGENT-SKILLERI.md) · [11](11-SKILL-SCRIPT-CALISTIRMA.md) | F-24 Diff | [19](19-SURUM-KARSILASTIRMA-VE-AB.md) |
+| F-10 Agent→agent | [12](12-AGENT-CAGRI-GRAFIGI.md) | F-25 i18n | [30](30-ARAYUZ-CILASI.md) |
+| F-11 Sıkıştırma/bellek | [13](13-BAGLAM-SIKISTIRMA-VE-BELLEK.md) | F-26 Komut paleti | [30](30-ARAYUZ-CILASI.md) |
+| F-12 Çok modluluk | [14](14-COK-MODLULUK.md) | F-27 Workflows | [15](15-WORKFLOWS-YURUTME.md) · [16](16-WORKFLOWS-ARAYUZ.md) |
+| F-13 Ses | [28](28-SES-TOOLLARI.md) · [29](29-KONUSMA-KATMANI.md) | F-28 MCP prompts/resources | [22](22-MCP-DERINLESMESI.md) |
+| F-14 Eval | [18](18-DEGERLENDIRME.md) | F-29 MCP OAuth | [22](22-MCP-DERINLESMESI.md) |
+| F-15 A/B | [19](19-SURUM-KARSILASTIRMA-VE-AB.md) | | |
 
 ---
 
@@ -294,7 +314,16 @@ Bugün yalnız statik bir `Authorization` başlığı destekleniyor.
 
 ---
 
-## Öncelik Önerisi
+## Öncelik Önerisi (ÖNERİ — nihai sıra değil)
+
+> ⚠️ **Bu bölüm cevaplardan önce yazıldı ve tarihsel kayıttır.** Kullanıcı
+> önceliği **yetenek derinliği** olarak belirledikten sonra (K-064) sıra
+> değişti: skill'ler, agent çağrı grafiği ve workflows öne alındı.
+> **Nihai sıra:** [`IKINCI-FAZ-YOL-HARITASI.md`](IKINCI-FAZ-YOL-HARITASI.md).
+>
+> Aşağıdaki graf, F-03'ün neden yine de başta kaldığını açıklar: tek başına
+> Claude, Gemini, Groq ve yerel modelleri açar ve sonraki her fazın geliştirme
+> maliyetini düşürür.
 
 Tek bir kişinin sırayla yapabileceği, her adımı kendi başına değerli bir sıra:
 
@@ -322,18 +351,17 @@ ve en bağımsız iştir; en sona kalabilir.
 
 ---
 
-## Açık Sorular (kullanıcıya)
+## Cevaplanmış Sorular (2026-08-02)
 
-1. **Öncelik neye göre?** Kullanıcı sayısı mı (F-03, F-06), kurumsal satın alma mı
-   (F-21, F-20), yoksa yetenek derinliği mi (F-09, F-10, F-27)?
-2. **Ses (F-13) hangi biçimde?** Tool olarak TTS mi, gerçek zamanlı konuşma
-   katmanı mı? İkisi çok farklı büyüklükte.
-3. **Skill'lerde script çalıştırma (F-09) kabul edilebilir mi?** Tasarım kuralı
-   K2'nin bilinçli bir istisnası olur; MCP'de (K-058) benzer bir istisna
-   yapıldı ama orada süreç **uzakta** çalışıyor.
-4. **Agent'ın agent'ı çağırmasında (F-10) alt çalıştırma ayrı bir `runs` satırı
-   mı olsun?** Ayrı olursa `runs.parent_run_id` gerekir ve waterfall iç içe geçer;
-   olmazsa maliyet ve süre tek satırda toplanır.
-5. **Faz 7 (yayın) ne zaman?** Yukarıdaki kalemler public API'yi büyütür; yayın
-   önce yapılırsa her kalem `PublicAPI.Unshipped.txt` disiplinine girer — bu
-   iyidir ama yavaşlatır.
+Kullanıcı beş sorunun tamamını cevapladı. Cevaplar karar defterine **K-064 …
+K-068** olarak yazıldı ve sıralama bunlara göre kuruldu.
+
+| # | Soru | Cevap | Sonuç |
+|---|------|-------|-------|
+| 1 | Öncelik neye göre? | **Yetenek derinliği** | F-09, F-10, F-27 öne alındı (Faz 10–16). F-03 yine de başta: ucuz ve sonraki her fazı ucuzlatıyor |
+| 2 | Ses (F-13) hangi biçimde? | **Konuşma katmanı** | İki faz: tool'lar [28](28-SES-TOOLLARI.md), gerçek zamanlı katman [29](29-KONUSMA-KATMANI.md). Nihai hedef konuşma katmanıdır |
+| 3 | Skill'de script çalıştırma? | **Kabul edilebilir** | [Faz 11](11-SKILL-SCRIPT-CALISTIRMA.md); K2'nin ikinci bilinçli istisnası. Önkoşulu [Faz 9](09-YONETISIM-VE-DENETIM-IZI.md)'dur — rol ayrımı ve denetim izi olmadan yapılmaz |
+| 4 | Alt çalıştırma ayrı `runs` satırı mı? | **Olabilir** | [Faz 12](12-AGENT-CAGRI-GRAFIGI.md) ayrı satırı benimsedi: `runs.parent_run_id` + `root_run_id`. Gerekçe maliyet ve süre görünürlüğü |
+| 5 | Faz 7 (yayın) ne zaman? | **Henüz belirsiz** | Faz 7 sıradan çıkarıldı; her an araya girebilir. `EnablePublicApiTracking` `false` kalıyor |
+
+Ayrıntı: [`IKINCI-FAZ-YOL-HARITASI.md`](IKINCI-FAZ-YOL-HARITASI.md).

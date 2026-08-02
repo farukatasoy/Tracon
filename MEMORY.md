@@ -121,6 +121,24 @@
 - **Migration sayısını teste sabit yazma** (2026-08-02): `MigrationTests` "1 migration" bekliyordu, 0002 eklenince kırıldı ve kırılma testin doğruladığı davranışla ilgisizdi. Sayı gömülü kaynaklardan okunuyor artık.
 - **Postgres span deposu kiracı bağlamıyla okur** (2026-08-02): sözleşme testi span'leri `"test"` kiracısına yazıp varsayılan kiracıyla okuyunca trace hiç bulunamadı. Yazma ve okuma aynı kiracıya düşmelidir.
 - **Shouldly `ShouldContain(predicate)` void döner** (2026-08-02): bulunan öğeyi kullanmak için LINQ `Single(...)` gerekir.
+
+## İkinci Faz Planlamasında Ölçülenler (2026-08-02)
+
+Aşağıdakiler reflection ve NuGet aramasıyla **doğrulandı**; faz 8–30 planları buna dayanıyor. Uygulamadan önce sürüm değişmişse yeniden ölçün.
+
+- **`AgentSkillsProvider`, `CompactionProvider`, `BackgroundAgentsProvider` üçü de `AIContextProvider` türevidir**: `ChatClientAgentOptions.AIContextProviders` ile **düz agent'a** takılır. Harness zorunlu değil — K-053'ün harness kusuru bu yolla aşılır. Planlarda öncelikli yol budur.
+- **`AgentSkillsProviderOptions.Disable*Approval` varsayılanı `false`** (yani onay **açık**): skill yükleme, kaynak okuma ve script çalıştırma faz 6 onay akışından zaten geçiyor. Bu bayraklar açılmamalı.
+- **MAF hiçbir skill script'ini kendi çalıştırmaz**: `AgentFileSkillScriptRunner` bir **delegedir** ve uygulamasını biz yazarız. Sandbox, zaman aşımı, denetim izi tamamen AgentPrism'in sorumluluğunda (faz 11).
+- **`AgentFileStore` dosya sistemi değil, soyutlamadır** (`ReadAsync`/`WriteAsync`/`SearchAsync`). Veritabanı destekli uygulama, agent'a "dosya" verirken diske hiç dokunmaz — K-062'nin `FileAccessStore` endişesini ortadan kaldırır.
+- **`ModelDescriptor` fiyat alanlarını faz 3'ten beri taşıyor** (`InputCostPerMillionTokens`, `OutputCostPerMillionTokens`) ve **hiçbir yerde okunmuyor**. Faz 20 maliyeti buradan çözecek.
+- **`OpenAIProviderOptions.Endpoint` zaten var ve yapılandırmadan bağlanıyor.** F-03'ün gerçek işi taban adres değil, **adlandırılmış çoklu sağlayıcı** desteği (`alreadyRegistered` bayrağı ve sabit `OpenAIProviderNames` engel).
+- **`audit_log` şeması zaten yeterli** (0001, satır 229): `actor`, `entity`, `before`, `after` sütunları var. Faz 9 için migration **gerekmiyor**, yalnız yazan kod eksik.
+- **`WorkflowVisualizer.ToMermaidString(workflow)` var**; `Workflow.ReflectEdges()/ReflectExecutors()/ReflectPorts()` graf çıkarımı veriyor. Tarayıcıda mermaid.js render etmek ~100 KB gzip — waterfall gibi elle SVG tercih edilecek.
+- **`Microsoft.Agents.AI.Workflows` 130 public tip içerir** ve `Directory.Packages.props`'ta sürümü zaten sabit (1.16.0). Ayrı paket (`AgentPrism.Workflows`) olarak planlandı.
+- **🚨 `Microsoft.Agents.AI.Workflows.Declarative` sürümü çekirdekten ayrı ilerliyor** (aramada en yüksek seri 1.13.x, çekirdek 1.16.0). Kullanmadan önce 1.16.0 uyumlu sürüm olduğunu doğrulayın; yoksa **almayın**.
+- **🚨 `Microsoft.Agents.AI.Foundry` 1.5.0'da kalmış** — çekirdek 1.16.0. Faz 27'nin Foundry bölümü bu doğrulamaya bağlı.
+- **Eval ve LoopEvaluator ayrı kavramlar**: `IAgentEvaluator`/`EvalItem`/`EvalCheck`/`LocalEvaluator` test kümesi ölçer; `AIJudgeLoopEvaluator`/`LoopAgent` çalıştırmayı **tekrarlar**. Faz 18 yalnız birincisini yapıyor.
+- **Paket varlığı doğrulandı** (2026-08-02): `Anthropic.SDK` 5.10.0, `Google_GenerativeAI` 3.6.7, `Azure.AI.OpenAI` 2.1.0, `ElevenLabs-DotNet` 3.7.2, `Microsoft.Data.SqlClient` 7.0.2, `Microsoft.Data.Sqlite` 10.0.10, `Microsoft.Extensions.Http.Resilience` 10.8.0.
 - **`System.Threading.Lock` net9+** (2026-08-02): `src/` net8.0 da hedefler; orada `lock` nesnesi olarak listenin kendisi kullanılır — ayrı bir `object` alanı `MA0158` tetikler. Test projeleri net10.0'dır ve `Lock` kullanabilir.
 - **Playwright `GetByPlaceholder` varsayılan olarak alt dize eşler** (2026-08-02): `"github"` yer tutucusu `"AgentPrism:Mcp:GithubToken"` ile de eşleşip strict mode ihlali verdi. `new() { Exact = true }` kullan.
 - **🚨 `Microsoft.Agents.AI.Harness` + tool çağrısı = kırık akış** (2026-08-02): kanıtlandı — Playground'dan `arastirmaci` (Harness + `get_order_status`) çalıştırılınca model `finishReason: tool_calls` ile bitiyor ama fonksiyon hiç çağrılmıyor, akış `done` olmadan kesiliyor; aynı oturumdaki bir sonraki turda MAF `tool_calls` içeren asistan mesajını atlayıp yetim bir `tool` mesajı gönderiyor, OpenAI `HTTP 400: messages with role 'tool' must be a response to a preceeding message with 'tool_calls'` ile reddediyor. Aynı senaryo düz `ChatClientAgent` (`support`) ile temiz çalışıyor (37 SSE olayı, `done` ile biter) — hata AgentPrism kodunda değil, Harness paketinin onay-bağlama zincirinde (`Microsoft.Agents.AI.ApprovalResponseBindingChatClient`). Karar K-053: örnek kasıtlı olarak değiştirilmedi, kusur belgelendi.

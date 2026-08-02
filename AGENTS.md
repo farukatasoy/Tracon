@@ -66,11 +66,18 @@ Faz bittiğinde **`faz-tamamlama` skill'i uygulanır**. Atlanmaz.
 | 4 | `docs/04-HTTP-API.md` | ✅ Tamamlandı |
 | 5 | `docs/05-AGENTPRISM-UI.md` | ✅ Tamamlandı |
 | 6 | `docs/06-GOZLEMLENEBILIRLIK.md` | ✅ Tamamlandı |
-| 7 | `docs/07-SAGLAMLASTIRMA-VE-YAYIN.md` | Sıradaki |
+| 7 | `docs/07-SAGLAMLASTIRMA-VE-YAYIN.md` | ⏸ Beklemede — yayın zamanı kullanıcı kararı (K-068) |
+| 8–30 | `docs/IKINCI-FAZ-YOL-HARITASI.md` | 📋 Planlandı — **sıradaki Faz 8** |
 
-**İkinci faz planı:** `docs/BEYIN-FIRTINASI.md` — aday yetenekler, gerekçeleri ve
-öncelik önerisi. Bu belge bir plan **değildir**; kullanıcıyla birlikte faz
-dokümanlarına dönüştürülür.
+**Sıradaki faz: 8** (`docs/08-SAGLAYICI-GENISLEMESI.md`).
+
+**İkinci faz (8–30):** `docs/IKINCI-FAZ-YOL-HARITASI.md` sırayı, bağımlılıkları
+ve migration numaralarını tutar. Faz listesi orada; burada tekrarlanmaz —
+iki yerde tutmak kayma üretir.
+
+**Hammadde:** `docs/BEYIN-FIRTINASI.md` — 29 aday yeteneğin gerekçesi. Tamamı
+planlandı; belge tarihsel kayıt olarak durur. Bir kalem ile faz dokümanı
+çelişirse **faz dokümanı geçerlidir**.
 
 ---
 

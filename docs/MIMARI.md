@@ -1,6 +1,6 @@
 # AgentPrism — Mimari
 
-> Bu doküman AgentPrism'in kalıcı mimari resmidir. Faz dokümanları (`00`–`07`) uygulama sırasını anlatır; bu doküman **ne** inşa ettiğimizi anlatır.
+> Bu doküman AgentPrism'in kalıcı mimari resmidir. Faz dokümanları (`00`–`30`) uygulama sırasını anlatır; bu doküman **ne** inşa ettiğimizi anlatır. Faz 8'den sonraki sıra: [`IKINCI-FAZ-YOL-HARITASI.md`](IKINCI-FAZ-YOL-HARITASI.md).
 >
 > **Bu dosya her fazın sonunda güncellenir.** Gerçekleşen tasarım ile bu doküman arasında fark varsa doküman yanlıştır — koda göre düzeltilir.
 
@@ -142,7 +142,18 @@ mimari testi bunu Faz 1'den itibaren zorlar.
 ### K2 — Tool'lar yalnız kodda tanımlanır
 Arayüzden agent oluşturulabilir, ancak tool **kodu** yazılamaz. Arayüz sadece kodda kayıtlı tool'lardan seçim yaptırır.
 
-> **Gerekçe:** Arayüzden çalıştırılabilir kod tanımlanabilseydi, AgentPrism arayüzüne erişen herkes sunucuda kod çalıştırabilirdi. Bu sınır bilinçlidir ve gevşetilmeyecektir.
+> **Gerekçe:** Arayüzden çalıştırılabilir kod tanımlanabilseydi, AgentPrism arayüzüne erişen herkes sunucuda kod çalıştırabilirdi.
+
+**Kuralın bilinçli istisnaları.** Kural gevşetilmez; istisnalar tek tek
+gerekçelendirilir, sayılıdır ve her biri kendi korumalarını taşır:
+
+| İstisna | Durum | Neden kabul edildi | Korumalar |
+|---------|-------|--------------------|-----------|
+| **MCP tool'ları** (K-058) | ✅ Uygulandı (Faz 6) | Süreç **uzakta** çalışır; AgentPrism yalnız istemcidir | Yalnız `http`/`https` (stdio yok), zorunlu onay, ad ele geçirme engeli, denetim izi, sırsız kayıt |
+| **Skill script'leri** (K-066) | 📋 Planlandı ([Faz 11](11-SKILL-SCRIPT-CALISTIRMA.md)) | Kullanıcı kararı. Süreç **bu makinede** çalışır — bu yüzden en sıkı istisnadır | Yorumlayıcı beyaz listesi (varsayılan boş), skill başına izin, zorunlu onay, ayrı OS süreci, zaman aşımı, temiz ortam, **yazılamazsa reddeden** denetim izi, `PlatformIsolationAcknowledged` bayrağı |
+
+Her iki durumda da arayüz kullanıcısı **yeni kod yazmaz**; var olan bir yeteneği
+etkinleştirir. Bu ayrım kuralın özüdür.
 
 ### K3 — MAF nesneleri sızdırılır, sarmalanmaz
 `AIAgent`, `AgentSession`, `ChatMessage`, `AIFunction` doğrudan kullanılır. AgentPrism bunların üzerine kendi paralel tip hiyerarşisini koymaz.
@@ -404,12 +415,24 @@ IsolationKeyScopedAgentSessionStore · SessionIsolationKeyProvider
 // MapAgentPrism'den once kaydederse onunki kazanir.
 
 // Microsoft.Agents.AI — degerlendirme, sikistirma, skill, arka plan agent'lari
-AgentSkill · AgentSkillsProvider · AgentFileStore      → BEYIN-FIRTINASI F-09
-BackgroundAgentsProvider · HarnessAgentOptions.BackgroundAgents → F-10 (K-062)
-CompactionProvider · SummarizationCompactionStrategy   → F-11
-AIJudgeLoopEvaluator · LoopAgent · EvalCheck           → F-14
-Microsoft.Agents.AI.Workflows                          → F-27 (K-054)
+AgentSkill · AgentSkillsProvider · AgentFileStore      → Faz 10 · 11 (F-09)
+BackgroundAgentsProvider · HarnessAgentOptions.BackgroundAgents → Faz 12 (F-10, K-062)
+CompactionProvider · SummarizationCompactionStrategy   → Faz 13 (F-11)
+EvalItem · EvalCheck · LocalEvaluator · IAgentEvaluator → Faz 18 (F-14)
+AIJudgeLoopEvaluator · LoopAgent                       → planlanmadi (eval'den AYRI kavram)
+Microsoft.Agents.AI.Workflows                          → Faz 15 · 16 (F-27, K-054)
 ```
+
+**2026-08-02'de reflection ile doğrulanan ve ikinci faz planına giren bulgular:**
+
+| Bulgu | Etkisi |
+|-------|--------|
+| `AgentSkillsProvider`, `CompactionProvider`, `BackgroundAgentsProvider` **`AIContextProvider`'dır** | Üçü de `ChatClientAgentOptions.AIContextProviders` ile düz agent'a takılır — harness zorunlu **değildir**. K-053'ün harness kusuru bu yolla aşılır |
+| `AgentSkillsProviderOptions.Disable*Approval` varsayılanı **`false`** | Skill yükleme, kaynak okuma ve script çalıştırma Faz 6'nın onay akışından **zaten** geçer |
+| `AgentFileSkillScriptRunner` bir **delegedir**; MAF hiçbir script'i kendi çalıştırmaz | Sandbox, zaman aşımı ve denetim izi tamamen AgentPrism'in sorumluluğudur (Faz 11) |
+| `AgentFileStore` bir **soyutlamadır**, dosya sistemi değil | Veritabanı destekli uygulama, agent'a "dosya" verirken diske hiç dokunmaz (K-062 endişesini ortadan kaldırır) |
+| `WorkflowVisualizer.ToMermaidString(workflow)` **var** | Graf metni MAF'tan gelir; tarayıcıda render kararı ayrıdır (Faz 16) |
+| `HarnessAgentOptions` üyeleri: `AgentSkillsSource`, `CompactionStrategy`, `FileMemoryStore`, `LoopEvaluators`, `BackgroundAgents` | Harness zaten bunları içeride kullanıyor; düz agent için açığa çıkarmak gerekir |
 
 ---
 
@@ -514,7 +537,7 @@ erDiagram
     }
     audit_log {
         uuid id PK
-        text action "HÂLÂ BOŞ · bkz. BEYIN-FIRTINASI F-20"
+        text action "HÂLÂ BOŞ · Faz 9 doldurur"
         jsonb before
         jsonb after
     }
@@ -732,7 +755,7 @@ Ek sınırlar:
 
 - Sırlar (`ApiKey`, bağlantı dizesi, MCP kimlik doğrulama değeri) **hiçbir zaman** veritabanına yazılmaz, API'den dönmez, arayüzde gösterilmez
 - `previous_response_id` ve `conversation_id` güvenilmez girdi kabul edilir; her zaman kiracı sahipliği doğrulanır
-- ⚠️ `audit_log` tablosu kuruldu ancak **hâlâ yazılmıyor** — bkz. `BEYIN-FIRTINASI.md` F-20
+- ⚠️ `audit_log` tablosu kuruldu ancak **hâlâ yazılmıyor** — [Faz 9](09-YONETISIM-VE-DENETIM-IZI.md) doldurur
 
 ### Faz 6'nın eklediği sınırlar
 
@@ -831,5 +854,7 @@ AOT uyumluluğu Faz 1'de üç somut kısıt getirdi:
 | [04-HTTP-API.md](04-HTTP-API.md) | Faz 4 — HTTP katmanı |
 | [05-AGENTPRISM-UI.md](05-AGENTPRISM-UI.md) | Faz 5 — arayüz |
 | [06-GOZLEMLENEBILIRLIK.md](06-GOZLEMLENEBILIRLIK.md) | Faz 6 — telemetri, tool onayı, MCP, çok kiracılılık |
-| [07-SAGLAMLASTIRMA-VE-YAYIN.md](07-SAGLAMLASTIRMA-VE-YAYIN.md) | Faz 7 — sağlamlaştırma ve yayın |
-| [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) | İkinci faz planı için aday yetenekler — **plan değil, hammadde** |
+| [07-SAGLAMLASTIRMA-VE-YAYIN.md](07-SAGLAMLASTIRMA-VE-YAYIN.md) | Faz 7 — sağlamlaştırma ve yayın (**beklemede**, K-068) |
+| [IKINCI-FAZ-YOL-HARITASI.md](IKINCI-FAZ-YOL-HARITASI.md) | **Faz 8–30** — sıra, bağımlılıklar, migration numaraları, kalem → faz haritası |
+| `08-*.md` … `30-*.md` | İkinci faz dokümanları — her biri ayrı bir oturumda uygulanır |
+| [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 kalemin gerekçesi; **tamamı planlandı**, tarihsel kayıt |
