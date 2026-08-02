@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Agents.AI;
+using Microsoft.Agents.AI.Compaction;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 
@@ -34,6 +35,14 @@ public sealed class AgentDefinitionCompiler
     private readonly SkillScriptSupport? _scripts;
     private readonly CallableAgentResolver? _callableAgents;
     private readonly ITenantContext? _tenantContext;
+    private readonly ModelBinding? _utilityModel;
+
+    // MAAI001: Microsoft.Agents.AI.AgentFileStore "evaluation purposes only"
+    // olarak isaretli. Bastirma tek bir dosyada toplanmistir (bu dosya, K-020
+    // deseninin devami); MAF bu API'yi degistirirse yalniz burasi guncellenir.
+#pragma warning disable MAAI001
+    private readonly AgentFileStore? _fileStore;
+#pragma warning restore MAAI001
 
     /// <summary>Yeni bir derleyici olusturur.</summary>
     /// <param name="models">Model saglayici defteri.</param>
@@ -57,7 +66,18 @@ public sealed class AgentDefinitionCompiler
     /// <param name="tenantContext">
     /// Kiraci baglami. Alt cagrilarin kiraci degistirmedigi bununla dogrulanir.
     /// </param>
+    /// <param name="utilityModel">
+    /// Baglam sikistirmasindaki ozetleme icin varsayilan model. Bir agent
+    /// kendi <c>CompactionSettings.SummarizationModel</c>'ini vermezse bu
+    /// kullanilir; <see langword="null"/> ise agent'in kendi modeline duser.
+    /// </param>
+    /// <param name="fileStore">
+    /// Bellek saglayicilarinin kullandigi dosya deposu. <see langword="null"/>
+    /// ise <c>MemorySettings.EnableFileMemory</c>/<c>EnableTextSearch</c>
+    /// isteyen bir tanim derleme hatasi alir.
+    /// </param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
+#pragma warning disable MAAI001 // AgentFileStore — bkz. _fileStore alanindaki gerekce.
     public AgentDefinitionCompiler(
         IModelProviderRegistry models,
         IToolRegistry tools,
@@ -67,7 +87,10 @@ public sealed class AgentDefinitionCompiler
         AgentSkillCatalog? skills = null,
         SkillScriptSupport? scripts = null,
         CallableAgentResolver? callableAgents = null,
-        ITenantContext? tenantContext = null)
+        ITenantContext? tenantContext = null,
+        ModelBinding? utilityModel = null,
+        AgentFileStore? fileStore = null)
+#pragma warning restore MAAI001
     {
         ArgumentNullException.ThrowIfNull(models);
         ArgumentNullException.ThrowIfNull(tools);
@@ -81,6 +104,8 @@ public sealed class AgentDefinitionCompiler
         _scripts = scripts;
         _callableAgents = callableAgents;
         _tenantContext = tenantContext;
+        _utilityModel = utilityModel;
+        _fileStore = fileStore;
     }
 
     /// <summary>Tanimi calistirilabilir bir agent'a donusturur.</summary>
@@ -201,11 +226,13 @@ public sealed class AgentDefinitionCompiler
         return _skills.ResolveAsync(definition, cancellationToken);
     }
 
-    private IChatClient CreateChatClient(AgentDefinition definition)
+    private IChatClient CreateChatClient(AgentDefinition definition) => CreateChatClient(definition, definition.Model);
+
+    private IChatClient CreateChatClient(AgentDefinition definition, ModelBinding binding)
     {
         try
         {
-            return _models.CreateChatClient(definition.Model);
+            return _models.CreateChatClient(binding);
         }
         catch (AgentPrismException ex)
         {
@@ -311,6 +338,264 @@ public sealed class AgentDefinitionCompiler
         };
     }
 
+    // MAAI001: Microsoft.Agents.AI.Compaction.* ve AgentFileStore "evaluation
+    // purposes only" olarak isaretli. Baglam sikistirma/bellek kurulumu tek
+    // bir blokta toplanmistir; MAF bu API'leri degistirirse yalniz burasi
+    // guncellenir. Gerekce: docs/KARARLAR.md (K-020 ile ayni desen).
+#pragma warning disable MAAI001
+    private const int DefaultMinimumPreservedTurns = 2;
+    private const int DefaultMinimumPreservedGroups = 4;
+    private const int DefaultContextWindowMaxOutputTokens = 4096;
+
+    // ContextWindow ve Pipeline stratejileri disariya bir CompactionTrigger
+    // parametresi actmaz (kendi ic tetikleyicilerini kendileri kurar/tasir).
+    // Bu durumlarda ObservedCompactionStrategy'nin kendi tetikleyicisi olarak
+    // kullanilir: gercek gating tamamen ic stratejiye/stratejilere birakilir.
+    private static readonly CompactionTrigger AlwaysTrigger = static _ => true;
+
+    /// <summary>
+    /// Tanimin sikistirma ayarlarindan calistirilabilir bir
+    /// <see cref="CompactionStrategy"/> kurar.
+    /// </summary>
+    /// <returns>
+    /// <see langword="null"/> — tanim sikistirma istemiyor
+    /// (<see cref="AgentDefinition.Compaction"/> bos veya
+    /// <see cref="CompactionStrategyKind.None"/>).
+    /// </returns>
+    /// <exception cref="AgentPrismCompilationException">
+    /// Secilen strateji bir tetikleyici gerektirir ama hicbiri verilmemisse,
+    /// veya <see cref="CompactionStrategyKind.ContextWindow"/> icin
+    /// <see cref="CompactionSettings.MaxContextWindowTokens"/> eksikse.
+    /// </exception>
+    // internal (private degil): Pipeline'in sabit sirasi gibi yapisal kararlar
+    // dogrudan test edilebilsin diye. CompactionProvider bu stratejiyi disariya
+    // sizdirmaz, dolayisiyla testler baska bir yoldan erisemez.
+    internal ObservedCompactionStrategy? BuildCompactionStrategy(AgentDefinition definition)
+    {
+        var settings = definition.Compaction;
+
+        if (settings is null || settings.Strategy == CompactionStrategyKind.None)
+        {
+            return null;
+        }
+
+        var trigger = BuildTrigger(settings);
+        var requiresTrigger = settings.Strategy is not (CompactionStrategyKind.ContextWindow);
+
+        if (requiresTrigger && trigger is null)
+        {
+            throw new AgentPrismCompilationException(
+                $"'{definition.Name}' agent'i '{settings.Strategy}' sikistirma stratejisini secti " +
+                "ancak hicbir tetikleyici vermedi (TriggerTokens/TriggerMessages/TriggerTurns'ten en az biri gerekir).")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
+        CompactionStrategy inner = settings.Strategy switch
+        {
+            CompactionStrategyKind.SlidingWindow => new SlidingWindowCompactionStrategy(
+                trigger!, settings.MinimumPreservedTurns ?? DefaultMinimumPreservedTurns, target: null),
+
+            CompactionStrategyKind.Truncation => new TruncationCompactionStrategy(
+                trigger!, settings.MinimumPreservedGroups ?? DefaultMinimumPreservedGroups, target: null),
+
+            CompactionStrategyKind.ToolResult => new ToolResultCompactionStrategy(
+                trigger!, settings.MinimumPreservedGroups ?? DefaultMinimumPreservedGroups, target: null),
+
+            CompactionStrategyKind.Summarization => new SummarizationCompactionStrategy(
+                ResolveSummarizationChatClient(definition),
+                trigger!,
+                settings.MinimumPreservedGroups ?? DefaultMinimumPreservedGroups,
+                settings.SummarizationPrompt,
+                target: null),
+
+            CompactionStrategyKind.ContextWindow => BuildContextWindowStrategy(definition, settings),
+
+            // Sira sabittir ve dokumante edilmistir: ToolResult -> SlidingWindow -> Summarization.
+            // Serbest sira, arayuzde anlasilmasi zor bir yapilandirma yuzeyi uretir.
+            CompactionStrategyKind.Pipeline => new PipelineCompactionStrategy(
+            [
+                new ToolResultCompactionStrategy(
+                    trigger!, settings.MinimumPreservedGroups ?? DefaultMinimumPreservedGroups, target: null),
+                new SlidingWindowCompactionStrategy(
+                    trigger!, settings.MinimumPreservedTurns ?? DefaultMinimumPreservedTurns, target: null),
+                new SummarizationCompactionStrategy(
+                    ResolveSummarizationChatClient(definition),
+                    trigger!,
+                    settings.MinimumPreservedGroups ?? DefaultMinimumPreservedGroups,
+                    settings.SummarizationPrompt,
+                    target: null),
+            ]),
+
+            _ => throw new AgentPrismCompilationException(
+                $"'{definition.Name}' agent'i bilinmeyen bir sikistirma stratejisi secti: '{settings.Strategy}'.")
+            {
+                AgentName = definition.Name,
+            },
+        };
+
+        return new ObservedCompactionStrategy(inner, trigger ?? AlwaysTrigger, target: null);
+    }
+
+    /// <summary>
+    /// Ayarlanmis tetikleyici alanlarindan tek bir <see cref="CompactionTrigger"/> kurar.
+    /// Birden fazlasi doluysa herhangi biri gerceklestiginde tetiklenecek sekilde birlestirir.
+    /// </summary>
+    /// <returns>Hicbir tetikleyici alani dolu degilse <see langword="null"/>.</returns>
+    private static CompactionTrigger? BuildTrigger(CompactionSettings settings)
+    {
+        List<CompactionTrigger>? triggers = null;
+
+        if (settings.TriggerTokens is { } tokens)
+        {
+            (triggers ??= []).Add(CompactionTriggers.TokensExceed(tokens));
+        }
+
+        if (settings.TriggerMessages is { } messages)
+        {
+            (triggers ??= []).Add(CompactionTriggers.MessagesExceed(messages));
+        }
+
+        if (settings.TriggerTurns is { } turns)
+        {
+            (triggers ??= []).Add(CompactionTriggers.TurnsExceed(turns));
+        }
+
+        return triggers switch
+        {
+            null => null,
+            { Count: 1 } single => single[0],
+            _ => CompactionTriggers.Any([.. triggers]),
+        };
+    }
+
+    private static ContextWindowCompactionStrategy BuildContextWindowStrategy(AgentDefinition definition, CompactionSettings settings)
+    {
+        if (settings.MaxContextWindowTokens is not { } maxContextWindowTokens)
+        {
+            throw new AgentPrismCompilationException(
+                $"'{definition.Name}' agent'i ContextWindow sikistirma stratejisini secti ancak " +
+                $"{nameof(CompactionSettings.MaxContextWindowTokens)} vermedi.")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
+        var maxOutputTokens = settings.MaxOutputTokens
+            ?? definition.Model.MaxOutputTokens
+            ?? DefaultContextWindowMaxOutputTokens;
+
+        // toolEvictionThreshold/truncationThreshold bu fazda CompactionSettings'te
+        // acilmiyor (dokumanin §13.1 sekli bunlari icermiyor) — makul sabit
+        // degerler kullanilir. Ihtiyac cikarsa ayri bir alan olarak eklenir.
+        return new ContextWindowCompactionStrategy(
+            maxContextWindowTokens,
+            maxOutputTokens,
+            toolEvictionThreshold: 0.5,
+            truncationThreshold: 0.7);
+    }
+
+    /// <summary>
+    /// Ozetleme cagrisinda kullanilacak modeli cozer ve token izleyicisiyle sarar.
+    /// </summary>
+    /// <remarks>
+    /// Sira: agent'in kendi <see cref="CompactionSettings.SummarizationModel"/>'i
+    /// → uygulama genelindeki yardimci model → agent'in kendi modeli.
+    /// </remarks>
+    private CompactionUsageTrackingChatClient ResolveSummarizationChatClient(AgentDefinition definition)
+    {
+        var binding = definition.Compaction?.SummarizationModel ?? _utilityModel ?? definition.Model;
+
+        return new CompactionUsageTrackingChatClient(CreateChatClient(definition, binding));
+    }
+
+    /// <summary>Tanimin bellek ayarlarindan <see cref="AIContextProvider"/> listesi kurar.</summary>
+    private List<AIContextProvider> CreateMemoryProviders(AgentDefinition definition)
+    {
+        var memory = definition.Memory;
+
+        if (memory is null)
+        {
+            return [];
+        }
+
+        var providers = new List<AIContextProvider>();
+
+        if (memory.EnableFileMemory)
+        {
+            providers.Add(new FileMemoryProvider(RequireFileStore(definition), stateInitializer: null, options: null));
+        }
+
+        if (memory.EnableTodo)
+        {
+            providers.Add(new TodoProvider(new TodoProviderOptions()));
+        }
+
+        if (CreateTextSearchProvider(definition) is { } textSearch)
+        {
+            providers.Add(textSearch);
+        }
+
+        return providers;
+    }
+
+    private TextSearchProvider? CreateTextSearchProvider(AgentDefinition definition)
+    {
+        if (definition.Memory is not { EnableTextSearch: true })
+        {
+            return null;
+        }
+
+        var fileStore = RequireFileStore(definition);
+
+        return new TextSearchProvider(
+            (query, cancellationToken) => SearchFileStoreAsync(fileStore, query, cancellationToken),
+            new TextSearchProviderOptions(),
+            _loggerFactory);
+    }
+
+    private AgentFileStore RequireFileStore(AgentDefinition definition)
+    {
+        if (_fileStore is null)
+        {
+            throw new AgentPrismCompilationException(
+                $"'{definition.Name}' agent'i bir bellek saglayicisi istiyor ancak dosya deposu kayitli degil.")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
+        return _fileStore;
+    }
+
+    /// <summary>
+    /// <see cref="AgentFileStore.SearchAsync"/> sonuclarini
+    /// <see cref="TextSearchProvider.TextSearchResult"/>'a esler.
+    /// </summary>
+    /// <remarks>
+    /// Hangi somut <see cref="AgentFileStore"/> kayitliysa (bu faz: bellek ici)
+    /// onun uzerinde arar; kalici bir depo kayit edilirse kod degismeden
+    /// kalici aramaya doner.
+    /// </remarks>
+    private static async Task<IEnumerable<TextSearchProvider.TextSearchResult>> SearchFileStoreAsync(
+        AgentFileStore fileStore,
+        string query,
+        CancellationToken cancellationToken)
+    {
+        var matches = await fileStore
+            .SearchAsync("/", regexPattern: query, globPattern: null, recursive: true, cancellationToken)
+            .ConfigureAwait(false);
+
+        return matches.Select(static match => new TextSearchProvider.TextSearchResult
+        {
+            Text = match.Snippet,
+            SourceName = match.FileName,
+            SourceLink = match.FileName,
+        });
+    }
+#pragma warning restore MAAI001
+
     private ChatClientAgent CompileChatAgent(
         AgentDefinition definition,
         IChatClient chatClient,
@@ -337,6 +622,17 @@ public sealed class AgentDefinitionCompiler
         {
             providers.Add(backgroundAgents);
         }
+
+        if (BuildCompactionStrategy(definition) is { } compactionStrategy)
+        {
+            // MAAI001: CompactionProvider "evaluation purposes only" — gerekce
+            // BuildCompactionStrategy'nin ustundeki bloktakiyle aynidir.
+#pragma warning disable MAAI001
+            providers.Add(new CompactionProvider(compactionStrategy, stateKey: null, _loggerFactory));
+#pragma warning restore MAAI001
+        }
+
+        providers.AddRange(CreateMemoryProviders(definition));
 
         if (providers.Count > 0)
         {
@@ -461,6 +757,57 @@ public sealed class AgentDefinitionCompiler
         if (CreateChildAgents(definition, callableAgents) is { } children)
         {
             options.BackgroundAgents = children;
+        }
+
+        // Cakisma denetimi: kullanici hem sikistirma/bellek istemis hem
+        // harness'ta ayni yetenegi kapatmissa hangisinin kazandigi sessizce
+        // belirsiz kalmamali (K1 sifir surpriz).
+        if (definition.Compaction is { Strategy: not CompactionStrategyKind.None })
+        {
+            if (harness.DisableCompaction)
+            {
+                throw new AgentPrismCompilationException(
+                    $"'{definition.Name}' agent'i sikistirma istiyor ancak " +
+                    $"{nameof(HarnessSettings)}.{nameof(HarnessSettings.DisableCompaction)} kapatilmis.")
+                {
+                    AgentName = definition.Name,
+                };
+            }
+
+            options.CompactionStrategy = BuildCompactionStrategy(definition);
+        }
+
+        if (definition.Memory is { EnableFileMemory: true })
+        {
+            if (harness.DisableFileMemory)
+            {
+                throw new AgentPrismCompilationException(
+                    $"'{definition.Name}' agent'i dosya bellegi istiyor ancak " +
+                    $"{nameof(HarnessSettings)}.{nameof(HarnessSettings.DisableFileMemory)} kapatilmis.")
+                {
+                    AgentName = definition.Name,
+                };
+            }
+
+            options.FileMemoryStore = RequireFileStore(definition);
+        }
+
+        if (definition.Memory is { EnableTodo: true } && harness.DisableTodoProvider)
+        {
+            throw new AgentPrismCompilationException(
+                $"'{definition.Name}' agent'i todo takibi istiyor ancak " +
+                $"{nameof(HarnessSettings)}.{nameof(HarnessSettings.DisableTodoProvider)} kapatilmis.")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
+        // EnableTodo == true ve DisableTodoProvider == false ise ek bir sey
+        // YAPILMAZ: harness todo takibini varsayilan olarak zaten acik tutar.
+
+        if (CreateTextSearchProvider(definition) is { } textSearch)
+        {
+            options.AIContextProviders = [textSearch];
         }
 
         return chatClient.AsHarnessAgent(options, _loggerFactory, _services);

@@ -112,6 +112,32 @@ public sealed class UiTests(BrowserFixture browsers)
     }
 
     [Fact]
+    public async Task Baglam_paneli_secilen_stratejiyi_istek_onizlemesine_yansitir()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
+
+        await session.Page.GetByTestId("agent-name").FillAsync("baglam-agenti");
+        await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModelProvider.ModelName);
+
+        // Strateji secilene kadar koşullu alanlar (tetikleyici vb.) gorunmez.
+        (await session.Page.GetByLabel("Trigger: message count").CountAsync()).ShouldBe(0);
+
+        await session.Page.GetByLabel("Compaction strategy").SelectOptionAsync("SlidingWindow");
+        await session.Page.GetByLabel("Trigger: message count").FillAsync("40");
+        await session.Page.GetByLabel("Enable todo tracking").CheckAsync();
+
+        var preview = await session.Page.Locator("pre").First.TextContentAsync();
+
+        preview.ShouldNotBeNull();
+        preview.ShouldContain("\"strategy\": \"SlidingWindow\"");
+        preview.ShouldContain("\"triggerMessages\": 40");
+        preview.ShouldContain("\"enableTodo\": true");
+    }
+
+    [Fact]
     public async Task Arayuzden_skill_olusturulur_ve_listelenir()
     {
         await using var host = await UiHost.StartAsync();

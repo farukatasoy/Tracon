@@ -219,6 +219,39 @@ public sealed class AgentCrudTests
     }
 
     [Fact]
+    public async Task Sikistirma_ve_bellek_ayarlari_gidip_gelir()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        var request = TestData.Request() with
+        {
+            Compaction = new CompactionSettings
+            {
+                Strategy = CompactionStrategyKind.SlidingWindow,
+                TriggerMessages = 40,
+                MinimumPreservedTurns = 3,
+            },
+            Memory = new MemorySettings { EnableTodo = true, EnableTextSearch = true },
+        };
+
+        using (var created = await host.Client.PostAsJsonAsync(Agents, request))
+        {
+            created.EnsureSuccessStatusCode();
+        }
+
+        using var response = await host.Client.GetAsync(
+            new Uri("/agentprism/api/agents/db-agent", UriKind.Relative));
+
+        var json = await AgentPrismTestHost.ReadJsonAsync(response);
+        var definition = json.GetProperty("definition");
+
+        definition.GetProperty("compaction").GetProperty("strategy").GetString().ShouldBe("SlidingWindow");
+        definition.GetProperty("compaction").GetProperty("triggerMessages").GetInt32().ShouldBe(40);
+        definition.GetProperty("memory").GetProperty("enableTodo").GetBoolean().ShouldBeTrue();
+        definition.GetProperty("memory").GetProperty("enableTextSearch").GetBoolean().ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task Olmayan_surume_geri_alinamaz()
     {
         await using var host = await AgentPrismTestHost.StartAsync();

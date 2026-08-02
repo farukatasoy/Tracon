@@ -19,7 +19,17 @@ export type RunEventType =
   | 'RunCompleted'
   | 'RunFailed'
   | 'ChildRunStarted'
-  | 'ChildRunCompleted';
+  | 'ChildRunCompleted'
+  | 'HistoryCompacted';
+
+export type CompactionStrategyKind =
+  | 'None'
+  | 'SlidingWindow'
+  | 'Truncation'
+  | 'ToolResult'
+  | 'Summarization'
+  | 'ContextWindow'
+  | 'Pipeline';
 
 export interface Meta {
   version: string;
@@ -75,6 +85,25 @@ export interface HarnessSettings {
   disableAgentModeProvider?: boolean;
 }
 
+export interface CompactionSettings {
+  strategy: CompactionStrategyKind;
+  triggerTokens?: number | null;
+  triggerMessages?: number | null;
+  triggerTurns?: number | null;
+  minimumPreservedTurns?: number | null;
+  minimumPreservedGroups?: number | null;
+  maxContextWindowTokens?: number | null;
+  maxOutputTokens?: number | null;
+  summarizationPrompt?: string | null;
+  summarizationModel?: ModelBinding | null;
+}
+
+export interface MemorySettings {
+  enableFileMemory?: boolean;
+  enableTodo?: boolean;
+  enableTextSearch?: boolean;
+}
+
 export interface AgentDescriptor {
   name: string;
   displayName?: string | null;
@@ -100,6 +129,8 @@ export interface AgentDefinition {
   skillNames: string[];
   callableAgentNames: string[];
   harness?: HarnessSettings | null;
+  compaction?: CompactionSettings | null;
+  memory?: MemorySettings | null;
   origin: AgentOrigin;
   version: number;
   tenantId?: string | null;
@@ -124,6 +155,8 @@ export interface AgentDefinitionRequest {
   skillNames: string[];
   callableAgentNames: string[];
   harness?: HarnessSettings | null;
+  compaction?: CompactionSettings | null;
+  memory?: MemorySettings | null;
 }
 
 export interface AgentSkillResourceDefinition {

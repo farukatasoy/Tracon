@@ -240,7 +240,8 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [10](docs/10-AGENT-SKILLERI.md) | Agent skill'leri: markdown talimatlar, kaynaklar ve MAF onayı | ✅ Tamamlandı |
 | [11](docs/11-SKILL-SCRIPT-CALISTIRMA.md) | Skill script çalıştırma: sandbox, izin kaydı ve denetim izi | ✅ Tamamlandı |
 | [12](docs/12-AGENT-CAGRI-GRAFIGI.md) | Agent'ın agent'ı çağırması: çağrı grafiği, çalıştırma ağacı ve paylaşılan bütçe | ✅ Tamamlandı |
-| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 13–30) | 📋 Planlandı — sıradaki Faz 13 |
+| [13](docs/13-BAGLAM-SIKISTIRMA-VE-BELLEK.md) | Bağlam sıkıştırma (5 strateji + pipeline) ve bellek sağlayıcıları (dosya, todo, metin araması) | ✅ Tamamlandı |
+| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 14–30) | 📋 Planlandı — sıradaki Faz 14 |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 > Faz 6, planındaki Workflows kalemini **yapmadı**; ertelendi ve gerekçesi

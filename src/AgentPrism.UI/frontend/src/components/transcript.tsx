@@ -56,6 +56,17 @@ export function TranscriptView({
               </div>
             );
 
+          case 'compaction':
+            return (
+              <div
+                key={item.id}
+                className="rounded-md border border-line bg-accent-soft px-3 py-2 text-[12px] text-accent"
+                title={item.detail ?? undefined}
+              >
+                {item.message}
+              </div>
+            );
+
           case 'approval':
             return <ApprovalCard key={item.id} item={item} onDecide={onDecide} />;
 

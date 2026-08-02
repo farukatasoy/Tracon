@@ -73,6 +73,18 @@ public sealed record AgentDefinition
     /// </summary>
     public HarnessSettings? Harness { get; init; }
 
+    /// <summary>
+    /// Baglam sikistirma ayarlari. <see langword="null"/> ise hicbir
+    /// sikistirma uygulanmaz.
+    /// </summary>
+    public CompactionSettings? Compaction { get; init; }
+
+    /// <summary>
+    /// Bellek saglayicisi ayarlari. <see langword="null"/> ise hicbir bellek
+    /// saglayicisi eklenmez.
+    /// </summary>
+    public MemorySettings? Memory { get; init; }
+
     /// <summary>Tanimin kaynagi: kod mu, veritabani mi.</summary>
     public AgentDefinitionOrigin Origin { get; init; } = AgentDefinitionOrigin.Database;
 

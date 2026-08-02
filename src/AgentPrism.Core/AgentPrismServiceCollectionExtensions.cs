@@ -99,6 +99,17 @@ public static class AgentPrismServiceCollectionExtensions
             static _ => new Microsoft.Agents.AI.InMemoryChatHistoryProvider(
                 new Microsoft.Agents.AI.InMemoryChatHistoryProviderOptions()));
 
+        // Bellek destekli AIContextProvider'lar (FileMemoryProvider,
+        // TextSearchProvider) icin dosya deposu. MAF'in kendi soyutlamasi
+        // (dosya sistemi degil); bu fazda kalici surumu yok, bellek icinde
+        // yasar. Kalici surum Faz 14+'in depolama tablosuna baglanacak.
+        // MAAI001: AgentFileStore "evaluation purposes only" — gerekce
+        // AgentDefinitionCompiler'daki ile aynidir.
+#pragma warning disable MAAI001
+        services.TryAddSingleton<Microsoft.Agents.AI.AgentFileStore>(
+            static _ => new Microsoft.Agents.AI.InMemoryAgentFileStore());
+#pragma warning restore MAAI001
+
         // Derleyici ve onbellek.
         services.TryAddSingleton<CompiledAgentCache>();
 
@@ -107,6 +118,7 @@ public static class AgentPrismServiceCollectionExtensions
         // cozucu -> IAgentCatalog dairesi kurulamazdi.
         services.TryAddSingleton<CallableAgentResolver>();
 
+#pragma warning disable MAAI001 // AgentFileStore — gerekce AgentDefinitionCompiler'daki ile aynidir.
         services.TryAddSingleton(static provider => new AgentDefinitionCompiler(
             provider.GetRequiredService<IModelProviderRegistry>(),
             provider.GetRequiredService<IToolRegistry>(),
@@ -119,7 +131,10 @@ public static class AgentPrismServiceCollectionExtensions
             // Kayitli degilse script destegi yoktur: hicbir script calistirilamaz.
             provider.GetService<SkillScriptSupport>(),
             provider.GetRequiredService<CallableAgentResolver>(),
-            provider.GetRequiredService<ITenantContext>()));
+            provider.GetRequiredService<ITenantContext>(),
+            provider.GetRequiredService<IOptions<AgentPrismOptions>>().Value.UtilityModel,
+            provider.GetRequiredService<Microsoft.Agents.AI.AgentFileStore>()));
+#pragma warning restore MAAI001
 
         // Denetim izi. Aktor AuditActorContext'ten (AsyncLocal) okunur;
         // AgentPrism.AspNetCore her korumali istegin basinda oraya HttpContext.User'i
@@ -257,6 +272,46 @@ public static class AgentPrismServiceCollectionExtensions
         BindAudit(section.GetSection(nameof(AgentPrismOptions.Audit)), options.Audit);
         BindSkills(section.GetSection(nameof(AgentPrismOptions.Skills)), options.Skills);
         BindAgentGraph(section.GetSection(nameof(AgentPrismOptions.AgentGraph)), options.AgentGraph);
+        options.UtilityModel = BindUtilityModel(section.GetSection(nameof(AgentPrismOptions.UtilityModel)));
+    }
+
+    /// <summary>
+    /// Yardimci model baglantisini yapilandirmadan okur.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ModelBinding.Provider"/> ve <see cref="ModelBinding.Model"/>
+    /// zorunludur; ikisi de dolu degilse hicbir baglanti kurulmaz. Kismen
+    /// doldurulmus bir baglanti, yanlislikla eksik yazilmis bir yapilandirmayi
+    /// sessizce kabul etmis olur.
+    /// </remarks>
+    private static ModelBinding? BindUtilityModel(IConfigurationSection section)
+    {
+        if (!section.Exists())
+        {
+            return null;
+        }
+
+        var provider = section[nameof(ModelBinding.Provider)];
+        var model = section[nameof(ModelBinding.Model)];
+
+        if (string.IsNullOrWhiteSpace(provider) || string.IsNullOrWhiteSpace(model))
+        {
+            return null;
+        }
+
+        float.TryParse(section[nameof(ModelBinding.Temperature)], NumberStyles.Float, CultureInfo.InvariantCulture, out var temperature);
+        int.TryParse(section[nameof(ModelBinding.MaxOutputTokens)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxOutputTokens);
+        float.TryParse(section[nameof(ModelBinding.TopP)], NumberStyles.Float, CultureInfo.InvariantCulture, out var topP);
+
+        return new ModelBinding
+        {
+            Provider = provider,
+            Model = model,
+            Temperature = section[nameof(ModelBinding.Temperature)] is { Length: > 0 } ? temperature : null,
+            MaxOutputTokens = section[nameof(ModelBinding.MaxOutputTokens)] is { Length: > 0 } ? maxOutputTokens : null,
+            TopP = section[nameof(ModelBinding.TopP)] is { Length: > 0 } ? topP : null,
+            ReasoningEffort = section[nameof(ModelBinding.ReasoningEffort)],
+        };
     }
 
     private static void BindAgentGraph(IConfigurationSection section, AgentPrismAgentGraphOptions options)

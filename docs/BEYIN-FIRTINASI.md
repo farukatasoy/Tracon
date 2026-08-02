@@ -163,15 +163,16 @@ cevaplandı; kararlar K-093 … K-103. Öngörülerden **sapan** iki nokta:
 - Alt agent **derleme anında değil, her çağrıda** çözülür (K-098); aksi hâlde DI
   dairesi kurulurdu ve çağıranın önbelleği bayatlardı.
 
-### F-11 · Bağlam sıkıştırma ve bellek sağlayıcıları
+### ~~F-11 · Bağlam sıkıştırma ve bellek sağlayıcıları~~ ✅ Faz 13'te yapıldı (2026-08-02)
 
-**Değer:** Orta-yüksek. MAF'ta **hazır** ve şu an hiç kullanılmıyor:
-`CompactionProvider`, `SummarizationCompactionStrategy`,
-`ContextWindowCompactionStrategy`, `ChatHistoryMemoryProvider`,
-`FileMemoryProvider`, `TextSearchProvider`, `TodoProvider`.
-**Kapsam:** Agent tanımından sıkıştırma stratejisi seçimi; uzun konuşmaların
-otomatik özetlenmesi. Harness zaten bunları içeride kullanıyor; düz
-`ChatClientAgent` için açığa çıkarmak gerekir.
+Tasarım soruları [`13-BAGLAM-SIKISTIRMA-VE-BELLEK.md`](13-BAGLAM-SIKISTIRMA-VE-BELLEK.md)
+içinde cevaplandı; kararlar K-104 … K-110. Öngörülerden **sapan** en önemli
+nokta: `ChatHistoryMemoryProvider` bu kalemin varsaydığı gibi basit bir
+"oturum içi bellek" değil — gerçek kurucusu bir `VectorStore` ve embedding
+boyutu istiyor (vektör tabanlı anlamsal arama). Depoda somut bir `VectorStore`
+implementasyonu olmadığı için kapsam dışı bırakıldı (K-105); geri kalan altı
+tip (`CompactionProvider`, beş strateji + pipeline, `FileMemoryProvider`,
+`TextSearchProvider`, `TodoProvider`) planlandığı gibi kullanıldı.
 
 ### F-12 · Çok modluluk: görsel, ses, dosya girdisi
 

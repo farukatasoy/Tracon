@@ -144,6 +144,80 @@ public sealed class RunRecordingAgentTests
         (await store.QueryRunsAsync(new RunQuery())).ShouldBeEmpty();
     }
 
+    [Fact]
+    public async Task Sikistirma_tetiklenince_HistoryCompacted_olayi_yazilir()
+    {
+        var store = new InMemoryRunStore();
+        var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), TestData.Registry());
+
+        var definition = TestData.Definition() with
+        {
+            Compaction = new CompactionSettings
+            {
+                Strategy = CompactionStrategyKind.SlidingWindow,
+                TriggerMessages = 2,
+                MinimumPreservedTurns = 1,
+            },
+        };
+
+        var agent = CreateAgent(store, compiler, definition);
+
+        var longConversation = Enumerable.Range(0, 12)
+            .Select(static i => new ChatMessage(i % 2 == 0 ? ChatRole.User : ChatRole.Assistant, $"mesaj {i}"))
+            .ToList();
+
+        await agent.RunAsync(longConversation);
+
+        var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+        var events = await ReadEventsAsync(store, run.Id);
+
+        events.ShouldContain(static e => e.Type == RunEventType.HistoryCompacted);
+    }
+
+    [Fact]
+    public async Task Ozetleme_token_kullanimi_calistirma_toplamina_eklenir()
+    {
+        var store = new InMemoryRunStore();
+
+        var mainClient = new FakeChatClient();
+        var summarizerUsage = new UsageDetails { InputTokenCount = 100, OutputTokenCount = 20, TotalTokenCount = 120 };
+        var summarizerClient = new FakeChatClient(
+            _ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "ozet")) { Usage = summarizerUsage });
+
+        var compiler = new AgentDefinitionCompiler(
+            TestData.Providers(
+                new FakeModelProvider(mainClient, name: "fake"),
+                new FakeModelProvider(summarizerClient, name: "summarizer")),
+            TestData.Registry());
+
+        var definition = TestData.Definition() with
+        {
+            Compaction = new CompactionSettings
+            {
+                Strategy = CompactionStrategyKind.Summarization,
+                TriggerMessages = 2,
+                MinimumPreservedGroups = 1,
+                SummarizationModel = new ModelBinding { Provider = "summarizer", Model = "summarizer-model" },
+            },
+        };
+
+        var agent = CreateAgent(store, compiler, definition);
+
+        var longConversation = Enumerable.Range(0, 12)
+            .Select(static i => new ChatMessage(i % 2 == 0 ? ChatRole.User : ChatRole.Assistant, $"mesaj {i}"))
+            .ToList();
+
+        await agent.RunAsync(longConversation);
+
+        var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+
+        // Ozetleme cagrisi agent'in kendi AgentResponse'undan tamamen ayri bir
+        // yan-kanal cagrisidir; birlesim olmasa bu token'lar hicbir yere kaydolmaz.
+        run.Usage.ShouldNotBeNull();
+        (run.Usage!.InputTokens >= 100).ShouldBeTrue();
+        (run.Usage.OutputTokens >= 20).ShouldBeTrue();
+    }
+
     private static RunRecordingAgent CreateAgent(
         IRunStore store,
         FakeChatClient client,
@@ -153,13 +227,20 @@ public sealed class RunRecordingAgentTests
             TestData.Providers(new FakeModelProvider(client)),
             TestData.Registry());
 
-        return new RunRecordingAgent(
-            compiler.Compile(TestData.Definition()),
+        return CreateAgent(store, compiler, TestData.Definition(), options);
+    }
+
+    private static RunRecordingAgent CreateAgent(
+        IRunStore store,
+        AgentDefinitionCompiler compiler,
+        AgentDefinition definition,
+        AgentPrismRunRecordingOptions? options = null)
+        => new(
+            compiler.Compile(definition),
             store,
             new FixedTenantContext(),
             options ?? new AgentPrismRunRecordingOptions(),
             NullLogger<RunRecordingAgent>.Instance);
-    }
 
     private static async Task<List<RunEvent>> ReadEventsAsync(IRunStore store, Guid runId)
     {
