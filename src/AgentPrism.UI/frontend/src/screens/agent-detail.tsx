@@ -19,8 +19,9 @@ import {
 } from '../components/ui';
 import { HistoryIcon, TrashIcon } from '../components/icons';
 import { OriginBadge } from './agents';
+import type { Meta } from '../lib/types';
 
-export function AgentDetailScreen({ name }: { name: string }): ReactNode {
+export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }): ReactNode {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(null);
@@ -56,7 +57,7 @@ export function AgentDetailScreen({ name }: { name: string }): ReactNode {
             <Link to={`playground/${encodeURIComponent(name)}`}>
               <Button>Open in playground</Button>
             </Link>
-            {isEditable && (
+            {isEditable && meta.roles.canAdminister && (
               <>
                 <Link to={`agents/${encodeURIComponent(name)}/edit`}>
                   <Button tone="primary">Edit</Button>
@@ -148,7 +149,9 @@ export function AgentDetailScreen({ name }: { name: string }): ReactNode {
         </div>
       )}
 
-      {isEditable && <VersionHistory name={name} currentVersion={descriptor.version} onError={setError} />}
+      {isEditable && (
+        <VersionHistory name={name} currentVersion={descriptor.version} meta={meta} onError={setError} />
+      )}
     </>
   );
 }
@@ -165,10 +168,12 @@ function Row({ label, children }: { label: string; children: ReactNode }): React
 function VersionHistory({
   name,
   currentVersion,
+  meta,
   onError,
 }: {
   name: string;
   currentVersion: number;
+  meta: Meta;
   onError: (error: unknown) => void;
 }): ReactNode {
   const queryClient = useQueryClient();
@@ -232,7 +237,7 @@ function VersionHistory({
                       {relativeTime(version.updatedAt)}
                     </Td>
                     <Td className="text-right">
-                      {version.version !== currentVersion && (
+                      {version.version !== currentVersion && meta.roles.canAdminister && (
                         <Button
                           tone="ghost"
                           busy={rollback.isPending && rollback.variables === version.version}

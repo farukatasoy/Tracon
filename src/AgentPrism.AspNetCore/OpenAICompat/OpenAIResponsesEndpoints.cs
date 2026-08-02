@@ -35,7 +35,8 @@ internal static class OpenAIResponsesEndpoints
     /// <summary>Responses ucunu baglar.</summary>
     /// <param name="builder">Uc grubu.</param>
     /// <param name="sessionStore">Oturum kaliciligi icin kullanilacak depo.</param>
-    public static void Map(IEndpointRouteBuilder builder, AgentSessionStore sessionStore)
+    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    public static void Map(IEndpointRouteBuilder builder, AgentSessionStore sessionStore, AgentPrismRolePolicies roles)
     {
         builder.MapPost("/v1/responses", (
                 HttpContext httpContext,
@@ -44,6 +45,7 @@ internal static class OpenAIResponsesEndpoints
                 ITenantContext tenantContext,
                 CancellationToken cancellationToken)
                 => HandleAsync(httpContext, catalog, sessionStore, sessions, tenantContext, cancellationToken))
+            .RequireRole(roles.Operator)
             .WithName("AgentPrismOpenAIResponses")
             .WithSummary("OpenAI Responses API ile uyumlu calistirma ucu.")
             .WithDescription(

@@ -25,9 +25,16 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
     {
         using var provider = BuildProvider();
 
-        provider.GetRequiredService<IAgentDefinitionStore>().ShouldBeOfType<PostgresAgentDefinitionStore>();
+        // Yazma yapan depolar Faz 9'un denetim izi dekoratorleriyle sarilir; asil
+        // testin dogruladigi sey (Postgres kazandi, bellek ici degil) dekoratorun
+        // sardigi gercek uygulamaya bakilarak korunur.
+        provider.GetRequiredService<IAgentDefinitionStore>()
+            .ShouldBeOfType<AuditingAgentDefinitionStore>().AuditedInner
+            .ShouldBeOfType<PostgresAgentDefinitionStore>();
         provider.GetRequiredService<IRunStore>().ShouldBeOfType<PostgresRunStore>();
-        provider.GetRequiredService<ISessionStore>().ShouldBeOfType<PostgresSessionStore>();
+        provider.GetRequiredService<ISessionStore>()
+            .ShouldBeOfType<AuditingSessionStore>().AuditedInner
+            .ShouldBeOfType<PostgresSessionStore>();
     }
 
     [Fact]

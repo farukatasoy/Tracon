@@ -8,20 +8,25 @@
 
 | Paket | Durum | Faz |
 |-------|-------|-----|
-| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) · 5 (`AgentPrismRunOptions`) · 6 (telemetri, tool çağrısı, onay, MCP, kiracı) · 8 (`IModelProviderHealthCheck`, `AgentPrismProviderUnavailableException`) |
-| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) · 5 (çağıranın verdiği çalıştırma kimliği) · 6 (span, metrik, onay kuralı) · 8 (devre kesici, sağlık önbelleği) |
-| `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 · 4 (özet sorgusu) · 6 (migration 0002, dört yeni depo) |
+| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) · 5 (`AgentPrismRunOptions`) · 6 (telemetri, tool çağrısı, onay, MCP, kiracı) · 8 (`IModelProviderHealthCheck`, `AgentPrismProviderUnavailableException`) · 9 (`IAuditLog`, `IAuditActorResolver`, `IAuditDecorated`) |
+| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) · 5 (çağıranın verdiği çalıştırma kimliği) · 6 (span, metrik, onay kuralı) · 8 (devre kesici, sağlık önbelleği) · 9 (`AuditActorContext`, `AuditSecretFilter`, `Auditing*Store` dekoratörleri) |
+| `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 · 4 (özet sorgusu) · 6 (migration 0002, dört yeni depo) · 9 (`PostgresAuditLog`, migration **yok** — şema Faz 0'dan hazırdı) |
 | `AgentPrism.OpenAI` | ✅ Tamamlandı | 3 · 8 (`UseOpenAICompatible`, sağlık denetimi) |
 | `AgentPrism.Mcp` | ✅ Tamamlandı | 6 |
-| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 · 5 (arayüz rota grubu) · 6 (çok kiracılılık, yönetişim uçları) · 8 (`/api/models/health`) |
-| `AgentPrism.UI` | ✅ Tamamlandı | 5 · 6 (waterfall, MCP ekranı, onay kartı) · 8 (sağlık rozeti) |
+| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 · 5 (arayüz rota grubu) · 6 (çok kiracılılık, yönetişim uçları) · 8 (`/api/models/health`) · 9 (`AgentPrismPolicies`, rol dağıtımı, `/api/audit`, `/api/meta` rol alanı) |
+| `AgentPrism.UI` | ✅ Tamamlandı | 5 · 6 (waterfall, MCP ekranı, onay kartı) · 8 (sağlık rozeti) · 9 (Audit ekranı, rol tabanlı düğme gizleme) |
 | `AgentPrism` (meta) | ✅ Paketleniyor | 0 |
 
-Testler: **434 .NET testi + 42 frontend birim testi geçiyor** — 176 birim testi
-(99 Core + 77 OpenAI) + 119 fonksiyonel test (TestHost, gerçek HTTP) + 128 entegrasyon
-testi (Testcontainers, gerçek PostgreSQL) + 11 arayüz E2E testi (Playwright, gerçek
+Testler: **489 .NET testi + 42 frontend birim testi geçiyor** — 206 birim testi
+(129 Core + 77 OpenAI) + 130 fonksiyonel test (TestHost, gerçek HTTP) + 140 entegrasyon
+testi (Testcontainers, gerçek PostgreSQL) + 13 arayüz E2E testi (Playwright, gerçek
 Kestrel) + 42 Vitest testi (saf mantık; `npm run build` içinde koşar, dolayısıyla
 `dotnet build` de koşar). Build, test, pack ve format kapıları sıfır uyarı.
+
+Faz 9 sonunda AgentPrism **denetlenebilir**: üç rol (Reader/Operator/Admin) uç
+grupları arasında ayrım yapıyor, `audit_log` gerçekten doluyor (agent, MCP sunucusu,
+kiracı, onay kuralı yazmaları + tool onay kararları) ve sır suzgeci bu kayıtlardan
+hiçbir kimlik bilgisi sızdırmıyor. Bkz. [`09-YONETISIM-VE-DENETIM-IZI.md`](09-YONETISIM-VE-DENETIM-IZI.md).
 
 Faz 5 sonunda kabul senaryosu tamamlandı: paket kurulur, `.UseUI()` +
 `app.MapAgentPrism()` yazılır ve tarayıcıda bir kontrol düzlemi açılır. Faz 6 ekranı
@@ -545,14 +550,15 @@ erDiagram
     }
     audit_log {
         uuid id PK
-        text action "HÂLÂ BOŞ · Faz 9 doldurur"
-        jsonb before
-        jsonb after
+        text action "Faz 9'dan beri dolu"
+        jsonb before "sir suzgecinden gecmis"
+        jsonb after "sir suzgecinden gecmis"
     }
 ```
 
 **Faz 6'da dolan tablolar:** `tool_invocations`, `traces`, `spans`. Faz 6'da eklenen
-tablolar: `tool_approval_rules`, `mcp_servers`. `audit_log` **hâlâ boştur**.
+tablolar: `tool_approval_rules`, `mcp_servers`. **Faz 9'da dolan tablo:** `audit_log`
+— şema Faz 0'da kurulmuştu, yazan kod Faz 9'da geldi; migration gerekmedi.
 
 **Span kimliği türetilir, üretilmez.** `spans.id = SHA-256(trace_id + ":" + span_id)`
 ilk 16 baytıdır. Sebep: bir span, ebeveyninden **önce** tamamlanabilir; türetilmiş
@@ -763,7 +769,7 @@ Ek sınırlar:
 
 - Sırlar (`ApiKey`, bağlantı dizesi, MCP kimlik doğrulama değeri) **hiçbir zaman** veritabanına yazılmaz, API'den dönmez, arayüzde gösterilmez
 - `previous_response_id` ve `conversation_id` güvenilmez girdi kabul edilir; her zaman kiracı sahipliği doğrulanır
-- ⚠️ `audit_log` tablosu kuruldu ancak **hâlâ yazılmıyor** — [Faz 9](09-YONETISIM-VE-DENETIM-IZI.md) doldurur
+- `audit_log` tablosu Faz 9'dan beri doludur — bkz. aşağıdaki "Faz 9'un eklediği sınırlar"
 
 ### Faz 6'nın eklediği sınırlar
 
@@ -808,6 +814,45 @@ flowchart TD
 geçmiş bir kullanıcı, bir başlık ekleyerek başka bir kiracının verisine
 erişebilirdi. Başlık yolu ayrıca `AllowHeaderResolution` ile **açıkça**
 açılmalıdır — bir HTTP başlığı kimlik kanıtı değildir.
+
+### Faz 9'un eklediği sınırlar
+
+**Rol modeli.** Üç policy adı — `AgentPrismPolicies.Reader` / `.Operator` / `.Admin`
+— tanımlanır. AgentPrism rol veya kullanıcı **saklamaz**; tüketici bu adları kendi
+`AddAuthorization(...)` çağrısında kendi claim'lerine bağlar. Bir policy tüketicide
+**kayıtlı değilse** ilgili uç grubu yalnızca yukarıdaki üç katmanlı korumadan geçer
+— sürüm yükseltmesi mevcut kurulumları kırmaz. `AgentPrismEndpointOptions.RequireRolePolicies`
+açılırsa eksik bir policy `MapAgentPrism()` çağrısını **açılışta** hataya çevirir.
+
+| Rol | Kapsam |
+|-----|--------|
+| Reader | Agent, çalıştırma, oturum, trace, istatistik **okuma** |
+| Operator | Reader + çalıştırma başlatma, onay verme, oturum silme |
+| Admin | Hepsi: agent tanımı yazma, MCP sunucusu ekleme, kiracı ve onay kuralı yönetimi, denetim izi okuma |
+
+`GET {prefix}/api/meta` yanıtı artık `roles: { canRead, canOperate, canAdminister }`
+alanı taşır — arayüz yetkisi olmayan düğmeleri bu alana göre gizler. Bir policy
+kayıtlı değilse karşılık gelen alan her zaman `true` döner (rol kısıtı yok).
+
+**Denetim izi.** `audit_log` tablosuna agent, MCP sunucusu, kiracı ve onay kuralı
+yazmaları ile tool onay kararları düşer — **çalıştırmalar düşmez** (`runs` tablosu
+zaten tam kaydı tutar). Yazma **depo dekoratörlerinde** yapılır
+(`Auditing*Store` — `AgentPrism.Core`), uç katmanında değil; tek istisna
+`mcp.refresh` (elle tazeleme bir depo yazması değildir, `GovernanceEndpoints`
+içinde yazılır).
+
+Aktör `AuditActorContext` adlı bir `AsyncLocal` köprüsünden okunur:
+`AgentPrismEndpointFilter`, her korumalı istekte `HttpContext.User`'ı oraya yazar;
+`AgentPrism.Core`'daki `AmbientAuditActorResolver` onu okur. Bu, `AgentPrism.Core`'a
+ASP.NET Core bağımlılığı eklemeden "kim yaptı" sorusunu yanıtlamanın yoludur —
+`ClaimsPrincipal` temel .NET kütüphanesindedir. Kimlik doğrulaması yoksa aktör
+`null`'dur ve bu gizlenmez.
+
+`before`/`after` yazılmadan önce `AuditSecretFilter` içinden geçer: anahtar adında
+`apiKey`, `authorization`, `password`, `secret` veya tekil `token` (çoğulu
+`tokens` — `maxOutputTokens` gibi sayım alanları — hariç) geçen her alanın değeri
+`"***"` ile değiştirilir. Denetim izi yazma hatası **çalıştırmayı kesmez**;
+Faz 6'nın "gözlemlenebilirlik işlevi bozmaz" kuralının aynısı.
 
 ---
 

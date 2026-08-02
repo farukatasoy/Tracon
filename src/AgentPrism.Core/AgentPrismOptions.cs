@@ -26,6 +26,19 @@ public sealed class AgentPrismOptions
 
     /// <summary>Model saglayicisi saglik denetimi ayarlari.</summary>
     public AgentPrismHealthOptions Health { get; set; } = new();
+
+    /// <summary>Denetim izi ayarlari.</summary>
+    public AgentPrismAuditOptions Audit { get; set; } = new();
+}
+
+/// <summary>Denetim izi aktor cozumlemesinin ayarlari.</summary>
+public sealed class AgentPrismAuditOptions
+{
+    /// <summary>
+    /// Aktorun okunacagi claim tipi. <see langword="null"/> ise varsayilan sira
+    /// izlenir: <c>ClaimTypes.NameIdentifier</c> → <c>ClaimTypes.Name</c> → <c>sub</c>.
+    /// </summary>
+    public string? ActorClaimType { get; set; }
 }
 
 /// <summary>

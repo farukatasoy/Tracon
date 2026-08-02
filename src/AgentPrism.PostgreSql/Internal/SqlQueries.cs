@@ -409,6 +409,26 @@ internal sealed class SqlQueries
             """;
 
         DeleteTenant = $"DELETE FROM {Schema}.tenants WHERE slug = @slug;";
+
+        // --- Denetim izi (Faz 9) ---
+
+        InsertAuditEntry = $"""
+            INSERT INTO {Schema}.audit_log (id, tenant_id, actor, action, entity, before, after, created_at)
+            VALUES (@id, @tenant_id, @actor, @action, @entity, @before, @after, @created_at);
+            """;
+
+        SelectAuditLog = $"""
+            SELECT id, tenant_id, actor, action, entity, before, after, created_at
+            FROM {Schema}.audit_log
+            WHERE tenant_id = @tenant_id
+              AND (@actor      IS NULL OR actor  = @actor)
+              AND (@action     IS NULL OR action = @action)
+              AND (@entity     IS NULL OR entity = @entity)
+              AND (@started_after  IS NULL OR created_at > @started_after)
+              AND (@started_before IS NULL OR created_at < @started_before)
+            ORDER BY created_at DESC
+            LIMIT @take;
+            """;
     }
 
     /// <summary>Bir tool cagrisi kaydi ekler.</summary>
@@ -461,6 +481,12 @@ internal sealed class SqlQueries
 
     /// <summary>Bir kiraci kaydini siler.</summary>
     public string DeleteTenant { get; }
+
+    /// <summary>Bir denetim izi kaydi ekler.</summary>
+    public string InsertAuditEntry { get; }
+
+    /// <summary>Denetim izi kayitlarini filtreleyerek okur.</summary>
+    public string SelectAuditLog { get; }
 
     /// <summary>Dogrulanmis sema adi.</summary>
     public string Schema { get; }

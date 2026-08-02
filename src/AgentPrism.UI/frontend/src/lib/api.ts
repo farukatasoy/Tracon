@@ -5,6 +5,7 @@ import type {
   AgentDefinitionRequest,
   AgentDescriptor,
   AgentDetail,
+  AuditEntry,
   Conversation,
   CurrentTenant,
   McpServerDefinition,
@@ -223,6 +224,19 @@ export const api = {
    * own format.
    */
   createConversation: () => send<Conversation>('POST', 'v1/conversations', {}),
+
+  audit: (
+    params: {
+      actor?: string;
+      action?: string;
+      entity?: string;
+      after?: string;
+      before?: string;
+      limit?: number;
+    } = {},
+  ) => request<AuditEntry[]>(`api/audit${query(params)}`),
+  entityAudit: (entity: string, limit?: number) =>
+    request<AuditEntry[]>(`api/audit/${encodeURIComponent(entity)}${query({ limit })}`),
 };
 
 export type { RunEvent };

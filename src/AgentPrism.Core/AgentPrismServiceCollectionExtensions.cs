@@ -110,15 +110,47 @@ public static class AgentPrismServiceCollectionExtensions
             // AgentPrism.PostgreSql bunu PostgresChatHistoryProvider ile doldurur.
             provider.GetService<Microsoft.Agents.AI.ChatHistoryProvider>()));
 
-        // Bellek ici depolar. Kalicilik paketi (AgentPrism.PostgreSql) bunlari
-        // kendi uygulamalariyla degistirir.
-        services.TryAddSingleton<IAgentDefinitionStore, InMemoryAgentDefinitionStore>();
+        // Denetim izi. Aktor AuditActorContext'ten (AsyncLocal) okunur;
+        // AgentPrism.AspNetCore her korumali istegin basinda oraya HttpContext.User'i
+        // yazar. Boylece Core, ASP.NET Core'a bagimlilik eklemeden aktoru okuyabilir.
+        services.TryAddSingleton<IAuditLog, InMemoryAuditLog>();
+        services.TryAddSingleton<IAuditActorResolver, AmbientAuditActorResolver>();
+
+        // Bellek ici depolar, denetim izi yazan dekoratorlerle sarilmis olarak
+        // kaydedilir. Kalicilik paketi (AgentPrism.PostgreSql) ayni dekoratorlerle
+        // kendi uygulamalarini sarar (bkz. UsePostgreSql); boylece denetim izi
+        // hangi depo kayitli olursa olsun ayni sekilde calisir.
+        // Gerekce: docs/09-YONETISIM-VE-DENETIM-IZI.md, bolum 9.2.
+        services.TryAddSingleton<IAgentDefinitionStore>(static provider => new AuditingAgentDefinitionStore(
+            new InMemoryAgentDefinitionStore(),
+            provider.GetRequiredService<IAuditLog>(),
+            provider.GetRequiredService<ITenantContext>(),
+            provider.GetRequiredService<IAuditActorResolver>(),
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingAgentDefinitionStore>>()));
         services.TryAddSingleton<IRunStore, InMemoryRunStore>();
-        services.TryAddSingleton<ISessionStore, InMemorySessionStore>();
+        services.TryAddSingleton<ISessionStore>(static provider => new AuditingSessionStore(
+            new InMemorySessionStore(),
+            provider.GetRequiredService<IAuditLog>(),
+            provider.GetRequiredService<ITenantContext>(),
+            provider.GetRequiredService<IAuditActorResolver>(),
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingSessionStore>>()));
         services.TryAddSingleton<ITraceStore, InMemoryTraceStore>();
-        services.TryAddSingleton<IToolApprovalRuleStore, InMemoryToolApprovalRuleStore>();
-        services.TryAddSingleton<IMcpServerStore, InMemoryMcpServerStore>();
-        services.TryAddSingleton<ITenantStore, InMemoryTenantStore>();
+        services.TryAddSingleton<IToolApprovalRuleStore>(static provider => new AuditingToolApprovalRuleStore(
+            new InMemoryToolApprovalRuleStore(),
+            provider.GetRequiredService<IAuditLog>(),
+            provider.GetRequiredService<IAuditActorResolver>(),
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingToolApprovalRuleStore>>()));
+        services.TryAddSingleton<IMcpServerStore>(static provider => new AuditingMcpServerStore(
+            new InMemoryMcpServerStore(),
+            provider.GetRequiredService<IAuditLog>(),
+            provider.GetRequiredService<IAuditActorResolver>(),
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingMcpServerStore>>()));
+        services.TryAddSingleton<ITenantStore>(static provider => new AuditingTenantStore(
+            new InMemoryTenantStore(),
+            provider.GetRequiredService<IAuditLog>(),
+            provider.GetRequiredService<ITenantContext>(),
+            provider.GetRequiredService<IAuditActorResolver>(),
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingTenantStore>>()));
 
         // Telemetri. Metrikler IMeterFactory kayitliysa onun uzerinden kurulur;
         // degilse kendi Meter'ini olusturur — tuketici AddMetrics() cagirmaya
@@ -195,6 +227,20 @@ public static class AgentPrismServiceCollectionExtensions
         BindObservability(section.GetSection(nameof(AgentPrismOptions.Observability)), options.Observability);
         BindCircuitBreaker(section.GetSection(nameof(AgentPrismOptions.CircuitBreaker)), options.CircuitBreaker);
         BindHealth(section.GetSection(nameof(AgentPrismOptions.Health)), options.Health);
+        BindAudit(section.GetSection(nameof(AgentPrismOptions.Audit)), options.Audit);
+    }
+
+    private static void BindAudit(IConfigurationSection section, AgentPrismAuditOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (section[nameof(AgentPrismAuditOptions.ActorClaimType)] is { Length: > 0 } claimType)
+        {
+            options.ActorClaimType = claimType;
+        }
     }
 
     private static void BindCircuitBreaker(IConfigurationSection section, AgentPrismCircuitBreakerOptions options)

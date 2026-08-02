@@ -45,13 +45,21 @@ internal sealed class UiHost : IAsyncDisposable
     /// <summary>Bir sunucu baslatir.</summary>
     /// <param name="prefix">Yol oneki.</param>
     /// <param name="authToken">Bearer token. Verilirse token katmani acilir.</param>
+    /// <param name="configureServices">
+    /// Ek servis kaydi (ornek: rol policy'lerini test etmek icin authentication/authorization).
+    /// </param>
     /// <returns>Calisan sunucu.</returns>
-    public static async Task<UiHost> StartAsync(string prefix = "/agentprism", string? authToken = null)
+    public static async Task<UiHost> StartAsync(
+        string prefix = "/agentprism",
+        string? authToken = null,
+        Action<IServiceCollection>? configureServices = null)
     {
         var builder = WebApplication.CreateSlimBuilder();
 
         builder.Logging.ClearProviders();
         builder.Logging.SetMinimumLevel(LogLevel.Warning);
+
+        configureServices?.Invoke(builder.Services);
 
         var provider = new ScriptedModelProvider();
 

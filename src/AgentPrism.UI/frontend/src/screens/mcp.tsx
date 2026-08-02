@@ -19,7 +19,7 @@ import {
   Th,
 } from '../components/ui';
 import { PlusIcon, TrashIcon } from '../components/icons';
-import type { McpServerRequest, McpTransportMode } from '../lib/types';
+import type { McpServerRequest, McpTransportMode, Meta } from '../lib/types';
 
 const EMPTY_FORM: McpServerRequest & { name: string } = {
   name: '',
@@ -39,7 +39,7 @@ const EMPTY_FORM: McpServerRequest & { name: string } = {
  * The screen states that boundary rather than hiding it, and it never asks for
  * a secret: only the *name* of the configuration key that holds one.
  */
-export function McpScreen(): ReactNode {
+export function McpScreen({ meta }: { meta: Meta }): ReactNode {
   const client = useQueryClient();
   const [form, setForm] = useState(EMPTY_FORM);
   const [showForm, setShowForm] = useState(false);
@@ -86,19 +86,21 @@ export function McpScreen(): ReactNode {
         title="MCP & approvals"
         description="Remote Model Context Protocol servers, and the approvals you chose to remember."
         actions={
-          <>
-            <Button
-              onClick={() => refresh.mutate()}
-              busy={refresh.isPending}
-              title="Rediscover tools now instead of waiting for the next background refresh."
-            >
-              Refresh tools
-            </Button>
-            <Button tone="primary" onClick={() => setShowForm((current) => !current)}>
-              <PlusIcon className="size-3.5" />
-              Add server
-            </Button>
-          </>
+          meta.roles.canAdminister && (
+            <>
+              <Button
+                onClick={() => refresh.mutate()}
+                busy={refresh.isPending}
+                title="Rediscover tools now instead of waiting for the next background refresh."
+              >
+                Refresh tools
+              </Button>
+              <Button tone="primary" onClick={() => setShowForm((current) => !current)}>
+                <PlusIcon className="size-3.5" />
+                Add server
+              </Button>
+            </>
+          )
         }
       />
 
@@ -257,13 +259,15 @@ export function McpScreen(): ReactNode {
                       </div>
                     </Td>
                     <Td className="text-right">
-                      <Button
-                        tone="danger"
-                        onClick={() => remove.mutate(server.name)}
-                        title="Remove this server. Its tools disappear on the next refresh."
-                      >
-                        <TrashIcon className="size-3.5" />
-                      </Button>
+                      {meta.roles.canAdminister && (
+                        <Button
+                          tone="danger"
+                          onClick={() => remove.mutate(server.name)}
+                          title="Remove this server. Its tools disappear on the next refresh."
+                        >
+                          <TrashIcon className="size-3.5" />
+                        </Button>
+                      )}
                     </Td>
                   </tr>
                 ))}
@@ -313,9 +317,11 @@ export function McpScreen(): ReactNode {
                     </Td>
                     <Td className="text-[11px] text-muted">{relativeTime(rule.createdAt)}</Td>
                     <Td className="text-right">
-                      <Button tone="danger" onClick={() => removeRule.mutate(rule.id)}>
-                        <TrashIcon className="size-3.5" />
-                      </Button>
+                      {meta.roles.canAdminister && (
+                        <Button tone="danger" onClick={() => removeRule.mutate(rule.id)}>
+                          <TrashIcon className="size-3.5" />
+                        </Button>
+                      )}
                     </Td>
                   </tr>
                 ))}

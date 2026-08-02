@@ -17,7 +17,7 @@ import {
   Th,
 } from '../components/ui';
 import { PlusIcon } from '../components/icons';
-import type { AgentDescriptor } from '../lib/types';
+import type { AgentDescriptor, Meta } from '../lib/types';
 
 export function OriginBadge({ agent }: { agent: AgentDescriptor }): ReactNode {
   if (agent.origin === 'Code') {
@@ -39,7 +39,7 @@ export function OriginBadge({ agent }: { agent: AgentDescriptor }): ReactNode {
   return <Badge title={`Provided by source "${agent.sourceName}".`}>{agent.sourceName}</Badge>;
 }
 
-export function AgentsScreen(): ReactNode {
+export function AgentsScreen({ meta }: { meta: Meta }): ReactNode {
   const agents = useQuery({ queryKey: ['agents'], queryFn: api.agents });
 
   return (
@@ -48,12 +48,14 @@ export function AgentsScreen(): ReactNode {
         title="Agents"
         description="Every agent the catalogue resolves, from code and from the database. On a name collision code wins, so agents declared in code cannot be edited here."
         actions={
-          <Link to="agents/new">
-            <Button tone="primary">
-              <PlusIcon className="size-3.5" />
-              New agent
-            </Button>
-          </Link>
+          meta.roles.canAdminister && (
+            <Link to="agents/new">
+              <Button tone="primary">
+                <PlusIcon className="size-3.5" />
+                New agent
+              </Button>
+            </Link>
+          )
         }
       />
 
