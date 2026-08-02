@@ -26,8 +26,14 @@
 //   - `CallableAgentNames` bir agent'a baska agent'lari cagirma yetkisi verir
 //   - her alt cagri AYRI bir `runs` satiri uretir; arayuz agaci cizer
 //   - derinlik, token ve sayi sinirlari `AgentPrism:AgentGraph` ile ayarlanir
+// Faz 15 workflow yurutmesini getirdi:
+//   - `.UseWorkflows()` motoru acar; `AddWorkflow(...)` kodda serbest graf tanimlar
+//   - arayuzden tanimlanan workflow yalnizca katalogdaki agent'lari diziler (K2)
+//   - her yurutme bir `runs` satiridir; icindeki agent'lar altina baglanir
+//   - her super-step'te kontrol noktasi yazilir; yarim kalan is surdurulebilir
 // Bkz. docs/04-HTTP-API.md, docs/05-AGENTPRISM-UI.md, docs/06-GOZLEMLENEBILIRLIK.md,
-//      docs/08-SAGLAYICI-GENISLEMESI.md, docs/12-AGENT-CAGRI-GRAFIGI.md
+//      docs/08-SAGLAYICI-GENISLEMESI.md, docs/12-AGENT-CAGRI-GRAFIGI.md,
+//      docs/15-WORKFLOWS-YURUTME.md
 //
 // Calistirmadan once sirlari ayarlayin:
 //   dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=localhost;Database=AgentPrism;Username=...;Password=..."
@@ -37,6 +43,7 @@
 using AgentPrism;
 using AgentPrism.Api;
 using Microsoft.Agents.AI;
+using Microsoft.Agents.AI.Workflows;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -56,6 +63,10 @@ var agentPrism = builder.AddAgentPrism()
     // ucundan eklenir; kesif arka planda yapilir. Kayitli sunucu yoksa hicbir
     // sey olmaz. MCP tool'lari varsayilan olarak onay ister.
     .UseMcp()
+    // Workflow yurutme motoru (Faz 15). Katalogdaki agent'lar hazir desenlerle
+    // birbirine baglanir. Motor kayitli degilse tanimlar yine yonetilebilir,
+    // yalnizca calistirma ucu 501 doner.
+    .UseWorkflows()
     // Gomulu yonetim arayuzu. Ayri bir esleme cagrisi gerekmez:
     // MapAgentPrism kaydi bulur ve arayuzu ayni onek altina baglar.
     .UseUI();
@@ -177,7 +188,45 @@ agentPrism
                        "devret, sonucunu bekle ve kullaniciya ozetle. Kendi basina tool cagirma.",
         Model = model,
         CallableAgentNames = ["support"],
+    })
+
+    // Faz 15'in Sequential zinciri icin iki halka. Ikisi de tool kullanmaz:
+    // zincirin kaniti, her halkanin bir oncekinin CIKTISINI gormesidir ve
+    // tool cagrisi bu kaniti bulaniklastirirdi.
+    .AddAgent(new AgentDefinition
+    {
+        Name = "ozetleyici",
+        DisplayName = "Ozetleyici",
+        Description = "Gelen metni uc maddede ozetler.",
+        Instructions = "Gelen metni en fazla uc kisa madde halinde ozetle. Yorum ekleme.",
+        Model = model,
+    })
+    .AddAgent(new AgentDefinition
+    {
+        Name = "cevirmen",
+        DisplayName = "Cevirmen",
+        Description = "Gelen metni Ingilizceye cevirir.",
+        Instructions = "Gelen metni Ingilizceye cevir. Yalnizca cevirilmis metni dondur.",
+        Model = model,
     });
+
+// Faz 15: KODDA tanimli workflow. Serbest graf yalnizca burada kurulabilir -
+// arayuzden yalnizca hazir desenler tanimlanir (tasarim kurali K2). Bu ornek
+// hazir desen fabrikasini kullanir; `WorkflowBuilder` ile ozel `Executor`
+// tipleri baglamak da mumkundur.
+agentPrism.AddWorkflow(
+    "ozetle-ve-cevir",
+    static services => AgentWorkflowBuilder.BuildSequential(
+        "ozetle-ve-cevir",
+        [
+            // 🚨 Agent'lar `GetWorkflowAgent` ile baglanir, katalogdan DOGRUDAN
+            // alinmaz. Dogrudan alinan agent kendi kok `runs` satirini acar ve
+            // workflow agaci bos gorunur. Olculdu: ornek uygulamada agac uc
+            // satir yerine bir satir dondu (bkz. docs/15-WORKFLOWS-YURUTME.md).
+            services.GetWorkflowAgent("ozetle-ve-cevir", "ozetleyici", "Gelen metni uc maddede ozetler."),
+            services.GetWorkflowAgent("ozetle-ve-cevir", "cevirmen", "Gelen metni Ingilizceye cevirir."),
+        ]),
+    "Metni ozetler, sonra Ingilizceye cevirir. Kodda tanimlidir.");
 
 if (openRouterEnabled)
 {
@@ -239,7 +288,7 @@ app.UseStatusCodePages();
 app.MapGet("/health", (IRunStore runs, ISessionStore sessions) => Results.Ok(new
 {
     status = "healthy",
-    phase = "12 - agent cagri grafigi",
+    phase = "15 - workflow yurutme",
     storage = new
     {
         persistent = persistenceEnabled,

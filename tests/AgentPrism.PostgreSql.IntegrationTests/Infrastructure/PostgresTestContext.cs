@@ -38,6 +38,8 @@ public sealed class PostgresTestContext : IAsyncDisposable
         SkillScriptGrants = new PostgresSkillScriptGrantStore(dataSource, wrapped);
         Attachments = new PostgresAttachmentStore(dataSource, wrapped);
         AgentFiles = new PostgresAgentFileStore(dataSource, wrapped, TenantContext);
+        Workflows = new PostgresWorkflowDefinitionStore(dataSource, wrapped);
+        WorkflowCheckpoints = new PostgresWorkflowCheckpointStore(dataSource, wrapped);
         Migrations = new MigrationRunner(dataSource, wrapped, NullLogger<MigrationRunner>.Instance);
     }
 
@@ -85,6 +87,12 @@ public sealed class PostgresTestContext : IAsyncDisposable
 
     /// <summary>Kalici agent dosya belleği (Faz 14).</summary>
     public PostgresAgentFileStore AgentFiles { get; }
+
+    /// <summary>Workflow tanim deposu (Faz 15).</summary>
+    public PostgresWorkflowDefinitionStore Workflows { get; }
+
+    /// <summary>Workflow kontrol noktasi deposu (Faz 15).</summary>
+    public PostgresWorkflowCheckpointStore WorkflowCheckpoints { get; }
 
     /// <summary>Migration calistiricisi.</summary>
     public MigrationRunner Migrations { get; }

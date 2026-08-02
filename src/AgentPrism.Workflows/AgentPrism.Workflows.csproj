@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>AgentPrism icin workflow yurutme motoru. Katalogdaki agent'lar Sequential, Concurrent, Handoff, GroupChat ve Magentic desenleriyle birbirine baglanir; her yurutme runs tablosuna kaydedilir ve kontrol noktalarindan surdurulebilir.</Description>
+    <PackageTags>$(CommonPackageTags);workflow;orchestration;multi-agent</PackageTags>
+    <!--
+      Microsoft.Agents.AI.Workflows yurutme motoru yansima kullanir
+      (ReflectingExecutor, TypeId, PortableValue); AOT vaadi verilemez.
+    -->
+    <AgentPrismAotCompatible>false</AgentPrismAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../AgentPrism.Core/AgentPrism.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Agents.AI.Workflows" />
+  </ItemGroup>
+
+</Project>
