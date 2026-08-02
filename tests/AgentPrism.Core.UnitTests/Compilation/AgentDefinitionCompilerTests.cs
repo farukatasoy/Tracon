@@ -1,5 +1,6 @@
 using AgentPrism.Core.UnitTests.Fakes;
 using Microsoft.Agents.AI;
+using Microsoft.Extensions.AI;
 
 namespace AgentPrism.Core.UnitTests.Compilation;
 
@@ -95,6 +96,57 @@ public sealed class AgentDefinitionCompilerTests
 
         exception.Message.ShouldContain("yok-boyle");
         exception.Message.ShouldContain("UseOpenAI");
+    }
+
+    [Fact]
+    public void Akil_yurutme_cabasi_sohbet_seceneklerine_aktarilir()
+    {
+        var client = new FakeChatClient();
+        var compiler = new AgentDefinitionCompiler(
+            TestData.Providers(new FakeModelProvider(client)),
+            TestData.Registry());
+
+        var definition = TestData.Definition() with
+        {
+            Model = TestData.Binding() with { ReasoningEffort = "high" },
+        };
+
+        var agent = compiler.Compile(definition);
+        var options = agent.GetService<ChatClientAgentOptions>();
+
+        options.ShouldNotBeNull();
+        options!.ChatOptions!.Reasoning!.Effort.ShouldBe(ReasoningEffort.High);
+    }
+
+    [Fact]
+    public void Akil_yurutme_cabasi_verilmezse_ayar_bos_kalir()
+    {
+        var compiler = CreateCompiler();
+
+        var agent = compiler.Compile(TestData.Definition());
+        var options = agent.GetService<ChatClientAgentOptions>();
+
+        options!.ChatOptions!.Reasoning.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Gecersiz_akil_yurutme_cabasi_derlemeyi_durdurur()
+    {
+        // Sessizce yok saymak yanlis olurdu: bu ayar hem maliyeti hem gecikmeyi
+        // degistirir; yanlis yazilmis bir deger fark edilmeden calisirsa kullanici
+        // bekledigi davranisi alamaz ve sebebini goremez.
+        var compiler = CreateCompiler();
+
+        var definition = TestData.Definition() with
+        {
+            Model = TestData.Binding() with { ReasoningEffort = "cok-yuksek" },
+        };
+
+        var exception = Should.Throw<AgentPrismCompilationException>(() => compiler.Compile(definition));
+
+        exception.AgentName.ShouldBe("test-agent");
+        exception.Message.ShouldContain("cok-yuksek");
+        exception.Message.ShouldContain(nameof(ReasoningEffort.Medium));
     }
 
     [Fact]

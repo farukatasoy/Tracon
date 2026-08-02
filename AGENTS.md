@@ -62,8 +62,8 @@ Faz bittiğinde **`faz-tamamlama` skill'i uygulanır**. Atlanmaz.
 | 0 | `docs/00-ALTYAPI.md` | ✅ Tamamlandı |
 | 1 | `docs/01-CEKIRDEK-SOYUTLAMALAR.md` | ✅ Tamamlandı |
 | 2 | `docs/02-POSTGRESQL-KALICILIK.md` | ✅ Tamamlandı |
-| 3 | `docs/03-SAGLAYICI-VE-DERLEYICI.md` | Sıradaki |
-| 4 | `docs/04-HTTP-API.md` | Planlandı |
+| 3 | `docs/03-SAGLAYICI-VE-DERLEYICI.md` | ✅ Tamamlandı |
+| 4 | `docs/04-HTTP-API.md` | Sıradaki |
 | 5 | `docs/05-AGENTPRISM-UI.md` | Planlandı |
 | 6 | `docs/06-GOZLEMLENEBILIRLIK.md` | Planlandı |
 | 7 | `docs/07-SAGLAMLASTIRMA-VE-YAYIN.md` | Planlandı |

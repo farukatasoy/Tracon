@@ -20,6 +20,9 @@
 - **`await using` + `ConfigureAwait` kalıbı tek dosyada** (2026-08-02): `PostgreSql/Internal/NpgsqlHelpers.cs`. Depolar komutu kurar, yardımcı çalıştırır ve bırakır.
 - **Store davranış sözleşmesi tek yerde** (2026-08-02): `tests/AgentPrism.PostgreSql.IntegrationTests/Contracts/`. Soyut sınıflar hem `InMemory*` hem `Postgres*` üzerinde koşar. Depo davranışı değişecekse önce buraya bak.
 - **Oturum kimliği damgası** (2026-08-02): `Core/Sessions/AgentSessionIdentity.cs` → `AgentSession.StateBag["AgentPrism.SessionId"]`. `RunRecordingAgent` ve `AgentSessionManager` buradan okur.
+- **OpenAI istemci kurulumu tek dosyada** (2026-08-02): `OpenAI/OpenAIChatClientFactory.cs`. `OpenAIClient` bir kez kurulur, iki sağlayıcı (`openai`, `openai-responses`) paylaşır. Boru hattı (`UseFunctionInvocation` + `UseOpenTelemetry`) da burada.
+- **Deneysel API bastırmaları iki dosyada** (2026-08-02): `AgentDefinitionCompiler.CompileHarnessAgent` (`MAAI001`) ve `OpenAIChatClientFactory.CreateInnerChatClient` (`OPENAI001`+`MAAI001`). Başka yerde bastırma yok.
+- **Tool yansıması tek dosyada** (2026-08-02): `Core/Tools/ToolMethodScanner.cs`. `AddToolsFrom` buraya delege eder; `AgentPrism.Core`'daki tek yansıma noktası.
 
 ## Desenler & Kararlar (keşfedilen)
 
@@ -33,6 +36,10 @@
 - **`ChatClientAgentOptions` ve `HarnessAgentOptions` ikisinde de `ChatHistoryProvider` var** (2026-08-02): derleyici ikisine de aynı örneği koyar. `agent.GetService<ChatHistoryProvider>()` ile geri okunamaz — bağlandığını doğrulamak için gerçek bir çalıştırma yapıp veritabanına bak.
 - **`AgentSessionStateBag`, `SerializeSessionAsync` çıktısına dahildir** (2026-08-02): oturuma yazılan her şey (kimlik damgası, konuşma kimliği) oturumla birlikte kalıcılaşır. Doğrulandı: `/sessions` çıktısında `stateBag` altında görünüyor.
 - **`StateBag.SetValue`/`TryGetValue` AOT tanısı üretmiyor** (2026-08-02): kaynak üreteciyle kurulmuş `JsonSerializerOptions` geçildiğinde `IL2026` çıkmıyor. `AgentPrismCoreJsonContext` bunun için var.
+- **Chat Completions yolu AOT'ta tamamen temiz** (2026-08-02): `GetChatClient(model).AsIChatClient().AsBuilder().UseFunctionInvocation().UseOpenTelemetry().Build()` → `IsAotCompatible=true` ile **0 uyarı**. Sorun çıkaran tek yol Responses (deneysel API tanısı, AOT tanısı değil).
+- **`Enum.TryParse<T>` / `Enum.IsDefined` / `Enum.GetNames<T>()` AOT temiz** (2026-08-02): `ReasoningEffort` çevrimi bunlarla yazıldı, hiçbir `IL2026`/`IL3050` çıkmadı.
+- **`AIFunctionArguments.Services` örnek tool'ları için var** (2026-08-02): `AIFunctionFactory.Create(method, args => ..., options)` ile taşıyıcı nesne çağrı anında DI'dan çözülür. Statik olmayan tool metotları böyle desteklenir.
+- **`IChatClient.GetService(typeof(X))` boru hattında gezinir** (2026-08-02): testler `FunctionInvokingChatClient`, `OpenTelemetryChatClient` ve `ChatClientMetadata` varlığını böyle doğruluyor. `ChatClientMetadata.ProviderUri` yapılandırılan `Endpoint`'i yansıtır — `OpenAIClient.Endpoint` `OPENAI001` işaretli olduğu için doğrulama bu yoldan yapılır.
 
 ## Tuzaklar (AGENTS.md'de olmayan)
 
@@ -56,3 +63,10 @@
 - **Migration checksum'ı satır sonu farkına duyarlı olmamalı** (2026-08-02): `MigrationDescriptor.ComputeChecksum` CRLF'i LF'e normalleştirir. Aksi halde farklı `core.autocrlf` ayarıyla klonlanan depo "migration değişmiş" hatası verir.
 - **`launchSettings.json`, `ASPNETCORE_URLS` ortam değişkenini ezer** (2026-08-02): `dotnet run` ile örnek API her zaman 5080'de açılır. Manuel doğrulamada portu varsayma, logdan oku.
 - **Testcontainers `PostgreSqlBuilder()` parametresiz ctor'u kullanımdan kalktı** (2026-08-02): 4.13.0'da `CS0618` veriyor. `new PostgreSqlBuilder("postgres:18-alpine")` kullan.
+- **🚨 Responses API + `ChatHistoryProvider` = çalışma anı hatası** (2026-08-02): `AsIChatClient(ResponsesClient, model)` sunucu tarafı depolamayı açık bırakır; OpenAI konuşma kimliği döner ve `ChatClientAgent` `InvalidOperationException: Only ConversationId or ChatHistoryProvider may be used, but not both` atar. **Yalnızca `UsePostgreSql()` açıkken** görülür — bellek içi kurulumda sessizce çalışır. Çözüm `AsIChatClientWithStoredOutputDisabled(model)`. Karar K-030.
+- **🚨 Model adlarını bilgiden yazma, doğrula** (2026-08-02): Faz 3'te bilgiye dayanarak yazılan yerleşik katalog gerçek hesabın modellerinin hiçbirini içermiyordu; `gpt-4.1-mini` `HTTP 403 model_not_found` döndü. Gerçek liste `curl https://api.openai.com/v1/models -H "Authorization: Bearer $KEY"` ile alınır ve yalnızca `id` döner — context penceresi/fiyat yoktur. Katalog artık yapılandırmadan gelir (K-032).
+- **OpenAI tip adları tahmin edilemez** (2026-08-02): `ResponsesClient` (`OpenAIResponseClient` **değil**), `OpenAIClientOptions.OrganizationId` (`Organization` değil), `NetworkTimeout` (`Timeout` değil). `GetResponsesClient()` model parametresi **almaz**; model `AsIChatClient(model)` tarafına geçer.
+- **`OpenAIClient.Endpoint` bile `OPENAI001`** (2026-08-02): testte doğrulamak için bastırma gerekir. Bunun yerine `IChatClient.GetService(typeof(ChatClientMetadata)).ProviderUri` kullan.
+- **Statik sınıf tür argümanı olamaz** (2026-08-02): `AddToolsFrom<OrderTools>()` `CS0718` verir çünkü tool sınıfları genelde `static class`. Bu yüzden `AddToolsFrom(Type)` aşırı yüklemesi var.
+- **`record` ayar sınıfı sır sızdırır** (2026-08-02): derleyicinin ürettiği `ToString` tüm özellikleri yazar. Ayar sınıfları `class` olmalı; `SecretLeakTests` bunu tip üzerinden denetler (`GetMethod("ToString").DeclaringType == typeof(object)`).
+- **Shouldly + Meziantou çakışmaları** (2026-08-02): `list.ShouldContain("x")` `MA0002` verir (comparer yok) → predicate kullan. Bir `record` olmayan tipte `x.ToString()` çağırmak `MA0150` verir. Nullable dönen `ToString()` sonucunu `ShouldContain`'e vermek `CS8604` verir → `?? string.Empty`.

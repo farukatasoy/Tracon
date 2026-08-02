@@ -47,6 +47,56 @@ public interface IAgentPrismBuilder
     IAgentPrismBuilder AddTool(Delegate method, string? name = null, string? description = null, bool requiresApproval = false);
 
     /// <summary>
+    /// Bir tipteki <see cref="AgentPrismToolAttribute"/> ile isaretlenmis metotlari
+    /// tool olarak kaydeder.
+    /// </summary>
+    /// <typeparam name="T">Taranacak tip.</typeparam>
+    /// <returns>Zincirin devami.</returns>
+    /// <exception cref="AgentPrismException">
+    /// <typeparamref name="T"/> icinde isaretli metot yoksa veya isaretli bir metot
+    /// tool'a donusturulemiyorsa.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// Isaretleme acik tercihtir: sinifa eklenen her yeni metot kendiliginden
+    /// agent'lara acilmaz. Statik metotlar dogrudan baglanir; ornek metotlarinda
+    /// tasiyici nesne cagri aninda servis saglayicidan cozulur.
+    /// </para>
+    /// <para>
+    /// <strong>Statik siniflar tur argumani olamaz</strong> (C# kurali). Tool'lariniz
+    /// <c>static class</c> icindeyse <see cref="AddToolsFrom(Type)"/> asiri yuklemesini
+    /// kullanin.
+    /// </para>
+    /// <para>
+    /// Bu metot yansima kullanir ve kirpma (trimming) ile native AOT senaryolarinda
+    /// guvenli degildir. AOT hedefleyen uygulamalar
+    /// <see cref="AddTool(AIFunction, bool)"/> asiri yuklemesini kullanmalidir.
+    /// </para>
+    /// </remarks>
+    [RequiresUnreferencedCode("Tool taramasi yansima kullanir; kirpilmis uygulamalarda metot bilgisi kaybolabilir.")]
+    [RequiresDynamicCode("Tool taramasi calisma aninda kod uretimi gerektirebilir.")]
+    IAgentPrismBuilder AddToolsFrom<T>();
+
+    /// <summary>
+    /// Bir tipteki <see cref="AgentPrismToolAttribute"/> ile isaretlenmis metotlari
+    /// tool olarak kaydeder.
+    /// </summary>
+    /// <param name="type">Taranacak tip. <c>static class</c> olabilir.</param>
+    /// <returns>Zincirin devami.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> <see langword="null"/> ise.</exception>
+    /// <exception cref="AgentPrismException">
+    /// <paramref name="type"/> icinde isaretli metot yoksa veya isaretli bir metot
+    /// tool'a donusturulemiyorsa.
+    /// </exception>
+    /// <remarks>
+    /// Statik siniflar C# kurallari geregi tur argumani olamaz; bu asiri yukleme
+    /// <c>AddToolsFrom(typeof(OrderTools))</c> yazimini mumkun kilar.
+    /// </remarks>
+    [RequiresUnreferencedCode("Tool taramasi yansima kullanir; kirpilmis uygulamalarda metot bilgisi kaybolabilir.")]
+    [RequiresDynamicCode("Tool taramasi calisma aninda kod uretimi gerektirebilir.")]
+    IAgentPrismBuilder AddToolsFrom(Type type);
+
+    /// <summary>
     /// Kodda bildirimsel bir agent tanimlar. Tanim AgentPrism derleyicisinden gecer;
     /// model ve tool dogrulamasi uygulanir.
     /// </summary>

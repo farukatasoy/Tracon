@@ -146,7 +146,45 @@ public sealed class AgentDefinitionCompiler
             options.Tools = tools;
         }
 
+        if (ParseReasoningEffort(definition) is { } effort)
+        {
+            options.Reasoning = new ReasoningOptions { Effort = effort };
+        }
+
         return options;
+    }
+
+    /// <summary>
+    /// <see cref="ModelBinding.ReasoningEffort"/> degerini
+    /// <see cref="Microsoft.Extensions.AI.ReasoningEffort"/> degerine cevirir.
+    /// </summary>
+    /// <remarks>
+    /// Gecersiz deger sessizce yok sayilmaz. Akil yurutme cabasi hem maliyeti hem
+    /// gecikmeyi degistirir; yanlis yazilmis bir deger fark edilmeden calisirsa
+    /// kullanici bekledigi davranisi alamaz ve sebebini goremez.
+    /// Modelin bu ayari destekleyip desteklemedigine saglayici karar verir.
+    /// </remarks>
+    private static ReasoningEffort? ParseReasoningEffort(AgentDefinition definition)
+    {
+        var value = definition.Model.ReasoningEffort;
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        if (Enum.TryParse<ReasoningEffort>(value, ignoreCase: true, out var effort)
+            && Enum.IsDefined(effort))
+        {
+            return effort;
+        }
+
+        throw new AgentPrismCompilationException(
+            $"'{definition.Name}' agent'inin akil yurutme cabasi degeri taninmiyor: '{value}'. " +
+            $"Gecerli degerler: {string.Join(", ", Enum.GetNames<ReasoningEffort>())}.")
+        {
+            AgentName = definition.Name,
+        };
     }
 
     private ChatClientAgent CompileChatAgent(AgentDefinition definition, IChatClient chatClient, ChatOptions chatOptions)

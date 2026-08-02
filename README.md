@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Projesine ekleyen geliştirici kendi AI harness'ini kolay ama esnek şekilde kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 2 tamamlandı — çekirdek runtime ve PostgreSQL kalıcılığı çalışıyor. Agent tanımlanır, çalıştırılır, oturum ve sohbet geçmişi yeniden başlatmayı atlatır. Veritabanı hâlâ **zorunlu değildir**; yapılandırılmazsa depolama bellek içine düşer. Sağlayıcı Faz 3'te, HTTP katmanı Faz 4'te, arayüz Faz 5'te gelir.
+> **Durum:** Faz 3 tamamlandı — uçtan uca çalışıyor. Veritabanındaki bir agent tanımı derleniyor, gerçek bir OpenAI yanıtı üretiyor, tool çağırıyor ve çağrı olay olay kaydediliyor. Veritabanı hâlâ **zorunlu değildir**; yapılandırılmazsa depolama bellek içine düşer. HTTP katmanı Faz 4'te, arayüz Faz 5'te gelir.
 
 **Hedef** (Faz 5 sonunda):
 
@@ -19,17 +19,17 @@ app.MapAgentPrism("/agentprism");
 
 İki satır. Çalışan bir agent, kalıcı oturumlar ve tarayıcıda bir kontrol düzlemi.
 
-**Bugün çalışan** (Faz 2):
+**Bugün çalışan** (Faz 3):
 
 ```csharp
 builder.AddAgentPrism()
-       .AddTool(OrderTools.GetOrderStatus, name: "get_order_status", description: "Kargo durumunu döndürür.")
-       .AddModelProvider(new MyModelProvider())
+       .AddToolsFrom(typeof(OrderTools))      // [AgentPrismTool] ile işaretli metotlar
+       .UseOpenAI(apiKey)                     // ← Faz 3
        .AddAgent(new AgentDefinition
        {
            Name = "support",
            Instructions = "Sen bir destek asistanısın.",
-           Model = new ModelBinding { Provider = "openai", Model = "gpt-5.4-mini" },
+           Model = new ModelBinding { Provider = OpenAIProviderNames.ChatCompletions, Model = "gpt-5.4-mini" },
            ToolNames = ["get_order_status"],
        })
        .UsePostgreSql(connectionString);      // ← Faz 2; isteğe bağlı
@@ -47,6 +47,20 @@ await foreach (var e in runStore.ReadEventsAsync(runId))
     Console.WriteLine($"#{e.Sequence} {e.Type} {e.Text}");
 }
 ```
+
+Tool sınıfı:
+
+```csharp
+internal static class OrderTools
+{
+    [AgentPrismTool("get_order_status", "Bir siparişin kargo durumunu döndürür.")]
+    public static string GetOrderStatus(string orderId) => ...;
+
+    public static string Helper() => "...";   // işaretsiz — tool olmaz
+}
+```
+
+`UseOpenAI()` **iki** sağlayıcı kaydeder: `openai` (Chat Completions) ve `openai-responses` (Responses API). Seçim `ModelBinding.Provider` ile yapılır. Her iki yolda da konuşma geçmişi AgentPrism'in veritabanında kalır.
 
 `UsePostgreSql()` çağrılmazsa depolama bellek içine düşer ve hiçbir şey kırılmaz. Şema, gömülü SQL migration'ları ile ayrı bir `agentprism` şemasında oluşur; uygulamanızın `public` şemasına dokunulmaz.
 
@@ -82,7 +96,7 @@ AgentPrism bu boşluğu doldurur. DevUI'nin yerine geçmez — bıraktığı yer
 | `AgentPrism.Abstractions` | ✅ Sözleşmeler; kendi implementasyonunuzu yazacaksanız yeterli |
 | `AgentPrism.Core` | ✅ Çalışma zamanı, katalog, tanım derleyicisi, tool defteri, oturum yönetimi. **Veritabanı gerektirmez.** |
 | `AgentPrism.PostgreSql` | ✅ Kalıcılık — gömülü SQL migration'ları, ayrı `agentprism` şeması |
-| `AgentPrism.OpenAI` | ⬜ OpenAI sağlayıcı adaptörü (Faz 3) |
+| `AgentPrism.OpenAI` | ✅ OpenAI sağlayıcı adaptörü — Chat Completions + Responses, tool çağrısı, OpenTelemetry |
 | `AgentPrism.AspNetCore` | ⬜ HTTP katmanı — yönetim API'si + OpenAI uyumlu uçlar (Faz 4) |
 | `AgentPrism.UI` | ⬜ Gömülü React arayüzü (Faz 5) |
 
@@ -95,6 +109,24 @@ AgentPrism bu boşluğu doldurur. DevUI'nin yerine geçmez — bıraktığı yer
 ```bash
 dotnet add package AgentPrism --prerelease
 ```
+
+### Model kataloğu
+
+AgentPrism **yerleşik model listesi taşımaz**. OpenAI model adları ve fiyatları bir NuGet paketinin yayın sıklığından hızlı değişir; koda gömülü bir liste kısa sürede yanıltıcı olur. Katalog yapılandırmadan gelir:
+
+```json
+{
+  "AgentPrism": { "Providers": { "OpenAI": {
+    "DefaultModel": "gpt-5.4-mini",
+    "Models": [
+      { "Name": "gpt-5.4-mini", "DisplayName": "GPT-5.4 mini",
+        "ContextWindowTokens": 400000, "InputCostPerMillionTokens": 0.25 }
+    ]
+  }}}
+}
+```
+
+Katalog bir **doğrulama listesi değildir**: burada olmayan bir model adı da kullanılabilir. Liste yalnızca arayüzün model seçim ekranını ve maliyet hesabını besler.
 
 ### Sırları ayarlayın
 
@@ -132,8 +164,8 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [0](docs/00-ALTYAPI.md) | Build ve paketleme altyapısı | ✅ Tamamlandı |
 | [1](docs/01-CEKIRDEK-SOYUTLAMALAR.md) | Çekirdek soyutlamalar ve runtime | ✅ Tamamlandı |
 | [2](docs/02-POSTGRESQL-KALICILIK.md) | PostgreSQL kalıcılık katmanı | ✅ Tamamlandı |
-| [3](docs/03-SAGLAYICI-VE-DERLEYICI.md) | OpenAI sağlayıcısı ve agent derleyici | 🔜 Sıradaki |
-| [4](docs/04-HTTP-API.md) | HTTP API katmanı | Planlandı |
+| [3](docs/03-SAGLAYICI-VE-DERLEYICI.md) | OpenAI sağlayıcısı ve agent derleyici | ✅ Tamamlandı |
+| [4](docs/04-HTTP-API.md) | HTTP API katmanı | 🔜 Sıradaki |
 | [5](docs/05-AGENTPRISM-UI.md) | AgentPrismUI | Planlandı |
 | [6](docs/06-GOZLEMLENEBILIRLIK.md) | Gözlemlenebilirlik, workflows, çok kiracılılık | Planlandı |
 | [7](docs/07-SAGLAMLASTIRMA-VE-YAYIN.md) | Sağlamlaştırma ve yayın | Planlandı |
@@ -150,7 +182,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 
 ```bash
 dotnet build  AgentPrism.slnx -c Release              # 0 uyarı bekleniyor
-dotnet test   AgentPrism.slnx -c Release --no-build   # 130 test (42 birim + 88 entegrasyon)
+dotnet test   AgentPrism.slnx -c Release --no-build   # 198 test (110 birim + 88 entegrasyon)
 dotnet pack   AgentPrism.slnx -c Release --no-build
 dotnet format AgentPrism.slnx --verify-no-changes
 ```

@@ -1,18 +1,20 @@
-// AgentPrism ornek barindirici — Faz 2.
+// AgentPrism ornek barindirici — Faz 3.
 //
 // Bu proje AgentPrism'in su anki yeteneklerini gercek bir ASP.NET Core
-// uygulamasinda gosterir: tool kaydi, kod agent'i, katalog, calistirma kaydi
-// ve PostgreSQL kaliciligi.
+// uygulamasinda gosterir: tool kaydi, kod agent'i, katalog, calistirma kaydi,
+// PostgreSQL kaliciligi ve OpenAI saglayicisi.
 //
-// Faz 2'de veritabani devrede. Baglanti dizesi tanimliysa depolar PostgreSQL'e
-// gecer; tanimli degilse AgentPrism bellek ici depolarla calismaya devam eder
-// ("sifir surpriz" kurali). HTTP katmani hala gecici: Faz 4'te tek bir
-// `app.MapAgentPrism("/agentprism")` cagrisi asagidaki uclarin yerini alir.
-// Bkz. docs/04-HTTP-API.md
+// Iki yapilandirma da desteklenir ("sifir surpriz" kurali):
+//   - API anahtari tanimliysa  -> gercek OpenAI modelleri
+//   - tanimli degilse          -> ag cagrisi yapmayan EchoModelProvider
+//   - baglanti dizesi tanimliysa -> PostgreSQL; degilse bellek ici depolar
+//
+// HTTP katmani hala gecici: Faz 4'te tek bir `app.MapAgentPrism("/agentprism")`
+// cagrisi asagidaki uclarin yerini alir. Bkz. docs/04-HTTP-API.md
 //
 // Calistirmadan once sirlari ayarlayin:
 //   dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=localhost;Database=AgentPrism;Username=...;Password=..."
-//   dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" "sk-..."     (Faz 3)
+//   dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" "sk-..."
 
 using AgentPrism;
 using AgentPrism.Api;
@@ -25,12 +27,35 @@ builder.Services.AddProblemDetails();
 var agentPrism = builder.AddAgentPrism()
     // Tool'lar YALNIZCA kodda tanimlanir. Arayuz (Faz 5) bu listeden secim
     // yaptirir; tool kodu yazdirmaz. Bu bir guvenlik sinirdir.
-    .AddTool(OrderTools.GetOrderStatus, name: "get_order_status", description: "Bir siparisin kargo durumunu dondurur.")
-    .AddTool(OrderTools.ListRecentOrders, name: "list_recent_orders", description: "Musterinin son siparislerini listeler.")
+    // [AgentPrismTool] ile isaretlenmemis metotlar taranmaz.
+    .AddToolsFrom(typeof(OrderTools));
 
-    // Faz 3'te bunun yerini `UseOpenAI(apiKey)` alacak.
-    .AddModelProvider(new EchoModelProvider())
+// Saglayici istege baglidir. API anahtari yoksa uygulama ag cagrisi yapmayan
+// ornek saglayici ile calisir; hicbir sey kirilmaz.
+var openAi = builder.Configuration.GetSection(OpenAIProviderOptions.SectionName);
+var openAiEnabled = !string.IsNullOrWhiteSpace(openAi["ApiKey"]);
 
+if (openAiEnabled)
+{
+    // Bu tek cagri iki saglayici kaydeder: "openai" (Chat Completions) ve
+    // "openai-responses" (Responses API). Agent tanimi hangisini kullanacagini
+    // ModelBinding.Provider ile secer.
+    agentPrism.UseOpenAI(openAi);
+}
+else
+{
+    agentPrism.AddModelProvider(new EchoModelProvider());
+}
+
+var model = openAiEnabled
+    ? new ModelBinding
+    {
+        Provider = OpenAIProviderNames.ChatCompletions,
+        Model = openAi["DefaultModel"] ?? "gpt-5.4-mini",
+    }
+    : new ModelBinding { Provider = "echo", Model = "echo-1" };
+
+agentPrism
     // Kodda bildirimsel agent. Katalogda "code" kaynagi ile gorunur ve
     // ayni ada sahip bir veritabani tanimina karsi oncelik kazanir.
     .AddAgent(new AgentDefinition
@@ -38,9 +63,29 @@ var agentPrism = builder.AddAgentPrism()
         Name = "support",
         DisplayName = "Destek Asistani",
         Description = "Siparis ve kargo sorularini yanitlar.",
-        Instructions = "Sen bir destek asistanisin. Kisa ve net yanit ver.",
-        Model = new ModelBinding { Provider = "echo", Model = "echo-1" },
+        Instructions = "Sen bir destek asistanisin. Kisa ve net yanit ver. " +
+                       "Siparis sorularinda mutlaka tool kullan.",
+        Model = model,
         ToolNames = ["get_order_status", "list_recent_orders"],
+    })
+
+    // Harness ayarli agent: baglam sikistirma ve todo takibi devrede.
+    // Shell erisimi ve arka plan agent'lari HarnessSettings icinde bilerek yoktur.
+    .AddAgent(new AgentDefinition
+    {
+        Name = "arastirmaci",
+        DisplayName = "Arastirmaci",
+        Description = "Uzun konusmalarda baglami sikistirarak calisir.",
+        Instructions = "Sen bir arastirmacisin. Adim adim ilerle ve bulgularini ozetle.",
+        Model = model,
+        ToolNames = ["get_order_status"],
+        Harness = new HarnessSettings
+        {
+            MaxContextWindowTokens = 32_000,
+            MaximumIterationsPerRequest = 8,
+            DisableWebSearch = true,
+            DisableFileMemory = true,
+        },
     });
 
 // Kalicilik istege baglidir. Baglanti dizesi yoksa uygulama bellek ici
@@ -61,12 +106,19 @@ app.UseStatusCodePages();
 app.MapGet("/health", (IRunStore runs, ISessionStore sessions) => Results.Ok(new
 {
     status = "healthy",
-    phase = "2 - postgresql kalicilik",
+    phase = "3 - saglayici ve derleyici",
     storage = new
     {
         persistent = persistenceEnabled,
         runStore = runs.GetType().Name,
         sessionStore = sessions.GetType().Name,
+    },
+    // API anahtari BURADA GORUNMEZ; yalnizca saglayicinin acik olup olmadigi bildirilir.
+    provider = new
+    {
+        openAI = openAiEnabled,
+        model = model.Model,
+        name = model.Provider,
     },
 }));
 
