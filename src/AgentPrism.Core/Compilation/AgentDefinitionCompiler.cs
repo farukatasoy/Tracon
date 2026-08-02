@@ -28,6 +28,7 @@ public sealed class AgentDefinitionCompiler
     private readonly ILoggerFactory? _loggerFactory;
     private readonly IServiceProvider? _services;
     private readonly ChatHistoryProvider? _chatHistoryProvider;
+    private readonly AgentSkillCatalog? _skills;
 
     /// <summary>Yeni bir derleyici olusturur.</summary>
     /// <param name="models">Model saglayici defteri.</param>
@@ -39,13 +40,15 @@ public sealed class AgentDefinitionCompiler
     /// Microsoft Agent Framework'un bellek ici varsayilani kullanilir ve gecmis oturum
     /// durumunun icinde tasinir.
     /// </param>
+    /// <param name="skills">Skill kaynaklarini cozen katalog.</param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
     public AgentDefinitionCompiler(
         IModelProviderRegistry models,
         IToolRegistry tools,
         ILoggerFactory? loggerFactory = null,
         IServiceProvider? services = null,
-        ChatHistoryProvider? chatHistoryProvider = null)
+        ChatHistoryProvider? chatHistoryProvider = null,
+        AgentSkillCatalog? skills = null)
     {
         ArgumentNullException.ThrowIfNull(models);
         ArgumentNullException.ThrowIfNull(tools);
@@ -55,6 +58,7 @@ public sealed class AgentDefinitionCompiler
         _loggerFactory = loggerFactory;
         _services = services;
         _chatHistoryProvider = chatHistoryProvider;
+        _skills = skills;
     }
 
     /// <summary>Tanimi calistirilabilir bir agent'a donusturur.</summary>
@@ -75,6 +79,33 @@ public sealed class AgentDefinitionCompiler
         return definition.Harness is null
             ? CompileChatAgent(definition, chatClient, chatOptions)
             : CompileHarnessAgent(definition, chatClient, chatOptions);
+    }
+
+    /// <summary>Tanimin skill'lerini dogrular ve cache anahtarini uretir.</summary>
+    /// <param name="definition">Dogrulanacak agent tanimi.</param>
+    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <returns>Skill parmak izi.</returns>
+    internal ValueTask<ResolvedAgentSkills> ResolveSkillsAsync(
+        AgentDefinition definition,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+
+        if (definition.SkillNames.Count == 0)
+        {
+            return ValueTask.FromResult(ResolvedAgentSkills.Empty);
+        }
+
+        if (_skills is null)
+        {
+            throw new AgentPrismCompilationException(
+                $"'{definition.Name}' agent'i skill kullaniyor ancak skill katalogu kayitli degil.")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
+        return _skills.ResolveAsync(definition, cancellationToken);
     }
 
     private IChatClient CreateChatClient(AgentDefinition definition)
@@ -198,6 +229,11 @@ public sealed class AgentDefinitionCompiler
             ChatHistoryProvider = _chatHistoryProvider,
         };
 
+        if (definition.SkillNames.Count > 0)
+        {
+            options.AIContextProviders = [CreateSkillsProvider(definition)];
+        }
+
         return chatClient.AsAIAgent(options, _loggerFactory, _services);
     }
 
@@ -241,7 +277,42 @@ public sealed class AgentDefinitionCompiler
             // Gerekce: docs/KARARLAR.md, karar K-062.
         };
 
+        if (definition.SkillNames.Count > 0)
+        {
+            options.AgentSkillsSource = CreateSkillsSource(definition);
+        }
+
         return chatClient.AsHarnessAgent(options, _loggerFactory, _services);
 #pragma warning restore MAAI001
+    }
+
+    private AgentSkillsProvider CreateSkillsProvider(AgentDefinition definition)
+        => new(CreateSkillsSource(definition), new AgentSkillsProviderOptions(), _loggerFactory, ownsSource: true);
+
+    private DeduplicatingAgentSkillsSource CreateSkillsSource(AgentDefinition definition)
+    {
+        if (_skills is null)
+        {
+            throw new AgentPrismCompilationException(
+                $"'{definition.Name}' agent'i skill kullaniyor ancak skill katalogu kayitli degil.")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
+        AgentSkillsSource source = new AggregatingAgentSkillsSource([
+            new AgentPrismSkillsSource(_skills, definition),
+        ]);
+        source = new FilteringAgentSkillsSource(
+            source,
+            (skill, _) => definition.SkillNames.Contains(skill.Frontmatter.Name, StringComparer.Ordinal),
+            _loggerFactory);
+        source = new CachingAgentSkillsSource(
+            source,
+            new CachingAgentSkillsSourceOptions
+            {
+                CacheIsolationKeySelector = _ => _skills.TenantId,
+            });
+        return new DeduplicatingAgentSkillsSource(source, _loggerFactory);
     }
 }

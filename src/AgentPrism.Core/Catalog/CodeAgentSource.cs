@@ -72,6 +72,7 @@ public sealed class CodeAgentSource : IAgentSource
                 SourceName = Name,
                 Model = registration.Definition?.Model,
                 ToolNames = registration.Definition?.ToolNames ?? [],
+                SkillNames = registration.Definition?.SkillNames ?? [],
                 UsesHarness = registration.Definition?.Harness is not null,
             });
         }
@@ -80,19 +81,27 @@ public sealed class CodeAgentSource : IAgentSource
     }
 
     /// <inheritdoc />
-    public ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken = default)
+    public async ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(agentName);
 
         if (!_registrations.TryGetValue(agentName, out var registration))
         {
-            return new ValueTask<AIAgent?>((AIAgent?)null);
+            return null;
         }
 
-        var agent = registration.Definition is { } definition
-            ? _cache.GetOrAdd(definition.Name, definition.Version, () => _compiler.Compile(definition))
-            : registration.Factory!(_services);
+        if (registration.Definition is not { } definition)
+        {
+            return registration.Factory!(_services);
+        }
 
-        return new ValueTask<AIAgent?>(agent);
+        var skills = await _compiler.ResolveSkillsAsync(definition, cancellationToken).ConfigureAwait(false);
+        var agent = _cache.GetOrAdd(
+            definition.Name,
+            definition.Version,
+            skills.Fingerprint,
+            () => _compiler.Compile(definition));
+
+        return agent;
     }
 }

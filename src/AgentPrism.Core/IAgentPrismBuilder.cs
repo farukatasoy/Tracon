@@ -105,6 +105,14 @@ public interface IAgentPrismBuilder
     IAgentPrismBuilder AddAgent(AgentDefinition definition);
 
     /// <summary>
+    /// Kodda bir skill tanimlar. Kodda tanimli skill, ayni ada sahip calisma ani
+    /// skill'inin onune gecer.
+    /// </summary>
+    /// <param name="skill">Kaydedilecek skill.</param>
+    /// <returns>Zincirin devami.</returns>
+    IAgentPrismBuilder AddSkill(AgentSkillDefinition skill);
+
+    /// <summary>
     /// Kodda fabrika tabanli bir agent tanimlar. Agent'in nasil kuruldugu tamamen
     /// cagirana aittir.
     /// </summary>

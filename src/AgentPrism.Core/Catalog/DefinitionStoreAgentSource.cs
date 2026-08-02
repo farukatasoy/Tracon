@@ -55,6 +55,7 @@ public sealed class DefinitionStoreAgentSource : IAgentSource
                 Version = definition.Version,
                 Model = definition.Model,
                 ToolNames = definition.ToolNames,
+                SkillNames = definition.SkillNames,
                 UsesHarness = definition.Harness is not null,
                 UpdatedAt = definition.UpdatedAt,
             });
@@ -75,6 +76,11 @@ public sealed class DefinitionStoreAgentSource : IAgentSource
             return null;
         }
 
-        return _cache.GetOrAdd(definition.Name, definition.Version, () => _compiler.Compile(definition));
+        var skills = await _compiler.ResolveSkillsAsync(definition, cancellationToken).ConfigureAwait(false);
+        return _cache.GetOrAdd(
+            definition.Name,
+            definition.Version,
+            skills.Fingerprint,
+            () => _compiler.Compile(definition));
     }
 }

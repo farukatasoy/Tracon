@@ -108,7 +108,8 @@ public static class AgentPrismServiceCollectionExtensions
             provider,
             // Kayitli degilse MAF'in bellek ici varsayilani kullanilir.
             // AgentPrism.PostgreSql bunu PostgresChatHistoryProvider ile doldurur.
-            provider.GetService<Microsoft.Agents.AI.ChatHistoryProvider>()));
+            provider.GetService<Microsoft.Agents.AI.ChatHistoryProvider>(),
+            provider.GetRequiredService<AgentSkillCatalog>()));
 
         // Denetim izi. Aktor AuditActorContext'ten (AsyncLocal) okunur;
         // AgentPrism.AspNetCore her korumali istegin basinda oraya HttpContext.User'i
@@ -127,6 +128,12 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<ITenantContext>(),
             provider.GetRequiredService<IAuditActorResolver>(),
             provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingAgentDefinitionStore>>()));
+        services.TryAddSingleton<IAgentSkillStore, InMemoryAgentSkillStore>();
+        services.TryAddSingleton(static provider => new AgentSkillCatalog(
+            provider.GetServices<CodeSkillRegistration>(),
+            provider.GetRequiredService<IAgentSkillStore>(),
+            provider.GetRequiredService<ITenantContext>(),
+            provider.GetRequiredService<IOptions<AgentPrismOptions>>()));
         services.TryAddSingleton<IRunStore, InMemoryRunStore>();
         services.TryAddSingleton<ISessionStore>(static provider => new AuditingSessionStore(
             new InMemorySessionStore(),
@@ -228,6 +235,7 @@ public static class AgentPrismServiceCollectionExtensions
         BindCircuitBreaker(section.GetSection(nameof(AgentPrismOptions.CircuitBreaker)), options.CircuitBreaker);
         BindHealth(section.GetSection(nameof(AgentPrismOptions.Health)), options.Health);
         BindAudit(section.GetSection(nameof(AgentPrismOptions.Audit)), options.Audit);
+        BindSkills(section.GetSection(nameof(AgentPrismOptions.Skills)), options.Skills);
     }
 
     private static void BindAudit(IConfigurationSection section, AgentPrismAuditOptions options)
@@ -240,6 +248,34 @@ public static class AgentPrismServiceCollectionExtensions
         if (section[nameof(AgentPrismAuditOptions.ActorClaimType)] is { Length: > 0 } claimType)
         {
             options.ActorClaimType = claimType;
+        }
+    }
+
+    private static void BindSkills(IConfigurationSection section, AgentPrismSkillOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (int.TryParse(section[nameof(AgentPrismSkillOptions.MaxSkillsPerAgent)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxSkills))
+        {
+            options.MaxSkillsPerAgent = maxSkills;
+        }
+
+        if (int.TryParse(section[nameof(AgentPrismSkillOptions.MaxInstructionsLength)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxInstructions))
+        {
+            options.MaxInstructionsLength = maxInstructions;
+        }
+
+        if (int.TryParse(section[nameof(AgentPrismSkillOptions.MaxResourceContentLength)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxResourceContent))
+        {
+            options.MaxResourceContentLength = maxResourceContent;
+        }
+
+        if (int.TryParse(section[nameof(AgentPrismSkillOptions.MaxResourcesPerSkill)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxResources))
+        {
+            options.MaxResourcesPerSkill = maxResources;
         }
     }
 

@@ -33,8 +33,8 @@ public sealed class UiTests(BrowserFixture browsers)
 
         (await session.Page.TitleAsync()).ShouldBe("AgentPrism");
 
-        // Sekiz ekranin tamami gezinme cubugunda olmalidir.
-        foreach (var screen in new[] { "Agents", "Playground", "Sessions", "Runs", "Tools", "Models", "MCP", "Settings" })
+        // Tum yonetim ekranlari gezinme cubugunda olmalidir.
+        foreach (var screen in new[] { "Agents", "Playground", "Sessions", "Runs", "Tools", "Skills", "Models", "MCP", "Settings" })
         {
             (await session.Page.GetByRole(AriaRole.Link, new() { Name = screen }).CountAsync())
                 .ShouldBeGreaterThan(0, $"'{screen}' baglantisi bulunamadi.");
@@ -109,6 +109,23 @@ public sealed class UiTests(BrowserFixture browsers)
         await session.Page.GetByTestId("playground-send").ClickAsync();
 
         await session.Page.GetByText("Echo: merhaba").WaitForAsync(new() { Timeout = 20_000 });
+    }
+
+    [Fact]
+    public async Task Arayuzden_skill_olusturulur_ve_listelenir()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/skills/new");
+
+        await session.Page.GetByPlaceholder("invoice-analysis").FillAsync("invoice-review");
+        await session.Page.GetByRole(AriaRole.Textbox, new() { Name = "Description" })
+            .FillAsync("Reviews invoices.");
+        await session.Page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
+
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Skills" }).WaitForAsync();
+        await session.Page.GetByText("invoice-review", new() { Exact = true }).WaitForAsync();
     }
 
     [Fact]

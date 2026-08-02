@@ -72,6 +72,14 @@ internal sealed class AgentPrismBuilder : IAgentPrismBuilder
         return this;
     }
 
+    public IAgentPrismBuilder AddSkill(AgentSkillDefinition skill)
+    {
+        ArgumentNullException.ThrowIfNull(skill);
+
+        Services.AddSingleton(new CodeSkillRegistration(skill));
+        return this;
+    }
+
     public IAgentPrismBuilder AddAgent(string name, Func<IServiceProvider, AIAgent> factory, string? description = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);

@@ -41,6 +41,19 @@ public sealed class CompiledAgentCacheTests
     }
 
     [Fact]
+    public void Skill_parmak_izi_degistiginde_yeniden_derlenir()
+    {
+        var cache = new CompiledAgentCache();
+        var compiler = CreateCompiler();
+
+        var first = cache.GetOrAdd("a", 1, "ilk-skill", () => compiler.Compile(TestData.Definition("a")));
+        var second = cache.GetOrAdd("a", 1, "guncel-skill", () => compiler.Compile(TestData.Definition("a")));
+
+        second.ShouldNotBeSameAs(first);
+        cache.Count.ShouldBe(2);
+    }
+
+    [Fact]
     public void Evict_bir_agentin_tum_surumlerini_dusurur()
     {
         var cache = new CompiledAgentCache();
