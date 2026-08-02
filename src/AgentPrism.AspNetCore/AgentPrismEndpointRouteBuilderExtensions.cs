@@ -1,0 +1,122 @@
+using Microsoft.Agents.AI.Hosting;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace AgentPrism;
+
+/// <summary>
+/// AgentPrism'in HTTP yuzeyini uygulamaya baglayan uzantilar.
+/// </summary>
+public static class AgentPrismEndpointRouteBuilderExtensions
+{
+    /// <summary>Varsayilan yol oneki.</summary>
+    public const string DefaultPrefix = "/agentprism";
+
+    /// <summary>
+    /// AgentPrism yonetim API'sini ve OpenAI uyumlu calistirma uclarini baglar.
+    /// </summary>
+    /// <param name="endpoints">Uygulamanin yonlendirme olusturucusu.</param>
+    /// <param name="prefix">Yol oneki. Varsayilan <c>/agentprism</c>.</param>
+    /// <param name="configure">Erisim ve akis ayarlarini degistiren kanca.</param>
+    /// <returns>
+    /// Korumali uclarin sozlesme olusturucusu. Eklenen her convention
+    /// <strong>yalnizca</strong> korumali uclara uygulanir.
+    /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="endpoints"/> <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentException"><paramref name="prefix"/> bos ise.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// <c>AddAgentPrism()</c> cagrilmamissa.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// Uclar iki gruba ayrilir. <c>{prefix}/api/meta</c> kimlik dogrulamasi olmadan
+    /// erisilir; arayuzun hangi kimlik yontemini kullanacagini ogrenmesi icin
+    /// gereklidir ve hicbir hassas veri dondurmez. Diger tum uclar uc katmanli
+    /// korumadan gecer.
+    /// </para>
+    /// <para>
+    /// Donen olusturucu <strong>yalnizca korumali grubu</strong> temsil eder. Bunun
+    /// sebebi bilincli: cagiran <c>MapAgentPrism(...).RequireAuthorization()</c>
+    /// yazdiginda meta ucu de kilitlenseydi arayuz kimlik yontemini ogrenemez ve
+    /// hicbir zaman oturum acamazdi.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// app.MapAgentPrism("/agentprism", options =>
+    /// {
+    ///     options.RequireAuthorization("AgentPrismAdmin");
+    /// });
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public static IEndpointConventionBuilder MapAgentPrism(
+        this IEndpointRouteBuilder endpoints,
+        string prefix = DefaultPrefix,
+        Action<AgentPrismEndpointOptions>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(endpoints);
+        ArgumentException.ThrowIfNullOrWhiteSpace(prefix);
+
+        var options = new AgentPrismEndpointOptions();
+        configure?.Invoke(options);
+
+        var services = endpoints.ServiceProvider;
+
+        if (services.GetService<IAgentCatalog>() is null)
+        {
+            throw new InvalidOperationException(
+                "AgentPrism servisleri kayitli degil. MapAgentPrism() cagrisindan once " +
+                "builder.AddAgentPrism() (veya services.AddAgentPrism()) cagirin.");
+        }
+
+        var normalizedPrefix = '/' + prefix.Trim('/');
+
+        // Meta grubu: kimlik dogrulamasi yok, filtre yok.
+        var metaGroup = endpoints.MapGroup(normalizedPrefix).WithTags("AgentPrism");
+        MetaEndpoints.Map(metaGroup, options, normalizedPrefix);
+
+        // Korumali grup: loopback + bearer token filtresi, istege bagli policy.
+        var group = endpoints.MapGroup(normalizedPrefix).WithTags("AgentPrism");
+        group.AddEndpointFilter(new AgentPrismEndpointFilter(options));
+
+        if (options.AuthorizationPolicy is { Length: > 0 } policy)
+        {
+            group.RequireAuthorization(policy);
+        }
+
+        AgentEndpoints.Map(group);
+        SessionEndpoints.Map(group);
+        RunEndpoints.Map(group, options);
+        CatalogEndpoints.Map(group);
+
+        OpenAIResponsesEndpoints.Map(group, ResolveSessionStore(services));
+        OpenAIChatCompletionsEndpoints.Map(group);
+        OpenAIConversationsEndpoints.Map(group);
+
+        return group;
+    }
+
+    /// <summary>
+    /// OpenAI uyumlu uclarin kullanacagi oturum deposunu secer.
+    /// </summary>
+    /// <param name="services">Uygulamanin servis saglayicisi.</param>
+    /// <returns>Kullanilacak oturum deposu.</returns>
+    /// <remarks>
+    /// <para>
+    /// Tuketici kendi <see cref="AgentSessionStore"/> uygulamasini kaydettiyse o
+    /// kazanir (kural K4). Ornegin cok kiracili bir kurulum, MAF'in
+    /// <c>IsolationKeyScopedAgentSessionStore</c> sinifiyla sarmalanmis bir depo
+    /// kaydedebilir.
+    /// </para>
+    /// <para>
+    /// Kayit yoksa <see cref="AgentSessionManager"/> uzerine kurulu varsayilan
+    /// kopru kullanilir. Boylece <c>MapAgentPrism()</c> tek giris noktasi olarak
+    /// kalir ve ek bir kayit adimi gerekmez (kural K1).
+    /// </para>
+    /// </remarks>
+    private static AgentSessionStore ResolveSessionStore(IServiceProvider services)
+        => services.GetService<AgentSessionStore>()
+           ?? new AgentPrismAgentSessionStore(services.GetRequiredService<AgentSessionManager>());
+}

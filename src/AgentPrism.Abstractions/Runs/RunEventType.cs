@@ -1,9 +1,20 @@
+using System.Text.Json.Serialization;
+
 namespace AgentPrism;
 
 /// <summary>
 /// Bir calistirma sirasinda uretilen olay tipleri. Arayuz bu tipleri dogrudan
 /// gorsel ogelere esler, bu yuzden degerler kararli tutulmalidir.
 /// </summary>
+/// <remarks>
+/// JSON'da <strong>ad olarak</strong> yazilir (<c>"Code"</c>), sayi olarak degil.
+/// Kablo sozlesmesi boylece kendini anlatir ve deger sirasi degisirse bile kirilmaz.
+/// Donusturucu tip duzeyindedir: tuketicinin uygulama genelindeki JSON ayarlarina
+/// dokunmadan her yerde ayni bicimi verir. Hicbir enum JSON olarak KALICI degildir
+/// (RunStatus ve RunEventType veritabaninda smallint, AgentDefinitionOrigin okumada
+/// yeniden kurulur), bu yuzden bicim degisikligi saklanan veriyi etkilemez.
+/// </remarks>
+[JsonConverter(typeof(JsonStringEnumConverter<RunEventType>))]
 public enum RunEventType
 {
     /// <summary>Calistirma basladi.</summary>

@@ -202,6 +202,9 @@ public sealed class RunRecordingAgentTests
         public ValueTask<IReadOnlyList<RunRecord>> QueryRunsAsync(RunQuery query, CancellationToken cancellationToken = default)
             => throw new InvalidOperationException("depo erisilemez");
 
+        public ValueTask<RunStatistics> GetStatisticsAsync(RunStatisticsQuery query, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("depo erisilemez");
+
         public IAsyncEnumerable<RunEvent> ReadEventsAsync(Guid runId, long fromSequence = 0, CancellationToken cancellationToken = default)
             => throw new InvalidOperationException("depo erisilemez");
     }

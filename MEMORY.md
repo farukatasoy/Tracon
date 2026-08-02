@@ -24,6 +24,13 @@
 - **Deneysel API bastırmaları iki dosyada** (2026-08-02): `AgentDefinitionCompiler.CompileHarnessAgent` (`MAAI001`) ve `OpenAIChatClientFactory.CreateInnerChatClient` (`OPENAI001`+`MAAI001`). Başka yerde bastırma yok.
 - **Tool yansıması tek dosyada** (2026-08-02): `Core/Tools/ToolMethodScanner.cs`. `AddToolsFrom` buraya delege eder; `AgentPrism.Core`'daki tek yansıma noktası.
 
+- **HTTP uçları dört dosyada gruplu** (2026-08-02): `AspNetCore/Endpoints/` → `MetaEndpoints` (kimlik doğrulaması yok), `AgentEndpoints`, `SessionEndpoints`, `RunEndpoints`, `CatalogEndpoints` (tools+models+stats). OpenAI uyumlu uçlar ayrı: `AspNetCore/OpenAICompat/`.
+- **`MapAgentPrism` iki `MapGroup` kurar** (2026-08-02): meta grubu filtresiz + `AllowAnonymous()`, korumalı grup `AgentPrismEndpointFilter` + opsiyonel policy. Dönen builder **yalnız korumalı grubu** temsil eder (K-042).
+- **Çalıştırma özeti SQL'i iki sonuç kümesi döndürür** (2026-08-02): `SqlQueries.SelectRunStatistics` — önce toplam, sonra agent kırılımı. `reader.NextResultAsync()` ile okunur.
+- **OpenAI hata biçimi tek yerde** (2026-08-02): `OpenAICompatSupport.Error(...)`. Agent seçimi ve kiracı sahiplik denetimi de aynı dosyada.
+- **Sohbet geçmişi okuma tek dosyada** (2026-08-02): `AspNetCore/Internal/ChatHistoryReader.cs`. Hem `/api/sessions/{id}` hem `/v1/conversations/{id}/items` buradan okur; `MAAI001` bastırması da burada.
+- **Konuşma kimliği = oturum kimliği** (2026-08-02): `/v1/conversations` ayrı bir depo kullanmaz, `ISessionStore` üzerine kuruludur (K-043).
+
 ## Desenler & Kararlar (keşfedilen)
 
 - **MAF `Hosting.OpenAI` depolaması `TryAddSingleton`** (2026-08-01): `Microsoft.Agents.AI.Hosting.OpenAI/ServiceCollectionExtensions.cs` `IConversationStorage`, `IAgentConversationIndex`, `IResponsesService` için bellek içi implementasyonları `TryAdd` ile kaydeder. Kendi implementasyonumuzu `AddOpenAIResponses()` çağrısından **önce** kaydedersek bizimki kazanır. Sıra bozulursa kalıcılık sessizce devre dışı kalır — Faz 4'te `StorageOverrideTests` bunu korur.
@@ -40,6 +47,11 @@
 - **`Enum.TryParse<T>` / `Enum.IsDefined` / `Enum.GetNames<T>()` AOT temiz** (2026-08-02): `ReasoningEffort` çevrimi bunlarla yazıldı, hiçbir `IL2026`/`IL3050` çıkmadı.
 - **`AIFunctionArguments.Services` örnek tool'ları için var** (2026-08-02): `AIFunctionFactory.Create(method, args => ..., options)` ile taşıyıcı nesne çağrı anında DI'dan çözülür. Statik olmayan tool metotları böyle desteklenir.
 - **`IChatClient.GetService(typeof(X))` boru hattında gezinir** (2026-08-02): testler `FunctionInvokingChatClient`, `OpenTelemetryChatClient` ve `ChatClientMetadata` varlığını böyle doğruluyor. `ChatClientMetadata.ProviderUri` yapılandırılan `Endpoint`'i yansıtır — `OpenAIClient.Endpoint` `OPENAI001` işaretli olduğu için doğrulama bu yoldan yapılır.
+
+- **`OpenAIResponses` public ve tam yolu veriyor** (2026-08-02): `ToAgentRunRequest` / `GetSessionStoreId` / `CreateResponseId` / `WriteResponse` / `WriteResponseStreamAsync`. Sonuncusu **hazır SSE çerçeveleri** üretir (`event:` + `data:` + boş satır) — yeniden çerçeveleme bozar, `SseWriter.WriteRawAsync` ile olduğu gibi yazılır.
+- **`GetSessionStoreId` = `conversation ?? previous_response_id ?? null`** (2026-08-02): ölçüldü. `OpenAIResponsesRunRequest` agent adı **taşımaz**; gövdeden kendimiz okuruz.
+- **`ChatHistoryProvider.InvokingAsync` public** (2026-08-02): `InvokingContext` kurucusu da public (`MAAI001` işaretli). Oturum geçmişini okumanın tek public yolu; sağlayıcı bu çağrıda yalnız okur. `ProvideChatHistoryAsync` protected olduğu için kullanılamaz.
+- **`InMemoryChatHistoryProvider` durumu oturumda tutar** (2026-08-02): `GetMessages(AgentSession)` imzası bunu gösteriyor. Tek örneğin tüm oturumlarca paylaşılması güvenli; `AddAgentPrism()` bu yüzden açıkça kaydediyor (K-037).
 
 ## Tuzaklar (AGENTS.md'de olmayan)
 
@@ -69,4 +81,14 @@
 - **`OpenAIClient.Endpoint` bile `OPENAI001`** (2026-08-02): testte doğrulamak için bastırma gerekir. Bunun yerine `IChatClient.GetService(typeof(ChatClientMetadata)).ProviderUri` kullan.
 - **Statik sınıf tür argümanı olamaz** (2026-08-02): `AddToolsFrom<OrderTools>()` `CS0718` verir çünkü tool sınıfları genelde `static class`. Bu yüzden `AddToolsFrom(Type)` aşırı yüklemesi var.
 - **`record` ayar sınıfı sır sızdırır** (2026-08-02): derleyicinin ürettiği `ToString` tüm özellikleri yazar. Ayar sınıfları `class` olmalı; `SecretLeakTests` bunu tip üzerinden denetler (`GetMethod("ToString").DeclaringType == typeof(object)`).
+- **🚨 MAF'ın OpenAI depolama arayüzleri `internal`** (2026-08-02): `IConversationStorage`, `IAgentConversationIndex`, `IResponsesService`, `IResponseExecutor` — dördü de `svcPublic=False`. `AddOpenAIResponses()` bunları `TryAddSingleton` ile kaydediyor ama tüketici derleme tipi **adlandıramaz**. Faz 4 planının merkezi varsayımı bu yüzden çöktü. Yeni bir MAF genişleme noktası kullanmadan önce tipin **public** olduğunu doğrula — `TryAdd` kaydı görmek yetmez.
+- **🚨 `IsAotCompatible` `src/Directory.Build.props` içinde türetilemez** (2026-08-02): o dosya csproj gövdesinden **önce** yüklenir; csproj'da yazan `AgentPrismAotCompatible=false` görülmez ve bayrak geri alınamaz biçimde `true` kalır. Türetme `Directory.Build.targets` içindedir. Aynı tuzak csproj'a bakan her türetilmiş özellik için geçerli.
+- **`WithTags` `Microsoft.AspNetCore.Http` namespace'inde** (2026-08-02): `OpenApiRouteHandlerBuilderExtensions.WithTags<TBuilder>`. `Microsoft.AspNetCore.Builder` yeterli değil; `RouteGroupBuilder` üzerinde `CS1061` verir.
+- **`Microsoft.AspNetCore.OpenApi` 10.0.10 CVE'li paket çekiyor** (2026-08-02): `Microsoft.OpenApi` 2.0.0 → `NU1903` build'i kırar. `Microsoft.OpenApi` 2.11.0 temiz; K-007'nin öngördüğü tek bilinçli `PackageReference` ile zorlanır.
+- **`WebApplicationFactory<T>` kütüphane testinde kullanılamaz** (2026-08-02): giriş noktası derlemesi ister. `Microsoft.AspNetCore.TestHost` + `WebApplication.CreateSlimBuilder()` + `UseTestServer()` + `GetTestClient()` kullanılır.
+- **TestServer'da `RemoteIpAddress` `null`'dur** (2026-08-02): loopback testleri için test barındırıcısına başlıktan IP yazan bir ara yazılım konur. `LoopbackGuard` `null`'u yerel sayar — istek bir ag soketinden gelmemiştir.
+- **Başarısız policy kimlik doğrulaması olmadan `IAuthenticationService` ister** (2026-08-02): challenge üretmeye çalışır ve `InvalidOperationException` atar. Policy testlerinde bir test authentication scheme kaydedilir; o zaman `403` döner.
+- **ASP.NET Core enum'ları varsayılan olarak sayı yazar** (2026-08-02): `origin: 0`. Tip düzeyinde `[JsonConverter(typeof(JsonStringEnumConverter<T>))]` eklendi (K-040) — tüketicinin global JSON ayarına dokunmadan çözülür.
+- **🚨 `Request.ContentLength` parçalı aktarımda `null`** (2026-08-02): ölçüldü — `HttpClient.PostAsJsonAsync` chunked gönderdiğinde sunucuda `ContentLength` gelmiyor ve `if (ContentLength is > 0)` koşulu gövdeyi sessizce düşürüyordu. İsteğe bağlı gövdelerde ham metni oku, uzunluk başlığına güvenme.
+- **Mermaid'i jsdom olmadan doğrulayamazsın** (2026-08-02): `mermaid.parse` DOM ister, aksi hâlde `DOMPurify.addHook is not a function` verir — bu bir sözdizimi hatası değildir. Doğrulayıcı: `jsdom` ile `window`/`document`/`DOMParser` global'lerini kur, sonra `mermaid.initialize({startOnLoad:false})`.
 - **Shouldly + Meziantou çakışmaları** (2026-08-02): `list.ShouldContain("x")` `MA0002` verir (comparer yok) → predicate kullan. Bir `record` olmayan tipte `x.ToString()` çağırmak `MA0150` verir. Nullable dönen `ToString()` sonucunu `ShouldContain`'e vermek `CS8604` verir → `?? string.Empty`.

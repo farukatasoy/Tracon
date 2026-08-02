@@ -47,6 +47,18 @@ public interface IRunStore
     /// <returns>Kayitlar.</returns>
     ValueTask<IReadOnlyList<RunRecord>> QueryRunsAsync(RunQuery query, CancellationToken cancellationToken = default);
 
+    /// <summary>Calistirmalarin ozetini cikarir.</summary>
+    /// <param name="query">Filtre.</param>
+    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <returns>Sayilar, token toplamlari ve agent kirilimi.</returns>
+    /// <remarks>
+    /// Ozet <strong>deponun kendisinde</strong> hesaplanir. Kayitlari cekip bellekte
+    /// toplamak yalnizca sayfalanmis bir alt kumeyi kapsar ve yanlis sonuc verir.
+    /// </remarks>
+    ValueTask<RunStatistics> GetStatisticsAsync(
+        RunStatisticsQuery query,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Bir calistirmanin olaylarini sira numarasina gore okur.
     /// Canli akis ve gecmise donuk yeniden oynatma ayni yoldan gecer.

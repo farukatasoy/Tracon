@@ -6,6 +6,18 @@
   -->
 
   <!--
+    Trim / AOT bayragi. Bu turetme BILEREK targets icindedir: src/Directory.Build.props
+    csproj govdesinden once yuklenir, dolayisiyla orada IsAotCompatible atamak
+    csproj'un <AgentPrismAotCompatible>false</...> tercihini gormezdi ve bayrak
+    geri alinamaz bicimde true kalirdi. Olculdu: AgentPrism.AspNetCore false yazmasina
+    ragmen minimal API yonlendirmesi icin IL2026/IL3050 uretiyordu.
+    Gerekce: docs/KARARLAR.md, karar K-006.
+  -->
+  <PropertyGroup Condition=" '$(AgentPrismAotCompatible)' == 'true' ">
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <!--
     Paket dogrulama Faz 7'de acilir. O zamana kadar yayinlanmis bir taban surum
     olmadigi icin PackageValidationBaselineVersion cozulmez ve build kirilir.
   -->

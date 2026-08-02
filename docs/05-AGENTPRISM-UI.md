@@ -1,9 +1,143 @@
 # Faz 5 — AgentPrismUI
 
-> **Durum:** Planlandı
-> **Önkoşul:** [04-HTTP-API.md](04-HTTP-API.md)
+> **Durum:** 🔜 Sıradaki
+> **Önkoşul:** [04-HTTP-API.md](04-HTTP-API.md) — tamamlandı
 > **Sonraki:** [06-GOZLEMLENEBILIRLIK.md](06-GOZLEMLENEBILIRLIK.md)
 > **Paket:** `AgentPrism.UI`
+
+---
+
+## Bu Faza Başlarken
+
+Önce şunları bu sırayla okuyun:
+
+1. [`MIMARI.md`](MIMARI.md) — bölüm 3 (dört değişmez kural), bölüm 6 (çalıştırma yolu), bölüm 7 (güvenlik)
+2. [`KARARLAR.md`](KARARLAR.md) — kapatılmış tartışmaları yeniden açmayın
+3. [`04-HTTP-API.md`](04-HTTP-API.md) — "Gerçekleşen Public API", "Plandan Sapmalar" ve "Faz 5'e Devreden Notlar"
+4. [`../MEMORY.md`](../MEMORY.md) — önceki oturumların keşfettiği tuzaklar
+5. Bu doküman
+
+Arayüzü geliştirirken **çalışan bir arka uç** gerekir:
+
+```bash
+cd samples/AgentPrism.Api && dotnet run
+# http://localhost:5080/agentprism/api/meta
+```
+
+Örnek uygulama API anahtarı olmadan da çalışır (ağ çağrısı yapmayan `EchoModelProvider`).
+
+---
+
+## Devraldığınız HTTP Sözleşmesi
+
+Bu uçlar **tamamlandı ve testlidir** (78 fonksiyonel test). Faz 5 bunları değiştirmez, tüketir.
+
+```
+GET    {prefix}/api/meta                       [kimlik dogrulamasi YOK]
+       -> { version, prefix, authentication:{allowRemoteAccess,requiresBearerToken,
+            requiresAuthorizationPolicy}, storage:{persistent,agentDefinitionStore,runStore,sessionStore} }
+
+GET    {prefix}/api/agents                     -> AgentDescriptor[]
+GET    {prefix}/api/agents/{name}              -> { descriptor, definition|null, isEditable }
+POST   {prefix}/api/agents                     <- AgentDefinitionRequest        -> 201 | 409
+PUT    {prefix}/api/agents/{name}              <- AgentDefinitionRequest        -> 200 | 400 | 404 | 409
+DELETE {prefix}/api/agents/{name}              -> 204 | 404 | 409
+GET    {prefix}/api/agents/{name}/versions     -> AgentDefinition[]  (yeniden eskiye)
+POST   {prefix}/api/agents/{name}/rollback     <- { version }        -> 200 | 404 | 409
+POST   {prefix}/api/agents/{name}/run          <- { message, sessionId? }       -> SSE
+
+GET    {prefix}/api/sessions?agentName=&skip=&take=   -> SessionRecord[]
+GET    {prefix}/api/sessions/{id}              -> { id, agentName, tenantId, createdAt, updatedAt,
+                                                     messages|null, state }
+DELETE {prefix}/api/sessions/{id}              -> 204 | 404
+
+GET    {prefix}/api/runs?agentName=&status=&sessionId=&startedAfter=&skip=&take=  -> RunRecord[]
+GET    {prefix}/api/runs/{id}                  -> RunRecord | 404
+GET    {prefix}/api/runs/{id}/events           -> SSE  (canli veya replay)
+
+GET    {prefix}/api/tools                      -> ToolDescriptor[]
+GET    {prefix}/api/models                     -> ModelProviderDescriptor[]
+GET    {prefix}/api/stats?agentName=&startedAfter=&maxAgents=  -> RunStatistics
+
+POST   {prefix}/v1/responses                   OpenAI Responses API uyumlu
+POST   {prefix}/v1/chat/completions            OpenAI Chat Completions API uyumlu
+POST   {prefix}/v1/conversations               -> { id: "conv_...", object, created_at, metadata }
+GET    {prefix}/v1/conversations/{id}          DELETE · /items
+```
+
+### SSE olay adları — **kararlı sözleşme**
+
+`{prefix}/api/runs/{id}/events`:
+
+```
+run.started · message.delta · message.completed
+tool.invoking · tool.invoked · tool.failed
+run.completed · run.failed
+```
+
+Her çerçeve `id:` alanı taşır (olayın sıra numarası). Bağlantı koparsa istemci
+`Last-Event-ID: <son alinan id>` başlığıyla devam eder; sunucu **bir sonraki**
+sıradan yayına başlar.
+
+`{prefix}/api/agents/{name}/run`:
+
+```
+update  -> AgentResponseUpdate  (Microsoft.Extensions.AI serilestirmesi)
+done    -> { sessionId }
+error   -> { type, message }
+```
+
+> Bu uçta `Last-Event-ID` ile devam **desteklenmez**: canlı bir model çağrısı
+> yeniden oynatılamaz. Devam yalnızca `/api/runs/{id}/events` üzerindedir.
+
+### Davranış sözleşmeleri (mevcut testlerin zorladığı kurallar)
+
+| Kural | Nerede doğrulanıyor |
+|-------|--------------------|
+| `/api/meta` token, loopback ve başarısız policy altında bile açıktır | `SecurityTests` |
+| `/api/meta` sır **ve policy adı** döndürmez | `MetaEndpointTests` |
+| Kodda tanımlı agent'ta POST/PUT/DELETE `409` döner | `AgentCrudTests` |
+| `isEditable=false` ise yazma uçları çalışmaz | `AgentCrudTests` |
+| Geri alma eski sürümü silmez, yeni sürüm üretir | `AgentCrudTests` |
+| Enum'lar JSON'da **ad** olarak gelir (`"Completed"`, `"Code"`) | `AgentCrudTests` |
+| `/api/*` hataları `application/problem+json` | `ProblemDetailsTests` |
+| `/v1/*` hataları OpenAI biçimi (`{"error":{...}}`) | `ProblemDetailsTests` |
+| SSE `X-Accel-Buffering: no` taşır | `StreamingTests` |
+| `Last-Event-ID` ile tekrar gönderim olmaz | `StreamingTests` |
+| Bearer token hiçbir yanıtta ve günlükte görünmez | `SecretLeakTests` |
+
+---
+
+## 🚨 Bilinen Tuzaklar
+
+**1. Model kataloğu boş olabilir.** AgentPrism yerleşik model listesi taşımaz (K-032).
+`/api/models` boş liste dönebilir; bu bir hata **değildir**. Arayüz kullanıcıyı
+`AgentPrism:Providers:OpenAI:Models` ayarına yönlendirmelidir.
+
+**2. `/api/stats` maliyet döndürmez.** `runs` tablosu model adı taşımaz; maliyet Faz 6'da
+gelir. Maliyet sütunu göstermeyin veya "Faz 6" olarak işaretleyin.
+
+**3. Sohbet geçmişi `null` olabilir.** `/api/sessions/{id}` içindeki `messages`, agent
+katalogdan kalkmışsa veya MAF serileştirme biçimi değişmişse `null` gelir. Üstveri yine
+döner — arayüz bu durumu ele almalıdır.
+
+**4. `messages` biçimi MAF'ın `ChatMessage` dizisidir**, AgentPrism'e özel bir DTO değil
+(kural K3). İçerikler polimorfiktir ve `$type` ayracı taşır; `TextContent`,
+`FunctionCallContent`, `FunctionResultContent`, `UsageContent` ayrımı bu ayraçtan yapılır.
+
+**5. Konuşma ile oturum aynı şeydir** (K-043). `/v1/conversations` uçları vardır ancak
+konuşma listesi arayüzde `/api/sessions` üzerinden kurulur — aynı kimlik uzayıdır,
+`/api/sessions/{id}` daha zengin bilgi döner (opak durum + üstveri).
+
+**6. Canlı olay akışı yoklamayla çalışır.** Varsayılan aralık 250 ms
+(`AgentPrismEndpointOptions.RunEventPollInterval`). Devam eden bir çalıştırmada akış
+`: bekleniyor` yorum satırları gönderir — SSE istemcisi bunları yok saymalıdır.
+
+**7. Prefix sabit değildir.** `MapAgentPrism` herhangi bir prefix'e bağlanabilir; arayüz
+onu `/api/meta` yanıtındaki `prefix` alanından öğrenir. Mutlak varlık yolu kullanmayın.
+
+**8. `MapAgentPrism`'in döndürdüğü builder yalnız korumalı grubu temsil eder** (K-042).
+Arayüz middleware'ini eklerken meta ucunun açık kaldığını varsayabilirsiniz.
 
 ---
 

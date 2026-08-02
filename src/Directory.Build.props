@@ -22,9 +22,14 @@
     AgentPrismAotCompatible=false yazarak devre disi birakir.
     Gerekce: docs/KARARLAR.md, karar K-006.
   -->
+  <!--
+    DIKKAT: Buradan IsAotCompatible ATANMAZ. Bu dosya csproj govdesinden ONCE
+    yuklenir; csproj'da yazilan <AgentPrismAotCompatible>false</...> degeri henuz
+    okunmamistir ve IsAotCompatible geri alinamaz bicimde true kalirdi. Turetme
+    Directory.Build.targets icinde, csproj okunduktan SONRA yapilir.
+  -->
   <PropertyGroup Label="Trim / AOT">
     <AgentPrismAotCompatible Condition=" '$(AgentPrismAotCompatible)' == '' ">true</AgentPrismAotCompatible>
-    <IsAotCompatible Condition=" '$(AgentPrismAotCompatible)' == 'true' ">true</IsAotCompatible>
   </PropertyGroup>
 
   <PropertyGroup Label="Paketleme">

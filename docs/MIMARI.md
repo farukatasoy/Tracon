@@ -8,19 +8,22 @@
 
 | Paket | Durum | Faz |
 |-------|-------|-----|
-| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) |
-| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) |
-| `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 |
+| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) |
+| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) |
+| `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 · 4 (özet sorgusu) |
 | `AgentPrism.OpenAI` | ✅ Tamamlandı | 3 |
-| `AgentPrism.AspNetCore` | ⬜ İskelet | 4 |
+| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 |
 | `AgentPrism.UI` | ⬜ İskelet | 5 |
 | `AgentPrism` (meta) | ✅ Paketleniyor | 0 |
 
-Testler: **198 test geçiyor** — 110 birim testi (62 Core + 48 OpenAI) + 88 entegrasyon testi (Testcontainers, gerçek PostgreSQL).
+Testler: **302 test geçiyor** — 110 birim testi (62 Core + 48 OpenAI) + 88 fonksiyonel test
+(TestHost, gerçek HTTP) + 104 entegrasyon testi (Testcontainers, gerçek PostgreSQL).
 Build, test, pack ve format kapıları sıfır uyarı.
 
-Faz 3 sonunda uçtan uca yol çalışıyor: veritabanındaki bir tanım derleniyor, gerçek bir OpenAI
-yanıtı üretiyor, tool çağırıyor ve çağrı `run_events` tablosuna yazılıyor.
+Faz 4 sonunda dış yüzey açık: stok OpenAI SDK'sı `base_url` değiştirerek AgentPrism'e
+bağlanıyor, agent'ı `model` alanından seçiyor, tool döngüsü sunucuda tamamlanıyor,
+konuşma hem `previous_response_id` hem `conversations.create()` ile zincirleniyor ve
+her çalıştırma `run_events` tablosuna yazılıp SSE ile geri oynatılabiliyor.
 
 ---
 
@@ -55,52 +58,55 @@ DevUI'nin kaynak kodundan doğrulanan sınırları:
 
 ## 2. Katman Mimarisi
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│  Tüketici uygulama (ASP.NET Core)                            │
-│    builder.AddAgentPrism().UsePostgreSql(..).UseOpenAI(..)   │
-│    app.MapAgentPrism("/agentprism")                          │
-└───────────────────────────┬──────────────────────────────────┘
-                            │
-┌───────────────────────────▼──────────────────────────────────┐
-│  AgentPrism.UI            gömülü React SPA + middleware       │
-├──────────────────────────────────────────────────────────────┤
-│  AgentPrism.AspNetCore    MapAgentPrism, yönetim API'si,      │
-│                           OpenAI uyumlu uçlar, erişim filtresi│
-├────────────────────┬─────────────────────┬───────────────────┤
-│ AgentPrism.        │ AgentPrism.OpenAI   │                   │
-│ PostgreSql         │ openai ·            │                   │
-│ (kalıcılık)        │ openai-responses    │                   │
-├────────────────────┴─────────────────────┴───────────────────┤
-│  AgentPrism.Core                                              │
-│    IAgentCatalog ◄─ IAgentSource[]   (kod · MAF · veritabanı) │
-│                  └─ IAgentDecorator[] (çalıştırma kaydı)      │
-│    AgentDefinitionCompiler · CompiledAgentCache               │
-│    AgentSessionManager · AgentSessionIdentity                 │
-│    ToolRegistry · ToolMethodScanner · ModelProviderRegistry   │
-│    InMemory*Store                                             │
-├──────────────────────────────────────────────────────────────┤
-│  AgentPrism.Abstractions  sözleşmeler                         │
-└───────────────────────────┬──────────────────────────────────┘
-                            │
-┌───────────────────────────▼──────────────────────────────────┐
-│  Microsoft Agent Framework                                    │
-│    AIAgent · AgentSession · ChatClientAgent · HarnessAgent    │
-│    ChatHistoryProvider · AgentSessionStore · Workflows        │
-└──────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    T["Tüketici uygulama · ASP.NET Core<br/>builder.AddAgentPrism().UsePostgreSql(..).UseOpenAI(..)<br/>app.MapAgentPrism('/agentprism')"]
+
+    UI["<b>AgentPrism.UI</b><br/>gömülü React SPA + middleware"]
+
+    HTTP["<b>AgentPrism.AspNetCore</b><br/>MapAgentPrism · /api/* yönetim API'si<br/>/v1/responses · /v1/chat/completions · /v1/conversations<br/>loopback · bearer · policy · SSE"]
+
+    PG["<b>AgentPrism.PostgreSql</b><br/>kalıcılık"]
+    OA["<b>AgentPrism.OpenAI</b><br/>openai · openai-responses"]
+
+    CORE["<b>AgentPrism.Core</b><br/>IAgentCatalog ◄ IAgentSource[] · kod · MAF · veritabanı<br/>IAgentDecorator[] · çalıştırma kaydı<br/>AgentDefinitionCompiler · CompiledAgentCache<br/>AgentSessionManager · AgentSessionIdentity<br/>ToolRegistry · ToolMethodScanner · ModelProviderRegistry<br/>InMemory*Store"]
+
+    ABS["<b>AgentPrism.Abstractions</b><br/>sözleşmeler"]
+
+    MAF["<b>Microsoft Agent Framework</b><br/>AIAgent · AgentSession · ChatClientAgent · HarnessAgent<br/>ChatHistoryProvider · AgentSessionStore · Workflows"]
+
+    T --> UI --> HTTP
+    HTTP --> PG
+    HTTP --> OA
+    PG --> CORE
+    OA --> CORE
+    HTTP --> CORE
+    CORE --> ABS --> MAF
 ```
 
 **Bağımlılık yönü tek yönlüdür ve döngü içermez:**
 
-```
-Abstractions ◄── Core ◄── PostgreSql
-                  ▲   ◄── OpenAI
-                  └────── AspNetCore ◄── UI
-                                         ▲
-                                  AgentPrism (meta)
+```mermaid
+flowchart RL
+    PostgreSql --> Core
+    OpenAI --> Core
+    AspNetCore --> Core
+    UI --> AspNetCore
+    Core --> Abstractions
+    Meta["AgentPrism · meta"] --> UI
+    Meta --> PostgreSql
+    Meta --> OpenAI
+
+    classDef aot fill:#1f6f4a,stroke:#0d3b27,color:#ffffff
+    classDef notaot fill:#7a4a1f,stroke:#3d250f,color:#ffffff
+    class Abstractions,Core,PostgreSql,OpenAI aot
+    class AspNetCore,UI,Meta notaot
 ```
 
-Bu grafiği bozan bir referans eklemek yasaktır. `AgentPrism.Core.UnitTests` içindeki mimari testi bunu Faz 1'den itibaren zorlar.
+> Yeşil paketler AOT uyumludur, turuncular değildir (karar K-006).
+
+Bu grafiği bozan bir referans eklemek yasaktır. `AgentPrism.Core.UnitTests` içindeki
+mimari testi bunu Faz 1'den itibaren zorlar.
 
 ---
 
@@ -250,29 +256,159 @@ sealed class AIFunctionArguments { IServiceProvider? Services { get; set; } }   
 
 🚨 **Responses API ile `ChatHistoryProvider` birlikte kullanılamaz.** Sunucu tarafı depolama açıkken OpenAI bir konuşma kimliği döndürür ve `ChatClientAgent` şu hatayı atar: *"Only ConversationId or ChatHistoryProvider may be used, but not both."* `UsePostgreSql()` her derlenen agent'a bir `ChatHistoryProvider` bağladığı için AgentPrism Responses yolunda **her zaman** `AsIChatClientWithStoredOutputDisabled` kullanır. Geçmiş bizim veritabanımızda kalır. Karar K-030.
 
-### Faz 4 ve sonrası için hazır olanlar
+### Faz 4'te kullanılanlar
+
+Reflection ile doğrulandı: `Microsoft.Agents.AI.Hosting` 1.16.0-preview.260730.1,
+`Microsoft.Agents.AI.Hosting.OpenAI` 1.16.0-alpha.260730.1.
 
 ```csharp
-// Microsoft.Agents.AI.Hosting/AgentSessionStore.cs — ÖN SÜRÜM, K-008 gereği Faz 4  [Faz 4]
+// Microsoft.Agents.AI.Hosting — ON SURUM, K-008 geregi yalniz AgentPrism.AspNetCore
 public abstract class AgentSessionStore
 {
     public abstract ValueTask SaveSessionAsync(AIAgent agent, string sessionStoreId, AgentSession session, CancellationToken ct = default);
     public abstract ValueTask<AgentSession> GetSessionAsync(AIAgent agent, string sessionStoreId, CancellationToken ct = default);
     public abstract ValueTask DeleteSessionAsync(AIAgent agent, string sessionStoreId, CancellationToken ct = default);
 }
-// Uygulaması AgentPrism.Core'daki AgentSessionManager'a delege eder (karar K-026).
+// AgentPrismAgentSessionStore bunu AgentSessionManager'a delege eder (K-026).
 
-// Microsoft.Agents.AI.Hosting — çok kiracılılık  [Faz 6]
-IsolationKeyScopedAgentSessionStore · SessionIsolationKeyProvider
+// Microsoft.Agents.AI.Hosting.OpenAI — PUBLIC yardimci. /v1/responses bunun uzerine kurulu.
+public static class OpenAIResponses
+{
+    static OpenAIResponsesRunRequest ToAgentRunRequest(JsonElement body, OpenAIResponsesMapOptions? mapOptions = null);
+    static string?  GetSessionStoreId(OpenAIResponsesRunRequest request);   // conversation ?? previous_response_id
+    static string   CreateResponseId();                                     // "resp_..."
+    static JsonElement WriteResponse(AgentResponse response, string responseId, string? conversationId = null);
+    static IAsyncEnumerable<string> WriteResponseStreamAsync(                // HAZIR SSE cerceveleri
+        IAsyncEnumerable<AgentResponseUpdate> updates, string responseId, string? conversationId = null, CancellationToken ct = default);
+}
+
+public sealed class OpenAIResponsesRunRequest
+{
+    string? ConversationId { get; }   IList<ChatMessage> Messages { get; }
+    AgentRunOptions? Options { get; }  string? PreviousResponseId { get; }
+    // DIKKAT: agent adi TASIMAZ. Govdeden kendimiz okuruz (model / metadata.entity_id).
+}
+
+// Microsoft.Agents.AI.Abstractions — oturum gecmisini okumanin public yolu
+public abstract class ChatHistoryProvider
+{
+    public ValueTask<IEnumerable<ChatMessage>> InvokingAsync(InvokingContext ctx, CancellationToken ct = default);
+    public sealed class InvokingContext                                     // [MAAI001]
+    {
+        public InvokingContext(AIAgent agent, AgentSession? session, IEnumerable<ChatMessage> requestMessages);
+    }
+}
 ```
 
-**Kritik bulgu:** `Microsoft.Agents.AI.Hosting.OpenAI` depolama servislerini `TryAddSingleton` ile kaydeder. `AddOpenAIResponses()` çağrılmadan **önce** kendi implementasyonumuzu kaydedersek MAF'ın bellek içi sürümleri devre dışı kalır. Değiştirdiğimiz arayüzler: `IConversationStorage`, `IAgentConversationIndex`, `IResponsesService`, `IResponseExecutor`.
+🚨 **`IConversationStorage`, `IAgentConversationIndex`, `IResponsesService`, `IResponseExecutor`
+`internal`'dır.** Ölçüldü: `AddOpenAIResponses()` bunları `TryAddSingleton` ile kaydediyor ancak
+servis tipleri dışarıdan **adlandırılamaz** (`svcPublic=False`), `InternalsVisibleTo` yalnız
+Microsoft'un test derlemesine açık. Bu yüzden MAF'ın `MapOpenAIResponses()` /
+`MapOpenAIConversations()` uçları kullanılmadı — kalıcılığı değiştirmek mümkün değil.
+Kararlar K-036 ve bölüm 1.
+
+### Faz 6 için hazır olanlar
+
+```csharp
+// Microsoft.Agents.AI.Hosting — cok kiracililik  [Faz 6]
+IsolationKeyScopedAgentSessionStore · SessionIsolationKeyProvider
+// Tuketici kendi AgentSessionStore'unu MapAgentPrism'den once kaydederse onunki kazanir.
+```
 
 ---
 
 ## 5. Veri Modeli (`agentprism` şeması)
 
 Ayrı şema kullanılır. Tüketici uygulamanın `public` şemasına **hiç dokunulmaz**.
+
+```mermaid
+erDiagram
+    tenants ||..o{ agent_definitions : "tenant_id (FK YOK)"
+    tenants ||..o{ sessions : "tenant_id (FK YOK)"
+    tenants ||..o{ runs : "tenant_id (FK YOK)"
+    tenants ||..o{ conversations : "tenant_id (FK YOK)"
+    tenants ||..o{ audit_log : "tenant_id (FK YOK)"
+
+    agent_definitions ||--o{ agent_definition_versions : "agent_id"
+    conversations ||--o{ conversation_items : "conversation_id"
+    conversations ||--o{ responses : "conversation_id"
+    runs ||--o{ run_events : "(run_id, seq) PK"
+    runs ||--o{ tool_invocations : "run_id"
+    runs ||--o| traces : "run_id"
+    traces ||--o{ spans : "trace_id"
+
+    tenants {
+        uuid id PK
+        text slug UK
+    }
+    agent_definitions {
+        uuid id PK
+        text name "UK (tenant_id, name)"
+        integer version
+        jsonb definition "GIN index"
+    }
+    agent_definition_versions {
+        uuid id PK
+        integer version "UK (agent_id, version)"
+        jsonb definition "değişmez geçmiş"
+    }
+    sessions {
+        text id PK
+        text agent_name
+        json state "OPAK · jsonb DEĞİL (K-027)"
+        integer schema_version
+    }
+    conversations {
+        uuid id PK
+        text agent_name
+        jsonb metadata
+    }
+    conversation_items {
+        uuid id PK
+        bigint seq "UK (conversation_id, seq)"
+        json item "POLİMORFİK · jsonb DEĞİL (K-027)"
+    }
+    responses {
+        uuid id PK
+        jsonb payload "BOŞ · Faz 4 sessions kullanır"
+    }
+    runs {
+        uuid id PK
+        text agent_name
+        text session_id
+        smallint status
+        bigint total_tokens
+    }
+    run_events {
+        uuid run_id PK
+        bigint seq PK
+        smallint type
+        text payload "text · geçerli JSON olmayabilir"
+    }
+    tool_invocations {
+        uuid id PK
+        text tool_name
+        integer duration_ms "BOŞ · Faz 6 doldurur"
+    }
+    traces {
+        uuid id PK
+        text trace_id "BOŞ · Faz 6"
+    }
+    spans {
+        uuid id PK
+        text name "BOŞ · Faz 6"
+    }
+    audit_log {
+        uuid id PK
+        text action
+        jsonb before
+        jsonb after
+    }
+```
+
+> Kesikli çizgiler (`..`) **yabancı anahtar olmayan** mantıksal bağı gösterir.
+> `tenant_id` sütunlarına FK konmadı — gerekçe karar defterinde.
+
 
 | Tablo | İçerik |
 |-------|--------|
@@ -281,9 +417,9 @@ Ayrı şema kullanılır. Tüketici uygulamanın `public` şemasına **hiç doku
 | `agent_definitions` | Agent tanımının güncel hali |
 | `agent_definition_versions` | Değişmez versiyon geçmişi, geri alma için |
 | `sessions` | Serileştirilmiş `AgentSession` (**`json`**) + agent adı + kiracı + `schema_version` |
-| `conversations` | Konuşma başlığı; `PostgresChatHistoryProvider` yazar, Faz 4'te Conversations API'si de kullanır |
+| `conversations` | Konuşma başlığı; `PostgresChatHistoryProvider` yazar |
 | `conversation_items` | Konuşma mesajları, sıralı (**`json`**) |
-| `responses` | Responses API yanıt kayıtları |
+| `responses` | **Boş.** `/v1/responses` ve `/v1/conversations` durumu `sessions` tablosunda tutulur (K-036, K-043); ayrı bir yanıt kaydı yazılmadı |
 | `runs` | Çalıştırma özeti: agent, oturum, durum, token, süre, maliyet |
 | `run_events` | Append-only olay akışı, `(run_id, seq)` birincil anahtar |
 | `tool_invocations` | Tool çağrıları: ad, argüman, sonuç, süre, hata |
@@ -306,58 +442,104 @@ Kurallar:
 
 ## 6. Çalıştırma Yolu
 
+```mermaid
+flowchart TD
+    C["İstemci"]
+    H["<b>AgentPrism.AspNetCore</b> — erişim filtresi<br/>loopback / bearer / policy"]
+    V1["/v1/* eşlemesi<br/>agent adı = model ?? metadata.entity_id<br/>oturum = conversation ?? previous_response_id ?? yeni yanıt kimliği<br/>güvenilmez kimlikte kiracı sahipliği doğrulanır"]
+    R["IAgentCatalog.ResolveAsync(name)"]
+    SRC["Kaynaklar önceliğe göre<br/>CodeAgentSource 0 → MAF köprüsü 10 → DefinitionStoreAgentSource 100"]
+    COMP["CompiledAgentCache.GetOrAdd(name, version)<br/>AgentDefinitionCompiler.Compile(definition)"]
+    DEC["IAgentDecorator[] — Order'a göre, büyük olan dışta"]
+    REC["<b>RunRecordingAgent</b> : DelegatingAIAgent<br/>RunEventWriter sıra numarasını üretir<br/>depo hatası çalıştırmayı KESMEZ"]
+    RUN["AIAgent.RunAsync / RunStreamingAsync"]
+    CHP["PostgresChatHistoryProvider<br/>geçmişi conversation_items'tan yükler, sonunda geri yazar"]
+    LLM["IChatClient → OpenAI<br/>UseFunctionInvocation · UseOpenTelemetry"]
+
+    C -->|"POST /api/agents/{name}/run"| H
+    C -->|"POST /v1/responses · /v1/chat/completions"| H
+    H --> V1 --> R --> SRC
+    SRC -->|"bildirimsel tanım"| COMP --> DEC
+    SRC -->|"fabrika agent'ı"| DEC
+    DEC --> REC --> RUN
+    RUN --> CHP --> LLM
+
+    classDef faz4 fill:#1f4f7a,stroke:#0d2740,color:#ffffff
+    classDef faz1 fill:#1f6f4a,stroke:#0d3b27,color:#ffffff
+    classDef faz2 fill:#5a3a7a,stroke:#2c1c3d,color:#ffffff
+    classDef faz3 fill:#7a4a1f,stroke:#3d250f,color:#ffffff
+    class H,V1 faz4
+    class R,SRC,COMP,DEC,REC faz1
+    class CHP faz2
+    class LLM faz3
 ```
-İstemci
-  │  POST /agentprism/api/agents/{name}/run   (veya /v1/responses)     [Faz 4]
-  ▼
-AgentPrism.AspNetCore — erişim filtresi (loopback / token / policy)    [Faz 4]
-  ▼
-IAgentCatalog.ResolveAsync(name)                                       [Faz 1 ✅]
-  │
-  ├─ kaynaklar önceliğe göre denenir
-  │    CodeAgentSource (0) → MAF köprüsü (10) → DefinitionStoreAgentSource (100)
-  │
-  ├─ bildirimsel tanım ise → CompiledAgentCache.GetOrAdd(name, version)
-  │     └─ AgentDefinitionCompiler.Compile(definition)
-  │          ├─ IModelProviderRegistry → IChatClient
-  │          ├─ IToolRegistry          → AIFunction[]   (bilinmeyen ad → hata)
-  │          └─ Harness? AsHarnessAgent : AsAIAgent
-  │
-  └─ IAgentDecorator[] uygulanır (Order'a göre, büyük olan dışta)
-       └─ RunRecordingAgentDecorator → RunRecordingAgent
-  ▼
-RunRecordingAgent : DelegatingAIAgent                                  [Faz 1 ✅]
-  │  RunEventWriter sıra numarasını üretir
-  │  run.started → message.delta → tool.invoking → tool.invoked → run.completed
-  │  FunctionCallContent / FunctionResultContent içeriklerden okunur
-  │  DEPO HATASI ÇALIŞTIRMAYI KESMEZ — yazıcı devre dışı kalır, loglanır
-  ▼
-AIAgent.RunAsync / RunStreamingAsync
-  │  PostgresChatHistoryProvider geçmişi conversation_items'tan yükler  [Faz 2 ✅]
-  │  ve çalıştırma sonunda geri yazar
-  ▼
-IChatClient → OpenAI                                                   [Faz 3 ✅]
-     UseFunctionInvocation() → tool döngüsü MAF'ta
-     UseOpenTelemetry("AgentPrism") → Faz 6'nın kaynağı
-     openai            → GetChatClient(model).AsIChatClient()
-     openai-responses  → GetResponsesClient().AsIChatClientWithStoredOutputDisabled(model)
+
+Derleyicinin içi (`AgentDefinitionCompiler.Compile`):
+
+```mermaid
+flowchart LR
+    D["AgentDefinition"] --> M["IModelProviderRegistry<br/>→ IChatClient"]
+    D --> T["IToolRegistry<br/>→ AIFunction[]"]
+    D --> H{"Harness var mı?"}
+    T -.->|"bilinmeyen tool adı"| E["AgentPrismCompilationException"]
+    M -.->|"bilinmeyen sağlayıcı"| E
+    H -->|"evet"| HA["AsHarnessAgent"]
+    H -->|"hayır"| CA["AsAIAgent"]
+
+    classDef hata fill:#7a1f1f,stroke:#3d0f0f,color:#ffffff
+    class E hata
+```
+
+Çalıştırma olayları, `RunEventWriter` tarafından boşluksuz sıra numarasıyla yazılır:
+
+```mermaid
+stateDiagram-v2
+    [*] --> RunStarted
+    RunStarted --> MessageDelta
+    RunStarted --> ToolInvoking
+    MessageDelta --> MessageDelta
+    MessageDelta --> ToolInvoking
+    ToolInvoking --> ToolInvoked
+    ToolInvoking --> ToolFailed
+    ToolInvoked --> MessageDelta
+    ToolFailed --> RunFailed
+    MessageDelta --> MessageCompleted
+    MessageCompleted --> RunCompleted
+    RunCompleted --> [*]
+    RunFailed --> [*]
 ```
 
 **Oturum yolu** (Faz 2 ✅) — çalıştırmadan bağımsız, çağıran tarafından yönetilir:
 
-```
-AgentSessionManager.GetOrCreateSessionAsync(agent, sessionId)
-  │  ISessionStore.GetAsync(sessionId)          → sessions tablosu
-  │  kayıt varsa  → agent.DeserializeSessionAsync(record.State)
-  │  kayıt yoksa  → agent.CreateSessionAsync()
-  └─ AgentSessionIdentity.SetId(session, sessionId)   → StateBag'e damga
-  ▼
-agent.RunAsync(message, session)
-  │  RunRecordingAgent → AgentSessionIdentity.GetId(session) → RunRecord.SessionId
-  │  PostgresChatHistoryProvider → ProviderSessionState → conversation_id
-  ▼
-AgentSessionManager.SaveSessionAsync(agent, session)
-     agent.SerializeSessionAsync(session) → ISessionStore.SaveAsync()
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Cagiran as Çağıran
+    participant Mgr as AgentSessionManager
+    participant Store as ISessionStore
+    participant Agent as AIAgent
+    participant Rec as RunRecordingAgent
+
+    Cagiran->>Mgr: GetOrCreateSessionAsync(agent, sessionId)
+    Mgr->>Store: GetAsync(sessionId)
+    alt kayıt var
+        Store-->>Mgr: SessionRecord
+        Mgr->>Agent: DeserializeSessionAsync(record.State)
+    else kayıt yok
+        Store-->>Mgr: null
+        Mgr->>Agent: CreateSessionAsync()
+    end
+    Agent-->>Mgr: AgentSession
+    Mgr->>Mgr: AgentSessionIdentity.SetId → StateBag damgası
+    Mgr-->>Cagiran: AgentSession
+
+    Cagiran->>Agent: RunAsync(message, session)
+    Agent->>Rec: çalıştırma sarmalayıcısı
+    Rec->>Rec: AgentSessionIdentity.GetId → RunRecord.SessionId
+
+    Cagiran->>Mgr: SaveSessionAsync(agent, session)
+    Mgr->>Agent: SerializeSessionAsync(session)
+    Mgr->>Store: SaveAsync(record)
 ```
 
 Damga oturumun `StateBag` alanında yaşar ve `SerializeSessionAsync` çıktısına dahildir; bu yüzden geri yüklenen bir oturum kendi kimliğini bilir.
@@ -371,6 +553,24 @@ Tek bir yazıcıdan gelen numaralar deterministik sıra garantiler. Canlı akı�
 ---
 
 ## 7. Güvenlik Modeli
+
+```mermaid
+flowchart TD
+    REQ["Gelen istek"] --> META{"yol = {prefix}/api/meta ?"}
+    META -->|evet| OK["Uç çalışır"]
+    META -->|hayır| POL{"AuthorizationPolicy tanımlı mı?"}
+    POL -->|evet, başarısız| F403["403 Forbidden"]
+    POL -->|"hayır ya da başarılı"| LB{"AllowRemoteAccess kapalı<br/>ve istek loopback dışı mı?"}
+    LB -->|evet| F403b["403 Forbidden<br/>ProblemDetails"]
+    LB -->|hayır| TOK{"AuthToken tanımlı mı?"}
+    TOK -->|"evet, başlık geçersiz"| F401["401 Unauthorized<br/>WWW-Authenticate: Bearer"]
+    TOK -->|"hayır ya da geçerli"| OK
+
+    classDef red fill:#7a1f1f,stroke:#3d0f0f,color:#ffffff
+    classDef green fill:#1f6f4a,stroke:#0d3b27,color:#ffffff
+    class F403,F403b,F401 red
+    class OK green
+```
 
 Üç katman, sırayla uygulanır:
 
@@ -410,10 +610,10 @@ Sonuç: MAF GA'ya geçtiğinde tek bir pakette sürüm güncellemesi yeterlidir.
 | `AgentPrism.Core` | Evet | Yansımaya dayanan tek yol `AddToolsFrom` / `AddTool(Delegate)`; ikisi de `[RequiresUnreferencedCode]` + `[RequiresDynamicCode]` ile işaretli — uyarı bastırılmaz, çağırana iletilir |
 | `AgentPrism.PostgreSql` | Evet | Npgsql AOT uyumlu |
 | `AgentPrism.OpenAI` | Evet | Ölçüldü (Faz 3): `IsAotCompatible=true` ile sıfır uyarı. `OPENAI001`/`MAAI001` deneysel API tanılarıdır, AOT tanısı değil |
-| `AgentPrism.AspNetCore` | Hayır | Minimal API delege yönlendirmesi reflection kullanır |
+| `AgentPrism.AspNetCore` | Hayır | Minimal API delege yönlendirmesi reflection kullanır. Bayrak `Directory.Build.targets` içinde türetilir — `src/Directory.Build.props` csproj'dan önce yüklendiği için orada türetmek `false` tercihini yok sayardı (K-006) |
 | `AgentPrism.UI` | Hayır | Gömülü varlık tarama + ASP.NET Core bağlantısı |
 
-Bu ayrım `src/Directory.Build.props` içindeki `AgentPrismAotCompatible` özelliği ile uygulanır.
+Bu ayrım `AgentPrismAotCompatible` özelliği ile uygulanır: varsayılan `src/Directory.Build.props` içinde verilir, `IsAotCompatible` türetmesi ise `Directory.Build.targets` içinde yapılır (csproj okunduktan **sonra**).
 
 AOT uyumluluğu Faz 1'de üç somut kısıt getirdi:
 

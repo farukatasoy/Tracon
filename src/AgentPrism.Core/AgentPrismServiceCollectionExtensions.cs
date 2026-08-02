@@ -70,6 +70,17 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddSingleton<IToolRegistry, ToolRegistry>();
         services.TryAddSingleton<IModelProviderRegistry, ModelProviderRegistry>();
 
+        // Sohbet gecmisi saglayicisi. Kayitli olmasaydi MAF her agent icin kendi
+        // bellek ici saglayicisini kurardi ve o ornege disaridan erisilemezdi;
+        // /api/sessions/{id} gecmisi yalnizca PostgreSQL acikken okunabilirdi.
+        // Acik kayit iki modda da ayni okuma yolunu verir. Durum oturumun
+        // StateBag'inde yasar, saglayicinin alanlarinda degil; bu yuzden tek
+        // ornegin tum oturumlarca paylasilmasi MAF'in ongordugu kullanimdir.
+        // AgentPrism.PostgreSql bunu PostgresChatHistoryProvider ile degistirir.
+        services.TryAddSingleton<Microsoft.Agents.AI.ChatHistoryProvider>(
+            static _ => new Microsoft.Agents.AI.InMemoryChatHistoryProvider(
+                new Microsoft.Agents.AI.InMemoryChatHistoryProviderOptions()));
+
         // Derleyici ve onbellek.
         services.TryAddSingleton<CompiledAgentCache>();
         services.TryAddSingleton(static provider => new AgentDefinitionCompiler(
