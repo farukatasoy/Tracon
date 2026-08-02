@@ -40,4 +40,21 @@ public enum RunEventType
 
     /// <summary>Calistirma hata ile sonlandi.</summary>
     RunFailed = 7,
+
+    /// <summary>
+    /// Bu calistirma bir alt agent calistirmasi baslatti.
+    /// <c>Text</c> alt agent'in adini, <c>Payload</c> alt calistirmanin kimligini tasir.
+    /// </summary>
+    /// <remarks>
+    /// Alt calistirmanin kendi olaylari kok akisa aynalanmaz; yalnizca basladigi
+    /// ve bittigi bildirilir. Tam aynalama olay hacmini agac boyunca katlar ve
+    /// istemciye ayni metni iki kez gonderir.
+    /// </remarks>
+    ChildRunStarted = 8,
+
+    /// <summary>
+    /// Baslatilan bir alt agent calistirmasi sonuclandi. <c>Text</c> alt agent'in
+    /// adini, <c>Payload</c> alt calistirmanin kimligini tasir.
+    /// </summary>
+    ChildRunCompleted = 9,
 }

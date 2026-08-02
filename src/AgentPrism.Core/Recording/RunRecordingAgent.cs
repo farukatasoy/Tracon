@@ -40,6 +40,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     private readonly RunTraceCollector? _traceCollector;
     private readonly TimeProvider _timeProvider;
     private readonly string? _modelId;
+    private readonly AgentPrismAgentGraphOptions _graphOptions;
 
     /// <summary>Yeni bir kayit sarmalayicisi olusturur.</summary>
     /// <param name="innerAgent">Sarmalanan agent.</param>
@@ -51,6 +52,9 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     /// <param name="traceCollector">Span toplayici. <see langword="null"/> ise span yazilmaz.</param>
     /// <param name="modelId">Agent'in bagli oldugu model. Bilinmiyorsa <see langword="null"/>.</param>
     /// <param name="timeProvider">Zaman kaynagi. <see langword="null"/> ise sistem saati kullanilir.</param>
+    /// <param name="graphOptions">
+    /// Cagri agaci sinirlari. <see langword="null"/> ise varsayilanlar kullanilir.
+    /// </param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
     public RunRecordingAgent(
         AIAgent innerAgent,
@@ -61,7 +65,8 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         AgentPrismMetrics? metrics = null,
         RunTraceCollector? traceCollector = null,
         string? modelId = null,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        AgentPrismAgentGraphOptions? graphOptions = null)
         : base(innerAgent)
     {
         ArgumentNullException.ThrowIfNull(runStore);
@@ -77,6 +82,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         _traceCollector = traceCollector;
         _modelId = modelId;
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _graphOptions = graphOptions ?? new AgentPrismAgentGraphOptions();
     }
 
     /// <inheritdoc />
@@ -97,9 +103,9 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         // (invoke_agent, chat) kok span'in cocugu degil, kardesi oluyordu.
         var start = PrepareRun(session, options, isStreaming: false);
 
-        // Ayni AsyncLocal kurali calistirma kimligi icin de gecerlidir: skill
-        // script calistiricisi kimligi buradan okur.
-        AgentPrismRunContext.SetCurrentRunId(start.RunId);
+        // Ayni AsyncLocal kurali calistirma kapsami icin de gecerlidir: skill
+        // script calistiricisi ve alt agent sarmalayicisi kapsami buradan okur.
+        AgentPrismRunContext.SetCurrent(start.Scope);
 
         var scope = await BeginRunAsync(start, cancellationToken).ConfigureAwait(false);
 
@@ -116,7 +122,19 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                 new RunEventDraft(RunEventType.MessageCompleted) { Text = response.Text },
                 cancellationToken).ConfigureAwait(false);
 
-            await CompleteAsync(scope, RunStatus.Completed, ToRunUsage(response.Usage), null, cancellationToken)
+            var usage = ToRunUsage(response.Usage);
+
+            // Alt calistirma onay isteyerek bittiyse kayit basarili gorunmemelidir:
+            // model bir sonucu degil, cevaplanamayacak bir soruyu geri dondu.
+            if (start.Scope.Depth > 0 && ChildRunApproval.Describe(response.Messages) is { } pending)
+            {
+                await CompleteAsync(scope, RunStatus.Failed, usage, ApprovalError(pending), cancellationToken)
+                    .ConfigureAwait(false);
+
+                return response;
+            }
+
+            await CompleteAsync(scope, RunStatus.Completed, usage, null, cancellationToken)
                 .ConfigureAwait(false);
 
             return response;
@@ -154,10 +172,11 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         // Kok span burada baslar; gerekcesi RunCoreAsync icindeki nota bakiniz.
         var start = PrepareRun(session, options, isStreaming: true);
 
-        AgentPrismRunContext.SetCurrentRunId(start.RunId);
+        AgentPrismRunContext.SetCurrent(start.Scope);
 
         var scope = await BeginRunAsync(start, cancellationToken).ConfigureAwait(false);
         UsageDetails? usage = null;
+        string? pendingApproval = null;
         var enumerator = base.RunCoreStreamingAsync(messages, session, options, cancellationToken).GetAsyncEnumerator(cancellationToken);
 
         try
@@ -168,6 +187,16 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
 
                 try
                 {
+                    // 🚨 Kapsam HER adimda yeniden yazilir. Bir async iterator
+                    // govdesinde yapilan AsyncLocal atamasi `yield return`
+                    // sinirini asmaz: cagri driver'a dondugunde ExecutionContext
+                    // geri alinir ve sonraki MoveNextAsync temiz bir baglamla
+                    // baslar. Olculdu (Faz 12): akisli calistirmada alt agent
+                    // cagrisi "calistirma kaydi kapali" diyerek reddediliyordu.
+                    // Atama MoveNextAsync'ten HEMEN once yapilmalidir; yalnizca
+                    // dongunun disinda yapmak yetmez.
+                    AgentPrismRunContext.SetCurrent(start.Scope);
+
                     if (!await enumerator.MoveNextAsync().ConfigureAwait(false))
                     {
                         break;
@@ -195,6 +224,10 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                     }
                 }
 
+                pendingApproval ??= start.Scope.Depth > 0
+                    ? ChildRunApproval.Describe(update.Contents)
+                    : null;
+
                 await WriteContentsAsync(scope, update.Contents, cancellationToken).ConfigureAwait(false);
 
                 yield return update;
@@ -205,7 +238,12 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             await enumerator.DisposeAsync().ConfigureAwait(false);
         }
 
-        await CompleteAsync(scope, RunStatus.Completed, ToRunUsage(usage), null, cancellationToken).ConfigureAwait(false);
+        await CompleteAsync(
+            scope,
+            pendingApproval is null ? RunStatus.Completed : RunStatus.Failed,
+            ToRunUsage(usage),
+            pendingApproval is null ? null : ApprovalError(pendingApproval),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -224,10 +262,12 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         // Cagiran kimligi verdiyse o kullanilir. Akisli bir uc, ilk cerceveyi
         // yazmadan once kimligi bilmek zorundadir; kendi urettigi kimligi buraya
         // gecerek istemciye dogru kimligi bildirebilir.
-        var runId = (options as AgentPrismRunOptions)?.RunId ?? AgentPrismId.NewId();
+        var prismOptions = options as AgentPrismRunOptions;
+        var runId = prismOptions?.RunId ?? AgentPrismId.NewId();
         var agentName = Name ?? InnerAgent.Id;
         var tenantId = _tenantContext.TenantId;
         var sessionId = session is null ? null : GetSessionId(session);
+        var depth = Math.Max(prismOptions?.Depth ?? 0, 0);
 
         var activity = ActivitySource.StartActivity(AgentPrismDiagnostics.RunActivityName, ActivityKind.Internal);
 
@@ -248,37 +288,83 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                 activity.SetTag(AgentPrismDiagnostics.Tags.ModelId, _modelId);
             }
 
-            _traceCollector?.BeginRun(activity.TraceId.ToString());
+            if (prismOptions?.ParentRunId is { } parent)
+            {
+                activity.SetTag(AgentPrismDiagnostics.Tags.ParentRunId, parent);
+                activity.SetTag(AgentPrismDiagnostics.Tags.Depth, depth);
+            }
+
+            // Kok calistirmada yeni bir trace baslar. Alt calistirma ayni trace'i
+            // surdurur: Activity.Current cagri zinciriyle asagi aktigi icin span
+            // dogal olarak kok span'in altina yerlesir.
+            if (depth == 0)
+            {
+                _traceCollector?.BeginRun(activity.TraceId.ToString());
+            }
         }
 
-        return new RunStart(runId, agentName, tenantId, sessionId, isStreaming, activity);
+        // 🚨 Yazici BU METOTTA kurulur, BeginRunAsync icinde degil. Kapsam bir
+        // AsyncLocal'e yazilir ve async bir metot icinden yapilan atama cagirana
+        // geri akmaz; yazici orada kurulsaydi alt cagri kapsamda yazici goremez
+        // ve ozet olaylari kok akisa yazamazdi.
+        var writer = new RunEventWriter(_runStore, _options, _logger, runId);
+
+        var scope = new AgentRunScope
+        {
+            RunId = runId,
+            RootRunId = prismOptions?.RootRunId ?? runId,
+            Depth = depth,
+            AgentName = agentName,
+            TenantId = tenantId,
+            Budget = prismOptions?.Budget ?? (depth == 0 ? _graphOptions.CreateBudget() : null),
+            Writer = writer,
+        };
+
+        return new RunStart(scope, writer, sessionId, isStreaming, activity, prismOptions?.ParentRunId);
     }
 
     private async ValueTask<RunScope> BeginRunAsync(RunStart start, CancellationToken cancellationToken)
     {
-        var writer = new RunEventWriter(_runStore, _options, _logger, start.RunId);
-
-        await writer.StartAsync(
+        await start.Writer.StartAsync(
             new RunStartInfo
             {
-                RunId = start.RunId,
-                AgentName = start.AgentName,
+                RunId = start.Scope.RunId,
+                AgentName = start.Scope.AgentName!,
                 StartedAt = _timeProvider.GetUtcNow(),
-                TenantId = start.TenantId,
+                TenantId = start.Scope.TenantId,
                 SessionId = start.SessionId,
                 ModelId = _modelId,
                 IsStreaming = start.IsStreaming,
+                ParentRunId = start.ParentRunId,
+
+                // Kok calistirmada alan bos kalir: kokun kendisine isaret eden bir
+                // deger yazmak, "kok mu, alt mi" sorusunu sorguda ikinci bir kosula
+                // dondururdu.
+                RootRunId = start.Scope.Depth == 0 ? null : start.Scope.RootRunId,
+                Depth = start.Scope.Depth,
             },
             cancellationToken).ConfigureAwait(false);
 
         return new RunScope(
-            writer,
+            start.Writer,
             start.Activity,
-            new ToolInvocationTracker(start.RunId, start.IsStreaming, _timeProvider),
-            start.AgentName,
-            start.TenantId,
-            _timeProvider.GetTimestamp());
+            new ToolInvocationTracker(start.Scope.RunId, start.IsStreaming, _timeProvider),
+            start.Scope.AgentName!,
+            start.Scope.TenantId!,
+            _timeProvider.GetTimestamp(),
+            start.Scope.Budget,
+            OwnsTrace: start.Scope.Depth == 0);
     }
+
+    private static RunError ApprovalError(string toolNames)
+        => new()
+        {
+            Type = nameof(AgentPrismException),
+            Message = $"Alt calistirma '{toolNames}' tool'u icin kullanici onayi istedi. " +
+                      "Alt agent onay isteyemez: onay bir sonraki turun girdisidir ve cagri " +
+                      "agacinin ortasinda beklenemez. Bu tool icin otomatik onay kurali " +
+                      "tanimlayin veya alt agent'i onay gerektirmeyen tool'larla sinirlayin.",
+        };
 
     private async ValueTask CompleteAsync(
         RunScope scope,
@@ -296,6 +382,11 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         }
 
         await scope.Writer.CompleteAsync(status, usage, error, cancellationToken).ConfigureAwait(false);
+
+        // Butce agac boyunca paylasilan tek nesnedir; kok de alt calistirmalar da
+        // ayni sayaci besler. Aksi halde "agac ne harcadi" sorusunun cevabi yalnizca
+        // alt cagrilari kapsardi.
+        scope.Budget?.RecordUsage(usage?.TotalTokens ?? 0);
 
         var elapsed = _timeProvider.GetElapsedTime(scope.StartedAt);
 
@@ -317,7 +408,13 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         // olayini tetikler ve kok span'in kendisi de tampona girer.
         scope.Activity.Stop();
 
-        if (_traceCollector is not null)
+        // 🚨 Trace tamponunun sahibi YALNIZ kok calistirmadir. Agactaki her
+        // calistirma ayni W3C trace kimligini paylasir (alt span'ler kok span'in
+        // altina yerlesir) ve tampon o kimlikle anahtarlanir. Alt calistirma da
+        // tamponu kapatsaydi -- ki once O biter -- tum agacin span'leri alt
+        // calistirmaya baglanir, kok calistirma bos kalirdi. Olculdu (Faz 12):
+        // gercek bir cagrida kokun /trace ucu 404, alt calistirmanınki dolu geldi.
+        if (_traceCollector is not null && scope.OwnsTrace)
         {
             await _traceCollector.CompleteRunAsync(
                 scope.Activity.TraceId.ToString(),
@@ -436,12 +533,12 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
 
     /// <summary>Kok span acildiktan sonra, depo yazimindan once bilinenler.</summary>
     private sealed record RunStart(
-        Guid RunId,
-        string AgentName,
-        string TenantId,
+        AgentRunScope Scope,
+        RunEventWriter Writer,
         string? SessionId,
         bool IsStreaming,
-        Activity? Activity);
+        Activity? Activity,
+        Guid? ParentRunId);
 
     /// <summary>Tek bir calistirmanin kayit durumu.</summary>
     private sealed record RunScope(
@@ -450,5 +547,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         ToolInvocationTracker Tools,
         string AgentName,
         string TenantId,
-        long StartedAt);
+        long StartedAt,
+        AgentRunBudget? Budget,
+        bool OwnsTrace);
 }

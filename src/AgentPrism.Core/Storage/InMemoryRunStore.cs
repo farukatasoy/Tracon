@@ -46,6 +46,9 @@ public sealed class InMemoryRunStore : IRunStore
             SessionId = info.SessionId,
             ModelId = info.ModelId,
             IsStreaming = info.IsStreaming,
+            ParentRunId = info.ParentRunId,
+            RootRunId = info.RootRunId,
+            Depth = info.Depth,
         };
 
         _runs[record.Id] = record;
@@ -103,7 +106,8 @@ public sealed class InMemoryRunStore : IRunStore
     public ValueTask<RunRecord?> GetRunAsync(Guid runId, CancellationToken cancellationToken = default)
     {
         _runs.TryGetValue(runId, out var record);
-        return new ValueTask<RunRecord?>(record);
+
+        return new ValueTask<RunRecord?>(record is null ? null : WithTreeTotals(record));
     }
 
     /// <inheritdoc />
@@ -140,6 +144,28 @@ public sealed class InMemoryRunStore : IRunStore
                 continue;
             }
 
+            if (query.RootRunId is { } rootRunId
+                && record.RootRunId != rootRunId
+                && record.Id != rootRunId)
+            {
+                continue;
+            }
+
+            // Ebeveyn filtresi kok filtresini bilerek gecersiz kilar: ikisi
+            // mantiksal olarak celisir ve sessizce bos liste donmek hata
+            // ayiklanmasi zor bir davranistir.
+            if (query.ParentRunId is { } parentRunId)
+            {
+                if (record.ParentRunId != parentRunId)
+                {
+                    continue;
+                }
+            }
+            else if (query.OnlyRootRuns && record.ParentRunId is not null)
+            {
+                continue;
+            }
+
             matches.Add(record);
         }
 
@@ -147,8 +173,64 @@ public sealed class InMemoryRunStore : IRunStore
 
         var start = Math.Clamp(query.Skip, 0, matches.Count);
         var count = Math.Clamp(query.Take, 0, matches.Count - start);
+        var page = matches.GetRange(start, count);
 
-        return new ValueTask<IReadOnlyList<RunRecord>>(matches.GetRange(start, count));
+        for (var index = 0; index < page.Count; index++)
+        {
+            page[index] = WithTreeTotals(page[index]);
+        }
+
+        return new ValueTask<IReadOnlyList<RunRecord>>(page);
+    }
+
+    /// <summary>
+    /// Kayda alt calistirma sayisini ve agac toplamini ekler.
+    /// </summary>
+    /// <remarks>
+    /// Degerler saklanmaz, okumada hesaplanir. Saklansaydi her alt calistirmanin
+    /// tamamlanmasi ustteki her kaydi guncellemek zorunda kalir ve kayit yolu
+    /// derinlikle birlikte pahalilasirdi.
+    /// </remarks>
+    private RunRecord WithTreeTotals(RunRecord record)
+    {
+        var children = 0;
+        long input = 0, output = 0, total = 0;
+        var sawUsage = record.Usage is not null;
+
+        input += record.Usage?.InputTokens ?? 0;
+        output += record.Usage?.OutputTokens ?? 0;
+        total += record.Usage?.TotalTokens ?? 0;
+
+        foreach (var candidate in _runs.Values)
+        {
+            if (candidate.ParentRunId == record.Id)
+            {
+                children++;
+            }
+
+            if (candidate.RootRunId != record.Id)
+            {
+                continue;
+            }
+
+            if (candidate.Usage is not { } usage)
+            {
+                continue;
+            }
+
+            sawUsage = true;
+            input += usage.InputTokens ?? 0;
+            output += usage.OutputTokens ?? 0;
+            total += usage.TotalTokens ?? 0;
+        }
+
+        return record with
+        {
+            ChildRunCount = children,
+            TreeUsage = sawUsage
+                ? new RunUsage { InputTokens = input, OutputTokens = output, TotalTokens = total }
+                : null,
+        };
     }
 
     /// <inheritdoc />

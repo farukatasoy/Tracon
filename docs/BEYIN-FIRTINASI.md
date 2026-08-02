@@ -152,20 +152,16 @@ doğrudan zorlar. Öneri: skill'ler önce **script'siz** (yalnız talimat + kayn
 desteklenir; script çalıştırma ayrı bir karar ve ayrı bir policy ister.
 **Depolama:** `agent_skills` tablosu + `IAgentSkillStore`; arayüzde skill editörü.
 
-### F-10 · Agent'ın agent'ı çağırması 🔥
+### ~~F-10 · Agent'ın agent'ı çağırması~~ ✅ Faz 12'de yapıldı (2026-08-02)
 
-**Değer:** Yüksek. MAF'ta **hazır**: `HarnessAgentOptions.BackgroundAgents` ve
-`BackgroundAgentsProvider`. Faz 6'da bilerek kapalı bırakıldı (K-062).
-**Kapsam:** Agent tanımına "çağırabileceği agent adları" listesi; derleyici bunları
-katalogdan çözer ve harness'a verir.
-**🚨 Tasarım soruları — önce bunlar cevaplanmalı:**
-- **Özyineleme:** A → B → A döngüsü nasıl kesilir? Derinlik sınırı mı, çağrı
-  grafiğinde döngü denetimi mi?
-- **Çalıştırma kaydı:** Alt agent'ın çalıştırması ayrı bir `runs` satırı mı olmalı?
-  Öyleyse `runs.parent_run_id` gerekir ve waterfall doğal olarak iç içe geçer.
-- **Kiracı:** Alt agent aynı kiracıda mı çalışır? (Evet olmalı.)
-- **Kaynak sınırı:** Toplam token bütçesi çağrı ağacı boyunca nasıl paylaşılır?
-- **Onay:** Alt agent'ın tool onayı kime sorulur?
+Tasarım soruları [`12-AGENT-CAGRI-GRAFIGI.md`](12-AGENT-CAGRI-GRAFIGI.md) içinde
+cevaplandı; kararlar K-093 … K-103. Öngörülerden **sapan** iki nokta:
+
+- Derleyici alt agent'ları harness'a değil, öncelikle **`AIContextProviders`**'a
+  verir (`BackgroundAgentsProvider` bir `AIContextProvider`'dır) — K-053'ün
+  harness kusuru bu yolla aşıldı.
+- Alt agent **derleme anında değil, her çağrıda** çözülür (K-098); aksi hâlde DI
+  dairesi kurulurdu ve çağıranın önbelleği bayatlardı.
 
 ### F-11 · Bağlam sıkıştırma ve bellek sağlayıcıları
 

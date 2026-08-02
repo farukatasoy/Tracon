@@ -17,7 +17,9 @@ export type RunEventType =
   | 'ToolInvoked'
   | 'ToolFailed'
   | 'RunCompleted'
-  | 'RunFailed';
+  | 'RunFailed'
+  | 'ChildRunStarted'
+  | 'ChildRunCompleted';
 
 export interface Meta {
   version: string;
@@ -83,6 +85,7 @@ export interface AgentDescriptor {
   model?: ModelBinding | null;
   toolNames: string[];
   skillNames: string[];
+  callableAgentNames: string[];
   usesHarness: boolean;
   updatedAt?: string | null;
 }
@@ -95,6 +98,7 @@ export interface AgentDefinition {
   model: ModelBinding;
   toolNames: string[];
   skillNames: string[];
+  callableAgentNames: string[];
   harness?: HarnessSettings | null;
   origin: AgentOrigin;
   version: number;
@@ -118,6 +122,7 @@ export interface AgentDefinitionRequest {
   model: ModelBinding;
   toolNames: string[];
   skillNames: string[];
+  callableAgentNames: string[];
   harness?: HarnessSettings | null;
 }
 
@@ -337,6 +342,22 @@ export interface RunRecord {
   usage?: RunUsage | null;
   error?: RunError | null;
   eventCount: number;
+  /** Parent run that started this one. Null for root runs. */
+  parentRunId?: string | null;
+  /** Root of the call tree. Null for root runs; always set for children. */
+  rootRunId?: string | null;
+  /** Depth in the call tree. Root runs are 0. */
+  depth: number;
+  /** Number of *direct* child runs. */
+  childRunCount: number;
+  /**
+   * Tokens spent by this run and everything under it.
+   *
+   * Never add this to `usage` — it already contains it. The two are separate
+   * answers to separate questions: "what did this run cost" and "what did this
+   * request cost in total".
+   */
+  treeUsage?: RunUsage | null;
 }
 
 export interface RunEvent {

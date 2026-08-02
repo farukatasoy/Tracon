@@ -132,7 +132,7 @@ export async function openStream(
   return response;
 }
 
-function query(params: Record<string, string | number | undefined | null>): string {
+function query(params: Record<string, string | number | boolean | undefined | null>): string {
   const search = new URLSearchParams();
 
   for (const [key, value] of Object.entries(params)) {
@@ -189,11 +189,23 @@ export const api = {
       status?: RunStatus;
       sessionId?: string;
       startedAfter?: string;
+      /** Include child runs. The server returns only root runs by default. */
+      includeChildren?: boolean;
+      parentRunId?: string;
+      rootRunId?: string;
       skip?: number;
       take?: number;
     } = {},
   ) => request<RunRecord[]>(`api/runs${query(params)}`),
   run: (id: string) => request<RunRecord>(`api/runs/${encodeURIComponent(id)}`),
+
+  /**
+   * Every run in the tree this run belongs to, rooted at the top.
+   *
+   * Asking from a child returns the whole tree, not the subtree: you cannot tell
+   * where you are in a tree without seeing the sibling branches.
+   */
+  runTree: (id: string) => request<RunRecord[]>(`api/runs/${encodeURIComponent(id)}/tree`),
 
   /**
    * Span tree for a run.

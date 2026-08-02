@@ -22,8 +22,12 @@
 //     (OpenRouter, Groq, vLLM, yerel Ollama/LM Studio...)
 //   - `/agentprism/api/models/health` saglayicilarin erisilebilirligini denetler
 //     (ucret uretmez); devre kesici ardisik hatada saglayiciyi gecici durdurur
+// Faz 12 agent'in agent'i cagirmasini getirdi:
+//   - `CallableAgentNames` bir agent'a baska agent'lari cagirma yetkisi verir
+//   - her alt cagri AYRI bir `runs` satiri uretir; arayuz agaci cizer
+//   - derinlik, token ve sayi sinirlari `AgentPrism:AgentGraph` ile ayarlanir
 // Bkz. docs/04-HTTP-API.md, docs/05-AGENTPRISM-UI.md, docs/06-GOZLEMLENEBILIRLIK.md,
-//      docs/08-SAGLAYICI-GENISLEMESI.md
+//      docs/08-SAGLAYICI-GENISLEMESI.md, docs/12-AGENT-CAGRI-GRAFIGI.md
 //
 // Calistirmadan once sirlari ayarlayin:
 //   dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=localhost;Database=AgentPrism;Username=...;Password=..."
@@ -133,14 +137,13 @@ agentPrism
     })
 
     // Harness ayarli agent: baglam sikistirma ve todo takibi devrede.
-    // Dosya erisimi ve arka plan agent'lari HarnessSettings icinde bilerek
-    // yoktur; ikisi de MAF'ta yalnizca deger atandiginda etkinlesir ve
-    // AgentPrism o degerleri hic atamaz (karar K-062).
+    // Dosya erisimi HarnessSettings icinde bilerek yoktur; MAF'ta yalnizca
+    // deger atandiginda etkinlesir ve AgentPrism o degeri hic atamaz (K-062).
     .AddAgent(new AgentDefinition
     {
         Name = "arastirmaci",
         DisplayName = "Arastirmaci",
-        Description = "Uzun konusmalarda baglami sikistirarak calisir.",
+        Description = "Siparis kayitlarini inceler ve bulgularini ozetler.",
         Instructions = "Sen bir arastirmacisin. Adim adim ilerle ve bulgularini ozetle.",
         Model = model,
         ToolNames = ["get_order_status"],
@@ -151,6 +154,29 @@ agentPrism
             DisableWebSearch = true,
             DisableFileMemory = true,
         },
+    })
+
+    // Faz 12: agent'in agent'i cagirmasi. Yonlendirici kendisi tool kullanmaz;
+    // isi uzman agent'a devreder. Her devir AYRI bir `runs` satiri uretir ve
+    // arayuzun calistirma detayinda agac olarak gorunur.
+    //
+    // Sinirlar AgentPrism:AgentGraph bolumunden gelir (varsayilan: derinlik 3,
+    // agac basina 200.000 token, 25 alt calistirma) ve agac boyunca TEK bir
+    // butce nesnesiyle paylasilir.
+    //
+    // Alt agent olarak BILEREK "support" secildi, "arastirmaci" degil:
+    // arastirmaci harness kullanir ve K-053'te belgelenen harness kusuru
+    // (tool cagrisi baglanmiyor) alt calistirmayi da vururdu. Orneklerin
+    // calisir olmasi, ornegin mimariyi anlatmasindan once gelir.
+    .AddAgent(new AgentDefinition
+    {
+        Name = "yonlendirici",
+        DisplayName = "Yonlendirici",
+        Description = "Gelen istegi dogru uzman agent'a devreder.",
+        Instructions = "Sen bir yonlendiricisin. Siparis sorularini 'support' agent'ina " +
+                       "devret, sonucunu bekle ve kullaniciya ozetle. Kendi basina tool cagirma.",
+        Model = model,
+        CallableAgentNames = ["support"],
     });
 
 if (openRouterEnabled)
@@ -213,7 +239,7 @@ app.UseStatusCodePages();
 app.MapGet("/health", (IRunStore runs, ISessionStore sessions) => Results.Ok(new
 {
     status = "healthy",
-    phase = "8 - saglayici genislemesi ve saglik denetimi",
+    phase = "12 - agent cagri grafigi",
     storage = new
     {
         persistent = persistenceEnabled,

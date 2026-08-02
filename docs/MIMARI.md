@@ -8,18 +8,18 @@
 
 | Paket | Durum | Faz |
 |-------|-------|-----|
-| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) · 5 (`AgentPrismRunOptions`) · 6 (telemetri, tool çağrısı, onay, MCP, kiracı) · 8 (`IModelProviderHealthCheck`, `AgentPrismProviderUnavailableException`) · 9 (`IAuditLog`, `IAuditActorResolver`, `IAuditDecorated`) · 10 (`AgentSkillDefinition`, `IAgentSkillStore`) |
-| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) · 5 (çağıranın verdiği çalıştırma kimliği) · 6 (span, metrik, onay kuralı) · 8 (devre kesici, sağlık önbelleği) · 9 (`AuditActorContext`, `AuditSecretFilter`, `Auditing*Store` dekoratörleri) · 10 (skill katalogu, MAF source, fingerprint cache) |
-| `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 · 4 (özet sorgusu) · 6 (migration 0002, dört yeni depo) · 9 (`PostgresAuditLog`, migration **yok** — şema Faz 0'dan hazırdı) · 10 (migration 0003, `PostgresAgentSkillStore`) |
+| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) · 5 (`AgentPrismRunOptions`) · 6 (telemetri, tool çağrısı, onay, MCP, kiracı) · 8 (`IModelProviderHealthCheck`, `AgentPrismProviderUnavailableException`) · 9 (`IAuditLog`, `IAuditActorResolver`, `IAuditDecorated`) · 10 (`AgentSkillDefinition`, `IAgentSkillStore`) · 11 (script tanımı, `ISkillScriptGrantStore`) · 12 (`AgentRunBudget`, çalıştırma ağacı alanları, `CallableAgentNames`) |
+| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) · 5 (çağıranın verdiği çalıştırma kimliği) · 6 (span, metrik, onay kuralı) · 8 (devre kesici, sağlık önbelleği) · 9 (`AuditActorContext`, `AuditSecretFilter`, `Auditing*Store` dekoratörleri) · 10 (skill katalogu, MAF source, fingerprint cache) · 11 (`SandboxedSkillScriptRunner`, `AgentPrismRunContext`) · 12 (`AgentCallGraph`, `CallableAgentResolver`, `ChildAgentInvoker`, `AgentRunScope`) |
+| `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 · 4 (özet sorgusu) · 6 (migration 0002, dört yeni depo) · 9 (`PostgresAuditLog`, migration **yok** — şema Faz 0'dan hazırdı) · 10 (migration 0003, `PostgresAgentSkillStore`) · 11 (migration 0004) · 12 (migration 0005 — `runs` ağaç sütunları, **yeni tablo yok**) |
 | `AgentPrism.OpenAI` | ✅ Tamamlandı | 3 · 8 (`UseOpenAICompatible`, sağlık denetimi) |
 | `AgentPrism.Mcp` | ✅ Tamamlandı | 6 |
-| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 · 5 (arayüz rota grubu) · 6 (çok kiracılılık, yönetişim uçları) · 8 (`/api/models/health`) · 9 (`AgentPrismPolicies`, rol dağıtımı, `/api/audit`, `/api/meta` rol alanı) · 10 (`/api/skills`) |
-| `AgentPrism.UI` | ✅ Tamamlandı | 5 · 6 (waterfall, MCP ekranı, onay kartı) · 8 (sağlık rozeti) · 9 (Audit ekranı, rol tabanlı düğme gizleme) · 10 (Skills ekranı ve agent skill seçicisi) |
+| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 · 5 (arayüz rota grubu) · 6 (çok kiracılılık, yönetişim uçları) · 8 (`/api/models/health`) · 9 (`AgentPrismPolicies`, rol dağıtımı, `/api/audit`, `/api/meta` rol alanı) · 10 (`/api/skills`) · 11 (script izin uçları) · 12 (çağrı grafiği denetimi, `/api/runs/{id}/tree`, `includeChildren`) |
+| `AgentPrism.UI` | ✅ Tamamlandı | 5 · 6 (waterfall, MCP ekranı, onay kartı) · 8 (sağlık rozeti) · 9 (Audit ekranı, rol tabanlı düğme gizleme) · 10 (Skills ekranı ve agent skill seçicisi) · 11 (script izin yüzeyi) · 12 (çağrı ağacı paneli, kök/alt filtresi, çağrılabilir agent seçicisi) |
 | `AgentPrism` (meta) | ✅ Paketleniyor | 0 |
 
-Testler: **502 .NET testi + 42 frontend birim testi geçiyor** — 214 birim testi
-(137 Core + 77 OpenAI) + 132 fonksiyonel test (TestHost, gerçek HTTP) + 142 entegrasyon
-testi (Testcontainers, gerçek PostgreSQL) + 14 arayüz E2E testi (Playwright, gerçek
+Testler: **583 .NET testi + 42 frontend birim testi geçiyor** — 251 birim testi
+(174 Core + 77 OpenAI) + 148 fonksiyonel test (TestHost, gerçek HTTP) + 168 entegrasyon
+testi (Testcontainers, gerçek PostgreSQL) + 16 arayüz E2E testi (Playwright, gerçek
 Kestrel) + 42 Vitest testi (saf mantık; `npm run build` içinde koşar, dolayısıyla
 `dotnet build` de koşar). Build, test, pack ve format kapıları sıfır uyarı.
 
@@ -27,6 +27,13 @@ Faz 9 sonunda AgentPrism **denetlenebilir**: üç rol (Reader/Operator/Admin) u�
 grupları arasında ayrım yapıyor, `audit_log` gerçekten doluyor (agent, MCP sunucusu,
 kiracı, onay kuralı yazmaları + tool onay kararları) ve sır suzgeci bu kayıtlardan
 hiçbir kimlik bilgisi sızdırmıyor. Bkz. [`09-YONETISIM-VE-DENETIM-IZI.md`](09-YONETISIM-VE-DENETIM-IZI.md).
+
+Faz 12 sonunda bir agent kataloğdaki başka bir agent'ı **çağırabiliyor**. Her alt
+çağrı ayrı bir `runs` satırı üretir (`parent_run_id`, `root_run_id`, `depth`),
+span'leri kök span'in altında iç içe görünür ve ağaç boyunca **tek** bir
+`AgentRunBudget` nesnesi paylaşılır. Çağrı grafiği kaydetme anında döngüye karşı
+denetlenir; çalışma anında derinlik sayacı ikinci savunma hattıdır. Bkz.
+[`12-AGENT-CAGRI-GRAFIGI.md`](12-AGENT-CAGRI-GRAFIGI.md).
 
 Faz 5 sonunda kabul senaryosu tamamlandı: paket kurulur, `.UseUI()` +
 `app.MapAgentPrism()` yazılır ve tarayıcıda bir kontrol düzlemi açılır. Faz 6 ekranı
@@ -471,6 +478,7 @@ erDiagram
     agent_definitions ||--o{ agent_definition_versions : "agent_id"
     conversations ||--o{ conversation_items : "conversation_id"
     conversations ||--o{ responses : "conversation_id"
+    runs ||--o{ runs : "parent_run_id (FK YOK)"
     runs ||--o{ run_events : "(run_id, seq) PK"
     runs ||--o{ tool_invocations : "run_id"
     runs ||--o| traces : "run_id"
@@ -517,6 +525,9 @@ erDiagram
         text session_id
         smallint status
         bigint total_tokens
+        uuid parent_run_id "FK YOK · kokte NULL (K-095)"
+        uuid root_run_id "denormalize · kokte NULL (K-094)"
+        smallint depth "kok = 0"
     }
     run_events {
         uuid run_id PK
@@ -617,9 +628,9 @@ flowchart TD
     V1["/v1/* eşlemesi<br/>agent adı = model ?? metadata.entity_id<br/>oturum = conversation ?? previous_response_id ?? yeni yanıt kimliği<br/>güvenilmez kimlikte kiracı sahipliği doğrulanır"]
     R["IAgentCatalog.ResolveAsync(name)"]
     SRC["Kaynaklar önceliğe göre<br/>CodeAgentSource 0 → MAF köprüsü 10 → DefinitionStoreAgentSource 100"]
-    COMP["CompiledAgentCache.GetOrAdd(name, version, skillFingerprint)<br/>AgentDefinitionCompiler.Compile(definition)"]
+    COMP["CompiledAgentCache.GetOrAdd(name, version, bagimlilikParmakIzi)<br/>AgentDefinitionCompiler.Compile(definition, callableAgents)"]
     DEC["IAgentDecorator[] — Order'a göre, KÜÇÜK olan dışta"]
-    REC["<b>RunRecordingAgent</b> · Order 0<br/>kök span agentprism.run burada açılır<br/>RunEventWriter sıra numarasını üretir<br/>depo hatası çalıştırmayı KESMEZ"]
+    REC["<b>RunRecordingAgent</b> · Order 0<br/>kök span agentprism.run burada açılır<br/>AgentRunScope burada yayımlanır<br/>RunEventWriter sıra numarasını üretir<br/>depo hatası çalıştırmayı KESMEZ"]
     OTEL["<b>OpenTelemetryAgent</b> · Order 10<br/>invoke_agent span'i"]
     APR["<b>ToolApprovalAgent</b> · Order 20<br/>otomatik onay kuralları"]
     RUN["AIAgent.RunAsync / RunStreamingAsync"]
@@ -654,6 +665,43 @@ flowchart TD
 > `Activity.Current` bir `AsyncLocal`'dir ve async bir yardımcı metotta yapılan
 > atama çağırana geri akmaz; ölçüldü, iç span'ler kök span'in çocuğu değil
 > kardeşi oluyordu.
+>
+> 🚨 Aynı kuralın ikinci hâli **akışlı** yolda geçerlidir: bir
+> `async IAsyncEnumerable` gövdesinde yapılan `AsyncLocal` ataması `yield return`
+> sınırını aşmaz. `AgentPrismRunContext.SetCurrent(...)` bu yüzden her
+> `MoveNextAsync`'ten hemen önce tekrarlanır (Faz 12'de ölçüldü).
+
+### Çalıştırma ağacı (Faz 12)
+
+Bir agent `CallableAgentNames` taşıyorsa derleyici her alt agent'ı bir
+`ChildAgentInvoker` ile sarar ve bunları MAF'ın `BackgroundAgentsProvider`'ına
+verir. Sağlayıcı modele altı tool açar; model önce görevi başlatır, sonra bekler,
+sonra sonucu okur.
+
+```mermaid
+flowchart TD
+    P["kok calistirma · depth 0<br/>AgentRunScope yayimlanir"]
+    T["execute_tool<br/>background_agents_start_task"]
+    CI["<b>ChildAgentInvoker</b><br/>derinlik · butce · kiraci denetimi"]
+    CR["alt calistirma · depth 1<br/>AYRI runs satiri"]
+    E["kok akisa child.started / child.completed"]
+
+    P --> T --> CI
+    CI -->|"gecerse"| CR
+    CI -->|"reddedilirse"| X["tool sonucu olarak<br/>anlasilir hata metni<br/>satir OLUSMAZ"]
+    CI --> E
+
+    style CI fill:#5f4a1e,stroke:#302510,color:#ffffff
+    style CR fill:#1f6f4a,stroke:#0d3b27,color:#ffffff
+```
+
+Kurallar:
+
+- Ağaçtaki her çalıştırma **aynı** `AgentRunBudget` örneğini paylaşır (K-096).
+- Ağaçtaki her çalıştırma **aynı** W3C trace kimliğini paylaşır; trace tamponunun
+  sahibi yalnız kök çalıştırmadır (K-099).
+- Alt agent **aynı kiracıda** çalışır; kiracı değişmişse çağrı reddedilir.
+- Alt agent **onay isteyemez**; isteyen alt çalıştırma `Failed` olur (K-103).
 
 Derleyicinin içi (`AgentDefinitionCompiler.Compile`):
 
@@ -662,12 +710,14 @@ flowchart LR
     D["AgentDefinition"] --> M["IModelProviderRegistry<br/>→ IChatClient"]
     D --> T["IToolRegistry<br/>→ AIFunction[]"]
     D --> S["AgentSkillCatalog<br/>→ AgentPrismSkillsSource"]
+    D --> G["CallableAgentResolver<br/>→ ChildAgentInvoker[]"]
     D --> H{"Harness var mı?"}
     T -.->|"bilinmeyen tool adı"| E["AgentPrismCompilationException"]
     M -.->|"bilinmeyen sağlayıcı"| E
     S -->|"bilinmeyen skill"| E
-    H -->|"evet"| HA["AsHarnessAgent + AgentSkillsSource"]
-    H -->|"hayır"| CA["AsAIAgent + AgentSkillsProvider"]
+    G -.->|"bilinmeyen agent adı"| E
+    H -->|"evet"| HA["AsHarnessAgent<br/>+ AgentSkillsSource + BackgroundAgents"]
+    H -->|"hayır"| CA["AsAIAgent<br/>+ AIContextProviders[skill, backgroundAgents]"]
 
     classDef hata fill:#7a1f1f,stroke:#3d0f0f,color:#ffffff
     class E hata

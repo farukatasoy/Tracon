@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace AgentPrism;
@@ -11,6 +12,16 @@ namespace AgentPrism;
 /// </summary>
 internal static class RunEndpoints
 {
+    /// <summary>
+    /// Tek bir agacta dondurulecek en fazla calistirma sayisi.
+    /// </summary>
+    /// <remarks>
+    /// Ust sinir, butcenin <c>MaxTotalRuns</c> varsayilanindan (25) belirgin sekilde
+    /// buyuktur: butce yukseltilmis bir kurulumda agac kirpilmis gorunmemelidir.
+    /// Yine de sinirsiz degildir; sayfalanmayan bir uctur.
+    /// </remarks>
+    private const int MaxTreeSize = 200;
+
     /// <summary>Calistirma uclarini baglar.</summary>
     /// <param name="builder">Uc grubu.</param>
     /// <param name="options">Erisim ve akis ayarlari.</param>
@@ -19,12 +30,15 @@ internal static class RunEndpoints
     {
         builder.MapGet("/api/runs", async Task<Ok<IReadOnlyList<RunRecord>>> (
                 IRunStore runs,
-                string? agentName,
-                RunStatus? status,
-                string? sessionId,
-                DateTimeOffset? startedAfter,
-                int? skip,
-                int? take,
+                [FromQuery] string? agentName,
+                [FromQuery] RunStatus? status,
+                [FromQuery] string? sessionId,
+                [FromQuery] DateTimeOffset? startedAfter,
+                [FromQuery] bool? includeChildren,
+                [FromQuery] Guid? parentRunId,
+                [FromQuery] Guid? rootRunId,
+                [FromQuery] int? skip,
+                [FromQuery] int? take,
                 CancellationToken cancellationToken) =>
             {
                 var records = await runs.QueryRunsAsync(
@@ -34,6 +48,13 @@ internal static class RunEndpoints
                         Status = status,
                         SessionId = sessionId,
                         StartedAfter = startedAfter,
+
+                        // Varsayilan yalniz kok calistirmalardir: bir agent baska
+                        // agent'lari cagirdiginda liste kullanicinin baslatmadigi
+                        // satirlarla dolar.
+                        OnlyRootRuns = includeChildren is not true,
+                        ParentRunId = parentRunId,
+                        RootRunId = rootRunId,
                         Skip = Math.Max(skip ?? 0, 0),
                         Take = Math.Clamp(take ?? 50, 1, 200),
                     },
@@ -43,7 +64,41 @@ internal static class RunEndpoints
             })
             .RequireRole(roles.Reader)
             .WithName("AgentPrismListRuns")
-            .WithSummary("Calistirmalari en yeniden eskiye listeler.");
+            .WithSummary("Calistirmalari en yeniden eskiye listeler.")
+            .WithDescription(
+                "Varsayilan olarak YALNIZ kok calistirmalar doner. Alt calistirmalari da gormek icin " +
+                "'includeChildren=true' kullanin; tek bir agacin tamami icin 'rootRunId', bir " +
+                "calistirmanin dogrudan cocuklari icin 'parentRunId' verin.");
+
+        builder.MapGet("/api/runs/{runId:guid}/tree", async Task<Results<Ok<IReadOnlyList<RunRecord>>, ProblemHttpResult>> (
+                Guid runId,
+                IRunStore runs,
+                CancellationToken cancellationToken) =>
+            {
+                if (await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false) is not { } record)
+                {
+                    return NotFound(runId);
+                }
+
+                // Agac her zaman KOKUNDEN cekilir. Bir alt calistirmanin detayindan
+                // gelen istek de tum agaci dondurur; kullanici kardes dallari
+                // gormeden agacin neresinde oldugunu anlayamaz.
+                var rootRunId = record.RootRunId ?? record.Id;
+
+                var tree = await runs.QueryRunsAsync(
+                    new RunQuery
+                    {
+                        RootRunId = rootRunId,
+                        OnlyRootRuns = false,
+                        Take = MaxTreeSize,
+                    },
+                    cancellationToken).ConfigureAwait(false);
+
+                return TypedResults.Ok(tree);
+            })
+            .RequireRole(roles.Reader)
+            .WithName("AgentPrismGetRunTree")
+            .WithSummary("Bir calistirmanin ait oldugu agacin tamamini kokunden dondurur.");
 
         builder.MapGet("/api/runs/{runId:guid}", async Task<Results<Ok<RunRecord>, ProblemHttpResult>> (
                 Guid runId,
@@ -167,6 +222,8 @@ internal static class RunEndpoints
             RunEventType.ToolFailed => "tool.failed",
             RunEventType.RunCompleted => "run.completed",
             RunEventType.RunFailed => "run.failed",
+            RunEventType.ChildRunStarted => "child.started",
+            RunEventType.ChildRunCompleted => "child.completed",
             _ => "unknown",
         };
     }

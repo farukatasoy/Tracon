@@ -36,6 +36,17 @@ public sealed record AgentDescriptor
     /// <summary>Bu agent'in calisma aninda yukleyebilecegi skill adlari.</summary>
     public IReadOnlyList<string> SkillNames { get; init; } = [];
 
+    /// <summary>
+    /// Bu agent'in cagirabilecegi diger agent'larin adlari.
+    /// </summary>
+    /// <remarks>
+    /// Kod tarafinda <em>fabrika</em> ile kaydedilmis bir agent bildirimsel bir
+    /// tanim tasimaz; boyle bir agent icin liste bostur. Bu, grafigin eksik
+    /// olabilecegi anlamina gelir ve statik dongu denetiminin tek basina
+    /// yetmemesinin sebebidir.
+    /// </remarks>
+    public IReadOnlyList<string> CallableAgentNames { get; init; } = [];
+
     /// <summary>Harness yetenekleri acik mi.</summary>
     public bool UsesHarness { get; init; }
 

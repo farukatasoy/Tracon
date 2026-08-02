@@ -71,9 +71,10 @@ Faz bittiğinde **`faz-tamamlama` skill'i uygulanır**. Atlanmaz.
 | 9 | `docs/09-YONETISIM-VE-DENETIM-IZI.md` | ✅ Tamamlandı |
 | 10 | `docs/10-AGENT-SKILLERI.md` | ✅ Tamamlandı |
 | 11 | `docs/11-SKILL-SCRIPT-CALISTIRMA.md` | ✅ Tamamlandı |
-| 12–30 | `docs/IKINCI-FAZ-YOL-HARITASI.md` | 📋 Planlandı — **sıradaki Faz 12** |
+| 12 | `docs/12-AGENT-CAGRI-GRAFIGI.md` | ✅ Tamamlandı |
+| 13–30 | `docs/IKINCI-FAZ-YOL-HARITASI.md` | 📋 Planlandı — **sıradaki Faz 13** |
 
-**Sıradaki faz: 12** (`docs/12-AGENT-CAGRI-GRAFIGI.md`).
+**Sıradaki faz: 13** (`docs/13-BAGLAM-SIKISTIRMA-VE-BELLEK.md`).
 
 **İkinci faz (8–30):** `docs/IKINCI-FAZ-YOL-HARITASI.md` sırayı, bağımlılıkları
 ve migration numaralarını tutar. Faz listesi orada; burada tekrarlanmaz —

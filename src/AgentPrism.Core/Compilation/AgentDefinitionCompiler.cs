@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
@@ -30,6 +32,8 @@ public sealed class AgentDefinitionCompiler
     private readonly ChatHistoryProvider? _chatHistoryProvider;
     private readonly AgentSkillCatalog? _skills;
     private readonly SkillScriptSupport? _scripts;
+    private readonly CallableAgentResolver? _callableAgents;
+    private readonly ITenantContext? _tenantContext;
 
     /// <summary>Yeni bir derleyici olusturur.</summary>
     /// <param name="models">Model saglayici defteri.</param>
@@ -46,6 +50,13 @@ public sealed class AgentDefinitionCompiler
     /// Skill script destegi. <see langword="null"/> ise hicbir script calistirilamaz;
     /// ozellik <c>UseSkillScripts</c> ile acilir.
     /// </param>
+    /// <param name="callableAgents">
+    /// Cagrilabilir alt agent'lari cozen cozucu. <see langword="null"/> ise hicbir
+    /// agent baska bir agent'i cagiramaz.
+    /// </param>
+    /// <param name="tenantContext">
+    /// Kiraci baglami. Alt cagrilarin kiraci degistirmedigi bununla dogrulanir.
+    /// </param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
     public AgentDefinitionCompiler(
         IModelProviderRegistry models,
@@ -54,7 +65,9 @@ public sealed class AgentDefinitionCompiler
         IServiceProvider? services = null,
         ChatHistoryProvider? chatHistoryProvider = null,
         AgentSkillCatalog? skills = null,
-        SkillScriptSupport? scripts = null)
+        SkillScriptSupport? scripts = null,
+        CallableAgentResolver? callableAgents = null,
+        ITenantContext? tenantContext = null)
     {
         ArgumentNullException.ThrowIfNull(models);
         ArgumentNullException.ThrowIfNull(tools);
@@ -66,6 +79,8 @@ public sealed class AgentDefinitionCompiler
         _chatHistoryProvider = chatHistoryProvider;
         _skills = skills;
         _scripts = scripts;
+        _callableAgents = callableAgents;
+        _tenantContext = tenantContext;
     }
 
     /// <summary>Tanimi calistirilabilir bir agent'a donusturur.</summary>
@@ -75,7 +90,19 @@ public sealed class AgentDefinitionCompiler
     /// <exception cref="AgentPrismCompilationException">
     /// Model saglayicisi bulunamazsa veya tanimda kayitli olmayan bir tool adi varsa.
     /// </exception>
-    public AIAgent Compile(AgentDefinition definition)
+    public AIAgent Compile(AgentDefinition definition) => Compile(definition, ResolvedCallableAgents.Empty);
+
+    /// <summary>Tanimi, cozulmus alt agent'lariyla birlikte calistirilabilir bir agent'a donusturur.</summary>
+    /// <param name="definition">Derlenecek tanim.</param>
+    /// <param name="callableAgents">
+    /// <see cref="ResolveCallableAgentsAsync"/> ile onceden cozulmus alt agent ozetleri.
+    /// </param>
+    /// <returns>Calistirilabilir agent.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="definition"/> <see langword="null"/> ise.</exception>
+    /// <exception cref="AgentPrismCompilationException">
+    /// Model saglayicisi bulunamazsa veya tanimda kayitli olmayan bir tool adi varsa.
+    /// </exception>
+    public AIAgent Compile(AgentDefinition definition, ResolvedCallableAgents callableAgents)
     {
         ArgumentNullException.ThrowIfNull(definition);
 
@@ -84,8 +111,67 @@ public sealed class AgentDefinitionCompiler
         var chatOptions = BuildChatOptions(definition, tools);
 
         return definition.Harness is null
-            ? CompileChatAgent(definition, chatClient, chatOptions)
-            : CompileHarnessAgent(definition, chatClient, chatOptions);
+            ? CompileChatAgent(definition, chatClient, chatOptions, callableAgents)
+            : CompileHarnessAgent(definition, chatClient, chatOptions, callableAgents);
+    }
+
+    /// <summary>
+    /// Tanimin cagirabilecegi alt agent'lari cozer ve onbellek parmak izini uretir.
+    /// </summary>
+    /// <param name="definition">Cozulecek agent tanimi.</param>
+    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <returns>Alt agent ozetleri ve parmak izi.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="definition"/> <see langword="null"/> ise.</exception>
+    /// <exception cref="AgentPrismCompilationException">
+    /// Tanim alt agent cagirmak istiyor ancak ozellik kayitli degilse.
+    /// </exception>
+    internal async ValueTask<ResolvedCallableAgents> ResolveCallableAgentsAsync(
+        AgentDefinition definition,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+
+        if (definition.CallableAgentNames.Count == 0)
+        {
+            return ResolvedCallableAgents.Empty;
+        }
+
+        if (_callableAgents is null)
+        {
+            throw new AgentPrismCompilationException(
+                $"'{definition.Name}' agent'i baska agent'lari cagirmak istiyor ancak alt agent " +
+                "cozucusu kayitli degil.")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
+        var infos = await _callableAgents
+            .DescribeAsync(definition.CallableAgentNames, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new ResolvedCallableAgents(infos, CreateCallableFingerprint(infos));
+    }
+
+    /// <summary>
+    /// Alt agent listesinden onbellek parmak izi uretir.
+    /// </summary>
+    /// <remarks>
+    /// Alt agent'in <em>aciklamasi</em> modele gonderilen talimat metnine gomulur.
+    /// Parmak izi surumu tasimasaydi, bir alt agent'in aciklamasi guncellendiginde
+    /// cagiran agent onbellekte eski metinle kalirdi ve degisiklik hicbir zaman
+    /// etkili olmazdi.
+    /// </remarks>
+    private static string CreateCallableFingerprint(IReadOnlyList<CallableAgentInfo> infos)
+    {
+        var content = new StringBuilder();
+
+        foreach (var info in infos)
+        {
+            content.Append('|').Append(info.Name).Append(':').Append(info.Version);
+        }
+
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content.ToString())));
     }
 
     /// <summary>Tanimin skill'lerini dogrular ve cache anahtarini uretir.</summary>
@@ -225,7 +311,11 @@ public sealed class AgentDefinitionCompiler
         };
     }
 
-    private ChatClientAgent CompileChatAgent(AgentDefinition definition, IChatClient chatClient, ChatOptions chatOptions)
+    private ChatClientAgent CompileChatAgent(
+        AgentDefinition definition,
+        IChatClient chatClient,
+        ChatOptions chatOptions,
+        ResolvedCallableAgents callableAgents)
     {
         var options = new ChatClientAgentOptions
         {
@@ -236,15 +326,92 @@ public sealed class AgentDefinitionCompiler
             ChatHistoryProvider = _chatHistoryProvider,
         };
 
+        var providers = new List<AIContextProvider>(2);
+
         if (definition.SkillNames.Count > 0)
         {
-            options.AIContextProviders = [CreateSkillsProvider(definition)];
+            providers.Add(CreateSkillsProvider(definition));
+        }
+
+        if (CreateBackgroundAgentsProvider(definition, callableAgents) is { } backgroundAgents)
+        {
+            providers.Add(backgroundAgents);
+        }
+
+        if (providers.Count > 0)
+        {
+            options.AIContextProviders = providers;
         }
 
         return chatClient.AsAIAgent(options, _loggerFactory, _services);
     }
 
-    private HarnessAgent CompileHarnessAgent(AgentDefinition definition, IChatClient chatClient, ChatOptions chatOptions)
+    /// <summary>
+    /// Alt agent cagrisini saglayan baglam saglayicisini kurar.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Microsoft Agent Framework'un <see cref="BackgroundAgentsProvider"/> tipi bir
+    /// <see cref="AIContextProvider"/>'dir; harness gerektirmez. Duz agent yolu bu
+    /// yuzden birinci sinif destege sahiptir - K-053'te belgelenen harness kusuru
+    /// bu ozelligi de vuracakti.
+    /// </para>
+    /// <para>
+    /// Her alt agent <see cref="ChildAgentInvoker"/> ile sarilir. Saglayici alt
+    /// agent'i <c>options = null</c> ile cagirir (Faz 12'de olculdu); agac bilgisi
+    /// yalnizca sarmalayici tarafindan eklenebilir.
+    /// </para>
+    /// </remarks>
+    // MAAI001: BackgroundAgentsProvider "evaluation purposes only" olarak isaretli.
+    // Bastirma bilincli bir karardir ve K-020 ile ayni gerekceye dayanir: alt agent
+    // kurulumu tek bir metotta toplanmistir, MAF bu API'yi degistirirse yalnizca
+    // burasi guncellenir. Gerekce: docs/KARARLAR.md, karar K-097.
+#pragma warning disable MAAI001
+    private BackgroundAgentsProvider? CreateBackgroundAgentsProvider(
+        AgentDefinition definition,
+        ResolvedCallableAgents callableAgents)
+        => CreateChildAgents(definition, callableAgents) is { } children
+            ? new BackgroundAgentsProvider(children, new BackgroundAgentsProviderOptions())
+            : null;
+#pragma warning restore MAAI001
+
+    /// <summary>Cagrilabilir alt agent'lari sarmalayicilariyla birlikte kurar.</summary>
+    /// <returns>Sarilmis alt agent'lar; tanim alt agent cagirmiyorsa <see langword="null"/>.</returns>
+    private List<AIAgent>? CreateChildAgents(AgentDefinition definition, ResolvedCallableAgents callableAgents)
+    {
+        if (callableAgents.Agents.Count == 0)
+        {
+            return null;
+        }
+
+        if (_callableAgents is null || _tenantContext is null)
+        {
+            throw new AgentPrismCompilationException(
+                $"'{definition.Name}' agent'i baska agent'lari cagirmak istiyor ancak alt agent " +
+                "cozucusu kayitli degil.")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
+        var logger = _loggerFactory?.CreateLogger<ChildAgentInvoker>()
+            ?? (ILogger)Microsoft.Extensions.Logging.Abstractions.NullLogger<ChildAgentInvoker>.Instance;
+
+        var children = new List<AIAgent>(callableAgents.Agents.Count);
+
+        foreach (var info in callableAgents.Agents)
+        {
+            children.Add(new ChildAgentInvoker(_callableAgents, _tenantContext, logger, definition.Name, info));
+        }
+
+        return children;
+    }
+
+    private HarnessAgent CompileHarnessAgent(
+        AgentDefinition definition,
+        IChatClient chatClient,
+        ChatOptions chatOptions,
+        ResolvedCallableAgents callableAgents)
     {
         var harness = definition.Harness!;
 
@@ -278,15 +445,22 @@ public sealed class AgentDefinitionCompiler
             // hic gormez; waterfall gorunumunde harness adimlari eksik kalirdi.
             OpenTelemetrySourceName = AgentPrismDiagnostics.ActivitySourceName,
 
-            // FileAccessStore ve BackgroundAgents BILEREK atanmiyor. Ikisi de
-            // yalnizca deger atandiginda etkinlesir; atanmamis olmalari dosya
-            // erisiminin ve arka plan agent'larinin kapali olmasi demektir.
+            // FileAccessStore BILEREK atanmiyor: yalnizca deger atandiginda
+            // etkinlesir, atanmamis olmasi dosya erisiminin kapali olmasi demektir.
             // Gerekce: docs/KARARLAR.md, karar K-062.
+            //
+            // BackgroundAgents ise Faz 12'de acildi ve ayni kurala uyar: tanim
+            // hicbir agent adi tasimiyorsa deger atanmaz ve ozellik kapalidir.
         };
 
         if (definition.SkillNames.Count > 0)
         {
             options.AgentSkillsSource = CreateSkillsSource(definition);
+        }
+
+        if (CreateChildAgents(definition, callableAgents) is { } children)
+        {
+            options.BackgroundAgents = children;
         }
 
         return chatClient.AsHarnessAgent(options, _loggerFactory, _services);
@@ -342,4 +516,20 @@ public sealed class AgentDefinitionCompiler
 
         return sources;
     }
+}
+
+/// <summary>
+/// Bir tanimin cagirabilecegi alt agent'larin cozulmus hali ve onbellek parmak izi.
+/// </summary>
+/// <param name="Agents">Alt agent ozetleri.</param>
+/// <param name="Fingerprint">
+/// Alt agent adlarindan ve surumlerinden turetilmis parmak izi. Derlenmis agent
+/// onbelleginin anahtarina girer.
+/// </param>
+public readonly record struct ResolvedCallableAgents(
+    IReadOnlyList<CallableAgentInfo> Agents,
+    string Fingerprint)
+{
+    /// <summary>Alt agent cagirmayan bir tanimin sonucu.</summary>
+    public static ResolvedCallableAgents Empty { get; } = new([], string.Empty);
 }
