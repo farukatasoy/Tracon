@@ -30,7 +30,7 @@ Aşağıdakiler **gizlenmemiş sapmalardır**.
 yapmak her alanı yüzeysel bırakırdı. `Microsoft.Agents.AI.Workflows` ayrı bir
 yürütme modeli getirir (graf, checkpoint, human-in-the-loop) ve API'si hiç
 keşfedilmemişti; arayüzdeki graf görselleştirme ayrıca bundle bütçesini zorlardı.
-Karar **K-054**; ikinci faz planı için bkz. [`BEYIN-FIRTINASI.md`](BEYIN-FIRTINASI.md) F-01.
+Karar **K-054**; iş [Faz 15](15-WORKFLOWS-YURUTME.md) ve [Faz 16](16-WORKFLOWS-ARAYUZ.md) olarak planlandı (kalem F-27).
 
 ### S2 — 🚨 `Microsoft.Agents.AI.Mcp` diye bir paket **yok**
 
@@ -518,9 +518,11 @@ GET /api/stats
 
 7. **Hâlâ boş duran iki şey:** `audit_log` tablosu (kuruldu, yazılmıyor) ve sağlayıcı
    sağlık denetimi (faz 5'ten açık kalem). İkisi de
-   [`BEYIN-FIRTINASI.md`](BEYIN-FIRTINASI.md) F-20 ve F-16.
+   planlandı: [Faz 9](09-YONETISIM-VE-DENETIM-IZI.md) (denetim izi) ve
+   [Faz 8](08-SAGLAYICI-GENISLEMESI.md) (sağlık denetimi).
 
-8. **İkinci faz planı hazır:** [`BEYIN-FIRTINASI.md`](BEYIN-FIRTINASI.md).
+8. **İkinci faz planı hazır:** [`IKINCI-FAZ-YOL-HARITASI.md`](IKINCI-FAZ-YOL-HARITASI.md)
+   (Faz 8–30; hammadde [`BEYIN-FIRTINASI.md`](BEYIN-FIRTINASI.md)).
    Faz 7 (yayın) ile ikinci faz planı birbirinden bağımsızdır; yayın önce
    yapılabilir.
 

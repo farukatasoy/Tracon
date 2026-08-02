@@ -1,8 +1,17 @@
 # Faz 7 — Sağlamlaştırma ve Yayın
 
-> **Durum:** 🔜 Sıradaki
+> **Durum:** ⏸ **Beklemede — sıradan çıkarıldı.** Kullanıcı yayın zamanını henüz
+> belirlemedi (karar **K-068**, 2026-08-02). Bu faz **her an** araya girebilir;
+> diğer fazlar onu beklemez. Sıradaki faz
+> [08-SAGLAYICI-GENISLEMESI.md](08-SAGLAYICI-GENISLEMESI.md)'dir.
 > **Önkoşul:** [06-GOZLEMLENEBILIRLIK.md](06-GOZLEMLENEBILIRLIK.md) — tamamlandı
 > **Sonraki:** Yok — bu faz 1.0 yayınını kapatır
+>
+> ⚠️ **Bu faz yapıldıktan sonra** başlayan her faz `PublicAPI.Unshipped.txt`
+> disiplinine girer. Bugün `EnablePublicApiTracking` **`false`**'tur ve yayın
+> yapılana kadar öyle kalır. Yayın geciktikçe ilk `PublicAPI.Shipped.txt` dolumu
+> büyür; her faz dokümanının "Gerçekleşen Public API" bölümü o dolumun
+> kaynağıdır. İkinci faz planı: [IKINCI-FAZ-YOL-HARITASI.md](IKINCI-FAZ-YOL-HARITASI.md).
 
 ---
 
@@ -30,6 +39,11 @@ cd samples/AgentPrism.Api && dotnet run
 ---
 
 ## Devraldığınız Durum
+
+> ⚠️ Aşağıdaki tablo **Faz 6 sonundaki** durumdur. Bu faz beklemeye alındığı için
+> araya Faz 8+ girebilir; her yeni faz paket sayısını, test sayısını, migration
+> sayısını ve bundle ölçüsünü değiştirir. Faz 7'ye başlarken güncel değerleri
+> son tamamlanan fazın dokümanından okuyun.
 
 | Ne | Durum |
 |----|-------|
@@ -129,9 +143,11 @@ Kapsam raporu CI'da üretilir ve PR'da görünür. Sayısal bir eşik hedefi kon
 `run_events` yazma yolu için hedef senaryo: saniyede 100 eşzamanlı çalıştırma, her
 biri ~50 olay. Darboğaz varsa toplu yazma ve partition ayarları düzeltilir.
 
-**Bu test K-063'ün tetikleyicisidir.** Faz 6 partition'ı bilerek açmadı: birincil
-anahtarı değiştirmek ve tabloyu yeniden kurmak, ölçüm olmadan çözdüğünden fazla
-risk taşır. Darboğaz burada ölçülürse partition o kanıtla açılır.
+**K-063'ün tetikleyicisi [Faz 25](25-VERI-SAKLAMA-VE-ARSIVLEME.md)'e taşındı.**
+Faz 6 partition'ı bilerek açmadı: birincil anahtarı değiştirmek ve tabloyu
+yeniden kurmak, ölçüm olmadan çözdüğünden fazla risk taşır. Faz 25 saklama
+politikasıyla birlikte bu ölçümü yapar ve kararı kapatır. Faz 7, Faz 25'ten
+**önce** yapılırsa yük testi burada koşulur ve karar burada verilir.
 
 Aynı testte **span yazma yolu** da ölçülmelidir. Varsayılan örnekleme oranı 0,1'dir;
 `SuccessSampleRatio = 1` ile davranış farklı olacaktır ve `MaxSpansPerRun` (200)
