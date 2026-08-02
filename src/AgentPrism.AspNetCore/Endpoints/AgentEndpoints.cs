@@ -23,7 +23,10 @@ internal static class AgentEndpoints
     /// <summary>Agent uclarini baglar.</summary>
     /// <param name="builder">Uc grubu.</param>
     /// <param name="roles">Cozulmus rol policy'leri.</param>
-    public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
+    /// <param name="prefix">
+    /// Ek referanslarini kurarken kullanilacak yol oneki (bkz. <see cref="AttachmentUriReference"/>).
+    /// </param>
+    public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles, string prefix)
     {
         builder.MapGet("/api/agents", async Task<Ok<IReadOnlyList<AgentDescriptor>>> (
                 IAgentCatalog catalog,
@@ -63,7 +66,16 @@ internal static class AgentEndpoints
             .WithName("AgentPrismRollbackAgent")
             .WithSummary("Bir tanimi onceki bir surumun icerigiyle yeni surum olarak yazar.");
 
-        builder.MapPost("/api/agents/{name}/run", RunAsync)
+        builder.MapPost("/api/agents/{name}/run", (
+                string name,
+                AgentRunRequest request,
+                IAgentCatalog catalog,
+                AgentSessionManager sessions,
+                IAttachmentStore attachmentStore,
+                ITenantContext tenantContext,
+                HttpContext httpContext,
+                CancellationToken cancellationToken)
+                => RunAsync(name, request, catalog, sessions, attachmentStore, tenantContext, prefix, httpContext, cancellationToken))
             .RequireRole(roles.Operator)
             .WithName("AgentPrismRunAgent")
             .WithSummary("Bir agent'i deneme amaciyla calistirir ve yaniti SSE ile akitir.");
@@ -229,16 +241,19 @@ internal static class AgentEndpoints
         AgentRunRequest request,
         IAgentCatalog catalog,
         AgentSessionManager sessions,
+        IAttachmentStore attachmentStore,
+        ITenantContext tenantContext,
+        string prefix,
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         // Onay kararlari tek basina gecerli bir istektir: kullanici bekleyen bir
         // tool cagrisini onaylarken yeni bir mesaj yazmaz.
-        if (string.IsNullOrWhiteSpace(request.Message) && request.Approvals.Count == 0)
+        if (string.IsNullOrWhiteSpace(request.Message) && request.Approvals.Count == 0 && request.AttachmentIds.Count == 0)
         {
             return Results.Problem(
                 title: "Istek bos",
-                detail: "'message' veya 'approvals' alanlarindan biri zorunludur.",
+                detail: "'message', 'attachmentIds' veya 'approvals' alanlarindan biri zorunludur.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -248,6 +263,24 @@ internal static class AgentEndpoints
                 title: "Onay icin oturum gerekli",
                 detail: "Bekleyen onay istegi oturum gecmisinde yasar; 'sessionId' zorunludur.",
                 statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        // Ek sahipligi akis baslamadan once dogrulanir: yanit basladiktan sonra
+        // duzgun bir ProblemDetails donduremeyiz.
+        var attachments = new List<AttachmentDescriptor>(request.AttachmentIds.Count);
+
+        foreach (var attachmentId in request.AttachmentIds)
+        {
+            if (await attachmentStore.GetAsync(tenantContext.TenantId, attachmentId, cancellationToken)
+                    .ConfigureAwait(false) is not { } descriptor)
+            {
+                return Results.Problem(
+                    title: "Ek bulunamadi",
+                    detail: $"'{attachmentId}' kimlikli bir ek yok veya bu kiraciya ait degil.",
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
+
+            attachments.Add(descriptor);
         }
 
         Microsoft.Agents.AI.AIAgent? agent;
@@ -275,7 +308,7 @@ internal static class AgentEndpoints
                 statusCode: StatusCodes.Status404NotFound);
         }
 
-        return new AgentRunStream(agent, name, request, sessions);
+        return new AgentRunStream(agent, name, request, sessions, attachments, prefix);
     }
 
     /// <summary>
@@ -298,7 +331,9 @@ internal static class AgentEndpoints
         Microsoft.Agents.AI.AIAgent agent,
         string agentName,
         AgentRunRequest request,
-        AgentSessionManager sessions) : IResult
+        AgentSessionManager sessions,
+        IReadOnlyList<AttachmentDescriptor> attachments,
+        string prefix) : IResult
     {
         public async Task ExecuteAsync(HttpContext httpContext)
         {
@@ -407,9 +442,24 @@ internal static class AgentEndpoints
                 }
             }
 
+            var contents = new List<AIContent>();
+
             if (!string.IsNullOrWhiteSpace(request.Message))
             {
-                messages.Add(new ChatMessage(ChatRole.User, request.Message));
+                contents.Add(new TextContent(request.Message));
+            }
+
+            // Ikili icerik burada TASINMAZ: yalniz kucuk bir UriContent referansi
+            // eklenir. Gercek baytlar model cagrisindan hemen once, saglayiciya
+            // gonderilmeden ONCE cozulur (bkz. AttachmentResolvingChatClient).
+            foreach (var attachment in attachments)
+            {
+                contents.Add(new UriContent(AttachmentUriReference.Create(prefix, attachment.Id), attachment.MediaType));
+            }
+
+            if (contents.Count > 0)
+            {
+                messages.Add(new ChatMessage(ChatRole.User, contents));
             }
 
             return messages;

@@ -46,16 +46,7 @@ internal static class SessionEndpoints
             .WithName("AgentPrismGetSession")
             .WithSummary("Bir oturumun ustverisini ve sohbet gecmisini dondurur.");
 
-        builder.MapDelete("/api/sessions/{sessionId}", async Task<Results<NoContent, ProblemHttpResult>> (
-                string sessionId,
-                AgentSessionManager sessions,
-                CancellationToken cancellationToken)
-                => await sessions.DeleteSessionAsync(sessionId, cancellationToken).ConfigureAwait(false)
-                    ? TypedResults.NoContent()
-                    : TypedResults.Problem(
-                        title: "Oturum bulunamadi",
-                        detail: $"'{sessionId}' kimlikli bir oturum yok.",
-                        statusCode: StatusCodes.Status404NotFound))
+        builder.MapDelete("/api/sessions/{sessionId}", DeleteSessionAsync)
             .RequireRole(roles.Operator)
             .WithName("AgentPrismDeleteSession")
             .WithSummary("Bir oturumu siler.");
@@ -97,4 +88,35 @@ internal static class SessionEndpoints
         });
     }
 
+    /// <summary>
+    /// Bir oturumu ve ona bagli tum ekleri siler.
+    /// </summary>
+    /// <remarks>
+    /// Ekler oturumdan SONRA silinir: oturum bulunamazsa hicbir yan etki olmaz.
+    /// Bu cagri, kalici (PostgreSQL) ve bellek ici depoda ekleri temizleyen TEK
+    /// yoldur — <c>attachments.session_id</c> BILEREK yabanci anahtar degildir
+    /// (bkz. migration 0006 yorumu: bir ek, oturumu hic acilmadan once
+    /// yuklenebilir). Gerekce: <c>docs/14-COK-MODLULUK.md</c>, acik soru 2.
+    /// </remarks>
+    private static async Task<Results<NoContent, ProblemHttpResult>> DeleteSessionAsync(
+        string sessionId,
+        AgentSessionManager sessions,
+        IAttachmentStore attachmentStore,
+        ITenantContext tenantContext,
+        CancellationToken cancellationToken)
+    {
+        if (!await sessions.DeleteSessionAsync(sessionId, cancellationToken).ConfigureAwait(false))
+        {
+            return TypedResults.Problem(
+                title: "Oturum bulunamadi",
+                detail: $"'{sessionId}' kimlikli bir oturum yok.",
+                statusCode: StatusCodes.Status404NotFound);
+        }
+
+        await attachmentStore
+            .DeleteBySessionAsync(tenantContext.TenantId, sessionId, cancellationToken)
+            .ConfigureAwait(false);
+
+        return TypedResults.NoContent();
+    }
 }

@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
@@ -160,6 +162,62 @@ public sealed class OpenAICompatTests
         json.EnumerateArray()
             .Count(static session => string.Equals(session.GetProperty("id").GetString(), "conv-sabit", StringComparison.Ordinal))
             .ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Responses_govdeye_gomulu_data_uri_ege_cevrilir_ve_modele_cozulmus_ulasir()
+    {
+        // docs/14-COK-MODLULUK.md, bolum 14.4: '/v1/responses' OpenAI bicimli
+        // gorsel girdiyi kabul eder. MAF'in kendi govde cozumleyicisi 'data:'
+        // URI'sini DataContent'e cevirir; AgentPrism bunu agent'a gonderilmeden
+        // once bir ege alip UriContent referansina donusturur (mesaj kucuk
+        // kalsin diye), sonra model cagrisindan hemen once yeniden cozer.
+        await using var host = await AgentPrismTestHost.StartAsync(
+            static builder => builder.AddAgent(TestData.Definition()));
+
+        var png = Png();
+        var dataUri = $"data:image/png;base64,{Convert.ToBase64String(png)}";
+
+        using var response = await host.Client.PostAsJsonAsync(
+            Responses,
+            new
+            {
+                model = "kod-agent",
+                input = new object[]
+                {
+                    new
+                    {
+                        role = "user",
+                        content = new object[]
+                        {
+                            new { type = "input_text", text = "bu resmi tanimla" },
+                            new { type = "input_image", image_url = dataUri },
+                        },
+                    },
+                },
+            });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var attachments = await host.Services.GetRequiredService<IAttachmentStore>()
+            .ListAsync(new AttachmentQuery { TenantId = "default" });
+
+        attachments.ShouldHaveSingleItem().MediaType.ShouldBe("image/png");
+
+        var echo = host.Services.GetServices<IModelProvider>().OfType<EchoModelProvider>().Single();
+
+        var content = echo.LastRequest
+            .SelectMany(static message => message.Contents)
+            .OfType<DataContent>()
+            .ShouldHaveSingleItem();
+
+        content.Data.ToArray().ShouldBe(png);
+    }
+
+    private static byte[] Png()
+    {
+        byte[] signature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+        return [.. signature, .. new byte[8]];
     }
 
     // --- /v1/chat/completions ---

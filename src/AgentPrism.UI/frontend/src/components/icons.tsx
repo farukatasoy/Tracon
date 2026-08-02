@@ -185,6 +185,12 @@ export const HistoryIcon = ({ className }: IconProps): ReactNode => (
   </Icon>
 );
 
+export const PaperclipIcon = ({ className }: IconProps): ReactNode => (
+  <Icon className={className}>
+    <path d="M8 12.5V7a4 4 0 0 1 8 0v9a2.5 2.5 0 0 1-5 0V8" />
+  </Icon>
+);
+
 export const AuditIcon = ({ className }: IconProps): ReactNode => (
   <Icon className={className}>
     <rect x="5" y="4" width="14" height="17" rx="2" />

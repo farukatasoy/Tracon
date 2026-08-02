@@ -36,15 +36,33 @@ internal static class OpenAIResponsesEndpoints
     /// <param name="builder">Uc grubu.</param>
     /// <param name="sessionStore">Oturum kaliciligi icin kullanilacak depo.</param>
     /// <param name="roles">Cozulmus rol policy'leri.</param>
-    public static void Map(IEndpointRouteBuilder builder, AgentSessionStore sessionStore, AgentPrismRolePolicies roles)
+    /// <param name="prefix">Ek referanslari icin kullanilacak yol oneki.</param>
+    public static void Map(
+        IEndpointRouteBuilder builder,
+        AgentSessionStore sessionStore,
+        AgentPrismRolePolicies roles,
+        string prefix)
     {
         builder.MapPost("/v1/responses", (
                 HttpContext httpContext,
                 IAgentCatalog catalog,
                 ISessionStore sessions,
                 ITenantContext tenantContext,
+                IAttachmentStore attachmentStore,
+                AttachmentTypeGuard attachmentGuard,
+                IAuditActorResolver actorResolver,
                 CancellationToken cancellationToken)
-                => HandleAsync(httpContext, catalog, sessionStore, sessions, tenantContext, cancellationToken))
+                => HandleAsync(
+                    httpContext,
+                    catalog,
+                    sessionStore,
+                    sessions,
+                    tenantContext,
+                    attachmentStore,
+                    attachmentGuard,
+                    actorResolver,
+                    prefix,
+                    cancellationToken))
             .RequireRole(roles.Operator)
             .WithName("AgentPrismOpenAIResponses")
             .WithSummary("OpenAI Responses API ile uyumlu calistirma ucu.")
@@ -60,6 +78,10 @@ internal static class OpenAIResponsesEndpoints
         AgentSessionStore sessionStore,
         ISessionStore sessions,
         ITenantContext tenantContext,
+        IAttachmentStore attachmentStore,
+        AttachmentTypeGuard attachmentGuard,
+        IAuditActorResolver actorResolver,
+        string prefix,
         CancellationToken cancellationToken)
     {
         JsonElement body;
@@ -134,6 +156,22 @@ internal static class OpenAIResponsesEndpoints
                 StatusCodes.Status404NotFound,
                 $"'{loadId}' bulunamadi.",
                 type: "not_found_error");
+        }
+
+        // Govdeye gomulu 'data:' URI'leri (image_url, input_file) MAF tarafindan
+        // zaten DataContent'e cevrilmistir; agent'a gonderilmeden once birer ege
+        // donusturulur ki sohbet gecmisi kucuk kalsin (docs/14-COK-MODLULUK.md, 14.1).
+        if (await AttachmentIngestion.ReplaceEmbeddedDataAsync(
+                runRequest.Messages,
+                prefix,
+                tenantContext.TenantId,
+                saveId,
+                actorResolver.Resolve(),
+                attachmentStore,
+                attachmentGuard,
+                cancellationToken).ConfigureAwait(false) is { } ingestionError)
+        {
+            return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, ingestionError);
         }
 
         var session = await sessionStore

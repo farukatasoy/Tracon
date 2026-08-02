@@ -36,6 +36,8 @@ public sealed class PostgresTestContext : IAsyncDisposable
         ChatHistory = new PostgresChatHistoryProvider(dataSource, wrapped, TenantContext);
         AuditLog = new PostgresAuditLog(dataSource, wrapped);
         SkillScriptGrants = new PostgresSkillScriptGrantStore(dataSource, wrapped);
+        Attachments = new PostgresAttachmentStore(dataSource, wrapped);
+        AgentFiles = new PostgresAgentFileStore(dataSource, wrapped, TenantContext);
         Migrations = new MigrationRunner(dataSource, wrapped, NullLogger<MigrationRunner>.Instance);
     }
 
@@ -77,6 +79,12 @@ public sealed class PostgresTestContext : IAsyncDisposable
 
     /// <summary>Script calistirma izni deposu (Faz 11).</summary>
     public PostgresSkillScriptGrantStore SkillScriptGrants { get; }
+
+    /// <summary>Ek deposu (Faz 14).</summary>
+    public PostgresAttachmentStore Attachments { get; }
+
+    /// <summary>Kalici agent dosya belleği (Faz 14).</summary>
+    public PostgresAgentFileStore AgentFiles { get; }
 
     /// <summary>Migration calistiricisi.</summary>
     public MigrationRunner Migrations { get; }

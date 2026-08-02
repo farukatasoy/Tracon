@@ -68,3 +68,11 @@ public sealed class InMemorySkillScriptGrantContractTests : SkillScriptGrantCont
     protected override ValueTask<ISkillScriptGrantStore> CreateStoreAsync()
         => ValueTask.FromResult<ISkillScriptGrantStore>(new InMemorySkillScriptGrantStore());
 }
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryAttachmentStoreContractTests : AttachmentStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<IAttachmentStore> CreateStoreAsync()
+        => ValueTask.FromResult<IAttachmentStore>(new InMemoryAttachmentStore());
+}

@@ -213,4 +213,15 @@ public sealed record AgentRunRequest
     /// </para>
     /// </remarks>
     public IReadOnlyList<ToolApprovalDecision> Approvals { get; init; } = [];
+
+    /// <summary>
+    /// Onceden <c>POST /api/attachments</c> ile yuklenmis eklerin kimlikleri.
+    /// </summary>
+    /// <remarks>
+    /// Her kimlik cagiran kiraciya ait olmalidir; aksi halde istek <c>400</c> ile
+    /// reddedilir. Ikili icerik mesajda tasinmaz, yalniz kucuk bir referans
+    /// (<see cref="Microsoft.Extensions.AI.UriContent"/>) eklenir.
+    /// Gerekce: <c>docs/14-COK-MODLULUK.md</c>, bolum 14.1 ve 14.4.
+    /// </remarks>
+    public IReadOnlyList<Guid> AttachmentIds { get; init; } = [];
 }
