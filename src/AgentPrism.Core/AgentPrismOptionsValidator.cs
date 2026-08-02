@@ -109,10 +109,87 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
                 (failures ??= []).Add(
                     $"{nameof(AgentPrismSkillOptions)} sinirlari sifirdan buyuk olmalidir.");
             }
+
+            ValidateScripts(skills.Scripts, ref failures);
         }
 
         return failures is null
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);
+    }
+
+    /// <summary>Script calistirma ayarlarini dogrular.</summary>
+    /// <remarks>
+    /// Bu dogrulama bir guvenlik kapisidir: eksik yapilandirmayla acilmis bir
+    /// script calistirma ozelligi, calisma aninda degil <strong>acilista</strong>
+    /// hata vermelidir.
+    /// </remarks>
+    private static void ValidateScripts(AgentPrismSkillScriptOptions? scripts, ref List<string>? failures)
+    {
+        if (scripts is null)
+        {
+            (failures ??= []).Add(
+                $"{nameof(AgentPrismSkillOptions)}.{nameof(AgentPrismSkillOptions.Scripts)} bos olamaz.");
+            return;
+        }
+
+        if (!scripts.Enabled)
+        {
+            return;
+        }
+
+        if (!scripts.PlatformIsolationAcknowledged)
+        {
+            (failures ??= []).Add(
+                $"{nameof(AgentPrismSkillScriptOptions)}.{nameof(AgentPrismSkillScriptOptions.Enabled)} acikken " +
+                $"{nameof(AgentPrismSkillScriptOptions.PlatformIsolationAcknowledged)} da true olmalidir. " +
+                "AgentPrism isletim sistemi duzeyinde yalitim saglamaz: ag erisimi, dosya sistemi, CPU/bellek " +
+                "kotasi ve ayricalik dusurme barindirma ortaminin sorumlulugundadir. Script calistirmayi " +
+                "yalnizca container icinde, ayricaliksiz bir kullaniciyla ve kisitli ag ile acin.");
+        }
+
+        if (scripts.Timeout <= TimeSpan.Zero)
+        {
+            (failures ??= []).Add(
+                $"{nameof(AgentPrismSkillScriptOptions)}.{nameof(AgentPrismSkillScriptOptions.Timeout)} " +
+                $"sifirdan buyuk olmalidir. Gelen deger: {scripts.Timeout}.");
+        }
+
+        if (scripts.MaxOutputBytes < 1 || scripts.MaxArgumentBytes < 1 || scripts.MaxScriptContentLength < 1)
+        {
+            (failures ??= []).Add(
+                $"{nameof(AgentPrismSkillScriptOptions)} boyut sinirlari sifirdan buyuk olmalidir.");
+        }
+
+        if (scripts.MaxScriptsPerSkill < 1 || scripts.MaxConcurrentPerTenant < 1 || scripts.MaxConcurrentTotal < 1)
+        {
+            (failures ??= []).Add(
+                $"{nameof(AgentPrismSkillScriptOptions)} adet sinirlari en az 1 olmalidir.");
+        }
+
+        if (scripts.MaxConcurrentPerTenant > scripts.MaxConcurrentTotal)
+        {
+            (failures ??= []).Add(
+                $"{nameof(AgentPrismSkillScriptOptions)}.{nameof(AgentPrismSkillScriptOptions.MaxConcurrentPerTenant)} " +
+                $"({scripts.MaxConcurrentPerTenant}) toplam sinirdan ({scripts.MaxConcurrentTotal}) buyuk olamaz.");
+        }
+
+        if (scripts.SearchDepth < 1)
+        {
+            (failures ??= []).Add(
+                $"{nameof(AgentPrismSkillScriptOptions)}.{nameof(AgentPrismSkillScriptOptions.SearchDepth)} " +
+                $"en az 1 olmalidir. Gelen deger: {scripts.SearchDepth}.");
+        }
+
+        foreach (var pair in scripts.Interpreters)
+        {
+            if (string.IsNullOrWhiteSpace(pair.Key) || string.IsNullOrWhiteSpace(pair.Value))
+            {
+                (failures ??= []).Add(
+                    $"{nameof(AgentPrismSkillScriptOptions)}.{nameof(AgentPrismSkillScriptOptions.Interpreters)} " +
+                    "icinde bos uzanti veya bos yorumlayici yolu var.");
+                break;
+            }
+        }
     }
 }

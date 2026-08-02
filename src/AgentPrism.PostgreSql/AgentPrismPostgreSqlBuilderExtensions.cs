@@ -106,6 +106,15 @@ public static class AgentPrismPostgreSqlBuilderExtensions
                 provider.GetRequiredService<ILogger<AuditingAgentDefinitionStore>>())));
         services.Replace(
             ServiceDescriptor.Singleton<IAgentSkillStore, PostgresAgentSkillStore>());
+
+        // Script calistirma izinleri de denetim izi dekoratoru ile sarilir:
+        // izin vermek, sunucuda kod calistirma yetkisi vermektir.
+        services.Replace(ServiceDescriptor.Singleton<ISkillScriptGrantStore, AuditingSkillScriptGrantStore>(
+            static provider => new AuditingSkillScriptGrantStore(
+                ActivatorUtilities.CreateInstance<PostgresSkillScriptGrantStore>(provider),
+                provider.GetRequiredService<IAuditLog>(),
+                provider.GetRequiredService<IAuditActorResolver>(),
+                provider.GetRequiredService<ILogger<AuditingSkillScriptGrantStore>>())));
         services.Replace(ServiceDescriptor.Singleton<IRunStore, PostgresRunStore>());
         services.Replace(ServiceDescriptor.Singleton<ISessionStore, AuditingSessionStore>(
             static provider => new AuditingSessionStore(

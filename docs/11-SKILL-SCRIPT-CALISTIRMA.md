@@ -1,10 +1,10 @@
 # Faz 11 — Skill Script Çalıştırma
 
-> **Durum:** 📋 Planlandı
+> **Durum:** ✅ Tamamlandı (2026-08-02)
 > **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-09** (2/2)
 > **Önkoşul:** [Faz 9](09-YONETISIM-VE-DENETIM-IZI.md) **ve** [Faz 10](10-AGENT-SKILLERI.md) — ikisi de zorunlu
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
-> **Yeni paket:** Yok · **Migration:** 0004 (planlanan sırada)
+> **Yeni paket:** Yok · **Migration:** 0004 (`0004_skill_scripts.sql`)
 
 ---
 
@@ -264,44 +264,89 @@ geçirilip çalıştırılır, çıktısı ve denetim izi satırı dokümana yaz
 
 ---
 
-## Bu Fazda Verilecek Kararlar
+## Bu Fazda Verilen Kararlar
 
-1. **K2'nin ikinci istisnası açıkça kaydedilir** — koşulları, sınırları ve
-   sağlanamayan korumalarla birlikte.
-2. **Script kökü koddan gelir, arayüzden değil** (Seçenek A).
-3. **Yorumlayıcı beyaz listesi boş varsayılan** — kurulum yapılmadan hiçbir
-   script çalışmaz.
-4. **Denetim izi yazılamazsa çalıştırma reddedilir** — Faz 9 kuralının istisnası.
-5. **`PlatformIsolationAcknowledged` olmadan özellik açılmaz** — sağlayamadığımız
-   korumayı vaat etmiyoruz.
+| Karar | Konu |
+|-------|------|
+| **K-086** | K2'nin ikinci istisnası; `PlatformIsolationAcknowledged` şartı; sağlanan ve **sağlanmayan** korumaların listesi |
+| **K-087** | Hem dosya tabanlı hem saklanan script'ler; script kökü koddan gelir |
+| **K-088** | Yorumlayıcı beyaz listesi boş varsayılan |
+| **K-089** | Denetim izi yazılamazsa çalıştırma reddedilir |
+| **K-090** | Sığ argüman doğrulaması; yeni bağımlılık yok |
+| **K-091** | Argümanlar stdin ile geçirilir; ortam sıfırlanır |
+| **K-092** | İzin kaydı silinmez, iptal edilir; `COALESCE` benzersizlik indeksi |
 
 ---
 
-## Açık Sorular
+## Açık Soruların Cevapları (kullanıcı kararı, 2026-08-02)
 
-1. **Seçenek B uygulanacak mı?** (Arayüzde script yazma.) Öneri: **hayır**;
-   ihtiyaç somutlaşırsa ayrı bir fazda ele alınır.
-2. **Hangi yorumlayıcılar önerilsin?** `python3` ve `node` yaygın; `bash` en
-   riskli olanıdır. Öneri: örnek yapılandırmada **yalnız `python3`**.
-3. **Aynı anda kaç script çalışabilir?** Sınırsız bırakmak bir DoS yüzeyidir.
-   Öneri: kiracı başına eşzamanlı **2**, toplam **8**; `SemaphoreSlim` ile.
-4. **`AllowedTools` frontmatter alanı script'lerde zorlansın mı?** Faz 10 bunu
-   ertelemişti. Öneri: **evet** — script çalıştıran bir skill'in tool erişimi
-   daraltılabilmelidir.
+1. **Seçenek B uygulanacak mı?** → **Evet, A + B birlikte.** Dosya tabanlı
+   kaynak (`AgentFileSkillsSource`) kökleri **yalnız kodda** verilir; saklanan
+   script'ler ayrıca `AllowStoredScripts` bayrağıyla kapılıdır (K-087).
+2. **Hangi yorumlayıcılar?** → **`python3` + `node` + `bash`.** Üçü de
+   desteklenir ancak hiçbiri kendiliğinden kayıtlı değildir (K-088).
+3. **Eşzamanlılık?** → Kiracı başına **2**, toplam **8**;
+   `SkillScriptConcurrencyLimiter` iki katmanlı `SemaphoreSlim` kullanır.
+4. **`AllowedTools` zorlansın mı?** → **Evet.**
+
+---
+
+## Plandan Sapmalar
+
+| Sapma | Gerekçe |
+|-------|---------|
+| Seçenek B (arayüzde script yazma) da uygulandı | Kullanıcı kararı. Arayüz script **içeriği** yazabilir ama script **kökü** ekleyemez; kök keyfî dosya sistemi okuması demek olurdu (K-087). |
+| Üç yorumlayıcı desteklendi, yalnız `python3` değil | Kullanıcı kararı. Beyaz liste boş varsayıldığı için ek risk kurulum anında bilinçli olarak alınır (K-088). |
+| JSON Schema doğrulaması sığ yapıldı | Tam doğrulayıcı yeni bir NuGet bağımlılığı gerektirirdi; kütüphane tüketicinin bağımlılık grafiğini kirletmez (K-090). |
+| İzin uçlarında `TimeProvider` yerine `DateTimeOffset.UtcNow` | `TimeProvider` DI'da kayıtlı olmadığı için minimal API metadata çıkarımı tüm uçları kırıyordu. |
+
+---
+
+## Gerçek Çalıştırma Kanıtı
+
+Test: `SandboxedSkillScriptRunnerTests.Izinli_script_gercekten_calisir_ve_denetim_izine_yazilir`
+
+Kurulum: `Enabled = true`, `PlatformIsolationAcknowledged = true`,
+`AllowStoredScripts = true`, `Interpreters["sh"] = "/bin/bash"`, kiracı
+`default` için skill geneli izin.
+
+Script içeriği:
+
+```sh
+echo merhaba-agentprism
+```
+
+Modele dönen çıktı:
+
+```text
+merhaba-agentprism
+```
+
+Denetim izi satırı: `action = "script.run"`, `tenantId = "default"`.
+İzin kaldırıldığında aynı çağrı `AgentPrismException` ile reddedilir ve
+`action = "script.denied"` yazılır.
+
+Koşum sonucu (macOS arm64, .NET 10):
+
+```text
+AgentPrism.Core.UnitTests            149 passed, 0 failed
+AgentPrism.PostgreSql.IntegrationTests 156 passed, 0 failed
+AgentPrism.AspNetCore.FunctionalTests  136 passed, 0 failed
+```
 
 ---
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Yapılandırma yapılmamış bir kurulumda script çalıştırma **kapalı** ve
+- [x] Yapılandırma yapılmamış bir kurulumda script çalıştırma **kapalı** ve
       denendiğinde anlaşılır bir hata veriyor
-- [ ] Beyaz listedeki bir yorumlayıcı ile gerçek bir script onaydan geçip
-      çalışıyor; çıktısı modele dönüyor (gerçek çıktı dokümana yazılır)
-- [ ] Zaman aşımı, çıktı sınırı ve ortam temizliği testlerle kanıtlı
-- [ ] İzinsiz script çalışmıyor; reddedilme denetim izinde görünüyor
-- [ ] `tool_invocations`, span ve metrik dolduruluyor
-- [ ] README ve `MIMARI.md` sağlanamayan izolasyon sınırlarını **açıkça** yazıyor
-- [ ] Dört doğrulama kapısı sıfır uyarı; sır taraması boş
+- [x] Beyaz listedeki bir yorumlayıcı ile gerçek bir script onaydan geçip
+      çalışıyor; çıktısı modele dönüyor (gerçek çıktı yukarıda)
+- [x] Zaman aşımı, çıktı sınırı ve ortam temizliği testlerle kanıtlı
+- [x] İzinsiz script çalışmıyor; reddedilme denetim izinde görünüyor
+- [x] `tool_invocations`, span ve metrik dolduruluyor
+- [x] README ve `MIMARI.md` sağlanamayan izolasyon sınırlarını **açıkça** yazıyor
+- [x] Dört doğrulama kapısı sıfır uyarı; sır taraması boş
 
 ---
 

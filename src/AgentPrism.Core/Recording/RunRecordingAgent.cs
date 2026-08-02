@@ -96,6 +96,11 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         // GERI AKMAZ. Olculdu: span yardimci metotta acildiginda ic span'ler
         // (invoke_agent, chat) kok span'in cocugu degil, kardesi oluyordu.
         var start = PrepareRun(session, options, isStreaming: false);
+
+        // Ayni AsyncLocal kurali calistirma kimligi icin de gecerlidir: skill
+        // script calistiricisi kimligi buradan okur.
+        AgentPrismRunContext.SetCurrentRunId(start.RunId);
+
         var scope = await BeginRunAsync(start, cancellationToken).ConfigureAwait(false);
 
         try
@@ -148,6 +153,9 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
 
         // Kok span burada baslar; gerekcesi RunCoreAsync icindeki nota bakiniz.
         var start = PrepareRun(session, options, isStreaming: true);
+
+        AgentPrismRunContext.SetCurrentRunId(start.RunId);
+
         var scope = await BeginRunAsync(start, cancellationToken).ConfigureAwait(false);
         UsageDetails? usage = null;
         var enumerator = base.RunCoreStreamingAsync(messages, session, options, cancellationToken).GetAsyncEnumerator(cancellationToken);

@@ -25,6 +25,28 @@ public sealed class PostgresAgentDefinitionStoreContractTests(PostgresFixture fi
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
+public sealed class PostgresSkillScriptGrantContractTests(PostgresFixture fixture) : SkillScriptGrantContract
+{
+    private PostgresTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<ISkillScriptGrantStore> CreateStoreAsync()
+    {
+        _context = await PostgresTestContext.CreateAsync(fixture);
+        return _context.SkillScriptGrants;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}
+
+/// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
 public sealed class PostgresAuditLogContractTests(PostgresFixture fixture) : AuditLogContract
 {
     private PostgresTestContext? _context;

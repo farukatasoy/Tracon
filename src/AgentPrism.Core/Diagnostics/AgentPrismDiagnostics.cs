@@ -27,6 +27,12 @@ public static class AgentPrismDiagnostics
     /// <summary>Bir calistirmayi temsil eden kok span'in adi.</summary>
     public const string RunActivityName = "agentprism.run";
 
+    /// <summary>Bir skill script calistirmasini temsil eden span'in adi.</summary>
+    public const string SkillScriptActivityName = "execute_skill_script";
+
+    /// <summary>Skill script cagrilarinin metrikteki tool adi.</summary>
+    public const string SkillScriptToolName = "skill_script";
+
     /// <summary>Tamamlanan calistirma sayaci.</summary>
     public const string RunCounterName = "agentprism.runs";
 
@@ -71,5 +77,17 @@ public static class AgentPrismDiagnostics
 
         /// <summary>Token yonu: <c>input</c> veya <c>output</c>.</summary>
         public const string Direction = "agentprism.token.direction";
+
+        /// <summary>Skill adi.</summary>
+        public const string SkillName = "agentprism.skill.name";
+
+        /// <summary>Script adi.</summary>
+        public const string ScriptName = "agentprism.script.name";
+
+        /// <summary>Script surecinin cikis kodu.</summary>
+        public const string ExitCode = "agentprism.script.exit_code";
+
+        /// <summary>Script calistirma suresi (milisaniye).</summary>
+        public const string DurationMs = "agentprism.script.duration_ms";
     }
 }

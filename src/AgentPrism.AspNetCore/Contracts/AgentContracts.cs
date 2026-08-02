@@ -86,6 +86,17 @@ public sealed record AgentSkillRequest
     /// <summary>Skill kaynaklari.</summary>
     public IReadOnlyList<AgentSkillResourceDefinition> Resources { get; init; } = [];
 
+    /// <summary>
+    /// Skill script'leri.
+    /// </summary>
+    /// <remarks>
+    /// Buraya yazilan icerik <strong>sunucuda calistirilabilir</strong>. Yazmak
+    /// tek basina yetmez: script yalnizca <c>AgentPrismSkillScriptOptions</c>
+    /// icinde <c>Enabled</c> ve <c>AllowStoredScripts</c> aciksa ve kiraci icin
+    /// gecerli bir <c>SkillScriptGrant</c> varsa calisir.
+    /// </remarks>
+    public IReadOnlyList<AgentSkillScriptDefinition> Scripts { get; init; } = [];
+
     /// <summary>Istegi kalici skill tanimina cevirir.</summary>
     /// <param name="tenantId">Gecerli kiraci kimligi.</param>
     /// <returns>Kaydedilmeye hazir skill.</returns>
@@ -102,7 +113,29 @@ public sealed record AgentSkillRequest
             Metadata = Metadata,
             Enabled = Enabled,
             Resources = Resources,
+            Scripts = Scripts,
         };
+}
+
+/// <summary>Script calistirma izni verme istegi.</summary>
+/// <remarks>
+/// Izin vermek, bu kiracinin adina sunucuda kod calistirilmasina yetki vermektir.
+/// Bu yuzden ilgili uc yalnizca yonetici rolune aciktir ve her istek denetim
+/// izine yazilir.
+/// </remarks>
+public sealed record SkillScriptGrantRequest
+{
+    /// <summary>Izin verilen skill'in adi.</summary>
+    public required string SkillName { get; init; }
+
+    /// <summary>
+    /// Izin verilen script'in adi. <see langword="null"/> ise skill'in tum
+    /// script'leri kapsanir.
+    /// </summary>
+    public string? ScriptName { get; init; }
+
+    /// <summary>Iznin bitis zamani. <see langword="null"/> ise sinirsizdir.</summary>
+    public DateTimeOffset? ExpiresAt { get; init; }
 }
 
 /// <summary>

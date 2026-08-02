@@ -29,6 +29,7 @@ public sealed class AgentDefinitionCompiler
     private readonly IServiceProvider? _services;
     private readonly ChatHistoryProvider? _chatHistoryProvider;
     private readonly AgentSkillCatalog? _skills;
+    private readonly SkillScriptSupport? _scripts;
 
     /// <summary>Yeni bir derleyici olusturur.</summary>
     /// <param name="models">Model saglayici defteri.</param>
@@ -41,6 +42,10 @@ public sealed class AgentDefinitionCompiler
     /// durumunun icinde tasinir.
     /// </param>
     /// <param name="skills">Skill kaynaklarini cozen katalog.</param>
+    /// <param name="scripts">
+    /// Skill script destegi. <see langword="null"/> ise hicbir script calistirilamaz;
+    /// ozellik <c>UseSkillScripts</c> ile acilir.
+    /// </param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
     public AgentDefinitionCompiler(
         IModelProviderRegistry models,
@@ -48,7 +53,8 @@ public sealed class AgentDefinitionCompiler
         ILoggerFactory? loggerFactory = null,
         IServiceProvider? services = null,
         ChatHistoryProvider? chatHistoryProvider = null,
-        AgentSkillCatalog? skills = null)
+        AgentSkillCatalog? skills = null,
+        SkillScriptSupport? scripts = null)
     {
         ArgumentNullException.ThrowIfNull(models);
         ArgumentNullException.ThrowIfNull(tools);
@@ -59,6 +65,7 @@ public sealed class AgentDefinitionCompiler
         _services = services;
         _chatHistoryProvider = chatHistoryProvider;
         _skills = skills;
+        _scripts = scripts;
     }
 
     /// <summary>Tanimi calistirilabilir bir agent'a donusturur.</summary>
@@ -300,9 +307,7 @@ public sealed class AgentDefinitionCompiler
             };
         }
 
-        AgentSkillsSource source = new AggregatingAgentSkillsSource([
-            new AgentPrismSkillsSource(_skills, definition),
-        ]);
+        AgentSkillsSource source = new AggregatingAgentSkillsSource(CreateInnerSources(definition));
         source = new FilteringAgentSkillsSource(
             source,
             (skill, _) => definition.SkillNames.Contains(skill.Frontmatter.Name, StringComparer.Ordinal),
@@ -314,5 +319,27 @@ public sealed class AgentDefinitionCompiler
                 CacheIsolationKeySelector = _ => _skills.TenantId,
             });
         return new DeduplicatingAgentSkillsSource(source, _loggerFactory);
+    }
+
+    /// <summary>Veritabani ve disk kaynaklarini birlestirir.</summary>
+    /// <remarks>
+    /// Disk kaynagi ancak <c>UseSkillScripts</c> ile bir kok tanimlandiginda
+    /// eklenir. Sirasi onemlidir: veritabani kaynagi once gelir, boylece ayni
+    /// adda bir skill varsa <c>DeduplicatingAgentSkillsSource</c> veritabani
+    /// kaydini korur ve kiraci yalitimi bozulmaz.
+    /// </remarks>
+    private List<AgentSkillsSource> CreateInnerSources(AgentDefinition definition)
+    {
+        var sources = new List<AgentSkillsSource>(2)
+        {
+            new AgentPrismSkillsSource(_skills!, definition, _scripts),
+        };
+
+        if (_scripts?.CreateFileSource() is { } fileSource)
+        {
+            sources.Add(fileSource);
+        }
+
+        return sources;
     }
 }

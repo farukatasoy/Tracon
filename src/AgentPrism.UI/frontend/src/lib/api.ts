@@ -7,6 +7,8 @@ import type {
   AgentDetail,
   AgentSkillDefinition,
   AgentSkillRequest,
+  SkillScriptGrant,
+  SkillScriptGrantRequest,
   AuditEntry,
   Conversation,
   CurrentTenant,
@@ -165,6 +167,15 @@ export const api = {
     send<AgentSkillDefinition>('PUT', `api/skills/${encodeURIComponent(name)}`, body),
   deleteSkill: (name: string) =>
     request<void>(`api/skills/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+  skillScriptGrants: () => request<SkillScriptGrant[]>('api/skill-script-grants'),
+  grantSkillScript: (body: SkillScriptGrantRequest) =>
+    send<SkillScriptGrant>('POST', 'api/skill-script-grants', body),
+  revokeSkillScript: (skillName: string, scriptName?: string | null) =>
+    request<void>(
+      `api/skill-script-grants/${encodeURIComponent(skillName)}` +
+        (scriptName ? `?scriptName=${encodeURIComponent(scriptName)}` : ''),
+      { method: 'DELETE' },
+    ),
 
   sessions: (params: { agentName?: string; skip?: number; take?: number } = {}) =>
     request<SessionRecord[]>(`api/sessions${query(params)}`),

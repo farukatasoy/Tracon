@@ -18,4 +18,6 @@ namespace AgentPrism;
 [JsonSerializable(typeof(McpServerDefinition))]
 [JsonSerializable(typeof(TenantDescriptor))]
 [JsonSerializable(typeof(ToolApprovalRule))]
+[JsonSerializable(typeof(SkillScriptGrant))]
+[JsonSerializable(typeof(AgentSkillScriptDefinition))]
 internal sealed partial class AgentPrismCoreJsonContext : JsonSerializerContext;
