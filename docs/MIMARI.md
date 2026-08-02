@@ -8,18 +8,18 @@
 
 | Paket | Durum | Faz |
 |-------|-------|-----|
-| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) · 5 (`AgentPrismRunOptions`) · 6 (telemetri, tool çağrısı, onay, MCP, kiracı) · 8 (`IModelProviderHealthCheck`, `AgentPrismProviderUnavailableException`) · 9 (`IAuditLog`, `IAuditActorResolver`, `IAuditDecorated`) |
-| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) · 5 (çağıranın verdiği çalıştırma kimliği) · 6 (span, metrik, onay kuralı) · 8 (devre kesici, sağlık önbelleği) · 9 (`AuditActorContext`, `AuditSecretFilter`, `Auditing*Store` dekoratörleri) |
-| `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 · 4 (özet sorgusu) · 6 (migration 0002, dört yeni depo) · 9 (`PostgresAuditLog`, migration **yok** — şema Faz 0'dan hazırdı) |
+| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) · 5 (`AgentPrismRunOptions`) · 6 (telemetri, tool çağrısı, onay, MCP, kiracı) · 8 (`IModelProviderHealthCheck`, `AgentPrismProviderUnavailableException`) · 9 (`IAuditLog`, `IAuditActorResolver`, `IAuditDecorated`) · 10 (`AgentSkillDefinition`, `IAgentSkillStore`) |
+| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) · 5 (çağıranın verdiği çalıştırma kimliği) · 6 (span, metrik, onay kuralı) · 8 (devre kesici, sağlık önbelleği) · 9 (`AuditActorContext`, `AuditSecretFilter`, `Auditing*Store` dekoratörleri) · 10 (skill katalogu, MAF source, fingerprint cache) |
+| `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 · 4 (özet sorgusu) · 6 (migration 0002, dört yeni depo) · 9 (`PostgresAuditLog`, migration **yok** — şema Faz 0'dan hazırdı) · 10 (migration 0003, `PostgresAgentSkillStore`) |
 | `AgentPrism.OpenAI` | ✅ Tamamlandı | 3 · 8 (`UseOpenAICompatible`, sağlık denetimi) |
 | `AgentPrism.Mcp` | ✅ Tamamlandı | 6 |
-| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 · 5 (arayüz rota grubu) · 6 (çok kiracılılık, yönetişim uçları) · 8 (`/api/models/health`) · 9 (`AgentPrismPolicies`, rol dağıtımı, `/api/audit`, `/api/meta` rol alanı) |
-| `AgentPrism.UI` | ✅ Tamamlandı | 5 · 6 (waterfall, MCP ekranı, onay kartı) · 8 (sağlık rozeti) · 9 (Audit ekranı, rol tabanlı düğme gizleme) |
+| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 · 5 (arayüz rota grubu) · 6 (çok kiracılılık, yönetişim uçları) · 8 (`/api/models/health`) · 9 (`AgentPrismPolicies`, rol dağıtımı, `/api/audit`, `/api/meta` rol alanı) · 10 (`/api/skills`) |
+| `AgentPrism.UI` | ✅ Tamamlandı | 5 · 6 (waterfall, MCP ekranı, onay kartı) · 8 (sağlık rozeti) · 9 (Audit ekranı, rol tabanlı düğme gizleme) · 10 (Skills ekranı ve agent skill seçicisi) |
 | `AgentPrism` (meta) | ✅ Paketleniyor | 0 |
 
-Testler: **489 .NET testi + 42 frontend birim testi geçiyor** — 206 birim testi
-(129 Core + 77 OpenAI) + 130 fonksiyonel test (TestHost, gerçek HTTP) + 140 entegrasyon
-testi (Testcontainers, gerçek PostgreSQL) + 13 arayüz E2E testi (Playwright, gerçek
+Testler: **502 .NET testi + 42 frontend birim testi geçiyor** — 214 birim testi
+(137 Core + 77 OpenAI) + 132 fonksiyonel test (TestHost, gerçek HTTP) + 142 entegrasyon
+testi (Testcontainers, gerçek PostgreSQL) + 14 arayüz E2E testi (Playwright, gerçek
 Kestrel) + 42 Vitest testi (saf mantık; `npm run build` içinde koşar, dolayısıyla
 `dotnet build` de koşar). Build, test, pack ve format kapıları sıfır uyarı.
 
@@ -46,6 +46,13 @@ hata veren bir sağlayıcı devre kesici tarafından geçici olarak durdurulur. 
 gerçek OpenAI + gerçek OpenRouter anahtarlarıyla üç sağlayıcı (`openai`,
 `openai-responses`, `openrouter`) da gerçek yanıt üretti; ayrıntı
 [`08-SAGLAYICI-GENISLEMESI.md`](08-SAGLAYICI-GENISLEMESI.md).
+
+Faz 10 sonunda agent'lar markdown tabanlı, script'siz skill'ler yükleyebilir.
+Skill kaynakları tenant-yalıtımlı saklanır, kod kaydı aynı ad için veritabanı
+kaydını geçersiz kılar ve MAF'ın varsayılan onay zinciri kapatılmaz. Gerçek
+OpenRouter çalıştırmasında `load_skill` onayı Playground'da kabul edildi; skill
+talimatı yüklenip modelin yanıtını belirledi. Ayrıntı
+[`10-AGENT-SKILLERI.md`](10-AGENT-SKILLERI.md).
 
 Dış yüzey Faz 4'ten beri açık: stok OpenAI SDK'sı `base_url` değiştirerek AgentPrism'e
 bağlanıyor, agent'ı `model` alanından seçiyor, tool döngüsü sunucuda tamamlanıyor,
@@ -97,7 +104,7 @@ flowchart TD
     OA["<b>AgentPrism.OpenAI</b><br/>openai · openai-responses"]
     MCP["<b>AgentPrism.Mcp</b><br/>uzak MCP tool keşfi"]
 
-    CORE["<b>AgentPrism.Core</b><br/>IAgentCatalog ◄ IAgentSource[] · kod · MAF · veritabanı<br/>IAgentDecorator[] · kayıt 0 · telemetri 10 · onay 20<br/>AgentDefinitionCompiler · CompiledAgentCache<br/>AgentSessionManager · AgentSessionIdentity<br/>ToolRegistry · ToolMethodScanner · ModelProviderRegistry<br/>AgentPrismMetrics · RunTraceCollector · ToolApprovalRuleEvaluator<br/>InMemory*Store"]
+    CORE["<b>AgentPrism.Core</b><br/>IAgentCatalog ◄ IAgentSource[] · kod · MAF · veritabanı<br/>AgentSkillCatalog · AgentPrismSkillsSource<br/>IAgentDecorator[] · kayıt 0 · telemetri 10 · onay 20<br/>AgentDefinitionCompiler · CompiledAgentCache<br/>AgentSessionManager · AgentSessionIdentity<br/>ToolRegistry · ToolMethodScanner · ModelProviderRegistry<br/>AgentPrismMetrics · RunTraceCollector · ToolApprovalRuleEvaluator<br/>InMemory*Store"]
 
     ABS["<b>AgentPrism.Abstractions</b><br/>sözleşmeler"]
 
@@ -575,6 +582,8 @@ yazılırsa aynı satır güncellenir, tekrar kaydı oluşmaz.
 | `tenants` | Kiracı kaydı; tek kiracıda tek varsayılan satır |
 | `agent_definitions` | Agent tanımının güncel hali |
 | `agent_definition_versions` | Değişmez versiyon geçmişi, geri alma için |
+| `agent_skills` | Tenant-yalıtımlı markdown skill tanımı ve frontmatter |
+| `agent_skill_resources` | Skill kaynağı; skill silinince cascade ile silinir |
 | `sessions` | Serileştirilmiş `AgentSession` (**`json`**) + agent adı + kiracı + `schema_version` |
 | `conversations` | Konuşma başlığı; `PostgresChatHistoryProvider` yazar |
 | `conversation_items` | Konuşma mesajları, sıralı (**`json`**) |
@@ -608,7 +617,7 @@ flowchart TD
     V1["/v1/* eşlemesi<br/>agent adı = model ?? metadata.entity_id<br/>oturum = conversation ?? previous_response_id ?? yeni yanıt kimliği<br/>güvenilmez kimlikte kiracı sahipliği doğrulanır"]
     R["IAgentCatalog.ResolveAsync(name)"]
     SRC["Kaynaklar önceliğe göre<br/>CodeAgentSource 0 → MAF köprüsü 10 → DefinitionStoreAgentSource 100"]
-    COMP["CompiledAgentCache.GetOrAdd(name, version)<br/>AgentDefinitionCompiler.Compile(definition)"]
+    COMP["CompiledAgentCache.GetOrAdd(name, version, skillFingerprint)<br/>AgentDefinitionCompiler.Compile(definition)"]
     DEC["IAgentDecorator[] — Order'a göre, KÜÇÜK olan dışta"]
     REC["<b>RunRecordingAgent</b> · Order 0<br/>kök span agentprism.run burada açılır<br/>RunEventWriter sıra numarasını üretir<br/>depo hatası çalıştırmayı KESMEZ"]
     OTEL["<b>OpenTelemetryAgent</b> · Order 10<br/>invoke_agent span'i"]
@@ -652,11 +661,13 @@ Derleyicinin içi (`AgentDefinitionCompiler.Compile`):
 flowchart LR
     D["AgentDefinition"] --> M["IModelProviderRegistry<br/>→ IChatClient"]
     D --> T["IToolRegistry<br/>→ AIFunction[]"]
+    D --> S["AgentSkillCatalog<br/>→ AgentPrismSkillsSource"]
     D --> H{"Harness var mı?"}
     T -.->|"bilinmeyen tool adı"| E["AgentPrismCompilationException"]
     M -.->|"bilinmeyen sağlayıcı"| E
-    H -->|"evet"| HA["AsHarnessAgent"]
-    H -->|"hayır"| CA["AsAIAgent"]
+    S -->|"bilinmeyen skill"| E
+    H -->|"evet"| HA["AsHarnessAgent + AgentSkillsSource"]
+    H -->|"hayır"| CA["AsAIAgent + AgentSkillsProvider"]
 
     classDef hata fill:#7a1f1f,stroke:#3d0f0f,color:#ffffff
     class E hata

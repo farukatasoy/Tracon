@@ -82,6 +82,7 @@ export interface AgentDescriptor {
   version: number;
   model?: ModelBinding | null;
   toolNames: string[];
+  skillNames: string[];
   usesHarness: boolean;
   updatedAt?: string | null;
 }
@@ -93,6 +94,7 @@ export interface AgentDefinition {
   instructions?: string | null;
   model: ModelBinding;
   toolNames: string[];
+  skillNames: string[];
   harness?: HarnessSettings | null;
   origin: AgentOrigin;
   version: number;
@@ -115,7 +117,44 @@ export interface AgentDefinitionRequest {
   instructions?: string | null;
   model: ModelBinding;
   toolNames: string[];
+  skillNames: string[];
   harness?: HarnessSettings | null;
+}
+
+export interface AgentSkillResourceDefinition {
+  name: string;
+  description?: string | null;
+  mediaType: string;
+  content: string;
+}
+
+export interface AgentSkillDefinition {
+  id: string;
+  tenantId: string;
+  name: string;
+  description: string;
+  instructions: string;
+  compatibility?: string | null;
+  license?: string | null;
+  allowedTools?: string | null;
+  metadata: Record<string, unknown>;
+  enabled: boolean;
+  version: number;
+  resources: AgentSkillResourceDefinition[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AgentSkillRequest {
+  name: string;
+  description: string;
+  instructions: string;
+  compatibility?: string | null;
+  license?: string | null;
+  allowedTools?: string | null;
+  metadata?: Record<string, unknown>;
+  enabled: boolean;
+  resources: AgentSkillResourceDefinition[];
 }
 
 export interface ToolDescriptor {

@@ -32,6 +32,7 @@ const NAV = [
   { path: 'sessions', label: 'Sessions', icon: SessionsIcon, hue: 'var(--ap-emerald)' },
   { path: 'runs', label: 'Runs', icon: RunsIcon, hue: 'var(--ap-amber)' },
   { path: 'tools', label: 'Tools', icon: ToolsIcon, hue: 'var(--ap-rose)' },
+  { path: 'skills', label: 'Skills', icon: ToolsIcon, hue: 'var(--ap-cyan)' },
   { path: 'models', label: 'Models', icon: ModelsIcon, hue: 'var(--ap-indigo)' },
   { path: 'mcp', label: 'MCP', icon: McpIcon, hue: 'var(--ap-amber)' },
   { path: 'audit', label: 'Audit', icon: AuditIcon, hue: 'var(--ap-indigo)', adminOnly: true },

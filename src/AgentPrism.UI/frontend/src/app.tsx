@@ -6,6 +6,7 @@ import { useRoute, type RouteDefinition } from './lib/router';
 import { AgentsScreen } from './screens/agents';
 import { AgentDetailScreen } from './screens/agent-detail';
 import { AgentEditorScreen } from './screens/agent-editor';
+import { SkillEditorScreen, SkillsScreen } from './screens/skills';
 import { PlaygroundScreen } from './screens/playground';
 import { SessionsScreen } from './screens/sessions';
 import { SessionDetailScreen } from './screens/session-detail';
@@ -33,6 +34,9 @@ const routes = (meta: Meta): RouteDefinition[] => [
     render: (params) => <AgentDetailScreen name={params['name'] ?? ''} meta={meta} />,
   },
   { pattern: 'agents/:name/edit', render: (params) => <AgentEditorScreen name={params['name'] ?? ''} /> },
+  { pattern: 'skills', render: () => <SkillsScreen meta={meta} /> },
+  { pattern: 'skills/new', render: () => <SkillEditorScreen /> },
+  { pattern: 'skills/:name/edit', render: (params) => <SkillEditorScreen name={params['name'] ?? ''} /> },
   { pattern: 'playground', render: () => <PlaygroundScreen /> },
   { pattern: 'playground/:name', render: (params) => <PlaygroundScreen name={params['name'] ?? ''} /> },
   { pattern: 'sessions', render: () => <SessionsScreen meta={meta} /> },

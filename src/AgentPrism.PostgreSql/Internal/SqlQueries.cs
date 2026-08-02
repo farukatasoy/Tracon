@@ -94,6 +94,62 @@ internal sealed class SqlQueries
             WHERE d.tenant_id = @tenant_id AND d.name = @name AND v.version = @version;
             """;
 
+        // --- Skill'ler ---
+
+        SelectAgentSkills = $"""
+            SELECT id, tenant_id, name, description, instructions, compatibility, license,
+                   allowed_tools, metadata, enabled, version, created_at, updated_at
+            FROM {Schema}.agent_skills
+            WHERE tenant_id = @tenant_id
+            ORDER BY name;
+            """;
+
+        SelectAgentSkill = $"""
+            SELECT id, tenant_id, name, description, instructions, compatibility, license,
+                   allowed_tools, metadata, enabled, version, created_at, updated_at
+            FROM {Schema}.agent_skills
+            WHERE tenant_id = @tenant_id AND name = @name;
+            """;
+
+        UpsertAgentSkill = $"""
+            INSERT INTO {Schema}.agent_skills
+                (id, tenant_id, name, description, instructions, compatibility, license,
+                 allowed_tools, metadata, enabled, version, created_at, updated_at)
+            VALUES
+                (@id, @tenant_id, @name, @description, @instructions, @compatibility, @license,
+                 @allowed_tools, @metadata, @enabled, 1, @now, @now)
+            ON CONFLICT (tenant_id, name) DO UPDATE
+                SET description   = EXCLUDED.description,
+                    instructions  = EXCLUDED.instructions,
+                    compatibility = EXCLUDED.compatibility,
+                    license       = EXCLUDED.license,
+                    allowed_tools = EXCLUDED.allowed_tools,
+                    metadata      = EXCLUDED.metadata,
+                    enabled       = EXCLUDED.enabled,
+                    version       = {Schema}.agent_skills.version + 1,
+                    updated_at    = EXCLUDED.updated_at
+            RETURNING id, tenant_id, name, description, instructions, compatibility, license,
+                      allowed_tools, metadata, enabled, version, created_at, updated_at;
+            """;
+
+        DeleteAgentSkill = $"DELETE FROM {Schema}.agent_skills WHERE tenant_id = @tenant_id AND name = @name;";
+
+        DeleteAgentSkillResources = $"DELETE FROM {Schema}.agent_skill_resources WHERE skill_id = @skill_id;";
+
+        InsertAgentSkillResource = $"""
+            INSERT INTO {Schema}.agent_skill_resources
+                (id, skill_id, name, description, media_type, content, created_at)
+            VALUES
+                (@id, @skill_id, @name, @description, @media_type, @content, @created_at);
+            """;
+
+        SelectAgentSkillResources = $"""
+            SELECT name, description, media_type, content
+            FROM {Schema}.agent_skill_resources
+            WHERE skill_id = @skill_id
+            ORDER BY name;
+            """;
+
         // --- Oturumlar ---
 
         UpsertSession = $"""
@@ -526,6 +582,27 @@ internal sealed class SqlQueries
 
     /// <summary>Bir tanimin belirli bir surumunu okur.</summary>
     public string SelectAgentDefinitionVersion { get; }
+
+    /// <summary>Kiracinin skill'lerini listeler.</summary>
+    public string SelectAgentSkills { get; }
+
+    /// <summary>Tek bir skill'i okur.</summary>
+    public string SelectAgentSkill { get; }
+
+    /// <summary>Skill'i ekler veya gunceller.</summary>
+    public string UpsertAgentSkill { get; }
+
+    /// <summary>Skill'i siler.</summary>
+    public string DeleteAgentSkill { get; }
+
+    /// <summary>Skill'in kaynaklarini siler.</summary>
+    public string DeleteAgentSkillResources { get; }
+
+    /// <summary>Skill kaynagini ekler.</summary>
+    public string InsertAgentSkillResource { get; }
+
+    /// <summary>Skill kaynaklarini listeler.</summary>
+    public string SelectAgentSkillResources { get; }
 
     /// <summary>Oturumu ekler veya gunceller.</summary>
     public string UpsertSession { get; }

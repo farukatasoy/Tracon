@@ -32,6 +32,9 @@ public sealed record AgentDefinitionRequest
     /// </summary>
     public IReadOnlyList<string> ToolNames { get; init; } = [];
 
+    /// <summary>Calisma aninda yuklenebilecek skill adlari.</summary>
+    public IReadOnlyList<string> SkillNames { get; init; } = [];
+
     /// <summary>Harness ayarlari. Bos birakilirsa duz sohbet agent'i derlenir.</summary>
     public HarnessSettings? Harness { get; init; }
 
@@ -46,8 +49,59 @@ public sealed record AgentDefinitionRequest
             Instructions = Instructions,
             Model = Model,
             ToolNames = ToolNames,
+            SkillNames = SkillNames,
             Harness = Harness,
             Origin = AgentDefinitionOrigin.Database,
+        };
+}
+
+/// <summary>Skill olusturma veya guncelleme istegi.</summary>
+public sealed record AgentSkillRequest
+{
+    /// <summary>Skill adi.</summary>
+    public required string Name { get; init; }
+
+    /// <summary>Skill aciklamasi.</summary>
+    public required string Description { get; init; }
+
+    /// <summary>Markdown talimatlari.</summary>
+    public required string Instructions { get; init; }
+
+    /// <summary>Uyumluluk bildirimi.</summary>
+    public string? Compatibility { get; init; }
+
+    /// <summary>Skill lisansi.</summary>
+    public string? License { get; init; }
+
+    /// <summary>MAF frontmatter'indaki izinli tool bildirimi.</summary>
+    public string? AllowedTools { get; init; }
+
+    /// <summary>Uygulamaya ozgu metadata.</summary>
+    public IReadOnlyDictionary<string, System.Text.Json.JsonElement> Metadata { get; init; }
+        = new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal);
+
+    /// <summary>Skill etkin mi.</summary>
+    public bool Enabled { get; init; } = true;
+
+    /// <summary>Skill kaynaklari.</summary>
+    public IReadOnlyList<AgentSkillResourceDefinition> Resources { get; init; } = [];
+
+    /// <summary>Istegi kalici skill tanimina cevirir.</summary>
+    /// <param name="tenantId">Gecerli kiraci kimligi.</param>
+    /// <returns>Kaydedilmeye hazir skill.</returns>
+    public AgentSkillDefinition ToDefinition(string tenantId)
+        => new()
+        {
+            TenantId = tenantId,
+            Name = Name,
+            Description = Description,
+            Instructions = Instructions,
+            Compatibility = Compatibility,
+            License = License,
+            AllowedTools = AllowedTools,
+            Metadata = Metadata,
+            Enabled = Enabled,
+            Resources = Resources,
         };
 }
 

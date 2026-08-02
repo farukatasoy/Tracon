@@ -5,6 +5,8 @@ import type {
   AgentDefinitionRequest,
   AgentDescriptor,
   AgentDetail,
+  AgentSkillDefinition,
+  AgentSkillRequest,
   AuditEntry,
   Conversation,
   CurrentTenant,
@@ -156,6 +158,13 @@ export const api = {
     request<AgentDefinition[]>(`api/agents/${encodeURIComponent(name)}/versions`),
   rollbackAgent: (name: string, version: number) =>
     send<AgentDefinition>('POST', `api/agents/${encodeURIComponent(name)}/rollback`, { version }),
+
+  skills: () => request<AgentSkillDefinition[]>('api/skills'),
+  skill: (name: string) => request<AgentSkillDefinition>(`api/skills/${encodeURIComponent(name)}`),
+  saveSkill: (name: string, body: AgentSkillRequest) =>
+    send<AgentSkillDefinition>('PUT', `api/skills/${encodeURIComponent(name)}`, body),
+  deleteSkill: (name: string) =>
+    request<void>(`api/skills/${encodeURIComponent(name)}`, { method: 'DELETE' }),
 
   sessions: (params: { agentName?: string; skip?: number; take?: number } = {}) =>
     request<SessionRecord[]>(`api/sessions${query(params)}`),

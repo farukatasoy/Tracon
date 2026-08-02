@@ -104,6 +104,8 @@ public static class AgentPrismPostgreSqlBuilderExtensions
                 provider.GetRequiredService<ITenantContext>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
                 provider.GetRequiredService<ILogger<AuditingAgentDefinitionStore>>())));
+        services.Replace(
+            ServiceDescriptor.Singleton<IAgentSkillStore, PostgresAgentSkillStore>());
         services.Replace(ServiceDescriptor.Singleton<IRunStore, PostgresRunStore>());
         services.Replace(ServiceDescriptor.Singleton<ISessionStore, AuditingSessionStore>(
             static provider => new AuditingSessionStore(

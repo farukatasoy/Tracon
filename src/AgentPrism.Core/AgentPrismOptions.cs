@@ -29,6 +29,25 @@ public sealed class AgentPrismOptions
 
     /// <summary>Denetim izi ayarlari.</summary>
     public AgentPrismAuditOptions Audit { get; set; } = new();
+
+    /// <summary>Skill yukleme sinirlari.</summary>
+    public AgentPrismSkillOptions Skills { get; set; } = new();
+}
+
+/// <summary>Skill icerigi ve agent baglantisi icin sinirlar.</summary>
+public sealed class AgentPrismSkillOptions
+{
+    /// <summary>Tek bir agent'a baglanabilecek en fazla skill sayisi.</summary>
+    public int MaxSkillsPerAgent { get; set; } = 10;
+
+    /// <summary>Markdown talimatlarinin en fazla bayt sayisi.</summary>
+    public int MaxInstructionsLength { get; set; } = 64 * 1024;
+
+    /// <summary>Tek bir kaynak iceriginin en fazla bayt sayisi.</summary>
+    public int MaxResourceContentLength { get; set; } = 256 * 1024;
+
+    /// <summary>Bir skill'in tasiyabilecegi en fazla kaynak sayisi.</summary>
+    public int MaxResourcesPerSkill { get; set; } = 20;
 }
 
 /// <summary>Denetim izi aktor cozumlemesinin ayarlari.</summary>

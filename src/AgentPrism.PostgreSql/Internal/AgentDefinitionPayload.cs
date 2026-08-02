@@ -34,6 +34,9 @@ internal sealed record AgentDefinitionPayload
     /// <summary>Kullanilabilecek tool adlari.</summary>
     public IReadOnlyList<string> ToolNames { get; init; } = [];
 
+    /// <summary>Calisma aninda yuklenebilecek skill adlari.</summary>
+    public IReadOnlyList<string> SkillNames { get; init; } = [];
+
     /// <summary>Harness ayarlari.</summary>
     public HarnessSettings? Harness { get; init; }
 
@@ -51,6 +54,7 @@ internal sealed record AgentDefinitionPayload
             Instructions = definition.Instructions,
             Model = definition.Model,
             ToolNames = definition.ToolNames,
+            SkillNames = definition.SkillNames,
             Harness = definition.Harness,
             Metadata = definition.Metadata.Count == 0
                 ? null
@@ -72,6 +76,7 @@ internal sealed record AgentDefinitionPayload
             Instructions = Instructions,
             Model = Model,
             ToolNames = ToolNames,
+            SkillNames = SkillNames,
             Harness = Harness,
             Origin = AgentDefinitionOrigin.Database,
             Version = version,
