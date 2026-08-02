@@ -116,6 +116,19 @@ public static class AgentPrismPostgreSqlBuilderExtensions
                 provider.GetRequiredService<IAuditActorResolver>(),
                 provider.GetRequiredService<ILogger<AuditingSkillScriptGrantStore>>())));
         services.Replace(ServiceDescriptor.Singleton<IRunStore, PostgresRunStore>());
+
+        // Workflow tanimlari ve kontrol noktalari (Faz 15). Tanim deposu denetim
+        // izi dekoratoruyle sarilir; kontrol noktasi deposu sarilmaz: nokta bir
+        // kullanici karari degil, yurutmenin yan urunudur ve her super-step'te
+        // yazilir - denetim izini doldururdu.
+        services.Replace(ServiceDescriptor.Singleton<IWorkflowDefinitionStore, AuditingWorkflowDefinitionStore>(
+            static provider => new AuditingWorkflowDefinitionStore(
+                ActivatorUtilities.CreateInstance<PostgresWorkflowDefinitionStore>(provider),
+                provider.GetRequiredService<IAuditLog>(),
+                provider.GetRequiredService<IAuditActorResolver>(),
+                provider.GetRequiredService<ILogger<AuditingWorkflowDefinitionStore>>())));
+        services.Replace(
+            ServiceDescriptor.Singleton<IWorkflowCheckpointStore, PostgresWorkflowCheckpointStore>());
         services.Replace(ServiceDescriptor.Singleton<ISessionStore, AuditingSessionStore>(
             static provider => new AuditingSessionStore(
                 ActivatorUtilities.CreateInstance<PostgresSessionStore>(provider),

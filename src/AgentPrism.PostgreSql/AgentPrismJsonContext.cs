@@ -22,6 +22,7 @@ namespace AgentPrism;
     JsonSerializerDefaults.Web,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(AgentDefinitionPayload))]
+[JsonSerializable(typeof(WorkflowDefinitionPayload))]
 [JsonSerializable(typeof(ChatHistoryState))]
 [JsonSerializable(typeof(ChatMessage))]
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]

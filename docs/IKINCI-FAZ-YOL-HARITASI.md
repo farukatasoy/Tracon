@@ -35,8 +35,8 @@ Sıralama bu beş cevaba göre kuruldu. Cevaplar karar defterine de yazıldı
 | 12 | [12-AGENT-CAGRI-GRAFIGI.md](12-AGENT-CAGRI-GRAFIGI.md) | F-10 | ✅ **Tamamlandı (2026-08-02)** — agent'ın agent'ı çağırması, çalıştırma ağacı, paylaşılan bütçe | — | 0005 |
 | 13 | [13-BAGLAM-SIKISTIRMA-VE-BELLEK.md](13-BAGLAM-SIKISTIRMA-VE-BELLEK.md) | F-11 | ✅ **Tamamlandı (2026-08-02)** — 5 sıkıştırma stratejisi + pipeline, 3 bellek sağlayıcısı; vektör tabanlı bellek K-105 ile kapsam dışı | — | — |
 | 14 | [14-COK-MODLULUK.md](14-COK-MODLULUK.md) | F-12 | ✅ **Tamamlandı (2026-08-02)** — görsel/dosya eki: `attachments` + `agent_files` tabloları, ek referansı model çağrısından hemen önce çözülür | — | 0006 |
-| 15 | [15-WORKFLOWS-YURUTME.md](15-WORKFLOWS-YURUTME.md) | F-27 (1/2) | En büyük iş. Yürütme ve checkpoint kalıcılığı | `AgentPrism.Workflows` | 0007 |
-| 16 | [16-WORKFLOWS-ARAYUZ.md](16-WORKFLOWS-ARAYUZ.md) | F-27 (2/2) | Graf görselleştirme, human-in-the-loop, bildirimsel tanım | — | — |
+| 15 | [15-WORKFLOWS-YURUTME.md](15-WORKFLOWS-YURUTME.md) | F-27 (1/2) | ✅ **Tamamlandı** (2026-08-03) — beş desen, checkpoint, sürdürme | `AgentPrism.Workflows` | 0007 |
+| 16 | [16-WORKFLOWS-ARAYUZ.md](16-WORKFLOWS-ARAYUZ.md) | F-27 (2/2) | **Sıradaki.** Graf görselleştirme, human-in-the-loop, bildirimsel tanım. Desenler Faz 15'te tamamlandı (K-119) | — | — |
 | 17 | [17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md](17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) | F-22 | İş kuyruğu altyapısı. Faz 18 bunun üzerine kurulur | — | 0008 |
 | 18 | [18-DEGERLENDIRME.md](18-DEGERLENDIRME.md) | F-14 | Eval. Faz 17'nin kuyruğunu kullanır | — | 0009 |
 | 19 | [19-SURUM-KARSILASTIRMA-VE-AB.md](19-SURUM-KARSILASTIRMA-VE-AB.md) | F-15 · F-24 | "v3 v2'den iyi mi?" sorusu ancak eval'den sonra cevaplanır | — | 0010 |

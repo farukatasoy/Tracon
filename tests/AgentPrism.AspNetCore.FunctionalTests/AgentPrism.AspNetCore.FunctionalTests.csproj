@@ -12,6 +12,13 @@
       test ettigi icin OpenAI paketini dogrudan referans eder.
     -->
     <ProjectReference Include="../../src/AgentPrism.OpenAI/AgentPrism.OpenAI.csproj" />
+    <!--
+      Workflow uclari, motor kayitli VE kayitsizken iki farkli davranis gosterir
+      (calistirma 501 doner, tanim yonetimi calisir). Iki yolu da test etmek icin
+      motor paketine ihtiyac var; AgentPrism.AspNetCore'un kendisi bu pakete
+      referans VERMEZ - kural DependencyDirectionTests ile korunur.
+    -->
+    <ProjectReference Include="../../src/AgentPrism.Workflows/AgentPrism.Workflows.csproj" />
   </ItemGroup>
 
   <ItemGroup>

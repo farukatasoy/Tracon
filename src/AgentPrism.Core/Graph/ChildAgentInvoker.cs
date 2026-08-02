@@ -257,20 +257,25 @@ public sealed class ChildAgentInvoker : AIAgent
         CancellationToken cancellationToken)
         => WriteAsync(scope, RunEventType.ChildRunCompleted, childOptions, CancellationToken.None);
 
-    private ValueTask WriteAsync(
+    private async ValueTask WriteAsync(
         AgentRunScope scope,
         RunEventType type,
         AgentPrismRunOptions childOptions,
         CancellationToken cancellationToken)
-        => scope.Writer is { } writer
-            ? writer.AppendAsync(
-                new RunEventDraft(type)
-                {
-                    Text = _childName,
-                    Payload = childOptions.RunId?.ToString(),
-                },
-                cancellationToken)
-            : default;
+    {
+        if (scope.Writer is not { } writer)
+        {
+            return;
+        }
+
+        await writer.AppendAsync(
+            new RunEventDraft(type)
+            {
+                Text = _childName,
+                Payload = childOptions.RunId?.ToString(),
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
 
     private async ValueTask<AIAgent> ResolveAsync(CancellationToken cancellationToken)
     {

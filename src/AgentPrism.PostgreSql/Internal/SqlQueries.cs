@@ -249,9 +249,9 @@ internal sealed class SqlQueries
 
         InsertRun = $"""
             INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, model_id, status, started_at, is_streaming, event_count,
-                                       parent_run_id, root_run_id, depth)
+                                       parent_run_id, root_run_id, depth, kind, workflow_name)
             VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @status, @started_at, @is_streaming, 0,
-                    @parent_run_id, @root_run_id, @depth);
+                    @parent_run_id, @root_run_id, @depth, @kind, @workflow_name);
             """;
 
         UpdateRunCompletion = $"""
@@ -293,7 +293,8 @@ internal sealed class SqlQueries
             r.input_tokens, r.output_tokens, r.total_tokens, r.event_count, r.error_type, r.error_message, r.model_id,
             r.parent_run_id, r.root_run_id, r.depth,
             children.child_count,
-            tree.input_tokens, tree.output_tokens, tree.total_tokens, tree.usage_rows
+            tree.input_tokens, tree.output_tokens, tree.total_tokens, tree.usage_rows,
+            r.kind, r.workflow_name
             """;
 
         SelectRun = $"""
@@ -646,6 +647,70 @@ internal sealed class SqlQueries
             ORDER BY path;
             """;
 
+        // --- Workflow'lar (Faz 15) ---
+
+        UpsertWorkflow = $"""
+            INSERT INTO {Schema}.workflows (id, tenant_id, name, version, definition, created_at, updated_at)
+            VALUES (@id, @tenant_id, @name, 1, @definition, @now, @now)
+            ON CONFLICT (tenant_id, name) DO UPDATE
+                SET version    = {Schema}.workflows.version + 1,
+                    definition = EXCLUDED.definition,
+                    updated_at = EXCLUDED.updated_at
+            RETURNING version, updated_at;
+            """;
+
+        SelectWorkflow = $"""
+            SELECT definition, version, updated_at
+            FROM {Schema}.workflows
+            WHERE tenant_id = @tenant_id AND name = @name;
+            """;
+
+        SelectWorkflows = $"""
+            SELECT definition, version, updated_at, name
+            FROM {Schema}.workflows
+            WHERE tenant_id = @tenant_id
+            ORDER BY name;
+            """;
+
+        DeleteWorkflow = $"DELETE FROM {Schema}.workflows WHERE tenant_id = @tenant_id AND name = @name;";
+
+        // Kontrol noktasi kimligini AgentPrism uretir; catisma yalnizca ayni
+        // kimligin iki kez yazilmasi demektir ve bu bir hatadir -- sessizce
+        // gecilmez, bu yuzden ON CONFLICT yan tumcesi YOKTUR.
+        InsertWorkflowCheckpoint = $"""
+            INSERT INTO {Schema}.workflow_checkpoints
+                (id, tenant_id, session_id, checkpoint_id, parent_id, run_id, state, created_at)
+            VALUES (@id, @tenant_id, @session_id, @checkpoint_id, @parent_id, @run_id, @state, @created_at);
+            """;
+
+        SelectWorkflowCheckpoint = $"""
+            SELECT state
+            FROM {Schema}.workflow_checkpoints
+            WHERE tenant_id = @tenant_id AND session_id = @session_id AND checkpoint_id = @checkpoint_id;
+            """;
+
+        // Durum yuku BILEREK secilmez: liste ustveridir ve her satirin yanina
+        // kilobaytlarca opak JSON tasimak, arayuzun checkpoint listesini
+        // acilamaz hale getirirdi.
+        SelectWorkflowCheckpoints = $"""
+            SELECT id, tenant_id, session_id, checkpoint_id, parent_id, run_id, created_at
+            FROM {Schema}.workflow_checkpoints
+            WHERE tenant_id = @tenant_id AND session_id = @session_id
+            ORDER BY created_at, checkpoint_id;
+            """;
+
+        SelectWorkflowCheckpointsByRun = $"""
+            SELECT id, tenant_id, session_id, checkpoint_id, parent_id, run_id, created_at
+            FROM {Schema}.workflow_checkpoints
+            WHERE tenant_id = @tenant_id AND run_id = @run_id
+            ORDER BY created_at, checkpoint_id;
+            """;
+
+        DeleteWorkflowCheckpoints = $"""
+            DELETE FROM {Schema}.workflow_checkpoints
+            WHERE tenant_id = @tenant_id AND session_id = @session_id;
+            """;
+
         // --- Denetim izi (Faz 9) ---
 
         InsertAuditEntry = $"""
@@ -747,6 +812,33 @@ internal sealed class SqlQueries
 
     /// <summary>Bir agent'in tum kalici dosyalarini okur.</summary>
     public string SelectAgentFiles { get; }
+
+    /// <summary>Bir workflow tanimini kaydeder ve surumunu artirir.</summary>
+    public string UpsertWorkflow { get; }
+
+    /// <summary>Tek bir workflow tanimini getirir.</summary>
+    public string SelectWorkflow { get; }
+
+    /// <summary>Bir kiracinin workflow tanimlarini listeler.</summary>
+    public string SelectWorkflows { get; }
+
+    /// <summary>Bir workflow tanimini siler.</summary>
+    public string DeleteWorkflow { get; }
+
+    /// <summary>Bir kontrol noktasi yazar.</summary>
+    public string InsertWorkflowCheckpoint { get; }
+
+    /// <summary>Tek bir kontrol noktasinin durumunu okur.</summary>
+    public string SelectWorkflowCheckpoint { get; }
+
+    /// <summary>Bir oturumun kontrol noktalarinin ustverisini listeler.</summary>
+    public string SelectWorkflowCheckpoints { get; }
+
+    /// <summary>Bir calistirmanin kontrol noktalarinin ustverisini listeler.</summary>
+    public string SelectWorkflowCheckpointsByRun { get; }
+
+    /// <summary>Bir oturumun tum kontrol noktalarini siler.</summary>
+    public string DeleteWorkflowCheckpoints { get; }
 
     /// <summary>Bir denetim izi kaydi ekler.</summary>
     public string InsertAuditEntry { get; }

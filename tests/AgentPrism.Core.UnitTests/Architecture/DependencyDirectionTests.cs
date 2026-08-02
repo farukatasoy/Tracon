@@ -36,9 +36,13 @@ public sealed class DependencyDirectionTests
         // IMcpToolRefresher soyutlamasi uzerinden tetikler, ters yonde bir
         // referans YOKTUR. Boylece MCP istege bagli bir paket olarak kalir.
         ["AgentPrism.Mcp"] = ["AgentPrism.Core"],
+        // Workflows da yalnizca Core'a baglidir: HTTP katmani workflow'lari
+        // IWorkflowRunner soyutlamasi uzerinden calistirir ve bu pakete
+        // referans VERMEZ. MCP ile birebir ayni desen.
+        ["AgentPrism.Workflows"] = ["AgentPrism.Core"],
         ["AgentPrism.AspNetCore"] = ["AgentPrism.Core"],
         ["AgentPrism.UI"] = ["AgentPrism.AspNetCore"],
-        ["AgentPrism"] = ["AgentPrism.AspNetCore", "AgentPrism.Mcp", "AgentPrism.OpenAI", "AgentPrism.PostgreSql", "AgentPrism.UI"],
+        ["AgentPrism"] = ["AgentPrism.AspNetCore", "AgentPrism.Mcp", "AgentPrism.OpenAI", "AgentPrism.PostgreSql", "AgentPrism.UI", "AgentPrism.Workflows"],
     };
 
     [Fact]

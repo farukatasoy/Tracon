@@ -29,8 +29,17 @@ public sealed record RunStartInfo
     /// <summary>Calistirma kimligi. Cagiran taraf uretir, boylece kimligi hemen bilir.</summary>
     public required Guid RunId { get; init; }
 
-    /// <summary>Calistirilan agent'in adi.</summary>
+    /// <summary>
+    /// Calistirilan agent'in adi. Workflow calistirmalarinda workflow'un adi
+    /// yazilir; gerekce <see cref="RunRecord.AgentName"/> aciklamasindadir.
+    /// </summary>
     public required string AgentName { get; init; }
+
+    /// <summary>Bu satirin bir agent'i mi yoksa bir workflow'u mu kaydettigi.</summary>
+    public RunKind Kind { get; init; }
+
+    /// <summary>Calistirilan workflow'un adi. Agent calistirmalarinda <see langword="null"/>.</summary>
+    public string? WorkflowName { get; init; }
 
     /// <summary>Baslangic zamani (UTC).</summary>
     public required DateTimeOffset StartedAt { get; init; }

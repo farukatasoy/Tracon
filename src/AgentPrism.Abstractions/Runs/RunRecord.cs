@@ -6,8 +6,21 @@ public sealed record RunRecord
     /// <summary>Calistirma kimligi. Zaman sirali UUID (v7).</summary>
     public required Guid Id { get; init; }
 
-    /// <summary>Calistirilan agent'in adi.</summary>
+    /// <summary>
+    /// Calistirilan agent'in adi. Workflow calistirmalarinda workflow'un adidir:
+    /// mevcut listeler, istatistikler ve arayuz bu sutunu okur ve bos birakmak
+    /// workflow satirlarini adsiz gosterirdi.
+    /// </summary>
     public required string AgentName { get; init; }
+
+    /// <summary>Bu satirin bir agent'i mi yoksa bir workflow'u mu kaydettigi.</summary>
+    public RunKind Kind { get; init; }
+
+    /// <summary>
+    /// Calistirilan workflow'un adi. Yalnizca <see cref="RunKind.Workflow"/>
+    /// satirlarinda dolu.
+    /// </summary>
+    public string? WorkflowName { get; init; }
 
     /// <summary>Calistirmanin guncel durumu.</summary>
     public required RunStatus Status { get; init; }
