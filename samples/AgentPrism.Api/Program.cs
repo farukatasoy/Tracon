@@ -9,8 +9,9 @@
 //   - tanimli degilse          -> ag cagrisi yapmayan EchoModelProvider
 //   - baglanti dizesi tanimliysa -> PostgreSQL; degilse bellek ici depolar
 //
-// HTTP katmani hala gecici: Faz 4'te tek bir `app.MapAgentPrism("/agentprism")`
-// cagrisi asagidaki uclarin yerini alir. Bkz. docs/04-HTTP-API.md
+// HTTP katmani Faz 4'te geldi: tek bir `app.MapAgentPrism("/agentprism")` cagrisi
+// yonetim API'sini ve OpenAI uyumlu calistirma uclarini baglar.
+// Bkz. docs/04-HTTP-API.md
 //
 // Calistirmadan once sirlari ayarlayin:
 //   dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=localhost;Database=AgentPrism;Username=...;Password=..."
@@ -23,6 +24,11 @@ using Microsoft.Agents.AI;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddProblemDetails();
+
+// OpenAPI belgesi TUKETICININ tercihidir. AgentPrism.AspNetCore bu pakete
+// BAGIMLI DEGILDIR; uclar paylasilan cerceveden gelen ustveriyi tasir ve
+// AddOpenApi() cagrildiginda belgede kendiliginden gorunur.
+builder.Services.AddOpenApi();
 
 var agentPrism = builder.AddAgentPrism()
     // Tool'lar YALNIZCA kodda tanimlanir. Arayuz (Faz 5) bu listeden secim
@@ -106,7 +112,7 @@ app.UseStatusCodePages();
 app.MapGet("/health", (IRunStore runs, ISessionStore sessions) => Results.Ok(new
 {
     status = "healthy",
-    phase = "3 - saglayici ve derleyici",
+    phase = "4 - http api",
     storage = new
     {
         persistent = persistenceEnabled,
@@ -122,65 +128,23 @@ app.MapGet("/health", (IRunStore runs, ISessionStore sessions) => Results.Ok(new
     },
 }));
 
-// --- Gecici tanitim uclari. Faz 4'te app.MapAgentPrism() bunlarin yerini alir. ---
+app.MapOpenApi();
 
-app.MapGet("/agents", async (IAgentCatalog catalog, CancellationToken cancellationToken)
-    => Results.Ok(await catalog.ListAsync(cancellationToken)));
-
-app.MapGet("/tools", (IToolRegistry tools) => Results.Ok(tools.List()));
-
-app.MapGet("/models", (IModelProviderRegistry models) => Results.Ok(models.List()));
-
-app.MapPost("/agents/{name}/run", async (
-    string name,
-    RunRequest request,
-    IAgentCatalog catalog,
-    AgentSessionManager sessions,
-    CancellationToken cancellationToken) =>
+// Faz 4'un tek giris noktasi. Yonetim API'si (/agentprism/api/*) ve OpenAI uyumlu
+// calistirma uclari (/agentprism/v1/*) bu tek cagriyla baglanir.
+//
+// Erisim varsayilan olarak loopback ile sinirlidir. Uretimde bir authorization
+// policy baglanir:
+//     options.RequireAuthorization("AgentPrismAdmin");
+//
+// Bearer token yalnizca sirlardan okunur; appsettings.json'a YAZILMAZ:
+//     dotnet user-secrets set "AgentPrism:Ui:AuthToken" "..."
+app.MapAgentPrism("/agentprism", options =>
 {
-    var agent = await catalog.ResolveAsync(name, cancellationToken);
-
-    if (agent is null)
+    if (builder.Configuration["AgentPrism:Ui:AuthToken"] is { Length: > 0 } token)
     {
-        return Results.NotFound(new { message = $"'{name}' adinda bir agent bulunamadi." });
+        options.AuthToken = token;
     }
-
-    // Oturum kimligi verilmemisse oturumsuz calis: gecmis tasinmaz.
-    if (string.IsNullOrWhiteSpace(request.SessionId))
-    {
-        var single = await agent.RunAsync(request.Message, cancellationToken: cancellationToken);
-        return Results.Ok(new { text = single.Text, sessionId = (string?)null });
-    }
-
-    AgentSession session = await sessions.GetOrCreateSessionAsync(agent, request.SessionId, cancellationToken);
-    var response = await agent.RunAsync(request.Message, session, cancellationToken: cancellationToken);
-
-    await sessions.SaveSessionAsync(agent, session, cancellationToken);
-
-    return Results.Ok(new { text = response.Text, sessionId = request.SessionId });
 });
 
-app.MapGet("/sessions", async (AgentSessionManager sessions, CancellationToken cancellationToken)
-    => Results.Ok(await sessions.QuerySessionsAsync(new SessionQuery(), cancellationToken)));
-
-app.MapDelete("/sessions/{sessionId}", async (
-    string sessionId,
-    AgentSessionManager sessions,
-    CancellationToken cancellationToken)
-    => await sessions.DeleteSessionAsync(sessionId, cancellationToken)
-        ? Results.NoContent()
-        : Results.NotFound());
-
-app.MapGet("/runs", async (IRunStore runs, CancellationToken cancellationToken)
-    => Results.Ok(await runs.QueryRunsAsync(new RunQuery(), cancellationToken)));
-
-app.MapGet("/runs/{runId:guid}/events", (Guid runId, IRunStore runs, CancellationToken cancellationToken)
-    => runs.ReadEventsAsync(runId, cancellationToken: cancellationToken));
-
 app.Run();
-
-/// <summary>
-/// Fonksiyonel testlerin <c>WebApplicationFactory&lt;Program&gt;</c> ile bu barindiriciyi
-/// ayaga kaldirabilmesi icin gereken acik giris noktasi tipi.
-/// </summary>
-public partial class Program;

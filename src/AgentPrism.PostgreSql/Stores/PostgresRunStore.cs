@@ -167,6 +167,81 @@ public sealed class PostgresRunStore : IRunStore
     }
 
     /// <inheritdoc />
+    public async ValueTask<RunStatistics> GetStatisticsAsync(
+        RunStatisticsQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var command = CreateCommand(_sql.SelectRunStatistics);
+        command.Parameters.AddWithValue("tenant_id", query.TenantId ?? _tenantContext.TenantId);
+        AddNullableText(command, "agent_name", query.AgentName);
+        command.Parameters.Add(new NpgsqlParameter("started_after", NpgsqlDbType.TimestampTz)
+        {
+            Value = query.StartedAfter is { } after ? (object)after.UtcDateTime : DBNull.Value,
+        });
+        command.Parameters.AddWithValue("max_agents", Math.Max(query.MaxAgents, 0));
+        command.Parameters.AddWithValue("status_running", (short)RunStatus.Running);
+        command.Parameters.AddWithValue("status_completed", (short)RunStatus.Completed);
+        command.Parameters.AddWithValue("status_failed", (short)RunStatus.Failed);
+        command.Parameters.AddWithValue("status_canceled", (short)RunStatus.Canceled);
+
+        await using (command.ConfigureAwait(false))
+        {
+            var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+            await using (reader.ConfigureAwait(false))
+            {
+                // Birinci sonuc kumesi: toplam ozet. Toplama sorgusu her zaman
+                // tam olarak bir satir dondurur.
+                if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    return EmptyStatistics;
+                }
+
+                var total = reader.GetInt64(0);
+                var completed = reader.GetInt64(1);
+                var failed = reader.GetInt64(2);
+                var canceled = reader.GetInt64(3);
+                var running = reader.GetInt64(4);
+                var inputTokens = reader.GetInt64(5);
+                var outputTokens = reader.GetInt64(6);
+                var totalTokens = reader.GetInt64(7);
+
+                // Ikinci sonuc kumesi: agent kirilimi.
+                var byAgent = new List<RunAgentStatistics>();
+
+                if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        byAgent.Add(new RunAgentStatistics
+                        {
+                            AgentName = reader.GetString(0),
+                            TotalRuns = reader.GetInt64(1),
+                            FailedRuns = reader.GetInt64(2),
+                            TotalTokens = reader.GetInt64(3),
+                        });
+                    }
+                }
+
+                return new RunStatistics
+                {
+                    TotalRuns = total,
+                    CompletedRuns = completed,
+                    FailedRuns = failed,
+                    CanceledRuns = canceled,
+                    RunningRuns = running,
+                    InputTokens = inputTokens,
+                    OutputTokens = outputTokens,
+                    TotalTokens = totalTokens,
+                    ByAgent = byAgent,
+                };
+            }
+        }
+    }
+
+    /// <inheritdoc />
     public async IAsyncEnumerable<RunEvent> ReadEventsAsync(
         Guid runId,
         long fromSequence = 0,
@@ -190,6 +265,16 @@ public sealed class PostgresRunStore : IRunStore
             }
         }
     }
+
+    /// <summary>Hic satir donmeyen ozet sorgusu icin notr sonuc.</summary>
+    private static RunStatistics EmptyStatistics { get; } = new()
+    {
+        TotalRuns = 0,
+        CompletedRuns = 0,
+        FailedRuns = 0,
+        CanceledRuns = 0,
+        RunningRuns = 0,
+    };
 
     private NpgsqlCommand CreateCommand(string sql)
     {

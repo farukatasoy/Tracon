@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace AgentPrism;
 
@@ -148,6 +149,83 @@ public sealed class InMemoryRunStore : IRunStore
     }
 
     /// <inheritdoc />
+    public ValueTask<RunStatistics> GetStatisticsAsync(
+        RunStatisticsQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        long total = 0, completed = 0, failed = 0, canceled = 0, running = 0;
+        long inputTokens = 0, outputTokens = 0, totalTokens = 0;
+        var perAgent = new Dictionary<string, AgentTally>(StringComparer.Ordinal);
+
+        foreach (var record in _runs.Values)
+        {
+            if (query.AgentName is { } agentName && !string.Equals(record.AgentName, agentName, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (query.TenantId is { } tenantId && !string.Equals(record.TenantId, tenantId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (query.StartedAfter is { } after && record.StartedAt <= after)
+            {
+                continue;
+            }
+
+            total++;
+
+            switch (record.Status)
+            {
+                case RunStatus.Completed: completed++; break;
+                case RunStatus.Failed: failed++; break;
+                case RunStatus.Canceled: canceled++; break;
+                case RunStatus.Running: running++; break;
+                default: break;
+            }
+
+            inputTokens += record.Usage?.InputTokens ?? 0;
+            outputTokens += record.Usage?.OutputTokens ?? 0;
+            totalTokens += record.Usage?.TotalTokens ?? 0;
+
+            perAgent.TryGetValue(record.AgentName, out var tally);
+            perAgent[record.AgentName] = new AgentTally(
+                tally.TotalRuns + 1,
+                tally.FailedRuns + (record.Status == RunStatus.Failed ? 1 : 0),
+                tally.TotalTokens + (record.Usage?.TotalTokens ?? 0));
+        }
+
+        var byAgent = perAgent
+            .Select(static pair => new RunAgentStatistics
+            {
+                AgentName = pair.Key,
+                TotalRuns = pair.Value.TotalRuns,
+                FailedRuns = pair.Value.FailedRuns,
+                TotalTokens = pair.Value.TotalTokens,
+            })
+            .OrderByDescending(static agent => agent.TotalRuns)
+            .ThenBy(static agent => agent.AgentName, StringComparer.Ordinal)
+            .Take(Math.Max(query.MaxAgents, 0))
+            .ToList();
+
+        return new ValueTask<RunStatistics>(new RunStatistics
+        {
+            TotalRuns = total,
+            CompletedRuns = completed,
+            FailedRuns = failed,
+            CanceledRuns = canceled,
+            RunningRuns = running,
+            InputTokens = inputTokens,
+            OutputTokens = outputTokens,
+            TotalTokens = totalTokens,
+            ByAgent = byAgent,
+        });
+    }
+
+    /// <inheritdoc />
     public async IAsyncEnumerable<RunEvent> ReadEventsAsync(
         Guid runId,
         long fromSequence = 0,
@@ -178,6 +256,10 @@ public sealed class InMemoryRunStore : IRunStore
 
         await Task.CompletedTask.ConfigureAwait(false);
     }
+
+    /// <summary>Bir agent icin biriken sayaclar. Yalnizca ozet hesabinda kullanilir.</summary>
+    [StructLayout(LayoutKind.Auto)]
+    private readonly record struct AgentTally(long TotalRuns, long FailedRuns, long TotalTokens);
 
     private void TrimIfNeeded()
     {
