@@ -5,6 +5,7 @@
     <Project Path="src/AgentPrism.Core/AgentPrism.Core.csproj" />
     <Project Path="src/AgentPrism.PostgreSql/AgentPrism.PostgreSql.csproj" />
     <Project Path="src/AgentPrism.OpenAI/AgentPrism.OpenAI.csproj" />
+    <Project Path="src/AgentPrism.Mcp/AgentPrism.Mcp.csproj" />
     <Project Path="src/AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj" />
     <Project Path="src/AgentPrism.UI/AgentPrism.UI.csproj" />
     <Project Path="src/AgentPrism/AgentPrism.csproj" />

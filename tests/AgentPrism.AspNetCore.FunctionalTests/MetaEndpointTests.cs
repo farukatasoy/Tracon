@@ -126,5 +126,14 @@ public sealed class MetaEndpointTests
 
         public IAsyncEnumerable<RunEvent> ReadEventsAsync(Guid runId, long fromSequence = 0, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
+
+        public ValueTask RecordToolInvocationAsync(ToolInvocationRecord invocation, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<ToolInvocationRecord>> ListToolInvocationsAsync(Guid runId, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<ToolUsage>> GetToolUsageAsync(ToolUsageQuery query, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
     }
 }

@@ -127,8 +127,8 @@ internal sealed class SqlQueries
         // --- Calistirmalar ---
 
         InsertRun = $"""
-            INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, status, started_at, is_streaming, event_count)
-            VALUES (@id, @tenant_id, @agent_name, @session_id, @status, @started_at, @is_streaming, 0);
+            INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, model_id, status, started_at, is_streaming, event_count)
+            VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @status, @started_at, @is_streaming, 0);
             """;
 
         UpdateRunCompletion = $"""
@@ -146,14 +146,14 @@ internal sealed class SqlQueries
 
         SelectRun = $"""
             SELECT id, tenant_id, agent_name, session_id, status, started_at, completed_at, is_streaming,
-                   input_tokens, output_tokens, total_tokens, event_count, error_type, error_message
+                   input_tokens, output_tokens, total_tokens, event_count, error_type, error_message, model_id
             FROM {Schema}.runs
             WHERE id = @id AND tenant_id = @tenant_id;
             """;
 
         SelectRuns = $"""
             SELECT id, tenant_id, agent_name, session_id, status, started_at, completed_at, is_streaming,
-                   input_tokens, output_tokens, total_tokens, event_count, error_type, error_message
+                   input_tokens, output_tokens, total_tokens, event_count, error_type, error_message, model_id
             FROM {Schema}.runs
             WHERE tenant_id = @tenant_id
               AND (@agent_name IS NULL OR agent_name = @agent_name)
@@ -191,6 +191,20 @@ internal sealed class SqlQueries
               AND (@started_after IS NULL OR started_at > @started_after)
             GROUP BY agent_name
             ORDER BY COUNT(*) DESC, agent_name
+            LIMIT @max_agents;
+
+            SELECT model_id,
+                   COUNT(*)::bigint,
+                   COALESCE(SUM(input_tokens), 0)::bigint,
+                   COALESCE(SUM(output_tokens), 0)::bigint,
+                   COALESCE(SUM(total_tokens), 0)::bigint
+            FROM {Schema}.runs
+            WHERE tenant_id = @tenant_id
+              AND model_id IS NOT NULL
+              AND (@agent_name IS NULL OR agent_name = @agent_name)
+              AND (@started_after IS NULL OR started_at > @started_after)
+            GROUP BY model_id
+            ORDER BY COUNT(*) DESC, model_id
             LIMIT @max_agents;
             """;
 
@@ -237,7 +251,216 @@ internal sealed class SqlQueries
             WHERE i.conversation_id = @conversation_id AND c.tenant_id = @tenant_id
             ORDER BY i.seq;
             """;
+
+        // --- Tool cagrilari (Faz 6) ---
+
+        InsertToolInvocation = $"""
+            INSERT INTO {Schema}.tool_invocations
+                (id, run_id, tool_name, tool_call_id, source, arguments, result, duration_ms, error, created_at)
+            VALUES
+                (@id, @run_id, @tool_name, @tool_call_id, @source, @arguments, @result, @duration_ms, @error, @created_at);
+            """;
+
+        SelectToolInvocations = $"""
+            SELECT t.id, t.run_id, t.tool_name, t.tool_call_id, t.source, t.arguments, t.result,
+                   t.duration_ms, t.error, t.created_at
+            FROM {Schema}.tool_invocations t
+            JOIN {Schema}.runs r ON r.id = t.run_id
+            WHERE t.run_id = @run_id AND r.tenant_id = @tenant_id
+            ORDER BY t.created_at, t.id;
+            """;
+
+        // Ortalama sure yalnizca sure tasiyan cagrilar uzerinden alinir:
+        // AVG NULL degerleri zaten atlar, bu yuzden payda dogru olur.
+        SelectToolUsage = $"""
+            SELECT t.tool_name,
+                   COUNT(*)::bigint,
+                   COUNT(*) FILTER (WHERE t.error IS NOT NULL)::bigint,
+                   AVG(t.duration_ms)::double precision,
+                   MAX(t.created_at)
+            FROM {Schema}.tool_invocations t
+            JOIN {Schema}.runs r ON r.id = t.run_id
+            WHERE r.tenant_id = @tenant_id
+              AND (@started_after IS NULL OR r.started_at > @started_after)
+            GROUP BY t.tool_name
+            ORDER BY COUNT(*) DESC, t.tool_name
+            LIMIT @max_tools;
+            """;
+
+        // --- Span'ler (Faz 6) ---
+
+        // Trace basligi kiraci + W3C kimligi ciftinde benzersizdir; ayni
+        // calistirma icin ikinci bir yazma basligi guncellemekle yetinir.
+        UpsertTrace = $"""
+            INSERT INTO {Schema}.traces (id, tenant_id, trace_id, run_id, started_at, ended_at)
+            VALUES (@id, @tenant_id, @trace_id, @run_id, @started_at, @ended_at)
+            ON CONFLICT (tenant_id, trace_id) DO UPDATE
+                SET run_id     = COALESCE(EXCLUDED.run_id, {Schema}.traces.run_id),
+                    started_at = LEAST({Schema}.traces.started_at, EXCLUDED.started_at),
+                    ended_at   = GREATEST({Schema}.traces.ended_at, EXCLUDED.ended_at)
+            RETURNING id;
+            """;
+
+        // Span kimligi W3C kimliklerinden turetilir, bu yuzden ayni span iki kez
+        // yazilirsa cakisir ve satir guncellenir; tekrar kaydi olusmaz.
+        UpsertSpan = $"""
+            INSERT INTO {Schema}.spans
+                (id, trace_id, parent_span_id, span_id, name, kind, started_at, ended_at, attributes, status)
+            VALUES
+                (@id, @trace_id, @parent_span_id, @span_id, @name, @kind, @started_at, @ended_at, @attributes, @status)
+            ON CONFLICT (id) DO UPDATE
+                SET ended_at   = EXCLUDED.ended_at,
+                    attributes = EXCLUDED.attributes,
+                    status     = EXCLUDED.status;
+            """;
+
+        SelectTraceByRun = $"""
+            SELECT id, trace_id, run_id, tenant_id, started_at, ended_at
+            FROM {Schema}.traces
+            WHERE run_id = @run_id AND tenant_id = @tenant_id;
+            """;
+
+        SelectSpans = $"""
+            SELECT id, parent_span_id, span_id, name, kind, started_at, ended_at, attributes, status
+            FROM {Schema}.spans
+            WHERE trace_id = @trace_id
+            ORDER BY started_at, id;
+            """;
+
+        // --- Tool onay kurallari (Faz 6) ---
+
+        SelectToolApprovalRules = $"""
+            SELECT id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at
+            FROM {Schema}.tool_approval_rules
+            WHERE tenant_id = @tenant_id
+            ORDER BY created_at DESC;
+            """;
+
+        // Ayni kapsam icin ikinci bir kural acilmaz; mevcut kayit dondurulur.
+        // Kisit COALESCE'li bir ifade indeksidir cunku NULL'lar PostgreSQL'de
+        // birbirine esit sayilmaz ve duz bir UNIQUE kisit tekrari engellemezdi.
+        InsertToolApprovalRule = $"""
+            INSERT INTO {Schema}.tool_approval_rules
+                (id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at)
+            VALUES (@id, @tenant_id, @agent_name, @tool_name, @arguments_hash, @created_by, @created_at)
+            ON CONFLICT (tenant_id, COALESCE(agent_name, ''), tool_name, COALESCE(arguments_hash, ''))
+                DO UPDATE SET tool_name = {Schema}.tool_approval_rules.tool_name
+            RETURNING id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at;
+            """;
+
+        DeleteToolApprovalRule = $"""
+            DELETE FROM {Schema}.tool_approval_rules
+            WHERE id = @id AND tenant_id = @tenant_id;
+            """;
+
+        // --- MCP sunuculari (Faz 6) ---
+
+        SelectMcpServers = $"""
+            SELECT id, tenant_id, name, description, endpoint, transport,
+                   authorization_configuration_key, headers, enabled, requires_approval, created_at, updated_at
+            FROM {Schema}.mcp_servers
+            WHERE tenant_id = @tenant_id
+            ORDER BY name;
+            """;
+
+        SelectMcpServer = $"""
+            SELECT id, tenant_id, name, description, endpoint, transport,
+                   authorization_configuration_key, headers, enabled, requires_approval, created_at, updated_at
+            FROM {Schema}.mcp_servers
+            WHERE tenant_id = @tenant_id AND name = @name;
+            """;
+
+        UpsertMcpServer = $"""
+            INSERT INTO {Schema}.mcp_servers
+                (id, tenant_id, name, description, endpoint, transport,
+                 authorization_configuration_key, headers, enabled, requires_approval, created_at, updated_at)
+            VALUES
+                (@id, @tenant_id, @name, @description, @endpoint, @transport,
+                 @authorization_configuration_key, @headers, @enabled, @requires_approval, @now, @now)
+            ON CONFLICT (tenant_id, name) DO UPDATE
+                SET description                     = EXCLUDED.description,
+                    endpoint                        = EXCLUDED.endpoint,
+                    transport                       = EXCLUDED.transport,
+                    authorization_configuration_key = EXCLUDED.authorization_configuration_key,
+                    headers                         = EXCLUDED.headers,
+                    enabled                         = EXCLUDED.enabled,
+                    requires_approval               = EXCLUDED.requires_approval,
+                    updated_at                      = EXCLUDED.updated_at
+            RETURNING id, tenant_id, name, description, endpoint, transport,
+                      authorization_configuration_key, headers, enabled, requires_approval, created_at, updated_at;
+            """;
+
+        DeleteMcpServer = $"DELETE FROM {Schema}.mcp_servers WHERE tenant_id = @tenant_id AND name = @name;";
+
+        // --- Kiracilar (Faz 6) ---
+
+        SelectTenants = $"""
+            SELECT id, slug, display_name, created_at
+            FROM {Schema}.tenants
+            ORDER BY slug;
+            """;
+
+        UpsertTenantDescriptor = $"""
+            INSERT INTO {Schema}.tenants (id, slug, display_name, created_at)
+            VALUES (@id, @slug, @display_name, @created_at)
+            ON CONFLICT (slug) DO UPDATE
+                SET display_name = EXCLUDED.display_name
+            RETURNING id, slug, display_name, created_at;
+            """;
+
+        DeleteTenant = $"DELETE FROM {Schema}.tenants WHERE slug = @slug;";
     }
+
+    /// <summary>Bir tool cagrisi kaydi ekler.</summary>
+    public string InsertToolInvocation { get; }
+
+    /// <summary>Bir calistirmanin tool cagrilarini listeler.</summary>
+    public string SelectToolInvocations { get; }
+
+    /// <summary>Tool bazinda kullanim ozetini cikarir.</summary>
+    public string SelectToolUsage { get; }
+
+    /// <summary>Trace basligini ekler veya gunceller ve kimligini dondurur.</summary>
+    public string UpsertTrace { get; }
+
+    /// <summary>Bir span'i ekler veya gunceller.</summary>
+    public string UpsertSpan { get; }
+
+    /// <summary>Bir calistirmanin trace basligini getirir.</summary>
+    public string SelectTraceByRun { get; }
+
+    /// <summary>Bir trace'in span'lerini getirir.</summary>
+    public string SelectSpans { get; }
+
+    /// <summary>Bir kiracinin onay kurallarini listeler.</summary>
+    public string SelectToolApprovalRules { get; }
+
+    /// <summary>Bir onay kurali ekler; ayni kapsam varsa mevcut kaydi dondurur.</summary>
+    public string InsertToolApprovalRule { get; }
+
+    /// <summary>Bir onay kuralini siler.</summary>
+    public string DeleteToolApprovalRule { get; }
+
+    /// <summary>Bir kiracinin MCP sunucularini listeler.</summary>
+    public string SelectMcpServers { get; }
+
+    /// <summary>Tek bir MCP sunucusunu getirir.</summary>
+    public string SelectMcpServer { get; }
+
+    /// <summary>Bir MCP sunucusunu ekler veya gunceller.</summary>
+    public string UpsertMcpServer { get; }
+
+    /// <summary>Bir MCP sunucusunu siler.</summary>
+    public string DeleteMcpServer { get; }
+
+    /// <summary>Kayitli kiracilari listeler.</summary>
+    public string SelectTenants { get; }
+
+    /// <summary>Bir kiraci kaydini ekler veya gunceller.</summary>
+    public string UpsertTenantDescriptor { get; }
+
+    /// <summary>Bir kiraci kaydini siler.</summary>
+    public string DeleteTenant { get; }
 
     /// <summary>Dogrulanmis sema adi.</summary>
     public string Schema { get; }

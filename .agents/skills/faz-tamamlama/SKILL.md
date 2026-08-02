@@ -22,6 +22,14 @@ dotnet pack   AgentPrism.slnx -c Release --no-build
 dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 ```
 
+Yeni bir **paket** eklendiyse `dotnet pack` çıktısını say: paket sayısı beklenenle
+uyuşmalıdır. Yeni paket ayrıca şunları ister — atlanırsa build veya test kırar:
+
+- `src/<Paket>/README.md` (NuGet sayfasında görünür; `DependencyDirectionTests` zorlar)
+- `AgentPrism.slnx` içine `<Project Path=... />`
+- Meta pakete (`src/AgentPrism/AgentPrism.csproj`) `ProjectReference`
+- `DependencyDirectionTests.AllowedReferences` içine bir satır
+
 Ek olarak sır taraması:
 
 ```bash
@@ -32,6 +40,10 @@ grep -rIn -E "sk-[a-z]+-[A-Za-z0-9_-]{24,}|AVNS_[A-Za-z0-9]{12,}|(Password|pwd)=
 Desen, ön ekten sonra en az 24 karakter arar; bu yüzden dokümanlardaki örnekler
 (`sk-...`) yanlış pozitif üretmez. Çıktı boş olmalıdır — sırlar yalnızca
 `dotnet user-secrets` içinde yaşar.
+
+> Testlerde sahte sır literali kullanırken **tarama desenine uymayan** bir değer
+> seçin. Yaşandı: `"sk-cok-gizli-..."` biçimindeki bir test sabiti taramayı
+> kirletti ve sonraki oturum için gürültü üretecekti.
 
 ---
 
@@ -46,6 +58,16 @@ dotnet run --no-build -c Release --urls http://localhost:5081
 ```
 
 Sonuçları faz dokümanının DoD tablosuna **gerçek çıktı olarak** yaz. "Çalışıyor" yeterli değil; ne döndüğü yazılmalı.
+
+> 🚨 **Bu adım testlerin yakalamadığını yakalar.** Faz 6'da iki gerçek hata yalnızca
+> burada ortaya çıktı: yapılandırmanın `Observability` bölümü hiç okunmuyordu
+> (erken dönüş) ve kök span iç span'lerin ebeveyni olmuyordu (`AsyncLocal`).
+> İkisi de 383 testten geçmişti. Varsayılan **dışı** bir yapılandırmayla da
+> çalıştırın — varsayılanlar her zaman en çok test edilen yoldur:
+>
+> ```bash
+> AgentPrism__Observability__SuccessSampleRatio=1 dotnet run --no-build -c Release
+> ```
 
 ---
 
@@ -88,7 +110,8 @@ Bu adım en çok atlanan ve en pahalıya mal olan adımdır. Sonraki faz ayrı b
 | `docs/KARARLAR.md` | Fazda alınan **her** mimari karar, gerekçesiyle ve K-NNN numarasıyla |
 | `MEMORY.md` | Keşfedilen codepath'ler, desenler ve **tuzaklar** (AGENTS.md'de olmayanlar) |
 | `README.md` | Yol haritası tablosundaki durum sütunu; gerekirse hızlı başlangıç örneği |
-| `AGENTS.md` | Yalnızca kalıcı bir çalışma kuralı değiştiyse |
+| `AGENTS.md` | Faz haritası tablosu; ayrıca kalıcı bir çalışma kuralı değiştiyse |
+| `docs/BEYIN-FIRTINASI.md` | Bir kalem yapıldıysa üstü çizilir, reddedildiyse gerekçesi KARARLAR'a taşınır |
 
 **Çapraz kontrol:** Dokümanlar birbiriyle çelişmemelidir. Şu taramayı yap:
 

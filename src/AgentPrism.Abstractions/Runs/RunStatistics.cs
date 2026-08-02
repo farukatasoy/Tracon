@@ -35,9 +35,11 @@ public sealed record RunStatisticsQuery
 /// token toplamina katki vermez.
 /// </para>
 /// <para>
-/// <strong>Maliyet burada yoktur.</strong> Maliyet, kullanilan model adi ile
-/// model kataloguna bakmayi gerektirir; <c>runs</c> tablosu model adini
-/// tasimaz. Model kirilimi ve maliyet Faz 6'da telemetri ile gelir.
+/// <strong>Maliyet burada yoktur.</strong> Faz 6'da <c>runs</c> tablosuna model
+/// adi eklendi ve <see cref="ByModel"/> kirilimi geldi; para birimi cinsinden
+/// maliyet ise model basina fiyat listesi ister. OpenAI <c>/v1/models</c> yalnizca
+/// <c>id</c> dondurur (karar K-032), bu yuzden fiyat AgentPrism'e gomulemez.
+/// Token kirilimi verilir; fiyatlandirmayi tuketici kendi listesiyle yapar.
 /// </para>
 /// </remarks>
 public sealed record RunStatistics
@@ -70,6 +72,12 @@ public sealed record RunStatistics
     public IReadOnlyList<RunAgentStatistics> ByAgent { get; init; } = [];
 
     /// <summary>
+    /// Model bazinda kirilim. Model adi bilinmeyen calistirmalar bu listede
+    /// yer almaz; toplamlarda ise sayilirlar.
+    /// </summary>
+    public IReadOnlyList<RunModelStatistics> ByModel { get; init; } = [];
+
+    /// <summary>
     /// Sonuclanmis calistirmalar icindeki hata orani (0–1). Hic sonuclanmis
     /// calistirma yoksa <see langword="null"/>.
     /// </summary>
@@ -86,6 +94,25 @@ public sealed record RunStatistics
             return settled == 0 ? null : (double)FailedRuns / settled;
         }
     }
+}
+
+/// <summary>Bir modelin calistirma ozeti. Maliyet hesabinin girdisidir.</summary>
+public sealed record RunModelStatistics
+{
+    /// <summary>Model adi.</summary>
+    public required string ModelId { get; init; }
+
+    /// <summary>Bu modelle yapilan toplam calistirma sayisi.</summary>
+    public required long TotalRuns { get; init; }
+
+    /// <summary>Girdi token toplami.</summary>
+    public long InputTokens { get; init; }
+
+    /// <summary>Cikti token toplami.</summary>
+    public long OutputTokens { get; init; }
+
+    /// <summary>Toplam token.</summary>
+    public long TotalTokens { get; init; }
 }
 
 /// <summary>Bir agent'in calistirma ozeti.</summary>

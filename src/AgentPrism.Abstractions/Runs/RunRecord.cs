@@ -24,6 +24,12 @@ public sealed record RunRecord
     /// <summary>Kullanilan oturumun kimligi.</summary>
     public string? SessionId { get; init; }
 
+    /// <summary>
+    /// Calistirmada kullanilan modelin adi. Maliyet ve model kirilimi raporlari
+    /// bunu gerektirir. Agent tanimi model tasimiyorsa <see langword="null"/>.
+    /// </summary>
+    public string? ModelId { get; init; }
+
     /// <summary>Akisli calistirma miydi.</summary>
     public bool IsStreaming { get; init; }
 

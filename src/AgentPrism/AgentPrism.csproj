@@ -12,6 +12,7 @@
 
   <ItemGroup Label="Tum AgentPrism bilesenleri">
     <ProjectReference Include="../AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj" />
+    <ProjectReference Include="../AgentPrism.Mcp/AgentPrism.Mcp.csproj" />
     <ProjectReference Include="../AgentPrism.OpenAI/AgentPrism.OpenAI.csproj" />
     <ProjectReference Include="../AgentPrism.PostgreSql/AgentPrism.PostgreSql.csproj" />
     <ProjectReference Include="../AgentPrism.UI/AgentPrism.UI.csproj" />

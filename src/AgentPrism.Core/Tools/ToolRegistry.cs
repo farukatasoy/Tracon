@@ -26,7 +26,20 @@ public sealed class ToolRegistry : IToolRegistry
         {
             var name = registration.Function.Name;
 
-            if (!_tools.TryAdd(name, registration.Function))
+            // Onay sarmalamasi BURADA yapilir, derleyicide degil. Defter,
+            // "bir agent yalnizca kayitli bir tool'a isaret edebilir" kuralinin
+            // zorlandigi tek yerdir; onay zorunlulugunu da ayni yerde zorlamak
+            // baska bir kod yolunun sarmalamayi atlamasini imkansiz kilar.
+            //
+            // ApprovalRequiredAIFunction bir DelegatingAIFunction'dir: ad,
+            // aciklama ve JSON semasi degismez. Microsoft Agent Framework
+            // sarmalanmis bir tool'u calistirmak yerine
+            // ToolApprovalRequestContent uretir.
+            var function = registration.RequiresApproval
+                ? new ApprovalRequiredAIFunction(registration.Function)
+                : registration.Function;
+
+            if (!_tools.TryAdd(name, function))
             {
                 throw new AgentPrismException(
                     $"'{name}' adinda birden cok tool kaydedilmis. Tool adlari benzersiz olmalidir.");
@@ -40,6 +53,7 @@ public sealed class ToolRegistry : IToolRegistry
                     ? null
                     : registration.Function.JsonSchema.GetRawText(),
                 RequiresApproval = registration.RequiresApproval,
+                Source = registration.Source,
             });
         }
 

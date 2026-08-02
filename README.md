@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Projesine ekleyen geliştirici kendi AI harness'ini kolay ama esnek şekilde kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 5 tamamlandı — arayüz çalışıyor. `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu çalıştırma uçlarını **ve gömülü yönetim arayüzünü** tek prefix altına bağlar. Veritabanı hâlâ **zorunlu değildir**; yapılandırılmazsa depolama bellek içine düşer.
+> **Durum:** Faz 6 tamamlandı — AgentPrism artık **işletilebilir**. Her çalıştırmanın span ağacı ve metriği var, geri alınamaz tool'lar kullanıcı onayı bekliyor, tool'lar uzak MCP sunucularından da gelebiliyor ve kiracı istekten çözülüyor. `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu çalıştırma uçlarını ve gömülü yönetim arayüzünü tek prefix altına bağlar. Veritabanı hâlâ **zorunlu değildir**; yapılandırılmazsa depolama bellek içine düşer.
 
 ```csharp
 builder.AddAgentPrism()
@@ -80,7 +80,7 @@ for item in client.conversations.items.list(conv.id):
 Tool döngüsü sunucuda tamamlanır; her çalıştırma olay olay kaydedilir ve SSE ile geri
 oynatılabilir.
 
-**Bugün çalışan** (Faz 5):
+**Bugün çalışan** (Faz 6):
 
 ```csharp
 builder.AddAgentPrism()
@@ -91,9 +91,10 @@ builder.AddAgentPrism()
            Name = "support",
            Instructions = "Sen bir destek asistanısın.",
            Model = new ModelBinding { Provider = OpenAIProviderNames.ChatCompletions, Model = "gpt-5.4-mini" },
-           ToolNames = ["get_order_status"],
+           ToolNames = ["get_order_status", "cancel_order"],
        })
        .UsePostgreSql(connectionString)       // ← Faz 2; isteğe bağlı
+       .UseMcp()                              // ← Faz 6; uzak MCP tool'ları, isteğe bağlı
        .UseUI();                              // ← Faz 5; gömülü arayüz
 
 // Kalıcı oturumla çalıştır
@@ -159,8 +160,9 @@ AgentPrism bu boşluğu doldurur. DevUI'nin yerine geçmez — bıraktığı yer
 | `AgentPrism.Core` | ✅ Çalışma zamanı, katalog, tanım derleyicisi, tool defteri, oturum yönetimi. **Veritabanı gerektirmez.** |
 | `AgentPrism.PostgreSql` | ✅ Kalıcılık — gömülü SQL migration'ları, ayrı `agentprism` şeması |
 | `AgentPrism.OpenAI` | ✅ OpenAI sağlayıcı adaptörü — Chat Completions + Responses, tool çağrısı, OpenTelemetry |
-| `AgentPrism.AspNetCore` | ✅ HTTP katmanı — yönetim API'si + OpenAI uyumlu uçlar |
-| `AgentPrism.UI` | ✅ Gömülü React arayüzü — yedi ekran, sıfır JavaScript bağımlılığı |
+| `AgentPrism.Mcp` | ✅ Uzak MCP sunucularından tool keşfi — yalnız HTTP, varsayılan onaylı |
+| `AgentPrism.AspNetCore` | ✅ HTTP katmanı — yönetim API'si + OpenAI uyumlu uçlar + çok kiracılılık |
+| `AgentPrism.UI` | ✅ Gömülü React arayüzü — sekiz ekran, sıfır JavaScript bağımlılığı |
 
 **Hedef framework:** `net8.0`, `net9.0`, `net10.0` · **Lisans:** MIT
 
@@ -229,8 +231,13 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [3](docs/03-SAGLAYICI-VE-DERLEYICI.md) | OpenAI sağlayıcısı ve agent derleyici | ✅ Tamamlandı |
 | [4](docs/04-HTTP-API.md) | HTTP API katmanı | ✅ Tamamlandı |
 | [5](docs/05-AGENTPRISM-UI.md) | AgentPrismUI | ✅ Tamamlandı |
-| [6](docs/06-GOZLEMLENEBILIRLIK.md) | Gözlemlenebilirlik, workflows, çok kiracılılık | 🔜 Sıradaki |
-| [7](docs/07-SAGLAMLASTIRMA-VE-YAYIN.md) | Sağlamlaştırma ve yayın | Planlandı |
+| [6](docs/06-GOZLEMLENEBILIRLIK.md) | Gözlemlenebilirlik, tool onayı, MCP, çok kiracılılık | ✅ Tamamlandı |
+| [7](docs/07-SAGLAMLASTIRMA-VE-YAYIN.md) | Sağlamlaştırma ve yayın | 🔜 Sıradaki |
+| [—](docs/BEYIN-FIRTINASI.md) | İkinci faz planı için aday yetenekler | Tartışmaya açık |
+
+> Faz 6, planındaki Workflows kalemini **yapmadı**; ertelendi ve gerekçesi
+> [K-054](docs/KARARLAR.md) ile kayıt altına alındı. Ayrıntı:
+> [06-GOZLEMLENEBILIRLIK.md](docs/06-GOZLEMLENEBILIRLIK.md) sapma S1.
 
 ### Sürüm politikası
 

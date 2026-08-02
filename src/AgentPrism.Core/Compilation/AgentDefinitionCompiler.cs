@@ -229,6 +229,16 @@ public sealed class AgentDefinitionCompiler
             DisableToolAutoApproval = harness.DisableToolAutoApproval,
             DisableAgentSkillsProvider = harness.DisableAgentSkillsProvider,
             DisableAgentModeProvider = harness.DisableAgentModeProvider,
+
+            // Harness kendi ic span'lerini uretir. Kaynak adi verilmezse bunlar
+            // MAF'in kendi kaynagina gider ve AgentPrism'in span deposu onlari
+            // hic gormez; waterfall gorunumunde harness adimlari eksik kalirdi.
+            OpenTelemetrySourceName = AgentPrismDiagnostics.ActivitySourceName,
+
+            // FileAccessStore ve BackgroundAgents BILEREK atanmiyor. Ikisi de
+            // yalnizca deger atandiginda etkinlesir; atanmamis olmalari dosya
+            // erisiminin ve arka plan agent'larinin kapali olmasi demektir.
+            // Gerekce: docs/KARARLAR.md, karar K-062.
         };
 
         return chatClient.AsHarnessAgent(options, _loggerFactory, _services);

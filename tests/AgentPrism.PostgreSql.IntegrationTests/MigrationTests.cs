@@ -8,6 +8,16 @@ namespace AgentPrism.PostgreSql.IntegrationTests;
 /// <summary>Migration calistiricisinin davranisi.</summary>
 public sealed class MigrationRunnerTests(PostgresFixture fixture)
 {
+    /// <summary>
+    /// Gomulu migration sayisi. Sabit yazilmaz: her yeni migration dosyasi bu
+    /// testleri kirardi ve kirilma, testin dogruladigi davranisla ilgisiz olurdu.
+    /// </summary>
+    private static int EmbeddedMigrationCount { get; } = typeof(MigrationRunner).Assembly
+        .GetManifestResourceNames()
+        .Count(static name =>
+            name.StartsWith("AgentPrism.PostgreSql.Migrations.", StringComparison.Ordinal)
+            && name.EndsWith(".sql", StringComparison.Ordinal));
+
     [Fact]
     public async Task Ilk_kosuda_sema_ve_tablolar_olusur()
     {
@@ -15,13 +25,13 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
 
         var applied = await context.Migrations.ApplyAsync();
 
-        applied.ShouldBe(1);
+        applied.ShouldBe(EmbeddedMigrationCount);
 
         var tableCount = await context.ScalarAsync<long>(
             $"SELECT count(*) FROM information_schema.tables WHERE table_schema = '{context.SchemaName}';");
 
-        // 0001_initial.sql 13 tablo + migration defteri olusturur.
-        tableCount.ShouldBe(14);
+        // 0001_initial 13 tablo + migration defteri, 0002_observability 2 tablo daha.
+        tableCount.ShouldBe(16);
     }
 
     [Fact]
@@ -29,7 +39,7 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture, applyMigrations: false);
 
-        (await context.Migrations.ApplyAsync()).ShouldBe(1);
+        (await context.Migrations.ApplyAsync()).ShouldBe(EmbeddedMigrationCount);
         (await context.Migrations.ApplyAsync()).ShouldBe(0);
         (await context.Migrations.ApplyAsync()).ShouldBe(0);
     }
@@ -82,15 +92,15 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
             var results = await Task.WhenAll(
                 contexts.Select(static context => context.Migrations.ApplyAsync().AsTask()));
 
-            // Tam olarak bir kosu migration'i uygular; digerleri onun bitmesini bekler
-            // ve uygulanmis bulur. pg_advisory_lock bunu garanti eder.
-            results.Count(static count => count == 1).ShouldBe(1);
+            // Tam olarak bir kosu migration'lari uygular; digerleri onun bitmesini
+            // bekler ve uygulanmis bulur. pg_advisory_lock bunu garanti eder.
+            results.Count(count => count == EmbeddedMigrationCount).ShouldBe(1);
             results.Count(static count => count == 0).ShouldBe(4);
 
             var rowCount = await contexts[0].ScalarAsync<long>(
                 $"SELECT count(*) FROM {schemaName}.__migrations;");
 
-            rowCount.ShouldBe(1);
+            rowCount.ShouldBe(EmbeddedMigrationCount);
         }
         finally
         {

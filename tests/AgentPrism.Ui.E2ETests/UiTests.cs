@@ -30,8 +30,8 @@ public sealed class UiTests(BrowserFixture browsers)
 
         (await session.Page.TitleAsync()).ShouldBe("AgentPrism");
 
-        // Yedi ekranin tamami gezinme cubugunda olmalidir.
-        foreach (var screen in new[] { "Agents", "Playground", "Sessions", "Runs", "Tools", "Models", "Settings" })
+        // Sekiz ekranin tamami gezinme cubugunda olmalidir.
+        foreach (var screen in new[] { "Agents", "Playground", "Sessions", "Runs", "Tools", "Models", "MCP", "Settings" })
         {
             (await session.Page.GetByRole(AriaRole.Link, new() { Name = screen }).CountAsync())
                 .ShouldBeGreaterThan(0, $"'{screen}' baglantisi bulunamadi.");
@@ -203,6 +203,54 @@ public sealed class UiTests(BrowserFixture browsers)
             await session.Page.GetByText(name, new() { Exact = true }).First
                 .WaitForAsync(new() { Timeout = 20_000 });
         }
+    }
+
+    [Fact]
+    public async Task Mcp_ekrani_guvenlik_sinirini_yazar_ve_sunucu_eklenir()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/mcp");
+
+        // Guvenlik siniri ekranda YAZILI olmalidir: MCP sunucusu eklemek,
+        // tool tanimlarini disaridan kabul etmek demektir.
+        await session.Page.GetByText("Security boundary").WaitForAsync();
+
+        await session.Page.GetByRole(AriaRole.Button, new() { Name = "Add server" }).ClickAsync();
+
+        // Yer tutucu "github", "AgentPrism:Mcp:GithubToken" ile de eslesir;
+        // tam eslesme istenmelidir.
+        await session.Page.GetByPlaceholder("github", new() { Exact = true }).FillAsync("ornek");
+        await session.Page.GetByPlaceholder("https://mcp.example.com/mcp")
+            .FillAsync("https://mcp.ornek.test/mcp");
+
+        await session.Page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
+
+        await session.Page.GetByText("ornek").First.WaitForAsync(new() { Timeout = 10_000 });
+
+        // Onay rozeti gorunmelidir: MCP tool'lari varsayilan olarak onay ister.
+        await session.Page.GetByText("approval", new() { Exact = true }).First.WaitForAsync();
+    }
+
+    [Fact]
+    public async Task Tool_ekraninda_cagri_sayisi_gorunur()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        // Once gercek bir tool cagrisi ureten bir tur calistirilir.
+        await session.Page.GotoAsync($"{host.UiAddress}/playground/support");
+        await session.Page.GetByTestId("playground-input").FillAsync("ORD-9 nerede");
+        await session.Page.GetByTestId("playground-send").ClickAsync();
+
+        await session.Page.GetByText("Echo: ORD-9 nerede").WaitForAsync(new() { Timeout = 20_000 });
+
+        await session.Page.GotoAsync($"{host.UiAddress}/tools");
+
+        // Faz 5'te bu ekran "gozlemlenebilirlik fazinda gelir" notu tasiyordu
+        // (sapma S5); artik gercek sayilar gosterilmelidir.
+        await session.Page.GetByText("calls").First.WaitForAsync(new() { Timeout = 20_000 });
     }
 
     /// <summary>Tek bir testin tarayici baglami.</summary>

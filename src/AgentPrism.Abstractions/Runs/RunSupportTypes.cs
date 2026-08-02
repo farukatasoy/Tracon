@@ -41,6 +41,12 @@ public sealed record RunStartInfo
     /// <summary>Oturum kimligi.</summary>
     public string? SessionId { get; init; }
 
+    /// <summary>
+    /// Kullanilacak modelin adi. Agent tanimindan cozulur; bilinmiyorsa
+    /// <see langword="null"/>.
+    /// </summary>
+    public string? ModelId { get; init; }
+
     /// <summary>Akisli calistirma mi.</summary>
     public bool IsStreaming { get; init; }
 }

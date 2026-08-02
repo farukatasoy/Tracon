@@ -58,6 +58,18 @@
     <PackageVersion Include="Npgsql" Version="10.0.3" />
   </ItemGroup>
 
+  <!--
+    MCP istemcisi. `ModelContextProtocol` DEGIL, `.Core`: tam paket
+    Microsoft.Extensions.Hosting.Abstractions ve Caching.Abstractions da ceker;
+    bunlar sunucu barindirma icindir ve AgentPrism yalnizca istemcidir.
+    `.Core` bagimliliklari: Microsoft.Extensions.AI.Abstractions 10.8.3 (bizim
+    surumumuzle ayni), Logging.Abstractions 10.0.10, System.IO.Pipelines,
+    System.Net.ServerSentEvents. Ayrinti: docs/KARARLAR.md, karar K-057.
+  -->
+  <ItemGroup Label="Model Context Protocol">
+    <PackageVersion Include="ModelContextProtocol.Core" Version="2.0.0" />
+  </ItemGroup>
+
   <ItemGroup Label="Gozlemlenebilirlik">
     <PackageVersion Include="OpenTelemetry.Api" Version="1.17.0" />
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.17.0" />

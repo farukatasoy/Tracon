@@ -12,6 +12,21 @@ export type TranscriptItem =
   | { kind: 'reasoning'; id: string; text: string }
   | { kind: 'error'; id: string; message: string }
   | {
+      /**
+       * A tool call waiting for the operator's decision.
+       *
+       * Microsoft Agent Framework raises this instead of running a tool marked
+       * `RequiresApproval`. The run ends here; the decision is the input of the
+       * next turn.
+       */
+      kind: 'approval';
+      id: string;
+      requestId: string;
+      name: string;
+      args: string | null;
+      decided: 'approved' | 'rejected' | null;
+    }
+  | {
       kind: 'tool';
       id: string;
       callId: string;
@@ -43,11 +58,20 @@ export const emptyTranscript: TranscriptState = { items: [], usage: null };
  * discriminators between releases; falling back to the shape keeps a rename
  * from silently blanking the transcript.
  */
-function classify(content: ChatContent): 'text' | 'reasoning' | 'call' | 'result' | 'usage' | 'other' {
+function classify(
+  content: ChatContent,
+): 'text' | 'reasoning' | 'call' | 'result' | 'usage' | 'approval' | 'other' {
   const type = typeof content.$type === 'string' ? content.$type.toLowerCase() : '';
 
   if (type === 'text') {
     return 'text';
+  }
+
+  // Shape check comes first for approvals: the discriminator name is the part
+  // most likely to be renamed between MAF releases, while `requestId` plus a
+  // nested `toolCall` is what the content actually is.
+  if (type.includes('approvalrequest') || (typeof content['requestId'] === 'string' && content['toolCall'] !== undefined)) {
+    return 'approval';
   }
 
   if (type === 'reasoning' || type === 'textreasoning') {
@@ -157,6 +181,27 @@ function applyContent(state: TranscriptState, content: ChatContent): void {
         card.error = failure;
         card.state = 'failed';
       }
+
+      break;
+    }
+
+    case 'approval': {
+      const requestId = typeof content['requestId'] === 'string' ? content['requestId'] : null;
+
+      if (requestId === null) {
+        break;
+      }
+
+      const call = content['toolCall'] as ChatContent | undefined;
+
+      state.items.push({
+        kind: 'approval',
+        id: `approval-${requestId}`,
+        requestId,
+        name: typeof call?.name === 'string' ? call.name : 'unknown',
+        args: stringify(call?.arguments ?? null),
+        decided: null,
+      });
 
       break;
     }

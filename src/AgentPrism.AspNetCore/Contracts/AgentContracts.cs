@@ -82,11 +82,30 @@ public sealed record AgentRollbackRequest
 /// <summary>Arayuzden yapilan deneme calistirmasinin istegi.</summary>
 public sealed record AgentRunRequest
 {
-    /// <summary>Kullanici mesaji.</summary>
-    public required string Message { get; init; }
+    /// <summary>
+    /// Kullanici mesaji. Yalnizca <see cref="Approvals"/> gonderiliyorsa bos birakilabilir.
+    /// </summary>
+    public string? Message { get; init; }
 
     /// <summary>
     /// Oturum kimligi. Verilmezse calistirma oturumsuzdur ve gecmis tasinmaz.
     /// </summary>
     public string? SessionId { get; init; }
+
+    /// <summary>
+    /// Bekleyen tool cagrilarina verilen onay kararlari.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Onay <strong>bir sonraki turun girdisidir</strong>: Microsoft Agent Framework
+    /// bekleyen bir cagriyi yanitta <c>ToolApprovalRequestContent</c> olarak dondurur
+    /// ve karari sonraki calistirmanin mesajlarinda bekler. Ayri bir "devam et"
+    /// ucu bu yuzden yoktur.
+    /// </para>
+    /// <para>
+    /// Kararlar yalnizca <see cref="SessionId"/> verildiginde islenir: bekleyen
+    /// istek oturum gecmisinde yasar ve oturumsuz bir calistirmada bulunamaz.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<ToolApprovalDecision> Approvals { get; init; } = [];
 }

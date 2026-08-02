@@ -22,6 +22,7 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
   const [preference, setPreference] = useState<ThemePreference>(readThemePreference);
 
   const stats = useQuery({ queryKey: ['stats', ''], queryFn: () => api.stats({}) });
+  const tenant = useQuery({ queryKey: ['current-tenant'], queryFn: api.currentTenant });
 
   return (
     <>
@@ -136,11 +137,40 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
               <Row label="Failed">{count(stats.data.failedRuns)}</Row>
               <Row label="Running">{count(stats.data.runningRuns)}</Row>
               <Row label="Total tokens">{count(stats.data.totalTokens)}</Row>
+              <Row label="Tenant">
+                <Mono>{tenant.data?.tenantId ?? '—'}</Mono>
+              </Row>
             </dl>
           )}
           <p className="border-t border-line px-4 py-2.5 text-[11px] text-subtle">
-            Cost is not reported: the run record does not store which model answered, so there is
-            nothing to price. It arrives with the observability phase.
+            Token counts only cover runs whose provider reported usage.
+          </p>
+        </Panel>
+
+        <Panel title="Token use by model">
+          {stats.isPending && <Loading />}
+          {stats.isSuccess &&
+            (stats.data.byModel.length === 0 ? (
+              <p className="px-4 py-4 text-[12px] text-subtle">
+                No run has recorded a model yet. Runs started before the observability phase carry
+                no model name and never will — the column did not exist.
+              </p>
+            ) : (
+              <dl className="divide-y divide-line">
+                {stats.data.byModel.map((model) => (
+                  <Row key={model.modelId} label={model.modelId}>
+                    {count(model.totalTokens)} tokens
+                    <span className="ml-2 text-[11px] text-subtle">
+                      {count(model.inputTokens)} in / {count(model.outputTokens)} out ·{' '}
+                      {count(model.totalRuns)} runs
+                    </span>
+                  </Row>
+                ))}
+              </dl>
+            ))}
+          <p className="border-t border-line px-4 py-2.5 text-[11px] text-subtle">
+            Money is not shown. Pricing per model is not machine readable from the provider
+            (decision K-032), so AgentPrism reports tokens and leaves the rate to you.
           </p>
         </Panel>
       </div>

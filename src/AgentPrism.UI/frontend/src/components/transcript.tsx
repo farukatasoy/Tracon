@@ -13,9 +13,16 @@ import { CheckIcon, ChevronIcon, CrossIcon, SpinnerIcon } from './icons';
 export function TranscriptView({
   items,
   streaming,
+  onDecide,
 }: {
   items: readonly TranscriptItem[];
   streaming?: boolean;
+  /**
+   * Called when the operator answers a pending approval. Absent on read-only
+   * views (a recorded run), where the decision has already been made or the
+   * turn can no longer be continued.
+   */
+  onDecide?: (requestId: string, approved: boolean, remember: boolean) => void;
 }): ReactNode {
   return (
     <div className="flex flex-col gap-2.5">
@@ -49,6 +56,9 @@ export function TranscriptView({
               </div>
             );
 
+          case 'approval':
+            return <ApprovalCard key={item.id} item={item} onDecide={onDecide} />;
+
           case 'tool':
             return <ToolCard key={item.id} item={item} />;
 
@@ -76,6 +86,86 @@ function ReasoningBlock({ text }: { text: string }): ReactNode {
       {open && (
         <p className="px-3 pb-3 text-[12px] leading-relaxed whitespace-pre-wrap text-muted">{text}</p>
       )}
+    </div>
+  );
+}
+
+/**
+ * A tool call waiting for a decision.
+ *
+ * The run has already ended at this point: Microsoft Agent Framework returns
+ * the request instead of running the tool, and the answer is carried as the
+ * input of the next turn. That is why this card submits a new run rather than
+ * resuming a paused one.
+ */
+function ApprovalCard({
+  item,
+  onDecide,
+}: {
+  item: Extract<TranscriptItem, { kind: 'approval' }>;
+  onDecide?: (requestId: string, approved: boolean, remember: boolean) => void;
+}): ReactNode {
+  const [remember, setRemember] = useState(false);
+
+  return (
+    <div
+      data-testid="approval-card"
+      className="overflow-hidden rounded-md border border-line bg-panel"
+      style={{ borderLeft: '2px solid var(--ap-amber)' }}
+    >
+      <div className="flex items-center gap-2 px-3 py-2">
+        <span className="font-mono text-[12px] font-medium">{item.name}</span>
+        {item.decided === null ? (
+          <Badge tone="warn">approval required</Badge>
+        ) : item.decided === 'approved' ? (
+          <Badge tone="success">
+            <CheckIcon className="size-3" />
+            approved
+          </Badge>
+        ) : (
+          <Badge tone="danger">
+            <CrossIcon className="size-3" />
+            rejected
+          </Badge>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2 border-t border-line px-3 py-2.5">
+        <Section label="Arguments" body={item.args} empty="No arguments." />
+
+        {item.decided === null && onDecide !== undefined && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              data-testid="approval-approve"
+              onClick={() => onDecide(item.requestId, true, remember)}
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-transparent bg-accent px-3 text-[12px] font-medium text-accent-fg hover:bg-accent-hover"
+            >
+              <CheckIcon className="size-3" />
+              Approve
+            </button>
+
+            <button
+              type="button"
+              data-testid="approval-reject"
+              onClick={() => onDecide(item.requestId, false, false)}
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-line px-3 text-[12px] font-medium text-danger hover:bg-danger-soft"
+            >
+              <CrossIcon className="size-3" />
+              Reject
+            </button>
+
+            <label className="flex items-center gap-1.5 text-[11px] text-muted">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(event) => setRemember(event.target.checked)}
+              />
+              Don&rsquo;t ask again for this tool
+            </label>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

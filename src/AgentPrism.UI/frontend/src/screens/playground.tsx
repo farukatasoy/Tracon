@@ -22,11 +22,18 @@ import { TranscriptView } from '../components/transcript';
 
 interface Turn {
   id: string;
-  prompt: string;
+  /** Null for a turn that only carries an approval decision. */
+  prompt: string | null;
   runId: string | null;
   transcript: TranscriptState;
   status: 'streaming' | 'done' | 'failed';
   error: string | null;
+}
+
+interface Decision {
+  requestId: string;
+  approved: boolean;
+  remember: boolean;
 }
 
 /**
@@ -67,14 +74,12 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
     setBusy(false);
   }, []);
 
-  const send = useCallback(async () => {
-    const message = prompt.trim();
-
-    if (message.length === 0 || selected.length === 0 || busy) {
+  const run = useCallback(
+    async (message: string | null, decision: Decision | null) => {
+    if ((message === null && decision === null) || selected.length === 0 || busy) {
       return;
     }
 
-    setPrompt('');
     setBusy(true);
     setError(null);
 
@@ -106,7 +111,23 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
       const response = await openStream(`api/agents/${encodeURIComponent(selected)}/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, sessionId: conversation }),
+        body: JSON.stringify({
+          message,
+          sessionId: conversation,
+          // An approval is the input of the next turn, not a resume signal:
+          // Microsoft Agent Framework ends the run when a tool needs a decision
+          // and expects the answer in the following request.
+          approvals:
+            decision === null
+              ? []
+              : [
+                  {
+                    requestId: decision.requestId,
+                    approved: decision.approved,
+                    remember: decision.remember,
+                  },
+                ],
+        }),
         signal: controller.signal,
       });
 
@@ -144,6 +165,10 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
 
       await queryClient.invalidateQueries({ queryKey: ['runs'] });
       await queryClient.invalidateQueries({ queryKey: ['sessions'] });
+
+      if (decision?.remember === true) {
+        await queryClient.invalidateQueries({ queryKey: ['approval-rules'] });
+      }
     } catch (caught) {
       if (caught instanceof DOMException && caught.name === 'AbortError') {
         update((turn) => ({ ...turn, status: 'done' }));
@@ -159,7 +184,47 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
       abort.current = null;
       setBusy(false);
     }
-  }, [prompt, selected, busy, sessionId, queryClient]);
+  },
+    [selected, busy, sessionId, queryClient],
+  );
+
+  const send = useCallback(() => {
+    const message = prompt.trim();
+
+    if (message.length === 0) {
+      return;
+    }
+
+    setPrompt('');
+    void run(message, null);
+  }, [prompt, run]);
+
+  /**
+   * Answers a pending approval.
+   *
+   * The card is marked immediately so the same request cannot be answered
+   * twice, then a new turn is started carrying the decision.
+   */
+  const decide = useCallback(
+    (requestId: string, approved: boolean, remember: boolean) => {
+      setTurns((current) =>
+        current.map((turn) => ({
+          ...turn,
+          transcript: {
+            ...turn.transcript,
+            items: turn.transcript.items.map((item) =>
+              item.kind === 'approval' && item.requestId === requestId
+                ? { ...item, decided: approved ? ('approved' as const) : ('rejected' as const) }
+                : item,
+            ),
+          },
+        })),
+      );
+
+      void run(null, { requestId, approved, remember });
+    },
+    [run],
+  );
 
   if (agents.isPending) {
     return <Loading />;
@@ -233,7 +298,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
           ) : (
             <div className="flex flex-col gap-6">
               {turns.map((turn) => (
-                <TurnView key={turn.id} turn={turn} />
+                <TurnView key={turn.id} turn={turn} onDecide={decide} />
               ))}
             </div>
           )}
@@ -244,7 +309,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
           className="flex items-end gap-2 border-t border-line p-3"
           onSubmit={(event) => {
             event.preventDefault();
-            void send();
+            send();
           }}
         >
           <textarea
@@ -258,7 +323,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
-                void send();
+                send();
               }
             }}
           />
@@ -283,16 +348,26 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
   );
 }
 
-function TurnView({ turn }: { turn: Turn }): ReactNode {
+function TurnView({
+  turn,
+  onDecide,
+}: {
+  turn: Turn;
+  onDecide: (requestId: string, approved: boolean, remember: boolean) => void;
+}): ReactNode {
   const usage = turn.transcript.usage;
 
   return (
     <div data-testid="playground-turn">
-      <div className="mb-2.5 flex justify-end">
-        <p className="max-w-[80%] rounded-lg rounded-br-sm bg-accent-soft px-3 py-2 text-[13px] whitespace-pre-wrap text-fg">
-          {turn.prompt}
-        </p>
-      </div>
+      {turn.prompt !== null ? (
+        <div className="mb-2.5 flex justify-end">
+          <p className="max-w-[80%] rounded-lg rounded-br-sm bg-accent-soft px-3 py-2 text-[13px] whitespace-pre-wrap text-fg">
+            {turn.prompt}
+          </p>
+        </div>
+      ) : (
+        <p className="mb-2.5 text-right text-[11px] text-subtle">approval decision sent</p>
+      )}
 
       <div className="flex items-center gap-2 pb-1.5 text-[11px] text-subtle">
         {turn.status === 'streaming' && <SpinnerIcon className="size-3" />}
@@ -310,7 +385,11 @@ function TurnView({ turn }: { turn: Turn }): ReactNode {
       </div>
 
       <div className={cx(turn.status === 'failed' && 'opacity-90')}>
-        <TranscriptView items={turn.transcript.items} streaming={turn.status === 'streaming'} />
+        <TranscriptView
+          items={turn.transcript.items}
+          streaming={turn.status === 'streaming'}
+          onDecide={turn.status === 'done' ? onDecide : undefined}
+        />
 
         {turn.transcript.items.length === 0 && turn.status === 'streaming' && (
           <p className="text-[13px] text-subtle">…</p>

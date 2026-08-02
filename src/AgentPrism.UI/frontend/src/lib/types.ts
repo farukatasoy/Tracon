@@ -108,6 +108,32 @@ export interface ToolDescriptor {
   description?: string | null;
   jsonSchema?: string | null;
   requiresApproval: boolean;
+  /** Server name when the tool comes from a remote MCP server; null when defined in code. */
+  source?: string | null;
+}
+
+export interface ToolInvocationRecord {
+  id: string;
+  runId: string;
+  toolName: string;
+  toolCallId?: string | null;
+  source?: string | null;
+  arguments?: string | null;
+  result?: string | null;
+  /** .NET TimeSpan serialises as "hh:mm:ss.fffffff"; null when not measured. */
+  duration?: string | null;
+  error?: string | null;
+  createdAt: string;
+  succeeded: boolean;
+}
+
+export interface ToolUsage {
+  toolName: string;
+  totalCalls: number;
+  failedCalls: number;
+  averageDurationMs?: number | null;
+  lastCalledAt?: string | null;
+  errorRate?: number | null;
 }
 
 export interface ModelDescriptor {
@@ -195,6 +221,7 @@ export interface RunRecord {
   completedAt?: string | null;
   tenantId?: string | null;
   sessionId?: string | null;
+  modelId?: string | null;
   isStreaming: boolean;
   usage?: RunUsage | null;
   error?: RunError | null;
@@ -219,6 +246,14 @@ export interface RunAgentStatistics {
   totalTokens: number;
 }
 
+export interface RunModelStatistics {
+  modelId: string;
+  totalRuns: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
+
 export interface RunStatistics {
   totalRuns: number;
   completedRuns: number;
@@ -229,7 +264,101 @@ export interface RunStatistics {
   outputTokens: number;
   totalTokens: number;
   byAgent: RunAgentStatistics[];
+  byModel: RunModelStatistics[];
   errorRate?: number | null;
+}
+
+/* ------------------------------------------------------- observability */
+
+export type TraceSpanKind = 'Internal' | 'Server' | 'Client' | 'Producer' | 'Consumer';
+
+export type TraceSpanStatus = 'Unset' | 'Ok' | 'Error';
+
+export interface TraceSpan {
+  id: string;
+  parentId?: string | null;
+  spanId: string;
+  name: string;
+  kind: TraceSpanKind;
+  startedAt: string;
+  endedAt?: string | null;
+  status: TraceSpanStatus;
+  attributes: Record<string, string>;
+}
+
+export interface RunTrace {
+  id: string;
+  traceId: string;
+  runId?: string | null;
+  tenantId: string;
+  startedAt: string;
+  endedAt?: string | null;
+  spans: TraceSpan[];
+}
+
+/* ------------------------------------------------------------ governance */
+
+export type McpTransportMode = 'StreamableHttp' | 'Sse';
+
+/**
+ * A registered remote MCP server.
+ *
+ * Carries no secret: only the *name* of the configuration key whose value
+ * becomes the `Authorization` header (decision K-059).
+ */
+export interface McpServerDefinition {
+  id: string;
+  tenantId: string;
+  name: string;
+  description?: string | null;
+  endpoint: string;
+  transport: McpTransportMode;
+  authorizationConfigurationKey?: string | null;
+  headers: Record<string, string>;
+  enabled: boolean;
+  requiresApproval: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface McpServerRequest {
+  description?: string | null;
+  endpoint: string;
+  transport: McpTransportMode;
+  authorizationConfigurationKey?: string | null;
+  headers?: Record<string, string>;
+  enabled: boolean;
+  requiresApproval: boolean;
+}
+
+export interface ToolApprovalRule {
+  id: string;
+  tenantId: string;
+  agentName?: string | null;
+  toolName: string;
+  argumentsHash?: string | null;
+  createdBy?: string | null;
+  createdAt: string;
+}
+
+export interface TenantDescriptor {
+  id: string;
+  slug: string;
+  displayName: string;
+  createdAt: string;
+}
+
+export interface CurrentTenant {
+  tenantId: string;
+}
+
+/** Decision sent back for a pending tool call. */
+export interface ToolApprovalDecision {
+  requestId: string;
+  approved: boolean;
+  reason?: string;
+  remember?: boolean;
+  rememberArgumentsOnly?: boolean;
 }
 
 /** `POST /v1/conversations` reserves an identifier; the session is born on first use. */

@@ -97,6 +97,23 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddSingleton<IAgentDefinitionStore, InMemoryAgentDefinitionStore>();
         services.TryAddSingleton<IRunStore, InMemoryRunStore>();
         services.TryAddSingleton<ISessionStore, InMemorySessionStore>();
+        services.TryAddSingleton<ITraceStore, InMemoryTraceStore>();
+        services.TryAddSingleton<IToolApprovalRuleStore, InMemoryToolApprovalRuleStore>();
+        services.TryAddSingleton<IMcpServerStore, InMemoryMcpServerStore>();
+        services.TryAddSingleton<ITenantStore, InMemoryTenantStore>();
+
+        // Telemetri. Metrikler IMeterFactory kayitliysa onun uzerinden kurulur;
+        // degilse kendi Meter'ini olusturur — tuketici AddMetrics() cagirmaya
+        // zorlanmaz.
+        services.TryAddSingleton(static provider => new AgentPrismMetrics(
+            provider.GetService<System.Diagnostics.Metrics.IMeterFactory>()));
+
+        // Span toplayici ActivityListener'i kurucusunda kaydeder; bu yuzden
+        // ilk cozulmesi yeterlidir. RunRecordingAgentDecorator onu cozer.
+        services.TryAddSingleton<RunTraceCollector>();
+
+        // Onay kurallarini degerlendiren servis.
+        services.TryAddSingleton<ToolApprovalRuleEvaluator>();
 
         // Oturum yasam dongusu. Depodan bagimsizdir.
         // Acik fabrika kullaniliyor: yerlesik DI kabi varsayilan deger tasiyan
@@ -110,8 +127,28 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentSource, CodeAgentSource>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentSource, DefinitionStoreAgentSource>());
 
-        // Calistirma kaydi sarmalayicisi.
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, RunRecordingAgentDecorator>());
+        // Sarmalayicilar. Uygulama sirasi Order ile belirlenir:
+        // calistirma kaydi (0) → telemetri (10) → tool onayi (20) → agent.
+        //
+        // Kayit dekoratoru acik fabrika ile kuruluyor: yerlesik DI kabi varsayilan
+        // deger tasiyan kurucu parametrelerini doldurmaz ve TimeProvider kayitli
+        // olmayabilir.
+        //
+        // Iki tur argumanli asiri yukleme SART: tek argumanli bicimde fabrikanin
+        // donus tipi IAgentDecorator olur ve TryAddEnumerable uygulamayi ayirt
+        // edemeyip "indistinguishable from other services" hatasi verir.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, RunRecordingAgentDecorator>(
+            static provider => new RunRecordingAgentDecorator(
+                provider.GetRequiredService<IRunStore>(),
+                provider.GetRequiredService<ITenantContext>(),
+                provider.GetRequiredService<IOptions<AgentPrismOptions>>(),
+                provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<RunRecordingAgent>>(),
+                provider.GetRequiredService<AgentPrismMetrics>(),
+                provider.GetRequiredService<RunTraceCollector>(),
+                provider.GetService<TimeProvider>())));
+
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, OpenTelemetryAgentDecorator>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, ToolApprovalAgentDecorator>());
 
         services.TryAddSingleton<IAgentCatalog, CompositeAgentCatalog>();
 
@@ -132,8 +169,16 @@ public static class AgentPrismServiceCollectionExtensions
             options.DefaultTenantId = tenantId;
         }
 
-        var recording = section.GetSection(nameof(AgentPrismOptions.RunRecording));
+        // Her alt bolum KENDI varliginidan sorumludur. Erken donus, ilk bolum
+        // tanimli degilse sonrakilerin hic okunmamasina yol acar; olculdu:
+        // RunRecording yazilmamis bir yapilandirmada Observability sessizce
+        // yok sayiliyordu.
+        BindRunRecording(section.GetSection(nameof(AgentPrismOptions.RunRecording)), options.RunRecording);
+        BindObservability(section.GetSection(nameof(AgentPrismOptions.Observability)), options.Observability);
+    }
 
+    private static void BindRunRecording(IConfigurationSection recording, AgentPrismRunRecordingOptions options)
+    {
         if (!recording.Exists())
         {
             return;
@@ -141,17 +186,17 @@ public static class AgentPrismServiceCollectionExtensions
 
         if (TryReadBool(recording, nameof(AgentPrismRunRecordingOptions.Enabled), out var enabled))
         {
-            options.RunRecording.Enabled = enabled;
+            options.Enabled = enabled;
         }
 
         if (TryReadBool(recording, nameof(AgentPrismRunRecordingOptions.RecordMessageDeltas), out var recordDeltas))
         {
-            options.RunRecording.RecordMessageDeltas = recordDeltas;
+            options.RecordMessageDeltas = recordDeltas;
         }
 
         if (TryReadBool(recording, nameof(AgentPrismRunRecordingOptions.RecordToolPayloads), out var recordPayloads))
         {
-            options.RunRecording.RecordToolPayloads = recordPayloads;
+            options.RecordToolPayloads = recordPayloads;
         }
 
         if (int.TryParse(
@@ -160,7 +205,59 @@ public static class AgentPrismServiceCollectionExtensions
                 CultureInfo.InvariantCulture,
                 out var maxPayloadLength))
         {
-            options.RunRecording.MaxPayloadLength = maxPayloadLength;
+            options.MaxPayloadLength = maxPayloadLength;
+        }
+    }
+
+    private static void BindObservability(IConfigurationSection section, AgentPrismObservabilityOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismObservabilityOptions.Enabled), out var enabled))
+        {
+            options.Enabled = enabled;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismObservabilityOptions.PersistSpans), out var persistSpans))
+        {
+            options.PersistSpans = persistSpans;
+        }
+
+        if (TryReadBool(
+                section,
+                nameof(AgentPrismObservabilityOptions.AlwaysPersistFailures),
+                out var alwaysPersistFailures))
+        {
+            options.AlwaysPersistFailures = alwaysPersistFailures;
+        }
+
+        if (TryReadBool(
+                section,
+                nameof(AgentPrismObservabilityOptions.RecordSensitiveData),
+                out var recordSensitiveData))
+        {
+            options.RecordSensitiveData = recordSensitiveData;
+        }
+
+        if (double.TryParse(
+                section[nameof(AgentPrismObservabilityOptions.SuccessSampleRatio)],
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out var sampleRatio))
+        {
+            options.SuccessSampleRatio = sampleRatio;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismObservabilityOptions.MaxSpansPerRun)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxSpans))
+        {
+            options.MaxSpansPerRun = maxSpans;
         }
     }
 

@@ -4,6 +4,7 @@ import { applyTheme, readThemePreference, writeThemePreference, type ThemePrefer
 import { cx } from './ui';
 import {
   AgentsIcon,
+  McpIcon,
   ModelsIcon,
   MoonIcon,
   PlaygroundIcon,
@@ -31,6 +32,7 @@ const NAV = [
   { path: 'runs', label: 'Runs', icon: RunsIcon, hue: 'var(--ap-amber)' },
   { path: 'tools', label: 'Tools', icon: ToolsIcon, hue: 'var(--ap-rose)' },
   { path: 'models', label: 'Models', icon: ModelsIcon, hue: 'var(--ap-indigo)' },
+  { path: 'mcp', label: 'MCP', icon: McpIcon, hue: 'var(--ap-amber)' },
   { path: 'settings', label: 'Settings', icon: SettingsIcon, hue: 'var(--ap-muted)' },
 ] as const;
 

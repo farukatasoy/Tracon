@@ -12,7 +12,7 @@ import { uiBase } from './base';
 /**
  * A ~100 line history router.
  *
- * The app has seven screens and two dynamic segments. A routing library would
+ * The app has eight screens and two dynamic segments. A routing library would
  * add more bytes than the whole feature is worth, and the base path is only
  * known at run time — which every library has to be told about explicitly and
  * this one gets for free.

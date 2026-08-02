@@ -103,8 +103,9 @@ export function ModelsScreen(): ReactNode {
       </div>
 
       <p className="mt-4 text-[11px] text-subtle">
-        Provider connectivity checks and cost reporting arrive with the observability phase. Cost
-        needs the model name on the run record, which is not stored yet.
+        Runs now record which model answered, so token use per model is on the Settings screen.
+        Money is not shown: providers do not publish machine-readable pricing, so the rate is
+        yours to supply. Provider connectivity checks are still missing.
       </p>
     </>
   );

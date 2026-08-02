@@ -91,6 +91,13 @@ export const ModelsIcon = ({ className }: IconProps): ReactNode => (
   </Icon>
 );
 
+export const McpIcon = ({ className }: IconProps): ReactNode => (
+  <Icon className={className}>
+    <path d="M4 7h16M4 12h16M4 17h9" />
+    <circle cx="18" cy="17" r="2.5" />
+  </Icon>
+);
+
 export const SettingsIcon = ({ className }: IconProps): ReactNode => (
   <Icon className={className}>
     <circle cx="12" cy="12" r="3" />

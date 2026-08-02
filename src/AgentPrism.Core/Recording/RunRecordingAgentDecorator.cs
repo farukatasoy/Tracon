@@ -17,18 +17,27 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
     private readonly ITenantContext _tenantContext;
     private readonly IOptions<AgentPrismOptions> _options;
     private readonly ILogger<RunRecordingAgent> _logger;
+    private readonly AgentPrismMetrics? _metrics;
+    private readonly RunTraceCollector? _traceCollector;
+    private readonly TimeProvider? _timeProvider;
 
     /// <summary>Yeni bir kayit dekoratoru olusturur.</summary>
     /// <param name="runStore">Olaylarin yazilacagi depo.</param>
     /// <param name="tenantContext">Kiraci baglami.</param>
     /// <param name="options">AgentPrism ayarlari.</param>
     /// <param name="logger">Gunlukleyici.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <param name="metrics">Metrik aletleri.</param>
+    /// <param name="traceCollector">Span toplayici.</param>
+    /// <param name="timeProvider">Zaman kaynagi.</param>
+    /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
     public RunRecordingAgentDecorator(
         IRunStore runStore,
         ITenantContext tenantContext,
         IOptions<AgentPrismOptions> options,
-        ILogger<RunRecordingAgent> logger)
+        ILogger<RunRecordingAgent> logger,
+        AgentPrismMetrics? metrics = null,
+        RunTraceCollector? traceCollector = null,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(runStore);
         ArgumentNullException.ThrowIfNull(tenantContext);
@@ -39,6 +48,9 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
         _tenantContext = tenantContext;
         _options = options;
         _logger = logger;
+        _metrics = metrics;
+        _traceCollector = traceCollector;
+        _timeProvider = timeProvider;
     }
 
     /// <inheritdoc />
@@ -54,6 +66,12 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
             _runStore,
             _tenantContext,
             _options.Value.RunRecording,
-            _logger);
+            _logger,
+            _metrics,
+            _traceCollector,
+            // Model adi katalog ozetinden gelir. Kod agent'larinda bilinmeyebilir;
+            // o durumda calistirma kaydi model tasimaz ve model kirilimina girmez.
+            descriptor?.Model?.Model,
+            _timeProvider);
     }
 }

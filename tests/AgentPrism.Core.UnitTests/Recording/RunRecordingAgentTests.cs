@@ -207,5 +207,14 @@ public sealed class RunRecordingAgentTests
 
         public IAsyncEnumerable<RunEvent> ReadEventsAsync(Guid runId, long fromSequence = 0, CancellationToken cancellationToken = default)
             => throw new InvalidOperationException("depo erisilemez");
+
+        public ValueTask RecordToolInvocationAsync(ToolInvocationRecord invocation, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("depo erisilemez");
+
+        public ValueTask<IReadOnlyList<ToolInvocationRecord>> ListToolInvocationsAsync(Guid runId, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("depo erisilemez");
+
+        public ValueTask<IReadOnlyList<ToolUsage>> GetToolUsageAsync(ToolUsageQuery query, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("depo erisilemez");
     }
 }

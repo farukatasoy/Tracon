@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
 
@@ -211,11 +213,21 @@ internal static class AgentEndpoints
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Message))
+        // Onay kararlari tek basina gecerli bir istektir: kullanici bekleyen bir
+        // tool cagrisini onaylarken yeni bir mesaj yazmaz.
+        if (string.IsNullOrWhiteSpace(request.Message) && request.Approvals.Count == 0)
         {
             return Results.Problem(
-                title: "Mesaj bos",
-                detail: "'message' alani zorunludur.",
+                title: "Istek bos",
+                detail: "'message' veya 'approvals' alanlarindan biri zorunludur.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (request.Approvals.Count > 0 && string.IsNullOrWhiteSpace(request.SessionId))
+        {
+            return Results.Problem(
+                title: "Onay icin oturum gerekli",
+                detail: "Bekleyen onay istegi oturum gecmisinde yasar; 'sessionId' zorunludur.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -244,7 +256,7 @@ internal static class AgentEndpoints
                 statusCode: StatusCodes.Status404NotFound);
         }
 
-        return new AgentRunStream(agent, request, sessions);
+        return new AgentRunStream(agent, name, request, sessions);
     }
 
     /// <summary>
@@ -265,6 +277,7 @@ internal static class AgentEndpoints
     /// </remarks>
     private sealed class AgentRunStream(
         Microsoft.Agents.AI.AIAgent agent,
+        string agentName,
         AgentRunRequest request,
         AgentSessionManager sessions) : IResult
     {
@@ -288,6 +301,9 @@ internal static class AgentEndpoints
                         .ConfigureAwait(false);
                 }
 
+                var messages = await BuildMessagesAsync(httpContext, session, cancellationToken)
+                    .ConfigureAwait(false);
+
                 await writer.WriteEventAsync(
                     sequence++,
                     "run",
@@ -295,7 +311,7 @@ internal static class AgentEndpoints
                     cancellationToken).ConfigureAwait(false);
 
                 var updates = agent.RunStreamingAsync(
-                    request.Message,
+                    messages,
                     session,
                     new AgentPrismRunOptions { RunId = runId },
                     cancellationToken);
@@ -332,6 +348,51 @@ internal static class AgentEndpoints
         }
 
         private static JsonSerializerOptions JsonOptions { get; } = new(JsonSerializerDefaults.Web);
+
+        /// <summary>
+        /// Gonderilecek mesajlari kurar: varsa onay yanitlari, varsa kullanici mesaji.
+        /// </summary>
+        /// <remarks>
+        /// Onay yanitlari kullanici mesajindan ONCE gelir. Microsoft Agent Framework
+        /// bekleyen cagriyi yanitlamadan yeni bir kullanici mesajini isleyemez;
+        /// ters sira, modelin yanitlanmamis bir onay istegiyle karsilasmasina yol acardi.
+        /// </remarks>
+        private async ValueTask<List<ChatMessage>> BuildMessagesAsync(
+            HttpContext httpContext,
+            Microsoft.Agents.AI.AgentSession? session,
+            CancellationToken cancellationToken)
+        {
+            var messages = new List<ChatMessage>(2);
+
+            if (request.Approvals.Count > 0 && session is not null)
+            {
+                var services = httpContext.RequestServices;
+                var loggerFactory = services.GetRequiredService<ILoggerFactory>();
+
+                var approvalMessage = await ToolApprovalResolver.BuildResponseMessageAsync(
+                    request.Approvals,
+                    agent,
+                    agentName,
+                    session,
+                    services.GetRequiredService<Microsoft.Agents.AI.ChatHistoryProvider>(),
+                    services.GetRequiredService<IToolApprovalRuleStore>(),
+                    services.GetRequiredService<ITenantContext>(),
+                    loggerFactory.CreateLogger(typeof(ToolApprovalResolver).FullName!),
+                    cancellationToken).ConfigureAwait(false);
+
+                if (approvalMessage is not null)
+                {
+                    messages.Add(approvalMessage);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Message))
+            {
+                messages.Add(new ChatMessage(ChatRole.User, request.Message));
+            }
+
+            return messages;
+        }
 
         private sealed record AgentRunAccepted(Guid RunId, string? SessionId);
 
