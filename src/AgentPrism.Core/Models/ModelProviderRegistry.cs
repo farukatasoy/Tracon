@@ -13,16 +13,22 @@ namespace AgentPrism;
 public sealed class ModelProviderRegistry : IModelProviderRegistry
 {
     private readonly Dictionary<string, IModelProvider> _providers;
+    private readonly ModelProviderCircuitBreaker? _circuitBreaker;
 
     /// <summary>Kayitli saglayicilardan yeni bir defter olusturur.</summary>
     /// <param name="providers">Model saglayicilari.</param>
+    /// <param name="circuitBreaker">
+    /// Uretilen istemcileri saracak devre kesici. <see langword="null"/> ise hicbir
+    /// sarmalama yapilmaz (ornegin dogrudan kurulan testlerde).
+    /// </param>
     /// <exception cref="ArgumentNullException"><paramref name="providers"/> <see langword="null"/> ise.</exception>
     /// <exception cref="AgentPrismException">Ayni saglayici adi birden cok kez kaydedilmisse.</exception>
-    public ModelProviderRegistry(IEnumerable<IModelProvider> providers)
+    public ModelProviderRegistry(IEnumerable<IModelProvider> providers, ModelProviderCircuitBreaker? circuitBreaker = null)
     {
         ArgumentNullException.ThrowIfNull(providers);
 
         _providers = new Dictionary<string, IModelProvider>(StringComparer.OrdinalIgnoreCase);
+        _circuitBreaker = circuitBreaker;
 
         foreach (var provider in providers)
         {
@@ -68,6 +74,10 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
                 "OpenAI icin `builder.AddAgentPrism().UseOpenAI(apiKey)` cagirin.");
         }
 
-        return provider.CreateChatClient(binding);
+        var chatClient = provider.CreateChatClient(binding);
+
+        return _circuitBreaker is null
+            ? chatClient
+            : _circuitBreaker.Wrap(binding.Provider, chatClient);
     }
 }

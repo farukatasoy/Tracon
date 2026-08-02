@@ -74,6 +74,39 @@ export function duration(from: string | null | undefined, to: string | null | un
   return `${Math.floor(elapsed / 60_000)}m ${Math.round((elapsed % 60_000) / 1_000)}s`;
 }
 
+/** Parses a .NET `TimeSpan` wire string (`hh:mm:ss[.fffffff]`) into milliseconds. */
+export function timeSpanMs(value: string | null | undefined): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const match = /^(\d+):(\d{2}):(\d{2})(?:\.(\d+))?$/.exec(value);
+
+  if (!match) {
+    return null;
+  }
+
+  const [, hours, minutes, seconds, fraction] = match;
+
+  return (
+    Number(hours) * 3_600_000 +
+    Number(minutes) * 60_000 +
+    Number(seconds) * 1_000 +
+    (fraction ? Number(fraction.padEnd(3, '0').slice(0, 3)) : 0)
+  );
+}
+
+/** Health-check latency as `120ms` or `1.24s`, or an em dash when unknown. */
+export function latencyText(value: string | null | undefined): string {
+  const ms = timeSpanMs(value);
+
+  if (ms === null) {
+    return '—';
+  }
+
+  return ms < 1_000 ? `${ms}ms` : `${(ms / 1_000).toFixed(2)}s`;
+}
+
 /** Thousands-separated integer. */
 export function count(value: number | null | undefined): string {
   return value === null || value === undefined ? '—' : value.toLocaleString();

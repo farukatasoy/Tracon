@@ -125,6 +125,8 @@ internal static class OrderTools
 
 `UseOpenAI()` **iki** sağlayıcı kaydeder: `openai` (Chat Completions) ve `openai-responses` (Responses API). Seçim `ModelBinding.Provider` ile yapılır. Her iki yolda da konuşma geçmişi AgentPrism'in veritabanında kalır.
 
+`UseOpenAICompatible(ad, ...)` aynı paketle **herhangi bir** OpenAI uyumlu uca bağlanır — OpenRouter, Groq, vLLM, yerel Ollama/LM Studio (← Faz 8). Yerel sunucular `ApiKey` istemez. Her sağlayıcı `GET {endpoint}/models` ile ücretsiz denetlenir (`/agentprism/api/models/health`) ve ardışık hata veren bir sağlayıcı devre kesici tarafından geçici olarak durdurulur.
+
 `UsePostgreSql()` çağrılmazsa depolama bellek içine düşer ve hiçbir şey kırılmaz. Şema, gömülü SQL migration'ları ile ayrı bir `agentprism` şemasında oluşur; uygulamanızın `public` şemasına dokunulmaz.
 
 Çalışan örnek: [`samples/AgentPrism.Api`](samples/AgentPrism.Api).
@@ -232,8 +234,9 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [4](docs/04-HTTP-API.md) | HTTP API katmanı | ✅ Tamamlandı |
 | [5](docs/05-AGENTPRISM-UI.md) | AgentPrismUI | ✅ Tamamlandı |
 | [6](docs/06-GOZLEMLENEBILIRLIK.md) | Gözlemlenebilirlik, tool onayı, MCP, çok kiracılılık | ✅ Tamamlandı |
-| [7](docs/07-SAGLAMLASTIRMA-VE-YAYIN.md) | Sağlamlaştırma ve yayın | 🔜 Sıradaki |
-| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 8–30) | 📋 Planlandı |
+| [7](docs/07-SAGLAMLASTIRMA-VE-YAYIN.md) | Sağlamlaştırma ve yayın | ⏸ Beklemede — yayın zamanı kullanıcı kararı (K-068) |
+| [8](docs/08-SAGLAYICI-GENISLEMESI.md) | Sağlayıcı genişlemesi ve sağlık denetimi (OpenAI uyumlu herhangi bir uç, devre kesici) | ✅ Tamamlandı |
+| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 9–30) | 📋 Planlandı — sıradaki Faz 9 |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 > Faz 6, planındaki Workflows kalemini **yapmadı**; ertelendi ve gerekçesi

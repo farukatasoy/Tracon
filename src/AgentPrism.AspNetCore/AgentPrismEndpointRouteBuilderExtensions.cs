@@ -90,6 +90,7 @@ public static class AgentPrismEndpointRouteBuilderExtensions
         SessionEndpoints.Map(group);
         RunEndpoints.Map(group, options);
         CatalogEndpoints.Map(group);
+        ModelHealthEndpoints.Map(group);
         ObservabilityEndpoints.Map(group);
         GovernanceEndpoints.Map(group);
 

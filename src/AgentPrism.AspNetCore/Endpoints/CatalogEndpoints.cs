@@ -22,14 +22,30 @@ internal static class CatalogEndpoints
                 "Tool'lar yalnizca kodda tanimlanir. Bu uc bir yazma yolu sunmaz; " +
                 "arayuz agent tanimlarken bu listeden secim yaptirir.");
 
-        builder.MapGet("/api/models", Ok<IReadOnlyList<ModelProviderDescriptor>> (IModelProviderRegistry models)
-                => TypedResults.Ok(models.List()))
+        builder.MapGet("/api/models", Ok<IReadOnlyList<ModelProviderDescriptor>> (
+                IModelProviderRegistry models,
+                ModelProviderHealthCache healthCache) =>
+            {
+                var descriptors = models.List();
+                var withStatus = new List<ModelProviderDescriptor>(descriptors.Count);
+
+                foreach (var descriptor in descriptors)
+                {
+                    withStatus.Add(healthCache.TryPeek(descriptor.Name, out var health)
+                        ? descriptor with { Status = health.Status }
+                        : descriptor);
+                }
+
+                return TypedResults.Ok<IReadOnlyList<ModelProviderDescriptor>>(withStatus);
+            })
             .WithName("AgentPrismListModels")
             .WithSummary("Kayitli model saglayicilarini ve modellerini listeler.")
             .WithDescription(
                 "Model katalogu yapilandirmadan gelir; AgentPrism yerlesik model listesi tasimaz. " +
                 "Bos liste bir hata degildir. Katalog bir dogrulama listesi de degildir: " +
-                "burada olmayan bir model adi da kullanilabilir.");
+                "burada olmayan bir model adi da kullanilabilir. `status` alani ONBELLEKTEN " +
+                "gelir ve bu uc saglayiciya ag cagrisi yapmaz; guncel bir denetim icin " +
+                "/api/models/health kullanin.");
 
         builder.MapGet("/api/stats", async Task<Ok<RunStatistics>> (
                 IRunStore runs,

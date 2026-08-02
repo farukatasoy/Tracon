@@ -67,9 +67,10 @@ Faz bittiğinde **`faz-tamamlama` skill'i uygulanır**. Atlanmaz.
 | 5 | `docs/05-AGENTPRISM-UI.md` | ✅ Tamamlandı |
 | 6 | `docs/06-GOZLEMLENEBILIRLIK.md` | ✅ Tamamlandı |
 | 7 | `docs/07-SAGLAMLASTIRMA-VE-YAYIN.md` | ⏸ Beklemede — yayın zamanı kullanıcı kararı (K-068) |
-| 8–30 | `docs/IKINCI-FAZ-YOL-HARITASI.md` | 📋 Planlandı — **sıradaki Faz 8** |
+| 8 | `docs/08-SAGLAYICI-GENISLEMESI.md` | ✅ Tamamlandı |
+| 9–30 | `docs/IKINCI-FAZ-YOL-HARITASI.md` | 📋 Planlandı — **sıradaki Faz 9** |
 
-**Sıradaki faz: 8** (`docs/08-SAGLAYICI-GENISLEMESI.md`).
+**Sıradaki faz: 9** (`docs/09-YONETISIM-VE-DENETIM-IZI.md`).
 
 **İkinci faz (8–30):** `docs/IKINCI-FAZ-YOL-HARITASI.md` sırayı, bağımlılıkları
 ve migration numaralarını tutar. Faz listesi orada; burada tekrarlanmaz —

@@ -131,18 +131,25 @@ public static class OpenAIProviderExtensions
             apiSurface,
             provider.GetRequiredService<OpenAIChatClientFactory>(),
             OpenAIModelCatalog.Build(options),
-            provider.GetService<ILogger<OpenAIModelProvider>>());
+            provider.GetService<ILogger<OpenAIModelProvider>>(),
+            healthCheckOptions: options);
     }
 
     /// <summary>
     /// Yapilandirma bolumunu ayar nesnesine elle baglar.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <c>Bind()</c> yansimaya dayanir ve <c>IL2026</c> + <c>IL3050</c> uretir.
     /// Yeni bir ayar eklendiginde bu metoda da eklenmelidir.
     /// Gerekce: <c>docs/KARARLAR.md</c>, karar K-021.
+    /// </para>
+    /// <para>
+    /// <c>internal</c>: <c>OpenAICompatibleProviderExtensions</c> ayni baglama
+    /// mantigini adlandirilmis ornekler icin de kullanir; kopyalanmaz.
+    /// </para>
     /// </remarks>
-    private static void Bind(IConfiguration section, OpenAIProviderOptions options)
+    internal static void Bind(IConfiguration section, OpenAIProviderOptions options)
     {
         if (section[nameof(OpenAIProviderOptions.ApiKey)] is { Length: > 0 } apiKey)
         {
@@ -171,6 +178,11 @@ public static class OpenAIProviderExtensions
                 out var timeout))
         {
             options.Timeout = timeout;
+        }
+
+        if (bool.TryParse(section[nameof(OpenAIProviderOptions.EnableResponsesSurface)], out var enableResponses))
+        {
+            options.EnableResponsesSurface = enableResponses;
         }
 
         BindModels(section.GetSection(nameof(OpenAIProviderOptions.Models)), options);
