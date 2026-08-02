@@ -6,6 +6,12 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj" />
+    <!--
+      AgentPrism.AspNetCore kendisi saglayicidan bagimsizdir (K-008'in doganal
+      sonucu). Bu proje AspNetCore + OpenAI birlesimini (gercek dunya kullanimi)
+      test ettigi icin OpenAI paketini dogrudan referans eder.
+    -->
+    <ProjectReference Include="../../src/AgentPrism.OpenAI/AgentPrism.OpenAI.csproj" />
   </ItemGroup>
 
   <ItemGroup>

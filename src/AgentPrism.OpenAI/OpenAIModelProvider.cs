@@ -22,11 +22,12 @@ namespace AgentPrism;
 /// olmasi normaldir; o durumda gunluk yazilmaz.
 /// </para>
 /// </remarks>
-public sealed class OpenAIModelProvider : IModelProvider
+public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCheck
 {
     private readonly OpenAIChatClientFactory _chatClientFactory;
     private readonly ILogger<OpenAIModelProvider>? _logger;
     private readonly HashSet<string> _knownModels;
+    private readonly OpenAIProviderHealthCheck? _healthCheck;
 
     /// <summary>Yeni bir saglayici olusturur.</summary>
     /// <param name="name">Saglayici adi. Agent tanimlarindaki <see cref="ModelBinding.Provider"/> bu degerle eslesir.</param>
@@ -34,6 +35,11 @@ public sealed class OpenAIModelProvider : IModelProvider
     /// <param name="chatClientFactory">Sohbet istemcisi fabrikasi.</param>
     /// <param name="models">Bu saglayicinin sundugu modeller.</param>
     /// <param name="logger">Gunlukleyici.</param>
+    /// <param name="healthCheckOptions">
+    /// Verilirse <see cref="CheckHealthAsync"/> bu ayarlardaki adres ve anahtarla
+    /// <c>GET {endpoint}/models</c> ucuna gider. <see langword="null"/> ise saglik
+    /// durumu her zaman <see cref="ModelProviderHealthStatus.Unknown"/> doner.
+    /// </param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
     /// <exception cref="ArgumentException"><paramref name="name"/> bos ise.</exception>
     public OpenAIModelProvider(
@@ -41,7 +47,8 @@ public sealed class OpenAIModelProvider : IModelProvider
         OpenAIApiSurface apiSurface,
         OpenAIChatClientFactory chatClientFactory,
         IReadOnlyList<ModelDescriptor> models,
-        ILogger<OpenAIModelProvider>? logger = null)
+        ILogger<OpenAIModelProvider>? logger = null,
+        OpenAIProviderOptions? healthCheckOptions = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(chatClientFactory);
@@ -54,6 +61,7 @@ public sealed class OpenAIModelProvider : IModelProvider
         _chatClientFactory = chatClientFactory;
         _logger = logger;
         _knownModels = new HashSet<string>(models.Select(static model => model.Name), StringComparer.OrdinalIgnoreCase);
+        _healthCheck = healthCheckOptions is null ? null : new OpenAIProviderHealthCheck(name, healthCheckOptions);
     }
 
     /// <inheritdoc />
@@ -82,6 +90,20 @@ public sealed class OpenAIModelProvider : IModelProvider
 
         return _chatClientFactory.CreateChatClient(binding, ApiSurface);
     }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Saglik denetimi <see cref="_chatClientFactory"/>'yi kullanmaz — ayri, hafif bir
+    /// HTTP GET yapar. Bkz. <see cref="OpenAIProviderHealthCheck"/>.
+    /// </remarks>
+    public ValueTask<ModelProviderHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
+        => _healthCheck?.CheckHealthAsync(cancellationToken)
+            ?? ValueTask.FromResult(new ModelProviderHealth
+            {
+                ProviderName = Name,
+                Status = ModelProviderHealthStatus.Unknown,
+                CheckedAt = DateTimeOffset.UtcNow,
+            });
 
     private void LogUnknownModel(string model)
     {

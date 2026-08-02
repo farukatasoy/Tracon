@@ -234,6 +234,26 @@ public sealed class UiTests(BrowserFixture browsers)
     }
 
     [Fact]
+    public async Task Models_ekraninda_saglik_rozeti_gorunur()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/models");
+
+        // ScriptedModelProvider IModelProviderHealthCheck uygulamaz; bu bir hata
+        // degildir ve rozet "unknown" gostermelidir. Faz 6'dan kalan "provider
+        // connectivity checks are still missing" notu artik ekranda olmamalidir.
+        await session.Page.GetByText("unknown", new() { Exact = true }).First.WaitForAsync(new() { Timeout = 10_000 });
+
+        (await session.Page.GetByText("Provider connectivity checks are still missing").CountAsync()).ShouldBe(0);
+
+        await session.Page.GetByRole(AriaRole.Button, new() { Name = "Check now" }).First.ClickAsync();
+
+        await session.Page.GetByText("unknown", new() { Exact = true }).First.WaitForAsync(new() { Timeout = 10_000 });
+    }
+
+    [Fact]
     public async Task Tool_ekraninda_cagri_sayisi_gorunur()
     {
         await using var host = await UiHost.StartAsync();
