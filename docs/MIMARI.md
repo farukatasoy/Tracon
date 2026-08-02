@@ -8,16 +8,19 @@
 
 | Paket | Durum | Faz |
 |-------|-------|-----|
-| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 |
-| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) |
+| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) |
+| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) |
 | `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 |
-| `AgentPrism.OpenAI` | ⬜ İskelet | 3 |
+| `AgentPrism.OpenAI` | ✅ Tamamlandı | 3 |
 | `AgentPrism.AspNetCore` | ⬜ İskelet | 4 |
 | `AgentPrism.UI` | ⬜ İskelet | 5 |
 | `AgentPrism` (meta) | ✅ Paketleniyor | 0 |
 
-Testler: **130 test geçiyor** — 42 birim testi + 88 entegrasyon testi (Testcontainers, gerçek PostgreSQL).
+Testler: **198 test geçiyor** — 110 birim testi (62 Core + 48 OpenAI) + 88 entegrasyon testi (Testcontainers, gerçek PostgreSQL).
 Build, test, pack ve format kapıları sıfır uyarı.
+
+Faz 3 sonunda uçtan uca yol çalışıyor: veritabanındaki bir tanım derleniyor, gerçek bir OpenAI
+yanıtı üretiyor, tool çağırıyor ve çağrı `run_events` tablosuna yazılıyor.
 
 ---
 
@@ -65,16 +68,17 @@ DevUI'nin kaynak kodundan doğrulanan sınırları:
 │  AgentPrism.AspNetCore    MapAgentPrism, yönetim API'si,      │
 │                           OpenAI uyumlu uçlar, erişim filtresi│
 ├────────────────────┬─────────────────────┬───────────────────┤
-│ AgentPrism.        │ AgentPrism.         │                   │
-│ PostgreSql         │ OpenAI              │                   │
-│ (kalıcılık)        │ (sağlayıcı)         │                   │
+│ AgentPrism.        │ AgentPrism.OpenAI   │                   │
+│ PostgreSql         │ openai ·            │                   │
+│ (kalıcılık)        │ openai-responses    │                   │
 ├────────────────────┴─────────────────────┴───────────────────┤
 │  AgentPrism.Core                                              │
 │    IAgentCatalog ◄─ IAgentSource[]   (kod · MAF · veritabanı) │
 │                  └─ IAgentDecorator[] (çalıştırma kaydı)      │
 │    AgentDefinitionCompiler · CompiledAgentCache               │
 │    AgentSessionManager · AgentSessionIdentity                 │
-│    ToolRegistry · ModelProviderRegistry · InMemory*Store      │
+│    ToolRegistry · ToolMethodScanner · ModelProviderRegistry   │
+│    InMemory*Store                                             │
 ├──────────────────────────────────────────────────────────────┤
 │  AgentPrism.Abstractions  sözleşmeler                         │
 └───────────────────────────┬──────────────────────────────────┘
@@ -199,6 +203,53 @@ ChatHistoryProvider? ChatHistoryProvider { get; set; }
 
 **ÖNEMLİ:** `ChatHistoryProvider` örneği **tüm oturumlarda paylaşılır**. Oturuma özgü hiçbir durum alan olarak tutulamaz; `ProviderSessionState` ile `AgentSession` içinde saklanır. `PostgresChatHistoryProvider` yalnız `NpgsqlDataSource` referansını tutar.
 
+### Faz 3'te kullanılanlar
+
+Reflection ile doğrulandı: `OpenAI` 2.12.0, `Microsoft.Extensions.AI.OpenAI` 10.8.3, `Microsoft.Agents.AI.OpenAI` 1.16.0.
+
+```csharp
+// OpenAI 2.12.0 — DİKKAT: tip adı ResponsesClient, "OpenAIResponseClient" DEĞİL
+sealed class OpenAIClient
+{
+    OpenAIClient(ApiKeyCredential credential, OpenAIClientOptions options);
+    ChatClient      GetChatClient(string model);
+    ResponsesClient GetResponsesClient();               // [OPENAI001]
+    Uri Endpoint { get; }                               // [OPENAI001]
+}
+
+sealed class OpenAIClientOptions : ClientPipelineOptions
+{
+    Uri?    Endpoint       { get; set; }
+    string? OrganizationId { get; set; }                // "Organization" DEĞİL
+    string? ProjectId      { get; set; }
+    TimeSpan? NetworkTimeout { get; set; }              // tabandan; "Timeout" DEĞİL
+}
+
+// Microsoft.Extensions.AI.OpenAI
+static IChatClient AsIChatClient(this ChatClient chatClient);                       // temiz
+static IChatClient AsIChatClient(this ResponsesClient c, string? defaultModelId);   // [OPENAI001]
+
+// Microsoft.Agents.AI.OpenAI — sunucu tarafı depolamayı kapatır
+static IChatClient AsIChatClientWithStoredOutputDisabled(                           // [OPENAI001][MAAI001]
+    this ResponsesClient c, string? model = null, bool includeReasoningEncryptedContent = true);
+
+// Microsoft.Extensions.AI — boru hattı
+static ChatClientBuilder AsBuilder(this IChatClient inner);
+static ChatClientBuilder UseFunctionInvocation(this ChatClientBuilder b, ILoggerFactory? lf, Action<FunctionInvokingChatClient>? cfg);
+static ChatClientBuilder UseOpenTelemetry(this ChatClientBuilder b, ILoggerFactory? lf, string? sourceName, Action<OpenTelemetryChatClient>? cfg);
+
+// ChatOptions.Reasoning — ModelBinding.ReasoningEffort buraya bağlanır
+sealed class ReasoningOptions { ReasoningEffort? Effort; ReasoningOutput? Output; }
+enum ReasoningEffort { None, Low, Medium, High, ExtraHigh }
+
+// AIFunctionFactory — AddToolsFrom bunu kullanır
+static AIFunction Create(MethodInfo method, object? target, AIFunctionFactoryOptions options);
+static AIFunction Create(MethodInfo method, Func<AIFunctionArguments, object> createInstanceFunc, AIFunctionFactoryOptions? options);
+sealed class AIFunctionArguments { IServiceProvider? Services { get; set; } }   // örnek metotları için
+```
+
+🚨 **Responses API ile `ChatHistoryProvider` birlikte kullanılamaz.** Sunucu tarafı depolama açıkken OpenAI bir konuşma kimliği döndürür ve `ChatClientAgent` şu hatayı atar: *"Only ConversationId or ChatHistoryProvider may be used, but not both."* `UsePostgreSql()` her derlenen agent'a bir `ChatHistoryProvider` bağladığı için AgentPrism Responses yolunda **her zaman** `AsIChatClientWithStoredOutputDisabled` kullanır. Geçmiş bizim veritabanımızda kalır. Karar K-030.
+
 ### Faz 4 ve sonrası için hazır olanlar
 
 ```csharp
@@ -285,7 +336,11 @@ AIAgent.RunAsync / RunStreamingAsync
   │  PostgresChatHistoryProvider geçmişi conversation_items'tan yükler  [Faz 2 ✅]
   │  ve çalıştırma sonunda geri yazar
   ▼
-IChatClient → OpenAI                                                   [Faz 3]
+IChatClient → OpenAI                                                   [Faz 3 ✅]
+     UseFunctionInvocation() → tool döngüsü MAF'ta
+     UseOpenTelemetry("AgentPrism") → Faz 6'nın kaynağı
+     openai            → GetChatClient(model).AsIChatClient()
+     openai-responses  → GetResponsesClient().AsIChatClientWithStoredOutputDisabled(model)
 ```
 
 **Oturum yolu** (Faz 2 ✅) — çalıştırmadan bağımsız, çağıran tarafından yönetilir:
@@ -352,9 +407,9 @@ Sonuç: MAF GA'ya geçtiğinde tek bir pakette sürüm güncellemesi yeterlidir.
 | Paket | AOT uyumlu | Neden |
 |-------|-----------|-------|
 | `AgentPrism.Abstractions` | Evet | Saf sözleşmeler |
-| `AgentPrism.Core` | Evet | Reflection kullanılmaz; JSON için source generator |
+| `AgentPrism.Core` | Evet | Yansımaya dayanan tek yol `AddToolsFrom` / `AddTool(Delegate)`; ikisi de `[RequiresUnreferencedCode]` + `[RequiresDynamicCode]` ile işaretli — uyarı bastırılmaz, çağırana iletilir |
 | `AgentPrism.PostgreSql` | Evet | Npgsql AOT uyumlu |
-| `AgentPrism.OpenAI` | Evet | — |
+| `AgentPrism.OpenAI` | Evet | Ölçüldü (Faz 3): `IsAotCompatible=true` ile sıfır uyarı. `OPENAI001`/`MAAI001` deneysel API tanılarıdır, AOT tanısı değil |
 | `AgentPrism.AspNetCore` | Hayır | Minimal API delege yönlendirmesi reflection kullanır |
 | `AgentPrism.UI` | Hayır | Gömülü varlık tarama + ASP.NET Core bağlantısı |
 

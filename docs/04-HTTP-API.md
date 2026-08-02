@@ -1,13 +1,62 @@
 # Faz 4 — HTTP API Katmanı
 
-> **Durum:** Planlandı
-> **Önkoşul:** [03-SAGLAYICI-VE-DERLEYICI.md](03-SAGLAYICI-VE-DERLEYICI.md)
+> **Durum:** 🔜 Sıradaki
+> **Önkoşul:** [03-SAGLAYICI-VE-DERLEYICI.md](03-SAGLAYICI-VE-DERLEYICI.md) — tamamlandı
 > **Sonraki:** [05-AGENTPRISM-UI.md](05-AGENTPRISM-UI.md)
 > **Paket:** `AgentPrism.AspNetCore`
 
 ---
 
-## Faz 2'den Devralınanlar
+## Bu Faza Başlarken
+
+Önce şunları bu sırayla okuyun:
+
+1. [`MIMARI.md`](MIMARI.md) — bölüm 4 (MAF genişleme noktaları), bölüm 6 (çalıştırma yolu), bölüm 7 (güvenlik)
+2. [`KARARLAR.md`](KARARLAR.md) — kapatılmış tartışmaları yeniden açmayın
+3. [`03-SAGLAYICI-VE-DERLEYICI.md`](03-SAGLAYICI-VE-DERLEYICI.md) — "Gerçekleşen Public API" ve "Faz 4'e Devreden Notlar"
+4. [`../MEMORY.md`](../MEMORY.md) — önceki oturumların keşfettiği tuzaklar
+5. Bu doküman
+
+Skill'ler: `.agents/skills/maf-api-kesfi/` (MAF imzalarını doğrulama), `.agents/skills/faz-tamamlama/` (faz sonu protokolü).
+
+---
+
+## Devraldığınız Sözleşmeler
+
+Bu imzalar **tamamlandı ve testli**. Faz 4 bunları değiştirmez, kullanır.
+
+```csharp
+// AgentPrism.Core — katalog ve calistirma
+IAgentCatalog        : ListAsync(ct) · ResolveAsync(name, ct)
+AgentDefinitionCompiler.Compile(AgentDefinition) → AIAgent
+AgentSessionManager  : GetOrCreateSessionAsync · SaveSessionAsync · DeleteSessionAsync · QuerySessionsAsync
+IRunStore            : QueryRunsAsync(RunQuery) · ReadEventsAsync(runId, ...)
+IToolRegistry        : List() → IReadOnlyList<ToolDescriptor> · TryGet(name, out AIFunction)
+IModelProviderRegistry : List() → IReadOnlyList<ModelProviderDescriptor> · CreateChatClient(ModelBinding)
+
+// AgentPrism.OpenAI — Faz 3
+OpenAIProviderNames.ChatCompletions = "openai"
+OpenAIProviderNames.Responses       = "openai-responses"
+UseOpenAI(apiKey | IConfiguration | Action<OpenAIProviderOptions>)
+
+// AgentPrism.Abstractions — Faz 3
+[AgentPrismTool(name, description)] · IAgentPrismBuilder.AddToolsFrom<T>() / AddToolsFrom(Type)
+```
+
+Davranış sözleşmeleri (mevcut testlerin zorladığı kurallar):
+
+| Kural | Nerede doğrulanıyor |
+|-------|--------------------|
+| Bilinmeyen tool adı `AgentPrismCompilationException` atar ve kayıtlı tool'ları listeler | `AgentDefinitionCompilerTests` |
+| Bilinmeyen sağlayıcı adı derleme hatası verir ve kayıtlı sağlayıcıları listeler | `ModelProviderRegistryTests` |
+| `UseOpenAI()` iki sağlayıcı kaydeder; ikinci çağrı çoğaltmaz | `OpenAIProviderExtensionsTests` |
+| API anahtarı hiçbir serileştirme, günlük veya istisna çıktısında görünmez | `SecretLeakTests` |
+| `UsePostgreSql()` bellek içi depoların yerini `Replace` ile alır | `ServiceRegistrationTests` |
+| Kayıtlar `TryAdd*` ile yapılır; tüketicinin kaydı kazanır | `AgentPrismServiceCollectionExtensions` |
+
+---
+
+## Faz 2 ve 3'ten Devralınanlar
 
 Bu fazın dayandığı, **tamamlanmış ve testli** parçalar:
 
@@ -19,8 +68,31 @@ Bu fazın dayandığı, **tamamlanmış ve testli** parçalar:
 | `AgentSessionIdentity` | `Core/Sessions/` | Oturum kimliği `AgentSession.StateBag` içinde. `AgentSessionStore.sessionStoreId` bu damgayla eşleşmelidir. |
 | Kiracı yalıtımı | `Postgres*Store` + `ITenantContext` | Depolar zaten `ITenantContext.TenantId` ile sınırlı. HTTP katmanı yalnız doğru `ITenantContext`'i kaydetmekle yükümlü. |
 | `/api/meta` için depo tipi bilgisi | — | Örnek API `/health` içinde `runStore.GetType().Name` döndürüyor; aynı desen `/api/meta` için kullanılabilir (karar K-018). |
+| Geçici HTTP uçları | `samples/AgentPrism.Api/Program.cs` | `/agents`, `/tools`, `/models`, `/runs`, `/sessions` çalışıyor. `MapAgentPrism()` bunların yerini alır; sözleşmeleri örnek alın. |
 
-🚨 **Tuzak:** `conversation_items.item` sütunu `json`, `jsonb` **değil** (karar K-027). Polimorfik `$type` ayracı ilk özellik olmak zorundadır ve `jsonb` anahtarları yeniden sıralar. Bu fazda `responses.payload` için de aynı soruyu sorun: yük polimorfik mi?
+---
+
+## 🚨 Bilinen Tuzaklar
+
+**1. `conversation_items.item` sütunu `json`, `jsonb` değil** (karar K-027). Polimorfik `$type` ayracı ilk özellik olmak zorundadır ve `jsonb` anahtarları yeniden sıralar. Bu fazda `responses.payload` için de aynı soruyu sorun: yük polimorfik mi?
+
+**2. 🚨 Responses API sunucu durumu `ChatHistoryProvider` ile çakışır.** Faz 3'te ölçüldü:
+
+```
+System.InvalidOperationException: Only ConversationId or ChatHistoryProvider may be used, but not both.
+```
+
+`UsePostgreSql()` her derlenen agent'a bir `ChatHistoryProvider` bağlar. Bu yüzden `OpenAIChatClientFactory` Responses yolunda `AsIChatClientWithStoredOutputDisabled` kullanır. Faz 4 kendi `IConversationStorage` implementasyonunu yazarken aynı çatışmayı tekrar değerlendirin — konuşma durumu **iki kez** yönetilmemelidir.
+
+**3. `MAAI001` ve `OPENAI001` derlemeyi kırar.** MAF ve OpenAI kitaplıklarının bazı üyeleri "evaluation purposes only" işaretlidir; `TreatWarningsAsErrors` ile hata olur. Bastırma gerekçeyle ve **tek dosyada** yapılır. Mevcut örnekler: `AgentDefinitionCompiler.CompileHarnessAgent` (K-020), `OpenAIChatClientFactory.CreateInnerChatClient` (K-030, K-031).
+
+**4. `dotnet format`, `dotnet build`'den fazlasını yakalar.** Dört kapıyı da çalıştırın.
+
+**5. `MA0004` (ConfigureAwait) kütüphane kodunda hata seviyesindedir** ve `await using` ifadelerini de kapsar. Kalıp: `var x = ...; await using (x.ConfigureAwait(false)) { ... }`.
+
+**6. Ayar sınıfları `record` OLMAMALIDIR.** `record`'un ürettiği `ToString` tüm özellikleri yazar ve sırları günlüğe ifşa eder. `AgentPrismUiOptions.AuthToken` bir sırdır; `SecretLeakTests` desenini bu faza taşıyın.
+
+**7. Model kataloğu boş olabilir.** AgentPrism yerleşik model listesi taşımaz (K-032). `/api/models` boş liste dönebilir; bu bir hata değildir.
 
 ---
 
@@ -191,6 +263,9 @@ src/AgentPrism.PostgreSql/Stores/
 | `OpenAICompatTests` | OpenAI SDK ile uçtan uca çağrı |
 | `StorageOverrideTests` | **PostgreSQL store'ları aktif, bellek içi olanlar değil** |
 | `ProblemDetailsTests` | Tüm hatalar tek tip sözleşme |
+| `SecretLeakTests` | `AuthToken` ve OpenAI anahtarı hiçbir yanıtta, `/api/meta` çıktısında veya günlükte görünmez |
+
+Faz 3'ün `SecretLeakTests` sınıfı örnek alınabilir: `tests/AgentPrism.OpenAI.UnitTests/SecretLeakTests.cs`. `RecordingLoggerProvider` günlük satırlarını bellekte toplar ve sır taramasını mümkün kılar.
 
 ---
 

@@ -22,7 +22,15 @@ public sealed record ModelBinding
     public float? TopP { get; init; }
 
     /// <summary>
-    /// Akil yurutme cabasi seviyesi. Destekleyen modellerde kullanilir; digerlerinde yok sayilir.
+    /// Akil yurutme cabasi seviyesi. Destekleyen modellerde kullanilir; digerlerinde
+    /// saglayici tarafindan yok sayilir.
     /// </summary>
+    /// <remarks>
+    /// Gecerli degerler <c>Microsoft.Extensions.AI.ReasoningEffort</c> adlaridir:
+    /// <c>None</c>, <c>Low</c>, <c>Medium</c>, <c>High</c>, <c>ExtraHigh</c>.
+    /// Karsilastirma buyuk/kucuk harfe duyarli degildir. Taninmayan bir deger
+    /// derleme sirasinda <c>AgentPrismCompilationException</c> ile reddedilir;
+    /// sessizce yok sayilmaz.
+    /// </remarks>
     public string? ReasoningEffort { get; init; }
 }

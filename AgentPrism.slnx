@@ -23,6 +23,7 @@
       Sahte test eklemek yerine proje, gercek testi ile birlikte olusturulur.
     -->
     <Project Path="tests/AgentPrism.Core.UnitTests/AgentPrism.Core.UnitTests.csproj" />
+    <Project Path="tests/AgentPrism.OpenAI.UnitTests/AgentPrism.OpenAI.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.PostgreSql.IntegrationTests/AgentPrism.PostgreSql.IntegrationTests.csproj" />
   </Folder>
 
