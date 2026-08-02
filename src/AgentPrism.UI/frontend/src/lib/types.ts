@@ -526,6 +526,24 @@ export interface ToolApprovalDecision {
   rememberArgumentsOnly?: boolean;
 }
 
+/**
+ * An uploaded file's metadata. The binary content never travels through this
+ * type — it lives at `GET api/attachments/{id}` and is fetched separately
+ * (decision: docs/14-COK-MODLULUK.md, section 14.1 — messages stay small).
+ */
+export interface AttachmentDescriptor {
+  id: string;
+  tenantId: string;
+  sessionId?: string | null;
+  runId?: string | null;
+  fileName: string;
+  mediaType: string;
+  byteSize: number;
+  sha256: string;
+  createdBy?: string | null;
+  createdAt: string;
+}
+
 /** `POST /v1/conversations` reserves an identifier; the session is born on first use. */
 export interface Conversation {
   id: string;

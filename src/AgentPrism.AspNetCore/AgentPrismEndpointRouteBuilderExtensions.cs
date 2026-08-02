@@ -91,7 +91,8 @@ public static class AgentPrismEndpointRouteBuilderExtensions
             group.RequireAuthorization(policy);
         }
 
-        AgentEndpoints.Map(group, roles);
+        AgentEndpoints.Map(group, roles, normalizedPrefix);
+        AttachmentEndpoints.Map(group, roles);
         SkillEndpoints.Map(group, roles);
         SkillScriptGrantEndpoints.Map(group, roles);
         SessionEndpoints.Map(group, roles);
@@ -102,7 +103,7 @@ public static class AgentPrismEndpointRouteBuilderExtensions
         GovernanceEndpoints.Map(group, roles);
         AuditEndpoints.Map(group, roles);
 
-        OpenAIResponsesEndpoints.Map(group, ResolveSessionStore(services), roles);
+        OpenAIResponsesEndpoints.Map(group, ResolveSessionStore(services), roles, normalizedPrefix);
         OpenAIChatCompletionsEndpoints.Map(group, roles);
         OpenAIConversationsEndpoints.Map(group, roles);
 

@@ -34,7 +34,7 @@ Sıralama bu beş cevaba göre kuruldu. Cevaplar karar defterine de yazıldı
 | 11 | [11-SKILL-SCRIPT-CALISTIRMA.md](11-SKILL-SCRIPT-CALISTIRMA.md) | F-09 (2/2) | K2'nin ikinci bilinçli istisnası. Rol + denetim izi hazır olmadan yapılamaz | — | 0004 |
 | 12 | [12-AGENT-CAGRI-GRAFIGI.md](12-AGENT-CAGRI-GRAFIGI.md) | F-10 | ✅ **Tamamlandı (2026-08-02)** — agent'ın agent'ı çağırması, çalıştırma ağacı, paylaşılan bütçe | — | 0005 |
 | 13 | [13-BAGLAM-SIKISTIRMA-VE-BELLEK.md](13-BAGLAM-SIKISTIRMA-VE-BELLEK.md) | F-11 | ✅ **Tamamlandı (2026-08-02)** — 5 sıkıştırma stratejisi + pipeline, 3 bellek sağlayıcısı; vektör tabanlı bellek K-105 ile kapsam dışı | — | — |
-| 14 | [14-COK-MODLULUK.md](14-COK-MODLULUK.md) | F-12 | Görsel, ses ve dosya girdisi | — | 0006 |
+| 14 | [14-COK-MODLULUK.md](14-COK-MODLULUK.md) | F-12 | ✅ **Tamamlandı (2026-08-02)** — görsel/dosya eki: `attachments` + `agent_files` tabloları, ek referansı model çağrısından hemen önce çözülür | — | 0006 |
 | 15 | [15-WORKFLOWS-YURUTME.md](15-WORKFLOWS-YURUTME.md) | F-27 (1/2) | En büyük iş. Yürütme ve checkpoint kalıcılığı | `AgentPrism.Workflows` | 0007 |
 | 16 | [16-WORKFLOWS-ARAYUZ.md](16-WORKFLOWS-ARAYUZ.md) | F-27 (2/2) | Graf görselleştirme, human-in-the-loop, bildirimsel tanım | — | — |
 | 17 | [17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md](17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) | F-22 | İş kuyruğu altyapısı. Faz 18 bunun üzerine kurulur | — | 0008 |

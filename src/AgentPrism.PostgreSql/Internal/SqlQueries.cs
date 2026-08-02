@@ -570,6 +570,82 @@ internal sealed class SqlQueries
 
         DeleteTenant = $"DELETE FROM {Schema}.tenants WHERE slug = @slug;";
 
+        // --- Ekler (Faz 14) ---
+
+        InsertAttachment = $"""
+            INSERT INTO {Schema}.attachments
+                (id, tenant_id, session_id, run_id, file_name, media_type, byte_size, sha256,
+                 content, external_uri, created_by, created_at)
+            VALUES
+                (@id, @tenant_id, @session_id, @run_id, @file_name, @media_type, @byte_size, @sha256,
+                 @content, @external_uri, @created_by, @created_at);
+            """;
+
+        SelectAttachment = $"""
+            SELECT id, tenant_id, session_id, run_id, file_name, media_type, byte_size, sha256, created_by, created_at
+            FROM {Schema}.attachments
+            WHERE tenant_id = @tenant_id AND id = @id;
+            """;
+
+        // content yalniz istendiginde okunur (docs/14-COK-MODLULUK.md, bolum 14.2).
+        SelectAttachmentContent = $"""
+            SELECT content, external_uri, media_type
+            FROM {Schema}.attachments
+            WHERE tenant_id = @tenant_id AND id = @id;
+            """;
+
+        SelectAttachments = $"""
+            SELECT id, tenant_id, session_id, run_id, file_name, media_type, byte_size, sha256, created_by, created_at
+            FROM {Schema}.attachments
+            WHERE tenant_id = @tenant_id
+              AND (@session_id IS NULL OR session_id = @session_id)
+            ORDER BY created_at DESC
+            OFFSET @skip LIMIT @take;
+            """;
+
+        DeleteAttachment = $"""
+            DELETE FROM {Schema}.attachments
+            WHERE tenant_id = @tenant_id AND id = @id
+            RETURNING external_uri;
+            """;
+
+        DeleteAttachmentsBySession = $"""
+            DELETE FROM {Schema}.attachments
+            WHERE tenant_id = @tenant_id AND session_id = @session_id
+            RETURNING external_uri;
+            """;
+
+        // --- Kalici agent dosya belleği (Faz 14, 14.5) ---
+
+        SelectAgentFile = $"""
+            SELECT content
+            FROM {Schema}.agent_files
+            WHERE tenant_id = @tenant_id AND agent_name = @agent_name AND path = @path;
+            """;
+
+        UpsertAgentFile = $"""
+            INSERT INTO {Schema}.agent_files (id, tenant_id, agent_name, path, content, created_at, updated_at)
+            VALUES (@id, @tenant_id, @agent_name, @path, @content, @now, @now)
+            ON CONFLICT (tenant_id, agent_name, path) DO UPDATE
+                SET content    = EXCLUDED.content,
+                    updated_at = EXCLUDED.updated_at;
+            """;
+
+        DeleteAgentFile = $"""
+            DELETE FROM {Schema}.agent_files
+            WHERE tenant_id = @tenant_id AND agent_name = @agent_name AND path = @path;
+            """;
+
+        // Yol hiyerarsisi ve arama istemcide (PostgresAgentFileStore) hesaplanir;
+        // bir agent'in dosya sayisi kucuktur ve LIKE kacislama karmasikligindan
+        // kacinilir.
+        SelectAgentFiles = $"""
+            SELECT path, content
+            FROM {Schema}.agent_files
+            WHERE tenant_id = @tenant_id AND agent_name = @agent_name
+            ORDER BY path;
+            """;
+
         // --- Denetim izi (Faz 9) ---
 
         InsertAuditEntry = $"""
@@ -641,6 +717,36 @@ internal sealed class SqlQueries
 
     /// <summary>Bir kiraci kaydini siler.</summary>
     public string DeleteTenant { get; }
+
+    /// <summary>Yeni bir ek ekler.</summary>
+    public string InsertAttachment { get; }
+
+    /// <summary>Bir ekin ustverisini okur.</summary>
+    public string SelectAttachment { get; }
+
+    /// <summary>Bir ekin ham icerigini okur.</summary>
+    public string SelectAttachmentContent { get; }
+
+    /// <summary>Ekleri filtreleyerek listeler.</summary>
+    public string SelectAttachments { get; }
+
+    /// <summary>Bir eki siler ve harici depo konumunu dondurur.</summary>
+    public string DeleteAttachment { get; }
+
+    /// <summary>Bir oturuma ait tum ekleri siler.</summary>
+    public string DeleteAttachmentsBySession { get; }
+
+    /// <summary>Kalici agent dosyasinin icerigini okur.</summary>
+    public string SelectAgentFile { get; }
+
+    /// <summary>Kalici agent dosyasini ekler veya gunceller.</summary>
+    public string UpsertAgentFile { get; }
+
+    /// <summary>Kalici agent dosyasini siler.</summary>
+    public string DeleteAgentFile { get; }
+
+    /// <summary>Bir agent'in tum kalici dosyalarini okur.</summary>
+    public string SelectAgentFiles { get; }
 
     /// <summary>Bir denetim izi kaydi ekler.</summary>
     public string InsertAuditEntry { get; }

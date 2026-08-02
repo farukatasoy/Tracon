@@ -14,6 +14,8 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
 {
     private readonly Dictionary<string, IModelProvider> _providers;
     private readonly ModelProviderCircuitBreaker? _circuitBreaker;
+    private readonly IAttachmentStore? _attachmentStore;
+    private readonly ITenantContext? _tenantContext;
 
     /// <summary>Kayitli saglayicilardan yeni bir defter olusturur.</summary>
     /// <param name="providers">Model saglayicilari.</param>
@@ -21,14 +23,25 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
     /// Uretilen istemcileri saracak devre kesici. <see langword="null"/> ise hicbir
     /// sarmalama yapilmaz (ornegin dogrudan kurulan testlerde).
     /// </param>
+    /// <param name="attachmentStore">
+    /// Ek referanslarini cozmek icin kullanilacak depo. <paramref name="tenantContext"/>
+    /// ile birlikte verilmezse hicbir ek cozme sarmalamasi eklenmez.
+    /// </param>
+    /// <param name="tenantContext">Ek cozmede kullanilacak kiraci baglami.</param>
     /// <exception cref="ArgumentNullException"><paramref name="providers"/> <see langword="null"/> ise.</exception>
     /// <exception cref="AgentPrismException">Ayni saglayici adi birden cok kez kaydedilmisse.</exception>
-    public ModelProviderRegistry(IEnumerable<IModelProvider> providers, ModelProviderCircuitBreaker? circuitBreaker = null)
+    public ModelProviderRegistry(
+        IEnumerable<IModelProvider> providers,
+        ModelProviderCircuitBreaker? circuitBreaker = null,
+        IAttachmentStore? attachmentStore = null,
+        ITenantContext? tenantContext = null)
     {
         ArgumentNullException.ThrowIfNull(providers);
 
         _providers = new Dictionary<string, IModelProvider>(StringComparer.OrdinalIgnoreCase);
         _circuitBreaker = circuitBreaker;
+        _attachmentStore = attachmentStore;
+        _tenantContext = tenantContext;
 
         foreach (var provider in providers)
         {
@@ -74,7 +87,15 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
                 "OpenAI icin `builder.AddAgentPrism().UseOpenAI(apiKey)` cagirin.");
         }
 
-        var chatClient = provider.CreateChatClient(binding);
+        IChatClient chatClient = provider.CreateChatClient(binding);
+
+        // Ek cozme sarmalayicisi devre kesicinin ICINE, dogrudan gercek istemcinin
+        // yanina konur: her gercek ag cagrisindan hemen once taze cozulmelidir,
+        // devre kesicinin erken donen kisa devresinden etkilenmemelidir.
+        if (_attachmentStore is not null && _tenantContext is not null)
+        {
+            chatClient = new AttachmentResolvingChatClient(chatClient, _attachmentStore, _tenantContext);
+        }
 
         return _circuitBreaker is null
             ? chatClient

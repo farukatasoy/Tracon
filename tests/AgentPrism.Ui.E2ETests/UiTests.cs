@@ -87,6 +87,43 @@ public sealed class UiTests(BrowserFixture browsers)
     }
 
     [Fact]
+    public async Task Playground_dosya_yuklenir_onizleme_gorunur_ve_calistirma_devam_eder()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        var pngPath = Path.Combine(Path.GetTempPath(), $"agentprism-e2e-{Guid.NewGuid():N}.png");
+
+        // 8 baytlik PNG imzasi + biraz dolgu: sihirli bayt denetimini gecmesi
+        // icin gecerli bir imza yeter, tam bir PNG govdesi gerekmez.
+        await File.WriteAllBytesAsync(
+            pngPath,
+            [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0]);
+
+        try
+        {
+            await session.Page.GotoAsync($"{host.UiAddress}/playground/support");
+
+            await session.Page.GetByTestId("attachment-input").SetInputFilesAsync(pngPath);
+
+            var chip = session.Page.GetByTestId("attachment-chip").First;
+            await chip.WaitForAsync(new() { Timeout = 10_000 });
+            await chip.GetByText(Path.GetFileName(pngPath)).WaitForAsync();
+
+            await session.Page.GetByTestId("playground-input").FillAsync("bu resmi tanimla");
+            await session.Page.GetByTestId("playground-send").ClickAsync();
+
+            // Ek referansi kucuk bir gonderim onizlemesi olarak turda da kalir.
+            await session.Page.GetByTestId("attachment-chip").First.WaitForAsync(new() { Timeout = 20_000 });
+            await session.Page.GetByText("Echo: bu resmi tanimla").WaitForAsync(new() { Timeout = 20_000 });
+        }
+        finally
+        {
+            File.Delete(pngPath);
+        }
+    }
+
+    [Fact]
     public async Task Arayuzden_agent_olusturulur_ve_hemen_calistirilir()
     {
         await using var host = await UiHost.StartAsync();

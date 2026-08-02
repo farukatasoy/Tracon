@@ -135,6 +135,28 @@ public sealed class PostgresToolInvocationContractTests(PostgresFixture fixture)
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
+public sealed class PostgresAttachmentStoreContractTests(PostgresFixture fixture) : AttachmentStoreContract
+{
+    private PostgresTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<IAttachmentStore> CreateStoreAsync()
+    {
+        _context = await PostgresTestContext.CreateAsync(fixture);
+        return _context.Attachments;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}
+
+/// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
 public sealed class PostgresTraceStoreContractTests(PostgresFixture fixture) : TraceStoreContract
 {
     private PostgresTestContext? _context;

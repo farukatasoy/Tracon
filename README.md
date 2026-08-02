@@ -27,7 +27,7 @@ Yedi ekran: **Agents** (katalog, tanım editörü, versiyon geçmişi, geri alma
 
 React 19 + TypeScript ile yazılır, Vite ile derlenir ve assembly'ye **Brotli
 sıkıştırılmış gömülür**. Tüketici projede hiçbir JavaScript bağımlılığı oluşmaz;
-`node_modules` klasörü gerekmez. JavaScript bütçesi **88 KB gzip** (kapı: 250 KB).
+`node_modules` klasörü gerekmez. JavaScript bütçesi **99 KB gzip** (kapı: 250 KB).
 
 Arayüz herhangi bir prefix altında çalışır (`/agentprism`, `/panel`, …) ve prefix'i
 çalışma anında öğrenir. Açık ve koyu tema; varsayılan işletim sistemi tercihidir.
@@ -51,8 +51,9 @@ GET    /agentprism/api/sessions[/{id}]         oturumlar ve sohbet gecmisi   · 
 GET    /agentprism/api/runs[/{id}]             calistirma kayitlari
 GET    /agentprism/api/runs/{id}/events        SSE; canli veya replay, Last-Event-ID ile devam
 GET    /agentprism/api/tools · /api/models · /api/stats
+POST   /agentprism/api/attachments             ek yukle (multipart) · GET indir/listele · DELETE
 
-POST   /agentprism/v1/responses                OpenAI Responses API uyumlu
+POST   /agentprism/v1/responses                OpenAI Responses API uyumlu; gomulu data: URI'lerini ek olarak alir
 POST   /agentprism/v1/chat/completions         OpenAI Chat Completions API uyumlu
 POST   /agentprism/v1/conversations            konusma ac · GET · DELETE · /items
 ```
@@ -241,7 +242,8 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [11](docs/11-SKILL-SCRIPT-CALISTIRMA.md) | Skill script çalıştırma: sandbox, izin kaydı ve denetim izi | ✅ Tamamlandı |
 | [12](docs/12-AGENT-CAGRI-GRAFIGI.md) | Agent'ın agent'ı çağırması: çağrı grafiği, çalıştırma ağacı ve paylaşılan bütçe | ✅ Tamamlandı |
 | [13](docs/13-BAGLAM-SIKISTIRMA-VE-BELLEK.md) | Bağlam sıkıştırma (5 strateji + pipeline) ve bellek sağlayıcıları (dosya, todo, metin araması) | ✅ Tamamlandı |
-| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 14–30) | 📋 Planlandı — sıradaki Faz 14 |
+| [14](docs/14-COK-MODLULUK.md) | Çok modluluk: görsel/dosya eki, kalıcı agent dosya belleği | ✅ Tamamlandı |
+| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 15–30) | 📋 Planlandı — sıradaki Faz 15 |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 > Faz 6, planındaki Workflows kalemini **yapmadı**; ertelendi ve gerekçesi

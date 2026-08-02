@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, openStream } from '../lib/api';
 import { readSse } from '../lib/sse';
 import { emptyTranscript, foldUpdate, type TranscriptState } from '../lib/transcript';
 import { Link, useNavigate } from '../lib/router';
 import { count, shortId } from '../lib/format';
+import type { AttachmentDescriptor } from '../lib/types';
 import {
   Badge,
   Button,
@@ -17,13 +18,14 @@ import {
   Select,
   cx,
 } from '../components/ui';
-import { PlusIcon, SendIcon, SpinnerIcon } from '../components/icons';
+import { CrossIcon, PaperclipIcon, PlusIcon, SendIcon, SpinnerIcon } from '../components/icons';
 import { TranscriptView } from '../components/transcript';
 
 interface Turn {
   id: string;
   /** Null for a turn that only carries an approval decision. */
   prompt: string | null;
+  attachments: AttachmentDescriptor[];
   runId: string | null;
   transcript: TranscriptState;
   status: 'streaming' | 'done' | 'failed';
@@ -54,9 +56,13 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  const [pendingAttachments, setPendingAttachments] = useState<AttachmentDescriptor[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<unknown>(null);
 
   const bottom = useRef<HTMLDivElement>(null);
   const abort = useRef<AbortController | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const selected = name ?? agents.data?.[0]?.name ?? '';
 
@@ -72,10 +78,46 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
     setTurns([]);
     setError(null);
     setBusy(false);
+    setPendingAttachments([]);
+    setUploadError(null);
+  }, []);
+
+  /**
+   * Uploads one or more files ahead of the next message.
+   *
+   * Uploaded before the message is sent, not bundled with it: the endpoint is
+   * a plain multipart POST, independent from the SSE run request. A file is
+   * usable in the *next* `run` call as soon as its descriptor comes back.
+   */
+  const uploadFiles = useCallback(
+    async (files: FileList | File[]) => {
+      setUploadError(null);
+      setUploading(true);
+
+      try {
+        for (const file of Array.from(files)) {
+          const descriptor = await api.uploadAttachment(file, sessionId);
+          setPendingAttachments((current) => [...current, descriptor]);
+        }
+      } catch (caught) {
+        setUploadError(caught);
+      } finally {
+        setUploading(false);
+      }
+    },
+    [sessionId],
+  );
+
+  const removePendingAttachment = useCallback((id: string) => {
+    setPendingAttachments((current) => current.filter((attachment) => attachment.id !== id));
+    void api.deleteAttachment(id).catch(() => {
+      // Best effort: the reference is already gone from the next message
+      // either way, and the row is orderless clutter at worst.
+    });
   }, []);
 
   const run = useCallback(
-    async (message: string | null, decision: Decision | null) => {
+    async (message: string | null, decision: Decision | null, attachments: AttachmentDescriptor[]) => {
     if ((message === null && decision === null) || selected.length === 0 || busy) {
       return;
     }
@@ -87,7 +129,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
 
     setTurns((current) => [
       ...current,
-      { id: turnId, prompt: message, runId: null, transcript: emptyTranscript, status: 'streaming', error: null },
+      { id: turnId, prompt: message, attachments, runId: null, transcript: emptyTranscript, status: 'streaming', error: null },
     ]);
 
     const update = (change: (turn: Turn) => Turn): void =>
@@ -114,6 +156,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
         body: JSON.stringify({
           message,
           sessionId: conversation,
+          attachmentIds: attachments.map((attachment) => attachment.id),
           // An approval is the input of the next turn, not a resume signal:
           // Microsoft Agent Framework ends the run when a tool needs a decision
           // and expects the answer in the following request.
@@ -191,13 +234,14 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
   const send = useCallback(() => {
     const message = prompt.trim();
 
-    if (message.length === 0) {
+    if (message.length === 0 && pendingAttachments.length === 0) {
       return;
     }
 
     setPrompt('');
-    void run(message, null);
-  }, [prompt, run]);
+    setPendingAttachments([]);
+    void run(message.length > 0 ? message : null, null, pendingAttachments);
+  }, [prompt, pendingAttachments, run]);
 
   /**
    * Answers a pending approval.
@@ -221,7 +265,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
         })),
       );
 
-      void run(null, { requestId, approved, remember });
+      void run(null, { requestId, approved, remember }, []);
     },
     [run],
   );
@@ -306,42 +350,89 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
         </div>
 
         <form
-          className="flex items-end gap-2 border-t border-line p-3"
+          className="flex flex-col gap-2 border-t border-line p-3"
           onSubmit={(event) => {
             event.preventDefault();
             send();
           }}
+          onDragOver={(event: DragEvent<HTMLFormElement>) => event.preventDefault()}
+          onDrop={(event: DragEvent<HTMLFormElement>) => {
+            event.preventDefault();
+
+            if (event.dataTransfer.files.length > 0) {
+              void uploadFiles(event.dataTransfer.files);
+            }
+          }}
         >
-          <textarea
-            rows={1}
-            value={prompt}
-            disabled={busy}
-            data-testid="playground-input"
-            placeholder="Send a message…"
-            className="max-h-40 min-h-9 flex-1 resize-y rounded-md border border-line bg-panel px-3 py-1.5 text-[13px] placeholder:text-subtle focus:border-accent focus:outline-none disabled:opacity-60"
-            onChange={(event) => setPrompt(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                send();
-              }
-            }}
-          />
-          {busy ? (
-            <Button tone="default" onClick={() => abort.current?.abort()}>
-              Stop
-            </Button>
-          ) : (
-            <Button
-              type="submit"
-              tone="primary"
-              testId="playground-send"
-              disabled={prompt.trim().length === 0}
-            >
-              <SendIcon className="size-3.5" />
-              Send
-            </Button>
+          {uploadError !== null && <ErrorNote error={uploadError} />}
+
+          {pendingAttachments.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {pendingAttachments.map((attachment) => (
+                <AttachmentChip
+                  key={attachment.id}
+                  attachment={attachment}
+                  onRemove={() => removePendingAttachment(attachment.id)}
+                />
+              ))}
+            </div>
           )}
+
+          <div className="flex items-end gap-2">
+            <input
+              ref={fileInput}
+              type="file"
+              multiple
+              data-testid="attachment-input"
+              className="hidden"
+              onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                if (event.target.files !== null && event.target.files.length > 0) {
+                  void uploadFiles(event.target.files);
+                }
+
+                event.target.value = '';
+              }}
+            />
+            <Button
+              type="button"
+              tone="default"
+              disabled={busy || uploading}
+              onClick={() => fileInput.current?.click()}
+              title="Attach a file"
+            >
+              {uploading ? <SpinnerIcon className="size-3.5" /> : <PaperclipIcon className="size-3.5" />}
+            </Button>
+            <textarea
+              rows={1}
+              value={prompt}
+              disabled={busy}
+              data-testid="playground-input"
+              placeholder="Send a message…"
+              className="max-h-40 min-h-9 flex-1 resize-y rounded-md border border-line bg-panel px-3 py-1.5 text-[13px] placeholder:text-subtle focus:border-accent focus:outline-none disabled:opacity-60"
+              onChange={(event) => setPrompt(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                  event.preventDefault();
+                  send();
+                }
+              }}
+            />
+            {busy ? (
+              <Button tone="default" onClick={() => abort.current?.abort()}>
+                Stop
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                tone="primary"
+                testId="playground-send"
+                disabled={prompt.trim().length === 0 && pendingAttachments.length === 0}
+              >
+                <SendIcon className="size-3.5" />
+                Send
+              </Button>
+            )}
+          </div>
         </form>
       </Panel>
     </>
@@ -359,6 +450,14 @@ function TurnView({
 
   return (
     <div data-testid="playground-turn">
+      {turn.attachments.length > 0 && (
+        <div className="mb-2 flex flex-wrap justify-end gap-1.5">
+          {turn.attachments.map((attachment) => (
+            <AttachmentChip key={attachment.id} attachment={attachment} />
+          ))}
+        </div>
+      )}
+
       {turn.prompt !== null ? (
         <div className="mb-2.5 flex justify-end">
           <p className="max-w-[80%] rounded-lg rounded-br-sm bg-accent-soft px-3 py-2 text-[13px] whitespace-pre-wrap text-fg">
@@ -404,5 +503,85 @@ function TurnView({
         {turn.status === 'failed' && turn.error === null && <Badge tone="danger">failed</Badge>}
       </div>
     </div>
+  );
+}
+
+/**
+ * Fetches an image attachment's bytes once and hands back an object URL.
+ *
+ * A plain `<img src="api/attachments/{id}">` cannot carry the bearer token
+ * (browsers do not attach custom headers to resource loads), so the preview
+ * has to go through `fetch` and wrap the result — see `api.attachmentBlob`.
+ */
+function useAttachmentPreview(id: string, enabled: boolean): string | null {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
+    let objectUrl: string | null = null;
+    let cancelled = false;
+
+    void api
+      .attachmentBlob(id)
+      .then((blob) => {
+        if (!cancelled) {
+          objectUrl = URL.createObjectURL(blob);
+          setUrl(objectUrl);
+        }
+      })
+      .catch(() => {
+        // Preview is best-effort; the chip below falls back to a plain icon.
+      });
+
+    return () => {
+      cancelled = true;
+
+      if (objectUrl !== null) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [id, enabled]);
+
+  return url;
+}
+
+/** A small pill showing one attached file, with an image thumbnail when possible. */
+function AttachmentChip({
+  attachment,
+  onRemove,
+}: {
+  attachment: AttachmentDescriptor;
+  onRemove?: () => void;
+}): ReactNode {
+  const isImage = attachment.mediaType.startsWith('image/');
+  const previewUrl = useAttachmentPreview(attachment.id, isImage);
+
+  return (
+    <span
+      data-testid="attachment-chip"
+      className="inline-flex items-center gap-1.5 rounded-md border border-line bg-panel py-1 pr-2 pl-1 text-[11px]"
+    >
+      {previewUrl !== null ? (
+        <img src={previewUrl} alt="" className="size-5 rounded object-cover" />
+      ) : (
+        <PaperclipIcon className="size-3.5 text-subtle" />
+      )}
+      <span className="max-w-[10rem] truncate" title={attachment.fileName}>
+        {attachment.fileName}
+      </span>
+      {onRemove !== undefined && (
+        <button
+          type="button"
+          onClick={onRemove}
+          className="text-subtle hover:text-fg"
+          aria-label={`Remove ${attachment.fileName}`}
+        >
+          <CrossIcon className="size-3" />
+        </button>
+      )}
+    </span>
   );
 }

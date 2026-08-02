@@ -148,6 +148,18 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         // kayitli degilse MAF'in bellek ici varsayilani kullanilir.
         services.Replace(ServiceDescriptor.Singleton<ChatHistoryProvider, PostgresChatHistoryProvider>());
 
+        // Ekler. IAttachmentStorage kayitliysa (S3/Blob) icerik orada yasar; bu
+        // depo yalnizca ustveriyi tutar.
+        services.Replace(ServiceDescriptor.Singleton<IAttachmentStore>(
+            static provider => ActivatorUtilities.CreateInstance<PostgresAttachmentStore>(provider)));
+
+        // Kalici agent dosya belleği (Faz 14, 14.5): FileMemoryProvider ve
+        // TextSearchProvider kod degismeden buraya doner (K-110).
+#pragma warning disable MAAI001 // AgentFileStore — gerekce AgentPrismServiceCollectionExtensions'daki ile ayni.
+        services.Replace(ServiceDescriptor.Singleton<AgentFileStore>(
+            static provider => ActivatorUtilities.CreateInstance<PostgresAgentFileStore>(provider)));
+#pragma warning restore MAAI001
+
         return builder;
     }
 

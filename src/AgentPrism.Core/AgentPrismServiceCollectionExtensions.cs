@@ -187,6 +187,12 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<IAuditActorResolver>(),
             provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingMcpServerStore>>()));
+        // Ek deposu ve tur denetleyicisi. IAttachmentStorage kayitli degilse icerik
+        // dogrudan bellekte (uretimde: veritabaninda) yasar.
+        services.TryAddSingleton<AttachmentTypeGuard>();
+        services.TryAddSingleton<IAttachmentStore>(
+            static provider => new InMemoryAttachmentStore(provider.GetService<IAttachmentStorage>()));
+
         services.TryAddSingleton<ITenantStore>(static provider => new AuditingTenantStore(
             new InMemoryTenantStore(),
             provider.GetRequiredService<IAuditLog>(),
@@ -272,6 +278,7 @@ public static class AgentPrismServiceCollectionExtensions
         BindAudit(section.GetSection(nameof(AgentPrismOptions.Audit)), options.Audit);
         BindSkills(section.GetSection(nameof(AgentPrismOptions.Skills)), options.Skills);
         BindAgentGraph(section.GetSection(nameof(AgentPrismOptions.AgentGraph)), options.AgentGraph);
+        BindAttachments(section.GetSection(nameof(AgentPrismOptions.Attachments)), options.Attachments);
         options.UtilityModel = BindUtilityModel(section.GetSection(nameof(AgentPrismOptions.UtilityModel)));
     }
 
@@ -346,6 +353,39 @@ public static class AgentPrismServiceCollectionExtensions
                 out var maxRuns))
         {
             options.MaxTotalRuns = maxRuns;
+        }
+    }
+
+    private static void BindAttachments(IConfigurationSection section, AgentPrismAttachmentOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (long.TryParse(
+                section[nameof(AgentPrismAttachmentOptions.MaxBytes)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxBytes))
+        {
+            options.MaxBytes = maxBytes;
+        }
+
+        var allowed = section.GetSection(nameof(AgentPrismAttachmentOptions.AllowedMediaTypes))
+            .GetChildren()
+            .Select(static child => child.Value)
+            .Where(static value => value is { Length: > 0 })
+            .ToArray();
+
+        if (allowed.Length > 0)
+        {
+            options.AllowedMediaTypes.Clear();
+
+            foreach (var mediaType in allowed)
+            {
+                options.AllowedMediaTypes.Add(mediaType!);
+            }
         }
     }
 

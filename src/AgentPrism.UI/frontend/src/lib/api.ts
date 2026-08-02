@@ -7,6 +7,7 @@ import type {
   AgentDetail,
   AgentSkillDefinition,
   AgentSkillRequest,
+  AttachmentDescriptor,
   SkillScriptGrant,
   SkillScriptGrantRequest,
   AuditEntry,
@@ -247,6 +248,45 @@ export const api = {
   approvalRules: () => request<ToolApprovalRule[]>('api/approvals/rules'),
   deleteApprovalRule: (id: string) =>
     request<void>(`api/approvals/rules/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
+  /**
+   * Uploads a file, returning its stored descriptor.
+   *
+   * The body is `multipart/form-data`, not JSON, so this bypasses `send()` and
+   * lets the browser set its own `Content-Type` (with the multipart boundary).
+   * Type is validated server-side from the file's magic bytes, never trusted
+   * from what the browser reports.
+   */
+  uploadAttachment: async (file: File, sessionId?: string | null): Promise<AttachmentDescriptor> => {
+    const form = new FormData();
+    form.append('file', file, file.name);
+
+    return request<AttachmentDescriptor>(
+      `api/attachments${query({ sessionId: sessionId ?? undefined })}`,
+      { method: 'POST', body: form },
+    );
+  },
+  deleteAttachment: (id: string) =>
+    request<void>(`api/attachments/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
+  /**
+   * Fetches an attachment's raw bytes as a `Blob`.
+   *
+   * A plain `<img src="...">` cannot carry the bearer token, so a preview
+   * thumbnail must fetch through here and wrap the result in an object URL
+   * (`URL.createObjectURL`) instead of pointing at the endpoint directly.
+   */
+  attachmentBlob: async (id: string): Promise<Blob> => {
+    const response = await fetch(apiUrl(`api/attachments/${encodeURIComponent(id)}`), {
+      headers: { ...authHeaders() },
+    });
+
+    if (!response.ok) {
+      throw await toError(response);
+    }
+
+    return response.blob();
+  },
 
   /**
    * Reserves a conversation identifier.
