@@ -107,7 +107,14 @@ public sealed class RunEventWriter
             Text = Truncate(draft.Text),
             ToolName = draft.ToolName,
             ToolCallId = draft.ToolCallId,
-            Payload = _options.RecordToolPayloads ? Truncate(draft.Payload) : null,
+            // 🚨 Bekleyen insan istegi bu kuralin BILINCLI istisnasidir. Yuk
+            // burada bir gozlem ayrintisi degil, islevin kendisidir: arayuz
+            // bekleyen istekleri yalnizca bu olaydan okur ve yuk susturulursa
+            // kullanici cevaplayacagi soruyu hic goremez. Ayni gerekce K-089'da
+            // (denetim izine yazilamayan script calismaz) kuruldu.
+            Payload = _options.RecordToolPayloads || draft.Type == RunEventType.WorkflowRequest
+                ? Truncate(draft.Payload)
+                : null,
         };
 
         if (IsDisabled)
@@ -177,6 +184,10 @@ public sealed class RunEventWriter
         {
             RunStatus.Completed => new RunEventDraft(RunEventType.RunCompleted),
             RunStatus.Failed => new RunEventDraft(RunEventType.RunFailed) { Text = error?.Message },
+
+            // Insan bekleyen bir calistirma ne bitmistir ne de basarisiz
+            // olmustur; RunFailed yazmak arayuzde kirmizi bir hata gosterirdi.
+            RunStatus.AwaitingInput => new RunEventDraft(RunEventType.RunAwaitingInput),
             _ => new RunEventDraft(RunEventType.RunFailed) { Text = "Calistirma iptal edildi." },
         };
 

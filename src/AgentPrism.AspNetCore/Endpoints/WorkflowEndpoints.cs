@@ -42,6 +42,15 @@ internal static class WorkflowEndpoints
             .WithName("AgentPrismGetWorkflow")
             .WithSummary("Tek bir workflow tanimini dondurur.");
 
+        builder.MapGet("/api/workflows/{name}/graph", GetGraphAsync)
+            .RequireRole(roles.Reader)
+            .WithName("AgentPrismGetWorkflowGraph")
+            .WithSummary("Workflow'un derlenmis grafini dondurur.")
+            .WithDescription(
+                "Dugum kimlikleri calistirma olaylarindaki executor kimlikleriyle birebir ayni " +
+                "olur; arayuz dugumleri canli olarak bu sayede renklendirir. Yanit ayrica " +
+                "Microsoft Agent Framework'un urettigi Mermaid metnini tasir.");
+
         builder.MapPut("/api/workflows/{name}", SaveAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismSaveWorkflow")
@@ -70,6 +79,23 @@ internal static class WorkflowEndpoints
             .RequireRole(roles.Operator)
             .WithName("AgentPrismResumeWorkflow")
             .WithSummary("Bir kontrol noktasindan devam eder ve olaylari SSE ile akitir.");
+
+        builder.MapGet("/api/workflows/runs/{runId:guid}/requests", ListRequestsAsync)
+            .RequireRole(roles.Reader)
+            .WithName("AgentPrismListWorkflowRequests")
+            .WithSummary("Bir calistirmanin bekleyen insan girdisi isteklerini listeler.")
+            .WithDescription(
+                "Yalnizca 'AwaitingInput' durumundaki bir calistirma istek dondurur. " +
+                "Istekler calistirmanin olay akisindan okunur; ayri bir tablo yoktur.");
+
+        builder.MapPost("/api/workflows/runs/{runId:guid}/respond", RespondAsync)
+            .RequireRole(roles.Operator)
+            .WithName("AgentPrismRespondWorkflowRequest")
+            .WithSummary("Bekleyen bir istegi yanitlar ve calistirmayi sürdürur.")
+            .WithDescription(
+                "Yanit, kontrol noktasindan sürdürulen yurutmede ayni kimlikle yeniden " +
+                "yayinlanan istekle eslestirilir. Sürdürme YENI bir runs satiri acar; " +
+                "olaylar SSE ile akar.");
     }
 
     private static async Task<Results<Ok<IReadOnlyList<WorkflowDescriptor>>, ProblemHttpResult>> ListAsync(
@@ -103,6 +129,38 @@ internal static class WorkflowEndpoints
         return definition is null ? NotFound(name) : TypedResults.Ok(definition);
     }
 
+    private static async Task<Results<Ok<WorkflowGraph>, ProblemHttpResult>> GetGraphAsync(
+        string name,
+        [FromServices] IWorkflowRunner? runner,
+        CancellationToken cancellationToken)
+    {
+        // Graf DERLENMIS workflow'dan cikarilir; tanimdan cizilen bir graf hazir
+        // desenlerin ekledigi dugumleri gostermez ve calistirma olaylari hicbir
+        // dugumle eslesmezdi. Derleme motoru gerektirir.
+        if (runner is null)
+        {
+            return NotRegistered();
+        }
+
+        WorkflowGraph? graph;
+
+        try
+        {
+            graph = await runner.GetGraphAsync(name, cancellationToken).ConfigureAwait(false);
+        }
+        catch (AgentPrismException exception)
+        {
+            // Gecersiz bir tanim ya da katalogda olmayan bir agent: kullanicinin
+            // duzeltebilecegi bir hatadir, sunucu hatasi degil.
+            return TypedResults.Problem(
+                title: "Workflow grafi cikarilamadi",
+                detail: exception.Message,
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        return graph is null ? NotFound(name) : TypedResults.Ok(graph);
+    }
+
     private static async Task<Results<Ok<WorkflowDefinition>, ProblemHttpResult>> SaveAsync(
         string name,
         [FromBody] WorkflowSaveRequest request,
@@ -122,6 +180,7 @@ internal static class WorkflowEndpoints
             ManagerAgentName = request.ManagerAgentName,
             MaxIterations = request.MaxIterations,
             HandoffInstructions = request.HandoffInstructions,
+            RequirePlanApproval = request.RequirePlanApproval,
         };
 
         // Dogrulama KAYIT ANINDA yapilir. Gecersiz bir tanimi kabul edip
@@ -224,6 +283,74 @@ internal static class WorkflowEndpoints
                 {
                     RunId = runId,
                     CheckpointId = request?.CheckpointId,
+                    NewRunId = newRunId,
+                },
+                cancellationToken),
+            newRunId);
+    }
+
+    private static async Task<Results<Ok<IReadOnlyList<WorkflowPendingRequest>>, ProblemHttpResult>>
+        ListRequestsAsync(
+            Guid runId,
+            [FromServices] IWorkflowRunner? runner,
+            CancellationToken cancellationToken)
+    {
+        if (runner is null)
+        {
+            return NotRegistered();
+        }
+
+        try
+        {
+            var requests = await runner.ListPendingRequestsAsync(runId, cancellationToken).ConfigureAwait(false);
+
+            return TypedResults.Ok(requests);
+        }
+        catch (AgentPrismException exception)
+        {
+            // Kiraci eslesmemesi de buraya duser ve "bulunamadi" olarak yanitlanir;
+            // baska bir kiracinin calistirmasinin varligi sizdirilmaz.
+            return TypedResults.Problem(
+                title: "Calistirma bulunamadi",
+                detail: exception.Message,
+                statusCode: StatusCodes.Status404NotFound);
+        }
+    }
+
+    private static async Task<IResult> RespondAsync(
+        Guid runId,
+        [FromBody] WorkflowRespondHttpRequest? request,
+        [FromServices] IWorkflowRunner? runner,
+        CancellationToken cancellationToken)
+    {
+        if (runner is null)
+        {
+            return NotRegistered();
+        }
+
+        if (request is null || string.IsNullOrWhiteSpace(request.RequestId))
+        {
+            return TypedResults.Problem(
+                title: "Yanit gecersiz",
+                detail: "'requestId' alani zorunludur.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var newRunId = AgentPrismId.NewId();
+
+        return new WorkflowEventStream(
+            runner.RespondStreamingAsync(
+                new WorkflowRespondRequest
+                {
+                    RunId = runId,
+                    RequestId = request.RequestId,
+                    Approved = request.Approved,
+                    Text = request.Text,
+
+                    // Ham JSON metni tasinir: yanit tipi ancak calistirma aninda,
+                    // portun bildirdigi tipe gore cozulebilir.
+                    Json = request.Data?.GetRawText(),
+                    CheckpointId = request.CheckpointId,
                     NewRunId = newRunId,
                 },
                 cancellationToken),

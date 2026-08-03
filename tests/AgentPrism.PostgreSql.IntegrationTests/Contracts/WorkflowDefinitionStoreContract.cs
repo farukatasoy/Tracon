@@ -72,6 +72,10 @@ public abstract class WorkflowDefinitionStoreContract : IAsyncLifetime
         loaded.AgentNames.ShouldBe(["destek", "uzman"]);
         loaded.MaxIterations.ShouldBe(5);
         loaded.HandoffInstructions.ShouldBe("Teknik soruda uzmana devret.");
+
+        // Faz 16'da eklendi. Varsayilan false oldugu icin eksik bir DTO alani
+        // bu testte "false donduruldu" olarak gorunur - bilerek true yaziliyor.
+        loaded.RequirePlanApproval.ShouldBeFalse();
     }
 
     [Fact]
@@ -82,11 +86,18 @@ public abstract class WorkflowDefinitionStoreContract : IAsyncLifetime
             Name = "magentic",
             Kind = WorkflowKind.Magentic,
             ManagerAgentName = "yonetici",
+            RequirePlanApproval = true,
         };
 
         await Store.SaveAsync("tenant-a", definition);
 
-        (await Store.GetAsync("tenant-a", "magentic"))!.ManagerAgentName.ShouldBe("yonetici");
+        var loaded = (await Store.GetAsync("tenant-a", "magentic"))!;
+
+        loaded.ManagerAgentName.ShouldBe("yonetici");
+
+        // Plan onayi jsonb yukunun bir parcasidir; elle yazilmis DTO'ya
+        // eklenmezse sessizce kaybolurdu.
+        loaded.RequirePlanApproval.ShouldBeTrue();
     }
 
     [Fact]

@@ -65,9 +65,13 @@ internal static class WorkflowEventMapper
                 Text = completed.ExecutorId,
             },
 
+            // Yuk, istegi arayuzde gostermeye yeter: port, tipler, metin ve
+            // hangi girdi alaninin sorulacagi. Bekleyen istekler bu olaydan
+            // okunur; ayri bir tablo yoktur (Faz 16).
             RequestInfoEvent request => new RunEventDraft(RunEventType.WorkflowRequest)
             {
                 Text = request.Request.RequestId,
+                Payload = WorkflowRequestDescriptor.Describe(request.Request),
             },
 
             WorkflowErrorEvent error => new RunEventDraft(RunEventType.ExecutorFailed)

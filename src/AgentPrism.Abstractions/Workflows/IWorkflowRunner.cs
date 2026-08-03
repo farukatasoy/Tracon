@@ -31,6 +31,48 @@ public interface IWorkflowRunner
     ValueTask<WorkflowDescriptor?> GetAsync(string name, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Bir workflow'u derler ve grafini cikarir.
+    /// </summary>
+    /// <param name="name">Workflow adi.</param>
+    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <returns>Graf; workflow katalogda yoksa <see langword="null"/>.</returns>
+    /// <remarks>
+    /// Graf <strong>gercekten derlenir</strong>: hazir desenlerin ekledigi
+    /// yardimci dugumler ancak derlemeden sonra gorulur ve calistirma
+    /// olaylarindaki executor kimlikleri de oradan gelir. Derleme bir agent
+    /// cagrisi yapmaz, yalnizca sarmalayicilari baglar.
+    /// </remarks>
+    ValueTask<WorkflowGraph?> GetGraphAsync(string name, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Bir calistirmanin bekleyen insan girdisi isteklerini listeler.
+    /// </summary>
+    /// <param name="runId">Calistirma kimligi.</param>
+    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <returns>Bekleyen istekler; yoksa bos liste.</returns>
+    /// <exception cref="AgentPrismException">
+    /// Calistirma yoksa veya baska bir kiraciya aitse.
+    /// </exception>
+    ValueTask<IReadOnlyList<WorkflowPendingRequest>> ListPendingRequestsAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Bekleyen bir istegi yanitlar ve calistirmayi kontrol noktasindan sürdürur.
+    /// </summary>
+    /// <param name="request">Yanit.</param>
+    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <returns>Sirali olay akisi.</returns>
+    /// <remarks>
+    /// Sürdürme <strong>yeni bir calistirma kaydi</strong> acar;
+    /// <see cref="ResumeStreamingAsync"/> ile ayni kuraldir. Yanit, kontrol
+    /// noktasindan yeniden yayinlanan istekle kimlik uzerinden eslestirilir.
+    /// </remarks>
+    IAsyncEnumerable<RunEvent> RespondStreamingAsync(
+        WorkflowRespondRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Bir workflow'u calistirir ve olaylarini akitir.
     /// </summary>
     /// <param name="request">Calistirma istegi.</param>

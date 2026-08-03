@@ -144,12 +144,13 @@ internal sealed class WorkflowDefinitionCompiler
             .AddParticipants(participants)
             .WithName(definition.Name)
 
-            // 🚨 Plan onayi KAPATILIR. Acik birakildiginda MAF ilk super-step'in
-            // sonunda bir RequestInfoEvent yayinlar ve yurutme PendingRequests
-            // durumunda kalir (Faz 15'te olculdu). Bu bir human-in-the-loop
-            // akisidir ve yanit verme yolu Faz 16'nin konusudur; simdi acik
-            // birakmak her Magentic calistirmasini yarim birakirdi.
-            .RequirePlanSignoff(false);
+            // Plan onayi acikken MAF ilk super-step'in sonunda bir
+            // RequestInfoEvent yayinlar ve yurutme PendingRequests durumunda
+            // kalir (Faz 15'te olculdu). Faz 16 bu istegi karsilar: calistirma
+            // AwaitingInput olarak kapanir, durumu kontrol noktasina yazilir ve
+            // /respond ucu onu sürdürur. Varsayilan yine KAPALI - bir tanim
+            // acikca istemeden calistirma insan beklemez.
+            .RequirePlanSignoff(definition.RequirePlanApproval);
 
         if (definition.MaxIterations is { } rounds)
         {

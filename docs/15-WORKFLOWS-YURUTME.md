@@ -528,21 +528,23 @@ kimlikleri.
   `Workflow.ReflectEdges()/ReflectExecutors()/ReflectPorts()` hazır. Bu fazda
   graf **çizilmedi**, yalnızca çalıştırıldı.
 - **Human-in-the-loop:** `RequestPort` / `ExternalRequest` / `ExternalResponse`
-  ve `StreamingRun.SendResponseAsync` Faz 16'nın konusudur. Bu fazda
-  `blockOnPendingRequest: false` kullanılır; bekleyen istek varsa çalıştırma
-  anlaşılır bir hata ile biter. `RunEventType.WorkflowRequest` (18) değeri
+  ve `StreamingRun.SendResponseAsync` **Faz 16'da uygulandı**. Bu fazda
+  `blockOnPendingRequest: false` kullanıldı ve bekleyen istek varsa çalıştırma
+  anlaşılır bir hata ile bitiyordu; Faz 16'dan beri `RunStatus.AwaitingInput`
+  ile kapanır ve `/respond` ucundan sürdürülür. `RunEventType.WorkflowRequest` (18) değeri
   şimdiden ayrıldı — Faz 16 enum sırasını değiştirmek zorunda kalmaz.
   `MagenticWorkflowBuilder.RequirePlanSignoff(true)` bu yolun ilk gerçek
   tüketicisidir.
 - **🚨 Kontrol noktası kimlikleri süreç ömürlüdür.** Uygulama yeniden
-  başlatıldığında eski kontrol noktaları kullanılamaz. Kalıcı çözüm MAF'ın
-  executor kimliği üretimini dışarıdan verilebilir kılmasını ister; alternatif,
-  `WorkflowBuilder` + `AIAgentBinding.Id` ile grafı elle kurmaktır (hazır
-  desenlerin `OutputMessages`/`Batcher`/`HandoffStart` executor'larını yeniden
-  yazmak gerekir — pahalı).
-- **`Microsoft.Agents.AI.Workflows.Declarative`** sürümü çekirdekten farklıdır
-  (arama sonucu: 1.13.x serisi, çekirdek 1.16.0). Faz 16 bunu **ilk iş olarak**
-  doğrulamalıdır; 1.16.0 uyumlu sürüm yoksa almamalıdır.
+  başlatıldığında eski kontrol noktaları kullanılamaz.
+  **→ Faz 16'da ÇÖZÜLDÜ (K-127).** Ölçüldü: grafta kimliği değişken olan tek şey
+  agent executor'udur; hazır desenlerin yardımcı düğümleri zaten sabittir, yani
+  grafı elle kurmak gerekmedi. `WorkflowAgentIdentity` sarmalayıcının kimliğini
+  `(workflow, agent)` çiftinden türetir.
+- **`Microsoft.Agents.AI.Workflows.Declarative`** — Faz 16'da doğrulandı:
+  **1.16.0 sürümü vardır**, sürüm endişesi yersizdi. Yine de **alınmadı**:
+  +19 geçişli paket getiriyor ve `ResponseAgentProvider` sözleşmesi OpenAI
+  Responses API şekline bağlı (K-129).
 - **Arayüz için hazır veri:** `GET /api/runs?includeChildren=false` workflow
   satırlarını da döndürür (`kind` alanı ayırt eder). Faz 16 bir `kind` filtresi
   eklemek isteyebilir — `RunQuery` şu an bu filtreyi **taşımıyor**.

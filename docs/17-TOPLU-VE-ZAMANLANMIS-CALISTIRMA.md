@@ -3,6 +3,7 @@
 > **Durum:** 📋 Planlandı
 > **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-22**
 > **Önkoşul:** Yok · Faz 9 önerilir (iş oluşturma Admin yetkisidir)
+> **Devreden faz:** [Faz 16](16-WORKFLOWS-ARAYUZ.md) — workflow arayüzü ve human-in-the-loop
 > **Sonraki bağımlı:** [Faz 18](18-DEGERLENDIRME.md) — eval bu kuyruğu kullanır
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** 0008 (planlanan sırada)
@@ -12,9 +13,57 @@
 ## Bu Faza Başlarken
 
 1. [`MIMARI.md`](MIMARI.md) — bölüm 5 (`runs`), bölüm 6 (çalıştırma yolu)
-2. [`KARARLAR.md`](KARARLAR.md) — **K-018** (bellek içi depolar birinci sınıf), **K-014** (`run_events` append-only), **K-025** (`Replace` deseni)
+2. [`KARARLAR.md`](KARARLAR.md) — **K-018** (bellek içi depolar birinci sınıf), **K-014** (`run_events` append-only), **K-025** (`Replace` deseni), **K-130** (yanıt yeni satır açar)
 3. [`12-AGENT-CAGRI-GRAFIGI.md`](12-AGENT-CAGRI-GRAFIGI.md) — `runs` ağacı, bütçe
-4. Bu doküman
+4. [`16-WORKFLOWS-ARAYUZ.md`](16-WORKFLOWS-ARAYUZ.md) — **özellikle `RunStatus.AwaitingInput`** bölümü
+5. Bu doküman
+
+---
+
+## Faz 16'dan Devraldıkları
+
+### 🚨 `RunStatus` artık beş değer taşır
+
+```csharp
+public enum RunStatus { Running = 0, Completed = 1, Failed = 2, Canceled = 3, AwaitingInput = 4 }
+```
+
+`AwaitingInput` **ne çalışıyor ne sonuçlanmış** bir workflow çalıştırmasıdır: graf
+bir dış istek portuna ulaşmış, durumu kontrol noktasına yazılmış ve akış
+kapanmıştır. Kuyruk tasarımı bunu hesaba katmalıdır:
+
+| Kural | Neden |
+|-------|-------|
+| Zamanlanmış bir tetikleyici `AwaitingInput` bir çalıştırmayı **yeniden başlatmamalıdır** | O iş bitmedi; yeniden başlatmak insanın verdiği cevabı çöpe atar |
+| "Süren iş sayısı" hesabı `Running` **ve** `AwaitingInput` satırlarını ayrı saymalıdır | İkisi farklı kaynaklar tüketir: biri CPU, diğeri yalnızca bir satır |
+| Yeniden deneme mantığı `AwaitingInput`'u başarısızlık **saymamalıdır** | Hata değil, bekleyiştir |
+
+`RunStatistics.AwaitingInputRuns` alanı zaten vardır; alt toplamlar `TotalRuns`
+ile tutar.
+
+### Yeni olay tipleri (append-only, 11–19)
+
+`WorkflowStarted` (11) … `WorkflowRequest` (18), `RunAwaitingInput` (19).
+Faz 17 yeni bir olay tipi eklerse **20'den** devam etmelidir.
+
+### Bekleyen bir çalıştırmanın kontrol noktaları silinmez
+
+`KeepCheckpointsAfterCompletion` kapalı olsa bile `AwaitingInput` bir
+çalıştırmanın kontrol noktaları korunur — yanıt tam olarak onlardan devam eder.
+Faz 25'in saklama politikası bu kuralı bozmamalıdır.
+
+### 🚨 Bekleyen çalıştırmalar süresiz bekler
+
+`AgentPrismWorkflowOptions.RunTimeout` yalnızca **akış açıkken** çalışır. Bir
+çalıştırma `AwaitingInput` olduktan sonra hiçbir zaman aşımı onu kapatmaz. Faz
+17 bir "bekleyen işler" görünümü veya bir süre sınırı getirmek isteyebilir;
+getirmezse Faz 25'in temizliği bunu ele almalıdır.
+
+### Kalıcı executor kimliği artık garanti
+
+Faz 15'in "uygulama yeniden başlatılırsa kontrol noktaları kullanılamaz" sınırı
+**kalktı** (K-127). Bir iş kuyruğu bir workflow'u başlatıp süreç yeniden
+başladıktan sonra sürdürebilir; bu ölçülerek doğrulandı.
 
 ---
 

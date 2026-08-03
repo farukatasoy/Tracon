@@ -203,6 +203,7 @@ public sealed class PostgresRunStore : IRunStore
         command.Parameters.AddWithValue("status_completed", (short)RunStatus.Completed);
         command.Parameters.AddWithValue("status_failed", (short)RunStatus.Failed);
         command.Parameters.AddWithValue("status_canceled", (short)RunStatus.Canceled);
+        command.Parameters.AddWithValue("status_awaiting", (short)RunStatus.AwaitingInput);
 
         await using (command.ConfigureAwait(false))
         {
@@ -222,9 +223,10 @@ public sealed class PostgresRunStore : IRunStore
                 var failed = reader.GetInt64(2);
                 var canceled = reader.GetInt64(3);
                 var running = reader.GetInt64(4);
-                var inputTokens = reader.GetInt64(5);
-                var outputTokens = reader.GetInt64(6);
-                var totalTokens = reader.GetInt64(7);
+                var awaitingInput = reader.GetInt64(5);
+                var inputTokens = reader.GetInt64(6);
+                var outputTokens = reader.GetInt64(7);
+                var totalTokens = reader.GetInt64(8);
 
                 // Ikinci sonuc kumesi: agent kirilimi.
                 var byAgent = new List<RunAgentStatistics>();
@@ -269,6 +271,7 @@ public sealed class PostgresRunStore : IRunStore
                     FailedRuns = failed,
                     CanceledRuns = canceled,
                     RunningRuns = running,
+                    AwaitingInputRuns = awaitingInput,
                     InputTokens = inputTokens,
                     OutputTokens = outputTokens,
                     TotalTokens = totalTokens,

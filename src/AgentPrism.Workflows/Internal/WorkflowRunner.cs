@@ -103,6 +103,67 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         => _catalog.GetAsync(name, cancellationToken);
 
     /// <inheritdoc />
+    public async ValueTask<WorkflowGraph?> GetGraphAsync(string name, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        var workflow = await _catalog.ResolveAsync(name, cancellationToken).ConfigureAwait(false);
+
+        return workflow is null ? null : WorkflowGraphReader.Read(name, workflow);
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<IReadOnlyList<WorkflowPendingRequest>> ListPendingRequestsAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default)
+    {
+        var record = await RequireWorkflowRunAsync(runId, cancellationToken).ConfigureAwait(false);
+
+        // Yanit verilmis bir calistirma AwaitingInput'ta KALIR (durum gecmisi
+        // geriye donuk degistirilmez, K-014) ama artik bekleyen istegi yoktur;
+        // devam eden is yeni calistirma satirindadir. Kart yalnizca gercekten
+        // bekleyen bir calistirmada gosterilir.
+        if (record.Status != RunStatus.AwaitingInput)
+        {
+            return [];
+        }
+
+        var requests = new List<WorkflowPendingRequest>();
+
+        await foreach (var runEvent in _runStore
+                           .ReadEventsAsync(runId, 0, cancellationToken)
+                           .ConfigureAwait(false))
+        {
+            if (runEvent.Type != RunEventType.WorkflowRequest)
+            {
+                continue;
+            }
+
+            if (WorkflowRequestDescriptor.Parse(runEvent) is { } request)
+            {
+                requests.Add(request);
+            }
+        }
+
+        return requests;
+    }
+
+    /// <inheritdoc />
+    public async IAsyncEnumerable<RunEvent> RespondStreamingAsync(
+        WorkflowRespondRequest request,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var execution = await PrepareResponseAsync(request, cancellationToken).ConfigureAwait(false);
+
+        await foreach (var runEvent in ExecuteAsync(execution, cancellationToken).ConfigureAwait(false))
+        {
+            yield return runEvent;
+        }
+    }
+
+    /// <inheritdoc />
     public IAsyncEnumerable<RunEvent> RunStreamingAsync(
         WorkflowRunRequest request,
         CancellationToken cancellationToken = default)
@@ -150,54 +211,119 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         WorkflowResumeRequest request,
         CancellationToken cancellationToken)
     {
-        var record = await _runStore.GetRunAsync(request.RunId, cancellationToken).ConfigureAwait(false);
+        var record = await RequireWorkflowRunAsync(request.RunId, cancellationToken).ConfigureAwait(false);
+
+        return new WorkflowExecution
+        {
+            WorkflowName = record.WorkflowName!,
+            RunId = request.NewRunId ?? AgentPrismId.NewId(),
+            SessionId = record.SessionId!,
+            Message = null,
+            ResumeFrom = await RequireCheckpointAsync(request.RunId, request.CheckpointId, cancellationToken)
+                .ConfigureAwait(false),
+        };
+    }
+
+    /// <summary>
+    /// Yanit istegini, kontrol noktasindan sürdüren bir yurutme tarifine cevirir.
+    /// </summary>
+    /// <exception cref="AgentPrismException">
+    /// Calistirma bulunamiyorsa, insan girdisi beklemiyorsa veya verilen istek
+    /// kimligi o calistirmada yoksa.
+    /// </exception>
+    private async ValueTask<WorkflowExecution> PrepareResponseAsync(
+        WorkflowRespondRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.RequestId, nameof(request));
+
+        var record = await RequireWorkflowRunAsync(request.RunId, cancellationToken).ConfigureAwait(false);
+
+        if (record.Status != RunStatus.AwaitingInput)
+        {
+            throw new AgentPrismException(
+                $"'{request.RunId}' kimlikli calistirma insan girdisi beklemiyor " +
+                $"(durum: {record.Status}). Yalnizca 'AwaitingInput' durumundaki bir " +
+                "calistirma yanitlanabilir.");
+        }
+
+        // Istek kimligi DOGRULANIR. Bilinmeyen bir kimlikle sürdürme, kullaniciya
+        // "yanit verildi" der ama yurutme yine bekleyerek biterdi - hata
+        // ayiklanmasi zor bir sessizlik.
+        var pending = await ListPendingRequestsAsync(request.RunId, cancellationToken).ConfigureAwait(false);
+
+        if (!pending.Any(candidate => string.Equals(candidate.RequestId, request.RequestId, StringComparison.Ordinal)))
+        {
+            throw new AgentPrismException(
+                $"'{request.RequestId}' kimlikli bekleyen bir istek '{request.RunId}' calistirmasinda yok. " +
+                "Istek listesini GET /api/workflows/runs/{runId}/requests ile tazeleyin.");
+        }
+
+        return new WorkflowExecution
+        {
+            WorkflowName = record.WorkflowName!,
+            RunId = request.NewRunId ?? AgentPrismId.NewId(),
+            SessionId = record.SessionId!,
+            Message = null,
+            ResumeFrom = await RequireCheckpointAsync(request.RunId, request.CheckpointId, cancellationToken)
+                .ConfigureAwait(false),
+            Answers = [new WorkflowAnswer(request.RequestId, request.Approved, request.Text, request.Json)],
+        };
+    }
+
+    /// <summary>Calistirmayi bulur ve sürdürulebilir bir workflow satiri oldugunu dogrular.</summary>
+    /// <exception cref="AgentPrismException">
+    /// Calistirma yoksa, baska bir kiraciya aitse, workflow satiri degilse veya
+    /// yurutme oturumu tasimiyorsa.
+    /// </exception>
+    private async ValueTask<RunRecord> RequireWorkflowRunAsync(Guid runId, CancellationToken cancellationToken)
+    {
+        var record = await _runStore.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
 
         // Kiraci eslesmezse "bulunamadi" denir. Baska bir kiracinin
         // calistirmasinin var oldugu bilgisi bile sizdirilmaz.
         if (record is null ||
             !string.Equals(record.TenantId, _tenantContext.TenantId, StringComparison.Ordinal))
         {
-            throw new AgentPrismException($"'{request.RunId}' kimlikli calistirma bulunamadi.");
+            throw new AgentPrismException($"'{runId}' kimlikli calistirma bulunamadi.");
         }
 
-        if (record.Kind != RunKind.Workflow || record.WorkflowName is not { Length: > 0 } workflowName)
+        if (record.Kind != RunKind.Workflow || record.WorkflowName is not { Length: > 0 })
         {
             throw new AgentPrismException(
-                $"'{request.RunId}' kimlikli calistirma bir workflow calistirmasi degil; sürdürulemez.");
+                $"'{runId}' kimlikli calistirma bir workflow calistirmasi degil; sürdürulemez.");
         }
 
-        if (record.SessionId is not { Length: > 0 } sessionId)
+        if (record.SessionId is not { Length: > 0 })
         {
             throw new AgentPrismException(
-                $"'{request.RunId}' kimlikli calistirmanin yurutme oturumu yok; sürdürulemez.");
+                $"'{runId}' kimlikli calistirmanin yurutme oturumu yok; sürdürulemez.");
         }
 
-        var checkpointId = request.CheckpointId;
+        return record;
+    }
 
-        if (checkpointId is null)
+    /// <summary>Sürdürulecek kontrol noktasini secer.</summary>
+    /// <exception cref="AgentPrismException">Calistirmanin hic kontrol noktasi yoksa.</exception>
+    private async ValueTask<string> RequireCheckpointAsync(
+        Guid runId,
+        string? checkpointId,
+        CancellationToken cancellationToken)
+    {
+        if (checkpointId is { Length: > 0 } explicitId)
         {
-            var checkpoints = await _checkpointStore
-                .ListByRunAsync(_tenantContext.TenantId, request.RunId, cancellationToken)
-                .ConfigureAwait(false);
-
-            checkpointId = checkpoints.Count > 0 ? checkpoints[^1].CheckpointId : null;
+            return explicitId;
         }
 
-        if (checkpointId is null)
-        {
-            throw new AgentPrismException(
-                $"'{request.RunId}' kimlikli calistirmanin kontrol noktasi yok. " +
+        var checkpoints = await _checkpointStore
+            .ListByRunAsync(_tenantContext.TenantId, runId, cancellationToken)
+            .ConfigureAwait(false);
+
+        return checkpoints.Count > 0
+            ? checkpoints[^1].CheckpointId
+            : throw new AgentPrismException(
+                $"'{runId}' kimlikli calistirmanin kontrol noktasi yok. " +
                 "Kontrol noktasi yazimi kapaliyken baslatilan bir calistirma sürdürulemez.");
-        }
-
-        return new WorkflowExecution
-        {
-            WorkflowName = workflowName,
-            RunId = request.NewRunId ?? AgentPrismId.NewId(),
-            SessionId = sessionId,
-            Message = null,
-            ResumeFrom = checkpointId,
-        };
     }
 
     private async IAsyncEnumerable<RunEvent> ExecuteAsync(
@@ -337,6 +463,12 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                     continue;
                 }
 
+                if (produced.Awaiting)
+                {
+                    status = RunStatus.AwaitingInput;
+                    continue;
+                }
+
                 yield return produced.Event!;
             }
         }
@@ -408,114 +540,214 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         await using (run.ConfigureAwait(false))
         {
             var superSteps = 0;
-            var enumerator = run
-                .WatchStreamAsync(blockOnPendingRequest: false, linked.Token)
-                .GetAsyncEnumerator(linked.Token);
 
-            try
+            // Bekleyen isteklere verilecek yanitlar kimlige gore aranir; ayni
+            // istek iki kez yanitlanmaz.
+            var answers = execution.Answers.ToDictionary(
+                static answer => answer.RequestId,
+                StringComparer.Ordinal);
+
+            var delivered = new HashSet<string>(StringComparer.Ordinal);
+
+            // 🚨 Yanit gonderildikten SONRA akis yeniden acilmalidir. Olculdu
+            // (Faz 16): SendResponseAsync bir mesaj kuyruklar ama o sirada
+            // tuketilen WatchStreamAsync numaralandiricisi zaten bitmeye karar
+            // vermistir; yalnizca yeni bir numaralandirici devam eden
+            // super-step'leri gorur.
+            while (true)
             {
-                while (true)
+                var responded = false;
+                var enumerator = run
+                    .WatchStreamAsync(blockOnPendingRequest: false, linked.Token)
+                    .GetAsyncEnumerator(linked.Token);
+
+                try
                 {
-                    WorkflowEvent? workflowEvent = null;
-                    PumpedEvent? stepFailure = null;
-
-                    try
+                    while (true)
                     {
-                        // 🚨 Kapsam HER adimda yeniden yazilir; gerekcesi sinif
-                        // aciklamasindadir. Executor'lar tam olarak bu cagrinin
-                        // icinde calisir, dolayisiyla kapsami yalnizca dongunun
-                        // disinda yazmak yetmez.
-                        AgentPrismRunContext.SetCurrent(scope);
+                        WorkflowEvent? workflowEvent = null;
+                        PumpedEvent? stepFailure = null;
 
-                        if (await enumerator.MoveNextAsync().ConfigureAwait(false))
+                        try
                         {
-                            workflowEvent = enumerator.Current;
+                            // 🚨 Kapsam HER adimda yeniden yazilir; gerekcesi sinif
+                            // aciklamasindadir. Executor'lar tam olarak bu cagrinin
+                            // icinde calisir, dolayisiyla kapsami yalnizca dongunun
+                            // disinda yazmak yetmez.
+                            AgentPrismRunContext.SetCurrent(scope);
+
+                            if (await enumerator.MoveNextAsync().ConfigureAwait(false))
+                            {
+                                workflowEvent = enumerator.Current;
+                            }
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            stepFailure = PumpedEvent.FromCancellation(timeout.IsCancellationRequested);
+                        }
+                        catch (Exception exception)
+                        {
+                            stepFailure = PumpedEvent.FromFailure(ToRunError(exception));
+                        }
+
+                        if (stepFailure is { } failed)
+                        {
+                            yield return failed;
+                            yield break;
+                        }
+
+                        if (workflowEvent is null)
+                        {
+                            break;
+                        }
+
+                        if (workflowEvent is SuperStepStartedEvent && ++superSteps > settings.MaxSuperSteps)
+                        {
+                            await CancelAsync(run).ConfigureAwait(false);
+
+                            yield return PumpedEvent.FromFailure(new RunError
+                            {
+                                Type = nameof(AgentPrismException),
+                                Message = $"Workflow {settings.MaxSuperSteps} super-step sinirini asti ve durduruldu. " +
+                                          "Devretme veya grup sohbeti dongusu sonlanmiyor olabilir; " +
+                                          "'maxIterations' degerini dusurun veya agent talimatlarina bir " +
+                                          "bitirme kosulu ekleyin.",
+                            });
+
+                            yield break;
+                        }
+
+                        // Yanit, olay akisa yazilmadan ONCE gonderilir: bekleyen
+                        // istek olayi yalnizca gercekten bekleyen bir istegi
+                        // anlatmalidir.
+                        if (workflowEvent is RequestInfoEvent info)
+                        {
+                            var delivery = await TryRespondAsync(run, info.Request, answers, delivered)
+                                .ConfigureAwait(false);
+
+                            if (delivery.Failure is { } deliveryFailure)
+                            {
+                                yield return PumpedEvent.FromFailure(deliveryFailure);
+                                yield break;
+                            }
+
+                            if (delivery.Delivered)
+                            {
+                                responded = true;
+
+                                continue;
+                            }
+                        }
+
+                        var mapping = WorkflowEventMapper.Map(workflowEvent);
+
+                        if (!mapping.IsKnown)
+                        {
+                            _logger.LogWarning(
+                                "Bilinmeyen workflow olayi '{EventType}' calistirma {RunId} icinde atlandi. " +
+                                "Microsoft Agent Framework yeni bir olay tipi eklemis olabilir.",
+                                workflowEvent.GetType().Name,
+                                execution.RunId);
+
+                            continue;
+                        }
+
+                        if (mapping.Draft is not { } draft)
+                        {
+                            continue;
+                        }
+
+                        if (draft.Type == RunEventType.MessageDelta && !recording.RecordMessageDeltas)
+                        {
+                            continue;
+                        }
+
+                        yield return PumpedEvent.FromEvent(
+                            await writer.AppendAsync(draft, linked.Token).ConfigureAwait(false));
+
+                        // 🚨 Graf hatasi calistirmayi BASARISIZ yapar. Olculdu
+                        // (Faz 16): olay akisina yazilip durum degistirilmeyince
+                        // bir executor patlamis, cikti hic uretilmemis ve
+                        // calistirma yine de "Completed" kaydedilmisti - listede
+                        // yesil gorunen ama hicbir sonucu olmayan bir satir.
+                        if (workflowEvent is WorkflowErrorEvent graphError)
+                        {
+                            yield return PumpedEvent.FromFailure(ToRunError(graphError));
                         }
                     }
-                    catch (OperationCanceledException)
-                    {
-                        stepFailure = PumpedEvent.FromCancellation(timeout.IsCancellationRequested);
-                    }
-                    catch (Exception exception)
-                    {
-                        stepFailure = PumpedEvent.FromFailure(ToRunError(exception));
-                    }
+                }
+                finally
+                {
+                    await enumerator.DisposeAsync().ConfigureAwait(false);
+                }
 
-                    if (stepFailure is { } failed)
-                    {
-                        yield return failed;
-                        yield break;
-                    }
-
-                    if (workflowEvent is null)
-                    {
-                        break;
-                    }
-
-                    if (workflowEvent is SuperStepStartedEvent && ++superSteps > settings.MaxSuperSteps)
-                    {
-                        await CancelAsync(run).ConfigureAwait(false);
-
-                        yield return PumpedEvent.FromFailure(new RunError
-                        {
-                            Type = nameof(AgentPrismException),
-                            Message = $"Workflow {settings.MaxSuperSteps} super-step sinirini asti ve durduruldu. " +
-                                      "Devretme veya grup sohbeti dongusu sonlanmiyor olabilir; " +
-                                      "'maxIterations' degerini dusurun veya agent talimatlarina bir " +
-                                      "bitirme kosulu ekleyin.",
-                        });
-
-                        yield break;
-                    }
-
-                    var mapping = WorkflowEventMapper.Map(workflowEvent);
-
-                    if (!mapping.IsKnown)
-                    {
-                        _logger.LogWarning(
-                            "Bilinmeyen workflow olayi '{EventType}' calistirma {RunId} icinde atlandi. " +
-                            "Microsoft Agent Framework yeni bir olay tipi eklemis olabilir.",
-                            workflowEvent.GetType().Name,
-                            execution.RunId);
-
-                        continue;
-                    }
-
-                    if (mapping.Draft is not { } draft)
-                    {
-                        continue;
-                    }
-
-                    if (draft.Type == RunEventType.MessageDelta && !recording.RecordMessageDeltas)
-                    {
-                        continue;
-                    }
-
-                    yield return PumpedEvent.FromEvent(
-                        await writer.AppendAsync(draft, linked.Token).ConfigureAwait(false));
+                if (!responded)
+                {
+                    break;
                 }
             }
-            finally
-            {
-                await enumerator.DisposeAsync().ConfigureAwait(false);
-            }
 
-            // Bekleyen bir dis istek varsa yurutme yarim kalmistir. Faz 15
-            // human-in-the-loop yanitini TASIMAZ; bunu sessizce "tamamlandi"
-            // saymak, kullaniciya bitmemis bir isi bitmis gostermek olurdu.
+            // Hâlâ bekleyen bir istek varsa yurutme yarim degil, ASKIDADIR:
+            // durumu kontrol noktasina yazilmistir ve bir insan yaniti geldiginde
+            // tam olarak buradan devam eder. Bunu hata saymak, calistirmayi
+            // basarisiz gostermek olurdu.
             var finalStatus = await run.GetStatusAsync(CancellationToken.None).ConfigureAwait(false);
 
             if (finalStatus == Microsoft.Agents.AI.Workflows.RunStatus.PendingRequests)
             {
-                yield return PumpedEvent.FromFailure(new RunError
-                {
-                    Type = nameof(AgentPrismException),
-                    Message = "Workflow disaridan bir yanit bekliyor ve bu surumde yanit verilemiyor. " +
-                              "Insan onayi gerektiren desenler (plan onayi, dis istek portlari) " +
-                              "sonraki fazda desteklenecektir.",
-                });
+                yield return settings.EnableCheckpointing
+                    ? PumpedEvent.FromAwaiting()
+                    : PumpedEvent.FromFailure(new RunError
+                    {
+                        Type = nameof(AgentPrismException),
+                        Message = "Workflow bir insan yaniti bekliyor ancak kontrol noktasi yazimi kapali " +
+                                  "oldugu icin bu bekleme sürdürulemez. " +
+                                  "'AgentPrism:Workflows:EnableCheckpointing' ayarini acin.",
+                    });
             }
         }
+    }
+
+    /// <summary>
+    /// Bekleyen bir istege elimizde yanit varsa gonderir.
+    /// </summary>
+    /// <returns>
+    /// Yanit gonderildi mi ve gonderilirken bir cevrim hatasi olustu mu.
+    /// </returns>
+    /// <remarks>
+    /// Cevrim hatasi (yanlis tip, eksik alan) <strong>calistirmayi bitirir</strong>.
+    /// Yutulup bekleme durumuna donulseydi kullanici ayni yaniti tekrar tekrar
+    /// gonderir ve neden ilerlemedigini goremezdi.
+    /// </remarks>
+    private static async ValueTask<ResponseDelivery> TryRespondAsync(
+        StreamingRun run,
+        ExternalRequest request,
+        Dictionary<string, WorkflowAnswer> answers,
+        HashSet<string> delivered)
+    {
+        if (!answers.TryGetValue(request.RequestId, out var answer) || !delivered.Add(request.RequestId))
+        {
+            return default;
+        }
+
+        ExternalResponse response;
+
+        try
+        {
+            response = WorkflowResponseFactory.Create(request, answer);
+        }
+        catch (AgentPrismException exception)
+        {
+            return new ResponseDelivery(false, new RunError
+            {
+                Type = nameof(AgentPrismException),
+                Message = exception.Message,
+            });
+        }
+
+        await run.SendResponseAsync(response).ConfigureAwait(false);
+
+        return new ResponseDelivery(true, null);
     }
 
     /// <summary>Grafi baslatir ve ilk turu tetikler.</summary>
@@ -607,7 +839,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     {
         await writer.CompleteAsync(status, usage: null, error, CancellationToken.None).ConfigureAwait(false);
 
-        if (!_options.Value.KeepCheckpointsAfterCompletion)
+        // 🚨 Insan bekleyen bir calistirmanin kontrol noktalari ASLA silinmez:
+        // yanit tam olarak onlardan devam eder. Temizlik ayari yalnizca gercekten
+        // sonuclanmis calistirmalar icindir.
+        if (!_options.Value.KeepCheckpointsAfterCompletion && status != RunStatus.AwaitingInput)
         {
             await DiscardCheckpointsAsync(execution).ConfigureAwait(false);
         }
@@ -702,7 +937,12 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         {
             RunId = execution.RunId,
             Sequence = writer.EventCount,
-            Type = status == RunStatus.Completed ? RunEventType.RunCompleted : RunEventType.RunFailed,
+            Type = status switch
+            {
+                RunStatus.Completed => RunEventType.RunCompleted,
+                RunStatus.AwaitingInput => RunEventType.RunAwaitingInput,
+                _ => RunEventType.RunFailed,
+            },
             Timestamp = _timeProvider.GetUtcNow(),
             Text = error?.Message,
         };
@@ -713,6 +953,16 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             Type = exception.GetType().FullName ?? exception.GetType().Name,
             Message = exception.Message,
         };
+
+    /// <summary>Graf duzeyinde bir hatayi calistirma hatasina cevirir.</summary>
+    private static RunError ToRunError(WorkflowErrorEvent failure)
+        => failure.Exception is { } exception
+            ? ToRunError(exception)
+            : new RunError
+            {
+                Type = nameof(WorkflowErrorEvent),
+                Message = "Workflow yurutmesi bir hata ile durdu.",
+            };
 
     /// <summary>Tek bir yurutmenin tarifi.</summary>
     private sealed record WorkflowExecution
@@ -727,14 +977,27 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
         /// <summary>Sürdürulecek kontrol noktasi. Yeni calistirmada <see langword="null"/>.</summary>
         public required string? ResumeFrom { get; init; }
+
+        /// <summary>
+        /// Bekleyen isteklere verilecek yanitlar. Yalnizca <c>/respond</c> yolunda dolu.
+        /// </summary>
+        public IReadOnlyList<WorkflowAnswer> Answers { get; init; } = [];
     }
 
-    /// <summary>Pompadan cikan tek bir sonuc: olay, hata veya iptal.</summary>
-    private readonly record struct PumpedEvent(RunEvent? Event, RunError? Failure, bool Canceled)
-    {
-        public static PumpedEvent FromEvent(RunEvent runEvent) => new(runEvent, null, false);
+    /// <summary>Bir yanit gonderme denemesinin sonucu.</summary>
+    /// <param name="Delivered">Yanit yurutmeye gonderildi mi.</param>
+    /// <param name="Failure">Yanit cevrilemediyse hata.</param>
+    private readonly record struct ResponseDelivery(bool Delivered, RunError? Failure);
 
-        public static PumpedEvent FromFailure(RunError error) => new(null, error, false);
+    /// <summary>Pompadan cikan tek bir sonuc: olay, hata, iptal veya bekleme.</summary>
+    private readonly record struct PumpedEvent(RunEvent? Event, RunError? Failure, bool Canceled, bool Awaiting)
+    {
+        public static PumpedEvent FromEvent(RunEvent runEvent) => new(runEvent, null, false, false);
+
+        public static PumpedEvent FromFailure(RunError error) => new(null, error, false, false);
+
+        /// <summary>Yurutme bir insan yanitini bekliyor.</summary>
+        public static PumpedEvent FromAwaiting() => new(null, null, false, true);
 
         public static PumpedEvent FromCancellation(bool timedOut)
             => timedOut
@@ -747,7 +1010,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                                   "'AgentPrism:Workflows:RunTimeout' degerini yukseltin veya " +
                                   "grafi kisaltin.",
                     },
+                    false,
                     false)
-                : new PumpedEvent(null, null, true);
+                : new PumpedEvent(null, null, true, false);
     }
 }

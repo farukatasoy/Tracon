@@ -29,6 +29,9 @@ export function StatusBadge({ status }: { status: RunStatus }): ReactNode {
       return <Badge tone="danger">failed</Badge>;
     case 'Canceled':
       return <Badge tone="warn">canceled</Badge>;
+    case 'AwaitingInput':
+      // Neither finished nor running: a workflow stopped on a human decision.
+      return <Badge tone="warn">awaiting input</Badge>;
     default:
       return <Badge tone="info">running</Badge>;
   }
@@ -93,6 +96,7 @@ export function RunsScreen(): ReactNode {
               <option value="Completed">Completed</option>
               <option value="Failed">Failed</option>
               <option value="Canceled">Canceled</option>
+              <option value="AwaitingInput">Awaiting input</option>
             </Select>
             <Select
               value={includeChildren ? 'all' : 'roots'}
@@ -112,7 +116,15 @@ export function RunsScreen(): ReactNode {
         <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat label="Runs" value={count(stats.data.totalRuns)} />
           <Stat label="Failed" value={count(stats.data.failedRuns)} tone={stats.data.failedRuns > 0 ? 'danger' : undefined} />
-          <Stat label="Error rate" value={percent(stats.data.errorRate)} hint="Of finished runs only." />
+          {stats.data.awaitingInputRuns > 0 ? (
+            <Stat
+              label="Awaiting input"
+              value={count(stats.data.awaitingInputRuns)}
+              hint="Workflow runs stopped on a human decision. Answering one starts a new run."
+            />
+          ) : (
+            <Stat label="Error rate" value={percent(stats.data.errorRate)} hint="Of finished runs only." />
+          )}
           <Stat label="Tokens" value={count(stats.data.totalTokens)} />
         </div>
       )}

@@ -44,6 +44,7 @@ using AgentPrism;
 using AgentPrism.Api;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
+using Microsoft.Extensions.AI;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -227,6 +228,71 @@ agentPrism.AddWorkflow(
             services.GetWorkflowAgent("ozetle-ve-cevir", "cevirmen", "Gelen metni Ingilizceye cevirir."),
         ]),
     "Metni ozetler, sonra Ingilizceye cevirir. Kodda tanimlidir.");
+
+// Faz 16: insan girdisi bekleyen workflow. Graf bir DIS ISTEK PORTUNA ulasinca
+// yurutme durur, durumu bir kontrol noktasina yazilir ve calistirma
+// `AwaitingInput` olarak kapanir. Yanit
+// `POST /api/workflows/runs/{runId}/respond` ile verilir ve YENI bir
+// calistirma acar - olay akisi append-only'dir (K-014).
+agentPrism.AddWorkflow(
+    "ozetle-ve-onayla",
+    static services =>
+    {
+        var port = RequestPort.Create<string, bool>("yayin-onayi");
+
+        var summarize = services.GetWorkflowAgent(
+            "ozetle-ve-onayla",
+            "ozetleyici",
+            "Gelen metni uc maddede ozetler.");
+
+        // 🚨 Agent ile port arasina bir CEVIRICI konur. Agent host'u
+        // `List<ChatMessage>` yayar, port ise `string` bekler; ikisi dogrudan
+        // baglanirsa port cagirilir ama mesaji ISLEYEMEZ ve hicbir istek
+        // uretmez - calistirma sessizce cikti uretmeden "tamamlandi" olur.
+        // Olculdu (Faz 16): port uc kez cagrildi, sifir RequestInfoEvent.
+        var ask = ExecutorBindingExtensions.BindAsExecutor(
+            static (List<ChatMessage> messages) =>
+                "Bu ozet yayinlansin mi?" + Environment.NewLine + Environment.NewLine +
+                (messages.LastOrDefault(static message => !string.IsNullOrWhiteSpace(message.Text))?.Text
+                 ?? string.Empty),
+            id: "onay-sorusu");
+
+        // 🚨 Cikti tipi ISLEYICININ DONUS TIPINDEN bildirilir. Govdesinde
+        // YieldOutputAsync cagiran, donusu olmayan bir isleyici hicbir cikti
+        // tipi beyan etmez ve calisma aninda "Cannot output object of type ...
+        // Expecting one of []" ile duser (Faz 16'da olculdu).
+        var publish = ExecutorBindingExtensions.BindAsExecutor(
+            static (bool approved) => approved
+                ? "Ozet yayinlandi."
+                : "Yayin iptal edildi; ozet arsivde birakildi.",
+            id: "yayin");
+
+        // Baglamalar birer KEZ kurulup yeniden kullanilir: her cagri yeni bir
+        // nesne uretir ve kenarlar ayni dugume degil, iki ayri dugume baglanmis
+        // gorunurdu.
+        // 🚨 `ForwardIncomingMessages` kapatilir. Acikken agent host'u hem gelen
+        // mesaji hem kendi yanitini asagi yollar; sonraki dugum IKI kez calisir
+        // ve tek bir onay yerine iki ayri bekleyen istek olusur. Olculdu
+        // (Faz 16): gercek bir calistirmada `/requests` iki kayit dondu.
+        var summarizeBinding = new AIAgentBinding(
+            summarize,
+            new AIAgentHostOptions
+            {
+                EmitAgentResponseEvents = true,
+                EmitAgentUpdateEvents = true,
+                ForwardIncomingMessages = false,
+            });
+        var portBinding = port.BindAsExecutor(allowWrappedRequests: false);
+
+        return new WorkflowBuilder(summarizeBinding)
+            .AddEdge(summarizeBinding, ask)
+            .AddEdge(ask, portBinding)
+            .AddEdge(portBinding, publish)
+            .WithOutputFrom(publish)
+            .WithName("ozetle-ve-onayla")
+            .Build();
+    },
+    "Metni ozetler, sonra yayin icin insan onayi bekler. Kodda tanimlidir.");
 
 if (openRouterEnabled)
 {

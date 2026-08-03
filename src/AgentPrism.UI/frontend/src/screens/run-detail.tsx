@@ -36,6 +36,15 @@ const EVENT_STYLE: Record<RunEventType, { label: string; hue: string }> = {
   ChildRunStarted: { label: 'child.started', hue: 'var(--ap-amber)' },
   ChildRunCompleted: { label: 'child.completed', hue: 'var(--ap-amber)' },
   HistoryCompacted: { label: 'history.compacted', hue: 'var(--ap-violet)' },
+  WorkflowStarted: { label: 'workflow.started', hue: 'var(--ap-emerald)' },
+  SuperStepStarted: { label: 'superstep.started', hue: 'var(--ap-muted)' },
+  SuperStepCompleted: { label: 'superstep.completed', hue: 'var(--ap-muted)' },
+  ExecutorInvoked: { label: 'executor.invoked', hue: 'var(--ap-indigo)' },
+  ExecutorCompleted: { label: 'executor.completed', hue: 'var(--ap-indigo)' },
+  ExecutorFailed: { label: 'executor.failed', hue: 'var(--ap-danger)' },
+  WorkflowOutput: { label: 'workflow.output', hue: 'var(--ap-emerald)' },
+  WorkflowRequest: { label: 'workflow.request', hue: 'var(--ap-amber)' },
+  RunAwaitingInput: { label: 'run.awaiting-input', hue: 'var(--ap-amber)' },
 };
 
 /**
@@ -139,10 +148,28 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
         title="Run"
         description={
           <>
-            <Mono>{record.id}</Mono> — agent{' '}
-            <Link to={`agents/${encodeURIComponent(record.agentName)}`} className="text-accent underline">
-              {record.agentName}
-            </Link>
+            <Mono>{record.id}</Mono> —{' '}
+            {record.kind === 'Workflow' ? (
+              <>
+                workflow{' '}
+                <Link
+                  to={`workflows/${encodeURIComponent(record.workflowName ?? record.agentName)}`}
+                  className="text-accent underline"
+                >
+                  {record.workflowName ?? record.agentName}
+                </Link>
+              </>
+            ) : (
+              <>
+                agent{' '}
+                <Link
+                  to={`agents/${encodeURIComponent(record.agentName)}`}
+                  className="text-accent underline"
+                >
+                  {record.agentName}
+                </Link>
+              </>
+            )}
             {record.sessionId != null && (
               <>
                 , session{' '}
@@ -182,6 +209,24 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
         />
         <Stat label="Events" value={count(record.eventCount)} />
       </div>
+
+      {record.status === 'AwaitingInput' && (
+        <div className="mb-4">
+          <Panel title="Waiting on a human">
+            <div className="p-4 text-[13px]">
+              This run stopped at a request port and its state is saved in a checkpoint.
+              Answer it on the{' '}
+              <Link
+                to={`workflows/${encodeURIComponent(record.workflowName ?? record.agentName)}`}
+                className="text-accent underline"
+              >
+                workflow screen
+              </Link>
+              . Answering opens a new run — this row keeps its history exactly as it happened.
+            </div>
+          </Panel>
+        </div>
+      )}
 
       {record.error != null && (
         <div className="mb-4">

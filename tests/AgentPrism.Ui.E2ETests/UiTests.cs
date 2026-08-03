@@ -34,7 +34,7 @@ public sealed class UiTests(BrowserFixture browsers)
         (await session.Page.TitleAsync()).ShouldBe("AgentPrism");
 
         // Tum yonetim ekranlari gezinme cubugunda olmalidir.
-        foreach (var screen in new[] { "Agents", "Playground", "Sessions", "Runs", "Tools", "Skills", "Models", "MCP", "Settings" })
+        foreach (var screen in new[] { "Agents", "Playground", "Sessions", "Workflows", "Runs", "Tools", "Skills", "Models", "MCP", "Settings" })
         {
             (await session.Page.GetByRole(AriaRole.Link, new() { Name = screen }).CountAsync())
                 .ShouldBeGreaterThan(0, $"'{screen}' baglantisi bulunamadi.");
@@ -489,4 +489,103 @@ public sealed class UiTests(BrowserFixture browsers)
 
         public async ValueTask DisposeAsync() => await _context.CloseAsync();
     }
+    // --- Faz 16: workflow grafi ve human-in-the-loop ---
+
+    [Fact]
+    public async Task Workflow_grafi_cizilir()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/workflows");
+
+        await session.Page.GetByText("ozetle-ve-cevir").WaitForAsync();
+        await session.Page.GetByText("ozetle-ve-cevir").ClickAsync();
+
+        var graph = session.Page.GetByTestId("workflow-graph");
+
+        await graph.WaitForAsync();
+
+        // Hazir desen kullanicinin yazmadigi bir cikti dugumu ekler: iki agent
+        // + OutputMessages. Graf tanimdan degil DERLENMIS workflow'dan cizilir,
+        // bu yuzden o dugum de gorunur.
+        var nodes = session.Page.GetByTestId("workflow-node");
+
+        (await nodes.CountAsync()).ShouldBeGreaterThanOrEqualTo(3);
+    }
+
+    [Fact]
+    public async Task Mermaid_metni_kopyalanabilir()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.Context.GrantPermissionsAsync(["clipboard-read", "clipboard-write"]);
+        await session.Page.GotoAsync($"{host.UiAddress}/workflows/ozetle-ve-cevir");
+
+        await session.Page.GetByTestId("workflow-graph").WaitForAsync();
+        await session.Page.GetByRole(AriaRole.Button, new() { Name = "Copy" }).First.ClickAsync();
+
+        var copied = await session.Page.EvaluateAsync<string>("() => navigator.clipboard.readText()");
+
+        // Kopyalanan metin Microsoft Agent Framework'un uretimidir; arayuz onu
+        // cizmez, yalnizca disari verir (bundle butcesi, K-002).
+        copied.ShouldContain("flowchart", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task Bekleyen_istek_karti_cevaplanabilir()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/workflows/onay-akisi");
+
+        await session.Page.GetByTestId("workflow-graph").WaitForAsync();
+
+        await session.Page.GetByTestId("workflow-message").FillAsync("raporu yayinla");
+        await session.Page.GetByTestId("workflow-run").ClickAsync();
+
+        // Calistirma bir insan yaniti bekleyerek durur; kart o zaman belirir.
+        var card = session.Page.GetByTestId("workflow-pending-request");
+
+        await card.WaitForAsync(new() { Timeout = 20_000 });
+
+        (await card.InnerTextAsync()).ShouldContain("raporu yayinla", Case.Sensitive);
+
+        await session.Page.GetByTestId("workflow-approve").ClickAsync();
+
+        // Yanit YENI bir calistirma acar ve graf ciktisini uretir.
+        var output = session.Page.GetByTestId("workflow-output");
+
+        await output.WaitForAsync(new() { Timeout = 20_000 });
+
+        (await output.InnerTextAsync()).ShouldContain("onaylandi", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task Bekleyen_calistirma_Runs_listesinde_ayri_durumla_gorunur()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/workflows/onay-akisi");
+        await session.Page.GetByTestId("workflow-graph").WaitForAsync();
+
+        await session.Page.GetByTestId("workflow-message").FillAsync("raporu yayinla");
+        await session.Page.GetByTestId("workflow-run").ClickAsync();
+        await session.Page.GetByTestId("workflow-pending-request").WaitForAsync(new() { Timeout = 20_000 });
+
+        await session.Page.GotoAsync($"{host.UiAddress}/runs");
+
+        // Ne tamamlandi ne basarisiz: kendi durumu vardir.
+        //
+        // 🚨 Exact zorunlu: durum SUZGECINDE de gizli bir <option>Awaiting input</option>
+        // vardir ve alt dize eslemesi once onu bulup gorunur olmasini bekler.
+        // Rozet kucuk harflidir, secenek buyuk; Exact ikisini ayirir.
+        await session.Page
+            .GetByText("awaiting input", new() { Exact = true })
+            .WaitForAsync(new() { Timeout = 20_000 });
+    }
+
 }

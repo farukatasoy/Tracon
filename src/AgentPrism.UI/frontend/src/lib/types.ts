@@ -7,7 +7,13 @@
 
 export type AgentOrigin = 'Code' | 'Maf' | 'Database';
 
-export type RunStatus = 'Running' | 'Completed' | 'Failed' | 'Canceled';
+/**
+ * `AwaitingInput` only ever appears on workflow runs: the graph reached a
+ * request port, its state was written to a checkpoint and the stream closed.
+ * Answering it starts a *new* run — the original row keeps this status, because
+ * run history is append-only (decision K-014).
+ */
+export type RunStatus = 'Running' | 'Completed' | 'Failed' | 'Canceled' | 'AwaitingInput';
 
 export type RunEventType =
   | 'RunStarted'
@@ -20,7 +26,16 @@ export type RunEventType =
   | 'RunFailed'
   | 'ChildRunStarted'
   | 'ChildRunCompleted'
-  | 'HistoryCompacted';
+  | 'HistoryCompacted'
+  | 'WorkflowStarted'
+  | 'SuperStepStarted'
+  | 'SuperStepCompleted'
+  | 'ExecutorInvoked'
+  | 'ExecutorCompleted'
+  | 'ExecutorFailed'
+  | 'WorkflowOutput'
+  | 'WorkflowRequest'
+  | 'RunAwaitingInput';
 
 export type CompactionStrategyKind =
   | 'None'
@@ -362,9 +377,15 @@ export interface RunError {
   message: string;
 }
 
+export type RunKind = 'Agent' | 'Workflow';
+
 export interface RunRecord {
   id: string;
   agentName: string;
+  /** Whether this row records an agent turn or a workflow execution. */
+  kind: RunKind;
+  /** Set only on workflow rows; the agent rows underneath carry their own names. */
+  workflowName?: string | null;
   status: RunStatus;
   startedAt: string;
   completedAt?: string | null;
@@ -425,6 +446,8 @@ export interface RunStatistics {
   failedRuns: number;
   canceledRuns: number;
   runningRuns: number;
+  /** Workflow runs stopped on a human decision. Counted separately: they are neither running nor settled. */
+  awaitingInputRuns: number;
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
@@ -568,5 +591,141 @@ export interface AuditEntry {
   entity: string;
   before?: string | null;
   after?: string | null;
+  createdAt: string;
+}
+
+/* ------------------------------------------------------------- workflows */
+
+/** The five ready-made patterns a workflow can be built from. */
+export type WorkflowKind = 'Sequential' | 'Concurrent' | 'Handoff' | 'GroupChat' | 'Magentic';
+
+/**
+ * A workflow in the catalogue.
+ *
+ * Code-defined workflows win over stored ones of the same name (decision K-019
+ * applied to workflows): whoever can write to the database cannot take over a
+ * behaviour that ships with the deployment.
+ */
+export interface WorkflowDescriptor {
+  name: string;
+  displayName?: string | null;
+  description?: string | null;
+  origin: AgentOrigin;
+  /**
+   * Null for a workflow registered in code: a free graph built by a factory
+   * does not correspond to any of the ready-made patterns. Its shape is only
+   * known once compiled — which is what the graph endpoint is for.
+   */
+  kind?: WorkflowKind | null;
+  agentNames: string[];
+  version: number;
+  updatedAt?: string | null;
+}
+
+export interface WorkflowDefinition {
+  name: string;
+  displayName?: string | null;
+  description?: string | null;
+  kind: WorkflowKind;
+  agentNames: string[];
+  /** Required by `Magentic`, rejected by every other pattern (decision K-125). */
+  managerAgentName?: string | null;
+  maxIterations?: number | null;
+  /** Only meaningful for `Handoff`. */
+  handoffInstructions?: string | null;
+  /** Only meaningful for `Magentic`. Costs a manager turn on every round. */
+  requirePlanApproval: boolean;
+  tenantId?: string | null;
+  version: number;
+  updatedAt?: string | null;
+}
+
+/** Body of PUT `/api/workflows/{name}`. Server-owned fields are deliberately absent. */
+export interface WorkflowSaveRequest {
+  displayName?: string | null;
+  description?: string | null;
+  kind: WorkflowKind;
+  agentNames: string[];
+  managerAgentName?: string | null;
+  maxIterations?: number | null;
+  handoffInstructions?: string | null;
+  requirePlanApproval: boolean;
+}
+
+/**
+ * What a node in the graph represents.
+ *
+ * `Orchestration` nodes are added by the pattern itself — the user never wrote
+ * them, but run events name them, so hiding them would leave those events
+ * pointing at nothing.
+ */
+export type WorkflowNodeKind = 'Unknown' | 'Agent' | 'Orchestration' | 'RequestPort' | 'Output';
+
+export type WorkflowEdgeKind = 'Direct' | 'FanOut' | 'FanIn';
+
+export interface WorkflowGraphNode {
+  /** Matches the executor id carried by `ExecutorInvoked` events, character for character. */
+  id: string;
+  label: string;
+  kind: WorkflowNodeKind;
+  agentName?: string | null;
+  executorType?: string | null;
+}
+
+export interface WorkflowGraphEdge {
+  from: string;
+  to: string;
+  kind: WorkflowEdgeKind;
+}
+
+export interface WorkflowGraph {
+  name: string;
+  startExecutorId: string;
+  nodes: WorkflowGraphNode[];
+  edges: WorkflowGraphEdge[];
+  /**
+   * Mermaid text produced by Microsoft Agent Framework.
+   *
+   * The console draws the graph itself and never renders this: mermaid.js costs
+   * around 100 KB gzipped against a 250 KB budget (decision K-002). It exists so
+   * a workflow can be pasted straight into a document.
+   */
+  mermaid: string;
+}
+
+/** Which input the console should show for a pending request. */
+export type WorkflowRequestForm = 'Json' | 'Text' | 'Boolean' | 'PlanReview';
+
+export interface WorkflowPendingRequest {
+  runId: string;
+  requestId: string;
+  portId: string;
+  requestType?: string | null;
+  responseType?: string | null;
+  prompt?: string | null;
+  form: WorkflowRequestForm;
+  requestedAt: string;
+}
+
+/** Body of POST `/api/workflows/runs/{runId}/respond`. */
+export interface WorkflowRespondRequest {
+  requestId: string;
+  approved?: boolean;
+  text?: string;
+  data?: unknown;
+  checkpointId?: string;
+}
+
+/**
+ * A saved execution snapshot. The state itself never travels through this type:
+ * it is a `json` column that only the engine reads.
+ */
+export interface WorkflowCheckpointRecord {
+  id: string;
+  tenantId: string;
+  sessionId: string;
+  checkpointId: string;
+  parentCheckpointId?: string | null;
+  runId?: string | null;
   createdAt: string;
 }

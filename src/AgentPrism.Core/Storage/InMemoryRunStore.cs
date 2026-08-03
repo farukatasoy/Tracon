@@ -242,7 +242,7 @@ public sealed class InMemoryRunStore : IRunStore
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        long total = 0, completed = 0, failed = 0, canceled = 0, running = 0;
+        long total = 0, completed = 0, failed = 0, canceled = 0, running = 0, awaitingInput = 0;
         long inputTokens = 0, outputTokens = 0, totalTokens = 0;
         var perAgent = new Dictionary<string, AgentTally>(StringComparer.Ordinal);
         var perModel = new Dictionary<string, ModelTally>(StringComparer.Ordinal);
@@ -272,6 +272,7 @@ public sealed class InMemoryRunStore : IRunStore
                 case RunStatus.Failed: failed++; break;
                 case RunStatus.Canceled: canceled++; break;
                 case RunStatus.Running: running++; break;
+                case RunStatus.AwaitingInput: awaitingInput++; break;
                 default: break;
             }
 
@@ -318,6 +319,7 @@ public sealed class InMemoryRunStore : IRunStore
             FailedRuns = failed,
             CanceledRuns = canceled,
             RunningRuns = running,
+            AwaitingInputRuns = awaitingInput,
             InputTokens = inputTokens,
             OutputTokens = outputTokens,
             TotalTokens = totalTokens,

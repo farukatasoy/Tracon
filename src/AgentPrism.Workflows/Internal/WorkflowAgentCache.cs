@@ -29,10 +29,13 @@ namespace AgentPrism;
 /// bayatlamaz. Onbellekte yalnizca ad, aciklama ve kimlik sabit kalir.
 /// </para>
 /// <para>
-/// <strong>Bilinen sinir:</strong> onbellek surec belleğindedir. Uygulama
-/// yeniden baslatildiginda kimlikler degisir ve eski kontrol noktalari
-/// uyumsuz hale gelir. Kalici kimlik icin MAF'in executor kimligi uretimini
-/// disaridan verilebilir kilmasi gerekir.
+/// <strong>Faz 16'dan beri kimlik surec omrunu de asar.</strong> Her sarmalayici
+/// <see cref="WorkflowAgentIdentity"/> ile <c>(workflow, agent)</c> ciftinden
+/// turetilen kalici bir kimlik alir; boylece uygulama yeniden baslatildiginda
+/// bile eski kontrol noktalari uyumlu kalir ve insan yaniti bekleyen bir
+/// calistirma dagitimda kaybolmaz. Onbellek yine de tutulur: ayni ornegi
+/// yeniden kullanmak hem ucuzdur hem de kimlik yazma yolunu tek bir noktada
+/// toplar.
 /// </para>
 /// </remarks>
 internal sealed class WorkflowAgentCache
@@ -77,13 +80,30 @@ internal sealed class WorkflowAgentCache
     public ChildAgentInvoker Get(string workflowName, string agentName, string? description)
         => _agents.GetOrAdd(
             new AgentKey(workflowName, agentName),
-            static (key, state) => new ChildAgentInvoker(
-                state.Resolver,
-                state.TenantContext,
-                state.LoggerFactory.CreateLogger<ChildAgentInvoker>(),
-                key.WorkflowName,
-                new CallableAgentInfo(key.AgentName, state.Description, Version: 0)),
+            static (key, state) => Create(key, state),
             (Resolver: _resolver, TenantContext: _tenantContext, LoggerFactory: _loggerFactory, Description: description));
+
+    private static ChildAgentInvoker Create(
+        AgentKey key,
+        (CallableAgentResolver Resolver, ITenantContext TenantContext, ILoggerFactory LoggerFactory, string? Description) state)
+    {
+        var invoker = new ChildAgentInvoker(
+            state.Resolver,
+            state.TenantContext,
+            state.LoggerFactory.CreateLogger<ChildAgentInvoker>(),
+            key.WorkflowName,
+            new CallableAgentInfo(key.AgentName, state.Description, Version: 0));
+
+        // Kimlik ornegi grafa girmeden ONCE yazilir: MAF executor kimligini
+        // baglama aninda okur ve sonradan degistirmek grafi ikiye bolerdi.
+        WorkflowAgentIdentity.TryApply(
+            invoker,
+            key.WorkflowName,
+            key.AgentName,
+            state.LoggerFactory.CreateLogger(typeof(WorkflowAgentIdentity).FullName!));
+
+        return invoker;
+    }
 
     private readonly record struct AgentKey(string WorkflowName, string AgentName);
 }

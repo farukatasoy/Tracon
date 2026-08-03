@@ -75,9 +75,10 @@ Faz bittiğinde **`faz-tamamlama` skill'i uygulanır**. Atlanmaz.
 | 13 | `docs/13-BAGLAM-SIKISTIRMA-VE-BELLEK.md` | ✅ Tamamlandı |
 | 14 | `docs/14-COK-MODLULUK.md` | ✅ Tamamlandı |
 | 15 | `docs/15-WORKFLOWS-YURUTME.md` | ✅ Tamamlandı |
-| 16–30 | `docs/IKINCI-FAZ-YOL-HARITASI.md` | 📋 Planlandı — **sıradaki Faz 16** |
+| 16 | `docs/16-WORKFLOWS-ARAYUZ.md` | ✅ Tamamlandı |
+| 17–30 | `docs/IKINCI-FAZ-YOL-HARITASI.md` | 📋 Planlandı — **sıradaki Faz 17** |
 
-**Sıradaki faz: 16** (`docs/16-WORKFLOWS-ARAYUZ.md`).
+**Sıradaki faz: 17** (`docs/17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md`).
 
 **İkinci faz (8–30):** `docs/IKINCI-FAZ-YOL-HARITASI.md` sırayı, bağımlılıkları
 ve migration numaralarını tutar. Faz listesi orada; burada tekrarlanmaz —
@@ -104,7 +105,7 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 
 **Sırlar asla dosyaya yazılmaz.** Bağlantı dizesi ve API anahtarı yalnız `dotnet user-secrets` içinde yaşar. `appsettings.json` boş placeholder taşır. Faz sonunda sır taraması yapılır — komut `faz-tamamlama` skill'inde.
 
-`dotnet build` **arayüzü de derler**: `npm ci` → `tsc --noEmit` → 42 Vitest testi →
+`dotnet build` **arayüzü de derler**: `npm ci` → `tsc --noEmit` → 55 Vitest testi →
 Vite → Brotli sıkıştırma → bundle bütçesi kapısı (250 KB gzip). Adımlar artımsaldır.
 Node.js 20.19+ gerekir; hızlı bir iç döngü için `-p:AgentPrismFrontendEnabled=false`.
 
