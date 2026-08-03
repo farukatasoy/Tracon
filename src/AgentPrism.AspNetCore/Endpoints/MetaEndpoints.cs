@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
@@ -25,6 +26,8 @@ internal static class MetaEndpoints
                 IAgentDefinitionStore definitions,
                 IRunStore runs,
                 ISessionStore sessions,
+                IJobStore jobs,
+                IOptionsMonitor<AgentPrismSchedulingOptions> scheduling,
                 HttpContext httpContext,
                 [FromServices] IAuthorizationService? authorizationService) =>
             {
@@ -38,6 +41,8 @@ internal static class MetaEndpoints
                     definitionsInner is not InMemoryAgentDefinitionStore &&
                     runs is not InMemoryRunStore &&
                     sessionsInner is not InMemorySessionStore;
+
+                var schedulingOptions = scheduling.CurrentValue;
 
                 return TypedResults.Ok(new AgentPrismMetaResponse
                 {
@@ -55,6 +60,8 @@ internal static class MetaEndpoints
                         AgentDefinitionStore = definitionsInner.GetType().Name,
                         RunStore = runs.GetType().Name,
                         SessionStore = sessionsInner.GetType().Name,
+                        JobStore = jobs.GetType().Name,
+                        JobWorkerEnabled = schedulingOptions.Enabled && schedulingOptions.RunWorker,
                     },
                     Roles = await ResolveRolesAsync(authorizationService, httpContext.User, roles).ConfigureAwait(false),
                 });

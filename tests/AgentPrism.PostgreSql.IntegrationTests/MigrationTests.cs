@@ -36,10 +36,11 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
         // 0006_attachments 2 tablo daha (attachments, agent_files).
         // 0007_workflows 2 tablo daha (workflows, workflow_checkpoints) ve
         // runs tablosuna kind + workflow_name sutunlarini ekler.
+        // 0008_scheduling 3 tablo daha (job_schedules, jobs, job_items).
         //
         // Sayi BILEREK sabittir: yeni bir tablo eklendiginde bu test kirilir ve
         // ekleyen kisi tabloyu fark etmis olur.
-        tableCount.ShouldBe(24);
+        tableCount.ShouldBe(27);
     }
 
     [Fact]
