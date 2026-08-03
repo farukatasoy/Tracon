@@ -264,6 +264,30 @@ public abstract class RunStoreContract : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Ozet_eval_calistirmalarini_haric_tutar()
+    {
+        // Eval vaka calistirmalari sentetik test cagrilaridir; normal
+        // istatistikleri kirletmemelidir (docs/18-DEGERLENDIRME.md, acik soru 4).
+        await CompleteRunAsync("alpha", RunStatus.Completed, usage: null);
+
+        var evalRunId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(evalRunId, "alpha") with { Kind = RunKind.Eval });
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = evalRunId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { InputTokens = 1_000, OutputTokens = 1_000, TotalTokens = 2_000 },
+        });
+
+        var stats = await Store.GetStatisticsAsync(new RunStatisticsQuery());
+
+        stats.TotalRuns.ShouldBe(1);
+        stats.CompletedRuns.ShouldBe(1);
+        stats.TotalTokens.ShouldBe(0);
+    }
+
+    [Fact]
     public async Task Ozet_hata_oranini_yalnizca_sonuclanmislar_uzerinden_hesaplar()
     {
         await CompleteRunAsync("alpha", RunStatus.Completed, usage: null);

@@ -5,6 +5,7 @@ import { cx } from './ui';
 import {
   AgentsIcon,
   AuditIcon,
+  EvalsIcon,
   JobsIcon,
   McpIcon,
   ModelsIcon,
@@ -34,6 +35,7 @@ const NAV = [
   { path: 'sessions', label: 'Sessions', icon: SessionsIcon, hue: 'var(--ap-emerald)' },
   { path: 'workflows', label: 'Workflows', icon: WorkflowIcon, hue: 'var(--ap-emerald)' },
   { path: 'jobs', label: 'Jobs', icon: JobsIcon, hue: 'var(--ap-amber)' },
+  { path: 'evals', label: 'Evals', icon: EvalsIcon, hue: 'var(--ap-rose)' },
   { path: 'runs', label: 'Runs', icon: RunsIcon, hue: 'var(--ap-amber)' },
   { path: 'tools', label: 'Tools', icon: ToolsIcon, hue: 'var(--ap-rose)' },
   { path: 'skills', label: 'Skills', icon: ToolsIcon, hue: 'var(--ap-cyan)' },

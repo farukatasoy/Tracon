@@ -16,6 +16,9 @@ import { WorkflowEditorScreen } from './screens/workflow-editor';
 import { WorkflowDetailScreen } from './screens/workflow-detail';
 import { JobsScreen } from './screens/jobs';
 import { JobDetailScreen } from './screens/job-detail';
+import { EvalsScreen } from './screens/evals';
+import { EvalSuiteDetailScreen } from './screens/eval-detail';
+import { EvalRunDetailScreen } from './screens/eval-run-detail';
 import { RunDetailScreen } from './screens/run-detail';
 import { ToolsScreen } from './screens/tools';
 import { ModelsScreen } from './screens/models';
@@ -58,6 +61,12 @@ const routes = (meta: Meta): RouteDefinition[] => [
   },
   { pattern: 'jobs', render: () => <JobsScreen meta={meta} /> },
   { pattern: 'jobs/:id', render: (params) => <JobDetailScreen id={params['id'] ?? ''} meta={meta} /> },
+  { pattern: 'evals', render: () => <EvalsScreen meta={meta} /> },
+  { pattern: 'evals/runs/:id', render: (params) => <EvalRunDetailScreen id={params['id'] ?? ''} /> },
+  {
+    pattern: 'evals/:name',
+    render: (params) => <EvalSuiteDetailScreen name={params['name'] ?? ''} meta={meta} />,
+  },
   { pattern: 'runs', render: () => <RunsScreen /> },
   { pattern: 'runs/:id', render: (params) => <RunDetailScreen id={params['id'] ?? ''} /> },
   { pattern: 'tools', render: () => <ToolsScreen /> },
