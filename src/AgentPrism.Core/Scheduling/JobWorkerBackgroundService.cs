@@ -192,7 +192,11 @@ internal sealed class JobWorkerBackgroundService(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            if (job.Attempt >= options.MaxAttempts)
+            // Is kendi deneme sinirini tasiyabilir (webhook teslimi genel
+            // ayardan farkli bir merdiven kullanir); tasimiyorsa genel ayar.
+            var maxAttempts = job.MaxAttempts ?? options.MaxAttempts;
+
+            if (job.Attempt >= maxAttempts)
             {
                 await jobStore.CompleteAsync(
                     new JobCompletion
@@ -206,7 +210,13 @@ internal sealed class JobWorkerBackgroundService(
             }
             else
             {
-                await jobStore.ReleaseForRetryAsync(job.Id, exception.Message, stoppingToken).ConfigureAwait(false);
+                // Isleyici bir bekleme talep edebilir; etmezse eski davranis
+                // (hemen yeniden kiralanabilir) korunur.
+                var retryAfter = (exception as JobRetryException)?.RetryAfter;
+
+                await jobStore
+                    .ReleaseForRetryAsync(job.Id, exception.Message, retryAfter, stoppingToken)
+                    .ConfigureAwait(false);
             }
         }
     }

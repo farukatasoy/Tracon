@@ -168,3 +168,43 @@ bağlanıyor, agent'ı `model` alanından seçiyor, tool döngüsü sunucuda tam
 konuşma hem `previous_response_id` hem `conversations.create()` ile zincirleniyor ve
 her çalıştırma `run_events` tablosuna yazılıp SSE ile geri oynatılabiliyor.
 
+Faz 21 sonunda AgentPrism **dış dünyayla sözleşmeye bağlandı**. Kullanım iki ayrı
+mekanizmayla sınırlanabiliyor: hız sınırı (saniye/dakika, bellekte, ASP.NET Core
+paylaşılan çerçevesinden — yeni paket gerekmedi) ve kota (gün/ay, veritabanında,
+kiracı ve agent kapsamında). İkisi de varsayılan olarak hiçbir isteği reddetmiyor.
+Olaylar imzalı webhook'larla dışarı yayılıyor; teslim Faz 17'nin *aynı* iş
+kuyruğunu kullanıyor — `IJobStore` bunun için geri adımlı beklemeyle genişletildi,
+ikinci bir kuyruk yazılmadı. Fazın en büyük işi güvenlikti: webhook adresini
+kullanıcı verdiği için SSRF yüzeyi açılıyor, bu yüzden denetim
+`SocketsHttpHandler.ConnectCallback` içine gömüldü — doğrulanan adres, soketin
+bağlandığı adresin ta kendisi. Canlı sınamada metadata ucu (`169.254.169.254`) ve
+`10/8` reddedildi, loopback teslim edildi, imza bağımsız bir dinleyicide
+doğrulandı. İki gerçek hata yalnızca örnek uygulama çalıştırılınca çıktı: atanmamış
+`JobRecord.Payload` `/api/jobs`'ın tamamını 500'e düşürüyordu (K-166) ve
+`AllowInsecureHttp` loopback *adresini* açmadığı için yerel teslim imkânsızdı
+(K-167). Ayrıntı [`21-KOTA-VE-OLAY-YAYINI.md`](../21-KOTA-VE-OLAY-YAYINI.md).
+
+---
+
+## Migration geçmişi (`agentprism` şeması)
+
+`docs/MIMARI.md`'den taşındı (2026-08-03, Faz 21) — birikimli anlatı sıcak yolda
+tutulmaz. Bugünkü tablo listesi `MIMARI.md` bölüm 5'tedir; şemanın kaynağı her
+zaman `src/AgentPrism.PostgreSql/Migrations/*.sql` dosyalarıdır.
+
+| Migration | Faz | Ne eklendi |
+|-----------|-----|------------|
+| 0001 | 0 | Temel 13 tablo + `__migrations` defteri |
+| 0002 | 6 | `traces`, `spans`. Ayrıca Faz 6'da `tool_approval_rules` ve `mcp_servers` eklendi; `tool_invocations` dolmaya başladı |
+| — | 9 | `audit_log` **doldu**; şema Faz 0'da kurulmuştu, yazan kod Faz 9'da geldi — migration gerekmedi |
+| 0003 | 10 | `agent_skills`, `agent_skill_resources` |
+| 0004 | 11 | Skill script izinleri |
+| 0005 | 12 | `runs` tablosuna çağrı grafiği sütunları (yeni tablo yok) |
+| 0006 | 14 | `attachments`, `agent_files` |
+| 0007 | 15 | `workflows`, `workflow_checkpoints`; `runs` tablosuna `kind` (0=Agent 1=Workflow 2=Eval) ve `workflow_name` |
+| 0008 | 17 | `job_schedules`, `jobs` (`FOR UPDATE SKIP LOCKED`), `job_items` |
+| 0009 | 18 | `eval_suites`, `eval_cases`, `eval_runs`, `eval_case_results` — dördü de `IEvalStore` üzerinden; koşular Faz 17'nin `jobs` kuyruğunu (`kind=Eval`) kullanır, ayrı kuyruk açmaz |
+| 0010 | 19 | `experiments` (`variants jsonb`, tek sütun — ayrı tablo yok); `runs` tablosuna `agent_version`, `experiment_id`, `variant`. Aynı agent için tek `Running` deney kuralı `experiments_running_agent_uq` kısmi benzersiz indeksiyle veritabanında zorlanır |
+| 0011 | 20 | `runs` tablosuna maliyet sütunları: `input_cost`, `output_cost`, `cost_currency`, `pricing_source` (yeni tablo yok) |
+| 0012 | 21 | `quotas`, `quota_usage`, `webhook_subscriptions`, `webhook_deliveries`; `jobs` tablosuna `max_attempts`. `webhook_deliveries` bir kuyruk **değildir** — zamanlama ve kiralama `jobs` tablosunda yaşar (K-160) |
+

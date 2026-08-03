@@ -41,6 +41,16 @@ public sealed record JobRecord
     /// <summary>Kiralama denemesi sayisi. Her <see cref="IJobStore.LeaseAsync"/> cagrisinda artar.</summary>
     public int Attempt { get; init; }
 
+    /// <summary>
+    /// Bu ise ozgu en fazla deneme sayisi. <see langword="null"/> ise
+    /// <see cref="AgentPrismSchedulingOptions.MaxAttempts"/> gecerlidir.
+    /// </summary>
+    /// <remarks>
+    /// Webhook teslimi (Faz 21) genel ayardan farkli bir merdiven kullanir; bu
+    /// alan, tek bir genel sayinin tum is turlerine dayatilmasini onler.
+    /// </remarks>
+    public int? MaxAttempts { get; init; }
+
     /// <summary>Isi su anda kiralayan iscinin kimligi. Kiralanmadiysa <see langword="null"/>.</summary>
     public string? LeaseOwner { get; init; }
 

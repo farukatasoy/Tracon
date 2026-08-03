@@ -16,6 +16,8 @@ import {
   Panel,
   Select,
 } from '../components/ui';
+import { QuotaPanel } from '../components/quota-panel';
+import { WebhookPanel } from '../components/webhook-panel';
 import type { Meta } from '../lib/types';
 
 export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
@@ -177,6 +179,10 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
             &apos;s model breakdown chart. This panel stays token-only for a fast glance.
           </p>
         </Panel>
+
+        <QuotaPanel />
+
+        <WebhookPanel />
       </div>
     </>
   );

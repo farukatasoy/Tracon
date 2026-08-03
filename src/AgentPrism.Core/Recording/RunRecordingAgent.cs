@@ -45,6 +45,8 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     private readonly int? _agentVersion;
     private readonly bool _includeAgentVersionTag;
     private readonly IRunPricingResolver? _pricingResolver;
+    private readonly QuotaEnforcer? _quotaEnforcer;
+    private readonly IWebhookPublisher? _webhookPublisher;
 
     /// <summary>Yeni bir kayit sarmalayicisi olusturur.</summary>
     /// <param name="innerAgent">Sarmalanan agent.</param>
@@ -75,6 +77,14 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     /// <param name="pricingResolver">
     /// Maliyet cozumleyici. <see langword="null"/> ise hicbir maliyet hesaplanmaz.
     /// </param>
+    /// <param name="quotaEnforcer">
+    /// Kota muhasebecisi. <see langword="null"/> ise tuketim sayilmaz. Yalnizca
+    /// <strong>kok</strong> calistirmalar sayilir; alt calistirmalar ayni
+    /// istegin parcasidir ve iki kez sayilmamalidir.
+    /// </param>
+    /// <param name="webhookPublisher">
+    /// Olay yayincisi. <see langword="null"/> ise <c>run.*</c> olaylari yayilmaz.
+    /// </param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
     public RunRecordingAgent(
         AIAgent innerAgent,
@@ -90,7 +100,9 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         AgentPrismAgentGraphOptions? graphOptions = null,
         int? agentVersion = null,
         bool includeAgentVersionTag = true,
-        IRunPricingResolver? pricingResolver = null)
+        IRunPricingResolver? pricingResolver = null,
+        QuotaEnforcer? quotaEnforcer = null,
+        IWebhookPublisher? webhookPublisher = null)
         : base(innerAgent)
     {
         ArgumentNullException.ThrowIfNull(runStore);
@@ -111,6 +123,8 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         _agentVersion = agentVersion;
         _includeAgentVersionTag = includeAgentVersionTag;
         _pricingResolver = pricingResolver;
+        _quotaEnforcer = quotaEnforcer;
+        _webhookPublisher = webhookPublisher;
     }
 
     /// <inheritdoc />
@@ -407,7 +421,103 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             start.Scope.Budget,
             start.Scope.ExtraUsage,
             OwnsTrace: start.Scope.Depth == 0,
-            AgentVersion: start.AgentVersion);
+            AgentVersion: start.AgentVersion,
+            RunId: start.Scope.RunId,
+            RootRunId: start.Scope.RootRunId,
+            Depth: start.Scope.Depth,
+            SessionId: start.SessionId);
+    }
+
+    /// <summary>Tamamlanmis bir kok calistirmanin tuketimini kota sayaclarina yazar.</summary>
+    /// <remarks>
+    /// Fiyat tanimsizsa <see cref="QuotaConsumption.Cost"/> <see langword="null"/>
+    /// kalir — sifir <strong>degil</strong> (Faz 20 kurali). Boyle bir
+    /// calistirma para cinsi kotaya katilmaz, ama token kotasina katilir: kota
+    /// para cinsinden uygulanamadiginda token'a duser.
+    /// </remarks>
+    private async ValueTask RecordQuotaAsync(
+        RunScope scope,
+        RunUsage? usage,
+        RunCost? cost,
+        CancellationToken cancellationToken)
+    {
+        if (_quotaEnforcer is null)
+        {
+            return;
+        }
+
+        await _quotaEnforcer.RecordAsync(
+            new QuotaConsumption
+            {
+                TenantId = scope.TenantId,
+                AgentName = scope.AgentName,
+                Runs = 1,
+                Tokens = usage?.TotalTokens ?? 0,
+                Cost = cost is { Source: not PricingSource.Unknown }
+                    ? (cost.InputCost ?? 0m) + (cost.OutputCost ?? 0m)
+                    : null,
+                OccurredAt = _timeProvider.GetUtcNow(),
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Kok calistirma bittiginde <c>run.completed</c>/<c>run.failed</c> yayar.</summary>
+    /// <remarks>
+    /// Yuk yalnizca <strong>ozet</strong> tasir (K-161): mesaj icerigi ve model
+    /// yaniti buraya girmez. Icerik isteyen alici <c>/api/runs/{id}</c> cagirir.
+    /// </remarks>
+    private async ValueTask PublishRunEventAsync(
+        RunScope scope,
+        RunStatus status,
+        RunUsage? usage,
+        RunCost? cost,
+        RunError? error,
+        TimeSpan elapsed,
+        CancellationToken cancellationToken)
+    {
+        if (_webhookPublisher is null)
+        {
+            return;
+        }
+
+        // Iptal edilen calistirma ne basari ne hatadir; abone icin gurultudur.
+        var eventType = status switch
+        {
+            RunStatus.Completed => WebhookEvents.RunCompleted,
+            RunStatus.Failed => WebhookEvents.RunFailed,
+            _ => null,
+        };
+
+        if (eventType is null)
+        {
+            return;
+        }
+
+        await _webhookPublisher.PublishAsync(
+            scope.TenantId,
+            eventType,
+            new WebhookEventPayload
+            {
+                OccurredAt = _timeProvider.GetUtcNow(),
+                Run = new WebhookRunSummary
+                {
+                    RunId = scope.RunId.ToString(),
+                    RootRunId = scope.RootRunId.ToString(),
+                    SessionId = scope.SessionId,
+                    AgentName = scope.AgentName,
+                    ModelId = _modelId,
+                    Status = status.ToString(),
+                    DurationMs = (long)elapsed.TotalMilliseconds,
+                    InputTokens = usage?.InputTokens,
+                    OutputTokens = usage?.OutputTokens,
+                    Cost = cost is { Source: not PricingSource.Unknown }
+                        ? (cost.InputCost ?? 0m) + (cost.OutputCost ?? 0m)
+                        : null,
+                    Currency = cost?.Currency,
+                    Error = error?.Message,
+                },
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     private static RunError ApprovalError(string toolNames)
@@ -453,6 +563,16 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         scope.Budget?.RecordUsage(usage?.TotalTokens ?? 0);
 
         var elapsed = _timeProvider.GetElapsedTime(scope.StartedAt);
+
+        // 🚨 Kota ve olay yayini YALNIZCA kok calistirmada isler. Alt calistirma
+        // ayni kullanici isteginin parcasidir; ayrica sayilsaydi bir agent agaci
+        // kotayi derinligi kadar hizli tuketirdi ve her dugum icin ayri bir
+        // run.completed olayi yayilirdi.
+        if (scope.Depth == 0)
+        {
+            await RecordQuotaAsync(scope, usage, cost, cancellationToken).ConfigureAwait(false);
+            await PublishRunEventAsync(scope, status, usage, cost, error, elapsed, cancellationToken).ConfigureAwait(false);
+        }
 
         _metrics?.RecordRun(
             scope.AgentName,
@@ -646,5 +766,9 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         AgentRunBudget? Budget,
         CompactionUsageAccumulator? ExtraUsage,
         bool OwnsTrace,
-        int? AgentVersion);
+        int? AgentVersion,
+        Guid RunId,
+        Guid RootRunId,
+        int Depth,
+        string? SessionId);
 }

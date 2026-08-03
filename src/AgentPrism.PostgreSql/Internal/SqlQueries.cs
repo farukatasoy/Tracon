@@ -963,9 +963,9 @@ internal sealed class SqlQueries
         InsertJob = $"""
             INSERT INTO {Schema}.jobs
                 (id, tenant_id, schedule_id, kind, target_name, status, payload, total_items,
-                 done_items, failed_items, attempt, scheduled_for, created_at)
+                 done_items, failed_items, attempt, scheduled_for, created_at, max_attempts)
             VALUES (@id, @tenant_id, @schedule_id, @kind, @target_name, 0, @payload, @total_items,
-                    0, 0, 0, @scheduled_for, @created_at);
+                    0, 0, 0, @scheduled_for, @created_at, @max_attempts);
             """;
 
         // Kimlikler C# tarafinda uretilir (gen_random_uuid() sunucu surumune
@@ -977,10 +977,12 @@ internal sealed class SqlQueries
             FROM UNNEST(@ids, @inputs) WITH ORDINALITY AS t(id, input, ord);
             """;
 
+        // 🚨 Yeni sutun her zaman SONA eklenir: ReadJob sabit sutun indeksi
+        // kullanir ve mevcut indeksleri kaydirmak sessizce yanlis sutun okur.
         const string jobColumns = """
             id, tenant_id, schedule_id, kind, target_name, status, payload, total_items, done_items,
             failed_items, attempt, lease_owner, lease_until, scheduled_for, started_at, completed_at,
-            error_message, created_at
+            error_message, created_at, max_attempts
             """;
 
         // FOR UPDATE SKIP LOCKED: birden fazla isci ayni veritabanina baglansa
@@ -1015,9 +1017,13 @@ internal sealed class SqlQueries
              WHERE id = @id;
             """;
 
+        // @retry_at NULL ise scheduled_for'a dokunulmaz (eski davranis: is hemen
+        // yeniden kiralanabilir). Dolu ise geri adimli bekleme uygulanir; bu,
+        // webhook teslimi icin ikinci bir kuyruk yazmayi gereksiz kilar (K-160).
         ReleaseJobForRetry = $"""
             UPDATE {Schema}.jobs
-               SET status = 0, lease_owner = NULL, lease_until = NULL, error_message = @error_message
+               SET status = 0, lease_owner = NULL, lease_until = NULL, error_message = @error_message,
+                   scheduled_for = COALESCE(@retry_at, scheduled_for)
              WHERE id = @id;
             """;
 
@@ -1178,6 +1184,183 @@ internal sealed class SqlQueries
             JOIN {Schema}.eval_runs er ON er.id = ecr.eval_run_id
             WHERE er.tenant_id = @tenant_id AND ecr.eval_run_id = @eval_run_id
             ORDER BY ecr.id;
+            """;
+
+        // -------------------------------------------------------------------
+        // Faz 21 -- kota
+        // -------------------------------------------------------------------
+        const string quotaColumns = """
+            id, tenant_id, agent_name, period, max_runs, max_tokens, max_cost, enabled,
+            created_at, updated_at
+            """;
+
+        // 🚨 Catisma hedefi COALESCE(agent_name, '') ifadesidir, sutun listesi
+        // degil: PostgreSQL'de NULL'lar birbirine esit sayilmaz ve duz bir
+        // (tenant_id, agent_name, period) hedefi, agent_name NULL olan ayni
+        // kuralin sinirsiz kez eklenmesine izin verirdi. Benzersiz indeks de
+        // ayni ifadeyle kuruludur (migration 0012).
+        UpsertQuota = $"""
+            INSERT INTO {Schema}.quotas
+                ({quotaColumns})
+            VALUES
+                (@id, @tenant_id, @agent_name, @period, @max_runs, @max_tokens, @max_cost, @enabled,
+                 @created_at, @updated_at)
+            ON CONFLICT (tenant_id, COALESCE(agent_name, ''), period) DO UPDATE
+               SET max_runs   = EXCLUDED.max_runs,
+                   max_tokens = EXCLUDED.max_tokens,
+                   max_cost   = EXCLUDED.max_cost,
+                   enabled    = EXCLUDED.enabled,
+                   updated_at = EXCLUDED.updated_at
+            RETURNING {quotaColumns};
+            """;
+
+        SelectQuotas = $"""
+            SELECT {quotaColumns}
+            FROM {Schema}.quotas
+            WHERE tenant_id = @tenant_id
+            ORDER BY COALESCE(agent_name, ''), period;
+            """;
+
+        SelectQuota = $"""
+            SELECT {quotaColumns}
+            FROM {Schema}.quotas
+            WHERE id = @id AND tenant_id = @tenant_id;
+            """;
+
+        DeleteQuota = $"""
+            DELETE FROM {Schema}.quotas WHERE id = @id AND tenant_id = @tenant_id;
+            """;
+
+        // Tuketim ATOMIK olarak artirilir. Eszamanli calistirmalar ayni satiri
+        // artirir ve hicbir artis kaybolmaz; okuma-degistir-yaz dizisi olsaydi
+        // ayni anda biten iki calistirmadan biri sessizce yutulurdu.
+        AddQuotaUsage = $"""
+            INSERT INTO {Schema}.quota_usage
+                (tenant_id, agent_name, period, period_start, runs, tokens, cost, updated_at)
+            VALUES
+                (@tenant_id, @agent_name, @period, @period_start, @runs, @tokens, @cost, @updated_at)
+            ON CONFLICT (tenant_id, agent_name, period, period_start) DO UPDATE
+               SET runs       = {Schema}.quota_usage.runs   + EXCLUDED.runs,
+                   tokens     = {Schema}.quota_usage.tokens + EXCLUDED.tokens,
+                   cost       = {Schema}.quota_usage.cost   + EXCLUDED.cost,
+                   updated_at = EXCLUDED.updated_at;
+            """;
+
+        SelectQuotaUsage = $"""
+            SELECT tenant_id, agent_name, period, period_start, runs, tokens, cost, updated_at
+            FROM {Schema}.quota_usage
+            WHERE tenant_id = @tenant_id
+              AND (@agent_name IS NULL OR agent_name = @agent_name)
+              AND (@period     IS NULL OR period     = @period)
+            ORDER BY agent_name, period, period_start DESC;
+            """;
+
+        // -------------------------------------------------------------------
+        // Faz 21 -- webhook
+        // -------------------------------------------------------------------
+        // 🚨 Sutun listesinde SIR YOKTUR: yalnizca secret_configuration_key
+        // (anahtarin ADI) vardir (K-059).
+        const string webhookSubscriptionColumns = """
+            id, tenant_id, name, url, events, secret_configuration_key, headers, enabled,
+            consecutive_failures, created_at, updated_at
+            """;
+
+        UpsertWebhookSubscription = $"""
+            INSERT INTO {Schema}.webhook_subscriptions
+                ({webhookSubscriptionColumns})
+            VALUES
+                (@id, @tenant_id, @name, @url, @events, @secret_configuration_key, @headers, @enabled,
+                 @consecutive_failures, @created_at, @updated_at)
+            ON CONFLICT (tenant_id, name) DO UPDATE
+               SET url                      = EXCLUDED.url,
+                   events                   = EXCLUDED.events,
+                   secret_configuration_key = EXCLUDED.secret_configuration_key,
+                   headers                  = EXCLUDED.headers,
+                   enabled                  = EXCLUDED.enabled,
+                   updated_at               = EXCLUDED.updated_at
+            RETURNING {webhookSubscriptionColumns};
+            """;
+
+        SelectWebhookSubscriptions = $"""
+            SELECT {webhookSubscriptionColumns}
+            FROM {Schema}.webhook_subscriptions
+            WHERE tenant_id = @tenant_id
+            ORDER BY name;
+            """;
+
+        SelectWebhookSubscription = $"""
+            SELECT {webhookSubscriptionColumns}
+            FROM {Schema}.webhook_subscriptions
+            WHERE tenant_id = @tenant_id AND name = @name;
+            """;
+
+        // events bir text[] sutunudur; = ANY(...) tam eslesme arar ve indeks
+        // kullanabilir. LIKE tabanli bir arama 'run.completed' ararken
+        // 'run.completed.v2' aboneligini de yanlislikla eslerdi.
+        SelectWebhookSubscriptionsForEvent = $"""
+            SELECT {webhookSubscriptionColumns}
+            FROM {Schema}.webhook_subscriptions
+            WHERE tenant_id = @tenant_id AND enabled = true AND @event_type = ANY (events)
+            ORDER BY name;
+            """;
+
+        DeleteWebhookSubscription = $"""
+            DELETE FROM {Schema}.webhook_subscriptions WHERE tenant_id = @tenant_id AND name = @name;
+            """;
+
+        // Ust uste basarisizlik sayaci ve otomatik kapatma TEK ifadede yapilir;
+        // okuma-degistir-yaz dizisi eszamanli teslimlerle yarisirdi. Donen satir
+        // "bu cagri aboneligi kapatti mi" sorusunu yanitlar.
+        UpdateWebhookSubscriptionOutcome = $"""
+            UPDATE {Schema}.webhook_subscriptions
+               SET consecutive_failures = CASE WHEN @succeeded THEN 0 ELSE consecutive_failures + 1 END,
+                   enabled = CASE
+                       WHEN @succeeded THEN enabled
+                       WHEN @threshold > 0 AND consecutive_failures + 1 >= @threshold THEN false
+                       ELSE enabled
+                   END,
+                   updated_at = @updated_at
+             WHERE id = @id
+            RETURNING (NOT enabled) AND @succeeded = false;
+            """;
+
+        const string webhookDeliveryColumns = """
+            id, subscription_id, tenant_id, event_type, payload, status, attempt, response_code,
+            error, created_at, delivered_at
+            """;
+
+        InsertWebhookDelivery = $"""
+            INSERT INTO {Schema}.webhook_deliveries
+                ({webhookDeliveryColumns})
+            VALUES
+                (@id, @subscription_id, @tenant_id, @event_type, @payload, @status, @attempt,
+                 @response_code, @error, @created_at, @delivered_at);
+            """;
+
+        SelectWebhookDelivery = $"""
+            SELECT {webhookDeliveryColumns}
+            FROM {Schema}.webhook_deliveries
+            WHERE id = @id;
+            """;
+
+        UpdateWebhookDeliveryResult = $"""
+            UPDATE {Schema}.webhook_deliveries
+               SET status        = @status,
+                   attempt       = @attempt,
+                   response_code = @response_code,
+                   error         = @error,
+                   delivered_at  = CASE WHEN @status = 1 THEN @recorded_at ELSE delivered_at END
+             WHERE id = @id;
+            """;
+
+        SelectWebhookDeliveries = $"""
+            SELECT {webhookDeliveryColumns}
+            FROM {Schema}.webhook_deliveries
+            WHERE tenant_id = @tenant_id
+              AND (@subscription_id IS NULL OR subscription_id = @subscription_id)
+              AND (@status          IS NULL OR status          = @status)
+            ORDER BY created_at DESC
+            OFFSET @skip LIMIT @take;
             """;
     }
 
@@ -1549,6 +1732,54 @@ internal sealed class SqlQueries
 
     /// <summary>Bir kosunun vaka sonuclarini okur.</summary>
     public string SelectEvalCaseResults { get; }
+
+    /// <summary>Bir kota kuralini ekler veya gunceller (kapsam catismasinda).</summary>
+    public string UpsertQuota { get; }
+
+    /// <summary>Bir kiracinin kota kurallarini listeler.</summary>
+    public string SelectQuotas { get; }
+
+    /// <summary>Tek bir kota kuralini getirir.</summary>
+    public string SelectQuota { get; }
+
+    /// <summary>Bir kota kuralini siler.</summary>
+    public string DeleteQuota { get; }
+
+    /// <summary>Kota tuketimini atomik olarak artirir.</summary>
+    public string AddQuotaUsage { get; }
+
+    /// <summary>Kota tuketim sayaclarini okur.</summary>
+    public string SelectQuotaUsage { get; }
+
+    /// <summary>Bir webhook aboneligini ekler veya gunceller.</summary>
+    public string UpsertWebhookSubscription { get; }
+
+    /// <summary>Bir kiracinin webhook aboneliklerini listeler.</summary>
+    public string SelectWebhookSubscriptions { get; }
+
+    /// <summary>Tek bir webhook aboneligini adiyla getirir.</summary>
+    public string SelectWebhookSubscription { get; }
+
+    /// <summary>Belirli bir olaya abone olan etkin abonelikleri getirir.</summary>
+    public string SelectWebhookSubscriptionsForEvent { get; }
+
+    /// <summary>Bir webhook aboneligini siler.</summary>
+    public string DeleteWebhookSubscription { get; }
+
+    /// <summary>Bir aboneligin basarisizlik sayacini gunceller ve esikte kapatir.</summary>
+    public string UpdateWebhookSubscriptionOutcome { get; }
+
+    /// <summary>Bir webhook teslim kaydi ekler.</summary>
+    public string InsertWebhookDelivery { get; }
+
+    /// <summary>Tek bir teslim kaydini getirir.</summary>
+    public string SelectWebhookDelivery { get; }
+
+    /// <summary>Bir teslim denemesinin sonucunu yazar.</summary>
+    public string UpdateWebhookDeliveryResult { get; }
+
+    /// <summary>Teslim gecmisini filtreleyerek listeler.</summary>
+    public string SelectWebhookDeliveries { get; }
 
     /// <summary>Gomulu migration metnindeki sema yer tutucusunu gercek adla degistirir.</summary>
     /// <param name="sql">Ham migration metni.</param>
