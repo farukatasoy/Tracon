@@ -36,6 +36,7 @@ public sealed class AgentDefinitionCompiler
     private readonly CallableAgentResolver? _callableAgents;
     private readonly ITenantContext? _tenantContext;
     private readonly ModelBinding? _utilityModel;
+    private readonly IMcpResourceContextProviderFactory? _mcpResources;
 
     // MAAI001: Microsoft.Agents.AI.AgentFileStore "evaluation purposes only"
     // olarak isaretli. Bastirma tek bir dosyada toplanmistir (bu dosya, K-020
@@ -76,6 +77,11 @@ public sealed class AgentDefinitionCompiler
     /// ise <c>MemorySettings.EnableFileMemory</c>/<c>EnableTextSearch</c>
     /// isteyen bir tanim derleme hatasi alir.
     /// </param>
+    /// <param name="mcpResources">
+    /// <see cref="AgentDefinition.McpResourceUris"/> (Mod A) icin baglam
+    /// saglayicisi kuran fabrika. <see langword="null"/> ise MCP kaynagi
+    /// isteyen bir tanim derleme hatasi alir.
+    /// </param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
 #pragma warning disable MAAI001 // AgentFileStore — bkz. _fileStore alanindaki gerekce.
     public AgentDefinitionCompiler(
@@ -89,7 +95,8 @@ public sealed class AgentDefinitionCompiler
         CallableAgentResolver? callableAgents = null,
         ITenantContext? tenantContext = null,
         ModelBinding? utilityModel = null,
-        AgentFileStore? fileStore = null)
+        AgentFileStore? fileStore = null,
+        IMcpResourceContextProviderFactory? mcpResources = null)
 #pragma warning restore MAAI001
     {
         ArgumentNullException.ThrowIfNull(models);
@@ -106,6 +113,7 @@ public sealed class AgentDefinitionCompiler
         _tenantContext = tenantContext;
         _utilityModel = utilityModel;
         _fileStore = fileStore;
+        _mcpResources = mcpResources;
     }
 
     /// <summary>Tanimi calistirilabilir bir agent'a donusturur.</summary>
@@ -634,12 +642,51 @@ public sealed class AgentDefinitionCompiler
 
         providers.AddRange(CreateMemoryProviders(definition));
 
+        if (CreateMcpResourceProvider(definition) is { } mcpResources)
+        {
+            providers.Add(mcpResources);
+        }
+
         if (providers.Count > 0)
         {
             options.AIContextProviders = providers;
         }
 
         return chatClient.AsAIAgent(options, _loggerFactory, _services);
+    }
+
+    /// <summary>
+    /// <see cref="AgentDefinition.McpResourceUris"/> (Mod A) icin baglam
+    /// saglayicisi kurar.
+    /// </summary>
+    /// <exception cref="AgentPrismCompilationException">
+    /// Tanim MCP kaynagi istiyor ancak <c>AgentPrism.Mcp</c> paketi kayitli degilse.
+    /// </exception>
+    private AIContextProvider? CreateMcpResourceProvider(AgentDefinition definition)
+    {
+        if (definition.McpResourceUris.Count == 0)
+        {
+            return null;
+        }
+
+        if (_mcpResources is null)
+        {
+            throw new AgentPrismCompilationException(
+                $"'{definition.Name}' agent'i MCP kaynagi kullaniyor ancak AgentPrism.Mcp paketi " +
+                "kayitli degil (UseMcp() cagrilmadi).")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
+        var tenantId = _tenantContext?.TenantId ?? definition.TenantId
+            ?? throw new AgentPrismCompilationException(
+                $"'{definition.Name}' agent'i MCP kaynagi kullaniyor ancak kiraci cozulemedi.")
+            {
+                AgentName = definition.Name,
+            };
+
+        return _mcpResources.Create(definition.McpResourceUris, tenantId);
     }
 
     /// <summary>
@@ -805,9 +852,21 @@ public sealed class AgentDefinitionCompiler
         // EnableTodo == true ve DisableTodoProvider == false ise ek bir sey
         // YAPILMAZ: harness todo takibini varsayilan olarak zaten acik tutar.
 
+        var harnessProviders = new List<AIContextProvider>(2);
+
         if (CreateTextSearchProvider(definition) is { } textSearch)
         {
-            options.AIContextProviders = [textSearch];
+            harnessProviders.Add(textSearch);
+        }
+
+        if (CreateMcpResourceProvider(definition) is { } mcpResources)
+        {
+            harnessProviders.Add(mcpResources);
+        }
+
+        if (harnessProviders.Count > 0)
+        {
+            options.AIContextProviders = harnessProviders;
         }
 
         return chatClient.AsHarnessAgent(options, _loggerFactory, _services);

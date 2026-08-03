@@ -174,7 +174,10 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<CallableAgentResolver>(),
             provider.GetRequiredService<ITenantContext>(),
             provider.GetRequiredService<IOptions<AgentPrismOptions>>().Value.UtilityModel,
-            provider.GetRequiredService<Microsoft.Agents.AI.AgentFileStore>()));
+            provider.GetRequiredService<Microsoft.Agents.AI.AgentFileStore>(),
+            // Kayitli degilse McpResourceUris kullanan bir tanim derleme hatasi alir.
+            // AgentPrism.Mcp'nin UseMcp() cagrisi bunu kaydeder.
+            provider.GetService<IMcpResourceContextProviderFactory>()));
 #pragma warning restore MAAI001
 
         // Denetim izi. Aktor AuditActorContext'ten (AsyncLocal) okunur;

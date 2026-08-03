@@ -556,11 +556,14 @@ export interface RunTrace {
 
 export type McpTransportMode = 'StreamableHttp' | 'Sse';
 
+/** The only OAuth flow this SDK supports — a redirect-based, interactive one. */
+export type McpOAuthAuthorizationMode = 'AuthorizationCode';
+
 /**
  * A registered remote MCP server.
  *
  * Carries no secret: only the *name* of the configuration key whose value
- * becomes the `Authorization` header (decision K-059).
+ * becomes the `Authorization` header, or the OAuth client secret (decision K-059).
  */
 export interface McpServerDefinition {
   id: string;
@@ -575,6 +578,11 @@ export interface McpServerDefinition {
   requiresApproval: boolean;
   createdAt: string;
   updatedAt: string;
+  oauthEnabled: boolean;
+  oauthClientId?: string | null;
+  oauthClientSecretConfigurationKey?: string | null;
+  oauthScopes?: string | null;
+  oauthAuthorizationMode: McpOAuthAuthorizationMode;
 }
 
 export interface McpServerRequest {
@@ -585,6 +593,49 @@ export interface McpServerRequest {
   headers?: Record<string, string>;
   enabled: boolean;
   requiresApproval: boolean;
+  oauthEnabled?: boolean;
+  oauthClientId?: string | null;
+  oauthClientSecretConfigurationKey?: string | null;
+  oauthScopes?: string | null;
+}
+
+export interface McpOAuthStartResponse {
+  authorizationUri: string;
+  state: string;
+}
+
+export interface McpPromptArgumentSummary {
+  name: string;
+  description?: string | null;
+  required: boolean;
+}
+
+export interface McpPromptSummary {
+  name: string;
+  title?: string | null;
+  description?: string | null;
+  arguments: McpPromptArgumentSummary[];
+}
+
+export interface McpPromptContent {
+  text: string;
+  hash: string;
+}
+
+export interface McpResourceSummary {
+  uri: string;
+  name: string;
+  mimeType?: string | null;
+  description?: string | null;
+}
+
+export interface McpResourceContent {
+  uri: string;
+  mimeType?: string | null;
+  text?: string | null;
+  isBinary: boolean;
+  byteSize: number;
+  truncated: boolean;
 }
 
 export interface ToolApprovalRule {

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace AgentPrism;
 
 /// <summary>Gecerli istegin kiracisi.</summary>
@@ -52,6 +54,37 @@ public sealed record McpServerRequest
 
     /// <summary>Bu sunucunun tool'lari onay ister mi. Varsayilan <see langword="true"/>.</summary>
     public bool RequiresApproval { get; init; } = true;
+
+    /// <summary>
+    /// OAuth ile kimlik dogrulama acik mi. Acikken <see cref="AuthorizationConfigurationKey"/>
+    /// bos olmalidir.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 <c>[JsonPropertyName]</c> BILEREK verilir — gerekce <see cref="McpServerDefinition.OAuthEnabled"/>
+    /// ile aynidir: camelCase politikasi "OAuth" gibi iki buyuk harfle baslayan
+    /// adlarda beklenmeyen bir sonuc uretir.
+    /// </remarks>
+    [JsonPropertyName("oauthEnabled")]
+    public bool OAuthEnabled { get; init; }
+
+    /// <summary>OAuth istemci kimligi.</summary>
+    [JsonPropertyName("oauthClientId")]
+    public string? OAuthClientId { get; init; }
+
+    /// <summary>
+    /// OAuth istemci gizli anahtarinin degerinin okunacagi yapilandirma anahtari.
+    /// Deger gonderilmez; yalniz anahtarin adi.
+    /// </summary>
+    [JsonPropertyName("oauthClientSecretConfigurationKey")]
+    public string? OAuthClientSecretConfigurationKey { get; init; }
+
+    /// <summary>Bosluk ile ayrilmis OAuth scope listesi.</summary>
+    [JsonPropertyName("oauthScopes")]
+    public string? OAuthScopes { get; init; }
+
+    /// <summary>OAuth yetkilendirme akisi.</summary>
+    [JsonPropertyName("oauthAuthorizationMode")]
+    public McpOAuthAuthorizationMode OAuthAuthorizationMode { get; init; } = McpOAuthAuthorizationMode.AuthorizationCode;
 }
 
 /// <summary>MCP tool tazeleme sonucu.</summary>
@@ -59,6 +92,23 @@ public sealed record McpRefreshResponse
 {
     /// <summary>Tazeleme sonrasi kullanilabilir toplam tool sayisi.</summary>
     public required int ToolCount { get; init; }
+}
+
+/// <summary>Bir MCP prompt'unu argumanlarla cozme istegi.</summary>
+public sealed record McpPromptArgumentsRequest
+{
+    /// <summary>Prompt argumanlari.</summary>
+    public IReadOnlyDictionary<string, string>? Arguments { get; init; }
+}
+
+/// <summary>OAuth Mod 1 baslatma yaniti.</summary>
+public sealed record McpOAuthStartResponse
+{
+    /// <summary>Yoneticinin yonlendirilecegi yetkilendirme adresi.</summary>
+    public required string AuthorizationUri { get; init; }
+
+    /// <summary>CSRF korumasi icin uretilen tek kullanimlik durum degeri.</summary>
+    public required string State { get; init; }
 }
 
 /// <summary>
