@@ -71,4 +71,48 @@ public static class TestData
         using var document = JsonDocument.Parse(json);
         return document.RootElement.Clone();
     }
+
+    /// <summary>Ornek bir kuyruk isi uretir. <c>EnqueueAsync</c>'e verilmeye hazirdir.</summary>
+    /// <param name="tenantId">Kiraci kimligi.</param>
+    /// <param name="scheduledFor">Calismaya uygun zaman. Verilmezse su an.</param>
+    /// <returns>Is kaydi.</returns>
+    public static JobRecord Job(string tenantId = "default", DateTimeOffset? scheduledFor = null)
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        return new JobRecord
+        {
+            Id = AgentPrismId.NewId(),
+            TenantId = tenantId,
+            Kind = JobKind.AgentBatch,
+            TargetName = "test-agent",
+            Status = JobStatus.Pending,
+            Payload = State("""["girdi"]"""),
+            ScheduledFor = scheduledFor ?? now,
+            CreatedAt = now,
+        };
+    }
+
+    /// <summary>Ornek bir zamanlama uretir.</summary>
+    /// <param name="tenantId">Kiraci kimligi.</param>
+    /// <param name="name">Zamanlama adi.</param>
+    /// <returns>Zamanlama.</returns>
+    public static JobSchedule Schedule(string tenantId = "default", string name = "gece-raporu")
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        return new JobSchedule
+        {
+            TenantId = tenantId,
+            Name = name,
+            Kind = JobKind.AgentBatch,
+            TargetName = "test-agent",
+            Cron = "0 3 * * *",
+            TimeZone = "UTC",
+            Payload = State("""["girdi"]"""),
+            Enabled = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+    }
 }

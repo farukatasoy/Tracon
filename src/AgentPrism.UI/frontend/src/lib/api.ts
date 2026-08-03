@@ -13,6 +13,13 @@ import type {
   AuditEntry,
   Conversation,
   CurrentTenant,
+  JobDetailResponse,
+  JobKind,
+  JobRecord,
+  JobSchedule,
+  JobScheduleSaveRequest,
+  JobStatus,
+  JobTriggerRequest,
   McpServerDefinition,
   McpServerRequest,
   Meta,
@@ -329,6 +336,27 @@ export const api = {
   /** Requests a run is blocked on. Empty unless the run is `AwaitingInput`. */
   workflowRequests: (runId: string) =>
     request<WorkflowPendingRequest[]>(`api/workflows/runs/${encodeURIComponent(runId)}/requests`),
+
+  schedules: () => request<JobSchedule[]>('api/schedules'),
+  schedule: (name: string) => request<JobSchedule>(`api/schedules/${encodeURIComponent(name)}`),
+  saveSchedule: (name: string, body: JobScheduleSaveRequest) =>
+    send<JobSchedule>('PUT', `api/schedules/${encodeURIComponent(name)}`, body),
+  deleteSchedule: (name: string) =>
+    request<void>(`api/schedules/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+  triggerSchedule: (name: string, body: JobTriggerRequest = {}) =>
+    send<JobRecord>('POST', `api/schedules/${encodeURIComponent(name)}/trigger`, body),
+
+  jobs: (
+    params: {
+      kind?: JobKind;
+      status?: JobStatus;
+      scheduleId?: string;
+      skip?: number;
+      take?: number;
+    } = {},
+  ) => request<JobRecord[]>(`api/jobs${query(params)}`),
+  job: (id: string) => request<JobDetailResponse>(`api/jobs/${encodeURIComponent(id)}`),
+  cancelJob: (id: string) => request<void>(`api/jobs/${encodeURIComponent(id)}/cancel`, { method: 'POST' }),
 
   audit: (
     params: {

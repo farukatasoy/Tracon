@@ -8,19 +8,19 @@
 
 | Paket | Durum | Faz |
 |-------|-------|-----|
-| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) · 5 (`AgentPrismRunOptions`) · 6 (telemetri, tool çağrısı, onay, MCP, kiracı) · 8 (`IModelProviderHealthCheck`, `AgentPrismProviderUnavailableException`) · 9 (`IAuditLog`, `IAuditActorResolver`, `IAuditDecorated`) · 10 (`AgentSkillDefinition`, `IAgentSkillStore`) · 11 (script tanımı, `ISkillScriptGrantStore`) · 12 (`AgentRunBudget`, çalıştırma ağacı alanları, `CallableAgentNames`) · 13 (`CompactionSettings`, `CompactionStrategyKind`, `MemorySettings`, `RunEventType.HistoryCompacted`) · 14 (`AttachmentDescriptor`, `AttachmentContent`, `IAttachmentStore`, `IAttachmentStorage`, `AttachmentQuery`) · 15 (`RunKind`, `WorkflowDefinition`, `WorkflowKind`, `WorkflowDescriptor`, `IWorkflowRunner`, `IWorkflowDefinitionStore`, `IWorkflowCheckpointStore`, sekiz yeni `RunEventType`) |
-| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) · 5 (çağıranın verdiği çalıştırma kimliği) · 6 (span, metrik, onay kuralı) · 8 (devre kesici, sağlık önbelleği) · 9 (`AuditActorContext`, `AuditSecretFilter`, `Auditing*Store` dekoratörleri) · 10 (skill katalogu, MAF source, fingerprint cache) · 11 (`SandboxedSkillScriptRunner`, `AgentPrismRunContext`) · 12 (`AgentCallGraph`, `CallableAgentResolver`, `ChildAgentInvoker`, `AgentRunScope`) · 13 (`ObservedCompactionStrategy`, `CompactionUsageTrackingChatClient`, `CompactionUsageAccumulator`, `AgentPrismOptions.UtilityModel`) · 14 (`AttachmentTypeGuard`, `InMemoryAttachmentStore`, `AttachmentResolvingChatClient`, `AttachmentUriReference`) · 15 (`WorkflowDefinitionValidator`, `InMemoryWorkflow*Store`, `AuditingWorkflowDefinitionStore`, `RunEventWriter.AppendAsync` artık olayı döndürür) |
-| `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 · 4 (özet sorgusu) · 6 (migration 0002, dört yeni depo) · 9 (`PostgresAuditLog`, migration **yok** — şema Faz 0'dan hazırdı) · 10 (migration 0003, `PostgresAgentSkillStore`) · 11 (migration 0004) · 12 (migration 0005 — `runs` ağaç sütunları, **yeni tablo yok**) · 13 (`AgentDefinitionPayload` genişletildi, **yeni migration yok** — `agent_definitions.definition` opak JSON) · 14 (migration 0006 — `attachments`, `agent_files`; `PostgresAttachmentStore`, `PostgresAgentFileStore`) · 15 (migration 0007 — `workflows`, `workflow_checkpoints`, `runs.kind`/`workflow_name`; iki yeni depo) |
+| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) · 5 (`AgentPrismRunOptions`) · 6 (telemetri, tool çağrısı, onay, MCP, kiracı) · 8 (`IModelProviderHealthCheck`, `AgentPrismProviderUnavailableException`) · 9 (`IAuditLog`, `IAuditActorResolver`, `IAuditDecorated`) · 10 (`AgentSkillDefinition`, `IAgentSkillStore`) · 11 (script tanımı, `ISkillScriptGrantStore`) · 12 (`AgentRunBudget`, çalıştırma ağacı alanları, `CallableAgentNames`) · 13 (`CompactionSettings`, `CompactionStrategyKind`, `MemorySettings`, `RunEventType.HistoryCompacted`) · 14 (`AttachmentDescriptor`, `AttachmentContent`, `IAttachmentStore`, `IAttachmentStorage`, `AttachmentQuery`) · 15 (`RunKind`, `WorkflowDefinition`, `WorkflowKind`, `WorkflowDescriptor`, `IWorkflowRunner`, `IWorkflowDefinitionStore`, `IWorkflowCheckpointStore`, sekiz yeni `RunEventType`) · 17 (`JobKind`, `JobStatus`, `JobItemStatus`, `JobSchedule`, `JobRecord`, `JobItemRecord`, `IJobStore`, `IJobScheduleStore`, `IJobHandler`, `AgentPrismSchedulingOptions`, `AmbientTenantScope`) |
+| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) · 5 (çağıranın verdiği çalıştırma kimliği) · 6 (span, metrik, onay kuralı) · 8 (devre kesici, sağlık önbelleği) · 9 (`AuditActorContext`, `AuditSecretFilter`, `Auditing*Store` dekoratörleri) · 10 (skill katalogu, MAF source, fingerprint cache) · 11 (`SandboxedSkillScriptRunner`, `AgentPrismRunContext`) · 12 (`AgentCallGraph`, `CallableAgentResolver`, `ChildAgentInvoker`, `AgentRunScope`) · 13 (`ObservedCompactionStrategy`, `CompactionUsageTrackingChatClient`, `CompactionUsageAccumulator`, `AgentPrismOptions.UtilityModel`) · 14 (`AttachmentTypeGuard`, `InMemoryAttachmentStore`, `AttachmentResolvingChatClient`, `AttachmentUriReference`) · 15 (`WorkflowDefinitionValidator`, `InMemoryWorkflow*Store`, `AuditingWorkflowDefinitionStore`, `RunEventWriter.AppendAsync` artık olayı döndürür) · 17 (`InMemoryJobStore`, `InMemoryJobScheduleStore`, `CronExpression`, `JobWorkerBackgroundService`, `AgentBatchJobHandler`, `WorkflowJobHandler`, `AddJobHandler<T>()`, `UseScheduling()`) |
+| `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 · 4 (özet sorgusu) · 6 (migration 0002, dört yeni depo) · 9 (`PostgresAuditLog`, migration **yok** — şema Faz 0'dan hazırdı) · 10 (migration 0003, `PostgresAgentSkillStore`) · 11 (migration 0004) · 12 (migration 0005 — `runs` ağaç sütunları, **yeni tablo yok**) · 13 (`AgentDefinitionPayload` genişletildi, **yeni migration yok** — `agent_definitions.definition` opak JSON) · 14 (migration 0006 — `attachments`, `agent_files`; `PostgresAttachmentStore`, `PostgresAgentFileStore`) · 15 (migration 0007 — `workflows`, `workflow_checkpoints`, `runs.kind`/`workflow_name`; iki yeni depo) · 17 (migration 0008 — `job_schedules`, `jobs` (`FOR UPDATE SKIP LOCKED`), `job_items`; `PostgresJobStore`, `PostgresJobScheduleStore`) |
 | `AgentPrism.OpenAI` | ✅ Tamamlandı | 3 · 8 (`UseOpenAICompatible`, sağlık denetimi) |
 | `AgentPrism.Mcp` | ✅ Tamamlandı | 6 |
 | `AgentPrism.Workflows` | ✅ Tamamlandı | 15 |
-| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 · 5 (arayüz rota grubu) · 6 (çok kiracılılık, yönetişim uçları) · 8 (`/api/models/health`) · 9 (`AgentPrismPolicies`, rol dağıtımı, `/api/audit`, `/api/meta` rol alanı) · 10 (`/api/skills`) · 11 (script izin uçları) · 12 (çağrı grafiği denetimi, `/api/runs/{id}/tree`, `includeChildren`) · 13 (`AgentDefinitionRequest.Compaction`/`Memory`) · 14 (`/api/attachments` uçları, `AgentRunRequest.AttachmentIds`, `/v1/responses` gömülü `data:` URI kabulü) · 15 (`/api/workflows` uçları, SSE çalıştırma ve sürdürme, `501` deseni) |
-| `AgentPrism.UI` | ✅ Tamamlandı | 5 · 6 (waterfall, MCP ekranı, onay kartı) · 8 (sağlık rozeti) · 9 (Audit ekranı, rol tabanlı düğme gizleme) · 10 (Skills ekranı ve agent skill seçicisi) · 11 (script izin yüzeyi) · 12 (çağrı ağacı paneli, kök/alt filtresi, çağrılabilir agent seçicisi) · 13 (Context paneli, `HistoryCompacted` rozeti/transkript satırı) · 14 (Playground dosya yükleme, sürükle-bırak, ek çipi/önizleme) |
+| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 · 5 (arayüz rota grubu) · 6 (çok kiracılılık, yönetişim uçları) · 8 (`/api/models/health`) · 9 (`AgentPrismPolicies`, rol dağıtımı, `/api/audit`, `/api/meta` rol alanı) · 10 (`/api/skills`) · 11 (script izin uçları) · 12 (çağrı grafiği denetimi, `/api/runs/{id}/tree`, `includeChildren`) · 13 (`AgentDefinitionRequest.Compaction`/`Memory`) · 14 (`/api/attachments` uçları, `AgentRunRequest.AttachmentIds`, `/v1/responses` gömülü `data:` URI kabulü) · 15 (`/api/workflows` uçları, SSE çalıştırma ve sürdürme, `501` deseni) · 17 (`/api/schedules` + `/api/jobs` uçları, `/api/meta` içine `jobStore`/`jobWorkerEnabled`) |
+| `AgentPrism.UI` | ✅ Tamamlandı | 5 · 6 (waterfall, MCP ekranı, onay kartı) · 8 (sağlık rozeti) · 9 (Audit ekranı, rol tabanlı düğme gizleme) · 10 (Skills ekranı ve agent skill seçicisi) · 11 (script izin yüzeyi) · 12 (çağrı ağacı paneli, kök/alt filtresi, çağrılabilir agent seçicisi) · 13 (Context paneli, `HistoryCompacted` rozeti/transkript satırı) · 14 (Playground dosya yükleme, sürükle-bırak, ek çipi/önizleme) · 17 (Jobs ekranı: zamanlamalar, is kuyrugu, ilerleme cubugu) |
 | `AgentPrism` (meta) | ✅ Paketleniyor | 0 |
 
-Testler: **758 .NET testi + 42 frontend birim testi geçiyor** — 344 birim testi
-(225 Core + 77 OpenAI + 42 Workflows) + 171 fonksiyonel test (TestHost, gerçek HTTP)
-+ 225 entegrasyon testi (Testcontainers, gerçek PostgreSQL) + 18 arayüz E2E testi
+Testler: **912 .NET testi + 42 frontend birim testi geçiyor** — 425 birim testi
+(279 Core + 77 OpenAI + 69 Workflows) + 190 fonksiyonel test (TestHost, gerçek HTTP)
++ 274 entegrasyon testi (Testcontainers, gerçek PostgreSQL) + 23 arayüz E2E testi
 (Playwright, gerçek Kestrel) + 42 Vitest testi (saf mantık; `npm run build` içinde
 koşar, dolayısıyla `dotnet build` de koşar). Build, test, pack ve format kapıları
 sıfır uyarı; `dotnet pack` **9 paket** üretir.
@@ -86,6 +86,25 @@ sabittir. `WorkflowAgentIdentity` sarmalayıcının kimliğini `(workflow, agent
 süreç yeniden başlatmasıyla doğrulandı: kimlik aynı kaldı ve yeniden
 başlatmadan **önce** oluşan bekleyen istek sonrasında cevaplandı. Bkz.
 [`16-WORKFLOWS-ARAYUZ.md`](16-WORKFLOWS-ARAYUZ.md).
+
+Faz 17 sonunda bir agent veya workflow **toplu** ve **zamanlanmış** olarak
+çalıştırılabiliyor. Kuyruk PostgreSQL üzerinde `FOR UPDATE SKIP LOCKED` ile
+kiralanır — ek bir mesaj kuyruğu (Redis, RabbitMQ) gerekmez; gerçek eşzamanlılık
+testiyle doğrulandı: iki gerçek `IJobStore` örneği 50 iş için yarıştı, hiçbiri
+iki kez kiralanmadı. `JobWorkerBackgroundService` tek bir `PeriodicTimer`
+döngüsünde hem sırası gelen `job_schedules` satırlarını `jobs`'a düşürür hem
+kiralanabilir işleri `IJobHandler` sözleşmesine dağıtır; işçi
+`AgentPrismSchedulingOptions.RunWorker = false` ile kapatılabilir, kuyruk yine
+de yazılabilir/okunabilir kalır (K-018 deseni). Bir toplu iş her ögesi için
+sıradan bir `runs` satırı üretir — `job_items.run_id` üzerinden geriye bağlanır,
+ikinci bir kayıt hattı açılmaz. Beş alanlı cron alt kümesi elle yazılmıştır
+(K-007); yaz saati geçişinde geçersiz bir yerel zaman sessizce atlanır. Zamanlanmış
+bir işin hangi kiracı için çalıştığı ne HTTP bağlamında ne sabit varsayılanda
+bulunur — `AmbientTenantScope` (AsyncLocal) bu boşluğu `IHttpContextAccessor`
+ile aynı desenle doldurur (K-136). Gerçek bir çalıştırmada doğrulandı: bir
+zamanlama oluşturuldu, elle tetiklendi, iki ögeli iş ~5 saniyede tamamlandı ve
+her öge gerçek bir `runs` satırına (gerçek model kullanımıyla) bağlandı. Bkz.
+[`17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md`](17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md).
 
 Faz 5 sonunda kabul senaryosu tamamlandı: paket kurulur, `.UseUI()` +
 `app.MapAgentPrism()` yazılır ve tarayıcıda bir kontrol düzlemi açılır. Faz 6 ekranı

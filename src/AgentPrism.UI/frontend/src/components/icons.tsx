@@ -207,3 +207,11 @@ export const WorkflowIcon = ({ className }: IconProps): ReactNode => (
     <path d="M6 9v3.5a1.5 1.5 0 0 0 1.5 1.5H9M18 9v3.5a1.5 1.5 0 0 1-1.5 1.5H15" />
   </Icon>
 );
+
+/** A clock face: scheduled and batch jobs run on their own timer. */
+export const JobsIcon = ({ className }: IconProps): ReactNode => (
+  <Icon className={className}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3.5 2" />
+  </Icon>
+);

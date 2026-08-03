@@ -246,7 +246,8 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [14](docs/14-COK-MODLULUK.md) | Çok modluluk: görsel/dosya eki, kalıcı agent dosya belleği | ✅ Tamamlandı |
 | [15](docs/15-WORKFLOWS-YURUTME.md) | Workflows: beş desenle yürütme, kontrol noktası ve sürdürme | ✅ Tamamlandı |
 | [16](docs/16-WORKFLOWS-ARAYUZ.md) | Workflows: graf görselleştirme, human-in-the-loop, Magentic plan onayı | ✅ Tamamlandı |
-| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 17–30) | 📋 Planlandı — sıradaki Faz 17 |
+| [17](docs/17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) | Toplu ve zamanlanmış çalıştırma: PostgreSQL iş kuyruğu (`SKIP LOCKED`), cron zamanlama, Jobs ekranı | ✅ Tamamlandı |
+| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 18–30) | 📋 Planlandı — sıradaki Faz 18 |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 > Faz 6, planındaki Workflows kalemini **yapmadı**; ertelendi ve gerekçesi

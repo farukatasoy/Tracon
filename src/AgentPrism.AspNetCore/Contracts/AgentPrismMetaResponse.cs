@@ -95,4 +95,13 @@ public sealed record AgentPrismStorageMeta
 
     /// <summary>Oturum deposunun tip adi.</summary>
     public required string SessionStore { get; init; }
+
+    /// <summary>Is kuyrugu deposunun tip adi (Faz 17).</summary>
+    public required string JobStore { get; init; }
+
+    /// <summary>
+    /// Arka plan is iscisi bu surecte calisiyor mu. <see langword="false"/> ise
+    /// kuyruk yine de yazilabilir/okunabilir; yalnizca bu surec is kiralamaz.
+    /// </summary>
+    public required bool JobWorkerEnabled { get; init; }
 }
