@@ -68,6 +68,18 @@ public sealed record AgentDefinition
     public IReadOnlyList<string> CallableAgentNames { get; init; } = [];
 
     /// <summary>
+    /// Calistirma baglamina eklenecek MCP kaynaklarinin listesi (Mod A). Her
+    /// ogenin bicimi <c>"{sunucu}:{uri}"</c>. Calistirma basinda okunur ve
+    /// ongorulebilirdir; her calistirmada ayni kaynaklar girer.
+    /// </summary>
+    /// <remarks>
+    /// Kaynak okuma icin <c>AgentPrism.Mcp</c> paketinin kayitli olmasi (<c>UseMcp()</c>)
+    /// gerekir; aksi halde derleme hata verir. Boyut siniri uygulanir
+    /// (docs/22-MCP-DERINLESMESI.md, bolum 22.2): kaynak basina 64 KB, toplam 256 KB.
+    /// </remarks>
+    public IReadOnlyList<string> McpResourceUris { get; init; } = [];
+
+    /// <summary>
     /// Harness ayarlari. <see langword="null"/> ise sade bir sohbet agent'i uretilir;
     /// dolu ise baglam sikistirma, todo takibi gibi harness yetenekleri devreye girer.
     /// </summary>

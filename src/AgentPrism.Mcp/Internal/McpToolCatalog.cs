@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -35,13 +37,19 @@ internal sealed class McpToolCatalog : IAsyncDisposable
     private readonly IOptions<AgentPrismMcpOptions> _options;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<McpToolCatalog> _logger;
+    private readonly McpOAuthTokenCacheRegistry _tokenCaches;
 
     // Okuma yolu kilitsizdir: her tazeleme yeni bir sozluk kurar ve referansi
     // atomik olarak degistirir. Okuyucular tutarli bir anlik goruntu gorur.
     private volatile Dictionary<string, McpTenantTools> _byTenant = new(StringComparer.Ordinal);
 
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
-    private readonly Dictionary<string, McpConnection> _connections = new(StringComparer.Ordinal);
+
+    // ConcurrentDictionary: yazma her zaman _refreshGate altinda tek yazardir,
+    // ancak Mod A baglam saglayicisi (McpResourceContextProvider) her agent
+    // calistirmasinda kilitsiz okur. Duz Dictionary'de bu okuma bir tazeleme ile
+    // yarisirsa bozulurdu.
+    private readonly ConcurrentDictionary<string, McpConnection> _connections = new(StringComparer.Ordinal);
 
     public McpToolCatalog(
         IMcpServerStore servers,
@@ -49,7 +57,8 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         IConfiguration configuration,
         IOptions<AgentPrismOptions> coreOptions,
         IOptions<AgentPrismMcpOptions> options,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        McpOAuthTokenCacheRegistry tokenCaches)
     {
         ArgumentNullException.ThrowIfNull(servers);
         ArgumentNullException.ThrowIfNull(tenants);
@@ -57,6 +66,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(coreOptions);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(loggerFactory);
+        ArgumentNullException.ThrowIfNull(tokenCaches);
 
         _servers = servers;
         _tenants = tenants;
@@ -65,6 +75,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         _options = options;
         _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger<McpToolCatalog>();
+        _tokenCaches = tokenCaches;
     }
 
     /// <summary>Bir kiracinin kesfedilmis tool'larini dondurur.</summary>
@@ -72,6 +83,13 @@ internal sealed class McpToolCatalog : IAsyncDisposable
     /// <returns>Tool kumesi; kesif yapilmadiysa bos kume.</returns>
     public McpTenantTools ForTenant(string tenantId)
         => _byTenant.TryGetValue(tenantId, out var tools) ? tools : McpTenantTools.Empty;
+
+    /// <summary>
+    /// Bir kiracinin belirli bir sunucuya ait canli baglantisini dondurur (Mod A).
+    /// </summary>
+    /// <returns>Baglanti su an ayakta ise <see langword="true"/>; sunucu erisilemezse veya kapaliysa <see langword="false"/>.</returns>
+    public bool TryGetConnection(string tenantId, string serverName, [NotNullWhen(true)] out McpConnection? connection)
+        => _connections.TryGetValue($"{tenantId}{serverName}", out connection);
 
     /// <summary>
     /// Tum kiracilarin sunucularini tarar ve tool listesini tazeler.
@@ -108,7 +126,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
                     var key = $"{tenantId}{server.Name}";
                     live.Add(key);
 
-                    var connection = await EnsureConnectionAsync(key, server, cancellationToken).ConfigureAwait(false);
+                    var connection = await EnsureConnectionAsync(tenantId, key, server, cancellationToken).ConfigureAwait(false);
 
                     if (connection is not null)
                     {
@@ -175,6 +193,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
     }
 
     private async ValueTask<McpConnection?> EnsureConnectionAsync(
+        string tenantId,
         string key,
         McpServerDefinition server,
         CancellationToken cancellationToken)
@@ -188,18 +207,20 @@ internal sealed class McpToolCatalog : IAsyncDisposable
                 // Tanim degismedi: baglanti ayakta kalir, yalnizca tool listesi
                 // tazelenir. Degismeyen bir baglantiyi kapatmak devam eden bir
                 // tool cagrisini kirardi.
-                return await existing.RefreshToolsAsync(_options.Value, _logger, cancellationToken)
+                return await existing.RefreshCatalogAsync(_options.Value, _logger, cancellationToken)
                     .ConfigureAwait(false)
                     ? existing
                     : null;
             }
 
             await existing.DisposeAsync().ConfigureAwait(false);
-            _connections.Remove(key);
+            _connections.TryRemove(key, out _);
         }
 
+        var tokenCache = _tokenCaches.GetOrCreate(tenantId, server.Name);
+
         var connection = await McpConnection
-            .ConnectAsync(server, _configuration, _options.Value, _loggerFactory, _logger, cancellationToken)
+            .ConnectAsync(server, _configuration, _options.Value, tokenCache, _loggerFactory, _logger, cancellationToken)
             .ConfigureAwait(false);
 
         if (connection is null)
@@ -218,7 +239,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
 
         foreach (var key in removed)
         {
-            if (_connections.Remove(key, out var connection))
+            if (_connections.TryRemove(key, out var connection))
             {
                 await connection.DisposeAsync().ConfigureAwait(false);
             }

@@ -11,7 +11,8 @@ internal static class TestData
     public static AgentDefinition Definition(
         string name = "test-agent",
         IReadOnlyList<string>? toolNames = null,
-        HarnessSettings? harness = null)
+        HarnessSettings? harness = null,
+        IReadOnlyList<string>? mcpResourceUris = null)
         => new()
         {
             Name = name,
@@ -19,6 +20,7 @@ internal static class TestData
             Model = Binding(),
             ToolNames = toolNames ?? [],
             Harness = harness,
+            McpResourceUris = mcpResourceUris ?? [],
         };
 
     public static AIFunction Tool(string name, string description = "test tool")

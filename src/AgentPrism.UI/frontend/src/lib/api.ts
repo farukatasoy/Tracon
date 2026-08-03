@@ -31,6 +31,11 @@ import type {
   JobScheduleSaveRequest,
   JobStatus,
   JobTriggerRequest,
+  McpOAuthStartResponse,
+  McpPromptContent,
+  McpPromptSummary,
+  McpResourceContent,
+  McpResourceSummary,
   McpServerDefinition,
   McpServerRequest,
   Meta,
@@ -295,6 +300,22 @@ export const api = {
   deleteMcpServer: (name: string) =>
     request<void>(`api/mcp-servers/${encodeURIComponent(name)}`, { method: 'DELETE' }),
   refreshMcpTools: () => send<{ toolCount: number }>('POST', 'api/mcp-servers/refresh', {}),
+  mcpPrompts: (name: string) =>
+    request<McpPromptSummary[]>(`api/mcp-servers/${encodeURIComponent(name)}/prompts`),
+  mcpPromptContent: (name: string, prompt: string, args: Record<string, string>) =>
+    send<McpPromptContent>(
+      'POST',
+      `api/mcp-servers/${encodeURIComponent(name)}/prompts/${encodeURIComponent(prompt)}`,
+      { arguments: args },
+    ),
+  mcpResources: (name: string) =>
+    request<McpResourceSummary[]>(`api/mcp-servers/${encodeURIComponent(name)}/resources`),
+  mcpResourceContent: (name: string, uri: string) =>
+    request<McpResourceContent>(
+      `api/mcp-servers/${encodeURIComponent(name)}/resources/read?uri=${encodeURIComponent(uri)}`,
+    ),
+  startMcpOAuth: (name: string) =>
+    send<McpOAuthStartResponse>('POST', `api/mcp-servers/${encodeURIComponent(name)}/oauth/start`, {}),
 
   approvalRules: () => request<ToolApprovalRule[]>('api/approvals/rules'),
   deleteApprovalRule: (id: string) =>

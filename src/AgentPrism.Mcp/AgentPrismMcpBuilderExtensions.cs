@@ -57,6 +57,7 @@ public static class AgentPrismMcpBuilderExtensions
             services.Configure(configure);
         }
 
+        services.TryAddSingleton<McpOAuthTokenCacheRegistry>();
         services.TryAddSingleton<McpToolCatalog>();
 
         // Defter DEGISTIRILIR, TryAdd ile eklenmez: AddAgentPrism() zincirde
@@ -68,6 +69,19 @@ public static class AgentPrismMcpBuilderExtensions
             provider.GetRequiredService<ITenantContext>())));
 
         services.TryAddSingleton<IMcpToolRefresher, McpToolRefresher>();
+
+        // Mod A: AgentDefinitionCompiler (AgentPrism.Core) bu fabrikayi
+        // opsiyonel bir bagimlilik olarak cozer; kayitli degilse
+        // McpResourceUris kullanan bir tanim derleme hatasi alir.
+        services.TryAddSingleton<IMcpResourceContextProviderFactory, McpResourceContextProviderFactory>();
+
+        // Prompts/Resources (22.1/22.2) ve OAuth Mod 1 (22.3): GovernanceEndpoints
+        // (AgentPrism.AspNetCore) bu soyutlamalari opsiyonel servisler olarak
+        // cozer; kayitli degilse ilgili uclar 501 doner.
+        services.TryAddSingleton<IMcpPromptClient, McpPromptClient>();
+        services.TryAddSingleton<IMcpResourceClient, McpResourceClient>();
+        services.TryAddSingleton<IMcpOAuthCoordinator, McpOAuthAuthorizationCoordinator>();
+
         services.AddHostedService<McpDiscoveryService>();
 
         return builder;

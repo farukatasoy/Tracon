@@ -125,6 +125,7 @@ public static class AgentPrismEndpointRouteBuilderExtensions
         OpenAIConversationsEndpoints.Map(group, roles);
 
         MapUi(endpoints, services, options, normalizedPrefix);
+        MapMcpOAuthCallback(endpoints, options, normalizedPrefix);
 
         return group;
     }
@@ -168,6 +169,30 @@ public static class AgentPrismEndpointRouteBuilderExtensions
         }
 
         UiEndpoints.Map(uiGroup, provider, prefix);
+    }
+
+    /// <summary>
+    /// OAuth Mod 1 geri donus (callback) ucunu baglar.
+    /// </summary>
+    /// <remarks>
+    /// Ayri bir gruba baglanir: saglayicinin yonlendirdigi tarayici istegi bizim
+    /// bearer token'imizi tasiyamaz — <see cref="AgentPrismEndpointFilter"/>
+    /// <c>requireBearerToken: false</c> ile kurulur, tipki arayuz kabugu gibi
+    /// (<see cref="MapUi"/>). Loopback kisiti ve authorization policy yine de
+    /// uygulanir; guvenligin asil kaynagi tek kullanimlik <c>state</c> degeridir
+    /// (bolum 22.3).
+    /// </remarks>
+    private static void MapMcpOAuthCallback(IEndpointRouteBuilder endpoints, AgentPrismEndpointOptions options, string prefix)
+    {
+        var callbackGroup = endpoints.MapGroup(prefix).WithTags("AgentPrism");
+        callbackGroup.AddEndpointFilter(new AgentPrismEndpointFilter(options, requireBearerToken: false));
+
+        if (options.AuthorizationPolicy is { Length: > 0 } policy)
+        {
+            callbackGroup.RequireAuthorization(policy);
+        }
+
+        GovernanceEndpoints.MapMcpOAuthCallback(callbackGroup);
     }
 
     /// <summary>

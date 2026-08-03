@@ -1,7 +1,8 @@
-import { useState, type ReactNode } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { relativeTime } from '../lib/format';
+import { McpServerDetail } from '../components/mcp-server-detail';
 import {
   Badge,
   Button,
@@ -29,6 +30,10 @@ const EMPTY_FORM: McpServerRequest & { name: string } = {
   authorizationConfigurationKey: '',
   enabled: true,
   requiresApproval: true,
+  oauthEnabled: false,
+  oauthClientId: '',
+  oauthClientSecretConfigurationKey: '',
+  oauthScopes: '',
 };
 
 /**
@@ -43,6 +48,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
   const client = useQueryClient();
   const [form, setForm] = useState(EMPTY_FORM);
   const [showForm, setShowForm] = useState(false);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   const servers = useQuery({ queryKey: ['mcp-servers'], queryFn: api.mcpServers });
   const rules = useQuery({ queryKey: ['approval-rules'], queryFn: api.approvalRules });
@@ -73,6 +79,15 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
   const refresh = useMutation({
     mutationFn: api.refreshMcpTools,
     onSuccess: invalidate,
+  });
+
+  const authorize = useMutation({
+    mutationFn: (name: string) => api.startMcpOAuth(name),
+    onSuccess: (result) => {
+      // Opened with an opener reference on purpose: the callback page detects
+      // `window.opener` and closes itself once the flow completes.
+      window.open(result.authorizationUri, '_blank');
+    },
   });
 
   const removeRule = useMutation({
@@ -192,6 +207,65 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
               </label>
             </div>
 
+            <div className="sm:col-span-2 border-t border-line pt-3">
+              <label className="flex items-center gap-2 text-[13px] font-medium">
+                <input
+                  type="checkbox"
+                  checked={form.oauthEnabled ?? false}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      oauthEnabled: event.target.checked,
+                      // Mutually exclusive with the static Authorization header —
+                      // both would try to own the same header.
+                      authorizationConfigurationKey: event.target.checked
+                        ? ''
+                        : form.authorizationConfigurationKey,
+                    })
+                  }
+                />
+                OAuth (Authorization Code)
+              </label>
+              <p className="mt-1 text-[11px] text-muted">
+                The only flow this SDK supports — it is interactive. Saving registers the server;
+                use “Authorize” in the list below to complete the redirect flow. Requires{' '}
+                <Mono>AgentPrism:Mcp:OAuthCallbackBaseUri</Mono> to be configured on the server.
+              </p>
+            </div>
+
+            {form.oauthEnabled === true && (
+              <>
+                <Field label="OAuth client ID" required>
+                  <TextInput
+                    value={form.oauthClientId ?? ''}
+                    required
+                    onChange={(event) => setForm({ ...form, oauthClientId: event.target.value })}
+                  />
+                </Field>
+
+                <Field
+                  label="OAuth client secret configuration key"
+                  hint="The NAME of the configuration key, never the secret itself. Optional for public clients."
+                >
+                  <TextInput
+                    value={form.oauthClientSecretConfigurationKey ?? ''}
+                    placeholder="AgentPrism:Mcp:GithubClientSecret"
+                    onChange={(event) =>
+                      setForm({ ...form, oauthClientSecretConfigurationKey: event.target.value })
+                    }
+                  />
+                </Field>
+
+                <Field label="OAuth scopes" hint="Space-separated.">
+                  <TextInput
+                    value={form.oauthScopes ?? ''}
+                    placeholder="repo read:user"
+                    onChange={(event) => setForm({ ...form, oauthScopes: event.target.value })}
+                  />
+                </Field>
+              </>
+            )}
+
             <div className="sm:col-span-2 flex items-center gap-2">
               <Button type="submit" tone="primary" busy={save.isPending}>
                 Save
@@ -221,55 +295,86 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                 <tr>
                   <Th>Name</Th>
                   <Th>Endpoint</Th>
-                  <Th>Auth key</Th>
+                  <Th>Auth</Th>
                   <Th />
                   <Th />
                 </tr>
               </thead>
               <tbody>
                 {servers.data.map((server) => (
-                  <tr key={server.id}>
-                    <Td>
-                      <Mono className="font-semibold">{server.name}</Mono>
-                      {server.description != null && server.description.length > 0 && (
-                        <p className="text-[11px] text-subtle">{server.description}</p>
-                      )}
-                    </Td>
-                    <Td className="max-w-xs truncate">
-                      <Mono className="text-[11px]">{server.endpoint}</Mono>
-                    </Td>
-                    <Td>
-                      {server.authorizationConfigurationKey != null &&
-                      server.authorizationConfigurationKey.length > 0 ? (
-                        <Mono className="text-[11px] text-muted">
-                          {server.authorizationConfigurationKey}
-                        </Mono>
-                      ) : (
-                        <span className="text-[11px] text-subtle">none</span>
-                      )}
-                    </Td>
-                    <Td>
-                      <div className="flex gap-1.5">
-                        {server.enabled ? (
-                          <Badge tone="accent">enabled</Badge>
-                        ) : (
-                          <Badge>disabled</Badge>
+                  <Fragment key={server.id}>
+                    <tr>
+                      <Td>
+                        <Mono className="font-semibold">{server.name}</Mono>
+                        {server.description != null && server.description.length > 0 && (
+                          <p className="text-[11px] text-subtle">{server.description}</p>
                         )}
-                        {server.requiresApproval && <Badge tone="warn">approval</Badge>}
-                      </div>
-                    </Td>
-                    <Td className="text-right">
-                      {meta.roles.canAdminister && (
-                        <Button
-                          tone="danger"
-                          onClick={() => remove.mutate(server.name)}
-                          title="Remove this server. Its tools disappear on the next refresh."
-                        >
-                          <TrashIcon className="size-3.5" />
-                        </Button>
-                      )}
-                    </Td>
-                  </tr>
+                      </Td>
+                      <Td className="max-w-xs truncate">
+                        <Mono className="text-[11px]">{server.endpoint}</Mono>
+                      </Td>
+                      <Td>
+                        {server.oauthEnabled ? (
+                          <Mono className="text-[11px] text-muted">
+                            OAuth: {server.oauthClientId}
+                          </Mono>
+                        ) : server.authorizationConfigurationKey != null &&
+                          server.authorizationConfigurationKey.length > 0 ? (
+                          <Mono className="text-[11px] text-muted">
+                            {server.authorizationConfigurationKey}
+                          </Mono>
+                        ) : (
+                          <span className="text-[11px] text-subtle">none</span>
+                        )}
+                      </Td>
+                      <Td>
+                        <div className="flex gap-1.5">
+                          {server.enabled ? (
+                            <Badge tone="accent">enabled</Badge>
+                          ) : (
+                            <Badge>disabled</Badge>
+                          )}
+                          {server.requiresApproval && <Badge tone="warn">approval</Badge>}
+                        </div>
+                      </Td>
+                      <Td className="text-right">
+                        <div className="flex justify-end gap-1.5">
+                          <Button
+                            onClick={() =>
+                              setExpanded((current) => (current === server.name ? null : server.name))
+                            }
+                          >
+                            {expanded === server.name ? 'Hide' : 'Prompts & resources'}
+                          </Button>
+                          {server.oauthEnabled && meta.roles.canAdminister && (
+                            <Button
+                              busy={authorize.isPending && authorize.variables === server.name}
+                              onClick={() => authorize.mutate(server.name)}
+                              title="Start the interactive OAuth flow in a new tab."
+                            >
+                              Authorize
+                            </Button>
+                          )}
+                          {meta.roles.canAdminister && (
+                            <Button
+                              tone="danger"
+                              onClick={() => remove.mutate(server.name)}
+                              title="Remove this server. Its tools disappear on the next refresh."
+                            >
+                              <TrashIcon className="size-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </Td>
+                    </tr>
+                    {expanded === server.name && (
+                      <tr>
+                        <td colSpan={5} className="p-0">
+                          <McpServerDetail serverName={server.name} roles={meta.roles} />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))}
               </tbody>
             </Table>

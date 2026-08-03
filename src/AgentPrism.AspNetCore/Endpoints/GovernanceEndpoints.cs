@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
 
@@ -22,8 +23,79 @@ internal static class GovernanceEndpoints
     {
         MapTenants(builder, roles);
         MapMcpServers(builder, roles);
+        MapMcpPrompts(builder, roles);
+        MapMcpResources(builder, roles);
+        MapMcpOAuthStart(builder, roles);
         MapApprovalRules(builder, roles);
     }
+
+    /// <summary>
+    /// OAuth geri donus (callback) ucunu baglar. Diger yonetisim uclarindan
+    /// AYRI bir gruba baglanmalidir: saglayicinin yonlendirdigi tarayici
+    /// isteginde bizim bearer token'imiz olamaz — <c>state</c> parametresi
+    /// tek gecerli kimlik kanitidir (bolum 22.3).
+    /// </summary>
+    /// <param name="builder">Bearer token denetiminden MUAF, loopback+policy'den GECEN uc grubu.</param>
+    public static void MapMcpOAuthCallback(IEndpointRouteBuilder builder)
+    {
+        builder.MapGet("/api/mcp-servers/{name}/oauth/callback", async Task<ContentHttpResult> (
+                string name,
+                string? code,
+                string? state,
+                string? iss,
+                string? error,
+                [FromServices] IMcpOAuthCoordinator? coordinator,
+                CancellationToken cancellationToken) =>
+            {
+                if (coordinator is null)
+                {
+                    return OAuthCallbackPage("MCP OAuth kayitli degil.", success: false);
+                }
+
+                if (string.IsNullOrEmpty(state))
+                {
+                    return OAuthCallbackPage("Gecersiz istek: durum degeri eksik.", success: false);
+                }
+
+                var result = await coordinator
+                    .CompleteAsync(state, error is null ? code : null, iss, cancellationToken)
+                    .ConfigureAwait(false);
+
+                return result.Status == McpOAuthOperationStatus.Ok
+                    ? OAuthCallbackPage(
+                        $"'{result.ServerName}' sunucusu icin yetkilendirme tamamlandi. Bu sekmeyi kapatabilirsiniz.",
+                        success: true)
+                    : OAuthCallbackPage(DescribeOAuthFailure(result), success: false);
+            })
+            .WithName("AgentPrismMcpOAuthCallback")
+            .WithSummary("OAuth saglayicisinin geri donus istegini isler.")
+            .WithDescription(
+                "Bu uc erisim katmanlarinin disindadir: saglayicinin yonlendirdigi tarayici bizim " +
+                "bearer token'imizi tasiyamaz. Guvenlik, tek kullanimlik 'state' degerine dayanir.");
+    }
+
+    private static string DescribeOAuthFailure(McpOAuthCompleteResult result)
+        => result.Status switch
+        {
+            McpOAuthOperationStatus.InvalidState => "Yetkilendirme oturumu bulunamadi veya suresi doldu. Yeniden deneyin.",
+            McpOAuthOperationStatus.AuthorizationFailed => result.Error ?? "Yetkilendirme saglayici tarafindan reddedildi.",
+            _ => "Beklenmeyen bir hata olustu.",
+        };
+
+    private static ContentHttpResult OAuthCallbackPage(string message, bool success)
+        => TypedResults.Text(
+            $$"""
+            <!doctype html>
+            <html lang="tr">
+            <head><meta charset="utf-8"><title>MCP OAuth</title></head>
+            <body style="font-family: system-ui, sans-serif; padding: 2rem; max-width: 40rem; margin: 0 auto;">
+            <h1>{{(success ? "Yetkilendirme tamamlandi" : "Yetkilendirme basarisiz")}}</h1>
+            <p>{{System.Net.WebUtility.HtmlEncode(message)}}</p>
+            <script>if (window.opener) { window.close(); }</script>
+            </body>
+            </html>
+            """,
+            "text/html; charset=utf-8");
 
     private static void MapTenants(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
@@ -134,6 +206,11 @@ internal static class GovernanceEndpoints
                         Headers = request.Headers ?? new Dictionary<string, string>(StringComparer.Ordinal),
                         Enabled = request.Enabled,
                         RequiresApproval = request.RequiresApproval,
+                        OAuthEnabled = request.OAuthEnabled,
+                        OAuthClientId = request.OAuthClientId,
+                        OAuthClientSecretConfigurationKey = request.OAuthClientSecretConfigurationKey,
+                        OAuthScopes = request.OAuthScopes,
+                        OAuthAuthorizationMode = request.OAuthAuthorizationMode,
                     },
                     cancellationToken).ConfigureAwait(false);
 
@@ -204,6 +281,205 @@ internal static class GovernanceEndpoints
                 "gorunmesi icindir.");
     }
 
+    private static void MapMcpPrompts(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
+    {
+        builder.MapGet("/api/mcp-servers/{name}/prompts", async Task<Results<Ok<IReadOnlyList<McpPromptSummary>>, ProblemHttpResult>> (
+                string name,
+                [FromServices] IMcpPromptClient? prompts,
+                ITenantContext tenants,
+                CancellationToken cancellationToken) =>
+            {
+                if (prompts is null)
+                {
+                    return McpNotRegisteredProblem();
+                }
+
+                var result = await prompts.ListPromptsAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
+
+                return result.Status switch
+                {
+                    McpOperationStatus.Ok => TypedResults.Ok(result.Prompts),
+                    McpOperationStatus.ServerNotFound => McpServerNotFoundProblem(name),
+                    McpOperationStatus.CapabilityUnsupported => McpCapabilityUnsupportedProblem(name, "prompts"),
+                    _ => McpConnectionFailedProblem(name),
+                };
+            })
+            .RequireRole(roles.Admin)
+            .WithName("AgentPrismListMcpPrompts")
+            .WithSummary("Bir MCP sunucusunun prompt listesini getirir.")
+            .WithDescription("Sunucu 'prompts' yetenegini bildirmiyorsa istek hic gonderilmez.");
+
+        builder.MapPost("/api/mcp-servers/{name}/prompts/{prompt}", async Task<Results<Ok<McpPromptContent>, ProblemHttpResult>> (
+                string name,
+                string prompt,
+                McpPromptArgumentsRequest? request,
+                [FromServices] IMcpPromptClient? prompts,
+                ITenantContext tenants,
+                CancellationToken cancellationToken) =>
+            {
+                if (prompts is null)
+                {
+                    return McpNotRegisteredProblem();
+                }
+
+                var (status, content) = await prompts
+                    .GetPromptAsync(tenants.TenantId, name, prompt, request?.Arguments, cancellationToken)
+                    .ConfigureAwait(false);
+
+                return status switch
+                {
+                    McpOperationStatus.Ok => TypedResults.Ok(content!),
+                    McpOperationStatus.ServerNotFound => McpServerNotFoundProblem(name),
+                    McpOperationStatus.CapabilityUnsupported => McpCapabilityUnsupportedProblem(name, "prompts"),
+                    McpOperationStatus.ItemNotFound => McpItemNotFoundProblem("Prompt", prompt),
+                    _ => McpConnectionFailedProblem(name),
+                };
+            })
+            .RequireRole(roles.Admin)
+            .WithName("AgentPrismGetMcpPrompt")
+            .WithSummary("Bir MCP prompt'unun icerigini argumanlarla cozer.")
+            .WithDescription(
+                "Donen icerik ANLIK GORUNTUDUR: agent talimatina kopyalanmasi gerekir, calisma " +
+                "aninda yeniden cekilmez (bolum 22.1). 'hash' alani sunucudaki degisimi izlemek icindir.");
+    }
+
+    private static void MapMcpResources(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
+    {
+        builder.MapGet("/api/mcp-servers/{name}/resources", async Task<Results<Ok<IReadOnlyList<McpResourceSummary>>, ProblemHttpResult>> (
+                string name,
+                [FromServices] IMcpResourceClient? resources,
+                ITenantContext tenants,
+                CancellationToken cancellationToken) =>
+            {
+                if (resources is null)
+                {
+                    return McpNotRegisteredProblem();
+                }
+
+                var result = await resources.ListResourcesAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
+
+                return result.Status switch
+                {
+                    McpOperationStatus.Ok => TypedResults.Ok(result.Resources),
+                    McpOperationStatus.ServerNotFound => McpServerNotFoundProblem(name),
+                    McpOperationStatus.CapabilityUnsupported => McpCapabilityUnsupportedProblem(name, "resources"),
+                    _ => McpConnectionFailedProblem(name),
+                };
+            })
+            .RequireRole(roles.Reader)
+            .WithName("AgentPrismListMcpResources")
+            .WithSummary("Bir MCP sunucusunun kaynak listesini getirir.")
+            .WithDescription("Sunucu 'resources' yetenegini bildirmiyorsa istek hic gonderilmez.");
+
+        builder.MapGet("/api/mcp-servers/{name}/resources/read", async Task<Results<Ok<McpResourceContent>, ProblemHttpResult>> (
+                string name,
+                string uri,
+                [FromServices] IMcpResourceClient? resources,
+                ITenantContext tenants,
+                CancellationToken cancellationToken) =>
+            {
+                if (resources is null)
+                {
+                    return McpNotRegisteredProblem();
+                }
+
+                var (status, content) = await resources
+                    .ReadResourceAsync(tenants.TenantId, name, uri, cancellationToken)
+                    .ConfigureAwait(false);
+
+                return status switch
+                {
+                    McpOperationStatus.Ok => TypedResults.Ok(content!),
+                    McpOperationStatus.ServerNotFound => McpServerNotFoundProblem(name),
+                    McpOperationStatus.CapabilityUnsupported => McpCapabilityUnsupportedProblem(name, "resources"),
+                    McpOperationStatus.UriNotDeclared => McpUriNotDeclaredProblem(uri),
+                    McpOperationStatus.ItemNotFound => McpItemNotFoundProblem("Kaynak", uri),
+                    _ => McpConnectionFailedProblem(name),
+                };
+            })
+            .RequireRole(roles.Operator)
+            .WithName("AgentPrismReadMcpResource")
+            .WithSummary("Bir MCP kaynagini okur.")
+            .WithDescription(
+                "Yalniz sunucunun ListResourcesAsync ile bildirdigi URI'ler kabul edilir; " +
+                "serbest URI SSRF riski tasidigi icin reddedilir (bolum 22.2).");
+    }
+
+    private static void MapMcpOAuthStart(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
+    {
+        builder.MapPost("/api/mcp-servers/{name}/oauth/start", async Task<Results<Ok<McpOAuthStartResponse>, ProblemHttpResult>> (
+                string name,
+                [FromServices] IMcpOAuthCoordinator? coordinator,
+                ITenantContext tenants,
+                CancellationToken cancellationToken) =>
+            {
+                if (coordinator is null)
+                {
+                    return McpNotRegisteredProblem();
+                }
+
+                var result = await coordinator.StartAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
+
+                return result.Status switch
+                {
+                    McpOAuthOperationStatus.Ok => TypedResults.Ok(new McpOAuthStartResponse
+                    {
+                        AuthorizationUri = result.AuthorizationUri!.ToString(),
+                        State = result.State!,
+                    }),
+                    McpOAuthOperationStatus.ServerNotFound => McpServerNotFoundProblem(name),
+                    McpOAuthOperationStatus.NotConfigured => TypedResults.Problem(
+                        title: "OAuth yapilandirilmamis",
+                        detail: "Sunucuda OAuth acik degil, akis Authorization Code degil veya " +
+                                "AgentPrism:Mcp:OAuthCallbackBaseUri ayarlanmamis.",
+                        statusCode: StatusCodes.Status409Conflict),
+                    _ => McpConnectionFailedProblem(name),
+                };
+            })
+            .RequireRole(roles.Admin)
+            .WithName("AgentPrismStartMcpOAuth")
+            .WithSummary("Bir MCP sunucusu icin OAuth yetkilendirme akisini baslatir.")
+            .WithDescription(
+                "Donen 'authorizationUri' adresine yonetici yonlendirilir. Saglayici onaydan sonra " +
+                "'/oauth/callback' ucuna doner; bu uc CSRF korumasi icin 'state' degerini kullanir.");
+    }
+
+    private static ProblemHttpResult McpNotRegisteredProblem()
+        => TypedResults.Problem(
+            title: "MCP kayitli degil",
+            detail: "AgentPrism.Mcp paketini ekleyin ve UseMcp() cagirin.",
+            statusCode: StatusCodes.Status501NotImplemented);
+
+    private static ProblemHttpResult McpServerNotFoundProblem(string name)
+        => TypedResults.Problem(
+            title: "MCP sunucusu bulunamadi",
+            detail: $"'{name}' adinda bir sunucu yok.",
+            statusCode: StatusCodes.Status404NotFound);
+
+    private static ProblemHttpResult McpCapabilityUnsupportedProblem(string name, string capability)
+        => TypedResults.Problem(
+            title: "Sunucu desteklemiyor",
+            detail: $"'{name}' sunucusu '{capability}' yetenegini bildirmiyor.",
+            statusCode: StatusCodes.Status409Conflict);
+
+    private static ProblemHttpResult McpConnectionFailedProblem(string name)
+        => TypedResults.Problem(
+            title: "Sunucuya baglanilamadi",
+            detail: $"'{name}' sunucusuna ulasilamadi veya istek basarisiz oldu.",
+            statusCode: StatusCodes.Status502BadGateway);
+
+    private static ProblemHttpResult McpUriNotDeclaredProblem(string uri)
+        => TypedResults.Problem(
+            title: "Kaynak bildirilmemis",
+            detail: $"'{uri}' bu sunucunun kaynak listesinde degil.",
+            statusCode: StatusCodes.Status400BadRequest);
+
+    private static ProblemHttpResult McpItemNotFoundProblem(string kind, string name)
+        => TypedResults.Problem(
+            title: $"{kind} bulunamadi",
+            detail: $"'{name}' sunucuda yok.",
+            statusCode: StatusCodes.Status404NotFound);
+
     private static void MapApprovalRules(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/approvals/rules", async Task<Ok<IReadOnlyList<ToolApprovalRule>>> (
@@ -261,6 +537,26 @@ internal static class GovernanceEndpoints
                         "bilerek desteklenmez; sunucuda surec baslatmak tool'larin yalnizca " +
                         "kodda tanimlanmasi kuralini bozar.",
                 statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (request.OAuthEnabled)
+        {
+            if (string.IsNullOrWhiteSpace(request.OAuthClientId))
+            {
+                return TypedResults.Problem(
+                    title: "OAuth istemci kimligi eksik",
+                    detail: "'oauthClientId' OAuth acikken zorunludur.",
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
+
+            if (!string.IsNullOrEmpty(request.AuthorizationConfigurationKey))
+            {
+                return TypedResults.Problem(
+                    title: "Cakisan kimlik dogrulama",
+                    detail: "OAuth acikken 'authorizationConfigurationKey' bos olmalidir; ikisi ayni " +
+                            "Authorization basligini yonetmeye calisirdi.",
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
         }
 
         return null;

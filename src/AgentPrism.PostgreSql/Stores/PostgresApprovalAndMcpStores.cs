@@ -195,6 +195,11 @@ public sealed class PostgresMcpServerStore : IMcpServerStore
         command.Parameters.AddWithValue("enabled", server.Enabled);
         command.Parameters.AddWithValue("requires_approval", server.RequiresApproval);
         command.Parameters.AddWithValue("now", DateTimeOffset.UtcNow.UtcDateTime);
+        command.Parameters.AddWithValue("oauth_enabled", server.OAuthEnabled);
+        AddNullableText(command, "oauth_client_id", server.OAuthClientId);
+        AddNullableText(command, "oauth_client_secret_configuration_key", server.OAuthClientSecretConfigurationKey);
+        AddNullableText(command, "oauth_scopes", server.OAuthScopes);
+        command.Parameters.AddWithValue("oauth_authorization_mode", (short)server.OAuthAuthorizationMode);
 
         var saved = await NpgsqlHelpers.ReadSingleAsync(command, ReadServer, cancellationToken).ConfigureAwait(false);
 
@@ -287,6 +292,11 @@ public sealed class PostgresMcpServerStore : IMcpServerStore
             RequiresApproval = reader.GetBoolean(9),
             CreatedAt = NpgsqlHelpers.GetTimestamp(reader, 10),
             UpdatedAt = NpgsqlHelpers.GetTimestamp(reader, 11),
+            OAuthEnabled = reader.GetBoolean(12),
+            OAuthClientId = NpgsqlHelpers.GetNullableString(reader, 13),
+            OAuthClientSecretConfigurationKey = NpgsqlHelpers.GetNullableString(reader, 14),
+            OAuthScopes = NpgsqlHelpers.GetNullableString(reader, 15),
+            OAuthAuthorizationMode = (McpOAuthAuthorizationMode)reader.GetInt16(16),
         };
 
     private static void AddNullableText(NpgsqlCommand command, string name, string? value)

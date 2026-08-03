@@ -2,6 +2,26 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
+/// <summary>MCP OAuth yetkilendirme akisi.</summary>
+/// <remarks>
+/// <strong>Tek deger:</strong> <c>ModelContextProtocol.Core</c> 2.0.0 yalnizca
+/// Authorization Code (+PKCE) akisini destekler; <c>ClientOAuthOptions.RedirectUri</c>
+/// zorunlu bir alandir ve kutuphane etkilesimsiz bir istemci-kimlik-bilgileri
+/// akisi sunmaz. Deger yine de bir enum olarak tutulur — SDK ileride baska bir
+/// akis eklerse (ornegin client_credentials) genisleme noktasi hazir olur.
+/// Gerekce: docs/22-MCP-DERINLESMESI.md, bolum 22.3.
+/// </remarks>
+[JsonConverter(typeof(JsonStringEnumConverter<McpOAuthAuthorizationMode>))]
+public enum McpOAuthAuthorizationMode
+{
+    /// <summary>
+    /// Yetkilendirme kodu akisi (Authorization Code + PKCE). Yonetici arayuzden
+    /// <c>/oauth/start</c> ile baslatilir, saglayiciya yonlendirilir ve
+    /// <c>/oauth/callback</c>'e doner.
+    /// </summary>
+    AuthorizationCode = 0,
+}
+
 /// <summary>Bir MCP sunucusuna baglanma bicimi.</summary>
 /// <remarks>
 /// <strong>Stdio bilerek yoktur.</strong> Stdio aktarimi sunucuda bir surec
@@ -72,6 +92,40 @@ public sealed record McpServerDefinition
 
     /// <summary>Sunucu etkin mi. Kapaliyken tool'lari kesfedilmez.</summary>
     public bool Enabled { get; init; } = true;
+
+    /// <summary>
+    /// OAuth ile kimlik dogrulama acik mi. Acikken <see cref="AuthorizationConfigurationKey"/>
+    /// ile ayni anda kullanilamaz — ikisi de <c>Authorization</c> basligini
+    /// yonetmeye calisirdi.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 <c>[JsonPropertyName]</c> BILEREK verilir: System.Text.Json'in camelCase
+    /// politikasi yalniz ILK harfi kucultur, "OAuth" iki buyuk harfle basladigi
+    /// icin varsayilan cikti <c>oAuthEnabled</c> olurdu (beklenen <c>oauthEnabled</c>
+    /// degil). Ayni kisit asagidaki dort OAuth alaninin hepsinde gecerlidir.
+    /// </remarks>
+    [JsonPropertyName("oauthEnabled")]
+    public bool OAuthEnabled { get; init; }
+
+    /// <summary>OAuth istemci kimligi. Sir degildir, oldugu gibi saklanir.</summary>
+    [JsonPropertyName("oauthClientId")]
+    public string? OAuthClientId { get; init; }
+
+    /// <summary>
+    /// OAuth istemci gizli anahtarinin degerinin okunacagi yapilandirma anahtari.
+    /// Deger, <see cref="AuthorizationConfigurationKey"/> ile ayni kuralla
+    /// (K-059) veritabanina hicbir zaman yazilmaz.
+    /// </summary>
+    [JsonPropertyName("oauthClientSecretConfigurationKey")]
+    public string? OAuthClientSecretConfigurationKey { get; init; }
+
+    /// <summary>Bosluk ile ayrilmis OAuth scope listesi. Ornek: <c>"repo read:user"</c>.</summary>
+    [JsonPropertyName("oauthScopes")]
+    public string? OAuthScopes { get; init; }
+
+    /// <summary>OAuth yetkilendirme akisi.</summary>
+    [JsonPropertyName("oauthAuthorizationMode")]
+    public McpOAuthAuthorizationMode OAuthAuthorizationMode { get; init; } = McpOAuthAuthorizationMode.AuthorizationCode;
 
     /// <summary>
     /// Bu sunucunun tool'lari cagri oncesi acik onay ister mi.
