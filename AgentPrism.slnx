@@ -40,7 +40,11 @@
 
   <Folder Name="/docs/">
     <File Path="docs/MIMARI.md" />
+    <File Path="docs/MAF-GENISLEME-NOKTALARI.md" />
+    <File Path="docs/KARARLAR-INDEKS.md" />
     <File Path="docs/KARARLAR.md" />
+    <File Path="docs/IKINCI-FAZ-YOL-HARITASI.md" />
+    <File Path="docs/21-KOTA-VE-OLAY-YAYINI.md" />
     <File Path="docs/00-ALTYAPI.md" />
     <File Path="docs/01-CEKIRDEK-SOYUTLAMALAR.md" />
     <File Path="docs/02-POSTGRESQL-KALICILIK.md" />

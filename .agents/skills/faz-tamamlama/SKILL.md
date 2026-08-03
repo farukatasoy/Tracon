@@ -104,24 +104,43 @@ Bu adım en çok atlanan ve en pahalıya mal olan adımdır. Sonraki faz ayrı b
 
 ## Adım 5 — Yatay dokümanları güncelle
 
-| Dosya | Ne güncellenir |
-|-------|----------------|
-| `docs/MIMARI.md` | "Güncel Durum" tablosu, katman diyagramı, MAF imzaları, çalıştırma yolu |
-| `docs/KARARLAR.md` | Fazda alınan **her** mimari karar, gerekçesiyle ve K-NNN numarasıyla |
-| `MEMORY.md` | Keşfedilen codepath'ler, desenler ve **tuzaklar** (AGENTS.md'de olmayanlar) |
-| `README.md` | Yol haritası tablosundaki durum sütunu; gerekirse hızlı başlangıç örneği |
-| `AGENTS.md` | Faz haritası tablosu; ayrıca kalıcı bir çalışma kuralı değiştiyse |
-| `docs/BEYIN-FIRTINASI.md` | Bir kalem yapıldıysa üstü çizilir, reddedildiyse gerekçesi KARARLAR'a taşınır |
+> 🚨 **Bu adım en pahalı adımdır.** Dosyaları baştan sona okuyup yeniden yazma.
+> Her satır **nereye ait olduğu** yere yazılır; sıcak dokümana yığmak yasaktır.
 
-**Çapraz kontrol:** Dokümanlar birbiriyle çelişmemelidir. Şu taramayı yap:
+| Ne öğrenildi | Nereye yazılır |
+|---|---|
+| Fazda alınan mimari karar | `docs/KARARLAR.md` — **sona ekle**, K-NNN ile |
+| Keşfedilen tuzak / codepath | `docs/hafiza/<alan>.md` — **`MEMORY.md`'ye değil** |
+| Alandan bağımsız, tekrar bedel ödeten ders | `MEMORY.md` "Her Oturumda Geçerli" (nadir) |
+| "Faz N sonunda …" anlatı paragrafı | `docs/arsiv/FAZ-GECMISI.md` — **`MIMARI.md`'ye değil** |
+| Pakete ne eklendiği | `docs/arsiv/PAKET-FAZ-GECMISI.md` |
+| **Bugünkü** mimari değiştiyse (veri modeli, çalıştırma yolu, güvenlik sınırı) | `docs/MIMARI.md` — ilgili bölümü **düzelt**, altına ekleme yapma |
+| MAF genişleme noktası kullanıldıysa | `docs/MAF-GENISLEME-NOKTALARI.md` |
+| Yol haritası durumu | `README.md` tablosu (tek kaynak) |
+| Kalıcı bir çalışma kuralı değiştiyse | `AGENTS.md` |
+| `BEYIN-FIRTINASI.md` kalemi yapıldı/reddedildi | üstünü çiz; gerekçe KARARLAR'a |
+
+`AGENTS.md`'de faz durum tablosu **yoktur** — orada yalnız "sıradaki faz" satırı
+vardır. Tam tabloyu yalnız `README.md`'de güncelle.
+
+### Bakım komutunu çalıştır (zorunlu)
 
 ```bash
-# Bayatlamış API adları var mı?
-grep -rn "ArtikOlmayanTipAdi\|KaldirilanMetot" docs/*.md README.md
+python3 scripts/dokuman-bakim.py
+```
 
-# Faz durumları tutarlı mı?
-grep -n "Durum:" docs/0*.md
-grep -n "Tamamlandı\|Planlandı\|Sıradaki" README.md docs/MIMARI.md
+İki iş yapar: `docs/KARARLAR-INDEKS.md`'yi yeniden üretir ve sıcak yol
+bütçelerini denetler. **Çıkış kodu 0 olmalıdır.** Bütçe aşıldıysa içerik silinmez
+— birikimli kısım `docs/arsiv/`'e veya `docs/hafiza/`'ya taşınır.
+
+### Çapraz kontrol
+
+```bash
+# Faz durumu tek yerde mi, çelişki var mı?
+grep -rn "Sıradaki faz" AGENTS.md README.md docs/IKINCI-FAZ-YOL-HARITASI.md
+
+# Bayatlamış API adı kaldı mı? (fazda kaldırdığın tipi yaz)
+grep -rn "KaldirilanTipAdi" docs/ README.md src/
 ```
 
 ---
@@ -161,8 +180,16 @@ Ana dalda çalışılmaz; faz dalı kullanılır (`feature/phase-N-...`).
 
 ## Kapanış kontrolü
 
-Şu soruya dürüst cevap ver:
+İki soruya dürüst cevap ver:
 
-> Bu depoyu hiç görmemiş bir agent, yalnızca `AGENTS.md` + `docs/` okuyarak sonraki fazı doğru şekilde yapabilir mi?
+> 1. Bu depoyu hiç görmemiş bir agent, `faz-baslangic` skill'inin **sabit okuma
+>    kümesiyle** (AGENTS.md + MEMORY.md + faz dokümanı) sonraki fazı doğru
+>    başlatabilir mi?
+> 2. Sıcak yol dokümanları bu fazda **büyüdü mü**? (`scripts/dokuman-bakim.py`)
 
-Cevap "hayır" ise, eksik olan bilgiyi ilgili dokümana yaz. Bu protokolün tek amacı budur.
+1'e cevap "hayır" ise eksik bilgiyi **fazın kendi dokümanına** yaz — sıcak
+dokümana değil.
+
+2'ye cevap "evet" ise, eklediğin şey gerçekten bugünkü mimari mi, yoksa geçmiş
+mi? Geçmişse `docs/arsiv/`'e taşı. Bu protokolün amacı sonraki oturumun **doğru
+ve ucuz** başlamasıdır; ikisi birden olmadan faz kapanmaz.

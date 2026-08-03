@@ -2,11 +2,39 @@
 
 > **Merkezi agent talimat dosyası.** Claude Code, GitHub Copilot, Antigravity ve diğer tüm AI kod agent'ları için tek kaynak budur. `CLAUDE.md` bu dosyaya symlink'tir — platform-spesifik ayrı talimat dosyası oluşturma; kural değişiklikleri yalnızca burada yapılır.
 
-## Memory
+---
 
-Read the first 200 lines of MEMORY.md before beginning.
+## Okuma Protokolü — Önce Bunu Uygula
 
-Update MEMORY.md as you discover codepaths, patterns, library locations, and key architectural decisions. This builds up institutional knowledge across conversations. Write concise notes about what you found.
+Bu depo büyüktür. **Hiçbir dokümanı ihtiyacın olmadan baştan sona okuma.**
+Dokümanların çoğu birikimli defterdir; tamamını okumak bütçeyi bitirir.
+
+**Oturum başında yalnız şunlar:**
+
+1. Bu dosya (zaten yüklü)
+2. [`MEMORY.md`](MEMORY.md) — 4 KB, yönlendirme + her oturumda geçerli tuzaklar
+3. Çalıştığın fazın dokümanı (`docs/NN-*.md`) ve onun "Bu Faza Başlarken" listesi
+
+**Sonra, yalnız dokunduğun alan için:**
+
+| İhtiyaç | Yol |
+|---|---|
+| Bir tuzak/desen var mı? | `MEMORY.md`'deki tabloyla `docs/hafiza/<alan>.md` |
+| Bir karar alınmış mı? | [`docs/KARARLAR-INDEKS.md`](docs/KARARLAR-INDEKS.md) → `grep -n "K-059" docs/KARARLAR.md` |
+| Mimari resim | [`docs/MIMARI.md`](docs/MIMARI.md) — ilgili bölüm |
+| MAF genişleme noktası | [`docs/MAF-GENISLEME-NOKTALARI.md`](docs/MAF-GENISLEME-NOKTALARI.md) |
+| Bir şey nerede yaşıyor? | [`docs/hafiza/kod-haritasi.md`](docs/hafiza/kod-haritasi.md) |
+| Geçmişte neden öyle yapıldı? | `docs/arsiv/` — yalnız grep'le |
+
+**`docs/KARARLAR.md` (115 KB) ve `docs/arsiv/*` hiçbir zaman baştan sona okunmaz.**
+İndeksten satır numarasını bul, `sed -n 'N,Np'` ile o satırı oku.
+
+Aramak okumaktan ucuzdur:
+
+```bash
+grep -rn "AsyncLocal" docs/hafiza/
+grep -n "jsonb" docs/KARARLAR.md
+```
 
 ---
 
@@ -18,7 +46,7 @@ Update MEMORY.md as you discover codepaths, patterns, library locations, and key
 
 **Uzun vadeli mimari kararlar al.** Sadece geçici çözümler sunan ve daha sonra değiştirilmesi amaçlanan çözümler önerme.
 
-**Karar defteri:** Daha önce kanıtla reddedilmiş işleri yeniden önerme — `docs/KARARLAR.md`'ye bak.
+**Karar defteri:** Daha önce kanıtla reddedilmiş işleri yeniden önerme — önce [`docs/KARARLAR-INDEKS.md`](docs/KARARLAR-INDEKS.md).
 
 ---
 
@@ -31,7 +59,7 @@ AgentPrism, Microsoft Agent Framework (MAF) üzerine kurulu bir **NuGet paket ai
 - Tüketicinin bağımlılık grafiğini kirletme
 - `TryAdd*` ile kaydet; tüketicinin kaydı her zaman kazanmalı
 
-Mimari resim: **`docs/MIMARI.md`**. Bu dosya kalıcı gerçeği anlatır ve her fazın sonunda güncellenir.
+Mimari resim: **[`docs/MIMARI.md`](docs/MIMARI.md)**.
 
 ---
 
@@ -39,11 +67,7 @@ Mimari resim: **`docs/MIMARI.md`**. Bu dosya kalıcı gerçeği anlatır ve her 
 
 **Geliştirme fazlar hâlinde ve çoğu zaman ayrı sohbetlerde yapılır.** Sonraki oturum bu depoyu sıfırdan okur ve yalnızca dokümanlara güvenir.
 
-Bu yüzden şu kural mutlaktır:
-
 > **Her geliştirme sonrası dokümanlar gözden geçirilir ve güncelliğini korur. Dokümanlar birbiriyle ahenk içinde olmalıdır.**
-
-Somut anlamı:
 
 | Kural | Neden |
 |-------|-------|
@@ -51,46 +75,31 @@ Somut anlamı:
 | Plandan sapma **gizlenmez**, gerekçesiyle yazılır | Sapmanın gerekçesi en değerli bilgidir |
 | Bir faz bitince sonraki fazın dokümanı **devir teslim kalitesine** çıkarılır | Ayrı sohbet o dokümanla tek başına çalışabilmeli |
 | Her mimari karar `docs/KARARLAR.md`'ye numarayla ve gerekçeyle yazılır | Kapatılmış tartışma yeniden açılmaz |
-| Keşfedilen tuzaklar `MEMORY.md`'ye yazılır | Aynı tuzağa iki kez düşülmez |
+| Keşfedilen tuzak **alan dosyasına** (`docs/hafiza/`) yazılır | Aynı tuzağa iki kez düşülmez, `MEMORY.md` şişmez |
+| Birikimli anlatı `docs/arsiv/`'e gider, sıcak dokümana değil | Sıcak yol büyümezse her oturum ucuz başlar |
 
-Faz bittiğinde **`faz-tamamlama` skill'i uygulanır**. Atlanmaz.
+### Doküman bütçesi (zorunlu)
 
-### Faz haritası
+Sıcak yol dokümanları her oturumda okunur; büyümeleri her oturumu pahalılaştırır.
+Bütçeler `scripts/dokuman-bakim.py` içinde tanımlıdır ve faz kapanışında denetlenir:
 
-| Faz | Doküman | Durum |
-|-----|---------|-------|
-| 0 | `docs/00-ALTYAPI.md` | ✅ Tamamlandı |
-| 1 | `docs/01-CEKIRDEK-SOYUTLAMALAR.md` | ✅ Tamamlandı |
-| 2 | `docs/02-POSTGRESQL-KALICILIK.md` | ✅ Tamamlandı |
-| 3 | `docs/03-SAGLAYICI-VE-DERLEYICI.md` | ✅ Tamamlandı |
-| 4 | `docs/04-HTTP-API.md` | ✅ Tamamlandı |
-| 5 | `docs/05-AGENTPRISM-UI.md` | ✅ Tamamlandı |
-| 6 | `docs/06-GOZLEMLENEBILIRLIK.md` | ✅ Tamamlandı |
-| 7 | `docs/07-SAGLAMLASTIRMA-VE-YAYIN.md` | ⏸ Beklemede — yayın zamanı kullanıcı kararı (K-068) |
-| 8 | `docs/08-SAGLAYICI-GENISLEMESI.md` | ✅ Tamamlandı |
-| 9 | `docs/09-YONETISIM-VE-DENETIM-IZI.md` | ✅ Tamamlandı |
-| 10 | `docs/10-AGENT-SKILLERI.md` | ✅ Tamamlandı |
-| 11 | `docs/11-SKILL-SCRIPT-CALISTIRMA.md` | ✅ Tamamlandı |
-| 12 | `docs/12-AGENT-CAGRI-GRAFIGI.md` | ✅ Tamamlandı |
-| 13 | `docs/13-BAGLAM-SIKISTIRMA-VE-BELLEK.md` | ✅ Tamamlandı |
-| 14 | `docs/14-COK-MODLULUK.md` | ✅ Tamamlandı |
-| 15 | `docs/15-WORKFLOWS-YURUTME.md` | ✅ Tamamlandı |
-| 16 | `docs/16-WORKFLOWS-ARAYUZ.md` | ✅ Tamamlandı |
-| 17 | `docs/17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md` | ✅ Tamamlandı |
-| 18 | `docs/18-DEGERLENDIRME.md` | ✅ Tamamlandı |
-| 19 | `docs/19-SURUM-KARSILASTIRMA-VE-AB.md` | ✅ Tamamlandı |
-| 20 | `docs/20-MALIYET-VE-GOSTERGE-PANELI.md` | ✅ Tamamlandı |
-| 21–30 | `docs/IKINCI-FAZ-YOL-HARITASI.md` | 📋 Planlandı — **sıradaki Faz 21** |
+```bash
+python3 scripts/dokuman-bakim.py     # KARARLAR indeksini üretir + bütçeyi denetler
+```
 
-**Sıradaki faz: 21** (`docs/21-KOTA-VE-OLAY-YAYINI.md`).
+Bir dosya bütçeyi aşarsa **içerik silinmez** — alan dosyasına veya `docs/arsiv/`'e taşınır.
 
-**İkinci faz (8–30):** `docs/IKINCI-FAZ-YOL-HARITASI.md` sırayı, bağımlılıkları
-ve migration numaralarını tutar. Faz listesi orada; burada tekrarlanmaz —
-iki yerde tutmak kayma üretir.
+### Faz durumu
 
-**Hammadde:** `docs/BEYIN-FIRTINASI.md` — 29 aday yeteneğin gerekçesi. Tamamı
-planlandı; belge tarihsel kayıt olarak durur. Bir kalem ile faz dokümanı
-çelişirse **faz dokümanı geçerlidir**.
+**Sıradaki faz: 21** — [`docs/21-KOTA-VE-OLAY-YAYINI.md`](docs/21-KOTA-VE-OLAY-YAYINI.md).
+
+Faz 0–20 tamamlandı; **Faz 7 beklemede** (yayın zamanı kullanıcı kararı, K-068).
+Tam liste ve durum tablosu tek yerdedir: [`README.md`](README.md) yol haritası.
+Faz 21–30 sırası, bağımlılıkları ve migration numaraları:
+[`docs/IKINCI-FAZ-YOL-HARITASI.md`](docs/IKINCI-FAZ-YOL-HARITASI.md).
+Bu listeyi başka dosyada tekrarlama — iki yerde tutmak kayma üretir.
+
+Faz bittiğinde **`faz-tamamlama` skill'i uygulanır.** Atlanmaz.
 
 ---
 
@@ -105,15 +114,30 @@ dotnet pack   AgentPrism.slnx -c Release --no-build
 dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 ```
 
+Ölçüldü (2026-08-03): sıcak build ~5 sn, 1070 test ~32 sn. Kapılar ucuzdur —
+**erken ve sık çalıştır**, faz sonuna biriktirme.
+
+### Hızlı iç döngü
+
+Geliştirirken her seferinde tüm çözümü kurma:
+
+```bash
+# arayüze dokunmuyorsan (npm/Vite/Vitest adımlarını atlar)
+dotnet build AgentPrism.slnx -c Release -p:AgentPrismFrontendEnabled=false
+
+# yalnız ilgili test projesi
+dotnet test tests/AgentPrism.Core.UnitTests -c Release --no-build
+```
+
+Dört kapının tamamı **faz kapanışında** ve arayüz/paket değişiminde çalışır.
+
 `TreatWarningsAsErrors` açıktır — uyarı yoktur, hata vardır. Bir analyzer kuralını bastırmadan önce **neden** tetiklendiğini anla; bastırma gerekiyorsa gerekçesini koda ve `docs/KARARLAR.md`'ye yaz.
 
 **Sırlar asla dosyaya yazılmaz.** Bağlantı dizesi ve API anahtarı yalnız `dotnet user-secrets` içinde yaşar. `appsettings.json` boş placeholder taşır. Faz sonunda sır taraması yapılır — komut `faz-tamamlama` skill'inde.
 
-`dotnet build` **arayüzü de derler**: `npm ci` → `tsc --noEmit` → 55 Vitest testi →
-Vite → Brotli sıkıştırma → bundle bütçesi kapısı (250 KB gzip). Adımlar artımsaldır.
-Node.js 20.19+ gerekir; hızlı bir iç döngü için `-p:AgentPrismFrontendEnabled=false`.
+`dotnet build` **arayüzü de derler**: `npm ci` → `tsc --noEmit` → Vitest → Vite → Brotli → bundle bütçesi kapısı (250 KB gzip). Node.js 20.19+ gerekir.
 
-> ⚠️ `dotnet format`, `dotnet build`'in yakalamadığı analyzer tanılarını yakalayabilir (yaşandı: yapılandırma bağlama kaynak üreteci build'de tanıyı gizledi, format'ta ortaya çıktı). Dört kapının da çalıştırılması bu yüzden zorunludur.
+> ⚠️ `dotnet format`, `dotnet build`'in yakalamadığı analyzer tanılarını yakalayabilir. Dört kapının da çalıştırılması bu yüzden zorunludur.
 
 ---
 
@@ -123,10 +147,11 @@ Tekrarlanan iş akışları `.agents/skills/<yetenek_adi>/SKILL.md` altında tan
 
 | Skill | Ne zaman |
 |-------|----------|
+| `faz-baslangic` | Bir faza başlarken. Minimum okuma kümesini ve sırayı verir. |
 | `faz-tamamlama` | Bir fazın kodu bittiğinde. Doğrulama kapıları, doküman senkronizasyonu, karar defteri, hafıza. |
 | `maf-api-kesfi` | MAF'ın bir tipini ilk kez kullanmadan önce. Gerçek imzayı reflection ile çıkarır. |
 
-Klasör konvansiyonu: her skill'de `SKILL.md` zorunlu (frontmatter: `name`, `description`); gerektiğinde `scripts/`, `examples/`, `resources/`, `references/` (>500 satır ek dokümantasyon) alt klasörleri eklenebilir. Skill mekanizması olmayan agent'lar (Copilot vb.) ilgili `SKILL.md`'yi normal doküman gibi okuyup uygular. Claude Code keşfi için `.claude/skills` → `.agents/skills` symlink'tir.
+Klasör konvansiyonu: her skill'de `SKILL.md` zorunlu (frontmatter: `name`, `description`); gerektiğinde `scripts/`, `examples/`, `resources/`, `references/` eklenebilir. Skill mekanizması olmayan agent'lar (Copilot vb.) `SKILL.md`'yi normal doküman gibi okuyup uygular. Claude Code keşfi için `.claude/skills` → `.agents/skills` symlink'tir.
 
 ---
 
@@ -136,69 +161,51 @@ Genel .NET kuralları `.editorconfig` içinde zorunlu kılınır. Aşağıdakile
 
 **MAF tiplerini sarmalama.** `AIAgent`, `AgentSession`, `ChatMessage`, `AIFunction` doğrudan kullanılır. AgentPrism bir kontrol düzlemidir, bir soyutlama katmanı değil.
 
-**`Activity.Current` async yardımcı metotta açılmaz.** `AsyncLocal` yazımı çağırana geri akmaz; span, çağıran metodun kendi gövdesinde başlatılmalıdır. Yaşandı: iç span'ler kök span'in çocuğu değil kardeşi oldu (Faz 6).
+**`Activity.Current` ve `AsyncLocal` async yardımcı metotta açılmaz.** Yazım çağırana geri akmaz; span/kapsam çağıran metodun kendi gövdesinde başlatılmalıdır. Akışlı yolda her `MoveNextAsync` öncesi tekrarlanır. Dört kez yaşandı (Faz 6, 11, 12, 15) — `docs/hafiza/cekirdek-calistirma.md`.
 
 **Tool'lar yalnızca kodda tanımlanır.** Arayüzden agent oluşturulabilir; tool **kodu** yazılamaz. Bu bir güvenlik sınırıdır ve gevşetilmez.
 
-**AOT uyumluluğu.** `Abstractions`, `Core`, `PostgreSql`, `OpenAI` paketleri AOT uyumludur. Yansımaya dayanan API kullanma. Sırayla dene: (1) elle yaz — yapılandırma bağlama ve ayar doğrulama böyle çözüldü; (2) kaynak üreteci kullan (`JsonSerializerContext`); (3) kaçınılmazsa metodu `[RequiresUnreferencedCode]` + `[RequiresDynamicCode]` ile işaretle — uyarıyı **bastırma**, çağırana ilet.
+**AOT uyumluluğu.** `Abstractions`, `Core`, `PostgreSql`, `OpenAI` paketleri AOT uyumludur. Yansımaya dayanan API kullanma. Sırayla dene: (1) elle yaz; (2) kaynak üreteci (`JsonSerializerContext`); (3) kaçınılmazsa `[RequiresUnreferencedCode]` + `[RequiresDynamicCode]` ile işaretle — uyarıyı **bastırma**, çağırana ilet.
 
 **Ön sürüm MAF paketleri yalnızca `AgentPrism.AspNetCore` içinde.** Karar K-008.
 
-**Sırlar veritabanına da yazılmaz.** Bir sır gerekiyorsa kayıtta yalnızca değerin okunacağı **yapılandırma anahtarının adı** durur; değer çalışma anında `IConfiguration` üzerinden çözülür. Karar K-059 (MCP kimlik doğrulaması).
+**Sırlar veritabanına da yazılmaz.** Bir sır gerekiyorsa kayıtta yalnızca değerin okunacağı **yapılandırma anahtarının adı** durur; değer çalışma anında `IConfiguration` üzerinden çözülür. Karar K-059.
 
 **Gözlemlenebilirlik işlevselliği bozmaz.** Çalıştırma kaydı deposu hata verirse çalıştırma devam eder; hata loglanır.
 
 **`ValueTask` dönen arayüzlerde `ConfigureAwait(false)`.** Kütüphane kodudur.
 
+**İmza değiştirmek ile gövdeyi kullanmak iki ayrı adımdır.** Yeni bir alan/parametre eklerken çağrı zincirindeki her katmanın **gövdesini** elle izle. Faz 20'de 1068 test bunu kaçırdı.
+
 ---
 
 ## Diyagram Kuralı
 
-**Her diyagram Mermaid ile yazılır.** ASCII kutu çizimi (`┌─┐│└┘`) kullanılmaz.
+**Her diyagram Mermaid ile yazılır.** ASCII kutu çizimi (`┌─┐│└┘`) kullanılmaz — elle hizalanır, bakım maliyeti yüzünden bayatlar ve `git diff`'i bozar.
 
-````markdown
-```mermaid
-flowchart TD
-    A[İstemci] --> B[MapAgentPrism]
-```
-````
+Tip seçimi: katman/akış/karar ağacı → `flowchart TD|LR` · çağrı sırası →
+`sequenceDiagram` · veri modeli → `erDiagram` · durum makinesi →
+`stateDiagram-v2` · zaman planı → `gantt`.
 
-**Neden:** ASCII diyagramlar elle hizalanır; bir kutuya kelime eklemek tüm satırları
-bozar ve bakım maliyeti yüzünden diyagram bayatlar. Mermaid metinden düzeni kendisi
-üretir, GitHub ve VS Code önizlemesinde çizilir, `git diff` anlamlı kalır.
-
-Kullanılacak diyagram tipleri:
-
-| Ne anlatılıyor | Tip |
-|----------------|-----|
-| Katman, akış, karar ağacı | `flowchart TD` / `flowchart LR` |
-| Bileşenler arası çağrı sırası, zamanlama | `sequenceDiagram` |
-| Veri modeli, tablo ilişkileri | `erDiagram` |
-| Durum makinesi (çalıştırma durumları) | `stateDiagram-v2` |
-| Paket bağımlılık grafiği | `flowchart` (yön okları ile) |
-| Faz/zaman planı | `gantt` |
-
-Kurallar:
-
-- **Türkçe etiket serbest**, teknik terim orijinal dilinde kalır (`AIAgent`, `IRunStore`)
-- Düğüm metninde `(`, `)`, `,` ve `:` karakterleri ayrıştırıcıyı bozar — tırnak kullan:
-  `A["RunAsync(messages, session)"]`
+- Türkçe etiket serbest; teknik terim orijinal dilinde kalır (`AIAgent`, `IRunStore`)
+- Düğüm metninde `(`, `)`, `,`, `:` ayrıştırıcıyı bozar — tırnak kullan: `A["RunAsync(messages, session)"]`
 - Bir diyagram **tek bir fikri** anlatır; on beş düğümü aşıyorsa ikiye böl
-- Vurgu gerekiyorsa `style`/`classDef` kullan, ASCII'ye dönme
 - Diyagram koddan sapmışsa **diyagram yanlıştır** — koda göre düzeltilir
 
-**İstisna — dizin ağaçları.** Dosya/klasör listeleri düz metin kod bloğu olarak kalır
-(`├──`, `└──`). Bunlar diyagram değil, dizindir; Mermaid'in ağaç gösterimi yoktur ve
-`flowchart`'a çevirmek okunabilirliği düşürür.
+**İstisna — dizin ağaçları.** Dosya/klasör listeleri düz metin kod bloğu olarak kalır (`├──`, `└──`).
 
 ---
 
 ## Canlı Referanslar
 
-| Dosya | İçerik |
-|-------|--------|
-| `docs/MIMARI.md` | **Mimari gerçek** — katmanlar, MAF genişleme noktaları, veri modeli, çalıştırma yolu, güvenlik |
-| `docs/KARARLAR.md` | Karar defteri — reddedilen işler + kalıcı tercihler, gerekçeleriyle |
-| `docs/NN-*.md` | Faz dokümanları — sıra, kapsam, DoD, devir teslim notları |
-| `MEMORY.md` | Oturumlar arası biriken kurumsal bilgi — codepath'ler, desenler, tuzaklar |
-| `README.md` | Dış yüzey — paketler, kurulum, yol haritası |
+| Dosya | İçerik | Ne zaman okunur |
+|-------|--------|-----------------|
+| [`MEMORY.md`](MEMORY.md) | Yönlendirme + her oturumda geçerli tuzaklar | Her oturum |
+| [`docs/hafiza/*.md`](docs/hafiza/) | Alan bazlı tuzak ve codepath notları | O alana dokunurken |
+| [`docs/MIMARI.md`](docs/MIMARI.md) | Bugünkü mimari — katmanlar, veri modeli, çalıştırma yolu, güvenlik | İlgili bölüm |
+| [`docs/KARARLAR-INDEKS.md`](docs/KARARLAR-INDEKS.md) | 181 kararın tek satırlık indeksi | Karar ararken |
+| `docs/KARARLAR.md` | Kararların tam gerekçesi | **Yalnız grep ile** |
+| [`docs/MAF-GENISLEME-NOKTALARI.md`](docs/MAF-GENISLEME-NOKTALARI.md) | Kullandığımız/kullanmadığımız MAF noktaları | MAF'a dokunurken |
+| `docs/NN-*.md` | Faz dokümanları — kapsam, DoD, devir teslim notları | O faz |
+| `docs/arsiv/*.md` | Faz anlatısı, paket×faz birikimi | **Yalnız grep ile** |
+| [`README.md`](README.md) | Dış yüzey — paketler, kurulum, yol haritası tablosu | Faz durumu |
