@@ -197,3 +197,13 @@ export const AuditIcon = ({ className }: IconProps): ReactNode => (
     <path d="M9 3.5h6v2H9zM8 10h8M8 13.5h8M8 17h5" />
   </Icon>
 );
+
+/** Three boxes wired together: the shape of a workflow graph. */
+export const WorkflowIcon = ({ className }: IconProps): ReactNode => (
+  <Icon className={className}>
+    <rect x="3" y="4" width="6" height="5" rx="1.5" />
+    <rect x="15" y="4" width="6" height="5" rx="1.5" />
+    <rect x="9" y="15" width="6" height="5" rx="1.5" />
+    <path d="M6 9v3.5a1.5 1.5 0 0 0 1.5 1.5H9M18 9v3.5a1.5 1.5 0 0 1-1.5 1.5H15" />
+  </Icon>
+);

@@ -59,6 +59,14 @@ public sealed record RunStatistics
     /// <summary>Hala calisan calistirma sayisi.</summary>
     public required long RunningRuns { get; init; }
 
+    /// <summary>Insan girdisi bekleyen calistirma sayisi.</summary>
+    /// <remarks>
+    /// Yalnizca workflow calistirmalarinda olusur. Ayri sayilir cunku boyle bir
+    /// calistirma ne calisiyor ne de sonuclanmistir; bir kovaya zorla yazilsaydi
+    /// alt toplamlar <see cref="TotalRuns"/> ile tutmazdi.
+    /// </remarks>
+    public long AwaitingInputRuns { get; init; }
+
     /// <summary>Girdi token toplami.</summary>
     public long InputTokens { get; init; }
 

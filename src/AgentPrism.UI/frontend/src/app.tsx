@@ -11,6 +11,9 @@ import { PlaygroundScreen } from './screens/playground';
 import { SessionsScreen } from './screens/sessions';
 import { SessionDetailScreen } from './screens/session-detail';
 import { RunsScreen } from './screens/runs';
+import { WorkflowsScreen } from './screens/workflows';
+import { WorkflowEditorScreen } from './screens/workflow-editor';
+import { WorkflowDetailScreen } from './screens/workflow-detail';
 import { RunDetailScreen } from './screens/run-detail';
 import { ToolsScreen } from './screens/tools';
 import { ModelsScreen } from './screens/models';
@@ -41,6 +44,16 @@ const routes = (meta: Meta): RouteDefinition[] => [
   { pattern: 'playground/:name', render: (params) => <PlaygroundScreen name={params['name'] ?? ''} /> },
   { pattern: 'sessions', render: () => <SessionsScreen meta={meta} /> },
   { pattern: 'sessions/:id', render: (params) => <SessionDetailScreen id={params['id'] ?? ''} /> },
+  { pattern: 'workflows', render: () => <WorkflowsScreen meta={meta} /> },
+  { pattern: 'workflows/new', render: () => <WorkflowEditorScreen /> },
+  {
+    pattern: 'workflows/:name',
+    render: (params) => <WorkflowDetailScreen name={params['name'] ?? ''} meta={meta} />,
+  },
+  {
+    pattern: 'workflows/:name/edit',
+    render: (params) => <WorkflowEditorScreen name={params['name'] ?? ''} />,
+  },
   { pattern: 'runs', render: () => <RunsScreen /> },
   { pattern: 'runs/:id', render: (params) => <RunDetailScreen id={params['id'] ?? ''} /> },
   { pattern: 'tools', render: () => <ToolsScreen /> },

@@ -40,6 +40,9 @@ internal sealed record WorkflowDefinitionPayload
     /// <summary>Devretme talimati.</summary>
     public string? HandoffInstructions { get; init; }
 
+    /// <summary>Yonetici agent'in plani insana onaylatilsin mi.</summary>
+    public bool RequirePlanApproval { get; init; }
+
     /// <summary>Tanimin icerigini yuke donusturur.</summary>
     /// <param name="definition">Kaynak tanim.</param>
     /// <returns>Serilestirilecek yuk.</returns>
@@ -53,6 +56,7 @@ internal sealed record WorkflowDefinitionPayload
             ManagerAgentName = definition.ManagerAgentName,
             MaxIterations = definition.MaxIterations,
             HandoffInstructions = definition.HandoffInstructions,
+            RequirePlanApproval = definition.RequirePlanApproval,
         };
 
     /// <summary>Yuku sutunlardan gelen bilgilerle birlestirip tanimi kurar.</summary>
@@ -72,6 +76,7 @@ internal sealed record WorkflowDefinitionPayload
             ManagerAgentName = ManagerAgentName,
             MaxIterations = MaxIterations,
             HandoffInstructions = HandoffInstructions,
+            RequirePlanApproval = RequirePlanApproval,
             TenantId = tenantId,
             Version = version,
             UpdatedAt = updatedAt,

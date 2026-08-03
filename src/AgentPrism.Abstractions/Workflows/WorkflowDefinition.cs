@@ -56,6 +56,27 @@ public sealed record WorkflowDefinition
     /// </summary>
     public string? HandoffInstructions { get; init; }
 
+    /// <summary>
+    /// Yonetici agent'in kurdugu plan, yurutmeye baslamadan once bir insana
+    /// onaylatilsin mi. Yalnizca <see cref="WorkflowKind.Magentic"/> icindir.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Acikken Microsoft Agent Framework ilk super-step sonunda bir dis istek
+    /// yayinlar; calistirma <see cref="RunStatus.AwaitingInput"/> olur ve durumu
+    /// bir kontrol noktasina yazilir. Yanit
+    /// <c>POST /api/workflows/runs/{runId}/respond</c> ile verilir: plan
+    /// onaylanir ya da bir duzeltme metniyle geri gonderilir.
+    /// </para>
+    /// <para>
+    /// 🚨 <strong>Maliyet.</strong> Yonetici agent her turda yeniden calisir;
+    /// duzeltme istegi plani bastan kurdurur. Varsayilan <see langword="false"/>
+    /// olmasi bilincli: bir tanim acikca istemeden calistirma yarim kalmaz
+    /// (K1 - sifir surpriz).
+    /// </para>
+    /// </remarks>
+    public bool RequirePlanApproval { get; init; }
+
     /// <summary>Tanimin ait oldugu kiraci. Kodda tanimli workflow'larda <see langword="null"/>.</summary>
     public string? TenantId { get; init; }
 

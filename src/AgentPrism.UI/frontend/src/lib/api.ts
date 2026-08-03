@@ -30,6 +30,12 @@ import type {
   ToolDescriptor,
   ToolInvocationRecord,
   ToolUsage,
+  WorkflowCheckpointRecord,
+  WorkflowDefinition,
+  WorkflowDescriptor,
+  WorkflowGraph,
+  WorkflowPendingRequest,
+  WorkflowSaveRequest,
 } from './types';
 
 /**
@@ -296,6 +302,33 @@ export const api = {
    * own format.
    */
   createConversation: () => send<Conversation>('POST', 'v1/conversations', {}),
+
+  workflows: () => request<WorkflowDescriptor[]>('api/workflows'),
+  workflow: (name: string) => request<WorkflowDefinition>(`api/workflows/${encodeURIComponent(name)}`),
+  saveWorkflow: (name: string, body: WorkflowSaveRequest) =>
+    send<WorkflowDefinition>('PUT', `api/workflows/${encodeURIComponent(name)}`, body),
+  deleteWorkflow: (name: string) =>
+    request<void>(`api/workflows/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+
+  /**
+   * The compiled graph.
+   *
+   * Compiled, not derived from the definition: the ready-made patterns add
+   * nodes the user never wrote (`OutputMessages`, `Batcher/*`, `GroupChatHost`)
+   * and run events name exactly those. A graph drawn from the definition alone
+   * would never light up.
+   */
+  workflowGraph: (name: string) =>
+    request<WorkflowGraph>(`api/workflows/${encodeURIComponent(name)}/graph`),
+
+  workflowCheckpoints: (runId: string) =>
+    request<WorkflowCheckpointRecord[]>(
+      `api/workflows/runs/${encodeURIComponent(runId)}/checkpoints`,
+    ),
+
+  /** Requests a run is blocked on. Empty unless the run is `AwaitingInput`. */
+  workflowRequests: (runId: string) =>
+    request<WorkflowPendingRequest[]>(`api/workflows/runs/${encodeURIComponent(runId)}/requests`),
 
   audit: (
     params: {
