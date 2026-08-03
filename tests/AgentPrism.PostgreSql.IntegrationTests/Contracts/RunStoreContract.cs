@@ -377,6 +377,114 @@ public abstract class RunStoreContract : IAsyncLifetime
         stats.ErrorRate.ShouldBeNull();
     }
 
+    // --- Surum ve deney kirilimi (Faz 19.2-19.3) ---
+
+    [Fact]
+    public async Task Ozet_surum_kirilimini_hesaplar()
+    {
+        var v1 = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(v1, "alpha") with { AgentVersion = 1 });
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = v1,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { TotalTokens = 10 },
+        });
+
+        var v2A = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(v2A, "alpha") with { AgentVersion = 2 });
+        await Store.CompleteRunAsync(new RunCompletion { RunId = v2A, Status = RunStatus.Failed, CompletedAt = DateTimeOffset.UtcNow });
+
+        var v2B = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(v2B, "alpha") with { AgentVersion = 2 });
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = v2B,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { TotalTokens = 20 },
+        });
+
+        // Surumu bilinmeyen bir calistirma kirilima girmemelidir.
+        await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId(), "alpha"));
+
+        var stats = await Store.GetStatisticsAsync(new RunStatisticsQuery());
+
+        stats.ByVersion.Count.ShouldBe(2);
+
+        var version1 = stats.ByVersion.Single(static v => v.Version == 1);
+        version1.AgentName.ShouldBe("alpha");
+        version1.TotalRuns.ShouldBe(1);
+        version1.FailedRuns.ShouldBe(0);
+        version1.TotalTokens.ShouldBe(10);
+
+        var version2 = stats.ByVersion.Single(static v => v.Version == 2);
+        version2.TotalRuns.ShouldBe(2);
+        version2.FailedRuns.ShouldBe(1);
+        version2.TotalTokens.ShouldBe(20);
+    }
+
+    [Fact]
+    public async Task Deney_sonucu_kol_bazinda_ozetlenir()
+    {
+        var experimentId = Guid.NewGuid();
+
+        var controlRun = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(controlRun, "alpha") with
+        {
+            AgentVersion = 1,
+            ExperimentId = experimentId,
+            Variant = "control",
+        });
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = controlRun,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { InputTokens = 5, OutputTokens = 5, TotalTokens = 10 },
+        });
+
+        var v2Run = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(v2Run, "alpha") with
+        {
+            AgentVersion = 2,
+            ExperimentId = experimentId,
+            Variant = "v2",
+        });
+        await Store.CompleteRunAsync(new RunCompletion { RunId = v2Run, Status = RunStatus.Failed, CompletedAt = DateTimeOffset.UtcNow });
+
+        // Baska bir deneyin calistirmasi bu deneyin sonucuna girmemelidir.
+        await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId(), "alpha") with
+        {
+            ExperimentId = Guid.NewGuid(),
+            Variant = "control",
+        });
+
+        var results = await Store.GetExperimentResultsAsync(new ExperimentResultsQuery { ExperimentId = experimentId });
+
+        results.Count.ShouldBe(2);
+
+        var control = results.Single(static r => string.Equals(r.Variant, "control", StringComparison.Ordinal));
+        control.Version.ShouldBe(1);
+        control.TotalRuns.ShouldBe(1);
+        control.CompletedRuns.ShouldBe(1);
+        control.TotalTokens.ShouldBe(10);
+        control.AverageDurationMs.ShouldNotBeNull();
+
+        var v2 = results.Single(static r => string.Equals(r.Variant, "v2", StringComparison.Ordinal));
+        v2.Version.ShouldBe(2);
+        v2.FailedRuns.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Deney_sonucu_trafik_almayan_deneyde_bos_doner()
+    {
+        var results = await Store.GetExperimentResultsAsync(new ExperimentResultsQuery { ExperimentId = Guid.NewGuid() });
+
+        results.ShouldBeEmpty();
+    }
+
     [Fact]
     public async Task Agac_alanlari_gidip_gelir()
     {

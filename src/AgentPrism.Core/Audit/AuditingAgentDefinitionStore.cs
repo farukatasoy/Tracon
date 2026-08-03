@@ -53,6 +53,10 @@ public sealed class AuditingAgentDefinitionStore : IAgentDefinitionStore, IAudit
         => _inner.ListAsync(cancellationToken);
 
     /// <inheritdoc />
+    public ValueTask<AgentDefinition?> GetVersionAsync(string name, int version, CancellationToken cancellationToken = default)
+        => _inner.GetVersionAsync(name, version, cancellationToken);
+
+    /// <inheritdoc />
     public ValueTask<IReadOnlyList<AgentDefinition>> ListVersionsAsync(
         string name,
         CancellationToken cancellationToken = default)

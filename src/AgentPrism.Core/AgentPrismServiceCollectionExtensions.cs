@@ -253,6 +253,18 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, JobWorkerBackgroundService>());
 
+        // A/B deneyleri (Faz 19). Admin'in olusturdugu/baslattigi/durdurdugu bir
+        // varlik oldugu icin IAgentDefinitionStore ile ayni gerekceyle denetim
+        // izi dekoratoruyle sarilir (IEvalStore/IJobStore'un aksine, onlar
+        // yurutmenin yan urunudur).
+        services.TryAddSingleton<IExperimentStore>(static provider => new AuditingExperimentStore(
+            new InMemoryExperimentStore(),
+            provider.GetRequiredService<IAuditLog>(),
+            provider.GetRequiredService<ITenantContext>(),
+            provider.GetRequiredService<IAuditActorResolver>(),
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingExperimentStore>>()));
+        services.TryAddSingleton<ExperimentAssignmentResolver>();
+
         services.TryAddSingleton<ITenantStore>(static provider => new AuditingTenantStore(
             new InMemoryTenantStore(),
             provider.GetRequiredService<IAuditLog>(),

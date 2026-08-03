@@ -296,3 +296,25 @@ public sealed class PostgresEvalStoreContractTests(PostgresFixture fixture) : Ev
         }
     }
 }
+
+/// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
+public sealed class PostgresExperimentStoreContractTests(PostgresFixture fixture) : ExperimentStoreContract
+{
+    private PostgresTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<IExperimentStore> CreateStoreAsync()
+    {
+        _context = await PostgresTestContext.CreateAsync(fixture);
+        return _context.Experiments;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}

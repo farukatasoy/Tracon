@@ -45,6 +45,12 @@ public sealed record EvalRunTriggerRequest
     /// Her vakanin kararliligini olcmek icin kac kez tekrarlanacagi. Verilmezse 1.
     /// </summary>
     public int? NumRepetitions { get; init; }
+
+    /// <summary>
+    /// Bu kosu icin olculecek tanim surumu. Verilmezse agent'in guncel surumu
+    /// kullanilir. Kod kaynakli agent'larda (surum gecmisi yok) 400 ile reddedilir.
+    /// </summary>
+    public int? AgentVersion { get; init; }
 }
 
 /// <summary>Tek bir eval kosusunun ayrintili gorunumu: ozet ve vaka sonuclari birlikte.</summary>

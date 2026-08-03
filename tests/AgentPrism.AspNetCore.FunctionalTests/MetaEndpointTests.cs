@@ -135,5 +135,8 @@ public sealed class MetaEndpointTests
 
         public ValueTask<IReadOnlyList<ToolUsage>> GetToolUsageAsync(ToolUsageQuery query, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<ExperimentVariantResult>> GetExperimentResultsAsync(ExperimentResultsQuery query, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
     }
 }

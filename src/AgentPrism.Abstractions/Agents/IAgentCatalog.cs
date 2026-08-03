@@ -24,4 +24,21 @@ public interface IAgentCatalog
     /// <param name="cancellationToken">Iptal belirteci.</param>
     /// <returns>Agent; hicbir kaynakta bulunamazsa <see langword="null"/>.</returns>
     ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Adi ve <strong>belirli bir tanim surumunu</strong> cozer. Kod kaynakli agent'larda
+    /// (<see cref="AgentDefinitionOrigin.Code"/>) surum gecmisi yoktur; <paramref name="version"/>
+    /// verilirse ve agent kod kaynakliysa <see cref="AgentPrismException"/> firlatilir.
+    /// </summary>
+    /// <param name="agentName">Agent adi.</param>
+    /// <param name="version">
+    /// Istenen tanim surumu. <see langword="null"/> ise <see cref="ResolveAsync(string, CancellationToken)"/>
+    /// ile ayni davranir (guncel surum).
+    /// </param>
+    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <returns>Agent; bulunamazsa <see langword="null"/>.</returns>
+    /// <exception cref="AgentPrismException">
+    /// <paramref name="version"/> verilmis ve agent kod kaynakliysa, veya o surum mevcut degilse.
+    /// </exception>
+    ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, CancellationToken cancellationToken = default);
 }

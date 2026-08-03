@@ -17,6 +17,7 @@ import {
   TextInput,
   Th,
 } from '../components/ui';
+import { DiffView } from '../components/diff-view';
 import type { AuditEntry } from '../lib/types';
 
 const EMPTY_FILTERS = { actor: '', action: '', entity: '' };
@@ -151,23 +152,33 @@ function AuditRow({
       {isExpanded && (
         <tr>
           <td colSpan={5} className="border-b border-line px-4 py-2 align-middle">
-            <div className="grid gap-3 py-2 sm:grid-cols-2">
-              <div>
-                <p className="mb-1 text-[11px] font-medium tracking-wide text-subtle uppercase">Before</p>
-                {entry.before != null ? (
-                  <CodeBlock code={prettyJson(entry.before)} maxHeight="max-h-64" />
-                ) : (
-                  <p className="text-[12px] text-subtle">—</p>
-                )}
-              </div>
-              <div>
-                <p className="mb-1 text-[11px] font-medium tracking-wide text-subtle uppercase">After</p>
-                {entry.after != null ? (
-                  <CodeBlock code={prettyJson(entry.after)} maxHeight="max-h-64" />
-                ) : (
-                  <p className="text-[12px] text-subtle">—</p>
-                )}
-              </div>
+            <div className="py-2">
+              {entry.before != null && entry.after != null ? (
+                <DiffView
+                  left={prettyJson(entry.before)}
+                  right={prettyJson(entry.after)}
+                  className="max-h-64 overflow-y-auto"
+                />
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <p className="mb-1 text-[11px] font-medium tracking-wide text-subtle uppercase">Before</p>
+                    {entry.before != null ? (
+                      <CodeBlock code={prettyJson(entry.before)} maxHeight="max-h-64" />
+                    ) : (
+                      <p className="text-[12px] text-subtle">—</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="mb-1 text-[11px] font-medium tracking-wide text-subtle uppercase">After</p>
+                    {entry.after != null ? (
+                      <CodeBlock code={prettyJson(entry.after)} maxHeight="max-h-64" />
+                    ) : (
+                      <p className="text-[12px] text-subtle">—</p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </td>
         </tr>

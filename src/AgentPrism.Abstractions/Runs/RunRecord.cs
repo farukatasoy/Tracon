@@ -75,6 +75,15 @@ public sealed record RunRecord
     /// <summary>Agactaki derinlik. Kok calistirma 0'dir.</summary>
     public int Depth { get; init; }
 
+    /// <summary>Bu calistirmanin olctugu tanim surumu. Bilinmiyorsa <see langword="null"/>.</summary>
+    public int? AgentVersion { get; init; }
+
+    /// <summary>Bu calistirmanin bagli oldugu deneyin kimligi. Deney disi calistirmada <see langword="null"/>.</summary>
+    public Guid? ExperimentId { get; init; }
+
+    /// <summary>Bu calistirmanin atandigi deney kolunun adi. Deney disi calistirmada <see langword="null"/>.</summary>
+    public string? Variant { get; init; }
+
     /// <summary>Bu calistirmanin <em>dogrudan</em> alt calistirma sayisi.</summary>
     public int ChildRunCount { get; init; }
 
