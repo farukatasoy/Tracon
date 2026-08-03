@@ -55,7 +55,12 @@ public sealed partial class HttpTenantContext : ITenantContext
     }
 
     /// <inheritdoc />
-    public string TenantId => Resolve() ?? _coreOptions.Value.DefaultTenantId;
+    /// <remarks>
+    /// <see cref="AmbientTenantScope.Current"/> ayarliysa (zamanlanmis bir is
+    /// yurutuluyorsa, HTTP baglami yoktur) o deger HTTP cozumlemesine tercih
+    /// edilir.
+    /// </remarks>
+    public string TenantId => AmbientTenantScope.Current ?? Resolve() ?? _coreOptions.Value.DefaultTenantId;
 
     /// <summary>
     /// Bir kiraci kimliginin bicimce gecerli olup olmadigini soyler.

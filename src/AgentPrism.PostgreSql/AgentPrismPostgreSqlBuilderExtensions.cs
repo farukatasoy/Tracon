@@ -129,6 +129,13 @@ public static class AgentPrismPostgreSqlBuilderExtensions
                 provider.GetRequiredService<ILogger<AuditingWorkflowDefinitionStore>>())));
         services.Replace(
             ServiceDescriptor.Singleton<IWorkflowCheckpointStore, PostgresWorkflowCheckpointStore>());
+
+        // Is kuyrugu ve zamanlama depolari (Faz 17). Ikisi de sarilmaz: kuyruk
+        // kendi durum makinesini (Pending/Leased/Running/...) tasir, workflow
+        // kontrol noktasi deposu ile ayni gerekce.
+        services.Replace(ServiceDescriptor.Singleton<IJobStore, PostgresJobStore>());
+        services.Replace(ServiceDescriptor.Singleton<IJobScheduleStore, PostgresJobScheduleStore>());
+
         services.Replace(ServiceDescriptor.Singleton<ISessionStore, AuditingSessionStore>(
             static provider => new AuditingSessionStore(
                 ActivatorUtilities.CreateInstance<PostgresSessionStore>(provider),

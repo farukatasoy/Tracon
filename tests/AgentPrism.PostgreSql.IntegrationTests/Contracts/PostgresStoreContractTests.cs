@@ -230,3 +230,47 @@ public sealed class PostgresWorkflowCheckpointStoreContractTests(PostgresFixture
         }
     }
 }
+
+/// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
+public sealed class PostgresJobStoreContractTests(PostgresFixture fixture) : JobStoreContract
+{
+    private PostgresTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<IJobStore> CreateStoreAsync()
+    {
+        _context = await PostgresTestContext.CreateAsync(fixture);
+        return _context.Jobs;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}
+
+/// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
+public sealed class PostgresJobScheduleStoreContractTests(PostgresFixture fixture) : JobScheduleStoreContract
+{
+    private PostgresTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<IJobScheduleStore> CreateStoreAsync()
+    {
+        _context = await PostgresTestContext.CreateAsync(fixture);
+        return _context.JobSchedules;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}

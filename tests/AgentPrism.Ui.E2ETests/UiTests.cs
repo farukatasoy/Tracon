@@ -21,6 +21,10 @@ public sealed class UiTests(BrowserFixture browsers)
     private static readonly Regex RunLinkPattern =
         new("^run ", RegexOptions.None, TimeSpan.FromSeconds(1));
 
+    /// <summary>Is detay basligini bulan desen.</summary>
+    private static readonly Regex JobHeadingPattern =
+        new("^Job ", RegexOptions.None, TimeSpan.FromSeconds(1));
+
     [Fact]
     public async Task Arayuz_acilir_ve_ana_ekran_cizilir()
     {
@@ -34,7 +38,7 @@ public sealed class UiTests(BrowserFixture browsers)
         (await session.Page.TitleAsync()).ShouldBe("AgentPrism");
 
         // Tum yonetim ekranlari gezinme cubugunda olmalidir.
-        foreach (var screen in new[] { "Agents", "Playground", "Sessions", "Workflows", "Runs", "Tools", "Skills", "Models", "MCP", "Settings" })
+        foreach (var screen in new[] { "Agents", "Playground", "Sessions", "Workflows", "Jobs", "Runs", "Tools", "Skills", "Models", "MCP", "Settings" })
         {
             (await session.Page.GetByRole(AriaRole.Link, new() { Name = screen }).CountAsync())
                 .ShouldBeGreaterThan(0, $"'{screen}' baglantisi bulunamadi.");
@@ -588,4 +592,48 @@ public sealed class UiTests(BrowserFixture browsers)
             .WaitForAsync(new() { Timeout = 20_000 });
     }
 
+    // --- Faz 17: toplu ve zamanlanmis calistirma ---
+
+    [Fact]
+    public async Task Zamanlama_olusturulur_tetiklenir_ve_is_tamamlanir()
+    {
+        await using var host = await UiHost.StartAsync(
+            configureServices: services => services.UseScheduling(options =>
+            {
+                // Testin gercek zamanda beklemesi gerekmez; isci hemen yoklar.
+                options.PollInterval = TimeSpan.FromMilliseconds(200);
+                options.LeaseDuration = TimeSpan.FromSeconds(10);
+            }));
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/jobs");
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Jobs", Exact = true }).WaitForAsync();
+
+        await session.Page.GetByRole(AriaRole.Button, new() { Name = "New schedule" }).ClickAsync();
+
+        await session.Page.GetByPlaceholder("nightly-report").FillAsync("e2e-toplu-is");
+        await session.Page.GetByPlaceholder("summarizer").FillAsync("support");
+        await session.Page.Locator("textarea").FillAsync("[\"merhaba\"]");
+
+        await session.Page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
+
+        await session.Page.GetByText("e2e-toplu-is").WaitForAsync();
+
+        await session.Page.GetByRole(AriaRole.Button, new() { Name = "Trigger" }).ClickAsync();
+
+        // Isci hizli yoklama araligiyla isi kiralayip yurutur; tamamlanma
+        // rozeti "Recent jobs" panelinde gorunur.
+        await session.Page.GetByText("completed", new() { Exact = true }).First
+            .WaitForAsync(new() { Timeout = 15_000 });
+
+        // Is detayina gecilir: oge girdisi ve calistirma baglantisi gorunur.
+        // "Recent jobs" sayfadaki IKINCI tablodur (once Schedules gelir); ilk
+        // satirinin baglantisi is kimligine gider.
+        await session.Page.Locator("table").Last.Locator("tbody tr").First
+            .GetByRole(AriaRole.Link).First.ClickAsync();
+
+        await session.Page.GetByRole(AriaRole.Heading, new() { NameRegex = JobHeadingPattern })
+            .WaitForAsync(new() { Timeout = 10_000 });
+        await session.Page.GetByText("merhaba").WaitForAsync();
+    }
 }

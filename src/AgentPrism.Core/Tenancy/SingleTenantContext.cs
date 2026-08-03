@@ -25,5 +25,9 @@ public sealed class SingleTenantContext : ITenantContext
     }
 
     /// <inheritdoc />
-    public string TenantId => _options.Value.DefaultTenantId;
+    /// <remarks>
+    /// <see cref="AmbientTenantScope.Current"/> ayarliysa (zamanlanmis bir is
+    /// yurutuluyorsa) o deger varsayilana tercih edilir.
+    /// </remarks>
+    public string TenantId => AmbientTenantScope.Current ?? _options.Value.DefaultTenantId;
 }

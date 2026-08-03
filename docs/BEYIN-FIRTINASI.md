@@ -254,7 +254,7 @@ kim hangi onayı verdi. Faz 6 bunları yapılabilir kıldı ama kaydetmiyor.
 okuyucu / operatör (çalıştırma, onay) / yönetici (agent ve MCP tanımı).
 MCP sunucusu ekleme ve onay verme ayrı policy'ler istemeli.
 
-### F-22 · Toplu (batch) ve zamanlanmış çalıştırma
+### ~~F-22 · Toplu (batch) ve zamanlanmış çalıştırma~~ ✅ Faz 17'de yapıldı (2026-08-03)
 
 **Değer:** Orta. Bir agent'ı bir veri kümesi üzerinde toplu çalıştırma, cron ile
 tetikleme. F-14 (eval) ile aynı altyapıyı paylaşır.

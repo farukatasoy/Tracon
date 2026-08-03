@@ -92,3 +92,19 @@ public sealed class InMemoryWorkflowCheckpointStoreContractTests : WorkflowCheck
     protected override ValueTask<IWorkflowCheckpointStore> CreateStoreAsync()
         => ValueTask.FromResult<IWorkflowCheckpointStore>(new InMemoryWorkflowCheckpointStore());
 }
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryJobStoreContractTests : JobStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<IJobStore> CreateStoreAsync()
+        => ValueTask.FromResult<IJobStore>(new InMemoryJobStore());
+}
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryJobScheduleStoreContractTests : JobScheduleStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<IJobScheduleStore> CreateStoreAsync()
+        => ValueTask.FromResult<IJobScheduleStore>(new InMemoryJobScheduleStore());
+}

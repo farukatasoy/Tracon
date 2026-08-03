@@ -59,6 +59,8 @@ export interface Meta {
     agentDefinitionStore: string;
     runStore: string;
     sessionStore: string;
+    jobStore: string;
+    jobWorkerEnabled: boolean;
   };
   roles: RoleMeta;
 }
@@ -728,4 +730,91 @@ export interface WorkflowCheckpointRecord {
   parentCheckpointId?: string | null;
   runId?: string | null;
   createdAt: string;
+}
+
+/* ------------------------------------------------------------ scheduling */
+
+/** What a job runs. */
+export type JobKind = 'AgentBatch' | 'Workflow' | 'Eval';
+
+/** A queued job's lifecycle. */
+export type JobStatus = 'Pending' | 'Leased' | 'Running' | 'Completed' | 'Failed' | 'Cancelled';
+
+/** A single item's processing state within a job. */
+export type JobItemStatus = 'Pending' | 'Completed' | 'Failed';
+
+/**
+ * A schedule definition: when and what to run.
+ *
+ * `cron` absent means the schedule only runs when triggered by hand — no
+ * automatic `nextRunAt` is ever computed for it.
+ */
+export interface JobSchedule {
+  id: string;
+  tenantId: string;
+  name: string;
+  kind: JobKind;
+  targetName: string;
+  cron?: string | null;
+  timeZone: string;
+  payload: unknown;
+  enabled: boolean;
+  nextRunAt?: string | null;
+  lastRunAt?: string | null;
+  createdBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Body of PUT `/api/schedules/{name}`. Server-owned fields are deliberately absent. */
+export interface JobScheduleSaveRequest {
+  kind: JobKind;
+  targetName: string;
+  cron?: string | null;
+  timeZone: string;
+  payload: unknown;
+  enabled: boolean;
+}
+
+/** Body of POST `/api/schedules/{name}/trigger`. Omit `payload` to reuse the schedule's own. */
+export interface JobTriggerRequest {
+  payload?: unknown;
+}
+
+/** A queued job: the header row for its items. */
+export interface JobRecord {
+  id: string;
+  tenantId: string;
+  scheduleId?: string | null;
+  kind: JobKind;
+  targetName: string;
+  status: JobStatus;
+  payload: unknown;
+  totalItems: number;
+  doneItems: number;
+  failedItems: number;
+  attempt: number;
+  leaseOwner?: string | null;
+  leaseUntil?: string | null;
+  scheduledFor: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  errorMessage?: string | null;
+  createdAt: string;
+}
+
+/** One input of a batch job and the run it produced. */
+export interface JobItemRecord {
+  id: string;
+  jobId: string;
+  seq: number;
+  input: string;
+  runId?: string | null;
+  status: JobItemStatus;
+  error?: string | null;
+}
+
+export interface JobDetailResponse {
+  job: JobRecord;
+  items: JobItemRecord[];
 }

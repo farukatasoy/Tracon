@@ -14,6 +14,8 @@ import { RunsScreen } from './screens/runs';
 import { WorkflowsScreen } from './screens/workflows';
 import { WorkflowEditorScreen } from './screens/workflow-editor';
 import { WorkflowDetailScreen } from './screens/workflow-detail';
+import { JobsScreen } from './screens/jobs';
+import { JobDetailScreen } from './screens/job-detail';
 import { RunDetailScreen } from './screens/run-detail';
 import { ToolsScreen } from './screens/tools';
 import { ModelsScreen } from './screens/models';
@@ -54,6 +56,8 @@ const routes = (meta: Meta): RouteDefinition[] => [
     pattern: 'workflows/:name/edit',
     render: (params) => <WorkflowEditorScreen name={params['name'] ?? ''} />,
   },
+  { pattern: 'jobs', render: () => <JobsScreen meta={meta} /> },
+  { pattern: 'jobs/:id', render: (params) => <JobDetailScreen id={params['id'] ?? ''} meta={meta} /> },
   { pattern: 'runs', render: () => <RunsScreen /> },
   { pattern: 'runs/:id', render: (params) => <RunDetailScreen id={params['id'] ?? ''} /> },
   { pattern: 'tools', render: () => <ToolsScreen /> },

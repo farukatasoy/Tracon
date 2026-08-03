@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -57,6 +58,21 @@ public static class AgentPrismServiceCollectionExtensions
             // Gerekce: docs/KARARLAR.md, karar K-021.
             services.Configure<AgentPrismOptions>(options => Bind(configurationSection, options));
         }
+
+        // Toplu ve zamanlanmis calistirma (Faz 17). Ayri bir bolum: PostgreSql
+        // paketinin AgentPrismPostgreSqlOptions'i gibi kendi SectionName'ini
+        // tasir, ama AgentPrismOptions'in aksine ayri bir Use...() cagrisi
+        // olmadan da her zaman kayitlidir (K-018 — depolar birinci sinif).
+        services.AddOptions<AgentPrismSchedulingOptions>().ValidateOnStart();
+
+        if (configurationSection is not null)
+        {
+            services.Configure<AgentPrismSchedulingOptions>(
+                options => BindScheduling(configurationSection.GetSection("Scheduling"), options));
+        }
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<AgentPrismSchedulingOptions>, AgentPrismSchedulingOptionsValidator>());
 
         services.AddLogging();
         services.TryAddEnumerable(
@@ -204,6 +220,31 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingWorkflowDefinitionStore>>()));
         services.TryAddSingleton<IWorkflowCheckpointStore, InMemoryWorkflowCheckpointStore>();
 
+        // Is kuyrugu ve zamanlama depolari (Faz 17). Workflow depolariyla ayni
+        // ayrim: depolar HER ZAMAN kayitlidir; arka plan iscisi ise
+        // AgentPrismSchedulingOptions.RunWorker ile acilir/kapanir. Bu ikisi
+        // dekoratorle sarilmaz — is kuyrugu kendi durum makinesini tasir ve
+        // denetim izi buraya Faz 18'de eklenebilir.
+        services.TryAddSingleton<IJobStore, InMemoryJobStore>();
+        services.TryAddSingleton<IJobScheduleStore, InMemoryJobScheduleStore>();
+
+        // Iki varsayilan isleyici: agent toplu calistirma ve workflow. Ikisi de
+        // TryAddEnumerable ile eklenir; Faz 18 (eval) kendi isleyicisini
+        // AddJobHandler<T>() ile ayni sekilde ekler.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, AgentBatchJobHandler>());
+
+        // Acik fabrika kullaniliyor: yerlesik DI kabi varsayilan deger tasiyan
+        // kurucu parametrelerini doldurmaz ve IWorkflowRunner cogu kurulumda
+        // kayitli degildir (UseWorkflows() cagrilmadikca) — ayni gerekce
+        // RunRecordingAgentDecorator kaydinda da gecerlidir.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, WorkflowJobHandler>(
+            static provider => new WorkflowJobHandler(
+                provider.GetService<IWorkflowRunner>(),
+                provider.GetService<Microsoft.Extensions.Logging.ILogger<WorkflowJobHandler>>())));
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, JobWorkerBackgroundService>());
+
         services.TryAddSingleton<ITenantStore>(static provider => new AuditingTenantStore(
             new InMemoryTenantStore(),
             provider.GetRequiredService<IAuditLog>(),
@@ -262,6 +303,57 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddSingleton<IAgentCatalog, CompositeAgentCatalog>();
 
         return new AgentPrismBuilder(services);
+    }
+
+    /// <summary>
+    /// Bir <see cref="IJobHandler"/> genisleme noktasi ekler.
+    /// </summary>
+    /// <typeparam name="THandler">Eklenecek isleyici tipi.</typeparam>
+    /// <param name="services">Servis koleksiyonu.</param>
+    /// <returns>Zincirleme icin ayni koleksiyon.</returns>
+    /// <remarks>
+    /// Faz 18 (eval) kendi isleyicisini bu metotla ekler. <c>TryAddEnumerable</c>
+    /// kullanilir: ayni tip iki kez eklenirse yalnizca ilki sayilir.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="services"/> <see langword="null"/> ise.</exception>
+    public static IServiceCollection AddJobHandler<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] THandler>(
+        this IServiceCollection services)
+        where THandler : class, IJobHandler
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, THandler>());
+
+        return services;
+    }
+
+    /// <summary>
+    /// Toplu ve zamanlanmis calistirma (Faz 17) ayarlarini kod ile ayarlar.
+    /// </summary>
+    /// <param name="services">Servis koleksiyonu.</param>
+    /// <param name="configure">Ayar degistirici. Verilmezse yalnizca varsayilanlar/yapilandirma gecerli olur.</param>
+    /// <returns>Zincirleme icin ayni koleksiyon.</returns>
+    /// <remarks>
+    /// Is kuyrugu ve zamanlama depolari <c>AddAgentPrism()</c> ile zaten
+    /// kayitlidir; bu metot yalnizca ayarlari degistirir (ornegin
+    /// <c>o.RunWorker = false</c> ile bu surecteki arka plan iscisini
+    /// kapatmak). <c>PostConfigure</c> kullanilir, boylece kod ile verilen
+    /// deger yapilandirma dosyasindan gelen degerden her zaman kazanir.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="services"/> <see langword="null"/> ise.</exception>
+    public static IServiceCollection UseScheduling(
+        this IServiceCollection services,
+        Action<AgentPrismSchedulingOptions>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        if (configure is not null)
+        {
+            services.PostConfigure(configure);
+        }
+
+        return services;
     }
 
     /// <summary>
@@ -582,6 +674,68 @@ public static class AgentPrismServiceCollectionExtensions
                 out var breakDuration))
         {
             options.BreakDuration = breakDuration;
+        }
+    }
+
+    /// <summary>Zamanlama ayarlarini yapilandirmadan baglar (Faz 17).</summary>
+    private static void BindScheduling(IConfigurationSection section, AgentPrismSchedulingOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismSchedulingOptions.Enabled), out var enabled))
+        {
+            options.Enabled = enabled;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismSchedulingOptions.RunWorker), out var runWorker))
+        {
+            options.RunWorker = runWorker;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismSchedulingOptions.MaxConcurrentJobs)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxConcurrentJobs))
+        {
+            options.MaxConcurrentJobs = maxConcurrentJobs;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(AgentPrismSchedulingOptions.PollInterval)],
+                CultureInfo.InvariantCulture,
+                out var pollInterval))
+        {
+            options.PollInterval = pollInterval;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(AgentPrismSchedulingOptions.LeaseDuration)],
+                CultureInfo.InvariantCulture,
+                out var leaseDuration))
+        {
+            options.LeaseDuration = leaseDuration;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismSchedulingOptions.MaxAttempts)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxAttempts))
+        {
+            options.MaxAttempts = maxAttempts;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismSchedulingOptions.MaxItemsPerJob)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxItemsPerJob))
+        {
+            options.MaxItemsPerJob = maxItemsPerJob;
         }
     }
 

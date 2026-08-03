@@ -40,6 +40,8 @@ public sealed class PostgresTestContext : IAsyncDisposable
         AgentFiles = new PostgresAgentFileStore(dataSource, wrapped, TenantContext);
         Workflows = new PostgresWorkflowDefinitionStore(dataSource, wrapped);
         WorkflowCheckpoints = new PostgresWorkflowCheckpointStore(dataSource, wrapped);
+        Jobs = new PostgresJobStore(dataSource, wrapped);
+        JobSchedules = new PostgresJobScheduleStore(dataSource, wrapped);
         Migrations = new MigrationRunner(dataSource, wrapped, NullLogger<MigrationRunner>.Instance);
     }
 
@@ -93,6 +95,12 @@ public sealed class PostgresTestContext : IAsyncDisposable
 
     /// <summary>Workflow kontrol noktasi deposu (Faz 15).</summary>
     public PostgresWorkflowCheckpointStore WorkflowCheckpoints { get; }
+
+    /// <summary>Is kuyrugu deposu (Faz 17).</summary>
+    public PostgresJobStore Jobs { get; }
+
+    /// <summary>Zamanlama deposu (Faz 17).</summary>
+    public PostgresJobScheduleStore JobSchedules { get; }
 
     /// <summary>Migration calistiricisi.</summary>
     public MigrationRunner Migrations { get; }

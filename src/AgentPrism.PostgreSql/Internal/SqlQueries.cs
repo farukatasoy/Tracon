@@ -731,6 +731,170 @@ internal sealed class SqlQueries
             ORDER BY created_at DESC
             LIMIT @take;
             """;
+
+        // --- Zamanlama ve is kuyrugu (Faz 17) ---
+
+        UpsertJobSchedule = $"""
+            INSERT INTO {Schema}.job_schedules
+                (id, tenant_id, name, kind, target_name, cron, time_zone, payload, enabled,
+                 next_run_at, last_run_at, created_by, created_at, updated_at)
+            VALUES (@id, @tenant_id, @name, @kind, @target_name, @cron, @time_zone, @payload, @enabled,
+                    @next_run_at, @last_run_at, @created_by, @created_at, @updated_at)
+            ON CONFLICT (tenant_id, name) DO UPDATE
+                SET kind        = EXCLUDED.kind,
+                    target_name = EXCLUDED.target_name,
+                    cron        = EXCLUDED.cron,
+                    time_zone   = EXCLUDED.time_zone,
+                    payload     = EXCLUDED.payload,
+                    enabled     = EXCLUDED.enabled,
+                    next_run_at = EXCLUDED.next_run_at,
+                    last_run_at = EXCLUDED.last_run_at,
+                    updated_at  = EXCLUDED.updated_at
+            RETURNING id, created_by, created_at;
+            """;
+
+        const string scheduleColumns = """
+            id, tenant_id, name, kind, target_name, cron, time_zone, payload, enabled,
+            next_run_at, last_run_at, created_by, created_at, updated_at
+            """;
+
+        SelectJobSchedule = $"""
+            SELECT {scheduleColumns}
+            FROM {Schema}.job_schedules
+            WHERE tenant_id = @tenant_id AND name = @name;
+            """;
+
+        SelectJobSchedules = $"""
+            SELECT {scheduleColumns}
+            FROM {Schema}.job_schedules
+            WHERE tenant_id = @tenant_id
+            ORDER BY name;
+            """;
+
+        // Kiraciyla sinirlanmaz: bu sorgu isciye aittir, HTTP istegine degil.
+        SelectDueJobSchedules = $"""
+            SELECT {scheduleColumns}
+            FROM {Schema}.job_schedules
+            WHERE enabled = TRUE AND cron IS NOT NULL AND next_run_at IS NOT NULL AND next_run_at <= @as_of;
+            """;
+
+        DeleteJobSchedule = $"DELETE FROM {Schema}.job_schedules WHERE tenant_id = @tenant_id AND name = @name;";
+
+        // CAS (compare-and-swap): yalnizca beklenen `next_run_at` hala gecerliyse
+        // ilerletilir. Baska bir uygulama ornegi ayni anda ayni zamanlamayi zaten
+        // ilerlettiyse eslesme tutmaz ve etkilenen satir sayisi sifir olur.
+        TryClaimJobScheduleNextRun = $"""
+            UPDATE {Schema}.job_schedules
+               SET next_run_at = @new_next_run_at, last_run_at = @ran_at
+             WHERE id = @id AND next_run_at = @expected_next_run_at;
+            """;
+
+        InsertJob = $"""
+            INSERT INTO {Schema}.jobs
+                (id, tenant_id, schedule_id, kind, target_name, status, payload, total_items,
+                 done_items, failed_items, attempt, scheduled_for, created_at)
+            VALUES (@id, @tenant_id, @schedule_id, @kind, @target_name, 0, @payload, @total_items,
+                    0, 0, 0, @scheduled_for, @created_at);
+            """;
+
+        // Kimlikler C# tarafinda uretilir (gen_random_uuid() sunucu surumune
+        // gore degisken bir bagimliliktir); iki dizi UNNEST ile sira numarasi
+        // (1 tabanli ord) uzerinden eslenir.
+        InsertJobItems = $"""
+            INSERT INTO {Schema}.job_items (id, job_id, seq, input, status)
+            SELECT t.id, @job_id, (t.ord - 1)::int, t.input, 0
+            FROM UNNEST(@ids, @inputs) WITH ORDINALITY AS t(id, input, ord);
+            """;
+
+        const string jobColumns = """
+            id, tenant_id, schedule_id, kind, target_name, status, payload, total_items, done_items,
+            failed_items, attempt, lease_owner, lease_until, scheduled_for, started_at, completed_at,
+            error_message, created_at
+            """;
+
+        // FOR UPDATE SKIP LOCKED: birden fazla isci ayni veritabanina baglansa
+        // bile bir is yalnizca bir isci tarafindan alinir. Suresi dolmus bir
+        // kira (status IN (1, 2) AND lease_until < @now) da yeniden alinabilir.
+        LeaseJob = $"""
+            UPDATE {Schema}.jobs
+               SET status = 1, lease_owner = @owner, lease_until = @lease_until, attempt = attempt + 1,
+                   started_at = COALESCE(started_at, @now)
+             WHERE id = (
+                   SELECT id FROM {Schema}.jobs
+                    WHERE (status = 0 AND scheduled_for <= @now)
+                       OR (status IN (1, 2) AND lease_until < @now)
+                    ORDER BY scheduled_for
+                    FOR UPDATE SKIP LOCKED
+                    LIMIT 1)
+            RETURNING {jobColumns};
+            """;
+
+        RenewJobLease = $"""
+            UPDATE {Schema}.jobs SET lease_until = @lease_until WHERE id = @id AND lease_owner = @owner;
+            """;
+
+        MarkJobRunning = $"""
+            UPDATE {Schema}.jobs SET status = 2 WHERE id = @id AND lease_owner = @owner AND status = 1;
+            """;
+
+        CompleteJob = $"""
+            UPDATE {Schema}.jobs
+               SET status = @status, completed_at = @completed_at, error_message = @error_message,
+                   lease_owner = NULL, lease_until = NULL
+             WHERE id = @id;
+            """;
+
+        ReleaseJobForRetry = $"""
+            UPDATE {Schema}.jobs
+               SET status = 0, lease_owner = NULL, lease_until = NULL, error_message = @error_message
+             WHERE id = @id;
+            """;
+
+        CancelJob = $"""
+            UPDATE {Schema}.jobs
+               SET status = 5, completed_at = @completed_at, lease_owner = NULL, lease_until = NULL
+             WHERE id = @id AND tenant_id = @tenant_id AND status IN (0, 1, 2);
+            """;
+
+        SelectJob = $"""
+            SELECT {jobColumns}
+            FROM {Schema}.jobs
+            WHERE id = @id AND tenant_id = @tenant_id;
+            """;
+
+        SelectJobs = $"""
+            SELECT {jobColumns}
+            FROM {Schema}.jobs
+            WHERE (@tenant_id   IS NULL OR tenant_id   = @tenant_id)
+              AND (@kind        IS NULL OR kind        = @kind)
+              AND (@status      IS NULL OR status      = @status)
+              AND (@schedule_id IS NULL OR schedule_id = @schedule_id)
+            ORDER BY created_at DESC
+            OFFSET @skip LIMIT @take;
+            """;
+
+        SelectJobItems = $"""
+            SELECT id, job_id, seq, input, run_id, status, error
+            FROM {Schema}.job_items
+            WHERE job_id = @job_id
+            ORDER BY seq;
+            """;
+
+        // Idempotent raporlama: `updated` CTE'si yalnizca oge hala Pending (0)
+        // ise bir satir dondurur; kira suresi dolup ayni oge iki kez
+        // raporlanirsa ikinci cagri sayaclari BIR KEZ DAHA artirmaz.
+        ReportJobItem = $"""
+            WITH updated AS (
+                UPDATE {Schema}.job_items
+                   SET status = @status, run_id = @run_id, error = @error
+                 WHERE job_id = @job_id AND seq = @seq AND status = 0
+                RETURNING status
+            )
+            UPDATE {Schema}.jobs
+               SET done_items   = done_items   + (SELECT COUNT(*) FROM updated WHERE status = 1),
+                   failed_items = failed_items + (SELECT COUNT(*) FROM updated WHERE status = 2)
+             WHERE id = @job_id;
+            """;
     }
 
     /// <summary>Bir tool cagrisi kaydi ekler.</summary>
@@ -846,6 +1010,60 @@ internal sealed class SqlQueries
 
     /// <summary>Denetim izi kayitlarini filtreleyerek okur.</summary>
     public string SelectAuditLog { get; }
+
+    /// <summary>Bir zamanlamayi ekler veya gunceller.</summary>
+    public string UpsertJobSchedule { get; }
+
+    /// <summary>Tek bir zamanlamayi getirir.</summary>
+    public string SelectJobSchedule { get; }
+
+    /// <summary>Bir kiracinin zamanlamalarini listeler.</summary>
+    public string SelectJobSchedules { get; }
+
+    /// <summary>Sirasi gelmis tum kiracilarin zamanlamalarini listeler.</summary>
+    public string SelectDueJobSchedules { get; }
+
+    /// <summary>Bir zamanlamayi siler.</summary>
+    public string DeleteJobSchedule { get; }
+
+    /// <summary>Bir zamanlamanin bir sonraki calisma zamanini atomik olarak ilerletmeye calisir.</summary>
+    public string TryClaimJobScheduleNextRun { get; }
+
+    /// <summary>Yeni bir is ekler.</summary>
+    public string InsertJob { get; }
+
+    /// <summary>Bir isin ogelerini toplu ekler.</summary>
+    public string InsertJobItems { get; }
+
+    /// <summary><c>FOR UPDATE SKIP LOCKED</c> ile calismaya hazir en eski isi kiralar.</summary>
+    public string LeaseJob { get; }
+
+    /// <summary>Devam eden bir isin kirasini uzatir.</summary>
+    public string RenewJobLease { get; }
+
+    /// <summary>Kiralanmis bir isi yurutuluyor durumuna gecirir.</summary>
+    public string MarkJobRunning { get; }
+
+    /// <summary>Bir isi sonlandirir.</summary>
+    public string CompleteJob { get; }
+
+    /// <summary>Bir isi yeniden deneme icin beklemeye alir.</summary>
+    public string ReleaseJobForRetry { get; }
+
+    /// <summary>Bir isi iptal etmeye calisir.</summary>
+    public string CancelJob { get; }
+
+    /// <summary>Tek bir is kaydini getirir.</summary>
+    public string SelectJob { get; }
+
+    /// <summary>Isleri filtreleyerek listeler.</summary>
+    public string SelectJobs { get; }
+
+    /// <summary>Bir isin ogelerini listeler.</summary>
+    public string SelectJobItems { get; }
+
+    /// <summary>Bir is ogesinin sonucunu bildirir ve is sayaclarini gunceller.</summary>
+    public string ReportJobItem { get; }
 
     /// <summary>Dogrulanmis sema adi.</summary>
     public string Schema { get; }
