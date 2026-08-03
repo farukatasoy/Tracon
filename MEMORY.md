@@ -51,8 +51,17 @@ Bunlar alana bağlı değildir; her fazda tekrar tekrar bedel ödettiler.
   görünürken `dotnet format` 276 `IDE0055` hatası verdi (Faz 11 bu yüzden eksik
   kapandı). Kaynak üreteci build'in analyzer geçişinde tanıyı gizleyebilir.
 - **Birim testi yetmez — örnek uygulamayı gerçekten çalıştır.** Faz 6, 12, 15, 16,
-  18 ve 20'de gerçek hatalar **yalnız** orada ortaya çıktı; hepsi testlerden
-  geçmişti.
+  18, 20 ve 21'de gerçek hatalar **yalnız** orada ortaya çıktı; hepsi testlerden
+  geçmişti. Faz 21'de 1231 test yeşilken iki hata çıktı: `JobRecord.Payload`
+  atanmadığı için `/api/jobs` tüm listeyi 500 ile döndürüyordu (K-166) ve
+  `AllowInsecureHttp` loopback adresini açmadığı için yerel webhook teslimi
+  imkânsızdı (K-167).
+- **🚨 Struct alanını atamamak `default` bırakır ve seri hâle getirme çöker.**
+  `JsonElement` atanmazsa `ValueKind = Undefined` olur ve
+  `JsonElementConverter` istisna fırlatır — etki tek kayıtla sınırlı kalmaz,
+  o kaydı içeren **liste ucunun tamamı** çöker. Yeni bir kayıt üreten her kod
+  yolunda zorunlu olmayan alanları da doldurun. Ayrıntı:
+  `docs/hafiza/cekirdek-calistirma.md`.
 - **Bash'te `cd` kalıcıdır.** Bir komutta dizin değiştirdiysen sonraki komut orada
   başlar. Doğrulama komutlarında **mutlak yol** kullan.
 - **`dotnet test` MTP'dir, VSTest değil.** `--filter-query` bir MSBuild anahtarı

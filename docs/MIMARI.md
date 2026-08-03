@@ -17,32 +17,33 @@
 
 | Paket | Rolü | Durum |
 |-------|------|-------|
-| `AgentPrism.Abstractions` | Sözleşmeler: kayıt, depo, katalog, iş, eval, deney tipleri. Bağımlılığı yok. | ✅ |
-| `AgentPrism.Core` | Çalıştırma yolu: derleyici, dekoratörler, kayıt, denetim, skill, workflow doğrulama, fiyat. | ✅ |
-| `AgentPrism.PostgreSql` | Kalıcılık: ham Npgsql + gömülü SQL + migration runner (0001–0011). | ✅ |
+| `AgentPrism.Abstractions` | Sözleşmeler: kayıt, depo, katalog, iş, eval, deney, kota, webhook tipleri. Bağımlılığı yok. | ✅ |
+| `AgentPrism.Core` | Çalıştırma yolu: derleyici, dekoratörler, kayıt, denetim, skill, workflow doğrulama, fiyat, kota, olay yayını. | ✅ |
+| `AgentPrism.PostgreSql` | Kalıcılık: ham Npgsql + gömülü SQL + migration runner (0001–0012). | ✅ |
 | `AgentPrism.OpenAI` | OpenAI ve OpenAI uyumlu her sağlayıcı + sağlık denetimi. | ✅ |
 | `AgentPrism.Mcp` | Uzak MCP sunucularından tool keşfi. | ✅ |
 | `AgentPrism.Workflows` | MAF Workflows yürütmesi, kontrol noktası, human-in-the-loop. | ✅ |
-| `AgentPrism.AspNetCore` | `MapAgentPrism()` — yönetim API'si, OpenAI uyumlu uçlar, roller. | ✅ |
+| `AgentPrism.AspNetCore` | `MapAgentPrism()` — yönetim API'si, OpenAI uyumlu uçlar, roller, hız sınırı. | ✅ |
 | `AgentPrism.UI` | Gömülü React arayüzü (`UseUI()`). | ✅ |
 | `AgentPrism` (meta) | Hepsini toplayan meta paket. | ✅ |
 
 Hangi fazın hangi pakete ne eklediği: [`arsiv/PAKET-FAZ-GECMISI.md`](arsiv/PAKET-FAZ-GECMISI.md).
 
-Testler: **1070 .NET testi + 80 frontend birim testi geçiyor** — 471 birim testi
-(325 Core + 77 OpenAI + 69 Workflows) + 218 fonksiyonel test (TestHost, gerçek HTTP)
-+ 354 entegrasyon testi (Testcontainers, gerçek PostgreSQL) + 27 arayüz E2E testi
+Testler: **1231 .NET testi + 80 frontend birim testi geçiyor** — 556 birim testi
+(410 Core + 77 OpenAI + 69 Workflows) + 241 fonksiyonel test (TestHost, gerçek HTTP)
++ 416 entegrasyon testi (Testcontainers, gerçek PostgreSQL) + 29 arayüz E2E testi
 (Playwright, gerçek Kestrel) + 80 Vitest testi (saf mantık; `npm run build` içinde
 koşar, dolayısıyla `dotnet build` de koşar). Build, test, pack ve format kapıları
-sıfır uyarı; `dotnet pack` **9 paket** üretir (Faz 20 yeni paket eklemedi). Arayüz
-JavaScript bütçesi Faz 20 sonunda **116,2 KB / 250 KB gzip** (Faz 19 sonu 113,2 KB,
-+3,0 KB).
+sıfır uyarı; `dotnet pack` **9 paket** üretir (Faz 21 yeni paket eklemedi — hız
+sınırı ASP.NET Core paylaşılan çerçevesinden gelir, K-158). Arayüz JavaScript
+bütçesi Faz 21 sonunda **118,8 KB / 250 KB gzip** (Faz 20 sonu 116,2 KB, +2,6 KB).
 
 Bugün AgentPrism **işletilebilir bir kontrol düzlemidir**: agent'lar kodda veya
 arayüzden tanımlanır, her çalıştırma span ağacı + metrik + maliyetiyle kaydedilir,
 geri alınamaz tool'lar onay bekler, workflow'lar insanla konuşabilir, işler
-zamanlanabilir, sürümler A/B karşılaştırılabilir. Veritabanı **zorunlu değildir**;
-yapılandırılmazsa depolama bellek içine düşer.
+zamanlanabilir, sürümler A/B karşılaştırılabilir, kullanım kota ve hız sınırıyla
+sınırlanabilir, olaylar imzalı webhook'larla dış sistemlere yayılabilir.
+Veritabanı **zorunlu değildir**; yapılandırılmazsa depolama bellek içine düşer.
 
 Faz faz nasıl buraya gelindiği: [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md).
 Her fazın ayrıntısı kendi dokümanındadır (`docs/NN-*.md`).
@@ -213,134 +214,22 @@ erDiagram
     runs ||--o| traces : "run_id"
     traces ||--o{ spans : "trace_id"
 
-    tenants {
-        uuid id PK
-        text slug UK
-    }
-    agent_definitions {
-        uuid id PK
-        text name "UK (tenant_id, name)"
-        integer version
-        jsonb definition "GIN index"
-    }
-    agent_definition_versions {
-        uuid id PK
-        integer version "UK (agent_id, version)"
-        jsonb definition "değişmez geçmiş"
-    }
-    sessions {
-        text id PK
-        text agent_name
-        json state "OPAK · jsonb DEĞİL (K-027)"
-        integer schema_version
-    }
-    conversations {
-        uuid id PK
-        text agent_name
-        jsonb metadata
-    }
-    conversation_items {
-        uuid id PK
-        bigint seq "UK (conversation_id, seq)"
-        json item "POLİMORFİK · jsonb DEĞİL (K-027)"
-    }
-    responses {
-        uuid id PK
-        jsonb payload "BOŞ · Faz 4 sessions kullanır"
-    }
-    runs {
-        uuid id PK
-        text agent_name
-        text session_id
-        smallint status
-        bigint total_tokens
-        uuid parent_run_id "FK YOK · kokte NULL (K-095)"
-        uuid root_run_id "denormalize · kokte NULL (K-094)"
-        smallint depth "kok = 0"
-    }
-    run_events {
-        uuid run_id PK
-        bigint seq PK
-        smallint type
-        text payload "text · geçerli JSON olmayabilir"
-    }
-    tool_invocations {
-        uuid id PK
-        text tool_name
-        text source "MCP sunucu adı · kodda tanımlıysa NULL"
-        text arguments "text · geçerli JSON olmayabilir"
-        integer duration_ms "yalnız akışlı çalıştırmada"
-    }
-    traces {
-        uuid id PK
-        text trace_id "W3C · UK (tenant_id, trace_id)"
-    }
-    spans {
-        uuid id PK "SHA-256(trace_id:span_id) ilk 16 bayt"
-        text span_id "W3C · kendi APM'inizde arayın"
-        text name
-        smallint kind
-        jsonb attributes
-    }
-    tool_approval_rules {
-        uuid id PK
-        text tool_name
-        text agent_name "NULL = tüm agent'lar"
-        text arguments_hash "NULL = tüm argümanlar"
-    }
-    mcp_servers {
-        uuid id PK
-        text name "UK (tenant_id, name)"
-        text endpoint "yalnız http/https"
-        text authorization_configuration_key "ANAHTAR ADI · SIR DEĞİL"
-        boolean requires_approval "varsayılan true"
-    }
-    audit_log {
-        uuid id PK
-        text action "Faz 9'dan beri dolu"
-        jsonb before "sir suzgecinden gecmis"
-        jsonb after "sir suzgecinden gecmis"
-    }
-    attachments {
-        uuid id PK
-        text session_id "FK YOK (K-112) · run oncesi yuklenebilir"
-        bytea content "IAttachmentStorage kayitliysa NULL"
-        text external_uri "content NULL ise dolu"
-        text media_type "sihirli bayttan (Content-Type degil)"
-        text sha256
-    }
-    agent_files {
-        uuid id PK
-        text agent_name "UK (tenant_id, agent_name, path)"
-        text path
-        text content "metin · AgentFileStore.ReadAsync String doner"
-    }
 ```
 
-**Faz 6'da dolan tablolar:** `tool_invocations`, `traces`, `spans`. Faz 6'da eklenen
-tablolar: `tool_approval_rules`, `mcp_servers`. **Faz 9'da dolan tablo:** `audit_log`
-— şema Faz 0'da kurulmuştu, yazan kod Faz 9'da geldi; migration gerekmedi. **Faz 14'te
-eklenen tablolar (migration 0006):** `attachments`, `agent_files`. **Faz 15'te
-eklenenler (migration 0007):** `workflows`, `workflow_checkpoints`; ayrıca `runs`
-tablosuna `kind` (`smallint`, 0=Agent 1=Workflow 2=Eval) ve `workflow_name` sütunları.
-**Faz 17'de eklenenler (migration 0008):** `job_schedules` (zamanlama tanımı),
-`jobs` (kuyruk, `FOR UPDATE SKIP LOCKED`), `job_items` (toplu iş ögesi). **Faz 18'de
-eklenenler (migration 0009):** `eval_suites`, `eval_cases`, `eval_runs`,
-`eval_case_results` — dördü de `IEvalStore` üzerinden erişilir; koşular Faz 17'nin
-`jobs` kuyruğunu (`kind=Eval`) kullanır, ayrı bir kuyruk açmaz. **Faz 19'da
-eklenenler (migration 0010):** `experiments` (`variants jsonb`, tek sütun — ayrı
-tablo yok); `runs` tablosuna `agent_version` (`integer`), `experiment_id` (`uuid`),
-`variant` (`text`) sütunları. Ayni agent için tek `Running` deney kuralı
-`experiments_running_agent_uq` kısmi benzersiz indeksiyle veritabanında zorlanır.
+> Diyagram **ilişkileri** gösterir; sütun ayrıntısı için şemanın kaynağına bakın:
+> `src/AgentPrism.PostgreSql/Migrations/*.sql`. Kesikli çizgiler (`..`) **yabancı
+> anahtar olmayan** mantıksal bağı gösterir — `tenant_id` sütunlarına FK konmadı,
+> gerekçe karar defterinde.
+
+Hangi migration'ın hangi tabloyu eklediği (0001–0012) birikimli bir anlatıdır ve
+sıcak yolda tutulmaz: [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md) → "Migration
+geçmişi". Bugünkü tablo listesi aşağıdadır; şemanın kaynağı her zaman
+`src/AgentPrism.PostgreSql/Migrations/*.sql` dosyalarıdır.
 
 **Span kimliği türetilir, üretilmez.** `spans.id = SHA-256(trace_id + ":" + span_id)`
 ilk 16 baytıdır. Sebep: bir span, ebeveyninden **önce** tamamlanabilir; türetilmiş
 kimlikte üst span'in kimliği haritasız hesaplanır. Ek fayda: aynı span iki kez
 yazılırsa aynı satır güncellenir, tekrar kaydı oluşmaz.
-
-> Kesikli çizgiler (`..`) **yabancı anahtar olmayan** mantıksal bağı gösterir.
-> `tenant_id` sütunlarına FK konmadı — gerekçe karar defterinde.
-
 
 | Tablo | İçerik |
 |-------|--------|
@@ -371,6 +260,10 @@ yazılırsa aynı satır güncellenir, tekrar kaydı oluşmaz.
 | `eval_runs` | Bir takımın tek koşusu: agent sürümü, model, geçme/kalma sayısı (Faz 18) |
 | `eval_case_results` | Vaka bazında sonuç; `case_id` **yabancı anahtar değil** (K-14, append-only ruh) (Faz 18) |
 | `experiments` | A/B deneyi: hedef agent, kollar (`variants jsonb`), durum, başlangıç/bitiş (Faz 19) |
+| `quotas` | Kota kuralı: kapsam (kiracı+agent+dönem), üç sınır (`max_runs`/`max_tokens`/`max_cost`) (Faz 21) |
+| `quota_usage` | Dönem sayacı; `agent_name = ''` kiracı geneli. `ON CONFLICT DO UPDATE` ile **atomik** artar (Faz 21) |
+| `webhook_subscriptions` | Olay aboneliği: adres, olay listesi, **sır değil** anahtar adı (K-059) (Faz 21) |
+| `webhook_deliveries` | Teslim **geçmişi** — kuyruk değil; zamanlama `jobs`'tadır (K-160) (Faz 21) |
 
 Kurallar:
 
@@ -380,6 +273,7 @@ Kurallar:
 - `run_events.payload` `text` — `RunEventWriter` argümanları AOT uyumlu kalmak için elle biçimlendirir, çıktı geçerli JSON olmayabilir
 - Birincil anahtarlar `uuid` v7 — zaman sıralı, index dostu; uygulama üretir (`AgentPrismId.NewId()`), `gen_random_uuid()` **kullanılmaz**
 - `RunStatus` ve `RunEventType` `smallint` olarak saklanır; enum değerleri kararlıdır
+- 🚨 **NULL sütun içeren benzersizlik `COALESCE` ile kurulur.** PostgreSQL'de NULL'lar birbirine eşit sayılmaz; `quotas` kapsam benzersizliği `(tenant_id, COALESCE(agent_name, ''), period)` ifadesi üzerinedir ve `ON CONFLICT` yan tümcesi **aynı ifadeyi** yazar
 - Her tabloda `tenant_id` (`text`); `tenants` tablosuna **yabancı anahtar yoktur** — kısıt Faz 6'da kiracı yönetimiyle gelir
 - Şema adı yapılandırılabilir (`AgentPrismPostgreSqlOptions.SchemaName`); `.sql` dosyalarındaki `{schema}` yer tutucusu katı doğrulamadan sonra değiştirilir (karar K-029)
 - `run_events` partition'a **aday** (`created_at`); açılırsa birincil anahtarın o sütunu da içermesi gerekir
@@ -760,6 +654,44 @@ script çalıştırması, hiçbir kaydı olmayan bir uzaktan kod çalıştırma 
 `PlatformIsolationAcknowledged` bayrağı bu tabloyu görmeden özellik açılmasını
 engeller: `Enabled = true` iken bayrak `false` ise **açılışta** hata verilir
 (K-086).
+
+### Faz 21'in eklediği sınırlar
+
+**🚨 SSRF — giden istek sınırı.** Webhook adresini *kullanıcı* verir ve sunucu o
+adrese istek atar. Bu, AgentPrism'in **dışarı** istek attığı ilk yerdir ve
+kontrolsüz bırakılırsa iç ağa erişim aracı olur — bulut metadata uçları
+(`169.254.169.254`) dâhil, ki bunlar çoğu zaman kimlik doğrulamasız geçici kimlik
+bilgisi dağıtır.
+
+| Koruma | Nasıl |
+|--------|-------|
+| Şema | Yalnız `https`. `http` yalnız `AllowInsecureHttp = true` **ve** loopback hedefi |
+| Adres | Özel aralıklar reddedilir: `0/8`, `10/8`, `127/8`, `169.254/16`, `172.16/12`, `192.168/16`, `100.64/10`, `::1`, `fc00::/7`, `fe80::/10`, multicast — ve IPv4'e eşlenmiş IPv6 karşılıkları |
+| DNS yeniden bağlama | 🚨 Denetim `SocketsHttpHandler.ConnectCallback` **içindedir**: doğrulanan adres, soketin bağlandığı adresin ta kendisidir. Önce doğrulayıp sonra `SendAsync(url)` çağırmak TOCTOU açığı bırakırdı (K-164) |
+| Yönlendirme | `AllowAutoRedirect = false` — yönlendirme, denetimden geçmiş bir adresten özel ağa kaçış yoludur |
+| Zaman aşımı | İstek başına `CancellationTokenSource` (varsayılan 10 sn); paylaşılan istemcide `Timeout` alanı değiştirilmez |
+| Yanıt | En çok 8 KB okunur; gerisi atılır |
+| Varsayılan | `AllowPrivateNetworkTargets = false` |
+
+Koruma `WebhookHttpClient`'ın **içine gömülüdür**; tüketici değiştiremez.
+`IHttpClientFactory` bilinçli olarak kullanılmadı (K-164). SSRF kararının tek
+doğruluk noktası `WebhookUrlValidator.IsAllowedTarget`'tır.
+
+**Webhook sırrı veritabanında durmaz.** `webhook_subscriptions` kaydı yalnızca
+imzalama sırrının okunacağı yapılandırma anahtarının **adını** taşır; değer
+çalışma anında `IConfiguration` üzerinden çözülür. Bu, MCP'de verilen K-059
+kararının birebir uygulanmasıdır — sözleşmede sır alanı **hiç yoktur**.
+
+**İmza yeniden oynatmaya kapalıdır.** `HMAC-SHA256(timestamp + "." + body, secret)`
+— zaman damgası imzaya dâhildir; olmasaydı yakalanan bir istek sonsuza kadar
+yeniden oynatılabilirdi (K-163). Alıcının bir tolerans penceresi denetlemesi
+gerekir; AgentPrism bunu zorlayamaz.
+
+**Kota ve hız sınırı ayrı mekanizmalardır** (K-158). Hız sınırı saniye/dakika
+ölçeğinde, bellekte; kota gün/ay ölçeğinde, veritabanında. İkisi de **varsayılan
+olarak hiçbir isteği reddetmez**: hız sınırı `Enabled = false`, kota ise kural
+tanımlanmadıkça boştur (K-165). Kota **yaklaşıktır** — denetim çalıştırma
+öncesinde, tüketim sonrasında yazılır (K-159).
 
 ---
 

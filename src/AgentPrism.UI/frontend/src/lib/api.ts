@@ -52,6 +52,14 @@ import type {
   ToolDescriptor,
   ToolInvocationRecord,
   ToolUsage,
+  QuotaDefinition,
+  QuotaSaveRequest,
+  QuotaUsageResponse,
+  WebhookDelivery,
+  WebhookDeliveryStatus,
+  WebhookSaveRequest,
+  WebhookSubscription,
+  WebhookTestResponse,
   WorkflowCheckpointRecord,
   WorkflowDefinition,
   WorkflowDescriptor,
@@ -415,6 +423,30 @@ export const api = {
     send<Experiment>('POST', `api/experiments/${encodeURIComponent(name)}/stop`, {}),
   experimentResults: (name: string) =>
     request<ExperimentResultsResponse>(`api/experiments/${encodeURIComponent(name)}/results`),
+
+  quotas: () => request<QuotaDefinition[]>('api/quotas'),
+  saveQuota: (body: QuotaSaveRequest) => send<QuotaDefinition>('PUT', 'api/quotas', body),
+  deleteQuota: (id: string) =>
+    request<void>(`api/quotas/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  quotaUsage: (params: { agentName?: string; period?: string } = {}) =>
+    request<QuotaUsageResponse>(`api/quotas/usage${query(params)}`),
+
+  webhooks: () => request<WebhookSubscription[]>('api/webhooks'),
+  webhook: (name: string) =>
+    request<WebhookSubscription>(`api/webhooks/${encodeURIComponent(name)}`),
+  saveWebhook: (name: string, body: WebhookSaveRequest) =>
+    send<WebhookSubscription>('PUT', `api/webhooks/${encodeURIComponent(name)}`, body),
+  deleteWebhook: (name: string) =>
+    request<void>(`api/webhooks/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+  testWebhook: (name: string) =>
+    send<WebhookTestResponse>('POST', `api/webhooks/${encodeURIComponent(name)}/test`, {}),
+  webhookDeliveries: (
+    name: string,
+    params: { status?: WebhookDeliveryStatus; skip?: number; take?: number } = {},
+  ) =>
+    request<WebhookDelivery[]>(
+      `api/webhooks/${encodeURIComponent(name)}/deliveries${query(params)}`,
+    ),
 
   audit: (
     params: {

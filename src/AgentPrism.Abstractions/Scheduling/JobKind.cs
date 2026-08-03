@@ -22,4 +22,10 @@ public enum JobKind
     /// uygulamasini bu deger icin ekler.
     /// </summary>
     Eval = 2,
+
+    /// <summary>
+    /// Tek bir webhook teslim denemesi (Faz 21). Yuk, teslim kaydinin
+    /// kimligini tasir; govde <c>webhook_deliveries</c> tablosundan okunur.
+    /// </summary>
+    WebhookDelivery = 3,
 }

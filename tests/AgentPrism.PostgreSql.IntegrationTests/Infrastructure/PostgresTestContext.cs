@@ -44,6 +44,8 @@ public sealed class PostgresTestContext : IAsyncDisposable
         JobSchedules = new PostgresJobScheduleStore(dataSource, wrapped);
         Evals = new PostgresEvalStore(dataSource, wrapped);
         Experiments = new PostgresExperimentStore(dataSource, wrapped, TenantContext);
+        Quotas = new PostgresQuotaStore(dataSource, wrapped);
+        Webhooks = new PostgresWebhookStore(dataSource, wrapped);
         Migrations = new MigrationRunner(dataSource, wrapped, NullLogger<MigrationRunner>.Instance);
     }
 
@@ -109,6 +111,12 @@ public sealed class PostgresTestContext : IAsyncDisposable
 
     /// <summary>A/B deneyi deposu (Faz 19).</summary>
     public PostgresExperimentStore Experiments { get; }
+
+    /// <summary>Kota deposu (Faz 21).</summary>
+    public PostgresQuotaStore Quotas { get; }
+
+    /// <summary>Webhook deposu (Faz 21).</summary>
+    public PostgresWebhookStore Webhooks { get; }
 
     /// <summary>Migration calistiricisi.</summary>
     public MigrationRunner Migrations { get; }

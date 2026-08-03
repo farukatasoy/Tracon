@@ -40,10 +40,14 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
         // 0009_eval 4 tablo daha (eval_suites, eval_cases, eval_runs, eval_case_results).
         // 0010_experiments 1 tablo daha (experiments); runs tablosuna agent_version,
         // experiment_id, variant sutunlarini ekler.
+        // 0011_run_costs YENI TABLO EKLEMEZ; runs tablosuna maliyet sutunlari ekler.
+        // 0012_quotas_and_webhooks 4 tablo daha (quotas, quota_usage,
+        // webhook_subscriptions, webhook_deliveries) ve jobs tablosuna
+        // max_attempts sutununu ekler.
         //
         // Sayi BILEREK sabittir: yeni bir tablo eklendiginde bu test kirilir ve
         // ekleyen kisi tabloyu fark etmis olur.
-        tableCount.ShouldBe(32);
+        tableCount.ShouldBe(36);
     }
 
     [Fact]

@@ -74,6 +74,27 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<AgentPrismSchedulingOptions>, AgentPrismSchedulingOptionsValidator>());
 
+        // Kota ve olay yayini (Faz 21). Zamanlama ile ayni gerekce: kendi
+        // SectionName'ini tasir ve ayri bir Use...() cagrisi gerektirmez.
+        services.AddOptions<AgentPrismQuotaOptions>().ValidateOnStart();
+        services.AddOptions<AgentPrismWebhookOptions>().ValidateOnStart();
+        services.AddOptions<AgentPrismRateLimitOptions>().ValidateOnStart();
+
+        if (configurationSection is not null)
+        {
+            services.Configure<AgentPrismQuotaOptions>(
+                options => BindQuotas(configurationSection.GetSection("Quotas"), options));
+            services.Configure<AgentPrismWebhookOptions>(
+                options => BindWebhooks(configurationSection.GetSection("Webhooks"), options));
+            services.Configure<AgentPrismRateLimitOptions>(
+                options => BindRateLimit(configurationSection.GetSection("RateLimit"), options));
+        }
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<AgentPrismQuotaOptions>, AgentPrismQuotaOptionsValidator>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<AgentPrismWebhookOptions>, AgentPrismWebhookOptionsValidator>());
+
         services.AddLogging();
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<AgentPrismOptions>, AgentPrismOptionsValidator>());
@@ -254,6 +275,41 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddSingleton<EvalCheckRegistry>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, EvalJobHandler>());
 
+        // Kota ve olay yayini (Faz 21). Depolar her zaman kayitlidir; kural
+        // tanimlanmadikca hicbir sey reddedilmez, abone yoksa hicbir olay
+        // yayilmaz. Bu yuzden ayri bir Use...() cagrisi gerekmez.
+        services.TryAddSingleton<IQuotaStore, InMemoryQuotaStore>();
+        services.TryAddSingleton<IWebhookStore, InMemoryWebhookStore>();
+
+        // 🚨 SSRF korumasi bu istemcinin icine gomulüdur; tuketici degistiremez
+        // (K-164). Acik fabrika: TimeProvider kayitli olmayabilir.
+        services.TryAddSingleton(static provider => new WebhookHttpClient(
+            provider.GetRequiredService<IOptionsMonitor<AgentPrismWebhookOptions>>()));
+
+        services.TryAddSingleton<IWebhookPublisher>(static provider => new WebhookPublisher(
+            provider.GetRequiredService<IWebhookStore>(),
+            provider.GetRequiredService<IJobStore>(),
+            provider.GetRequiredService<IOptionsMonitor<AgentPrismWebhookOptions>>(),
+            provider.GetService<TimeProvider>(),
+            provider.GetService<Microsoft.Extensions.Logging.ILogger<WebhookPublisher>>()));
+
+        services.TryAddSingleton(static provider => new QuotaEnforcer(
+            provider.GetRequiredService<IQuotaStore>(),
+            provider.GetRequiredService<IOptionsMonitor<AgentPrismQuotaOptions>>(),
+            provider.GetService<IWebhookPublisher>(),
+            provider.GetService<TimeProvider>(),
+            provider.GetService<Microsoft.Extensions.Logging.ILogger<QuotaEnforcer>>()));
+
+        // Teslim isleyicisi Faz 17'nin AYNI kuyrugunu kullanir (K-160).
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, WebhookDeliveryJobHandler>(
+            static provider => new WebhookDeliveryJobHandler(
+                provider.GetRequiredService<IWebhookStore>(),
+                provider.GetRequiredService<WebhookHttpClient>(),
+                provider.GetRequiredService<IOptionsMonitor<AgentPrismWebhookOptions>>(),
+                provider.GetService<IConfiguration>(),
+                provider.GetService<TimeProvider>(),
+                provider.GetService<Microsoft.Extensions.Logging.ILogger<WebhookDeliveryJobHandler>>())));
+
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, JobWorkerBackgroundService>());
 
@@ -320,7 +376,12 @@ public static class AgentPrismServiceCollectionExtensions
                 provider.GetRequiredService<AgentPrismMetrics>(),
                 provider.GetRequiredService<RunTraceCollector>(),
                 provider.GetService<TimeProvider>(),
-                provider.GetRequiredService<IRunPricingResolver>())));
+                provider.GetRequiredService<IRunPricingResolver>(),
+                // 🚨 Bu iki satir olmadan kurucu parametreleri null kalir ve kota
+                // sayaci hic artmaz, hicbir run.* olayi yayilmaz — derleme ve
+                // testler yesil gorunurdu (K-157'nin dersi).
+                provider.GetRequiredService<QuotaEnforcer>(),
+                provider.GetRequiredService<IWebhookPublisher>())));
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, OpenTelemetryAgentDecorator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, ToolApprovalAgentDecorator>());
@@ -819,6 +880,178 @@ public static class AgentPrismServiceCollectionExtensions
                 out var maxItemsPerJob))
         {
             options.MaxItemsPerJob = maxItemsPerJob;
+        }
+    }
+
+    /// <summary><c>AgentPrism:Quotas</c> bolumunu baglar.</summary>
+    private static void BindQuotas(IConfigurationSection section, AgentPrismQuotaOptions options)
+    {
+        // Her alt bolum KENDI varliğindan sorumludur: erken donus sonraki
+        // bolumleri sessizce yutar (bkz. docs/hafiza/cekirdek-calistirma.md).
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismQuotaOptions.Enabled), out var enabled))
+        {
+            options.Enabled = enabled;
+        }
+
+        if (section[nameof(AgentPrismQuotaOptions.TimeZone)] is { Length: > 0 } timeZone)
+        {
+            options.TimeZone = timeZone;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismQuotaOptions.AllowOnStoreFailure), out var allowOnFailure))
+        {
+            options.AllowOnStoreFailure = allowOnFailure;
+        }
+
+        var thresholds = section.GetSection(nameof(AgentPrismQuotaOptions.ThresholdPercents));
+
+        if (thresholds.Exists())
+        {
+            var parsed = thresholds.GetChildren()
+                .Select(child => int.TryParse(child.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var percent) ? percent : -1)
+                .Where(percent => percent > 0)
+                .ToList();
+
+            if (parsed.Count > 0)
+            {
+                options.ThresholdPercents.Clear();
+
+                foreach (var percent in parsed)
+                {
+                    options.ThresholdPercents.Add(percent);
+                }
+            }
+        }
+    }
+
+    /// <summary><c>AgentPrism:RateLimit</c> bolumunu baglar.</summary>
+    private static void BindRateLimit(IConfigurationSection section, AgentPrismRateLimitOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismRateLimitOptions.Enabled), out var enabled))
+        {
+            options.Enabled = enabled;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismRateLimitOptions.PermitLimit)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var permitLimit))
+        {
+            options.PermitLimit = permitLimit;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(AgentPrismRateLimitOptions.Window)],
+                CultureInfo.InvariantCulture,
+                out var window))
+        {
+            options.Window = window;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismRateLimitOptions.QueueLimit)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var queueLimit))
+        {
+            options.QueueLimit = queueLimit;
+        }
+
+        if (Enum.TryParse<RateLimitPartitionKind>(
+                section[nameof(AgentPrismRateLimitOptions.Partition)],
+                ignoreCase: true,
+                out var partition))
+        {
+            options.Partition = partition;
+        }
+    }
+
+    /// <summary><c>AgentPrism:Webhooks</c> bolumunu baglar.</summary>
+    private static void BindWebhooks(IConfigurationSection section, AgentPrismWebhookOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismWebhookOptions.Enabled), out var enabled))
+        {
+            options.Enabled = enabled;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismWebhookOptions.AllowPrivateNetworkTargets), out var allowPrivate))
+        {
+            options.AllowPrivateNetworkTargets = allowPrivate;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismWebhookOptions.AllowInsecureHttp), out var allowHttp))
+        {
+            options.AllowInsecureHttp = allowHttp;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(AgentPrismWebhookOptions.Timeout)],
+                CultureInfo.InvariantCulture,
+                out var timeout))
+        {
+            options.Timeout = timeout;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(AgentPrismWebhookOptions.SignatureTolerance)],
+                CultureInfo.InvariantCulture,
+                out var tolerance))
+        {
+            options.SignatureTolerance = tolerance;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismWebhookOptions.MaxResponseBytes)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxResponseBytes))
+        {
+            options.MaxResponseBytes = maxResponseBytes;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismWebhookOptions.DisableAfterConsecutiveFailures)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var disableAfter))
+        {
+            options.DisableAfterConsecutiveFailures = disableAfter;
+        }
+
+        var delays = section.GetSection(nameof(AgentPrismWebhookOptions.RetryDelays));
+
+        if (delays.Exists())
+        {
+            var parsed = delays.GetChildren()
+                .Select(child => TimeSpan.TryParse(child.Value, CultureInfo.InvariantCulture, out var delay) ? delay : TimeSpan.Zero)
+                .Where(delay => delay > TimeSpan.Zero)
+                .ToList();
+
+            if (parsed.Count > 0)
+            {
+                options.RetryDelays.Clear();
+
+                foreach (var delay in parsed)
+                {
+                    options.RetryDelays.Add(delay);
+                }
+            }
         }
     }
 

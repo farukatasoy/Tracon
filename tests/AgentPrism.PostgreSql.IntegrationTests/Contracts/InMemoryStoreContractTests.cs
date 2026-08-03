@@ -124,3 +124,19 @@ public sealed class InMemoryExperimentStoreContractTests : ExperimentStoreContra
     protected override ValueTask<IExperimentStore> CreateStoreAsync()
         => ValueTask.FromResult<IExperimentStore>(new InMemoryExperimentStore());
 }
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryQuotaStoreContractTests : QuotaStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<IQuotaStore> CreateStoreAsync()
+        => ValueTask.FromResult<IQuotaStore>(new InMemoryQuotaStore());
+}
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryWebhookStoreContractTests : WebhookStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<IWebhookStore> CreateStoreAsync()
+        => ValueTask.FromResult<IWebhookStore>(new InMemoryWebhookStore());
+}

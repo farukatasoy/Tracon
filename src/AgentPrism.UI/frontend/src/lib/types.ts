@@ -801,7 +801,7 @@ export interface WorkflowCheckpointRecord {
 /* ------------------------------------------------------------ scheduling */
 
 /** What a job runs. */
-export type JobKind = 'AgentBatch' | 'Workflow' | 'Eval';
+export type JobKind = 'AgentBatch' | 'Workflow' | 'Eval' | 'WebhookDelivery';
 
 /** A queued job's lifecycle. */
 export type JobStatus = 'Pending' | 'Leased' | 'Running' | 'Completed' | 'Failed' | 'Cancelled';
@@ -1029,4 +1029,117 @@ export interface ExperimentVariantResult {
 export interface ExperimentResultsResponse {
   experiment: Experiment;
   results: ExperimentVariantResult[];
+}
+
+/** How often a quota counter resets. */
+export type QuotaPeriod = 'Daily' | 'Monthly';
+
+/** Which measure a quota is exceeded by. */
+export type QuotaMetric = 'Runs' | 'Tokens' | 'Cost';
+
+/**
+ * A quota rule.
+ *
+ * `agentName` absent means the rule covers every run of the tenant. All three
+ * limits may be null; only the ones that are set are enforced.
+ */
+export interface QuotaDefinition {
+  id: string;
+  tenantId: string;
+  agentName?: string | null;
+  period: QuotaPeriod;
+  maxRuns?: number | null;
+  maxTokens?: number | null;
+  maxCost?: number | null;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * A scope's consumption in the current period.
+ *
+ * An empty `agentName` is the tenant-wide counter. Counts are approximate: the
+ * check runs before a run starts, the consumption is written after it ends.
+ */
+export interface QuotaUsageRecord {
+  tenantId: string;
+  agentName: string;
+  period: QuotaPeriod;
+  periodStart: string;
+  runs: number;
+  tokens: number;
+  cost: number;
+  updatedAt: string;
+}
+
+export interface QuotaUsageResponse {
+  tenantId: string;
+  timeZone: string;
+  usage: QuotaUsageRecord[];
+  definitions: QuotaDefinition[];
+  dailyResetsAt: string;
+  monthlyResetsAt: string;
+}
+
+export interface QuotaSaveRequest {
+  agentName?: string | null;
+  period: QuotaPeriod;
+  maxRuns?: number | null;
+  maxTokens?: number | null;
+  maxCost?: number | null;
+  enabled: boolean;
+}
+
+/** A webhook delivery attempt's state. */
+export type WebhookDeliveryStatus = 'Pending' | 'Delivered' | 'Failed' | 'Dropped';
+
+/**
+ * A webhook subscription.
+ *
+ * There is no secret field: the record only carries the NAME of the
+ * configuration key the signing secret is read from. The value never leaves
+ * `IConfiguration`.
+ */
+export interface WebhookSubscription {
+  id: string;
+  tenantId: string;
+  name: string;
+  url: string;
+  events: string[];
+  secretConfigurationKey?: string | null;
+  headers: Record<string, string>;
+  enabled: boolean;
+  consecutiveFailures: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** One delivery record. History only — scheduling lives in the job queue. */
+export interface WebhookDelivery {
+  id: string;
+  subscriptionId: string;
+  tenantId: string;
+  eventType: string;
+  payload: string;
+  status: WebhookDeliveryStatus;
+  attempt: number;
+  responseCode?: number | null;
+  error?: string | null;
+  createdAt: string;
+  deliveredAt?: string | null;
+}
+
+export interface WebhookSaveRequest {
+  url: string;
+  events: string[];
+  secretConfigurationKey?: string | null;
+  headers?: Record<string, string>;
+  enabled: boolean;
+}
+
+export interface WebhookTestResponse {
+  name: string;
+  queued: boolean;
+  message: string;
 }

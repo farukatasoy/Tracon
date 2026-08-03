@@ -195,18 +195,29 @@ public sealed class InMemoryJobStore : IJobStore
     }
 
     /// <inheritdoc />
-    public ValueTask ReleaseForRetryAsync(Guid jobId, string errorMessage, CancellationToken cancellationToken = default)
+    public ValueTask ReleaseForRetryAsync(
+        Guid jobId,
+        string errorMessage,
+        TimeSpan? retryAfter = null,
+        CancellationToken cancellationToken = default)
     {
         lock (_jobs)
         {
             if (_jobs.TryGetValue(jobId, out var job))
             {
+                // Geri adimli bekleme ScheduledFor uzerinden kurulur; kiralama
+                // zaten bu alani suzer. Ayri bir "sonraki deneme" alani yoktur.
+                var scheduledFor = retryAfter is { } delay && delay > TimeSpan.Zero
+                    ? _clock.GetUtcNow() + delay
+                    : job.ScheduledFor;
+
                 _jobs[jobId] = job with
                 {
                     Status = JobStatus.Pending,
                     LeaseOwner = null,
                     LeaseUntil = null,
                     ErrorMessage = errorMessage,
+                    ScheduledFor = scheduledFor,
                 };
             }
         }

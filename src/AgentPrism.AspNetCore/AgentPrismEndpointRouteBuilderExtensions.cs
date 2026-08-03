@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
@@ -86,6 +87,16 @@ public static class AgentPrismEndpointRouteBuilderExtensions
         var group = endpoints.MapGroup(normalizedPrefix).WithTags("AgentPrism");
         group.AddEndpointFilter(new AgentPrismEndpointFilter(options));
 
+        // Hiz siniri (Faz 21). Filtre her zaman eklenir ama VARSAYILAN KAPALIDIR:
+        // ayar acilmadikca hicbir istek reddedilmez ve mevcut kurulumlar
+        // yukseltmeden sonra beklenmedik 429 gormez (K-165). Filtre yalnizca
+        // AgentPrism'in kendi uc grubuna uygulanir; tuketicinin AddRateLimiter()
+        // ile kurdugu genel sinirla yarismaz.
+        if (services.GetService<IOptionsMonitor<AgentPrismRateLimitOptions>>() is { } rateLimitOptions)
+        {
+            group.AddEndpointFilter(new AgentPrismRateLimitFilter(rateLimitOptions));
+        }
+
         if (options.AuthorizationPolicy is { Length: > 0 } policy)
         {
             group.RequireAuthorization(policy);
@@ -102,6 +113,8 @@ public static class AgentPrismEndpointRouteBuilderExtensions
         EvalEndpoints.Map(group, roles);
         ExperimentEndpoints.Map(group, roles);
         CatalogEndpoints.Map(group, roles);
+        QuotaEndpoints.Map(group, roles);
+        WebhookEndpoints.Map(group, roles);
         ModelHealthEndpoints.Map(group, roles);
         ObservabilityEndpoints.Map(group, roles);
         GovernanceEndpoints.Map(group, roles);

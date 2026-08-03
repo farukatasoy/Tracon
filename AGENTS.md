@@ -91,9 +91,9 @@ Bir dosya bütçeyi aşarsa **içerik silinmez** — alan dosyasına veya `docs/
 
 ### Faz durumu
 
-**Sıradaki faz: 21** — [`docs/21-KOTA-VE-OLAY-YAYINI.md`](docs/21-KOTA-VE-OLAY-YAYINI.md).
+**Sıradaki faz: 22** — [`docs/22-MCP-DERINLESMESI.md`](docs/22-MCP-DERINLESMESI.md).
 
-Faz 0–20 tamamlandı; **Faz 7 beklemede** (yayın zamanı kullanıcı kararı, K-068).
+Faz 0–21 tamamlandı; **Faz 7 beklemede** (yayın zamanı kullanıcı kararı, K-068).
 Tam liste ve durum tablosu tek yerdedir: [`README.md`](README.md) yol haritası.
 Faz 21–30 sırası, bağımlılıkları ve migration numaraları:
 [`docs/IKINCI-FAZ-YOL-HARITASI.md`](docs/IKINCI-FAZ-YOL-HARITASI.md).

@@ -82,9 +82,29 @@ public interface IJobStore
     /// </summary>
     /// <param name="jobId">Is kimligi.</param>
     /// <param name="errorMessage">Son deneme hatasi.</param>
+    /// <param name="retryAfter">
+    /// Bir sonraki denemeden once beklenecek sure. <see langword="null"/> veya
+    /// sifir ise is hemen yeniden kiralanabilir (eski davranis).
+    /// </param>
     /// <param name="cancellationToken">Iptal belirteci.</param>
     /// <returns>Tamamlanma gorevi.</returns>
-    ValueTask ReleaseForRetryAsync(Guid jobId, string errorMessage, CancellationToken cancellationToken = default);
+    /// <remarks>
+    /// <para>
+    /// <paramref name="retryAfter"/> <see cref="JobRecord.ScheduledFor"/> alanini
+    /// ileri tasir; kiralama sorgusu zaten <c>scheduled_for &lt;= now</c> kosulunu
+    /// uyguladigi icin geri adimli bekleme ek bir mekanizma gerektirmez.
+    /// </para>
+    /// <para>
+    /// Webhook teslimi (Faz 21) bu parametreyle 1 dk / 5 dk / 30 dk / 2 sa / 6 sa
+    /// merdivenini kurar. Ikinci bir kuyruk veya ikinci bir kiralama yazilmaz
+    /// (K-160).
+    /// </para>
+    /// </remarks>
+    ValueTask ReleaseForRetryAsync(
+        Guid jobId,
+        string errorMessage,
+        TimeSpan? retryAfter = null,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Bir isi iptal etmeye calisir. Yalnizca <see cref="JobStatus.Pending"/>,

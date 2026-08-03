@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
@@ -71,7 +72,7 @@ internal static class AgentEndpoints
             .WithName("AgentPrismGetAgentVersionDiff")
             .WithSummary("Iki tanim surumunu ham JSON olarak dondurur; diff hesabi arayuzde yapilir.");
 
-        builder.MapPost("/api/agents/{name}/run", (
+        builder.MapPost("/api/agents/{name}/run", async (
                 string name,
                 AgentRunRequest request,
                 IAgentCatalog catalog,
@@ -79,12 +80,38 @@ internal static class AgentEndpoints
                 IAttachmentStore attachmentStore,
                 ITenantContext tenantContext,
                 ExperimentAssignmentResolver experimentAssignment,
+                [FromServices] QuotaEnforcer? quotaEnforcer,
                 HttpContext httpContext,
-                CancellationToken cancellationToken)
-                => RunAsync(name, request, catalog, sessions, attachmentStore, tenantContext, experimentAssignment, prefix, httpContext, cancellationToken))
+                CancellationToken cancellationToken) =>
+            {
+                // 🚨 Kota denetimi calistirma BASLAMADAN once yapilir. Devam eden
+                // bir calistirma kota asilinca kesilmez (K-162); yalnizca yeni
+                // calistirma 429 alir.
+                if (await QuotaGate
+                        .CheckAsync(quotaEnforcer, tenantContext, name, httpContext, cancellationToken)
+                        .ConfigureAwait(false) is { } quotaProblem)
+                {
+                    return quotaProblem;
+                }
+
+                return await RunAsync(
+                    name,
+                    request,
+                    catalog,
+                    sessions,
+                    attachmentStore,
+                    tenantContext,
+                    experimentAssignment,
+                    prefix,
+                    httpContext,
+                    cancellationToken).ConfigureAwait(false);
+            })
             .RequireRole(roles.Operator)
             .WithName("AgentPrismRunAgent")
-            .WithSummary("Bir agent'i deneme amaciyla calistirir ve yaniti SSE ile akitir.");
+            .WithSummary("Bir agent'i deneme amaciyla calistirir ve yaniti SSE ile akitir.")
+            .WithDescription(
+                "Kota asilmissa calistirma baslamaz ve 429 doner; ProblemDetails hangi kotanin " +
+                "asildigini ve sayacin ne zaman sifirlanacagini tasir.");
     }
 
     private static async Task<Results<Ok<AgentVersionDiffResponse>, ProblemHttpResult>> GetVersionDiffAsync(

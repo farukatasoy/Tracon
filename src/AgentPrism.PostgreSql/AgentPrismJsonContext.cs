@@ -27,4 +27,5 @@ namespace AgentPrism;
 [JsonSerializable(typeof(ChatMessage))]
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
 [JsonSerializable(typeof(IReadOnlyList<ExperimentVariant>))]
+[JsonSerializable(typeof(Dictionary<string, string>))]
 internal sealed partial class AgentPrismJsonContext : JsonSerializerContext;

@@ -45,7 +45,7 @@ grep -n 'jsonb\|migration' docs/KARARLAR.md  # konu araması
 | L37 | Arayüzden tool istatistiği ve model sağlık kontrolü Faz 5'te gösterilmedi 👤 | 2026-08-02 |
 | L38 | Arayüz i18n altyapısı kurulmadı; dil İngilizce 👤🔁 | 2026-08-02 |
 
-## 2. Kalıcı Kararlar (157 kalem)
+## 2. Kalıcı Kararlar (167 kalem)
 
 | K | Satır | Karar | Tarih |
 |---|---|---|---|
@@ -206,3 +206,13 @@ grep -n 'jsonb\|migration' docs/KARARLAR.md  # konu araması
 | K-155 | L200 | `AgentPrism:Pricing` `AgentPrismOptions`'ta (Core), bir saglayici paketinde değil  | 2026-08-03 |
 | K-156 | L201 | Dashboard'un devre kesici uyarısı mevcut `/api/models/health` `Unhealthy` durumunu kullanır; yeni uç eklenmedi  | 2026-08-03 |
 | K-157 | L202 | `RunEventWriter.CompleteAsync`'e eklenen `cost` parametresi ilk yazımda `RunCompletion`'a bağlanmamıştı — canlı sınamada yakalandı  | 2026-08-03 |
+| K-158 | L203 | Hız sınırı ve kota AYRI mekanizmalardır; biri bellekte, biri veritabanında  | 2026-08-03 |
+| K-159 | L204 | Kota yaklaşıktır; eşzamanlılıkta küçük aşım kabul edilir  | 2026-08-03 |
+| K-160 | L205 | Webhook teslimi Faz 17'nin kuyruğunu kullanır; `IJobStore` geri adımlı beklemeyle genişletildi 👤 | 2026-08-03 |
+| K-161 | L206 | Webhook yükü yalnızca ÖZET taşır; mesaj içeriği hiçbir zaman girmez 👤 | 2026-08-03 |
+| K-162 | L207 | Kota aşımında devam eden çalıştırma KESİLMEZ; yalnızca yeni çalıştırma reddedilir 👤 | 2026-08-03 |
+| K-163 | L208 | Webhook imzası zaman damgasını İÇERİR  | 2026-08-03 |
+| K-164 | L209 | SSRF koruması `WebhookHttpClient`'ın İÇİNE gömülüdür; `IHttpClientFactory` kullanılmaz  | 2026-08-03 |
+| K-165 | L210 | Hız sınırının varsayılanı KAPALIDIR 👤 | 2026-08-03 |
+| K-166 | L211 | `JobRecord.Payload` atanmazsa `/api/jobs` TÜM listeyi 500 ile döndürür  | 2026-08-03 |
+| K-167 | L212 | `AllowInsecureHttp` loopback ADRESİNİ de açar, yalnız şemayı değil  | 2026-08-03 |

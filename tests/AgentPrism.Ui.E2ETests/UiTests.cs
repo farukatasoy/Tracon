@@ -805,6 +805,55 @@ public sealed class UiTests(BrowserFixture browsers)
         await session.Page.GetByText("stopped", new() { Exact = true }).WaitForAsync(new() { Timeout = 10_000 });
     }
 
+    [Fact]
+    public async Task Kota_eklenir_ve_kullanim_cubugu_gorunur()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/settings");
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Settings" }).WaitForAsync();
+
+        await session.Page.GetByRole(AriaRole.Button, new() { Name = "Add quota" }).ClickAsync();
+        await session.Page.GetByTestId("quota-max-runs").FillAsync("100");
+        await session.Page.GetByTestId("quota-save").ClickAsync();
+
+        // Kural kaydedilince satir ve kullanim cubugu belirir.
+        await session.Page.GetByTestId("quota-row").First.WaitForAsync(new() { Timeout = 15_000 });
+        await session.Page.GetByTestId("quota-bar").First.WaitForAsync(new() { Timeout = 15_000 });
+
+        await session.Page.GetByText("0 / 100", new() { Exact = false }).First.WaitForAsync();
+    }
+
+    [Fact]
+    public async Task Webhook_eklenir_ve_sinama_gonderilir()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/settings");
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Settings" }).WaitForAsync();
+
+        await session.Page.GetByRole(AriaRole.Button, new() { Name = "Add webhook" }).ClickAsync();
+        await session.Page.GetByTestId("webhook-name").FillAsync("siparis-servisi");
+        await session.Page.GetByTestId("webhook-url").FillAsync("https://example.com/hooks/agentprism");
+
+        // 🚨 Buraya bir SIR degil, sirrin okunacagi anahtarin ADI yazilir.
+        await session.Page.GetByTestId("webhook-secret-key")
+            .FillAsync("AgentPrism:Webhooks:Secrets:siparis-servisi");
+
+        await session.Page.GetByTestId("webhook-save").ClickAsync();
+
+        await session.Page.GetByTestId("webhook-row").First.WaitForAsync(new() { Timeout = 15_000 });
+
+        // Ekranda anahtarin adi gorunur; degeri hicbir zaman gorunmez.
+        await session.Page.GetByText("AgentPrism:Webhooks:Secrets:siparis-servisi", new() { Exact = false })
+            .First.WaitForAsync();
+
+        await session.Page.GetByTestId("webhook-test").First.ClickAsync();
+        await session.Page.GetByTestId("webhook-test-result").WaitForAsync(new() { Timeout = 15_000 });
+    }
+
     /// <summary>
     /// Arayuzden bir veritabani agent'i olusturur, sonra talimatlarini degistirip
     /// ikinci bir surum uretir. Diff ve deney testlerinin ortak on kosulu.

@@ -140,6 +140,20 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         // kuyrugu depolariyla ayni gerekce, kendi durum makinesini tasir.
         services.Replace(ServiceDescriptor.Singleton<IEvalStore, PostgresEvalStore>());
 
+        // Kota ve webhook depolari (Faz 21).
+        //
+        // 🚨 Cok ornekli bir dagitimda kota icin bu depo ZORUNLUDUR: bellek ici
+        // sayac her surecte ayridir ve kota, ornek sayisina bolunur.
+        //
+        // Ikisi de denetim izi dekoratoruyle SARILMAZ. Gerekce ayridir:
+        // kota kurallari ve abonelikler yonetici kararidir (sarilmayi hak
+        // eder), ama tuketim sayaci ve teslim gecmisi yurutmenin yan urunudur
+        // ve her calistirmada yazilir — denetim izini gurultuye bogardi. Ikisi
+        // ayni sozlesmede yasadigi icin sarmalamak "ya hep ya hic"tir; yonetici
+        // eylemleri HTTP katmaninda ayrica denetim izine yazilir.
+        services.Replace(ServiceDescriptor.Singleton<IQuotaStore, PostgresQuotaStore>());
+        services.Replace(ServiceDescriptor.Singleton<IWebhookStore, PostgresWebhookStore>());
+
         // A/B deneyleri (Faz 19). IAgentDefinitionStore ile ayni gerekceyle
         // denetim izi dekoratoruyle sarilir: Admin'in bilincli bir karari,
         // yurutmenin yan urunu degil.
