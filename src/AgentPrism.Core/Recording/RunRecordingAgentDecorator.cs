@@ -21,6 +21,8 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
     private readonly RunTraceCollector? _traceCollector;
     private readonly TimeProvider? _timeProvider;
     private readonly IRunPricingResolver? _pricingResolver;
+    private readonly QuotaEnforcer? _quotaEnforcer;
+    private readonly IWebhookPublisher? _webhookPublisher;
 
     /// <summary>Yeni bir kayit dekoratoru olusturur.</summary>
     /// <param name="runStore">Olaylarin yazilacagi depo.</param>
@@ -31,6 +33,8 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
     /// <param name="traceCollector">Span toplayici.</param>
     /// <param name="timeProvider">Zaman kaynagi.</param>
     /// <param name="pricingResolver">Maliyet cozumleyici. <see langword="null"/> ise maliyet hesaplanmaz.</param>
+    /// <param name="quotaEnforcer">Kota muhasebecisi. <see langword="null"/> ise tuketim sayilmaz.</param>
+    /// <param name="webhookPublisher">Olay yayincisi. <see langword="null"/> ise olay yayilmaz.</param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
     public RunRecordingAgentDecorator(
         IRunStore runStore,
@@ -40,7 +44,9 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
         AgentPrismMetrics? metrics = null,
         RunTraceCollector? traceCollector = null,
         TimeProvider? timeProvider = null,
-        IRunPricingResolver? pricingResolver = null)
+        IRunPricingResolver? pricingResolver = null,
+        QuotaEnforcer? quotaEnforcer = null,
+        IWebhookPublisher? webhookPublisher = null)
     {
         ArgumentNullException.ThrowIfNull(runStore);
         ArgumentNullException.ThrowIfNull(tenantContext);
@@ -55,6 +61,8 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
         _traceCollector = traceCollector;
         _timeProvider = timeProvider;
         _pricingResolver = pricingResolver;
+        _quotaEnforcer = quotaEnforcer;
+        _webhookPublisher = webhookPublisher;
     }
 
     /// <inheritdoc />
@@ -83,6 +91,8 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
             _options.Value.AgentGraph,
             descriptor?.Version,
             _options.Value.Observability.IncludeAgentVersionTag,
-            _pricingResolver);
+            _pricingResolver,
+            _quotaEnforcer,
+            _webhookPublisher);
     }
 }

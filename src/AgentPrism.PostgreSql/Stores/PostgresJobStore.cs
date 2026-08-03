@@ -64,6 +64,9 @@ public sealed class PostgresJobStore : IJobStore
                 insertJob.Parameters.AddWithValue("total_items", items.Count);
                 insertJob.Parameters.AddWithValue("scheduled_for", job.ScheduledFor.UtcDateTime);
                 insertJob.Parameters.AddWithValue("created_at", job.CreatedAt.UtcDateTime);
+                insertJob.Parameters.AddWithValue(
+                    "max_attempts",
+                    job.MaxAttempts is { } maxAttempts ? (short)maxAttempts : DBNull.Value);
                 await NpgsqlHelpers.ExecuteAsync(insertJob, cancellationToken).ConfigureAwait(false);
 
                 if (items.Count > 0)
@@ -175,11 +178,23 @@ public sealed class PostgresJobStore : IJobStore
     public async ValueTask ReleaseForRetryAsync(
         Guid jobId,
         string errorMessage,
+        TimeSpan? retryAfter = null,
         CancellationToken cancellationToken = default)
     {
         var command = CreateCommand(_sql.ReleaseJobForRetry);
         command.Parameters.AddWithValue("id", jobId);
         AddNullableText(command, "error_message", errorMessage);
+
+        // Geri adimli bekleme scheduled_for uzerinden kurulur; LeaseJob zaten
+        // `scheduled_for <= @now` suzer. GREATEST(...) ile beklemeyi asla one
+        // cekmeyiz: erken calisan bir tur isi geriye alamaz.
+        var retryAt = retryAfter is { } delay && delay > TimeSpan.Zero
+            ? DateTimeOffset.UtcNow + delay
+            : (DateTimeOffset?)null;
+
+        command.Parameters.AddWithValue(
+            "retry_at",
+            retryAt is { } value ? value.UtcDateTime : DBNull.Value);
 
         await NpgsqlHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
     }
@@ -291,6 +306,7 @@ public sealed class PostgresJobStore : IJobStore
             CompletedAt = NpgsqlHelpers.GetNullableTimestamp(reader, 15),
             ErrorMessage = NpgsqlHelpers.GetNullableString(reader, 16),
             CreatedAt = NpgsqlHelpers.GetTimestamp(reader, 17),
+            MaxAttempts = reader.IsDBNull(18) ? null : reader.GetInt16(18),
         };
 
     private static JobItemRecord ReadJobItem(NpgsqlDataReader reader)

@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Projesine ekleyen geliştirici kendi AI harness'ini kolay ama esnek şekilde kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 20 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; geri alınamaz tool'lar kullanıcı onayı bekler; tool'lar uzak MCP sunucularından gelebilir; workflow'lar insanla konuşabilir; işler zamanlanabilir; agent sürümleri A/B karşılaştırılabilir. `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu çalıştırma uçlarını ve gömülü yönetim arayüzünü tek prefix altına bağlar. Veritabanı **zorunlu değildir**; yapılandırılmazsa depolama bellek içine düşer. Sıradaki faz: 21 (kota ve olay yayını).
+> **Durum:** Faz 21 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; geri alınamaz tool'lar kullanıcı onayı bekler; tool'lar uzak MCP sunucularından gelebilir; workflow'lar insanla konuşabilir; işler zamanlanabilir; agent sürümleri A/B karşılaştırılabilir; kullanım kotayla sınırlanabilir ve olaylar imzalı webhook'larla dış sistemlere yayılabilir. `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu çalıştırma uçlarını ve gömülü yönetim arayüzünü tek prefix altına bağlar. Veritabanı **zorunlu değildir**; yapılandırılmazsa depolama bellek içine düşer. Sıradaki faz: 22 (MCP derinleşmesi).
 
 ```csharp
 builder.AddAgentPrism()
@@ -250,7 +250,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [18](docs/18-DEGERLENDIRME.md) | Değerlendirme (eval): takım/vaka/koşu, Faz 17'nin iş kuyruğu üzerinde, Evals ekranı | ✅ Tamamlandı |
 | [19](docs/19-SURUM-KARSILASTIRMA-VE-AB.md) | Sürüm karşılaştırma (diff) ve A/B deneyleri: oturum bazlı deterministik trafik bölme, Experiments ekranı | ✅ Tamamlandı |
 | [20](docs/20-MALIYET-VE-GOSTERGE-PANELI.md) | Maliyet raporlaması ve gösterge paneli: fiyat kataloğu/yapılandırması, Dashboard giriş ekranı | ✅ Tamamlandı |
-| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | 📋 Planlandı — sıradaki Faz 21 |
+| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | Faz 21 ✅ tamamlandı — sıradaki Faz 22 |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 > Faz 6, planındaki Workflows kalemini **yapmadı**; ertelendi ve gerekçesi
