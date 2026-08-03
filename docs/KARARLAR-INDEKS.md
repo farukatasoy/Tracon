@@ -45,7 +45,7 @@ grep -n 'jsonb\|migration' docs/KARARLAR.md  # konu araması
 | L37 | Arayüzden tool istatistiği ve model sağlık kontrolü Faz 5'te gösterilmedi 👤 | 2026-08-02 |
 | L38 | Arayüz i18n altyapısı kurulmadı; dil İngilizce 👤🔁 | 2026-08-02 |
 
-## 2. Kalıcı Kararlar (167 kalem)
+## 2. Kalıcı Kararlar (175 kalem)
 
 | K | Satır | Karar | Tarih |
 |---|---|---|---|
@@ -216,3 +216,11 @@ grep -n 'jsonb\|migration' docs/KARARLAR.md  # konu araması
 | K-165 | L210 | Hız sınırının varsayılanı KAPALIDIR 👤 | 2026-08-03 |
 | K-166 | L211 | `JobRecord.Payload` atanmazsa `/api/jobs` TÜM listeyi 500 ile döndürür  | 2026-08-03 |
 | K-167 | L212 | `AllowInsecureHttp` loopback ADRESİNİ de açar, yalnız şemayı değil  | 2026-08-03 |
+| K-168 | L213 | MCP OAuth yalnız Mod 1 (Authorization Code); Mod 0 SDK'da yok  | 2026-08-04 |
+| K-169 | L214 | MCP OAuth geri dönüş adresi (`OAuthCallbackBaseUri`) sabit bir ayardır, istekten türetilmez  | 2026-08-04 |
+| K-170 | L215 | MCP OAuth token'ları `(kiracı, sunucu)` başına tek bellek içi önbellekte, iki tüketici arasında paylaşılır  | 2026-08-04 |
+| K-171 | L216 | Arka plandaki (etkileşimsiz) OAuth denemesi hemen başarısız olur, beklemez  | 2026-08-04 |
+| K-172 | L217 | `[JsonPropertyName]` iki büyük harfle başlayan alan adlarında AÇIKÇA verilir  | 2026-08-04 |
+| K-173 | L218 | Prompt "aktarma" bu fazda panoya kopyalama olarak kaldı, agent editör entegrasyonu ertelendi  | 2026-08-04 |
+| K-174 | L219 | Mod A kaynak okuması `AgentDefinitionCompiler`'a `IMcpResourceContextProviderFactory` soyutlamasıyla bağlanır  | 2026-08-04 |
+| K-175 | L220 | MCP kaynak toplu okuma önbelleği `ConcurrentDictionary`'e geçirildi  | 2026-08-04 |

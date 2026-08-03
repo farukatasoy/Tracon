@@ -375,6 +375,44 @@ public sealed class AgentDefinitionCompilerTests
         options!.AIContextProviders!.Count().ShouldBe(3);
     }
 
+    [Fact]
+    public void Mcp_kaynaklari_istenip_fabrika_kayitli_degilse_derlemeyi_durdurur()
+    {
+        var compiler = CreateCompiler();
+
+        var definition = TestData.Definition(mcpResourceUris: ["github:https://example.com/readme"]) with
+        {
+            TenantId = "default",
+        };
+
+        var exception = Should.Throw<AgentPrismCompilationException>(() => compiler.Compile(definition));
+
+        exception.AgentName.ShouldBe("test-agent");
+        exception.Message.ShouldContain("UseMcp");
+    }
+
+    [Fact]
+    public void Mcp_kaynaklari_fabrika_kayitliyken_baglama_ekleniyor()
+    {
+        var factory = new FakeMcpResourceContextProviderFactory();
+        var compiler = new AgentDefinitionCompiler(
+            TestData.Providers(new FakeModelProvider()),
+            TestData.Registry(),
+            mcpResources: factory);
+
+        var definition = TestData.Definition(mcpResourceUris: ["github:https://example.com/readme"]) with
+        {
+            TenantId = "acme",
+        };
+
+        var agent = compiler.Compile(definition);
+        var options = agent.GetService<ChatClientAgentOptions>();
+
+        options!.AIContextProviders!.Count().ShouldBe(1);
+        factory.LastResourceReferences.ShouldBe(["github:https://example.com/readme"]);
+        factory.LastTenantId.ShouldBe("acme");
+    }
+
     private static AgentDefinitionCompiler CreateCompiler()
         => new(TestData.Providers(new FakeModelProvider()), TestData.Registry());
 }

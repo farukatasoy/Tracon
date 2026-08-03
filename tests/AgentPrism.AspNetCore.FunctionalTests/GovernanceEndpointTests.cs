@@ -226,6 +226,119 @@ public sealed class GovernanceEndpointTests
     }
 
     [Fact]
+    public async Task Mcp_sunucusu_oauth_alanlariyla_yazilir_ve_listelenir()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        using var saved = await host.Client.PutAsJsonAsync(
+            new Uri("/agentprism/api/mcp-servers/github", UriKind.Relative),
+            new
+            {
+                endpoint = "https://mcp.example.com/mcp",
+                transport = "StreamableHttp",
+                enabled = true,
+                requiresApproval = true,
+                oauthEnabled = true,
+                oauthClientId = "agentprism-client",
+                oauthClientSecretConfigurationKey = "AgentPrism:Mcp:GithubClientSecret",
+                oauthScopes = "repo read:user",
+            });
+
+        saved.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var servers = await host.Client.GetFromJsonAsync<List<McpServerDefinition>>(
+            new Uri("/agentprism/api/mcp-servers", UriKind.Relative));
+
+        var server = servers.ShouldHaveSingleItem();
+
+        server.OAuthEnabled.ShouldBeTrue();
+        server.OAuthClientId.ShouldBe("agentprism-client");
+        server.OAuthClientSecretConfigurationKey.ShouldBe("AgentPrism:Mcp:GithubClientSecret");
+        server.OAuthScopes.ShouldBe("repo read:user");
+        server.OAuthAuthorizationMode.ShouldBe(McpOAuthAuthorizationMode.AuthorizationCode);
+    }
+
+    [Fact]
+    public async Task Oauth_istemci_kimligi_eksikse_reddedilir()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        using var response = await host.Client.PutAsJsonAsync(
+            new Uri("/agentprism/api/mcp-servers/github", UriKind.Relative),
+            new { endpoint = "https://mcp.example.com/mcp", enabled = true, oauthEnabled = true });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Oauth_ile_statik_yetkilendirme_baslikcakisirsa_reddedilir()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        using var response = await host.Client.PutAsJsonAsync(
+            new Uri("/agentprism/api/mcp-servers/github", UriKind.Relative),
+            new
+            {
+                endpoint = "https://mcp.example.com/mcp",
+                enabled = true,
+                oauthEnabled = true,
+                oauthClientId = "agentprism-client",
+                authorizationConfigurationKey = "AgentPrism:Mcp:GithubToken",
+            });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Mcp_kayitli_degilse_prompt_ve_kaynak_uclari_501_doner()
+    {
+        // Prompts/Resources/OAuth (Faz 22) da AgentPrism.Mcp'ye bagimlidir;
+        // kayitli degilse ayni acik "uygulanmadi" davranisini sergilemeli.
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        using var prompts = await host.Client.GetAsync(
+            new Uri("/agentprism/api/mcp-servers/github/prompts", UriKind.Relative));
+
+        prompts.StatusCode.ShouldBe(HttpStatusCode.NotImplemented);
+
+        using var resources = await host.Client.GetAsync(
+            new Uri("/agentprism/api/mcp-servers/github/resources", UriKind.Relative));
+
+        resources.StatusCode.ShouldBe(HttpStatusCode.NotImplemented);
+
+        using var read = await host.Client.GetAsync(
+            new Uri("/agentprism/api/mcp-servers/github/resources/read?uri=file:///a", UriKind.Relative));
+
+        read.StatusCode.ShouldBe(HttpStatusCode.NotImplemented);
+
+        using var oauthStart = await host.Client.PostAsync(
+            new Uri("/agentprism/api/mcp-servers/github/oauth/start", UriKind.Relative),
+            content: null);
+
+        oauthStart.StatusCode.ShouldBe(HttpStatusCode.NotImplemented);
+    }
+
+    [Fact]
+    public async Task Mcp_oauth_callback_bearer_token_olmadan_erisilir()
+    {
+        // Callback ucu erisim katmanlarinin disindadir: saglayicinin yonlendirdigi
+        // tarayici bizim bearer token'imizi tasiyamaz. Bu istekte hicbir
+        // Authorization basligi YOKTUR ve uc yine de 200 doner (basarisiz bir
+        // HTML sayfasiyla, cunku bu test host'unda AgentPrism.Mcp kayitli degil).
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        using var response = await host.Client.GetAsync(
+            new Uri("/agentprism/api/mcp-servers/github/oauth/callback?code=abc&state=bilinmeyen", UriKind.Relative));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("text/html");
+
+        var body = await response.Content.ReadAsStringAsync();
+
+        body.ShouldContain("basarisiz");
+    }
+
+    [Fact]
     public async Task Onay_kurallari_listelenir_ve_geri_alinir()
     {
         await using var host = await AgentPrismTestHost.StartAsync();

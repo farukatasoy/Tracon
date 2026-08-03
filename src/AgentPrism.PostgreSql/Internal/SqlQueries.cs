@@ -688,17 +688,23 @@ internal sealed class SqlQueries
 
         // --- MCP sunuculari (Faz 6) ---
 
+        // 🚨 Yeni sutunlar HER ZAMAN sona eklenir: PostgresMcpServerStore.ReadServer
+        // sabit sira numarasiyla okur (Faz 21 dersi, docs/hafiza/postgresql.md).
+        const string mcpServerColumns = """
+            id, tenant_id, name, description, endpoint, transport,
+            authorization_configuration_key, headers, enabled, requires_approval, created_at, updated_at,
+            oauth_enabled, oauth_client_id, oauth_client_secret_configuration_key, oauth_scopes, oauth_authorization_mode
+            """;
+
         SelectMcpServers = $"""
-            SELECT id, tenant_id, name, description, endpoint, transport,
-                   authorization_configuration_key, headers, enabled, requires_approval, created_at, updated_at
+            SELECT {mcpServerColumns}
             FROM {Schema}.mcp_servers
             WHERE tenant_id = @tenant_id
             ORDER BY name;
             """;
 
         SelectMcpServer = $"""
-            SELECT id, tenant_id, name, description, endpoint, transport,
-                   authorization_configuration_key, headers, enabled, requires_approval, created_at, updated_at
+            SELECT {mcpServerColumns}
             FROM {Schema}.mcp_servers
             WHERE tenant_id = @tenant_id AND name = @name;
             """;
@@ -706,21 +712,27 @@ internal sealed class SqlQueries
         UpsertMcpServer = $"""
             INSERT INTO {Schema}.mcp_servers
                 (id, tenant_id, name, description, endpoint, transport,
-                 authorization_configuration_key, headers, enabled, requires_approval, created_at, updated_at)
+                 authorization_configuration_key, headers, enabled, requires_approval, created_at, updated_at,
+                 oauth_enabled, oauth_client_id, oauth_client_secret_configuration_key, oauth_scopes, oauth_authorization_mode)
             VALUES
                 (@id, @tenant_id, @name, @description, @endpoint, @transport,
-                 @authorization_configuration_key, @headers, @enabled, @requires_approval, @now, @now)
+                 @authorization_configuration_key, @headers, @enabled, @requires_approval, @now, @now,
+                 @oauth_enabled, @oauth_client_id, @oauth_client_secret_configuration_key, @oauth_scopes, @oauth_authorization_mode)
             ON CONFLICT (tenant_id, name) DO UPDATE
-                SET description                     = EXCLUDED.description,
-                    endpoint                        = EXCLUDED.endpoint,
-                    transport                       = EXCLUDED.transport,
-                    authorization_configuration_key = EXCLUDED.authorization_configuration_key,
-                    headers                         = EXCLUDED.headers,
-                    enabled                         = EXCLUDED.enabled,
-                    requires_approval               = EXCLUDED.requires_approval,
-                    updated_at                      = EXCLUDED.updated_at
-            RETURNING id, tenant_id, name, description, endpoint, transport,
-                      authorization_configuration_key, headers, enabled, requires_approval, created_at, updated_at;
+                SET description                          = EXCLUDED.description,
+                    endpoint                             = EXCLUDED.endpoint,
+                    transport                             = EXCLUDED.transport,
+                    authorization_configuration_key       = EXCLUDED.authorization_configuration_key,
+                    headers                                = EXCLUDED.headers,
+                    enabled                                = EXCLUDED.enabled,
+                    requires_approval                      = EXCLUDED.requires_approval,
+                    updated_at                              = EXCLUDED.updated_at,
+                    oauth_enabled                           = EXCLUDED.oauth_enabled,
+                    oauth_client_id                         = EXCLUDED.oauth_client_id,
+                    oauth_client_secret_configuration_key   = EXCLUDED.oauth_client_secret_configuration_key,
+                    oauth_scopes                            = EXCLUDED.oauth_scopes,
+                    oauth_authorization_mode                = EXCLUDED.oauth_authorization_mode
+            RETURNING {mcpServerColumns};
             """;
 
         DeleteMcpServer = $"DELETE FROM {Schema}.mcp_servers WHERE tenant_id = @tenant_id AND name = @name;";

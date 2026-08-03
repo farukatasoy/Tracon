@@ -332,6 +332,8 @@ Microsoft.Agents.AI.Workflows.Declarative               → ALINMADI (K-129: +19
 | `ChatHistoryMemoryProvider` **`VectorStore` istiyor**, basit bellek değil (Faz 13) | Kapsam dışı bırakıldı (K-105); vektör deposu kararı verilince ayrı bir faz |
 | `CompactionProvider` **tokenizer parametresi almaz**, MAF içeride kendi çözer (Faz 13) | `Microsoft.ML.Tokenizers.Data.*` gibi bir veri paketi gerekmedi; gerçek çalıştırmayla doğrulandı |
 | `CompactionStrategy.CompactAsync` **public ve sanal değil**, `CompactCoreAsync` korumalı (Faz 13) | Bir sarmalayıcı iç stratejiyi ancak `CompactAsync` ile çağırabilir — C#'ta korumalı üyeye kardeş tip üzerinden erişilemez |
+| `AIContextProvider`'ın **kendi alt sınıfını yazmak mümkün** — üç filtre parametreli `protected ctor`'un hepsinde varsayılan değer var, `: base()` yeterli (Faz 22) | `McpResourceContextProvider` (Mod A) bu deseni kullanan **ilk** AgentPrism-yazımı `AIContextProvider`; önceki tüm kullanımlar MAF'ın kendi tipleriydi (`CompactionProvider`, `TodoProvider`, ...). Ezilecek metot `ProvideAIContextAsync(InvokingContext, CancellationToken = default)` — `= default` atlanırsa `MA0061` |
+| `ClientOAuthOptions.RedirectUri` (`ModelContextProtocol.Core`) **zorunlu**; SDK yalnız Authorization Code (+PKCE) destekler (Faz 22) | client_credentials gibi etkileşimsiz bir OAuth modu bu SDK sürümünde **yok** — planlanan "Mod 0" (K-168) bu yüzden terk edildi |
 
 ---
 

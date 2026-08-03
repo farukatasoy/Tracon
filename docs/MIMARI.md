@@ -693,6 +693,18 @@ olarak hiçbir isteği reddetmez**: hız sınırı `Enabled = false`, kota ise k
 tanımlanmadıkça boştur (K-165). Kota **yaklaşıktır** — denetim çalıştırma
 öncesinde, tüketim sonrasında yazılır (K-159).
 
+### Faz 22'nin eklediği sınırlar
+
+| Koruma | Nasıl |
+|--------|-------|
+| Prompt = anlık görüntü | Yönetici **panoya kopyalar**; agent canlı çekmez |
+| Kaynak = yalnız bildirilen URI | Kümesi dışı URI reddedilir — serbest URI SSRF aracı olurdu |
+| Kaynak boyutu (Mod A) | Kaynak başına 64 KB, toplam 256 KB; UTF-8 sınırına saygılı kırpma |
+| OAuth token | `(kiracı, sunucu)` başına bellek içi önbellek; DB'ye yazılmaz. SDK yalnız Authorization Code destekler (K-168) |
+| `/oauth/callback` | Arayüz kabuğuyla aynı grup: loopback+policy geçerli, yalnız bearer muaf. Güvenlik tek kullanımlık `state`'e dayanır |
+
+Ayrıntı: `docs/22-MCP-DERINLESMESI.md`.
+
 ---
 
 ## 8. Sürüm Politikası
