@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Projesine ekleyen geliştirici kendi AI harness'ini kolay ama esnek şekilde kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 6 tamamlandı — AgentPrism artık **işletilebilir**. Her çalıştırmanın span ağacı ve metriği var, geri alınamaz tool'lar kullanıcı onayı bekliyor, tool'lar uzak MCP sunucularından da gelebiliyor ve kiracı istekten çözülüyor. `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu çalıştırma uçlarını ve gömülü yönetim arayüzünü tek prefix altına bağlar. Veritabanı hâlâ **zorunlu değildir**; yapılandırılmazsa depolama bellek içine düşer.
+> **Durum:** Faz 20 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; geri alınamaz tool'lar kullanıcı onayı bekler; tool'lar uzak MCP sunucularından gelebilir; workflow'lar insanla konuşabilir; işler zamanlanabilir; agent sürümleri A/B karşılaştırılabilir. `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu çalıştırma uçlarını ve gömülü yönetim arayüzünü tek prefix altına bağlar. Veritabanı **zorunlu değildir**; yapılandırılmazsa depolama bellek içine düşer. Sıradaki faz: 21 (kota ve olay yayını).
 
 ```csharp
 builder.AddAgentPrism()
@@ -334,12 +334,17 @@ npm run dev          # http://localhost:5173 — /agentprism/* istekleri 5080'e 
 
 | Kaynak | İçerik |
 |--------|--------|
-| [docs/MIMARI.md](docs/MIMARI.md) | Mimari — katmanlar, veri modeli, MAF genişleme noktaları, güvenlik modeli |
+| [docs/MIMARI.md](docs/MIMARI.md) | Mimari — katmanlar, veri modeli, çalıştırma yolu, güvenlik modeli |
+| [docs/MAF-GENISLEME-NOKTALARI.md](docs/MAF-GENISLEME-NOKTALARI.md) | Kullandığımız ve bilerek kullanmadığımız MAF genişleme noktaları |
+| [docs/KARARLAR-INDEKS.md](docs/KARARLAR-INDEKS.md) | Karar defterinin tek satırlık indeksi (üretilen dosya) |
 | [docs/KARARLAR.md](docs/KARARLAR.md) | Karar defteri — reddedilen yaklaşımlar ve kalıcı tercihler, gerekçeleriyle |
-| [docs/](docs/) | Faz dokümanları (00–07) — kapsam, tasarım kararları, DoD |
-| [.agents/skills/](.agents/skills/) | Tekrarlanan iş akışları — faz tamamlama protokolü, MAF API keşfi |
-| [AGENTS.md](AGENTS.md) | Merkezi agent talimatları — proje kuralları, faz akışı, doğrulama kapıları (`CLAUDE.md` buna symlink) |
-| [MEMORY.md](MEMORY.md) | Agent'ların oturumlar arası biriktirdiği kurumsal bilgi notları |
+| [docs/](docs/) | Faz dokümanları (00–30) — kapsam, tasarım kararları, DoD |
+| [docs/hafiza/](docs/hafiza/) | Alan bazlı kurumsal bilgi — codepath'ler, desenler, tuzaklar |
+| [docs/arsiv/](docs/arsiv/) | Faz anlatısı ve paket×faz birikimi (tarihsel kayıt) |
+| [.agents/skills/](.agents/skills/) | Tekrarlanan iş akışları — faz başlangıç/tamamlama protokolü, MAF API keşfi |
+| [AGENTS.md](AGENTS.md) | Merkezi agent talimatları — okuma protokolü, proje kuralları, doğrulama kapıları (`CLAUDE.md` buna symlink) |
+| [MEMORY.md](MEMORY.md) | Hafıza yönlendirmesi + her oturumda geçerli tuzaklar |
+| [scripts/dokuman-bakim.py](scripts/dokuman-bakim.py) | Karar indeksini üretir, doküman bütçelerini denetler |
 
 ---
 
