@@ -36,7 +36,9 @@ import type {
   Meta,
   ModelProviderDescriptor,
   ModelProviderHealth,
+  RunCostRecalculationResult,
   RunEvent,
+  RunKind,
   RunRecord,
   RunStatistics,
   RunStatus,
@@ -44,6 +46,8 @@ import type {
   SessionDetail,
   SessionRecord,
   TenantDescriptor,
+  TimeSeriesBucket,
+  TimeSeriesPoint,
   ToolApprovalRule,
   ToolDescriptor,
   ToolInvocationRecord,
@@ -258,6 +262,17 @@ export const api = {
     ),
   stats: (params: { agentName?: string; startedAfter?: string; maxAgents?: number } = {}) =>
     request<RunStatistics>(`api/stats${query(params)}`),
+  timeseries: (
+    params: {
+      from?: string;
+      to?: string;
+      bucket?: TimeSeriesBucket;
+      agentName?: string;
+      modelId?: string;
+      kind?: RunKind;
+    } = {},
+  ) => request<TimeSeriesPoint[]>(`api/stats/timeseries${query(params)}`),
+  recalculateCosts: () => send<RunCostRecalculationResult>('POST', 'api/stats/recalculate-costs', {}),
 
   currentTenant: () => request<CurrentTenant>('api/tenants/current'),
   tenants: () => request<TenantDescriptor[]>('api/tenants'),

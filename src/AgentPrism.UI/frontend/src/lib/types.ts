@@ -379,7 +379,35 @@ export interface RunError {
   message: string;
 }
 
-export type RunKind = 'Agent' | 'Workflow';
+export type RunKind = 'Agent' | 'Workflow' | 'Eval';
+
+/** Where a run's cost came from. `Unknown` means the model is known but has no configured price — never shown as free. */
+export type PricingSource = 'Catalog' | 'Configuration' | 'Unknown';
+
+/**
+ * A run's own cost, computed once when it completes (a price snapshot — a
+ * later price change never rewrites history). `Unknown` still returns a
+ * non-null object with both cost fields `null`, distinct from "no model at all".
+ */
+export interface RunCost {
+  inputCost?: number | null;
+  outputCost?: number | null;
+  currency?: string | null;
+  source: PricingSource;
+}
+
+/**
+ * Total cost of a run's whole subtree (itself and everything under it).
+ *
+ * Never add this to `cost` — it already contains it, same pattern as
+ * `treeUsage`/`usage`.
+ */
+export interface RunTreeCost {
+  inputCost?: number | null;
+  outputCost?: number | null;
+  currency?: string | null;
+  runsWithUnknownPricing: number;
+}
 
 export interface RunRecord {
   id: string;
@@ -420,6 +448,10 @@ export interface RunRecord {
    * request cost in total".
    */
   treeUsage?: RunUsage | null;
+  /** This run's own cost. Null when the model is unknown (e.g. a code agent with no bound model). */
+  cost?: RunCost | null;
+  /** Cost of this run's whole subtree. See {@link RunCost} for why it is a separate field. */
+  treeCost?: RunTreeCost | null;
 }
 
 export interface RunEvent {
@@ -446,6 +478,8 @@ export interface RunModelStatistics {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
+  /** This model's total cost. Null when its price is undefined. */
+  totalCost?: number | null;
 }
 
 export interface RunStatistics {
@@ -459,9 +493,35 @@ export interface RunStatistics {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
+  /** Total cost across priced runs only. Null when nothing here has a configured price. */
+  totalCost?: number | null;
+  currency?: string | null;
+  /** Runs whose model is known but has no configured price. */
+  runsWithUnknownPricing: number;
   byAgent: RunAgentStatistics[];
   byModel: RunModelStatistics[];
   errorRate?: number | null;
+}
+
+/** Bucket width for `GET /api/stats/timeseries`. */
+export type TimeSeriesBucket = 'Hour' | 'Day';
+
+/** One bucket of `/api/stats/timeseries`. Empty buckets are returned too, with zero counts. */
+export interface TimeSeriesPoint {
+  bucket: string;
+  runs: number;
+  failedRuns: number;
+  inputTokens: number;
+  outputTokens: number;
+  cost?: number | null;
+  averageDurationMs?: number | null;
+}
+
+/** Response of `POST /api/stats/recalculate-costs`. */
+export interface RunCostRecalculationResult {
+  runsConsidered: number;
+  runsUpdated: number;
+  runsStillUnknown: number;
 }
 
 /* ------------------------------------------------------- observability */
@@ -962,6 +1022,8 @@ export interface ExperimentVariantResult {
   totalTokens: number;
   averageDurationMs?: number | null;
   errorRate?: number | null;
+  totalCost?: number | null;
+  currency?: string | null;
 }
 
 export interface ExperimentResultsResponse {

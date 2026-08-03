@@ -143,6 +143,13 @@ public sealed class PostgresRunStore : IRunStore
         AddNullableInt64(command, "total_tokens", completion.Usage?.TotalTokens);
         AddNullableText(command, "error_type", completion.Error?.Type);
         AddNullableText(command, "error_message", completion.Error?.Message);
+        AddNullableDecimal(command, "input_cost", completion.Cost?.InputCost);
+        AddNullableDecimal(command, "output_cost", completion.Cost?.OutputCost);
+        AddNullableText(command, "cost_currency", completion.Cost?.Currency);
+        command.Parameters.Add(new NpgsqlParameter("pricing_source", NpgsqlDbType.Smallint)
+        {
+            Value = completion.Cost is { } cost ? (object)(short)cost.Source : DBNull.Value,
+        });
 
         var affected = await NpgsqlHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
 
@@ -150,6 +157,22 @@ public sealed class PostgresRunStore : IRunStore
         {
             throw new AgentPrismException($"'{completion.RunId}' kimlikli calistirma bulunamadi.");
         }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask UpdateRunCostAsync(Guid runId, RunCost? cost, CancellationToken cancellationToken = default)
+    {
+        var command = CreateCommand(_sql.UpdateRunCost);
+        command.Parameters.AddWithValue("id", runId);
+        AddNullableDecimal(command, "input_cost", cost?.InputCost);
+        AddNullableDecimal(command, "output_cost", cost?.OutputCost);
+        AddNullableText(command, "cost_currency", cost?.Currency);
+        command.Parameters.Add(new NpgsqlParameter("pricing_source", NpgsqlDbType.Smallint)
+        {
+            Value = cost is { } value ? (object)(short)value.Source : DBNull.Value,
+        });
+
+        await NpgsqlHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -211,6 +234,7 @@ public sealed class PostgresRunStore : IRunStore
         command.Parameters.AddWithValue("status_canceled", (short)RunStatus.Canceled);
         command.Parameters.AddWithValue("status_awaiting", (short)RunStatus.AwaitingInput);
         command.Parameters.AddWithValue("kind_eval", (short)RunKind.Eval);
+        command.Parameters.AddWithValue("pricing_source_unknown", (short)PricingSource.Unknown);
 
         await using (command.ConfigureAwait(false))
         {
@@ -234,6 +258,9 @@ public sealed class PostgresRunStore : IRunStore
                 var inputTokens = reader.GetInt64(6);
                 var outputTokens = reader.GetInt64(7);
                 var totalTokens = reader.GetInt64(8);
+                var totalCost = NpgsqlHelpers.GetNullableDecimal(reader, 9);
+                var currency = NpgsqlHelpers.GetNullableString(reader, 10);
+                var runsWithUnknownPricing = reader.GetInt64(11);
 
                 // Ikinci sonuc kumesi: agent kirilimi.
                 var byAgent = new List<RunAgentStatistics>();
@@ -267,6 +294,7 @@ public sealed class PostgresRunStore : IRunStore
                             InputTokens = reader.GetInt64(2),
                             OutputTokens = reader.GetInt64(3),
                             TotalTokens = reader.GetInt64(4),
+                            TotalCost = NpgsqlHelpers.GetNullableDecimal(reader, 5),
                         });
                     }
                 }
@@ -301,12 +329,44 @@ public sealed class PostgresRunStore : IRunStore
                     InputTokens = inputTokens,
                     OutputTokens = outputTokens,
                     TotalTokens = totalTokens,
+                    TotalCost = totalCost,
+                    Currency = currency,
+                    RunsWithUnknownPricing = runsWithUnknownPricing,
                     ByAgent = byAgent,
                     ByModel = byModel,
                     ByVersion = byVersion,
                 };
             }
         }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<IReadOnlyList<TimeSeriesPoint>> GetTimeSeriesAsync(
+        RunTimeSeriesQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        RunTimeSeriesBucketing.Validate(query.From, query.To, query.Bucket);
+
+        var command = CreateCommand(_sql.SelectRunTimeSeries);
+        command.Parameters.AddWithValue("tenant_id", query.TenantId ?? _tenantContext.TenantId);
+        command.Parameters.AddWithValue("from_ts", query.From.UtcDateTime);
+        command.Parameters.AddWithValue("to_ts", query.To.UtcDateTime);
+        command.Parameters.AddWithValue("bucket_unit", query.Bucket == TimeSeriesBucket.Hour ? "hour" : "day");
+        command.Parameters.Add(new NpgsqlParameter("bucket_step", NpgsqlDbType.Interval)
+        {
+            Value = RunTimeSeriesBucketing.StepFor(query.Bucket),
+        });
+        command.Parameters.AddWithValue("status_failed", (short)RunStatus.Failed);
+        AddNullableText(command, "agent_name", query.AgentName);
+        AddNullableText(command, "model_id", query.ModelId);
+        command.Parameters.Add(new NpgsqlParameter("kind", NpgsqlDbType.Smallint)
+        {
+            Value = query.Kind is { } kind ? (object)(short)kind : DBNull.Value,
+        });
+
+        return await NpgsqlHelpers.ReadListAsync(command, ReadTimeSeriesPoint, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -461,6 +521,7 @@ public sealed class PostgresRunStore : IRunStore
     {
         var errorType = NpgsqlHelpers.GetNullableString(reader, 12);
         var ownUsage = ReadUsage(reader);
+        var ownCost = ReadCost(reader);
 
         return new RunRecord
         {
@@ -485,6 +546,8 @@ public sealed class PostgresRunStore : IRunStore
             AgentVersion = reader.IsDBNull(25) ? null : reader.GetInt32(25),
             ExperimentId = reader.IsDBNull(26) ? null : reader.GetGuid(26),
             Variant = NpgsqlHelpers.GetNullableString(reader, 27),
+            Cost = ownCost,
+            TreeCost = ReadTreeCost(reader, ownCost),
             Error = errorType is null
                 ? null
                 : new RunError
@@ -534,6 +597,63 @@ public sealed class PostgresRunStore : IRunStore
         };
     }
 
+    /// <summary>
+    /// Kaydin kendi maliyetini okur. <c>pricing_source</c> NULL ise model hic
+    /// bilinmiyordu demektir (<see cref="PricingSource.Unknown"/>'dan farkli):
+    /// bu durumda <see langword="null"/> doner.
+    /// </summary>
+    private static RunCost? ReadCost(NpgsqlDataReader reader)
+    {
+        if (reader.IsDBNull(31))
+        {
+            return null;
+        }
+
+        return new RunCost
+        {
+            InputCost = NpgsqlHelpers.GetNullableDecimal(reader, 28),
+            OutputCost = NpgsqlHelpers.GetNullableDecimal(reader, 29),
+            Currency = NpgsqlHelpers.GetNullableString(reader, 30),
+            Source = (PricingSource)reader.GetInt16(31),
+        };
+    }
+
+    /// <summary>Agacin maliyet toplamini kaydin kendi maliyetiyle birlestirir.</summary>
+    /// <remarks>Ayni gerekce <see cref="ReadTreeUsage"/> ile.</remarks>
+    private static RunTreeCost? ReadTreeCost(NpgsqlDataReader reader, RunCost? ownCost)
+    {
+        var pricedDescendants = reader.IsDBNull(36) ? 0 : reader.GetInt64(36);
+
+        if (pricedDescendants == 0 && ownCost is null)
+        {
+            return null;
+        }
+
+        var inputCost = NpgsqlHelpers.GetNullableDecimal(reader, 32);
+        var outputCost = NpgsqlHelpers.GetNullableDecimal(reader, 33);
+
+        if (ownCost?.InputCost is { } ownInput)
+        {
+            inputCost = (inputCost ?? 0) + ownInput;
+        }
+
+        if (ownCost?.OutputCost is { } ownOutput)
+        {
+            outputCost = (outputCost ?? 0) + ownOutput;
+        }
+
+        var unknownPricing = (reader.IsDBNull(35) ? 0 : reader.GetInt64(35))
+            + (ownCost?.Source == PricingSource.Unknown ? 1 : 0);
+
+        return new RunTreeCost
+        {
+            InputCost = inputCost,
+            OutputCost = outputCost,
+            Currency = NpgsqlHelpers.GetNullableString(reader, 34) ?? ownCost?.Currency,
+            RunsWithUnknownPricing = unknownPricing,
+        };
+    }
+
     private static ToolInvocationRecord ReadToolInvocation(NpgsqlDataReader reader)
         => new()
         {
@@ -559,6 +679,18 @@ public sealed class PostgresRunStore : IRunStore
             LastCalledAt = reader.IsDBNull(4) ? null : NpgsqlHelpers.GetTimestamp(reader, 4),
         };
 
+    private static TimeSeriesPoint ReadTimeSeriesPoint(NpgsqlDataReader reader)
+        => new()
+        {
+            Bucket = NpgsqlHelpers.GetTimestamp(reader, 0),
+            Runs = reader.GetInt64(1),
+            FailedRuns = reader.GetInt64(2),
+            InputTokens = reader.GetInt64(3),
+            OutputTokens = reader.GetInt64(4),
+            Cost = NpgsqlHelpers.GetNullableDecimal(reader, 5),
+            AverageDurationMs = reader.IsDBNull(6) ? null : reader.GetDouble(6),
+        };
+
     private static ExperimentVariantResult ReadExperimentVariantResult(NpgsqlDataReader reader)
         => new()
         {
@@ -572,6 +704,8 @@ public sealed class PostgresRunStore : IRunStore
             OutputTokens = reader.GetInt64(7),
             TotalTokens = reader.GetInt64(8),
             AverageDurationMs = reader.IsDBNull(9) ? null : reader.GetDouble(9),
+            TotalCost = NpgsqlHelpers.GetNullableDecimal(reader, 10),
+            Currency = NpgsqlHelpers.GetNullableString(reader, 11),
         };
 
     private static void AddNullableText(NpgsqlCommand command, string name, string? value)
@@ -594,6 +728,12 @@ public sealed class PostgresRunStore : IRunStore
 
     private static void AddNullableInt32(NpgsqlCommand command, string name, int? value)
         => command.Parameters.Add(new NpgsqlParameter(name, NpgsqlDbType.Integer)
+        {
+            Value = value.HasValue ? (object)value.Value : DBNull.Value,
+        });
+
+    private static void AddNullableDecimal(NpgsqlCommand command, string name, decimal? value)
+        => command.Parameters.Add(new NpgsqlParameter(name, NpgsqlDbType.Numeric)
         {
             Value = value.HasValue ? (object)value.Value : DBNull.Value,
         });

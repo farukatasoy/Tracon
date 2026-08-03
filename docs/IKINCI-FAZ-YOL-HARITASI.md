@@ -40,8 +40,8 @@ Sıralama bu beş cevaba göre kuruldu. Cevaplar karar defterine de yazıldı
 | 17 | [17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md](17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) | F-22 | ✅ **Tamamlandı (2026-08-03)** — PostgreSQL iş kuyruğu (`FOR UPDATE SKIP LOCKED`), cron zamanlama, Jobs ekranı. Faz 18 bunun üzerine kurulur | — | 0008 |
 | 18 | [18-DEGERLENDIRME.md](18-DEGERLENDIRME.md) | F-14 | ✅ **Tamamlandı (2026-08-03)** — eval takım/vaka/koşu, Faz 17'nin kuyruğu üzerinde (`JobKind.Eval`); yeni paket gerekmedi (K-139); `RunKind.Eval` ile istatistik hariç tutma (K-141) | — | 0009 |
 | 19 | [19-SURUM-KARSILASTIRMA-VE-AB.md](19-SURUM-KARSILASTIRMA-VE-AB.md) | F-15 · F-24 | ✅ **Tamamlandı (2026-08-03)** — diff (`lib/diff.ts`, elle LCS), A/B deneyi (oturum bazlı deterministik SHA-256 atama, yalnız `AgentEndpoints.RunAsync` içinde), `RunStatistics.ByVersion` | — | 0010 |
-| 20 | [20-MALIYET-VE-GOSTERGE-PANELI.md](20-MALIYET-VE-GOSTERGE-PANELI.md) | F-17 · F-23 | **Sıradaki.** Token kırılımı Faz 6'da geldi; eksik olan tek şey fiyat ve grafik | — | 0011 |
-| 21 | [21-KOTA-VE-OLAY-YAYINI.md](21-KOTA-VE-OLAY-YAYINI.md) | F-18 · F-19 | Maliyet görünür olunca sınır koymak anlamlı olur | — | 0012 |
+| 20 | [20-MALIYET-VE-GOSTERGE-PANELI.md](20-MALIYET-VE-GOSTERGE-PANELI.md) | F-17 · F-23 | ✅ **Tamamlandı (2026-08-03)** — fiyat kataloğu/`AgentPrism:Pricing`'den gelir (K-032'nin devamı), `runs` maliyet sütunları (migration 0011), `/api/stats/timeseries`, `POST /api/stats/recalculate-costs` (Admin+audit), Dashboard giriş ekranı + 3 el-çizimi grafik | — | 0011 |
+| 21 | [21-KOTA-VE-OLAY-YAYINI.md](21-KOTA-VE-OLAY-YAYINI.md) | F-18 · F-19 | **Sıradaki.** Maliyet görünür olunca sınır koymak anlamlı olur | — | 0012 |
 | 22 | [22-MCP-DERINLESMESI.md](22-MCP-DERINLESMESI.md) | F-28 · F-29 | MCP'nin kullanılmayan yarısı: prompts, resources, OAuth | — | 0013 |
 | 23 | [23-SQL-SERVER.md](23-SQL-SERVER.md) | F-06 | Kurumsal kapı. Şema bu noktada oturmuş olur | `AgentPrism.SqlServer` | kendi |
 | 24 | [24-SQLITE.md](24-SQLITE.md) | F-07 | Faz 23'ün SQL soyutlamasını ikinci kez kullanır | `AgentPrism.Sqlite` | kendi |
@@ -119,8 +119,8 @@ yetenek yüzeyi oturduğu için mantıklı bir kesittir.
 4. **Dört doğrulama kapısı** her fazın sonunda sıfır uyarı verir.
 5. **Yeni kararlar K-064'ten devam eder.** Numarayı yazan faz, kararı gerçekten
    verdiği anda alır — plan dokümanları numara rezerve etmez.
-6. **Bundle bütçesi 250 KB gzip.** Bugün 92,4 KB. Arayüze dokunan her faz
-   ölçümü DoD'ye yazar.
+6. **Bundle bütçesi 250 KB gzip.** Faz 20 sonunda 116,2 KB. Arayüze dokunan her
+   faz ölçümü DoD'ye yazar.
 
 ---
 

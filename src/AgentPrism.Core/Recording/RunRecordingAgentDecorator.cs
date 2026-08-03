@@ -20,6 +20,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
     private readonly AgentPrismMetrics? _metrics;
     private readonly RunTraceCollector? _traceCollector;
     private readonly TimeProvider? _timeProvider;
+    private readonly IRunPricingResolver? _pricingResolver;
 
     /// <summary>Yeni bir kayit dekoratoru olusturur.</summary>
     /// <param name="runStore">Olaylarin yazilacagi depo.</param>
@@ -29,6 +30,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
     /// <param name="metrics">Metrik aletleri.</param>
     /// <param name="traceCollector">Span toplayici.</param>
     /// <param name="timeProvider">Zaman kaynagi.</param>
+    /// <param name="pricingResolver">Maliyet cozumleyici. <see langword="null"/> ise maliyet hesaplanmaz.</param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
     public RunRecordingAgentDecorator(
         IRunStore runStore,
@@ -37,7 +39,8 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
         ILogger<RunRecordingAgent> logger,
         AgentPrismMetrics? metrics = null,
         RunTraceCollector? traceCollector = null,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        IRunPricingResolver? pricingResolver = null)
     {
         ArgumentNullException.ThrowIfNull(runStore);
         ArgumentNullException.ThrowIfNull(tenantContext);
@@ -51,6 +54,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
         _metrics = metrics;
         _traceCollector = traceCollector;
         _timeProvider = timeProvider;
+        _pricingResolver = pricingResolver;
     }
 
     /// <inheritdoc />
@@ -72,9 +76,13 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
             // Model adi katalog ozetinden gelir. Kod agent'larinda bilinmeyebilir;
             // o durumda calistirma kaydi model tasimaz ve model kirilimina girmez.
             descriptor?.Model?.Model,
+            // Saglayici yalniz maliyet cozumlemesinde kullanilir, kalicilastirilmaz
+            // (bkz. docs/KARARLAR.md K-154).
+            descriptor?.Model?.Provider,
             _timeProvider,
             _options.Value.AgentGraph,
             descriptor?.Version,
-            _options.Value.Observability.IncludeAgentVersionTag);
+            _options.Value.Observability.IncludeAgentVersionTag,
+            _pricingResolver);
     }
 }

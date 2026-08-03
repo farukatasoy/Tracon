@@ -98,4 +98,20 @@ public sealed record RunRecord
     /// sorulardir.
     /// </remarks>
     public RunUsage? TreeUsage { get; init; }
+
+    /// <summary>
+    /// Bu calistirmanin kendi maliyeti. Model bilinmiyorsa <see langword="null"/>;
+    /// model biliniyorsa fiyat tanimsiz olsa bile dolu gelir.
+    /// </summary>
+    public RunCost? Cost { get; init; }
+
+    /// <summary>
+    /// Bu calistirmanin ve altindaki tum calistirmalarin toplam maliyeti.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Cost"/> ile <strong>toplanmaz</strong>: bu deger zaten kendi
+    /// maliyetini icerir (bkz. <see cref="TreeUsage"/> ile ayni gerekce). Alt
+    /// calistirmasi olmayan bir calistirmada ikisi esdegerdir.
+    /// </remarks>
+    public RunTreeCost? TreeCost { get; init; }
 }

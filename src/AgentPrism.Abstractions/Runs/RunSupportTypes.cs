@@ -23,6 +23,49 @@ public sealed record RunError
     public required string Message { get; init; }
 }
 
+/// <summary>
+/// Bir calistirmanin maliyeti. Calistirma bittiginde bir kez hesaplanir ve
+/// yazilir (fiyat anlik goruntusu) — fiyat listesi sonradan degisirse gecmis
+/// deger degismez (bkz. <c>docs/20-MALIYET-VE-GOSTERGE-PANELI.md</c> bolum 20.2).
+/// </summary>
+public sealed record RunCost
+{
+    /// <summary>Girdi token maliyeti. Fiyat tanimsizsa <see langword="null"/>.</summary>
+    public decimal? InputCost { get; init; }
+
+    /// <summary>Cikti token maliyeti. Fiyat tanimsizsa <see langword="null"/>.</summary>
+    public decimal? OutputCost { get; init; }
+
+    /// <summary>Para birimi. <c>AgentPrism:Pricing:Currency</c>'den gelir.</summary>
+    public string? Currency { get; init; }
+
+    /// <summary>Fiyatin nereden geldigi.</summary>
+    public required PricingSource Source { get; init; }
+}
+
+/// <summary>
+/// Bir calistirma agacinin (kok + tum alt calistirmalar) toplam maliyeti.
+/// </summary>
+/// <remarks>
+/// <see cref="RunRecord.Cost"/> ile <strong>toplanmaz</strong>: bu deger zaten
+/// kendi maliyetini icerir (bkz. <see cref="RunRecord.TreeUsage"/> ile ayni
+/// gerekce). Arayuz ikisini ayri sutunda gosterir.
+/// </remarks>
+public sealed record RunTreeCost
+{
+    /// <summary>Agactaki toplam girdi maliyeti.</summary>
+    public decimal? InputCost { get; init; }
+
+    /// <summary>Agactaki toplam cikti maliyeti.</summary>
+    public decimal? OutputCost { get; init; }
+
+    /// <summary>Para birimi.</summary>
+    public string? Currency { get; init; }
+
+    /// <summary>Agacta fiyati tanimsiz kac calistirma oldugu.</summary>
+    public long RunsWithUnknownPricing { get; init; }
+}
+
 /// <summary>Yeni bir calistirma baslatmak icin gereken bilgiler.</summary>
 public sealed record RunStartInfo
 {
@@ -98,6 +141,12 @@ public sealed record RunCompletion
 
     /// <summary>Hata bilgisi. Yalnizca <see cref="RunStatus.Failed"/> durumunda dolu.</summary>
     public RunError? Error { get; init; }
+
+    /// <summary>
+    /// Hesaplanan maliyet. Model bilinmiyorsa (kod agent'i vb.) <see langword="null"/>;
+    /// model biliniyorsa fiyat tanimsiz olsa bile dolu gelir (bkz. <see cref="RunCost"/>).
+    /// </summary>
+    public RunCost? Cost { get; init; }
 }
 
 /// <summary>Calistirma listesini filtrelemek icin sorgu.</summary>
@@ -148,4 +197,47 @@ public sealed record RunQuery
 
     /// <summary>Getirilecek ust kayit sayisi.</summary>
     public int Take { get; init; } = 50;
+}
+
+/// <summary>Zaman serisi sorgusunun filtresi.</summary>
+public sealed record RunTimeSeriesQuery
+{
+    /// <summary>Araligin baslangici (UTC, dahil).</summary>
+    public required DateTimeOffset From { get; init; }
+
+    /// <summary>Araligin bitisi (UTC, haric).</summary>
+    public required DateTimeOffset To { get; init; }
+
+    /// <summary>Kova genisligi. Varsayilan saatlik.</summary>
+    public TimeSeriesBucket Bucket { get; init; } = TimeSeriesBucket.Hour;
+
+    /// <summary>Yalnizca bu agent'in calistirmalarini sayar.</summary>
+    public string? AgentName { get; init; }
+
+    /// <summary>Yalnizca bu modelin calistirmalarini sayar.</summary>
+    public string? ModelId { get; init; }
+
+    /// <summary>
+    /// Yalnizca bu turdeki calistirmalari sayar. <see langword="null"/> ise
+    /// tum turler dahildir — <see cref="IRunStore.GetStatisticsAsync"/>'in
+    /// aksine bu sorgu Eval/Workflow calistirmalarini varsayilan olarak
+    /// haric tutmaz (bkz. <c>docs/KARARLAR.md</c> K-152).
+    /// </summary>
+    public RunKind? Kind { get; init; }
+
+    /// <summary>Kiraci filtresi. Bos birakilirsa gecerli kiraci kullanilir.</summary>
+    public string? TenantId { get; init; }
+}
+
+/// <summary>Bir maliyet yeniden hesaplama isleminin sonucu.</summary>
+public sealed record RunCostRecalculationResult
+{
+    /// <summary>Islenen (modeli ve kullanimi olan) calistirma sayisi.</summary>
+    public required long RunsConsidered { get; init; }
+
+    /// <summary>Fiyati basariyla cozulup guncellenen calistirma sayisi.</summary>
+    public required long RunsUpdated { get; init; }
+
+    /// <summary>Islendikten sonra hala fiyati tanimsiz kalan calistirma sayisi.</summary>
+    public required long RunsStillUnknown { get; init; }
 }

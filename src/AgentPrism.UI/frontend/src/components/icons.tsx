@@ -51,6 +51,12 @@ export function PrismMark({ className }: IconProps): ReactNode {
   );
 }
 
+export const DashboardIcon = ({ className }: IconProps): ReactNode => (
+  <Icon className={className}>
+    <path d="M4 19V10M10 19V5M16 19v-7M4 19h16" />
+  </Icon>
+);
+
 export const AgentsIcon = ({ className }: IconProps): ReactNode => (
   <Icon className={className}>
     <rect x="4" y="7" width="16" height="12" rx="3" />

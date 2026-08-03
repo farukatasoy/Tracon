@@ -5,6 +5,7 @@ import { cx } from './ui';
 import {
   AgentsIcon,
   AuditIcon,
+  DashboardIcon,
   EvalsIcon,
   ExperimentsIcon,
   JobsIcon,
@@ -32,6 +33,7 @@ import type { Meta } from '../lib/types';
  */
 const NAV = [
   { path: 'agents', label: 'Agents', icon: AgentsIcon, hue: 'var(--ap-violet)' },
+  { path: 'dashboard', label: 'Dashboard', icon: DashboardIcon, hue: 'var(--ap-amber)' },
   { path: 'playground', label: 'Playground', icon: PlaygroundIcon, hue: 'var(--ap-cyan)' },
   { path: 'sessions', label: 'Sessions', icon: SessionsIcon, hue: 'var(--ap-emerald)' },
   { path: 'workflows', label: 'Workflows', icon: WorkflowIcon, hue: 'var(--ap-emerald)' },
@@ -50,7 +52,7 @@ const NAV = [
 export function Layout({ meta, children }: { meta: Meta; children: ReactNode }): ReactNode {
   const path = usePath();
   const section = path.split('/')[0] ?? '';
-  const active = section.length === 0 ? 'agents' : section;
+  const active = section.length === 0 ? 'dashboard' : section;
 
   // A hidden nav item is a UX courtesy, not a security boundary: the server
   // is still the only real enforcement (docs/09-YONETISIM-VE-DENETIM-IZI.md).
@@ -61,7 +63,7 @@ export function Layout({ meta, children }: { meta: Meta; children: ReactNode }):
       <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col border-r border-line bg-panel md:flex">
         <div className="ap-prism h-0.5 w-full" />
 
-        <Link to="agents" className="flex items-center gap-2.5 px-4 py-4">
+        <Link to="dashboard" className="flex items-center gap-2.5 px-4 py-4">
           <PrismMark className="size-6 text-fg" />
           <span className="text-[15px] font-semibold tracking-tight">AgentPrism</span>
         </Link>

@@ -309,11 +309,10 @@ sürüm diff'i (404)→deney oluşturma (Draft)→başlatma (Running)→durdurma
 
 ## Sonraki Faza Devir Notu
 
-- **Faz 20 (maliyet)** deney sonuç tablosuna **varyant başına maliyet** sütununu
-  ekleyecektir; en çok beklenen karşılaştırma budur ("ucuz model yeterli mi?").
-  `ExperimentEndpoints.GetResultsAsync` ve `ExperimentVariantResult` bu sütun
-  için hazır bir ekleme noktasıdır — `TotalTokens` zaten kolon bazında var,
-  fiyat listesi çarpımı Faz 20'de eklenir.
+- ✅ **Faz 20 (maliyet) tamamlandı.** `ExperimentVariantResult` artık
+  `TotalCost`/`Currency` taşır (fiyat tanımsızsa `null`); `SqlQueries.SelectExperimentResults`
+  ve `InMemoryRunStore.GetExperimentResultsAsync`'in `VariantTally`'si genişletildi.
+  Bkz. `docs/20-MALIYET-VE-GOSTERGE-PANELI.md`.
 - **Faz 21 (kota)** deneyleri etkilemez; kota kiracı düzeyindedir.
 - 🚨 **`IAgentCatalog.ResolveAsync(name, version, ct)` yalnızca
   `AgentEndpoints.RunAsync` içinde çağrılır** (bilinçli kapsam sınırı, K-131).

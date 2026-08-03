@@ -837,7 +837,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         Activity? activity,
         long startedAt)
     {
-        await writer.CompleteAsync(status, usage: null, error, CancellationToken.None).ConfigureAwait(false);
+        // Bir workflow satirinin kendi modeli yoktur (Faz 20): maliyeti yalniz
+        // altindaki agent calistirmalari tasir, agac toplaminda gorunur.
+        await writer.CompleteAsync(status, usage: null, error, cost: null, CancellationToken.None).ConfigureAwait(false);
 
         // 🚨 Insan bekleyen bir calistirmanin kontrol noktalari ASLA silinmez:
         // yanit tam olarak onlardan devam eder. Temizlik ayari yalnizca gercekten

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { apiBase, uiBase } from '../lib/base';
 import { setToken, useToken } from '../lib/auth';
+import { Link } from '../lib/router';
 import { readThemePreference, writeThemePreference, applyTheme, type ThemePreference } from '../lib/theme';
 import { count } from '../lib/format';
 import {
@@ -169,8 +170,11 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
               </dl>
             ))}
           <p className="border-t border-line px-4 py-2.5 text-[11px] text-subtle">
-            Money is not shown. Pricing per model is not machine readable from the provider
-            (decision K-032), so AgentPrism reports tokens and leaves the rate to you.
+            Cost per model, once pricing is configured, shows on the{' '}
+            <Link to="dashboard" className="text-accent hover:underline">
+              Dashboard
+            </Link>
+            &apos;s model breakdown chart. This panel stays token-only for a fast glance.
           </p>
         </Panel>
       </div>

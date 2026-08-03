@@ -256,14 +256,29 @@ internal sealed class SqlQueries
 
         UpdateRunCompletion = $"""
             UPDATE {Schema}.runs
-            SET status        = @status,
-                completed_at  = @completed_at,
-                event_count   = @event_count,
-                input_tokens  = @input_tokens,
-                output_tokens = @output_tokens,
-                total_tokens  = @total_tokens,
-                error_type    = @error_type,
-                error_message = @error_message
+            SET status         = @status,
+                completed_at   = @completed_at,
+                event_count    = @event_count,
+                input_tokens   = @input_tokens,
+                output_tokens  = @output_tokens,
+                total_tokens   = @total_tokens,
+                error_type     = @error_type,
+                error_message  = @error_message,
+                input_cost     = @input_cost,
+                output_cost    = @output_cost,
+                cost_currency  = @cost_currency,
+                pricing_source = @pricing_source
+            WHERE id = @id;
+            """;
+
+        // Yalniz bakim ucu (POST /api/stats/recalculate-costs) tarafindan
+        // kullanilir; normal akista maliyet UpdateRunCompletion ile bir kez yazilir.
+        UpdateRunCost = $"""
+            UPDATE {Schema}.runs
+            SET input_cost     = @input_cost,
+                output_cost    = @output_cost,
+                cost_currency  = @cost_currency,
+                pricing_source = @pricing_source
             WHERE id = @id;
             """;
 
@@ -282,19 +297,28 @@ internal sealed class SqlQueries
                 SELECT COALESCE(SUM(sub.input_tokens), 0)::bigint  AS input_tokens,
                        COALESCE(SUM(sub.output_tokens), 0)::bigint AS output_tokens,
                        COALESCE(SUM(sub.total_tokens), 0)::bigint  AS total_tokens,
-                       COUNT(sub.total_tokens)::bigint             AS usage_rows
+                       COUNT(sub.total_tokens)::bigint             AS usage_rows,
+                       SUM(sub.input_cost)                         AS cost_input,
+                       SUM(sub.output_cost)                        AS cost_output,
+                       MAX(sub.cost_currency)                      AS cost_currency,
+                       COUNT(*) FILTER (WHERE sub.pricing_source = 2)::bigint AS unknown_pricing_rows,
+                       COUNT(sub.pricing_source)::bigint           AS pricing_rows
                 FROM {Schema}.runs AS sub
                 WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id
             ) AS tree ON TRUE
             """;
 
+        // 🚨 Yeni sutunlar HER ZAMAN sona eklenir, aralara sokulmaz: okuyucu
+        // (PostgresRunStore.ReadRun) sabit sira numarasiyla okur.
         const string runColumns = """
             r.id, r.tenant_id, r.agent_name, r.session_id, r.status, r.started_at, r.completed_at, r.is_streaming,
             r.input_tokens, r.output_tokens, r.total_tokens, r.event_count, r.error_type, r.error_message, r.model_id,
             r.parent_run_id, r.root_run_id, r.depth,
             children.child_count,
             tree.input_tokens, tree.output_tokens, tree.total_tokens, tree.usage_rows,
-            r.kind, r.workflow_name, r.agent_version, r.experiment_id, r.variant
+            r.kind, r.workflow_name, r.agent_version, r.experiment_id, r.variant,
+            r.input_cost, r.output_cost, r.cost_currency, r.pricing_source,
+            tree.cost_input, tree.cost_output, tree.cost_currency, tree.unknown_pricing_rows, tree.pricing_rows
             """;
 
         SelectRun = $"""
@@ -340,7 +364,11 @@ internal sealed class SqlQueries
                    COUNT(*) FILTER (WHERE status = @status_awaiting)::bigint,
                    COALESCE(SUM(input_tokens), 0)::bigint,
                    COALESCE(SUM(output_tokens), 0)::bigint,
-                   COALESCE(SUM(total_tokens), 0)::bigint
+                   COALESCE(SUM(total_tokens), 0)::bigint,
+                   CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL) = 0
+                        THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) END,
+                   MAX(cost_currency),
+                   COUNT(*) FILTER (WHERE pricing_source = @pricing_source_unknown)::bigint
             FROM {Schema}.runs
             WHERE tenant_id = @tenant_id
               AND kind <> @kind_eval
@@ -364,7 +392,9 @@ internal sealed class SqlQueries
                    COUNT(*)::bigint,
                    COALESCE(SUM(input_tokens), 0)::bigint,
                    COALESCE(SUM(output_tokens), 0)::bigint,
-                   COALESCE(SUM(total_tokens), 0)::bigint
+                   COALESCE(SUM(total_tokens), 0)::bigint,
+                   CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL) = 0
+                        THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) END
             FROM {Schema}.runs
             WHERE tenant_id = @tenant_id
               AND kind <> @kind_eval
@@ -534,10 +564,60 @@ internal sealed class SqlQueries
                    COALESCE(SUM(input_tokens), 0)::bigint,
                    COALESCE(SUM(output_tokens), 0)::bigint,
                    COALESCE(SUM(total_tokens), 0)::bigint,
-                   AVG(EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000) FILTER (WHERE completed_at IS NOT NULL)
+                   AVG(EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000) FILTER (WHERE completed_at IS NOT NULL),
+                   CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL) = 0
+                        THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) END,
+                   MAX(cost_currency)
             FROM {Schema}.runs
             WHERE tenant_id = @tenant_id AND experiment_id = @experiment_id AND variant IS NOT NULL
             GROUP BY variant;
+            """;
+
+        // Bos kovalar da doner (generate_series + LEFT JOIN): aksi halde
+        // grafikte kesinti "veri yok" degil "sifir" gibi gorunur. Eval/Workflow
+        // calistirmalari BILEREK haric TUTULMAZ — SelectRunStatistics'in aksine
+        // (bkz. docs/KARARLAR.md K-152); @kind verilirse filtrelenir.
+        SelectRunTimeSeries = $"""
+            WITH buckets AS (
+                -- Ust sinir kapsayicidir (Truncate(to_ts) dahil), sonra bucket < to_ts
+                -- ile filtrelenir: to_ts tam bir kova sinirina denk gelirse o kova
+                -- (icinde hicbir zaman `started_at < to_ts` olan satir olamaz) elenir.
+                -- InMemoryRunStore'daki `cursor < To` dongusuyle birebir ayni kural.
+                SELECT bucket
+                FROM generate_series(
+                    date_trunc(@bucket_unit, @from_ts),
+                    date_trunc(@bucket_unit, @to_ts),
+                    @bucket_step) AS bucket
+                WHERE bucket < @to_ts
+            ),
+            matched AS (
+                SELECT date_trunc(@bucket_unit, started_at) AS bucket,
+                       COUNT(*)::bigint AS runs,
+                       COUNT(*) FILTER (WHERE status = @status_failed)::bigint AS failed_runs,
+                       COALESCE(SUM(input_tokens), 0)::bigint AS input_tokens,
+                       COALESCE(SUM(output_tokens), 0)::bigint AS output_tokens,
+                       CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL) = 0
+                            THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) END AS cost,
+                       AVG(EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000)
+                           FILTER (WHERE completed_at IS NOT NULL) AS avg_duration_ms
+                FROM {Schema}.runs
+                WHERE tenant_id = @tenant_id
+                  AND started_at >= @from_ts AND started_at < @to_ts
+                  AND (@agent_name IS NULL OR agent_name = @agent_name)
+                  AND (@model_id   IS NULL OR model_id   = @model_id)
+                  AND (@kind       IS NULL OR kind       = @kind)
+                GROUP BY date_trunc(@bucket_unit, started_at)
+            )
+            SELECT buckets.bucket,
+                   COALESCE(matched.runs, 0),
+                   COALESCE(matched.failed_runs, 0),
+                   COALESCE(matched.input_tokens, 0),
+                   COALESCE(matched.output_tokens, 0),
+                   matched.cost,
+                   matched.avg_duration_ms
+            FROM buckets
+            LEFT JOIN matched ON matched.bucket = buckets.bucket
+            ORDER BY buckets.bucket;
             """;
 
         // --- Span'ler (Faz 6) ---
@@ -1392,6 +1472,9 @@ internal sealed class SqlQueries
     /// <summary>Calistirmayi sonlandirir.</summary>
     public string UpdateRunCompletion { get; }
 
+    /// <summary>Bir calistirmanin maliyetini gunceller (yalniz bakim ucu).</summary>
+    public string UpdateRunCost { get; }
+
     /// <summary>Bir calistirmayi okur.</summary>
     public string SelectRun { get; }
 
@@ -1400,6 +1483,9 @@ internal sealed class SqlQueries
 
     /// <summary>Calistirma ozetini ve agent kirilimini iki sonuc kumesi olarak dondurur.</summary>
     public string SelectRunStatistics { get; }
+
+    /// <summary>Kova basina calistirma, hata, token ve maliyet zaman serisi. Bos kovalar da doner.</summary>
+    public string SelectRunTimeSeries { get; }
 
     /// <summary>Calistirma olayi ekler.</summary>
     public string InsertRunEvent { get; }

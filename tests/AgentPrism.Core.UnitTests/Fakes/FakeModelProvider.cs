@@ -7,18 +7,19 @@ internal sealed class FakeModelProvider : IModelProvider
 {
     private readonly FakeChatClient _client;
 
-    public FakeModelProvider(FakeChatClient? client = null, string name = "fake")
+    public FakeModelProvider(FakeChatClient? client = null, string name = "fake", IReadOnlyList<ModelDescriptor>? models = null)
     {
         _client = client ?? new FakeChatClient();
         Name = name;
+        Models = models ??
+        [
+            new ModelDescriptor { Name = "fake-model", ContextWindowTokens = 8_192, MaxOutputTokens = 1_024 },
+        ];
     }
 
     public string Name { get; }
 
-    public IReadOnlyList<ModelDescriptor> Models { get; } =
-    [
-        new ModelDescriptor { Name = "fake-model", ContextWindowTokens = 8_192, MaxOutputTokens = 1_024 },
-    ];
+    public IReadOnlyList<ModelDescriptor> Models { get; }
 
     /// <summary>Son istenen baglanti. Testler secenek eslemesini bunun uzerinden dogrular.</summary>
     public ModelBinding? LastBinding { get; private set; }

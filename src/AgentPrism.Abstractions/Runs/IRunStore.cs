@@ -117,4 +117,31 @@ public interface IRunStore
     ValueTask<IReadOnlyList<ExperimentVariantResult>> GetExperimentResultsAsync(
         ExperimentResultsQuery query,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Kova basina calistirma, hata, token ve maliyet zaman serisini cikarir.
+    /// </summary>
+    /// <param name="query">Filtre.</param>
+    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <returns>Sirali kova listesi. Bos kovalar da doner (sifir olayla).</returns>
+    /// <exception cref="AgentPrismException">
+    /// Istenen aralik <see cref="RunTimeSeriesBucketing.MaxBuckets"/>'i asiyor.
+    /// </exception>
+    ValueTask<IReadOnlyList<TimeSeriesPoint>> GetTimeSeriesAsync(
+        RunTimeSeriesQuery query,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Bir calistirmanin maliyetini gunceller. Yalniz bakim ucu
+    /// (<c>POST /api/stats/recalculate-costs</c>) tarafindan kullanilir;
+    /// normal akista maliyet <see cref="CompleteRunAsync"/> ile bir kez yazilir.
+    /// </summary>
+    /// <param name="runId">Calistirma kimligi.</param>
+    /// <param name="cost">Yeni maliyet. <see langword="null"/> olabilir.</param>
+    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <returns>Tamamlanma gorevi.</returns>
+    ValueTask UpdateRunCostAsync(
+        Guid runId,
+        RunCost? cost,
+        CancellationToken cancellationToken = default);
 }

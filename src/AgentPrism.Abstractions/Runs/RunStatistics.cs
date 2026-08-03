@@ -35,11 +35,9 @@ public sealed record RunStatisticsQuery
 /// token toplamina katki vermez.
 /// </para>
 /// <para>
-/// <strong>Maliyet burada yoktur.</strong> Faz 6'da <c>runs</c> tablosuna model
-/// adi eklendi ve <see cref="ByModel"/> kirilimi geldi; para birimi cinsinden
-/// maliyet ise model basina fiyat listesi ister. OpenAI <c>/v1/models</c> yalnizca
-/// <c>id</c> dondurur (karar K-032), bu yuzden fiyat AgentPrism'e gomulemez.
-/// Token kirilimi verilir; fiyatlandirmayi tuketici kendi listesiyle yapar.
+/// Maliyet (Faz 20) yalniz fiyat yapilandirildiginda doludur — bkz.
+/// <see cref="TotalCost"/>. Fiyat AgentPrism'e gomulu degildir (karar K-032):
+/// model kataloğu veya <c>AgentPrism:Pricing</c> yapilandirmasindan gelir.
 /// </para>
 /// </remarks>
 public sealed record RunStatistics
@@ -89,6 +87,20 @@ public sealed record RunStatistics
     public IReadOnlyList<RunVersionStatistics> ByVersion { get; init; } = [];
 
     /// <summary>
+    /// Toplam maliyet. Fiyati tanimsiz bir model varsa o calistirmalarin
+    /// maliyeti bu toplama <strong>katilmaz</strong> (yalniz fiyati bilinenler
+    /// toplanir); kac calistirmanin dislandigi <see cref="RunsWithUnknownPricing"/>'de
+    /// gorunur. Hic fiyatlandirilmis calistirma yoksa <see langword="null"/>.
+    /// </summary>
+    public decimal? TotalCost { get; init; }
+
+    /// <summary>Para birimi. <see cref="TotalCost"/> doluysa doludur.</summary>
+    public string? Currency { get; init; }
+
+    /// <summary>Modeli bilinen ama fiyati tanimsiz olan calistirma sayisi.</summary>
+    public long RunsWithUnknownPricing { get; init; }
+
+    /// <summary>
     /// Sonuclanmis calistirmalar icindeki hata orani (0–1). Hic sonuclanmis
     /// calistirma yoksa <see langword="null"/>.
     /// </summary>
@@ -124,6 +136,37 @@ public sealed record RunModelStatistics
 
     /// <summary>Toplam token.</summary>
     public long TotalTokens { get; init; }
+
+    /// <summary>Bu modelle yapilan calistirmalarin toplam maliyeti. Fiyat tanimsizsa <see langword="null"/>.</summary>
+    public decimal? TotalCost { get; init; }
+}
+
+/// <summary>
+/// Bir zaman kovasindaki calistirma ozeti. <c>/api/stats/timeseries</c>'in
+/// sonuc birimidir; bos kovalar da doner (sifir olay ile).
+/// </summary>
+public sealed record TimeSeriesPoint
+{
+    /// <summary>Kovanin baslangic zamani (UTC).</summary>
+    public required DateTimeOffset Bucket { get; init; }
+
+    /// <summary>Bu kovada baslayan calistirma sayisi.</summary>
+    public long Runs { get; init; }
+
+    /// <summary>Bu kovada hata ile biten calistirma sayisi.</summary>
+    public long FailedRuns { get; init; }
+
+    /// <summary>Girdi token toplami.</summary>
+    public long InputTokens { get; init; }
+
+    /// <summary>Cikti token toplami.</summary>
+    public long OutputTokens { get; init; }
+
+    /// <summary>Toplam maliyet. Hic fiyatlandirilmis calistirma yoksa <see langword="null"/>.</summary>
+    public decimal? Cost { get; init; }
+
+    /// <summary>Sonuclanmis calistirmalarin ortalama suresi (milisaniye).</summary>
+    public double? AverageDurationMs { get; init; }
 }
 
 /// <summary>Bir tanim surumunun calistirma ozeti.</summary>

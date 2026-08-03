@@ -167,12 +167,14 @@ public sealed class RunEventWriter
     /// <param name="status">Son durum.</param>
     /// <param name="usage">Token kullanimi.</param>
     /// <param name="error">Hata bilgisi.</param>
+    /// <param name="cost">Hesaplanan maliyet. Model bilinmiyorsa <see langword="null"/>.</param>
     /// <param name="cancellationToken">Iptal belirteci.</param>
     /// <returns>Tamamlanma gorevi.</returns>
     public async ValueTask CompleteAsync(
         RunStatus status,
         RunUsage? usage = null,
         RunError? error = null,
+        RunCost? cost = null,
         CancellationToken cancellationToken = default)
     {
         if (IsDisabled)
@@ -209,6 +211,7 @@ public sealed class RunEventWriter
                     EventCount = EventCount,
                     Usage = usage,
                     Error = error,
+                    Cost = cost,
                 },
                 cancellationToken).ConfigureAwait(false);
         }

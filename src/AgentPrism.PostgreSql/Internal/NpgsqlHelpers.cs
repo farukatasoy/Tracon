@@ -119,4 +119,11 @@ internal static class NpgsqlHelpers
     /// <returns>Zaman damgasi; <c>NULL</c> ise <see langword="null"/>.</returns>
     public static DateTimeOffset? GetNullableTimestamp(NpgsqlDataReader reader, int ordinal)
         => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<DateTimeOffset>(ordinal);
+
+    /// <summary>Bos olabilen bir numeric sutununu okur.</summary>
+    /// <param name="reader">Okuyucu.</param>
+    /// <param name="ordinal">Sutun sirasi.</param>
+    /// <returns>Deger; <c>NULL</c> ise <see langword="null"/>.</returns>
+    public static decimal? GetNullableDecimal(NpgsqlDataReader reader, int ordinal)
+        => reader.IsDBNull(ordinal) ? null : reader.GetDecimal(ordinal);
 }

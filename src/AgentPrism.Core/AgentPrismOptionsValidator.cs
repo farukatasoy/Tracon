@@ -113,6 +113,8 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
             ValidateScripts(skills.Scripts, ref failures);
         }
 
+        ValidatePricing(options.Pricing, ref failures);
+
         return failures is null
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);
@@ -189,6 +191,30 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
                     $"{nameof(AgentPrismSkillScriptOptions)}.{nameof(AgentPrismSkillScriptOptions.Interpreters)} " +
                     "icinde bos uzanti veya bos yorumlayici yolu var.");
                 break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Yapilandirmadan verilen fiyat gecersiz kilmalarinin negatif olmadigini
+    /// dogrular. Negatif bir fiyat maliyet raporunu sessizce bozardi.
+    /// </summary>
+    private static void ValidatePricing(AgentPrismPricingOptions? pricing, ref List<string>? failures)
+    {
+        if (pricing is null)
+        {
+            return;
+        }
+
+        foreach (var (providerName, models) in pricing.Providers)
+        {
+            foreach (var (modelName, price) in models)
+            {
+                if (price.InputCostPerMillionTokens is < 0 || price.OutputCostPerMillionTokens is < 0)
+                {
+                    (failures ??= []).Add(
+                        $"{nameof(AgentPrismPricingOptions)}: '{providerName}:{modelName}' icin fiyat negatif olamaz.");
+                }
             }
         }
     }
