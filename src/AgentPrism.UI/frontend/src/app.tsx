@@ -3,6 +3,7 @@ import { AccessGate } from './components/access-gate';
 import { Layout } from './components/layout';
 import { Empty, Panel } from './components/ui';
 import { useRoute, type RouteDefinition } from './lib/router';
+import { DashboardScreen } from './screens/dashboard';
 import { AgentsScreen } from './screens/agents';
 import { AgentDetailScreen } from './screens/agent-detail';
 import { AgentEditorScreen } from './screens/agent-editor';
@@ -36,7 +37,8 @@ import type { Meta } from './lib/types';
  * would also match it, so `agents/new` is registered above `agents/:name`.
  */
 const routes = (meta: Meta): RouteDefinition[] => [
-  { pattern: '', render: () => <AgentsScreen meta={meta} /> },
+  { pattern: '', render: () => <DashboardScreen meta={meta} /> },
+  { pattern: 'dashboard', render: () => <DashboardScreen meta={meta} /> },
   { pattern: 'agents', render: () => <AgentsScreen meta={meta} /> },
   { pattern: 'agents/new', render: () => <AgentEditorScreen /> },
   {

@@ -39,6 +39,9 @@ public sealed class AgentPrismOptions
     /// <summary>Ek (goruntu, ses, belge) yukleme sinirlari.</summary>
     public AgentPrismAttachmentOptions Attachments { get; set; } = new();
 
+    /// <summary>Calistirma maliyetinin fiyat kaynagi (Faz 20).</summary>
+    public AgentPrismPricingOptions Pricing { get; set; } = new();
+
     /// <summary>
     /// Baglam sikistirmasinda ozetleme icin kullanilacak varsayilan model.
     /// </summary>
@@ -400,4 +403,37 @@ public sealed class AgentPrismRunRecordingOptions
     /// sonuna kirpildigini belirten bir isaret eklenir.
     /// </summary>
     public int MaxPayloadLength { get; set; } = 8 * 1024;
+}
+
+/// <summary>
+/// Calistirma maliyeti icin fiyat kaynagi. Model kataloguna (<see cref="ModelDescriptor"/>)
+/// gore fiyati olmayan bir model icin ikincil bir kaynaktir.
+/// </summary>
+/// <remarks>
+/// AgentPrism fiyat <strong>uydurmaz</strong> (karar K-032): burada yalnizca
+/// tuketicinin yapilandirmadan verdigi degerler tutulur. Yapilandirma yolu
+/// <c>AgentPrism:Pricing:{saglayici}:{model}:Input|Output</c> ve
+/// <c>AgentPrism:Pricing:Currency</c> seklindedir; joker karakter desteklenmez.
+/// </remarks>
+public sealed class AgentPrismPricingOptions
+{
+    /// <summary>Raporlarda gosterilecek para birimi etiketi. Donusum yapilmaz.</summary>
+    public string? Currency { get; set; }
+
+    /// <summary>
+    /// Saglayici adindan, o saglayicinin model basina fiyat gecersiz kilmalarina
+    /// eslenir.
+    /// </summary>
+    public IDictionary<string, IDictionary<string, ModelPriceOverride>> Providers { get; }
+        = new Dictionary<string, IDictionary<string, ModelPriceOverride>>(StringComparer.OrdinalIgnoreCase);
+}
+
+/// <summary>Yapilandirmadan verilen tek bir modelin fiyat gecersiz kilmasi.</summary>
+public sealed class ModelPriceOverride
+{
+    /// <summary>Milyon girdi token'i basina maliyet.</summary>
+    public decimal? InputCostPerMillionTokens { get; set; }
+
+    /// <summary>Milyon cikti token'i basina maliyet.</summary>
+    public decimal? OutputCostPerMillionTokens { get; set; }
 }

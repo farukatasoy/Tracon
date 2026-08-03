@@ -676,6 +676,272 @@ public abstract class RunStoreContract : IAsyncLifetime
         root!.TreeUsage.ShouldBeNull();
     }
 
+    // --- Maliyet (Faz 20) ---
+
+    [Fact]
+    public async Task Maliyet_yaziliyor_ve_geri_okunuyor()
+    {
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId) with { ModelId = "gpt-x" });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { InputTokens = 100, OutputTokens = 50, TotalTokens = 150 },
+            Cost = new RunCost
+            {
+                InputCost = 0.1234567891m,
+                OutputCost = 0.9876543219m,
+                Currency = "USD",
+                Source = PricingSource.Catalog,
+            },
+        });
+
+        var record = await Store.GetRunAsync(runId);
+
+        record.ShouldNotBeNull();
+        record.Cost.ShouldNotBeNull();
+        record.Cost.Source.ShouldBe(PricingSource.Catalog);
+        record.Cost.Currency.ShouldBe("USD");
+        // numeric(20,10) tam yuvarlamadan gidip gelmelidir.
+        record.Cost.InputCost.ShouldBe(0.1234567891m);
+        record.Cost.OutputCost.ShouldBe(0.9876543219m);
+    }
+
+    [Fact]
+    public async Task Fiyat_tanimsizsa_maliyet_alanlari_null_ama_kaynak_unknown_yazilir()
+    {
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId) with { ModelId = "hic-fiyatlanmamis-model" });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Cost = new RunCost { Source = PricingSource.Unknown },
+        });
+
+        var record = await Store.GetRunAsync(runId);
+
+        record!.Cost.ShouldNotBeNull();
+        record.Cost.Source.ShouldBe(PricingSource.Unknown);
+        // Sifir DEGIL: bilinmeyen fiyat sifir maliyetle karistirilmamalidir.
+        record.Cost.InputCost.ShouldBeNull();
+        record.Cost.OutputCost.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Model_bilinmiyorsa_maliyet_hic_yoktur()
+    {
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        // Cost hic gecilmez: model baglanmamis bir kod agent'i senaryosu.
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+        });
+
+        var record = await Store.GetRunAsync(runId);
+
+        // Model hic bilinmiyorsa Cost NULL'dur; bu, "model biliniyor ama fiyat
+        // tanimsiz" (Source=Unknown, yine de dolu bir RunCost) durumundan farklidir.
+        record!.Cost.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Agac_maliyeti_kendi_maliyetiyle_toplanmiyor_ayri_alanlar()
+    {
+        var rootId = AgentPrismId.NewId();
+        var childId = AgentPrismId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(rootId) with { ModelId = "gpt-x" });
+        await Store.StartRunAsync(TestData.Run(childId, "arastirmaci") with
+        {
+            ModelId = "gpt-x",
+            ParentRunId = rootId,
+            RootRunId = rootId,
+            Depth = 1,
+        });
+
+        await CompleteWithCostAsync(rootId, 1m, 1m);
+        await CompleteWithCostAsync(childId, 2m, 3m);
+
+        var root = await Store.GetRunAsync(rootId);
+
+        root.ShouldNotBeNull();
+        root.Cost!.InputCost.ShouldBe(1m);
+        root.Cost.OutputCost.ShouldBe(1m);
+
+        // Agac toplami kokun KENDI maliyetini de icerir; ikisi toplanip
+        // ayrica gosterilmez (RunTreeUsage ile ayni desen).
+        root.TreeCost!.InputCost.ShouldBe(3m);
+        root.TreeCost.OutputCost.ShouldBe(4m);
+
+        var child = await Store.GetRunAsync(childId);
+
+        // Alti olmayan bir calistirmada agac toplami kendi maliyetine esittir.
+        child!.TreeCost!.InputCost.ShouldBe(2m);
+        child.TreeCost.OutputCost.ShouldBe(3m);
+    }
+
+    [Fact]
+    public async Task Ozet_maliyeti_toplar_ve_tanimsiz_sayisini_bildirir()
+    {
+        await CompleteRunWithCostAsync("alpha", "gpt-x", 1m, 1m, PricingSource.Catalog);
+        await CompleteRunWithCostAsync("alpha", "gpt-x", 2m, 2m, PricingSource.Catalog);
+        await CompleteRunWithCostAsync("beta", "fiyatsiz-model", null, null, PricingSource.Unknown);
+
+        var stats = await Store.GetStatisticsAsync(new RunStatisticsQuery());
+
+        stats.TotalCost.ShouldBe(6m);
+        stats.Currency.ShouldBe("USD");
+        stats.RunsWithUnknownPricing.ShouldBe(1);
+
+        var model = stats.ByModel.Single(static m => string.Equals(m.ModelId, "gpt-x", StringComparison.Ordinal));
+        model.TotalCost.ShouldBe(6m);
+    }
+
+    [Fact]
+    public async Task Deney_sonucu_maliyet_iceriyor()
+    {
+        var experimentId = Guid.NewGuid();
+
+        var controlRun = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(controlRun, "alpha") with
+        {
+            ModelId = "gpt-x",
+            ExperimentId = experimentId,
+            Variant = "control",
+        });
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = controlRun,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Cost = new RunCost { InputCost = 1m, OutputCost = 2m, Currency = "USD", Source = PricingSource.Catalog },
+        });
+
+        var results = await Store.GetExperimentResultsAsync(new ExperimentResultsQuery { ExperimentId = experimentId });
+
+        var control = results.ShouldHaveSingleItem();
+        control.TotalCost.ShouldBe(3m);
+        control.Currency.ShouldBe("USD");
+    }
+
+    [Fact]
+    public async Task Zaman_serisi_bos_kovalari_doldurur()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var from = new DateTimeOffset(now.Year, now.Month, now.Day, now.Hour, 0, 0, TimeSpan.Zero).AddHours(-3);
+        var to = from.AddHours(3);
+
+        // Kasitli olarak orta kovaya (from+1h) hicbir calistirma dusurulmez.
+        await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId()) with { StartedAt = from.AddMinutes(5) });
+        await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId()) with { StartedAt = from.AddHours(2).AddMinutes(5) });
+
+        var points = await Store.GetTimeSeriesAsync(new RunTimeSeriesQuery { From = from, To = to, Bucket = TimeSeriesBucket.Hour });
+
+        points.Count.ShouldBe(3);
+        points[0].Runs.ShouldBe(1);
+        points[1].Runs.ShouldBe(0);
+        points[2].Runs.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Zaman_serisi_eval_calistirmalarini_haric_tutmaz()
+    {
+        // /api/stats'in aksine (K-141), zaman serisi Eval/Workflow calistirmalarini
+        // varsayilan olarak DISLAMAZ (bkz. docs/KARARLAR.md K-152).
+        var now = DateTimeOffset.UtcNow;
+        var from = new DateTimeOffset(now.Year, now.Month, now.Day, now.Hour, 0, 0, TimeSpan.Zero).AddHours(-1);
+        var to = from.AddHours(1);
+
+        await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId()) with { StartedAt = from.AddMinutes(5), Kind = RunKind.Eval });
+
+        var points = await Store.GetTimeSeriesAsync(new RunTimeSeriesQuery { From = from, To = to, Bucket = TimeSeriesBucket.Hour });
+
+        points.ShouldHaveSingleItem().Runs.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Zaman_serisi_kova_sinirini_asinca_hata_verir()
+    {
+        var from = DateTimeOffset.UtcNow.AddDays(-30);
+        var to = DateTimeOffset.UtcNow;
+
+        var exception = await Should.ThrowAsync<AgentPrismException>(async () =>
+            await Store.GetTimeSeriesAsync(new RunTimeSeriesQuery { From = from, To = to, Bucket = TimeSeriesBucket.Hour }));
+
+        exception.Message.ShouldContain("500");
+    }
+
+    [Fact]
+    public async Task Maliyet_yeniden_hesaplama_ucu_satiri_gunceller()
+    {
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId) with { ModelId = "gpt-x" });
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Cost = new RunCost { Source = PricingSource.Unknown },
+        });
+
+        await Store.UpdateRunCostAsync(runId, new RunCost
+        {
+            InputCost = 5m,
+            OutputCost = 5m,
+            Currency = "USD",
+            Source = PricingSource.Configuration,
+        });
+
+        var record = await Store.GetRunAsync(runId);
+
+        record!.Cost!.Source.ShouldBe(PricingSource.Configuration);
+        record.Cost.InputCost.ShouldBe(5m);
+    }
+
+    private async Task CompleteWithCostAsync(Guid runId, decimal inputCost, decimal outputCost)
+        => await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Cost = new RunCost
+            {
+                InputCost = inputCost,
+                OutputCost = outputCost,
+                Currency = "USD",
+                Source = PricingSource.Catalog,
+            },
+        });
+
+    private async Task CompleteRunWithCostAsync(
+        string agentName,
+        string modelId,
+        decimal? inputCost,
+        decimal? outputCost,
+        PricingSource source)
+    {
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId, agentName) with { ModelId = modelId });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Cost = new RunCost { InputCost = inputCost, OutputCost = outputCost, Currency = "USD", Source = source },
+        });
+    }
+
     private async Task CompleteAsync(Guid runId, RunUsage? usage)
         => await Store.CompleteRunAsync(new RunCompletion
         {

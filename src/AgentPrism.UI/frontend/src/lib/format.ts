@@ -117,6 +117,22 @@ export function percent(value: number | null | undefined): string {
   return value === null || value === undefined ? '—' : `${(value * 100).toFixed(1)}%`;
 }
 
+/**
+ * Money amount with a currency suffix, or an em dash when the price is
+ * undefined (never shown as `0` — an undefined price is not a free model).
+ * No currency conversion is performed; the label is whatever the operator
+ * configured under `AgentPrism:Pricing:Currency`.
+ */
+export function money(value: number | null | undefined, currency: string | null | undefined): string {
+  if (value === null || value === undefined) {
+    return '—';
+  }
+
+  const amount = value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+
+  return currency ? `${amount} ${currency}` : amount;
+}
+
 /** Shortens an identifier for dense tables: `019fc02e…5f21`. */
 export function shortId(value: string | null | undefined, head = 8, tail = 4): string {
   if (!value) {

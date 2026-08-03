@@ -151,8 +151,8 @@ public interface ITenantStore { ListAsync · SaveAsync · DeleteAsync }
 // Genisletilen tipler
 record RunRecord     { ...; string? ModelId; }
 record RunStartInfo  { ...; string? ModelId; }
-record RunStatistics { ...; IReadOnlyList<RunModelStatistics> ByModel; }
-record RunModelStatistics { string ModelId; long TotalRuns; long InputTokens; long OutputTokens; long TotalTokens; }
+record RunStatistics { ...; IReadOnlyList<RunModelStatistics> ByModel; }        // Faz 20'de TotalCost/Currency/RunsWithUnknownPricing eklendi
+record RunModelStatistics { string ModelId; long TotalRuns; long InputTokens; long OutputTokens; long TotalTokens; }  // Faz 20'de TotalCost eklendi
 record ToolDescriptor { ...; string? Source; }     // MCP tool'unda sunucu adi
 class  AgentPrismToolRegistration(AIFunction function, bool requiresApproval = false, string? source = null)
 ```
@@ -327,7 +327,7 @@ onaylanır.
 
 | Değişiklik | Neden |
 |-----------|-------|
-| `runs.model_id text` + kısmi indeks | Maliyet ve model kırılımı raporları |
+| `runs.model_id text` + kısmi indeks | Maliyet ve model kırılımı raporları — fiyat sütunları Faz 20'de eklendi (migration 0011: `input_cost`, `output_cost`, `cost_currency`, `pricing_source`; bkz. `docs/20-MALIYET-VE-GOSTERGE-PANELI.md`) |
 | `tool_invocations.arguments/result` `jsonb` → `text` | Argümanlar AOT uyumlu kalmak için elle biçimlendirilir ve geçerli JSON değildir (`run_events.payload` ile aynı gerekçe) |
 | `tool_invocations.source text` | MCP tool'unda kaynak sunucu adı |
 | `spans.span_id text` | W3C span kimliği; kullanıcı aynı span'i kendi APM'inde bulabilmeli |

@@ -40,9 +40,11 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     private readonly RunTraceCollector? _traceCollector;
     private readonly TimeProvider _timeProvider;
     private readonly string? _modelId;
+    private readonly string? _modelProvider;
     private readonly AgentPrismAgentGraphOptions _graphOptions;
     private readonly int? _agentVersion;
     private readonly bool _includeAgentVersionTag;
+    private readonly IRunPricingResolver? _pricingResolver;
 
     /// <summary>Yeni bir kayit sarmalayicisi olusturur.</summary>
     /// <param name="innerAgent">Sarmalanan agent.</param>
@@ -53,6 +55,10 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     /// <param name="metrics">Metrik aletleri. <see langword="null"/> ise metrik yayilmaz.</param>
     /// <param name="traceCollector">Span toplayici. <see langword="null"/> ise span yazilmaz.</param>
     /// <param name="modelId">Agent'in bagli oldugu model. Bilinmiyorsa <see langword="null"/>.</param>
+    /// <param name="modelProvider">
+    /// Agent'in bagli oldugu model saglayicisi. Yalniz maliyet cozumlemesinde
+    /// kullanilir, kalicilastirilmaz (bkz. <c>docs/KARARLAR.md</c> K-154).
+    /// </param>
     /// <param name="timeProvider">Zaman kaynagi. <see langword="null"/> ise sistem saati kullanilir.</param>
     /// <param name="graphOptions">
     /// Cagri agaci sinirlari. <see langword="null"/> ise varsayilanlar kullanilir.
@@ -66,6 +72,9 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     /// <see cref="AgentPrismDiagnostics.Tags.AgentVersion"/> etiketi span'e ve metriklere
     /// eklensin mi. Bkz. <see cref="AgentPrismObservabilityOptions.IncludeAgentVersionTag"/>.
     /// </param>
+    /// <param name="pricingResolver">
+    /// Maliyet cozumleyici. <see langword="null"/> ise hicbir maliyet hesaplanmaz.
+    /// </param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
     public RunRecordingAgent(
         AIAgent innerAgent,
@@ -76,10 +85,12 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         AgentPrismMetrics? metrics = null,
         RunTraceCollector? traceCollector = null,
         string? modelId = null,
+        string? modelProvider = null,
         TimeProvider? timeProvider = null,
         AgentPrismAgentGraphOptions? graphOptions = null,
         int? agentVersion = null,
-        bool includeAgentVersionTag = true)
+        bool includeAgentVersionTag = true,
+        IRunPricingResolver? pricingResolver = null)
         : base(innerAgent)
     {
         ArgumentNullException.ThrowIfNull(runStore);
@@ -94,10 +105,12 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         _metrics = metrics;
         _traceCollector = traceCollector;
         _modelId = modelId;
+        _modelProvider = modelProvider;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _graphOptions = graphOptions ?? new AgentPrismAgentGraphOptions();
         _agentVersion = agentVersion;
         _includeAgentVersionTag = includeAgentVersionTag;
+        _pricingResolver = pricingResolver;
     }
 
     /// <inheritdoc />
@@ -427,7 +440,12 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         // nihai kullanima katilmazsa maliyet raporu ve agac butcesi eksik kalir.
         usage = MergeUsage(usage, scope.ExtraUsage?.ToRunUsage());
 
-        await scope.Writer.CompleteAsync(status, usage, error, cancellationToken).ConfigureAwait(false);
+        // Maliyet BURADA, nihai (birlestirilmis) kullanimdan hesaplanir — fiyat
+        // anlik goruntusudur (bkz. docs/20-MALIYET-VE-GOSTERGE-PANELI.md bolum 20.2):
+        // fiyat listesi sonradan degisirse bu calistirmanin maliyeti degismez.
+        var cost = _pricingResolver?.Resolve(_modelProvider, _modelId, usage);
+
+        await scope.Writer.CompleteAsync(status, usage, error, cost, cancellationToken).ConfigureAwait(false);
 
         // Butce agac boyunca paylasilan tek nesnedir; kok de alt calistirmalar da
         // ayni sayaci besler. Aksi halde "agac ne harcadi" sorusunun cevabi yalnizca

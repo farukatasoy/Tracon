@@ -138,5 +138,11 @@ public sealed class MetaEndpointTests
 
         public ValueTask<IReadOnlyList<ExperimentVariantResult>> GetExperimentResultsAsync(ExperimentResultsQuery query, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<TimeSeriesPoint>> GetTimeSeriesAsync(RunTimeSeriesQuery query, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask UpdateRunCostAsync(Guid runId, RunCost? cost, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
     }
 }

@@ -94,6 +94,10 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetService<TimeProvider>()));
         services.TryAddSingleton<IModelProviderRegistry, ModelProviderRegistry>();
 
+        // Maliyet cozumleyici (Faz 20): model kataloğu, sonra AgentPrism:Pricing.
+        services.TryAddSingleton<IRunPricingResolver, RunPricingResolver>();
+        services.TryAddSingleton<RunCostRecalculationService>();
+
         // Saglik onbellegi ve isteğe bagli arka plan tazeleyici. Acik fabrika: ayni
         // gerekce, TimeProvider kayitli olmayabilir.
         services.TryAddSingleton(static provider => new ModelProviderHealthCache(
@@ -315,7 +319,8 @@ public static class AgentPrismServiceCollectionExtensions
                 provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<RunRecordingAgent>>(),
                 provider.GetRequiredService<AgentPrismMetrics>(),
                 provider.GetRequiredService<RunTraceCollector>(),
-                provider.GetService<TimeProvider>())));
+                provider.GetService<TimeProvider>(),
+                provider.GetRequiredService<IRunPricingResolver>())));
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, OpenTelemetryAgentDecorator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, ToolApprovalAgentDecorator>());
@@ -402,8 +407,66 @@ public static class AgentPrismServiceCollectionExtensions
         BindSkills(section.GetSection(nameof(AgentPrismOptions.Skills)), options.Skills);
         BindAgentGraph(section.GetSection(nameof(AgentPrismOptions.AgentGraph)), options.AgentGraph);
         BindAttachments(section.GetSection(nameof(AgentPrismOptions.Attachments)), options.Attachments);
+        BindPricing(section.GetSection(nameof(AgentPrismOptions.Pricing)), options.Pricing);
         options.UtilityModel = BindUtilityModel(section.GetSection(nameof(AgentPrismOptions.UtilityModel)));
     }
+
+    /// <summary>
+    /// <c>AgentPrism:Pricing</c> bolumunu baglar. <c>Currency</c> anahtari
+    /// rezervedir; diger her cocuk bir saglayici adi olarak okunur.
+    /// </summary>
+    private static void BindPricing(IConfigurationSection section, AgentPrismPricingOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (section[nameof(AgentPrismPricingOptions.Currency)] is { Length: > 0 } currency)
+        {
+            options.Currency = currency;
+        }
+
+        foreach (var providerSection in section.GetChildren())
+        {
+            if (string.Equals(
+                    providerSection.Key,
+                    nameof(AgentPrismPricingOptions.Currency),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var models = new Dictionary<string, ModelPriceOverride>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var modelSection in providerSection.GetChildren())
+            {
+                var input = ReadDecimal(modelSection, "Input");
+                var output = ReadDecimal(modelSection, "Output");
+
+                if (input is null && output is null)
+                {
+                    continue;
+                }
+
+                models[modelSection.Key] = new ModelPriceOverride
+                {
+                    InputCostPerMillionTokens = input,
+                    OutputCostPerMillionTokens = output,
+                };
+            }
+
+            if (models.Count > 0)
+            {
+                options.Providers[providerSection.Key] = models;
+            }
+        }
+    }
+
+    private static decimal? ReadDecimal(IConfiguration section, string key)
+        => decimal.TryParse(section[key], NumberStyles.Number, CultureInfo.InvariantCulture, out var value)
+            ? value
+            : null;
 
     /// <summary>
     /// Yardimci model baglantisini yapilandirmadan okur.

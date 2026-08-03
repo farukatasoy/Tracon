@@ -114,6 +114,7 @@ Blazor WebAssembly değerlendirildi ve elendi (bkz. KARARLAR.md).
 
 | Ekran | İşlev | Durum |
 |-------|-------|-------|
+| **Dashboard** | **Giriş ekranı (Faz 20).** Bugün/dün karşılaştırması, çalıştırma+hata zaman serisi, model/agent kırılımı, uyarılar (fiyatsız model, sağlıksız sağlayıcı, bekleyen onay) | ✅ |
 | **Agents** | Katalog listesi (kod/DB rozeti), tanım editörü, versiyon geçmişi, geri alma | ✅ |
 | **Playground** | Akışlı sohbet; tool çağrıları, argümanlar, sonuçlar ve reasoning adımları açılır kartlar hâlinde | ✅ |
 | **Sessions** | Oturum listesi, mesaj geçmişi, silme, ham JSON görünümü | ✅ |
@@ -598,8 +599,10 @@ fazında gelir" notu taşıyor (sapma S5). `tool_invocations` doldurulduğunda v
 zaman çizelgesinin yanına bir sütun olarak eklenebilir. Olay hue'ları
 `EVENT_STYLE` sabitinde toplu.
 
-**4. Maliyet sütunu hâlâ yoktur.** `/api/stats` maliyet döndürmez; Settings ekranı
-bunun nedenini yazıyor. `runs.model` sütunu eklendiğinde hem uç hem ekran güncellenir.
+**4. Maliyet sütunu Faz 20'de eklendi.** `/api/stats` artık `totalCost`/`currency`/
+`runsWithUnknownPricing` döndürür; Dashboard'un model kırılımı grafiği fiyat
+yapılandırıldığında maliyeti gösterir. Settings ekranındaki "Token use by model"
+paneli artık yalnız hızlı bakış içindir ve Dashboard'a işaret eder.
 
 **5. Arayüz dili İngilizce, i18n altyapısı yoktur.** Çok dilli destek istenirse
 `lib/` altına küçük bir sözlük + hook eklenir; metinler bugün bileşenlerin içinde

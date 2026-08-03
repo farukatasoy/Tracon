@@ -1,11 +1,11 @@
 # Faz 20 — Maliyet Raporlaması ve Gösterge Paneli
 
-> **Durum:** 📋 Planlandı
+> **Durum:** ✅ Tamamlandı (2026-08-03)
 > **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-17**, **F-23**
 > **Önkoşul:** Yok · Faz 8 önerilir (uyumlu sağlayıcıların fiyatları da yapılandırmadan gelir)
 > **Sonraki bağımlı:** [Faz 21](21-KOTA-VE-OLAY-YAYINI.md) — kota maliyet görünürlüğünden sonra anlamlıdır
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
-> **Yeni paket:** Yok · **Migration:** 0011 (planlanan sırada)
+> **Yeni paket:** Yok · **Migration:** 0011 (`0011_run_costs.sql`)
 
 ---
 
@@ -214,17 +214,50 @@ Bütçe hedefi: **+12 KB gzip'ten az** (grafikler + ekran).
 
 ## Testler
 
-| Proje | Yeni test |
-|-------|-----------|
-| `AgentPrism.Core.UnitTests` | Fiyat çözümleme sırası; bilinmeyen fiyat **null** (sıfır değil); `decimal` yuvarlama; para birimi tutarlılığı |
-| `AgentPrism.PostgreSql.IntegrationTests` | Maliyet yazımı; `numeric` gidiş-dönüş; zaman serisi **boş kova** üretimi; kova sınırı; kiracı yalıtımı |
-| `AgentPrism.AspNetCore.FunctionalTests` | `/api/stats` maliyet alanları; `/api/stats/timeseries` parametre doğrulaması; yeniden hesaplama ucunun rolü |
-| Frontend (Vitest) | Ölçek hesabı, kova etiketleme, boş veri durumu — `lib/chart.ts` saf mantık |
-| `AgentPrism.Ui.E2ETests` | Dashboard yükleniyor, grafikler çiziliyor, aralık değiştirilebiliyor |
+| Proje | Yeni test | Sayı |
+|-------|-----------|------|
+| `AgentPrism.Core.UnitTests` | `Models/RunPricingResolverTests.cs` — katalog→yapılandırma sırası, bilinmeyen fiyat **null** (sıfır değil), saglayici-siz alfabetik ilk eşleşme, decimal yuvarlama, para birimi geçişi | 8 |
+| `AgentPrism.Core.UnitTests` | `Recording/RunRecordingAgentTests.cs` — **uçtan uca** boru hattı testleri (`Maliyet_pipeline_ucdan_uca_hesaplanip_yaziliyor`, `Maliyet_pipeline_fiyatsiz_modelde_unknown_yazar`); bkz. K-157 | 2 |
+| `AgentPrism.PostgreSql.IntegrationTests` | `Contracts/RunStoreContract.cs` — maliyet yazımı, `numeric(20,10)` tam gidiş-dönüş, model bilinmiyorsa `Cost=null`, ağaç maliyeti ayrı alan, deney sonucu maliyeti, zaman serisi boş kova doldurma, Eval'i hariç TUTMAMA, kova sınırı hatası, yeniden hesaplama ucu | 10 (× 2 depo = 20) |
+| `AgentPrism.AspNetCore.FunctionalTests` | `StatsCostTests.cs` (maliyet alanları, boş kova, ters aralık 400, kova sınırı 400+öneri) + `RoleAndAuditTests.cs` eklentisi (Admin rolü, denetim izi) | 6 |
+| Frontend (Vitest) | `lib/chart.test.ts` — ölçek, çizgi yolu, çubuk/yığın düzeni, kova etiketleme, boş veri güvenliği; `lib/format.test.ts` eklentisi (`money`) | 13 + 3 |
+| `AgentPrism.Ui.E2ETests` | `Dashboard_grafikleri_cizilir_ve_aralik_degistirilebilir` + 4 mevcut testin "Agents" → "Dashboard" güncellemesi | 1 (+4 güncelleme) |
 
-**Gerçek kanıt:** fiyat yapılandırılmış bir kurulumda 10 çalıştırma yapılır;
-`/api/stats` maliyet çıktısı ve dashboard ekran davranışı dokümana yazılır.
-Fiyatsız bir model ile "tanımsız" sayacının arttığı da gösterilir.
+Toplam: mevcut 1033 backend teste **37 yeni test** eklendi (1070 toplam, hepsi
+yeşil); Vitest 80 test (hepsi yeşil, 16 yeni).
+
+**Gerçek kanıt** — `samples/AgentPrism.Api`, gerçek OpenAI çağrısıyla (K-141'in
+aynı yöntemi):
+
+```
+$ curl -X POST http://localhost:5081/agentprism/api/agents/support/run -d '{"message":"..."}'  # 3 kez, fiyat TANIMSIZ
+$ curl http://localhost:5081/agentprism/api/stats
+{ "totalCost": null, "currency": null, "runsWithUnknownPricing": 0, "byModel": [{"modelId":"gpt-5.4-mini","totalCost":null,...}] }
+```
+
+Fiyat `AgentPrism:Pricing:openai:gpt-5.4-mini:Input=0.25` /
+`:Output=2.0` ile tanımlanıp 3 çalıştırma tekrarlanınca:
+
+```
+$ curl http://localhost:5081/agentprism/api/stats
+{ "totalCost": 0.00033025, "currency": "USD", "runsWithUnknownPricing": 0,
+  "byModel": [{"modelId":"gpt-5.4-mini","totalRuns":3,"inputTokens":825,"outputTokens":62,"totalCost":0.00033025}] }
+
+$ curl "http://localhost:5081/agentprism/api/stats/timeseries?from=...&to=...&bucket=Hour"
+[ {"bucket":"...T13:00:00+00:00","runs":0,"cost":null,...},   # bos kova
+  {"bucket":"...T14:00:00+00:00","runs":0,"cost":null,...},   # bos kova
+  {"bucket":"...T16:00:00+00:00","runs":3,"cost":0.00033025,"averageDurationMs":2089.4} ]
+
+$ curl -X POST http://localhost:5081/agentprism/api/stats/recalculate-costs
+{ "runsConsidered": 3, "runsUpdated": 3, "runsStillUnknown": 0 }
+```
+
+🚨 Bu adım (Faz-tamamlama Adım 2) gerçek bir hata yakaladı:
+`RunEventWriter.CompleteAsync`'e eklenen `cost` parametresi ilk yazımda
+`RunCompletion` nesnesine hiç bağlanmamıştı — 1068 testin **hiçbiri** bunu
+yakalamadı çünkü hiçbiri `RunRecordingAgent → RunEventWriter → Store` zincirini
+uçtan uca çalıştırmıyordu. Bkz. K-157 ve yukarıdaki iki yeni
+`RunRecordingAgentTests` testi.
 
 ---
 
@@ -241,30 +274,28 @@ Fiyatsız bir model ile "tanımsız" sayacının arttığı da gösterilir.
 
 ---
 
-## Açık Sorular
+## Açık Sorular — Karara Bağlandı
 
-1. **Para birimi dönüşümü yapılsın mı?** Kur kaynağı gerektirir ve K-032'nin
-   aynı sorunu doğar. Öneri: **hayır** — tek para birimi, etiketi
-   yapılandırmadan.
-2. **Faz 12'nin ağaç maliyeti nasıl gösterilsin?** Kök satırda ağaç toplamı,
-   alt satırlarda kendi maliyeti. Öneri: **iki ayrı sütun**, toplanmaz.
-3. **Eval ve workflow çalıştırmaları dashboard'a dâhil mi?** Öneri: `runs.kind`
-   filtresiyle **ayrı gösterilir**; toplam maliyette **dâhildir** (gerçekten
-   harcanmıştır).
-4. **Yeniden hesaplama ucu olsun mu?** Öneri: **evet**, Admin + denetim izi.
+Dördü de kullanıcı tarafından dokümanın önerisiyle onaylandı ve karar
+defterine yazıldı:
+
+1. **Para birimi dönüşümü** → **Hayır**. Tek para birimi, `AgentPrism:Pricing:Currency`'den gelen bir etiket (K-150).
+2. **Ağaç maliyeti gösterimi** → **İki ayrı alan**: `RunRecord.Cost` (kendi) ve `RunRecord.TreeCost` (ağaç toplamı, kendi maliyetini de içerir), toplanmaz — `Usage`/`TreeUsage` ile aynı desen (K-151).
+3. **Eval/workflow dahil mi** → `/api/stats` `RunKind.Eval`'i hariç tutmaya devam eder (K-141 korunur); **yeni** `/api/stats/timeseries` bilerek hariç TUTMAZ, `?kind=` ile filtrelenebilir — bu iki ucun kasıtlı farkıdır (K-152).
+4. **Yeniden hesaplama ucu** → **Evet**: `POST /api/stats/recalculate-costs`, Admin rolü + denetim izi (`stats.recalculate-costs`) (K-153).
 
 ---
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Fiyat yapılandırıldığında çalıştırma maliyeti `runs` satırına yazılıyor
-- [ ] Fiyat tanımsızsa `null` yazılıyor ve rapor bunu **sayıyor**
-- [ ] `/api/stats/timeseries` boş kovalarla birlikte doğru seri döndürüyor
-- [ ] Dashboard giriş ekranı; üç grafik çiziliyor; tema değişimi çalışıyor
-- [ ] Grafik yaklaşımı ölçüldü ve karar yazıldı
-- [ ] Faz 6'nın `ByModel` kırılımı maliyet sütunlarıyla genişledi
-- [ ] Bundle ölçüldü; bütçe aşılmadı
-- [ ] Dört doğrulama kapısı sıfır uyarı
+- [x] Fiyat yapılandırıldığında çalıştırma maliyeti `runs` satırına yazılıyor — gerçek OpenAI çağrısıyla doğrulandı
+- [x] Fiyat tanımsızsa `null` yazılıyor ve rapor bunu **sayıyor** (`runsWithUnknownPricing`)
+- [x] `/api/stats/timeseries` boş kovalarla birlikte doğru seri döndürüyor
+- [x] Dashboard giriş ekranı; üç grafik çiziliyor; tema değişimi çalışıyor (var(--ap-*) token'ları, ayrı build gerekmez)
+- [x] Grafik yaklaşımı ölçüldü ve karar yazıldı — el çizimi yeterli kaldı, kütüphaneye geçilmedi (aşağıya bkz.)
+- [x] Faz 6'nın `ByModel` kırılımı maliyet sütunlarıyla genişledi
+- [x] Bundle ölçüldü; bütçe aşılmadı — 113,2 KB → **116,2 KB gzip** (+3,0 KB, hedef +12 KB'nin çok altında)
+- [x] Dört doğrulama kapısı sıfır uyarı (1070 backend test, 80 Vitest test)
 
 ---
 
@@ -273,18 +304,78 @@ Fiyatsız bir model ile "tanımsız" sayacının arttığı da gösterilir.
 | Risk | Önlem |
 |------|-------|
 | Yanlış fiyat yanlış rapor üretir | Fiyat yalnız yapılandırmadan; kaynak (`pricing_source`) kaydedilir ve raporda görünür |
-| Grafik kütüphanesi bütçeyi yer | Önce elle çizim, sonra ölçüm |
-| Zaman serisi sorgusu yavaşlar | Kova sınırı; kısmi indeks; `date_trunc` indeksli sütun üzerinde |
+| Grafik kütüphanesi bütçeyi yer | Elle çizim yeterli kaldı (+3,0 KB); kütüphaneye hiç bakılmadı |
+| Zaman serisi sorgusu yavaşlar | Kova sınırı (500); kısmi indeks (`runs_tenant_cost_idx`) |
 | Yerel modelde token gelmez (Faz 8) | Maliyet `null`; "tanımsız" sayacında görünür |
-| Giriş ekranı değişimi kullanıcıyı şaşırtır | Yan menüde Agents ilk sırada kalır; değişiklik dokümante edilir |
+| Giriş ekranı değişimi kullanıcıyı şaşırtır | Yan menüde Agents ilk, Dashboard ikinci sırada; E2E testleri güncellendi |
+| Yeni bir parametre eklenip gövdede kullanılmaması (K-157) | `faz-tamamlama` Adım 2 (örnek uygulamayı gerçek sağlayıcıyla çalıştırmak) zorunlu kalır; sözleşme testleri tek başına yetmez |
 
 ---
 
 ## Sonraki Faza Devir Notu
 
+### Faz 21'e (Kota ve Olay Yayını) başlarken okunacaklar
+
+1. Bu doküman — özellikle bölüm 20.1-20.3 (fiyat kaynağı, anlık görüntü, tipler).
+2. `docs/KARARLAR.md` K-150…K-157 — bu fazın tüm kararları ve bilinen sınırlama.
+3. Gerçekleşen tipler aşağıda; Faz 21 muhtemelen `RunCost`/`RunStatistics.TotalCost`'u
+   doğrudan tüketecek (kota "para" cinsinden tanımlanırsa).
+
+### Devraldığı sözleşmeler (gerçekleşen public API)
+
+```csharp
+// AgentPrism.Abstractions
+public enum PricingSource { Catalog = 0, Configuration = 1, Unknown = 2 }
+public enum TimeSeriesBucket { Hour = 0, Day = 1 }
+
+public sealed record RunCost { InputCost, OutputCost, Currency, required Source }
+public sealed record RunTreeCost { InputCost, OutputCost, Currency, RunsWithUnknownPricing }
+public sealed record TimeSeriesPoint { Bucket, Runs, FailedRuns, InputTokens, OutputTokens, Cost, AverageDurationMs }
+public sealed record RunTimeSeriesQuery { From, To, Bucket = Hour, AgentName?, ModelId?, Kind?, TenantId? }
+public sealed record RunCostRecalculationResult { RunsConsidered, RunsUpdated, RunsStillUnknown }
+public static class RunTimeSeriesBucketing { const int MaxBuckets = 500; StepFor/Truncate/Validate(...) }
+
+public interface IRunPricingResolver { RunCost? Resolve(string? provider, string? model, RunUsage? usage); }
+
+// IRunStore ekleri
+ValueTask<IReadOnlyList<TimeSeriesPoint>> GetTimeSeriesAsync(RunTimeSeriesQuery, CancellationToken);
+ValueTask UpdateRunCostAsync(Guid runId, RunCost? cost, CancellationToken);
+
+// RunRecord/RunStatistics/RunModelStatistics/ExperimentVariantResult'a eklenen alanlar:
+// Cost/TreeCost, TotalCost+Currency+RunsWithUnknownPricing, TotalCost, TotalCost+Currency
+
+// AgentPrism.Core
+public sealed class AgentPrismPricingOptions { Currency?, Providers: IDictionary<string, IDictionary<string, ModelPriceOverride>> }
+public sealed class RunPricingResolver : IRunPricingResolver
+public sealed class RunCostRecalculationService { ValueTask<RunCostRecalculationResult> RecalculateAsync(string tenantId, CancellationToken); }
+
+// HTTP
+GET  {prefix}/api/stats/timeseries?from&to&bucket&agentName&modelId&kind
+POST {prefix}/api/stats/recalculate-costs   // Admin, denetim izi: "stats.recalculate-costs"
+```
+
+### Davranış sözleşmeleri (testlerin doğruladığı kurallar)
+
+| Kural | Test |
+|-------|------|
+| Fiyat sırası: katalog → yapılandırma → Unknown | `RunPricingResolverTests` |
+| Bilinmeyen fiyat asla `0`, her zaman `null` + `Source=Unknown` | `RunPricingResolverTests`, `RunStoreContract` |
+| Maliyet çalıştırma bittiğinde bir kez hesaplanır, sonradan değişmez | `RunRecordingAgentTests` (uçtan uca) |
+| `TreeCost`, `Cost` ile toplanmaz | `RunStoreContract.Agac_maliyeti_kendi_maliyetiyle_toplanmiyor_ayri_alanlar` |
+| `/api/stats` Eval'i hariç tutar (K-141); `/api/stats/timeseries` TUTMAZ (K-152) | `RunStoreContract.Zaman_serisi_eval_calistirmalarini_haric_tutmaz` |
+| Zaman serisi boş kovaları doldurur | `RunStoreContract.Zaman_serisi_bos_kovalari_doldurur` |
+| 500 kova sınırı aşılırsa `AgentPrismException` (önerilen kova ile) | `RunStoreContract.Zaman_serisi_kova_sinirini_asinca_hata_verir` |
+| Yeniden hesaplama saglayiciyi bilmez, alfabetik ilk eşleşen kazanır | K-154, `RunPricingResolverTests.Saglayici_verilmezse_*` |
+
+### Bilinen tuzaklar
+
+- 🚨 **Yeni bir parametre eklemek onu kullanmak DEĞİLDİR** (K-157) — bkz. MEMORY.md. Çağrı zincirindeki her katmanı (imza + gövde) elle izleyin.
+- `runs` tablosunda saglayici sütunu **yok** — yalnız `model_id`. Aynı model adı iki saglayicida farklı fiyatlıysa yeniden hesaplama alfabetik ilk saglayiciyi seçer (K-154).
+- `SqlQueries`'te own+tree maliyet sütunları `runColumns`'a **sona eklendi** (indeks 28-36); yeni bir sütun eklerken yine sona ekleyin, `ReadRun`'daki sabit indeksleri renumber etmeyin.
+
 - **Faz 21 (kota) bu fazın maliyet alanlarını kullanır.** Kota "token" veya
   "para" cinsinden tanımlanabilir; para cinsi ancak fiyat tanımlıysa anlamlıdır
   ve tanımsızsa kota **token'a düşer**.
-- Faz 19'un deney sonuç tablosu maliyet sütunu ile tamamlanır.
+- Faz 19'un deney sonuç tablosu maliyet sütunu ile tamamlandı (`ExperimentVariantResult.TotalCost`/`Currency`).
 - Faz 25 (saklama) `runs` özetini korur, olayları düşürür — maliyet alanları
   `runs` üzerinde olduğu için arşivleme sonrası da raporlanabilir.

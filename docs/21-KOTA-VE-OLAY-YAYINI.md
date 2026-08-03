@@ -10,10 +10,14 @@
 
 ## Bu Faza Başlarken
 
-1. [`KARARLAR.md`](KARARLAR.md) — **K-059** (sır veritabanına yazılmaz, anahtar adı yazılır), **K-007** (bağımlılık), **K-010** (erişim katmanları)
+1. [`KARARLAR.md`](KARARLAR.md) — **K-059** (sır veritabanına yazılmaz, anahtar adı yazılır), **K-007** (bağımlılık), **K-010** (erişim katmanları), **K-150…K-157** (Faz 20'nin maliyet kararları — özellikle K-154: `runs` saglayici sütunu taşımaz)
 2. [`06-GOZLEMLENEBILIRLIK.md`](06-GOZLEMLENEBILIRLIK.md) — kiracı bağlamı, onay akışı
 3. [`17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md`](17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) — iş kuyruğu, yeniden deneme
-4. Bu doküman
+4. [`20-MALIYET-VE-GOSTERGE-PANELI.md`](20-MALIYET-VE-GOSTERGE-PANELI.md), bölüm "Sonraki Faza Devir Notu" —
+   para cinsinden kota bu fazın `RunStatistics.TotalCost`/`RunCost`/`RunPricingResolver`'ını
+   kullanacaksa gerçekleşen tipler orada. Fiyatı tanımsız bir modelde kota **token'a düşer**
+   (`RunStatistics.RunsWithUnknownPricing` bunu sayar).
+5. Bu doküman
 
 ---
 
