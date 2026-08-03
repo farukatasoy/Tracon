@@ -10,14 +10,31 @@
 
 ## Bu Faza Başlarken
 
-1. [`KARARLAR.md`](KARARLAR.md) — **K-059** (sır veritabanına yazılmaz, anahtar adı yazılır), **K-007** (bağımlılık), **K-010** (erişim katmanları), **K-150…K-157** (Faz 20'nin maliyet kararları — özellikle K-154: `runs` saglayici sütunu taşımaz)
-2. [`06-GOZLEMLENEBILIRLIK.md`](06-GOZLEMLENEBILIRLIK.md) — kiracı bağlamı, onay akışı
-3. [`17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md`](17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) — iş kuyruğu, yeniden deneme
-4. [`20-MALIYET-VE-GOSTERGE-PANELI.md`](20-MALIYET-VE-GOSTERGE-PANELI.md), bölüm "Sonraki Faza Devir Notu" —
-   para cinsinden kota bu fazın `RunStatistics.TotalCost`/`RunCost`/`RunPricingResolver`'ını
+> `faz-baslangic` skill'ini uygula. Aşağıdaki liste o skill'in 2. adımıdır —
+> **tamamını değil, yalnız işaret edilen bölümleri oku.**
+
+1. Bu doküman
+2. Kararlar — dosyanın tamamını **okuma**, yalnız bu kalemleri grep'le:
+   ```bash
+   grep -n "K-059\|K-007\|K-010\|K-15[0-7]" docs/KARARLAR.md
+   ```
+   **K-059** (sır veritabanına yazılmaz, anahtar adı yazılır), **K-007** (bağımlılık),
+   **K-010** (erişim katmanları), **K-150…K-157** (Faz 20'nin maliyet kararları —
+   özellikle K-154: `runs` sağlayıcı sütunu taşımaz)
+3. [`20-MALIYET-VE-GOSTERGE-PANELI.md`](20-MALIYET-VE-GOSTERGE-PANELI.md) — yalnız devir notu:
+   ```bash
+   awk '/## Sonraki Faza Devir Notu/,0' docs/20-MALIYET-VE-GOSTERGE-PANELI.md
+   ```
+   Para cinsinden kota bu fazın `RunStatistics.TotalCost`/`RunCost`/`RunPricingResolver`'ını
    kullanacaksa gerçekleşen tipler orada. Fiyatı tanımsız bir modelde kota **token'a düşer**
    (`RunStatistics.RunsWithUnknownPricing` bunu sayar).
-5. Bu doküman
+4. Alan hafızası (bu faz üç alana dokunuyor):
+   [`hafiza/aspnetcore-di.md`](hafiza/aspnetcore-di.md) (yeni uçlar, DI kaydı),
+   [`hafiza/postgresql.md`](hafiza/postgresql.md) (migration 0012, sabit sütun indeksi),
+   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (sır süzgeci, kayıt zinciri)
+5. Gerektiğinde, tamamı değil ilgili bölümü:
+   [`06-GOZLEMLENEBILIRLIK.md`](06-GOZLEMLENEBILIRLIK.md) (kiracı bağlamı, onay akışı) ·
+   [`17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md`](17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) (iş kuyruğu, yeniden deneme — webhook teslimi bunu kullanır)
 
 ---
 

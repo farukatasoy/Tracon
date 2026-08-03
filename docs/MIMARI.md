@@ -3,20 +3,31 @@
 > Bu doküman AgentPrism'in kalıcı mimari resmidir. Faz dokümanları (`00`–`30`) uygulama sırasını anlatır; bu doküman **ne** inşa ettiğimizi anlatır. Faz 8'den sonraki sıra: [`IKINCI-FAZ-YOL-HARITASI.md`](IKINCI-FAZ-YOL-HARITASI.md).
 >
 > **Bu dosya her fazın sonunda güncellenir.** Gerçekleşen tasarım ile bu doküman arasında fark varsa doküman yanlıştır — koda göre düzeltilir.
+>
+> **Büyüme kuralı — bu dosya 42 KB'yi aşamaz.** Her oturumda okunur; büyümesi her
+> oturumu pahalılaştırır. Bu yüzden burada **yalnız bugünkü mimari** yaşar:
+> - "Faz N sonunda …" anlatısı → [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md)
+> - Paket × faz birikimi → [`arsiv/PAKET-FAZ-GECMISI.md`](arsiv/PAKET-FAZ-GECMISI.md)
+> - MAF genişleme noktaları → [`MAF-GENISLEME-NOKTALARI.md`](MAF-GENISLEME-NOKTALARI.md)
+>
+> Bir bölüm bir fazda büyüdüyse, **eski hâlini** arşive taşı; üst üste yığma.
+> Denetim: `python3 scripts/dokuman-bakim.py --denetle`
 
 ## Güncel Durum (2026-08-03)
 
-| Paket | Durum | Faz |
-|-------|-------|-----|
-| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) · 5 (`AgentPrismRunOptions`) · 6 (telemetri, tool çağrısı, onay, MCP, kiracı) · 8 (`IModelProviderHealthCheck`, `AgentPrismProviderUnavailableException`) · 9 (`IAuditLog`, `IAuditActorResolver`, `IAuditDecorated`) · 10 (`AgentSkillDefinition`, `IAgentSkillStore`) · 11 (script tanımı, `ISkillScriptGrantStore`) · 12 (`AgentRunBudget`, çalıştırma ağacı alanları, `CallableAgentNames`) · 13 (`CompactionSettings`, `CompactionStrategyKind`, `MemorySettings`, `RunEventType.HistoryCompacted`) · 14 (`AttachmentDescriptor`, `AttachmentContent`, `IAttachmentStore`, `IAttachmentStorage`, `AttachmentQuery`) · 15 (`RunKind`, `WorkflowDefinition`, `WorkflowKind`, `WorkflowDescriptor`, `IWorkflowRunner`, `IWorkflowDefinitionStore`, `IWorkflowCheckpointStore`, sekiz yeni `RunEventType`) · 17 (`JobKind`, `JobStatus`, `JobItemStatus`, `JobSchedule`, `JobRecord`, `JobItemRecord`, `IJobStore`, `IJobScheduleStore`, `IJobHandler`, `AgentPrismSchedulingOptions`, `AmbientTenantScope`) · 18 (`EvalSuite`, `EvalCase`, `EvalRun`, `EvalCaseResult`, `IEvalStore`, `RunKind.Eval`, `AgentPrismRunOptions.Kind`) · 19 (`Experiment`, `ExperimentVariant`, `ExperimentStatus`, `IExperimentStore`, `ExperimentAssignment`, `ExperimentVariantResult`, `ExperimentResultsQuery`, `IVersionedAgentSource`, `RunVersionStatistics`, `IAgentDefinitionStore.GetVersionAsync`, `IAgentCatalog.ResolveAsync(name, version, ct)`, `IRunStore.GetExperimentResultsAsync`) · 20 (`PricingSource`, `TimeSeriesBucket`, `RunCost`, `RunTreeCost`, `TimeSeriesPoint`, `RunTimeSeriesQuery`, `RunTimeSeriesBucketing`, `RunCostRecalculationResult`, `IRunPricingResolver`, `IRunStore.GetTimeSeriesAsync`/`UpdateRunCostAsync`, `RunStatistics`/`RunModelStatistics`/`ExperimentVariantResult` maliyet alanları) |
-| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) · 5 (çağıranın verdiği çalıştırma kimliği) · 6 (span, metrik, onay kuralı) · 8 (devre kesici, sağlık önbelleği) · 9 (`AuditActorContext`, `AuditSecretFilter`, `Auditing*Store` dekoratörleri) · 10 (skill katalogu, MAF source, fingerprint cache) · 11 (`SandboxedSkillScriptRunner`, `AgentPrismRunContext`) · 12 (`AgentCallGraph`, `CallableAgentResolver`, `ChildAgentInvoker`, `AgentRunScope`) · 13 (`ObservedCompactionStrategy`, `CompactionUsageTrackingChatClient`, `CompactionUsageAccumulator`, `AgentPrismOptions.UtilityModel`) · 14 (`AttachmentTypeGuard`, `InMemoryAttachmentStore`, `AttachmentResolvingChatClient`, `AttachmentUriReference`) · 15 (`WorkflowDefinitionValidator`, `InMemoryWorkflow*Store`, `AuditingWorkflowDefinitionStore`, `RunEventWriter.AppendAsync` artık olayı döndürür) · 17 (`InMemoryJobStore`, `InMemoryJobScheduleStore`, `CronExpression`, `JobWorkerBackgroundService`, `AgentBatchJobHandler`, `WorkflowJobHandler`, `AddJobHandler<T>()`, `UseScheduling()`) · 18 (`InMemoryEvalStore`, `EvalCheckRegistry`, `EvalJobHandler`, `AddEvalCheck(...)`) · 19 (`ExperimentAssignmentResolver`, `InMemoryExperimentStore`, `AuditingExperimentStore`, `DefinitionStoreAgentSource : IVersionedAgentSource`, `CompositeAgentCatalog.ResolveAsync(name, version, ct)`, `AgentPrismDiagnostics.Tags.AgentVersion`, `AgentPrismObservabilityOptions.IncludeAgentVersionTag`) · 20 (`RunPricingResolver`, `RunCostRecalculationService`, `AgentPrismPricingOptions`, `InMemoryRunStore` maliyet+zaman serisi) |
-| `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 · 4 (özet sorgusu) · 6 (migration 0002, dört yeni depo) · 9 (`PostgresAuditLog`, migration **yok** — şema Faz 0'dan hazırdı) · 10 (migration 0003, `PostgresAgentSkillStore`) · 11 (migration 0004) · 12 (migration 0005 — `runs` ağaç sütunları, **yeni tablo yok**) · 13 (`AgentDefinitionPayload` genişletildi, **yeni migration yok** — `agent_definitions.definition` opak JSON) · 14 (migration 0006 — `attachments`, `agent_files`; `PostgresAttachmentStore`, `PostgresAgentFileStore`) · 15 (migration 0007 — `workflows`, `workflow_checkpoints`, `runs.kind`/`workflow_name`; iki yeni depo) · 17 (migration 0008 — `job_schedules`, `jobs` (`FOR UPDATE SKIP LOCKED`), `job_items`; `PostgresJobStore`, `PostgresJobScheduleStore`) · 18 (migration 0009 — `eval_suites`, `eval_cases`, `eval_runs`, `eval_case_results`; `PostgresEvalStore`) · 19 (migration 0010 — `experiments` tablosu (`variants jsonb`), `runs.agent_version`/`experiment_id`/`variant`; `PostgresExperimentStore`, `RunStatistics.ByVersion`, `GetExperimentResultsAsync`) · 20 (migration 0011 — `runs.input_cost`/`output_cost`/`cost_currency`/`pricing_source`; `SelectRunTimeSeries` (`generate_series` boş kova doldurma), own+tree maliyet sütunları sona eklendi) |
-| `AgentPrism.OpenAI` | ✅ Tamamlandı | 3 · 8 (`UseOpenAICompatible`, sağlık denetimi) |
-| `AgentPrism.Mcp` | ✅ Tamamlandı | 6 |
-| `AgentPrism.Workflows` | ✅ Tamamlandı | 15 |
-| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 · 5 (arayüz rota grubu) · 6 (çok kiracılılık, yönetişim uçları) · 8 (`/api/models/health`) · 9 (`AgentPrismPolicies`, rol dağıtımı, `/api/audit`, `/api/meta` rol alanı) · 10 (`/api/skills`) · 11 (script izin uçları) · 12 (çağrı grafiği denetimi, `/api/runs/{id}/tree`, `includeChildren`) · 13 (`AgentDefinitionRequest.Compaction`/`Memory`) · 14 (`/api/attachments` uçları, `AgentRunRequest.AttachmentIds`, `/v1/responses` gömülü `data:` URI kabulü) · 15 (`/api/workflows` uçları, SSE çalıştırma ve sürdürme, `501` deseni) · 17 (`/api/schedules` + `/api/jobs` uçları, `/api/meta` içine `jobStore`/`jobWorkerEnabled`) · 18 (`/api/evals` uçları — takım/vaka/koşu CRUD, tetikleme, sonuç okuma) · 19 (`/api/agents/{name}/versions/{a}/diff/{b}`, `/api/experiments` uçları — CRUD + start/stop/results, `EvalRunTriggerRequest.AgentVersion`) · 20 (`/api/stats/timeseries`, `POST /api/stats/recalculate-costs` — Admin + denetim izi) |
-| `AgentPrism.UI` | ✅ Tamamlandı | 5 · 6 (waterfall, MCP ekranı, onay kartı) · 8 (sağlık rozeti) · 9 (Audit ekranı, rol tabanlı düğme gizleme) · 10 (Skills ekranı ve agent skill seçicisi) · 11 (script izin yüzeyi) · 12 (çağrı ağacı paneli, kök/alt filtresi, çağrılabilir agent seçicisi) · 13 (Context paneli, `HistoryCompacted` rozeti/transkript satırı) · 14 (Playground dosya yükleme, sürükle-bırak, ek çipi/önizleme) · 17 (Jobs ekranı: zamanlamalar, is kuyrugu, ilerleme cubugu) · 18 (Evals ekranı: takım listesi, vaka düzenleyici, koşu geçme oranı) · 19 (sürüm karşılaştırma paneli (`VersionCompare`, `lib/diff.ts`), Experiments ekranı, Audit diff entegrasyonu) · 20 (**Dashboard giriş ekranı**, el çizimi `lib/chart.ts`/`components/charts.tsx`, `lib/format.ts` `money()`) |
-| `AgentPrism` (meta) | ✅ Paketleniyor | 0 |
+| Paket | Rolü | Durum |
+|-------|------|-------|
+| `AgentPrism.Abstractions` | Sözleşmeler: kayıt, depo, katalog, iş, eval, deney tipleri. Bağımlılığı yok. | ✅ |
+| `AgentPrism.Core` | Çalıştırma yolu: derleyici, dekoratörler, kayıt, denetim, skill, workflow doğrulama, fiyat. | ✅ |
+| `AgentPrism.PostgreSql` | Kalıcılık: ham Npgsql + gömülü SQL + migration runner (0001–0011). | ✅ |
+| `AgentPrism.OpenAI` | OpenAI ve OpenAI uyumlu her sağlayıcı + sağlık denetimi. | ✅ |
+| `AgentPrism.Mcp` | Uzak MCP sunucularından tool keşfi. | ✅ |
+| `AgentPrism.Workflows` | MAF Workflows yürütmesi, kontrol noktası, human-in-the-loop. | ✅ |
+| `AgentPrism.AspNetCore` | `MapAgentPrism()` — yönetim API'si, OpenAI uyumlu uçlar, roller. | ✅ |
+| `AgentPrism.UI` | Gömülü React arayüzü (`UseUI()`). | ✅ |
+| `AgentPrism` (meta) | Hepsini toplayan meta paket. | ✅ |
+
+Hangi fazın hangi pakete ne eklediği: [`arsiv/PAKET-FAZ-GECMISI.md`](arsiv/PAKET-FAZ-GECMISI.md).
 
 Testler: **1070 .NET testi + 80 frontend birim testi geçiyor** — 471 birim testi
 (325 Core + 77 OpenAI + 69 Workflows) + 218 fonksiyonel test (TestHost, gerçek HTTP)
@@ -27,158 +38,14 @@ sıfır uyarı; `dotnet pack` **9 paket** üretir (Faz 20 yeni paket eklemedi). 
 JavaScript bütçesi Faz 20 sonunda **116,2 KB / 250 KB gzip** (Faz 19 sonu 113,2 KB,
 +3,0 KB).
 
-Faz 9 sonunda AgentPrism **denetlenebilir**: üç rol (Reader/Operator/Admin) uç
-grupları arasında ayrım yapıyor, `audit_log` gerçekten doluyor (agent, MCP sunucusu,
-kiracı, onay kuralı yazmaları + tool onay kararları) ve sır suzgeci bu kayıtlardan
-hiçbir kimlik bilgisi sızdırmıyor. Bkz. [`09-YONETISIM-VE-DENETIM-IZI.md`](09-YONETISIM-VE-DENETIM-IZI.md).
+Bugün AgentPrism **işletilebilir bir kontrol düzlemidir**: agent'lar kodda veya
+arayüzden tanımlanır, her çalıştırma span ağacı + metrik + maliyetiyle kaydedilir,
+geri alınamaz tool'lar onay bekler, workflow'lar insanla konuşabilir, işler
+zamanlanabilir, sürümler A/B karşılaştırılabilir. Veritabanı **zorunlu değildir**;
+yapılandırılmazsa depolama bellek içine düşer.
 
-Faz 12 sonunda bir agent kataloğdaki başka bir agent'ı **çağırabiliyor**. Her alt
-çağrı ayrı bir `runs` satırı üretir (`parent_run_id`, `root_run_id`, `depth`),
-span'leri kök span'in altında iç içe görünür ve ağaç boyunca **tek** bir
-`AgentRunBudget` nesnesi paylaşılır. Çağrı grafiği kaydetme anında döngüye karşı
-denetlenir; çalışma anında derinlik sayacı ikinci savunma hattıdır. Bkz.
-[`12-AGENT-CAGRI-GRAFIGI.md`](12-AGENT-CAGRI-GRAFIGI.md).
-
-Faz 13 sonunda bir agent'ın konuşma geçmişi **sıkıştırılabiliyor**: beş
-strateji (+ sabit sıralı bir pipeline) hem düz `ChatClientAgent` hem
-`HarnessAgent` yolunda çalışıyor, tetiklendiğinde `run_events`'e
-`HistoryCompacted` olarak yazılıyor ve özetleme çağrısının token'ları
-çalıştırmanın toplamına ekleniyor. Üç bellek sağlayıcısı (dosya belleği, todo,
-metin araması) da aynı yoldan açılabiliyor. Gerçek bir HTTP çalıştırmasında
-doğrulandı: `SlidingWindow` stratejisi 4. turda tetiklendi ve 7 mesajı 5'e
-indirdi. Vektör tabanlı `ChatHistoryMemoryProvider` bilinçli olarak kapsam
-dışı bırakıldı — gerçek kurucusu bir `VectorStore` istiyor, depoda somut bir
-implementasyon yok. Bkz. [`13-BAGLAM-SIKISTIRMA-VE-BELLEK.md`](13-BAGLAM-SIKISTIRMA-VE-BELLEK.md).
-
-Faz 14 sonunda bir agent'a **görsel/dosya eki** gönderilebiliyor. İkili
-içerik `attachments` tablosunda (`bytea`) yaşar; sohbet geçmişindeki mesaj
-yalnız küçük bir `UriContent` referansı taşır ve gerçek baytlara yalnız
-`AttachmentResolvingChatClient` içinde, gerçek sağlayıcı çağrısından hemen
-önce çözülür — geçmiş okumasının maliyeti ek boyutundan bağımsız kalır.
-Tür doğrulaması sihirli bayta dayanır, istemcinin `Content-Type`'ı
-güvenilmez. `attachments.session_id` **bilerek** yabancı anahtar değildir
-(gerçek akışta bir ek, kendi oturumu hiç açılmadan önce yüklenebilir);
-oturum silindiğinde eklerin gitmesi uygulama katmanında yapılır. Aynı
-migration (0006) `agent_files` tablosunu da getirdi: Faz 13'ten kalan
-`FileMemoryProvider`/`TextSearchProvider`, kod değişmeden kalıcı belleğe
-(`PostgresAgentFileStore`) döndü. Bkz. [`14-COK-MODLULUK.md`](14-COK-MODLULUK.md).
-
-Faz 15 sonunda katalogdaki agent'lar **workflow olarak zincirlenebiliyor**.
-Beş hazır desen (Sequential, Concurrent, Handoff, GroupChat, Magentic) arayüzden
-tanımlanabilir; serbest graf yalnızca kodda kurulur (K2 korunur). Her yürütme bir
-`runs` satırıdır (`kind = Workflow`) ve içinde çağrılan her agent Faz 12'nin
-`parent_run_id` mekanizmasıyla altına bağlanır — waterfall ek kod olmadan doğru
-çizilir. Her super-step'te bir kontrol noktası yazılır ve yarım kalan bir yürütme
-ortasından sürdürülebilir. Gerçek bir çalıştırmada doğrulandı: bir workflow + iki
-agent satırı, ağaç toplamı 329 token, üç zincirli kontrol noktası, hem kodda hem
-arayüzden tanımlı workflow için başarılı sürdürme.
-
-Faz 16 sonunda workflow **görülebiliyor ve insanla konuşabiliyor**. Derlenmiş
-graf arayüzde elle çizilen SVG olarak görünür; düğümler çalıştırma sırasında
-canlı renklenir çünkü düğüm kimlikleri `ExecutorInvoked` olaylarının metniyle
-birebir aynıdır (K-131). Bir graf dış istek portuna ulaştığında yürütme durur,
-durumu kontrol noktasına yazılır ve çalıştırma `RunStatus.AwaitingInput` olarak
-kapanır; yanıt yeni bir `runs` satırı açar (K-130). `Magentic` plan onayı
-açılabilir hâle geldi.
-
-🚨 **Faz 15'in kontrol noktası sınırı kaldırıldı** (K-127). Ölçüldü: bir grafta
-kimliği değişken olan tek şey agent executor'udur; yardımcı düğümler zaten
-sabittir. `WorkflowAgentIdentity` sarmalayıcının kimliğini `(workflow, agent)`
-çiftinden türetir, böylece kontrol noktaları süreç ömrünü aşar. Gerçek bir
-süreç yeniden başlatmasıyla doğrulandı: kimlik aynı kaldı ve yeniden
-başlatmadan **önce** oluşan bekleyen istek sonrasında cevaplandı. Bkz.
-[`16-WORKFLOWS-ARAYUZ.md`](16-WORKFLOWS-ARAYUZ.md).
-
-Faz 17 sonunda bir agent veya workflow **toplu** ve **zamanlanmış** olarak
-çalıştırılabiliyor. Kuyruk PostgreSQL üzerinde `FOR UPDATE SKIP LOCKED` ile
-kiralanır — ek bir mesaj kuyruğu (Redis, RabbitMQ) gerekmez; gerçek eşzamanlılık
-testiyle doğrulandı: iki gerçek `IJobStore` örneği 50 iş için yarıştı, hiçbiri
-iki kez kiralanmadı. `JobWorkerBackgroundService` tek bir `PeriodicTimer`
-döngüsünde hem sırası gelen `job_schedules` satırlarını `jobs`'a düşürür hem
-kiralanabilir işleri `IJobHandler` sözleşmesine dağıtır; işçi
-`AgentPrismSchedulingOptions.RunWorker = false` ile kapatılabilir, kuyruk yine
-de yazılabilir/okunabilir kalır (K-018 deseni). Bir toplu iş her ögesi için
-sıradan bir `runs` satırı üretir — `job_items.run_id` üzerinden geriye bağlanır,
-ikinci bir kayıt hattı açılmaz. Beş alanlı cron alt kümesi elle yazılmıştır
-(K-007); yaz saati geçişinde geçersiz bir yerel zaman sessizce atlanır. Zamanlanmış
-bir işin hangi kiracı için çalıştığı ne HTTP bağlamında ne sabit varsayılanda
-bulunur — `AmbientTenantScope` (AsyncLocal) bu boşluğu `IHttpContextAccessor`
-ile aynı desenle doldurur (K-136). Gerçek bir çalıştırmada doğrulandı: bir
-zamanlama oluşturuldu, elle tetiklendi, iki ögeli iş ~5 saniyede tamamlandı ve
-her öge gerçek bir `runs` satırına (gerçek model kullanımıyla) bağlandı. Bkz.
-[`17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md`](17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md).
-
-Faz 18 sonunda bir agent **eval takımıyla ölçülebiliyor**: bir takım hedef agent
-+ bildirimsel `checks` (`nonEmpty`, `containsExpected`, `keywords`, `toolCalled`,
-`toolCallsPresent`, `hasImageContent` — `Microsoft.Agents.AI.EvalChecks`'e eşlenir)
-taşır, vakalar `PUT .../cases` ile tam değiştirilir. Koşu, Faz 17'nin **aynı**
-`jobs` kuyruğunu kullanır (`JobKind.Eval`) — ayrı bir yürütme yolu açılmadı. Her
-vaka `IAgentCatalog.ResolveAsync` ile çözülen agent üzerinde **yeni bir
-oturumda** çalışır ve kendiliğinden kendi `runs` satırını üretir (`EvalJobHandler`
-`AgentPrismRunOptions.Kind = RunKind.Eval` verir); bu satırlar normal
-istatistiklerden (`IRunStore.GetStatisticsAsync`) hariç tutulur ama transkript
-ve span erişimi aynı kalır. `agent_version`/`model_id` tetikleme anında değil,
-işçi işi fiilen **çalıştırmaya başlarken** çözülür — kuyrukta beklerken tanım
-değişebileceği için. Gerçek bir çalıştırmada doğrulandı: aynı takım, veritabanı
-kaynaklı bir agent'ın iki ardışık sürümüne karşı koşturuldu ve `agentVersion: 1`
-/ `agentVersion: 2` farklı model çıktılarıyla yan yana görüldü. Yeni bir NuGet
-paketi gerekmedi (K-139): eval tipleri zaten doğrudan referanslı `Microsoft.Agents.AI`
-içinde. Bkz. [`18-DEGERLENDIRME.md`](18-DEGERLENDIRME.md).
-
-Faz 19 sonunda iki sürüm **yan yana görülebiliyor** ve **aynı anda çalıştırılabiliyor**.
-Diff hesabı sunucuda yapılmaz — `GET .../versions/{a}/diff/{b}` iki ham
-`AgentDefinition` döner, istemcideki elle yazılmış bir LCS diff'i (`lib/diff.ts`,
-K-045 gerekçesinin devamı) satır/alan/küme karşılaştırmasını çizer. A/B deneyi
-(`Experiment`) aynı agent'ın iki sürümü arasında trafiği **oturum bazlı
-deterministik** bir SHA-256 atamasıyla böler (`ExperimentAssignmentResolver`) ve
-yalnızca `AgentEndpoints.RunAsync` içine gömülüdür — alt-agent çağrıları, workflow
-adımları ve eval çalıştırmaları deneye hiç girmez (K-131), her biri
-`IAgentCatalog.ResolveAsync`'i kendi amacıyla (güncel sürüm / sabit sürüm) çağırır.
-Versiyon çözümü `IVersionedAgentSource` marker arayüzüyle eklendi: yalnızca
-veritabanı kaynağı (`DefinitionStoreAgentSource`) uygular, kod kaynağı (K-003)
-dokunulmadı kaldı — sürüm istenen bir kod agent'ı `AgentPrismException` fırlatır.
-`runs.agent_version` her çalıştırmada dolar (deney dışı çalıştırmalarda da,
-descriptor'ın güncel sürümü varsayılan olur); `experiment_id`/`variant` yalnız
-deney tarafından atanmış çalıştırmalarda dolar ve **hiçbiri metrik etiketi
-olmaz** — sürüm etiketi (`agentprism.agent.version`) kardinalitesi kabul
-edilebilir bulunup varsayılan açık bırakıldı, deney kimliği sınırsız büyüyeceği
-için hiç etikete girmedi. Gerçek bir çalıştırmada doğrulandı: iki talimat
-sürümü arasında %50/%50 ağırlıklı bir deney, 20 farklı oturumla çalıştırıldı ve
-control/v2 kollarına 6/14 dağıldı (küçük örneklem varyansı, 10.000 örnekte
-±2 puan içinde kaldığı ayrıca test edildi). Sonuç tablosunda istatistiksel bir
-"kazanan" iddiası **yoktur** — ham sayılar gösterilir. Bkz.
-[`19-SURUM-KARSILASTIRMA-VE-AB.md`](19-SURUM-KARSILASTIRMA-VE-AB.md).
-
-Faz 5 sonunda kabul senaryosu tamamlandı: paket kurulur, `.UseUI()` +
-`app.MapAgentPrism()` yazılır ve tarayıcıda bir kontrol düzlemi açılır. Faz 6 ekranı
-sekize çıkardı (MCP & approvals) ve arayüz artık span waterfall'ı, tool çağrı
-sayılarını ve onay kartlarını gösteriyor. Arayüz assembly'ye Brotli sıkıştırılmış
-gömülüdür (85,1 KB), tüketici projede hiçbir JavaScript bağımlılığı oluşturmaz ve
-JavaScript bütçesi Faz 16 sonunda 105,2 KB / 250 KB gzip'tir.
-
-Faz 6 sonunda AgentPrism **işletilebilir**: her çalıştırmanın span ağacı ve metriği
-var, geri alınamaz tool'lar kullanıcı onayı bekliyor, tool'lar uzak MCP
-sunucularından da gelebiliyor ve kiracı istekten çözülüp hiçbir uçtan sızmıyor.
-
-Faz 8 sonunda AgentPrism **tek satıcıya bağlı değildir**: `UseOpenAICompatible(ad, ...)`
-herhangi bir OpenAI uyumlu uca (OpenRouter, Groq, vLLM, yerel Ollama/LM Studio)
-bağlanır, her sağlayıcı `GET {endpoint}/models` ile ücretsiz denetlenir ve ardışık
-hata veren bir sağlayıcı devre kesici tarafından geçici olarak durdurulur. Doğrulandı:
-gerçek OpenAI + gerçek OpenRouter anahtarlarıyla üç sağlayıcı (`openai`,
-`openai-responses`, `openrouter`) da gerçek yanıt üretti; ayrıntı
-[`08-SAGLAYICI-GENISLEMESI.md`](08-SAGLAYICI-GENISLEMESI.md).
-
-Faz 10 sonunda agent'lar markdown tabanlı, script'siz skill'ler yükleyebilir.
-Skill kaynakları tenant-yalıtımlı saklanır, kod kaydı aynı ad için veritabanı
-kaydını geçersiz kılar ve MAF'ın varsayılan onay zinciri kapatılmaz. Gerçek
-OpenRouter çalıştırmasında `load_skill` onayı Playground'da kabul edildi; skill
-talimatı yüklenip modelin yanıtını belirledi. Ayrıntı
-[`10-AGENT-SKILLERI.md`](10-AGENT-SKILLERI.md).
-
-Dış yüzey Faz 4'ten beri açık: stok OpenAI SDK'sı `base_url` değiştirerek AgentPrism'e
-bağlanıyor, agent'ı `model` alanından seçiyor, tool döngüsü sunucuda tamamlanıyor,
-konuşma hem `previous_response_id` hem `conversations.create()` ile zincirleniyor ve
-her çalıştırma `run_events` tablosuna yazılıp SSE ile geri oynatılabiliyor.
+Faz faz nasıl buraya gelindiği: [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md).
+Her fazın ayrıntısı kendi dokümanındadır (`docs/NN-*.md`).
 
 ---
 
@@ -315,330 +182,11 @@ Tüm servisler `TryAdd*` ile kaydedilir. Tüketici kendi implementasyonunu daha 
 
 ---
 
-## 4. Kullandığımız MAF Genişleme Noktaları
+## 4. MAF Genişleme Noktaları
 
-Aşağıdaki imzalar **reflection ile doğrulanmıştır** (`Microsoft.Agents.AI` 1.16.0). Bir sonraki fazda yeni bir MAF tipi kullanacaksanız önce imzayı doğrulayın — `.agents/skills/maf-api-kesfi/SKILL.md`.
-
-### Faz 1'de kullanılanlar
-
-```csharp
-// Microsoft.Agents.AI.Abstractions
-abstract class AIAgent
-{
-    protected virtual Task<AgentResponse> RunCoreAsync(
-        IEnumerable<ChatMessage> messages, AgentSession? session = null,
-        AgentRunOptions? options = null, CancellationToken ct = default);
-
-    protected virtual IAsyncEnumerable<AgentResponseUpdate> RunCoreStreamingAsync(
-        IEnumerable<ChatMessage> messages, AgentSession? session = null,
-        AgentRunOptions? options = null, CancellationToken ct = default);
-}
-
-abstract class DelegatingAIAgent : AIAgent { protected DelegatingAIAgent(AIAgent innerAgent); }
-
-// DİKKAT: AgentResponse / AgentResponseUpdate — "AgentRunResponse" DEĞİL.
-sealed class AgentResponse       { IList<ChatMessage> Messages; string Text; UsageDetails? Usage; }
-sealed class AgentResponseUpdate { IList<AIContent> Contents; string Text; ChatRole? Role; }
-
-// Microsoft.Extensions.AI uzantıları
-static ChatClientAgent AsAIAgent(this IChatClient c, ChatClientAgentOptions o, ILoggerFactory? lf, IServiceProvider? sp);
-static HarnessAgent    AsHarnessAgent(this IChatClient c, HarnessAgentOptions o, ILoggerFactory? lf, IServiceProvider? sp);
-```
-
-**Tool çağrıları ayrı kanca gerektirmez.** MAF onları `FunctionCallContent` / `FunctionResultContent` olarak içeriklere koyar.
-
-**`HarnessAgentOptions` üyeleri `MAAI001` ("evaluation purposes only") tanısı üretir.** Bastırma tek dosyada toplanmıştır: `AgentDefinitionCompiler.CompileHarnessAgent`.
-
-### Faz 2'de kullanılanlar
-
-Aşağıdaki imzalar `AgentPrism.PostgreSql` içinde **gerçekten uygulandı** ve testlidir.
-
-```csharp
-// Microsoft.Agents.AI/ChatHistoryProvider — özel kalıcılık için taban sınıf
-public abstract class ChatHistoryProvider
-{
-    // DİKKAT: parametresiz protected ctor YOKTUR. Üç filtreyi de vermek gerekir.
-    protected ChatHistoryProvider(
-        Func<IEnumerable<ChatMessage>, IEnumerable<ChatMessage>>? provideOutputMessageFilter,
-        Func<IEnumerable<ChatMessage>, IEnumerable<ChatMessage>>? storeInputRequestMessageFilter,
-        Func<IEnumerable<ChatMessage>, IEnumerable<ChatMessage>>? storeInputResponseMessageFilter);
-
-    public virtual IReadOnlyList<string> StateKeys { get; }
-    protected virtual ValueTask<IEnumerable<ChatMessage>> ProvideChatHistoryAsync(InvokingContext ctx, CancellationToken ct = default);
-    protected virtual ValueTask StoreChatHistoryAsync(InvokedContext ctx, CancellationToken ct = default);
-}
-
-// İç içe bağlam tipleri — ChatHistoryProvider.InvokingContext / .InvokedContext
-sealed class InvokingContext { AIAgent Agent; AgentSession? Session; IEnumerable<ChatMessage> RequestMessages; }
-sealed class InvokedContext  { AIAgent Agent; AgentSession? Session; IEnumerable<ChatMessage> RequestMessages;
-                               IEnumerable<ChatMessage>? ResponseMessages; Exception? InvokeException; }
-
-// Microsoft.Agents.AI/ProviderSessionState<TState> — session içinde tipli durum
-ProviderSessionState(Func<AgentSession, TState> stateInitializer, string stateKey, JsonSerializerOptions? opts);
-TState GetOrInitializeState(AgentSession session);
-void   SaveState(AgentSession session, TState state);
-
-// Microsoft.Agents.AI.Abstractions/AgentSessionStateBag — oturumla birlikte kalıcılaşır
-JsonElement Serialize();
-void        SetValue<T>(string key, T value, JsonSerializerOptions? opts);
-bool        TryGetValue<T>(string key, out T value, JsonSerializerOptions? opts);
-
-// AIAgent — oturum yaşam döngüsü
-ValueTask<AgentSession> CreateSessionAsync(CancellationToken ct = default);
-ValueTask<JsonElement>  SerializeSessionAsync(AgentSession session, JsonSerializerOptions? opts, CancellationToken ct = default);
-ValueTask<AgentSession> DeserializeSessionAsync(JsonElement state, JsonSerializerOptions? opts, CancellationToken ct = default);
-
-// ChatClientAgentOptions ve HarnessAgentOptions — İKİSİNDE DE var:
-ChatHistoryProvider? ChatHistoryProvider { get; set; }
-```
-
-**ÖNEMLİ:** `ChatHistoryProvider` örneği **tüm oturumlarda paylaşılır**. Oturuma özgü hiçbir durum alan olarak tutulamaz; `ProviderSessionState` ile `AgentSession` içinde saklanır. `PostgresChatHistoryProvider` yalnız `NpgsqlDataSource` referansını tutar.
-
-### Faz 3'te kullanılanlar
-
-Reflection ile doğrulandı: `OpenAI` 2.12.0, `Microsoft.Extensions.AI.OpenAI` 10.8.3, `Microsoft.Agents.AI.OpenAI` 1.16.0.
-
-```csharp
-// OpenAI 2.12.0 — DİKKAT: tip adı ResponsesClient, "OpenAIResponseClient" DEĞİL
-sealed class OpenAIClient
-{
-    OpenAIClient(ApiKeyCredential credential, OpenAIClientOptions options);
-    ChatClient      GetChatClient(string model);
-    ResponsesClient GetResponsesClient();               // [OPENAI001]
-    Uri Endpoint { get; }                               // [OPENAI001]
-}
-
-sealed class OpenAIClientOptions : ClientPipelineOptions
-{
-    Uri?    Endpoint       { get; set; }
-    string? OrganizationId { get; set; }                // "Organization" DEĞİL
-    string? ProjectId      { get; set; }
-    TimeSpan? NetworkTimeout { get; set; }              // tabandan; "Timeout" DEĞİL
-}
-
-// Microsoft.Extensions.AI.OpenAI
-static IChatClient AsIChatClient(this ChatClient chatClient);                       // temiz
-static IChatClient AsIChatClient(this ResponsesClient c, string? defaultModelId);   // [OPENAI001]
-
-// Microsoft.Agents.AI.OpenAI — sunucu tarafı depolamayı kapatır
-static IChatClient AsIChatClientWithStoredOutputDisabled(                           // [OPENAI001][MAAI001]
-    this ResponsesClient c, string? model = null, bool includeReasoningEncryptedContent = true);
-
-// Microsoft.Extensions.AI — boru hattı
-static ChatClientBuilder AsBuilder(this IChatClient inner);
-static ChatClientBuilder UseFunctionInvocation(this ChatClientBuilder b, ILoggerFactory? lf, Action<FunctionInvokingChatClient>? cfg);
-static ChatClientBuilder UseOpenTelemetry(this ChatClientBuilder b, ILoggerFactory? lf, string? sourceName, Action<OpenTelemetryChatClient>? cfg);
-
-// ChatOptions.Reasoning — ModelBinding.ReasoningEffort buraya bağlanır
-sealed class ReasoningOptions { ReasoningEffort? Effort; ReasoningOutput? Output; }
-enum ReasoningEffort { None, Low, Medium, High, ExtraHigh }
-
-// AIFunctionFactory — AddToolsFrom bunu kullanır
-static AIFunction Create(MethodInfo method, object? target, AIFunctionFactoryOptions options);
-static AIFunction Create(MethodInfo method, Func<AIFunctionArguments, object> createInstanceFunc, AIFunctionFactoryOptions? options);
-sealed class AIFunctionArguments { IServiceProvider? Services { get; set; } }   // örnek metotları için
-```
-
-🚨 **Responses API ile `ChatHistoryProvider` birlikte kullanılamaz.** Sunucu tarafı depolama açıkken OpenAI bir konuşma kimliği döndürür ve `ChatClientAgent` şu hatayı atar: *"Only ConversationId or ChatHistoryProvider may be used, but not both."* `UsePostgreSql()` her derlenen agent'a bir `ChatHistoryProvider` bağladığı için AgentPrism Responses yolunda **her zaman** `AsIChatClientWithStoredOutputDisabled` kullanır. Geçmiş bizim veritabanımızda kalır. Karar K-030.
-
-### Faz 4'te kullanılanlar
-
-Reflection ile doğrulandı: `Microsoft.Agents.AI.Hosting` 1.16.0-preview.260730.1,
-`Microsoft.Agents.AI.Hosting.OpenAI` 1.16.0-alpha.260730.1.
-
-```csharp
-// Microsoft.Agents.AI.Hosting — ON SURUM, K-008 geregi yalniz AgentPrism.AspNetCore
-public abstract class AgentSessionStore
-{
-    public abstract ValueTask SaveSessionAsync(AIAgent agent, string sessionStoreId, AgentSession session, CancellationToken ct = default);
-    public abstract ValueTask<AgentSession> GetSessionAsync(AIAgent agent, string sessionStoreId, CancellationToken ct = default);
-    public abstract ValueTask DeleteSessionAsync(AIAgent agent, string sessionStoreId, CancellationToken ct = default);
-}
-// AgentPrismAgentSessionStore bunu AgentSessionManager'a delege eder (K-026).
-
-// Microsoft.Agents.AI.Hosting.OpenAI — PUBLIC yardimci. /v1/responses bunun uzerine kurulu.
-public static class OpenAIResponses
-{
-    static OpenAIResponsesRunRequest ToAgentRunRequest(JsonElement body, OpenAIResponsesMapOptions? mapOptions = null);
-    static string?  GetSessionStoreId(OpenAIResponsesRunRequest request);   // conversation ?? previous_response_id
-    static string   CreateResponseId();                                     // "resp_..."
-    static JsonElement WriteResponse(AgentResponse response, string responseId, string? conversationId = null);
-    static IAsyncEnumerable<string> WriteResponseStreamAsync(                // HAZIR SSE cerceveleri
-        IAsyncEnumerable<AgentResponseUpdate> updates, string responseId, string? conversationId = null, CancellationToken ct = default);
-}
-
-public sealed class OpenAIResponsesRunRequest
-{
-    string? ConversationId { get; }   IList<ChatMessage> Messages { get; }
-    AgentRunOptions? Options { get; }  string? PreviousResponseId { get; }
-    // DIKKAT: agent adi TASIMAZ. Govdeden kendimiz okuruz (model / metadata.entity_id).
-}
-
-// Microsoft.Agents.AI.Abstractions — oturum gecmisini okumanin public yolu
-public abstract class ChatHistoryProvider
-{
-    public ValueTask<IEnumerable<ChatMessage>> InvokingAsync(InvokingContext ctx, CancellationToken ct = default);
-    public sealed class InvokingContext                                     // [MAAI001]
-    {
-        public InvokingContext(AIAgent agent, AgentSession? session, IEnumerable<ChatMessage> requestMessages);
-    }
-}
-```
-
-🚨 **`IConversationStorage`, `IAgentConversationIndex`, `IResponsesService`, `IResponseExecutor`
-`internal`'dır.** Ölçüldü: `AddOpenAIResponses()` bunları `TryAddSingleton` ile kaydediyor ancak
-servis tipleri dışarıdan **adlandırılamaz** (`svcPublic=False`), `InternalsVisibleTo` yalnız
-Microsoft'un test derlemesine açık. Bu yüzden MAF'ın `MapOpenAIResponses()` /
-`MapOpenAIConversations()` uçları kullanılmadı — kalıcılığı değiştirmek mümkün değil.
-Kararlar K-036 ve bölüm 1.
-
-### Faz 5'te kullanılanlar
-
-Faz 5 yeni bir MAF tipi kullanmadı; tek genişletme kendi tipimizdir.
-
-```csharp
-// AgentPrism.Abstractions — MAF'in AgentRunOptions tipinden turer
-public sealed class AgentPrismRunOptions : AgentRunOptions
-{
-    public Guid? RunId { get; init; }
-    public override AgentRunOptions Clone();   // RunId'yi KORUR
-}
-
-// Reflection ile dogrulandi: AgentRunOptions sealed DEGILDIR,
-// public parametresiz ctor'u ve protected kopya ctor'u vardir.
-//   ctor()
-//   protected ctor(AgentRunOptions options)
-//   virtual AgentRunOptions Clone()
-```
-
-`RunRecordingAgent` bu tipi `options as AgentPrismRunOptions` ile okur; boşsa kimliği
-kendisi üretir. Tip `ChatOptions` **taşımaz** — örnekleme ayarları gerekiyorsa MAF'ın
-`ChatClientAgentRunOptions` tipi kullanılır ve ikisi birlikte kullanılamaz. AgentPrism
-kendi uçlarında örnekleme ayarlarını agent tanımından çözdüğü için pratikte kısıt
-oluşturmaz.
-
-### Faz 6'da kullanılanlar
-
-```csharp
-// Microsoft.Agents.AI — telemetri
-OpenTelemetryAgent(AIAgent innerAgent, string sourceName, bool autoWireChatClient)
-// [MAAI001] · autoWireChatClient: false — sohbet istemcisi boru hattinda zaten
-// UseOpenTelemetry("AgentPrism") var; otomatik baglama cift span uretirdi.
-
-// Microsoft.Agents.AI — tool onayi
-ToolApprovalAgent(AIAgent innerAgent, ToolApprovalAgentOptions options)
-ToolApprovalAgentOptions { IEnumerable<Func<ToolAutoApprovalRuleContext, ValueTask<bool>>> AutoApprovalRules }
-ToolAutoApprovalRuleContext { FunctionCallContent · Agent · Session · RequestMessages · RunOptions }
-
-// Microsoft.Extensions.AI — onay mekanizmasinin KALBI
-ApprovalRequiredAIFunction(AIFunction innerFunction)     // DelegatingAIFunction
-ToolApprovalRequestContent(string requestId, ToolCallContent toolCall)
-    → ToolApprovalResponseContent CreateResponse(bool approved, string reason)
-ToolApprovalResponseContent { bool Approved · string Reason · ToolCallContent ToolCall }
-
-// Microsoft.Agents.AI.Harness — telemetri kaynagi
-HarnessAgentOptions.OpenTelemetrySourceName = "AgentPrism"
-// Verilmezse harness ic span'leri MAF'in kendi kaynagina gider ve waterfall'da eksik kalir.
-
-// ModelContextProtocol.Core 2.0.0 — MCP istemcisi
-McpClient.CreateAsync(IClientTransport, McpClientOptions?, ILoggerFactory?, CancellationToken)
-McpClient.ListToolsAsync(RequestOptions?, CancellationToken) → IList<McpClientTool>
-McpClientTool : AIFunction                     // MAF'a dogrudan takilir, adaptor GEREKMEZ
-McpClientTool.WithName(string)                 // {sunucu}_{tool} onegi icin
-HttpClientTransport(HttpClientTransportOptions, ILoggerFactory)
-HttpClientTransportOptions { Endpoint · AdditionalHeaders · TransportMode · OAuth }
-```
-
-**Nasıl bir arada çalışıyor:** onay gereken tool `ToolRegistry` içinde
-`ApprovalRequiredAIFunction` ile sarılır → `FunctionInvokingChatClient` onu
-çalıştırmak yerine `ToolApprovalRequestContent` üretir → `ToolApprovalAgent`
-otomatik onay kurallarını dener → kural eşleşmezse istek yanıtta yüzeye çıkar ve
-çalıştırma biter → karar bir **sonraki turun** girdisi olarak gelir.
-
-### Faz 13'te kullanılanlar
-
-```csharp
-// Microsoft.Agents.AI.Compaction
-sealed class CompactionProvider : AIContextProvider { CompactionProvider(CompactionStrategy, string?, ILoggerFactory?); }
-abstract class CompactionStrategy {
-    protected CompactionStrategy(CompactionTrigger trigger, CompactionTrigger? target);
-    public ValueTask<bool> CompactAsync(CompactionMessageIndex, ILogger, CancellationToken); // PUBLIC, sanal değil
-    protected virtual ValueTask<bool> CompactCoreAsync(CompactionMessageIndex, ILogger, CancellationToken);
-}
-sealed class SlidingWindowCompactionStrategy(CompactionTrigger, int minimumPreservedTurns, CompactionTrigger?) : CompactionStrategy;
-sealed class TruncationCompactionStrategy(CompactionTrigger, int minimumPreservedGroups, CompactionTrigger?) : CompactionStrategy;
-sealed class ToolResultCompactionStrategy(CompactionTrigger, int minimumPreservedGroups, CompactionTrigger?) : CompactionStrategy;
-sealed class SummarizationCompactionStrategy(IChatClient, CompactionTrigger, int minimumPreservedGroups, string? prompt, CompactionTrigger?) : CompactionStrategy;
-sealed class ContextWindowCompactionStrategy(int maxContextWindowTokens, int maxOutputTokens, double, double) : CompactionStrategy; // tetikleyici YOK
-sealed class PipelineCompactionStrategy(IEnumerable<CompactionStrategy>) : CompactionStrategy;                                       // tetikleyici YOK
-sealed class CompactionMessageIndex(IList<CompactionMessageGroup>, Tokenizer);  // Microsoft.ML.Tokenizers — gecisli bagimlilik, yeni paket YOK
-delegate bool CompactionTrigger(CompactionMessageIndex);
-static class CompactionTriggers { TokensExceed/MessagesExceed/TurnsExceed/GroupsExceed/HasToolCalls/TokensBelow/All/Any }
-
-// Microsoft.Agents.AI — bellek
-sealed class FileMemoryProvider(AgentFileStore, Func<AgentSession,FileMemoryState>?, FileMemoryProviderOptions?) : AIContextProvider;
-sealed class TodoProvider(TodoProviderOptions?) : AIContextProvider;
-sealed class TextSearchProvider(Func<string,CancellationToken,Task<IEnumerable<TextSearchResult>>>, TextSearchProviderOptions?, ILoggerFactory?) : MessageAIContextProvider;
-abstract class AgentFileStore { ReadAsync/WriteAsync/ListChildrenAsync/SearchAsync/DeleteAsync/CreateDirectoryAsync/FileExistsAsync }
-sealed class InMemoryAgentFileStore : AgentFileStore;   // varsayilan (bellek ici; AddAgentPrism)
-// PostgresAgentFileStore : AgentFileStore                // Faz 14 — UsePostgreSql() bunu koyar (K-110, K-114)
-// Agent adi arayuzde parametre olmadigi icin ambient AgentPrismRunContext.Current?.AgentName'den okunur.
-
-// HarnessAgentOptions'ta bu fazda baglanan uyeler
-CompactionStrategy CompactionStrategy; bool DisableCompaction;
-AgentFileStore FileMemoryStore; bool DisableFileMemory; bool DisableTodoProvider;
-IEnumerable<AIContextProvider> AIContextProviders;  // TextSearchProvider bu yoldan eklendi
-```
-
-**🚨 Sapma:** `ChatHistoryMemoryProvider` kullanılmadı. Gerçek kurucusu
-`(VectorStore, string collectionName, int vectorDimensions, ...)` istiyor —
-vektör tabanlı anlamsal arama, basit oturum-içi bellek değil. Karar K-105
-(kullanıcı onayladı): depoda somut bir `VectorStore` implementasyonu olmadan
-kapsam dışı.
-
-### Hâlâ kullanılmayan MAF genişleme noktaları
-
-```csharp
-// Microsoft.Agents.AI.Hosting — cok kiracili oturum deposu
-IsolationKeyScopedAgentSessionStore · SessionIsolationKeyProvider
-// Faz 6 kiraciyi ITenantContext ile cozdu ve her sorguya filtre koydu; MAF'in
-// oturum deposu sarmalayicisi gerekmedi. Tuketici kendi AgentSessionStore'unu
-// MapAgentPrism'den once kaydederse onunki kazanir.
-
-// Microsoft.Agents.AI — degerlendirme, skill, arka plan agent'lari, vektor bellek
-AgentSkill · AgentSkillsProvider                       → Faz 10 (F-09)
-BackgroundAgentsProvider · HarnessAgentOptions.BackgroundAgents → Faz 12 (F-10, K-062)
-ChatHistoryMemoryProvider · VectorStore                → planlanmadi (K-105 — VectorStore karari verilince)
-EvalItem · EvalCheck · LocalEvaluator · IAgentEvaluator → Faz 18 (F-14)
-AIJudgeLoopEvaluator · LoopAgent                       → planlanmadi (eval'den AYRI kavram)
-Microsoft.Agents.AI.Workflows                          → Faz 15 TAMAMLANDI (F-27, K-054)
-  AgentWorkflowBuilder.Build{Sequential,Concurrent}      → hazir desen fabrikalari
-  AgentWorkflowBuilder.Create{Handoff,GroupChat,Magentic}BuilderWith
-  InProcessExecution.{Run,Resume}StreamingAsync          → yurutme
-  StreamingRun.TrySendMessageAsync(TurnToken)            → 🚨 ZORUNLU, yoksa graf calismaz
-  CheckpointManager.CreateJson(ICheckpointStore<JsonElement>, opts)
-  WorkflowVisualizer.ToMermaidString · Workflow.Reflect* → Faz 16 TAMAMLANDI (graf cizimi)
-  RequestPort · ExternalRequest/Response                 → Faz 16 TAMAMLANDI (human-in-the-loop)
-  StreamingRun.SendResponseAsync                         → 🚨 yanit sonrasi akis YENIDEN acilmali
-  MagenticWorkflowBuilder.RequirePlanSignoff(true)       → Faz 16 TAMAMLANDI (plan onayi)
-Microsoft.Agents.AI.Workflows.Declarative               → ALINMADI (K-129: +19 paket, Responses API sarti)
-```
-
-**2026-08-02'de reflection ile doğrulanan ve ikinci faz planına giren bulgular:**
-
-| Bulgu | Etkisi |
-|-------|--------|
-| `AgentSkillsProvider`, `CompactionProvider`, `BackgroundAgentsProvider` **`AIContextProvider`'dır** | Üçü de `ChatClientAgentOptions.AIContextProviders` ile düz agent'a takılır — harness zorunlu **değildir**. K-053'ün harness kusuru bu yolla aşılır |
-| `AgentSkillsProviderOptions.Disable*Approval` varsayılanı **`false`** | Skill yükleme, kaynak okuma ve script çalıştırma Faz 6'nın onay akışından **zaten** geçer |
-| `AgentFileSkillScriptRunner` bir **delegedir**; MAF hiçbir script'i kendi çalıştırmaz | Sandbox, zaman aşımı ve denetim izi tamamen AgentPrism'in sorumluluğudur (Faz 11) |
-| `AgentFileStore` bir **soyutlamadır**, dosya sistemi değil | Veritabanı destekli uygulama, agent'a "dosya" verirken diske hiç dokunmaz (K-062 endişesini ortadan kaldırır) |
-| `WorkflowVisualizer.ToMermaidString(workflow)` **var** | Graf metni MAF'tan gelir; arayüz onu **çizmez**, dışa aktarır — mermaid.js ~100 KB gzip eder (K-132) |
-| `AIAgent.Id` sanal değil ama arka alanı salt-okunur **değil** (Faz 16) | Kalıcı executor kimliği bu alana yazılarak kuruldu; kontrol noktaları süreç ömrünü aşar (K-127) |
-| Kontrol noktası bekleyen isteği taşır ve sürdürmede **aynı `RequestId` ile yeniden yayınlanır** (Faz 16) | Yanıt saklanan bir nesneyle değil, yeniden yayınlanan istekle eşleştirilir (K-128) |
-| `HarnessAgentOptions` üyeleri: `AgentSkillsSource`, `CompactionStrategy`, `FileMemoryStore`, `LoopEvaluators`, `BackgroundAgents` | Harness zaten bunları içeride kullanıyor; düz agent için açığa çıkarmak gerekir |
-| `ChatHistoryMemoryProvider` **`VectorStore` istiyor**, basit bellek değil (Faz 13) | Kapsam dışı bırakıldı (K-105); vektör deposu kararı verilince ayrı bir faz |
-| `CompactionProvider` **tokenizer parametresi almaz**, MAF içeride kendi çözer (Faz 13) | `Microsoft.ML.Tokenizers.Data.*` gibi bir veri paketi gerekmedi; gerçek çalıştırmayla doğrulandı |
-| `CompactionStrategy.CompactAsync` **public ve sanal değil**, `CompactCoreAsync` korumalı (Faz 13) | Bir sarmalayıcı iç stratejiyi ancak `CompactAsync` ile çağırabilir — C#'ta korumalı üyeye kardeş tip üzerinden erişilemez |
+Ayrı dokümana taşındı: [`MAF-GENISLEME-NOKTALARI.md`](MAF-GENISLEME-NOKTALARI.md)
+— hangi noktayı nasıl kullandığımız, hangilerini bilerek kullanmadığımız.
+Her oturumda değil, yalnız MAF'a dokunurken okunur.
 
 ---
 
