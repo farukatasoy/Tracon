@@ -106,14 +106,22 @@ public enum RunEventType
 
     /// <summary>
     /// Workflow disaridan bir yanit bekliyor (human-in-the-loop).
-    /// <c>Text</c> istek kimligini tasir.
+    /// <c>Text</c> istek kimligini, <c>Payload</c> istegin JSON ozetini tasir.
     /// </summary>
     /// <remarks>
-    /// Faz 15 bu istegi <strong>karsilamaz</strong>: yurutme
-    /// <c>blockOnPendingRequest: false</c> ile yapilir ve bekleyen istek varsa
-    /// calistirma anlasilir bir hata ile biter. Yanit verme yolu Faz 16'nin
-    /// konusudur; olay tipi simdiden ayrilmistir ki o faz deger sirasini
-    /// degistirmek zorunda kalmasin.
+    /// Yuk, bekleyen istegi <em>yeniden kurmaya yetecek</em> kadar bilgi tasir:
+    /// port kimligi, istek kimligi, istek/yanit tip adlari ve gosterilecek veri.
+    /// Bekleyen istekler bu olaylardan okunur; ayri bir tablo acilmadi (Faz 16).
     /// </remarks>
     WorkflowRequest = 18,
+
+    /// <summary>
+    /// Calistirma bir insan yaniti bekledigi icin durdu. Akisin son olayidir.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="RunCompleted"/> ve <see cref="RunFailed"/>'dan ayridir: is ne
+    /// bitmistir ne de basarisiz olmustur. Arayuz bu olayi gorunce bekleyen
+    /// istek kartini gosterir. Faz 16'da eklendi.
+    /// </remarks>
+    RunAwaitingInput = 19,
 }

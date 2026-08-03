@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/AgentPrism.UI/AgentPrism.UI.csproj" />
+    <ProjectReference Include="../../src/AgentPrism.Workflows/AgentPrism.Workflows.csproj" />
   </ItemGroup>
 
 </Project>

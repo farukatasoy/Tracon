@@ -67,6 +67,7 @@ internal sealed class UiHost : IAsyncDisposable
             .AddModelProvider(provider)
             .AddToolsFrom(typeof(OrderTools))
             .UseUI()
+            .UseWorkflows()
             .AddAgent(new AgentDefinition
             {
                 Name = "support",
@@ -94,7 +95,21 @@ internal sealed class UiHost : IAsyncDisposable
                 },
                 CallableAgentNames = ["support"],
                 Origin = AgentDefinitionOrigin.Code,
-            });
+            })
+
+            // Kodda tanimli iki workflow: biri duz bir zincir, digeri insan
+            // girdisi bekleyen bir port. Arayuz testleri graf cizimini birinci,
+            // bekleyen istek kartini ikinci uzerinden dogrular.
+            .AddWorkflow(
+                "ozetle-ve-cevir",
+                static services => Microsoft.Agents.AI.Workflows.AgentWorkflowBuilder.BuildSequential(
+                    "ozetle-ve-cevir",
+                    [
+                        services.GetWorkflowAgent("ozetle-ve-cevir", "support"),
+                        services.GetWorkflowAgent("ozetle-ve-cevir", "yonlendirici"),
+                    ]),
+                "Iki adimli zincir.")
+            .AddWorkflow("onay-akisi", static _ => ApprovalWorkflow.Build(), "Insan onayi bekleyen akis.");
 
         var app = builder.Build();
 

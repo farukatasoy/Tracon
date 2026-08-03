@@ -71,18 +71,28 @@ ortasından sürdürülebilir. Gerçek bir çalıştırmada doğrulandı: bir wo
 agent satırı, ağaç toplamı 329 token, üç zincirli kontrol noktası, hem kodda hem
 arayüzden tanımlı workflow için başarılı sürdürme.
 
-🚨 **Bilinen sınır:** MAF executor kimliklerini agent *örneğinden* türetir ve
-`AIAgent.Id` sanal değildir. `WorkflowAgentCache` kimlikleri süreç ömrü boyunca
-sabitler; uygulama yeniden başladığında eski kontrol noktaları kullanılamaz.
-Gerekçe ve seçenekler: [K-122](KARARLAR.md), karar Faz 16'da verilecek. Bkz.
-[`15-WORKFLOWS-YURUTME.md`](15-WORKFLOWS-YURUTME.md).
+Faz 16 sonunda workflow **görülebiliyor ve insanla konuşabiliyor**. Derlenmiş
+graf arayüzde elle çizilen SVG olarak görünür; düğümler çalıştırma sırasında
+canlı renklenir çünkü düğüm kimlikleri `ExecutorInvoked` olaylarının metniyle
+birebir aynıdır (K-131). Bir graf dış istek portuna ulaştığında yürütme durur,
+durumu kontrol noktasına yazılır ve çalıştırma `RunStatus.AwaitingInput` olarak
+kapanır; yanıt yeni bir `runs` satırı açar (K-130). `Magentic` plan onayı
+açılabilir hâle geldi.
+
+🚨 **Faz 15'in kontrol noktası sınırı kaldırıldı** (K-127). Ölçüldü: bir grafta
+kimliği değişken olan tek şey agent executor'udur; yardımcı düğümler zaten
+sabittir. `WorkflowAgentIdentity` sarmalayıcının kimliğini `(workflow, agent)`
+çiftinden türetir, böylece kontrol noktaları süreç ömrünü aşar. Gerçek bir
+süreç yeniden başlatmasıyla doğrulandı: kimlik aynı kaldı ve yeniden
+başlatmadan **önce** oluşan bekleyen istek sonrasında cevaplandı. Bkz.
+[`16-WORKFLOWS-ARAYUZ.md`](16-WORKFLOWS-ARAYUZ.md).
 
 Faz 5 sonunda kabul senaryosu tamamlandı: paket kurulur, `.UseUI()` +
 `app.MapAgentPrism()` yazılır ve tarayıcıda bir kontrol düzlemi açılır. Faz 6 ekranı
 sekize çıkardı (MCP & approvals) ve arayüz artık span waterfall'ı, tool çağrı
 sayılarını ve onay kartlarını gösteriyor. Arayüz assembly'ye Brotli sıkıştırılmış
 gömülüdür (85,1 KB), tüketici projede hiçbir JavaScript bağımlılığı oluşturmaz ve
-JavaScript bütçesi 93,0 KB / 250 KB gzip'tir.
+JavaScript bütçesi Faz 16 sonunda 105,2 KB / 250 KB gzip'tir.
 
 Faz 6 sonunda AgentPrism **işletilebilir**: her çalıştırmanın span ağacı ve metriği
 var, geri alınamaz tool'lar kullanıcı onayı bekliyor, tool'lar uzak MCP
@@ -545,8 +555,11 @@ Microsoft.Agents.AI.Workflows                          → Faz 15 TAMAMLANDI (F-
   InProcessExecution.{Run,Resume}StreamingAsync          → yurutme
   StreamingRun.TrySendMessageAsync(TurnToken)            → 🚨 ZORUNLU, yoksa graf calismaz
   CheckpointManager.CreateJson(ICheckpointStore<JsonElement>, opts)
-  WorkflowVisualizer.ToMermaidString · Workflow.Reflect* → Faz 16 (graf cizimi)
-  RequestPort · ExternalRequest/Response                 → Faz 16 (human-in-the-loop)
+  WorkflowVisualizer.ToMermaidString · Workflow.Reflect* → Faz 16 TAMAMLANDI (graf cizimi)
+  RequestPort · ExternalRequest/Response                 → Faz 16 TAMAMLANDI (human-in-the-loop)
+  StreamingRun.SendResponseAsync                         → 🚨 yanit sonrasi akis YENIDEN acilmali
+  MagenticWorkflowBuilder.RequirePlanSignoff(true)       → Faz 16 TAMAMLANDI (plan onayi)
+Microsoft.Agents.AI.Workflows.Declarative               → ALINMADI (K-129: +19 paket, Responses API sarti)
 ```
 
 **2026-08-02'de reflection ile doğrulanan ve ikinci faz planına giren bulgular:**
@@ -557,7 +570,9 @@ Microsoft.Agents.AI.Workflows                          → Faz 15 TAMAMLANDI (F-
 | `AgentSkillsProviderOptions.Disable*Approval` varsayılanı **`false`** | Skill yükleme, kaynak okuma ve script çalıştırma Faz 6'nın onay akışından **zaten** geçer |
 | `AgentFileSkillScriptRunner` bir **delegedir**; MAF hiçbir script'i kendi çalıştırmaz | Sandbox, zaman aşımı ve denetim izi tamamen AgentPrism'in sorumluluğudur (Faz 11) |
 | `AgentFileStore` bir **soyutlamadır**, dosya sistemi değil | Veritabanı destekli uygulama, agent'a "dosya" verirken diske hiç dokunmaz (K-062 endişesini ortadan kaldırır) |
-| `WorkflowVisualizer.ToMermaidString(workflow)` **var** | Graf metni MAF'tan gelir; tarayıcıda render kararı ayrıdır (Faz 16) |
+| `WorkflowVisualizer.ToMermaidString(workflow)` **var** | Graf metni MAF'tan gelir; arayüz onu **çizmez**, dışa aktarır — mermaid.js ~100 KB gzip eder (K-132) |
+| `AIAgent.Id` sanal değil ama arka alanı salt-okunur **değil** (Faz 16) | Kalıcı executor kimliği bu alana yazılarak kuruldu; kontrol noktaları süreç ömrünü aşar (K-127) |
+| Kontrol noktası bekleyen isteği taşır ve sürdürmede **aynı `RequestId` ile yeniden yayınlanır** (Faz 16) | Yanıt saklanan bir nesneyle değil, yeniden yayınlanan istekle eşleştirilir (K-128) |
 | `HarnessAgentOptions` üyeleri: `AgentSkillsSource`, `CompactionStrategy`, `FileMemoryStore`, `LoopEvaluators`, `BackgroundAgents` | Harness zaten bunları içeride kullanıyor; düz agent için açığa çıkarmak gerekir |
 | `ChatHistoryMemoryProvider` **`VectorStore` istiyor**, basit bellek değil (Faz 13) | Kapsam dışı bırakıldı (K-105); vektör deposu kararı verilince ayrı bir faz |
 | `CompactionProvider` **tokenizer parametresi almaz**, MAF içeride kendi çözer (Faz 13) | `Microsoft.ML.Tokenizers.Data.*` gibi bir veri paketi gerekmedi; gerçek çalıştırmayla doğrulandı |

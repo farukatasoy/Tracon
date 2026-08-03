@@ -164,7 +164,7 @@ AgentPrism bu boşluğu doldurur. DevUI'nin yerine geçmez — bıraktığı yer
 | `AgentPrism.PostgreSql` | ✅ Kalıcılık — gömülü SQL migration'ları, ayrı `agentprism` şeması |
 | `AgentPrism.OpenAI` | ✅ OpenAI sağlayıcı adaptörü — Chat Completions + Responses, tool çağrısı, OpenTelemetry |
 | `AgentPrism.Mcp` | ✅ Uzak MCP sunucularından tool keşfi — yalnız HTTP, varsayılan onaylı |
-| `AgentPrism.Workflows` | ✅ Workflow yürütme — beş hazır desen, kontrol noktası, sürdürme |
+| `AgentPrism.Workflows` | ✅ Workflow yürütme — beş hazır desen, kontrol noktası, sürdürme, human-in-the-loop |
 | `AgentPrism.AspNetCore` | ✅ HTTP katmanı — yönetim API'si + OpenAI uyumlu uçlar + çok kiracılılık |
 | `AgentPrism.UI` | ✅ Gömülü React arayüzü — sekiz ekran, sıfır JavaScript bağımlılığı |
 
@@ -245,7 +245,8 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [13](docs/13-BAGLAM-SIKISTIRMA-VE-BELLEK.md) | Bağlam sıkıştırma (5 strateji + pipeline) ve bellek sağlayıcıları (dosya, todo, metin araması) | ✅ Tamamlandı |
 | [14](docs/14-COK-MODLULUK.md) | Çok modluluk: görsel/dosya eki, kalıcı agent dosya belleği | ✅ Tamamlandı |
 | [15](docs/15-WORKFLOWS-YURUTME.md) | Workflows: beş desenle yürütme, kontrol noktası ve sürdürme | ✅ Tamamlandı |
-| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 16–30) | 📋 Planlandı — sıradaki Faz 16 |
+| [16](docs/16-WORKFLOWS-ARAYUZ.md) | Workflows: graf görselleştirme, human-in-the-loop, Magentic plan onayı | ✅ Tamamlandı |
+| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 17–30) | 📋 Planlandı — sıradaki Faz 17 |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 > Faz 6, planındaki Workflows kalemini **yapmadı**; ertelendi ve gerekçesi

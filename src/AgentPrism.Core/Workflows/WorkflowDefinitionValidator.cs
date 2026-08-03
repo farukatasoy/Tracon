@@ -104,6 +104,17 @@ public static class WorkflowDefinitionValidator
                    "kullanmaz. Bu alan yalnizca 'Handoff' desenine aittir.";
         }
 
+        // Plan onayi yalnizca Magentic'in kavramidir: yonetici agent'in kurdugu
+        // plani insana gosterir. Diger desenlerde plan diye bir sey yoktur ve
+        // alani sessizce yok saymak, kullanicinin bekledigi onay adiminin hic
+        // olusmadigini gizlerdi - managerAgentName ile ayni kural.
+        if (definition.RequirePlanApproval && definition.Kind != WorkflowKind.Magentic)
+        {
+            return $"'{definition.Name}' workflow'u '{definition.Kind}' deseninde 'requirePlanApproval' " +
+                   "kullanmaz. Plan onayi yalnizca 'Magentic' desenine aittir; plani kuran yonetici " +
+                   "agent yalnizca o desende bulunur.";
+        }
+
         if (definition.MaxIterations is <= 0)
         {
             return $"'{definition.Name}' workflow'unun 'maxIterations' degeri pozitif olmalidir.";

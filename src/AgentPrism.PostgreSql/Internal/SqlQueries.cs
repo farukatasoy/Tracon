@@ -334,6 +334,7 @@ internal sealed class SqlQueries
                    COUNT(*) FILTER (WHERE status = @status_failed)::bigint,
                    COUNT(*) FILTER (WHERE status = @status_canceled)::bigint,
                    COUNT(*) FILTER (WHERE status = @status_running)::bigint,
+                   COUNT(*) FILTER (WHERE status = @status_awaiting)::bigint,
                    COALESCE(SUM(input_tokens), 0)::bigint,
                    COALESCE(SUM(output_tokens), 0)::bigint,
                    COALESCE(SUM(total_tokens), 0)::bigint
