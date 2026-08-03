@@ -69,6 +69,9 @@ public sealed class PostgresRunStore : IRunStore
             ParentRunId = info.ParentRunId,
             RootRunId = info.RootRunId,
             Depth = info.Depth,
+            AgentVersion = info.AgentVersion,
+            ExperimentId = info.ExperimentId,
+            Variant = info.Variant,
         };
 
         var command = CreateCommand(_sql.InsertRun);
@@ -84,6 +87,9 @@ public sealed class PostgresRunStore : IRunStore
         AddNullableUuid(command, "root_run_id", record.RootRunId);
         command.Parameters.AddWithValue("kind", (short)record.Kind);
         AddNullableText(command, "workflow_name", record.WorkflowName);
+        AddNullableInt32(command, "agent_version", record.AgentVersion);
+        AddNullableUuid(command, "experiment_id", record.ExperimentId);
+        AddNullableText(command, "variant", record.Variant);
 
         // Derinlik smallint sutunudur; kaynagi butcenin MaxDepth degeridir ve
         // hicbir kurulumda short sinirina yaklasmaz.
@@ -265,6 +271,25 @@ public sealed class PostgresRunStore : IRunStore
                     }
                 }
 
+                // Dorduncu sonuc kumesi: surum kirilimi. agent_version NULL olan
+                // calistirmalar sorguda elenir; toplamlarda ise sayilirlar.
+                var byVersion = new List<RunVersionStatistics>();
+
+                if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        byVersion.Add(new RunVersionStatistics
+                        {
+                            AgentName = reader.GetString(0),
+                            Version = reader.GetInt32(1),
+                            TotalRuns = reader.GetInt64(2),
+                            FailedRuns = reader.GetInt64(3),
+                            TotalTokens = reader.GetInt64(4),
+                        });
+                    }
+                }
+
                 return new RunStatistics
                 {
                     TotalRuns = total,
@@ -278,6 +303,7 @@ public sealed class PostgresRunStore : IRunStore
                     TotalTokens = totalTokens,
                     ByAgent = byAgent,
                     ByModel = byModel,
+                    ByVersion = byVersion,
                 };
             }
         }
@@ -381,6 +407,25 @@ public sealed class PostgresRunStore : IRunStore
             .ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
+    public async ValueTask<IReadOnlyList<ExperimentVariantResult>> GetExperimentResultsAsync(
+        ExperimentResultsQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var command = CreateCommand(_sql.SelectExperimentResults);
+        command.Parameters.AddWithValue("tenant_id", query.TenantId ?? _tenantContext.TenantId);
+        command.Parameters.AddWithValue("experiment_id", query.ExperimentId);
+        command.Parameters.AddWithValue("status_completed", (short)RunStatus.Completed);
+        command.Parameters.AddWithValue("status_failed", (short)RunStatus.Failed);
+        command.Parameters.AddWithValue("status_canceled", (short)RunStatus.Canceled);
+
+        return await NpgsqlHelpers
+            .ReadListAsync(command, ReadExperimentVariantResult, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     /// <summary>Hic satir donmeyen ozet sorgusu icin notr sonuc.</summary>
     private static RunStatistics EmptyStatistics { get; } = new()
     {
@@ -437,6 +482,9 @@ public sealed class PostgresRunStore : IRunStore
             TreeUsage = ReadTreeUsage(reader, ownUsage),
             Kind = (RunKind)reader.GetInt16(23),
             WorkflowName = NpgsqlHelpers.GetNullableString(reader, 24),
+            AgentVersion = reader.IsDBNull(25) ? null : reader.GetInt32(25),
+            ExperimentId = reader.IsDBNull(26) ? null : reader.GetGuid(26),
+            Variant = NpgsqlHelpers.GetNullableString(reader, 27),
             Error = errorType is null
                 ? null
                 : new RunError
@@ -511,6 +559,21 @@ public sealed class PostgresRunStore : IRunStore
             LastCalledAt = reader.IsDBNull(4) ? null : NpgsqlHelpers.GetTimestamp(reader, 4),
         };
 
+    private static ExperimentVariantResult ReadExperimentVariantResult(NpgsqlDataReader reader)
+        => new()
+        {
+            Variant = reader.GetString(0),
+            Version = reader.IsDBNull(1) ? 0 : reader.GetInt32(1),
+            TotalRuns = reader.GetInt64(2),
+            CompletedRuns = reader.GetInt64(3),
+            FailedRuns = reader.GetInt64(4),
+            CanceledRuns = reader.GetInt64(5),
+            InputTokens = reader.GetInt64(6),
+            OutputTokens = reader.GetInt64(7),
+            TotalTokens = reader.GetInt64(8),
+            AverageDurationMs = reader.IsDBNull(9) ? null : reader.GetDouble(9),
+        };
+
     private static void AddNullableText(NpgsqlCommand command, string name, string? value)
         => command.Parameters.Add(new NpgsqlParameter(name, NpgsqlDbType.Text)
         {
@@ -525,6 +588,12 @@ public sealed class PostgresRunStore : IRunStore
 
     private static void AddNullableInt64(NpgsqlCommand command, string name, long? value)
         => command.Parameters.Add(new NpgsqlParameter(name, NpgsqlDbType.Bigint)
+        {
+            Value = value.HasValue ? (object)value.Value : DBNull.Value,
+        });
+
+    private static void AddNullableInt32(NpgsqlCommand command, string name, int? value)
+        => command.Parameters.Add(new NpgsqlParameter(name, NpgsqlDbType.Integer)
         {
             Value = value.HasValue ? (object)value.Value : DBNull.Value,
         });

@@ -69,6 +69,15 @@ public sealed record AgentRunScope
     /// <summary>Agac boyunca paylasilan butce.</summary>
     public AgentRunBudget? Budget { get; init; }
 
+    /// <summary>Bu calistirmanin olctugu tanim surumu. Bilinmiyorsa <see langword="null"/>.</summary>
+    public int? AgentVersion { get; init; }
+
+    /// <summary>Bu calistirmanin bagli oldugu deneyin kimligi. Deney disi calistirmada <see langword="null"/>.</summary>
+    public Guid? ExperimentId { get; init; }
+
+    /// <summary>Bu calistirmanin atandigi deney kolunun adi. Deney disi calistirmada <see langword="null"/>.</summary>
+    public string? Variant { get; init; }
+
     /// <summary>
     /// Bu calistirmanin olay yazicisi. Alt calistirma ozet olaylari buraya yazilir.
     /// </summary>

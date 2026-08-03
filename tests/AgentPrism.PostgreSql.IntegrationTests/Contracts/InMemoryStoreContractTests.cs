@@ -116,3 +116,11 @@ public sealed class InMemoryEvalStoreContractTests : EvalStoreContract
     protected override ValueTask<IEvalStore> CreateStoreAsync()
         => ValueTask.FromResult<IEvalStore>(new InMemoryEvalStore());
 }
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryExperimentStoreContractTests : ExperimentStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<IExperimentStore> CreateStoreAsync()
+        => ValueTask.FromResult<IExperimentStore>(new InMemoryExperimentStore());
+}

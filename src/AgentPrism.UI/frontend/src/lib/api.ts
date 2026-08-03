@@ -7,6 +7,7 @@ import type {
   AgentDetail,
   AgentSkillDefinition,
   AgentSkillRequest,
+  AgentVersionDiffResponse,
   AttachmentDescriptor,
   SkillScriptGrant,
   SkillScriptGrantRequest,
@@ -20,6 +21,9 @@ import type {
   EvalRunTriggerRequest,
   EvalSuite,
   EvalSuiteSaveRequest,
+  Experiment,
+  ExperimentResultsResponse,
+  ExperimentSaveRequest,
   JobDetailResponse,
   JobKind,
   JobRecord,
@@ -181,6 +185,10 @@ export const api = {
     request<AgentDefinition[]>(`api/agents/${encodeURIComponent(name)}/versions`),
   rollbackAgent: (name: string, version: number) =>
     send<AgentDefinition>('POST', `api/agents/${encodeURIComponent(name)}/rollback`, { version }),
+  agentVersionDiff: (name: string, a: number, b: number) =>
+    request<AgentVersionDiffResponse>(
+      `api/agents/${encodeURIComponent(name)}/versions/${a}/diff/${b}`,
+    ),
 
   skills: () => request<AgentSkillDefinition[]>('api/skills'),
   skill: (name: string) => request<AgentSkillDefinition>(`api/skills/${encodeURIComponent(name)}`),
@@ -379,6 +387,19 @@ export const api = {
   evalRuns: (name: string, params: { skip?: number; take?: number } = {}) =>
     request<EvalRun[]>(`api/evals/${encodeURIComponent(name)}/runs${query(params)}`),
   evalRun: (id: string) => request<EvalRunDetailResponse>(`api/evals/runs/${encodeURIComponent(id)}`),
+
+  experiments: () => request<Experiment[]>('api/experiments'),
+  experiment: (name: string) => request<Experiment>(`api/experiments/${encodeURIComponent(name)}`),
+  saveExperiment: (name: string, body: ExperimentSaveRequest) =>
+    send<Experiment>('PUT', `api/experiments/${encodeURIComponent(name)}`, body),
+  deleteExperiment: (name: string) =>
+    request<void>(`api/experiments/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+  startExperiment: (name: string) =>
+    send<Experiment>('POST', `api/experiments/${encodeURIComponent(name)}/start`, {}),
+  stopExperiment: (name: string) =>
+    send<Experiment>('POST', `api/experiments/${encodeURIComponent(name)}/stop`, {}),
+  experimentResults: (name: string) =>
+    request<ExperimentResultsResponse>(`api/experiments/${encodeURIComponent(name)}/results`),
 
   audit: (
     params: {

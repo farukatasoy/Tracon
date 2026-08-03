@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Diagnostics.Metrics;
 
 namespace AgentPrism;
@@ -89,26 +90,44 @@ public sealed class AgentPrismMetrics : IDisposable
     /// <param name="modelId">Kullanilan model.</param>
     /// <param name="duration">Calistirma suresi.</param>
     /// <param name="usage">Token kullanimi.</param>
+    /// <param name="agentVersion">
+    /// Olculen tanim surumu. <see langword="null"/> ise etiket eklenmez — bilinmedigi
+    /// veya <see cref="AgentPrismObservabilityOptions.IncludeAgentVersionTag"/> kapali
+    /// oldugu icin cagiran taraf zaten <see langword="null"/> geciyordur.
+    /// </param>
     public void RecordRun(
         string agentName,
         RunStatus status,
         string tenantId,
         string? modelId,
         TimeSpan duration,
-        RunUsage? usage)
+        RunUsage? usage,
+        int? agentVersion = null)
     {
         var statusTag = status.ToString();
 
-        Runs.Add(
-            1,
-            new KeyValuePair<string, object?>(AgentPrismDiagnostics.Tags.AgentName, agentName),
-            new KeyValuePair<string, object?>(AgentPrismDiagnostics.Tags.Status, statusTag),
-            new KeyValuePair<string, object?>(AgentPrismDiagnostics.Tags.TenantId, tenantId));
+        var runTags = new TagList
+        {
+            { AgentPrismDiagnostics.Tags.AgentName, agentName },
+            { AgentPrismDiagnostics.Tags.Status, statusTag },
+            { AgentPrismDiagnostics.Tags.TenantId, tenantId },
+        };
 
-        RunDuration.Record(
-            duration.TotalSeconds,
-            new KeyValuePair<string, object?>(AgentPrismDiagnostics.Tags.AgentName, agentName),
-            new KeyValuePair<string, object?>(AgentPrismDiagnostics.Tags.Status, statusTag));
+        var durationTags = new TagList
+        {
+            { AgentPrismDiagnostics.Tags.AgentName, agentName },
+            { AgentPrismDiagnostics.Tags.Status, statusTag },
+        };
+
+        if (agentVersion is { } version)
+        {
+            runTags.Add(AgentPrismDiagnostics.Tags.AgentVersion, version);
+            durationTags.Add(AgentPrismDiagnostics.Tags.AgentVersion, version);
+        }
+
+        Runs.Add(1, runTags);
+
+        RunDuration.Record(duration.TotalSeconds, durationTags);
 
         if (usage is null)
         {

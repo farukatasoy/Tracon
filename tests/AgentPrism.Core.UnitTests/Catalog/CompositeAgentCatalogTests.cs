@@ -76,6 +76,48 @@ public sealed class CompositeAgentCatalogTests
         await Should.ThrowAsync<ArgumentException>(async () => await catalog.ResolveAsync("  "));
     }
 
+    // --- Surum secimi (Faz 19.3) ---
+
+    [Fact]
+    public async Task Versiyonlu_kaynaktan_dogru_surum_cozulur()
+    {
+        var source = new VersionedStubSource("database", 100, "beta", 1, 2);
+        var catalog = CreateCatalog(source);
+
+        var agent = await catalog.ResolveAsync("beta", 2);
+
+        agent.ShouldNotBeNull();
+        source.LastRequestedVersion.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task Version_null_ise_guncel_surum_cozulur()
+    {
+        var source = new VersionedStubSource("database", 100, "beta", 1, 2);
+        var catalog = CreateCatalog(source);
+
+        var agent = await catalog.ResolveAsync("beta", (int?)null);
+
+        agent.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task Kod_kaynakli_agentta_surum_istenirse_hata_firlar()
+    {
+        var catalog = CreateCatalog(new StubSource("code", priority: 0, "alpha"));
+
+        await Should.ThrowAsync<AgentPrismException>(async () => await catalog.ResolveAsync("alpha", 1));
+    }
+
+    [Fact]
+    public async Task Olmayan_surum_hata_firlatir()
+    {
+        var source = new VersionedStubSource("database", 100, "beta", 1);
+        var catalog = CreateCatalog(source);
+
+        await Should.ThrowAsync<AgentPrismException>(async () => await catalog.ResolveAsync("beta", 99));
+    }
+
     private static CompositeAgentCatalog CreateCatalog(params IAgentSource[] sources)
         => new(sources, [], NullLogger<CompositeAgentCatalog>.Instance);
 
@@ -125,6 +167,51 @@ public sealed class CompositeAgentCatalogTests
                 TestData.Registry());
 
             return new ValueTask<AIAgent?>(compiler.Compile(TestData.Definition(agentName)));
+        }
+    }
+
+    private sealed class VersionedStubSource : IVersionedAgentSource
+    {
+        private readonly string _agentName;
+        private readonly HashSet<int> _versions;
+
+        public VersionedStubSource(string name, int priority, string agentName, params int[] versions)
+        {
+            Name = name;
+            Priority = priority;
+            _agentName = agentName;
+            _versions = [.. versions];
+        }
+
+        public string Name { get; }
+
+        public int Priority { get; }
+
+        public int? LastRequestedVersion { get; private set; }
+
+        public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default)
+            => new((IReadOnlyList<AgentDescriptor>)
+            [
+                new AgentDescriptor { Name = _agentName, Origin = AgentDefinitionOrigin.Database, SourceName = Name },
+            ]);
+
+        public ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken = default)
+            => ResolveVersionAsync(agentName, _versions.Max(), cancellationToken);
+
+        public ValueTask<AIAgent?> ResolveVersionAsync(string agentName, int version, CancellationToken cancellationToken = default)
+        {
+            LastRequestedVersion = version;
+
+            if (!string.Equals(agentName, _agentName, StringComparison.Ordinal) || !_versions.Contains(version))
+            {
+                return new ValueTask<AIAgent?>((AIAgent?)null);
+            }
+
+            var compiler = new AgentDefinitionCompiler(
+                TestData.Providers(new FakeModelProvider()),
+                TestData.Registry());
+
+            return new ValueTask<AIAgent?>(compiler.Compile(TestData.Definition(agentName) with { Version = version }));
         }
     }
 

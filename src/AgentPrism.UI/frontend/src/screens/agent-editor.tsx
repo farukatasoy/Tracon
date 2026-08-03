@@ -277,6 +277,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                 rows={7}
                 value={form.instructions}
                 placeholder="You are a support assistant. Answer briefly. Always use a tool for order questions."
+                data-testid="agent-instructions"
                 onChange={(event) => setForm({ ...form, instructions: event.target.value })}
               />
             </div>

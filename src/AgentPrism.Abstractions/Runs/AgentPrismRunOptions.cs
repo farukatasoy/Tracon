@@ -45,6 +45,9 @@ public sealed class AgentPrismRunOptions : AgentRunOptions
         Depth = other.Depth;
         Budget = other.Budget;
         Kind = other.Kind;
+        AgentVersion = other.AgentVersion;
+        ExperimentId = other.ExperimentId;
+        Variant = other.Variant;
     }
 
     /// <summary>
@@ -99,9 +102,23 @@ public sealed class AgentPrismRunOptions : AgentRunOptions
     /// </remarks>
     public RunKind? Kind { get; init; }
 
+    /// <summary>
+    /// Bu calistirmanin olctugu tanim surumu. <see langword="null"/> ise sarmalayici
+    /// agent'in katalog ozetinden gelen (guncel) surumu kullanir. Bir A/B deneyi
+    /// tarafindan cozulen calistirmalarda, derlenmis agent'in <em>gercek</em> surumu
+    /// guncelden farkli olabilecegi icin bu alan doldurulur.
+    /// </summary>
+    public int? AgentVersion { get; init; }
+
+    /// <summary>Bu calistirmanin bagli oldugu deneyin kimligi. Deney disi calistirmada <see langword="null"/>.</summary>
+    public Guid? ExperimentId { get; init; }
+
+    /// <summary>Bu calistirmanin atandigi deney kolunun adi. Deney disi calistirmada <see langword="null"/>.</summary>
+    public string? Variant { get; init; }
+
     /// <inheritdoc />
     /// <remarks>
-    /// Kopyalama bes alanin tamamini korur. Aksi halde ayarlari kopyalayan bir ara
+    /// Kopyalama alanlarin tamamini korur. Aksi halde ayarlari kopyalayan bir ara
     /// katman kimligi sessizce dusurur ve sarmalayici kendi kimligini uretirdi -
     /// istemciye bildirilen kimlik ise artik hicbir kayda karsilik gelmezdi. Ayni
     /// tuzak agac alanlari icin daha sinsidir: dusen bir <see cref="Depth"/> degeri

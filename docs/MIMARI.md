@@ -8,22 +8,24 @@
 
 | Paket | Durum | Faz |
 |-------|-------|-----|
-| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) · 5 (`AgentPrismRunOptions`) · 6 (telemetri, tool çağrısı, onay, MCP, kiracı) · 8 (`IModelProviderHealthCheck`, `AgentPrismProviderUnavailableException`) · 9 (`IAuditLog`, `IAuditActorResolver`, `IAuditDecorated`) · 10 (`AgentSkillDefinition`, `IAgentSkillStore`) · 11 (script tanımı, `ISkillScriptGrantStore`) · 12 (`AgentRunBudget`, çalıştırma ağacı alanları, `CallableAgentNames`) · 13 (`CompactionSettings`, `CompactionStrategyKind`, `MemorySettings`, `RunEventType.HistoryCompacted`) · 14 (`AttachmentDescriptor`, `AttachmentContent`, `IAttachmentStore`, `IAttachmentStorage`, `AttachmentQuery`) · 15 (`RunKind`, `WorkflowDefinition`, `WorkflowKind`, `WorkflowDescriptor`, `IWorkflowRunner`, `IWorkflowDefinitionStore`, `IWorkflowCheckpointStore`, sekiz yeni `RunEventType`) · 17 (`JobKind`, `JobStatus`, `JobItemStatus`, `JobSchedule`, `JobRecord`, `JobItemRecord`, `IJobStore`, `IJobScheduleStore`, `IJobHandler`, `AgentPrismSchedulingOptions`, `AmbientTenantScope`) · 18 (`EvalSuite`, `EvalCase`, `EvalRun`, `EvalCaseResult`, `IEvalStore`, `RunKind.Eval`, `AgentPrismRunOptions.Kind`) |
-| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) · 5 (çağıranın verdiği çalıştırma kimliği) · 6 (span, metrik, onay kuralı) · 8 (devre kesici, sağlık önbelleği) · 9 (`AuditActorContext`, `AuditSecretFilter`, `Auditing*Store` dekoratörleri) · 10 (skill katalogu, MAF source, fingerprint cache) · 11 (`SandboxedSkillScriptRunner`, `AgentPrismRunContext`) · 12 (`AgentCallGraph`, `CallableAgentResolver`, `ChildAgentInvoker`, `AgentRunScope`) · 13 (`ObservedCompactionStrategy`, `CompactionUsageTrackingChatClient`, `CompactionUsageAccumulator`, `AgentPrismOptions.UtilityModel`) · 14 (`AttachmentTypeGuard`, `InMemoryAttachmentStore`, `AttachmentResolvingChatClient`, `AttachmentUriReference`) · 15 (`WorkflowDefinitionValidator`, `InMemoryWorkflow*Store`, `AuditingWorkflowDefinitionStore`, `RunEventWriter.AppendAsync` artık olayı döndürür) · 17 (`InMemoryJobStore`, `InMemoryJobScheduleStore`, `CronExpression`, `JobWorkerBackgroundService`, `AgentBatchJobHandler`, `WorkflowJobHandler`, `AddJobHandler<T>()`, `UseScheduling()`) · 18 (`InMemoryEvalStore`, `EvalCheckRegistry`, `EvalJobHandler`, `AddEvalCheck(...)`) |
-| `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 · 4 (özet sorgusu) · 6 (migration 0002, dört yeni depo) · 9 (`PostgresAuditLog`, migration **yok** — şema Faz 0'dan hazırdı) · 10 (migration 0003, `PostgresAgentSkillStore`) · 11 (migration 0004) · 12 (migration 0005 — `runs` ağaç sütunları, **yeni tablo yok**) · 13 (`AgentDefinitionPayload` genişletildi, **yeni migration yok** — `agent_definitions.definition` opak JSON) · 14 (migration 0006 — `attachments`, `agent_files`; `PostgresAttachmentStore`, `PostgresAgentFileStore`) · 15 (migration 0007 — `workflows`, `workflow_checkpoints`, `runs.kind`/`workflow_name`; iki yeni depo) · 17 (migration 0008 — `job_schedules`, `jobs` (`FOR UPDATE SKIP LOCKED`), `job_items`; `PostgresJobStore`, `PostgresJobScheduleStore`) · 18 (migration 0009 — `eval_suites`, `eval_cases`, `eval_runs`, `eval_case_results`; `PostgresEvalStore`) |
+| `AgentPrism.Abstractions` | ✅ Tamamlandı | 1 · 3 (`[AgentPrismTool]`) · 4 (çalıştırma özeti) · 5 (`AgentPrismRunOptions`) · 6 (telemetri, tool çağrısı, onay, MCP, kiracı) · 8 (`IModelProviderHealthCheck`, `AgentPrismProviderUnavailableException`) · 9 (`IAuditLog`, `IAuditActorResolver`, `IAuditDecorated`) · 10 (`AgentSkillDefinition`, `IAgentSkillStore`) · 11 (script tanımı, `ISkillScriptGrantStore`) · 12 (`AgentRunBudget`, çalıştırma ağacı alanları, `CallableAgentNames`) · 13 (`CompactionSettings`, `CompactionStrategyKind`, `MemorySettings`, `RunEventType.HistoryCompacted`) · 14 (`AttachmentDescriptor`, `AttachmentContent`, `IAttachmentStore`, `IAttachmentStorage`, `AttachmentQuery`) · 15 (`RunKind`, `WorkflowDefinition`, `WorkflowKind`, `WorkflowDescriptor`, `IWorkflowRunner`, `IWorkflowDefinitionStore`, `IWorkflowCheckpointStore`, sekiz yeni `RunEventType`) · 17 (`JobKind`, `JobStatus`, `JobItemStatus`, `JobSchedule`, `JobRecord`, `JobItemRecord`, `IJobStore`, `IJobScheduleStore`, `IJobHandler`, `AgentPrismSchedulingOptions`, `AmbientTenantScope`) · 18 (`EvalSuite`, `EvalCase`, `EvalRun`, `EvalCaseResult`, `IEvalStore`, `RunKind.Eval`, `AgentPrismRunOptions.Kind`) · 19 (`Experiment`, `ExperimentVariant`, `ExperimentStatus`, `IExperimentStore`, `ExperimentAssignment`, `ExperimentVariantResult`, `ExperimentResultsQuery`, `IVersionedAgentSource`, `RunVersionStatistics`, `IAgentDefinitionStore.GetVersionAsync`, `IAgentCatalog.ResolveAsync(name, version, ct)`, `IRunStore.GetExperimentResultsAsync`) |
+| `AgentPrism.Core` | ✅ Tamamlandı | 1 · 2 (oturum yönetimi) · 3 (tool tarama, reasoning) · 4 (sohbet geçmişi kaydı) · 5 (çağıranın verdiği çalıştırma kimliği) · 6 (span, metrik, onay kuralı) · 8 (devre kesici, sağlık önbelleği) · 9 (`AuditActorContext`, `AuditSecretFilter`, `Auditing*Store` dekoratörleri) · 10 (skill katalogu, MAF source, fingerprint cache) · 11 (`SandboxedSkillScriptRunner`, `AgentPrismRunContext`) · 12 (`AgentCallGraph`, `CallableAgentResolver`, `ChildAgentInvoker`, `AgentRunScope`) · 13 (`ObservedCompactionStrategy`, `CompactionUsageTrackingChatClient`, `CompactionUsageAccumulator`, `AgentPrismOptions.UtilityModel`) · 14 (`AttachmentTypeGuard`, `InMemoryAttachmentStore`, `AttachmentResolvingChatClient`, `AttachmentUriReference`) · 15 (`WorkflowDefinitionValidator`, `InMemoryWorkflow*Store`, `AuditingWorkflowDefinitionStore`, `RunEventWriter.AppendAsync` artık olayı döndürür) · 17 (`InMemoryJobStore`, `InMemoryJobScheduleStore`, `CronExpression`, `JobWorkerBackgroundService`, `AgentBatchJobHandler`, `WorkflowJobHandler`, `AddJobHandler<T>()`, `UseScheduling()`) · 18 (`InMemoryEvalStore`, `EvalCheckRegistry`, `EvalJobHandler`, `AddEvalCheck(...)`) · 19 (`ExperimentAssignmentResolver`, `InMemoryExperimentStore`, `AuditingExperimentStore`, `DefinitionStoreAgentSource : IVersionedAgentSource`, `CompositeAgentCatalog.ResolveAsync(name, version, ct)`, `AgentPrismDiagnostics.Tags.AgentVersion`, `AgentPrismObservabilityOptions.IncludeAgentVersionTag`) |
+| `AgentPrism.PostgreSql` | ✅ Tamamlandı | 2 · 4 (özet sorgusu) · 6 (migration 0002, dört yeni depo) · 9 (`PostgresAuditLog`, migration **yok** — şema Faz 0'dan hazırdı) · 10 (migration 0003, `PostgresAgentSkillStore`) · 11 (migration 0004) · 12 (migration 0005 — `runs` ağaç sütunları, **yeni tablo yok**) · 13 (`AgentDefinitionPayload` genişletildi, **yeni migration yok** — `agent_definitions.definition` opak JSON) · 14 (migration 0006 — `attachments`, `agent_files`; `PostgresAttachmentStore`, `PostgresAgentFileStore`) · 15 (migration 0007 — `workflows`, `workflow_checkpoints`, `runs.kind`/`workflow_name`; iki yeni depo) · 17 (migration 0008 — `job_schedules`, `jobs` (`FOR UPDATE SKIP LOCKED`), `job_items`; `PostgresJobStore`, `PostgresJobScheduleStore`) · 18 (migration 0009 — `eval_suites`, `eval_cases`, `eval_runs`, `eval_case_results`; `PostgresEvalStore`) · 19 (migration 0010 — `experiments` tablosu (`variants jsonb`), `runs.agent_version`/`experiment_id`/`variant`; `PostgresExperimentStore`, `RunStatistics.ByVersion`, `GetExperimentResultsAsync`) |
 | `AgentPrism.OpenAI` | ✅ Tamamlandı | 3 · 8 (`UseOpenAICompatible`, sağlık denetimi) |
 | `AgentPrism.Mcp` | ✅ Tamamlandı | 6 |
 | `AgentPrism.Workflows` | ✅ Tamamlandı | 15 |
-| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 · 5 (arayüz rota grubu) · 6 (çok kiracılılık, yönetişim uçları) · 8 (`/api/models/health`) · 9 (`AgentPrismPolicies`, rol dağıtımı, `/api/audit`, `/api/meta` rol alanı) · 10 (`/api/skills`) · 11 (script izin uçları) · 12 (çağrı grafiği denetimi, `/api/runs/{id}/tree`, `includeChildren`) · 13 (`AgentDefinitionRequest.Compaction`/`Memory`) · 14 (`/api/attachments` uçları, `AgentRunRequest.AttachmentIds`, `/v1/responses` gömülü `data:` URI kabulü) · 15 (`/api/workflows` uçları, SSE çalıştırma ve sürdürme, `501` deseni) · 17 (`/api/schedules` + `/api/jobs` uçları, `/api/meta` içine `jobStore`/`jobWorkerEnabled`) · 18 (`/api/evals` uçları — takım/vaka/koşu CRUD, tetikleme, sonuç okuma) |
-| `AgentPrism.UI` | ✅ Tamamlandı | 5 · 6 (waterfall, MCP ekranı, onay kartı) · 8 (sağlık rozeti) · 9 (Audit ekranı, rol tabanlı düğme gizleme) · 10 (Skills ekranı ve agent skill seçicisi) · 11 (script izin yüzeyi) · 12 (çağrı ağacı paneli, kök/alt filtresi, çağrılabilir agent seçicisi) · 13 (Context paneli, `HistoryCompacted` rozeti/transkript satırı) · 14 (Playground dosya yükleme, sürükle-bırak, ek çipi/önizleme) · 17 (Jobs ekranı: zamanlamalar, is kuyrugu, ilerleme cubugu) · 18 (Evals ekranı: takım listesi, vaka düzenleyici, koşu geçme oranı) |
+| `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 · 5 (arayüz rota grubu) · 6 (çok kiracılılık, yönetişim uçları) · 8 (`/api/models/health`) · 9 (`AgentPrismPolicies`, rol dağıtımı, `/api/audit`, `/api/meta` rol alanı) · 10 (`/api/skills`) · 11 (script izin uçları) · 12 (çağrı grafiği denetimi, `/api/runs/{id}/tree`, `includeChildren`) · 13 (`AgentDefinitionRequest.Compaction`/`Memory`) · 14 (`/api/attachments` uçları, `AgentRunRequest.AttachmentIds`, `/v1/responses` gömülü `data:` URI kabulü) · 15 (`/api/workflows` uçları, SSE çalıştırma ve sürdürme, `501` deseni) · 17 (`/api/schedules` + `/api/jobs` uçları, `/api/meta` içine `jobStore`/`jobWorkerEnabled`) · 18 (`/api/evals` uçları — takım/vaka/koşu CRUD, tetikleme, sonuç okuma) · 19 (`/api/agents/{name}/versions/{a}/diff/{b}`, `/api/experiments` uçları — CRUD + start/stop/results, `EvalRunTriggerRequest.AgentVersion`) |
+| `AgentPrism.UI` | ✅ Tamamlandı | 5 · 6 (waterfall, MCP ekranı, onay kartı) · 8 (sağlık rozeti) · 9 (Audit ekranı, rol tabanlı düğme gizleme) · 10 (Skills ekranı ve agent skill seçicisi) · 11 (script izin yüzeyi) · 12 (çağrı ağacı paneli, kök/alt filtresi, çağrılabilir agent seçicisi) · 13 (Context paneli, `HistoryCompacted` rozeti/transkript satırı) · 14 (Playground dosya yükleme, sürükle-bırak, ek çipi/önizleme) · 17 (Jobs ekranı: zamanlamalar, is kuyrugu, ilerleme cubugu) · 18 (Evals ekranı: takım listesi, vaka düzenleyici, koşu geçme oranı) · 19 (sürüm karşılaştırma paneli (`VersionCompare`, `lib/diff.ts`), Experiments ekranı, Audit diff entegrasyonu) |
 | `AgentPrism` (meta) | ✅ Paketleniyor | 0 |
 
-Testler: **968 .NET testi + 55 frontend birim testi geçiyor** — 449 birim testi
-(303 Core + 77 OpenAI + 69 Workflows) + 199 fonksiyonel test (TestHost, gerçek HTTP)
-+ 296 entegrasyon testi (Testcontainers, gerçek PostgreSQL) + 24 arayüz E2E testi
-(Playwright, gerçek Kestrel) + 55 Vitest testi (saf mantık; `npm run build` içinde
+Testler: **1033 .NET testi + 64 frontend birim testi geçiyor** — 461 birim testi
+(315 Core + 77 OpenAI + 69 Workflows) + 212 fonksiyonel test (TestHost, gerçek HTTP)
++ 334 entegrasyon testi (Testcontainers, gerçek PostgreSQL) + 26 arayüz E2E testi
+(Playwright, gerçek Kestrel) + 64 Vitest testi (saf mantık; `npm run build` içinde
 koşar, dolayısıyla `dotnet build` de koşar). Build, test, pack ve format kapıları
-sıfır uyarı; `dotnet pack` **9 paket** üretir (Faz 18 yeni paket eklemedi, K-139).
+sıfır uyarı; `dotnet pack` **9 paket** üretir (Faz 19 yeni paket eklemedi). Arayüz
+JavaScript bütçesi Faz 19 sonunda **113,2 KB / 250 KB gzip** (Faz 18 sonu 109,6 KB,
++3,6 KB).
 
 Faz 9 sonunda AgentPrism **denetlenebilir**: üç rol (Reader/Operator/Admin) uç
 grupları arasında ayrım yapıyor, `audit_log` gerçekten doluyor (agent, MCP sunucusu,
@@ -122,6 +124,30 @@ kaynaklı bir agent'ın iki ardışık sürümüne karşı koşturuldu ve `agent
 / `agentVersion: 2` farklı model çıktılarıyla yan yana görüldü. Yeni bir NuGet
 paketi gerekmedi (K-139): eval tipleri zaten doğrudan referanslı `Microsoft.Agents.AI`
 içinde. Bkz. [`18-DEGERLENDIRME.md`](18-DEGERLENDIRME.md).
+
+Faz 19 sonunda iki sürüm **yan yana görülebiliyor** ve **aynı anda çalıştırılabiliyor**.
+Diff hesabı sunucuda yapılmaz — `GET .../versions/{a}/diff/{b}` iki ham
+`AgentDefinition` döner, istemcideki elle yazılmış bir LCS diff'i (`lib/diff.ts`,
+K-045 gerekçesinin devamı) satır/alan/küme karşılaştırmasını çizer. A/B deneyi
+(`Experiment`) aynı agent'ın iki sürümü arasında trafiği **oturum bazlı
+deterministik** bir SHA-256 atamasıyla böler (`ExperimentAssignmentResolver`) ve
+yalnızca `AgentEndpoints.RunAsync` içine gömülüdür — alt-agent çağrıları, workflow
+adımları ve eval çalıştırmaları deneye hiç girmez (K-131), her biri
+`IAgentCatalog.ResolveAsync`'i kendi amacıyla (güncel sürüm / sabit sürüm) çağırır.
+Versiyon çözümü `IVersionedAgentSource` marker arayüzüyle eklendi: yalnızca
+veritabanı kaynağı (`DefinitionStoreAgentSource`) uygular, kod kaynağı (K-003)
+dokunulmadı kaldı — sürüm istenen bir kod agent'ı `AgentPrismException` fırlatır.
+`runs.agent_version` her çalıştırmada dolar (deney dışı çalıştırmalarda da,
+descriptor'ın güncel sürümü varsayılan olur); `experiment_id`/`variant` yalnız
+deney tarafından atanmış çalıştırmalarda dolar ve **hiçbiri metrik etiketi
+olmaz** — sürüm etiketi (`agentprism.agent.version`) kardinalitesi kabul
+edilebilir bulunup varsayılan açık bırakıldı, deney kimliği sınırsız büyüyeceği
+için hiç etikete girmedi. Gerçek bir çalıştırmada doğrulandı: iki talimat
+sürümü arasında %50/%50 ağırlıklı bir deney, 20 farklı oturumla çalıştırıldı ve
+control/v2 kollarına 6/14 dağıldı (küçük örneklem varyansı, 10.000 örnekte
+±2 puan içinde kaldığı ayrıca test edildi). Sonuç tablosunda istatistiksel bir
+"kazanan" iddiası **yoktur** — ham sayılar gösterilir. Bkz.
+[`19-SURUM-KARSILASTIRMA-VE-AB.md`](19-SURUM-KARSILASTIRMA-VE-AB.md).
 
 Faz 5 sonunda kabul senaryosu tamamlandı: paket kurulur, `.UseUI()` +
 `app.MapAgentPrism()` yazılır ve tarayıcıda bir kontrol düzlemi açılır. Faz 6 ekranı
@@ -753,7 +779,11 @@ tablosuna `kind` (`smallint`, 0=Agent 1=Workflow 2=Eval) ve `workflow_name` süt
 `jobs` (kuyruk, `FOR UPDATE SKIP LOCKED`), `job_items` (toplu iş ögesi). **Faz 18'de
 eklenenler (migration 0009):** `eval_suites`, `eval_cases`, `eval_runs`,
 `eval_case_results` — dördü de `IEvalStore` üzerinden erişilir; koşular Faz 17'nin
-`jobs` kuyruğunu (`kind=Eval`) kullanır, ayrı bir kuyruk açmaz.
+`jobs` kuyruğunu (`kind=Eval`) kullanır, ayrı bir kuyruk açmaz. **Faz 19'da
+eklenenler (migration 0010):** `experiments` (`variants jsonb`, tek sütun — ayrı
+tablo yok); `runs` tablosuna `agent_version` (`integer`), `experiment_id` (`uuid`),
+`variant` (`text`) sütunları. Ayni agent için tek `Running` deney kuralı
+`experiments_running_agent_uq` kısmi benzersiz indeksiyle veritabanında zorlanır.
 
 **Span kimliği türetilir, üretilmez.** `spans.id = SHA-256(trace_id + ":" + span_id)`
 ilk 16 baytıdır. Sebep: bir span, ebeveyninden **önce** tamamlanabilir; türetilmiş
@@ -792,6 +822,7 @@ yazılırsa aynı satır güncellenir, tekrar kaydı oluşmaz.
 | `eval_cases` | Takımın vakaları: sorgu, beklenen çıktı, beklenen tool'lar (Faz 18) |
 | `eval_runs` | Bir takımın tek koşusu: agent sürümü, model, geçme/kalma sayısı (Faz 18) |
 | `eval_case_results` | Vaka bazında sonuç; `case_id` **yabancı anahtar değil** (K-14, append-only ruh) (Faz 18) |
+| `experiments` | A/B deneyi: hedef agent, kollar (`variants jsonb`), durum, başlangıç/bitiş (Faz 19) |
 
 Kurallar:
 
@@ -858,6 +889,13 @@ flowchart TD
 > `async IAsyncEnumerable` gövdesinde yapılan `AsyncLocal` ataması `yield return`
 > sınırını aşmaz. `AgentPrismRunContext.SetCurrent(...)` bu yüzden her
 > `MoveNextAsync`'ten hemen önce tekrarlanır (Faz 12'de ölçüldü).
+
+**Faz 19 istisnası:** yalnızca `POST /api/agents/{name}/run` (deneme ucu) için
+`R["IAgentCatalog.ResolveAsync(name)"]` adımından **önce** bir
+`ExperimentAssignmentResolver.ResolveAsync(...)` çağrısı girer. Bu agent için
+`Running` bir deney varsa, `ResolveAsync(name)` yerine `ResolveAsync(name, version)`
+çağrılır — sürüm, deneyin atadığı varyanttan gelir. `/v1/*` yolu ve alt-agent
+çağrıları bu adımı hiç görmez (K-131, bilinçli kapsam sınırı).
 
 ### Çalıştırma ağacı (Faz 12)
 

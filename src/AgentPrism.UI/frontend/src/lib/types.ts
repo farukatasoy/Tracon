@@ -406,6 +406,12 @@ export interface RunRecord {
   depth: number;
   /** Number of *direct* child runs. */
   childRunCount: number;
+  /** Definition version this run measured. Null when unknown (pre-Faz-19 rows, code agents without history). */
+  agentVersion?: number | null;
+  /** Experiment this run was assigned to, if any. */
+  experimentId?: string | null;
+  /** Variant name assigned within `experimentId`. */
+  variant?: string | null;
   /**
    * Tokens spent by this run and everything under it.
    *
@@ -866,6 +872,8 @@ export interface EvalCaseInput {
 export interface EvalRunTriggerRequest {
   modelId?: string | null;
   numRepetitions?: number | null;
+  /** Pins the eval run to a specific definition version instead of the current one. */
+  agentVersion?: number | null;
 }
 
 /** One run of a suite and its summary. */
@@ -901,4 +909,62 @@ export interface EvalCaseResult {
 export interface EvalRunDetailResponse {
   run: EvalRun;
   results: EvalCaseResult[];
+}
+
+/* ---------------------------------------------------------------- versioning & experiments */
+
+/** Raw response of `GET /api/agents/{name}/versions/{a}/diff/{b}`. The client computes the diff. */
+export interface AgentVersionDiffResponse {
+  left: AgentDefinition;
+  right: AgentDefinition;
+}
+
+/** An A/B experiment's lifecycle. */
+export type ExperimentStatus = 'Draft' | 'Running' | 'Stopped';
+
+/** One arm of an experiment: which definition version, at what traffic share. */
+export interface ExperimentVariant {
+  name: string;
+  version: number;
+  weight: number;
+}
+
+/** An A/B experiment splitting traffic between definition versions of the same agent. */
+export interface Experiment {
+  id: string;
+  tenantId: string;
+  name: string;
+  agentName: string;
+  variants: ExperimentVariant[];
+  status: ExperimentStatus;
+  assignmentKey?: string | null;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  updatedAt?: string | null;
+}
+
+/** Body of PUT `/api/experiments/{name}`. Server-owned fields are deliberately absent. */
+export interface ExperimentSaveRequest {
+  agentName: string;
+  variants: ExperimentVariant[];
+}
+
+/** One variant's run summary. No statistical "winner" claim is made — raw counts only. */
+export interface ExperimentVariantResult {
+  variant: string;
+  version: number;
+  totalRuns: number;
+  completedRuns: number;
+  failedRuns: number;
+  canceledRuns: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  averageDurationMs?: number | null;
+  errorRate?: number | null;
+}
+
+export interface ExperimentResultsResponse {
+  experiment: Experiment;
+  results: ExperimentVariantResult[];
 }

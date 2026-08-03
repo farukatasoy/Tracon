@@ -73,6 +73,8 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
             // o durumda calistirma kaydi model tasimaz ve model kirilimina girmez.
             descriptor?.Model?.Model,
             _timeProvider,
-            _options.Value.AgentGraph);
+            _options.Value.AgentGraph,
+            descriptor?.Version,
+            _options.Value.Observability.IncludeAgentVersionTag);
     }
 }

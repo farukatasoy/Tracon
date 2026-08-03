@@ -12,6 +12,13 @@ public interface IAgentDefinitionStore
     /// <returns>Tanim; yoksa <see langword="null"/>.</returns>
     ValueTask<AgentDefinition?> GetAsync(string name, CancellationToken cancellationToken = default);
 
+    /// <summary>Adi verilen tanimin belirtilen surumunu getirir.</summary>
+    /// <param name="name">Agent adi.</param>
+    /// <param name="version">Istenen surum numarasi.</param>
+    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <returns>Tanim; o surum yoksa <see langword="null"/>.</returns>
+    ValueTask<AgentDefinition?> GetVersionAsync(string name, int version, CancellationToken cancellationToken = default);
+
     /// <summary>Tum tanimlarin guncel surumlerini listeler.</summary>
     /// <param name="cancellationToken">Iptal belirteci.</param>
     /// <returns>Tanimlar.</returns>

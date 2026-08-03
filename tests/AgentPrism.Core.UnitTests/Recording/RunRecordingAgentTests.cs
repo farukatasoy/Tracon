@@ -297,5 +297,8 @@ public sealed class RunRecordingAgentTests
 
         public ValueTask<IReadOnlyList<ToolUsage>> GetToolUsageAsync(ToolUsageQuery query, CancellationToken cancellationToken = default)
             => throw new InvalidOperationException("depo erisilemez");
+
+        public ValueTask<IReadOnlyList<ExperimentVariantResult>> GetExperimentResultsAsync(ExperimentResultsQuery query, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("depo erisilemez");
     }
 }

@@ -100,6 +100,7 @@ public static class AgentPrismEndpointRouteBuilderExtensions
         WorkflowEndpoints.Map(group, roles);
         SchedulingEndpoints.Map(group, roles);
         EvalEndpoints.Map(group, roles);
+        ExperimentEndpoints.Map(group, roles);
         CatalogEndpoints.Map(group, roles);
         ModelHealthEndpoints.Map(group, roles);
         ObservabilityEndpoints.Map(group, roles);

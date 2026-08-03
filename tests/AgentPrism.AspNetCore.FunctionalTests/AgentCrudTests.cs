@@ -267,4 +267,49 @@ public sealed class AgentCrudTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
+
+    // --- Surum diff'i (Faz 19.1) ---
+
+    [Fact]
+    public async Task Surum_diffi_iki_ham_tanimi_dondurur()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        using (var created = await host.Client.PostAsJsonAsync(Agents, TestData.Request(instructions: "ilk")))
+        {
+            created.EnsureSuccessStatusCode();
+        }
+
+        using (var updated = await host.Client.PutAsJsonAsync(
+            new Uri("/agentprism/api/agents/db-agent", UriKind.Relative),
+            TestData.Request(instructions: "ikinci")))
+        {
+            updated.EnsureSuccessStatusCode();
+        }
+
+        using var diff = await host.Client.GetAsync(
+            new Uri("/agentprism/api/agents/db-agent/versions/1/diff/2", UriKind.Relative));
+
+        diff.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var json = await AgentPrismTestHost.ReadJsonAsync(diff);
+        json.GetProperty("left").GetProperty("instructions").GetString().ShouldBe("ilk");
+        json.GetProperty("right").GetProperty("instructions").GetString().ShouldBe("ikinci");
+    }
+
+    [Fact]
+    public async Task Olmayan_surumun_diffi_404_doner()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        using (var created = await host.Client.PostAsJsonAsync(Agents, TestData.Request()))
+        {
+            created.EnsureSuccessStatusCode();
+        }
+
+        using var diff = await host.Client.GetAsync(
+            new Uri("/agentprism/api/agents/db-agent/versions/1/diff/99", UriKind.Relative));
+
+        diff.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
 }

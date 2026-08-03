@@ -125,6 +125,9 @@ internal sealed class WorkflowTestHost
 
         public ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken = default)
             => new(agents.GetValueOrDefault(agentName));
+
+        public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, CancellationToken cancellationToken = default)
+            => new(agents.GetValueOrDefault(agentName));
     }
 }
 

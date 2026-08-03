@@ -222,3 +222,14 @@ export const EvalsIcon = ({ className }: IconProps): ReactNode => (
     <path d="M4 4.5h16v15H4z" />
   </Icon>
 );
+
+export const ExperimentsIcon = ({ className }: IconProps): ReactNode => (
+  <Icon className={className}>
+    <path d="M12 4v5" />
+    <circle cx="12" cy="4" r="1.4" />
+    <path d="M12 9c0 3.5-4.5 3-4.5 7" />
+    <path d="M12 9c0 3.5 4.5 3 4.5 7" />
+    <circle cx="7.5" cy="18" r="1.4" />
+    <circle cx="16.5" cy="18" r="1.4" />
+  </Icon>
+);

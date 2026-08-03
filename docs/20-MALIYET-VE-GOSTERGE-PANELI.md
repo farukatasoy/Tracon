@@ -13,7 +13,16 @@
 
 1. [`KARARLAR.md`](KARARLAR.md) — **K-032** (fiyat yapılandırmadan gelir, koda gömülmez), **K-034** (`/api/stats` neden maliyet döndürmüyordu), **K-041** (özet depoda hesaplanır), **K-002** (bundle bütçesi)
 2. [`06-GOZLEMLENEBILIRLIK.md`](06-GOZLEMLENEBILIRLIK.md) — `RunStatistics.ByModel`, `runs.model_id`
-3. Bu doküman
+3. [`19-SURUM-KARSILASTIRMA-VE-AB.md`](19-SURUM-KARSILASTIRMA-VE-AB.md) — bölüm 19.4 devir notu: deney sonuç
+   tablosuna varyant başına maliyet sütunu bu fazda eklenir. Gerçekleşen tipler:
+   `ExperimentVariantResult` (`Abstractions/Experiments/ExperimentVariantResult.cs`,
+   zaten `TotalTokens` taşıyor — fiyat çarpımı bu fazda eklenir),
+   `IRunStore.GetExperimentResultsAsync` (`ExperimentResultsQuery` alır,
+   `PostgresRunStore`'da `SqlQueries.SelectExperimentResults` üzerinden çalışır),
+   `ExperimentEndpoints.GetResultsAsync` (`AspNetCore/Endpoints/ExperimentEndpoints.cs`).
+   Maliyet eklemek için `SelectExperimentResults` sorgusuna `runs.input_cost`/`output_cost`
+   toplamı eklenir — bu fazın 20.2'de tanımladığı sütunlar zaten `runs` tablosunda olacak.
+4. Bu doküman
 
 ---
 
@@ -124,6 +133,22 @@ public sealed record TimeSeriesPoint
     public double? AverageDurationMs { get; init; }
 }
 ```
+
+`ExperimentVariantResult` (Faz 19) da genişler:
+
+```csharp
+public sealed record ExperimentVariantResult
+{
+    // ...mevcut uyeler (Variant, Version, TotalRuns, ..., TotalTokens, AverageDurationMs)
+    public decimal? TotalCost { get; init; }
+    public string? Currency { get; init; }
+}
+```
+
+`SqlQueries.SelectExperimentResults`'a `SUM(input_cost) + SUM(output_cost)`
+eklenir; `InMemoryRunStore.GetExperimentResultsAsync`'in `VariantTally`'sine de
+aynı toplam eklenir (iki uygulama sözleşmesi aynı kalmalı, Faz 19'un
+`ExperimentStoreContract` deseniyle test edilir).
 
 Yeni uç:
 

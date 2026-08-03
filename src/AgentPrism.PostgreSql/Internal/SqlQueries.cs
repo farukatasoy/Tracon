@@ -88,7 +88,7 @@ internal sealed class SqlQueries
             """;
 
         SelectAgentDefinitionVersion = $"""
-            SELECT v.definition
+            SELECT v.definition, v.created_at
             FROM {Schema}.agent_definition_versions v
             JOIN {Schema}.agent_definitions d ON d.id = v.agent_id
             WHERE d.tenant_id = @tenant_id AND d.name = @name AND v.version = @version;
@@ -249,9 +249,9 @@ internal sealed class SqlQueries
 
         InsertRun = $"""
             INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, model_id, status, started_at, is_streaming, event_count,
-                                       parent_run_id, root_run_id, depth, kind, workflow_name)
+                                       parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant)
             VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @status, @started_at, @is_streaming, 0,
-                    @parent_run_id, @root_run_id, @depth, @kind, @workflow_name);
+                    @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant);
             """;
 
         UpdateRunCompletion = $"""
@@ -294,7 +294,7 @@ internal sealed class SqlQueries
             r.parent_run_id, r.root_run_id, r.depth,
             children.child_count,
             tree.input_tokens, tree.output_tokens, tree.total_tokens, tree.usage_rows,
-            r.kind, r.workflow_name
+            r.kind, r.workflow_name, r.agent_version, r.experiment_id, r.variant
             """;
 
         SelectRun = $"""
@@ -373,6 +373,21 @@ internal sealed class SqlQueries
               AND (@started_after IS NULL OR started_at > @started_after)
             GROUP BY model_id
             ORDER BY COUNT(*) DESC, model_id
+            LIMIT @max_agents;
+
+            SELECT agent_name,
+                   agent_version,
+                   COUNT(*)::bigint,
+                   COUNT(*) FILTER (WHERE status = @status_failed)::bigint,
+                   COALESCE(SUM(total_tokens), 0)::bigint
+            FROM {Schema}.runs
+            WHERE tenant_id = @tenant_id
+              AND kind <> @kind_eval
+              AND agent_version IS NOT NULL
+              AND (@agent_name IS NULL OR agent_name = @agent_name)
+              AND (@started_after IS NULL OR started_at > @started_after)
+            GROUP BY agent_name, agent_version
+            ORDER BY agent_name, agent_version DESC
             LIMIT @max_agents;
             """;
 
@@ -453,6 +468,76 @@ internal sealed class SqlQueries
             GROUP BY t.tool_name
             ORDER BY COUNT(*) DESC, t.tool_name
             LIMIT @max_tools;
+            """;
+
+        // --- Deneyler (Faz 19) ---
+
+        SelectExperiments = $"""
+            SELECT id, tenant_id, name, agent_name, variants, status, assignment_key, started_at, ended_at, updated_at
+            FROM {Schema}.experiments
+            WHERE tenant_id = @tenant_id
+            ORDER BY name;
+            """;
+
+        SelectExperiment = $"""
+            SELECT id, tenant_id, name, agent_name, variants, status, assignment_key, started_at, ended_at, updated_at
+            FROM {Schema}.experiments
+            WHERE tenant_id = @tenant_id AND name = @name;
+            """;
+
+        SelectRunningExperiment = $"""
+            SELECT id, tenant_id, name, agent_name, variants, status, assignment_key, started_at, ended_at, updated_at
+            FROM {Schema}.experiments
+            WHERE tenant_id = @tenant_id AND agent_name = @agent_name AND status = 1;
+            """;
+
+        // Draft-disi bir deneyi guncelleme girisimi 0 satir dondurur; cagiran
+        // taraf bunu onceden GetAsync ile ayirt edip anlamli bir hata verir.
+        UpsertExperiment = $"""
+            INSERT INTO {Schema}.experiments (id, tenant_id, name, agent_name, variants, status, assignment_key, updated_at)
+            VALUES (@id, @tenant_id, @name, @agent_name, @variants, 0, @assignment_key, @updated_at)
+            ON CONFLICT (tenant_id, name) DO UPDATE SET
+                agent_name     = EXCLUDED.agent_name,
+                variants       = EXCLUDED.variants,
+                assignment_key = EXCLUDED.assignment_key,
+                updated_at     = EXCLUDED.updated_at
+            WHERE {Schema}.experiments.status = 0
+            RETURNING id;
+            """;
+
+        DeleteExperiment = $"""
+            DELETE FROM {Schema}.experiments
+            WHERE tenant_id = @tenant_id AND name = @name AND status <> 1;
+            """;
+
+        StartExperiment = $"""
+            UPDATE {Schema}.experiments
+            SET status = 1, started_at = @now, updated_at = @now
+            WHERE tenant_id = @tenant_id AND name = @name AND status = 0
+            RETURNING id;
+            """;
+
+        StopExperiment = $"""
+            UPDATE {Schema}.experiments
+            SET status = 2, ended_at = @now, updated_at = @now
+            WHERE tenant_id = @tenant_id AND name = @name AND status = 1
+            RETURNING id;
+            """;
+
+        SelectExperimentResults = $"""
+            SELECT variant,
+                   MAX(agent_version)::int,
+                   COUNT(*)::bigint,
+                   COUNT(*) FILTER (WHERE status = @status_completed)::bigint,
+                   COUNT(*) FILTER (WHERE status = @status_failed)::bigint,
+                   COUNT(*) FILTER (WHERE status = @status_canceled)::bigint,
+                   COALESCE(SUM(input_tokens), 0)::bigint,
+                   COALESCE(SUM(output_tokens), 0)::bigint,
+                   COALESCE(SUM(total_tokens), 0)::bigint,
+                   AVG(EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000) FILTER (WHERE completed_at IS NOT NULL)
+            FROM {Schema}.runs
+            WHERE tenant_id = @tenant_id AND experiment_id = @experiment_id AND variant IS NOT NULL
+            GROUP BY variant;
             """;
 
         // --- Span'ler (Faz 6) ---
@@ -1024,6 +1109,30 @@ internal sealed class SqlQueries
 
     /// <summary>Tool bazinda kullanim ozetini cikarir.</summary>
     public string SelectToolUsage { get; }
+
+    /// <summary>Kiracinin tum deneylerini listeler.</summary>
+    public string SelectExperiments { get; }
+
+    /// <summary>Adi verilen deneyi getirir.</summary>
+    public string SelectExperiment { get; }
+
+    /// <summary>Bir agent icin Running durumundaki deneyi getirir.</summary>
+    public string SelectRunningExperiment { get; }
+
+    /// <summary>Bir deneyi olusturur veya (yalniz Draft ise) gunceller.</summary>
+    public string UpsertExperiment { get; }
+
+    /// <summary>Bir deneyi siler (yalniz Running degilse).</summary>
+    public string DeleteExperiment { get; }
+
+    /// <summary>Bir deneyi Running durumuna gecirir.</summary>
+    public string StartExperiment { get; }
+
+    /// <summary>Bir deneyi Stopped durumuna gecirir.</summary>
+    public string StopExperiment { get; }
+
+    /// <summary>Bir deneyin kol bazinda calistirma sonuclarini cikarir.</summary>
+    public string SelectExperimentResults { get; }
 
     /// <summary>Trace basligini ekler veya gunceller ve kimligini dondurur.</summary>
     public string UpsertTrace { get; }

@@ -248,7 +248,8 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [16](docs/16-WORKFLOWS-ARAYUZ.md) | Workflows: graf görselleştirme, human-in-the-loop, Magentic plan onayı | ✅ Tamamlandı |
 | [17](docs/17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) | Toplu ve zamanlanmış çalıştırma: PostgreSQL iş kuyruğu (`SKIP LOCKED`), cron zamanlama, Jobs ekranı | ✅ Tamamlandı |
 | [18](docs/18-DEGERLENDIRME.md) | Değerlendirme (eval): takım/vaka/koşu, Faz 17'nin iş kuyruğu üzerinde, Evals ekranı | ✅ Tamamlandı |
-| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 19–30) | 📋 Planlandı — sıradaki Faz 19 |
+| [19](docs/19-SURUM-KARSILASTIRMA-VE-AB.md) | Sürüm karşılaştırma (diff) ve A/B deneyleri: oturum bazlı deterministik trafik bölme, Experiments ekranı | ✅ Tamamlandı |
+| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 20–30) | 📋 Planlandı — sıradaki Faz 20 |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 > Faz 6, planındaki Workflows kalemini **yapmadı**; ertelendi ve gerekçesi

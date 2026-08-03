@@ -103,4 +103,18 @@ public interface IRunStore
     ValueTask<IReadOnlyList<ToolUsage>> GetToolUsageAsync(
         ToolUsageQuery query,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Bir deneyin kol bazinda calistirma ozetini cikarir: sayi, hata orani, token, sure.
+    /// </summary>
+    /// <param name="query">Filtre.</param>
+    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <returns>Kol bazinda sonuclar. Hic trafik almamis bir kol listede yer almaz.</returns>
+    /// <remarks>
+    /// Bu fazda deney kirilimi yalniz bu sorgu ile yapilir; <c>experiment_id</c> bir
+    /// metrik etiketi olarak yayilmaz (kardinalite gerekcesi).
+    /// </remarks>
+    ValueTask<IReadOnlyList<ExperimentVariantResult>> GetExperimentResultsAsync(
+        ExperimentResultsQuery query,
+        CancellationToken cancellationToken = default);
 }

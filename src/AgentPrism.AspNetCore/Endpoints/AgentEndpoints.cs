@@ -66,6 +66,11 @@ internal static class AgentEndpoints
             .WithName("AgentPrismRollbackAgent")
             .WithSummary("Bir tanimi onceki bir surumun icerigiyle yeni surum olarak yazar.");
 
+        builder.MapGet("/api/agents/{name}/versions/{a:int}/diff/{b:int}", GetVersionDiffAsync)
+            .RequireRole(roles.Reader)
+            .WithName("AgentPrismGetAgentVersionDiff")
+            .WithSummary("Iki tanim surumunu ham JSON olarak dondurur; diff hesabi arayuzde yapilir.");
+
         builder.MapPost("/api/agents/{name}/run", (
                 string name,
                 AgentRunRequest request,
@@ -73,12 +78,34 @@ internal static class AgentEndpoints
                 AgentSessionManager sessions,
                 IAttachmentStore attachmentStore,
                 ITenantContext tenantContext,
+                ExperimentAssignmentResolver experimentAssignment,
                 HttpContext httpContext,
                 CancellationToken cancellationToken)
-                => RunAsync(name, request, catalog, sessions, attachmentStore, tenantContext, prefix, httpContext, cancellationToken))
+                => RunAsync(name, request, catalog, sessions, attachmentStore, tenantContext, experimentAssignment, prefix, httpContext, cancellationToken))
             .RequireRole(roles.Operator)
             .WithName("AgentPrismRunAgent")
             .WithSummary("Bir agent'i deneme amaciyla calistirir ve yaniti SSE ile akitir.");
+    }
+
+    private static async Task<Results<Ok<AgentVersionDiffResponse>, ProblemHttpResult>> GetVersionDiffAsync(
+        string name,
+        int a,
+        int b,
+        IAgentDefinitionStore definitions,
+        CancellationToken cancellationToken)
+    {
+        var left = await definitions.GetVersionAsync(name, a, cancellationToken).ConfigureAwait(false);
+        var right = await definitions.GetVersionAsync(name, b, cancellationToken).ConfigureAwait(false);
+
+        if (left is null || right is null)
+        {
+            return TypedResults.Problem(
+                title: "Surum bulunamadi",
+                detail: $"'{name}' agent'inin {(left is null ? a : b)} numarali surumu yok.",
+                statusCode: StatusCodes.Status404NotFound);
+        }
+
+        return TypedResults.Ok(new AgentVersionDiffResponse { Left = left, Right = right });
     }
 
     private static async Task<Results<Ok<AgentDetailResponse>, ProblemHttpResult>> GetAgentAsync(
@@ -243,6 +270,7 @@ internal static class AgentEndpoints
         AgentSessionManager sessions,
         IAttachmentStore attachmentStore,
         ITenantContext tenantContext,
+        ExperimentAssignmentResolver experimentAssignment,
         string prefix,
         HttpContext httpContext,
         CancellationToken cancellationToken)
@@ -283,6 +311,16 @@ internal static class AgentEndpoints
             attachments.Add(descriptor);
         }
 
+        // Kimlik burada uretilir (AgentRunStream.ExecuteAsync icinde degil): deney
+        // atama anahtari (oturum kimligi ?? calistirma kimligi) akis baslamadan
+        // once bilinmelidir.
+        var runId = AgentPrismId.NewId();
+        var assignmentKey = request.SessionId ?? runId.ToString("D");
+
+        var assignment = await experimentAssignment
+            .ResolveAsync(tenantContext.TenantId, name, assignmentKey, cancellationToken)
+            .ConfigureAwait(false);
+
         Microsoft.Agents.AI.AIAgent? agent;
 
         // Cozumleme bildirimsel bir tanimi derler; bilinmeyen tool veya saglayici
@@ -290,7 +328,9 @@ internal static class AgentEndpoints
         // dondurebiliyoruz - akis basladiktan sonra bu mumkun olmaz.
         try
         {
-            agent = await catalog.ResolveAsync(name, cancellationToken).ConfigureAwait(false);
+            agent = assignment is null
+                ? await catalog.ResolveAsync(name, cancellationToken).ConfigureAwait(false)
+                : await catalog.ResolveAsync(name, assignment.Version, cancellationToken).ConfigureAwait(false);
         }
         catch (AgentPrismException ex)
         {
@@ -308,7 +348,7 @@ internal static class AgentEndpoints
                 statusCode: StatusCodes.Status404NotFound);
         }
 
-        return new AgentRunStream(agent, name, request, sessions, attachments, prefix);
+        return new AgentRunStream(agent, name, request, sessions, attachments, prefix, runId, assignment);
     }
 
     /// <summary>
@@ -333,7 +373,9 @@ internal static class AgentEndpoints
         AgentRunRequest request,
         AgentSessionManager sessions,
         IReadOnlyList<AttachmentDescriptor> attachments,
-        string prefix) : IResult
+        string prefix,
+        Guid runId,
+        ExperimentAssignment? assignment) : IResult
     {
         public async Task ExecuteAsync(HttpContext httpContext)
         {
@@ -343,7 +385,6 @@ internal static class AgentEndpoints
             var writer = await SseWriter.StartAsync(httpContext.Response, cancellationToken).ConfigureAwait(false);
 
             Microsoft.Agents.AI.AgentSession? session = null;
-            var runId = AgentPrismId.NewId();
             long sequence = 0;
 
             try
@@ -367,7 +408,13 @@ internal static class AgentEndpoints
                 var updates = agent.RunStreamingAsync(
                     messages,
                     session,
-                    new AgentPrismRunOptions { RunId = runId },
+                    new AgentPrismRunOptions
+                    {
+                        RunId = runId,
+                        AgentVersion = assignment?.Version,
+                        ExperimentId = assignment?.ExperimentId,
+                        Variant = assignment?.Variant,
+                    },
                     cancellationToken);
 
                 await foreach (var update in updates.ConfigureAwait(false))

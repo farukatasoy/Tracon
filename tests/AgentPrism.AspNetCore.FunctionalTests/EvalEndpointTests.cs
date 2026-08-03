@@ -194,6 +194,68 @@ public sealed class EvalEndpointTests
         save.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
+    // --- Surum secimi (Faz 19, acik soru 2) ---
+
+    [Fact]
+    public async Task Belirli_surumle_kosu_tetiklenir()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync(
+            configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
+
+        await CreateVersionedAgentAsync(host);
+        await host.Client.PutAsJsonAsync(Suite, Request());
+        await host.Client.PutAsJsonAsync(Cases, new object[] { new { query = "soru" } });
+
+        using var triggered = await host.Client.PostAsJsonAsync(Run, new { agentVersion = 1 });
+
+        triggered.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Olmayan_surumle_kosu_reddedilir()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync(
+            configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
+
+        await CreateVersionedAgentAsync(host);
+        await host.Client.PutAsJsonAsync(Suite, Request());
+        await host.Client.PutAsJsonAsync(Cases, new object[] { new { query = "soru" } });
+
+        using var triggered = await host.Client.PostAsJsonAsync(Run, new { agentVersion = 99 });
+
+        triggered.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Kod_kaynakli_agentta_surum_secilemez()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync(
+            static builder => builder.AddAgent(TestData.Definition(name: "musteri-destek-agent")),
+            configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
+
+        await host.Client.PutAsJsonAsync(Suite, Request());
+        await host.Client.PutAsJsonAsync(Cases, new object[] { new { query = "soru" } });
+
+        using var triggered = await host.Client.PostAsJsonAsync(Run, new { agentVersion = 1 });
+
+        triggered.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await triggered.Content.ReadAsStringAsync()).ShouldContain("surum gecmisi");
+    }
+
+    /// <summary>"musteri-destek-agent" adinda, iki surumu olan bir veritabani agent'i olusturur.</summary>
+    private static async Task CreateVersionedAgentAsync(AgentPrismTestHost host)
+    {
+        using var created = await host.Client.PostAsJsonAsync(
+            new Uri("/agentprism/api/agents", UriKind.Relative),
+            TestData.Request(name: "musteri-destek-agent", instructions: "ilk"));
+        created.EnsureSuccessStatusCode();
+
+        using var updated = await host.Client.PutAsJsonAsync(
+            new Uri("/agentprism/api/agents/musteri-destek-agent", UriKind.Relative),
+            TestData.Request(name: "musteri-destek-agent", instructions: "ikinci"));
+        updated.EnsureSuccessStatusCode();
+    }
+
     private static EvalSuiteSaveRequest Request()
         => new()
         {

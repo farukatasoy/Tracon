@@ -51,6 +51,9 @@ public sealed class InMemoryRunStore : IRunStore
             ParentRunId = info.ParentRunId,
             RootRunId = info.RootRunId,
             Depth = info.Depth,
+            AgentVersion = info.AgentVersion,
+            ExperimentId = info.ExperimentId,
+            Variant = info.Variant,
         };
 
         _runs[record.Id] = record;
@@ -246,6 +249,7 @@ public sealed class InMemoryRunStore : IRunStore
         long inputTokens = 0, outputTokens = 0, totalTokens = 0;
         var perAgent = new Dictionary<string, AgentTally>(StringComparer.Ordinal);
         var perModel = new Dictionary<string, ModelTally>(StringComparer.Ordinal);
+        var perVersion = new Dictionary<(string AgentName, int Version), AgentTally>();
 
         foreach (var record in _runs.Values)
         {
@@ -293,6 +297,18 @@ public sealed class InMemoryRunStore : IRunStore
                 tally.TotalRuns + 1,
                 tally.FailedRuns + (record.Status == RunStatus.Failed ? 1 : 0),
                 tally.TotalTokens + (record.Usage?.TotalTokens ?? 0));
+
+            // Surumu bilinmeyen calistirmalar kirilima girmez ancak toplamlarda
+            // sayilir; aksi halde iki rakam birbirini tutmazdi.
+            if (record.AgentVersion is { } agentVersion)
+            {
+                var key = (record.AgentName, agentVersion);
+                perVersion.TryGetValue(key, out var versionTally);
+                perVersion[key] = new AgentTally(
+                    versionTally.TotalRuns + 1,
+                    versionTally.FailedRuns + (record.Status == RunStatus.Failed ? 1 : 0),
+                    versionTally.TotalTokens + (record.Usage?.TotalTokens ?? 0));
+            }
 
             // Model adi bilinmeyen calistirmalar kirilima girmez ancak
             // toplamlarda sayilir; aksi halde iki rakam birbirini tutmazdi.
@@ -343,7 +359,49 @@ public sealed class InMemoryRunStore : IRunStore
                 })
                 .OrderByDescending(static model => model.TotalRuns)
                 .ThenBy(static model => model.ModelId, StringComparer.Ordinal)],
+            ByVersion = [.. perVersion
+                .Select(static pair => new RunVersionStatistics
+                {
+                    AgentName = pair.Key.AgentName,
+                    Version = pair.Key.Version,
+                    TotalRuns = pair.Value.TotalRuns,
+                    FailedRuns = pair.Value.FailedRuns,
+                    TotalTokens = pair.Value.TotalTokens,
+                })
+                .OrderBy(static version => version.AgentName, StringComparer.Ordinal)
+                .ThenByDescending(static version => version.Version)],
         });
+    }
+
+    /// <inheritdoc />
+    public ValueTask<IReadOnlyList<ExperimentVariantResult>> GetExperimentResultsAsync(
+        ExperimentResultsQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var perVariant = new Dictionary<string, VariantTally>(StringComparer.Ordinal);
+
+        foreach (var record in _runs.Values)
+        {
+            if (record.ExperimentId != query.ExperimentId || record.Variant is not { Length: > 0 } variant)
+            {
+                continue;
+            }
+
+            if (query.TenantId is { } tenantId && !string.Equals(record.TenantId, tenantId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            perVariant.TryGetValue(variant, out var tally);
+            perVariant[variant] = tally.Add(record);
+        }
+
+        return new ValueTask<IReadOnlyList<ExperimentVariantResult>>(
+        [
+            .. perVariant.Select(pair => pair.Value.ToResult(pair.Key)),
+        ]);
     }
 
     /// <inheritdoc />
@@ -477,6 +535,53 @@ public sealed class InMemoryRunStore : IRunStore
     /// <summary>Bir model icin biriken sayaclar.</summary>
     [StructLayout(LayoutKind.Auto)]
     private readonly record struct ModelTally(long TotalRuns, long InputTokens, long OutputTokens, long TotalTokens);
+
+    /// <summary>Bir deney kolu icin biriken sayaclar.</summary>
+    [StructLayout(LayoutKind.Auto)]
+    private readonly record struct VariantTally(
+        int Version,
+        long TotalRuns,
+        long CompletedRuns,
+        long FailedRuns,
+        long CanceledRuns,
+        long InputTokens,
+        long OutputTokens,
+        long TotalTokens,
+        double TotalDurationMs,
+        long SettledCount)
+    {
+        public VariantTally Add(RunRecord record)
+        {
+            var settled = record.CompletedAt is { } completedAt;
+
+            return new VariantTally(
+                record.AgentVersion ?? Version,
+                TotalRuns + 1,
+                CompletedRuns + (record.Status == RunStatus.Completed ? 1 : 0),
+                FailedRuns + (record.Status == RunStatus.Failed ? 1 : 0),
+                CanceledRuns + (record.Status == RunStatus.Canceled ? 1 : 0),
+                InputTokens + (record.Usage?.InputTokens ?? 0),
+                OutputTokens + (record.Usage?.OutputTokens ?? 0),
+                TotalTokens + (record.Usage?.TotalTokens ?? 0),
+                TotalDurationMs + (settled ? (record.CompletedAt!.Value - record.StartedAt).TotalMilliseconds : 0),
+                SettledCount + (settled ? 1 : 0));
+        }
+
+        public ExperimentVariantResult ToResult(string variant)
+            => new()
+            {
+                Variant = variant,
+                Version = Version,
+                TotalRuns = TotalRuns,
+                CompletedRuns = CompletedRuns,
+                FailedRuns = FailedRuns,
+                CanceledRuns = CanceledRuns,
+                InputTokens = InputTokens,
+                OutputTokens = OutputTokens,
+                TotalTokens = TotalTokens,
+                AverageDurationMs = SettledCount == 0 ? null : TotalDurationMs / SettledCount,
+            };
+    }
 
     /// <summary>Bir tool icin biriken sayaclar.</summary>
     [StructLayout(LayoutKind.Auto)]

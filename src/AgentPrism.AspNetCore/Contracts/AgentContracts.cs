@@ -184,6 +184,19 @@ public sealed record AgentRollbackRequest
     public required int Version { get; init; }
 }
 
+/// <summary>
+/// Iki tanim surumunun ham JSON yaniti (Faz 19.1). Diff hesabi sunucuda yapilmaz;
+/// istemci iki ham tanimi alan alan karsilastirir.
+/// </summary>
+public sealed record AgentVersionDiffResponse
+{
+    /// <summary>Karsilastirmanin sol (genelde eski) tarafi.</summary>
+    public required AgentDefinition Left { get; init; }
+
+    /// <summary>Karsilastirmanin sag (genelde yeni) tarafi.</summary>
+    public required AgentDefinition Right { get; init; }
+}
+
 /// <summary>Arayuzden yapilan deneme calistirmasinin istegi.</summary>
 public sealed record AgentRunRequest
 {

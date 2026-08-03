@@ -147,16 +147,19 @@ export function Select({
   onChange,
   children,
   disabled,
+  testId,
 }: {
   value: string;
   onChange: (value: string) => void;
   children: ReactNode;
   disabled?: boolean;
+  testId?: string;
 }): ReactNode {
   return (
     <select
       value={value}
       disabled={disabled}
+      data-testid={testId}
       onChange={(event) => onChange(event.target.value)}
       className={cx(controlClass, 'disabled:opacity-50')}
     >

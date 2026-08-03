@@ -123,6 +123,9 @@ public sealed class AgentBatchJobHandlerTests
 
         public ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken = default)
             => new(agent);
+
+        public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, CancellationToken cancellationToken = default)
+            => new(agent);
     }
 
     /// <summary>Girdisi <paramref name="fail"/> ile eslesirse hata firlatan en kucuk sahte agent.</summary>
