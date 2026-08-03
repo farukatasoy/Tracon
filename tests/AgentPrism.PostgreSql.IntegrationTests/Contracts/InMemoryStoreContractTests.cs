@@ -108,3 +108,11 @@ public sealed class InMemoryJobScheduleStoreContractTests : JobScheduleStoreCont
     protected override ValueTask<IJobScheduleStore> CreateStoreAsync()
         => ValueTask.FromResult<IJobScheduleStore>(new InMemoryJobScheduleStore());
 }
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryEvalStoreContractTests : EvalStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<IEvalStore> CreateStoreAsync()
+        => ValueTask.FromResult<IEvalStore>(new InMemoryEvalStore());
+}

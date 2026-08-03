@@ -136,6 +136,10 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         services.Replace(ServiceDescriptor.Singleton<IJobStore, PostgresJobStore>());
         services.Replace(ServiceDescriptor.Singleton<IJobScheduleStore, PostgresJobScheduleStore>());
 
+        // Degerlendirme (eval) takim/vaka/kosu deposu (Faz 18). Sarilmaz: is
+        // kuyrugu depolariyla ayni gerekce, kendi durum makinesini tasir.
+        services.Replace(ServiceDescriptor.Singleton<IEvalStore, PostgresEvalStore>());
+
         services.Replace(ServiceDescriptor.Singleton<ISessionStore, AuditingSessionStore>(
             static provider => new AuditingSessionStore(
                 ActivatorUtilities.CreateInstance<PostgresSessionStore>(provider),

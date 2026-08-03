@@ -204,6 +204,7 @@ public sealed class PostgresRunStore : IRunStore
         command.Parameters.AddWithValue("status_failed", (short)RunStatus.Failed);
         command.Parameters.AddWithValue("status_canceled", (short)RunStatus.Canceled);
         command.Parameters.AddWithValue("status_awaiting", (short)RunStatus.AwaitingInput);
+        command.Parameters.AddWithValue("kind_eval", (short)RunKind.Eval);
 
         await using (command.ConfigureAwait(false))
         {

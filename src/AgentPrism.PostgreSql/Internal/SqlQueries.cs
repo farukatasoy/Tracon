@@ -328,6 +328,9 @@ internal sealed class SqlQueries
         // Iki sonuc kumesi tek gidis donuste alinir: once genel ozet, sonra agent
         // kirilimi. Durum degerleri sabit sayi olarak gomulmez; RunStatus enum'undan
         // parametre olarak gelir, boylece enum ile SQL arasindaki bag aciktir.
+        // kind <> @kind_eval: eval vaka calistirmalari sentetik test
+        // cagrilaridir, gercek trafik degildir; ozeti kirletmemesi icin haric
+        // tutulur (docs/18-DEGERLENDIRME.md, acik soru 4).
         SelectRunStatistics = $"""
             SELECT COUNT(*)::bigint,
                    COUNT(*) FILTER (WHERE status = @status_completed)::bigint,
@@ -340,6 +343,7 @@ internal sealed class SqlQueries
                    COALESCE(SUM(total_tokens), 0)::bigint
             FROM {Schema}.runs
             WHERE tenant_id = @tenant_id
+              AND kind <> @kind_eval
               AND (@agent_name IS NULL OR agent_name = @agent_name)
               AND (@started_after IS NULL OR started_at > @started_after);
 
@@ -349,6 +353,7 @@ internal sealed class SqlQueries
                    COALESCE(SUM(total_tokens), 0)::bigint
             FROM {Schema}.runs
             WHERE tenant_id = @tenant_id
+              AND kind <> @kind_eval
               AND (@agent_name IS NULL OR agent_name = @agent_name)
               AND (@started_after IS NULL OR started_at > @started_after)
             GROUP BY agent_name
@@ -362,6 +367,7 @@ internal sealed class SqlQueries
                    COALESCE(SUM(total_tokens), 0)::bigint
             FROM {Schema}.runs
             WHERE tenant_id = @tenant_id
+              AND kind <> @kind_eval
               AND model_id IS NOT NULL
               AND (@agent_name IS NULL OR agent_name = @agent_name)
               AND (@started_after IS NULL OR started_at > @started_after)
@@ -895,6 +901,119 @@ internal sealed class SqlQueries
                    failed_items = failed_items + (SELECT COUNT(*) FROM updated WHERE status = 2)
              WHERE id = @job_id;
             """;
+
+        // --- Degerlendirme / eval (Faz 18) ---
+
+        const string suiteColumns = """
+            id, tenant_id, name, description, agent_name, checks, created_at, updated_at
+            """;
+
+        SelectEvalSuites = $"""
+            SELECT {suiteColumns}
+            FROM {Schema}.eval_suites
+            WHERE tenant_id = @tenant_id
+            ORDER BY name;
+            """;
+
+        SelectEvalSuite = $"""
+            SELECT {suiteColumns}
+            FROM {Schema}.eval_suites
+            WHERE tenant_id = @tenant_id AND name = @name;
+            """;
+
+        UpsertEvalSuite = $"""
+            INSERT INTO {Schema}.eval_suites
+                (id, tenant_id, name, description, agent_name, checks, created_at, updated_at)
+            VALUES
+                (@id, @tenant_id, @name, @description, @agent_name, @checks, @now, @now)
+            ON CONFLICT (tenant_id, name) DO UPDATE
+                SET description = EXCLUDED.description,
+                    agent_name  = EXCLUDED.agent_name,
+                    checks      = EXCLUDED.checks,
+                    updated_at  = EXCLUDED.updated_at
+            RETURNING {suiteColumns};
+            """;
+
+        DeleteEvalSuite = $"DELETE FROM {Schema}.eval_suites WHERE tenant_id = @tenant_id AND name = @name;";
+
+        SelectEvalCases = $"""
+            SELECT id, suite_id, seq, query, expected_output, expected_tools, context
+            FROM {Schema}.eval_cases
+            WHERE suite_id = @suite_id
+            ORDER BY seq;
+            """;
+
+        DeleteEvalCases = $"DELETE FROM {Schema}.eval_cases WHERE suite_id = @suite_id;";
+
+        InsertEvalCase = $"""
+            INSERT INTO {Schema}.eval_cases
+                (id, suite_id, seq, query, expected_output, expected_tools, context)
+            VALUES
+                (@id, @suite_id, @seq, @query, @expected_output, @expected_tools, @context);
+            """;
+
+        const string evalRunColumns = """
+            id, tenant_id, suite_id, job_id, agent_version, model_id, status, total, passed, failed,
+            input_tokens, output_tokens, started_at, completed_at
+            """;
+
+        InsertEvalRun = $"""
+            INSERT INTO {Schema}.eval_runs
+                (id, tenant_id, suite_id, job_id, status, total, passed, failed, started_at)
+            VALUES (@id, @tenant_id, @suite_id, @job_id, 0, @total, 0, 0, @started_at)
+            RETURNING {evalRunColumns};
+            """;
+
+        MarkEvalRunRunning = $"""
+            UPDATE {Schema}.eval_runs
+               SET status = 1, agent_version = @agent_version, model_id = @model_id
+             WHERE id = @id;
+            """;
+
+        CompleteEvalRun = $"""
+            UPDATE {Schema}.eval_runs
+               SET status = @status, completed_at = @completed_at, total = @total,
+                   passed = @passed, failed = @failed, input_tokens = @input_tokens,
+                   output_tokens = @output_tokens
+             WHERE id = @id;
+            """;
+
+        SelectEvalRun = $"""
+            SELECT {evalRunColumns}
+            FROM {Schema}.eval_runs
+            WHERE id = @id AND tenant_id = @tenant_id;
+            """;
+
+        SelectEvalRunByJobId = $"""
+            SELECT {evalRunColumns}
+            FROM {Schema}.eval_runs
+            WHERE tenant_id = @tenant_id AND job_id = @job_id;
+            """;
+
+        SelectEvalRuns = $"""
+            SELECT {evalRunColumns}
+            FROM {Schema}.eval_runs
+            WHERE (@tenant_id IS NULL OR tenant_id = @tenant_id)
+              AND (@suite_id  IS NULL OR suite_id  = @suite_id)
+            ORDER BY started_at DESC
+            OFFSET @skip LIMIT @take;
+            """;
+
+        InsertEvalCaseResult = $"""
+            INSERT INTO {Schema}.eval_case_results
+                (id, eval_run_id, case_id, run_id, passed, output, scores, failure_reason)
+            VALUES
+                (@id, @eval_run_id, @case_id, @run_id, @passed, @output, @scores, @failure_reason);
+            """;
+
+        SelectEvalCaseResults = $"""
+            SELECT ecr.id, ecr.eval_run_id, ecr.case_id, ecr.run_id, ecr.passed, ecr.output,
+                   ecr.scores, ecr.failure_reason
+            FROM {Schema}.eval_case_results ecr
+            JOIN {Schema}.eval_runs er ON er.id = ecr.eval_run_id
+            WHERE er.tenant_id = @tenant_id AND ecr.eval_run_id = @eval_run_id
+            ORDER BY ecr.id;
+            """;
     }
 
     /// <summary>Bir tool cagrisi kaydi ekler.</summary>
@@ -1190,6 +1309,51 @@ internal sealed class SqlQueries
 
     /// <summary>Konusmanin mesajlarini sirali okur.</summary>
     public string SelectConversationItems { get; }
+
+    /// <summary>Bir kiracinin eval takimlarini listeler.</summary>
+    public string SelectEvalSuites { get; }
+
+    /// <summary>Tek bir eval takimini getirir.</summary>
+    public string SelectEvalSuite { get; }
+
+    /// <summary>Eval takimini olusturur veya gunceller.</summary>
+    public string UpsertEvalSuite { get; }
+
+    /// <summary>Eval takimini siler (vakalar ve kosular cascade silinir).</summary>
+    public string DeleteEvalSuite { get; }
+
+    /// <summary>Bir takimin vakalarini sira numarasina gore getirir.</summary>
+    public string SelectEvalCases { get; }
+
+    /// <summary>Bir takimin tum vakalarini siler (yerine yenileri yazilmadan once).</summary>
+    public string DeleteEvalCases { get; }
+
+    /// <summary>Bir eval vakasi ekler.</summary>
+    public string InsertEvalCase { get; }
+
+    /// <summary>Yeni bir eval kosu kaydi acar.</summary>
+    public string InsertEvalRun { get; }
+
+    /// <summary>Kosuyu calisiyor durumuna gecirir ve olculen surum/modeli yazar.</summary>
+    public string MarkEvalRunRunning { get; }
+
+    /// <summary>Kosuyu sonlandirir ve ozet sayaclarini yazar.</summary>
+    public string CompleteEvalRun { get; }
+
+    /// <summary>Bir eval kosusunu okur.</summary>
+    public string SelectEvalRun { get; }
+
+    /// <summary>Bir is kaydinin urettigi eval kosusunu okur.</summary>
+    public string SelectEvalRunByJobId { get; }
+
+    /// <summary>Eval kosularini filtreleyerek okur.</summary>
+    public string SelectEvalRuns { get; }
+
+    /// <summary>Bir eval vaka sonucu ekler.</summary>
+    public string InsertEvalCaseResult { get; }
+
+    /// <summary>Bir kosunun vaka sonuclarini okur.</summary>
+    public string SelectEvalCaseResults { get; }
 
     /// <summary>Gomulu migration metnindeki sema yer tutucusunu gercek adla degistirir.</summary>
     /// <param name="sql">Ham migration metni.</param>

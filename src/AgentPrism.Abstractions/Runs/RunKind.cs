@@ -26,4 +26,11 @@ public enum RunKind
     /// <c>parent_run_id</c> mekanizmasiyla bu satirin altina baglanir.
     /// </summary>
     Workflow = 1,
+
+    /// <summary>
+    /// Bir eval vakasinin calistirmasi (Faz 18). Transkript ve span agacina
+    /// erisim icin normal bir <c>runs</c> satiridir, ama <see cref="IRunStore.GetStatisticsAsync"/>
+    /// bu turu ozetten haric tutar — sentetik bir test cagrisi, gercek trafik degildir.
+    /// </summary>
+    Eval = 2,
 }

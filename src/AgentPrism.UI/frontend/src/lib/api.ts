@@ -13,6 +13,13 @@ import type {
   AuditEntry,
   Conversation,
   CurrentTenant,
+  EvalCase,
+  EvalCaseInput,
+  EvalRun,
+  EvalRunDetailResponse,
+  EvalRunTriggerRequest,
+  EvalSuite,
+  EvalSuiteSaveRequest,
   JobDetailResponse,
   JobKind,
   JobRecord,
@@ -357,6 +364,21 @@ export const api = {
   ) => request<JobRecord[]>(`api/jobs${query(params)}`),
   job: (id: string) => request<JobDetailResponse>(`api/jobs/${encodeURIComponent(id)}`),
   cancelJob: (id: string) => request<void>(`api/jobs/${encodeURIComponent(id)}/cancel`, { method: 'POST' }),
+
+  evalSuites: () => request<EvalSuite[]>('api/evals'),
+  evalSuite: (name: string) => request<EvalSuite>(`api/evals/${encodeURIComponent(name)}`),
+  saveEvalSuite: (name: string, body: EvalSuiteSaveRequest) =>
+    send<EvalSuite>('PUT', `api/evals/${encodeURIComponent(name)}`, body),
+  deleteEvalSuite: (name: string) =>
+    request<void>(`api/evals/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+  evalCases: (name: string) => request<EvalCase[]>(`api/evals/${encodeURIComponent(name)}/cases`),
+  saveEvalCases: (name: string, cases: EvalCaseInput[]) =>
+    send<EvalCase[]>('PUT', `api/evals/${encodeURIComponent(name)}/cases`, cases),
+  triggerEvalRun: (name: string, body: EvalRunTriggerRequest = {}) =>
+    send<EvalRun>('POST', `api/evals/${encodeURIComponent(name)}/run`, body),
+  evalRuns: (name: string, params: { skip?: number; take?: number } = {}) =>
+    request<EvalRun[]>(`api/evals/${encodeURIComponent(name)}/runs${query(params)}`),
+  evalRun: (id: string) => request<EvalRunDetailResponse>(`api/evals/runs/${encodeURIComponent(id)}`),
 
   audit: (
     params: {

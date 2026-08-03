@@ -321,7 +321,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             ExtraUsage = new CompactionUsageAccumulator(),
         };
 
-        return new RunStart(scope, writer, sessionId, isStreaming, activity, prismOptions?.ParentRunId);
+        return new RunStart(scope, writer, sessionId, isStreaming, activity, prismOptions?.ParentRunId, prismOptions?.Kind ?? RunKind.Agent);
     }
 
     private async ValueTask<RunScope> BeginRunAsync(RunStart start, CancellationToken cancellationToken)
@@ -331,6 +331,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             {
                 RunId = start.Scope.RunId,
                 AgentName = start.Scope.AgentName!,
+                Kind = start.Kind,
                 StartedAt = _timeProvider.GetUtcNow(),
                 TenantId = start.Scope.TenantId,
                 SessionId = start.SessionId,
@@ -565,7 +566,8 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         string? SessionId,
         bool IsStreaming,
         Activity? Activity,
-        Guid? ParentRunId);
+        Guid? ParentRunId,
+        RunKind Kind);
 
     /// <summary>Tek bir calistirmanin kayit durumu.</summary>
     private sealed record RunScope(

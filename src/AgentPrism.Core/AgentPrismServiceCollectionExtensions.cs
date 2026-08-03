@@ -242,6 +242,14 @@ public static class AgentPrismServiceCollectionExtensions
                 provider.GetService<IWorkflowRunner>(),
                 provider.GetService<Microsoft.Extensions.Logging.ILogger<WorkflowJobHandler>>())));
 
+        // Degerlendirme (eval) altyapisi (Faz 18). Takim/vaka/kosu deposu her
+        // zaman kayitlidir; kosular ayni is kuyrugu uzerinden (JobKind.Eval)
+        // yurutulur. Denetim defteri ozel (AddEvalCheck ile eklenen) kayitlardan
+        // kurulur; yerlesik alti tur EvalCheckRegistry icinde sabittir.
+        services.TryAddSingleton<IEvalStore, InMemoryEvalStore>();
+        services.TryAddSingleton<EvalCheckRegistry>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, EvalJobHandler>());
+
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, JobWorkerBackgroundService>());
 

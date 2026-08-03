@@ -25,6 +25,10 @@ public sealed class UiTests(BrowserFixture browsers)
     private static readonly Regex JobHeadingPattern =
         new("^Job ", RegexOptions.None, TimeSpan.FromSeconds(1));
 
+    /// <summary>Eval kosu detay basligini bulan desen.</summary>
+    private static readonly Regex EvalRunHeadingPattern =
+        new("^Eval run ", RegexOptions.None, TimeSpan.FromSeconds(1));
+
     [Fact]
     public async Task Arayuz_acilir_ve_ana_ekran_cizilir()
     {
@@ -38,7 +42,7 @@ public sealed class UiTests(BrowserFixture browsers)
         (await session.Page.TitleAsync()).ShouldBe("AgentPrism");
 
         // Tum yonetim ekranlari gezinme cubugunda olmalidir.
-        foreach (var screen in new[] { "Agents", "Playground", "Sessions", "Workflows", "Jobs", "Runs", "Tools", "Skills", "Models", "MCP", "Settings" })
+        foreach (var screen in new[] { "Agents", "Playground", "Sessions", "Workflows", "Jobs", "Evals", "Runs", "Tools", "Skills", "Models", "MCP", "Settings" })
         {
             (await session.Page.GetByRole(AriaRole.Link, new() { Name = screen }).CountAsync())
                 .ShouldBeGreaterThan(0, $"'{screen}' baglantisi bulunamadi.");
@@ -635,5 +639,62 @@ public sealed class UiTests(BrowserFixture browsers)
         await session.Page.GetByRole(AriaRole.Heading, new() { NameRegex = JobHeadingPattern })
             .WaitForAsync(new() { Timeout = 10_000 });
         await session.Page.GetByText("merhaba").WaitForAsync();
+    }
+
+    // --- Faz 18: degerlendirme (eval) ---
+
+    [Fact]
+    public async Task Eval_takimi_olusturulur_vaka_eklenir_ve_kosu_gecer()
+    {
+        await using var host = await UiHost.StartAsync(
+            configureServices: services => services.UseScheduling(options =>
+            {
+                // Testin gercek zamanda beklemesi gerekmez; isci hemen yoklar.
+                options.PollInterval = TimeSpan.FromMilliseconds(200);
+                options.LeaseDuration = TimeSpan.FromSeconds(10);
+            }));
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/evals");
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Evals", Exact = true }).WaitForAsync();
+
+        await session.Page.GetByRole(AriaRole.Button, new() { Name = "New suite" }).ClickAsync();
+
+        await session.Page.GetByPlaceholder("customer-support-suite").FillAsync("e2e-eval-takimi");
+        // "support" betiklenmis modelde tool'suz calisir ve girdiyi
+        // "Echo: {sorgu}" olarak aynen yansitir (ScriptedModelProvider) — bu
+        // yuzden varsayilan nonEmpty denetimi guvenilir sekilde gecer.
+        await session.Page.GetByPlaceholder("customer-support-agent").FillAsync("support");
+
+        await session.Page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
+
+        await session.Page.GetByRole(AriaRole.Link, new() { Name = "e2e-eval-takimi" }).ClickAsync();
+
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "e2e-eval-takimi", Exact = true })
+            .WaitForAsync();
+
+        await session.Page.GetByRole(AriaRole.Button, new() { Name = "Add case" }).ClickAsync();
+        await session.Page.GetByPlaceholder("What is your return policy?")
+            .FillAsync("Siparisim nerede, yardimci olur musunuz?");
+
+        var casesSaved = session.Page.WaitForResponseAsync(response =>
+            response.Url.Contains("/api/evals/e2e-eval-takimi/cases", StringComparison.Ordinal) &&
+            string.Equals(response.Request.Method, "PUT", StringComparison.Ordinal));
+        await session.Page.GetByRole(AriaRole.Button, new() { Name = "Save cases" }).ClickAsync();
+        await casesSaved;
+
+        await session.Page.GetByRole(AriaRole.Button, new() { Name = "Run now" }).ClickAsync();
+
+        // Isci hizli yoklama araligiyla isi kiralayip yurutur; tamamlanma
+        // rozeti "Runs" panelinde gorunur.
+        await session.Page.GetByText("completed", new() { Exact = true })
+            .WaitForAsync(new() { Timeout = 15_000 });
+
+        await session.Page.Locator("table").Last.Locator("tbody tr").First
+            .GetByRole(AriaRole.Link).ClickAsync();
+
+        await session.Page.GetByRole(AriaRole.Heading, new() { NameRegex = EvalRunHeadingPattern })
+            .WaitForAsync(new() { Timeout = 10_000 });
+        await session.Page.GetByText("passed", new() { Exact = true }).WaitForAsync();
     }
 }

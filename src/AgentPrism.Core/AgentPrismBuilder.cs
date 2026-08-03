@@ -104,4 +104,13 @@ internal sealed class AgentPrismBuilder : IAgentPrismBuilder
         Services.AddSingleton(factory);
         return this;
     }
+
+    public IAgentPrismBuilder AddEvalCheck(string kind, EvalCheck check)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(kind);
+        ArgumentNullException.ThrowIfNull(check);
+
+        Services.AddSingleton(new AgentPrismEvalCheckRegistration(kind, check));
+        return this;
+    }
 }

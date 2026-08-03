@@ -42,6 +42,7 @@ public sealed class PostgresTestContext : IAsyncDisposable
         WorkflowCheckpoints = new PostgresWorkflowCheckpointStore(dataSource, wrapped);
         Jobs = new PostgresJobStore(dataSource, wrapped);
         JobSchedules = new PostgresJobScheduleStore(dataSource, wrapped);
+        Evals = new PostgresEvalStore(dataSource, wrapped);
         Migrations = new MigrationRunner(dataSource, wrapped, NullLogger<MigrationRunner>.Instance);
     }
 
@@ -101,6 +102,9 @@ public sealed class PostgresTestContext : IAsyncDisposable
 
     /// <summary>Zamanlama deposu (Faz 17).</summary>
     public PostgresJobScheduleStore JobSchedules { get; }
+
+    /// <summary>Eval takim/vaka/kosu deposu (Faz 18).</summary>
+    public PostgresEvalStore Evals { get; }
 
     /// <summary>Migration calistiricisi.</summary>
     public MigrationRunner Migrations { get; }

@@ -1,0 +1,362 @@
+using System.Text.Json;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Options;
+
+namespace AgentPrism;
+
+/// <summary>
+/// Eval takimi/vaka yonetimi, kosu tetikleme ve sonuc goruntuleme uclari (Faz 18).
+/// </summary>
+/// <remarks>
+/// 🚨 <see cref="IEvalStore"/> disindaki tum bagimliliklar <c>[FromServices]</c>
+/// ile <strong>acikca</strong> isaretlenir — gerekce <see cref="SchedulingEndpoints"/>
+/// ile aynidir. Kosu tetikleme, mevcut is kuyrugunu (<see cref="IJobStore"/>,
+/// <see cref="JobKind.Eval"/>) kullanir; ayri bir yurutme yolu yoktur.
+/// </remarks>
+internal static class EvalEndpoints
+{
+    /// <summary>Eval uclarini baglar.</summary>
+    /// <param name="builder">Uc grubu.</param>
+    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
+    {
+        builder.MapGet("/api/evals", ListSuitesAsync)
+            .RequireRole(roles.Reader)
+            .WithName("AgentPrismListEvalSuites")
+            .WithSummary("Bir kiracinin eval takimlarini listeler.");
+
+        builder.MapGet("/api/evals/{name}", GetSuiteAsync)
+            .RequireRole(roles.Reader)
+            .WithName("AgentPrismGetEvalSuite")
+            .WithSummary("Tek bir eval takimini getirir.");
+
+        builder.MapPut("/api/evals/{name}", SaveSuiteAsync)
+            .RequireRole(roles.Admin)
+            .WithName("AgentPrismSaveEvalSuite")
+            .WithSummary("Eval takimi olusturur veya gunceller.")
+            .WithDescription("Denetim tanimlari bildirimseldir; bilinmeyen bir denetim turu kosu aninda hataya donusur.");
+
+        builder.MapDelete("/api/evals/{name}", DeleteSuiteAsync)
+            .RequireRole(roles.Admin)
+            .WithName("AgentPrismDeleteEvalSuite")
+            .WithSummary("Bir eval takimini siler (vakalar ve kosular birlikte).");
+
+        builder.MapGet("/api/evals/{name}/cases", ListCasesAsync)
+            .RequireRole(roles.Reader)
+            .WithName("AgentPrismListEvalCases")
+            .WithSummary("Bir takimin vakalarini listeler.");
+
+        builder.MapPut("/api/evals/{name}/cases", SaveCasesAsync)
+            .RequireRole(roles.Admin)
+            .WithName("AgentPrismSaveEvalCases")
+            .WithSummary("Bir takimin tum vakalarini verilen listeyle degistirir.");
+
+        builder.MapDelete("/api/evals/{name}/cases", ClearCasesAsync)
+            .RequireRole(roles.Admin)
+            .WithName("AgentPrismClearEvalCases")
+            .WithSummary("Bir takimin tum vakalarini siler.");
+
+        builder.MapPost("/api/evals/{name}/run", TriggerRunAsync)
+            .RequireRole(roles.Operator)
+            .WithName("AgentPrismTriggerEvalRun")
+            .WithSummary("Bir eval takimini simdi calistirir.")
+            .WithDescription(
+                "Her vaka, olculen agent uzerinde yeni bir oturumda calisir ve kendi 'runs' " +
+                "satirini uretir. Kosu is kuyruguna girer; sonuclar arka planda islenir.");
+
+        builder.MapGet("/api/evals/{name}/runs", ListRunsAsync)
+            .RequireRole(roles.Reader)
+            .WithName("AgentPrismListEvalRuns")
+            .WithSummary("Bir takimin gecmis kosularini listeler.");
+
+        builder.MapGet("/api/evals/runs/{id:guid}", GetRunAsync)
+            .RequireRole(roles.Reader)
+            .WithName("AgentPrismGetEvalRun")
+            .WithSummary("Tek bir eval kosusunu ve vaka bazinda sonuclarini getirir.");
+    }
+
+    private static async Task<Ok<IReadOnlyList<EvalSuite>>> ListSuitesAsync(
+        [FromServices] IEvalStore store,
+        [FromServices] ITenantContext tenants,
+        CancellationToken cancellationToken)
+    {
+        var suites = await store.ListSuitesAsync(tenants.TenantId, cancellationToken).ConfigureAwait(false);
+        return TypedResults.Ok(suites);
+    }
+
+    private static async Task<Results<Ok<EvalSuite>, ProblemHttpResult>> GetSuiteAsync(
+        string name,
+        [FromServices] IEvalStore store,
+        [FromServices] ITenantContext tenants,
+        CancellationToken cancellationToken)
+    {
+        var suite = await store.GetSuiteAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
+        return suite is null ? SuiteNotFound(name) : TypedResults.Ok(suite);
+    }
+
+    private static async Task<Results<Ok<EvalSuite>, ProblemHttpResult>> SaveSuiteAsync(
+        string name,
+        [FromBody] EvalSuiteSaveRequest request,
+        [FromServices] IEvalStore store,
+        [FromServices] ITenantContext tenants,
+        [FromServices] EvalCheckRegistry checkRegistry,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (string.IsNullOrWhiteSpace(request.AgentName))
+        {
+            return InvalidSuite("'agentName' alani zorunludur.");
+        }
+
+        try
+        {
+            // Denetimler kayit aninda dogrulanir: bilinmeyen bir tur adi kosu
+            // baslamadan, hemen geri bildirilir.
+            checkRegistry.BuildChecks(request.Checks);
+        }
+        catch (AgentPrismException exception)
+        {
+            return InvalidSuite(exception.Message);
+        }
+
+        var existing = await store.GetSuiteAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
+
+        var suite = new EvalSuite
+        {
+            Id = existing?.Id ?? Guid.Empty,
+            TenantId = tenants.TenantId,
+            Name = name,
+            Description = request.Description,
+            AgentName = request.AgentName,
+            Checks = request.Checks,
+            CreatedAt = existing?.CreatedAt ?? default,
+            UpdatedAt = default,
+        };
+
+        var saved = await store.SaveSuiteAsync(suite, cancellationToken).ConfigureAwait(false);
+        return TypedResults.Ok(saved);
+    }
+
+    private static async Task<Results<NoContent, ProblemHttpResult>> DeleteSuiteAsync(
+        string name,
+        [FromServices] IEvalStore store,
+        [FromServices] ITenantContext tenants,
+        CancellationToken cancellationToken)
+        => await store.DeleteSuiteAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false)
+            ? TypedResults.NoContent()
+            : SuiteNotFound(name);
+
+    private static async Task<Results<Ok<IReadOnlyList<EvalCase>>, ProblemHttpResult>> ListCasesAsync(
+        string name,
+        [FromServices] IEvalStore store,
+        [FromServices] ITenantContext tenants,
+        CancellationToken cancellationToken)
+    {
+        var suite = await store.GetSuiteAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
+
+        if (suite is null)
+        {
+            return SuiteNotFound(name);
+        }
+
+        var cases = await store.ListCasesAsync(suite.Id, cancellationToken).ConfigureAwait(false);
+        return TypedResults.Ok(cases);
+    }
+
+    private static async Task<Results<Ok<IReadOnlyList<EvalCase>>, ProblemHttpResult>> SaveCasesAsync(
+        string name,
+        [FromBody] IReadOnlyList<EvalCaseInput> cases,
+        [FromServices] IEvalStore store,
+        [FromServices] ITenantContext tenants,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(cases);
+
+        var suite = await store.GetSuiteAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
+
+        if (suite is null)
+        {
+            return SuiteNotFound(name);
+        }
+
+        if (cases.Any(static input => string.IsNullOrWhiteSpace(input.Query)))
+        {
+            return InvalidSuite("Her vaka bos olmayan bir 'query' alani tasimalidir.");
+        }
+
+        var converted = cases
+            .Select(static (input, seq) => new EvalCase
+            {
+                SuiteId = default,
+                Seq = seq,
+                Query = input.Query,
+                ExpectedOutput = input.ExpectedOutput,
+                ExpectedTools = input.ExpectedTools,
+                Context = input.Context,
+            })
+            .ToArray();
+
+        var saved = await store.ReplaceCasesAsync(suite.Id, converted, cancellationToken).ConfigureAwait(false);
+        return TypedResults.Ok(saved);
+    }
+
+    private static async Task<Results<NoContent, ProblemHttpResult>> ClearCasesAsync(
+        string name,
+        [FromServices] IEvalStore store,
+        [FromServices] ITenantContext tenants,
+        CancellationToken cancellationToken)
+    {
+        var suite = await store.GetSuiteAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
+
+        if (suite is null)
+        {
+            return SuiteNotFound(name);
+        }
+
+        await store.ReplaceCasesAsync(suite.Id, [], cancellationToken).ConfigureAwait(false);
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<Results<Ok<EvalRun>, ProblemHttpResult>> TriggerRunAsync(
+        string name,
+        [FromBody] EvalRunTriggerRequest? request,
+        [FromServices] IEvalStore evalStore,
+        [FromServices] IJobStore jobStore,
+        [FromServices] ITenantContext tenants,
+        [FromServices] IOptionsMonitor<AgentPrismSchedulingOptions> schedulingOptions,
+        CancellationToken cancellationToken)
+    {
+        var suite = await evalStore.GetSuiteAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
+
+        if (suite is null)
+        {
+            return SuiteNotFound(name);
+        }
+
+        var cases = await evalStore.ListCasesAsync(suite.Id, cancellationToken).ConfigureAwait(false);
+
+        if (cases.Count == 0)
+        {
+            return TypedResults.Problem(
+                title: "Kosu baslatilamadi",
+                detail: $"'{name}' takiminin hic vakasi yok.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var maxItems = schedulingOptions.CurrentValue.MaxItemsPerJob;
+
+        if (cases.Count > maxItems)
+        {
+            return TypedResults.Problem(
+                title: "Kosu baslatilamadi",
+                detail: $"Takim {cases.Count} vaka tasiyor; en fazla {maxItems} vaka desteklenir.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var items = cases.Select(static evalCase => evalCase.Id.ToString()).ToArray();
+        var now = DateTimeOffset.UtcNow;
+
+        var job = await jobStore.EnqueueAsync(
+            new JobRecord
+            {
+                Id = AgentPrismId.NewId(),
+                TenantId = tenants.TenantId,
+                Kind = JobKind.Eval,
+                TargetName = suite.AgentName,
+                Status = JobStatus.Pending,
+                Payload = BuildRunPayload(suite.Name, request?.ModelId, request?.NumRepetitions),
+                ScheduledFor = now,
+                CreatedAt = now,
+            },
+            items,
+            cancellationToken).ConfigureAwait(false);
+
+        var run = await evalStore.CreateRunAsync(
+            new EvalRun
+            {
+                Id = AgentPrismId.NewId(),
+                TenantId = tenants.TenantId,
+                SuiteId = suite.Id,
+                JobId = job.Id,
+                Status = EvalRunStatus.Pending,
+                Total = items.Length,
+                StartedAt = now,
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        return TypedResults.Ok(run);
+    }
+
+    private static async Task<Results<Ok<IReadOnlyList<EvalRun>>, ProblemHttpResult>> ListRunsAsync(
+        string name,
+        [FromServices] IEvalStore store,
+        [FromServices] ITenantContext tenants,
+        [FromQuery] int? skip,
+        [FromQuery] int? take,
+        CancellationToken cancellationToken)
+    {
+        var suite = await store.GetSuiteAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
+
+        if (suite is null)
+        {
+            return SuiteNotFound(name);
+        }
+
+        var runs = await store.QueryRunsAsync(
+            new EvalRunQuery
+            {
+                TenantId = tenants.TenantId,
+                SuiteId = suite.Id,
+                Skip = skip ?? 0,
+                Take = take ?? 50,
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        return TypedResults.Ok(runs);
+    }
+
+    private static async Task<Results<Ok<EvalRunDetailResponse>, ProblemHttpResult>> GetRunAsync(
+        Guid id,
+        [FromServices] IEvalStore store,
+        [FromServices] ITenantContext tenants,
+        CancellationToken cancellationToken)
+    {
+        var run = await store.GetRunAsync(tenants.TenantId, id, cancellationToken).ConfigureAwait(false);
+
+        if (run is null)
+        {
+            return RunNotFound(id);
+        }
+
+        var results = await store.ListCaseResultsAsync(tenants.TenantId, id, cancellationToken).ConfigureAwait(false);
+        return TypedResults.Ok(new EvalRunDetailResponse { Run = run, Results = results });
+    }
+
+    private static JsonElement BuildRunPayload(string suiteName, string? modelId, int? numRepetitions)
+        => JsonSerializer.SerializeToElement(new
+        {
+            suiteName,
+            modelId,
+            numRepetitions,
+        });
+
+    private static ProblemHttpResult InvalidSuite(string detail)
+        => TypedResults.Problem(title: "Eval takimi gecersiz", detail: detail, statusCode: StatusCodes.Status400BadRequest);
+
+    private static ProblemHttpResult SuiteNotFound(string name)
+        => TypedResults.Problem(
+            title: "Eval takimi bulunamadi",
+            detail: $"'{name}' adinda bir eval takimi yok.",
+            statusCode: StatusCodes.Status404NotFound);
+
+    private static ProblemHttpResult RunNotFound(Guid id)
+        => TypedResults.Problem(
+            title: "Eval kosusu bulunamadi",
+            detail: $"'{id}' kimlikli bir eval kosusu yok.",
+            statusCode: StatusCodes.Status404NotFound);
+}

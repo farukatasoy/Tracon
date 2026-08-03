@@ -264,6 +264,14 @@ public sealed class InMemoryRunStore : IRunStore
                 continue;
             }
 
+            // Eval vaka calistirmalari sentetik test cagrilaridir, gercek
+            // trafik degildir; ozeti kirletmemesi icin haric tutulur
+            // (docs/18-DEGERLENDIRME.md, acik soru 4).
+            if (record.Kind == RunKind.Eval)
+            {
+                continue;
+            }
+
             total++;
 
             switch (record.Status)

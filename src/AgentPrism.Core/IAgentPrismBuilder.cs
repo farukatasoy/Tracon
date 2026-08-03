@@ -131,4 +131,18 @@ public interface IAgentPrismBuilder
     /// <param name="factory">Saglayiciyi ureten fabrika.</param>
     /// <returns>Zincirin devami.</returns>
     IAgentPrismBuilder AddModelProvider(Func<IServiceProvider, IModelProvider> factory);
+
+    /// <summary>
+    /// Ozel bir eval denetimi kaydeder (Faz 18). Eval takimlarinin <c>checks</c>
+    /// alaninda bu <paramref name="kind"/> adiyla referans verilebilir.
+    /// </summary>
+    /// <param name="kind">Denetim tur adi. Yerlesik turlerle (ornegin <c>nonEmpty</c>) cakismamalidir.</param>
+    /// <param name="check">Model cagirmayan, kod ile yazilmis denetim.</param>
+    /// <returns>Zincirin devami.</returns>
+    /// <remarks>
+    /// <c>Microsoft.Agents.AI.FunctionEvaluator.Create(...)</c> ile uretilen bir
+    /// <c>EvalCheck</c> beklenir. Tool'larla ayni gerekce: ozel mantik yalnizca
+    /// kodda tanimlanir, arayuzden serbest ifade yazilamaz.
+    /// </remarks>
+    IAgentPrismBuilder AddEvalCheck(string kind, Microsoft.Agents.AI.EvalCheck check);
 }

@@ -818,3 +818,87 @@ export interface JobDetailResponse {
   job: JobRecord;
   items: JobItemRecord[];
 }
+
+/* -------------------------------------------------------------------- eval */
+
+/** An eval run's lifecycle. */
+export type EvalRunStatus = 'Pending' | 'Running' | 'Completed' | 'Failed' | 'Cancelled';
+
+/** A test suite: which agent it measures, and how a case is judged. */
+export interface EvalSuite {
+  id: string;
+  tenantId: string;
+  name: string;
+  description?: string | null;
+  agentName: string;
+  checks: unknown;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Body of PUT `/api/evals/{name}`. Server-owned fields are deliberately absent. */
+export interface EvalSuiteSaveRequest {
+  description?: string | null;
+  agentName: string;
+  checks: unknown;
+}
+
+/** A single test case within a suite. */
+export interface EvalCase {
+  id: string;
+  suiteId: string;
+  seq: number;
+  query: string;
+  expectedOutput?: string | null;
+  expectedTools: string[];
+  context?: string | null;
+}
+
+/** One entry of the array body of PUT `/api/evals/{name}/cases`. */
+export interface EvalCaseInput {
+  query: string;
+  expectedOutput?: string | null;
+  expectedTools?: string[];
+  context?: string | null;
+}
+
+/** Body of POST `/api/evals/{name}/run`. */
+export interface EvalRunTriggerRequest {
+  modelId?: string | null;
+  numRepetitions?: number | null;
+}
+
+/** One run of a suite and its summary. */
+export interface EvalRun {
+  id: string;
+  tenantId: string;
+  suiteId: string;
+  jobId?: string | null;
+  agentVersion?: number | null;
+  modelId?: string | null;
+  status: EvalRunStatus;
+  total: number;
+  passed: number;
+  failed: number;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  startedAt: string;
+  completedAt?: string | null;
+}
+
+/** One case's result within an eval run. */
+export interface EvalCaseResult {
+  id: string;
+  evalRunId: string;
+  caseId: string;
+  runId?: string | null;
+  passed: boolean;
+  output?: string | null;
+  scores: unknown;
+  failureReason?: string | null;
+}
+
+export interface EvalRunDetailResponse {
+  run: EvalRun;
+  results: EvalCaseResult[];
+}

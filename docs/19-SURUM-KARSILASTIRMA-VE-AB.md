@@ -13,7 +13,11 @@
 1. [`MIMARI.md`](MIMARI.md) — bölüm 5 (`agent_definition_versions`)
 2. [`KARARLAR.md`](KARARLAR.md) — **K-003** (hibrit tanım, kod kazanır), **K-045** (kütüphane yerine elle yazma), **K-002** (bundle bütçesi)
 3. [`06-GOZLEMLENEBILIRLIK.md`](06-GOZLEMLENEBILIRLIK.md) — metrik etiketleri
-4. Bu doküman
+4. [`18-DEGERLENDIRME.md`](18-DEGERLENDIRME.md) — "Sonraki Faza Devir Notu": `IEvalStore`/`EvalRun` sözleşmesi ve
+   🚨 `EvalRunTriggerRequest`'in **`agentVersion` almadığı** — `EvalJobHandler`
+   bugün her zaman agent'ın güncel sürümünü çalıştırır. 19.3'ün A/B deneyi bunu
+   genişletmek zorundadır.
+5. Bu doküman
 
 ---
 

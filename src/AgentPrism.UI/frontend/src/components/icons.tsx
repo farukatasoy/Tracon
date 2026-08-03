@@ -215,3 +215,10 @@ export const JobsIcon = ({ className }: IconProps): ReactNode => (
     <path d="M12 7v5l3.5 2" />
   </Icon>
 );
+
+export const EvalsIcon = ({ className }: IconProps): ReactNode => (
+  <Icon className={className}>
+    <path d="M9 11.5 11 13.5 15.5 8.5" />
+    <path d="M4 4.5h16v15H4z" />
+  </Icon>
+);
