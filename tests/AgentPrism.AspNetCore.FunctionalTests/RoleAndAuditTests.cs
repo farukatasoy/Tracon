@@ -168,6 +168,46 @@ public sealed class RoleAndAuditTests
         entries.ShouldHaveSingleItem().GetProperty("entity").GetString().ShouldBe("agent:db-agent");
     }
 
+    // --- /api/stats/recalculate-costs (Faz 20) ---
+
+    [Fact]
+    public async Task Recalculate_costs_admin_policy_ile_korunur()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync(
+            configureServices: static services => TestAuthenticationHandler.Add(services)
+                .AddAuthorizationBuilder()
+                .AddPolicy(AgentPrismPolicies.Admin, static policy => policy.RequireAssertion(static _ => false)));
+
+        using var response = await host.Client.PostAsync(
+            new Uri("/agentprism/api/stats/recalculate-costs", UriKind.Relative),
+            content: null);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task Recalculate_costs_basarili_olunca_denetim_izine_dusuyor()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        using (var response = await host.Client.PostAsync(
+            new Uri("/agentprism/api/stats/recalculate-costs", UriKind.Relative),
+            content: null))
+        {
+            response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+            var json = await AgentPrismTestHost.ReadJsonAsync(response);
+            json.GetProperty("runsConsidered").GetInt64().ShouldBe(0);
+        }
+
+        using var audit = await host.Client.GetAsync(new Uri("/agentprism/api/audit?entity=runs:*", UriKind.Relative));
+        var entries = (await AgentPrismTestHost.ReadJsonAsync(audit)).EnumerateArray()
+            .Select(static entry => entry.GetProperty("action").GetString())
+            .ToList();
+
+        entries.ShouldContain(static action => string.Equals(action, "stats.recalculate-costs", StringComparison.Ordinal));
+    }
+
     // --- /api/meta rol bilgisi ---
 
     [Fact]

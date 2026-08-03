@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { count, latencyText, relativeTime } from '../lib/format';
+import { Link } from '../lib/router';
 import type { ModelProviderHealth, ModelProviderHealthStatus } from '../lib/types';
 import {
   Badge,
@@ -185,9 +186,12 @@ export function ModelsScreen(): ReactNode {
       </div>
 
       <p className="mt-4 text-[11px] text-subtle">
-        Runs now record which model answered, so token use per model is on the Settings screen.
-        Money is not shown: providers do not publish machine-readable pricing, so the rate is
-        yours to supply.
+        Runs record which model answered; token and cost use per model is on the{' '}
+        <Link to="dashboard" className="text-accent hover:underline">
+          Dashboard
+        </Link>
+        . Cost only shows once a price is configured (providers do not publish machine-readable
+        pricing) — see <Mono>AgentPrism:Pricing</Mono>.
       </p>
     </>
   );

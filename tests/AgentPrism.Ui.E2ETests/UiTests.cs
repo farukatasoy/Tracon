@@ -37,16 +37,44 @@ public sealed class UiTests(BrowserFixture browsers)
 
         await session.Page.GotoAsync(host.UiAddress);
 
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Agents" }).WaitForAsync();
+        // Dashboard giris ekranidir (Faz 20); Agents yan menude ilk sirada kalir.
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
 
         (await session.Page.TitleAsync()).ShouldBe("AgentPrism");
 
         // Tum yonetim ekranlari gezinme cubugunda olmalidir.
-        foreach (var screen in new[] { "Agents", "Playground", "Sessions", "Workflows", "Jobs", "Evals", "Runs", "Tools", "Skills", "Models", "MCP", "Settings" })
+        foreach (var screen in new[] { "Agents", "Dashboard", "Playground", "Sessions", "Workflows", "Jobs", "Evals", "Runs", "Tools", "Skills", "Models", "MCP", "Settings" })
         {
             (await session.Page.GetByRole(AriaRole.Link, new() { Name = screen }).CountAsync())
                 .ShouldBeGreaterThan(0, $"'{screen}' baglantisi bulunamadi.");
         }
+    }
+
+    [Fact]
+    public async Task Dashboard_grafikleri_cizilir_ve_aralik_degistirilebilir()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync(host.UiAddress);
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
+
+        // Bos depoda bile kovalar sifirla doldurulur; grafikler yine cizilir.
+        await session.Page.GetByTestId("timeseries-chart").WaitForAsync();
+        await session.Page.GetByTestId("status-distribution-chart").WaitForAsync();
+        await session.Page.GetByText("Bu aralıkta çalıştırma yok").WaitForAsync();
+
+        // Aralik degistirmek yeni bir /api/stats/timeseries istegi tetiklemelidir
+        // (30g araligi saat yerine gun kovasina gecer — 500 kova sinirini asmamak icin).
+        var timeseriesRefetched = session.Page.WaitForResponseAsync(response =>
+            response.Url.Contains("/api/stats/timeseries", StringComparison.Ordinal) &&
+            response.Url.Contains("bucket=Day", StringComparison.Ordinal));
+
+        await session.Page.GetByRole(AriaRole.Button, new() { Name = "30d" }).ClickAsync();
+
+        await timeseriesRefetched;
+
+        await session.Page.GetByTestId("timeseries-chart").WaitForAsync();
     }
 
     [Fact]
@@ -216,7 +244,7 @@ public sealed class UiTests(BrowserFixture browsers)
         };
 
         await session.Page.GotoAsync(host.UiAddress);
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Agents" }).WaitForAsync();
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
 
         failures.ShouldBeEmpty();
 
@@ -234,7 +262,7 @@ public sealed class UiTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host);
 
         await session.Page.GotoAsync(host.UiAddress);
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Agents" }).WaitForAsync();
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
 
         var before = await session.Page.GetAttributeAsync("html", "data-theme");
 
@@ -248,7 +276,7 @@ public sealed class UiTests(BrowserFixture browsers)
 
         // Tercih localStorage'da yasar; yeniden yukleme onu korumalidir.
         await session.Page.ReloadAsync();
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Agents" }).WaitForAsync();
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
 
         string.Equals(await session.Page.GetAttributeAsync("html", "data-theme"), after, StringComparison.Ordinal)
             .ShouldBeTrue("Tema tercihi yeniden yuklemede korunmadi.");
@@ -270,7 +298,7 @@ public sealed class UiTests(BrowserFixture browsers)
         await session.Page.GetByLabel("Token").FillAsync("gizli-token");
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
 
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Agents" })
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })
             .WaitForAsync(new() { Timeout = 15_000 });
     }
 

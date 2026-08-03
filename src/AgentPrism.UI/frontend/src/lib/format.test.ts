@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { count, duration, latencyText, percent, prettyJson, relativeTime, shortId } from './format';
+import { count, duration, latencyText, money, percent, prettyJson, relativeTime, shortId } from './format';
 import { matchRoute, toRelativePath } from './router';
 
 const NOW = Date.parse('2026-08-02T12:00:00Z');
@@ -44,6 +44,22 @@ describe('count and percent', () => {
 
   it('formats an error rate', () => {
     expect(percent(0.125)).toBe('12.5%');
+  });
+});
+
+describe('money', () => {
+  it('distinguishes an undefined price from zero', () => {
+    expect(money(null, 'USD')).toBe('—');
+    expect(money(0, 'USD')).toBe('0.00 USD');
+  });
+
+  it('appends the currency label with no conversion', () => {
+    expect(money(1.5, 'USD')).toBe('1.50 USD');
+    expect(money(1.5, null)).toBe('1.50');
+  });
+
+  it('shows enough precision for sub-cent per-token costs', () => {
+    expect(money(0.123456, 'USD')).toBe('0.1235 USD');
   });
 });
 

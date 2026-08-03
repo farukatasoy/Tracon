@@ -1,6 +1,7 @@
 using AgentPrism.Core.UnitTests.Fakes;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism.Core.UnitTests.Recording;
 
@@ -218,6 +219,88 @@ public sealed class RunRecordingAgentTests
         (run.Usage.OutputTokens >= 20).ShouldBeTrue();
     }
 
+    /// <summary>
+    /// Faz 20: fiyat cozumleyicinin gercekten cagrildigini ve sonucunun
+    /// depoya yazildigini dogrular. Diger testlerin aksine `RunRecordingAgent`
+    /// burada modelId/modelProvider/pricingResolver ile KURULUR — bu ucu
+    /// KARARLAR.md'de kayitli bir hatanin (RunEventWriter.CompleteAsync yeni
+    /// `cost` parametresini alip RunCompletion'a hic yazmiyordu) yakalandigi testtir.
+    /// </summary>
+    [Fact]
+    public async Task Maliyet_pipeline_ucdan_uca_hesaplanip_yaziliyor()
+    {
+        var store = new InMemoryRunStore();
+
+        var usage = new UsageDetails { InputTokenCount = 1_000_000, OutputTokenCount = 500_000, TotalTokenCount = 1_500_000 };
+        var client = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "tamam")) { Usage = usage });
+
+        var pricedProvider = new FakeModelProvider(client, name: "fake", models:
+        [
+            new ModelDescriptor { Name = "priced-model", InputCostPerMillionTokens = 2m, OutputCostPerMillionTokens = 4m },
+        ]);
+
+        var compiler = new AgentDefinitionCompiler(TestData.Providers(pricedProvider), TestData.Registry());
+        var definition = TestData.Definition() with { Model = new ModelBinding { Provider = "fake", Model = "priced-model" } };
+
+        var resolver = new RunPricingResolver(
+            new ModelProviderRegistry([pricedProvider]),
+            Options.Create(new AgentPrismOptions()));
+
+        var agent = new RunRecordingAgent(
+            compiler.Compile(definition),
+            store,
+            new FixedTenantContext(),
+            new AgentPrismRunRecordingOptions(),
+            NullLogger<RunRecordingAgent>.Instance,
+            modelId: "priced-model",
+            modelProvider: "fake",
+            pricingResolver: resolver);
+
+        await agent.RunAsync("merhaba");
+
+        var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+
+        run.Cost.ShouldNotBeNull();
+        run.Cost.Source.ShouldBe(PricingSource.Catalog);
+        run.Cost.InputCost.ShouldBe(2m);
+        run.Cost.OutputCost.ShouldBe(2m);
+    }
+
+    /// <summary>Ayni pipeline, ama modele fiyat tanimlanmadan: maliyet null, kaynak Unknown olmalidir.</summary>
+    [Fact]
+    public async Task Maliyet_pipeline_fiyatsiz_modelde_unknown_yazar()
+    {
+        var store = new InMemoryRunStore();
+
+        var usage = new UsageDetails { InputTokenCount = 10, OutputTokenCount = 10, TotalTokenCount = 20 };
+        var client = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "tamam")) { Usage = usage });
+
+        var provider = new FakeModelProvider(client, name: "fake", models: [new ModelDescriptor { Name = "unpriced-model" }]);
+        var compiler = new AgentDefinitionCompiler(TestData.Providers(provider), TestData.Registry());
+        var definition = TestData.Definition() with { Model = new ModelBinding { Provider = "fake", Model = "unpriced-model" } };
+
+        var resolver = new RunPricingResolver(new ModelProviderRegistry([provider]), Options.Create(new AgentPrismOptions()));
+
+        var agent = new RunRecordingAgent(
+            compiler.Compile(definition),
+            store,
+            new FixedTenantContext(),
+            new AgentPrismRunRecordingOptions(),
+            NullLogger<RunRecordingAgent>.Instance,
+            modelId: "unpriced-model",
+            modelProvider: "fake",
+            pricingResolver: resolver);
+
+        await agent.RunAsync("merhaba");
+
+        var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+
+        run.Cost.ShouldNotBeNull();
+        run.Cost.Source.ShouldBe(PricingSource.Unknown);
+        run.Cost.InputCost.ShouldBeNull();
+        run.Cost.OutputCost.ShouldBeNull();
+    }
+
     private static RunRecordingAgent CreateAgent(
         IRunStore store,
         FakeChatClient client,
@@ -299,6 +382,12 @@ public sealed class RunRecordingAgentTests
             => throw new InvalidOperationException("depo erisilemez");
 
         public ValueTask<IReadOnlyList<ExperimentVariantResult>> GetExperimentResultsAsync(ExperimentResultsQuery query, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("depo erisilemez");
+
+        public ValueTask<IReadOnlyList<TimeSeriesPoint>> GetTimeSeriesAsync(RunTimeSeriesQuery query, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("depo erisilemez");
+
+        public ValueTask UpdateRunCostAsync(Guid runId, RunCost? cost, CancellationToken cancellationToken = default)
             => throw new InvalidOperationException("depo erisilemez");
     }
 }

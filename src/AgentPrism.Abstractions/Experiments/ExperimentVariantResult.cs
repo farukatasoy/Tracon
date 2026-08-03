@@ -40,6 +40,12 @@ public sealed record ExperimentVariantResult
     /// <summary>Toplam token.</summary>
     public long TotalTokens { get; init; }
 
+    /// <summary>Bu kolun toplam maliyeti. Fiyat tanimsizsa <see langword="null"/>.</summary>
+    public decimal? TotalCost { get; init; }
+
+    /// <summary>Para birimi. <see cref="TotalCost"/> doluysa doludur.</summary>
+    public string? Currency { get; init; }
+
     /// <summary>
     /// Sonuclanmis calistirmalarin ortalama suresi (milisaniye). Hic sonuclanmamissa
     /// <see langword="null"/>.
