@@ -115,4 +115,39 @@ public static class TestData
             UpdatedAt = now,
         };
     }
+
+    /// <summary>Ornek bir eval takimi uretir.</summary>
+    /// <param name="tenantId">Kiraci kimligi.</param>
+    /// <param name="name">Takim adi.</param>
+    /// <returns>Takim.</returns>
+    public static EvalSuite EvalSuite(string tenantId = "default", string name = "musteri-destek-takimi")
+        => new()
+        {
+            TenantId = tenantId,
+            Name = name,
+            AgentName = "test-agent",
+            Checks = State("""[{"kind":"nonEmpty","minLength":1}]"""),
+        };
+
+    /// <summary>Ornek bir eval vakasi uretir.</summary>
+    /// <param name="suiteId">Ait oldugu takimin kimligi.</param>
+    /// <param name="query">Sorgu metni.</param>
+    /// <returns>Vaka.</returns>
+    public static EvalCase EvalCase(Guid suiteId, string query = "soru")
+        => new() { SuiteId = suiteId, Seq = 0, Query = query };
+
+    /// <summary>Ornek bir eval kosusu uretir.</summary>
+    /// <param name="tenantId">Kiraci kimligi.</param>
+    /// <param name="suiteId">Olculen takimin kimligi.</param>
+    /// <returns>Kosu.</returns>
+    public static EvalRun EvalRun(string tenantId, Guid suiteId)
+        => new()
+        {
+            Id = AgentPrismId.NewId(),
+            TenantId = tenantId,
+            SuiteId = suiteId,
+            Status = EvalRunStatus.Pending,
+            Total = 1,
+            StartedAt = DateTimeOffset.UtcNow,
+        };
 }

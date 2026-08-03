@@ -44,6 +44,7 @@ public sealed class AgentPrismRunOptions : AgentRunOptions
         RootRunId = other.RootRunId;
         Depth = other.Depth;
         Budget = other.Budget;
+        Kind = other.Kind;
     }
 
     /// <summary>
@@ -86,6 +87,17 @@ public sealed class AgentPrismRunOptions : AgentRunOptions
     /// dal kendi butcesini alir ve sinir anlamini yitirir.
     /// </remarks>
     public AgentRunBudget? Budget { get; init; }
+
+    /// <summary>
+    /// Bu calistirmanin turu. <see langword="null"/> ise sarmalayici
+    /// <see cref="RunKind.Agent"/> varsayar.
+    /// </summary>
+    /// <remarks>
+    /// Eval is isleyicisi (Faz 18) her vaka calistirmasinda <see cref="RunKind.Eval"/>
+    /// verir; boylece <see cref="IRunStore.GetStatisticsAsync"/> bu sentetik
+    /// cagrilari ozetten haric tutabilir.
+    /// </remarks>
+    public RunKind? Kind { get; init; }
 
     /// <inheritdoc />
     /// <remarks>
