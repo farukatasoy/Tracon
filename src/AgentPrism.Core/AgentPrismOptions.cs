@@ -363,6 +363,17 @@ public sealed class AgentPrismObservabilityOptions
     /// <strong>Varsayilan kapali</strong> — bu icerikler kisisel veri tasiyabilir.
     /// </summary>
     public bool RecordSensitiveData { get; set; }
+
+    /// <summary>
+    /// <c>agentprism.agent.version</c> etiketi span'lere ve <c>agentprism.runs</c>/
+    /// <c>agentprism.run.duration</c> metriklerine eklensin mi.
+    /// </summary>
+    /// <remarks>
+    /// Varsayilan <see langword="true"/>'dur: surum numarasi zamanla artar ve agent
+    /// basina onlarca zaman serisi uretir — kabul edilebilir bir kardinalite. Cok
+    /// sik surum degistiren kurulumlarda kapatilabilir.
+    /// </remarks>
+    public bool IncludeAgentVersionTag { get; set; } = true;
 }
 
 /// <summary>Calistirma kaydinin ne kadar ayrinti tutacagini belirler.</summary>

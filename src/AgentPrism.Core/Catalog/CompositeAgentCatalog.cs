@@ -98,7 +98,66 @@ public sealed class CompositeAgentCatalog : IAgentCatalog
         return null;
     }
 
+    /// <inheritdoc />
+    public async ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, CancellationToken cancellationToken = default)
+    {
+        if (version is null)
+        {
+            return await ResolveAsync(agentName, cancellationToken).ConfigureAwait(false);
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(agentName);
+
+        foreach (var source in _sources)
+        {
+            // Bu kaynak agent'i hic tanimiyorsa siradaki kaynaga gec (oncelik sirasi
+            // ListAsync/ResolveAsync ile aynidir: kucuk Priority once denenir).
+            var descriptor = await FindDescriptorOrNullAsync(source, agentName, cancellationToken).ConfigureAwait(false);
+
+            if (descriptor is null)
+            {
+                continue;
+            }
+
+            if (source is not IVersionedAgentSource versioned)
+            {
+                throw new AgentPrismException(
+                    $"'{agentName}' agent'i '{source.Name}' kaynagindan geliyor ve surum gecmisi tutmuyor " +
+                    "(kod kaynagi). Belirli bir surume karsi calistirma veya deney bu agent icin desteklenmez.");
+            }
+
+            var agent = await versioned.ResolveVersionAsync(agentName, version.Value, cancellationToken).ConfigureAwait(false)
+                ?? throw new AgentPrismException($"'{agentName}' agent'inin {version.Value} numarali surumu bulunamadi.");
+
+            foreach (var decorator in _decorators)
+            {
+                agent = decorator.Decorate(agent, descriptor);
+            }
+
+            return agent;
+        }
+
+        return null;
+    }
+
     private static async ValueTask<AgentDescriptor> FindDescriptorAsync(
+        IAgentSource source,
+        string agentName,
+        CancellationToken cancellationToken)
+    {
+        var descriptor = await FindDescriptorOrNullAsync(source, agentName, cancellationToken).ConfigureAwait(false);
+
+        // Kaynak agent'i cozdu ancak listesinde gostermiyor. Sarmalayicilarin
+        // calisabilmesi icin en az bilgiyi tasiyan bir ozet uretiyoruz.
+        return descriptor ?? new AgentDescriptor
+        {
+            Name = agentName,
+            Origin = AgentDefinitionOrigin.Code,
+            SourceName = source.Name,
+        };
+    }
+
+    private static async ValueTask<AgentDescriptor?> FindDescriptorOrNullAsync(
         IAgentSource source,
         string agentName,
         CancellationToken cancellationToken)
@@ -113,13 +172,6 @@ public sealed class CompositeAgentCatalog : IAgentCatalog
             }
         }
 
-        // Kaynak agent'i cozdu ancak listesinde gostermiyor. Sarmalayicilarin
-        // calisabilmesi icin en az bilgiyi tasiyan bir ozet uretiyoruz.
-        return new AgentDescriptor
-        {
-            Name = agentName,
-            Origin = AgentDefinitionOrigin.Code,
-            SourceName = source.Name,
-        };
+        return null;
     }
 }

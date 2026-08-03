@@ -43,6 +43,7 @@ public sealed class PostgresTestContext : IAsyncDisposable
         Jobs = new PostgresJobStore(dataSource, wrapped);
         JobSchedules = new PostgresJobScheduleStore(dataSource, wrapped);
         Evals = new PostgresEvalStore(dataSource, wrapped);
+        Experiments = new PostgresExperimentStore(dataSource, wrapped, TenantContext);
         Migrations = new MigrationRunner(dataSource, wrapped, NullLogger<MigrationRunner>.Instance);
     }
 
@@ -105,6 +106,9 @@ public sealed class PostgresTestContext : IAsyncDisposable
 
     /// <summary>Eval takim/vaka/kosu deposu (Faz 18).</summary>
     public PostgresEvalStore Evals { get; }
+
+    /// <summary>A/B deneyi deposu (Faz 19).</summary>
+    public PostgresExperimentStore Experiments { get; }
 
     /// <summary>Migration calistiricisi.</summary>
     public MigrationRunner Migrations { get; }

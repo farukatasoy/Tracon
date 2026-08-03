@@ -19,6 +19,8 @@ import { JobDetailScreen } from './screens/job-detail';
 import { EvalsScreen } from './screens/evals';
 import { EvalSuiteDetailScreen } from './screens/eval-detail';
 import { EvalRunDetailScreen } from './screens/eval-run-detail';
+import { ExperimentsScreen } from './screens/experiments';
+import { ExperimentDetailScreen } from './screens/experiment-detail';
 import { RunDetailScreen } from './screens/run-detail';
 import { ToolsScreen } from './screens/tools';
 import { ModelsScreen } from './screens/models';
@@ -66,6 +68,11 @@ const routes = (meta: Meta): RouteDefinition[] => [
   {
     pattern: 'evals/:name',
     render: (params) => <EvalSuiteDetailScreen name={params['name'] ?? ''} meta={meta} />,
+  },
+  { pattern: 'experiments', render: () => <ExperimentsScreen meta={meta} /> },
+  {
+    pattern: 'experiments/:name',
+    render: (params) => <ExperimentDetailScreen name={params['name'] ?? ''} meta={meta} />,
   },
   { pattern: 'runs', render: () => <RunsScreen /> },
   { pattern: 'runs/:id', render: (params) => <RunDetailScreen id={params['id'] ?? ''} /> },

@@ -38,6 +38,30 @@ public sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
     }
 
     /// <inheritdoc />
+    public ValueTask<AgentDefinition?> GetVersionAsync(string name, int version, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+
+        if (!_versions.TryGetValue(name, out var history))
+        {
+            return new ValueTask<AgentDefinition?>((AgentDefinition?)null);
+        }
+
+        lock (history)
+        {
+            foreach (var candidate in history)
+            {
+                if (candidate.Version == version)
+                {
+                    return new ValueTask<AgentDefinition?>(candidate);
+                }
+            }
+
+            return new ValueTask<AgentDefinition?>((AgentDefinition?)null);
+        }
+    }
+
+    /// <inheritdoc />
     public ValueTask<IReadOnlyList<AgentDefinition>> ListAsync(CancellationToken cancellationToken = default)
     {
         var current = new List<AgentDefinition>(_versions.Count);

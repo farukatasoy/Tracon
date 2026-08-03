@@ -104,5 +104,8 @@ public static class AgentPrismDiagnostics
 
         /// <summary>Ozetleme cagrisinin cikti token sayisi.</summary>
         public const string CompactionOutputTokens = "agentprism.compaction.output_tokens";
+
+        /// <summary>Olculen tanim surumu.</summary>
+        public const string AgentVersion = "agentprism.agent.version";
     }
 }

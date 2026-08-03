@@ -229,6 +229,8 @@ internal static class EvalEndpoints
         [FromServices] IJobStore jobStore,
         [FromServices] ITenantContext tenants,
         [FromServices] IOptionsMonitor<AgentPrismSchedulingOptions> schedulingOptions,
+        [FromServices] IAgentCatalog catalog,
+        [FromServices] IAgentDefinitionStore definitions,
         CancellationToken cancellationToken)
     {
         var suite = await evalStore.GetSuiteAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
@@ -236,6 +238,29 @@ internal static class EvalEndpoints
         if (suite is null)
         {
             return SuiteNotFound(name);
+        }
+
+        if (request?.AgentVersion is { } requestedVersion)
+        {
+            var descriptors = await catalog.ListAsync(cancellationToken).ConfigureAwait(false);
+            var descriptor = descriptors.FirstOrDefault(
+                candidate => string.Equals(candidate.Name, suite.AgentName, StringComparison.Ordinal));
+
+            if (descriptor?.Origin == AgentDefinitionOrigin.Code)
+            {
+                return TypedResults.Problem(
+                    title: "Surum secilemez",
+                    detail: $"'{suite.AgentName}' kodda tanimlidir ve surum gecmisi tutmaz.",
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
+
+            if (await definitions.GetVersionAsync(suite.AgentName, requestedVersion, cancellationToken).ConfigureAwait(false) is null)
+            {
+                return TypedResults.Problem(
+                    title: "Surum bulunamadi",
+                    detail: $"'{suite.AgentName}' agent'inin {requestedVersion} numarali surumu yok.",
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
         }
 
         var cases = await evalStore.ListCasesAsync(suite.Id, cancellationToken).ConfigureAwait(false);
@@ -269,7 +294,7 @@ internal static class EvalEndpoints
                 Kind = JobKind.Eval,
                 TargetName = suite.AgentName,
                 Status = JobStatus.Pending,
-                Payload = BuildRunPayload(suite.Name, request?.ModelId, request?.NumRepetitions),
+                Payload = BuildRunPayload(suite.Name, request?.ModelId, request?.NumRepetitions, request?.AgentVersion),
                 ScheduledFor = now,
                 CreatedAt = now,
             },
@@ -337,12 +362,13 @@ internal static class EvalEndpoints
         return TypedResults.Ok(new EvalRunDetailResponse { Run = run, Results = results });
     }
 
-    private static JsonElement BuildRunPayload(string suiteName, string? modelId, int? numRepetitions)
+    private static JsonElement BuildRunPayload(string suiteName, string? modelId, int? numRepetitions, int? agentVersion)
         => JsonSerializer.SerializeToElement(new
         {
             suiteName,
             modelId,
             numRepetitions,
+            agentVersion,
         });
 
     private static ProblemHttpResult InvalidSuite(string detail)

@@ -111,6 +111,31 @@ public abstract class AgentDefinitionStoreContract : IAsyncLifetime
         => (await Store.GetAsync("yok")).ShouldBeNull();
 
     [Fact]
+    public async Task Belirli_surum_getirilebilir()
+    {
+        await Store.SaveAsync(TestData.Definition("a") with { Instructions = "birinci" });
+        await Store.SaveAsync(TestData.Definition("a") with { Instructions = "ikinci" });
+
+        var first = await Store.GetVersionAsync("a", 1);
+        var second = await Store.GetVersionAsync("a", 2);
+
+        first!.Instructions.ShouldBe("birinci");
+        second!.Instructions.ShouldBe("ikinci");
+    }
+
+    [Fact]
+    public async Task Olmayan_surum_null_doner()
+    {
+        await Store.SaveAsync(TestData.Definition("a"));
+
+        (await Store.GetVersionAsync("a", 99)).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Olmayan_agentin_surumu_null_doner()
+        => (await Store.GetVersionAsync("yok", 1)).ShouldBeNull();
+
+    [Fact]
     public async Task Listeleme_ada_gore_siralar()
     {
         await Store.SaveAsync(TestData.Definition("gamma"));

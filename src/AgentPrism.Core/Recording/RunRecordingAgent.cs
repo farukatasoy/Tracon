@@ -41,6 +41,8 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     private readonly TimeProvider _timeProvider;
     private readonly string? _modelId;
     private readonly AgentPrismAgentGraphOptions _graphOptions;
+    private readonly int? _agentVersion;
+    private readonly bool _includeAgentVersionTag;
 
     /// <summary>Yeni bir kayit sarmalayicisi olusturur.</summary>
     /// <param name="innerAgent">Sarmalanan agent.</param>
@@ -55,6 +57,15 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     /// <param name="graphOptions">
     /// Cagri agaci sinirlari. <see langword="null"/> ise varsayilanlar kullanilir.
     /// </param>
+    /// <param name="agentVersion">
+    /// Agent'in katalog ozetinden gelen guncel tanim surumu. Bilinmiyorsa (ornegin
+    /// kod agent'i) <see langword="null"/>. Bir A/B deneyi tarafindan cozulen bir
+    /// calistirmada <see cref="AgentPrismRunOptions.AgentVersion"/> bunun uzerine yazar.
+    /// </param>
+    /// <param name="includeAgentVersionTag">
+    /// <see cref="AgentPrismDiagnostics.Tags.AgentVersion"/> etiketi span'e ve metriklere
+    /// eklensin mi. Bkz. <see cref="AgentPrismObservabilityOptions.IncludeAgentVersionTag"/>.
+    /// </param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
     public RunRecordingAgent(
         AIAgent innerAgent,
@@ -66,7 +77,9 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         RunTraceCollector? traceCollector = null,
         string? modelId = null,
         TimeProvider? timeProvider = null,
-        AgentPrismAgentGraphOptions? graphOptions = null)
+        AgentPrismAgentGraphOptions? graphOptions = null,
+        int? agentVersion = null,
+        bool includeAgentVersionTag = true)
         : base(innerAgent)
     {
         ArgumentNullException.ThrowIfNull(runStore);
@@ -83,6 +96,8 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         _modelId = modelId;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _graphOptions = graphOptions ?? new AgentPrismAgentGraphOptions();
+        _agentVersion = agentVersion;
+        _includeAgentVersionTag = includeAgentVersionTag;
     }
 
     /// <inheritdoc />
@@ -268,6 +283,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         var tenantId = _tenantContext.TenantId;
         var sessionId = session is null ? null : GetSessionId(session);
         var depth = Math.Max(prismOptions?.Depth ?? 0, 0);
+        var agentVersion = prismOptions?.AgentVersion ?? _agentVersion;
 
         var activity = ActivitySource.StartActivity(AgentPrismDiagnostics.RunActivityName, ActivityKind.Internal);
 
@@ -286,6 +302,11 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             if (_modelId is not null)
             {
                 activity.SetTag(AgentPrismDiagnostics.Tags.ModelId, _modelId);
+            }
+
+            if (agentVersion is { } version && _includeAgentVersionTag)
+            {
+                activity.SetTag(AgentPrismDiagnostics.Tags.AgentVersion, version);
             }
 
             if (prismOptions?.ParentRunId is { } parent)
@@ -319,9 +340,22 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             Budget = prismOptions?.Budget ?? (depth == 0 ? _graphOptions.CreateBudget() : null),
             Writer = writer,
             ExtraUsage = new CompactionUsageAccumulator(),
+            AgentVersion = agentVersion,
+            ExperimentId = prismOptions?.ExperimentId,
+            Variant = prismOptions?.Variant,
         };
 
-        return new RunStart(scope, writer, sessionId, isStreaming, activity, prismOptions?.ParentRunId, prismOptions?.Kind ?? RunKind.Agent);
+        return new RunStart(
+            scope,
+            writer,
+            sessionId,
+            isStreaming,
+            activity,
+            prismOptions?.ParentRunId,
+            prismOptions?.Kind ?? RunKind.Agent,
+            agentVersion,
+            prismOptions?.ExperimentId,
+            prismOptions?.Variant);
     }
 
     private async ValueTask<RunScope> BeginRunAsync(RunStart start, CancellationToken cancellationToken)
@@ -344,6 +378,9 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                 // dondururdu.
                 RootRunId = start.Scope.Depth == 0 ? null : start.Scope.RootRunId,
                 Depth = start.Scope.Depth,
+                AgentVersion = start.AgentVersion,
+                ExperimentId = start.ExperimentId,
+                Variant = start.Variant,
             },
             cancellationToken).ConfigureAwait(false);
 
@@ -356,7 +393,8 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             _timeProvider.GetTimestamp(),
             start.Scope.Budget,
             start.Scope.ExtraUsage,
-            OwnsTrace: start.Scope.Depth == 0);
+            OwnsTrace: start.Scope.Depth == 0,
+            AgentVersion: start.AgentVersion);
     }
 
     private static RunError ApprovalError(string toolNames)
@@ -398,7 +436,14 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
 
         var elapsed = _timeProvider.GetElapsedTime(scope.StartedAt);
 
-        _metrics?.RecordRun(scope.AgentName, status, scope.TenantId, _modelId, elapsed, usage);
+        _metrics?.RecordRun(
+            scope.AgentName,
+            status,
+            scope.TenantId,
+            _modelId,
+            elapsed,
+            usage,
+            agentVersion: _includeAgentVersionTag ? scope.AgentVersion : null);
 
         if (scope.Activity is null)
         {
@@ -567,7 +612,10 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         bool IsStreaming,
         Activity? Activity,
         Guid? ParentRunId,
-        RunKind Kind);
+        RunKind Kind,
+        int? AgentVersion,
+        Guid? ExperimentId,
+        string? Variant);
 
     /// <summary>Tek bir calistirmanin kayit durumu.</summary>
     private sealed record RunScope(
@@ -579,5 +627,6 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         long StartedAt,
         AgentRunBudget? Budget,
         CompactionUsageAccumulator? ExtraUsage,
-        bool OwnsTrace);
+        bool OwnsTrace,
+        int? AgentVersion);
 }

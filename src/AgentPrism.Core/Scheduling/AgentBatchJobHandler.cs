@@ -8,7 +8,7 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// Agent'i cozmek ve calistirmak icin HTTP katmaninin kullandigi ayni
-/// HTTP-bagimsiz yol izlenir: <see cref="IAgentCatalog.ResolveAsync"/> ile
+/// HTTP-bagimsiz yol izlenir: <see cref="IAgentCatalog.ResolveAsync(string, CancellationToken)"/> ile
 /// cozulen agent zaten calistirma kaydi dekoratoru ile sarilidir; her
 /// calistirma normal bir <c>runs</c> satiri olarak <see cref="IRunStore"/>'a
 /// yazilir. Ogeler <strong>sirayla</strong> islenir (Faz 17 acik sorusu 1,

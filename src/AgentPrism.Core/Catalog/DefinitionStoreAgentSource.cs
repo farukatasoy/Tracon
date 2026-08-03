@@ -6,7 +6,7 @@ namespace AgentPrism;
 /// <see cref="IAgentDefinitionStore"/> icindeki tanimlari katalogda gosteren kaynak.
 /// Arayuzden olusturulan agent'lar bu kaynaktan gelir.
 /// </summary>
-public sealed class DefinitionStoreAgentSource : IAgentSource
+public sealed class DefinitionStoreAgentSource : IVersionedAgentSource
 {
     private readonly IAgentDefinitionStore _store;
     private readonly AgentDefinitionCompiler _compiler;
@@ -71,6 +71,28 @@ public sealed class DefinitionStoreAgentSource : IAgentSource
         ArgumentNullException.ThrowIfNull(agentName);
 
         var definition = await _store.GetAsync(agentName, cancellationToken).ConfigureAwait(false);
+
+        if (definition is null)
+        {
+            return null;
+        }
+
+        var skills = await _compiler.ResolveSkillsAsync(definition, cancellationToken).ConfigureAwait(false);
+        var callable = await _compiler.ResolveCallableAgentsAsync(definition, cancellationToken).ConfigureAwait(false);
+
+        return _cache.GetOrAdd(
+            definition.Name,
+            definition.Version,
+            CompiledAgentCache.CombineFingerprints(skills.Fingerprint, callable.Fingerprint),
+            () => _compiler.Compile(definition, callable));
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<AIAgent?> ResolveVersionAsync(string agentName, int version, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(agentName);
+
+        var definition = await _store.GetVersionAsync(agentName, version, cancellationToken).ConfigureAwait(false);
 
         if (definition is null)
         {

@@ -12,7 +12,7 @@ namespace AgentPrism;
 /// <remarks>
 /// <para>
 /// Agent'i cozmek ve calistirmak icin HTTP katmaninin ve <see cref="AgentBatchJobHandler"/>'in
-/// kullandigi ayni HTTP-bagimsiz yol izlenir: her vaka <see cref="IAgentCatalog.ResolveAsync"/>
+/// kullandigi ayni HTTP-bagimsiz yol izlenir: her vaka <see cref="IAgentCatalog.ResolveAsync(string, CancellationToken)"/>
 /// ile cozulen agent uzerinde <strong>yeni bir oturumda</strong> (session: null)
 /// calistirilir. Boylece agent zaten calistirma kaydi dekoratoru ile sarili
 /// oldugundan her vaka kendiliginden kendi <c>runs</c> satirini uretir
@@ -40,7 +40,7 @@ internal sealed class EvalJobHandler(
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var (suiteName, modelOverride, numRepetitions) = ParsePayload(context.Job.Payload);
+        var (suiteName, modelOverride, numRepetitions, agentVersion) = ParsePayload(context.Job.Payload);
 
         var suite = await evalStore.GetSuiteAsync(context.Job.TenantId, suiteName, cancellationToken).ConfigureAwait(false)
             ?? throw new AgentPrismException($"'{suiteName}' adinda bir eval takimi bulunamadi.");
@@ -52,7 +52,7 @@ internal sealed class EvalJobHandler(
 
         try
         {
-            await RunSuiteAsync(context, suite, evalRun, modelOverride, numRepetitions, cancellationToken)
+            await RunSuiteAsync(context, suite, evalRun, modelOverride, numRepetitions, agentVersion, cancellationToken)
                 .ConfigureAwait(false);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
@@ -88,19 +88,28 @@ internal sealed class EvalJobHandler(
         EvalRun evalRun,
         string? modelOverride,
         int numRepetitions,
+        int? agentVersion,
         CancellationToken cancellationToken)
     {
         var descriptors = await catalog.ListAsync(cancellationToken).ConfigureAwait(false);
         var descriptor = descriptors.FirstOrDefault(
             candidate => string.Equals(candidate.Name, suite.AgentName, StringComparison.Ordinal));
 
+        // Sabit surum pinlenir: eval kosusu "su surum ne kadar iyi" sorusuna
+        // cevap vermelidir, kosu sirasinda tanim guncellenirse bile.
         await evalStore
-            .MarkRunRunningAsync(evalRun.Id, descriptor?.Version, modelOverride ?? descriptor?.Model?.Model, cancellationToken)
+            .MarkRunRunningAsync(evalRun.Id, agentVersion ?? descriptor?.Version, modelOverride ?? descriptor?.Model?.Model, cancellationToken)
             .ConfigureAwait(false);
 
-        var agent = await catalog.ResolveAsync(suite.AgentName, cancellationToken).ConfigureAwait(false)
-            ?? throw new AgentPrismException(
-                $"'{suite.AgentName}' adinda bir agent katalogda yok. Eval takiminin agent'i silinmis olabilir.");
+        // Eval, deney (Experiment) kavramindan bagimsizdir: bir varyanta degil,
+        // sabit bir surume karsi calisir. Gerekce: docs/19-SURUM-KARSILASTIRMA-VE-AB.md,
+        // acik soru 2.
+        var agent = agentVersion is { } version
+            ? await catalog.ResolveAsync(suite.AgentName, version, cancellationToken).ConfigureAwait(false)
+                ?? throw new AgentPrismException($"'{suite.AgentName}' agent'inin {version} numarali surumu bulunamadi.")
+            : await catalog.ResolveAsync(suite.AgentName, cancellationToken).ConfigureAwait(false)
+                ?? throw new AgentPrismException(
+                    $"'{suite.AgentName}' adinda bir agent katalogda yok. Eval takiminin agent'i silinmis olabilir.");
 
         var cases = await evalStore.ListCasesAsync(suite.Id, cancellationToken).ConfigureAwait(false);
         var casesById = cases.ToDictionary(static evalCase => evalCase.Id);
@@ -296,7 +305,7 @@ internal sealed class EvalJobHandler(
         return (allRepetitionsPassed, inputTokens, outputTokens);
     }
 
-    private static (string SuiteName, string? ModelId, int NumRepetitions) ParsePayload(JsonElement payload)
+    private static (string SuiteName, string? ModelId, int NumRepetitions, int? AgentVersion) ParsePayload(JsonElement payload)
     {
         if (payload.ValueKind != JsonValueKind.Object ||
             !payload.TryGetProperty("suiteName", out var suiteNameElement) ||
@@ -315,7 +324,12 @@ internal sealed class EvalJobHandler(
             ? Math.Max(1, repsElement.GetInt32())
             : 1;
 
-        return (suiteNameElement.GetString()!, modelId, numRepetitions);
+        var agentVersion = payload.TryGetProperty("agentVersion", out var versionElement) &&
+            versionElement.ValueKind == JsonValueKind.Number
+            ? versionElement.GetInt32()
+            : (int?)null;
+
+        return (suiteNameElement.GetString()!, modelId, numRepetitions, agentVersion);
     }
 
     private static string? DescribeFailure(bool passed, IDictionary<string, EvaluationMetric> metrics)

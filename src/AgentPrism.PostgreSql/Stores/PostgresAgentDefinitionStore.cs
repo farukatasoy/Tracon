@@ -70,6 +70,29 @@ public sealed class PostgresAgentDefinitionStore : IAgentDefinitionStore
     }
 
     /// <inheritdoc />
+    public async ValueTask<AgentDefinition?> GetVersionAsync(string name, int version, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+
+        var tenantId = _tenantContext.TenantId;
+
+        var command = CreateCommand(_sql.SelectAgentDefinitionVersion);
+        command.Parameters.AddWithValue("tenant_id", tenantId);
+        command.Parameters.AddWithValue("name", name);
+        command.Parameters.AddWithValue("version", version);
+
+        return await NpgsqlHelpers.ReadSingleAsync(
+            command,
+            reader => ReadDefinition(
+                reader.GetString(0),
+                name,
+                version,
+                tenantId,
+                NpgsqlHelpers.GetTimestamp(reader, 1)),
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
     public async ValueTask<IReadOnlyList<AgentDefinition>> ListAsync(CancellationToken cancellationToken = default)
     {
         var tenantId = _tenantContext.TenantId;

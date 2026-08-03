@@ -140,6 +140,17 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         // kuyrugu depolariyla ayni gerekce, kendi durum makinesini tasir.
         services.Replace(ServiceDescriptor.Singleton<IEvalStore, PostgresEvalStore>());
 
+        // A/B deneyleri (Faz 19). IAgentDefinitionStore ile ayni gerekceyle
+        // denetim izi dekoratoruyle sarilir: Admin'in bilincli bir karari,
+        // yurutmenin yan urunu degil.
+        services.Replace(ServiceDescriptor.Singleton<IExperimentStore, AuditingExperimentStore>(
+            static provider => new AuditingExperimentStore(
+                ActivatorUtilities.CreateInstance<PostgresExperimentStore>(provider),
+                provider.GetRequiredService<IAuditLog>(),
+                provider.GetRequiredService<ITenantContext>(),
+                provider.GetRequiredService<IAuditActorResolver>(),
+                provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingExperimentStore>>())));
+
         services.Replace(ServiceDescriptor.Singleton<ISessionStore, AuditingSessionStore>(
             static provider => new AuditingSessionStore(
                 ActivatorUtilities.CreateInstance<PostgresSessionStore>(provider),

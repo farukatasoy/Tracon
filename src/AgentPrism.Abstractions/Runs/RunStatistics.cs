@@ -85,6 +85,9 @@ public sealed record RunStatistics
     /// </summary>
     public IReadOnlyList<RunModelStatistics> ByModel { get; init; } = [];
 
+    /// <summary>Tanim surumu bazinda kirilim. Surumu bilinmeyen calistirmalar bu listede yer almaz.</summary>
+    public IReadOnlyList<RunVersionStatistics> ByVersion { get; init; } = [];
+
     /// <summary>
     /// Sonuclanmis calistirmalar icindeki hata orani (0–1). Hic sonuclanmis
     /// calistirma yoksa <see langword="null"/>.
@@ -120,6 +123,25 @@ public sealed record RunModelStatistics
     public long OutputTokens { get; init; }
 
     /// <summary>Toplam token.</summary>
+    public long TotalTokens { get; init; }
+}
+
+/// <summary>Bir tanim surumunun calistirma ozeti.</summary>
+public sealed record RunVersionStatistics
+{
+    /// <summary>Bu kirilimin ait oldugu agent adi.</summary>
+    public required string AgentName { get; init; }
+
+    /// <summary>Tanim surumu.</summary>
+    public required int Version { get; init; }
+
+    /// <summary>Bu surumle yapilan toplam calistirma sayisi.</summary>
+    public required long TotalRuns { get; init; }
+
+    /// <summary>Bu surumun hata ile biten calistirma sayisi.</summary>
+    public required long FailedRuns { get; init; }
+
+    /// <summary>Bu surumun toplam token kullanimi.</summary>
     public long TotalTokens { get; init; }
 }
 

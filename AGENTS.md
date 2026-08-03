@@ -78,9 +78,10 @@ Faz bittiğinde **`faz-tamamlama` skill'i uygulanır**. Atlanmaz.
 | 16 | `docs/16-WORKFLOWS-ARAYUZ.md` | ✅ Tamamlandı |
 | 17 | `docs/17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md` | ✅ Tamamlandı |
 | 18 | `docs/18-DEGERLENDIRME.md` | ✅ Tamamlandı |
-| 19–30 | `docs/IKINCI-FAZ-YOL-HARITASI.md` | 📋 Planlandı — **sıradaki Faz 19** |
+| 19 | `docs/19-SURUM-KARSILASTIRMA-VE-AB.md` | ✅ Tamamlandı |
+| 20–30 | `docs/IKINCI-FAZ-YOL-HARITASI.md` | 📋 Planlandı — **sıradaki Faz 20** |
 
-**Sıradaki faz: 19** (`docs/19-SURUM-KARSILASTIRMA-VE-AB.md`).
+**Sıradaki faz: 20** (`docs/20-MALIYET-VE-GOSTERGE-PANELI.md`).
 
 **İkinci faz (8–30):** `docs/IKINCI-FAZ-YOL-HARITASI.md` sırayı, bağımlılıkları
 ve migration numaralarını tutar. Faz listesi orada; burada tekrarlanmaz —

@@ -182,6 +182,40 @@ public sealed class EvalJobHandlerTests
         results.Count.ShouldBe(2);
     }
 
+    [Fact]
+    public async Task Payloaddaki_surum_pinlenir_ve_o_surume_karsi_calisir()
+    {
+        var evalStore = new InMemoryEvalStore();
+        var agent = new MapAgent();
+        var catalog = new SingleAgentCatalog(agent, version: 7, modelId: "gpt-test");
+        var handler = new EvalJobHandler(evalStore, catalog, new EvalCheckRegistry([]), NullLogger<EvalJobHandler>.Instance);
+
+        var suite = await evalStore.SaveSuiteAsync(Suite(Checks("""[{"kind":"nonEmpty","minLength":1}]""")));
+        var cases = await evalStore.ReplaceCasesAsync(suite.Id, [CaseInput("soru")]);
+        var jobId = Guid.NewGuid();
+        var run = await evalStore.CreateRunAsync(Run(suite.Id, jobId));
+        var reported = new List<JobItemResult>();
+
+        var context = BuildContextForCases(
+            suite,
+            cases,
+            jobId,
+            reported,
+            payloadOverride: PayloadWithVersion(suite.Name, 3));
+
+        await handler.ExecuteAsync(context);
+
+        // Katalogun guncel surumu 7 olsa da, payload'daki 3 pinlenir: eval bir
+        // varyanta degil, sabit bir surume karsi calisir.
+        catalog.LastRequestedVersion.ShouldBe(3);
+
+        var completed = await evalStore.GetRunAsync(TenantId, run.Id);
+        completed!.AgentVersion.ShouldBe(3);
+    }
+
+    private static JsonElement PayloadWithVersion(string suiteName, int agentVersion)
+        => JsonSerializer.SerializeToElement(new { suiteName, agentVersion });
+
     private static EvalJobHandler CreateHandler(IEvalStore evalStore, AIAgent agent, int? agentVersion = 7, string? modelId = "gpt-test")
         => new(
             evalStore,
@@ -285,6 +319,15 @@ public sealed class EvalJobHandlerTests
 
         public ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken = default)
             => new(string.Equals(agentName, AgentName, StringComparison.Ordinal) ? agent : null);
+
+        /// <summary>Son <see cref="ResolveAsync(string, int?, CancellationToken)"/> cagrisinin surumu.</summary>
+        public int? LastRequestedVersion { get; private set; }
+
+        public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, CancellationToken cancellationToken = default)
+        {
+            LastRequestedVersion = version;
+            return new(string.Equals(agentName, AgentName, StringComparison.Ordinal) ? agent : null);
+        }
     }
 
     /// <summary>Girdiye gore yapilandirilabilir cevap ureten en kucuk sahte agent.</summary>

@@ -697,4 +697,109 @@ public sealed class UiTests(BrowserFixture browsers)
             .WaitForAsync(new() { Timeout = 10_000 });
         await session.Page.GetByText("passed", new() { Exact = true }).WaitForAsync();
     }
+
+    // --- Surum karsilastirma ve A/B deneyleri (Faz 19) ---
+
+    [Fact]
+    public async Task Surum_diffi_iki_surumu_karsilastirir()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await CreateAgentWithTwoVersionsAsync(host, session, "diff-agent", "ilk talimat", "ikinci talimat");
+
+        await session.Page.GotoAsync($"{host.UiAddress}/agents/diff-agent");
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "diff-agent" }).WaitForAsync();
+
+        await session.Page.GetByTestId("version-checkbox-1").CheckAsync();
+        await session.Page.GetByTestId("version-checkbox-2").CheckAsync();
+
+        // Iki surum secildiginde ham iki tanim cekilir ve satir bazli diff cizilir;
+        // her iki talimat metni de (biri "-", biri "+" olarak) gorunur olmalidir.
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Comparing v1 → v2" })
+            .WaitForAsync(new() { Timeout = 10_000 });
+
+        // "ilk talimat"/"ikinci talimat" ayrica Instructions panelinde ve ham
+        // Definition JSON'unda da gorunur; diff satirlari span.break-all
+        // sinifiyla ayirt edilir.
+        await session.Page.Locator("span.break-all", new() { HasText = "ilk talimat" }).First.WaitForAsync();
+        await session.Page.Locator("span.break-all", new() { HasText = "ikinci talimat" }).First.WaitForAsync();
+    }
+
+    [Fact]
+    public async Task Deney_olusturulur_baslatilir_ve_trafik_sonuc_tablosuna_yansir()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await CreateAgentWithTwoVersionsAsync(host, session, "exp-agent", "v1 talimati", "v2 talimati");
+
+        await session.Page.GotoAsync($"{host.UiAddress}/experiments");
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Experiments" }).First.WaitForAsync();
+
+        await session.Page.GetByTestId("new-experiment").ClickAsync();
+        await session.Page.GetByTestId("experiment-name").FillAsync("e2e-deneyi");
+        await session.Page.GetByTestId("experiment-agent-name").FillAsync("exp-agent");
+
+        // Surum dropdown'u agent adi girildikten sonra agentVersions sorgusuyla dolar.
+        await session.Page.GetByTestId("variant-name-0").FillAsync("control");
+        await session.Page.GetByTestId("variant-version-0").SelectOptionAsync("1");
+        await session.Page.GetByTestId("variant-weight-0").FillAsync("50");
+
+        await session.Page.GetByTestId("variant-name-1").FillAsync("v2");
+        await session.Page.GetByTestId("variant-version-1").SelectOptionAsync("2");
+        await session.Page.GetByTestId("variant-weight-1").FillAsync("50");
+
+        await session.Page.GetByTestId("experiment-save").ClickAsync();
+
+        await session.Page.GetByRole(AriaRole.Link, new() { Name = "e2e-deneyi" }).ClickAsync();
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "e2e-deneyi" }).WaitForAsync();
+
+        await session.Page.GetByTestId("experiment-start").ClickAsync();
+        await session.Page.GetByText("running", new() { Exact = true }).WaitForAsync(new() { Timeout = 10_000 });
+
+        // Deney calisirken agent'a bir istek gonderilir; atama deterministik
+        // oldugu icin bu calistirma iki koldan birine yazilir.
+        await session.Page.GotoAsync($"{host.UiAddress}/playground/exp-agent");
+        await session.Page.GetByTestId("playground-input").FillAsync("merhaba");
+        await session.Page.GetByTestId("playground-send").ClickAsync();
+        await session.Page.GetByText("Echo: merhaba").WaitForAsync(new() { Timeout = 20_000 });
+
+        await session.Page.GotoAsync($"{host.UiAddress}/experiments/e2e-deneyi");
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "e2e-deneyi" }).WaitForAsync();
+
+        // Sonuc tablosu ham sayilari gosterir; en az bir kolda toplam 1 calistirma
+        // gorunmelidir. Istatistiksel bir "kazanan" iddiasi hicbir yerde yoktur.
+        await session.Page.GetByRole(AriaRole.Cell, new() { Name = "1", Exact = true }).First
+            .WaitForAsync(new() { Timeout = 15_000 });
+
+        await session.Page.GetByTestId("experiment-stop").ClickAsync();
+        await session.Page.GetByText("stopped", new() { Exact = true }).WaitForAsync(new() { Timeout = 10_000 });
+    }
+
+    /// <summary>
+    /// Arayuzden bir veritabani agent'i olusturur, sonra talimatlarini degistirip
+    /// ikinci bir surum uretir. Diff ve deney testlerinin ortak on kosulu.
+    /// </summary>
+    private static async Task CreateAgentWithTwoVersionsAsync(
+        UiHost host,
+        Session session,
+        string name,
+        string firstInstructions,
+        string secondInstructions)
+    {
+        await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
+        await session.Page.GetByTestId("agent-name").FillAsync(name);
+        await session.Page.GetByTestId("agent-instructions").FillAsync(firstInstructions);
+        await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModelProvider.ModelName);
+        await session.Page.GetByTestId("agent-save").ClickAsync();
+
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = name }).WaitForAsync(new() { Timeout = 15_000 });
+
+        await session.Page.GetByRole(AriaRole.Link, new() { Name = "Edit" }).ClickAsync();
+        await session.Page.GetByTestId("agent-instructions").FillAsync(secondInstructions);
+        await session.Page.GetByTestId("agent-save").ClickAsync();
+
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = name }).WaitForAsync(new() { Timeout = 15_000 });
+    }
 }
