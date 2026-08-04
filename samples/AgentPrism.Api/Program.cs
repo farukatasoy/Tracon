@@ -37,6 +37,9 @@
 //
 // Calistirmadan once sirlari ayarlayin:
 //   dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=localhost;Database=AgentPrism;Username=...;Password=..."
+//
+// SQL Server icin (PostgreSQL yerine; ikisi birden verilmez):
+//   dotnet user-secrets set "AgentPrism:SqlServer:ConnectionString" "Server=localhost,1433;Database=AgentPrism;User Id=sa;Password=...;TrustServerCertificate=true"
 //   dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" "sk-..."
 //   dotnet user-secrets set "AgentPrism:Providers:OpenAICompatible:openrouter:ApiKey" "sk-or-..."
 
@@ -323,12 +326,27 @@ if (openRouterEnabled)
 
 // Kalicilik istege baglidir. Baglanti dizesi yoksa uygulama bellek ici
 // depolarla calisir; hicbir sey kirilmaz, yalnizca veri surecle birlikte biter.
+//
+// 🚨 IKI SAGLAYICI AYNI ANDA KAYDEDILMEZ. Ikisi de kaydedilirse son cagri
+// kazanir ve verinin hangi veritabanina gittigi cagri sirasina baglanir;
+// AgentPrism bunu acilista uyari olarak loglar (K-183). Ornek bu yuzden
+// bilerek tek bir saglayici secer.
 var postgreSql = builder.Configuration.GetSection(AgentPrismPostgreSqlOptions.SectionName);
-var persistenceEnabled = !string.IsNullOrWhiteSpace(postgreSql["ConnectionString"]);
+var sqlServer = builder.Configuration.GetSection(AgentPrismSqlServerOptions.SectionName);
 
-if (persistenceEnabled)
+var persistenceEnabled = true;
+
+if (!string.IsNullOrWhiteSpace(sqlServer["ConnectionString"]))
+{
+    agentPrism.UseSqlServer(sqlServer);
+}
+else if (!string.IsNullOrWhiteSpace(postgreSql["ConnectionString"]))
 {
     agentPrism.UsePostgreSql(postgreSql);
+}
+else
+{
+    persistenceEnabled = false;
 }
 
 // Cok kiracililik istege baglidir ve VARSAYILAN OLARAK KAPALIDIR. Acildiginda

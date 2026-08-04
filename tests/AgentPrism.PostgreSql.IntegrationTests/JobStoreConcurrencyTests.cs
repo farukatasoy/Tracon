@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using AgentPrism.PostgreSql.IntegrationTests.Infrastructure;
+using AgentPrism.StoreContracts;
 
 namespace AgentPrism.PostgreSql.IntegrationTests;
 
@@ -54,7 +55,7 @@ public sealed class JobStoreConcurrencyTests(PostgresFixture fixture)
         all.ToHashSet().SetEquals(expectedIds).ShouldBeTrue();
     }
 
-    private static async Task LeaseAllAsync(PostgresJobStore store, string owner, ConcurrentBag<Guid> leased)
+    private static async Task LeaseAllAsync(SqlJobStore store, string owner, ConcurrentBag<Guid> leased)
     {
         while (true)
         {

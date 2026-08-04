@@ -8,6 +8,12 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/AgentPrism/AgentPrism.csproj" />
+    <!--
+      SQL Server meta pakete DAHIL DEGILDIR: her tuketici Microsoft.Data.SqlClient
+      cekmek zorunda kalmasin diye (K-185). Kullanmak isteyen acikca referans
+      verir; ornek uygulama iki saglayiciyi da gosterebilmek icin verir.
+    -->
+    <ProjectReference Include="../../src/AgentPrism.SqlServer/AgentPrism.SqlServer.csproj" />
   </ItemGroup>
 
   <ItemGroup>

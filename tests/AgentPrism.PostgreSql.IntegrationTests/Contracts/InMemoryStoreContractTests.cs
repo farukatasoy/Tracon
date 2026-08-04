@@ -1,3 +1,4 @@
+using AgentPrism.StoreContracts;
 namespace AgentPrism.PostgreSql.IntegrationTests.Contracts;
 
 /// <summary>

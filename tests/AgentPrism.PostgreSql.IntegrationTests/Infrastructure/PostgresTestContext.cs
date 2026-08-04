@@ -1,6 +1,5 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using Npgsql;
 
 namespace AgentPrism.PostgreSql.IntegrationTests.Infrastructure;
@@ -13,7 +12,7 @@ namespace AgentPrism.PostgreSql.IntegrationTests.Infrastructure;
 /// verisini gormez, ve <c>SchemaName</c> ayarinin gercekten calistigi her testte
 /// dogrulanmis olur.
 /// </remarks>
-public sealed class PostgresTestContext : IAsyncDisposable
+internal sealed class PostgresTestContext : IAsyncDisposable
 {
     private PostgresTestContext(
         NpgsqlDataSource dataSource,
@@ -24,33 +23,44 @@ public sealed class PostgresTestContext : IAsyncDisposable
         Options = options;
         TenantContext = new FixedTenantContext(tenantId);
 
-        var wrapped = Microsoft.Extensions.Options.Options.Create(options);
+        var wrapped = new SqlStoreContext
+        {
+            DataSource = dataSource,
+            Dialect = new PostgresDialect(options.SchemaName),
+            CommandTimeoutSeconds = options.CommandTimeoutSeconds,
+            ProviderName = "PostgreSQL",
+        };
 
-        AgentDefinitions = new PostgresAgentDefinitionStore(dataSource, wrapped, TenantContext);
-        Runs = new PostgresRunStore(dataSource, wrapped, TenantContext);
-        Sessions = new PostgresSessionStore(dataSource, wrapped, TenantContext);
-        Traces = new PostgresTraceStore(dataSource, wrapped, TenantContext);
-        ApprovalRules = new PostgresToolApprovalRuleStore(dataSource, wrapped);
-        McpServers = new PostgresMcpServerStore(dataSource, wrapped);
-        Tenants = new PostgresTenantStore(dataSource, wrapped);
-        ChatHistory = new PostgresChatHistoryProvider(dataSource, wrapped, TenantContext);
-        AuditLog = new PostgresAuditLog(dataSource, wrapped);
-        SkillScriptGrants = new PostgresSkillScriptGrantStore(dataSource, wrapped);
-        Attachments = new PostgresAttachmentStore(dataSource, wrapped);
-        AgentFiles = new PostgresAgentFileStore(dataSource, wrapped, TenantContext);
-        Workflows = new PostgresWorkflowDefinitionStore(dataSource, wrapped);
-        WorkflowCheckpoints = new PostgresWorkflowCheckpointStore(dataSource, wrapped);
-        Jobs = new PostgresJobStore(dataSource, wrapped);
-        JobSchedules = new PostgresJobScheduleStore(dataSource, wrapped);
-        Evals = new PostgresEvalStore(dataSource, wrapped);
-        Experiments = new PostgresExperimentStore(dataSource, wrapped, TenantContext);
-        Quotas = new PostgresQuotaStore(dataSource, wrapped);
-        Webhooks = new PostgresWebhookStore(dataSource, wrapped);
-        Migrations = new MigrationRunner(dataSource, wrapped, NullLogger<MigrationRunner>.Instance);
+        StoreContext = wrapped;
+
+        AgentDefinitions = new SqlAgentDefinitionStore(wrapped, TenantContext);
+        Runs = new SqlRunStore(wrapped, TenantContext);
+        Sessions = new SqlSessionStore(wrapped, TenantContext);
+        Traces = new SqlTraceStore(wrapped, TenantContext);
+        ApprovalRules = new SqlToolApprovalRuleStore(wrapped);
+        McpServers = new SqlMcpServerStore(wrapped);
+        Tenants = new SqlTenantStore(wrapped);
+        ChatHistory = new SqlChatHistoryProvider(wrapped, TenantContext);
+        AuditLog = new SqlAuditLog(wrapped);
+        SkillScriptGrants = new SqlSkillScriptGrantStore(wrapped);
+        Attachments = new SqlAttachmentStore(wrapped);
+        AgentFiles = new SqlAgentFileStore(wrapped, TenantContext);
+        Workflows = new SqlWorkflowDefinitionStore(wrapped);
+        WorkflowCheckpoints = new SqlWorkflowCheckpointStore(wrapped);
+        Jobs = new SqlJobStore(wrapped);
+        JobSchedules = new SqlJobScheduleStore(wrapped);
+        Evals = new SqlEvalStore(wrapped);
+        Experiments = new SqlExperimentStore(wrapped, TenantContext);
+        Quotas = new SqlQuotaStore(wrapped);
+        Webhooks = new SqlWebhookStore(wrapped);
+        Migrations = new MigrationRunner(wrapped, NullLogger<MigrationRunner>.Instance);
     }
 
     /// <summary>Bu baglamin veri kaynagi.</summary>
     public NpgsqlDataSource DataSource { get; }
+
+    /// <summary>Paylasilan depo katmaninin baglami.</summary>
+    public SqlStoreContext StoreContext { get; }
 
     /// <summary>Bu baglamin ayarlari.</summary>
     public AgentPrismPostgreSqlOptions Options { get; }
@@ -59,64 +69,64 @@ public sealed class PostgresTestContext : IAsyncDisposable
     public ITenantContext TenantContext { get; }
 
     /// <summary>Agent tanim deposu.</summary>
-    public PostgresAgentDefinitionStore AgentDefinitions { get; }
+    public SqlAgentDefinitionStore AgentDefinitions { get; }
 
     /// <summary>Calistirma deposu.</summary>
-    public PostgresRunStore Runs { get; }
+    public SqlRunStore Runs { get; }
 
     /// <summary>Oturum deposu.</summary>
-    public PostgresSessionStore Sessions { get; }
+    public SqlSessionStore Sessions { get; }
 
     /// <summary>Span deposu (Faz 6).</summary>
-    public PostgresTraceStore Traces { get; }
+    public SqlTraceStore Traces { get; }
 
     /// <summary>Kalici onay kurali deposu (Faz 6).</summary>
-    public PostgresToolApprovalRuleStore ApprovalRules { get; }
+    public SqlToolApprovalRuleStore ApprovalRules { get; }
 
     /// <summary>MCP sunucu deposu (Faz 6).</summary>
-    public PostgresMcpServerStore McpServers { get; }
+    public SqlMcpServerStore McpServers { get; }
 
     /// <summary>Kiraci kaydi deposu (Faz 6).</summary>
-    public PostgresTenantStore Tenants { get; }
+    public SqlTenantStore Tenants { get; }
 
     /// <summary>Sohbet gecmisi saglayicisi.</summary>
-    public PostgresChatHistoryProvider ChatHistory { get; }
+    public SqlChatHistoryProvider ChatHistory { get; }
 
     /// <summary>Denetim izi defteri (Faz 9).</summary>
-    public PostgresAuditLog AuditLog { get; }
+    public SqlAuditLog AuditLog { get; }
 
     /// <summary>Script calistirma izni deposu (Faz 11).</summary>
-    public PostgresSkillScriptGrantStore SkillScriptGrants { get; }
+    public SqlSkillScriptGrantStore SkillScriptGrants { get; }
 
     /// <summary>Ek deposu (Faz 14).</summary>
-    public PostgresAttachmentStore Attachments { get; }
+    public SqlAttachmentStore Attachments { get; }
 
     /// <summary>Kalici agent dosya belleği (Faz 14).</summary>
-    public PostgresAgentFileStore AgentFiles { get; }
+    public SqlAgentFileStore AgentFiles { get; }
 
     /// <summary>Workflow tanim deposu (Faz 15).</summary>
-    public PostgresWorkflowDefinitionStore Workflows { get; }
+    public SqlWorkflowDefinitionStore Workflows { get; }
 
     /// <summary>Workflow kontrol noktasi deposu (Faz 15).</summary>
-    public PostgresWorkflowCheckpointStore WorkflowCheckpoints { get; }
+    public SqlWorkflowCheckpointStore WorkflowCheckpoints { get; }
 
     /// <summary>Is kuyrugu deposu (Faz 17).</summary>
-    public PostgresJobStore Jobs { get; }
+    public SqlJobStore Jobs { get; }
 
     /// <summary>Zamanlama deposu (Faz 17).</summary>
-    public PostgresJobScheduleStore JobSchedules { get; }
+    public SqlJobScheduleStore JobSchedules { get; }
 
     /// <summary>Eval takim/vaka/kosu deposu (Faz 18).</summary>
-    public PostgresEvalStore Evals { get; }
+    public SqlEvalStore Evals { get; }
 
     /// <summary>A/B deneyi deposu (Faz 19).</summary>
-    public PostgresExperimentStore Experiments { get; }
+    public SqlExperimentStore Experiments { get; }
 
     /// <summary>Kota deposu (Faz 21).</summary>
-    public PostgresQuotaStore Quotas { get; }
+    public SqlQuotaStore Quotas { get; }
 
     /// <summary>Webhook deposu (Faz 21).</summary>
-    public PostgresWebhookStore Webhooks { get; }
+    public SqlWebhookStore Webhooks { get; }
 
     /// <summary>Migration calistiricisi.</summary>
     public MigrationRunner Migrations { get; }
