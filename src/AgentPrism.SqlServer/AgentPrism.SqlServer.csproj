@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>AgentPrism icin SQL Server kalicilik katmani. Agent tanimlari, oturumlar, konusmalar, calistirmalar ve olaylar ayri bir 'agentprism' semasinda saklanir. Gomulu SQL migration'lari ile gelir. SQL Server 2019+ ve Azure SQL.</Description>
+    <PackageTags>$(CommonPackageTags);sqlserver;mssql;azure-sql;persistence</PackageTags>
+  </PropertyGroup>
+
+  <!--
+    AOT durumu OLCULDU (2026-08-04, Microsoft.Data.SqlClient 7.0.2, net10.0):
+    UseSqlServer() cagiran bir konsol uygulamasi `PublishAot=true` ile
+    `-p:TrimmerSingleWarn=false -p:SuppressTrimAnalysisWarnings=false`
+    altinda yayinlandi. Sonuc: SIFIR IL2xxx/IL3xxx uyarisi; native ikili
+    uretildi ve calistirildi (DI'dan IRunStore cozuldu).
+
+    Buna ragmen bayrak BILEREK false: statik analiz temiz olsa da CANLI bir
+    sunucuya karsi sorgu yolu AOT altinda henuz dogrulanmadi (bkz. Faz 23,
+    SQL Server container'i bu makinede kosturulamadi). Ayrica SqlClient'in
+    Azure AD kimlik dogrulama saglayicilari yansimaya dayanir ve tuketicinin
+    kullanabilecegi bir yoldur. Kutuphane bir vaadi ancak dogrulayabildiginde
+    verir; bayrak canli dogrulamadan sonra acilabilir.
+
+    Gerekce: docs/KARARLAR.md, karar K-181; durum tablosu MIMARI.md bolum 9.
+  -->
+  <PropertyGroup Label="Trim / AOT">
+    <AgentPrismAotCompatible>false</AgentPrismAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../AgentPrism.Core/AgentPrism.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" />
+  </ItemGroup>
+
+  <ItemGroup Label="Gomulu SQL migration'lari (Faz 23)">
+    <EmbeddedResource Include="Migrations/**/*.sql" />
+  </ItemGroup>
+
+  <!--
+    Paylasilan kaynak (Faz 23). AgentPrism.Sql.Shared bir paket DEGILDIR; ayni
+    dosyalar AgentPrism.PostgreSql tarafindan da derlenir. Gerekce: K-176.
+  -->
+  <ItemGroup Label="Paylasilan SQL kaynagi (Faz 23)">
+    <Compile Include="../AgentPrism.Sql.Shared/**/*.cs" LinkBase="Shared" />
+  </ItemGroup>
+
+</Project>

@@ -8,4 +8,13 @@
     <PackageReference Include="Testcontainers.PostgreSql" />
   </ItemGroup>
 
+  <!--
+    Paylasilan sozlesme testleri (Faz 23). Ayni soyut siniflar hem bu projede
+    hem AgentPrism.SqlServer.IntegrationTests icinde kosar; "yeni bir sozlesme
+    testi yazmak gerekmemelidir" kurali ancak kaynak tek yerdeyse gecerlidir.
+  -->
+  <ItemGroup Label="Paylasilan sozlesme testleri (Faz 23)">
+    <Compile Include="../Shared/**/*.cs" LinkBase="Shared" />
+  </ItemGroup>
+
 </Project>

@@ -1,0 +1,273 @@
+using System.Data.Common;
+using System.Text.Json;
+
+namespace AgentPrism;
+
+/// <summary>Webhook aboneliklerini ve teslim gecmisini PostgreSQL'de saklayan depo.</summary>
+/// <remarks>
+/// 🚨 Bu depo hicbir zaman bir <strong>sir</strong> yazmaz veya okumaz; yalnizca
+/// sirrin okunacagi yapilandirma anahtarinin <em>adini</em> tutar (K-059).
+/// Veritabani yedegi, denetim izi ve arayuz yaniti bu yuzden sir tasimaz.
+/// </remarks>
+internal sealed class SqlWebhookStore : IWebhookStore
+{
+    private readonly SqlStoreContext _context;
+    private readonly SqlQueriesBase _sql;
+
+    /// <summary>Yeni bir webhook deposu olusturur.</summary>
+    /// <param name="context">Depo baglami.</param>
+    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    public SqlWebhookStore(SqlStoreContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        _context = context;
+        _sql = context.Sql;
+    }
+
+    /// <summary>Saglayiciya ozgu davranislarin kapisi.</summary>
+    private SqlDialect Dialect => _context.Dialect;
+
+    /// <inheritdoc />
+    public async ValueTask<IReadOnlyList<WebhookSubscription>> ListSubscriptionsAsync(
+        string tenantId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+
+        var command = CreateCommand(_sql.SelectWebhookSubscriptions);
+        DbHelpers.Add(command, "tenant_id", tenantId);
+
+        return await DbHelpers.ReadListAsync(command, ReadSubscription, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<WebhookSubscription?> GetSubscriptionAsync(
+        string tenantId,
+        string name,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        var command = CreateCommand(_sql.SelectWebhookSubscription);
+        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.Add(command, "name", name);
+
+        return await DbHelpers.ReadSingleAsync(command, ReadSubscription, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<IReadOnlyList<WebhookSubscription>> FindForEventAsync(
+        string tenantId,
+        string eventType,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(eventType);
+
+        var command = CreateCommand(_sql.SelectWebhookSubscriptionsForEvent);
+        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.Add(command, "event_type", eventType);
+
+        return await DbHelpers.ReadListAsync(command, ReadSubscription, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<WebhookSubscription> SaveSubscriptionAsync(
+        WebhookSubscription subscription,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(subscription);
+
+        var command = CreateCommand(_sql.UpsertWebhookSubscription);
+        DbHelpers.Add(command, "id", subscription.Id);
+        DbHelpers.Add(command, "tenant_id", subscription.TenantId);
+        DbHelpers.Add(command, "name", subscription.Name);
+        DbHelpers.Add(command, "url", subscription.Url);
+        Dialect.AddTextArray(command, "events", subscription.Events);
+        Dialect.AddText(command, "secret_configuration_key", subscription.SecretConfigurationKey);
+        Dialect.AddJsonb(command, "headers", SerializeHeaders(subscription.Headers));
+        DbHelpers.Add(command, "enabled", subscription.Enabled);
+        DbHelpers.Add(command, "consecutive_failures", subscription.ConsecutiveFailures);
+        Dialect.AddTimestamp(command, "created_at", subscription.CreatedAt);
+        Dialect.AddTimestamp(command, "updated_at", subscription.UpdatedAt);
+
+        var saved = await DbHelpers.ReadSingleAsync(command, ReadSubscription, cancellationToken).ConfigureAwait(false);
+
+        return saved ?? subscription;
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<bool> DeleteSubscriptionAsync(
+        string tenantId,
+        string name,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        // Teslim gecmisi ON DELETE CASCADE ile birlikte silinir (migration 0012).
+        var command = CreateCommand(_sql.DeleteWebhookSubscription);
+        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.Add(command, "name", name);
+
+        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<bool> RecordSubscriptionOutcomeAsync(
+        Guid subscriptionId,
+        bool succeeded,
+        int disableThreshold,
+        DateTimeOffset updatedAt,
+        CancellationToken cancellationToken = default)
+    {
+        var command = CreateCommand(_sql.UpdateWebhookSubscriptionOutcome);
+        DbHelpers.Add(command, "id", subscriptionId);
+        DbHelpers.Add(command, "succeeded", succeeded);
+        DbHelpers.Add(command, "threshold", disableThreshold);
+        Dialect.AddTimestamp(command, "updated_at", updatedAt);
+
+        var result = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false);
+
+        return result is bool disabled && disabled;
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<WebhookDelivery> CreateDeliveryAsync(
+        WebhookDelivery delivery,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(delivery);
+
+        var command = CreateCommand(_sql.InsertWebhookDelivery);
+        DbHelpers.Add(command, "id", delivery.Id);
+        DbHelpers.Add(command, "subscription_id", delivery.SubscriptionId);
+        DbHelpers.Add(command, "tenant_id", delivery.TenantId);
+        DbHelpers.Add(command, "event_type", delivery.EventType);
+        DbHelpers.Add(command, "payload", delivery.Payload);
+        DbHelpers.Add(command, "status", (short)delivery.Status);
+        DbHelpers.Add(command, "attempt", (short)delivery.Attempt);
+        Dialect.AddInt32(command, "response_code", delivery.ResponseCode);
+        Dialect.AddText(command, "error", delivery.Error);
+        Dialect.AddTimestamp(command, "created_at", delivery.CreatedAt);
+        Dialect.AddTimestamp(command, "delivered_at", delivery.DeliveredAt);
+
+        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+
+        return delivery;
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<WebhookDelivery?> GetDeliveryAsync(
+        Guid deliveryId,
+        CancellationToken cancellationToken = default)
+    {
+        var command = CreateCommand(_sql.SelectWebhookDelivery);
+        DbHelpers.Add(command, "id", deliveryId);
+
+        return await DbHelpers.ReadSingleAsync(command, ReadDelivery, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async ValueTask RecordDeliveryResultAsync(
+        WebhookDeliveryResult result,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        var command = CreateCommand(_sql.UpdateWebhookDeliveryResult);
+        DbHelpers.Add(command, "id", result.DeliveryId);
+        DbHelpers.Add(command, "status", (short)result.Status);
+        DbHelpers.Add(command, "attempt", (short)result.Attempt);
+        Dialect.AddInt32(command, "response_code", result.ResponseCode);
+        Dialect.AddText(command, "error", result.Error);
+        Dialect.AddTimestamp(command, "recorded_at", result.RecordedAt);
+
+        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<IReadOnlyList<WebhookDelivery>> QueryDeliveriesAsync(
+        WebhookDeliveryQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var command = CreateCommand(_sql.SelectWebhookDeliveries);
+        DbHelpers.Add(command, "tenant_id", query.TenantId);
+
+        // 🚨 `(@p IS NULL OR col = @p)` deseninde parametre NULL olunca surucu
+        // tipi cikaramaz (`42P08`). Isteğe bagli suzgec parametreleri ACIKCA
+        // tiplenir.
+        Dialect.AddUuid(command, "subscription_id", query.SubscriptionId);
+        Dialect.AddInt16(command, "status", query.Status is { } status ? (short?)status : null);
+        DbHelpers.Add(command, "skip", Math.Max(0, query.Skip));
+        DbHelpers.Add(command, "take", Math.Max(1, query.Take));
+
+        return await DbHelpers.ReadListAsync(command, ReadDelivery, cancellationToken).ConfigureAwait(false);
+    }
+
+    private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
+
+    private static string SerializeHeaders(IReadOnlyDictionary<string, string> headers)
+    {
+        if (headers.Count == 0)
+        {
+            return "{}";
+        }
+
+        // Kaynak uretilmis baglam: AOT uyumlulugu icin yansimaya dayanan
+        // serilestirme kullanilmaz.
+        return JsonSerializer.Serialize(
+            headers.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase),
+            AgentPrismJsonContext.Default.DictionaryStringString);
+    }
+
+    private static Dictionary<string, string> DeserializeHeaders(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var parsed = JsonSerializer.Deserialize(json, AgentPrismJsonContext.Default.DictionaryStringString);
+
+        return parsed is null
+            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, string>(parsed, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static WebhookSubscription ReadSubscription(DbDataReader reader)
+        => new()
+        {
+            Id = reader.GetGuid(0),
+            TenantId = reader.GetString(1),
+            Name = reader.GetString(2),
+            Url = reader.GetString(3),
+            Events = reader.GetFieldValue<string[]>(4),
+            SecretConfigurationKey = DbHelpers.GetNullableString(reader, 5),
+            Headers = DeserializeHeaders(DbHelpers.GetNullableString(reader, 6)),
+            Enabled = reader.GetBoolean(7),
+            ConsecutiveFailures = reader.GetInt32(8),
+            CreatedAt = DbHelpers.GetTimestamp(reader, 9),
+            UpdatedAt = DbHelpers.GetTimestamp(reader, 10),
+        };
+
+    private static WebhookDelivery ReadDelivery(DbDataReader reader)
+        => new()
+        {
+            Id = reader.GetGuid(0),
+            SubscriptionId = reader.GetGuid(1),
+            TenantId = reader.GetString(2),
+            EventType = reader.GetString(3),
+            Payload = reader.GetString(4),
+            Status = (WebhookDeliveryStatus)reader.GetInt16(5),
+            Attempt = reader.GetInt16(6),
+            ResponseCode = reader.IsDBNull(7) ? null : reader.GetInt32(7),
+            Error = DbHelpers.GetNullableString(reader, 8),
+            CreatedAt = DbHelpers.GetTimestamp(reader, 9),
+            DeliveredAt = DbHelpers.GetNullableTimestamp(reader, 10),
+        };
+}
