@@ -17,4 +17,14 @@
     <EmbeddedResource Include="Migrations/**/*.sql" />
   </ItemGroup>
 
+  <!--
+    Paylasilan kaynak (Faz 23). AgentPrism.Sql.Shared bir paket DEGILDIR ve kendi
+    csproj dosyasi yoktur; dosyalar buraya ve AgentPrism.SqlServer'a dogrudan
+    derlenir. Boylece depo mantigi tek yerde yasar ama ucuncu bir NuGet paketi
+    yayinlanmaz. Gerekce: docs/KARARLAR.md, karar K-176.
+  -->
+  <ItemGroup Label="Paylasilan SQL kaynagi (Faz 23)">
+    <Compile Include="../AgentPrism.Sql.Shared/**/*.cs" LinkBase="Shared" />
+  </ItemGroup>
+
 </Project>

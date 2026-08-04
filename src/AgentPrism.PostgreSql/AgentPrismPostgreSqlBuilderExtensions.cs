@@ -85,11 +85,36 @@ public static class AgentPrismPostgreSqlBuilderExtensions
             provider.GetRequiredService<IOptions<AgentPrismPostgreSqlOptions>>().Value,
             provider.GetService<ILoggerFactory>()));
 
-        services.TryAddSingleton<MigrationRunner>();
+        // Paylasilan depo katmaninin baglami. Saglayiciya ozgu her sey burada
+        // toplanir; depolar Npgsql tipi gormez (Faz 23, K-176).
+        // Depo kayitlariyla ayni kural: son cagri kazanir. TryAdd olsaydi ikinci
+        // bir saglayici kaydedildiginde depolar yeni saglayiciya, baglam eskisine
+        // bakardi ve ikisi sessizce ayrisirdi.
+        services.Replace(ServiceDescriptor.Singleton(static provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<AgentPrismPostgreSqlOptions>>().Value;
+
+            return new SqlStoreContext
+            {
+                DataSource = provider.GetRequiredService<NpgsqlDataSource>(),
+                Dialect = new PostgresDialect(options.SchemaName),
+                CommandTimeoutSeconds = options.CommandTimeoutSeconds,
+                AutoApplyMigrations = options.AutoApplyMigrations,
+                ProviderName = "PostgreSQL",
+            };
+        }));
+
+        // Isaret birikir (TryAdd degil): birden fazla saglayici kayitliysa
+        // MigrationHostedService acilista uyarir. Gerekce: K-183.
+        services.AddSingleton(new SqlPersistenceRegistration("PostgreSQL"));
+
+        services.Replace(ServiceDescriptor.Singleton(static provider => new MigrationRunner(
+            provider.GetRequiredService<SqlStoreContext>(),
+            provider.GetRequiredService<ILogger<MigrationRunner>>())));
         services.AddHostedService<MigrationHostedService>();
 
         // Denetim izi defteri de bellek icinin yerini alir.
-        services.Replace(ServiceDescriptor.Singleton<IAuditLog, PostgresAuditLog>());
+        services.Replace(ServiceDescriptor.Singleton<IAuditLog, SqlAuditLog>());
 
         // Bellek ici depolarin yerini alir. TryAdd burada ise yaramaz.
         //
@@ -99,23 +124,23 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         // AddAgentPrism() kaydiyla ayni desen (docs/09-YONETISIM-VE-DENETIM-IZI.md).
         services.Replace(ServiceDescriptor.Singleton<IAgentDefinitionStore, AuditingAgentDefinitionStore>(
             static provider => new AuditingAgentDefinitionStore(
-                ActivatorUtilities.CreateInstance<PostgresAgentDefinitionStore>(provider),
+                ActivatorUtilities.CreateInstance<SqlAgentDefinitionStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<ITenantContext>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
                 provider.GetRequiredService<ILogger<AuditingAgentDefinitionStore>>())));
         services.Replace(
-            ServiceDescriptor.Singleton<IAgentSkillStore, PostgresAgentSkillStore>());
+            ServiceDescriptor.Singleton<IAgentSkillStore, SqlAgentSkillStore>());
 
         // Script calistirma izinleri de denetim izi dekoratoru ile sarilir:
         // izin vermek, sunucuda kod calistirma yetkisi vermektir.
         services.Replace(ServiceDescriptor.Singleton<ISkillScriptGrantStore, AuditingSkillScriptGrantStore>(
             static provider => new AuditingSkillScriptGrantStore(
-                ActivatorUtilities.CreateInstance<PostgresSkillScriptGrantStore>(provider),
+                ActivatorUtilities.CreateInstance<SqlSkillScriptGrantStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
                 provider.GetRequiredService<ILogger<AuditingSkillScriptGrantStore>>())));
-        services.Replace(ServiceDescriptor.Singleton<IRunStore, PostgresRunStore>());
+        services.Replace(ServiceDescriptor.Singleton<IRunStore, SqlRunStore>());
 
         // Workflow tanimlari ve kontrol noktalari (Faz 15). Tanim deposu denetim
         // izi dekoratoruyle sarilir; kontrol noktasi deposu sarilmaz: nokta bir
@@ -123,22 +148,22 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         // yazilir - denetim izini doldururdu.
         services.Replace(ServiceDescriptor.Singleton<IWorkflowDefinitionStore, AuditingWorkflowDefinitionStore>(
             static provider => new AuditingWorkflowDefinitionStore(
-                ActivatorUtilities.CreateInstance<PostgresWorkflowDefinitionStore>(provider),
+                ActivatorUtilities.CreateInstance<SqlWorkflowDefinitionStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
                 provider.GetRequiredService<ILogger<AuditingWorkflowDefinitionStore>>())));
         services.Replace(
-            ServiceDescriptor.Singleton<IWorkflowCheckpointStore, PostgresWorkflowCheckpointStore>());
+            ServiceDescriptor.Singleton<IWorkflowCheckpointStore, SqlWorkflowCheckpointStore>());
 
         // Is kuyrugu ve zamanlama depolari (Faz 17). Ikisi de sarilmaz: kuyruk
         // kendi durum makinesini (Pending/Leased/Running/...) tasir, workflow
         // kontrol noktasi deposu ile ayni gerekce.
-        services.Replace(ServiceDescriptor.Singleton<IJobStore, PostgresJobStore>());
-        services.Replace(ServiceDescriptor.Singleton<IJobScheduleStore, PostgresJobScheduleStore>());
+        services.Replace(ServiceDescriptor.Singleton<IJobStore, SqlJobStore>());
+        services.Replace(ServiceDescriptor.Singleton<IJobScheduleStore, SqlJobScheduleStore>());
 
         // Degerlendirme (eval) takim/vaka/kosu deposu (Faz 18). Sarilmaz: is
         // kuyrugu depolariyla ayni gerekce, kendi durum makinesini tasir.
-        services.Replace(ServiceDescriptor.Singleton<IEvalStore, PostgresEvalStore>());
+        services.Replace(ServiceDescriptor.Singleton<IEvalStore, SqlEvalStore>());
 
         // Kota ve webhook depolari (Faz 21).
         //
@@ -151,15 +176,15 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         // ve her calistirmada yazilir — denetim izini gurultuye bogardi. Ikisi
         // ayni sozlesmede yasadigi icin sarmalamak "ya hep ya hic"tir; yonetici
         // eylemleri HTTP katmaninda ayrica denetim izine yazilir.
-        services.Replace(ServiceDescriptor.Singleton<IQuotaStore, PostgresQuotaStore>());
-        services.Replace(ServiceDescriptor.Singleton<IWebhookStore, PostgresWebhookStore>());
+        services.Replace(ServiceDescriptor.Singleton<IQuotaStore, SqlQuotaStore>());
+        services.Replace(ServiceDescriptor.Singleton<IWebhookStore, SqlWebhookStore>());
 
         // A/B deneyleri (Faz 19). IAgentDefinitionStore ile ayni gerekceyle
         // denetim izi dekoratoruyle sarilir: Admin'in bilincli bir karari,
         // yurutmenin yan urunu degil.
         services.Replace(ServiceDescriptor.Singleton<IExperimentStore, AuditingExperimentStore>(
             static provider => new AuditingExperimentStore(
-                ActivatorUtilities.CreateInstance<PostgresExperimentStore>(provider),
+                ActivatorUtilities.CreateInstance<SqlExperimentStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<ITenantContext>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
@@ -167,27 +192,27 @@ public static class AgentPrismPostgreSqlBuilderExtensions
 
         services.Replace(ServiceDescriptor.Singleton<ISessionStore, AuditingSessionStore>(
             static provider => new AuditingSessionStore(
-                ActivatorUtilities.CreateInstance<PostgresSessionStore>(provider),
+                ActivatorUtilities.CreateInstance<SqlSessionStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<ITenantContext>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
                 provider.GetRequiredService<ILogger<AuditingSessionStore>>())));
-        services.Replace(ServiceDescriptor.Singleton<ITraceStore, PostgresTraceStore>());
+        services.Replace(ServiceDescriptor.Singleton<ITraceStore, SqlTraceStore>());
         services.Replace(ServiceDescriptor.Singleton<IToolApprovalRuleStore, AuditingToolApprovalRuleStore>(
             static provider => new AuditingToolApprovalRuleStore(
-                ActivatorUtilities.CreateInstance<PostgresToolApprovalRuleStore>(provider),
+                ActivatorUtilities.CreateInstance<SqlToolApprovalRuleStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
                 provider.GetRequiredService<ILogger<AuditingToolApprovalRuleStore>>())));
         services.Replace(ServiceDescriptor.Singleton<IMcpServerStore, AuditingMcpServerStore>(
             static provider => new AuditingMcpServerStore(
-                ActivatorUtilities.CreateInstance<PostgresMcpServerStore>(provider),
+                ActivatorUtilities.CreateInstance<SqlMcpServerStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
                 provider.GetRequiredService<ILogger<AuditingMcpServerStore>>())));
         services.Replace(ServiceDescriptor.Singleton<ITenantStore, AuditingTenantStore>(
             static provider => new AuditingTenantStore(
-                ActivatorUtilities.CreateInstance<PostgresTenantStore>(provider),
+                ActivatorUtilities.CreateInstance<SqlTenantStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<ITenantContext>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
@@ -195,18 +220,18 @@ public static class AgentPrismPostgreSqlBuilderExtensions
 
         // Sohbet gecmisi. AgentDefinitionCompiler bunu derledigi her agent'a baglar;
         // kayitli degilse MAF'in bellek ici varsayilani kullanilir.
-        services.Replace(ServiceDescriptor.Singleton<ChatHistoryProvider, PostgresChatHistoryProvider>());
+        services.Replace(ServiceDescriptor.Singleton<ChatHistoryProvider, SqlChatHistoryProvider>());
 
         // Ekler. IAttachmentStorage kayitliysa (S3/Blob) icerik orada yasar; bu
         // depo yalnizca ustveriyi tutar.
         services.Replace(ServiceDescriptor.Singleton<IAttachmentStore>(
-            static provider => ActivatorUtilities.CreateInstance<PostgresAttachmentStore>(provider)));
+            static provider => ActivatorUtilities.CreateInstance<SqlAttachmentStore>(provider)));
 
         // Kalici agent dosya belleği (Faz 14, 14.5): FileMemoryProvider ve
         // TextSearchProvider kod degismeden buraya doner (K-110).
 #pragma warning disable MAAI001 // AgentFileStore — gerekce AgentPrismServiceCollectionExtensions'daki ile ayni.
         services.Replace(ServiceDescriptor.Singleton<AgentFileStore>(
-            static provider => ActivatorUtilities.CreateInstance<PostgresAgentFileStore>(provider)));
+            static provider => ActivatorUtilities.CreateInstance<SqlAgentFileStore>(provider)));
 #pragma warning restore MAAI001
 
         return builder;

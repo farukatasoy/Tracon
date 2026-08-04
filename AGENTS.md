@@ -91,10 +91,11 @@ Bir dosya bütçeyi aşarsa **içerik silinmez** — alan dosyasına veya `docs/
 
 ### Faz durumu
 
-**Sıradaki faz: 23** — [`docs/23-SQL-SERVER.md`](docs/23-SQL-SERVER.md).
+**Sıradaki faz: 24** — [`docs/24-SQLITE.md`](docs/24-SQLITE.md).
 
-Faz 0–22 tamamlandı; **Faz 7 beklemede** (yayın zamanı kullanıcı kararı, K-068).
-Tam liste ve durum tablosu tek yerdedir: [`README.md`](README.md) yol haritası.
+Faz 0–22 tamam. **Faz 23 kodu tamam, testleri koşturulamadı** — bkz.
+[`docs/23-SQL-SERVER.md`](docs/23-SQL-SERVER.md) "Açık Kalan". **Faz 7 beklemede** (K-068).
+Durum tablosu: [`README.md`](README.md) yol haritası.
 Faz 21–30 sırası, bağımlılıkları ve migration numaraları:
 [`docs/IKINCI-FAZ-YOL-HARITASI.md`](docs/IKINCI-FAZ-YOL-HARITASI.md).
 Bu listeyi başka dosyada tekrarlama — iki yerde tutmak kayma üretir.

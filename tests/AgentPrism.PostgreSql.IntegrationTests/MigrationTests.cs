@@ -139,7 +139,15 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
         await using var dataSource = new NpgsqlDataSourceBuilder(fixture.ConnectionString).Build();
 
         var exception = Should.Throw<AgentPrismException>(
-            () => new MigrationRunner(dataSource, options, NullLogger<MigrationRunner>.Instance));
+            () => new MigrationRunner(
+                new SqlStoreContext
+                {
+                    DataSource = dataSource,
+                    Dialect = new PostgresDialect(options.Value.SchemaName),
+                    CommandTimeoutSeconds = options.Value.CommandTimeoutSeconds,
+                    ProviderName = "PostgreSQL",
+                },
+                NullLogger<MigrationRunner>.Instance));
 
         exception.Message.ShouldContain("sema adi");
     }

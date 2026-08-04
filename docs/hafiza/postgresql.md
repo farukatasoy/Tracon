@@ -4,6 +4,11 @@
 >
 > Bu dosya `MEMORY.md`'nin alan dosyasidir. Yalnizca bu alana
 > dokunurken okunur. Yeni not buraya eklenir, `MEMORY.md`'ye degil.
+>
+> **Faz 23'ten sonra:** depo uygulamalari `AgentPrism.Sql.Shared` altinda
+> PAYLASILIR ve `Npgsql` tipi gormez. PostgreSQL'e ozgu her sey
+> `PostgresQueries` + `PostgresDialect` icindedir. Paylasilan katman ve SQL
+> Server icin: [`sql-saglayicilari.md`](sql-saglayicilari.md).
 
 - **🚨 `jsonb` nesne anahtarlarını yeniden sıralar** (2026-08-02): PostgreSQL `jsonb` anahtarları önce uzunluğa, sonra bayta göre sıralar. System.Text.Json'ın polimorfik `$type` ayracı ilk özellik olmak zorundadır → okuma `JsonException: The metadata property ... is not the first property` verir. Opak veya polimorfik yükler **`json`** sütununda saklanır (`sessions.state`, `conversation_items.item`). Karar K-027.
 - **Migration checksum'ı satır sonu farkına duyarlı olmamalı** (2026-08-02): `MigrationDescriptor.ComputeChecksum` CRLF'i LF'e normalleştirir. Aksi halde farklı `core.autocrlf` ayarıyla klonlanan depo "migration değişmiş" hatası verir.

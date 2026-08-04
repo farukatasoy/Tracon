@@ -4,6 +4,7 @@
     <Project Path="src/AgentPrism.Abstractions/AgentPrism.Abstractions.csproj" />
     <Project Path="src/AgentPrism.Core/AgentPrism.Core.csproj" />
     <Project Path="src/AgentPrism.PostgreSql/AgentPrism.PostgreSql.csproj" />
+    <Project Path="src/AgentPrism.SqlServer/AgentPrism.SqlServer.csproj" />
     <Project Path="src/AgentPrism.OpenAI/AgentPrism.OpenAI.csproj" />
     <Project Path="src/AgentPrism.Mcp/AgentPrism.Mcp.csproj" />
     <Project Path="src/AgentPrism.Workflows/AgentPrism.Workflows.csproj" />
@@ -22,6 +23,7 @@
     <Project Path="tests/AgentPrism.Mcp.UnitTests/AgentPrism.Mcp.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.OpenAI.UnitTests/AgentPrism.OpenAI.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.PostgreSql.IntegrationTests/AgentPrism.PostgreSql.IntegrationTests.csproj" />
+    <Project Path="tests/AgentPrism.SqlServer.IntegrationTests/AgentPrism.SqlServer.IntegrationTests.csproj" />
     <Project Path="tests/AgentPrism.Workflows.UnitTests/AgentPrism.Workflows.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.Ui.E2ETests/AgentPrism.Ui.E2ETests.csproj" />
   </Folder>
@@ -49,6 +51,7 @@
     <File Path="docs/00-ALTYAPI.md" />
     <File Path="docs/01-CEKIRDEK-SOYUTLAMALAR.md" />
     <File Path="docs/02-POSTGRESQL-KALICILIK.md" />
+    <File Path="docs/23-SQL-SERVER.md" />
     <File Path="docs/03-SAGLAYICI-VE-DERLEYICI.md" />
     <File Path="docs/04-HTTP-API.md" />
     <File Path="docs/05-AGENTPRISM-UI.md" />

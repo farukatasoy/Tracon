@@ -13,13 +13,15 @@
 > Bir bölüm bir fazda büyüdüyse, **eski hâlini** arşive taşı; üst üste yığma.
 > Denetim: `python3 scripts/dokuman-bakim.py --denetle`
 
-## Güncel Durum (2026-08-03)
+## Güncel Durum (2026-08-04)
 
 | Paket | Rolü | Durum |
 |-------|------|-------|
 | `AgentPrism.Abstractions` | Sözleşmeler: kayıt, depo, katalog, iş, eval, deney, kota, webhook tipleri. Bağımlılığı yok. | ✅ |
 | `AgentPrism.Core` | Çalıştırma yolu: derleyici, dekoratörler, kayıt, denetim, skill, workflow doğrulama, fiyat, kota, olay yayını. | ✅ |
-| `AgentPrism.PostgreSql` | Kalıcılık: ham Npgsql + gömülü SQL + migration runner (0001–0012). | ✅ |
+| `AgentPrism.PostgreSql` | Kalıcılık: `PostgresQueries` + `PostgresDialect` + gömülü SQL (0001–0013). Depo mantığı `AgentPrism.Sql.Shared` ile paylaşılır. | ✅ |
+| `AgentPrism.SqlServer` | SQL Server 2019+ / Azure SQL. Aynı depolar, kendi T-SQL metni ve migration seti (`0001`). Meta pakete dâhil değil (K-185). | ⚠️ testleri koşturulmadı |
+| `AgentPrism.Sql.Shared` | **Paket değil** — paylaşılan kaynak: 20 depo (ADO.NET tabanı), `SqlQueriesBase`, `SqlDialect`, migration runner (K-176). | ✅ |
 | `AgentPrism.OpenAI` | OpenAI ve OpenAI uyumlu her sağlayıcı + sağlık denetimi. | ✅ |
 | `AgentPrism.Mcp` | Uzak MCP sunucularından tool keşfi. | ✅ |
 | `AgentPrism.Workflows` | MAF Workflows yürütmesi, kontrol noktası, human-in-the-loop. | ✅ |
@@ -29,14 +31,12 @@
 
 Hangi fazın hangi pakete ne eklediği: [`arsiv/PAKET-FAZ-GECMISI.md`](arsiv/PAKET-FAZ-GECMISI.md).
 
-Testler: **1231 .NET testi + 80 frontend birim testi geçiyor** — 556 birim testi
-(410 Core + 77 OpenAI + 69 Workflows) + 241 fonksiyonel test (TestHost, gerçek HTTP)
-+ 416 entegrasyon testi (Testcontainers, gerçek PostgreSQL) + 29 arayüz E2E testi
-(Playwright, gerçek Kestrel) + 80 Vitest testi (saf mantık; `npm run build` içinde
-koşar, dolayısıyla `dotnet build` de koşar). Build, test, pack ve format kapıları
-sıfır uyarı; `dotnet pack` **9 paket** üretir (Faz 21 yeni paket eklemedi — hız
-sınırı ASP.NET Core paylaşılan çerçevesinden gelir, K-158). Arayüz JavaScript
-bütçesi Faz 21 sonunda **118,8 KB / 250 KB gzip** (Faz 20 sonu 116,2 KB, +2,6 KB).
+Testler: **1235 .NET testi geçiyor** — 573 birim (412 Core + 77 OpenAI + 69
+Workflows + 15 Mcp) + 246 fonksiyonel (TestHost) + 416 entegrasyon
+(Testcontainers, gerçek PostgreSQL). Dört kapı sıfır uyarı; `dotnet pack`
+**10 paket** üretir. ⚠️ `AgentPrism.SqlServer`'ın 189 sözleşme testi + kendi
+testleri **henüz koşturulmadı** (geliştirme makinesinde amd64 emülasyonu kapalı,
+bkz. [`23-SQL-SERVER.md`](23-SQL-SERVER.md)).
 
 Bugün AgentPrism **işletilebilir bir kontrol düzlemidir**: agent'lar kodda veya
 arayüzden tanımlanır, her çalıştırma span ağacı + metrik + maliyetiyle kaydedilir,
@@ -52,30 +52,13 @@ Her fazın ayrıntısı kendi dokümanındadır (`docs/NN-*.md`).
 
 ## 1. Neden AgentPrism?
 
-Microsoft Agent Framework (MAF) 1.16.0 ile GA oldu. Güçlü bir agent runtime sunar. Ancak resmî geliştirici arayüzü **DevUI** hâlâ preview ve dokümanı açıkça şunu söyler:
+MAF 1.16.0 GA'dir ama resmî arayüzü **DevUI** preview'dur ve dokümani "not
+intended for production use" der: kalicilik yok, erisim loopback + sabit
+token, agent yonetimi salt okunur, PostgreSQL destegi yok.
 
-> "DevUI is a **sample app** to help you visualize and debug your agents and workflows during development. It is **not** intended for production use."
-
-DevUI'nin kaynak kodundan doğrulanan sınırları:
-
-| Sınır | Kanıt |
-|-------|-------|
-| Kalıcılık yok | `Hosting.OpenAI/ServiceCollectionExtensions.cs` yalnız `InMemoryConversationStorage`, `InMemoryAgentConversationIndex`, `InMemoryResponsesService` kaydeder |
-| Erişim kilitli | `DevUIAuthFilter` loopback dışı istekleri 403 döner; token tek sabit değer |
-| Agent yönetimi yok | `/v1/entities` ve `/v1/entities/{id}/info` salt okunur |
-| .NET dokümanı yok | Learn sayfası C# pivotunda "Coming Soon" |
-| PostgreSQL yok | Kalıcılık paketleri yalnız `CosmosNoSql` ve `Valkey` |
-
-**AgentPrism bu boşluğu doldurur.** DevUI'nin yerine geçmez — DevUI'nin bıraktığı yerden devam eder.
-
-| | DevUI | AgentPrism |
-|---|-------|------------|
-| Amaç | Geliştirme sırasında görselleştirme | Üretimde çalışan kontrol düzlemi |
-| Kalıcılık | Bellek içi | PostgreSQL (`agentprism` şeması) |
-| Erişim | Loopback + sabit token | Loopback + token + authorization policy |
-| Agent tanımı | Salt okunur | Kod + veritabanı, versiyonlu, geri alınabilir |
-| Çok kiracılılık | Yok | `tenant_id` ile her sorguda |
-| Denetim izi | Yok | `audit_log` |
+**AgentPrism bu boslugu doldurur** — DevUI'nin yerine gecmez, biraktigi yerden
+devam eder. Kaynak kodundan dogrulanmis sinir tablosu ve karsilastirma:
+[`arsiv/DEVUI-KARSILASTIRMASI.md`](arsiv/DEVUI-KARSILASTIRMASI.md).
 
 ---
 
@@ -125,6 +108,7 @@ flowchart RL
     AspNetCore --> Core
     UI --> AspNetCore
     Core --> Abstractions
+    SqlServer --> Core
     Meta["AgentPrism · meta"] --> UI
     Meta --> PostgreSql
     Meta --> OpenAI
@@ -134,10 +118,13 @@ flowchart RL
     classDef aot fill:#1f6f4a,stroke:#0d3b27,color:#ffffff
     classDef notaot fill:#7a4a1f,stroke:#3d250f,color:#ffffff
     class Abstractions,Core,PostgreSql,OpenAI aot
-    class AspNetCore,UI,Mcp,Workflows,Meta notaot
+    class AspNetCore,UI,Mcp,Workflows,Meta,SqlServer notaot
 ```
 
 > Yeşil paketler AOT uyumludur, turuncular değildir (karar K-006).
+>
+> `AgentPrism.SqlServer` meta pakete **dâhil değildir** (K-185): PostgreSQL
+> kullanan tüketici `Microsoft.Data.SqlClient` çekmemelidir.
 >
 > `AgentPrism.Mcp`, `AspNetCore`'a **referans vermez**: HTTP katmanı tazelemeyi
 > `IMcpToolRefresher` soyutlaması üzerinden tetikler (kesikli ok). Böylece MCP
@@ -728,6 +715,7 @@ Sonuç: MAF GA'ya geçtiğinde tek bir pakette sürüm güncellemesi yeterlidir.
 | `AgentPrism.Abstractions` | Evet | Saf sözleşmeler |
 | `AgentPrism.Core` | Evet | Yansımaya dayanan tek yol `AddToolsFrom` / `AddTool(Delegate)`; ikisi de `[RequiresUnreferencedCode]` + `[RequiresDynamicCode]` ile işaretli — uyarı bastırılmaz, çağırana iletilir |
 | `AgentPrism.PostgreSql` | Evet | Npgsql AOT uyumlu |
+| `AgentPrism.SqlServer` | Hayır *(vaat ertelendi)* | Ölçüldü: sıfır IL2/IL3; canlı sorgu doğrulanmadı (K-181) |
 | `AgentPrism.OpenAI` | Evet | Ölçüldü (Faz 3): `IsAotCompatible=true` ile sıfır uyarı. `OPENAI001`/`MAAI001` deneysel API tanılarıdır, AOT tanısı değil |
 | `AgentPrism.AspNetCore` | Hayır | Minimal API delege yönlendirmesi reflection kullanır. Bayrak `Directory.Build.targets` içinde türetilir — `src/Directory.Build.props` csproj'dan önce yüklendiği için orada türetmek `false` tercihini yok sayardı (K-006) |
 | `AgentPrism.UI` | Hayır | Gömülü varlık tarama + ASP.NET Core bağlantısı |

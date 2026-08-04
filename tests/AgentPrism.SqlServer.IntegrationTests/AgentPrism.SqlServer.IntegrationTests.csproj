@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/AgentPrism.SqlServer/AgentPrism.SqlServer.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Testcontainers.MsSql" />
+  </ItemGroup>
+
+  <!--
+    Paylasilan sozlesme testleri (Faz 23). AYNI soyut siniflar
+    AgentPrism.PostgreSql.IntegrationTests icinde de kosar. Bu fazin sinavi tam
+    olarak buydu: ucuncu bir kalicilik uygulamasi eklemek yeni bir sozlesme
+    testi yazmayi GEREKTIRMEMELIDIR.
+  -->
+  <ItemGroup Label="Paylasilan sozlesme testleri (Faz 23)">
+    <Compile Include="../Shared/**/*.cs" LinkBase="Shared" />
+  </ItemGroup>
+
+</Project>

@@ -51,8 +51,8 @@ public sealed class SkillStoreTests(PostgresFixture fixture)
         (await store.GetAsync("alpha", "invoice")).ShouldNotBeNull();
     }
 
-    private static PostgresAgentSkillStore CreateStore(PostgresTestContext context)
-        => new(context.DataSource, Options.Create(context.Options));
+    private static SqlAgentSkillStore CreateStore(PostgresTestContext context)
+        => new(context.StoreContext);
 
     private static AgentSkillDefinition Skill(string tenantId, string name)
         => new()

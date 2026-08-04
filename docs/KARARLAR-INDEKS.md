@@ -45,7 +45,7 @@ grep -n 'jsonb\|migration' docs/KARARLAR.md  # konu araması
 | L37 | Arayüzden tool istatistiği ve model sağlık kontrolü Faz 5'te gösterilmedi 👤 | 2026-08-02 |
 | L38 | Arayüz i18n altyapısı kurulmadı; dil İngilizce 👤🔁 | 2026-08-02 |
 
-## 2. Kalıcı Kararlar (175 kalem)
+## 2. Kalıcı Kararlar (185 kalem)
 
 | K | Satır | Karar | Tarih |
 |---|---|---|---|
@@ -224,3 +224,13 @@ grep -n 'jsonb\|migration' docs/KARARLAR.md  # konu araması
 | K-173 | L218 | Prompt "aktarma" bu fazda panoya kopyalama olarak kaldı, agent editör entegrasyonu ertelendi  | 2026-08-04 |
 | K-174 | L219 | Mod A kaynak okuması `AgentDefinitionCompiler`'a `IMcpResourceContextProviderFactory` soyutlamasıyla bağlanır  | 2026-08-04 |
 | K-175 | L220 | MCP kaynak toplu okuma önbelleği `ConcurrentDictionary`'e geçirildi  | 2026-08-04 |
+| K-176 | L221 | SQL kalıcılık mantığı `AgentPrism.Sql.Shared` altında PAYLAŞILAN KAYNAK olarak yaşar 👤 | 2026-08-04 |
+| K-177 | L222 | SQL Server upsert'lerinde `MERGE` KULLANILMAZ  | 2026-08-04 |
+| K-178 | L223 | Migration numaraları sağlayıcı başına bağımsızdır  | 2026-08-04 |
+| K-179 | L224 | Şema adı kuralı iki sağlayıcıda AYNIDIR  | 2026-08-04 |
+| K-180 | L225 | SQL Server'da yoğun yazılan tablolarda birincil anahtar NONCLUSTERED, kümelenmiş indeks zaman sütununda  | 2026-08-04 |
+| K-181 | L226 | `AgentPrism.SqlServer` AOT uyumlu olarak İŞARETLENMEZ  | 2026-08-04 |
+| K-182 | L227 | Diziler SQL Server'a JSON metni olarak taşınır  | 2026-08-04 |
+| K-183 | L228 | İki kalıcılık sağlayıcısı aynı anda kaydedilirse açılışta UYARI loglanır  | 2026-08-04 |
+| K-184 | L229 | SQL Server benzersiz indekste NULL'ları EŞİT sayar; `COALESCE`'li ifade indeksi gerekmez  | 2026-08-04 |
+| K-185 | L230 | `AgentPrism` meta paketi `AgentPrism.SqlServer`'ı İÇERMEZ  | 2026-08-04 |

@@ -1,4 +1,5 @@
 using AgentPrism.PostgreSql.IntegrationTests.Infrastructure;
+using AgentPrism.StoreContracts;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -30,11 +31,11 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
         // sardigi gercek uygulamaya bakilarak korunur.
         provider.GetRequiredService<IAgentDefinitionStore>()
             .ShouldBeOfType<AuditingAgentDefinitionStore>().AuditedInner
-            .ShouldBeOfType<PostgresAgentDefinitionStore>();
-        provider.GetRequiredService<IRunStore>().ShouldBeOfType<PostgresRunStore>();
+            .ShouldBeOfType<SqlAgentDefinitionStore>();
+        provider.GetRequiredService<IRunStore>().ShouldBeOfType<SqlRunStore>();
         provider.GetRequiredService<ISessionStore>()
             .ShouldBeOfType<AuditingSessionStore>().AuditedInner
-            .ShouldBeOfType<PostgresSessionStore>();
+            .ShouldBeOfType<SqlSessionStore>();
     }
 
     [Fact]
@@ -42,7 +43,7 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
     {
         using var provider = BuildProvider();
 
-        provider.GetRequiredService<ChatHistoryProvider>().ShouldBeOfType<PostgresChatHistoryProvider>();
+        provider.GetRequiredService<ChatHistoryProvider>().ShouldBeOfType<SqlChatHistoryProvider>();
     }
 
     [Fact]

@@ -1,117 +1,171 @@
 # Faz 23 — SQL Server Desteği
 
-> **Durum:** 📋 Planlandı
+> **Durum:** ✅ Kod tamam · ⚠️ **SQL Server sözleşme testleri henüz koşturulmadı** (bkz. "Açık Kalan")
 > **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-06**
-> **Önkoşul:** Yok — ama şema oturduktan sonra yapılması **çok daha ucuzdur**
-> **Sonraki bağımlı:** [Faz 24](24-SQLITE.md) — SQLite bu fazın soyutlamasını kullanır
-> **Paketler:** **`AgentPrism.SqlServer` (YENİ)** · `AgentPrism.Abstractions`
-> **Migration:** Kendi migration seti (`0001`'den başlar)
+> **Paketler:** **`AgentPrism.SqlServer` (YENİ)** · `AgentPrism.PostgreSql` (yeniden yapılandırıldı) · `AgentPrism.Sql.Shared` (yeni, **paket değil**)
+> **Migration:** Kendi migration seti — `0001_initial.sql`
+> **Kararlar:** K-176 … K-185
 
 ---
 
-## Bu Faza Başlarken
+## Bu Faza Başlarken (Faz 24 için)
 
-1. [`02-POSTGRESQL-KALICILIK.md`](02-POSTGRESQL-KALICILIK.md) — **şablon budur**
-2. [`KARARLAR.md`](KARARLAR.md) — **K-004** (elle SQL + gömülü migration), **K-013** (ayrı şema), **K-015** (uuid v7), **K-025** (`Replace`), **K-027** (`json` vs `jsonb`), **K-029** (şema adı gömülür)
-3. `tests/AgentPrism.PostgreSql.IntegrationTests/Contracts/` — **sözleşme testleri**
-4. Bu doküman
-
----
-
-## Amaç
-
-Kurumsal .NET dünyasının en yaygın veritabanı SQL Server'dır. `AgentPrism.PostgreSql`
-iyi bir şablondur ama **SQL birebir taşınmaz**.
-
-Bu faz aynı zamanda bir **tasarım sınavıdır**: Faz 2'de kurulan sözleşme testleri
-(`Contracts/`) tam olarak bunun için yazılmıştı. Üçüncü bir uygulama eklemek
-`PostgresStoreContractTests` kadar kolay olmalıdır. Zor oluyorsa soyutlama
-yanlıştır ve bu, düzeltilmesi gereken bir bulgudur.
+1. Bu doküman — özellikle **23.2 Paylaşım modeli**
+2. [`docs/hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md) — tuzaklar
+3. `grep -n "K-176\|K-177\|K-180\|K-184" docs/KARARLAR.md`
+4. `src/AgentPrism.Sql.Shared/README.md` — ne buraya girer, ne girmez
 
 ---
 
-## 23.1 — SQL Çeviri Tablosu
+## Ne Yapıldı
+
+Faz 23 bir **tasarım sınavıydı**: üçüncü bir kalıcılık uygulaması eklemek kolay
+olmalıydı. Sınavın sonucu, sözleşme testlerinin doğru kurulduğunu **ama**
+paylaşım sınırının fazla dar çizildiğini gösterdi.
+
+Doküman ilk hâlinde "paylaşılanlar: migration iskeleti, checksum, `SqlIdentifier`,
+tanım yükleri; paylaşılmayanlar: SQL metinleri, komut yardımcıları, **depo
+uygulamaları**" diyordu. Uygulama sırasında ölçülen bulgu bunu değiştirdi:
+
+> 21 `ON CONFLICT ... RETURNING` upsert'ün **tamamı** SQL Server'da
+> `UPDATE ... OUTPUT` + `IF @@ROWCOUNT = 0 INSERT ... OUTPUT` ile **aynı satır
+> kümesini** döndürebiliyor.
+
+Yani diyalekt farkı SQL metninin içinde kalıyor, C# akışına sızmıyor. Bu, depo
+uygulamalarının da paylaşılabileceği anlamına geldi ve **kapsam genişletildi**
+(K-176, kullanıcı kararı). Aksi hâlde ~4.000 satır depo mantığı ikinci, Faz
+24'te üçüncü kez yazılacaktı.
+
+---
+
+## 23.1 — Katman Şeması
+
+```mermaid
+flowchart TD
+    A["AgentPrism.Sql.Shared<br/>(paket DEGIL - paylasilan kaynak)"]
+    A --> A1["Stores/Sql*Store.cs<br/>20 depo, ADO.NET tabani"]
+    A --> A2["SqlQueriesBase<br/>139 sorgunun soyut yuzeyi"]
+    A --> A3["SqlDialect<br/>saglayiciya ozgu tek kapi"]
+    A --> A4["MigrationRunner + checksum"]
+
+    P["AgentPrism.PostgreSql"] -->|Compile Include| A
+    S["AgentPrism.SqlServer"] -->|Compile Include| A
+
+    P --> P1["PostgresQueries<br/>ON CONFLICT ... RETURNING"]
+    P --> P2["PostgresDialect<br/>Npgsql, pg_advisory_lock"]
+    P --> P3["Migrations/0001-0013.sql"]
+
+    S --> S1["SqlServerQueries<br/>UPDATE ... OUTPUT / IF @@ROWCOUNT"]
+    S --> S2["SqlServerDialect<br/>SqlClient, sp_getapplock"]
+    S --> S3["Migrations/0001_initial.sql"]
+```
+
+**Kural:** `AgentPrism.Sql.Shared` altındaki hiçbir dosya `Npgsql` veya
+`Microsoft.Data.SqlClient` ad alanına referans veremez. Depolar yalnız
+`DbDataSource`, `DbCommand`, `DbDataReader` tanır; sağlayıcıya özgü her şey
+`SqlDialect` üzerinden geçer.
+
+`Microsoft.Data.SqlClient` bir `DbDataSource` uygulaması **sunmaz**; ince bir
+uyarlayıcı yazıldı (`SqlServerDataSource`).
+
+---
+
+## 23.2 — Paylaşım Modeli (Faz 24'ün kullanacağı sözleşme)
+
+| Nerede | Ne |
+|--------|-----|
+| `AgentPrism.Sql.Shared/Stores/` | 20 depo uygulaması — **sağlayıcı eklerken dokunulmaz** |
+| `AgentPrism.Sql.Shared/Internal/SqlQueriesBase.cs` | 139 sorgunun adı ve XML dokümanı; metin yok |
+| `AgentPrism.Sql.Shared/Internal/SqlDialect.cs` | Parametre tipleme, dizi taşıma, migration kilidi, hata sınıflandırma |
+| `<Saglayici>/Internal/*Queries.cs` | O diyalektin 139 SQL metni |
+| `<Saglayici>/Internal/*Dialect.cs` | `SqlDialect` türevi |
+| `<Saglayici>/Migrations/*.sql` | Gömülü migration seti |
+| `<Saglayici>/AgentPrism*Options.cs` + `*BuilderExtensions.cs` | Public yüzey |
+
+**Yeni bir sağlayıcı eklemek** = 4 dosya + migration seti + test projesi.
+
+> 🚨 `SqlQueriesBase`'e yeni bir sorgu eklendiğinde **her alt sınıfta** karşılığı
+> yazılmalıdır. Yazılmazsa alan `string.Empty` kalır ve hata yalnızca çalışma
+> anında görünür.
+
+### Public yüzey daraldı
+
+Depo sınıfları artık `internal`'dır (`SqlRunStore`, `SqlSessionStore`, …).
+Önceden `AgentPrism.PostgreSql` bunları `public` veriyordu. Gerekçe: tüketici
+depolara arayüz üzerinden erişir, somut sınıfı `new`'lemesi için bir sebep
+yoktur; ayrıca `internal` bir `SqlStoreContext` alan `public` bir kurucu
+`CS0051` verirdi. `MigrationRunner` **public kaldı** — ayrı bir dağıtım adımında
+çalıştırılması dokümante edilmiş bir senaryodur (kurucusu `internal`, DI
+fabrikayla kaydeder). `PublicAPI.Shipped.txt` boş olduğu için bu daralma bedelsizdi.
+
+---
+
+## 23.3 — SQL Çeviri Tablosu (uygulanan hâli)
 
 | PostgreSQL | SQL Server | Not |
 |------------|-----------|-----|
-| `uuid` | `uniqueidentifier` | v7 sıralaması **korunur** ama SQL Server'ın `uniqueidentifier` sıralaması bayt sırasına göredir; kümelenmiş indeks kullanılacaksa dikkat |
-| `jsonb` | `nvarchar(max)` + `CHECK (ISJSON(col) = 1)` | Sorgulanan yollarda hesaplanmış sütun + indeks |
-| `json` | `nvarchar(max)` | K-027'nin `jsonb` sorunu SQL Server'da **yoktur** — sıra korunur |
-| `text` | `nvarchar(max)` | |
-| `timestamptz` | `datetimeoffset(7)` | UTC olarak yazılır |
-| `smallint` | `smallint` | |
-| `bigint` | `bigint` | |
-| `bytea` | `varbinary(max)` | Faz 14 |
-| `numeric(20,10)` | `decimal(20,10)` | Faz 20 |
-| `text[]` | Ayrı tablo veya JSON dizi | Faz 21'in `events` sütunu |
-| `ON CONFLICT DO UPDATE` | `MERGE` **veya** `UPDATE` + `IF @@ROWCOUNT = 0 INSERT` | Aşağıdaki uyarıya bakın |
-| `pg_advisory_lock` | `sp_getapplock` | Migration kilidi |
-| Kısmi indeks (`WHERE`) | Filtrelenmiş indeks (`WHERE`) | **Var** — birebir karşılık |
-| İfade üzerinde `UNIQUE INDEX` | Hesaplanmış sütun (`PERSISTED`) + `UNIQUE` | `COALESCE`'li benzersizlikler için |
-| `now()` | `SYSUTCDATETIME()` | |
-| `generate_series` | Sayı tablosu veya `WITH` özyineleme | Faz 20 zaman serisi |
-| `FOR UPDATE SKIP LOCKED` | `WITH (UPDLOCK, READPAST, ROWLOCK)` | Faz 17 iş kuyruğu |
+| `uuid` | `uniqueidentifier` | Sıralama bayt sırasına göre değil → K-180 |
+| `jsonb` / `json` | `nvarchar(max)` + `CHECK (ISJSON(c) = 1)` | `audit_log.before/after` hariç: gözlemlenebilirlik işlevselliği bozmaz |
+| `text` (anahtar) | `nvarchar(200)` | `nvarchar(max)` **indekslenemez** |
+| `text` (serbest) | `nvarchar(max)` | |
+| `timestamptz` | `datetimeoffset(7)` | Her zaman UTC yazılır, okunan ofset sıfır |
+| `boolean` | `bit` | SQL'de `= 1` / `= 0` |
+| `bytea` | `varbinary(max)` | Parametre uzunluğu `-1` verilir |
+| `numeric(20,10)` | `decimal(20,10)` | 🚨 Parametrede `Precision`/`Scale` **zorunlu** |
+| `text[]` | `nvarchar(max)` JSON dizi | `OPENJSON` (K-182) |
+| `ON CONFLICT DO UPDATE` | `UPDATE ... WITH (UPDLOCK, SERIALIZABLE) ... OUTPUT` + `IF @@ROWCOUNT = 0 INSERT ... OUTPUT` | `MERGE` **kullanılmaz** (K-177) |
+| `RETURNING` | `OUTPUT inserted.*` / `OUTPUT deleted.*` | |
+| `pg_advisory_lock` | `sp_getapplock` | Dönüş değeri negatifse hata verilir |
+| Kısmi indeks (`WHERE`) | Filtrelenmiş indeks (`WHERE`) | Birebir karşılık |
+| `COUNT(*) FILTER (WHERE p)` | `COALESCE(SUM(CASE WHEN p THEN 1 ELSE 0 END), 0)` | 🚨 `COALESCE` zorunlu: boş kümede `SUM` NULL döner |
+| `LEFT JOIN LATERAL ... ON TRUE` | `OUTER APPLY` | |
+| `LEAST` / `GREATEST` | `CASE` zinciri | 2019'da **yok** (2022 ile geldi) |
+| `EXTRACT(EPOCH FROM (a-b))*1000` | `DATEDIFF_BIG(millisecond, b, a)` | |
+| `generate_series` | Özyinelemeli CTE + `OPTION (MAXRECURSION 0)` | |
+| `date_trunc(@unit, x)` | `CASE` + `DATEADD/DATEDIFF` | Parametrik `DATEPART` yazılamaz; 2019 uyumu için `DATETRUNC` kullanılmaz |
+| `UNNEST(@a, @b) WITH ORDINALITY` | `OPENJSON(@a) JOIN OPENJSON(@b) ON [key]` | `[key]` 0 tabanlı |
+| `= ANY(dizi)` | `EXISTS (SELECT 1 FROM OPENJSON(c) WHERE value = @p)` | Tam eşleşme |
+| `FOR UPDATE SKIP LOCKED` | `WITH (UPDLOCK, READPAST, ROWLOCK)` | CTE üzerinden `UPDATE` |
+| `OFFSET @s LIMIT @t` | `OFFSET @s ROWS FETCH NEXT @t ROWS ONLY` | 🚨 `@t = 0` **hata verir** |
+| Veri değiştiren CTE | `DECLARE @t TABLE` + `OUTPUT ... INTO` | T-SQL'de yok |
 
-### 🚨 `MERGE` uyarısı
+### İki NULL tuzağı ters yönde çalışır (K-184)
 
-SQL Server'ın `MERGE` ifadesinin bilinen eşzamanlılık ve doğruluk sorunları
-vardır. Güvenli desen:
-
-```sql
-UPDATE ... WITH (UPDLOCK, SERIALIZABLE) WHERE key = @key;
-IF @@ROWCOUNT = 0
-    INSERT ...;
-```
-
-veya benzersiz indeks ihlalini yakalayan bir yeniden deneme. Karar uygulama
-oturumunda verilir ve **gerekçesiyle** yazılır.
+PostgreSQL'de NULL hiçbir NULL'a eşit değildir → `COALESCE`'li ifade indeksi
+gerekiyordu. SQL Server NULL'ları **eşit** sayar → düz `UNIQUE` yeter. Ama aynı
+kural `jobs (schedule_id, scheduled_for)` kısıtında **ters** tarafa düşer:
+PostgreSQL zamanlamasız işleri ayırt ederken SQL Server ikinci bir zamanlamasız
+işi engellerdi. Orada kısıt `WHERE schedule_id IS NOT NULL` filtreli benzersiz
+indekstir.
 
 ### K-027 burada geçerli değildir
 
 `sessions.state` ve `conversation_items.item` sütunlarının neden `json` (jsonb
 değil) olduğunu anlatan karar SQL Server'da uygulanamaz: `nvarchar(max)` zaten
-anahtar sırasını korur. Sorun kendiliğinden yoktur. **Bu, kararın yanlış olduğu
-anlamına gelmez** — PostgreSQL'de hâlâ geçerlidir.
+anahtar sırasını korur. **Bu, kararın yanlış olduğu anlamına gelmez** —
+PostgreSQL'de hâlâ geçerlidir. `SqlServerDialectTests.Polimorfik_json_bozulmadan_gidip_gelir`
+bunu kanıtlamak için yazıldı.
 
 ---
 
-## 23.2 — Ortak Soyutlama Nereye Konur?
+## 23.4 — Migration Seti
 
-Bu fazın ikinci sınavı: `AgentPrism.PostgreSql` ile `AgentPrism.SqlServer`
-arasında ne kadar kod paylaşılır?
+SQL Server tek bir `0001_initial.sql` taşır: PostgreSQL'in 0001–0013
+**birikmiş** sonucu. Yükseltilecek bir kurulum yoktur; geçmişi oynatmak yalnız
+okunması zor bir dosya üretirdi (K-178). Bundan sonraki değişiklikler `0002`,
+`0003` … olarak eklenir.
 
-| Yol | Değerlendirme |
-|-----|---------------|
-| Ortak bir `AgentPrism.Sql` paketi | Üçüncü bir paket; tüketici bunu asla doğrudan kullanmaz. Ek yayın yükü |
-| Paylaşılan **kaynak** dosyalar (`Compile Include="../..."`) | Paket sayısı artmaz; kod tekrarı olmaz. Derleme yapılandırması biraz karmaşıklaşır |
-| Kod tekrarı (kopyala) | Basit; ama her düzeltme iki yerde yapılır ve biri unutulur |
-
-**Öneri: paylaşılan kaynak dosyalar.** Paylaşılacaklar: migration çalıştırıcı
-iskeleti, checksum hesabı, `SqlIdentifier` doğrulaması, tanım yükü tipleri
-(`AgentDefinitionPayload`), JSON bağlamı. Paylaşılmayacaklar: SQL metinleri,
-bağlantı/komut yardımcıları, depo uygulamaları.
-
-Karar uygulama oturumunda kesinleşir ve karar defterine yazılır.
-
----
-
-## 23.3 — Migration Seti
-
-SQL Server'ın **kendi** gömülü `.sql` dosyaları olur ve numaralandırma `0001`'den
-başlar. PostgreSQL'in migration numaralarıyla eşleşmesi **gerekmez** —
-eşleştirmeye çalışmak, ileride bir sağlayıcıya özel düzeltme gerektiğinde
-kilitlenme üretir.
-
-`__migrations` tablosu aynı sözleşmeye sahiptir: ad, checksum, uygulanma zamanı.
-Checksum hesabı satır sonu normalleştirmesi dâhil **birebir aynı** kodu kullanır
-(paylaşılan kaynak).
+Numaralandırma PostgreSQL ile **eşleşmez ve eşleşmesi gerekmez**. `__migrations`
+sözleşmesi ve checksum hesabı (satır sonu normalleştirmesi dâhil) aynıdır.
 
 Kilit: `sp_getapplock @Resource = 'AgentPrism.Migrations', @LockMode = 'Exclusive',
-@LockOwner = 'Session', @LockTimeout = 30000`.
+@LockOwner = 'Session', @LockTimeout = 30000`. Dönüş değeri negatifse
+`AgentPrismException` fırlatılır — sessizce devam etmek iki replikanın aynı
+migration'ı aynı anda uygulamasına izin verirdi.
 
 ---
 
-## 23.4 — Paket ve Kayıt
+## 23.5 — Paket ve Kayıt
 
 ```csharp
 builder.AddAgentPrism()
@@ -122,110 +176,91 @@ builder.AddAgentPrism()
        });
 ```
 
-- `UseSqlServer` **`Replace`** kullanır, `TryAdd` değil — K-025'in gerekçesi
-  birebir geçerlidir
-- `AgentPrism.SqlServer` ve `AgentPrism.PostgreSql` **aynı anda** kaydedilirse
-  son kayıt kazanır; bu bir yapılandırma hatasıdır ve açılışta **uyarı** loglanır
-- Şema adı doğrulaması: SQL Server tanımlayıcı kuralları farklıdır ama AgentPrism
-  aynı katı kuralı uygular (küçük harf, rakam, alt çizgi) — iki sağlayıcı
-  arasında taşınabilirlik korunur
-
-### AOT
-
-`Microsoft.Data.SqlClient` (7.0.2) AOT uyumluluğu **ölçülmelidir**.
-`AgentPrism.PostgreSql` AOT uyumludur (Npgsql uyumlu). SqlClient uyumlu değilse
-`AgentPrismAotCompatible = false` verilir ve bu, `MIMARI.md` bölüm 9'daki
-tabloya yazılır. **Uyumsuzluk gizlenmez.**
+- `UseSqlServer` **`Replace`** kullanır (K-025 birebir geçerli). `SqlStoreContext`
+  ve `MigrationRunner` de `Replace` ile kaydedilir: `TryAdd` olsaydı ikinci bir
+  sağlayıcıda depolar yeni sağlayıcıya, bağlam eskisine bakar ve ikisi sessizce
+  ayrışırdı.
+- İki sağlayıcı aynı anda kaydedilirse **son kayıt kazanır** ve açılışta uyarı
+  loglanır (K-183). Engellenmez.
+- `AgentPrism` meta paketi SQL Server'ı **içermez** (K-185).
+- Desteklenen: **SQL Server 2019+** ve **Azure SQL** (Azure SQL CI'da test edilmez).
 
 ---
 
-## 23.5 — Testler
+## 23.6 — Testler
 
-`tests/AgentPrism.SqlServer.IntegrationTests` — Testcontainers ile.
+`tests/Shared/` altındaki 16 soyut sözleşme sınıfı ve `TestData` artık **iki**
+entegrasyon test projesine birden derlenir. `AgentPrism.SqlServer.IntegrationTests`
+yeni bir sözleşme testi **yazmadı** — fazın sınavı buydu ve geçildi.
 
-```csharp
-// Testcontainers.MsSql paketi gerekir (Directory.Packages.props'a eklenir)
-new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
+| Test | Nerede |
+|------|--------|
+| 16 store sözleşmesi (189 test) | `tests/Shared/Contracts/` → iki sağlayıcıda koşar |
+| Migration idempotency, checksum, geçersiz şema | `MigrationRunnerTests` |
+| Beş eşzamanlı migration (`sp_getapplock`) | `MigrationRunnerTests` |
+| Ondalık kesme, zaman dilimi, polimorfik JSON | `SqlServerDialectTests` |
+| Kümelenmiş indeks stratejisi (`sys.indexes`) | `SqlServerDialectTests` |
+| Dizi tam eşleşmesi (`OPENJSON`) | `SqlServerDialectTests` |
+
+CI: SQL Server container'ı ~2 GB bellek ister.
+
+---
+
+## Açık Kalan — SQL Server testleri koşturulamadı
+
+**Geliştirme makinesinde `mcr.microsoft.com/mssql/server` çalıştırılamadı.**
+İmaj yalnızca `linux/amd64`; makine Apple Silicon ve Docker'da amd64
+emülasyonu kapalı (`rosetta error`, `alpine:amd64` bile başlamıyor).
+
+Bunun anlamı **açıkça** şudur: SQL Server tarafındaki 189 sözleşme testi +
+SQL Server'a özgü testler **hiç koşmadı**. Kod derleniyor, paketleniyor ve
+`dotnet format` temiz; ama T-SQL'in doğruluğu **kanıtlanmadı**.
+
+**Kapatmak için:** Docker Desktop → Settings → General → "Use Virtualization
+framework" + "Use Rosetta for x86_64/amd64 emulation" → Apply & restart. Sonra:
+
+```bash
+dotnet test tests/AgentPrism.SqlServer.IntegrationTests -c Release
 ```
 
-> Faz 2 dersi: `PostgreSqlBuilder()` parametresiz kurucusu kullanımdan kalktı ve
-> `CS0618` verdi. Testcontainers sürümünde aynı desene dikkat edin.
+Alternatif: CI'yı Linux amd64 üzerinde koşturmak.
 
-**Sözleşme testleri yeniden kullanılır.** `Contracts/` altındaki soyut sınıflar
-bugün `InMemory*` ve `Postgres*` üzerinde koşuyor; bu faz `SqlServer*`
-uygulamalarını ekler. Yeni bir sözleşme testi yazmak **gerekmemelidir** — gerekiyorsa
-sözleşme eksiktir ve önce o düzeltilir.
+**İlk koşuda hata çıkması beklenmelidir** — 139 sorgu ve ~500 satır DDL elle
+çevrildi. Beklenen kırılma noktaları:
 
-| Test | Neden |
-|------|-------|
-| Tüm store sözleşmeleri | Davranış eşitliği |
-| Migration idempotency | İki kez çalıştırma |
-| Eşzamanlı migration | İki süreç, `sp_getapplock` |
-| Checksum değişimi | Değişmiş migration hata verir |
-| `uniqueidentifier` sıralaması | v7 kimlikler beklenen sırada mı |
-| JSON gidiş-dönüş | Polimorfik `AIContent` bozulmadan dönüyor mu |
-| Zaman dilimi | `datetimeoffset` UTC olarak yazılıp okunuyor mu |
-
-CI: SQL Server container'ı Linux'ta çalışır ama ~2 GB bellek ister. CI iş
-tanımında kaynak sınırı kontrol edilmelidir.
-
----
-
-## Bu Fazda Verilecek Kararlar
-
-1. **`MERGE` kullanılıp kullanılmayacağı** — eşzamanlılık gerekçesiyle.
-2. **Ortak kod paylaşımı biçimi** (kaynak paylaşımı önerilir).
-3. **Migration numaraları sağlayıcı başına bağımsızdır.**
-4. **AOT uyumluluğu ölçümle belirlenir** ve `MIMARI.md`'ye yazılır.
-5. **İki kalıcılık sağlayıcısı aynı anda kaydedilirse uyarı loglanır.**
-
----
-
-## Açık Sorular
-
-1. **Hangi SQL Server sürümleri desteklenecek?** `ISJSON` 2016+, `datetimeoffset`
-   2008+. Öneri: **2019+** (ve Azure SQL).
-2. **Azure SQL özel olarak test edilecek mi?** Container ile test edilemez.
-   Öneri: **desteklenir ama CI'da test edilmez**; sınır dokümante edilir.
-3. **`AgentPrism.Sql` ortak paketi mi, kaynak paylaşımı mı?** Öneri: **kaynak
-   paylaşımı**.
-4. **Kümelenmiş indeks stratejisi?** SQL Server'da birincil anahtar varsayılan
-   olarak kümelenmiştir; `uniqueidentifier` üzerinde bu parçalanma üretebilir.
-   Öneri: PK **kümelenmemiş**, zaman sütunu üzerinde kümelenmiş indeks — ölçümle
-   doğrulanır.
+1. `OFFSET/FETCH` ile `@take = 0` koruması (WHERE + CASE ikilisi)
+2. Özyinelemeli CTE'li zaman serisi (`SelectRunTimeSeries`) — en karmaşık sorgu
+3. `ISJSON` kısıtlarının sözleşme testlerinin yazdığı veriyle çelişmesi
+4. `OUTPUT` yan tümcesinin tetikleyici/kısıt etkileşimleri
+5. `nvarchar(200)` boyut sınırlarının test verisiyle çakışması
 
 ---
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `AgentPrism.SqlServer` paketi üretiliyor (`dotnet pack` sayısı artıyor)
-- [ ] Tüm store sözleşme testleri SQL Server üzerinde **yeşil**
-- [ ] Migration'lar temiz bir veritabanında ve tekrar çalıştırmada doğru
-- [ ] Eşzamanlı iki süreçte migration bir kez uygulanıyor
-- [ ] Örnek uygulama `UseSqlServer` ile uçtan uca çalışıyor (gerçek çıktı)
-- [ ] AOT durumu ölçüldü ve `MIMARI.md` bölüm 9 güncellendi
-- [ ] Paket kontrol listesi tamam (README, slnx, meta paket, `DependencyDirectionTests`)
-- [ ] Dört doğrulama kapısı sıfır uyarı
-
----
-
-## Riskler
-
-| Risk | Önlem |
-|------|-------|
-| Sözleşme testleri sağlayıcıya sızmış varsayımlar içerir | Bu fazın erken bulgusu olur; sözleşme düzeltilir ve bu bir kazançtır |
-| `MERGE` yarış durumu | Güvenli desen; eşzamanlılık testi |
-| SqlClient AOT uyumsuz | Paket bazlı bayrak; vaat verilmez |
-| CI kaynak tüketimi | Container bellek sınırı; testler `[Trait]` ile ayrılabilir |
-| İki sağlayıcı çakışması | Açılışta uyarı; dokümantasyon |
+- [x] `AgentPrism.SqlServer` paketi üretiliyor (`dotnet pack` sayısı arttı)
+- [ ] **Tüm store sözleşme testleri SQL Server üzerinde yeşil** — koşturulamadı
+- [ ] Migration'lar temiz veritabanında ve tekrar çalıştırmada doğru — koşturulamadı
+- [ ] Eşzamanlı iki süreçte migration bir kez uygulanıyor — koşturulamadı
+- [ ] Örnek uygulama `UseSqlServer` ile uçtan uca çalışıyor — koşturulamadı
+- [x] AOT durumu ölçüldü ve `MIMARI.md` bölüm 9 güncellendi (K-181)
+- [x] Paket kontrol listesi tamam (README, slnx, meta paket kararı, csproj)
+- [x] Dört doğrulama kapısı sıfır uyarı — **SQL Server testleri hariç**
+- [x] PostgreSQL regresyonu yok: 416/416 entegrasyon testi, toplam 1235 test yeşil
 
 ---
 
 ## Sonraki Faza Devir Notu
 
 - **Faz 24 (SQLite) bu fazın kurduğu paylaşım modelini kullanır.** Üçüncü
-  sağlayıcı, modelin doğru olup olmadığının asıl kanıtıdır.
+  sağlayıcı, modelin doğru olup olmadığının asıl kanıtıdır. Beklenen iş:
+  `SqliteQueries` + `SqliteDialect` + migration seti + test projesi. Depolara
+  **dokunulmamalıdır**; dokunmak gerekiyorsa soyutlama eksiktir ve bu bir bulgudur.
+- SQLite'ın kendine özgü noktaları: `uuid` yok (`BLOB`/`TEXT`), `datetimeoffset`
+  yok (`TEXT` ISO-8601), eşzamanlı yazma tek yazar, `RETURNING` 3.35+ ile var,
+  `sp_getapplock` karşılığı yok — dosya kilidi düşünülmeli.
+- **Faz 23 kapanmadan önce SQL Server testleri koşturulmalıdır.** Yeşil değilse
+  Faz 24 yanlış bir modelin üzerine kurulur.
 - Faz 25 (saklama) her sağlayıcı için temizleme SQL'i yazmak zorundadır;
-  `IRetentionStore` sözleşmesi buna göre tasarlanmalıdır.
-- Faz 17'nin `SKIP LOCKED` kuyruğu SQL Server'da `READPAST` ile karşılanır;
-  Faz 17 daha önce yapıldıysa o kod bu fazda taşınır.
+  `IRetentionStore` sözleşmesi `SqlQueriesBase`'e yeni sorgular ekleyecektir —
+  **her alt sınıfta** karşılığı yazılmalıdır.
