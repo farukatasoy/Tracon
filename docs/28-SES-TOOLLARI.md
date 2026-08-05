@@ -12,9 +12,63 @@
 ## Bu Faza Başlarken
 
 1. [`14-COK-MODLULUK.md`](14-COK-MODLULUK.md) — `IAttachmentStore`, tür beyaz listesi
-2. [`KARARLAR.md`](KARARLAR.md) — **K-012** (tool'lar yalnız kodda), **K-009** (sırlar), **K-007** (bağımlılık)
+2. [`KARARLAR.md`](KARARLAR.md) — **K-012** (tool'lar yalnız kodda), **K-009** (sırlar), **K-007** (bağımlılık), **K-035** (ayar sınıfı `record` olamaz), **K-211** (yeni SDK'da çalışma anı ölçümü)
 3. [`03-SAGLAYICI-VE-DERLEYICI.md`](03-SAGLAYICI-VE-DERLEYICI.md) — tool kaydı ve derleyici
 4. Bu doküman
+
+---
+
+## Faz 27'den Devralınan (yeni paket kalıbı)
+
+`AgentPrism.Voice` bu depodaki **onuncu** pakettir. Kalıp oturdu; en kısa örnek
+`src/AgentPrism.Azure`'dur (dokuz dosya, dekoratörü yok).
+
+### Yeni paket kontrol listesi — hepsi gerekli
+
+| Adım | Atlanırsa |
+|---|---|
+| `src/AgentPrism.Voice/README.md` | build `AGENTPRISM0001` ile kırılır |
+| `PublicAPI.Shipped.txt` + `PublicAPI.Unshipped.txt` (içerik: `#nullable enable`) | analyzer hatası |
+| `AgentPrism.slnx` içine `<Project Path=… />` (paket **ve** test projesi) | proje hiç derlenmez |
+| `DependencyDirectionTests.AllowedReferences` içine `["AgentPrism.Voice"] = ["AgentPrism.Core"]` | test kırılır |
+| `Directory.Packages.props` içine SDK sürümü, **gerekçe yorumuyla** | merkezî sürüm yönetimi hata verir |
+| `samples/AgentPrism.Api` içine `ProjectReference` + `appsettings.json` şeması | örnek fazı gösteremez |
+
+Meta pakete **eklenmez** (K-185 · K-209 · Faz 27 deseni): sağlayıcı paketleri
+tüketicinin bağımlılık grafiğine zorla girmez.
+
+### 🚨 Faz 27'de bedel ödeten tuzak
+
+**Derleme yeşilliği bir SDK'nın çalıştığını kanıtlamaz.** `Azure.AI.OpenAI` 2.1.0,
+`OpenAI` 2.1.0'a karşı derlenmişti; merkezî paket yönetimi `OpenAI` 2.12.0'ı zorladı.
+NuGet çakışmayı **sessizce** çözdü, `dotnet build` **sıfır uyarı** verdi, ve ilgili
+uzantı metotlarının tamamı çalışma anında `MissingMethodException` attı.
+
+Bir SDK, **başka bir SDK'nın tipini** genişletiyorsa (uzantı metodu, `partial`,
+alt sınıf), o yolu gerçekten çağırarak ölçün. `Directory.Packages.props`'a yeni
+bir satır eklemeden önce:
+
+```bash
+dotnet list <proje> package --include-transitive   # agirlik
+# + kucuk bir konsol projesinde gercek cagri
+```
+
+Ses SDK'ları bu riski taşır: çoğu `System.Net.Http` ve `System.Text.Json`
+üzerinde kendi katmanını kurar.
+
+### Sağlık denetimi ve sır sızıntısı kalıbı
+
+Dört sağlayıcı paketinde de aynıdır ve kopyalanabilir
+(`AzureOpenAIProviderHealthCheck` en kısa örnektir):
+
+- SDK yerine doğrudan `HttpClient` — hata detayının sır ve adres taşımadığı
+  denetlenebilir olsun diye
+- `HttpRequestException.Message` **kullanılmaz**; `exception.HttpRequestError`
+  adres taşımayan bir kategori adıdır
+- `internal static` yardımcılar (adres birleştirme, gövde ayrıştırma) ağ çağrısı
+  olmadan test edilir
+- `SecretLeakTests` sekiz çıktıda anahtarı arar; ayar sınıfının kendi `ToString`'ini
+  tanımlamadığını da doğrular (K-035)
 
 ---
 

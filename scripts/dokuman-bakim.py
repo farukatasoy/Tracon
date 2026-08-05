@@ -25,12 +25,14 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 # Sicak yol: her oturumda (veya her fazda birden cok kez) okunan dosyalar.
 # Bayt butcesi ~2.4 bayt/token varsayimiyla secildi.
 #
-# KARARLAR-INDEKS.md 25_000: Faz 25 kapanisinda (203 karar, 24 reddedilen is)
-# ilk kez 24_000'i astı (~1%). Icerik silinmedi/tasinmadi -- baslikklar zaten
-# kisaltildi (bkz. K-198..K-203). Butce burada BILEREK 1_000 bayt buyutuldu;
-# bu, indeksin sonsuza kadar buyuyecegi yapisal gercegiyle yuzlesmenin ilk
-# adimidir. Gercek cozum (bolum bazli indeks veya eski fazlarin arsivlenmesi)
-# henuz yazilmadi -- bir sonraki asimda tekrar degerlendirilmeli.
+# KARARLAR-INDEKS.md 25_000: Faz 25 kapanisinda (203 karar) ilk kez 24_000'i
+# asti ve butce 1_000 bayt buyutuldu; yorum "bir sonraki asimda yapisal cozum"
+# diyordu. Faz 27'de (213 karar) tekrar asildi ve yapisal cozum uygulandi:
+# indeksten TARIH SUTUNU kaldirildi (-~3 KB). Tarih kaybolmadi -- KARARLAR.md'de
+# duruyor ve indeks zaten oraya yollamak icin var. Indeksin isi "kalemi bul,
+# satir numarasini al"dir; tarih o iste kullanilmaz. Karar K-214.
+# Bir sonraki asimda siradaki adim: bolum bazli indeks (reddedilen isler ayri
+# dosyaya) veya kapanmis fazlarin kararlarinin arsiv indeksine tasinmasi.
 BUTCE = {
     "AGENTS.md": 12_000,
     "MEMORY.md": 8_000,
@@ -85,27 +87,29 @@ def kararlar_indeksi_uret() -> str:
         "İşaretler: 👤 kullanıcı kararı (teknik kanıtla değil, konuşarak değişir) · "
         "🔁 yeniden açılmış",
         "",
+        "Tarih bu indekste **yoktur** (K-214) — `KARARLAR.md`'deki kalemin kendisinde durur.",
+        "",
         "---",
         "",
         f"## 1. Reddedilen İşler ({len(reddedilen)} kalem) — bunları yeniden önerme",
         "",
-        "| KARARLAR.md satırı | Karar | Tarih |",
-        "|---|---|---|",
+        "| KARARLAR.md satırı | Karar |",
+        "|---|---|",
     ]
-    for no, baslik, tarih, isaret in reddedilen:
-        ç.append(f"| L{no} | {baslik} {isaret} | {tarih} |")
+    for no, baslik, _tarih, isaret in reddedilen:
+        ç.append(f"| L{no} | {baslik} {isaret} |")
 
     ç += [
         "",
         f"## 2. Kalıcı Kararlar ({len(kalici)} kalem)",
         "",
-        "| K | Satır | Karar | Tarih |",
-        "|---|---|---|---|",
+        "| K | Satır | Karar |",
+        "|---|---|---|",
     ]
-    for no, baslik, tarih, isaret in kalici:
+    for no, baslik, _tarih, isaret in kalici:
         num = baslik.split("—")[0].strip()
         geri = baslik.split("—", 1)[1].strip() if "—" in baslik else baslik
-        ç.append(f"| {num} | L{no} | {geri} {isaret} | {tarih} |")
+        ç.append(f"| {num} | L{no} | {geri} {isaret} |")
 
     ç.append("")
     return "\n".join(ç)

@@ -9,6 +9,7 @@
     <Project Path="src/AgentPrism.OpenAI/AgentPrism.OpenAI.csproj" />
     <Project Path="src/AgentPrism.Anthropic/AgentPrism.Anthropic.csproj" />
     <Project Path="src/AgentPrism.Google/AgentPrism.Google.csproj" />
+    <Project Path="src/AgentPrism.Azure/AgentPrism.Azure.csproj" />
     <Project Path="src/AgentPrism.Mcp/AgentPrism.Mcp.csproj" />
     <Project Path="src/AgentPrism.Workflows/AgentPrism.Workflows.csproj" />
     <Project Path="src/AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj" />
@@ -27,6 +28,7 @@
     <Project Path="tests/AgentPrism.OpenAI.UnitTests/AgentPrism.OpenAI.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.Anthropic.UnitTests/AgentPrism.Anthropic.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.Google.UnitTests/AgentPrism.Google.UnitTests.csproj" />
+    <Project Path="tests/AgentPrism.Azure.UnitTests/AgentPrism.Azure.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.PostgreSql.IntegrationTests/AgentPrism.PostgreSql.IntegrationTests.csproj" />
     <Project Path="tests/AgentPrism.SqlServer.IntegrationTests/AgentPrism.SqlServer.IntegrationTests.csproj" />
     <Project Path="tests/AgentPrism.Sqlite.IntegrationTests/AgentPrism.Sqlite.IntegrationTests.csproj" />

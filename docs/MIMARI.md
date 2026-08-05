@@ -26,6 +26,7 @@
 | `AgentPrism.OpenAI` | OpenAI ve OpenAI uyumlu her sağlayıcı + sağlık denetimi. | ✅ |
 | `AgentPrism.Anthropic` | Anthropic (Claude) — resmî SDK, prompt caching, genişletilmiş düşünme, sağlık denetimi. Meta pakete dâhil değil (K-209). | ✅ |
 | `AgentPrism.Google` | Google Gemini — resmî SDK, güvenlik eşikleri, düşünme bütçesi, sağlık denetimi. Meta pakete dâhil değil; geçişli ağırlığı kabul edildi (K-205). | ✅ |
+| `AgentPrism.Azure` | Azure OpenAI — deployment tabanlı model çözümü, API anahtarı **veya** Microsoft Entra kimliği (`Azure.Identity` alınmadı, K-210), sağlık denetimi. Sağlayıcıya özgü ayar **sunmaz** (K-211); Responses yüzeyi desteklenmez (K-213). Meta pakete dâhil değil. | ✅ |
 | `AgentPrism.Mcp` | Uzak MCP sunucularından tool keşfi. | ✅ |
 | `AgentPrism.Workflows` | MAF Workflows yürütmesi, kontrol noktası, human-in-the-loop. | ✅ |
 | `AgentPrism.AspNetCore` | `MapAgentPrism()` — yönetim API'si, OpenAI uyumlu uçlar, roller, hız sınırı, saklama uçları. | ✅ |
@@ -34,21 +35,17 @@
 
 Hangi fazın hangi pakete ne eklediği: [`arsiv/PAKET-FAZ-GECMISI.md`](arsiv/PAKET-FAZ-GECMISI.md).
 
-Testler: **1651 geçiyor** — 708 birim (465 Core + 77 OpenAI + 43 Google +
-39 Anthropic + 69 Workflows + 15 Mcp) + 260 fonksiyonel + 654 entegrasyon
-(Testcontainers: 440 PostgreSQL + 214 SQLite) + 29 arayüz E2E. Dört kapı sıfır
-uyarı; `dotnet pack` **13 paket** üretir.
-⚠️ `AgentPrism.SqlServer`'ın 213 testi bu makinede koşmadı (amd64 emülasyonu
-kapalı; `azure-sql-edge` ikamesi de artık çalışmıyor — bkz. `23-SQL-SERVER.md`,
-`docs/hafiza/sql-saglayicilari.md`).
+Testler: **1700 geçiyor** — 756 birim (465 Core + 77 OpenAI + 48 Azure +
+43 Google + 39 Anthropic + 69 Workflows + 15 Mcp) + 261 fonksiyonel + 654
+entegrasyon (Testcontainers: 440 PostgreSQL + 214 SQLite) + 29 arayüz E2E. Dört
+kapı sıfır uyarı; `dotnet pack` **14 paket** üretir.
+⚠️ `AgentPrism.SqlServer`'ın 213 testi bu makinede koşmadı — bkz.
+`23-SQL-SERVER.md`, `docs/hafiza/sql-saglayicilari.md`.
 
-Bugün AgentPrism **işletilebilir bir kontrol düzlemidir**: agent'lar kodda veya
-arayüzden tanımlanır, her çalıştırma kaydedilir, geri alınamaz tool'lar onay
-bekler, workflow'lar insanla konuşabilir, işler zamanlanabilir, sürümler A/B
-karşılaştırılabilir, kullanım sınırlanabilir, olaylar webhook'larla yayılabilir,
-eski veri politikaya göre arşivlenip silinebilir. Ne veritabanı ne de belirli bir
-model satıcısı **zorunludur**: depolama yapılandırılmazsa bellek içine düşer,
-sağlayıcı tarafında OpenAI · uyumlu uçlar · Anthropic · Google birlikte çalışır.
+Ne veritabanı ne de belirli bir model satıcısı **zorunludur**: depolama
+yapılandırılmazsa bellek içine düşer; sağlayıcı tarafında OpenAI · uyumlu uçlar ·
+Anthropic · Google · Azure OpenAI birlikte çalışır. Yeteneklerin özeti
+[`README.md`](../README.md) içindedir — burada tekrarlanmaz.
 
 Faz faz nasıl buraya gelindiği: [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md).
 
@@ -80,6 +77,7 @@ flowchart TD
     OA["<b>AgentPrism.OpenAI</b><br/>openai · openai-responses · uyumlu uçlar"]
     AN["<b>AgentPrism.Anthropic</b><br/>anthropic"]
     GO["<b>AgentPrism.Google</b><br/>google"]
+    AZ["<b>AgentPrism.Azure</b><br/>azure-openai"]
     MCP["<b>AgentPrism.Mcp</b><br/>uzak MCP tool keşfi"]
     WF["<b>AgentPrism.Workflows</b><br/>workflow yürütme · beş desen"]
 
@@ -95,12 +93,14 @@ flowchart TD
     HTTP --> OA
     HTTP --> AN
     HTTP --> GO
+    HTTP --> AZ
     HTTP -.->|"IMcpToolRefresher · kayıtlıysa"| MCP
     HTTP -.->|"IWorkflowRunner · kayıtlıysa"| WF
     PG --> CORE
     OA --> CORE
     AN --> CORE
     GO --> CORE
+    AZ --> CORE
     MCP --> CORE
     WF --> CORE
     HTTP --> CORE
@@ -340,7 +340,7 @@ flowchart TD
 çağrılır — sürüm, deneyin atadığı varyanttan gelir. `/v1/*` yolu ve alt-agent
 çağrıları bu adımı hiç görmez (K-131, bilinçli kapsam sınırı).
 
-### Çalıştırma ağacı (Faz 12)
+### Çalıştırma ağacı
 
 Bir agent `CallableAgentNames` taşıyorsa derleyici her alt agent'ı bir
 `ChildAgentInvoker` ile sarar ve bunları MAF'ın `BackgroundAgentsProvider`'ına
@@ -501,7 +501,7 @@ Ek sınırlar:
 - `previous_response_id` ve `conversation_id` güvenilmez girdi kabul edilir; her zaman kiracı sahipliği doğrulanır
 - `audit_log` tablosu Faz 9'dan beri doludur — bkz. aşağıdaki "Faz 9'un eklediği sınırlar"
 
-### Faz 6'nın eklediği sınırlar
+### Çok kiracılılık ve tool onayı
 
 **Tool onayı.** `RequiresApproval = true` işaretli tool, `ToolRegistry` içinde
 `ApprovalRequiredAIFunction` ile sarılır. Sarmalama **defterde** yapılır çünkü
@@ -545,7 +545,7 @@ geçmiş bir kullanıcı, bir başlık ekleyerek başka bir kiracının verisine
 erişebilirdi. Başlık yolu ayrıca `AllowHeaderResolution` ile **açıkça**
 açılmalıdır — bir HTTP başlığı kimlik kanıtı değildir.
 
-### Faz 9'un eklediği sınırlar
+### Roller ve denetim izi
 
 **Rol modeli.** Üç policy adı — `AgentPrismPolicies.Reader` / `.Operator` / `.Admin`
 — tanımlanır. AgentPrism rol veya kullanıcı **saklamaz**; tüketici bu adları kendi
@@ -584,7 +584,7 @@ ASP.NET Core bağımlılığı eklemeden "kim yaptı" sorusunu yanıtlamanın yo
 `"***"` ile değiştirilir. Denetim izi yazma hatası **çalıştırmayı kesmez**;
 Faz 6'nın "gözlemlenebilirlik işlevi bozmaz" kuralının aynısı.
 
-### Faz 11'in eklediği sınırlar — skill script çalıştırma
+### Skill script çalıştırma
 
 Bu, K2'nin (**"tool'lar yalnız kodda tanımlanır"**) **ikinci bilinçli
 istisnasıdır**. Birincisi MCP'ydi ve orada süreç **uzakta** çalışıyordu; burada
@@ -645,7 +645,7 @@ kullanıcı) kurulur. Nasıl kurulacağı:
 engeller: `Enabled = true` iken bayrak `false` ise **açılışta** hata verilir
 (K-086).
 
-### Faz 21'in eklediği sınırlar
+### Kota ve webhook imzası
 
 **🚨 SSRF — giden istek sınırı.** Webhook adresini *kullanıcı* verir ve sunucu o
 adrese istek atar. Bu, AgentPrism'in **dışarı** istek attığı ilk yerdir ve
@@ -683,7 +683,7 @@ olarak hiçbir isteği reddetmez**: hız sınırı `Enabled = false`, kota ise k
 tanımlanmadıkça boştur (K-165). Kota **yaklaşıktır** — denetim çalıştırma
 öncesinde, tüketim sonrasında yazılır (K-159).
 
-### Faz 22'nin eklediği sınırlar
+### MCP OAuth ve kaynak erişimi
 
 | Koruma | Nasıl |
 |--------|-------|
