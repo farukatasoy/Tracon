@@ -18,8 +18,9 @@ import {
   Select,
   cx,
 } from '../components/ui';
-import { CrossIcon, PaperclipIcon, PlusIcon, SendIcon, SpeakerIcon, SpinnerIcon } from '../components/icons';
+import { CrossIcon, MicIcon, PaperclipIcon, PlusIcon, SendIcon, SpeakerIcon, SpinnerIcon } from '../components/icons';
 import { TranscriptView } from '../components/transcript';
+import { VoicePanel } from '../components/voice-panel';
 
 interface Turn {
   id: string;
@@ -59,6 +60,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
   const [pendingAttachments, setPendingAttachments] = useState<AttachmentDescriptor[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<unknown>(null);
+  const [conversation, setConversation] = useState(false);
 
   const bottom = useRef<HTMLDivElement>(null);
   const abort = useRef<AbortController | null>(null);
@@ -80,6 +82,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
     setBusy(false);
     setPendingAttachments([]);
     setUploadError(null);
+    setConversation(false);
   }, []);
 
   /**
@@ -270,6 +273,30 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
     [run],
   );
 
+  /**
+   * Turns conversation mode on.
+   *
+   * A session identifier is reserved first: the conversation socket runs
+   * against ONE session for its whole life (the tenant and the session are
+   * fixed at handshake time), so it cannot be opened before one exists.
+   */
+  const openConversation = useCallback(async () => {
+    if (conversation) {
+      setConversation(false);
+      return;
+    }
+
+    try {
+      if (sessionId === null) {
+        setSessionId((await api.createConversation()).id);
+      }
+
+      setConversation(true);
+    } catch (caught) {
+      setError(caught);
+    }
+  }, [conversation, sessionId]);
+
   if (agents.isPending) {
     return <Loading />;
   }
@@ -417,6 +444,16 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
                 }
               }}
             />
+            <Button
+              type="button"
+              tone={conversation ? 'primary' : 'default'}
+              disabled={busy}
+              testId="voice-mode"
+              title="Conversation mode"
+              onClick={() => void openConversation()}
+            >
+              <MicIcon className="size-3.5" />
+            </Button>
             {busy ? (
               <Button tone="default" onClick={() => abort.current?.abort()}>
                 Stop
@@ -434,6 +471,8 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
             )}
           </div>
         </form>
+
+        {conversation && sessionId !== null && <VoicePanel agent={selected} sessionId={sessionId} />}
       </Panel>
     </>
   );

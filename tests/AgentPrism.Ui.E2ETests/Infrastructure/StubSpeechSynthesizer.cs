@@ -15,7 +15,7 @@ namespace AgentPrism.Ui.E2ETests.Infrastructure;
 /// bayttan dogrular ve etiketsiz rastgele bir icerik reddedilirdi.
 /// </para>
 /// </remarks>
-internal sealed class StubSpeechSynthesizer : ISpeechSynthesizer
+internal sealed class StubSpeechSynthesizer : ISpeechSynthesizer, ISpeechTranscriber
 {
     private static readonly byte[] Mp3 =
     [
@@ -49,6 +49,25 @@ internal sealed class StubSpeechSynthesizer : ISpeechSynthesizer
 
         yield return Mp3;
     }
+
+    /// <summary>
+    /// Gelen sesi sabit bir metne cevirir (Faz 29).
+    /// </summary>
+    /// <remarks>
+    /// Konusma katmani cozum ve sentezi ayni ornekten alabilir; gercek bir
+    /// kurulumda da tek bir saglayici ikisini birden sunar.
+    /// </remarks>
+    public ValueTask<SpeechTranscript> TranscribeAsync(
+        Stream audio,
+        string mediaType,
+        SpeechTranscriptionOptions? options = null,
+        CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(new SpeechTranscript
+        {
+            Text = "siparisim nerede",
+            LanguageCode = "tr",
+            AudioDuration = TimeSpan.FromSeconds(1),
+        });
 
     public ValueTask<IReadOnlyList<VoiceDescriptor>> ListVoicesAsync(
         CancellationToken cancellationToken = default)

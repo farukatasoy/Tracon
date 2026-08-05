@@ -469,6 +469,12 @@ internal abstract class SqlQueriesBase
     /// <summary>Kosu gecmisini filtreleyerek listeler.</summary>
     public string SelectRetentionRuns { get; protected set; } = string.Empty;
 
+    /// <summary>Bir konusma baglantisinin ozet kaydini ekler veya gunceller.</summary>
+    public string UpsertVoiceSession { get; protected set; } = string.Empty;
+
+    /// <summary>Konusma kayitlarini en yeniden eskiye listeler.</summary>
+    public string SelectVoiceSessions { get; protected set; } = string.Empty;
+
     /// <summary>Gomulu migration metnindeki sema yer tutucusunu gercek adla degistirir.</summary>
     /// <param name="sql">Ham migration metni.</param>
     /// <returns>Calistirilabilir SQL.</returns>

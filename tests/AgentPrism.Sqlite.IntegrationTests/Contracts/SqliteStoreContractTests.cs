@@ -385,3 +385,25 @@ public sealed class SqliteWebhookStoreContractTests(SqliteFixture fixture) : Web
         }
     }
 }
+
+/// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />
+public sealed class SqliteVoiceSessionStoreContractTests(SqliteFixture fixture) : VoiceSessionStoreContract
+{
+    private SqliteTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<IVoiceSessionStore> CreateStoreAsync()
+    {
+        _context = await SqliteTestContext.CreateAsync(fixture);
+        return _context.VoiceSessions;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}

@@ -46,6 +46,16 @@ public static class RetentionTargets
     /// <summary>Konusma gecmisi. Silme mesajlarini cascade ile birlikte goturur. Kullanici verisidir; varsayilan KAPALI.</summary>
     public const string Conversations = "conversations";
 
+    /// <summary>
+    /// Kapanmis gercek zamanli konusma baglantilarinin ozet kaydi (Faz 29).
+    /// </summary>
+    /// <remarks>
+    /// Kayit ses <strong>icermez</strong>; yalnizca sure, tur sayisi ve olcum
+    /// tasir. Konusmanin sesi saklandiysa (varsayilan hayir) baytlar
+    /// <see cref="Attachments"/> hedefinin kapsamindadir.
+    /// </remarks>
+    public const string VoiceSessions = "voice_sessions";
+
     /// <summary>Taninan tum hedef adlari.</summary>
     public static IReadOnlyList<string> All { get; } =
     [
@@ -60,6 +70,7 @@ public static class RetentionTargets
         Attachments,
         Sessions,
         Conversations,
+        VoiceSessions,
     ];
 
     /// <summary>Kullanici verisi tasiyan, varsayilan olarak KAPALI olan hedefler.</summary>

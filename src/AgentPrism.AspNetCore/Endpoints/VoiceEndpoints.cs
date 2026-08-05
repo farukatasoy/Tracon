@@ -53,6 +53,14 @@ internal static class VoiceEndpoints
             .WithName("AgentPrismVoiceList")
             .WithSummary("Kullanilabilir sesleri listeler.");
 
+        builder.MapGet("/api/voice/sessions", ListSessionsAsync)
+            .RequireRole(roles.Reader)
+            .WithName("AgentPrismVoiceSessions")
+            .WithSummary("Gercek zamanli konusma baglantilarinin ozet kaydini listeler.")
+            .WithDescription(
+                "Kayit ses ICERMEZ: yalnizca sure, tur sayisi ve olcum tasir. Konusma katmani " +
+                "acik degilse liste bostur.");
+
         builder.MapPost("/api/voice/speak", SpeakAsync)
             .RequireRole(roles.Operator)
             .WithName("AgentPrismVoiceSpeak")
@@ -141,6 +149,41 @@ internal static class VoiceEndpoints
             Cost = pricing?.ForCharacters(characters),
             Currency = pricing?.Currency,
         });
+    }
+
+    /// <summary>Konusma kayitlarini listeler.</summary>
+    /// <remarks>
+    /// Depo <see cref="IVoiceSessionStore"/> istege baglidir: konusma katmani
+    /// acilmadiysa kayitli degildir ve uc <c>501</c> yerine <strong>bos liste</strong>
+    /// doner. Gerekce: liste ucu bir yetenegin varligini degil, verinin yoklugunu
+    /// bildirir; arayuz paneli hatasiz cizilir.
+    /// </remarks>
+    private static async Task<Ok<IReadOnlyList<VoiceSessionRecord>>> ListSessionsAsync(
+        [FromServices] IVoiceSessionStore? store,
+        ITenantContext tenantContext,
+        [FromQuery] string? agentName,
+        [FromQuery] string? sessionId,
+        [FromQuery] int? skip,
+        [FromQuery] int? take,
+        CancellationToken cancellationToken)
+    {
+        if (store is null)
+        {
+            return TypedResults.Ok<IReadOnlyList<VoiceSessionRecord>>([]);
+        }
+
+        var records = await store.QueryAsync(
+            tenantContext.TenantId,
+            new VoiceSessionQuery
+            {
+                AgentName = agentName,
+                SessionId = sessionId,
+                Skip = Math.Max(skip ?? 0, 0),
+                Take = Math.Clamp(take ?? 50, 1, 200),
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        return TypedResults.Ok(records);
     }
 
     private static async Task<Results<Ok<VoiceHealth>, ProblemHttpResult>> CheckHealthAsync(

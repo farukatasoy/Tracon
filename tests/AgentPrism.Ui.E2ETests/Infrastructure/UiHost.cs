@@ -63,15 +63,23 @@ internal sealed class UiHost : IAsyncDisposable
 
         var provider = new ScriptedModelProvider();
 
-        // Ses uclarinin ihtiyaci yalnizca bu soyutlamadir; AgentPrism.Voice
-        // paketine referans YOKTUR.
-        builder.Services.AddSingleton<ISpeechSynthesizer, StubSpeechSynthesizer>();
+        // Ses uclarinin ihtiyaci yalnizca bu soyutlamalardir; AgentPrism.Voice
+        // paketine referans YOKTUR. Tek ornek ikisine birden baglanir.
+        builder.Services.AddSingleton<StubSpeechSynthesizer>();
+        builder.Services.AddSingleton<ISpeechSynthesizer>(
+            static provider => provider.GetRequiredService<StubSpeechSynthesizer>());
+        builder.Services.AddSingleton<ISpeechTranscriber>(
+            static provider => provider.GetRequiredService<StubSpeechSynthesizer>());
 
         builder.Services.AddAgentPrism()
             .AddModelProvider(provider)
             .AddToolsFrom(typeof(OrderTools))
             .UseUI()
             .UseWorkflows()
+
+            // Konusma katmani (Faz 29). Cagrilmazsa WebSocket ucu hic acilmaz;
+            // E2E testi bu yuzden acikca acar.
+            .UseVoiceConversation()
             .AddAgent(new AgentDefinition
             {
                 Name = "support",

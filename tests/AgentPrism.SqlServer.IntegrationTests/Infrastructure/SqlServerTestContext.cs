@@ -54,6 +54,7 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
         Webhooks = new SqlWebhookStore(wrapped);
         RetentionPolicies = new SqlRetentionPolicyStore(wrapped);
         RetentionData = new SqlRetentionStore(wrapped);
+        VoiceSessions = new SqlVoiceSessionStore(wrapped);
         Migrations = new MigrationRunner(wrapped, NullLogger<MigrationRunner>.Instance);
     }
 
@@ -134,6 +135,9 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
 
     /// <summary>Saklama veri duzlemi (sayma/silme/arsiv okuma) (Faz 25).</summary>
     public SqlRetentionStore RetentionData { get; }
+
+    /// <summary>Konusma kaydi deposu (Faz 29).</summary>
+    public SqlVoiceSessionStore VoiceSessions { get; }
 
     /// <summary>Migration calistiricisi.</summary>
     public MigrationRunner Migrations { get; }
