@@ -44,10 +44,12 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
         // 0012_quotas_and_webhooks 4 tablo daha (quotas, quota_usage,
         // webhook_subscriptions, webhook_deliveries) ve jobs tablosuna
         // max_attempts sutununu ekler.
+        // 0013_mcp_oauth YENI TABLO EKLEMEZ; mcp_servers tablosuna sutun ekler.
+        // 0014_retention 2 tablo daha (retention_policies, retention_runs).
         //
         // Sayi BILEREK sabittir: yeni bir tablo eklendiginde bu test kirilir ve
         // ekleyen kisi tabloyu fark etmis olur.
-        tableCount.ShouldBe(36);
+        tableCount.ShouldBe(38);
     }
 
     [Fact]

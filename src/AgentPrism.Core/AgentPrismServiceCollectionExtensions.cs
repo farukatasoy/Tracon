@@ -80,6 +80,10 @@ public static class AgentPrismServiceCollectionExtensions
         services.AddOptions<AgentPrismWebhookOptions>().ValidateOnStart();
         services.AddOptions<AgentPrismRateLimitOptions>().ValidateOnStart();
 
+        // Veri saklama ve arsivleme (Faz 25). Ayni gerekce: kendi SectionName'ini
+        // tasir, ayri bir Use...() cagrisi gerektirmez.
+        services.AddOptions<AgentPrismRetentionOptions>().ValidateOnStart();
+
         if (configurationSection is not null)
         {
             services.Configure<AgentPrismQuotaOptions>(
@@ -88,12 +92,16 @@ public static class AgentPrismServiceCollectionExtensions
                 options => BindWebhooks(configurationSection.GetSection("Webhooks"), options));
             services.Configure<AgentPrismRateLimitOptions>(
                 options => BindRateLimit(configurationSection.GetSection("RateLimit"), options));
+            services.Configure<AgentPrismRetentionOptions>(
+                options => BindRetention(configurationSection.GetSection("Retention"), options));
         }
 
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<AgentPrismQuotaOptions>, AgentPrismQuotaOptionsValidator>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<AgentPrismWebhookOptions>, AgentPrismWebhookOptionsValidator>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<AgentPrismRetentionOptions>, AgentPrismRetentionOptionsValidator>());
 
         services.AddLogging();
         services.TryAddEnumerable(
@@ -312,6 +320,30 @@ public static class AgentPrismServiceCollectionExtensions
                 provider.GetService<IConfiguration>(),
                 provider.GetService<TimeProvider>(),
                 provider.GetService<Microsoft.Extensions.Logging.ILogger<WebhookDeliveryJobHandler>>())));
+
+        // Veri saklama ve arsivleme (Faz 25). Politika/kosu deposu her zaman
+        // kayitlidir (kontrol duzlemi); veri duzlemi (IRetentionStore) ise bellek
+        // ici kurulumda islevsizdir (NullRetentionStore) — saklama yalniz kalici
+        // bir SQL saglayicisi acikken anlamlidir. IArchiveSink kayitli DEGILSE
+        // arsivleme isteyen bir politika hicbir satir silmez (Faz 25 karari).
+        services.TryAddSingleton<IRetentionPolicyStore, InMemoryRetentionPolicyStore>();
+        services.TryAddSingleton<IRetentionStore, NullRetentionStore>();
+        services.TryAddSingleton<RetentionPolicyResolver>();
+
+        // Acik fabrika kullaniliyor: yerlesik DI kabi varsayilan deger tasiyan
+        // kurucu parametrelerini doldurmaz (IArchiveSink, TimeProvider, ILogger
+        // kayitli olmayabilir).
+        services.TryAddSingleton(static provider => new RetentionExecutor(
+            provider.GetRequiredService<IRetentionPolicyStore>(),
+            provider.GetRequiredService<IRetentionStore>(),
+            provider.GetRequiredService<RetentionPolicyResolver>(),
+            provider.GetRequiredService<IOptionsMonitor<AgentPrismRetentionOptions>>(),
+            provider.GetService<IArchiveSink>(),
+            provider.GetService<TimeProvider>(),
+            provider.GetService<Microsoft.Extensions.Logging.ILogger<RetentionExecutor>>()));
+
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, RetentionJobHandler>(
+            static provider => new RetentionJobHandler(provider.GetRequiredService<RetentionExecutor>())));
 
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, JobWorkerBackgroundService>());
@@ -1055,6 +1087,71 @@ public static class AgentPrismServiceCollectionExtensions
                     options.RetryDelays.Add(delay);
                 }
             }
+        }
+    }
+
+    /// <summary><c>AgentPrism:Retention</c> bolumunu baglar.</summary>
+    private static void BindRetention(IConfigurationSection section, AgentPrismRetentionOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismRetentionOptions.Enabled), out var enabled))
+        {
+            options.Enabled = enabled;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismRetentionOptions.BatchSize)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var batchSize))
+        {
+            options.BatchSize = batchSize;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(AgentPrismRetentionOptions.BatchDelay)],
+                CultureInfo.InvariantCulture,
+                out var batchDelay))
+        {
+            options.BatchDelay = batchDelay;
+        }
+
+        BindRetentionTarget(section.GetSection(nameof(AgentPrismRetentionOptions.RunEvents)), options.RunEvents);
+        BindRetentionTarget(section.GetSection(nameof(AgentPrismRetentionOptions.ToolInvocations)), options.ToolInvocations);
+        BindRetentionTarget(section.GetSection(nameof(AgentPrismRetentionOptions.Spans)), options.Spans);
+        BindRetentionTarget(section.GetSection(nameof(AgentPrismRetentionOptions.Jobs)), options.Jobs);
+        BindRetentionTarget(section.GetSection(nameof(AgentPrismRetentionOptions.WebhookDeliveries)), options.WebhookDeliveries);
+        BindRetentionTarget(section.GetSection(nameof(AgentPrismRetentionOptions.EvalCaseResults)), options.EvalCaseResults);
+        BindRetentionTarget(section.GetSection(nameof(AgentPrismRetentionOptions.WorkflowCheckpoints)), options.WorkflowCheckpoints);
+        BindRetentionTarget(section.GetSection(nameof(AgentPrismRetentionOptions.SkillScriptGrants)), options.SkillScriptGrants);
+        BindRetentionTarget(section.GetSection(nameof(AgentPrismRetentionOptions.Attachments)), options.Attachments);
+        BindRetentionTarget(section.GetSection(nameof(AgentPrismRetentionOptions.Sessions)), options.Sessions);
+        BindRetentionTarget(section.GetSection(nameof(AgentPrismRetentionOptions.Conversations)), options.Conversations);
+    }
+
+    private static void BindRetentionTarget(IConfigurationSection section, RetentionTargetOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (int.TryParse(
+                section[nameof(RetentionTargetOptions.MaxAgeDays)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxAgeDays))
+        {
+            options.MaxAgeDays = maxAgeDays;
+        }
+
+        if (TryReadBool(section, nameof(RetentionTargetOptions.Archive), out var archive))
+        {
+            options.Archive = archive;
         }
     }
 

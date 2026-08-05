@@ -60,6 +60,11 @@ import type {
   QuotaDefinition,
   QuotaSaveRequest,
   QuotaUsageResponse,
+  RetentionPolicy,
+  RetentionPolicySaveRequest,
+  RetentionPreview,
+  RetentionRun,
+  RetentionRunTriggerResponse,
   WebhookDelivery,
   WebhookDeliveryStatus,
   WebhookSaveRequest,
@@ -468,6 +473,18 @@ export const api = {
     request<WebhookDelivery[]>(
       `api/webhooks/${encodeURIComponent(name)}/deliveries${query(params)}`,
     ),
+
+  retentionPolicies: () => request<RetentionPolicy[]>('api/retention'),
+  saveRetentionPolicy: (target: string, body: RetentionPolicySaveRequest) =>
+    send<RetentionPolicy>('PUT', `api/retention/${encodeURIComponent(target)}`, body),
+  deleteRetentionPolicy: (target: string) =>
+    request<void>(`api/retention/${encodeURIComponent(target)}`, { method: 'DELETE' }),
+  retentionPreview: (target?: string) =>
+    request<RetentionPreview[]>(`api/retention/preview${query({ target })}`),
+  runRetention: (target?: string) =>
+    send<RetentionRunTriggerResponse>('POST', `api/retention/run${query({ target })}`, {}),
+  retentionHistory: (params: { target?: string; skip?: number; take?: number } = {}) =>
+    request<RetentionRun[]>(`api/retention/history${query(params)}`),
 
   audit: (
     params: {

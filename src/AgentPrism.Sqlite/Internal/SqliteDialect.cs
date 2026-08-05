@@ -244,6 +244,43 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
             DbType.String,
             value?.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffffffZ", CultureInfo.InvariantCulture));
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// SQLite'ta nesne adlari veritabani genelinde tek ad alanini paylasir;
+    /// sema yoktur, tablo adinin basina dogrudan onek eklenir (nokta YOKTUR).
+    /// Gerekce: <c>docs/hafiza/sql-saglayicilari.md</c>, K-193.
+    /// </remarks>
+    public override string QualifyTable(string tableName) => $"{Queries.Schema}{tableName}";
+
+    /// <inheritdoc />
+    public override string BuildRetentionCountSql(string table, string wherePredicate)
+        => $"SELECT COUNT(*) FROM {table} WHERE {wherePredicate};";
+
+    /// <inheritdoc />
+    public override string BuildRetentionArchiveSelectSql(string table, string wherePredicate, string orderColumn)
+        => $"""
+            SELECT *
+            FROM {table}
+            WHERE {wherePredicate}
+            ORDER BY {orderColumn}
+            LIMIT @batchSize;
+            """;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// SQLite <c>DELETE ... LIMIT</c>'i varsayilan derlemede desteklemez
+    /// (<c>SQLITE_ENABLE_UPDATE_DELETE_LIMIT</c> gerekir); PostgreSQL'in
+    /// <c>ctid</c> deseniyle ayni gerekceyle <c>rowid</c> alt sorgusu kullanilir.
+    /// </remarks>
+    public override string BuildRetentionDeleteBatchSql(string table, string wherePredicate)
+        => $"""
+            DELETE FROM {table}
+             WHERE rowid IN (
+                   SELECT rowid FROM {table}
+                    WHERE {wherePredicate}
+                    LIMIT @batchSize);
+            """;
+
     /// <summary>Migration kilidi hala aciksa birakir.</summary>
     public void Dispose()
     {

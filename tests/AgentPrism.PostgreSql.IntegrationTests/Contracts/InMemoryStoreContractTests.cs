@@ -141,3 +141,11 @@ public sealed class InMemoryWebhookStoreContractTests : WebhookStoreContract
     protected override ValueTask<IWebhookStore> CreateStoreAsync()
         => ValueTask.FromResult<IWebhookStore>(new InMemoryWebhookStore());
 }
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryRetentionPolicyStoreContractTests : RetentionPolicyStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<IRetentionPolicyStore> CreateStoreAsync()
+        => ValueTask.FromResult<IRetentionPolicyStore>(new InMemoryRetentionPolicyStore());
+}

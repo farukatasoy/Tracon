@@ -151,6 +151,60 @@ internal abstract class SqlDialect
     /// <returns>Dizi; sutun <c>NULL</c> ise bos dizi.</returns>
     public abstract IReadOnlyList<string> ReadTextArray(DbDataReader reader, int ordinal);
 
+    /// <summary>Yalin bir tablo adini bu saglayicinin sema/onek kuraliyla nitelendirir.</summary>
+    /// <param name="tableName">Sema/onek olmadan tablo adi (ornegin <c>"sessions"</c>).</param>
+    /// <returns>Calistirilabilir SQL'e gomulmeye hazir, nitelendirilmis ad.</returns>
+    /// <remarks>
+    /// PostgreSQL ve SQL Server <c>{sema}.{tablo}</c> (nokta ile) kullanir;
+    /// SQLite'ta nesne adlari veritabani genelinde tek ad alanini paylastigi
+    /// icin onek dogrudan bitistirilir, nokta YOKTUR (K-193). Varsayilan
+    /// uygulama nokta ile nitelendirir; <see cref="RetentionTargetRegistry"/>
+    /// gibi saglayicidan bagimsiz SQL uretimi bunu kullanir.
+    /// </remarks>
+    public virtual string QualifyTable(string tableName) => $"{Queries.Schema}.{tableName}";
+
+    // --- Saklama (Faz 25): veri duzlemi parti sorgulari ---
+
+    /// <summary>
+    /// Bir hedefte <paramref name="wherePredicate"/>'e uyan satir sayisini
+    /// donduren SQL metnini kurar.
+    /// </summary>
+    /// <param name="table">Sema onekli tablo adi.</param>
+    /// <param name="wherePredicate"><c>@cutoff</c>'a atifta bulunan SQL kosulu.</param>
+    /// <returns>Calistirilabilir SQL. Tek parametre: <c>@cutoff</c>.</returns>
+    /// <remarks>
+    /// Bu ucu saglayicilar arasinda ozdestir (yalniz <c>COUNT(*)</c>); yine de
+    /// diyalekt uzerinden gecer cunku <see cref="RetentionTargetRegistry"/>'nin
+    /// urettigi metin saglayiciya BAGIMSIZDIR ve K1/K-176 geregi tum SQL
+    /// metninin tek gecidi diyalekttir.
+    /// </remarks>
+    public abstract string BuildRetentionCountSql(string table, string wherePredicate);
+
+    /// <summary>
+    /// <paramref name="wherePredicate"/>'e uyan bir parti satiri (arsivlemek
+    /// icin) okuyan SQL metnini kurar. Silmez.
+    /// </summary>
+    /// <param name="table">Sema onekli tablo adi.</param>
+    /// <param name="wherePredicate"><c>@cutoff</c>'a atifta bulunan SQL kosulu.</param>
+    /// <param name="orderColumn">Determinizm icin siralama sutunu.</param>
+    /// <returns>Calistirilabilir SQL. Parametreler: <c>@cutoff</c>, <c>@batchSize</c>.</returns>
+    public abstract string BuildRetentionArchiveSelectSql(string table, string wherePredicate, string orderColumn);
+
+    /// <summary>
+    /// <paramref name="wherePredicate"/>'e uyan bir parti satiri silen SQL
+    /// metnini kurar. Toplu tek bir <c>DELETE</c> DEGILDIR.
+    /// </summary>
+    /// <param name="table">Sema onekli tablo adi.</param>
+    /// <param name="wherePredicate"><c>@cutoff</c>'a atifta bulunan SQL kosulu.</param>
+    /// <returns>Calistirilabilir SQL. Parametreler: <c>@cutoff</c>, <c>@batchSize</c>.</returns>
+    /// <remarks>
+    /// Uc saglayici uc farkli teknik kullanir: PostgreSQL <c>ctid</c> alt
+    /// sorgusu, SQL Server <c>DELETE TOP (n)</c>, SQLite <c>rowid</c> alt
+    /// sorgusu. Hicbiri satirlarin belirli bir sirada silinecegini garanti
+    /// etmez — parti sirasi onemli degildir, yalniz boyutu onemlidir.
+    /// </remarks>
+    public abstract string BuildRetentionDeleteBatchSql(string table, string wherePredicate);
+
     // --- Ortak tiplemeler (gerekirse turevde degistirilir) ---
 
     /// <summary>Zaman damgasini parametreye baglar.</summary>

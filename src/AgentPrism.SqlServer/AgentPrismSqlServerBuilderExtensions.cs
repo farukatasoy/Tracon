@@ -176,6 +176,12 @@ public static class AgentPrismSqlServerBuilderExtensions
         services.Replace(ServiceDescriptor.Singleton<IQuotaStore, SqlQuotaStore>());
         services.Replace(ServiceDescriptor.Singleton<IWebhookStore, SqlWebhookStore>());
 
+        // Veri saklama ve arsivleme (Faz 25). Ayni gerekce: politika/kosu
+        // deposu sarilmaz, veri duzlemi yalniz bir SQL saglayicisi acikken
+        // anlamlidir.
+        services.Replace(ServiceDescriptor.Singleton<IRetentionPolicyStore, SqlRetentionPolicyStore>());
+        services.Replace(ServiceDescriptor.Singleton<IRetentionStore, SqlRetentionStore>());
+
         // A/B deneyleri (Faz 19). IAgentDefinitionStore ile ayni gerekceyle
         // denetim izi dekoratoruyle sarilir: Admin'in bilincli bir karari,
         // yurutmenin yan urunu degil.

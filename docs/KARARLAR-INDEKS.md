@@ -45,7 +45,7 @@ grep -n 'jsonb\|migration' docs/KARARLAR.md  # konu araması
 | L37 | Arayüzden tool istatistiği ve model sağlık kontrolü Faz 5'te gösterilmedi 👤 | 2026-08-02 |
 | L38 | Arayüz i18n altyapısı kurulmadı; dil İngilizce 👤🔁 | 2026-08-02 |
 
-## 2. Kalıcı Kararlar (197 kalem)
+## 2. Kalıcı Kararlar (203 kalem)
 
 | K | Satır | Karar | Tarih |
 |---|---|---|---|
@@ -111,7 +111,7 @@ grep -n 'jsonb\|migration' docs/KARARLAR.md  # konu araması
 | K-060 | L105 | MCP tool adları `{sunucu}_{tool}`; nokta kullanılmaz  | 2026-08-02 |
 | K-061 | L106 | "Bir daha sorma" MAF'ın biçimiyle değil AgentPrism deposunda tutulur  | 2026-08-02 |
 | K-062 | L107 | Harness'ta shell yoktur; dosya erişimi ve arka plan agent'ları kapalı bırakıldı  | 2026-08-02 |
-| K-063 | L108 | `run_events` partition'ı açılmadı  | 2026-08-02 |
+| K-063 | L108 | `run_events` partition'ı açılmadı (kapandı → K-199)  | 2026-08-02 |
 | K-064 | L109 | İkinci faz önceliği: yetenek derinliği 👤 | 2026-08-02 |
 | K-065 | L110 | Ses: hedef gerçek zamanlı konuşma katmanı 👤 | 2026-08-02 |
 | K-066 | L111 | Skill'lerde script çalıştırma kabul edildi; K2'nin ikinci bilinçli istisnası 👤 | 2026-08-02 |
@@ -246,3 +246,9 @@ grep -n 'jsonb\|migration' docs/KARARLAR.md  # konu araması
 | K-195 | L240 | `DbHelpers.ToGuid`/`ToBoolean` eklendi: `ExecuteScalarAsync` sonucunun CLR tipi sağlayıcıya göre değişir  | 2026-08-05 |
 | K-196 | L241 | `AgentPrism.Sqlite` AOT uyumlu olarak İŞARETLENMEZ (ölçülmedi)  | 2026-08-05 |
 | K-197 | L242 | `SQLitePCLRaw.*` paketleri 2.1.12'ye sabitlendi (K-007 deseni)  | 2026-08-05 |
+| K-198 | L243 | Saklama SQL'i tek tabloyla üretilir, saglayıcı başına kopyalanmaz  | 2026-08-05 |
+| K-199 | L244 | `run_events` partition'ı açılmadı (K-063 ölçümle kapandı)  | 2026-08-05 |
+| K-200 | L245 | Parti silme her sağlayıcıda farklı teknik kullanır  | 2026-08-05 |
+| K-201 | L246 | `MaxRows` var ama uygulanmıyor (ertelendi)  | 2026-08-05 |
+| K-202 | L247 | Saklama zamanlaması Faz 17'nin kuyruğunu yeniden kullanır  | 2026-08-05 |
+| K-203 | L248 | `sessions`/`conversations` ayrı hedeftir  | 2026-08-05 |

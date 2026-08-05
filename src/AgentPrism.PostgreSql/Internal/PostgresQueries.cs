@@ -1369,5 +1369,75 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ORDER BY created_at DESC
             OFFSET @skip LIMIT @take;
             """;
+
+        const string retentionPolicyColumns =
+            "id, tenant_id, target, max_age_days, max_rows, archive, enabled, created_at, updated_at";
+
+        UpsertRetentionPolicy = $"""
+            INSERT INTO {Schema}.retention_policies
+                ({retentionPolicyColumns})
+            VALUES
+                (@id, @tenant_id, @target, @max_age_days, @max_rows, @archive, @enabled, @created_at, @updated_at)
+            ON CONFLICT (tenant_id, target) DO UPDATE
+               SET max_age_days = EXCLUDED.max_age_days,
+                   max_rows     = EXCLUDED.max_rows,
+                   archive      = EXCLUDED.archive,
+                   enabled      = EXCLUDED.enabled,
+                   updated_at   = EXCLUDED.updated_at
+            RETURNING {retentionPolicyColumns};
+            """;
+
+        SelectRetentionPolicies = $"""
+            SELECT {retentionPolicyColumns}
+            FROM {Schema}.retention_policies
+            WHERE tenant_id = @tenant_id
+            ORDER BY target;
+            """;
+
+        SelectRetentionPolicy = $"""
+            SELECT {retentionPolicyColumns}
+            FROM {Schema}.retention_policies
+            WHERE tenant_id = @tenant_id
+              AND target    = @target;
+            """;
+
+        DeleteRetentionPolicy = $"""
+            DELETE FROM {Schema}.retention_policies
+             WHERE tenant_id = @tenant_id
+               AND target    = @target;
+            """;
+
+        const string retentionRunColumns =
+            "id, tenant_id, target, deleted_rows, archived_rows, started_at, completed_at, error";
+
+        InsertRetentionRun = $"""
+            INSERT INTO {Schema}.retention_runs
+                ({retentionRunColumns})
+            VALUES
+                (@id, @tenant_id, @target, 0, 0, @started_at, NULL, NULL);
+            """;
+
+        UpdateRetentionRunProgress = $"""
+            UPDATE {Schema}.retention_runs
+               SET deleted_rows  = deleted_rows + @deleted_delta,
+                   archived_rows = archived_rows + @archived_delta
+             WHERE id = @id;
+            """;
+
+        CompleteRetentionRun = $"""
+            UPDATE {Schema}.retention_runs
+               SET completed_at = @completed_at,
+                   error        = @error
+             WHERE id = @id;
+            """;
+
+        SelectRetentionRuns = $"""
+            SELECT {retentionRunColumns}
+            FROM {Schema}.retention_runs
+            WHERE tenant_id = @tenant_id
+              AND (@target IS NULL OR target = @target)
+            ORDER BY started_at DESC
+            OFFSET @skip LIMIT @take;
+            """;
     }
 }

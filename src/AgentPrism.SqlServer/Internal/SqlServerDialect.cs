@@ -242,4 +242,26 @@ internal sealed class SqlServerDialect : SqlDialect
 
         command.Parameters.Add(parameter);
     }
+
+    /// <inheritdoc />
+    public override string BuildRetentionCountSql(string table, string wherePredicate)
+        => $"SELECT COUNT(*) FROM {table} WHERE {wherePredicate};";
+
+    /// <inheritdoc />
+    public override string BuildRetentionArchiveSelectSql(string table, string wherePredicate, string orderColumn)
+        => $"""
+            SELECT TOP (@batchSize) *
+            FROM {table}
+            WHERE {wherePredicate}
+            ORDER BY {orderColumn};
+            """;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <c>DELETE TOP (n)</c> T-SQL'e ozgudur ve bir alt sorgu gerektirmez.
+    /// <c>TOP (0)</c> hata VERMEZ (OFFSET/FETCH'in aksine) — ayri bir sifir
+    /// koruma satiri gerekmez.
+    /// </remarks>
+    public override string BuildRetentionDeleteBatchSql(string table, string wherePredicate)
+        => $"DELETE TOP (@batchSize) FROM {table} WHERE {wherePredicate};";
 }

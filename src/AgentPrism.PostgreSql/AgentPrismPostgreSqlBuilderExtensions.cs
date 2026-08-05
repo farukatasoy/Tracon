@@ -179,6 +179,14 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         services.Replace(ServiceDescriptor.Singleton<IQuotaStore, SqlQuotaStore>());
         services.Replace(ServiceDescriptor.Singleton<IWebhookStore, SqlWebhookStore>());
 
+        // Veri saklama ve arsivleme (Faz 25). Politika/kosu deposu (kontrol
+        // duzlemi) denetim izi dekoratoruyle SARILMAZ: webhook/kota depolariyla
+        // ayni gerekce (yonetici eylemleri HTTP katmaninda ayrica yazilir).
+        // Veri duzlemi (IRetentionStore) yalniz bir SQL saglayicisi acikken
+        // anlamlidir; bellek ici NullRetentionStore'un yerini burada alir.
+        services.Replace(ServiceDescriptor.Singleton<IRetentionPolicyStore, SqlRetentionPolicyStore>());
+        services.Replace(ServiceDescriptor.Singleton<IRetentionStore, SqlRetentionStore>());
+
         // A/B deneyleri (Faz 19). IAgentDefinitionStore ile ayni gerekceyle
         // denetim izi dekoratoruyle sarilir: Admin'in bilincli bir karari,
         // yurutmenin yan urunu degil.

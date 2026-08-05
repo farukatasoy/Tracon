@@ -445,6 +445,30 @@ internal abstract class SqlQueriesBase
     /// <summary>Teslim gecmisini filtreleyerek listeler.</summary>
     public string SelectWebhookDeliveries { get; protected set; } = string.Empty;
 
+    /// <summary>Bir saklama politikasini ekler veya gunceller (kapsam catismasinda).</summary>
+    public string UpsertRetentionPolicy { get; protected set; } = string.Empty;
+
+    /// <summary>Bir kiracinin saklama politikalarini listeler.</summary>
+    public string SelectRetentionPolicies { get; protected set; } = string.Empty;
+
+    /// <summary>Tek bir hedefin politikasini kiraci icinde getirir.</summary>
+    public string SelectRetentionPolicy { get; protected set; } = string.Empty;
+
+    /// <summary>Bir saklama politikasini siler.</summary>
+    public string DeleteRetentionPolicy { get; protected set; } = string.Empty;
+
+    /// <summary>Yeni bir temizleme kosusu acar.</summary>
+    public string InsertRetentionRun { get; protected set; } = string.Empty;
+
+    /// <summary>Devam eden bir kosunun sayaclarini atomik olarak artirir.</summary>
+    public string UpdateRetentionRunProgress { get; protected set; } = string.Empty;
+
+    /// <summary>Bir kosuyu sonlandirir.</summary>
+    public string CompleteRetentionRun { get; protected set; } = string.Empty;
+
+    /// <summary>Kosu gecmisini filtreleyerek listeler.</summary>
+    public string SelectRetentionRuns { get; protected set; } = string.Empty;
+
     /// <summary>Gomulu migration metnindeki sema yer tutucusunu gercek adla degistirir.</summary>
     /// <param name="sql">Ham migration metni.</param>
     /// <returns>Calistirilabilir SQL.</returns>

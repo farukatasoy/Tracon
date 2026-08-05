@@ -18,6 +18,7 @@ import {
 } from '../components/ui';
 import { QuotaPanel } from '../components/quota-panel';
 import { WebhookPanel } from '../components/webhook-panel';
+import { RetentionPanel } from '../components/retention-panel';
 import type { Meta } from '../lib/types';
 
 export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
@@ -183,6 +184,8 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
         <QuotaPanel />
 
         <WebhookPanel />
+
+        <RetentionPanel />
       </div>
     </>
   );

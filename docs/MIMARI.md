@@ -13,37 +13,38 @@
 > Bir bölüm bir fazda büyüdüyse, **eski hâlini** arşive taşı; üst üste yığma.
 > Denetim: `python3 scripts/dokuman-bakim.py --denetle`
 
-## Güncel Durum (2026-08-04)
+## Güncel Durum (2026-08-05)
 
 | Paket | Rolü | Durum |
 |-------|------|-------|
-| `AgentPrism.Abstractions` | Sözleşmeler: kayıt, depo, katalog, iş, eval, deney, kota, webhook tipleri. Bağımlılığı yok. | ✅ |
-| `AgentPrism.Core` | Çalıştırma yolu: derleyici, dekoratörler, kayıt, denetim, skill, workflow doğrulama, fiyat, kota, olay yayını. | ✅ |
-| `AgentPrism.PostgreSql` | Kalıcılık: `PostgresQueries` + `PostgresDialect` + gömülü SQL (0001–0013). Depo mantığı `AgentPrism.Sql.Shared` ile paylaşılır. | ✅ |
-| `AgentPrism.SqlServer` | SQL Server 2019+ / Azure SQL. Aynı depolar, kendi T-SQL metni ve migration seti (`0001`). Meta pakete dâhil değil (K-185). | ⚠️ testleri koşturulmadı |
-| `AgentPrism.Sql.Shared` | **Paket değil** — paylaşılan kaynak: 20 depo (ADO.NET tabanı), `SqlQueriesBase`, `SqlDialect`, migration runner (K-176). | ✅ |
+| `AgentPrism.Abstractions` | Sözleşmeler: kayıt, depo, katalog, iş, eval, deney, kota, webhook, saklama tipleri. Bağımlılığı yok. | ✅ |
+| `AgentPrism.Core` | Çalıştırma yolu: derleyici, dekoratörler, kayıt, denetim, skill, workflow doğrulama, fiyat, kota, olay yayını, saklama yürütücüsü. | ✅ |
+| `AgentPrism.PostgreSql` | Kalıcılık: `PostgresQueries` + `PostgresDialect` + gömülü SQL (0001–0014). Depo mantığı `AgentPrism.Sql.Shared` ile paylaşılır. | ✅ |
+| `AgentPrism.SqlServer` | SQL Server 2019+ / Azure SQL. Aynı depolar, kendi T-SQL metni ve migration seti (`0001`–`0002`). Meta pakete dâhil değil (K-185). | ⚠️ Faz 25 testleri koşturulmadı |
+| `AgentPrism.Sqlite` | Tek dosya/gömülü kalıcılık. Aynı depolar, kendi SQL metni ve migration seti (`0001`–`0002`, K-190). Meta pakete dâhil değil. | ✅ |
+| `AgentPrism.Sql.Shared` | **Paket değil** — paylaşılan kaynak: 22 depo (ADO.NET tabanı), `SqlQueriesBase`, `SqlDialect` (+ `QualifyTable`, K-198), migration runner (K-176). | ✅ |
 | `AgentPrism.OpenAI` | OpenAI ve OpenAI uyumlu her sağlayıcı + sağlık denetimi. | ✅ |
 | `AgentPrism.Mcp` | Uzak MCP sunucularından tool keşfi. | ✅ |
 | `AgentPrism.Workflows` | MAF Workflows yürütmesi, kontrol noktası, human-in-the-loop. | ✅ |
-| `AgentPrism.AspNetCore` | `MapAgentPrism()` — yönetim API'si, OpenAI uyumlu uçlar, roller, hız sınırı. | ✅ |
+| `AgentPrism.AspNetCore` | `MapAgentPrism()` — yönetim API'si, OpenAI uyumlu uçlar, roller, hız sınırı, saklama uçları. | ✅ |
 | `AgentPrism.UI` | Gömülü React arayüzü (`UseUI()`). | ✅ |
 | `AgentPrism` (meta) | Hepsini toplayan meta paket. | ✅ |
 
 Hangi fazın hangi pakete ne eklediği: [`arsiv/PAKET-FAZ-GECMISI.md`](arsiv/PAKET-FAZ-GECMISI.md).
 
-Testler: **1235 .NET testi geçiyor** — 573 birim (412 Core + 77 OpenAI + 69
-Workflows + 15 Mcp) + 246 fonksiyonel (TestHost) + 416 entegrasyon
-(Testcontainers, gerçek PostgreSQL). Dört kapı sıfır uyarı; `dotnet pack`
-**10 paket** üretir. ⚠️ `AgentPrism.SqlServer`'ın 189 sözleşme testi + kendi
-testleri **henüz koşturulmadı** (geliştirme makinesinde amd64 emülasyonu kapalı,
-bkz. [`23-SQL-SERVER.md`](23-SQL-SERVER.md)).
+Testler: **1509 geçiyor** — 601 birim (440 Core + 77 OpenAI + 69 Workflows +
+15 Mcp) + 254 fonksiyonel + 654 entegrasyon (Testcontainers: 440 PostgreSQL +
+214 SQLite). Dört kapı sıfır uyarı; `dotnet pack` **11 paket** üretir.
+⚠️ `AgentPrism.SqlServer`'ın 213 testi bu makinede koşmadı (amd64 emülasyonu
+kapalı; `azure-sql-edge` ikamesi de artık çalışmıyor — bkz. `23-SQL-SERVER.md`,
+`docs/hafiza/sql-saglayicilari.md`).
 
 Bugün AgentPrism **işletilebilir bir kontrol düzlemidir**: agent'lar kodda veya
-arayüzden tanımlanır, her çalıştırma span ağacı + metrik + maliyetiyle kaydedilir,
-geri alınamaz tool'lar onay bekler, workflow'lar insanla konuşabilir, işler
-zamanlanabilir, sürümler A/B karşılaştırılabilir, kullanım kota ve hız sınırıyla
-sınırlanabilir, olaylar imzalı webhook'larla dış sistemlere yayılabilir.
-Veritabanı **zorunlu değildir**; yapılandırılmazsa depolama bellek içine düşer.
+arayüzden tanımlanır, her çalıştırma kaydedilir, geri alınamaz tool'lar onay
+bekler, workflow'lar insanla konuşabilir, işler zamanlanabilir, sürümler A/B
+karşılaştırılabilir, kullanım sınırlanabilir, olaylar webhook'larla yayılabilir,
+eski veri politikaya göre arşivlenip silinebilir. Veritabanı **zorunlu
+değildir**; yapılandırılmazsa depolama bellek içine düşer.
 
 Faz faz nasıl buraya gelindiği: [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md).
 Her fazın ayrıntısı kendi dokümanındadır (`docs/NN-*.md`).
@@ -208,7 +209,7 @@ erDiagram
 > anahtar olmayan** mantıksal bağı gösterir — `tenant_id` sütunlarına FK konmadı,
 > gerekçe karar defterinde.
 
-Hangi migration'ın hangi tabloyu eklediği (0001–0012) birikimli bir anlatıdır ve
+Hangi migration'ın hangi tabloyu eklediği (0001–0014) birikimli bir anlatıdır ve
 sıcak yolda tutulmaz: [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md) → "Migration
 geçmişi". Bugünkü tablo listesi aşağıdadır; şemanın kaynağı her zaman
 `src/AgentPrism.PostgreSql/Migrations/*.sql` dosyalarıdır.
@@ -251,6 +252,8 @@ yazılırsa aynı satır güncellenir, tekrar kaydı oluşmaz.
 | `quota_usage` | Dönem sayacı; `agent_name = ''` kiracı geneli. `ON CONFLICT DO UPDATE` ile **atomik** artar (Faz 21) |
 | `webhook_subscriptions` | Olay aboneliği: adres, olay listesi, **sır değil** anahtar adı (K-059) (Faz 21) |
 | `webhook_deliveries` | Teslim **geçmişi** — kuyruk değil; zamanlama `jobs`'tadır (K-160) (Faz 21) |
+| `retention_policies` | Hedef başına saklama kuralı: yaş/hacim sınırı, arşiv bayrağı (K-198) (Faz 25) |
+| `retention_runs` | Temizleme koşusu geçmişi (Faz 25) |
 
 Kurallar:
 
@@ -263,7 +266,7 @@ Kurallar:
 - 🚨 **NULL sütun içeren benzersizlik `COALESCE` ile kurulur.** PostgreSQL'de NULL'lar birbirine eşit sayılmaz; `quotas` kapsam benzersizliği `(tenant_id, COALESCE(agent_name, ''), period)` ifadesi üzerinedir ve `ON CONFLICT` yan tümcesi **aynı ifadeyi** yazar
 - Her tabloda `tenant_id` (`text`); `tenants` tablosuna **yabancı anahtar yoktur** — kısıt Faz 6'da kiracı yönetimiyle gelir
 - Şema adı yapılandırılabilir (`AgentPrismPostgreSqlOptions.SchemaName`); `.sql` dosyalarındaki `{schema}` yer tutucusu katı doğrulamadan sonra değiştirilir (karar K-029)
-- `run_events` partition'a **aday** (`created_at`); açılırsa birincil anahtarın o sütunu da içermesi gerekir
+- `run_events` partition'ı **açılmadı** (K-063 → K-199): 100k satırda parti silme saniyede ~720k satır siliyor, hedef yükün çok üzerinde. `retention_policies` tabloyu sınırlı tutar
 
 ---
 

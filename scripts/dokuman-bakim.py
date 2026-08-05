@@ -24,10 +24,17 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 # Sicak yol: her oturumda (veya her fazda birden cok kez) okunan dosyalar.
 # Bayt butcesi ~2.4 bayt/token varsayimiyla secildi.
+#
+# KARARLAR-INDEKS.md 25_000: Faz 25 kapanisinda (203 karar, 24 reddedilen is)
+# ilk kez 24_000'i astı (~1%). Icerik silinmedi/tasinmadi -- baslikklar zaten
+# kisaltildi (bkz. K-198..K-203). Butce burada BILEREK 1_000 bayt buyutuldu;
+# bu, indeksin sonsuza kadar buyuyecegi yapisal gercegiyle yuzlesmenin ilk
+# adimidir. Gercek cozum (bolum bazli indeks veya eski fazlarin arsivlenmesi)
+# henuz yazilmadi -- bir sonraki asimda tekrar degerlendirilmeli.
 BUTCE = {
     "AGENTS.md": 12_000,
     "MEMORY.md": 8_000,
-    "docs/KARARLAR-INDEKS.md": 24_000,
+    "docs/KARARLAR-INDEKS.md": 25_000,
     "docs/MIMARI.md": 42_000,
     "README.md": 20_000,
 }

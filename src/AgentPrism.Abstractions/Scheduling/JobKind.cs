@@ -28,4 +28,11 @@ public enum JobKind
     /// kimligini tasir; govde <c>webhook_deliveries</c> tablosundan okunur.
     /// </summary>
     WebhookDelivery = 3,
+
+    /// <summary>
+    /// Bir saklama suprusu (Faz 25). <c>TargetName</c> ya belirli bir
+    /// <see cref="RetentionTargets"/> degeri ya da tum etkin politikalari
+    /// isleyen <c>"*"</c>'tir.
+    /// </summary>
+    Retention = 4,
 }

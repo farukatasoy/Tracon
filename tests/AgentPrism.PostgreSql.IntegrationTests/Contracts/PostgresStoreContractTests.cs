@@ -343,6 +343,28 @@ public sealed class PostgresQuotaStoreContractTests(PostgresFixture fixture) : Q
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
+public sealed class PostgresRetentionPolicyStoreContractTests(PostgresFixture fixture) : RetentionPolicyStoreContract
+{
+    private PostgresTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<IRetentionPolicyStore> CreateStoreAsync()
+    {
+        _context = await PostgresTestContext.CreateAsync(fixture);
+        return _context.RetentionPolicies;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}
+
+/// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
 public sealed class PostgresWebhookStoreContractTests(PostgresFixture fixture) : WebhookStoreContract
 {
     private PostgresTestContext? _context;
