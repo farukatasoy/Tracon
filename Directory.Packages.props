@@ -64,6 +64,26 @@
     <PackageVersion Include="Anthropic" Version="12.39.0" />
     <PackageVersion Include="Google.GenAI" Version="1.16.0" />
     <PackageVersion Include="OpenAI" Version="2.12.0" />
+    <!--
+      Azure OpenAI (Faz 27). Bu paket yalnizca AgentPrism.Azure icindedir ve
+      OpenAI SDK'sinin ustune Azure yonlendirmesini (deployment yolu, api-version,
+      api-key/Entra kimligi) ekler.
+
+      🚨 SURUM KAYMASI VAR VE BILINCLIDIR. Azure.AI.OpenAI 2.1.0, OpenAI 2.1.0'a
+      karsi derlendi; biz OpenAI 2.12.0 kullaniyoruz (AgentPrism.OpenAI'in ihtiyaci).
+      Olculdu (2026-08-05): temel sohbet yolu (GetChatClient -> AsIChatClient ->
+      istek) sorunsuz calisir, ama Azure.AI.OpenAI.Chat.AzureChatExtensions'in
+      ISTEK tarafi metotlarinin TAMAMI calisma aninda MissingMethodException verir
+      ("OpenAI.Chat.ChatCompletionOptions.get_SerializedAdditionalRawData bulunamadi").
+      Bu yuzden AgentPrism.Azure o uzantilarin hicbirini kullanmaz ve saglayiciya
+      ozgu ayar (ProviderSettings) sunmaz. Ayrinti: docs/KARARLAR.md, karar K-211.
+
+      Azure.Core dogrudan yazilir cunku AgentPrism.Azure'un PUBLIC API'si
+      Azure.Core.TokenCredential tipini tasir (kimlik fabrikasi, K-210); gecisli
+      bir bagimliligin tipini public yuzeyde tasimak kirilgan olurdu.
+    -->
+    <PackageVersion Include="Azure.AI.OpenAI" Version="2.1.0" />
+    <PackageVersion Include="Azure.Core" Version="1.61.0" />
   </ItemGroup>
 
   <ItemGroup Label="Veri erisimi">
