@@ -197,6 +197,13 @@ export const PaperclipIcon = ({ className }: IconProps): ReactNode => (
   </Icon>
 );
 
+export const SpeakerIcon = ({ className }: IconProps): ReactNode => (
+  <Icon className={className}>
+    <path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z" />
+    <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" />
+  </Icon>
+);
+
 export const AuditIcon = ({ className }: IconProps): ReactNode => (
   <Icon className={className}>
     <rect x="5" y="4" width="14" height="17" rx="2" />

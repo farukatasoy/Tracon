@@ -217,5 +217,17 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
                 }
             }
         }
+
+        foreach (var (providerName, models) in pricing.Voice)
+        {
+            foreach (var (modelName, price) in models)
+            {
+                if (price.PerMillionCharacters is < 0 || price.PerMinute is < 0)
+                {
+                    (failures ??= []).Add(
+                        $"{nameof(AgentPrismPricingOptions)}: 'Voice:{providerName}:{modelName}' icin fiyat negatif olamaz.");
+                }
+            }
+        }
     }
 }

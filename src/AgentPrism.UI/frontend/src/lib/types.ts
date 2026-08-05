@@ -686,6 +686,39 @@ export interface AttachmentDescriptor {
   createdAt: string;
 }
 
+/** Result of `POST api/voice/speak`. */
+export interface SpeakResponse {
+  attachment: AttachmentDescriptor;
+  /**
+   * Billed characters.
+   *
+   * Voice is priced per character, not per token, so this number never joins
+   * the token totals shown elsewhere — two different units cannot be summed.
+   */
+  characters: number;
+  /** True when the provider did not report a count and the length was estimated. */
+  isEstimated: boolean;
+  cost?: number | null;
+  currency?: string | null;
+}
+
+/** One selectable voice from `GET api/voice/voices`. */
+export interface VoiceDescriptor {
+  voiceId: string;
+  name: string;
+  category?: string | null;
+}
+
+/** Result of `GET api/voice/health`. */
+export interface VoiceHealth {
+  providerName: string;
+  isHealthy: boolean;
+  latency: string;
+  checkedAt: string;
+  detail?: string | null;
+  voiceCount?: number | null;
+}
+
 /** `POST /v1/conversations` reserves an identifier; the session is born on first use. */
 export interface Conversation {
   id: string;

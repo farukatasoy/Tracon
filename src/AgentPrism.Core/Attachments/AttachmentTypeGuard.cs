@@ -127,7 +127,7 @@ public sealed class AttachmentTypeGuard
             return "audio/ogg";
         }
 
-        if (StartsWith(data, "ID3"u8) || StartsWith(data, [0xFF, 0xFB]) || StartsWith(data, [0xFF, 0xF3]))
+        if (StartsWith(data, "ID3"u8) || IsMpegFrameSync(data))
         {
             return "audio/mpeg";
         }
@@ -135,6 +135,39 @@ public sealed class AttachmentTypeGuard
         // text/plain icin guvenilir bir sihirli bayt yoktur: gecerli UTF-8 olan ve
         // ilk 1 KB'inda kontrol/NUL baytı tasimayan icerik metin sayilir.
         return LooksLikePlainText(data) ? "text/plain" : null;
+    }
+
+    /// <summary>Bir MPEG ses cercevesi basligini tanir (ID3 etiketi olmayan MP3).</summary>
+    /// <remarks>
+    /// <para>
+    /// Cerceve senkronu <strong>11 bit 1</strong>'dir: ilk bayt <c>0xFF</c>, ikinci
+    /// baytin ust uc biti <c>111</c>. Ikinci bayttaki kalan bitler surum ve katman
+    /// alanlaridir ve cok sayida gecerli deger uretir — <c>0xFB</c>, <c>0xF3</c>,
+    /// <c>0xF2</c>, <c>0xFA</c>, <c>0xE3</c> gibi. Bu degerleri tek tek listelemek
+    /// gercek cikti bicimine gore SESSIZ bir ret uretir; kural bit maskesiyle
+    /// yazilir.
+    /// </para>
+    /// <para>
+    /// Yanlis eslesmeyi onlemek icin surum ve katman alanlari da denetlenir:
+    /// ikisinin de <c>reserved</c> degeri (sirasiyla <c>01</c> ve <c>00</c>) gecerli
+    /// bir cerceve degildir. Bu denetim olmadan <c>FF E0</c> ile baslayan her ikili
+    /// icerik ses sayilirdi.
+    /// </para>
+    /// <para>
+    /// Gerekce: <c>docs/28-SES-TOOLLARI.md</c>, bolum 28.0/G3.
+    /// </para>
+    /// </remarks>
+    private static bool IsMpegFrameSync(ReadOnlySpan<byte> data)
+    {
+        if (data.Length < 2 || data[0] != 0xFF || (data[1] & 0xE0) != 0xE0)
+        {
+            return false;
+        }
+
+        var version = (data[1] >> 3) & 0x03;   // 01 = ayrilmis
+        var layer = (data[1] >> 1) & 0x03;     // 00 = ayrilmis
+
+        return version != 0x01 && layer != 0x00;
     }
 
     private static bool LooksLikePlainText(ReadOnlySpan<byte> data)

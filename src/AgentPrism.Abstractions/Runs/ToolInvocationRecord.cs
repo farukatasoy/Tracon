@@ -52,6 +52,17 @@ public sealed record ToolInvocationRecord
     /// <summary>Cagrinin sonuclandigi an (UTC).</summary>
     public required DateTimeOffset CreatedAt { get; init; }
 
+    /// <summary>
+    /// Cagrinin token DISI olcumu ve maliyeti. Tool olcum bildirmediyse
+    /// <see langword="null"/> — yani cagrilarin buyuk cogunlugunda bostur.
+    /// </summary>
+    /// <remarks>
+    /// Deger <c>AgentPrismToolUsage.Report(...)</c> ile tool'un kendi govdesinden
+    /// bildirilir ve cagri kimligiyle bu kayda baglanir. Gerekce:
+    /// <c>docs/28-SES-TOOLLARI.md</c>, bolum 28.5.
+    /// </remarks>
+    public ToolCallUsage? Usage { get; init; }
+
     /// <summary>Cagri basarili mi bitti.</summary>
     public bool Succeeded => Error is null;
 }

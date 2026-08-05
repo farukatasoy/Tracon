@@ -389,6 +389,14 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableText(command, "error", invocation.Error);
         Dialect.AddTimestamp(command, "created_at", invocation.CreatedAt);
 
+        // Token DISI olcum (Faz 28). Cagrilarin cogunlugu olcum tasimaz ve bes
+        // sutun da NULL kalir. Fiyat tanimsizsa `cost` SIFIR degil NULL yazilir.
+        AddNullableText(command, "usage_unit", invocation.Usage?.Unit);
+        Dialect.AddDecimal(command, "usage_quantity", invocation.Usage?.Quantity);
+        Dialect.AddNullableBoolean(command, "usage_estimated", invocation.Usage?.IsEstimated);
+        Dialect.AddDecimal(command, "cost", invocation.Usage?.Cost);
+        AddNullableText(command, "cost_currency", invocation.Usage?.Currency);
+
         try
         {
             await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
@@ -627,7 +635,34 @@ internal sealed class SqlRunStore : IRunStore
             Duration = reader.IsDBNull(7) ? null : TimeSpan.FromMilliseconds(reader.GetInt32(7)),
             Error = DbHelpers.GetNullableString(reader, 8),
             CreatedAt = DbHelpers.GetTimestamp(reader, 9),
+            Usage = ReadToolCallUsage(reader),
         };
+
+    /// <summary>
+    /// Token disi olcum sutunlarini okur (indeksler 10-14).
+    /// </summary>
+    /// <remarks>
+    /// Birim bos ise cagri hic olcum bildirmemistir ve nesne kurulmaz — bos bir
+    /// <see cref="ToolCallUsage"/> dondurmek "olculdu ama sifir" anlamina gelirdi.
+    /// Mantiksal deger <c>DbHelpers.ToBoolean</c> ile okunur: SQLite mantiksal tip
+    /// tasimaz ve <c>long</c> (0/1) dondurur (K-195).
+    /// </remarks>
+    private static ToolCallUsage? ReadToolCallUsage(DbDataReader reader)
+    {
+        if (DbHelpers.GetNullableString(reader, 10) is not { Length: > 0 } unit)
+        {
+            return null;
+        }
+
+        return new ToolCallUsage
+        {
+            Unit = unit,
+            Quantity = DbHelpers.GetNullableDecimal(reader, 11) ?? 0m,
+            IsEstimated = !reader.IsDBNull(12) && DbHelpers.ToBoolean(reader.GetValue(12)),
+            Cost = DbHelpers.GetNullableDecimal(reader, 13),
+            Currency = DbHelpers.GetNullableString(reader, 14),
+        };
+    }
 
     private static ToolUsage ReadToolUsage(DbDataReader reader)
         => new()

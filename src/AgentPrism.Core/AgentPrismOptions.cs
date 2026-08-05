@@ -411,9 +411,19 @@ public sealed class AgentPrismRunRecordingOptions
 /// </summary>
 /// <remarks>
 /// AgentPrism fiyat <strong>uydurmaz</strong> (karar K-032): burada yalnizca
-/// tuketicinin yapilandirmadan verdigi degerler tutulur. Yapilandirma yolu
-/// <c>AgentPrism:Pricing:{saglayici}:{model}:Input|Output</c> ve
-/// <c>AgentPrism:Pricing:Currency</c> seklindedir; joker karakter desteklenmez.
+/// tuketicinin yapilandirmadan verdigi degerler tutulur. Yapilandirma yollari:
+/// <list type="bullet">
+///   <item><c>AgentPrism:Pricing:Currency</c></item>
+///   <item><c>AgentPrism:Pricing:{saglayici}:{model}:Input|Output</c></item>
+///   <item><c>AgentPrism:Pricing:Voice:{saglayici}:{model}:PerMillionCharacters|PerMinute</c></item>
+/// </list>
+/// Joker karakter desteklenmez.
+/// <para>
+/// 🚨 Bolum elle baglanir (AOT). <c>Pricing</c>'in her cocugu bir SAGLAYICI adi
+/// sayilir; <c>Currency</c> ve <c>Voice</c> anahtarlari bu yuzden REZERVEDIR ve
+/// saglayici adi olarak kullanilamaz. Yeni bir rezerve anahtar eklerken
+/// <c>BindPricing</c> icindeki atlama listesini de guncelleyin.
+/// </para>
 /// </remarks>
 public sealed class AgentPrismPricingOptions
 {
@@ -426,6 +436,31 @@ public sealed class AgentPrismPricingOptions
     /// </summary>
     public IDictionary<string, IDictionary<string, ModelPriceOverride>> Providers { get; }
         = new Dictionary<string, IDictionary<string, ModelPriceOverride>>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Ses saglayicisi adindan, model basina ses fiyatlarina eslenir.
+    /// </summary>
+    /// <remarks>
+    /// Ses ucretlendirmesi token degil karakter veya sure bazlidir; bu yuzden
+    /// <see cref="Providers"/> ile ayni sozlukte YASAYAMAZ. Iki bolumun toplami
+    /// da alinmaz — farkli birimler toplanamaz (bkz. <c>docs/28-SES-TOOLLARI.md</c>).
+    /// </remarks>
+    public IDictionary<string, IDictionary<string, VoicePriceOverride>> Voice { get; }
+        = new Dictionary<string, IDictionary<string, VoicePriceOverride>>(StringComparer.OrdinalIgnoreCase);
+}
+
+/// <summary>Yapilandirmadan verilen tek bir ses modelinin fiyati.</summary>
+/// <remarks>
+/// Iki alan birbirini dislar: bir model ya metinden ses uretir (karakter) ya da
+/// sesten metin cozer (sure). Ikisi de doluysa tool kendi birimine uyani secer.
+/// </remarks>
+public sealed class VoicePriceOverride
+{
+    /// <summary>Milyon karakter basina maliyet. Metinden ses uretimi icin.</summary>
+    public decimal? PerMillionCharacters { get; set; }
+
+    /// <summary>Dakika basina maliyet. Sesten metin cevrimi icin.</summary>
+    public decimal? PerMinute { get; set; }
 }
 
 /// <summary>Yapilandirmadan verilen tek bir modelin fiyat gecersiz kilmasi.</summary>
