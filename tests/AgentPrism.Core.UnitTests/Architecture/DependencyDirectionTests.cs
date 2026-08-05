@@ -37,6 +37,9 @@ public sealed class DependencyDirectionTests
         ["AgentPrism.Anthropic"] = ["AgentPrism.Core"],
         ["AgentPrism.Google"] = ["AgentPrism.Core"],
         ["AgentPrism.Azure"] = ["AgentPrism.Core"],
+        // Voice bir MODEL saglayicisi degildir ama ayni yalitim kuralina uyar:
+        // yalnizca Core'a baglidir ve HICBIR NuGet paketi almaz (ham HttpClient).
+        ["AgentPrism.Voice"] = ["AgentPrism.Core"],
         // Mcp yalnizca Core'a baglidir: HTTP katmani MCP tazelemesini
         // IMcpToolRefresher soyutlamasi uzerinden tetikler, ters yonde bir
         // referans YOKTUR. Boylece MCP istege bagli bir paket olarak kalir.

@@ -67,6 +67,16 @@ Bunlar alana bağlı değildir; her fazda tekrar tekrar bedel ödettiler.
   başlar. Doğrulama komutlarında **mutlak yol** kullan.
 - **`dotnet test` MTP'dir, VSTest değil.** `--filter-query` bir MSBuild anahtarı
   değildir (`MSB1001`). Tek test koşmak için projeyi çalıştırıp çıktıyı grep'le.
+- **🚨 Tool'un gördüğü servis sağlayıcı BOŞTUR.** MAF, `AIFunctionArguments.Services`
+  olarak `EmptyServiceProvider` geçirir; bir tool bağımlılığını **kurulum anında**
+  almalıdır (`new BenimTool(provider)` + fabrika kaydı). Aynı sebeple `AddToolsFrom`
+  ile kaydedilen **örnek metot** tool'ları da çalışmaz. Faz 28'de ölçüldü; ayrıntı
+  `docs/hafiza/cekirdek-calistirma.md`, karar K-218.
+- **🚨 Bir prob programı gerçek boru hattını kanıtlamaz.** Faz 28'de ayrı bir konsol
+  projesinde `AIFunctionArguments.Services` çalışıyordu — çünkü orada
+  `FunctionInvokingChatClient` elle kurulmuştu. Gerçek yolda çalışmıyordu. Faz 27'nin
+  "derleme yeşilliği hiçbir şey kanıtlamaz" dersinin kardeşi: **izole ölçüm, entegre
+  davranışı kanıtlamaz.**
 - **MAF ve OpenAI tip adlarını tahmin etme.** `AgentResponse` (`AgentRunResponse`
   değil), `ResponsesClient` (`OpenAIResponseClient` değil). Yeni tip kullanmadan
   önce `maf-api-kesfi` skill'ini çalıştır.

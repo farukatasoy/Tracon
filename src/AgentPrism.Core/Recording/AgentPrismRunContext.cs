@@ -66,6 +66,19 @@ public sealed record AgentRunScope
     /// <summary>Calistirmanin kiracisi. Alt calistirma bu kiracidan cikamaz.</summary>
     public string? TenantId { get; init; }
 
+    /// <summary>
+    /// Calistirmanin bagli oldugu oturum. Oturumsuz calistirmada <see langword="null"/>.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 Bir tool'un uretip <c>attachments</c> tablosuna yazdigi icerik bu alani
+    /// TASIMAK ZORUNDADIR. Saklama politikasi (Faz 25) <c>session_id</c> alani bos
+    /// olan bir eki <strong>sahipsiz</strong> sayar ve kesim tarihinden sonra siler;
+    /// oturum hala yasarken transcript'teki icerik kaybolur. Tool
+    /// <c>AgentSession</c>'a erisemedigi icin oturum kimligini yalniz buradan
+    /// okuyabilir. Gerekce: <c>docs/28-SES-TOOLLARI.md</c>, bolum 28.0/G1.
+    /// </remarks>
+    public string? SessionId { get; init; }
+
     /// <summary>Agac boyunca paylasilan butce.</summary>
     public AgentRunBudget? Budget { get; init; }
 
@@ -93,4 +106,13 @@ public sealed record AgentRunScope
     /// toplayan sayac. Calistirma sonunda nihai kullanima katilir.
     /// </summary>
     internal CompactionUsageAccumulator? ExtraUsage { get; init; }
+
+    /// <summary>
+    /// Tool'larin bildirdigi token disi olcumleri cagri kimligine gore tutar.
+    /// </summary>
+    /// <remarks>
+    /// Yazma yuzeyi <see cref="AgentPrismToolUsage.Report"/>'tur; okuma
+    /// <c>ToolInvocationTracker</c> icindedir.
+    /// </remarks>
+    internal ToolUsageAccumulator? ToolUsage { get; init; }
 }

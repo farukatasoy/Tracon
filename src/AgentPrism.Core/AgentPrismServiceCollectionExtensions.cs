@@ -508,8 +508,8 @@ public static class AgentPrismServiceCollectionExtensions
     }
 
     /// <summary>
-    /// <c>AgentPrism:Pricing</c> bolumunu baglar. <c>Currency</c> anahtari
-    /// rezervedir; diger her cocuk bir saglayici adi olarak okunur.
+    /// <c>AgentPrism:Pricing</c> bolumunu baglar. <c>Currency</c> ve <c>Voice</c>
+    /// anahtarlari rezervedir; diger her cocuk bir saglayici adi olarak okunur.
     /// </summary>
     private static void BindPricing(IConfigurationSection section, AgentPrismPricingOptions options)
     {
@@ -523,11 +523,19 @@ public static class AgentPrismServiceCollectionExtensions
             options.Currency = currency;
         }
 
+        BindVoicePricing(section.GetSection(nameof(AgentPrismPricingOptions.Voice)), options);
+
         foreach (var providerSection in section.GetChildren())
         {
+            // Rezerve anahtarlar. Bolum elle baglandigi icin bu liste TEK
+            // dogruluk noktasidir; unutulan bir anahtar saglayici adi sanilir.
             if (string.Equals(
                     providerSection.Key,
                     nameof(AgentPrismPricingOptions.Currency),
+                    StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(
+                    providerSection.Key,
+                    nameof(AgentPrismPricingOptions.Voice),
                     StringComparison.OrdinalIgnoreCase))
             {
                 continue;
@@ -555,6 +563,52 @@ public static class AgentPrismServiceCollectionExtensions
             if (models.Count > 0)
             {
                 options.Providers[providerSection.Key] = models;
+            }
+        }
+    }
+
+    /// <summary>
+    /// <c>AgentPrism:Pricing:Voice</c> bolumunu baglar.
+    /// </summary>
+    /// <remarks>
+    /// Ses ucretlendirmesi token degil karakter (uretim) veya sure (cozum)
+    /// bazlidir; bu yuzden ayri bir sozluge yazilir ve token fiyatlariyla
+    /// toplanmaz.
+    /// </remarks>
+    private static void BindVoicePricing(IConfigurationSection section, AgentPrismPricingOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        foreach (var providerSection in section.GetChildren())
+        {
+            var models = new Dictionary<string, VoicePriceOverride>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var modelSection in providerSection.GetChildren())
+            {
+                var perMillionCharacters = ReadDecimal(
+                    modelSection,
+                    nameof(VoicePriceOverride.PerMillionCharacters));
+
+                var perMinute = ReadDecimal(modelSection, nameof(VoicePriceOverride.PerMinute));
+
+                if (perMillionCharacters is null && perMinute is null)
+                {
+                    continue;
+                }
+
+                models[modelSection.Key] = new VoicePriceOverride
+                {
+                    PerMillionCharacters = perMillionCharacters,
+                    PerMinute = perMinute,
+                };
+            }
+
+            if (models.Count > 0)
+            {
+                options.Voice[providerSection.Key] = models;
             }
         }
     }

@@ -364,9 +364,16 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             Depth = depth,
             AgentName = agentName,
             TenantId = tenantId,
+
+            // Kapsamdaki oturum kimligi calistirma kaydindakinden GENIS tanimlidir:
+            // alt calistirmaya MAF bir oturum gecirmez, ama orada uretilen icerik
+            // yine kok oturuma aittir. `RunStartInfo.SessionId` (yani runs.session_id)
+            // bu geri dusustu KULLANMAZ ve anlamini korur.
+            SessionId = sessionId ?? prismOptions?.SessionId,
             Budget = prismOptions?.Budget ?? (depth == 0 ? _graphOptions.CreateBudget() : null),
             Writer = writer,
             ExtraUsage = new CompactionUsageAccumulator(),
+            ToolUsage = new ToolUsageAccumulator(),
             AgentVersion = agentVersion,
             ExperimentId = prismOptions?.ExperimentId,
             Variant = prismOptions?.Variant,
@@ -414,7 +421,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         return new RunScope(
             start.Writer,
             start.Activity,
-            new ToolInvocationTracker(start.Scope.RunId, start.IsStreaming, _timeProvider),
+            new ToolInvocationTracker(start.Scope.RunId, start.IsStreaming, _timeProvider, start.Scope.ToolUsage),
             start.Scope.AgentName!,
             start.Scope.TenantId!,
             _timeProvider.GetTimestamp(),

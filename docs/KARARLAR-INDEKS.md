@@ -47,7 +47,7 @@ Tarih bu indekste **yoktur** (K-214) — `KARARLAR.md`'deki kalemin kendisinde d
 | L37 | Arayüzden tool istatistiği ve model sağlık kontrolü Faz 5'te gösterilmedi 👤 |
 | L38 | Arayüz i18n altyapısı kurulmadı; dil İngilizce 👤🔁 |
 
-## 2. Kalıcı Kararlar (214 kalem)
+## 2. Kalıcı Kararlar (221 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -265,3 +265,10 @@ Tarih bu indekste **yoktur** (K-214) — `KARARLAR.md`'deki kalemin kendisinde d
 | K-212 | L257 | Azure AI Foundry ertelendi; gerekçe sürüm uyumu değil, 37 geçişli paket ve doğrulanamazlık 👤 |
 | K-213 | L258 | Azure'ın Responses yüzeyi desteklenmiyor  |
 | K-214 | L259 | `KARARLAR-INDEKS.md`'den tarih sütunu kaldırıldı  |
+| K-215 | L260 | Ses sözleşmeleri `AgentPrism.Abstractions`'ta yaşar; ElevenLabs bir uygulamadır  |
+| K-216 | L261 | `AgentPrism.Voice` hiçbir NuGet paketi almaz; ham `HttpClient` kullanılır  |
+| K-217 | L262 | `AgentRunScope.SessionId` eklendi; oturumsuz yazılan ek saklama tarafından silinir  |
+| K-218 | L263 | Tool bağımlılıkları KURULUM anında alınır; `AIFunctionArguments.Services` MAF boru hattında boştur  |
+| K-219 | L264 | `tool_invocations` beş ölçüm sütunu taşır; ses maliyeti token maliyetiyle toplanmaz  |
+| K-220 | L265 | `POST /api/voice/speak` operatör eylemidir ve `tool_invocations`'a yazmaz  |
+| K-221 | L266 | Ses API anahtarı düz `ApiKey`'dir; K-059 yalnız veritabanı içindir  |

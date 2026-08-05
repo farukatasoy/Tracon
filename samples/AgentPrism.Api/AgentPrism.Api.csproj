@@ -25,6 +25,8 @@
     <ProjectReference Include="../../src/AgentPrism.Anthropic/AgentPrism.Anthropic.csproj" />
     <ProjectReference Include="../../src/AgentPrism.Google/AgentPrism.Google.csproj" />
     <ProjectReference Include="../../src/AgentPrism.Azure/AgentPrism.Azure.csproj" />
+    <!-- Ses tool'lari (Faz 28). Meta pakete dahil DEGILDIR; acikca referans verilir. -->
+    <ProjectReference Include="../../src/AgentPrism.Voice/AgentPrism.Voice.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -63,6 +63,10 @@ internal sealed class UiHost : IAsyncDisposable
 
         var provider = new ScriptedModelProvider();
 
+        // Ses uclarinin ihtiyaci yalnizca bu soyutlamadir; AgentPrism.Voice
+        // paketine referans YOKTUR.
+        builder.Services.AddSingleton<ISpeechSynthesizer, StubSpeechSynthesizer>();
+
         builder.Services.AddAgentPrism()
             .AddModelProvider(provider)
             .AddToolsFrom(typeof(OrderTools))

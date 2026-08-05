@@ -91,11 +91,11 @@ Bir dosya bütçeyi aşarsa **içerik silinmez** — alan dosyasına veya `docs/
 
 ### Faz durumu
 
-**Sıradaki faz: 28** — [`docs/28-SES-TOOLLARI.md`](docs/28-SES-TOOLLARI.md).
+**Sıradaki faz: 29** — [`docs/29-KONUSMA-KATMANI.md`](docs/29-KONUSMA-KATMANI.md).
 
-Faz 0–27 tamam. Gerçek `mssql/server` koşmadı, bkz.
+Faz 0–28 tamam. Gerçek `mssql/server` koşmadı, bkz.
 [`23-SQL-SERVER.md`](docs/23-SQL-SERVER.md). Faz 7 beklemede (K-068),
-Azure AI Foundry ertelendi (K-212).
+Foundry ertelendi (K-212).
 Durum tablosu: [`README.md`](README.md) yol haritası.
 Faz 21–30 sırası, bağımlılıkları ve migration numaraları:
 [`docs/IKINCI-FAZ-YOL-HARITASI.md`](docs/IKINCI-FAZ-YOL-HARITASI.md).

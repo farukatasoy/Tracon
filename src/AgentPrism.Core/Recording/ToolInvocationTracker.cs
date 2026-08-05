@@ -30,18 +30,28 @@ internal sealed class ToolInvocationTracker
     private readonly Guid _runId;
     private readonly bool _measureDuration;
     private readonly TimeProvider _timeProvider;
+    private readonly ToolUsageAccumulator? _usage;
 
     /// <summary>Yeni bir izleyici olusturur.</summary>
     /// <param name="runId">Calistirma kimligi.</param>
     /// <param name="measureDuration">Sure olculsun mu. Yalnizca akisli calistirmada anlamlidir.</param>
     /// <param name="timeProvider">Zaman kaynagi.</param>
-    public ToolInvocationTracker(Guid runId, bool measureDuration, TimeProvider timeProvider)
+    /// <param name="usage">
+    /// Tool'larin bildirdigi token disi olcumler. <see langword="null"/> ise
+    /// olcum toplanmaz.
+    /// </param>
+    public ToolInvocationTracker(
+        Guid runId,
+        bool measureDuration,
+        TimeProvider timeProvider,
+        ToolUsageAccumulator? usage = null)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
 
         _runId = runId;
         _measureDuration = measureDuration;
         _timeProvider = timeProvider;
+        _usage = usage;
     }
 
     /// <summary>Bir tool cagrisinin basladigini kaydeder.</summary>
@@ -102,6 +112,10 @@ internal sealed class ToolInvocationTracker
             Duration = duration,
             Error = result.Exception?.Message,
             CreatedAt = _timeProvider.GetUtcNow(),
+
+            // Tool kendi olcumunu cagri kimligiyle bildirmis olabilir. Cagrilarin
+            // buyuk cogunlugu olcum tasimaz ve alan bos kalir.
+            Usage = _usage?.Take(result.CallId),
         };
     }
 

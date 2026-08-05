@@ -380,6 +380,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             Depth = 0,
             AgentName = execution.WorkflowName,
             TenantId = _tenantContext.TenantId,
+            SessionId = execution.SessionId,
             Budget = _prismOptions.Value.AgentGraph.CreateBudget(),
             Writer = writer,
         };

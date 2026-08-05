@@ -159,6 +159,20 @@ if (azureOpenAIEnabled)
     agentPrism.UseAzureOpenAI(azureOpenAI);
 }
 
+// Ses tool'lari (Faz 28). Anahtar yoksa hicbir tool kaydedilmez ve
+// /api/voice/* uclari 501 doner — uygulama yine calisir.
+//
+// Uretilen ses `attachments` tablosuna yazilir ve tool modele yalnizca ekin
+// KIMLIGINI dondurur. Ham sesi tool sonucuna koymak baglam penceresini base64
+// ile doldururdu.
+var voice = builder.Configuration.GetSection(VoiceOptions.SectionName);
+var voiceEnabled = !string.IsNullOrWhiteSpace(voice["ApiKey"]);
+
+if (voiceEnabled)
+{
+    agentPrism.UseVoice(voice);
+}
+
 // Yerel model sunucusu ornegi (F-05, Ollama/LM Studio). Kurulum F-03 ile AYNI
 // cagridir; tek fark ApiKey vermemek (yerel sunucu istemiyor) ve yerel adrese
 // isaret etmek. Bu ornek varsayilan olarak KAPALIDIR: cogu gelistirici
@@ -490,6 +504,28 @@ if (azureOpenAIEnabled)
             MaxOutputTokens = 1024,
         },
         ToolNames = ["get_order_status", "list_recent_orders", "cancel_order"],
+    });
+}
+
+// Sesli asistan (Faz 28). Agent yalnizca ses tool'lari KAYITLIYSA tanimlanir:
+// olmayan bir tool'a isaret eden tanim derlenmez ve uygulama acilista hata verir.
+if (voiceEnabled && openAiEnabled)
+{
+    agentPrism.AddAgent(new AgentDefinition
+    {
+        Name = "sesli-asistan",
+        DisplayName = "Sesli Asistan",
+        Description = "Cevabini isteyince seslendirir; kayitli bir ses ekini metne cevirir.",
+        Instructions = "Sen bir destek asistanisin. Kisa yanit ver. " +
+                       "Kullanici seslendirmeni isterse `speak` tool'unu cagir. " +
+                       "Hangi seslerin oldugu sorulursa `list_voices` tool'unu cagir.",
+        Model = new ModelBinding
+        {
+            Provider = OpenAIProviderNames.ChatCompletions,
+            Model = openAi["DefaultModel"] ?? "gpt-5.4-mini",
+            MaxOutputTokens = 1024,
+        },
+        ToolNames = ["speak", "transcribe", "list_voices", "get_order_status"],
     });
 }
 

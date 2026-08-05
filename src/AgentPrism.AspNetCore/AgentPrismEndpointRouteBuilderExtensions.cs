@@ -117,6 +117,7 @@ public static class AgentPrismEndpointRouteBuilderExtensions
         WebhookEndpoints.Map(group, roles);
         RetentionEndpoints.Map(group, roles);
         ModelHealthEndpoints.Map(group, roles);
+        VoiceEndpoints.Map(group, roles);
         ObservabilityEndpoints.Map(group, roles);
         GovernanceEndpoints.Map(group, roles);
         AuditEndpoints.Map(group, roles);

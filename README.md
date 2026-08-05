@@ -162,12 +162,13 @@ AgentPrism bu boşluğu doldurur. DevUI'nin yerine geçmez — bıraktığı yer
 | `AgentPrism.Abstractions` | ✅ Sözleşmeler; kendi implementasyonunuzu yazacaksanız yeterli |
 | `AgentPrism.Core` | ✅ Çalışma zamanı, katalog, tanım derleyicisi, tool defteri, oturum yönetimi. **Veritabanı gerektirmez.** |
 | `AgentPrism.PostgreSql` | ✅ Kalıcılık — gömülü SQL migration'ları, ayrı `agentprism` şeması |
-| `AgentPrism.SqlServer` | ✅ SQL Server 2019+ / Azure SQL kalıcılığı — aynı şema, kendi migration seti. **Meta pakete dâhil değil**; açıkça referans verilir. Sözleşme testleri `azure-sql-edge` ile doğrulandı; gerçek `mssql/server` henüz koşturulmadı |
-| `AgentPrism.Sqlite` | ✅ SQLite kalıcılığı — tek dosyalık kurulum, tablo öneki, kendi migration seti. **Meta pakete dâhil değil**; açıkça referans verilir. Tek yazıcılıdır, çok örnekli dağıtımda kullanılmaz |
+| `AgentPrism.SqlServer` | ✅ SQL Server 2019+ / Azure SQL kalıcılığı — aynı şema, kendi migration seti. **Meta pakete dâhil değil**. Sözleşme testleri `azure-sql-edge` ile doğrulandı; gerçek `mssql/server` henüz koşturulmadı |
+| `AgentPrism.Sqlite` | ✅ SQLite kalıcılığı — tek dosyalık kurulum, tablo öneki, kendi migration seti. **Meta pakete dâhil değil**. Tek yazıcılıdır, çok örnekli dağıtımda kullanılmaz |
 | `AgentPrism.OpenAI` | ✅ OpenAI sağlayıcı adaptörü — Chat Completions + Responses, tool çağrısı, OpenTelemetry |
-| `AgentPrism.Anthropic` | ✅ Anthropic (Claude) sağlayıcı adaptörü — resmî SDK, prompt caching, genişletilmiş düşünme. **Meta pakete dâhil değil**; açıkça referans verilir |
+| `AgentPrism.Anthropic` | ✅ Anthropic (Claude) sağlayıcı adaptörü — resmî SDK, prompt caching, genişletilmiş düşünme. **Meta pakete dâhil değil** |
 | `AgentPrism.Google` | ✅ Google Gemini sağlayıcı adaptörü — resmî SDK, güvenlik eşikleri, düşünme bütçesi. **Meta pakete dâhil değil**; geçişli olarak `Google.Apis.Auth` zincirini getirir |
-| `AgentPrism.Azure` | ✅ Azure OpenAI sağlayıcı adaptörü — deployment tabanlı model çözümü, API anahtarı veya Microsoft Entra kimliği. **Meta pakete dâhil değil**; `Azure.Identity` bağımlılığı **yoktur**, kimlik fabrikası tüketiciden gelir |
+| `AgentPrism.Azure` | ✅ Azure OpenAI sağlayıcı adaptörü — deployment tabanlı model çözümü, API anahtarı veya Entra kimliği. **Meta pakete dâhil değil**; `Azure.Identity` **yoktur**, kimlik fabrikası tüketiciden gelir |
+| `AgentPrism.Voice` | ✅ Ses tool'ları: `speak`, `transcribe`, `list_voices`. Ölçüm `tool_invocations`'a yazılır. **Sıfır NuGet bağımlılığı**; meta pakete dâhil değil |
 | `AgentPrism.Mcp` | ✅ Uzak MCP sunucularından tool keşfi — yalnız HTTP, varsayılan onaylı |
 | `AgentPrism.Workflows` | ✅ Workflow yürütme — beş hazır desen, kontrol noktası, sürdürme, human-in-the-loop |
 | `AgentPrism.AspNetCore` | ✅ HTTP katmanı — yönetim API'si + OpenAI uyumlu uçlar + çok kiracılılık |
@@ -259,7 +260,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [18](docs/18-DEGERLENDIRME.md) | Değerlendirme (eval): takım/vaka/koşu, Faz 17'nin iş kuyruğu üzerinde, Evals ekranı | ✅ Tamamlandı |
 | [19](docs/19-SURUM-KARSILASTIRMA-VE-AB.md) | Sürüm karşılaştırma (diff) ve A/B deneyleri: oturum bazlı deterministik trafik bölme, Experiments ekranı | ✅ Tamamlandı |
 | [20](docs/20-MALIYET-VE-GOSTERGE-PANELI.md) | Maliyet raporlaması ve gösterge paneli: fiyat kataloğu/yapılandırması, Dashboard giriş ekranı | ✅ Tamamlandı |
-| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | Faz 27 tamam — sıradaki Faz 28 (ses tool'ları) |
+| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | Faz 28 tamam — sıradaki Faz 29 (konuşma katmanı) |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 > Faz 6, planındaki Workflows kalemini **yapmadı**; ertelendi ve gerekçesi
