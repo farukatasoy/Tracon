@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { Link } from '../lib/router';
 import { absoluteTime, relativeTime, shortId } from '../lib/format';
+import { useT } from '../lib/i18n';
 import {
   Badge,
   Button,
@@ -28,17 +29,19 @@ function emptyCase(): EvalCaseInput {
 }
 
 function StatusBadge({ status }: { status: EvalRunStatus }): ReactNode {
+  const t = useT();
+
   switch (status) {
     case 'Completed':
-      return <Badge tone="success">completed</Badge>;
+      return <Badge tone="success">{t('runs.status.completed')}</Badge>;
     case 'Failed':
-      return <Badge tone="danger">failed</Badge>;
+      return <Badge tone="danger">{t('runs.status.failed')}</Badge>;
     case 'Cancelled':
-      return <Badge tone="warn">cancelled</Badge>;
+      return <Badge tone="warn">{t('runs.status.canceled')}</Badge>;
     case 'Running':
-      return <Badge tone="info">running</Badge>;
+      return <Badge tone="info">{t('runs.status.running')}</Badge>;
     default:
-      return <Badge>pending</Badge>;
+      return <Badge>{t('jobs.status.pending')}</Badge>;
   }
 }
 
@@ -51,25 +54,27 @@ function CaseEditor({
   onChange: (value: EvalCaseInput) => void;
   onRemove: () => void;
 }): ReactNode {
+  const t = useT();
+
   return (
     <div className="grid gap-3 border-t border-line pt-3 sm:grid-cols-2">
       <div className="sm:col-span-2">
-        <Field label="Query" required>
+        <Field label={t('evals.query')} required>
           <TextArea
             rows={2}
             value={evalCase.query}
-            placeholder="What is your return policy?"
+            placeholder={t('evals.queryPlaceholder')}
             onChange={(event) => onChange({ ...evalCase, query: event.target.value })}
           />
         </Field>
       </div>
-      <Field label="Expected output" hint="Used by the containsExpected check.">
+      <Field label={t('evals.expectedOutput')} hint={t('evals.expectedOutputHint')}>
         <TextInput
           value={evalCase.expectedOutput ?? ''}
           onChange={(event) => onChange({ ...evalCase, expectedOutput: event.target.value || null })}
         />
       </Field>
-      <Field label="Expected tools" hint="Comma-separated. Used by the toolCalled check.">
+      <Field label={t('evals.expectedTools')} hint={t('evals.expectedToolsHint')}>
         <TextInput
           value={(evalCase.expectedTools ?? []).join(', ')}
           onChange={(event) =>
@@ -84,7 +89,7 @@ function CaseEditor({
         />
       </Field>
       <div className="sm:col-span-2">
-        <Field label="Context" hint="Extra context handed to the agent alongside the query.">
+        <Field label={t('agentEditor.context')} hint={t('evals.contextHint')}>
           <TextInput
             value={evalCase.context ?? ''}
             onChange={(event) => onChange({ ...evalCase, context: event.target.value || null })}
@@ -93,7 +98,7 @@ function CaseEditor({
       </div>
       <div>
         <Button tone="danger" onClick={onRemove}>
-          Remove case
+          {t('evals.removeCase')}
         </Button>
       </div>
     </div>
@@ -101,6 +106,7 @@ function CaseEditor({
 }
 
 export function EvalSuiteDetailScreen({ name, meta }: { name: string; meta: Meta }): ReactNode {
+  const t = useT();
   const client = useQueryClient();
   const [cases, setCases] = useState<EvalCaseInput[]>([]);
 
@@ -147,7 +153,7 @@ export function EvalSuiteDetailScreen({ name, meta }: { name: string; meta: Meta
     <>
       <PageHeader
         title={suite.data.name}
-        description={suite.data.description ?? `Measures ${suite.data.agentName}.`}
+        description={suite.data.description ?? t('evals.measures', { agent: suite.data.agentName })}
         actions={
           meta.roles.canOperate && (
             <Button
@@ -156,7 +162,7 @@ export function EvalSuiteDetailScreen({ name, meta }: { name: string; meta: Meta
               disabled={cases.length === 0}
               onClick={() => trigger.mutate()}
             >
-              Run now
+              {t('evals.runNow')}
             </Button>
           )
         }
@@ -168,17 +174,17 @@ export function EvalSuiteDetailScreen({ name, meta }: { name: string; meta: Meta
         </div>
       )}
 
-      <Panel title="Checks" className="mb-4">
+      <Panel title={t('evals.checks')} className="mb-4">
         <div className="p-4">
           <JsonView value={suite.data.checks} maxHeight="10rem" />
         </div>
       </Panel>
 
-      <Panel title="Cases" className="mb-4">
+      <Panel title={t('evals.cases')} className="mb-4">
         <div className="flex flex-col gap-3 p-4">
           {existingCases.isPending && <Loading />}
           {cases.length === 0 && !existingCases.isPending && (
-            <Empty title="No cases yet">Add a query below, then save.</Empty>
+            <Empty title={t('evals.noCasesYet')}>{t('evals.noCasesBody')}</Empty>
           )}
           {cases.map((item, index) => (
             <CaseEditor
@@ -191,14 +197,14 @@ export function EvalSuiteDetailScreen({ name, meta }: { name: string; meta: Meta
 
           {meta.roles.canAdminister && (
             <div className="flex items-center gap-2 border-t border-line pt-3">
-              <Button onClick={() => setCases([...cases, emptyCase()])}>Add case</Button>
+              <Button onClick={() => setCases([...cases, emptyCase()])}>{t('evals.addCase')}</Button>
               <Button
                 tone="primary"
                 busy={saveCases.isPending}
                 disabled={cases.some((item) => item.query.trim().length === 0)}
                 onClick={() => saveCases.mutate()}
               >
-                Save cases
+                {t('evals.saveCases')}
               </Button>
               {saveCases.isError && <ErrorNote error={saveCases.error} />}
             </div>
@@ -206,7 +212,7 @@ export function EvalSuiteDetailScreen({ name, meta }: { name: string; meta: Meta
         </div>
       </Panel>
 
-      <Panel title="Runs">
+      <Panel title={t('nav.runs')}>
         {runs.isPending && <Loading />}
         {runs.isError && (
           <div className="p-4">
@@ -216,17 +222,17 @@ export function EvalSuiteDetailScreen({ name, meta }: { name: string; meta: Meta
 
         {runs.isSuccess &&
           (runs.data.length === 0 ? (
-            <Empty title="No runs yet">Run the suite above to see results here.</Empty>
+            <Empty title={t('evals.noRuns.title')}>{t('evals.noRuns.body')}</Empty>
           ) : (
             <Table>
               <thead>
                 <tr>
-                  <Th>Run</Th>
-                  <Th>Status</Th>
-                  <Th>Pass rate</Th>
-                  <Th>Version</Th>
-                  <Th>Model</Th>
-                  <Th>Started</Th>
+                  <Th>{t('runs.column.run')}</Th>
+                  <Th>{t('common.status')}</Th>
+                  <Th>{t('evals.passRate')}</Th>
+                  <Th>{t('agentDetail.version')}</Th>
+                  <Th>{t('common.model')}</Th>
+                  <Th>{t('common.started')}</Th>
                 </tr>
               </thead>
               <tbody>

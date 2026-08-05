@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { diffLines, diffSets } from '../lib/diff';
+import { useT } from '../lib/i18n';
 import { Badge, cx } from './ui';
 
 /**
@@ -16,17 +17,18 @@ export function DiffView({
   right: string;
   className?: string;
 }): ReactNode {
+  const t = useT();
   const { lines, truncated } = diffLines(left, right);
 
   if (lines.length === 0) {
-    return <p className="text-[12px] text-muted">Both sides are empty.</p>;
+    return <p className="text-[12px] text-muted">{t('diff.bothEmpty')}</p>;
   }
 
   return (
     <div className={cx('overflow-x-auto rounded-md border border-line', className)}>
       {truncated && (
         <p className="border-b border-line bg-warn-soft px-3 py-1.5 text-[11px] text-warn">
-          Input is too large for an aligned diff; showing removed and added lines without matching.
+          {t('diff.truncated')}
         </p>
       )}
       <pre className="font-mono text-[12px] leading-5">
@@ -79,6 +81,7 @@ export function FieldDiffTable<T extends object>({
   right?: T | null;
   fields: Record<string, FieldDiffRow>;
 }): ReactNode {
+  const t = useT();
   const leftRecord = left as unknown as Record<string, unknown> | undefined;
   const rightRecord = right as unknown as Record<string, unknown> | undefined;
 
@@ -95,13 +98,13 @@ export function FieldDiffTable<T extends object>({
       <thead>
         <tr>
           <th className="border-b border-line px-3 py-1.5 text-left text-[11px] font-semibold tracking-wide text-subtle uppercase">
-            Field
+            {t('diff.field')}
           </th>
           <th className="border-b border-line px-3 py-1.5 text-left text-[11px] font-semibold tracking-wide text-subtle uppercase">
-            Left
+            {t('diff.left')}
           </th>
           <th className="border-b border-line px-3 py-1.5 text-left text-[11px] font-semibold tracking-wide text-subtle uppercase">
-            Right
+            {t('diff.right')}
           </th>
         </tr>
       </thead>
@@ -137,6 +140,7 @@ export function SetDiff({
   right: readonly string[];
   label: string;
 }): ReactNode {
+  const t = useT();
   const { added, removed, unchanged } = diffSets(left, right);
 
   if (added.length === 0 && removed.length === 0 && unchanged.length === 0) {
@@ -153,12 +157,12 @@ export function SetDiff({
           </Badge>
         ))}
         {removed.map((name) => (
-          <Badge key={`removed-${name}`} tone="danger" title="Removed">
+          <Badge key={`removed-${name}`} tone="danger" title={t('diff.removed')}>
             − {name}
           </Badge>
         ))}
         {added.map((name) => (
-          <Badge key={`added-${name}`} tone="success" title="Added">
+          <Badge key={`added-${name}`} tone="success" title={t('diff.added')}>
             + {name}
           </Badge>
         ))}

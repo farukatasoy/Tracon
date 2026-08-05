@@ -11,6 +11,13 @@
   Neutral developer-tool base. Colour is information, not decoration: the prism
   spectrum below is assigned to domains (agents, runs, tools, ...) so a glance at
   a colour tells you what kind of thing you are looking at.
+
+  🚨 `--ap-muted` and `--ap-subtle` are used at 11–12 px, which is normal-size
+  text for WCAG, so both must clear 4.5:1 against `--ap-panel` AND against
+  `--ap-raised` — subtle text lives on both. Measured in phase 30: the previous
+  values (#8e8e9d light, #6e6e80 dark) sat at 2.9–3.8:1 and failed AA. The
+  current pair measures 4.7–5.3:1 light and 4.9–5.3:1 dark. Re-measure before
+  changing either of them.
 */
 :root,
 [data-theme='light'] {
@@ -20,8 +27,8 @@
   --ap-line: #e3e3e9;
   --ap-line-strong: #cfcfd8;
   --ap-fg: #14141b;
-  --ap-muted: #61616f;
-  --ap-subtle: #8e8e9d;
+  --ap-muted: #55555f;
+  --ap-subtle: #6b6b79;
 
   --ap-accent: #7c3aed;
   --ap-accent-hover: #6d28d9;
@@ -55,7 +62,7 @@
   --ap-line-strong: #34343f;
   --ap-fg: #e9e9f2;
   --ap-muted: #9b9bad;
-  --ap-subtle: #6e6e80;
+  --ap-subtle: #85859a;
 
   --ap-accent: #a78bfa;
   --ap-accent-hover: #c4b5fd;

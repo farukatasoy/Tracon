@@ -2,6 +2,7 @@ import { Fragment, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { relativeTime } from '../lib/format';
+import { useT } from '../lib/i18n';
 import { McpServerDetail } from '../components/mcp-server-detail';
 import {
   Badge,
@@ -45,6 +46,7 @@ const EMPTY_FORM: McpServerRequest & { name: string } = {
  * a secret: only the *name* of the configuration key that holds one.
  */
 export function McpScreen({ meta }: { meta: Meta }): ReactNode {
+  const t = useT();
   const client = useQueryClient();
   const [form, setForm] = useState(EMPTY_FORM);
   const [showForm, setShowForm] = useState(false);
@@ -98,21 +100,21 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
   return (
     <>
       <PageHeader
-        title="MCP & approvals"
-        description="Remote Model Context Protocol servers, and the approvals you chose to remember."
+        title={t('mcp.title')}
+        description={t('mcp.description')}
         actions={
           meta.roles.canAdminister && (
             <>
               <Button
                 onClick={() => refresh.mutate()}
                 busy={refresh.isPending}
-                title="Rediscover tools now instead of waiting for the next background refresh."
+                title={t('mcp.refreshTitle')}
               >
-                Refresh tools
+                {t('mcp.refreshTools')}
               </Button>
               <Button tone="primary" onClick={() => setShowForm((current) => !current)}>
                 <PlusIcon className="size-3.5" />
-                Add server
+                {t('mcp.addServer')}
               </Button>
             </>
           )
@@ -121,15 +123,13 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
 
       <Panel className="mb-4">
         <div className="border-b border-line px-4 py-2.5 text-[12px] text-muted">
-          <strong className="text-fg">Security boundary.</strong> Only <Mono>http</Mono> and{' '}
-          <Mono>https</Mono> endpoints are accepted — a local process (stdio) transport would let
-          anyone who reaches this console start a program on the server. Discovered tools require
-          approval by default, and they can never take over the name of a tool defined in code.
+          <strong className="text-fg">{t('mcp.boundary.title')}</strong> {t('mcp.boundary.before')}{' '}
+          <Mono>http</Mono> / <Mono>https</Mono>. {t('mcp.boundary.after')}
         </div>
       </Panel>
 
       {showForm && (
-        <Panel title="New server" className="mb-4">
+        <Panel title={t('mcp.newServer')} className="mb-4">
           <form
             className="grid gap-3 p-4 sm:grid-cols-2"
             onSubmit={(event) => {
@@ -137,7 +137,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
               save.mutate();
             }}
           >
-            <Field label="Name" required hint="Discovered tools are prefixed with this name.">
+            <Field label={t('common.name')} required hint={t('mcp.nameHint')}>
               <TextInput
                 value={form.name}
                 required
@@ -147,7 +147,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
               />
             </Field>
 
-            <Field label="Endpoint" required>
+            <Field label={t('mcp.endpoint')} required>
               <TextInput
                 value={form.endpoint}
                 required
@@ -157,19 +157,19 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
               />
             </Field>
 
-            <Field label="Transport">
+            <Field label={t('mcp.transport')}>
               <Select
                 value={form.transport}
                 onChange={(value) => setForm({ ...form, transport: value as McpTransportMode })}
               >
                 <option value="StreamableHttp">Streamable HTTP</option>
-                <option value="Sse">SSE (legacy)</option>
+                <option value="Sse">{t('mcp.sseLegacy')}</option>
               </Select>
             </Field>
 
             <Field
-              label="Authorization configuration key"
-              hint="The NAME of the configuration key, never the secret itself. Set the value with dotnet user-secrets."
+              label={t('mcp.authKey')}
+              hint={t('mcp.authKeyHint')}
             >
               <TextInput
                 value={form.authorizationConfigurationKey ?? ''}
@@ -180,7 +180,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
               />
             </Field>
 
-            <Field label="Description">
+            <Field label={t('common.description')}>
               <TextInput
                 value={form.description ?? ''}
                 onChange={(event) => setForm({ ...form, description: event.target.value })}
@@ -194,7 +194,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                   checked={form.enabled}
                   onChange={(event) => setForm({ ...form, enabled: event.target.checked })}
                 />
-                Enabled
+                {t('common.enabled')}
               </label>
 
               <label className="flex items-center gap-2 text-[13px]">
@@ -203,7 +203,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                   checked={form.requiresApproval}
                   onChange={(event) => setForm({ ...form, requiresApproval: event.target.checked })}
                 />
-                Require approval
+                {t('mcp.requireApproval')}
               </label>
             </div>
 
@@ -224,18 +224,16 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                     })
                   }
                 />
-                OAuth (Authorization Code)
+                {t('mcp.oauth')}
               </label>
               <p className="mt-1 text-[11px] text-muted">
-                The only flow this SDK supports — it is interactive. Saving registers the server;
-                use “Authorize” in the list below to complete the redirect flow. Requires{' '}
-                <Mono>AgentPrism:Mcp:OAuthCallbackBaseUri</Mono> to be configured on the server.
+                {t('mcp.oauthNotice')} <Mono>AgentPrism:Mcp:OAuthCallbackBaseUri</Mono>.
               </p>
             </div>
 
             {form.oauthEnabled === true && (
               <>
-                <Field label="OAuth client ID" required>
+                <Field label={t('mcp.oauthClientId')} required>
                   <TextInput
                     value={form.oauthClientId ?? ''}
                     required
@@ -244,8 +242,8 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                 </Field>
 
                 <Field
-                  label="OAuth client secret configuration key"
-                  hint="The NAME of the configuration key, never the secret itself. Optional for public clients."
+                  label={t('mcp.oauthSecretKey')}
+                  hint={t('mcp.oauthSecretKeyHint')}
                 >
                   <TextInput
                     value={form.oauthClientSecretConfigurationKey ?? ''}
@@ -256,7 +254,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                   />
                 </Field>
 
-                <Field label="OAuth scopes" hint="Space-separated.">
+                <Field label={t('mcp.oauthScopes')} hint={t('mcp.oauthScopesHint')}>
                   <TextInput
                     value={form.oauthScopes ?? ''}
                     placeholder="repo read:user"
@@ -268,10 +266,10 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
 
             <div className="sm:col-span-2 flex items-center gap-2">
               <Button type="submit" tone="primary" busy={save.isPending}>
-                Save
+                {t('common.save')}
               </Button>
               <Button tone="ghost" onClick={() => setShowForm(false)}>
-                Cancel
+                {t('common.cancel')}
               </Button>
               {save.isError && <ErrorNote error={save.error} />}
             </div>
@@ -279,23 +277,20 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
         </Panel>
       )}
 
-      <Panel title="Servers" className="mb-4">
+      <Panel title={t('mcp.servers')} className="mb-4">
         {servers.isPending && <Loading />}
         {servers.isError && <ErrorNote error={servers.error} />}
 
         {servers.isSuccess &&
           (servers.data.length === 0 ? (
-            <Empty title="No MCP servers">
-              AgentPrism works without them. Add one only when you want tools that live outside
-              this application.
-            </Empty>
+            <Empty title={t('mcp.noServers.title')}>{t('mcp.noServers.body')}</Empty>
           ) : (
             <Table>
               <thead>
                 <tr>
-                  <Th>Name</Th>
-                  <Th>Endpoint</Th>
-                  <Th>Auth</Th>
+                  <Th>{t('common.name')}</Th>
+                  <Th>{t('mcp.endpoint')}</Th>
+                  <Th>{t('mcp.auth')}</Th>
                   <Th />
                   <Th />
                 </tr>
@@ -324,17 +319,17 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                             {server.authorizationConfigurationKey}
                           </Mono>
                         ) : (
-                          <span className="text-[11px] text-subtle">none</span>
+                          <span className="text-[11px] text-subtle">{t('common.none')}</span>
                         )}
                       </Td>
                       <Td>
                         <div className="flex gap-1.5">
                           {server.enabled ? (
-                            <Badge tone="accent">enabled</Badge>
+                            <Badge tone="accent">{t('common.enabled')}</Badge>
                           ) : (
-                            <Badge>disabled</Badge>
+                            <Badge>{t('common.disabled')}</Badge>
                           )}
-                          {server.requiresApproval && <Badge tone="warn">approval</Badge>}
+                          {server.requiresApproval && <Badge tone="warn">{t('mcp.approval')}</Badge>}
                         </div>
                       </Td>
                       <Td className="text-right">
@@ -344,22 +339,22 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                               setExpanded((current) => (current === server.name ? null : server.name))
                             }
                           >
-                            {expanded === server.name ? 'Hide' : 'Prompts & resources'}
+                            {expanded === server.name ? t('audit.hide') : t('mcp.promptsAndResources')}
                           </Button>
                           {server.oauthEnabled && meta.roles.canAdminister && (
                             <Button
                               busy={authorize.isPending && authorize.variables === server.name}
                               onClick={() => authorize.mutate(server.name)}
-                              title="Start the interactive OAuth flow in a new tab."
+                              title={t('mcp.authorizeTitle')}
                             >
-                              Authorize
+                              {t('mcp.authorize')}
                             </Button>
                           )}
                           {meta.roles.canAdminister && (
                             <Button
                               tone="danger"
                               onClick={() => remove.mutate(server.name)}
-                              title="Remove this server. Its tools disappear on the next refresh."
+                              title={t('mcp.removeServerTitle')}
                             >
                               <TrashIcon className="size-3.5" />
                             </Button>
@@ -381,24 +376,21 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
           ))}
       </Panel>
 
-      <Panel title="Remembered approvals">
+      <Panel title={t('mcp.rememberedApprovals')}>
         {rules.isPending && <Loading />}
         {rules.isError && <ErrorNote error={rules.error} />}
 
         {rules.isSuccess &&
           (rules.data.length === 0 ? (
-            <Empty title="Nothing remembered">
-              When you approve a tool call and tick “don’t ask again”, the rule appears here and
-              can be revoked.
-            </Empty>
+            <Empty title={t('mcp.noRules.title')}>{t('mcp.noRules.body')}</Empty>
           ) : (
             <Table>
               <thead>
                 <tr>
-                  <Th>Tool</Th>
-                  <Th>Agent</Th>
-                  <Th>Scope</Th>
-                  <Th>Created</Th>
+                  <Th>{t('mcp.tool')}</Th>
+                  <Th>{t('common.agent')}</Th>
+                  <Th>{t('mcp.scope')}</Th>
+                  <Th>{t('common.created')}</Th>
                   <Th />
                 </tr>
               </thead>
@@ -408,15 +400,13 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                     <Td>
                       <Mono className="font-semibold">{rule.toolName}</Mono>
                     </Td>
-                    <Td>{rule.agentName ?? <span className="text-subtle">all agents</span>}</Td>
+                    <Td>{rule.agentName ?? <span className="text-subtle">{t('runs.allAgents')}</span>}</Td>
                     <Td>
                       {rule.argumentsHash != null && rule.argumentsHash.length > 0 ? (
-                        <Badge title="Only calls with exactly these arguments are auto-approved.">
-                          same arguments
-                        </Badge>
+                        <Badge title={t('mcp.sameArgumentsTitle')}>{t('mcp.sameArguments')}</Badge>
                       ) : (
-                        <Badge tone="warn" title="Every call to this tool is auto-approved.">
-                          any arguments
+                        <Badge tone="warn" title={t('mcp.anyArgumentsTitle')}>
+                          {t('mcp.anyArguments')}
                         </Badge>
                       )}
                     </Td>

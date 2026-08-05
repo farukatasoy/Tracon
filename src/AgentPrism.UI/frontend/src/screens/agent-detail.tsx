@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { useT } from '../lib/i18n';
 import { Link, useNavigate } from '../lib/router';
 import { absoluteTime, relativeTime } from '../lib/format';
 import {
@@ -23,6 +24,7 @@ import { OriginBadge } from './agents';
 import type { Meta } from '../lib/types';
 
 export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }): ReactNode {
+  const t = useT();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(null);
@@ -56,24 +58,24 @@ export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }):
         actions={
           <>
             <Link to={`playground/${encodeURIComponent(name)}`}>
-              <Button>Open in playground</Button>
+              <Button>{t('agentDetail.openPlayground')}</Button>
             </Link>
             {isEditable && meta.roles.canAdminister && (
               <>
                 <Link to={`agents/${encodeURIComponent(name)}/edit`}>
-                  <Button tone="primary">Edit</Button>
+                  <Button tone="primary">{t('common.edit')}</Button>
                 </Link>
                 <Button
                   tone="danger"
                   busy={remove.isPending}
                   onClick={() => {
-                    if (window.confirm(`Delete "${name}" and its version history?`)) {
+                    if (window.confirm(t('agentDetail.confirmDelete', { name }))) {
                       remove.mutate();
                     }
                   }}
                 >
                   <TrashIcon className="size-3.5" />
-                  Delete
+                  {t('common.delete')}
                 </Button>
               </>
             )}
@@ -85,33 +87,36 @@ export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }):
 
       {!isEditable && (
         <div className="mb-4 rounded-md border border-line bg-info-soft px-3 py-2 text-[12px] text-info">
-          This agent is declared in code. Code definitions are validated at compile time and
-          cannot be changed from the console — edit the application source instead.
+          {t('agentDetail.codeNotice')}
         </div>
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Panel title="Summary">
+        <Panel title={t('agentDetail.summary')}>
           <dl className="divide-y divide-line text-[13px]">
-            <Row label="Name"><Mono>{descriptor.name}</Mono></Row>
-            <Row label="Source">
+            <Row label={t('common.name')}><Mono>{descriptor.name}</Mono></Row>
+            <Row label={t('common.source')}>
               <div className="flex items-center gap-1.5">
                 <OriginBadge agent={descriptor} />
                 <span className="text-muted">{descriptor.sourceName}</span>
               </div>
             </Row>
-            <Row label="Provider">
+            <Row label={t('common.provider')}>
               <Mono>{descriptor.model?.provider ?? '—'}</Mono>
             </Row>
-            <Row label="Model">
+            <Row label={t('common.model')}>
               <Mono>{descriptor.model?.model ?? '—'}</Mono>
             </Row>
-            <Row label="Harness">
-              {descriptor.usesHarness ? <Badge tone="warn">enabled</Badge> : <span className="text-subtle">off</span>}
+            <Row label={t('agentDetail.harness')}>
+              {descriptor.usesHarness ? (
+                <Badge tone="warn">{t('common.enabled')}</Badge>
+              ) : (
+                <span className="text-subtle">{t('common.disabled')}</span>
+              )}
             </Row>
-            <Row label="Tools">
+            <Row label={t('common.tools')}>
               {descriptor.toolNames.length === 0 ? (
-                <span className="text-subtle">none</span>
+                <span className="text-subtle">{t('common.none')}</span>
               ) : (
                 <div className="flex flex-wrap gap-1">
                   {descriptor.toolNames.map((tool) => (
@@ -120,20 +125,20 @@ export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }):
                 </div>
               )}
             </Row>
-            <Row label="Updated">
+            <Row label={t('common.updated')}>
               <span title={absoluteTime(descriptor.updatedAt)}>{relativeTime(descriptor.updatedAt)}</span>
             </Row>
           </dl>
         </Panel>
 
-        <Panel title="Instructions">
+        <Panel title={t('agentDetail.instructions')}>
           <div className="p-4">
             {definition?.instructions ? (
               <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{definition.instructions}</p>
             ) : (
               <p className="text-[13px] text-subtle">
-                No system instructions.
-                {definition === null && ' The persisted definition is not available for code agents.'}
+                {t('agentDetail.noInstructions')}
+                {definition === null && ` ${t('agentDetail.noDefinitionForCode')}`}
               </p>
             )}
           </div>
@@ -142,7 +147,7 @@ export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }):
 
       {definition !== null && (
         <div className="mt-4">
-          <Panel title="Definition">
+          <Panel title={t('agentDetail.definition')}>
             <div className="p-4">
               <JsonView value={definition} />
             </div>
@@ -177,6 +182,7 @@ function VersionHistory({
   meta: Meta;
   onError: (error: unknown) => void;
 }): ReactNode {
+  const t = useT();
   const queryClient = useQueryClient();
 
   const versions = useQuery({
@@ -217,7 +223,7 @@ function VersionHistory({
         title={
           <span className="flex items-center gap-1.5">
             <HistoryIcon className="size-3.5" />
-            Version history
+            {t('agentDetail.versions')}
           </span>
         }
       >
@@ -225,7 +231,7 @@ function VersionHistory({
         {versions.isError && <div className="p-4"><ErrorNote error={versions.error} /></div>}
 
         {versions.isSuccess && versions.data.length === 0 && (
-          <Empty title="No stored versions" />
+          <Empty title={t('agentDetail.noVersions')} />
         )}
 
         {versions.isSuccess && versions.data.length > 0 && (
@@ -234,10 +240,10 @@ function VersionHistory({
               <thead>
                 <tr>
                   <Th />
-                  <Th>Version</Th>
-                  <Th>Model</Th>
-                  <Th>Tools</Th>
-                  <Th>Saved</Th>
+                  <Th>{t('agentDetail.version')}</Th>
+                  <Th>{t('common.model')}</Th>
+                  <Th>{t('common.tools')}</Th>
+                  <Th>{t('agentDetail.saved')}</Th>
                   <Th />
                 </tr>
               </thead>
@@ -249,14 +255,16 @@ function VersionHistory({
                         type="checkbox"
                         checked={selected.includes(version.version)}
                         onChange={() => toggleSelected(version.version)}
-                        aria-label={`Select version ${version.version} to compare`}
+                        aria-label={t('agentDetail.selectVersion', { version: version.version })}
                         data-testid={`version-checkbox-${version.version}`}
                       />
                     </Td>
                     <Td>
                       <Mono>v{version.version}</Mono>
                       {version.version === currentVersion && (
-                        <Badge tone="success" title="Currently resolved definition">current</Badge>
+                        <Badge tone="success" title={t('agentDetail.currentTitle')}>
+                          {t('agentDetail.current')}
+                        </Badge>
                       )}
                     </Td>
                     <Td><Mono>{version.model.model}</Mono></Td>
@@ -271,7 +279,7 @@ function VersionHistory({
                           busy={rollback.isPending && rollback.variables === version.version}
                           onClick={() => rollback.mutate(version.version)}
                         >
-                          Roll back
+                          {t('agentDetail.rollback')}
                         </Button>
                       )}
                     </Td>
@@ -281,10 +289,10 @@ function VersionHistory({
             </Table>
             <p className="border-t border-line px-4 py-2 text-[11px] text-subtle">
               {selected.length === 1
-                ? 'Select one more version to compare.'
+                ? t('agentDetail.selectOneMore')
                 : selected.length === 2
-                  ? `Comparing v${compareA} → v${compareB}.`
-                  : 'Rolling back does not delete anything: the chosen content is written as a new version on top of the history. Check two versions to compare them.'}
+                  ? t('agentDetail.comparing', { a: compareA ?? 0, b: compareB ?? 0 })
+                  : t('agentDetail.compareHint')}
             </p>
           </>
         )}
@@ -296,93 +304,94 @@ function VersionHistory({
 }
 
 function VersionCompare({ name, a, b }: { name: string; a: number; b: number }): ReactNode {
+  const t = useT();
   const diff = useQuery({
     queryKey: ['agent-version-diff', name, a, b],
     queryFn: () => api.agentVersionDiff(name, a, b),
   });
 
   return (
-    <Panel title={`Comparing v${a} → v${b}`}>
+    <Panel title={t('agentDetail.compareTitle', { a, b })}>
       <div className="p-4">
         {diff.isPending && <Loading />}
         {diff.isError && <ErrorNote error={diff.error} />}
 
         {diff.isSuccess && (
           <div className="space-y-5">
-            <Section title="Instructions">
+            <Section title={t('agentDetail.instructions')}>
               <DiffView left={diff.data.left.instructions ?? ''} right={diff.data.right.instructions ?? ''} />
             </Section>
 
-            <Section title="Model">
+            <Section title={t('common.model')}>
               <FieldDiffTable
                 left={diff.data.left.model}
                 right={diff.data.right.model}
                 fields={{
-                  provider: { label: 'Provider' },
-                  model: { label: 'Model' },
-                  temperature: { label: 'Temperature' },
-                  maxOutputTokens: { label: 'Max output tokens' },
-                  topP: { label: 'Top P' },
-                  reasoningEffort: { label: 'Reasoning effort' },
+                  provider: { label: t('common.provider') },
+                  model: { label: t('common.model') },
+                  temperature: { label: t('fields.temperature') },
+                  maxOutputTokens: { label: t('fields.maxOutputTokens') },
+                  topP: { label: t('fields.topP') },
+                  reasoningEffort: { label: t('fields.reasoningEffort') },
                 }}
               />
             </Section>
 
-            <SetDiff label="Tools" left={diff.data.left.toolNames} right={diff.data.right.toolNames} />
-            <SetDiff label="Skills" left={diff.data.left.skillNames} right={diff.data.right.skillNames} />
+            <SetDiff label={t('common.tools')} left={diff.data.left.toolNames} right={diff.data.right.toolNames} />
+            <SetDiff label={t('nav.skills')} left={diff.data.left.skillNames} right={diff.data.right.skillNames} />
             <SetDiff
-              label="Callable agents"
+              label={t('agentDetail.callableAgents')}
               left={diff.data.left.callableAgentNames}
               right={diff.data.right.callableAgentNames}
             />
 
             {(diff.data.left.harness ?? diff.data.right.harness) !== undefined && (
-              <Section title="Harness">
+              <Section title={t('agentDetail.harness')}>
                 <FieldDiffTable
                   left={diff.data.left.harness}
                   right={diff.data.right.harness}
                   fields={{
-                    maxContextWindowTokens: { label: 'Max context window tokens' },
-                    maxOutputTokens: { label: 'Max output tokens' },
-                    maximumIterationsPerRequest: { label: 'Max iterations per request' },
-                    harnessInstructions: { label: 'Harness instructions' },
-                    disableCompaction: { label: 'Disable compaction' },
-                    disableTodoProvider: { label: 'Disable todo provider' },
-                    disableFileMemory: { label: 'Disable file memory' },
-                    disableWebSearch: { label: 'Disable web search' },
-                    disableToolAutoApproval: { label: 'Disable tool auto-approval' },
+                    maxContextWindowTokens: { label: t('fields.maxContextWindowTokens') },
+                    maxOutputTokens: { label: t('fields.maxOutputTokens') },
+                    maximumIterationsPerRequest: { label: t('fields.maxIterations') },
+                    harnessInstructions: { label: t('fields.harnessInstructions') },
+                    disableCompaction: { label: t('fields.disableCompaction') },
+                    disableTodoProvider: { label: t('fields.disableTodoProvider') },
+                    disableFileMemory: { label: t('fields.disableFileMemory') },
+                    disableWebSearch: { label: t('fields.disableWebSearch') },
+                    disableToolAutoApproval: { label: t('fields.disableToolAutoApproval') },
                   }}
                 />
               </Section>
             )}
 
             {(diff.data.left.compaction ?? diff.data.right.compaction) !== undefined && (
-              <Section title="Compaction">
+              <Section title={t('agentDetail.compaction')}>
                 <FieldDiffTable
                   left={diff.data.left.compaction}
                   right={diff.data.right.compaction}
                   fields={{
-                    strategy: { label: 'Strategy' },
-                    triggerTokens: { label: 'Trigger tokens' },
-                    triggerMessages: { label: 'Trigger messages' },
-                    triggerTurns: { label: 'Trigger turns' },
-                    minimumPreservedTurns: { label: 'Minimum preserved turns' },
-                    minimumPreservedGroups: { label: 'Minimum preserved groups' },
-                    summarizationPrompt: { label: 'Summarization prompt' },
+                    strategy: { label: t('fields.strategy') },
+                    triggerTokens: { label: t('fields.triggerTokens') },
+                    triggerMessages: { label: t('fields.triggerMessages') },
+                    triggerTurns: { label: t('fields.triggerTurns') },
+                    minimumPreservedTurns: { label: t('fields.minPreservedTurns') },
+                    minimumPreservedGroups: { label: t('fields.minPreservedGroups') },
+                    summarizationPrompt: { label: t('fields.summarizationPrompt') },
                   }}
                 />
               </Section>
             )}
 
             {(diff.data.left.memory ?? diff.data.right.memory) !== undefined && (
-              <Section title="Memory">
+              <Section title={t('agentDetail.memory')}>
                 <FieldDiffTable
                   left={diff.data.left.memory}
                   right={diff.data.right.memory}
                   fields={{
-                    enableFileMemory: { label: 'Enable file memory' },
-                    enableTodo: { label: 'Enable todo' },
-                    enableTextSearch: { label: 'Enable text search' },
+                    enableFileMemory: { label: t('fields.enableFileMemory') },
+                    enableTodo: { label: t('fields.enableTodo') },
+                    enableTextSearch: { label: t('fields.enableTextSearch') },
                   }}
                 />
               </Section>

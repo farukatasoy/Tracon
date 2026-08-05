@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { prettyJson } from '../lib/format';
+import { useT } from '../lib/i18n';
 import type { TranscriptItem } from '../lib/transcript';
 import { Badge, CodeBlock, cx } from './ui';
 import { CheckIcon, ChevronIcon, CrossIcon, SpinnerIcon } from './icons';
@@ -82,6 +83,7 @@ export function TranscriptView({
 }
 
 function ReasoningBlock({ text }: { text: string }): ReactNode {
+  const t = useT();
   const [open, setOpen] = useState(false);
 
   return (
@@ -92,7 +94,7 @@ function ReasoningBlock({ text }: { text: string }): ReactNode {
         className="flex w-full items-center gap-1.5 px-3 py-1.5 text-left text-[12px] text-muted"
       >
         <ChevronIcon className={cx('size-3 transition-transform', open && 'rotate-90')} />
-        Reasoning
+        {t('transcript.reasoning')}
       </button>
       {open && (
         <p className="px-3 pb-3 text-[12px] leading-relaxed whitespace-pre-wrap text-muted">{text}</p>
@@ -116,6 +118,7 @@ function ApprovalCard({
   item: Extract<TranscriptItem, { kind: 'approval' }>;
   onDecide?: (requestId: string, approved: boolean, remember: boolean) => void;
 }): ReactNode {
+  const t = useT();
   const [remember, setRemember] = useState(false);
 
   return (
@@ -127,22 +130,22 @@ function ApprovalCard({
       <div className="flex items-center gap-2 px-3 py-2">
         <span className="font-mono text-[12px] font-medium">{item.name}</span>
         {item.decided === null ? (
-          <Badge tone="warn">approval required</Badge>
+          <Badge tone="warn">{t('tools.approvalRequired')}</Badge>
         ) : item.decided === 'approved' ? (
           <Badge tone="success">
             <CheckIcon className="size-3" />
-            approved
+            {t('transcript.approved')}
           </Badge>
         ) : (
           <Badge tone="danger">
             <CrossIcon className="size-3" />
-            rejected
+            {t('transcript.rejected')}
           </Badge>
         )}
       </div>
 
       <div className="flex flex-col gap-2 border-t border-line px-3 py-2.5">
-        <Section label="Arguments" body={item.args} empty="No arguments." />
+        <Section label={t('transcript.arguments')} body={item.args} empty={t('transcript.noArguments')} />
 
         {item.decided === null && onDecide !== undefined && (
           <div className="flex flex-wrap items-center gap-2">
@@ -153,7 +156,7 @@ function ApprovalCard({
               className="inline-flex h-7 items-center gap-1.5 rounded-md border border-transparent bg-accent px-3 text-[12px] font-medium text-accent-fg hover:bg-accent-hover"
             >
               <CheckIcon className="size-3" />
-              Approve
+              {t('transcript.approve')}
             </button>
 
             <button
@@ -163,7 +166,7 @@ function ApprovalCard({
               className="inline-flex h-7 items-center gap-1.5 rounded-md border border-line px-3 text-[12px] font-medium text-danger hover:bg-danger-soft"
             >
               <CrossIcon className="size-3" />
-              Reject
+              {t('transcript.reject')}
             </button>
 
             <label className="flex items-center gap-1.5 text-[11px] text-muted">
@@ -172,7 +175,7 @@ function ApprovalCard({
                 checked={remember}
                 onChange={(event) => setRemember(event.target.checked)}
               />
-              Don&rsquo;t ask again for this tool
+              {t('transcript.rememberDecision')}
             </label>
           </div>
         )}
@@ -182,6 +185,7 @@ function ApprovalCard({
 }
 
 function ToolCard({ item }: { item: Extract<TranscriptItem, { kind: 'tool' }> }): ReactNode {
+  const t = useT();
   // A finished call is usually noise once you have read it; a running or failed
   // one is exactly what you opened the screen for.
   const [open, setOpen] = useState(item.state !== 'ok');
@@ -204,11 +208,11 @@ function ToolCard({ item }: { item: Extract<TranscriptItem, { kind: 'tool' }> })
 
       {open && (
         <div className="flex flex-col gap-2 border-t border-line px-3 py-2.5">
-          <Section label="Arguments" body={item.args} empty="No arguments." />
+          <Section label={t('transcript.arguments')} body={item.args} empty={t('transcript.noArguments')} />
           {item.error === null ? (
-            <Section label="Result" body={item.result} empty="Waiting for the result…" />
+            <Section label={t('common.result')} body={item.result} empty={t('transcript.waitingResult')} />
           ) : (
-            <Section label="Error" body={item.error} empty="" tone="danger" />
+            <Section label={t('common.error')} body={item.error} empty="" tone="danger" />
           )}
         </div>
       )}
@@ -217,11 +221,13 @@ function ToolCard({ item }: { item: Extract<TranscriptItem, { kind: 'tool' }> })
 }
 
 function ToolState({ state }: { state: 'running' | 'ok' | 'failed' }): ReactNode {
+  const t = useT();
+
   if (state === 'running') {
     return (
       <Badge tone="info">
         <SpinnerIcon className="size-3" />
-        running
+        {t('runs.status.running')}
       </Badge>
     );
   }
@@ -230,7 +236,7 @@ function ToolState({ state }: { state: 'running' | 'ok' | 'failed' }): ReactNode
     return (
       <Badge tone="danger">
         <CrossIcon className="size-3" />
-        failed
+        {t('runs.status.failed')}
       </Badge>
     );
   }
@@ -238,7 +244,7 @@ function ToolState({ state }: { state: 'running' | 'ok' | 'failed' }): ReactNode
   return (
     <Badge tone="success">
       <CheckIcon className="size-3" />
-      done
+      {t('transcript.done')}
     </Badge>
   );
 }

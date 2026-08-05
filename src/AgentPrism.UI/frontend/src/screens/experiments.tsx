@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { Link } from '../lib/router';
 import { relativeTime } from '../lib/format';
+import { useT } from '../lib/i18n';
 import {
   Badge,
   Button,
@@ -22,13 +23,15 @@ import { PlusIcon, TrashIcon } from '../components/icons';
 import type { Experiment, ExperimentStatus, ExperimentVariant, Meta } from '../lib/types';
 
 export function StatusBadge({ status }: { status: ExperimentStatus }): ReactNode {
+  const t = useT();
+
   switch (status) {
     case 'Running':
-      return <Badge tone="success">running</Badge>;
+      return <Badge tone="success">{t('runs.status.running')}</Badge>;
     case 'Stopped':
-      return <Badge tone="neutral">stopped</Badge>;
+      return <Badge tone="neutral">{t('experiments.status.stopped')}</Badge>;
     default:
-      return <Badge tone="warn">draft</Badge>;
+      return <Badge tone="warn">{t('experiments.status.draft')}</Badge>;
   }
 }
 
@@ -58,6 +61,7 @@ const EMPTY_FORM = { agentName: '', variants: [emptyVariant(), emptyVariant()] }
  * as Evals (list) versus a suite's own page.
  */
 export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
+  const t = useT();
   const client = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
@@ -113,8 +117,8 @@ export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
   return (
     <>
       <PageHeader
-        title="Experiments"
-        description="A/B tests between stored definition versions of the same agent. Traffic is split deterministically by session — the same conversation always lands on the same variant."
+        title={t('nav.experiments')}
+        description={t('experiments.description')}
         actions={
           meta.roles.canAdminister && (
             <Button
@@ -128,17 +132,20 @@ export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
               }}
             >
               <PlusIcon className="size-3.5" />
-              New experiment
+              {t('experiments.new')}
             </Button>
           )
         }
       />
 
       {showForm && (
-        <Panel title={editing != null ? `Edit ${editing}` : 'New experiment'} className="mb-4">
+        <Panel
+          title={editing != null ? t('experiments.editTitle', { name: editing }) : t('experiments.new')}
+          className="mb-4"
+        >
           <form className="grid gap-3 p-4" onSubmit={submit}>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Name" required>
+              <Field label={t('common.name')} required>
                 <TextInput
                   value={editing ?? newName}
                   required
@@ -150,7 +157,7 @@ export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
                 />
               </Field>
 
-              <Field label="Agent name" required hint="Must have at least two stored versions.">
+              <Field label={t('evals.agentName')} required hint={t('experiments.agentHint')}>
                 <TextInput
                   value={form.agentName}
                   required
@@ -162,11 +169,11 @@ export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
             </div>
 
             <div>
-              <p className="mb-2 text-[12px] font-medium text-muted">Variants</p>
+              <p className="mb-2 text-[12px] font-medium text-muted">{t('experiments.variants')}</p>
               <div className="flex flex-col gap-2">
                 {form.variants.map((variant, index) => (
                   <div key={variant.key} className="flex items-end gap-2">
-                    <Field label="Name">
+                    <Field label={t('common.name')}>
                       <TextInput
                         value={variant.name}
                         placeholder="control"
@@ -174,7 +181,7 @@ export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
                         onChange={(event) => updateVariant(variant.key, { name: event.target.value })}
                       />
                     </Field>
-                    <Field label="Version">
+                    <Field label={t('agentDetail.version')}>
                       {versions.isSuccess && versions.data.length > 0 ? (
                         <Select
                           value={String(variant.version)}
@@ -197,7 +204,7 @@ export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
                         />
                       )}
                     </Field>
-                    <Field label="Weight %">
+                    <Field label={t('experiments.weight')}>
                       <TextInput
                         type="number"
                         min={0}
@@ -227,10 +234,10 @@ export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
                   type="button"
                   onClick={() => setForm((current) => ({ ...current, variants: [...current.variants, emptyVariant()] }))}
                 >
-                  Add variant
+                  {t('experiments.addVariant')}
                 </Button>
                 <span className={totalWeight === 100 ? 'text-[12px] text-muted' : 'text-[12px] text-danger'}>
-                  Weights total {totalWeight}% (must be 100%)
+                  {t('experiments.weightTotal', { total: totalWeight })}
                 </span>
               </div>
             </div>
@@ -247,7 +254,7 @@ export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
                   totalWeight !== 100
                 }
               >
-                Save
+                {t('common.save')}
               </Button>
               <Button
                 tone="ghost"
@@ -256,7 +263,7 @@ export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
                   setEditing(null);
                 }}
               >
-                Cancel
+                {t('common.cancel')}
               </Button>
               {save.isError && <ErrorNote error={save.error} />}
             </div>
@@ -264,7 +271,7 @@ export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
         </Panel>
       )}
 
-      <Panel title="Experiments">
+      <Panel title={t('nav.experiments')}>
         {experiments.isPending && <Loading />}
         {experiments.isError && (
           <div className="p-4">
@@ -274,18 +281,16 @@ export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
 
         {experiments.isSuccess &&
           (experiments.data.length === 0 ? (
-            <Empty title="No experiments yet">
-              Create one to split traffic between two stored definition versions of an agent.
-            </Empty>
+            <Empty title={t('experiments.empty.title')}>{t('experiments.empty.body')}</Empty>
           ) : (
             <Table>
               <thead>
                 <tr>
-                  <Th>Experiment</Th>
-                  <Th>Agent</Th>
-                  <Th>Status</Th>
-                  <Th>Variants</Th>
-                  <Th>Updated</Th>
+                  <Th>{t('experiments.experiment')}</Th>
+                  <Th>{t('common.agent')}</Th>
+                  <Th>{t('common.status')}</Th>
+                  <Th>{t('experiments.variants')}</Th>
+                  <Th>{t('common.updated')}</Th>
                   <Th />
                 </tr>
               </thead>
@@ -313,7 +318,7 @@ export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
                               setShowForm(true);
                             }}
                           >
-                            Edit
+                            {t('common.edit')}
                           </Button>
                           <Button tone="danger" onClick={() => remove.mutate(experiment.name)}>
                             <TrashIcon className="size-3.5" />

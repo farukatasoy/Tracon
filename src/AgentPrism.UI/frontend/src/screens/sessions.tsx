@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { Link } from '../lib/router';
 import { absoluteTime, relativeTime, shortId } from '../lib/format';
+import { useT } from '../lib/i18n';
 import {
   Button,
   Empty,
@@ -22,6 +23,7 @@ import type { Meta } from '../lib/types';
 const PAGE_SIZE = 50;
 
 export function SessionsScreen({ meta }: { meta: Meta }): ReactNode {
+  const t = useT();
   const queryClient = useQueryClient();
   const [agentName, setAgentName] = useState('');
   const [page, setPage] = useState(0);
@@ -46,8 +48,8 @@ export function SessionsScreen({ meta }: { meta: Meta }): ReactNode {
   return (
     <>
       <PageHeader
-        title="Sessions"
-        description="Persisted conversations. A session and an OpenAI conversation are the same identity — the id shown here is what a client passes as conversation or previous_response_id."
+        title={t('nav.sessions')}
+        description={t('sessions.description')}
         actions={
           <Select
             value={agentName}
@@ -56,7 +58,7 @@ export function SessionsScreen({ meta }: { meta: Meta }): ReactNode {
               setPage(0);
             }}
           >
-            <option value="">All agents</option>
+            <option value="">{t('runs.allAgents')}</option>
             {(agents.data ?? []).map((agent) => (
               <option key={agent.name} value={agent.name}>
                 {agent.displayName ?? agent.name}
@@ -73,9 +75,12 @@ export function SessionsScreen({ meta }: { meta: Meta }): ReactNode {
         {sessions.isError && <div className="p-4"><ErrorNote error={sessions.error} /></div>}
 
         {sessions.isSuccess && sessions.data.length === 0 && (
-          <Empty title="No sessions">
-            A session is created the first time an agent runs with a session id. Start one in the{' '}
-            <Link to="playground" className="text-accent underline">Playground</Link>.
+          <Empty title={t('sessions.empty.title')}>
+            {t('sessions.empty.body')}{' '}
+            <Link to="playground" className="text-accent underline">
+              {t('nav.playground')}
+            </Link>
+            .
           </Empty>
         )}
 
@@ -84,10 +89,10 @@ export function SessionsScreen({ meta }: { meta: Meta }): ReactNode {
             <Table>
               <thead>
                 <tr>
-                  <Th>Session</Th>
-                  <Th>Agent</Th>
-                  <Th>Created</Th>
-                  <Th>Updated</Th>
+                  <Th>{t('common.session')}</Th>
+                  <Th>{t('common.agent')}</Th>
+                  <Th>{t('common.created')}</Th>
+                  <Th>{t('common.updated')}</Th>
                   <Th />
                 </tr>
               </thead>
@@ -117,10 +122,10 @@ export function SessionsScreen({ meta }: { meta: Meta }): ReactNode {
                       {meta.roles.canOperate && (
                         <Button
                           tone="ghost"
-                          title="Delete session"
+                          title={t('sessions.delete')}
                           busy={remove.isPending && remove.variables === session.id}
                           onClick={() => {
-                            if (window.confirm('Delete this session and its history?')) {
+                            if (window.confirm(t('sessions.confirmDelete'))) {
                               remove.mutate(session.id);
                             }
                           }}
@@ -158,19 +163,21 @@ export function Pager({
   pageSize: number;
   onChange: (page: number) => void;
 }): ReactNode {
+  const t = useT();
+
   if (page === 0 && size < pageSize) {
     return null;
   }
 
   return (
     <div className="flex items-center justify-between border-t border-line px-4 py-2 text-[12px] text-muted">
-      <span>Page {page + 1}</span>
+      <span>{t('common.page', { page: page + 1 })}</span>
       <div className="flex gap-2">
         <Button tone="ghost" disabled={page === 0} onClick={() => onChange(page - 1)}>
-          Previous
+          {t('common.previous')}
         </Button>
         <Button tone="ghost" disabled={size < pageSize} onClick={() => onChange(page + 1)}>
-          Next
+          {t('common.next')}
         </Button>
       </div>
     </div>

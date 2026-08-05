@@ -4,6 +4,7 @@ import { api, openStream } from '../lib/api';
 import { readSse } from '../lib/sse';
 import { Link, useNavigate } from '../lib/router';
 import { shortId } from '../lib/format';
+import { useT, type MessageKey } from '../lib/i18n';
 import { foldNodeStates } from '../lib/workflow-graph';
 import {
   Badge,
@@ -32,6 +33,7 @@ import type { Meta, RunEvent, WorkflowPendingRequest } from '../lib/types';
  * lookup, not guesswork.
  */
 export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta }): ReactNode {
+  const t = useT();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -170,10 +172,10 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
   if (workflow.data === null) {
     return (
       <Panel>
-        <Empty title="Workflow not found">
-          It may have been deleted. Back to{' '}
+        <Empty title={t('workflowDetail.notFound')}>
+          {t('workflowDetail.notFoundBody')}{' '}
           <Link to="workflows" className="text-accent underline">
-            Workflows
+            {t('nav.workflows')}
           </Link>
           .
         </Empty>
@@ -186,10 +188,9 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
 
   // A code-defined workflow is a free graph: no pattern, and nothing to edit
   // here. Its shape is only visible in the compiled graph below.
-  const kindHint =
-    descriptor.kind == null
-      ? 'Built by a factory in code. Its shape is whatever the graph below shows.'
-      : KIND_HINT[descriptor.kind];
+  const kindHintKey: MessageKey =
+    descriptor.kind == null ? 'workflowDetail.codeGraphHint' : KIND_HINT[descriptor.kind];
+  const kindHint = t(kindHintKey);
 
   return (
     <>
@@ -199,11 +200,11 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
         actions={
           <>
             <Badge tone={descriptor.kind == null ? 'neutral' : 'accent'} title={kindHint}>
-              {descriptor.kind ?? 'code graph'}
+              {descriptor.kind ?? t('workflows.codeGraph')}
             </Badge>
             {editable && (
               <Button onClick={() => navigate(`workflows/${encodeURIComponent(name)}/edit`)}>
-                Edit
+                {t('common.edit')}
               </Button>
             )}
           </>
@@ -218,7 +219,7 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
 
       <div className="flex flex-col gap-4">
         <Panel
-          title="Graph"
+          title={t('workflowDetail.graph')}
           actions={
             graph.isSuccess && (
               <span className="relative">
@@ -226,7 +227,7 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
                     Agent Framework's Mermaid text so it can be pasted into a
                     document, where a real layout engine can place it. */}
                 <span className="inline-flex h-8 items-center rounded-md border border-line bg-raised pr-8 pl-3 text-[13px]">
-                  Copy Mermaid
+                  {t('workflowDetail.copyMermaid')}
                 </span>
                 <CopyButton value={graph.data.mermaid} />
               </span>
@@ -249,21 +250,21 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
         </Panel>
 
         {meta.roles.canOperate && (
-          <Panel title="Run">
+          <Panel title={t('common.run')}>
             <div className="flex flex-col gap-3 p-4">
               <div className="flex items-end gap-2">
                 <TextInput
                   value={message}
                   data-testid="workflow-message"
-                  placeholder="Message to send into the graph…"
+                  placeholder={t('workflowDetail.messagePlaceholder')}
                   disabled={streaming}
                   onChange={(event) => setMessage(event.target.value)}
                 />
                 {streaming ? (
-                  <Button onClick={() => abort.current?.abort()}>Stop</Button>
+                  <Button onClick={() => abort.current?.abort()}>{t('workflowDetail.stop')}</Button>
                 ) : (
                   <Button tone="primary" testId="workflow-run" onClick={() => void start()}>
-                    Run
+                    {t('common.run')}
                   </Button>
                 )}
               </div>
@@ -274,11 +275,11 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
                   <Link
                     to={`runs/${encodeURIComponent(runId)}`}
                     className="text-accent underline"
-                    title="Inspect this run event by event"
+                    title={t('workflowDetail.inspectRun')}
                   >
-                    <Mono>run {shortId(runId, 8, 4)}</Mono>
+                    <Mono>{t('workflowDetail.runId', { id: shortId(runId, 8, 4) })}</Mono>
                   </Link>
-                  <span>{events.length} events</span>
+                  <span>{t('workflowDetail.eventCount', { count: events.length })}</span>
                 </p>
               )}
 
@@ -288,7 +289,7 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
         )}
 
         {finished && pending.isSuccess && pending.data.length > 0 && (
-          <Panel title="Waiting on you">
+          <Panel title={t('workflowDetail.waitingOnYou')}>
             <div className="flex flex-col gap-3 p-4">
               {pending.data.map((request) => (
                 <PendingRequestCard
@@ -316,7 +317,7 @@ function Output({ events }: { events: readonly RunEvent[] }): ReactNode {
   }
 
   return (
-    <div className="flex flex-col gap-2" data-testid="workflow-output">
+    <div className="flex flex-col gap-2" data-testid="workflow-output" aria-live="polite">
       {outputs.map((event) => (
         <p
           key={event.sequence}
@@ -354,6 +355,7 @@ function PendingRequestCard({
   disabled: boolean;
   onRespond: (body: Record<string, unknown>) => void;
 }): ReactNode {
+  const t = useT();
   const [text, setText] = useState('');
 
   return (
@@ -362,7 +364,9 @@ function PendingRequestCard({
       data-testid="workflow-pending-request"
     >
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
-        <Badge tone="warn">{label(request.form)}</Badge>
+        <Badge tone="warn">
+          {t(request.form === 'PlanReview' ? 'workflowDetail.planApproval' : 'workflowDetail.waitingForInput')}
+        </Badge>
         <Mono className="text-[11px] text-subtle" title={request.requestId}>
           {request.portId}
         </Mono>
@@ -380,10 +384,12 @@ function PendingRequestCard({
           data-testid="workflow-answer"
           placeholder={
             request.form === 'PlanReview'
-              ? 'How should the plan change? Required when sending it back.'
+              ? t('workflowDetail.planRevisionPlaceholder')
               : request.form === 'Json'
-                ? `JSON for ${request.responseType ?? 'the response type'}`
-                : 'Your answer…'
+                ? t('workflowDetail.jsonPlaceholder', {
+                    type: request.responseType ?? t('workflowDetail.responseType'),
+                  })
+                : t('workflowDetail.answerPlaceholder')
           }
           className="mb-2.5"
           onChange={(event) => setText(event.target.value)}
@@ -399,18 +405,14 @@ function PendingRequestCard({
               disabled={disabled}
               onClick={() => onRespond({ approved: true })}
             >
-              Approve plan
+              {t('workflowDetail.approvePlan')}
             </Button>
             <Button
               disabled={disabled || text.trim().length === 0}
-              title={
-                text.trim().length === 0
-                  ? 'Say what should change — the manager cannot re-plan without it.'
-                  : undefined
-              }
+              title={text.trim().length === 0 ? t('workflowDetail.revisionRequired') : undefined}
               onClick={() => onRespond({ approved: false, text })}
             >
-              Send back for revision
+              {t('workflowDetail.sendBack')}
             </Button>
           </>
         )}
@@ -423,10 +425,10 @@ function PendingRequestCard({
               disabled={disabled}
               onClick={() => onRespond({ approved: true })}
             >
-              Yes
+              {t('workflowDetail.yes')}
             </Button>
             <Button disabled={disabled} onClick={() => onRespond({ approved: false })}>
-              No
+              {t('workflowDetail.no')}
             </Button>
           </>
         )}
@@ -438,7 +440,7 @@ function PendingRequestCard({
             disabled={disabled || text.trim().length === 0}
             onClick={() => onRespond({ text })}
           >
-            Send answer
+            {t('workflowDetail.sendAnswer')}
           </Button>
         )}
 
@@ -449,16 +451,12 @@ function PendingRequestCard({
             disabled={disabled || text.trim().length === 0}
             onClick={() => onRespond({ data: parseJson(text) })}
           >
-            Send answer
+            {t('workflowDetail.sendAnswer')}
           </Button>
         )}
       </div>
     </div>
   );
-}
-
-function label(form: WorkflowPendingRequest['form']): string {
-  return form === 'PlanReview' ? 'plan approval' : 'waiting for input';
 }
 
 /**
