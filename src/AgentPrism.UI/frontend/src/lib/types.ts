@@ -1194,3 +1194,63 @@ export interface WebhookTestResponse {
   queued: boolean;
   message: string;
 }
+
+/** The fixed whitelist of retention targets (`RetentionTargets` on the server). */
+export type RetentionTarget =
+  | 'run_events'
+  | 'tool_invocations'
+  | 'traces'
+  | 'jobs'
+  | 'webhook_deliveries'
+  | 'eval_case_results'
+  | 'workflow_checkpoints'
+  | 'skill_script_grants'
+  | 'attachments'
+  | 'sessions'
+  | 'conversations';
+
+/** A stored retention policy for one target. Absent unless the tenant configured it. */
+export interface RetentionPolicy {
+  id: string;
+  tenantId: string;
+  target: RetentionTarget;
+  maxAgeDays?: number | null;
+  maxRows?: number | null;
+  archive: boolean;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RetentionPolicySaveRequest {
+  maxAgeDays?: number | null;
+  maxRows?: number | null;
+  archive: boolean;
+  enabled: boolean;
+}
+
+/** "If this ran right now" preview for one target. Never deletes anything. */
+export interface RetentionPreview {
+  target: RetentionTarget;
+  maxAgeDays?: number | null;
+  enabled: boolean;
+  cutoff?: string | null;
+  matchingRows: number;
+}
+
+/** History record of one cleanup run. */
+export interface RetentionRun {
+  id: string;
+  tenantId: string;
+  target: RetentionTarget;
+  deletedRows: number;
+  archivedRows: number;
+  startedAt: string;
+  completedAt?: string | null;
+  error?: string | null;
+}
+
+export interface RetentionRunTriggerResponse {
+  jobId: string;
+  target: string;
+}

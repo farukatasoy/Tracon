@@ -343,6 +343,28 @@ public sealed class SqliteQuotaStoreContractTests(SqliteFixture fixture) : Quota
 }
 
 /// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />
+public sealed class SqliteRetentionPolicyStoreContractTests(SqliteFixture fixture) : RetentionPolicyStoreContract
+{
+    private SqliteTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<IRetentionPolicyStore> CreateStoreAsync()
+    {
+        _context = await SqliteTestContext.CreateAsync(fixture);
+        return _context.RetentionPolicies;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}
+
+/// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />
 public sealed class SqliteWebhookStoreContractTests(SqliteFixture fixture) : WebhookStoreContract
 {
     private SqliteTestContext? _context;

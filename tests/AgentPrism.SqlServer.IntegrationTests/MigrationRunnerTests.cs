@@ -27,12 +27,13 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
             $"WHERE s.name = '{context.SchemaName}';");
 
         // 0001_initial PostgreSQL'in 0001-0013 birikimini kurar: 35 tablo +
-        // migration defteri = 36. Sayi PostgreSQL tarafiyla ayni olmalidir; iki
-        // saglayici ayni veri modelini tasir.
+        // migration defteri = 36. 0002_retention 2 tablo daha ekler (Faz 25):
+        // retention_policies, retention_runs. Sayi PostgreSQL tarafiyla ayni
+        // olmalidir; iki saglayici ayni veri modelini tasir.
         //
         // Sayi BILEREK sabittir: yeni bir tablo eklendiginde bu test kirilir ve
         // ekleyen kisi tabloyu fark etmis olur.
-        tableCount.ShouldBe(36);
+        tableCount.ShouldBe(38);
     }
 
     [Fact]
