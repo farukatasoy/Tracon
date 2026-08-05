@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { useT } from '../lib/i18n';
 import { Badge, Button, Empty, ErrorNote, Loading, Mono, Panel } from './ui';
 import type { RoleMeta } from '../lib/types';
 
@@ -19,16 +20,17 @@ export function McpServerDetail({
   serverName: string;
   roles: RoleMeta;
 }): ReactNode {
+  const t = useT();
   const [tab, setTab] = useState<'prompts' | 'resources'>('prompts');
 
   return (
     <Panel className="mt-2 border-dashed">
       <div className="flex gap-1 border-b border-line px-3 pt-2">
         <TabButton active={tab === 'prompts'} onClick={() => setTab('prompts')}>
-          Prompts
+          {t('mcp.prompts')}
         </TabButton>
         <TabButton active={tab === 'resources'} onClick={() => setTab('resources')}>
-          Resources
+          {t('skills.resources')}
         </TabButton>
       </div>
 
@@ -36,12 +38,12 @@ export function McpServerDetail({
         roles.canAdminister ? (
           <PromptsTab serverName={serverName} />
         ) : (
-          <Empty title="Admin role required">Listing prompts needs the Admin role.</Empty>
+          <Empty title={t('mcp.adminRequired')}>{t('mcp.promptsNeedAdmin')}</Empty>
         )
       ) : roles.canRead ? (
         <ResourcesTab serverName={serverName} canRead={roles.canOperate} />
       ) : (
-        <Empty title="Reader role required">Listing resources needs the Reader role.</Empty>
+        <Empty title={t('mcp.readerRequired')}>{t('mcp.resourcesNeedReader')}</Empty>
       )}
     </Panel>
   );
@@ -70,6 +72,7 @@ function TabButton({
 }
 
 function PromptsTab({ serverName }: { serverName: string }): ReactNode {
+  const t = useT();
   const [copiedName, setCopiedName] = useState<string | null>(null);
 
   const prompts = useQuery({
@@ -80,6 +83,8 @@ function PromptsTab({ serverName }: { serverName: string }): ReactNode {
   const fetchContent = useMutation({
     mutationFn: (prompt: string) => api.mcpPromptContent(serverName, prompt, {}),
     onSuccess: (content, prompt) => {
+      // The header stays ENGLISH on purpose: it is pasted into an agent's
+      // instructions, which are prompt text sent to a model, not UI copy.
       const note =
         `# Imported from MCP prompt '${serverName}:${prompt}'\n` +
         `# Snapshot hash: ${content.hash} — this text will NOT update on its own.\n` +
@@ -105,8 +110,8 @@ function PromptsTab({ serverName }: { serverName: string }): ReactNode {
 
   if (prompts.data.length === 0) {
     return (
-      <Empty title="No prompts">
-        This server does not report the <Mono>prompts</Mono> capability, or has none.
+      <Empty title={t('mcp.noPrompts')}>
+        {t('mcp.noCapabilityBefore')} <Mono>prompts</Mono> {t('mcp.noCapabilityAfter')}
       </Empty>
     );
   }
@@ -122,16 +127,16 @@ function PromptsTab({ serverName }: { serverName: string }): ReactNode {
             )}
             {prompt.arguments.length > 0 && (
               <p className="text-[11px] text-muted">
-                args: {prompt.arguments.map((argument) => argument.name).join(', ')}
+                {t('mcp.args')} {prompt.arguments.map((argument) => argument.name).join(', ')}
               </p>
             )}
           </div>
           <Button
             busy={fetchContent.isPending && fetchContent.variables === prompt.name}
             onClick={() => fetchContent.mutate(prompt.name)}
-            title="Copy this prompt's content (a snapshot, with its source and hash) to the clipboard."
+            title={t('mcp.copyPromptTitle')}
           >
-            {copiedName === prompt.name ? 'Copied' : 'Copy'}
+            {copiedName === prompt.name ? t('mcp.copied') : t('common.copy')}
           </Button>
         </li>
       ))}
@@ -146,6 +151,7 @@ function ResourcesTab({
   serverName: string;
   canRead: boolean;
 }): ReactNode {
+  const t = useT();
   const [previewUri, setPreviewUri] = useState<string | null>(null);
 
   const resources = useQuery({
@@ -173,8 +179,8 @@ function ResourcesTab({
 
   if (resources.data.length === 0) {
     return (
-      <Empty title="No resources">
-        This server does not report the <Mono>resources</Mono> capability, or has none.
+      <Empty title={t('mcp.noResources')}>
+        {t('mcp.noCapabilityBefore')} <Mono>resources</Mono> {t('mcp.noCapabilityAfter')}
       </Empty>
     );
   }
@@ -190,7 +196,7 @@ function ResourcesTab({
             </div>
             {canRead && (
               <Button onClick={() => setPreviewUri(resource.uri)}>
-                {previewUri === resource.uri ? 'Refresh' : 'Preview'}
+                {previewUri === resource.uri ? t('common.refresh') : t('mcp.preview')}
               </Button>
             )}
           </li>
@@ -204,14 +210,16 @@ function ResourcesTab({
           {preview.isSuccess &&
             (preview.data.isBinary ? (
               <p className="text-[11px] text-muted">
-                Binary content, {preview.data.byteSize} bytes ({preview.data.mimeType ?? 'unknown type'}
-                ) — not shown here.
+                {t('mcp.binaryContent', {
+                  bytes: preview.data.byteSize,
+                  type: preview.data.mimeType ?? t('mcp.unknownType'),
+                })}
               </p>
             ) : (
               <>
                 {preview.data.truncated && (
                   <div className="mb-2">
-                    <Badge tone="warn">truncated</Badge>
+                    <Badge tone="warn">{t('mcp.truncated')}</Badge>
                   </div>
                 )}
                 <pre className="max-h-64 overflow-auto whitespace-pre-wrap text-[11px] text-fg">

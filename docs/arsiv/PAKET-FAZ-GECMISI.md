@@ -36,3 +36,10 @@
 | `AgentPrism.Sqlite` | migration `0004_voice_sessions.sql` |
 | `AgentPrism.UI` | `lib/voice.ts` (saf VAD + alt protokol), `components/voice-panel.tsx`, `MicIcon`/`StopIcon`, playground konuşma modu. Bundle 122,5 → **124,9 KB gzip** |
 | `AgentPrism.Voice` | **Değişmedi.** Konuşma katmanı sağlayıcıdan bağımsızdır ve `Core`'dadır (K-222) |
+
+### Faz 30 — Arayüz cilası (2026-08-05)
+
+| Paket | Ne eklendi |
+|---|---|
+| `AgentPrism.UI` | `lib/i18n.tsx`, `lib/shortcuts.ts`, `lib/palette.ts`, `locales/en.ts` + `locales/tr.ts` (794 anahtar), `components/command-palette.tsx`; 24 ekranın ve 12 bileşenin tüm metinleri sözlüğe taşındı; `format.ts` `Intl`'e geçti; `--ap-subtle`/`--ap-muted` WCAG AA'ya düzeltildi. Bundle 124,9 → **151,3 KB gzip** (artışın tamamı sözlükler) |
+| Diğer tüm paketler | **Değişmedi.** Dil→ses eşlemesi istemcide kaldı; protokol `voiceId`'yi zaten taşıyordu (K-234) |

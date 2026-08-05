@@ -1,12 +1,14 @@
 import type { ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import { absoluteTime, relativeTime, percent } from '../lib/format';
+import { absoluteTime, count, relativeTime, percent } from '../lib/format';
+import { useT } from '../lib/i18n';
 import { Badge, Button, Empty, ErrorNote, Loading, Mono, PageHeader, Panel, Table, Td, Th } from '../components/ui';
 import { StatusBadge } from './experiments';
 import type { Meta } from '../lib/types';
 
 export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Meta }): ReactNode {
+  const t = useT();
   const client = useQueryClient();
 
   const experiment = useQuery({ queryKey: ['experiment', name], queryFn: () => api.experiment(name) });
@@ -46,18 +48,21 @@ export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Met
     <>
       <PageHeader
         title={data.name}
-        description={`Splits ${data.agentName}'s traffic between ${data.variants.length} definition versions.`}
+        description={t('experiments.splits', {
+          agent: data.agentName,
+          count: data.variants.length,
+        })}
         actions={
           meta.roles.canAdminister && (
             <>
               {data.status === 'Draft' && (
                 <Button tone="primary" testId="experiment-start" busy={start.isPending} onClick={() => start.mutate()}>
-                  Start
+                  {t('experiments.start')}
                 </Button>
               )}
               {data.status === 'Running' && (
                 <Button tone="danger" testId="experiment-stop" busy={stop.isPending} onClick={() => stop.mutate()}>
-                  Stop
+                  {t('workflowDetail.stop')}
                 </Button>
               )}
             </>
@@ -71,19 +76,19 @@ export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Met
         </div>
       )}
 
-      <Panel title="Configuration" className="mb-4">
+      <Panel title={t('experiments.configuration')} className="mb-4">
         <div className="p-4">
           <dl className="mb-4 flex flex-wrap gap-6 text-[13px]">
             <div>
-              <dt className="text-[11px] text-subtle uppercase">Status</dt>
+              <dt className="text-[11px] text-subtle uppercase">{t('common.status')}</dt>
               <dd className="mt-0.5"><StatusBadge status={data.status} /></dd>
             </div>
             <div>
-              <dt className="text-[11px] text-subtle uppercase">Started</dt>
+              <dt className="text-[11px] text-subtle uppercase">{t('common.started')}</dt>
               <dd className="mt-0.5 text-muted" title={absoluteTime(data.startedAt)}>{relativeTime(data.startedAt)}</dd>
             </div>
             <div>
-              <dt className="text-[11px] text-subtle uppercase">Ended</dt>
+              <dt className="text-[11px] text-subtle uppercase">{t('experiments.ended')}</dt>
               <dd className="mt-0.5 text-muted" title={absoluteTime(data.endedAt)}>{relativeTime(data.endedAt)}</dd>
             </div>
           </dl>
@@ -91,9 +96,9 @@ export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Met
           <Table>
             <thead>
               <tr>
-                <Th>Variant</Th>
-                <Th>Version</Th>
-                <Th>Weight</Th>
+                <Th>{t('experiments.variant')}</Th>
+                <Th>{t('agentDetail.version')}</Th>
+                <Th>{t('experiments.weightColumn')}</Th>
               </tr>
             </thead>
             <tbody>
@@ -110,10 +115,10 @@ export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Met
       </Panel>
 
       <Panel
-        title="Results"
+        title={t('experiments.results')}
         actions={
           <span className="text-[11px] text-subtle">
-            Raw counts only — no statistical &ldquo;winner&rdquo; is claimed.
+            {t('experiments.resultsNote')}
           </span>
         }
       >
@@ -126,21 +131,19 @@ export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Met
 
         {results.isSuccess &&
           (results.data.results.length === 0 ? (
-            <Empty title="No traffic yet">
-              Results appear here once the experiment is running and requests start arriving.
-            </Empty>
+            <Empty title={t('experiments.noTraffic.title')}>{t('experiments.noTraffic.body')}</Empty>
           ) : (
             <Table>
               <thead>
                 <tr>
-                  <Th>Variant</Th>
-                  <Th>Version</Th>
-                  <Th>Runs</Th>
-                  <Th>Completed</Th>
-                  <Th>Failed</Th>
-                  <Th>Error rate</Th>
-                  <Th>Total tokens</Th>
-                  <Th>Avg duration</Th>
+                  <Th>{t('experiments.variant')}</Th>
+                  <Th>{t('agentDetail.version')}</Th>
+                  <Th>{t('nav.runs')}</Th>
+                  <Th>{t('runs.filter.completed')}</Th>
+                  <Th>{t('runs.stat.failed')}</Th>
+                  <Th>{t('runs.stat.errorRate')}</Th>
+                  <Th>{t('experiments.totalTokens')}</Th>
+                  <Th>{t('experiments.avgDuration')}</Th>
                 </tr>
               </thead>
               <tbody>
@@ -152,7 +155,7 @@ export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Met
                     <Td className="text-muted">{result.completedRuns}</Td>
                     <Td className="text-muted">{result.failedRuns}</Td>
                     <Td className="text-muted">{percent(result.errorRate)}</Td>
-                    <Td className="text-muted">{result.totalTokens.toLocaleString()}</Td>
+                    <Td className="text-muted">{count(result.totalTokens)}</Td>
                     <Td className="text-muted">
                       {result.averageDurationMs != null ? `${Math.round(result.averageDurationMs)}ms` : '—'}
                     </Td>

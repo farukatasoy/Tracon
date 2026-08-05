@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, openStream } from '../lib/api';
+import { formatDateTime, useT } from '../lib/i18n';
 import { readSse } from '../lib/sse';
 import { foldRunEvents } from '../lib/transcript';
 import { Link } from '../lib/router';
@@ -55,6 +56,7 @@ const EVENT_STYLE: Record<RunEventType, { label: string; hue: string }> = {
  * append-only (decision K-014) — a finished run simply ends its stream.
  */
 export function RunDetailScreen({ id }: { id: string }): ReactNode {
+  const t = useT();
   const [events, setEvents] = useState<RunEvent[]>([]);
   const [streaming, setStreaming] = useState(true);
   const [error, setError] = useState<unknown>(null);
@@ -145,13 +147,13 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
   return (
     <>
       <PageHeader
-        title="Run"
+        title={t('runs.column.run')}
         description={
           <>
             <Mono>{record.id}</Mono> —{' '}
             {record.kind === 'Workflow' ? (
               <>
-                workflow{' '}
+                {t('runDetail.forWorkflow')}{' '}
                 <Link
                   to={`workflows/${encodeURIComponent(record.workflowName ?? record.agentName)}`}
                   className="text-accent underline"
@@ -161,7 +163,7 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
               </>
             ) : (
               <>
-                agent{' '}
+                {t('runDetail.forAgent')}{' '}
                 <Link
                   to={`agents/${encodeURIComponent(record.agentName)}`}
                   className="text-accent underline"
@@ -172,7 +174,7 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
             )}
             {record.sessionId != null && (
               <>
-                , session{' '}
+                , {t('runDetail.forSession')}{' '}
                 <Link
                   to={`sessions/${encodeURIComponent(record.sessionId)}`}
                   className="text-accent underline"
@@ -183,7 +185,7 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
             )}
             {record.parentRunId != null && (
               <>
-                , called by{' '}
+                , {t('runDetail.calledBy')}{' '}
                 <Link
                   to={`runs/${encodeURIComponent(record.parentRunId)}`}
                   className="text-accent underline"
@@ -198,31 +200,30 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
       />
 
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-6">
-        <Stat label="Duration" value={duration(record.startedAt, record.completedAt)} />
-        <Stat label="Model" value={record.modelId ?? '—'} />
-        <Stat label="Input tokens" value={count(record.usage?.inputTokens)} />
-        <Stat label="Output tokens" value={count(record.usage?.outputTokens)} />
+        <Stat label={t('common.duration')} value={duration(record.startedAt, record.completedAt)} />
+        <Stat label={t('common.model')} value={record.modelId ?? '—'} />
+        <Stat label={t('runDetail.inputTokens')} value={count(record.usage?.inputTokens)} />
+        <Stat label={t('runDetail.outputTokens')} value={count(record.usage?.outputTokens)} />
         <Stat
-          label="Tree tokens"
+          label={t('runs.column.treeTokens')}
           value={count(record.treeUsage?.totalTokens)}
-          hint="This run plus every run under it. Already includes this run's own tokens — the two columns are not meant to be added."
+          hint={t('runs.treeTokensTitle')}
         />
-        <Stat label="Events" value={count(record.eventCount)} />
+        <Stat label={t('runs.column.events')} value={count(record.eventCount)} />
       </div>
 
       {record.status === 'AwaitingInput' && (
         <div className="mb-4">
-          <Panel title="Waiting on a human">
+          <Panel title={t('runDetail.awaiting.title')}>
             <div className="p-4 text-[13px]">
-              This run stopped at a request port and its state is saved in a checkpoint.
-              Answer it on the{' '}
+              {t('runDetail.awaiting.before')}{' '}
               <Link
                 to={`workflows/${encodeURIComponent(record.workflowName ?? record.agentName)}`}
                 className="text-accent underline"
               >
-                workflow screen
+                {t('runDetail.awaiting.link')}
               </Link>
-              . Answering opens a new run — this row keeps its history exactly as it happened.
+              . {t('runDetail.awaiting.after')}
             </div>
           </Panel>
         </div>
@@ -230,7 +231,7 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
 
       {record.error != null && (
         <div className="mb-4">
-          <Panel title="Failure">
+          <Panel title={t('runDetail.failure')}>
             <div className="p-4">
               <Badge tone="danger">{record.error.type}</Badge>
               <p className="mt-2 text-[13px] text-danger">{record.error.message}</p>
@@ -245,15 +246,15 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
         <Panel
           title={
             <span className="flex items-center gap-1.5">
-              Transcript
+              {t('runDetail.transcript')}
               {streaming && <SpinnerIcon className="size-3 text-muted" />}
             </span>
           }
         >
-          <div className="p-4">
+          <div className="p-4" aria-live="polite" aria-busy={streaming}>
             {transcript.items.length === 0 ? (
               <p className="text-[13px] text-subtle">
-                {streaming ? 'Waiting for events…' : 'This run produced no renderable content.'}
+                {streaming ? t('runDetail.waiting') : t('runDetail.noContent')}
               </p>
             ) : (
               <TranscriptView items={transcript.items} streaming={streaming} />
@@ -261,9 +262,9 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
           </div>
         </Panel>
 
-        <Panel title={`Event timeline (${events.length})`}>
+        <Panel title={t('runDetail.timeline', { count: events.length })}>
           {events.length === 0 ? (
-            <Empty title={streaming ? 'Waiting for events…' : 'No events'} />
+            <Empty title={streaming ? t('runDetail.waiting') : t('runDetail.noEvents')} />
           ) : (
             <ol className="max-h-[40rem] overflow-y-auto p-4">
               {events.map((event) => (
@@ -276,7 +277,7 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
 
       {partOfTree && (
         <div className="mt-4">
-          <Panel title="Call tree">
+          <Panel title={t('runDetail.callTree')}>
             {tree.isPending ? (
               <Loading />
             ) : tree.isError ? (
@@ -290,36 +291,35 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
 
       {finished && (
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <Panel title="Trace">
+          <Panel title={t('runDetail.trace')}>
             {trace.isPending ? (
               <Loading />
             ) : trace.isSuccess ? (
               <Waterfall trace={trace.data} />
             ) : record.parentRunId != null ? (
-              <Empty title="Spans live on the root run">
-                Every run in a call tree shares one trace, and the root run owns it. This run's
-                spans are nested inside the{' '}
+              <Empty title={t('runDetail.spansOnRoot.title')}>
+                {t('runDetail.spansOnRoot.before')}{' '}
                 <Link
                   to={`runs/${encodeURIComponent(record.rootRunId ?? record.parentRunId)}`}
                   className="text-accent underline"
                 >
-                  root run's
+                  {t('runDetail.spansOnRoot.link')}
                 </Link>{' '}
-                waterfall.
+                {t('runDetail.spansOnRoot.after')}
               </Empty>
             ) : (
-              <Empty title="No spans recorded">
-                Span writing is sampled. Failed runs are kept by default; successful ones are
-                kept at the ratio in <Mono>AgentPrism:Observability:SuccessSampleRatio</Mono>.
+              <Empty title={t('runDetail.noSpans.title')}>
+                {t('runDetail.noSpans.body')}{' '}
+                <Mono>AgentPrism:Observability:SuccessSampleRatio</Mono>.
               </Empty>
             )}
           </Panel>
 
-          <Panel title={`Tool calls (${toolCalls.data?.length ?? 0})`}>
+          <Panel title={t('runDetail.toolCalls', { count: toolCalls.data?.length ?? 0 })}>
             {toolCalls.isPending ? (
               <Loading />
             ) : (toolCalls.data ?? []).length === 0 ? (
-              <Empty title="No tool calls">This run did not invoke a tool.</Empty>
+              <Empty title={t('runDetail.noToolCalls.title')}>{t('runDetail.noToolCalls.body')}</Empty>
             ) : (
               <ul className="divide-y divide-line">
                 {(toolCalls.data ?? []).map((call) => (
@@ -332,8 +332,9 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
       )}
 
       <p className="mt-3 text-[11px] text-subtle">
-        Started <span title={absoluteTime(record.startedAt)}>{relativeTime(record.startedAt)}</span>
-        {record.isStreaming ? ' · streamed' : ' · non-streaming'}
+        {t('common.started')}{' '}
+        <span title={absoluteTime(record.startedAt)}>{relativeTime(record.startedAt)}</span>
+        {record.isStreaming ? ` · ${t('runDetail.streamed')}` : ` · ${t('runDetail.nonStreaming')}`}
       </p>
     </>
   );
@@ -347,18 +348,24 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
  * cannot be read. Writing a near-zero number would be worse than writing none.
  */
 function ToolCallRow({ call }: { call: ToolInvocationRecord }): ReactNode {
+  const t = useT();
+
   return (
     <li className="px-4 py-2.5">
       <div className="flex flex-wrap items-center gap-2">
         <Mono className="text-[12px] font-semibold">{call.toolName}</Mono>
         {call.source != null && (
-          <Badge tone="warn" title={`Discovered on the remote MCP server "${call.source}".`}>
+          <Badge tone="warn" title={t('runDetail.mcpSource', { server: call.source })}>
             mcp: {call.source}
           </Badge>
         )}
-        {call.succeeded ? <Badge tone="accent">ok</Badge> : <Badge tone="danger">failed</Badge>}
+        {call.succeeded ? (
+          <Badge tone="accent">{t('runDetail.ok')}</Badge>
+        ) : (
+          <Badge tone="danger">{t('runs.status.failed')}</Badge>
+        )}
         <span className="ml-auto text-[11px] text-subtle">
-          {call.duration != null ? formatMs(parseDuration(call.duration)) : 'not measured'}
+          {call.duration != null ? formatMs(parseDuration(call.duration)) : t('runDetail.notMeasured')}
         </span>
       </div>
 
@@ -412,7 +419,7 @@ function EventRow({ event }: { event: RunEvent }): ReactNode {
           </span>
           {event.toolName != null && <Badge>{event.toolName}</Badge>}
           <span className="ml-auto text-[11px] text-subtle" title={absoluteTime(event.timestamp)}>
-            {new Date(event.timestamp).toLocaleTimeString()}
+            {formatDateTime(new Date(event.timestamp), { timeStyle: 'medium' })}
           </span>
         </div>
 
@@ -439,8 +446,10 @@ function EventRow({ event }: { event: RunEvent }): ReactNode {
  * foreign key — are rendered at the top level rather than dropped.
  */
 function RunTree({ runs, current }: { runs: RunRecord[]; current: string }): ReactNode {
+  const t = useT();
+
   if (runs.length === 0) {
-    return <Empty title="No tree" />;
+    return <Empty title={t('runDetail.noTree')} />;
   }
 
   const present = new Set(runs.map((run) => run.id));
@@ -490,6 +499,8 @@ function RunTreeRow({
   indent: number;
   isCurrent: boolean;
 }): ReactNode {
+  const t = useT();
+
   return (
     <li className={cx('flex flex-wrap items-center gap-2 px-4 py-2', isCurrent && 'bg-raised')}>
       <span style={{ paddingLeft: `${indent * 1.25}rem` }} className="flex items-center gap-2">
@@ -508,10 +519,12 @@ function RunTreeRow({
       </Link>
 
       <StatusBadge status={run.status} />
-      {isCurrent && <Badge tone="accent">this run</Badge>}
+      {isCurrent && <Badge tone="accent">{t('runDetail.thisRun')}</Badge>}
 
       <span className="ml-auto flex items-center gap-3 text-[11px] text-subtle">
-        <span>{count(run.usage?.totalTokens)} tokens</span>
+        <span>
+          {count(run.usage?.totalTokens)} {t('common.tokens').toLocaleLowerCase()}
+        </span>
         <span>{duration(run.startedAt, run.completedAt)}</span>
       </span>
     </li>

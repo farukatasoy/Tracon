@@ -2,6 +2,7 @@ import { type ReactNode, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { count, money, percent } from '../lib/format';
+import { usePlural, useT } from '../lib/i18n';
 import { ModelBreakdownChart, StatusDistributionChart, TimeSeriesChart } from '../components/charts';
 import { Badge, ErrorNote, Loading, PageHeader, Panel, cx } from '../components/ui';
 import { Link } from '../lib/router';
@@ -22,6 +23,7 @@ const RANGE_CONFIG: Record<Range, { hours: number; bucket: TimeSeriesBucket; lab
 };
 
 export function DashboardScreen({ meta }: { meta: Meta }): ReactNode {
+  const t = useT();
   const [range, setRange] = useState<Range>('24h');
   const config = RANGE_CONFIG[range];
 
@@ -52,8 +54,8 @@ export function DashboardScreen({ meta }: { meta: Meta }): ReactNode {
   return (
     <>
       <PageHeader
-        title="Dashboard"
-        description="Runs, errors, tokens and cost across every agent."
+        title={t('nav.dashboard')}
+        description={t('dashboard.description')}
       />
 
       <TopStrip points={topStrip.data} isLoading={topStrip.isPending} />
@@ -61,7 +63,7 @@ export function DashboardScreen({ meta }: { meta: Meta }): ReactNode {
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Panel
           className="lg:col-span-2"
-          title="Runs over time"
+          title={t('dashboard.runsOverTime')}
           actions={
             <div className="flex gap-1">
               {(Object.keys(RANGE_CONFIG) as Range[]).map((key) => (
@@ -96,7 +98,7 @@ export function DashboardScreen({ meta }: { meta: Meta }): ReactNode {
           )}
         </Panel>
 
-        <Panel title="Model breakdown">
+        <Panel title={t('dashboard.modelBreakdown')}>
           {stats.isPending && <Loading />}
           {stats.isError && (
             <div className="p-4">
@@ -108,20 +110,25 @@ export function DashboardScreen({ meta }: { meta: Meta }): ReactNode {
           )}
         </Panel>
 
-        <Panel title="Top agents">
+        <Panel title={t('dashboard.topAgents')}>
           {stats.isPending && <Loading />}
           {stats.isSuccess && (
             <dl className="divide-y divide-line">
               {stats.data.byAgent.length === 0 && (
-                <p className="px-4 py-4 text-[12px] text-subtle">No runs in this window yet.</p>
+                <p className="px-4 py-4 text-[12px] text-subtle">{t('dashboard.noRunsInWindow')}</p>
               )}
               {stats.data.byAgent.map((agent) => (
                 <div key={agent.agentName} className="flex items-center gap-4 px-4 py-2">
                   <dt className="min-w-0 flex-1 truncate text-[13px]">{agent.agentName}</dt>
                   <dd className="shrink-0 text-[12px] text-subtle">
-                    {count(agent.totalRuns)} runs · {count(agent.totalTokens)} tok
+                    {t('dashboard.agentSummary', {
+                      runs: count(agent.totalRuns),
+                      tokens: count(agent.totalTokens),
+                    })}
                     {agent.failedRuns > 0 && (
-                      <span className="ml-2 text-danger">{count(agent.failedRuns)} failed</span>
+                      <span className="ml-2 text-danger">
+                        {t('dashboard.agentFailed', { failed: count(agent.failedRuns) })}
+                      </span>
                     )}
                   </dd>
                 </div>
@@ -130,7 +137,7 @@ export function DashboardScreen({ meta }: { meta: Meta }): ReactNode {
           )}
         </Panel>
 
-        <Panel className="lg:col-span-2" title="Alerts">
+        <Panel className="lg:col-span-2" title={t('dashboard.alerts')}>
           <AlertsRow
             runsWithUnknownPricing={stats.data?.runsWithUnknownPricing}
             awaitingInputRuns={stats.data?.awaitingInputRuns}
@@ -150,6 +157,8 @@ function TopStrip({
   points: TimeSeriesPoint[] | undefined;
   isLoading: boolean;
 }): ReactNode {
+  const t = useT();
+
   if (isLoading || points === undefined) {
     return (
       <Panel>
@@ -169,15 +178,15 @@ function TopStrip({
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      <StripTile label="Runs today" value={count(today?.runs ?? 0)} delta={runsDelta} />
+      <StripTile label={t('dashboard.runsToday')} value={count(today?.runs ?? 0)} delta={runsDelta} />
       <StripTile
-        label="Error rate"
+        label={t('runs.stat.errorRate')}
         value={percent(errorRateToday)}
         delta={delta(errorRateToday, errorRateYesterday)}
         invertTone
       />
       <StripTile
-        label="Tokens today"
+        label={t('dashboard.tokensToday')}
         value={count((today?.inputTokens ?? 0) + (today?.outputTokens ?? 0))}
         delta={delta(
           (today?.inputTokens ?? 0) + (today?.outputTokens ?? 0),
@@ -185,7 +194,7 @@ function TopStrip({
         )}
       />
       <StripTile
-        label="Cost today"
+        label={t('dashboard.costToday')}
         value={today?.cost === null || today?.cost === undefined ? '—' : money(today.cost, null)}
         delta={delta(today?.cost, yesterday?.cost)}
       />
@@ -226,6 +235,7 @@ function StripTile({
   /** A rising error rate is bad, unlike a rising run count — flip the colour rule. */
   invertTone?: boolean;
 }): ReactNode {
+  const t = useT();
   const rising = deltaValue !== null && deltaValue > 0;
   const falling = deltaValue !== null && deltaValue < 0;
   const good = invertTone ? falling : rising;
@@ -238,7 +248,7 @@ function StripTile({
       {deltaValue !== null && (
         <p className={cx('mt-0.5 text-[11px]', good && 'text-success', bad && 'text-danger')}>
           {deltaValue >= 0 ? '+' : ''}
-          {percent(deltaValue)} vs. yesterday
+          {percent(deltaValue)} {t('dashboard.vsYesterday')}
         </p>
       )}
     </Panel>
@@ -256,34 +266,36 @@ function AlertsRow({
   unhealthyProviders: number | undefined;
   canAdminister: boolean;
 }): ReactNode {
+  const t = useT();
+  const plural = usePlural();
   const hasUnpriced = (runsWithUnknownPricing ?? 0) > 0;
   const hasUnhealthy = (unhealthyProviders ?? 0) > 0;
   const hasAwaiting = (awaitingInputRuns ?? 0) > 0;
 
   if (!hasUnpriced && !hasUnhealthy && !hasAwaiting) {
-    return <p className="px-4 py-4 text-[12px] text-subtle">Nothing needs attention.</p>;
+    return <p className="px-4 py-4 text-[12px] text-subtle">{t('dashboard.allClear')}</p>;
   }
 
   return (
     <div className="flex flex-wrap items-center gap-2 px-4 py-3">
       {hasUnpriced && (
-        <Badge tone="warn" title="These runs have a known model with no configured price.">
-          {count(runsWithUnknownPricing ?? 0)} runs with unpriced models
+        <Badge tone="warn" title={t('dashboard.unpricedTitle')}>
+          {plural('dashboard.unpricedRuns', runsWithUnknownPricing ?? 0)}
         </Badge>
       )}
       {hasUnhealthy && (
         <Badge tone="danger">
-          <Link to="models">{count(unhealthyProviders ?? 0)} provider(s) unhealthy</Link>
+          <Link to="models">{plural('dashboard.unhealthyProviders', unhealthyProviders ?? 0)}</Link>
         </Badge>
       )}
       {hasAwaiting && (
         <Badge tone="info">
-          <Link to="runs">{count(awaitingInputRuns ?? 0)} runs awaiting input</Link>
+          <Link to="runs">{plural('dashboard.awaitingRuns', awaitingInputRuns ?? 0)}</Link>
         </Badge>
       )}
       {hasUnpriced && canAdminister && (
         <Link to="settings" className="text-[12px] text-accent hover:underline">
-          Configure pricing →
+          {t('dashboard.configurePricing')} →
         </Link>
       )}
     </div>

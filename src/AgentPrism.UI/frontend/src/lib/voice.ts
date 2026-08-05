@@ -1,5 +1,6 @@
 import { apiBase } from './base';
 import { getToken } from './auth';
+import type { MessageKey } from './i18n';
 
 /** WebSocket sub-protocol the server echoes back on a successful handshake. */
 export const VOICE_SUBPROTOCOL = 'agentprism.voice.v1';
@@ -59,7 +60,14 @@ export function voiceSubProtocols(token: string | null = getToken()): string[] {
 /** Why the microphone cannot be used, if it cannot. */
 export interface MicrophoneSupport {
   supported: boolean;
-  reason?: string;
+  /**
+   * Message KEY, not a sentence.
+   *
+   * The reason is shown to the user, so it has to follow the console language.
+   * Returning a key keeps this module free of React and of the catalogue, and
+   * keeps the function unit-testable without a locale.
+   */
+  reason?: MessageKey;
 }
 
 /**
@@ -71,22 +79,57 @@ export interface MicrophoneSupport {
  */
 export function microphoneSupport(): MicrophoneSupport {
   if (typeof window === 'undefined' || window.isSecureContext !== true) {
-    return {
-      supported: false,
-      reason:
-        'Microphone access needs a secure context. Serve AgentPrism over HTTPS, or open it on localhost.',
-    };
+    return { supported: false, reason: 'voice.needsSecureContext' };
   }
 
   if (navigator.mediaDevices?.getUserMedia === undefined) {
-    return { supported: false, reason: 'This browser does not expose getUserMedia.' };
+    return { supported: false, reason: 'voice.noGetUserMedia' };
   }
 
   if (typeof MediaRecorder === 'undefined') {
-    return { supported: false, reason: 'This browser does not support MediaRecorder.' };
+    return { supported: false, reason: 'voice.noMediaRecorder' };
   }
 
   return { supported: true };
+}
+
+const VOICE_STORAGE_PREFIX = 'agentprism.voice.';
+
+/**
+ * The voice this language is spoken with.
+ *
+ * 🚨 A Turkish answer read out by an English voice is unintelligible, and the
+ * provider does NOT report which language a voice speaks — `VoiceDescriptor`
+ * carries an id, a name and a category, nothing else. So the mapping cannot be
+ * derived; an operator picks it once per language on the Settings screen and it
+ * is stored here.
+ *
+ * The choice travels to the server in the `start` frame of the conversation
+ * (`voiceId`), which the protocol already accepts. Nothing on the server has to
+ * learn about languages.
+ */
+export function readVoiceForLocale(locale: string): string | null {
+  try {
+    const stored = window.localStorage.getItem(VOICE_STORAGE_PREFIX + locale);
+
+    return stored === null || stored.length === 0 ? null : stored;
+  } catch {
+    return null;
+  }
+}
+
+export function writeVoiceForLocale(locale: string, voiceId: string | null): void {
+  try {
+    if (voiceId === null || voiceId.length === 0) {
+      window.localStorage.removeItem(VOICE_STORAGE_PREFIX + locale);
+
+      return;
+    }
+
+    window.localStorage.setItem(VOICE_STORAGE_PREFIX + locale, voiceId);
+  } catch {
+    // A preference that does not survive a reload beats a broken page.
+  }
 }
 
 /** What the silence detector concluded about the latest sample. */

@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { count, relativeTime } from '../lib/format';
+import { useT, type MessageKey } from '../lib/i18n';
 import {
   Badge,
   Button,
@@ -17,18 +18,18 @@ import {
 } from './ui';
 import type { RetentionPolicy, RetentionPreview, RetentionTarget } from '../lib/types';
 
-const TARGETS: { value: RetentionTarget; label: string }[] = [
-  { value: 'run_events', label: 'Run events' },
-  { value: 'tool_invocations', label: 'Tool invocations' },
-  { value: 'traces', label: 'Traces & spans' },
-  { value: 'jobs', label: 'Completed jobs' },
-  { value: 'webhook_deliveries', label: 'Webhook deliveries' },
-  { value: 'eval_case_results', label: 'Eval case results' },
-  { value: 'workflow_checkpoints', label: 'Workflow checkpoints' },
-  { value: 'skill_script_grants', label: 'Skill script grants' },
-  { value: 'attachments', label: 'Orphaned attachments' },
-  { value: 'sessions', label: 'Sessions (user data)' },
-  { value: 'conversations', label: 'Conversations (user data)' },
+const TARGETS: { value: RetentionTarget; label: MessageKey }[] = [
+  { value: 'run_events', label: 'retention.target.runEvents' },
+  { value: 'tool_invocations', label: 'retention.target.toolInvocations' },
+  { value: 'traces', label: 'retention.target.traces' },
+  { value: 'jobs', label: 'retention.target.jobs' },
+  { value: 'webhook_deliveries', label: 'retention.target.webhookDeliveries' },
+  { value: 'eval_case_results', label: 'retention.target.evalResults' },
+  { value: 'workflow_checkpoints', label: 'retention.target.checkpoints' },
+  { value: 'skill_script_grants', label: 'retention.target.scriptGrants' },
+  { value: 'attachments', label: 'retention.target.attachments' },
+  { value: 'sessions', label: 'retention.target.sessions' },
+  { value: 'conversations', label: 'retention.target.conversations' },
 ];
 
 /**
@@ -40,6 +41,7 @@ const TARGETS: { value: RetentionTarget; label: string }[] = [
  * queue worker.
  */
 export function RetentionPanel(): ReactNode {
+  const t = useT();
   const client = useQueryClient();
   const [editingTarget, setEditingTarget] = useState<RetentionTarget | null>(null);
 
@@ -67,7 +69,7 @@ export function RetentionPanel(): ReactNode {
 
   if (preview.isPending || policies.isPending) {
     return (
-      <Panel title="Data retention">
+      <Panel title={t('retention.title')}>
         <Loading />
       </Panel>
     );
@@ -75,7 +77,7 @@ export function RetentionPanel(): ReactNode {
 
   if (preview.isError) {
     return (
-      <Panel title="Data retention">
+      <Panel title={t('retention.title')}>
         <div className="p-4">
           <ErrorNote error={preview.error} />
         </div>
@@ -88,10 +90,10 @@ export function RetentionPanel(): ReactNode {
 
   return (
     <Panel
-      title="Data retention"
+      title={t('retention.title')}
       actions={
         <Button tone="default" busy={run.isPending} onClick={() => run.mutate(undefined)}>
-          Run all now
+          {t('retention.runAll')}
         </Button>
       }
     >
@@ -99,10 +101,10 @@ export function RetentionPanel(): ReactNode {
         <Table>
           <thead>
             <tr>
-              <Th>Target</Th>
-              <Th>Status</Th>
-              <Th>Max age</Th>
-              <Th>Matching rows</Th>
+              <Th>{t('retention.target')}</Th>
+              <Th>{t('common.status')}</Th>
+              <Th>{t('retention.maxAge')}</Th>
+              <Th>{t('retention.matchingRows')}</Th>
               <Th />
             </tr>
           </thead>
@@ -130,21 +132,20 @@ export function RetentionPanel(): ReactNode {
       </div>
 
       <p className="border-t border-line px-4 py-2.5 text-[11px] text-subtle">
-        No policy ships by default — an upgrade never deletes anything on its own.{' '}
-        <Mono>audit_log</Mono> is never a valid target and cannot be configured here.
+        {t('retention.notice')} <Mono>audit_log</Mono> {t('retention.auditNotice')}
       </p>
 
       {history.isSuccess && history.data.length > 0 && (
         <div className="border-t border-line">
-          <h3 className="px-4 pt-3 text-[12px] font-medium text-muted">Recent runs</h3>
+          <h3 className="px-4 pt-3 text-[12px] font-medium text-muted">{t('retention.recentRuns')}</h3>
           <Table>
             <thead>
               <tr>
-                <Th>Target</Th>
-                <Th>Deleted</Th>
-                <Th>Archived</Th>
-                <Th>Started</Th>
-                <Th>Result</Th>
+                <Th>{t('retention.target')}</Th>
+                <Th>{t('retention.deleted')}</Th>
+                <Th>{t('retention.archived')}</Th>
+                <Th>{t('common.started')}</Th>
+                <Th>{t('common.result')}</Th>
               </tr>
             </thead>
             <tbody>
@@ -158,11 +159,11 @@ export function RetentionPanel(): ReactNode {
                   <Td>{relativeTime(run_.startedAt)}</Td>
                   <Td title={run_.error ?? undefined}>
                     {run_.error != null ? (
-                      <Badge tone="danger">failed</Badge>
+                      <Badge tone="danger">{t('runs.status.failed')}</Badge>
                     ) : run_.completedAt != null ? (
-                      <Badge tone="success">done</Badge>
+                      <Badge tone="success">{t('transcript.done')}</Badge>
                     ) : (
-                      <Badge tone="accent">running</Badge>
+                      <Badge tone="accent">{t('runs.status.running')}</Badge>
                     )}
                   </Td>
                 </tr>
@@ -188,7 +189,7 @@ function TargetRow({
   running,
 }: {
   target: RetentionTarget;
-  label: string;
+  label: MessageKey;
   preview: RetentionPreview | undefined;
   policy: RetentionPolicy | undefined;
   editing: boolean;
@@ -198,32 +199,36 @@ function TargetRow({
   onRun: () => void;
   running: boolean;
 }): ReactNode {
+  const t = useT();
+
   return (
     <>
       <tr>
-        <Td>{label}</Td>
+        <Td>{t(label)}</Td>
         <Td>
           {preview?.enabled === true ? (
-            <Badge tone="success">configured</Badge>
+            <Badge tone="success">{t('retention.configured')}</Badge>
           ) : (
-            <Badge tone="neutral">off</Badge>
+            <Badge tone="neutral">{t('common.disabled')}</Badge>
           )}
           {policy?.archive === true && (
-            <Badge tone="accent" title="Rows are written to the archive sink before deletion.">
-              archived
+            <Badge tone="accent" title={t('retention.archivedTitle')}>
+              {t('retention.archived')}
             </Badge>
           )}
         </Td>
-        <Td>{preview?.maxAgeDays != null ? `${preview.maxAgeDays} days` : '—'}</Td>
+        <Td>
+          {preview?.maxAgeDays != null ? t('retention.days', { days: preview.maxAgeDays }) : '—'}
+        </Td>
         <Td>{preview != null ? count(preview.matchingRows) : '—'}</Td>
         <Td>
           <div className="flex justify-end gap-1.5">
             <Button tone="ghost" onClick={onEdit}>
-              {editing ? 'Close' : 'Edit'}
+              {editing ? t('common.close') : t('common.edit')}
             </Button>
             {preview?.enabled === true && (
               <Button tone="ghost" busy={running} onClick={onRun}>
-                Run now
+                {t('evals.runNow')}
               </Button>
             )}
           </div>
@@ -251,6 +256,7 @@ function PolicyForm({
   onSaved: () => void;
   onDelete: () => void;
 }): ReactNode {
+  const t = useT();
   const [maxAgeDays, setMaxAgeDays] = useState(policy?.maxAgeDays?.toString() ?? '');
   const [archive, setArchive] = useState(policy?.archive ?? false);
   const [enabled, setEnabled] = useState(policy?.enabled ?? true);
@@ -268,11 +274,11 @@ function PolicyForm({
   return (
     <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-3">
-        <Field label="Max age (days)" hint="Rows older than this are deletion candidates.">
+        <Field label={t('retention.maxAgeDays')} hint={t('retention.maxAgeHint')}>
           <TextInput
             value={maxAgeDays}
             inputMode="numeric"
-            placeholder="e.g. 30"
+            placeholder={t('retention.maxAgePlaceholder')}
             onChange={(event) => setMaxAgeDays(event.target.value)}
           />
         </Field>
@@ -283,7 +289,7 @@ function PolicyForm({
             onChange={(event) => setArchive(event.target.checked)}
             className="size-4 rounded border-line"
           />
-          Archive before deleting
+          {t('retention.archiveFirst')}
         </label>
         <label className="flex items-end gap-2 pb-1.5 text-[13px]">
           <input
@@ -292,7 +298,7 @@ function PolicyForm({
             onChange={(event) => setEnabled(event.target.checked)}
             className="size-4 rounded border-line"
           />
-          Enabled
+          {t('common.enabled')}
         </label>
       </div>
 
@@ -305,11 +311,11 @@ function PolicyForm({
           busy={save.isPending}
           onClick={() => save.mutate()}
         >
-          Save policy
+          {t('retention.savePolicy')}
         </Button>
         {policy != null && (
           <Button tone="danger" onClick={onDelete}>
-            Delete policy
+            {t('retention.deletePolicy')}
           </Button>
         )}
       </div>

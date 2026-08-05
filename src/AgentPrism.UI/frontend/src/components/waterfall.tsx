@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { usePlural, useT } from '../lib/i18n';
 import { Badge, Mono, cx } from './ui';
 import type { RunTrace, TraceSpan } from '../lib/types';
 
@@ -16,6 +17,8 @@ import type { RunTrace, TraceSpan } from '../lib/types';
  * dimension does not justify a dependency.
  */
 export function Waterfall({ trace }: { trace: RunTrace }): ReactNode {
+  const t = useT();
+  const plural = usePlural();
   const start = new Date(trace.startedAt).getTime();
   const end = trace.endedAt != null ? new Date(trace.endedAt).getTime() : start;
 
@@ -27,10 +30,8 @@ export function Waterfall({ trace }: { trace: RunTrace }): ReactNode {
   return (
     <div className="flex flex-col">
       <div className="flex items-center justify-between border-b border-line px-4 py-2 text-[11px] text-subtle">
-        <span>
-          {rows.length} span{rows.length === 1 ? '' : 's'}
-        </span>
-        <Mono title="W3C trace id — search for this in your own APM">{trace.traceId}</Mono>
+        <span>{plural('waterfall.spans', rows.length)}</span>
+        <Mono title={t('waterfall.traceIdTitle')}>{trace.traceId}</Mono>
         <span>{formatMs(total)}</span>
       </div>
 
@@ -97,6 +98,7 @@ function SpanRow({
   traceStart: number;
   traceTotal: number;
 }): ReactNode {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const { span, depth } = row;
 
@@ -142,13 +144,13 @@ function SpanRow({
           <div className="mb-2 flex flex-wrap items-center gap-1.5">
             <Badge>{span.kind}</Badge>
             <Badge tone={failed ? 'danger' : 'accent'}>{span.status}</Badge>
-            <Mono className="text-[11px] text-subtle" title="W3C span id">
+            <Mono className="text-[11px] text-subtle" title={t('waterfall.spanIdTitle')}>
               {span.spanId}
             </Mono>
           </div>
 
           {attributes.length === 0 ? (
-            <p className="text-[12px] text-subtle">This span carries no attributes.</p>
+            <p className="text-[12px] text-subtle">{t('waterfall.noAttributes')}</p>
           ) : (
             <dl className="grid gap-x-4 gap-y-1 text-[12px] sm:grid-cols-[auto_1fr]">
               {attributes.map(([key, value]) => (

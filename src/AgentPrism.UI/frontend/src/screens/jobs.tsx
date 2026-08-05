@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { Link } from '../lib/router';
 import { absoluteTime, relativeTime, shortId } from '../lib/format';
+import { useT } from '../lib/i18n';
 import {
   Badge,
   Button,
@@ -36,19 +37,21 @@ const EMPTY_FORM = {
 type ScheduleForm = typeof EMPTY_FORM;
 
 export function JobStatusBadge({ status }: { status: JobStatus }): ReactNode {
+  const t = useT();
+
   switch (status) {
     case 'Completed':
-      return <Badge tone="success">completed</Badge>;
+      return <Badge tone="success">{t('runs.status.completed')}</Badge>;
     case 'Failed':
-      return <Badge tone="danger">failed</Badge>;
+      return <Badge tone="danger">{t('runs.status.failed')}</Badge>;
     case 'Cancelled':
-      return <Badge tone="warn">cancelled</Badge>;
+      return <Badge tone="warn">{t('runs.status.canceled')}</Badge>;
     case 'Leased':
-      return <Badge tone="info">leased</Badge>;
+      return <Badge tone="info">{t('jobs.status.leased')}</Badge>;
     case 'Running':
-      return <Badge tone="info">running</Badge>;
+      return <Badge tone="info">{t('runs.status.running')}</Badge>;
     default:
-      return <Badge>pending</Badge>;
+      return <Badge>{t('jobs.status.pending')}</Badge>;
   }
 }
 
@@ -62,8 +65,10 @@ export function JobProgressBar({
   failed: number;
   total: number;
 }): ReactNode {
+  const t = useT();
+
   if (total === 0) {
-    return <span className="text-[11px] text-subtle">no items</span>;
+    return <span className="text-[11px] text-subtle">{t('jobs.noItems')}</span>;
   }
 
   const donePct = (done / total) * 100;
@@ -104,6 +109,7 @@ function toForm(schedule: JobSchedule): ScheduleForm {
  * Workflows (definition) versus Runs (execution).
  */
 export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
+  const t = useT();
   const client = useQueryClient();
   const [form, setForm] = useState<ScheduleForm>(EMPTY_FORM);
   const [showForm, setShowForm] = useState(false);
@@ -165,7 +171,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
     try {
       JSON.parse(form.payload);
     } catch {
-      setPayloadError('Payload must be valid JSON — typically an array of input strings.');
+      setPayloadError(t('jobs.payloadError'));
       return;
     }
 
@@ -175,8 +181,8 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
   return (
     <>
       <PageHeader
-        title="Jobs"
-        description="Run an agent or workflow over a batch of inputs, on a cron schedule or on demand. A batch item is one ordinary run, linked back here."
+        title={t('nav.jobs')}
+        description={t('jobs.description')}
         actions={
           meta.roles.canAdminister && (
             <Button
@@ -188,7 +194,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
               }}
             >
               <PlusIcon className="size-3.5" />
-              New schedule
+              {t('jobs.newSchedule')}
             </Button>
           )
         }
@@ -197,17 +203,19 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
       {!meta.storage.jobWorkerEnabled && (
         <Panel className="mb-4">
           <div className="border-b border-line px-4 py-2.5 text-[12px] text-muted">
-            <strong className="text-fg">Worker disabled in this process.</strong> Schedules and jobs
-            can still be created and inspected, but nothing is leased or run here —
-            <Mono className="ml-1">RunWorker</Mono> is off for this instance.
+            <strong className="text-fg">{t('jobs.workerOff.title')}</strong> {t('jobs.workerOff.body')}{' '}
+            <Mono className="ml-1">RunWorker</Mono>.
           </div>
         </Panel>
       )}
 
       {showForm && (
-        <Panel title={editing != null ? `Edit ${editing}` : 'New schedule'} className="mb-4">
+        <Panel
+          title={editing != null ? t('jobs.editSchedule', { name: editing }) : t('jobs.newSchedule')}
+          className="mb-4"
+        >
           <form className="grid gap-3 p-4 sm:grid-cols-2" onSubmit={submit}>
-            <Field label="Name" required>
+            <Field label={t('common.name')} required>
               <TextInput
                 value={form.name}
                 required
@@ -218,17 +226,17 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
               />
             </Field>
 
-            <Field label="Kind">
+            <Field label={t('workflowEditor.kind')}>
               <Select value={form.kind} onChange={(value) => setForm({ ...form, kind: value as JobKind })}>
-                <option value="AgentBatch">Agent batch</option>
-                <option value="Workflow">Workflow</option>
+                <option value="AgentBatch">{t('jobs.kind.agentBatch')}</option>
+                <option value="Workflow">{t('jobs.kind.workflow')}</option>
               </Select>
             </Field>
 
             <Field
-              label="Target name"
+              label={t('jobs.targetName')}
               required
-              hint="The agent or workflow name this schedule runs."
+              hint={t('jobs.targetHint')}
             >
               <TextInput
                 value={form.targetName}
@@ -239,8 +247,8 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
             </Field>
 
             <Field
-              label="Cron"
-              hint="Five fields: minute hour day-of-month month day-of-week. Leave blank for manual trigger only."
+              label={t('jobs.cron')}
+              hint={t('jobs.cronHint')}
             >
               <TextInput
                 value={form.cron}
@@ -249,7 +257,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
               />
             </Field>
 
-            <Field label="Time zone">
+            <Field label={t('jobs.timeZone')}>
               <TextInput
                 value={form.timeZone}
                 placeholder="UTC"
@@ -263,13 +271,13 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
                 checked={form.enabled}
                 onChange={(event) => setForm({ ...form, enabled: event.target.checked })}
               />
-              Enabled
+              {t('common.enabled')}
             </label>
 
             <div className="sm:col-span-2">
               <Field
-                label="Payload"
-                hint="JSON. An array becomes one job item per element; anything else becomes a single item."
+                label={t('jobs.payload')}
+                hint={t('jobs.payloadHint')}
               >
                 <TextArea
                   value={form.payload}
@@ -281,7 +289,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
 
             <div className="sm:col-span-2 flex items-center gap-2">
               <Button type="submit" tone="primary" busy={save.isPending}>
-                Save
+                {t('common.save')}
               </Button>
               <Button
                 tone="ghost"
@@ -290,7 +298,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
                   setEditing(null);
                 }}
               >
-                Cancel
+                {t('common.cancel')}
               </Button>
               {payloadError != null && <ErrorNote error={new Error(payloadError)} />}
               {save.isError && <ErrorNote error={save.error} />}
@@ -299,7 +307,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
         </Panel>
       )}
 
-      <Panel title="Schedules" className="mb-4">
+      <Panel title={t('jobs.schedules')} className="mb-4">
         {schedules.isPending && <Loading />}
         {schedules.isError && (
           <div className="p-4">
@@ -309,20 +317,17 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
 
         {schedules.isSuccess &&
           (schedules.data.length === 0 ? (
-            <Empty title="No schedules yet">
-              Add one to run an agent or workflow on a timer, or trigger it by hand whenever you
-              like.
-            </Empty>
+            <Empty title={t('jobs.noSchedules.title')}>{t('jobs.noSchedules.body')}</Empty>
           ) : (
             <Table>
               <thead>
                 <tr>
-                  <Th>Name</Th>
-                  <Th>Kind</Th>
-                  <Th>Target</Th>
-                  <Th>Cron</Th>
-                  <Th>Next run</Th>
-                  <Th>Last run</Th>
+                  <Th>{t('common.name')}</Th>
+                  <Th>{t('workflowEditor.kind')}</Th>
+                  <Th>{t('jobs.target')}</Th>
+                  <Th>{t('jobs.cron')}</Th>
+                  <Th>{t('jobs.nextRun')}</Th>
+                  <Th>{t('jobs.lastRun')}</Th>
                   <Th />
                   <Th />
                 </tr>
@@ -341,7 +346,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
                       {schedule.cron != null && schedule.cron.length > 0 ? (
                         <Mono className="text-[11px]">{schedule.cron}</Mono>
                       ) : (
-                        <span className="text-[11px] text-subtle">manual only</span>
+                        <span className="text-[11px] text-subtle">{t('jobs.manualOnly')}</span>
                       )}
                     </Td>
                     <Td className="text-muted" title={absoluteTime(schedule.nextRunAt)}>
@@ -352,9 +357,9 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
                     </Td>
                     <Td>
                       {schedule.enabled ? (
-                        <Badge tone="accent">enabled</Badge>
+                        <Badge tone="accent">{t('common.enabled')}</Badge>
                       ) : (
-                        <Badge>disabled</Badge>
+                        <Badge>{t('common.disabled')}</Badge>
                       )}
                     </Td>
                     <Td className="text-right">
@@ -362,9 +367,9 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
                         <Button
                           onClick={() => trigger.mutate(schedule.name)}
                           busy={trigger.isPending}
-                          title="Run this schedule now, without waiting for its cron."
+                          title={t('jobs.triggerTitle')}
                         >
-                          Trigger
+                          {t('jobs.trigger')}
                         </Button>
                       )}
                       {meta.roles.canAdminister && (
@@ -376,7 +381,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
                               setShowForm(true);
                             }}
                           >
-                            Edit
+                            {t('common.edit')}
                           </Button>
                           <Button tone="danger" onClick={() => remove.mutate(schedule.name)}>
                             <TrashIcon className="size-3.5" />
@@ -391,7 +396,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
           ))}
       </Panel>
 
-      <Panel title="Recent jobs">
+      <Panel title={t('jobs.recent')}>
         {jobs.isPending && <Loading />}
         {jobs.isError && (
           <div className="p-4">
@@ -401,19 +406,17 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
 
         {jobs.isSuccess &&
           (jobs.data.length === 0 ? (
-            <Empty title="No jobs yet">
-              Trigger a schedule above, or wait for its cron — every run creates a row here.
-            </Empty>
+            <Empty title={t('jobs.noJobs.title')}>{t('jobs.noJobs.body')}</Empty>
           ) : (
             <Table>
               <thead>
                 <tr>
-                  <Th>Job</Th>
-                  <Th>Kind</Th>
-                  <Th>Target</Th>
-                  <Th>Status</Th>
-                  <Th>Progress</Th>
-                  <Th>Scheduled for</Th>
+                  <Th>{t('jobs.job')}</Th>
+                  <Th>{t('workflowEditor.kind')}</Th>
+                  <Th>{t('jobs.target')}</Th>
+                  <Th>{t('common.status')}</Th>
+                  <Th>{t('jobs.progress')}</Th>
+                  <Th>{t('jobs.scheduledFor')}</Th>
                   <Th />
                 </tr>
               </thead>
@@ -442,7 +445,7 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
                       {meta.roles.canOperate &&
                         (job.status === 'Pending' || job.status === 'Leased' || job.status === 'Running') && (
                           <Button tone="danger" busy={cancel.isPending} onClick={() => cancel.mutate(job.id)}>
-                            Cancel
+                            {t('common.cancel')}
                           </Button>
                         )}
                     </Td>

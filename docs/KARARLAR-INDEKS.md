@@ -47,7 +47,7 @@ Tarih bu indekste **yoktur** (K-214) — `KARARLAR.md`'deki kalemin kendisinde d
 | L37 | Arayüzden tool istatistiği ve model sağlık kontrolü Faz 5'te gösterilmedi 👤 |
 | L38 | Arayüz i18n altyapısı kurulmadı; dil İngilizce 👤🔁 |
 
-## 2. Kalıcı Kararlar (227 kalem)
+## 2. Kalıcı Kararlar (238 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -278,3 +278,14 @@ Tarih bu indekste **yoktur** (K-214) — `KARARLAR.md`'deki kalemin kendisinde d
 | K-225 | L270 | `PersistAudio` yalnız agent'ın ürettiği sesi saklar; kullanıcının sesi hiç saklanmaz 👤 |
 | K-226 | L271 | Artımlı (geçici) transkript yok; çözüm tek atımlıdır 👤 |
 | K-227 | L272 | Ses dakikası bir kota birimi değildir 👤 |
+| K-228 | L273 | i18n kütüphanesi alınmadı; `lib/i18n.tsx` elle yazıldı  |
+| K-229 | L274 | `t` fonksiyonu modül düzeyindedir ve kimliği hiç değişmez  |
+| K-230 | L275 | Dil tercihi `localStorage`'da; token `sessionStorage`'da kalır (K-047)  |
+| K-231 | L276 | Varsayılan dil tarayıcıdan gelir 👤 |
+| K-232 | L277 | Sunucu yanıtları çevrilmez; API sözleşmesi tek dillidir  |
+| K-233 | L278 | Rozet metni küçük harf, süzgeç/başlık metni büyük harf: iki ayrı anahtar kümesi  |
+| K-234 | L279 | Dil başına ses eşlemesi istemcide tutulur; protokol zaten taşıyordu  |
+| K-235 | L280 | Konuşma çözümlemesine dil kodu gönderilmez  |
+| K-236 | L281 | `--ap-subtle` ve `--ap-muted` WCAG AA'ya göre düzeltildi  |
+| K-237 | L282 | Klavye kısayolu metin alanında tetiklenmez; `Ctrl+Enter` yereldir  |
+| K-238 | L283 | Komut paleti istemci tarafında arar  |

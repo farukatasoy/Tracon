@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { Link } from '../lib/router';
 import { absoluteTime, relativeTime } from '../lib/format';
+import { useT, type MessageKey } from '../lib/i18n';
 import {
   Badge,
   Empty,
@@ -18,22 +19,23 @@ import { PlusIcon } from '../components/icons';
 import type { Meta, WorkflowKind } from '../lib/types';
 
 /** One-line description of what each pattern does, shown wherever a kind is picked. */
-export const KIND_HINT: Record<WorkflowKind, string> = {
-  Sequential: 'Runs in order; each output is the next input.',
-  Concurrent: 'Runs at the same time; results are merged.',
-  Handoff: 'The first agent hands over when it needs to.',
-  GroupChat: 'A round-robin manager passes the turn around.',
-  Magentic: 'A manager agent plans, watches and re-plans.',
+export const KIND_HINT: Record<WorkflowKind, MessageKey> = {
+  Sequential: 'workflows.kind.sequential',
+  Concurrent: 'workflows.kind.concurrent',
+  Handoff: 'workflows.kind.handoff',
+  GroupChat: 'workflows.kind.groupChat',
+  Magentic: 'workflows.kind.magentic',
 };
 
 export function WorkflowsScreen({ meta }: { meta: Meta }): ReactNode {
+  const t = useT();
   const workflows = useQuery({ queryKey: ['workflows'], queryFn: api.workflows });
 
   return (
     <>
       <PageHeader
-        title="Workflows"
-        description="Agents from the catalogue wired together with one of five ready-made patterns. A workflow run is one row in Runs, and every agent it calls is a child of that row."
+        title={t('nav.workflows')}
+        description={t('workflows.description')}
         actions={
           meta.roles.canAdminister && (
             <Link
@@ -41,7 +43,7 @@ export function WorkflowsScreen({ meta }: { meta: Meta }): ReactNode {
               className="inline-flex h-8 items-center gap-1.5 rounded-md border border-transparent bg-accent px-3 text-[13px] font-medium text-accent-fg"
             >
               <PlusIcon className="size-3.5" />
-              New workflow
+              {t('workflows.new')}
             </Link>
           )
         }
@@ -56,9 +58,8 @@ export function WorkflowsScreen({ meta }: { meta: Meta }): ReactNode {
         )}
 
         {workflows.isSuccess && workflows.data.length === 0 && (
-          <Empty title="No workflows yet">
-            A workflow connects agents you already have. Define one here, or register it in code
-            with <code>AddWorkflow(...)</code>.
+          <Empty title={t('workflows.empty.title')}>
+            {t('workflows.empty.body')} <code>AddWorkflow(...)</code>.
           </Empty>
         )}
 
@@ -66,11 +67,11 @@ export function WorkflowsScreen({ meta }: { meta: Meta }): ReactNode {
           <Table>
             <thead>
               <tr>
-                <Th>Workflow</Th>
-                <Th>Pattern</Th>
-                <Th>Agents</Th>
-                <Th>Origin</Th>
-                <Th>Updated</Th>
+                <Th>{t('workflows.column.workflow')}</Th>
+                <Th>{t('workflows.column.pattern')}</Th>
+                <Th>{t('nav.agents')}</Th>
+                <Th>{t('common.source')}</Th>
+                <Th>{t('common.updated')}</Th>
               </tr>
             </thead>
             <tbody>
@@ -88,9 +89,9 @@ export function WorkflowsScreen({ meta }: { meta: Meta }): ReactNode {
                     {/* A code-defined workflow is a free graph, not one of the
                         five patterns, so it has no kind to show. */}
                     {workflow.kind == null ? (
-                      <Badge title="Built by a factory in code; see its graph.">code graph</Badge>
+                      <Badge title={t('workflows.codeGraphTitle')}>{t('workflows.codeGraph')}</Badge>
                     ) : (
-                      <Badge tone="accent" title={KIND_HINT[workflow.kind]}>
+                      <Badge tone="accent" title={t(KIND_HINT[workflow.kind])}>
                         {workflow.kind}
                       </Badge>
                     )}
@@ -102,7 +103,7 @@ export function WorkflowsScreen({ meta }: { meta: Meta }): ReactNode {
                     {/* A code-defined workflow cannot be edited here: it ships with the
                         deployment and wins over any stored definition of the same name. */}
                     <Badge tone={workflow.origin === 'Code' ? 'info' : 'neutral'}>
-                      {workflow.origin === 'Code' ? 'code' : 'database'}
+                      {workflow.origin === 'Code' ? t('workflows.originCode') : t('workflows.originDatabase')}
                     </Badge>
                   </Td>
                   <Td className="text-muted" title={absoluteTime(workflow.updatedAt)}>
@@ -117,7 +118,7 @@ export function WorkflowsScreen({ meta }: { meta: Meta }): ReactNode {
 
       {workflows.isSuccess && workflows.data.length > 0 && !meta.roles.canOperate && (
         <p className="mt-3 text-[12px] text-subtle">
-          Running a workflow needs the operator role.
+          {t('workflows.needsOperator')}
         </p>
       )}
     </>

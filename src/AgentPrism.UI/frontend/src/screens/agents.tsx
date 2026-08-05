@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { useT } from '../lib/i18n';
 import { Link } from '../lib/router';
 import { relativeTime } from '../lib/format';
 import {
@@ -20,9 +21,11 @@ import { PlusIcon } from '../components/icons';
 import type { AgentDescriptor, Meta } from '../lib/types';
 
 export function OriginBadge({ agent }: { agent: AgentDescriptor }): ReactNode {
+  const t = useT();
+
   if (agent.origin === 'Code') {
     return (
-      <Badge tone="info" title={`Declared in code by source "${agent.sourceName}". Read only.`}>
+      <Badge tone="info" title={t('agents.origin.code', { source: agent.sourceName })}>
         code
       </Badge>
     );
@@ -30,29 +33,30 @@ export function OriginBadge({ agent }: { agent: AgentDescriptor }): ReactNode {
 
   if (agent.origin === 'Database') {
     return (
-      <Badge tone="accent" title={`Stored definition, version ${agent.version}.`}>
+      <Badge tone="accent" title={t('agents.origin.database', { version: agent.version })}>
         db · v{agent.version}
       </Badge>
     );
   }
 
-  return <Badge title={`Provided by source "${agent.sourceName}".`}>{agent.sourceName}</Badge>;
+  return <Badge title={t('agents.origin.other', { source: agent.sourceName })}>{agent.sourceName}</Badge>;
 }
 
 export function AgentsScreen({ meta }: { meta: Meta }): ReactNode {
+  const t = useT();
   const agents = useQuery({ queryKey: ['agents'], queryFn: api.agents });
 
   return (
     <>
       <PageHeader
-        title="Agents"
-        description="Every agent the catalogue resolves, from code and from the database. On a name collision code wins, so agents declared in code cannot be edited here."
+        title={t('nav.agents')}
+        description={t('agents.description')}
         actions={
           meta.roles.canAdminister && (
             <Link to="agents/new">
               <Button tone="primary">
                 <PlusIcon className="size-3.5" />
-                New agent
+                {t('agents.new')}
               </Button>
             </Link>
           )
@@ -64,9 +68,8 @@ export function AgentsScreen({ meta }: { meta: Meta }): ReactNode {
         {agents.isError && <div className="p-4"><ErrorNote error={agents.error} /></div>}
 
         {agents.isSuccess && agents.data.length === 0 && (
-          <Empty title="No agents yet">
-            Declare one in code with <Mono>AddAgent(...)</Mono>, or create one here. Agents
-            created here are stored in the database and compiled at run time.
+          <Empty title={t('agents.empty.title')}>
+            {t('agents.empty.before')} <Mono>AddAgent(...)</Mono> {t('agents.empty.after')}
           </Empty>
         )}
 
@@ -74,11 +77,11 @@ export function AgentsScreen({ meta }: { meta: Meta }): ReactNode {
           <Table>
             <thead>
               <tr>
-                <Th>Name</Th>
-                <Th>Source</Th>
-                <Th>Model</Th>
-                <Th>Tools</Th>
-                <Th>Updated</Th>
+                <Th>{t('common.name')}</Th>
+                <Th>{t('common.source')}</Th>
+                <Th>{t('common.model')}</Th>
+                <Th>{t('common.tools')}</Th>
+                <Th>{t('common.updated')}</Th>
                 <Th />
               </tr>
             </thead>
@@ -99,14 +102,20 @@ export function AgentsScreen({ meta }: { meta: Meta }): ReactNode {
                   <Td>
                     <div className="flex items-center gap-1.5">
                       <OriginBadge agent={agent} />
-                      {agent.usesHarness && <Badge tone="warn" title="Harness features enabled">harness</Badge>}
+                      {agent.usesHarness && (
+                        <Badge tone="warn" title={t('agents.harness')}>
+                          harness
+                        </Badge>
+                      )}
                     </div>
                   </Td>
                   <Td>
                     {agent.model === null || agent.model === undefined ? (
                       <span className="text-subtle">—</span>
                     ) : (
-                      <Mono title={`Provider: ${agent.model.provider}`}>{agent.model.model}</Mono>
+                      <Mono title={t('agents.providerTitle', { provider: agent.model.provider })}>
+                        {agent.model.model}
+                      </Mono>
                     )}
                   </Td>
                   <Td>
@@ -119,7 +128,7 @@ export function AgentsScreen({ meta }: { meta: Meta }): ReactNode {
                   <Td className="text-muted">{relativeTime(agent.updatedAt)}</Td>
                   <Td className="text-right">
                     <Link to={`playground/${encodeURIComponent(agent.name)}`}>
-                      <Button tone="ghost">Run</Button>
+                      <Button tone="ghost">{t('common.run')}</Button>
                     </Link>
                   </Td>
                 </tr>
