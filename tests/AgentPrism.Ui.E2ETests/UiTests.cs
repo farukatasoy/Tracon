@@ -131,6 +131,40 @@ public sealed class UiTests(BrowserFixture browsers)
     }
 
     [Fact]
+    public async Task Playground_konusma_modu_mikrofonu_acar_ve_transkript_gosterir()
+    {
+        // 🚨 Sahte medya cihazi ile calisir (BrowserFixture bayraklari). Gercek
+        // bir mikrofon yoktur; Chromium sabit bir ton uretir ve istemcinin VAD'i
+        // bunu konusma sayar.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/playground/support");
+
+        await session.Page.GetByTestId("voice-mode").ClickAsync();
+        await session.Page.GetByTestId("voice-toggle").ClickAsync();
+
+        // El sikisma tamamlaninca sunucu `ready` yollar ve panel dinlemeye gecer.
+        await session.Page.GetByTestId("voice-meter").WaitForAsync(new() { Timeout = 20_000 });
+
+        // 🚨 Sessizlik tespiti burada KULLANILAMAZ: Chromium'un sahte cihazi
+        // surekli ton uretir ve hic susmaz. Elle kapatma dugmesi zaten gercek
+        // bir ihtiyactir (gurultulu ortam, bas-konus) ve test onu kullanir.
+        var commit = session.Page.GetByTestId("voice-commit");
+        await commit.WaitForAsync(new() { Timeout = 20_000 });
+        await commit.ClickAsync();
+
+        var transcript = session.Page.GetByTestId("voice-transcript");
+        await transcript.WaitForAsync(new() { Timeout = 30_000 });
+
+        // Cozulen metin sunucudan gelir; sahte saglayici sabit yanit dondurur.
+        await transcript.GetByText("siparisim nerede").First.WaitForAsync(new() { Timeout = 30_000 });
+
+        // Ses varsayilan olarak SAKLANMAZ; kayit uyarisi gorunmemelidir.
+        (await session.Page.GetByTestId("voice-recording-notice").CountAsync()).ShouldBe(0);
+    }
+
+    [Fact]
     public async Task Playground_akisi_gelir_ve_tool_karti_dolar()
     {
         await using var host = await UiHost.StartAsync();

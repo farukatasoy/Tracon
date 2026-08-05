@@ -1475,5 +1475,30 @@ internal sealed class SqliteQueries : SqlQueriesBase
             ORDER BY started_at DESC
             LIMIT @take OFFSET @skip;
             """;
+        const string voiceSessionColumns =
+            "id, tenant_id, session_id, agent_name, started_at, ended_at, turns, input_seconds, output_chars, end_reason, created_by";
+
+        UpsertVoiceSession = $"""
+            INSERT INTO {Schema}voice_sessions
+                ({voiceSessionColumns})
+            VALUES
+                (@id, @tenant_id, @session_id, @agent_name, @started_at, @ended_at, @turns, @input_seconds, @output_chars, @end_reason, @created_by)
+            ON CONFLICT (id) DO UPDATE
+               SET ended_at      = excluded.ended_at,
+                   turns         = excluded.turns,
+                   input_seconds = excluded.input_seconds,
+                   output_chars  = excluded.output_chars,
+                   end_reason    = excluded.end_reason;
+            """;
+
+        SelectVoiceSessions = $"""
+            SELECT {voiceSessionColumns}
+            FROM {Schema}voice_sessions
+            WHERE tenant_id = @tenant_id
+              AND (@agent_name IS NULL OR agent_name = @agent_name)
+              AND (@session_id IS NULL OR session_id = @session_id)
+            ORDER BY started_at DESC
+            LIMIT @take OFFSET @skip;
+            """;
     }
 }

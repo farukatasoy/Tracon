@@ -47,7 +47,7 @@ Tarih bu indekste **yoktur** (K-214) — `KARARLAR.md`'deki kalemin kendisinde d
 | L37 | Arayüzden tool istatistiği ve model sağlık kontrolü Faz 5'te gösterilmedi 👤 |
 | L38 | Arayüz i18n altyapısı kurulmadı; dil İngilizce 👤🔁 |
 
-## 2. Kalıcı Kararlar (221 kalem)
+## 2. Kalıcı Kararlar (227 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -272,3 +272,9 @@ Tarih bu indekste **yoktur** (K-214) — `KARARLAR.md`'deki kalemin kendisinde d
 | K-219 | L264 | `tool_invocations` beş ölçüm sütunu taşır; ses maliyeti token maliyetiyle toplanmaz  |
 | K-220 | L265 | `POST /api/voice/speak` operatör eylemidir ve `tool_invocations`'a yazmaz  |
 | K-221 | L266 | Ses API anahtarı düz `ApiKey`'dir; K-059 yalnız veritabanı içindir  |
+| K-222 | L267 | Konuşma katmanı Seçenek A ile ve `AgentPrism.Core`'da  |
+| K-223 | L268 | `MapAgentPrism` `UseWebSockets()`'i koşullu olarak kendisi kurar  |
+| K-224 | L269 | WebSocket bearer token'ı alt protokolde taşınır, sorgu dizesinde kabul edilmez  |
+| K-225 | L270 | `PersistAudio` yalnız agent'ın ürettiği sesi saklar; kullanıcının sesi hiç saklanmaz 👤 |
+| K-226 | L271 | Artımlı (geçici) transkript yok; çözüm tek atımlıdır 👤 |
+| K-227 | L272 | Ses dakikası bir kota birimi değildir 👤 |

@@ -385,3 +385,25 @@ public sealed class PostgresWebhookStoreContractTests(PostgresFixture fixture) :
         }
     }
 }
+
+/// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
+public sealed class PostgresVoiceSessionStoreContractTests(PostgresFixture fixture) : VoiceSessionStoreContract
+{
+    private PostgresTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<IVoiceSessionStore> CreateStoreAsync()
+    {
+        _context = await PostgresTestContext.CreateAsync(fixture);
+        return _context.VoiceSessions;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}

@@ -128,8 +128,67 @@ public static class AgentPrismEndpointRouteBuilderExtensions
 
         MapUi(endpoints, services, options, normalizedPrefix);
         MapMcpOAuthCallback(endpoints, options, normalizedPrefix);
+        MapVoiceConversation(endpoints, services, options, normalizedPrefix, roles);
 
         return group;
+    }
+
+    /// <summary>
+    /// Konusma katmani aciksa WebSocket ucunu baglar ve tasima ara yazilimini
+    /// kurar.
+    /// </summary>
+    /// <param name="endpoints">Uygulamanin yonlendirme olusturucusu.</param>
+    /// <param name="services">Servis saglayici.</param>
+    /// <param name="options">Erisim ayarlari.</param>
+    /// <param name="prefix">Normalize edilmis yol oneki.</param>
+    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <remarks>
+    /// <para>
+    /// <c>UseVoiceConversation()</c> cagrilmadiysa <see cref="VoiceConversationDriver"/>
+    /// kayitli degildir ve <strong>hicbir sey baglanmaz</strong>: ne uc, ne ara
+    /// yazilim. Barindirma modelini degistiren bir yetenek sessizce acilmaz.
+    /// </para>
+    /// <para>
+    /// 🚨 <c>UseWebSockets()</c> BURADA cagrilir. Kestrel <c>IHttpWebSocketFeature</c>
+    /// saglamaz; onu <c>WebSocketMiddleware</c> kurar. Tuketiciden ayrica bir
+    /// cagri istemek <c>MapAgentPrism</c>'in tek giris noktasi olma kuralini
+    /// bozardi ve hata yalnizca ilk konusma denemesinde gorunurdu. Ara yazilim
+    /// zaten kuruluysa ikinci ornek <c>IHttpWebSocketFeature</c>'i dolu bulur ve
+    /// dokunmadan gecer.
+    /// </para>
+    /// <para>
+    /// Uc <strong>ayri bir gruba</strong> baglanir: tarayici bir WebSocket el
+    /// sikismasina <c>Authorization</c> basligi ekleyemez, token alt protokolde
+    /// tasinir ve ucun kendisi dogrular. Ayrinti:
+    /// <see cref="VoiceConversationEndpoint"/>.
+    /// </para>
+    /// </remarks>
+    private static void MapVoiceConversation(
+        IEndpointRouteBuilder endpoints,
+        IServiceProvider services,
+        AgentPrismEndpointOptions options,
+        string prefix,
+        AgentPrismRolePolicies roles)
+    {
+        if (services.GetService<VoiceConversationDriver>() is null)
+        {
+            return;
+        }
+
+        if (endpoints is IApplicationBuilder app)
+        {
+            app.UseWebSockets();
+        }
+
+        var voiceGroup = endpoints.MapGroup(prefix).WithTags("AgentPrism");
+        voiceGroup.AddEndpointFilter(new AgentPrismEndpointFilter(options, requireBearerToken: false));
+
+        if (options.AuthorizationPolicy is { Length: > 0 } policy)
+        {
+            voiceGroup.RequireAuthorization(policy);
+        }
+
+        VoiceConversationEndpoint.Map(voiceGroup, options, roles);
     }
 
     /// <summary>

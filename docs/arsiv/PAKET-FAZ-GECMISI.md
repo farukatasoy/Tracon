@@ -20,3 +20,19 @@
 | `AgentPrism.AspNetCore` | ✅ Tamamlandı | 4 · 5 (arayüz rota grubu) · 6 (çok kiracılılık, yönetişim uçları) · 8 (`/api/models/health`) · 9 (`AgentPrismPolicies`, rol dağıtımı, `/api/audit`, `/api/meta` rol alanı) · 10 (`/api/skills`) · 11 (script izin uçları) · 12 (çağrı grafiği denetimi, `/api/runs/{id}/tree`, `includeChildren`) · 13 (`AgentDefinitionRequest.Compaction`/`Memory`) · 14 (`/api/attachments` uçları, `AgentRunRequest.AttachmentIds`, `/v1/responses` gömülü `data:` URI kabulü) · 15 (`/api/workflows` uçları, SSE çalıştırma ve sürdürme, `501` deseni) · 17 (`/api/schedules` + `/api/jobs` uçları, `/api/meta` içine `jobStore`/`jobWorkerEnabled`) · 18 (`/api/evals` uçları — takım/vaka/koşu CRUD, tetikleme, sonuç okuma) · 19 (`/api/agents/{name}/versions/{a}/diff/{b}`, `/api/experiments` uçları — CRUD + start/stop/results, `EvalRunTriggerRequest.AgentVersion`) · 20 (`/api/stats/timeseries`, `POST /api/stats/recalculate-costs` — Admin + denetim izi) · 21 (`/api/quotas` + `/api/webhooks` uçları, `AgentPrismRateLimitFilter`, `QuotaGate`) |
 | `AgentPrism.UI` | ✅ Tamamlandı | 5 · 6 (waterfall, MCP ekranı, onay kartı) · 8 (sağlık rozeti) · 9 (Audit ekranı, rol tabanlı düğme gizleme) · 10 (Skills ekranı ve agent skill seçicisi) · 11 (script izin yüzeyi) · 12 (çağrı ağacı paneli, kök/alt filtresi, çağrılabilir agent seçicisi) · 13 (Context paneli, `HistoryCompacted` rozeti/transkript satırı) · 14 (Playground dosya yükleme, sürükle-bırak, ek çipi/önizleme) · 17 (Jobs ekranı: zamanlamalar, is kuyrugu, ilerleme cubugu) · 18 (Evals ekranı: takım listesi, vaka düzenleyici, koşu geçme oranı) · 19 (sürüm karşılaştırma paneli (`VersionCompare`, `lib/diff.ts`), Experiments ekranı, Audit diff entegrasyonu) · 20 (**Dashboard giriş ekranı**, el çizimi `lib/chart.ts`/`components/charts.tsx`, `lib/format.ts` `money()`) · 21 (Settings ekranına `quota-panel.tsx` kullanım çubuğu ve `webhook-panel.tsx` abonelik/teslim listesi) |
 | `AgentPrism` (meta) | ✅ Paketleniyor | 0 |
+
+---
+
+## Faz 29 — Konuşma katmanı (2026-08-05)
+
+| Paket | Bu fazda eklenen |
+|-------|------------------|
+| `AgentPrism.Abstractions` | `Voice/ConversationContracts.cs` — `IVoiceSessionStore`, `VoiceSessionRecord`, `VoiceSessionEndReason`, `VoiceSessionQuery`; `RetentionTargets.VoiceSessions` |
+| `AgentPrism.Core` | **`Voice/` klasörü**: `VoiceConversationDriver` (Seçenek A boru hattı), `VoiceConversationStateMachine`, `VoiceUtteranceBuffer` (WAV sarma), `VoiceSpeechSegmenter`, `VoiceConnectionLimiter`, `VoiceConversationOptions`, `VoiceConversationProtocol`, `InMemoryVoiceSessionStore`, `UseVoiceConversation()` |
+| `AgentPrism.AspNetCore` | `Voice/VoiceConversationEndpoint.cs` (dördüncü uç grubu, token alt protokolde), `MapAgentPrism` içinde koşullu `UseWebSockets()`, `GET /api/voice/sessions`, `BearerTokenValidator.IsValidToken` |
+| `AgentPrism.Sql.Shared` | `SqlVoiceSessionStore`, `SqlQueriesBase` +2 sorgu, `RetentionTargetRegistry` +1 hedef |
+| `AgentPrism.PostgreSql` | migration `0016_voice_sessions.sql` + sorgular + `Replace` kaydı |
+| `AgentPrism.SqlServer` | migration `0004_voice_sessions.sql` (**çalıştırılmadı** — Apple Silicon ortam sınırı) |
+| `AgentPrism.Sqlite` | migration `0004_voice_sessions.sql` |
+| `AgentPrism.UI` | `lib/voice.ts` (saf VAD + alt protokol), `components/voice-panel.tsx`, `MicIcon`/`StopIcon`, playground konuşma modu. Bundle 122,5 → **124,9 KB gzip** |
+| `AgentPrism.Voice` | **Değişmedi.** Konuşma katmanı sağlayıcıdan bağımsızdır ve `Core`'dadır (K-222) |

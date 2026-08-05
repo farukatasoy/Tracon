@@ -171,6 +171,17 @@ var voiceEnabled = !string.IsNullOrWhiteSpace(voice["ApiKey"]);
 if (voiceEnabled)
 {
     agentPrism.UseVoice(voice);
+
+    // Gercek zamanli konusma (Faz 29). ⚠️ BARINDIRMA MODELINI DEGISTIRIR:
+    // /agentprism/api/voice/sessions/{id}/stream ucu bir WebSocket acar ve
+    // baglanti dakikalarca yasar. Baglanti BIR sunucu ornegine baglidir; cok
+    // ornekli bir dagitimda yapiskan oturum (sticky session) gerekir ve ters
+    // vekil WebSocket gecisine izin vermelidir.
+    //
+    // Cagri yapilmazsa hicbir WebSocket ucu acilmaz ve davranis degismez.
+    // Konusma cozum VE sentez ister; ikisi de UseVoice ile gelir.
+    agentPrism.UseVoiceConversation(
+        builder.Configuration.GetSection(VoiceConversationOptions.SectionName));
 }
 
 // Yerel model sunucusu ornegi (F-05, Ollama/LM Studio). Kurulum F-03 ile AYNI

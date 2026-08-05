@@ -22,3 +22,4 @@
 
 <!-- MEMORY.md'de ozeti var; tam metin burada korunur -->
 - **`dotnet test` MTP'de `--filter-query` MSBuild anahtarı DEGIL** (2026-08-03, Faz 19): xunit v3 (Microsoft.Testing.Platform) filtre sozdizimi VSTest'ten farklidir; `dotnet test <proj> --filter-query ...` `MSB1001: Unknown switch` verir. Tek bir testi kosmak icin butun projeyi calistirip cikan metin grep'lemek daha guvenilir (proje kucukse maliyeti onemsiz).
+- **🚨 Chromium'un sahte ses cihazi HIC SUSMAZ** (2026-08-05, Faz 29): `--use-fake-device-for-media-stream` surekli bir ton uretir. Sessizlik tespitine (VAD) dayanan bir E2E testi bu yuzden hicbir zaman tetiklenmez ve 30 sn'de zaman asimina ugrar — olculdu. Cozum bir test hilesi degil, urunun kendi ihtiyaciydi: elle kapatma dugmesi (bas-konus / gurultulu ortam) eklendi ve test onu tiklar. Mikrofon ayrica GUVENLI BAGLAM ister; `http://127.0.0.1:<port>` Chromium'da guvenilir sayilir, uzak bir HTTP adresi sayilmaz.

@@ -125,6 +125,14 @@ internal static class RetentionTargetRegistry
                 "updated_at < @cutoff",
                 "updated_at"),
 
+            // Yalniz KAPANMIS baglantilar. Acik bir baglanti (ended_at IS NULL)
+            // silinemez; sunucu cokerse kalan NULL, kapanmamis bir baglantinin
+            // izidir ve saklama politikasi onu sessizce yok etmemelidir.
+            RetentionTargets.VoiceSessions => new RetentionTargetDefinition(
+                Table("voice_sessions"),
+                "ended_at IS NOT NULL AND ended_at < @cutoff",
+                "started_at"),
+
             _ => throw new ArgumentException($"Bilinmeyen saklama hedefi: '{target}'.", nameof(target)),
         };
     }

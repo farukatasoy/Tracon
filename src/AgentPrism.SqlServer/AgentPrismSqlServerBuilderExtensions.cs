@@ -182,6 +182,11 @@ public static class AgentPrismSqlServerBuilderExtensions
         services.Replace(ServiceDescriptor.Singleton<IRetentionPolicyStore, SqlRetentionPolicyStore>());
         services.Replace(ServiceDescriptor.Singleton<IRetentionStore, SqlRetentionStore>());
 
+        // Konusma kaydi (Faz 29). Yalniz UseVoiceConversation() cagrildiysa bir
+        // sey yazar; cagrilmadiysa depo bos kalir. Denetim izi dekoratoruyle
+        // SARILMAZ: kayit bir yonetici karari degil, yurutmenin yan urunudur.
+        services.Replace(ServiceDescriptor.Singleton<IVoiceSessionStore, SqlVoiceSessionStore>());
+
         // A/B deneyleri (Faz 19). IAgentDefinitionStore ile ayni gerekceyle
         // denetim izi dekoratoruyle sarilir: Admin'in bilincli bir karari,
         // yurutmenin yan urunu degil.

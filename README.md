@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Projesine ekleyen geliştirici kendi AI harness'ini kolay ama esnek şekilde kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 27 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; geri alınamaz tool'lar onay bekler; tool'lar uzak MCP sunucularından gelebilir (prompts, resources, OAuth); workflow'lar insanla konuşabilir; işler zamanlanabilir; sürümler A/B karşılaştırılabilir; kullanım kotayla sınırlanabilir; olaylar imzalı webhook'larla yayılabilir; eski veri politikayla arşivlenip silinebilir (varsayılan **hiçbir şey silinmez**). `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu uçları ve gömülü arayüzü tek prefix altına bağlar. Veritabanı **zorunlu değildir** (PostgreSQL · SQL Server · SQLite · bellek içi). Model satıcısı da değil: OpenAI, uyumlu uçlar, **Anthropic**, **Google** ve **Azure OpenAI** birlikte çalışır. Sıradaki faz: 28 (ses tool'ları).
+> **Durum:** Faz 29 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; geri alınamaz tool'lar onay bekler; tool'lar uzak MCP sunucularından gelebilir (prompts, resources, OAuth); workflow'lar insanla konuşabilir; işler zamanlanabilir; sürümler A/B karşılaştırılabilir; kullanım kotayla sınırlanabilir; olaylar imzalı webhook'larla yayılabilir; eski veri politikayla arşivlenip silinebilir (varsayılan **hiçbir şey silinmez**). `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu uçları ve gömülü arayüzü tek prefix altına bağlar. Veritabanı **zorunlu değildir** (PostgreSQL · SQL Server · SQLite · bellek içi). Model satıcısı da değil: OpenAI, uyumlu uçlar, **Anthropic**, **Google** ve **Azure OpenAI** birlikte çalışır. Kullanıcı **konuşabilir**: mikrofon → transkript → normal çalıştırma → sesli yanıt, kesilebilir (`UseVoiceConversation()`). Sıradaki faz: 30 (arayüz cilası).
 
 ```csharp
 builder.AddAgentPrism()
@@ -162,16 +162,16 @@ AgentPrism bu boşluğu doldurur. DevUI'nin yerine geçmez — bıraktığı yer
 | `AgentPrism.Abstractions` | ✅ Sözleşmeler; kendi implementasyonunuzu yazacaksanız yeterli |
 | `AgentPrism.Core` | ✅ Çalışma zamanı, katalog, tanım derleyicisi, tool defteri, oturum yönetimi. **Veritabanı gerektirmez.** |
 | `AgentPrism.PostgreSql` | ✅ Kalıcılık — gömülü SQL migration'ları, ayrı `agentprism` şeması |
-| `AgentPrism.SqlServer` | ✅ SQL Server 2019+ / Azure SQL kalıcılığı — aynı şema, kendi migration seti. **Meta pakete dâhil değil**. Sözleşme testleri `azure-sql-edge` ile doğrulandı; gerçek `mssql/server` henüz koşturulmadı |
-| `AgentPrism.Sqlite` | ✅ SQLite kalıcılığı — tek dosyalık kurulum, tablo öneki, kendi migration seti. **Meta pakete dâhil değil**. Tek yazıcılıdır, çok örnekli dağıtımda kullanılmaz |
+| `AgentPrism.SqlServer` | ✅ SQL Server 2019+ / Azure SQL kalıcılığı — aynı şema, kendi migration seti. **Meta pakete dâhil değil**. Sözleşme testleri `azure-sql-edge` ile doğrulandı; `mssql/server` koşmadı |
+| `AgentPrism.Sqlite` | ✅ SQLite kalıcılığı — tek dosya, tablo öneki, kendi migration seti. **Meta pakete dâhil değil**. Tek yazıcılıdır; çok örnekli dağıtımda kullanılmaz |
 | `AgentPrism.OpenAI` | ✅ OpenAI sağlayıcı adaptörü — Chat Completions + Responses, tool çağrısı, OpenTelemetry |
 | `AgentPrism.Anthropic` | ✅ Anthropic (Claude) sağlayıcı adaptörü — resmî SDK, prompt caching, genişletilmiş düşünme. **Meta pakete dâhil değil** |
-| `AgentPrism.Google` | ✅ Google Gemini sağlayıcı adaptörü — resmî SDK, güvenlik eşikleri, düşünme bütçesi. **Meta pakete dâhil değil**; geçişli olarak `Google.Apis.Auth` zincirini getirir |
+| `AgentPrism.Google` | ✅ Google Gemini sağlayıcı adaptörü — resmî SDK, güvenlik eşikleri, düşünme bütçesi. **Meta pakete dâhil değil**; geçişli `Google.Apis.Auth` zinciri gelir |
 | `AgentPrism.Azure` | ✅ Azure OpenAI sağlayıcı adaptörü — deployment tabanlı model çözümü, API anahtarı veya Entra kimliği. **Meta pakete dâhil değil**; `Azure.Identity` **yoktur**, kimlik fabrikası tüketiciden gelir |
-| `AgentPrism.Voice` | ✅ Ses tool'ları: `speak`, `transcribe`, `list_voices`. Ölçüm `tool_invocations`'a yazılır. **Sıfır NuGet bağımlılığı**; meta pakete dâhil değil |
-| `AgentPrism.Mcp` | ✅ Uzak MCP sunucularından tool keşfi — yalnız HTTP, varsayılan onaylı |
-| `AgentPrism.Workflows` | ✅ Workflow yürütme — beş hazır desen, kontrol noktası, sürdürme, human-in-the-loop |
-| `AgentPrism.AspNetCore` | ✅ HTTP katmanı — yönetim API'si + OpenAI uyumlu uçlar + çok kiracılılık |
+| `AgentPrism.Voice` | ✅ Ses tool'ları: `speak`, `transcribe`, `list_voices`. Ölçüm `tool_invocations`'a yazılır. **Sıfır NuGet bağımlılığı**; meta pakete dâhil değil. Gerçek zamanlı konuşma `Core`'dadır: `UseVoiceConversation()` |
+| `AgentPrism.Mcp` | ✅ Uzak MCP sunucularından tool keşfi — yalnız HTTP, onay varsayılan |
+| `AgentPrism.Workflows` | ✅ Workflow yürütme — beş desen, kontrol noktası, sürdürme, human-in-the-loop |
+| `AgentPrism.AspNetCore` | ✅ HTTP katmanı — yönetim API'si, OpenAI uyumlu uçlar, çok kiracılılık |
 | `AgentPrism.UI` | ✅ Gömülü React arayüzü — sekiz ekran, sıfır JavaScript bağımlılığı |
 
 **Hedef framework:** `net8.0`, `net9.0`, `net10.0` · **Lisans:** MIT
@@ -260,12 +260,9 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [18](docs/18-DEGERLENDIRME.md) | Değerlendirme (eval): takım/vaka/koşu, Faz 17'nin iş kuyruğu üzerinde, Evals ekranı | ✅ Tamamlandı |
 | [19](docs/19-SURUM-KARSILASTIRMA-VE-AB.md) | Sürüm karşılaştırma (diff) ve A/B deneyleri: oturum bazlı deterministik trafik bölme, Experiments ekranı | ✅ Tamamlandı |
 | [20](docs/20-MALIYET-VE-GOSTERGE-PANELI.md) | Maliyet raporlaması ve gösterge paneli: fiyat kataloğu/yapılandırması, Dashboard giriş ekranı | ✅ Tamamlandı |
-| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | Faz 28 tamam — sıradaki Faz 29 (konuşma katmanı) |
+| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | Faz 29 tamam — sıradaki Faz 30 (arayüz cilası) |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
-> Faz 6, planındaki Workflows kalemini **yapmadı**; ertelendi ve gerekçesi
-> [K-054](docs/KARARLAR.md) ile kayıt altına alındı. Ayrıntı:
-> [06-GOZLEMLENEBILIRLIK.md](docs/06-GOZLEMLENEBILIRLIK.md) sapma S1.
 
 ### ⚠️ Skill script çalıştırma ve izolasyon sınırı
 
