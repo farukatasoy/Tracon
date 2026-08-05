@@ -5,6 +5,7 @@ import { readSse } from '../lib/sse';
 import { emptyTranscript, foldUpdate, type TranscriptState } from '../lib/transcript';
 import { Link, useNavigate } from '../lib/router';
 import { count, shortId } from '../lib/format';
+import { useT } from '../lib/i18n';
 import type { AttachmentDescriptor } from '../lib/types';
 import {
   Badge,
@@ -47,6 +48,7 @@ interface Decision {
  * its recorded run while the answer is still arriving.
  */
 export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
+  const t = useT();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -308,11 +310,14 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
   if (agents.data.length === 0) {
     return (
       <>
-        <PageHeader title="Playground" />
+        <PageHeader title={t('nav.playground')} />
         <Panel>
-          <Empty title="No agents to run">
-            Create one on the <Link to="agents" className="text-accent underline">Agents</Link> screen
-            first.
+          <Empty title={t('playground.noAgents.title')}>
+            {t('playground.noAgents.body')}{' '}
+            <Link to="agents" className="text-accent underline">
+              {t('nav.agents')}
+            </Link>
+            .
           </Empty>
         </Panel>
       </>
@@ -322,8 +327,8 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
   return (
     <>
       <PageHeader
-        title="Playground"
-        description="Streamed test runs. Every turn is recorded and can be inspected event by event on the Runs screen."
+        title={t('nav.playground')}
+        description={t('playground.description')}
         actions={
           <>
             <Select
@@ -341,7 +346,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
             </Select>
             <Button onClick={reset} disabled={turns.length === 0 && sessionId === null}>
               <PlusIcon className="size-3.5" />
-              New chat
+              {t('playground.newChat')}
             </Button>
           </>
         }
@@ -349,11 +354,11 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
 
       {sessionId !== null && (
         <p className="mb-3 text-[12px] text-subtle">
-          Session{' '}
+          {t('common.session')}{' '}
           <Link to={`sessions/${encodeURIComponent(sessionId)}`} className="text-accent underline">
             <Mono>{shortId(sessionId, 14, 6)}</Mono>
           </Link>{' '}
-          — history is carried across turns.
+          — {t('playground.historyCarried')}
         </p>
       )}
 
@@ -362,10 +367,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
       <Panel className="flex min-h-[26rem] flex-col">
         <div className="flex-1 overflow-y-auto p-4">
           {turns.length === 0 ? (
-            <Empty title="Send a message to start">
-              The reply streams in token by token. Tool calls appear as cards with their
-              arguments and results.
-            </Empty>
+            <Empty title={t('playground.empty.title')}>{t('playground.empty.body')}</Empty>
           ) : (
             <div className="flex flex-col gap-6">
               {turns.map((turn) => (
@@ -425,7 +427,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
               tone="default"
               disabled={busy || uploading}
               onClick={() => fileInput.current?.click()}
-              title="Attach a file"
+              title={t('playground.attachFile')}
             >
               {uploading ? <SpinnerIcon className="size-3.5" /> : <PaperclipIcon className="size-3.5" />}
             </Button>
@@ -434,11 +436,15 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
               value={prompt}
               disabled={busy}
               data-testid="playground-input"
-              placeholder="Send a message…"
+              placeholder={t('playground.placeholder')}
               className="max-h-40 min-h-9 flex-1 resize-y rounded-md border border-line bg-panel px-3 py-1.5 text-[13px] placeholder:text-subtle focus:border-accent focus:outline-none disabled:opacity-60"
               onChange={(event) => setPrompt(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
+                // Enter sends, Shift+Enter adds a line. Ctrl/Cmd+Enter sends too,
+                // so the habit from every other console works here as well. The
+                // binding lives on the textarea because submitting belongs to the
+                // form that holds the caret, not to a global handler.
+                if (event.key === 'Enter' && (!event.shiftKey || event.ctrlKey || event.metaKey)) {
                   event.preventDefault();
                   send();
                 }
@@ -449,14 +455,14 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
               tone={conversation ? 'primary' : 'default'}
               disabled={busy}
               testId="voice-mode"
-              title="Conversation mode"
+              title={t('playground.conversationMode')}
               onClick={() => void openConversation()}
             >
               <MicIcon className="size-3.5" />
             </Button>
             {busy ? (
               <Button tone="default" onClick={() => abort.current?.abort()}>
-                Stop
+                {t('workflowDetail.stop')}
               </Button>
             ) : (
               <Button
@@ -466,7 +472,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
                 disabled={prompt.trim().length === 0 && pendingAttachments.length === 0}
               >
                 <SendIcon className="size-3.5" />
-                Send
+                {t('playground.send')}
               </Button>
             )}
           </div>
@@ -487,6 +493,7 @@ function TurnView({
   onDecide: (requestId: string, approved: boolean, remember: boolean) => void;
   sessionId: string | null;
 }): ReactNode {
+  const t = useT();
   const usage = turn.transcript.usage;
 
   /** The assistant's plain text, which is what "speak" would read out. */
@@ -513,25 +520,33 @@ function TurnView({
           </p>
         </div>
       ) : (
-        <p className="mb-2.5 text-right text-[11px] text-subtle">approval decision sent</p>
+        <p className="mb-2.5 text-right text-[11px] text-subtle">{t('playground.approvalSent')}</p>
       )}
 
       <div className="flex items-center gap-2 pb-1.5 text-[11px] text-subtle">
         {turn.status === 'streaming' && <SpinnerIcon className="size-3" />}
-        <span>Assistant</span>
+        <span>{t('playground.assistant')}</span>
         {turn.runId !== null && (
           <Link
             to={`runs/${encodeURIComponent(turn.runId)}`}
             className="text-accent underline"
-            title="Inspect this run event by event"
+            title={t('workflowDetail.inspectRun')}
           >
-            run {shortId(turn.runId, 8, 4)}
+            {t('workflowDetail.runId', { id: shortId(turn.runId, 8, 4) })}
           </Link>
         )}
-        {usage?.totalTokens != null && <span>{count(usage.totalTokens)} tokens</span>}
+        {usage?.totalTokens != null && (
+          <span>{t('settings.modelTokens', { tokens: count(usage.totalTokens) })}</span>
+        )}
       </div>
 
-      <div className={cx(turn.status === 'failed' && 'opacity-90')}>
+      {/* The reply arrives token by token over SSE. `polite` lets a screen
+          reader finish the current sentence before announcing the update. */}
+      <div
+        aria-live="polite"
+        aria-busy={turn.status === 'streaming'}
+        className={cx(turn.status === 'failed' && 'opacity-90')}
+      >
         <TranscriptView
           items={turn.transcript.items}
           streaming={turn.status === 'streaming'}
@@ -548,7 +563,9 @@ function TurnView({
           </div>
         )}
 
-        {turn.status === 'failed' && turn.error === null && <Badge tone="danger">failed</Badge>}
+        {turn.status === 'failed' && turn.error === null && (
+          <Badge tone="danger">{t('runs.status.failed')}</Badge>
+        )}
 
         {turn.status === 'done' && spokenText.length > 0 && (
           <SpeakButton text={spokenText} sessionId={sessionId} />
@@ -571,6 +588,7 @@ function TurnView({
  * and it is shown next to the player.
  */
 function SpeakButton({ text, sessionId }: { text: string; sessionId: string | null }): ReactNode {
+  const t = useT();
   const [state, setState] = useState<'idle' | 'working' | 'ready' | 'failed'>('idle');
   const [url, setUrl] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -594,14 +612,20 @@ function SpeakButton({ text, sessionId }: { text: string; sessionId: string | nu
       setState('ready');
       setNote(
         result.cost != null
-          ? `${count(result.characters)} chars · ${result.cost.toFixed(4)} ${result.currency ?? ''}`.trim()
-          : `${count(result.characters)} chars${result.isEstimated ? ' (estimated)' : ''}`,
+          ? t('playground.speechCost', {
+              characters: count(result.characters),
+              cost: result.cost.toFixed(4),
+              currency: result.currency ?? '',
+            }).trim()
+          : t(result.isEstimated ? 'playground.speechCharsEstimated' : 'playground.speechChars', {
+              characters: count(result.characters),
+            }),
       );
     } catch (error) {
       setState('failed');
-      setNote(error instanceof Error ? error.message : 'Speech failed');
+      setNote(error instanceof Error ? error.message : t('playground.speechFailed'));
     }
-  }, [text, sessionId]);
+  }, [sessionId, t, text]);
 
   if (state === 'ready' && url !== null) {
     return (
@@ -619,11 +643,11 @@ function SpeakButton({ text, sessionId }: { text: string; sessionId: string | nu
         data-testid="playground-speak"
         onClick={() => void speak()}
         disabled={state === 'working'}
-        title="Synthesise this reply and play it"
+        title={t('playground.speakTitle')}
         className="inline-flex items-center gap-1 rounded-md border border-line px-1.5 py-0.5 text-[11px] text-subtle hover:text-fg disabled:opacity-50"
       >
         {state === 'working' ? <SpinnerIcon className="size-3" /> : <SpeakerIcon className="size-3" />}
-        Speak
+        {t('playground.speak')}
       </button>
       {state === 'failed' && note !== null && (
         <span className="text-[11px] text-danger">{note}</span>
@@ -682,6 +706,7 @@ function AttachmentChip({
   attachment: AttachmentDescriptor;
   onRemove?: () => void;
 }): ReactNode {
+  const t = useT();
   const isImage = attachment.mediaType.startsWith('image/');
   const previewUrl = useAttachmentPreview(attachment.id, isImage);
 
@@ -703,7 +728,7 @@ function AttachmentChip({
           type="button"
           onClick={onRemove}
           className="text-subtle hover:text-fg"
-          aria-label={`Remove ${attachment.fileName}`}
+          aria-label={t('playground.removeAttachment', { name: attachment.fileName })}
         >
           <CrossIcon className="size-3" />
         </button>

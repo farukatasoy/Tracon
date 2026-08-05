@@ -3,10 +3,12 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { Link } from '../lib/router';
 import { absoluteTime, relativeTime, shortId } from '../lib/format';
+import { useT } from '../lib/i18n';
 import { Badge, Empty, ErrorNote, Loading, Mono, PageHeader, Panel, Table, Td, Th } from '../components/ui';
 import { PassRateBar } from './evals';
 
 export function EvalRunDetailScreen({ id }: { id: string }): ReactNode {
+  const t = useT();
   const detail = useQuery({
     queryKey: ['evalRun', id],
     queryFn: () => api.evalRun(id),
@@ -26,28 +28,31 @@ export function EvalRunDetailScreen({ id }: { id: string }): ReactNode {
   return (
     <>
       <PageHeader
-        title={`Eval run ${shortId(run.id, 13, 6)}`}
-        description={`${run.status} · started ${relativeTime(run.startedAt)}`}
+        title={t('evals.runTitle', { id: shortId(run.id, 13, 6) })}
+        description={t('evals.runSubtitle', {
+          status: run.status,
+          when: relativeTime(run.startedAt),
+        })}
       />
 
       <Panel className="mb-4">
         <div className="grid grid-cols-2 gap-4 p-4 sm:grid-cols-4">
           <div>
-            <span className="block text-[11px] tracking-wide text-subtle uppercase">Pass rate</span>
+            <span className="block text-[11px] tracking-wide text-subtle uppercase">{t('evals.passRate')}</span>
             <span className="mt-0.5 block">
               <PassRateBar passed={run.passed} failed={run.failed} total={run.total} />
             </span>
           </div>
           <div>
-            <span className="block text-[11px] tracking-wide text-subtle uppercase">Agent version</span>
+            <span className="block text-[11px] tracking-wide text-subtle uppercase">{t('evals.agentVersion')}</span>
             <span className="mt-0.5 block text-[13px]">{run.agentVersion ?? '—'}</span>
           </div>
           <div>
-            <span className="block text-[11px] tracking-wide text-subtle uppercase">Model</span>
+            <span className="block text-[11px] tracking-wide text-subtle uppercase">{t('common.model')}</span>
             <span className="mt-0.5 block text-[13px]">{run.modelId ?? '—'}</span>
           </div>
           <div>
-            <span className="block text-[11px] tracking-wide text-subtle uppercase">Completed</span>
+            <span className="block text-[11px] tracking-wide text-subtle uppercase">{t('evals.completed')}</span>
             <span className="mt-0.5 block text-[13px]" title={absoluteTime(run.completedAt)}>
               {run.completedAt == null ? '—' : relativeTime(run.completedAt)}
             </span>
@@ -55,22 +60,22 @@ export function EvalRunDetailScreen({ id }: { id: string }): ReactNode {
         </div>
       </Panel>
 
-      <Panel title="Case results">
+      <Panel title={t('evals.caseResults')}>
         {results.length === 0 ? (
-          <Empty title="No results yet">
+          <Empty title={t('evals.noResults.title')}>
             {run.status === 'Pending' || run.status === 'Running'
-              ? 'The run is still in progress.'
-              : 'This run produced no case results.'}
+              ? t('evals.noResults.running')
+              : t('evals.noResults.none')}
           </Empty>
         ) : (
           <Table>
             <thead>
               <tr>
-                <Th>Case</Th>
-                <Th>Status</Th>
-                <Th>Output</Th>
-                <Th>Failure reason</Th>
-                <Th>Run</Th>
+                <Th>{t('evals.case')}</Th>
+                <Th>{t('common.status')}</Th>
+                <Th>{t('evals.output')}</Th>
+                <Th>{t('evals.failureReason')}</Th>
+                <Th>{t('runs.column.run')}</Th>
               </tr>
             </thead>
             <tbody>
@@ -81,9 +86,9 @@ export function EvalRunDetailScreen({ id }: { id: string }): ReactNode {
                   </Td>
                   <Td>
                     {result.passed ? (
-                      <Badge tone="success">passed</Badge>
+                      <Badge tone="success">{t('evals.passed')}</Badge>
                     ) : (
-                      <Badge tone="danger">failed</Badge>
+                      <Badge tone="danger">{t('runs.status.failed')}</Badge>
                     )}
                   </Td>
                   <Td className="max-w-sm truncate" title={result.output ?? undefined}>

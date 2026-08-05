@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './app';
 import { ApiError } from './lib/api';
+import { LocaleProvider, initialiseLocale } from './lib/i18n';
 import { RouterProvider } from './lib/router';
 import { applyTheme, readThemePreference } from './lib/theme';
 import './styles.css';
@@ -10,6 +11,10 @@ import './styles.css';
 // Applied before the first render so the correct palette is on screen from the
 // first paint. Doing this inside a component would flash the other theme.
 applyTheme(readThemePreference());
+
+// Same reason, and it also puts `lang` on <html> before a screen reader starts
+// announcing: the first frame is already in the right language.
+initialiseLocale();
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,9 +45,11 @@ if (container === null) {
 createRoot(container).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <RouterProvider>
-        <App />
-      </RouterProvider>
+      <LocaleProvider>
+        <RouterProvider>
+          <App />
+        </RouterProvider>
+      </LocaleProvider>
     </QueryClientProvider>
   </StrictMode>,
 );

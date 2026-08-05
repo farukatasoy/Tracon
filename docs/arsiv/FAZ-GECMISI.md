@@ -325,3 +325,39 @@ Fazın üç ölçülen dersi:
 
 Faz ayrıca Faz 28 commit'ine kazayla girmiş dört senkronizasyon kopyasını
 (`icons 2.tsx`, `api 2.ts`, `types 2.ts`, `playground 2.tsx`) sildi.
+
+## Faz 30 — Arayüz cilası: yerelleştirme, komut paleti, kısayollar (2026-08-05)
+
+İkinci faz turunun son kalemi. Konsolun **794** metni sözlüğe taşındı ve iki
+dilli oldu; komut paleti (`Ctrl/Cmd+K`) ile klavye kısayolları eklendi; konuşma
+modu dile uygun sesle konuşur hâle geldi. Sunucuda **tek satır değişmedi** —
+`VoiceClientMessage.VoiceId` Faz 29'dan beri istemcinin ses seçimini kabul
+ediyordu, dolayısıyla dil→ses eşlemesi tamamen istemcide kaldı (K-234).
+
+i18n'in **en sona** konulması karar defterinin bir öngörüsüydü: maliyeti kurulum
+değil bakımdır ve araya giren yirmi iki fazın metinleri iki dilde yazılmak
+zorunda kalırdı. Öngörü tuttu — kurulum bir günlük iş oldu, ama kapsam 24 ekran
+ve 12 bileşendi.
+
+Fazın dört ölçülen dersi:
+
+1. **Tip sistemi bir çalışma anı sözlüğünün veremeyeceğini verdi.** `tr` sözlüğü
+   `en`'in tipiyle bildirildiği için eksik anahtar `TS2741` üretir ve
+   `npm run build` durur. Bir i18n kütüphanesi bunu yapamazdı; kütüphane
+   alınmama gerekçesi bundle boyutu değil, **bu güvence** oldu (K-228).
+2. **Yerelleştirme, testleri makineye bağlar.** Varsayılan dil
+   `navigator.language`'dan gelince metin üzerine iddia kuran E2E testleri
+   çalıştıran bilgisayarın sistem diline bağlandı. `Session.OpenAsync`
+   varsayılanı `en-US` yapıldı (K-231). Ayrıca iki mesajdan biri diğerinin öneki
+   olduğunda Playwright strict mode ihlali verdi.
+3. **"Kontrast denetimi" bir onay kutusu değil, ölçümdür.** `--ap-subtle` açık
+   temada 3,23:1, koyu temada 3,79:1 çıktı — ikisi de WCAG AA'nın altında ve
+   ikisi de Faz 5'ten beri oradaydı (K-236).
+4. **i18n, daha önce sızmış Türkçeyi görünür kıldı.** `charts.tsx` ve
+   `skills.tsx` içinde üç hard-coded Türkçe metin bulundu; faz bunları üretmedi,
+   ortaya çıkardı.
+
+Bir de ortam dersi: bir senkronizasyon kopyası
+(`wwwroot/assets/index-….css 2.br`) gömülü varlık listesine karıştı ve arayüz
+hiç yüklenmedi — `dotnet build` yeşilken. Aynı sınıf hata Faz 29'da da
+görülmüştü; not artık `MEMORY.md`'de.

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { Link } from '../lib/router';
 import { count, prettyJson, relativeTime } from '../lib/format';
+import { useT } from '../lib/i18n';
 import {
   Badge,
   CodeBlock,
@@ -24,6 +25,7 @@ import type { ToolUsage } from '../lib/types';
  * console run code on the server (rule K2, decision K-012).
  */
 export function ToolsScreen(): ReactNode {
+  const t = useT();
   const tools = useQuery({ queryKey: ['tools'], queryFn: api.tools });
   const agents = useQuery({ queryKey: ['agents'], queryFn: api.agents });
   const usage = useQuery({ queryKey: ['tool-usage'], queryFn: () => api.toolUsage() });
@@ -36,8 +38,8 @@ export function ToolsScreen(): ReactNode {
   return (
     <>
       <PageHeader
-        title="Tools"
-        description="Tools registered in the host application. This list is what agent definitions may reference — the console never accepts free text here."
+        title={t('nav.tools')}
+        description={t('tools.description')}
       />
 
       {tools.isPending && <Loading />}
@@ -45,10 +47,9 @@ export function ToolsScreen(): ReactNode {
 
       {tools.isSuccess && tools.data.length === 0 && (
         <Panel>
-          <Empty title="No tools registered">
-            Register them in code with <Mono>AddTool(...)</Mono> or{' '}
-            <Mono>AddToolsFrom(typeof(OrderTools))</Mono>. Only methods marked with{' '}
-            <Mono>[AgentPrismTool]</Mono> are scanned.
+          <Empty title={t('tools.empty.title')}>
+            {t('tools.empty.body')} <Mono>AddTool(...)</Mono> / <Mono>AddToolsFrom(typeof(...))</Mono>.{' '}
+            {t('tools.empty.attribute')} <Mono>[AgentPrismTool]</Mono>.
           </Empty>
         </Panel>
       )}
@@ -70,7 +71,7 @@ export function ToolsScreen(): ReactNode {
                   {tool.source != null && (
                     <Badge
                       tone="warn"
-                      title={`Discovered on the remote MCP server "${tool.source}". Its definition lives on that server, not in this application.`}
+                      title={t('tools.mcpTitle', { server: tool.source })}
                     >
                       mcp: {tool.source}
                     </Badge>
@@ -78,13 +79,13 @@ export function ToolsScreen(): ReactNode {
                   {tool.requiresApproval && (
                     <Badge
                       tone="warn"
-                      title="Microsoft Agent Framework raises an approval request instead of running this tool; the playground shows a card to approve or reject."
+                      title={t('tools.approvalTitle')}
                     >
-                      approval required
+                      {t('tools.approvalRequired')}
                     </Badge>
                   )}
                   {agentNames.length === 0 ? (
-                    <Badge title="No agent references this tool.">unused</Badge>
+                    <Badge title={t('tools.unusedTitle')}>{t('tools.unused')}</Badge>
                   ) : (
                     agentNames.map((name) => (
                       <Link key={name} to={`agents/${encodeURIComponent(name)}`}>
@@ -99,7 +100,7 @@ export function ToolsScreen(): ReactNode {
 
               <div className="p-4">
                 {tool.jsonSchema == null || tool.jsonSchema.length === 0 ? (
-                  <p className="text-[12px] text-subtle">This tool takes no arguments.</p>
+                  <p className="text-[12px] text-subtle">{t('tools.noArguments')}</p>
                 ) : (
                   <CodeBlock code={prettyJson(tool.jsonSchema)} maxHeight="max-h-72" />
                 )}
@@ -110,8 +111,7 @@ export function ToolsScreen(): ReactNode {
       </div>
 
       <p className="mt-4 text-[11px] text-subtle">
-        Durations are only measured for streaming runs: in a non-streaming run every message
-        arrives at once, so the real time between a call and its result cannot be read.
+        {t('tools.durationNote')}
       </p>
     </>
   );
@@ -119,10 +119,12 @@ export function ToolsScreen(): ReactNode {
 
 /** Recorded call counts for one tool. Absent until the tool has actually run. */
 function UsageStrip({ usage }: { usage: ToolUsage | undefined }): ReactNode {
+  const t = useT();
+
   if (usage === undefined) {
     return (
       <div className="border-b border-line px-4 py-1.5 text-[11px] text-subtle">
-        Never called.
+        {t('tools.neverCalled')}
       </div>
     );
   }
@@ -130,19 +132,19 @@ function UsageStrip({ usage }: { usage: ToolUsage | undefined }): ReactNode {
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-line px-4 py-1.5 text-[11px] text-muted">
       <span>
-        <span className="text-subtle">calls</span> {count(usage.totalCalls)}
+        <span className="text-subtle">{t('tools.calls')}</span> {count(usage.totalCalls)}
       </span>
       <span className={usage.failedCalls > 0 ? 'text-danger' : undefined}>
-        <span className="text-subtle">failed</span> {count(usage.failedCalls)}
+        <span className="text-subtle">{t('tools.failed')}</span> {count(usage.failedCalls)}
       </span>
       {usage.averageDurationMs != null && (
         <span>
-          <span className="text-subtle">avg</span> {formatMs(usage.averageDurationMs)}
+          <span className="text-subtle">{t('tools.average')}</span> {formatMs(usage.averageDurationMs)}
         </span>
       )}
       {usage.lastCalledAt != null && (
         <span>
-          <span className="text-subtle">last</span> {relativeTime(usage.lastCalledAt)}
+          <span className="text-subtle">{t('tools.last')}</span> {relativeTime(usage.lastCalledAt)}
         </span>
       )}
     </div>

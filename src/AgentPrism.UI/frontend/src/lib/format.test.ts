@@ -1,15 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { count, duration, latencyText, money, percent, prettyJson, relativeTime, shortId } from './format';
 import { matchRoute, toRelativePath } from './router';
+import { initialiseLocale } from './i18n';
+
+// Formatting is locale aware (Intl). The tests read English so that a wrong
+// locale fails here rather than surprising a reader of the assertions.
+initialiseLocale();
 
 const NOW = Date.parse('2026-08-02T12:00:00Z');
 
 describe('relativeTime', () => {
   it('formats seconds, minutes, hours and days', () => {
-    expect(relativeTime('2026-08-02T11:59:48Z', NOW)).toBe('12s ago');
-    expect(relativeTime('2026-08-02T11:56:00Z', NOW)).toBe('4m ago');
-    expect(relativeTime('2026-08-02T09:00:00Z', NOW)).toBe('3h ago');
-    expect(relativeTime('2026-07-30T12:00:00Z', NOW)).toBe('3d ago');
+    // `Intl.RelativeTimeFormat` writes the unit, so the wording follows the
+    // language instead of being hard-coded English abbreviations.
+    expect(relativeTime('2026-08-02T11:59:48Z', NOW)).toBe('12 sec. ago');
+    expect(relativeTime('2026-08-02T11:56:00Z', NOW)).toBe('4 min. ago');
+    expect(relativeTime('2026-08-02T09:00:00Z', NOW)).toBe('3 hr. ago');
+    expect(relativeTime('2026-07-30T12:00:00Z', NOW)).toBe('3 days ago');
   });
 
   it('returns an em dash for missing or unparsable values', () => {
@@ -18,7 +25,7 @@ describe('relativeTime', () => {
   });
 
   it('does not show negative time for clock skew', () => {
-    expect(relativeTime('2026-08-02T12:00:30Z', NOW)).toBe('just now');
+    expect(relativeTime('2026-08-02T12:00:30Z', NOW)).toBe('now');
   });
 });
 

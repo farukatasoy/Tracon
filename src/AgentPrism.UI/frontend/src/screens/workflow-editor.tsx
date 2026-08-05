@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { useT } from '../lib/i18n';
 import { useNavigate } from '../lib/router';
 import {
   Badge,
@@ -60,6 +61,7 @@ const EMPTY: Draft = {
  * for the obvious cases and shows the server's own message otherwise.
  */
 export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
+  const t = useT();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const editing = name !== undefined;
@@ -140,11 +142,11 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
   return (
     <>
       <PageHeader
-        title={editing ? `Edit ${name}` : 'New workflow'}
-        description="Pick a pattern and the agents that take part. The graph is compiled from this on every run."
+        title={editing ? t('workflowEditor.editTitle', { name: name ?? '' }) : t('workflows.new')}
+        description={t('workflowEditor.description')}
         actions={
           <>
-            <Button onClick={() => navigate('workflows')}>Cancel</Button>
+            <Button onClick={() => navigate('workflows')}>{t('common.cancel')}</Button>
             <Button
               tone="primary"
               testId="workflow-save"
@@ -152,7 +154,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
               disabled={blocked}
               onClick={() => save.mutate()}
             >
-              Save
+              {t('common.save')}
             </Button>
           </>
         }
@@ -165,9 +167,9 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
       )}
 
       <div className="flex flex-col gap-4">
-        <Panel title="Identity">
+        <Panel title={t('agentEditor.identity')}>
           <div className="grid gap-4 p-4 sm:grid-cols-2">
-            <Field label="Name" required hint="Used in the API path. Cannot be changed later.">
+            <Field label={t('common.name')} required hint={t('workflowEditor.nameHint')}>
               <TextInput
                 value={draft.name}
                 data-testid="workflow-name"
@@ -177,7 +179,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
               />
             </Field>
 
-            <Field label="Display name">
+            <Field label={t('agentEditor.displayName')}>
               <TextInput
                 value={draft.displayName}
                 onChange={(event) => setDraft({ ...draft, displayName: event.target.value })}
@@ -185,7 +187,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
             </Field>
 
             <div className="sm:col-span-2">
-              <Field label="Description">
+              <Field label={t('common.description')}>
                 <TextInput
                   value={draft.description}
                   onChange={(event) => setDraft({ ...draft, description: event.target.value })}
@@ -195,9 +197,9 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
           </div>
         </Panel>
 
-        <Panel title="Pattern">
+        <Panel title={t('workflows.column.pattern')}>
           <div className="flex flex-col gap-4 p-4">
-            <Field label="Kind" required hint={KIND_HINT[draft.kind]}>
+            <Field label={t('workflowEditor.kind')} required hint={t(KIND_HINT[draft.kind])}>
               <Select
                 value={draft.kind}
                 onChange={(value) => setDraft({ ...draft, kind: value as WorkflowKind })}
@@ -211,12 +213,12 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
             </Field>
 
             <Field
-              label="Participants"
+              label={t('workflowEditor.participants')}
               required
               hint={
                 draft.kind === 'Sequential'
-                  ? 'Order matters: each agent receives the previous one’s output.'
-                  : 'Order does not affect this pattern; it only sets the participant list.'
+                  ? t('workflowEditor.orderMatters')
+                  : t('workflowEditor.orderIgnored')
               }
             >
               <AgentPicker
@@ -228,21 +230,21 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
 
             {tooFew && (
               <p className="text-[12px] text-warn">
-                {draft.kind} needs at least two participants.
+                {t('workflowEditor.needsTwo', { kind: draft.kind })}
               </p>
             )}
 
             {draft.kind === 'Magentic' && (
               <Field
-                label="Manager agent"
+                label={t('workflowEditor.managerAgent')}
                 required
-                hint="Builds the plan, watches progress and re-plans. Cannot also be a participant."
+                hint={t('workflowEditor.managerHint')}
               >
                 <Select
                   value={draft.managerAgentName}
                   onChange={(value) => setDraft({ ...draft, managerAgentName: value })}
                 >
-                  <option value="">Choose an agent…</option>
+                  <option value="">{t('workflowEditor.chooseAgent')}</option>
                   {available
                     .filter((agent) => !draft.agentNames.includes(agent.name))
                     .map((agent) => (
@@ -256,8 +258,8 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
 
             {draft.kind === 'Handoff' && (
               <Field
-                label="Handoff instructions"
-                hint="Extra guidance for deciding when to hand over."
+                label={t('workflowEditor.handoffInstructions')}
+                hint={t('workflowEditor.handoffHint')}
               >
                 <TextArea
                   rows={3}
@@ -271,8 +273,8 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
 
             {draft.kind !== 'Sequential' && draft.kind !== 'Concurrent' && (
               <Field
-                label="Max iterations"
-                hint="The only guard against a loop that never ends. Left empty, a built-in default applies."
+                label={t('workflowEditor.maxIterations')}
+                hint={t('workflowEditor.maxIterationsHint')}
               >
                 <TextInput
                   type="number"
@@ -305,6 +307,8 @@ function PlanApproval({
   draft: Draft;
   onChange: (draft: Draft) => void;
 }): ReactNode {
+  const t = useT();
+
   return (
     <div className="rounded-md border border-line bg-raised p-3">
       <label className="flex items-start gap-2.5">
@@ -317,14 +321,11 @@ function PlanApproval({
         />
         <span>
           <span className="flex items-center gap-1.5 text-[13px] font-medium">
-            Ask a human to approve the plan
-            <Badge tone="warn">costs a manager turn</Badge>
+            {t('workflowEditor.planApproval')}
+            <Badge tone="warn">{t('workflowEditor.planApprovalCost')}</Badge>
           </span>
           <span className="mt-0.5 block text-[12px] text-muted">
-            The run stops after the manager writes its plan and waits for an answer. Its state is
-            written to a checkpoint, so answering later continues from exactly that point — in a
-            new run. Rejecting the plan makes the manager plan again, which costs another model
-            call.
+            {t('workflowEditor.planApprovalNotice')}
           </span>
         </span>
       </label>
@@ -342,6 +343,7 @@ function AgentPicker({
   selected: readonly string[];
   onChange: (names: string[]) => void;
 }): ReactNode {
+  const t = useT();
   const unselected = available.filter((agent) => !selected.includes(agent));
 
   return (
@@ -357,8 +359,8 @@ function AgentPicker({
 
             <button
               type="button"
-              title="Move up"
-              aria-label={`Move ${agent} up`}
+              title={t('workflowEditor.moveUp')}
+              aria-label={t('workflowEditor.moveUpAgent', { agent })}
               disabled={index === 0}
               className={cx('px-1 text-muted hover:text-fg', index === 0 && 'opacity-30')}
               onClick={() => onChange(swap([...selected], index, index - 1))}
@@ -367,8 +369,8 @@ function AgentPicker({
             </button>
             <button
               type="button"
-              title="Move down"
-              aria-label={`Move ${agent} down`}
+              title={t('workflowEditor.moveDown')}
+              aria-label={t('workflowEditor.moveDownAgent', { agent })}
               disabled={index === selected.length - 1}
               className={cx(
                 'px-1 text-muted hover:text-fg',
@@ -380,7 +382,7 @@ function AgentPicker({
             </button>
             <button
               type="button"
-              aria-label={`Remove ${agent}`}
+              aria-label={t('workflowEditor.removeAgent', { agent })}
               className="px-1 text-muted hover:text-danger"
               onClick={() => onChange(selected.filter((name) => name !== agent))}
             >
@@ -399,7 +401,7 @@ function AgentPicker({
             }
           }}
         >
-          <option value="">Add an agent…</option>
+          <option value="">{t('workflowEditor.addAgent')}</option>
           {unselected.map((agent) => (
             <option key={agent} value={agent}>
               {agent}

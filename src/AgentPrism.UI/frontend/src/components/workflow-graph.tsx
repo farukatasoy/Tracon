@@ -6,6 +6,7 @@ import {
   type LaidOutNode,
   type NodeState,
 } from '../lib/workflow-graph';
+import { useT } from '../lib/i18n';
 import { Badge, cx } from './ui';
 import type { WorkflowGraph, WorkflowNodeKind } from '../lib/types';
 
@@ -31,6 +32,7 @@ export function WorkflowGraphView({
   states?: Map<string, NodeState>;
   className?: string;
 }): ReactNode {
+  const t = useT();
   const layout = useMemo(() => layoutGraph(graph), [graph]);
 
   if (layout.nodes.length === 0) {
@@ -43,7 +45,7 @@ export function WorkflowGraphView({
     <div className={cx('overflow-x-auto', className)}>
       <svg
         role="img"
-        aria-label={`${graph.name} workflow graph`}
+        aria-label={t('graph.label', { name: graph.name })}
         data-testid="workflow-graph"
         viewBox={`0 0 ${layout.width} ${layout.height}`}
         width={layout.width}
@@ -114,12 +116,15 @@ const STATE_STROKE: Record<NodeState, string | null> = {
 };
 
 function NodeBox({ node, state }: { node: LaidOutNode; state: NodeState }): ReactNode {
+  const t = useT();
   const style = KIND_STYLE[node.kind];
   const stroke = STATE_STROKE[state] ?? style.stroke;
 
   return (
     <g data-testid="workflow-node" data-node-id={node.id} data-state={state}>
-      <title>{`${node.id}${node.agentName === null ? '' : ` — agent ${node.agentName}`}`}</title>
+      <title>
+        {node.agentName === null ? node.id : t('graph.nodeTitle', { id: node.id, agent: node.agentName })}
+      </title>
 
       <rect
         x={node.x}
@@ -168,13 +173,15 @@ function truncate(label: string): string {
 
 /** Explains the node shapes. Colour alone never carries meaning. */
 export function WorkflowGraphLegend(): ReactNode {
+  const t = useT();
+
   return (
     <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-subtle">
-      <Badge tone="accent">agent</Badge>
-      <Badge>orchestration</Badge>
-      <Badge tone="warn">request port</Badge>
-      <Badge tone="success">output</Badge>
-      <span>· dashed edges loop back</span>
+      <Badge tone="accent">{t('graph.legend.agent')}</Badge>
+      <Badge>{t('graph.legend.orchestration')}</Badge>
+      <Badge tone="warn">{t('graph.legend.requestPort')}</Badge>
+      <Badge tone="success">{t('graph.legend.output')}</Badge>
+      <span>· {t('graph.legend.dashed')}</span>
     </div>
   );
 }

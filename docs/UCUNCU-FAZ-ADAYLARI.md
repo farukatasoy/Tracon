@@ -1,6 +1,17 @@
 # UCUNCU-FAZ-ADAYLARI.md — İkinci Faz Sonrası Aday Yetenekler
 
-> **Durum (2026-08-05): HAM LİSTE, PLANLANMADI.** Bu belge
+> **Durum (2026-08-05): SIRADAKİ TURUN KAYNAĞI — HAM LİSTE, PLANLANMADI.**
+> İkinci tur (Faz 8–30) [Faz 30](30-ARAYUZ-CILASI.md) ile kapandı; bir sonraki
+> tur bu listeden seçilir. Seçim yapılmadan faz dokümanı yazılmaz.
+>
+> 🚨 **Seçim yapılırken bilinmesi gerekenler (Faz 30 kapanışı):**
+> arayüz artık **iki dillidir** — yeni her ekran metni `locales/en.ts` ve
+> `locales/tr.ts`'ye eklenir, eksik anahtar **derlemeyi kırar** (K-228);
+> bundle **151,3 KB / 250 KB** kullanıyor, arayüz ağırlığı olan bir faz kalan
+> ~99 KB payı hesaba katmalıdır; metin üzerine iddia kuran E2E testi dili
+> **sabitlemelidir** (K-231).
+>
+> Bu belge
 > [`BEYIN-FIRTINASI.md`](BEYIN-FIRTINASI.md)'nin devamıdır — Faz 8–30
 > [`IKINCI-FAZ-YOL-HARITASI.md`](IKINCI-FAZ-YOL-HARITASI.md) ile planlıyken,
 > bu belge **F-30'dan itibaren** henüz hiçbir faz dokümanına bağlanmamış

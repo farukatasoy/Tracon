@@ -62,7 +62,7 @@ public sealed class UiTests(BrowserFixture browsers)
         // Bos depoda bile kovalar sifirla doldurulur; grafikler yine cizilir.
         await session.Page.GetByTestId("timeseries-chart").WaitForAsync();
         await session.Page.GetByTestId("status-distribution-chart").WaitForAsync();
-        await session.Page.GetByText("Bu aralıkta çalıştırma yok").WaitForAsync();
+        await session.Page.GetByText("No run in this window").WaitForAsync();
 
         // Aralik degistirmek yeni bir /api/stats/timeseries istegi tetiklemelidir
         // (30g araligi saat yerine gun kovasina gecer — 500 kova sinirini asmamak icin).
@@ -580,12 +580,26 @@ public sealed class UiTests(BrowserFixture browsers)
 
         public IPage Page { get; }
 
-        public static async Task<Session> OpenAsync(BrowserFixture browsers, UiHost host)
+        /// <param name="locale">
+        /// Tarayicinin dili.
+        /// <para>
+        /// 🚨 Faz 30'dan sonra arayuz <c>navigator.language</c> uzerinden dilini
+        /// kendi secer. Metin uzerine iddia kuran bir test dili SABITLEMEK
+        /// zorundadir; aksi halde testin sonucu calistiran makinenin sistem
+        /// diline baglanir. Varsayilan bu yuzden <c>en-US</c>'tir ve yalnizca
+        /// dil testleri baska bir deger gecer.
+        /// </para>
+        /// </param>
+        public static async Task<Session> OpenAsync(
+            BrowserFixture browsers,
+            UiHost host,
+            string locale = "en-US")
         {
             var context = await browsers.Browser.NewContextAsync(new BrowserNewContextOptions
             {
                 BaseURL = host.BaseAddress,
                 ViewportSize = new ViewportSize { Width = 1440, Height = 900 },
+                Locale = locale,
             });
 
             return new Session(context, await context.NewPageAsync());
@@ -920,6 +934,196 @@ public sealed class UiTests(BrowserFixture browsers)
 
         await session.Page.GetByTestId("webhook-test").First.ClickAsync();
         await session.Page.GetByTestId("webhook-test-result").WaitForAsync(new() { Timeout = 15_000 });
+    }
+
+
+    // --- Faz 30: yerellestirme, komut paleti ve kisayollar ---
+
+    [Fact]
+    public async Task Dil_tarayici_dilinden_secilir()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host, locale: "tr-TR");
+
+        await session.Page.GotoAsync(host.UiAddress);
+
+        // Saklanmis bir tercih yokken varsayilan dil navigator.language'dan gelir.
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Gösterge Paneli" })
+            .WaitForAsync(new() { Timeout = 15_000 });
+
+        // 🚨 lang niteligi susleme degildir: ekran okuyucu sesini buradan secer.
+        (await session.Page.Locator("html").GetAttributeAsync("lang")).ShouldBe("tr");
+    }
+
+    [Fact]
+    public async Task Ingilizce_tarayicida_dil_Ingilizce_kalir()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host, locale: "en-US");
+
+        await session.Page.GotoAsync(host.UiAddress);
+
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })
+            .WaitForAsync(new() { Timeout = 15_000 });
+
+        (await session.Page.Locator("html").GetAttributeAsync("lang")).ShouldBe("en");
+    }
+
+    [Fact]
+    public async Task Dil_degistirilir_ve_tercih_yeniden_yuklemede_korunur()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host, locale: "en-US");
+
+        await session.Page.GotoAsync(host.UiAddress);
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
+
+        await session.Page.GetByTestId("language-toggle").ClickAsync();
+
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Gösterge Paneli" })
+            .WaitForAsync(new() { Timeout = 10_000 });
+
+        // Dil bir sir degildir (K-047 ile celismez): localStorage'da tutulur ve
+        // yeniden yuklemede — ve yeni bir sekmede — korunur.
+        await session.Page.ReloadAsync();
+
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Gösterge Paneli" })
+            .WaitForAsync(new() { Timeout = 10_000 });
+
+        // Saklanan tercih tarayici dilini ezer.
+        (await session.Page.Locator("html").GetAttributeAsync("lang")).ShouldBe("tr");
+
+        // Ayarlar ekranindaki secici de ayni tercihi gosterir.
+        await session.Page.GotoAsync($"{host.UiAddress}/settings");
+        (await session.Page.GetByTestId("language-select").InputValueAsync()).ShouldBe("tr");
+    }
+
+    [Fact]
+    public async Task Turkce_arayuzde_sunucu_hatasi_cevrilmeden_gosterilir()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host, locale: "tr-TR");
+
+        // Var olmayan bir agent 404 uretir; arayuz sunucunun kendi metnini
+        // oldugu gibi gosterir — API sozlesmesi tek dillidir.
+        await session.Page.GotoAsync($"{host.UiAddress}/agents/olmayan-agent");
+
+        await session.Page.GetByRole(AriaRole.Alert).First.WaitForAsync(new() { Timeout = 15_000 });
+    }
+
+    [Fact]
+    public async Task Komut_paleti_ile_ekrana_gidilir()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host, locale: "en-US");
+
+        await session.Page.GotoAsync(host.UiAddress);
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
+
+        await session.Page.Keyboard.PressAsync("Control+k");
+        await session.Page.GetByTestId("command-palette").WaitForAsync();
+
+        await session.Page.Keyboard.TypeAsync("sessions");
+        await session.Page.Keyboard.PressAsync("Enter");
+
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Sessions" })
+            .WaitForAsync(new() { Timeout = 10_000 });
+
+        // Palet gezindikten sonra kapanir.
+        (await session.Page.GetByTestId("command-palette").CountAsync()).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Komut_paleti_Esc_ile_kapanir()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host, locale: "en-US");
+
+        await session.Page.GotoAsync(host.UiAddress);
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
+
+        await session.Page.Keyboard.PressAsync("Control+k");
+        await session.Page.GetByTestId("command-palette").WaitForAsync();
+
+        await session.Page.Keyboard.PressAsync("Escape");
+
+        await session.Page.GetByTestId("command-palette").WaitForAsync(
+            new() { State = WaitForSelectorState.Detached, Timeout = 10_000 });
+    }
+
+    [Fact]
+    public async Task Komut_paleti_rol_bazli_filtrelenir()
+    {
+        // Admin policy'si basarisiz olunca "New agent" komutu paletten de
+        // kaybolmalidir: sunucunun reddedecegi bir eylemi sunmak, sunmamaktan
+        // kotudur. Gizleme yine bir nezakettir; zorlayan sunucudur (Faz 9).
+        await using var host = await UiHost.StartAsync(
+            configureServices: services => TestAuthenticationHandler.Add(services)
+                .AddAuthorizationBuilder()
+                .AddPolicy(AgentPrismPolicies.Admin, policy => policy.RequireAssertion(_ => false)));
+
+        await using var session = await Session.OpenAsync(browsers, host, locale: "en-US");
+
+        await session.Page.GotoAsync(host.UiAddress);
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
+
+        await session.Page.Keyboard.PressAsync("Control+k");
+        await session.Page.GetByTestId("command-palette").WaitForAsync();
+
+        await session.Page.Keyboard.TypeAsync("new agent");
+
+        await session.Page.GetByText("Nothing matches that.").WaitForAsync(new() { Timeout = 10_000 });
+    }
+
+    [Fact]
+    public async Task G_A_kisayolu_agent_ekranina_gider()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host, locale: "en-US");
+
+        await session.Page.GotoAsync(host.UiAddress);
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
+
+        await session.Page.Keyboard.PressAsync("g");
+        await session.Page.Keyboard.PressAsync("a");
+
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Agents" })
+            .WaitForAsync(new() { Timeout = 10_000 });
+    }
+
+    [Fact]
+    public async Task Kisayol_metin_alaninda_tetiklenmez()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host, locale: "en-US");
+
+        await session.Page.GotoAsync($"{host.UiAddress}/playground");
+        await session.Page.GetByTestId("playground-input").WaitForAsync();
+
+        // 🚨 Bir metin alanina yazilan tus o metin alanina aittir. "ga" burada
+        // iki harftir, bir gezinme kisayoli degildir.
+        await session.Page.GetByTestId("playground-input").ClickAsync();
+        await session.Page.Keyboard.TypeAsync("gargara");
+
+        (await session.Page.GetByTestId("playground-input").InputValueAsync()).ShouldBe("gargara");
+
+        // Ekran degismemis olmalidir.
+        session.Page.Url.ShouldContain("/playground");
+    }
+
+    [Fact]
+    public async Task Kisayol_yardimi_soru_isaretiyle_acilir()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host, locale: "en-US");
+
+        await session.Page.GotoAsync(host.UiAddress);
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
+
+        await session.Page.Keyboard.PressAsync("?");
+
+        await session.Page.GetByTestId("shortcut-help").WaitForAsync(new() { Timeout = 10_000 });
+        await session.Page.GetByText("Keyboard shortcuts").First.WaitForAsync();
     }
 
     /// <summary>

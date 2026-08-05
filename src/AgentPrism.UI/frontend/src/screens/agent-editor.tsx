@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { useT } from '../lib/i18n';
 import { useNavigate } from '../lib/router';
 import {
   Badge,
@@ -127,6 +128,7 @@ function memoryHasAnything(memory: MemorySettings): boolean {
  * from becoming a way to run arbitrary code on the server (rule K2).
  */
 export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
+  const t = useT();
   const editing = name !== undefined && name.length > 0;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -212,16 +214,12 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
   return (
     <>
       <PageHeader
-        title={editing ? `Edit ${name}` : 'New agent'}
-        description={
-          editing
-            ? 'Saving writes a new version. Earlier versions stay in the history and can be rolled back to.'
-            : 'The definition is stored in the database and compiled when the agent runs.'
-        }
+        title={editing ? t('agentEditor.editTitle', { name: name ?? '' }) : t('agentEditor.newTitle')}
+        description={editing ? t('agentEditor.editDescription') : t('agentEditor.newDescription')}
         actions={
           <>
             <Button onClick={() => navigate(editing ? `agents/${encodeURIComponent(name as string)}` : 'agents')}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               tone="primary"
@@ -230,7 +228,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
               disabled={!valid}
               onClick={() => save.mutate()}
             >
-              {editing ? 'Save new version' : 'Create'}
+              {editing ? t('agentEditor.saveVersion') : t('agentEditor.create')}
             </Button>
           </>
         }
@@ -240,9 +238,9 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex flex-col gap-4">
-          <Panel title="Identity">
+          <Panel title={t('agentEditor.identity')}>
             <div className="grid gap-4 p-4 sm:grid-cols-2">
-              <Field label="Name" required hint="Unique in the catalogue. Cannot be changed later.">
+              <Field label={t('common.name')} required hint={t('agentEditor.nameHint')}>
                 <TextInput
                   value={form.name}
                   data-testid="agent-name"
@@ -251,19 +249,19 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                   onChange={(event) => setForm({ ...form, name: event.target.value })}
                 />
               </Field>
-              <Field label="Display name">
+              <Field label={t('agentEditor.displayName')}>
                 <TextInput
                   value={form.displayName}
                   data-testid="agent-display-name"
-                  placeholder="Support assistant"
+                  placeholder={t('agentEditor.displayNamePlaceholder')}
                   onChange={(event) => setForm({ ...form, displayName: event.target.value })}
                 />
               </Field>
               <div className="sm:col-span-2">
-                <Field label="Description">
+                <Field label={t('common.description')}>
                   <TextInput
                     value={form.description}
-                    placeholder="Answers order and shipping questions."
+                    placeholder={t('agentEditor.descriptionPlaceholder')}
                     onChange={(event) => setForm({ ...form, description: event.target.value })}
                   />
                 </Field>
@@ -271,26 +269,26 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
             </div>
           </Panel>
 
-          <Panel title="Instructions">
+          <Panel title={t('agentDetail.instructions')}>
             <div className="p-4">
               <TextArea
                 rows={7}
                 value={form.instructions}
-                placeholder="You are a support assistant. Answer briefly. Always use a tool for order questions."
+                placeholder={t('agentEditor.instructionsPlaceholder')}
                 data-testid="agent-instructions"
                 onChange={(event) => setForm({ ...form, instructions: event.target.value })}
               />
             </div>
           </Panel>
 
-          <Panel title="Model">
+          <Panel title={t('common.model')}>
             <div className="grid gap-4 p-4 sm:grid-cols-2">
-              <Field label="Provider" required>
+              <Field label={t('common.provider')} required>
                 <Select
                   value={form.provider}
                   onChange={(value) => setForm({ ...form, provider: value })}
                 >
-                  <option value="">Select…</option>
+                  <option value="">{t('agentEditor.select')}</option>
                   {(providers.data ?? []).map((provider) => (
                     <option key={provider.name} value={provider.name}>
                       {provider.displayName ?? provider.name}
@@ -300,13 +298,9 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
               </Field>
 
               <Field
-                label="Model"
+                label={t('common.model')}
                 required
-                hint={
-                  models.length === 0
-                    ? 'The catalogue is empty, which is not an error. Type the model name; it is not validated against a list.'
-                    : undefined
-                }
+                hint={models.length === 0 ? t('agentEditor.modelHint') : undefined}
               >
                 <TextInput
                   value={form.model}
@@ -322,7 +316,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                 </datalist>
               </Field>
 
-              <Field label="Temperature" hint="Empty uses the provider default.">
+              <Field label={t('fields.temperature')} hint={t('agentEditor.providerDefaultHint')}>
                 <TextInput
                   inputMode="decimal"
                   value={form.temperature}
@@ -330,7 +324,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                   onChange={(event) => setForm({ ...form, temperature: event.target.value })}
                 />
               </Field>
-              <Field label="Max output tokens">
+              <Field label={t('fields.maxOutputTokens')}>
                 <TextInput
                   inputMode="numeric"
                   value={form.maxOutputTokens}
@@ -338,7 +332,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                   onChange={(event) => setForm({ ...form, maxOutputTokens: event.target.value })}
                 />
               </Field>
-              <Field label="Top P">
+              <Field label={t('fields.topP')}>
                 <TextInput
                   inputMode="decimal"
                   value={form.topP}
@@ -346,14 +340,14 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                   onChange={(event) => setForm({ ...form, topP: event.target.value })}
                 />
               </Field>
-              <Field label="Reasoning effort" hint="Rejected at compile time if the value is not one of these.">
+              <Field label={t('fields.reasoningEffort')} hint={t('agentEditor.reasoningHint')}>
                 <Select
                   value={form.reasoningEffort}
                   onChange={(value) => setForm({ ...form, reasoningEffort: value })}
                 >
                   {REASONING_EFFORTS.map((effort) => (
                     <option key={effort} value={effort}>
-                      {effort.length === 0 ? 'Provider default' : effort}
+                      {effort.length === 0 ? t('agentEditor.providerDefault') : effort}
                     </option>
                   ))}
                 </Select>
@@ -361,11 +355,10 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
             </div>
           </Panel>
 
-          <Panel title="Tools">
+          <Panel title={t('common.tools')}>
             <div className="p-4">
               <p className="mb-3 text-[12px] text-muted">
-                Tools are defined in code only. This list is what the host registered; the console
-                cannot add or write tool code.
+                {t('agentEditor.toolsNotice')}
               </p>
 
               {tools.isPending && <Loading />}
@@ -373,8 +366,8 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
 
               {tools.isSuccess && tools.data.length === 0 && (
                 <p className="text-[13px] text-subtle">
-                  No tools registered. Add them in code with <Mono>AddTool(...)</Mono> or{' '}
-                  <Mono>AddToolsFrom(typeof(...))</Mono>.
+                  {t('agentEditor.noTools')} <Mono>AddTool(...)</Mono> /{' '}
+                  <Mono>AddToolsFrom(typeof(...))</Mono>
                 </p>
               )}
 
@@ -403,7 +396,9 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                       <span className="min-w-0">
                         <Mono className="font-medium">{tool.name}</Mono>
                         {tool.requiresApproval && (
-                          <Badge tone="warn" title="Approval flow arrives in phase 6">approval</Badge>
+                          <Badge tone="warn" title={t('agentEditor.approvalTitle')}>
+                            approval
+                          </Badge>
                         )}
                         {tool.description !== null && tool.description !== undefined && (
                           <span className="block text-[12px] text-muted">{tool.description}</span>
@@ -416,14 +411,14 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
             </div>
           </Panel>
 
-          <Panel title="Skills">
+          <Panel title={t('nav.skills')}>
             <div className="p-4">
               {skills.isPending && <Loading />}
               {skills.isError && <ErrorNote error={skills.error} />}
               {skills.isSuccess && skills.data.length === 0 && (
-                <p className="text-[13px] text-subtle">No skills created for this tenant.</p>
+                <p className="text-[13px] text-subtle">{t('agentEditor.noSkills')}</p>
               )}
-              <p className="mb-3 text-[12px] text-muted">An agent can have at most 10 skills.</p>
+              <p className="mb-3 text-[12px] text-muted">{t('agentEditor.skillLimit')}</p>
               <div className="flex flex-col gap-1.5">
                 {(skills.data ?? []).map((skill) => {
                   const checked = form.skillNames.includes(skill.name);
@@ -450,7 +445,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                       />
                       <span className="min-w-0">
                         <Mono className="font-medium">{skill.name}</Mono>
-                        {!skill.enabled && <Badge tone="warn">disabled</Badge>}
+                        {!skill.enabled && <Badge tone="warn">{t('common.disabled')}</Badge>}
                         <span className="block text-[12px] text-muted">{skill.description}</span>
                       </span>
                     </label>
@@ -460,20 +455,17 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
             </div>
           </Panel>
 
-          <Panel title="Callable agents">
+          <Panel title={t('agentDetail.callableAgents')}>
             <div className="p-4">
               <p className="mb-3 text-[12px] text-muted">
-                Agents this one may call as a sub-task. The call graph is checked when you save:
-                self-calls and indirect cycles are rejected. Runtime limits (depth, shared token
-                budget) come from <Mono>AgentPrism:AgentGraph</Mono>. A sub-agent runs in the same
-                tenant and cannot ask for tool approval.
+                {t('agentEditor.callableNotice')} <Mono>AgentPrism:AgentGraph</Mono>.
               </p>
 
               {agents.isPending && <Loading />}
               {agents.isError && <ErrorNote error={agents.error} />}
 
               {agents.isSuccess && agents.data.filter((agent) => agent.name !== form.name).length === 0 && (
-                <p className="text-[13px] text-subtle">No other agent exists to call.</p>
+                <p className="text-[13px] text-subtle">{t('agentEditor.noCallable')}</p>
               )}
 
               <div className="flex flex-col gap-1.5">
@@ -513,7 +505,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
             </div>
           </Panel>
 
-          <Panel title="Harness">
+          <Panel title={t('agentDetail.harness')}>
             <div className="p-4">
               <label className="flex cursor-pointer items-center gap-2 text-[13px]">
                 <input
@@ -522,16 +514,15 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                   checked={form.harnessEnabled}
                   onChange={(event) => setForm({ ...form, harnessEnabled: event.target.checked })}
                 />
-                Enable harness features
+                {t('agentEditor.harnessEnable')}
               </label>
               <p className="mt-1 text-[12px] text-muted">
-                Turns on context compaction and todo tracking. Shell access and background agents
-                are deliberately absent from these settings.
+                {t('agentEditor.harnessNotice')}
               </p>
 
               {form.harnessEnabled && (
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <Field label="Max context window tokens">
+                  <Field label={t('fields.maxContextWindowTokens')}>
                     <TextInput
                       inputMode="numeric"
                       value={form.harness.maxContextWindowTokens?.toString() ?? ''}
@@ -544,7 +535,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                       }
                     />
                   </Field>
-                  <Field label="Max iterations per request">
+                  <Field label={t('fields.maxIterations')}>
                     <TextInput
                       inputMode="numeric"
                       value={form.harness.maximumIterationsPerRequest?.toString() ?? ''}
@@ -562,11 +553,11 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                   </Field>
                   <div className="sm:col-span-2 flex flex-wrap gap-x-5 gap-y-2">
                     {([
-                      ['disableCompaction', 'Disable compaction'],
-                      ['disableTodoProvider', 'Disable todo tracking'],
-                      ['disableFileMemory', 'Disable file memory'],
-                      ['disableWebSearch', 'Disable web search'],
-                      ['disableToolAutoApproval', 'Require tool approval'],
+                      ['disableCompaction', 'fields.disableCompaction'],
+                      ['disableTodoProvider', 'fields.disableTodoProvider'],
+                      ['disableFileMemory', 'fields.disableFileMemory'],
+                      ['disableWebSearch', 'fields.disableWebSearch'],
+                      ['disableToolAutoApproval', 'fields.requireToolApproval'],
                     ] as const).map(([key, label]) => (
                       <label key={key} className="flex cursor-pointer items-center gap-2 text-[12px]">
                         <input
@@ -577,7 +568,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                             setForm({ ...form, harness: { ...form.harness, [key]: event.target.checked } })
                           }
                         />
-                        {label}
+                        {t(label)}
                       </label>
                     ))}
                   </div>
@@ -586,9 +577,9 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
             </div>
           </Panel>
 
-          <Panel title="Context">
+          <Panel title={t('agentEditor.context')}>
             <div className="p-4">
-              <Field label="Compaction strategy">
+              <Field label={t('agentEditor.compactionStrategy')}>
                 <Select
                   value={form.compaction.strategy}
                   onChange={(value) =>
@@ -603,15 +594,14 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                 </Select>
               </Field>
               <p className="mt-1 text-[12px] text-muted">
-                Off by default. When a conversation outgrows the model&apos;s context window, this
-                rewrites older history instead of failing the run.
+                {t('agentEditor.compactionNotice')}
               </p>
 
               {form.compaction.strategy !== 'None' && (
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   {form.compaction.strategy !== 'ContextWindow' && (
                     <>
-                      <Field label="Trigger: token count">
+                      <Field label={t('fields.triggerTokens')}>
                         <TextInput
                           inputMode="numeric"
                           value={form.compaction.triggerTokens?.toString() ?? ''}
@@ -623,7 +613,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                           }
                         />
                       </Field>
-                      <Field label="Trigger: message count">
+                      <Field label={t('fields.triggerMessages')}>
                         <TextInput
                           inputMode="numeric"
                           value={form.compaction.triggerMessages?.toString() ?? ''}
@@ -635,7 +625,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                           }
                         />
                       </Field>
-                      <Field label="Trigger: turn count">
+                      <Field label={t('fields.triggerTurns')}>
                         <TextInput
                           inputMode="numeric"
                           value={form.compaction.triggerTurns?.toString() ?? ''}
@@ -651,7 +641,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                   )}
 
                   {(form.compaction.strategy === 'SlidingWindow' || form.compaction.strategy === 'Pipeline') && (
-                    <Field label="Minimum preserved turns">
+                    <Field label={t('fields.minPreservedTurns')}>
                       <TextInput
                         inputMode="numeric"
                         placeholder="2"
@@ -672,7 +662,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                   {(['Truncation', 'ToolResult', 'Summarization', 'Pipeline'] as CompactionStrategyKind[]).includes(
                     form.compaction.strategy,
                   ) && (
-                    <Field label="Minimum preserved groups">
+                    <Field label={t('fields.minPreservedGroups')}>
                       <TextInput
                         inputMode="numeric"
                         placeholder="4"
@@ -692,7 +682,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
 
                   {form.compaction.strategy === 'ContextWindow' && (
                     <>
-                      <Field label="Max context window tokens" required>
+                      <Field label={t('fields.maxContextWindowTokens')} required>
                         <TextInput
                           inputMode="numeric"
                           value={form.compaction.maxContextWindowTokens?.toString() ?? ''}
@@ -707,7 +697,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                           }
                         />
                       </Field>
-                      <Field label="Max output tokens">
+                      <Field label={t('fields.maxOutputTokens')}>
                         <TextInput
                           inputMode="numeric"
                           placeholder="4096"
@@ -726,7 +716,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                   {(form.compaction.strategy === 'Summarization' || form.compaction.strategy === 'Pipeline') && (
                     <>
                       <div className="sm:col-span-2">
-                        <Field label="Summarization prompt">
+                        <Field label={t('fields.summarizationPrompt')}>
                           <TextArea
                             rows={2}
                             value={form.compaction.summarizationPrompt ?? ''}
@@ -742,7 +732,10 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                           />
                         </Field>
                       </div>
-                      <Field label="Summarization model provider" hint="Empty falls back to the utility model, then the agent's own model.">
+                      <Field
+                        label={t('fields.summarizationProvider')}
+                        hint={t('agentEditor.summarizationModelHint')}
+                      >
                         <TextInput
                           value={form.compaction.summarizationModel?.provider ?? ''}
                           onChange={(event) => {
@@ -762,7 +755,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                           }}
                         />
                       </Field>
-                      <Field label="Summarization model name">
+                      <Field label={t('fields.summarizationModel')}>
                         <TextInput
                           value={form.compaction.summarizationModel?.model ?? ''}
                           onChange={(event) => {
@@ -788,12 +781,12 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
               )}
 
               <div className="mt-5 border-t border-line pt-4">
-                <p className="mb-2 text-[12px] font-medium text-muted">Memory</p>
+                <p className="mb-2 text-[12px] font-medium text-muted">{t('agentDetail.memory')}</p>
                 <div className="flex flex-wrap gap-x-5 gap-y-2">
                   {([
-                    ['enableFileMemory', 'Enable file memory'],
-                    ['enableTodo', 'Enable todo tracking'],
-                    ['enableTextSearch', 'Enable text search over files'],
+                    ['enableFileMemory', 'fields.enableFileMemory'],
+                    ['enableTodo', 'fields.enableTodo'],
+                    ['enableTextSearch', 'fields.enableTextSearch'],
                   ] as const).map(([key, label]) => (
                     <label key={key} className="flex cursor-pointer items-center gap-2 text-[12px]">
                       <input
@@ -804,7 +797,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                           setForm({ ...form, memory: { ...form.memory, [key]: event.target.checked } })
                         }
                       />
-                      {label}
+                      {t(label)}
                     </label>
                   ))}
                 </div>
@@ -814,11 +807,11 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
         </div>
 
         <div className="lg:sticky lg:top-16 lg:self-start">
-          <Panel title="Request preview">
+          <Panel title={t('agentEditor.preview')}>
             <div className="p-4">
               <p className="mb-3 text-[12px] text-muted">
-                Exactly what will be sent to{' '}
-                <Mono>{editing ? `PUT api/agents/${name}` : 'POST api/agents'}</Mono>.
+                {t('agentEditor.previewNotice')}{' '}
+                <Mono>{editing ? `PUT api/agents/${name}` : 'POST api/agents'}</Mono>
               </p>
               <JsonView value={request} maxHeight="max-h-[32rem]" />
             </div>

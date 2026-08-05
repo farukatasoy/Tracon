@@ -1,9 +1,8 @@
 import { useMemo, type ReactNode } from 'react';
 import { barLayout, linePath, scaleLinear, stackedSegments, tickIndices } from '../lib/chart';
 import { count, money } from '../lib/format';
+import { useT } from '../lib/i18n';
 import type { RunModelStatistics, TimeSeriesPoint } from '../lib/types';
-
-const EMPTY_MESSAGE = 'Bu aralıkta çalıştırma yok';
 
 /**
  * A faint wash of a theme colour. Same trick as the workflow graph: mixed at
@@ -15,12 +14,14 @@ function tint(token: string): string {
 }
 
 function EmptyChart({ height }: { height: number }): ReactNode {
+  const t = useT();
+
   return (
     <div
       style={{ height }}
       className="flex items-center justify-center text-[12px] text-subtle"
     >
-      {EMPTY_MESSAGE}
+      {t('charts.noRuns')}
     </div>
   );
 }
@@ -39,6 +40,7 @@ export function TimeSeriesChart({
   height?: number;
   width?: number;
 }): ReactNode {
+  const t = useT();
   const padding = { top: 10, right: 12, bottom: 20, left: 12 };
   const plotWidth = width - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
@@ -75,7 +77,7 @@ export function TimeSeriesChart({
   return (
     <svg
       role="img"
-      aria-label="Zaman serisi: çalıştırma ve hata sayısı"
+      aria-label={t('charts.timeSeriesLabel')}
       data-testid="timeseries-chart"
       viewBox={`0 0 ${width} ${height}`}
       width="100%"
@@ -166,6 +168,8 @@ export function StatusDistributionChart({
   height?: number;
   width?: number;
 }): ReactNode {
+  const t = useT();
+
   if (points.length === 0) {
     return <EmptyChart height={height} />;
   }
@@ -175,7 +179,7 @@ export function StatusDistributionChart({
   return (
     <svg
       role="img"
-      aria-label="Zaman serisi: durum dağılımı"
+      aria-label={t('charts.statusLabel')}
       data-testid="status-distribution-chart"
       viewBox={`0 0 ${width} ${height}`}
       width="100%"

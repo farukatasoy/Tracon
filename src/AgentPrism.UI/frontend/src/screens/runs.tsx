@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { Link } from '../lib/router';
 import { absoluteTime, count, duration, percent, relativeTime, shortId } from '../lib/format';
+import { usePlural, useT } from '../lib/i18n';
 import {
   Badge,
   Empty,
@@ -22,22 +23,26 @@ import type { RunStatus } from '../lib/types';
 const PAGE_SIZE = 50;
 
 export function StatusBadge({ status }: { status: RunStatus }): ReactNode {
+  const t = useT();
+
   switch (status) {
     case 'Completed':
-      return <Badge tone="success">completed</Badge>;
+      return <Badge tone="success">{t('runs.status.completed')}</Badge>;
     case 'Failed':
-      return <Badge tone="danger">failed</Badge>;
+      return <Badge tone="danger">{t('runs.status.failed')}</Badge>;
     case 'Canceled':
-      return <Badge tone="warn">canceled</Badge>;
+      return <Badge tone="warn">{t('runs.status.canceled')}</Badge>;
     case 'AwaitingInput':
       // Neither finished nor running: a workflow stopped on a human decision.
-      return <Badge tone="warn">awaiting input</Badge>;
+      return <Badge tone="warn">{t('runs.status.awaitingInput')}</Badge>;
     default:
-      return <Badge tone="info">running</Badge>;
+      return <Badge tone="info">{t('runs.status.running')}</Badge>;
   }
 }
 
 export function RunsScreen(): ReactNode {
+  const t = useT();
+  const plural = usePlural();
   const [agentName, setAgentName] = useState('');
   const [status, setStatus] = useState('');
   const [includeChildren, setIncludeChildren] = useState(false);
@@ -66,8 +71,8 @@ export function RunsScreen(): ReactNode {
   return (
     <>
       <PageHeader
-        title="Runs"
-        description="Every agent execution, with its event stream. Events are append-only, so a finished run replays exactly as it happened. Runs an agent started by calling another agent are folded into their root."
+        title={t('nav.runs')}
+        description={t('runs.description')}
         actions={
           <>
             <Select
@@ -77,7 +82,7 @@ export function RunsScreen(): ReactNode {
                 setPage(0);
               }}
             >
-              <option value="">All agents</option>
+              <option value="">{t('runs.allAgents')}</option>
               {(agents.data ?? []).map((agent) => (
                 <option key={agent.name} value={agent.name}>
                   {agent.displayName ?? agent.name}
@@ -91,12 +96,12 @@ export function RunsScreen(): ReactNode {
                 setPage(0);
               }}
             >
-              <option value="">Any status</option>
-              <option value="Running">Running</option>
-              <option value="Completed">Completed</option>
-              <option value="Failed">Failed</option>
-              <option value="Canceled">Canceled</option>
-              <option value="AwaitingInput">Awaiting input</option>
+              <option value="">{t('runs.anyStatus')}</option>
+              <option value="Running">{t('runs.filter.running')}</option>
+              <option value="Completed">{t('runs.filter.completed')}</option>
+              <option value="Failed">{t('runs.filter.failed')}</option>
+              <option value="Canceled">{t('runs.filter.canceled')}</option>
+              <option value="AwaitingInput">{t('runs.filter.awaitingInput')}</option>
             </Select>
             <Select
               value={includeChildren ? 'all' : 'roots'}
@@ -105,8 +110,8 @@ export function RunsScreen(): ReactNode {
                 setPage(0);
               }}
             >
-              <option value="roots">Root runs</option>
-              <option value="all">Include child runs</option>
+              <option value="roots">{t('runs.rootOnly')}</option>
+              <option value="all">{t('runs.includeChildren')}</option>
             </Select>
           </>
         }
@@ -114,18 +119,22 @@ export function RunsScreen(): ReactNode {
 
       {stats.isSuccess && (
         <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat label="Runs" value={count(stats.data.totalRuns)} />
-          <Stat label="Failed" value={count(stats.data.failedRuns)} tone={stats.data.failedRuns > 0 ? 'danger' : undefined} />
+          <Stat label={t('nav.runs')} value={count(stats.data.totalRuns)} />
+          <Stat label={t('runs.stat.failed')} value={count(stats.data.failedRuns)} tone={stats.data.failedRuns > 0 ? 'danger' : undefined} />
           {stats.data.awaitingInputRuns > 0 ? (
             <Stat
-              label="Awaiting input"
+              label={t('runs.filter.awaitingInput')}
               value={count(stats.data.awaitingInputRuns)}
-              hint="Workflow runs stopped on a human decision. Answering one starts a new run."
+              hint={t('runs.stat.awaitingHint')}
             />
           ) : (
-            <Stat label="Error rate" value={percent(stats.data.errorRate)} hint="Of finished runs only." />
+            <Stat
+              label={t('runs.stat.errorRate')}
+              value={percent(stats.data.errorRate)}
+              hint={t('runs.stat.errorRateHint')}
+            />
           )}
-          <Stat label="Tokens" value={count(stats.data.totalTokens)} />
+          <Stat label={t('common.tokens')} value={count(stats.data.totalTokens)} />
         </div>
       )}
 
@@ -134,10 +143,12 @@ export function RunsScreen(): ReactNode {
         {runs.isError && <div className="p-4"><ErrorNote error={runs.error} /></div>}
 
         {runs.isSuccess && runs.data.length === 0 && (
-          <Empty title="No runs recorded">
-            Send a message in the{' '}
-            <Link to="playground" className="text-accent underline">Playground</Link> or call the
-            agent through the API.
+          <Empty title={t('runs.empty.title')}>
+            {t('runs.empty.before')}{' '}
+            <Link to="playground" className="text-accent underline">
+              {t('nav.playground')}
+            </Link>{' '}
+            {t('runs.empty.after')}
           </Empty>
         )}
 
@@ -146,14 +157,14 @@ export function RunsScreen(): ReactNode {
             <Table>
               <thead>
                 <tr>
-                  <Th>Run</Th>
-                  <Th>Agent</Th>
-                  <Th>Status</Th>
-                  <Th>Duration</Th>
-                  <Th>Tokens</Th>
-                  <Th>Tree tokens</Th>
-                  <Th>Events</Th>
-                  <Th>Started</Th>
+                  <Th>{t('runs.column.run')}</Th>
+                  <Th>{t('common.agent')}</Th>
+                  <Th>{t('common.status')}</Th>
+                  <Th>{t('common.duration')}</Th>
+                  <Th>{t('common.tokens')}</Th>
+                  <Th>{t('runs.column.treeTokens')}</Th>
+                  <Th>{t('runs.column.events')}</Th>
+                  <Th>{t('common.started')}</Th>
                 </tr>
               </thead>
               <tbody>
@@ -166,10 +177,10 @@ export function RunsScreen(): ReactNode {
                         </Link>
                         {run.childRunCount > 0 && (
                           <Badge tone="info">
-                            {run.childRunCount === 1 ? '1 child run' : `${run.childRunCount} child runs`}
+                            {plural('runs.childRuns', run.childRunCount)}
                           </Badge>
                         )}
-                        {run.depth > 0 && <Badge tone="warn">depth {run.depth}</Badge>}
+                        {run.depth > 0 && <Badge tone="warn">{t('runs.depth', { depth: run.depth })}</Badge>}
                       </span>
                     </Td>
                     <Td>
@@ -185,7 +196,7 @@ export function RunsScreen(): ReactNode {
                     <Td className="text-muted">{count(run.usage?.totalTokens)}</Td>
                     <Td
                       className="text-muted"
-                      title="This run plus every run under it. Already includes the Tokens column — do not add the two."
+                      title={t('runs.treeTokensTitle')}
                     >
                       {count(run.treeUsage?.totalTokens)}
                     </Td>

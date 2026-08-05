@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { Link } from '../lib/router';
 import { absoluteTime, relativeTime } from '../lib/format';
+import { usePlural, useT } from '../lib/i18n';
 import { foldMessage } from '../lib/transcript';
 import {
   Badge,
@@ -21,6 +22,8 @@ import { TranscriptView } from '../components/transcript';
 type Tab = 'history' | 'state';
 
 export function SessionDetailScreen({ id }: { id: string }): ReactNode {
+  const t = useT();
+  const plural = usePlural();
   const [tab, setTab] = useState<Tab>('history');
 
   const session = useQuery({ queryKey: ['session', id], queryFn: () => api.session(id) });
@@ -39,20 +42,21 @@ export function SessionDetailScreen({ id }: { id: string }): ReactNode {
   return (
     <>
       <PageHeader
-        title="Session"
+        title={t('common.session')}
         description={
           <>
             <Mono>{detail.id}</Mono> — agent{' '}
             <Link to={`agents/${encodeURIComponent(detail.agentName)}`} className="text-accent underline">
               {detail.agentName}
             </Link>
-            , updated <span title={absoluteTime(detail.updatedAt)}>{relativeTime(detail.updatedAt)}</span>
+            , {t('common.updated').toLocaleLowerCase()}{' '}
+            <span title={absoluteTime(detail.updatedAt)}>{relativeTime(detail.updatedAt)}</span>
           </>
         }
         actions={
           <Link to={`runs?sessionId=${encodeURIComponent(detail.id)}`}>
             <Button>
-              {runs.data === undefined ? 'Runs' : `${runs.data.length} run${runs.data.length === 1 ? '' : 's'}`}
+              {runs.data === undefined ? t('nav.runs') : plural('sessionDetail.runs', runs.data.length)}
             </Button>
           </Link>
         }
@@ -60,25 +64,20 @@ export function SessionDetailScreen({ id }: { id: string }): ReactNode {
 
       <div className="mb-4 flex gap-1">
         <TabButton active={tab === 'history'} onClick={() => setTab('history')}>
-          Chat history
+          {t('sessionDetail.history')}
         </TabButton>
         <TabButton active={tab === 'state'} onClick={() => setTab('state')}>
-          Raw state
+          {t('sessionDetail.rawState')}
         </TabButton>
       </div>
 
       {tab === 'history' && (
         <Panel>
           {detail.messages === null ? (
-            <Empty title="History is not available">
-              The stored state could not be read as a chat history. This happens when the agent has
-              left the catalogue or the framework changed its serialisation format. The session
-              metadata above is still valid.
-            </Empty>
+            <Empty title={t('sessionDetail.noHistory.title')}>{t('sessionDetail.noHistory.body')}</Empty>
           ) : detail.messages.length === 0 ? (
-            <Empty title="No messages yet">
-              The identifier is reserved but no run has used it. A conversation created through{' '}
-              <Mono>POST /v1/conversations</Mono> stays empty until the first response.
+            <Empty title={t('sessionDetail.noMessages.title')}>
+              {t('sessionDetail.noMessages.body')} <Mono>POST /v1/conversations</Mono>.
             </Empty>
           ) : (
             <div className="flex flex-col divide-y divide-line">
@@ -97,7 +96,7 @@ export function SessionDetailScreen({ id }: { id: string }): ReactNode {
                       )}
                     </div>
                     {folded.items.length === 0 ? (
-                      <p className="text-[12px] text-subtle">No renderable content.</p>
+                      <p className="text-[12px] text-subtle">{t('sessionDetail.noContent')}</p>
                     ) : (
                       <TranscriptView items={folded.items} />
                     )}
@@ -110,11 +109,10 @@ export function SessionDetailScreen({ id }: { id: string }): ReactNode {
       )}
 
       {tab === 'state' && (
-        <Panel title="Serialised session state">
+        <Panel title={t('sessionDetail.stateTitle')}>
           <div className="p-4">
             <p className="mb-3 text-[12px] text-muted">
-              This is the framework's own session state. AgentPrism stores it and never interprets
-              it, so its shape belongs to Microsoft Agent Framework.
+              {t('sessionDetail.stateNotice')}
             </p>
             <JsonView value={detail.state} maxHeight="max-h-[40rem]" />
           </div>

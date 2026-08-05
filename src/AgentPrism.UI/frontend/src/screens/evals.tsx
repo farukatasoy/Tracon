@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { Link } from '../lib/router';
 import { relativeTime } from '../lib/format';
+import { useT } from '../lib/i18n';
 import {
   Badge,
   Button,
@@ -31,8 +32,10 @@ type SuiteForm = typeof EMPTY_FORM;
 
 /** A run's pass/fail split as a two-colour bar — the same shape as a job's item progress. */
 export function PassRateBar({ passed, failed, total }: { passed: number; failed: number; total: number }): ReactNode {
+  const t = useT();
+
   if (total === 0) {
-    return <span className="text-[11px] text-subtle">no cases</span>;
+    return <span className="text-[11px] text-subtle">{t('evals.noCases')}</span>;
   }
 
   const passedPct = (passed / total) * 100;
@@ -67,6 +70,7 @@ function toForm(suite: EvalSuite): SuiteForm {
  * split as Workflows (list) versus a workflow's own page.
  */
 export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
+  const t = useT();
   const client = useQueryClient();
   const [form, setForm] = useState<SuiteForm>(EMPTY_FORM);
   const [showForm, setShowForm] = useState(false);
@@ -112,7 +116,7 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
     try {
       JSON.parse(form.checks);
     } catch {
-      setChecksError('Checks must be valid JSON — an array of check definitions.');
+      setChecksError(t('evals.checksError'));
       return;
     }
 
@@ -122,8 +126,8 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
   return (
     <>
       <PageHeader
-        title="Evals"
-        description="A test suite for one agent: a set of queries with code-written checks, run on demand or after a version change. Each case runs in a fresh session and produces its own row in Runs."
+        title={t('nav.evals')}
+        description={t('evals.description')}
         actions={
           meta.roles.canAdminister && (
             <Button
@@ -136,16 +140,19 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
               }}
             >
               <PlusIcon className="size-3.5" />
-              New suite
+              {t('evals.newSuite')}
             </Button>
           )
         }
       />
 
       {showForm && (
-        <Panel title={editing != null ? `Edit ${editing}` : 'New suite'} className="mb-4">
+        <Panel
+          title={editing != null ? t('evals.editSuite', { name: editing }) : t('evals.newSuite')}
+          className="mb-4"
+        >
           <form className="grid gap-3 p-4 sm:grid-cols-2" onSubmit={submit}>
-            <Field label="Name" required>
+            <Field label={t('common.name')} required>
               <TextInput
                 value={editing ?? newName}
                 required
@@ -156,7 +163,7 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
               />
             </Field>
 
-            <Field label="Agent name" required hint="The agent this suite measures.">
+            <Field label={t('evals.agentName')} required hint={t('evals.agentNameHint')}>
               <TextInput
                 value={form.agentName}
                 required
@@ -166,7 +173,7 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
             </Field>
 
             <div className="sm:col-span-2">
-              <Field label="Description">
+              <Field label={t('common.description')}>
                 <TextInput
                   value={form.description}
                   onChange={(event) => setForm({ ...form, description: event.target.value })}
@@ -176,8 +183,8 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
 
             <div className="sm:col-span-2">
               <Field
-                label="Checks"
-                hint="JSON array. Built-in kinds: nonEmpty, containsExpected, keywords, toolCalled, toolCallsPresent, hasImageContent."
+                label={t('evals.checks')}
+                hint={t('evals.checksHint')}
               >
                 <TextArea
                   value={form.checks}
@@ -194,7 +201,7 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
                 busy={save.isPending}
                 disabled={editing == null && newName.trim().length === 0}
               >
-                Save
+                {t('common.save')}
               </Button>
               <Button
                 tone="ghost"
@@ -203,7 +210,7 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
                   setEditing(null);
                 }}
               >
-                Cancel
+                {t('common.cancel')}
               </Button>
               {checksError != null && <ErrorNote error={new Error(checksError)} />}
               {save.isError && <ErrorNote error={save.error} />}
@@ -212,7 +219,7 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
         </Panel>
       )}
 
-      <Panel title="Suites">
+      <Panel title={t('evals.suites')}>
         {suites.isPending && <Loading />}
         {suites.isError && (
           <div className="p-4">
@@ -222,16 +229,14 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
 
         {suites.isSuccess &&
           (suites.data.length === 0 ? (
-            <Empty title="No eval suites yet">
-              Add one to start measuring an agent against a set of queries with pass/fail checks.
-            </Empty>
+            <Empty title={t('evals.noSuites.title')}>{t('evals.noSuites.body')}</Empty>
           ) : (
             <Table>
               <thead>
                 <tr>
-                  <Th>Suite</Th>
-                  <Th>Agent</Th>
-                  <Th>Updated</Th>
+                  <Th>{t('evals.suite')}</Th>
+                  <Th>{t('common.agent')}</Th>
+                  <Th>{t('common.updated')}</Th>
                   <Th />
                 </tr>
               </thead>
@@ -258,7 +263,7 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
                               setShowForm(true);
                             }}
                           >
-                            Edit
+                            {t('common.edit')}
                           </Button>
                           <Button tone="danger" onClick={() => remove.mutate(suite.name)}>
                             <TrashIcon className="size-3.5" />

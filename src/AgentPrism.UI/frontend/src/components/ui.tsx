@@ -1,4 +1,5 @@
 import { useState, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react';
+import { useT } from '../lib/i18n';
 import { CheckIcon, CopyIcon, SpinnerIcon } from './icons';
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
@@ -230,11 +231,17 @@ export function Empty({ title, children }: { title: string; children?: ReactNode
   );
 }
 
-export function Loading({ label = 'Loading' }: { label?: string }): ReactNode {
+export function Loading({ label }: { label?: string }): ReactNode {
+  const t = useT();
+
   return (
-    <div className="flex items-center justify-center gap-2 px-4 py-12 text-[13px] text-muted">
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex items-center justify-center gap-2 px-4 py-12 text-[13px] text-muted"
+    >
       <SpinnerIcon />
-      {label}
+      {label ?? t('common.loading')}
     </div>
   );
 }
@@ -242,8 +249,14 @@ export function Loading({ label = 'Loading' }: { label?: string }): ReactNode {
 export function ErrorNote({ error }: { error: unknown }): ReactNode {
   const message = error instanceof Error ? error.message : String(error);
 
+  // 🚨 The text is NOT translated. It comes from the server, whose API contract
+  // is single-language on purpose; inventing a Turkish sentence for a message
+  // the console does not recognise would hide what actually failed.
   return (
-    <div className="rounded-md border border-line bg-danger-soft px-3 py-2 text-[12px] text-danger">
+    <div
+      role="alert"
+      className="rounded-md border border-line bg-danger-soft px-3 py-2 text-[12px] text-danger"
+    >
       {message}
     </div>
   );
@@ -315,13 +328,14 @@ export function CodeBlock({
 }
 
 export function CopyButton({ value }: { value: string }): ReactNode {
+  const t = useT();
   const [copied, setCopied] = useState(false);
 
   return (
     <button
       type="button"
-      title="Copy"
-      aria-label="Copy"
+      title={t('common.copy')}
+      aria-label={t('common.copy')}
       className="absolute top-1.5 right-1.5 z-10 rounded border border-line bg-panel p-1 text-muted hover:text-fg"
       onClick={() => {
         void navigator.clipboard.writeText(value).then(() => {

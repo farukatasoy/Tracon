@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { count } from '../lib/format';
+import { useT } from '../lib/i18n';
 import {
   Badge,
   Button,
@@ -24,6 +25,7 @@ import type { QuotaDefinition, QuotaPeriod, QuotaUsageRecord } from '../lib/type
  * limit slightly. The panel says so rather than implying an exact guarantee.
  */
 export function QuotaPanel(): ReactNode {
+  const t = useT();
   const client = useQueryClient();
   const [editing, setEditing] = useState<QuotaDefinition | null>(null);
   const [open, setOpen] = useState(false);
@@ -37,7 +39,7 @@ export function QuotaPanel(): ReactNode {
 
   return (
     <Panel
-      title="Quotas"
+      title={t('quota.title')}
       actions={
         <Button
           tone="default"
@@ -46,7 +48,7 @@ export function QuotaPanel(): ReactNode {
             setOpen((value) => !value);
           }}
         >
-          {open ? 'Close' : 'Add quota'}
+          {open ? t('common.close') : t('quota.add')}
         </Button>
       }
     >
@@ -70,9 +72,7 @@ export function QuotaPanel(): ReactNode {
 
       {usage.isSuccess &&
         (usage.data.definitions.length === 0 ? (
-          <Empty title="No quota defined">
-            Without a rule nothing is ever rejected — AgentPrism ships no default quota.
-          </Empty>
+          <Empty title={t('quota.empty.title')}>{t('quota.empty.body')}</Empty>
         ) : (
           <div className="divide-y divide-line">
             {usage.data.definitions.map((definition) => (
@@ -92,9 +92,8 @@ export function QuotaPanel(): ReactNode {
 
       {usage.isSuccess && (
         <p className="border-t border-line px-4 py-2.5 text-[11px] text-subtle">
-          Periods are computed in <Mono>{usage.data.timeZone}</Mono>. Counters are approximate:
-          the check runs before a run starts and consumption is written after it ends, so
-          concurrent runs can overshoot a limit slightly.
+          {t('quota.periodNoticeBefore')} <Mono>{usage.data.timeZone}</Mono>.{' '}
+          {t('quota.periodNoticeAfter')}
         </p>
       )}
     </Panel>
@@ -112,33 +111,35 @@ function QuotaRow({
   onEdit: () => void;
   onDelete: () => void;
 }): ReactNode {
+  const t = useT();
+
   return (
     <div className="px-4 py-3" data-testid="quota-row">
       <div className="mb-2 flex items-center gap-2">
         <span className="text-[13px] font-medium">
-          {definition.agentName ?? 'All agents'}
+          {definition.agentName ?? t('runs.allAgents')}
         </span>
         <Badge tone="neutral">{definition.period.toLowerCase()}</Badge>
-        {!definition.enabled && <Badge tone="warn">disabled</Badge>}
+        {!definition.enabled && <Badge tone="warn">{t('common.disabled')}</Badge>}
         <div className="ml-auto flex items-center gap-1.5">
           <Button tone="ghost" onClick={onEdit}>
-            Edit
+            {t('common.edit')}
           </Button>
           <Button tone="danger" onClick={onDelete}>
-            Delete
+            {t('common.delete')}
           </Button>
         </div>
       </div>
 
       <div className="space-y-1.5">
         {definition.maxRuns != null && (
-          <QuotaBar label="Runs" used={usage?.runs ?? 0} limit={definition.maxRuns} />
+          <QuotaBar label={t('nav.runs')} used={usage?.runs ?? 0} limit={definition.maxRuns} />
         )}
         {definition.maxTokens != null && (
-          <QuotaBar label="Tokens" used={usage?.tokens ?? 0} limit={definition.maxTokens} />
+          <QuotaBar label={t('common.tokens')} used={usage?.tokens ?? 0} limit={definition.maxTokens} />
         )}
         {definition.maxCost != null && (
-          <QuotaBar label="Cost" used={usage?.cost ?? 0} limit={definition.maxCost} money />
+          <QuotaBar label={t('common.cost')} used={usage?.cost ?? 0} limit={definition.maxCost} money />
         )}
       </div>
     </div>
@@ -187,6 +188,7 @@ function QuotaForm({
   editing: QuotaDefinition | null;
   onDone: () => void;
 }): ReactNode {
+  const t = useT();
   const [agentName, setAgentName] = useState(editing?.agentName ?? '');
   const [period, setPeriod] = useState<QuotaPeriod>(editing?.period ?? 'Daily');
   const [maxRuns, setMaxRuns] = useState(editing?.maxRuns?.toString() ?? '');
@@ -209,49 +211,49 @@ function QuotaForm({
   return (
     <div className="space-y-3 border-b border-line bg-raised/40 p-4">
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Agent" hint="Leave empty to cover every agent of this tenant.">
+        <Field label={t('common.agent')} hint={t('quota.agentHint')}>
           <TextInput
             value={agentName}
-            placeholder="All agents"
+            placeholder={t('runs.allAgents')}
             data-testid="quota-agent"
             onChange={(event) => setAgentName(event.target.value)}
           />
         </Field>
-        <Field label="Period">
+        <Field label={t('quota.period')}>
           <Select
             value={period}
             testId="quota-period"
             onChange={(value) => setPeriod(value as QuotaPeriod)}
           >
-            <option value="Daily">Daily</option>
-            <option value="Monthly">Monthly</option>
+            <option value="Daily">{t('quota.daily')}</option>
+            <option value="Monthly">{t('quota.monthly')}</option>
           </Select>
         </Field>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <Field label="Max runs">
+        <Field label={t('quota.maxRuns')}>
           <TextInput
             value={maxRuns}
             inputMode="numeric"
-            placeholder="unlimited"
+            placeholder={t('quota.unlimited')}
             data-testid="quota-max-runs"
             onChange={(event) => setMaxRuns(event.target.value)}
           />
         </Field>
-        <Field label="Max tokens">
+        <Field label={t('quota.maxTokens')}>
           <TextInput
             value={maxTokens}
             inputMode="numeric"
-            placeholder="unlimited"
+            placeholder={t('quota.unlimited')}
             onChange={(event) => setMaxTokens(event.target.value)}
           />
         </Field>
-        <Field label="Max cost" hint="Ignored for models with no configured price.">
+        <Field label={t('quota.maxCost')} hint={t('quota.maxCostHint')}>
           <TextInput
             value={maxCost}
             inputMode="decimal"
-            placeholder="unlimited"
+            placeholder={t('quota.unlimited')}
             onChange={(event) => setMaxCost(event.target.value)}
           />
         </Field>
@@ -266,10 +268,10 @@ function QuotaForm({
           testId="quota-save"
           onClick={() => save.mutate()}
         >
-          {save.isPending ? 'Saving…' : 'Save quota'}
+          {save.isPending ? t('common.saving') : t('quota.save')}
         </Button>
         <Button tone="ghost" onClick={onDone}>
-          Cancel
+          {t('common.cancel')}
         </Button>
       </div>
     </div>

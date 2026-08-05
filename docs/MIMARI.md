@@ -31,7 +31,7 @@
 | `AgentPrism.Mcp` | Uzak MCP tool keşfi | ✅ |
 | `AgentPrism.Workflows` | MAF Workflows yürütmesi, kontrol noktası, human-in-the-loop | ✅ |
 | `AgentPrism.AspNetCore` | `MapAgentPrism()` — yönetim API'si, OpenAI uyumlu uçlar, roller, hız sınırı. | ✅ |
-| `AgentPrism.UI` | Gömülü React arayüzü (`UseUI()`) | ✅ |
+| `AgentPrism.UI` | Gömülü React arayüzü (`UseUI()`), İngilizce + Türkçe | ✅ |
 | `AgentPrism` (meta) | Hepsini toplayan meta paket | ✅ |
 
 Hangi fazın hangi pakete ne eklediği: [`arsiv/PAKET-FAZ-GECMISI.md`](arsiv/PAKET-FAZ-GECMISI.md).
@@ -68,7 +68,7 @@ devam eder. Karsilastirma: [`arsiv/DEVUI-KARSILASTIRMASI.md`](arsiv/DEVUI-KARSIL
 flowchart TD
     T["Tüketici uygulama · ASP.NET Core<br/>builder.AddAgentPrism().UsePostgreSql(..).UseOpenAI(..)<br/>app.MapAgentPrism('/agentprism')"]
 
-    UI["<b>AgentPrism.UI</b><br/>gömülü React SPA · Brotli varlıklar<br/>UseUI() → IAgentPrismUiProvider"]
+    UI["<b>AgentPrism.UI</b><br/>gömülü React SPA · Brotli varlıklar · iki dilli<br/>UseUI() → IAgentPrismUiProvider"]
 
     HTTP["<b>AgentPrism.AspNetCore</b><br/>MapAgentPrism · /api/* yönetim API'si<br/>/v1/responses · /v1/chat/completions · /v1/conversations<br/>loopback · bearer · policy · SSE"]
 
@@ -158,6 +158,8 @@ mimari testi bunu Faz 1'den itibaren zorlar.
 
 ### K2 — Tool'lar yalnız kodda tanımlanır
 Arayüzden agent oluşturulabilir, ancak tool **kodu** yazılamaz. Arayüz sadece kodda kayıtlı tool'lardan seçim yaptırır.
+
+**Arayüz iki dillidir, API tek dillidir.** Konsol metni sözlüklerden gelir ve eksik çeviri **derleme hatasıdır** (K-228); sunucunun `ProblemDetails` metni **İngilizce kalır** (K-232) — aynı hata günlükte, testte ve destek kaydında aynı okunmalıdır.
 
 > **Gerekçe:** Arayüzden çalıştırılabilir kod tanımlanabilseydi, AgentPrism arayüzüne erişen herkes sunucuda kod çalıştırabilirdi.
 
@@ -501,7 +503,8 @@ ters vekil günlüklerine yazılacağı için **kabul edilmez**. Uç ayrıca `Op
 rolü ister, oturumun kiracı sahipliğini doğrular, kiracı başına eşzamanlı
 bağlantıyı sınırlar ve süre/boşta zaman aşımı uygular.
 
-Arayüz token'ı tarayıcıda `sessionStorage`'da tutar — sekme kapanınca silinir (K-047).
+Arayüz token'ı `sessionStorage`'da tutar — sekme kapanınca silinir (K-047). Dil ve
+tema tercihi `localStorage`'dadır: sır değildirler (K-230).
 
 Ek sınırlar:
 
@@ -720,17 +723,18 @@ güncellemesi yeterlidir.
 | Paket | AOT uyumlu | Neden |
 |-------|-----------|-------|
 | `AgentPrism.Abstractions` | Evet | Saf sözleşmeler |
-| `AgentPrism.Core` | Evet | Yansımaya dayanan tek yol `AddToolsFrom` / `AddTool(Delegate)`; ikisi de `[RequiresUnreferencedCode]` + `[RequiresDynamicCode]` ile işaretli — uyarı bastırılmaz, çağırana iletilir |
+| `AgentPrism.Core` | Evet | Yansıma yalnız `AddToolsFrom` / `AddTool(Delegate)` yolunda; ikisi de işaretli |
 | `AgentPrism.PostgreSql` | Evet | Npgsql AOT uyumlu |
-| `AgentPrism.SqlServer` | Hayır *(vaat ertelendi)* | Ölçüldü: sıfır IL2/IL3; canlı sorgu doğrulanmadı (K-181) |
-| `AgentPrism.Sqlite` | Hayır *(ölçülmedi)* | Faz 24 kapanışında ölçüm YAPILMADI; `SQLitePCLRaw` yerel kütüphane taşır (K-196) |
-| `AgentPrism.OpenAI` | Evet | Ölçüldü (Faz 3): `IsAotCompatible=true` ile sıfır uyarı. `OPENAI001`/`MAAI001` deneysel API tanılarıdır, AOT tanısı değil |
-| `AgentPrism.AspNetCore` | Hayır | Minimal API delege yönlendirmesi reflection kullanır. Bayrak `Directory.Build.targets` içinde türetilir — `src/Directory.Build.props` csproj'dan önce yüklendiği için orada türetmek `false` tercihini yok sayardı (K-006) |
+| `AgentPrism.SqlServer` | Hayır *(vaat ertelendi)* | Sıfır IL2/IL3 ölçüldü; canlı sorgu doğrulanmadı (K-181) |
+| `AgentPrism.Sqlite` | Hayır *(ölçülmedi)* | `SQLitePCLRaw` yerel kütüphane taşır (K-196) |
+| `AgentPrism.OpenAI` | Evet | Ölçüldü (Faz 3): sıfır uyarı |
+| `AgentPrism.AspNetCore` | Hayır | Minimal API delege yönlendirmesi reflection kullanır |
 | `AgentPrism.UI` | Hayır | Gömülü varlık tarama + ASP.NET Core bağlantısı |
 
-Bayrak `AgentPrismAotCompatible` ile uygulanır; türetmenin neden
-`Directory.Build.targets` içinde olduğu K-006'dadır. AOT'un Faz 1–2'de getirdiği
-somut kısıtlar ve çözümleri: [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md).
+Bayrak `AgentPrismAotCompatible` ile uygulanır (K-006). Her satırın tam gerekçesi,
+ölçüm notları ve AOT'un getirdiği somut kısıtlar:
+[`hafiza/build-ve-analyzer.md`](hafiza/build-ve-analyzer.md) ve
+[`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md).
 
 ---
 

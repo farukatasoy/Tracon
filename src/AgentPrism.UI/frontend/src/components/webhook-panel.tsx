@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { relativeTime } from '../lib/format';
+import { useT } from '../lib/i18n';
 import {
   Badge,
   Button,
@@ -38,6 +39,7 @@ const EVENTS = [
  * `IConfiguration` and never reaches the browser or the database.
  */
 export function WebhookPanel(): ReactNode {
+  const t = useT();
   const client = useQueryClient();
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -51,11 +53,11 @@ export function WebhookPanel(): ReactNode {
 
   return (
     <Panel
-      title="Webhooks"
+      title={t('webhooks.title')}
       className="lg:col-span-2"
       actions={
         <Button tone="default" onClick={() => setOpen((value) => !value)}>
-          {open ? 'Close' : 'Add webhook'}
+          {open ? t('common.close') : t('webhooks.add')}
         </Button>
       }
     >
@@ -77,10 +79,7 @@ export function WebhookPanel(): ReactNode {
 
       {subscriptions.isSuccess &&
         (subscriptions.data.length === 0 ? (
-          <Empty title="No webhook subscription">
-            Nothing is notified when a run finishes or an approval is waiting. Add a subscription
-            to push those events to an external system.
-          </Empty>
+          <Empty title={t('webhooks.empty.title')}>{t('webhooks.empty.body')}</Empty>
         ) : (
           <div className="divide-y divide-line">
             {subscriptions.data.map((subscription) => (
@@ -100,8 +99,7 @@ export function WebhookPanel(): ReactNode {
         ))}
 
       <p className="border-t border-line px-4 py-2.5 text-[11px] text-subtle">
-        Targets must be <Mono>https</Mono>; private network addresses are refused at delivery
-        time. Payloads carry a summary only — never message content. Read the full run at{' '}
+        {t('webhooks.noticeBefore')} <Mono>https</Mono>. {t('webhooks.noticeAfter')}{' '}
         <Mono>/api/runs/&#123;id&#125;</Mono>.
       </p>
     </Panel>
@@ -119,6 +117,7 @@ function SubscriptionRow({
   onToggle: () => void;
   onDelete: () => void;
 }): ReactNode {
+  const t = useT();
   const test = useMutation({ mutationFn: () => api.testWebhook(subscription.name) });
 
   return (
@@ -126,24 +125,26 @@ function SubscriptionRow({
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[13px] font-medium">{subscription.name}</span>
         {subscription.enabled ? (
-          <Badge tone="success">enabled</Badge>
+          <Badge tone="success">{t('common.enabled')}</Badge>
         ) : (
-          <Badge tone="danger" title="Disabled after too many consecutive failures.">
-            disabled
+          <Badge tone="danger" title={t('webhooks.disabledTitle')}>
+            {t('common.disabled')}
           </Badge>
         )}
         {subscription.consecutiveFailures > 0 && (
-          <Badge tone="warn">{subscription.consecutiveFailures} failing</Badge>
+          <Badge tone="warn">
+            {t('webhooks.failing', { count: subscription.consecutiveFailures })}
+          </Badge>
         )}
         <div className="ml-auto flex items-center gap-1.5">
           <Button tone="ghost" testId="webhook-test" onClick={() => test.mutate()}>
-            {test.isPending ? 'Sending…' : 'Send test'}
+            {test.isPending ? t('webhooks.sending') : t('webhooks.sendTest')}
           </Button>
           <Button tone="ghost" onClick={onToggle}>
-            {expanded ? 'Hide' : 'Deliveries'}
+            {expanded ? t('audit.hide') : t('webhooks.deliveries')}
           </Button>
           <Button tone="danger" onClick={onDelete}>
-            Delete
+            {t('common.delete')}
           </Button>
         </div>
       </div>
@@ -163,11 +164,11 @@ function SubscriptionRow({
       <div className="mt-1.5 text-[11px] text-subtle">
         {subscription.secretConfigurationKey != null ? (
           <>
-            Signed with the secret read from <Mono>{subscription.secretConfigurationKey}</Mono>.
-            The value is never stored or shown.
+            {t('webhooks.signedWith')} <Mono>{subscription.secretConfigurationKey}</Mono>.{' '}
+            {t('webhooks.secretNeverStored')}
           </>
         ) : (
-          'Not signed — no signing key configured.'
+          t('webhooks.notSigned')
         )}
       </div>
 
@@ -188,6 +189,7 @@ function SubscriptionRow({
 }
 
 function Deliveries({ name }: { name: string }): ReactNode {
+  const t = useT();
   const deliveries = useQuery({
     queryKey: ['webhook-deliveries', name],
     queryFn: () => api.webhookDeliveries(name, { take: 20 }),
@@ -202,7 +204,7 @@ function Deliveries({ name }: { name: string }): ReactNode {
   }
 
   if (deliveries.data.length === 0) {
-    return <p className="mt-3 text-[12px] text-subtle">No delivery yet.</p>;
+    return <p className="mt-3 text-[12px] text-subtle">{t('webhooks.noDeliveries')}</p>;
   }
 
   return (
@@ -210,11 +212,11 @@ function Deliveries({ name }: { name: string }): ReactNode {
       <Table>
         <thead>
           <tr>
-            <Th>Event</Th>
-            <Th>Status</Th>
-            <Th>Code</Th>
-            <Th>Attempt</Th>
-            <Th>When</Th>
+            <Th>{t('webhooks.event')}</Th>
+            <Th>{t('common.status')}</Th>
+            <Th>{t('webhooks.code')}</Th>
+            <Th>{t('jobs.attempt')}</Th>
+            <Th>{t('audit.when')}</Th>
           </tr>
         </thead>
         <tbody>
@@ -251,6 +253,7 @@ function deliveryTone(status: WebhookDeliveryStatus): 'success' | 'danger' | 'wa
 }
 
 function WebhookForm({ onDone }: { onDone: () => void }): ReactNode {
+  const t = useT();
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [secretKey, setSecretKey] = useState('');
@@ -270,7 +273,7 @@ function WebhookForm({ onDone }: { onDone: () => void }): ReactNode {
   return (
     <div className="space-y-3 border-b border-line bg-raised/40 p-4">
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Name" required>
+        <Field label={t('common.name')} required>
           <TextInput
             value={name}
             placeholder="order-service"
@@ -278,7 +281,7 @@ function WebhookForm({ onDone }: { onDone: () => void }): ReactNode {
             onChange={(event) => setName(event.target.value)}
           />
         </Field>
-        <Field label="URL" required hint="https only, unless the target is loopback.">
+        <Field label={t('webhooks.url')} required hint={t('webhooks.urlHint')}>
           <TextInput
             value={url}
             placeholder="https://example.com/hooks/agentprism"
@@ -289,8 +292,8 @@ function WebhookForm({ onDone }: { onDone: () => void }): ReactNode {
       </div>
 
       <Field
-        label="Signing key name"
-        hint="The NAME of a configuration key, not the secret itself. Example: AgentPrism:Webhooks:Secrets:order-service"
+        label={t('webhooks.signingKey')}
+        hint={t('webhooks.signingKeyHint')}
       >
         <TextInput
           value={secretKey}
@@ -300,7 +303,7 @@ function WebhookForm({ onDone }: { onDone: () => void }): ReactNode {
         />
       </Field>
 
-      <Field label="Events" required>
+      <Field label={t('webhooks.events')} required>
         <div className="flex flex-wrap gap-1.5">
           {EVENTS.map((event) => {
             const selected = events.includes(event);
@@ -338,10 +341,10 @@ function WebhookForm({ onDone }: { onDone: () => void }): ReactNode {
           testId="webhook-save"
           onClick={() => save.mutate()}
         >
-          {save.isPending ? 'Saving…' : 'Save webhook'}
+          {save.isPending ? t('common.saving') : t('webhooks.save')}
         </Button>
         <Button tone="ghost" onClick={onDone}>
-          Cancel
+          {t('common.cancel')}
         </Button>
       </div>
     </div>

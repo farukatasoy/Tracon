@@ -1,12 +1,23 @@
-/** Formatting helpers. Pure functions, covered by unit tests. */
+/**
+ * Formatting helpers. Pure functions, covered by unit tests.
+ *
+ * Anything a person reads goes through `Intl`, which the browser already has:
+ * Turkish writes `1.234,5` where English writes `1,234.5`, and a number
+ * formatted the wrong way is misread, not just mis-styled.
+ *
+ * SI unit symbols (`ms`, `s`, `m`) are NOT translated. They are symbols, and
+ * `duration` stays identical in every language on purpose.
+ */
 
-const UNITS: [limit: number, divisor: number, suffix: string][] = [
-  [60_000, 1_000, 's'],
-  [3_600_000, 60_000, 'm'],
-  [86_400_000, 3_600_000, 'h'],
+import { formatDateTime, formatNumber, formatRelative } from './i18n';
+
+const UNITS: [limit: number, divisor: number, unit: Intl.RelativeTimeFormatUnit][] = [
+  [60_000, 1_000, 'second'],
+  [3_600_000, 60_000, 'minute'],
+  [86_400_000, 3_600_000, 'hour'],
 ];
 
-/** Compact relative time: `12s ago`, `4m ago`, `3d ago`. */
+/** Compact relative time: `12 sec. ago`, `4 min. ago`, `3 days ago`. */
 export function relativeTime(value: string | null | undefined, now: number = Date.now()): string {
   if (!value) {
     return '—';
@@ -20,21 +31,18 @@ export function relativeTime(value: string | null | undefined, now: number = Dat
 
   const elapsed = now - timestamp;
 
-  if (elapsed < 0) {
-    return 'just now';
-  }
-
+  // A clock skew between server and browser must not read as the future.
   if (elapsed < 1_000) {
-    return 'just now';
+    return formatRelative(0, 'second');
   }
 
-  for (const [limit, divisor, suffix] of UNITS) {
+  for (const [limit, divisor, unit] of UNITS) {
     if (elapsed < limit) {
-      return `${Math.floor(elapsed / divisor)}${suffix} ago`;
+      return formatRelative(-Math.floor(elapsed / divisor), unit);
     }
   }
 
-  return `${Math.floor(elapsed / 86_400_000)}d ago`;
+  return formatRelative(-Math.floor(elapsed / 86_400_000), 'day');
 }
 
 /** Absolute timestamp for tooltips and detail panels. */
@@ -45,7 +53,7 @@ export function absoluteTime(value: string | null | undefined): string {
 
   const timestamp = new Date(value);
 
-  return Number.isNaN(timestamp.getTime()) ? '—' : timestamp.toLocaleString();
+  return Number.isNaN(timestamp.getTime()) ? '—' : formatDateTime(timestamp);
 }
 
 /** Elapsed time between two instants, as `1.24s` or `340ms`. */
@@ -107,14 +115,16 @@ export function latencyText(value: string | null | undefined): string {
   return ms < 1_000 ? `${ms}ms` : `${(ms / 1_000).toFixed(2)}s`;
 }
 
-/** Thousands-separated integer. */
+/** Thousands-separated integer, grouped the way the active language groups. */
 export function count(value: number | null | undefined): string {
-  return value === null || value === undefined ? '—' : value.toLocaleString();
+  return value === null || value === undefined ? '—' : formatNumber(value);
 }
 
 /** Percentage with one decimal, or an em dash when the ratio is unknown. */
 export function percent(value: number | null | undefined): string {
-  return value === null || value === undefined ? '—' : `${(value * 100).toFixed(1)}%`;
+  return value === null || value === undefined
+    ? '—'
+    : formatNumber(value, { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
 /**
@@ -128,7 +138,7 @@ export function money(value: number | null | undefined, currency: string | null 
     return '—';
   }
 
-  const amount = value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  const amount = formatNumber(value, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 
   return currency ? `${amount} ${currency}` : amount;
 }

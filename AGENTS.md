@@ -26,15 +26,9 @@ Dokümanların çoğu birikimli defterdir; tamamını okumak bütçeyi bitirir.
 | Bir şey nerede yaşıyor? | [`docs/hafiza/kod-haritasi.md`](docs/hafiza/kod-haritasi.md) |
 | Geçmişte neden öyle yapıldı? | `docs/arsiv/` — yalnız grep'le |
 
-**`docs/KARARLAR.md` (115 KB) ve `docs/arsiv/*` hiçbir zaman baştan sona okunmaz.**
-İndeksten satır numarasını bul, `sed -n 'N,Np'` ile o satırı oku.
-
-Aramak okumaktan ucuzdur:
-
-```bash
-grep -rn "AsyncLocal" docs/hafiza/
-grep -n "jsonb" docs/KARARLAR.md
-```
+**`docs/KARARLAR.md` ve `docs/arsiv/*` hiçbir zaman baştan sona okunmaz.**
+İndeksten satır numarasını bul, `sed -n 'N,Np'` ile o satırı oku. Aramak
+okumaktan ucuzdur: `grep -rn "AsyncLocal" docs/hafiza/`.
 
 ---
 
@@ -73,10 +67,10 @@ Mimari resim: **[`docs/MIMARI.md`](docs/MIMARI.md)**.
 |-------|-------|
 | Doküman ile kod çelişirse **doküman yanlıştır** — koda göre düzeltilir | Sonraki oturum dokümana göre kod yazar |
 | Plandan sapma **gizlenmez**, gerekçesiyle yazılır | Sapmanın gerekçesi en değerli bilgidir |
-| Bir faz bitince sonraki fazın dokümanı **devir teslim kalitesine** çıkarılır | Ayrı sohbet o dokümanla tek başına çalışabilmeli |
+| Sonraki fazın dokümanı **devir teslim kalitesine** çıkarılır | Ayrı sohbet onunla tek başına çalışabilmeli |
 | Her mimari karar `docs/KARARLAR.md`'ye numarayla ve gerekçeyle yazılır | Kapatılmış tartışma yeniden açılmaz |
-| Keşfedilen tuzak **alan dosyasına** (`docs/hafiza/`) yazılır | Aynı tuzağa iki kez düşülmez, `MEMORY.md` şişmez |
-| Birikimli anlatı `docs/arsiv/`'e gider, sıcak dokümana değil | Sıcak yol büyümezse her oturum ucuz başlar |
+| Keşfedilen tuzak **alan dosyasına** (`docs/hafiza/`) yazılır | `MEMORY.md` şişmez |
+| Birikimli anlatı `docs/arsiv/`'e gider | Sıcak yol büyümezse her oturum ucuz başlar |
 
 ### Doküman bütçesi (zorunlu)
 
@@ -91,14 +85,12 @@ Bir dosya bütçeyi aşarsa **içerik silinmez** — alan dosyasına veya `docs/
 
 ### Faz durumu
 
-**Sıradaki faz: 30** — [`docs/30-ARAYUZ-CILASI.md`](docs/30-ARAYUZ-CILASI.md).
+**Faz 0–30 tamam; ikinci tur kapandı.** Sıradaki tur seçilmemiştir — adaylar
+[`docs/UCUNCU-FAZ-ADAYLARI.md`](docs/UCUNCU-FAZ-ADAYLARI.md) içindedir.
 
-Faz 0–29 tamam. Gerçek `mssql/server` koşmadı, bkz.
-[`23-SQL-SERVER.md`](docs/23-SQL-SERVER.md). Faz 7 beklemede (K-068),
-Foundry ertelendi (K-212).
-Durum tablosu: [`README.md`](README.md) yol haritası.
-Faz 21–30 sırası, bağımlılıkları ve migration numaraları:
-[`docs/IKINCI-FAZ-YOL-HARITASI.md`](docs/IKINCI-FAZ-YOL-HARITASI.md).
+Durum tablosu [`README.md`](README.md)'de, faz sırası ve migration numaraları
+[`docs/IKINCI-FAZ-YOL-HARITASI.md`](docs/IKINCI-FAZ-YOL-HARITASI.md)'dedir;
+açık kalemler (Faz 7, Foundry, `mssql/server`) o iki dosyada yazılıdır.
 Bu listeyi başka dosyada tekrarlama — iki yerde tutmak kayma üretir.
 
 Faz bittiğinde **`faz-tamamlama` skill'i uygulanır.** Atlanmaz.
@@ -116,28 +108,20 @@ dotnet pack   AgentPrism.slnx -c Release --no-build
 dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 ```
 
-Ölçüldü (2026-08-03): sıcak build ~5 sn, 1070 test ~32 sn. Kapılar ucuzdur —
-**erken ve sık çalıştır**, faz sonuna biriktirme.
+Ölçüldü: sıcak build ~5 sn. Kapılar ucuzdur — **erken ve sık çalıştır**.
 
 ### Hızlı iç döngü
 
-Geliştirirken her seferinde tüm çözümü kurma:
-
-```bash
-# arayüze dokunmuyorsan (npm/Vite/Vitest adımlarını atlar)
-dotnet build AgentPrism.slnx -c Release -p:AgentPrismFrontendEnabled=false
-
-# yalnız ilgili test projesi
-dotnet test tests/AgentPrism.Core.UnitTests -c Release --no-build
-```
-
-Dört kapının tamamı **faz kapanışında** ve arayüz/paket değişiminde çalışır.
+Geliştirirken tüm çözümü her seferinde kurma: arayüze dokunmuyorsan
+`-p:AgentPrismFrontendEnabled=false` npm/Vite/Vitest adımlarını atlar, tek test
+projesi `dotnet test tests/<Proje> -c Release --no-build` ile koşar. Dört kapının
+tamamı **faz kapanışında** ve arayüz/paket değişiminde çalışır.
 
 `TreatWarningsAsErrors` açıktır — uyarı yoktur, hata vardır. Bir analyzer kuralını bastırmadan önce **neden** tetiklendiğini anla; bastırma gerekiyorsa gerekçesini koda ve `docs/KARARLAR.md`'ye yaz.
 
 **Sırlar asla dosyaya yazılmaz.** Bağlantı dizesi ve API anahtarı yalnız `dotnet user-secrets` içinde yaşar. `appsettings.json` boş placeholder taşır. Faz sonunda sır taraması yapılır — komut `faz-tamamlama` skill'inde.
 
-`dotnet build` **arayüzü de derler**: `npm ci` → `tsc --noEmit` → Vitest → Vite → Brotli → bundle bütçesi kapısı (250 KB gzip). Node.js 20.19+ gerekir.
+`dotnet build` **arayüzü de derler**: `npm ci` → `tsc --noEmit` → Vitest → Vite → Brotli → bundle bütçesi (250 KB gzip). Node.js 20.19+ gerekir.
 
 > ⚠️ `dotnet format`, `dotnet build`'in yakalamadığı analyzer tanılarını yakalayabilir. Dört kapının da çalıştırılması bu yüzden zorunludur.
 
@@ -176,6 +160,11 @@ Genel .NET kuralları `.editorconfig` içinde zorunlu kılınır. Aşağıdakile
 **Gözlemlenebilirlik işlevselliği bozmaz.** Çalıştırma kaydı deposu hata verirse çalıştırma devam eder; hata loglanır.
 
 **`ValueTask` dönen arayüzlerde `ConfigureAwait(false)`.** Kütüphane kodudur.
+
+**Arayüz metni sözlükten gelir — iki dilde.** `locales/en.ts` anahtar kümesinin
+kaynağıdır, `tr.ts` onu `Messages` tipiyle karşılar: eksik anahtar **derleme
+hatasıdır** (K-228). Sunucu yanıtları çevrilmez (K-232). Tuzaklar ve kurallar:
+`docs/hafiza/frontend.md`.
 
 **İmza değiştirmek ile gövdeyi kullanmak iki ayrı adımdır.** Yeni bir alan/parametre eklerken çağrı zincirindeki her katmanın **gövdesini** elle izle. Faz 20'de 1068 test bunu kaçırdı.
 

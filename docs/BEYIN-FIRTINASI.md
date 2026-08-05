@@ -279,14 +279,16 @@ gibi elle SVG çizmek 5 KB'de biter. Karar ölçümle verilmeli.
 
 **Değer:** Orta. Sürüm geçmişi var ama iki sürüm yan yana görülemiyor.
 
-### F-25 · Arayüz yerelleştirmesi (i18n)
+### ~~F-25 · Arayüz yerelleştirmesi (i18n)~~ — yapıldı
 
-**Değer:** Orta. Arayüz bugün tamamen İngilizce. Türkçe arayüz kullanıcı için
-değerli olabilir; maliyeti bir çeviri katmanı + bundle artışı.
+[Faz 30](30-ARAYUZ-CILASI.md), 2026-08-05. 794 anahtar, iki dil; eksik çeviri
+derleme hatasıdır (K-228). Ölçülen bundle artışı **+26,4 KB gzip** — planın
+"+6 KB" tahmini iki küçük sözlük varsayıyordu.
 
-### F-26 · Klavye kısayolları ve komut paleti
+### ~~F-26 · Klavye kısayolları ve komut paleti~~ — yapıldı
 
-**Değer:** Düşük-orta. Konsol deneyimini hızlandırır, maliyeti düşüktür.
+[Faz 30](30-ARAYUZ-CILASI.md), 2026-08-05. `Ctrl/Cmd+K` paleti rol bazlı
+süzülür (K-238); kısayollar metin alanında tetiklenmez (K-237).
 
 ---
 

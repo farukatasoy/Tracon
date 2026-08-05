@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useLocale, useT, type MessageKey } from '../lib/i18n';
 import {
   VOICE_INPUT_FORMAT,
   createSilenceDetector,
   loudness,
   microphoneSupport,
   parseVoiceEvent,
+  readVoiceForLocale,
   voiceStreamUrl,
   voiceSubProtocols,
 } from '../lib/voice';
@@ -13,6 +15,15 @@ import { CrossIcon, MicIcon, StopIcon } from './icons';
 
 /** Where a conversation is in its cycle, from the browser's point of view. */
 type VoiceState = 'off' | 'connecting' | 'listening' | 'thinking' | 'speaking' | 'failed';
+
+const VOICE_STATE_LABEL: Record<VoiceState, MessageKey> = {
+  off: 'voice.state.off',
+  connecting: 'voice.state.connecting',
+  listening: 'voice.state.listening',
+  thinking: 'voice.state.thinking',
+  speaking: 'voice.state.speaking',
+  failed: 'voice.state.failed',
+};
 
 interface VoiceTurn {
   id: number;
@@ -38,10 +49,15 @@ interface VoiceTurn {
  * question; interruption is therefore an explicit button, not a sound level.
  */
 export function VoicePanel({ agent, sessionId }: { agent: string; sessionId: string }): ReactNode {
+  // 🚨 `t` is the module-level function and NEVER changes identity, so it can sit
+  // in the dependency array of `start` without rebuilding it — a rebuild here
+  // would tear down the open WebSocket mid-conversation.
+  const t = useT();
+  const { locale } = useLocale();
   const [state, setState] = useState<VoiceState>('off');
   const [level, setLevel] = useState(0);
   const [turns, setTurns] = useState<VoiceTurn[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<MessageKey | string | null>(null);
   const [persistAudio, setPersistAudio] = useState(false);
 
   const socket = useRef<WebSocket | null>(null);
@@ -181,7 +197,8 @@ export function VoicePanel({ agent, sessionId }: { agent: string; sessionId: str
           break;
 
         case 'error':
-          setError(event.message ?? 'The conversation failed.');
+          // Server text, shown as it came: the API contract is single-language.
+          setError(event.message ?? t('voice.failed'));
           setState('failed');
           break;
 
@@ -189,7 +206,7 @@ export function VoicePanel({ agent, sessionId }: { agent: string; sessionId: str
           break;
       }
     },
-    [play],
+    [play, t],
   );
 
   /** Opens the socket, the microphone and the meter. */
@@ -218,7 +235,19 @@ export function VoicePanel({ agent, sessionId }: { agent: string; sessionId: str
       socket.current = connection;
 
       connection.onopen = () => {
-        connection.send(JSON.stringify({ type: 'start', agent, inputFormat: VOICE_INPUT_FORMAT }));
+        // The voice is chosen HERE, by language. The protocol already carries
+        // `voiceId` in the start frame, so the server needs no notion of a
+        // language at all. An unset preference falls back to the server default.
+        const voiceId = readVoiceForLocale(locale);
+
+        connection.send(
+          JSON.stringify({
+            type: 'start',
+            agent,
+            inputFormat: VOICE_INPUT_FORMAT,
+            ...(voiceId === null ? {} : { voiceId }),
+          }),
+        );
       };
 
       connection.onmessage = (message: MessageEvent<string | ArrayBuffer>) => {
@@ -231,7 +260,7 @@ export function VoicePanel({ agent, sessionId }: { agent: string; sessionId: str
       };
 
       connection.onerror = () => {
-        setError('The conversation socket failed. Check that the server allows WebSocket upgrades.');
+        setError(t('voice.socketFailed'));
         setState('failed');
       };
 
@@ -283,7 +312,7 @@ export function VoicePanel({ agent, sessionId }: { agent: string; sessionId: str
       setError(caught instanceof Error ? caught.message : String(caught));
       setState('failed');
     }
-  }, [agent, handleEvent, sessionId]);
+  }, [agent, handleEvent, locale, sessionId, t]);
 
   /**
    * Closes the current utterance by hand.
@@ -313,7 +342,7 @@ export function VoicePanel({ agent, sessionId }: { agent: string; sessionId: str
   if (!support.supported) {
     return (
       <div className="border-t border-line p-3 text-[12px] text-subtle" data-testid="voice-unsupported">
-        Conversation mode is unavailable. {support.reason}
+        {t('voice.unavailable')} {support.reason === undefined ? '' : t(support.reason)}
       </div>
     );
   }
@@ -328,48 +357,56 @@ export function VoicePanel({ agent, sessionId }: { agent: string; sessionId: str
           testId="voice-toggle"
         >
           {state === 'off' ? <MicIcon className="size-3.5" /> : <StopIcon className="size-3.5" />}
-          {state === 'off' ? 'Talk' : 'End conversation'}
+          {state === 'off' ? t('voice.talk') : t('voice.end')}
         </Button>
 
         {state !== 'off' && (
           <>
             <Meter level={level} active={state === 'listening'} />
-            <span className="text-[11px] text-subtle" data-testid="voice-state">
-              {state}
+            <span className="text-[11px] text-subtle" data-testid="voice-state" aria-live="polite">
+              {t(VOICE_STATE_LABEL[state])}
             </span>
           </>
         )}
 
         {state === 'listening' && (
-          <Button onClick={commit} testId="voice-commit" title="Send what you said">
-            Send now
+          <Button onClick={commit} testId="voice-commit" title={t('voice.sendNowTitle')}>
+            {t('voice.sendNow')}
           </Button>
         )}
 
         {state === 'speaking' && (
           <Button onClick={interrupt} testId="voice-interrupt">
             <CrossIcon className="size-3.5" />
-            Interrupt
+            {t('voice.interrupt')}
           </Button>
         )}
 
         {persistAudio && (
           <span data-testid="voice-recording-notice">
-            <Badge tone="warn">Audio of the reply is being stored</Badge>
+            <Badge tone="warn">{t('voice.audioStored')}</Badge>
           </span>
         )}
       </div>
 
-      {error !== null && <p className="text-[12px] text-danger">{error}</p>}
+      {error !== null && (
+        <p role="alert" className="text-[12px] text-danger">
+          {error}
+        </p>
+      )}
 
       {turns.length > 0 && (
-        <div className="flex flex-col gap-2 text-[13px]" data-testid="voice-transcript">
+        <div
+          className="flex flex-col gap-2 text-[13px]"
+          data-testid="voice-transcript"
+          aria-live="polite"
+        >
           {turns.map((turn) => (
             <div key={turn.id} className="flex flex-col gap-0.5">
-              <p className="text-subtle">You: {turn.prompt}</p>
+              <p className="text-subtle">{t('voice.you', { text: turn.prompt })}</p>
               <p>
                 {turn.reply}
-                {turn.cancelled && <span className="text-subtle"> (interrupted)</span>}
+                {turn.cancelled && <span className="text-subtle"> ({t('voice.interrupted')})</span>}
               </p>
             </div>
           ))}

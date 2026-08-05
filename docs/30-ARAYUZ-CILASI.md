@@ -1,10 +1,11 @@
 # Faz 30 — Arayüz Cilası: Yerelleştirme, Komut Paleti ve Kısayollar
 
-> **Durum:** 📋 Planlandı
+> **Durum:** ✅ Tamamlandı (2026-08-05)
 > **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-25**, **F-26**
-> **Önkoşul:** Yok — ama **en sonda** olması bilinçlidir
-> **Paketler:** `AgentPrism.UI`
+> **Önkoşul:** Yok — ama **en sonda** olması bilinçliydi
+> **Paketler:** `AgentPrism.UI` (yalnız arayüz; **sunucuda tek satır değişiklik yok**)
 > **Migration:** Yok
+> **Kararlar:** K-228 … K-238
 
 ---
 
@@ -12,233 +13,387 @@
 
 1. [`05-AGENTPRISM-UI.md`](05-AGENTPRISM-UI.md) — arayüz mimarisi, `lib/` yapısı, bundle zinciri
 2. [`29-KONUSMA-KATMANI.md`](29-KONUSMA-KATMANI.md) — yalnız **"Sonraki Faza Devir Notu"** bölümü
-3. [`KARARLAR.md`](KARARLAR.md) — **"Arayüz i18n altyapısı kurulmadı; dil İngilizce"** (bölüm 1) — bu kararın **yeniden açılma koşulu bu fazdır**; **K-045** (kütüphane yerine elle yazma), **K-002** (bundle bütçesi)
+3. [`KARARLAR.md`](KARARLAR.md) — **"Arayüz i18n altyapısı kurulmadı"** (bölüm 1, kapatıldı);
+   **K-045** (kütüphane yerine elle yazma), **K-002** (bundle bütçesi), **K-047** (token depolama)
 4. [`docs/hafiza/frontend.md`](hafiza/frontend.md) — arayüze dokunuyorsunuz
 5. Bu doküman
 
 ---
 
-## Faz 29'dan Devralınanlar
+## Ne Yapıldı
 
-Bu fazın **çevireceği en yeni ekran** konuşma modudur (Faz 29). Bilinmesi
-gerekenler:
+Arayüz **tamamen** iki dilli oldu: 24 ekranın ve 12 bileşenin tüm metinleri
+sözlüğe taşındı, komut paleti ve klavye kısayolları eklendi, konuşma modu dile
+uygun sesle konuşur hâle geldi ve erişilebilirlikte ölçülen bir kontrast hatası
+düzeltildi.
 
-| Konu | Devralınan durum |
+| Ölçüm | Değer |
 |---|---|
-| Bundle | **124,9 KB gzip / 250 KB bütçe.** Faz 29 +2,4 KB ekledi; i18n sözlükleri buraya girer |
-| Yeni bileşen | `components/voice-panel.tsx` — mikrofon, ölçer, altyazı, "Send now", "Interrupt", kayıt rozeti. **Tüm metinleri İngilizce sabittir** |
-| Yeni saf modül | `lib/voice.ts` — `microphoneSupport()` kullanıcıya **gösterilen** bir gerekçe metni döndürür; o metin de çevrilmelidir |
-| Yeni ekran metni | Playground'daki mikrofon düğmesi ve `voice-unsupported` uyarısı |
-
-🚨 **Ses seçimi dile bağlıdır.** Türkçe bir yanıt İngilizce bir sesle
-seslendirilirse sonuç anlaşılmaz olur. `VoiceConversationOptions.VoiceId`
-bugün **tek bir ses** taşır; dil başına ses eşlemesi bu fazın işidir. İki yol
-var ve seçim bu fazda yapılmalıdır:
-
-1. `VoiceId`'yi bir sözlüğe çevirmek (`Dictionary<string, string>` dil→ses) —
-   sunucu tarafı değişikliği, `VoiceConversationOptions` kırıcı olmayan bir
-   genişleme
-2. İstemcinin `start` mesajında `voiceId` göndermesi — protokol **zaten
-   destekliyor** (`VoiceClientMessage.VoiceId`), sunucu değişikliği gerekmez;
-   sesi arayüz seçer (`GET /api/voice/voices` ile listelenir)
-
-**Öneri: 2.** Sunucuya dil bilgisi taşımaz ve mevcut protokolü kullanır.
-
-🚨 **`t(...)` çağrısı `voice-panel.tsx` içinde dikkatli kullanılmalıdır.** Panel
-`useCallback` bağımlılık dizileri taşır; `t` fonksiyonu her dil değişiminde yeni
-bir referans olursa `start`/`stop` yeniden kurulur ve **açık bir WebSocket
-bağlantısı kopabilir**. `t`'yi kararlı bir referans olarak dışa açın veya metni
-render sırasında çözün.
+| Sözlük anahtarı | **794** (her biri iki dilde) |
+| Çevrilen dosya | 24 ekran + 12 bileşen + kabuk |
+| Yeni birim testi | 48 (`i18n`, `shortcuts`, `palette`) — toplam frontend testi **141** |
+| Yeni E2E testi | 9 — toplam **41** |
+| Bundle | **151,3 KB gzip / 250 KB bütçe** (Faz 29 sonunda 124,9 KB) |
+| Sunucu değişikliği | **Yok** |
 
 ---
 
-## Neden En Sonda
+## Plandan Sapmalar
 
-i18n'in maliyeti kurulum değil, **bakımdır**: her yeni ekran metni iki dilde
-yazılmak zorundadır. Faz 8–29 arasında yaklaşık on yeni ekran ve yüzlerce yeni
-metin gelir. i18n'i başa koymak, her fazı yavaşlatırdı.
+Planla gerçek arasındaki farklar — ve gerekçeleri:
 
-Karar defterindeki kalem şöyle diyordu:
+### 1. `lib/i18n.ts` değil, `lib/i18n.tsx`
 
-> *"Somut bir çok dilli talep gelirse `lib/` altına sözlük + hook eklenir."*
+Modül bir React bağlamı (`LocaleProvider`) ve iki hook (`useT`, `usePlural`)
+dışa açıyor, dolayısıyla JSX içeriyor. Saf kısımlar (`interpolate`,
+`matchLocale`, `isLocale`, biçimlendiriciler) aynı dosyadadır ve Vitest onları
+Node ortamında test eder; `applyDocumentLocale` bu yüzden `document` yokluğunda
+sessizce geri döner.
 
-Kullanıcı bu talebi verdi. Karar **yeniden açılır**, satır silinmez; sonuna
-"(yeniden açıldı: …)" notu eklenir.
+### 2. `t`'nin kararlı referans olması bir gereksinim değil, **tasarımın merkezi** oldu
+
+Faz dokümanının 🚨 uyarısı ("`t` her dil değişiminde yeni referans olursa açık
+WebSocket kopabilir") çözümü belirledi: `useT()` bağlamı okur ama **modül
+düzeyindeki** `translate` fonksiyonunu döndürür. Böylece `voice-panel.tsx`
+içindeki `start` bağımlılık dizisine `t` girse bile yeniden kurulmaz. Karar
+K-229.
+
+### 3. Bundle hedefi tutmadı — ve DoD'deki hedef zaten imkânsızdı
+
+Plan "+6 KB gzip'ten az" ve "toplam 120 KB gzip altı" diyordu. İkisi de gerçekçi
+değildi:
+
+- Faz 29 **124,9 KB** ile kapanmıştı; "toplam 120 KB altı" bu fazın başlangıç
+  noktasının altındaydı, yani ancak mevcut kod silinerek karşılanabilirdi.
+- "+6 KB" iki küçük sözlük varsayıyordu. Gerçek kapsam 794 anahtar × 2 dildir.
+
+Ölçülen: **+26,4 KB gzip**. Bu artışın tamamı sözlüklerdir — `en.ts` + `tr.ts`
+kaynak hâlde 29,7 KB gzip'tir; i18n çalışma zamanı, komut paleti ve kısayol
+modülü birlikte gürültü seviyesinde kalır. Gerçek kapı olan **250 KB bütçesinin
+%61'i** kullanılmış durumda.
+
+### 4. İki ekranda **hard-coded Türkçe** metin bulundu ve düzeltildi
+
+Bu faz i18n'i kurarken, dilin daha önce iki yerde sızmış olduğu ortaya çıktı:
+
+- `components/charts.tsx` → `const EMPTY_MESSAGE = 'Bu aralıkta çalıştırma yok'`
+  ve iki Türkçe `aria-label`
+- `screens/skills.tsx` → script çalıştırma izni ve script içeriği uyarılarının
+  ikisi de Türkçe sabitti
+
+Üçü de sözlüğe alındı. Bunlar Faz 30'un ürettiği bir hata değil, Faz 30'un
+**görünür kıldığı** bir tutarsızlıktır.
+
+### 5. Durum rozetleri için ikinci bir anahtar kümesi gerekti
+
+Konsolun rozet dili küçük harftir (`code`, `db`, `harness`, `ok`, `done`). Aynı
+durum adı bir `<option>` etiketinde veya sütun başlığında büyük harf ister. Tek
+küme ikisinden birini bozuyordu; `runs.status.*` (rozet, küçük) ile
+`runs.filter.*` (süzgeç/başlık, büyük) ayrıldı. Karar K-233.
+
+### 6. Erişilebilirlik denetimi **gerçek bir hata** buldu
+
+Plan "kontrast WCAG AA (açık ve koyu tema)" diyordu; denetim bir onay kutusu
+değil ölçüm oldu ve iki tema da eşiği karşılamıyordu. Ayrıntı aşağıda.
+
+### 7. Konuşma çözümlemesine dil kodu gönderilmedi
+
+Plan yalnız **seslendirmeyi** dile bağlamayı istiyordu ve o yapıldı. Çözümleme
+(speech-to-text) sağlayıcının dil sezmesine bırakıldı; bilinçli sınır, karar
+K-235.
 
 ---
 
 ## 30.1 — i18n (F-25)
 
-### Kütüphane alınmaz
+### Kütüphane alınmadı (K-228)
 
-`react-i18next` + `i18next` ~15–25 KB gzip'tir ve çoğul kuralları, ad alanları,
-gecikmeli yükleme gibi ihtiyacımız olmayan yetenekler taşır.
+`lib/i18n.tsx` ~150 satırdır ve bir kütüphanenin veremeyeceği bir güvence verir:
 
-Gereken şey ~80 satırdır:
+```ts
+// locales/en.ts — `as const` YOK: tip anahtarları tutar, cümleleri değil.
+export const en = { 'nav.runs': 'Runs', /* … */ };
+export type Messages = typeof en;
 
-```typescript
-// lib/i18n.ts
-type Locale = "en" | "tr";
-type Messages = Record<string, string>;
-
-export function t(key: string, params?: Record<string, string | number>): string;
-export function useLocale(): { locale: Locale; setLocale(next: Locale): void };
+// locales/tr.ts
+export const tr: Messages = { 'nav.runs': 'Çalıştırmalar', /* … */ };
 ```
 
-- Sözlükler `locales/en.ts` ve `locales/tr.ts` — düz nesne, **tip güvenli**:
-  `tr` sözlüğü `typeof en` tipinde olur, eksik anahtar **derleme hatasıdır**
-- Çoğul: `t("runs.count", { n })` için basit `n === 1 ? tekil : çoğul` seçimi.
-  Türkçe ve İngilizce için yeterlidir; daha karmaşık diller gerekirse yeniden
-  değerlendirilir
-- Tarih ve sayı biçimlendirmesi `Intl.DateTimeFormat` / `Intl.NumberFormat` ile —
-  tarayıcıda vardır, paket gerekmez
-- Dil seçimi: `navigator.language` → `localStorage` tercihi → varsayılan `en`
+Eksik anahtar **derleme hatasıdır**. `nav.runs` bilerek silindiğinde:
 
-> **Neden `localStorage`, token `sessionStorage`'dayken (K-047)?** Dil bir sır
-> değildir; kullanıcı tercihi sekmeler arası ve kalıcı olmalıdır.
+```
+src/locales/tr.ts(17,14): error TS2741: Property ''nav.runs'' is missing in type
+'{ … 788 more … }' but required in type '{ … 789 more … }'.
+```
+
+`npm run build` sırası `tsc --noEmit` → `vitest run` → `vite build` olduğu için
+bu kapı `dotnet build`'in içindedir.
+
+### Gerçekleşen public yüzey
+
+```ts
+// lib/i18n.tsx
+export const LOCALES: readonly ['en', 'tr'];
+export type Locale = 'en' | 'tr';
+export type MessageKey = keyof Messages;
+export type PluralKey = /* yalnız _one ve _other'ı BİRLİKTE olan taban anahtarlar */;
+
+export function translate(key: MessageKey, params?: MessageParams): string;
+export function plural(key: PluralKey, n: number, params?: MessageParams): string;
+export function interpolate(template: string, params?: MessageParams): string;
+
+export function isLocale(value: string | null | undefined): value is Locale;
+export function matchLocale(tags: readonly string[]): Locale | null;
+export function detectLocale(): Locale;
+export function readLocalePreference(): Locale | null;
+export function writeLocalePreference(locale: Locale): void;
+export function activeLocale(): Locale;
+export function initialiseLocale(): Locale;      // main.tsx, ilk render'dan önce
+export function applyDocumentLocale(locale: Locale): void;
+
+export function formatNumber(value: number, options?: Intl.NumberFormatOptions): string;
+export function formatDateTime(value: Date, options?: Intl.DateTimeFormatOptions): string;
+export function formatRelative(value: number, unit: Intl.RelativeTimeFormatUnit): string;
+
+export function LocaleProvider(props: { children: ReactNode }): ReactNode;
+export function useLocale(): { locale: Locale; setLocale(next: Locale): void };
+export function useT(): typeof translate;        // 🚨 KARARLI referans (K-229)
+export function usePlural(): typeof plural;
+```
+
+`PluralKey` bir taban anahtarı ancak `_one` **ve** `_other` sürümlerinin ikisi de
+varsa kabul eder; yarısı yazılmış bir çoğul `plural()` çağrısında derleme hatası
+verir.
+
+### Biçimlendirme `Intl` ile
+
+`lib/format.ts` artık dile duyarlıdır: `relativeTime` → `Intl.RelativeTimeFormat`,
+`absoluteTime` → `Intl.DateTimeFormat`, `count`/`percent`/`money` →
+`Intl.NumberFormat`. Türkçe `1.234,5` yazar, İngilizce `1,234.5`; yanlış
+biçimlendirilmiş bir sayı yalnız çirkin değil, **yanlış okunur**.
+
+SI birim simgeleri (`ms`, `s`, `m`) çevrilmez — `duration()` her dilde aynıdır.
 
 ### Kapsam
 
-| Çevrilir | Çevrilmez |
+| Çevrildi | Çevrilmedi |
 |----------|-----------|
-| Arayüz metinleri, düğmeler, başlıklar, boş durum mesajları | Agent adları, tool adları, model adları |
-| Doğrulama ve hata **başlıkları** | Sunucudan gelen hata **detayları** |
-| Tarih/sayı biçimi | JSON yükleri, günlükler |
+| 24 ekranın ve 12 bileşenin tüm metinleri | Agent, tool, model, workflow adları (kimlik) |
+| Doğrulama ve hata **başlıkları** | Sunucudan gelen hata **metinleri** (K-232) |
+| Tarih, sayı, yüzde, para biçimi | Yapılandırma anahtarı adları (`AgentPrism:…`) |
+| `aria-label`, `title`, `placeholder` | MCP prompt'una eklenen başlık (modele giden metin) |
+| Konuşma modunun tüm durumları | SI birim simgeleri, enum tel değerleri |
 
-🚨 **Sunucu yanıtları çevrilmez.** `ProblemDetails` metinleri İngilizce kalır;
-paket NuGet.org'a uluslararası yayınlanır ve API sözleşmesi tek dildir. Arayüz,
-bildiği hata kodları için kendi çevirisini gösterir; bilmediğini olduğu gibi
-yazar.
+### Terim politikası *(kullanıcı kararı)*
 
-### Bütçe
+Depo dokümanlarının kuralı arayüze de uygulandı: `agent`, `tool`, `skill`,
+`workflow`, `token`, `prompt`, `MCP`, `OAuth` İngilizce kalır ve Türkçe eklerini
+kesme işaretiyle alır (`agent'lar`, `tool'lar`). `run` → **çalıştırma**,
+`session` → **oturum** — dokümanların zaten kullandığı karşılıklar.
 
-Hedef: **+6 KB gzip'ten az** (iki sözleşme sözlüğü + altyapı). Ölçüm DoD'ye
-yazılır. Sözlükler büyürse üçüncü bir dil eklenmeden önce gecikmeli yükleme
-değerlendirilir.
+Bir birim testi bunu korur: İngilizce ile birebir aynı kalan 24 anahtarın listesi
+testte açıkça yazılıdır, yani unutulmuş bir çeviri o listeye eklenmeden geçemez.
 
 ---
 
 ## 30.2 — Komut Paleti ve Kısayollar (F-26)
 
-Konsol deneyimini hızlandırır, maliyeti düşüktür.
-
 ### Komut paleti
 
-`Ctrl/Cmd + K` ile açılır. Kaynaklar:
+`Ctrl/Cmd + K`. Kaynaklar: gezinme, agent'lar (aç / Playground'da çalıştır),
+workflow'lar, son 50 çalıştırma (kimliğin ilk karakterleriyle), eylemler
+(yeni agent, yeni workflow, temayı değiştir, dili değiştir, kısayol yardımı).
 
-| Kaynak | Örnek |
-|--------|-------|
-| Gezinme | "Runs", "Agents", "Dashboard" |
-| Agent'lar | Ada göre arama → agent detayına git |
-| Çalıştırmalar | Kimliğin ilk 8 karakteri ile doğrudan gitme |
-| Eylemler | "Yeni agent", "Playground'da çalıştır", "Temayı değiştir", "Dili değiştir" |
-
-- Bulanık (fuzzy) eşleme ~40 satır; kütüphane alınmaz
-- Sonuçlar **yetkiye göre** filtrelenir (Faz 9): Reader "Yeni agent" görmez
-- Erişilebilirlik: `role="dialog"`, odak tuzağı, `Esc` ile kapanma, ok tuşlarıyla
-  gezinme, `aria-activedescendant`
+- Bulanık eşleme `lib/palette.ts` içinde ~40 satır saf mantıktır: alt dizi
+  puanlaması, bitişik eşleşmeye ve kelime başına bonus, kısa etikete öncelik,
+  eşitlikte bildirim sırası korunur (yazarken liste zıplamaz)
+- Katalog sorguları **yalnız palet açıkken** koşar (K-238)
+- Komutlar **role göre** süzülür: Reader "Yeni agent" görmez
+- Erişilebilirlik: `role="dialog"` + `aria-modal`, `role="combobox"` girdi,
+  `role="listbox"`/`option` liste, `aria-activedescendant` ile klavye seçimi,
+  `Esc` ile kapanma, Tab girdide kilitli (odak tuzağı)
 
 ### Kısayollar
 
-| Kısayol | Eylem |
-|---------|-------|
-| `Ctrl/Cmd + K` | Komut paleti |
-| `g` sonra `a` / `r` / `s` / `d` | Agents / Runs / Sessions / Dashboard |
-| `/` | Geçerli listede aramaya odaklan |
-| `Ctrl/Cmd + Enter` | Playground'da çalıştır |
-| `Esc` | Açık katmanı kapat |
-| `?` | Kısayol yardımı |
+| Kısayol | Eylem | Metin alanında |
+|---------|-------|----------------|
+| `Ctrl/Cmd + K` | Komut paleti | ✅ çalışır |
+| `Esc` | Açık katmanı kapat | ✅ çalışır |
+| `g` sonra `a` / `r` / `s` / `d` / `w` / `p` | Agents / Runs / Sessions / Dashboard / Workflows / Playground | ❌ |
+| `/` | Bu ekrandaki arama kutusuna odaklan | ❌ |
+| `?` | Kısayol yardımı | ❌ |
+| `Ctrl/Cmd + Enter` | Playground'da promptu gönder | **yerel** — `textarea` üzerinde |
 
-Kurallar:
-
-- Bir metin alanına yazarken kısayol **tetiklenmez** (`input`, `textarea`,
-  `contenteditable` denetimi)
-- Tarayıcının kendi kısayolları ezilmez
-- Tümü tek bir `lib/shortcuts.ts` içinde toplanır ve Vitest ile test edilir
+`lib/shortcuts.ts` saf mantıktır ve 18 birim testiyle korunur. Sıra öneki
+(`g`) 1,2 saniyede zaman aşımına uğrar ve **metin alanında hiç kurulmaz** —
+kurulsaydı sonraki harfi yutardı (K-237).
 
 ---
 
-## 30.3 — Ek Erişilebilirlik Denetimi
+## 30.3 — Erişilebilirlik Denetimi
 
-Bu faz arayüze son kez toplu dokunuştur; birikmiş küçük eksikler burada kapanır:
+Denetim bir onay kutusu değil ölçüm oldu ve **gerçek bir hata buldu**:
 
-- Tüm etkileşimli öğelerde klavye erişimi ve görünür odak halkası
-- Renk kontrastı WCAG AA (açık ve koyu tema)
-- SSE ile akan içerik için `aria-live="polite"`
-- Grafiklerde (Faz 20) metin alternatifi
-- `lang` niteliği seçilen dile göre güncellenir
+| Değişken | Eski | Ölçülen | Yeni | Ölçülen |
+|---|---|---|---|---|
+| `--ap-subtle` (açık) | `#8e8e9d` | 3,23:1 ❌ | `#6b6b79` | 5,24:1 ✅ |
+| `--ap-subtle` (koyu) | `#6e6e80` | 3,79:1 ❌ | `#85859a` | 5,25:1 ✅ |
+| `--ap-muted` (açık) | `#61616f` | 6,09:1 ✅ | `#55555f` | 7,37:1 ✅ |
+
+`subtle` ve `muted` 11–12 px'te kullanılıyor — WCAG için **normal boy** metin,
+yani eşik 4,5:1. Eski değerler her iki temada da altındaydı. `muted` zaten
+geçiyordu ama `subtle` koyulaşınca aradaki görsel basamak kaybolacağı için o da
+koyulaştırıldı. Ölçüm `raised` zeminde de yapıldı (alt metin iki zeminde de
+yaşıyor); `styles.css` içinde 🚨 notu ve eşikler yazılıdır.
+
+Diğerleri:
+
+- Odak halkası zaten global (`:focus-visible`, `outline: 2px solid accent`) —
+  değişiklik gerekmedi
+- `aria-live="polite"` eklendi: Playground turu (`aria-busy` ile), çalıştırma
+  dökümü, workflow çıktısı, konuşma durumu ve konuşma dökümü, `Loading`
+  (`role="status"`)
+- `ErrorNote` → `role="alert"`
+- Grafiklerin metin alternatifi vardı; `aria-label`'ları da çevrildi
+- `<html lang>` dil değişiminde güncellenir ve ilk boyamadan **önce** yazılır
+- Gezinme `<nav aria-label>` aldı (mobil ve masaüstü iki kopya vardı)
+
+---
+
+## 30.4 — Konuşma Modu Dile Bağlandı
+
+🚨 Türkçe bir yanıtı İngilizce bir sesle seslendirmek sonucu anlaşılmaz kılar.
+Ama sağlayıcı bir sesin **hangi dili konuştuğunu bildirmez**: `VoiceDescriptor`
+yalnız `VoiceId`, `Name`, `Category` taşır. Eşleme türetilemez, kurulur.
+
+Seçilen yol (K-234) — **sunucuda değişiklik yok**:
+
+1. Ayarlar → **Sesler** paneli, `GET /api/voice/voices` ile dolar ve dil başına
+   bir ses seçtirir. Ses sağlayıcısı yapılandırılmamışsa panel kendini gizler
+   (örnek uygulamada uç 500 döner; panel `retry: false` ile sessizce yok olur).
+2. Seçim `localStorage`'da `agentprism.voice.<dil>` anahtarında durur.
+3. `voice-panel.tsx` `start` çerçevesinde `voiceId` gönderir.
+   `VoiceClientMessage.VoiceId` bunu Faz 29'dan beri kabul ediyordu.
+
+Çözümleme dil kodu almaz; sağlayıcı dili sezer (K-235).
+
+---
+
+## Gerçekleşen Dosyalar
+
+**Yeni**
+
+```
+src/AgentPrism.UI/frontend/src/
+├── lib/
+│   ├── i18n.tsx              # ~280 satır: sözlük, t, plural, Intl, provider, hooklar
+│   ├── i18n.test.ts          # 16 test — biri iki sözlüğü karşılıklı denetler
+│   ├── shortcuts.ts          # ~150 satır saf kısayol eşleme
+│   ├── shortcuts.test.ts     # 18 test
+│   ├── palette.ts            # ~90 satır bulanık eşleme
+│   └── palette.test.ts       # 14 test
+├── locales/
+│   ├── en.ts                 # 794 anahtar; `Messages` tipinin kaynağı
+│   └── tr.ts                 # `tr: Messages` — eksik anahtar derleme hatası
+└── components/
+    └── command-palette.tsx   # CommandPalette + ShortcutHelp
+```
+
+**Değişen** — kabuk (`main`, `app`, `layout`, `access-gate`, `ui`, `icons`,
+`format`, `styles.css`, `voice`), 24 ekranın tamamı, 11 bileşen,
+`tests/AgentPrism.Ui.E2ETests/UiTests.cs`.
 
 ---
 
 ## Testler
 
-| Proje | Yeni test |
-|-------|-----------|
-| Frontend (Vitest) | `t()` yer tutucu değiştirme; eksik anahtar davranışı; çoğul; kısayol ayrıştırma; metin alanında kısayol **tetiklenmemesi**; bulanık eşleme sıralaması |
-| TypeScript derlemesi | `tr` sözlüğünde eksik anahtar **derlemeyi kırar** (tip düzeyinde kanıt) |
-| `AgentPrism.Ui.E2ETests` | Dil değişimi ve kalıcılığı; komut paleti ile gezinme; `g a` kısayolu; rol bazlı komut filtresi |
+| Proje | Yeni | Neyi doğrular |
+|-------|------|---------------|
+| Vitest `i18n.test.ts` | 16 | Yer tutucu değiştirme, bilinmeyen yer tutucunun **görünür kalması**, `tr-TR` → `tr` eşlemesi; iki sözlüğün aynı anahtar kümesi ve **aynı yer tutucuları** taşıması; her `_one`'ın bir `_other` kardeşi olması; İngilizce ile birebir aynı kalan 24 anahtarın açık listede olması |
+| Vitest `shortcuts.test.ts` | 18 | Ctrl/Cmd birleşmesi, sıra zaman aşımı, başarısız sıradan sonra önekin **kalmaması**, metin alanında plain-harf kısayolun ve sıra önekinin **tetiklenmemesi**, `insideText` bağlamalarının yine ateşlemesi |
+| Vitest `palette.test.ts` | 14 | Alt dizi eşleme ve reddi, bitişik/kelime başı bonusu, boş sorguda bildirim sırası, gizli anahtar kelimeyle eşleşme, kimlik önekiyle çalıştırma bulma |
+| Vitest `format.test.ts` | (güncellendi) | `Intl` çıktıları: `12 sec. ago`, `4 min. ago`, `3 days ago`; saat kaymasında `now` |
+| **TypeScript** | — | `tr` sözlüğünde eksik anahtar → `TS2741` (kanıt yukarıda) |
+| E2E `UiTests.cs` | 9 | Tarayıcı diline göre açılış (`tr-TR` → Türkçe + `lang="tr"`), İngilizce tarayıcıda İngilizce kalma, dil değişimi + yeniden yüklemede kalıcılık + Ayarlar seçicisinin uyumu, Türkçe arayüzde sunucu hatasının **çevrilmeden** gösterilmesi, palet ile gezinme, `Esc` ile kapanma, rol bazlı komut süzgeci, `g a` kısayolu, metin alanında kısayolun tetiklenmemesi, `?` yardımı |
 
----
-
-## Bu Fazda Verilecek Kararlar
-
-1. **i18n kararı yeniden açıldı** — karar defterindeki satır silinmez, not eklenir.
-2. **i18n kütüphanesi alınmadı** — elle sözlük + hook (K-045 gerekçesi).
-3. **Sözlükler tip güvenlidir** — eksik çeviri derleme hatasıdır.
-4. **Sunucu yanıtları çevrilmez** — API sözleşmesi tek dildir.
-5. **Dil tercihi `localStorage`'da** — sır değildir (K-047 ile çelişmez).
-
----
-
-## Açık Sorular
-
-1. **Varsayılan dil ne olsun?** `navigator.language` Türkçe ise Türkçe açmak
-   doğal; ama ekran görüntüleri ve destek İngilizce. Öneri: **tarayıcı dilini
-   kullan**, ilk açılışta dil değiştirme ipucu göster.
-2. **Türkçe teknik terimler çevrilsin mi?** ("run" → "çalıştırma", "tool" →
-   "araç"?) Öneri: **arayüz metni çevrilir, teknik terimler
-   korunur** — `tool`, `agent`, `token` olduğu gibi kalır; depo dokümanlarının
-   kuralı budur.
-3. **Üçüncü bir dil beklensin mi?** Öneri: mimari destekler ama **eklenmez**;
-   talep gelirse eklenir.
-4. **Komut paleti sunucu tarafı arama yapsın mı?** Büyük kataloglarda istemci
-   tarafı arama yetmez. Öneri: **v1 istemci tarafı**, katalog 200 kaydı aşarsa
-   sunucu araması eklenir.
+Frontend **141** test (10 dosya), E2E **41** test — hepsi yeşil.
 
 ---
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Arayüz Türkçe ve İngilizce çalışıyor; dil tercihi kalıcı
-- [ ] Eksik çeviri **derlemeyi kırıyor** (kanıt: bilerek eksik bırakılan
-      anahtarla derleme hatası)
-- [ ] Komut paleti çalışıyor; rol bazlı filtreleme doğru
-- [ ] **Konuşma modu iki dilde çalışıyor** ve seslendirme dile uygun sesle yapılıyor
-- [ ] Kısayollar çalışıyor ve metin alanlarında tetiklenmiyor
-- [ ] Klavye ile tüm ekranlar gezilebiliyor; odak görünür
-- [ ] Bundle ölçüldü ve bütçe içinde (hedef: toplam **120 KB gzip altı**)
-- [ ] Dört doğrulama kapısı sıfır uyarı
+| Ölçüt | Durum |
+|---|---|
+| Arayüz Türkçe ve İngilizce çalışıyor; dil tercihi kalıcı | ✅ 794 anahtar; E2E yeniden yüklemede kalıcılığı doğruluyor |
+| Eksik çeviri **derlemeyi kırıyor** | ✅ Kanıt: `nav.runs` silinince `TS2741`, `npm run build` içindeki `tsc --noEmit` durur |
+| Komut paleti çalışıyor; rol bazlı filtreleme doğru | ✅ E2E: Admin policy reddedilince "New agent" komutu paletten kayboluyor |
+| **Konuşma modu iki dilde çalışıyor**, seslendirme dile uygun sesle | ✅ Dil başına ses Ayarlar'da seçilir, `start` çerçevesinde gönderilir (K-234). ⚠️ Gerçek bir ses sağlayıcısıyla **elle** doğrulanmadı: örnek uygulamada `AgentPrism:Voice` yapılandırılmamış (`/api/voice/voices` → 500) ve E2E sahte sentezleyici kullanıyor. Doğrulanan: panelin sağlayıcısız gizlenmesi ve `voiceId`'nin protokolde taşınması |
+| Kısayollar çalışıyor ve metin alanlarında tetiklenmiyor | ✅ 18 birim + 3 E2E testi |
+| Klavye ile tüm ekranlar gezilebiliyor; odak görünür | ✅ Global `:focus-visible`; palet odak tuzağı ve `aria-activedescendant` ile |
+| Bundle ölçüldü ve bütçe içinde | ✅ **151,3 KB / 250 KB**. ❌ Plandaki "toplam 120 KB altı" hedefi **karşılanmadı ve karşılanamazdı** — faz 124,9 KB'den başlıyordu. Gerekçe "Plandan Sapmalar §3" |
+| Dört doğrulama kapısı sıfır uyarı | ✅ build / pack / format temiz. `dotnet test`: **1847 başarılı**, 223 başarısız — hepsi `AgentPrism.SqlServer.IntegrationTests`, `mssql/server` konteyneri bu makinede hiç ayağa kalkmıyor ([23-SQL-SERVER.md](23-SQL-SERVER.md)'de kayıtlı, bu fazdan bağımsız) |
 
 ---
 
-## Riskler
+## Bu Fazda Verilen Kararlar
 
-| Risk | Önlem |
-|------|-------|
-| Çeviri bakımı yükü | Tip güvenli sözlük; eksik anahtar derlemede yakalanır |
-| Bundle büyümesi | Kütüphane yok; ölçüm DoD'de |
-| Kısayol çakışması | Metin alanı denetimi; tarayıcı kısayolları ezilmez |
-| Çeviri kalitesi | Türkçe metinler ASD-STE100 sadeliğinde yazılır; teknik terim korunur |
-| Sonraki fazlar çeviriyi unutur | Eksik anahtar derlemeyi kırdığı için **unutulamaz** |
+| No | Karar |
+|----|-------|
+| K-228 | i18n kütüphanesi alınmadı; `lib/i18n.tsx` elle yazıldı — eksik anahtar derleme hatası |
+| K-229 | `t` modül düzeyindedir, kimliği hiç değişmez (açık WebSocket'i korur) |
+| K-230 | Dil tercihi `localStorage`'da; token `sessionStorage`'da kalır |
+| K-231 | Varsayılan dil tarayıcıdan gelir — E2E testleri dili sabitlemek zorundadır |
+| K-232 | Sunucu yanıtları çevrilmez; API sözleşmesi tek dillidir |
+| K-233 | Rozet küçük harf, süzgeç/başlık büyük harf: iki anahtar kümesi |
+| K-234 | Dil başına ses eşlemesi istemcide; protokol zaten taşıyordu |
+| K-235 | Konuşma çözümlemesine dil kodu gönderilmez |
+| K-236 | `--ap-subtle` / `--ap-muted` WCAG AA'ya göre düzeltildi |
+| K-237 | Kısayol metin alanında tetiklenmez; `Ctrl+Enter` yereldir |
+| K-238 | Komut paleti istemci tarafında arar |
+
+Faz dokümanının "Açık Sorular" bölümündeki dördü de kullanıcıya soruldu ve
+önerilen seçenekler onaylandı: tarayıcı dili, terimlerin korunması, istemci
+tarafı `voiceId`, istemci tarafı arama. Üçüncü dil **eklenmedi**; mimari
+destekliyor.
 
 ---
 
 ## Sonraki Faza Devir Notu
 
-- Bu faz ikinci faz planının **son** kalemidir. Bundan sonrası ya
-  [Faz 7 (yayın)](07-SAGLAMLASTIRMA-VE-YAYIN.md) ya da yeni bir beyin fırtınası
-  turudur.
-- i18n açıldıktan sonra **yeni her ekran iki dilde yazılır**. Bu kural
-  `AGENTS.md`'ye ve `faz-tamamlama` skill'ine eklenmelidir.
-- Bundle bütçesi bu noktada gözden geçirilmelidir: 250 KB sınırının ne kadarı
-  kullanıldı, kalan pay yeni ekranlar için yeterli mi?
+Bu faz ikinci faz turunun **son** kalemidir. Üçüncü tur adayları:
+[`UCUNCU-FAZ-ADAYLARI.md`](UCUNCU-FAZ-ADAYLARI.md). Ayrıca
+[Faz 7 (yayın)](07-SAGLAMLASTIRMA-VE-YAYIN.md) hâlâ beklemededir (K-068).
+
+🚨 **Bundan sonra her yeni ekran metni iki dilde yazılır.** Unutulamaz: eksik
+anahtar derlemeyi kırar. Kural `AGENTS.md`'ye ve `faz-tamamlama` skill'ine
+eklendi.
+
+🚨 **Metin üzerine iddia kuran her E2E testi dili sabitlemek zorundadır.**
+`Session.OpenAsync` varsayılanı `en-US`'tir. Bu unutulursa test, çalıştıran
+makinenin sistem diline bağlanır ve başka bir bilgisayarda kırılır (K-231).
+
+🚨 **İki mesaj birbirinin öneki olmamalıdır.** Playwright'ın `GetByText` çağrısı
+alt dizi eşler; `charts.noRuns` ("No run in this window") ile
+`dashboard.noRunsInWindow` ("No run in this window yet.") çakıştı ve testi strict
+mode ihlaliyle kırdı. İkincisi yeniden yazıldı.
+
+**Açık uçlar:**
+
+- **Bundle bütçesi gözden geçirilmelidir.** 151,3 KB / 250 KB — %61 kullanıldı,
+  ~99 KB pay kaldı. Üçüncü bir dil kabaca +13 KB gzip getirir. Dördüncü dilden
+  önce sözlüklerin gecikmeli yüklenmesi değerlendirilmelidir; bugün gerekmiyor.
+- **Konuşma modu gerçek bir ses sağlayıcısıyla elle denenmedi** (yukarıdaki DoD
+  satırı). Ses yapılandırması olan bir kurulumda ilk iş bu olmalıdır.
+- **Çözümleme dili gönderilmiyor** (K-235). Sağlayıcının sezmesi yanlış dil
+  üretirse `VoiceClientMessage`'a `language` eklenir — tip `internal`, kırıcı
+  değil.
+- **`DependencyDirectionTests.AllowedReferences` hâlâ `AgentPrism.SqlServer`,
+  `AgentPrism.Sqlite` ve `AgentPrism.Sql.Shared` paketlerini içermiyor**
+  (Faz 23/24'ten kalan boşluk; 26, 27, 28, 29 ve 30'da da açıktı).
+- **`AttachmentTypeGuard` EBML (WebM) imzasını tanımaz** (Faz 29'dan devrediyor).
+- **`ISpeechTranscriber` tek atımlıdır** (K-226); artımlı transkript ayrı bir
+  arayüz ister.
+- **Depoda senkronizasyon kopyaları oluşabiliyor.** Bu fazda
+  `wwwroot/assets/index-….css 2.br` gömülü varlık listesini kirletti ve arayüz
+  hiç yüklenmedi; `dotnet build` yeşildi. Belirti: sayfa boş, konsolda 404.
+  Çözüm `find src -name "* 2.*" -delete`. Not `MEMORY.md`'de.

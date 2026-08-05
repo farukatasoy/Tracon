@@ -63,6 +63,11 @@ Bunlar alana bağlı değildir; her fazda tekrar tekrar bedel ödettiler.
   o kaydı içeren **liste ucunun tamamı** çöker. Yeni bir kayıt üreten her kod
   yolunda zorunlu olmayan alanları da doldurun. Ayrıntı:
   `docs/hafiza/cekirdek-calistirma.md`.
+- **🚨 Senkronizasyon kopyaları (`<ad> 2.<uzantı>`) sessizce zehirler.** Faz 30'da
+  `wwwroot/assets/index-….css 2.br` gömülü varlık listesine karıştı; `dotnet build`
+  **yeşildi** ama arayüz hiç yüklenmedi (boş sayfa, konsolda 404) ve bir E2E testi
+  30 sn zaman aşımıyla düştü. `.cs` kopyaları ayrıca CS0101 yağmuru üretir.
+  Denetim: `find src -name "* 2.*"` — çıktı boş olmalıdır.
 - **Bash'te `cd` kalıcıdır.** Bir komutta dizin değiştirdiysen sonraki komut orada
   başlar. Doğrulama komutlarında **mutlak yol** kullan.
 - **`dotnet test` MTP'dir, VSTest değil.** `--filter-query` bir MSBuild anahtarı

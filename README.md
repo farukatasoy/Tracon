@@ -2,9 +2,9 @@
 
 **Microsoft Agent Framework için üretim seviyesi agent kontrol düzlemi.**
 
-AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Projesine ekleyen geliştirici kendi AI harness'ini kolay ama esnek şekilde kurar ve `/agentprism` arayüzünden yönetir.
+AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici kendi AI harness'ini kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 29 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; geri alınamaz tool'lar onay bekler; tool'lar uzak MCP sunucularından gelebilir (prompts, resources, OAuth); workflow'lar insanla konuşabilir; işler zamanlanabilir; sürümler A/B karşılaştırılabilir; kullanım kotayla sınırlanabilir; olaylar imzalı webhook'larla yayılabilir; eski veri politikayla arşivlenip silinebilir (varsayılan **hiçbir şey silinmez**). `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu uçları ve gömülü arayüzü tek prefix altına bağlar. Veritabanı **zorunlu değildir** (PostgreSQL · SQL Server · SQLite · bellek içi). Model satıcısı da değil: OpenAI, uyumlu uçlar, **Anthropic**, **Google** ve **Azure OpenAI** birlikte çalışır. Kullanıcı **konuşabilir**: mikrofon → transkript → normal çalıştırma → sesli yanıt, kesilebilir (`UseVoiceConversation()`). Sıradaki faz: 30 (arayüz cilası).
+> **Durum:** Faz 30 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; riskli tool'lar onay bekler; tool'lar uzak MCP sunucularından gelebilir; workflow'lar insanla konuşabilir; işler zamanlanabilir; sürümler A/B karşılaştırılabilir; kullanım kotayla sınırlanabilir; olaylar imzalı webhook'larla yayılabilir; eski veri politikayla arşivlenip silinebilir (varsayılan **hiçbir şey silinmez**). `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu uçları ve gömülü arayüzü tek prefix altına bağlar. Veritabanı **zorunlu değildir** (PostgreSQL · SQL Server · SQLite · bellek içi); model satıcısı da değil (OpenAI, uyumlu uçlar, **Anthropic**, **Google**, **Azure OpenAI**). Kullanıcı **konuşabilir**: mikrofon → transkript → çalıştırma → sesli yanıt, kesilebilir (`UseVoiceConversation()`). Konsol **iki dillidir** (İngilizce · Türkçe), komut paleti ve kısayollarla. İkinci tur (Faz 8–30) bitti; sıradaki tur [adaylardan](docs/UCUNCU-FAZ-ADAYLARI.md) seçilir.
 
 ```csharp
 builder.AddAgentPrism()
@@ -260,7 +260,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [18](docs/18-DEGERLENDIRME.md) | Değerlendirme (eval): takım/vaka/koşu, Faz 17'nin iş kuyruğu üzerinde, Evals ekranı | ✅ Tamamlandı |
 | [19](docs/19-SURUM-KARSILASTIRMA-VE-AB.md) | Sürüm karşılaştırma (diff) ve A/B deneyleri: oturum bazlı deterministik trafik bölme, Experiments ekranı | ✅ Tamamlandı |
 | [20](docs/20-MALIYET-VE-GOSTERGE-PANELI.md) | Maliyet raporlaması ve gösterge paneli: fiyat kataloğu/yapılandırması, Dashboard giriş ekranı | ✅ Tamamlandı |
-| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | Faz 29 tamam — sıradaki Faz 30 (arayüz cilası) |
+| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | ✅ Tamamı bitti; sıradaki tur [adaylardan](docs/UCUNCU-FAZ-ADAYLARI.md) seçilir |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 

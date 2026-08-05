@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { count, latencyText, relativeTime } from '../lib/format';
+import { useT, type MessageKey } from '../lib/i18n';
 import { Link } from '../lib/router';
 import type { ModelProviderHealth, ModelProviderHealthStatus } from '../lib/types';
 import {
@@ -25,14 +26,15 @@ const STATUS_TONE: Record<ModelProviderHealthStatus, 'neutral' | 'success' | 'wa
   Unhealthy: 'danger',
 };
 
-const STATUS_LABEL: Record<ModelProviderHealthStatus, string> = {
-  Unknown: 'unknown',
-  Healthy: 'healthy',
-  Degraded: 'degraded',
-  Unhealthy: 'unhealthy',
+const STATUS_LABEL: Record<ModelProviderHealthStatus, MessageKey> = {
+  Unknown: 'models.status.unknown',
+  Healthy: 'models.status.healthy',
+  Degraded: 'models.status.degraded',
+  Unhealthy: 'models.status.unhealthy',
 };
 
 function HealthBadge({ health }: { health: ModelProviderHealth | undefined }): ReactNode {
+  const t = useT();
   const status = health?.status ?? 'Unknown';
 
   return (
@@ -40,11 +42,14 @@ function HealthBadge({ health }: { health: ModelProviderHealth | undefined }): R
       tone={STATUS_TONE[status]}
       title={
         status === 'Unknown'
-          ? 'This provider does not implement the health-check contract.'
-          : `Checked ${relativeTime(health?.checkedAt)}${health?.latency ? ` in ${latencyText(health.latency)}` : ''}`
+          ? t('models.noHealthContract')
+          : t('models.checkedAt', {
+              when: relativeTime(health?.checkedAt),
+              latency: health?.latency ? latencyText(health.latency) : '—',
+            })
       }
     >
-      {STATUS_LABEL[status]}
+      {t(STATUS_LABEL[status])}
     </Badge>
   );
 }
@@ -63,6 +68,7 @@ function HealthBadge({ health }: { health: ModelProviderHealth | undefined }): R
  * A provider that does not implement the check reports "unknown", not an error.
  */
 export function ModelsScreen(): ReactNode {
+  const t = useT();
   const client = useQueryClient();
 
   const providers = useQuery({ queryKey: ['models'], queryFn: api.models });
@@ -92,8 +98,8 @@ export function ModelsScreen(): ReactNode {
   return (
     <>
       <PageHeader
-        title="Models"
-        description="Providers registered in the host application, the models configured for them, and whether they are reachable."
+        title={t('nav.models')}
+        description={t('models.description')}
       />
 
       {providers.isPending && <Loading />}
@@ -101,10 +107,9 @@ export function ModelsScreen(): ReactNode {
 
       {providers.isSuccess && providers.data.length === 0 && (
         <Panel>
-          <Empty title="No providers registered">
-            Register one in code, for example with <Mono>UseOpenAI(apiKey)</Mono> or{' '}
-            <Mono>UseOpenAICompatible(name, ...)</Mono>. Without a provider an agent definition
-            cannot be compiled.
+          <Empty title={t('models.empty.title')}>
+            {t('models.empty.body')} <Mono>UseOpenAI(apiKey)</Mono> /{' '}
+            <Mono>UseOpenAICompatible(name, ...)</Mono>. {t('models.empty.note')}
           </Empty>
         </Panel>
       )}
@@ -127,9 +132,9 @@ export function ModelsScreen(): ReactNode {
                 <Button
                   onClick={() => checkNow.mutate(provider.name)}
                   busy={checkNow.isPending && checkNow.variables === provider.name}
-                  title="Check connectivity now instead of waiting for the cached result to expire."
+                  title={t('models.checkNowTitle')}
                 >
-                  Check now
+                  {t('models.checkNow')}
                 </Button>
               }
             >
@@ -140,21 +145,18 @@ export function ModelsScreen(): ReactNode {
               )}
 
               {provider.models.length === 0 ? (
-                <Empty title="No models configured">
-                  This is not an error. Add names under{' '}
-                  <Mono>AgentPrism:Providers:OpenAI:Models</Mono> (or the matching
-                  <Mono>OpenAICompatible:{'{name}'}</Mono> section) in configuration to see them
-                  here. A model that is missing from this list can still be used — the catalogue
-                  does not validate names.
+                <Empty title={t('models.noModels.title')}>
+                  {t('models.noModels.body')} <Mono>AgentPrism:Providers:OpenAI:Models</Mono>.{' '}
+                  {t('models.noModels.note')}
                 </Empty>
               ) : (
                 <Table>
                   <thead>
                     <tr>
-                      <Th>Model</Th>
-                      <Th>Context</Th>
-                      <Th>Max output</Th>
-                      <Th>Capabilities</Th>
+                      <Th>{t('common.model')}</Th>
+                      <Th>{t('models.context')}</Th>
+                      <Th>{t('models.maxOutput')}</Th>
+                      <Th>{t('models.capabilities')}</Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -186,12 +188,11 @@ export function ModelsScreen(): ReactNode {
       </div>
 
       <p className="mt-4 text-[11px] text-subtle">
-        Runs record which model answered; token and cost use per model is on the{' '}
+        {t('models.footerBefore')}{' '}
         <Link to="dashboard" className="text-accent hover:underline">
-          Dashboard
+          {t('nav.dashboard')}
         </Link>
-        . Cost only shows once a price is configured (providers do not publish machine-readable
-        pricing) — see <Mono>AgentPrism:Pricing</Mono>.
+        . {t('models.footerAfter')} <Mono>AgentPrism:Pricing</Mono>.
       </p>
     </>
   );

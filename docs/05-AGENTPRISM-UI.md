@@ -156,7 +156,8 @@ arayüz kendi kimlik biçimini uydurmaz.
 src/AgentPrism.UI/
 ├── frontend/                          (Vite kaynagi, git'te tutulur)
 │   ├── src/
-│   │   ├── lib/        api · sse · router · transcript · format · theme · auth · base
+│   │   ├── lib/        api · sse · router · transcript · format · theme · auth · base · i18n · shortcuts · palette
+│   │   ├── locales/    en.ts (anahtar kümesinin kaynağı) · tr.ts (`Messages` tipini karşılar)
 │   │   ├── components/ ui · layout · icons · transcript · access-gate
 │   │   ├── screens/    agents · agent-detail · agent-editor · playground
 │   │   │               sessions · session-detail · runs · run-detail
@@ -604,15 +605,17 @@ zaman çizelgesinin yanına bir sütun olarak eklenebilir. Olay hue'ları
 yapılandırıldığında maliyeti gösterir. Settings ekranındaki "Token use by model"
 paneli artık yalnız hızlı bakış içindir ve Dashboard'a işaret eder.
 
-**5. Arayüz dili İngilizce, i18n altyapısı yoktur.** Çok dilli destek istenirse
-`lib/` altına küçük bir sözlük + hook eklenir; metinler bugün bileşenlerin içinde
-sabittir.
+**5. ~~Arayüz dili İngilizce, i18n altyapısı yoktur.~~ — geçersiz (Faz 30).**
+Arayüz 2026-08-05'ten beri **iki dillidir**: her metin `locales/en.ts` ve
+`locales/tr.ts` sözlüklerinden gelir, bileşenler `useT()` kullanır ve eksik bir
+anahtar **derlemeyi kırar** (K-228). Ayrıntı: [`30-ARAYUZ-CILASI.md`](30-ARAYUZ-CILASI.md),
+tuzaklar: [`hafiza/frontend.md`](hafiza/frontend.md).
 
 **6. Frontend testleri `npm run build` içindedir.** Yeni bir saf mantık modülü
 yazarken testini de yazın; `dotnet build` onu koşar ve kırılırsa .NET derlemesi de kırılır.
 
-**7. Bundle bütçesinde 162 KB boşluk var** (88,1 / 250 KB). Faz 6'nın waterfall
-görüntüleyicisi ve grafikleri bu boşluğa sığmalıdır. Kapı `postbuild.mjs` içindedir.
+**7. Bundle bütçesinde ~99 KB boşluk var** (151,3 / 250 KB — Faz 30 ölçümü;
+bu satır yazıldığında 88,1 KB idi). Kapı `postbuild.mjs` içindedir.
 
 **8. `IAgentPrismUiProvider` tek metotlu kalmalıdır.** Arayüz paketi kendi paketleme
 biçimini değiştirebilsin diye böyle tasarlandı; yeni metot eklemek bu esnekliği

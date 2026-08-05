@@ -254,6 +254,27 @@ export const MicIcon = ({ className }: IconProps): ReactNode => (
   </Icon>
 );
 
+export const SearchIcon = ({ className }: IconProps): ReactNode => (
+  <Icon className={className}>
+    <circle cx="11" cy="11" r="6" />
+    <path d="M20 20l-4.5-4.5" />
+  </Icon>
+);
+
+export const LanguageIcon = ({ className }: IconProps): ReactNode => (
+  <Icon className={className}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18" />
+  </Icon>
+);
+
+export const KeyboardIcon = ({ className }: IconProps): ReactNode => (
+  <Icon className={className}>
+    <rect x="2.5" y="6" width="19" height="12" rx="2" />
+    <path d="M7 10h.01M11 10h.01M15 10h.01M8 14h8" />
+  </Icon>
+);
+
 export const StopIcon = ({ className }: IconProps): ReactNode => (
   <Icon className={className}>
     <rect x="6" y="6" width="12" height="12" rx="2" />

@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { absoluteTime, relativeTime, prettyJson } from '../lib/format';
+import { useT } from '../lib/i18n';
 import {
   Badge,
   CodeBlock,
@@ -32,6 +33,7 @@ const EMPTY_FILTERS = { actor: '', action: '', entity: '' };
  * approval rules, and tool approval decisions.
  */
 export function AuditScreen(): ReactNode {
+  const t = useT();
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -48,27 +50,27 @@ export function AuditScreen(): ReactNode {
   return (
     <>
       <PageHeader
-        title="Audit"
-        description="Who changed agent definitions, MCP servers, tenants, and approval rules — and when. Read only."
+        title={t('nav.audit')}
+        description={t('audit.description')}
       />
 
-      <Panel title="Filter" className="mb-4">
+      <Panel title={t('audit.filter')} className="mb-4">
         <div className="grid gap-3 p-4 sm:grid-cols-3">
-          <Field label="Actor">
+          <Field label={t('audit.actor')}>
             <TextInput
               value={filters.actor}
-              placeholder="user-id or claim value"
+              placeholder={t('audit.actorPlaceholder')}
               onChange={(event) => setFilters({ ...filters, actor: event.target.value })}
             />
           </Field>
-          <Field label="Action" hint="Example: agent.update, mcp.delete">
+          <Field label={t('audit.action')} hint={t('audit.actionHint')}>
             <TextInput
               value={filters.action}
               placeholder="agent.update"
               onChange={(event) => setFilters({ ...filters, action: event.target.value })}
             />
           </Field>
-          <Field label="Entity" hint="Example: agent:support">
+          <Field label={t('audit.entity')} hint={t('audit.entityHint')}>
             <TextInput
               value={filters.entity}
               placeholder="agent:support"
@@ -84,18 +86,15 @@ export function AuditScreen(): ReactNode {
 
         {entries.isSuccess &&
           (entries.data.length === 0 ? (
-            <Empty title="Nothing recorded yet">
-              Entries appear here as soon as an agent, MCP server, tenant, or approval rule is
-              created, changed, or removed.
-            </Empty>
+            <Empty title={t('audit.empty.title')}>{t('audit.empty.body')}</Empty>
           ) : (
             <Table>
               <thead>
                 <tr>
-                  <Th>When</Th>
-                  <Th>Actor</Th>
-                  <Th>Action</Th>
-                  <Th>Entity</Th>
+                  <Th>{t('audit.when')}</Th>
+                  <Th>{t('audit.actor')}</Th>
+                  <Th>{t('audit.action')}</Th>
+                  <Th>{t('audit.entity')}</Th>
                   <Th />
                 </tr>
               </thead>
@@ -125,6 +124,8 @@ function AuditRow({
   isExpanded: boolean;
   onToggle: () => void;
 }): ReactNode {
+  const t = useT();
+
   return (
     <>
       <tr className="cursor-pointer hover:bg-raised" onClick={onToggle}>
@@ -135,8 +136,8 @@ function AuditRow({
           {entry.actor != null && entry.actor.length > 0 ? (
             <Mono>{entry.actor}</Mono>
           ) : (
-            <span className="text-subtle" title="No authentication, or the actor could not be resolved.">
-              unknown
+            <span className="text-subtle" title={t('audit.unknownActorTitle')}>
+              {t('audit.unknownActor')}
             </span>
           )}
         </Td>
@@ -146,7 +147,7 @@ function AuditRow({
         <Td>
           <Mono>{entry.entity}</Mono>
         </Td>
-        <Td className="text-right text-[11px] text-muted">{isExpanded ? 'Hide' : 'Details'}</Td>
+        <Td className="text-right text-[11px] text-muted">{isExpanded ? t('audit.hide') : t('audit.details')}</Td>
       </tr>
 
       {isExpanded && (
@@ -162,7 +163,7 @@ function AuditRow({
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
-                    <p className="mb-1 text-[11px] font-medium tracking-wide text-subtle uppercase">Before</p>
+                    <p className="mb-1 text-[11px] font-medium tracking-wide text-subtle uppercase">{t('audit.before')}</p>
                     {entry.before != null ? (
                       <CodeBlock code={prettyJson(entry.before)} maxHeight="max-h-64" />
                     ) : (
@@ -170,7 +171,7 @@ function AuditRow({
                     )}
                   </div>
                   <div>
-                    <p className="mb-1 text-[11px] font-medium tracking-wide text-subtle uppercase">After</p>
+                    <p className="mb-1 text-[11px] font-medium tracking-wide text-subtle uppercase">{t('audit.after')}</p>
                     {entry.after != null ? (
                       <CodeBlock code={prettyJson(entry.after)} maxHeight="max-h-64" />
                     ) : (

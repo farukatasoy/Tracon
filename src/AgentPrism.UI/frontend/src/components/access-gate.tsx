@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ApiError, api } from '../lib/api';
 import { setToken, useToken } from '../lib/auth';
+import { useT } from '../lib/i18n';
 import { Button, Field, Loading, Panel, TextInput } from './ui';
 import { PrismMark } from './icons';
 import type { Meta } from '../lib/types';
@@ -14,6 +15,7 @@ import type { Meta } from '../lib/types';
  * three access layers is switched on.
  */
 export function AccessGate({ children }: { children: (meta: Meta) => ReactNode }): ReactNode {
+  const t = useT();
   const token = useToken();
 
   const meta = useQuery({ queryKey: ['meta'], queryFn: api.meta, retry: false });
@@ -28,15 +30,15 @@ export function AccessGate({ children }: { children: (meta: Meta) => ReactNode }
   });
 
   if (meta.isPending) {
-    return <Centered><Loading label="Connecting" /></Centered>;
+    return <Centered><Loading label={t('access.connecting')} /></Centered>;
   }
 
   if (meta.isError) {
     return (
       <Centered>
-        <Card title="Cannot reach AgentPrism">
+        <Card title={t('access.unreachable.title')}>
           <p className="text-[13px] text-muted">
-            The management API did not answer at <code className="font-mono">api/meta</code>.
+            {t('access.unreachable.body', { path: 'api/meta' })}
           </p>
           <p className="mt-2 text-[12px] text-subtle">
             {meta.error instanceof Error ? meta.error.message : String(meta.error)}
@@ -59,19 +61,14 @@ export function AccessGate({ children }: { children: (meta: Meta) => ReactNode }
   if (error instanceof ApiError && error.status === 403) {
     return (
       <Centered>
-        <Card title="Access denied">
+        <Card title={t('access.denied.title')}>
+          {/* Server text, shown as it came: the API contract is single-language. */}
           <p className="text-[13px] text-muted">{error.detail ?? error.title}</p>
           {!meta.data.authentication.allowRemoteAccess && (
-            <p className="mt-3 text-[12px] text-subtle">
-              Remote access is off. AgentPrism only answers requests from the same machine
-              unless <code className="font-mono">AllowRemoteAccess</code> is enabled together
-              with an authentication method.
-            </p>
+            <p className="mt-3 text-[12px] text-subtle">{t('access.denied.remote')}</p>
           )}
           {meta.data.authentication.requiresAuthorizationPolicy && (
-            <p className="mt-3 text-[12px] text-subtle">
-              An authorization policy is configured. Sign in to the host application first.
-            </p>
+            <p className="mt-3 text-[12px] text-subtle">{t('access.denied.policy')}</p>
           )}
         </Card>
       </Centered>
@@ -79,21 +76,19 @@ export function AccessGate({ children }: { children: (meta: Meta) => ReactNode }
   }
 
   if (probe.isPending) {
-    return <Centered><Loading label="Connecting" /></Centered>;
+    return <Centered><Loading label={t('access.connecting')} /></Centered>;
   }
 
   return children(meta.data);
 }
 
 function TokenPrompt({ failed }: { failed: boolean }): ReactNode {
+  const t = useT();
   const [value, setValue] = useState('');
 
   return (
-    <Card title="Access token required">
-      <p className="mb-4 text-[13px] text-muted">
-        This AgentPrism instance is protected by a bearer token. The token is kept for this
-        browser tab only and is never written to disk.
-      </p>
+    <Card title={t('access.token.title')}>
+      <p className="mb-4 text-[13px] text-muted">{t('access.token.body')}</p>
 
       <form
         onSubmit={(event) => {
@@ -101,27 +96,26 @@ function TokenPrompt({ failed }: { failed: boolean }): ReactNode {
           setToken(value.trim());
         }}
       >
-        <Field label="Token">
+        <Field label={t('access.token.label')}>
           <TextInput
             type="password"
             autoFocus
             autoComplete="off"
             value={value}
-            placeholder="Bearer token"
+            placeholder={t('access.token.placeholder')}
             onChange={(event) => setValue(event.target.value)}
           />
         </Field>
 
         {failed && (
-          <p className="mt-2 text-[12px] text-danger">
-            That token was rejected. Check the value configured in{' '}
-            <code className="font-mono">AgentPrismEndpointOptions.AuthToken</code>.
+          <p role="alert" className="mt-2 text-[12px] text-danger">
+            {t('access.token.rejected', { setting: 'AgentPrismEndpointOptions.AuthToken' })}
           </p>
         )}
 
         <div className="mt-4">
           <Button type="submit" tone="primary" disabled={value.trim().length === 0}>
-            Continue
+            {t('access.continue')}
           </Button>
         </div>
       </form>

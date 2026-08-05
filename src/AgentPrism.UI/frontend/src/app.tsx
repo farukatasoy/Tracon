@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { AccessGate } from './components/access-gate';
 import { Layout } from './components/layout';
 import { Empty, Panel } from './components/ui';
+import { useT } from './lib/i18n';
 import { useRoute, type RouteDefinition } from './lib/router';
 import { DashboardScreen } from './screens/dashboard';
 import { AgentsScreen } from './screens/agents';
@@ -90,15 +91,14 @@ export function App(): ReactNode {
 }
 
 function Shell({ meta }: { meta: Meta }): ReactNode {
+  const t = useT();
   const screen = useRoute(routes(meta));
 
   return (
     <Layout meta={meta}>
       {screen ?? (
         <Panel>
-          <Empty title="Page not found">
-            The address does not match any screen in this console.
-          </Empty>
+          <Empty title={t('shell.notFound.title')}>{t('shell.notFound.body')}</Empty>
         </Panel>
       )}
     </Layout>
