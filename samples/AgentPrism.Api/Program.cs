@@ -36,9 +36,15 @@
 //   - `ModelBinding.ProviderSettings` saglayiciya ozgu ayarlari agent basina tasir
 //     (prompt caching, dusunme butcesi, Gemini guvenlik esikleri)
 //   - guvenlik filtresiyle BOS donen yanit `content_filtered` hatasi olarak kaydedilir
+// Faz 27 Azure OpenAI'i ekledi:
+//   - `.UseAzureOpenAI(...)` — ADRES zorunludur, Azure'un tek genel adresi yoktur
+//   - 🚨 `ModelBinding.Model` bu saglayicida MODEL degil DEPLOYMENT adi tasir
+//   - kimlik API anahtari veya Microsoft Entra ile verilir; `Azure.Identity`
+//     AgentPrism'in bagimliligi DEGILDIR, kimlik fabrikasi tuketiciden gelir
 // Bkz. docs/04-HTTP-API.md, docs/05-AGENTPRISM-UI.md, docs/06-GOZLEMLENEBILIRLIK.md,
 //      docs/08-SAGLAYICI-GENISLEMESI.md, docs/12-AGENT-CAGRI-GRAFIGI.md,
-//      docs/15-WORKFLOWS-YURUTME.md, docs/26-ANTHROPIC-VE-GEMINI.md
+//      docs/15-WORKFLOWS-YURUTME.md, docs/26-ANTHROPIC-VE-GEMINI.md,
+//      docs/27-AZURE-FOUNDRY.md
 //
 // Calistirmadan once sirlari ayarlayin:
 //   dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=localhost;Database=AgentPrism;Username=...;Password=..."
@@ -49,6 +55,8 @@
 //   dotnet user-secrets set "AgentPrism:Providers:OpenAICompatible:openrouter:ApiKey" "sk-or-..."
 //   dotnet user-secrets set "AgentPrism:Providers:Anthropic:ApiKey" "sk-ant-..."
 //   dotnet user-secrets set "AgentPrism:Providers:Google:ApiKey" "AIza..."
+//   dotnet user-secrets set "AgentPrism:Providers:AzureOpenAI:Endpoint" "https://<kaynak>.openai.azure.com/"
+//   dotnet user-secrets set "AgentPrism:Providers:AzureOpenAI:ApiKey" "..."
 
 using System.Text.Json;
 using AgentPrism;
@@ -130,6 +138,25 @@ var googleEnabled = !string.IsNullOrWhiteSpace(google["ApiKey"]);
 if (googleEnabled)
 {
     agentPrism.UseGoogle(google);
+}
+
+// Azure OpenAI — kurumsal .NET dunyasinin varsayilan yolu (Faz 27). Saglayicinin
+// acilmasi icin ADRES gerekir; Azure'un tek bir genel adresi yoktur.
+//
+// 🚨 ModelBinding.Model bu saglayicida MODEL adi degil DEPLOYMENT adi tasir.
+//
+// Yonetilen kimlik icin bu ornekte `Azure.Identity` referansi YOKTUR; anahtar
+// yolu gosterilir. Yonetilen kimlik su sekilde acilir:
+//
+//   agentPrism.UseAzureOpenAI(azureOpenAI, o => o.CredentialFactory =
+//       static () => new DefaultAzureCredential());
+var azureOpenAI = builder.Configuration.GetSection(AzureOpenAIProviderOptions.SectionName);
+var azureOpenAIEnabled = !string.IsNullOrWhiteSpace(azureOpenAI["Endpoint"])
+    && !string.IsNullOrWhiteSpace(azureOpenAI["ApiKey"]);
+
+if (azureOpenAIEnabled)
+{
+    agentPrism.UseAzureOpenAI(azureOpenAI);
 }
 
 // Yerel model sunucusu ornegi (F-05, Ollama/LM Studio). Kurulum F-03 ile AYNI
@@ -439,6 +466,30 @@ if (googleEnabled)
                 [GoogleProviderNames.SafetySexuallyExplicitSetting] = JsonSerializer.SerializeToElement("BLOCK_LOW_AND_ABOVE"),
             },
         },
+    });
+}
+
+if (azureOpenAIEnabled)
+{
+    // Ayni destek senaryosu, Azure OpenAI uzerinde.
+    //
+    // 🚨 Model alani DEPLOYMENT adi tasir. Asagidaki deger Azure kaynaginizda
+    // tanimli deployment adiyla ayni olmalidir; model adi (ornegin "gpt-5.4-mini")
+    // yazilirsa istek HTTP 404 doner.
+    agentPrism.AddAgent(new AgentDefinition
+    {
+        Name = "azure-destek",
+        DisplayName = "Azure Destek",
+        Description = "Ayni destek senaryosu, Azure OpenAI deployment'i uzerinden calisir.",
+        Instructions = "Sen bir destek asistanisin. Kisa ve net yanit ver. " +
+                       "Siparis sorularinda mutlaka tool kullan.",
+        Model = new ModelBinding
+        {
+            Provider = AzureOpenAIProviderNames.AzureOpenAI,
+            Model = azureOpenAI["DefaultDeployment"] ?? "uretim-gpt",
+            MaxOutputTokens = 1024,
+        },
+        ToolNames = ["get_order_status", "list_recent_orders", "cancel_order"],
     });
 }
 

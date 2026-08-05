@@ -24,6 +24,7 @@
     -->
     <ProjectReference Include="../../src/AgentPrism.Anthropic/AgentPrism.Anthropic.csproj" />
     <ProjectReference Include="../../src/AgentPrism.Google/AgentPrism.Google.csproj" />
+    <ProjectReference Include="../../src/AgentPrism.Azure/AgentPrism.Azure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

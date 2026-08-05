@@ -217,6 +217,38 @@ bedeli somut olarak yaşandı: `gemini-2.5-flash` çağrısı *"no longer availa
 new users"* döndü. Ayrıntı
 [`26-ANTHROPIC-VE-GEMINI.md`](../26-ANTHROPIC-VE-GEMINI.md).
 
+### Faz 27 — Azure OpenAI (2026-08-05)
+
+Faz 26'nın dersi bir faz sonra aynen tekrarlandı, bu kez **derleme yeşilken**.
+
+Plan iki iş öngörüyordu: Azure OpenAI (kolay yarı) ve Azure AI Foundry (zor yarı).
+Foundry'nin koşulu "MAF 1.16.0 ile sürüm uyumu" olarak yazılmıştı. Ölçüm bu koşulu
+çürüttü — `Microsoft.Agents.AI.Foundry` 1.5.0 MAF 1.16.0 ile sorunsuz yüklendi,
+tipleri yansımayla listelendi. Yerine hiç beklenmeyen bir sayı çıktı: **37 geçişli
+paket** (`Azure.AI.Projects`, `Azure.Storage.Blobs`, `Azure.Identity`,
+`Google.Protobuf`, `Microsoft.ML.Tokenizers`…). Bir faz önce 11 bağımlılık için
+uzun uzun tartışılmıştı. Foundry ertelendi; ölçümler ve kaybedilen garantiler
+tablosu faz dokümanında korundu (K-212).
+
+Asıl bulgu Azure OpenAI tarafında çıktı. `Azure.AI.OpenAI` 2.1.0 `OpenAI` 2.1.0'a
+karşı derlenmiş; AgentPrism `OpenAI` 2.12.0 kullanıyor ve merkezî paket yönetimi
+tek sürüm zorluyor. NuGet çakışmayı sessizce çözdü, `dotnet build` **sıfır uyarı**
+verdi — ve `AzureChatExtensions`'ın istek tarafı metotlarının tamamı çalışma anında
+`MissingMethodException` attı. Derleme yeşilliğinin hiçbir şey kanıtlamadığı
+durumun ders kitabı örneği. Sonuç: paket o yüzeye hiç dokunmuyor ve sağlayıcıya
+özgü **hiçbir ayar sunmuyor** (K-211). Faz 26'nın `*ProviderSettingsChatClient`
+kalıbı bu pakette hiç oluşturulmadı.
+
+Kimlik tarafında plan "`Azure.Identity` bedeli bilinçli kabul edilir, alternatifi
+kimlik fabrikasıdır" diyordu ve alternatif kazandı — ölçümle: `AzureOpenAIClient`
+`Azure.Core.TokenCredential` alıyor, yani yönetilen kimlik `Azure.Identity`
+**olmadan** çalışıyor. Paket yalnız `Azure.Core`'a bağlandı (K-210).
+
+Gerçek bir Azure aboneliği yoktu; bunun yerine Azure'un veri düzlemi sözleşmesini
+taklit eden yerel bir uç kuruldu ve gelen istegin yolu, başlıkları ve gövdesi
+kaydedildi. Tool döngüsü, akışlı token sayımı ve Entra `Bearer` başlığı bu şekilde
+uçtan uca doğrulandı. Ayrıntı [`27-AZURE-FOUNDRY.md`](../27-AZURE-FOUNDRY.md).
+
 ---
 
 ## Migration geçmişi (`agentprism` şeması)

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>AgentPrism icin Azure OpenAI saglayici adaptoru. Deployment tabanli model cozumu, API anahtari veya Microsoft Entra kimligi ile kimlik dogrulama, model katalogu ve saglik denetimi.</Description>
+    <PackageTags>$(CommonPackageTags);azure;azure-openai;entra;provider</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../AgentPrism.Core/AgentPrism.Core.csproj" />
+  </ItemGroup>
+
+  <!--
+    Azure.AI.OpenAI, Azure'un RESMI adaptorudur ve OpenAI SDK'sinin ustune yalnizca
+    yonlendirmeyi ekler: POST {endpoint}/openai/deployments/{deployment}/chat/completions
+    ?api-version=... Mesaj eslemesi, akis, tool cagrisi ve kullanim sayaclari
+    OpenAI SDK'sinin kendi kodundan gelir; AgentPrism hicbirini yazmaz.
+
+    Azure.Core public API'de gectigi icin dogrudan yazilir (bkz. Directory.Packages.props).
+  -->
+  <ItemGroup>
+    <PackageReference Include="Azure.AI.OpenAI" />
+    <PackageReference Include="Azure.Core" />
+    <!-- ChatClient -> IChatClient adaptoru (`AsIChatClient`) bu paketten gelir. -->
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
+  </ItemGroup>
+
+</Project>

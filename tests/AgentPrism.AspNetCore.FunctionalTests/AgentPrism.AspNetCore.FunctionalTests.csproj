@@ -19,6 +19,7 @@
     -->
     <ProjectReference Include="../../src/AgentPrism.Anthropic/AgentPrism.Anthropic.csproj" />
     <ProjectReference Include="../../src/AgentPrism.Google/AgentPrism.Google.csproj" />
+    <ProjectReference Include="../../src/AgentPrism.Azure/AgentPrism.Azure.csproj" />
     <!--
       Workflow uclari, motor kayitli VE kayitsizken iki farkli davranis gosterir
       (calistirma 501 doner, tanim yonetimi calisir). Iki yolu da test etmek icin

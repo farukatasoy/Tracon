@@ -83,11 +83,16 @@ yapılandırmadan verilebilmesi** ve sağlayıcı adının serbest olması.
 **Dikkat:** "OpenAI uyumlu" iddiası her sunucuda tam tutmaz; tool çağrısı ve akış
 davranışı sağlayıcı bazında farklılaşır. Sağlık denetimi ucu (F-16) burada değerli.
 
-### F-04 · Azure OpenAI / Azure AI Foundry
+### ~~F-04 · Azure OpenAI~~ / Azure AI Foundry *(Azure OpenAI yapıldı — Faz 27)*
 
 **Değer:** Orta-yüksek; kurumsal .NET dünyasının varsayılan yolu.
 **Hazırlık:** `Microsoft.Agents.AI.Foundry` paketi **var** (1.5.0). Managed identity
 ile kimlik doğrulama AgentPrism'in "sır saklamama" duruşuyla iyi örtüşür.
+
+**Sonuç (2026-08-05):** Azure OpenAI `AgentPrism.Azure` olarak yapıldı; managed
+identity `Azure.Identity` bağımlılığı **olmadan** çalışıyor (K-210). **Foundry
+ertelendi** — sürüm uyumu vardı, ama 37 geçişli paket ve doğrulanamazlık kabul
+edilmedi (K-212).
 
 ### F-05 · Yerel modeller (Ollama, LM Studio)
 

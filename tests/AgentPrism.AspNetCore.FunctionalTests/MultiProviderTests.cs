@@ -6,8 +6,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// OpenAI, Anthropic ve Google saglayicilarinin <strong>ayni uygulamada</strong>
-/// kayitli olmasi ve yonetim uclarinda birlikte gorunmesi.
+/// OpenAI, Anthropic, Google ve Azure OpenAI saglayicilarinin <strong>ayni
+/// uygulamada</strong> kayitli olmasi ve yonetim uclarinda birlikte gorunmesi.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -18,7 +18,8 @@ namespace AgentPrism.AspNetCore.FunctionalTests;
 /// <para>
 /// <strong>Gercek model cagrisi yapan test yoktur</strong> (Faz 3'ten beri gecerli
 /// karar). Ag gerektiren dogrulama elle yapilir; kaniti
-/// <c>docs/26-ANTHROPIC-VE-GEMINI.md</c> icindedir.
+/// <c>docs/26-ANTHROPIC-VE-GEMINI.md</c> ve <c>docs/27-AZURE-FOUNDRY.md</c>
+/// icindedir.
 /// </para>
 /// </remarks>
 public sealed class MultiProviderTests
@@ -26,7 +27,7 @@ public sealed class MultiProviderTests
     private const string TestKey = "fonksiyonel-test-anahtari";
 
     [Fact]
-    public async Task Uc_saglayici_ayni_anda_kayitli_olur()
+    public async Task Dort_saglayici_ayni_anda_kayitli_olur()
     {
         await using var host = await StartAsync();
 
@@ -42,6 +43,7 @@ public sealed class MultiProviderTests
         names.ShouldContain(static name => string.Equals(name, OpenAIProviderNames.Responses, StringComparison.Ordinal));
         names.ShouldContain(static name => string.Equals(name, AnthropicProviderNames.Anthropic, StringComparison.Ordinal));
         names.ShouldContain(static name => string.Equals(name, GoogleProviderNames.Google, StringComparison.Ordinal));
+        names.ShouldContain(static name => string.Equals(name, AzureOpenAIProviderNames.AzureOpenAI, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -54,10 +56,13 @@ public sealed class MultiProviderTests
 
         Models(providers, AnthropicProviderNames.Anthropic).ShouldBe(["claude-sonnet-5"]);
         Models(providers, GoogleProviderNames.Google).ShouldBe(["gemini-3.6-flash"]);
+
+        // Azure'da katalogdaki ad bir MODEL adi degil, DEPLOYMENT adidir.
+        Models(providers, AzureOpenAIProviderNames.AzureOpenAI).ShouldBe(["uretim-gpt"]);
     }
 
     [Fact]
-    public async Task Saglik_ucu_dort_saglayiciyi_da_listeler()
+    public async Task Saglik_ucu_bes_saglayiciyi_da_listeler()
     {
         await using var host = await StartAsync();
 
@@ -72,6 +77,7 @@ public sealed class MultiProviderTests
 
         names.ShouldContain(static name => string.Equals(name, AnthropicProviderNames.Anthropic, StringComparison.Ordinal));
         names.ShouldContain(static name => string.Equals(name, GoogleProviderNames.Google, StringComparison.Ordinal));
+        names.ShouldContain(static name => string.Equals(name, AzureOpenAIProviderNames.AzureOpenAI, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -154,6 +160,30 @@ public sealed class MultiProviderTests
         exception.Message.ShouldContain(AnthropicProviderNames.PromptCachingSetting);
     }
 
+    [Fact]
+    public async Task Azure_saglayicisi_hicbir_ayar_kabul_etmedigini_soyler()
+    {
+        await using var host = await StartAsync();
+
+        var registry = host.Services.GetRequiredService<IModelProviderRegistry>();
+
+        // Azure'un ek alan yazma yolu kullandigimiz OpenAI SDK surumuyle kirik
+        // oldugu icin bu saglayici hicbir ayar sunmaz (K-211). Sessizce yok
+        // saymak yerine acikca soyler.
+        var exception = Should.Throw<AgentPrismException>(() => registry.CreateChatClient(new ModelBinding
+        {
+            Provider = AzureOpenAIProviderNames.AzureOpenAI,
+            Model = "uretim-gpt",
+            ProviderSettings = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["azure-openai.yokBoyleAyar"] = JsonSerializer.SerializeToElement(true),
+            },
+        }));
+
+        exception.Message.ShouldContain("azure-openai.yokBoyleAyar");
+        exception.Message.ShouldContain("hicbir ek ayar desteklemiyor");
+    }
+
     private static IEnumerable<string?> Models(IEnumerable<JsonElement> providers, string name)
         => providers
             .Single(provider => string.Equals(provider.GetProperty("name").GetString(), name, StringComparison.Ordinal))
@@ -173,5 +203,10 @@ public sealed class MultiProviderTests
             {
                 options.DefaultModel = "gemini-3.6-flash";
                 options.Models.Add(new ModelDescriptor { Name = "gemini-3.6-flash" });
+            })
+            .UseAzureOpenAI(new Uri("https://test-kaynagi.openai.azure.com/"), TestKey, options =>
+            {
+                options.DefaultDeployment = "uretim-gpt";
+                options.Models.Add(new ModelDescriptor { Name = "uretim-gpt" });
             }));
 }

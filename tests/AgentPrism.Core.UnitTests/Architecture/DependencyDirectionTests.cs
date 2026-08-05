@@ -36,6 +36,7 @@ public sealed class DependencyDirectionTests
         // OpenAI'i gormezler. Her saglayici paketi kendi SDK'sini izole tutar.
         ["AgentPrism.Anthropic"] = ["AgentPrism.Core"],
         ["AgentPrism.Google"] = ["AgentPrism.Core"],
+        ["AgentPrism.Azure"] = ["AgentPrism.Core"],
         // Mcp yalnizca Core'a baglidir: HTTP katmani MCP tazelemesini
         // IMcpToolRefresher soyutlamasi uzerinden tetikler, ters yonde bir
         // referans YOKTUR. Boylece MCP istege bagli bir paket olarak kalir.
