@@ -18,7 +18,7 @@ import {
   Select,
   cx,
 } from '../components/ui';
-import { CrossIcon, PaperclipIcon, PlusIcon, SendIcon, SpinnerIcon } from '../components/icons';
+import { CrossIcon, PaperclipIcon, PlusIcon, SendIcon, SpeakerIcon, SpinnerIcon } from '../components/icons';
 import { TranscriptView } from '../components/transcript';
 
 interface Turn {
@@ -342,7 +342,7 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
           ) : (
             <div className="flex flex-col gap-6">
               {turns.map((turn) => (
-                <TurnView key={turn.id} turn={turn} onDecide={decide} />
+                <TurnView key={turn.id} turn={turn} onDecide={decide} sessionId={sessionId} />
               ))}
             </div>
           )}
@@ -442,11 +442,20 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
 function TurnView({
   turn,
   onDecide,
+  sessionId,
 }: {
   turn: Turn;
   onDecide: (requestId: string, approved: boolean, remember: boolean) => void;
+  sessionId: string | null;
 }): ReactNode {
   const usage = turn.transcript.usage;
+
+  /** The assistant's plain text, which is what "speak" would read out. */
+  const spokenText = turn.transcript.items
+    .filter((item) => item.kind === 'text')
+    .map((item) => item.text)
+    .join('\n')
+    .trim();
 
   return (
     <div data-testid="playground-turn">
@@ -501,8 +510,86 @@ function TurnView({
         )}
 
         {turn.status === 'failed' && turn.error === null && <Badge tone="danger">failed</Badge>}
+
+        {turn.status === 'done' && spokenText.length > 0 && (
+          <SpeakButton text={spokenText} sessionId={sessionId} />
+        )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Speaks an assistant reply and plays it inline.
+ *
+ * The audio element is fed an object URL, not the attachment endpoint: browsers
+ * do not attach the bearer token to resource loads, so a plain
+ * `<audio src="api/attachments/{id}">` answers 401 whenever token auth is on.
+ * Same reason as the image preview above.
+ *
+ * This is an operator action and runs outside an agent run, so its cost is not
+ * written to `tool_invocations`; the endpoint returns the measured characters
+ * and it is shown next to the player.
+ */
+function SpeakButton({ text, sessionId }: { text: string; sessionId: string | null }): ReactNode {
+  const [state, setState] = useState<'idle' | 'working' | 'ready' | 'failed'>('idle');
+  const [url, setUrl] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+
+  // The object URL owns memory until it is revoked.
+  useEffect(() => () => {
+    if (url !== null) {
+      URL.revokeObjectURL(url);
+    }
+  }, [url]);
+
+  const speak = useCallback(async () => {
+    setState('working');
+    setNote(null);
+
+    try {
+      const result = await api.speak(text, sessionId);
+      const blob = await api.attachmentBlob(result.attachment.id);
+
+      setUrl(URL.createObjectURL(blob));
+      setState('ready');
+      setNote(
+        result.cost != null
+          ? `${count(result.characters)} chars · ${result.cost.toFixed(4)} ${result.currency ?? ''}`.trim()
+          : `${count(result.characters)} chars${result.isEstimated ? ' (estimated)' : ''}`,
+      );
+    } catch (error) {
+      setState('failed');
+      setNote(error instanceof Error ? error.message : 'Speech failed');
+    }
+  }, [text, sessionId]);
+
+  if (state === 'ready' && url !== null) {
+    return (
+      <span className="flex items-center gap-2">
+        <audio data-testid="playground-audio" src={url} controls className="h-7 max-w-[16rem]" />
+        {note !== null && <span className="text-[11px] text-subtle">{note}</span>}
+      </span>
+    );
+  }
+
+  return (
+    <span className="flex items-center gap-2">
+      <button
+        type="button"
+        data-testid="playground-speak"
+        onClick={() => void speak()}
+        disabled={state === 'working'}
+        title="Synthesise this reply and play it"
+        className="inline-flex items-center gap-1 rounded-md border border-line px-1.5 py-0.5 text-[11px] text-subtle hover:text-fg disabled:opacity-50"
+      >
+        {state === 'working' ? <SpinnerIcon className="size-3" /> : <SpeakerIcon className="size-3" />}
+        Speak
+      </button>
+      {state === 'failed' && note !== null && (
+        <span className="text-[11px] text-danger">{note}</span>
+      )}
+    </span>
   );
 }
 

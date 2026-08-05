@@ -48,6 +48,7 @@ public sealed class AgentPrismRunOptions : AgentRunOptions
         AgentVersion = other.AgentVersion;
         ExperimentId = other.ExperimentId;
         Variant = other.Variant;
+        SessionId = other.SessionId;
     }
 
     /// <summary>
@@ -115,6 +116,25 @@ public sealed class AgentPrismRunOptions : AgentRunOptions
 
     /// <summary>Bu calistirmanin atandigi deney kolunun adi. Deney disi calistirmada <see langword="null"/>.</summary>
     public string? Variant { get; init; }
+
+    /// <summary>
+    /// Agacin kokundeki oturumun kimligi. Alt calistirmalarda doldurulur;
+    /// kok calistirma kimligi kendi <c>AgentSession</c>'indan okur.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Alan yalnizca <c>AgentRunScope.SessionId</c> degerini besler; bir
+    /// calistirma kaydinin <c>session_id</c> sutununu <strong>degistirmez</strong>.
+    /// Iki kavram ayridir: sutun "calistirma bu oturumla baslatildi" der, kapsam
+    /// ise "burada uretilen icerik bu oturuma aittir" der. Alt agent cagrisinda
+    /// MAF bir oturum gecirmez, ama uretilen ek yine kok oturuma aittir.
+    /// </para>
+    /// <para>
+    /// Gerekce: <c>docs/28-SES-TOOLLARI.md</c>, bolum 28.0/G1 — oturumsuz yazilan
+    /// bir ek saklama politikasi tarafindan sahipsiz sayilir ve silinir.
+    /// </para>
+    /// </remarks>
+    public string? SessionId { get; init; }
 
     /// <inheritdoc />
     /// <remarks>

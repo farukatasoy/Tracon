@@ -76,6 +76,9 @@ import type {
   WorkflowGraph,
   WorkflowPendingRequest,
   WorkflowSaveRequest,
+  SpeakResponse,
+  VoiceDescriptor,
+  VoiceHealth,
 } from './types';
 
 /**
@@ -373,6 +376,19 @@ export const api = {
    * own format.
    */
   createConversation: () => send<Conversation>('POST', 'v1/conversations', {}),
+
+  /**
+   * Synthesises speech and stores it as an attachment.
+   *
+   * This is an operator action and runs OUTSIDE an agent run, so it writes no
+   * `tool_invocations` row; the measured characters and cost come back in the
+   * response instead. The agent's `speak` tool is the recorded path.
+   */
+  speak: (text: string, sessionId: string | null, voiceId?: string) =>
+    send<SpeakResponse>('POST', 'api/voice/speak', { text, sessionId, voiceId }),
+
+  voices: () => request<VoiceDescriptor[]>('api/voice/voices'),
+  voiceHealth: () => request<VoiceHealth>('api/voice/health'),
 
   workflows: () => request<WorkflowDescriptor[]>('api/workflows'),
   workflow: (name: string) => request<WorkflowDefinition>(`api/workflows/${encodeURIComponent(name)}`),

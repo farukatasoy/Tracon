@@ -464,14 +464,19 @@ internal sealed class PostgresQueries : SqlQueriesBase
 
         InsertToolInvocation = $"""
             INSERT INTO {Schema}.tool_invocations
-                (id, run_id, tool_name, tool_call_id, source, arguments, result, duration_ms, error, created_at)
+                (id, run_id, tool_name, tool_call_id, source, arguments, result, duration_ms, error, created_at,
+                 usage_unit, usage_quantity, usage_estimated, cost, cost_currency)
             VALUES
-                (@id, @run_id, @tool_name, @tool_call_id, @source, @arguments, @result, @duration_ms, @error, @created_at);
+                (@id, @run_id, @tool_name, @tool_call_id, @source, @arguments, @result, @duration_ms, @error, @created_at,
+                 @usage_unit, @usage_quantity, @usage_estimated, @cost, @cost_currency);
             """;
 
+        // 🚨 Yeni sutunlar HER ZAMAN sona eklenir; mevcut sabit-indeks okuyucular
+        // (ReadToolInvocation) yeniden numaralandirilmaz. Faz 20 dersi.
         SelectToolInvocations = $"""
             SELECT t.id, t.run_id, t.tool_name, t.tool_call_id, t.source, t.arguments, t.result,
-                   t.duration_ms, t.error, t.created_at
+                   t.duration_ms, t.error, t.created_at,
+                   t.usage_unit, t.usage_quantity, t.usage_estimated, t.cost, t.cost_currency
             FROM {Schema}.tool_invocations t
             JOIN {Schema}.runs r ON r.id = t.run_id
             WHERE t.run_id = @run_id AND r.tenant_id = @tenant_id

@@ -19,33 +19,34 @@
 |-------|------|-------|
 | `AgentPrism.Abstractions` | Sözleşmeler: kayıt, depo, katalog, iş, eval, deney, kota, webhook, saklama tipleri. Bağımlılığı yok. | ✅ |
 | `AgentPrism.Core` | Çalıştırma yolu: derleyici, dekoratörler, kayıt, denetim, skill, workflow doğrulama, fiyat, kota, olay yayını, saklama yürütücüsü. | ✅ |
-| `AgentPrism.PostgreSql` | Kalıcılık: `PostgresQueries` + `PostgresDialect` + gömülü SQL (0001–0014). Depo mantığı `AgentPrism.Sql.Shared` ile paylaşılır. | ✅ |
-| `AgentPrism.SqlServer` | SQL Server 2019+ / Azure SQL. Aynı depolar, kendi T-SQL metni ve migration seti (`0001`–`0002`). Meta pakete dâhil değil (K-185). | ⚠️ Faz 25 testleri koşturulmadı |
-| `AgentPrism.Sqlite` | Tek dosya/gömülü kalıcılık. Aynı depolar, kendi SQL metni ve migration seti (`0001`–`0002`, K-190). Meta pakete dâhil değil. | ✅ |
+| `AgentPrism.PostgreSql` | Kalıcılık: `PostgresQueries` + `PostgresDialect` + gömülü SQL (0001–0015). Depo mantığı `AgentPrism.Sql.Shared` ile paylaşılır. | ✅ |
+| `AgentPrism.SqlServer` | SQL Server 2019+ / Azure SQL. Aynı depolar, kendi T-SQL metni ve migration seti (`0001`–`0003`). Meta pakete dâhil değil (K-185). | ⚠️ Faz 25 testleri koşturulmadı |
+| `AgentPrism.Sqlite` | Tek dosya/gömülü kalıcılık. Aynı depolar, kendi SQL metni ve migration seti (`0001`–`0003`, K-190). Meta pakete dâhil değil. | ✅ |
 | `AgentPrism.Sql.Shared` | **Paket değil** — paylaşılan kaynak: 22 depo (ADO.NET tabanı), `SqlQueriesBase`, `SqlDialect` (+ `QualifyTable`, K-198), migration runner (K-176). | ✅ |
 | `AgentPrism.OpenAI` | OpenAI ve OpenAI uyumlu her sağlayıcı + sağlık denetimi. | ✅ |
 | `AgentPrism.Anthropic` | Anthropic (Claude) — resmî SDK, prompt caching, genişletilmiş düşünme, sağlık denetimi. Meta pakete dâhil değil (K-209). | ✅ |
 | `AgentPrism.Google` | Google Gemini — resmî SDK, güvenlik eşikleri, düşünme bütçesi, sağlık denetimi. Meta pakete dâhil değil; geçişli ağırlığı kabul edildi (K-205). | ✅ |
-| `AgentPrism.Azure` | Azure OpenAI — deployment tabanlı model çözümü, API anahtarı **veya** Microsoft Entra kimliği (`Azure.Identity` alınmadı, K-210), sağlık denetimi. Sağlayıcıya özgü ayar **sunmaz** (K-211); Responses yüzeyi desteklenmez (K-213). Meta pakete dâhil değil. | ✅ |
-| `AgentPrism.Mcp` | Uzak MCP sunucularından tool keşfi. | ✅ |
+| `AgentPrism.Azure` | Azure OpenAI — deployment tabanlı model çözümü, API anahtarı **veya** Entra kimliği (`Azure.Identity` alınmadı, K-210). Ayar **sunmaz** (K-211); Responses desteklenmez (K-213). Meta pakete dâhil değil. | ✅ |
+| `AgentPrism.Voice` | Ses tool'ları: `speak`, `transcribe`, `list_voices`. Sıfır NuGet bağımlılığı (K-216); sözleşme `Abstractions`'ta (K-215). Meta pakete dâhil değil. | ✅ |
+| `AgentPrism.Mcp` | Uzak MCP tool keşfi. | ✅ |
+
 | `AgentPrism.Workflows` | MAF Workflows yürütmesi, kontrol noktası, human-in-the-loop. | ✅ |
-| `AgentPrism.AspNetCore` | `MapAgentPrism()` — yönetim API'si, OpenAI uyumlu uçlar, roller, hız sınırı, saklama uçları. | ✅ |
+| `AgentPrism.AspNetCore` | `MapAgentPrism()` — yönetim API'si, OpenAI uyumlu uçlar, roller, hız sınırı. | ✅ |
 | `AgentPrism.UI` | Gömülü React arayüzü (`UseUI()`). | ✅ |
 | `AgentPrism` (meta) | Hepsini toplayan meta paket. | ✅ |
 
 Hangi fazın hangi pakete ne eklediği: [`arsiv/PAKET-FAZ-GECMISI.md`](arsiv/PAKET-FAZ-GECMISI.md).
 
-Testler: **1700 geçiyor** — 756 birim (465 Core + 77 OpenAI + 48 Azure +
-43 Google + 39 Anthropic + 69 Workflows + 15 Mcp) + 261 fonksiyonel + 654
-entegrasyon (Testcontainers: 440 PostgreSQL + 214 SQLite) + 29 arayüz E2E. Dört
-kapı sıfır uyarı; `dotnet pack` **14 paket** üretir.
-⚠️ `AgentPrism.SqlServer`'ın 213 testi bu makinede koşmadı — bkz.
+Testler: **1866 geçiyor** — birim + fonksiyonel + entegrasyon (Testcontainers:
+PostgreSQL + SQLite) + arayüz E2E, paket başına dökümü `arsiv/PAKET-FAZ-GECMISI.md`.
+Dört kapı sıfır uyarı; `dotnet pack` **15 paket** üretir.
+⚠️ `AgentPrism.SqlServer`'ın testleri bu makinede koşmadı — bkz.
 `23-SQL-SERVER.md`, `docs/hafiza/sql-saglayicilari.md`.
 
 Ne veritabanı ne de belirli bir model satıcısı **zorunludur**: depolama
 yapılandırılmazsa bellek içine düşer; sağlayıcı tarafında OpenAI · uyumlu uçlar ·
 Anthropic · Google · Azure OpenAI birlikte çalışır. Yeteneklerin özeti
-[`README.md`](../README.md) içindedir — burada tekrarlanmaz.
+[`README.md`](../README.md) içinde — burada tekrarlanmaz.
 
 Faz faz nasıl buraya gelindiği: [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md).
 
@@ -78,6 +79,7 @@ flowchart TD
     AN["<b>AgentPrism.Anthropic</b><br/>anthropic"]
     GO["<b>AgentPrism.Google</b><br/>google"]
     AZ["<b>AgentPrism.Azure</b><br/>azure-openai"]
+    VO["<b>AgentPrism.Voice</b><br/>speak · transcribe · list_voices"]
     MCP["<b>AgentPrism.Mcp</b><br/>uzak MCP tool keşfi"]
     WF["<b>AgentPrism.Workflows</b><br/>workflow yürütme · beş desen"]
 
@@ -167,7 +169,7 @@ gerekçelendirilir, sayılıdır ve her biri kendi korumalarını taşır:
 | İstisna | Durum | Neden kabul edildi | Korumalar |
 |---------|-------|--------------------|-----------|
 | **MCP tool'ları** (K-058) | ✅ Uygulandı (Faz 6) | Süreç **uzakta** çalışır; AgentPrism yalnız istemcidir | Yalnız `http`/`https` (stdio yok), zorunlu onay, ad ele geçirme engeli, denetim izi, sırsız kayıt |
-| **Skill script'leri** (K-066) | 📋 Planlandı ([Faz 11](11-SKILL-SCRIPT-CALISTIRMA.md)) | Kullanıcı kararı. Süreç **bu makinede** çalışır — bu yüzden en sıkı istisnadır | Yorumlayıcı beyaz listesi (varsayılan boş), skill başına izin, zorunlu onay, ayrı OS süreci, zaman aşımı, temiz ortam, **yazılamazsa reddeden** denetim izi, `PlatformIsolationAcknowledged` bayrağı |
+| **Skill script'leri** (K-066) | ✅ Uygulandı ([Faz 11](11-SKILL-SCRIPT-CALISTIRMA.md)) | Kullanıcı kararı. Süreç **bu makinede** çalışır — en sıkı istisna | Yorumlayıcı beyaz listesi (varsayılan boş), skill başına izin, zorunlu onay, ayrı OS süreci, zaman aşımı, temiz ortam, **yazılamazsa reddeden** denetim izi |
 
 Her iki durumda da arayüz kullanıcısı **yeni kod yazmaz**; var olan bir yeteneği
 etkinleştirir. Bu ayrım kuralın özüdür.

@@ -4,7 +4,7 @@
 > **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-13** (2/2) · Kullanıcı kararı **K-065**
 > **Önkoşul:** [Faz 28](28-SES-TOOLLARI.md) — zorunlu
 > **Paketler:** `AgentPrism.Voice` (genişler), `.AspNetCore`, `.UI`
-> **Migration:** 0015 (planlanan sırada)
+> **Migration:** 0016 (planlanan sırada — Faz 28 `tool_invocations` ölçüm sütunları için 0015'i aldı)
 
 ---
 

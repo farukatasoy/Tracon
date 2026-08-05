@@ -243,6 +243,11 @@ public sealed class ChildAgentInvoker : AIAgent
 
             // Ayni ORNEK tasinir. Kopyalanirsa her dal kendi butcesini alir.
             Budget = scope.Budget,
+
+            // MAF alt agent'a bir oturum gecirmez. Oturum kimligi yine de tasinir:
+            // alt calistirmada calisan bir tool'un urettigi ek kok oturuma aittir
+            // ve oturumsuz yazilirsa saklama politikasi onu sahipsiz sayip siler.
+            SessionId = scope.SessionId,
         };
 
     private ValueTask WriteStartedAsync(

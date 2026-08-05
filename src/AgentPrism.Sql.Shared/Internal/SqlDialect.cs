@@ -275,6 +275,18 @@ internal abstract class SqlDialect
     public virtual void AddBoolean(DbCommand command, string name, bool value)
         => AddTyped(command, name, DbType.Boolean, value);
 
+    /// <summary>Bos olabilen bir mantiksal degeri parametreye baglar.</summary>
+    /// <param name="command">Komut.</param>
+    /// <param name="name">Parametre adi.</param>
+    /// <param name="value">Deger; <see langword="null"/> olabilir.</param>
+    /// <remarks>
+    /// Uc durumlu bir alan icindir ("evet" / "hayir" / "bilgi yok").
+    /// <c>AddBoolean</c> ile karistirmayin: orada <see langword="null"/>
+    /// yazilamaz ve eksik bilgi sessizce <see langword="false"/> olurdu.
+    /// </remarks>
+    public virtual void AddNullableBoolean(DbCommand command, string name, bool? value)
+        => AddTyped(command, name, DbType.Boolean, value);
+
     /// <summary>Verilen tiple bir parametre ekler.</summary>
     /// <param name="command">Komut.</param>
     /// <param name="name">Parametre adi.</param>

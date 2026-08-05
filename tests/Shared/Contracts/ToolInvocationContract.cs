@@ -64,6 +64,61 @@ public abstract class ToolInvocationContract : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Token_disi_olcum_gidip_gelir()
+    {
+        // Faz 28: ses tool'lari token degil KARAKTER veya SANIYE ile faturalanir.
+        // Bes sutun (birim, miktar, tahmin, tutar, para birimi) uc diyalektte de
+        // ayni sekilde gidip gelmelidir.
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.RecordToolInvocationAsync(new ToolInvocationRecord
+        {
+            Id = AgentPrismId.NewId(),
+            RunId = runId,
+            ToolName = "speak",
+            ToolCallId = "call-ses",
+            CreatedAt = DateTimeOffset.UtcNow,
+            Usage = new ToolCallUsage
+            {
+                Unit = ToolUsageUnits.Characters,
+                Quantity = 1234.5m,
+
+                // 🚨 Ondalik kismin KESILMEDIGINI dogrular. SQL Server'da tipi
+                // verilmemis bir decimal parametresi decimal(18,0) sayilir ve
+                // ondalik sessizce kesilir (Faz 23 dersi).
+                Cost = 0.0001357m,
+                Currency = "USD",
+                IsEstimated = true,
+            },
+        });
+
+        var stored = (await Store.ListToolInvocationsAsync(runId)).ShouldHaveSingleItem();
+
+        stored.Usage.ShouldNotBeNull();
+        string.Equals(stored.Usage.Unit, ToolUsageUnits.Characters, StringComparison.Ordinal).ShouldBeTrue();
+        stored.Usage.Quantity.ShouldBe(1234.5m);
+        stored.Usage.Cost.ShouldBe(0.0001357m);
+        string.Equals(stored.Usage.Currency, "USD", StringComparison.Ordinal).ShouldBeTrue();
+        stored.Usage.IsEstimated.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Olcum_bildirilmeyen_cagri_BOS_olcumle_doner()
+    {
+        // Cagrilarin buyuk cogunlugu olcum tasimaz. Bos bir ToolCallUsage
+        // dondurmek "olculdu ama sifir" anlamina gelirdi.
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.RecordToolInvocationAsync(Invocation(runId, "get_order_status", TimeSpan.Zero));
+
+        var stored = (await Store.ListToolInvocationsAsync(runId)).ShouldHaveSingleItem();
+
+        stored.Usage.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task Sure_bilinmiyorsa_bos_kalir()
     {
         // Akissiz calistirmada cagri ile sonuc ayni anda gorulur; sifira yakin

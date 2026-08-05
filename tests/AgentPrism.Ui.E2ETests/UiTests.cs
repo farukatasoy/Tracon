@@ -97,6 +97,40 @@ public sealed class UiTests(BrowserFixture browsers)
     }
 
     [Fact]
+    public async Task Playground_yaniti_seslendirilir_ve_ses_ogesi_calar()
+    {
+        // 🚨 Token ACIK. Bu testin asil konusu budur: `<audio src="api/attachments/{id}">`
+        // yazilsaydi tarayici bearer basligini kaynak yuklemesine EKLEMEZ ve istek
+        // 401 alirdi. Arayuz baytlari fetch ile cekip nesne URL'ine sarmalidir.
+        const string token = "e2e-ses-token";
+
+        await using var host = await UiHost.StartAsync(authToken: token);
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        // Token kabuk ekranindan girilir; sonrasi normal bir oturumdur.
+        await session.Page.GotoAsync(host.UiAddress);
+        await session.Page.GetByLabel("Token").FillAsync(token);
+        await session.Page.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
+
+        await session.Page.GotoAsync($"{host.UiAddress}/playground/support");
+
+        await session.Page.GetByTestId("playground-input").FillAsync("merhaba");
+        await session.Page.GetByTestId("playground-send").ClickAsync();
+
+        var speak = session.Page.GetByTestId("playground-speak").First;
+        await speak.WaitForAsync(new() { Timeout = 20_000 });
+        await speak.ClickAsync();
+
+        var audio = session.Page.GetByTestId("playground-audio").First;
+        await audio.WaitForAsync(new() { Timeout = 20_000 });
+
+        // Kaynak bir nesne URL'idir; uc adresi DEGILDIR.
+        var source = await audio.GetAttributeAsync("src");
+        source.ShouldNotBeNull();
+        source.StartsWith("blob:", StringComparison.Ordinal).ShouldBeTrue(source);
+    }
+
+    [Fact]
     public async Task Playground_akisi_gelir_ve_tool_karti_dolar()
     {
         await using var host = await UiHost.StartAsync();
