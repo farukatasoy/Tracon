@@ -354,6 +354,18 @@ else
     persistenceEnabled = false;
 }
 
+// Veri saklama ve arsivleme (Faz 25). IArchiveSink kayitli DEGILSE
+// archive=true olan bir politika hicbir satir silmez (K-007: bulut SDK
+// bagimliligi alinmaz). Bu ornek dosya sistemine yazan bir sablondur;
+// gercek bir kurulumda kendi S3/Blob sink'inizi buradan turetin. Yalniz
+// yapilandirmada acikca bir kok yol verildiyse kaydedilir.
+var archivePath = builder.Configuration["AgentPrism:Retention:ArchivePath"];
+
+if (!string.IsNullOrWhiteSpace(archivePath))
+{
+    builder.Services.AddSingleton<IArchiveSink>(new FileSystemArchiveSink(archivePath));
+}
+
 // Cok kiracililik istege baglidir ve VARSAYILAN OLARAK KAPALIDIR. Acildiginda
 // kiraci once claim'den, o yoksa (acikca izin verilmisse) baslikten cozulur.
 // Baslik sahtelenebilir; asagidaki kurulum yalnizca ornek icindir ve

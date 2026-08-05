@@ -135,6 +135,10 @@ public static class AgentPrismSqliteBuilderExtensions
         services.Replace(ServiceDescriptor.Singleton<IQuotaStore, SqlQuotaStore>());
         services.Replace(ServiceDescriptor.Singleton<IWebhookStore, SqlWebhookStore>());
 
+        // Veri saklama ve arsivleme (Faz 25).
+        services.Replace(ServiceDescriptor.Singleton<IRetentionPolicyStore, SqlRetentionPolicyStore>());
+        services.Replace(ServiceDescriptor.Singleton<IRetentionStore, SqlRetentionStore>());
+
         services.Replace(ServiceDescriptor.Singleton<IExperimentStore, AuditingExperimentStore>(
             static provider => new AuditingExperimentStore(
                 ActivatorUtilities.CreateInstance<SqlExperimentStore>(provider),

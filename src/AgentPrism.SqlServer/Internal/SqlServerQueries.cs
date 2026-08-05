@@ -1548,5 +1548,89 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             ORDER BY created_at DESC
             {Paging}
             """;
+
+        const string retentionPolicyColumns =
+            "id, tenant_id, target, max_age_days, max_rows, archive, enabled, created_at, updated_at";
+
+        const string retentionPolicyOutput = """
+            inserted.id, inserted.tenant_id, inserted.target, inserted.max_age_days, inserted.max_rows,
+            inserted.archive, inserted.enabled, inserted.created_at, inserted.updated_at
+            """;
+
+        // K-177 iki dalli upsert deseni: UPDATE 0 satir etkilerse gercek satir
+        // IKINCI sonuc kumesindedir (K-188); DbHelpers.ReadSingleAsync bunu
+        // NextResultAsync ile dolasir.
+        UpsertRetentionPolicy = $"""
+            UPDATE {Schema}.retention_policies WITH (UPDLOCK, SERIALIZABLE)
+               SET max_age_days = @max_age_days,
+                   max_rows     = @max_rows,
+                   archive      = @archive,
+                   enabled      = @enabled,
+                   updated_at   = @updated_at
+             OUTPUT {retentionPolicyOutput}
+             WHERE tenant_id = @tenant_id
+               AND target    = @target;
+
+            IF @@ROWCOUNT = 0
+            INSERT INTO {Schema}.retention_policies
+                ({retentionPolicyColumns})
+             OUTPUT {retentionPolicyOutput}
+            VALUES
+                (@id, @tenant_id, @target, @max_age_days, @max_rows, @archive, @enabled, @created_at, @updated_at);
+            """;
+
+        SelectRetentionPolicies = $"""
+            SELECT {retentionPolicyColumns}
+            FROM {Schema}.retention_policies
+            WHERE tenant_id = @tenant_id
+            ORDER BY target;
+            """;
+
+        SelectRetentionPolicy = $"""
+            SELECT {retentionPolicyColumns}
+            FROM {Schema}.retention_policies
+            WHERE tenant_id = @tenant_id
+              AND target    = @target;
+            """;
+
+        DeleteRetentionPolicy = $"""
+            DELETE FROM {Schema}.retention_policies
+             WHERE tenant_id = @tenant_id
+               AND target    = @target;
+            """;
+
+        const string retentionRunColumns =
+            "id, tenant_id, target, deleted_rows, archived_rows, started_at, completed_at, error";
+
+        InsertRetentionRun = $"""
+            INSERT INTO {Schema}.retention_runs
+                ({retentionRunColumns})
+            VALUES
+                (@id, @tenant_id, @target, 0, 0, @started_at, NULL, NULL);
+            """;
+
+        UpdateRetentionRunProgress = $"""
+            UPDATE {Schema}.retention_runs
+               SET deleted_rows  = deleted_rows + @deleted_delta,
+                   archived_rows = archived_rows + @archived_delta
+             WHERE id = @id;
+            """;
+
+        CompleteRetentionRun = $"""
+            UPDATE {Schema}.retention_runs
+               SET completed_at = @completed_at,
+                   error        = @error
+             WHERE id = @id;
+            """;
+
+        SelectRetentionRuns = $"""
+            SELECT {retentionRunColumns}
+            FROM {Schema}.retention_runs
+            WHERE tenant_id = @tenant_id
+              AND (@target IS NULL OR target = @target)
+              {TakeGuard}
+            ORDER BY started_at DESC
+            {Paging}
+            """;
     }
 }

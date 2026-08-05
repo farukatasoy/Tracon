@@ -52,6 +52,8 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
         Experiments = new SqlExperimentStore(wrapped, TenantContext);
         Quotas = new SqlQuotaStore(wrapped);
         Webhooks = new SqlWebhookStore(wrapped);
+        RetentionPolicies = new SqlRetentionPolicyStore(wrapped);
+        RetentionData = new SqlRetentionStore(wrapped);
         Migrations = new MigrationRunner(wrapped, NullLogger<MigrationRunner>.Instance);
     }
 
@@ -126,6 +128,12 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
 
     /// <summary>Webhook deposu (Faz 21).</summary>
     public SqlWebhookStore Webhooks { get; }
+
+    /// <summary>Saklama politikasi ve kosu gecmisi deposu (Faz 25).</summary>
+    public SqlRetentionPolicyStore RetentionPolicies { get; }
+
+    /// <summary>Saklama veri duzlemi (sayma/silme/arsiv okuma) (Faz 25).</summary>
+    public SqlRetentionStore RetentionData { get; }
 
     /// <summary>Migration calistiricisi.</summary>
     public MigrationRunner Migrations { get; }

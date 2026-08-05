@@ -343,6 +343,28 @@ public sealed class SqlServerQuotaStoreContractTests(SqlServerFixture fixture) :
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
+public sealed class SqlServerRetentionPolicyStoreContractTests(SqlServerFixture fixture) : RetentionPolicyStoreContract
+{
+    private SqlServerTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<IRetentionPolicyStore> CreateStoreAsync()
+    {
+        _context = await SqlServerTestContext.CreateAsync(fixture);
+        return _context.RetentionPolicies;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}
+
+/// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
 public sealed class SqlServerWebhookStoreContractTests(SqlServerFixture fixture) : WebhookStoreContract
 {
     private SqlServerTestContext? _context;

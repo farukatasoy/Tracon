@@ -91,9 +91,9 @@ Bir dosya bütçeyi aşarsa **içerik silinmez** — alan dosyasına veya `docs/
 
 ### Faz durumu
 
-**Sıradaki faz: 25** — [`docs/25-VERI-SAKLAMA-VE-ARSIVLEME.md`](docs/25-VERI-SAKLAMA-VE-ARSIVLEME.md).
+**Sıradaki faz: 26** — [`docs/26-ANTHROPIC-VE-GEMINI.md`](docs/26-ANTHROPIC-VE-GEMINI.md).
 
-Faz 0–24 tamam. Gerçek `mssql/server` koşmadı, bkz.
+Faz 0–25 tamam. Gerçek `mssql/server` koşmadı, bkz.
 [`23-SQL-SERVER.md`](docs/23-SQL-SERVER.md). Faz 7 beklemede (K-068).
 Durum tablosu: [`README.md`](README.md) yol haritası.
 Faz 21–30 sırası, bağımlılıkları ve migration numaraları:

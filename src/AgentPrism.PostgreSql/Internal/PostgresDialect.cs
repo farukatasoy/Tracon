@@ -113,6 +113,34 @@ internal sealed class PostgresDialect : SqlDialect
     }
 
     /// <inheritdoc />
+    public override string BuildRetentionCountSql(string table, string wherePredicate)
+        => $"SELECT COUNT(*) FROM {table} WHERE {wherePredicate};";
+
+    /// <inheritdoc />
+    public override string BuildRetentionArchiveSelectSql(string table, string wherePredicate, string orderColumn)
+        => $"""
+            SELECT *
+            FROM {table}
+            WHERE {wherePredicate}
+            ORDER BY {orderColumn}
+            LIMIT @batchSize;
+            """;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// PostgreSQL <c>DELETE ... LIMIT</c> tanimaz; <c>ctid</c> alt sorgusuyla
+    /// bir parti secilir. Siralama YOKTUR — parti sirasi onemli degildir.
+    /// </remarks>
+    public override string BuildRetentionDeleteBatchSql(string table, string wherePredicate)
+        => $"""
+            DELETE FROM {table}
+             WHERE ctid IN (
+                   SELECT ctid FROM {table}
+                    WHERE {wherePredicate}
+                    LIMIT @batchSize);
+            """;
+
+    /// <inheritdoc />
     /// <remarks>
     /// <c>timestamptz</c> sutunu <see cref="DateTime"/> (<c>Kind = Utc</c>) bekler.
     /// </remarks>
