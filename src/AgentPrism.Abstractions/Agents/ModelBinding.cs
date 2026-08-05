@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace AgentPrism;
 
 /// <summary>
@@ -33,4 +35,38 @@ public sealed record ModelBinding
     /// sessizce yok sayilmaz.
     /// </remarks>
     public string? ReasoningEffort { get; init; }
+
+    /// <summary>
+    /// Saglayiciya ozgu ek ayarlar. Anahtar <c>{saglayici}.{ayar}</c> bicimindedir.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Anthropic'in prompt caching'i veya Gemini'nin guvenlik esikleri bu sozlesmenin
+    /// sabit alanlarina sigmaz. Onlari <see cref="ModelBinding"/> govdesine eklemek
+    /// <c>AgentPrism.Abstractions</c>'a bir saticinin kavramini sizdirirdi. Bu sozluk
+    /// sozlesmeyi temiz tutar: her saglayici yalnizca kendi onekini okur.
+    /// </para>
+    /// <para>
+    /// <strong>Bilinmeyen bir anahtar sessizce yok sayilmaz.</strong> Saglayici
+    /// tanimadigi bir anahtar gorurse derleme hatasi verir ve destekledigi anahtarlari
+    /// listeler. Gerekce <see cref="ReasoningEffort"/> ile aynidir (karar K-034):
+    /// sessizce yok sayilan bir ayar, kullanicinin bekledigi davranisi almamasina ve
+    /// sebebini gorememesine yol acar.
+    /// </para>
+    /// <para>
+    /// Anahtar karsilastirmasi <see cref="StringComparer.OrdinalIgnoreCase"/> ile
+    /// yapilir. Okuma icin <see cref="ModelProviderSettings"/> yardimcilarini kullanin.
+    /// </para>
+    /// <example>
+    /// <code language="json">
+    /// "ProviderSettings": {
+    ///   "anthropic.promptCaching": true,
+    ///   "anthropic.thinking.budgetTokens": 8000,
+    ///   "google.safety.harassment": "BLOCK_ONLY_HIGH"
+    /// }
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public IReadOnlyDictionary<string, JsonElement> ProviderSettings { get; init; }
+        = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
 }
