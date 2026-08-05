@@ -149,3 +149,11 @@ public sealed class InMemoryRetentionPolicyStoreContractTests : RetentionPolicyS
     protected override ValueTask<IRetentionPolicyStore> CreateStoreAsync()
         => ValueTask.FromResult<IRetentionPolicyStore>(new InMemoryRetentionPolicyStore());
 }
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryVoiceSessionStoreContractTests : VoiceSessionStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<IVoiceSessionStore> CreateStoreAsync()
+        => ValueTask.FromResult<IVoiceSessionStore>(new InMemoryVoiceSessionStore());
+}

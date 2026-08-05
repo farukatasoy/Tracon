@@ -87,6 +87,15 @@ ChatHistoryProvider? ChatHistoryProvider { get; set; }
 
 **ÖNEMLİ:** `ChatHistoryProvider` örneği **tüm oturumlarda paylaşılır**. Oturuma özgü hiçbir durum alan olarak tutulamaz; `ProviderSessionState` ile `AgentSession` içinde saklanır. `PostgresChatHistoryProvider` yalnız `NpgsqlDataSource` referansını tutar.
 
+**`InvokedAsync` ile geçmişe ELLE yazma (Faz 29).** Akışlı çalıştırma iptal
+edildiğinde MAF geçmişi yazmaz: kesilen yanıt kaybolur ve model bir sonraki
+turda kendi yarım cümlesini görmez. Konuşma katmanı barge-in'de
+`chatHistory.InvokedAsync(new ChatHistoryProvider.InvokedContext(agent, session,
+[], [kısmî yanıt]))` çağırır — yazmanın başka public yolu yoktur
+(`StoreChatHistoryAsync` `protected`'tir). Kurucu `MAAI001` işaretlidir;
+bastırma `VoiceConversationDriver.RecordInterruptionAsync` içinde tek noktadadır
+(`ChatHistoryReader` ile aynı gerekçe, K-037).
+
 ### Faz 3'te kullanılanlar
 
 Reflection ile doğrulandı: `OpenAI` 2.12.0, `Microsoft.Extensions.AI.OpenAI` 10.8.3, `Microsoft.Agents.AI.OpenAI` 1.16.0.

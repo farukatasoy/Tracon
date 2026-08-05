@@ -11,8 +11,44 @@
 ## Bu Faza Başlarken
 
 1. [`05-AGENTPRISM-UI.md`](05-AGENTPRISM-UI.md) — arayüz mimarisi, `lib/` yapısı, bundle zinciri
-2. [`KARARLAR.md`](KARARLAR.md) — **"Arayüz i18n altyapısı kurulmadı; dil İngilizce"** (bölüm 1) — bu kararın **yeniden açılma koşulu bu fazdır**; **K-045** (kütüphane yerine elle yazma), **K-002** (bundle bütçesi)
-3. Bu doküman
+2. [`29-KONUSMA-KATMANI.md`](29-KONUSMA-KATMANI.md) — yalnız **"Sonraki Faza Devir Notu"** bölümü
+3. [`KARARLAR.md`](KARARLAR.md) — **"Arayüz i18n altyapısı kurulmadı; dil İngilizce"** (bölüm 1) — bu kararın **yeniden açılma koşulu bu fazdır**; **K-045** (kütüphane yerine elle yazma), **K-002** (bundle bütçesi)
+4. [`docs/hafiza/frontend.md`](hafiza/frontend.md) — arayüze dokunuyorsunuz
+5. Bu doküman
+
+---
+
+## Faz 29'dan Devralınanlar
+
+Bu fazın **çevireceği en yeni ekran** konuşma modudur (Faz 29). Bilinmesi
+gerekenler:
+
+| Konu | Devralınan durum |
+|---|---|
+| Bundle | **124,9 KB gzip / 250 KB bütçe.** Faz 29 +2,4 KB ekledi; i18n sözlükleri buraya girer |
+| Yeni bileşen | `components/voice-panel.tsx` — mikrofon, ölçer, altyazı, "Send now", "Interrupt", kayıt rozeti. **Tüm metinleri İngilizce sabittir** |
+| Yeni saf modül | `lib/voice.ts` — `microphoneSupport()` kullanıcıya **gösterilen** bir gerekçe metni döndürür; o metin de çevrilmelidir |
+| Yeni ekran metni | Playground'daki mikrofon düğmesi ve `voice-unsupported` uyarısı |
+
+🚨 **Ses seçimi dile bağlıdır.** Türkçe bir yanıt İngilizce bir sesle
+seslendirilirse sonuç anlaşılmaz olur. `VoiceConversationOptions.VoiceId`
+bugün **tek bir ses** taşır; dil başına ses eşlemesi bu fazın işidir. İki yol
+var ve seçim bu fazda yapılmalıdır:
+
+1. `VoiceId`'yi bir sözlüğe çevirmek (`Dictionary<string, string>` dil→ses) —
+   sunucu tarafı değişikliği, `VoiceConversationOptions` kırıcı olmayan bir
+   genişleme
+2. İstemcinin `start` mesajında `voiceId` göndermesi — protokol **zaten
+   destekliyor** (`VoiceClientMessage.VoiceId`), sunucu değişikliği gerekmez;
+   sesi arayüz seçer (`GET /api/voice/voices` ile listelenir)
+
+**Öneri: 2.** Sunucuya dil bilgisi taşımaz ve mevcut protokolü kullanır.
+
+🚨 **`t(...)` çağrısı `voice-panel.tsx` içinde dikkatli kullanılmalıdır.** Panel
+`useCallback` bağımlılık dizileri taşır; `t` fonksiyonu her dil değişiminde yeni
+bir referans olursa `start`/`stop` yeniden kurulur ve **açık bir WebSocket
+bağlantısı kopabilir**. `t`'yi kararlı bir referans olarak dışa açın veya metni
+render sırasında çözün.
 
 ---
 
@@ -177,6 +213,7 @@ Bu faz arayüze son kez toplu dokunuştur; birikmiş küçük eksikler burada ka
 - [ ] Eksik çeviri **derlemeyi kırıyor** (kanıt: bilerek eksik bırakılan
       anahtarla derleme hatası)
 - [ ] Komut paleti çalışıyor; rol bazlı filtreleme doğru
+- [ ] **Konuşma modu iki dilde çalışıyor** ve seslendirme dile uygun sesle yapılıyor
 - [ ] Kısayollar çalışıyor ve metin alanlarında tetiklenmiyor
 - [ ] Klavye ile tüm ekranlar gezilebiliyor; odak görünür
 - [ ] Bundle ölçüldü ve bütçe içinde (hedef: toplam **120 KB gzip altı**)

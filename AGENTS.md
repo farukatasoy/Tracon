@@ -91,9 +91,9 @@ Bir dosya bütçeyi aşarsa **içerik silinmez** — alan dosyasına veya `docs/
 
 ### Faz durumu
 
-**Sıradaki faz: 29** — [`docs/29-KONUSMA-KATMANI.md`](docs/29-KONUSMA-KATMANI.md).
+**Sıradaki faz: 30** — [`docs/30-ARAYUZ-CILASI.md`](docs/30-ARAYUZ-CILASI.md).
 
-Faz 0–28 tamam. Gerçek `mssql/server` koşmadı, bkz.
+Faz 0–29 tamam. Gerçek `mssql/server` koşmadı, bkz.
 [`23-SQL-SERVER.md`](docs/23-SQL-SERVER.md). Faz 7 beklemede (K-068),
 Foundry ertelendi (K-212).
 Durum tablosu: [`README.md`](README.md) yol haritası.

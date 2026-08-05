@@ -39,7 +39,20 @@ public sealed class BrowserFixture : IAsyncLifetime
 
         _playwright = await Playwright.CreateAsync();
 
-        Browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
+        // 🚨 Sahte medya cihazi: konusma modu testleri gercek bir mikrofon
+        // bulamaz. Iki bayrak birlikte gerekir — biri cihazi uretir, digeri
+        // izin kutusunu bastirir. Bayraklar tum testlerde acik olmasina ragmen
+        // yalnizca getUserMedia cagiran testleri etkiler.
+        Browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+        {
+            Headless = true,
+            Args =
+            [
+                "--use-fake-device-for-media-stream",
+                "--use-fake-ui-for-media-stream",
+                "--autoplay-policy=no-user-gesture-required",
+            ],
+        });
     }
 
     /// <inheritdoc />

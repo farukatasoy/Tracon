@@ -33,8 +33,21 @@ internal static class BearerTokenValidator
             return false;
         }
 
-        var presented = authorizationHeader.AsSpan(BearerPrefix.Length).Trim();
+        return IsValidToken(authorizationHeader.AsSpan(BearerPrefix.Length).Trim(), expectedToken);
+    }
 
+    /// <summary>Ham bir token degerini beklenen token ile karsilastirir.</summary>
+    /// <param name="presented">Sunulan token.</param>
+    /// <param name="expectedToken">Beklenen token.</param>
+    /// <returns>Degerler esitse <see langword="true"/>.</returns>
+    /// <remarks>
+    /// 🚨 WebSocket el sikismasi icindir: tarayici bir <c>&lt;script&gt;</c> veya
+    /// soket yukseltmesine <c>Authorization</c> basligi <strong>ekleyemez</strong>,
+    /// bu yuzden token <c>Sec-WebSocket-Protocol</c> alt protokolunde tasinir ve
+    /// buraya cıplak gelir. Karsilastirma yine sabit zamanlidir.
+    /// </remarks>
+    public static bool IsValidToken(ReadOnlySpan<char> presented, string expectedToken)
+    {
         if (presented.IsEmpty)
         {
             return false;

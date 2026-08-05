@@ -139,6 +139,11 @@ public static class AgentPrismSqliteBuilderExtensions
         services.Replace(ServiceDescriptor.Singleton<IRetentionPolicyStore, SqlRetentionPolicyStore>());
         services.Replace(ServiceDescriptor.Singleton<IRetentionStore, SqlRetentionStore>());
 
+        // Konusma kaydi (Faz 29). Yalniz UseVoiceConversation() cagrildiysa bir
+        // sey yazar; cagrilmadiysa depo bos kalir. Denetim izi dekoratoruyle
+        // SARILMAZ: kayit bir yonetici karari degil, yurutmenin yan urunudur.
+        services.Replace(ServiceDescriptor.Singleton<IVoiceSessionStore, SqlVoiceSessionStore>());
+
         services.Replace(ServiceDescriptor.Singleton<IExperimentStore, AuditingExperimentStore>(
             static provider => new AuditingExperimentStore(
                 ActivatorUtilities.CreateInstance<SqlExperimentStore>(provider),

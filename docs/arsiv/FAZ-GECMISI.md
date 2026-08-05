@@ -273,3 +273,55 @@ zaman `src/AgentPrism.PostgreSql/Migrations/*.sql` dosyalarıdır.
 | 0011 | 20 | `runs` tablosuna maliyet sütunları: `input_cost`, `output_cost`, `cost_currency`, `pricing_source` (yeni tablo yok) |
 | 0012 | 21 | `quotas`, `quota_usage`, `webhook_subscriptions`, `webhook_deliveries`; `jobs` tablosuna `max_attempts`. `webhook_deliveries` bir kuyruk **değildir** — zamanlama ve kiralama `jobs` tablosunda yaşar (K-160) |
 
+---
+
+## AOT uyumluluğunun Faz 1–2'de getirdiği kısıtlar
+
+> `MIMARI.md` bölüm 9'dan taşındı (2026-08-05, Faz 29 kapanışı): bugünkü mimari
+> değil, o iki fazın anlatısıdır. Bugünkü tablo (hangi paket AOT uyumlu)
+> `MIMARI.md`'de kalır.
+
+Ayrım `AgentPrismAotCompatible` özelliği ile uygulanır: varsayılan
+`src/Directory.Build.props` içinde verilir, `IsAotCompatible` türetmesi ise
+`Directory.Build.targets` içinde yapılır (csproj okunduktan **sonra**) — K-006.
+
+AOT uyumluluğu Faz 1'de üç somut kısıt getirdi:
+
+| Kısıt | Çözüm |
+|-------|-------|
+| `ValidateDataAnnotations()` yansıma kullanır | Elle yazılmış `AgentPrismOptionsValidator` |
+| `optionsBuilder.Bind()` yansıma kullanır | `EnableConfigurationBindingGenerator=true` (kaynak üreteci) |
+| Tool argümanlarını JSON'a çevirme | Elle biçimlendirme; `JsonSerializer` kullanılmaz |
+
+`AgentPrism.PostgreSql` (Faz 2) `jsonb` alanlarını serileştirirken
+**System.Text.Json kaynak üreteci** kullanmalıdır (`JsonSerializerContext`);
+yansımaya dayanan aşırı yüklemeler AOT vaadini bozar.
+
+---
+
+## Faz 29 — Konuşma katmanı (2026-08-05)
+
+Gerçek zamanlı ses geldi ve barındırma modeli **isteğe bağlı olarak** değişti:
+`UseVoiceConversation()` çağrılırsa `{prefix}/api/voice/sessions/{id}/stream`
+bir WebSocket açar ve bağlantı dakikalarca yaşar. Çağrılmazsa uç hiç bağlanmaz
+(404) ve `UseWebSockets()` de kurulmaz.
+
+Seçilen mimari **Seçenek A**'dır (K-222): ses sağlayıcının gerçek zamanlı
+API'sine vekillenmez; mikrofon → çözüm → **normal akışlı çalıştırma** → cümle
+cümle sentez zinciri kurulur. Bedeli gecikmedir, karşılığı her turun normal bir
+`runs` satırı üretmesidir — gerçek bir konuşmada ölçüldü: `Completed`, 413
+token, span'ler yerinde.
+
+Fazın üç ölçülen dersi:
+
+1. **Chromium'un sahte ses cihazı hiç susmaz.** VAD'e dayanan E2E testi 30
+   saniyede zaman aşımına uğradı. Çözüm bir test hilesi değil, ürünün kendi
+   ihtiyacı çıktı: elle kapatma düğmesi (bas-konuş / gürültülü ortam).
+2. **`MediaRecorder` kap başlığını yalnız ilk parçaya yazar.** Kaydedici her
+   konuşma parçası için yeniden başlatılmalıdır.
+3. **Kesilen yanıt geçmişe elle yazılmalıdır.** Akışlı çalıştırma iptal
+   edildiğinde MAF geçmişi yazmaz; model bir sonraki turda kendi yarım cümlesini
+   görmez ve konuşma kopar.
+
+Faz ayrıca Faz 28 commit'ine kazayla girmiş dört senkronizasyon kopyasını
+(`icons 2.tsx`, `api 2.ts`, `types 2.ts`, `playground 2.tsx`) sildi.

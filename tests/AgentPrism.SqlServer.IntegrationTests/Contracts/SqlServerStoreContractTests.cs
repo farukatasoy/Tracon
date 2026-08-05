@@ -385,3 +385,25 @@ public sealed class SqlServerWebhookStoreContractTests(SqlServerFixture fixture)
         }
     }
 }
+
+/// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
+public sealed class SqlServerVoiceSessionStoreContractTests(SqlServerFixture fixture) : VoiceSessionStoreContract
+{
+    private SqlServerTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<IVoiceSessionStore> CreateStoreAsync()
+    {
+        _context = await SqlServerTestContext.CreateAsync(fixture);
+        return _context.VoiceSessions;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}

@@ -1637,5 +1637,35 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             ORDER BY started_at DESC
             {Paging}
             """;
+        const string voiceSessionColumns =
+            "id, tenant_id, session_id, agent_name, started_at, ended_at, turns, input_seconds, output_chars, end_reason, created_by";
+
+        // 🚨 MERGE KULLANILMAZ (K-177): once kilitli UPDATE, satir yoksa INSERT.
+        UpsertVoiceSession = $"""
+            UPDATE {Schema}.voice_sessions WITH (UPDLOCK, SERIALIZABLE)
+               SET ended_at      = @ended_at,
+                   turns         = @turns,
+                   input_seconds = @input_seconds,
+                   output_chars  = @output_chars,
+                   end_reason    = @end_reason
+             WHERE id = @id;
+
+            IF @@ROWCOUNT = 0
+            INSERT INTO {Schema}.voice_sessions
+                ({voiceSessionColumns})
+            VALUES
+                (@id, @tenant_id, @session_id, @agent_name, @started_at, @ended_at, @turns, @input_seconds, @output_chars, @end_reason, @created_by);
+            """;
+
+        SelectVoiceSessions = $"""
+            SELECT {voiceSessionColumns}
+            FROM {Schema}.voice_sessions
+            WHERE tenant_id = @tenant_id
+              AND (@agent_name IS NULL OR agent_name = @agent_name)
+              AND (@session_id IS NULL OR session_id = @session_id)
+              {TakeGuard}
+            ORDER BY started_at DESC
+            {Paging}
+            """;
     }
 }

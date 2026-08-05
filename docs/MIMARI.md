@@ -18,22 +18,21 @@
 | Paket | Rolü | Durum |
 |-------|------|-------|
 | `AgentPrism.Abstractions` | Sözleşmeler: kayıt, depo, katalog, iş, eval, deney, kota, webhook, saklama tipleri. Bağımlılığı yok. | ✅ |
-| `AgentPrism.Core` | Çalıştırma yolu: derleyici, dekoratörler, kayıt, denetim, skill, workflow doğrulama, fiyat, kota, olay yayını, saklama yürütücüsü. | ✅ |
-| `AgentPrism.PostgreSql` | Kalıcılık: `PostgresQueries` + `PostgresDialect` + gömülü SQL (0001–0015). Depo mantığı `AgentPrism.Sql.Shared` ile paylaşılır. | ✅ |
+| `AgentPrism.Core` | Çalıştırma yolu: derleyici, dekoratörler, kayıt, denetim, skill, workflow doğrulama, fiyat, kota, olay yayını, saklama yürütücüsü, konuşma boru hattı (K-222). | ✅ |
+| `AgentPrism.PostgreSql` | Kalıcılık: `PostgresQueries` + `PostgresDialect` + gömülü SQL (0001–0016). Depo mantığı `AgentPrism.Sql.Shared` ile paylaşılır. | ✅ |
 | `AgentPrism.SqlServer` | SQL Server 2019+ / Azure SQL. Aynı depolar, kendi T-SQL metni ve migration seti (`0001`–`0003`). Meta pakete dâhil değil (K-185). | ⚠️ Faz 25 testleri koşturulmadı |
-| `AgentPrism.Sqlite` | Tek dosya/gömülü kalıcılık. Aynı depolar, kendi SQL metni ve migration seti (`0001`–`0003`, K-190). Meta pakete dâhil değil. | ✅ |
-| `AgentPrism.Sql.Shared` | **Paket değil** — paylaşılan kaynak: 22 depo (ADO.NET tabanı), `SqlQueriesBase`, `SqlDialect` (+ `QualifyTable`, K-198), migration runner (K-176). | ✅ |
-| `AgentPrism.OpenAI` | OpenAI ve OpenAI uyumlu her sağlayıcı + sağlık denetimi. | ✅ |
+| `AgentPrism.Sqlite` | Tek dosya/gömülü kalıcılık. Aynı depolar, kendi SQL metni ve migration seti (`0001`–`0004`, K-190). Meta pakete dâhil değil. | ✅ |
+| `AgentPrism.Sql.Shared` | **Paket değil** — paylaşılan kaynak: 23 depo (ADO.NET tabanı), `SqlQueriesBase`, `SqlDialect` (+ `QualifyTable`, K-198), migration runner (K-176). | ✅ |
+| `AgentPrism.OpenAI` | OpenAI ve OpenAI uyumlu her sağlayıcı + sağlık denetimi | ✅ |
 | `AgentPrism.Anthropic` | Anthropic (Claude) — resmî SDK, prompt caching, genişletilmiş düşünme, sağlık denetimi. Meta pakete dâhil değil (K-209). | ✅ |
 | `AgentPrism.Google` | Google Gemini — resmî SDK, güvenlik eşikleri, düşünme bütçesi, sağlık denetimi. Meta pakete dâhil değil; geçişli ağırlığı kabul edildi (K-205). | ✅ |
 | `AgentPrism.Azure` | Azure OpenAI — deployment tabanlı model çözümü, API anahtarı **veya** Entra kimliği (`Azure.Identity` alınmadı, K-210). Ayar **sunmaz** (K-211); Responses desteklenmez (K-213). Meta pakete dâhil değil. | ✅ |
-| `AgentPrism.Voice` | Ses tool'ları: `speak`, `transcribe`, `list_voices`. Sıfır NuGet bağımlılığı (K-216); sözleşme `Abstractions`'ta (K-215). Meta pakete dâhil değil. | ✅ |
-| `AgentPrism.Mcp` | Uzak MCP tool keşfi. | ✅ |
-
-| `AgentPrism.Workflows` | MAF Workflows yürütmesi, kontrol noktası, human-in-the-loop. | ✅ |
+| `AgentPrism.Voice` | Ses tool'ları: `speak`, `transcribe`, `list_voices`. Sıfır NuGet bağımlılığı (K-216); sözleşme `Abstractions`'ta (K-215). Gerçek zamanlı konuşma katmanı burada **değil**, `Core`'dadır (K-222). Meta pakete dâhil değil. | ✅ |
+| `AgentPrism.Mcp` | Uzak MCP tool keşfi | ✅ |
+| `AgentPrism.Workflows` | MAF Workflows yürütmesi, kontrol noktası, human-in-the-loop | ✅ |
 | `AgentPrism.AspNetCore` | `MapAgentPrism()` — yönetim API'si, OpenAI uyumlu uçlar, roller, hız sınırı. | ✅ |
-| `AgentPrism.UI` | Gömülü React arayüzü (`UseUI()`). | ✅ |
-| `AgentPrism` (meta) | Hepsini toplayan meta paket. | ✅ |
+| `AgentPrism.UI` | Gömülü React arayüzü (`UseUI()`) | ✅ |
+| `AgentPrism` (meta) | Hepsini toplayan meta paket | ✅ |
 
 Hangi fazın hangi pakete ne eklediği: [`arsiv/PAKET-FAZ-GECMISI.md`](arsiv/PAKET-FAZ-GECMISI.md).
 
@@ -59,8 +58,7 @@ intended for production use" der: kalicilik yok, erisim loopback + sabit
 token, agent yonetimi salt okunur, PostgreSQL destegi yok.
 
 **AgentPrism bu boslugu doldurur** — DevUI'nin yerine gecmez, biraktigi yerden
-devam eder. Kaynak kodundan dogrulanmis sinir tablosu ve karsilastirma:
-[`arsiv/DEVUI-KARSILASTIRMASI.md`](arsiv/DEVUI-KARSILASTIRMASI.md).
+devam eder. Karsilastirma: [`arsiv/DEVUI-KARSILASTIRMASI.md`](arsiv/DEVUI-KARSILASTIRMASI.md).
 
 ---
 
@@ -267,6 +265,7 @@ yazılırsa aynı satır güncellenir, tekrar kaydı oluşmaz.
 | `webhook_deliveries` | Teslim **geçmişi** — kuyruk değil; zamanlama `jobs`'tadır (K-160) (Faz 21) |
 | `retention_policies` | Hedef başına saklama kuralı: yaş/hacim sınırı, arşiv bayrağı (K-198) (Faz 25) |
 | `retention_runs` | Temizleme koşusu geçmişi (Faz 25) |
+| `voice_sessions` | Konuşma bağlantısı özeti: tur, süre, karakter, kapanış nedeni. **Ses içermez**; `session_id` FK **değil** (Faz 29) |
 
 Kurallar:
 
@@ -489,11 +488,18 @@ Tarayıcı bir `<script src>` isteğine `Authorization` başlığı ekleyemez; k
 kilitlenseydi kullanıcı token'ı girebileceği ekranı hiçbir zaman göremezdi. Kabuk
 veri taşımaz. Loopback kısıtı ve authorization policy kabuğa da uygulanır:
 
-| Katman | `/api/meta` | Arayüz kabuğu | Diğer tüm uçlar |
-|--------|-------------|---------------|------------------|
-| Loopback kısıtı | ❌ | ✅ | ✅ |
-| Authorization policy | ❌ | ✅ | ✅ |
-| Bearer token | ❌ | ❌ | ✅ |
+| Katman | `/api/meta` | Arayüz kabuğu | Konuşma WebSocket'i | Diğer tüm uçlar |
+|--------|-------------|---------------|---------------------|------------------|
+| Loopback kısıtı | ❌ | ✅ | ✅ | ✅ |
+| Authorization policy | ❌ | ✅ | ✅ | ✅ |
+| Bearer token | ❌ | ❌ | ✅ **alt protokolde** | ✅ başlıkta |
+
+🚨 **Konuşma WebSocket'i token'ı `Sec-WebSocket-Protocol` alt protokolünde alır**
+(`agentprism.token.<token>`) ve sabit zamanda kendisi doğrular (K-224). Tarayıcı
+bir el sıkışmaya `Authorization` başlığı ekleyemez; sorgu dizesi ise sunucu ve
+ters vekil günlüklerine yazılacağı için **kabul edilmez**. Uç ayrıca `Operator`
+rolü ister, oturumun kiracı sahipliğini doğrular, kiracı başına eşzamanlı
+bağlantıyı sınırlar ve süre/boşta zaman aşımı uygular.
 
 Arayüz token'ı tarayıcıda `sessionStorage`'da tutar — sekme kapanınca silinir (K-047).
 
@@ -501,7 +507,7 @@ Ek sınırlar:
 
 - Sırlar (`ApiKey`, bağlantı dizesi, MCP kimlik doğrulama değeri) **hiçbir zaman** veritabanına yazılmaz, API'den dönmez, arayüzde gösterilmez
 - `previous_response_id` ve `conversation_id` güvenilmez girdi kabul edilir; her zaman kiracı sahipliği doğrulanır
-- `audit_log` tablosu Faz 9'dan beri doludur — bkz. aşağıdaki "Faz 9'un eklediği sınırlar"
+- `audit_log` Faz 9'dan beri doludur — bkz. "Roller ve denetim izi"
 
 ### Çok kiracılılık ve tool onayı
 
@@ -701,15 +707,11 @@ Ayrıntı: `docs/22-MCP-DERINLESMESI.md`.
 
 ## 8. Sürüm Politikası
 
-`Microsoft.Agents.AI.Hosting` (preview) ve `Microsoft.Agents.AI.Hosting.OpenAI` (alpha) hâlâ ön sürümdür. NuGet, ön sürüm bağımlılığı olan bir paketi kararlı olarak yayınlamayı engellemez ancak bu yanıltıcı olur.
-
-Bu yüzden:
-
-- AgentPrism, bu iki paket GA olana kadar `1.0.0-preview.N` olarak yayınlanır
-- Ön sürüm bağımlılığı **yalnızca** `AgentPrism.AspNetCore` içinde toplanır
-- `Abstractions`, `Core`, `PostgreSql`, `OpenAI` yalnız GA paketlere bağlıdır
-
-Sonuç: MAF GA'ya geçtiğinde tek bir pakette sürüm güncellemesi yeterlidir.
+`Microsoft.Agents.AI.Hosting` (preview) ve `.Hosting.OpenAI` (alpha) hâlâ ön
+sürümdür. Ön sürüm bağımlılığı **yalnızca** `AgentPrism.AspNetCore` içinde
+toplanır (K-008); diğer paketler yalnız GA paketlere bağlıdır. AgentPrism o iki
+paket GA olana kadar `1.0.0-preview.N` yayınlanır — sonra tek bir pakette sürüm
+güncellemesi yeterlidir.
 
 ---
 
@@ -726,17 +728,9 @@ Sonuç: MAF GA'ya geçtiğinde tek bir pakette sürüm güncellemesi yeterlidir.
 | `AgentPrism.AspNetCore` | Hayır | Minimal API delege yönlendirmesi reflection kullanır. Bayrak `Directory.Build.targets` içinde türetilir — `src/Directory.Build.props` csproj'dan önce yüklendiği için orada türetmek `false` tercihini yok sayardı (K-006) |
 | `AgentPrism.UI` | Hayır | Gömülü varlık tarama + ASP.NET Core bağlantısı |
 
-Bu ayrım `AgentPrismAotCompatible` özelliği ile uygulanır: varsayılan `src/Directory.Build.props` içinde verilir, `IsAotCompatible` türetmesi ise `Directory.Build.targets` içinde yapılır (csproj okunduktan **sonra**).
-
-AOT uyumluluğu Faz 1'de üç somut kısıt getirdi:
-
-| Kısıt | Çözüm |
-|-------|-------|
-| `ValidateDataAnnotations()` yansıma kullanır | Elle yazılmış `AgentPrismOptionsValidator` |
-| `optionsBuilder.Bind()` yansıma kullanır | `EnableConfigurationBindingGenerator=true` (kaynak üreteci) |
-| Tool argümanlarını JSON'a çevirme | Elle biçimlendirme; `JsonSerializer` kullanılmaz |
-
-`AgentPrism.PostgreSql` (Faz 2) `jsonb` alanlarını serileştirirken **System.Text.Json kaynak üreteci** kullanmalıdır (`JsonSerializerContext`); yansımaya dayanan aşırı yüklemeler AOT vaadini bozar.
+Bayrak `AgentPrismAotCompatible` ile uygulanır; türetmenin neden
+`Directory.Build.targets` içinde olduğu K-006'dadır. AOT'un Faz 1–2'de getirdiği
+somut kısıtlar ve çözümleri: [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md).
 
 ---
 

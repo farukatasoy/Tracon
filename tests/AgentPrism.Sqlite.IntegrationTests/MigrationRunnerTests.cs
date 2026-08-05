@@ -33,7 +33,8 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
         // olmalidir; ucu de ayni veri modelini tasir. Sayi BILEREK sabittir:
         // yeni bir tablo eklendiginde bu test kirilir ve ekleyen kisi tabloyu
         // fark eder.
-        tableCount.ShouldBe(38);
+        // Faz 29 `voice_sessions` tablosunu ekledi: 38 -> 39.
+        tableCount.ShouldBe(39);
     }
 
     [Fact]

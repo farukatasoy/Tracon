@@ -113,6 +113,16 @@ internal sealed class AgentPrismTestHost : IAsyncDisposable
         return new AgentPrismTestHost(app, client, logs);
     }
 
+    /// <summary>
+    /// Barindiriciya WebSocket ile baglanan bir istemci kurar.
+    /// </summary>
+    /// <returns>Istemci.</returns>
+    /// <remarks>
+    /// <c>TestServer</c> gercek bir soket acmaz ama WebSocket yukseltmesini
+    /// taklit eder; konusma ucu bu yuzden surec ici dogrulanabilir.
+    /// </remarks>
+    public WebSocketClient CreateWebSocketClient() => _app.GetTestServer().CreateWebSocketClient();
+
     /// <summary>Yaniti JSON belgesi olarak cozumler.</summary>
     /// <param name="response">HTTP yaniti.</param>
     /// <returns>Cozumlenmis kok eleman.</returns>

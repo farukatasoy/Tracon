@@ -117,3 +117,4 @@ Faz 23 kapanisi) 204 testin 204'u de kirilmisti. Kok sebepler:
 - **Yabanci anahtar zorlamasi VARSAYILAN KAPALIDIR**; her baglantida
   `PRAGMA foreign_keys = ON` acikca calistirilir (`SqliteDataSource`), aksi
   halde `REFERENCES ... ON DELETE CASCADE` sessizce yok sayilir.
+- **Yeni bir tablo eklemek uc migration + uc sorgu + bir depo + bir sozlesme testi demektir** (2026-08-05, Faz 29): `voice_sessions` icin dokunulanlar — `PostgreSql/Migrations/0016_*.sql`, `SqlServer/Migrations/0004_*.sql`, `Sqlite/Migrations/0004_*.sql`, `SqlQueriesBase` (+2 ozellik), uc `*Queries.cs`, `Sql.Shared/Stores/SqlVoiceSessionStore.cs`, uc `*BuilderExtensions.cs` icinde `services.Replace(...)`, uc `*TestContext.cs`, dort sozlesme turevi. 🚨 SQL Server'da **MERGE KULLANILMAZ** (K-177): once `UPDATE ... WITH (UPDLOCK, SERIALIZABLE)`, sonra `IF @@ROWCOUNT = 0 INSERT`. 🚨 `MigrationTests`'teki sabit tablo sayisi kirilir (38 → 39) — bu bilinclidir, guncelleyin.
