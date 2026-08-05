@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/AgentPrism.Google/AgentPrism.Google.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Yapilandirmadan ayar okuma testleri icin bellek ici yapilandirma saglayicisi. -->
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+  </ItemGroup>
+
+</Project>

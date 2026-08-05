@@ -24,6 +24,8 @@
 | `AgentPrism.Sqlite` | Tek dosya/gömülü kalıcılık. Aynı depolar, kendi SQL metni ve migration seti (`0001`–`0002`, K-190). Meta pakete dâhil değil. | ✅ |
 | `AgentPrism.Sql.Shared` | **Paket değil** — paylaşılan kaynak: 22 depo (ADO.NET tabanı), `SqlQueriesBase`, `SqlDialect` (+ `QualifyTable`, K-198), migration runner (K-176). | ✅ |
 | `AgentPrism.OpenAI` | OpenAI ve OpenAI uyumlu her sağlayıcı + sağlık denetimi. | ✅ |
+| `AgentPrism.Anthropic` | Anthropic (Claude) — resmî SDK, prompt caching, genişletilmiş düşünme, sağlık denetimi. Meta pakete dâhil değil (K-209). | ✅ |
+| `AgentPrism.Google` | Google Gemini — resmî SDK, güvenlik eşikleri, düşünme bütçesi, sağlık denetimi. Meta pakete dâhil değil; geçişli ağırlığı kabul edildi (K-205). | ✅ |
 | `AgentPrism.Mcp` | Uzak MCP sunucularından tool keşfi. | ✅ |
 | `AgentPrism.Workflows` | MAF Workflows yürütmesi, kontrol noktası, human-in-the-loop. | ✅ |
 | `AgentPrism.AspNetCore` | `MapAgentPrism()` — yönetim API'si, OpenAI uyumlu uçlar, roller, hız sınırı, saklama uçları. | ✅ |
@@ -32,9 +34,10 @@
 
 Hangi fazın hangi pakete ne eklediği: [`arsiv/PAKET-FAZ-GECMISI.md`](arsiv/PAKET-FAZ-GECMISI.md).
 
-Testler: **1509 geçiyor** — 601 birim (440 Core + 77 OpenAI + 69 Workflows +
-15 Mcp) + 254 fonksiyonel + 654 entegrasyon (Testcontainers: 440 PostgreSQL +
-214 SQLite). Dört kapı sıfır uyarı; `dotnet pack` **11 paket** üretir.
+Testler: **1651 geçiyor** — 708 birim (465 Core + 77 OpenAI + 43 Google +
+39 Anthropic + 69 Workflows + 15 Mcp) + 260 fonksiyonel + 654 entegrasyon
+(Testcontainers: 440 PostgreSQL + 214 SQLite) + 29 arayüz E2E. Dört kapı sıfır
+uyarı; `dotnet pack` **13 paket** üretir.
 ⚠️ `AgentPrism.SqlServer`'ın 213 testi bu makinede koşmadı (amd64 emülasyonu
 kapalı; `azure-sql-edge` ikamesi de artık çalışmıyor — bkz. `23-SQL-SERVER.md`,
 `docs/hafiza/sql-saglayicilari.md`).
@@ -43,11 +46,11 @@ Bugün AgentPrism **işletilebilir bir kontrol düzlemidir**: agent'lar kodda ve
 arayüzden tanımlanır, her çalıştırma kaydedilir, geri alınamaz tool'lar onay
 bekler, workflow'lar insanla konuşabilir, işler zamanlanabilir, sürümler A/B
 karşılaştırılabilir, kullanım sınırlanabilir, olaylar webhook'larla yayılabilir,
-eski veri politikaya göre arşivlenip silinebilir. Veritabanı **zorunlu
-değildir**; yapılandırılmazsa depolama bellek içine düşer.
+eski veri politikaya göre arşivlenip silinebilir. Ne veritabanı ne de belirli bir
+model satıcısı **zorunludur**: depolama yapılandırılmazsa bellek içine düşer,
+sağlayıcı tarafında OpenAI · uyumlu uçlar · Anthropic · Google birlikte çalışır.
 
 Faz faz nasıl buraya gelindiği: [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md).
-Her fazın ayrıntısı kendi dokümanındadır (`docs/NN-*.md`).
 
 ---
 
@@ -74,7 +77,9 @@ flowchart TD
     HTTP["<b>AgentPrism.AspNetCore</b><br/>MapAgentPrism · /api/* yönetim API'si<br/>/v1/responses · /v1/chat/completions · /v1/conversations<br/>loopback · bearer · policy · SSE"]
 
     PG["<b>AgentPrism.PostgreSql</b><br/>kalıcılık"]
-    OA["<b>AgentPrism.OpenAI</b><br/>openai · openai-responses"]
+    OA["<b>AgentPrism.OpenAI</b><br/>openai · openai-responses · uyumlu uçlar"]
+    AN["<b>AgentPrism.Anthropic</b><br/>anthropic"]
+    GO["<b>AgentPrism.Google</b><br/>google"]
     MCP["<b>AgentPrism.Mcp</b><br/>uzak MCP tool keşfi"]
     WF["<b>AgentPrism.Workflows</b><br/>workflow yürütme · beş desen"]
 
@@ -88,10 +93,14 @@ flowchart TD
     HTTP -->|"IAgentPrismUiProvider · kayıtlıysa"| UI
     HTTP --> PG
     HTTP --> OA
+    HTTP --> AN
+    HTTP --> GO
     HTTP -.->|"IMcpToolRefresher · kayıtlıysa"| MCP
     HTTP -.->|"IWorkflowRunner · kayıtlıysa"| WF
     PG --> CORE
     OA --> CORE
+    AN --> CORE
+    GO --> CORE
     MCP --> CORE
     WF --> CORE
     HTTP --> CORE
@@ -104,6 +113,8 @@ flowchart TD
 flowchart RL
     PostgreSql --> Core
     OpenAI --> Core
+    Anthropic --> Core
+    Google --> Core
     Mcp --> Core
     Workflows --> Core
     AspNetCore --> Core
@@ -118,7 +129,7 @@ flowchart RL
 
     classDef aot fill:#1f6f4a,stroke:#0d3b27,color:#ffffff
     classDef notaot fill:#7a4a1f,stroke:#3d250f,color:#ffffff
-    class Abstractions,Core,PostgreSql,OpenAI aot
+    class Abstractions,Core,PostgreSql,OpenAI,Anthropic,Google aot
     class AspNetCore,UI,Mcp,Workflows,Meta,SqlServer notaot
 ```
 
@@ -286,7 +297,7 @@ flowchart TD
     APR["<b>ToolApprovalAgent</b> · Order 20<br/>otomatik onay kuralları"]
     RUN["AIAgent.RunAsync / RunStreamingAsync"]
     CHP["PostgresChatHistoryProvider<br/>geçmişi conversation_items'tan yükler, sonunda geri yazar"]
-    LLM["IChatClient → OpenAI<br/>UseFunctionInvocation · UseOpenTelemetry"]
+    LLM["IChatClient — ModelProviderRegistry<br/>saglayici → ek çözme → devre kesici → içerik filtresi"]
 
     C -->|"POST /api/agents/{name}/run"| H
     C -->|"POST /v1/responses · /v1/chat/completions"| H
@@ -579,17 +590,10 @@ Bu, K2'nin (**"tool'lar yalnız kodda tanımlanır"**) **ikinci bilinçli
 istisnasıdır**. Birincisi MCP'ydi ve orada süreç **uzakta** çalışıyordu; burada
 süreç **AgentPrism'in makinesinde** çalışır.
 
-Özellik **varsayılan olarak kapalıdır** ve yalnız kodda açılır:
-
-```csharp
-builder.Services.AddAgentPrism()
-    .UseSkillScripts(options =>
-    {
-        options.PlatformIsolationAcknowledged = true;   // zorunlu onay
-        options.Interpreters["py"] = "python3";         // beyaz liste boş başlar
-        options.SkillRoots.Add("/srv/agent-skills");    // kök yalnız koddan
-    });
-```
+Özellik **varsayılan olarak kapalıdır** ve yalnız kodda açılır
+(`UseSkillScripts(...)`: zorunlu onay bayrağı + boş başlayan yorumlayıcı beyaz
+listesi + kodda verilen skill kökleri). Kullanım örneği:
+[`11-SKILL-SCRIPT-CALISTIRMA.md`](11-SKILL-SCRIPT-CALISTIRMA.md).
 
 Her çalıştırma şu kapılardan **sırayla** geçer; biri kapalıysa süreç hiç başlamaz:
 
@@ -632,14 +636,10 @@ script çalıştırması, hiçbir kaydı olmayan bir uzaktan kod çalıştırma 
 | Onay | MAF'ın `run_skill_script` onayı devrede kalır |
 | Denetim izi | `script.run`, `script.denied`, `script.grant`, `script.revoke` |
 
-**AgentPrism'in sağlamadığı korumalar** — bunlar barındırma ortamında kurulmalıdır:
-
-| Sağlanmıyor | Nasıl kurulmalı |
-|-------------|-----------------|
-| Dosya sistemi hapsi | Container (Docker/Kubernetes) içinde çalıştır |
-| Ağ kısıtı | Container ağ politikası veya güvenlik duvarı kuralı |
-| Bellek ve CPU kotası | Container kaynak limiti (cgroup) |
-| Hak düşürme | Süreci **ayrıcalıksız** bir kullanıcı ile çalıştır |
+🚨 **AgentPrism dosya sistemi hapsi, ağ kısıtı, bellek/CPU kotası ve hak düşürme
+SAĞLAMAZ**; dördü de barındırma ortamında (container + cgroup + ayrıcalıksız
+kullanıcı) kurulur. Nasıl kurulacağı:
+[`11-SKILL-SCRIPT-CALISTIRMA.md`](11-SKILL-SCRIPT-CALISTIRMA.md).
 
 `PlatformIsolationAcknowledged` bayrağı bu tabloyu görmeden özellik açılmasını
 engeller: `Enabled = true` iken bayrak `false` ise **açılışta** hata verilir
@@ -740,17 +740,16 @@ AOT uyumluluğu Faz 1'de üç somut kısıt getirdi:
 
 ## 10. İlgili Dokümanlar
 
-| Doküman | İçerik |
-|---------|--------|
-| [KARARLAR.md](KARARLAR.md) | Karar defteri — gerekçeleriyle kalıcı tercihler |
-| [00-ALTYAPI.md](00-ALTYAPI.md) | Faz 0 — build ve paketleme altyapısı |
-| [01-CEKIRDEK-SOYUTLAMALAR.md](01-CEKIRDEK-SOYUTLAMALAR.md) | Faz 1 — sözleşmeler ve runtime |
-| [02-POSTGRESQL-KALICILIK.md](02-POSTGRESQL-KALICILIK.md) | Faz 2 — kalıcılık katmanı |
-| [03-SAGLAYICI-VE-DERLEYICI.md](03-SAGLAYICI-VE-DERLEYICI.md) | Faz 3 — OpenAI ve agent derleyici |
-| [04-HTTP-API.md](04-HTTP-API.md) | Faz 4 — HTTP katmanı |
-| [05-AGENTPRISM-UI.md](05-AGENTPRISM-UI.md) | Faz 5 — arayüz |
-| [06-GOZLEMLENEBILIRLIK.md](06-GOZLEMLENEBILIRLIK.md) | Faz 6 — telemetri, tool onayı, MCP, çok kiracılılık |
-| [07-SAGLAMLASTIRMA-VE-YAYIN.md](07-SAGLAMLASTIRMA-VE-YAYIN.md) | Faz 7 — sağlamlaştırma ve yayın (**beklemede**, K-068) |
-| [IKINCI-FAZ-YOL-HARITASI.md](IKINCI-FAZ-YOL-HARITASI.md) | **Faz 8–30** — sıra, bağımlılıklar, migration numaraları, kalem → faz haritası |
-| `08-*.md` … `30-*.md` | İkinci faz dokümanları — her biri ayrı bir oturumda uygulanır |
-| [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 kalemin gerekçesi; **tamamı planlandı**, tarihsel kayıt |
+Faz dokümanlarının **tam listesi ve durumu tek yerdedir**: `README.md` yol
+haritası tablosu (Faz 0–7) ve
+[`IKINCI-FAZ-YOL-HARITASI.md`](IKINCI-FAZ-YOL-HARITASI.md) (Faz 8–30, sıra +
+bağımlılıklar + migration numaraları). Burada tekrarlanmaz — iki yerde tutmak
+kayma üretir.
+
+| Doküman | Ne zaman |
+|---------|----------|
+| [KARARLAR-INDEKS.md](KARARLAR-INDEKS.md) → `KARARLAR.md` | Bir karar alınmış mı? İndeksten satırı bul, **grep'le** oku |
+| [MAF-GENISLEME-NOKTALARI.md](MAF-GENISLEME-NOKTALARI.md) | MAF'a dokunurken |
+| [`hafiza/`](hafiza/) | O alana dokunurken — tuzaklar ve codepath notları |
+| [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md) | "Neden böyle olmuş?" — yalnız grep ile |
+| [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) | Tarihsel kayıt; faz dokümanı geçerlidir |

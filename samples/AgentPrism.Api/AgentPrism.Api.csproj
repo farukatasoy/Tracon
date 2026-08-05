@@ -16,6 +16,14 @@
     -->
     <ProjectReference Include="../../src/AgentPrism.SqlServer/AgentPrism.SqlServer.csproj" />
     <ProjectReference Include="../../src/AgentPrism.Sqlite/AgentPrism.Sqlite.csproj" />
+    <!--
+      Anthropic ve Google saglayicilari da meta pakete DAHIL DEGILDIR (K-185
+      deseni): OpenAI kullanan bir tuketici Anthropic SDK'sini, Gemini kullanmayan
+      bir tuketici Google.Apis.Auth zincirini cekmek zorunda kalmamalidir. Ornek
+      uygulama uc saglayiciyi birlikte gosterebilmek icin acikca referans verir.
+    -->
+    <ProjectReference Include="../../src/AgentPrism.Anthropic/AgentPrism.Anthropic.csproj" />
+    <ProjectReference Include="../../src/AgentPrism.Google/AgentPrism.Google.csproj" />
   </ItemGroup>
 
   <ItemGroup>

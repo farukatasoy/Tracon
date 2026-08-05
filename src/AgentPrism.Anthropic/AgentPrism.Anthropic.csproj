@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>AgentPrism icin Anthropic (Claude) saglayici adaptoru. Model katalogu, IChatClient uretimi, prompt caching ve genisletilmis dusunme ayarlari.</Description>
+    <PackageTags>$(CommonPackageTags);anthropic;claude;provider</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../AgentPrism.Core/AgentPrism.Core.csproj" />
+  </ItemGroup>
+
+  <!--
+    Anthropic'in RESMI .NET SDK'si (sahip: Anthropic, MIT). Kendi `AsIChatClient`
+    adaptorunu tasir, bu yuzden mesaj eslemesi/akis/tool cagrisi AgentPrism'de
+    yazilmaz. Gecisli bagimliliklari yalnizca Microsoft/System paketleridir.
+    Gerekce: docs/KARARLAR.md, karar K-204.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Anthropic" />
+  </ItemGroup>
+
+</Project>

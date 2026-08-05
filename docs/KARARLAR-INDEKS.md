@@ -45,7 +45,7 @@ grep -n 'jsonb\|migration' docs/KARARLAR.md  # konu araması
 | L37 | Arayüzden tool istatistiği ve model sağlık kontrolü Faz 5'te gösterilmedi 👤 | 2026-08-02 |
 | L38 | Arayüz i18n altyapısı kurulmadı; dil İngilizce 👤🔁 | 2026-08-02 |
 
-## 2. Kalıcı Kararlar (203 kalem)
+## 2. Kalıcı Kararlar (209 kalem)
 
 | K | Satır | Karar | Tarih |
 |---|---|---|---|
@@ -252,3 +252,9 @@ grep -n 'jsonb\|migration' docs/KARARLAR.md  # konu araması
 | K-201 | L246 | `MaxRows` var ama uygulanmıyor (ertelendi)  | 2026-08-05 |
 | K-202 | L247 | Saklama zamanlaması Faz 17'nin kuyruğunu yeniden kullanır  | 2026-08-05 |
 | K-203 | L248 | `sessions`/`conversations` ayrı hedeftir  | 2026-08-05 |
+| K-204 | L249 | Anthropic ve Google için RESMİ SDK'lar kullanıldı, topluluk paketleri değil 👤 | 2026-08-05 |
+| K-205 | L250 | `Google.GenAI`'ın geçişli ağırlığı bilerek kabul edildi ve tek pakette izole edildi 👤 | 2026-08-05 |
+| K-206 | L251 | İçerik filtresi tespiti `AgentPrism.Core`'da ortak dekoratördür, sağlayıcı paketlerinde değil 👤 | 2026-08-05 |
+| K-207 | L252 | Paket adı `AgentPrism.Google`, sağlayıcı adı `google` 👤 | 2026-08-05 |
+| K-208 | L253 | `ModelBinding.ProviderSettings` sözleşmeye eklendi; bilinmeyen anahtar derleme hatasıdır 👤 | 2026-08-05 |
+| K-209 | L254 | `AgentPrism` meta paketi Anthropic ve Google sağlayıcılarını İÇERMEZ  | 2026-08-05 |

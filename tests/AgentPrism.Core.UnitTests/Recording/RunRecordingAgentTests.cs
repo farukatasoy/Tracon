@@ -122,6 +122,55 @@ public sealed class RunRecordingAgentTests
     }
 
     [Fact]
+    public async Task Guvenlik_filtresiyle_bos_donen_yanit_content_filtered_olarak_kaydedilir()
+    {
+        // Sessiz bos yanit hata ayiklamasi en zor durumdur: kullanici bos bir cevap
+        // gorur ve kayitta hicbir iz kalmaz. Kayit tipi makine tarafindan okunabilir
+        // olmalidir ki uyari kurallari derleme adina degil bu ada dayanabilsin.
+        var store = new InMemoryRunStore();
+
+        var client = new FakeChatClient(_ => new ChatResponse
+        {
+            Messages = [new ChatMessage(ChatRole.Assistant, string.Empty)],
+            FinishReason = ChatFinishReason.ContentFilter,
+        });
+
+        var agent = CreateAgent(store, client);
+
+        await Should.ThrowAsync<AgentPrismContentFilteredException>(async () => await agent.RunAsync("selam"));
+
+        var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+        run.Status.ShouldBe(RunStatus.Failed);
+        run.Error.ShouldNotBeNull();
+        run.Error!.Type.ShouldBe(AgentPrismContentFilteredException.ContentFilteredErrorType);
+    }
+
+    [Fact]
+    public async Task Akisli_guvenlik_filtresi_de_content_filtered_olarak_kaydedilir()
+    {
+        var store = new InMemoryRunStore();
+
+        var client = new FakeChatClient(streamingUpdates:
+        [
+            new ChatResponseUpdate(ChatRole.Assistant, string.Empty) { FinishReason = ChatFinishReason.ContentFilter },
+        ]);
+
+        var agent = CreateAgent(store, client);
+
+        await Should.ThrowAsync<AgentPrismContentFilteredException>(async () =>
+        {
+            await foreach (var _ in agent.RunStreamingAsync("selam"))
+            {
+                // Cerceveler tuketilir; hata akisin sonunda gelir.
+            }
+        });
+
+        var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+        run.Status.ShouldBe(RunStatus.Failed);
+        run.Error!.Type.ShouldBe(AgentPrismContentFilteredException.ContentFilteredErrorType);
+    }
+
+    [Fact]
     public async Task Depo_hatasi_calistirmayi_kesmez()
     {
         // Gozlemlenebilirlik, islevselligi bozmamalidir.

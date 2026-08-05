@@ -24,7 +24,7 @@ Bir alana dokunmadan önce **yalnız ilgili satırın dosyasını** oku. Hepsini
 | MSBuild, csproj, NuGet, AOT, analyzer tanısı | [`docs/hafiza/build-ve-analyzer.md`](docs/hafiza/build-ve-analyzer.md) |
 | Test yazımı (xunit, Shouldly, Testcontainers, Playwright) | [`docs/hafiza/test-altyapisi.md`](docs/hafiza/test-altyapisi.md) |
 | Arayüz (Vite, SPA rota, TS) | [`docs/hafiza/frontend.md`](docs/hafiza/frontend.md) |
-| OpenAI / uyumlu sağlayıcı | [`docs/hafiza/openai-saglayici.md`](docs/hafiza/openai-saglayici.md) |
+| Model sağlayıcısı (OpenAI, Anthropic, Google, uyumlu uçlar) | [`docs/hafiza/openai-saglayici.md`](docs/hafiza/openai-saglayici.md) |
 | `RunRecording` zinciri, sır süzgeci, metrik, sürüm | [`docs/hafiza/cekirdek-calistirma.md`](docs/hafiza/cekirdek-calistirma.md) |
 
 Aradığın belirli bir şeyse dosyayı açmak yerine **grep** et:

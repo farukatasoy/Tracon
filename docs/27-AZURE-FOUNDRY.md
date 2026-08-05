@@ -10,10 +10,82 @@
 
 ## Bu Faza Başlarken
 
-1. [`03-SAGLAYICI-VE-DERLEYICI.md`](03-SAGLAYICI-VE-DERLEYICI.md) — sağlayıcı şablonu
-2. [`KARARLAR.md`](KARARLAR.md) — **K-008** (ön sürüm bağımlılığı izole), **K-009** (sırlar user-secrets), **K-019** (`IAgentSource`), **K-030** (sunucu tarafı durum sorunu)
-3. [`26-ANTHROPIC-VE-GEMINI.md`](26-ANTHROPIC-VE-GEMINI.md) — `ProviderSettings`
+1. [`26-ANTHROPIC-VE-GEMINI.md`](26-ANTHROPIC-VE-GEMINI.md) — **şablon budur.**
+   Faz 26 iki sağlayıcı paketini bugünkü şekliyle üretti; Azure aynı 10 dosyayı yazar.
+2. [`KARARLAR.md`](KARARLAR.md) — **K-204** (resmî SDK tercihi), **K-206** (içerik
+   filtresi Core'da), **K-208** (`ProviderSettings` sözleşmesi), **K-209** (meta pakete
+   dâhil etmeme), **K-008** (ön sürüm bağımlılığı izole), **K-009** (sırlar
+   user-secrets), **K-019** (`IAgentSource`), **K-030** (sunucu tarafı durum sorunu)
+3. [`docs/hafiza/openai-saglayici.md`](hafiza/openai-saglayici.md) — sağlayıcı tuzakları
 4. Bu doküman
+
+---
+
+## Faz 26'dan Devralınan Altyapı
+
+Bu fazda **yeniden yazılmayacak** olanlar. Hepsi çalışıyor ve testle korunuyor.
+
+| Yetenek | Nerede | Azure'un yapması gereken |
+|---|---|---|
+| Devre kesici | `ModelProviderRegistry.CreateChatClient` | hiçbir şey — `IModelProvider` singleton olarak kaydedilmesi yeter |
+| İçerik filtresi → `content_filtered` | `Core/Models/ContentFilterDetectingChatClient.cs` | hiçbir şey. 🚨 Azure'un kendi içerik filtresi vardır ve `ChatFinishReason.ContentFilter` üretmesi **beklenir** — ölçün |
+| Sağlık denetimi sözleşmesi | `IModelProviderHealthCheck` | `AzureProviderHealthCheck` yazın; desen `AnthropicProviderHealthCheck` ile birebir aynı (`internal static` yardımcılar test edilebilir) |
+| Sağlayıcıya özgü ayarlar | `Abstractions/Agents/ModelProviderSettings.cs` | üç şey: önek sabiti, `SupportedSettings` listesi, bir `DelegatingChatClient` |
+| Model kataloğu | `*ModelCatalog.Build(options)` | aynısını kopyalayın; **yerleşik liste yazmayın** (K-032) |
+
+### `ProviderSettings` nasıl eklenir (Faz 26'nın birebir deseni)
+
+```csharp
+// 1) Sabitler
+public const string SettingsPrefix = "azure";
+public const string OrneKSetting   = "azure.ornek";
+public static IReadOnlyList<string> SupportedSettings { get; } = [OrnekSetting];
+
+// 2) Fabrikada — taninmayan anahtar burada reddedilir, hata
+//    AgentDefinitionCompiler tarafindan AgentPrismCompilationException'a sarilir.
+ModelProviderSettings.Validate(binding, SettingsPrefix, SupportedSettings);
+var deger = ModelProviderSettings.ReadBoolean(binding, OrnekSetting) ?? false;
+
+// 3) Ayar VARSA dekorator ekle; yoksa sade yol kopya uretmemelidir.
+```
+
+### Davranış sözleşmeleri (mevcut testlerin zorladığı kurallar)
+
+| Kural | Koruyan test |
+|---|---|
+| Bilinmeyen anahtar **sessizce yok sayılmaz**, geçerli anahtarlar listelenir | `ModelProviderSettingsTests`, `*ChatClientFactoryTests` |
+| Yanlış önekli anahtar **ayrı** bir hata mesajı verir | `ModelProviderSettingsTests.Baska_onekli_anahtar_ayri_bir_hata_mesaji_verir` |
+| Ayar sınıfı `record` **olamaz** (K-035) | `SecretLeakTests.Ayar_nesnesi_kendi_ToString_metodunu_tanimlamaz` |
+| Hata detayı ne anahtar ne uç adresi taşır | `*ProviderHealthCheckTests.Baglanamayan_ucun_detayinda_...` |
+| Katalogda olmayan model **reddedilmez** (K-032) | `*ModelProviderTests` |
+| İkinci `Use*()` çağrısı sağlayıcıyı çoğaltmaz | `*ProviderExtensionsTests.Ikinci_cagri_saglayiciyi_cogaltmaz` |
+| Filtrelenmiş **boş** yanıt `content_filtered`, filtrelenmiş **dolu** yanıt geçer | `ContentFilterDetectingChatClientTests` |
+
+### 🚨 Faz 26'da bedel ödeten tuzaklar
+
+- **Bir SDK'nın ham gösterimini kullanırken alanın üzerine yazılıp yazılmadığını
+  ÖLÇÜN.** Anthropic adaptörü `RawRepresentationFactory` çıktısındaki `model`
+  alanını korudu; istek yer tutucu adla gitti ve `404` döndü. Yer tutucu bir
+  değerle gerçek bir çağrı yapın, varsaymayın.
+- **Cağıranın `ChatOptions` örneğini değiştirmeyin** — `Clone()` kullanın.
+  Derlenmiş bir agent tek bir örneği tüm çağrılarda paylaşır.
+- **Reflection `init`-only üyeleri `{ get; set; }` gösterir.** Derleyici `CS8852`
+  verene kadar fark edilmez; koşullu alan yazımı için SDK'nın "raw" kurucusunu arayın.
+- **`null` atamak "alanı gönderme" demek değildir** — JSON gövdesine `null` yazar
+  ve API reddedebilir.
+- **`dotnet package search` yeterli değildir**; paketin geçişli ağırlığını
+  `dotnet list package --include-transitive` ile ölçün. `Google.GenAI` bu ölçümde
+  11 geçişli bağımlılık gösterdi ve karar (K-205) buna dayandı.
+
+### Yeni paket kontrol listesi (Faz 26'da hepsi gerekti)
+
+- `src/AgentPrism.Azure/README.md` — yoksa build `AGENTPRISM0001` ile kırılır
+- `PublicAPI.Shipped.txt` + `PublicAPI.Unshipped.txt` (içerik: `#nullable enable`)
+- `AgentPrism.slnx` içine `<Project Path=... />` (paket **ve** test projesi)
+- `DependencyDirectionTests.AllowedReferences` içine `["AgentPrism.Azure"] = ["AgentPrism.Core"]`
+- `Directory.Packages.props` içine SDK sürümü, gerekçe yorumuyla
+- Meta pakete **eklenmez** (K-209)
+- `samples/AgentPrism.Api` içine `ProjectReference` + `appsettings.json` şeması
 
 ---
 
