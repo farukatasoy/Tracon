@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/AgentPrism.Sqlite/AgentPrism.Sqlite.csproj" />
+  </ItemGroup>
+
+  <!--
+    Container GEREKMEZ: dosya tabanli gecici veritabani yeter (docs/24-SQLITE.md,
+    24.5). Bu, PostgreSQL/SQL Server sozlesme kosularina gore CI suresini kisaltir.
+  -->
+
+  <!--
+    Paylasilan sozlesme testleri (Faz 23/24). AYNI soyut siniflar
+    AgentPrism.PostgreSql.IntegrationTests ve AgentPrism.SqlServer.IntegrationTests
+    icinde de kosar. Ucuncu saglayicinin (SQL Server) sinavi gecti: yeni bir
+    sozlesme testi yazmak GEREKMEDI. SQLite dorduncu sinavdir.
+  -->
+  <ItemGroup Label="Paylasilan sozlesme testleri (Faz 23/24)">
+    <Compile Include="../Shared/**/*.cs" LinkBase="Shared" />
+  </ItemGroup>
+
+</Project>

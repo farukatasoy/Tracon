@@ -9,11 +9,13 @@
   <ItemGroup>
     <ProjectReference Include="../../src/AgentPrism/AgentPrism.csproj" />
     <!--
-      SQL Server meta pakete DAHIL DEGILDIR: her tuketici Microsoft.Data.SqlClient
-      cekmek zorunda kalmasin diye (K-185). Kullanmak isteyen acikca referans
-      verir; ornek uygulama iki saglayiciyi da gosterebilmek icin verir.
+      SQL Server ve SQLite meta pakete DAHIL DEGILDIR: her tuketici
+      Microsoft.Data.SqlClient/SQLitePCLRaw cekmek zorunda kalmasin diye
+      (K-185, aynisi SQLite icin de gecerlidir). Kullanmak isteyen acikca
+      referans verir; ornek uygulama uc saglayiciyi da gosterebilmek icin verir.
     -->
     <ProjectReference Include="../../src/AgentPrism.SqlServer/AgentPrism.SqlServer.csproj" />
+    <ProjectReference Include="../../src/AgentPrism.Sqlite/AgentPrism.Sqlite.csproj" />
   </ItemGroup>
 
   <ItemGroup>

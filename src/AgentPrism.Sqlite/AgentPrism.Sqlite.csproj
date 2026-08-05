@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>AgentPrism icin SQLite kalicilik katmani. Tek dosyalik kurulum: demo, gomulu senaryolar ve gercek SQL davranisiyla test icin. Gomulu SQL migration'lari ile gelir. Tek yazicilidir; cok ornekli dagitimda kullanilmaz.</Description>
+    <PackageTags>$(CommonPackageTags);sqlite;persistence;embedded</PackageTags>
+  </PropertyGroup>
+
+  <!--
+    AOT durumu OLCULMEDI (Faz 24 acilisi). SQLitePCLRaw yerel kutuphane tasir;
+    bu genellikle yayinlama (publish) davranisini etkiler. Olculene kadar bayrak
+    guvenli tarafta birakilir. Gerekce: docs/KARARLAR.md, karar K-190;
+    durum tablosu MIMARI.md bolum 9.
+  -->
+  <PropertyGroup Label="Trim / AOT">
+    <AgentPrismAotCompatible>false</AgentPrismAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../AgentPrism.Core/AgentPrism.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <!--
+      CVE zorlamasi (bkz. Directory.Packages.props). Gecisli sabitleme kapali
+      oldugu icin (K-007) surum bilincli tek bir PackageReference ile zorlanir.
+    -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
+  </ItemGroup>
+
+  <ItemGroup Label="Gomulu SQL migration'lari (Faz 24)">
+    <EmbeddedResource Include="Migrations/**/*.sql" />
+  </ItemGroup>
+
+  <!--
+    Paylasilan kaynak (Faz 23). AgentPrism.Sql.Shared bir paket DEGILDIR; ayni
+    dosyalar AgentPrism.PostgreSql ve AgentPrism.SqlServer tarafindan da
+    derlenir. Gerekce: K-176.
+  -->
+  <ItemGroup Label="Paylasilan SQL kaynagi (Faz 23)">
+    <Compile Include="../AgentPrism.Sql.Shared/**/*.cs" LinkBase="Shared" />
+  </ItemGroup>
+
+</Project>
