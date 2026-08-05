@@ -45,7 +45,7 @@ grep -n 'jsonb\|migration' docs/KARARLAR.md  # konu araması
 | L37 | Arayüzden tool istatistiği ve model sağlık kontrolü Faz 5'te gösterilmedi 👤 | 2026-08-02 |
 | L38 | Arayüz i18n altyapısı kurulmadı; dil İngilizce 👤🔁 | 2026-08-02 |
 
-## 2. Kalıcı Kararlar (185 kalem)
+## 2. Kalıcı Kararlar (197 kalem)
 
 | K | Satır | Karar | Tarih |
 |---|---|---|---|
@@ -234,3 +234,15 @@ grep -n 'jsonb\|migration' docs/KARARLAR.md  # konu araması
 | K-183 | L228 | İki kalıcılık sağlayıcısı aynı anda kaydedilirse açılışta UYARI loglanır  | 2026-08-04 |
 | K-184 | L229 | SQL Server benzersiz indekste NULL'ları EŞİT sayar; `COALESCE`'li ifade indeksi gerekmez  | 2026-08-04 |
 | K-185 | L230 | `AgentPrism` meta paketi `AgentPrism.SqlServer`'ı İÇERMEZ  | 2026-08-04 |
+| K-186 | L231 | SQL Server sözleşme testleri `azure-sql-edge` (arm64) ile doğrulandı; gerçek `mssql/server` hâlâ koşturulamadı 👤 | 2026-08-05 |
+| K-187 | L232 | `SqlServerQueries`'teki tüm `@@ROWCOUNT` referansları `@@` önekini kaybetmişti  | 2026-08-05 |
+| K-188 | L233 | `DbHelpers.ReadSingleAsync` ve `ExecuteScalarAsync` yalnızca İLK sonuç kümesine bakıyordu; SQL Server'ın iki dallı upsert deseni ikinci kümeye yazabiliyor  | 2026-08-05 |
+| K-189 | L234 | `SqlWebhookStore.ReadSubscription` diziyi `Dialect.ReadTextArray` yerine doğrudan `reader.GetFieldValue<string[]>` ile okuyordu  | 2026-08-05 |
+| K-190 | L235 | SQLite'ta şema yerine tablo öneki; `SqlQueriesBase.Schema` bu değeri taşır  | 2026-08-05 |
+| K-191 | L236 | SQLite'ta uuid BÜYÜK harfle yazılır; `SqliteDialect.AddUuid` özellikle EZİLMEZ  | 2026-08-05 |
+| K-192 | L237 | SQLite migration kilidi sidecar dosya kilididir, `BEGIN IMMEDIATE` tüm migration süresince açık TUTULMAZ  | 2026-08-05 |
+| K-193 | L238 | SQLite'ta indeks adları VERİTABANI GENELİNDE tektir; migration DDL'indeki her indeks de tablo önekiyle EZİLİR  | 2026-08-05 |
+| K-194 | L239 | SQLite upsert deseni PostgreSQL ile BİREBİR aynıdır: tek ifadelik `INSERT ... ON CONFLICT ... RETURNING`  | 2026-08-05 |
+| K-195 | L240 | `DbHelpers.ToGuid`/`ToBoolean` eklendi: `ExecuteScalarAsync` sonucunun CLR tipi sağlayıcıya göre değişir  | 2026-08-05 |
+| K-196 | L241 | `AgentPrism.Sqlite` AOT uyumlu olarak İŞARETLENMEZ (ölçülmedi)  | 2026-08-05 |
+| K-197 | L242 | `SQLitePCLRaw.*` paketleri 2.1.12'ye sabitlendi (K-007 deseni)  | 2026-08-05 |

@@ -1,10 +1,10 @@
 # Faz 23 — SQL Server Desteği
 
-> **Durum:** ✅ Kod tamam · ⚠️ **SQL Server sözleşme testleri henüz koşturulmadı** (bkz. "Açık Kalan")
+> **Durum:** ✅ Tamam — 204/204 sözleşme testi `azure-sql-edge` (arm64) üzerinde yeşil (bkz. "Açık Kalan")
 > **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-06**
 > **Paketler:** **`AgentPrism.SqlServer` (YENİ)** · `AgentPrism.PostgreSql` (yeniden yapılandırıldı) · `AgentPrism.Sql.Shared` (yeni, **paket değil**)
 > **Migration:** Kendi migration seti — `0001_initial.sql`
-> **Kararlar:** K-176 … K-185
+> **Kararlar:** K-176 … K-189
 
 ---
 
@@ -206,15 +206,32 @@ CI: SQL Server container'ı ~2 GB bellek ister.
 
 ---
 
-## Açık Kalan — SQL Server testleri koşturulamadı
+## Açık Kalan — gerçek `mssql/server` hâlâ koşturulamadı
 
-**Geliştirme makinesinde `mcr.microsoft.com/mssql/server` çalıştırılamadı.**
+**Geliştirme makinesinde `mcr.microsoft.com/mssql/server` hâlâ çalıştırılamıyor.**
 İmaj yalnızca `linux/amd64`; makine Apple Silicon ve Docker'da amd64
 emülasyonu kapalı (`rosetta error`, `alpine:amd64` bile başlamıyor).
 
-Bunun anlamı **açıkça** şudur: SQL Server tarafındaki 189 sözleşme testi +
-SQL Server'a özgü testler **hiç koşmadı**. Kod derleniyor, paketleniyor ve
-`dotnet format` temiz; ama T-SQL'in doğruluğu **kanıtlanmadı**.
+**2026-08-05'te bu, kullanıcı onayıyla `mcr.microsoft.com/azure-sql-edge`
+(arm64 native) ile aşıldı** — `SqlServerFixture` geçici olarak bu imaja
+yönlendirildi, 204 sözleşme testi + diyalekt testlerinin tamamı koşturuldu,
+sonra fixture gerçek `mssql/server` yapılandırmasına geri alındı (K-186).
+
+**İlk koşu 204 testin 97'sini kırdı — üç gerçek üretim hatası bulundu ve
+düzeltildi** (elle çevrilen 139 sorgu + ~500 satır DDL'nin ilk gerçek sınavıydı):
+
+1. **K-187** — `@@ROWCOUNT` 17 sorguda `@@` önekini kaybetmişti (95 test)
+2. **K-188** — `DbHelpers.ReadSingleAsync`/`ExecuteScalarAsync` iki dallı upsert
+   deseninin ikinci sonuç kümesine hiç bakmıyordu (~15 test)
+3. **K-189** — `SqlWebhookStore` dizi okumasında `Dialect.ReadTextArray`
+   soyutlamasını atlayıp PostgreSQL'e özgü bir ADO.NET tipine bağımlıydı (8 test)
+
+Düzeltmelerden sonra 204/204 yeşil; PostgreSQL tarafında regresyon yok
+(416/416). Ayrıntı: `docs/hafiza/sql-saglayicilari.md`.
+
+**Gerçek `mssql/server` ile doğrulama hâlâ açık.** `azure-sql-edge` T-SQL
+yüzeyi neredeyse özdeş olsa da gerçek SQL Server değildir — motor farkları
+(optimizer, kilitlenme davranışı, sürüm-özgü sözdizimi) kanıtlanmadı.
 
 **Kapatmak için:** Docker Desktop → Settings → General → "Use Virtualization
 framework" + "Use Rosetta for x86_64/amd64 emulation" → Apply & restart. Sonra:
@@ -225,42 +242,42 @@ dotnet test tests/AgentPrism.SqlServer.IntegrationTests -c Release
 
 Alternatif: CI'yı Linux amd64 üzerinde koşturmak.
 
-**İlk koşuda hata çıkması beklenmelidir** — 139 sorgu ve ~500 satır DDL elle
-çevrildi. Beklenen kırılma noktaları:
-
-1. `OFFSET/FETCH` ile `@take = 0` koruması (WHERE + CASE ikilisi)
-2. Özyinelemeli CTE'li zaman serisi (`SelectRunTimeSeries`) — en karmaşık sorgu
-3. `ISJSON` kısıtlarının sözleşme testlerinin yazdığı veriyle çelişmesi
-4. `OUTPUT` yan tümcesinin tetikleyici/kısıt etkileşimleri
-5. `nvarchar(200)` boyut sınırlarının test verisiyle çakışması
-
 ---
 
 ## Bitiş Ölçütleri (DoD)
 
 - [x] `AgentPrism.SqlServer` paketi üretiliyor (`dotnet pack` sayısı arttı)
-- [ ] **Tüm store sözleşme testleri SQL Server üzerinde yeşil** — koşturulamadı
-- [ ] Migration'lar temiz veritabanında ve tekrar çalıştırmada doğru — koşturulamadı
-- [ ] Eşzamanlı iki süreçte migration bir kez uygulanıyor — koşturulamadı
-- [ ] Örnek uygulama `UseSqlServer` ile uçtan uca çalışıyor — koşturulamadı
+- [x] **Tüm store sözleşme testleri SQL Server üzerinde yeşil** — `azure-sql-edge` (arm64) ile 204/204; gerçek `mssql/server` hâlâ açık (bkz. "Açık Kalan")
+- [x] Migration'lar temiz veritabanında ve tekrar çalıştırmada doğru — `MigrationRunnerTests` `azure-sql-edge` üzerinde yeşil
+- [x] Eşzamanlı iki süreçte migration bir kez uygulanıyor — `azure-sql-edge` üzerinde yeşil
+- [ ] Örnek uygulama `UseSqlServer` ile uçtan uca çalışıyor — koşturulamadı (gerçek SQL Server gerektirir)
 - [x] AOT durumu ölçüldü ve `MIMARI.md` bölüm 9 güncellendi (K-181)
 - [x] Paket kontrol listesi tamam (README, slnx, meta paket kararı, csproj)
-- [x] Dört doğrulama kapısı sıfır uyarı — **SQL Server testleri hariç**
-- [x] PostgreSQL regresyonu yok: 416/416 entegrasyon testi, toplam 1235 test yeşil
+- [x] Dört doğrulama kapısı sıfır uyarı
+- [x] PostgreSQL regresyonu yok: 416/416 entegrasyon testi, toplam 1235+ test yeşil
 
 ---
 
 ## Sonraki Faza Devir Notu
 
-- **Faz 24 (SQLite) bu fazın kurduğu paylaşım modelini kullanır.** Üçüncü
-  sağlayıcı, modelin doğru olup olmadığının asıl kanıtıdır. Beklenen iş:
-  `SqliteQueries` + `SqliteDialect` + migration seti + test projesi. Depolara
-  **dokunulmamalıdır**; dokunmak gerekiyorsa soyutlama eksiktir ve bu bir bulgudur.
+- **Faz 24 (SQLite) bu fazın kurduğu paylaşım modelini kullanır.** Model artık
+  `azure-sql-edge` üzerinde 204/204 testle doğrulandı (K-186..K-189) — üçüncü
+  sağlayıcı (SQLite), modelin gerçekten sağlayıcıdan bağımsız olup olmadığının
+  asıl kanıtıdır. Beklenen iş: `SqliteQueries` + `SqliteDialect` + migration
+  seti + test projesi. Depolara **dokunulmamalıdır**; dokunmak gerekiyorsa
+  soyutlama eksiktir ve bu bir bulgudur.
 - SQLite'ın kendine özgü noktaları: `uuid` yok (`BLOB`/`TEXT`), `datetimeoffset`
   yok (`TEXT` ISO-8601), eşzamanlı yazma tek yazar, `RETURNING` 3.35+ ile var,
   `sp_getapplock` karşılığı yok — dosya kilidi düşünülmeli.
-- **Faz 23 kapanmadan önce SQL Server testleri koşturulmalıdır.** Yeşil değilse
-  Faz 24 yanlış bir modelin üzerine kurulur.
+- **`DbHelpers.ReadSingleAsync`/`ExecuteScalarAsync`'in çoklu-sonuç-kümesi
+  düzeltmesi (K-188) SQLite'ta da geçerlidir.** SQLite tek ifadelik `INSERT ...
+  ON CONFLICT ... RETURNING` (3.35+) kullanırsa PostgreSQL gibi tek kume
+  üretir ve düzeltme zararsızdır; iki dallı bir desen seçilirse aynı tuzağa
+  düşülebilir — `docs/hafiza/sql-saglayicilari.md`'deki tuzak notu okunmalıdır.
+- **Gerçek `mssql/server` ile doğrulama hâlâ açık** (bkz. "Açık Kalan"). Bu,
+  Faz 24'ü engellemez — paylaşım modeli `azure-sql-edge` ile kanıtlandı — ama
+  CI'da Linux amd64 koşucusu eklenene kadar SQL Server tarafında motor-özgü
+  bir fark keşfedilmemiş olabilir.
 - Faz 25 (saklama) her sağlayıcı için temizleme SQL'i yazmak zorundadır;
   `IRetentionStore` sözleşmesi `SqlQueriesBase`'e yeni sorgular ekleyecektir —
   **her alt sınıfta** karşılığı yazılmalıdır.

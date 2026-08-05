@@ -61,6 +61,19 @@
       AgentPrism.SqlServer AgentPrismAotCompatible=false yazar (K-181).
     -->
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.2" />
+    <!--
+      SQLite surucusu (Faz 24). SQLitePCLRaw yerel kutuphane tasir; AOT/publish
+      etkisi olculur (K-018 deseni, docs/24-SQLITE.md).
+      Microsoft.Data.Sqlite 10.0.10'un cektigi SQLitePCLRaw.lib.e_sqlite3
+      2.1.11'de bilinen yuksek onem dereceli bir acik var (NU1903,
+      GHSA-2m69-gcr7-jv3q). K-007 deseniyle ayni: gecisli surum bilincli tek
+      bir PackageVersion ile zorlanir.
+    -->
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.10" />
+    <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.12" />
+    <PackageVersion Include="SQLitePCLRaw.core" Version="2.1.12" />
+    <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
+    <PackageVersion Include="SQLitePCLRaw.provider.e_sqlite3" Version="2.1.12" />
   </ItemGroup>
 
   <!--

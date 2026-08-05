@@ -15,7 +15,7 @@ namespace AgentPrism;
 ///     <strong><c>MERGE</c> KULLANILMAZ.</strong> Ifadenin bilinen esszamanlilik
 ///     ve dogruluk sorunlari vardir. Upsert'ler
 ///     <c>UPDATE ... WITH (UPDLOCK, SERIALIZABLE) ... OUTPUT</c> ve ardindan
-///     <c>IF ROWCOUNT = 0 INSERT ... OUTPUT</c> ile yazilir. <c>SERIALIZABLE</c>
+///     <c>IF @@ROWCOUNT = 0 INSERT ... OUTPUT</c> ile yazilir. <c>SERIALIZABLE</c>
 ///     ipucu aralik kilidi alir; boylece iki oturum ayni anahtari ayni anda
 ///     ekleyemez. Gerekce: <c>docs/KARARLAR.md</c>, karar K-177.
 ///   </description></item>
@@ -109,7 +109,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
              OUTPUT inserted.id, inserted.version
              WHERE tenant_id = @tenant_id AND name = @name;
 
-            IF ROWCOUNT = 0
+            IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.agent_definitions (id, tenant_id, name, version, definition, created_at, updated_at)
             OUTPUT inserted.id, inserted.version
             VALUES (@id, @tenant_id, @name, 1, @definition, @now, @now);
@@ -187,7 +187,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                     inserted.version, inserted.created_at, inserted.updated_at
              WHERE tenant_id = @tenant_id AND name = @name;
 
-            IF ROWCOUNT = 0
+            IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.agent_skills ({skillColumns})
             OUTPUT inserted.id, inserted.tenant_id, inserted.name, inserted.description,
                    inserted.instructions, inserted.compatibility, inserted.license,
@@ -275,7 +275,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                AND skill_name = @skill_name
                AND ISNULL(script_name, N'') = ISNULL(@script_name, N'');
 
-            IF ROWCOUNT = 0
+            IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.skill_script_grants ({grantColumns})
             OUTPUT inserted.id, inserted.tenant_id, inserted.skill_name, inserted.script_name,
                    inserted.granted_by, inserted.granted_at, inserted.expires_at, inserted.revoked_at
@@ -303,7 +303,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    updated_at     = @updated_at
              WHERE id = @id;
 
-            IF ROWCOUNT = 0
+            IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.sessions (id, tenant_id, agent_name, state, schema_version, created_at, updated_at)
             VALUES (@id, @tenant_id, @agent_name, @state, @schema_version, @created_at, @updated_at);
             """;
@@ -513,7 +513,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                SET updated_at = @now
              WHERE id = @id;
 
-            IF ROWCOUNT = 0
+            IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.conversations (id, tenant_id, agent_name, created_at, updated_at)
             VALUES (@id, @tenant_id, @agent_name, @now, @now);
             """;
@@ -597,7 +597,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
 
         // 🚨 Draft-disi bir deney icin UPDATE sifir satir etkiler; INSERT dali
         // yalnizca kayit HIC YOKSA calisir. Aksi halde benzersizlik ihlali
-        // olusurdu. `ROWCOUNT` degeri once bir degiskene alinir: bilesik bir
+        // olusurdu. `@@ROWCOUNT` degeri once bir degiskene alinir: bilesik bir
         // kosulda alt sorgu once degerlendirilirse sayac sifirlanirdi.
         UpsertExperiment = $"""
             DECLARE @updated int;
@@ -610,7 +610,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
              OUTPUT inserted.id
              WHERE tenant_id = @tenant_id AND name = @name AND status = 0;
 
-            SET @updated = ROWCOUNT;
+            SET @updated = @@ROWCOUNT;
 
             IF @updated = 0 AND NOT EXISTS (
                 SELECT 1 FROM {Schema}.experiments WITH (UPDLOCK, SERIALIZABLE)
@@ -670,8 +670,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         SelectRunTimeSeries = $"""
             WITH buckets AS (
                 SELECT CASE WHEN @bucket_unit = N'hour'
-                            THEN DATEADD(hour, DATEDIFF(hour, 0, CONVERT(datetime2(7), @from_ts)), CONVERT(datetime2(7), 0))
-                            ELSE DATEADD(day,  DATEDIFF(day,  0, CONVERT(datetime2(7), @from_ts)), CONVERT(datetime2(7), 0))
+                            THEN DATEADD(hour, DATEDIFF(hour, 0, CONVERT(datetime2(7), @from_ts)), CONVERT(datetime2(7), '1900-01-01'))
+                            ELSE DATEADD(day,  DATEDIFF(day,  0, CONVERT(datetime2(7), @from_ts)), CONVERT(datetime2(7), '1900-01-01'))
                        END AS bucket
                 UNION ALL
                 SELECT CASE WHEN @bucket_unit = N'hour'
@@ -684,8 +684,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             ),
             matched AS (
                 SELECT CASE WHEN @bucket_unit = N'hour'
-                            THEN DATEADD(hour, DATEDIFF(hour, 0, CONVERT(datetime2(7), started_at)), CONVERT(datetime2(7), 0))
-                            ELSE DATEADD(day,  DATEDIFF(day,  0, CONVERT(datetime2(7), started_at)), CONVERT(datetime2(7), 0))
+                            THEN DATEADD(hour, DATEDIFF(hour, 0, CONVERT(datetime2(7), started_at)), CONVERT(datetime2(7), '1900-01-01'))
+                            ELSE DATEADD(day,  DATEDIFF(day,  0, CONVERT(datetime2(7), started_at)), CONVERT(datetime2(7), '1900-01-01'))
                        END AS bucket,
                        CAST(COUNT(*) AS bigint) AS runs,
                        CAST(COALESCE(SUM(CASE WHEN status = @status_failed THEN 1 ELSE 0 END), 0) AS bigint) AS failed_runs,
@@ -702,8 +702,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                   AND (@model_id   IS NULL OR model_id   = @model_id)
                   AND (@kind       IS NULL OR kind       = @kind)
                 GROUP BY CASE WHEN @bucket_unit = N'hour'
-                              THEN DATEADD(hour, DATEDIFF(hour, 0, CONVERT(datetime2(7), started_at)), CONVERT(datetime2(7), 0))
-                              ELSE DATEADD(day,  DATEDIFF(day,  0, CONVERT(datetime2(7), started_at)), CONVERT(datetime2(7), 0))
+                              THEN DATEADD(hour, DATEDIFF(hour, 0, CONVERT(datetime2(7), started_at)), CONVERT(datetime2(7), '1900-01-01'))
+                              ELSE DATEADD(day,  DATEDIFF(day,  0, CONVERT(datetime2(7), started_at)), CONVERT(datetime2(7), '1900-01-01'))
                          END
             )
             SELECT TODATETIMEOFFSET(buckets.bucket, 0),
@@ -739,7 +739,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
              OUTPUT inserted.id
              WHERE tenant_id = @tenant_id AND trace_id = @trace_id;
 
-            IF ROWCOUNT = 0
+            IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.traces (id, tenant_id, trace_id, run_id, started_at, ended_at)
             OUTPUT inserted.id
             VALUES (@id, @tenant_id, @trace_id, @run_id, @started_at, @ended_at);
@@ -752,7 +752,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    status     = @status
              WHERE id = @id;
 
-            IF ROWCOUNT = 0
+            IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.spans
                 (id, trace_id, parent_span_id, span_id, name, kind, started_at, ended_at, attributes, status)
             VALUES
@@ -798,7 +798,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                AND tool_name = @tool_name
                AND ISNULL(arguments_hash, N'') = ISNULL(@arguments_hash, N'');
 
-            IF ROWCOUNT = 0
+            IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.tool_approval_rules ({approvalColumns})
             OUTPUT inserted.id, inserted.tenant_id, inserted.agent_name, inserted.tool_name,
                    inserted.arguments_hash, inserted.created_by, inserted.created_at
@@ -858,7 +858,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
              OUTPUT {mcpServerOutput}
              WHERE tenant_id = @tenant_id AND name = @name;
 
-            IF ROWCOUNT = 0
+            IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.mcp_servers ({mcpServerColumns})
             OUTPUT {mcpServerOutput}
             VALUES (@id, @tenant_id, @name, @description, @endpoint, @transport,
@@ -883,7 +883,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
              OUTPUT inserted.id, inserted.slug, inserted.display_name, inserted.created_at
              WHERE slug = @slug;
 
-            IF ROWCOUNT = 0
+            IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.tenants (id, slug, display_name, created_at)
             OUTPUT inserted.id, inserted.slug, inserted.display_name, inserted.created_at
             VALUES (@id, @slug, @display_name, @created_at);
@@ -954,7 +954,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    updated_at = @now
              WHERE tenant_id = @tenant_id AND agent_name = @agent_name AND path = @path;
 
-            IF ROWCOUNT = 0
+            IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.agent_files (id, tenant_id, agent_name, path, content, created_at, updated_at)
             VALUES (@id, @tenant_id, @agent_name, @path, @content, @now, @now);
             """;
@@ -981,7 +981,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
              OUTPUT inserted.version, inserted.updated_at
              WHERE tenant_id = @tenant_id AND name = @name;
 
-            IF ROWCOUNT = 0
+            IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.workflows (id, tenant_id, name, version, definition, created_at, updated_at)
             OUTPUT inserted.version, inserted.updated_at
             VALUES (@id, @tenant_id, @name, 1, @definition, @now, @now);
@@ -1075,7 +1075,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
              OUTPUT inserted.id, inserted.created_by, inserted.created_at
              WHERE tenant_id = @tenant_id AND name = @name;
 
-            IF ROWCOUNT = 0
+            IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.job_schedules ({scheduleColumns})
             OUTPUT inserted.id, inserted.created_by, inserted.created_at
             VALUES (@id, @tenant_id, @name, @kind, @target_name, @cron, @time_zone, @payload, @enabled,
@@ -1262,7 +1262,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                     inserted.agent_name, inserted.checks, inserted.created_at, inserted.updated_at
              WHERE tenant_id = @tenant_id AND name = @name;
 
-            IF ROWCOUNT = 0
+            IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.eval_suites ({suiteColumns})
             OUTPUT inserted.id, inserted.tenant_id, inserted.name, inserted.description,
                    inserted.agent_name, inserted.checks, inserted.created_at, inserted.updated_at
@@ -1379,7 +1379,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                AND ISNULL(agent_name, N'') = ISNULL(@agent_name, N'')
                AND period = @period;
 
-            IF ROWCOUNT = 0
+            IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.quotas ({quotaColumns})
             OUTPUT {quotaOutput}
             VALUES (@id, @tenant_id, @agent_name, @period, @max_runs, @max_tokens, @max_cost, @enabled,
@@ -1414,7 +1414,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
              WHERE tenant_id = @tenant_id AND agent_name = @agent_name
                AND period = @period AND period_start = @period_start;
 
-            IF ROWCOUNT = 0
+            IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.quota_usage
                 (tenant_id, agent_name, period, period_start, runs, tokens, cost, updated_at)
             VALUES
@@ -1456,7 +1456,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
              OUTPUT {webhookSubscriptionOutput}
              WHERE tenant_id = @tenant_id AND name = @name;
 
-            IF ROWCOUNT = 0
+            IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.webhook_subscriptions ({webhookSubscriptionColumns})
             OUTPUT {webhookSubscriptionOutput}
             VALUES (@id, @tenant_id, @name, @url, @events, @secret_configuration_key, @headers, @enabled,

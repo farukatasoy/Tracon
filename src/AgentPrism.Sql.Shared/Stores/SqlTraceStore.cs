@@ -120,7 +120,7 @@ internal sealed class SqlTraceStore : ITraceStore
 
         var result = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false);
 
-        return (Guid)result!;
+        return DbHelpers.ToGuid(result!);
     }
 
     private async ValueTask UpsertSpanAsync(

@@ -716,6 +716,7 @@ Sonuç: MAF GA'ya geçtiğinde tek bir pakette sürüm güncellemesi yeterlidir.
 | `AgentPrism.Core` | Evet | Yansımaya dayanan tek yol `AddToolsFrom` / `AddTool(Delegate)`; ikisi de `[RequiresUnreferencedCode]` + `[RequiresDynamicCode]` ile işaretli — uyarı bastırılmaz, çağırana iletilir |
 | `AgentPrism.PostgreSql` | Evet | Npgsql AOT uyumlu |
 | `AgentPrism.SqlServer` | Hayır *(vaat ertelendi)* | Ölçüldü: sıfır IL2/IL3; canlı sorgu doğrulanmadı (K-181) |
+| `AgentPrism.Sqlite` | Hayır *(ölçülmedi)* | Faz 24 kapanışında ölçüm YAPILMADI; `SQLitePCLRaw` yerel kütüphane taşır (K-196) |
 | `AgentPrism.OpenAI` | Evet | Ölçüldü (Faz 3): `IsAotCompatible=true` ile sıfır uyarı. `OPENAI001`/`MAAI001` deneysel API tanılarıdır, AOT tanısı değil |
 | `AgentPrism.AspNetCore` | Hayır | Minimal API delege yönlendirmesi reflection kullanır. Bayrak `Directory.Build.targets` içinde türetilir — `src/Directory.Build.props` csproj'dan önce yüklendiği için orada türetmek `false` tercihini yok sayardı (K-006) |
 | `AgentPrism.UI` | Hayır | Gömülü varlık tarama + ASP.NET Core bağlantısı |

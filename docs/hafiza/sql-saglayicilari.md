@@ -1,7 +1,8 @@
-# SQL Saglayicilari — Paylasilan Katman ve SQL Server Tuzaklari
+# SQL Saglayicilari — Paylasilan Katman, SQL Server ve SQLite Tuzaklari
 
-> `AgentPrism.Sql.Shared`, `AgentPrism.SqlServer` ve iki saglayicinin ortak
-> davranisi. PostgreSQL'e ozgu notlar icin: [`postgresql.md`](postgresql.md).
+> `AgentPrism.Sql.Shared`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite` ve
+> saglayicilarin ortak davranisi. PostgreSQL'e ozgu notlar icin:
+> [`postgresql.md`](postgresql.md).
 >
 > Bu dosya `MEMORY.md`'nin alan dosyasidir. Yalnizca bu alana dokunurken okunur.
 
@@ -39,8 +40,76 @@
 - **`ISJSON` kisitlari yalnizca PostgreSQL'de `jsonb`/`json` olan sutunlarda vardir** — davranis esitligi icin. `run_events.payload` ve `tool_invocations.arguments/result` PostgreSQL'de `text`'tir (gecerli JSON olmayabilir) ve kisit TASIMAZ. `audit_log.before/after` de kisit tasimaz: gozlemlenebilirlik islevselligi bozmaz.
 - **Diziler JSON metnidir** (K-182): `OPENJSON` ile acilir, `[key]` 0 tabanlidir ve `UNNEST ... WITH ORDINALITY`'nin `ord - 1` degerine birebir denk gelir.
 
+## Iki dalli upsert desenindeki gizli tuzaklar (K-187, K-188, K-189)
+
+Bu ucu, `azure-sql-edge` ile ilk kez gercek testler kosturulduğunda (2026-08-05,
+Faz 23 kapanisi) 204 testin 204'u de kirilmisti. Kok sebepler:
+
+- **🚨 `@@ROWCOUNT` onekini unutma.** `ROWCOUNT` tek basina T-SQL'de gecersiz
+  sozdizimidir; sistem degiskeni her zaman `@@ROWCOUNT`'tir. `SqlServerQueries.cs`
+  genelinde 17 sorguda bu onek eksikti — hicbir derleme veya format kapisi
+  yakalamaz, yalnizca calisma aninda "Incorrect syntax near ROWCOUNT" verir.
+- **🚨 K-177'nin iki dalli upsert deseni (`UPDATE ... OUTPUT` + `IF @@ROWCOUNT = 0
+  INSERT ... OUTPUT`) UPDATE 0 satir etkiledigende gercek satiri IKINCI sonuc
+  kumesine yazar.** `DbHelpers.ReadSingleAsync` ve `ExecuteScalarAsync` yalnizca
+  ilk kumeye bakiyordu; kayit INSERT edilmis olsa bile ilk kume bos oldugu icin
+  `null` donuyordu. Ikisi de artik `NextResultAsync` ile satir/deger bulunana
+  kadar sonraki kumelere duser. PostgreSQL'in tek ifadelik `RETURNING`
+  deseninde bu dongu zararsizdir (tek kume var).
+- **🚨 Paylasilan bir depo, saglayiciya ozgu bir ADO.NET tipine (`GetFieldValue<string[]>`)
+  dogrudan basvurmamalidir — dizi/JSON okumasi HER ZAMAN `Dialect.ReadTextArray`/
+  `ReadUuidArray` uzerinden gecer.** `SqlWebhookStore.ReadSubscription` bunu
+  atlayip Npgsql'in dogal dizi destegine dayanmisti; PostgreSQL'de sessizce
+  calisiyordu ama SQL Server'da `InvalidCastException` verdi. Yeni bir depo
+  yazarken dizi/JSON donen her sutun icin `Dialect.Read*` cagrildigini kontrol et.
+
 ## Test altyapisi
 
 - **🚨 `mcr.microsoft.com/mssql/server` yalnizca `linux/amd64`'tur.** Apple Silicon'da Docker Desktop'ta "Use Rosetta for x86_64/amd64 emulation" acik degilse container `exit 133` ile duser ve HICBIR SQL Server testi kosmaz. `azure-sql-edge` arm64 tasir ama ayri bir urundur ve gercek SQL Server'i kanitlamaz.
-- **Sozlesme testleri `tests/Shared/` altindadir** ve iki entegrasyon test projesine birden derlenir (`AgentPrism.StoreContracts` ad alani). Yeni bir saglayici eklerken sozlesme testi YAZILMAZ; yalnizca kosucu sinif turetilir.
-- **Her test kendi semasini kullanir** (`t_<16 hex>`), iki saglayicida da. Bu hem yalitim saglar hem `SchemaName` ayarinin gercekten calistigini her testte dogrular.
+- **Sozlesme testleri `tests/Shared/` altindadir** ve saglayici basina bir entegrasyon test projesine derlenir (`AgentPrism.StoreContracts` ad alani). Yeni bir saglayici eklerken sozlesme testi YAZILMAZ; yalnizca kosucu sinif turetilir. SQLite bu iddianin DORDUNCU kanitidir (K-194).
+- **Her test kendi semasini/onekini kullanir** (`t_<16 hex>`), her saglayicida. Bu hem yalitim saglar hem `SchemaName`/`TablePrefix` ayarinin gercekten calistigini her testte dogrular.
+
+## SQLite (Faz 24) — indeks ad alani ve upsert
+
+> Kararlar: K-190 (tablo oneki) … K-197 (SQLitePCLRaw surum sabitleme).
+> Ayrintili gerekce icin `docs/KARARLAR.md`.
+
+- **🚨 SQLite'ta indeks (ve tetikleyici/gorunum) adlari VERITABANI GENELINDE
+  tektir — sema veya tabloya gore kapsamli DEGILDIR.** PostgreSQL semaya, SQL
+  Server tabloya gore kapsamli tutar; SQLite'ta TUM nesneler TEK duz ad
+  alanini paylasir. Migration DDL'inde yalnizca TABLO adlarini onekle yazip
+  INDEKS adlarini onceksiz birakmak, ayni fiziksel `.db` dosyasini paylasan
+  farkli `TablePrefix` degerleri arasinda `CREATE INDEX IF NOT EXISTS`
+  CAKISMASINA yol acar: ikinci tablonun indeksi "zaten var" sanilip SESSIZCE
+  atlanir ve o tablonun `ON CONFLICT` hedefi calisma aninda patlar. Migration
+  dosyasindaki HER indeks adi da tablo onekini tasimalidir (K-193).
+- **🚨 `const string sutunlar = """...""";` icinde `{Schema}` yazmak DERLENIR
+  ama INTERPOLE EDILMEZ.** `const` bir string, `$"""..."""` olmadan
+  yazildiginda `{Schema}` harfi harfine SQL metnine gomulur ("unrecognized
+  token: '{'"). Sutun listesi bir alt sorgu icinde tablo adina ihtiyac
+  duyuyorsa (`SelectRun`'daki korele skaler alt sorgular gibi) degisken
+  `var sutunlar = $"""...""";` olarak yazilmalidir — `const` yalnizca hicbir
+  interpolasyon TASIMAYAN sutun listeleri icindir.
+- **Upsert PostgreSQL ile birebir aynidir** (K-194): `INSERT ... ON CONFLICT
+  (…) DO UPDATE … RETURNING`, ifade tabanli catisma hedefleri (`COALESCE(col, '')`)
+  dahil. SQL Server'in iki-dalli deseni (K-177) ve onun cektigi coklu-sonuc-kumesi
+  tuzagi (K-188) SQLite'ta hic YOKTUR.
+- **🚨 `ExecuteScalarAsync`in dondurdugu CLR tipi saglayiciya gore DEGISIR**
+  (K-195): PostgreSQL/SQL Server `uuid`/`uniqueidentifier` icin `Guid`, SQLite
+  `TEXT` oldugu icin `string` doner; PostgreSQL/SQL Server mantiksal bir
+  karsilastirma icin `bool`, SQLite icin `long` (0/1) doner. Cagri yerinde
+  `(Guid)result!` veya `result is bool b && b` YAZMA — `DbHelpers.ToGuid`/
+  `ToBoolean` kullan.
+- **Migration kilidi sidecar dosya kilididir, islem DEGILDIR** (K-192):
+  `Microsoft.Data.Sqlite` ic ice islem desteklemez; kilidi `BEGIN IMMEDIATE`
+  ile acik tutmak `MigrationRunner`'in kendi ic-ice islemleriyle catisirdi.
+- **uuid BUYUK harfle yazilir, kucuk harfe CEVRILMEZ** (K-191): zorunlu
+  Guid'ler (`DbHelpers.Add`) ile nullable Guid'ler (`Dialect.AddUuid`) FARKLI
+  harf buyuklugu kullansaydi ayni kimlik iki temsille saklanir ve
+  `WHERE`/`JOIN` esitligi sessizce kirilirdi.
+- **`decimal` icin ozel islem GEREKMEZ**: surucu tipli/tipsiz fark etmeksizin
+  her zaman TEXT yazar, kulturden bagimsizdir. SQL Server'in `Precision`/`Scale`
+  zorunlulugu (yukarida) burada YOKTUR.
+- **Yabanci anahtar zorlamasi VARSAYILAN KAPALIDIR**; her baglantida
+  `PRAGMA foreign_keys = ON` acikca calistirilir (`SqliteDataSource`), aksi
+  halde `REFERENCES ... ON DELETE CASCADE` sessizce yok sayilir.

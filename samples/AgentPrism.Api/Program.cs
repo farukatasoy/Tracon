@@ -333,6 +333,7 @@ if (openRouterEnabled)
 // bilerek tek bir saglayici secer.
 var postgreSql = builder.Configuration.GetSection(AgentPrismPostgreSqlOptions.SectionName);
 var sqlServer = builder.Configuration.GetSection(AgentPrismSqlServerOptions.SectionName);
+var sqlite = builder.Configuration.GetSection(AgentPrismSqliteOptions.SectionName);
 
 var persistenceEnabled = true;
 
@@ -343,6 +344,10 @@ if (!string.IsNullOrWhiteSpace(sqlServer["ConnectionString"]))
 else if (!string.IsNullOrWhiteSpace(postgreSql["ConnectionString"]))
 {
     agentPrism.UsePostgreSql(postgreSql);
+}
+else if (!string.IsNullOrWhiteSpace(sqlite["ConnectionString"]))
+{
+    agentPrism.UseSqlite(sqlite);
 }
 else
 {
