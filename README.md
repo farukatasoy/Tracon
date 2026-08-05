@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Projesine ekleyen geliştirici kendi AI harness'ini kolay ama esnek şekilde kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 25 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; geri alınamaz tool'lar kullanıcı onayı bekler; tool'lar uzak MCP sunucularından gelebilir (artık prompts, resources ve OAuth Mod 1 dahil); workflow'lar insanla konuşabilir; işler zamanlanabilir; agent sürümleri A/B karşılaştırılabilir; kullanım kotayla sınırlanabilir; olaylar imzalı webhook'larla dış sistemlere yayılabilir; eski veri saklama politikasına göre arşivlenip silinebilir (varsayılan **hiçbir şey silinmez**). `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu çalıştırma uçlarını ve gömülü yönetim arayüzünü tek prefix altına bağlar. Veritabanı **zorunlu değildir**; yapılandırılmazsa depolama bellek içine düşer — yapılandırıldığında PostgreSQL, SQL Server veya SQLite'tan biri seçilir. Sıradaki faz: 26 (Anthropic + Gemini).
+> **Durum:** Faz 26 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; geri alınamaz tool'lar kullanıcı onayı bekler; tool'lar uzak MCP sunucularından gelebilir (artık prompts, resources ve OAuth Mod 1 dahil); workflow'lar insanla konuşabilir; işler zamanlanabilir; agent sürümleri A/B karşılaştırılabilir; kullanım kotayla sınırlanabilir; olaylar imzalı webhook'larla dış sistemlere yayılabilir; eski veri saklama politikasına göre arşivlenip silinebilir (varsayılan **hiçbir şey silinmez**). `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu çalıştırma uçlarını ve gömülü yönetim arayüzünü tek prefix altına bağlar. Veritabanı **zorunlu değildir**; yapılandırılmazsa depolama bellek içine düşer — yapılandırıldığında PostgreSQL, SQL Server veya SQLite'tan biri seçilir. Model satıcısı da zorunlu değildir: OpenAI, uyumlu uçlar, **Anthropic** ve **Google** birlikte çalışır. Sıradaki faz: 27 (Azure AI Foundry).
 
 ```csharp
 builder.AddAgentPrism()
@@ -165,6 +165,8 @@ AgentPrism bu boşluğu doldurur. DevUI'nin yerine geçmez — bıraktığı yer
 | `AgentPrism.SqlServer` | ✅ SQL Server 2019+ / Azure SQL kalıcılığı — aynı şema, kendi migration seti. **Meta pakete dâhil değil**; açıkça referans verilir. Sözleşme testleri `azure-sql-edge` ile doğrulandı; gerçek `mssql/server` henüz koşturulmadı |
 | `AgentPrism.Sqlite` | ✅ SQLite kalıcılığı — tek dosyalık kurulum, tablo öneki, kendi migration seti. **Meta pakete dâhil değil**; açıkça referans verilir. Tek yazıcılıdır, çok örnekli dağıtımda kullanılmaz |
 | `AgentPrism.OpenAI` | ✅ OpenAI sağlayıcı adaptörü — Chat Completions + Responses, tool çağrısı, OpenTelemetry |
+| `AgentPrism.Anthropic` | ✅ Anthropic (Claude) sağlayıcı adaptörü — resmî SDK, prompt caching, genişletilmiş düşünme. **Meta pakete dâhil değil**; açıkça referans verilir |
+| `AgentPrism.Google` | ✅ Google Gemini sağlayıcı adaptörü — resmî SDK, güvenlik eşikleri, düşünme bütçesi. **Meta pakete dâhil değil**; geçişli olarak `Google.Apis.Auth` zincirini getirir |
 | `AgentPrism.Mcp` | ✅ Uzak MCP sunucularından tool keşfi — yalnız HTTP, varsayılan onaylı |
 | `AgentPrism.Workflows` | ✅ Workflow yürütme — beş hazır desen, kontrol noktası, sürdürme, human-in-the-loop |
 | `AgentPrism.AspNetCore` | ✅ HTTP katmanı — yönetim API'si + OpenAI uyumlu uçlar + çok kiracılılık |
@@ -256,7 +258,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [18](docs/18-DEGERLENDIRME.md) | Değerlendirme (eval): takım/vaka/koşu, Faz 17'nin iş kuyruğu üzerinde, Evals ekranı | ✅ Tamamlandı |
 | [19](docs/19-SURUM-KARSILASTIRMA-VE-AB.md) | Sürüm karşılaştırma (diff) ve A/B deneyleri: oturum bazlı deterministik trafik bölme, Experiments ekranı | ✅ Tamamlandı |
 | [20](docs/20-MALIYET-VE-GOSTERGE-PANELI.md) | Maliyet raporlaması ve gösterge paneli: fiyat kataloğu/yapılandırması, Dashboard giriş ekranı | ✅ Tamamlandı |
-| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | Faz 25 tamam — sıradaki Faz 26 (Anthropic + Gemini) |
+| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | Faz 26 tamam — sıradaki Faz 27 (Azure AI Foundry) |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 > Faz 6, planındaki Workflows kalemini **yapmadı**; ertelendi ve gerekçesi

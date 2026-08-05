@@ -97,8 +97,15 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
             chatClient = new AttachmentResolvingChatClient(chatClient, _attachmentStore, _tenantContext);
         }
 
-        return _circuitBreaker is null
-            ? chatClient
-            : _circuitBreaker.Wrap(binding.Provider, chatClient);
+        if (_circuitBreaker is not null)
+        {
+            chatClient = _circuitBreaker.Wrap(binding.Provider, chatClient);
+        }
+
+        // Icerik filtresi tespiti EN DISTA durur — devre kesicinin disinda. Bir
+        // guvenlik filtresi saglayicinin saglikli oldugunu gosterir; icerde olsaydi
+        // attigi istisna ardisik hata sayacini artirir ve arka arkaya filtrelenen
+        // birkac istek saglayiciyi kapatirdi.
+        return new ContentFilterDetectingChatClient(binding.Provider, chatClient);
     }
 }

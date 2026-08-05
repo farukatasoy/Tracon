@@ -22,6 +22,79 @@ public class AgentPrismException : Exception
         : base(message, innerException)
     {
     }
+
+    /// <summary>
+    /// Calistirma kaydina yazilacak kararli hata tipi adi.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Varsayilan olarak istisna tipinin tam adidir; boylece bugunku davranis
+    /// degismez. Bir alt tip, kaydin makine tarafindan okunabilir olmasi gerektiginde
+    /// bu uyeyi gecersiz kilar — ornek: <see cref="AgentPrismContentFilteredException"/>
+    /// <c>content_filtered</c> yazar. Rapor ve uyari kurallari derleme adina degil,
+    /// bu kararli ada dayanabilir.
+    /// </para>
+    /// <para>
+    /// Deger <c>RunError.Type</c> alanina yazilir ve <strong>sir tasimaz</strong>.
+    /// </para>
+    /// </remarks>
+    public virtual string ErrorType => GetType().FullName ?? GetType().Name;
+}
+
+/// <summary>
+/// Model saglayicisi yaniti guvenlik/icerik filtresiyle kestiginde atilir.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Filtrelenmis bir yanit cogu zaman <strong>bos</strong> gelir. Bunu "basarili ama
+/// bos" saymak, hata ayiklamasi en zor durumu uretir: kullanici bos bir cevap gorur,
+/// kayitta hicbir iz yoktur. AgentPrism bunu acik bir hata olarak kaydeder —
+/// <c>RunError.Type</c> alani <c>content_filtered</c> olur.
+/// </para>
+/// <para>
+/// Tespit <c>AgentPrism.Core</c> icindeki ortak bir <c>IChatClient</c> dekoratorunde
+/// yapilir, saglayici paketlerinin icinde degil; boylece her saglayici ayni davranisi
+/// alir. Gerekce: <c>docs/26-ANTHROPIC-VE-GEMINI.md</c>, bolum 26.4.
+/// </para>
+/// </remarks>
+public sealed class AgentPrismContentFilteredException : AgentPrismException
+{
+    /// <summary>
+    /// <see cref="AgentPrismException.ErrorType"/> icin yazilan kararli deger.
+    /// </summary>
+    public const string ContentFilteredErrorType = "content_filtered";
+
+    /// <summary>Yeni bir hata olusturur.</summary>
+    public AgentPrismContentFilteredException()
+    {
+    }
+
+    /// <summary>Yeni bir hata olusturur.</summary>
+    /// <param name="message">Hata mesaji.</param>
+    public AgentPrismContentFilteredException(string message)
+        : base(message)
+    {
+    }
+
+    /// <summary>Yeni bir hata olusturur.</summary>
+    /// <param name="message">Hata mesaji.</param>
+    /// <param name="innerException">Asil hata.</param>
+    public AgentPrismContentFilteredException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+
+    /// <summary>Yaniti filtreleyen saglayicinin adi. Bilinmiyorsa <see langword="null"/>.</summary>
+    public string? ProviderName { get; init; }
+
+    /// <summary>
+    /// Saglayicinin bildirdigi bitis sebebi. Ornek: Anthropic <c>refusal</c>,
+    /// Gemini <c>SAFETY</c>. <strong>Sir tasimaz.</strong>
+    /// </summary>
+    public string? FinishReason { get; init; }
+
+    /// <inheritdoc />
+    public override string ErrorType => ContentFilteredErrorType;
 }
 
 /// <summary>

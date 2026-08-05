@@ -735,10 +735,15 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                 TotalTokens = usage.TotalTokenCount,
             };
 
+    // AgentPrism istisnalari kendi kararli hata tipi adini tasiyabilir (ornegin
+    // content_filtered). Varsayilan deger yine tipin tam adidir, bu yuzden mevcut
+    // kayitlarin bicimi degismez.
     private static RunError ToRunError(Exception exception)
         => new()
         {
-            Type = exception.GetType().FullName ?? exception.GetType().Name,
+            Type = exception is AgentPrismException prismException
+                ? prismException.ErrorType
+                : exception.GetType().FullName ?? exception.GetType().Name,
             Message = exception.Message,
         };
 

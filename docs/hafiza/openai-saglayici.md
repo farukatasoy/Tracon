@@ -1,6 +1,6 @@
-# OpenAI ve Uyumlu Saglayici Tuzaklari
+# Model Saglayici Tuzaklari (OpenAI · Anthropic · Google)
 
-> Tip adlari, yeniden deneme, model kimlikleri, hata sizintisi.
+> Tip adlari, yeniden deneme, model kimlikleri, hata sizintisi, saglayiciya ozgu ayarlar.
 >
 > Bu dosya `MEMORY.md`'nin alan dosyasidir. Yalnizca bu alana
 > dokunurken okunur. Yeni not buraya eklenir, `MEMORY.md`'ye degil.
@@ -13,3 +13,24 @@
 - **OpenRouter model kimlikleri satıcı önekiyle gelir** (2026-08-02, Faz 8): `gpt-5.4-mini` değil `openai/gpt-5.4-mini`. Ölçüldü: `curl https://openrouter.ai/api/v1/models` ile doğrulanmadan model adı tahmin edilirse (K-032'nin aynı dersi) `model_not_found` benzeri bir hata alınır.
 - **🚨 OpenRouter'ın kredi kontrolü `max_tokens`'i "en kötü durum" maliyeti sayar** (2026-08-02, Faz 8): Varsayılan `max_tokens` (65536, MAF/OpenAI istemcisinin kendi varsayılanı) düşük bakiyeli bir anahtarla gerçek bir `HTTP 402 (insufficient credits)` üretti — AgentPrism'in hatası değil, hesap kısıtı. `ModelBinding.MaxOutputTokens` ile makul bir üst sınır vermek çözer.
 - **`ModelDescriptor` fiyat alanlarını faz 3'ten beri taşıyor** (`InputCostPerMillionTokens`, `OutputCostPerMillionTokens`) ve **hiçbir yerde okunmuyor**. Faz 20 maliyeti buradan çözecek.
+
+## Anthropic ve Google (Faz 26, 2026-08-05)
+
+- **🚨 Bir SDK'nin ham gosterimini kullanirken alanin uzerine yazilip yazilmadigini OLC.** `ChatOptions.RawRepresentationFactory` ile verilen nesneyi Anthropic adaptoru **oldugu gibi kullanir** ve `model`/`max_tokens` alanlarinin uzerine yazmaz. Olculdu: yer tutucu `Model = "PLACEHOLDER-MODEL"` ile gonderilen istek gercekten o adla gitti (`404 not_found_error: model: PLACEHOLDER-MODEL`). Bu yuzden `AnthropicProviderSettingsChatClient` model adini ve token sinirini kendisi yazar. Varsayim yerine bir yer tutucu degerle gercek cagri yapin.
+- **`MessageCreateParams.Thinking` ve `.CacheControl` INIT-ONLY'dir.** Reflection `{ get; set; }` gosterir ama derleyici `CS8852` verir. Kosullu alan yazmak icin `MessageCreateParams.FromRawUnchecked(header, query, body)` kullanilir. `body` sozlugunde `messages` anahtari **bulunmali** (bos dizi yeter); yoksa SDK istemci tarafinda `'messages' cannot be absent` der. Adaptor gercek mesajlari onun uzerine yazar.
+- **`null!` atamak "alani gonderme" demek DEGILDIR.** `Thinking = null!` yazmak govdeye `"thinking": null` koyar ve API `Input should be an object` ile reddeder. Ayarlanmayacak alan hic yazilmamalidir.
+- **🚨 Anthropic'te `max_tokens` ZORUNLUDUR.** OpenAI'da atlanabilir; Anthropic'te atlanamaz. `AnthropicProviderOptions.DefaultMaxOutputTokens` (varsayilan 4096) bu yuzden var ve `null` olamaz.
+- **Anthropic'te dusunme acikken `temperature` yalnizca 1 olabilir.** Baska bir deger `invalid_request_error` verir. Dusunme butcesi ayrica `max_tokens`'tan kucuk olmalidir.
+- **Google'in "enum"lari enum DEGILDIR.** `HarmCategory`, `HarmBlockThreshold`, `FinishReason` string tasiyan struct'lardir; `Enum.GetNames` `ArgumentException` atar. `AllValues` ile listelenir, `Value` ile karsilastirilir; string'ten ortuk donusum operatoru vardir.
+- **Gemini model adlari hizli eskir.** Olculdu: `gemini-2.5-flash` cagrisi *"This model is no longer available to new users"* dondu. K-032'nin somut bedeli; gercek liste `curl "https://generativelanguage.googleapis.com/v1beta/models" -H "x-goog-api-key: $KEY"` ile alinir.
+- **Gemini model listesi kaynak yolu tasir.** `models/gemini-3.6-flash` doner; `ModelBinding.Model` oneksiz ad bekler, saglik denetimi onegi temizler.
+- **Google.GenAI istemcisi `IDisposable`'dir** (`HttpClient` tasir). Fabrikanin da `IDisposable` olmasi gerekti; `OpenAIClient`'ta bu gerekmiyordu. Taban adres `HttpOptions.BaseUrl` ile verilir — `Client.setDefaultBaseUrl` **statiktir** ve surec genelinde durum degistirir, kullanilmaz.
+- **Guvenlik filtresi bos yanit + `ChatFinishReason.ContentFilter` uretir.** Ikisi de (Anthropic refusal, Gemini SAFETY) ayni MEAI degerine eslenir; bu yuzden tespit tek bir Core dekoratorunde toplandi (K-206). Dekorator devre kesicinin **disindadir** — filtrelenmis yanit saglayici arizasi degildir.
+- **Iki resmi SDK da `ChatOptions.RawRepresentationFactory` okur.** Metadata uye referanslarindan dogrulanabilir: `System.Reflection.Metadata` ile `MemberReferences` icinde `get_RawRepresentationFactory` aranir. Bu, gercek cagri yapmadan "kacis kapisi var mi?" sorusunu cevaplar.
+
+## Sağlayıcı paketlerinin dosya haritası
+
+- **OpenAI istemci kurulumu tek dosyada** (2026-08-02): `OpenAI/OpenAIChatClientFactory.cs`. `OpenAIClient` bir kez kurulur, iki sağlayıcı (`openai`, `openai-responses`) paylaşır. Boru hattı (`UseFunctionInvocation` + `UseOpenTelemetry`) da burada.
+- **Adlandırılmış OpenAI uyumlu sağlayıcılar tek dosyada** (2026-08-02, Faz 8): `OpenAI/OpenAICompatibleProviderExtensions.cs`. `OpenAIChatClientFactory` ad başına `OpenAI/OpenAINamedChatClientFactoryCache.cs` içinde önbelleklenir; anahtarsız (yerel) örnekler sabit bir yer tutucu kimlikle kurulur.
+- **Her sağlayıcı SDK'sı kendi paketinde izole** (2026-08-05, Faz 26): `Anthropic/AnthropicChatClientFactory.cs` ve `Google/GoogleChatClientFactory.cs` — üçü de aynı boru hattını (`UseFunctionInvocation` + `UseOpenTelemetry`) kurar. Paketler birbirini görmez; kural `DependencyDirectionTests.AllowedReferences` ile korunur.
+- **Sağlayıcıya özgü ayarlar tek yardımcıdan okunur** (2026-08-05, Faz 26): `Abstractions/Agents/ModelProviderSettings.cs` doğrulama + tipli okuma yapar. Her sağlayıcı yalnız önek sabitini ve desteklenen anahtar listesini (`*ProviderNames.SupportedSettings`) yazar. Ayarlar `ChatOptions.RawRepresentationFactory` ile gönderilir; her paketin kendi `*ProviderSettingsChatClient` dekoratörü vardır.

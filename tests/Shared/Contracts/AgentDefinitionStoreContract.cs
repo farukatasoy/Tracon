@@ -151,6 +151,19 @@ public abstract class AgentDefinitionStoreContract : IAsyncLifetime
     {
         var original = TestData.Definition("full") with
         {
+            Model = new ModelBinding
+            {
+                Provider = "echo",
+                Model = "echo-1",
+                Temperature = 0.5f,
+
+                // Saglayiciya ozgu ayarlar da jsonb icinde tasinir (Faz 26).
+                ProviderSettings = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["anthropic.promptCaching"] = TestData.State("true"),
+                    ["anthropic.thinking.budgetTokens"] = TestData.State("2048"),
+                },
+            },
             CallableAgentNames = ["arastirmaci"],
             Harness = new HarnessSettings { MaxContextWindowTokens = 4096, DisableWebSearch = true },
             Compaction = new CompactionSettings
@@ -179,6 +192,9 @@ public abstract class AgentDefinitionStoreContract : IAsyncLifetime
         loaded.Model.Provider.ShouldBe("echo");
         loaded.Model.Model.ShouldBe("echo-1");
         loaded.Model.Temperature.ShouldBe(0.5f);
+        loaded.Model.ProviderSettings.Count.ShouldBe(2);
+        loaded.Model.ProviderSettings["anthropic.promptCaching"].GetBoolean().ShouldBeTrue();
+        loaded.Model.ProviderSettings["anthropic.thinking.budgetTokens"].GetInt32().ShouldBe(2048);
         loaded.ToolNames.ShouldBe(["alpha", "beta"]);
         loaded.CallableAgentNames.ShouldBe(["arastirmaci"]);
         loaded.Harness.ShouldNotBeNull();

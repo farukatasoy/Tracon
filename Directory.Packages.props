@@ -50,7 +50,19 @@
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
   </ItemGroup>
 
+  <!--
+    Saglayici SDK'lari. Ucu de RESMI birinci taraf paketidir; topluluk paketi
+    kullanilmadi (K-204). Ucu de kendi `AsIChatClient` adaptorunu tasir, bu yuzden
+    AgentPrism mesaj eslemesi/akis/tool cagrisi yazmaz.
+
+    Google.GenAI'in gecisli agirligi bilinerek kabul edildi: Google.Apis.Auth
+    uzerinden Newtonsoft.Json, System.Management ve System.CodeDom gelir. Bagimlilik
+    yalnizca AgentPrism.Google paketindedir; Gemini kullanmayan tuketici hicbirini
+    almaz. Ayrinti: docs/KARARLAR.md, karar K-205.
+  -->
   <ItemGroup Label="Saglayicilar">
+    <PackageVersion Include="Anthropic" Version="12.39.0" />
+    <PackageVersion Include="Google.GenAI" Version="1.16.0" />
     <PackageVersion Include="OpenAI" Version="2.12.0" />
   </ItemGroup>
 

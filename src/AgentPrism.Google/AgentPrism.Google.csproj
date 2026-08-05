@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>AgentPrism icin Google Gemini saglayici adaptoru. Model katalogu, IChatClient uretimi, guvenlik esikleri ve dusunme butcesi ayarlari.</Description>
+    <PackageTags>$(CommonPackageTags);google;gemini;provider</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../AgentPrism.Core/AgentPrism.Core.csproj" />
+  </ItemGroup>
+
+  <!--
+    Google'in RESMI .NET SDK'si (sahip: Google LLC, Apache-2.0). Kendi
+    `AsIChatClient` adaptorunu tasir.
+
+    🚨 Bu paket gecisli olarak Google.Apis.Auth uzerinden Newtonsoft.Json,
+    System.Management ve System.CodeDom ceker. Agirlik BILEREK kabul edildi:
+    bagimlilik yalnizca bu pakettedir ve Gemini kullanmayan tuketici hicbirini
+    almaz. Alternatif (tek bakimcili, 1.0 oncesi bir topluluk paketi) daha buyuk
+    bir uzun vadeli risk sayildi. Gerekce: docs/KARARLAR.md, karar K-205.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Google.GenAI" />
+  </ItemGroup>
+
+</Project>

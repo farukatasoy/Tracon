@@ -31,9 +31,14 @@
 //   - arayuzden tanimlanan workflow yalnizca katalogdaki agent'lari diziler (K2)
 //   - her yurutme bir `runs` satiridir; icindeki agent'lar altina baglanir
 //   - her super-step'te kontrol noktasi yazilir; yarim kalan is surdurulebilir
+// Faz 26 Anthropic ve Google'i birinci sinif saglayici yapti:
+//   - `.UseAnthropic(...)` ve `.UseGoogle(...)` — ikisi de RESMI SDK kullanir
+//   - `ModelBinding.ProviderSettings` saglayiciya ozgu ayarlari agent basina tasir
+//     (prompt caching, dusunme butcesi, Gemini guvenlik esikleri)
+//   - guvenlik filtresiyle BOS donen yanit `content_filtered` hatasi olarak kaydedilir
 // Bkz. docs/04-HTTP-API.md, docs/05-AGENTPRISM-UI.md, docs/06-GOZLEMLENEBILIRLIK.md,
 //      docs/08-SAGLAYICI-GENISLEMESI.md, docs/12-AGENT-CAGRI-GRAFIGI.md,
-//      docs/15-WORKFLOWS-YURUTME.md
+//      docs/15-WORKFLOWS-YURUTME.md, docs/26-ANTHROPIC-VE-GEMINI.md
 //
 // Calistirmadan once sirlari ayarlayin:
 //   dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=localhost;Database=AgentPrism;Username=...;Password=..."
@@ -42,7 +47,10 @@
 //   dotnet user-secrets set "AgentPrism:SqlServer:ConnectionString" "Server=localhost,1433;Database=AgentPrism;User Id=sa;Password=...;TrustServerCertificate=true"
 //   dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" "sk-..."
 //   dotnet user-secrets set "AgentPrism:Providers:OpenAICompatible:openrouter:ApiKey" "sk-or-..."
+//   dotnet user-secrets set "AgentPrism:Providers:Anthropic:ApiKey" "sk-ant-..."
+//   dotnet user-secrets set "AgentPrism:Providers:Google:ApiKey" "AIza..."
 
+using System.Text.Json;
 using AgentPrism;
 using AgentPrism.Api;
 using Microsoft.Agents.AI;
@@ -101,6 +109,27 @@ var openRouterEnabled = !string.IsNullOrWhiteSpace(openRouter["ApiKey"]);
 if (openRouterEnabled)
 {
     agentPrism.UseOpenAICompatible("openrouter", openRouter);
+}
+
+// Anthropic (Claude) — birinci sinif saglayici (Faz 26). Resmi `Anthropic` SDK'si
+// kendi IChatClient adaptorunu tasidigi icin sekil AgentPrism.OpenAI ile aynidir.
+// Anahtar yoksa saglayici hic kaydedilmez.
+var anthropic = builder.Configuration.GetSection(AnthropicProviderOptions.SectionName);
+var anthropicEnabled = !string.IsNullOrWhiteSpace(anthropic["ApiKey"]);
+
+if (anthropicEnabled)
+{
+    agentPrism.UseAnthropic(anthropic);
+}
+
+// Google Gemini — birinci sinif saglayici (Faz 26). Saglayici adi "gemini" degil
+// "google": ayni paket ileride Vertex AI'yi de kapsayabilir.
+var google = builder.Configuration.GetSection(GoogleProviderOptions.SectionName);
+var googleEnabled = !string.IsNullOrWhiteSpace(google["ApiKey"]);
+
+if (googleEnabled)
+{
+    agentPrism.UseGoogle(google);
 }
 
 // Yerel model sunucusu ornegi (F-05, Ollama/LM Studio). Kurulum F-03 ile AYNI
@@ -324,6 +353,95 @@ if (openRouterEnabled)
     });
 }
 
+if (anthropicEnabled)
+{
+    // Ayni destek senaryosu, Claude uzerinde. Tool cagri esleme farki
+    // (tool_use / tool_result bloklari) burada dogrulanir.
+    agentPrism.AddAgent(new AgentDefinition
+    {
+        Name = "claude-destek",
+        DisplayName = "Claude Destek",
+        Description = "Ayni destek senaryosu, Anthropic Claude uzerinden calisir.",
+        Instructions = "Sen bir destek asistanisin. Kisa ve net yanit ver. " +
+                       "Siparis sorularinda mutlaka tool kullan.",
+        Model = new ModelBinding
+        {
+            Provider = AnthropicProviderNames.Anthropic,
+            Model = anthropic["DefaultModel"] ?? "claude-haiku-4-5-20251001",
+
+            // 🚨 Anthropic Messages API'sinde max_tokens ZORUNLUDUR. Bos
+            // birakilirsa AnthropicProviderOptions.DefaultMaxOutputTokens kullanilir.
+            MaxOutputTokens = 1024,
+        },
+        ToolNames = ["get_order_status", "list_recent_orders", "cancel_order"],
+    });
+
+    // Saglayiciya ozgu ayarlarin (ProviderSettings) uctan uca kaniti: genisletilmis
+    // dusunme acik. Dusunme acikken Anthropic sicakligin yalnizca 1 olmasina izin
+    // verir, bu yuzden Temperature verilmez.
+    agentPrism.AddAgent(new AgentDefinition
+    {
+        Name = "claude-dusunen",
+        DisplayName = "Claude Dusunen",
+        Description = "Genisletilmis dusunme acik; ProviderSettings ile ayarlanir.",
+        Instructions = "Adim adim dusun, sonra kisa bir sonuc ver.",
+        Model = new ModelBinding
+        {
+            Provider = AnthropicProviderNames.Anthropic,
+            Model = anthropic["DefaultModel"] ?? "claude-haiku-4-5-20251001",
+            MaxOutputTokens = 4096,
+            ProviderSettings = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
+            {
+                [AnthropicProviderNames.ThinkingBudgetTokensSetting] = JsonSerializer.SerializeToElement(2048),
+            },
+        },
+    });
+}
+
+if (googleEnabled)
+{
+    // Ayni destek senaryosu, Gemini uzerinde. Tool cagri esleme farki
+    // (functionCall / functionResponse parcalari) burada dogrulanir.
+    agentPrism.AddAgent(new AgentDefinition
+    {
+        Name = "gemini-destek",
+        DisplayName = "Gemini Destek",
+        Description = "Ayni destek senaryosu, Google Gemini uzerinden calisir.",
+        Instructions = "Sen bir destek asistanisin. Kisa ve net yanit ver. " +
+                       "Siparis sorularinda mutlaka tool kullan.",
+        Model = new ModelBinding
+        {
+            Provider = GoogleProviderNames.Google,
+            Model = google["DefaultModel"] ?? "gemini-3.6-flash",
+            MaxOutputTokens = 2048,
+        },
+        ToolNames = ["get_order_status", "list_recent_orders", "cancel_order"],
+    });
+
+    // Guvenlik esikleri EN KATI. Bu agent, filtrelenmis bos yanitin
+    // "content_filtered" hatasi olarak kaydedildigini gostermek icindir.
+    agentPrism.AddAgent(new AgentDefinition
+    {
+        Name = "gemini-kati-filtre",
+        DisplayName = "Gemini Kati Filtre",
+        Description = "Tum guvenlik esikleri en katiya cekilmis; filtre davranisini gosterir.",
+        Instructions = "Kullanicinin istegini yanitla.",
+        Model = new ModelBinding
+        {
+            Provider = GoogleProviderNames.Google,
+            Model = google["DefaultModel"] ?? "gemini-3.6-flash",
+            MaxOutputTokens = 1024,
+            ProviderSettings = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
+            {
+                [GoogleProviderNames.SafetyHarassmentSetting] = JsonSerializer.SerializeToElement("BLOCK_LOW_AND_ABOVE"),
+                [GoogleProviderNames.SafetyHateSpeechSetting] = JsonSerializer.SerializeToElement("BLOCK_LOW_AND_ABOVE"),
+                [GoogleProviderNames.SafetyDangerousContentSetting] = JsonSerializer.SerializeToElement("BLOCK_LOW_AND_ABOVE"),
+                [GoogleProviderNames.SafetySexuallyExplicitSetting] = JsonSerializer.SerializeToElement("BLOCK_LOW_AND_ABOVE"),
+            },
+        },
+    });
+}
+
 // Kalicilik istege baglidir. Baglanti dizesi yoksa uygulama bellek ici
 // depolarla calisir; hicbir sey kirilmaz, yalnizca veri surecle birlikte biter.
 //
@@ -405,6 +523,8 @@ app.MapGet("/health", (IRunStore runs, ISessionStore sessions) => Results.Ok(new
     },
     // Detayli, canli durum icin: GET /agentprism/api/models/health
     openRouter = openRouterEnabled,
+    anthropic = anthropicEnabled,
+    google = googleEnabled,
 }));
 
 app.MapOpenApi();

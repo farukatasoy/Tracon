@@ -184,6 +184,39 @@ doğrulandı. İki gerçek hata yalnızca örnek uygulama çalıştırılınca �
 `AllowInsecureHttp` loopback *adresini* açmadığı için yerel teslim imkânsızdı
 (K-167). Ayrıntı [`21-KOTA-VE-OLAY-YAYINI.md`](../21-KOTA-VE-OLAY-YAYINI.md).
 
+
+### Faz 26 — Anthropic ve Gemini (2026-08-05)
+
+Fazın tüm maliyeti tek bir ölçüme bağlıydı ve ölçüm planı **iyi yönde** bozdu:
+plan topluluk paketlerini (`Anthropic.SDK`, `Google_GenerativeAI`) varsayıyordu,
+oysa ikisinin de **resmî** birinci taraf karşılığı vardı (`Anthropic` 12.39.0,
+`Google.GenAI` 1.16.0) ve ikisi de kendi `AsIChatClient` adaptörünü taşıyordu.
+Böylece "IChatClient uygulamasını biz yazarız" senaryosu hiç gerçekleşmedi ve faz
+`AgentPrism.OpenAI` ile birebir aynı şekli aldı (K-204).
+
+Google'ın resmî SDK'sı `Google.Apis.Auth` üzerinden `Newtonsoft.Json`,
+`System.Management` ve `System.CodeDom` çekiyordu — 11 geçişli bağımlılık. Ağırlık
+bilerek kabul edildi ve tek pakette izole edildi; alternatif tek bakımcılı bir 0.x
+paketti ve bakımsız kalma riski daha pahalı sayıldı (K-205).
+
+Sözleşmeye tek bir alan eklendi: `ModelBinding.ProviderSettings`. `AgentDefinition.Metadata`
+ile aynı şekli seçmek işe yaradı — `jsonb` yolu, HTTP sözleşmesi ve kaynak üreteci
+bağlamı hiç değişmeden çalıştı (K-208).
+
+Güvenlik filtresi tespiti sağlayıcı paketlerine değil `AgentPrism.Core`'a kondu;
+devre kesiciyle aynı desen. Dekoratörün devre kesicinin **dışında** durması
+gerektiği tasarım aşamasında yakalandı: filtrelenmiş bir yanıt sağlayıcının
+sağlıklı olduğunu gösterir, içeride olsaydı arka arkaya filtrelenen birkaç istek
+sağlayıcıyı kapatırdı (K-206).
+
+En pahalı ölçüm, SDK'nın ham gösterimiyle ilgiliydi: Anthropic adaptörü
+`RawRepresentationFactory` çıktısındaki alanların **üzerine yazmıyor**. Yer tutucu
+bir model adıyla gönderilen istek gerçekten o adla gitti ve `404` döndü —
+varsayımla ilerlenseydi hata yalnız üretimde görünürdü. Gemini tarafında K-032'nin
+bedeli somut olarak yaşandı: `gemini-2.5-flash` çağrısı *"no longer available to
+new users"* döndü. Ayrıntı
+[`26-ANTHROPIC-VE-GEMINI.md`](../26-ANTHROPIC-VE-GEMINI.md).
+
 ---
 
 ## Migration geçmişi (`agentprism` şeması)

@@ -13,6 +13,13 @@
     -->
     <ProjectReference Include="../../src/AgentPrism.OpenAI/AgentPrism.OpenAI.csproj" />
     <!--
+      Faz 26: uc saglayicinin AYNI uygulamada kayitli olmasi ve /api/models
+      ciktisinda birlikte gorunmesi burada dogrulanir. Ad cakismasi ve kayit
+      sirasi hatalari yalnizca birlikte kurulunca ortaya cikar.
+    -->
+    <ProjectReference Include="../../src/AgentPrism.Anthropic/AgentPrism.Anthropic.csproj" />
+    <ProjectReference Include="../../src/AgentPrism.Google/AgentPrism.Google.csproj" />
+    <!--
       Workflow uclari, motor kayitli VE kayitsizken iki farkli davranis gosterir
       (calistirma 501 doner, tanim yonetimi calisir). Iki yolu da test etmek icin
       motor paketine ihtiyac var; AgentPrism.AspNetCore'un kendisi bu pakete
