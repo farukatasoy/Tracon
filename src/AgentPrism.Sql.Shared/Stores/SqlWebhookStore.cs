@@ -131,7 +131,7 @@ internal sealed class SqlWebhookStore : IWebhookStore
 
         var result = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false);
 
-        return result is bool disabled && disabled;
+        return result is not null && DbHelpers.ToBoolean(result);
     }
 
     /// <inheritdoc />
@@ -239,14 +239,14 @@ internal sealed class SqlWebhookStore : IWebhookStore
             : new Dictionary<string, string>(parsed, StringComparer.OrdinalIgnoreCase);
     }
 
-    private static WebhookSubscription ReadSubscription(DbDataReader reader)
+    private WebhookSubscription ReadSubscription(DbDataReader reader)
         => new()
         {
             Id = reader.GetGuid(0),
             TenantId = reader.GetString(1),
             Name = reader.GetString(2),
             Url = reader.GetString(3),
-            Events = reader.GetFieldValue<string[]>(4),
+            Events = Dialect.ReadTextArray(reader, 4),
             SecretConfigurationKey = DbHelpers.GetNullableString(reader, 5),
             Headers = DeserializeHeaders(DbHelpers.GetNullableString(reader, 6)),
             Enabled = reader.GetBoolean(7),

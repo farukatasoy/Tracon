@@ -38,13 +38,35 @@ internal static class DbHelpers
     /// <param name="command">Calistirilacak komut. Cagri sonunda birakilir.</param>
     /// <param name="cancellationToken">Iptal belirteci.</param>
     /// <returns>Tek deger; sonuc yoksa <see langword="null"/>.</returns>
+    /// <remarks>
+    /// 🚨 <see cref="DbCommand.ExecuteScalarAsync(CancellationToken)"/> yalnizca
+    /// ILK sonuc kumesine bakar. SQL Server'in <c>UPDATE ... OUTPUT</c> +
+    /// <c>IF @@ROWCOUNT = 0 INSERT ... OUTPUT</c> upsert deseninde (K-177) UPDATE
+    /// 0 satir etkilerse ilk kume BOSTUR ve gercek deger ikinci kumededir; bu
+    /// yuzden burada <see cref="ReadSingleAsync{T}"/> ile ayni sonuc-kumesi
+    /// dolasimi elle yapilir.
+    /// </remarks>
     public static async ValueTask<object?> ExecuteScalarAsync(
         DbCommand command,
         CancellationToken cancellationToken)
     {
         await using (command.ConfigureAwait(false))
         {
-            return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+            var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+            await using (reader.ConfigureAwait(false))
+            {
+                do
+                {
+                    if (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        return reader.IsDBNull(0) ? null : reader.GetValue(0);
+                    }
+                }
+                while (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false));
+
+                return null;
+            }
         }
     }
 
@@ -54,6 +76,15 @@ internal static class DbHelpers
     /// <param name="map">Satiri nesneye ceviren esleyici.</param>
     /// <param name="cancellationToken">Iptal belirteci.</param>
     /// <returns>Ilk satir; sonuc bos ise <see langword="null"/>.</returns>
+    /// <remarks>
+    /// 🚨 SQL Server'in <c>UPDATE ... OUTPUT</c> + <c>IF @@ROWCOUNT = 0 INSERT
+    /// ... OUTPUT</c> upsert deseni (K-177) HANGI dalin calistigina gore satiri
+    /// FARKLI bir sonuc kumesine yazar: UPDATE 0 satir etkilerse ilk sonuc kumesi
+    /// BOSTUR ve gercek satir ikinci kumededir. Bu yuzden ilk kume bossa
+    /// <see cref="DbDataReader.NextResultAsync(CancellationToken)"/> ile sonraki
+    /// kumeler denenir. PostgreSQL'in tek ifadelik <c>ON CONFLICT ... RETURNING</c>
+    /// deseni zaten tek kume urettigi icin bu dongu orada zararsizdir.
+    /// </remarks>
     public static async ValueTask<T?> ReadSingleAsync<T>(
         DbCommand command,
         Func<DbDataReader, T> map,
@@ -66,9 +97,16 @@ internal static class DbHelpers
 
             await using (reader.ConfigureAwait(false))
             {
-                return await reader.ReadAsync(cancellationToken).ConfigureAwait(false)
-                    ? map(reader)
-                    : null;
+                do
+                {
+                    if (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        return map(reader);
+                    }
+                }
+                while (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false));
+
+                return null;
             }
         }
     }
@@ -190,4 +228,40 @@ internal static class DbHelpers
     /// <returns>Deger; <c>NULL</c> ise <see langword="null"/>.</returns>
     public static long? GetNullableInt64(DbDataReader reader, int ordinal)
         => reader.IsDBNull(ordinal) ? null : reader.GetInt64(ordinal);
+
+    /// <summary>
+    /// <see cref="ExecuteScalarAsync"/>'in dondurdugu ham degeri <see cref="Guid"/>'e cevirir.
+    /// </summary>
+    /// <param name="value">Ham skaler deger.</param>
+    /// <returns>Deger.</returns>
+    /// <remarks>
+    /// 🚨 PostgreSQL (<c>uuid</c>) ve SQL Server (<c>uniqueidentifier</c>) skaler
+    /// sonucu zaten kutulanmis bir <see cref="Guid"/> olarak dondurur; SQLite
+    /// (<c>TEXT</c>) bir <see cref="string"/> dondurur. Cagri yerinde dogrudan
+    /// <c>(Guid)result</c> cevrimi SQLite'ta <see cref="InvalidCastException"/>
+    /// firlatirdi. Bu yardimci ikisini de kabul eder.
+    /// </remarks>
+    public static Guid ToGuid(object value)
+        => value is Guid guid ? guid : Guid.Parse((string)value);
+
+    /// <summary>
+    /// <see cref="ExecuteScalarAsync"/>'in dondurdugu ham degeri mantiksal
+    /// degere cevirir.
+    /// </summary>
+    /// <param name="value">Ham skaler deger.</param>
+    /// <returns>Deger.</returns>
+    /// <remarks>
+    /// 🚨 PostgreSQL (<c>boolean</c>) ve SQL Server (<c>CAST(... AS bit)</c>)
+    /// skaler sonucu kutulanmis bir <see cref="bool"/> olarak dondurur; SQLite'ta
+    /// mantiksal tip yoktur ve <c>RETURNING</c> ifadesindeki bir karsilastirma
+    /// kutulanmis bir <see cref="long"/> (0/1) dondurur. <c>result is bool b &amp;&amp; b</c>
+    /// deseni SQLite'ta HER ZAMAN <see langword="false"/> verirdi (tip hic eslesmez).
+    /// </remarks>
+    public static bool ToBoolean(object value)
+        => value switch
+        {
+            bool boolean => boolean,
+            long integer => integer != 0,
+            _ => throw new ArgumentException($"'{value.GetType()}' mantiksal degere cevrilemez.", nameof(value)),
+        };
 }

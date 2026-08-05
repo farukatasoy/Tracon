@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Projesine ekleyen geliştirici kendi AI harness'ini kolay ama esnek şekilde kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 22 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; geri alınamaz tool'lar kullanıcı onayı bekler; tool'lar uzak MCP sunucularından gelebilir (artık prompts, resources ve OAuth Mod 1 dahil); workflow'lar insanla konuşabilir; işler zamanlanabilir; agent sürümleri A/B karşılaştırılabilir; kullanım kotayla sınırlanabilir ve olaylar imzalı webhook'larla dış sistemlere yayılabilir. `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu çalıştırma uçlarını ve gömülü yönetim arayüzünü tek prefix altına bağlar. Veritabanı **zorunlu değildir**; yapılandırılmazsa depolama bellek içine düşer. Faz 23 (SQL Server) kodu tamam; sözleşme testleri henüz koşturulmadı. Sıradaki faz: 24 (SQLite).
+> **Durum:** Faz 24 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; geri alınamaz tool'lar kullanıcı onayı bekler; tool'lar uzak MCP sunucularından gelebilir (artık prompts, resources ve OAuth Mod 1 dahil); workflow'lar insanla konuşabilir; işler zamanlanabilir; agent sürümleri A/B karşılaştırılabilir; kullanım kotayla sınırlanabilir ve olaylar imzalı webhook'larla dış sistemlere yayılabilir. `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu çalıştırma uçlarını ve gömülü yönetim arayüzünü tek prefix altına bağlar. Veritabanı **zorunlu değildir**; yapılandırılmazsa depolama bellek içine düşer — yapılandırıldığında PostgreSQL, SQL Server veya SQLite'tan biri seçilir. Sıradaki faz: 25 (saklama).
 
 ```csharp
 builder.AddAgentPrism()
@@ -162,7 +162,8 @@ AgentPrism bu boşluğu doldurur. DevUI'nin yerine geçmez — bıraktığı yer
 | `AgentPrism.Abstractions` | ✅ Sözleşmeler; kendi implementasyonunuzu yazacaksanız yeterli |
 | `AgentPrism.Core` | ✅ Çalışma zamanı, katalog, tanım derleyicisi, tool defteri, oturum yönetimi. **Veritabanı gerektirmez.** |
 | `AgentPrism.PostgreSql` | ✅ Kalıcılık — gömülü SQL migration'ları, ayrı `agentprism` şeması |
-| `AgentPrism.SqlServer` | ⚠️ SQL Server 2019+ / Azure SQL kalıcılığı — aynı şema, kendi migration seti. **Meta pakete dâhil değil**; açıkça referans verilir. Sözleşme testleri henüz koşturulmadı |
+| `AgentPrism.SqlServer` | ✅ SQL Server 2019+ / Azure SQL kalıcılığı — aynı şema, kendi migration seti. **Meta pakete dâhil değil**; açıkça referans verilir. Sözleşme testleri `azure-sql-edge` ile doğrulandı; gerçek `mssql/server` henüz koşturulmadı |
+| `AgentPrism.Sqlite` | ✅ SQLite kalıcılığı — tek dosyalık kurulum, tablo öneki, kendi migration seti. **Meta pakete dâhil değil**; açıkça referans verilir. Tek yazıcılıdır, çok örnekli dağıtımda kullanılmaz |
 | `AgentPrism.OpenAI` | ✅ OpenAI sağlayıcı adaptörü — Chat Completions + Responses, tool çağrısı, OpenTelemetry |
 | `AgentPrism.Mcp` | ✅ Uzak MCP sunucularından tool keşfi — yalnız HTTP, varsayılan onaylı |
 | `AgentPrism.Workflows` | ✅ Workflow yürütme — beş hazır desen, kontrol noktası, sürdürme, human-in-the-loop |
@@ -206,8 +207,9 @@ cd <projeniz>
 dotnet user-secrets init
 dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=...;Port=5432;Database=AgentPrism;Username=...;Password=..."
 
-# veya SQL Server (ikisi AYNI ANDA verilmez; verilirse son kayıt kazanır ve uyarı loglanır)
+# veya SQL Server, veya SQLite (üçü AYNI ANDA verilmez; verilirse son kayıt kazanır ve uyarı loglanır)
 dotnet user-secrets set "AgentPrism:SqlServer:ConnectionString" "Server=...,1433;Database=AgentPrism;User Id=...;Password=...;TrustServerCertificate=true"
+dotnet user-secrets set "AgentPrism:Sqlite:ConnectionString"    "Data Source=agentprism.db"
 dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey"     "sk-..."
 ```
 
@@ -254,7 +256,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [18](docs/18-DEGERLENDIRME.md) | Değerlendirme (eval): takım/vaka/koşu, Faz 17'nin iş kuyruğu üzerinde, Evals ekranı | ✅ Tamamlandı |
 | [19](docs/19-SURUM-KARSILASTIRMA-VE-AB.md) | Sürüm karşılaştırma (diff) ve A/B deneyleri: oturum bazlı deterministik trafik bölme, Experiments ekranı | ✅ Tamamlandı |
 | [20](docs/20-MALIYET-VE-GOSTERGE-PANELI.md) | Maliyet raporlaması ve gösterge paneli: fiyat kataloğu/yapılandırması, Dashboard giriş ekranı | ✅ Tamamlandı |
-| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | Faz 23 ⚠️ kod tamam, doğrulama bekliyor — sıradaki Faz 24 |
+| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | Faz 24 tamam — sıradaki Faz 25 (saklama) |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 > Faz 6, planındaki Workflows kalemini **yapmadı**; ertelendi ve gerekçesi
