@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>AgentPrism icin test yardimcilari: aga cikmayan bir model saglayicisi, bellek ici bir host fixture'i ve calistirma kayitlari uzerinde iddialar. Hicbir test cercevesine (xunit, NUnit, MSTest) bagli degildir.</Description>
+    <PackageTags>$(CommonPackageTags);testing;fixtures;mocks</PackageTags>
+    <!--
+      TEK TFM: Microsoft.AspNetCore.TestHost paket surumu barindirma
+      framework'uyle birebir eslenir (10.0.10 yalniz net10.0 destekler); ayni
+      surumu net8.0/net9.0 icin coken bir siniflandirilmis paket yoktur. Coğul
+      ozellik BILEREK kullaniliyor (tekil degil): `dotnet pack`in capraz-hedef
+      orkestrasyonu Directory.Build.props'tan miras kalan coğul degeri okumaya
+      devam eder ve tekil deger onu GORMEZ (Faz 37 tuzagi,
+      docs/hafiza/build-ve-analyzer.md).
+    -->
+    <TargetFrameworks>net10.0</TargetFrameworks>
+    <!--
+      Test paketi uretimde calismaz: FakeModelProvider.CallsTool anonim tip
+      ozelliklerini yansima ile okur, AgentPrismTestHost JSON (de)serilestirmesi
+      icin kaynak ureteci baglami tasimaz. AOT vaadi verilmez.
+    -->
+    <AgentPrismAotCompatible>false</AgentPrismAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../AgentPrism.Core/AgentPrism.Core.csproj" />
+    <!--
+      Tuketicinin en cok isteyecegi tip bellek ici host fixture'idir
+      (AgentPrismTestHost) ve o, uclari kuran AgentPrism.AspNetCore'u gerektirir.
+      K-008 kisiti burada gecerlidir: AspNetCore on surum MAF paketleri
+      tasiyabilen tek pakettir, Testing ona baglandigi icin o bagimliliklari
+      GECISLI olarak devralir. Kabul edilebilir - test paketi zaten uretim
+      grafiginde degildir. Gerekce: docs/39-TEST-PAKETI.md, bolum 39.1.
+    -->
+    <ProjectReference Include="../AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Bellek ici host TestServer uzerine kurulur (Microsoft.AspNetCore.Mvc.Testing
+      degil - K-007: WebApplicationFactory<T> bir giris noktasi derlemesi ister
+      ve tuketiciyi bir barindirma modeline baglar. TestHost ise resmi, kararli
+      bir Microsoft paketidir ve baska hicbir bagimlilik getirmez.
+    -->
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
+  </ItemGroup>
+
+  <!--
+    HICBIR test cercevesi paketi alinmaz (xunit, NUnit, MSTest, Shouldly,
+    FluentAssertions). Tuketici hangi cerceveyi kullanirsa kullansin paket
+    calisir; iddialar basarisiz oldugunda kendi AgentPrismAssertionException'ini
+    firlatir, her cerceve bunu bir basarisizlik sayar. Gerekce: bolum 39.2.
+  -->
+
+</Project>

@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (117 kalem)
+## Arşivlenen Kararlar (121 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -126,3 +126,7 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-115 | 160 | `IFormFile` alan minimal API uçları `.DisableAntiforgery()` gerektirir |
 | K-116 | 161 | `/v1/chat/completions` bu fazda çok modlu girdi kabul etmez |
 | K-117 | 162 | Kalıcı agent dosya belleği (`agent_files`) aynı migration'da (0006) eklendi 👤 |
+| K-118 | 163 | Workflow yürütmesi ayrı pakette (`AgentPrism.Workflows`), `AspNetCore` bu pakete referans vermez |
+| K-119 | 164 | Beş desenin tamamı Faz 15'te uygulandı 👤 |
+| K-120 | 165 | Workflow çalıştırmaları `runs` tablosunda yaşar; `workflow_runs` açılmadı |
+| K-121 | 166 | Kontrol noktası durumu `json` sütununda, `jsonb` DEĞİL |

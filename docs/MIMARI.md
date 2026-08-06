@@ -36,9 +36,9 @@
 
 Hangi fazın hangi pakete ne eklediği: [`arsiv/PAKET-FAZ-GECMISI.md`](arsiv/PAKET-FAZ-GECMISI.md).
 
-Testler: **2037 geçiyor** — birim + fonksiyonel + entegrasyon (Testcontainers:
+Testler: **2069 geçiyor** — birim + fonksiyonel + entegrasyon (Testcontainers:
 PostgreSQL + SQLite) + arayüz E2E, paket başına dökümü `arsiv/PAKET-FAZ-GECMISI.md`.
-Dört kapı sıfır uyarı; `dotnet pack` **15 paket** üretir.
+Dört kapı sıfır uyarı; `dotnet pack` **17 paket** üretir.
 ⚠️ `AgentPrism.SqlServer`'ın testleri bu makinede koşmadı — bkz.
 `23-SQL-SERVER.md`, `docs/hafiza/sql-saglayicilari.md`.
 

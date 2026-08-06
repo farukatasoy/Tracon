@@ -2,6 +2,8 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/AgentPrism.PostgreSql/AgentPrism.PostgreSql.csproj" />
+    <!-- Sahte model saglayicisi (FakeModelProvider): Faz 39, K-007 gerekcesi bolum 39.1. -->
+    <ProjectReference Include="../../src/AgentPrism.Testing/AgentPrism.Testing.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -26,7 +26,7 @@ public sealed class TemplateFixture : IAsyncLifetime
     {
         var packResult = await ProcessRunner.RunAsync(
             "dotnet",
-            $"pack \"{RepoPaths.SolutionFile}\" -c Release",
+            $"pack \"{RepoPaths.PackableSolutionFilter}\" -c Release",
             timeout: PackTimeout);
 
         if (packResult.ExitCode != 0)

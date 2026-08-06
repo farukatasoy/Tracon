@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using FakeModelProvider = AgentPrism.Testing.FakeModelProvider;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
@@ -13,7 +14,7 @@ namespace AgentPrism.AspNetCore.FunctionalTests;
 /// Bu testlerin dogruladigi kural, fazin merkezi tasarim karari (bkz.
 /// <c>docs/14-COK-MODLULUK.md</c>, bolum 14.1): sohbet gecmisinde ek kucuk bir
 /// referans olarak yasar, ancak model cagrisindan hemen once gercek baytlara
-/// cozulur. <see cref="EchoModelProvider.LastRequest"/> modele GERCEKTEN neyin
+/// cozulur. <see cref="FakeModelProvider.Requests"/> modele GERCEKTEN neyin
 /// ulastigini gosterir; bir <see cref="DataContent"/> gormek cozumun
 /// calistigini kanitlar.
 /// </remarks>
@@ -36,9 +37,10 @@ public sealed class AttachmentRunTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         await SseReader.ReadAllAsync(await response.Content.ReadAsStreamAsync());
 
-        var echo = host.Services.GetServices<IModelProvider>().OfType<EchoModelProvider>().Single();
+        var echo = host.Services.GetServices<IModelProvider>().OfType<FakeModelProvider>().Single();
+        var lastRequest = echo.Requests[^1].Messages;
 
-        var content = echo.LastRequest
+        var content = lastRequest
             .SelectMany(static message => message.Contents)
             .OfType<DataContent>()
             .ShouldHaveSingleItem();
@@ -48,7 +50,7 @@ public sealed class AttachmentRunTests
 
         // Ilgisiz saglayicilarin okuyamayacagi bir referans (UriContent) ASLA
         // modele ulasmamalidir; hepsi DataContent'e cozulmus olmalidir.
-        echo.LastRequest.SelectMany(static message => message.Contents).OfType<UriContent>().ShouldBeEmpty();
+        lastRequest.SelectMany(static message => message.Contents).OfType<UriContent>().ShouldBeEmpty();
     }
 
     [Fact]

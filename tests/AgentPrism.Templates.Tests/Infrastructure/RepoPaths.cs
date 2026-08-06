@@ -14,6 +14,14 @@ internal static class RepoPaths
 
     public static string SolutionFile => Path.Combine(Root, "AgentPrism.slnx");
 
+    /// <summary>
+    /// <c>/src/</c> altindaki paketlenebilir projeleri kapsayan cozum filtresi.
+    /// Sablon testleri yalniz bu paketlere ihtiyac duyar; tam cozum yerine bu
+    /// filtre paketlenirse 13 test projesi (Postgres/SqlServer/Sqlite
+    /// container'lari, Playwright E2E dahil) gereksiz yere derlenmez.
+    /// </summary>
+    public static string PackableSolutionFilter => Path.Combine(Root, "AgentPrism.src.slnf");
+
     public static string PackageReleaseDirectory => Path.Combine(Root, "artifacts", "package", "release");
 
     private static string FindRoot()
