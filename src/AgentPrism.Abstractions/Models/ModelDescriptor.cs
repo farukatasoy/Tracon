@@ -24,6 +24,9 @@ public sealed record ModelDescriptor
     /// <summary>Akil yurutme cabasi ayarini destekliyor mu.</summary>
     public bool SupportsReasoning { get; init; }
 
+    /// <summary>Model JSON semasina uyan cikti uretebiliyor mu.</summary>
+    public bool SupportsStructuredOutput { get; init; }
+
     /// <summary>Milyon girdi token'i basina maliyet. Yalnizca raporlama icindir.</summary>
     public decimal? InputCostPerMillionTokens { get; init; }
 

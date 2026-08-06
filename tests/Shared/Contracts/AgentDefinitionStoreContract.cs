@@ -163,6 +163,15 @@ public abstract class AgentDefinitionStoreContract : IAsyncLifetime
                     ["anthropic.promptCaching"] = TestData.State("true"),
                     ["anthropic.thinking.budgetTokens"] = TestData.State("2048"),
                 },
+
+                // Yapilandirilmis cikti semasi da jsonb icinde tasinir (Faz 38).
+                ResponseFormat = new AgentResponseFormat
+                {
+                    Kind = AgentResponseFormatKind.JsonSchema,
+                    Schema = TestData.State("""{"type":"object","properties":{"total":{"type":"number"}}}"""),
+                    SchemaName = "invoice",
+                    SchemaDescription = "Bir fatura ozetinin semasi.",
+                },
             },
             CallableAgentNames = ["arastirmaci"],
             Harness = new HarnessSettings { MaxContextWindowTokens = 4096, DisableWebSearch = true },
@@ -195,6 +204,12 @@ public abstract class AgentDefinitionStoreContract : IAsyncLifetime
         loaded.Model.ProviderSettings.Count.ShouldBe(2);
         loaded.Model.ProviderSettings["anthropic.promptCaching"].GetBoolean().ShouldBeTrue();
         loaded.Model.ProviderSettings["anthropic.thinking.budgetTokens"].GetInt32().ShouldBe(2048);
+        loaded.Model.ResponseFormat.ShouldNotBeNull();
+        loaded.Model.ResponseFormat!.Kind.ShouldBe(AgentResponseFormatKind.JsonSchema);
+        loaded.Model.ResponseFormat.Schema.ShouldNotBeNull();
+        loaded.Model.ResponseFormat.Schema!.Value.GetProperty("type").GetString().ShouldBe("object");
+        loaded.Model.ResponseFormat.SchemaName.ShouldBe("invoice");
+        loaded.Model.ResponseFormat.SchemaDescription.ShouldBe("Bir fatura ozetinin semasi.");
         loaded.ToolNames.ShouldBe(["alpha", "beta"]);
         loaded.CallableAgentNames.ShouldBe(["arastirmaci"]);
         loaded.Harness.ShouldNotBeNull();
