@@ -13,7 +13,18 @@ namespace AgentPrism;
 /// zaman sutunu yoksa (<c>eval_case_results</c>) UUID v7 kimligi zaman sirali
 /// oldugu icin (K-015) <c>id</c> kullanilir.
 /// </param>
-internal readonly record struct RetentionTargetDefinition(string Table, string WherePredicate, string OrderColumn);
+/// <param name="RowLimitOrderExpression">
+/// <c>MaxRows</c> (Faz 36) icin: en yeniden N. satiri bulmakta kullanilan SQL
+/// ifadesi. Coğu hedefte <see cref="WherePredicate"/>'in <c>@cutoff</c> ile
+/// karsilastirdigi SUTUNLA AYNIDIR (esik dogrudan ayni kosula beslenebilir).
+/// Iliskili bir tabloya bakan hedeflerde (<c>eval_case_results</c>) korele bir
+/// alt sorgudur. Bkz. 36.1.
+/// </param>
+internal readonly record struct RetentionTargetDefinition(
+    string Table,
+    string WherePredicate,
+    string OrderColumn,
+    string RowLimitOrderExpression);
 
 /// <summary>
 /// <see cref="RetentionTargets"/> beyaz listesindeki her hedefin tablo/kosul
@@ -55,67 +66,100 @@ internal static class RetentionTargetRegistry
             RetentionTargets.RunEvents => new RetentionTargetDefinition(
                 Table("run_events"),
                 "created_at < @cutoff",
+                "created_at",
                 "created_at"),
 
             RetentionTargets.ToolInvocations => new RetentionTargetDefinition(
                 Table("tool_invocations"),
                 "created_at < @cutoff",
+                "created_at",
                 "created_at"),
 
             // traces siliniyor; spans ON DELETE CASCADE ile birlikte gider.
             RetentionTargets.Traces => new RetentionTargetDefinition(
                 Table("traces"),
                 "started_at < @cutoff",
+                "started_at",
                 "started_at"),
 
             // Yalniz sonlanmis isler (Completed=3, Failed=4, Cancelled=5);
-            // job_items ON DELETE CASCADE ile birlikte gider.
+            // job_items ON DELETE CASCADE ile birlikte gider. Aktif islerin
+            // completed_at'i NULL'dur; satir siniri sorgusu NULL'lari eler
+            // (bkz. SqlDialect.BuildRetentionFindNthRowCutoffSql).
             RetentionTargets.Jobs => new RetentionTargetDefinition(
                 Table("jobs"),
                 "status IN (3, 4, 5) AND completed_at < @cutoff",
+                "completed_at",
                 "completed_at"),
 
             // Yalniz teslim edilmis (Delivered=1) kayitlar.
             RetentionTargets.WebhookDeliveries => new RetentionTargetDefinition(
                 Table("webhook_deliveries"),
                 "status = 1 AND delivered_at < @cutoff",
+                "delivered_at",
                 "delivered_at"),
 
             // eval_case_results'in kendi zaman sutunu yok; kosunun tamamlanma
-            // zamanina EXISTS ile bakilir. Siralama icin uuid v7 kimligi kullanilir.
+            // zamanina EXISTS ile bakilir. Arsiv siralamasi icin uuid v7 kimligi
+            // kullanilir (OrderColumn), ama MaxRows esigi WherePredicate'in
+            // GERCEKTEN karsilastirdigi sutunla (er.completed_at) AYNI olmalidir
+            // — bu yuzden RowLimitOrderExpression bagimsiz bir korele alt sorgudur.
+            // Acik Soru 2 (Faz 36 plani) bu sekilde cozuldu: id bir zaman damgasi
+            // DEGILDIR, dogrudan esik olamaz.
+            //
+            // 🚨 Korelasyon FULL NITELENDIRILMIS ada gore yazilir (Table(...)),
+            // BARE hedef adina gore DEGIL: SQLite'ta QualifyTable onek + ad
+            // BITISTIRIR (nokta yok, K-193) — bare "eval_case_results" FROM
+            // yan tumcesindeki gercek nesneyle (ornegin "t_ab12cd34eval_case_results")
+            // EsLESMEZ ve "no such column" ile calisma aninda patlar. Faz 36'da
+            // MaxRows testleri bu tuzagi SQLite'a karsi kosarken YAKALADI; Faz
+            // 25'in orijinal WherePredicate'i de AYNI hatayi tasiyordu, burada
+            // birlikte duzeltildi.
             RetentionTargets.EvalCaseResults => new RetentionTargetDefinition(
                 Table("eval_case_results"),
                 $"EXISTS (SELECT 1 FROM {Table("eval_runs")} er " +
-                "WHERE er.id = eval_case_results.eval_run_id AND er.completed_at < @cutoff)",
-                "id"),
+                $"WHERE er.id = {Table("eval_case_results")}.eval_run_id AND er.completed_at < @cutoff)",
+                "id",
+                $"(SELECT er.completed_at FROM {Table("eval_runs")} er WHERE er.id = {Table("eval_case_results")}.eval_run_id)"),
 
             // Kontrol noktasinin kendi created_at'i degil, BAGLI CALISTIRMANIN
             // tamamlanma zamani esas alinir (25.1: "Tamamlanan calistirmadan
-            // 7 gun sonra").
+            // 7 gun sonra"). MaxRows esigi de AYNI GEREKCEYLE runs.completed_at
+            // uzerinden korele alt sorguyla hesaplanir (eval_case_results ile
+            // ayni desen). Korelasyon burada da FULL NITELENDIRILMIS addir —
+            // yukaridaki 🚨 notu gecerlidir.
             RetentionTargets.WorkflowCheckpoints => new RetentionTargetDefinition(
                 Table("workflow_checkpoints"),
                 $"EXISTS (SELECT 1 FROM {Table("runs")} r " +
-                "WHERE r.id = workflow_checkpoints.run_id AND r.completed_at < @cutoff)",
-                "created_at"),
+                $"WHERE r.id = {Table("workflow_checkpoints")}.run_id AND r.completed_at < @cutoff)",
+                "created_at",
+                $"(SELECT r.completed_at FROM {Table("runs")} r WHERE r.id = {Table("workflow_checkpoints")}.run_id)"),
 
-            // Suresi dolmus VEYA iptal edilmis izinler.
+            // Suresi dolmus VEYA iptal edilmis izinler. Iki sutundan hangisi
+            // doluysa (COALESCE) esik odur; ikisi de NULL ise satir siniri
+            // sorgusu bu satiri eler (henuz uygun aday degil).
             RetentionTargets.SkillScriptGrants => new RetentionTargetDefinition(
                 Table("skill_script_grants"),
                 "(expires_at IS NOT NULL AND expires_at < @cutoff) " +
                 "OR (revoked_at IS NOT NULL AND revoked_at < @cutoff)",
-                "granted_at"),
+                "granted_at",
+                "COALESCE(expires_at, revoked_at)"),
 
             // Sahipsiz: hic oturumu olmayan VEYA oturumu artik var olmayan ekler.
+            // Korelasyon burada da FULL NITELENDIRILMIS addir — yukaridaki 🚨 notu
+            // gecerlidir.
             RetentionTargets.Attachments => new RetentionTargetDefinition(
                 Table("attachments"),
                 "created_at < @cutoff AND (session_id IS NULL " +
-                $"OR NOT EXISTS (SELECT 1 FROM {Table("sessions")} s WHERE s.id = attachments.session_id))",
+                $"OR NOT EXISTS (SELECT 1 FROM {Table("sessions")} s WHERE s.id = {Table("attachments")}.session_id))",
+                "created_at",
                 "created_at"),
 
             // Kullanici verisi; varsayilan KAPALI (bkz. AgentPrismRetentionOptions).
             RetentionTargets.Sessions => new RetentionTargetDefinition(
                 Table("sessions"),
                 "updated_at < @cutoff",
+                "updated_at",
                 "updated_at"),
 
             // conversations siliniyor; conversation_items ve responses ON DELETE
@@ -123,21 +167,25 @@ internal static class RetentionTargetRegistry
             RetentionTargets.Conversations => new RetentionTargetDefinition(
                 Table("conversations"),
                 "updated_at < @cutoff",
+                "updated_at",
                 "updated_at"),
 
             // Yalniz KAPANMIS baglantilar. Acik bir baglanti (ended_at IS NULL)
             // silinemez; sunucu cokerse kalan NULL, kapanmamis bir baglantinin
-            // izidir ve saklama politikasi onu sessizce yok etmemelidir.
+            // izidir ve saklama politikasi onu sessizce yok etmemelidir. Satir
+            // siniri sorgusu NULL ended_at'i eler (acik baglanti aday olamaz).
             RetentionTargets.VoiceSessions => new RetentionTargetDefinition(
                 Table("voice_sessions"),
                 "ended_at IS NOT NULL AND ended_at < @cutoff",
-                "started_at"),
+                "started_at",
+                "ended_at"),
 
             // Puanin kendi olusturulma zamani esas alinir; runs'a FK olmadigi
             // icin (diger olay/ozet tablolariyla ayni gerekce) EXISTS gerekmez.
             RetentionTargets.RunScores => new RetentionTargetDefinition(
                 Table("run_scores"),
                 "created_at < @cutoff",
+                "created_at",
                 "created_at"),
 
             _ => throw new ArgumentException($"Bilinmeyen saklama hedefi: '{target}'.", nameof(target)),

@@ -1,27 +1,12 @@
 # KARARLAR — İndeks
 
-> **Üretilen dosya. Elle düzenleme.** Kaynak: [`KARARLAR.md`](KARARLAR.md).
-> Yeniden üretmek için: `python3 scripts/dokuman-bakim.py`
+> **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-`KARARLAR.md` ~115 KB'dir (~48k token) ve **baştan sona okunmaz.**
-Kalemi bu indeksten bul, sonra yalnız o satırı oku:
-
-```bash
-grep -n 'K-059' docs/KARARLAR.md            # tek kalemin tam gerekçesi
-sed -n '120,121p' docs/KARARLAR.md          # satır numarasıyla (Satır sütunu = sed argümanı)
-grep -n 'jsonb\|migration' docs/KARARLAR.md  # konu araması
-```
-
-İşaretler: 👤 kullanıcı kararı (teknik kanıtla değil, konuşarak değişir) · 🔁 yeniden açılmış
-
-Tarih bu indekste **yoktur** (K-214) — `KARARLAR.md`'deki kalemin kendisinde durur.
-
-Daha önce kanıtla reddedilmiş bir işi mi arıyorsun? O liste ayrı dosyada:
-[`KARARLAR-INDEKS-REDDEDILEN.md`](KARARLAR-INDEKS-REDDEDILEN.md) (K-214, Faz 32 bölünmesi).
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`KARARLAR-INDEKS-REDDEDILEN.md`](KARARLAR-INDEKS-REDDEDILEN.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## Kalıcı Kararlar (257 kalem)
+## Kalıcı Kararlar (261 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -225,7 +210,7 @@ Daha önce kanıtla reddedilmiş bir işi mi arıyorsun? O liste ayrı dosyada:
 | K-198 | 243 | Saklama SQL'i tek tabloyla üretilir, saglayıcı başına kopyalanmaz |
 | K-199 | 244 | `run_events` partition'ı açılmadı (K-063 ölçümle kapandı) |
 | K-200 | 245 | Parti silme her sağlayıcıda farklı teknik kullanır |
-| K-201 | 246 | `MaxRows` var ama uygulanmıyor (ertelendi) |
+| K-201 | 246 | `MaxRows` var ama uygulanmıyor (ertelendi → kapandı K-258) |
 | K-202 | 247 | Saklama zamanlaması Faz 17'nin kuyruğunu yeniden kullanır |
 | K-203 | 248 | `sessions`/`conversations` ayrı hedeftir |
 | K-204 | 249 | Anthropic ve Google için RESMİ SDK'lar kullanıldı, topluluk paketleri değil 👤 |
@@ -282,3 +267,7 @@ Daha önce kanıtla reddedilmiş bir işi mi arıyorsun? O liste ayrı dosyada:
 | K-255 | 300 | Kota ölçeri `usage`+`limit` için AYRI iki `ObservableGauge`'dur 👤 |
 | K-256 | 301 | `QuotaUsageObserver` senkron kapılı önbellektir, zamanlayıcı değil |
 | K-257 | 302 | Kota ölçeri yalnız KAYITLI kiracıları tarar |
+| K-258 | 303 | `MaxRows` sıra, silme adımından çıkarılarak uygulandı (K-201 kapandı) |
+| K-259 | 304 | Saklama korelasyonları BARE hedef adı değil, TAM NİTELENDİRİLMİŞ ad kullanır (Faz 25 hatası düzeltildi) |
+| K-260 | 305 | `MaxRows` kiracı genelinde uygulanır, kiracı başına DEĞİL (Faz 36 planının Açık Soru 3'ünden sapma) |
+| K-261 | 306 | `eval_case_results`/`workflow_checkpoints` için `MaxRows` eşiği İLİŞKİLİ tablo üzerinden hesaplanır (Açık Soru 2 çözüldü) |

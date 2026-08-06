@@ -96,6 +96,25 @@ internal sealed class SqlRetentionStore : IRetentionStore
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
+    public async ValueTask<DateTimeOffset?> FindRowLimitCutoffAsync(
+        string target,
+        long maxRows,
+        CancellationToken cancellationToken = default)
+    {
+        var definition = RetentionTargetRegistry.Resolve(_dialect, target);
+        var sql = _dialect.BuildRetentionFindNthRowCutoffSql(definition.Table, definition.RowLimitOrderExpression);
+
+        var command = _context.CreateCommand(sql);
+        _dialect.AddInt64(command, "n", maxRows);
+
+        var rows = await DbHelpers
+            .ReadListAsync(command, static reader => DbHelpers.GetNullableTimestamp(reader, 0), cancellationToken)
+            .ConfigureAwait(false);
+
+        return rows.Count > 0 ? rows[0] : null;
+    }
+
     /// <summary>
     /// Bir satiri, sutun semasini onceden bilmeden tek satirlik bir JSON
     /// nesnesine cevirir (JSONL'in bir satiri).

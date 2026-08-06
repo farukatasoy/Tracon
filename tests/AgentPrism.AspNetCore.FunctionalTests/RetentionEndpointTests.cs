@@ -89,6 +89,44 @@ public sealed class RetentionEndpointTests
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
+    /// <summary>
+    /// 🚨 Faz 36'nin kapattigi bosluk: MaxAgeDays BOS, yalniz MaxRows dolu bir
+    /// politika bugune kadar onizlemede "kapali" gorunuyordu.
+    /// </summary>
+    [Fact]
+    public async Task Yalniz_maxRows_dolu_politika_onizlemede_acik_gorunur()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        using (var created = await host.Client.PutAsJsonAsync(
+            RunEventsPolicy,
+            new RetentionPolicySaveRequest { MaxRows = 100, Enabled = true }))
+        {
+            created.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+            var body = await AgentPrismTestHost.ReadJsonAsync(created);
+            body.GetProperty("maxRows").GetInt64().ShouldBe(100);
+        }
+
+        using var response = await host.Client.GetAsync(
+            new Uri("/agentprism/api/retention/preview?target=run_events", UriKind.Relative));
+
+        var preview = await AgentPrismTestHost.ReadJsonAsync(response);
+        preview[0].GetProperty("enabled").GetBoolean().ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Sifirdan_kucuk_maxRows_reddedilir()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        using var response = await host.Client.PutAsJsonAsync(
+            RunEventsPolicy,
+            new RetentionPolicySaveRequest { MaxRows = 0, Enabled = true });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
     [Fact]
     public async Task Politika_yokken_onizleme_kapali_gorunur()
     {

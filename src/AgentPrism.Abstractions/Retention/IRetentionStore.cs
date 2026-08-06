@@ -59,6 +59,27 @@ public interface IRetentionStore
         DateTimeOffset cutoff,
         int batchSize,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// En yeniden sayarak <paramref name="maxRows"/>. satirin siralama
+    /// sutunundaki degerini kesim tarihi olarak dondurur.
+    /// </summary>
+    /// <param name="target">Hedef adi.</param>
+    /// <param name="maxRows">Tutulacak en fazla satir sayisi (en az 1).</param>
+    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <returns>
+    /// Kesim tarihi; hedef <paramref name="maxRows"/> satirdan AZ tasiyorsa
+    /// (hacim siniri asilmamis) <see langword="null"/>.
+    /// </returns>
+    /// <remarks>
+    /// Donen deger, bu arayuzun diger uc metoduna (<c>@cutoff</c> alan)
+    /// dogrudan gecilebilir: hacim bazli kirpma, yas bazli silmeyle AYNI
+    /// parti mekanizmasini kullanir. Gerekce: <c>docs/KARARLAR.md</c>, karar K-200.
+    /// </remarks>
+    ValueTask<DateTimeOffset?> FindRowLimitCutoffAsync(
+        string target,
+        long maxRows,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>

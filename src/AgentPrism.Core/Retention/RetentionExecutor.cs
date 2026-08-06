@@ -45,8 +45,10 @@ public sealed class RetentionExecutor(
                 continue;
             }
 
-            var cutoff = now - TimeSpan.FromDays(resolved.MaxAgeDays);
-            var count = await dataStore.CountOlderThanAsync(candidate, cutoff, cancellationToken).ConfigureAwait(false);
+            var cutoff = await ComputeCutoffAsync(resolved, now, cancellationToken).ConfigureAwait(false);
+            var count = cutoff is null
+                ? 0
+                : await dataStore.CountOlderThanAsync(candidate, cutoff.Value, cancellationToken).ConfigureAwait(false);
 
             results.Add(new RetentionPreview
             {
@@ -100,7 +102,6 @@ public sealed class RetentionExecutor(
         CancellationToken cancellationToken)
     {
         var now = _clock.GetUtcNow();
-        var cutoff = now - TimeSpan.FromDays(policy.MaxAgeDays);
 
         var run = await policyStore.CreateRunAsync(
             new RetentionRun
@@ -111,6 +112,17 @@ public sealed class RetentionExecutor(
                 StartedAt = now,
             },
             cancellationToken).ConfigureAwait(false);
+
+        var cutoff = await ComputeCutoffAsync(policy, now, cancellationToken).ConfigureAwait(false);
+
+        if (cutoff is null)
+        {
+            // 🚨 Hicbir esik hesaplanmadi: MaxAgeDays yok VE MaxRows varsa
+            // tablo zaten sinirin altinda. Silme sorgusu hic CALISTIRILMAZ.
+            await policyStore.CompleteRunAsync(run.Id, _clock.GetUtcNow(), null, cancellationToken).ConfigureAwait(false);
+
+            return run;
+        }
 
         if (policy.Archive && archiveSink is null)
         {
@@ -128,6 +140,7 @@ public sealed class RetentionExecutor(
             return run;
         }
 
+        var cutoffValue = cutoff.Value;
         string? error = null;
         long deletedTotal = 0;
         long archivedTotal = 0;
@@ -139,7 +152,7 @@ public sealed class RetentionExecutor(
                 if (policy.Archive)
                 {
                     var rows = await dataStore
-                        .ReadForArchiveAsync(policy.Target, cutoff, options.BatchSize, cancellationToken)
+                        .ReadForArchiveAsync(policy.Target, cutoffValue, options.BatchSize, cancellationToken)
                         .ConfigureAwait(false);
 
                     if (rows.Count > 0)
@@ -157,7 +170,7 @@ public sealed class RetentionExecutor(
                 }
 
                 var deleted = await dataStore
-                    .DeleteBatchAsync(policy.Target, cutoff, options.BatchSize, cancellationToken)
+                    .DeleteBatchAsync(policy.Target, cutoffValue, options.BatchSize, cancellationToken)
                     .ConfigureAwait(false);
 
                 if (deleted == 0)
@@ -198,6 +211,35 @@ public sealed class RetentionExecutor(
         }
 
         return run with { DeletedRows = deletedTotal, ArchivedRows = archivedTotal, CompletedAt = _clock.GetUtcNow() };
+    }
+
+    /// <summary>
+    /// Yas ve hacim esiklerini birlikte cozer. Ikisi de doluysa DAHA YENI
+    /// (daha cok silen) esik kazanir — bu, iki kuralin da sağlandigini
+    /// garanti eden tek secenektir (36.2).
+    /// </summary>
+    private async ValueTask<DateTimeOffset?> ComputeCutoffAsync(
+        ResolvedRetentionPolicy policy,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var ageCutoff = policy.MaxAgeDays is { } days ? now - TimeSpan.FromDays(days) : (DateTimeOffset?)null;
+
+        var rowCutoff = policy.MaxRows is { } maxRows
+            ? await dataStore.FindRowLimitCutoffAsync(policy.Target, maxRows, cancellationToken).ConfigureAwait(false)
+            : null;
+
+        if (ageCutoff is null)
+        {
+            return rowCutoff;
+        }
+
+        if (rowCutoff is null)
+        {
+            return ageCutoff;
+        }
+
+        return ageCutoff.Value > rowCutoff.Value ? ageCutoff : rowCutoff;
     }
 
     private static IReadOnlyList<string> ResolveTargetList(string? target)

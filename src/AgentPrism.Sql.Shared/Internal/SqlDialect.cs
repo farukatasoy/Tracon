@@ -205,6 +205,24 @@ internal abstract class SqlDialect
     /// </remarks>
     public abstract string BuildRetentionDeleteBatchSql(string table, string wherePredicate);
 
+    /// <summary>
+    /// En yeniden sayarak N. satirin siralama ifadesindeki degerini donduren
+    /// SQL metnini kurar (Faz 36, <c>MaxRows</c>).
+    /// </summary>
+    /// <param name="table">Sema onekli tablo adi.</param>
+    /// <param name="orderExpression">
+    /// Sayma/siralama icin kullanilan SQL ifadesi (bkz.
+    /// <see cref="RetentionTargetRegistry.Resolve"/>'in urettigi
+    /// <c>RowLimitOrderExpression</c>). NULL degerler elenir.
+    /// </param>
+    /// <returns>Calistirilabilir SQL. Tek parametre: <c>@n</c> (bigint).</returns>
+    /// <remarks>
+    /// Donen tek deger, cagiran tarafca dogrudan <c>@cutoff</c> olarak diger uc
+    /// sablona (say/oku/sil) beslenir — hacim bazli kirpma yas bazli silmeyle
+    /// AYNI parti mekanizmasini kullanir (karar K-200, 36.1).
+    /// </remarks>
+    public abstract string BuildRetentionFindNthRowCutoffSql(string table, string orderExpression);
+
     // --- Ortak tiplemeler (gerekirse turevde degistirilir) ---
 
     /// <summary>Zaman damgasini parametreye baglar.</summary>

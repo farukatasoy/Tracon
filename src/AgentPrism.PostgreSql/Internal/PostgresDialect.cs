@@ -141,6 +141,17 @@ internal sealed class PostgresDialect : SqlDialect
             """;
 
     /// <inheritdoc />
+    public override string BuildRetentionFindNthRowCutoffSql(string table, string orderExpression)
+        => $"""
+            SELECT {orderExpression}
+            FROM {table}
+            WHERE {orderExpression} IS NOT NULL
+            ORDER BY {orderExpression} DESC
+            OFFSET @n - 1
+            LIMIT 1;
+            """;
+
+    /// <inheritdoc />
     /// <remarks>
     /// <c>timestamptz</c> sutunu <see cref="DateTime"/> (<c>Kind = Utc</c>) bekler.
     /// </remarks>

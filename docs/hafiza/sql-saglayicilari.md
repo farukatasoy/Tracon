@@ -1,8 +1,8 @@
-# SQL Saglayicilari — Paylasilan Katman, SQL Server ve SQLite Tuzaklari
+# SQL Saglayicilari — Paylasilan Katman ve SQL Server Tuzaklari
 
-> `AgentPrism.Sql.Shared`, `AgentPrism.SqlServer`, `AgentPrism.Sqlite` ve
-> saglayicilarin ortak davranisi. PostgreSQL'e ozgu notlar icin:
-> [`postgresql.md`](postgresql.md).
+> `AgentPrism.Sql.Shared`, `AgentPrism.SqlServer` ve saglayicilarin ortak
+> davranisi. PostgreSQL'e ozgu notlar icin: [`postgresql.md`](postgresql.md).
+> SQLite'a ozgu notlar icin: [`sqlite.md`](sqlite.md).
 >
 > Bu dosya `MEMORY.md`'nin alan dosyasidir. Yalnizca bu alana dokunurken okunur.
 
@@ -15,6 +15,7 @@
 - **`Store` siniflari `internal`'dir** (2026-08-04, Faz 23): `SqlRunStore`, `SqlSessionStore`, … Sebep `internal SqlStoreContext` alan `public` kurucunun `CS0051` vermesi ve tuketicinin somut sinifa ihtiyaci olmamasi. `MigrationRunner` public kaldi (kurucusu internal; DI fabrikayla kaydeder).
 - **`DbDataSource` uyarlayicisi elle yazildi**: `Microsoft.Data.SqlClient` bir `DbDataSource` uygulamasi sunmaz (Npgsql sunar). `SqlServerDataSource` yalnizca `CreateDbConnection()`'i uygular; taban sinifin `CreateCommand` uygulamasi baglanti omrunu Npgsql ile ayni sekilde yonetir.
 
+- **🚨 `EXISTS`/`NOT EXISTS` korelasyonunda BARE tablo adı YAZMA, `QualifyTable(name)` kullan (2026-08-06, Faz 36, K-259)**: `WHERE er.id = eval_case_results.eval_run_id` PostgreSQL/SQL Server'da calisir (bare ad aliassiz FROM'u da bulur) ama SQLite'ta gercek nesne `onek+ad` bitisigidir (K-193) ve bare ad HICBIR ZAMAN eslesmez — "no such column", yalniz CALISMA ANINDA. `RetentionTargetRegistry` (Faz 25) bunu 3 hedefte tasiyordu, Faz 36'nin SQLite testi yakaladi.
 - **`SqlDialect.AddNullableBoolean` eklendi (2026-08-05, Faz 28)**: `AddBoolean` `bool` alir ve uc durumlu bir alani (`evet`/`hayir`/`bilgi yok`) tasiyamaz — eksik bilgi sessizce `false` olurdu. `tool_invocations.usage_estimated` bu yuzden nullable yazilir. Okuma tarafinda `DbHelpers.ToBoolean` kullanilir: SQLite mantiksal tip tasimaz ve `long` (0/1) doner (K-195).
 - **🚨 Linked-source (K-176) bir tipin `internal` isareti CROSS-ASSEMBLY sayim icin GUVENILMEZ** (2026-08-06, Faz 33, K-247): `MigrationHostedService`'in K-183 sayaci `internal SqlPersistenceRegistration` kullaniyordu; bu tip `AgentPrism.PostgreSql.dll` ve `AgentPrism.SqlServer.dll` icine AYRI AYRI derlenir ve CLR kimligi FARKLIDIR — `UsePostgreSql()` + `UseSqlServer()` birlikte cagrildiginda hicbir `MigrationHostedService` digerinin isaretini GOREMEZ ve cift kayit uyarisi hic tetiklenmez. Sayim/teshis Abstractions'da PAYLASILAN tek bir derlenmis tipe (`SqlPersistenceRegistrationMarker`) tasindi. Ayni tuzak: linked-source icindeki herhangi bir `internal` tipi `IEnumerable<T>` ile SAYMAK istiyorsan, T Abstractions'da olmali.
 - **`MigrationRunner` artik `ISqlPersistenceDiagnostics` uygular** (2026-08-06, Faz 33, K-248): `GetSnapshotAsync` migration UYGULAMAZ, yalniz baglanti + bekleyen liste okur. `__migrations` defteri henuz yoksa (DbException) baglanti calisiyor sayilir, tum migration'lar bekliyor kabul edilir — `CanConnect=false` yalniz baglanti KURULAMADIGINDA doner.
@@ -76,48 +77,8 @@ Faz 23 kapanisi) 204 testin 204'u de kirilmisti. Kok sebepler:
 - **Sozlesme testleri `tests/Shared/` altindadir** ve saglayici basina bir entegrasyon test projesine derlenir (`AgentPrism.StoreContracts` ad alani). Yeni bir saglayici eklerken sozlesme testi YAZILMAZ; yalnizca kosucu sinif turetilir. SQLite bu iddianin DORDUNCU kanitidir (K-194).
 - **Her test kendi semasini/onekini kullanir** (`t_<16 hex>`), her saglayicida. Bu hem yalitim saglar hem `SchemaName`/`TablePrefix` ayarinin gercekten calistigini her testte dogrular.
 
-## SQLite (Faz 24) — indeks ad alani ve upsert
+## SQLite'a ozgu tuzaklar
 
-> Kararlar: K-190 (tablo oneki) … K-197 (SQLitePCLRaw surum sabitleme).
-> Ayrintili gerekce icin `docs/KARARLAR.md`.
-
-- **🚨 SQLite'ta indeks (ve tetikleyici/gorunum) adlari VERITABANI GENELINDE
-  tektir — sema veya tabloya gore `scope`'lanmis DEGILDIR.** PostgreSQL semaya, SQL
-  Server tabloya gore `scope`'lar; SQLite'ta TUM nesneler TEK duz ad
-  alanini paylasir. Migration DDL'inde yalnizca TABLO adlarini onekle yazip
-  INDEKS adlarini onceksiz birakmak, ayni fiziksel `.db` dosyasini paylasan
-  farkli `TablePrefix` degerleri arasinda `CREATE INDEX IF NOT EXISTS`
-  CAKISMASINA yol acar: ikinci tablonun indeksi "zaten var" sanilip SESSIZCE
-  atlanir ve o tablonun `ON CONFLICT` hedefi calisma aninda patlar. Migration
-  dosyasindaki HER indeks adi da tablo onekini tasimalidir (K-193).
-- **🚨 `const string sutunlar = """...""";` icinde `{Schema}` yazmak DERLENIR
-  ama INTERPOLE EDILMEZ.** `const` bir string, `$"""..."""` olmadan
-  yazildiginda `{Schema}` harfi harfine SQL metnine gomulur ("unrecognized
-  token: '{'"). Sutun listesi bir alt sorgu icinde tablo adina ihtiyac
-  duyuyorsa (`SelectRun`'daki korele skaler alt sorgular gibi) degisken
-  `var sutunlar = $"""...""";` olarak yazilmalidir — `const` yalnizca hicbir
-  interpolasyon TASIMAYAN sutun listeleri icindir.
-- **Upsert PostgreSQL ile birebir aynidir** (K-194): `INSERT ... ON CONFLICT
-  (…) DO UPDATE … RETURNING`, ifade tabanli catisma hedefleri (`COALESCE(col, '')`)
-  dahil. SQL Server'in iki-dalli deseni (K-177) ve onun cektigi coklu-sonuc-kumesi
-  tuzagi (K-188) SQLite'ta hic YOKTUR.
-- **🚨 `ExecuteScalarAsync`in dondurdugu CLR tipi saglayiciya gore DEGISIR**
-  (K-195): PostgreSQL/SQL Server `uuid`/`uniqueidentifier` icin `Guid`, SQLite
-  `TEXT` oldugu icin `string` doner; PostgreSQL/SQL Server mantiksal bir
-  karsilastirma icin `bool`, SQLite icin `long` (0/1) doner. Cagri yerinde
-  `(Guid)result!` veya `result is bool b && b` YAZMA — `DbHelpers.ToGuid`/
-  `ToBoolean` kullan.
-- **Migration kilidi sidecar dosya kilididir, islem DEGILDIR** (K-192):
-  `Microsoft.Data.Sqlite` ic ice islem desteklemez; kilidi `BEGIN IMMEDIATE`
-  ile acik tutmak `MigrationRunner`'in kendi ic-ice islemleriyle catisirdi.
-- **uuid BUYUK harfle yazilir, kucuk harfe CEVRILMEZ** (K-191): zorunlu
-  Guid'ler (`DbHelpers.Add`) ile nullable Guid'ler (`Dialect.AddUuid`) FARKLI
-  harf buyuklugu kullansaydi ayni kimlik iki temsille saklanir ve
-  `WHERE`/`JOIN` esitligi sessizce kirilirdi.
-- **`decimal` icin ozel islem GEREKMEZ**: surucu tipli/tipsiz fark etmeksizin
-  her zaman TEXT yazar, kulturden bagimsizdir. SQL Server'in `Precision`/`Scale`
-  zorunlulugu (yukarida) burada YOKTUR.
-- **Yabanci anahtar zorlamasi VARSAYILAN KAPALIDIR**; her baglantida
-  `PRAGMA foreign_keys = ON` acikca calistirilir (`SqliteDataSource`), aksi
-  halde `REFERENCES ... ON DELETE CASCADE` sessizce yok sayilir.
-- **Yeni bir tablo eklemek uc migration + uc sorgu + bir `store` + bir sozlesme testi demektir** (2026-08-05, Faz 29): `voice_sessions` icin dokunulanlar — `PostgreSql/Migrations/0016_*.sql`, `SqlServer/Migrations/0004_*.sql`, `Sqlite/Migrations/0004_*.sql`, `SqlQueriesBase` (+2 ozellik), uc `*Queries.cs`, `Sql.Shared/Stores/SqlVoiceSessionStore.cs`, uc `*BuilderExtensions.cs` icinde `services.Replace(...)`, uc `*TestContext.cs`, dort sozlesme turevi. 🚨 SQL Server'da **MERGE KULLANILMAZ** (K-177): once `UPDATE ... WITH (UPDLOCK, SERIALIZABLE)`, sonra `IF @@ROWCOUNT = 0 INSERT`. 🚨 `MigrationTests`'teki sabit tablo sayisi kirilir (38 → 39) — bu bilinclidir, guncelleyin.
+SQLite'a ozgu tum notlar (indeks ad alani, upsert, `ExecuteScalarAsync` CLR
+tipi, migration kilidi, uuid harf buyuklugu) **taşındı**:
+[`sqlite.md`](sqlite.md) (Faz 36, bütçe asimini gidermek icin ayrildi).

@@ -258,6 +258,7 @@ function PolicyForm({
 }): ReactNode {
   const t = useT();
   const [maxAgeDays, setMaxAgeDays] = useState(policy?.maxAgeDays?.toString() ?? '');
+  const [maxRows, setMaxRows] = useState(policy?.maxRows?.toString() ?? '');
   const [archive, setArchive] = useState(policy?.archive ?? false);
   const [enabled, setEnabled] = useState(policy?.enabled ?? true);
 
@@ -265,21 +266,32 @@ function PolicyForm({
     mutationFn: () =>
       api.saveRetentionPolicy(target, {
         maxAgeDays: maxAgeDays.trim() === '' ? null : Number(maxAgeDays),
+        maxRows: maxRows.trim() === '' ? null : Number(maxRows),
         archive,
         enabled,
       }),
     onSuccess: onSaved,
   });
 
+  const hasThreshold = maxAgeDays.trim() !== '' || maxRows.trim() !== '';
+
   return (
     <div className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-4">
         <Field label={t('retention.maxAgeDays')} hint={t('retention.maxAgeHint')}>
           <TextInput
             value={maxAgeDays}
             inputMode="numeric"
             placeholder={t('retention.maxAgePlaceholder')}
             onChange={(event) => setMaxAgeDays(event.target.value)}
+          />
+        </Field>
+        <Field label={t('retention.maxRows')} hint={t('retention.maxRowsHint')}>
+          <TextInput
+            value={maxRows}
+            inputMode="numeric"
+            placeholder={t('retention.maxRowsPlaceholder')}
+            onChange={(event) => setMaxRows(event.target.value)}
           />
         </Field>
         <label className="flex items-end gap-2 pb-1.5 text-[13px]">
@@ -307,7 +319,7 @@ function PolicyForm({
       <div className="flex items-center gap-2">
         <Button
           tone="primary"
-          disabled={maxAgeDays.trim() === ''}
+          disabled={!hasThreshold}
           busy={save.isPending}
           onClick={() => save.mutate()}
         >

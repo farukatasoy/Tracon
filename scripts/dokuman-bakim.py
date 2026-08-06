@@ -37,6 +37,14 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 # (KARARLAR-INDEKS-REDDEDILEN.md) tasindi; sicak yol artik yalniz "Kalici
 # Kararlar" tablosunu tasir. O dosya BUTCE'ye girmez -- yalniz faz-planlama'da,
 # yeni bir is onerilmeden once bir kez okunur, her oturumda degil.
+# Faz 36 kapanisinda (261 karar) DORDUNCU kez asildi (25_533 B). K-214'un
+# "bu kez butce buyutulmez, bolunme uygulanir" sozu yine tutuldu: butce
+# BUYUTULMEDI. Basligin acikama metni (kararlar tablosunun DEGIL) sikistirildi
+# -- 3 ornek komut 2'ye indi, tekrar eden cumleler birlestirildi (~950 B -> ~470 B).
+# Tablonun kendisi (261 satir, ~24 KB) HIC DOKUNULMADI -- icerik kaybi yok.
+# Bu, ayni kaynaktan (kisaltilamaz gorunen baslik metni) UCUNCU sikistirmadir;
+# bir sonraki asimda gercek bolunme (faz araligina gore iki dosya) gerekir --
+# baslik metninde artik sikistirilacak bosluk kalmadi.
 BUTCE = {
     "AGENTS.md": 12_000,
     "MEMORY.md": 8_000,
@@ -83,25 +91,13 @@ def kararlar_indeksi_uret() -> str:
     ç = [
         "# KARARLAR — İndeks",
         "",
-        "> **Üretilen dosya. Elle düzenleme.** Kaynak: [`KARARLAR.md`](KARARLAR.md).",
-        "> Yeniden üretmek için: `python3 scripts/dokuman-bakim.py`",
+        "> **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` ·"
+        " üretim: `scripts/dokuman-bakim.py`",
         "",
-        "`KARARLAR.md` ~115 KB'dir (~48k token) ve **baştan sona okunmaz.**",
-        "Kalemi bu indeksten bul, sonra yalnız o satırı oku:",
-        "",
-        "```bash",
-        "grep -n 'K-059' docs/KARARLAR.md            # tek kalemin tam gerekçesi",
-        "sed -n '120,121p' docs/KARARLAR.md          # satır numarasıyla (Satır sütunu = sed argümanı)",
-        "grep -n 'jsonb\\|migration' docs/KARARLAR.md  # konu araması",
-        "```",
-        "",
-        "İşaretler: 👤 kullanıcı kararı (teknik kanıtla değil, konuşarak değişir) · "
-        "🔁 yeniden açılmış",
-        "",
-        "Tarih bu indekste **yoktur** (K-214) — `KARARLAR.md`'deki kalemin kendisinde durur.",
-        "",
-        "Daha önce kanıtla reddedilmiş bir işi mi arıyorsun? O liste ayrı dosyada:",
-        "[`KARARLAR-INDEKS-REDDEDILEN.md`](KARARLAR-INDEKS-REDDEDILEN.md) (K-214, Faz 32 bölünmesi).",
+        "Bul: `grep -n 'K-059\\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`."
+        " Tarih yok (K-214). Reddedilenler:"
+        " [`KARARLAR-INDEKS-REDDEDILEN.md`](KARARLAR-INDEKS-REDDEDILEN.md)."
+        " 👤 kullanıcı kararı · 🔁 yeniden açılmış.",
         "",
         "---",
         "",

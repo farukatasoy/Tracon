@@ -32,8 +32,8 @@ public sealed class RetentionPolicyResolver(
         {
             // Acik bir kayit varsa yapilandirmaya HIC bakilmaz — kayit "kapali"
             // olsa bile bu, tuketicinin bilincli tercihidir.
-            return dbPolicy.Enabled && dbPolicy.MaxAgeDays is { } days
-                ? new ResolvedRetentionPolicy(target, days, dbPolicy.Archive)
+            return dbPolicy.Enabled && (dbPolicy.MaxAgeDays is not null || dbPolicy.MaxRows is not null)
+                ? new ResolvedRetentionPolicy(target, dbPolicy.MaxAgeDays, dbPolicy.MaxRows, dbPolicy.Archive)
                 : null;
         }
 
@@ -46,14 +46,17 @@ public sealed class RetentionPolicyResolver(
 
         var fallback = options.ForTarget(target);
 
+        // Yapilandirma tabanli varsayilanlar yalniz MaxAgeDays tasir (K1:
+        // MaxRows yapilandirma yuzeyine buyumez, yalniz acik politika uzerinden gelir).
         return fallback?.MaxAgeDays is { } fallbackDays
-            ? new ResolvedRetentionPolicy(target, fallbackDays, fallback.Archive)
+            ? new ResolvedRetentionPolicy(target, fallbackDays, null, fallback.Archive)
             : null;
     }
 }
 
 /// <summary>Bir hedef icin cozulmus, uygulanabilir saklama kurali.</summary>
 /// <param name="Target">Hedef adi.</param>
-/// <param name="MaxAgeDays">Bu yastan eski satirlar silinir.</param>
+/// <param name="MaxAgeDays">Bu yastan eski satirlar silinir. <see langword="null"/> ise yas bazli esik yoktur.</param>
+/// <param name="MaxRows">Tutulacak en fazla satir sayisi. <see langword="null"/> ise hacim bazli esik yoktur.</param>
 /// <param name="Archive">Silmeden once arsivlensin mi.</param>
-public sealed record ResolvedRetentionPolicy(string Target, int MaxAgeDays, bool Archive);
+public sealed record ResolvedRetentionPolicy(string Target, int? MaxAgeDays, long? MaxRows, bool Archive);
