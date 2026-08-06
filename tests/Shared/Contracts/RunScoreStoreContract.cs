@@ -9,30 +9,37 @@ namespace AgentPrism.StoreContracts;
 /// puanladiginda satir <strong>guncellenir</strong>, yeni satir acilmaz --
 /// yazar bos ise (kimliksiz kurulum) bu kural uygulanmaz.
 /// </remarks>
-public abstract class RunScoreStoreContract : IAsyncLifetime
+public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreStore>
 {
+    /// <inheritdoc />
+    /// <remarks>
+    /// Puan bir calistirmaya asilidir; ayirt edici anahtar calistirma
+    /// kimligidir. Iki kiraci ayni calistirma kimligini kullanir: sizinti
+    /// olursa B kiracisi A'nin puanini gorurdu.
+    /// </remarks>
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+    {
+        var saved = await Store.UpsertAsync(Score(IsolationRunId) with { TenantId = tenantId, Author = name });
+        return saved.Id;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask<bool> ExistsAsync(string tenantId, object key)
+        => (await Store.ListAsync(tenantId, IsolationRunId)).Any(score => score.Id == (Guid)key);
+
+    /// <inheritdoc />
+    protected override async ValueTask<int> CountAsync(string tenantId)
+        => (await Store.ListAsync(tenantId, IsolationRunId)).Count;
+
+    /// <inheritdoc />
+    protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
+        => await Store.DeleteAsync(tenantId, (Guid)key);
+
+    private static readonly Guid IsolationRunId = AgentPrismId.NewId();
+
     private const string Tenant = "test";
 
     private static readonly DateTimeOffset Created = new(2026, 8, 6, 10, 0, 0, TimeSpan.Zero);
-
-    /// <summary>Test edilen depo.</summary>
-    protected IRunScoreStore Store { get; private set; } = null!;
-
-    /// <summary>Test icin bos bir depo uretir.</summary>
-    protected abstract ValueTask<IRunScoreStore> CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask DisposeAsync()
-    {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
-    }
-
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    protected virtual ValueTask OnDisposeAsync() => default;
 
     [Fact]
     public async Task Yazilan_puan_geri_okunur()

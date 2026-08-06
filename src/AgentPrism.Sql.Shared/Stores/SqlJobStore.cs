@@ -97,6 +97,8 @@ internal sealed class SqlJobStore : IJobStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "Isci havuzu BUTUN kiracilarin kuyrugundan sirayla is alir; kiraci, alinan isin kaydinda tasinir ve yurutme o kiraci kapsaminda (AmbientTenantScope) yapilir.")]
     public async ValueTask<JobRecord?> LeaseAsync(
         string owner,
         TimeSpan leaseDuration,
@@ -115,6 +117,8 @@ internal sealed class SqlJobStore : IJobStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "Kira yenileme, isin sahibi ISCI kimligiyle korunur (owner); kiraci kavrami tasimaz.")]
     public async ValueTask RenewLeaseAsync(
         Guid jobId,
         string owner,
@@ -132,6 +136,8 @@ internal sealed class SqlJobStore : IJobStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "RenewLeaseAsync ile ayni gerekce: sahiplik isci kimligiyle korunur.")]
     public async ValueTask<bool> MarkRunningAsync(Guid jobId, string owner, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
@@ -144,6 +150,8 @@ internal sealed class SqlJobStore : IJobStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "Is kimligi LeaseAsync'ten gelir; cagride ayri bir kiraci niyeti yoktur.")]
     public async ValueTask CompleteAsync(JobCompletion completion, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(completion);
@@ -158,6 +166,8 @@ internal sealed class SqlJobStore : IJobStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "CompleteAsync ile ayni gerekce: is kimligi LeaseAsync'ten gelir.")]
     public async ValueTask ReleaseForRetryAsync(
         Guid jobId,
         string errorMessage,
@@ -227,6 +237,8 @@ internal sealed class SqlJobStore : IJobStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "Kalemler isin ALTINDA yasar; is kimligi kiraciya suzulmus bir sorgudan (GetAsync/QueryAsync) gelir.")]
     public async ValueTask<IReadOnlyList<JobItemRecord>> ListItemsAsync(
         Guid jobId,
         CancellationToken cancellationToken = default)
@@ -238,6 +250,8 @@ internal sealed class SqlJobStore : IJobStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "Kalem sonucu isi yuruten isci tarafindan yazilir; is kimligi LeaseAsync'ten gelir.")]
     public async ValueTask ReportItemAsync(JobItemResult item, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(item);

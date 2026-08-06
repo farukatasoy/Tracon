@@ -8,28 +8,37 @@ namespace AgentPrism.StoreContracts;
 /// Faz 6'da eklendi. Bellek ici depo ile PostgreSQL deposu ayni senaryolari
 /// gecmelidir; ozet iki uygulamada da <em>deponun kendisinde</em> hesaplanir.
 /// </remarks>
-public abstract class ToolInvocationContract : IAsyncLifetime
+public abstract class ToolInvocationContract : TenantIsolationContract<IRunStore>
 {
-    /// <summary>Test edilen depo.</summary>
-    protected IRunStore Store { get; private set; } = null!;
-
-    /// <summary>Test icin bos bir depo uretir.</summary>
-    /// <returns>Kullanima hazir depo.</returns>
-    protected abstract ValueTask<IRunStore> CreateStoreAsync();
-
     /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask DisposeAsync()
+    /// <remarks>
+    /// Tool cagrisi bir calistirmaya asilidir; yalitim calistirmanin kiracisi
+    /// uzerinden kurulur.
+    /// </remarks>
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
     {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
+        AmbientTenant.TenantId = tenantId;
+
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+        await Store.RecordToolInvocationAsync(Invocation(runId, name, TimeSpan.FromMilliseconds(12)));
+
+        return runId;
     }
 
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    /// <returns>Tamamlanma gorevi.</returns>
-    protected virtual ValueTask OnDisposeAsync() => default;
+    /// <inheritdoc />
+    protected override async ValueTask<bool> ExistsAsync(string tenantId, object key)
+    {
+        AmbientTenant.TenantId = tenantId;
+        return (await Store.ListToolInvocationsAsync((Guid)key)).Count > 0;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask<int> CountAsync(string tenantId)
+    {
+        AmbientTenant.TenantId = tenantId;
+        return (await Store.GetToolUsageAsync(new ToolUsageQuery())).Count;
+    }
 
     [Fact]
     public async Task Cagri_alanlari_gidip_gelir()

@@ -2,26 +2,26 @@
 namespace AgentPrism.StoreContracts;
 
 /// <summary><see cref="IJobScheduleStore"/> sozlesmesinin davranis testleri.</summary>
-public abstract class JobScheduleStoreContract : IAsyncLifetime
+public abstract class JobScheduleStoreContract : TenantIsolationContract<IJobScheduleStore>
 {
-    /// <summary>Test edilen depo.</summary>
-    protected IJobScheduleStore Store { get; private set; } = null!;
-
-    /// <summary>Test icin bos bir depo uretir.</summary>
-    protected abstract ValueTask<IJobScheduleStore> CreateStoreAsync();
-
     /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask DisposeAsync()
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
     {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
+        await Store.SaveAsync(TestData.Schedule(tenantId, name));
+        return name;
     }
 
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    protected virtual ValueTask OnDisposeAsync() => default;
+    /// <inheritdoc />
+    protected override async ValueTask<bool> ExistsAsync(string tenantId, object key)
+        => await Store.GetAsync(tenantId, (string)key) is not null;
+
+    /// <inheritdoc />
+    protected override async ValueTask<int> CountAsync(string tenantId)
+        => (await Store.ListAsync(tenantId)).Count;
+
+    /// <inheritdoc />
+    protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
+        => await Store.DeleteAsync(tenantId, (string)key);
 
     [Fact]
     public async Task SaveAsync_yeni_zamanlamaya_kimlik_atar()

@@ -215,13 +215,34 @@ internal abstract class SqlDialect
     /// <see cref="RetentionTargetRegistry.Resolve"/>'in urettigi
     /// <c>RowLimitOrderExpression</c>). NULL degerler elenir.
     /// </param>
-    /// <returns>Calistirilabilir SQL. Tek parametre: <c>@n</c> (bigint).</returns>
+    /// <param name="extraPredicate">
+    /// Kiraci suzgeci gibi ek bir kosul; <see langword="null"/> ise sorgu tum
+    /// satirlar uzerinden calisir (Faz 41).
+    /// </param>
+    /// <returns>Calistirilabilir SQL. Parametreler: <c>@n</c> (bigint) ve varsa <c>@tenant_id</c>.</returns>
     /// <remarks>
     /// Donen tek deger, cagiran tarafca dogrudan <c>@cutoff</c> olarak diger uc
     /// sablona (say/oku/sil) beslenir — hacim bazli kirpma yas bazli silmeyle
     /// AYNI parti mekanizmasini kullanir (karar K-200, 36.1).
     /// </remarks>
-    public abstract string BuildRetentionFindNthRowCutoffSql(string table, string orderExpression);
+    public abstract string BuildRetentionFindNthRowCutoffSql(string table, string orderExpression, string? extraPredicate);
+
+    /// <summary>
+    /// Verilen kosulu <c>AND</c> ile eklenebilir bir parcaya cevirir.
+    /// </summary>
+    /// <param name="predicate">Ek kosul; bos ise hicbir sey eklenmez.</param>
+    /// <returns>Bos dize veya <c>" AND (kosul)"</c>.</returns>
+    protected static string AndAlso(string? predicate)
+        => string.IsNullOrWhiteSpace(predicate) ? string.Empty : $" AND ({predicate})";
+
+    /// <summary>
+    /// Iki kosulu <c>AND</c> ile birlestirir.
+    /// </summary>
+    /// <param name="predicate">Zorunlu kosul.</param>
+    /// <param name="extraPredicate">Ek kosul; bos olabilir.</param>
+    /// <returns>Birlesik kosul.</returns>
+    public static string Combine(string predicate, string? extraPredicate)
+        => string.IsNullOrWhiteSpace(extraPredicate) ? predicate : $"({predicate}) AND ({extraPredicate})";
 
     // --- Ortak tiplemeler (gerekirse turevde degistirilir) ---
 

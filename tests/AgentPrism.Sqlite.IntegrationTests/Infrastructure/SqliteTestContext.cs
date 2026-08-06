@@ -16,11 +16,11 @@ internal sealed class SqliteTestContext : IAsyncDisposable
     private SqliteTestContext(
         SqliteDataSource dataSource,
         AgentPrismSqliteOptions options,
-        string tenantId)
+        ITenantContext tenantContext)
     {
         DataSource = dataSource;
         Options = options;
-        TenantContext = new FixedTenantContext(tenantId);
+        TenantContext = tenantContext;
 
         var wrapped = new SqlStoreContext
         {
@@ -42,6 +42,7 @@ internal sealed class SqliteTestContext : IAsyncDisposable
         ChatHistory = new SqlChatHistoryProvider(wrapped, TenantContext);
         AuditLog = new SqlAuditLog(wrapped);
         SkillScriptGrants = new SqlSkillScriptGrantStore(wrapped);
+        AgentSkills = new SqlAgentSkillStore(wrapped);
         Attachments = new SqlAttachmentStore(wrapped);
         AgentFiles = new SqlAgentFileStore(wrapped, TenantContext);
         Workflows = new SqlWorkflowDefinitionStore(wrapped);
@@ -101,6 +102,9 @@ internal sealed class SqliteTestContext : IAsyncDisposable
     /// <summary>Script calistirma izni deposu.</summary>
     public SqlSkillScriptGrantStore SkillScriptGrants { get; }
 
+    /// <summary>Calisma ani skill deposu (Faz 10).</summary>
+    public SqlAgentSkillStore AgentSkills { get; }
+
     /// <summary>Ek deposu.</summary>
     public SqlAttachmentStore Attachments { get; }
 
@@ -156,14 +160,29 @@ internal sealed class SqliteTestContext : IAsyncDisposable
     /// <param name="tenantId">Kiraci kimligi.</param>
     /// <param name="applyMigrations">Migration'lar hemen uygulansin mi.</param>
     /// <returns>Kullanima hazir baglam.</returns>
-    public static async ValueTask<SqliteTestContext> CreateAsync(
+    public static ValueTask<SqliteTestContext> CreateAsync(
         SqliteFixture fixture,
         string tenantId = "default",
+        bool applyMigrations = true)
+        => CreateAsync(fixture, new FixedTenantContext(tenantId), applyMigrations);
+
+    /// <summary>
+    /// Kiraci baglami disaridan verilen kurulum. Kiraci yalitimi sozlesmesi
+    /// ayni depo ornegi uzerinde kiraci degistirdigi icin bu asiri yuklemeyi
+    /// kullanir (Faz 41).
+    /// </summary>
+    /// <param name="fixture">Calisan SQLite dosyasi.</param>
+    /// <param name="tenantContext">Depolarin okuyacagi kiraci baglami.</param>
+    /// <param name="applyMigrations">Migration'lar hemen uygulansin mi.</param>
+    /// <returns>Kullanima hazir baglam.</returns>
+    public static async ValueTask<SqliteTestContext> CreateAsync(
+        SqliteFixture fixture,
+        ITenantContext tenantContext,
         bool applyMigrations = true)
     {
         ArgumentNullException.ThrowIfNull(fixture);
 
-        var context = Create(fixture, NewTablePrefix(), tenantId);
+        var context = Create(fixture, NewTablePrefix(), tenantContext);
 
         if (applyMigrations)
         {
@@ -182,6 +201,14 @@ internal sealed class SqliteTestContext : IAsyncDisposable
     /// <param name="tenantId">Kiraci kimligi.</param>
     /// <returns>Ayni onege bakan yeni baglam.</returns>
     public static SqliteTestContext Create(SqliteFixture fixture, string tablePrefix, string tenantId = "default")
+        => Create(fixture, tablePrefix, new FixedTenantContext(tenantId));
+
+    /// <summary>Kiraci baglami disaridan verilen kurulum.</summary>
+    /// <param name="fixture">Calisan SQLite dosyasi.</param>
+    /// <param name="tablePrefix">Kullanilacak tablo oneki.</param>
+    /// <param name="tenantContext">Depolarin okuyacagi kiraci baglami.</param>
+    /// <returns>Ayni arka uca bakan yeni baglam.</returns>
+    public static SqliteTestContext Create(SqliteFixture fixture, string tablePrefix, ITenantContext tenantContext)
     {
         ArgumentNullException.ThrowIfNull(fixture);
 
@@ -195,7 +222,7 @@ internal sealed class SqliteTestContext : IAsyncDisposable
 
         var dataSource = new SqliteDataSource(options.ConnectionString!);
 
-        return new SqliteTestContext(dataSource, options, tenantId);
+        return new SqliteTestContext(dataSource, options, tenantContext);
     }
 
     /// <summary>Yeni ve benzersiz bir test tablo oneki uretir.</summary>
@@ -262,10 +289,5 @@ internal sealed class SqliteTestContext : IAsyncDisposable
         }
 
         return names;
-    }
-
-    private sealed class FixedTenantContext(string tenantId) : ITenantContext
-    {
-        public string TenantId { get; } = tenantId;
     }
 }

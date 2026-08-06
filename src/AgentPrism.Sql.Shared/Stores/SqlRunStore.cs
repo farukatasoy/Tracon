@@ -94,6 +94,11 @@ internal sealed class SqlRunStore : IRunStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "Olay bir calistirmanin altina yazilir ve kiracisini o calistirmadan miras alir. " +
+        "Cagrida ayri bir kiraci niyeti YOKTUR: RunStartInfo.TenantId ambient kiraciyi bilerek " +
+        "ezebildigi icin (workflow ve is kuyrugu boyle calisir) burada ambient ile filtrelemek " +
+        "mesru yazmalari sessizce dusururdu. Kiraci siniri okuma tarafinda zorlanir.")]
     public async ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(runEvent);
@@ -122,6 +127,7 @@ internal sealed class SqlRunStore : IRunStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic("AppendEventAsync ile ayni gerekce: kiraci calistirmadan miras alinir.")]
     public async ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(completion);
@@ -150,6 +156,10 @@ internal sealed class SqlRunStore : IRunStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "Bakim ucudur ve calistirma kimlikleri her zaman kiraciya gore SUZULMUS bir " +
+        "sorgudan gelir (RunCostRecalculationService). Ambient ile filtrelemek, bir " +
+        "kiraci adina calisan zamanlanmis yeniden hesaplamayi sessizce etkisiz birakirdi.")]
     public async ValueTask UpdateRunCostAsync(Guid runId, RunCost? cost, CancellationToken cancellationToken = default)
     {
         var command = CreateCommand(_sql.UpdateRunCost);
@@ -372,6 +382,7 @@ internal sealed class SqlRunStore : IRunStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic("AppendEventAsync ile ayni gerekce: kiraci calistirmadan miras alinir.")]
     public async ValueTask RecordToolInvocationAsync(
         ToolInvocationRecord invocation,
         CancellationToken cancellationToken = default)

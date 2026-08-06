@@ -15,7 +15,7 @@ public sealed class RunCancellationLeakTests
     public async Task Basarili_calistirma_sonrasi_defter_bosalir()
     {
         var registry = new RunCancellationRegistry();
-        var agent = CreateAgent(new InMemoryRunStore(), new FakeChatClient(), registry);
+        var agent = CreateAgent(new InMemoryRunStore(tenantContext: new FixedTenantContext()), new FakeChatClient(), registry);
 
         await agent.RunAsync("merhaba");
 
@@ -27,7 +27,7 @@ public sealed class RunCancellationLeakTests
     {
         var registry = new RunCancellationRegistry();
         var client = new FakeChatClient(_ => throw new InvalidOperationException("model patladi"));
-        var agent = CreateAgent(new InMemoryRunStore(), client, registry);
+        var agent = CreateAgent(new InMemoryRunStore(tenantContext: new FixedTenantContext()), client, registry);
 
         await Should.ThrowAsync<InvalidOperationException>(async () => await agent.RunAsync("merhaba"));
 
@@ -43,7 +43,7 @@ public sealed class RunCancellationLeakTests
             new ChatResponseUpdate(ChatRole.Assistant, "Mer"),
             new ChatResponseUpdate(ChatRole.Assistant, "haba"),
         ]);
-        var agent = CreateAgent(new InMemoryRunStore(), client, registry);
+        var agent = CreateAgent(new InMemoryRunStore(tenantContext: new FixedTenantContext()), client, registry);
 
         // Tuketici numaralandirmayi ILK cerceveden sonra yarida birakir.
         // `await foreach` erken cikista bile numaralandiriciyi bertaraf eder;

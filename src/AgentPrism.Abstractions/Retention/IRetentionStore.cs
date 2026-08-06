@@ -16,6 +16,12 @@ namespace AgentPrism;
 /// icinde gomulu kalir; cagiran taraf yalniz hedef adini ve kesim tarihini bilir.
 /// </para>
 /// <para>
+/// 🚨 <strong>Kiraci sinirlamasi zorunludur (Faz 41).</strong> Saklama
+/// politikasi kiraci basina tanimlanir; <c>tenantId</c> verilmezse islem
+/// <em>butun</em> kiracilarin satirlarina dokunur. Yalnizca kurulum geneli
+/// (<c>'*'</c>) politika <see langword="null"/> gecmelidir.
+/// </para>
+/// <para>
 /// Varsayilan (bellek ici) kurulumda <c>NullRetentionStore</c> kayitlidir ve
 /// her zaman bos/sifir doner: saklama, yalniz bir SQL saglayicisi acikken
 /// anlamlidir.
@@ -25,22 +31,32 @@ public interface IRetentionStore
 {
     /// <summary>Kesim tarihinden eski, hedefte su an eslesen satir sayisini dondurur.</summary>
     /// <param name="target">Hedef adi.</param>
+    /// <param name="tenantId">
+    /// Yalniz bu kiracinin satirlari; <see langword="null"/> ise kurulum
+    /// genelinde (<c>'*'</c> politikasi) calisir.
+    /// </param>
     /// <param name="cutoff">Kesim tarihi (UTC). Bu tarihten eski satirlar eslesir.</param>
     /// <param name="cancellationToken">Iptal belirteci.</param>
     /// <returns>Eslesen satir sayisi.</returns>
     ValueTask<long> CountOlderThanAsync(
         string target,
+        string? tenantId,
         DateTimeOffset cutoff,
         CancellationToken cancellationToken = default);
 
     /// <summary>Kesim tarihinden eski satirlardan bir parti okur (silmez).</summary>
     /// <param name="target">Hedef adi.</param>
+    /// <param name="tenantId">
+    /// Yalniz bu kiracinin satirlari; <see langword="null"/> ise kurulum
+    /// genelinde (<c>'*'</c> politikasi) calisir.
+    /// </param>
     /// <param name="cutoff">Kesim tarihi (UTC).</param>
     /// <param name="batchSize">En fazla kac satir okunacagi.</param>
     /// <param name="cancellationToken">Iptal belirteci.</param>
     /// <returns>Okunan satirlar; eslesen kalmadiysa bos liste.</returns>
     ValueTask<IReadOnlyList<ArchiveRow>> ReadForArchiveAsync(
         string target,
+        string? tenantId,
         DateTimeOffset cutoff,
         int batchSize,
         CancellationToken cancellationToken = default);
@@ -50,12 +66,17 @@ public interface IRetentionStore
     /// <c>DELETE</c> DEGILDIR; saglayiciya gore parti bazli calisir.
     /// </summary>
     /// <param name="target">Hedef adi.</param>
+    /// <param name="tenantId">
+    /// Yalniz bu kiracinin satirlari; <see langword="null"/> ise kurulum
+    /// genelinde (<c>'*'</c> politikasi) calisir.
+    /// </param>
     /// <param name="cutoff">Kesim tarihi (UTC).</param>
     /// <param name="batchSize">En fazla kac satirin silinecegi.</param>
     /// <param name="cancellationToken">Iptal belirteci.</param>
     /// <returns>Silinen satir sayisi. Sifir donerse eslesen satir kalmamis demektir.</returns>
     ValueTask<int> DeleteBatchAsync(
         string target,
+        string? tenantId,
         DateTimeOffset cutoff,
         int batchSize,
         CancellationToken cancellationToken = default);
@@ -65,6 +86,10 @@ public interface IRetentionStore
     /// sutunundaki degerini kesim tarihi olarak dondurur.
     /// </summary>
     /// <param name="target">Hedef adi.</param>
+    /// <param name="tenantId">
+    /// Yalniz bu kiracinin satirlari; <see langword="null"/> ise kurulum
+    /// genelinde (<c>'*'</c> politikasi) calisir.
+    /// </param>
     /// <param name="maxRows">Tutulacak en fazla satir sayisi (en az 1).</param>
     /// <param name="cancellationToken">Iptal belirteci.</param>
     /// <returns>
@@ -78,6 +103,7 @@ public interface IRetentionStore
     /// </remarks>
     ValueTask<DateTimeOffset?> FindRowLimitCutoffAsync(
         string target,
+        string? tenantId,
         long maxRows,
         CancellationToken cancellationToken = default);
 }

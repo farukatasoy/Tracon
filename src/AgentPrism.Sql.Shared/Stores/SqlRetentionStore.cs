@@ -40,14 +40,16 @@ internal sealed class SqlRetentionStore : IRetentionStore
     /// <inheritdoc />
     public async ValueTask<long> CountOlderThanAsync(
         string target,
+        string? tenantId,
         DateTimeOffset cutoff,
         CancellationToken cancellationToken = default)
     {
         var definition = RetentionTargetRegistry.Resolve(_dialect, target);
-        var sql = _dialect.BuildRetentionCountSql(definition.Table, definition.WherePredicate);
+        var sql = _dialect.BuildRetentionCountSql(definition.Table, Where(definition, tenantId));
 
         var command = _context.CreateCommand(sql);
         _dialect.AddTimestamp(command, "cutoff", cutoff);
+        AddTenant(command, tenantId);
 
         var result = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false);
 
@@ -63,15 +65,20 @@ internal sealed class SqlRetentionStore : IRetentionStore
     /// <inheritdoc />
     public async ValueTask<IReadOnlyList<ArchiveRow>> ReadForArchiveAsync(
         string target,
+        string? tenantId,
         DateTimeOffset cutoff,
         int batchSize,
         CancellationToken cancellationToken = default)
     {
         var definition = RetentionTargetRegistry.Resolve(_dialect, target);
-        var sql = _dialect.BuildRetentionArchiveSelectSql(definition.Table, definition.WherePredicate, definition.OrderColumn);
+        var sql = _dialect.BuildRetentionArchiveSelectSql(
+            definition.Table,
+            Where(definition, tenantId),
+            definition.OrderColumn);
 
         var command = _context.CreateCommand(sql);
         _dialect.AddTimestamp(command, "cutoff", cutoff);
+        AddTenant(command, tenantId);
         DbHelpers.Add(command, "batchSize", Math.Max(1, batchSize));
 
         return await DbHelpers
@@ -82,15 +89,17 @@ internal sealed class SqlRetentionStore : IRetentionStore
     /// <inheritdoc />
     public async ValueTask<int> DeleteBatchAsync(
         string target,
+        string? tenantId,
         DateTimeOffset cutoff,
         int batchSize,
         CancellationToken cancellationToken = default)
     {
         var definition = RetentionTargetRegistry.Resolve(_dialect, target);
-        var sql = _dialect.BuildRetentionDeleteBatchSql(definition.Table, definition.WherePredicate);
+        var sql = _dialect.BuildRetentionDeleteBatchSql(definition.Table, Where(definition, tenantId));
 
         var command = _context.CreateCommand(sql);
         _dialect.AddTimestamp(command, "cutoff", cutoff);
+        AddTenant(command, tenantId);
         DbHelpers.Add(command, "batchSize", Math.Max(1, batchSize));
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
@@ -99,20 +108,45 @@ internal sealed class SqlRetentionStore : IRetentionStore
     /// <inheritdoc />
     public async ValueTask<DateTimeOffset?> FindRowLimitCutoffAsync(
         string target,
+        string? tenantId,
         long maxRows,
         CancellationToken cancellationToken = default)
     {
         var definition = RetentionTargetRegistry.Resolve(_dialect, target);
-        var sql = _dialect.BuildRetentionFindNthRowCutoffSql(definition.Table, definition.RowLimitOrderExpression);
+        var sql = _dialect.BuildRetentionFindNthRowCutoffSql(
+            definition.Table,
+            definition.RowLimitOrderExpression,
+            tenantId is null ? null : definition.TenantPredicate);
 
         var command = _context.CreateCommand(sql);
         _dialect.AddInt64(command, "n", maxRows);
+        AddTenant(command, tenantId);
 
         var rows = await DbHelpers
             .ReadListAsync(command, static reader => DbHelpers.GetNullableTimestamp(reader, 0), cancellationToken)
             .ConfigureAwait(false);
 
         return rows.Count > 0 ? rows[0] : null;
+    }
+
+    /// <summary>Hedefin kosuluna kiraci suzgecini ekler.</summary>
+    /// <param name="definition">Hedef tanimi.</param>
+    /// <param name="tenantId">Kiraci; <see langword="null"/> ise suzgec yoktur.</param>
+    /// <returns>Calistirilacak <c>WHERE</c> kosulu.</returns>
+    private static string Where(RetentionTargetDefinition definition, string? tenantId)
+        => tenantId is null
+            ? definition.WherePredicate
+            : SqlDialect.Combine(definition.WherePredicate, definition.TenantPredicate);
+
+    /// <summary>Kiraci parametresini yalnizca gerekiyorsa baglar.</summary>
+    /// <param name="command">Komut.</param>
+    /// <param name="tenantId">Kiraci; <see langword="null"/> ise hicbir sey baglanmaz.</param>
+    private static void AddTenant(DbCommand command, string? tenantId)
+    {
+        if (tenantId is not null)
+        {
+            DbHelpers.Add(command, "tenant_id", tenantId);
+        }
     }
 
     /// <summary>

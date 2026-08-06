@@ -6,15 +6,29 @@ namespace AgentPrism;
 /// Span'leri surec bellegi icinde tutan depo.
 /// </summary>
 /// <remarks>
+/// <para>
 /// <strong>Sinirlari:</strong> surec omru, tek dugum ve sinirli kapasite.
 /// <see cref="MaxTraces"/> asilinca en eski trace dusurulur.
 /// Uretimde <c>AgentPrism.PostgreSql</c> kullanin.
+/// </para>
+/// <para>
+/// 🚨 Okuma gecerli kiraciyla sinirlidir. Yazma kiraciyi partiden alir; okuma
+/// <see cref="ITenantContext"/>'ten (Faz 41) -- SQL uygulamasiyla ayni kural.
+/// </para>
 /// </remarks>
 public sealed class InMemoryTraceStore : ITraceStore
 {
     private readonly ConcurrentDictionary<string, RunTrace> _byTraceId = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<Guid, string> _traceIdByRun = new();
     private readonly ConcurrentQueue<string> _insertionOrder = new();
+    private readonly ITenantContext _tenantContext;
+
+    /// <summary>Yeni bir bellek ici span deposu olusturur.</summary>
+    /// <param name="tenantContext">
+    /// Gecerli kiracinin baglami. Verilmezse depo tek kiracili davranir.
+    /// </param>
+    public InMemoryTraceStore(ITenantContext? tenantContext = null)
+        => _tenantContext = tenantContext ?? FixedTenantContext.Default;
 
     /// <summary>Bellekte tutulacak ust trace sayisi.</summary>
     public int MaxTraces { get; init; } = 500;
@@ -49,7 +63,9 @@ public sealed class InMemoryTraceStore : ITraceStore
     /// <inheritdoc />
     public ValueTask<RunTrace?> GetTraceByRunAsync(Guid runId, CancellationToken cancellationToken = default)
     {
-        if (_traceIdByRun.TryGetValue(runId, out var traceId) && _byTraceId.TryGetValue(traceId, out var trace))
+        if (_traceIdByRun.TryGetValue(runId, out var traceId)
+            && _byTraceId.TryGetValue(traceId, out var trace)
+            && string.Equals(trace.TenantId, _tenantContext.TenantId, StringComparison.Ordinal))
         {
             return new ValueTask<RunTrace?>(trace);
         }

@@ -13,39 +13,39 @@
 > Bir bölüm bir fazda büyüdüyse, **eski hâlini** arşive taşı; üst üste yığma.
 > Denetim: `python3 scripts/dokuman-bakim.py --denetle`
 
-## Güncel Durum (2026-08-06)
+## Güncel Durum (2026-08-07)
 
 | Paket | Rolü | Durum |
 |-------|------|-------|
-| `AgentPrism.Abstractions` | Sözleşmeler: kayıt, `store`, katalog, iş, eval, deney, kota, webhook, saklama tipleri. Bağımlılığı yok. | ✅ |
-| `AgentPrism.Core` | Çalıştırma yolu: derleyici, dekoratörler, kayıt, denetim, skill, workflow doğrulama, fiyat, kota, olay yayını, saklama yürütücüsü, konuşma boru hattı (K-222). | ✅ |
-| `AgentPrism.PostgreSql` | Kalıcılık: `PostgresQueries` + `PostgresDialect` + gömülü SQL (0001–0016). `Store` mantığı `AgentPrism.Sql.Shared` ile paylaşılır. | ✅ |
-| `AgentPrism.SqlServer` | SQL Server 2019+ / Azure SQL. Aynı `store`'lar, kendi T-SQL metni ve migration seti (`0001`–`0003`). Meta pakete dâhil değil (K-185). | ⚠️ Faz 25 testleri koşturulmadı |
-| `AgentPrism.Sqlite` | Tek dosya/gömülü kalıcılık. Aynı `store`'lar, kendi SQL metni ve migration seti (`0001`–`0004`, K-190). Meta pakete dâhil değil. | ✅ |
-| `AgentPrism.Sql.Shared` | **Paket değil** — paylaşılan kaynak: 23 `store` (ADO.NET tabanı), `SqlQueriesBase`, `SqlDialect` (+ `QualifyTable`, K-198), migration runner (K-176). | ✅ |
+| `AgentPrism.Abstractions` | Sözleşmeler: kayıt, `store`, katalog, iş, eval, deney, kota, webhook, saklama. Bağımlılığı yok. | ✅ |
+| `AgentPrism.Core` | Çalıştırma yolu: derleyici, dekoratörler, kayıt, denetim, skill, workflow doğrulama, fiyat, kota, olay yayını, saklama, konuşma boru hattı (K-222). | ✅ |
+| `AgentPrism.PostgreSql` | Kalıcılık: `PostgresQueries` + `PostgresDialect` + gömülü SQL (0001–0018). `Store` mantığı `Sql.Shared` ile paylaşılır. | ✅ |
+| `AgentPrism.SqlServer` | SQL Server 2019+ / Azure SQL. Aynı `store`'lar, kendi T-SQL metni ve migration seti (`0001`–`0006`). Meta pakete dâhil değil (K-185). | ⚠️ testleri koşturulmadı |
+| `AgentPrism.Sqlite` | Tek dosya/gömülü kalıcılık. Aynı `store`'lar, kendi SQL metni ve migration seti (`0001`–`0006`, K-190). Meta pakete dâhil değil | ✅ |
+| `AgentPrism.Sql.Shared` | **Paket değil** — paylaşılan kaynak: 23 `store`, `SqlQueriesBase`, `SqlDialect` (K-198), migration runner (K-176). | ✅ |
 | `AgentPrism.OpenAI` | OpenAI ve OpenAI uyumlu her sağlayıcı + sağlık denetimi | ✅ |
-| `AgentPrism.Anthropic` | Anthropic (Claude) — resmî SDK, prompt caching, genişletilmiş düşünme, sağlık denetimi. Meta pakete dâhil değil (K-209). | ✅ |
-| `AgentPrism.Google` | Google Gemini — resmî SDK, güvenlik eşikleri, düşünme bütçesi, sağlık denetimi. Meta pakete dâhil değil; geçişli ağırlığı kabul edildi (K-205). | ✅ |
-| `AgentPrism.Azure` | Azure OpenAI — deployment tabanlı model çözümü, API anahtarı **veya** Entra kimliği (`Azure.Identity` alınmadı, K-210). Ayar **sunmaz** (K-211); Responses desteklenmez (K-213). Meta pakete dâhil değil. | ✅ |
-| `AgentPrism.Voice` | Ses tool'ları: `speak`, `transcribe`, `list_voices`. Sıfır NuGet bağımlılığı (K-216); sözleşme `Abstractions`'ta (K-215). Gerçek zamanlı konuşma katmanı burada **değil**, `Core`'dadır (K-222). Meta pakete dâhil değil. | ✅ |
+| `AgentPrism.Anthropic` | Anthropic (Claude) — resmî SDK, prompt caching, genişletilmiş düşünme. Meta pakete dâhil değil (K-209). | ✅ |
+| `AgentPrism.Google` | Google Gemini — resmî SDK, güvenlik eşikleri, düşünme bütçesi. Meta pakete dâhil değil; geçişli ağırlık kabul edildi (K-205). | ✅ |
+| `AgentPrism.Azure` | Azure OpenAI — deployment tabanlı model çözümü, API anahtarı **veya** Entra kimliği (K-210). Ayar **sunmaz** (K-211); Responses desteklenmez (K-213). Meta pakete dâhil değil. | ✅ |
+| `AgentPrism.Voice` | Ses tool'ları: `speak`, `transcribe`, `list_voices`. Sıfır NuGet bağımlılığı (K-216); sözleşme `Abstractions`'ta (K-215). Gerçek zamanlı konuşma katmanı `Core`'dadır (K-222). Meta pakete dâhil değil. | ✅ |
 | `AgentPrism.Mcp` | Uzak MCP tool keşfi | ✅ |
 | `AgentPrism.Workflows` | MAF Workflows yürütmesi, kontrol noktası, human-in-the-loop | ✅ |
-| `AgentPrism.AspNetCore` | `MapAgentPrism()` — yönetim API'si, OpenAI uyumlu uçlar, roller, hız sınırı. | ✅ |
+| `AgentPrism.AspNetCore` | `MapAgentPrism()` — yönetim API'si, OpenAI uyumlu uçlar, roller, hız sınırı | ✅ |
 | `AgentPrism.UI` | Gömülü React arayüzü (`UseUI()`), İngilizce + Türkçe | ✅ |
 | `AgentPrism` (meta) | Hepsini toplayan meta paket | ✅ |
 
 Hangi fazın hangi pakete ne eklediği: [`arsiv/PAKET-FAZ-GECMISI.md`](arsiv/PAKET-FAZ-GECMISI.md).
 
-Testler: **2069 geçiyor** — birim + fonksiyonel + entegrasyon (Testcontainers:
-PostgreSQL + SQLite) + arayüz E2E, paket başına dökümü `arsiv/PAKET-FAZ-GECMISI.md`.
+Testler: birim + fonksiyonel + entegrasyon (Testcontainers: PostgreSQL +
+SQLite) + arayüz E2E; paket başına dökümü `arsiv/PAKET-FAZ-GECMISI.md`.
 Dört kapı sıfır uyarı; `dotnet pack` **17 paket** üretir.
 ⚠️ `AgentPrism.SqlServer`'ın testleri bu makinede koşmadı — bkz.
 `23-SQL-SERVER.md`, `docs/hafiza/sql-saglayicilari.md`.
 
 Ne veritabanı ne de belirli bir model satıcısı **zorunludur**: `storage`
-yapılandırılmazsa bellek içine düşer; sağlayıcı tarafında OpenAI · uyumlu `endpoint`'ler ·
+yapılandırılmazsa bellek içine düşer; OpenAI · uyumlu `endpoint`'ler ·
 Anthropic · Google · Azure OpenAI birlikte çalışır. Yeteneklerin özeti
-[`README.md`](../README.md) içinde — burada tekrarlanmaz.
+[`README.md`](../README.md) içinde.
 
 Faz faz nasıl buraya gelindiği: [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md).
 
@@ -240,7 +240,7 @@ yazılırsa aynı satır güncellenir, tekrar kaydı oluşmaz.
 | `agent_definition_versions` | Değişmez versiyon geçmişi, geri alma için |
 | `agent_skills` | Tenant-yalıtımlı markdown skill tanımı ve frontmatter |
 | `agent_skill_resources` | Skill kaynağı; skill silinince cascade ile silinir |
-| `sessions` | Serileştirilmiş `AgentSession` (**`json`**) + agent adı + kiracı + `schema_version` |
+| `sessions` | Serileştirilmiş `AgentSession` (**`json`**) + agent adı + `schema_version`. Anahtar **`(tenant_id, id)`** — kimlik çağırandan gelir ve yalnız kiracı içinde benzersizdir (K-278) |
 | `conversations` | Konuşma başlığı; `PostgresChatHistoryProvider` yazar |
 | `conversation_items` | Konuşma mesajları, sıralı (**`json`**) |
 | `responses` | **Boş.** `/v1/responses` ve `/v1/conversations` durumu `sessions` tablosunda tutulur (K-036, K-043); ayrı bir yanıt kaydı yazılmadı |
@@ -504,12 +504,12 @@ ters vekil günlüklerine yazılacağı için **kabul edilmez**. Uç ayrıca `Op
 rolü ister, oturumun kiracı sahipliğini doğrular, kiracı başına eşzamanlı
 bağlantıyı sınırlar ve süre/boşta zaman aşımı uygular.
 
-Arayüz token'ı `sessionStorage`'da tutar — sekme kapanınca silinir (K-047). Dil ve
-tema tercihi `localStorage`'dadır: `secret` değildirler (K-230).
+Arayüz token'ı `sessionStorage`'da tutar — sekme kapanınca silinir (K-047). Dil
+ve tema tercihi `localStorage`'dadır (K-230).
 
 Ek sınırlar:
 
-- `secret`'lar (`ApiKey`, bağlantı dizesi, MCP kimlik doğrulama değeri) **hiçbir zaman** veritabanına yazılmaz, API'den dönmez, arayüzde gösterilmez
+- `secret`'lar (`ApiKey`, bağlantı dizesi, MCP kimlik değeri) **hiçbir zaman** veritabanına yazılmaz, API'den dönmez, arayüzde gösterilmez
 - `previous_response_id` ve `conversation_id` güvenilmez girdi kabul edilir; her zaman kiracı sahipliği doğrulanır
 - `audit_log` Faz 9'dan beri doludur — bkz. "Roller ve denetim izi"
 
@@ -556,6 +556,12 @@ flowchart TD
 geçmiş bir kullanıcı, bir başlık ekleyerek başka bir kiracının verisine
 erişebilirdi. Başlık yolu ayrıca `AllowHeaderResolution` ile **açıkça**
 açılmalıdır — bir HTTP başlığı kimlik kanıtı değildir.
+
+**Yalıtımı zorlayan kapı (Faz 41).** Her depo sözleşmesi yalıtımı **iki yönlü**
+sınar (B görmemeli · A kendi verisini görmeli) ve dört koşumda çalışır (bellek
+içi + üç SQL); `TenantCoverageTests` her public depo metodunun ya sınandığını
+ya `[TenantAgnostic]` ile gerekçeli muaf olduğunu zorlar. Bulduğu kusurlar:
+K-277, K-278, K-279.
 
 ### Roller ve denetim izi
 
@@ -713,9 +719,8 @@ Ayrıntı: `docs/22-MCP-DERINLESMESI.md`.
 
 `Microsoft.Agents.AI.Hosting` (preview) ve `.Hosting.OpenAI` (alpha) hâlâ ön
 sürümdür. Ön sürüm bağımlılığı **yalnızca** `AgentPrism.AspNetCore` içinde
-toplanır (K-008); diğer paketler yalnız GA paketlere bağlıdır. AgentPrism o iki
-paket GA olana kadar `1.0.0-preview.N` yayınlanır — sonra tek bir pakette sürüm
-güncellemesi yeterlidir.
+toplanır (K-008). AgentPrism o iki paket GA olana kadar `1.0.0-preview.N`
+yayınlanır — sonra tek pakette sürüm güncellemesi yeterlidir.
 
 ---
 
@@ -732,24 +737,21 @@ güncellemesi yeterlidir.
 | `AgentPrism.AspNetCore` | Hayır | Minimal API delege yönlendirmesi reflection kullanır |
 | `AgentPrism.UI` | Hayır | Gömülü varlık tarama + ASP.NET Core bağlantısı |
 
-Bayrak `AgentPrismAotCompatible` ile uygulanır (K-006). Her satırın tam gerekçesi,
-ölçüm notları ve AOT'un getirdiği somut kısıtlar:
-[`hafiza/build-ve-analyzer.md`](hafiza/build-ve-analyzer.md) ve
-[`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md).
+Bayrak `AgentPrismAotCompatible` ile uygulanır (K-006). Gerekçeler ve ölçüm
+notları: [`hafiza/build-ve-analyzer.md`](hafiza/build-ve-analyzer.md).
 
 ---
 
 ## 10. İlgili Dokümanlar
 
 Faz dokümanlarının **tam listesi ve durumu tek yerdedir**: `README.md` yol
-haritası tablosu (Faz 0–7) ve
-[`IKINCI-FAZ-YOL-HARITASI.md`](IKINCI-FAZ-YOL-HARITASI.md) (Faz 8–30, sıra +
-bağımlılıklar + migration numaraları). Burada tekrarlanmaz — iki yerde tutmak
+haritası tablosu ile tur yol haritaları ([ikinci](IKINCI-FAZ-YOL-HARITASI.md) ·
+[üçüncü](UCUNCU-FAZ-YOL-HARITASI.md)). Burada tekrarlanmaz — iki yerde tutmak
 kayma üretir.
 
 | Doküman | Ne zaman |
 |---------|----------|
-| [KARARLAR-INDEKS.md](KARARLAR-INDEKS.md) → `KARARLAR.md` | Bir karar alınmış mı? İndeksten satırı bul, **grep'le** oku |
+| [KARARLAR-INDEKS.md](KARARLAR-INDEKS.md) → `KARARLAR.md` | Bir karar alınmış mı? İndeksten satırı bul, **grep'le** |
 | [MAF-GENISLEME-NOKTALARI.md](MAF-GENISLEME-NOKTALARI.md) | MAF'a dokunurken |
 | [`hafiza/`](hafiza/) | O alana dokunurken — tuzaklar ve codepath notları |
 | [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md) | "Neden böyle olmuş?" — yalnız grep ile |

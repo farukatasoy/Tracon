@@ -17,11 +17,11 @@ internal sealed class PostgresTestContext : IAsyncDisposable
     private PostgresTestContext(
         NpgsqlDataSource dataSource,
         AgentPrismPostgreSqlOptions options,
-        string tenantId)
+        ITenantContext tenantContext)
     {
         DataSource = dataSource;
         Options = options;
-        TenantContext = new FixedTenantContext(tenantId);
+        TenantContext = tenantContext;
 
         var wrapped = new SqlStoreContext
         {
@@ -43,6 +43,7 @@ internal sealed class PostgresTestContext : IAsyncDisposable
         ChatHistory = new SqlChatHistoryProvider(wrapped, TenantContext);
         AuditLog = new SqlAuditLog(wrapped);
         SkillScriptGrants = new SqlSkillScriptGrantStore(wrapped);
+        AgentSkills = new SqlAgentSkillStore(wrapped);
         Attachments = new SqlAttachmentStore(wrapped);
         AgentFiles = new SqlAgentFileStore(wrapped, TenantContext);
         Workflows = new SqlWorkflowDefinitionStore(wrapped);
@@ -102,6 +103,9 @@ internal sealed class PostgresTestContext : IAsyncDisposable
     /// <summary>Script calistirma izni deposu (Faz 11).</summary>
     public SqlSkillScriptGrantStore SkillScriptGrants { get; }
 
+    /// <summary>Calisma ani skill deposu (Faz 10).</summary>
+    public SqlAgentSkillStore AgentSkills { get; }
+
     /// <summary>Ek deposu (Faz 14).</summary>
     public SqlAttachmentStore Attachments { get; }
 
@@ -157,14 +161,29 @@ internal sealed class PostgresTestContext : IAsyncDisposable
     /// <param name="tenantId">Kiraci kimligi.</param>
     /// <param name="applyMigrations">Migration'lar hemen uygulansin mi.</param>
     /// <returns>Kullanima hazir baglam.</returns>
-    public static async ValueTask<PostgresTestContext> CreateAsync(
+    public static ValueTask<PostgresTestContext> CreateAsync(
         PostgresFixture fixture,
         string tenantId = "default",
+        bool applyMigrations = true)
+        => CreateAsync(fixture, new FixedTenantContext(tenantId), applyMigrations);
+
+    /// <summary>
+    /// Kiraci baglami disaridan verilen kurulum. Kiraci yalitimi sozlesmesi
+    /// ayni depo ornegi uzerinde kiraci degistirdigi icin bu asiri yuklemeyi
+    /// kullanir (Faz 41).
+    /// </summary>
+    /// <param name="fixture">Calisan PostgreSQL container.</param>
+    /// <param name="tenantContext">Depolarin okuyacagi kiraci baglami.</param>
+    /// <param name="applyMigrations">Migration'lar hemen uygulansin mi.</param>
+    /// <returns>Kullanima hazir baglam.</returns>
+    public static async ValueTask<PostgresTestContext> CreateAsync(
+        PostgresFixture fixture,
+        ITenantContext tenantContext,
         bool applyMigrations = true)
     {
         ArgumentNullException.ThrowIfNull(fixture);
 
-        var context = Create(fixture, NewSchemaName(), tenantId);
+        var context = Create(fixture, NewSchemaName(), tenantContext);
 
         if (applyMigrations)
         {
@@ -183,6 +202,14 @@ internal sealed class PostgresTestContext : IAsyncDisposable
     /// <param name="tenantId">Kiraci kimligi.</param>
     /// <returns>Ayni semaya bakan yeni baglam.</returns>
     public static PostgresTestContext Create(PostgresFixture fixture, string schemaName, string tenantId = "default")
+        => Create(fixture, schemaName, new FixedTenantContext(tenantId));
+
+    /// <summary>Kiraci baglami disaridan verilen kurulum.</summary>
+    /// <param name="fixture">Calisan PostgreSQL container.</param>
+    /// <param name="schemaName">Kullanilacak sema adi.</param>
+    /// <param name="tenantContext">Depolarin okuyacagi kiraci baglami.</param>
+    /// <returns>Ayni arka uca bakan yeni baglam.</returns>
+    public static PostgresTestContext Create(PostgresFixture fixture, string schemaName, ITenantContext tenantContext)
     {
         ArgumentNullException.ThrowIfNull(fixture);
 
@@ -196,7 +223,7 @@ internal sealed class PostgresTestContext : IAsyncDisposable
 
         var dataSource = new NpgsqlDataSourceBuilder(options.ConnectionString).Build();
 
-        return new PostgresTestContext(dataSource, options, tenantId);
+        return new PostgresTestContext(dataSource, options, tenantContext);
     }
 
     /// <summary>Yeni ve benzersiz bir test sema adi uretir.</summary>
@@ -227,9 +254,4 @@ internal sealed class PostgresTestContext : IAsyncDisposable
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync() => await DataSource.DisposeAsync();
-
-    private sealed class FixedTenantContext(string tenantId) : ITenantContext
-    {
-        public string TenantId { get; } = tenantId;
-    }
 }

@@ -40,6 +40,42 @@
 5. Gerektiğinde, tamamı değil ilgili bölümü:
    [`MIMARI.md`](MIMARI.md) — dağıtım ve arka plan servisleri bölümü
 
+### 🚨 Faz 41'den devralınanlar (yeni tablo yazacaksın — bunları oku)
+
+Bu faz **yeni bir tablo** (`singleton_leases`) ve **yeni bir depo** ekliyor.
+Faz 41 depo katmanına bir kapı koydu; kapı seni etkiler:
+
+1. **`TenantCoverageTests` yeni deponu bekler.** `AgentPrism.Sql.Shared/Stores/`
+   altına eklediğin her public metot ya
+   `tests/Shared/Contracts/TenantCoverageTests.cs`'teki `Covered` tablosunda
+   görünmeli ya da `[TenantAgnostic("gerekçe")]` taşımalıdır. Gerekçe **40
+   karakterden uzun** olmalıdır (ayrı test). Derleme yeşil kalır, test düşer.
+   ```bash
+   grep -rn "TenantAgnostic(" src/AgentPrism.Sql.Shared/Stores/   # örnek gerekçeler
+   ```
+2. **Kira deposu büyük olasılıkla `[TenantAgnostic]`'tir.** Tek yürütücü seçimi
+   **kurulum genelindedir**, kiracı başına değil — Faz 41'in `SqlTenantStore` ve
+   `SqlJobStore.LeaseAsync` muafiyetleri sana örnek gerekçe kalıbı verir. Kararı
+   yaz; sessiz bırakma.
+3. **Sözleşme testi yazmak artık ucuz.** Depon kiracıya bağlıysa
+   `TenantIsolationContract<TStore>`'tan türet, dört kancayı (`SeedAsync`,
+   `ExistsAsync`, `CountAsync`, `TryDeleteAsync`) yaz — **koşum sınıfı eklemek
+   gerekmez**, dört koşum (bellek içi + üç SQL) testleri kendiliğinden alır.
+   Kiracı kavramı yoksa `IAsyncLifetime`'dan türeyen düz bir sözleşme yaz;
+   `RetentionStoreContract` bunun örneğidir.
+4. **🚨 Çağıranın verdiği bir metin tek başına birincil anahtar olamaz** (K-278).
+   Kira anahtarı (`name`) tüketiciden gelirse tabloyu ona göre kurgula.
+5. **🚨 Bellek içi karşılık yazacaksan kiracı bağlamını unutma** (K-277).
+   Bellek içi depolar artık isteğe bağlı `ITenantContext` alır ve verilmezse
+   `FixedTenantContext.Default`'a düşer — parametre isteğe bağlıdır, **filtreleme
+   değildir**.
+6. **Migration numaraları:** PostgreSQL `0018`, SQL Server `0006`, SQLite `0006`
+   Faz 41 tarafından kullanıldı. Sıradaki set **PostgreSQL `0019`, SQL Server
+   `0007`, SQLite `0007`**'dir (K-178: numaralar sağlayıcı başına bağımsızdır).
+7. **`IRetentionStore` kırıcı biçimde değişti** (K-279): dört metot artık
+   `string? tenantId` alır. Yeni tablonu saklama hedefi yapacaksan
+   `RetentionTargetRegistry`'ye **`TenantPredicate`'i de** yaz.
+
 ---
 
 ## Amaç

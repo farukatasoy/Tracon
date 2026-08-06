@@ -361,3 +361,46 @@ Bir de ortam dersi: bir senkronizasyon kopyası
 (`wwwroot/assets/index-….css 2.br`) gömülü varlık listesine karıştı ve arayüz
 hiç yüklenmedi — `dotnet build` yeşilken. Aynı sınıf hata Faz 29'da da
 görülmüştü; not artık `MEMORY.md`'de.
+
+## Faz 41 — Kiracı yalıtımının zorlanması (2026-08-07)
+
+Kiracı yalıtımı Faz 6'dan beri vardı ama **zorlanmıyordu**: her sorgunun kendi
+`tenant_id` filtresini hatırlaması gerekiyordu ve 806 elle yazılmış filtre
+noktası vardı. Bu faz kuralı bir kapıya çevirdi — `TenantIsolationContract<TStore>`
+her deponun yalıtımını iki yönlü sınar (B görmemeli · A kendi verisini görmeli)
+ve dört koşumda birden çalışır; `TenantCoverageTests` yansımayla her public depo
+metodunun ya sınandığını ya gerekçeli muaf olduğunu zorlar.
+
+Kapı **üç kusur** buldu — faz biri bekliyordu:
+
+1. **Bellek içi depolarda yalıtım hiç yoktu** (K-277). `InMemoryAgentDefinitionStore`
+   `tenant_id` kavramını taşımıyordu; `InMemorySessionStore`, `InMemoryRunStore`
+   ve `InMemoryTraceStore` tekil okumalarda kiracıyı okumuyordu. K-018 bu
+   depoları birinci sınıf sayar ve `AddAgentPrism()` onları varsayılan olarak
+   kaydeder — yani veritabanısız çok kiracılı bir kurulumda kiracılar birbirinin
+   verisini görüyordu. Örnek uygulama koşumu bunu uçtan uca doğruladı.
+2. **`sessions.id` tek başına birincil anahtardı** (K-278). Oturum kimliği
+   çağırandan gelir; `ON CONFLICT (id) DO UPDATE SET tenant_id = EXCLUDED.tenant_id`
+   bir kiracının diğerinin oturumunu ele geçirmesine izin veriyordu. Anahtar
+   `(tenant_id, id)` oldu — üç migration.
+3. **Saklama veri düzlemi kiracı süzgeci taşımıyordu** (K-279). Kiracı başına
+   tanımlanan bir politika bütün kiracıların satırlarını siliyordu. Kullanıcı
+   tam düzeltmeyi seçti: `IRetentionStore`'un dört metodu `tenantId` aldı.
+
+Dört ders kaldı:
+
+1. **Sözleşme testi yazmak bir belgeleme işi değil, bir ölçüm aracıdır.**
+   Üç kusurun üçü de kod okunarak değil, test kırmızıya döndüğü için bulundu.
+2. **Bir düzeltme sistemin kendi modeliyle çelişiyorsa yanlıştır.** Çalıştırmanın
+   alt yazmalarına ambient kiracı süzgeci eklendi ve geri alındı: `RunStartInfo.TenantId`
+   ambient kiracıyı bilerek ezer ve süzgeç meşru yazmaları düşürüyordu (K-280).
+   Kapatılmayan boşluk gizlenmedi, gerekçesiyle yazıldı.
+3. **Ortak taban testi ucuzlatınca kapsam kendiliğinden büyür.** Yaşam döngüsü
+   tesisatı tabana taşınınca 23 sözleşme yalıtım testlerini **ek koşum sınıfı
+   olmadan** aldı; plan 80 yeni koşum sınıfı öngörüyordu.
+4. **Senkronizasyon kopyası tuzağı üçüncü kez vurdu.** `wwwroot/` altındaki üç
+   `… 2.br` / `… 2.html` kopyası gömülü varlık listesini zehirledi: `dotnet build`
+   yeşilken 41 E2E testinin **tamamı** 19 dakika boyunca zaman aşımına uğradı.
+   Kopyalar silinip arayüz temiz üretilince koşum 37 saniyede yeşile döndü.
+   Denetim (`find src -name "* 2.*"`) artık faz kapanışının parçasıdır.
+

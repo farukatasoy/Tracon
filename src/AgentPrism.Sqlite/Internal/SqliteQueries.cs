@@ -291,9 +291,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
         UpsertSession = $"""
             INSERT INTO {Schema}sessions (id, tenant_id, agent_name, state, schema_version, created_at, updated_at)
             VALUES (@id, @tenant_id, @agent_name, @state, @schema_version, @created_at, @updated_at)
-            ON CONFLICT (id) DO UPDATE
-                SET tenant_id      = excluded.tenant_id,
-                    agent_name     = excluded.agent_name,
+            ON CONFLICT (tenant_id, id) DO UPDATE
+                SET agent_name     = excluded.agent_name,
                     state          = excluded.state,
                     schema_version = excluded.schema_version,
                     updated_at     = excluded.updated_at;

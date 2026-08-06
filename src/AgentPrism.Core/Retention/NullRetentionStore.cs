@@ -17,6 +17,7 @@ public sealed class NullRetentionStore : IRetentionStore
     /// <inheritdoc />
     public ValueTask<long> CountOlderThanAsync(
         string target,
+        string? tenantId,
         DateTimeOffset cutoff,
         CancellationToken cancellationToken = default)
         => new(0L);
@@ -24,6 +25,7 @@ public sealed class NullRetentionStore : IRetentionStore
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<ArchiveRow>> ReadForArchiveAsync(
         string target,
+        string? tenantId,
         DateTimeOffset cutoff,
         int batchSize,
         CancellationToken cancellationToken = default)
@@ -32,6 +34,7 @@ public sealed class NullRetentionStore : IRetentionStore
     /// <inheritdoc />
     public ValueTask<int> DeleteBatchAsync(
         string target,
+        string? tenantId,
         DateTimeOffset cutoff,
         int batchSize,
         CancellationToken cancellationToken = default)
@@ -40,6 +43,7 @@ public sealed class NullRetentionStore : IRetentionStore
     /// <inheritdoc />
     public ValueTask<DateTimeOffset?> FindRowLimitCutoffAsync(
         string target,
+        string? tenantId,
         long maxRows,
         CancellationToken cancellationToken = default)
         => new((DateTimeOffset?)null);

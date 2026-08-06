@@ -45,6 +45,11 @@ Bunlar alana bağlı değildir; her fazda tekrar tekrar bedel ödettiler.
   `RunStreamingAsync`'in arka plan görevi (Faz 15). Kural: `scope`/`span` **çağıran
   metodun kendi gövdesinde** yazılır; akışlı yolda **her `MoveNextAsync` öncesi**
   tekrarlanır. Ayrıntı ve dört vaka: `docs/hafiza/cekirdek-calistirma.md`.
+- **🚨 Bir davranışı düzeltmek, o davranışa dayanan çağıranı sessizce değiştirir.**
+  Faz 41'de bellek içi oturum deposu kiracıyla sınırlandırıldı; ses ucunun
+  "başkasının oturumu" reddi bunun üzerine kuruluydu ve etkisiz kaldı (K-283).
+  Birim testleri değil, **fonksiyonel testler** yakaladı. Bir depo/servis
+  davranışını değiştirdiğinde `grep -rn "<metot>" src/` ile çağıranları tara.
 - **🚨 İmza değiştirmek ile gövdeyi kullanmak İKİ AYRI ADIMDIR.** Yeni bir
   alan/parametre eklerken çağrı zincirindeki **her katmanın gövdesini** elle izle.
   Yaşandı (Faz 20): `RunEventWriter.CompleteAsync`'e `cost` parametresi eklendi,
@@ -64,11 +69,15 @@ Bunlar alana bağlı değildir; her fazda tekrar tekrar bedel ödettiler.
   o kaydı içeren **liste ucunun tamamı** çöker. Yeni bir kayıt üreten her kod
   yolunda zorunlu olmayan alanları da doldurun. Ayrıntı:
   `docs/hafiza/cekirdek-calistirma.md`.
-- **🚨 Senkronizasyon kopyaları (`<ad> 2.<uzantı>`) sessizce zehirler.** Faz 30'da
-  `wwwroot/assets/index-….css 2.br` gömülü varlık listesine karıştı; `dotnet build`
-  **yeşildi** ama arayüz hiç yüklenmedi (boş sayfa, konsolda 404) ve bir E2E testi
-  30 sn zaman aşımıyla düştü. `.cs` kopyaları ayrıca CS0101 yağmuru üretir.
-  Denetim: `find src -name "* 2.*"` — çıktı boş olmalıdır.
+- **🚨 Senkronizasyon kopyaları (`<ad> 2.<uzantı>`) sessizce zehirler — üç kez
+  yaşandı (Faz 29, 30, 41).** Kopya, gömülü varlık listesine karışır; `dotnet build`
+  **yeşildir** ama arayüz hiç yüklenmez. Faz 41'de bedel en ağırdı: E2E'nin
+  **41 testinin tamamı** 19 dakika boyunca zaman aşımına uğradı ("waiting for
+  heading Dashboard"). Kopyalar silinip `wwwroot` temiz üretilince aynı koşum
+  **37 saniyede** yeşile döndü. `.cs` kopyaları ayrıca CS0101 yağmuru üretir.
+  Denetim (faz kapanışında zorunlu): `find src -name "* 2.*" -not -path "*/node_modules/*"`
+  — çıktı boş olmalıdır. Silmek yetmez: `wwwroot`'u kaldırıp
+  `agentprism-frontend.stamp` damgasını da silmeden build arayüzü yeniden üretmez.
 - **Bash'te `cd` kalıcıdır.** Bir komutta dizin değiştirdiysen sonraki komut orada
   başlar. Doğrulama komutlarında **mutlak yol** kullan.
 - **`dotnet test` MTP'dir, VSTest değil.** `--filter-query` bir MSBuild anahtarı

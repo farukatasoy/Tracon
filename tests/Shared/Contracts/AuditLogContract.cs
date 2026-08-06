@@ -9,28 +9,34 @@ namespace AgentPrism.StoreContracts;
 /// Faz 9'da eklendi. Bellek ici defter ile PostgreSQL defteri ayni senaryolari
 /// gecmelidir.
 /// </remarks>
-public abstract class AuditLogContract : IAsyncLifetime
+public abstract class AuditLogContract : TenantIsolationContract<IAuditLog>
 {
     /// <summary>Test edilen defter.</summary>
-    protected IAuditLog Log { get; private set; } = null!;
-
-    /// <summary>Test icin bos bir defter uretir.</summary>
-    /// <returns>Kullanima hazir defter.</returns>
-    protected abstract ValueTask<IAuditLog> CreateLogAsync();
+    protected IAuditLog Log => Store;
 
     /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Log = await CreateLogAsync();
-
-    /// <inheritdoc />
-    public async ValueTask DisposeAsync()
+    /// <remarks>
+    /// Denetim izi kaydin kendi <c>TenantId</c> alanini tasir ve sorgu
+    /// <see cref="AuditQuery.TenantId"/> ile filtreler; kiraci baglamindan
+    /// okunmaz.
+    /// </remarks>
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
     {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
+        var entry = Entry(tenantId, action: "agent.update", entity: name);
+        await Log.WriteAsync(entry);
+        return entry.Id;
     }
 
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    /// <returns>Tamamlanma gorevi.</returns>
-    protected virtual ValueTask OnDisposeAsync() => default;
+    /// <inheritdoc />
+    protected override async ValueTask<bool> ExistsAsync(string tenantId, object key)
+    {
+        var entries = await Log.QueryAsync(new AuditQuery { TenantId = tenantId });
+        return entries.Any(entry => entry.Id == (Guid)key);
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask<int> CountAsync(string tenantId)
+        => (await Log.QueryAsync(new AuditQuery { TenantId = tenantId })).Count;
 
     [Fact]
     public async Task Yazilan_kayit_gidip_gelir()

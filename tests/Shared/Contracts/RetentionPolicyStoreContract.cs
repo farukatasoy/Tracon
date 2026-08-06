@@ -3,28 +3,52 @@ namespace AgentPrism.StoreContracts;
 /// <summary>
 /// <see cref="IRetentionPolicyStore"/> sozlesmesinin davranis testleri.
 /// </summary>
-public abstract class RetentionPolicyStoreContract : IAsyncLifetime
+public abstract class RetentionPolicyStoreContract : TenantIsolationContract<IRetentionPolicyStore>
 {
-    private const string Tenant = "test";
-
-    /// <summary>Test edilen depo.</summary>
-    protected IRetentionPolicyStore Store { get; private set; } = null!;
-
-    /// <summary>Test icin bos bir depo uretir.</summary>
-    protected abstract ValueTask<IRetentionPolicyStore> CreateStoreAsync();
-
     /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask DisposeAsync()
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
     {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
+        var policy = await Store.SavePolicyAsync(Policy(tenantId));
+
+        var run = await Store.CreateRunAsync(Run() with { TenantId = tenantId });
+        await Store.AppendRunProgressAsync(run.Id, deletedDelta: 1, archivedDelta: 0);
+        await Store.CompleteRunAsync(run.Id, DateTimeOffset.UtcNow, errorMessage: null);
+
+        return policy.Target;
     }
 
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    protected virtual ValueTask OnDisposeAsync() => default;
+    /// <inheritdoc />
+    protected override async ValueTask<bool> ExistsAsync(string tenantId, object key)
+    {
+        var policy = await Store.GetPolicyAsync(tenantId, (string)key);
+
+        // Kosu gecmisi de kiraciya aittir.
+        var runs = await Store.ListRunsAsync(tenantId, (string)key, skip: 0, take: 50);
+        (runs.Count > 0).ShouldBe(policy is not null);
+
+        return policy is not null;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask<int> CountAsync(string tenantId)
+        => (await Store.ListPoliciesAsync(tenantId)).Count;
+
+    /// <inheritdoc />
+    protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
+        => await Store.DeletePolicyAsync(tenantId, (string)key);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Politikanin benzersizligi <c>(kiraci, hedef)</c> ciftindedir; ad bir
+    /// ayirt edici degildir. Ikinci kiraci ayni hedefe kendi politikasini yazar.
+    /// </remarks>
+    protected override async ValueTask<bool> TryOverwriteAsync(string tenantId, string name)
+    {
+        await SeedAsync(tenantId, name);
+        return true;
+    }
+
+    private const string Tenant = "test";
 
     [Fact]
     public async Task Kaydedilen_politika_geri_okunur()

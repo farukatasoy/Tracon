@@ -8,28 +8,27 @@ namespace AgentPrism.StoreContracts;
 /// gecmelidir; ozellikle "dar izin genis olani yener" kurali ve iptal edilen
 /// iznin geri gelmemesi iki uygulamada da ayni davranmalidir.
 /// </remarks>
-public abstract class SkillScriptGrantContract : IAsyncLifetime
+public abstract class SkillScriptGrantContract : TenantIsolationContract<ISkillScriptGrantStore>
 {
-    /// <summary>Test edilen depo.</summary>
-    protected ISkillScriptGrantStore Store { get; private set; } = null!;
-
-    /// <summary>Test icin bos bir depo uretir.</summary>
-    /// <returns>Kullanima hazir depo.</returns>
-    protected abstract ValueTask<ISkillScriptGrantStore> CreateStoreAsync();
-
     /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask DisposeAsync()
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
     {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
+        await Store.GrantAsync(Grant(tenantId, name));
+        return name;
     }
 
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    /// <returns>Tamamlanma gorevi.</returns>
-    protected virtual ValueTask OnDisposeAsync() => default;
+    /// <inheritdoc />
+    protected override async ValueTask<bool> ExistsAsync(string tenantId, object key)
+        => await Store.FindActiveAsync(tenantId, (string)key, "herhangi", DateTimeOffset.UtcNow) is not null;
+
+    /// <inheritdoc />
+    protected override async ValueTask<int> CountAsync(string tenantId)
+        => (await Store.ListAsync(tenantId)).Count;
+
+    /// <inheritdoc />
+    /// <remarks>Izin silinmez, iptal edilir (K-092).</remarks>
+    protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
+        => await Store.RevokeAsync(tenantId, (string)key, scriptName: null);
 
     [Fact]
     public async Task Skill_genelinde_verilen_izin_her_scripti_kapsar()

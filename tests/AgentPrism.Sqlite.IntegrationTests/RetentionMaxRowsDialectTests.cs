@@ -12,7 +12,7 @@ public sealed class RetentionMaxRowsDialectTests : IDisposable
     [Fact]
     public void Uretilen_sql_limit_offset_ve_null_elemeyi_tasir()
     {
-        var sql = _dialect.BuildRetentionFindNthRowCutoffSql("t_ab12cd34run_events", "created_at");
+        var sql = _dialect.BuildRetentionFindNthRowCutoffSql("t_ab12cd34run_events", "created_at", extraPredicate: null);
 
         sql.ShouldContain("SELECT created_at");
         sql.ShouldContain("FROM t_ab12cd34run_events");
@@ -29,7 +29,7 @@ public sealed class RetentionMaxRowsDialectTests : IDisposable
 
         definition.RowLimitOrderExpression.ShouldNotBeNullOrWhiteSpace();
 
-        var sql = _dialect.BuildRetentionFindNthRowCutoffSql(definition.Table, definition.RowLimitOrderExpression);
+        var sql = _dialect.BuildRetentionFindNthRowCutoffSql(definition.Table, definition.RowLimitOrderExpression, extraPredicate: null);
 
         sql.ShouldContain("LIMIT 1 OFFSET @n - 1");
     }

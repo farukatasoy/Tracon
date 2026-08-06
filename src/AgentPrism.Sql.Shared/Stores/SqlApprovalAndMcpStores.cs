@@ -308,6 +308,8 @@ internal sealed class SqlTenantStore : ITenantStore
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "Kiraci defterinin kendisi kiracilarin USTUNDEDIR: listeleme, kurulumdaki butun kiracilari dondurur ve yonetim yuzeyi icindir (Admin policy). Bir kiraci filtresi burada 'kendini listele'ye indirgenir ve anlamsizdir.")]
     public async ValueTask<IReadOnlyList<TenantDescriptor>> ListAsync(CancellationToken cancellationToken = default)
     {
         var command = CreateCommand(_sql.SelectTenants);
@@ -316,6 +318,8 @@ internal sealed class SqlTenantStore : ITenantStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "Kiraci defterinin kendisi kiracilarin USTUNDEDIR; kayit yeni bir kiraci ACAR, var olan bir kiracinin verisine dokunmaz.")]
     public async ValueTask<TenantDescriptor> SaveAsync(
         TenantDescriptor tenant,
         CancellationToken cancellationToken = default)
@@ -334,6 +338,8 @@ internal sealed class SqlTenantStore : ITenantStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "Kiraci defterinin kendisi kiracilarin USTUNDEDIR; silme bir kiraci KAYDINI kaldirir ve yonetim yuzeyi icindir.")]
     public async ValueTask<bool> DeleteAsync(string slug, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(slug);

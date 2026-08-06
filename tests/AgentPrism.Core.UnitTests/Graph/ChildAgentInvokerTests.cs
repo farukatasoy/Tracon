@@ -182,7 +182,7 @@ public sealed class ChildAgentInvokerTests
         FakeChatClient? client = null,
         params AIFunction[] tools)
     {
-        var store = new InMemoryRunStore();
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var tenantContext = new FixedTenantContext();
 
         var chatClient = client ?? new FakeChatClient(_ => new ChatResponse(

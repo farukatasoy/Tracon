@@ -27,9 +27,9 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
         await SeedRunEventAsync(runId, seq: 2, createdAt: cutoff.AddDays(-1));
         await SeedRunEventAsync(runId, seq: 3, createdAt: cutoff.AddDays(5));
 
-        (await _context.RetentionData.CountOlderThanAsync(RetentionTargets.RunEvents, cutoff)).ShouldBe(2);
+        (await _context.RetentionData.CountOlderThanAsync(RetentionTargets.RunEvents, tenantId: null, cutoff)).ShouldBe(2);
 
-        var deleted = await _context.RetentionData.DeleteBatchAsync(RetentionTargets.RunEvents, cutoff, batchSize: 100);
+        var deleted = await _context.RetentionData.DeleteBatchAsync(RetentionTargets.RunEvents, tenantId: null, cutoff, batchSize: 100);
 
         deleted.ShouldBe(2);
 
@@ -50,10 +50,10 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
             await SeedRunEventAsync(runId, seq: i, createdAt: cutoff.AddDays(-1));
         }
 
-        var firstBatch = await _context.RetentionData.DeleteBatchAsync(RetentionTargets.RunEvents, cutoff, batchSize: 10);
-        var secondBatch = await _context.RetentionData.DeleteBatchAsync(RetentionTargets.RunEvents, cutoff, batchSize: 10);
-        var thirdBatch = await _context.RetentionData.DeleteBatchAsync(RetentionTargets.RunEvents, cutoff, batchSize: 10);
-        var fourthBatch = await _context.RetentionData.DeleteBatchAsync(RetentionTargets.RunEvents, cutoff, batchSize: 10);
+        var firstBatch = await _context.RetentionData.DeleteBatchAsync(RetentionTargets.RunEvents, tenantId: null, cutoff, batchSize: 10);
+        var secondBatch = await _context.RetentionData.DeleteBatchAsync(RetentionTargets.RunEvents, tenantId: null, cutoff, batchSize: 10);
+        var thirdBatch = await _context.RetentionData.DeleteBatchAsync(RetentionTargets.RunEvents, tenantId: null, cutoff, batchSize: 10);
+        var fourthBatch = await _context.RetentionData.DeleteBatchAsync(RetentionTargets.RunEvents, tenantId: null, cutoff, batchSize: 10);
 
         firstBatch.ShouldBe(10);
         secondBatch.ShouldBe(10);
@@ -67,7 +67,7 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
         var runId = await SeedRunAsync();
         await SeedRunEventAsync(runId, seq: 1, createdAt: DateTimeOffset.UtcNow.AddDays(-60));
 
-        await _context.RetentionData.DeleteBatchAsync(RetentionTargets.RunEvents, DateTimeOffset.UtcNow, batchSize: 100);
+        await _context.RetentionData.DeleteBatchAsync(RetentionTargets.RunEvents, tenantId: null, DateTimeOffset.UtcNow, batchSize: 100);
 
         var runStillExists = await _context.ScalarAsync<long>(
             $"SELECT COUNT(*) FROM {_context.SchemaName}.runs WHERE id = '{runId}';");
@@ -89,7 +89,7 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
         // bilinmeyen hedefte ArgumentException firlatir — bu, denemenin bile
         // mumkun olmadigini kanitlar.
         await Should.ThrowAsync<ArgumentException>(async ()
-            => await _context.RetentionData.CountOlderThanAsync("audit_log", DateTimeOffset.UtcNow));
+            => await _context.RetentionData.CountOlderThanAsync("audit_log", tenantId: null, DateTimeOffset.UtcNow));
 
         var after = await _context.ScalarAsync<long>($"SELECT COUNT(*) FROM {_context.SchemaName}.audit_log;");
 
@@ -103,14 +103,14 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
         await SeedRunEventAsync(runId, seq: 1, createdAt: DateTimeOffset.UtcNow.AddDays(-60), text: "merhaba");
 
         var cutoff = DateTimeOffset.UtcNow;
-        var rows = await _context.RetentionData.ReadForArchiveAsync(RetentionTargets.RunEvents, cutoff, batchSize: 10);
+        var rows = await _context.RetentionData.ReadForArchiveAsync(RetentionTargets.RunEvents, tenantId: null, cutoff, batchSize: 10);
 
         rows.Count.ShouldBe(1);
         rows[0].Json.ShouldContain("merhaba");
         rows[0].Json.ShouldContain(runId.ToString());
 
         // Okuma SILMEZ.
-        (await _context.RetentionData.CountOlderThanAsync(RetentionTargets.RunEvents, cutoff)).ShouldBe(1);
+        (await _context.RetentionData.CountOlderThanAsync(RetentionTargets.RunEvents, tenantId: null, cutoff)).ShouldBe(1);
     }
 
     [Fact]
@@ -120,7 +120,7 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
         var completedId = await SeedJobAsync(status: 3, completedAt: DateTimeOffset.UtcNow.AddDays(-60));
 
         var deleted = await _context.RetentionData.DeleteBatchAsync(
-            RetentionTargets.Jobs,
+            RetentionTargets.Jobs, tenantId: null,
             DateTimeOffset.UtcNow.AddDays(-30),
             batchSize: 100);
 
@@ -150,11 +150,11 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
             await SeedRunEventAsync(runId, seq: i, createdAt: DateTimeOffset.UtcNow.AddMinutes(-10 + i));
         }
 
-        var cutoff = await _context.RetentionData.FindRowLimitCutoffAsync(RetentionTargets.RunEvents, maxRows: 4);
+        var cutoff = await _context.RetentionData.FindRowLimitCutoffAsync(RetentionTargets.RunEvents, tenantId: null, maxRows: 4);
 
         cutoff.ShouldNotBeNull();
 
-        var deleted = await _context.RetentionData.DeleteBatchAsync(RetentionTargets.RunEvents, cutoff!.Value, batchSize: 100);
+        var deleted = await _context.RetentionData.DeleteBatchAsync(RetentionTargets.RunEvents, tenantId: null, cutoff!.Value, batchSize: 100);
 
         deleted.ShouldBe(6);
 
@@ -170,7 +170,7 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
         var runId = await SeedRunAsync();
         await SeedRunEventAsync(runId, seq: 1, createdAt: DateTimeOffset.UtcNow);
 
-        var cutoff = await _context.RetentionData.FindRowLimitCutoffAsync(RetentionTargets.RunEvents, maxRows: 1000);
+        var cutoff = await _context.RetentionData.FindRowLimitCutoffAsync(RetentionTargets.RunEvents, tenantId: null, maxRows: 1000);
 
         cutoff.ShouldBeNull();
     }
@@ -194,12 +194,12 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
         await SeedWorkflowCheckpointAsync(run2);
         await SeedWorkflowCheckpointAsync(run3);
 
-        var cutoff = await _context.RetentionData.FindRowLimitCutoffAsync(RetentionTargets.WorkflowCheckpoints, maxRows: 1);
+        var cutoff = await _context.RetentionData.FindRowLimitCutoffAsync(RetentionTargets.WorkflowCheckpoints, tenantId: null, maxRows: 1);
 
         cutoff.ShouldNotBeNull();
 
         var deleted = await _context.RetentionData.DeleteBatchAsync(
-            RetentionTargets.WorkflowCheckpoints,
+            RetentionTargets.WorkflowCheckpoints, tenantId: null,
             cutoff!.Value,
             batchSize: 100);
 

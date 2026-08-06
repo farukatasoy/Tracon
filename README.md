@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici kendi AI harness'ini kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 40 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**, `dotnet new agentprism-api` ile başlatılabilir; `AgentPrism.Testing` ile gerçek model çağırmadan test edilebilir. Çalıştırmalar span/metrik/maliyetle kaydedilir. Veritabanı/model isteğe bağlı. Faz 8-40 bitti; [kalan](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlı.
+> **Durum:** Faz 41 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**, `dotnet new agentprism-api` ile başlatılabilir; `AgentPrism.Testing` ile gerçek model çağırmadan test edilebilir. Çalıştırmalar span/metrik/maliyetle kaydedilir; kiracı yalıtımı sözleşme testleriyle **zorlanır**. Veritabanı/model isteğe bağlı. Faz 8-41 bitti; [kalan](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlı.
 
 ```csharp
 builder.AddAgentPrism()
@@ -245,18 +245,18 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [5](docs/05-AGENTPRISM-UI.md) | AgentPrismUI | ✅ Tamamlandı |
 | [6](docs/06-GOZLEMLENEBILIRLIK.md) | Gözlemlenebilirlik, tool onayı, MCP, çok kiracılılık | ✅ Tamamlandı |
 | [7](docs/07-SAGLAMLASTIRMA-VE-YAYIN.md) | Sağlamlaştırma ve yayın | ⏸ Beklemede — yayın zamanı kullanıcı kararı (K-068) |
-| [8](docs/08-SAGLAYICI-GENISLEMESI.md) | Sağlayıcı genişlemesi ve sağlık denetimi (OpenAI uyumlu herhangi bir uç, devre kesici) | ✅ Tamamlandı |
+| [8](docs/08-SAGLAYICI-GENISLEMESI.md) | Sağlayıcı genişlemesi ve sağlık denetimi (OpenAI uyumlu her uç, devre kesici) | ✅ Tamamlandı |
 | [9](docs/09-YONETISIM-VE-DENETIM-IZI.md) | Yönetişim: rol tabanlı yetkilendirme (Reader/Operator/Admin) ve denetim izi | ✅ Tamamlandı |
 | [10](docs/10-AGENT-SKILLERI.md) | Agent skill'leri: markdown talimatlar, kaynaklar ve MAF onayı | ✅ Tamamlandı |
 | [11](docs/11-SKILL-SCRIPT-CALISTIRMA.md) | Skill script çalıştırma: sandbox, izin kaydı ve denetim izi | ✅ Tamamlandı |
 | [12](docs/12-AGENT-CAGRI-GRAFIGI.md) | Agent'ın agent'ı çağırması: çağrı grafiği, çalıştırma ağacı ve paylaşılan bütçe | ✅ Tamamlandı |
-| [13](docs/13-BAGLAM-SIKISTIRMA-VE-BELLEK.md) | Bağlam sıkıştırma (5 strateji + pipeline) ve bellek sağlayıcıları (dosya, todo, metin araması) | ✅ Tamamlandı |
+| [13](docs/13-BAGLAM-SIKISTIRMA-VE-BELLEK.md) | Bağlam sıkıştırma (5 strateji) ve bellek sağlayıcıları (dosya, todo, metin araması) | ✅ Tamamlandı |
 | [14](docs/14-COK-MODLULUK.md) | Çok modluluk: görsel/dosya eki, kalıcı agent dosya belleği | ✅ Tamamlandı |
 | [15](docs/15-WORKFLOWS-YURUTME.md) | Workflows: beş desenle yürütme, kontrol noktası ve sürdürme | ✅ Tamamlandı |
 | [16](docs/16-WORKFLOWS-ARAYUZ.md) | Workflows: graf görselleştirme, human-in-the-loop, Magentic plan onayı | ✅ Tamamlandı |
-| [17](docs/17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) | Toplu ve zamanlanmış çalıştırma: PostgreSQL iş kuyruğu (`SKIP LOCKED`), cron zamanlama, Jobs ekranı | ✅ Tamamlandı |
+| [17](docs/17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) | Toplu ve zamanlanmış çalıştırma: iş kuyruğu (`SKIP LOCKED`), cron, Jobs ekranı | ✅ Tamamlandı |
 | [18](docs/18-DEGERLENDIRME.md) | Değerlendirme (eval): takım/vaka/koşu, Faz 17'nin iş kuyruğu üzerinde, Evals ekranı | ✅ Tamamlandı |
-| [19](docs/19-SURUM-KARSILASTIRMA-VE-AB.md) | Sürüm karşılaştırma (diff) ve A/B deneyleri: oturum bazlı deterministik trafik bölme, Experiments ekranı | ✅ Tamamlandı |
+| [19](docs/19-SURUM-KARSILASTIRMA-VE-AB.md) | Sürüm karşılaştırma (diff) ve A/B deneyleri: deterministik trafik bölme, Experiments ekranı | ✅ Tamamlandı |
 | [20](docs/20-MALIYET-VE-GOSTERGE-PANELI.md) | Maliyet raporlaması ve gösterge paneli: fiyat kataloğu/yapılandırması, Dashboard giriş ekranı | ✅ Tamamlandı |
 | [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | ✅ Tamamı bitti |
 | [31](docs/31-GERI-BILDIRIM-VE-PUANLAMA.md) | Geri bildirim ve puanlama (çalıştırma/mesaj puanı) | ✅ Tamamlandı |
@@ -264,7 +264,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [33](docs/33-SAGLIK-DENETIMI-VE-TESHIS.md) | Sağlık denetimi (`/health`) ve yapılandırma teşhisi (`/api/diagnostics`) | ✅ Tamamlandı |
 | [34](docs/34-TANIM-DOGRULAMA-UCU.md) | Tanım doğrulama ucu | ✅ Tamamlandı |
 | [35](docs/35-MALIYET-VE-KOTA-METRIKLERI.md) | Maliyet ve kota OTel metrikleri | ✅ Tamamlandı |
-| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 36–52) | Faz 36–40 bitti; kalanı 📋 [adaylarda](docs/UCUNCU-FAZ-ADAYLARI.md) |
+| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 36–52) | Faz 36–41 bitti; kalanı 📋 [adaylarda](docs/UCUNCU-FAZ-ADAYLARI.md) |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 

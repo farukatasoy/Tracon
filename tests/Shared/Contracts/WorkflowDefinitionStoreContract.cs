@@ -7,26 +7,26 @@ namespace AgentPrism.StoreContracts;
 /// Bellek ici depo ile PostgreSQL deposu ayni senaryolari gecmelidir. Ozellikle
 /// surum artisi ve kiraci yalitimi iki uygulamada da ayni davranmalidir.
 /// </remarks>
-public abstract class WorkflowDefinitionStoreContract : IAsyncLifetime
+public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<IWorkflowDefinitionStore>
 {
-    /// <summary>Test edilen depo.</summary>
-    protected IWorkflowDefinitionStore Store { get; private set; } = null!;
-
-    /// <summary>Test icin bos bir depo uretir.</summary>
-    protected abstract ValueTask<IWorkflowDefinitionStore> CreateStoreAsync();
-
     /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask DisposeAsync()
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
     {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
+        await Store.SaveAsync(tenantId, Definition() with { Name = name });
+        return name;
     }
 
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    protected virtual ValueTask OnDisposeAsync() => default;
+    /// <inheritdoc />
+    protected override async ValueTask<bool> ExistsAsync(string tenantId, object key)
+        => await Store.GetAsync(tenantId, (string)key) is not null;
+
+    /// <inheritdoc />
+    protected override async ValueTask<int> CountAsync(string tenantId)
+        => (await Store.ListAsync(tenantId)).Count;
+
+    /// <inheritdoc />
+    protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
+        => await Store.DeleteAsync(tenantId, (string)key);
 
     [Fact]
     public async Task Kaydedilen_tanim_geri_okunur()

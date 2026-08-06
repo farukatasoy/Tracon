@@ -59,3 +59,16 @@
 | `AgentPrism.Core` | `Compilation/AgentDefinitionCompiler.cs` — `BuildChatOptions` `static`'ten instance metoduna geçti (katalog erişimi için), `BuildResponseFormat`/`CheckStructuredOutputCapability`/`FindModelDescriptor` eklendi |
 | `AgentPrism.OpenAI`/`.Anthropic`/`.Google`/`.Azure` | Dördü de `SupportsStructuredOutput` ayarını yapılandırmadan okur (`ModelDescriptor` bağlama satırı) |
 | Diğer tüm paketler | **Değişmedi.** Yeni tablo/migration/uç yok; `jsonb` yolu K-208'in ölçtüğü gibi hiç değişmeden çalıştı. Arayüz payı: `agent-editor.tsx` (kip seçici + şema kutusu), `agent-detail.tsx` (sürüm karşılaştırma satırı), `models.tsx` (rozet). Bundle 151,3 → **156,0 KB gzip** |
+
+### Faz 41 — Kiracı yalıtımının zorlanması (2026-08-07)
+
+| Paket | Ne eklendi / değişti |
+|---|---|
+| `AgentPrism.Abstractions` | 🚨 `Retention/IRetentionStore.cs` — dört metot `string? tenantId` aldı (**kırıcı**, K-279) |
+| `AgentPrism.Core` | `Tenancy/FixedTenantContext.cs` (**yeni**, `Default` statik örneğiyle); `Storage/InMemory{AgentDefinition,Session,Run,Trace}Store.cs` isteğe bağlı `ITenantContext` alır ve filtreler (K-277); `Retention/{NullRetentionStore,RetentionExecutor}.cs` kiracıyı geçirir; `AgentPrismServiceCollectionExtensions` dört kaydı gerçek kiracı bağlamıyla kurar |
+| `AgentPrism.Sql.Shared` | `Internal/TenantAgnosticAttribute.cs` (**yeni**, `internal`, K-281); `Internal/RetentionTargetRegistry.cs` — `RetentionTargetDefinition` bir `TenantPredicate` taşır (13 hedef); `Internal/SqlDialect.cs` — `AndAlso`/`Combine` yardımcıları, `BuildRetentionFindNthRowCutoffSql` bir `extraPredicate` aldı; `Stores/SqlRetentionStore.cs` kiracıyı bağlar; yedi depoda toplam **26** `[TenantAgnostic]` gerekçesi |
+| `AgentPrism.PostgreSql` | `Migrations/0018_sessions_tenant_key.sql` (**yeni**, K-278); `PostgresQueries.UpsertSession` → `ON CONFLICT (tenant_id, id)`; `PostgresDialect` imza güncellemesi |
+| `AgentPrism.SqlServer` | `Migrations/0006_sessions_tenant_key.sql` (**yeni**); `SqlServerQueries.UpsertSession` `WHERE`'ine kiracı koşulu; `SqlServerDialect` imza güncellemesi |
+| `AgentPrism.Sqlite` | `Migrations/0006_sessions_tenant_key.sql` (**yeni** — SQLite birincil anahtarı değiştiremez: tablo yeniden kurulur, indeksler elle yaratılır); `SqliteQueries.UpsertSession` → `ON CONFLICT (tenant_id, id)`; `SqliteDialect` imza güncellemesi |
+| Diğer tüm paketler | **Değişmedi.** Yeni tablo yok, yeni uç yok, arayüz payı yok |
+

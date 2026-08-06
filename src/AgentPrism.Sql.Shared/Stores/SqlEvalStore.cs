@@ -87,6 +87,8 @@ internal sealed class SqlEvalStore : IEvalStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "Vakalar takimin ALTINDA yasar; takim kimligi kiraciya suzulmus bir sorgudan (ListSuitesAsync/GetSuiteAsync) gelir ve kendisi bir kiraci niyeti tasimaz.")]
     public async ValueTask<IReadOnlyList<EvalCase>> ListCasesAsync(
         Guid suiteId,
         CancellationToken cancellationToken = default)
@@ -98,6 +100,8 @@ internal sealed class SqlEvalStore : IEvalStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "ListCasesAsync ile ayni gerekce: takim kimligi kiraciya suzulmus bir sorgudan gelir.")]
     public async ValueTask<IReadOnlyList<EvalCase>> ReplaceCasesAsync(
         Guid suiteId,
         IReadOnlyList<EvalCase> cases,
@@ -169,6 +173,8 @@ internal sealed class SqlEvalStore : IEvalStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "Kosu kimligi kosuyu ACAN kod tarafindan uretilir (uuid v7); cagride ayri bir kiraci niyeti yoktur. Kiraci siniri kosu okumalarinda zorlanir.")]
     public async ValueTask MarkRunRunningAsync(
         Guid evalRunId,
         int? agentVersion,
@@ -184,6 +190,8 @@ internal sealed class SqlEvalStore : IEvalStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "MarkRunRunningAsync ile ayni gerekce: kiraci kosudan miras alinir.")]
     public async ValueTask CompleteRunAsync(EvalRunCompletion completion, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(completion);
@@ -248,6 +256,8 @@ internal sealed class SqlEvalStore : IEvalStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "Sonuc kosunun ALTINA yazilir ve kiracisini kosudan miras alir; okuma tarafi (ListCaseResultsAsync) kiraciyla sinirlidir.")]
     public async ValueTask RecordCaseResultAsync(EvalCaseResult result, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(result);

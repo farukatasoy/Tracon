@@ -215,9 +215,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
         UpsertSession = $"""
             INSERT INTO {Schema}.sessions (id, tenant_id, agent_name, state, schema_version, created_at, updated_at)
             VALUES (@id, @tenant_id, @agent_name, @state, @schema_version, @created_at, @updated_at)
-            ON CONFLICT (id) DO UPDATE
-                SET tenant_id      = EXCLUDED.tenant_id,
-                    agent_name     = EXCLUDED.agent_name,
+            ON CONFLICT (tenant_id, id) DO UPDATE
+                SET agent_name     = EXCLUDED.agent_name,
                     state          = EXCLUDED.state,
                     schema_version = EXCLUDED.schema_version,
                     updated_at     = EXCLUDED.updated_at;

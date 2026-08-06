@@ -13,7 +13,7 @@ public sealed class InMemoryAgentDefinitionStoreContractTests : AgentDefinitionS
 {
     /// <inheritdoc />
     protected override ValueTask<IAgentDefinitionStore> CreateStoreAsync()
-        => ValueTask.FromResult<IAgentDefinitionStore>(new InMemoryAgentDefinitionStore());
+        => ValueTask.FromResult<IAgentDefinitionStore>(new InMemoryAgentDefinitionStore(AmbientTenant));
 }
 
 /// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
@@ -21,7 +21,7 @@ public sealed class InMemoryRunStoreContractTests : RunStoreContract
 {
     /// <inheritdoc />
     protected override ValueTask<IRunStore> CreateStoreAsync()
-        => ValueTask.FromResult<IRunStore>(new InMemoryRunStore());
+        => ValueTask.FromResult<IRunStore>(new InMemoryRunStore(tenantContext: AmbientTenant));
 }
 
 /// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
@@ -29,7 +29,7 @@ public sealed class InMemorySessionStoreContractTests : SessionStoreContract
 {
     /// <inheritdoc />
     protected override ValueTask<ISessionStore> CreateStoreAsync()
-        => ValueTask.FromResult<ISessionStore>(new InMemorySessionStore());
+        => ValueTask.FromResult<ISessionStore>(new InMemorySessionStore(AmbientTenant));
 }
 
 /// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
@@ -37,7 +37,7 @@ public sealed class InMemoryToolInvocationContractTests : ToolInvocationContract
 {
     /// <inheritdoc />
     protected override ValueTask<IRunStore> CreateStoreAsync()
-        => ValueTask.FromResult<IRunStore>(new InMemoryRunStore());
+        => ValueTask.FromResult<IRunStore>(new InMemoryRunStore(tenantContext: AmbientTenant));
 }
 
 /// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
@@ -45,7 +45,7 @@ public sealed class InMemoryTraceStoreContractTests : TraceStoreContract
 {
     /// <inheritdoc />
     protected override ValueTask<ITraceStore> CreateStoreAsync()
-        => ValueTask.FromResult<ITraceStore>(new InMemoryTraceStore());
+        => ValueTask.FromResult<ITraceStore>(new InMemoryTraceStore(AmbientTenant));
 
     /// <summary>
     /// Bellek ici span deposu bir calistirma kaydi aramaz; yabanci anahtar
@@ -58,7 +58,7 @@ public sealed class InMemoryTraceStoreContractTests : TraceStoreContract
 public sealed class InMemoryAuditLogContractTests : AuditLogContract
 {
     /// <inheritdoc />
-    protected override ValueTask<IAuditLog> CreateLogAsync()
+    protected override ValueTask<IAuditLog> CreateStoreAsync()
         => ValueTask.FromResult<IAuditLog>(new InMemoryAuditLog());
 }
 
@@ -164,4 +164,28 @@ public sealed class InMemoryRunScoreStoreContractTests : RunScoreStoreContract
     /// <inheritdoc />
     protected override ValueTask<IRunScoreStore> CreateStoreAsync()
         => ValueTask.FromResult<IRunScoreStore>(new InMemoryRunScoreStore());
+}
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryAgentSkillStoreContractTests : AgentSkillStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<IAgentSkillStore> CreateStoreAsync()
+        => ValueTask.FromResult<IAgentSkillStore>(new InMemoryAgentSkillStore());
+}
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryToolApprovalRuleStoreContractTests : ToolApprovalRuleStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<IToolApprovalRuleStore> CreateStoreAsync()
+        => ValueTask.FromResult<IToolApprovalRuleStore>(new InMemoryToolApprovalRuleStore());
+}
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryMcpServerStoreContractTests : McpServerStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<IMcpServerStore> CreateStoreAsync()
+        => ValueTask.FromResult<IMcpServerStore>(new InMemoryMcpServerStore());
 }

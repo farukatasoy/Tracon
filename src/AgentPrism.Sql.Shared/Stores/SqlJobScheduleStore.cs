@@ -108,6 +108,8 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "Zamanlayici BUTUN kiracilarin vadesi gelmis zamanlamalarini tek gecişte tarar; kiraci, uretilen isin kaydinda (JobRecord.TenantId) tasinir ve isci o kiraci ile calisir.")]
     public async ValueTask<IReadOnlyList<JobSchedule>> ListDueAsync(
         DateTimeOffset asOfUtc,
         CancellationToken cancellationToken = default)
@@ -119,6 +121,8 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "Zamanlama kimligi ListDueAsync'in dondurdugu satirdan gelir; iyimser kilit bir yaris cozumudur, kiraci sinirlamasi degildir.")]
     public async ValueTask<bool> TryClaimNextRunAsync(
         Guid scheduleId,
         DateTimeOffset expectedNextRunAt,

@@ -8,40 +8,73 @@ namespace AgentPrism.StoreContracts;
 /// span'in iki kez yazilmasi tekrar kaydi uretmemelidir; iki uygulama da bu
 /// kurali saglamalidir.
 /// </remarks>
-public abstract class TraceStoreContract : IAsyncLifetime
+public abstract class TraceStoreContract : TenantIsolationContract<ITraceStore>
 {
-    /// <summary>Test edilen depo.</summary>
-    protected ITraceStore Store { get; private set; } = null!;
+    /// <inheritdoc />
+    /// <remarks>
+    /// Yazma kiraciyi partiden alir, okuma <see cref="ITenantContext"/>'ten;
+    /// ikisi ayrisirsa trace hicbir zaman bulunamaz.
+    /// </remarks>
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+    {
+        AmbientTenant.TenantId = tenantId;
 
-    /// <summary>Test icin bos bir depo uretir.</summary>
-    /// <returns>Kullanima hazir depo.</returns>
-    protected abstract ValueTask<ITraceStore> CreateStoreAsync();
+        var runId = AgentPrismId.NewId();
+        await SeedRunAsync(runId);
+
+        await Store.WriteSpansAsync(new TraceSpanBatch
+        {
+            TraceId = NewTraceId(),
+            TenantId = tenantId,
+            RunId = runId,
+            Spans = [Span(name, parent: null)],
+        });
+
+        _seededRuns.Add(runId);
+        return runId;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask<bool> ExistsAsync(string tenantId, object key)
+    {
+        AmbientTenant.TenantId = tenantId;
+        return await Store.GetTraceByRunAsync((Guid)key) is not null;
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Span deposunda listeleme ucu yoktur; sayim, o kiraci icin tohumlanan
+    /// calistirmalarin kacinin gorulebildigine indirgenir.
+    /// </remarks>
+    protected override async ValueTask<int> CountAsync(string tenantId)
+    {
+        var seen = 0;
+
+        foreach (var runId in _seededRuns)
+        {
+            if (await ExistsAsync(tenantId, runId))
+            {
+                seen++;
+            }
+        }
+
+        return seen;
+    }
+
+    // Tohumlanan her calistirma; sayim bunlarin uzerinden yurur.
+    private readonly List<Guid> _seededRuns = [];
 
     /// <summary>Span'lerin baglanacagi bir calistirma acar.</summary>
     /// <param name="runId">Calistirma kimligi.</param>
     /// <returns>Tamamlanma gorevi.</returns>
     protected abstract ValueTask SeedRunAsync(Guid runId);
 
-    /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask DisposeAsync()
-    {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
-    }
-
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    /// <returns>Tamamlanma gorevi.</returns>
-    protected virtual ValueTask OnDisposeAsync() => default;
-
     /// <summary>
-    /// Span'lerin yazilacagi kiraci. PostgreSQL deposu okurken kendi kiraci
-    /// baglamini kullanir; yazma ve okuma ayni kiraciya dusmezse trace hicbir
-    /// zaman bulunamaz.
+    /// Span'lerin yazilacagi kiraci. Depo okurken kendi kiraci baglamini
+    /// kullanir; yazma ve okuma ayni kiraciya dusmezse trace hicbir zaman
+    /// bulunamaz. Bu yuzden deger ambient kiraciyla ayni kaynaktan gelir.
     /// </summary>
-    protected virtual string TenantId => "default";
+    protected string TenantId => AmbientTenant.TenantId;
 
     [Fact]
     public async Task Span_agaci_gidip_gelir()

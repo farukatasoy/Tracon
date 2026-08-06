@@ -58,7 +58,7 @@ sonradan yapılırsa yeniden yazım veya güvenlik düzeltmesi olarak geri döne
 | 38 | [38-YAPILANDIRILMIS-CIKTI.md](38-YAPILANDIRILMIS-CIKTI.md) | F-42 | ✅ **Tamamlandı (2026-08-06).** `ModelBinding` public `sealed record`'tur; alan eklemek yayından sonra bir sürüm kararıdır | — | — (tanım `jsonb`'de, K-208) |
 | 39 | [39-TEST-PAKETI.md](39-TEST-PAKETI.md) | F-46 | 📋 **Faz 7.** Test API'sini kırmak tüketicinin **tüm** test paketini kırar | `AgentPrism.Testing` | — |
 | 40 | [40-OPENAPI-YAYINI.md](40-OPENAPI-YAYINI.md) | F-63 | 📋 **F-50** (istemci + CLI). Belge, istemci üretiminin kaynağıdır | — | — |
-| 41 | [41-KIRACI-YALITIMININ-ZORLANMASI.md](41-KIRACI-YALITIMININ-ZORLANMASI.md) | F-76 | 📋 **F-40 · F-56.** İki kimlik kalemi de kiracı zeminine yazar; zemin önce sağlamlaştırılmalıdır | — | 🚨 kusur çıkarsa gerekebilir |
+| 41 | [41-KIRACI-YALITIMININ-ZORLANMASI.md](41-KIRACI-YALITIMININ-ZORLANMASI.md) | F-76 | ✅ **Tamamlandı (2026-08-07).** Üç kusur bulundu ve düzeltildi (K-277 · K-278 · K-279); `IRetentionStore` kırıcı biçimde değişti | — | 🚨 **gerekti** — `sessions` anahtarı, üç set (PostgreSQL `0018`, SQL Server `0006`, SQLite `0006`) |
 | 42 | [42-TEK-YURUTUCU-SECIMI.md](42-TEK-YURUTUCU-SECIMI.md) | F-57 | 📋 **F-36.** Uzlaştırıcıyı yazdıktan sonra eklemek onu yeniden yazmaktır | — | bir tablo, üç set |
 | 43 | [43-IDEMPOTENCY-KEY.md](43-IDEMPOTENCY-KEY.md) | F-37 | 📋 **F-68.** Dayanıklı çalıştırma yeniden deneme üretir; idempotency olmadan yan etkili tool iki kez koşar | — | bir tablo, üç set |
 | 44 | [44-HATA-SINIFLANDIRMA.md](44-HATA-SINIFLANDIRMA.md) | F-55 | 📋 **F-74.** Kanarya kararı hata sınıfına dayanır; sınıf yoksa eşik kurulamaz | — | iki sütun + indeks, üç set |
@@ -211,7 +211,7 @@ dokuzu** public yüzeyi büyütür.
 | 38 | `AgentResponseFormat`, `AgentResponseFormatKind`, `ModelBinding`'e bir alan, `ModelDescriptor`'a bir alan | `sealed record`'a alan — sürüm kararı |
 | 39 | 🚨 **Paketin tamamı**: `FakeModelProvider`, `AgentPrismTestHost`, `RunAssertions`, `AgentPrismAssertionException` | Kırılırsa tüketicinin **tüm test paketi** kırılır |
 | 40 | Yok — yalnız uç üstverisi | — |
-| 41 | Yok — yalnız test altyapısı | — |
+| 41 | 🚨 **Gerçekleşen:** `IRetentionStore`'un dört metodu `tenantId` aldı (kırıcı); `FixedTenantContext` eklendi; bellek içi dört depo isteğe bağlı `ITenantContext` alır | K-277 · K-279 |
 | 42 | `ISingletonLeaseStore`, `SingletonExecutionOptions` | Yeni arayüz — ucuz |
 | 43 | `IIdempotencyStore`, `IdempotencyState`, dört kayıt tipi, bir ayar | Yeni arayüz — ucuz |
 | 44 | `RunErrorClass`, `IRunErrorClassifier`, `RunStatistics`'e bir alan | `sealed record`'a alan — sürüm kararı |

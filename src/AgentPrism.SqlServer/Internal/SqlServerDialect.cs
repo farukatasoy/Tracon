@@ -270,11 +270,14 @@ internal sealed class SqlServerDialect : SqlDialect
     /// 🚨 <c>OFFSET</c>/<c>FETCH</c> <c>ORDER BY</c> OLMADAN hata verir
     /// (K-026 tuzagi); bu sorgu her zaman bir <c>ORDER BY</c> tasir.
     /// </remarks>
-    public override string BuildRetentionFindNthRowCutoffSql(string table, string orderExpression)
+    public override string BuildRetentionFindNthRowCutoffSql(
+        string table,
+        string orderExpression,
+        string? extraPredicate)
         => $"""
             SELECT {orderExpression}
             FROM {table}
-            WHERE {orderExpression} IS NOT NULL
+            WHERE {orderExpression} IS NOT NULL{AndAlso(extraPredicate)}
             ORDER BY {orderExpression} DESC
             OFFSET (@n - 1) ROWS FETCH NEXT 1 ROWS ONLY;
             """;

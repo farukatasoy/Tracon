@@ -13,6 +13,14 @@ namespace AgentPrism;
 /// zaman sutunu yoksa (<c>eval_case_results</c>) UUID v7 kimligi zaman sirali
 /// oldugu icin (K-015) <c>id</c> kullanilir.
 /// </param>
+/// <param name="TenantPredicate">
+/// Satiri bir kiraciya baglayan SQL kosulu; <c>@tenant_id</c> parametresine
+/// atifta bulunur. Tablonun kendi <c>tenant_id</c> sutunu varsa dogrudan bir
+/// karsilastirmadir; yoksa (<c>run_events</c>, <c>tool_invocations</c>,
+/// <c>eval_case_results</c>) sahibine bakan bir <c>EXISTS</c> ifadesidir.
+/// 🚨 Faz 41: bu alan olmadan kiraci basina tanimlanmis bir politika BUTUN
+/// kiracilarin satirlarini siliyordu.
+/// </param>
 /// <param name="RowLimitOrderExpression">
 /// <c>MaxRows</c> (Faz 36) icin: en yeniden N. satiri bulmakta kullanilan SQL
 /// ifadesi. Coğu hedefte <see cref="WherePredicate"/>'in <c>@cutoff</c> ile
@@ -23,6 +31,7 @@ namespace AgentPrism;
 internal readonly record struct RetentionTargetDefinition(
     string Table,
     string WherePredicate,
+    string TenantPredicate,
     string OrderColumn,
     string RowLimitOrderExpression);
 
@@ -66,12 +75,16 @@ internal static class RetentionTargetRegistry
             RetentionTargets.RunEvents => new RetentionTargetDefinition(
                 Table("run_events"),
                 "created_at < @cutoff",
+                $"EXISTS (SELECT 1 FROM {Table("runs")} rt "
+                    + $"WHERE rt.id = {Table("run_events")}.run_id AND rt.tenant_id = @tenant_id)",
                 "created_at",
                 "created_at"),
 
             RetentionTargets.ToolInvocations => new RetentionTargetDefinition(
                 Table("tool_invocations"),
                 "created_at < @cutoff",
+                $"EXISTS (SELECT 1 FROM {Table("runs")} rt "
+                    + $"WHERE rt.id = {Table("tool_invocations")}.run_id AND rt.tenant_id = @tenant_id)",
                 "created_at",
                 "created_at"),
 
@@ -79,6 +92,7 @@ internal static class RetentionTargetRegistry
             RetentionTargets.Traces => new RetentionTargetDefinition(
                 Table("traces"),
                 "started_at < @cutoff",
+                "tenant_id = @tenant_id",
                 "started_at",
                 "started_at"),
 
@@ -89,6 +103,7 @@ internal static class RetentionTargetRegistry
             RetentionTargets.Jobs => new RetentionTargetDefinition(
                 Table("jobs"),
                 "status IN (3, 4, 5) AND completed_at < @cutoff",
+                "tenant_id = @tenant_id",
                 "completed_at",
                 "completed_at"),
 
@@ -96,6 +111,7 @@ internal static class RetentionTargetRegistry
             RetentionTargets.WebhookDeliveries => new RetentionTargetDefinition(
                 Table("webhook_deliveries"),
                 "status = 1 AND delivered_at < @cutoff",
+                "tenant_id = @tenant_id",
                 "delivered_at",
                 "delivered_at"),
 
@@ -119,6 +135,8 @@ internal static class RetentionTargetRegistry
                 Table("eval_case_results"),
                 $"EXISTS (SELECT 1 FROM {Table("eval_runs")} er " +
                 $"WHERE er.id = {Table("eval_case_results")}.eval_run_id AND er.completed_at < @cutoff)",
+                $"EXISTS (SELECT 1 FROM {Table("eval_runs")} ert " +
+                $"WHERE ert.id = {Table("eval_case_results")}.eval_run_id AND ert.tenant_id = @tenant_id)",
                 "id",
                 $"(SELECT er.completed_at FROM {Table("eval_runs")} er WHERE er.id = {Table("eval_case_results")}.eval_run_id)"),
 
@@ -132,6 +150,7 @@ internal static class RetentionTargetRegistry
                 Table("workflow_checkpoints"),
                 $"EXISTS (SELECT 1 FROM {Table("runs")} r " +
                 $"WHERE r.id = {Table("workflow_checkpoints")}.run_id AND r.completed_at < @cutoff)",
+                "tenant_id = @tenant_id",
                 "created_at",
                 $"(SELECT r.completed_at FROM {Table("runs")} r WHERE r.id = {Table("workflow_checkpoints")}.run_id)"),
 
@@ -142,6 +161,7 @@ internal static class RetentionTargetRegistry
                 Table("skill_script_grants"),
                 "(expires_at IS NOT NULL AND expires_at < @cutoff) " +
                 "OR (revoked_at IS NOT NULL AND revoked_at < @cutoff)",
+                "tenant_id = @tenant_id",
                 "granted_at",
                 "COALESCE(expires_at, revoked_at)"),
 
@@ -152,6 +172,7 @@ internal static class RetentionTargetRegistry
                 Table("attachments"),
                 "created_at < @cutoff AND (session_id IS NULL " +
                 $"OR NOT EXISTS (SELECT 1 FROM {Table("sessions")} s WHERE s.id = {Table("attachments")}.session_id))",
+                "tenant_id = @tenant_id",
                 "created_at",
                 "created_at"),
 
@@ -159,6 +180,7 @@ internal static class RetentionTargetRegistry
             RetentionTargets.Sessions => new RetentionTargetDefinition(
                 Table("sessions"),
                 "updated_at < @cutoff",
+                "tenant_id = @tenant_id",
                 "updated_at",
                 "updated_at"),
 
@@ -167,6 +189,7 @@ internal static class RetentionTargetRegistry
             RetentionTargets.Conversations => new RetentionTargetDefinition(
                 Table("conversations"),
                 "updated_at < @cutoff",
+                "tenant_id = @tenant_id",
                 "updated_at",
                 "updated_at"),
 
@@ -177,6 +200,7 @@ internal static class RetentionTargetRegistry
             RetentionTargets.VoiceSessions => new RetentionTargetDefinition(
                 Table("voice_sessions"),
                 "ended_at IS NOT NULL AND ended_at < @cutoff",
+                "tenant_id = @tenant_id",
                 "started_at",
                 "ended_at"),
 
@@ -185,6 +209,7 @@ internal static class RetentionTargetRegistry
             RetentionTargets.RunScores => new RetentionTargetDefinition(
                 Table("run_scores"),
                 "created_at < @cutoff",
+                "tenant_id = @tenant_id",
                 "created_at",
                 "created_at"),
 

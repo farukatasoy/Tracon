@@ -2,26 +2,27 @@
 namespace AgentPrism.StoreContracts;
 
 /// <summary><see cref="IEvalStore"/> sozlesmesinin davranis testleri.</summary>
-public abstract class EvalStoreContract : IAsyncLifetime
+public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
 {
-    /// <summary>Test edilen depo.</summary>
-    protected IEvalStore Store { get; private set; } = null!;
-
-    /// <summary>Test icin bos bir depo uretir.</summary>
-    protected abstract ValueTask<IEvalStore> CreateStoreAsync();
-
     /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask DisposeAsync()
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
     {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite(tenantId, name));
+        await Store.CreateRunAsync(TestData.EvalRun(tenantId, suite.Id));
+        return name;
     }
 
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    protected virtual ValueTask OnDisposeAsync() => default;
+    /// <inheritdoc />
+    protected override async ValueTask<bool> ExistsAsync(string tenantId, object key)
+        => await Store.GetSuiteAsync(tenantId, (string)key) is not null;
+
+    /// <inheritdoc />
+    protected override async ValueTask<int> CountAsync(string tenantId)
+        => (await Store.ListSuitesAsync(tenantId)).Count;
+
+    /// <inheritdoc />
+    protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
+        => await Store.DeleteSuiteAsync(tenantId, (string)key);
 
     [Fact]
     public async Task SaveSuiteAsync_yeni_takima_kimlik_atar()
@@ -201,5 +202,33 @@ public abstract class EvalStoreContract : IAsyncLifetime
         results[0].FailureReason.ShouldBe("cok kisa");
 
         (await Store.ListCaseResultsAsync("baska-kiraci", run.Id)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Kosu_okumalari_kiracilar_arasinda_sizmaz()
+    {
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite("tenant-a", "takim"));
+        var jobId = AgentPrismId.NewId();
+        var run = await Store.CreateRunAsync(TestData.EvalRun("tenant-a", suite.Id) with { JobId = jobId });
+
+        await Store.RecordCaseResultAsync(new EvalCaseResult
+        {
+            Id = AgentPrismId.NewId(),
+            EvalRunId = run.Id,
+            CaseId = AgentPrismId.NewId(),
+            Passed = true,
+        });
+
+        (await Store.GetRunAsync("tenant-b", run.Id)).ShouldBeNull();
+        (await Store.GetRunAsync("tenant-a", run.Id)).ShouldNotBeNull();
+
+        (await Store.GetRunByJobIdAsync("tenant-b", jobId)).ShouldBeNull();
+        (await Store.GetRunByJobIdAsync("tenant-a", jobId)).ShouldNotBeNull();
+
+        (await Store.ListCaseResultsAsync("tenant-b", run.Id)).ShouldBeEmpty();
+        (await Store.ListCaseResultsAsync("tenant-a", run.Id)).ShouldHaveSingleItem();
+
+        (await Store.QueryRunsAsync(new EvalRunQuery { TenantId = "tenant-b" })).ShouldBeEmpty();
+        (await Store.QueryRunsAsync(new EvalRunQuery { TenantId = "tenant-a" })).ShouldHaveSingleItem();
     }
 }

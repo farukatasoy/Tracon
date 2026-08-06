@@ -9,30 +9,27 @@ namespace AgentPrism.StoreContracts;
 /// once acilir, sonra kapanir) ve <c>input_seconds</c> ondalik kismini
 /// <strong>kaybetmez</strong>.
 /// </remarks>
-public abstract class VoiceSessionStoreContract : IAsyncLifetime
+public abstract class VoiceSessionStoreContract : TenantIsolationContract<IVoiceSessionStore>
 {
+    /// <inheritdoc />
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+    {
+        var record = Record() with { Id = AgentPrismId.NewId(), TenantId = tenantId, SessionId = name };
+        await Store.SaveAsync(record);
+        return record.Id;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask<bool> ExistsAsync(string tenantId, object key)
+        => (await Store.QueryAsync(tenantId, new VoiceSessionQuery())).Any(record => record.Id == (Guid)key);
+
+    /// <inheritdoc />
+    protected override async ValueTask<int> CountAsync(string tenantId)
+        => (await Store.QueryAsync(tenantId, new VoiceSessionQuery())).Count;
+
     private const string Tenant = "test";
 
     private static readonly DateTimeOffset Started = new(2026, 8, 5, 10, 0, 0, TimeSpan.Zero);
-
-    /// <summary>Test edilen depo.</summary>
-    protected IVoiceSessionStore Store { get; private set; } = null!;
-
-    /// <summary>Test icin bos bir depo uretir.</summary>
-    protected abstract ValueTask<IVoiceSessionStore> CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask DisposeAsync()
-    {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
-    }
-
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    protected virtual ValueTask OnDisposeAsync() => default;
 
     [Fact]
     public async Task Kaydedilen_konusma_geri_okunur()

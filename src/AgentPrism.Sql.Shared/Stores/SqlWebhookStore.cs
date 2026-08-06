@@ -116,6 +116,8 @@ internal sealed class SqlWebhookStore : IWebhookStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "Teslim iscisi, teslimatin tasidigi abonelik kimligiyle sonucu isler; cagride ayri bir kiraci niyeti yoktur.")]
     public async ValueTask<bool> RecordSubscriptionOutcomeAsync(
         Guid subscriptionId,
         bool succeeded,
@@ -160,6 +162,8 @@ internal sealed class SqlWebhookStore : IWebhookStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "Teslimat kimligi yalnizca teslim isini ACAN kod tarafindan uretilir ve HTTP yuzeyinde HIC gorunmez; kiraci, teslimati ureten abonelikten miras alinir.")]
     public async ValueTask<WebhookDelivery?> GetDeliveryAsync(
         Guid deliveryId,
         CancellationToken cancellationToken = default)
@@ -171,6 +175,8 @@ internal sealed class SqlWebhookStore : IWebhookStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "GetDeliveryAsync ile ayni gerekce: teslimat kimligi is kuyrugundan gelir.")]
     public async ValueTask RecordDeliveryResultAsync(
         WebhookDeliveryResult result,
         CancellationToken cancellationToken = default)
