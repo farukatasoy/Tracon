@@ -7,6 +7,7 @@ import type {
   AgentDetail,
   AgentSkillDefinition,
   AgentSkillRequest,
+  AgentValidationReport,
   AgentVersionDiffResponse,
   AttachmentDescriptor,
   SkillScriptGrant,
@@ -208,6 +209,8 @@ export const api = {
   createAgent: (body: AgentDefinitionRequest) => send<AgentDefinition>('POST', 'api/agents', body),
   updateAgent: (name: string, body: AgentDefinitionRequest) =>
     send<AgentDefinition>('PUT', `api/agents/${encodeURIComponent(name)}`, body),
+  validateAgent: (body: AgentDefinitionRequest) =>
+    send<AgentValidationReport>('POST', 'api/agents/validate', body),
   deleteAgent: (name: string) =>
     request<void>(`api/agents/${encodeURIComponent(name)}`, { method: 'DELETE' }),
   agentVersions: (name: string) =>

@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici kendi AI harness'ini kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 33 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; riskli tool'lar onay bekler, çalıştırmalar dışarıdan iptal edilebilir; workflow'lar insanla konuşabilir; kullanım kotayla sınırlanabilir; eski veri politikayla arşivlenip silinebilir (varsayılan **hiçbir şey silinmez**); kurulum standart `/health` ve `/api/diagnostics` ile kendi kendini denetler. `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu uçları ve gömülü arayüzü tek prefix altına bağlar. Veritabanı ve model satıcısı **zorunlu değildir**. Konsol **iki dillidir**. İkinci tur (Faz 8–30) ve Faz 31–33 bitti; [kalanlar](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlanır (Faz 34–52).
+> **Durum:** Faz 34 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; riskli tool'lar onay bekler, çalıştırmalar iptal edilebilir; workflow'lar insanla konuşabilir; kullanım kotalanabilir; eski veri politikayla arşivlenip silinebilir (varsayılan **hiçbir şey silinmez**); kurulum `/health` ve `/api/diagnostics` ile kendi kendini denetler. `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu uçları ve arayüzü tek prefixe bağlar. Veritabanı ve model satıcısı **zorunlu değildir**, konsol **iki dillidir**. Faz 8–34 bitti; [kalan](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlanır (Faz 35–52).
 
 ```csharp
 builder.AddAgentPrism()
@@ -260,7 +260,8 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [31](docs/31-GERI-BILDIRIM-VE-PUANLAMA.md) | Geri bildirim ve puanlama (çalıştırma/mesaj puanı) | ✅ Tamamlandı |
 | [32](docs/32-CALISTIRMA-IPTALI.md) | Çalıştırma iptali (`POST /api/runs/{id}/cancel`) | ✅ Tamamlandı |
 | [33](docs/33-SAGLIK-DENETIMI-VE-TESHIS.md) | Sağlık denetimi (`/health`) ve yapılandırma teşhisi (`/api/diagnostics`) | ✅ Tamamlandı |
-| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 34–52) | 📋 Planlandı, kod yazılmadı; kalan 20 kalem [adaylarda](docs/UCUNCU-FAZ-ADAYLARI.md) |
+| [34](docs/34-TANIM-DOGRULAMA-UCU.md) | Tanım doğrulama ucu | ✅ Tamamlandı |
+| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 35–52) | 📋 Planlandı, kod yazılmadı; kalan 20 kalem [adaylarda](docs/UCUNCU-FAZ-ADAYLARI.md) |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 

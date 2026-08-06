@@ -75,6 +75,14 @@ public sealed class AgentSkillCatalog
         return new ResolvedAgentSkills(CreateFingerprint(definition.SkillNames, skills));
     }
 
+    /// <summary>Bir skill'in kod veya depoda kayitli olup olmadigini denetler.</summary>
+    /// <remarks>
+    /// Devre disi birakilmis bir skill de <see langword="true"/> doner: yokluk ile
+    /// devre disilik farkli sorunlardir, dogrulayici bunlari ayri kodlarla raporlar.
+    /// </remarks>
+    internal async ValueTask<bool> ExistsAsync(string name, CancellationToken cancellationToken)
+        => await FindAsync(name, cancellationToken).ConfigureAwait(false) is not null;
+
     internal async ValueTask<IReadOnlyList<AgentSkillDefinition>> GetEnabledAsync(
         IReadOnlyList<string> names,
         CancellationToken cancellationToken)

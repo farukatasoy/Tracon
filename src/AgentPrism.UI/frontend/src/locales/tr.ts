@@ -234,6 +234,12 @@ export const tr: Messages = {
   'agentEditor.summarizationModelHint': "Boş bırakılırsa önce yardımcı modele, sonra agent'ın kendi modeline düşer.",
   'agentEditor.preview': 'İstek önizlemesi',
   'agentEditor.previewNotice': 'Tam olarak şuraya gönderilecek olan:',
+  'agentEditor.validate': 'Doğrula',
+  'agentEditor.validationTitle': 'Doğrulama sonucu',
+  'agentEditor.validationValid': 'Geçerli',
+  'agentEditor.validationInvalid': 'Geçersiz',
+  'agentEditor.validationInconclusive': 'Sonuçsuz — bir MCP sunucusuna ulaşılamadı',
+  'agentEditor.validationNoMessages': 'Sorun bulunamadı. Hiçbir şey kaydedilmedi, hiçbir model çağrılmadı.',
 
   /* ------------------------------------------------------------ skills */
   'skills.description': "Bir agent'ın çalışma anında onayla yüklediği markdown talimatları ve salt okunur kaynaklar.",

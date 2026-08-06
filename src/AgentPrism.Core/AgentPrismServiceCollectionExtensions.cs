@@ -205,6 +205,22 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetService<IMcpResourceContextProviderFactory>()));
 #pragma warning restore MAAI001
 
+        // Tanim dogrulama ucu (Faz 34, F-60). Gercek derleme yolunu kendi
+        // sirasiyla tekrar eder; IAgentCatalog burada dogrudan alinabilir
+        // cunku dogrulayici (CallableAgentResolver'in aksine) IAgentCatalog'un
+        // KENDI kurulumunun bir parcasi degil, ona sonradan eklenen bir
+        // tuketicidir — dairesel bagimlilik riski yoktur.
+        services.TryAddSingleton(static provider => new AgentDefinitionValidator(
+            provider.GetRequiredService<IModelProviderRegistry>(),
+            provider.GetRequiredService<IToolRegistry>(),
+            provider.GetRequiredService<AgentSkillCatalog>(),
+            provider.GetRequiredService<IAgentCatalog>(),
+            provider.GetRequiredService<AgentDefinitionCompiler>(),
+            provider.GetRequiredService<IOptions<AgentPrismOptions>>(),
+            // Kayitli degilse AgentPrism.Mcp kullanilmiyordur; eksik tool adlari
+            // taze bir MCP taramasi denenmeden dogrudan hata olarak raporlanir.
+            provider.GetService<IMcpToolRefresher>()));
+
         // Denetim izi. Aktor AuditActorContext'ten (AsyncLocal) okunur;
         // AgentPrism.AspNetCore her korumali istegin basinda oraya HttpContext.User'i
         // yazar. Boylece Core, ASP.NET Core'a bagimlilik eklemeden aktoru okuyabilir.

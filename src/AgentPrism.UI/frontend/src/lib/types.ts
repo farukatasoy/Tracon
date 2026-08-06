@@ -176,6 +176,23 @@ export interface AgentDefinitionRequest {
   memory?: MemorySettings | null;
 }
 
+export type ValidationSeverity = 'Error' | 'Warning';
+
+/** One finding from `POST /api/agents/validate`. `message` comes from the server and is not translated (K-232). */
+export interface ValidationMessage {
+  severity: ValidationSeverity;
+  code: string;
+  message: string;
+  path?: string | null;
+}
+
+/** Result of validating a definition without saving it or calling a model. */
+export interface AgentValidationReport {
+  valid: boolean;
+  inconclusive: boolean;
+  messages: ValidationMessage[];
+}
+
 export interface AgentSkillResourceDefinition {
   name: string;
   description?: string | null;

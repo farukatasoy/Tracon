@@ -35,6 +35,28 @@ public static class AgentCallGraph
         string agentName,
         IReadOnlyList<string> callableAgentNames,
         IReadOnlyList<AgentDescriptor> descriptors)
+        => ValidateDetailed(agentName, callableAgentNames, descriptors)?.Message;
+
+    /// <summary>
+    /// Bir tanimin cagri grafigini denetler ve makine tarafindan okunabilir bir
+    /// kod tasiyan sonuc dondurur.
+    /// </summary>
+    /// <param name="agentName">Denetlenen agent'in adi.</param>
+    /// <param name="callableAgentNames">Bu agent'in cagirmak istedigi agent adlari.</param>
+    /// <param name="descriptors">Katalogdaki tum agent ozetleri.</param>
+    /// <returns>
+    /// Sorun varsa kod ve aciklama; grafik gecerliyse <see langword="null"/>.
+    /// </returns>
+    /// <exception cref="ArgumentNullException">Parametrelerden biri <see langword="null"/> ise.</exception>
+    /// <remarks>
+    /// <see cref="Validate"/> ile <strong>ayni denetimi</strong> yapar; F-60'in
+    /// dogrulama ucu kodu (<c>unknown_agent</c>/<c>cycle</c>) buradan alir,
+    /// kaydetme anindaki <c>400</c> yaniti ise yalnizca <see cref="AgentCallGraphProblem.Message"/>'i kullanir.
+    /// </remarks>
+    public static AgentCallGraphProblem? ValidateDetailed(
+        string agentName,
+        IReadOnlyList<string> callableAgentNames,
+        IReadOnlyList<AgentDescriptor> descriptors)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentName);
         ArgumentNullException.ThrowIfNull(callableAgentNames);
@@ -64,20 +86,26 @@ public static class AgentCallGraph
         {
             if (string.Equals(target, agentName, StringComparison.Ordinal))
             {
-                return $"'{agentName}' kendisini cagiramaz. Bir agent'in kendisini cagirmasi " +
-                       "sonsuz ozyinelemedir ve derinlik sayaci dolana kadar maliyet uretir.";
+                return new AgentCallGraphProblem(
+                    "cycle",
+                    $"'{agentName}' kendisini cagiramaz. Bir agent'in kendisini cagirmasi " +
+                    "sonsuz ozyinelemedir ve derinlik sayaci dolana kadar maliyet uretir.");
             }
 
             if (!known.Contains(target))
             {
-                return $"'{agentName}' agent'i '{target}' adli bir agent'i cagirmak istiyor ancak " +
-                       "boyle bir agent katalogda yok. Once o agent'i olusturun.";
+                return new AgentCallGraphProblem(
+                    "unknown_agent",
+                    $"'{agentName}' agent'i '{target}' adli bir agent'i cagirmak istiyor ancak " +
+                    "boyle bir agent katalogda yok. Once o agent'i olusturun.");
             }
         }
 
         return FindCycle(agentName, edges) is { } cycle
-            ? $"Cagri grafiginde dongu var: {string.Join(" -> ", cycle)}. " +
-              "Dongulu bir grafik, calistirmanin derinlik sinirina carpana kadar surmesine yol acar."
+            ? new AgentCallGraphProblem(
+                "cycle",
+                $"Cagri grafiginde dongu var: {string.Join(" -> ", cycle)}. " +
+                "Dongulu bir grafik, calistirmanin derinlik sinirina carpana kadar surmesine yol acar.")
             : null;
     }
 
@@ -147,3 +175,8 @@ public static class AgentCallGraph
 
     private readonly record struct Frame(string Node, int Index);
 }
+
+/// <summary>Bir cagri grafigi denetiminin makine tarafindan okunabilir sonucu.</summary>
+/// <param name="Code">Kararli kod: <c>unknown_agent</c> veya <c>cycle</c>.</param>
+/// <param name="Message">Insan tarafindan okunabilir aciklama.</param>
+public readonly record struct AgentCallGraphProblem(string Code, string Message);
