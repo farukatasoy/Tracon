@@ -475,6 +475,15 @@ internal abstract class SqlQueriesBase
     /// <summary>Konusma kayitlarini en yeniden eskiye listeler.</summary>
     public string SelectVoiceSessions { get; protected set; } = string.Empty;
 
+    /// <summary>Bir calistirma/mesaj puanini ekler veya (ayni yazar/hedefse) gunceller.</summary>
+    public string UpsertRunScore { get; protected set; } = string.Empty;
+
+    /// <summary>Bir calistirmanin tum puanlarini listeler.</summary>
+    public string SelectRunScores { get; protected set; } = string.Empty;
+
+    /// <summary>Bir puani siler.</summary>
+    public string DeleteRunScore { get; protected set; } = string.Empty;
+
     /// <summary>Gomulu migration metnindeki sema yer tutucusunu gercek adla degistirir.</summary>
     /// <param name="sql">Ham migration metni.</param>
     /// <returns>Calistirilabilir SQL.</returns>

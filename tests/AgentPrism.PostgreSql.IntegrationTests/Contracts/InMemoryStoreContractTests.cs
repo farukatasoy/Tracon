@@ -157,3 +157,11 @@ public sealed class InMemoryVoiceSessionStoreContractTests : VoiceSessionStoreCo
     protected override ValueTask<IVoiceSessionStore> CreateStoreAsync()
         => ValueTask.FromResult<IVoiceSessionStore>(new InMemoryVoiceSessionStore());
 }
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryRunScoreStoreContractTests : RunScoreStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<IRunScoreStore> CreateStoreAsync()
+        => ValueTask.FromResult<IRunScoreStore>(new InMemoryRunScoreStore());
+}

@@ -144,6 +144,11 @@ public static class AgentPrismSqliteBuilderExtensions
         // SARILMAZ: kayit bir yonetici karari degil, yurutmenin yan urunudur.
         services.Replace(ServiceDescriptor.Singleton<IVoiceSessionStore, SqlVoiceSessionStore>());
 
+        // Calistirma/mesaj puanlari (Faz 31). Denetim izi dekoratoruyle
+        // SARILMAZ: kota/webhook depolariyla ayni gerekce -- bir puan
+        // yonetici karari degil, kullanicidan gelen geri bildirimdir.
+        services.Replace(ServiceDescriptor.Singleton<IRunScoreStore, SqlRunScoreStore>());
+
         services.Replace(ServiceDescriptor.Singleton<IExperimentStore, AuditingExperimentStore>(
             static provider => new AuditingExperimentStore(
                 ActivatorUtilities.CreateInstance<SqlExperimentStore>(provider),

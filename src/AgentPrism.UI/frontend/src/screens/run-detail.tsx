@@ -18,6 +18,7 @@ import {
   cx,
 } from '../components/ui';
 import { SpinnerIcon } from '../components/icons';
+import { FeedbackControl } from '../components/feedback-control';
 import { TranscriptView } from '../components/transcript';
 import { Waterfall, formatMs } from '../components/waterfall';
 import { StatusBadge, Stat } from './runs';
@@ -241,6 +242,12 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
       )}
 
       {error !== null && <div className="mb-4"><ErrorNote error={error} /></div>}
+
+      {finished && (
+        <div className="mb-4">
+          <FeedbackControl runId={record.id} />
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel

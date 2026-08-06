@@ -56,6 +56,9 @@ public static class RetentionTargets
     /// </remarks>
     public const string VoiceSessions = "voice_sessions";
 
+    /// <summary>Calistirma ve mesaj puanlari (Faz 31).</summary>
+    public const string RunScores = "run_scores";
+
     /// <summary>Taninan tum hedef adlari.</summary>
     public static IReadOnlyList<string> All { get; } =
     [
@@ -71,6 +74,7 @@ public static class RetentionTargets
         Sessions,
         Conversations,
         VoiceSessions,
+        RunScores,
     ];
 
     /// <summary>Kullanici verisi tasiyan, varsayilan olarak KAPALI olan hedefler.</summary>

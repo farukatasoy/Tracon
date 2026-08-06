@@ -424,6 +424,20 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             {Paging}
             """;
 
+        // scored_runs/positive_rate (Faz 31): matchedRunScoresFilter runs'in
+        // AYNI filtresini (kiraci/eval/agent/tarih) tekrarlar -- ayri bir CTE
+        // yerine skaler alt sorgu olarak eklenmesinin sebebi mevcut toplam
+        // satirini degistirmeden en kucuk degisiklikle genisletmektir.
+        var matchedRunScoresFilter = $"""
+            {Schema}.run_scores rs
+            JOIN {Schema}.runs r2 ON r2.id = rs.run_id
+            WHERE rs.tenant_id = @tenant_id
+              AND r2.tenant_id = @tenant_id
+              AND r2.kind <> @kind_eval
+              AND (@agent_name IS NULL OR r2.agent_name = @agent_name)
+              AND (@started_after IS NULL OR r2.started_at > @started_after)
+            """;
+
         // Dort sonuc kumesi tek gidis donuste alinir.
         SelectRunStatistics = $"""
             SELECT CAST(COUNT(*) AS bigint),
@@ -438,7 +452,13 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    CASE WHEN COALESCE(SUM(CASE WHEN input_cost IS NOT NULL OR output_cost IS NOT NULL THEN 1 ELSE 0 END), 0) = 0
                         THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) END,
                    MAX(cost_currency),
-                   CAST(COALESCE(SUM(CASE WHEN pricing_source = @pricing_source_unknown THEN 1 ELSE 0 END), 0) AS bigint)
+                   CAST(COALESCE(SUM(CASE WHEN pricing_source = @pricing_source_unknown THEN 1 ELSE 0 END), 0) AS bigint),
+                   (SELECT CAST(COUNT(DISTINCT rs.run_id) AS bigint) FROM {matchedRunScoresFilter}),
+                   (SELECT CASE WHEN COALESCE(SUM(CASE WHEN rs.kind = @kind_binary THEN 1 ELSE 0 END), 0) = 0 THEN NULL
+                                ELSE CAST(COALESCE(SUM(CASE WHEN rs.kind = @kind_binary AND rs.value = 1 THEN 1 ELSE 0 END), 0) AS float)
+                                     / SUM(CASE WHEN rs.kind = @kind_binary THEN 1 ELSE 0 END)
+                           END
+                    FROM {matchedRunScoresFilter})
             FROM {Schema}.runs
             WHERE tenant_id = @tenant_id
               AND kind <> @kind_eval
@@ -1666,6 +1686,54 @@ internal sealed class SqlServerQueries : SqlQueriesBase
               {TakeGuard}
             ORDER BY started_at DESC
             {Paging}
+            """;
+
+        // -------------------------------------------------------------------
+        // Faz 31 -- calistirma/mesaj puani
+        // -------------------------------------------------------------------
+        const string runScoreColumns =
+            "id, tenant_id, run_id, message_id, kind, value, comment, source, author, created_at";
+
+        const string runScoreOutput =
+            "inserted.id, inserted.tenant_id, inserted.run_id, inserted.message_id, inserted.kind, " +
+            "inserted.value, inserted.comment, inserted.source, inserted.author, inserted.created_at";
+
+        // 🚨 MERGE KULLANILMAZ (K-177): once kilitli UPDATE, satir yoksa INSERT.
+        //
+        // 🚨 NULL benzersizligi burada TERS calisir (K-184): `author = @author`
+        // karsilastirmasi @author NULL iken (kimliksiz kurulum) HER ZAMAN
+        // UNKNOWN dondurur -- eslesen satir olmaz ve akis INSERT'e duser. Bu
+        // KASITLIDIR: benzersizlik indeksi de ayni sebeple `WHERE author IS
+        // NOT NULL` ile filtrelidir (migration 0005). message_id icin ISNULL
+        // eslesmesi yeterlidir; SQL Server'da duz NULL karsilastirmasi zaten
+        // NULL'lari birbirine esit sayar.
+        UpsertRunScore = $"""
+            UPDATE {Schema}.run_scores WITH (UPDLOCK, SERIALIZABLE)
+               SET kind       = @kind,
+                   value      = @value,
+                   comment    = @comment,
+                   source     = @source,
+                   created_at = @created_at
+             OUTPUT {runScoreOutput}
+             WHERE tenant_id = @tenant_id
+               AND run_id = @run_id
+               AND ISNULL(message_id, N'') = ISNULL(@message_id, N'')
+               AND author = @author;
+
+            IF @@ROWCOUNT = 0
+            INSERT INTO {Schema}.run_scores ({runScoreColumns})
+            OUTPUT {runScoreOutput}
+            VALUES (@id, @tenant_id, @run_id, @message_id, @kind, @value, @comment, @source, @author, @created_at);
+            """;
+
+        SelectRunScores = $"""
+            SELECT {runScoreColumns}
+            FROM {Schema}.run_scores
+            WHERE tenant_id = @tenant_id AND run_id = @run_id;
+            """;
+
+        DeleteRunScore = $"""
+            DELETE FROM {Schema}.run_scores WHERE id = @id AND tenant_id = @tenant_id;
             """;
     }
 }

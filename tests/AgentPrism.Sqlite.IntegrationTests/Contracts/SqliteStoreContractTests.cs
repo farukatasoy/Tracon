@@ -407,3 +407,25 @@ public sealed class SqliteVoiceSessionStoreContractTests(SqliteFixture fixture) 
         }
     }
 }
+
+/// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />
+public sealed class SqliteRunScoreStoreContractTests(SqliteFixture fixture) : RunScoreStoreContract
+{
+    private SqliteTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<IRunScoreStore> CreateStoreAsync()
+    {
+        _context = await SqliteTestContext.CreateAsync(fixture);
+        return _context.RunScores;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}
