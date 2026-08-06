@@ -394,6 +394,23 @@ public sealed class AgentPrismObservabilityOptions
     /// sik surum degistiren kurulumlarda kapatilabilir.
     /// </remarks>
     public bool IncludeAgentVersionTag { get; set; } = true;
+
+    /// <summary>
+    /// <c>agentprism.quota.usage</c>/<c>agentprism.quota.limit</c> gozlemlenen
+    /// olcerleri acik mi.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Varsayilan kapalidir</strong> (K1): olcer veritabanini okur. Maliyet
+    /// sayacinin aksine (bkz. <see cref="AgentPrismMetrics.RunCost"/>) bu, ek bir
+    /// kaynak tuketimidir ve acikca istenmelidir.
+    /// </remarks>
+    public bool EnableQuotaUsageGauge { get; set; }
+
+    /// <summary>
+    /// Kota olcerinin onbellegini tazeleme araligi. Ardisik yoklamalar bu
+    /// aralik dolmadan veritabanina gitmez.
+    /// </summary>
+    public TimeSpan QuotaUsageRefreshInterval { get; set; } = TimeSpan.FromSeconds(30);
 }
 
 /// <summary>Calistirma kaydinin ne kadar ayrinti tutacagini belirler.</summary>

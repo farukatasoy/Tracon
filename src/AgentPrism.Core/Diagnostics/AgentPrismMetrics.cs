@@ -66,6 +66,11 @@ public sealed class AgentPrismMetrics : IDisposable
             AgentPrismDiagnostics.ToolDurationName,
             unit: "s",
             description: "Tool cagri suresi.");
+
+        RunCost = _meter.CreateCounter<double>(
+            AgentPrismDiagnostics.RunCostCounterName,
+            unit: "{cost}",
+            description: "Calistirma basina para cinsinden maliyet. Agac toplamini icermez (K-151).");
     }
 
     /// <summary>Calistirma sayaci. Etiketler: agent, status, tenant.</summary>
@@ -82,6 +87,9 @@ public sealed class AgentPrismMetrics : IDisposable
 
     /// <summary>Tool cagri suresi. Etiketler: tool.</summary>
     public Histogram<double> ToolDuration { get; }
+
+    /// <summary>Maliyet sayaci. Etiketler: agent, model, tenant, currency.</summary>
+    public Counter<double> RunCost { get; }
 
     /// <summary>Bir calistirmanin sonucunu kaydeder.</summary>
     /// <param name="agentName">Agent adi.</param>
@@ -148,6 +156,23 @@ public sealed class AgentPrismMetrics : IDisposable
             AddTokens(agentName, model, "output", output);
         }
     }
+
+    /// <summary>Bir calistirmanin kendi maliyetini kaydeder (fiyat tanimliyken).</summary>
+    /// <param name="agentName">Agent adi.</param>
+    /// <param name="modelId">Kullanilan model. <see langword="null"/> ise <c>"unknown"</c> yazilir.</param>
+    /// <param name="tenantId">Kiraci kimligi.</param>
+    /// <param name="cost">Calistirmanin KENDI maliyeti (girdi + cikti). Agac toplami DEGILDIR (K-151).</param>
+    /// <param name="currency">Para birimi.</param>
+    public void RecordCost(string agentName, string? modelId, string tenantId, decimal cost, string currency)
+        => RunCost.Add(
+            (double)cost,
+            new TagList
+            {
+                { AgentPrismDiagnostics.Tags.AgentName, agentName },
+                { AgentPrismDiagnostics.Tags.ModelId, modelId ?? "unknown" },
+                { AgentPrismDiagnostics.Tags.TenantId, tenantId },
+                { AgentPrismDiagnostics.Tags.Currency, currency },
+            });
 
     /// <summary>Bir tool cagrisinin sonucunu kaydeder.</summary>
     /// <param name="toolName">Tool adi.</param>
