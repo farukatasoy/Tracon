@@ -9,28 +9,52 @@ namespace AgentPrism.StoreContracts;
 /// Bu testler <strong>her uygulama icin</strong> calistirilir. Bellek ici depo ile
 /// PostgreSQL deposu arasindaki davranis farki hatadir; bu sinif o farki yakalar.
 /// </remarks>
-public abstract class AgentDefinitionStoreContract : IAsyncLifetime
+public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAgentDefinitionStore>
 {
-    /// <summary>Test edilen depo.</summary>
-    protected IAgentDefinitionStore Store { get; private set; } = null!;
-
-    /// <summary>Test icin bos bir depo uretir.</summary>
-    /// <returns>Kullanima hazir depo.</returns>
-    protected abstract ValueTask<IAgentDefinitionStore> CreateStoreAsync();
-
     /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask DisposeAsync()
+    /// <remarks>
+    /// Kiraci arayuzde bir parametre degildir; <see cref="ITenantContext"/>'ten
+    /// okunur. Bu yuzden her kanca once gecerli kiraciyi ayarlar.
+    /// </remarks>
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
     {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
+        AmbientTenant.TenantId = tenantId;
+        await Store.SaveAsync(TestData.Definition(name));
+        return name;
     }
 
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    /// <returns>Tamamlanma gorevi.</returns>
-    protected virtual ValueTask OnDisposeAsync() => default;
+    /// <inheritdoc />
+    protected override async ValueTask<bool> ExistsAsync(string tenantId, object key)
+    {
+        AmbientTenant.TenantId = tenantId;
+        var name = (string)key;
+
+        // Uc okuma yolu da ayni yalitimi tasimalidir: tekil okuma, surum
+        // okumasi ve surum gecmisi.
+        if (await Store.GetAsync(name) is null)
+        {
+            (await Store.ListVersionsAsync(name)).ShouldBeEmpty();
+            (await Store.GetVersionAsync(name, 1)).ShouldBeNull();
+            return false;
+        }
+
+        (await Store.ListVersionsAsync(name)).ShouldNotBeEmpty();
+        return true;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask<int> CountAsync(string tenantId)
+    {
+        AmbientTenant.TenantId = tenantId;
+        return (await Store.ListAsync()).Count;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
+    {
+        AmbientTenant.TenantId = tenantId;
+        return await Store.DeleteAsync((string)key);
+    }
 
     [Fact]
     public async Task Kayit_surumu_artirir_ve_gecmisi_saklar()
@@ -229,5 +253,40 @@ public abstract class AgentDefinitionStoreContract : IAsyncLifetime
         loaded.Memory.EnableTextSearch.ShouldBeTrue();
         loaded.Metadata["owner"].GetString().ShouldBe("platform-ekibi");
         loaded.Metadata["priority"].GetInt32().ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task Kiraci_digerinin_tanimini_geri_alamaz()
+    {
+        AmbientTenant.TenantId = TenantA;
+        await Store.SaveAsync(TestData.Definition("gizli"));
+        await Store.SaveAsync(TestData.Definition("gizli") with { Instructions = "ikinci" });
+
+        AmbientTenant.TenantId = TenantB;
+        await Should.ThrowAsync<AgentPrismException>(async () => await Store.RollbackAsync("gizli", 1));
+
+        AmbientTenant.TenantId = TenantA;
+        (await Store.RollbackAsync("gizli", 1)).Version.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task Her_kiracinin_surum_sayaci_kendine_aittir()
+    {
+        // IsolationTests.cs'ten tasindi (Faz 41).
+        AmbientTenant.TenantId = TenantA;
+        await Store.SaveAsync(TestData.Definition("destek") with { Instructions = "a talimati" });
+
+        AmbientTenant.TenantId = TenantB;
+        await Store.SaveAsync(TestData.Definition("destek") with { Instructions = "b talimati" });
+
+        AmbientTenant.TenantId = TenantA;
+        var first = (await Store.GetAsync("destek")).ShouldNotBeNull();
+        first.Instructions.ShouldBe("a talimati");
+        first.Version.ShouldBe(1);
+
+        AmbientTenant.TenantId = TenantB;
+        var second = (await Store.GetAsync("destek")).ShouldNotBeNull();
+        second.Instructions.ShouldBe("b talimati");
+        second.Version.ShouldBe(1);
     }
 }

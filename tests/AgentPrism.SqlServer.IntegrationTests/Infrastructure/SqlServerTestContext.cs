@@ -16,11 +16,11 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
     private SqlServerTestContext(
         SqlServerDataSource dataSource,
         AgentPrismSqlServerOptions options,
-        string tenantId)
+        ITenantContext tenantContext)
     {
         DataSource = dataSource;
         Options = options;
-        TenantContext = new FixedTenantContext(tenantId);
+        TenantContext = tenantContext;
 
         var wrapped = new SqlStoreContext
         {
@@ -42,6 +42,7 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
         ChatHistory = new SqlChatHistoryProvider(wrapped, TenantContext);
         AuditLog = new SqlAuditLog(wrapped);
         SkillScriptGrants = new SqlSkillScriptGrantStore(wrapped);
+        AgentSkills = new SqlAgentSkillStore(wrapped);
         Attachments = new SqlAttachmentStore(wrapped);
         AgentFiles = new SqlAgentFileStore(wrapped, TenantContext);
         Workflows = new SqlWorkflowDefinitionStore(wrapped);
@@ -101,6 +102,9 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
     /// <summary>Script calistirma izni deposu (Faz 11).</summary>
     public SqlSkillScriptGrantStore SkillScriptGrants { get; }
 
+    /// <summary>Calisma ani skill deposu (Faz 10).</summary>
+    public SqlAgentSkillStore AgentSkills { get; }
+
     /// <summary>Ek deposu (Faz 14).</summary>
     public SqlAttachmentStore Attachments { get; }
 
@@ -156,14 +160,29 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
     /// <param name="tenantId">Kiraci kimligi.</param>
     /// <param name="applyMigrations">Migration'lar hemen uygulansin mi.</param>
     /// <returns>Kullanima hazir baglam.</returns>
-    public static async ValueTask<SqlServerTestContext> CreateAsync(
+    public static ValueTask<SqlServerTestContext> CreateAsync(
         SqlServerFixture fixture,
         string tenantId = "default",
+        bool applyMigrations = true)
+        => CreateAsync(fixture, new FixedTenantContext(tenantId), applyMigrations);
+
+    /// <summary>
+    /// Kiraci baglami disaridan verilen kurulum. Kiraci yalitimi sozlesmesi
+    /// ayni depo ornegi uzerinde kiraci degistirdigi icin bu asiri yuklemeyi
+    /// kullanir (Faz 41).
+    /// </summary>
+    /// <param name="fixture">Calisan SQL Server container.</param>
+    /// <param name="tenantContext">Depolarin okuyacagi kiraci baglami.</param>
+    /// <param name="applyMigrations">Migration'lar hemen uygulansin mi.</param>
+    /// <returns>Kullanima hazir baglam.</returns>
+    public static async ValueTask<SqlServerTestContext> CreateAsync(
+        SqlServerFixture fixture,
+        ITenantContext tenantContext,
         bool applyMigrations = true)
     {
         ArgumentNullException.ThrowIfNull(fixture);
 
-        var context = Create(fixture, NewSchemaName(), tenantId);
+        var context = Create(fixture, NewSchemaName(), tenantContext);
 
         if (applyMigrations)
         {
@@ -182,6 +201,14 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
     /// <param name="tenantId">Kiraci kimligi.</param>
     /// <returns>Ayni semaya bakan yeni baglam.</returns>
     public static SqlServerTestContext Create(SqlServerFixture fixture, string schemaName, string tenantId = "default")
+        => Create(fixture, schemaName, new FixedTenantContext(tenantId));
+
+    /// <summary>Kiraci baglami disaridan verilen kurulum.</summary>
+    /// <param name="fixture">Calisan SQL Server container.</param>
+    /// <param name="schemaName">Kullanilacak sema adi.</param>
+    /// <param name="tenantContext">Depolarin okuyacagi kiraci baglami.</param>
+    /// <returns>Ayni arka uca bakan yeni baglam.</returns>
+    public static SqlServerTestContext Create(SqlServerFixture fixture, string schemaName, ITenantContext tenantContext)
     {
         ArgumentNullException.ThrowIfNull(fixture);
 
@@ -195,7 +222,7 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
 
         var dataSource = new SqlServerDataSource(options.ConnectionString!);
 
-        return new SqlServerTestContext(dataSource, options, tenantId);
+        return new SqlServerTestContext(dataSource, options, tenantContext);
     }
 
     /// <summary>Yeni ve benzersiz bir test sema adi uretir.</summary>
@@ -233,9 +260,4 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
     /// migration kosullari) belirgin olarak yavaslar.
     /// </remarks>
     public async ValueTask DisposeAsync() => await DataSource.DisposeAsync();
-
-    private sealed class FixedTenantContext(string tenantId) : ITenantContext
-    {
-        public string TenantId { get; } = tenantId;
-    }
 }

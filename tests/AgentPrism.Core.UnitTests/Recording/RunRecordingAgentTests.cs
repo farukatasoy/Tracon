@@ -10,7 +10,7 @@ public sealed class RunRecordingAgentTests
     [Fact]
     public async Task Basarili_calistirma_olay_sirasini_yazar()
     {
-        var store = new InMemoryRunStore();
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var agent = CreateAgent(store, new FakeChatClient());
 
         await agent.RunAsync("merhaba");
@@ -27,7 +27,7 @@ public sealed class RunRecordingAgentTests
     [Fact]
     public async Task Olay_sira_numaralari_bosluksuz_artar()
     {
-        var store = new InMemoryRunStore();
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var agent = CreateAgent(store, new FakeChatClient());
 
         await agent.RunAsync("merhaba");
@@ -46,7 +46,7 @@ public sealed class RunRecordingAgentTests
     [Fact]
     public async Task Tool_cagrilari_olaya_donusur()
     {
-        var store = new InMemoryRunStore();
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
 
         var client = new FakeChatClient(_ => new ChatResponse(
         [
@@ -75,7 +75,7 @@ public sealed class RunRecordingAgentTests
     [Fact]
     public async Task Akisli_calistirma_metin_parcalarini_yazar()
     {
-        var store = new InMemoryRunStore();
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
 
         var client = new FakeChatClient(streamingUpdates:
         [
@@ -108,7 +108,7 @@ public sealed class RunRecordingAgentTests
     [Fact]
     public async Task Calistirma_hatasi_kaydedilir_ve_yeniden_atilir()
     {
-        var store = new InMemoryRunStore();
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var client = new FakeChatClient(_ => throw new InvalidOperationException("model patladi"));
         var agent = CreateAgent(store, client);
 
@@ -127,7 +127,7 @@ public sealed class RunRecordingAgentTests
         // Sessiz bos yanit hata ayiklamasi en zor durumdur: kullanici bos bir cevap
         // gorur ve kayitta hicbir iz kalmaz. Kayit tipi makine tarafindan okunabilir
         // olmalidir ki uyari kurallari derleme adina degil bu ada dayanabilsin.
-        var store = new InMemoryRunStore();
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
 
         var client = new FakeChatClient(_ => new ChatResponse
         {
@@ -148,7 +148,7 @@ public sealed class RunRecordingAgentTests
     [Fact]
     public async Task Akisli_guvenlik_filtresi_de_content_filtered_olarak_kaydedilir()
     {
-        var store = new InMemoryRunStore();
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
 
         var client = new FakeChatClient(streamingUpdates:
         [
@@ -186,7 +186,7 @@ public sealed class RunRecordingAgentTests
     [Fact]
     public async Task Kayit_kapaliyken_hicbir_olay_yazilmaz()
     {
-        var store = new InMemoryRunStore();
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var agent = CreateAgent(store, new FakeChatClient(), new AgentPrismRunRecordingOptions { Enabled = false });
 
         await agent.RunAsync("merhaba");
@@ -197,7 +197,7 @@ public sealed class RunRecordingAgentTests
     [Fact]
     public async Task Sikistirma_tetiklenince_HistoryCompacted_olayi_yazilir()
     {
-        var store = new InMemoryRunStore();
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var compiler = new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), TestData.Registry());
 
         var definition = TestData.Definition() with
@@ -227,7 +227,7 @@ public sealed class RunRecordingAgentTests
     [Fact]
     public async Task Ozetleme_token_kullanimi_calistirma_toplamina_eklenir()
     {
-        var store = new InMemoryRunStore();
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
 
         var mainClient = new FakeChatClient();
         var summarizerUsage = new UsageDetails { InputTokenCount = 100, OutputTokenCount = 20, TotalTokenCount = 120 };
@@ -278,7 +278,7 @@ public sealed class RunRecordingAgentTests
     [Fact]
     public async Task Maliyet_pipeline_ucdan_uca_hesaplanip_yaziliyor()
     {
-        var store = new InMemoryRunStore();
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
 
         var usage = new UsageDetails { InputTokenCount = 1_000_000, OutputTokenCount = 500_000, TotalTokenCount = 1_500_000 };
         var client = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "tamam")) { Usage = usage });
@@ -319,7 +319,7 @@ public sealed class RunRecordingAgentTests
     [Fact]
     public async Task Maliyet_pipeline_fiyatsiz_modelde_unknown_yazar()
     {
-        var store = new InMemoryRunStore();
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
 
         var usage = new UsageDetails { InputTokenCount = 10, OutputTokenCount = 10, TotalTokenCount = 20 };
         var client = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "tamam")) { Usage = usage });

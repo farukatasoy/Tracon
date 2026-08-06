@@ -233,7 +233,7 @@ public static class AgentPrismServiceCollectionExtensions
         // hangi depo kayitli olursa olsun ayni sekilde calisir.
         // Gerekce: docs/09-YONETISIM-VE-DENETIM-IZI.md, bolum 9.2.
         services.TryAddSingleton<IAgentDefinitionStore>(static provider => new AuditingAgentDefinitionStore(
-            new InMemoryAgentDefinitionStore(),
+            new InMemoryAgentDefinitionStore(provider.GetRequiredService<ITenantContext>()),
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<ITenantContext>(),
             provider.GetRequiredService<IAuditActorResolver>(),
@@ -248,7 +248,9 @@ public static class AgentPrismServiceCollectionExtensions
         // InMemoryRunStore.GetStatisticsAsync ozet hesabinda bu paylasilan
         // tekil orneği DI uzerinden alir (bkz. InMemoryRunStore kurucusu).
         services.TryAddSingleton<IRunScoreStore, InMemoryRunScoreStore>();
-        services.TryAddSingleton<IRunStore, InMemoryRunStore>();
+        services.TryAddSingleton<IRunStore>(static provider => new InMemoryRunStore(
+            provider.GetRequiredService<IRunScoreStore>(),
+            provider.GetRequiredService<ITenantContext>()));
 
         // Script calistirma izinleri. Depo her zaman kayitlidir; calistirma
         // ozelligi ise UseSkillScripts cagrilana kadar KAPALIDIR. Izin kaydinin
@@ -260,12 +262,13 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingSkillScriptGrantStore>>()));
 
         services.TryAddSingleton<ISessionStore>(static provider => new AuditingSessionStore(
-            new InMemorySessionStore(),
+            new InMemorySessionStore(provider.GetRequiredService<ITenantContext>()),
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<ITenantContext>(),
             provider.GetRequiredService<IAuditActorResolver>(),
             provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingSessionStore>>()));
-        services.TryAddSingleton<ITraceStore, InMemoryTraceStore>();
+        services.TryAddSingleton<ITraceStore>(static provider => new InMemoryTraceStore(
+            provider.GetRequiredService<ITenantContext>()));
         services.TryAddSingleton<IToolApprovalRuleStore>(static provider => new AuditingToolApprovalRuleStore(
             new InMemoryToolApprovalRuleStore(),
             provider.GetRequiredService<IAuditLog>(),

@@ -22,7 +22,7 @@ internal sealed class WorkflowTestHost
     public WorkflowTestHost(params string[] agentNames)
     {
         TenantContext = new FixedTenantContext();
-        RunStore = new InMemoryRunStore();
+        RunStore = new InMemoryRunStore(tenantContext: TenantContext);
         DefinitionStore = new InMemoryWorkflowDefinitionStore();
         CheckpointStore = new InMemoryWorkflowCheckpointStore();
 

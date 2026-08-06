@@ -123,6 +123,8 @@ internal sealed class SqlRetentionPolicyStore : IRetentionPolicyStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "Ilerleme, kosuyu ACAN yurutucu tarafindan kendi urettigi kosu kimligiyle yazilir; cagride ayri bir kiraci niyeti yoktur.")]
     public async ValueTask AppendRunProgressAsync(
         Guid runId,
         long deletedDelta,
@@ -138,6 +140,8 @@ internal sealed class SqlRetentionPolicyStore : IRetentionPolicyStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "AppendRunProgressAsync ile ayni gerekce: kosu kimligi CreateRunAsync'ten gelir.")]
     public async ValueTask CompleteRunAsync(
         Guid runId,
         DateTimeOffset completedAt,

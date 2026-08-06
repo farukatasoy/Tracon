@@ -12,21 +12,33 @@ namespace AgentPrism;
 /// bir gelistirici hicbir altyapi kurmadan calisan bir kontrol duzlemi gorur.
 /// </para>
 /// <para>
+/// 🚨 Kayitlar <strong>kiraci basina</strong> ayrilir. Kiraci
+/// <see cref="ITenantContext"/>'ten okunur ve SQL uygulamalariyla ayni
+/// yalitim sozlesmesi gecerlidir (Faz 41).
+/// </para>
+/// <para>
 /// <strong>Sinirlari:</strong> veriler surec omruyle sinirlidir ve birden cok
 /// dugum arasinda paylasilmaz. Uretimde <c>AgentPrism.PostgreSql</c> kullanin.
 /// </para>
 /// </remarks>
 public sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
 {
-    private readonly ConcurrentDictionary<string, List<AgentDefinition>> _versions =
-        new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<(string TenantId, string Name), List<AgentDefinition>> _versions = new();
+    private readonly ITenantContext _tenantContext;
+
+    /// <summary>Yeni bir bellek ici tanim deposu olusturur.</summary>
+    /// <param name="tenantContext">
+    /// Gecerli kiracinin baglami. Verilmezse depo tek kiracili davranir.
+    /// </param>
+    public InMemoryAgentDefinitionStore(ITenantContext? tenantContext = null)
+        => _tenantContext = tenantContext ?? FixedTenantContext.Default;
 
     /// <inheritdoc />
     public ValueTask<AgentDefinition?> GetAsync(string name, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(name);
 
-        if (!_versions.TryGetValue(name, out var history))
+        if (!_versions.TryGetValue(Key(name), out var history))
         {
             return new ValueTask<AgentDefinition?>((AgentDefinition?)null);
         }
@@ -42,7 +54,7 @@ public sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
     {
         ArgumentNullException.ThrowIfNull(name);
 
-        if (!_versions.TryGetValue(name, out var history))
+        if (!_versions.TryGetValue(Key(name), out var history))
         {
             return new ValueTask<AgentDefinition?>((AgentDefinition?)null);
         }
@@ -64,15 +76,21 @@ public sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<AgentDefinition>> ListAsync(CancellationToken cancellationToken = default)
     {
+        var tenantId = _tenantContext.TenantId;
         var current = new List<AgentDefinition>(_versions.Count);
 
-        foreach (var history in _versions.Values)
+        foreach (var pair in _versions)
         {
-            lock (history)
+            if (!string.Equals(pair.Key.TenantId, tenantId, StringComparison.Ordinal))
             {
-                if (history.Count > 0)
+                continue;
+            }
+
+            lock (pair.Value)
+            {
+                if (pair.Value.Count > 0)
                 {
-                    current.Add(history[^1]);
+                    current.Add(pair.Value[^1]);
                 }
             }
         }
@@ -86,12 +104,14 @@ public sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
     {
         ArgumentNullException.ThrowIfNull(definition);
 
-        var history = _versions.GetOrAdd(definition.Name, static _ => []);
+        var tenantId = _tenantContext.TenantId;
+        var history = _versions.GetOrAdd((tenantId, definition.Name), static _ => []);
 
         lock (history)
         {
             var saved = definition with
             {
+                TenantId = tenantId,
                 Origin = AgentDefinitionOrigin.Database,
                 Version = history.Count == 0 ? 1 : history[^1].Version + 1,
                 UpdatedAt = DateTimeOffset.UtcNow,
@@ -106,7 +126,7 @@ public sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
     public ValueTask<bool> DeleteAsync(string name, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(name);
-        return new ValueTask<bool>(_versions.TryRemove(name, out _));
+        return new ValueTask<bool>(_versions.TryRemove(Key(name), out _));
     }
 
     /// <inheritdoc />
@@ -114,7 +134,7 @@ public sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
     {
         ArgumentNullException.ThrowIfNull(name);
 
-        if (!_versions.TryGetValue(name, out var history))
+        if (!_versions.TryGetValue(Key(name), out var history))
         {
             return new ValueTask<IReadOnlyList<AgentDefinition>>(Array.Empty<AgentDefinition>());
         }
@@ -132,7 +152,7 @@ public sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
     {
         ArgumentNullException.ThrowIfNull(name);
 
-        if (!_versions.TryGetValue(name, out var history))
+        if (!_versions.TryGetValue(Key(name), out var history))
         {
             throw new AgentPrismException($"'{name}' adinda bir agent tanimi bulunamadi.");
         }
@@ -166,4 +186,6 @@ public sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
             return new ValueTask<AgentDefinition>(restored);
         }
     }
+
+    private (string TenantId, string Name) Key(string name) => (_tenantContext.TenantId, name);
 }

@@ -167,14 +167,23 @@ DELETE FROM {schema}.run_events
 Üç sağlayıcı için üç SQL gerekir (PostgreSQL `ctid`, SQL Server `TOP (n)`,
 SQLite `rowid`). Soyutlama:
 
+> 🚨 **Bu imza Faz 41'de değişti (K-279).** Aşağıdaki blok **güncel koddur**;
+> `tenantId` parametresi orada yoktu ve bir kiracının politikası **bütün**
+> kiracıların satırlarını siliyordu.
+
 ```csharp
 public interface IRetentionStore
 {
-    ValueTask<int> DeleteBatchAsync(string target, DateTimeOffset cutoff, int batchSize, CancellationToken ct = default);
-    ValueTask<long> CountOlderThanAsync(string target, DateTimeOffset cutoff, CancellationToken ct = default);
-    ValueTask<IReadOnlyList<ArchiveRow>> ReadForArchiveAsync(string target, DateTimeOffset cutoff, int batchSize, CancellationToken ct = default);
+    ValueTask<int> DeleteBatchAsync(string target, string? tenantId, DateTimeOffset cutoff, int batchSize, CancellationToken ct = default);
+    ValueTask<long> CountOlderThanAsync(string target, string? tenantId, DateTimeOffset cutoff, CancellationToken ct = default);
+    ValueTask<IReadOnlyList<ArchiveRow>> ReadForArchiveAsync(string target, string? tenantId, DateTimeOffset cutoff, int batchSize, CancellationToken ct = default);
+    ValueTask<DateTimeOffset?> FindRowLimitCutoffAsync(string target, string? tenantId, long maxRows, CancellationToken ct = default);
 }
 ```
+
+`tenantId` `null` ise işlem kurulum genelindedir; `RetentionExecutor` **her
+zaman** isteyen kiracıyı geçirir. `'*'` politikası "bütün kiracılara uygulanan
+bir politika" demektir — "tek çağrıda bütün kiracıları sil" demek **değildir**.
 
 `target` serbest metin **değildir**: izin verilen hedefler sabit bir listedir
 (`RetentionTargets` sınıfı). Aksi hâlde bu, tablo adı enjeksiyonu yüzeyi olur.

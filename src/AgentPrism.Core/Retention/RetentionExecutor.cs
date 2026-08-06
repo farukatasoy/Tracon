@@ -45,10 +45,10 @@ public sealed class RetentionExecutor(
                 continue;
             }
 
-            var cutoff = await ComputeCutoffAsync(resolved, now, cancellationToken).ConfigureAwait(false);
+            var cutoff = await ComputeCutoffAsync(tenantId, resolved, now, cancellationToken).ConfigureAwait(false);
             var count = cutoff is null
                 ? 0
-                : await dataStore.CountOlderThanAsync(candidate, cutoff.Value, cancellationToken).ConfigureAwait(false);
+                : await dataStore.CountOlderThanAsync(candidate, tenantId, cutoff.Value, cancellationToken).ConfigureAwait(false);
 
             results.Add(new RetentionPreview
             {
@@ -113,7 +113,7 @@ public sealed class RetentionExecutor(
             },
             cancellationToken).ConfigureAwait(false);
 
-        var cutoff = await ComputeCutoffAsync(policy, now, cancellationToken).ConfigureAwait(false);
+        var cutoff = await ComputeCutoffAsync(tenantId, policy, now, cancellationToken).ConfigureAwait(false);
 
         if (cutoff is null)
         {
@@ -152,7 +152,7 @@ public sealed class RetentionExecutor(
                 if (policy.Archive)
                 {
                     var rows = await dataStore
-                        .ReadForArchiveAsync(policy.Target, cutoffValue, options.BatchSize, cancellationToken)
+                        .ReadForArchiveAsync(policy.Target, tenantId, cutoffValue, options.BatchSize, cancellationToken)
                         .ConfigureAwait(false);
 
                     if (rows.Count > 0)
@@ -170,7 +170,7 @@ public sealed class RetentionExecutor(
                 }
 
                 var deleted = await dataStore
-                    .DeleteBatchAsync(policy.Target, cutoffValue, options.BatchSize, cancellationToken)
+                    .DeleteBatchAsync(policy.Target, tenantId, cutoffValue, options.BatchSize, cancellationToken)
                     .ConfigureAwait(false);
 
                 if (deleted == 0)
@@ -219,6 +219,7 @@ public sealed class RetentionExecutor(
     /// garanti eden tek secenektir (36.2).
     /// </summary>
     private async ValueTask<DateTimeOffset?> ComputeCutoffAsync(
+        string tenantId,
         ResolvedRetentionPolicy policy,
         DateTimeOffset now,
         CancellationToken cancellationToken)
@@ -226,7 +227,7 @@ public sealed class RetentionExecutor(
         var ageCutoff = policy.MaxAgeDays is { } days ? now - TimeSpan.FromDays(days) : (DateTimeOffset?)null;
 
         var rowCutoff = policy.MaxRows is { } maxRows
-            ? await dataStore.FindRowLimitCutoffAsync(policy.Target, maxRows, cancellationToken).ConfigureAwait(false)
+            ? await dataStore.FindRowLimitCutoffAsync(policy.Target, tenantId, maxRows, cancellationToken).ConfigureAwait(false)
             : null;
 
         if (ageCutoff is null)

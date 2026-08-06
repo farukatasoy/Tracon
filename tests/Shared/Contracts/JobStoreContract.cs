@@ -11,26 +11,26 @@ namespace AgentPrism.StoreContracts;
 /// <see cref="TimeProvider"/> uzerinden almaz, bu yuzden sahte zaman burada
 /// kullanilamaz.
 /// </remarks>
-public abstract class JobStoreContract : IAsyncLifetime
+public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
 {
-    /// <summary>Test edilen depo.</summary>
-    protected IJobStore Store { get; private set; } = null!;
-
-    /// <summary>Test icin bos bir depo uretir.</summary>
-    protected abstract ValueTask<IJobStore> CreateStoreAsync();
+    /// <inheritdoc />
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+        => (await Store.EnqueueAsync(TestData.Job(tenantId), [name])).Id;
 
     /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();
+    protected override async ValueTask<bool> ExistsAsync(string tenantId, object key)
+        => await Store.GetAsync(tenantId, (Guid)key) is not null;
 
     /// <inheritdoc />
-    public async ValueTask DisposeAsync()
-    {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
-    }
+    protected override async ValueTask<int> CountAsync(string tenantId)
+        => (await Store.QueryAsync(new JobQuery { TenantId = tenantId })).Count;
 
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    protected virtual ValueTask OnDisposeAsync() => default;
+    /// <inheritdoc />
+    /// <remarks>
+    /// Is kuyrugunda silme yoktur; kiraciya ait tek yikici islem iptaldir.
+    /// </remarks>
+    protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
+        => await Store.CancelAsync(tenantId, (Guid)key);
 
     [Fact]
     public async Task Kuyruga_eklenen_is_beklemede_baslar_ve_ogeleri_olusturur()

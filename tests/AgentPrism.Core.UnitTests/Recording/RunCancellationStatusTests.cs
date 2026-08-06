@@ -15,7 +15,7 @@ public sealed class RunCancellationStatusTests
     [Fact]
     public async Task Disaridan_iptal_akissiz_calistirmayi_Canceled_yazar()
     {
-        var store = new InMemoryRunStore();
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var registry = new RunCancellationRegistry();
         var agent = CreateAgent(store, new BlockingChatClient(), registry);
 
@@ -37,7 +37,7 @@ public sealed class RunCancellationStatusTests
     [Fact]
     public async Task Disaridan_iptal_akisli_calistirmayi_Canceled_yazar()
     {
-        var store = new InMemoryRunStore();
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var registry = new RunCancellationRegistry();
         var agent = CreateAgent(store, new BlockingChatClient(), registry);
 

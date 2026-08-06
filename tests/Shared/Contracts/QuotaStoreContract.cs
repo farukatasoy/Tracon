@@ -8,8 +8,40 @@ namespace AgentPrism.StoreContracts;
 /// iki kural kritiktir: kapsam benzersizligi (<c>COALESCE(agent_name, '')</c>)
 /// ve tuketim artirmanin atomikligi (<c>ON CONFLICT DO UPDATE</c>).
 /// </remarks>
-public abstract class QuotaStoreContract : IAsyncLifetime
+public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
 {
+    /// <inheritdoc />
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+    {
+        var saved = await Store.SaveAsync(Quota(agentName: name) with { TenantId = tenantId });
+
+        await Store.AddUsageAsync(Consumption() with { TenantId = tenantId, AgentName = name }, Periods);
+
+        return saved.Id;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask<bool> ExistsAsync(string tenantId, object key)
+    {
+        var definition = await Store.GetAsync(tenantId, (Guid)key);
+
+        // Sayaclar da ayni kiraciya kilitlidir; kural gorulmuyorsa tuketimi de
+        // gorulmemelidir.
+        var usage = await Store.GetUsageAsync(new QuotaUsageQuery { TenantId = tenantId, AsOf = new DateTimeOffset(Today, TimeOnly.MinValue, TimeSpan.Zero) });
+
+        (usage.Count > 0).ShouldBe(definition is not null);
+
+        return definition is not null;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask<int> CountAsync(string tenantId)
+        => (await Store.ListAsync(tenantId)).Count;
+
+    /// <inheritdoc />
+    protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
+        => await Store.DeleteAsync(tenantId, (Guid)key);
+
     private const string Tenant = "test";
 
     private static readonly DateOnly Today = new(2026, 8, 3);
@@ -20,25 +52,6 @@ public abstract class QuotaStoreContract : IAsyncLifetime
             [QuotaPeriod.Daily] = Today,
             [QuotaPeriod.Monthly] = new(2026, 8, 1),
         };
-
-    /// <summary>Test edilen depo.</summary>
-    protected IQuotaStore Store { get; private set; } = null!;
-
-    /// <summary>Test icin bos bir depo uretir.</summary>
-    protected abstract ValueTask<IQuotaStore> CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask DisposeAsync()
-    {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
-    }
-
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    protected virtual ValueTask OnDisposeAsync() => default;
 
     [Fact]
     public async Task Kaydedilen_kural_geri_okunur()

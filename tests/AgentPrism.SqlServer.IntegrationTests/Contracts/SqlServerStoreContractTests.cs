@@ -11,7 +11,7 @@ public sealed class SqlServerAgentDefinitionStoreContractTests(SqlServerFixture 
     /// <inheritdoc />
     protected override async ValueTask<IAgentDefinitionStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
+        _context = await SqlServerTestContext.CreateAsync(fixture, AmbientTenant);
         return _context.AgentDefinitions;
     }
 
@@ -53,7 +53,7 @@ public sealed class SqlServerAuditLogContractTests(SqlServerFixture fixture) : A
     private SqlServerTestContext? _context;
 
     /// <inheritdoc />
-    protected override async ValueTask<IAuditLog> CreateLogAsync()
+    protected override async ValueTask<IAuditLog> CreateStoreAsync()
     {
         _context = await SqlServerTestContext.CreateAsync(fixture);
         return _context.AuditLog;
@@ -77,7 +77,7 @@ public sealed class SqlServerRunStoreContractTests(SqlServerFixture fixture) : R
     /// <inheritdoc />
     protected override async ValueTask<IRunStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
+        _context = await SqlServerTestContext.CreateAsync(fixture, AmbientTenant);
         return _context.Runs;
     }
 
@@ -99,7 +99,7 @@ public sealed class SqlServerSessionStoreContractTests(SqlServerFixture fixture)
     /// <inheritdoc />
     protected override async ValueTask<ISessionStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
+        _context = await SqlServerTestContext.CreateAsync(fixture, AmbientTenant);
         return _context.Sessions;
     }
 
@@ -121,7 +121,7 @@ public sealed class SqlServerToolInvocationContractTests(SqlServerFixture fixtur
     /// <inheritdoc />
     protected override async ValueTask<IRunStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
+        _context = await SqlServerTestContext.CreateAsync(fixture, AmbientTenant);
         return _context.Runs;
     }
 
@@ -165,7 +165,7 @@ public sealed class SqlServerTraceStoreContractTests(SqlServerFixture fixture) :
     /// <inheritdoc />
     protected override async ValueTask<ITraceStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
+        _context = await SqlServerTestContext.CreateAsync(fixture, AmbientTenant);
         return _context.Traces;
     }
 
@@ -429,3 +429,134 @@ public sealed class SqlServerRunScoreStoreContractTests(SqlServerFixture fixture
         }
     }
 }
+
+/// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
+public sealed class SqlServerAgentSkillStoreContractTests(SqlServerFixture fixture) : AgentSkillStoreContract
+{
+    private SqlServerTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<IAgentSkillStore> CreateStoreAsync()
+    {
+        _context = await SqlServerTestContext.CreateAsync(fixture);
+        return _context.AgentSkills;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}
+
+/// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
+public sealed class SqlServerToolApprovalRuleStoreContractTests(SqlServerFixture fixture) : ToolApprovalRuleStoreContract
+{
+    private SqlServerTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<IToolApprovalRuleStore> CreateStoreAsync()
+    {
+        _context = await SqlServerTestContext.CreateAsync(fixture);
+        return _context.ApprovalRules;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}
+
+/// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
+public sealed class SqlServerMcpServerStoreContractTests(SqlServerFixture fixture) : McpServerStoreContract
+{
+    private SqlServerTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<IMcpServerStore> CreateStoreAsync()
+    {
+        _context = await SqlServerTestContext.CreateAsync(fixture);
+        return _context.McpServers;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}
+
+/// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
+public sealed class SqlServerRetentionStoreContractTests(SqlServerFixture fixture) : RetentionStoreContract
+{
+    private SqlServerTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<IRetentionStore> CreateStoreAsync()
+    {
+        _context = await SqlServerTestContext.CreateAsync(fixture);
+        return _context.RetentionData;
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Konusma kaydi hedefi secildi: kendi <c>tenant_id</c> sutunu vardir,
+    /// yabanci anahtar tasimaz ve tek bir yazma ile tohumlanabilir.
+    /// </remarks>
+    protected override async ValueTask SeedOldRowAsync(string tenantId)
+        => await _context!.VoiceSessions.SaveAsync(new VoiceSessionRecord
+        {
+            Id = AgentPrismId.NewId(),
+            TenantId = tenantId,
+            SessionId = $"oturum-{Guid.NewGuid():N}",
+            AgentName = "destek",
+            StartedAt = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            EndedAt = new DateTimeOffset(2020, 1, 1, 0, 5, 0, TimeSpan.Zero),
+            Turns = 1,
+        });
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}
+
+/// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
+#pragma warning disable MAAI001 // AgentFileStore "evaluation purposes only"; gerekce urun kodundaki ile ayni.
+public sealed class SqlServerAgentFileStoreContractTests(SqlServerFixture fixture) : AgentFileStoreContract
+{
+    private SqlServerTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<Microsoft.Agents.AI.AgentFileStore> CreateStoreAsync()
+    {
+        _context = await SqlServerTestContext.CreateAsync(fixture, AmbientTenant);
+        return _context.AgentFiles;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        await base.OnDisposeAsync();
+
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}
+#pragma warning restore MAAI001

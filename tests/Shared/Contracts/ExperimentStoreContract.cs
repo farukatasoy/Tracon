@@ -7,28 +7,28 @@ namespace AgentPrism.StoreContracts;
 /// Bu testler <strong>her uygulama icin</strong> calistirilir. Bellek ici depo ile
 /// PostgreSQL deposu arasindaki davranis farki hatadir; bu sinif o farki yakalar.
 /// </remarks>
-public abstract class ExperimentStoreContract : IAsyncLifetime
+public abstract class ExperimentStoreContract : TenantIsolationContract<IExperimentStore>
 {
-    private const string TenantId = "default";
-
-    /// <summary>Test edilen depo.</summary>
-    protected IExperimentStore Store { get; private set; } = null!;
-
-    /// <summary>Test icin bos bir depo uretir.</summary>
-    protected abstract ValueTask<IExperimentStore> CreateStoreAsync();
-
     /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask DisposeAsync()
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
     {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
+        await Store.SaveAsync(Experiment(name, tenantId));
+        return name;
     }
 
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    protected virtual ValueTask OnDisposeAsync() => default;
+    /// <inheritdoc />
+    protected override async ValueTask<bool> ExistsAsync(string tenantId, object key)
+        => await Store.GetAsync(tenantId, (string)key) is not null;
+
+    /// <inheritdoc />
+    protected override async ValueTask<int> CountAsync(string tenantId)
+        => (await Store.ListAsync(tenantId)).Count;
+
+    /// <inheritdoc />
+    protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
+        => await Store.DeleteAsync(tenantId, (string)key);
+
+    private const string TenantId = "default";
 
     [Fact]
     public async Task Kayit_ve_getirme_gidip_gelir()
@@ -176,4 +176,24 @@ public abstract class ExperimentStoreContract : IAsyncLifetime
                 new ExperimentVariant { Name = "v2", Version = 2, Weight = 50 },
             ],
         };
+
+    [Fact]
+    public async Task Deney_yasam_dongusu_kiracilar_arasinda_sizmaz()
+    {
+        await Store.SaveAsync(Experiment("kampanya", "tenant-a"));
+
+        // Baslatma, durdurma ve "calisan deneyi bul" ayni siniri tasimalidir.
+        await Should.ThrowAsync<AgentPrismException>(async () => await Store.StartAsync("tenant-b", "kampanya"));
+
+        await Store.StartAsync("tenant-a", "kampanya");
+
+        (await Store.GetRunningAsync("tenant-b", "agent-a")).ShouldBeNull();
+        (await Store.GetRunningAsync("tenant-a", "agent-a")).ShouldNotBeNull();
+
+        await Should.ThrowAsync<AgentPrismException>(async () => await Store.StopAsync("tenant-b", "kampanya"));
+
+        await Store.StopAsync("tenant-a", "kampanya");
+
+        (await Store.GetRunningAsync("tenant-a", "agent-a")).ShouldBeNull();
+    }
 }

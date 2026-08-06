@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (126 kalem)
+## Arşivlenen Kararlar (133 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -135,3 +135,10 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-124 | 169 | `Magentic` plan onayı Faz 15'te kapalı (`RequirePlanSignoff(false)`) |
 | K-125 | 170 | `GroupChat` yönetici agent kabul etmez; `managerAgentName` yalnız `Magentic` içindir |
 | K-126 | 171 | Workflow tanımlarında sürüm GEÇMİŞİ tutulmaz |
+| K-127 | 172 | 🚨 Executor kimliği `(workflow, agent)` çiftinden türetilir; MAF'ın özel alanına yazılır |
+| K-128 | 173 | Bekleyen insan istekleri için tablo açılmadı; olay yükünde yaşarlar |
+| K-129 | 174 | `Microsoft.Agents.AI.Workflows.Declarative` alınmadı 👤 |
+| K-130 | 175 | Yanıtlanmış çalıştırma `AwaitingInput` olarak kalır; yanıt YENİ bir satır açar |
+| K-131 | 176 | Graf tanımdan değil, DERLENMİŞ workflow'dan çıkarılır |
+| K-132 | 177 | Workflow grafı elle SVG ile çizilir; mermaid.js alınmadı |
+| K-133 | 178 | Graf hatası çalıştırmayı `Failed` yapar |

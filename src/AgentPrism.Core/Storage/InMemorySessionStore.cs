@@ -6,12 +6,26 @@ namespace AgentPrism;
 /// Oturumlari surec bellegi icinde tutan depo.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Sinirlari <see cref="InMemoryAgentDefinitionStore"/> ile aynidir: surec omru
 /// ve tek dugum. Uretimde <c>AgentPrism.PostgreSql</c> kullanin.
+/// </para>
+/// <para>
+/// 🚨 Oturumlar <strong>kiraci basina</strong> ayrilir; kiraci
+/// <see cref="ITenantContext"/>'ten okunur (Faz 41).
+/// </para>
 /// </remarks>
 public sealed class InMemorySessionStore : ISessionStore
 {
-    private readonly ConcurrentDictionary<string, SessionRecord> _sessions = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<(string TenantId, string Id), SessionRecord> _sessions = new();
+    private readonly ITenantContext _tenantContext;
+
+    /// <summary>Yeni bir bellek ici oturum deposu olusturur.</summary>
+    /// <param name="tenantContext">
+    /// Gecerli kiracinin baglami. Verilmezse depo tek kiracili davranir.
+    /// </param>
+    public InMemorySessionStore(ITenantContext? tenantContext = null)
+        => _tenantContext = tenantContext ?? FixedTenantContext.Default;
 
     /// <inheritdoc />
     /// <remarks>
@@ -22,11 +36,15 @@ public sealed class InMemorySessionStore : ISessionStore
     {
         ArgumentNullException.ThrowIfNull(record);
 
+        // SQL uygulamasiyla ayni kural: kayit kendi kiracisini tasiyorsa o
+        // kazanir (zamanlanmis isler baska bir kiraci adina yazabilir).
+        var tenantId = record.TenantId ?? _tenantContext.TenantId;
+
         _sessions.AddOrUpdate(
-            record.Id,
+            (tenantId, record.Id),
             static (_, incoming) => incoming,
             static (_, existing, incoming) => incoming with { CreatedAt = existing.CreatedAt },
-            record);
+            record with { TenantId = tenantId });
 
         return default;
     }
@@ -36,7 +54,7 @@ public sealed class InMemorySessionStore : ISessionStore
     {
         ArgumentNullException.ThrowIfNull(sessionId);
 
-        _sessions.TryGetValue(sessionId, out var record);
+        _sessions.TryGetValue((_tenantContext.TenantId, sessionId), out var record);
         return new ValueTask<SessionRecord?>(record);
     }
 
@@ -44,7 +62,7 @@ public sealed class InMemorySessionStore : ISessionStore
     public ValueTask<bool> DeleteAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(sessionId);
-        return new ValueTask<bool>(_sessions.TryRemove(sessionId, out _));
+        return new ValueTask<bool>(_sessions.TryRemove((_tenantContext.TenantId, sessionId), out _));
     }
 
     /// <inheritdoc />
@@ -53,6 +71,7 @@ public sealed class InMemorySessionStore : ISessionStore
         ArgumentNullException.ThrowIfNull(query);
 
         var matches = new List<SessionRecord>();
+        var tenantId = query.TenantId ?? _tenantContext.TenantId;
 
         foreach (var record in _sessions.Values)
         {
@@ -61,7 +80,7 @@ public sealed class InMemorySessionStore : ISessionStore
                 continue;
             }
 
-            if (query.TenantId is { } tenantId && !string.Equals(record.TenantId, tenantId, StringComparison.Ordinal))
+            if (!string.Equals(record.TenantId, tenantId, StringComparison.Ordinal))
             {
                 continue;
             }
