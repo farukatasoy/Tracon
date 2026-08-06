@@ -39,7 +39,7 @@
 | 34 | [34-TANIM-DOGRULAMA-UCU.md](34-TANIM-DOGRULAMA-UCU.md) | F-60 | ✅ Tamamlandı (2026-08-06). Döngü denetimi zaten vardı (`AgentCallGraph`, kaydetmede kullanılıyordu); yeni yazılan yalnız tipli kod (K-252). Aday listesindeki F-48'in (GitOps) CI adımıdır | — | — |
 | 35 | [35-MALIYET-VE-KOTA-METRIKLERI.md](35-MALIYET-VE-KOTA-METRIKLERI.md) | F-70 | 📋 Planlandı. Turun **en ucuz** kalemi: iki enstrüman, uç yok, arayüz yok | — | — |
 | 36 | [36-SAKLAMA-HACIM-SINIRI.md](36-SAKLAMA-HACIM-SINIRI.md) | F-73 | ✅ Tamamlandı (2026-08-06). `MaxRows` artık uygulanıyor (K-258) | — | — |
-| 37 | [37-PROJE-SABLONU.md](37-PROJE-SABLONU.md) | F-49 | 📋 Planlandı. İlk on dakikayı kısaltır. Şablon paketi bağımlılık grafiğine **girmez** | `AgentPrism.Templates` | — |
+| 37 | [37-PROJE-SABLONU.md](37-PROJE-SABLONU.md) | F-49 | ✅ Tamamlandı (2026-08-06). `dotnet new agentprism-api`; şablon paketi bağımlılık grafiğine **girmez** | `AgentPrism.Templates` | — |
 
 Sıra **zorunlu değildir**; Dalga 1 kalemlerinin hiçbiri diğerine bağlı değildir.
 Numaralar sırayı değil kimliği belirler. Faz 33 önce biterse Faz 37'nin şablonu

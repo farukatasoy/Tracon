@@ -45,6 +45,16 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 # Bu, ayni kaynaktan (kisaltilamaz gorunen baslik metni) UCUNCU sikistirmadir;
 # bir sonraki asimda gercek bolunme (faz araligina gore iki dosya) gerekir --
 # baslik metninde artik sikistirilacak bosluk kalmadi.
+# Faz 37 kapanisinda (266 karar, 25_311 B) BESINCI kez asildi. Soz tutuldu:
+# GERCEK BOLUNME uygulandi. En eski ARSIV_ESIK kadar kalici karar
+# `KARARLAR-INDEKS-ARSIV.md`'ye tasindi (o dosya BUTCE'ye girmez, REDDEDILEN
+# ile ayni desen); sicak `KARARLAR-INDEKS.md` yalniz en YENI kararlari tasir.
+# Esik sayimla (K-numarasiyla degil) yapilir: K-numaralari birkac yeniden
+# acilan/silinen kalemde bosluklu olabilir, sayim her zaman kararlar
+# tablosundaki gercek satir sayisini yansitir. Esik ~150 kalici karara
+# (~15 KB) sabitlendi -- gelecek birkac faz icin rahat bosluk birakir.
+ARSIV_ESIK = 150
+
 BUTCE = {
     "AGENTS.md": 12_000,
     "MEMORY.md": 8_000,
@@ -83,10 +93,20 @@ def _kararlar_kalemleri() -> tuple[list, list]:
     return reddedilen, kalici
 
 
+def _kararlar_satiri(no: int, baslik: str, isaret: str) -> str:
+    num = baslik.split("—")[0].strip()
+    geri = baslik.split("—", 1)[1].strip() if "—" in baslik else baslik
+    sonek = f" {isaret}" if isaret else ""
+    # "L" onekiyle degil dogrudan satir numarasi: sed -n 'N,Np'ye kopyala-yapistir.
+    return f"| {num} | {no} | {geri}{sonek} |"
+
+
 def kararlar_indeksi_uret() -> str:
-    """Sıcak yol dosyası: yalnız kalıcı (K-NNN) kararlar. Reddedilen işler
-    ayrı bir dosyadadır (Karar K-214'ün "yeniden açılma koşulu" — bölünme)."""
+    """Sıcak yol dosyası: yalnız en YENİ kalıcı (K-NNN) kararlar (ARSIV_ESIK
+    kadar). Daha eskisi `KARARLAR-INDEKS-ARSIV.md`'dedir (Karar K-214'ün
+    "yeniden açılma koşulu" — bölünme; gerçek bölünme Faz 37'de uygulandı)."""
     _reddedilen, kalici = _kararlar_kalemleri()
+    yeni = kalici[-ARSIV_ESIK:] if len(kalici) > ARSIV_ESIK else kalici
 
     ç = [
         "# KARARLAR — İndeks",
@@ -97,21 +117,47 @@ def kararlar_indeksi_uret() -> str:
         "Bul: `grep -n 'K-059\\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`."
         " Tarih yok (K-214). Reddedilenler:"
         " [`KARARLAR-INDEKS-REDDEDILEN.md`](KARARLAR-INDEKS-REDDEDILEN.md)."
+        f" En eski {len(kalici) - len(yeni)} karar:"
+        " [`KARARLAR-INDEKS-ARSIV.md`](KARARLAR-INDEKS-ARSIV.md)."
         " 👤 kullanıcı kararı · 🔁 yeniden açılmış.",
         "",
         "---",
         "",
-        f"## Kalıcı Kararlar ({len(kalici)} kalem)",
+        f"## En Yeni Kalıcı Kararlar ({len(yeni)} / {len(kalici)} kalem)",
         "",
         "| K | Satır | Karar |",
         "|---|---|---|",
     ]
-    for no, baslik, _tarih, isaret in kalici:
-        num = baslik.split("—")[0].strip()
-        geri = baslik.split("—", 1)[1].strip() if "—" in baslik else baslik
-        sonek = f" {isaret}" if isaret else ""
-        # "L" onekiyle degil dogrudan satir numarasi: sed -n 'N,Np'ye kopyala-yapistir.
-        ç.append(f"| {num} | {no} | {geri}{sonek} |")
+    for no, baslik, _tarih, isaret in yeni:
+        ç.append(_kararlar_satiri(no, baslik, isaret))
+
+    ç.append("")
+    return "\n".join(ç)
+
+
+def kararlar_indeksi_arsiv_uret() -> str:
+    """Sıcak yolda DEĞİLDİR — yalnız `KARARLAR-INDEKS.md`de bulunamayan eski
+    bir K-NNN aranırken okunur. BUTCE'ye girmez (REDDEDILEN ile aynı desen,
+    Karar K-214)."""
+    _reddedilen, kalici = _kararlar_kalemleri()
+    eski = kalici[:-ARSIV_ESIK] if len(kalici) > ARSIV_ESIK else []
+
+    ç = [
+        "# KARARLAR — İndeks Arşivi",
+        "",
+        "> **Üretilen dosya. Elle düzenleme.** Kaynak: [`KARARLAR.md`](KARARLAR.md).",
+        "> Yeniden üretmek için: `python3 scripts/dokuman-bakim.py`",
+        "",
+        "En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme)."
+        " Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).",
+        "",
+        f"## Arşivlenen Kararlar ({len(eski)} kalem)",
+        "",
+        "| K | Satır | Karar |",
+        "|---|---|---|",
+    ]
+    for no, baslik, _tarih, isaret in eski:
+        ç.append(_kararlar_satiri(no, baslik, isaret))
 
     ç.append("")
     return "\n".join(ç)
@@ -189,6 +235,7 @@ def main() -> int:
     if not a.denetle:
         for hedef, uret in (
             (ROOT / "docs" / "KARARLAR-INDEKS.md", kararlar_indeksi_uret),
+            (ROOT / "docs" / "KARARLAR-INDEKS-ARSIV.md", kararlar_indeksi_arsiv_uret),
             (ROOT / "docs" / "KARARLAR-INDEKS-REDDEDILEN.md", kararlar_reddedilen_uret),
         ):
             yeni = uret()

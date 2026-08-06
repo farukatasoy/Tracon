@@ -1,6 +1,6 @@
 # Faz 37 — `dotnet new` Proje Şablonu
 
-> **Durum:** 📋 Planlandı (2026-08-06)
+> **Durum:** ✅ Tamamlandı (2026-08-06)
 > **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-49**
 > **Önkoşul:** Yok. Faz 33 (sağlık denetimi) önce biterse şablon onu da taşır
 > **Paketler:** yeni — `AgentPrism.Templates`
@@ -258,19 +258,26 @@ bölümüne şablon komutu).
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `dotnet new install ./src/AgentPrism.Templates` başarılı
-- [ ] `dotnet new agentprism-api -n Benim.Agent` çalışır ve üretilen projede
-      `AgentPrism.Starter` dizesi **hiçbir dosyada kalmaz**
-- [ ] Varsayılan (`memory`) birleşim **hiçbir kurulum olmadan** `dotnet run`
-      ile ayağa kalkar; `GET /agentprism/api/agents` `200` döner
-- [ ] `--persistence postgres --ui true` birleşimi sıfır uyarıyla derlenir
-- [ ] 🚨 Üretilen `appsettings.json` yalnız boş placeholder taşır; **üretilen
-      projede** `secret` taraması boş döner
-- [ ] Üretilen kodda sabitlenmiş model adı yoktur (K-032)
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `secret` taraması boş döndü (depo geneli — `faz-tamamlama` komutu)
-- [ ] `README.md` kurulum bölümü şablon komutunu içerir
-- [ ] `AgentPrism.slnx` iki yeni projeyi taşır
+- [x] `dotnet new install ./src/AgentPrism.Templates` başarılı — doğrulandı,
+      `agentprism-api` şablonu listelendi
+- [x] `dotnet new agentprism-api -n Benim.Agent` çalışır ve üretilen projede
+      `AgentPrism.Starter` dizesi **hiçbir dosyada kalmaz** — `TemplateRenameTests` geçti
+- [x] Varsayılan (`memory`) birleşim **hiçbir kurulum olmadan** `dotnet run`
+      ile ayağa kalkar; `GET /agentprism/api/agents` `200` döner — hem elle hem
+      `TemplateRunTests` ile doğrulandı (`[{"name":"support",...}]` döndü)
+- [x] `--persistence sqlserver --provider azure --ui true` (en dolu birleşim —
+      postgres yerine SqlServer+Azure seçildi, ikisi de meta pakete dâhil
+      DEĞİL, kırılmayı daha güçlü yakalar) sıfır uyarıyla derlenir —
+      `TemplateInstantiationTests.EnDoluBirlesim_...` geçti
+- [x] 🚨 Üretilen `appsettings.json` yalnız boş placeholder taşır; **üretilen
+      projede** `secret` taraması boş döner — `TemplateSecretTests` (2 test) geçti
+- [x] Üretilen kodda sabitlenmiş model adı yoktur (K-032) — `TemplateModelNameTests`
+      dört sağlayıcının tamamı için geçti
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `dotnet build`/`test`/`pack`/`format`
+      hepsi `AgentPrism.slnx` üzerinde 0 uyarı/0 hata ile geçti
+- [x] `secret` taraması boş döndü (depo geneli — `faz-tamamlama` komutu) — boş
+- [x] `README.md` kurulum bölümü şablon komutunu içerir
+- [x] `AgentPrism.slnx` iki yeni projeyi taşır
 
 ### Doğrulama komutları
 
@@ -321,22 +328,140 @@ dotnet build "$TMP/dolu" -c Release
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
-> oturumun en değerli bilgisidir.
+- **Sürüm sabitleme yerine kayan `AgentPrismVersion=*-*`.** Açık Soru 2'nin
+  önerisi ("A: aynı sürüm") bir **build-time token stamping** mekanizması
+  ima ediyordu (şablon paketi paketlenirken `template.json`'daki placeholder'ı
+  gerçek `$(PackageVersion)` ile değiştirmek). Uygulama sırasında bu, kaynak
+  dosyayı `dotnet pack` çalıştıkça MUTASYONA uğratmadan yapmak için ayrı bir
+  ara-kopyalama aşaması gerektirdiği görüldü — karmaşıklık/değer oranı düşük.
+  Bunun yerine NuGet'in floating version söz dizimi (`*-*`) kullanıldı: her
+  zaman yapılandırılan kaynaktaki en güncel ön-sürümü alır, `--AgentPrismVersion`
+  ile geçersiz kılınabilir. Bkz. K-265.
+- **Örnek tool sayısı ikiden bire indi.** Plan "tek basit tool" diyordu (Açık
+  Soru 3); ilk taslak `samples/AgentPrism.Api`'deki üç tool'un (`get_order_status`,
+  `list_recent_orders`, `cancel_order`) hepsini kopyalıyordu. Kapanışta tek
+  `get_order_status` bırakıldı — `RequiresApproval` gibi ek kavramlar sablonun
+  amacını (hızlı başlangıç) aşıyordu; onay akışı README'de metin olarak anlatılır.
+- **`dotnetcli.host.json` eklendi** — planda yoktu. `--persistence`/`--provider`/
+  `--ui` CLI bayraklarının `dotnet new -h agentprism-api` çıktısında düzgün
+  görünmesi için gerekliydi; `AgentPrismVersion` parametresi orada `isHidden`
+  işaretlendi (kullanıcı akışında görünmesi gerekmiyor).
+- **Beklenmeyen NuGet paketleme tuzakları (37.3'ün "şablon bayatlar" riskinin
+  ötesinde).** Plan yalnız kütüphane değiştiğinde şablonun kırılmasını
+  öngörüyordu; gerçekte paketin **kendi ilk paketlenmesi** üç ayrı, birbirinden
+  bağımsız NuGet davranışına takıldı — hiçbiri dokümante değildi ve hiçbiri
+  açık bir hata mesajı vermedi (hepsi aynı `NU5017` arkasına gizlendi). Bkz.
+  K-262/K-263/K-264 ve `docs/hafiza/build-ve-analyzer.md`.
+- **`OrderTools.cs`'e açık `using AgentPrism;` eklendi** — planda yoktu, plan
+  `samples/AgentPrism.Api/OrderTools.cs`'i örnek aldığı için bu satırın
+  gereksiz olduğunu varsaymıştı. Otomatik testler (`TemplateInstantiationTests`,
+  `TemplateRunTests`) `-n` ile yeniden adlandırılan bir projede bunun
+  **derlemeyi kırdığını** yakaladı. Bkz. K-266.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
+K-262 — K-266. Ayrıntı ve gerekçe: `docs/KARARLAR.md`.
+
+| Karar | Özet |
+|---|---|
+| K-262 | Şablonda `IncludeSymbols=false` zorunlu — boş sembol paketi `NU5017` verir |
+| K-263 | Şablonda `TargetFrameworks` (çoğul) boşaltılır — `dotnet pack` çapraz-hedeflemeyi önler |
+| K-264 | Şablon içeriği `<None Pack="true" PackagePath="content/...">` ile paketlenir |
+| K-265 | Şablon `AgentPrism` paket sürümü varsayılanı kayan `*-*`'dir |
+| K-266 | Üretilen `OrderTools.cs` açık `using AgentPrism;` taşır (yeniden adlandırma güvenliği) |
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+Yok — plan doğruydu. `AgentPrism.Templates` kod içermez (`IncludeBuildOutput=false`);
+tek "sözleşmesi" `content/AgentPrism.Starter/.template.config/template.json`
+dosyasıdır. Gerçekleşen sembol kümesi (taslaktan sapma yok):
+
+```jsonc
+"symbols": {
+  "persistence": { "choices": ["memory", "postgres", "sqlite", "sqlserver"], "defaultValue": "memory" },
+  "provider":    { "choices": ["openai", "anthropic", "google", "azure"],    "defaultValue": "openai" },
+  "ui":          { "datatype": "bool", "defaultValue": "true" },
+  "AgentPrismVersion": { "datatype": "string", "defaultValue": "*-*" },  // plan taslağında YOKTU
+  "skipRestore": { "datatype": "bool", "defaultValue": "false" }          // plan taslağında YOKTU
+}
+```
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/AgentPrism.Templates/
+├── AgentPrism.Templates.csproj
+├── README.md                                  (NuGet paket sayfası — plan taslağında yoktu, K bkz. 00-ALTYAPI.md README zorunluluğu)
+└── content/AgentPrism.Starter/
+    ├── .template.config/
+    │   ├── template.json
+    │   └── dotnetcli.host.json
+    ├── AgentPrism.Starter.csproj
+    ├── Program.cs
+    ├── Tools/OrderTools.cs                     (plan iki tool varsaydı, tek kaldı)
+    ├── appsettings.json
+    ├── appsettings.Development.json
+    ├── Properties/launchSettings.json          (plan taslağında yoktu — DoD'un sabit port beklentisi için)
+    ├── .gitignore
+    └── README.md
+
+tests/AgentPrism.Templates.Tests/
+├── AgentPrism.Templates.Tests.csproj
+├── TemplateInstantiationTests.cs
+├── TemplateSecretTests.cs
+├── TemplateModelNameTests.cs
+├── TemplateRunTests.cs
+├── TemplateRenameTests.cs
+└── Infrastructure/
+    ├── RepoPaths.cs
+    ├── ProcessRunner.cs
+    ├── ProcessResult.cs
+    ├── TempDirectory.cs
+    ├── TemplateFixture.cs
+    └── AssemblyFixtures.cs
+```
+
+Ek olarak güncellenenler: `AgentPrism.slnx` (iki proje), `README.md` (paket
+tablosu + kurulum + yol haritası), `scripts/dokuman-bakim.py` (bkz. altta),
+`docs/KARARLAR.md`/`KARARLAR-INDEKS.md`/`KARARLAR-INDEKS-ARSIV.md` (yeni).
+
+## Testler
+
+| Test sınıfı | Neyi doğrular | Kaç test |
+|---|---|---|
+| `TemplateInstantiationTests` | En yalın (memory+openai+ui:false) ve en dolu (sqlserver+azure+ui:true) birleşim sıfır uyarıyla derlenir | 2 |
+| `TemplateSecretTests` | Üretilen hiçbir dosyada gerçek görünümlü anahtar yok; `appsettings.json` yalnız boş placeholder | 2 |
+| `TemplateModelNameTests` | Dört sağlayıcının hiçbiri üretilen `Program.cs`'e sabit bir model adı yazmaz (K-032) | 4 (Theory) |
+| `TemplateRunTests` | Varsayılan birleşim kurulumsuz `dotnet run` ile ayağa kalkar, `GET /agentprism/api/agents` 200 döner | 1 |
+| `TemplateRenameTests` | `-n Benim.Agent` sonrası hiçbir dosyada `AgentPrism.Starter` kalmaz | 1 |
+
+Toplam 10 test; `TemplateFixture` (assembly fixture) tüm çözümü bir kez
+paketleyip şablonu bir kez kurar, her test kendi geçici dizininde üretir.
+Doğrulandı: `dotnet test tests/AgentPrism.Templates.Tests -c Release --no-build`
+→ 10/10 geçti (~15 dk — tam çözüm paketleme dahil).
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
+- **🚨 Yeni bir `IncludeBuildOutput=false` paketi eklerken K-262/K-263'ü
+  tekrar keşfetmeyin.** `src/Directory.Build.props` her pakete `IncludeSymbols=true`
+  ve `TargetFrameworks=net8.0;net9.0;net10.0` dayatır; derlenmeyen bir paket
+  (sembol yok) her ikisini de açıkça kapatmalıdır, aksi hâlde `dotnet pack`
+  `NU5017` ile başarısız olur — hata mesajı `AgentPrism` paketinin (dolu
+  `<files>` listesiyle) DEĞİL, boş sembol paketinin sorunu olduğunu SÖYLEMEZ.
+  Ayrıntı: `docs/hafiza/build-ve-analyzer.md`.
+- **🚨 `sourceName` ile yeniden adlandırılan bir ad alanında C#'ın kapsayan
+  ad alanı kısayoluna güvenmeyin.** Bkz. K-266. Şablon içeriğine yeni bir
+  `.cs` dosyası eklerken, `AgentPrism` namespace'indeki bir tipi (örn. yeni
+  bir öznitelik) kullanıyorsa açık `using AgentPrism;` yazın.
+  `samples/AgentPrism.Api`'deki dosyalar bu kısayola güvenebilir çünkü ORADA
+  ad alanı asla yeniden adlandırılmaz — şablon içeriği farklıdır.
+- **Karar defteri indeksi bölündü (K-214'ün sözü tutuldu).** `docs/KARARLAR-INDEKS.md`
+  artık yalnız en yeni 150 kalıcı kararı taşır; daha eskisi
+  `docs/KARARLAR-INDEKS-ARSIV.md`'dedir (sıcak yol dışı). Yeni bir karar
+  eklerken hiçbir ek adım gerekmez — `python3 scripts/dokuman-bakim.py`
+  bölünmeyi kendiliğinden korur (`ARSIV_ESIK = 150`).
+- **`samples/AgentPrism.Api`'ye dokunulmadı** — Açık Soru 1'in kararı (A:
+  ayrı kalsın) korundu. Şablon ve örnek uygulama farklı amaçlar taşımaya
+  devam ediyor.
+- **Yarım kalan iş yok.** Tüm DoD kalemleri karşılandı (bkz. aşağıdaki tablo).
+  Sıradaki faz kimliği bağımsızdır (`docs/UCUNCU-FAZ-YOL-HARITASI.md`).
