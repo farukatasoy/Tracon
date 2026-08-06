@@ -6,7 +6,7 @@ import { usePlural, useT } from '../lib/i18n';
 import { ModelBreakdownChart, StatusDistributionChart, TimeSeriesChart } from '../components/charts';
 import { Badge, ErrorNote, Loading, PageHeader, Panel, cx } from '../components/ui';
 import { Link } from '../lib/router';
-import type { Meta, TimeSeriesBucket, TimeSeriesPoint } from '../lib/types';
+import type { Meta, RunStatistics, TimeSeriesBucket, TimeSeriesPoint } from '../lib/types';
 
 type Range = '1h' | '24h' | '7d' | '30d';
 
@@ -145,8 +145,50 @@ export function DashboardScreen({ meta }: { meta: Meta }): ReactNode {
             canAdminister={meta.roles.canAdminister}
           />
         </Panel>
+
+        <Panel className="lg:col-span-2" title={t('feedback.title')}>
+          <FeedbackSummary stats={stats.data} isLoading={stats.isPending} />
+        </Panel>
       </div>
     </>
+  );
+}
+
+/**
+ * Scored-run count and positive rate, straight off `/api/stats` (decision
+ * K-152: unlike `/api/stats/timeseries`, this endpoint does not exclude
+ * anything the eval-run rule already excludes).
+ */
+function FeedbackSummary({
+  stats,
+  isLoading,
+}: {
+  stats: RunStatistics | undefined;
+  isLoading: boolean;
+}): ReactNode {
+  const t = useT();
+
+  if (isLoading) {
+    return <Loading />;
+  }
+
+  if (stats === undefined || stats.scoredRuns === 0) {
+    return <p className="px-4 py-4 text-[12px] text-subtle">{t('feedback.noneYet')}</p>;
+  }
+
+  return (
+    <div className="flex items-center gap-6 px-4 py-3">
+      <div>
+        <div className="text-[11px] text-subtle">{t('dashboard.scoredRuns')}</div>
+        <div className="text-[18px] font-semibold">{count(stats.scoredRuns)}</div>
+      </div>
+      {stats.positiveRate != null && (
+        <div>
+          <div className="text-[11px] text-subtle">{t('dashboard.positiveRate')}</div>
+          <div className="text-[18px] font-semibold">{percent(stats.positiveRate)}</div>
+        </div>
+      )}
+    </div>
   );
 }
 

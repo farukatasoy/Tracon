@@ -43,8 +43,10 @@ import type {
   ModelProviderHealth,
   RunCostRecalculationResult,
   RunEvent,
+  RunFeedbackRequest,
   RunKind,
   RunRecord,
+  RunScore,
   RunStatistics,
   RunStatus,
   RunTrace,
@@ -270,6 +272,15 @@ export const api = {
   runTrace: (id: string) => request<RunTrace>(`api/runs/${encodeURIComponent(id)}/trace`),
   runToolInvocations: (id: string) =>
     request<ToolInvocationRecord[]>(`api/runs/${encodeURIComponent(id)}/tools`),
+  runFeedback: (id: string) =>
+    request<RunScore[]>(`api/runs/${encodeURIComponent(id)}/feedback`),
+  saveRunFeedback: (id: string, body: RunFeedbackRequest) =>
+    send<RunScore>('POST', `api/runs/${encodeURIComponent(id)}/feedback`, body),
+  deleteRunFeedback: (id: string, scoreId: string) =>
+    request<void>(
+      `api/runs/${encodeURIComponent(id)}/feedback/${encodeURIComponent(scoreId)}`,
+      { method: 'DELETE' },
+    ),
   toolUsage: (params: { startedAfter?: string; maxTools?: number } = {}) =>
     request<ToolUsage[]>(`api/tools/usage${query(params)}`),
 

@@ -407,3 +407,25 @@ public sealed class SqlServerVoiceSessionStoreContractTests(SqlServerFixture fix
         }
     }
 }
+
+/// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
+public sealed class SqlServerRunScoreStoreContractTests(SqlServerFixture fixture) : RunScoreStoreContract
+{
+    private SqlServerTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<IRunScoreStore> CreateStoreAsync()
+    {
+        _context = await SqlServerTestContext.CreateAsync(fixture);
+        return _context.RunScores;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}

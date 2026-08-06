@@ -396,6 +396,20 @@ internal sealed class SqliteQueries : SqlQueriesBase
             LIMIT @take OFFSET @skip;
             """;
 
+        // scored_runs/positive_rate (Faz 31): matchedRunScoresFilter runs'in
+        // AYNI filtresini (kiraci/eval/agent/tarih) tekrarlar -- ayri bir CTE
+        // yerine skaler alt sorgu olarak eklenmesinin sebebi mevcut toplam
+        // satirini degistirmeden en kucuk degisiklikle genisletmektir.
+        var matchedRunScoresFilter = $"""
+            {Schema}run_scores rs
+            JOIN {Schema}runs r2 ON r2.id = rs.run_id
+            WHERE rs.tenant_id = @tenant_id
+              AND r2.tenant_id = @tenant_id
+              AND r2.kind <> @kind_eval
+              AND (@agent_name IS NULL OR r2.agent_name = @agent_name)
+              AND (@started_after IS NULL OR r2.started_at > @started_after)
+            """;
+
         SelectRunStatistics = $"""
             SELECT COUNT(*),
                    COUNT(*) FILTER (WHERE status = @status_completed),
@@ -409,7 +423,13 @@ internal sealed class SqliteQueries : SqlQueriesBase
                    CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL) = 0
                         THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) END,
                    MAX(cost_currency),
-                   COUNT(*) FILTER (WHERE pricing_source = @pricing_source_unknown)
+                   COUNT(*) FILTER (WHERE pricing_source = @pricing_source_unknown),
+                   (SELECT COUNT(DISTINCT rs.run_id) FROM {matchedRunScoresFilter}),
+                   (SELECT CASE WHEN COUNT(*) FILTER (WHERE rs.kind = @kind_binary) = 0 THEN NULL
+                                ELSE CAST(COUNT(*) FILTER (WHERE rs.kind = @kind_binary AND rs.value = 1) AS REAL)
+                                     / COUNT(*) FILTER (WHERE rs.kind = @kind_binary)
+                           END
+                    FROM {matchedRunScoresFilter})
             FROM {Schema}runs
             WHERE tenant_id = @tenant_id
               AND kind <> @kind_eval
@@ -1499,6 +1519,40 @@ internal sealed class SqliteQueries : SqlQueriesBase
               AND (@session_id IS NULL OR session_id = @session_id)
             ORDER BY started_at DESC
             LIMIT @take OFFSET @skip;
+            """;
+
+        // -------------------------------------------------------------------
+        // Faz 31 -- calistirma/mesaj puani
+        // -------------------------------------------------------------------
+        const string runScoreColumns =
+            "id, tenant_id, run_id, message_id, kind, value, comment, source, author, created_at";
+
+        // Upsert PostgreSQL ile birebir aynidir (K-194): message_id
+        // COALESCE(…, '') ile esitlenir, author BILEREK COALESCE EDILMEZ --
+        // SQLite de NULL'lari birbirine esit SAYMAZ, author bos oldugunda
+        // (kimliksiz kurulum) her cagri yeni bir satir acar.
+        UpsertRunScore = $"""
+            INSERT INTO {Schema}run_scores
+                ({runScoreColumns})
+            VALUES
+                (@id, @tenant_id, @run_id, @message_id, @kind, @value, @comment, @source, @author, @created_at)
+            ON CONFLICT (tenant_id, run_id, COALESCE(message_id, ''), author) DO UPDATE
+               SET kind       = excluded.kind,
+                   value      = excluded.value,
+                   comment    = excluded.comment,
+                   source     = excluded.source,
+                   created_at = excluded.created_at
+            RETURNING {runScoreColumns};
+            """;
+
+        SelectRunScores = $"""
+            SELECT {runScoreColumns}
+            FROM {Schema}run_scores
+            WHERE tenant_id = @tenant_id AND run_id = @run_id;
+            """;
+
+        DeleteRunScore = $"""
+            DELETE FROM {Schema}run_scores WHERE id = @id AND tenant_id = @tenant_id;
             """;
     }
 }

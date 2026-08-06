@@ -213,6 +213,7 @@ internal sealed class SqlRunStore : IRunStore
         DbHelpers.Add(command, "status_awaiting", (short)RunStatus.AwaitingInput);
         DbHelpers.Add(command, "kind_eval", (short)RunKind.Eval);
         DbHelpers.Add(command, "pricing_source_unknown", (short)PricingSource.Unknown);
+        DbHelpers.Add(command, "kind_binary", (short)RunScoreKind.Binary);
 
         await using (command.ConfigureAwait(false))
         {
@@ -239,6 +240,8 @@ internal sealed class SqlRunStore : IRunStore
                 var totalCost = DbHelpers.GetNullableDecimal(reader, 9);
                 var currency = DbHelpers.GetNullableString(reader, 10);
                 var runsWithUnknownPricing = reader.GetInt64(11);
+                var scoredRuns = reader.GetInt64(12);
+                var positiveRate = reader.IsDBNull(13) ? (double?)null : reader.GetDouble(13);
 
                 // Ikinci sonuc kumesi: agent kirilimi.
                 var byAgent = new List<RunAgentStatistics>();
@@ -310,6 +313,8 @@ internal sealed class SqlRunStore : IRunStore
                     TotalCost = totalCost,
                     Currency = currency,
                     RunsWithUnknownPricing = runsWithUnknownPricing,
+                    ScoredRuns = scoredRuns,
+                    PositiveRate = positiveRate,
                     ByAgent = byAgent,
                     ByModel = byModel,
                     ByVersion = byVersion,

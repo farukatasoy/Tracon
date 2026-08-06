@@ -465,6 +465,35 @@ export interface RunEvent {
   payload?: string | null;
 }
 
+/** `RunScore.Kind` — the shape a score's `value` takes. */
+export type RunScoreKind = 'Binary' | 'Stars';
+
+/** A human (or judge) score attached to a run or a single message within it. */
+export interface RunScore {
+  id: string;
+  tenantId: string;
+  runId: string;
+  /** Null when the score applies to the whole run rather than one message. */
+  messageId?: string | null;
+  kind: RunScoreKind;
+  /** 0/1 for `Binary`, 1..5 for `Stars`. */
+  value: number;
+  comment?: string | null;
+  /** `human` today; `api`/`judge` are reserved for later phases. */
+  source: string;
+  /** Null in an unauthenticated setup — every call then writes a new row. */
+  author?: string | null;
+  createdAt: string;
+}
+
+/** Body of `POST /api/runs/{runId}/feedback`. */
+export interface RunFeedbackRequest {
+  kind: RunScoreKind;
+  value: number;
+  messageId?: string | null;
+  comment?: string | null;
+}
+
 export interface RunAgentStatistics {
   agentName: string;
   totalRuns: number;
@@ -501,6 +530,10 @@ export interface RunStatistics {
   byAgent: RunAgentStatistics[];
   byModel: RunModelStatistics[];
   errorRate?: number | null;
+  /** Runs (or messages within them) that carry at least one score. Eval runs are excluded, same as `totalRuns`. */
+  scoredRuns: number;
+  /** Share of `Binary`-kind scores marked positive (0-1). Star ratings do not count toward this. Null when no binary score exists. */
+  positiveRate?: number | null;
 }
 
 /** Bucket width for `GET /api/stats/timeseries`. */
