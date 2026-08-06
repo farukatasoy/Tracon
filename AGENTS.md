@@ -6,7 +6,7 @@
 
 ## Okuma Protokolü — Önce Bunu Uygula
 
-Bu depo büyüktür. **Hiçbir dokümanı ihtiyacın olmadan baştan sona okuma.**
+Bu repo büyüktür. **Hiçbir dokümanı ihtiyacın olmadan baştan sona okuma.**
 Dokümanların çoğu birikimli defterdir; tamamını okumak bütçeyi bitirir.
 
 **Oturum başında yalnız şunlar:**
@@ -34,7 +34,11 @@ okumaktan ucuzdur: `grep -rn "AsyncLocal" docs/hafiza/`.
 
 ## Temel İletişim Kuralları
 
-**Her zaman Türkçe konuş.** Kod, değişken adları, commit mesajları İngilizce kalabilir; ancak agent'ın tüm açıklamaları, soruları ve analizleri Türkçe olmalı. Tüm yanıtlarda **ASD-STE100 Basitleştirilmiş Teknik Dil kurallarını sıfır tolerans ile uygula** — kısa cümle, tek fikir, aktif çatı, onaylı kelime listesi. Bu kural hem Türkçe hem İngilizce yanıt için geçerlidir; her iki dilde de konuşulan dilin doğru karakterlerini kullan (ör. Türkçe'de ç/ğ/ı/ö/ş/ü). Teknik terimler orijinal dilinde kalır (ör. `AppService`, `migration`, `endpoint`).
+**Kullanıcının dilinde yanıt ver.** Türkçe soruya Türkçe, diğer her dile İngilizce. Kod ve commit mesajı hep İngilizce.
+
+**Tüm yanıtlar ASD-STE100 Simplified Technical English kurallarına uyar** — kısa cümle, tek fikir, aktif çatı, onaylı kelime. Türkçe yanıtta da geçerlidir; Türkçe'de ç/ğ/ı/ö/ş/ü kullan.
+
+**Teknik terimi çevirme.** Terim İngilizce kalır, Türkçe ek alır: `secret`, `repository`, `store`, `storage`, `endpoint`, `scope`, `span`, `run`, `tool`. Çeviri kavramı bulanıklaştırır: doğru "`secret` yazılmaz", yanlış "sır yazılmaz".
 
 **Geliştirme sırasında her belirsizliği sor.** Requirement'ta açık olmayan bir durum, edge-case veya tasarım kararı çıktığında varsayım yapmak yerine durumu tarif ederek kullanıcıya sor. Plan modundaysan aklına takılan en küçük şeyi bile sor.
 
@@ -59,7 +63,7 @@ Mimari resim: **[`docs/MIMARI.md`](docs/MIMARI.md)**.
 
 ## Faz Akışı ve Doküman Disiplini
 
-**Geliştirme fazlar hâlinde ve çoğu zaman ayrı sohbetlerde yapılır.** Sonraki oturum bu depoyu sıfırdan okur ve yalnızca dokümanlara güvenir.
+**Geliştirme fazlar hâlinde ve çoğu zaman ayrı sohbetlerde yapılır.** Sonraki oturum bu repo'yu sıfırdan okur ve yalnızca dokümanlara güvenir.
 
 > **Her geliştirme sonrası dokümanlar gözden geçirilir ve güncelliğini korur. Dokümanlar birbiriyle ahenk içinde olmalıdır.**
 
@@ -85,12 +89,14 @@ Bir dosya bütçeyi aşarsa **içerik silinmez** — alan dosyasına veya `docs/
 
 ### Faz durumu
 
-**Faz 0–30 tamam; ikinci tur kapandı.** Sıradaki tur seçilmemiştir — adaylar
-[`docs/UCUNCU-FAZ-ADAYLARI.md`](docs/UCUNCU-FAZ-ADAYLARI.md) içindedir.
+**Faz 0–30 tamam.** Faz 31–52 planlandı, kodu yazılmadı
+([üçüncü tur](docs/UCUNCU-FAZ-YOL-HARITASI.md)); seçilmemiş 20 kalem
+[adaylardadır](docs/UCUNCU-FAZ-ADAYLARI.md).
 
 Durum tablosu [`README.md`](README.md)'de, faz sırası ve migration numaraları
-[`docs/IKINCI-FAZ-YOL-HARITASI.md`](docs/IKINCI-FAZ-YOL-HARITASI.md)'dedir;
-açık kalemler (Faz 7, Foundry, `mssql/server`) o iki dosyada yazılıdır.
+tur yol haritalarındadır ([ikinci](docs/IKINCI-FAZ-YOL-HARITASI.md) ·
+[üçüncü](docs/UCUNCU-FAZ-YOL-HARITASI.md)); açık kalemler (Faz 7, Foundry,
+`mssql/server`) o dosyalarda yazılıdır.
 Bu listeyi başka dosyada tekrarlama — iki yerde tutmak kayma üretir.
 
 Faz bittiğinde **`faz-tamamlama` skill'i uygulanır.** Atlanmaz.
@@ -119,7 +125,7 @@ tamamı **faz kapanışında** ve arayüz/paket değişiminde çalışır.
 
 `TreatWarningsAsErrors` açıktır — uyarı yoktur, hata vardır. Bir analyzer kuralını bastırmadan önce **neden** tetiklendiğini anla; bastırma gerekiyorsa gerekçesini koda ve `docs/KARARLAR.md`'ye yaz.
 
-**Sırlar asla dosyaya yazılmaz.** Bağlantı dizesi ve API anahtarı yalnız `dotnet user-secrets` içinde yaşar. `appsettings.json` boş placeholder taşır. Faz sonunda sır taraması yapılır — komut `faz-tamamlama` skill'inde.
+**`secret` asla dosyaya yazılmaz.** Bağlantı dizesi ve API anahtarı yalnız `dotnet user-secrets` içinde yaşar. `appsettings.json` boş placeholder taşır. Faz sonunda `secret` taraması yapılır — komut `faz-tamamlama` skill'inde.
 
 `dotnet build` **arayüzü de derler**: `npm ci` → `tsc --noEmit` → Vitest → Vite → Brotli → bundle bütçesi (250 KB gzip). Node.js 20.19+ gerekir.
 
@@ -133,15 +139,16 @@ Tekrarlanan iş akışları `.agents/skills/<yetenek_adi>/SKILL.md` altında tan
 
 | Skill | Ne zaman |
 |-------|----------|
+| `faz-planlama` | Bir aday kalem (F-NN) faza dönüşürken. Kanıtı doğrular, sınırları uygular, plan dokümanını yazar. |
 | `faz-baslangic` | Bir faza başlarken. Minimum okuma kümesini ve sırayı verir. |
 | `faz-tamamlama` | Bir fazın kodu bittiğinde. Doğrulama kapıları, doküman senkronizasyonu, karar defteri, hafıza. |
 | `maf-api-kesfi` | MAF'ın bir tipini ilk kez kullanmadan önce. Gerçek imzayı reflection ile çıkarır. |
 
-Klasör konvansiyonu: her skill'de `SKILL.md` zorunlu (frontmatter: `name`, `description`); gerektiğinde `scripts/`, `examples/`, `resources/`, `references/` eklenebilir. Skill mekanizması olmayan agent'lar (Copilot vb.) `SKILL.md`'yi normal doküman gibi okuyup uygular. Claude Code keşfi için `.claude/skills` → `.agents/skills` symlink'tir.
+Klasör konvansiyonu ve taşınabilirlik: [`.agents/skills/README.md`](.agents/skills/README.md).
 
 ---
 
-## Kodlama Kuralları (Bu Depoya Özgü)
+## Kodlama Kuralları (Bu Repo'ya Özgü)
 
 Genel .NET kuralları `.editorconfig` içinde zorunlu kılınır. Aşağıdakiler analyzer'ın yakalayamadığı, projeye özgü kurallardır:
 
@@ -151,13 +158,13 @@ Genel .NET kuralları `.editorconfig` içinde zorunlu kılınır. Aşağıdakile
 
 **Tool'lar yalnızca kodda tanımlanır.** Arayüzden agent oluşturulabilir; tool **kodu** yazılamaz. Bu bir güvenlik sınırıdır ve gevşetilmez.
 
-**AOT uyumluluğu.** `Abstractions`, `Core`, `PostgreSql`, `OpenAI` paketleri AOT uyumludur. Yansımaya dayanan API kullanma. Sırayla dene: (1) elle yaz; (2) kaynak üreteci (`JsonSerializerContext`); (3) kaçınılmazsa `[RequiresUnreferencedCode]` + `[RequiresDynamicCode]` ile işaretle — uyarıyı **bastırma**, çağırana ilet.
+**AOT uyumluluğu.** `Abstractions`, `Core`, `PostgreSql`, `OpenAI` paketleri AOT uyumludur. `reflection`'a dayanan API kullanma. Sırayla dene: (1) elle yaz; (2) `source generator` (`JsonSerializerContext`); (3) kaçınılmazsa `[RequiresUnreferencedCode]` + `[RequiresDynamicCode]` ile işaretle — uyarıyı **bastırma**, çağırana ilet.
 
 **Ön sürüm MAF paketleri yalnızca `AgentPrism.AspNetCore` içinde.** Karar K-008.
 
-**Sırlar veritabanına da yazılmaz.** Bir sır gerekiyorsa kayıtta yalnızca değerin okunacağı **yapılandırma anahtarının adı** durur; değer çalışma anında `IConfiguration` üzerinden çözülür. Karar K-059.
+**`secret` veritabanına da yazılmaz.** Bir `secret` gerekiyorsa kayıtta yalnızca değerin okunacağı **yapılandırma anahtarının adı** durur; değer çalışma anında `IConfiguration` üzerinden çözülür. Karar K-059.
 
-**Gözlemlenebilirlik işlevselliği bozmaz.** Çalıştırma kaydı deposu hata verirse çalıştırma devam eder; hata loglanır.
+**Gözlemlenebilirlik işlevselliği bozmaz.** `run` kaydı `store`'u hata verirse `run` devam eder; hata loglanır.
 
 **`ValueTask` dönen arayüzlerde `ConfigureAwait(false)`.** Kütüphane kodudur.
 

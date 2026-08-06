@@ -25,7 +25,7 @@ Bir alana dokunmadan önce **yalnız ilgili satırın dosyasını** oku. Hepsini
 | Test yazımı (xunit, Shouldly, Testcontainers, Playwright) | [`docs/hafiza/test-altyapisi.md`](docs/hafiza/test-altyapisi.md) |
 | Arayüz (Vite, SPA rota, TS) | [`docs/hafiza/frontend.md`](docs/hafiza/frontend.md) |
 | Model sağlayıcısı (OpenAI, Anthropic, Google, uyumlu uçlar) | [`docs/hafiza/openai-saglayici.md`](docs/hafiza/openai-saglayici.md) |
-| `RunRecording` zinciri, sır süzgeci, metrik, sürüm | [`docs/hafiza/cekirdek-calistirma.md`](docs/hafiza/cekirdek-calistirma.md) |
+| `RunRecording` zinciri, `secret` filtresi, metrik, sürüm | [`docs/hafiza/cekirdek-calistirma.md`](docs/hafiza/cekirdek-calistirma.md) |
 
 Aradığın belirli bir şeyse dosyayı açmak yerine **grep** et:
 
@@ -40,8 +40,8 @@ grep -rn "AsyncLocal" docs/hafiza/
 Bunlar alana bağlı değildir; her fazda tekrar tekrar bedel ödettiler.
 
 - **🚨 `AsyncLocal` yazımı çağırana geri akmaz — dört kez yaşandı.** Span (Faz 6),
-  çalıştırma kapsamı (Faz 11), `async IAsyncEnumerable` gövdesi (Faz 12),
-  `RunStreamingAsync`'in arka plan görevi (Faz 15). Kural: kapsam/span **çağıran
+  `run scope` (Faz 11), `async IAsyncEnumerable` gövdesi (Faz 12),
+  `RunStreamingAsync`'in arka plan görevi (Faz 15). Kural: `scope`/`span` **çağıran
   metodun kendi gövdesinde** yazılır; akışlı yolda **her `MoveNextAsync` öncesi**
   tekrarlanır. Ayrıntı ve dört vaka: `docs/hafiza/cekirdek-calistirma.md`.
 - **🚨 İmza değiştirmek ile gövdeyi kullanmak İKİ AYRI ADIMDIR.** Yeni bir

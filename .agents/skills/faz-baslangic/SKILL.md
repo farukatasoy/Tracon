@@ -7,7 +7,7 @@ description: Bir faza (docs/NN-*.md) başlarken uygulanacak açılış protokol�
 
 Amaç tek şeydir: **fazı doğru bilgiyle, en az okumayla başlatmak.**
 
-Bu depoda dokümanlar birikimlidir. `KARARLAR.md` 115 KB, `arsiv/` dosyaları
+Bu repoda dokümanlar birikimlidir. `KARARLAR.md` 115 KB, `arsiv/` dosyaları
 onlarca KB'dir. Hepsini okumak bağlamın yarısını harcar ve kod yazacak yer
 bırakmaz. Ölçüldü (2026-08-03): eski protokolle bir faz **kod okumadan önce**
 ~125k token doküman yüküyle başlıyordu.
@@ -48,7 +48,7 @@ awk '/## Sonraki Faza Devir Notu/,0' docs/20-MALIYET-VE-GOSTERGE-PANELI.md
 ## Adım 3 — Dokunacağın alanın hafızasını aç
 
 `MEMORY.md`'deki yönlendirme tablosundan **yalnız ilgili** alan dosyasını oku.
-Faz kapsamına göre tipik seçim:
+Faz `scope`'una göre tipik seçim:
 
 | Faz konusu | Alan dosyası |
 |---|---|

@@ -12,7 +12,7 @@
 - **🚨 Paylasilan hicbir dosya `Npgsql` veya `Microsoft.Data.SqlClient` ad alanina referans VEREMEZ.** Saglayiciya ozgu her sey `SqlDialect` turevlerinden gecer. Bu kural bozulursa ikinci saglayici derlenmez ve neden aylar sonra anlasilir.
 - **🚨 `SqlQueriesBase`'e yeni sorgu eklerken HER alt sinifta karsiligini yaz.** Ozellikler `{ get; protected set; } = string.Empty;`'dir; yazilmayan sorgu bos metin kalir ve hata yalnizca CALISMA ANINDA gorunur — derleme de test de kirilmaz. Faz 25 (`IRetentionStore`) bu tuzagin ilk gercek adayiydi; kontrol duzlemi (politika/kosu CRUD) icin bu kural aynen uygulandi. Veri duzlemi (say/sil/arsiv-oku) icin ise 11 hedef × 3 saglayici = 99 elle sorgu yazmak yerine `Sql.Shared/Internal/RetentionTargetRegistry.cs` (tablo+kosul, saglayicidan bagimsiz) + `SqlDialect`'te 3 sablon yontemi (K-198) tercih edildi — ayni tuzagin 9 kat buyumesini onledi.
 - **`SqlDialect.QualifyTable(tableName)` eklendi (2026-08-05, Faz 25)**: saglayicidan bagimsiz SQL uretimi (`RetentionTargetRegistry` gibi) tablo adini nitelendirmek icin dogrudan `{Schema}.{tablo}` YAZAMAZ — PostgreSQL/SQL Server nokta ile, SQLite (K-193) onek bitistirerek nitelendirir. Varsayilan uygulama nokta ile birlestirir; `SqliteDialect` ezer.
-- **Depo siniflari `internal`'dir** (2026-08-04, Faz 23): `SqlRunStore`, `SqlSessionStore`, … Sebep `internal SqlStoreContext` alan `public` kurucunun `CS0051` vermesi ve tuketicinin somut sinifa ihtiyaci olmamasi. `MigrationRunner` public kaldi (kurucusu internal; DI fabrikayla kaydeder).
+- **`Store` siniflari `internal`'dir** (2026-08-04, Faz 23): `SqlRunStore`, `SqlSessionStore`, … Sebep `internal SqlStoreContext` alan `public` kurucunun `CS0051` vermesi ve tuketicinin somut sinifa ihtiyaci olmamasi. `MigrationRunner` public kaldi (kurucusu internal; DI fabrikayla kaydeder).
 - **`DbDataSource` uyarlayicisi elle yazildi**: `Microsoft.Data.SqlClient` bir `DbDataSource` uygulamasi sunmaz (Npgsql sunar). `SqlServerDataSource` yalnizca `CreateDbConnection()`'i uygular; taban sinifin `CreateCommand` uygulamasi baglanti omrunu Npgsql ile ayni sekilde yonetir.
 
 - **`SqlDialect.AddNullableBoolean` eklendi (2026-08-05, Faz 28)**: `AddBoolean` `bool` alir ve uc durumlu bir alani (`evet`/`hayir`/`bilgi yok`) tasiyamaz — eksik bilgi sessizce `false` olurdu. `tool_invocations.usage_estimated` bu yuzden nullable yazilir. Okuma tarafinda `DbHelpers.ToBoolean` kullanilir: SQLite mantiksal tip tasimaz ve `long` (0/1) doner (K-195).
@@ -21,7 +21,7 @@
 
 - **🚨 Tipi verilmemis `decimal` parametresi `decimal(18,0)` sayilir ve ONDALIK KISIM SESSIZCE KESILIR** (2026-08-04, Faz 23): butun para sutunlari `decimal(20,10)`'dur; `SqlServerDialect.AddDecimal` `Precision = 20`, `Scale = 10` yazar. Yazilmazsa maliyetler tam sayiya yuvarlanir ve hicbir test bunu yakalamaz — yalnizca gidis-donus testi yakalar (`SqlServerDialectTests.Maliyet_ondaligi_kesilmeden_gidip_gelir`).
 - **`varbinary(max)` parametresine uzunluk `-1` verilir**: verilmezse SqlClient boyutu degerden cikarir ve 8000 baytin uzerinde hata olusur.
-- **Zaman damgalari `DateTimeOffset` olarak, UTC'ye cevrilerek yazilir.** PostgreSQL `timestamptz` icin `DateTime` (`Kind = Utc`) bekler; cevirim `SqlDialect.AddTimestamp` turevlerindedir. Depo kodu `.UtcDateTime` cagirmaz.
+- **Zaman damgalari `DateTimeOffset` olarak, UTC'ye cevrilerek yazilir.** PostgreSQL `timestamptz` icin `DateTime` (`Kind = Utc`) bekler; cevirim `SqlDialect.AddTimestamp` turevlerindedir. `Store` kodu `.UtcDateTime` cagirmaz.
 - **Istege bagli suzgec parametreleri acikca tiplenmelidir.** PostgreSQL tipsiz NULL'da `42P08` verir (bkz. `postgresql.md`); SQL Server tipsiz NULL'i `nvarchar` sayar ve sessizce yanlis plan uretebilir. Ikisi de `SqlDialect.Add*` ile tiplenir.
 
 ## SQL Server sorgu tuzaklari
@@ -59,11 +59,11 @@ Faz 23 kapanisi) 204 testin 204'u de kirilmisti. Kok sebepler:
   `null` donuyordu. Ikisi de artik `NextResultAsync` ile satir/deger bulunana
   kadar sonraki kumelere duser. PostgreSQL'in tek ifadelik `RETURNING`
   deseninde bu dongu zararsizdir (tek kume var).
-- **🚨 Paylasilan bir depo, saglayiciya ozgu bir ADO.NET tipine (`GetFieldValue<string[]>`)
+- **🚨 Paylasilan bir `store`, saglayiciya ozgu bir ADO.NET tipine (`GetFieldValue<string[]>`)
   dogrudan basvurmamalidir — dizi/JSON okumasi HER ZAMAN `Dialect.ReadTextArray`/
   `ReadUuidArray` uzerinden gecer.** `SqlWebhookStore.ReadSubscription` bunu
   atlayip Npgsql'in dogal dizi destegine dayanmisti; PostgreSQL'de sessizce
-  calisiyordu ama SQL Server'da `InvalidCastException` verdi. Yeni bir depo
+  calisiyordu ama SQL Server'da `InvalidCastException` verdi. Yeni bir `store`
   yazarken dizi/JSON donen her sutun icin `Dialect.Read*` cagrildigini kontrol et.
 
 ## Test altyapisi
@@ -79,8 +79,8 @@ Faz 23 kapanisi) 204 testin 204'u de kirilmisti. Kok sebepler:
 > Ayrintili gerekce icin `docs/KARARLAR.md`.
 
 - **🚨 SQLite'ta indeks (ve tetikleyici/gorunum) adlari VERITABANI GENELINDE
-  tektir — sema veya tabloya gore kapsamli DEGILDIR.** PostgreSQL semaya, SQL
-  Server tabloya gore kapsamli tutar; SQLite'ta TUM nesneler TEK duz ad
+  tektir — sema veya tabloya gore `scope`'lanmis DEGILDIR.** PostgreSQL semaya, SQL
+  Server tabloya gore `scope`'lar; SQLite'ta TUM nesneler TEK duz ad
   alanini paylasir. Migration DDL'inde yalnizca TABLO adlarini onekle yazip
   INDEKS adlarini onceksiz birakmak, ayni fiziksel `.db` dosyasini paylasan
   farkli `TablePrefix` degerleri arasinda `CREATE INDEX IF NOT EXISTS`
@@ -117,4 +117,4 @@ Faz 23 kapanisi) 204 testin 204'u de kirilmisti. Kok sebepler:
 - **Yabanci anahtar zorlamasi VARSAYILAN KAPALIDIR**; her baglantida
   `PRAGMA foreign_keys = ON` acikca calistirilir (`SqliteDataSource`), aksi
   halde `REFERENCES ... ON DELETE CASCADE` sessizce yok sayilir.
-- **Yeni bir tablo eklemek uc migration + uc sorgu + bir depo + bir sozlesme testi demektir** (2026-08-05, Faz 29): `voice_sessions` icin dokunulanlar — `PostgreSql/Migrations/0016_*.sql`, `SqlServer/Migrations/0004_*.sql`, `Sqlite/Migrations/0004_*.sql`, `SqlQueriesBase` (+2 ozellik), uc `*Queries.cs`, `Sql.Shared/Stores/SqlVoiceSessionStore.cs`, uc `*BuilderExtensions.cs` icinde `services.Replace(...)`, uc `*TestContext.cs`, dort sozlesme turevi. 🚨 SQL Server'da **MERGE KULLANILMAZ** (K-177): once `UPDATE ... WITH (UPDLOCK, SERIALIZABLE)`, sonra `IF @@ROWCOUNT = 0 INSERT`. 🚨 `MigrationTests`'teki sabit tablo sayisi kirilir (38 → 39) — bu bilinclidir, guncelleyin.
+- **Yeni bir tablo eklemek uc migration + uc sorgu + bir `store` + bir sozlesme testi demektir** (2026-08-05, Faz 29): `voice_sessions` icin dokunulanlar — `PostgreSql/Migrations/0016_*.sql`, `SqlServer/Migrations/0004_*.sql`, `Sqlite/Migrations/0004_*.sql`, `SqlQueriesBase` (+2 ozellik), uc `*Queries.cs`, `Sql.Shared/Stores/SqlVoiceSessionStore.cs`, uc `*BuilderExtensions.cs` icinde `services.Replace(...)`, uc `*TestContext.cs`, dort sozlesme turevi. 🚨 SQL Server'da **MERGE KULLANILMAZ** (K-177): once `UPDATE ... WITH (UPDLOCK, SERIALIZABLE)`, sonra `IF @@ROWCOUNT = 0 INSERT`. 🚨 `MigrationTests`'teki sabit tablo sayisi kirilir (38 → 39) — bu bilinclidir, guncelleyin.
