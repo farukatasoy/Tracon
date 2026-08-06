@@ -4,6 +4,7 @@ using System.Text.Json;
 using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using FakeModelProvider = AgentPrism.Testing.FakeModelProvider;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
@@ -204,9 +205,9 @@ public sealed class OpenAICompatTests
 
         attachments.ShouldHaveSingleItem().MediaType.ShouldBe("image/png");
 
-        var echo = host.Services.GetServices<IModelProvider>().OfType<EchoModelProvider>().Single();
+        var echo = host.Services.GetServices<IModelProvider>().OfType<FakeModelProvider>().Single();
 
-        var content = echo.LastRequest
+        var content = echo.Requests[^1].Messages
             .SelectMany(static message => message.Contents)
             .OfType<DataContent>()
             .ShouldHaveSingleItem();

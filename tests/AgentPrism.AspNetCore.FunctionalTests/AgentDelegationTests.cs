@@ -1,5 +1,6 @@
 using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
+using FakeModelProvider = AgentPrism.Testing.FakeModelProvider;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
@@ -10,9 +11,20 @@ namespace AgentPrism.AspNetCore.FunctionalTests;
 /// Senaryo iki agent'la kurulur: <c>yonlendirici</c> isi <c>arastirmaci</c>'ya
 /// devreder. Model saglayicisi aga cikmaz ama Microsoft Agent Framework'un
 /// gercek arka plan gorev tool'larini cagirir; sahte bir kisayol kullanilmaz.
+/// Iki agent AYNI saglayicinin FARKLI modellerini kullanir; her modelin kendi
+/// bagimsiz yanit kuyrugu vardir (<see cref="FakeModelProvider.ForModel"/>),
+/// bu yuzden birbirlerinin sirasini bozmazlar.
 /// </remarks>
 public sealed class AgentDelegationTests
 {
+    private const string RouterModel = "router-model";
+    private const string ResearcherModel = "researcher-model";
+
+    // Microsoft Agent Framework'un arka plan gorev tool'lari.
+    private const string StartTask = "background_agents_start_task";
+    private const string WaitForCompletion = "background_agents_wait_for_first_completion";
+    private const string GetResults = "background_agents_get_task_results";
+
     [Fact]
     public async Task Akissiz_cagri_iki_ayri_calistirma_satiri_uretir()
     {
@@ -120,14 +132,25 @@ public sealed class AgentDelegationTests
         => AgentPrismTestHost.StartAsync(
             configureAgentPrism: builder =>
             {
-                builder.AddModelProvider(new RoutingModelProvider());
+                var provider = new FakeModelProvider("routing")
+                    .ForModel(RouterModel, cfg => cfg
+                        .CallsTool(StartTask, new { agentName = "arastirmaci", input = "alt gorev", description = "alt gorev" })
+                        .CallsTool(WaitForCompletion, new { taskIds = new[] { 1 } })
+                        .CallsTool(GetResults, new { taskId = 1 })
+                        // Nihai yanit GERCEKTEN son tool sonucunu yansitir - derinlik
+                        // siniri asildiginda testin bekledigi hata metni de buradan gecer.
+                        .EchoesLastToolResult("Devredildi: ", inputTokens: 4, outputTokens: 6))
+                    .ForModel(ResearcherModel, cfg => cfg
+                        .RespondsWith("Alt gorev tamam", inputTokens: 4, outputTokens: 6));
+
+                builder.AddModelProvider(provider);
 
                 builder.AddAgent(new AgentDefinition
                 {
                     Name = "arastirmaci",
                     Description = "Arastirma yapar.",
                     Instructions = "Arastir.",
-                    Model = Binding(),
+                    Model = Binding(ResearcherModel),
                     Origin = AgentDefinitionOrigin.Code,
                 });
 
@@ -136,7 +159,7 @@ public sealed class AgentDelegationTests
                     Name = "yonlendirici",
                     Description = "Isi devreder.",
                     Instructions = "Devret.",
-                    Model = Binding(),
+                    Model = Binding(RouterModel),
                     CallableAgentNames = ["arastirmaci"],
                     Origin = AgentDefinitionOrigin.Code,
                 });
@@ -144,6 +167,5 @@ public sealed class AgentDelegationTests
             configureServices: services => services.Configure<AgentPrismOptions>(
                 options => options.AgentGraph.MaxDepth = maxDepth));
 
-    private static ModelBinding Binding()
-        => new() { Provider = RoutingModelProvider.ProviderName, Model = RoutingModelProvider.ModelName };
+    private static ModelBinding Binding(string model) => new() { Provider = "routing", Model = model };
 }

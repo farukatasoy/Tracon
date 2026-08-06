@@ -15,6 +15,8 @@
   <ItemGroup>
     <ProjectReference Include="../../src/AgentPrism.UI/AgentPrism.UI.csproj" />
     <ProjectReference Include="../../src/AgentPrism.Workflows/AgentPrism.Workflows.csproj" />
+    <!-- Sahte model saglayicisi (FakeModelProvider): Faz 39, K-007 gerekcesi bolum 39.1. -->
+    <ProjectReference Include="../../src/AgentPrism.Testing/AgentPrism.Testing.csproj" />
   </ItemGroup>
 
 </Project>

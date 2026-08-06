@@ -1,4 +1,5 @@
 using AgentPrism.PostgreSql.IntegrationTests.Infrastructure;
+using AgentPrism.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPrism.PostgreSql.IntegrationTests;
@@ -68,13 +69,13 @@ public sealed class SessionPersistenceTests(PostgresFixture fixture)
         {
             var agent = await ResolveAsync(second, "destek");
             var manager = second.GetRequiredService<AgentSessionManager>();
-            var provider = second.GetRequiredService<EchoModelProvider>();
+            var provider = second.GetRequiredService<FakeModelProvider>();
 
             var session = await manager.GetOrCreateSessionAsync(agent, SessionId);
             await agent.RunAsync("ikinci soru", session);
 
             // Model, ilk turun mesajlarini da gormelidir; gecmis veritabanindan geldi.
-            var texts = provider.LastRequest.Select(static message => message.Text).ToList();
+            var texts = provider.Requests[^1].Messages.Select(static message => message.Text).ToList();
 
             texts.ShouldContain(static text => text.Contains("birinci soru", StringComparison.Ordinal));
             texts.ShouldContain(static text => text.Contains("ikinci soru", StringComparison.Ordinal));
@@ -161,10 +162,10 @@ public sealed class SessionPersistenceTests(PostgresFixture fixture)
         var services = new ServiceCollection();
 
         services.AddSingleton(context.TenantContext);
-        services.AddSingleton<EchoModelProvider>();
+        services.AddSingleton(_ => new FakeModelProvider("echo").EchoesUserMessage());
 
         services.AddAgentPrism()
-            .AddModelProvider(static provider => provider.GetRequiredService<EchoModelProvider>())
+            .AddModelProvider(static provider => provider.GetRequiredService<FakeModelProvider>())
             .AddAgent(new AgentDefinition
             {
                 Name = "destek",
