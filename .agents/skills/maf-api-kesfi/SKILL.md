@@ -63,7 +63,7 @@ APIDUMP_PACKAGES="Azure.AI.OpenAI@2.6.0" APIDUMP_PREFIXES="Azure.AI" \
 | Bir agent'ı nasıl sararım? | `DelegatingAIAgent` → `RunCoreAsync`, `RunCoreStreamingAsync` (protected virtual) |
 | Yanıt tipi ne? | `AgentResponse` (Messages, Text, Usage) / `AgentResponseUpdate` (Contents, Text, Role) |
 | Oturum durumu nerede? | `AgentSession.StateBag`, `ProviderSessionState<T>` |
-| Özel geçmiş deposu nasıl yazılır? | `ChatHistoryProvider` → `ProvideChatHistoryAsync`, `StoreChatHistoryAsync` |
+| Özel geçmiş `store`'u nasıl yazılır? | `ChatHistoryProvider` → `ProvideChatHistoryAsync`, `StoreChatHistoryAsync` |
 | Agent nasıl kurulur? | `ChatClientExtensions.AsAIAgent`, `ChatClientHarnessExtensions.AsHarnessAgent` |
 | Tool çağrılarını nasıl görürüm? | `FunctionCallContent` / `FunctionResultContent` (Microsoft.Extensions.AI) |
 | Bir tool'u nasıl onaya bağlarım? | `ApprovalRequiredAIFunction` ile sar → MAF `ToolApprovalRequestContent` üretir |

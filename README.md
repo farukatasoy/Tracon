@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici kendi AI harness'ini kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 30 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; riskli tool'lar onay bekler; tool'lar uzak MCP sunucularından gelebilir; workflow'lar insanla konuşabilir; işler zamanlanabilir; sürümler A/B karşılaştırılabilir; kullanım kotayla sınırlanabilir; olaylar imzalı webhook'larla yayılabilir; eski veri politikayla arşivlenip silinebilir (varsayılan **hiçbir şey silinmez**). `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu uçları ve gömülü arayüzü tek prefix altına bağlar. Veritabanı **zorunlu değildir** (PostgreSQL · SQL Server · SQLite · bellek içi); model satıcısı da değil (OpenAI, uyumlu uçlar, **Anthropic**, **Google**, **Azure OpenAI**). Kullanıcı **konuşabilir**: mikrofon → transkript → çalıştırma → sesli yanıt, kesilebilir (`UseVoiceConversation()`). Konsol **iki dillidir** (İngilizce · Türkçe), komut paleti ve kısayollarla. İkinci tur (Faz 8–30) bitti; sıradaki tur [adaylardan](docs/UCUNCU-FAZ-ADAYLARI.md) seçilir.
+> **Durum:** Faz 30 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; riskli tool'lar onay bekler; workflow'lar insanla konuşabilir; işler zamanlanabilir; sürümler A/B karşılaştırılabilir; kullanım kotayla sınırlanabilir; eski veri politikayla arşivlenip silinebilir (varsayılan **hiçbir şey silinmez**). `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu uçları ve gömülü arayüzü tek prefix altına bağlar. Veritabanı **zorunlu değildir**, model satıcısı da değil — ikisinin de listesi aşağıdaki paket tablosundadır. Kullanıcı **konuşabilir** (`UseVoiceConversation()`); konsol **iki dillidir**. İkinci tur (Faz 8–30) bitti; [üçüncü turun](docs/UCUNCU-FAZ-YOL-HARITASI.md) üç dalgası da planlandı (Faz 31–52).
 
 ```csharp
 builder.AddAgentPrism()
@@ -260,7 +260,8 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [18](docs/18-DEGERLENDIRME.md) | Değerlendirme (eval): takım/vaka/koşu, Faz 17'nin iş kuyruğu üzerinde, Evals ekranı | ✅ Tamamlandı |
 | [19](docs/19-SURUM-KARSILASTIRMA-VE-AB.md) | Sürüm karşılaştırma (diff) ve A/B deneyleri: oturum bazlı deterministik trafik bölme, Experiments ekranı | ✅ Tamamlandı |
 | [20](docs/20-MALIYET-VE-GOSTERGE-PANELI.md) | Maliyet raporlaması ve gösterge paneli: fiyat kataloğu/yapılandırması, Dashboard giriş ekranı | ✅ Tamamlandı |
-| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | ✅ Tamamı bitti; sıradaki tur [adaylardan](docs/UCUNCU-FAZ-ADAYLARI.md) seçilir |
+| [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | ✅ Tamamı bitti |
+| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 31–52) | 📋 Planlandı, kod yazılmadı; kalan 20 kalem [adaylarda](docs/UCUNCU-FAZ-ADAYLARI.md) |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 

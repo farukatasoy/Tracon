@@ -7,7 +7,7 @@ description: Bir fazın (docs/NN-*.md) kodunu bitirdikten sonra çalıştırıla
 
 Bu skill, bir fazın kodu bittiğinde çalıştırılır. Amacı tek bir şeydir: **sonraki oturumun doğru bilgiyle başlaması.**
 
-AgentPrism fazlar hâlinde ve çoğu zaman **ayrı sohbetlerde** geliştirilir. Sonraki oturum bu depoyu sıfırdan okur. Dokümanlar gerçeği yansıtmıyorsa, sonraki oturum yanlış API'ye göre kod yazar ve zaman kaybeder. Bu daha önce yaşandı: plan `AgentRunResponse` diyordu, gerçek tip `AgentResponse` idi.
+AgentPrism fazlar hâlinde ve çoğu zaman **ayrı sohbetlerde** geliştirilir. Sonraki oturum bu repoyu sıfırdan okur. Dokümanlar gerçeği yansıtmıyorsa, sonraki oturum yanlış API'ye göre kod yazar ve zaman kaybeder. Bu daha önce yaşandı: plan `AgentRunResponse` diyordu, gerçek tip `AgentResponse` idi.
 
 ---
 
@@ -30,7 +30,7 @@ uyuşmalıdır. Yeni paket ayrıca şunları ister — atlanırsa build veya tes
 - Meta pakete (`src/AgentPrism/AgentPrism.csproj`) `ProjectReference`
 - `DependencyDirectionTests.AllowedReferences` içine bir satır
 
-Ek olarak sır taraması:
+Ek olarak `secret` taraması:
 
 ```bash
 grep -rIn -E "sk-[a-z]+-[A-Za-z0-9_-]{24,}|AVNS_[A-Za-z0-9]{12,}|(Password|pwd)=[^ \";']{6,}" . \
@@ -38,10 +38,10 @@ grep -rIn -E "sk-[a-z]+-[A-Za-z0-9_-]{24,}|AVNS_[A-Za-z0-9]{12,}|(Password|pwd)=
 ```
 
 Desen, ön ekten sonra en az 24 karakter arar; bu yüzden dokümanlardaki örnekler
-(`sk-...`) yanlış pozitif üretmez. Çıktı boş olmalıdır — sırlar yalnızca
+(`sk-...`) yanlış pozitif üretmez. Çıktı boş olmalıdır — `secret`'lar yalnızca
 `dotnet user-secrets` içinde yaşar.
 
-> Testlerde sahte sır literali kullanırken **tarama desenine uymayan** bir değer
+> Testlerde sahte `secret` literali kullanırken **tarama desenine uymayan** bir değer
 > seçin. Yaşandı: `"sk-cok-gizli-..."` biçimindeki bir test sabiti taramayı
 > kirletti ve sonraki oturum için gürültü üretecekti.
 
@@ -196,7 +196,7 @@ Ana dalda çalışılmaz; faz dalı kullanılır (`feature/phase-N-...`).
 
 İki soruya dürüst cevap ver:
 
-> 1. Bu depoyu hiç görmemiş bir agent, `faz-baslangic` skill'inin **sabit okuma
+> 1. Bu repoyu hiç görmemiş bir agent, `faz-baslangic` skill'inin **sabit okuma
 >    kümesiyle** (AGENTS.md + MEMORY.md + faz dokümanı) sonraki fazı doğru
 >    başlatabilir mi?
 > 2. Sıcak yol dokümanları bu fazda **büyüdü mü**? (`scripts/dokuman-bakim.py`)

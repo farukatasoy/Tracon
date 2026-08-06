@@ -17,12 +17,12 @@
 
 | Paket | Rolü | Durum |
 |-------|------|-------|
-| `AgentPrism.Abstractions` | Sözleşmeler: kayıt, depo, katalog, iş, eval, deney, kota, webhook, saklama tipleri. Bağımlılığı yok. | ✅ |
+| `AgentPrism.Abstractions` | Sözleşmeler: kayıt, `store`, katalog, iş, eval, deney, kota, webhook, saklama tipleri. Bağımlılığı yok. | ✅ |
 | `AgentPrism.Core` | Çalıştırma yolu: derleyici, dekoratörler, kayıt, denetim, skill, workflow doğrulama, fiyat, kota, olay yayını, saklama yürütücüsü, konuşma boru hattı (K-222). | ✅ |
-| `AgentPrism.PostgreSql` | Kalıcılık: `PostgresQueries` + `PostgresDialect` + gömülü SQL (0001–0016). Depo mantığı `AgentPrism.Sql.Shared` ile paylaşılır. | ✅ |
-| `AgentPrism.SqlServer` | SQL Server 2019+ / Azure SQL. Aynı depolar, kendi T-SQL metni ve migration seti (`0001`–`0003`). Meta pakete dâhil değil (K-185). | ⚠️ Faz 25 testleri koşturulmadı |
-| `AgentPrism.Sqlite` | Tek dosya/gömülü kalıcılık. Aynı depolar, kendi SQL metni ve migration seti (`0001`–`0004`, K-190). Meta pakete dâhil değil. | ✅ |
-| `AgentPrism.Sql.Shared` | **Paket değil** — paylaşılan kaynak: 23 depo (ADO.NET tabanı), `SqlQueriesBase`, `SqlDialect` (+ `QualifyTable`, K-198), migration runner (K-176). | ✅ |
+| `AgentPrism.PostgreSql` | Kalıcılık: `PostgresQueries` + `PostgresDialect` + gömülü SQL (0001–0016). `Store` mantığı `AgentPrism.Sql.Shared` ile paylaşılır. | ✅ |
+| `AgentPrism.SqlServer` | SQL Server 2019+ / Azure SQL. Aynı `store`'lar, kendi T-SQL metni ve migration seti (`0001`–`0003`). Meta pakete dâhil değil (K-185). | ⚠️ Faz 25 testleri koşturulmadı |
+| `AgentPrism.Sqlite` | Tek dosya/gömülü kalıcılık. Aynı `store`'lar, kendi SQL metni ve migration seti (`0001`–`0004`, K-190). Meta pakete dâhil değil. | ✅ |
+| `AgentPrism.Sql.Shared` | **Paket değil** — paylaşılan kaynak: 23 `store` (ADO.NET tabanı), `SqlQueriesBase`, `SqlDialect` (+ `QualifyTable`, K-198), migration runner (K-176). | ✅ |
 | `AgentPrism.OpenAI` | OpenAI ve OpenAI uyumlu her sağlayıcı + sağlık denetimi | ✅ |
 | `AgentPrism.Anthropic` | Anthropic (Claude) — resmî SDK, prompt caching, genişletilmiş düşünme, sağlık denetimi. Meta pakete dâhil değil (K-209). | ✅ |
 | `AgentPrism.Google` | Google Gemini — resmî SDK, güvenlik eşikleri, düşünme bütçesi, sağlık denetimi. Meta pakete dâhil değil; geçişli ağırlığı kabul edildi (K-205). | ✅ |
@@ -42,8 +42,8 @@ Dört kapı sıfır uyarı; `dotnet pack` **15 paket** üretir.
 ⚠️ `AgentPrism.SqlServer`'ın testleri bu makinede koşmadı — bkz.
 `23-SQL-SERVER.md`, `docs/hafiza/sql-saglayicilari.md`.
 
-Ne veritabanı ne de belirli bir model satıcısı **zorunludur**: depolama
-yapılandırılmazsa bellek içine düşer; sağlayıcı tarafında OpenAI · uyumlu uçlar ·
+Ne veritabanı ne de belirli bir model satıcısı **zorunludur**: `storage`
+yapılandırılmazsa bellek içine düşer; sağlayıcı tarafında OpenAI · uyumlu `endpoint`'ler ·
 Anthropic · Google · Azure OpenAI birlikte çalışır. Yeteneklerin özeti
 [`README.md`](../README.md) içinde — burada tekrarlanmaz.
 
@@ -154,7 +154,7 @@ mimari testi bunu Faz 1'den itibaren zorlar.
 ## 3. Dört Değişmez Tasarım Kuralı
 
 ### K1 — Sıfır sürpriz
-`AddAgentPrism()` tek başına çalışır. PostgreSQL yapılandırılmazsa tüm depolama bellek içine düşer. Veritabanı **zorunlu değildir**. Bir geliştirici paketi kurar, tek satır yazar ve çalışan bir arayüz görür.
+`AddAgentPrism()` tek başına çalışır. PostgreSQL yapılandırılmazsa tüm `storage` bellek içine düşer. Veritabanı **zorunlu değildir**. Bir geliştirici paketi kurar, tek satır yazar ve çalışan bir arayüz görür.
 
 ### K2 — Tool'lar yalnız kodda tanımlanır
 Arayüzden agent oluşturulabilir, ancak tool **kodu** yazılamaz. Arayüz sadece kodda kayıtlı tool'lardan seçim yaptırır.
@@ -168,7 +168,7 @@ gerekçelendirilir, sayılıdır ve her biri kendi korumalarını taşır:
 
 | İstisna | Durum | Neden kabul edildi | Korumalar |
 |---------|-------|--------------------|-----------|
-| **MCP tool'ları** (K-058) | ✅ Uygulandı (Faz 6) | Süreç **uzakta** çalışır; AgentPrism yalnız istemcidir | Yalnız `http`/`https` (stdio yok), zorunlu onay, ad ele geçirme engeli, denetim izi, sırsız kayıt |
+| **MCP tool'ları** (K-058) | ✅ Uygulandı (Faz 6) | Süreç **uzakta** çalışır; AgentPrism yalnız istemcidir | Yalnız `http`/`https` (stdio yok), zorunlu onay, ad ele geçirme engeli, denetim izi, `secret`siz kayıt |
 | **Skill script'leri** (K-066) | ✅ Uygulandı ([Faz 11](11-SKILL-SCRIPT-CALISTIRMA.md)) | Kullanıcı kararı. Süreç **bu makinede** çalışır — en sıkı istisna | Yorumlayıcı beyaz listesi (varsayılan boş), skill başına izin, zorunlu onay, ayrı OS süreci, zaman aşımı, temiz ortam, **yazılamazsa reddeden** denetim izi |
 
 Her iki durumda da arayüz kullanıcısı **yeni kod yazmaz**; var olan bir yeteneği
@@ -263,7 +263,7 @@ yazılırsa aynı satır güncellenir, tekrar kaydı oluşmaz.
 | `experiments` | A/B deneyi: hedef agent, kollar (`variants jsonb`), durum, başlangıç/bitiş (Faz 19) |
 | `quotas` | Kota kuralı: kapsam (kiracı+agent+dönem), üç sınır (`max_runs`/`max_tokens`/`max_cost`) (Faz 21) |
 | `quota_usage` | Dönem sayacı; `agent_name = ''` kiracı geneli. `ON CONFLICT DO UPDATE` ile **atomik** artar (Faz 21) |
-| `webhook_subscriptions` | Olay aboneliği: adres, olay listesi, **sır değil** anahtar adı (K-059) (Faz 21) |
+| `webhook_subscriptions` | Olay aboneliği: adres, olay listesi, **`secret` değil** anahtar adı (K-059) (Faz 21) |
 | `webhook_deliveries` | Teslim **geçmişi** — kuyruk değil; zamanlama `jobs`'tadır (K-160) (Faz 21) |
 | `retention_policies` | Hedef başına saklama kuralı: yaş/hacim sınırı, arşiv bayrağı (K-198) (Faz 25) |
 | `retention_runs` | Temizleme koşusu geçmişi (Faz 25) |
@@ -295,7 +295,7 @@ flowchart TD
     SRC["Kaynaklar önceliğe göre<br/>CodeAgentSource 0 → MAF köprüsü 10 → DefinitionStoreAgentSource 100"]
     COMP["CompiledAgentCache.GetOrAdd(name, version, bagimlilikParmakIzi)<br/>AgentDefinitionCompiler.Compile(definition, callableAgents)"]
     DEC["IAgentDecorator[] — Order'a göre, KÜÇÜK olan dışta"]
-    REC["<b>RunRecordingAgent</b> · Order 0<br/>kök span agentprism.run burada açılır<br/>AgentRunScope burada yayımlanır<br/>RunEventWriter sıra numarasını üretir<br/>depo hatası çalıştırmayı KESMEZ"]
+    REC["<b>RunRecordingAgent</b> · Order 0<br/>kök span agentprism.run burada açılır<br/>AgentRunScope burada yayımlanır<br/>RunEventWriter sıra numarasını üretir<br/>store hatası çalıştırmayı KESMEZ"]
     OTEL["<b>OpenTelemetryAgent</b> · Order 10<br/>invoke_agent span'i"]
     APR["<b>ToolApprovalAgent</b> · Order 20<br/>otomatik onay kuralları"]
     RUN["AIAgent.RunAsync / RunStreamingAsync"]
@@ -504,11 +504,11 @@ rolü ister, oturumun kiracı sahipliğini doğrular, kiracı başına eşzamanl
 bağlantıyı sınırlar ve süre/boşta zaman aşımı uygular.
 
 Arayüz token'ı `sessionStorage`'da tutar — sekme kapanınca silinir (K-047). Dil ve
-tema tercihi `localStorage`'dadır: sır değildirler (K-230).
+tema tercihi `localStorage`'dadır: `secret` değildirler (K-230).
 
 Ek sınırlar:
 
-- Sırlar (`ApiKey`, bağlantı dizesi, MCP kimlik doğrulama değeri) **hiçbir zaman** veritabanına yazılmaz, API'den dönmez, arayüzde gösterilmez
+- `secret`'lar (`ApiKey`, bağlantı dizesi, MCP kimlik doğrulama değeri) **hiçbir zaman** veritabanına yazılmaz, API'den dönmez, arayüzde gösterilmez
 - `previous_response_id` ve `conversation_id` güvenilmez girdi kabul edilir; her zaman kiracı sahipliği doğrulanır
 - `audit_log` Faz 9'dan beri doludur — bkz. "Roller ve denetim izi"
 
@@ -527,7 +527,7 @@ demektir ve tasarım kuralı K2'nin bilinçli istisnasıdır:
 | Yalnız uzak sunucu | Yalnız `http`/`https`. **Stdio yoktur** (K-058) — süreç başlatmak K2'yi bozar |
 | Onay zorunluluğu | MCP tool'ları varsayılan olarak `RequiresApproval = true` |
 | Ad ele geçirme yok | Kodda kayıtlı bir tool'un adını taşıyan MCP tool'u **yok sayılır** (K-060) |
-| Sır sızmaz | Kayıt kimlik doğrulama **değerini** değil, değerin okunacağı yapılandırma anahtarının **adını** taşır (K-059) |
+| `secret` sızmaz | Kayıt kimlik doğrulama **değerini** değil, değerin okunacağı yapılandırma anahtarının **adını** taşır (K-059) |
 | Denetim izi | Her çağrı kaynak sunucu adıyla `tool_invocations`'a yazılır |
 
 **Kiracı çözümleme.** Varsayılan **kapalıdır**; açıldığında sıra:
@@ -577,9 +577,9 @@ kayıtlı değilse karşılık gelen alan her zaman `true` döner (rol kısıtı
 
 **Denetim izi.** `audit_log` tablosuna agent, MCP sunucusu, kiracı ve onay kuralı
 yazmaları ile tool onay kararları düşer — **çalıştırmalar düşmez** (`runs` tablosu
-zaten tam kaydı tutar). Yazma **depo dekoratörlerinde** yapılır
-(`Auditing*Store` — `AgentPrism.Core`), uç katmanında değil; tek istisna
-`mcp.refresh` (elle tazeleme bir depo yazması değildir, `GovernanceEndpoints`
+zaten tam kaydı tutar). Yazma **`store` decorator'larında** yapılır
+(`Auditing*Store` — `AgentPrism.Core`), `endpoint` katmanında değil; tek istisna
+`mcp.refresh` (elle tazeleme bir `store` yazması değildir, `GovernanceEndpoints`
 içinde yazılır).
 
 Aktör `AuditActorContext` adlı bir `AsyncLocal` köprüsünden okunur:
@@ -678,10 +678,10 @@ Koruma `WebhookHttpClient`'ın **içine gömülüdür**; tüketici değiştireme
 `IHttpClientFactory` bilinçli olarak kullanılmadı (K-164). SSRF kararının tek
 doğruluk noktası `WebhookUrlValidator.IsAllowedTarget`'tır.
 
-**Webhook sırrı veritabanında durmaz.** `webhook_subscriptions` kaydı yalnızca
-imzalama sırrının okunacağı yapılandırma anahtarının **adını** taşır; değer
+**Webhook `secret`'i veritabanında durmaz.** `webhook_subscriptions` kaydı yalnızca
+imzalama `secret`'inin okunacağı yapılandırma anahtarının **adını** taşır; değer
 çalışma anında `IConfiguration` üzerinden çözülür. Bu, MCP'de verilen K-059
-kararının birebir uygulanmasıdır — sözleşmede sır alanı **hiç yoktur**.
+kararının birebir uygulanmasıdır — sözleşmede `secret` alanı **hiç yoktur**.
 
 **İmza yeniden oynatmaya kapalıdır.** `HMAC-SHA256(timestamp + "." + body, secret)`
 — zaman damgası imzaya dâhildir; olmasaydı yakalanan bir istek sonsuza kadar
