@@ -18,6 +18,7 @@ import {
   cx,
 } from '../components/ui';
 import { SpinnerIcon } from '../components/icons';
+import { CancelRunButton } from '../components/cancel-run-button';
 import { FeedbackControl } from '../components/feedback-control';
 import { TranscriptView } from '../components/transcript';
 import { Waterfall, formatMs } from '../components/waterfall';
@@ -197,7 +198,12 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
             )}
           </>
         }
-        actions={<StatusBadge status={record.status} />}
+        actions={
+          <div className="flex items-center gap-2">
+            {record.status === 'Running' && <CancelRunButton runId={record.id} />}
+            <StatusBadge status={record.status} />
+          </div>
+        }
       />
 
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-6">

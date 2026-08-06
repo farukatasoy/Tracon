@@ -143,7 +143,8 @@ vardır. Tam tabloyu yalnız `README.md`'de güncelle.
 python3 scripts/dokuman-bakim.py
 ```
 
-İki iş yapar: `docs/KARARLAR-INDEKS.md`'yi yeniden üretir ve sıcak yol
+İki iş yapar: `docs/KARARLAR-INDEKS.md` ve `docs/KARARLAR-INDEKS-REDDEDILEN.md`
+dosyalarını yeniden üretir (K-214, Faz 32'de ikiye ayrıldı) ve sıcak yol
 bütçelerini denetler. **Çıkış kodu 0 olmalıdır.** Bütçe aşıldıysa içerik silinmez
 — birikimli kısım `docs/arsiv/`'e veya `docs/hafiza/`'ya taşınır.
 

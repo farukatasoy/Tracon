@@ -416,6 +416,10 @@ export const en = {
   'runDetail.notMeasured': 'not measured',
   'runDetail.streamed': 'streamed',
   'runDetail.nonStreaming': 'non-streaming',
+  'runDetail.cancel.button': 'Cancel run',
+  'runDetail.cancel.confirm': 'Cancel this run? The agent will stop at its next checkpoint.',
+  'runDetail.cancel.requested': 'Cancellation requested — the run will stop shortly.',
+  'runDetail.cancel.conflict': 'This run could not be canceled: it is not executing on this instance, or it has already finished.',
 
   /* ----------------------------------------------------------- feedback */
   'feedback.title': 'Feedback',

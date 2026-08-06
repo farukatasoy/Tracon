@@ -43,13 +43,13 @@ Yazmaya başlamadan **önce** karar defterine bak. Kapatılmış tartışma yeni
 açılmaz:
 
 ```bash
-grep -n "<konu>" docs/KARARLAR-INDEKS.md
+grep -n "<konu>" docs/KARARLAR-INDEKS-REDDEDILEN.md docs/KARARLAR-INDEKS.md
 grep -n "K-0NN" docs/KARARLAR.md      # bulduğun kalemin tam gerekçesi
 ```
 
-`KARARLAR-INDEKS.md`'nin 1. bölümü ("Reddedilen İşler") bir kontrol listesidir.
-Planladığın iş oradaysa ya plandan çıkar ya da **kararı neyin değiştirdiğini**
-kanıtla yaz.
+`KARARLAR-INDEKS-REDDEDILEN.md` (K-214'ün "yeniden açılma koşulu" gereği Faz
+32'de `KARARLAR-INDEKS.md`'den ayrıldı) bir kontrol listesidir. Planladığın iş
+oradaysa ya plandan çıkar ya da **kararı neyin değiştirdiğini** kanıtla yaz.
 
 ---
 

@@ -5,9 +5,9 @@ namespace AgentPrism.Core.UnitTests.Fakes;
 /// <summary>Testlerde kullanilan, tek modelli sahte saglayici.</summary>
 internal sealed class FakeModelProvider : IModelProvider
 {
-    private readonly FakeChatClient _client;
+    private readonly IChatClient _client;
 
-    public FakeModelProvider(FakeChatClient? client = null, string name = "fake", IReadOnlyList<ModelDescriptor>? models = null)
+    public FakeModelProvider(IChatClient? client = null, string name = "fake", IReadOnlyList<ModelDescriptor>? models = null)
     {
         _client = client ?? new FakeChatClient();
         Name = name;

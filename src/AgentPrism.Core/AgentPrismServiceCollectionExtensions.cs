@@ -127,6 +127,12 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddSingleton<IRunPricingResolver, RunPricingResolver>();
         services.TryAddSingleton<RunCostRecalculationService>();
 
+        // Calistirma iptali defteri (Faz 32). Her zaman kayitlidir: bellek ici
+        // bir sozluk tutmaktan baska bir yan etkisi yoktur (K-165'in "yeni
+        // davranis varsayilan kapali gelir" karari acik bir yan etki
+        // ureten ozellikler icindir, bu defter degildir).
+        services.TryAddSingleton<IRunCancellationRegistry, RunCancellationRegistry>();
+
         // Saglik onbellegi ve isteğe bagli arka plan tazeleyici. Acik fabrika: ayni
         // gerekce, TimeProvider kayitli olmayabilir.
         services.TryAddSingleton(static provider => new ModelProviderHealthCache(
@@ -420,7 +426,8 @@ public static class AgentPrismServiceCollectionExtensions
                 // sayaci hic artmaz, hicbir run.* olayi yayilmaz — derleme ve
                 // testler yesil gorunurdu (K-157'nin dersi).
                 provider.GetRequiredService<QuotaEnforcer>(),
-                provider.GetRequiredService<IWebhookPublisher>())));
+                provider.GetRequiredService<IWebhookPublisher>(),
+                provider.GetRequiredService<IRunCancellationRegistry>())));
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, OpenTelemetryAgentDecorator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, ToolApprovalAgentDecorator>());

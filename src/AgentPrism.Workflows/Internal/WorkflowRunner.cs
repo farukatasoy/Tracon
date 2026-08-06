@@ -48,6 +48,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     private readonly RunTraceCollector? _traceCollector;
     private readonly TimeProvider _timeProvider;
     private readonly SemaphoreSlim _concurrency;
+    private readonly IRunCancellationRegistry? _cancellationRegistry;
 
     /// <summary>Yeni bir kosucu olusturur.</summary>
     /// <param name="catalog">Workflow katalogu.</param>
@@ -60,6 +61,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// <param name="metrics">Metrik aletleri.</param>
     /// <param name="traceCollector">Span toplayici.</param>
     /// <param name="timeProvider">Zaman kaynagi.</param>
+    /// <param name="cancellationRegistry">
+    /// Iptal defteri. <see langword="null"/> ise workflow calistirmasi disaridan iptal edilemez.
+    /// </param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
     public WorkflowRunner(
         WorkflowCatalog catalog,
@@ -71,7 +75,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         ILogger<WorkflowRunner> logger,
         AgentPrismMetrics? metrics = null,
         RunTraceCollector? traceCollector = null,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        IRunCancellationRegistry? cancellationRegistry = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(runStore);
@@ -92,6 +97,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         _traceCollector = traceCollector;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _concurrency = new SemaphoreSlim(Math.Max(options.Value.MaxConcurrentRuns, 1));
+        _cancellationRegistry = cancellationRegistry;
     }
 
     /// <inheritdoc />
@@ -342,6 +348,15 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         // kesse de sunucu tarafindaki yurutme sonsuza kadar surmemelidir.
         using var timeout = new CancellationTokenSource(settings.RunTimeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
+
+        // Workflow satiri kendi agacinin kokudur (RunId == RootRunId): disaridan
+        // gelen bir iptal (POST /api/runs/{id}/cancel) bu kaynagi tetikler ve
+        // ayni RootRunId altindaki agent calistirmalari da iptal olur.
+        using var cancellationRegistration = _cancellationRegistry?.Register(
+            execution.RunId,
+            execution.RunId,
+            _tenantContext.TenantId,
+            linked);
 
         await _concurrency.WaitAsync(linked.Token).ConfigureAwait(false);
 
