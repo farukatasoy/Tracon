@@ -47,6 +47,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     private readonly IRunPricingResolver? _pricingResolver;
     private readonly QuotaEnforcer? _quotaEnforcer;
     private readonly IWebhookPublisher? _webhookPublisher;
+    private readonly IRunCancellationRegistry? _cancellationRegistry;
 
     /// <summary>Yeni bir kayit sarmalayicisi olusturur.</summary>
     /// <param name="innerAgent">Sarmalanan agent.</param>
@@ -85,6 +86,10 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     /// <param name="webhookPublisher">
     /// Olay yayincisi. <see langword="null"/> ise <c>run.*</c> olaylari yayilmaz.
     /// </param>
+    /// <param name="cancellationRegistry">
+    /// Iptal defteri. <see langword="null"/> ise calistirma disaridan
+    /// (<c>POST /api/runs/{id}/cancel</c>) iptal edilemez.
+    /// </param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
     public RunRecordingAgent(
         AIAgent innerAgent,
@@ -102,7 +107,8 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         bool includeAgentVersionTag = true,
         IRunPricingResolver? pricingResolver = null,
         QuotaEnforcer? quotaEnforcer = null,
-        IWebhookPublisher? webhookPublisher = null)
+        IWebhookPublisher? webhookPublisher = null,
+        IRunCancellationRegistry? cancellationRegistry = null)
         : base(innerAgent)
     {
         ArgumentNullException.ThrowIfNull(runStore);
@@ -125,6 +131,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         _pricingResolver = pricingResolver;
         _quotaEnforcer = quotaEnforcer;
         _webhookPublisher = webhookPublisher;
+        _cancellationRegistry = cancellationRegistry;
     }
 
     /// <inheritdoc />
@@ -149,11 +156,22 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         // script calistiricisi ve alt agent sarmalayicisi kapsami buradan okur.
         AgentPrismRunContext.SetCurrent(start.Scope);
 
+        // Disaridan gelen bir iptal istegi (POST /api/runs/{id}/cancel) bu
+        // kaynagi tetikler. Cagiranin kendi belirteci (ornegin istemcinin HTTP
+        // baglantisi) ayri kalir: ikisinden biri dusse de calistirma iptal
+        // olur, ama defter yalniz KENDI kaynagini tasir.
+        using var cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var cancellationRegistration = _cancellationRegistry?.Register(
+            start.Scope.RunId,
+            start.Scope.RootRunId,
+            start.Scope.TenantId,
+            cancellationSource);
+
         var scope = await BeginRunAsync(start, cancellationToken).ConfigureAwait(false);
 
         try
         {
-            var response = await base.RunCoreAsync(messages, session, options, cancellationToken).ConfigureAwait(false);
+            var response = await base.RunCoreAsync(messages, session, options, cancellationSource.Token).ConfigureAwait(false);
 
             foreach (var message in response.Messages)
             {
@@ -216,10 +234,20 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
 
         AgentPrismRunContext.SetCurrent(start.Scope);
 
+        // Gerekce RunCoreAsync icindeki nota bakiniz: bu kaynak defterin
+        // TryCancel'inin tetikledigi kaynaktir, cagiranin kendi belirtecinden ayridir.
+        using var cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var cancellationRegistration = _cancellationRegistry?.Register(
+            start.Scope.RunId,
+            start.Scope.RootRunId,
+            start.Scope.TenantId,
+            cancellationSource);
+
         var scope = await BeginRunAsync(start, cancellationToken).ConfigureAwait(false);
         UsageDetails? usage = null;
         string? pendingApproval = null;
-        var enumerator = base.RunCoreStreamingAsync(messages, session, options, cancellationToken).GetAsyncEnumerator(cancellationToken);
+        var enumerator = base.RunCoreStreamingAsync(messages, session, options, cancellationSource.Token)
+            .GetAsyncEnumerator(cancellationSource.Token);
 
         try
         {

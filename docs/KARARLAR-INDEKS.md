@@ -16,38 +16,12 @@ grep -n 'jsonb\|migration' docs/KARARLAR.md  # konu araması
 
 Tarih bu indekste **yoktur** (K-214) — `KARARLAR.md`'deki kalemin kendisinde durur.
 
+Daha önce kanıtla reddedilmiş bir işi mi arıyorsun? O liste ayrı dosyada:
+[`KARARLAR-INDEKS-REDDEDILEN.md`](KARARLAR-INDEKS-REDDEDILEN.md) (K-214, Faz 32 bölünmesi).
+
 ---
 
-## 1. Reddedilen İşler (24 kalem) — bunları yeniden önerme
-
-| KARARLAR.md satırı | Karar |
-|---|---|
-| L15 | Arayüz Blazor ile yazılmadı 👤 |
-| L16 | EF Core kullanılmadı 👤 |
-| L17 | `netstandard2.0` ve `net472` hedeflenmedi  |
-| L18 | Tek paket (monolitik) paketleme yapılmadı 👤 |
-| L19 | Geçişli sabitleme (`CentralPackageTransitivePinningEnabled`) açılmadı  |
-| L20 | Arayüzden tool kodu yazma özelliği eklenmedi  |
-| L21 | MAF tipleri sarmalanmadı  |
-| L22 | Trim/AOT analyzer'ları kök seviyede açılmadı  |
-| L23 | Katalog MAF'ın `AddAIAgent` kayıtlarını doğrudan okumadı  |
-| L24 | `AddToolsFrom<T>()` (attribute taramalı tool kaydı) Faz 1'de yapılmadı 🔁 |
-| L25 | Yerleşik OpenAI model listesi kodda tutulmadı  |
-| L26 | Responses API'de sunucu tarafı konuşma durumu kullanılmadı  |
-| L27 | `ValidateDataAnnotations()` kullanılmadı  |
-| L28 | Çalıştırma kaydı MAF middleware'i olarak yazılmadı  |
-| L29 | EF Core migration'ları yerine gömülü SQL — uygulandı ve doğrulandı  |
-| L30 | `tenant_id` sütunlarına yabancı anahtar konmadı  |
-| L31 | `tool_invocations` tablosu Faz 2'de doldurulmadı  |
-| L32 | MAF'ın `MapOpenAIResponses()` / `MapOpenAIConversations()` uçları kullanılmadı 👤 |
-| L33 | `/v1/conversations` ucu Faz 4'te yazılmadı 👤🔁 |
-| L34 | `/api/stats` maliyet döndürmüyor  |
-| L35 | OpenAPI paketi `AgentPrism.AspNetCore` bağımlılığı yapılmadı  |
-| L36 | `run_events` gerçekten partition'lanmadı  |
-| L37 | Arayüzden tool istatistiği ve model sağlık kontrolü Faz 5'te gösterilmedi 👤 |
-| L38 | Arayüz i18n altyapısı kurulmadı; dil İngilizce 👤🔁 |
-
-## 2. Kalıcı Kararlar (242 kalem)
+## Kalıcı Kararlar (246 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -293,3 +267,7 @@ Tarih bu indekste **yoktur** (K-214) — `KARARLAR.md`'deki kalemin kendisinde d
 | K-240 | L285 | `ScoredRuns`/`PositiveRate` iki yolla hesaplanır  |
 | K-241 | L286 | `InMemoryRunStore`'a isteğe bağlı `IRunScoreStore` eklendi  |
 | K-242 | L287 | `FeedbackControl` ikili puan gösterir, yıldız YAZILMADI  |
+| K-243 | L288 | Her çalıştırma (kök VE alt) kendi `CancellationTokenSource`'unu üretir; defter ağaç cascade'ini kendi mantığıyla uygular, akan `CancellationToken`'ın doğal yayılımına GÜVENMEZ  |
+| K-244 | L289 | `IRunCancellationRegistry` varsayılan AÇIK kaydedilir; ayrı bir `Use...()` çağrısı yok  |
+| K-245 | L290 | `WorkflowRunner` aynı deftere kendi kök kaydını yazar; `ExecuteAsync`'in zaten kurduğu `timeout`+istek `CancellationTokenSource` birleşimi (`linked`) yeniden kullanılır  |
+| K-246 | L291 | İptal isteği `run.cancel` eylemiyle denetim izine yazılır  |

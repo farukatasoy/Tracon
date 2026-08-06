@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici kendi AI harness'ini kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 31 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; riskli tool'lar onay bekler; workflow'lar insanla konuşabilir; işler zamanlanabilir; sürümler A/B karşılaştırılabilir; kullanım kotayla sınırlanabilir; eski veri politikayla arşivlenip silinebilir (varsayılan **hiçbir şey silinmez**). `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu uçları ve gömülü arayüzü tek prefix altına bağlar. Veritabanı **zorunlu değildir**, model satıcısı da değil — ikisinin de listesi aşağıdaki paket tablosundadır. Kullanıcı **konuşabilir** (`UseVoiceConversation()`); konsol **iki dillidir**, çalıştırmalar puanlanabilir. İkinci tur (Faz 8–30) ve Faz 31 bitti; [kalanlar](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlanır (Faz 32–52).
+> **Durum:** Faz 32 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; riskli tool'lar onay bekler, çalıştırmalar dışarıdan iptal edilebilir; workflow'lar insanla konuşabilir; kullanım kotayla sınırlanabilir; eski veri politikayla arşivlenip silinebilir (varsayılan **hiçbir şey silinmez**). `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu uçları ve gömülü arayüzü tek prefix altına bağlar. Veritabanı ve model satıcısı **zorunlu değildir** (liste aşağıda). Konsol **iki dillidir**. İkinci tur (Faz 8–30) ve Faz 31–32 bitti; [kalanlar](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlanır (Faz 33–52).
 
 ```csharp
 builder.AddAgentPrism()
@@ -262,7 +262,8 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [20](docs/20-MALIYET-VE-GOSTERGE-PANELI.md) | Maliyet raporlaması ve gösterge paneli: fiyat kataloğu/yapılandırması, Dashboard giriş ekranı | ✅ Tamamlandı |
 | [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | ✅ Tamamı bitti |
 | [31](docs/31-GERI-BILDIRIM-VE-PUANLAMA.md) | Geri bildirim ve puanlama (çalıştırma/mesaj puanı) | ✅ Tamamlandı |
-| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 32–52) | 📋 Planlandı, kod yazılmadı; kalan 20 kalem [adaylarda](docs/UCUNCU-FAZ-ADAYLARI.md) |
+| [32](docs/32-CALISTIRMA-IPTALI.md) | Çalıştırma iptali (`POST /api/runs/{id}/cancel`) | ✅ Tamamlandı |
+| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 33–52) | 📋 Planlandı, kod yazılmadı; kalan 20 kalem [adaylarda](docs/UCUNCU-FAZ-ADAYLARI.md) |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 
@@ -345,9 +346,9 @@ npm run dev          # http://localhost:5173 — /agentprism/* istekleri 5080'e 
 |--------|--------|
 | [docs/MIMARI.md](docs/MIMARI.md) | Mimari — katmanlar, veri modeli, çalıştırma yolu, güvenlik modeli |
 | [docs/MAF-GENISLEME-NOKTALARI.md](docs/MAF-GENISLEME-NOKTALARI.md) | Kullandığımız ve bilerek kullanmadığımız MAF genişleme noktaları |
-| [docs/KARARLAR-INDEKS.md](docs/KARARLAR-INDEKS.md) | Karar defterinin tek satırlık indeksi (üretilen dosya) |
+| [docs/KARARLAR-INDEKS.md](docs/KARARLAR-INDEKS.md) · [-REDDEDILEN](docs/KARARLAR-INDEKS-REDDEDILEN.md) | Karar/red indeksleri (üretilen) |
 | [docs/KARARLAR.md](docs/KARARLAR.md) | Karar defteri — reddedilen yaklaşımlar ve kalıcı tercihler, gerekçeleriyle |
-| [docs/](docs/) | Faz dokümanları (00–30) — kapsam, tasarım kararları, DoD |
+| [docs/](docs/) | Faz dokümanları (00–32) — kapsam, tasarım kararları, DoD |
 | [docs/hafiza/](docs/hafiza/) | Alan bazlı kurumsal bilgi — codepath'ler, desenler, tuzaklar |
 | [docs/arsiv/](docs/arsiv/) | Faz anlatısı ve paket×faz birikimi (tarihsel kayıt) |
 | [.agents/skills/](.agents/skills/) | Tekrarlanan iş akışları — faz başlangıç/tamamlama protokolü, MAF API keşfi |

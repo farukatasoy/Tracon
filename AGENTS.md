@@ -44,7 +44,7 @@ okumaktan ucuzdur: `grep -rn "AsyncLocal" docs/hafiza/`.
 
 **Uzun vadeli mimari kararlar al.** Sadece geçici çözümler sunan ve daha sonra değiştirilmesi amaçlanan çözümler önerme.
 
-**Karar defteri:** Daha önce kanıtla reddedilmiş işleri yeniden önerme — önce [`docs/KARARLAR-INDEKS.md`](docs/KARARLAR-INDEKS.md).
+**Karar defteri:** Daha önce reddedilmiş işleri yeniden önerme — önce [`docs/KARARLAR-INDEKS-REDDEDILEN.md`](docs/KARARLAR-INDEKS-REDDEDILEN.md).
 
 ---
 
@@ -201,7 +201,7 @@ Tip seçimi: katman/akış/karar ağacı → `flowchart TD|LR` · çağrı sıra
 | [`MEMORY.md`](MEMORY.md) | Yönlendirme + her oturumda geçerli tuzaklar | Her oturum |
 | [`docs/hafiza/*.md`](docs/hafiza/) | Alan bazlı tuzak ve codepath notları | O alana dokunurken |
 | [`docs/MIMARI.md`](docs/MIMARI.md) | Bugünkü mimari — katmanlar, veri modeli, çalıştırma yolu, güvenlik | İlgili bölüm |
-| [`docs/KARARLAR-INDEKS.md`](docs/KARARLAR-INDEKS.md) | 181 kararın tek satırlık indeksi | Karar ararken |
+| [`docs/KARARLAR-INDEKS.md`](docs/KARARLAR-INDEKS.md) | Kalıcı kararların indeksi (reddedilenler için bkz. üstteki "Karar defteri") | Karar ararken |
 | `docs/KARARLAR.md` | Kararların tam gerekçesi | **Yalnız grep ile** |
 | [`docs/MAF-GENISLEME-NOKTALARI.md`](docs/MAF-GENISLEME-NOKTALARI.md) | Kullandığımız/kullanmadığımız MAF noktaları | MAF'a dokunurken |
 | `docs/NN-*.md` | Faz dokümanları — kapsam, DoD, devir teslim notları | O faz |

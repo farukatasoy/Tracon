@@ -30,9 +30,13 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 # diyordu. Faz 27'de (213 karar) tekrar asildi ve yapisal cozum uygulandi:
 # indeksten TARIH SUTUNU kaldirildi (-~3 KB). Tarih kaybolmadi -- KARARLAR.md'de
 # duruyor ve indeks zaten oraya yollamak icin var. Indeksin isi "kalemi bul,
-# satir numarasini al"dir; tarih o iste kullanilmaz. Karar K-214.
-# Bir sonraki asimda siradaki adim: bolum bazli indeks (reddedilen isler ayri
-# dosyaya) veya kapanmis fazlarin kararlarinin arsiv indeksine tasinmasi.
+# satir numarasini al"dir; tarih o iste kullanilmaz. Karar K-214, "yeniden
+# acilma kosulu": "bu kez butce buyutulmez, bolunme uygulanir".
+# Faz 32 kapanisinda (246 karar) UCUNCU kez asildi; soz tutuldu. "Reddedilen
+# Isler" bolumu (~1.7 KB, kucuk ve nadiren buyuyen bir liste) ayri bir dosyaya
+# (KARARLAR-INDEKS-REDDEDILEN.md) tasindi; sicak yol artik yalniz "Kalici
+# Kararlar" tablosunu tasir. O dosya BUTCE'ye girmez -- yalniz faz-planlama'da,
+# yeni bir is onerilmeden once bir kez okunur, her oturumda degil.
 BUTCE = {
     "AGENTS.md": 12_000,
     "MEMORY.md": 8_000,
@@ -45,7 +49,7 @@ BUTCE = {
 HAFIZA_DOSYA_BUTCESI = 16_000
 
 
-def kararlar_indeksi_uret() -> str:
+def _kararlar_kalemleri() -> tuple[list, list]:
     kaynak = (ROOT / "docs" / "KARARLAR.md").read_text(encoding="utf-8")
     satirlar = kaynak.split("\n")
 
@@ -68,6 +72,13 @@ def kararlar_indeksi_uret() -> str:
 
     reddedilen = [k for k in kalemler if not k[1].startswith("K-")]
     kalici = [k for k in kalemler if k[1].startswith("K-")]
+    return reddedilen, kalici
+
+
+def kararlar_indeksi_uret() -> str:
+    """Sıcak yol dosyası: yalnız kalıcı (K-NNN) kararlar. Reddedilen işler
+    ayrı bir dosyadadır (Karar K-214'ün "yeniden açılma koşulu" — bölünme)."""
+    _reddedilen, kalici = _kararlar_kalemleri()
 
     ç = [
         "# KARARLAR — İndeks",
@@ -89,19 +100,12 @@ def kararlar_indeksi_uret() -> str:
         "",
         "Tarih bu indekste **yoktur** (K-214) — `KARARLAR.md`'deki kalemin kendisinde durur.",
         "",
+        "Daha önce kanıtla reddedilmiş bir işi mi arıyorsun? O liste ayrı dosyada:",
+        "[`KARARLAR-INDEKS-REDDEDILEN.md`](KARARLAR-INDEKS-REDDEDILEN.md) (K-214, Faz 32 bölünmesi).",
+        "",
         "---",
         "",
-        f"## 1. Reddedilen İşler ({len(reddedilen)} kalem) — bunları yeniden önerme",
-        "",
-        "| KARARLAR.md satırı | Karar |",
-        "|---|---|",
-    ]
-    for no, baslik, _tarih, isaret in reddedilen:
-        ç.append(f"| L{no} | {baslik} {isaret} |")
-
-    ç += [
-        "",
-        f"## 2. Kalıcı Kararlar ({len(kalici)} kalem)",
+        f"## Kalıcı Kararlar ({len(kalici)} kalem)",
         "",
         "| K | Satır | Karar |",
         "|---|---|---|",
@@ -110,6 +114,36 @@ def kararlar_indeksi_uret() -> str:
         num = baslik.split("—")[0].strip()
         geri = baslik.split("—", 1)[1].strip() if "—" in baslik else baslik
         ç.append(f"| {num} | L{no} | {geri} {isaret} |")
+
+    ç.append("")
+    return "\n".join(ç)
+
+
+def kararlar_reddedilen_uret() -> str:
+    """Sıcak yolda DEĞİLDİR — yalnız yeni bir iş önerilmeden önce, `faz-planlama`
+    sırasında bir kez okunur. Bu yüzden `BUTCE`'ye girmez (Karar K-214)."""
+    reddedilen, _kalici = _kararlar_kalemleri()
+
+    ç = [
+        "# KARARLAR — Reddedilen İşler",
+        "",
+        "> **Üretilen dosya. Elle düzenleme.** Kaynak: [`KARARLAR.md`](KARARLAR.md).",
+        "> Yeniden üretmek için: `python3 scripts/dokuman-bakim.py`",
+        "",
+        "Daha önce kanıtla reddedilmiş işlerin kontrol listesi — **bunları yeniden önerme.**",
+        "Kalıcı (K-NNN) kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).",
+        "",
+        "```bash",
+        "sed -n '120,121p' docs/KARARLAR.md   # satır numarasıyla tam gerekçe",
+        "```",
+        "",
+        f"## Reddedilen İşler ({len(reddedilen)} kalem)",
+        "",
+        "| KARARLAR.md satırı | Karar |",
+        "|---|---|",
+    ]
+    for no, baslik, _tarih, isaret in reddedilen:
+        ç.append(f"| L{no} | {baslik} {isaret} |")
 
     ç.append("")
     return "\n".join(ç)
@@ -154,11 +188,14 @@ def main() -> int:
     a = ap.parse_args()
 
     if not a.denetle:
-        hedef = ROOT / "docs" / "KARARLAR-INDEKS.md"
-        yeni = kararlar_indeksi_uret()
-        eski = hedef.read_text(encoding="utf-8") if hedef.exists() else ""
-        hedef.write_text(yeni, encoding="utf-8")
-        print("değişmedi" if eski == yeni else "yeniden üretildi", f"→ {hedef.relative_to(ROOT)}")
+        for hedef, uret in (
+            (ROOT / "docs" / "KARARLAR-INDEKS.md", kararlar_indeksi_uret),
+            (ROOT / "docs" / "KARARLAR-INDEKS-REDDEDILEN.md", kararlar_reddedilen_uret),
+        ):
+            yeni = uret()
+            eski = hedef.read_text(encoding="utf-8") if hedef.exists() else ""
+            hedef.write_text(yeni, encoding="utf-8")
+            print("değişmedi" if eski == yeni else "yeniden üretildi", f"→ {hedef.relative_to(ROOT)}")
         print()
 
     return denetle()
