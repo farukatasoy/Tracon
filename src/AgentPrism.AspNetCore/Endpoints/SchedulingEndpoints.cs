@@ -27,16 +27,19 @@ internal static class SchedulingEndpoints
         builder.MapGet("/api/schedules", ListSchedulesAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismListSchedules")
+            .WithTags("AgentPrism", "Scheduling")
             .WithSummary("Bir kiracinin zamanlamalarini listeler.");
 
         builder.MapGet("/api/schedules/{name}", GetScheduleAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismGetSchedule")
+            .WithTags("AgentPrism", "Scheduling")
             .WithSummary("Tek bir zamanlamayi getirir.");
 
         builder.MapPut("/api/schedules/{name}", SaveScheduleAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismSaveSchedule")
+            .WithTags("AgentPrism", "Scheduling")
             .WithSummary("Zamanlama olusturur veya gunceller.")
             .WithDescription(
                 "Cron ifadesi ve saat dilimi burada dogrulanir; bir sonraki calisma " +
@@ -45,26 +48,31 @@ internal static class SchedulingEndpoints
         builder.MapDelete("/api/schedules/{name}", DeleteScheduleAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismDeleteSchedule")
+            .WithTags("AgentPrism", "Scheduling")
             .WithSummary("Bir zamanlamayi siler.");
 
         builder.MapPost("/api/schedules/{name}/trigger", TriggerScheduleAsync)
             .RequireRole(roles.Operator)
             .WithName("AgentPrismTriggerSchedule")
+            .WithTags("AgentPrism", "Scheduling")
             .WithSummary("Bir zamanlamayi hemen, cron beklemeden calistirir.");
 
         builder.MapGet("/api/jobs", ListJobsAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismListJobs")
+            .WithTags("AgentPrism", "Scheduling")
             .WithSummary("Isleri turune, durumuna veya zamanlamasina gore filtreleyerek listeler.");
 
         builder.MapGet("/api/jobs/{id:guid}", GetJobAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismGetJob")
+            .WithTags("AgentPrism", "Scheduling")
             .WithSummary("Bir isi ve ogelerini getirir.");
 
         builder.MapPost("/api/jobs/{id:guid}/cancel", CancelJobAsync)
             .RequireRole(roles.Operator)
             .WithName("AgentPrismCancelJob")
+            .WithTags("AgentPrism", "Scheduling")
             .WithSummary("Bir isi iptal eder.")
             .WithDescription(
                 "Yalnizca Pending, Leased veya Running durumundaki bir is iptal edilebilir. " +

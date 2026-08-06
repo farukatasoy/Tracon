@@ -47,25 +47,37 @@ internal static class OpenAIConversationsEndpoints
         builder.MapPost("/v1/conversations", CreateAsync)
             .RequireRole(roles.Operator)
             .WithName("AgentPrismOpenAICreateConversation")
+            .WithTags("AgentPrism", "OpenAI")
             .WithSummary("Yeni bir konusma kimligi uretir.")
             .WithDescription(
                 "Kimlik rezervasyonudur: oturum ilk /v1/responses cagrisinda dogar. " +
-                "Donen kimlik dogrudan 'conversation' alaninda kullanilir.");
+                "Donen kimlik dogrudan 'conversation' alaninda kullanilir.")
+            .Produces<ConversationResource>(StatusCodes.Status200OK)
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status400BadRequest);
 
         builder.MapGet("/v1/conversations/{conversationId}", RetrieveAsync)
             .RequireRole(roles.Operator)
             .WithName("AgentPrismOpenAIGetConversation")
-            .WithSummary("Bir konusmanin ustverisini dondurur.");
+            .WithTags("AgentPrism", "OpenAI")
+            .WithSummary("Bir konusmanin ustverisini dondurur.")
+            .Produces<ConversationResource>(StatusCodes.Status200OK)
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound);
 
         builder.MapDelete("/v1/conversations/{conversationId}", DeleteAsync)
             .RequireRole(roles.Operator)
             .WithName("AgentPrismOpenAIDeleteConversation")
-            .WithSummary("Bir konusmayi ve altindaki oturumu siler.");
+            .WithTags("AgentPrism", "OpenAI")
+            .WithSummary("Bir konusmayi ve altindaki oturumu siler.")
+            .Produces<DeletedResource>(StatusCodes.Status200OK)
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound);
 
         builder.MapGet("/v1/conversations/{conversationId}/items", ListItemsAsync)
             .RequireRole(roles.Operator)
             .WithName("AgentPrismOpenAIListConversationItems")
-            .WithSummary("Bir konusmanin mesajlarini OpenAI oge bicimiyle listeler.");
+            .WithTags("AgentPrism", "OpenAI")
+            .WithSummary("Bir konusmanin mesajlarini OpenAI oge bicimiyle listeler.")
+            .Produces<ItemListResource>(StatusCodes.Status200OK)
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound);
     }
 
     private static async Task<IResult> CreateAsync(

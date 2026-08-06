@@ -73,6 +73,7 @@ internal static class MetaEndpoints
             // alanlari gercek yetkiyi yansitir.
             .AllowAnonymous()
             .WithName("AgentPrismMeta")
+            .WithTags("AgentPrism", "Meta")
             .WithSummary("AgentPrism surumunu, kimlik yontemini, aktif depolari ve rol yetkilerini bildirir.")
             .WithDescription(
                 "Kimlik dogrulamasi gerektirmez. Sir, kiraci verisi veya agent bilgisi icermez.");

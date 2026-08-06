@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (121 kalem)
+## Arşivlenen Kararlar (126 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -130,3 +130,8 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-119 | 164 | Beş desenin tamamı Faz 15'te uygulandı 👤 |
 | K-120 | 165 | Workflow çalıştırmaları `runs` tablosunda yaşar; `workflow_runs` açılmadı |
 | K-121 | 166 | Kontrol noktası durumu `json` sütununda, `jsonb` DEĞİL |
+| K-122 | 167 | 🚨 MAF executor kimlikleri agent ÖRNEĞİNDEN türer; sarmalayıcılar önbelleklenir |
+| K-123 | 168 | Kodda tanımlı workflow'lar agent'ları `GetWorkflowAgent` ile bağlar |
+| K-124 | 169 | `Magentic` plan onayı Faz 15'te kapalı (`RequirePlanSignoff(false)`) |
+| K-125 | 170 | `GroupChat` yönetici agent kabul etmez; `managerAgentName` yalnız `Magentic` içindir |
+| K-126 | 171 | Workflow tanımlarında sürüm GEÇMİŞİ tutulmaz |

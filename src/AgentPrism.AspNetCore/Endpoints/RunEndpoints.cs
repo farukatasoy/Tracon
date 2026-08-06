@@ -65,6 +65,7 @@ internal static class RunEndpoints
             })
             .RequireRole(roles.Reader)
             .WithName("AgentPrismListRuns")
+            .WithTags("AgentPrism", "Runs")
             .WithSummary("Calistirmalari en yeniden eskiye listeler.")
             .WithDescription(
                 "Varsayilan olarak YALNIZ kok calistirmalar doner. Alt calistirmalari da gormek icin " +
@@ -99,6 +100,7 @@ internal static class RunEndpoints
             })
             .RequireRole(roles.Reader)
             .WithName("AgentPrismGetRunTree")
+            .WithTags("AgentPrism", "Runs")
             .WithSummary("Bir calistirmanin ait oldugu agacin tamamini kokunden dondurur.");
 
         builder.MapGet("/api/runs/{runId:guid}", async Task<Results<Ok<RunRecord>, ProblemHttpResult>> (
@@ -110,6 +112,7 @@ internal static class RunEndpoints
                     : NotFound(runId))
             .RequireRole(roles.Reader)
             .WithName("AgentPrismGetRun")
+            .WithTags("AgentPrism", "Runs")
             .WithSummary("Tek bir calistirmanin ozetini dondurur.");
 
         builder.MapGet("/api/runs/{runId:guid}/events", async Task<Results<ProblemHttpResult, IResult>> (
@@ -129,6 +132,7 @@ internal static class RunEndpoints
             })
             .RequireRole(roles.Reader)
             .WithName("AgentPrismStreamRunEvents")
+            .WithTags("AgentPrism", "Runs")
             .WithSummary("Bir calistirmanin olaylarini SSE ile akitir; canli ve gecmise donuk ayni yoldur.")
             .WithDescription(
                 "Baglanti koparsa istemci 'Last-Event-ID' basligiyla kaldigi sira numarasindan devam eder. " +
@@ -137,6 +141,7 @@ internal static class RunEndpoints
         builder.MapPost("/api/runs/{runId:guid}/cancel", CancelRunAsync)
             .RequireRole(roles.Operator)
             .WithName("AgentPrismCancelRun")
+            .WithTags("AgentPrism", "Runs")
             .WithSummary("Suren bir calistirmanin iptalini ister.")
             .WithDescription(
                 "202 yalnizca iptal ISTENDIGINI bildirir; nihai durum 'GET /api/runs/{id}' ile okunur. " +
@@ -147,6 +152,7 @@ internal static class RunEndpoints
         builder.MapPost("/api/runs/{runId:guid}/feedback", SaveFeedbackAsync)
             .RequireRole(roles.Operator)
             .WithName("AgentPrismSaveRunFeedback")
+            .WithTags("AgentPrism", "Runs")
             .WithSummary("Bir calistirmaya veya tek bir mesaja puan yazar.")
             .WithDescription(
                 "Ayni yazar ayni hedefi (calistirma veya mesaj) ikinci kez puanladiginda satir " +
@@ -155,11 +161,13 @@ internal static class RunEndpoints
         builder.MapGet("/api/runs/{runId:guid}/feedback", ListFeedbackAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismListRunFeedback")
+            .WithTags("AgentPrism", "Runs")
             .WithSummary("Bir calistirmanin tum puanlarini listeler.");
 
         builder.MapDelete("/api/runs/{runId:guid}/feedback/{scoreId:guid}", DeleteFeedbackAsync)
             .RequireRole(roles.Operator)
             .WithName("AgentPrismDeleteRunFeedback")
+            .WithTags("AgentPrism", "Runs")
             .WithSummary("Bir puani siler.");
     }
 

@@ -35,16 +35,19 @@ internal static class WorkflowEndpoints
         builder.MapGet("/api/workflows", ListAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismListWorkflows")
+            .WithTags("AgentPrism", "Workflows")
             .WithSummary("Kodda tanimli ve veritabaninda saklanan workflow'lari listeler.");
 
         builder.MapGet("/api/workflows/{name}", GetAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismGetWorkflow")
+            .WithTags("AgentPrism", "Workflows")
             .WithSummary("Tek bir workflow tanimini dondurur.");
 
         builder.MapGet("/api/workflows/{name}/graph", GetGraphAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismGetWorkflowGraph")
+            .WithTags("AgentPrism", "Workflows")
             .WithSummary("Workflow'un derlenmis grafini dondurur.")
             .WithDescription(
                 "Dugum kimlikleri calistirma olaylarindaki executor kimlikleriyle birebir ayni " +
@@ -54,35 +57,47 @@ internal static class WorkflowEndpoints
         builder.MapPut("/api/workflows/{name}", SaveAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismSaveWorkflow")
+            .WithTags("AgentPrism", "Workflows")
             .WithSummary("Workflow tanimi olusturur veya gunceller.");
 
         builder.MapDelete("/api/workflows/{name}", DeleteAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismDeleteWorkflow")
+            .WithTags("AgentPrism", "Workflows")
             .WithSummary("Bir workflow tanimini siler.");
 
         builder.MapPost("/api/workflows/{name}/run", RunAsync)
             .RequireRole(roles.Operator)
             .WithName("AgentPrismRunWorkflow")
+            .WithTags("AgentPrism", "Workflows")
             .WithSummary("Workflow'u calistirir ve olaylarini SSE ile akitir.")
             .WithDescription(
                 "Her cerceve bir RunEvent tasir. Ilk cerceve calistirma kimligini bildirir; " +
                 "workflow icinde cagrilan her agent kendi runs satirini acar ve " +
-                "GET /api/runs/{runId}/tree ile agac olarak gorulur.");
+                "GET /api/runs/{runId}/tree ile agac olarak gorulur.")
+            // Basari yaniti her zaman SSE'dir; motor kayitli degilse 501 doner.
+            .Produces<string>(StatusCodes.Status200OK, contentType: "text/event-stream")
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status501NotImplemented);
 
         builder.MapGet("/api/workflows/runs/{runId:guid}/checkpoints", ListCheckpointsAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismListWorkflowCheckpoints")
+            .WithTags("AgentPrism", "Workflows")
             .WithSummary("Bir workflow calistirmasinin kontrol noktalarini listeler.");
 
         builder.MapPost("/api/workflows/runs/{runId:guid}/resume", ResumeAsync)
             .RequireRole(roles.Operator)
             .WithName("AgentPrismResumeWorkflow")
-            .WithSummary("Bir kontrol noktasindan devam eder ve olaylari SSE ile akitir.");
+            .WithTags("AgentPrism", "Workflows")
+            .WithSummary("Bir kontrol noktasindan devam eder ve olaylari SSE ile akitir.")
+            .Produces<string>(StatusCodes.Status200OK, contentType: "text/event-stream")
+            .ProducesProblem(StatusCodes.Status501NotImplemented);
 
         builder.MapGet("/api/workflows/runs/{runId:guid}/requests", ListRequestsAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismListWorkflowRequests")
+            .WithTags("AgentPrism", "Workflows")
             .WithSummary("Bir calistirmanin bekleyen insan girdisi isteklerini listeler.")
             .WithDescription(
                 "Yalnizca 'AwaitingInput' durumundaki bir calistirma istek dondurur. " +
@@ -91,11 +106,15 @@ internal static class WorkflowEndpoints
         builder.MapPost("/api/workflows/runs/{runId:guid}/respond", RespondAsync)
             .RequireRole(roles.Operator)
             .WithName("AgentPrismRespondWorkflowRequest")
+            .WithTags("AgentPrism", "Workflows")
             .WithSummary("Bekleyen bir istegi yanitlar ve calistirmayi sürdürur.")
             .WithDescription(
                 "Yanit, kontrol noktasindan sürdürulen yurutmede ayni kimlikle yeniden " +
                 "yayinlanan istekle eslestirilir. Sürdürme YENI bir runs satiri acar; " +
-                "olaylar SSE ile akar.");
+                "olaylar SSE ile akar.")
+            .Produces<string>(StatusCodes.Status200OK, contentType: "text/event-stream")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status501NotImplemented);
     }
 
     private static async Task<Results<Ok<IReadOnlyList<WorkflowDescriptor>>, ProblemHttpResult>> ListAsync(
