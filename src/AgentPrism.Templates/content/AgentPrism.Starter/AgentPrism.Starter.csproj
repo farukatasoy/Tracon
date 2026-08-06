@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>AgentPrism.Starter</RootNamespace>
+    <UserSecretsId>agentprism-starter-10000000-0000-0000-0000-000000000001</UserSecretsId>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AgentPrism" Version="AGENTPRISM_TEMPLATE_PACKAGE_VERSION" />
+<!--#if (UseSqlServer) -->
+    <PackageReference Include="AgentPrism.SqlServer" Version="AGENTPRISM_TEMPLATE_PACKAGE_VERSION" />
+<!--#endif -->
+<!--#if (UseSqlite) -->
+    <PackageReference Include="AgentPrism.Sqlite" Version="AGENTPRISM_TEMPLATE_PACKAGE_VERSION" />
+<!--#endif -->
+<!--#if (UseAnthropic) -->
+    <PackageReference Include="AgentPrism.Anthropic" Version="AGENTPRISM_TEMPLATE_PACKAGE_VERSION" />
+<!--#endif -->
+<!--#if (UseGoogle) -->
+    <PackageReference Include="AgentPrism.Google" Version="AGENTPRISM_TEMPLATE_PACKAGE_VERSION" />
+<!--#endif -->
+<!--#if (UseAzure) -->
+    <PackageReference Include="AgentPrism.Azure" Version="AGENTPRISM_TEMPLATE_PACKAGE_VERSION" />
+<!--#endif -->
+  </ItemGroup>
+
+</Project>

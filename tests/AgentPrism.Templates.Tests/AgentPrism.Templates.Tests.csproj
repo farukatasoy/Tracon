@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Bu proje kod olarak AgentPrism.Templates'e bagli DEGILDIR: sablon paketinin
+    IncludeBuildOutput=false'tur, baglanacak bir derleme ciktisi yoktur. Testler
+    `dotnet` CLI'yi alt surec olarak calistirir (pack, new install, new, build,
+    ve uretilen uygulamayi baslatip HTTP ile dogrular).
+  -->
+
+</Project>
