@@ -7,28 +7,53 @@ namespace AgentPrism.StoreContracts;
 /// <remarks>
 /// Bellek ici depo ile PostgreSQL deposu ayni senaryolari gecmelidir.
 /// </remarks>
-public abstract class RunStoreContract : IAsyncLifetime
+public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 {
-    /// <summary>Test edilen depo.</summary>
-    protected IRunStore Store { get; private set; } = null!;
-
-    /// <summary>Test icin bos bir depo uretir.</summary>
-    /// <returns>Kullanima hazir depo.</returns>
-    protected abstract ValueTask<IRunStore> CreateStoreAsync();
-
     /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask DisposeAsync()
+    /// <remarks>
+    /// Kiraci arayuzde bir parametre degildir; <see cref="ITenantContext"/>'ten
+    /// okunur. Bu yuzden her kanca once gecerli kiraciyi ayarlar.
+    /// </remarks>
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
     {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
+        AmbientTenant.TenantId = tenantId;
+
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId, name));
+        await Store.AppendEventAsync(TestData.Event(runId, 0));
+
+        return runId;
     }
 
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    /// <returns>Tamamlanma gorevi.</returns>
-    protected virtual ValueTask OnDisposeAsync() => default;
+    /// <inheritdoc />
+    protected override async ValueTask<bool> ExistsAsync(string tenantId, object key)
+    {
+        AmbientTenant.TenantId = tenantId;
+
+        var runId = (Guid)key;
+        var record = await Store.GetRunAsync(runId);
+
+        // Olay akisi da ayni siniri tasimalidir; kayit gorulmuyorsa olaylari da
+        // gorulmemelidir.
+        var events = 0;
+
+        await foreach (var runEvent in Store.ReadEventsAsync(runId))
+        {
+            _ = runEvent;
+            events++;
+        }
+
+        (events > 0).ShouldBe(record is not null);
+
+        return record is not null;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask<int> CountAsync(string tenantId)
+    {
+        AmbientTenant.TenantId = tenantId;
+        return (await Store.QueryRunsAsync(new RunQuery())).Count;
+    }
 
     [Fact]
     public async Task Olaylar_sira_numarasina_gore_okunur()
@@ -962,5 +987,58 @@ public abstract class RunStoreContract : IAsyncLifetime
             CompletedAt = DateTimeOffset.UtcNow,
             Usage = usage,
         });
+    }
+
+    [Fact]
+    public async Task Ozet_ve_zaman_serisi_kiracilar_arasinda_sizmaz()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var from = new DateTimeOffset(now.Year, now.Month, now.Day, now.Hour, 0, 0, TimeSpan.Zero).AddHours(-1);
+
+        AmbientTenant.TenantId = TenantA;
+        var experimentId = Guid.NewGuid();
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId) with
+        {
+            StartedAt = from.AddMinutes(5),
+            ExperimentId = experimentId,
+            Variant = "control",
+        });
+
+        AmbientTenant.TenantId = TenantB;
+
+        (await Store.GetStatisticsAsync(new RunStatisticsQuery())).TotalRuns.ShouldBe(0);
+        (await Store.GetTimeSeriesAsync(new RunTimeSeriesQuery
+        {
+            From = from,
+            To = from.AddHours(1),
+            Bucket = TimeSeriesBucket.Hour,
+        })).Sum(static point => point.Runs).ShouldBe(0);
+        (await Store.GetExperimentResultsAsync(new ExperimentResultsQuery { ExperimentId = experimentId })).ShouldBeEmpty();
+
+        AmbientTenant.TenantId = TenantA;
+
+        (await Store.GetStatisticsAsync(new RunStatisticsQuery())).TotalRuns.ShouldBe(1);
+        (await Store.GetTimeSeriesAsync(new RunTimeSeriesQuery
+        {
+            From = from,
+            To = from.AddHours(1),
+            Bucket = TimeSeriesBucket.Hour,
+        })).Sum(static point => point.Runs).ShouldBe(1);
+        (await Store.GetExperimentResultsAsync(new ExperimentResultsQuery { ExperimentId = experimentId })).ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task Calistirma_kaydi_gecerli_kiraciyla_damgalanir()
+    {
+        // IsolationTests.cs'ten tasindi (Faz 41): artik dort kosumda birden
+        // calisir, yalniz PostgreSQL'de degil.
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = AgentPrismId.NewId();
+        var record = await Store.StartRunAsync(TestData.Run(runId));
+
+        record.TenantId.ShouldBe(TenantA);
+        (await Store.GetRunAsync(runId))!.TenantId.ShouldBe(TenantA);
     }
 }

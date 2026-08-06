@@ -16,7 +16,7 @@ public sealed class RetentionMaxRowsDialectTests
     [Fact]
     public void Uretilen_sql_order_by_offset_fetch_ve_null_elemeyi_tasir()
     {
-        var sql = _dialect.BuildRetentionFindNthRowCutoffSql("agentprism.run_events", "created_at");
+        var sql = _dialect.BuildRetentionFindNthRowCutoffSql("agentprism.run_events", "created_at", extraPredicate: null);
 
         sql.ShouldContain("SELECT created_at");
         sql.ShouldContain("FROM agentprism.run_events");
@@ -33,7 +33,7 @@ public sealed class RetentionMaxRowsDialectTests
 
         definition.RowLimitOrderExpression.ShouldNotBeNullOrWhiteSpace();
 
-        var sql = _dialect.BuildRetentionFindNthRowCutoffSql(definition.Table, definition.RowLimitOrderExpression);
+        var sql = _dialect.BuildRetentionFindNthRowCutoffSql(definition.Table, definition.RowLimitOrderExpression, extraPredicate: null);
 
         sql.ShouldContain("ORDER BY");
         sql.ShouldContain("OFFSET (@n - 1) ROWS FETCH NEXT 1 ROWS ONLY");

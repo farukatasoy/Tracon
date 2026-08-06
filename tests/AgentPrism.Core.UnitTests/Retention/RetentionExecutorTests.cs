@@ -244,7 +244,7 @@ public sealed class RetentionExecutorTests
 
         public IReadOnlyList<ArchiveRow> ArchiveRowsToReturn { get; set; } = [];
 
-        public ValueTask<long> CountOlderThanAsync(string target, DateTimeOffset cutoff, CancellationToken cancellationToken = default)
+        public ValueTask<long> CountOlderThanAsync(string target, string? tenantId, DateTimeOffset cutoff, CancellationToken cancellationToken = default)
         {
             LastCutoffUsed = cutoff;
 
@@ -253,6 +253,7 @@ public sealed class RetentionExecutorTests
 
         public ValueTask<IReadOnlyList<ArchiveRow>> ReadForArchiveAsync(
             string target,
+            string? tenantId,
             DateTimeOffset cutoff,
             int batchSize,
             CancellationToken cancellationToken = default)
@@ -267,6 +268,7 @@ public sealed class RetentionExecutorTests
 
         public ValueTask<DateTimeOffset?> FindRowLimitCutoffAsync(
             string target,
+            string? tenantId,
             long maxRows,
             CancellationToken cancellationToken = default)
         {
@@ -276,7 +278,7 @@ public sealed class RetentionExecutorTests
             return new ValueTask<DateTimeOffset?>(RowLimitCutoffToReturn);
         }
 
-        public ValueTask<int> DeleteBatchAsync(string target, DateTimeOffset cutoff, int batchSize, CancellationToken cancellationToken = default)
+        public ValueTask<int> DeleteBatchAsync(string target, string? tenantId, DateTimeOffset cutoff, int batchSize, CancellationToken cancellationToken = default)
         {
             LastCutoffUsed = cutoff;
 

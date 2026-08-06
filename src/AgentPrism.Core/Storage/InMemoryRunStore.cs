@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -25,6 +26,7 @@ public sealed class InMemoryRunStore : IRunStore
     private readonly ConcurrentDictionary<Guid, List<ToolInvocationRecord>> _toolInvocations = new();
     private readonly ConcurrentQueue<Guid> _insertionOrder = new();
     private readonly IRunScoreStore _scores;
+    private readonly ITenantContext _tenantContext;
 
     /// <summary>Yeni bir bellek ici calistirma deposu olusturur.</summary>
     /// <param name="scores">
@@ -34,9 +36,14 @@ public sealed class InMemoryRunStore : IRunStore
     /// uzerinden cozumlendiğinde <c>AddAgentPrism()</c>'in kaydettigi paylasilan
     /// tekil orneği alir, boylece HTTP katmaninin yazdigi puanlar ozette gorunur.
     /// </param>
-    public InMemoryRunStore(IRunScoreStore? scores = null)
+    /// <param name="tenantContext">
+    /// Gecerli kiracinin baglami. Verilmezse depo tek kiracili davranir
+    /// (Faz 41).
+    /// </param>
+    public InMemoryRunStore(IRunScoreStore? scores = null, ITenantContext? tenantContext = null)
     {
         _scores = scores ?? new InMemoryRunScoreStore();
+        _tenantContext = tenantContext ?? FixedTenantContext.Default;
     }
 
     /// <summary>
@@ -58,7 +65,7 @@ public sealed class InMemoryRunStore : IRunStore
             WorkflowName = info.WorkflowName,
             Status = RunStatus.Running,
             StartedAt = info.StartedAt,
-            TenantId = info.TenantId,
+            TenantId = info.TenantId ?? _tenantContext.TenantId,
             SessionId = info.SessionId,
             ModelId = info.ModelId,
             IsStreaming = info.IsStreaming,
@@ -138,7 +145,7 @@ public sealed class InMemoryRunStore : IRunStore
     /// <inheritdoc />
     public ValueTask<RunRecord?> GetRunAsync(Guid runId, CancellationToken cancellationToken = default)
     {
-        _runs.TryGetValue(runId, out var record);
+        TryGetOwnedRun(runId, out var record);
 
         return new ValueTask<RunRecord?>(record is null ? null : WithTreeTotals(record));
     }
@@ -162,7 +169,7 @@ public sealed class InMemoryRunStore : IRunStore
                 continue;
             }
 
-            if (query.TenantId is { } tenantId && !string.Equals(record.TenantId, tenantId, StringComparison.Ordinal))
+            if (!string.Equals(record.TenantId, query.TenantId ?? _tenantContext.TenantId, StringComparison.Ordinal))
             {
                 continue;
             }
@@ -224,6 +231,28 @@ public sealed class InMemoryRunStore : IRunStore
     /// tamamlanmasi ustteki her kaydi guncellemek zorunda kalir ve kayit yolu
     /// derinlikle birlikte pahalilasirdi.
     /// </remarks>
+    /// <summary>Calistirma gecerli kiraciya ait mi.</summary>
+    /// <param name="runId">Calistirma kimligi.</param>
+    /// <returns>Kayit var ve kiraci esliyorsa <see langword="true"/>.</returns>
+    private bool IsOwnedByCurrentTenant(Guid runId) => TryGetOwnedRun(runId, out _);
+
+    /// <summary>Calistirmayi yalnizca gecerli kiraciya aitse dondurur.</summary>
+    /// <param name="runId">Calistirma kimligi.</param>
+    /// <param name="record">Bulunan kayit; sahiplik yoksa <see langword="null"/>.</param>
+    /// <returns>Kayit bulunduysa <see langword="true"/>.</returns>
+    private bool TryGetOwnedRun(Guid runId, [NotNullWhen(true)] out RunRecord? record)
+    {
+        if (_runs.TryGetValue(runId, out var found)
+            && string.Equals(found.TenantId, _tenantContext.TenantId, StringComparison.Ordinal))
+        {
+            record = found;
+            return true;
+        }
+
+        record = null;
+        return false;
+    }
+
     private RunRecord WithTreeTotals(RunRecord record)
     {
         var children = 0;
@@ -333,7 +362,7 @@ public sealed class InMemoryRunStore : IRunStore
                 continue;
             }
 
-            if (query.TenantId is { } tenantId && !string.Equals(record.TenantId, tenantId, StringComparison.Ordinal))
+            if (!string.Equals(record.TenantId, query.TenantId ?? _tenantContext.TenantId, StringComparison.Ordinal))
             {
                 continue;
             }
@@ -523,7 +552,7 @@ public sealed class InMemoryRunStore : IRunStore
                 continue;
             }
 
-            if (query.TenantId is { } tenantId && !string.Equals(record.TenantId, tenantId, StringComparison.Ordinal))
+            if (!string.Equals(record.TenantId, query.TenantId ?? _tenantContext.TenantId, StringComparison.Ordinal))
             {
                 continue;
             }
@@ -567,7 +596,7 @@ public sealed class InMemoryRunStore : IRunStore
                 continue;
             }
 
-            if (query.TenantId is { } tenantId && !string.Equals(record.TenantId, tenantId, StringComparison.Ordinal))
+            if (!string.Equals(record.TenantId, query.TenantId ?? _tenantContext.TenantId, StringComparison.Ordinal))
             {
                 continue;
             }
@@ -626,7 +655,7 @@ public sealed class InMemoryRunStore : IRunStore
         Guid runId,
         CancellationToken cancellationToken = default)
     {
-        if (!_toolInvocations.TryGetValue(runId, out var log))
+        if (!IsOwnedByCurrentTenant(runId) || !_toolInvocations.TryGetValue(runId, out var log))
         {
             return new ValueTask<IReadOnlyList<ToolInvocationRecord>>([]);
         }
@@ -659,7 +688,7 @@ public sealed class InMemoryRunStore : IRunStore
                 continue;
             }
 
-            if (query.TenantId is { } tenantId && !string.Equals(run.TenantId, tenantId, StringComparison.Ordinal))
+            if (!string.Equals(run.TenantId, query.TenantId ?? _tenantContext.TenantId, StringComparison.Ordinal))
             {
                 continue;
             }
@@ -699,7 +728,7 @@ public sealed class InMemoryRunStore : IRunStore
         long fromSequence = 0,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        if (!_events.TryGetValue(runId, out var log))
+        if (!IsOwnedByCurrentTenant(runId) || !_events.TryGetValue(runId, out var log))
         {
             yield break;
         }

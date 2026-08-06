@@ -8,26 +8,37 @@ namespace AgentPrism.StoreContracts;
 /// kiraci yalitimi ve oturum silindiginde eklerin gitmesi (docs/14-COK-MODLULUK.md,
 /// acik soru 2) iki uygulamada da ayni davranmalidir.
 /// </remarks>
-public abstract class AttachmentStoreContract : IAsyncLifetime
+public abstract class AttachmentStoreContract : TenantIsolationContract<IAttachmentStore>
 {
-    /// <summary>Test edilen depo.</summary>
-    protected IAttachmentStore Store { get; private set; } = null!;
-
-    /// <summary>Test icin bos bir depo uretir.</summary>
-    protected abstract ValueTask<IAttachmentStore> CreateStoreAsync();
+    /// <inheritdoc />
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+        => (await Store.SaveAsync(Content(tenantId, fileName: $"{name}.png"))).Id;
 
     /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask DisposeAsync()
+    protected override async ValueTask<bool> ExistsAsync(string tenantId, object key)
     {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
+        var id = (Guid)key;
+        var descriptor = await Store.GetAsync(tenantId, id);
+
+        // Ustveri ile icerik ayni yalitimi tasimalidir; biri sizarsa digeri de
+        // sizmis sayilir.
+        var content = await Store.OpenReadAsync(tenantId, id);
+
+        await using (content)
+        {
+            (content is not null).ShouldBe(descriptor is not null);
+        }
+
+        return descriptor is not null;
     }
 
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    protected virtual ValueTask OnDisposeAsync() => default;
+    /// <inheritdoc />
+    protected override async ValueTask<int> CountAsync(string tenantId)
+        => (await Store.ListAsync(new AttachmentQuery { TenantId = tenantId })).Count;
+
+    /// <inheritdoc />
+    protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
+        => await Store.DeleteAsync(tenantId, (Guid)key);
 
     [Fact]
     public async Task Kayit_ustveri_dogru_saklanir()
@@ -122,4 +133,16 @@ public abstract class AttachmentStoreContract : IAsyncLifetime
             MediaType = mediaType,
             Data = data ?? [1, 2, 3, 4],
         };
+
+    [Fact]
+    public async Task Oturum_bazli_silme_digerinin_eklerini_silmez()
+    {
+        await Store.SaveAsync(Content("tenant-a", sessionId: "ortak-oturum"));
+        await Store.SaveAsync(Content("tenant-b", sessionId: "ortak-oturum"));
+
+        (await Store.DeleteBySessionAsync("tenant-a", "ortak-oturum")).ShouldBe(1);
+
+        (await Store.ListAsync(new AttachmentQuery { TenantId = "tenant-a" })).ShouldBeEmpty();
+        (await Store.ListAsync(new AttachmentQuery { TenantId = "tenant-b" })).ShouldHaveSingleItem();
+    }
 }

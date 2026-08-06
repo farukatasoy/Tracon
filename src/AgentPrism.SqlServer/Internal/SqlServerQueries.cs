@@ -296,12 +296,11 @@ internal sealed class SqlServerQueries : SqlQueriesBase
 
         UpsertSession = $"""
             UPDATE {Schema}.sessions WITH (UPDLOCK, SERIALIZABLE)
-               SET tenant_id      = @tenant_id,
-                   agent_name     = @agent_name,
+               SET agent_name     = @agent_name,
                    state          = @state,
                    schema_version = @schema_version,
                    updated_at     = @updated_at
-             WHERE id = @id;
+             WHERE id = @id AND tenant_id = @tenant_id;
 
             IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.sessions (id, tenant_id, agent_name, state, schema_version, created_at, updated_at)

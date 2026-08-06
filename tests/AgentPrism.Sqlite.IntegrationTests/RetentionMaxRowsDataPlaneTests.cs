@@ -28,11 +28,11 @@ public sealed class RetentionMaxRowsDataPlaneTests(SqliteFixture fixture) : IAsy
             await SeedRunEventAsync(runId, seq: i, createdAt: DateTimeOffset.UtcNow.AddMinutes(-10 + i));
         }
 
-        var cutoff = await _context.RetentionData.FindRowLimitCutoffAsync(RetentionTargets.RunEvents, maxRows: 4);
+        var cutoff = await _context.RetentionData.FindRowLimitCutoffAsync(RetentionTargets.RunEvents, tenantId: null, maxRows: 4);
 
         cutoff.ShouldNotBeNull();
 
-        var deleted = await _context.RetentionData.DeleteBatchAsync(RetentionTargets.RunEvents, cutoff!.Value, batchSize: 100);
+        var deleted = await _context.RetentionData.DeleteBatchAsync(RetentionTargets.RunEvents, tenantId: null, cutoff!.Value, batchSize: 100);
 
         deleted.ShouldBe(6);
 
@@ -48,7 +48,7 @@ public sealed class RetentionMaxRowsDataPlaneTests(SqliteFixture fixture) : IAsy
         var runId = await SeedRunAsync();
         await SeedRunEventAsync(runId, seq: 1, createdAt: DateTimeOffset.UtcNow);
 
-        var cutoff = await _context.RetentionData.FindRowLimitCutoffAsync(RetentionTargets.RunEvents, maxRows: 1000);
+        var cutoff = await _context.RetentionData.FindRowLimitCutoffAsync(RetentionTargets.RunEvents, tenantId: null, maxRows: 1000);
 
         cutoff.ShouldBeNull();
     }
@@ -69,12 +69,12 @@ public sealed class RetentionMaxRowsDataPlaneTests(SqliteFixture fixture) : IAsy
         await SeedWorkflowCheckpointAsync(run2);
         await SeedWorkflowCheckpointAsync(run3);
 
-        var cutoff = await _context.RetentionData.FindRowLimitCutoffAsync(RetentionTargets.WorkflowCheckpoints, maxRows: 1);
+        var cutoff = await _context.RetentionData.FindRowLimitCutoffAsync(RetentionTargets.WorkflowCheckpoints, tenantId: null, maxRows: 1);
 
         cutoff.ShouldNotBeNull();
 
         var deleted = await _context.RetentionData.DeleteBatchAsync(
-            RetentionTargets.WorkflowCheckpoints,
+            RetentionTargets.WorkflowCheckpoints, tenantId: null,
             cutoff!.Value,
             batchSize: 100);
 
@@ -104,7 +104,7 @@ public sealed class RetentionMaxRowsDataPlaneTests(SqliteFixture fixture) : IAsy
         await SeedAttachmentAsync(sessionId: null);
 
         var cutoff = DateTimeOffset.UtcNow.AddDays(1);
-        var deleted = await _context.RetentionData.DeleteBatchAsync(RetentionTargets.Attachments, cutoff, batchSize: 100);
+        var deleted = await _context.RetentionData.DeleteBatchAsync(RetentionTargets.Attachments, tenantId: null, cutoff, batchSize: 100);
 
         deleted.ShouldBe(1);
 

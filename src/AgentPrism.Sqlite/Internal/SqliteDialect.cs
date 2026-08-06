@@ -282,11 +282,14 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
             """;
 
     /// <inheritdoc />
-    public override string BuildRetentionFindNthRowCutoffSql(string table, string orderExpression)
+    public override string BuildRetentionFindNthRowCutoffSql(
+        string table,
+        string orderExpression,
+        string? extraPredicate)
         => $"""
             SELECT {orderExpression}
             FROM {table}
-            WHERE {orderExpression} IS NOT NULL
+            WHERE {orderExpression} IS NOT NULL{AndAlso(extraPredicate)}
             ORDER BY {orderExpression} DESC
             LIMIT 1 OFFSET @n - 1;
             """;

@@ -287,9 +287,17 @@ public sealed class VoiceConversationTests
     }
 
     [Fact]
-    public async Task Baska_kiracinin_oturumu_REDDEDILIR()
+    public async Task Baska_kiracinin_oturumuna_ERISILEMEZ()
     {
-        // sessionId guvenilmez girdidir; kiraci sahipligi dogrulanir.
+        // sessionId guvenilmez girdidir.
+        //
+        // 🚨 Faz 41'de davranis DEGISTI. Once depo kiraci korlerdi: uc baska bir
+        // kiracinin oturumunu okuyabiliyor, goruyor ve "baskasinin" diye
+        // REDDEDIYORDU. Bu bir varlik kahiniydi — bir kiraci, hangi oturum
+        // kimliklerinin BASKA bir kiracida var oldugunu hata koduyla olcebilirdi.
+        // Depo artik kiraciyla sinirlidir (K-277): gorunmeyen bir oturum YOK
+        // sayilir, baglanti kendi kiracisinda taze bir oturum acar ve digerinin
+        // kaydina HIC dokunulmaz. Yalitim guclendi, sizdirilan bilgi azaldi.
         await using var host = await StartAsync();
 
         var sessions = host.Services.GetRequiredService<ISessionStore>();
@@ -299,20 +307,32 @@ public sealed class VoiceConversationTests
             {
                 Id = "baskasinin-oturumu",
                 AgentName = Agent,
-                State = System.Text.Json.JsonDocument.Parse("{}").RootElement,
+                State = System.Text.Json.JsonDocument.Parse("""{"gizli":true}""").RootElement,
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow,
                 TenantId = "baska-kiraci",
             },
             TestContext.Current.CancellationToken);
 
+        // Gecerli kiraci o kaydi hic goremez.
+        (await sessions.GetAsync("baskasinin-oturumu", TestContext.Current.CancellationToken)).ShouldBeNull();
+
         var socketClient = host.CreateWebSocketClient();
 
-        var connect = async () => await socketClient.ConnectAsync(
+        using (await socketClient.ConnectAsync(
             new Uri("http://localhost/agentprism/api/voice/sessions/baskasinin-oturumu/stream"),
-            TestContext.Current.CancellationToken);
+            TestContext.Current.CancellationToken))
+        {
+            // Baglanti kurulur; ama karsisindaki oturum digerinin oturumu DEGILDIR.
+        }
 
-        await connect.ShouldThrowAsync<InvalidOperationException>();
+        // Digerinin kaydi bozulmadan yerinde durur.
+        var theirs = (await sessions.QueryAsync(
+            new SessionQuery { TenantId = "baska-kiraci" },
+            TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+
+        theirs.Id.ShouldBe("baskasinin-oturumu");
+        theirs.State.GetProperty("gizli").GetBoolean().ShouldBeTrue();
     }
 
     [Fact]

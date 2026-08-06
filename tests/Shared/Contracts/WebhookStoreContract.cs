@@ -8,28 +8,49 @@ namespace AgentPrism.StoreContracts;
 /// sirrin okunacagi yapilandirma anahtarinin adini tasir (K-059); testler bunu
 /// dogrular.
 /// </remarks>
-public abstract class WebhookStoreContract : IAsyncLifetime
+public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookStore>
 {
-    private const string Tenant = "test";
-
-    /// <summary>Test edilen depo.</summary>
-    protected IWebhookStore Store { get; private set; } = null!;
-
-    /// <summary>Test icin bos bir depo uretir.</summary>
-    protected abstract ValueTask<IWebhookStore> CreateStoreAsync();
-
     /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask DisposeAsync()
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
     {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
+        var subscription = await Store.SaveSubscriptionAsync(
+            Subscription(name) with { Id = Guid.NewGuid(), TenantId = tenantId });
+
+        await Store.CreateDeliveryAsync(Delivery(subscription.Id) with { TenantId = tenantId });
+
+        return name;
     }
 
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    protected virtual ValueTask OnDisposeAsync() => default;
+    /// <inheritdoc />
+    protected override async ValueTask<bool> ExistsAsync(string tenantId, object key)
+    {
+        var subscription = await Store.GetSubscriptionAsync(tenantId, (string)key);
+
+        // Olay eslesmesi de kiraciya kilitlidir; aksi halde bir kiracinin olayi
+        // digerinin uc noktasina teslim edilirdi.
+        var matches = await Store.FindForEventAsync(tenantId, "run.completed");
+        matches.Any(item => item.Id == subscription?.Id).ShouldBe(subscription is not null);
+
+        return subscription is not null;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask<int> CountAsync(string tenantId)
+    {
+        var deliveries = await Store.QueryDeliveriesAsync(new WebhookDeliveryQuery { TenantId = tenantId });
+        var subscriptions = await Store.ListSubscriptionsAsync(tenantId);
+
+        // Teslimat gecmisi de abonelikle ayni kiraci sinirini tasimalidir.
+        deliveries.Count.ShouldBe(subscriptions.Count);
+
+        return subscriptions.Count;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
+        => await Store.DeleteSubscriptionAsync(tenantId, (string)key);
+
+    private const string Tenant = "test";
 
     [Fact]
     public async Task Kaydedilen_abonelik_geri_okunur()

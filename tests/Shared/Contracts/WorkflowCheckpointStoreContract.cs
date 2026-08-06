@@ -12,26 +12,36 @@ namespace AgentPrism.StoreContracts;
 /// <c>jsonb</c> anahtarlari yeniden siralar ve ayraci ilk olmaktan cikarir;
 /// bu yuzden sutun <c>json</c>'dur (karar K-027).
 /// </remarks>
-public abstract class WorkflowCheckpointStoreContract : IAsyncLifetime
+public abstract class WorkflowCheckpointStoreContract : TenantIsolationContract<IWorkflowCheckpointStore>
 {
-    /// <summary>Test edilen depo.</summary>
-    protected IWorkflowCheckpointStore Store { get; private set; } = null!;
-
-    /// <summary>Test icin bos bir depo uretir.</summary>
-    protected abstract ValueTask<IWorkflowCheckpointStore> CreateStoreAsync();
-
     /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask DisposeAsync()
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
     {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
+        await Store.CreateAsync(Record(tenantId, name, "c-1") with { RunId = IsolationRunId });
+        return name;
     }
 
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    protected virtual ValueTask OnDisposeAsync() => default;
+    /// <inheritdoc />
+    protected override async ValueTask<bool> ExistsAsync(string tenantId, object key)
+    {
+        var sessionId = (string)key;
+        var state = await Store.ReadAsync(tenantId, sessionId, "c-1");
+
+        var byRun = await Store.ListByRunAsync(tenantId, IsolationRunId);
+        (byRun.Count > 0).ShouldBe(state is not null);
+
+        return state is not null;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask<int> CountAsync(string tenantId)
+        => (await Store.ListAsync(tenantId, "gizli")).Count + (await Store.ListAsync(tenantId, "ortak-ad")).Count;
+
+    /// <inheritdoc />
+    protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
+        => await Store.DeleteAsync(tenantId, (string)key) > 0;
+
+    private static readonly Guid IsolationRunId = AgentPrismId.NewId();
 
     [Fact]
     public async Task Yazilan_nokta_geri_okunur()

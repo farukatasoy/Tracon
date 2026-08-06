@@ -7,28 +7,40 @@ namespace AgentPrism.StoreContracts;
 /// <remarks>
 /// Oturum durumu opaktir; depo icerigi yorumlamadan aynen geri vermelidir.
 /// </remarks>
-public abstract class SessionStoreContract : IAsyncLifetime
+public abstract class SessionStoreContract : TenantIsolationContract<ISessionStore>
 {
-    /// <summary>Test edilen depo.</summary>
-    protected ISessionStore Store { get; private set; } = null!;
-
-    /// <summary>Test icin bos bir depo uretir.</summary>
-    /// <returns>Kullanima hazir depo.</returns>
-    protected abstract ValueTask<ISessionStore> CreateStoreAsync();
-
     /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask DisposeAsync()
+    /// <remarks>
+    /// Kiraci arayuzde bir parametre degildir; <see cref="ITenantContext"/>'ten
+    /// okunur. Bu yuzden her kanca once gecerli kiraciyi ayarlar.
+    /// </remarks>
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
     {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
+        AmbientTenant.TenantId = tenantId;
+        await Store.SaveAsync(TestData.Session(name));
+        return name;
     }
 
-    /// <summary>Turetilmis sinifin kendi kaynaklarini birakmasi icin kanca.</summary>
-    /// <returns>Tamamlanma gorevi.</returns>
-    protected virtual ValueTask OnDisposeAsync() => default;
+    /// <inheritdoc />
+    protected override async ValueTask<bool> ExistsAsync(string tenantId, object key)
+    {
+        AmbientTenant.TenantId = tenantId;
+        return await Store.GetAsync((string)key) is not null;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask<int> CountAsync(string tenantId)
+    {
+        AmbientTenant.TenantId = tenantId;
+        return (await Store.QueryAsync(new SessionQuery())).Count;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
+    {
+        AmbientTenant.TenantId = tenantId;
+        return await Store.DeleteAsync((string)key);
+    }
 
     [Fact]
     public async Task Oturum_durumu_bozulmadan_geri_gelir()
