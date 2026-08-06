@@ -31,17 +31,20 @@ internal static class WebhookEndpoints
         builder.MapGet("/api/webhooks", ListAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismListWebhooks")
+            .WithTags("AgentPrism", "Webhooks")
             .WithSummary("Bir kiracinin webhook aboneliklerini listeler.")
             .WithDescription("Yanit hicbir sir tasimaz; yalnizca imzalama anahtarinin ADI doner.");
 
         builder.MapGet("/api/webhooks/{name}", GetAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismGetWebhook")
+            .WithTags("AgentPrism", "Webhooks")
             .WithSummary("Tek bir aboneligi getirir.");
 
         builder.MapPut("/api/webhooks/{name}", SaveAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismSaveWebhook")
+            .WithTags("AgentPrism", "Webhooks")
             .WithSummary("Webhook aboneligi olusturur veya gunceller.")
             .WithDescription(
                 "Adres SSRF denetiminden gecer: yalnizca https kabul edilir (http yalnizca " +
@@ -51,11 +54,13 @@ internal static class WebhookEndpoints
         builder.MapDelete("/api/webhooks/{name}", DeleteAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismDeleteWebhook")
+            .WithTags("AgentPrism", "Webhooks")
             .WithSummary("Bir aboneligi ve teslim gecmisini siler.");
 
         builder.MapPost("/api/webhooks/{name}/test", TestAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismTestWebhook")
+            .WithTags("AgentPrism", "Webhooks")
             .WithSummary("Aboneligin ucuna bir sinama olayi gonderir.")
             .WithDescription(
                 "Olay kuyruga yazilir ve arka plan iscisi teslim eder; yanit teslimin " +
@@ -64,6 +69,7 @@ internal static class WebhookEndpoints
         builder.MapGet("/api/webhooks/{name}/deliveries", ListDeliveriesAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismListWebhookDeliveries")
+            .WithTags("AgentPrism", "Webhooks")
             .WithSummary("Bir aboneligin teslim gecmisini listeler.");
     }
 

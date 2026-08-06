@@ -44,10 +44,24 @@ internal static class OpenAIChatCompletionsEndpoints
         builder.MapPost("/v1/chat/completions", HandleAsync)
             .RequireRole(roles.Operator)
             .WithName("AgentPrismOpenAIChatCompletions")
+            .WithTags("AgentPrism", "OpenAI")
             .WithSummary("OpenAI Chat Completions API ile uyumlu calistirma ucu.")
             .WithDescription(
                 "Durumsuzdur: gecmisi istemci tasir. Agent, 'model' alanindan secilir; " +
-                "bulunamazsa 'metadata.entity_id' denenir.");
+                "bulunamazsa 'metadata.entity_id' denenir.")
+            // Govdedeki 'stream' bayragina gore ikisinden biri. Ayni statu kodu
+            // icin IKINCI bir .Produces cagrisi BIRINCIYI EZER (olculdu); ikisi
+            // tek cagriya additionalContentTypes ile yazilmalidir. Akisli yolda
+            // gercek govde ChatCompletionChunk'tir; sema burada ChatCompletion'a
+            // yaklastirilir (ASP.NET Core'un metadata modeli ayni statu icin iki
+            // farkli tipi ifade edemez).
+            .Produces<ChatCompletion>(
+                StatusCodes.Status200OK,
+                contentType: "application/json",
+                additionalContentTypes: ["text/event-stream"])
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status400BadRequest)
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound)
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status502BadGateway);
     }
 
     private static async Task<IResult> HandleAsync(

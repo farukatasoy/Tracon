@@ -45,6 +45,7 @@ internal static class AuditEndpoints
             })
             .RequireRole(roles.Admin)
             .WithName("AgentPrismListAudit")
+            .WithTags("AgentPrism", "Governance")
             .WithSummary("Filtrelenebilir denetim kayitlarini listeler.")
             .WithDescription(
                 "actor, action, entity ve tarih araligina gore filtrelenebilir. Calistirmalar " +
@@ -70,6 +71,7 @@ internal static class AuditEndpoints
             })
             .RequireRole(roles.Admin)
             .WithName("AgentPrismGetEntityAudit")
+            .WithTags("AgentPrism", "Governance")
             .WithSummary("Tek bir varligin degisiklik gecmisini, en yeniden eskiye dondurur.");
     }
 }

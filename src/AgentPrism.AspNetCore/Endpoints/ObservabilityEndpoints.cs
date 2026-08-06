@@ -29,6 +29,7 @@ internal static class ObservabilityEndpoints
                         statusCode: StatusCodes.Status404NotFound))
             .RequireRole(roles.Reader)
             .WithName("AgentPrismGetRunTrace")
+            .WithTags("AgentPrism", "Runs")
             .WithSummary("Bir calistirmanin span agacini dondurur.")
             .WithDescription(
                 "Span'ler ornekleme ile yazilir. Hatali calistirmalarin span'leri varsayilan " +
@@ -42,6 +43,7 @@ internal static class ObservabilityEndpoints
                     await runs.ListToolInvocationsAsync(runId, cancellationToken).ConfigureAwait(false)))
             .RequireRole(roles.Reader)
             .WithName("AgentPrismListRunToolInvocations")
+            .WithTags("AgentPrism", "Runs")
             .WithSummary("Bir calistirmanin tool cagrilarini zaman sirasina gore listeler.")
             .WithDescription(
                 "Sure yalnizca akisli calistirmalarda olculur: akissiz calistirmada butun " +
@@ -61,6 +63,7 @@ internal static class ObservabilityEndpoints
                     cancellationToken).ConfigureAwait(false)))
             .RequireRole(roles.Reader)
             .WithName("AgentPrismToolUsage")
+            .WithTags("AgentPrism", "Runs")
             .WithSummary("Tool bazinda cagri sayisi, hata orani ve ortalama sureyi dondurur.")
             .WithDescription("Ozet deponun kendisinde hesaplanir; sayfalanmis bir alt kume degildir.");
     }

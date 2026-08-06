@@ -135,7 +135,9 @@ internal static class OpenAICompatSupport
             CultureInfo.InvariantCulture,
             $"{prefix}{Guid.NewGuid():N}");
 
-    private sealed record OpenAIErrorEnvelope(OpenAIErrorBody Error);
+    /// <summary>OpenAI uyumlu hata govdesinin dis zarfi. Yaniti sema ustverisine baglamak icin internal.</summary>
+    internal sealed record OpenAIErrorEnvelope(OpenAIErrorBody Error);
 
-    private sealed record OpenAIErrorBody(string Message, string Type);
+    /// <summary>OpenAI uyumlu hata govdesi.</summary>
+    internal sealed record OpenAIErrorBody(string Message, string Type);
 }

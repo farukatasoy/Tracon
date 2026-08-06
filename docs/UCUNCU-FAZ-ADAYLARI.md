@@ -417,6 +417,51 @@ zinciri bunu zorlaştırır. Yavaşlama **ölçülmeli**.
 buluşur. İkisi **birlikte** tasarlanmalıdır.
 **Ekosistem:** AWS CloudTrail ve GCP Cloud Audit Logs bunu yapar.
 
+### F-76 · Paylaşılan SQL kaynağının XML doküman çakışması (`AddOpenApi()` ile 500) **YENİ** — ÖLÇÜLDÜ (2026-08-06)
+
+**Sorun:** `AgentPrism.Sql.Shared` bir paket değildir; kaynağı
+`<Compile Include="../AgentPrism.Sql.Shared/**/*.cs" LinkBase="Shared" />` ile
+üç ayrı derlemeye (`AgentPrism.SqlServer`, `AgentPrism.Sqlite`,
+`AgentPrism.PostgreSql`) bağlanır (Faz 23, K-185 deseni). `MigrationRunner`,
+`SqlStoreContext` gibi tipler bu üç derlemenin **her birinde aynı tam
+nitelikli adla** (`T:AgentPrism.MigrationRunner`) üretilen `.xml` doküman
+dosyasına yazılır. `Microsoft.AspNetCore.OpenApi`'nin XML yorum kaynak
+üreteci tüm referanslı derlemelerin doküman girdilerini **tek bir sözlükte**
+(doküman kimliğine göre, derlemeden bağımsız) toplar; iki derleme aynı
+kimlikle geldiğinde `ArgumentException: An item with the same key has already
+been added` fırlatır ve `/openapi/v1.json` isteği **500** döner.
+**Kanıt (2026-08-06):** `samples/AgentPrism.Api` (SqlServer + Sqlite birlikte
+referanslanmış, K-185 örneği için bilerek) üzerinde `AddOpenApi()` +
+`MapOpenApi()` ilk kez uçtan uca denendi ve tekrarlandı. Yığın izi:
+`OpenApiXmlCommentCache.GenerateCacheEntries()` →
+`Dictionary<TKey,TValue>.Add`. `AgentPrism.AspNetCore.FunctionalTests` bunu
+**yakalamaz** çünkü hiçbir SQL sağlayıcısına referans vermez — hata yalnız
+2+ SQL sağlayıcısı **birlikte** yüklendiğinde ortaya çıkar.
+**Kapsam:** Kesin çözüm üçünden biri: (a) çakışan shared-source tiplerin XML
+doküman üretimini yalnız birinde bırakacak bir yapılandırma bulunması, (b)
+`AgentPrism.Sql.Shared`'ın gerçek bir iç paket olarak derlenmesi (K-185'in
+"paket değildir" kararını yeniden açar), (c) yukarı akış (`dotnet/aspnetcore`)
+kaynak üreteci sorunu olarak bildirilip beklenmesi.
+**Değer:** Faz 40'ın vaat ettiği "belge gerçek uygulamada üretilebilir"
+iddiası, 2+ SQL sağlayıcısı birlikte kurulu **her** tüketici için bugün
+yanlıştır — `samples/AgentPrism.Api` dahil.
+**Mercek:** 3 (K-185'in kendisini etkiliyor).
+**Hazırlık:** Kanıt tam; kök neden yığın izinden doğrulandı, tahmine
+dayanmıyor.
+**Maliyet:** Bilinmiyor — seçeneğe göre değişir; (a) düşük-orta, (b) K-185
+kararının yeniden açılması, (c) AgentPrism'in kontrolü dışında.
+**Risk:** Faz 40 kapsamının dışında bırakıldı (paket sınırı yalnız
+`AgentPrism.AspNetCore`); `AgentPrism.AspNetCore`'un kendisi K-039 gereği
+`Microsoft.AspNetCore.OpenApi`'ye zaten bağımlı değildir, dolayısıyla bu
+kütüphanenin değil **tüketicinin OpenAPI kurulumunun** karşılaştığı bir
+sorundur — ama K-185 deseninin (Sql.Shared linked-source) doğrudan sonucu
+olduğu için AgentPrism'in kendi mimari kararı kaynaklıdır.
+**Bağımlılık:** K-185 (paylaşılan SQL kaynağı deseni), Faz 40 (OpenAPI
+yayını — bu tuzağı ortaya çıkaran faz).
+**Ekosistem:** `dotnet/aspnetcore` kaynak üreteci sınırlaması; benzer
+"linked-source çoklu derleme" deseni kullanan başka kütüphanelerde de
+görülebilir.
+
 ### F-58 · Veri konusu silme ve ihracı (GDPR)
 
 **Sorun:** Faz 25 **yaşa göre** temizliyor; **kişiye göre** silme yolu yok.
