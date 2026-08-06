@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <!--
+      TargetFrameworks (COGUL) BOSALTILIR: src/Directory.Build.props onu
+      "net8.0;net9.0;net10.0" atar. TargetFramework (TEKIL) `dotnet build`
+      icin yeterlidir ama `dotnet pack`in capraz-hedefleme yolu COGUL
+      degeri okur; bos birakmak sablonu tek TFM'e sabitler (derlenmiyor,
+      TFM'in zaten anlami yok).
+    -->
+    <TargetFrameworks></TargetFrameworks>
+    <Description>`dotnet new agentprism-api` sablonu. Calisan bir AgentPrism kontrol duzlemi uretir: Program.cs, ornek tool, bos appsettings.json placeholder'i, README.</Description>
+    <PackageTags>$(CommonPackageTags);template;dotnet-new</PackageTags>
+    <PackageType>Template</PackageType>
+    <TemplateAffinityPackageId>AgentPrism</TemplateAffinityPackageId>
+    <!--
+      Sablon paketi bir kutuphane DEGILDIR: derlenmez, yalnizca icerik tasir.
+      IncludeBuildOutput=false + NU5128 bastirmasi meta paketle (AgentPrism.csproj)
+      AYNI desendir - bkz. docs/KARARLAR.md K-007 notu ve src/AgentPrism/AgentPrism.csproj.
+    -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <!--
+      🚨 IncludeSymbols=false ZORUNLU. src/Directory.Build.props IncludeSymbols=true
+      + snupkg atar (her paket icin ayri bir sembol paketi uretilir). Bu projede
+      derlenen bir .dll/.pdb yok; sembol paketi BOS kalir ve NuGet.Build.Tasks.Pack
+      onu NU5017 ("ne bagimlilik ne icerik") ile reddeder - ANA paket dogru
+      dolu olsa bile derleme BASARISIZ olur. Olculdu: nuspec'te <files> listesi
+      dogruydu, hata yalniz sembol paketinden geliyordu.
+    -->
+    <IncludeSymbols>false</IncludeSymbols>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <!--
+      Sablon paketinin hicbir bagimliligi olmaz ve tuketicinin bagimlilik
+      grafigine hic girmez (37.1). AOT vaadi de anlamsizdir - derlenmiyor.
+    -->
+    <AgentPrismAotCompatible>false</AgentPrismAotCompatible>
+    <!--
+      content/ altindaki .cs dosyalari BU projenin kendi derlemesine dahil
+      OLMAMALIDIR - onlar uretilecek projenin kaynak dosyalaridir, sablon
+      paketinin kaynagi degil. Varsayilan SDK globlamasi kapatilir; icerik
+      asagida acikca <None> olarak eklenir.
+    -->
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <!--
+      SDK varsayilan globlamasi nokta ile baslayan klasorleri (.template.config)
+      ve dosyalari (.gitignore) DISLAR. NoDefaultExcludes olmadan sablonun
+      tanim dosyasi pakete hic girmez ve `dotnet new install` sessizce
+      calismayan bir paket kurar (bkz. docs/hafiza/build-ve-analyzer.md,
+      "kopya dosyalar" tuzagiyla ayni sinif: sessiz zehirlenme).
+    -->
+    <NoDefaultExcludes>true</NoDefaultExcludes>
+  </PropertyGroup>
+
+  <!--
+    <None Pack="true" PackagePath="..."> - resmi NuGet deseni
+    (learn.microsoft.com/nuget/reference/msbuild-targets#packagepath).
+    %(RecursiveDir) "content/**/*" deseninde "content/" SONRASINI verir;
+    PackagePath'i "content/" ile acikca baslatmak TEK KATMANLI dogru sonucu
+    uretir (ContentTargetFolders KULLANILMAZ - acik PackagePath varken o hic
+    uygulanmiyor; eklenirse "content/content/..." cikar - olculdu).
+  -->
+  <ItemGroup>
+    <None Include="content/**/*" Exclude="content/**/bin/**;content/**/obj/**" Pack="true" PackagePath="content/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>

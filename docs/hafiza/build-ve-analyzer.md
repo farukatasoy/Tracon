@@ -49,3 +49,38 @@
   kullanir. Bayrak `Directory.Build.targets` icinde turetilir: `src/Directory.Build.props`
   csproj'dan **once** yuklendigi icin orada turetmek tuketicinin `false` tercihini
   yok sayardi (K-006).
+
+## `IncludeBuildOutput=false` paketleri (Templates, meta) — pack tuzaklari
+
+> Faz 37'de `AgentPrism.Templates` (dotnet new sablonu) paketlenirken kesfedildi.
+> Meta paket (`AgentPrism.csproj`) de `IncludeBuildOutput=false` oldugu icin
+> ayni sinifta risk tasir. K-262/K-263/K-264.
+
+- **🚨 Bos sembol paketi `NU5017` ile ANA paketi de basarisiz gosterir**
+  (2026-08-06, Faz 37): `src/Directory.Build.props` her pakete `IncludeSymbols=true`
+  atar. `IncludeBuildOutput=false` olan bir projede derlenen `.pdb` yoktur;
+  eslik eden `.snupkg` BOS kalir ve `NuGet.Build.Tasks.Pack` onu
+  `NU5017: Cannot create a package that has no dependencies nor content` ile
+  reddeder. Hata mesaji HANGI paketten (ana mi sembol mu) geldigini SOYLEMEZ —
+  ana paketin `nuspec`'indeki `<files>` listesi dogru dolu olsa bile build
+  basarisiz olur. `dotnet pack <proje> -c Release -v:diag` ile `_PackageFiles`
+  item grubunu (`-t:GenerateNuspec -getItem:_PackageFiles`) karsilastirarak
+  izole edildi. Cozum: `<IncludeSymbols>false</IncludeSymbols>`.
+- **🚨 `TargetFrameworks` (cogul) miras kalirsa `dotnet pack` sessizce
+  capraz-hedefler** (2026-08-06, Faz 37): `src/Directory.Build.props`
+  `TargetFrameworks=net8.0;net9.0;net10.0` atar. Projede yalniz `TargetFramework`
+  (tekil) yazmak `dotnet build`i tek TFM'e indirger (`dotnet build` ile
+  dogrulanir), ANCAK `dotnet pack`in capraz-hedefleme orkestrasyonu
+  (`_GetFrameworksWithSuppressedDependencies`) COGUL degeri okumaya devam eder
+  ve uc ayri ic derleme baslatir — cikti klasoru `_net10.0` soneki alir.
+  Derlenmeyen bir paket icin TFM anlamsizdir; `<TargetFrameworks></TargetFrameworks>`
+  ile bosaltmak orkestrasyonu tek TFM'e sabitler. Not: bu, NU5017'yi TEK BASINA
+  duzeltmez (izole test edildi) — yalniz verimlilik/basitlik kazandirir.
+- **`<None Include Pack="true" PackagePath="...">` ile keyfi dosya paketleme**
+  (2026-08-06, Faz 37): resmi desen budur (yukaridaki iki tuzak duzeltildikten
+  sonra `<Content>` de ayni sekilde calisir — `<None>` semantik olarak dogrusu,
+  cunku dosyalar derleme ciktisina kopyalanmaz). `ContentTargetFolders` +
+  item'in kendi "content/" kok yolu BIRLIKTE kullanilirsa "content/content/..."
+  cift onegi uretir; `PackagePath`'i acikca `content/%(RecursiveDir)%(Filename)%(Extension)`
+  ile yazip `ContentTargetFolders`'i HIC kullanmamak tek katmanli dogru sonucu
+  verir.

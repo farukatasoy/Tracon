@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici kendi AI harness'ini kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 36 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; riskli tool onay bekler, çalıştırma iptal edilebilir; workflow insanla konuşur; kullanım kotalanır; eski veri politikayla silinir; kurulum `/health` ve `/api/diagnostics` ile kendini denetler. `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu uçları ve arayüzü tek prefixe bağlar. Veritabanı/model isteğe bağlı, konsol iki dilli. Faz 8–36 bitti; [kalan](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlanır (Faz 37–52).
+> **Durum:** Faz 37 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**, `dotnet new agentprism-api` ile sıfırdan başlatılabilir. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; riskli tool onay bekler, workflow insanla konuşur; kullanım kotalanır, eski veri silinir; kurulum kendini `/health` ile denetler. Veritabanı/model isteğe bağlı. Faz 8–37 bitti; [kalan](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlanır (Faz 38–52).
 
 ```csharp
 builder.AddAgentPrism()
@@ -169,6 +169,7 @@ AgentPrism bu boşluğu doldurur. DevUI'nin yerine geçmez — bıraktığı yer
 | `AgentPrism.Workflows` | ✅ Workflow yürütme — beş desen, kontrol noktası, sürdürme, human-in-the-loop |
 | `AgentPrism.AspNetCore` | ✅ HTTP katmanı — yönetim API'si, OpenAI uyumlu uçlar, çok kiracılılık |
 | `AgentPrism.UI` | ✅ Gömülü React arayüzü — sekiz ekran, sıfır JavaScript bağımlılığı |
+| `AgentPrism.Templates` | ✅ `dotnet new agentprism-api` şablonu — meta pakete dâhil değil |
 
 **Hedef framework:** `net8.0`, `net9.0`, `net10.0` · **Lisans:** MIT
 
@@ -262,7 +263,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [33](docs/33-SAGLIK-DENETIMI-VE-TESHIS.md) | Sağlık denetimi (`/health`) ve yapılandırma teşhisi (`/api/diagnostics`) | ✅ Tamamlandı |
 | [34](docs/34-TANIM-DOGRULAMA-UCU.md) | Tanım doğrulama ucu | ✅ Tamamlandı |
 | [35](docs/35-MALIYET-VE-KOTA-METRIKLERI.md) | Maliyet ve kota OTel metrikleri | ✅ Tamamlandı |
-| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 36–52) | Faz 36 bitti, kalanı 📋 planlandı; 20 kalem [adaylarda](docs/UCUNCU-FAZ-ADAYLARI.md) |
+| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 36–52) | Faz 36–37 bitti; kalanı 📋 [adaylarda](docs/UCUNCU-FAZ-ADAYLARI.md) |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 
