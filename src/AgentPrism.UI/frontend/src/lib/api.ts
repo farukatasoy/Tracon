@@ -14,6 +14,7 @@ import type {
   AuditEntry,
   Conversation,
   CurrentTenant,
+  DiagnosticsReport,
   EvalCase,
   EvalCaseInput,
   EvalRun,
@@ -200,6 +201,7 @@ function query(params: Record<string, string | number | boolean | undefined | nu
 
 export const api = {
   meta: () => request<Meta>('api/meta'),
+  diagnostics: () => request<DiagnosticsReport>('api/diagnostics'),
 
   agents: () => request<AgentDescriptor[]>('api/agents'),
   agent: (name: string) => request<AgentDetail>(`api/agents/${encodeURIComponent(name)}`),

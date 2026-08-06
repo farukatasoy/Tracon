@@ -68,6 +68,7 @@ export const en = {
   'nav.models': 'Models',
   'nav.mcp': 'MCP',
   'nav.audit': 'Audit',
+  'nav.diagnostics': 'Diagnostics',
   'nav.settings': 'Settings',
   'nav.primary': 'Primary navigation',
 
@@ -380,6 +381,39 @@ export const en = {
   'audit.details': 'Details',
   'audit.before': 'Before',
   'audit.after': 'After',
+
+  /* ------------------------------------------------------- diagnostics */
+  'diagnostics.description':
+    'Self-check of this installation. No secret value is ever shown — only whether a configuration key resolved.',
+  'diagnostics.disabled.title': 'Diagnostics endpoint is disabled',
+  'diagnostics.disabled.body':
+    'Set AgentPrismEndpointOptions.EnableDiagnosticsEndpoint = true on the server to turn it on.',
+  'diagnostics.persistence': 'Persistence',
+  'diagnostics.activeProvider': 'Active provider',
+  'diagnostics.registeredProviders': 'Registered SQL providers',
+  'diagnostics.multipleProvidersWarning':
+    'More than one SQL provider is registered. The last Use*() call wins; the others are silently inactive.',
+  'diagnostics.canConnect': 'Database connection',
+  'diagnostics.connected': 'Connected',
+  'diagnostics.notConnected': 'Not reachable',
+  'diagnostics.migrations': 'Migrations',
+  'diagnostics.migrationsUpToDate': 'Up to date',
+  'diagnostics.migrationsPending_one': '{n} pending',
+  'diagnostics.migrationsPending_other': '{n} pending',
+  'diagnostics.pendingList': 'Pending migrations',
+  'diagnostics.surface': 'Surface',
+  'diagnostics.uiEmbedded': 'UI assets embedded',
+  'diagnostics.toolCount': 'Tools registered',
+  'diagnostics.agentCount': 'Agents registered',
+  'diagnostics.modelProviders': 'Model providers',
+  'diagnostics.modelProviders.empty': 'No model provider is registered.',
+  'diagnostics.circuitOpen': 'Circuit open',
+  'diagnostics.configuration': 'Configuration keys',
+  'diagnostics.configuration.empty': 'No provider reports a fixed configuration key.',
+  'diagnostics.configurationKey': 'Key',
+  'diagnostics.resolved': 'Resolved',
+  'diagnostics.unresolved': 'Not resolved',
+  'diagnostics.hint': 'Hint',
 
   /* -------------------------------------------------------- run detail */
   'runDetail.forWorkflow': 'workflow',

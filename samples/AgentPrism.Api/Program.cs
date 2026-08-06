@@ -551,8 +551,8 @@ var postgreSql = builder.Configuration.GetSection(AgentPrismPostgreSqlOptions.Se
 var sqlServer = builder.Configuration.GetSection(AgentPrismSqlServerOptions.SectionName);
 var sqlite = builder.Configuration.GetSection(AgentPrismSqliteOptions.SectionName);
 
-var persistenceEnabled = true;
-
+// Etkin saglayici ve kalicilik durumu artik GET /agentprism/api/diagnostics
+// ucundan okunur (Faz 33); ornek burada ayrica bir bayrak tutmaz.
 if (!string.IsNullOrWhiteSpace(sqlServer["ConnectionString"]))
 {
     agentPrism.UseSqlServer(sqlServer);
@@ -564,10 +564,6 @@ else if (!string.IsNullOrWhiteSpace(postgreSql["ConnectionString"]))
 else if (!string.IsNullOrWhiteSpace(sqlite["ConnectionString"]))
 {
     agentPrism.UseSqlite(sqlite);
-}
-else
-{
-    persistenceEnabled = false;
 }
 
 // Veri saklama ve arsivleme (Faz 25). IArchiveSink kayitli DEGILSE
@@ -597,33 +593,19 @@ if (builder.Configuration.GetValue<bool>("AgentPrism:Tenancy:Enabled"))
     });
 }
 
+// Saglik denetimi ve teshis (Faz 33). Standart .NET saglik sistemine baglanir;
+// eski elle yazilmis /health govdesi bunun yerini alir — ayni bilgiyi (kalicilik,
+// saglayici durumu) artik AgentPrismDiagnosticsCollector tek yerden toplar.
+builder.Services.AddHealthChecks().AddAgentPrismHealthChecks();
+
 var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
-app.MapGet("/health", (IRunStore runs, ISessionStore sessions) => Results.Ok(new
-{
-    status = "healthy",
-    phase = "15 - workflow yurutme",
-    storage = new
-    {
-        persistent = persistenceEnabled,
-        runStore = runs.GetType().Name,
-        sessionStore = sessions.GetType().Name,
-    },
-    // API anahtari BURADA GORUNMEZ; yalnizca saglayicinin acik olup olmadigi bildirilir.
-    provider = new
-    {
-        openAI = openAiEnabled,
-        model = model.Model,
-        name = model.Provider,
-    },
-    // Detayli, canli durum icin: GET /agentprism/api/models/health
-    openRouter = openRouterEnabled,
-    anthropic = anthropicEnabled,
-    google = googleEnabled,
-}));
+// Uc durum: Healthy / Degraded / Unhealthy. Ayrintili ozet icin:
+// GET /agentprism/api/diagnostics (Admin, asagida EnableDiagnosticsEndpoint ile acilir).
+app.MapHealthChecks("/health");
 
 app.MapOpenApi();
 
@@ -643,6 +625,11 @@ app.MapAgentPrism("/agentprism", options =>
     {
         options.AuthToken = token;
     }
+
+    // Teshis ucu varsayilan KAPALIDIR (K1: bilgi veren bir yuzey acikca acilir).
+    // Bu ornekte gosterim icin acilir; Admin rolu kayitli degilse yine de
+    // uc katmanli korumadan (loopback + bearer token) gecer.
+    options.EnableDiagnosticsEndpoint = true;
 });
 
 app.Run();

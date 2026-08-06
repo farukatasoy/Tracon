@@ -122,6 +122,11 @@ public static class AgentPrismEndpointRouteBuilderExtensions
         GovernanceEndpoints.Map(group, roles);
         AuditEndpoints.Map(group, roles);
 
+        if (options.EnableDiagnosticsEndpoint)
+        {
+            DiagnosticsEndpoints.Map(group, services, roles);
+        }
+
         OpenAIResponsesEndpoints.Map(group, ResolveSessionStore(services), roles, normalizedPrefix);
         OpenAIChatCompletionsEndpoints.Map(group, roles);
         OpenAIConversationsEndpoints.Map(group, roles);
