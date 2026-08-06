@@ -16,6 +16,8 @@
 - **`DbDataSource` uyarlayicisi elle yazildi**: `Microsoft.Data.SqlClient` bir `DbDataSource` uygulamasi sunmaz (Npgsql sunar). `SqlServerDataSource` yalnizca `CreateDbConnection()`'i uygular; taban sinifin `CreateCommand` uygulamasi baglanti omrunu Npgsql ile ayni sekilde yonetir.
 
 - **`SqlDialect.AddNullableBoolean` eklendi (2026-08-05, Faz 28)**: `AddBoolean` `bool` alir ve uc durumlu bir alani (`evet`/`hayir`/`bilgi yok`) tasiyamaz — eksik bilgi sessizce `false` olurdu. `tool_invocations.usage_estimated` bu yuzden nullable yazilir. Okuma tarafinda `DbHelpers.ToBoolean` kullanilir: SQLite mantiksal tip tasimaz ve `long` (0/1) doner (K-195).
+- **🚨 Linked-source (K-176) bir tipin `internal` isareti CROSS-ASSEMBLY sayim icin GUVENILMEZ** (2026-08-06, Faz 33, K-247): `MigrationHostedService`'in K-183 sayaci `internal SqlPersistenceRegistration` kullaniyordu; bu tip `AgentPrism.PostgreSql.dll` ve `AgentPrism.SqlServer.dll` icine AYRI AYRI derlenir ve CLR kimligi FARKLIDIR — `UsePostgreSql()` + `UseSqlServer()` birlikte cagrildiginda hicbir `MigrationHostedService` digerinin isaretini GOREMEZ ve cift kayit uyarisi hic tetiklenmez. Sayim/teshis Abstractions'da PAYLASILAN tek bir derlenmis tipe (`SqlPersistenceRegistrationMarker`) tasindi. Ayni tuzak: linked-source icindeki herhangi bir `internal` tipi `IEnumerable<T>` ile SAYMAK istiyorsan, T Abstractions'da olmali.
+- **`MigrationRunner` artik `ISqlPersistenceDiagnostics` uygular** (2026-08-06, Faz 33, K-248): `GetSnapshotAsync` migration UYGULAMAZ, yalniz baglanti + bekleyen liste okur. `__migrations` defteri henuz yoksa (DbException) baglanti calisiyor sayilir, tum migration'lar bekliyor kabul edilir — `CanConnect=false` yalniz baglanti KURULAMADIGINDA doner.
 
 ## SQL Server parametre tuzaklari
 

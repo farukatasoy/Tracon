@@ -35,7 +35,7 @@
 |-----|---------|-------|--------------|-----------|-----------|
 | 31 | [31-GERI-BILDIRIM-VE-PUANLAMA.md](31-GERI-BILDIRIM-VE-PUANLAMA.md) | F-52 | ✅ Tamamlandı (2026-08-06). Ölçme döngüsünün ilk halkası; aday listesindeki F-53, F-55, F-71 ve F-74'ün dördü de buna bağlıdır | — | üç set — uygulandı (Postgres `0017`, SQL Server/SQLite `0005`) |
 | 32 | [32-CALISTIRMA-IPTALI.md](32-CALISTIRMA-IPTALI.md) | F-35 | ✅ Tamamlandı (2026-08-06). Kaçak bir agent'ı durdurmanın tek yolu artık süreci öldürmek değil. **Kapsam tek örnekle sınırlı** — çok örnek F-57'yi bekler | — | — |
-| 33 | [33-SAGLIK-DENETIMI-VE-TESHIS.md](33-SAGLIK-DENETIMI-VE-TESHIS.md) | F-38 · F-62 | 📋 Planlandı. İkisi de **aynı veriyi** okur (DI kayıtları, migration durumu, Faz 8'in sağlık önbelleği); tek toplayıcı, iki sunum | — | — |
+| 33 | [33-SAGLIK-DENETIMI-VE-TESHIS.md](33-SAGLIK-DENETIMI-VE-TESHIS.md) | F-38 · F-62 | ✅ Tamamlandı (2026-08-06). İkisi de **aynı veriyi** okur (DI kayıtları, migration durumu, Faz 8'in sağlık önbelleği); tek toplayıcı (`AgentPrismDiagnosticsCollector`), iki sunum | — | — |
 | 34 | [34-TANIM-DOGRULAMA-UCU.md](34-TANIM-DOGRULAMA-UCU.md) | F-60 | 📋 Planlandı. Derleyici hazır; döngü denetimi **yeni yazılır**. Aday listesindeki F-48'in (GitOps) CI adımıdır | — | — |
 | 35 | [35-MALIYET-VE-KOTA-METRIKLERI.md](35-MALIYET-VE-KOTA-METRIKLERI.md) | F-70 | 📋 Planlandı. Turun **en ucuz** kalemi: iki enstrüman, uç yok, arayüz yok | — | — |
 | 36 | [36-SAKLAMA-HACIM-SINIRI.md](36-SAKLAMA-HACIM-SINIRI.md) | F-73 | 📋 Planlandı. `MaxRows` yayımlanmış ama ölü bir ayardır (K-201). Sütun zaten var — migration gerekmez | — | — |

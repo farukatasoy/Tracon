@@ -125,4 +125,20 @@ public sealed class AgentPrismEndpointOptions
     /// </para>
     /// </remarks>
     public bool RequireRolePolicies { get; set; }
+
+    /// <summary>
+    /// <c>GET /api/diagnostics</c> ucu baglansin mi. Varsayilan <see langword="false"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Bir teshis ucu, hicbir <c>secret</c> degeri tasimasa bile kurulum hakkinda
+    /// bilgi verir (kalicilik saglayicisi, migration durumu, hangi yapilandirma
+    /// anahtarlarinin cozuldugu). K1 geregi acikca acilmalidir; varsayilan kapali.
+    /// </para>
+    /// <para>
+    /// Aciksa uc <see cref="AgentPrismPolicies.Admin"/> rolu ister. Rol policy'si
+    /// kayitli degilse uc yine uc katmanli korumadan (loopback + bearer token) gecer.
+    /// </para>
+    /// </remarks>
+    public bool EnableDiagnosticsEndpoint { get; set; }
 }

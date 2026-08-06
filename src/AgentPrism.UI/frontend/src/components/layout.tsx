@@ -9,6 +9,7 @@ import {
   AgentsIcon,
   AuditIcon,
   DashboardIcon,
+  DiagnosticsIcon,
   EvalsIcon,
   ExperimentsIcon,
   JobsIcon,
@@ -51,6 +52,7 @@ const NAV = [
   { path: 'models', label: 'nav.models', icon: ModelsIcon, hue: 'var(--ap-indigo)' },
   { path: 'mcp', label: 'nav.mcp', icon: McpIcon, hue: 'var(--ap-amber)' },
   { path: 'audit', label: 'nav.audit', icon: AuditIcon, hue: 'var(--ap-indigo)', adminOnly: true },
+  { path: 'diagnostics', label: 'nav.diagnostics', icon: DiagnosticsIcon, hue: 'var(--ap-rose)', adminOnly: true },
   { path: 'settings', label: 'nav.settings', icon: SettingsIcon, hue: 'var(--ap-muted)' },
 ] as const;
 

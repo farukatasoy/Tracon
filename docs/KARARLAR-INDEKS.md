@@ -21,7 +21,7 @@ Daha önce kanıtla reddedilmiş bir işi mi arıyorsun? O liste ayrı dosyada:
 
 ---
 
-## Kalıcı Kararlar (246 kalem)
+## Kalıcı Kararlar (251 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -271,3 +271,8 @@ Daha önce kanıtla reddedilmiş bir işi mi arıyorsun? O liste ayrı dosyada:
 | K-244 | L289 | `IRunCancellationRegistry` varsayılan AÇIK kaydedilir; ayrı bir `Use...()` çağrısı yok  |
 | K-245 | L290 | `WorkflowRunner` aynı deftere kendi kök kaydını yazar; `ExecuteAsync`'in zaten kurduğu `timeout`+istek `CancellationTokenSource` birleşimi (`linked`) yeniden kullanılır  |
 | K-246 | L291 | İptal isteği `run.cancel` eylemiyle denetim izine yazılır  |
+| K-247 | L292 | K-183'ün isareti `AgentPrism.Sql.Shared`'daki internal `SqlPersistenceRegistration`'dan `AgentPrism.Abstractions`'daki public `SqlPersistenceRegistrationMarker`'a taşındı  |
+| K-248 | L293 | `MigrationRunner` `ISqlPersistenceDiagnostics`'i doğrudan uygular; ayrı bir adaptör sınıfı yok  |
+| K-249 | L294 | `UseOpenAICompatible()` hiçbir `ConfigurationDiagnostic` bildirmez; `UseOpenAI()`'nin sabit `AgentPrism:Providers:OpenAI` bölümü yalnız KENDİSİ için geçerlidir  |
+| K-250 | L295 | `AgentPrismDiagnosticsReport` genel bir Healthy/Degraded/Unhealthy alanı TASIMAZ; üç durumlu karar yalnız `AgentPrism.AspNetCore.AgentPrismHealthCheck` içindedir  |
+| K-251 | L296 | `AddAgentPrismHealthChecks()` `AddAgentPrism()`'in önceden çağrıldığını KAYIT ANINDA denetlemez  |
