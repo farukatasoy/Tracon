@@ -29,6 +29,7 @@ import { ModelsScreen } from './screens/models';
 import { McpScreen } from './screens/mcp';
 import { SettingsScreen } from './screens/settings';
 import { AuditScreen } from './screens/audit';
+import { DiagnosticsScreen } from './screens/diagnostics';
 import type { Meta } from './lib/types';
 
 /**
@@ -83,6 +84,7 @@ const routes = (meta: Meta): RouteDefinition[] => [
   { pattern: 'models', render: () => <ModelsScreen /> },
   { pattern: 'mcp', render: () => <McpScreen meta={meta} /> },
   { pattern: 'audit', render: () => <AuditScreen /> },
+  { pattern: 'diagnostics', render: () => <DiagnosticsScreen /> },
   { pattern: 'settings', render: () => <SettingsScreen meta={meta} /> },
 ];
 

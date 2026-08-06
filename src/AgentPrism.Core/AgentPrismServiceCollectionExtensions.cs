@@ -143,6 +143,17 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, ModelProviderHealthBackgroundService>());
 
+        // Teshis toplayicisi (Faz 33). IAgentCatalog ve IToolRegistry bu noktadan
+        // sonra kayit edilir ama acik fabrika lazy cozer; kayit sirasi onemli degildir.
+        services.TryAddSingleton(static provider => new AgentPrismDiagnosticsCollector(
+            provider.GetServices<IModelProvider>(),
+            provider.GetRequiredService<ModelProviderHealthCache>(),
+            provider.GetServices<ISqlPersistenceDiagnostics>(),
+            provider.GetServices<SqlPersistenceRegistrationMarker>(),
+            provider.GetRequiredService<IAgentCatalog>(),
+            provider.GetRequiredService<IToolRegistry>(),
+            provider.GetService<ModelProviderCircuitBreaker>()));
+
         // Sohbet gecmisi saglayicisi. Kayitli olmasaydi MAF her agent icin kendi
         // bellek ici saglayicisini kurardi ve o ornege disaridan erisilemezdi;
         // /api/sessions/{id} gecmisi yalnizca PostgreSQL acikken okunabilirdi.

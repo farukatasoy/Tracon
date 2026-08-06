@@ -18,12 +18,13 @@ namespace AgentPrism;
 /// <c>ModelProviderRegistry</c> duzeyindedir; bu paket ikisini de bedava alir.
 /// </para>
 /// </remarks>
-public sealed class AnthropicModelProvider : IModelProvider, IModelProviderHealthCheck
+public sealed class AnthropicModelProvider : IModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
 {
     private readonly AnthropicChatClientFactory _chatClientFactory;
     private readonly ILogger<AnthropicModelProvider>? _logger;
     private readonly HashSet<string> _knownModels;
     private readonly AnthropicProviderHealthCheck? _healthCheck;
+    private readonly ConfigurationDiagnostic? _configurationDiagnostic;
 
     /// <summary>Yeni bir saglayici olusturur.</summary>
     /// <param name="name">Saglayici adi. Agent tanimlarindaki <see cref="ModelBinding.Provider"/> bu degerle eslesir.</param>
@@ -55,6 +56,7 @@ public sealed class AnthropicModelProvider : IModelProvider, IModelProviderHealt
         _logger = logger;
         _knownModels = new HashSet<string>(models.Select(static model => model.Name), StringComparer.OrdinalIgnoreCase);
         _healthCheck = healthCheckOptions is null ? null : new AnthropicProviderHealthCheck(name, healthCheckOptions);
+        _configurationDiagnostic = BuildConfigurationDiagnostic(healthCheckOptions);
     }
 
     /// <inheritdoc />
@@ -89,6 +91,27 @@ public sealed class AnthropicModelProvider : IModelProvider, IModelProviderHealt
                 Status = ModelProviderHealthStatus.Unknown,
                 CheckedAt = DateTimeOffset.UtcNow,
             });
+
+    /// <inheritdoc />
+    public ConfigurationDiagnostic? GetConfigurationDiagnostic() => _configurationDiagnostic;
+
+    private static ConfigurationDiagnostic? BuildConfigurationDiagnostic(AnthropicProviderOptions? options)
+    {
+        if (options is null)
+        {
+            return null;
+        }
+
+        var key = $"{AnthropicProviderOptions.SectionName}:ApiKey";
+        var resolved = !string.IsNullOrWhiteSpace(options.ApiKey);
+
+        return new ConfigurationDiagnostic
+        {
+            Key = key,
+            Resolved = resolved,
+            Hint = resolved ? null : $"dotnet user-secrets set \"{key}\" \"<anahtar>\"",
+        };
+    }
 
     private void LogUnknownModel(string model)
     {

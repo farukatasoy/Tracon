@@ -18,12 +18,13 @@ namespace AgentPrism;
 /// dondurdugunde calistirma <c>content_filtered</c> hatasiyla kaydedilir.
 /// </para>
 /// </remarks>
-public sealed class GoogleModelProvider : IModelProvider, IModelProviderHealthCheck
+public sealed class GoogleModelProvider : IModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
 {
     private readonly GoogleChatClientFactory _chatClientFactory;
     private readonly ILogger<GoogleModelProvider>? _logger;
     private readonly HashSet<string> _knownModels;
     private readonly GoogleProviderHealthCheck? _healthCheck;
+    private readonly ConfigurationDiagnostic? _configurationDiagnostic;
 
     /// <summary>Yeni bir saglayici olusturur.</summary>
     /// <param name="name">Saglayici adi. Agent tanimlarindaki <see cref="ModelBinding.Provider"/> bu degerle eslesir.</param>
@@ -55,6 +56,7 @@ public sealed class GoogleModelProvider : IModelProvider, IModelProviderHealthCh
         _logger = logger;
         _knownModels = new HashSet<string>(models.Select(static model => model.Name), StringComparer.OrdinalIgnoreCase);
         _healthCheck = healthCheckOptions is null ? null : new GoogleProviderHealthCheck(name, healthCheckOptions);
+        _configurationDiagnostic = BuildConfigurationDiagnostic(healthCheckOptions);
     }
 
     /// <inheritdoc />
@@ -87,6 +89,27 @@ public sealed class GoogleModelProvider : IModelProvider, IModelProviderHealthCh
                 Status = ModelProviderHealthStatus.Unknown,
                 CheckedAt = DateTimeOffset.UtcNow,
             });
+
+    /// <inheritdoc />
+    public ConfigurationDiagnostic? GetConfigurationDiagnostic() => _configurationDiagnostic;
+
+    private static ConfigurationDiagnostic? BuildConfigurationDiagnostic(GoogleProviderOptions? options)
+    {
+        if (options is null)
+        {
+            return null;
+        }
+
+        var key = $"{GoogleProviderOptions.SectionName}:ApiKey";
+        var resolved = !string.IsNullOrWhiteSpace(options.ApiKey);
+
+        return new ConfigurationDiagnostic
+        {
+            Key = key,
+            Resolved = resolved,
+            Hint = resolved ? null : $"dotnet user-secrets set \"{key}\" \"<anahtar>\"",
+        };
+    }
 
     private void LogUnknownModel(string model)
     {

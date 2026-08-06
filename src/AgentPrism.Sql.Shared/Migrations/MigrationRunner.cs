@@ -25,7 +25,7 @@ namespace AgentPrism;
 /// uzerinden gelir.
 /// </para>
 /// </remarks>
-public sealed class MigrationRunner
+public sealed class MigrationRunner : ISqlPersistenceDiagnostics
 {
     private readonly SqlStoreContext _context;
     private readonly ILogger<MigrationRunner> _logger;
@@ -41,6 +41,59 @@ public sealed class MigrationRunner
 
         _context = context;
         _logger = logger;
+    }
+
+    /// <inheritdoc />
+    public string ProviderName => _context.ProviderName;
+
+    /// <summary>
+    /// Baglanti ve migration durumunu, hicbir migration UYGULAMADAN okur (Faz 33).
+    /// </summary>
+    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <returns>Baglanti kurulamadiysa <c>CanConnect: false</c>; kurulduysa bekleyen migration listesi.</returns>
+    public async ValueTask<SqlPersistenceDiagnosticsSnapshot> GetSnapshotAsync(CancellationToken cancellationToken = default)
+    {
+        var dialect = _context.Dialect;
+
+        var migrations = MigrationDescriptor.Discover(
+            dialect.GetType().Assembly,
+            dialect.MigrationResourcePrefix);
+
+        DbConnection connection;
+
+        try
+        {
+            connection = await _context.DataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbException)
+        {
+            return new SqlPersistenceDiagnosticsSnapshot { CanConnect = false, PendingMigrations = [] };
+        }
+
+        await using (connection.ConfigureAwait(false))
+        {
+            try
+            {
+                var applied = await ReadAppliedAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                var pending = migrations
+                    .Where(migration => !applied.ContainsKey(migration.Id))
+                    .Select(static migration => migration.Name)
+                    .ToArray();
+
+                return new SqlPersistenceDiagnosticsSnapshot { CanConnect = true, PendingMigrations = pending };
+            }
+            catch (DbException)
+            {
+                // __migrations defteri henuz yok (ilk migration hic uygulanmamis).
+                // Baglanti calisiyor; tum migration'lar bekliyor sayilir.
+                return new SqlPersistenceDiagnosticsSnapshot
+                {
+                    CanConnect = true,
+                    PendingMigrations = migrations.Select(static migration => migration.Name).ToArray(),
+                };
+            }
+        }
     }
 
     /// <summary>Bekleyen migration'lari uygular.</summary>

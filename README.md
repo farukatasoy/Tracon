@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici kendi AI harness'ini kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 32 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; riskli tool'lar onay bekler, çalıştırmalar dışarıdan iptal edilebilir; workflow'lar insanla konuşabilir; kullanım kotayla sınırlanabilir; eski veri politikayla arşivlenip silinebilir (varsayılan **hiçbir şey silinmez**). `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu uçları ve gömülü arayüzü tek prefix altına bağlar. Veritabanı ve model satıcısı **zorunlu değildir** (liste aşağıda). Konsol **iki dillidir**. İkinci tur (Faz 8–30) ve Faz 31–32 bitti; [kalanlar](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlanır (Faz 33–52).
+> **Durum:** Faz 33 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; riskli tool'lar onay bekler, çalıştırmalar dışarıdan iptal edilebilir; workflow'lar insanla konuşabilir; kullanım kotayla sınırlanabilir; eski veri politikayla arşivlenip silinebilir (varsayılan **hiçbir şey silinmez**); kurulum standart `/health` ve `/api/diagnostics` ile kendi kendini denetler. `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu uçları ve gömülü arayüzü tek prefix altına bağlar. Veritabanı ve model satıcısı **zorunlu değildir**. Konsol **iki dillidir**. İkinci tur (Faz 8–30) ve Faz 31–33 bitti; [kalanlar](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlanır (Faz 34–52).
 
 ```csharp
 builder.AddAgentPrism()
@@ -16,46 +16,42 @@ builder.AddAgentPrism()
 app.MapAgentPrism("/agentprism");
 ```
 
-İki satır. Çalışan bir agent, kalıcı oturumlar ve `http://localhost:5080/agentprism`
-adresinde çalışan bir kontrol düzlemi.
+İki satır: çalışan bir agent, kalıcı oturumlar, `http://localhost:5080/agentprism`
+adresinde bir kontrol düzlemi.
 
 ### Arayüz
 
-Yedi ekran: **Agents** (katalog, tanım editörü, versiyon geçmişi, geri alma),
-**Playground** (akışlı sohbet, tool kartları), **Sessions**, **Runs** (olay olay zaman
-çizelgesi), **Tools**, **Models**, **Settings**.
+Agents, Playground, Sessions, Runs, Workflows, Jobs, Evals, Experiments, Tools,
+Models, MCP, Audit, Diagnostics, Settings — her faz için ayrı bir ekran.
 
 React 19 + TypeScript ile yazılır, Vite ile derlenir ve assembly'ye **Brotli
 sıkıştırılmış gömülür**. Tüketici projede hiçbir JavaScript bağımlılığı oluşmaz;
-`node_modules` klasörü gerekmez. JavaScript bütçesi **99 KB gzip** (kapı: 250 KB).
+`node_modules` klasörü gerekmez. JavaScript bütçesi **~155 KB gzip** (kapı: 250 KB).
 
 Arayüz herhangi bir prefix altında çalışır (`/agentprism`, `/panel`, …) ve prefix'i
 çalışma anında öğrenir. Açık ve koyu tema; varsayılan işletim sistemi tercihidir.
 
-**Bugün çalışan HTTP yüzeyi** (Faz 4):
+**HTTP yüzeyinden bir kesit:**
 
 ```csharp
-// Tek giris noktasi. Erisim varsayilan olarak loopback ile sinirli.
-app.MapAgentPrism("/agentprism", options =>
-{
-    options.RequireAuthorization("AgentPrismAdmin");   // uretimde kullanilan yol
-});
+// Tek giris noktasi; erisim varsayilan olarak loopback ile sinirli.
+app.MapAgentPrism("/agentprism", options => options.RequireAuthorization("AgentPrismAdmin"));
 ```
 
 ```
-GET    /agentprism/api/meta                    surum · kimlik yontemi · aktif depolar  [kimlik dogrulamasi YOK]
+GET    /agentprism/api/meta                    surum · kimlik yontemi · aktif depolar  [kimliksiz]
 GET    /agentprism/api/agents                  katalog (kod + veritabani)
 POST   /agentprism/api/agents                  yeni tanim        · PUT · DELETE · /versions · /rollback
 POST   /agentprism/api/agents/{name}/run       SSE akisli deneme calistirmasi
-GET    /agentprism/api/sessions[/{id}]         oturumlar ve sohbet gecmisi   · DELETE
-GET    /agentprism/api/runs[/{id}]             calistirma kayitlari
+GET    /agentprism/api/sessions[/{id}]         oturumlar ve sohbet gecmisi · DELETE
+GET    /agentprism/api/runs[/{id}]             calistirma kaydi
 GET    /agentprism/api/runs/{id}/events        SSE; canli veya replay, Last-Event-ID ile devam
-GET    /agentprism/api/tools · /api/models · /api/stats
-POST   /agentprism/api/attachments             ek yukle (multipart) · GET indir/listele · DELETE
+GET    /agentprism/api/tools · /api/models · /api/stats · /api/diagnostics
+POST   /agentprism/api/attachments             ek yukle · GET/DELETE
 
-POST   /agentprism/v1/responses                OpenAI Responses API uyumlu; gomulu data: URI'lerini ek olarak alir
+POST   /agentprism/v1/responses                OpenAI Responses API uyumlu
 POST   /agentprism/v1/chat/completions         OpenAI Chat Completions API uyumlu
-POST   /agentprism/v1/conversations            konusma ac · GET · DELETE · /items
+POST   /agentprism/v1/conversations            konusma ac · GET/DELETE · /items
 ```
 
 Stok OpenAI SDK'si ile:
@@ -263,7 +259,8 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | ✅ Tamamı bitti |
 | [31](docs/31-GERI-BILDIRIM-VE-PUANLAMA.md) | Geri bildirim ve puanlama (çalıştırma/mesaj puanı) | ✅ Tamamlandı |
 | [32](docs/32-CALISTIRMA-IPTALI.md) | Çalıştırma iptali (`POST /api/runs/{id}/cancel`) | ✅ Tamamlandı |
-| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 33–52) | 📋 Planlandı, kod yazılmadı; kalan 20 kalem [adaylarda](docs/UCUNCU-FAZ-ADAYLARI.md) |
+| [33](docs/33-SAGLIK-DENETIMI-VE-TESHIS.md) | Sağlık denetimi (`/health`) ve yapılandırma teşhisi (`/api/diagnostics`) | ✅ Tamamlandı |
+| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 34–52) | 📋 Planlandı, kod yazılmadı; kalan 20 kalem [adaylarda](docs/UCUNCU-FAZ-ADAYLARI.md) |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 

@@ -105,13 +105,19 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         }));
 
         // Isaret birikir (TryAdd degil): birden fazla saglayici kayitliysa
-        // MigrationHostedService acilista uyarir. Gerekce: K-183.
-        services.AddSingleton(new SqlPersistenceRegistration("PostgreSQL"));
+        // MigrationHostedService acilista uyarir ve /api/diagnostics bunu bildirir.
+        // Gerekce: K-183.
+        services.AddSingleton(new SqlPersistenceRegistrationMarker("PostgreSQL"));
 
         services.Replace(ServiceDescriptor.Singleton(static provider => new MigrationRunner(
             provider.GetRequiredService<SqlStoreContext>(),
             provider.GetRequiredService<ILogger<MigrationRunner>>())));
         services.AddHostedService<MigrationHostedService>();
+
+        // Teshis (Faz 33): kazanan saglayicinin MigrationRunner'i ISqlPersistenceDiagnostics
+        // olarak da cozulur; ayni ornek, ek bir SQL baglantisi uretmez.
+        services.Replace(ServiceDescriptor.Singleton<ISqlPersistenceDiagnostics>(
+            static provider => provider.GetRequiredService<MigrationRunner>()));
 
         // Denetim izi defteri de bellek icinin yerini alir.
         services.Replace(ServiceDescriptor.Singleton<IAuditLog, SqlAuditLog>());

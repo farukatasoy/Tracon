@@ -22,12 +22,13 @@ namespace AgentPrism;
 /// olmasi normaldir; o durumda gunluk yazilmaz.
 /// </para>
 /// </remarks>
-public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCheck
+public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
 {
     private readonly OpenAIChatClientFactory _chatClientFactory;
     private readonly ILogger<OpenAIModelProvider>? _logger;
     private readonly HashSet<string> _knownModels;
     private readonly OpenAIProviderHealthCheck? _healthCheck;
+    private readonly ConfigurationDiagnostic? _configurationDiagnostic;
 
     /// <summary>Yeni bir saglayici olusturur.</summary>
     /// <param name="name">Saglayici adi. Agent tanimlarindaki <see cref="ModelBinding.Provider"/> bu degerle eslesir.</param>
@@ -40,6 +41,13 @@ public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCh
     /// <c>GET {endpoint}/models</c> ucuna gider. <see langword="null"/> ise saglik
     /// durumu her zaman <see cref="ModelProviderHealthStatus.Unknown"/> doner.
     /// </param>
+    /// <param name="configurationSectionKey">
+    /// <see cref="GetConfigurationDiagnostic"/>'in bildirecegi sabit yapilandirma
+    /// bolumu. Varsayilan <see cref="OpenAIProviderOptions.SectionName"/> —
+    /// <c>UseOpenAI()</c> icindir. <c>UseOpenAICompatible()</c> anahtari kod icinde
+    /// serbestce verdigi (sabit bir bolum yolu olmadigi) icin <see langword="null"/>
+    /// gecer; bu durumda hicbir <see cref="ConfigurationDiagnostic"/> bildirilmez.
+    /// </param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
     /// <exception cref="ArgumentException"><paramref name="name"/> bos ise.</exception>
     public OpenAIModelProvider(
@@ -48,7 +56,8 @@ public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCh
         OpenAIChatClientFactory chatClientFactory,
         IReadOnlyList<ModelDescriptor> models,
         ILogger<OpenAIModelProvider>? logger = null,
-        OpenAIProviderOptions? healthCheckOptions = null)
+        OpenAIProviderOptions? healthCheckOptions = null,
+        string? configurationSectionKey = OpenAIProviderOptions.SectionName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(chatClientFactory);
@@ -62,6 +71,7 @@ public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCh
         _logger = logger;
         _knownModels = new HashSet<string>(models.Select(static model => model.Name), StringComparer.OrdinalIgnoreCase);
         _healthCheck = healthCheckOptions is null ? null : new OpenAIProviderHealthCheck(name, healthCheckOptions);
+        _configurationDiagnostic = BuildConfigurationDiagnostic(healthCheckOptions, configurationSectionKey);
     }
 
     /// <inheritdoc />
@@ -104,6 +114,27 @@ public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCh
                 Status = ModelProviderHealthStatus.Unknown,
                 CheckedAt = DateTimeOffset.UtcNow,
             });
+
+    /// <inheritdoc />
+    public ConfigurationDiagnostic? GetConfigurationDiagnostic() => _configurationDiagnostic;
+
+    private static ConfigurationDiagnostic? BuildConfigurationDiagnostic(OpenAIProviderOptions? options, string? sectionKey)
+    {
+        if (options is null || sectionKey is null)
+        {
+            return null;
+        }
+
+        var key = $"{sectionKey}:ApiKey";
+        var resolved = !string.IsNullOrWhiteSpace(options.ApiKey);
+
+        return new ConfigurationDiagnostic
+        {
+            Key = key,
+            Resolved = resolved,
+            Hint = resolved ? null : $"dotnet user-secrets set \"{key}\" \"<anahtar>\"",
+        };
+    }
 
     private void LogUnknownModel(string model)
     {

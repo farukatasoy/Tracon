@@ -140,7 +140,13 @@ public static class OpenAICompatibleProviderExtensions
             factory,
             OpenAIModelCatalog.Build(options),
             provider.GetService<ILogger<OpenAIModelProvider>>(),
-            healthCheckOptions: options);
+            healthCheckOptions: options,
+            // UseOpenAICompatible() sabit bir yapilandirma bolumune baglamaz — anahtar
+            // cagiranin kod icinde secip verdigi rastgele bir kaynaktan gelebilir
+            // (ornek: configuration["OpenRouter:ApiKey"]). Bildirilecek sabit bir yol
+            // olmadigi icin teshis raporunda bu saglayici icin hicbir ConfigurationDiagnostic
+            // GORUNMEZ.
+            configurationSectionKey: null);
     }
 
     private static void ValidateName(string name)

@@ -90,13 +90,19 @@ public static class AgentPrismSqliteBuilderExtensions
         }));
 
         // 🚨 Iki kalicilik saglayicisi ayni anda kaydedilirse son kayit kazanir.
-        // Bu bir yapilandirma hatasidir; acilista uyari loglanir. Gerekce: K-183.
-        services.AddSingleton(new SqlPersistenceRegistration("SQLite"));
+        // Bu bir yapilandirma hatasidir; acilista uyari loglanir ve /api/diagnostics
+        // bunu bildirir. Gerekce: K-183.
+        services.AddSingleton(new SqlPersistenceRegistrationMarker("SQLite"));
 
         services.Replace(ServiceDescriptor.Singleton(static provider => new MigrationRunner(
             provider.GetRequiredService<SqlStoreContext>(),
             provider.GetRequiredService<ILogger<MigrationRunner>>())));
         services.AddHostedService<MigrationHostedService>();
+
+        // Teshis (Faz 33): kazanan saglayicinin MigrationRunner'i ISqlPersistenceDiagnostics
+        // olarak da cozulur; ayni ornek, ek bir SQL baglantisi uretmez.
+        services.Replace(ServiceDescriptor.Singleton<ISqlPersistenceDiagnostics>(
+            static provider => provider.GetRequiredService<MigrationRunner>()));
 
         services.Replace(ServiceDescriptor.Singleton<IAuditLog, SqlAuditLog>());
 

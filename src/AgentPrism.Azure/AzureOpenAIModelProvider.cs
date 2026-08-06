@@ -21,12 +21,13 @@ namespace AgentPrism;
 /// kaydeder — bu pakette ek kod yoktur (karar K-206).
 /// </para>
 /// </remarks>
-public sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderHealthCheck
+public sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
 {
     private readonly AzureOpenAIChatClientFactory _chatClientFactory;
     private readonly ILogger<AzureOpenAIModelProvider>? _logger;
     private readonly HashSet<string> _knownDeployments;
     private readonly AzureOpenAIProviderHealthCheck? _healthCheck;
+    private readonly ConfigurationDiagnostic? _configurationDiagnostic;
 
     /// <summary>Yeni bir saglayici olusturur.</summary>
     /// <param name="name">Saglayici adi. Agent tanimlarindaki <see cref="ModelBinding.Provider"/> bu degerle eslesir.</param>
@@ -58,6 +59,7 @@ public sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderHea
         _logger = logger;
         _knownDeployments = new HashSet<string>(models.Select(static model => model.Name), StringComparer.OrdinalIgnoreCase);
         _healthCheck = healthCheckOptions is null ? null : new AzureOpenAIProviderHealthCheck(name, healthCheckOptions);
+        _configurationDiagnostic = BuildConfigurationDiagnostic(healthCheckOptions);
     }
 
     /// <inheritdoc />
@@ -92,6 +94,29 @@ public sealed class AzureOpenAIModelProvider : IModelProvider, IModelProviderHea
                 Status = ModelProviderHealthStatus.Unknown,
                 CheckedAt = DateTimeOffset.UtcNow,
             });
+
+    /// <inheritdoc />
+    public ConfigurationDiagnostic? GetConfigurationDiagnostic() => _configurationDiagnostic;
+
+    private static ConfigurationDiagnostic? BuildConfigurationDiagnostic(AzureOpenAIProviderOptions? options)
+    {
+        if (options is null)
+        {
+            return null;
+        }
+
+        var key = $"{AzureOpenAIProviderOptions.SectionName}:ApiKey";
+        var resolved = !string.IsNullOrWhiteSpace(options.ApiKey) || options.CredentialFactory is not null;
+
+        return new ConfigurationDiagnostic
+        {
+            Key = key,
+            Resolved = resolved,
+            Hint = resolved
+                ? null
+                : $"dotnet user-secrets set \"{key}\" \"<anahtar>\" veya AzureOpenAIProviderOptions.CredentialFactory atayin",
+        };
+    }
 
     private void LogUnknownDeployment(string deployment)
     {

@@ -225,6 +225,14 @@ export const AuditIcon = ({ className }: IconProps): ReactNode => (
   </Icon>
 );
 
+/** A pulse line: the shape of a self-check. */
+export const DiagnosticsIcon = ({ className }: IconProps): ReactNode => (
+  <Icon className={className}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M8 12h2l1.5-3.5L13 15l1.5-3H16" />
+  </Icon>
+);
+
 /** Three boxes wired together: the shape of a workflow graph. */
 export const WorkflowIcon = ({ className }: IconProps): ReactNode => (
   <Icon className={className}>

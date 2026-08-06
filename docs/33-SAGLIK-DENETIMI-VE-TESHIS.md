@@ -1,6 +1,6 @@
 # Faz 33 — Sağlık Denetimi ve Yapılandırma Teşhisi
 
-> **Durum:** 📋 Planlandı (2026-08-06)
+> **Durum:** ✅ Tamamlandı (2026-08-06)
 > **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-38** · **F-62**
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.AspNetCore`, `.UI`
@@ -261,40 +261,91 @@ src/AgentPrism.UI/frontend/src/
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `AddAgentPrismHealthChecks()` + `MapHealthChecks("/health")` kurulumunda
-      `GET /health` `200 Healthy` döner
-- [ ] Veritabanı durdurulduğunda `GET /health` `503 Unhealthy` döner
-- [ ] `UsePostgreSql()` ve `UseSqlite()` birlikte kaydedildiğinde `/health`
-      `Degraded` ve `/api/diagnostics` çift kaydı **açıkça** bildirir (K-183)
-- [ ] `GET /api/diagnostics` Admin ile `200`, Reader ile `403` döner
-- [ ] 🚨 `secret` sızıntı testi: bilinen bir API anahtarı yapılandırmaya konur;
-      teşhis yanıtının tamamında **hiçbir yerde** geçmez
-- [ ] Sağlık denetimi çağrısı hiçbir model isteği üretmez (sahte sağlayıcı
-      sayacı sıfır)
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, `/health` ve
-      `/api/diagnostics` çıktısı bu belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
+- [x] `AddAgentPrismHealthChecks()` + `MapHealthChecks("/health")` kurulumunda
+      `GET /health` `200 Healthy` döner — model sağlığı ısıtıldıktan sonra
+      gerçek `samples/AgentPrism.Api` ile doğrulandı (aşağıda çıktı)
+- [x] Veritabanı durdurulduğunda `GET /health` `503 Unhealthy` döner —
+      `HealthCheckTests.Baglanti_kurulamayan_SQL_saglayicisi_503_Unhealthy_doner`
+      ile doğrulandı (fonksiyonel test; gerçek Postgres kapatma manuel
+      doğrulanmadı — bellek içi/SQL geçişi `ISqlPersistenceDiagnostics` üzerinden
+      soyutlandığı için sahte sağlayıcı ile eşdeğerdir)
+- [x] `UsePostgreSql()` ve `UseSqlite()`/`UseSqlServer()` birlikte kaydedildiğinde
+      `/health` `Degraded` ve `/api/diagnostics` çift kaydı **açıkça** bildirir
+      (K-183) — `HealthCheckTests.Cift_SQL_kaydi_Degraded_doner` +
+      `DiagnosticsCollectorTests.Cift_SQL_kaydi_K183_sayaci_ikiyi_gosterir`
+- [x] `GET /api/diagnostics` Admin ile `200`, Admin policy başarısızsa `403`
+      döner — `DiagnosticsEndpointTests.Admin_policy_basarisizsa_403_alir` /
+      `_basariliysa_200_alir`
+- [x] 🚨 `secret` sızıntı testi: bilinen bir API anahtarı yapılandırmaya konur;
+      teşhis yanıtının tamamında **hiçbir yerde** geçmez —
+      `DiagnosticsEndpointTests.Bilinen_API_anahtari_yanitin_hicbir_yerinde_gecmez`
+      VE gerçek `samples/AgentPrism.Api`'de `dotnet user-secrets`'taki gerçek
+      OpenAI anahtarıyla elle doğrulandı (aşağıda)
+- [x] Sağlık denetimi çağrısı hiçbir model isteği üretmez (sahte sağlayıcı
+      sayacı sıfır) — `ModelHealthEndpointsTests` zaten bunu `ModelProviderHealthCache`
+      üzerinde kanıtlıyordu; `AgentPrismDiagnosticsCollector` aynı önbellekten
+      `TryPeek` ile okur, `HealthCheckTests`'in tamamı hiçbir `FakeOpenAiCompatibleServer`
+      çağrı sayacını artırmadan geçti
+- [x] Dört doğrulama kapısı sıfır uyarı verir — bu kapanışta tekrar çalıştırıldı
+- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, `/health` ve
+      `/api/diagnostics` çıktısı bu belgeye yazıldı (aşağıda)
+- [x] `secret` taraması boş döndü
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı — **+3,3 KB gzip**
+      (151,3 KB → 154,6 KB; plan tahmini 2–4 KB idi)
 
-### Doğrulama komutları
+### Doğrulama komutları ve gerçek çıktı (2026-08-06, port 5080 — `launchSettings.json`)
 
 ```bash
-# Standart saglik yolu
-curl -s -i http://localhost:5081/health | head -1
-
-# Teshis raporu
-curl -s http://localhost:5081/agentprism/api/diagnostics | jq
-
-# 🚨 Sizinti denetimi: yapilandirmadaki anahtar yanitin hicbir yerinde olmamali
-KEY=$(dotnet user-secrets list --project samples/AgentPrism.Api \
-      | grep -i 'OpenAI:ApiKey' | cut -d= -f2- | tr -d ' ')
-curl -s http://localhost:5081/agentprism/api/diagnostics | grep -F "$KEY" && echo "SIZINTI VAR" || echo "temiz"
-
-# Veritabani durdurulunca
-docker stop agentprism-postgres
-curl -s -i http://localhost:5081/health | head -1   # 503 beklenir
+$ curl -s -i http://localhost:5080/health | tail -1
+Degraded
 ```
+
+Model sağlığı hiç yoklanmamışken (uygulama yeni açılmış) beklenen durum budur —
+bkz. bölüm 33.3. `GET /agentprism/api/models/health?refresh=true` ile bir
+sağlayıcı ısıtıldıktan sonra:
+
+```bash
+$ curl -s -i http://localhost:5080/health | tail -1
+Healthy
+```
+
+```bash
+$ curl -s http://localhost:5080/agentprism/api/diagnostics | jq
+{
+  "persistenceProvider": "InMemory",
+  "registeredPersistenceProviders": 0,
+  "canConnect": true,
+  "migrationsUpToDate": true,
+  "pendingMigrations": [],
+  "modelProviders": [
+    { "name": "openai", "status": "Unknown", "circuitOpen": false },
+    { "name": "openai-responses", "status": "Unknown", "circuitOpen": false },
+    { "name": "openrouter", "status": "Unknown", "circuitOpen": false },
+    { "name": "anthropic", "status": "Unknown", "circuitOpen": false },
+    { "name": "google", "status": "Unknown", "circuitOpen": false }
+  ],
+  "configuration": [
+    { "key": "AgentPrism:Providers:OpenAI:ApiKey", "resolved": true, "hint": null },
+    { "key": "AgentPrism:Providers:Anthropic:ApiKey", "resolved": true, "hint": null },
+    { "key": "AgentPrism:Providers:Google:ApiKey", "resolved": true, "hint": null }
+  ],
+  "uiEmbedded": true,
+  "toolCount": 6,
+  "agentCount": 11
+}
+```
+
+```bash
+# 🚨 Sizinti denetimi — gercek OpenAI anahtariyla, dev makinesindeki user-secrets'tan
+$ KEY=$(dotnet user-secrets list --project samples/AgentPrism.Api \
+      | grep -i 'OpenAI:ApiKey' | cut -d= -f2- | tr -d ' ')
+$ curl -s http://localhost:5080/agentprism/api/diagnostics | grep -F "$KEY" && echo "SIZINTI VAR" || echo "temiz"
+temiz
+```
+
+`UseOpenAICompatible("openrouter", ...)` sağlayıcısı `configuration` listesinde
+**hiç görünmez** — bkz. K-249: sabit bir bölüm yolu yoktur, yanlış anahtar adı
+raporlamak yerine hiç raporlanmaz.
 
 ---
 
@@ -317,22 +368,263 @@ curl -s -i http://localhost:5081/health | head -1   # 503 beklenir
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
-> oturumun en değerli bilgisidir.
+1. **K-183 işareti Sql.Shared'dan Abstractions'a taşındı (K-247).** Plan bunu
+   öngörmüyordu; uygulama sırasında keşfedildi. `internal SqlPersistenceRegistration`
+   linked-source (K-176) yüzünden her sağlayıcı derlemesinde AYRI bir CLR tipiydi —
+   `UsePostgreSql()` + `UseSqlServer()` birlikte çağrıldığında hiçbir
+   `MigrationHostedService` diğerinin işaretini göremiyordu ve K-183'ün kendi
+   uyarısı hiç tetiklenmiyordu (test kapsamı da yoktu). Yeni public
+   `SqlPersistenceRegistrationMarker` (Abstractions) hem teşhisi hem eski uyarıyı
+   aynı, tek derlenmiş tipten besler.
+2. **`MigrationRunner` `ISqlPersistenceDiagnostics`'i doğrudan uygular** (K-248);
+   planın taslağı ayrı bir sarmalayıcı ima ediyordu ama gereksizdi — `ProviderName`
+   ve migration keşif/okuma mantığı zaten oradaydı.
+3. **`OpenAIModelProvider`'a `configurationSectionKey` parametresi eklendi (K-249).**
+   Plan `Configuration` alanını "yalnız kayıtlı sağlayıcıların beklediği anahtarlar"
+   diye tarif ediyordu ama `UseOpenAICompatible()`'ın sabit bir bölüm yolu
+   OLMADIĞINI (kod içinde serbestçe yapılandırılır) hesaba katmıyordu. İlk taslak
+   hep `AgentPrism:Providers:OpenAI` raporlardı — yanlış olurdu. Çözüm: parametre
+   `null` ise hiç raporlanmaz.
+4. **`AgentPrismDiagnosticsReport` genel bir `Status` alanı taşımaz (K-250).**
+   Taslak API zaten böyleydi (sapma değil) ama gerekçesi kapanışta netleşti:
+   `HealthStatus` yalnız `AgentPrism.AspNetCore`'da görünür (paylaşılan çerçeve),
+   `AgentPrism.Core` bu tipi hiç göremez. Üç durumlu karar tamamen
+   `AgentPrismHealthCheck` içindedir.
+5. **`AddAgentPrismHealthChecks()` `AddAgentPrism()`'in önceden çağrıldığını
+   denetlemez (K-251).** İlk taslak `MapAgentPrism`'in `IAgentCatalog` kontrolünü
+   taklit ediyordu; kayıt anında (Build() öncesi) bu kontrol sıraya bağımlı yanlış
+   sonuç üretirdi (`docs/hafiza/aspnetcore-di.md`).
+6. **`samples/AgentPrism.Api`'nin Faz 3'ten kalma elle yazılmış `GET /health`'i
+   söküldü.** Yeni standart `AddAgentPrismHealthChecks()` + `MapHealthChecks("/health")`
+   onun yerini aldı; `persistenceEnabled` yerel değişkeni de kaldırıldı (artık
+   `/api/diagnostics` bu bilgiyi taşıyor). Plan bunu açıkça söylemiyordu ama
+   iki paralel "kurulum sağlıklı mı" yüzeyi tutmak DoD'un "tek yer" amacına aykırıydı.
+7. **`AgentPrismTestHost`'a (`AspNetCore.FunctionalTests`) `configureApp` kancası
+   eklendi.** Health check testleri `app.MapHealthChecks("/health")`'i
+   `MapAgentPrism`'den önce çağırmak zorundaydı; mevcut test altyapısında bu yol
+   yoktu.
+8. **Açık Soru 1 (SQL sağlık denetimi gerçek sorgu mu atsın) — A seçildi, plandaki
+   gibi.** `GetSnapshotAsync` bağlantı açar + (varsa) `__migrations` okur; hiçbir
+   önbellekleme eklenmedi (DoD'da istenmemişti, `/health` yoklama sıklığı
+   tüketicinin `HealthCheckOptions.Period` ayarına kalır — .NET'in kendi
+   önbellekleme mekanizması).
+9. **Açık Soru 4 (teşhis ucu varsayılan) — B seçildi, plandaki gibi.**
+   `EnableDiagnosticsEndpoint` varsayılan `false`.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
+K-247 — K-251. Tam gerekçe: `docs/KARARLAR.md`.
+
+| Karar | Özet |
+|---|---|
+| K-247 | K-183 işareti Abstractions'a taşındı; linked-source cross-assembly kimlik hatasını da düzeltti |
+| K-248 | `MigrationRunner` `ISqlPersistenceDiagnostics`'i doğrudan uygular |
+| K-249 | `UseOpenAICompatible()` hiçbir `ConfigurationDiagnostic` bildirmez |
+| K-250 | Genel sağlık kararı yalnız `AgentPrismHealthCheck`'te (AspNetCore), raporda değil |
+| K-251 | `AddAgentPrismHealthChecks()` kayıt anında `AddAgentPrism()` kontrolü yapmaz |
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+```csharp
+// AgentPrism.Abstractions/Diagnostics
+public sealed record AgentPrismDiagnosticsReport
+{
+    public required string PersistenceProvider { get; init; }
+    public required int RegisteredPersistenceProviders { get; init; }
+    public required bool CanConnect { get; init; }
+    public required bool MigrationsUpToDate { get; init; }
+    public required IReadOnlyList<string> PendingMigrations { get; init; }
+    public required IReadOnlyList<ProviderDiagnostic> ModelProviders { get; init; }
+    public required IReadOnlyList<ConfigurationDiagnostic> Configuration { get; init; }
+    public required bool UiEmbedded { get; init; }
+    public required int ToolCount { get; init; }
+    public required int AgentCount { get; init; }
+}
+
+public sealed record ConfigurationDiagnostic
+{
+    public required string Key { get; init; }
+    public required bool Resolved { get; init; }
+    public string? Hint { get; init; }
+}
+
+public sealed record ProviderDiagnostic
+{
+    public required string Name { get; init; }
+    public required string Status { get; init; }
+    public required bool CircuitOpen { get; init; }
+}
+
+public interface ISqlPersistenceDiagnostics
+{
+    string ProviderName { get; }
+    ValueTask<SqlPersistenceDiagnosticsSnapshot> GetSnapshotAsync(CancellationToken cancellationToken = default);
+}
+
+public sealed record SqlPersistenceDiagnosticsSnapshot
+{
+    public required bool CanConnect { get; init; }
+    public required IReadOnlyList<string> PendingMigrations { get; init; }
+}
+
+public sealed record SqlPersistenceRegistrationMarker(string ProviderName);
+
+public interface IModelProviderConfigurationDiagnostics
+{
+    ConfigurationDiagnostic? GetConfigurationDiagnostic();
+}
+
+// AgentPrism.Core/Diagnostics
+public sealed class AgentPrismDiagnosticsCollector
+{
+    public AgentPrismDiagnosticsCollector(
+        IEnumerable<IModelProvider> providers,
+        ModelProviderHealthCache healthCache,
+        IEnumerable<ISqlPersistenceDiagnostics> sqlDiagnostics,
+        IEnumerable<SqlPersistenceRegistrationMarker> sqlMarkers,
+        IAgentCatalog agentCatalog,
+        IToolRegistry toolRegistry,
+        ModelProviderCircuitBreaker? circuitBreaker = null);
+
+    public ValueTask<AgentPrismDiagnosticsReport> CollectAsync(CancellationToken cancellationToken = default);
+}
+
+// AgentPrism.AspNetCore
+public static class AgentPrismHealthCheckExtensions
+{
+    public static IHealthChecksBuilder AddAgentPrismHealthChecks(
+        this IHealthChecksBuilder builder,
+        string name = "agentprism",
+        IEnumerable<string>? tags = null);
+}
+
+// AgentPrismEndpointOptions — yeni üye
+public bool EnableDiagnosticsEndpoint { get; set; }  // varsayılan false
+
+// AgentPrism.Sql.Shared (internal, dolaylı) — MigrationRunner artık:
+public sealed class MigrationRunner : ISqlPersistenceDiagnostics
+{
+    public string ProviderName { get; }
+    public ValueTask<SqlPersistenceDiagnosticsSnapshot> GetSnapshotAsync(CancellationToken cancellationToken = default);
+    // ApplyAsync degismedi
+}
+
+// AgentPrism.OpenAI — OpenAIModelProvider kurucusuna eklenen parametre
+public OpenAIModelProvider(
+    string name,
+    OpenAIApiSurface apiSurface,
+    OpenAIChatClientFactory chatClientFactory,
+    IReadOnlyList<ModelDescriptor> models,
+    ILogger<OpenAIModelProvider>? logger = null,
+    OpenAIProviderOptions? healthCheckOptions = null,
+    string? configurationSectionKey = OpenAIProviderOptions.SectionName);  // YENİ
+```
+
+### HTTP `endpoint`'i (gerçekleşen)
+
+| Metot | Yol | Rol | Varsayılan |
+|---|---|---|---|
+| `GET` | `/api/diagnostics` | Admin | **Kapalı** (`EnableDiagnosticsEndpoint`) |
+
+### Arayüz (gerçekleşen)
+
+Ayrı bir "Teşhis" ekranı (`/diagnostics`), Settings'in altında değil kendi rota ve
+nav girdisinde — `adminOnly: true` (Audit ile aynı desen). Bundle payı ölçüldü:
+**+3,3 KB gzip** (151,3 → 154,6 KB / 250 KB bütçe).
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/AgentPrism.Abstractions/Diagnostics/
+├── AgentPrismDiagnosticsReport.cs
+├── ConfigurationDiagnostic.cs
+├── ProviderDiagnostic.cs
+├── ISqlPersistenceDiagnostics.cs        (+ SqlPersistenceDiagnosticsSnapshot, SqlPersistenceRegistrationMarker)
+└── IModelProviderConfigurationDiagnostics.cs
+
+src/AgentPrism.Core/Diagnostics/
+└── AgentPrismDiagnosticsCollector.cs
+
+src/AgentPrism.AspNetCore/
+├── Health/
+│   ├── AgentPrismHealthCheck.cs
+│   └── AgentPrismHealthCheckExtensions.cs
+└── Endpoints/
+    └── DiagnosticsEndpoints.cs
+
+src/AgentPrism.Sql.Shared/Migrations/
+├── MigrationRunner.cs                    (ISqlPersistenceDiagnostics eklendi)
+└── MigrationHostedService.cs             (internal marker → Abstractions marker)
+
+src/AgentPrism.{PostgreSql,SqlServer,Sqlite}/AgentPrism{Ad}BuilderExtensions.cs
+                                             (marker + ISqlPersistenceDiagnostics kaydı)
+
+src/AgentPrism.{OpenAI,Anthropic,Google,Azure}/*ModelProvider.cs
+                                             (IModelProviderConfigurationDiagnostics)
+src/AgentPrism.OpenAI/OpenAICompatibleProviderExtensions.cs
+                                             (configurationSectionKey: null gecisi)
+
+src/AgentPrism.UI/frontend/src/
+├── screens/diagnostics.tsx
+├── lib/types.ts                          (DiagnosticsReport, ProviderDiagnostic, ConfigurationDiagnostic)
+├── lib/api.ts                            (api.diagnostics)
+├── components/icons.tsx                  (DiagnosticsIcon)
+├── components/layout.tsx                 (nav girdisi, adminOnly)
+├── App.tsx                               (rota)
+└── locales/{en,tr}.ts                    (diagnostics.* anahtarları)
+
+samples/AgentPrism.Api/Program.cs         (AddAgentPrismHealthChecks + MapHealthChecks,
+                                            EnableDiagnosticsEndpoint = true, eski /health kaldirildi)
+
+tests/AgentPrism.Core.UnitTests/
+├── Diagnostics/DiagnosticsCollectorTests.cs
+└── Fakes/{FakeSqlPersistenceDiagnostics,FakeConfigurationDiagnosticProvider}.cs
+
+tests/AgentPrism.AspNetCore.FunctionalTests/
+├── DiagnosticsEndpointTests.cs
+├── HealthCheckTests.cs
+└── Infrastructure/AgentPrismTestHost.cs  (configureApp kancasi eklendi)
+
+tests/AgentPrism.OpenAI.UnitTests/OpenAIModelProviderConfigurationDiagnosticsTests.cs
+tests/AgentPrism.PostgreSql.IntegrationTests/MigrationDiagnosticsTests.cs
+```
+
+## Testler (gerçekleşen)
+
+| Test sınıfı | Proje | Test sayısı | Neyi doğrular |
+|---|---|---|---|
+| `DiagnosticsCollectorTests` | Core.UnitTests | 7 | Bellek içi, tek SQL, çift SQL (K-183), config dedup, tool/agent sayımı |
+| `DiagnosticsEndpointTests` | AspNetCore.FunctionalTests | 5 | Varsayılan kapalı (404), Admin 200/403, `secret` sızıntısı yok |
+| `HealthCheckTests` | AspNetCore.FunctionalTests | 5 | Healthy/Degraded (denetlenmemiş/devre açık/K-183)/Unhealthy |
+| `OpenAIModelProviderConfigurationDiagnosticsTests` | OpenAI.UnitTests | 4 | Resolved/unresolved+hint, healthCheckOptions yoksa null, `UseOpenAICompatible` hiç raporlamaz |
+| `MigrationDiagnosticsTests` | PostgreSql.IntegrationTests | 5 | **Gerçek PostgreSQL**: uygulanmadan önce/sonra bekleyenler, `GetSnapshotAsync` migration UYGULAMAZ, baglanamayan saglayici |
+
+Toplam yeni test: 26. Tüm mevcut test projeleri (Core 535, AspNetCore.FunctionalTests
+310, OpenAI.UnitTests 81, PostgreSql.IntegrationTests 488, Sqlite.IntegrationTests
+237, Ui.E2ETests 41 — izole çalıştırıldığında) yeşil. `SqlServer.IntegrationTests`
+bu makinede (Apple Silicon, Rosetta kapalı) çalışmadı — önceden bilinen ortam
+kısıtı (`docs/hafiza/sql-saglayicilari.md`), Faz 33'e özgü değil; aynı paylaşılan
+`MigrationRunner` kodu PostgreSQL üzerinde gerçek veritabanına karşı kanıtlandı.
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
+- **Devralınan sözleşmeler**: `ISqlPersistenceDiagnostics` (Abstractions) — yeni
+  bir SQL sağlayıcısı eklenirse `MigrationRunner`'ın zaten uyguladığı bu arayüzü
+  otomatik alır; ekstra kod gerekmez. `IModelProviderConfigurationDiagnostics` —
+  yeni bir model sağlayıcısı paketi (`GetConfigurationDiagnostic()`) uygularsa
+  `/api/diagnostics` onu otomatik toplar; uygulamazsa sessizce atlanır (K4 uyumlu,
+  hata değil).
+- **🚨 `IServiceCollection` sırası kayıt-anı kontrollerini bozar (K-251)**: yeni
+  bir `Add*()` uzantısı yazarken `MapAgentPrism`'in `app.Build()` sonrası kontrol
+  desenini kayıt anında TEKRARLAMA — `docs/hafiza/aspnetcore-di.md`.
+- **🚨 Linked-source (K-176) `internal` bir tipi `IEnumerable<T>` ile SAYMAK
+  istiyorsan T Abstractions'da olmalı** — aksi halde her sağlayıcı derlemesi
+  kendi ayrı CLR tipini görür ve sayım sessizce yanlış çalışır (K-247).
+- **Yarım kalan/ölçülmedi**: gerçek bir Postgres container'ı durdurup
+  `/health`'in `503`'e döndüğü **manuel olarak** (curl ile) doğrulanmadı — yalnız
+  fonksiyonel test (sahte `ISqlPersistenceDiagnostics`) ve gerçek DB'ye karşı
+  `GetSnapshotAsync` ayrı ayrı kanıtlandı, ikisinin birleşimi (gerçek DB kapalıyken
+  gerçek `/health` isteği) elle denenmedi. SQL Server bu ortamda hiç çalıştırılamadı
+  (Rosetta); `docs/hafiza/sql-saglayicilari.md`'deki bilinen kısıt.
+- **Sıradaki faz**: `docs/34-TANIM-DOGRULAMA-UCU.md` (henüz yazılmadı — üçüncü tur
+  yol haritasından seçilecek).

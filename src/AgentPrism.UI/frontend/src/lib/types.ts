@@ -320,6 +320,38 @@ export interface ModelProviderHealth {
   models: string[];
 }
 
+/**
+ * Self-check report from `GET /api/diagnostics` (Phase 33).
+ *
+ * Carries no secret value — only whether a configuration key resolved, never
+ * the key's content (decision K-059).
+ */
+export interface DiagnosticsReport {
+  persistenceProvider: string;
+  registeredPersistenceProviders: number;
+  canConnect: boolean;
+  migrationsUpToDate: boolean;
+  pendingMigrations: string[];
+  modelProviders: ProviderDiagnostic[];
+  configuration: ConfigurationDiagnostic[];
+  uiEmbedded: boolean;
+  toolCount: number;
+  agentCount: number;
+}
+
+export interface ProviderDiagnostic {
+  name: string;
+  status: ModelProviderHealthStatus;
+  circuitOpen: boolean;
+}
+
+/** Whether a configuration key resolved — never its value. */
+export interface ConfigurationDiagnostic {
+  key: string;
+  resolved: boolean;
+  hint?: string | null;
+}
+
 export interface SessionRecord {
   id: string;
   agentName: string;

@@ -67,6 +67,7 @@ export const tr: Messages = {
   'nav.models': 'Modeller',
   'nav.mcp': 'MCP',
   'nav.audit': 'Denetim',
+  'nav.diagnostics': 'Teşhis',
   'nav.settings': 'Ayarlar',
   'nav.primary': 'Ana gezinme',
 
@@ -379,6 +380,39 @@ export const tr: Messages = {
   'audit.details': 'Ayrıntı',
   'audit.before': 'Öncesi',
   'audit.after': 'Sonrası',
+
+  /* ------------------------------------------------------- diagnostics */
+  'diagnostics.description':
+    'Bu kurulumun öz denetimidir. Hiçbir secret değer görünmez — yalnız yapılandırma anahtarının çözülüp çözülmediği görünür.',
+  'diagnostics.disabled.title': 'Teşhis ucu kapalı',
+  'diagnostics.disabled.body':
+    'Ucu açmak için sunucuda AgentPrismEndpointOptions.EnableDiagnosticsEndpoint = true yapın.',
+  'diagnostics.persistence': 'Kalıcılık',
+  'diagnostics.activeProvider': 'Etkin sağlayıcı',
+  'diagnostics.registeredProviders': 'Kayıtlı SQL sağlayıcısı',
+  'diagnostics.multipleProvidersWarning':
+    'Birden fazla SQL sağlayıcısı kayıtlıdır. Son Use*() çağrısı kazanır; diğerleri sessizce devre dışıdır.',
+  'diagnostics.canConnect': 'Veritabanı bağlantısı',
+  'diagnostics.connected': 'Bağlı',
+  'diagnostics.notConnected': 'Erişilemiyor',
+  'diagnostics.migrations': 'Migration durumu',
+  'diagnostics.migrationsUpToDate': 'Güncel',
+  'diagnostics.migrationsPending_one': '{n} bekliyor',
+  'diagnostics.migrationsPending_other': '{n} bekliyor',
+  'diagnostics.pendingList': 'Bekleyen migration listesi',
+  'diagnostics.surface': 'Yüzey',
+  'diagnostics.uiEmbedded': 'Arayüz varlıkları gömülü',
+  'diagnostics.toolCount': 'Kayıtlı tool sayısı',
+  'diagnostics.agentCount': 'Kayıtlı agent sayısı',
+  'diagnostics.modelProviders': 'Model sağlayıcıları',
+  'diagnostics.modelProviders.empty': 'Kayıtlı model sağlayıcısı yok.',
+  'diagnostics.circuitOpen': 'Devre kesici açık',
+  'diagnostics.configuration': 'Yapılandırma anahtarları',
+  'diagnostics.configuration.empty': 'Hiçbir sağlayıcı sabit bir yapılandırma anahtarı bildirmiyor.',
+  'diagnostics.configurationKey': 'Anahtar',
+  'diagnostics.resolved': 'Çözüldü',
+  'diagnostics.unresolved': 'Çözülmedi',
+  'diagnostics.hint': 'İpucu',
 
   /* -------------------------------------------------------- run detail */
   'runDetail.forWorkflow': 'workflow',

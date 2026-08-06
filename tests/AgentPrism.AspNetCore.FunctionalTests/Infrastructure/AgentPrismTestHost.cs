@@ -58,13 +58,18 @@ internal sealed class AgentPrismTestHost : IAsyncDisposable
     /// OpenAPI belgesi uretimini acar. Tuketicinin kendi uygulamasinda yaptigi
     /// sey budur; AgentPrism.AspNetCore OpenAPI paketine bagimli DEGILDIR.
     /// </param>
+    /// <param name="configureApp">
+    /// <c>app.Build()</c> sonrasi, <c>MapAgentPrism</c> cagrisindan once ek yol
+    /// baglamak icin (ornek: <c>app.MapHealthChecks("/health")</c>).
+    /// </param>
     /// <returns>Calisan barindirici.</returns>
     public static async Task<AgentPrismTestHost> StartAsync(
         Action<IAgentPrismBuilder>? configureAgentPrism = null,
         Action<AgentPrismEndpointOptions>? configureEndpoints = null,
         Action<IServiceCollection>? configureServices = null,
         string prefix = "/agentprism",
-        bool withOpenApi = false)
+        bool withOpenApi = false,
+        Action<WebApplication>? configureApp = null)
     {
         var logs = new RecordingLoggerProvider();
 
@@ -98,6 +103,8 @@ internal sealed class AgentPrismTestHost : IAsyncDisposable
 
             return next(context);
         });
+
+        configureApp?.Invoke(app);
 
         app.MapAgentPrism(prefix, configureEndpoints);
 

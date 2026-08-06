@@ -30,7 +30,7 @@ internal sealed class MigrationHostedService : IHostedService
     private readonly MigrationRunner _runner;
     private readonly SqlStoreContext _storeContext;
     private readonly AgentPrismOptions _agentPrismOptions;
-    private readonly IEnumerable<SqlPersistenceRegistration> _registrations;
+    private readonly IEnumerable<SqlPersistenceRegistrationMarker> _registrations;
     private readonly ILogger<MigrationHostedService> _logger;
 
     /// <summary>Yeni bir baslangic servisi olusturur.</summary>
@@ -44,7 +44,7 @@ internal sealed class MigrationHostedService : IHostedService
         MigrationRunner runner,
         SqlStoreContext storeContext,
         IOptions<AgentPrismOptions> agentPrismOptions,
-        IEnumerable<SqlPersistenceRegistration> registrations,
+        IEnumerable<SqlPersistenceRegistrationMarker> registrations,
         ILogger<MigrationHostedService> logger)
     {
         ArgumentNullException.ThrowIfNull(runner);
@@ -120,14 +120,3 @@ internal sealed class MigrationHostedService : IHostedService
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
     }
 }
-
-/// <summary>
-/// Kayitli bir SQL kalicilik saglayicisinin isareti.
-/// </summary>
-/// <param name="ProviderName">Saglayici adi. Ornek: <c>PostgreSQL</c>.</param>
-/// <remarks>
-/// Her <c>Use*</c> uzantisi bir isaret ekler. Isaretler <em>birikir</em>
-/// (<c>AddSingleton</c>, <c>TryAdd</c> degil); birden fazlaysa acilista uyari
-/// loglanir.
-/// </remarks>
-internal sealed record SqlPersistenceRegistration(string ProviderName);
