@@ -91,7 +91,7 @@ def kararlar_indeksi_uret() -> str:
         "",
         "```bash",
         "grep -n 'K-059' docs/KARARLAR.md            # tek kalemin tam gerekçesi",
-        "sed -n '120,121p' docs/KARARLAR.md          # satır numarasıyla",
+        "sed -n '120,121p' docs/KARARLAR.md          # satır numarasıyla (Satır sütunu = sed argümanı)",
         "grep -n 'jsonb\\|migration' docs/KARARLAR.md  # konu araması",
         "```",
         "",
@@ -114,7 +114,8 @@ def kararlar_indeksi_uret() -> str:
         num = baslik.split("—")[0].strip()
         geri = baslik.split("—", 1)[1].strip() if "—" in baslik else baslik
         sonek = f" {isaret}" if isaret else ""
-        ç.append(f"| {num} | L{no} | {geri}{sonek} |")
+        # "L" onekiyle degil dogrudan satir numarasi: sed -n 'N,Np'ye kopyala-yapistir.
+        ç.append(f"| {num} | {no} | {geri}{sonek} |")
 
     ç.append("")
     return "\n".join(ç)

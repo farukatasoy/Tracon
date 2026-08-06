@@ -51,6 +51,15 @@ public static class AgentPrismDiagnostics
     /// <summary>Tool cagri suresi histogrami (saniye).</summary>
     public const string ToolDurationName = "agentprism.tool.duration";
 
+    /// <summary>Calistirma basina para cinsinden maliyet sayaci.</summary>
+    public const string RunCostCounterName = "agentprism.run.cost";
+
+    /// <summary>Kota kapsaminin gecerli donemdeki tuketimini gosteren gozlemlenen olcer.</summary>
+    public const string QuotaUsageGaugeName = "agentprism.quota.usage";
+
+    /// <summary>Kota kapsaminin tanimli sinirini gosteren gozlemlenen olcer.</summary>
+    public const string QuotaLimitGaugeName = "agentprism.quota.limit";
+
     /// <summary>Span ve metrik etiket adlari. Degistirmek gosterge panolarini kirar.</summary>
     public static class Tags
     {
@@ -107,5 +116,17 @@ public static class AgentPrismDiagnostics
 
         /// <summary>Olculen tanim surumu.</summary>
         public const string AgentVersion = "agentprism.agent.version";
+
+        /// <summary>Maliyetin para birimi.</summary>
+        public const string Currency = "agentprism.cost.currency";
+
+        /// <summary>Kota kapsami: agent adi veya kiraci geneli icin bos dize.</summary>
+        public const string QuotaScope = "agentprism.quota.scope";
+
+        /// <summary>Kota sayacinin sifirlanma araligi.</summary>
+        public const string QuotaPeriod = "agentprism.quota.period";
+
+        /// <summary>Kotanin uygulandigi olcut: <c>Runs</c>, <c>Tokens</c> veya <c>Cost</c>.</summary>
+        public const string QuotaMetric = "agentprism.quota.metric";
     }
 }

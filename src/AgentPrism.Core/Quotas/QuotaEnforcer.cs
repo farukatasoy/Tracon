@@ -319,7 +319,12 @@ public sealed class QuotaEnforcer(
         }
     }
 
-    private static IEnumerable<(QuotaMetric Metric, decimal Limit, decimal Used)> EnumerateLimits(
+    /// <summary>Bir kuralda tanimli sinirlari (olcut, sinir, tuketim) sirayla dondurur.</summary>
+    /// <param name="definition">Kural.</param>
+    /// <param name="usage">Kapsamin gecerli donemdeki sayaci.</param>
+    /// <returns><see langword="null"/> olmayan her sinir icin bir eleman.</returns>
+    /// <remarks><see cref="QuotaUsageObserver"/> ayni numaralandirmayi olcer icin kullanir.</remarks>
+    internal static IEnumerable<(QuotaMetric Metric, decimal Limit, decimal Used)> EnumerateLimits(
         QuotaDefinition definition,
         QuotaUsageRecord usage)
     {

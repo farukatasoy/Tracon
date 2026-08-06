@@ -618,6 +618,20 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             usage,
             agentVersion: _includeAgentVersionTag ? scope.AgentVersion : null);
 
+        // Fiyat tanimsizsa (Source == Unknown) hicbir sey yayilmaz: bilinmeyen
+        // maliyeti sifir olarak yaymak gercek harcamayi kucuk gosterirdi.
+        // Iptal/hata durumunda da yayilir (Acik Soru 4): harcanan token icin
+        // para zaten harcanmistir.
+        if (cost is { Source: not PricingSource.Unknown } knownCost)
+        {
+            _metrics?.RecordCost(
+                scope.AgentName,
+                _modelId,
+                scope.TenantId,
+                (knownCost.InputCost ?? 0m) + (knownCost.OutputCost ?? 0m),
+                knownCost.Currency ?? "unknown");
+        }
+
         if (scope.Activity is null)
         {
             return;

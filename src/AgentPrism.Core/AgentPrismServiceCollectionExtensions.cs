@@ -348,6 +348,21 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetService<TimeProvider>(),
             provider.GetService<Microsoft.Extensions.Logging.ILogger<QuotaEnforcer>>()));
 
+        // Kota olceri (Faz 35). IHostedService olarak eklenmesinin tek amaci
+        // konteynerin bu nesneyi barindirici baslarken ERKEN cozmesidir; aksi
+        // halde hicbir tuketici cozmedigi surece ObservableGauge'lar hic
+        // olusmaz. EnableQuotaUsageGauge kapaliyken (varsayilan) olcer yine de
+        // olusur ama onbellege hic dokunmaz — bkz. sinif belgesi.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, QuotaUsageObserver>(
+            static provider => new QuotaUsageObserver(
+                provider.GetRequiredService<IQuotaStore>(),
+                provider.GetRequiredService<ITenantStore>(),
+                provider.GetRequiredService<IOptionsMonitor<AgentPrismObservabilityOptions>>(),
+                provider.GetRequiredService<IOptionsMonitor<AgentPrismQuotaOptions>>(),
+                provider.GetService<System.Diagnostics.Metrics.IMeterFactory>(),
+                provider.GetService<TimeProvider>(),
+                provider.GetService<Microsoft.Extensions.Logging.ILogger<QuotaUsageObserver>>())));
+
         // Teslim isleyicisi Faz 17'nin AYNI kuyrugunu kullanir (K-160).
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, WebhookDeliveryJobHandler>(
             static provider => new WebhookDeliveryJobHandler(
@@ -1352,6 +1367,22 @@ public static class AgentPrismServiceCollectionExtensions
                 out var maxSpans))
         {
             options.MaxSpansPerRun = maxSpans;
+        }
+
+        if (TryReadBool(
+                section,
+                nameof(AgentPrismObservabilityOptions.EnableQuotaUsageGauge),
+                out var enableQuotaUsageGauge))
+        {
+            options.EnableQuotaUsageGauge = enableQuotaUsageGauge;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(AgentPrismObservabilityOptions.QuotaUsageRefreshInterval)],
+                CultureInfo.InvariantCulture,
+                out var quotaUsageRefreshInterval))
+        {
+            options.QuotaUsageRefreshInterval = quotaUsageRefreshInterval;
         }
     }
 
