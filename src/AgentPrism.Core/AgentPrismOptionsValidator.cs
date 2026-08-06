@@ -113,6 +113,20 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
             ValidateScripts(skills.Scripts, ref failures);
         }
 
+        var validation = options.Validation;
+
+        if (validation is null)
+        {
+            (failures ??= []).Add(
+                $"{nameof(AgentPrismOptions)}.{nameof(AgentPrismOptions.Validation)} bos olamaz.");
+        }
+        else if (validation.McpTimeout <= TimeSpan.Zero)
+        {
+            (failures ??= []).Add(
+                $"{nameof(AgentPrismValidationOptions)}.{nameof(AgentPrismValidationOptions.McpTimeout)} " +
+                $"sifirdan buyuk olmalidir. Gelen deger: {validation.McpTimeout}.");
+        }
+
         ValidatePricing(options.Pricing, ref failures);
 
         return failures is null

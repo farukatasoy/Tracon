@@ -235,6 +235,12 @@ export const en = {
   'agentEditor.summarizationModelHint': 'Empty falls back to the utility model, then to the model of the agent.',
   'agentEditor.preview': 'Request preview',
   'agentEditor.previewNotice': 'Exactly what will be sent to',
+  'agentEditor.validate': 'Validate',
+  'agentEditor.validationTitle': 'Validation result',
+  'agentEditor.validationValid': 'Valid',
+  'agentEditor.validationInvalid': 'Invalid',
+  'agentEditor.validationInconclusive': 'Inconclusive — an MCP server could not be reached',
+  'agentEditor.validationNoMessages': 'No issues found. Nothing was saved and no model was called.',
 
   /* ------------------------------------------------------------ skills */
   'skills.description': 'Markdown instructions and read-only resources that an agent loads with approval at run time.',
