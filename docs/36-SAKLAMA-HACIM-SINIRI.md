@@ -1,6 +1,6 @@
 # Faz 36 — Saklama Hacim Sınırı (`MaxRows`)
 
-> **Durum:** 📋 Planlandı (2026-08-06)
+> **Durum:** ✅ Tamamlandı (2026-08-06)
 > **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-73**
 > **Önkoşul:** [Faz 25](25-VERI-SAKLAMA-VE-ARSIVLEME.md) — saklama altyapısı, üç diyalekt şablonu
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`
@@ -236,60 +236,83 @@ Migration **yoktur**: `max_rows` sütunu üç sağlayıcıda da zaten mevcuttur.
 > Planı bloklamayan, faz uygulanırken karara bağlanacak sorular. Bloklayan
 > sorular plan yazılmadan **önce** sorulur.
 
-| # | Soru | Seçenekler | Öneri |
-|---|---|---|---|
-| 1 | İki alan doluyken hangi eşik kazanır? | A: daha yeni (daha çok siler) · B: daha eski | **A.** İki kuralın da sağlandığını garanti eden tek seçenektir |
-| 2 | Sıra sütunu her hedefte zaman damgası mı? | A: evet, `RetentionTargetRegistry.OrderColumn` kullanılır · B: hedefe göre değişir | **A** — ama `eval_case_results` hedefinin sıra sütunu `id`'dir; bu hedefte eşik **ölçülmeli**. Uygulayan oturum bunu ilk iş olarak doğrular |
-| 3 | Hacim eşiği kiracı başına mı tablo genelinde mi? | A: politikanın kiracı kapsamında · B: tablo genelinde | **A.** Politika kiracıya bağlıdır; bir kiracının hacmi diğerininkini silmemelidir. Sorgu `tenant_id` filtresi taşımalıdır |
-| 4 | Çok büyük bir aşımda tek koşuda hepsi silinsin mi? | A: mevcut parti sınırı korunur, koşu tekrarlanır · B: hepsi tek koşuda | **A.** K-199'un parti deseni korunur; uzun kilit üretmez |
+| # | Soru | Seçenekler | Öneri | **Karar (kapanış)** |
+|---|---|---|---|---|
+| 1 | İki alan doluyken hangi eşik kazanır? | A: daha yeni (daha çok siler) · B: daha eski | **A.** İki kuralın da sağlandığını garanti eden tek seçenektir | **A — uygulandı.** `RetentionExecutor.ComputeCutoffAsync`. Bkz. K-258 |
+| 2 | Sıra sütunu her hedefte zaman damgası mı? | A: evet, `RetentionTargetRegistry.OrderColumn` kullanılır · B: hedefe göre değişir | **A** — ama `eval_case_results` hedefinin sıra sütunu `id`'dir; bu hedefte eşik **ölçülmeli**. Uygulayan oturum bunu ilk iş olarak doğrular | **B.** `OrderColumn` (arşiv sıralaması) ile `RowLimitOrderExpression` (esik hesabı) AYRILDI. `eval_case_results`/`workflow_checkpoints` için ikincisi bağlı tabloya (`eval_runs.completed_at`/`runs.completed_at`) bakan korele bir alt sorgudur. Bkz. K-261 |
+| 3 | Hacim eşiği kiracı başına mı tablo genelinde mi? | A: politikanın kiracı kapsamında · B: tablo genelinde | **A.** Politika kiracıya bağlıdır; bir kiracının hacmi diğerininkini silmemelidir. Sorgu `tenant_id` filtresi taşımalıdır | **B — plandan SAPMA.** Mevcut 3 şablon (Faz 25) hiçbirinde `tenant_id` filtresi yok; `MaxRows` davranış eşitliği için AYNI kapsamı kullanır. Bkz. K-260 |
+| 4 | Çok büyük bir aşımda tek koşuda hepsi silinsin mi? | A: mevcut parti sınırı korunur, koşu tekrarlanır · B: hepsi tek koşuda | **A.** K-199'un parti deseni korunur; uzun kilit üretmez | **A — uygulandı.** Eşik hesabı bir kez yapılır, silme mevcut parti döngüsünü (`RetentionExecutor.RunTargetAsync`) değişmeden kullanır |
 
 ---
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] 🚨 Yalnız `MaxRows = 100` taşıyan politika (yaş alanı **boş**), 150
-      satırlık bir hedefte **50 satır** siler. Bugün sıfır siliyor
-- [ ] Tablo sınırın altındayken hiçbir silme sorgusu çalışmaz
-- [ ] İki alan doluyken daha çok silen eşik uygulanır
-- [ ] `GET /api/retention/{target}` önizlemesi gerçek koşuyla aynı sayıyı verir
-- [ ] Üç SQL sağlayıcısında sözleşme testleri geçer (PostgreSQL, SQL Server,
-      SQLite)
-- [ ] `RetentionTypes.cs`'teki *"henüz UYGULANMAZ"* cümlesi **silindi**
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek saklama koşusu yapıldı, çıktı bu
+- [x] 🚨 Yalnız `MaxRows = 100` taşıyan politika (yaş alanı **boş**), 150
+      satırlık bir hedefte **50 satır** siler. Bugün sıfır siliyor — **gerçek
+      koşuyla kanıtlandı**, aşağıya bakın
+- [x] Tablo sınırın altındayken hiçbir silme sorgusu çalışmaz —
+      `MaxRows_tablo_sinirin_altindaysa_hicbir_silme_sorgusu_calismaz`,
+      `MaxRows_esigi_tablo_sinirin_altindaysa_null_doner` (Postgres + SQLite)
+- [x] İki alan doluyken daha çok silen eşik uygulanır —
+      `Iki_esik_doluyken_daha_yeni_olan_kazanir`
+- [x] `GET /api/retention/preview` önizlemesi gerçek koşuyla aynı sayıyı verir
+      (`Onizleme_MaxRows_esigini_gercek_kosuyla_ayni_hesaplar` + gerçek koşu:
+      önizleme 50, gerçek koşu 50 sildi)
+- [x] Üç SQL sağlayıcısında sözleşme testleri geçer — PostgreSQL (505/505) ve
+      SQLite (255/255) **gerçekten koşturuldu**; SQL Server kodu yazıldı ve
+      derlendi ama bu makinede **koşmadı** (Apple Silicon + Docker kısıtı,
+      Faz 25'in bilinen sınırı — bkz. Plandan Sapmalar)
+- [x] `RetentionTypes.cs`'teki *"henüz UYGULANMAZ"* cümlesi **silindi**
+- [x] Dört doğrulama kapısı sıfır uyarı verir
+- [x] `samples/AgentPrism.Api` ile gerçek saklama koşusu yapıldı, çıktı bu
       belgeye yazıldı
-- [ ] `secret` taraması boş döndü
+- [x] `secret` taraması boş döndü
 
-### Doğrulama komutları
+### Doğrulama komutları — gerçek çıktı (2026-08-06, SQLite, `samples/AgentPrism.Api`, port 5080)
+
+`run_events` tablosuna doğrudan SQL ile 150 satır (tek `run`'a bağlı) yazıldı,
+uygulama `Data Source=.../f36.db` ile başlatıldı:
 
 ```bash
-# Yalniz MaxRows tasiyan politika kur (MaxAgeDays YOK)
-curl -s -X POST http://localhost:5081/agentprism/api/retention \
-  -H 'content-type: application/json' \
-  -d '{"target":"run_events","maxRows":100,"enabled":true}'
+$ curl -s -X PUT http://localhost:5080/agentprism/api/retention/run_events \
+  -H 'content-type: application/json' -d '{"maxRows":100,"enabled":true}'
+{"id":"019fd77f-...","tenantId":"default","target":"run_events",
+ "maxAgeDays":null,"maxRows":100,"archive":false,"enabled":true, ...}
 
-# Onizleme — silinecek satir sayisi sifirdan buyuk olmali
-curl -s http://localhost:5081/agentprism/api/retention/run_events | jq
+$ curl -s "http://localhost:5080/agentprism/api/retention/preview?target=run_events"
+[{"target":"run_events","maxAgeDays":null,"enabled":true,
+  "cutoff":"2026-08-06T12:54:59.006895+00:00","matchingRows":50}]
 
-# Kosuyu tetikle
-curl -s -X POST http://localhost:5081/agentprism/api/retention/run_events/run | jq
+$ curl -s -X POST "http://localhost:5080/agentprism/api/retention/run?target=run_events"
+{"jobId":"019fd780-...","target":"run_events"}
 
-# Kalan satir sayisi 100 olmali
-psql "$AGENTPRISM_CONN" -c "SELECT count(*) FROM agentprism.run_events;"
+$ curl -s "http://localhost:5080/agentprism/api/retention/history?target=run_events"
+[{"id":"019fd780-...","target":"run_events","deletedRows":50,"archivedRows":0,
+  "completedAt":"2026-08-06T14:35:22.163635+00:00","error":null}]
+
+$ sqlite3 f36.db "SELECT count(*) FROM agentprism_run_events;"
+100
 ```
+
+Önizlemenin verdiği `50` ile gerçek koşunun sildiği `50` **aynıdır**; kalan
+satır sayısı tam `100`'dür. Bu, DoD'nin 🚨 satırının doğrudan kanıtıdır.
+
+> Not: gerçek portu `5080`'dir (`launchSettings.json`); plandaki `5081`
+> yanlıştı, düzeltildi.
 
 ---
 
 ## Riskler
 
-| Risk | Önlem |
-|------|-------|
-| 🚨 K-200'ün sırasız silmesi hacim kuralını bozar | Sıra, silme adımından **çıkarıldı**; eşik önce hesaplanır, silme yine sırasızdır ve doğrudur |
-| `COUNT(*)` büyük tabloda pahalıdır | Tasarım hiç saymaz; tek indeksli `OFFSET/FETCH` sorgusu kullanır |
-| SQL Server'da `OFFSET` `ORDER BY` olmadan hata verir (K-026 tuzağı) | Şablon `ORDER BY` taşır; diyalekt testi bunu doğrular |
-| `eval_case_results` hedefinin sıra sütunu `id`'dir, zaman damgası değil | Açık Soru 2; uygulayan oturum ilk iş olarak ölçer |
-| Kiracı filtresi unutulur, bir kiracı diğerinin verisini kırpar | Sözleşme testi iki kiracıyla koşar |
-| Önizleme ile gerçek koşu ayrışır | Aynı eşik hesabı iki yolda da kullanılır; test bunu doğrular |
+| Risk | Önlem | Sonuç |
+|------|-------|-------|
+| 🚨 K-200'ün sırasız silmesi hacim kuralını bozar | Sıra, silme adımından **çıkarıldı**; eşik önce hesaplanır, silme yine sırasızdır ve doğrudur | ✅ Uygulandı, gerçek koşuyla kanıtlandı |
+| `COUNT(*)` büyük tabloda pahalıdır | Tasarım hiç saymaz; tek indeksli `OFFSET/FETCH` sorgusu kullanır | ✅ `FindRowLimitCutoffAsync` hiç `COUNT` çalıştırmaz |
+| SQL Server'da `OFFSET` `ORDER BY` olmadan hata verir (K-026 tuzağı) | Şablon `ORDER BY` taşır; diyalekt testi bunu doğrular | ✅ `RetentionMaxRowsDialectTests` (SQL Server) SQL metnini doğruladı — çalışma anı bu makinede doğrulanamadı (Docker kısıtı) |
+| `eval_case_results` hedefinin sıra sütunu `id`'dir, zaman damgası değil | Açık Soru 2; uygulayan oturum ilk iş olarak ölçer | ✅ Çözüldü — K-261, `RowLimitOrderExpression` ayrıldı |
+| Kiracı filtresi unutulur, bir kiracı diğerinin verisini kırpar | Sözleşme testi iki kiracıyla koşar | 🔄 **Plandan sapma** — kiracı filtresi hiç eklenmedi (K-260); mevcut Faz 25 davranışıyla kasıtlı olarak simetrik |
+| Önizleme ile gerçek koşu ayrışır | Aynı eşik hesabı iki yolda da kullanılır; test bunu doğrular | ✅ Gerçek koşuyla doğrulandı: ikisi de `50` |
+| 🆕 (planda yoktu) Korelasyon SQLite'ta bare ad kullanınca eşleşmez | — | 🚨 Faz 25'in kendi hatası keşfedildi ve düzeltildi — K-259 |
 
 ---
 
@@ -300,24 +323,144 @@ psql "$AGENTPRISM_CONN" -c "SELECT count(*) FROM agentprism.run_events;"
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
-> oturumun en değerli bilgisidir.
+1. **Açık Soru 2 farklı çözüldü (B, plan A öneriyordu).** `RetentionTargetRegistry.OrderColumn`
+   (arşiv sıralaması) ile hacim eşiği hesabı **ayrıldı**. `RetentionTargetDefinition`'a
+   dördüncü bir alan (`RowLimitOrderExpression`) eklendi. 9 hedefte bu, `WherePredicate`'in
+   karşılaştırdığı sütunla özdeştir; `eval_case_results`/`workflow_checkpoints`'te
+   bağlı tabloya (`eval_runs`/`runs`) bakan korele bir alt sorgudur;
+   `skill_script_grants`'te `COALESCE(expires_at, revoked_at)`'tir. Bkz. K-261.
+2. **Açık Soru 3 farklı çözüldü (B, plan A öneriyordu).** `MaxRows` kiracı
+   başına değil, tablo genelinde çalışır — mevcut 3 şablonun (Faz 25, K-198)
+   HİÇBİRİNDE `tenant_id` filtresi yoktur; `MaxAgeDays` da bugün tablo
+   genelinde siler. `MaxRows`'u kiracıya özel yapmak iki eşik arasında asimetri
+   yaratırdı. Bkz. K-260.
+3. **🆕 Faz 25'in kendi hatası keşfedildi ve düzeltildi (plan bunu öngörmüyordu).**
+   `eval_case_results`/`workflow_checkpoints`/`attachments` hedeflerinin
+   `WherePredicate`'i BARE hedef adını (`eval_case_results.eval_run_id` gibi)
+   korelasyon olarak kullanıyordu. PostgreSQL/SQL Server'da çalışıyordu (ikisi
+   de bare adla `schema.table`'ı eşleştirir) ama **SQLite'ta hiç çalışmıyordu**
+   (`QualifyTable` önek+ad bitiştirir, K-193) — Faz 36'nın SQLite'a karşı
+   kayan `MaxRows` sözleşme testi `no such column: workflow_checkpoints.run_id`
+   ile bunu YAKALADI. Bu, `MaxAgeDays` ile de bu üç hedefin SQLite'ta bugüne
+   kadar sessizce yanlış çalıştığı (`EXISTS`/`NOT EXISTS` her zaman aynı sabit
+   sonucu döndürdüğü) anlamına gelir. Düzeltme `RetentionTargetRegistry`'de
+   `Table("attachments")` gibi TAM NİTELENDİRİLMİŞ ad kullanır. Bkz. K-259.
+   Yeni bir regresyon testi (`Attachments_sahipli_ek_silinmez_sahipsiz_ek_silinir`,
+   SQLite) bu düzeltmeyi kanıtlar.
+4. **UI planın iddia ettiği kadar hazır değildi.** Plan "MaxRows alanı arayüzde
+   zaten vardır; yalnız artık çalışır" diyordu. İnceleme gösterdi ki
+   `retention-panel.tsx`'in `PolicyForm`'u yalnız `maxAgeDays` alanı taşıyordu
+   ve Kaydet düğmesi `maxAgeDays` boşken KAPALIYDI — bir kullanıcı `MaxRows`'u
+   arayüzden HİÇBİR ZAMAN ayarlayamazdı (yalnız TS tipinde `maxRows?: number`
+   vardı, form alanı yoktu). `MaxRows` girdisi eklendi, Kaydet düğmesi artık
+   iki alandan biri doluyken etkin.
+5. **SQL Server sözleşme testleri bu makinede koşmadı** (Docker/Apple Silicon
+   kısıtı, Faz 25'ten beri bilinen sorun — `docs/hafiza/sql-saglayicilari.md`).
+   Kod yazıldı, derlendi, SQL üretimi `RetentionMaxRowsDialectTests`
+   (canlı DB gerektirmeyen kısım) ile doğrulandı. Gerçek `mssql/server`'a
+   karşı koşu Linux/amd64 bir makinede veya CI'da yapılmalı.
+6. **`AgentPrism.Ui.E2ETests`'e Playwright senaryosu eklenmedi** (Faz 25'in
+   aynı sapması) — arayüz değişikliği küçük bir form alanı eklemekti,
+   `tsc --noEmit`, Vitest (141/141) ve gerçek Vite build/bundle bütçesi
+   (155,2 KB gzip / 250 KB) ile doğrulandı.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
-> **Not:** K-201 (`MaxRows` ertelendi) bu fazda **kapanır**; kapanış kaydı
-> K-201'e atıf yapmalıdır.
+K-258, K-259, K-260, K-261 — bkz. `docs/KARARLAR.md`. K-201 (`MaxRows`
+ertelendi) bu fazda **kapandı** (K-258'e atıfla).
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+Plandaki taslak **birebir gerçekleşti**, tek fark yok:
+
+```csharp
+// AgentPrism.Abstractions/Retention/IRetentionStore.cs
+ValueTask<DateTimeOffset?> FindRowLimitCutoffAsync(
+    string target,
+    long maxRows,
+    CancellationToken cancellationToken = default);
+```
+
+`RetentionPolicy.MaxRows`'un XML dokümanı düzeltildi (*"henüz UYGULANMAZ"*
+cümlesi silindi). Hiçbir public tip **eklenmedi**; `ResolvedRetentionPolicy`
+(Core, public değil — `internal` bir kayıt sınıfı gibi kullanılan ama aslında
+`AgentPrism.Core` içinde tanımlı public bir `sealed record`) `MaxAgeDays`'i
+`int?`'e çevirdi ve `MaxRows` aldı — bu tip `IRetentionStore`/`RetentionExecutor`
+dışında tüketilmez, tüketici yüzeyi değişmedi.
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/AgentPrism.Abstractions/Retention/
+├── IRetentionStore.cs           (FindRowLimitCutoffAsync eklendi)
+└── RetentionTypes.cs            (MaxRows XML dokumani duzeltildi)
+
+src/AgentPrism.Core/Retention/
+├── RetentionExecutor.cs         (ComputeCutoffAsync; MaxRows OKUNUR)
+├── RetentionPolicyResolver.cs   (ResolvedRetentionPolicy.MaxAgeDays nullable + MaxRows)
+└── NullRetentionStore.cs        (FindRowLimitCutoffAsync => null)
+
+src/AgentPrism.Sql.Shared/
+├── Internal/SqlDialect.cs                 (BuildRetentionFindNthRowCutoffSql)
+├── Internal/RetentionTargetRegistry.cs    (RowLimitOrderExpression; 3 hedefte
+│                                            bare-korelasyon hatasi duzeltildi)
+└── Stores/SqlRetentionStore.cs            (FindRowLimitCutoffAsync)
+
+src/AgentPrism.PostgreSql/Internal/PostgresDialect.cs   (OFFSET/LIMIT sablonu)
+src/AgentPrism.SqlServer/Internal/SqlServerDialect.cs   (OFFSET/FETCH + ORDER BY)
+src/AgentPrism.Sqlite/Internal/SqliteDialect.cs         (LIMIT/OFFSET sablonu)
+
+src/AgentPrism.AspNetCore/Endpoints/RetentionEndpoints.cs   (doc + audit'e maxRows)
+
+src/AgentPrism.UI/frontend/src/
+├── components/retention-panel.tsx   (MaxRows form alani, Kaydet kosulu)
+└── locales/{en,tr}.ts               (retention.maxRows*)
+
+tests/AgentPrism.Core.UnitTests/Retention/
+├── RetentionExecutorTests.cs        (+5 test: MaxRows-only, combined, under-limit, preview)
+└── RetentionPolicyResolverTests.cs  (+2 test)
+
+tests/AgentPrism.AspNetCore.FunctionalTests/RetentionEndpointTests.cs (+2 test)
+
+tests/AgentPrism.PostgreSql.IntegrationTests/
+├── RetentionDataPlaneTests.cs         (+3 test, gercek DB)
+└── RetentionMaxRowsDialectTests.cs    (yeni, canli DB GEREKMEZ)
+
+tests/AgentPrism.Sqlite.IntegrationTests/
+├── RetentionMaxRowsDataPlaneTests.cs  (yeni, gercek DB, +4 test)
+└── RetentionMaxRowsDialectTests.cs    (yeni, canli DB GEREKMEZ)
+
+tests/AgentPrism.SqlServer.IntegrationTests/RetentionMaxRowsDialectTests.cs
+    (yeni; yazildi/derlendi, bu makinede KOSMADI)
+```
+
+Migration yok (plandaki gibi — sütun zaten vardı).
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
+- **`IRetentionStore` sözleşmesi büyüdü** (`FindRowLimitCutoffAsync`); yeni bir
+  `IRetentionStore` uygulaması yazan biri (varsayılan bellek içi hariç, çünkü
+  `NullRetentionStore` zaten kayıtlı) bu üyeyi de uygulamalıdır.
+- **🚨 `RetentionTargetRegistry`'de bir hedefin `WherePredicate`'i başka bir
+  tabloya (EXISTS/NOT EXISTS) bakıyorsa, korelasyon MUTLAKA `Table(...)` (tam
+  nitelendirilmiş ad) ile yazılmalıdır — BARE hedef adı YAZILMAZ.** SQLite'ta
+  `QualifyTable` önek+ad bitiştirir (nokta yok, K-193); bare ad orada hiçbir
+  zaman FROM'daki gerçek nesneyle eşleşmez ve hata yalnız ÇALIŞMA ANINDA
+  görünür (derleme/PostgreSQL/SQL Server testi YAKALAMAZ). Bu, Faz 36'da
+  keşfedilen ve düzeltilen bir Faz 25 hatasıydı (K-259); yeni bir hedef
+  eklerken bu kural izlenmelidir.
+- **`RetentionTargetDefinition` artık 4 alan taşır**: `Table`, `WherePredicate`,
+  `OrderColumn` (arşiv sıralaması), `RowLimitOrderExpression` (hacim eşiği).
+  Yeni bir hedef eklerken dördü de doldurulmalıdır.
+- **Yarım kalanlar:**
+  - SQL Server: `MaxRows` kodu hazır, gerçek `mssql/server`'a karşı bu
+    oturumda koşmadı (ortam kısıtı — Faz 25'in aynı sınırı). Linux/amd64 bir
+    makinede veya CI'da `dotnet test tests/AgentPrism.SqlServer.IntegrationTests`
+    çalıştırılmalı.
+  - `AgentPrism.Ui.E2ETests`'e Playwright senaryosu eklenmedi (Faz 25'in aynı
+    sapması, hâlâ kapatılmadı).
+  - `RetentionTargetRegistry`'nin `WherePredicate`'i genelinde (bu fazın 3
+    düzelttiği hedef dışında kalan) tenant_id filtresi YOKTUR — Faz 25'ten
+    beri var olan, dokümante edilmemiş bir davranış (K-260 bunu şimdi
+    dokümante etti). Kiracı izolasyonlu saklama istenirse ayrı bir faz gerekir.
+- **Sıradaki faz:** [Faz 37 — Proje Şablonu](37-PROJE-SABLONU.md).

@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici kendi AI harness'ini kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 35 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; riskli tool onay bekler, çalıştırma iptal edilebilir; workflow insanla konuşur; kullanım kotalanır; eski veri politikayla silinir; kurulum `/health` ve `/api/diagnostics` ile kendini denetler. `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu uçları ve arayüzü tek prefixe bağlar. Veritabanı/model isteğe bağlı, konsol iki dilli. Faz 8–35 bitti; [kalan](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlanır (Faz 36–52).
+> **Durum:** Faz 36 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; riskli tool onay bekler, çalıştırma iptal edilebilir; workflow insanla konuşur; kullanım kotalanır; eski veri politikayla silinir; kurulum `/health` ve `/api/diagnostics` ile kendini denetler. `app.MapAgentPrism()` yönetim API'sini, OpenAI uyumlu uçları ve arayüzü tek prefixe bağlar. Veritabanı/model isteğe bağlı, konsol iki dilli. Faz 8–36 bitti; [kalan](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlanır (Faz 37–52).
 
 ```csharp
 builder.AddAgentPrism()
@@ -262,7 +262,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [33](docs/33-SAGLIK-DENETIMI-VE-TESHIS.md) | Sağlık denetimi (`/health`) ve yapılandırma teşhisi (`/api/diagnostics`) | ✅ Tamamlandı |
 | [34](docs/34-TANIM-DOGRULAMA-UCU.md) | Tanım doğrulama ucu | ✅ Tamamlandı |
 | [35](docs/35-MALIYET-VE-KOTA-METRIKLERI.md) | Maliyet ve kota OTel metrikleri | ✅ Tamamlandı |
-| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 36–52) | 📋 Planlandı, kod yazılmadı; kalan 20 kalem [adaylarda](docs/UCUNCU-FAZ-ADAYLARI.md) |
+| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 36–52) | Faz 36 bitti, kalanı 📋 planlandı; 20 kalem [adaylarda](docs/UCUNCU-FAZ-ADAYLARI.md) |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 

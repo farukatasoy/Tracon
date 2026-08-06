@@ -264,4 +264,18 @@ internal sealed class SqlServerDialect : SqlDialect
     /// </remarks>
     public override string BuildRetentionDeleteBatchSql(string table, string wherePredicate)
         => $"DELETE TOP (@batchSize) FROM {table} WHERE {wherePredicate};";
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// 🚨 <c>OFFSET</c>/<c>FETCH</c> <c>ORDER BY</c> OLMADAN hata verir
+    /// (K-026 tuzagi); bu sorgu her zaman bir <c>ORDER BY</c> tasir.
+    /// </remarks>
+    public override string BuildRetentionFindNthRowCutoffSql(string table, string orderExpression)
+        => $"""
+            SELECT {orderExpression}
+            FROM {table}
+            WHERE {orderExpression} IS NOT NULL
+            ORDER BY {orderExpression} DESC
+            OFFSET (@n - 1) ROWS FETCH NEXT 1 ROWS ONLY;
+            """;
 }

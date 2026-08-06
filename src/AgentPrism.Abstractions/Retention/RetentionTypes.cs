@@ -23,8 +23,9 @@ public sealed record RetentionPolicy
     public int? MaxAgeDays { get; init; }
 
     /// <summary>
-    /// Rezerve alan: gelecekte hacim bazli kirpma icin. Bu fazda depoya
-    /// yazilir/okunur ama <c>RetentionExecutor</c> tarafindan henuz UYGULANMAZ.
+    /// Hedef tabloda tutulacak en fazla satir sayisi. Sinirin uzerindeki en
+    /// ESKI satirlar silinir. <see langword="null"/> ise hacim bazli silme
+    /// uygulanmaz (yalniz <see cref="MaxAgeDays"/> varsa o gecerlidir).
     /// </summary>
     public long? MaxRows { get; init; }
 

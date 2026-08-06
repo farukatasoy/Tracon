@@ -111,9 +111,79 @@ public sealed class RetentionExecutorTests
         dataStore.DeleteCalls.ShouldBe(0);
     }
 
+    /// <summary>
+    /// 🚨 Faz 36'nin kapattigi bosluk: MaxAgeDays BOS, yalniz MaxRows dolu bir
+    /// politika bugune kadar sifir satir siliyordu.
+    /// </summary>
+    [Fact]
+    public async Task Yalniz_MaxRows_dolu_politika_siler()
+    {
+        var (executor, store, dataStore) = Build();
+
+        await SavePolicyAsync(store, RetentionTargets.RunEvents, maxRows: 100);
+        dataStore.RowLimitCutoffToReturn = new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero);
+        dataStore.DeleteBatchSizes.Enqueue(50);
+        dataStore.DeleteBatchSizes.Enqueue(0);
+
+        var runs = await executor.RunAsync(Tenant, RetentionTargets.RunEvents);
+
+        runs[0].DeletedRows.ShouldBe(50);
+        dataStore.RowLimitCalls.ShouldBe(1);
+        dataStore.LastRowLimitMaxRows.ShouldBe(100);
+    }
+
+    [Fact]
+    public async Task MaxRows_tablo_sinirin_altindaysa_hicbir_silme_sorgusu_calismaz()
+    {
+        var (executor, store, dataStore) = Build();
+
+        await SavePolicyAsync(store, RetentionTargets.RunEvents, maxRows: 100);
+        dataStore.RowLimitCutoffToReturn = null;
+
+        var runs = await executor.RunAsync(Tenant, RetentionTargets.RunEvents);
+
+        runs.Count.ShouldBe(1);
+        runs[0].DeletedRows.ShouldBe(0);
+        dataStore.DeleteCalls.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Iki_esik_doluyken_daha_yeni_olan_kazanir()
+    {
+        var (executor, store, dataStore) = Build(
+            now: new DateTimeOffset(2026, 8, 6, 0, 0, 0, TimeSpan.Zero));
+
+        // MaxAgeDays=30 -> esik 2026-07-07. MaxRows esigi (satirdan gelen) daha
+        // YENI (2026-08-01) — daha cok siler ve KAZANMALIDIR.
+        await SavePolicyAsync(store, RetentionTargets.RunEvents, maxAgeDays: 30, maxRows: 100);
+        dataStore.RowLimitCutoffToReturn = new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero);
+        dataStore.DeleteBatchSizes.Enqueue(10);
+
+        await executor.RunAsync(Tenant, RetentionTargets.RunEvents);
+
+        dataStore.LastCutoffUsed.ShouldBe(new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero));
+    }
+
+    [Fact]
+    public async Task Onizleme_MaxRows_esigini_gercek_kosuyla_ayni_hesaplar()
+    {
+        var (executor, store, dataStore) = Build();
+
+        await SavePolicyAsync(store, RetentionTargets.RunEvents, maxRows: 100);
+        dataStore.RowLimitCutoffToReturn = new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero);
+        dataStore.CountToReturn = 50;
+
+        var preview = await executor.PreviewAsync(Tenant, RetentionTargets.RunEvents);
+
+        preview[0].Enabled.ShouldBeTrue();
+        preview[0].Cutoff.ShouldBe(new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero));
+        preview[0].MatchingRows.ShouldBe(50);
+    }
+
     private static (RetentionExecutor Executor, IRetentionPolicyStore Store, RecordingRetentionStore DataStore) Build(
         IArchiveSink? archiveSink = null,
-        int batchSize = 5000)
+        int batchSize = 5000,
+        DateTimeOffset? now = null)
     {
         var policyStore = new InMemoryRetentionPolicyStore();
         var dataStore = new RecordingRetentionStore();
@@ -126,7 +196,7 @@ public sealed class RetentionExecutorTests
             resolver,
             new StaticOptionsMonitor<AgentPrismRetentionOptions>(options),
             archiveSink,
-            new ManualTimeProvider(new DateTimeOffset(2026, 8, 5, 3, 0, 0, TimeSpan.Zero)));
+            new ManualTimeProvider(now ?? new DateTimeOffset(2026, 8, 5, 3, 0, 0, TimeSpan.Zero)));
 
         return (executor, policyStore, dataStore);
     }
@@ -134,7 +204,8 @@ public sealed class RetentionExecutorTests
     private static async Task SavePolicyAsync(
         IRetentionPolicyStore store,
         string target,
-        int maxAgeDays,
+        int? maxAgeDays = null,
+        long? maxRows = null,
         bool archive = false)
     {
         var now = DateTimeOffset.UtcNow;
@@ -145,6 +216,7 @@ public sealed class RetentionExecutorTests
             TenantId = Tenant,
             Target = target,
             MaxAgeDays = maxAgeDays,
+            MaxRows = maxRows,
             Archive = archive,
             Enabled = true,
             CreatedAt = now,
@@ -158,14 +230,26 @@ public sealed class RetentionExecutorTests
 
         public int ArchiveReadCalls { get; private set; }
 
+        public int RowLimitCalls { get; private set; }
+
         public long CountToReturn { get; set; }
+
+        public DateTimeOffset? RowLimitCutoffToReturn { get; set; }
+
+        public long? LastRowLimitMaxRows { get; private set; }
+
+        public DateTimeOffset? LastCutoffUsed { get; private set; }
 
         public Queue<int> DeleteBatchSizes { get; } = new();
 
         public IReadOnlyList<ArchiveRow> ArchiveRowsToReturn { get; set; } = [];
 
         public ValueTask<long> CountOlderThanAsync(string target, DateTimeOffset cutoff, CancellationToken cancellationToken = default)
-            => new(CountToReturn);
+        {
+            LastCutoffUsed = cutoff;
+
+            return new ValueTask<long>(CountToReturn);
+        }
 
         public ValueTask<IReadOnlyList<ArchiveRow>> ReadForArchiveAsync(
             string target,
@@ -181,8 +265,21 @@ public sealed class RetentionExecutorTests
             return new ValueTask<IReadOnlyList<ArchiveRow>>(rows);
         }
 
+        public ValueTask<DateTimeOffset?> FindRowLimitCutoffAsync(
+            string target,
+            long maxRows,
+            CancellationToken cancellationToken = default)
+        {
+            RowLimitCalls++;
+            LastRowLimitMaxRows = maxRows;
+
+            return new ValueTask<DateTimeOffset?>(RowLimitCutoffToReturn);
+        }
+
         public ValueTask<int> DeleteBatchAsync(string target, DateTimeOffset cutoff, int batchSize, CancellationToken cancellationToken = default)
         {
+            LastCutoffUsed = cutoff;
+
             DeleteCalls++;
 
             return new ValueTask<int>(DeleteBatchSizes.Count > 0 ? DeleteBatchSizes.Dequeue() : 0);

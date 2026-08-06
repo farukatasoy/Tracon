@@ -89,7 +89,7 @@ Bir dosya bütçeyi aşarsa **içerik silinmez** — alan dosyasına veya `docs/
 
 ### Faz durumu
 
-**Faz 0–35 tamam.** Faz 36–52 planlandı, kodu yazılmadı
+**Faz 0–36 tamam.** Faz 37–52 planlandı, kodu yazılmadı
 ([üçüncü tur](docs/UCUNCU-FAZ-YOL-HARITASI.md)); seçilmemiş 20 kalem
 [adaylardadır](docs/UCUNCU-FAZ-ADAYLARI.md).
 

@@ -271,6 +271,15 @@ internal static class RetentionEndpoints
             writer.WriteNull("maxAgeDays");
         }
 
+        if (policy.MaxRows is { } maxRows)
+        {
+            writer.WriteNumber("maxRows", maxRows);
+        }
+        else
+        {
+            writer.WriteNull("maxRows");
+        }
+
         writer.WriteBoolean("archive", policy.Archive);
         writer.WriteBoolean("enabled", policy.Enabled);
         writer.WriteEndObject();
@@ -305,7 +314,7 @@ public sealed record RetentionPolicySaveRequest
     /// <summary>Bu yastan eski satirlar silinmeye adaydir.</summary>
     public int? MaxAgeDays { get; init; }
 
-    /// <summary>Rezerve: hacim bazli kirpma icin (henuz uygulanmaz).</summary>
+    /// <summary>Hedefte tutulacak en fazla satir sayisi. En eski satirlar silinir.</summary>
     public long? MaxRows { get; init; }
 
     /// <summary>Silmeden once arsivlensin mi.</summary>
