@@ -34,7 +34,8 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
         // yeni bir tablo eklendiginde bu test kirilir ve ekleyen kisi tabloyu
         // fark eder.
         // Faz 29 `voice_sessions` tablosunu ekledi: 38 -> 39.
-        tableCount.ShouldBe(39);
+        // Faz 31 `run_scores` tablosunu ekledi: 39 -> 40.
+        tableCount.ShouldBe(40);
     }
 
     [Fact]

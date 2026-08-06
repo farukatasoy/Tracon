@@ -417,6 +417,17 @@ export const en = {
   'runDetail.streamed': 'streamed',
   'runDetail.nonStreaming': 'non-streaming',
 
+  /* ----------------------------------------------------------- feedback */
+  'feedback.title': 'Feedback',
+  'feedback.helpful': 'Helpful',
+  'feedback.notHelpful': 'Not helpful',
+  'feedback.commentPlaceholder': 'Add a comment (optional)',
+  'feedback.remove': 'Remove',
+  'feedback.by': 'by {author}',
+  'feedback.anonymous': 'anonymous',
+  'feedback.saveError': 'Could not save the feedback.',
+  'feedback.noneYet': 'No run has been scored yet.',
+
   /* --------------------------------------------------------- dashboard */
   'dashboard.description': 'Runs, errors, tokens and cost across every agent.',
   'dashboard.runsOverTime': 'Runs over time',
@@ -427,6 +438,8 @@ export const en = {
   'dashboard.agentFailed': '{failed} failed',
   'dashboard.alerts': 'Alerts',
   'dashboard.allClear': 'Nothing needs attention.',
+  'dashboard.scoredRuns': 'Scored runs',
+  'dashboard.positiveRate': 'Positive rate',
   'dashboard.runsToday': 'Runs today',
   'dashboard.tokensToday': 'Tokens today',
   'dashboard.costToday': 'Cost today',

@@ -117,6 +117,20 @@ public sealed record RunStatistics
             return settled == 0 ? null : (double)FailedRuns / settled;
         }
     }
+
+    /// <summary>
+    /// En az bir <see cref="RunScore"/> alan (calistirma veya mesaj duzeyinde)
+    /// calistirma sayisi. Eval calistirmalari (<see cref="RunKind.Eval"/>)
+    /// <see cref="TotalRuns"/> ile ayni gerekceyle haric tutulur (K-141).
+    /// </summary>
+    public long ScoredRuns { get; init; }
+
+    /// <summary>
+    /// <see cref="RunScoreKind.Binary"/> turundeki puanlarin olumlu orani (0–1).
+    /// Yildiz puanlari bu orana katilmaz — iki turun ortalamasi anlamsiz olurdu.
+    /// Hic ikili puan yoksa <see langword="null"/>.
+    /// </summary>
+    public double? PositiveRate { get; init; }
 }
 
 /// <summary>Bir modelin calistirma ozeti. Maliyet hesabinin girdisidir.</summary>

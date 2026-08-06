@@ -133,6 +133,13 @@ internal static class RetentionTargetRegistry
                 "ended_at IS NOT NULL AND ended_at < @cutoff",
                 "started_at"),
 
+            // Puanin kendi olusturulma zamani esas alinir; runs'a FK olmadigi
+            // icin (diger olay/ozet tablolariyla ayni gerekce) EXISTS gerekmez.
+            RetentionTargets.RunScores => new RetentionTargetDefinition(
+                Table("run_scores"),
+                "created_at < @cutoff",
+                "created_at"),
+
             _ => throw new ArgumentException($"Bilinmeyen saklama hedefi: '{target}'.", nameof(target)),
         };
     }

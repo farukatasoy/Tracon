@@ -350,6 +350,20 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // kind <> @kind_eval: eval vaka calistirmalari sentetik test
         // cagrilaridir, gercek trafik degildir; ozeti kirletmemesi icin haric
         // tutulur (docs/18-DEGERLENDIRME.md, acik soru 4).
+        // scored_runs/positive_rate (Faz 31): matched_run_scores runs'in AYNI
+        // filtresini (kiraci/eval/agent/tarih) tekrarlar -- ayri bir CTE'ye
+        // tasimak yerine skaler alt sorgu olarak eklenmesinin sebebi mevcut
+        // toplam satirini degistirmeden en kucuk degisiklikle genisletmektir.
+        var matchedRunScoresFilter = $"""
+            {Schema}.run_scores rs
+            JOIN {Schema}.runs r2 ON r2.id = rs.run_id
+            WHERE rs.tenant_id = @tenant_id
+              AND r2.tenant_id = @tenant_id
+              AND r2.kind <> @kind_eval
+              AND (@agent_name IS NULL OR r2.agent_name = @agent_name)
+              AND (@started_after IS NULL OR r2.started_at > @started_after)
+            """;
+
         SelectRunStatistics = $"""
             SELECT COUNT(*)::bigint,
                    COUNT(*) FILTER (WHERE status = @status_completed)::bigint,
@@ -363,7 +377,13 @@ internal sealed class PostgresQueries : SqlQueriesBase
                    CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL) = 0
                         THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) END,
                    MAX(cost_currency),
-                   COUNT(*) FILTER (WHERE pricing_source = @pricing_source_unknown)::bigint
+                   COUNT(*) FILTER (WHERE pricing_source = @pricing_source_unknown)::bigint,
+                   (SELECT COUNT(DISTINCT rs.run_id) FROM {matchedRunScoresFilter})::bigint,
+                   (SELECT CASE WHEN COUNT(*) FILTER (WHERE rs.kind = @kind_binary) = 0 THEN NULL
+                                ELSE (COUNT(*) FILTER (WHERE rs.kind = @kind_binary AND rs.value = 1))::float8
+                                     / COUNT(*) FILTER (WHERE rs.kind = @kind_binary)
+                           END
+                    FROM {matchedRunScoresFilter})
             FROM {Schema}.runs
             WHERE tenant_id = @tenant_id
               AND kind <> @kind_eval
@@ -1468,6 +1488,41 @@ internal sealed class PostgresQueries : SqlQueriesBase
               AND (@session_id IS NULL OR session_id = @session_id)
             ORDER BY started_at DESC
             OFFSET @skip LIMIT @take;
+            """;
+
+        // -------------------------------------------------------------------
+        // Faz 31 -- calistirma/mesaj puani
+        // -------------------------------------------------------------------
+        const string runScoreColumns =
+            "id, tenant_id, run_id, message_id, kind, value, comment, source, author, created_at";
+
+        // 🚨 Catisma hedefi COALESCE(message_id, '') ifadesidir (migration
+        // 0017'deki benzersizlik indeksiyle BIREBIR ayni olmalidir); author
+        // ise duz sutundur -- NULL oldugunda catisma hic olusmaz ve her
+        // cagri yeni bir satir acar (K1: kimliksiz kurulumda sessiz bir
+        // benzersizlik mekanizmasi getirilmez).
+        UpsertRunScore = $"""
+            INSERT INTO {Schema}.run_scores
+                ({runScoreColumns})
+            VALUES
+                (@id, @tenant_id, @run_id, @message_id, @kind, @value, @comment, @source, @author, @created_at)
+            ON CONFLICT (tenant_id, run_id, COALESCE(message_id, ''), author) DO UPDATE
+               SET kind       = EXCLUDED.kind,
+                   value      = EXCLUDED.value,
+                   comment    = EXCLUDED.comment,
+                   source     = EXCLUDED.source,
+                   created_at = EXCLUDED.created_at
+            RETURNING {runScoreColumns};
+            """;
+
+        SelectRunScores = $"""
+            SELECT {runScoreColumns}
+            FROM {Schema}.run_scores
+            WHERE tenant_id = @tenant_id AND run_id = @run_id;
+            """;
+
+        DeleteRunScore = $"""
+            DELETE FROM {Schema}.run_scores WHERE id = @id AND tenant_id = @tenant_id;
             """;
     }
 }

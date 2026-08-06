@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
 
@@ -132,7 +133,156 @@ internal static class RunEndpoints
             .WithDescription(
                 "Baglanti koparsa istemci 'Last-Event-ID' basligiyla kaldigi sira numarasindan devam eder. " +
                 "Calistirma hala suruyorsa akis tamamlanana kadar acik kalir.");
+
+        builder.MapPost("/api/runs/{runId:guid}/feedback", SaveFeedbackAsync)
+            .RequireRole(roles.Operator)
+            .WithName("AgentPrismSaveRunFeedback")
+            .WithSummary("Bir calistirmaya veya tek bir mesaja puan yazar.")
+            .WithDescription(
+                "Ayni yazar ayni hedefi (calistirma veya mesaj) ikinci kez puanladiginda satir " +
+                "GUNCELLENIR, yeni satir acilmaz. 'messageId' bos birakilirsa puan tum calistirmaya aittir.");
+
+        builder.MapGet("/api/runs/{runId:guid}/feedback", ListFeedbackAsync)
+            .RequireRole(roles.Reader)
+            .WithName("AgentPrismListRunFeedback")
+            .WithSummary("Bir calistirmanin tum puanlarini listeler.");
+
+        builder.MapDelete("/api/runs/{runId:guid}/feedback/{scoreId:guid}", DeleteFeedbackAsync)
+            .RequireRole(roles.Operator)
+            .WithName("AgentPrismDeleteRunFeedback")
+            .WithSummary("Bir puani siler.");
     }
+
+    private static async Task<Results<Ok<RunScore>, ProblemHttpResult>> SaveFeedbackAsync(
+        Guid runId,
+        [FromBody] RunFeedbackRequest request,
+        [FromServices] IRunStore runs,
+        [FromServices] IRunScoreStore scores,
+        [FromServices] ITenantContext tenants,
+        [FromServices] IAuditLog auditLog,
+        [FromServices] IAuditActorResolver actorResolver,
+        [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] TimeProvider? timeProvider,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (request.Kind == RunScoreKind.Binary && request.Value is not (0 or 1))
+        {
+            return InvalidFeedback("Ikili puan ('binary') yalniz 0 veya 1 olabilir.");
+        }
+
+        if (request.Kind == RunScoreKind.Stars && request.Value is < 1 or > 5)
+        {
+            return InvalidFeedback("Yildiz puani ('stars') 1 ile 5 arasinda olmalidir.");
+        }
+
+        var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
+
+        // "Yok" ile "baska kiraciya ait" AYNI 404'u doner; ayri bir mesaj
+        // varlik sizdirirdi (docs/31-GERI-BILDIRIM-VE-PUANLAMA.md, bolum 31.3).
+        if (run is null || !string.Equals(run.TenantId, tenants.TenantId, StringComparison.Ordinal))
+        {
+            return NotFoundFeedback(runId);
+        }
+
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
+
+        var saved = await scores.UpsertAsync(
+            new RunScore
+            {
+                TenantId = tenants.TenantId,
+                RunId = runId,
+                MessageId = string.IsNullOrWhiteSpace(request.MessageId) ? null : request.MessageId,
+                Kind = request.Kind,
+                Value = request.Value,
+                Comment = string.IsNullOrWhiteSpace(request.Comment) ? null : request.Comment,
+                Source = "human",
+                Author = actorResolver.Resolve(),
+                CreatedAt = now,
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        await AuditRecorder.WriteAsync(
+            auditLog,
+            actorResolver,
+            loggerFactory.CreateLogger("AgentPrism.RunEndpoints"),
+            tenants.TenantId,
+            action: "run.feedback.save",
+            entity: $"run_score:{saved.Id}",
+            before: null,
+            after: $$"""{"runId":"{{runId}}","kind":"{{saved.Kind}}","value":{{saved.Value}}}""",
+            cancellationToken).ConfigureAwait(false);
+
+        return TypedResults.Ok(saved);
+    }
+
+    private static async Task<Results<Ok<IReadOnlyList<RunScore>>, ProblemHttpResult>> ListFeedbackAsync(
+        Guid runId,
+        [FromServices] IRunStore runs,
+        [FromServices] IRunScoreStore scores,
+        [FromServices] ITenantContext tenants,
+        CancellationToken cancellationToken)
+    {
+        var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
+
+        if (run is null || !string.Equals(run.TenantId, tenants.TenantId, StringComparison.Ordinal))
+        {
+            return NotFoundFeedback(runId);
+        }
+
+        var list = await scores.ListAsync(tenants.TenantId, runId, cancellationToken).ConfigureAwait(false);
+
+        return TypedResults.Ok(list);
+    }
+
+    private static async Task<Results<NoContent, ProblemHttpResult>> DeleteFeedbackAsync(
+        Guid runId,
+        Guid scoreId,
+        [FromServices] IRunStore runs,
+        [FromServices] IRunScoreStore scores,
+        [FromServices] ITenantContext tenants,
+        [FromServices] IAuditLog auditLog,
+        [FromServices] IAuditActorResolver actorResolver,
+        [FromServices] ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
+
+        if (run is null || !string.Equals(run.TenantId, tenants.TenantId, StringComparison.Ordinal))
+        {
+            return NotFoundFeedback(runId);
+        }
+
+        if (!await scores.DeleteAsync(tenants.TenantId, scoreId, cancellationToken).ConfigureAwait(false))
+        {
+            return TypedResults.Problem(
+                title: "Puan bulunamadi",
+                detail: $"'{scoreId}' kimlikli bir puan yok.",
+                statusCode: StatusCodes.Status404NotFound);
+        }
+
+        await AuditRecorder.WriteAsync(
+            auditLog,
+            actorResolver,
+            loggerFactory.CreateLogger("AgentPrism.RunEndpoints"),
+            tenants.TenantId,
+            action: "run.feedback.delete",
+            entity: $"run_score:{scoreId}",
+            before: null,
+            after: null,
+            cancellationToken).ConfigureAwait(false);
+
+        return TypedResults.NoContent();
+    }
+
+    private static ProblemHttpResult InvalidFeedback(string detail)
+        => TypedResults.Problem(
+            title: "Gecersiz puan",
+            detail: detail,
+            statusCode: StatusCodes.Status400BadRequest);
+
+    private static ProblemHttpResult NotFoundFeedback(Guid runId) => NotFound(runId);
 
     private static ProblemHttpResult NotFound(Guid runId)
         => TypedResults.Problem(
@@ -227,4 +377,20 @@ internal static class RunEndpoints
             _ => "unknown",
         };
     }
+}
+
+/// <summary>Bir calistirma/mesaj puani yazmak icin istek govdesi.</summary>
+public sealed record RunFeedbackRequest
+{
+    /// <summary>Puanin bicimi.</summary>
+    public required RunScoreKind Kind { get; init; }
+
+    /// <summary><see cref="RunScoreKind.Binary"/> icin 0/1, <see cref="RunScoreKind.Stars"/> icin 1..5.</summary>
+    public required int Value { get; init; }
+
+    /// <summary>Puanlanan mesajin kimligi. Bos birakilirsa puan tum calistirmaya aittir.</summary>
+    public string? MessageId { get; init; }
+
+    /// <summary>Serbest metin yorum.</summary>
+    public string? Comment { get; init; }
 }

@@ -24,6 +24,20 @@ public sealed class InMemoryRunStore : IRunStore
     private readonly ConcurrentDictionary<Guid, List<RunEvent>> _events = new();
     private readonly ConcurrentDictionary<Guid, List<ToolInvocationRecord>> _toolInvocations = new();
     private readonly ConcurrentQueue<Guid> _insertionOrder = new();
+    private readonly IRunScoreStore _scores;
+
+    /// <summary>Yeni bir bellek ici calistirma deposu olusturur.</summary>
+    /// <param name="scores">
+    /// Ozet hesabinda kullanilan puan deposu (<see cref="GetStatisticsAsync"/>).
+    /// Verilmezse ozel bir orneği kendisi olusturur -- bu, parametresiz
+    /// <c>new InMemoryRunStore()</c> kullanan testleri bozmamak icindir. DI
+    /// uzerinden cozumlendiğinde <c>AddAgentPrism()</c>'in kaydettigi paylasilan
+    /// tekil orneği alir, boylece HTTP katmaninin yazdigi puanlar ozette gorunur.
+    /// </param>
+    public InMemoryRunStore(IRunScoreStore? scores = null)
+    {
+        _scores = scores ?? new InMemoryRunScoreStore();
+    }
 
     /// <summary>
     /// Bellekte tutulacak ust calistirma sayisi. Asilinca en eski calistirma
@@ -296,7 +310,7 @@ public sealed class InMemoryRunStore : IRunStore
     }
 
     /// <inheritdoc />
-    public ValueTask<RunStatistics> GetStatisticsAsync(
+    public async ValueTask<RunStatistics> GetStatisticsAsync(
         RunStatisticsQuery query,
         CancellationToken cancellationToken = default)
     {
@@ -304,6 +318,7 @@ public sealed class InMemoryRunStore : IRunStore
 
         long total = 0, completed = 0, failed = 0, canceled = 0, running = 0, awaitingInput = 0;
         long inputTokens = 0, outputTokens = 0, totalTokens = 0;
+        long scoredRuns = 0, binaryScores = 0, positiveBinaryScores = 0;
         var perAgent = new Dictionary<string, AgentTally>(StringComparer.Ordinal);
         var perModel = new Dictionary<string, ModelTally>(StringComparer.Ordinal);
         var perVersion = new Dictionary<(string AgentName, int Version), AgentTally>();
@@ -337,6 +352,35 @@ public sealed class InMemoryRunStore : IRunStore
             }
 
             total++;
+
+            // Bir calistirmanin puanlarini tek tek cekmek (N+1) bellek ici
+            // depoda kabul edilebilir; uretim yolu SQL saglayicilarindaki
+            // tek sorguluk JOIN'dir. Bkz. docs/31-GERI-BILDIRIM-VE-PUANLAMA.md.
+            // TenantId nadiren bos olabilir (RunRecord.TenantId nullable'dir);
+            // bos ise bu calistirma icin hicbir puan yazilamamis demektir.
+            var runScores = record.TenantId is { Length: > 0 } scoreTenantId
+                ? await _scores.ListAsync(scoreTenantId, record.Id, cancellationToken).ConfigureAwait(false)
+                : [];
+
+            if (runScores.Count > 0)
+            {
+                scoredRuns++;
+            }
+
+            foreach (var score in runScores)
+            {
+                if (score.Kind != RunScoreKind.Binary)
+                {
+                    continue;
+                }
+
+                binaryScores++;
+
+                if (score.Value == 1)
+                {
+                    positiveBinaryScores++;
+                }
+            }
 
             switch (record.Status)
             {
@@ -420,7 +464,7 @@ public sealed class InMemoryRunStore : IRunStore
             .Take(Math.Max(query.MaxAgents, 0))
             .ToList();
 
-        return new ValueTask<RunStatistics>(new RunStatistics
+        return new RunStatistics
         {
             TotalRuns = total,
             CompletedRuns = completed,
@@ -434,6 +478,8 @@ public sealed class InMemoryRunStore : IRunStore
             TotalCost = costSum,
             Currency = currency,
             RunsWithUnknownPricing = runsWithUnknownPricing,
+            ScoredRuns = scoredRuns,
+            PositiveRate = binaryScores == 0 ? null : (double)positiveBinaryScores / binaryScores,
             ByAgent = byAgent,
             ByModel = [.. perModel
                 .Select(static pair => new RunModelStatistics
@@ -458,7 +504,7 @@ public sealed class InMemoryRunStore : IRunStore
                 })
                 .OrderBy(static version => version.AgentName, StringComparer.Ordinal)
                 .ThenByDescending(static version => version.Version)],
-        });
+        };
     }
 
     /// <inheritdoc />

@@ -416,6 +416,17 @@ export const tr: Messages = {
   'runDetail.streamed': 'akışlı',
   'runDetail.nonStreaming': 'akışsız',
 
+  /* ----------------------------------------------------------- feedback */
+  'feedback.title': 'Geri bildirim',
+  'feedback.helpful': 'Yararlı',
+  'feedback.notHelpful': 'Yararsız',
+  'feedback.commentPlaceholder': 'Yorum ekle (isteğe bağlı)',
+  'feedback.remove': 'Kaldır',
+  'feedback.by': '{author} tarafından',
+  'feedback.anonymous': 'anonim',
+  'feedback.saveError': 'Geri bildirim yazılamadı.',
+  'feedback.noneYet': 'Henüz hiçbir çalıştırma puanlanmadı.',
+
   /* --------------------------------------------------------- dashboard */
   'dashboard.description': "Bütün agent'lar için çalıştırma, hata, token ve tutar.",
   'dashboard.runsOverTime': 'Zamana göre çalıştırmalar',
@@ -426,6 +437,8 @@ export const tr: Messages = {
   'dashboard.agentFailed': '{failed} başarısız',
   'dashboard.alerts': 'Uyarılar',
   'dashboard.allClear': 'İlgilenilecek bir şey yok.',
+  'dashboard.scoredRuns': 'Puanlanan çalıştırma',
+  'dashboard.positiveRate': 'Olumlu oran',
   'dashboard.runsToday': 'Bugünkü çalıştırmalar',
   'dashboard.tokensToday': 'Bugünkü token',
   'dashboard.costToday': 'Bugünkü tutar',

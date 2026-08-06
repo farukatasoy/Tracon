@@ -211,6 +211,10 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<IAgentSkillStore>(),
             provider.GetRequiredService<ITenantContext>(),
             provider.GetRequiredService<IOptions<AgentPrismOptions>>()));
+        // Calistirma/mesaj puanlari (Faz 31). IRunStore'dan ONCE kaydedilir:
+        // InMemoryRunStore.GetStatisticsAsync ozet hesabinda bu paylasilan
+        // tekil orneği DI uzerinden alir (bkz. InMemoryRunStore kurucusu).
+        services.TryAddSingleton<IRunScoreStore, InMemoryRunScoreStore>();
         services.TryAddSingleton<IRunStore, InMemoryRunStore>();
 
         // Script calistirma izinleri. Depo her zaman kayitlidir; calistirma

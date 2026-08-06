@@ -56,6 +56,7 @@ internal sealed class PostgresTestContext : IAsyncDisposable
         RetentionPolicies = new SqlRetentionPolicyStore(wrapped);
         RetentionData = new SqlRetentionStore(wrapped);
         VoiceSessions = new SqlVoiceSessionStore(wrapped);
+        RunScores = new SqlRunScoreStore(wrapped);
         Migrations = new MigrationRunner(wrapped, NullLogger<MigrationRunner>.Instance);
     }
 
@@ -139,6 +140,9 @@ internal sealed class PostgresTestContext : IAsyncDisposable
 
     /// <summary>Konusma kaydi deposu (Faz 29).</summary>
     public SqlVoiceSessionStore VoiceSessions { get; }
+
+    /// <summary>Calistirma/mesaj puani deposu (Faz 31).</summary>
+    public SqlRunScoreStore RunScores { get; }
 
     /// <summary>Migration calistiricisi.</summary>
     public MigrationRunner Migrations { get; }

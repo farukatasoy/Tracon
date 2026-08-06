@@ -129,6 +129,20 @@ export const CheckIcon = ({ className }: IconProps): ReactNode => (
   </Icon>
 );
 
+export const ThumbsUpIcon = ({ className }: IconProps): ReactNode => (
+  <Icon className={className}>
+    <path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3z" />
+    <path d="M7 11l4-7a2 2 0 0 1 2 2v4h5a2 2 0 0 1 2 2.3l-1.2 7A2 2 0 0 1 17 21H7" />
+  </Icon>
+);
+
+export const ThumbsDownIcon = ({ className }: IconProps): ReactNode => (
+  <Icon className={className}>
+    <path d="M7 13V4H4a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h3z" />
+    <path d="M7 13l4 7a2 2 0 0 0 2-2v-4h5a2 2 0 0 0 2-2.3l-1.2-7A2 2 0 0 0 17 3H7" />
+  </Icon>
+);
+
 export const CrossIcon = ({ className }: IconProps): ReactNode => (
   <Icon className={className}>
     <path d="M6 6l12 12M18 6 6 18" />

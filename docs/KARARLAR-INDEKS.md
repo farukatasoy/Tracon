@@ -47,7 +47,7 @@ Tarih bu indekste **yoktur** (K-214) — `KARARLAR.md`'deki kalemin kendisinde d
 | L37 | Arayüzden tool istatistiği ve model sağlık kontrolü Faz 5'te gösterilmedi 👤 |
 | L38 | Arayüz i18n altyapısı kurulmadı; dil İngilizce 👤🔁 |
 
-## 2. Kalıcı Kararlar (238 kalem)
+## 2. Kalıcı Kararlar (242 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -289,3 +289,7 @@ Tarih bu indekste **yoktur** (K-214) — `KARARLAR.md`'deki kalemin kendisinde d
 | K-236 | L281 | `--ap-subtle` ve `--ap-muted` WCAG AA'ya göre düzeltildi  |
 | K-237 | L282 | Klavye kısayolu metin alanında tetiklenmez; `Ctrl+Enter` yereldir  |
 | K-238 | L283 | Komut paleti istemci tarafında arar  |
+| K-239 | L284 | `run_scores`: `author` NULL'ı sağlayıcı bazlı işlenir  |
+| K-240 | L285 | `ScoredRuns`/`PositiveRate` iki yolla hesaplanır  |
+| K-241 | L286 | `InMemoryRunStore`'a isteğe bağlı `IRunScoreStore` eklendi  |
+| K-242 | L287 | `FeedbackControl` ikili puan gösterir, yıldız YAZILMADI  |
