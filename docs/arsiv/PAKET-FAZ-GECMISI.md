@@ -43,3 +43,10 @@
 |---|---|
 | `AgentPrism.UI` | `lib/i18n.tsx`, `lib/shortcuts.ts`, `lib/palette.ts`, `locales/en.ts` + `locales/tr.ts` (794 anahtar), `components/command-palette.tsx`; 24 ekranın ve 12 bileşenin tüm metinleri sözlüğe taşındı; `format.ts` `Intl`'e geçti; `--ap-subtle`/`--ap-muted` WCAG AA'ya düzeltildi. Bundle 124,9 → **151,3 KB gzip** (artışın tamamı sözlükler) |
 | Diğer tüm paketler | **Değişmedi.** Dil→ses eşlemesi istemcide kaldı; protokol `voiceId`'yi zaten taşıyordu (K-234) |
+
+### Faz 35 — Maliyet ve kota metrikleri (2026-08-06)
+
+| Paket | Ne eklendi |
+|---|---|
+| `AgentPrism.Core` | `Diagnostics/AgentPrismDiagnostics.cs` — `RunCostCounterName`, `QuotaUsageGaugeName`, `QuotaLimitGaugeName`, `Tags.Currency`/`QuotaScope`/`QuotaPeriod`/`QuotaMetric`; `Diagnostics/AgentPrismMetrics.cs` — `RunCost` (`Counter<double>`) + `RecordCost(...)`; `Quotas/QuotaUsageObserver.cs` (**yeni** — onbellekli çift `ObservableGauge`); `Quotas/QuotaEnforcer.EnumerateLimits` `internal static` oldu; `Recording/RunRecordingAgent.CompleteAsync` içine `RecordCost` çağrısı; `AgentPrismOptions.AgentPrismObservabilityOptions` içine `EnableQuotaUsageGauge`/`QuotaUsageRefreshInterval` |
+| Diğer tüm paketler | **Değişmedi.** Yeni tablo/migration/uç yok; yalnız mevcut `AgentPrism:Observability` bölümüne iki ayar eklendi |
