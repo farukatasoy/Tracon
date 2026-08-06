@@ -52,6 +52,23 @@ public sealed class AgentPrismOptions
     /// pahali bir modelle maliyet uretmemek.
     /// </remarks>
     public ModelBinding? UtilityModel { get; set; }
+
+    /// <summary>Tanim dogrulama ucunun (Faz 34, F-60) ayarlari.</summary>
+    public AgentPrismValidationOptions Validation { get; set; } = new();
+}
+
+/// <summary><c>POST /api/agents/validate</c> ucunun ayarlari.</summary>
+public sealed class AgentPrismValidationOptions
+{
+    /// <summary>
+    /// Bir MCP sunucusundan taze tool listesi cekmenin en fazla suresi.
+    /// </summary>
+    /// <remarks>
+    /// Yalniz eksik bir tool adi varken ve <c>AgentPrism.Mcp</c> kayitliyken
+    /// tetiklenir. Yavas bir MCP sunucusu dogrulama ucunu asmamalidir; zaman
+    /// asimi dolarsa sonuc <c>Inconclusive</c> olur, <c>Valid</c> dusmez.
+    /// </remarks>
+    public TimeSpan McpTimeout { get; set; } = TimeSpan.FromSeconds(5);
 }
 
 /// <summary>

@@ -47,6 +47,11 @@ internal static class AgentEndpoints
             .WithName("AgentPrismCreateAgent")
             .WithSummary("Yeni bir agent tanimi olusturur.");
 
+        builder.MapPost("/api/agents/validate", ValidateAgentAsync)
+            .RequireRole(roles.Operator)
+            .WithName("AgentPrismValidateAgent")
+            .WithSummary("Bir tanimi kaydetmeden ve hicbir model cagirmadan derler.");
+
         builder.MapPut("/api/agents/{name}", UpdateAgentAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismUpdateAgent")
@@ -190,6 +195,33 @@ internal static class AgentEndpoints
             .SaveAsync(request.ToDefinition(), cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Created($"{httpContext.Request.Path}/{Uri.EscapeDataString(saved.Name)}", saved);
+    }
+
+    /// <summary>
+    /// Bir tanimi kaydetmeden ve hicbir model cagirmadan derler.
+    /// </summary>
+    /// <remarks>
+    /// Dogrulama basarisizligi bir HTTP hatasi degildir: istek gecerliyse yanit
+    /// her zaman <c>200</c>'dur, sonuc <see cref="AgentValidationReport.Valid"/>
+    /// alaninda tasinir. Yalnizca govde ayristirilamiyorsa (bu ucun kendi ismi/model
+    /// alani denetimi) <c>400</c> donulur — bu, agin hatasiyla dogrulama hatasini
+    /// ayirt etmek isteyen bir CI'in karsilastigi tek gercek istek hatasidir.
+    /// </remarks>
+    private static async Task<Results<Ok<AgentValidationReport>, ProblemHttpResult>> ValidateAgentAsync(
+        AgentDefinitionRequest request,
+        AgentDefinitionValidator validator,
+        CancellationToken cancellationToken)
+    {
+        if (Validate(request) is { } invalid)
+        {
+            return invalid;
+        }
+
+        var report = await validator
+            .ValidateAsync(request.ToDefinition(), cancellationToken)
+            .ConfigureAwait(false);
+
+        return TypedResults.Ok(report);
     }
 
     private static async Task<Results<Ok<AgentDefinition>, ProblemHttpResult>> UpdateAgentAsync(

@@ -36,7 +36,7 @@
 | 31 | [31-GERI-BILDIRIM-VE-PUANLAMA.md](31-GERI-BILDIRIM-VE-PUANLAMA.md) | F-52 | ✅ Tamamlandı (2026-08-06). Ölçme döngüsünün ilk halkası; aday listesindeki F-53, F-55, F-71 ve F-74'ün dördü de buna bağlıdır | — | üç set — uygulandı (Postgres `0017`, SQL Server/SQLite `0005`) |
 | 32 | [32-CALISTIRMA-IPTALI.md](32-CALISTIRMA-IPTALI.md) | F-35 | ✅ Tamamlandı (2026-08-06). Kaçak bir agent'ı durdurmanın tek yolu artık süreci öldürmek değil. **Kapsam tek örnekle sınırlı** — çok örnek F-57'yi bekler | — | — |
 | 33 | [33-SAGLIK-DENETIMI-VE-TESHIS.md](33-SAGLIK-DENETIMI-VE-TESHIS.md) | F-38 · F-62 | ✅ Tamamlandı (2026-08-06). İkisi de **aynı veriyi** okur (DI kayıtları, migration durumu, Faz 8'in sağlık önbelleği); tek toplayıcı (`AgentPrismDiagnosticsCollector`), iki sunum | — | — |
-| 34 | [34-TANIM-DOGRULAMA-UCU.md](34-TANIM-DOGRULAMA-UCU.md) | F-60 | 📋 Planlandı. Derleyici hazır; döngü denetimi **yeni yazılır**. Aday listesindeki F-48'in (GitOps) CI adımıdır | — | — |
+| 34 | [34-TANIM-DOGRULAMA-UCU.md](34-TANIM-DOGRULAMA-UCU.md) | F-60 | ✅ Tamamlandı (2026-08-06). Döngü denetimi zaten vardı (`AgentCallGraph`, kaydetmede kullanılıyordu); yeni yazılan yalnız tipli kod (K-252). Aday listesindeki F-48'in (GitOps) CI adımıdır | — | — |
 | 35 | [35-MALIYET-VE-KOTA-METRIKLERI.md](35-MALIYET-VE-KOTA-METRIKLERI.md) | F-70 | 📋 Planlandı. Turun **en ucuz** kalemi: iki enstrüman, uç yok, arayüz yok | — | — |
 | 36 | [36-SAKLAMA-HACIM-SINIRI.md](36-SAKLAMA-HACIM-SINIRI.md) | F-73 | 📋 Planlandı. `MaxRows` yayımlanmış ama ölü bir ayardır (K-201). Sütun zaten var — migration gerekmez | — | — |
 | 37 | [37-PROJE-SABLONU.md](37-PROJE-SABLONU.md) | F-49 | 📋 Planlandı. İlk on dakikayı kısaltır. Şablon paketi bağımlılık grafiğine **girmez** | `AgentPrism.Templates` | — |
@@ -149,7 +149,7 @@ yazılıdır.**
 |---|---|---|
 | **F-52** | `grep -rni "feedback" src/` **boş** döner | **Boş dönmez.** `src/AgentPrism.UI/frontend/node_modules/` altında yüzlerce eşleşme var. İddia yalnız `--include="*.cs"` ile doğrudur. Sonuç değişmez, **ölçüm komutu** değişir |
 | **F-70** | Kiracı etiketi metrik patlaması üretir; **varsayılan kapalı** olmalı | **Kiracı etiketi bugün zaten açık.** `agentprism.runs` sayacı `tenant.id` etiketini koşulsuz taşıyor ([`AgentPrismMetrics.cs:113`](../src/AgentPrism.Core/Diagnostics/AgentPrismMetrics.cs)). Yeni sayaçta kapalı yapmak iki sayacı tutarsız kılardı; Faz 35 mevcut davranışı sürdürür |
-| **F-60** | "eksik olan yalnız bir uçtan çağrılmasıdır" | Model/tool/skill denetimleri için doğru. **Çağrı grafiği döngü denetimi hiç yoktur** — o fazda yeni yazılır |
+| **F-60** | "eksik olan yalnız bir uçtan çağrılmasıdır" | Model/tool/skill denetimleri için doğru. "Çağrı grafiği döngü denetimi hiç yoktur" iddiası **yanlış çıktı** — arama yanlış dizindeydi (`Compilation/`/`Agents/`, gerçek yer `Graph/`); denetim zaten `AgentCallGraph.Validate` olarak vardı ve kaydetmede kullanılıyordu. Faz 34 yeni bir denetleyici değil, tipli bir `ValidateDetailed` sardı (K-252) |
 | **F-73** | "satır sayma büyük tabloda pahalıdır" | Tasarım tabloyu **hiç saymaz**: N'inci satırın eşiği bulunur, sonra mevcut yaş bazlı silme kullanılır. K-200'ün sırasız silmesi böylece korunur |
 
 ### Dalga 2

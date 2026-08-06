@@ -555,8 +555,8 @@ aktarımda sürüm geçmişi ve denetim izi korunur (Faz 9 hazır).
 **Hazırlık:** `agent_definition_versions` ve `audit_log` hazır.
 **Maliyet:** Orta.
 **Risk:** İçe aktarım **üzerine yazar**. Çakışma çözümü bir karardır.
-**Bağımlılık:** F-60 (doğrulama ucu) bunun CI adımıdır ve
-[Faz 34](34-TANIM-DOGRULAMA-UCU.md) olarak planlandı — o faz önce bitmelidir.
+**Bağımlılık:** F-60 (doğrulama ucu) bunun CI adımıdır;
+[Faz 34](34-TANIM-DOGRULAMA-UCU.md) tamamlandı (2026-08-06) — önkoşul hazır.
 **Ekosistem:** Dify ve n8n dışa aktarımı verir. Langfuse prompt'ları API'den
 yönetir.
 

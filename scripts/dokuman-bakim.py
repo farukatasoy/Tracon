@@ -113,7 +113,8 @@ def kararlar_indeksi_uret() -> str:
     for no, baslik, _tarih, isaret in kalici:
         num = baslik.split("—")[0].strip()
         geri = baslik.split("—", 1)[1].strip() if "—" in baslik else baslik
-        ç.append(f"| {num} | L{no} | {geri} {isaret} |")
+        sonek = f" {isaret}" if isaret else ""
+        ç.append(f"| {num} | L{no} | {geri}{sonek} |")
 
     ç.append("")
     return "\n".join(ç)
@@ -143,7 +144,8 @@ def kararlar_reddedilen_uret() -> str:
         "|---|---|",
     ]
     for no, baslik, _tarih, isaret in reddedilen:
-        ç.append(f"| L{no} | {baslik} {isaret} |")
+        sonek = f" {isaret}" if isaret else ""
+        ç.append(f"| L{no} | {baslik}{sonek} |")
 
     ç.append("")
     return "\n".join(ç)

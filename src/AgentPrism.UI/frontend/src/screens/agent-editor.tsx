@@ -19,11 +19,13 @@ import {
 } from '../components/ui';
 import type {
   AgentDefinitionRequest,
+  AgentValidationReport,
   CompactionSettings,
   CompactionStrategyKind,
   HarnessSettings,
   MemorySettings,
   ModelBinding,
+  ValidationSeverity,
 } from '../lib/types';
 
 const REASONING_EFFORTS = ['', 'None', 'Low', 'Medium', 'High', 'ExtraHigh'] as const;
@@ -204,6 +206,9 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
     },
   });
 
+  // Validation never writes anything — no query is invalidated on success.
+  const validate = useMutation({ mutationFn: () => api.validateAgent(request) });
+
   if (editing && !ready) {
     return <Loading />;
   }
@@ -222,6 +227,14 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
               {t('common.cancel')}
             </Button>
             <Button
+              testId="agent-validate"
+              busy={validate.isPending}
+              disabled={!valid}
+              onClick={() => validate.mutate()}
+            >
+              {t('agentEditor.validate')}
+            </Button>
+            <Button
               tone="primary"
               testId="agent-save"
               busy={save.isPending}
@@ -235,6 +248,8 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
       />
 
       {save.isError && <div className="mb-4"><ErrorNote error={save.error} /></div>}
+      {validate.isError && <div className="mb-4"><ErrorNote error={validate.error} /></div>}
+      {validate.data && <div className="mb-4"><ValidationReportPanel report={validate.data} /></div>}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex flex-col gap-4">
@@ -819,5 +834,47 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
         </div>
       </div>
     </>
+  );
+}
+
+const SEVERITY_TONE: Record<ValidationSeverity, 'danger' | 'warn'> = {
+  Error: 'danger',
+  Warning: 'warn',
+};
+
+/**
+ * Result of `POST /api/agents/validate`. Nothing here changes what gets saved —
+ * this only reports what the real compile path would do.
+ */
+function ValidationReportPanel({ report }: { report: AgentValidationReport }): ReactNode {
+  const t = useT();
+
+  return (
+    <Panel title={t('agentEditor.validationTitle')}>
+      <div className="p-4">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <Badge tone={report.valid ? 'success' : 'danger'}>
+            {report.valid ? t('agentEditor.validationValid') : t('agentEditor.validationInvalid')}
+          </Badge>
+          {report.inconclusive && <Badge tone="warn">{t('agentEditor.validationInconclusive')}</Badge>}
+        </div>
+
+        {report.messages.length === 0 ? (
+          <p className="text-[13px] text-subtle">{t('agentEditor.validationNoMessages')}</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {report.messages.map((message, index) => (
+              <li key={index} className="rounded-md border border-line px-3 py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge tone={SEVERITY_TONE[message.severity]}>{message.code}</Badge>
+                  {message.path != null && <Mono className="text-[12px] text-muted">{message.path}</Mono>}
+                </div>
+                <p className="mt-1 text-[13px]">{message.message}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </Panel>
   );
 }
