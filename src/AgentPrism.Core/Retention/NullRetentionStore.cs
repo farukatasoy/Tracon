@@ -36,4 +36,11 @@ public sealed class NullRetentionStore : IRetentionStore
         int batchSize,
         CancellationToken cancellationToken = default)
         => new(0);
+
+    /// <inheritdoc />
+    public ValueTask<DateTimeOffset?> FindRowLimitCutoffAsync(
+        string target,
+        long maxRows,
+        CancellationToken cancellationToken = default)
+        => new((DateTimeOffset?)null);
 }

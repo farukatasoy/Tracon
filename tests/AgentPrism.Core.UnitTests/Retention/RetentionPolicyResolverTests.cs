@@ -108,6 +108,62 @@ public sealed class RetentionPolicyResolverTests
         resolved.MaxAgeDays.ShouldBe(7);
     }
 
+    [Fact]
+    public async Task Yalniz_MaxRows_dolu_politika_dogru_cozulur()
+    {
+        // 🚨 Faz 36'nin kapattigi bosluk: MaxAgeDays BOS, yalniz MaxRows dolu.
+        // Eskiden ResolveAsync boyle bir kaydi "hicbir sey silinmeyecek" sayardi.
+        var store = new InMemoryRetentionPolicyStore();
+        var now = DateTimeOffset.UtcNow;
+
+        await store.SavePolicyAsync(new RetentionPolicy
+        {
+            Id = Guid.NewGuid(),
+            TenantId = Tenant,
+            Target = RetentionTargets.RunEvents,
+            MaxAgeDays = null,
+            MaxRows = 100,
+            Enabled = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        });
+
+        var resolver = new RetentionPolicyResolver(
+            store,
+            new StaticOptionsMonitor<AgentPrismRetentionOptions>(new AgentPrismRetentionOptions()));
+
+        var resolved = await resolver.ResolveAsync(Tenant, RetentionTargets.RunEvents);
+
+        resolved.ShouldNotBeNull();
+        resolved.MaxAgeDays.ShouldBeNull();
+        resolved.MaxRows.ShouldBe(100);
+    }
+
+    [Fact]
+    public async Task Ikisi_de_bos_politika_hicbir_sey_dondurmez()
+    {
+        var store = new InMemoryRetentionPolicyStore();
+        var now = DateTimeOffset.UtcNow;
+
+        await store.SavePolicyAsync(new RetentionPolicy
+        {
+            Id = Guid.NewGuid(),
+            TenantId = Tenant,
+            Target = RetentionTargets.RunEvents,
+            MaxAgeDays = null,
+            MaxRows = null,
+            Enabled = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        });
+
+        var resolver = new RetentionPolicyResolver(
+            store,
+            new StaticOptionsMonitor<AgentPrismRetentionOptions>(new AgentPrismRetentionOptions()));
+
+        (await resolver.ResolveAsync(Tenant, RetentionTargets.RunEvents)).ShouldBeNull();
+    }
+
     private static RetentionPolicyResolver Build(AgentPrismRetentionOptions options)
         => new(new InMemoryRetentionPolicyStore(), new StaticOptionsMonitor<AgentPrismRetentionOptions>(options));
 }

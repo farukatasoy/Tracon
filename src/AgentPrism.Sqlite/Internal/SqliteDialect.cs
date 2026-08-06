@@ -281,6 +281,16 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
                     LIMIT @batchSize);
             """;
 
+    /// <inheritdoc />
+    public override string BuildRetentionFindNthRowCutoffSql(string table, string orderExpression)
+        => $"""
+            SELECT {orderExpression}
+            FROM {table}
+            WHERE {orderExpression} IS NOT NULL
+            ORDER BY {orderExpression} DESC
+            LIMIT 1 OFFSET @n - 1;
+            """;
+
     /// <summary>Migration kilidi hala aciksa birakir.</summary>
     public void Dispose()
     {
