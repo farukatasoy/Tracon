@@ -50,3 +50,12 @@
 |---|---|
 | `AgentPrism.Core` | `Diagnostics/AgentPrismDiagnostics.cs` — `RunCostCounterName`, `QuotaUsageGaugeName`, `QuotaLimitGaugeName`, `Tags.Currency`/`QuotaScope`/`QuotaPeriod`/`QuotaMetric`; `Diagnostics/AgentPrismMetrics.cs` — `RunCost` (`Counter<double>`) + `RecordCost(...)`; `Quotas/QuotaUsageObserver.cs` (**yeni** — onbellekli çift `ObservableGauge`); `Quotas/QuotaEnforcer.EnumerateLimits` `internal static` oldu; `Recording/RunRecordingAgent.CompleteAsync` içine `RecordCost` çağrısı; `AgentPrismOptions.AgentPrismObservabilityOptions` içine `EnableQuotaUsageGauge`/`QuotaUsageRefreshInterval` |
 | Diğer tüm paketler | **Değişmedi.** Yeni tablo/migration/uç yok; yalnız mevcut `AgentPrism:Observability` bölümüne iki ayar eklendi |
+
+### Faz 38 — Yapılandırılmış çıktı (2026-08-06)
+
+| Paket | Ne eklendi |
+|---|---|
+| `AgentPrism.Abstractions` | `Agents/ResponseFormat.cs` (**yeni** — `AgentResponseFormatKind` enum, `AgentResponseFormat` record); `ModelBinding.ResponseFormat`; `ModelDescriptor.SupportsStructuredOutput` |
+| `AgentPrism.Core` | `Compilation/AgentDefinitionCompiler.cs` — `BuildChatOptions` `static`'ten instance metoduna geçti (katalog erişimi için), `BuildResponseFormat`/`CheckStructuredOutputCapability`/`FindModelDescriptor` eklendi |
+| `AgentPrism.OpenAI`/`.Anthropic`/`.Google`/`.Azure` | Dördü de `SupportsStructuredOutput` ayarını yapılandırmadan okur (`ModelDescriptor` bağlama satırı) |
+| Diğer tüm paketler | **Değişmedi.** Yeni tablo/migration/uç yok; `jsonb` yolu K-208'in ölçtüğü gibi hiç değişmeden çalıştı. Arayüz payı: `agent-editor.tsx` (kip seçici + şema kutusu), `agent-detail.tsx` (sürüm karşılaştırma satırı), `models.tsx` (rozet). Bundle 151,3 → **156,0 KB gzip** |

@@ -13,7 +13,7 @@
 > Bir bölüm bir fazda büyüdüyse, **eski hâlini** arşive taşı; üst üste yığma.
 > Denetim: `python3 scripts/dokuman-bakim.py --denetle`
 
-## Güncel Durum (2026-08-05)
+## Güncel Durum (2026-08-06)
 
 | Paket | Rolü | Durum |
 |-------|------|-------|
@@ -36,7 +36,7 @@
 
 Hangi fazın hangi pakete ne eklediği: [`arsiv/PAKET-FAZ-GECMISI.md`](arsiv/PAKET-FAZ-GECMISI.md).
 
-Testler: **1866 geçiyor** — birim + fonksiyonel + entegrasyon (Testcontainers:
+Testler: **2037 geçiyor** — birim + fonksiyonel + entegrasyon (Testcontainers:
 PostgreSQL + SQLite) + arayüz E2E, paket başına dökümü `arsiv/PAKET-FAZ-GECMISI.md`.
 Dört kapı sıfır uyarı; `dotnet pack` **15 paket** üretir.
 ⚠️ `AgentPrism.SqlServer`'ın testleri bu makinede koşmadı — bkz.

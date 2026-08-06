@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (116 kalem)
+## Arşivlenen Kararlar (117 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -125,3 +125,4 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-114 | 159 | Kalıcı `PostgresAgentFileStore`: agent adı ambient kapsamdan okunur |
 | K-115 | 160 | `IFormFile` alan minimal API uçları `.DisableAntiforgery()` gerektirir |
 | K-116 | 161 | `/v1/chat/completions` bu fazda çok modlu girdi kabul etmez |
+| K-117 | 162 | Kalıcı agent dosya belleği (`agent_files`) aynı migration'da (0006) eklendi 👤 |

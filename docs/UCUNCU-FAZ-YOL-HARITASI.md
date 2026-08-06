@@ -55,7 +55,7 @@ sonradan yapılırsa yeniden yazım veya güvenlik düzeltmesi olarak geri döne
 
 | Faz | Doküman | Kalem | Hangi işten önce | Yeni paket | Migration |
 |-----|---------|-------|------------------|-----------|-----------|
-| 38 | [38-YAPILANDIRILMIS-CIKTI.md](38-YAPILANDIRILMIS-CIKTI.md) | F-42 | 📋 **Faz 7.** `ModelBinding` public `sealed record`'tur; alan eklemek yayından sonra bir sürüm kararıdır | — | — (tanım `jsonb`'de, K-208) |
+| 38 | [38-YAPILANDIRILMIS-CIKTI.md](38-YAPILANDIRILMIS-CIKTI.md) | F-42 | ✅ **Tamamlandı (2026-08-06).** `ModelBinding` public `sealed record`'tur; alan eklemek yayından sonra bir sürüm kararıdır | — | — (tanım `jsonb`'de, K-208) |
 | 39 | [39-TEST-PAKETI.md](39-TEST-PAKETI.md) | F-46 | 📋 **Faz 7.** Test API'sini kırmak tüketicinin **tüm** test paketini kırar | `AgentPrism.Testing` | — |
 | 40 | [40-OPENAPI-YAYINI.md](40-OPENAPI-YAYINI.md) | F-63 | 📋 **F-50** (istemci + CLI). Belge, istemci üretiminin kaynağıdır | — | — |
 | 41 | [41-KIRACI-YALITIMININ-ZORLANMASI.md](41-KIRACI-YALITIMININ-ZORLANMASI.md) | F-76 | 📋 **F-40 · F-56.** İki kimlik kalemi de kiracı zeminine yazar; zemin önce sağlamlaştırılmalıdır | — | 🚨 kusur çıkarsa gerekebilir |

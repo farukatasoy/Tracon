@@ -175,6 +175,7 @@ export function ModelsScreen(): ReactNode {
                             {model.supportsStreaming && <Badge tone="info">streaming</Badge>}
                             {model.supportsTools && <Badge tone="accent">tools</Badge>}
                             {model.supportsReasoning && <Badge tone="warn">reasoning</Badge>}
+                            {model.supportsStructuredOutput && <Badge tone="success">structured output</Badge>}
                           </div>
                         </Td>
                       </tr>

@@ -1,6 +1,6 @@
 # Faz 38 — Yapılandırılmış Çıktı (JSON Şeması)
 
-> **Durum:** 📋 Planlandı (2026-08-06)
+> **Durum:** ✅ Tamamlandı (2026-08-06)
 > **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-42**
 > **Önkoşul:** Yok. Kalem önkoşulsuzdur ve bugün yapılabilir
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.OpenAI`, `.Anthropic`, `.Google`, `.Azure`, `.AspNetCore`, `.UI`
@@ -379,27 +379,36 @@ Migration **yoktur** — [38.5](#385--neden-migration-yok).
 | 2 | Şema JSON Schema'ya göre doğrulansın mı? | A: yalnız "nesne mi" denetlenir · B: tam JSON Schema doğrulaması | **A.** B bir NuGet bağımlılığıdır ve K-007 gerekçesi ister. Şema hatasını sağlayıcı zaten bildirir |
 | 3 | `ResponseFormat` çalıştırma kaydına yazılsın mı? | A: hayır · B: evet, `runs` tablosuna | **A.** Tanım sürümlüdür (Faz 19); `runs.agent_version` üzerinden geriye izlenebilir. İkinci kopya kayma üretir |
 | 4 | OpenAI uyumlu uçtaki (`/v1/chat/completions`) `response_format` alanı bu sözleşmeye bağlansın mı? | A: bu fazda hayır · B: evet | **A.** Uyumlu uç isteğin kendi gövdesinden okur; agent tanımının kipini ezmesi ayrı bir önceliktir. Devir notuna yazılır |
-| 5 | Akışlı (`streaming`) yolda şema kipi destekleniyor mu? | A: **ölçülmeli** · B: varsayılır | **A.** Sağlayıcıya göre değişir. Uygulayan oturum `samples/AgentPrism.Api` ile gerçek bir akışlı `run` yapar ve sonucu buraya yazar |
+| 5 | Akışlı (`streaming`) yolda şema kipi destekleniyor mu? | A: **ölçülmeli** · B: varsayılır | **Ölçüldü (2026-08-06), `samples/AgentPrism.Api` + gerçek OpenAI `gpt-5.4-mini`.** Çalışıyor: metin parçaları (`text delta`) birleştiğinde şemaya uyan geçerli bir JSON belgesi çıktı (`{"total":1250,"currency":"TL"}`). Sağlayıcı OpenAI Chat Completions için akışlı yol düz metinle aynı `response_format` yolunu kullanıyor; ek bir kod dalı gerekmedi |
 
 ---
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `responseFormat.kind = "JsonSchema"` taşıyan bir agent tanımı kaydedilir,
-      okunur ve çalıştırılır; yanıt **şemaya uyan** bir JSON belgesidir
-- [ ] `Kind = JsonSchema` ama şema boş olan tanım `AgentPrismCompilationException`
+- [x] `responseFormat.kind = "JsonSchema"` taşıyan bir agent tanımı kaydedilir,
+      okunur ve çalıştırılır; yanıt **şemaya uyan** bir JSON belgesidir —
+      gerçek OpenAI çağrısı `{"total":1250,"currency":"TL"}` döndürdü (aşağıda)
+- [x] `Kind = JsonSchema` ama şema boş olan tanım `AgentPrismCompilationException`
       ile reddedilir; hata mesajı `Schema` alanını adlandırır
-- [ ] `SupportsStructuredOutput = false` olan bir modelde derleme reddedilir
-- [ ] 🚨 `responseFormat` anahtarı olmayan **eski** bir `agent_definitions`
+- [x] `SupportsStructuredOutput = false` olan bir modelde derleme reddedilir
+- [x] 🚨 `responseFormat` anahtarı olmayan **eski** bir `agent_definitions`
       satırı okunur ve `null` üretir; hiçbir uç 500 dönmez
-- [ ] `ForJsonSchema(Type, …)` çağrısı kaynak ağacında **yoktur**; AOT uyarısı
+- [x] `ForJsonSchema(Type, …)` çağrısı kaynak ağacında **yoktur**; AOT uyarısı
       üretilmez
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı bu belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı **ölçüldü** ve buraya yazıldı
+- [x] Dört doğrulama kapısı sıfır uyarı verir
+- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı bu belgeye yazıldı
+- [x] `secret` taraması boş döndü
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı **ölçüldü** ve buraya yazıldı
+      (156,0 KB gzip / 250 KB bütçe; önceki ölçüm 151,3 KB'ydi — bu faz ~4,7 KB ekledi)
 
-### Doğrulama komutları
+### Doğrulama komutları — gerçek koşum, 2026-08-06
+
+> 🚨 Plandaki `run` gövdesi (`{"messages":[{"role":"user","text":"..."}]}`)
+> gerçek sözleşmeyle uyuşmuyordu — `AgentRunRequest.Message` **tekil bir
+> `string`** taşır (bkz. [Plandan Sapmalar](#plandan-sapmalar)). Aşağıdaki
+> komutlar düzeltilmiş, gerçekten çalıştırılmış hâlidir. Model adı da
+> `gpt-5`'ten `gpt-5.4-mini`'ye düzeltildi — K-032 gereği katalogdaki gerçek
+> model budur (`samples/AgentPrism.Api/appsettings.json`).
 
 ```bash
 # Semali agent tanimi kaydet
@@ -407,9 +416,9 @@ curl -s -X POST http://localhost:5081/agentprism/api/agents \
   -H 'content-type: application/json' \
   -d '{
         "name":"fatura-okuyucu",
-        "instructions":"Faturayi ozetle.",
+        "instructions":"Faturayi ozetle ve JSON dondur.",
         "model":{
-          "provider":"openai","model":"gpt-5",
+          "provider":"openai","model":"gpt-5.4-mini",
           "responseFormat":{
             "kind":"JsonSchema","schemaName":"invoice",
             "schema":{"type":"object",
@@ -419,18 +428,30 @@ curl -s -X POST http://localhost:5081/agentprism/api/agents \
           }
         }
       }' | jq
+# → 201 Created; model.responseFormat kaydedilmis sekliyle geri dondu.
 
-# Calistir — cikti gecerli JSON olmali ve semaya uymali
-curl -s -X POST http://localhost:5081/agentprism/api/agents/fatura-okuyucu/run \
+# Calistir (SSE akisli) — cikti gecerli JSON olmali ve semaya uymali
+curl -s -N -X POST http://localhost:5081/agentprism/api/agents/fatura-okuyucu/run \
   -H 'content-type: application/json' \
-  -d '{"messages":[{"role":"user","text":"Toplam 1250 TL."}]}' | jq
+  -d '{"message":"Toplam 1250 TL, para birimi Turk Lirasi."}'
+# → text delta parcalari birlestiginde: {"total":1250,"currency":"TL"}
+#   Akisli yolda da JsonSchema kipi calisiyor (Acik Soru 5 boylece cevaplandi).
 
-# Gecersiz tanim reddedilmeli (sema yok)
+# Gecersiz tanim SAVE aninda REDDEDILMEZ (derleme validasyonu Faz 38.2'de
+# BILINCLI olarak calisma/derleme anina birakildi) — 201 doner:
 curl -s -X POST http://localhost:5081/agentprism/api/agents \
-  -H 'content-type: application/json' \
   -d '{"name":"kirik","instructions":"x",
-       "model":{"provider":"openai","model":"gpt-5",
-                "responseFormat":{"kind":"JsonSchema"}}}' -i | head -20
+       "model":{"provider":"openai","model":"gpt-5.4-mini",
+                "responseFormat":{"kind":"JsonSchema"}}}' \
+  -H 'content-type: application/json' -i | head -5
+# → 201 Created
+
+# ...ama CALISTIRMA (derleme) aninda reddedilir:
+curl -s -X POST http://localhost:5081/agentprism/api/agents/kirik/run \
+  -H 'content-type: application/json' -d '{"message":"merhaba"}' -i | head -8
+# → 400 Bad Request
+#   {"title":"Agent derlenemedi","detail":"'kirik' agent'i JsonSchema cikti
+#    kipini secti ancak Schema vermedi."}
 ```
 
 ---
@@ -456,26 +477,146 @@ curl -s -X POST http://localhost:5081/agentprism/api/agents \
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
-> oturumun en değerli bilgisidir.
+- **🚨 `AgentResponseFormatKind` enum'ında `[JsonConverter(typeof(JsonStringEnumConverter<T>))]`
+  eksik yazılmıştı — planda bu ayrıntı yoktu.** Faz içi sözleşme testleri (C#
+  nesne round-trip) bunu yakalamadı çünkü hem yazma hem okuma aynı varsayılan
+  (sayısal) temsili kullanıyordu; **yalnızca** `samples/AgentPrism.Api`'ye
+  gerçek bir HTTP isteği (`"kind":"JsonSchema"` dize değeri) atıldığında
+  `System.Text.Json.JsonException` olarak ortaya çıktı. `CompactionStrategyKind`
+  ve depodaki diğer tüm dize-seri hâle gelen enum'lar bu özniteliği taşıyor —
+  bu faz aynı deseni gözden kaçırıp sonra gerçek koşumda buldu. Ders: MEMORY.md'nin
+  "birim testi yetmez" kuralı burada üçüncü kez doğrulandı.
+- **Model yetenek denetimi yalnızca `Json` ve `JsonSchema` kiplerinde çalışır,
+  `Text`'te çalışmaz.** Plan (38.3) bu ayrımı açıkça yazmamıştı. Gerekçe: `Text`
+  kipi `null`'dan farklı olsa da hiçbir sağlayıcıya özel API yüzeyi istemez —
+  "açıkça düz metin iste" talimatı her modelde çalışır. `SupportsStructuredOutput`
+  bayrağının anlamı ("JSON semasina uyan cikti uretebiliyor mu") `Text` için
+  anlamsızdır; `Text`'i de reddetmek yanlış `false` bayrağı yüzünden çalışan bir
+  agent'ı gereksiz yere kırardı. Bkz. K-267.
+- **Doğrulama komutlarındaki `run` gövdesi ve model adı düzeltildi.** Planın
+  taslak `curl` örneği `{"messages":[{"role":"user","text":"..."}]}` ve
+  `"model":"gpt-5"` kullanıyordu; gerçek sözleşme `AgentRunRequest.Message`
+  (tekil `string`) taşır ve `gpt-5` katalogda hiç yok (K-032 — gerçek liste
+  `gpt-5.4-mini`/`gpt-5.6-luna`/`gpt-5.6-terra`). Düzeltilmiş komutlar DoD
+  bölümünde.
+- **`samples/AgentPrism.Api/appsettings.json`'a `SupportsStructuredOutput: true`
+  eklendi** (üç OpenAI modeli için) — planda yoktu ama gerçek bir uçtan uca
+  koşum için zorunluydu: bayrak varsayılan `false`'tur (K1) ve örnek uygulamanın
+  kendi model kataloğu bunu açıkça söylemeden `JsonSchema` kipi her zaman
+  reddedilirdi.
+- **`AgentDefinitionStoreContract.Tanimin_tum_alanlari_gidip_gelir` genişletildi**
+  (yeni dosya değil) — planın "mevcut testler jsonb'yi korur" varsayımı
+  doğruydu, yalnız test gövdesine `ResponseFormat` alanı ve doğrulaması
+  eklendi. PostgreSQL (505/505) ve SQLite (255/255) ile koştu; SQL Server
+  konteyneri bu ortamda (ARM64 Mac) daha önce de çalışmıyordu (K-181/dokümante
+  edilmiş bilinen sınırlama), bu fazın regresyonu değil.
+- **Arayüzde `agent-detail.tsx`'in sürüm karşılaştırma tablosuna (`FieldDiffTable`)
+  bir `responseFormat` satırı eklendi** — planda yoktu ama K-143'ün "az sayıda,
+  nadiren değişen alan" ilkesiyle tutarlı, ucuz bir ek oldu (yalnızca `kind`
+  gösterilir, tam şema değil).
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
+K-267. Ayrıntı ve gerekçe: `docs/KARARLAR.md`.
+
+| Karar | Özet |
+|---|---|
+| K-267 | `SupportsStructuredOutput` denetimi yalnızca `Json`/`JsonSchema` kiplerinde çalışır; `Text` her zaman izinlidir |
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+Plandaki taslakla **birebir aynı** gerçekleşti — sapma yok, tek fark enum'un
+`JsonStringEnumConverter` özniteliği (yukarıdaki sapmaya bkz.):
+
+```csharp
+// AgentPrism.Abstractions/Agents/ResponseFormat.cs
+[JsonConverter(typeof(JsonStringEnumConverter<AgentResponseFormatKind>))]
+public enum AgentResponseFormatKind { Text = 0, Json = 1, JsonSchema = 2 }
+
+public sealed record AgentResponseFormat
+{
+    public required AgentResponseFormatKind Kind { get; init; }
+    public JsonElement? Schema { get; init; }
+    public string? SchemaName { get; init; }
+    public string? SchemaDescription { get; init; }
+}
+
+// AgentPrism.Abstractions/Agents/ModelBinding.cs
+public AgentResponseFormat? ResponseFormat { get; init; }
+
+// AgentPrism.Abstractions/Models/ModelDescriptor.cs
+public bool SupportsStructuredOutput { get; init; }
+```
+
+`AgentDefinitionCompiler`'a eklenen yeni **internal/private** yüzey (public API
+değil, dahili derleme mantığı): `BuildResponseFormat`, `CheckStructuredOutputCapability`,
+`FindModelDescriptor`. `BuildChatOptions` `static`'ten instance metoduna çevrildi
+(katalog erişimi için `_models` gerekti) — bu bir davranış değişikliği değil,
+imza `private` olduğu için public API'ye yansımaz.
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/AgentPrism.Abstractions/
+├── Agents/ResponseFormat.cs                 (YENI)
+├── Agents/ModelBinding.cs                   (ResponseFormat alani)
+└── Models/ModelDescriptor.cs                (SupportsStructuredOutput alani)
+
+src/AgentPrism.Core/
+└── Compilation/AgentDefinitionCompiler.cs   (BuildChatOptions instance oldu,
+                                               BuildResponseFormat/
+                                               CheckStructuredOutputCapability/
+                                               FindModelDescriptor eklendi)
+
+src/AgentPrism.OpenAI/OpenAIProviderExtensions.cs        (SupportsStructuredOutput baglama)
+src/AgentPrism.Anthropic/AnthropicProviderExtensions.cs  (ayni)
+src/AgentPrism.Google/GoogleProviderExtensions.cs        (ayni)
+src/AgentPrism.Azure/AzureOpenAIProviderExtensions.cs    (ayni)
+
+src/AgentPrism.UI/frontend/src/
+├── lib/types.ts               (AgentResponseFormat(Kind), ModelBinding.responseFormat,
+│                                ModelDescriptor.supportsStructuredOutput)
+├── screens/agent-editor.tsx   (kip secici + sema/ad/aciklama alanlari)
+├── screens/agent-detail.tsx   (surum karsilastirma: responseFormat satiri)
+├── screens/models.tsx         ("structured output" rozeti)
+└── locales/en.ts, tr.ts       (fields.responseFormatKind/schema* + agentEditor.*)
+
+tests/AgentPrism.Core.UnitTests/Compilation/
+├── ResponseFormatCompilationTests.cs    (4 test — dort kip -> ChatResponseFormat)
+├── ResponseFormatValidationTests.cs     (4 test — dort red durumu)
+├── ResponseFormatCapabilityTests.cs     (3 test — yetenek bayragi + katalogda-yok)
+├── ResponseFormatSerializationTests.cs  (2 test — eski JSON -> null)
+├── ResponseFormatJsonElementTests.cs    (2 test — atanmamis Schema cokertmez)
+└── ResponseFormatAotTests.cs            (2 test — kaynak taramasi)
+
+tests/Shared/Contracts/AgentDefinitionStoreContract.cs   (mevcut teste ResponseFormat eklendi)
+samples/AgentPrism.Api/appsettings.json                  (SupportsStructuredOutput:true, 3 model)
+```
+
+Migration yok — planla aynı gerekçe (38.5) doğrulandı, `jsonb` yolu hiç
+değişmeden çalıştı.
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
->
-> **Not:** Aday listesindeki **F-44** (model yedek zinciri) bu fazla **aynı
-> sözleşmeye** dokunur — `ModelBinding`. Devir notu, F-44'ün eklemek isteyeceği
-> `Fallbacks` alanının bu fazın bıraktığı yapıya nasıl oturacağını yazmalıdır.
+- **Devralınan sözleşme: `ModelBinding.ResponseFormat` ve `ModelDescriptor.SupportsStructuredOutput`.**
+  İkisi de nullable/varsayılan-`false`; eski kayıtlar hiçbir göç gerektirmeden
+  çalışmaya devam eder.
+- **🚨 Yeni bir dize-seri hâle gelen enum eklerken `[JsonConverter(typeof(JsonStringEnumConverter<T>))]`'i
+  UNUTMA.** Bu fazda unutuldu ve yalnızca gerçek bir HTTP isteğiyle (birim
+  testleriyle değil) ortaya çıktı. Depodaki her enum bu deseni taşır
+  (`CompactionStrategyKind`, `RunStatus`, …) — yeni bir tane eklerken var olan
+  birini kopyala.
+- **F-44 (model yedek zinciri) `ModelBinding`'e dokunacaksa bu fazın deseni
+  geçerlidir:** `ResponseFormat` gibi nullable, `sealed record` bir alan ekle;
+  `AgentDefinitionCompiler.BuildChatOptions`'ın artık **instance metodu**
+  olduğunu ve `_models` (katalog) erişimine sahip olduğunu unutma —
+  `Fallbacks` alanı da model yetenek/varlık denetimi için muhtemelen aynı
+  `_models.List()` yolunu kullanacaktır (`FindModelDescriptor` yardımcısı
+  zaten var, yeniden kullanılabilir).
+- **Açık Soru 4 (OpenAI uyumlu ucun `response_format` alanı bu sözleşmeye
+  bağlanmadı) hâlâ açık.** `/v1/chat/completions` isteğinin kendi gövdesindeki
+  `response_format` alanı agent tanımının `ResponseFormat`'ını hiç görmüyor;
+  ikisinin çakıştığı durumda hangisinin kazanacağı tanımsız. Ayrı bir fazda
+  ele alınmalı.
+- **Yarım kalan iş yok.** Tüm DoD kalemleri karşılandı (yukarıdaki tablo).
+  Sıradaki faz kimliği bağımsızdır (`docs/UCUNCU-FAZ-YOL-HARITASI.md`).
