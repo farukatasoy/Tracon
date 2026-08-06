@@ -39,16 +39,19 @@ internal static class SessionEndpoints
             })
             .RequireRole(roles.Reader)
             .WithName("AgentPrismListSessions")
+            .WithTags("AgentPrism", "Sessions")
             .WithSummary("Oturumlari son guncellemeden eskiye listeler.");
 
         builder.MapGet("/api/sessions/{sessionId}", GetSessionAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismGetSession")
+            .WithTags("AgentPrism", "Sessions")
             .WithSummary("Bir oturumun ustverisini ve sohbet gecmisini dondurur.");
 
         builder.MapDelete("/api/sessions/{sessionId}", DeleteSessionAsync)
             .RequireRole(roles.Operator)
             .WithName("AgentPrismDeleteSession")
+            .WithTags("AgentPrism", "Sessions")
             .WithSummary("Bir oturumu siler.");
     }
 

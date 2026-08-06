@@ -45,17 +45,20 @@ internal static class VoiceEndpoints
         builder.MapGet("/api/voice/health", CheckHealthAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismVoiceHealth")
+            .WithTags("AgentPrism", "Voice")
             .WithSummary("Ses saglayicisinin erisilebilirligini denetler.")
             .WithDescription("Denetim ucret uretmez: ses uretilmez, kullanilabilir sesler okunur.");
 
         builder.MapGet("/api/voice/voices", ListVoicesAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismVoiceList")
+            .WithTags("AgentPrism", "Voice")
             .WithSummary("Kullanilabilir sesleri listeler.");
 
         builder.MapGet("/api/voice/sessions", ListSessionsAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismVoiceSessions")
+            .WithTags("AgentPrism", "Voice")
             .WithSummary("Gercek zamanli konusma baglantilarinin ozet kaydini listeler.")
             .WithDescription(
                 "Kayit ses ICERMEZ: yalnizca sure, tur sayisi ve olcum tasir. Konusma katmani " +
@@ -64,6 +67,7 @@ internal static class VoiceEndpoints
         builder.MapPost("/api/voice/speak", SpeakAsync)
             .RequireRole(roles.Operator)
             .WithName("AgentPrismVoiceSpeak")
+            .WithTags("AgentPrism", "Voice")
             .WithSummary("Bir metni seslendirir ve ek olarak kaydeder.")
             .WithDescription(
                 "Operator eylemidir ve bir calistirmaya BAGLI DEGILDIR; olcum " +

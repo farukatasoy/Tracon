@@ -35,46 +35,55 @@ internal static class AgentEndpoints
                 => TypedResults.Ok(await catalog.ListAsync(cancellationToken).ConfigureAwait(false)))
             .RequireRole(roles.Reader)
             .WithName("AgentPrismListAgents")
+            .WithTags("AgentPrism", "Agents")
             .WithSummary("Kodda ve veritabaninda tanimli tum agent'lari listeler.");
 
         builder.MapGet("/api/agents/{name}", GetAgentAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismGetAgent")
+            .WithTags("AgentPrism", "Agents")
             .WithSummary("Bir agent'in katalog ozetini ve varsa kalici tanimini dondurur.");
 
         builder.MapPost("/api/agents", CreateAgentAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismCreateAgent")
+            .WithTags("AgentPrism", "Agents")
             .WithSummary("Yeni bir agent tanimi olusturur.");
 
         builder.MapPost("/api/agents/validate", ValidateAgentAsync)
             .RequireRole(roles.Operator)
             .WithName("AgentPrismValidateAgent")
+            .WithTags("AgentPrism", "Agents")
             .WithSummary("Bir tanimi kaydetmeden ve hicbir model cagirmadan derler.");
 
         builder.MapPut("/api/agents/{name}", UpdateAgentAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismUpdateAgent")
+            .WithTags("AgentPrism", "Agents")
             .WithSummary("Bir agent tanimini gunceller ve yeni bir surum uretir.");
 
         builder.MapDelete("/api/agents/{name}", DeleteAgentAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismDeleteAgent")
+            .WithTags("AgentPrism", "Agents")
             .WithSummary("Bir agent tanimini ve surum gecmisini siler.");
 
         builder.MapGet("/api/agents/{name}/versions", ListVersionsAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismListAgentVersions")
+            .WithTags("AgentPrism", "Agents")
             .WithSummary("Bir tanimin surum gecmisini yeniden eskiye listeler.");
 
         builder.MapPost("/api/agents/{name}/rollback", RollbackAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismRollbackAgent")
+            .WithTags("AgentPrism", "Agents")
             .WithSummary("Bir tanimi onceki bir surumun icerigiyle yeni surum olarak yazar.");
 
         builder.MapGet("/api/agents/{name}/versions/{a:int}/diff/{b:int}", GetVersionDiffAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismGetAgentVersionDiff")
+            .WithTags("AgentPrism", "Agents")
             .WithSummary("Iki tanim surumunu ham JSON olarak dondurur; diff hesabi arayuzde yapilir.");
 
         builder.MapPost("/api/agents/{name}/run", async (
@@ -113,10 +122,17 @@ internal static class AgentEndpoints
             })
             .RequireRole(roles.Operator)
             .WithName("AgentPrismRunAgent")
+            .WithTags("AgentPrism", "Agents")
             .WithSummary("Bir agent'i deneme amaciyla calistirir ve yaniti SSE ile akitir.")
             .WithDescription(
                 "Kota asilmissa calistirma baslamaz ve 429 doner; ProblemDetails hangi kotanin " +
-                "asildigini ve sayacin ne zaman sifirlanacagini tasir.");
+                "asildigini ve sayacin ne zaman sifirlanacagini tasir.")
+            // Basari yaniti her zaman SSE'dir; agent hicbir kosulda JSON govde
+            // olarak calisma sonucu dondurmez (bkz. AgentRunStream).
+            .Produces<string>(StatusCodes.Status200OK, contentType: "text/event-stream")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
     }
 
     private static async Task<Results<Ok<AgentVersionDiffResponse>, ProblemHttpResult>> GetVersionDiffAsync(

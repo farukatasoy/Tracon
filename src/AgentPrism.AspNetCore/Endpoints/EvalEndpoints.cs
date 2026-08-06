@@ -27,42 +27,50 @@ internal static class EvalEndpoints
         builder.MapGet("/api/evals", ListSuitesAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismListEvalSuites")
+            .WithTags("AgentPrism", "Evals")
             .WithSummary("Bir kiracinin eval takimlarini listeler.");
 
         builder.MapGet("/api/evals/{name}", GetSuiteAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismGetEvalSuite")
+            .WithTags("AgentPrism", "Evals")
             .WithSummary("Tek bir eval takimini getirir.");
 
         builder.MapPut("/api/evals/{name}", SaveSuiteAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismSaveEvalSuite")
+            .WithTags("AgentPrism", "Evals")
             .WithSummary("Eval takimi olusturur veya gunceller.")
             .WithDescription("Denetim tanimlari bildirimseldir; bilinmeyen bir denetim turu kosu aninda hataya donusur.");
 
         builder.MapDelete("/api/evals/{name}", DeleteSuiteAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismDeleteEvalSuite")
+            .WithTags("AgentPrism", "Evals")
             .WithSummary("Bir eval takimini siler (vakalar ve kosular birlikte).");
 
         builder.MapGet("/api/evals/{name}/cases", ListCasesAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismListEvalCases")
+            .WithTags("AgentPrism", "Evals")
             .WithSummary("Bir takimin vakalarini listeler.");
 
         builder.MapPut("/api/evals/{name}/cases", SaveCasesAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismSaveEvalCases")
+            .WithTags("AgentPrism", "Evals")
             .WithSummary("Bir takimin tum vakalarini verilen listeyle degistirir.");
 
         builder.MapDelete("/api/evals/{name}/cases", ClearCasesAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismClearEvalCases")
+            .WithTags("AgentPrism", "Evals")
             .WithSummary("Bir takimin tum vakalarini siler.");
 
         builder.MapPost("/api/evals/{name}/run", TriggerRunAsync)
             .RequireRole(roles.Operator)
             .WithName("AgentPrismTriggerEvalRun")
+            .WithTags("AgentPrism", "Evals")
             .WithSummary("Bir eval takimini simdi calistirir.")
             .WithDescription(
                 "Her vaka, olculen agent uzerinde yeni bir oturumda calisir ve kendi 'runs' " +
@@ -71,11 +79,13 @@ internal static class EvalEndpoints
         builder.MapGet("/api/evals/{name}/runs", ListRunsAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismListEvalRuns")
+            .WithTags("AgentPrism", "Evals")
             .WithSummary("Bir takimin gecmis kosularini listeler.");
 
         builder.MapGet("/api/evals/runs/{id:guid}", GetRunAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismGetEvalRun")
+            .WithTags("AgentPrism", "Evals")
             .WithSummary("Tek bir eval kosusunu ve vaka bazinda sonuclarini getirir.");
     }
 

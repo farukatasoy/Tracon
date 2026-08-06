@@ -21,6 +21,7 @@ internal static class CatalogEndpoints
                 => TypedResults.Ok(tools.List()))
             .RequireRole(roles.Reader)
             .WithName("AgentPrismListTools")
+            .WithTags("AgentPrism", "Agents")
             .WithSummary("Kayitli tool'lari ve JSON semalarini listeler.")
             .WithDescription(
                 "Tool'lar yalnizca kodda tanimlanir. Bu uc bir yazma yolu sunmaz; " +
@@ -44,6 +45,7 @@ internal static class CatalogEndpoints
             })
             .RequireRole(roles.Reader)
             .WithName("AgentPrismListModels")
+            .WithTags("AgentPrism", "Agents")
             .WithSummary("Kayitli model saglayicilarini ve modellerini listeler.")
             .WithDescription(
                 "Model katalogu yapilandirmadan gelir; AgentPrism yerlesik model listesi tasimaz. " +
@@ -72,6 +74,7 @@ internal static class CatalogEndpoints
             })
             .RequireRole(roles.Reader)
             .WithName("AgentPrismStats")
+            .WithTags("AgentPrism", "Agents")
             .WithSummary("Calistirma sayilarini, token toplamlarini ve hata oranini dondurur.")
             .WithDescription(
                 "Ozet deponun kendisinde hesaplanir. Maliyet (Faz 20) yalniz fiyat " +
@@ -127,6 +130,7 @@ internal static class CatalogEndpoints
             })
             .RequireRole(roles.Reader)
             .WithName("AgentPrismStatsTimeSeries")
+            .WithTags("AgentPrism", "Agents")
             .WithSummary("Kova basina calistirma, hata, token ve maliyet zaman serisi.")
             .WithDescription(
                 "Bos kovalar da doner. Varsayilan aralik son 24 saat, varsayilan kova " +
@@ -162,6 +166,7 @@ internal static class CatalogEndpoints
             })
             .RequireRole(roles.Admin)
             .WithName("AgentPrismRecalculateCosts")
+            .WithTags("AgentPrism", "Agents")
             .WithSummary("Tum calistirmalarin maliyetini guncel fiyat kaynagina gore yeniden hesaplar.")
             .WithDescription(
                 "Bakim ucudur. Fiyat sonradan tanimlandiginda gecmis calistirmalari " +

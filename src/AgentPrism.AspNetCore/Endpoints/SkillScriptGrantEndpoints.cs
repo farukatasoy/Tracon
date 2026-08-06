@@ -23,16 +23,19 @@ internal static class SkillScriptGrantEndpoints
         builder.MapGet("/api/skill-script-grants", ListAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismListSkillScriptGrants")
+            .WithTags("AgentPrism", "Governance")
             .WithSummary("Kiracinin script calistirma izinlerini listeler.");
 
         builder.MapPost("/api/skill-script-grants", GrantAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismGrantSkillScript")
+            .WithTags("AgentPrism", "Governance")
             .WithSummary("Bir skill script'ine calistirma izni verir.");
 
         builder.MapDelete("/api/skill-script-grants/{skillName}", RevokeAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismRevokeSkillScript")
+            .WithTags("AgentPrism", "Governance")
             .WithSummary("Bir script calistirma iznini iptal eder.");
     }
 

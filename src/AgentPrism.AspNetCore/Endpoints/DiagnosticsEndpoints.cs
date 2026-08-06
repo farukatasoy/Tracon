@@ -43,6 +43,7 @@ internal static class DiagnosticsEndpoints
             })
             .RequireRole(roles.Admin)
             .WithName("AgentPrismDiagnostics")
+            .WithTags("AgentPrism", "Diagnostics")
             .WithSummary("Kurulumun kendi kendini denetleyen ozet raporunu dondurur.")
             .WithDescription(
                 "Hicbir secret degeri tasimaz (K-059). Model saglayicisi durumu onbellekten " +

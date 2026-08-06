@@ -27,6 +27,7 @@ internal static class ModelHealthEndpoints
                 => TypedResults.Ok(await cache.GetAllAsync(refresh ?? false, cancellationToken).ConfigureAwait(false)))
             .RequireRole(roles.Reader)
             .WithName("AgentPrismModelsHealth")
+            .WithTags("AgentPrism", "Models")
             .WithSummary("Tum kayitli saglayicilarin onbellekli saglik durumunu dondurur.")
             .WithDescription(
                 "Bir saglayici IModelProviderHealthCheck uygulamiyorsa durumu Unknown'dir; " +
@@ -50,6 +51,7 @@ internal static class ModelHealthEndpoints
             })
             .RequireRole(roles.Reader)
             .WithName("AgentPrismModelHealth")
+            .WithTags("AgentPrism", "Models")
             .WithSummary("Tek bir saglayicinin onbellekli saglik durumunu dondurur.");
     }
 }

@@ -65,11 +65,24 @@ internal static class OpenAIResponsesEndpoints
                     cancellationToken))
             .RequireRole(roles.Operator)
             .WithName("AgentPrismOpenAIResponses")
+            .WithTags("AgentPrism", "OpenAI")
             .WithSummary("OpenAI Responses API ile uyumlu calistirma ucu.")
             .WithDescription(
                 "Agent, 'model' alanindan secilir; bulunamazsa 'metadata.entity_id' denenir. " +
                 "'conversation' verilirse oturum o kimlikle, verilmezse uretilen yanit kimligiyle " +
-                "saklanir; boylece 'previous_response_id' ile zincirleme calisir.");
+                "saklanir; boylece 'previous_response_id' ile zincirleme calisir.")
+            // Govdedeki 'stream' bayragina gore ikisinden biri: JSON govde (ham
+            // JsonElement, sema MAF'in OpenAIResponses.WriteResponse'undan gelir
+            // ve derleme zamaninda tipli degildir) veya SSE. Ayni statu kodu icin
+            // IKINCI bir .Produces cagrisi BIRINCIYI EZER (olculdu); ikisi tek
+            // cagriya additionalContentTypes ile yazilmalidir.
+            .Produces<JsonElement>(
+                StatusCodes.Status200OK,
+                contentType: "application/json",
+                additionalContentTypes: ["text/event-stream"])
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status400BadRequest)
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound)
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status502BadGateway);
     }
 
     private static async Task<IResult> HandleAsync(

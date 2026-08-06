@@ -1,3 +1,4 @@
+using System.IO;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -23,6 +24,7 @@ internal static class AttachmentEndpoints
         builder.MapPost("/api/attachments", UploadAsync)
             .RequireRole(roles.Operator)
             .WithName("AgentPrismUploadAttachment")
+            .WithTags("AgentPrism", "Attachments")
             .WithSummary("Yeni bir ek yukler.")
             .WithDescription(
                 "Govde 'multipart/form-data' olmalidir ve bir 'file' alani tasimalidir. " +
@@ -38,16 +40,23 @@ internal static class AttachmentEndpoints
         builder.MapGet("/api/attachments/{id:guid}", DownloadAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismDownloadAttachment")
-            .WithSummary("Bir ekin ham icerigini akitir.");
+            .WithTags("AgentPrism", "Attachments")
+            .WithSummary("Bir ekin ham icerigini akitir.")
+            // Ikili govde; gercek turu ekin kendi MediaType alanindan gelir ve
+            // derleme zamaninda bilinemez.
+            .Produces<Stream>(StatusCodes.Status200OK, contentType: "application/octet-stream")
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         builder.MapGet("/api/attachments", ListAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismListAttachments")
+            .WithTags("AgentPrism", "Attachments")
             .WithSummary("Ekleri listeler.");
 
         builder.MapDelete("/api/attachments/{id:guid}", DeleteAsync)
             .RequireRole(roles.Operator)
             .WithName("AgentPrismDeleteAttachment")
+            .WithTags("AgentPrism", "Attachments")
             .WithSummary("Bir eki siler.");
     }
 

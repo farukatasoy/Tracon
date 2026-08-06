@@ -25,16 +25,19 @@ internal static class ExperimentEndpoints
         builder.MapGet("/api/experiments", ListAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismListExperiments")
+            .WithTags("AgentPrism", "Experiments")
             .WithSummary("Bir kiracinin A/B deneylerini listeler.");
 
         builder.MapGet("/api/experiments/{name}", GetAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismGetExperiment")
+            .WithTags("AgentPrism", "Experiments")
             .WithSummary("Tek bir A/B deneyini getirir.");
 
         builder.MapPut("/api/experiments/{name}", SaveAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismSaveExperiment")
+            .WithTags("AgentPrism", "Experiments")
             .WithSummary("Deney olusturur veya gunceller.")
             .WithDescription(
                 "Yalnizca ayni agent'in surumleri arasinda deney kurulabilir; kod kaynakli " +
@@ -43,22 +46,26 @@ internal static class ExperimentEndpoints
         builder.MapDelete("/api/experiments/{name}", DeleteAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismDeleteExperiment")
+            .WithTags("AgentPrism", "Experiments")
             .WithSummary("Bir deneyi siler. Calisan bir deney once durdurulmalidir.");
 
         builder.MapPost("/api/experiments/{name}/start", StartAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismStartExperiment")
+            .WithTags("AgentPrism", "Experiments")
             .WithSummary("Deneyi baslatir; trafik agirliklara gore bolunmeye baslar.")
             .WithDescription("Ayni agent icin ayni anda tek deney calisabilir.");
 
         builder.MapPost("/api/experiments/{name}/stop", StopAsync)
             .RequireRole(roles.Admin)
             .WithName("AgentPrismStopExperiment")
+            .WithTags("AgentPrism", "Experiments")
             .WithSummary("Deneyi durdurur; yeni calistirmalar guncel surume gider.");
 
         builder.MapGet("/api/experiments/{name}/results", GetResultsAsync)
             .RequireRole(roles.Reader)
             .WithName("AgentPrismGetExperimentResults")
+            .WithTags("AgentPrism", "Experiments")
             .WithSummary("Kol bazinda sayi, hata orani, token ve sure ozetini getirir.")
             .WithDescription("Istatistiksel bir 'kazanan' iddiasi yoktur; ham sayilar gosterilir.");
     }
