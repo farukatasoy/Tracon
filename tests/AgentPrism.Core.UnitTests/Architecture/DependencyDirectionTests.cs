@@ -11,8 +11,9 @@ namespace AgentPrism.Core.UnitTests.Architecture;
 ///                       |  -- OpenAI
 ///                       |  -- Mcp
 ///                       +----- AspNetCore -- UI
-///                                              |
-///                                       AgentPrism (meta)
+///                       |         |            |
+///                       |         |     AgentPrism (meta)
+///                       +----- Testing (test yardimcisi; meta pakete BAGLANMAZ)
 ///
 /// Bu grafigi bozan bir ProjectReference eklemek yasaktir.
 /// Gerekce: docs/MIMARI.md, bolum 2.
@@ -50,6 +51,10 @@ public sealed class DependencyDirectionTests
         ["AgentPrism.Workflows"] = ["AgentPrism.Core"],
         ["AgentPrism.AspNetCore"] = ["AgentPrism.Core"],
         ["AgentPrism.UI"] = ["AgentPrism.AspNetCore"],
+        // Testing test-yardimci paketidir: meta pakete BAGLANMAZ (bolum 39.1).
+        // AspNetCore'a baglanir cunku tuketicinin en cok isteyecegi tip bellek
+        // ici host fixture'idir ve o, uclari kuran paketi gerektirir.
+        ["AgentPrism.Testing"] = ["AgentPrism.Core", "AgentPrism.AspNetCore"],
         ["AgentPrism"] = ["AgentPrism.AspNetCore", "AgentPrism.Mcp", "AgentPrism.OpenAI", "AgentPrism.PostgreSql", "AgentPrism.UI", "AgentPrism.Workflows"],
     };
 

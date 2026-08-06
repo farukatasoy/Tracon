@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using AgentPrism.Testing;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -87,7 +88,8 @@ internal sealed class AgentPrismTestHost : IAsyncDisposable
         configureServices?.Invoke(builder.Services);
 
         var agentPrism = builder.Services.AddAgentPrism();
-        agentPrism.AddModelProvider(new EchoModelProvider());
+        // "echo" adi TestData.Definition()'daki sabit ModelBinding.Provider ile eslesir.
+        agentPrism.AddModelProvider(new FakeModelProvider("echo").EchoesUserMessage());
         configureAgentPrism?.Invoke(agentPrism);
 
         var app = builder.Build();

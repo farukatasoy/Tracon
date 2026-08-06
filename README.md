@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici kendi AI harness'ini kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 38 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**, `dotnet new agentprism-api` ile sıfırdan başlatılabilir. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; riskli tool onay bekler, workflow insanla konuşur; kullanım kotalanır, eski veri silinir; kurulum kendini `/health` ile denetler; agent JSON şemalı çıktı üretebilir. Veritabanı/model isteğe bağlı. Faz 8–38 bitti; [kalan](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlanır (Faz 39–52).
+> **Durum:** Faz 39 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**, `dotnet new agentprism-api` ile başlatılabilir; `AgentPrism.Testing` ile gerçek model çağırmadan test edilebilir. Çalıştırmalar span/metrik/maliyetle kaydedilir. Veritabanı/model isteğe bağlı. Faz 8-39 bitti; [kalan](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlı.
 
 ```csharp
 builder.AddAgentPrism()
@@ -170,8 +170,9 @@ AgentPrism bu boşluğu doldurur. DevUI'nin yerine geçmez — bıraktığı yer
 | `AgentPrism.AspNetCore` | ✅ HTTP katmanı — yönetim API'si, OpenAI uyumlu uçlar, çok kiracılılık |
 | `AgentPrism.UI` | ✅ Gömülü React arayüzü — sekiz ekran, sıfır JavaScript bağımlılığı |
 | `AgentPrism.Templates` | ✅ `dotnet new agentprism-api` şablonu — meta pakete dâhil değil |
+| `AgentPrism.Testing` | ✅ `FakeModelProvider`/`AgentPrismTestHost`/`RunAssertions`; çerçeveden bağımsız, meta pakete dâhil değil |
 
-**Hedef framework:** `net8.0`, `net9.0`, `net10.0` · **Lisans:** MIT
+**Hedef framework:** `net8.0`/`net9.0`/`net10.0` · **Lisans:** MIT
 
 ---
 

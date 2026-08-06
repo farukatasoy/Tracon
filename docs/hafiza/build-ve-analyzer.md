@@ -84,3 +84,30 @@
   cift onegi uretir; `PackagePath`'i acikca `content/%(RecursiveDir)%(Filename)%(Extension)`
   ile yazip `ContentTargetFolders`'i HIC kullanmamak tek katmanli dogru sonucu
   verir.
+- **🚨 `dotnet pack <cozum>` TUM cozumdeki her projeyi (test projeleri dahil)
+  restore+build eder, yalniz paketlenebilir olanlari degil** (2026-08-06,
+  Faz 39): `TemplateFixture` (Faz 37) sablon testleri icin yerel NuGet
+  besleme uretmek amaciyla `dotnet pack AgentPrism.slnx -c Release`
+  cagiriyordu. Cozum 16 `src/` paketinin yaninda 13 test projesi
+  (Postgres/SqlServer/Sqlite container'li entegrasyon testleri, Playwright
+  E2E dahil) barindirir; `dotnet pack` bir cozum dosyasi aldiginda HER proje
+  icin Pack hedefini calistirir — paketlenemeyen projelerde Pack hedefi
+  no-op'tur ama Build ONA BAGIMLI oldugu icin YINE DE calisir. Olculdu:
+  Templates.Tests'in tek basina calismasi ~1 saat surdu, bunun buyuk kismi
+  bu gereksiz 13 test projesi derlemesiydi (`artifacts/package/release`
+  zaman damgalari bir `dotnet pack` cagrisinin 20-35 dakika surdugunu
+  gosterdi). Cozum: repo koku `AgentPrism.src.slnf` (yalniz 16 `src/`
+  projesini listeleyen bir cozum FILTRESI) eklendi; `dotnet sln <filtre>.slnf`
+  `.slnx` formatini da destekler (.NET 10 SDK ile dogrulandi).
+  `TemplateFixture` artik `AgentPrism.slnx` yerine bu filtreyi paketler —
+  warm pack ~30 saniyeye dustu, toplam sure ~15 dakikaya (kalan sure gercek
+  is: npm/frontend derlemesi + uretilen 3 projenin gercek NuGet restore'u).
+- **`Microsoft.AspNetCore.TestHost` paket surumu barindirma framework'uyle
+  BIREBIR eslenir — tek bir surum coklu TFM'i desteklemez** (2026-08-06,
+  Faz 39): `AgentPrism.Testing` bellek ici host fixture'i icin bu paketi
+  aldi; merkezi surum 10.0.10 yalniz `net10.0` destekler (`NU1202`,
+  net8.0/net9.0'da basarisiz). `src/Directory.Build.props`'tan miras kalan
+  `TargetFrameworks=net8.0;net9.0;net10.0` COĞUL ozelligi projede
+  `<TargetFrameworks>net10.0</TargetFrameworks>` (yine coğul, tekil
+  `TargetFramework` DEGIL — K-263'un `dotnet pack` capraz-hedefleme
+  tuzagiyla ayni gerekce) ile ezilerek tek TFM'e sabitlendi.

@@ -1,9 +1,30 @@
+using AgentPrism.Testing;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace AgentPrism.Ui.E2ETests.Infrastructure;
+
+/// <summary>
+/// <see cref="UiHost"/>'un sahte saglayicisindaki model adlari. Uc ayri model,
+/// uc ayri bagimsiz yanit kuyrugu tasir (<see cref="FakeModelProvider.ForModel"/>);
+/// aralarinda paylasilan durum yoktur.
+/// </summary>
+internal static class ScriptedModels
+{
+    /// <summary>Saglayici adi.</summary>
+    public const string ProviderName = "scripted";
+
+    /// <summary>Arayuzden olusturulan ad-hoc agent'larin kullandigi varsayilan model: yalniz yankilar.</summary>
+    public const string Default = "scripted-1";
+
+    /// <summary>"support" kod agent'inin modeli: once siparis durumu tool'unu cagirir, sonra yankilar.</summary>
+    public const string Support = "scripted-support";
+
+    /// <summary>"yonlendirici" kod agent'inin modeli: arka plan gorev tool'lariyla devreder, sonra yankilar.</summary>
+    public const string Router = "scripted-router";
+}
 
 /// <summary>
 /// AgentPrism'i gercek bir Kestrel sunucusunda ayaga kaldirir.
@@ -23,9 +44,9 @@ namespace AgentPrism.Ui.E2ETests.Infrastructure;
 internal sealed class UiHost : IAsyncDisposable
 {
     private readonly WebApplication _app;
-    private readonly ScriptedModelProvider _provider;
+    private readonly FakeModelProvider _provider;
 
-    private UiHost(WebApplication app, ScriptedModelProvider provider, string baseAddress, string prefix)
+    private UiHost(WebApplication app, FakeModelProvider provider, string baseAddress, string prefix)
     {
         _app = app;
         _provider = provider;
@@ -61,7 +82,17 @@ internal sealed class UiHost : IAsyncDisposable
 
         configureServices?.Invoke(builder.Services);
 
-        var provider = new ScriptedModelProvider();
+        var provider = new FakeModelProvider(ScriptedModels.ProviderName)
+            .ForModel(ScriptedModels.Default, cfg => cfg.EchoesUserMessage())
+            .ForModel(ScriptedModels.Support, cfg => cfg
+                .CallsTool("get_order_status", new { orderId = "ORD-7" })
+                .EchoesUserMessage())
+            .ForModel(ScriptedModels.Router, cfg => cfg
+                .CallsTool(
+                    "background_agents_start_task",
+                    new { agentName = "support", input = "ORD-7 nerede", description = "siparis durumu arastirmasi" })
+                .CallsTool("background_agents_wait_for_first_completion", new { taskIds = new[] { 1 } })
+                .EchoesUserMessage());
 
         // Ses uclarinin ihtiyaci yalnizca bu soyutlamalardir; AgentPrism.Voice
         // paketine referans YOKTUR. Tek ornek ikisine birden baglanir.
@@ -88,8 +119,8 @@ internal sealed class UiHost : IAsyncDisposable
                 Instructions = "Kisa yanit ver.",
                 Model = new ModelBinding
                 {
-                    Provider = ScriptedModelProvider.ProviderName,
-                    Model = ScriptedModelProvider.ModelName,
+                    Provider = ScriptedModels.ProviderName,
+                    Model = ScriptedModels.Support,
                 },
                 ToolNames = ["get_order_status"],
                 Origin = AgentDefinitionOrigin.Code,
@@ -102,8 +133,8 @@ internal sealed class UiHost : IAsyncDisposable
                 Instructions = "Gerekirse support agent'ini cagir.",
                 Model = new ModelBinding
                 {
-                    Provider = ScriptedModelProvider.ProviderName,
-                    Model = ScriptedModelProvider.ModelName,
+                    Provider = ScriptedModels.ProviderName,
+                    Model = ScriptedModels.Router,
                 },
                 CallableAgentNames = ["support"],
                 Origin = AgentDefinitionOrigin.Code,

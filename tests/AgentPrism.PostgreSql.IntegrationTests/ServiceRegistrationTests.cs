@@ -1,5 +1,6 @@
 using AgentPrism.PostgreSql.IntegrationTests.Infrastructure;
 using AgentPrism.StoreContracts;
+using AgentPrism.Testing;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -114,7 +115,7 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
         var services = new ServiceCollection();
         services.AddSingleton(context.TenantContext);
         services.AddAgentPrism()
-            .AddModelProvider(new EchoModelProvider())
+            .AddModelProvider(new FakeModelProvider("echo").EchoesUserMessage())
             .UsePostgreSql(options =>
             {
                 options.ConnectionString = fixture.ConnectionString;

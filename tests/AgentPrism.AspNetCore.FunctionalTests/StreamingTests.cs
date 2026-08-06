@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
+using FakeModelProvider = AgentPrism.Testing.FakeModelProvider;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
@@ -59,9 +60,9 @@ public sealed class StreamingTests
         }
 
         // Ikinci cagrida modele giden mesajlar ilk turu de icermelidir.
-        var echo = host.Services.GetServices<IModelProvider>().OfType<EchoModelProvider>().Single();
+        var echo = host.Services.GetServices<IModelProvider>().OfType<FakeModelProvider>().Single();
 
-        echo.LastRequest
+        echo.Requests[^1].Messages
             .Select(static message => message.Text)
             .ShouldContain(static text => string.Equals(text, "ilk", StringComparison.Ordinal));
     }

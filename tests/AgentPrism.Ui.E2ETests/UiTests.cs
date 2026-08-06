@@ -237,7 +237,7 @@ public sealed class UiTests(BrowserFixture browsers)
 
         await session.Page.GetByTestId("agent-name").FillAsync("ui-agent");
         await session.Page.GetByTestId("agent-display-name").FillAsync("Console agent");
-        await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModelProvider.ModelName);
+        await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
 
         await session.Page.GetByTestId("agent-save").ClickAsync();
 
@@ -261,7 +261,7 @@ public sealed class UiTests(BrowserFixture browsers)
         await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
 
         await session.Page.GetByTestId("agent-name").FillAsync("baglam-agenti");
-        await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModelProvider.ModelName);
+        await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
 
         // Strateji secilene kadar koşullu alanlar (tetikleyici vb.) gorunmez.
         (await session.Page.GetByLabel("Trigger: message count").CountAsync()).ShouldBe(0);
@@ -482,7 +482,7 @@ public sealed class UiTests(BrowserFixture browsers)
 
         await session.Page.GotoAsync($"{host.UiAddress}/models");
 
-        // ScriptedModelProvider IModelProviderHealthCheck uygulamaz; bu bir hata
+        // FakeModelProvider IModelProviderHealthCheck uygulamaz; bu bir hata
         // degildir ve rozet "unknown" gostermelidir. Faz 6'dan kalan "provider
         // connectivity checks are still missing" notu artik ekranda olmamalidir.
         await session.Page.GetByText("unknown", new() { Exact = true }).First.WaitForAsync(new() { Timeout = 10_000 });
@@ -528,7 +528,7 @@ public sealed class UiTests(BrowserFixture browsers)
             {
                 name = "audit-e2e",
                 instructions = "test",
-                model = new { provider = ScriptedModelProvider.ProviderName, model = ScriptedModelProvider.ModelName },
+                model = new { provider = ScriptedModels.ProviderName, model = ScriptedModels.Default },
                 toolNames = Array.Empty<string>(),
             }))
         {
@@ -772,7 +772,7 @@ public sealed class UiTests(BrowserFixture browsers)
 
         await session.Page.GetByPlaceholder("customer-support-suite").FillAsync("e2e-eval-takimi");
         // "support" betiklenmis modelde tool'suz calisir ve girdiyi
-        // "Echo: {sorgu}" olarak aynen yansitir (ScriptedModelProvider) — bu
+        // "Echo: {sorgu}" olarak aynen yansitir (FakeModelProvider) — bu
         // yuzden varsayilan nonEmpty denetimi guvenilir sekilde gecer.
         await session.Page.GetByPlaceholder("customer-support-agent").FillAsync("support");
 
@@ -1140,7 +1140,7 @@ public sealed class UiTests(BrowserFixture browsers)
         await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
         await session.Page.GetByTestId("agent-name").FillAsync(name);
         await session.Page.GetByTestId("agent-instructions").FillAsync(firstInstructions);
-        await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModelProvider.ModelName);
+        await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
         await session.Page.GetByTestId("agent-save").ClickAsync();
 
         await session.Page.GetByRole(AriaRole.Heading, new() { Name = name }).WaitForAsync(new() { Timeout = 15_000 });
