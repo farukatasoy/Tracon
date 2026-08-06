@@ -134,6 +134,16 @@ internal static class RunEndpoints
                 "Baglanti koparsa istemci 'Last-Event-ID' basligiyla kaldigi sira numarasindan devam eder. " +
                 "Calistirma hala suruyorsa akis tamamlanana kadar acik kalir.");
 
+        builder.MapPost("/api/runs/{runId:guid}/cancel", CancelRunAsync)
+            .RequireRole(roles.Operator)
+            .WithName("AgentPrismCancelRun")
+            .WithSummary("Suren bir calistirmanin iptalini ister.")
+            .WithDescription(
+                "202 yalnizca iptal ISTENDIGINI bildirir; nihai durum 'GET /api/runs/{id}' ile okunur. " +
+                "Calistirma bu ornekte yurutulmuyorsa (baska bir ornek veya yeniden baslamis surec) 409 doner. " +
+                "Kok calistirmanin iptali agactaki tum alt calistirmalari da durdurur; bir alt calistirmanin " +
+                "tek basina iptali koku etkilemez.");
+
         builder.MapPost("/api/runs/{runId:guid}/feedback", SaveFeedbackAsync)
             .RequireRole(roles.Operator)
             .WithName("AgentPrismSaveRunFeedback")
@@ -215,6 +225,71 @@ internal static class RunEndpoints
             cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Ok(saved);
+    }
+
+    /// <summary>
+    /// Suren bir calistirmanin iptalini ister.
+    /// </summary>
+    /// <remarks>
+    /// Uc davranisi (bkz. docs/32-CALISTIRMA-IPTALI.md, bolum 32.2):
+    /// <list type="bullet">
+    /// <item>Calistirma yoksa veya baska bir kiraciya aitse <c>404</c> (varlik sizdirmamak icin ikisi ayni).</item>
+    /// <item>Calistirma defterde varsa kaynak iptal edilir ve <c>202</c> doner.</item>
+    /// <item>
+    /// Calistirma <c>runs</c>'ta <see cref="RunStatus.Running"/> ama defterde yoksa
+    /// bu ornek onu yurutmuyor demektir; <c>409</c> doner.
+    /// </item>
+    /// <item>Calistirma zaten sonlanmissa <c>409</c> doner ve mevcut durum yazilir.</item>
+    /// </list>
+    /// </remarks>
+    private static async Task<Results<Accepted<RunRecord>, ProblemHttpResult>> CancelRunAsync(
+        Guid runId,
+        [FromServices] IRunStore runs,
+        [FromServices] IRunCancellationRegistry cancellations,
+        [FromServices] ITenantContext tenants,
+        [FromServices] IAuditLog auditLog,
+        [FromServices] IAuditActorResolver actorResolver,
+        [FromServices] ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
+
+        // "Yok" ile "baska kiraciya ait" AYNI 404'u doner; ayri bir mesaj
+        // varlik sizdirirdi (ayni gerekce SaveFeedbackAsync'te de gecerlidir).
+        if (run is null || !string.Equals(run.TenantId, tenants.TenantId, StringComparison.Ordinal))
+        {
+            return NotFound(runId);
+        }
+
+        if (!cancellations.TryCancel(runId, tenants.TenantId))
+        {
+            return run.Status == RunStatus.Running
+                ? TypedResults.Problem(
+                    title: "Calistirma bu ornekte yurutulmuyor",
+                    detail: $"'{runId}' kimlikli calistirma 'Running' gorunuyor ama bu surecte kayitli degil. " +
+                            "Baska bir ornekte calisiyor olabilir veya surec calistirma sirasinda yeniden baslamis olabilir.",
+                    statusCode: StatusCodes.Status409Conflict)
+                : TypedResults.Problem(
+                    title: "Calistirma zaten sonlanmis",
+                    detail: $"'{runId}' kimlikli calistirma zaten '{run.Status}' durumunda.",
+                    statusCode: StatusCodes.Status409Conflict);
+        }
+
+        await AuditRecorder.WriteAsync(
+            auditLog,
+            actorResolver,
+            loggerFactory.CreateLogger("AgentPrism.RunEndpoints"),
+            tenants.TenantId,
+            action: "run.cancel",
+            entity: $"run:{runId}",
+            before: null,
+            after: null,
+            cancellationToken).ConfigureAwait(false);
+
+        // 202: iptal yalniz ISTENDI. cts.Cancel() bir garanti degildir; agent
+        // belirteci bir sonraki denetim noktasinda gorur. Nihai durum
+        // 'GET /api/runs/{id}' ile okunur.
+        return TypedResults.Accepted($"/api/runs/{runId}", run);
     }
 
     private static async Task<Results<Ok<IReadOnlyList<RunScore>>, ProblemHttpResult>> ListFeedbackAsync(

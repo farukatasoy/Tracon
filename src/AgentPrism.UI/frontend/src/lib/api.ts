@@ -272,6 +272,12 @@ export const api = {
   runTrace: (id: string) => request<RunTrace>(`api/runs/${encodeURIComponent(id)}/trace`),
   runToolInvocations: (id: string) =>
     request<ToolInvocationRecord[]>(`api/runs/${encodeURIComponent(id)}/tools`),
+  /**
+   * Requests cancellation of a running run. A 202 only means cancellation was
+   * requested — the final status is read back from `run()`/the event stream.
+   */
+  cancelRun: (id: string) =>
+    request<RunRecord>(`api/runs/${encodeURIComponent(id)}/cancel`, { method: 'POST' }),
   runFeedback: (id: string) =>
     request<RunScore[]>(`api/runs/${encodeURIComponent(id)}/feedback`),
   saveRunFeedback: (id: string, body: RunFeedbackRequest) =>

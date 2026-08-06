@@ -23,6 +23,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
     private readonly IRunPricingResolver? _pricingResolver;
     private readonly QuotaEnforcer? _quotaEnforcer;
     private readonly IWebhookPublisher? _webhookPublisher;
+    private readonly IRunCancellationRegistry? _cancellationRegistry;
 
     /// <summary>Yeni bir kayit dekoratoru olusturur.</summary>
     /// <param name="runStore">Olaylarin yazilacagi depo.</param>
@@ -35,6 +36,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
     /// <param name="pricingResolver">Maliyet cozumleyici. <see langword="null"/> ise maliyet hesaplanmaz.</param>
     /// <param name="quotaEnforcer">Kota muhasebecisi. <see langword="null"/> ise tuketim sayilmaz.</param>
     /// <param name="webhookPublisher">Olay yayincisi. <see langword="null"/> ise olay yayilmaz.</param>
+    /// <param name="cancellationRegistry">Iptal defteri. <see langword="null"/> ise calistirma disaridan iptal edilemez.</param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
     public RunRecordingAgentDecorator(
         IRunStore runStore,
@@ -46,7 +48,8 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
         TimeProvider? timeProvider = null,
         IRunPricingResolver? pricingResolver = null,
         QuotaEnforcer? quotaEnforcer = null,
-        IWebhookPublisher? webhookPublisher = null)
+        IWebhookPublisher? webhookPublisher = null,
+        IRunCancellationRegistry? cancellationRegistry = null)
     {
         ArgumentNullException.ThrowIfNull(runStore);
         ArgumentNullException.ThrowIfNull(tenantContext);
@@ -63,6 +66,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
         _pricingResolver = pricingResolver;
         _quotaEnforcer = quotaEnforcer;
         _webhookPublisher = webhookPublisher;
+        _cancellationRegistry = cancellationRegistry;
     }
 
     /// <inheritdoc />
@@ -93,6 +97,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
             _options.Value.Observability.IncludeAgentVersionTag,
             _pricingResolver,
             _quotaEnforcer,
-            _webhookPublisher);
+            _webhookPublisher,
+            _cancellationRegistry);
     }
 }

@@ -415,6 +415,10 @@ export const tr: Messages = {
   'runDetail.notMeasured': 'ölçülmedi',
   'runDetail.streamed': 'akışlı',
   'runDetail.nonStreaming': 'akışsız',
+  'runDetail.cancel.button': 'Çalıştırmayı iptal et',
+  'runDetail.cancel.confirm': 'Bu çalıştırma iptal edilsin mi? Agent bir sonraki denetim noktasında durur.',
+  'runDetail.cancel.requested': 'İptal istendi — çalıştırma kısa süre içinde duracak.',
+  'runDetail.cancel.conflict': 'Bu çalıştırma iptal edilemedi: bu örnekte yürütülmüyor veya zaten sonlanmış.',
 
   /* ----------------------------------------------------------- feedback */
   'feedback.title': 'Geri bildirim',
