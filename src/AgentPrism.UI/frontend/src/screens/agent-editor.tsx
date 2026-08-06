@@ -19,6 +19,7 @@ import {
 } from '../components/ui';
 import type {
   AgentDefinitionRequest,
+  AgentResponseFormat,
   AgentValidationReport,
   CompactionSettings,
   CompactionStrategyKind,
@@ -29,6 +30,21 @@ import type {
 } from '../lib/types';
 
 const REASONING_EFFORTS = ['', 'None', 'Low', 'Medium', 'High', 'ExtraHigh'] as const;
+
+const RESPONSE_FORMAT_KINDS = ['', 'Text', 'Json', 'JsonSchema'] as const;
+type ResponseFormatKindOption = (typeof RESPONSE_FORMAT_KINDS)[number];
+
+const DEFAULT_SCHEMA_TEXT = '{\n  "type": "object",\n  "properties": {}\n}';
+
+function isValidJson(text: string): boolean {
+  try {
+    JSON.parse(text);
+
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const COMPACTION_STRATEGIES: CompactionStrategyKind[] = [
   'None',
@@ -54,6 +70,10 @@ interface FormState {
   maxOutputTokens: string;
   topP: string;
   reasoningEffort: string;
+  responseFormatKind: ResponseFormatKindOption;
+  responseFormatSchema: string;
+  responseFormatSchemaName: string;
+  responseFormatSchemaDescription: string;
   toolNames: string[];
   skillNames: string[];
   callableAgentNames: string[];
@@ -74,6 +94,10 @@ const emptyForm: FormState = {
   maxOutputTokens: '',
   topP: '',
   reasoningEffort: '',
+  responseFormatKind: '',
+  responseFormatSchema: DEFAULT_SCHEMA_TEXT,
+  responseFormatSchemaName: '',
+  responseFormatSchemaDescription: '',
   toolNames: [],
   skillNames: [],
   callableAgentNames: [],
@@ -93,6 +117,26 @@ function toNumber(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function toResponseFormat(form: FormState): AgentResponseFormat | null {
+  if (form.responseFormatKind === '') {
+    return null;
+  }
+
+  if (form.responseFormatKind !== 'JsonSchema') {
+    return { kind: form.responseFormatKind };
+  }
+
+  return {
+    kind: 'JsonSchema',
+    // Invalid JSON is left out here; the schema textbox shows its own error
+    // and the save/validate buttons are disabled until it parses.
+    schema: isValidJson(form.responseFormatSchema) ? JSON.parse(form.responseFormatSchema) : undefined,
+    schemaName: form.responseFormatSchemaName.trim().length > 0 ? form.responseFormatSchemaName.trim() : null,
+    schemaDescription:
+      form.responseFormatSchemaDescription.trim().length > 0 ? form.responseFormatSchemaDescription.trim() : null,
+  };
+}
+
 function toRequest(form: FormState): AgentDefinitionRequest {
   const model: ModelBinding = {
     provider: form.provider.trim(),
@@ -101,6 +145,7 @@ function toRequest(form: FormState): AgentDefinitionRequest {
     maxOutputTokens: toNumber(form.maxOutputTokens),
     topP: toNumber(form.topP),
     reasoningEffort: form.reasoningEffort.length > 0 ? form.reasoningEffort : null,
+    responseFormat: toResponseFormat(form),
   };
 
   return {
@@ -173,6 +218,13 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
       maxOutputTokens: definition.model.maxOutputTokens?.toString() ?? '',
       topP: definition.model.topP?.toString() ?? '',
       reasoningEffort: definition.model.reasoningEffort ?? '',
+      responseFormatKind: definition.model.responseFormat?.kind ?? '',
+      responseFormatSchema:
+        definition.model.responseFormat?.schema !== undefined && definition.model.responseFormat?.schema !== null
+          ? JSON.stringify(definition.model.responseFormat.schema, null, 2)
+          : DEFAULT_SCHEMA_TEXT,
+      responseFormatSchemaName: definition.model.responseFormat?.schemaName ?? '',
+      responseFormatSchemaDescription: definition.model.responseFormat?.schemaDescription ?? '',
       toolNames: [...definition.toolNames],
       skillNames: [...definition.skillNames],
       callableAgentNames: [...(definition.callableAgentNames ?? [])],
@@ -214,7 +266,12 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
   }
 
   const models = providers.data?.find((provider) => provider.name === form.provider)?.models ?? [];
-  const valid = request.name.length > 0 && request.model.provider.length > 0 && request.model.model.length > 0;
+  const schemaJsonValid = form.responseFormatKind !== 'JsonSchema' || isValidJson(form.responseFormatSchema);
+  const valid =
+    request.name.length > 0 &&
+    request.model.provider.length > 0 &&
+    request.model.model.length > 0 &&
+    schemaJsonValid;
 
   return (
     <>
@@ -367,6 +424,49 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
                   ))}
                 </Select>
               </Field>
+              <Field label={t('fields.responseFormatKind')} hint={t('agentEditor.responseFormatHint')}>
+                <Select
+                  value={form.responseFormatKind}
+                  onChange={(value) => setForm({ ...form, responseFormatKind: value as ResponseFormatKindOption })}
+                >
+                  {RESPONSE_FORMAT_KINDS.map((kind) => (
+                    <option key={kind} value={kind}>
+                      {kind.length === 0 ? t('agentEditor.responseFormatOff') : kind}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+
+              {form.responseFormatKind === 'JsonSchema' && (
+                <>
+                  <Field label={t('fields.schemaName')}>
+                    <TextInput
+                      value={form.responseFormatSchemaName}
+                      placeholder="invoice"
+                      onChange={(event) => setForm({ ...form, responseFormatSchemaName: event.target.value })}
+                    />
+                  </Field>
+                  <Field label={t('fields.schemaDescription')}>
+                    <TextInput
+                      value={form.responseFormatSchemaDescription}
+                      onChange={(event) => setForm({ ...form, responseFormatSchemaDescription: event.target.value })}
+                    />
+                  </Field>
+                  <div className="sm:col-span-2">
+                    <Field
+                      label={t('fields.schema')}
+                      hint={t('agentEditor.schemaHint')}
+                    >
+                      <TextArea
+                        rows={6}
+                        value={form.responseFormatSchema}
+                        onChange={(event) => setForm({ ...form, responseFormatSchema: event.target.value })}
+                      />
+                    </Field>
+                    {!schemaJsonValid && <ErrorNote error={new Error(t('agentEditor.schemaError'))} />}
+                  </div>
+                </>
+              )}
             </div>
           </Panel>
 

@@ -333,6 +333,10 @@ function VersionCompare({ name, a, b }: { name: string; a: number; b: number }):
                   maxOutputTokens: { label: t('fields.maxOutputTokens') },
                   topP: { label: t('fields.topP') },
                   reasoningEffort: { label: t('fields.reasoningEffort') },
+                  responseFormat: {
+                    label: t('fields.responseFormatKind'),
+                    format: (value) => (value as { kind: string }).kind,
+                  },
                 }}
               />
             </Section>

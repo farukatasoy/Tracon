@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Compaction;
 using Microsoft.Extensions.AI;
@@ -289,7 +290,7 @@ public sealed class AgentDefinitionCompiler
         return tools;
     }
 
-    private static ChatOptions BuildChatOptions(AgentDefinition definition, List<AITool> tools)
+    private ChatOptions BuildChatOptions(AgentDefinition definition, List<AITool> tools)
     {
         var options = new ChatOptions
         {
@@ -310,7 +311,121 @@ public sealed class AgentDefinitionCompiler
             options.Reasoning = new ReasoningOptions { Effort = effort };
         }
 
+        options.ResponseFormat = BuildResponseFormat(definition);
+
         return options;
+    }
+
+    /// <summary>
+    /// <see cref="ModelBinding.ResponseFormat"/>'i <see cref="ChatResponseFormat"/>'a cevirir.
+    /// </summary>
+    /// <remarks>
+    /// Gecersiz bir kombinasyon sessizce yok sayilmaz (K-034'un deseni): kip
+    /// <see cref="AgentResponseFormatKind.JsonSchema"/> iken sema eksikse, digger
+    /// kiplerde sema doluysa veya sema bir JSON nesnesi degilse derleme durur.
+    /// Yalniz <c>ForJsonSchema(JsonElement, ...)</c> asiri yuklemesi kullanilir —
+    /// <c>Type</c> veya <c>JsonSerializerOptions</c> alan asiri yuklemeler
+    /// yansimaya dayanir ve AOT duruşunu bozar (bkz. docs/38-YAPILANDIRILMIS-CIKTI.md, 38.4).
+    /// </remarks>
+    private ChatResponseFormat? BuildResponseFormat(AgentDefinition definition)
+    {
+        var format = definition.Model.ResponseFormat;
+
+        if (format is null)
+        {
+            return null;
+        }
+
+        if (format.Kind == AgentResponseFormatKind.JsonSchema)
+        {
+            if (format.Schema is not { } schema)
+            {
+                throw new AgentPrismCompilationException(
+                    $"'{definition.Name}' agent'i JsonSchema cikti kipini secti ancak " +
+                    $"{nameof(AgentResponseFormat.Schema)} vermedi.")
+                {
+                    AgentName = definition.Name,
+                };
+            }
+
+            if (schema.ValueKind != JsonValueKind.Object)
+            {
+                throw new AgentPrismCompilationException(
+                    $"'{definition.Name}' agent'inin {nameof(AgentResponseFormat.Schema)} alani bir JSON " +
+                    "nesnesi olmalidir.")
+                {
+                    AgentName = definition.Name,
+                };
+            }
+
+            CheckStructuredOutputCapability(definition);
+
+            return ChatResponseFormat.ForJsonSchema(schema, format.SchemaName, format.SchemaDescription);
+        }
+
+        if (format.Schema is not null)
+        {
+            throw new AgentPrismCompilationException(
+                $"'{definition.Name}' agent'i '{format.Kind}' cikti kipini secti ancak " +
+                $"{nameof(AgentResponseFormat.Schema)} da verdi. Sema yalnizca JsonSchema kipinde kullanilir.")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
+        if (format.Kind == AgentResponseFormatKind.Json)
+        {
+            CheckStructuredOutputCapability(definition);
+
+            return ChatResponseFormat.Json;
+        }
+
+        return ChatResponseFormat.Text;
+    }
+
+    /// <summary>
+    /// Secili modelin yapilandirilmis cikti destekleyip desteklemedigini denetler.
+    /// </summary>
+    /// <remarks>
+    /// Model kataloğunda bulunamayan bir model icin denetim ATLANIR (K-032): model
+    /// adlari yapilandirmadan gelebilir ve katalog bir doğrulama listesi degildir.
+    /// Yalniz katalogda BULUNAN ve <see cref="ModelDescriptor.SupportsStructuredOutput"/>
+    /// degeri acikca <see langword="false"/> olan bir model derlemeyi durdurur.
+    /// </remarks>
+    private void CheckStructuredOutputCapability(AgentDefinition definition)
+    {
+        var descriptor = FindModelDescriptor(definition.Model.Provider, definition.Model.Model);
+
+        if (descriptor is { SupportsStructuredOutput: false })
+        {
+            throw new AgentPrismCompilationException(
+                $"'{definition.Name}' agent'inin modeli ('{definition.Model.Provider}/{definition.Model.Model}') " +
+                "yapilandirilmis cikti desteklemiyor.")
+            {
+                AgentName = definition.Name,
+            };
+        }
+    }
+
+    private ModelDescriptor? FindModelDescriptor(string provider, string model)
+    {
+        foreach (var providerDescriptor in _models.List())
+        {
+            if (!string.Equals(providerDescriptor.Name, provider, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            foreach (var descriptor in providerDescriptor.Models)
+            {
+                if (string.Equals(descriptor.Name, model, StringComparison.OrdinalIgnoreCase))
+                {
+                    return descriptor;
+                }
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

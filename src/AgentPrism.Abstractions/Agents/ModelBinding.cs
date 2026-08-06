@@ -69,4 +69,17 @@ public sealed record ModelBinding
     /// </remarks>
     public IReadOnlyDictionary<string, JsonElement> ProviderSettings { get; init; }
         = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Istenen cikti bicimi. <see langword="null"/> ise bugunku davranis degismez:
+    /// saglayiciya hicbir bicim kisiti gonderilmez.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="AgentResponseFormatKind.Text"/>, <see langword="null"/>'dan
+    /// farklidir: <see langword="null"/> "hicbir sey soyleme", <c>Text</c> "acikca
+    /// duz metin iste" demektir. Gecersiz bir kombinasyon (ornegin sema olmadan
+    /// <see cref="AgentResponseFormatKind.JsonSchema"/>) derleme aninda
+    /// <c>AgentPrismCompilationException</c> ile reddedilir.
+    /// </remarks>
+    public AgentResponseFormat? ResponseFormat { get; init; }
 }

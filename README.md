@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici kendi AI harness'ini kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 37 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**, `dotnet new agentprism-api` ile sıfırdan başlatılabilir. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; riskli tool onay bekler, workflow insanla konuşur; kullanım kotalanır, eski veri silinir; kurulum kendini `/health` ile denetler. Veritabanı/model isteğe bağlı. Faz 8–37 bitti; [kalan](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlanır (Faz 38–52).
+> **Durum:** Faz 38 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**, `dotnet new agentprism-api` ile sıfırdan başlatılabilir. Her çalıştırma span ağacı, metrik ve maliyetiyle kaydedilir; riskli tool onay bekler, workflow insanla konuşur; kullanım kotalanır, eski veri silinir; kurulum kendini `/health` ile denetler; agent JSON şemalı çıktı üretebilir. Veritabanı/model isteğe bağlı. Faz 8–38 bitti; [kalan](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlanır (Faz 39–52).
 
 ```csharp
 builder.AddAgentPrism()

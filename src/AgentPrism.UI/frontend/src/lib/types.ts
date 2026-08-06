@@ -79,6 +79,15 @@ export interface RoleMeta {
   canAdminister: boolean;
 }
 
+export type AgentResponseFormatKind = 'Text' | 'Json' | 'JsonSchema';
+
+export interface AgentResponseFormat {
+  kind: AgentResponseFormatKind;
+  schema?: unknown;
+  schemaName?: string | null;
+  schemaDescription?: string | null;
+}
+
 export interface ModelBinding {
   provider: string;
   model: string;
@@ -86,6 +95,7 @@ export interface ModelBinding {
   maxOutputTokens?: number | null;
   topP?: number | null;
   reasoningEffort?: string | null;
+  responseFormat?: AgentResponseFormat | null;
 }
 
 export interface HarnessSettings {
@@ -300,6 +310,7 @@ export interface ModelDescriptor {
   supportsStreaming: boolean;
   supportsTools: boolean;
   supportsReasoning: boolean;
+  supportsStructuredOutput: boolean;
   inputCostPerMillionTokens?: number | null;
   outputCostPerMillionTokens?: number | null;
 }
