@@ -59,6 +59,9 @@ public static class RetentionTargets
     /// <summary>Calistirma ve mesaj puanlari (Faz 31).</summary>
     public const string RunScores = "run_scores";
 
+    /// <summary>Saklanan idempotency yanitlari (Faz 43).</summary>
+    public const string IdempotencyKeys = "idempotency_keys";
+
     /// <summary>Taninan tum hedef adlari.</summary>
     public static IReadOnlyList<string> All { get; } =
     [
@@ -75,6 +78,7 @@ public static class RetentionTargets
         Conversations,
         VoiceSessions,
         RunScores,
+        IdempotencyKeys,
     ];
 
     /// <summary>Kullanici verisi tasiyan, varsayilan olarak KAPALI olan hedefler.</summary>

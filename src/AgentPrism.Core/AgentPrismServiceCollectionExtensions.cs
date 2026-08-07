@@ -99,6 +99,10 @@ public static class AgentPrismServiceCollectionExtensions
         // tasir, ayri bir Use...() cagrisi gerektirmez.
         services.AddOptions<AgentPrismRetentionOptions>().ValidateOnStart();
 
+        // Idempotency-Key destegi (Faz 43). Ayni gerekce: kendi SectionName'ini
+        // tasir, ayri bir Use...() cagrisi gerektirmez.
+        services.AddOptions<AgentPrismIdempotencyOptions>().ValidateOnStart();
+
         if (configurationSection is not null)
         {
             services.Configure<AgentPrismQuotaOptions>(
@@ -109,6 +113,8 @@ public static class AgentPrismServiceCollectionExtensions
                 options => BindRateLimit(configurationSection.GetSection("RateLimit"), options));
             services.Configure<AgentPrismRetentionOptions>(
                 options => BindRetention(configurationSection.GetSection("Retention"), options));
+            services.Configure<AgentPrismIdempotencyOptions>(
+                options => BindIdempotency(configurationSection.GetSection("Idempotency"), options));
         }
 
         services.TryAddEnumerable(
@@ -390,6 +396,11 @@ public static class AgentPrismServiceCollectionExtensions
                 provider.GetService<IConfiguration>(),
                 provider.GetService<TimeProvider>(),
                 provider.GetService<Microsoft.Extensions.Logging.ILogger<WebhookDeliveryJobHandler>>())));
+
+        // Idempotency-Key destegi (Faz 43). Depo her zaman kayitlidir (K-018:
+        // birinci sinif); tek ornekli dagitimda InMemoryIdempotencyStore
+        // yeterlidir. Ayri bir Use...() cagrisi gerekmez.
+        services.TryAddSingleton<IIdempotencyStore, InMemoryIdempotencyStore>();
 
         // Veri saklama ve arsivleme (Faz 25). Politika/kosu deposu her zaman
         // kayitlidir (kontrol duzlemi); veri duzlemi (IRetentionStore) ise bellek
@@ -1161,6 +1172,29 @@ public static class AgentPrismServiceCollectionExtensions
                 out var partition))
         {
             options.Partition = partition;
+        }
+    }
+
+    /// <summary><c>AgentPrism:Idempotency</c> bolumunu baglar.</summary>
+    private static void BindIdempotency(IConfigurationSection section, AgentPrismIdempotencyOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismIdempotencyOptions.Enabled), out var enabled))
+        {
+            options.Enabled = enabled;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismIdempotencyOptions.MaxKeyLength)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxKeyLength))
+        {
+            options.MaxKeyLength = maxKeyLength;
         }
     }
 

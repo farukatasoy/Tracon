@@ -39,10 +39,12 @@ internal static class OpenAIChatCompletionsEndpoints
     /// <summary>Chat Completions ucunu baglar.</summary>
     /// <param name="builder">Uc grubu.</param>
     /// <param name="roles">Cozulmus rol policy'leri.</param>
-    public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
+    /// <param name="idempotencyFilter">Faz 43 — <c>Idempotency-Key</c> destegi.</param>
+    public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles, IdempotencyFilter idempotencyFilter)
     {
         builder.MapPost("/v1/chat/completions", HandleAsync)
             .RequireRole(roles.Operator)
+            .AddEndpointFilter(idempotencyFilter)
             .WithName("AgentPrismOpenAIChatCompletions")
             .WithTags("AgentPrism", "OpenAI")
             .WithSummary("OpenAI Chat Completions API ile uyumlu calistirma ucu.")
