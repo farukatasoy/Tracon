@@ -122,6 +122,38 @@ public sealed class RunRecordingAgentTests
     }
 
     [Fact]
+    public async Task Basarili_calistirmada_hata_siniflandirici_hic_cagrilmaz()
+    {
+        // Siniflandirma sicak yoldadir ve yalniz hata yolunda calisir; basarili
+        // bir calistirmada tahsis uretmemelidir (docs/44-HATA-SINIFLANDIRMA.md).
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
+        var spy = new SpyRunErrorClassifier();
+        var agent = CreateAgent(store, new FakeChatClient(), spy);
+
+        await agent.RunAsync("merhaba");
+
+        spy.CallCount.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Hatali_calistirmada_siniflandirici_sonucu_kayda_yazilir()
+    {
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
+        var spy = new SpyRunErrorClassifier();
+        var client = new FakeChatClient(_ => throw new InvalidOperationException("model patladi"));
+        var agent = CreateAgent(store, client, spy);
+
+        await Should.ThrowAsync<InvalidOperationException>(async () => await agent.RunAsync("merhaba"));
+
+        spy.CallCount.ShouldBe(1);
+
+        var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+        run.Error.ShouldNotBeNull();
+        run.Error!.Class.ShouldBe(RunErrorClass.Unknown);
+        run.Error.Fingerprint.ShouldBe("spy");
+    }
+
+    [Fact]
     public async Task Guvenlik_filtresiyle_bos_donen_yanit_content_filtered_olarak_kaydedilir()
     {
         // Sessiz bos yanit hata ayiklamasi en zor durumdur: kullanici bos bir cevap
@@ -360,6 +392,24 @@ public sealed class RunRecordingAgentTests
             TestData.Registry());
 
         return CreateAgent(store, compiler, TestData.Definition(), options);
+    }
+
+    private static RunRecordingAgent CreateAgent(
+        IRunStore store,
+        FakeChatClient client,
+        IRunErrorClassifier errorClassifier)
+    {
+        var compiler = new AgentDefinitionCompiler(
+            TestData.Providers(new FakeModelProvider(client)),
+            TestData.Registry());
+
+        return new RunRecordingAgent(
+            compiler.Compile(TestData.Definition()),
+            store,
+            new FixedTenantContext(),
+            new AgentPrismRunRecordingOptions(),
+            NullLogger<RunRecordingAgent>.Instance,
+            errorClassifier: errorClassifier);
     }
 
     private static RunRecordingAgent CreateAgent(

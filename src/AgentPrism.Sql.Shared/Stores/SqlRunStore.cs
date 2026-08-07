@@ -142,6 +142,8 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableInt64(command, "total_tokens", completion.Usage?.TotalTokens);
         AddNullableText(command, "error_type", completion.Error?.Type);
         AddNullableText(command, "error_message", completion.Error?.Message);
+        Dialect.AddInt16(command, "error_class", completion.Error?.Class is { } errorClass ? (short)errorClass : null);
+        AddNullableText(command, "error_fingerprint", completion.Error?.Fingerprint);
         AddNullableDecimal(command, "input_cost", completion.Cost?.InputCost);
         AddNullableDecimal(command, "output_cost", completion.Cost?.OutputCost);
         AddNullableText(command, "cost_currency", completion.Cost?.Currency);
@@ -224,6 +226,7 @@ internal sealed class SqlRunStore : IRunStore
         DbHelpers.Add(command, "kind_eval", (short)RunKind.Eval);
         DbHelpers.Add(command, "pricing_source_unknown", (short)PricingSource.Unknown);
         DbHelpers.Add(command, "kind_binary", (short)RunScoreKind.Binary);
+        DbHelpers.Add(command, "top_clusters", (long)TopErrorClusterCount);
 
         await using (command.ConfigureAwait(false))
         {
@@ -309,6 +312,55 @@ internal sealed class SqlRunStore : IRunStore
                     }
                 }
 
+                // Besinci sonuc kumesi: hata sinifi kirilimi (Faz 44).
+                var errorTotals = new List<(RunErrorClass Class, long TotalRuns)>();
+
+                if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        errorTotals.Add(((RunErrorClass)reader.GetInt16(0), reader.GetInt64(1)));
+                    }
+                }
+
+                // Altinci sonuc kumesi: sinif basina en sik uc parmak izi kumesi,
+                // sinifa gore SIRALI doner (SQL metni bunu garanti eder).
+                var clustersByClass = new Dictionary<RunErrorClass, List<RunErrorCluster>>();
+
+                if (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        var errorClass = (RunErrorClass)reader.GetInt16(0);
+
+                        if (!clustersByClass.TryGetValue(errorClass, out var clusters))
+                        {
+                            clusters = [];
+                            clustersByClass[errorClass] = clusters;
+                        }
+
+                        clusters.Add(new RunErrorCluster
+                        {
+                            Fingerprint = reader.GetString(1),
+                            Count = reader.GetInt64(2),
+                            SampleMessage = reader.GetString(3),
+                            SampleRunId = reader.GetGuid(4),
+                            LastSeenAt = DbHelpers.GetTimestamp(reader, 5),
+                        });
+                    }
+                }
+
+                var byErrorClass = errorTotals
+                    .Select(pair => new RunErrorStatistics
+                    {
+                        Class = pair.Class,
+                        TotalRuns = pair.TotalRuns,
+                        TopClusters = clustersByClass.TryGetValue(pair.Class, out var clusters)
+                            ? clusters
+                            : [],
+                    })
+                    .ToList();
+
                 return new RunStatistics
                 {
                     TotalRuns = total,
@@ -328,10 +380,14 @@ internal sealed class SqlRunStore : IRunStore
                     ByAgent = byAgent,
                     ByModel = byModel,
                     ByVersion = byVersion,
+                    ByErrorClass = byErrorClass,
                 };
             }
         }
     }
+
+    /// <summary>Bir hata sinifinin en sik uc kumesini secerken kesilen ust sinir.</summary>
+    private const int TopErrorClusterCount = 3;
 
     /// <inheritdoc />
     public async ValueTask<IReadOnlyList<TimeSeriesPoint>> GetTimeSeriesAsync(
@@ -532,12 +588,17 @@ internal sealed class SqlRunStore : IRunStore
             Variant = DbHelpers.GetNullableString(reader, 27),
             Cost = ownCost,
             TreeCost = ReadTreeCost(reader, ownCost),
+            // 🚨 37-38: HER ZAMAN sona eklenen sutunlar (Faz 44). Eski
+            // satirlarda error_class NULL'dur -- Unknown kovasina duser
+            // (RunStatistics.ByErrorClass, K-014 -- geriye donuk doldurma yok).
             Error = errorType is null
                 ? null
                 : new RunError
                 {
                     Type = errorType,
                     Message = DbHelpers.GetNullableString(reader, 13) ?? string.Empty,
+                    Class = reader.IsDBNull(37) ? null : (RunErrorClass)reader.GetInt16(37),
+                    Fingerprint = DbHelpers.GetNullableString(reader, 38),
                 },
         };
     }
