@@ -101,6 +101,18 @@ public sealed record RunStartInfo
     /// <summary>Baslangic zamani (UTC).</summary>
     public required DateTimeOffset StartedAt { get; init; }
 
+    /// <summary>
+    /// Acilan satirin baslangic durumu. Varsayilan <see cref="RunStatus.Running"/>.
+    /// </summary>
+    /// <remarks>
+    /// Faz 46: kuyruga alinan bir calistirma <see cref="RunStatus.Queued"/> ile
+    /// acilir. Ayni <see cref="RunId"/> ile <c>StartRunAsync</c> IKINCI kez
+    /// cagrilirsa (isci is'i gercekten calistirdiginda) depo bunu bir UPSERT
+    /// olarak ele alir — yeni bir satir ACILMAZ, mevcut satir bu alanla
+    /// (genelde <see cref="RunStatus.Running"/>) guncellenir.
+    /// </remarks>
+    public RunStatus Status { get; init; } = RunStatus.Running;
+
     /// <summary>Kiraci kimligi.</summary>
     public string? TenantId { get; init; }
 

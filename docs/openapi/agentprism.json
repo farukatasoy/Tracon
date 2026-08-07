@@ -351,7 +351,7 @@
           "Agents"
         ],
         "summary": "Bir agent\u0027i deneme amaciyla calistirir ve yaniti SSE ile akitir.",
-        "description": "Kota asilmissa calistirma baslamaz ve 429 doner; ProblemDetails hangi kotanin asildigini ve sayacin ne zaman sifirlanacagini tasir. \u0027Idempotency-Key\u0027 basligi tasiyan bir istek SSE yerine tek bir JSON yanitla (akissiz) calisir \u2014 Faz 43\u0027un tekillestirme sozlesmesi akissiz bir yanit gerektirir (docs/43-IDEMPOTENCY-KEY.md).",
+        "description": "Kota asilmissa calistirma baslamaz ve 429 doner; ProblemDetails hangi kotanin asildigini ve sayacin ne zaman sifirlanacagini tasir. \u0027Idempotency-Key\u0027 basligi tasiyan bir istek SSE yerine tek bir JSON yanitla (akissiz) calisir \u2014 Faz 43\u0027un tekillestirme sozlesmesi akissiz bir yanit gerektirir (docs/43-IDEMPOTENCY-KEY.md). \u0027Prefer: respond-async\u0027 basligi tasiyan bir istek calistirmayi kuyruga alir ve \u0027202 Accepted\u0027 \u002B \u0027Location\u0027 doner (Faz 46, docs/46-DAYANIKLI-CALISTIRMA.md).",
         "operationId": "AgentPrismRunAgent",
         "parameters": [
           {
@@ -384,6 +384,16 @@
               }
             }
           },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedRunResponse"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "content": {
@@ -406,6 +416,16 @@
           },
           "429": {
             "description": "Too Many Requests",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not Implemented",
             "content": {
               "application/problem\u002Bjson": {
                 "schema": {
@@ -4785,6 +4805,36 @@
   },
   "components": {
     "schemas": {
+      "AcceptedRunResponse": {
+        "required": [
+          "runId",
+          "jobId",
+          "location",
+          "eventsLocation"
+        ],
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "description": "Calistirma kimligi.",
+            "format": "uuid"
+          },
+          "jobId": {
+            "type": "string",
+            "description": "Isi tasiyan kuyruk kaydinin kimligi.",
+            "format": "uuid"
+          },
+          "location": {
+            "type": "string",
+            "description": "Calistirma kaydinin adresi. \u0060Location\u0060 basligiyla aynidir."
+          },
+          "eventsLocation": {
+            "type": "string",
+            "description": "Olay akisinin adresi."
+          }
+        },
+        "description": "Kuyruga alinmis bir calistirmanin \u0060202 Accepted\u0060 yaniti (Faz 46)."
+      },
       "AgentDefinition": {
         "required": [
           "name",
@@ -7071,7 +7121,8 @@
           "Workflow",
           "Eval",
           "WebhookDelivery",
-          "Retention"
+          "Retention",
+          "AgentRun"
         ],
         "description": "Bir isin hangi hedefi calistirdigi."
       },
@@ -9359,7 +9410,8 @@
           "Completed",
           "Failed",
           "Canceled",
-          "AwaitingInput"
+          "AwaitingInput",
+          "Queued"
         ],
         "description": "Bir calistirmanin durumu."
       },

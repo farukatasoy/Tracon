@@ -63,7 +63,7 @@ public sealed class InMemoryRunStore : IRunStore
             AgentName = info.AgentName,
             Kind = info.Kind,
             WorkflowName = info.WorkflowName,
-            Status = RunStatus.Running,
+            Status = info.Status,
             StartedAt = info.StartedAt,
             TenantId = info.TenantId ?? _tenantContext.TenantId,
             SessionId = info.SessionId,
@@ -77,10 +77,20 @@ public sealed class InMemoryRunStore : IRunStore
             Variant = info.Variant,
         };
 
+        // 🚨 Faz 46: kuyruga alinan bir calistirma icin bu metot AYNI kimlikle
+        // IKI kez cagrilir (once Queued, sonra isci Running'e gecirirken). Bu bir
+        // UPSERT'tir: satir zaten varsa olay/tool-cagri gunluklerini SIFIRLAMA
+        // (araya hicbir olay yazilmamis olsa da) ve siraya IKINCI kez ekleme.
+        var isNew = !_runs.ContainsKey(record.Id);
+
         _runs[record.Id] = record;
-        _events[record.Id] = [];
-        _toolInvocations[record.Id] = [];
-        _insertionOrder.Enqueue(record.Id);
+
+        if (isNew)
+        {
+            _events[record.Id] = [];
+            _toolInvocations[record.Id] = [];
+            _insertionOrder.Enqueue(record.Id);
+        }
 
         TrimIfNeeded();
 

@@ -68,10 +68,14 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
   const run = useQuery({
     queryKey: ['run', id],
     queryFn: () => api.run(id),
-    refetchInterval: (query) => (query.state.data?.status === 'Running' ? 2_000 : false),
+    // 'Queued' polls too (phase 46): the worker has not picked the job up yet,
+    // and the row transitions on its own once it does.
+    refetchInterval: (query) =>
+      query.state.data?.status === 'Running' || query.state.data?.status === 'Queued' ? 2_000 : false,
   });
 
-  const finished = run.data != null && run.data.status !== 'Running';
+  const finished =
+    run.data != null && run.data.status !== 'Running' && run.data.status !== 'Queued';
 
   // Spans and tool rows are written when the run closes, so both are fetched
   // only after it has settled. A 404 on the trace is expected: successful runs
@@ -201,7 +205,9 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
         }
         actions={
           <div className="flex items-center gap-2">
-            {record.status === 'Running' && <CancelRunButton runId={record.id} />}
+            {(record.status === 'Running' || record.status === 'Queued') && (
+              <CancelRunButton runId={record.id} />
+            )}
             <StatusBadge status={record.status} />
           </div>
         }

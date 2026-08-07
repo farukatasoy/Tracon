@@ -103,6 +103,10 @@ public static class AgentPrismServiceCollectionExtensions
         // tasir, ayri bir Use...() cagrisi gerektirmez.
         services.AddOptions<AgentPrismIdempotencyOptions>().ValidateOnStart();
 
+        // Kuyruga alinan (dayanikli) calistirma (Faz 46). Ayni gerekce: kendi
+        // SectionName'ini tasir, ayri bir Use...() cagrisi gerektirmez.
+        services.AddOptions<AgentPrismAsyncRunOptions>().ValidateOnStart();
+
         if (configurationSection is not null)
         {
             services.Configure<AgentPrismQuotaOptions>(
@@ -115,6 +119,8 @@ public static class AgentPrismServiceCollectionExtensions
                 options => BindRetention(configurationSection.GetSection("Retention"), options));
             services.Configure<AgentPrismIdempotencyOptions>(
                 options => BindIdempotency(configurationSection.GetSection("Idempotency"), options));
+            services.Configure<AgentPrismAsyncRunOptions>(
+                options => BindAsyncRun(configurationSection.GetSection("AsyncRun"), options));
         }
 
         services.TryAddEnumerable(
@@ -329,10 +335,12 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddSingleton<IJobStore, InMemoryJobStore>();
         services.TryAddSingleton<IJobScheduleStore, InMemoryJobScheduleStore>();
 
-        // Iki varsayilan isleyici: agent toplu calistirma ve workflow. Ikisi de
-        // TryAddEnumerable ile eklenir; Faz 18 (eval) kendi isleyicisini
-        // AddJobHandler<T>() ile ayni sekilde ekler.
+        // Uc varsayilan isleyici: agent toplu calistirma, kuyruga alinan tekil
+        // calistirma (Faz 46) ve workflow. Ucu de TryAddEnumerable ile eklenir;
+        // Faz 18 (eval) kendi isleyicisini AddJobHandler<T>() ile ayni sekilde
+        // ekler.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, AgentBatchJobHandler>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, AgentRunJobHandler>());
 
         // Acik fabrika kullaniliyor: yerlesik DI kabi varsayilan deger tasiyan
         // kurucu parametrelerini doldurmaz ve IWorkflowRunner cogu kurulumda
@@ -1204,6 +1212,29 @@ public static class AgentPrismServiceCollectionExtensions
                 out var maxKeyLength))
         {
             options.MaxKeyLength = maxKeyLength;
+        }
+    }
+
+    /// <summary><c>AgentPrism:AsyncRun</c> bolumunu baglar.</summary>
+    private static void BindAsyncRun(IConfigurationSection section, AgentPrismAsyncRunOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismAsyncRunOptions.Enabled), out var enabled))
+        {
+            options.Enabled = enabled;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismAsyncRunOptions.MaxAttempts)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxAttempts))
+        {
+            options.MaxAttempts = maxAttempts;
         }
     }
 

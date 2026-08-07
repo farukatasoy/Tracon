@@ -46,4 +46,16 @@ public enum RunStatus
     /// </para>
     /// </remarks>
     AwaitingInput = 4,
+
+    /// <summary>
+    /// Calistirma kuyruga alindi ama isci henuz baslatmadi.
+    /// </summary>
+    /// <remarks>
+    /// Yalnizca <c>Prefer: respond-async</c> ile baslatilan calistirmalarda
+    /// gorulur (Faz 46). Satir kuyruga alma aninda <c>Queued</c> olarak yazilir;
+    /// isci is'i gercekten calistirdiginda ayni kimlikle tekrar yazilir ve
+    /// <see cref="Running"/>'e gecer. Deger sona eklenmistir; gerekce
+    /// <see cref="AwaitingInput"/> aciklamasindaki ile aynidir.
+    /// </remarks>
+    Queued = 5,
 }
