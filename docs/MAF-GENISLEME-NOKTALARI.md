@@ -130,6 +130,9 @@ static IChatClient AsIChatClientWithStoredOutputDisabled(                       
 static ChatClientBuilder AsBuilder(this IChatClient inner);
 static ChatClientBuilder UseFunctionInvocation(this ChatClientBuilder b, ILoggerFactory? lf, Action<FunctionInvokingChatClient>? cfg);
 static ChatClientBuilder UseOpenTelemetry(this ChatClientBuilder b, ILoggerFactory? lf, string? sourceName, Action<OpenTelemetryChatClient>? cfg);
+// 🚨 Bu iki cagri YALNIZ ModelProviderRegistry.CreateChatClient icinde yapilir (Faz 48, K-320).
+// Saglayici paketleri HAM istemci dondurur. Gerekce: FunctionInvokingChatClient tool cagri
+// dongusunu surer ve o dongunun DISINDA duran bir halka ara turlari (tool sonuclari) GORMEZ.
 
 // ChatOptions.Reasoning — ModelBinding.ReasoningEffort buraya bağlanır
 sealed class ReasoningOptions { ReasoningEffort? Effort; ReasoningOutput? Output; }

@@ -573,6 +573,7 @@ export const tr: Messages = {
   'dashboard.errorClass.CompilationFailed': 'Derleme başarısız',
   'dashboard.errorClass.BudgetExceeded': 'Bütçe aşıldı',
   'dashboard.errorClass.Canceled': 'İptal edildi',
+  'dashboard.errorClass.ContentBlocked': 'İçerik politika ile engellendi',
 
   /* --------------------------------------------------------- workflows */
   'workflows.description': "Katalogdaki agent'ların beş hazır desenden biriyle birbirine bağlanması. Bir workflow çalıştırması Çalıştırmalar listesinde tek satırdır; çağırdığı her agent o satırın altındadır.",

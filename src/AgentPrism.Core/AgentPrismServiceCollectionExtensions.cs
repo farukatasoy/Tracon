@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
@@ -107,6 +108,12 @@ public static class AgentPrismServiceCollectionExtensions
         // SectionName'ini tasir, ayri bir Use...() cagrisi gerektirmez.
         services.AddOptions<AgentPrismAsyncRunOptions>().ValidateOnStart();
 
+        // Icerik denetimi (Faz 48). Ayarlar her zaman kayitlidir ama hicbir
+        // IContentGuard kayitli DEGILSE hic okunmazlar: denetim sarmalayicisi boru
+        // hattina eklenmez. K1'in kapisi bir bayrak degil, kaydin kendisidir.
+        services.AddOptions<AgentPrismContentGuardOptions>().ValidateOnStart();
+        services.AddOptions<PatternContentGuardOptions>().ValidateOnStart();
+
         if (configurationSection is not null)
         {
             services.Configure<AgentPrismQuotaOptions>(
@@ -121,6 +128,25 @@ public static class AgentPrismServiceCollectionExtensions
                 options => BindIdempotency(configurationSection.GetSection("Idempotency"), options));
             services.Configure<AgentPrismAsyncRunOptions>(
                 options => BindAsyncRun(configurationSection.GetSection("AsyncRun"), options));
+
+            var contentGuardSection = configurationSection.GetSection("ContentGuard");
+
+            services.Configure<AgentPrismContentGuardOptions>(
+                options => BindContentGuard(contentGuardSection, options));
+
+            var patternSection = contentGuardSection.GetSection("Pattern");
+
+            services.Configure<PatternContentGuardOptions>(
+                options => BindPatternContentGuard(patternSection, options));
+
+            // 🚨 Yerlesik guard yalnizca bolum GERCEKTEN varsa kaydedilir. Kayit
+            // K1'in kapisidir: kayit yoksa denetim sarmalayicisi boru hattina hic
+            // eklenmez ve maliyet tam olarak sifir kalir. Kod tarafindan acmanin
+            // yolu AddPatternContentGuard() cagrisidir.
+            if (patternSection.Exists())
+            {
+                services.TryAddEnumerable(ServiceDescriptor.Singleton<IContentGuard, PatternContentGuard>());
+            }
         }
 
         services.TryAddEnumerable(
@@ -148,7 +174,29 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddSingleton(static provider => new ModelProviderCircuitBreaker(
             provider.GetRequiredService<IOptionsMonitor<AgentPrismOptions>>(),
             provider.GetService<TimeProvider>()));
-        services.TryAddSingleton<IModelProviderRegistry, ModelProviderRegistry>();
+
+        // Icerik denetimi boru hatti (Faz 48). Her zaman kayitlidir ama HasGuards
+        // false ise defter denetim sarmalayicisini hic eklemez. Acik fabrika: kayit
+        // sirasi onemsizdir, IContentGuard'lar bu cagridan sonra da eklenebilir
+        // (GetServices lazy cozer).
+        services.TryAddSingleton(static provider => new ContentGuardPipeline(
+            provider.GetServices<IContentGuard>(),
+            provider.GetRequiredService<IOptionsMonitor<AgentPrismContentGuardOptions>>(),
+            provider.GetRequiredService<IAuditLog>(),
+            provider.GetRequiredService<IAuditActorResolver>(),
+            provider.GetRequiredService<ITenantContext>(),
+            provider.GetRequiredService<ILoggerFactory>()));
+
+        // Defter boru hattinin TAMAMINI kurar (Faz 48'de saglayici paketlerinden
+        // tasindi). Acik fabrika zorunludur: yerlesik DI kabi varsayilan deger
+        // tasiyan kurucu parametrelerini doldurmaz.
+        services.TryAddSingleton<IModelProviderRegistry>(static provider => new ModelProviderRegistry(
+            provider.GetServices<IModelProvider>(),
+            provider.GetService<ModelProviderCircuitBreaker>(),
+            provider.GetService<IAttachmentStore>(),
+            provider.GetService<ITenantContext>(),
+            provider.GetService<ContentGuardPipeline>(),
+            provider.GetService<ILoggerFactory>()));
 
         // Maliyet cozumleyici (Faz 20): model kataloğu, sonra AgentPrism:Pricing.
         services.TryAddSingleton<IRunPricingResolver, RunPricingResolver>();
@@ -1264,6 +1312,57 @@ public static class AgentPrismServiceCollectionExtensions
                 out var maxAttempts))
         {
             options.MaxAttempts = maxAttempts;
+        }
+    }
+
+    /// <summary><c>AgentPrism:ContentGuard</c> bolumunu baglar.</summary>
+    private static void BindContentGuard(IConfigurationSection section, AgentPrismContentGuardOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismContentGuardOptions.InspectInput), out var inspectInput))
+        {
+            options.InspectInput = inspectInput;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismContentGuardOptions.InspectOutput), out var inspectOutput))
+        {
+            options.InspectOutput = inspectOutput;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismContentGuardOptions.BufferStreamingOutput), out var buffer))
+        {
+            options.BufferStreamingOutput = buffer;
+        }
+    }
+
+    /// <summary><c>AgentPrism:ContentGuard:Pattern</c> bolumunu baglar.</summary>
+    /// <remarks>
+    /// <see cref="PiiPatterns"/> bir <c>[Flags]</c> enum'udur ve yapilandirmada
+    /// virgulle ayrilmis ad listesi olarak yazilir (ornek:
+    /// <c>"Email,CreditCard"</c>). <c>Enum.TryParse</c> AOT temizdir (olculdu,
+    /// <c>docs/hafiza/build-ve-analyzer.md</c>).
+    /// </remarks>
+    private static void BindPatternContentGuard(IConfigurationSection section, PatternContentGuardOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        BindList(section.GetSection(nameof(PatternContentGuardOptions.DeniedTerms)), options.DeniedTerms);
+
+        if (Enum.TryParse<PiiPatterns>(section[nameof(PatternContentGuardOptions.MaskedPii)], ignoreCase: true, out var pii))
+        {
+            options.MaskedPii = pii;
+        }
+
+        if (section[nameof(PatternContentGuardOptions.MaskReplacement)] is { Length: > 0 } replacement)
+        {
+            options.MaskReplacement = replacement;
         }
     }
 

@@ -61,21 +61,17 @@ public sealed class OpenAIChatClientFactoryTests
     }
 
     [Fact]
-    public void Uretilen_istemci_tool_cagri_dongusunu_icerir()
+    public void Fabrika_HAM_istemci_doner_boru_hattini_kurmaz()
     {
-        // Tool cagri dongusunu MAF'a birakiyoruz; kendi dongumuzu yazmiyoruz.
-        // Bu sarmalayici kaybolursa agent tool cagrilarini hic yurutmez.
+        // 🚨 Faz 48: tool cagri dongusu ve telemetri ModelProviderRegistry'ye
+        // tasindi. Fabrika onlari kursaydi ic ice iki FunctionInvokingChatClient
+        // olusur ve defterin ekledigi icerik guard'i dongunun DISINDA kalirdi —
+        // tool sonuclari hic denetlenmezdi. Dongunun VARLIGI defter duzeyinde
+        // dogrulanir (AgentPrism.Core.UnitTests, ModelProviderRegistryTests).
         using var chatClient = CreateFactory().CreateChatClient(TestData.Binding(), OpenAIApiSurface.ChatCompletions);
 
-        chatClient.GetService(typeof(FunctionInvokingChatClient)).ShouldBeOfType<FunctionInvokingChatClient>();
-    }
-
-    [Fact]
-    public void Uretilen_istemci_telemetri_sarmalayicisini_icerir()
-    {
-        using var chatClient = CreateFactory().CreateChatClient(TestData.Binding(), OpenAIApiSurface.ChatCompletions);
-
-        chatClient.GetService(typeof(OpenTelemetryChatClient)).ShouldBeOfType<OpenTelemetryChatClient>();
+        chatClient.GetService(typeof(FunctionInvokingChatClient)).ShouldBeNull();
+        chatClient.GetService(typeof(OpenTelemetryChatClient)).ShouldBeNull();
     }
 
     [Fact]

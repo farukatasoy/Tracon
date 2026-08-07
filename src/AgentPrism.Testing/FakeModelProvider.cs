@@ -216,9 +216,11 @@ public sealed class FakeModelProvider : IModelProvider, IDisposable
 
         var script = _scripts.TryGetValue(binding.Model, out var forModel) ? forModel : _default;
 
-        var client = new FakeChatClient(script, Record);
-
-        return client.AsBuilder().UseFunctionInvocation().Build();
+        // 🚨 HAM istemci donulur. Tool cagri dongusu (UseFunctionInvocation) ve
+        // telemetri Faz 48'de ModelProviderRegistry'ye tasindi; her IModelProvider
+        // artik ham istemci dondurur ve boru hattini defter kurar. Burada da
+        // kurmak dongunun ic ice gecmesine yol acardi.
+        return new FakeChatClient(script, Record);
     }
 
     /// <inheritdoc />

@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici kendi AI harness'ini kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 47 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**, `dotnet new agentprism-api` ile başlatılabilir; `AgentPrism.Testing` ile model çağırmadan test edilebilir. Çalıştırmalar span/metrik/maliyetle kaydedilir; kiracı yalıtımı zorlanır. Faz 8-47 bitti; [kalan](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlı.
+> **Durum:** Faz 48 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**, `dotnet new agentprism-api` ile başlatılabilir; `AgentPrism.Testing` ile model çağırmadan test edilebilir. Çalıştırmalar span/metrik/maliyetle kaydedilir, kiracı yalıtımı zorlanır ve içerik `IContentGuard` ile denetlenebilir. Faz 8-48 bitti; [kalan](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlı.
 
 ```csharp
 builder.AddAgentPrism()
@@ -26,7 +26,7 @@ Models, MCP, Audit, Diagnostics, Settings — her faz için ayrı bir ekran.
 
 React 19 + TypeScript ile yazılır, Vite ile derlenir ve assembly'ye **Brotli
 sıkıştırılmış gömülür**. Tüketici projede hiçbir JavaScript bağımlılığı oluşmaz;
-`node_modules` klasörü gerekmez. JavaScript bütçesi **~155 KB gzip** (kapı: 250 KB).
+`node_modules` klasörü gerekmez. JavaScript bütçesi **~159 KB gzip** (kapı: 250 KB).
 
 Arayüz herhangi bir prefix altında çalışır (`/agentprism`, `/panel`, …) ve prefix'i
 çalışma anında öğrenir. Açık ve koyu tema; varsayılan işletim sistemi tercihidir.
@@ -65,13 +65,8 @@ client = OpenAI(base_url="https://app.example.com/agentprism/v1", api_key="...")
 r = client.responses.create(model="support", input="ORD-3 siparisim nerede")
 print(r.output_text)          # ORD-3 siparisiniz kargoya verilmis. Tahmini teslimat: 2 gun.
 
-# Konusma zincirleme — iki yol da calisir
+# Konusma zincirleme: previous_response_id VEYA conversation — ikisi de calisir.
 r2 = client.responses.create(model="support", input="Peki ya ORD-9?", previous_response_id=r.id)
-
-conv = client.conversations.create()
-client.responses.create(model="support", conversation=conv.id, input="Merhaba")
-for item in client.conversations.items.list(conv.id):
-    print(item.type, getattr(item, "role", ""))    # message / function_call / function_call_output
 ```
 
 Tool döngüsü sunucuda tamamlanır; her çalıştırma olay olay kaydedilir ve SSE ile geri
@@ -259,13 +254,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [19](docs/19-SURUM-KARSILASTIRMA-VE-AB.md) | Sürüm karşılaştırma (diff) ve A/B deneyleri: deterministik trafik bölme, Experiments ekranı | ✅ Tamamlandı |
 | [20](docs/20-MALIYET-VE-GOSTERGE-PANELI.md) | Maliyet raporlaması ve gösterge paneli: fiyat kataloğu/yapılandırması, Dashboard giriş ekranı | ✅ Tamamlandı |
 | [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | ✅ Tamamı bitti |
-| [31](docs/31-GERI-BILDIRIM-VE-PUANLAMA.md) | Geri bildirim ve puanlama (çalıştırma/mesaj puanı) | ✅ Tamamlandı |
-| [32](docs/32-CALISTIRMA-IPTALI.md) | Çalıştırma iptali (`POST /api/runs/{id}/cancel`) | ✅ Tamamlandı |
-| [33](docs/33-SAGLIK-DENETIMI-VE-TESHIS.md) | Sağlık denetimi (`/health`) ve yapılandırma teşhisi (`/api/diagnostics`) | ✅ Tamamlandı |
-| [34](docs/34-TANIM-DOGRULAMA-UCU.md) | Tanım doğrulama ucu | ✅ Tamamlandı |
-| [35](docs/35-MALIYET-VE-KOTA-METRIKLERI.md) | Maliyet ve kota OTel metrikleri | ✅ Tamamlandı |
-| [44](docs/44-HATA-SINIFLANDIRMA.md) | Hata sınıflandırma | ✅ Tamamlandı |
-| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 36–52) | Faz 36–47 bitti; kalanı 📋 [adaylarda](docs/UCUNCU-FAZ-ADAYLARI.md) |
+| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 31–52): puanlama, iptal, teşhis, doğrulama, metrik, saklama sınırı, şablon, yapılandırılmış çıktı, test paketi, OpenAPI, kiracı yalıtımı, tek yürütücü, idempotency, hata sınıflandırma, eval terfisi, dayanıklı çalıştırma, yeniden oynatma, **guardrails** | **Faz 31–48 bitti**; faz başına durum ve kalan 49–52 orada |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 
@@ -288,8 +277,7 @@ sürecinin kullanıcı hakları ve ağ erişimiyle çalışır.
 
 | Sağlanan | Sağlanmayan |
 |----------|-------------|
-| Yorumlayıcı beyaz listesi | Dosya sistemi hapsi |
-| Ortam değişkeni beyaz listesi | Ağ kısıtı |
+| Yorumlayıcı ve ortam değişkeni beyaz listesi | Dosya sistemi hapsi, ağ kısıtı |
 | Zaman aşımı + süreç ağacı öldürme | Bellek ve CPU kotası |
 | Çıktı kırpma, eşzamanlılık sınırı | Hak düşürme |
 | Kiracı bazlı izin kaydı + denetim izi | |
@@ -298,6 +286,15 @@ Sağlanmayanlar barındırma ortamında kurulmalıdır: **container** içinde,
 **ayrıcalıksız bir kullanıcı** ile ve **kısıtlı ağ** ile çalıştırın.
 `PlatformIsolationAcknowledged` bayrağı bu tabloyu görmeden özelliğin
 açılmasını engeller; eksikse uygulama **açılışta** hata verir.
+
+### İçerik denetimi (guardrails)
+
+Varsayılan **kapalıdır**: `AddAgentPrism()` hiç guard kaydetmez ve model boru
+hattına halka eklenmez. Açmak açık bir tercihtir — yerleşik desen guard'ı için
+`.AddPatternContentGuard(o => o.MaskedPii = PiiPatterns.CreditCard)`, kendi
+kural kümeniz için `IContentGuard` + `.AddContentGuard<T>()`. Birden çok guard
+sırayla çalışır ve **en sert karar kazanır**; engellenen içerik hiçbir yere
+yazılmaz. Ayrıntı: [`docs/48-GUARDRAILS.md`](docs/48-GUARDRAILS.md).
 
 ### Sürüm politikası
 

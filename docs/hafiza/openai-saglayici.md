@@ -45,3 +45,22 @@
 - **Her sağlayıcı SDK'sı kendi paketinde izole** (2026-08-05, Faz 26/27): `Anthropic/AnthropicChatClientFactory.cs`, `Google/GoogleChatClientFactory.cs` ve `Azure/AzureOpenAIChatClientFactory.cs` — dördü de aynı boru hattını (`UseFunctionInvocation` + `UseOpenTelemetry`) kurar. Paketler birbirini görmez; kural `DependencyDirectionTests.AllowedReferences` ile korunur.
 - **Sağlayıcıya özgü ayarlar tek yardımcıdan okunur** (2026-08-05, Faz 26): `Abstractions/Agents/ModelProviderSettings.cs` doğrulama + tipli okuma yapar. Her sağlayıcı yalnız önek sabitini ve desteklenen anahtar listesini (`*ProviderNames.SupportedSettings`) yazar. Ayarlar `ChatOptions.RawRepresentationFactory` ile gönderilir; her paketin kendi `*ProviderSettingsChatClient` dekoratörü vardır — **`AgentPrism.Azure` hariç**, o hiç ayar sunmaz ve dekoratörü yoktur (K-211).
 - **🚨 `UseOpenAI()` sabit `AgentPrism:Providers:OpenAI` bölümüne bağlıdır, `UseOpenAICompatible()` DEĞİLDİR** (2026-08-06, Faz 33, K-249): ikincisi ayarları KODDA alır (`o.ApiKey = configuration["OpenRouter:ApiKey"]` gibi rastgele bir kaynaktan) — sabit bir bölüm yolu yoktur. `OpenAIModelProvider`'ın teşhis raporu (`IModelProviderConfigurationDiagnostics`) bu farkı `configurationSectionKey: string?` parametresiyle ayırt eder; `UseOpenAICompatible()` `null` geçer ve o sağlayıcı için hiçbir `ConfigurationDiagnostic` üretilmez. Sabit bir bölüm varsayıp hep aynı anahtarı raporlamak yanlış anahtar adı gösterirdi.
+
+## Model boru hatti (Faz 48, 2026-08-07)
+
+- **🚨 Boru hattinin TAMAMINI `ModelProviderRegistry.CreateChatClient` kurar; `IModelProvider` HAM istemci dondurur** (K-320). Faz 48'e kadar dort saglayici fabrikasi `UseFunctionInvocation()` + `UseOpenTelemetry()` zincirini KENDI icinde kuruyordu ve defterin sardigi hicbir halka tool cagri dongusunun turlarini goremiyordu. Bugunku sira (distan ice):
+
+  ```
+  ContentFilterDetectingChatClient   (saglayici filtresi tespiti)
+    -> devre kesici
+      -> AttachmentResolvingChatClient
+        -> FunctionInvokingChatClient  (MAF tool cagri dongusu)
+          -> OpenTelemetry
+            -> ContentGuardingChatClient
+              -> saglayicinin HAM istemcisi
+  ```
+
+  Yeni bir halka eklerken tek soru sudur: **her model cagrisini gormesi gerekiyor mu?** Gerekiyorsa dongunun ICINE (guard gibi), agent turu basina bir kez yetiyorsa DISINA (devre kesici, ek cozme gibi) konur. Devre kesici bilerek disarida: iceri alinsaydi sayim granulerligi agent turundan gercek ag cagrisina kayar ve `FailureThreshold`'un anlami degisirdi.
+- **🚨 Bir `IChatClient` dekoratoru, ic istemciden gelen nesneyi YERINDE DEGISTIRMEZ.** `ChatMessage`, `ChatResponseUpdate` ve `Contents` listeleri `Clone()` ile kopyalanir. Faz 48'de bir test bunu yakaladi: onceden kurulmus bir sahte istemci ayni cerceve orneklerini yeniden veriyordu ve yerinde maskeleme o ornekleri kalici olarak bozdu; bir sonraki test yanlis veriyle kostu. Onbellekleyen bir gercek istemci ayni davranisi uretir.
+- **🚨 Bir mesajin metnini degistiren dekorator `RawRepresentation`'i DUSURMELIDIR** (`null` atar). Faz 26'da olculdu: Anthropic adaptoru `ChatOptions.RawRepresentationFactory` ile verilen ham nesnenin uzerine YAZMIYOR. Ham gosterim tasinirsa degisiklik sessizce etkisiz kalir ve eski metin aga cikar.
+- **Engelleme kararı devre kesiciye hata olarak GITMEZ.** `CircuitBreakingChatClient` `AgentPrismContentBlockedException`'i ayrica ayiklar (K-322); guard dongunun icinde, devre kesici disinda oldugu icin bu ayiklama zorunludur.

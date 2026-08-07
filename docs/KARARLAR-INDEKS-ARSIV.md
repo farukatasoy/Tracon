@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (169 kalem)
+## Arşivlenen Kararlar (176 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -178,3 +178,10 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-167 | 212 | `AllowInsecureHttp` loopback ADRESİNİ de açar, yalnız şemayı değil |
 | K-168 | 213 | MCP OAuth yalnız Mod 1 (Authorization Code); Mod 0 SDK'da yok |
 | K-169 | 214 | MCP OAuth geri dönüş adresi (`OAuthCallbackBaseUri`) sabit bir ayardır, istekten türetilmez |
+| K-170 | 215 | MCP OAuth token'ları `(kiracı, sunucu)` başına tek bellek içi önbellekte, iki tüketici arasında paylaşılır |
+| K-171 | 216 | Arka plandaki (etkileşimsiz) OAuth denemesi hemen başarısız olur, beklemez |
+| K-172 | 217 | `[JsonPropertyName]` iki büyük harfle başlayan alan adlarında AÇIKÇA verilir |
+| K-173 | 218 | Prompt "aktarma" bu fazda panoya kopyalama olarak kaldı, agent editör entegrasyonu ertelendi |
+| K-174 | 219 | Mod A kaynak okuması `AgentDefinitionCompiler`'a `IMcpResourceContextProviderFactory` soyutlamasıyla bağlanır |
+| K-175 | 220 | MCP kaynak toplu okuma önbelleği `ConcurrentDictionary`'e geçirildi |
+| K-176 | 221 | SQL kalıcılık mantığı `AgentPrism.Sql.Shared` altında PAYLAŞILAN KAYNAK olarak yaşar 👤 |
