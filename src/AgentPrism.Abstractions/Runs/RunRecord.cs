@@ -114,4 +114,15 @@ public sealed record RunRecord
     /// calistirmasi olmayan bir calistirmada ikisi esdegerdir.
     /// </remarks>
     public RunTreeCost? TreeCost { get; init; }
+
+    /// <summary>
+    /// Bu calistirma bir yeniden oynatma ise kaynak calistirmanin kimligi;
+    /// degilse <see langword="null"/>.
+    /// </summary>
+    /// <remarks>
+    /// Soy bagi tek yonludur: kaynak calistirma <strong>degismez</strong> ve
+    /// kendisini oynatan calistirmalari bilmez. Bir kaynagin tum tekrarlari
+    /// bu sutun uzerinden sorgulanir.
+    /// </remarks>
+    public Guid? ReplayOfRunId { get; init; }
 }

@@ -205,3 +205,11 @@ public sealed class InMemoryMcpServerStoreContractTests : McpServerStoreContract
     protected override ValueTask<IMcpServerStore> CreateStoreAsync()
         => ValueTask.FromResult<IMcpServerStore>(new InMemoryMcpServerStore());
 }
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryRunInputStoreContractTests : RunInputStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<IRunInputStore> CreateStoreAsync()
+        => ValueTask.FromResult<IRunInputStore>(new InMemoryRunInputStore());
+}

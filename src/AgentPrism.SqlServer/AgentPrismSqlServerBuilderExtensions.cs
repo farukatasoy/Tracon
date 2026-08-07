@@ -208,6 +208,17 @@ public static class AgentPrismSqlServerBuilderExtensions
         // anlamlidir.
         services.Replace(ServiceDescriptor.Singleton<IIdempotencyStore, SqlIdempotencyStore>());
 
+        // Calistirma girdileri (Faz 47). Bellek ici InMemoryRunInputStore'un
+        // yerini alir; yeniden oynatma ancak girdi kalicilastiginda surec
+        // yeniden basladiktan sonra da calisir.
+        services.Replace(ServiceDescriptor.Singleton<IRunInputStore, SqlRunInputStore>());
+
+        // Konusma dallandirma (Faz 47). Bellek ici karsiligi YOKTUR: MAF'in
+        // InMemoryChatHistoryProvider'i gecmisi oturum durumunun opak blogunda
+        // tutar ve belirli bir sira numarasina kadar kopyalanamaz. Kayit yalniz
+        // burada yapilir; kayitsiz kurulumda uc 501 doner.
+        services.TryAddSingleton<IConversationBranchStore, SqlConversationBranchStore>();
+
         // A/B deneyleri (Faz 19). IAgentDefinitionStore ile ayni gerekceyle
         // denetim izi dekoratoruyle sarilir: Admin'in bilincli bir karari,
         // yurutmenin yan urunu degil.

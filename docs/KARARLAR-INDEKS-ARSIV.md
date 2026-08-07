@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (157 kalem)
+## Arşivlenen Kararlar (169 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -166,3 +166,15 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-155 | 200 | `AgentPrism:Pricing` `AgentPrismOptions`'ta (Core), bir saglayici paketinde değil |
 | K-156 | 201 | Dashboard'un devre kesici uyarısı mevcut `/api/models/health` `Unhealthy` durumunu kullanır; yeni uç eklenmedi |
 | K-157 | 202 | `RunEventWriter.CompleteAsync`'e eklenen `cost` parametresi ilk yazımda `RunCompletion`'a bağlanmamıştı — canlı sınamada yakalandı |
+| K-158 | 203 | Hız sınırı ve kota AYRI mekanizmalardır; biri bellekte, biri veritabanında |
+| K-159 | 204 | Kota yaklaşıktır; eşzamanlılıkta küçük aşım kabul edilir |
+| K-160 | 205 | Webhook teslimi Faz 17'nin kuyruğunu kullanır; `IJobStore` geri adımlı beklemeyle genişletildi 👤 |
+| K-161 | 206 | Webhook yükü yalnızca ÖZET taşır; mesaj içeriği hiçbir zaman girmez 👤 |
+| K-162 | 207 | Kota aşımında devam eden çalıştırma KESİLMEZ; yalnızca yeni çalıştırma reddedilir 👤 |
+| K-163 | 208 | Webhook imzası zaman damgasını İÇERİR |
+| K-164 | 209 | SSRF koruması `WebhookHttpClient`'ın İÇİNE gömülüdür; `IHttpClientFactory` kullanılmaz |
+| K-165 | 210 | Hız sınırının varsayılanı KAPALIDIR 👤 |
+| K-166 | 211 | `JobRecord.Payload` atanmazsa `/api/jobs` TÜM listeyi 500 ile döndürür |
+| K-167 | 212 | `AllowInsecureHttp` loopback ADRESİNİ de açar, yalnız şemayı değil |
+| K-168 | 213 | MCP OAuth yalnız Mod 1 (Authorization Code); Mod 0 SDK'da yok |
+| K-169 | 214 | MCP OAuth geri dönüş adresi (`OAuthCallbackBaseUri`) sabit bir ayardır, istekten türetilmez |

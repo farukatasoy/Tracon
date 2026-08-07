@@ -49,6 +49,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     private readonly IWebhookPublisher? _webhookPublisher;
     private readonly IRunCancellationRegistry? _cancellationRegistry;
     private readonly IRunErrorClassifier? _errorClassifier;
+    private readonly IRunInputStore? _runInputStore;
 
     /// <summary>Yeni bir kayit sarmalayicisi olusturur.</summary>
     /// <param name="innerAgent">Sarmalanan agent.</param>
@@ -96,6 +97,11 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     /// parmak izi hesaplanmaz (<see cref="RunError.Class"/>/<see cref="RunError.Fingerprint"/>
     /// bos kalir).
     /// </param>
+    /// <param name="runInputStore">
+    /// Girdi deposu (Faz 47). <see langword="null"/> ise veya
+    /// <see cref="AgentPrismRunRecordingOptions.RecordRunInput"/> kapaliysa girdi
+    /// yazilmaz ve calistirma yeniden oynatilamaz.
+    /// </param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
     public RunRecordingAgent(
         AIAgent innerAgent,
@@ -115,7 +121,8 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         QuotaEnforcer? quotaEnforcer = null,
         IWebhookPublisher? webhookPublisher = null,
         IRunCancellationRegistry? cancellationRegistry = null,
-        IRunErrorClassifier? errorClassifier = null)
+        IRunErrorClassifier? errorClassifier = null,
+        IRunInputStore? runInputStore = null)
         : base(innerAgent)
     {
         ArgumentNullException.ThrowIfNull(runStore);
@@ -140,6 +147,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         _webhookPublisher = webhookPublisher;
         _cancellationRegistry = cancellationRegistry;
         _errorClassifier = errorClassifier;
+        _runInputStore = runInputStore;
     }
 
     /// <inheritdoc />
@@ -175,7 +183,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             start.Scope.TenantId,
             cancellationSource);
 
-        var scope = await BeginRunAsync(start, ExtractQuery(messages), cancellationToken).ConfigureAwait(false);
+        var scope = await BeginRunAsync(start, messages, cancellationToken).ConfigureAwait(false);
 
         try
         {
@@ -251,7 +259,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             start.Scope.TenantId,
             cancellationSource);
 
-        var scope = await BeginRunAsync(start, ExtractQuery(messages), cancellationToken).ConfigureAwait(false);
+        var scope = await BeginRunAsync(start, messages, cancellationToken).ConfigureAwait(false);
         UsageDetails? usage = null;
         string? pendingApproval = null;
         var enumerator = base.RunCoreStreamingAsync(messages, session, options, cancellationSource.Token)
@@ -425,11 +433,22 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             prismOptions?.Kind ?? RunKind.Agent,
             agentVersion,
             prismOptions?.ExperimentId,
-            prismOptions?.Variant);
+            prismOptions?.Variant,
+
+            // Soy bagi yalniz KOK calistirmada anlamlidir: bir yeniden oynatmanin
+            // alt cagrilari kaynak agacin alt cagrilarina karsilik gelmez.
+            depth == 0 ? prismOptions?.ReplayOfRunId : null);
     }
 
-    private async ValueTask<RunScope> BeginRunAsync(RunStart start, string? query, CancellationToken cancellationToken)
+    private async ValueTask<RunScope> BeginRunAsync(
+        RunStart start,
+        IEnumerable<ChatMessage> messages,
+        CancellationToken cancellationToken)
     {
+        // Girdi listesi BIR kez maddelestirilir: hem sorgu metni hem girdi kaydi
+        // ayni koleksiyonu okur.
+        var input = messages as IReadOnlyList<ChatMessage> ?? [.. messages];
+
         await start.Writer.StartAsync(
             new RunStartInfo
             {
@@ -451,9 +470,12 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                 AgentVersion = start.AgentVersion,
                 ExperimentId = start.ExperimentId,
                 Variant = start.Variant,
+                ReplayOfRunId = start.ReplayOfRunId,
             },
-            query,
+            ExtractQuery(input),
             cancellationToken).ConfigureAwait(false);
+
+        await SaveInputAsync(start, input, cancellationToken).ConfigureAwait(false);
 
         return new RunScope(
             start.Writer,
@@ -470,6 +492,54 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             RootRunId: start.Scope.RootRunId,
             Depth: start.Scope.Depth,
             SessionId: start.SessionId);
+    }
+
+    /// <summary>
+    /// Calistirmanin girdi mesajlarini <see cref="IRunInputStore"/> icine yazar.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Kayit <strong>her</strong> calistirma icin yapilir — kok, alt calistirma,
+    /// eval ve workflow dahil. Bir alt agent cagrisi da tek basina yeniden
+    /// oynatilabilir olmalidir; kok ile sinirlamak agac derinligi kadar satiri
+    /// kaybettirirdi.
+    /// </para>
+    /// <para>
+    /// 🚨 Hata <strong>yutulur</strong>: gozlemlenebilirlik islevselligi bozmaz
+    /// (<see cref="IRunStore"/> ile ayni sozlesme). Girdi yazilamamis bir
+    /// calistirma calisir, yalnizca yeniden oynatilamaz.
+    /// </para>
+    /// </remarks>
+    private async ValueTask SaveInputAsync(
+        RunStart start,
+        IReadOnlyList<ChatMessage> messages,
+        CancellationToken cancellationToken)
+    {
+        if (_runInputStore is null || !_options.RecordRunInput || messages.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await _runInputStore.SaveAsync(
+                new RunInputRecord
+                {
+                    RunId = start.Scope.RunId,
+                    TenantId = start.Scope.TenantId!,
+                    Messages = messages,
+                    CreatedAt = _timeProvider.GetUtcNow(),
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(
+                ex,
+                "AgentPrism calistirma girdisi kaydedilemedi. Calistirma {RunId} normal sekilde devam ediyor " +
+                "ancak yeniden oynatilamayacak.",
+                start.Scope.RunId);
+        }
     }
 
     /// <summary>Tamamlanmis bir kok calistirmanin tuketimini kota sayaclarina yazar.</summary>
@@ -776,7 +846,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     // KALICILASTIGI TEK yerdir — oturum yalniz calistirma BASARIYLA
     // tamamlandiginda kaydedilir (AgentEndpoints.AgentRunStream), bu yuzden
     // basarisiz bir calistirmanin sorgusu baska hicbir yoldan okunamaz.
-    private static string? ExtractQuery(IEnumerable<ChatMessage> messages)
+    private static string? ExtractQuery(IReadOnlyList<ChatMessage> messages)
         => messages.FirstOrDefault(static message => message.Role == ChatRole.User)?.Text;
 
     private static RunUsage? MergeUsage(RunUsage? primary, RunUsage? extra)
@@ -832,7 +902,8 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         RunKind Kind,
         int? AgentVersion,
         Guid? ExperimentId,
-        string? Variant);
+        string? Variant,
+        Guid? ReplayOfRunId);
 
     /// <summary>Tek bir calistirmanin kayit durumu.</summary>
     private sealed record RunScope(

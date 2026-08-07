@@ -53,6 +53,83 @@ internal static class SessionEndpoints
             .WithName("AgentPrismDeleteSession")
             .WithTags("AgentPrism", "Sessions")
             .WithSummary("Bir oturumu siler.");
+
+        builder.MapPost("/api/sessions/{sessionId}/branch", BranchSessionAsync)
+            .RequireRole(roles.Operator)
+            .WithName("AgentPrismBranchSession")
+            .WithTags("AgentPrism", "Sessions")
+            .WithSummary("Bir konusmayi belirli bir noktadan dallandirir ve yeni bir oturum acar.")
+            .WithDescription(
+                "Ogeler 'upToSequence' degerine kadar (dahil) YENI bir konusmaya KOPYALANIR; " +
+                "isaretci yalnizca koken bilgisidir. Dala yazmak ana konusmayi degistirmez. " +
+                "Dallandirma yalnizca kalici bir SQL saglayicisi acikken calisir; bellek ici " +
+                "kurulumda sohbet gecmisi oturum durumunun opak blogunda yasar ve 501 doner.")
+            .Produces<SessionBranchResult>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status501NotImplemented);
+    }
+
+    /// <summary>
+    /// Bir oturumun konusmasini dallandirir ve dali tasiyan yeni bir oturum acar.
+    /// </summary>
+    /// <remarks>
+    /// Uc oturum uzerindedir, konusma uzerinde degil: konusma kimligi oturum
+    /// durumunda yasar ve dallanan konusmayi kullanmanin tek yolu o kimligi
+    /// tasiyan yeni bir oturumdur.
+    /// </remarks>
+    private static async Task<Results<Created<SessionBranchResult>, ProblemHttpResult>> BranchSessionAsync(
+        string sessionId,
+        SessionBranchRequest request,
+        ConversationBranchService branches,
+        IAuditLog auditLog,
+        IAuditActorResolver actorResolver,
+        ITenantContext tenants,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var outcome = await branches.BranchAsync(sessionId, request, cancellationToken).ConfigureAwait(false);
+
+        if (outcome.Status != SessionBranchStatus.Branched)
+        {
+            return outcome.Status switch
+            {
+                SessionBranchStatus.NotSupported => TypedResults.Problem(
+                    title: "Dallandirma desteklenmiyor",
+                    detail: outcome.Detail,
+                    statusCode: StatusCodes.Status501NotImplemented),
+                SessionBranchStatus.SessionNotFound or SessionBranchStatus.AgentNotFound => TypedResults.Problem(
+                    title: "Oturum bulunamadi",
+                    detail: outcome.Detail,
+                    statusCode: StatusCodes.Status404NotFound),
+                SessionBranchStatus.SessionExists => TypedResults.Problem(
+                    title: "Oturum kimligi kullanimda",
+                    detail: outcome.Detail,
+                    statusCode: StatusCodes.Status409Conflict),
+                _ => TypedResults.Problem(
+                    title: "Dallandirilamadi",
+                    detail: outcome.Detail,
+                    statusCode: StatusCodes.Status400BadRequest),
+            };
+        }
+
+        var result = outcome.Result!;
+
+        await AuditRecorder.WriteAsync(
+            auditLog,
+            actorResolver,
+            loggerFactory.CreateLogger("AgentPrism.SessionEndpoints"),
+            tenants.TenantId,
+            action: "session.branch",
+            entity: $"session:{result.SessionId}",
+            before: null,
+            after: $$"""{"parentSessionId":"{{result.ParentSessionId}}","branchFromSequence":{{result.BranchFromSequence}},"copiedItemCount":{{result.CopiedItemCount}}}""",
+            cancellationToken).ConfigureAwait(false);
+
+        return TypedResults.Created($"/api/sessions/{Uri.EscapeDataString(result.SessionId)}", result);
     }
 
     private static async Task<Results<Ok<SessionDetailResponse>, ProblemHttpResult>> GetSessionAsync(

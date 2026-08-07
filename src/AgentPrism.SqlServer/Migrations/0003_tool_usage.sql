@@ -24,7 +24,14 @@ ALTER TABLE {schema}.tool_invocations ADD cost_currency nvarchar(16) NULL;
 
 -- Filtreli indeks: olcumu olmayan satirlar (cogunluk) yer kaplamaz.
 -- nvarchar(64) indekslenebilir; nvarchar(max) olsaydi indekslenemezdi.
+--
+-- 🚨 EXEC ile sarilir: butun migration dosyasi TEK bir toplu islem (batch)
+-- olarak gonderilir (MigrationRunner GO ayirmaz). Ayni toplu islemde biraz
+-- yukarida ADD EDILEN usage_unit sutunu, derleme zamaninda henuz yoktur --
+-- SQL Server toplu islemi calistirmadan once TAMAMINI derler ve CREATE INDEX
+-- "Invalid column name 'usage_unit'" ile reddedilir. EXEC(N'...') derlemeyi
+-- calisma zamanina erteler; o ana kadar ALTER TABLE zaten uygulanmis olur.
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'tool_invocations_usage_idx' AND object_id = OBJECT_ID(N'{schema}.tool_invocations'))
-CREATE INDEX tool_invocations_usage_idx
+EXEC(N'CREATE INDEX tool_invocations_usage_idx
     ON {schema}.tool_invocations (usage_unit, created_at DESC)
-    WHERE usage_unit IS NOT NULL;
+    WHERE usage_unit IS NOT NULL;');

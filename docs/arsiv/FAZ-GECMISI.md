@@ -422,3 +422,6 @@ seviyesinde (kaskad) ve `RunRecordingAgent` ile GERÇEK bir bloke eden
 Workflow'a özgü bir uçtan uca iptal testi hâlâ AÇIK — bkz.
 `docs/32-CALISTIRMA-IPTALI.md` Sonraki Faza Devir Notu.
 
+## Faz 16 — `Workflows.Declarative` ölçümü (hafızadan taşındı, 2026-08-07)
+
+- **🚨 `Microsoft.Agents.AI.Workflows.Declarative` +19 gecisli paket getirir** (2026-08-03, Faz 16): olculdu, 23 → 42. Tum Power Fx yorumlayici yigini, `Microsoft.Agents.ObjectModel.*` (ayri surum semasi `2026.2.4.1`) ve `System.CodeDom`. Ayrica `ResponseAgentProvider` sozlesmesi OpenAI Responses API sekline baglidir ve MAF'in kendi dokumani `ChatClientAgent` tabanli agent'lari "currently not supported" der. Alinmadi (K-129).

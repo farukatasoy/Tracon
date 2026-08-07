@@ -137,11 +137,67 @@ public sealed class AgentDefinitionCompiler
     /// Model saglayicisi bulunamazsa veya tanimda kayitli olmayan bir tool adi varsa.
     /// </exception>
     public AIAgent Compile(AgentDefinition definition, ResolvedCallableAgents callableAgents)
+        => Compile(definition, callableAgents, toolTransform: null);
+
+    /// <summary>
+    /// Tanimi, cozulmus alt agent'lariyla ve tool'lari donusturerek derler.
+    /// </summary>
+    /// <param name="definition">Derlenecek tanim.</param>
+    /// <param name="callableAgents">
+    /// <see cref="ResolveCallableAgentsAsync"/> ile onceden cozulmus alt agent ozetleri.
+    /// </param>
+    /// <param name="toolTransform">
+    /// Defterden cozulen her tool'a uygulanacak donusum. <see langword="null"/> ise
+    /// tool'lar oldugu gibi baglanir.
+    /// </param>
+    /// <returns>Calistirilabilir agent.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="definition"/> <see langword="null"/> ise.</exception>
+    /// <exception cref="AgentPrismCompilationException">
+    /// Model saglayicisi bulunamazsa veya tanimda kayitli olmayan bir tool adi varsa.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// Donusum yeniden oynatma icin vardir (Faz 47,
+    /// <see cref="ReplayToolMode.ReplayTools"/>): kayitli tool sonuclarini geri
+    /// oynatan bir <c>DelegatingAIFunction</c>, sarilanin adini, aciklamasini ve
+    /// JSON semasini korur — model tool'lari <em>aynen</em> gorur ama hicbir
+    /// govde calismaz.
+    /// </para>
+    /// <para>
+    /// 🚨 Donusum yalnizca <see cref="IToolRegistry"/> defterinden cozulen
+    /// tool'lara uygulanir. Skill'lerin ve cagrilabilir alt agent'larin actigi
+    /// tool'lar bir <c>AIContextProvider</c> uzerinden gelir ve buradan gecmez;
+    /// cagiran taraf onlari <em>tanim duzeyinde</em> kapatmalidir.
+    /// </para>
+    /// <para>
+    /// Derlenmis agent onbellegi (<see cref="CompiledAgentCache"/>) bu yol icin
+    /// <strong>kullanilmaz</strong>: donusum cagri basina degisir ve onbellege
+    /// giren bir oynatma agent'i normal calistirmalari da bozardi.
+    /// </para>
+    /// </remarks>
+    public AIAgent Compile(
+        AgentDefinition definition,
+        ResolvedCallableAgents callableAgents,
+        Func<AIFunction, AIFunction>? toolTransform)
     {
         ArgumentNullException.ThrowIfNull(definition);
 
         var chatClient = CreateChatClient(definition);
         var tools = ResolveTools(definition);
+
+        if (toolTransform is not null)
+        {
+            for (var index = 0; index < tools.Count; index++)
+            {
+                // Defter yalnizca AIFunction dondurur (IToolRegistry.TryGet imzasi);
+                // baska bir AITool turu buraya hicbir zaman girmez.
+                if (tools[index] is AIFunction function)
+                {
+                    tools[index] = toolTransform(function);
+                }
+            }
+        }
+
         var chatOptions = BuildChatOptions(definition, tools);
 
         return definition.Harness is null

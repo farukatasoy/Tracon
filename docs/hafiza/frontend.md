@@ -81,3 +81,5 @@
 - `src/components/command-palette.tsx` — `CommandPalette` + `ShortcutHelp`.
 - Dil basina ses tercihi: `lib/voice.ts` icinde `readVoiceForLocale` /
   `writeVoiceForLocale`; secici `screens/settings.tsx` icindeki `VoicePreferencePanel`.
+- **Mesaj bazlı "buradan dallan" YALNIZ oturum ekranındadır** (2026-08-07, Faz 47): `upToSequence` bir `conversation_items.seq` değeridir. `GET /api/sessions/{id}` geçmişi kayıtlı `ChatHistoryProvider` üzerinden sıra numarasına göre döndürür, dolayısıyla i'nci mesaj tam olarak `seq = i`'dir. Playground'un dökümü ise canlı SSE akışından katlanır ve hiçbir sıra numarası taşımaz; oradaki dallanma bu yüzden konuşmanın TAMAMINI kopyalar (`upToSequence` verilmez).
+- **Yeni bir sunucu enum'ı arayüze girdiğinde `i18n.test.ts`'in `identicalOnPurpose` listesi kontrol edilir** (2026-08-07, Faz 47): iki dilde aynı kalan teknik terim (`Model` gibi) listeye eklenmezse "her anahtar çevrilmiş olmalı" testi düşer. Liste bir kısayol değil, bilinçli bir karardır.

@@ -149,6 +149,45 @@ public sealed class SessionEndpointTests
         json.GetProperty("messages").ValueKind.ShouldBe(JsonValueKind.Null);
     }
 
+    [Fact]
+    public async Task Bellek_ici_kurulumda_dallandirma_501_doner()
+    {
+        // 🚨 SQL saglayicisi kayitli degilken sohbet gecmisi MAF'in
+        // InMemoryChatHistoryProvider'inda, oturum durumunun OPAK blogunda
+        // yasar ve belirli bir sira numarasina kadar kopyalanamaz. Sessizce
+        // tamamini kopyalamak istenen dali uretmezdi; uc bunu acikca soyler.
+        await using var host = await AgentPrismTestHost.StartAsync(
+            static builder => builder.AddAgent(TestData.Definition()));
+
+        await RunAsync(host, "merhaba", "oturum-dal");
+
+        using var response = await host.Client.PostAsJsonAsync(
+            new Uri("/agentprism/api/sessions/oturum-dal/branch", UriKind.Relative),
+            new { upToSequence = 0 });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotImplemented);
+
+        var body = await AgentPrismTestHost.ReadJsonAsync(response);
+
+        body.GetProperty("detail").GetString().ShouldNotBeNull().ShouldContain("SQL");
+    }
+
+    [Fact]
+    public async Task Olmayan_oturum_dallandirilamaz_404_doner()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync(
+            static builder => builder.AddAgent(TestData.Definition()));
+
+        using var response = await host.Client.PostAsJsonAsync(
+            new Uri("/agentprism/api/sessions/yok-boyle-bir-oturum/branch", UriKind.Relative),
+            new { upToSequence = 0 });
+
+        // Depo kayitli olmadigi icin "desteklenmiyor" cevabi ONCE gelir: eksik
+        // yetenek, eksik kayittan daha genel bir sebeptir ve kullaniciyi dogru
+        // eyleme yonlendirir.
+        response.StatusCode.ShouldBe(HttpStatusCode.NotImplemented);
+    }
+
     private static async Task RunAsync(AgentPrismTestHost host, string message, string sessionId)
     {
         using var response = await host.Client.PostAsJsonAsync(

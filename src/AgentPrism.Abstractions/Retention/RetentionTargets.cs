@@ -62,6 +62,18 @@ public static class RetentionTargets
     /// <summary>Saklanan idempotency yanitlari (Faz 43).</summary>
     public const string IdempotencyKeys = "idempotency_keys";
 
+    /// <summary>
+    /// Calistirmalarin kayitli girdi mesajlari (Faz 47). Yeniden oynatmanin
+    /// kaynagidir; silinen bir girdi o calistirmayi oynatilamaz yapar.
+    /// </summary>
+    /// <remarks>
+    /// Icerik <c>conversation_items</c> ile ayni bilgi sinifindadir (K-107) ama
+    /// hedef <strong>varsayilan olarak kapali degildir</strong>: <c>run_inputs</c>
+    /// kullanicinin kendi konusma gecmisi degil, calistirmanin turev bir
+    /// kaydidir ve omru saklama politikasiyla sinirlanabilir olmalidir.
+    /// </remarks>
+    public const string RunInputs = "run_inputs";
+
     /// <summary>Taninan tum hedef adlari.</summary>
     public static IReadOnlyList<string> All { get; } =
     [
@@ -79,6 +91,7 @@ public static class RetentionTargets
         VoiceSessions,
         RunScores,
         IdempotencyKeys,
+        RunInputs,
     ];
 
     /// <summary>Kullanici verisi tasiyan, varsayilan olarak KAPALI olan hedefler.</summary>

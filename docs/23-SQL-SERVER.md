@@ -242,6 +242,34 @@ dotnet test tests/AgentPrism.SqlServer.IntegrationTests -c Release
 
 Alternatif: CI'yı Linux amd64 üzerinde koşturmak.
 
+### Güncelleme (2026-08-07) — `azure-sql-edge` artık güvenilir bir yerel ikame
+
+Yukarıdaki "Rosetta ayarını aç" tavsiyesi bu oturumda denendi ve **yeterli
+değil**: ayar dosyada açık, Docker Desktop tam yeniden başlatıldı, VM içinde
+Rosetta gerçekten devreye giriyor (`console.log`), ama container'ın kendi
+amd64 çalıştırması yine de `exit 133` veriyor. Gerçek `mssql/server` bu
+makinede hâlâ açık — ayrıntı: `docs/hafiza/sql-server-yerel-test.md`.
+
+Bu kez `azure-sql-edge`'in Faz 25'te "artık her zaman çalışmayabilir" diye
+kayda geçen arızası **teşhis edildi ve kalıcı olarak düzeltildi** (K-317):
+kök sebep `Testcontainers.MsSql`'in hazır-olma denetiminin container içinde
+`sqlcmd` araması, fixture'ın kendisi hiç `sqlcmd` kullanmıyor. Özel bir
+`IWaitUntil` (gerçek `Microsoft.Data.SqlClient` bağlantısıyla `SELECT 1`)
+bunu atlar. Bu teknikle artık **431/431** sözleşme testi (Faz 23'ten bu yana
+büyüyen sözleşme paketi) `azure-sql-edge` üzerinde yeşil koştu ve dört
+gerçek üretim hatası daha bulundu:
+
+4. **K-318** — dört migration dosyasında (`0003`, `0009`, `0010`, `0011`)
+   `ALTER TABLE ADD` ile eklenen bir sütun, AYNI toplu işlemdeki
+   `CREATE INDEX`'te "Invalid column name" veriyordu; `EXEC(N'...')` ile
+   sarıldı (CREATE SCHEMA'nın zaten kullandığı desen).
+5. **K-319** — `EvalCaseResult.Scores` boşken `RawJson` `"null"` yazıyordu;
+   SQL Server'ın `ISJSON` kısıtı bunu reddediyordu. `"[]"` yazılır (sütunun
+   kendi `DEFAULT` değeriyle tutarlı).
+
+PostgreSQL (844/844) ve SQLite (445/445) regresyonsuz geçti. Ayrıntı ve
+tekrar dene rehberi: `docs/hafiza/sql-server-yerel-test.md`.
+
 ---
 
 ## Bitiş Ölçütleri (DoD)

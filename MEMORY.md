@@ -78,6 +78,16 @@ Bunlar alana bağlı değildir; her fazda tekrar tekrar bedel ödettiler.
   Denetim (faz kapanışında zorunlu): `find src -name "* 2.*" -not -path "*/node_modules/*"`
   — çıktı boş olmalıdır. Silmek yetmez: `wwwroot`'u kaldırıp
   `agentprism-frontend.stamp` damgasını da silmeden build arayüzü yeniden üretmez.
+- **🚨 `dotnet test` dakikalarca ASILI kalıyorsa önce alt süreç boru hatlarına bak.**
+  Faz 47'de ölçüldü: `AgentPrism.Templates.Tests` fikstürü `dotnet pack`'i
+  yönlendirilmiş stdout ile çalıştırıyordu; `pack`'in başlattığı MSBuild
+  düğümleri (`nodeReuse:true`) komut bittikten sonra da yaşayıp boruyu açık
+  tuttuğu için `WaitForExitAsync` **~15 dakika** bloke kaldı. Belirti: `ps`'te
+  tek bir `dotnet pack` bile yok, yalnız öksüz `MSBuild.dll … /nodeReuse:true`
+  düğümleri var. Çözüm `MSBUILDDISABLENODEREUSE=1` (8 dk+ → 18,5 sn). İkinci
+  sebep: `-p:AgentPrismFrontendEnabled=false` ile derlenip **E2E** koşulması —
+  41 test 30'ar saniye zaman aşımına uğrar. Artık `UiHost` bunu saniyeler
+  içinde açık bir mesajla düşürür. Ayrıntı: `docs/hafiza/test-altyapisi.md`.
 - **Bash'te `cd` kalıcıdır.** Bir komutta dizin değiştirdiysen sonraki komut orada
   başlar. Doğrulama komutlarında **mutlak yol** kullan.
 - **`dotnet test` MTP'dir, VSTest değil.** `--filter-query` bir MSBuild anahtarı

@@ -74,6 +74,7 @@ internal sealed class SqlRunStore : IRunStore
             AgentVersion = info.AgentVersion,
             ExperimentId = info.ExperimentId,
             Variant = info.Variant,
+            ReplayOfRunId = info.ReplayOfRunId,
         };
 
         var command = CreateCommand(_sql.InsertRun);
@@ -92,6 +93,7 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableInt32(command, "agent_version", record.AgentVersion);
         AddNullableUuid(command, "experiment_id", record.ExperimentId);
         AddNullableText(command, "variant", record.Variant);
+        AddNullableUuid(command, "replay_of_run_id", record.ReplayOfRunId);
 
         // Derinlik smallint sutunudur; kaynagi butcenin MaxDepth degeridir ve
         // hicbir kurulumda short sinirina yaklasmaz.
@@ -597,6 +599,11 @@ internal sealed class SqlRunStore : IRunStore
             Variant = DbHelpers.GetNullableString(reader, 27),
             Cost = ownCost,
             TreeCost = ReadTreeCost(reader, ownCost),
+
+            // 🚨 39: Faz 47'de SONA eklendi. Eski satirlarda NULL'dur; bu satir
+            // bir yeniden oynatma degildir demektir.
+            ReplayOfRunId = reader.IsDBNull(39) ? null : reader.GetGuid(39),
+
             // 🚨 37-38: HER ZAMAN sona eklenen sutunlar (Faz 44). Eski
             // satirlarda error_class NULL'dur -- Unknown kovasina duser
             // (RunStatistics.ByErrorClass, K-014 -- geriye donuk doldurma yok).

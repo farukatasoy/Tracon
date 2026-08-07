@@ -352,6 +352,32 @@ internal abstract class SqlQueriesBase
     /// <summary>Konusmanin mesajlarini sirali okur.</summary>
     public string SelectConversationItems { get; protected set; } = string.Empty;
 
+    /// <summary>
+    /// Dal noktasini olcer: kopyalanacak son sira numarasi ve oge sayisi
+    /// (Faz 47). Hic oge yoksa sira numarasi <c>-1</c> doner.
+    /// </summary>
+    public string SelectConversationBranchPoint { get; protected set; } = string.Empty;
+
+    /// <summary>
+    /// Kaynak konusmanin ustverisini kopyalayarak yeni bir dal konusmasi acar
+    /// (Faz 47). Kaynak yoksa veya baska bir kiraciya aitse hicbir satir yazilmaz.
+    /// </summary>
+    public string InsertBranchConversation { get; protected set; } = string.Empty;
+
+    /// <summary>
+    /// Dallandirmada kopyalanacak ogeleri sirali okur (Faz 47).
+    /// </summary>
+    public string SelectConversationItemsForBranch { get; protected set; } = string.Empty;
+
+    /// <summary>
+    /// Bir calistirmanin girdi mesajlarini yazar (Faz 47). Ayni calistirma icin
+    /// ikinci yazim <strong>yok sayilir</strong>.
+    /// </summary>
+    public string InsertRunInput { get; protected set; } = string.Empty;
+
+    /// <summary>Bir calistirmanin kayitli girdisini okur (Faz 47).</summary>
+    public string SelectRunInput { get; protected set; } = string.Empty;
+
     /// <summary>Bir kiracinin eval takimlarini listeler.</summary>
     public string SelectEvalSuites { get; protected set; } = string.Empty;
 

@@ -22,6 +22,7 @@ import {
 import { CrossIcon, MicIcon, PaperclipIcon, PlusIcon, SendIcon, SpeakerIcon, SpinnerIcon } from '../components/icons';
 import { TranscriptView } from '../components/transcript';
 import { VoicePanel } from '../components/voice-panel';
+import { BranchButton } from '../components/branch-button';
 
 interface Turn {
   id: string;
@@ -359,6 +360,15 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
             <Mono>{shortId(sessionId, 14, 6)}</Mono>
           </Link>{' '}
           — {t('playground.historyCarried')}
+          {/*
+            The playground branches the WHOLE conversation: its transcript is
+            folded from a live SSE stream and carries no `seq`. Branching at one
+            message needs the exact sequence number and lives on the session
+            screen, where the history arrives in sequence order.
+          */}
+          <span className="ml-2 inline-block align-middle">
+            <BranchButton sessionId={sessionId} />
+          </span>
         </p>
       )}
 
