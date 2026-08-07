@@ -257,9 +257,9 @@ yazılırsa aynı satır güncellenir, tekrar kaydı oluşmaz.
 | `jobs` | Kuyruktaki iş: durum, kira, deneme sayısı, ilerleme sayaçları (Faz 17) |
 | `job_items` | Toplu işin tek girdisi ve ürettiği `run_id` (Faz 17) |
 | `eval_suites` | Bir agent'ı ölçen takım: hedef agent, bildirimsel `checks` (`jsonb`) (Faz 18) |
-| `eval_cases` | Takımın vakaları: sorgu, beklenen çıktı, beklenen tool'lar (Faz 18) |
+| `eval_cases` | Takımın vakaları: sorgu, beklenen çıktı/tool'lar, terfi kökeni (Faz 18, 45) |
 | `eval_runs` | Bir takımın tek koşusu: agent sürümü, model, geçme/kalma sayısı (Faz 18) |
-| `eval_case_results` | Vaka bazında sonuç; `case_id` **yabancı anahtar değil** (K-14, append-only ruh) (Faz 18) |
+| `eval_case_results` | Vaka bazında sonuç; `case_id` **yabancı anahtar değil** (K-14) (Faz 18) |
 | `experiments` | A/B deneyi: hedef agent, kollar (`variants jsonb`), durum, başlangıç/bitiş (Faz 19) |
 | `quotas` | Kota kuralı: kapsam (kiracı+agent+dönem), üç sınır (`max_runs`/`max_tokens`/`max_cost`) (Faz 21) |
 | `quota_usage` | Dönem sayacı; `agent_name = ''` kiracı geneli. `ON CONFLICT DO UPDATE` ile **atomik** artar (Faz 21) |

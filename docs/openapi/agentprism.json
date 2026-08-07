@@ -2218,6 +2218,74 @@
         }
       }
     },
+    "/agentprism/api/evals/{name}/cases/from-run/{runId}": {
+      "post": {
+        "tags": [
+          "AgentPrism",
+          "Evals"
+        ],
+        "summary": "Bir calistirmayi tek istekle bir eval vakasina terfi ettirir.",
+        "description": "Sorgu, calistirmanin kendi oturumundan okunur; oturumsuz calistirmalar terfi edilemez. Ayni calistirma ikinci kez terfi edilirse mevcut vaka doner (201 degil 200).",
+        "operationId": "AgentPrismPromoteRunToEvalCase",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/EvalCasePromotionRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalCase"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalCase"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/agentprism/api/evals/{name}/run": {
       "post": {
         "tags": [
@@ -6035,6 +6103,33 @@
               "string"
             ],
             "description": "Modele ek baglam olarak verilecek metin."
+          },
+          "sourceRunId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Vakanin uretildigi calistirma. Elle yazildiysa \u0060null\u0060.",
+            "format": "uuid"
+          },
+          "sourceKind": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Terfi sebebi. Elle yazildiysa \u0060null\u0060.",
+                "$ref": "#/components/schemas/EvalCaseSource"
+              }
+            ]
+          },
+          "promotedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Terfi zamani. Elle yazildiysa \u0060null\u0060.",
+            "format": "date-time"
           }
         },
         "description": "Bir EvalSuite icindeki tek bir test vakasi."
@@ -6072,6 +6167,23 @@
           }
         },
         "description": "Bir eval vakasinin girdi bicimi (istekte)."
+      },
+      "EvalCasePromotionRequest": {
+        "type": "object",
+        "properties": {
+          "sourceKind": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Terfi sebebini ezer. Verilmezse calistirmanin durumundan ve puanindan\nkendiliginden turetilir.",
+                "$ref": "#/components/schemas/EvalCaseSource"
+              }
+            ]
+          }
+        },
+        "description": "Bir calistirmayi vakaya terfi etme istegi (Faz 45, F-53)."
       },
       "EvalCaseResult": {
         "required": [
@@ -6128,6 +6240,14 @@
           }
         },
         "description": "Bir EvalRun icinde tek bir EvalCase\u0027in sonucu."
+      },
+      "EvalCaseSource": {
+        "enum": [
+          "FailedRun",
+          "NegativeScore",
+          "ReferenceRun",
+          null
+        ]
       },
       "EvalRun": {
         "required": [

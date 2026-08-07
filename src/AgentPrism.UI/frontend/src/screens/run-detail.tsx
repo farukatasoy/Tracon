@@ -20,6 +20,7 @@ import {
 import { SpinnerIcon } from '../components/icons';
 import { CancelRunButton } from '../components/cancel-run-button';
 import { FeedbackControl } from '../components/feedback-control';
+import { PromoteToEvalCase } from '../components/promote-to-eval-case';
 import { TranscriptView } from '../components/transcript';
 import { Waterfall, formatMs } from '../components/waterfall';
 import { StatusBadge, Stat } from './runs';
@@ -252,6 +253,12 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
       {finished && (
         <div className="mb-4">
           <FeedbackControl runId={record.id} />
+        </div>
+      )}
+
+      {(record.status === 'Completed' || record.status === 'Failed') && (
+        <div className="mb-4">
+          <PromoteToEvalCase runId={record.id} />
         </div>
       )}
 

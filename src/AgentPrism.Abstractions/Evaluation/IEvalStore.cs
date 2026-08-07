@@ -55,6 +55,20 @@ public interface IEvalStore
         IReadOnlyList<EvalCase> cases,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Takima TEK bir vaka ekler. <c>Seq</c> depo tarafindan atomik olarak
+    /// uretilir; cagiran hesaplamaz. Ayni <see cref="EvalCaseDraft.SourceRunId"/>
+    /// ikinci kez eklenmeye calisilirsa mevcut vaka <c>Created: false</c> ile doner.
+    /// </summary>
+    /// <param name="suiteId">Takim kimligi.</param>
+    /// <param name="draft">Eklenecek vakanin taslagi.</param>
+    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <returns>Eklenen (veya zaten var olan) vaka ve olusturulup olusturulmadigi.</returns>
+    ValueTask<EvalCaseAddResult> AddCaseAsync(
+        Guid suiteId,
+        EvalCaseDraft draft,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Yeni bir kosu kaydi olusturur (durum <see cref="EvalRunStatus.Pending"/>).</summary>
     /// <param name="run">Kosu kaydi.</param>
     /// <param name="cancellationToken">Iptal belirteci.</param>
@@ -125,6 +139,19 @@ public interface IEvalStore
         string tenantId,
         Guid evalRunId,
         CancellationToken cancellationToken = default);
+}
+
+/// <summary><see cref="IEvalStore.AddCaseAsync"/>'in sonucu.</summary>
+public sealed record EvalCaseAddResult
+{
+    /// <summary>Eklenen (veya zaten var olan) vaka.</summary>
+    public required EvalCase Case { get; init; }
+
+    /// <summary>
+    /// Bu cagriyla yeni mi olusturuldu; yoksa ayni <c>SourceRunId</c> ile
+    /// daha once terfi edilmis, mevcut vaka mi dondu.
+    /// </summary>
+    public required bool Created { get; init; }
 }
 
 /// <summary>Kosu listesini filtrelemek icin sorgu.</summary>

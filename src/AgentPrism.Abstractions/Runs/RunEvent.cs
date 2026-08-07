@@ -14,6 +14,9 @@ namespace AgentPrism;
 /// <para>
 /// Olay tipine gore hangi alanlarin dolduruldugu:
 /// <list type="table">
+///   <item><term><see cref="RunEventType.RunStarted"/></term><description>
+///     <see cref="Text"/> (calistirmayi tetikleyen ilk kullanici mesaji, Faz 45/F-53).
+///     Girdi metninin kalicilastigi TEK yerdir.</description></item>
 ///   <item><term><see cref="RunEventType.MessageDelta"/></term><description><see cref="Text"/></description></item>
 ///   <item><term><see cref="RunEventType.ToolInvoking"/></term><description><see cref="ToolName"/>, <see cref="ToolCallId"/>, <see cref="Payload"/> (argumanlar)</description></item>
 ///   <item><term><see cref="RunEventType.ToolInvoked"/></term><description><see cref="ToolName"/>, <see cref="ToolCallId"/>, <see cref="Payload"/> (sonuc)</description></item>

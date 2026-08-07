@@ -58,9 +58,16 @@ public sealed class RunEventWriter
 
     /// <summary>Calistirma kaydini acar ve ilk olayi yazar.</summary>
     /// <param name="info">Baslangic bilgileri.</param>
+    /// <param name="query">
+    /// Bu calistirmayi tetikleyen ilk kullanici mesajinin metni. Uretimden eval
+    /// vakasi terfisinin (Faz 45, F-53) tek kaynagidir: <c>run_events</c> disinda
+    /// girdi metni hicbir yerde kalicilasmaz, oturum yalniz BASARILI bir
+    /// calistirmanin sonunda kaydedilir (bkz. <c>AgentEndpoints.AgentRunStream</c>) —
+    /// bu yuzden basarisiz bir calistirmanin sorgusu SADECE buradan okunabilir.
+    /// </param>
     /// <param name="cancellationToken">Iptal belirteci.</param>
     /// <returns>Tamamlanma gorevi.</returns>
-    public async ValueTask StartAsync(RunStartInfo info, CancellationToken cancellationToken = default)
+    public async ValueTask StartAsync(RunStartInfo info, string? query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(info);
 
@@ -79,7 +86,7 @@ public sealed class RunEventWriter
             return;
         }
 
-        await AppendAsync(new RunEventDraft(RunEventType.RunStarted), cancellationToken).ConfigureAwait(false);
+        await AppendAsync(new RunEventDraft(RunEventType.RunStarted) { Text = query }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Akisa bir olay ekler ve sira numarasini atar.</summary>

@@ -120,6 +120,96 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
     }
 
     [Fact]
+    public async Task AddCaseAsync_seq_atomik_atanir()
+    {
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
+
+        var first = await Store.AddCaseAsync(suite.Id, TestData.EvalCaseDraft(AgentPrismId.NewId(), "birinci"));
+        var second = await Store.AddCaseAsync(suite.Id, TestData.EvalCaseDraft(AgentPrismId.NewId(), "ikinci"));
+
+        first.Created.ShouldBeTrue();
+        second.Created.ShouldBeTrue();
+        first.Case.Seq.ShouldBe(0);
+        second.Case.Seq.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task AddCaseAsync_kaynak_alanlarini_ve_beklenen_alanlari_saklar()
+    {
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
+        var runId = AgentPrismId.NewId();
+
+        var added = await Store.AddCaseAsync(
+            suite.Id,
+            new EvalCaseDraft
+            {
+                Query = "soru",
+                ExpectedOutput = "beklenen",
+                ExpectedTools = ["get_order_status"],
+                Context = "baglam",
+                SourceRunId = runId,
+                SourceKind = EvalCaseSource.ReferenceRun,
+            });
+
+        added.Created.ShouldBeTrue();
+        added.Case.Query.ShouldBe("soru");
+        added.Case.ExpectedOutput.ShouldBe("beklenen");
+        added.Case.ExpectedTools.ShouldBe(["get_order_status"]);
+        added.Case.Context.ShouldBe("baglam");
+        added.Case.SourceRunId.ShouldBe(runId);
+        added.Case.SourceKind.ShouldBe(EvalCaseSource.ReferenceRun);
+        added.Case.PromotedAt.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task AddCaseAsync_ayni_source_run_id_ikinci_kez_mevcut_vakayi_doner()
+    {
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
+        var runId = AgentPrismId.NewId();
+
+        var first = await Store.AddCaseAsync(suite.Id, TestData.EvalCaseDraft(runId));
+        var second = await Store.AddCaseAsync(suite.Id, TestData.EvalCaseDraft(runId, "farkli-soru"));
+
+        first.Created.ShouldBeTrue();
+        second.Created.ShouldBeFalse();
+        second.Case.Id.ShouldBe(first.Case.Id);
+        second.Case.Query.ShouldBe(first.Case.Query);
+
+        (await Store.ListCasesAsync(suite.Id)).ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task AddCaseAsync_kaynaksiz_vakalari_elle_yazilmis_vakalardan_ayirmaz()
+    {
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
+        await Store.ReplaceCasesAsync(suite.Id, [TestData.EvalCase(suite.Id, "elle")]);
+
+        var added = await Store.AddCaseAsync(suite.Id, TestData.EvalCaseDraft(AgentPrismId.NewId(), "terfi"));
+
+        added.Case.Seq.ShouldBe(1);
+
+        var cases = await Store.ListCasesAsync(suite.Id);
+        cases.Count.ShouldBe(2);
+        cases[0].SourceRunId.ShouldBeNull();
+        cases[1].SourceRunId.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task AddCaseAsync_es_zamanli_terfiler_farkli_seq_uretir()
+    {
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
+
+        var tasks = Enumerable.Range(0, 8)
+            .Select(_ => Store.AddCaseAsync(suite.Id, TestData.EvalCaseDraft(AgentPrismId.NewId())).AsTask())
+            .ToArray();
+
+        var results = await Task.WhenAll(tasks);
+
+        results.ShouldAllBe(static result => result.Created);
+        results.Select(static result => result.Case.Seq).Distinct().Count().ShouldBe(results.Length);
+    }
+
+    [Fact]
     public async Task Kosu_yasam_dongusu_calisiyor_tamamlandi_gecisi_yapar()
     {
         var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());

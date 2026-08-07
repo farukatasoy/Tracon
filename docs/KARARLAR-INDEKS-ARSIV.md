@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (149 kalem)
+## Arşivlenen Kararlar (153 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -158,3 +158,7 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-147 | 192 | A/B deney ataması yalnızca `AgentEndpoints.RunAsync` (deneme ucu) içine gömülüdür |
 | K-148 | 193 | Sürüm çözümü `IVersionedAgentSource` marker arayüzüyle eklendi; `IAgentSource`'a doğrudan metot eklenmedi |
 | K-149 | 194 | `experiments.variants` tek bir `jsonb` sütununda saklanır; ayrı bir `experiment_variants` tablosu açılmadı |
+| K-150 | 195 | Maliyette para birimi dönüşümü yapılmaz 👤 |
+| K-151 | 196 | Ağaç maliyeti kendi maliyetiyle toplanmaz; iki ayrı alan 👤 |
+| K-152 | 197 | `/api/stats` Eval/Workflow'u hariç tutmaya devam eder (K-141); yeni `/api/stats/timeseries` bilerek hariç TUTMAZ 👤 |
+| K-153 | 198 | `POST /api/stats/recalculate-costs` eklendi: Admin + denetim izi 👤 |

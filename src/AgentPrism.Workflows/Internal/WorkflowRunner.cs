@@ -424,6 +424,11 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 SessionId = execution.SessionId,
                 IsStreaming = true,
             },
+
+            // Workflow calistirmalari yapilandirilmis bir girdiyle baslar, tek bir
+            // kullanici mesajiyla degil; Faz 45'in eval vaka terfisi yalniz agent
+            // calistirmalarini kapsar (docs/45-URETIMDEN-EVAL-KUMESI.md).
+            query: null,
             linked.Token).ConfigureAwait(false);
 
         yield return FirstEvent(execution);
