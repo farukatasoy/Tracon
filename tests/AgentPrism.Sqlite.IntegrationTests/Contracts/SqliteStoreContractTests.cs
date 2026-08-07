@@ -431,6 +431,28 @@ public sealed class SqliteRunScoreStoreContractTests(SqliteFixture fixture) : Ru
 }
 
 /// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />
+public sealed class SqliteSingletonLeaseStoreContractTests(SqliteFixture fixture) : SingletonLeaseStoreContract
+{
+    private SqliteTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<ISingletonLeaseStore> CreateStoreAsync()
+    {
+        _context = await SqliteTestContext.CreateAsync(fixture);
+        return _context.SingletonLeases;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}
+
+/// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />
 public sealed class SqliteAgentSkillStoreContractTests(SqliteFixture fixture) : AgentSkillStoreContract
 {
     private SqliteTestContext? _context;

@@ -51,7 +51,8 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
         // ekleyen kisi tabloyu fark etmis olur.
         // Faz 29 `voice_sessions` tablosunu ekledi: 38 -> 39.
         // Faz 31 `run_scores` tablosunu ekledi: 39 -> 40.
-        tableCount.ShouldBe(40);
+        // Faz 42 `singleton_leases` tablosunu ekledi: 40 -> 41.
+        tableCount.ShouldBe(41);
     }
 
     [Fact]

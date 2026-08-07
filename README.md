@@ -264,7 +264,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [33](docs/33-SAGLIK-DENETIMI-VE-TESHIS.md) | Sağlık denetimi (`/health`) ve yapılandırma teşhisi (`/api/diagnostics`) | ✅ Tamamlandı |
 | [34](docs/34-TANIM-DOGRULAMA-UCU.md) | Tanım doğrulama ucu | ✅ Tamamlandı |
 | [35](docs/35-MALIYET-VE-KOTA-METRIKLERI.md) | Maliyet ve kota OTel metrikleri | ✅ Tamamlandı |
-| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 36–52) | Faz 36–41 bitti; kalanı 📋 [adaylarda](docs/UCUNCU-FAZ-ADAYLARI.md) |
+| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 36–52) | Faz 36–42 bitti; kalanı 📋 [adaylarda](docs/UCUNCU-FAZ-ADAYLARI.md) |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 
