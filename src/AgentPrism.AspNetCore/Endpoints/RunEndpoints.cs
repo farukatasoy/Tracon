@@ -248,16 +248,26 @@ internal static class RunEndpoints
     /// bu ornek onu yurutmuyor demektir; <c>409</c> doner.
     /// </item>
     /// <item>Calistirma zaten sonlanmissa <c>409</c> doner ve mevcut durum yazilir.</item>
+    /// <item>
+    /// 🚨 Faz 46: <see cref="RunStatus.Queued"/> durumundaki bir calistirma
+    /// HENUZ yurutulmuyordur; <see cref="IRunCancellationRegistry"/>'de kayitli
+    /// olamaz. Bu durumda iptal <c>IJobStore.CancelAsync</c> ile KUYRUKTAN
+    /// yapilir (Job.Id == RunId, Faz 46) ve <c>runs</c> satiri burada dogrudan
+    /// <see cref="RunStatus.Canceled"/>'e kapatilir — isci is'i hic almadigi
+    /// icin <c>RunRecordingAgent</c> bu satiriyi asla kapatmayacaktir.
+    /// </item>
     /// </list>
     /// </remarks>
     private static async Task<Results<Accepted<RunRecord>, ProblemHttpResult>> CancelRunAsync(
         Guid runId,
         [FromServices] IRunStore runs,
+        [FromServices] IJobStore jobs,
         [FromServices] IRunCancellationRegistry cancellations,
         [FromServices] ITenantContext tenants,
         [FromServices] IAuditLog auditLog,
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] TimeProvider? timeProvider,
         CancellationToken cancellationToken)
     {
         var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
@@ -267,6 +277,36 @@ internal static class RunEndpoints
         if (run is null || !string.Equals(run.TenantId, tenants.TenantId, StringComparison.Ordinal))
         {
             return NotFound(runId);
+        }
+
+        if (run.Status == RunStatus.Queued)
+        {
+            if (!await jobs.CancelAsync(tenants.TenantId, runId, cancellationToken).ConfigureAwait(false))
+            {
+                return TypedResults.Problem(
+                    title: "Calistirma zaten sonlanmis",
+                    detail: $"'{runId}' kimlikli calistirma zaten '{run.Status}' durumunda.",
+                    statusCode: StatusCodes.Status409Conflict);
+            }
+
+            var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
+
+            await runs.CompleteRunAsync(
+                new RunCompletion { RunId = runId, Status = RunStatus.Canceled, CompletedAt = now },
+                cancellationToken).ConfigureAwait(false);
+
+            await AuditRecorder.WriteAsync(
+                auditLog,
+                actorResolver,
+                loggerFactory.CreateLogger("AgentPrism.RunEndpoints"),
+                tenants.TenantId,
+                action: "run.cancel",
+                entity: $"run:{runId}",
+                before: null,
+                after: null,
+                cancellationToken).ConfigureAwait(false);
+
+            return TypedResults.Accepted($"/api/runs/{runId}", run with { Status = RunStatus.Canceled, CompletedAt = now });
         }
 
         if (!cancellations.TryCancel(runId, tenants.TenantId))
@@ -420,7 +460,12 @@ internal static class RunEndpoints
                     }
 
                     // Calistirma silinmis veya sonlanmissa tum olaylar yazilmistir.
-                    if (snapshot is null || snapshot.Status != RunStatus.Running)
+                    // 🚨 Faz 46: 'Queued' de BEKLENEN bir ara durumdur — isci
+                    // is'i henuz almamis olabilir. Yalniz Running/Queued disinda
+                    // bir durum (veya kaydin kendisinin yoklugu) akisi kapatir;
+                    // aksi halde 202'den hemen sonra baglanan bir istemci is
+                    // hic baslamadan akisin kapandigini gorurdu.
+                    if (snapshot is null || snapshot.Status is not (RunStatus.Running or RunStatus.Queued))
                     {
                         break;
                     }

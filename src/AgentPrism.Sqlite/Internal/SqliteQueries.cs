@@ -317,11 +317,30 @@ internal sealed class SqliteQueries : SqlQueriesBase
 
         // --- Calistirmalar ---
 
+        // 🚨 Faz 46: UPSERT'tir. Kuyruga alinan bir calistirma once Queued
+        // olarak yazilir; isci is'i gercekten calistirdiginda AYNI id ile
+        // ikinci kez cagrilir ve satir yerinde guncellenir (yeni satir ACILMAZ).
         InsertRun = $"""
             INSERT INTO {Schema}runs (id, tenant_id, agent_name, session_id, model_id, status, started_at, is_streaming, event_count,
                                        parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant)
             VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @status, @started_at, @is_streaming, 0,
-                    @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant);
+                    @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant)
+            ON CONFLICT (id) DO UPDATE SET
+                tenant_id     = excluded.tenant_id,
+                agent_name    = excluded.agent_name,
+                session_id    = excluded.session_id,
+                model_id      = excluded.model_id,
+                status        = excluded.status,
+                started_at    = excluded.started_at,
+                is_streaming  = excluded.is_streaming,
+                parent_run_id = excluded.parent_run_id,
+                root_run_id   = excluded.root_run_id,
+                depth         = excluded.depth,
+                kind          = excluded.kind,
+                workflow_name = excluded.workflow_name,
+                agent_version = excluded.agent_version,
+                experiment_id = excluded.experiment_id,
+                variant       = excluded.variant;
             """;
 
         UpdateRunCompletion = $"""

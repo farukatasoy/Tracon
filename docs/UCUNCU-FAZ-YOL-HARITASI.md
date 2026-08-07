@@ -1,6 +1,7 @@
 # Üçüncü Faz Yol Haritası (Faz 31 – 52)
 
-> **Durum (2026-08-06): Üç dalga da planlandı, kod yazılmadı.**
+> **Durum (2026-08-07): Üç dalga da planlandı; Dalga 1, Dalga 2 ve Dalga 3'ün
+> Faz 46'sı tamamlandı.** Aşağıdaki satırlar tek tek güncel durumu taşır.
 > Bu tur [`UCUNCU-FAZ-ADAYLARI.md`](UCUNCU-FAZ-ADAYLARI.md) listesinden seçilir.
 > **Yirmi altı kalem** faz dokümanına dönüştürüldü (Faz 31–52) ve aday
 > listesinden **silindi**. Kalan 20 kalem seçilmemiştir.
@@ -82,7 +83,7 @@ Dalga 1 ve 2'nin aksine **sıra burada anlamlıdır**: dört fazın gerçek bir
 
 | Faz | Doküman | Kalem | Önkoşul / neden burada | Yeni paket | Migration |
 |-----|---------|-------|------------------------|-----------|-----------|
-| 46 | [46-DAYANIKLI-CALISTIRMA.md](46-DAYANIKLI-CALISTIRMA.md) | F-68 (F-39 içinde) | 📋 [Faz 43](43-IDEMPOTENCY-KEY.md) üstüne. Turun en temel yeteneği; F-36 ve F-69 buna bağlıdır | — | — |
+| 46 | [46-DAYANIKLI-CALISTIRMA.md](46-DAYANIKLI-CALISTIRMA.md) | F-68 (F-39 içinde) | ✅ **Tamamlandı (2026-08-07).** `IRunStore.StartRunAsync` UPSERT'e çevrildi (K-304) — plan öngörmemişti; `Job.Id == RunId` (K-305) | — | — |
 | 47 | [47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md](47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md) | F-54 · F-66 | 📋 Bağımsız. 🚨 Açtığı `run_inputs` tablosu **Faz 49'un girdi kaynağıdır** | — | bir tablo + iki sütun, üç set |
 | 48 | [48-GUARDRAILS.md](48-GUARDRAILS.md) | F-32 | 📋 Bağımsız. Ertelenen F-72'nin üstüne oturacağı katman | — | — |
 | 49 | [49-CEVRIMICI-DEGERLENDIRME.md](49-CEVRIMICI-DEGERLENDIRME.md) | F-71 | 📋 🚨 **[Faz 31](31-GERI-BILDIRIM-VE-PUANLAMA.md)** — `run_scores` oradan gelir. Faz 47 girdiyi verir | — | — (Faz 31'in tablosu) |
@@ -106,8 +107,8 @@ flowchart LR
     classDef planli fill:#1f6f4a,stroke:#0d3b27,color:#ffffff
     classDef dalga3 fill:#5a3a7a,stroke:#2c1c3d,color:#ffffff
     classDef ertelendi fill:#5a5a5a,stroke:#2c2c2c,color:#ffffff
-    class F43,F31,F7 planli
-    class F46,F47,F48,F49,F50,F51,F52 dalga3
+    class F43,F31,F7,F46 planli
+    class F47,F48,F49,F50,F51,F52 dalga3
     class F72,F56 ertelendi
 ```
 
@@ -221,7 +222,7 @@ dokuzu** public yüzeyi büyütür.
 
 | Faz | Yeni public yüzey | Yayından sonra maliyeti |
 |---|---|---|
-| 46 | `JobKind.AgentRun`, `RunStatus.Queued`, `AgentRunJobPayload`, `AgentPrismAsyncRunOptions`, `AcceptedRunResponse` | Enum'a **sona** değer eklemek ucuz; yeni tipler ucuz |
+| 46 | `JobKind.AgentRun`, `RunStatus.Queued`, `RunStartInfo.Status`, `AgentPrismAsyncRunOptions` (Core'da, plan AspNetCore diyordu), `AcceptedRunResponse` | Enum'a **sona** değer eklemek ucuz; yeni tipler ucuz. 🚨 `AgentRunJobPayload` planı **yazılmadı** — yük ham `JsonElement` (Eval/Webhook deseniyle aynı), bkz. Faz 46 Plandan Sapmalar |
 | 47 | `IRunInputStore`, `RunInputRecord`, `ReplayToolMode`, `RunReplayRequest`, `SessionBranchRequest`/`Result`, `RunRecord`'a bir alan | `sealed record`'a alan — sürüm kararı |
 | 48 | `IContentGuard`, `ContentGuardContext`/`Result`/`Action`/`Direction`, `AgentPrismContentBlockedException`, `RunEventType`'a iki üye | Yeni arayüz ucuz; enum sona ekleme ucuz |
 | 49 | `IRunJudge`, `RunJudgeContext`, `RunJudgment`, `JobKind.OnlineEval`, `RunScoreKind.Numeric`, `RunQuery`'ye bir alan | 🚨 `RunScoreKind.Numeric` **Faz 31'e taşınmalıdır** — aynı enum'a iki kez dokunmamak için |

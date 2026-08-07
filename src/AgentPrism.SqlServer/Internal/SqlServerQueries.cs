@@ -327,7 +327,30 @@ internal sealed class SqlServerQueries : SqlQueriesBase
 
         // --- Calistirmalar ---
 
+        // 🚨 Faz 46: UPSERT'tir (UPDATE-sonra-INSERT deseni, UpsertConversation
+        // ile aynı). Kuyruga alinan bir calistirma once Queued olarak yazilir;
+        // isci is'i gercekten calistirdiginda AYNI id ile ikinci kez cagrilir
+        // ve satir yerinde guncellenir (yeni satir ACILMAZ).
         InsertRun = $"""
+            UPDATE {Schema}.runs WITH (UPDLOCK, SERIALIZABLE)
+               SET tenant_id     = @tenant_id,
+                   agent_name    = @agent_name,
+                   session_id    = @session_id,
+                   model_id      = @model_id,
+                   status        = @status,
+                   started_at    = @started_at,
+                   is_streaming  = @is_streaming,
+                   parent_run_id = @parent_run_id,
+                   root_run_id   = @root_run_id,
+                   depth         = @depth,
+                   kind          = @kind,
+                   workflow_name = @workflow_name,
+                   agent_version = @agent_version,
+                   experiment_id = @experiment_id,
+                   variant       = @variant
+             WHERE id = @id;
+
+            IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, model_id, status, started_at, is_streaming, event_count,
                                        parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant)
             VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @status, @started_at, @is_streaming, 0,
