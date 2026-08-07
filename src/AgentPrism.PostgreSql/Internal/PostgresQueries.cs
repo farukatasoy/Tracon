@@ -241,11 +241,30 @@ internal sealed class PostgresQueries : SqlQueriesBase
 
         // --- Calistirmalar ---
 
+        // 🚨 Faz 46: UPSERT'tir. Kuyruga alinan bir calistirma once Queued
+        // olarak yazilir; isci is'i gercekten calistirdiginda AYNI id ile
+        // ikinci kez cagrilir ve satir yerinde guncellenir (yeni satir ACILMAZ).
         InsertRun = $"""
             INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, model_id, status, started_at, is_streaming, event_count,
                                        parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant)
             VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @status, @started_at, @is_streaming, 0,
-                    @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant);
+                    @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant)
+            ON CONFLICT (id) DO UPDATE SET
+                tenant_id     = EXCLUDED.tenant_id,
+                agent_name    = EXCLUDED.agent_name,
+                session_id    = EXCLUDED.session_id,
+                model_id      = EXCLUDED.model_id,
+                status        = EXCLUDED.status,
+                started_at    = EXCLUDED.started_at,
+                is_streaming  = EXCLUDED.is_streaming,
+                parent_run_id = EXCLUDED.parent_run_id,
+                root_run_id   = EXCLUDED.root_run_id,
+                depth         = EXCLUDED.depth,
+                kind          = EXCLUDED.kind,
+                workflow_name = EXCLUDED.workflow_name,
+                agent_version = EXCLUDED.agent_version,
+                experiment_id = EXCLUDED.experiment_id,
+                variant       = EXCLUDED.variant;
             """;
 
         UpdateRunCompletion = $"""

@@ -35,6 +35,9 @@ export function StatusBadge({ status }: { status: RunStatus }): ReactNode {
     case 'AwaitingInput':
       // Neither finished nor running: a workflow stopped on a human decision.
       return <Badge tone="warn">{t('runs.status.awaitingInput')}</Badge>;
+    case 'Queued':
+      // Started with 'Prefer: respond-async'; the worker has not picked it up yet.
+      return <Badge tone="info">{t('runs.status.queued')}</Badge>;
     default:
       return <Badge tone="info">{t('runs.status.running')}</Badge>;
   }
@@ -102,6 +105,7 @@ export function RunsScreen(): ReactNode {
               <option value="Failed">{t('runs.filter.failed')}</option>
               <option value="Canceled">{t('runs.filter.canceled')}</option>
               <option value="AwaitingInput">{t('runs.filter.awaitingInput')}</option>
+              <option value="Queued">{t('runs.filter.queued')}</option>
             </Select>
             <Select
               value={includeChildren ? 'all' : 'roots'}

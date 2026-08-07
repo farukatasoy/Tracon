@@ -12,8 +12,11 @@ export type AgentOrigin = 'Code' | 'Maf' | 'Database';
  * request port, its state was written to a checkpoint and the stream closed.
  * Answering it starts a *new* run — the original row keeps this status, because
  * run history is append-only (decision K-014).
+ *
+ * `Queued` only appears on runs started with `Prefer: respond-async` (phase 46):
+ * the row exists but the worker has not picked up the job yet.
  */
-export type RunStatus = 'Running' | 'Completed' | 'Failed' | 'Canceled' | 'AwaitingInput';
+export type RunStatus = 'Running' | 'Completed' | 'Failed' | 'Canceled' | 'AwaitingInput' | 'Queued';
 
 export type RunEventType =
   | 'RunStarted'

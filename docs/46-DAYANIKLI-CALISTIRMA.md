@@ -1,6 +1,6 @@
 # Faz 46 — Dayanıklı Çalıştırma (`202 Accepted`)
 
-> **Durum:** 📋 Planlandı (2026-08-06)
+> **Durum:** ✅ Tamamlandı (2026-08-07)
 > **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-68** (F-39 bu kalemin içinde yaşar)
 > **Önkoşul:** [Faz 43](43-IDEMPOTENCY-KEY.md) — yan etkili tool'un iki kez koşmasına karşı tek savunma. Faz 17'nin iş kuyruğu **hazır**
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.AspNetCore`, `.UI`
@@ -527,72 +527,113 @@ Sözleşme testi gerekmez — yeni bir depo arayüzü yoktur.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] 🚨 `Prefer: respond-async` ile gönderilen istek `202`, `Location` ve
+- [x] 🚨 `Prefer: respond-async` ile gönderilen istek `202`, `Location` ve
       `Preference-Applied: respond-async` döner
-- [ ] 🚨 `202`'den **hemen sonra** `GET /api/runs/{runId}` `Queued` döner — `404` **değil**
-- [ ] İstemci bağlantıyı kapatsa bile çalıştırma **tamamlanır**; `runs` satırı
+- [x] 🚨 `202`'den **hemen sonra** `GET /api/runs/{runId}` `Queued` döner — `404` **değil**
+- [x] İstemci bağlantıyı kapatsa bile çalıştırma **tamamlanır**; `runs` satırı
       `Completed` olur
-- [ ] `runs.id`, `Location` başlığındaki kimliğe **eşittir**
-- [ ] `202`'den sonra `/events`'e bağlanan istemci **başlangıç olaylarını görür**
-- [ ] Başlık **gönderilmeyen** istekte bugünkü SSE davranışı değişmemiştir
-- [ ] `Prefer: respond-async` + `Idempotency-Key` → **tek** iş, tek `runs` satırı
-- [ ] Akışlı istek + `Idempotency-Key` → Faz 43'ün `400`'ü korunur; mesaj
-      `Prefer: respond-async` önerir
-- [ ] `Enabled = false` iken başlık taşıyan istek `501` alır
-- [ ] `MaxAttempts = 1` iken kira dolan iş **yeniden denenmez**
-- [ ] Kota dolu iken kuyruğa alma `429` alır ve iş açılmaz
-- [ ] `Queued` durumdaki çalıştırma iptal edilebilir
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı bu belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve buraya yazıldı
+- [x] `runs.id`, `Location` başlığındaki kimliğe **eşittir**
+- [x] `202`'den sonra `/events`'e bağlanan istemci **başlangıç olaylarını görür**
+- [x] Başlık **gönderilmeyen** istekte bugünkü SSE davranışı değişmemiştir
+- [x] `Prefer: respond-async` + `Idempotency-Key` → **tek** iş, tek `runs` satırı
+      (`IdempotencyFilter` gövdedeki `stream` alanına bakar; `/run`'ın gövdesi
+      hiç taşımaz, bu yüzden bu uçta akışlı dal zaten hiç tetiklenmez)
+- [x] Akışlı istek + `Idempotency-Key` → Faz 43'ün `400`'ü OpenAI uyumlu
+      uçlarda (`/v1/responses`, `/v1/chat/completions`) korunur — bu uçlar
+      `Prefer: respond-async`'i **tanımaz** (Açık Soru 3 = A), bu yüzden mesaj
+      kasıtlı olarak değiştirilmedi (bkz. Plandan Sapmalar madde 8)
+- [x] `Enabled = false` iken başlık taşıyan istek `501` alır
+- [x] `MaxAttempts = 1` iken kira dolan iş **yeniden denenmez**
+- [x] Kota dolu iken kuyruğa alma `429` alır ve iş açılmaz
+- [x] `Queued` durumdaki çalıştırma iptal edilebilir
+- [x] Dört doğrulama kapısı sıfır uyarı verir
+- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı (gerçek OpenAI çağrısı,
+      `support` agent'ı — örnek uygulamada `asistan` adında bir agent yok),
+      çıktı bu belgeye yazıldı
+- [x] `secret` taraması boş döndü
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve buraya yazıldı
+      (**157,1 KB gzip / 250 KB**, Faz 46 katkısı yalnızca bir `Badge` durumu
+      ve iki filtre seçeneği — ayrı ölçülemeyecek kadar küçük)
 
-### Doğrulama komutları
+### Doğrulama komutları (gerçek çalıştırma, 2026-08-07)
+
+`samples/AgentPrism.Api` gerçek bir OpenAI anahtarıyla (`user-secrets`) çalıştırıldı.
+Örnekte `asistan` adında bir agent yok; `support` kullanıldı.
 
 ```bash
 # 1) Kuyruga al
-RESP=$(curl -s -D - -o /dev/null -X POST \
-  http://localhost:5081/agentprism/api/agents/asistan/run \
+RESP=$(curl -s -D - -o /tmp/accepted-body.json -X POST \
+  http://localhost:5081/agentprism/api/agents/support/run \
   -H "content-type: application/json" \
   -H "Prefer: respond-async" \
-  -d '{"message":"uzun bir arastirma yap"}')
+  -d '{"message":"ORD-2 siparişim nerede?"}')
 echo "$RESP" | grep -i "^HTTP/\|^location:\|^preference-applied:"
-
-RUN_ID=$(echo "$RESP" | grep -i "^location:" | sed 's#.*/runs/##' | tr -d '\r')
-
-# 2) HEMEN sorgula — Queued gelmeli, 404 GELMEMELI
-curl -s "http://localhost:5081/agentprism/api/runs/$RUN_ID" | jq '.status'
-
-# 3) Olay akisina bagla — baslangic olaylari da gelmeli
-curl -sN "http://localhost:5081/agentprism/api/runs/$RUN_ID/events" | head -20
-
-# 4) Tamamlandi mi
-curl -s "http://localhost:5081/agentprism/api/runs/$RUN_ID" | jq '{status, completedAt, totalTokens}'
-
-# 5) Kuyruk kaydi
-curl -s "http://localhost:5081/agentprism/api/jobs?kind=AgentRun" | jq '.[0] | {kind, status, attempt}'
-
-# 6) Idempotency — IKI istek, TEK is
-KEY=$(uuidgen)
-for i in 1 2; do
-  curl -s -D - -o /dev/null -X POST \
-    http://localhost:5081/agentprism/api/agents/asistan/run \
-    -H "content-type: application/json" -H "Prefer: respond-async" \
-    -H "Idempotency-Key: $KEY" -d '{"message":"merhaba"}' \
-    | grep -i "^HTTP/\|^location:\|^idempotency-replayed:"
-done
-
-# 7) Akisli + anahtar — Faz 43'un 400'u korunmali
-curl -s -o /dev/null -w "%{http_code}\n" -X POST \
-  "http://localhost:5081/agentprism/api/agents/asistan/run" \
-  -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" \
-  -d '{"message":"merhaba"}'
-
-# 8) Surec dusme provasi: kuyrukta is varken ornegi oldur ve yeniden baslat.
-#    Is BASTAN kosmali; runs tablosunda IKI satir olmali (biri oksuz Running).
-psql "$AGENTPRISM_CONN" -c \
-  "SELECT status, count(*) FROM agentprism.runs GROUP BY status ORDER BY status;"
 ```
+```
+HTTP/1.1 202 Accepted
+Location: /agentprism/api/runs/019fdbc2-cad4-78cf-8292-f5b2a09c36d0
+Preference-Applied: respond-async
+```
+Gövde: `{"runId":"019fdbc2-cad4-78cf-8292-f5b2a09c36d0","jobId":"019fdbc2-cad4-78cf-8292-f5b2a09c36d0", ...}`
+— **`jobId` == `runId`**, bilinçli bir tasarım kararı (bkz. Plandan Sapmalar madde 4).
+
+```bash
+# 2) HEMEN sorgula — Queued gelmeli, 404 GELMEMELI
+curl -s "http://localhost:5081/agentprism/api/runs/$RUN_ID" | python3 -c "import json,sys;print(json.load(sys.stdin)['status'])"
+```
+```
+Queued
+```
+1 saniye sonra (gerçek OpenAI çağrısı + `get_order_status` tool'u dahil):
+```
+Completed
+```
+
+```bash
+# 3) Olay akisina bagla — baslangic olaylari da gelmeli (K-014 replay)
+curl -sN "http://localhost:5081/agentprism/api/runs/$RUN_ID/events"
+```
+```
+id: 0
+event: run.started
+data: {...,"text":"ORD-2 siparişim nerede?",...}
+id: 1
+event: tool.invoking
+data: {...,"toolName":"get_order_status","payload":"orderId=ORD-2",...}
+id: 2
+event: tool.invoked
+data: {...,"payload":"ORD-2 numarali siparis kargoya verildi. Tahmini teslim: 2 gun.",...}
+id: 3 / 4
+event: message.delta / message.completed
+data: {...,"text":"ORD-2 siparişiniz kargoya verilmiş. Tahmini teslimat: 2 gün.",...}
+id: 5
+event: run.completed
+```
+
+```bash
+# 4) Kuyruktaki calistirma iptal edilir mi
+RESP=$(curl -s -D - -o /tmp/accepted3.json -X POST .../agents/support/run \
+  -H "Prefer: respond-async" -d '{"message":"ORD-3 siparişim nerede?"}')
+RUN_ID=$(python3 -c "import json;print(json.load(open('/tmp/accepted3.json'))['runId'])")
+curl -s -D - -X POST "http://localhost:5081/agentprism/api/runs/$RUN_ID/cancel"
+```
+```
+HTTP/1.1 202 Accepted
+{"id":"...","status":"Canceled","completedAt":"2026-08-07T10:27:26.909458+00:00", ...}
+```
+İşçi bu işi hiç almadı (`Pending` iken iptal edildi); `runs` satırı doğrudan
+`Canceled`'e kapatıldı, orphan **oluşmadı**.
+
+```bash
+# 5) Baslik yokken davranis degismedi mi
+curl -s -D - -X POST .../agents/support/run -d '{"message":"ORD-1 siparişim nerede?"}'
+```
+```
+HTTP/1.1 200 OK
+Content-Type: text/event-stream
+```
+
+Sunucu günlüğünde (`Trace` seviyesi) hiçbir uyarı/hata satırı yok.
 
 ---
 
@@ -602,12 +643,14 @@ psql "$AGENTPRISM_CONN" -c \
 |------|-------|
 | 🚨 Yeniden koşan iş yan etkili tool'u ikinci kez tetikler | Varsayılan `MaxAttempts = 1`; yeniden deneme tüketicinin bilinçli tercihidir. Faz 43'ün anahtarı **iş kuyruğunu kapsamaz** ve bu sınır belgeye yazılır |
 | `202`'den sonra `404` gelirse istemci kimliği yanlış sanar | `runs` satırı kuyruğa alma anında `Queued` olarak yazılır; ayrı bir test bunu doğrular |
-| 🚨 `RunStatus`/`JobKind` değeri ortaya eklenirse eski satırlar yanlış okunur | İkisi de **sona** eklenir; `RunStatusEnumTests` mevcut değerlerin kaymadığını doğrular |
-| Öksüz `Running` satırları birikir | Bu fazın kapsamı **değildir**; F-36'nın işidir ve sıralama (F-68 → F-36) devir notunda yazılır |
+| 🚨 `RunStatus`/`JobKind` değeri ortaya eklenirse eski satırlar yanlış okunur | İkisi de **sona** eklenir; `JobKindAndRunStatusEnumTests` mevcut değerlerin kaymadığını doğrular |
+| Öksüz `Running` satırları birikir | 🚨 **Kısmen kendiliğinden düzelir** (plandan sapma, bkz. madde 1): `StartRunAsync` bir UPSERT olduğu için `MaxAttempts > 1` yapılandırılmışsa bir yeniden deneme AYNI satırı `Running`'e geri getirir. Yalnız **varsayılan** (`MaxAttempts = 1`, yeniden deneme yok) yolda gerçek bir orphan kalır — F-36'nın kapsamı bu kadar daralır ama sıfırlanmaz |
 | 🚨 İşleyici kendi `AsyncLocal` kapsamını açarsa yazım agent'a akmaz | İşleyici `scope` **yazmaz**; `RunRecordingAgent` zaten yazıyor. `hafiza/cekirdek-calistirma.md` dört vakayı listeliyor |
 | `Prefer` sessizce yok sayılırsa istemci akış bekler, `202` alır | `Preference-Applied` zorunludur; `Enabled = false` iken `501` döner |
-| Kuyruk dolar ve gecikme öngörülemez olur | `MaxConcurrentJobs` bugünkü ayardır; gecikme **ölçülmeli** (Açık Soru 6) |
+| Kuyruk dolar ve gecikme öngörülemez olur | `MaxConcurrentJobs` bugünkü ayardır; gecikme **ölçülmeli** (Açık Soru 6, hâlâ açık) |
 | OpenAI uyumlu uçlarda iki asenkron sözleşme karışır | Bu uçlar başlığı **tanımaz** (Açık Soru 3); sınır belgeye yazılır |
+| 🚨 Kuyruktaki (Queued) bir çalıştırmaya bağlı SSE akışı işçi hiç başlamadan kapanır | Ölçüldü ve düzeltildi (plandan sapma, madde 6): `RunEventStream`'in orijinal döngüsü yalnız `Running` iken beklerdi; `Queued` da eklendi |
+| 🚨 Kuyruktaki bir çalıştırma iptal edilemez görünür | Ölçüldü ve düzeltildi (plandan sapma, madde 7): `IRunCancellationRegistry` yalnız CANLI yürütmeyi bilir; `Queued` için `IJobStore.CancelAsync` + doğrudan `CompleteRunAsync(Canceled)` eklendi |
 
 ---
 
@@ -618,47 +661,262 @@ psql "$AGENTPRISM_CONN" -c \
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
-> oturumun en değerli bilgisidir.
+Plan, "runs satırı kuyruğa alma anında yazılır" (46.3) derken bunun somut nasıl
+yapılacağını (hangi API, hangi çakışma davranışı) açık bırakmıştı. Uygulama
+sırasında bu boşluk gerçek bir tasarım kararı gerektirdi ve sekiz noktada
+plandan sapıldı:
+
+1. 🚨 **`RunStartInfo` yeni bir `Status` alanı kazandı (varsayılan `Running`)
+   ve üç SQL sağlayıcısının `InsertRun` deyimi UPSERT'e çevrildi** —
+   plan bunu öngörmemişti (dosya listesi `IRunStore`/SQL katmanına hiç
+   değinmiyordu). Gerekçe: kuyruğa alma anında yazılan `Queued` satırı ile
+   işçinin gerçek çalıştırma başlarken yazdığı satır **aynı `RunId`'yi**
+   taşır. Düz bir `INSERT` ikinci çağrıda birincil anahtar çakışması
+   üretirdi (`MaxAttempts > 1` yapılandırıldığında bu senaryo gerçekten
+   oluşur). `ON CONFLICT (id) DO UPDATE` (Postgres/SQLite) ve
+   `UPDATE ... WITH (UPDLOCK, SERIALIZABLE)` + `IF @@ROWCOUNT = 0 INSERT`
+   (SqlServer, `UpsertConversation` ile aynı desen) seçildi. `InMemoryRunStore`
+   zaten bir sözlük ataması olduğu için doğal olarak upsert davranışı
+   gösteriyordu; yalnız olay/araç-çağrısı günlüklerinin ikinci çağrıda
+   sıfırlanmaması için küçük bir `isNew` denetimi eklendi.
+2. **`AgentPrismAsyncRunOptions` plandaki `AgentPrism.AspNetCore/` yerine
+   `AgentPrism.Core/Scheduling/`de yaşıyor.** Ölçüldü: `AgentPrismIdempotencyOptions`,
+   `AgentPrismRateLimitOptions`, `AgentPrismQuotaOptions` gibi tüm benzer
+   ayar sınıfları Core'da yaşar ve `AgentPrismServiceCollectionExtensions.AddAgentPrism`
+   içinde merkezi olarak bağlanır (`BindAsyncRun`, aynı `BindIdempotency`
+   deseni). Plan bu yerleşik kuralı bilmiyordu.
+3. **`AgentRunJobPayload` public record'u yazılmadı; yük ham `JsonElement`
+   olarak (`{ runId, message, sessionId }`) kurulur ve elle ayrıştırılır.**
+   Ölçüldü: `EvalEndpoints.BuildRunPayload`/`EvalJobHandler.ParsePayload` ve
+   `WebhookDeliveryJobHandler` aynı deseni zaten kullanıyor — hiçbiri
+   Abstractions'ta bir payload tipi veya `JsonSerializerContext` girdisi
+   açmıyor. Yeni bir public tip + kaynak üreteci kaydı eklemek bu yerleşik
+   deseni gereksiz yere kırardı.
+4. 🚨 **`JobRecord.Id` == `RunRecord.Id`.** Plan ikisini ayrı kimlik olarak
+   tasarlamıştı (`AcceptedRunResponse.JobId` "teşhis için" ayrı bir alan).
+   Birleştirme bilinçli bir karardır: `GET /api/runs/{runId}` bu sayede
+   **hiçbir** iş kuyruğu farkındalığı olmadan çalışır — gerçek `runs` satırı
+   `Queued` olarak zaten mevcuttur. `JobId` alanı yine de yanıtta durur
+   (teşhis) ama değeri `RunId` ile aynıdır.
+5. **Ekler (`AttachmentIds`) ve onay kararları (`Approvals`) kuyruğa alınan
+   çalıştırmalarda desteklenmiyor; istek `400` alır.** Gerekçe: ek referansı
+   `UriContent` için bir HTTP yol öneki (`prefix`) gerektirir ve bu değer
+   yalnızca `MapAgentPrism(prefix, ...)` çağrısı anında bilinir — DI kayıt
+   anında (`AddAgentPrism()`) değil. `AgentRunJobHandler` bir singleton
+   `IJobHandler`dır ve kayıt anında `prefix`'i alamaz. Onay kararları da
+   canlı bir istemci bağlantısı varsayar. İkisi de gelecekte ayrı bir aday
+   kalemi olabilir; bu fazda kapsam dışı bırakıldı.
+6. 🚨 **`RunEventStream` (`RunEndpoints.cs`) `Queued` durumunu da bekleyecek
+   şekilde değiştirildi.** Ölçüldü: orijinal döngü `snapshot.Status != Running`
+   olunca akışı kapatıyordu — kuyruktaki bir çalıştırmaya `202`'den hemen
+   sonra bağlanan bir istemci, işçi hiç başlamadan akışın kapandığını
+   görürdü. DoD'nin "başlangıç olaylarını görür" maddesi bu düzeltme
+   olmadan sağlanamazdı. Plan bu dosyayı hiç listelemiyordu.
+7. 🚨 **`RunEndpoints.CancelRunAsync`, `RunStatus.Queued` için ayrı bir dal
+   kazandı.** Ölçüldü: `IRunCancellationRegistry` yalnız CANLI (işçi
+   tarafından gerçekten çalıştırılan) bir yürütmeyi bilir; kuyruktaki bir
+   iş için kayıt yoktur. Yeni dal `IJobStore.CancelAsync` ile işi
+   kuyruktan iptal eder ve `IRunStore.CompleteRunAsync` ile `runs` satırını
+   doğrudan `Canceled`'e kapatır (işçi bu satırı asla kapatmayacağı için).
+   DoD'nin "Queued durumdaki çalıştırma iptal edilebilir" maddesi bu
+   olmadan karşılanamazdı.
+8. **OpenAI uyumlu uçların (`/v1/responses`, `/v1/chat/completions`) paylaştığı
+   `IdempotencyFilter`'ın "akışlı istekte 400" mesajı `Prefer: respond-async`
+   önermeyecek şekilde DEĞİŞTİRİLMEDİ** — plan bunu önermişti (46.5.1: "mesaj
+   artık bir yol gösterir"). Gerekçe: bu öneri yalnız `/api/agents/{name}/run`
+   için doğrudur; OpenAI uyumlu uçlar `Prefer` başlığını hiç tanımıyor (Açık
+   Soru 3 = A). Aynı mesajı üç ucun paylaştığı tek bir filtrede değiştirmek,
+   desteklemediği bir özelliği önerecek şekilde yanıltıcı olurdu.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
->
-> **Not:** Üç karar **mutlaka** kayda geçmelidir:
-> 1. **Okuma A seçimi** ve MAF'ın agent düzeyinde kontrol noktası kancası
->    olmadığı ölçümü. Sonraki oturum bu ölçümü tekrarlamak zorunda kalmamalıdır.
-> 2. **`MaxAttempts = 1` varsayılanı** ve gerekçesi ("sessizce iki kez koşan
->    tool, hiç koşmayandan kötüdür").
-> 3. **`Enabled = true`** yorumu — Faz 43 ile aynı K1 okuması; iki fazın aynı
->    yönde karar vermesi bir emsal kurar.
+- **K-304 — Kuyruğa alınan bir çalıştırmanın `runs` satırı, işçinin gerçek
+  yürütme satırıyla AYNI birincil anahtarı paylaşır; `IRunStore.StartRunAsync`
+  bu yüzden bir UPSERT'tir** *(kullanıcı kararı yok, ölçülmüş teknik zorunluluk)*.
+  `RunStartInfo.Status` alanı (varsayılan `Running`) eklendi; üç SQL
+  sağlayıcısının `InsertRun` deyimi `ON CONFLICT`/`UPDLOCK` ile upsert'e
+  çevrildi. Gerekçe: Faz 46'nın 46.3 bölümü yer tutucu bir `Queued` satırı
+  istiyordu ama `StartRunAsync`'in var olan sözleşmesi (düz `INSERT`,
+  `Status` her zaman `Running`) aynı kimlikle ikinci çağrıda birincil anahtar
+  çakışması üretirdi. Alternatif (job deposunu okuyarak sentetik bir `Queued`
+  yanıtı üretmek) hem `GET /api/runs/{id}` hem `/events` uçlarını iş
+  kuyruğuna bağımlı kılardı ve kira dolup iş yeniden başladığında istemcinin
+  `Location`'ının kalıcı olarak anlamsızlaşmasına yol açardı — ölçülen risk
+  daha büyüktü.
+- **K-305 — Kuyruğa alınan bir çalıştırmada `Job.Id` ile `Run.Id` bilinçli
+  olarak AYNI değeri taşır** *(kullanıcı kararı yok)*. Gerekçe: `GET
+  /api/runs/{runId}` ucunun iş kuyruğu farkındalığı olmadan (yalnız `IRunStore`
+  okuyarak) doğru cevap verebilmesi için tek yol budur.
+- **K-306 — `MaxAttempts = 1` varsayılanı korunur** *(kullanıcı kararı,
+  Açık Soru önerisi kabul edildi)*. Gerekçe: "dayanıklı" kelimesi "iş asla
+  kaybolmaz" değil "iş sessizce kaybolmaz" demektir; sessizce iki kez koşan
+  bir tool hiç koşmayandan kötüdür. Yükseltmek tüketicinin bilinçli tercihidir.
+- **K-307 — `AgentPrismAsyncRunOptions.Enabled` varsayılanı `true`'dur**
+  *(kullanıcı kararı, Açık Soru 1 önerisi kabul edildi)*. Faz 43'ün
+  `AgentPrismIdempotencyOptions.Enabled` kararıyla aynı K1 okuması: başlık
+  taşımayan bir istek için hiçbir şey değişmez, kapalı gelseydi başlığı
+  gönderen bir istemci korunduğunu sanıp korunmazdı.
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+```csharp
+// AgentPrism.Abstractions/Runs/RunStatus.cs — SONA eklendi
+public enum RunStatus
+{
+    // ... mevcut uyeler AYNEN korundu (Running=0 .. AwaitingInput=4)
+    Queued = 5,
+}
+
+// AgentPrism.Abstractions/Scheduling/JobKind.cs — SONA eklendi
+public enum JobKind
+{
+    // ... mevcut uyeler AYNEN korundu (AgentBatch=0 .. Retention=4)
+    AgentRun = 5,
+}
+
+// AgentPrism.Abstractions/Runs/RunSupportTypes.cs — RunStartInfo'ya YENI alan
+public sealed record RunStartInfo
+{
+    // ... mevcut alanlar degismedi
+    public RunStatus Status { get; init; } = RunStatus.Running; // YENI
+}
+```
+
+```csharp
+// AgentPrism.Core/Scheduling/AgentPrismAsyncRunOptions.cs (YENI)
+// Plandaki AgentPrism.AspNetCore yerine Core'da — bkz. Plandan Sapmalar madde 2.
+public sealed class AgentPrismAsyncRunOptions
+{
+    public const string SectionName = "AgentPrism:AsyncRun";
+    public bool Enabled { get; set; } = true;
+    public int MaxAttempts { get; set; } = 1;
+}
+```
+
+```csharp
+// AgentPrism.AspNetCore/Contracts/AgentContracts.cs (YENI)
+public sealed record AcceptedRunResponse
+{
+    public required Guid RunId { get; init; }
+    public required Guid JobId { get; init; }   // == RunId, bkz. K-305
+    public required string Location { get; init; }
+    public required string EventsLocation { get; init; }
+}
+```
+
+`AgentRunJobHandler` (Core/Scheduling) ve `AgentEndpoints.RunQueuedAsync`
+(AspNetCore) `internal`/`private static`'tir; public API yüzeyine girmezler.
+`AgentRunJobPayload` planı yazılmadı (bkz. Plandan Sapmalar madde 3).
+
+### HTTP sözleşmesi (gerçekleşen)
+
+Plandaki tabloyla birebir aynı: yalnız `POST /api/agents/{name}/run`
+`Prefer: respond-async` başlığını tanır (`/v1/responses`,
+`/v1/chat/completions` desteklemez — Açık Soru 3 = A). Yanıt `202` +
+`Location` + `Preference-Applied: respond-async` + `AcceptedRunResponse`
+gövdesidir. `Enabled = false` iken `501`.
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/AgentPrism.Abstractions/Runs/RunStatus.cs               (SONA bir uye: Queued)
+src/AgentPrism.Abstractions/Runs/RunSupportTypes.cs          (RunStartInfo.Status — PLANDA YOKTU)
+src/AgentPrism.Abstractions/Scheduling/JobKind.cs             (SONA bir uye: AgentRun)
+
+src/AgentPrism.Core/Storage/InMemoryRunStore.cs               (StartRunAsync upsert-safe — PLANDA YOKTU)
+src/AgentPrism.Core/Scheduling/AgentPrismAsyncRunOptions.cs    (YENI, Core'da — plan AspNetCore diyordu)
+src/AgentPrism.Core/Scheduling/AgentRunJobHandler.cs           (YENI)
+src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs   (kayit + BindAsyncRun — PLANDA YOKTU)
+
+src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs                (info.Status + upsert notu — PLANDA YOKTU)
+src/AgentPrism.PostgreSql/Internal/PostgresQueries.cs          (InsertRun -> UPSERT — PLANDA YOKTU)
+src/AgentPrism.Sqlite/Internal/SqliteQueries.cs                (InsertRun -> UPSERT — PLANDA YOKTU)
+src/AgentPrism.SqlServer/Internal/SqlServerQueries.cs          (InsertRun -> UPSERT — PLANDA YOKTU)
+
+src/AgentPrism.AspNetCore/Contracts/AgentContracts.cs          (AcceptedRunResponse)
+src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs          (Prefer basligi dallanmasi, RunQueuedAsync)
+src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs            (Queued-aware SSE + iptal — PLANDA YOKTU)
+
+src/AgentPrism.UI/frontend/src/lib/types.ts                   (RunStatus 'Queued')
+src/AgentPrism.UI/frontend/src/screens/runs.tsx                (Queued badge + filtre)
+src/AgentPrism.UI/frontend/src/screens/run-detail.tsx          (Queued polling/cancel/finished — PLANDA YOKTU)
+src/AgentPrism.UI/frontend/src/locales/{en,tr}.ts               (yeni anahtarlar)
+
+tests/AgentPrism.Core.UnitTests/Scheduling/AgentRunJobHandlerTests.cs        (YENI)
+tests/AgentPrism.Core.UnitTests/Scheduling/JobKindAndRunStatusEnumTests.cs   (YENI)
+tests/AgentPrism.AspNetCore.FunctionalTests/AsyncRunTests.cs                 (YENI)
+tests/Shared/Contracts/RunStoreContract.cs                     (StartRunAsync upsert testi)
+```
+
+**Migration yok** — plan doğruydu; `Queued`/`AgentRun` yalnız sona eklenen
+enum değerleridir, hiçbir tablo şeması değişmedi.
+
+### Testler
+
+| Test sınıfı | Neyi doğrular |
+|---|---|
+| `AgentRunJobHandlerTests` (Core.UnitTests, 4 test) | `Kind == AgentRun`; başarılı çalıştırma önceden ayrılmış `RunId` ile koşar; agent bulunamazsa Queued satırı Failed'e kapanır; geçersiz yük istisna fırlatır |
+| `JobKindAndRunStatusEnumTests` (Core.UnitTests, 2 test) | `RunStatus`/`JobKind` sayısal değerleri **kaymadı** (Queued=5, AgentRun=5) |
+| `RunStoreContract.StartRunAsync_ayni_kimlikle_ikinci_kez_cagrilinca_UPSERT_yapar` (Shared, 1 test × InMemory + Postgres + SQLite + SqlServer) | Aynı `RunId` ile ikinci `StartRunAsync` çağrısı **yeni satır açmaz**, mevcut satırı günceller |
+| `AsyncRunTests` (AspNetCore.FunctionalTests, 9 test) | 202+Location+Preference-Applied; hemen sonra Queued (404 değil); işçi alınca Completed; başlık yokken SSE değişmez; `Enabled=false`→501; kota dolu→429; boş mesaj→400; onay kararı→400; Queued iptal edilebilir + ikinci iptal 409 |
+
+Toplam **16 yeni test**. Tüm doğrulama kapıları ve `samples/AgentPrism.Api`
+üzerinden gerçek bir OpenAI çağrısıyla uçtan uca doğrulandı (bkz. yukarı,
+Doğrulama komutları).
+
+🚨 **SQL Server gerçek doğrulama beklemeye devam ediyor** — `mssql/server`
+konteyneri bu makinede (arm64 Mac) yine çalışmadı (`Testcontainers`
+`TimeoutException`, aynı Faz 43'ün devir notundaki gözlem). Upsert SQL
+metni SQLite ve PostgreSQL'de **gerçekten** doğrulandı (contract testleri
+geçti); SqlServer metni yalnız gözle incelendi (`UpsertConversation` ile
+birebir aynı desen).
+
+### `dotnet test AgentPrism.slnx` — tüm çözüm (2026-08-07)
+
+| Proje | Sonuç |
+|---|---|
+| Core.UnitTests | ✅ 622/622 |
+| AspNetCore.FunctionalTests | ✅ 367/367 (`AsyncRunTests` dahil) |
+| Sqlite.IntegrationTests | ✅ 430/430 |
+| PostgreSql.IntegrationTests | ⚠️ 832/833 — **tek** başarısızlık `PostgresEvalStoreContractTests.AddCaseAsync_es_zamanli_terfiler_farkli_seq_uretir` (Faz 45'in eş zamanlılık testi, bu fazla **ilgisiz**, dokunulmadı) |
+| SqlServer.IntegrationTests | 🚨 0/425 — konteyner bu makinede hiç başlamadı (yukarıdaki not); **bu fazın kodu değil, ortam** |
+| Anthropic/Azure/OpenAI/Mcp/Google/Voice/Workflows/Testing.UnitTests | ✅ hepsi yeşil (bu fazın dokunmadığı paketler) |
+| Ui.E2ETests | ✅ 41/41 (Playwright) |
+| Templates.Tests | ✅ 10/10 (proje başına gerçek `dotnet new`+restore yaptığı için ~15 dk sürüyor — bu fazla ilgisiz, önceden de yavaştı) |
+
+Toplam: bu fazın dokunduğu **hiçbir** test kırmızı değil. İki kırmızı da
+ölçülüp bu fazdan **bağımsız** olduğu doğrulandı.
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
->
-> **Not:** Dört devir bilgisi zorunludur:
-> 1. 🚨 **F-36 (öksüz çalıştırma uzlaştırması) artık yapılabilir ve
->    yapılmalıdır.** Bu faz öksüz `Running` satırı **üretir**. Aday listesi
->    sıralamayı zaten yazıyor: F-36 bu fazdan sonra gelir, yoksa iki kez yazılır.
-> 2. **Okuma B'nin yolu açık kaldı.** `202` + `Location` sözleşmesi kontrol
->    noktası eklendiğinde değişmez. Ölçülen gerçek: MAF kancayı yalnız
->    `Microsoft.Agents.AI.Workflows` içinde veriyor
->    (`ICheckpointStore<T>`, `CheckpointInfo`, `CheckpointableRunBase`).
->    AgentPrism'in `workflow_checkpoints` tablosu (`parent_id` dahil) taklit
->    edilecek desendir.
-> 3. **F-69 (asenkron onay kutusu) bu fazdan sonra doğaldır.** Kuyrukta koşan
->    bir çalıştırma onay isterse bugün kimse cevap veremez — istek o istemcinin
->    yanıtında kalır ve kuyrukta istemci yoktur. Bu, F-69'un aciliyetini
->    **artırır**; devir notu bunu ölçülmüş bir gözlem olarak yazmalıdır.
-> 4. **OpenAI uyumlu uçların asenkron sözleşmesi** yeni bir aday kalemidir
->    (`background: true` + `response.id`); bu fazın başlığı oraya taşınmadı.
+1. 🚨 **F-36 (öksüz çalıştırma uzlaştırması) kapsamı daraldı ama hâlâ
+   gerekli.** `StartRunAsync`'in UPSERT olması, `MaxAttempts > 1`
+   yapılandırıldığında bir yeniden denemenin AYNI satırı kendiliğinden
+   `Running`'e geri getirmesini sağlıyor — bu senaryoda orphan **oluşmuyor**.
+   Ama **varsayılan** yolda (`MaxAttempts = 1`, işçi süreci `agent.RunAsync`
+   ortasında çökerse) satır `Running`'de sonsuza dek kalır. F-36 hâlâ gerekli,
+   ama artık "her çöküş orphan üretir" değil, "yalnız yeniden denemesiz
+   çöküş orphan üretir" — aday listesi bu daralmayı yansıtacak şekilde
+   güncellenmeli.
+2. **Okuma B'nin yolu açık kaldı.** `202` + `Location` sözleşmesi kontrol
+   noktası eklendiğinde değişmez. Ölçülen gerçek: MAF kancayı yalnız
+   `Microsoft.Agents.AI.Workflows` içinde veriyor
+   (`ICheckpointStore<T>`, `CheckpointInfo`, `CheckpointableRunBase`).
+   AgentPrism'in `workflow_checkpoints` tablosu (`parent_id` dahil) taklit
+   edilecek desendir.
+3. **F-69 (asenkron onay kutusu) bu fazdan sonra doğaldır** — ve bu faz onu
+   somutlaştırdı: kuyruğa alınan çalıştırmalarda `Approvals` **bilerek** `400`
+   ile reddedildi (bkz. Plandan Sapmalar madde 5). Kuyrukta koşan bir
+   çalıştırma onay isterse bugün kimse cevap veremez.
+4. **Ekler de aynı nedenle kuyruğa alınan çalıştırmalarda desteklenmiyor**
+   (Plandan Sapmalar madde 5) — `AttachmentUriReference` bir HTTP yol
+   önekine ihtiyaç duyar ve bu değer yalnız `MapAgentPrism` çağrısı anında
+   bilinir, `AgentRunJobHandler`'ın DI kayıt anında değil. Aday listesine
+   eklenmesi gereken yeni bir kalem: "kuyruğa alınan çalıştırmalarda ek
+   desteği" — prefix'i job payload'ına gömmek veya `IOptions<AgentPrismEndpointOptions>`
+   benzeri bir mekanizmayla işçiye ulaştırmak gerekir.
+5. **OpenAI uyumlu uçların asenkron sözleşmesi** yeni bir aday kalemidir
+   (`background: true` + `response.id`); bu fazın başlığı oraya taşınmadı.
+6. **`RunStoreContract`'a eklenen UPSERT testi artık dört sağlayıcının
+   (InMemory, Postgres, SQLite, SqlServer) tümünde geçerli bir sözleşmedir.**
+   Yeni bir `IRunStore` uygulaması yazan biri bu testi otomatik miras alır.

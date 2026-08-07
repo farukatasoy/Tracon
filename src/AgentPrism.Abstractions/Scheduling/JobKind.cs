@@ -35,4 +35,15 @@ public enum JobKind
     /// isleyen <c>"*"</c>'tir.
     /// </summary>
     Retention = 4,
+
+    /// <summary>
+    /// Kuyruga alinmis (dayanikli) tek bir agent calistirmasi (Faz 46).
+    /// </summary>
+    /// <remarks>
+    /// <c>Prefer: respond-async</c> ile baslatilan calistirmalar bu tur altinda
+    /// kosar. <see cref="AgentBatch"/>'ten farkli olarak oge kumesi ISTEMEZ ve
+    /// calistirma kimligi cagiran tarafindan (HTTP katmani) ONCEDEN uretilir —
+    /// <c>JobRecord.Id</c> calistirma kimligiyle ayni deger tasir.
+    /// </remarks>
+    AgentRun = 5,
 }

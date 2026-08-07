@@ -337,12 +337,14 @@ flowchart TD
 > sınırını aşmaz. `AgentPrismRunContext.SetCurrent(...)` bu yüzden her
 > `MoveNextAsync`'ten hemen önce tekrarlanır (Faz 12'de ölçüldü).
 
-**Faz 19 istisnası:** yalnızca `POST /api/agents/{name}/run` (deneme ucu) için
-`R["IAgentCatalog.ResolveAsync(name)"]` adımından **önce** bir
-`ExperimentAssignmentResolver.ResolveAsync(...)` çağrısı girer. Bu agent için
-`Running` bir deney varsa, `ResolveAsync(name)` yerine `ResolveAsync(name, version)`
-çağrılır — sürüm, deneyin atadığı varyanttan gelir. `/v1/*` yolu ve alt-agent
-çağrıları bu adımı hiç görmez (K-131, bilinçli kapsam sınırı).
+**Faz 19 istisnası:** yalnızca `POST /api/agents/{name}/run` için
+`R["IAgentCatalog.ResolveAsync(name)"]`'dan **önce** bir
+`ExperimentAssignmentResolver.ResolveAsync(...)` çağrısı girer. `Running` bir
+deney varsa `ResolveAsync(name, version)` çağrılır — sürüm deneyden gelir.
+`/v1/*` ve alt-agent çağrıları bu adımı görmez (K-131).
+
+**Faz 46:** `Prefer: respond-async` → `Queued` satır + iş kuyruğu, `202`;
+işçi alınca diyagram normal işler (K-304).
 
 ### Çalıştırma ağacı
 

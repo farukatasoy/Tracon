@@ -238,3 +238,27 @@ public sealed record AgentRunRequest
     /// </remarks>
     public IReadOnlyList<Guid> AttachmentIds { get; init; } = [];
 }
+
+/// <summary>
+/// Kuyruga alinmis bir calistirmanin <c>202 Accepted</c> yaniti (Faz 46).
+/// </summary>
+/// <remarks>
+/// <c>Prefer: respond-async</c> basligiyla baslatilan bir calistirmada
+/// donulur. Ayni bilgiler <c>Location</c> basliginda da tasinir; govde
+/// istemcinin ayrica bir olay akisi adresi (<see cref="EventsLocation"/>)
+/// kurmasina gerek birakmaz.
+/// </remarks>
+public sealed record AcceptedRunResponse
+{
+    /// <summary>Calistirma kimligi.</summary>
+    public required Guid RunId { get; init; }
+
+    /// <summary>Isi tasiyan kuyruk kaydinin kimligi.</summary>
+    public required Guid JobId { get; init; }
+
+    /// <summary>Calistirma kaydinin adresi. <c>Location</c> basligiyla aynidir.</summary>
+    public required string Location { get; init; }
+
+    /// <summary>Olay akisinin adresi.</summary>
+    public required string EventsLocation { get; init; }
+}

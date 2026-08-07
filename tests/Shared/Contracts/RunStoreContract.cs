@@ -56,6 +56,30 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
+    public async Task StartRunAsync_ayni_kimlikle_ikinci_kez_cagrilinca_UPSERT_yapar()
+    {
+        // Faz 46: kuyruga alinan bir calistirma once Queued, isci is'i
+        // gercekten alinca AYNI kimlikle tekrar (varsayilan Running) yazilir.
+        // Ikinci cagri yeni bir satir ACMAMALI, mevcut satiri GUNCELLEMELIDIR.
+        var runId = AgentPrismId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(runId) with { Status = RunStatus.Queued });
+
+        var queued = await Store.GetRunAsync(runId);
+        queued.ShouldNotBeNull();
+        queued!.Status.ShouldBe(RunStatus.Queued);
+
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        var running = await Store.GetRunAsync(runId);
+        running.ShouldNotBeNull();
+        running!.Status.ShouldBe(RunStatus.Running);
+
+        (await Store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false }))
+            .Count(record => record.Id == runId).ShouldBe(1);
+    }
+
+    [Fact]
     public async Task Olaylar_sira_numarasina_gore_okunur()
     {
         var runId = AgentPrismId.NewId();

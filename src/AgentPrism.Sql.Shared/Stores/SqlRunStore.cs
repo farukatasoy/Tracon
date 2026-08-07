@@ -43,6 +43,15 @@ internal sealed class SqlRunStore : IRunStore
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
+    /// <remarks>
+    /// 🚨 Faz 46: <c>_sql.InsertRun</c> bir UPSERT'tir (<c>id</c> uzerinde
+    /// catisirsa GUNCELLER). Kuyruga alinan bir calistirma icin bu metot AYNI
+    /// <see cref="RunStartInfo.RunId"/> ile iki kez cagrilir — once
+    /// <see cref="RunStatus.Queued"/> ile (HTTP katmani), sonra isci is'i
+    /// gercekten calistirirken (bu kez varsayilan <see cref="RunStatus.Running"/>
+    /// ile). Duz bir INSERT olsaydi ikinci cagri birincil anahtar catismasi
+    /// uretirdi.
+    /// </remarks>
     public async ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(info);
@@ -53,7 +62,7 @@ internal sealed class SqlRunStore : IRunStore
             AgentName = info.AgentName,
             Kind = info.Kind,
             WorkflowName = info.WorkflowName,
-            Status = RunStatus.Running,
+            Status = info.Status,
             StartedAt = info.StartedAt,
             TenantId = info.TenantId ?? _tenantContext.TenantId,
             SessionId = info.SessionId,
