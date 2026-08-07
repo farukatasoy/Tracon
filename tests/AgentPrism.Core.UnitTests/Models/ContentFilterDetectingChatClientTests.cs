@@ -119,7 +119,13 @@ public sealed class ContentFilterDetectingChatClientTests
             [new ChatMessage(ChatRole.User, "selam")],
             cancellationToken: TestContext.Current.CancellationToken);
 
-        response.Messages.Single().Contents.Single().ShouldBeOfType<FunctionCallContent>();
+        // Faz 48'den beri defter tool cagri dongusunu de kurar: cozulemeyen cagri
+        // icin MAF bir sonuc icerigi ekler. Onemli olan istisna ATILMAMASIDIR —
+        // tool cagrisi tasiyan filtreli yanit bos sayilmadi.
+        response.Messages
+            .SelectMany(static message => message.Contents)
+            .OfType<FunctionCallContent>()
+            .ShouldNotBeEmpty();
     }
 
     [Fact]

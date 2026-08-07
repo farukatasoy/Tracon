@@ -155,7 +155,11 @@ internal static class AgentEndpoints
                 "tasiyan bir istek SSE yerine tek bir JSON yanitla (akissiz) calisir — Faz 43'un " +
                 "tekillestirme sozlesmesi akissiz bir yanit gerektirir (docs/43-IDEMPOTENCY-KEY.md). " +
                 "'Prefer: respond-async' basligi tasiyan bir istek calistirmayi kuyruga alir ve " +
-                "'202 Accepted' + 'Location' doner (Faz 46, docs/46-DAYANIKLI-CALISTIRMA.md).")
+                "'202 Accepted' + 'Location' doner (Faz 46, docs/46-DAYANIKLI-CALISTIRMA.md). " +
+                "Kayitli bir IContentGuard icerigi engellerse akissiz yanit '422' doner ve " +
+                "runs.error_type 'content_blocked' olur; AKISLI yanitta durum kodu zaten " +
+                "gonderilmis oldugu icin engelleme SSE 'error' olayi olarak gorunur " +
+                "(Faz 48, docs/48-GUARDRAILS.md).")
             // Basari yaniti varsayilan olarak SSE'dir (bkz. AgentRunStream); ama
             // 'Idempotency-Key' basligi tasiyan bir istek JSON govde, 'Prefer:
             // respond-async' tasiyan bir istek 202 govde alir.
@@ -163,6 +167,7 @@ internal static class AgentEndpoints
             .Produces<AcceptedRunResponse>(StatusCodes.Status202Accepted)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status501NotImplemented);
     }
@@ -786,6 +791,26 @@ internal static class AgentEndpoints
             catch (OperationCanceledException)
             {
                 // Istemci baglantiyi kesti.
+            }
+            catch (AgentPrismContentBlockedException ex)
+            {
+                // 🚨 Engelleme bir ISTEMCI hatasidir: istek anlasildi ama politika
+                // onu gecirmedi ve yeniden denemek ise yaramaz. 502 "yukari akis
+                // bozuk" derdi ve istemciyi yeniden denemeye yonlendirirdi.
+                // ProblemDetails guard ve kural adini tasir, engellenen metni
+                // TASIMAZ (ex.Message de tasimaz).
+                await Results.Problem(
+                        title: "Icerik engellendi",
+                        detail: ex.Message,
+                        statusCode: StatusCodes.Status422UnprocessableEntity,
+                        extensions: new Dictionary<string, object?>(StringComparer.Ordinal)
+                        {
+                            ["errorType"] = AgentPrismContentBlockedException.ContentBlockedErrorType,
+                            ["guard"] = ex.GuardName,
+                            ["rule"] = ex.RuleName,
+                            ["direction"] = ex.Direction.ToString(),
+                        })
+                    .ExecuteAsync(httpContext).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is AgentPrismException or InvalidOperationException or HttpRequestException)
             {

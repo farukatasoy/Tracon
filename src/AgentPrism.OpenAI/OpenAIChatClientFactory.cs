@@ -12,11 +12,11 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Uretilen her istemci ayni boru hattindan gecer:
-/// <c>UseFunctionInvocation()</c> tool cagri dongusunu Microsoft Agent Framework'e
-/// birakir — kendi dongumuzu yazmayiz. <c>UseOpenTelemetry()</c> ise Faz 6'daki
-/// telemetri toplamanin kaynagidir ve span'leri
-/// <see cref="AgentPrismDiagnostics.ActivitySourceName"/> kaynagi altinda uretir.
+/// 🚨 Fabrika <strong>HAM</strong> bir istemci doner. Ortak boru hatti
+/// (<c>UseFunctionInvocation()</c>, <c>UseOpenTelemetry()</c>, icerik guard'i,
+/// devre kesici, ek cozme) <c>ModelProviderRegistry.CreateChatClient</c> icinde
+/// kurulur — Faz 48'de oraya tasindi. Gerekce: dongu burada kurulunca defterin
+/// sardigi hicbir halka tool cagri turlarini goremiyordu.
 /// </para>
 /// <para>
 /// <see cref="OpenAIClient"/> bir kez kurulur ve paylasilir; HTTP baglanti havuzunu
@@ -73,11 +73,7 @@ public sealed class OpenAIChatClientFactory
                 $"{nameof(ModelBinding)}.{nameof(ModelBinding.Model)} alanini doldurun veya " +
                 $"'{OpenAIProviderOptions.SectionName}:{nameof(OpenAIProviderOptions.DefaultModel)}' ayarini verin.");
 
-        return CreateInnerChatClient(model, apiSurface)
-            .AsBuilder()
-            .UseFunctionInvocation(_loggerFactory)
-            .UseOpenTelemetry(_loggerFactory, AgentPrismDiagnostics.ActivitySourceName)
-            .Build();
+        return CreateInnerChatClient(model, apiSurface);
     }
 
     /// <summary>Ayarlardan bir OpenAI istemcisi kurar.</summary>

@@ -98,6 +98,63 @@ public sealed class AgentPrismContentFilteredException : AgentPrismException
 }
 
 /// <summary>
+/// Icerik bir <see cref="IContentGuard"/> tarafindan engellendiginde atilir.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <see cref="AgentPrismContentFilteredException"/>'dan ayridir ve ayri kalmalidir:
+/// o, <em>saglayicinin</em> yaniti kestigini bildirir; bu ise AgentPrism'in kendi
+/// politikasinin icerigi gecirmedigini bildirir. Ikisini ayni kararli kimlige
+/// yazmak, operatorun "model reddetti" ile "biz reddettik" arasindaki ayrimi
+/// kaybetmesine yol acardi.
+/// </para>
+/// <para>
+/// 🚨 Ne mesaj ne de alanlar <strong>engellenen icerigi tasir</strong>. Mesaj
+/// istemciye <c>422</c> govdesinde donebilir; oraya hassas metin yazmak sorunu
+/// yayardi.
+/// </para>
+/// </remarks>
+public sealed class AgentPrismContentBlockedException : AgentPrismException
+{
+    /// <summary>
+    /// <see cref="AgentPrismException.ErrorType"/> icin yazilan kararli deger.
+    /// </summary>
+    public const string ContentBlockedErrorType = "content_blocked";
+
+    /// <summary>Yeni bir hata olusturur.</summary>
+    public AgentPrismContentBlockedException()
+    {
+    }
+
+    /// <summary>Yeni bir hata olusturur.</summary>
+    /// <param name="message">Hata mesaji. Engellenen metni TASIMAMALIDIR.</param>
+    public AgentPrismContentBlockedException(string message)
+        : base(message)
+    {
+    }
+
+    /// <summary>Yeni bir hata olusturur.</summary>
+    /// <param name="message">Hata mesaji. Engellenen metni TASIMAMALIDIR.</param>
+    /// <param name="innerException">Asil hata.</param>
+    public AgentPrismContentBlockedException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+
+    /// <summary>Karari veren guard'in adi.</summary>
+    public string? GuardName { get; init; }
+
+    /// <summary>Eslesen kuralin adi. Guard kural adi bildirmediyse <see langword="null"/>.</summary>
+    public string? RuleName { get; init; }
+
+    /// <summary>Denetimin yonu.</summary>
+    public ContentGuardDirection Direction { get; init; }
+
+    /// <inheritdoc />
+    public override string ErrorType => ContentBlockedErrorType;
+}
+
+/// <summary>
 /// Bir agent tanimi calistirilabilir bir agent'a donusturulemedigi zaman atilir.
 /// </summary>
 /// <remarks>

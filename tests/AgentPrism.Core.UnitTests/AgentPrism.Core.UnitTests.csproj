@@ -4,4 +4,13 @@
     <ProjectReference Include="../../src/AgentPrism.Core/AgentPrism.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!--
+      Yalniz test icin: AgentPrism:ContentGuard bolumunun gercekten baglandigini
+      dogrulamak bir IConfiguration ornegi ister. AgentPrism.Core yalnizca
+      Configuration.Abstractions'a baglanir ve oyle kalmalidir.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+  </ItemGroup>
+
 </Project>

@@ -425,3 +425,39 @@ Workflow'a özgü bir uçtan uca iptal testi hâlâ AÇIK — bkz.
 ## Faz 16 — `Workflows.Declarative` ölçümü (hafızadan taşındı, 2026-08-07)
 
 - **🚨 `Microsoft.Agents.AI.Workflows.Declarative` +19 gecisli paket getirir** (2026-08-03, Faz 16): olculdu, 23 → 42. Tum Power Fx yorumlayici yigini, `Microsoft.Agents.ObjectModel.*` (ayri surum semasi `2026.2.4.1`) ve `System.CodeDom`. Ayrica `ResponseAgentProvider` sozlesmesi OpenAI Responses API sekline baglidir ve MAF'in kendi dokumani `ChatClientAgent` tabanli agent'lari "currently not supported" der. Alinmadi (K-129).
+
+## Faz 48 — Guardrails ve model boru hattının taşınması (2026-08-07)
+
+Fazın hedefi bir genişleme noktasıydı (`IContentGuard`), ama teslim edilen işin
+yarısı bir **taşımadır** ve gerekçesi ölçümdür.
+
+Plan guard'ı "model boru hattının en dışına" koyuyordu ve motivasyon örneği uzak
+bir MCP tool'unun döndürdüğü zararlı içerikti. `grep -rn "UseFunctionInvocation"
+src/` dört sağlayıcı fabrikasının (OpenAI, Anthropic, Google, Azure) ve
+`AgentPrism.Testing/FakeModelProvider`'ın tool çağrı döngüsünü **kendi içinde**
+kurduğunu gösterdi. Sonuç: `ModelProviderRegistry`'nin sardığı **hiçbir halka**
+döngünün turlarını göremiyordu — planın kendi motivasyon örneği o konumda
+yakalanamazdı. Kırk yedi faz boyunca fark edilmemişti çünkü diğer halkaların
+(devre kesici, ek çözme, içerik filtresi tespiti) hiçbiri ara turları görmeye
+ihtiyaç duymuyordu.
+
+Boru hattı defterin içine taşındı ve `IModelProvider` artık **ham** istemci
+döndürür (K-320). Guard tool döngüsünün içine, ham istemcinin hemen üstüne
+konuldu (K-321); devre kesici engelleme kararını ayıklamak zorunda kaldı
+(K-322). Yan fayda: üçüncü taraf bir sağlayıcı artık bütün halkaları bedava
+devralır — eski düzende kendi boru hattını kuran bir sağlayıcı guard'ı
+**sessizce** almazdı.
+
+İki tasarım kararı kullanıcıya sorulup değiştirildi: K1'in kapısı bir `Enabled`
+bayrağı değil **kaydın kendisi** oldu (K-323; aksi hâlde "maliyet tam sıfır"
+iddiası ölçülemezdi), ve `422` yalnız akışsız dalda döner (K-324; SSE başlıkları
+çalıştırma başlamadan gönderiliyor).
+
+Testler iki gerçek kusur buldu: sarmalayıcı iç istemcinin çerçeve nesnelerini
+**yerinde** değiştiriyordu (paylaşılan bir test listesini kalıcı olarak bozdu →
+artık her şey `Clone()` ile kopyalanır), ve TC kimlik kontrol basamağı hesabı
+onuncu basamağı da toplamlara katıyordu (geçerli hiçbir numara doğrulanamıyordu).
+
+Ölçülen tahsis: guard kayıtlı değilken **736 B/çağrı** (temel, değişmedi),
+kayıtlı ama kuralsız 952 B, kural var/eşleşme yok 1 736 B, maskeleme 2 976 B.
+

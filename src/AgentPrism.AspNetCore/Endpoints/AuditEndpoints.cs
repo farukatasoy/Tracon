@@ -49,7 +49,11 @@ internal static class AuditEndpoints
             .WithSummary("Filtrelenebilir denetim kayitlarini listeler.")
             .WithDescription(
                 "actor, action, entity ve tarih araligina gore filtrelenebilir. Calistirmalar " +
-                "(agent'in bir mesaji islemesi) bu deftere yazilmaz; runs tablosu zaten tam kaydi tutar.");
+                "(agent'in bir mesaji islemesi) bu deftere yazilmaz; runs tablosu zaten tam kaydi tutar. " +
+                "Tek istisna 'content.blocked' eylemidir (Faz 48): bir IContentGuard'in engelleme " +
+                "karari bir calistirma ayrintisi degil bir YONETISIM kararidir ve calistirma kaydi " +
+                "saklama politikasiyla silindikten sonra da izlenebilir kalmalidir. Kayit yalniz " +
+                "guard ve kural adini tasir, engellenen METNI tasimaz.");
 
         builder.MapGet("/api/audit/{entity}", async Task<Ok<IReadOnlyList<AuditEntry>>> (
                 string entity,

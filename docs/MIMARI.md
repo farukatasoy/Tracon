@@ -1,6 +1,6 @@
 # AgentPrism — Mimari
 
-> Bu doküman AgentPrism'in kalıcı mimari resmidir. Faz dokümanları (`00`–`30`) uygulama sırasını anlatır; bu doküman **ne** inşa ettiğimizi anlatır. Faz 8'den sonraki sıra: [`IKINCI-FAZ-YOL-HARITASI.md`](IKINCI-FAZ-YOL-HARITASI.md).
+> Bu doküman AgentPrism'in kalıcı mimari resmidir. Faz dokümanları (`docs/NN-*.md`) uygulama sırasını anlatır; bu doküman **ne** inşa ettiğimizi anlatır. Sıra: [`UCUNCU-FAZ-YOL-HARITASI.md`](UCUNCU-FAZ-YOL-HARITASI.md).
 >
 > **Bu dosya her fazın sonunda güncellenir.** Gerçekleşen tasarım ile bu doküman arasında fark varsa doküman yanlıştır — koda göre düzeltilir.
 >
@@ -19,15 +19,15 @@
 |-------|------|-------|
 | `AgentPrism.Abstractions` | Sözleşmeler: kayıt, `store`, katalog, iş, eval, deney, kota, webhook, saklama. Bağımlılığı yok. | ✅ |
 | `AgentPrism.Core` | Çalıştırma yolu: derleyici, dekoratörler, kayıt, denetim, skill, workflow doğrulama, fiyat, kota, olay yayını, saklama, konuşma boru hattı (K-222). | ✅ |
-| `AgentPrism.PostgreSql` | Kalıcılık: `PostgresQueries` + `PostgresDialect` + gömülü SQL (0001–0019). `Store` mantığı `Sql.Shared` ile paylaşılır. | ✅ |
-| `AgentPrism.SqlServer` | SQL Server 2019+ / Azure SQL. Aynı `store`'lar, kendi T-SQL metni ve migration seti (`0001`–`0007`). Meta pakete dâhil değil (K-185). | ⚠️ testleri koşturulmadı |
-| `AgentPrism.Sqlite` | Tek dosya/gömülü kalıcılık. Aynı `store`'lar, kendi SQL metni ve migration seti (`0001`–`0007`, K-190). Meta pakete dâhil değil | ✅ |
+| `AgentPrism.PostgreSql` | Kalıcılık: `PostgresQueries` + `PostgresDialect` + gömülü SQL (`0001`–`0023`). `Store` mantığı `Sql.Shared` ile paylaşılır. | ✅ |
+| `AgentPrism.SqlServer` | SQL Server 2019+ / Azure SQL. Aynı `store`'lar, kendi T-SQL metni ve migration seti (`0001`–`0011`). Meta pakete dâhil değil (K-185). | ⚠️ gerçek `mssql/server` koşturulamadı (K-317) |
+| `AgentPrism.Sqlite` | Tek dosya/gömülü kalıcılık. Aynı `store`'lar, kendi SQL metni ve migration seti (`0001`–`0011`, K-190). Meta pakete dâhil değil | ✅ |
 | `AgentPrism.Sql.Shared` | **Paket değil** — paylaşılan kaynak: 24 `store`, `SqlQueriesBase`, `SqlDialect` (K-198), migration runner (K-176). | ✅ |
 | `AgentPrism.OpenAI` | OpenAI ve OpenAI uyumlu her sağlayıcı + sağlık denetimi | ✅ |
-| `AgentPrism.Anthropic` | Anthropic (Claude) — resmî SDK, prompt caching, genişletilmiş düşünme. Meta pakete dâhil değil (K-209). | ✅ |
-| `AgentPrism.Google` | Google Gemini — resmî SDK, güvenlik eşikleri, düşünme bütçesi. Meta pakete dâhil değil; geçişli ağırlık kabul edildi (K-205). | ✅ |
+| `AgentPrism.Anthropic` | Anthropic (Claude) — resmî SDK, prompt caching, düşünme. Meta pakete dâhil değil (K-209). | ✅ |
+| `AgentPrism.Google` | Google Gemini — resmî SDK, güvenlik eşikleri, düşünme bütçesi. Meta pakete dâhil değil (K-205). | ✅ |
 | `AgentPrism.Azure` | Azure OpenAI — deployment tabanlı model çözümü, API anahtarı **veya** Entra kimliği (K-210). Ayar **sunmaz** (K-211); Responses desteklenmez (K-213). Meta pakete dâhil değil. | ✅ |
-| `AgentPrism.Voice` | Ses tool'ları: `speak`, `transcribe`, `list_voices`. Sıfır NuGet bağımlılığı (K-216); sözleşme `Abstractions`'ta (K-215). Gerçek zamanlı konuşma katmanı `Core`'dadır (K-222). Meta pakete dâhil değil. | ✅ |
+| `AgentPrism.Voice` | Ses tool'ları: `speak`, `transcribe`, `list_voices`. Sıfır NuGet bağımlılığı (K-216); sözleşme `Abstractions`'ta (K-215), gerçek zamanlı katman `Core`'da (K-222). Meta pakete dâhil değil. | ✅ |
 | `AgentPrism.Mcp` | Uzak MCP tool keşfi | ✅ |
 | `AgentPrism.Workflows` | MAF Workflows yürütmesi, kontrol noktası, human-in-the-loop | ✅ |
 | `AgentPrism.AspNetCore` | `MapAgentPrism()` — yönetim API'si, OpenAI uyumlu uçlar, roller, hız sınırı | ✅ |
@@ -107,34 +107,11 @@ flowchart TD
     CORE --> ABS --> MAF
 ```
 
-**Bağımlılık yönü tek yönlüdür ve döngü içermez:**
+**Bağımlılık yönü tek yönlüdür ve döngü içermez:** her sağlayıcı/kalıcılık paketi
+`Core`'a, `Core` `Abstractions`'a, `UI` `AspNetCore`'a bakar; ters yön yoktur.
+Kural `DependencyDirectionTests.AllowedReferences` ile zorlanır. AOT uyumluluk
+tablosu 9. bölümdedir (K-006).
 
-```mermaid
-flowchart RL
-    PostgreSql --> Core
-    OpenAI --> Core
-    Anthropic --> Core
-    Google --> Core
-    Mcp --> Core
-    Workflows --> Core
-    AspNetCore --> Core
-    UI --> AspNetCore
-    Core --> Abstractions
-    SqlServer --> Core
-    Meta["AgentPrism · meta"] --> UI
-    Meta --> PostgreSql
-    Meta --> OpenAI
-    Meta --> Mcp
-    Meta --> Workflows
-
-    classDef aot fill:#1f6f4a,stroke:#0d3b27,color:#ffffff
-    classDef notaot fill:#7a4a1f,stroke:#3d250f,color:#ffffff
-    class Abstractions,Core,PostgreSql,OpenAI,Anthropic,Google aot
-    class AspNetCore,UI,Mcp,Workflows,Meta,SqlServer notaot
-```
-
-> Yeşil paketler AOT uyumludur, turuncular değildir (karar K-006).
->
 > `AgentPrism.SqlServer` meta pakete **dâhil değildir** (K-185): PostgreSQL
 > kullanan tüketici `Microsoft.Data.SqlClient` çekmemelidir.
 >
@@ -301,7 +278,7 @@ flowchart TD
     APR["<b>ToolApprovalAgent</b> · Order 20<br/>otomatik onay kuralları"]
     RUN["AIAgent.RunAsync / RunStreamingAsync"]
     CHP["PostgresChatHistoryProvider<br/>geçmişi conversation_items'tan yükler, sonunda geri yazar"]
-    LLM["IChatClient — ModelProviderRegistry<br/>saglayici → ek çözme → devre kesici → içerik filtresi"]
+    LLM["IChatClient — ModelProviderRegistry boru hattini TAMAMEN kurar<br/>içerik filtresi → devre kesici → ek çözme<br/>→ MAF tool döngüsü → OTel → içerik guard'ı → ham istemci"]
 
     C -->|"POST /api/agents/{name}/run"| H
     C -->|"POST /v1/responses · /v1/chat/completions"| H
@@ -615,28 +592,12 @@ süreç **AgentPrism'in makinesinde** çalışır.
 listesi + kodda verilen skill kökleri). Kullanım örneği:
 [`11-SKILL-SCRIPT-CALISTIRMA.md`](11-SKILL-SCRIPT-CALISTIRMA.md).
 
-Her çalıştırma şu kapılardan **sırayla** geçer; biri kapalıysa süreç hiç başlamaz:
-
-```mermaid
-flowchart TD
-    A["Script çağrısı"] --> B{"Enabled?"}
-    B -->|hayır| X["AgentPrismException"]
-    B -->|evet| C{"Kiracı için geçerli izin var mı?"}
-    C -->|hayır| X
-    C -->|evet| D{"Uzantı yorumlayıcı beyaz listesinde mi?"}
-    D -->|hayır| X
-    D -->|evet| E{"Argüman boyutu ve şeması uygun mu?"}
-    E -->|hayır| X
-    E -->|evet| F{"Denetim izine yazılabildi mi?"}
-    F -->|hayır| X
-    F -->|evet| G{"Eşzamanlılık kotası uygun mu?"}
-    G --> H["Ayrı süreç · temiz ortam · zaman aşımı"]
-
-    classDef red fill:#7a1f1f,stroke:#3d0f0f,color:#ffffff
-    classDef green fill:#1f6f4a,stroke:#0d3b27,color:#ffffff
-    class X red
-    class H green
-```
+Her çalıştırma **altı kapıdan sırayla** geçer; biri kapalıysa süreç hiç başlamaz
+ve `AgentPrismException` atılır: (1) `Enabled` · (2) kiracı için geçerli izin ·
+(3) uzantı yorumlayıcı beyaz listesinde · (4) argüman boyutu ve şeması ·
+(5) denetim izine yazılabildi · (6) eşzamanlılık kotası. Ancak sonra ayrı süreç
+temiz ortamla ve zaman aşımıyla başlar. Akış şeması:
+[`11-SKILL-SCRIPT-CALISTIRMA.md`](11-SKILL-SCRIPT-CALISTIRMA.md).
 
 🚨 Beşinci kapı Faz 9 kuralının **istisnasıdır**: denetim izine yazılamayan bir
 script çalıştırması, hiçbir kaydı olmayan bir uzaktan kod çalıştırma olurdu
@@ -668,34 +629,28 @@ engeller: `Enabled = true` iken bayrak `false` ise **açılışta** hata verilir
 ### Kota ve webhook imzası
 
 **🚨 SSRF — giden istek sınırı.** Webhook adresini *kullanıcı* verir ve sunucu o
-adrese istek atar. Bu, AgentPrism'in **dışarı** istek attığı ilk yerdir ve
-kontrolsüz bırakılırsa iç ağa erişim aracı olur — bulut metadata uçları
-(`169.254.169.254`) dâhil, ki bunlar çoğu zaman kimlik doğrulamasız geçici kimlik
-bilgisi dağıtır.
+adrese istek atar; kontrolsüz bırakılırsa iç ağa erişim aracı olur — bulut
+metadata uçları (`169.254.169.254`) dâhil.
 
 | Koruma | Nasıl |
 |--------|-------|
 | Şema | Yalnız `https`. `http` yalnız `AllowInsecureHttp = true` **ve** loopback hedefi |
-| Adres | Özel aralıklar reddedilir: `0/8`, `10/8`, `127/8`, `169.254/16`, `172.16/12`, `192.168/16`, `100.64/10`, `::1`, `fc00::/7`, `fe80::/10`, multicast — ve IPv4'e eşlenmiş IPv6 karşılıkları |
+| Adres | Özel aralıklar reddedilir (`10/8`, `127/8`, `169.254/16`, `172.16/12`, `192.168/16`, `100.64/10`, `::1`, `fc00::/7`, `fe80::/10`, multicast) ve IPv4'e eşlenmiş IPv6 karşılıkları |
 | DNS yeniden bağlama | 🚨 Denetim `SocketsHttpHandler.ConnectCallback` **içindedir**: doğrulanan adres, soketin bağlandığı adresin ta kendisidir. Önce doğrulayıp sonra `SendAsync(url)` çağırmak TOCTOU açığı bırakırdı (K-164) |
 | Yönlendirme | `AllowAutoRedirect = false` — yönlendirme, denetimden geçmiş bir adresten özel ağa kaçış yoludur |
 | Zaman aşımı | İstek başına `CancellationTokenSource` (varsayılan 10 sn); paylaşılan istemcide `Timeout` alanı değiştirilmez |
 | Yanıt | En çok 8 KB okunur; gerisi atılır |
 | Varsayılan | `AllowPrivateNetworkTargets = false` |
 
-Koruma `WebhookHttpClient`'ın **içine gömülüdür**; tüketici değiştiremez.
-`IHttpClientFactory` bilinçli olarak kullanılmadı (K-164). SSRF kararının tek
-doğruluk noktası `WebhookUrlValidator.IsAllowedTarget`'tır.
+Koruma `WebhookHttpClient`'ın **içine gömülüdür**; tüketici değiştiremez
+(`IHttpClientFactory` bilinçli kullanılmadı, K-164). Tek doğruluk noktası
+`WebhookUrlValidator.IsAllowedTarget`'tır.
 
-**Webhook `secret`'i veritabanında durmaz.** `webhook_subscriptions` kaydı yalnızca
-imzalama `secret`'inin okunacağı yapılandırma anahtarının **adını** taşır; değer
-çalışma anında `IConfiguration` üzerinden çözülür. Bu, MCP'de verilen K-059
-kararının birebir uygulanmasıdır — sözleşmede `secret` alanı **hiç yoktur**.
+**Webhook `secret`'i veritabanında durmaz** — kayıt yalnız yapılandırma
+anahtarının **adını** taşır; sözleşmede `secret` alanı hiç yoktur (K-059).
 
-**İmza yeniden oynatmaya kapalıdır.** `HMAC-SHA256(timestamp + "." + body, secret)`
-— zaman damgası imzaya dâhildir; olmasaydı yakalanan bir istek sonsuza kadar
-yeniden oynatılabilirdi (K-163). Alıcının bir tolerans penceresi denetlemesi
-gerekir; AgentPrism bunu zorlayamaz.
+**İmza yeniden oynatmaya kapalıdır:** `HMAC-SHA256(timestamp + "." + body, secret)`
+— zaman damgası imzaya dâhildir (K-163). Tolerans penceresini alıcı denetler.
 
 **Kota ve hız sınırı ayrı mekanizmalardır** (K-158). Hız sınırı saniye/dakika
 ölçeğinde, bellekte; kota gün/ay ölçeğinde, veritabanında. İkisi de **varsayılan
@@ -714,6 +669,20 @@ tanımlanmadıkça boştur (K-165). Kota **yaklaşıktır** — denetim çalış
 | `/oauth/callback` | Arayüz kabuğuyla aynı grup: loopback+policy geçerli, yalnız bearer muaf. Güvenlik tek kullanımlık `state`'e dayanır |
 
 Ayrıntı: `docs/22-MCP-DERINLESMESI.md`.
+
+### İçerik denetimi (Faz 48)
+
+`IContentGuard` modele giden ve modelden gelen içeriği denetler; kararlar
+`Allow` / `Mask` / `Block`'tur ve **en sert karar kazanır**.
+
+| Kural | Nasıl |
+|--------|-------|
+| Varsayılan **kapalı** | `AddAgentPrism()` hiç guard kaydetmez → sarmalayıcı eklenmez → ölçülen maliyet 0. Açma: `AddPatternContentGuard()` veya `AgentPrism:ContentGuard:Pattern` (K-323) |
+| Konum | Tool çağrı döngüsünün **içinde**, ham istemcinin üstünde (K-321): tool sonucu modele ikinci çağrıda girer, döngü dışı halka onu görmez |
+| Engelleme | Ağa **hiç çıkmaz**, devre kesiciyi **tetiklemez** (K-322). Akışsız dalda `422` + `content_blocked`, akışlı dalda SSE `error` (K-324) |
+| Engellenen içerik | **Hiçbir yere yazılmaz**; iz yalnız guard/kural/yön taşır (K-325). 🚨 Maskeleme model sınırındadır — `run_events`/`run_inputs` ham metni saklar |
+
+Ayrıntı: `docs/48-GUARDRAILS.md`.
 
 ---
 

@@ -1,7 +1,8 @@
 # Üçüncü Faz Yol Haritası (Faz 31 – 52)
 
-> **Durum (2026-08-07): Üç dalga da planlandı; Dalga 1, Dalga 2 ve Dalga 3'ün
-> Faz 46–47'si tamamlandı.** Aşağıdaki satırlar tek tek güncel durumu taşır.
+> **Durum (2026-08-07): Üç dalga da planlandı; Dalga 1 ve Dalga 2 tamamlandı,
+> Dalga 3'ün Faz 46, 47 ve 48'i tamamlandı.** Aşağıdaki satırlar tek tek güncel
+> durumu taşır.
 > Bu tur [`UCUNCU-FAZ-ADAYLARI.md`](UCUNCU-FAZ-ADAYLARI.md) listesinden seçilir.
 > **Yirmi altı kalem** faz dokümanına dönüştürüldü (Faz 31–52) ve aday
 > listesinden **silindi**. Kalan 20 kalem seçilmemiştir.
@@ -38,7 +39,7 @@
 | 32 | [32-CALISTIRMA-IPTALI.md](32-CALISTIRMA-IPTALI.md) | F-35 | ✅ Tamamlandı (2026-08-06). Kaçak bir agent'ı durdurmanın tek yolu artık süreci öldürmek değil. **Kapsam tek örnekle sınırlı** — çok örnek F-57'yi bekler | — | — |
 | 33 | [33-SAGLIK-DENETIMI-VE-TESHIS.md](33-SAGLIK-DENETIMI-VE-TESHIS.md) | F-38 · F-62 | ✅ Tamamlandı (2026-08-06). İkisi de **aynı veriyi** okur (DI kayıtları, migration durumu, Faz 8'in sağlık önbelleği); tek toplayıcı (`AgentPrismDiagnosticsCollector`), iki sunum | — | — |
 | 34 | [34-TANIM-DOGRULAMA-UCU.md](34-TANIM-DOGRULAMA-UCU.md) | F-60 | ✅ Tamamlandı (2026-08-06). Döngü denetimi zaten vardı (`AgentCallGraph`, kaydetmede kullanılıyordu); yeni yazılan yalnız tipli kod (K-252). Aday listesindeki F-48'in (GitOps) CI adımıdır | — | — |
-| 35 | [35-MALIYET-VE-KOTA-METRIKLERI.md](35-MALIYET-VE-KOTA-METRIKLERI.md) | F-70 | 📋 Planlandı. Turun **en ucuz** kalemi: iki enstrüman, uç yok, arayüz yok | — | — |
+| 35 | [35-MALIYET-VE-KOTA-METRIKLERI.md](35-MALIYET-VE-KOTA-METRIKLERI.md) | F-70 | ✅ Tamamlandı (2026-08-06). Turun **en ucuz** kalemi: iki enstrüman, uç yok, arayüz yok | — | — |
 | 36 | [36-SAKLAMA-HACIM-SINIRI.md](36-SAKLAMA-HACIM-SINIRI.md) | F-73 | ✅ Tamamlandı (2026-08-06). `MaxRows` artık uygulanıyor (K-258) | — | — |
 | 37 | [37-PROJE-SABLONU.md](37-PROJE-SABLONU.md) | F-49 | ✅ Tamamlandı (2026-08-06). `dotnet new agentprism-api`; şablon paketi bağımlılık grafiğine **girmez** | `AgentPrism.Templates` | — |
 
@@ -57,8 +58,8 @@ sonradan yapılırsa yeniden yazım veya güvenlik düzeltmesi olarak geri döne
 | Faz | Doküman | Kalem | Hangi işten önce | Yeni paket | Migration |
 |-----|---------|-------|------------------|-----------|-----------|
 | 38 | [38-YAPILANDIRILMIS-CIKTI.md](38-YAPILANDIRILMIS-CIKTI.md) | F-42 | ✅ **Tamamlandı (2026-08-06).** `ModelBinding` public `sealed record`'tur; alan eklemek yayından sonra bir sürüm kararıdır | — | — (tanım `jsonb`'de, K-208) |
-| 39 | [39-TEST-PAKETI.md](39-TEST-PAKETI.md) | F-46 | 📋 **Faz 7.** Test API'sini kırmak tüketicinin **tüm** test paketini kırar | `AgentPrism.Testing` | — |
-| 40 | [40-OPENAPI-YAYINI.md](40-OPENAPI-YAYINI.md) | F-63 | 📋 **F-50** (istemci + CLI). Belge, istemci üretiminin kaynağıdır | — | — |
+| 39 | [39-TEST-PAKETI.md](39-TEST-PAKETI.md) | F-46 | ✅ **Tamamlandı (2026-08-06).** Test API'sini kırmak tüketicinin **tüm** test paketini kırar | `AgentPrism.Testing` | — |
+| 40 | [40-OPENAPI-YAYINI.md](40-OPENAPI-YAYINI.md) | F-63 | ✅ **Tamamlandı (2026-08-06).** Belge, istemci üretiminin kaynağıdır; anlık görüntü testi koddan sapmayı kapıya çevirir | — | — |
 | 41 | [41-KIRACI-YALITIMININ-ZORLANMASI.md](41-KIRACI-YALITIMININ-ZORLANMASI.md) | F-76 | ✅ **Tamamlandı (2026-08-07).** Üç kusur bulundu ve düzeltildi (K-277 · K-278 · K-279); `IRetentionStore` kırıcı biçimde değişti | — | 🚨 **gerekti** — `sessions` anahtarı, üç set (PostgreSQL `0018`, SQL Server `0006`, SQLite `0006`) |
 | 42 | [42-TEK-YURUTUCU-SECIMI.md](42-TEK-YURUTUCU-SECIMI.md) | F-57 | ✅ **Tamamlandı (2026-08-07).** Kira tablosuyla tek yürütücü seçimi; `SingletonGuard` public oldu (K-285), gerçek devralma ~17,6 sn ölçüldü (K-286) | — | 🚨 **gerekti** — `singleton_leases`, üç set (PostgreSQL `0019`, SQL Server `0007`, SQLite `0007`) |
 | 43 | [43-IDEMPOTENCY-KEY.md](43-IDEMPOTENCY-KEY.md) | F-37 | ✅ **Tamamlandı (2026-08-07).** `/api/agents/{name}/run` plandan sapıp akışsız bir dal kazandı (K-288) — aksi hâlde fazın kendi motivasyon örneği (kota tekrar tüketimi) hiç doğrulanamazdı | — | 🚨 **gerekti** — `idempotency_keys`, üç set (PostgreSQL `0020`, SQL Server/SQLite `0008`) |
@@ -85,7 +86,7 @@ Dalga 1 ve 2'nin aksine **sıra burada anlamlıdır**: dört fazın gerçek bir
 |-----|---------|-------|------------------------|-----------|-----------|
 | 46 | [46-DAYANIKLI-CALISTIRMA.md](46-DAYANIKLI-CALISTIRMA.md) | F-68 (F-39 içinde) | ✅ **Tamamlandı (2026-08-07).** `IRunStore.StartRunAsync` UPSERT'e çevrildi (K-304) — plan öngörmemişti; `Job.Id == RunId` (K-305) | — | — |
 | 47 | [47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md](47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md) | F-54 · F-66 | ✅ **Tamamlandı (2026-08-07).** `run_inputs` açıldı ve **Faz 49'un girdi kaynağıdır**; dallandırma kopyalamayla yapıldı (K-311), `parent_conversation_id` FK **taşımaz** (K-312, SQL Server 1785). 🚨 Oynatma oturumsuzdur (K-315) ve kuyruğa alma kapsam dışıdır (K-316) | — | 🚨 **gerekti** — `run_inputs` + `runs`'a bir sütun + `conversations`'a iki sütun (PostgreSQL `0023`, SQL Server/SQLite `0011`) |
-| 48 | [48-GUARDRAILS.md](48-GUARDRAILS.md) | F-32 | 📋 Bağımsız. Ertelenen F-72'nin üstüne oturacağı katman | — | — |
+| 48 | [48-GUARDRAILS.md](48-GUARDRAILS.md) | F-32 | ✅ **Tamamlandı (2026-08-07).** 🚨 Ölçüm planın katman kararını çürüttü: `UseFunctionInvocation()` dört sağlayıcı paketinin içindeydi, bu yüzden **model boru hattının tamamı defterin içine taşındı** (K-320) ve `IModelProvider` artık ham istemci döndürür. Guard tool döngüsünün **içindedir** (K-321); kayıt K1'in kapısıdır (K-323); `422` yalnız akışsız dalda döner (K-324). Ertelenen F-72'nin üstüne oturacağı katman | — | — |
 | 49 | [49-CEVRIMICI-DEGERLENDIRME.md](49-CEVRIMICI-DEGERLENDIRME.md) | F-71 | 📋 🚨 **[Faz 31](31-GERI-BILDIRIM-VE-PUANLAMA.md)** — `run_scores` oradan gelir. Faz 47 girdiyi verir | — | — (Faz 31'in tablosu) |
 | 50 | [50-DISA-ACILAN-AGENT-YUZEYI.md](50-DISA-ACILAN-AGENT-YUZEYI.md) | F-31 · F-33 | 📋 Bağımsız. 🚨 **F-56'yı acil hâle getirir** — dış yüzey tek statik token'la korunuyor | — (yeni NuGet: MCP sunucusu) | — |
 | 51 | [51-VEKTOR-BELLEK-VE-RAG.md](51-VEKTOR-BELLEK-VE-RAG.md) | F-30 | 📋 Bağımsız, turun en ağırı. 🚨 Paylaşılan depo modelini **kısmen kırar** | — (yeni NuGet **yok**) | bir tablo + uzantı, **yalnız PostgreSQL** |

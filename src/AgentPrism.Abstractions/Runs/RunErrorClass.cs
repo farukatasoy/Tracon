@@ -38,7 +38,14 @@ public enum RunErrorClass
     /// <summary>AgentPrism kotasi doldu.</summary>
     QuotaExceeded = 4,
 
-    /// <summary>Model yaniti guvenlik/icerik filtresiyle kesildi.</summary>
+    /// <summary>
+    /// Model yaniti <strong>saglayicinin</strong> guvenlik/icerik filtresiyle kesildi.
+    /// </summary>
+    /// <remarks>
+    /// AgentPrism'in kendi guard'inin verdigi karar bu sinif DEGILDIR; bkz.
+    /// <see cref="ContentBlocked"/>. Ikisini birlestirmek operatorun "model
+    /// reddetti" ile "bizim politikamiz reddetti" ayrimini kaybetmesine yol acardi.
+    /// </remarks>
     ContentFiltered = 5,
 
     /// <summary>Bir tool istisna firlatti.</summary>
@@ -55,4 +62,15 @@ public enum RunErrorClass
 
     /// <summary>Iptal edildi.</summary>
     Canceled = 10,
+
+    /// <summary>
+    /// Icerik AgentPrism'in kendi <see cref="IContentGuard"/> politikasi tarafindan
+    /// engellendi (<see cref="AgentPrismContentBlockedException"/>).
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ContentFiltered"/>'dan ayridir: sebep saglayici degil, kurulumun
+    /// kendi kural kumesidir. Karsilik gelen eylem de farklidir — biri saglayici
+    /// ayarlarini gevsetmeyi, digeri politikayi gozden gecirmeyi gerektirir.
+    /// </remarks>
+    ContentBlocked = 11,
 }

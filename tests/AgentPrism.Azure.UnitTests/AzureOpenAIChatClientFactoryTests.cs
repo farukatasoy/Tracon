@@ -10,13 +10,16 @@ namespace AgentPrism.Azure.UnitTests;
 public sealed class AzureOpenAIChatClientFactoryTests
 {
     [Fact]
-    public void Boru_hatti_tool_dongusu_ve_telemetri_icerir()
+    public void Fabrika_HAM_istemci_doner_boru_hattini_kurmaz()
     {
+        // 🚨 Faz 48: tool cagri dongusu ve telemetri ModelProviderRegistry'ye
+        // tasindi. Fabrika onlari kursaydi ic ice iki FunctionInvokingChatClient
+        // olusur ve defterin ekledigi icerik guard'i dongunun DISINDA kalirdi —
+        // tool sonuclari hic denetlenmezdi.
         using var chatClient = Factory().CreateChatClient(TestData.Binding());
 
-        // Tool dongusu MAF'a birakilir; span'ler Faz 6'nin kaynagi altinda uretilir.
-        chatClient.GetService(typeof(FunctionInvokingChatClient)).ShouldNotBeNull();
-        chatClient.GetService(typeof(OpenTelemetryChatClient)).ShouldNotBeNull();
+        chatClient.GetService(typeof(FunctionInvokingChatClient)).ShouldBeNull();
+        chatClient.GetService(typeof(OpenTelemetryChatClient)).ShouldBeNull();
     }
 
     [Fact]

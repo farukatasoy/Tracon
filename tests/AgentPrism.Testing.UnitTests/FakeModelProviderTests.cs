@@ -98,7 +98,10 @@ public sealed class FakeModelProviderTests
             .CallsTool("get_order_status", new { orderId = "ORD-7" })
             .EchoesLastToolResult("Sonuc: ");
 
-        var client = provider.CreateChatClient(Binding);
+        // 🚨 Tool cagri dongusu Faz 48'de ModelProviderRegistry'ye tasindi:
+        // IModelProvider artik HAM istemci dondurur. Bu test bu yuzden gercek
+        // yoldan — defter uzerinden — kosar.
+        using var client = new ModelProviderRegistry([provider]).CreateChatClient(Binding);
 
         var response = await client.GetResponseAsync(
             [new ChatMessage(ChatRole.User, "ORD-7 nerede")],

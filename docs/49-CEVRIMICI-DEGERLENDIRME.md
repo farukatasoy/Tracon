@@ -43,8 +43,60 @@
    [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md)
    (`RunKind`, maliyet kaydı, örnekleme),
    [`hafiza/frontend.md`](hafiza/frontend.md) (sözlük, bundle)
-6. Gerektiğinde, tamamı değil ilgili bölümü:
+6. 🚨 [`48-GUARDRAILS.md`](48-GUARDRAILS.md) — yalnız devir notu. Faz 48 model
+   boru hattını **taşıdı** ve bu fazın yargıcı o boru hattından geçecektir:
+   ```bash
+   awk '/## Sonraki Faza Devir Notu/,0' docs/48-GUARDRAILS.md
+   ```
+7. Gerektiğinde, tamamı değil ilgili bölümü:
    [`MIMARI.md`](MIMARI.md) — değerlendirme ve iş kuyruğu bölümleri
+
+---
+
+## Faz 48'den Devralınanlar
+
+> Bu bölüm Faz 48'in kapanışında eklendi. Sonraki oturum bu fazı ayrı bir
+> sohbette uygulayacaksa bu üç maddeyi bilmek zorundadır.
+
+### D1 — 🚨 Yargıcın `IChatClient`'ı da guard'dan geçer
+
+`IRunJudge` bir model çağırır ve o çağrı `IModelProviderRegistry.CreateChatClient`
+ile kurulursa **kayıtlı her `IContentGuard` yargıç isteminde de çalışır.** Sonuç:
+
+| Durum | Ne olur |
+|---|---|
+| Guard, puanlanan çalıştırmanın metnini **engellerse** | Yargıç çağrısı `AgentPrismContentBlockedException` ile düşer. Puanlanan çalıştırma başarılıydı; puanlama başarısız olur |
+| Guard, metni **maskelerse** | Yargıç maskelenmiş metni puanlar ve puan **anlamsızlaşabilir** — maskelenen şey tam olarak değerlendirilen içerikti |
+
+Bu, bu fazın **karara bağlaması gereken** bir noktadır ve plan bunu öngörmedi.
+Üç seçenek görünür: (a) yargıç istemcisini guard'sız kurmak (boru hattı defterin
+içinde olduğu için bunun için açık bir yol gerekir), (b) engellemeyi puanlama
+başarısızlığı sayıp `RunScoreKind`'a yazmamak, (c) hiçbir şey yapmayıp davranışı
+belgelemek. **Seçim gerekçesiyle `KARARLAR.md`'ye yazılmalıdır.**
+
+### D2 — 🚨 Boru hattına halka eklemenin yeri değişti
+
+`UseFunctionInvocation()` ve `UseOpenTelemetry()` artık sağlayıcı paketlerinde
+**değil**, `ModelProviderRegistry.CreateChatClient` içindedir (K-320);
+`IModelProvider` **ham** istemci döndürür. Bu faz model çağrı yoluna bir halka
+eklerse (örnek: yargıç maliyetini ayrı ölçen bir sarmalayıcı) onu **orada** kurar
+ve şu soruyu yanıtlar: *her model çağrısını görmesi gerekiyor mu?* Gerekiyorsa
+tool döngüsünün içine, agent turu başına bir kez yetiyorsa dışına.
+
+Bugünkü sıra (dıştan içe): içerik filtresi tespiti → devre kesici → ek çözme →
+`FunctionInvokingChatClient` → OpenTelemetry → içerik guard'ı → ham istemci.
+
+### D3 — `RunErrorClass` ve `RunEventType`'a üye eklendi
+
+`RunErrorClass.ContentBlocked = 11` ve `RunEventType.{ContentMasked = 20,
+ContentBlocked = 21}`. İkisi de `smallint` sütunda saklanır; bu faz aynı enum'lara
+dokunacaksa değerleri **sona** eklemelidir.
+
+🚨 **Ölçüldü (2026-08-07): `RunScoreKind` yalnız `Binary = 1` ve `Stars = 2`
+taşıyor.** Yol haritası `Numeric` üyesinin **Faz 31'e** taşınmasını istiyordu ama
+Faz 31 onu eklemedi; bu fazın kendisi eklemek zorundadır ve değer **`3`** olmalıdır
+(`smallint` sütunda saklanır, mevcut değerler kaydırılamaz). Kaynak:
+[`RunScoreKind.cs`](../src/AgentPrism.Abstractions/Runs/RunScoreKind.cs).
 
 ---
 

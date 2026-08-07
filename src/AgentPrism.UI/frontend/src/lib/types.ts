@@ -38,7 +38,9 @@ export type RunEventType =
   | 'ExecutorFailed'
   | 'WorkflowOutput'
   | 'WorkflowRequest'
-  | 'RunAwaitingInput';
+  | 'RunAwaitingInput'
+  | 'ContentMasked'
+  | 'ContentBlocked';
 
 export type CompactionStrategyKind =
   | 'None'
@@ -677,7 +679,8 @@ export type RunErrorClass =
   | 'Timeout'
   | 'CompilationFailed'
   | 'BudgetExceeded'
-  | 'Canceled';
+  | 'Canceled'
+  | 'ContentBlocked';
 
 /** Runs sharing the same normalized-message fingerprint. */
 export interface RunErrorCluster {

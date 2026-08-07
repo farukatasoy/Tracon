@@ -72,3 +72,16 @@
 | `AgentPrism.Sqlite` | `Migrations/0006_sessions_tenant_key.sql` (**yeni** — SQLite birincil anahtarı değiştiremez: tablo yeniden kurulur, indeksler elle yaratılır); `SqliteQueries.UpsertSession` → `ON CONFLICT (tenant_id, id)`; `SqliteDialect` imza güncellemesi |
 | Diğer tüm paketler | **Değişmedi.** Yeni tablo yok, yeni uç yok, arayüz payı yok |
 
+### Faz 48 — Guardrails ve içerik denetimi (2026-08-07)
+
+| Paket | Ne eklendi / değişti |
+|---|---|
+| `AgentPrism.Abstractions` | `Guards/{IContentGuard,ContentGuardContext,ContentGuardResult}.cs` (**yeni** — `ContentGuardDirection` ve `ContentGuardAction` enum'ları dahil); `AgentPrismException.cs` → `AgentPrismContentBlockedException` (`content_blocked`); `Runs/RunEventType.cs` → `ContentMasked = 20`, `ContentBlocked = 21`; `Runs/RunErrorClass.cs` → `ContentBlocked = 11` (K-326); 🚨 `Models/IModelProvider.cs` — `CreateChatClient` **sözleşmesi** değişti: artık HAM istemci döndürür (K-320) |
+| `AgentPrism.Core` | `Guards/` (**yeni dizin, 8 dosya**): `ContentGuardingChatClient`, `ContentGuardPipeline`, `PatternContentGuard` (beş `[GeneratedRegex]`), `PatternContentGuardOptions`, `AgentPrismContentGuardOptions`, `PiiPatterns`, `CheckDigits` (Luhn + TC kimlik), `AgentPrismContentGuardBuilderExtensions`; 🚨 `Models/ModelProviderRegistry.cs` — boru hattının **tamamını** kurar (`UseFunctionInvocation` + `UseOpenTelemetry` dört sağlayıcı paketinden buraya taşındı), kurucu iki parametre kazandı; `Models/CircuitBreakingChatClient.cs` — engelleme hata sayılmaz (K-322); `Runs/DefaultRunErrorClassifier.cs` — `content_blocked` eşlemesi; `AgentPrismServiceCollectionExtensions` — `ContentGuardPipeline` kaydı, iki yeni ayar bölümü, `Pattern` bölümü varsa koşullu guard kaydı |
+| `AgentPrism.OpenAI` · `.Anthropic` · `.Google` · `.Azure` | Dördünde de `AsBuilder().UseFunctionInvocation().UseOpenTelemetry().Build()` zinciri **kaldırıldı**; fabrikalar ham istemci döndürür. Sağlayıcıya özgü dekoratörler (Anthropic/Google ayar dekoratörleri) yerinde kaldı |
+| `AgentPrism.Testing` | `FakeModelProvider.CreateChatClient` — boru hattı **kaldırıldı** (aynı sözleşme değişikliği) |
+| `AgentPrism.AspNetCore` | `Endpoints/AgentEndpoints.cs` — `content_blocked` → `422` + `ProblemDetails` alanları (`errorType`, `guard`, `rule`, `direction`), uç üstverisi; `Endpoints/AuditEndpoints.cs` — `content.blocked` istisnası belgelendi |
+| `AgentPrism.UI` | `lib/types.ts` (iki olay tipi + `ContentBlocked` hata sınıfı); `screens/run-detail.tsx` (iki olay stili); `locales/{en,tr}.ts` (bir anahtar). Bundle payı **+0,1 KB gzip** |
+| `AgentPrism.PostgreSql` · `.SqlServer` · `.Sqlite` · `.Sql.Shared` | **Değişmedi.** Migration yok: `RunEventType` ve `RunErrorClass` değerleri `smallint` sütunda saklanır ve enum'un **sonuna** eklendiler |
+| `AgentPrism.Mcp` · `.Workflows` · `.Voice` · meta | **Değişmedi.** Yeni paket yok |
+

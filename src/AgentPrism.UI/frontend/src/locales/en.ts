@@ -573,6 +573,7 @@ export const en = {
   'dashboard.errorClass.CompilationFailed': 'Compilation failed',
   'dashboard.errorClass.BudgetExceeded': 'Budget exceeded',
   'dashboard.errorClass.Canceled': 'Canceled',
+  'dashboard.errorClass.ContentBlocked': 'Content blocked by policy',
 
   /* --------------------------------------------------------- workflows */
   'workflows.description': 'Agents from the catalogue wired together with one of five ready-made patterns. A workflow run is one row in Runs, and every agent it calls is a child of that row.',

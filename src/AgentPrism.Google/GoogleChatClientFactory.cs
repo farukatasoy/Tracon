@@ -11,10 +11,11 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Uretilen her istemci <c>AgentPrism.OpenAI</c> ile ayni boru hattindan gecer:
-/// <c>UseFunctionInvocation()</c> tool cagri dongusunu Microsoft Agent Framework'e
-/// birakir, <c>UseOpenTelemetry()</c> span'leri
-/// <see cref="AgentPrismDiagnostics.ActivitySourceName"/> kaynagi altinda uretir.
+/// 🚨 Fabrika <strong>HAM</strong> bir istemci doner. Ortak boru hatti
+/// (<c>UseFunctionInvocation()</c>, <c>UseOpenTelemetry()</c>, icerik guard'i,
+/// devre kesici, ek cozme) <c>ModelProviderRegistry.CreateChatClient</c> icinde
+/// kurulur — Faz 48'de oraya tasindi. Gerekce: dongu burada kurulunca defterin
+/// sardigi hicbir halka tool cagri turlarini goremiyordu.
 /// </para>
 /// <para>
 /// <see cref="Client"/> bir kez kurulur ve paylasilir; HTTP baglanti havuzunu kendi
@@ -117,11 +118,7 @@ public sealed class GoogleChatClientFactory : IDisposable
             inner = new GoogleProviderSettingsChatClient(inner, safetySettings, thinkingBudget, includeThoughts);
         }
 
-        return inner
-            .AsBuilder()
-            .UseFunctionInvocation(_loggerFactory)
-            .UseOpenTelemetry(_loggerFactory, AgentPrismDiagnostics.ActivitySourceName)
-            .Build();
+        return inner;
     }
 
     /// <summary>Ayarlardan bir Google GenAI istemcisi kurar.</summary>

@@ -11,10 +11,11 @@ namespace AgentPrism;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Uretilen her istemci <c>AgentPrism.OpenAI</c> ile ayni boru hattindan gecer:
-/// <c>UseFunctionInvocation()</c> tool cagri dongusunu Microsoft Agent Framework'e
-/// birakir, <c>UseOpenTelemetry()</c> span'leri
-/// <see cref="AgentPrismDiagnostics.ActivitySourceName"/> kaynagi altinda uretir.
+/// 🚨 Fabrika <strong>HAM</strong> bir istemci doner. Ortak boru hatti
+/// (<c>UseFunctionInvocation()</c>, <c>UseOpenTelemetry()</c>, icerik guard'i,
+/// devre kesici, ek cozme) <c>ModelProviderRegistry.CreateChatClient</c> icinde
+/// kurulur — Faz 48'de oraya tasindi. Gerekce: dongu burada kurulunca defterin
+/// sardigi hicbir halka tool cagri turlarini goremiyordu.
 /// </para>
 /// <para>
 /// <see cref="AzureOpenAIClient"/> bir kez kurulur ve paylasilir; HTTP baglanti
@@ -106,12 +107,7 @@ public sealed class AzureOpenAIChatClientFactory
             AzureOpenAIProviderNames.SettingsPrefix,
             AzureOpenAIProviderNames.SupportedSettings);
 
-        return _client.GetChatClient(deployment)
-            .AsIChatClient()
-            .AsBuilder()
-            .UseFunctionInvocation(_loggerFactory)
-            .UseOpenTelemetry(_loggerFactory, AgentPrismDiagnostics.ActivitySourceName)
-            .Build();
+        return _client.GetChatClient(deployment).AsIChatClient();
     }
 
     /// <summary>Ayarlardan bir Azure OpenAI istemcisi kurar.</summary>

@@ -1,4 +1,6 @@
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism.Core.UnitTests.Fakes;
 
@@ -31,4 +33,29 @@ internal static class TestData
 
     public static ModelProviderRegistry Providers(params IModelProvider[] providers)
         => new(providers);
+
+    /// <summary>Icerik guard'i takilmis bir saglayici defteri kurar.</summary>
+    public static ModelProviderRegistry Providers(ContentGuardPipeline guards, params IModelProvider[] providers)
+        => new(providers, contentGuards: guards);
+
+    /// <summary>
+    /// Verilen guard'lardan bir denetim boru hatti kurar.
+    /// </summary>
+    /// <param name="auditLog">
+    /// Engelleme kararlarinin yazilacagi defter. Verilmezse yeni bir bellek ici
+    /// defter kullanilir.
+    /// </param>
+    /// <param name="options">Boru hatti ayarlari.</param>
+    /// <param name="guards">Kayitli guard'lar. Bos birakilirsa boru hatti pasiftir.</param>
+    public static ContentGuardPipeline ContentGuards(
+        IAuditLog? auditLog = null,
+        AgentPrismContentGuardOptions? options = null,
+        params IContentGuard[] guards)
+        => new(
+            guards,
+            new StaticOptionsMonitor<AgentPrismContentGuardOptions>(options ?? new AgentPrismContentGuardOptions()),
+            auditLog ?? new InMemoryAuditLog(),
+            new AmbientAuditActorResolver(Options.Create(new AgentPrismOptions())),
+            FixedTenantContext.Default,
+            NullLoggerFactory.Instance);
 }

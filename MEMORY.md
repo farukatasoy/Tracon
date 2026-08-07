@@ -58,50 +58,50 @@ Bunlar alana bağlı değildir; her fazda tekrar tekrar bedel ödettiler.
   görünürken `dotnet format` 276 `IDE0055` hatası verdi (Faz 11 bu yüzden eksik
   kapandı). Kaynak üreteci build'in analyzer geçişinde tanıyı gizleyebilir.
 - **Birim testi yetmez — örnek uygulamayı gerçekten çalıştır.** Faz 6, 12, 15, 16,
-  18, 20 ve 21'de gerçek hatalar **yalnız** orada ortaya çıktı; hepsi testlerden
-  geçmişti. Faz 21'de 1231 test yeşilken iki hata çıktı: `JobRecord.Payload`
-  atanmadığı için `/api/jobs` tüm listeyi 500 ile döndürüyordu (K-166) ve
-  `AllowInsecureHttp` loopback adresini açmadığı için yerel webhook teslimi
-  imkânsızdı (K-167).
+  18, 20, 21 ve 48'de gerçek hatalar **yalnız** orada ortaya çıktı; hepsi
+  testlerden geçmişti. Faz 21'de 1231 test yeşilken iki hata çıktı (K-166, K-167).
 - **🚨 Struct alanını atamamak `default` bırakır ve seri hâle getirme çöker.**
-  `JsonElement` atanmazsa `ValueKind = Undefined` olur ve
-  `JsonElementConverter` istisna fırlatır — etki tek kayıtla sınırlı kalmaz,
-  o kaydı içeren **liste ucunun tamamı** çöker. Yeni bir kayıt üreten her kod
-  yolunda zorunlu olmayan alanları da doldurun. Ayrıntı:
+  Atanmayan `JsonElement` `Undefined` olur ve dönüştürücü fırlatır; etki tek
+  kayıtla kalmaz, o kaydı içeren **liste ucunun tamamı** çöker. Yeni bir kayıt
+  üreten her kod yolunda zorunlu olmayan alanları da doldurun. Ayrıntı:
   `docs/hafiza/cekirdek-calistirma.md`.
-- **🚨 Senkronizasyon kopyaları (`<ad> 2.<uzantı>`) sessizce zehirler — üç kez
-  yaşandı (Faz 29, 30, 41).** Kopya, gömülü varlık listesine karışır; `dotnet build`
-  **yeşildir** ama arayüz hiç yüklenmez. Faz 41'de bedel en ağırdı: E2E'nin
-  **41 testinin tamamı** 19 dakika boyunca zaman aşımına uğradı ("waiting for
-  heading Dashboard"). Kopyalar silinip `wwwroot` temiz üretilince aynı koşum
-  **37 saniyede** yeşile döndü. `.cs` kopyaları ayrıca CS0101 yağmuru üretir.
-  Denetim (faz kapanışında zorunlu): `find src -name "* 2.*" -not -path "*/node_modules/*"`
-  — çıktı boş olmalıdır. Silmek yetmez: `wwwroot`'u kaldırıp
-  `agentprism-frontend.stamp` damgasını da silmeden build arayüzü yeniden üretmez.
-- **🚨 `dotnet test` dakikalarca ASILI kalıyorsa önce alt süreç boru hatlarına bak.**
-  Faz 47'de ölçüldü: `AgentPrism.Templates.Tests` fikstürü `dotnet pack`'i
-  yönlendirilmiş stdout ile çalıştırıyordu; `pack`'in başlattığı MSBuild
-  düğümleri (`nodeReuse:true`) komut bittikten sonra da yaşayıp boruyu açık
-  tuttuğu için `WaitForExitAsync` **~15 dakika** bloke kaldı. Belirti: `ps`'te
-  tek bir `dotnet pack` bile yok, yalnız öksüz `MSBuild.dll … /nodeReuse:true`
-  düğümleri var. Çözüm `MSBUILDDISABLENODEREUSE=1` (8 dk+ → 18,5 sn). İkinci
-  sebep: `-p:AgentPrismFrontendEnabled=false` ile derlenip **E2E** koşulması —
-  41 test 30'ar saniye zaman aşımına uğrar. Artık `UiHost` bunu saniyeler
-  içinde açık bir mesajla düşürür. Ayrıntı: `docs/hafiza/test-altyapisi.md`.
-- **Bash'te `cd` kalıcıdır.** Bir komutta dizin değiştirdiysen sonraki komut orada
-  başlar. Doğrulama komutlarında **mutlak yol** kullan.
+- **🚨 Senkronizasyon kopyaları (`<ad> 2.<uzantı>`) — DÖRT kez yaşandı (Faz 29, 30,
+  41, 48).** Kopya gömülü varlık listesine karışır; `dotnet build` **yeşildir** ama
+  arayüz hiç yüklenmez. Faz 41'de E2E'nin **41 testinin tamamı** 19 dakika zaman
+  aşımına uğradı; kopyalar silinince koşum **37 saniyede** yeşile döndü. Faz 48'de
+  belirti farklıydı: `locales/tr 2.ts` **TS2741 ile derlemeyi kırdı** — K-228'in
+  `Messages` tiplemesi sessiz zehirlenmeyi gürültülü hataya çevirdi. `.cs` kopyaları
+  CS0101 yağmuru üretir. Denetim (faz kapanışında zorunlu):
+  `find src -name "* 2.*" -not -path "*/node_modules/*"` — çıktı boş olmalıdır.
+  Silmek yetmez: `wwwroot`'u kaldırıp `agentprism-frontend.stamp` damgasını da sil.
+- **🚨 `dotnet test` dakikalarca ASILI kalıyorsa alt süreç boru hatlarına bak.**
+  Faz 47'de ölçüldü: yönlendirilmiş stdout ile çalışan `dotnet pack`'in öksüz
+  MSBuild düğümleri (`nodeReuse:true`) boruyu açık tutuyor ve `WaitForExitAsync`
+  **~15 dakika** bloke kalıyordu. Belirti: `ps`'te `dotnet pack` yok, yalnız
+  öksüz `MSBuild.dll … /nodeReuse:true`. Çözüm `MSBUILDDISABLENODEREUSE=1`
+  (8 dk+ → 18,5 sn). İkinci sebep: `-p:AgentPrismFrontendEnabled=false` ile
+  derleyip **E2E** koşmak. Ayrıntı: `docs/hafiza/test-altyapisi.md`.
+- **Bash'te `cd` kalıcıdır**; doğrulama komutlarında **mutlak yol** kullan.
 - **`dotnet test` MTP'dir, VSTest değil.** `--filter-query` bir MSBuild anahtarı
-  değildir (`MSB1001`). Tek test koşmak için projeyi çalıştırıp çıktıyı grep'le.
+  değildir (`MSB1001`). Tek test için derlenmiş çalıştırılabilir doğrudan koşulur:
+  `./artifacts/bin/<Proje>/release/<Proje> --filter-method "*AdParcasi*"`
+  (`--filter-class`/`--filter-namespace` de vardır). Bir testin gerçekten
+  **bayat mı yoksa kusurlu mu** olduğunu ayırmanın yolu budur: aynı testi
+  `git worktree add <dizin> HEAD` ile temel sürümde de izole koş.
 - **🚨 Tool'un gördüğü servis sağlayıcı BOŞTUR.** MAF, `AIFunctionArguments.Services`
   olarak `EmptyServiceProvider` geçirir; bir tool bağımlılığını **kurulum anında**
   almalıdır (`new BenimTool(provider)` + fabrika kaydı). Aynı sebeple `AddToolsFrom`
   ile kaydedilen **örnek metot** tool'ları da çalışmaz. Faz 28'de ölçüldü; ayrıntı
   `docs/hafiza/cekirdek-calistirma.md`, karar K-218.
 - **🚨 Bir prob programı gerçek boru hattını kanıtlamaz.** Faz 28'de ayrı bir konsol
-  projesinde `AIFunctionArguments.Services` çalışıyordu — çünkü orada
-  `FunctionInvokingChatClient` elle kurulmuştu. Gerçek yolda çalışmıyordu. Faz 27'nin
-  "derleme yeşilliği hiçbir şey kanıtlamaz" dersinin kardeşi: **izole ölçüm, entegre
-  davranışı kanıtlamaz.**
+  projesinde `AIFunctionArguments.Services` çalışıyordu (orada
+  `FunctionInvokingChatClient` elle kurulmuştu); gerçek yolda çalışmıyordu.
+  **İzole ölçüm, entegre davranışı kanıtlamaz.**
+- **🚨 Planın YAPISAL iddiasını (katman, sıra, konum) kabul etmeden GREP'le ölç.**
+  Faz 48'in planı guard'ı "boru hattının en dışına" koyuyordu; tek bir
+  `grep -rn "UseFunctionInvocation" src/` o konumun tool çağrı turlarını
+  göremediğini gösterdi ve fazın yarısı bir taşımaya dönüştü (K-320). Yanlış
+  konum derlenir, testten geçer ve yalnız gerçek senaryoda çöker.
 - **MAF ve OpenAI tip adlarını tahmin etme.** `AgentResponse` (`AgentRunResponse`
   değil), `ResponsesClient` (`OpenAIResponseClient` değil). Yeni tip kullanmadan
   önce `maf-api-kesfi` skill'ini çalıştır.

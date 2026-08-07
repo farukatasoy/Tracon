@@ -124,4 +124,27 @@ public enum RunEventType
     /// istek kartini gosterir. Faz 16'da eklendi.
     /// </remarks>
     RunAwaitingInput = 19,
+
+    /// <summary>
+    /// Bir <see cref="IContentGuard"/> icerigi maskeledi. <c>Text</c> guard adini,
+    /// kural adini ve yonu tasir; <c>Payload</c> eslesme sayisini tasir.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 Ne <c>Text</c> ne <c>Payload</c> <strong>maskelenen icerigi</strong> tasir —
+    /// yalnizca maskelemenin YAPILDIGINI bildirir. Modelin gordugu metin
+    /// kullanicinin yazdigindan farkliysa bu bir olaydir ve sessiz kalamaz
+    /// (K-089'un kurali: kaydedilemeyen bir karar, alinmamis bir karardir).
+    /// </remarks>
+    ContentMasked = 20,
+
+    /// <summary>
+    /// Bir <see cref="IContentGuard"/> icerigi engelledi. <c>Text</c> guard adini,
+    /// kural adini ve yonu tasir.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 Yuk <strong>engellenen icerigi tasimaz</strong>. Olayin ardindan
+    /// calistirma <c>Failed</c> olur ve <c>runs.error_type</c> <c>content_blocked</c>
+    /// yazilir.
+    /// </remarks>
+    ContentBlocked = 21,
 }
