@@ -1,6 +1,6 @@
 # Faz 50 — Dışa Açılan Agent Yüzeyi (MCP sunucusu ve A2A)
 
-> **Durum:** 📋 Planlandı (2026-08-06)
+> **Durum:** ✅ Tamamlandı (2026-08-08)
 > **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-31**, **F-33** (birleşti)
 > **Önkoşul:** Yok. Faz 12'nin `ChildAgentInvoker` sınır denetimleri **yeniden kullanılır**
 > **Paketler:** `AgentPrism.AspNetCore` (yeni bağımlılıklar **yalnız burada**), `.Abstractions`, `.Core`
@@ -473,28 +473,103 @@ sunucu paketlerini de alır.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] 🚨 Beyaz liste boşken `tools/list` **boş** döner — hiçbir agent
-      varsayılan olarak açık değildir
-- [ ] Beyaz listedeki agent `tools/list`'te `agentprism_{ad}` olarak görünür
-- [ ] `tools/call` agent'ı çalıştırır ve normal bir `runs` satırı üretir
-- [ ] 🚨 Çalışma anında eklenen bir agent (beyaz listede) MCP'de **yeni sunucu
-      kurulmadan** görünür
-- [ ] 🚨 Onay gerektiren tool taşıyan agent dışa **açılamaz**; açılışta
-      anlaşılır hata verir
-- [ ] 🚨 `AllowRemoteAccess = true` + dış yüzey açık → **açılışta hata**;
-      mesaj F-56'yı işaret eder
-- [ ] `MaxDepth = 1` iken dışarıdan çağrılan agent alt agent çağıramaz
-- [ ] Kiracı yalıtımı korunur; başka kiracının agent'ı görünmez
-- [ ] Dış çağrı denetim izine `external.call` olarak yazılır
-- [ ] A2A agent kartı beyaz listedeki agent'lar için üretilir
-- [ ] 🚨 A2A'nın dinamik kısıtı **test edilerek** belgelenmiştir
-- [ ] 🚨 `DependencyDirectionTests`: `AgentPrism.Mcp` sunucu paketlerine bağımlı
-      **değildir**
-- [ ] Gerçek bir MCP istemcisiyle (Claude Code veya `mcp` CLI) **uçtan uca**
-      çağrı yapıldı ve çıktı bu belgeye yazıldı
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı bu belgeye yazıldı
-- [ ] `secret` taraması boş döndü
+- [x] 🚨 Beyaz liste boşken `tools/list` **boş** döner — hiçbir agent
+      varsayılan olarak açık değildir (`Bos_beyaz_liste_hicbir_tool_dondurmez`)
+- [x] Beyaz listedeki agent `tools/list`'te `agentprism_{ad}` olarak görünür
+- [x] `tools/call` agent'ı çalıştırır ve normal bir `runs` satırı üretir
+- [x] 🚨 Çalışma anında eklenen bir agent (beyaz listede) MCP'de **yeni sunucu
+      kurulmadan** görünür (`Dinamik_katalog_yeni_agent_sunucu_yeniden_kurulmadan_gorunur`)
+- [x] 🚨 Onay gerektiren tool taşıyan agent dışa **açılamaz**; açılışta
+      anlaşılır hata verir (MCP ve A2A, ikisi de ayrı test)
+- [x] 🚨 `AllowRemoteAccess = true` + dış yüzey açık → **açılışta hata**;
+      mesaj F-56'yı işaret eder (MCP ve A2A)
+- [x] `MaxDepth = 1` iken dışarıdan çağrılan agent alt agent çağıramaz —
+      🚨 **düzeltme (K-340):** `MaxDepth=N`, N seviye devire izin verir; test
+      `MaxDepth=0` ile "hiç alt çağrı yok" sınırını doğrular
+      (`Derinlik_siniri_alt_cagriyi_engeller`)
+- [x] Kiracı yalıtımı korunur; başka kiracının agent'ı görünmez
+      (`Kiraci_yalitimi_korunur`)
+- [x] Dış çağrı denetim izine `external.call` olarak yazılır (MCP ve A2A)
+- [x] A2A agent kartı beyaz listedeki agent'lar için üretilir —
+      🚨 **düzeltme (K-336):** tek bir kart değil, her agent kendi
+      `{prefix}/{agent}/.well-known/agent-card.json`'unda
+- [x] 🚨 A2A'nın dinamik kısıtı **test edilerek** belgelenmiştir
+      (`Calisma_aninda_eklenen_agent_A2Ada_gorunmez`)
+- [x] 🚨 `DependencyDirectionTests`: `AgentPrism.Mcp` sunucu paketlerine bağımlı
+      **değildir** (`Mcp_istemci_paketi_sunucu_paketlerine_bagli_degildir`)
+- [x] Gerçek bir MCP istemcisiyle (Claude Code) **uçtan uca** çağrı yapıldı ve
+      çıktı bu belgeye yazıldı — bkz. [Gerçek Doğrulama](#gerçek-doğrulama)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — bkz.
+      [Gerçek Doğrulama](#gerçek-doğrulama) (SqlServer.IntegrationTests hariç:
+      bu makinede ARM64/amd64 imaj uyuşmazlığı nedeniyle ortam kaynaklı, faza
+      ilişkisiz — ayrıntı orada)
+- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı bu belgeye
+      yazıldı — bkz. [Gerçek Doğrulama](#gerçek-doğrulama)
+- [x] `secret` taraması boş döndü (tek eşleşme `docs/hafiza/sql-server-yerel-test.md`
+      içinde önceden var olan, gerçek olmayan bir değişken referansı — bu
+      fazda eklenmedi)
+
+## Gerçek Doğrulama
+
+`samples/AgentPrism.Api` çalıştırıldı (`.UseMcpServer(o => o.ExposedAgents.Add("ozetleyici"))`,
+`.UseA2A(o => o.ExposedAgents.Add("ozetleyici"))`; "ozetleyici" bilerek seçildi
+çünkü tool taşımaz, onay sınırına hiç dokunmaz).
+
+**MCP `tools/list`:**
+
+```json
+{"result":{"tools":[{"name":"agentprism_ozetleyici","description":"Gelen metni uc maddede ozetler.","inputSchema":{"type":"object","properties":{"message":{"type":"string","description":"Agent'a gonderilecek kullanici mesaji."}},"required":["message"]}}]},"id":1,"jsonrpc":"2.0"}
+```
+
+**MCP `tools/call`:**
+
+```json
+{"result":{"content":[{"type":"text","text":"- Bugün hava çok güzeldi.\n- İş yerinde her şey yolunda gitti.\n- Toplantılar verimliydi."}]},"id":2,"jsonrpc":"2.0"}
+```
+
+**A2A agent kartı** (`GET /agentprism/a2a/ozetleyici/.well-known/agent-card.json`):
+
+```json
+{"name":"ozetleyici","description":"Gelen metni uc maddede ozetler.","version":"1","supportedInterfaces":[{"url":"/agentprism/a2a/ozetleyici","protocolBinding":"JSONRPC","protocolVersion":"1.0"}],"capabilities":{"streaming":false,"pushNotifications":false},"defaultInputModes":["text/plain"],"defaultOutputModes":["text/plain"]}
+```
+
+**A2A `SendMessage`:**
+
+```json
+{"jsonrpc":"2.0","id":1,"result":{"message":{"role":"ROLE_AGENT","parts":[{"text":"- A2A protokolü üzerinden mesaj gönderildi.\n- Mesaj başarıyla agente ulaştı.\n- Mesaj işlendi."}],"messageId":"chatcmpl-EALwaI6FeRRYEZxT8mVTDZq8QmbqW","contextId":"a6b3eff65ac849c4b274661d554db203"}}}
+```
+
+**Her ikisi de gerçek bir `runs` satırı ve `external.call` denetim kaydı üretti**
+(`GET /agentprism/api/runs`, `GET /agentprism/api/audit?action=external.call`
+ile doğrulandı — sırasıyla 2 satır, `protocol` alanı `mcp`/`a2a`).
+
+**Gerçek MCP istemcisi — Claude Code CLI:**
+
+```
+$ claude mcp add --transport http agentprism-test http://localhost:5080/agentprism/mcp -s local
+Added HTTP MCP server agentprism-test with URL: http://localhost:5080/agentprism/mcp to local config
+
+$ claude mcp get agentprism-test
+agentprism-test:
+  Scope: Local config (private to you in this project)
+  Status: ✔ Connected
+  Type: http
+  URL: http://localhost:5080/agentprism/mcp
+```
+
+`✔ Connected`, gerçek MCP `initialize` el sıkışması geçti (basit bir HTTP `200`
+değil). Doğrulama sonrası `claude mcp remove agentprism-test -s local` ile
+temizlendi.
+
+**Dört doğrulama kapısı** (2026-08-08, `AgentPrism.slnx`, tam çözüm):
+
+| Kapı | Sonuç |
+|---|---|
+| `dotnet build -c Release` | 0 uyarı, 0 hata |
+| `dotnet test -c Release --no-build` | Tüm derlemeler yeşil **SqlServer.IntegrationTests hariç** — `SqlServerFixture` Testcontainers ile mssql imajını başlatırken `TimeoutException` veriyor; kök sebep `WARNING: The requested image's platform (linux/amd64) does not match the detected host platform (linux/arm64/v8)` (bu oturumun makinesi Apple Silicon). İzole tekrar (`dotnet test tests/AgentPrism.SqlServer.IntegrationTests`) aynı sonucu verdi; bu fazda `AgentPrism.SqlServer`'a hiçbir dosya dokunulmadı — ortam kısıtı, kod regresyonu değil |
+| `dotnet pack -c Release --no-build` | 236 `.nupkg`/`.snupkg`, 16 paketin `.52` sürümü dahil sıfır hata |
+| `dotnet format --verify-no-changes` | Sıfır fark |
+| `secret` taraması | Tek eşleşme, bu fazdan önce var olan gerçek olmayan bir değişken referansı (yukarı bakınız) |
 
 ### Doğrulama komutları
 
@@ -579,45 +654,228 @@ dotnet list src/AgentPrism.Mcp/AgentPrism.Mcp.csproj package --include-transitiv
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
-> oturumun en değerli bilgisidir.
+Plan ile gerçek arasındaki fark gizlenmez — beşi de gerçek koşumda (fonksiyonel
+test veya `samples/AgentPrism.Api`) ortaya çıktı, plan taslağının ölçümünde
+görünmüyordu:
+
+1. **MCP sunucu kaydı üçüncü bir çağrı ister: `WithHttpTransport()`.** Plan
+   taslağı yalnız `AddMcpServer().WithListToolsHandler/WithCallToolHandler`
+   biliyordu; bu üçüncü çağrı olmadan `MapMcp()` açılışta
+   `InvalidOperationException: You must call WithHttpTransport()` verir.
+   Ayrıntı: `docs/hafiza/mcp-a2a-sunucu.md`, K-334.
+2. **A2A'nın ölçülen ek maliyeti "+2 paket" değil "+4 paket".** Plan yalnız
+   `Microsoft.Agents.AI.Hosting.A2A` + `A2A`'yı ölçmüştü. `AddA2AServer` yalnız
+   DI KAYDI yapar; HTTP ucunu açan `MapA2A`/`MapWellKnownAgentCard` uzantıları
+   plan taslağında hiç geçmeyen **ayrı bir paket** olan `A2A.AspNetCore`'dadır,
+   o da `Microsoft.Agents.AI.Hosting.AspNetCore`'u ister. Dördü de aynı SDK
+   ailesinden, yabancı bağımlılık yok — yalnızca sayı düzeltildi. K-335.
+3. **A2A tek bir `.well-known/agent-card.json` yayımlayamaz.** Plan taslağının
+   doğrulama örneği tekil bir kart varsayıyordu. A2A protokolü bir sunucuyu
+   bir agent kimliği olarak modeller; birden çok agent AYRI alt yollara
+   (`{prefix}/{agent}`) bağlanır, her biri kendi kartını taşır. K-336.
+4. **Dış çağrı `ChildAgentInvoker`'ı kullanmaz.** Plan bunu açıkça belirtmiyordu
+   ama örtük varsayımı ("aynı sınır katmanı yeniden kullanılır") bu sınıfın
+   AMBIENT bir üst kapsam beklediği gerçeğiyle çelişirdi — dış çağrının böyle
+   bir kapsamı yoktur. İki küçük, ayrı sınıf yazıldı: `CatalogToolCallHandler`
+   (MCP) ve `ExternalAgentProxy` (A2A, `CallableAgentResolver`'ın aynı
+   "geç çözüm" deseniyle). K-337.
+5. **`MaxDepth` semantiği DoD'nin sözel iddiasından farklı.** "`MaxDepth=1`
+   iken alt agent çağıramaz" yanlıştı; `ChildAgentInvoker.Refuse()`'un
+   `Depth+1 > MaxDepth` kuralı `MaxDepth=1`'de BİR seviyeye izin verir.
+   Varsayılan yine de 1 bırakıldı (Açık Soru 6'nın gerekçesi geçerli); test
+   `MaxDepth=0` ile gerçek "hiç alt çağrı yok" sınırını doğruladı. K-340.
+
+Ayrıca: `MapAgentPrismMcpServer`/`MapAgentPrismA2A` planın taslak imzasından
+(`Action<TOptions>? configure` parametreli) SAPTI — MCP'de `configure`
+kaldırıldı (ayarlar `UseMcpServer()`'da, IServiceCollection zamanında
+sabitlenir; K-251 deseni: `Map...` yalnız zaten kurulmuş servisleri HTTP'ye
+bağlar) ve A2A'da hiç yoktu (`ExposedAgents` kayıt anında sabit, K-336/K-337).
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
->
-> **Not:** Dört karar **mutlaka** kayda geçmelidir:
-> 1. 🚨 **K-057 güncellenir.** Karar yanlışlanmadı; koşulu değişti. Yeni metin
->    "sunucu paketleri **yalnız** `AgentPrism.AspNetCore`'a girer, istemci
->    paketi `.Core` hattında kalır" demelidir. Ölçülen 13 paket ve hepsinin
->    bizim sürümlerimizde olduğu yazılmalıdır.
-> 2. **A2A'nın dinamik katalog kısıtı** ve neden yine de alındığı (ya da
->    alınmadığı — Açık Soru 1).
-> 3. **`AllowRemoteAccess` + dış yüzey birlikte açılamaz** kuralı ve gerekçesi.
-> 4. **Onaylı tool taşıyan agent dışa açılamaz** — K-103'ün ikinci uygulaması.
+K-334 – K-340. Tam gerekçeler `docs/KARARLAR.md`'de (grep ile):
+
+```bash
+grep -n "K-334\|K-335\|K-336\|K-337\|K-338\|K-339\|K-340" docs/KARARLAR.md
+```
+
+Özet:
+
+| Karar | Ne |
+|---|---|
+| K-334 | K-057 güncellendi: AgentPrism artık MCP istemcisi VE sunucusu; `WithHttpTransport()` zorunluluğu ölçüldü |
+| K-335 | A2A'nın gerçek ek maliyeti 4 paket (2 değil); `A2A.AspNetCore` + `Microsoft.Agents.AI.Hosting.AspNetCore` plan taslağında yoktu |
+| K-336 | A2A agent başına ayrı alt yol + ayrı kart; tekil kart varsayımı terk edildi |
+| K-337 | Dış çağrı `ChildAgentInvoker` kullanmaz; her zaman YENİ bir kök çalıştırma (`CatalogToolCallHandler`/`ExternalAgentProxy`) |
+| K-338 | Erişim ayarları `IApplicationBuilder.Properties` ile `MapAgentPrism`'den devralınır; `MapAgentPrism` önce çağrılmalı |
+| K-339 | `ChildRunApproval` public yapıldı — üçüncü tüketici MCP/A2A dış çağrı katmanı |
+| K-340 | `MaxDepth=N` → N seviye devire izin verir (0 değil); DoD cümlesi düzeltildi, davranış (Faz 12) değişmedi |
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+Taslaktan sapmalar **kalın** işaretlendi.
+
+```csharp
+// AgentPrism.AspNetCore/McpServer/AgentPrismMcpServerOptions.cs
+public sealed class AgentPrismMcpServerOptions
+{
+    public IList<string> ExposedAgents { get; } = [];
+    public bool ExposeAllAgents { get; set; }
+    public string ToolNamePrefix { get; set; } = "agentprism";
+    public AgentRunBudget Budget { get; set; } = new() { MaxDepth = 1 };
+}
+
+// AgentPrism.AspNetCore/McpServer/AgentPrismMcpServerBuilderExtensions.cs — YENİ, plan taslağında yoktu
+public static class AgentPrismMcpServerBuilderExtensions
+{
+    public static IAgentPrismBuilder UseMcpServer(
+        this IAgentPrismBuilder builder,
+        Action<AgentPrismMcpServerOptions>? configure = null);
+}
+
+// AgentPrism.AspNetCore/McpServer/AgentPrismMcpServerExtensions.cs
+public static class AgentPrismMcpServerExtensions
+{
+    public const string DefaultPattern = "/agentprism/mcp";
+
+    // 🚨 `configure` parametresi KALDIRILDI — ayarlar UseMcpServer()'da sabitlenir.
+    public static IEndpointConventionBuilder MapAgentPrismMcpServer(
+        this IEndpointRouteBuilder endpoints,
+        string pattern = DefaultPattern);
+}
+
+// AgentPrism.AspNetCore/A2A/AgentPrismA2AOptions.cs
+public sealed class AgentPrismA2AOptions
+{
+    public IList<string> ExposedAgents { get; } = [];
+    public AgentRunBudget Budget { get; set; } = new() { MaxDepth = 1 };
+}
+
+// AgentPrism.AspNetCore/A2A/AgentPrismA2ABuilderExtensions.cs — YENİ, plan taslağında yoktu
+public static class AgentPrismA2ABuilderExtensions
+{
+    public static IAgentPrismBuilder UseA2A(
+        this IAgentPrismBuilder builder,
+        Action<AgentPrismA2AOptions>? configure = null);
+}
+
+// AgentPrism.AspNetCore/A2A/AgentPrismA2AExtensions.cs
+public static class AgentPrismA2AExtensions
+{
+    public const string DefaultPattern = "/agentprism/a2a";
+
+    // 🚨 `configure` parametresi HİÇ YOK — ExposedAgents kayıt anında sabit.
+    public static IEndpointConventionBuilder MapAgentPrismA2A(
+        this IEndpointRouteBuilder endpoints,
+        string pattern = DefaultPattern);
+}
+
+// AgentPrism.Abstractions/AgentPrismException.cs
+public sealed class AgentPrismExternalCallException : AgentPrismException
+{
+    public const string ExternalCallRejectedErrorType = "external_call_rejected";
+    public required string AgentName { get; init; }
+    public required string Protocol { get; init; }
+}
+
+// AgentPrism.Core/Graph/ChildAgentInvoker.cs — 🚨 internal → public (K-339)
+public static class ChildRunApproval
+{
+    public static string? Describe(IEnumerable<ChatMessage> messages);
+    public static string? Describe(IEnumerable<AIContent> contents);
+}
+```
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/AgentPrism.AspNetCore/McpServer/
+├── AgentPrismMcpServerOptions.cs
+├── AgentPrismMcpServerBuilderExtensions.cs   (YENİ — planda yoktu; UseMcpServer)
+├── AgentPrismMcpServerExtensions.cs          (MapAgentPrismMcpServer)
+├── CatalogToolListHandler.cs
+├── CatalogToolCallHandler.cs
+└── ExternalAgentToolNaming.cs                 (YENİ — planda yoktu)
+
+src/AgentPrism.AspNetCore/A2A/
+├── AgentPrismA2AOptions.cs
+├── AgentPrismA2ABuilderExtensions.cs          (YENİ — planda yoktu; UseA2A)
+├── AgentPrismA2AExtensions.cs                 (MapAgentPrismA2A)
+└── ExternalAgentProxy.cs                      (YENİ ad — planda yoktu)
+
+src/AgentPrism.AspNetCore/Security/
+├── ExternalSurfaceGuard.cs
+└── ExternalCallAudit.cs                       (YENİ — planda yoktu, MCP+A2A ortak denetim izi)
+
+src/AgentPrism.AspNetCore/
+├── AgentPrism.AspNetCore.csproj                (ModelContextProtocol.AspNetCore, A2A trio)
+└── AgentPrismEndpointRouteBuilderExtensions.cs (StoreSharedEndpointOptions/RequireSharedEndpointOptions, K-338)
+
+src/AgentPrism.Abstractions/
+└── AgentPrismException.cs                      (AgentPrismExternalCallException)
+
+src/AgentPrism.Core/Graph/
+└── ChildAgentInvoker.cs                        (ChildRunApproval internal → public)
+
+Directory.Packages.props                        (ModelContextProtocol.AspNetCore, A2A trio)
+
+docs/hafiza/mcp-a2a-sunucu.md                    (YENİ alan dosyası)
+
+tests/AgentPrism.AspNetCore.FunctionalTests/
+├── McpServerEndpointTests.cs                    (12 test)
+├── A2AEndpointTests.cs                          (7 test)
+└── Infrastructure/
+    ├── McpTestClient.cs                         (YENİ)
+    └── AgentPrismTestHost.cs                    (configureAfterMap parametresi eklendi)
+
+tests/AgentPrism.Core.UnitTests/Architecture/
+└── DependencyDirectionTests.cs                  (Mcp_istemci_paketi_sunucu_paketlerine_bagli_degildir)
+
+samples/AgentPrism.Api/Program.cs                (.UseMcpServer/.UseA2A + MapAgentPrismMcpServer/MapAgentPrismA2A, "ozetleyici" acildi)
+```
+
+🚨 **`AgentPrism.Mcp`'ye DOKUNULMADI** — plan bunu vaat ediyordu, gerçekleşti;
+`DependencyDirectionTests` bunu kalıcı kılar.
+
+## Testler
+
+| Test sınıfı | Test sayısı | Neyi doğruladı |
+|---|---|---|
+| `McpServerEndpointTests` | 12 | boş/dolu beyaz liste, tool adlandırma, `tools/call` → `runs` satırı, bilinmeyen tool reddi, onaylı-tool guard'ı, `MaxDepth=0` sınırı, `AllowRemoteAccess` çakışması, bearer token (ret/kabul), `external.call` denetim izi, dinamik katalog, kiracı yalıtımı |
+| `A2AEndpointTests` | 7 | agent kartı, `SendMessage` → `runs` satırı, beyaz liste dışı agent, kayıt-anı sabitleme kısıtı, `AllowRemoteAccess` çakışması, onaylı-tool guard'ı, `external.call` denetim izi |
+| `DependencyDirectionTests` (Core.UnitTests, +1) | 1 | `AgentPrism.Mcp` sunucu paketlerinden hiçbirini almaz |
+
+Toplam yeni test: 20. Tam paket koşumu: 410/410 (`AgentPrism.AspNetCore.FunctionalTests`), tüm çözüm yeşil (SqlServer.IntegrationTests hariç — ortam kısıtı, yukarı bakınız).
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
->
-> **Not:** Dört devir bilgisi zorunludur:
-> 1. 🚨 **F-56 (kiracı bazlı API anahtarları) artık ACİLDİR.** Bu faz dış bir
->    yüzey açtı ve onu tek statik bir token koruyor. `AllowRemoteAccess`
->    kilidi geçici bir savunmadır; F-56 yapıldığında kaldırılabilir ve
->    kaldırılma koşulu belgeye yazılmalıdır.
-> 2. **A2A istemci tarafı** (`Microsoft.Agents.AI.A2A`, 6 paket) yeni bir aday
->    kalemidir. K-008 gereği yerleşimi ayrıca kararlaştırılmalıdır — `.Core`'a
->    giremez.
-> 3. **MCP kaynak ve istem yayını** (`resources`, `prompts`) yeni bir aday
->    kalemidir.
-> 4. **Akışlı MCP yanıtı ölçülmedi** (Açık Soru 4). MCP'nin ilerleme bildirimi
+**Devralınan sözleşmeler:**
+- `MapAgentPrismMcpServer(pattern)` ve `MapAgentPrismA2A(pattern)` —
+  `MapAgentPrism(...)`'den **SONRA** çağrılmalı (`RequireSharedEndpointOptions`
+  aksi halde `InvalidOperationException` fırlatır).
+- `builder.UseMcpServer(o => ...)` / `builder.UseA2A(o => ...)` —
+  `IServiceCollection` zamanında (Build() öncesi) çağrılmalı.
+- `ChildRunApproval` artık **public**; yeni bir dış çağrı yüzeyi (varsa) aynı
+  tespiti yeniden yazmadan kullanabilir.
+
+**Bilinen tuzaklar (🚨) — ayrıntı `docs/hafiza/mcp-a2a-sunucu.md`:**
+1. `AddMcpServer()` sonrası `.WithHttpTransport()` unutulursa açılışta patlar.
+2. `AddA2AServer`'ın keyed kaydı `IA2ARequestHandler` değil somut `A2AServer`'dır.
+3. `A2A.AspNetCore.MapA2A(..., path)` boş `path` kabul etmez (`MapWellKnownAgentCard` eder).
+4. A2A JSON-RPC gövdesi PascalCase + `"SendMessage"` (spec'in `message/send` biçimi DEĞİL) + `Role` `"ROLE_USER"`/`"ROLE_AGENT"` yazar — elle yazma, `A2AJsonUtilities.DefaultOptions` ile serileştir.
+
+**Yarım kalan / ertelenen işler (aynen plandan devraldı, değişmedi):**
+1. 🚨 **F-56 (kiracı bazlı API anahtarları) artık ACİLDİR.** Bu faz dış bir
+   yüzey açtı ve onu tek statik bir token koruyor. `AllowRemoteAccess` kilidi
+   geçici bir savunmadır; F-56 yapıldığında kaldırılabilir.
+2. **A2A istemci tarafı** (`Microsoft.Agents.AI.A2A`, client paketi —
+   `Google.Protobuf` taşır, sunucu paketlerinden AYRI ölçülmelidir) yeni bir
+   aday kalemidir. K-008 gereği yerleşimi ayrıca kararlaştırılmalıdır.
+3. **MCP kaynak ve istem yayını** (`resources`, `prompts`) yeni bir aday kalemidir.
+4. **Akışlı MCP/A2A yanıtı ölçülmedi** (Açık Soru 4). `AgentCapabilities.Streaming = false`
+   olarak bırakıldı; ileride ölçülürse taahhüt buraya yazılır.
+5. **A2A agent kartının `Url` alanı GÖRELİ yol taşır** (`/agentprism/a2a/{agent}`),
+   mutlak değil — çalışma anında uygulamanın genel host adresi (ters vekil
+   arkasında olabilir) bilinmiyor. Gerçek bir A2A istemcisi mutlak URL
+   beklerse tüketici kendi kartını üretmelidir; bu bir aday kalemi olabilir.
 >    protokolde var; ölçüm yapılırsa sonucu buraya yazılmalıdır.

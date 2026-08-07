@@ -83,6 +83,12 @@ var agentPrism = builder.AddAgentPrism()
     // ucundan eklenir; kesif arka planda yapilir. Kayitli sunucu yoksa hicbir
     // sey olmaz. MCP tool'lari varsayilan olarak onay ister.
     .UseMcp()
+    // Faz 50: aynanin diger yuzu — AgentPrism'in kendi agent'larini DISA acar.
+    // "ozetleyici" bilerek secildi: hicbir tool tasimaz, dolayisiyla onay
+    // sinirina hic dokunmaz. Varsayilan MaxDepth=1: disaridan gelen bir cagri
+    // en fazla bir seviye devredebilir (ChildAgentInvoker'in aynı sinir kontrolu).
+    .UseMcpServer(o => o.ExposedAgents.Add("ozetleyici"))
+    .UseA2A(o => o.ExposedAgents.Add("ozetleyici"))
     // Workflow yurutme motoru (Faz 15). Katalogdaki agent'lar hazir desenlerle
     // birbirine baglanir. Motor kayitli degilse tanimlar yine yonetilebilir,
     // yalnizca calistirma ucu 501 doner.
@@ -666,5 +672,11 @@ app.MapAgentPrism("/agentprism", options =>
     // uc katmanli korumadan (loopback + bearer token) gecer.
     options.EnableDiagnosticsEndpoint = true;
 });
+
+// Faz 50: MCP/A2A dis yuzeyleri. MapAgentPrism'in AYNI erisim korumasini
+// (loopback + bearer token + authorization policy) devralirlar; SONRASINDA
+// cagrilmalari zorunludur.
+app.MapAgentPrismMcpServer();
+app.MapAgentPrismA2A();
 
 app.Run();

@@ -241,3 +241,49 @@ public sealed class AgentPrismProviderUnavailableException : AgentPrismException
     /// <inheritdoc />
     public override string ErrorType => ProviderUnavailableErrorType;
 }
+
+/// <summary>
+/// Bir dis cagiran (MCP veya A2A uzerinden) katalogdaki bir agent'i cagirmak
+/// istedi ama sinir ihlali nedeniyle reddedildi (Faz 50).
+/// </summary>
+/// <remarks>
+/// En sik sebep: dis cagiran onaylı bir tool taşıyan bir agent'i acmaya
+/// calisiyor. Dis cagiran bir agent degildir ve onay isteğine cevap veremez —
+/// K-103'un aynisi, ikinci bir uygulaması.
+/// </remarks>
+public sealed class AgentPrismExternalCallException : AgentPrismException
+{
+    /// <summary>
+    /// <see cref="AgentPrismException.ErrorType"/> icin yazilan kararli deger.
+    /// </summary>
+    public const string ExternalCallRejectedErrorType = "external_call_rejected";
+
+    /// <summary>Yeni bir hata olusturur.</summary>
+    public AgentPrismExternalCallException()
+    {
+    }
+
+    /// <summary>Yeni bir hata olusturur.</summary>
+    /// <param name="message">Hata mesaji.</param>
+    public AgentPrismExternalCallException(string message)
+        : base(message)
+    {
+    }
+
+    /// <summary>Yeni bir hata olusturur.</summary>
+    /// <param name="message">Hata mesaji.</param>
+    /// <param name="innerException">Asil hata.</param>
+    public AgentPrismExternalCallException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+
+    /// <summary>Cagrilmak istenen agent.</summary>
+    public required string AgentName { get; init; }
+
+    /// <summary>Cagrinin geldigi protokol: <c>mcp</c> veya <c>a2a</c>.</summary>
+    public required string Protocol { get; init; }
+
+    /// <inheritdoc />
+    public override string ErrorType => ExternalCallRejectedErrorType;
+}

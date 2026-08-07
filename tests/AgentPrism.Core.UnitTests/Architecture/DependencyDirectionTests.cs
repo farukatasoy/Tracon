@@ -99,6 +99,38 @@ public sealed class DependencyDirectionTests
     }
 
     [Fact]
+    public void Mcp_istemci_paketi_sunucu_paketlerine_bagli_degildir()
+    {
+        // Faz 50: AgentPrism.AspNetCore MCP/A2A SUNUCUSU olarak disa acildi ve
+        // ModelContextProtocol.AspNetCore + Microsoft.Agents.AI.Hosting.A2A +
+        // Microsoft.Agents.AI.Hosting.AspNetCore + A2A.AspNetCore paketlerini aldi.
+        // K-057'nin bagimlilik yonu bozulmamalidir: bu paketler yalnizca
+        // AgentPrism.AspNetCore icindedir; AgentPrism.Mcp (istemci) `.Core`
+        // hattinda kalir ve bunlarin HICBIRINI almaz.
+        var forbidden = new[]
+        {
+            "ModelContextProtocol.AspNetCore",
+            "Microsoft.Agents.AI.Hosting.A2A",
+            "Microsoft.Agents.AI.Hosting.AspNetCore",
+            "A2A.AspNetCore",
+        };
+
+        var projectPath = Path.Combine(RepositoryRoot, "src", "AgentPrism.Mcp", "AgentPrism.Mcp.csproj");
+        var references = XDocument.Load(projectPath)
+            .Descendants("PackageReference")
+            .Select(element => element.Attribute("Include")?.Value)
+            .Where(include => !string.IsNullOrWhiteSpace(include))
+            .ToList();
+
+        foreach (var name in forbidden)
+        {
+            references.Any(reference => string.Equals(reference, name, StringComparison.Ordinal)).ShouldBeFalse(
+                $"AgentPrism.Mcp '{name}' paketini almamali; sunucu bagimliligi " +
+                "yalnizca AgentPrism.AspNetCore icinde kalmalidir (K-057).");
+        }
+    }
+
+    [Fact]
     public void Her_yayinlanabilir_paket_NuGet_icin_README_icerir()
     {
         // Directory.Build.targets icindeki AgentPrismValidatePackageReadme hedefi

@@ -301,12 +301,19 @@ public sealed class ChildAgentInvoker : AIAgent
 
 /// <summary>Bir yanitin onay bekleyen tool cagrisi tasiyip tasimadigini belirler.</summary>
 /// <remarks>
-/// Tespit tek bir yerde tutulur cunku iki tuketicisi vardir:
+/// <para>
+/// Tespit tek bir yerde tutulur cunku birden fazla tuketicisi vardir:
 /// <see cref="ChildAgentInvoker"/> cagirana anlasilir bir hata metni dondurur,
-/// <see cref="RunRecordingAgent"/> ise alt calistirmayi <c>Failed</c> olarak
-/// kapatir. Iki yerde ayri ayri yazilsaydi biri degisip digeri kalirdi.
+/// <see cref="RunRecordingAgent"/> alt calistirmayi <c>Failed</c> olarak kapatir.
+/// Iki yerde ayri ayri yazilsaydi biri degisip digeri kalirdi.
+/// </para>
+/// <para>
+/// Faz 50'den itibaren <c>AgentPrism.AspNetCore</c>'daki MCP/A2A dis cagri
+/// isleyicileri de ayni tespiti kullanir (K-103'un ikinci uygulamasi: dis
+/// cagiran bir agent degildir, onay veremez). Bu yuzden tip <strong>public</strong>tir.
+/// </para>
 /// </remarks>
-internal static class ChildRunApproval
+public static class ChildRunApproval
 {
     /// <summary>Mesajlarda onay bekleyen tool cagrisi arar.</summary>
     /// <param name="messages">Yanit mesajlari.</param>

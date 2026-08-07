@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (183 kalem)
+## Arşivlenen Kararlar (190 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -192,3 +192,10 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-181 | 226 | `AgentPrism.SqlServer` AOT uyumlu olarak İŞARETLENMEZ |
 | K-182 | 227 | Diziler SQL Server'a JSON metni olarak taşınır |
 | K-183 | 228 | İki kalıcılık sağlayıcısı aynı anda kaydedilirse açılışta UYARI loglanır |
+| K-184 | 229 | SQL Server benzersiz indekste NULL'ları EŞİT sayar; `COALESCE`'li ifade indeksi gerekmez |
+| K-185 | 230 | `AgentPrism` meta paketi `AgentPrism.SqlServer`'ı İÇERMEZ |
+| K-186 | 231 | SQL Server sözleşme testleri `azure-sql-edge` (arm64) ile doğrulandı; gerçek `mssql/server` hâlâ koşturulamadı 👤 |
+| K-187 | 232 | `SqlServerQueries`'teki tüm `@@ROWCOUNT` referansları `@@` önekini kaybetmişti |
+| K-188 | 233 | `DbHelpers.ReadSingleAsync` ve `ExecuteScalarAsync` yalnızca İLK sonuç kümesine bakıyordu; SQL Server'ın iki dallı upsert deseni ikinci kümeye yazabiliyor |
+| K-189 | 234 | `SqlWebhookStore.ReadSubscription` diziyi `Dialect.ReadTextArray` yerine doğrudan `reader.GetFieldValue<string[]>` ile okuyordu |
+| K-190 | 235 | SQLite'ta şema yerine tablo öneki; `SqlQueriesBase.Schema` bu değeri taşır |
