@@ -18,6 +18,11 @@ namespace AgentPrism;
 /// </remarks>
 public sealed class JobRetryException : AgentPrismException
 {
+    /// <summary>
+    /// <see cref="AgentPrismException.ErrorType"/> icin yazilan kararli deger.
+    /// </summary>
+    public const string JobRetryErrorType = "job_retry";
+
     /// <summary>Yeni bir yeniden deneme talebi olusturur.</summary>
     public JobRetryException()
     {
@@ -43,4 +48,7 @@ public sealed class JobRetryException : AgentPrismException
     /// is hemen yeniden kiralanabilir.
     /// </summary>
     public TimeSpan? RetryAfter { get; init; }
+
+    /// <inheritdoc />
+    public override string ErrorType => JobRetryErrorType;
 }

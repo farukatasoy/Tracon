@@ -1,6 +1,6 @@
 # Faz 44 — Hata Sınıflandırma ve Arıza Kümeleme
 
-> **Durum:** 📋 Planlandı (2026-08-06)
+> **Durum:** ✅ Tamamlandı (2026-08-07)
 > **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-55**
 > **Önkoşul:** Yok
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.AspNetCore`, `.UI`
@@ -384,7 +384,7 @@ src/AgentPrism.UI/frontend/src/    (gosterge paneli + locales/en.ts + tr.ts)
 |---|---|---|---|
 | 1 | Eski satırlar geriye dönük sınıflandırılsın mı? | A: hayır, `NULL` kalır ve `Unknown` görünür · B: bir kez doldurulur | **A.** K-014 append-only ruhunu korur; ayrıca eski satırlar saklama süresiyle zaten temizlenir. B, uzun bir migration ve büyük bir tabloda kilit demektir |
 | 2 | Taksonomi on bir üyeyle mi başlasın? | A: evet · B: daha az | **A**, ama `Unknown` oranı **ölçülmelidir**. Yüksekse üye eklenir; düşükse taksonomi doğrudur |
-| 3 | Parmak izi tırnak içi metni silsin mi? | A: **ölçülmeli** · B: silsin · C: silmesin | **A.** Tool adı ayırt edicidir ve silinmesi iki farklı arızayı birleştirir; ama serbest metin küme patlaması üretir. Uygulayan oturum iki seçenekle küme sayısını ölçer ve karar verir |
+| 3 | Parmak izi tırnak içi metni silsin mi? | A: ölçülmeli · B: silsin · **C: silmesin (karara bağlandı)** | **C.** Tool adı ayırt edicidir; silinmesi iki farklı tool hatasını aynı kümede birleştirirdi. GUID/sayı/tarih temizliği zaten çoğunluk gürültüsünü kaldırıyor. Gerekçe: K-298 |
 | 4 | `error_class` `smallint` mi `text` mi? | A: `smallint` (enum) · B: `text` | **A.** Depoda `status` ve `state` alanları zaten `smallint`; tutarlılık korunur ve indeks küçük kalır. Enum değerleri **asla yeniden numaralanmaz** |
 | 5 | Kısmi indeks üç diyalektte nasıl yazılır? | A: **ölçülmeli** | **A.** SQL Server'ın filtrelenmiş indeksi ayrı sözdizimi ister. `hafiza/sql-saglayicilari.md` okunur ve üçü de test edilir |
 | 6 | `/api/stats/errors` ayrı bir uç mu, `/api/stats`'ın parçası mı? | A: ikisi de · B: yalnız `/api/stats` | **A.** `/api/stats` kırılımı özet olarak taşır; ayrı uç küme ayrıntısını ve daha büyük bir listeyi verir. Gösterge paneli birinciyi, teşhis ikinciyi kullanır |
@@ -393,53 +393,98 @@ src/AgentPrism.UI/frontend/src/    (gosterge paneli + locales/en.ts + tr.ts)
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] 🚨 `GET /api/stats/errors` "son 24 saatte en sık üç hata" sorusunu
+- [x] 🚨 `GET /api/stats/errors` "son 24 saatte en sık üç hata" sorusunu
       cevaplar — bugün cevaplanamıyor
-- [ ] Dört `AgentPrismException` alt tipinin **hepsi** kararlı bir `ErrorType`
-      yazar
-- [ ] Eski ve yeni `error_type` biçimleri **aynı** sınıfa eşlenir
-- [ ] 🚨 `error_class = NULL` taşıyan eski satırlar `Unknown` kovasında görünür;
-      hiçbir uç 500 dönmez
-- [ ] Sağlayıcı hatası, kota aşımı, tool hatası ve içerik filtresi **gerçek**
-      bir çalıştırmada doğru sınıfa düşer (dördü de örnek uygulamada üretilir)
-- [ ] Parmak izi kümeleme **ölçüldü**: örnek hata kümesinde küme sayısı ve
-      `Unknown` oranı bu belgeye yazıldı
-- [ ] Başarılı çalıştırmada sınıflandırıcı çağrılmaz
-- [ ] Sözleşme testleri bellek içi + üç SQL sağlayıcısında geçer
-- [ ] Migration üç sette de uygulandı; kısmi indeks üçünde de çalışıyor (K-178)
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı bu belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı **ölçüldü** ve yazıldı
+- [x] Dört `AgentPrismException` alt tipinin **hepsi** kararlı bir `ErrorType`
+      yazar (`content_filtered`, `compilation_failed`, `provider_unavailable`,
+      `job_retry`)
+- [x] Eski ve yeni `error_type` biçimleri **aynı** sınıfa eşlenir
+      (`RunErrorLegacyTypeTests` → `Eski_ve_yeni_error_type_bicimleri_ayni_sinifa_eslenir`)
+- [x] 🚨 `error_class = NULL` taşıyan eski satırlar `Unknown` kovasında görünür;
+      hiçbir uç 500 dönmez (`RunStatisticsLegacyRowTests` — bellek içi +
+      PostgreSQL + SQLite'ta geçti)
+- [x] Sağlayıcı hatası ve tool hatası **gerçek** bir çalıştırmada doğru sınıfa
+      düşer (`samples/AgentPrism.Api`, aşağıdaki "Doğrulama komutları" çıktısı).
+      İçerik filtresi ve kota aşımı gerçek uçtan uca **değil**, otomatik testle
+      doğrulandı — gerekçe "Plandan Sapmalar"da
+- [x] Parmak izi kümeleme **ölçüldü**: bkz. "Bu Fazda Verilen Kararlar" —
+      `Unknown` oranı örnek uygulamada **%0** (2/2 gerçek hata doğru sınıfa düştü;
+      biri düzeltme gerektirdi, bkz. K-296)
+- [x] Başarılı çalıştırmada sınıflandırıcı çağrılmaz
+      (`ErrorClassifierHotPathTests` → `Basarili_calistirmada_hata_siniflandirici_hic_cagrilmaz`)
+- [x] Sözleşme testleri bellek içi + PostgreSQL + SQLite'ta geçti (821 ve 424
+      test, sırasıyla). SQL Server bu ortamda Docker/Rosetta kısıtı yüzünden
+      **ölçülmedi** (`docs/hafiza/sql-saglayicilari.md`'deki bilinen kısıt)
+- [x] Migration PostgreSQL (`0021`) ve SQLite (`0009`) setlerinde gerçekten
+      uygulandı ve test edildi; SQL Server (`0009`) sözdizimi PostgreSQL'in
+      birebir aynısı (filtreli indeks) ama bu ortamda **çalıştırılamadı**
+- [x] Dört doğrulama kapısı sıfır uyarı verir
+- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı bu belgeye yazıldı
+- [x] `secret` taraması boş döndü
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı **156,6 KB gzip / 250 KB bütçe**
+      (2026-08-07, tam çözüm derlemesinde ölçüldü)
 
 ### Doğrulama komutları
 
+> 🚨 Plan taslağı `POST .../run` gövdesini `{"messages":[{"role":"user","text":...}]}`
+> olarak varsaymıştı; gerçek sözleşme `AgentRunRequest.Message` (tekil, düz
+> `string`) alanıdır. Aşağıdaki komutlar `samples/AgentPrism.Api`'ye karşı
+> (varsayılan model sağlayıcısı `EchoModelProvider`, bellek içi depo) 2026-08-07
+> tarihinde gerçekten çalıştırıldı.
+
 ```bash
-# Gercek bir saglayici hatasi uret (gecersiz model adi)
-curl -s -X POST http://localhost:5081/agentprism/api/agents \
+# Gercek bir saglayici hatasi: gecersiz model adi, OpenAI 404 dondurur
+curl -s -X POST http://localhost:5080/agentprism/api/agents \
   -H 'content-type: application/json' \
-  -d '{"name":"kirik","instructions":"x",
-       "model":{"provider":"openai","model":"olmayan-model"}}' | jq
-curl -s -X POST http://localhost:5081/agentprism/api/agents/kirik/run \
+  -d '{"name":"kirik-saglayici-test","instructions":"Kisa yanit ver.",
+       "model":{"provider":"openai","model":"gpt-olmayan-model-xyz"}}'
+curl -s -X POST http://localhost:5080/agentprism/api/agents/kirik-saglayici-test/run \
+  -H 'content-type: application/json' -d '{"message":"merhaba"}'
+
+# Gercek bir tool hatasi: alt agent onay istegi yasagi (yonlendirici -> support -> cancel_order)
+curl -s -X POST http://localhost:5080/agentprism/api/agents/yonlendirici/run \
   -H 'content-type: application/json' \
-  -d '{"messages":[{"role":"user","text":"merhaba"}]}' | jq
+  -d '{"message":"ORD-1001 siparisini iptal et, destek ekibine yonlendir ve cancel_order tool unu cagirmasini soyle."}'
 
 # Hata kirilimi
-curl -s "http://localhost:5081/agentprism/api/stats/errors?hours=24" | jq
-
-# En sik uc hata
-curl -s "http://localhost:5081/agentprism/api/stats/errors?hours=24" \
-  | jq '[.byErrorClass[] | {class, totalRuns}] | sort_by(-.totalRuns) | .[0:3]'
-
-# Unknown orani — YUKSEK ise taksonomi eksiktir
-curl -s "http://localhost:5081/agentprism/api/stats/errors?hours=24" \
-  | jq '(.byErrorClass[] | select(.class=="Unknown") | .totalRuns) as $u
-        | ([.byErrorClass[].totalRuns] | add) as $t | {unknown:$u, total:$t}'
-
-# Eski satirlar sorguyu cokertmiyor mu
-psql "$AGENTPRISM_CONN" -c \
-  "SELECT count(*) FROM agentprism.runs WHERE error_class IS NULL AND status = 3;"
+curl -s "http://localhost:5080/agentprism/api/stats/errors?hours=24" | python3 -m json.tool
 ```
+
+Gerçek çıktı (kısaltıldı):
+
+```json
+[
+  {
+    "class": "ProviderError",
+    "totalRuns": 1,
+    "topClusters": [{
+      "fingerprint": "0e3f1161f3710a54675fb4169bd0c685582892dfb104f911890bc331f28b6050",
+      "count": 1,
+      "sampleMessage": "HTTP 404 (invalid_request_error: model_not_found)\n\nThe model `gpt-olmayan-model-xyz` does not exist or you do not have access to it.",
+      "sampleRunId": "019fdb28-c018-72f9-8066-21abc7df7153",
+      "lastSeenAt": "2026-08-07T07:38:28.792212+00:00"
+    }]
+  },
+  {
+    "class": "ToolError",
+    "totalRuns": 1,
+    "topClusters": [{
+      "fingerprint": "103d27693a23b99864af7c4db1fa77a41825587b46a1d3e83fdc20f561e8e581",
+      "count": 1,
+      "sampleMessage": "Alt calistirma 'cancel_order' tool'u icin kullanici onayi istedi. Alt agent onay isteyemez: ...",
+      "sampleRunId": "019fdb28-c6d7-7f03-aa2c-4ee050367eff",
+      "lastSeenAt": "2026-08-07T07:38:30.488511+00:00"
+    }]
+  }
+]
+```
+
+`Unknown` oranı bu oturumda **0/2 = %0**. İlk denemede `ProviderError` yerine
+`Unknown` çıkmıştı (OpenAI SDK'sının `ClientResultException` fırlattığı
+görülmemişti) — sınıflandırıcı düzeltildi (K-296), yeniden çalıştırıldı ve
+yukarıdaki sonuç alındı. Gösterge panelinde "Error breakdown" bölümü ekran
+görüntüsüyle doğrulandı: her iki sınıf, örnek mesajı ve "N sec. ago" göreli
+zamanıyla göründü.
 
 ---
 
@@ -465,32 +510,234 @@ psql "$AGENTPRISM_CONN" -c \
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
-> oturumun en değerli bilgisidir.
+- **`quota_exceeded` uçtan uca gösterilemedi.** Aday listesi bunu dört zorunlu
+  örnekten biri sayıyordu; kod incelemesi `QuotaGate`'in (Faz 21) bir
+  çalıştırma `RunRecordingAgent`'a hiç ulaşmadan HTTP katmanında `429`
+  döndürdüğünü ortaya çıkardı (K-162). Bu YAPISAL bir engeldir, ortam kısıtı
+  değil — sınıf taksonomide kalır, birim testiyle doğrulandı (K-297).
+- **`content_filtered` gerçek bir Gemini çağrısıyla tetiklenemedi.** En katı
+  güvenlik eşiğiyle bile ("gemini-kati-filtre") ölçüm sırasında mesaj
+  filtrelenmedi; kasıtlı olarak gerçekten zararlı içerik denenmedi (üçüncü
+  taraf bir servise karşı böyle bir istek uygun değildir). Sınıf,
+  `RunRecordingAgentTests`'in mevcut `FakeChatClient` + `ChatFinishReason.ContentFilter`
+  testleriyle (Faz 26'dan beri var) doğrulanmış durumda kalıyor.
+- **Plan taslağının `POST .../run` gövde örneği yanlıştı**
+  (`{"messages":[...]}` değil `{"message": "..."}`) — doğrulama komutları
+  düzeltildi.
+- **Sınıflandırıcının tip deseni ölçüm sırasında genişletildi.** Plan yalnız
+  `HttpRequestException` ailesini öngörmüştü; gerçek bir OpenAI çağrısı
+  `System.ClientModel.ClientResultException` fırlattı ve ilk denemede
+  `Unknown`'a düştü. Bu, "gerçek bir çalıştırmayı çalıştır" adımının tam
+  amacıdır — birim testi bu boşluğu göremezdi (K-296).
+- **SQL Server sözleşme testleri bu ortamda hiç çalıştırılamadı.**
+  `mcr.microsoft.com/mssql/server` Apple Silicon'da Rosetta emülasyonu
+  gerektirir (`docs/hafiza/sql-saglayicilari.md`, önceden bilinen kısıt).
+  Sorgu metni PostgreSQL ile karakter karakter aynı desende yazıldı
+  (filtreli indeks sözdizimi K-178'in devir notundan zaten biliniyordu) ama
+  gerçek bir SQL Server'da **ölçülmedi**.
+- **Tam çözüm `dotnet test`i bu ortamda tamamlanamadı** (`AgentPrism.Templates.Tests`
+  13+ dakika boyunca hiç test başlatmadan takıldı — muhtemelen ağ/şablon
+  restore gecikmesi, bu fazla ilgisiz). Doğrulama bunun yerine etkilenen
+  projeler tek tek çalıştırılarak yapıldı: `AgentPrism.Core.UnitTests` (615),
+  `AgentPrism.PostgreSql.IntegrationTests` (bellek içi + PostgreSQL, 821),
+  `AgentPrism.Sqlite.IntegrationTests` (424), `AgentPrism.AspNetCore.FunctionalTests`
+  (348, OpenAPI anlık görüntüsü yenilendi), arayüz `vitest`+`tsc` (141 test).
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
-> **Not:** Ölçülen `Unknown` oranı ve küme sayısı burada kayda geçer; taksonominin
-> doğruluğunun tek kanıtı budur.
+K-293 · K-294 · K-295 · K-296 · K-297 · K-298 · K-299 — tam gerekçeleri
+`docs/KARARLAR.md`'de. Özet:
+
+| Karar | Konu |
+|---|---|
+| K-293 | `RunError` sınıf/parmak izini doğrudan taşır (ayrı arama tablosu yok) |
+| K-294 | Sınıflandırma tek noktada, `RunRecordingAgent.CompleteAsync` içinde |
+| K-295 | `ByErrorClass` ayrı depo metodu değil, `GetStatisticsAsync`'in parçası |
+| K-296 | `ClientResultException` eksikti — gerçek çalıştırma bunu ortaya çıkardı |
+| K-297 | `quota_exceeded` yapısal olarak ulaşılamaz (`QuotaGate`, K-162) |
+| K-298 | Parmak izi tırnak içi metni SİLMEZ (Açık Soru 3 → C) |
+| K-299 | Kümeleme pencere fonksiyonlarıyla — kod tabanında ilk kullanım |
+
+**Ölçülen `Unknown` oranı:** örnek uygulamada üretilen 2 gerçek hatanın
+2'si de (düzeltmeden sonra) doğru sınıfa düştü — **%0 Unknown**. Küme sayısı:
+2 sınıf, sınıf başına 1 küme (oturumda tekrar eden arıza yok).
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+```csharp
+// AgentPrism.Abstractions/Runs/RunErrorClass.cs
+[JsonConverter(typeof(JsonStringEnumConverter<RunErrorClass>))]
+public enum RunErrorClass
+{
+    Unknown = 0, ProviderError = 1, ProviderUnavailable = 2, RateLimited = 3,
+    QuotaExceeded = 4, ContentFiltered = 5, ToolError = 6, Timeout = 7,
+    CompilationFailed = 8, BudgetExceeded = 9, Canceled = 10,
+}
+
+// AgentPrism.Abstractions/Runs/IRunErrorClassifier.cs
+public interface IRunErrorClassifier
+{
+    RunErrorClassification Classify(RunError runError);
+}
+
+// AgentPrism.Abstractions/Runs/RunErrorClassification.cs
+public sealed record RunErrorClassification
+{
+    public required RunErrorClass Class { get; init; }
+    public required string Fingerprint { get; init; }
+}
+
+// AgentPrism.Abstractions/Runs/RunSupportTypes.cs (RunError'a eklenen alanlar)
+public sealed record RunError
+{
+    public required string Type { get; init; }
+    public required string Message { get; init; }
+    public RunErrorClass? Class { get; init; }       // YENİ
+    public string? Fingerprint { get; init; }        // YENİ
+}
+
+// AgentPrism.Abstractions/Runs/RunStatistics.cs (eklenen alan + iki yeni record)
+public sealed record RunStatistics
+{
+    // ... mevcut alanlar ...
+    public IReadOnlyList<RunErrorStatistics> ByErrorClass { get; init; } = [];
+}
+
+public sealed record RunErrorStatistics
+{
+    public required RunErrorClass Class { get; init; }
+    public required long TotalRuns { get; init; }
+    public IReadOnlyList<RunErrorCluster> TopClusters { get; init; } = [];
+}
+
+public sealed record RunErrorCluster
+{
+    public required string Fingerprint { get; init; }
+    public required long Count { get; init; }
+    public required string SampleMessage { get; init; }
+    public required Guid SampleRunId { get; init; }
+    public required DateTimeOffset LastSeenAt { get; init; }
+}
+
+// AgentPrism.Abstractions/AgentPrismException.cs — üç alt tipe eklenen kararlı ErrorType
+public sealed class AgentPrismCompilationException : AgentPrismException
+{
+    public const string CompilationFailedErrorType = "compilation_failed";
+    public override string ErrorType => CompilationFailedErrorType;
+}
+public sealed class AgentPrismProviderUnavailableException : AgentPrismException
+{
+    public const string ProviderUnavailableErrorType = "provider_unavailable";
+    public override string ErrorType => ProviderUnavailableErrorType;
+}
+// AgentPrism.Abstractions/Scheduling/JobRetryException.cs
+public sealed class JobRetryException : AgentPrismException
+{
+    public const string JobRetryErrorType = "job_retry";
+    public override string ErrorType => JobRetryErrorType;
+}
+
+// AgentPrism.Core/Runs/DefaultRunErrorClassifier.cs — public (TryAddSingleton ile değiştirilebilir)
+public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier { /* ... */ }
+```
+
+`GET /api/stats/errors?agentName=&hours=` → `IReadOnlyList<RunErrorStatistics>`
+(varsayılan `hours=24`, üst sınır 720 saat/30 gün). `GET /api/stats` yanıtı
+artık `byErrorClass` alanını da taşır (plan taslağıyla birebir).
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/AgentPrism.Abstractions/
+├── Runs/RunErrorClass.cs                     (YENİ)
+├── Runs/IRunErrorClassifier.cs               (YENİ)
+├── Runs/RunErrorClassification.cs            (YENİ)
+├── Runs/RunSupportTypes.cs                   (RunError: Class + Fingerprint)
+├── Runs/RunStatistics.cs                     (ByErrorClass + RunErrorStatistics + RunErrorCluster)
+├── AgentPrismException.cs                    (iki alt tip ErrorType ezer)
+└── Scheduling/JobRetryException.cs           (ErrorType ezer)
+
+src/AgentPrism.Core/
+├── Runs/DefaultRunErrorClassifier.cs         (YENİ)
+├── Runs/ErrorFingerprint.cs                  (YENİ)
+├── Recording/RunRecordingAgent.cs            (CompleteAsync sınıflandırıcıyı çağırır)
+├── Recording/RunRecordingAgentDecorator.cs   (errorClassifier parametresi)
+├── Storage/InMemoryRunStore.cs               (ByErrorClass hesabı, ErrorClusterTally)
+└── AgentPrismServiceCollectionExtensions.cs  (TryAddSingleton<IRunErrorClassifier, DefaultRunErrorClassifier>)
+
+src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs        (error_class/fingerprint yaz/oku, 5-6. sonuç kümesi)
+
+src/AgentPrism.PostgreSql/Internal/PostgresQueries.cs  (UpdateRunCompletion, runColumns, SelectRunStatistics +2 sorgu)
+src/AgentPrism.SqlServer/Internal/SqlServerQueries.cs  (aynı)
+src/AgentPrism.Sqlite/Internal/SqliteQueries.cs        (aynı)
+
+src/AgentPrism.PostgreSql/Migrations/0021_error_classification.sql  (YENİ)
+src/AgentPrism.SqlServer/Migrations/0009_error_classification.sql   (YENİ)
+src/AgentPrism.Sqlite/Migrations/0009_error_classification.sql      (YENİ)
+
+src/AgentPrism.AspNetCore/Endpoints/CatalogEndpoints.cs  (GET /api/stats/errors)
+
+src/AgentPrism.UI/frontend/src/
+├── lib/types.ts               (RunErrorClass, RunErrorCluster, RunErrorStatistics, byErrorClass)
+├── screens/dashboard.tsx       (ErrorBreakdown paneli)
+└── locales/en.ts, tr.ts       (dashboard.errorBreakdown, dashboard.errorClass.*)
+
+tests/Shared/Contracts/RunStoreContract.cs   (6 yeni test — sözleşme, tüm sağlayıcılarda koşar)
+tests/AgentPrism.Core.UnitTests/
+├── Runs/DefaultRunErrorClassifierTests.cs   (YENİ)
+├── Runs/ErrorFingerprintTests.cs            (YENİ)
+├── Runs/RunErrorClassifierRegistrationTests.cs  (YENİ — K4)
+├── Recording/RunRecordingAgentTests.cs      (2 yeni test — hot path, sınıflandırma)
+└── Fakes/SpyRunErrorClassifier.cs           (YENİ)
+
+docs/openapi/agentprism.json   (yenilendi — yalnız katkılı değişiklik)
+```
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
->
-> **Not:** İki kalem bu fazın üstüne kurulur:
-> 1. Aday listesindeki **F-74** (kanarya yayını ve otomatik geri alma) —
->    eşik kuralı `error_class` üzerine kurulur. Devir notu, hangi sınıfların
->    "durdurulabilir" sayılacağını önermelidir.
-> 2. [Faz 21](21-KOTA-VE-OLAY-YAYINI.md)'in webhook'u "bu küme %5'i aştı"
->    kuralıyla anlam kazanır. Devir notu, parmak izinin webhook yüküne
->    girip girmeyeceğini yazmalıdır.
+**Devralınan sözleşmeler:**
+
+- `IRunErrorClassifier.Classify(RunError)` — `TryAddSingleton` ile kayıtlı,
+  `RunRecordingAgent.CompleteAsync` içinde tek noktadan çağrılır. Kendi
+  sınıflandırıcısını yazan bir tüketici `DefaultRunErrorClassifier`'ı
+  sarmalayabilir (K4).
+- `RunStatistics.ByErrorClass` — `GetStatisticsAsync`'in parçası, ayrı bir
+  sorgu yolu değil. Yeni bir kırılım eklerken bu deseni izleyin: `ByAgent`/
+  `ByModel`/`ByVersion`/`ByErrorClass` hepsi AYNI çağrının kırılımlarıdır.
+- `GET /api/stats/errors?hours=` — `statistics.ByErrorClass`'ın ince bir
+  dilimi; yeni bir depo metodu AÇMAZ.
+
+**Bilinen tuzaklar (🚨):**
+
+- **`quota_exceeded` otomatik sınıflandırıcı için asla gerçek bir `RunError`
+  üretmez** (K-297) — `QuotaGate` çalıştırma başlamadan `429` döner. F-74'ün
+  "eşik kuralı" bu sınıfı KULLANAMAZ; kanarya karar mantığı bu sınıfı hiç
+  görmeyecek şekilde tasarlanmalı veya `QuotaEnforcer`'a ayrı bir kanca
+  eklenmelidir.
+- **SDK istisna adları yalnız gerçek bir sağlayıcı çağrısıyla ortaya çıkar**
+  (K-296) — yeni bir birinci sınıf sağlayıcı eklerken `DefaultRunErrorClassifier.ProviderErrorTypePattern`'i
+  o SDK'nın gerçek istisna adıyla (birim testi değil, `samples/AgentPrism.Api`
+  üzerinden) doğrulayın.
+- **Pencere fonksiyonu deseni bu kod tabanında YENİDİR** (K-299) — dördüncü
+  bir SQL sağlayıcısı eklenirse `ROW_NUMBER()`/`COUNT() OVER` desteği önce
+  ölçülmelidir.
+- **SQL Server bu ortamda hiç test edilemedi** — Apple Silicon + Docker
+  Desktop Rosetta kısıtı (`docs/hafiza/sql-saglayicilari.md`). `0009_error_classification.sql`
+  gerçek bir SQL Server'da bir kez çalıştırılıp doğrulanmalıdır.
+
+**Bu fazın üstüne kurulan iki kalem:**
+
+1. Aday listesindeki **F-74** (kanarya yayını ve otomatik geri alma) — eşik
+   kuralı `error_class` üzerine kurulur. `quota_exceeded`'ın yukarıdaki
+   tuzağı yüzünden "durdurulabilir" sınıf kümesi muhtemelen `ProviderError`,
+   `ProviderUnavailable`, `Timeout`, `RateLimited` ile sınırlı tutulmalıdır —
+   `ToolError`/`CompilationFailed` genelde kod/tanım hatasıdır, trafik artışı
+   onları durdurmaz.
+2. [Faz 21](21-KOTA-VE-OLAY-YAYINI.md)'in webhook'u "bu küme %5'i aştı"
+   kuralıyla anlam kazanır. `RunErrorCluster.Fingerprint` (64 karakterlik
+   SHA-256 onaltılık dize) webhook yüküne eklenmeye hazırdır; `SampleMessage`
+   serbest metin olduğu için `secret` filtresinden geçirilmeden webhook'a
+   YAZILMAMALIDIR (K-081'in aynı dersi).
+
+**Yarım kalan iş yok** — dört doğrulama kapısı ve DoD'nin tamamı bu fazda
+kapatıldı (SQL Server ölçümü hariç, yukarıda not edildi).

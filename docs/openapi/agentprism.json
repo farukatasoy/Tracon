@@ -2754,6 +2754,53 @@
         }
       }
     },
+    "/agentprism/api/stats/errors": {
+      "get": {
+        "tags": [
+          "AgentPrism",
+          "Agents"
+        ],
+        "summary": "Hata sinifina gore kirilimi ve her sinifin en sik uc kumesini dondurur.",
+        "description": "/api/stats\u0027in dar bir dilimidir: yalnizca ByErrorClass alanini dondurur (o alan /api/stats yanitinda da vardir). Varsayilan aralik son 24 saattir, ?hours= ile degistirilir. Hata sinifi eklenmeden once yazilmis satirlar Unknown kovasinda gorunur; Unknown orani yuksekse taksonomi eksik demektir.",
+        "operationId": "AgentPrismStatsErrors",
+        "parameters": [
+          {
+            "name": "agentName",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hours",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
+              "type": [
+                "number",
+                "string"
+              ],
+              "format": "double"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RunErrorStatistics"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/agentprism/api/stats/recalculate-costs": {
       "post": {
         "tags": [
@@ -8522,9 +8569,113 @@
           "message": {
             "type": "string",
             "description": "Hata mesaji."
+          },
+          "class": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "IRunErrorClassifier\u0027in dustugu sinif. Hata sinifi\n        eklenmeden ONCE yazilmis eski satirlarda \u0060null\u0060\n        (arayuz \u0060Unknown\u0060 kovasinda gosterir).",
+                "$ref": "#/components/schemas/RunErrorClass"
+              }
+            ]
+          },
+          "fingerprint": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Normallestirilmis mesajin ozeti. Ayni arizanin tekrarlarini kumelemek\nicin kullanilir. RunErrorClass? RunError.Class gibi siniflandirici yoksa\n\u0060null\u0060."
           }
         },
         "description": "Basarisiz bir calistirmanin hata bilgisi."
+      },
+      "RunErrorClass": {
+        "enum": [
+          "Unknown",
+          "ProviderError",
+          "ProviderUnavailable",
+          "RateLimited",
+          "QuotaExceeded",
+          "ContentFiltered",
+          "ToolError",
+          "Timeout",
+          "CompilationFailed",
+          "BudgetExceeded",
+          "Canceled",
+          null
+        ]
+      },
+      "RunErrorCluster": {
+        "required": [
+          "fingerprint",
+          "count",
+          "sampleMessage",
+          "sampleRunId",
+          "lastSeenAt"
+        ],
+        "type": "object",
+        "properties": {
+          "fingerprint": {
+            "type": "string",
+            "description": "Normallestirilmis mesajin ozeti."
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Bu kumedeki calistirma sayisi.",
+            "format": "int64"
+          },
+          "sampleMessage": {
+            "type": "string",
+            "description": "Kumedeki en son goruntuye ait ham hata mesaji."
+          },
+          "sampleRunId": {
+            "type": "string",
+            "description": "Kumedeki en son goruntunun calistirma kimligi.",
+            "format": "uuid"
+          },
+          "lastSeenAt": {
+            "type": "string",
+            "description": "Bu kumenin en son goruldugu an (UTC).",
+            "format": "date-time"
+          }
+        },
+        "description": "Ayni parmak izini paylasan calistirmalarin ozeti."
+      },
+      "RunErrorStatistics": {
+        "required": [
+          "class",
+          "totalRuns"
+        ],
+        "type": "object",
+        "properties": {
+          "class": {
+            "description": "Hata sinifi.",
+            "$ref": "#/components/schemas/RunErrorClass"
+          },
+          "totalRuns": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Bu sinifa dusen toplam calistirma sayisi.",
+            "format": "int64"
+          },
+          "topClusters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RunErrorCluster"
+            },
+            "description": "Bu sinifin en sik uc kumesi, sayiya gore azalan sirada."
+          }
+        },
+        "description": "Bir hata sinifinin ozeti."
       },
       "RunFeedbackRequest": {
         "required": [
@@ -9016,6 +9167,13 @@
               "$ref": "#/components/schemas/RunVersionStatistics"
             },
             "description": "Tanim surumu bazinda kirilim. Surumu bilinmeyen calistirmalar bu listede yer almaz."
+          },
+          "byErrorClass": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RunErrorStatistics"
+            },
+            "description": "Hata sinifina gore kirilim. Yalnizca hata ile biten calistirmalar\nsayilir. Hata sinifi eklenmeden once yazilmis satirlar \u0060Unknown\u0060\nkovasinda gorunur (K-014 -- gecmis satirlar geriye donuk doldurulmaz)."
           },
           "totalCost": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
