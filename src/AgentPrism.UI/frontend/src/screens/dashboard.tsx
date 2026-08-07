@@ -154,8 +154,64 @@ export function DashboardScreen({ meta }: { meta: Meta }): ReactNode {
         <Panel className="lg:col-span-2" title={t('feedback.title')}>
           <FeedbackSummary stats={stats.data} isLoading={stats.isPending} />
         </Panel>
+
+        <Panel className="lg:col-span-2" title={t('onlineEval.title')}>
+          <OnlineEvaluationSummaryPanel />
+        </Panel>
       </div>
     </>
+  );
+}
+
+/**
+ * Rolling-window average judge score and sample count (Faz 49). The window
+ * is in-memory on the server (`OnlineEvalSummaryService`) and resets on
+ * restart — this panel is a live indicator, not a historical record.
+ */
+function OnlineEvaluationSummaryPanel(): ReactNode {
+  const t = useT();
+  const summary = useQuery({
+    queryKey: ['online-evaluation-summary'],
+    queryFn: () => api.onlineEvaluationSummary(),
+    refetchInterval: 30_000,
+  });
+
+  if (summary.isPending) {
+    return <Loading />;
+  }
+
+  if (summary.isError) {
+    return <ErrorNote error={summary.error} />;
+  }
+
+  const data = summary.data;
+
+  if (data.sampleCount === 0) {
+    return <p className="px-4 py-4 text-[12px] text-subtle">{t('onlineEval.noneYet')}</p>;
+  }
+
+  return (
+    <div className="flex items-center gap-6 px-4 py-3">
+      <div>
+        <div className="text-[11px] text-subtle">{t('onlineEval.sampleCount')}</div>
+        <div className="text-[18px] font-semibold">{count(data.sampleCount)}</div>
+      </div>
+      {data.averageScore != null && (
+        <div>
+          <div className="text-[11px] text-subtle">{t('onlineEval.averageScore')}</div>
+          <div className="flex items-center gap-2 text-[18px] font-semibold">
+            {Math.round(data.averageScore)}
+            {data.belowThreshold && <Badge tone="warn">{t('onlineEval.belowThreshold')}</Badge>}
+          </div>
+        </div>
+      )}
+      {data.judgeCost != null && (
+        <div>
+          <div className="text-[11px] text-subtle">{t('onlineEval.judgeCost')}</div>
+          <div className="text-[18px] font-semibold">{money(data.judgeCost, data.judgeCostCurrency)}</div>
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -43,6 +43,7 @@ internal static class RunEndpoints
                 IRunStore runs,
                 [FromQuery] string? agentName,
                 [FromQuery] RunStatus? status,
+                [FromQuery] RunKind? kind,
                 [FromQuery] string? sessionId,
                 [FromQuery] DateTimeOffset? startedAfter,
                 [FromQuery] bool? includeChildren,
@@ -57,6 +58,7 @@ internal static class RunEndpoints
                     {
                         AgentName = agentName,
                         Status = status,
+                        Kind = kind,
                         SessionId = sessionId,
                         StartedAfter = startedAfter,
 

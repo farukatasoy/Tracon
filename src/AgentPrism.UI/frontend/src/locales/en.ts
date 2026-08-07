@@ -534,6 +534,18 @@ export const en = {
   'feedback.saveError': 'Could not save the feedback.',
   'feedback.noneYet': 'No run has been scored yet.',
 
+  /* ------------------------------------------------------- onlineEval */
+  'onlineEval.title': 'Online evaluation',
+  'onlineEval.noneYet': 'No run has been judged yet.',
+  'onlineEval.sampleCount': 'Sampled runs',
+  'onlineEval.averageScore': 'Average score',
+  'onlineEval.belowThreshold': 'below threshold',
+  'onlineEval.judgeCost': 'Judge cost',
+  'onlineEval.judgeScoreLabel': 'Judge score',
+  'onlineEval.judgeButton': 'Judge now',
+  'onlineEval.judgeError': 'Could not judge this run.',
+  'onlineEval.judgeNoJudges': 'No judge is configured.',
+
   /* --------------------------------------------------------- dashboard */
   'dashboard.description': 'Runs, errors, tokens and cost across every agent.',
   'dashboard.runsOverTime': 'Runs over time',

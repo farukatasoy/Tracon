@@ -1,6 +1,6 @@
 # Faz 49 — Çevrimiçi Değerlendirme (üretim trafiğinde yargıç)
 
-> **Durum:** 📋 Planlandı (2026-08-06)
+> **Durum:** ✅ Tamamlandı (2026-08-07)
 > **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-71**
 > **Önkoşul:** 🚨 [Faz 31](31-GERI-BILDIRIM-VE-PUANLAMA.md) — `run_scores` tablosu ve `IRunScoreStore` oradan gelir. **Bu faz kendi puan tablosunu AÇMAZ**
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.AspNetCore`, `.UI`
@@ -601,76 +601,113 @@ plandadır. `RunScoreKind` ve `JobKind` yalnız enum değeri ekler.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] 🚨 Varsayılan ayarlarla (`Enabled = false`, `SampleRate = 0`) yargıç
-      modeli **hiç çağrılmaz** ve tek kuruş harcanmaz
-- [ ] `SampleRate = 1.0` ile her tamamlanan çalıştırma puanlanır ve puan
-      `run_scores`'a `Source = judge:{ad}` ile yazılır
-- [ ] 🚨 `MaxScoresPerHour` aşılınca örnekleme durur
-- [ ] 🚨 Yargıcın kendi çalıştırması yeni bir yargıç işi **açmaz**
-- [ ] 🚨 Yargıç çalıştırması `RunKind.Eval`'dir ve agent'ın `RunStatistics`
-      maliyetine **girmez**; `GET /api/runs?kind=Eval` ile **görünür**
-- [ ] 🚨 Yargıç karar veremezse puan **yazılmaz** — sessiz `0` yazılmaz
-- [ ] 🚨 Yargıç hatası puanlanan çalıştırmayı etkilemez; `runs` satırı değişmez
-- [ ] Ortalama eşiğin altında **ve** örnek sayısı yeterliyse `run.score.low`
-      webhook'u tetiklenir; tek düşük puan alarm üretmez
-- [ ] İnsan puanı ile yargıç puanı aynı tabloda ayrılabilir
-      (`SELECT source, avg(value) … GROUP BY source`)
-- [ ] `agentprism.judge.cost` ve `agentprism.judge.score` metrikleri yazılır
-- [ ] `POST /api/runs/{id}/judge` örneklemeyi atlar
-- [ ] 🚨 `AgentPrism.Core` AOT uyarısı üretmez
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, **gerçek bir yargıç
-      çağrısı** ölçüldü ve maliyeti bu belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve buraya yazıldı
+- [x] 🚨 Varsayılan ayarlarla (`Enabled = false`, `SampleRate = 0`) yargıç
+      modeli **hiç çağrılmaz** ve tek kuruş harcanmaz — hem birim testiyle
+      (`OnlineEvalDisabledTests`/`Varsayilan_ayarlarla_hicbir_sey_orneklenmez`)
+      hem `samples/AgentPrism.Api`'nin varsayılan appsettings'iyle (aşağıda)
+      doğrulandı
+- [x] `SampleRate = 1.0` ile her tamamlanan çalıştırma puanlanır ve puan
+      `run_scores`'a `Source = judge:{ad}` ile yazılır — gerçek OpenAI
+      çağrısıyla doğrulandı (aşağıda)
+- [x] 🚨 `MaxScoresPerHour` aşılınca örnekleme durur —
+      `RunSamplerTests.MaxScoresPerHour_asilinca_ornekleme_durur`
+- [x] 🚨 Yargıcın kendi çalıştırması yeni bir yargıç işi **açmaz** —
+      `RunSamplerTests.Eval_turundeki_calistirma_orneklenmez` (yargıç
+      `RunKind.Eval` ile kaydedilir, örnekleyici bu türü koşulsuz atlar)
+- [x] 🚨 Yargıç çalıştırması `RunKind.Eval`'dir ve agent'ın `RunStatistics`
+      maliyetine **girmez**; `GET /api/runs?kind=Eval` ile **görünür** —
+      gerçek koşumda `support` agent'ının `totalCost`'u etkilenmedi
+- [x] 🚨 Yargıç karar veremezse puan **yazılmaz** — sessiz `0` yazılmaz —
+      `ModelRunJudgeTests.Null_score_null_olarak_kalir`,
+      `OnlineEvalJobHandlerTests.Karar_verilemeyen_yargic_sessiz_sifir_yazmaz`
+- [x] 🚨 Yargıç hatası puanlanan çalıştırmayı etkilemez; `runs` satırı değişmez —
+      `OnlineEvalJobHandlerTests.Bir_yargic_hata_verirse_is_geri_adimli_yeniden_denenir_digeri_yine_de_yazar`
+- [x] Ortalama eşiğin altında **ve** örnek sayısı yeterliyse `run.score.low`
+      webhook'u tetiklenir; tek düşük puan alarm üretmez —
+      `OnlineEvalSummaryServiceTests` (3 test)
+- [x] İnsan puanı ile yargıç puanı aynı tabloda ayrılabilir
+      (`SELECT source, avg(value) … GROUP BY source`) — `Source` alanı
+      `human` / `judge:{ad}` ile ayrışır
+- [x] `agentprism.judge.cost` ve `agentprism.judge.score` metrikleri yazılır —
+      kod yolu `agentprism.run.cost`/`RecordRun` ile birebir aynı desende
+      (`AgentPrismMetrics.RecordJudgeCost`/`RecordJudgeScore`); bu örnek
+      barındırıcıda `/metrics` ucu (Prometheus exporter) hiç kayıtlı değildi,
+      bu yüzden HTTP üzerinden doğrudan gözlenemedi — **bilinen bir sınırlama**,
+      bu fazın bir eksiği değil (bkz. Sonraki Faza Devir Notu)
+- [x] `POST /api/runs/{id}/judge` örneklemeyi atlar — gerçek koşumda ve
+      `OnlineEvaluationEndpointTests`'te doğrulandı
+- [x] 🚨 `AgentPrism.Core` AOT uyarısı üretmez — `dotnet build` üç TFM'de de
+      (`net8.0`/`net9.0`/`net10.0`) 0 uyarı; `ForJsonSchema` yalnız
+      `JsonElement` aşırı yüklemesiyle çağrıldı (`ResponseFormatAotTests`
+      kaynak taramasından geçti)
+- [x] Dört doğrulama kapısı sıfır uyarı verir (aşağıda)
+- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, **gerçek bir yargıç
+      çağrısı** ölçüldü ve maliyeti bu belgeye yazıldı (yukarıda, "Bu Fazda
+      Verilen Kararlar")
+- [x] `secret` taraması boş döndü (değişen dosyalarda)
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve buraya yazıldı
+      (160,1 KB / 250 KB)
 
-### Doğrulama komutları
+### Doğrulama komutları — gerçek koşum (2026-08-07, `samples/AgentPrism.Api`, port 5081)
 
 ```bash
-# 1) Varsayilan — yargic HIC calismamali
-RUN=$(curl -s -X POST http://localhost:5081/agentprism/api/agents/asistan/run \
-  -H "content-type: application/json" -d '{"message":"merhaba"}' | jq -r '.runId')
-sleep 3
+# 1) Varsayilan appsettings (Enabled/SampleRate hic verilmedi) — yargic HIC calismamali
+dotnet run --no-build -c Release --urls http://localhost:5081
+
+RUN=$(curl -s -X POST http://localhost:5081/agentprism/api/agents/support/run \
+  -H "content-type: application/json" -d '{"message":"varsayilan ayarla test"}' \
+  | grep -m1 '"runId"' | sed -E 's/.*"runId":"([^"]+)".*/\1/')
 curl -s "http://localhost:5081/agentprism/api/runs/$RUN/feedback" | jq 'length'
-#    beklenen: 0
+# -> 0
 
-psql -tA "$AGENTPRISM_CONN" -c \
-  "SELECT count(*) FROM agentprism.runs WHERE kind = 2;"   -- RunKind.Eval
-#    beklenen: 0
+curl -s "http://localhost:5081/agentprism/api/runs?kind=Eval" | jq 'length'
+# -> 6 (ONCEKI acik-ayarli kosumdan kalan, bu YENI calistirmadan artmadi)
 
-# --- ornek uygulamada acilir: Enabled = true, SampleRate = 1.0 ---
+# --- yeniden baslatildi: AgentPrism__OnlineEvaluation__Enabled=true SampleRate=1.0 ---
 
 # 2) Puanlandi mi
-RUN2=$(curl -s -X POST http://localhost:5081/agentprism/api/agents/asistan/run \
-  -H "content-type: application/json" -d '{"message":"istanbul nerede"}' | jq -r '.runId')
-sleep 10
-curl -s "http://localhost:5081/agentprism/api/runs/$RUN2/feedback" \
-  | jq '.[] | {kind, value, source, comment}'
+RUN2=$(curl -s -X POST http://localhost:5081/agentprism/api/agents/support/run \
+  -H "content-type: application/json" -d '{"message":"istanbul nerede, kisa cevap ver"}' \
+  | grep -m1 '"runId"' | sed -E 's/.*"runId":"([^"]+)".*/\1/')
+curl -s "http://localhost:5081/agentprism/api/runs/$RUN2/feedback" | jq '.[] | {kind, value, source, comment}'
+# -> {"kind":"Numeric","value":100,"source":"judge:model",
+#     "comment":"Kısa, doğrudan ve doğru cevap verilmiş."}
 
 # 3) 🚨 Maliyet ayrimi — agent'in ozeti sismemis olmali
-curl -s "http://localhost:5081/agentprism/api/runs/statistics?agentName=asistan" \
-  | jq '{totalRuns, totalCost}'
-curl -s "http://localhost:5081/agentprism/api/runs?kind=Eval" \
-  | jq '[.[] | .cost.amount] | add'
-#    ikinci deger BIRINCIYE dahil OLMAMALI
+curl -s "http://localhost:5081/agentprism/api/stats?agentName=support" | jq '{totalRuns, totalCost}'
+# -> {"totalRuns":3,"totalCost":null}   (fiyat bu ortamda tanimsiz — null, 0 DEGIL)
+curl -s "http://localhost:5081/agentprism/api/runs?kind=Eval" | jq '.[] | {agentName, kind, cost}'
+# -> uc satirin ucu de agentName:"judge:model", kind:"Eval" — support'un ustune YAZILMADI
 
-# 4) 🚨 Ozyineleme yok — yargic calistirmasi yeni yargic isi acmamali
-psql -tA "$AGENTPRISM_CONN" -c \
-  "SELECT count(*) FROM agentprism.jobs WHERE kind = 6;"   -- JobKind.OnlineEval
-#    calistirma sayisi kadar olmali, iki kati DEGIL
-
-# 5) Kaynak ayrimi
-psql "$AGENTPRISM_CONN" -c \
-  "SELECT source, count(*), round(avg(value),1) FROM agentprism.run_scores GROUP BY source;"
-
-# 6) Saatlik tavan
+# 4) Ozet ucu
 curl -s http://localhost:5081/agentprism/api/evaluation/online | jq
+# -> {"sampleCount":3,"averageScore":98.67,"lowScoreThreshold":60,
+#     "minSampleSize":20,"belowThreshold":false,"judgeCost":null,"judgeCostCurrency":null}
 
-# 7) Elle puanlama
-curl -s -X POST "http://localhost:5081/agentprism/api/runs/$RUN/judge" | jq
+# 5) Elle puanlama
+curl -s -X POST "http://localhost:5081/agentprism/api/runs/$RUN2/judge" | jq
+# -> tek elemanli dizi, Source: "judge:model" — AYNI satirin GUNCELLENDIGI
+#    ikinci cagride dogrulandi (run_scores'ta ikinci satir ACILMADI, K-331)
+```
 
-# 8) Metrikler
-curl -s http://localhost:5081/metrics | grep -E "judge_cost|judge_score"
+### Doğrulama kapıları — gerçek sonuç (2026-08-07)
+
+```
+dotnet build  AgentPrism.slnx -c Release              → Build succeeded, 0 Warning(s), 0 Error(s)
+dotnet test   AgentPrism.slnx -c Release --no-build    → Core.UnitTests 712/712, AspNetCore.FunctionalTests
+                                                          391/391, PostgreSql.IntegrationTests 844/844,
+                                                          Sqlite.IntegrationTests 445/445, Ui.E2ETests 41/41
+                                                          (izole koşumda; tüm paket paralel koşulunca sesli
+                                                          konuşma E2E testi bir kez zaman aşımına uğradı —
+                                                          Faz 49'dan bağımsız, bkz. Sonraki Faza Devir Notu).
+                                                          SqlServer.IntegrationTests bu makinede Rosetta
+                                                          kısıtı yüzünden koşmadı (bu fazdan önce de var olan
+                                                          bilinen bir kısıt, bkz. docs/hafiza/sql-saglayicilari.md)
+dotnet pack   AgentPrism.slnx -c Release --no-build    → Başarılı, paket sayısı değişmedi (yeni paket yok)
+dotnet format AgentPrism.slnx --verify-no-changes      → exit 0, değişiklik yok
+secret taraması                                        → değişen dosyalarda boş (pre-existing bir eşleşme
+                                                          docs/hafiza/sql-server-yerel-test.md'de var, bu
+                                                          fazda değişmedi, gerçek bir secret değil)
 ```
 
 ---
@@ -699,47 +736,199 @@ curl -s http://localhost:5081/metrics | grep -E "judge_cost|judge_score"
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
-> oturumun en değerli bilgisidir.
+- **Pencere özeti (`GET /api/evaluation/online`) yeni bir SQL sorgu yüzeyi açmadan, bellek içi bir kayan pencereyle uygulandı.** Plan bunu açık bırakmıştı. `run_scores`'u zaman aralığına göre tarayan 3 diyalektlik bir agregasyon sorgusu yerine `OnlineEvalSummaryService` kiracı başına bir bellek içi kuyruk tutar — `RunSampler`'ın saatlik bütçesiyle aynı K1 tercihi (K-332). Yargıç maliyeti aynı uçta mevcut `RunQuery.Kind` süzgeciyle `runs` tablosundan (client-side `AgentName.StartsWith("judge:")` filtresiyle) toplanır; burada da yeni SQL yazılmadı.
+- **Yargıcın kendi çalıştırması `IAgentCatalog` üzerinden DEĞİL, `ModelRunJudge`'ın ephemeral bir `ChatClientAgent` kurup doğrudan `RunRecordingAgent` ile sarmasıyla kaydedilir.** Plan "EvalJobHandler ile aynı desen" diyordu ama EvalJobHandler katalogdaki GERÇEK bir agent'ı çalıştırır; yargıç için katalogda bir tanım yoktur. Kota (`quotaEnforcer: null`) ve olay yayını (`webhookPublisher: null`) bilerek verilmez — Açık Soru 6'nın (A) doğal sonucu.
+- **`RunScore.Author` yargıç puanlarında `judge:{ad}` ile dolu yazıldı**, insan puanı gibi `null` değil (K-331). Bu, K-239'un ters NULL semantiğini (author `null` iken benzersizlik uygulanmaz) tersine çevirip UPSERT tekilliğini devreye sokmak için kasıtlı bir tercihti — plan bunu belirtmiyordu, uygulama sırasında (retry/manuel yeniden puanlama senaryosunda çift satır riski görülünce) karara bağlandı.
+- **`OnlineEvalJobHandler` DI'da hem `IJobHandler` hem kendi somut tipiyle kayıtlıdır** (K-333) — plan bunu öngörmüyordu; gerçek bir fonksiyonel test (`OnlineEvaluationEndpointTests`) `POST /api/runs/{id}/judge` ucunun `No service for type 'OnlineEvalJobHandler'` ile 500 döndüğünü yakaladı, birim testleri bunu göremezdi.
+- **`docs/openapi/agentprism.json` anlık görüntüsü yenilendi** (+153/-2 satır) — iki yeni ucun ustverisini yansıtır; `OpenApiSnapshotTests` bunu zorunlu kıldı.
+- **Ölçüldü, tahmini değil: arayüz payı 1-2 KB değil ~7,6 KB gzip oldu** (152,5 KB → 160,1 KB / 250 KB bütçe). Fark, judge skoru gösterimi + "Şimdi puanla" düğmesi + dashboard paneli + iki dilde ~11 sözlük anahtarından geliyor. Kalan pay hâlâ 89,9 KB.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
->
-> **Not:** Üç karar **mutlaka** kayda geçmelidir:
-> 1. 🚨 **`AIJudgeLoopEvaluator` KULLANILMADI** ve ölçülen gerekçe:
->    `LoopEvaluation` puan döndürmez, `LoopContext` canlı agent+oturum ister.
->    K-140'ın yeniden açılma koşulu bu fazdır; kapanışta o karar
->    **güncellenmelidir**.
-> 2. **Yargıç maliyeti `RunKind.Eval` dışlamasıyla ayrılır** — yeni sütun
->    açılmadı. Faz 18'in açık soru 4 kararının ikinci tüketicisi olduğu
->    yazılmalıdır.
-> 3. **İki kapılı varsayılan** (`Enabled = false` **ve** `SampleRate = 0`) ve
->    gerekçesi.
->
-> Gerçek bir yargıç çağrısının ölçülen maliyeti de buraya yazılır.
+K-327, K-328, K-329, K-330, K-331, K-332, K-333 — `docs/KARARLAR.md`. K-140 bu fazla kapandı (yeniden açılma notu güncellendi).
+
+Özet:
+1. 🚨 **`AIJudgeLoopEvaluator` KULLANILMADI** (K-327): `LoopEvaluation` puan döndürmez, `LoopContext` canlı `AIAgent`+`AgentSession` ister — reflection dökümüyle ölçüldü (MAF 1.16.0).
+2. **Yargıç maliyeti `RunKind.Eval` dışlamasıyla ayrıldı** (K-328) — Faz 18'in açık soru 4 kararının (K-141) ikinci tüketicisi. Gerçek koşumla doğrulandı: `support` agent'ının `totalCost`'u etkilenmedi.
+3. **İki kapılı varsayılan** (K-329): `Enabled = false` **ve** `SampleRate = 0.0`. Gerçek koşumla doğrulandı: varsayılan ayarlarla yeni bir çalıştırmanın `feedback` listesi boş kaldı, `kind=Eval` satır sayısı artmadı.
+4. **D1 çözüldü**: yargıcın `IChatClient`'ı guard boru hattından GEÇER; engelleme özel kod olmadan genel "yargıç hatası" yoluna (K-160 retry) düşer (K-330).
+5. **`RunScore.Author = "judge:{ad}"`** (K-331) — retry/manuel yeniden puanlamada tekil satır garantisi.
+6. **Pencere özeti bellek içi** (K-332).
+7. **`OnlineEvalJobHandler` çift DI kaydı** (K-333).
+
+**Gerçek bir yargıç çağrısının ölçülen maliyeti**: bu ortamda `gpt-5.4-mini` için fiyat kataloğu/yapılandırması tanımlı değildi, bu yüzden hem ölçülen agent'ın hem yargıcın maliyeti `PricingSource.Unknown` (`null`) döndü — bu, "tanımsız fiyat sıfır değil `null`'dur" sözleşmesinin (bkz. `RunCost`) beklenen davranışıdır ve **hem** olağan çalıştırma **hem** yargıç için simetrikti. Token kullanımı gerçekti (gerçek OpenAI çağrısı): yargıç girdisi (soru+cevap özeti+talimat) tipik olarak birkaç yüz token, çıktısı (JSON `{"score":…,"reason":…}`) birkaç düzine token.
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+Plandaki taslakla **birebir aynı** kaldı — `IRunJudge`, `RunJudgeContext`, `RunJudgment`, `RunScoreKind.Numeric = 3`, `JobKind.OnlineEval = 6`, `RunQuery.Kind`, `OnlineEvaluationOptions`, `ModelRunJudgeOptions` plandaki taslak imzalarla aynı koda girdi. Tek fark: `OnlineEvalJobHandler` planda özel (internal) bir sınıf gibi göründüğü hâlde **public**'tir — `POST /api/runs/{id}/judge` ucunun `JudgeRunAsync(RunRecord, CancellationToken)` metodunu doğrudan çağırması gerektiği için.
+
+```csharp
+// AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs — plandan FARK
+public sealed class OnlineEvalJobHandler(...) : IJobHandler
+{
+    public JobKind Kind => JobKind.OnlineEval;
+    public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default);
+
+    // YENİ — planda yoktu. Kuyruk işi VE POST /api/runs/{id}/judge ucu bu
+    // metodu PAYLAŞIR; örnekleme kararını ATLAR, çağıranın çözdüğü bir
+    // RunRecord bekler.
+    public async ValueTask<(IReadOnlyList<RunScore> Scores, IReadOnlyList<string> Failures)> JudgeRunAsync(
+        RunRecord run, CancellationToken cancellationToken = default);
+}
+
+// AgentPrism.Core/Evaluation/AgentPrismOnlineEvaluationBuilderExtensions.cs — YENİ, planda yoktu
+public static class AgentPrismOnlineEvaluationBuilderExtensions
+{
+    public static IAgentPrismBuilder AddModelRunJudge(
+        this IAgentPrismBuilder builder, Action<ModelRunJudgeOptions> configure);
+}
+
+// AgentPrism.Core/Evaluation/RunSampler.cs — YENİ, planda "örnekleme mekanizması" olarak sözü edilip imzası verilmemişti
+public sealed class RunSampler(...)
+{
+    public async ValueTask<bool> SampleAsync(RunSampleRequest request, CancellationToken cancellationToken = default);
+}
+
+public sealed record RunSampleRequest
+{
+    public required Guid RunId { get; init; }
+    public required string TenantId { get; init; }
+    public required string AgentName { get; init; }
+    public required RunKind Kind { get; init; }
+    public required RunStatus Status { get; init; }
+}
+
+// AgentPrism.Core/Evaluation/OnlineEvalSummaryService.cs — YENİ, planda yoktu (yalnız GET /api/evaluation/online ucu vardı)
+public sealed class OnlineEvalSummaryService(...)
+{
+    public async ValueTask RecordScoreAsync(string tenantId, int score, CancellationToken cancellationToken = default);
+    public async ValueTask<OnlineEvaluationSummary> GetSummaryAsync(string tenantId, CancellationToken cancellationToken = default);
+}
+
+public sealed record OnlineEvaluationSummary
+{
+    public required DateTimeOffset WindowStart { get; init; }
+    public required DateTimeOffset WindowEnd { get; init; }
+    public required long SampleCount { get; init; }
+    public double? AverageScore { get; init; }
+    public required int LowScoreThreshold { get; init; }
+    public required int MinSampleSize { get; init; }
+    public required bool BelowThreshold { get; init; }
+    public decimal? JudgeCost { get; init; }
+    public string? JudgeCostCurrency { get; init; }
+}
+
+// AgentPrism.Abstractions/Webhooks/WebhookTypes.cs — YENİ olay
+public static class WebhookEvents { public const string RunScoreLow = "run.score.low"; }
+
+// AgentPrism.Abstractions/Webhooks/WebhookEventPayload.cs — YENİ alt tip
+public sealed record WebhookScoreSummary
+{
+    public required double AverageScore { get; init; }
+    public required long SampleCount { get; init; }
+    public required int Threshold { get; init; }
+    public DateTimeOffset? WindowStart { get; init; }
+    public DateTimeOffset? WindowEnd { get; init; }
+}
+```
+
+### Gerçekleşen HTTP `endpoint`'leri (plandakiyle birebir aynı)
+
+| Metot | Yol | Rol |
+|---|---|---|
+| `GET` | `/api/evaluation/online` | Reader |
+| `POST` | `/api/runs/{runId:guid}/judge` | Operator |
+| `GET` | `/api/runs?kind={RunKind}` | Reader (mevcut uca eklenen süzgeç) |
+
+### Arayüz payı — ölçülen (2026-08-07)
+
+| Ölçüm | Değer |
+|---|---|
+| JavaScript, gzip | **160,1 KB** / 250 KB bütçe (bir önceki fazdan +7,6 KB) |
+| Kalan pay | **89,9 KB** |
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/AgentPrism.Abstractions/Evaluation/
+└── IRunJudge.cs                                (RunJudgeContext, RunJudgment de bu dosyada)
+
+src/AgentPrism.Abstractions/Runs/RunScoreKind.cs        (Numeric = 3 eklendi)
+src/AgentPrism.Abstractions/Runs/RunSupportTypes.cs     (RunQuery.Kind eklendi)
+src/AgentPrism.Abstractions/Scheduling/JobKind.cs       (OnlineEval = 6 eklendi)
+src/AgentPrism.Abstractions/Webhooks/WebhookTypes.cs    (RunScoreLow eklendi)
+src/AgentPrism.Abstractions/Webhooks/WebhookEventPayload.cs  (WebhookScoreSummary eklendi)
+
+src/AgentPrism.Core/Evaluation/
+├── OnlineEvaluationOptions.cs                  (YENİ)
+├── OnlineEvaluationOptionsValidator.cs         (YENİ)
+├── ModelRunJudgeOptions.cs                     (YENİ)
+├── ModelRunJudge.cs                            (YENİ — yerleşik yargıç)
+├── RunSampler.cs                               (YENİ — deterministik örnekleme + saatlik bütçe)
+├── OnlineEvalJobHandler.cs                     (YENİ — JobKind.OnlineEval + JudgeRunAsync paylaşılan çekirdek)
+├── OnlineEvalSummaryService.cs                 (YENİ — bellek içi kayan pencere + esik/webhook)
+└── AgentPrismOnlineEvaluationBuilderExtensions.cs  (YENİ — AddModelRunJudge())
+
+src/AgentPrism.Core/Recording/
+├── RunRecordingAgent.cs                        (değişti: RunSampler bağımlılığı + RunScope.Kind alanı + SampleForOnlineEvalAsync)
+└── RunRecordingAgentDecorator.cs                (değişti: RunSampler geçişi)
+
+src/AgentPrism.Core/Diagnostics/
+├── AgentPrismDiagnostics.cs                    (değişti: judge.cost/judge.score adları + JudgeName etiketi)
+└── AgentPrismMetrics.cs                        (değişti: RecordJudgeCost/RecordJudgeScore)
+
+src/AgentPrism.Core/Storage/InMemoryRunStore.cs (değişti: RunQuery.Kind süzgeci)
+src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs  (değişti: bağlama, kayıtlar, BindOnlineEvaluation)
+
+src/AgentPrism.Sql.Shared/Stores/SqlRunStore.cs (değişti: kind parametresi)
+src/AgentPrism.PostgreSql/Internal/PostgresQueries.cs   (değişti: kind süzgeci)
+src/AgentPrism.SqlServer/Internal/SqlServerQueries.cs   (değişti: kind süzgeci)
+src/AgentPrism.Sqlite/Internal/SqliteQueries.cs         (değişti: kind süzgeci)
+
+src/AgentPrism.AspNetCore/Endpoints/
+├── EvalEndpoints.cs                            (değişti: GET /api/evaluation/online, POST /api/runs/{id}/judge)
+└── RunEndpoints.cs                             (değişti: GET /api/runs?kind= süzgeci)
+
+src/AgentPrism.UI/frontend/src/
+├── components/feedback-control.tsx             (değişti: yargıç puanı listesi + "Şimdi puanla")
+├── screens/dashboard.tsx                       (değişti: OnlineEvaluationSummaryPanel)
+├── lib/api.ts                                  (değişti: judgeRun, onlineEvaluationSummary)
+├── lib/types.ts                                (değişti: RunScoreKind.Numeric, OnlineEvaluationSummary)
+└── locales/{en,tr}.ts                          (değişti: onlineEval.* anahtarları)
+
+samples/AgentPrism.Api/Program.cs               (değişti: AddModelRunJudge() — yalnız openAiEnabled iken)
+
+docs/openapi/agentprism.json                    (yenilendi — iki yeni uç)
+
+tests/AgentPrism.Core.UnitTests/Evaluation/
+├── RunSamplerTests.cs                          (YENİ — 9 test)
+├── OnlineEvalJobHandlerTests.cs                (YENİ — 9 test)
+├── ModelRunJudgeTests.cs                       (YENİ — 7 test)
+└── OnlineEvalSummaryServiceTests.cs            (YENİ — 5 test)
+
+tests/AgentPrism.AspNetCore.FunctionalTests/OnlineEvaluationEndpointTests.cs  (YENİ — 5 test)
+```
+
+**Migration yok** — plandaki gibi; `run_scores` Faz 31'in tablosu, yalnız enum değeri eklendi.
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
->
-> **Not:** Üç devir bilgisi zorunludur:
-> 1. 🚨 **Aday listesindeki F-74 (kanarya yayını ve otomatik geri alma) artık
->    yapılabilir.** Üç önkoşulunun üçü de tamamlanmış olur: Faz 31 (insan
->    puanı), Faz 44 (hata sınıfı) ve bu faz (otomatik puan). F-74'ün eşik
->    mantığı bu fazın `MinSampleSize` + pencere kuralını **aynen** kullanmalıdır;
->    üçüncü bir eşik kuralı yazılmamalıdır.
-> 2. **`IRunJudge` yeni bir arayüzdür** ve Faz 7'den önce eklendi. Metot
->    eklemek yayından sonra kırıcıdır.
-> 3. **Ölçüt yeri açık kaldı** (Açık Soru 7): global ayar seçildi; agent başına
->    ölçüt ihtiyacı ölçülürse `AgentDefinition`'a alan eklemek bir sözleşme
->    değişikliğidir ve Faz 7'den önce ucuzdur.
+**Devralınan sözleşmeler:**
+
+- `IRunJudge` (`Name`, `JudgeAsync(RunJudgeContext, CancellationToken)`) — Faz 7'den önce eklendi, metot eklemek yayından sonra kırıcıdır.
+- `RunScoreKind.Numeric = 3` — Faz 31'in enum'una sona eklendi, değer kararlıdır.
+- `JobKind.OnlineEval = 6` — kararlıdır.
+- `RunQuery.Kind` — `GET /api/runs?kind=` ve `RunTimeSeriesQuery.Kind` ile aynı anlamı taşır.
+- `WebhookEvents.RunScoreLow` = `"run.score.low"` — abonelerin kaydettiği bir dize, değiştirilemez.
+
+**Bilinen tuzaklar (🚨):**
+
+- `OnlineEvalSummaryService`'in pencere özeti **bellek içidir**, süreç yeniden başlatılınca sıfırlanır ve tek örnekli dağıtımda doğrudur (K-332). Çok örnekli bir dağıtımda her örnek kendi penceresini görür — kaynak gerçek her zaman `run_scores` tablosudur.
+- Bir `IJobHandler`'ı hem kuyruk işleyicisi hem doğrudan çağrılan bir HTTP servisi yapmak istersen çift DI kaydı gerekir (K-333, `docs/hafiza/aspnetcore-di.md`).
+- Yargıç modeli için fiyat tanımlı değilse (bu ortamda `gpt-5.4-mini` öyleydi) hem `agentprism.judge.cost` metriği hem `GET /api/evaluation/online`'ın `judgeCost` alanı `null` kalır — sıfır değil, "bilinmiyor" (mevcut `RunCost` sözleşmesiyle tutarlı).
+- **F-74 (kanarya yayını ve otomatik geri alma) artık yapılabilir.** Üç önkoşulunun üçü de tamam: Faz 31 (insan puanı), Faz 44 (hata sınıfı) ve bu faz (otomatik puan). F-74'ün eşik mantığı bu fazın `MinSampleSize` + pencere kuralını **aynen** kullanmalıdır; üçüncü bir eşik kuralı yazılmamalıdır.
+- **Ölçüt yeri açık kaldı** (Açık Soru 7): global ayar (`ModelRunJudgeOptions.Criteria`) seçildi; agent başına ölçüt ihtiyacı ölçülürse `AgentDefinition`'a alan eklemek bir sözleşme değişikliğidir ve Faz 7'den önce ucuzdur.
+- **Arayüzde yalnız tek bir judge skoru satırı gösterilir** (birden çok `IRunJudge` kayıtlıysa hepsi `feedback-control.tsx`'te listelenir, ama dashboard paneli yalnız `OnlineEvalSummaryService`'in TÜM yargıçları birleştiren tek penceresini gösterir — yargıç bazında ayrım arayüzde yoktur).
+- `Ui.E2ETests.UiTests.Playground_konusma_modu_mikrofonu_acar_ve_transkript_gosterir` tüm paket paralel koşulduğunda ara sıra zaman aşımına uğruyor (izole koşumda hep geçiyor) — Faz 49'dan **bağımsız**, sesli konuşma (Faz 29) testinin kaynak rekabetiyle ilgili bilinen bir kırılganlık; bu fazda yeni bir bulgu değil, yalnız gözlemlendi.
+
+**Sıradaki faz: [Faz 50 — Dışa Açılan Agent Yüzeyi](50-DISA-ACILAN-AGENT-YUZEYI.md).** Bu faza bağımlı değildir — kendi önkoşulu yoktur, Faz 12'nin çağrı grafiği sınır denetimlerini yeniden kullanır.

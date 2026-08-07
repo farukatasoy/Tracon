@@ -440,6 +440,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             WHERE r.tenant_id = @tenant_id
               AND (@agent_name IS NULL OR r.agent_name = @agent_name)
               AND (@status     IS NULL OR r.status     = @status)
+              AND (@kind       IS NULL OR r.kind       = @kind)
               AND (@session_id IS NULL OR r.session_id = @session_id)
               AND (@started_after IS NULL OR r.started_at > @started_after)
               AND (@root_run_id IS NULL OR r.root_run_id = @root_run_id OR r.id = @root_run_id)

@@ -26,6 +26,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
     private readonly IRunCancellationRegistry? _cancellationRegistry;
     private readonly IRunErrorClassifier? _errorClassifier;
     private readonly IRunInputStore? _runInputStore;
+    private readonly RunSampler? _runSampler;
 
     /// <summary>Yeni bir kayit dekoratoru olusturur.</summary>
     /// <param name="runStore">Olaylarin yazilacagi depo.</param>
@@ -41,6 +42,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
     /// <param name="cancellationRegistry">Iptal defteri. <see langword="null"/> ise calistirma disaridan iptal edilemez.</param>
     /// <param name="errorClassifier">Hata siniflandirici. <see langword="null"/> ise hata sinifi/parmak izi hesaplanmaz.</param>
     /// <param name="runInputStore">Girdi deposu. <see langword="null"/> ise girdi kaydedilmez ve yeniden oynatma calismaz.</param>
+    /// <param name="runSampler">Cevrimici degerlendirme orneklemeleyicisi (Faz 49). <see langword="null"/> ise hicbir calistirma orneklenmez.</param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
     public RunRecordingAgentDecorator(
         IRunStore runStore,
@@ -55,7 +57,8 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
         IWebhookPublisher? webhookPublisher = null,
         IRunCancellationRegistry? cancellationRegistry = null,
         IRunErrorClassifier? errorClassifier = null,
-        IRunInputStore? runInputStore = null)
+        IRunInputStore? runInputStore = null,
+        RunSampler? runSampler = null)
     {
         ArgumentNullException.ThrowIfNull(runStore);
         ArgumentNullException.ThrowIfNull(tenantContext);
@@ -75,6 +78,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
         _cancellationRegistry = cancellationRegistry;
         _errorClassifier = errorClassifier;
         _runInputStore = runInputStore;
+        _runSampler = runSampler;
     }
 
     /// <inheritdoc />
@@ -108,6 +112,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
             _webhookPublisher,
             _cancellationRegistry,
             _errorClassifier,
-            _runInputStore);
+            _runInputStore,
+            _runSampler);
     }
 }

@@ -617,7 +617,7 @@ export interface RunEvent {
 }
 
 /** `RunScore.Kind` — the shape a score's `value` takes. */
-export type RunScoreKind = 'Binary' | 'Stars';
+export type RunScoreKind = 'Binary' | 'Stars' | 'Numeric';
 
 /** A human (or judge) score attached to a run or a single message within it. */
 export interface RunScore {
@@ -627,14 +627,27 @@ export interface RunScore {
   /** Null when the score applies to the whole run rather than one message. */
   messageId?: string | null;
   kind: RunScoreKind;
-  /** 0/1 for `Binary`, 1..5 for `Stars`. */
+  /** 0/1 for `Binary`, 1..5 for `Stars`, 0..100 for `Numeric`. */
   value: number;
   comment?: string | null;
-  /** `human` today; `api`/`judge` are reserved for later phases. */
+  /** `human` for people; `judge:{name}` for a model-based judge (Faz 49). */
   source: string;
   /** Null in an unauthenticated setup — every call then writes a new row. */
   author?: string | null;
   createdAt: string;
+}
+
+/** Response of `GET /api/evaluation/online` (Faz 49). */
+export interface OnlineEvaluationSummary {
+  windowStart: string;
+  windowEnd: string;
+  sampleCount: number;
+  averageScore?: number | null;
+  lowScoreThreshold: number;
+  minSampleSize: number;
+  belowThreshold: boolean;
+  judgeCost?: number | null;
+  judgeCostCurrency?: string | null;
 }
 
 /** Body of `POST /api/runs/{runId}/feedback`. */
