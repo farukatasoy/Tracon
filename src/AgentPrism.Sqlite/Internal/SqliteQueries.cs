@@ -1553,5 +1553,28 @@ internal sealed class SqliteQueries : SqlQueriesBase
         DeleteRunScore = $"""
             DELETE FROM {Schema}run_scores WHERE id = @id AND tenant_id = @tenant_id;
             """;
+
+        // Upsert PostgreSQL ile birebir aynidir (K-194).
+        AcquireSingletonLease = $"""
+            INSERT INTO {Schema}singleton_leases (name, owner_id, expires_at, updated_at)
+            VALUES (@name, @owner_id, @expires_at, @now)
+            ON CONFLICT (name) DO UPDATE SET
+                owner_id   = excluded.owner_id,
+                expires_at = excluded.expires_at,
+                updated_at = excluded.updated_at
+            WHERE {Schema}singleton_leases.owner_id = excluded.owner_id
+               OR {Schema}singleton_leases.expires_at < @now
+            RETURNING name;
+            """;
+
+        RenewSingletonLease = $"""
+            UPDATE {Schema}singleton_leases
+               SET expires_at = @expires_at, updated_at = @now
+             WHERE name = @name AND owner_id = @owner_id;
+            """;
+
+        ReleaseSingletonLease = $"""
+            DELETE FROM {Schema}singleton_leases WHERE name = @name AND owner_id = @owner_id;
+            """;
     }
 }

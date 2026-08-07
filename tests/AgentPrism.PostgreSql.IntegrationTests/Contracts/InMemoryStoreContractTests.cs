@@ -167,6 +167,14 @@ public sealed class InMemoryRunScoreStoreContractTests : RunScoreStoreContract
 }
 
 /// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemorySingletonLeaseStoreContractTests : SingletonLeaseStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<ISingletonLeaseStore> CreateStoreAsync()
+        => ValueTask.FromResult<ISingletonLeaseStore>(new InMemorySingletonLeaseStore());
+}
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
 public sealed class InMemoryAgentSkillStoreContractTests : AgentSkillStoreContract
 {
     /// <inheritdoc />

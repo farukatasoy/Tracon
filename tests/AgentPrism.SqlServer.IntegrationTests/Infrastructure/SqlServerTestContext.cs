@@ -57,6 +57,7 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
         RetentionData = new SqlRetentionStore(wrapped);
         VoiceSessions = new SqlVoiceSessionStore(wrapped);
         RunScores = new SqlRunScoreStore(wrapped);
+        SingletonLeases = new SqlSingletonLeaseStore(wrapped);
         Migrations = new MigrationRunner(wrapped, NullLogger<MigrationRunner>.Instance);
     }
 
@@ -146,6 +147,9 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
 
     /// <summary>Calistirma/mesaj puani deposu (Faz 31).</summary>
     public SqlRunScoreStore RunScores { get; }
+
+    /// <summary>Tek yurutucu secimi kira deposu (Faz 42).</summary>
+    public SqlSingletonLeaseStore SingletonLeases { get; }
 
     /// <summary>Migration calistiricisi.</summary>
     public MigrationRunner Migrations { get; }

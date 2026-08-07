@@ -23,19 +23,27 @@ internal sealed class McpDiscoveryService : BackgroundService
 {
     private readonly McpToolCatalog _catalog;
     private readonly IOptions<AgentPrismMcpOptions> _options;
+    private readonly ISingletonLeaseStore _leaseStore;
+    private readonly IOptionsMonitor<SingletonExecutionOptions> _singletonOptionsMonitor;
     private readonly ILogger<McpDiscoveryService> _logger;
 
     public McpDiscoveryService(
         McpToolCatalog catalog,
         IOptions<AgentPrismMcpOptions> options,
+        ISingletonLeaseStore leaseStore,
+        IOptionsMonitor<SingletonExecutionOptions> singletonOptionsMonitor,
         ILogger<McpDiscoveryService> logger)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(leaseStore);
+        ArgumentNullException.ThrowIfNull(singletonOptionsMonitor);
         ArgumentNullException.ThrowIfNull(logger);
 
         _catalog = catalog;
         _options = options;
+        _leaseStore = leaseStore;
+        _singletonOptionsMonitor = singletonOptionsMonitor;
         _logger = logger;
     }
 
@@ -50,34 +58,49 @@ internal sealed class McpDiscoveryService : BackgroundService
 
         var interval = _options.Value.RefreshInterval;
 
-        while (!stoppingToken.IsCancellationRequested)
+        // Tek yurutucu secimi (Faz 42): kapaliysa (varsayilan) guard.IsHeld
+        // daima true'dur ve RunAsync depoya hicbir sorgu atmadan hemen doner.
+        var guard = new SingletonGuard(_leaseStore, _singletonOptionsMonitor, "mcp-discovery", _logger);
+        var guardTask = guard.RunAsync(stoppingToken);
+
+        try
         {
-            try
+            while (!stoppingToken.IsCancellationRequested)
             {
-                var count = await _catalog.RefreshAsync(stoppingToken).ConfigureAwait(false);
+                if (guard.IsHeld)
+                {
+                    try
+                    {
+                        var count = await _catalog.RefreshAsync(stoppingToken).ConfigureAwait(false);
 
-                _logger.LogInformation("MCP kesfi tamamlandi: {ToolCount} tool kullanilabilir.", count);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                // Tazeleme dongusu asla olmemeli: bir hata sonraki turda
-                // yeniden denenir, onbellekteki son iyi liste kullanilmaya
-                // devam eder.
-                _logger.LogError(ex, "MCP kesfi basarisiz oldu; {Interval} sonra yeniden denenecek.", interval);
-            }
+                        _logger.LogInformation("MCP kesfi tamamlandi: {ToolCount} tool kullanilabilir.", count);
+                    }
+                    catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        // Tazeleme dongusu asla olmemeli: bir hata sonraki turda
+                        // yeniden denenir, onbellekteki son iyi liste kullanilmaya
+                        // devam eder.
+                        _logger.LogError(ex, "MCP kesfi basarisiz oldu; {Interval} sonra yeniden denenecek.", interval);
+                    }
+                }
 
-            try
-            {
-                await Task.Delay(interval, stoppingToken).ConfigureAwait(false);
+                try
+                {
+                    await Task.Delay(interval, stoppingToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
             }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
+        }
+        finally
+        {
+            await guardTask.ConfigureAwait(false);
         }
     }
 }

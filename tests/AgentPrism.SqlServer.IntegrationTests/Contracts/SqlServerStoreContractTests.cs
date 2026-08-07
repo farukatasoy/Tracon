@@ -431,6 +431,28 @@ public sealed class SqlServerRunScoreStoreContractTests(SqlServerFixture fixture
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
+public sealed class SqlServerSingletonLeaseStoreContractTests(SqlServerFixture fixture) : SingletonLeaseStoreContract
+{
+    private SqlServerTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<ISingletonLeaseStore> CreateStoreAsync()
+    {
+        _context = await SqlServerTestContext.CreateAsync(fixture);
+        return _context.SingletonLeases;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}
+
+/// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
 public sealed class SqlServerAgentSkillStoreContractTests(SqlServerFixture fixture) : AgentSkillStoreContract
 {
     private SqlServerTestContext? _context;

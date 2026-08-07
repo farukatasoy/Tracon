@@ -19,10 +19,10 @@
 |-------|------|-------|
 | `AgentPrism.Abstractions` | Sözleşmeler: kayıt, `store`, katalog, iş, eval, deney, kota, webhook, saklama. Bağımlılığı yok. | ✅ |
 | `AgentPrism.Core` | Çalıştırma yolu: derleyici, dekoratörler, kayıt, denetim, skill, workflow doğrulama, fiyat, kota, olay yayını, saklama, konuşma boru hattı (K-222). | ✅ |
-| `AgentPrism.PostgreSql` | Kalıcılık: `PostgresQueries` + `PostgresDialect` + gömülü SQL (0001–0018). `Store` mantığı `Sql.Shared` ile paylaşılır. | ✅ |
-| `AgentPrism.SqlServer` | SQL Server 2019+ / Azure SQL. Aynı `store`'lar, kendi T-SQL metni ve migration seti (`0001`–`0006`). Meta pakete dâhil değil (K-185). | ⚠️ testleri koşturulmadı |
-| `AgentPrism.Sqlite` | Tek dosya/gömülü kalıcılık. Aynı `store`'lar, kendi SQL metni ve migration seti (`0001`–`0006`, K-190). Meta pakete dâhil değil | ✅ |
-| `AgentPrism.Sql.Shared` | **Paket değil** — paylaşılan kaynak: 23 `store`, `SqlQueriesBase`, `SqlDialect` (K-198), migration runner (K-176). | ✅ |
+| `AgentPrism.PostgreSql` | Kalıcılık: `PostgresQueries` + `PostgresDialect` + gömülü SQL (0001–0019). `Store` mantığı `Sql.Shared` ile paylaşılır. | ✅ |
+| `AgentPrism.SqlServer` | SQL Server 2019+ / Azure SQL. Aynı `store`'lar, kendi T-SQL metni ve migration seti (`0001`–`0007`). Meta pakete dâhil değil (K-185). | ⚠️ testleri koşturulmadı |
+| `AgentPrism.Sqlite` | Tek dosya/gömülü kalıcılık. Aynı `store`'lar, kendi SQL metni ve migration seti (`0001`–`0007`, K-190). Meta pakete dâhil değil | ✅ |
+| `AgentPrism.Sql.Shared` | **Paket değil** — paylaşılan kaynak: 24 `store`, `SqlQueriesBase`, `SqlDialect` (K-198), migration runner (K-176). | ✅ |
 | `AgentPrism.OpenAI` | OpenAI ve OpenAI uyumlu her sağlayıcı + sağlık denetimi | ✅ |
 | `AgentPrism.Anthropic` | Anthropic (Claude) — resmî SDK, prompt caching, genişletilmiş düşünme. Meta pakete dâhil değil (K-209). | ✅ |
 | `AgentPrism.Google` | Google Gemini — resmî SDK, güvenlik eşikleri, düşünme bütçesi. Meta pakete dâhil değil; geçişli ağırlık kabul edildi (K-205). | ✅ |

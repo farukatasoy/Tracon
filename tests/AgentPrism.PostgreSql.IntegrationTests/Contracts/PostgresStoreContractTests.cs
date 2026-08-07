@@ -431,6 +431,28 @@ public sealed class PostgresRunScoreStoreContractTests(PostgresFixture fixture) 
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
+public sealed class PostgresSingletonLeaseStoreContractTests(PostgresFixture fixture) : SingletonLeaseStoreContract
+{
+    private PostgresTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<ISingletonLeaseStore> CreateStoreAsync()
+    {
+        _context = await PostgresTestContext.CreateAsync(fixture);
+        return _context.SingletonLeases;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}
+
+/// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
 public sealed class PostgresAgentSkillStoreContractTests(PostgresFixture fixture) : AgentSkillStoreContract
 {
     private PostgresTestContext? _context;

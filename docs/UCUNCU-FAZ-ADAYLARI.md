@@ -868,7 +868,7 @@ biri güvenlik düzeltmesi olarak geri döner.
 
 ### Dalga 2'den doğan yeni aday kalemler
 
-Planlama yedi işi **bilinçli olarak kapsam dışına** çıkardı. Bunlar yeni kalem
+Planlama dokuz işi **bilinçli olarak kapsam dışına** çıkardı. Bunlar yeni kalem
 olarak buraya yazılmalıdır; ID'ler **F-77'den** devam eder.
 
 | Kapsam dışı iş | Hangi fazdan | Neden ayrı bir kalem |
@@ -880,6 +880,8 @@ olarak buraya yazılmalıdır; ID'ler **F-77'den** devam eder.
 | Akışlı yanıtta idempotency | [Faz 43](43-IDEMPOTENCY-KEY.md) | Doğru evi F-68'in `202 Accepted` + `Location` sözleşmesidir |
 | TypeScript istemci paketi ve npm yayını | [Faz 40](40-OPENAPI-YAYINI.md) | İkinci bir dağıtım kanalı; ayrı yayın hattı, kimlik bilgisi ve sürümleme ister |
 | Çok turlu eval vakası terfisi | [Faz 45](45-URETIMDEN-EVAL-KUMESI.md) | `EvalCase` sözleşmesini değiştirir; Faz 7'den **önce** karara bağlanması ucuzdur |
+| `AgentPrismMcpOptions`'ı `IConfiguration`'a bağlamak | [Faz 42](42-TEK-YURUTUCU-SECIMI.md) | Ölçüldü: `.UseMcp()` yalnız kod-taraflı `configure` delegesi kabul eder, `IConfiguration.Bind` hiç çağrılmaz — `AgentPrism:Mcp:RefreshInterval` gibi bir ortam değişkeni **sessizce hiçbir şey yapmaz**. Faz 42'den önce de böyleydi; ilk kez orada gerçek bir dağıtım denemesinde ortaya çıktı |
+| 🚨 `BackgroundService` başlatma sırası migration'la yarışır | [Faz 42](42-TEK-YURUTUCU-SECIMI.md) | Ölçüldü: `MigrationHostedService.StartAsync` migration'ları TAM bekler ama `BackgroundService.StartAsync` (taban sınıf) `ExecuteAsync`'i beklemeden döner; kayıt sırası `.UseMcp()` `.UseSqlite()`'tan önceyse `McpDiscoveryService`'in ilk SQL denemesi migration bitmeden çalışabilir ("no such table"). Kendiliğinden iyileşir (bir sonraki turda) ama gözlemlenebilir bir uyarı üretir. Kalıcı çözüm hosted service sırasını garanti etmek veya ilk turu geciktirmek — ikisi de kendi kararını ister |
 
 ### Dalga 3 — ✅ planlandı (2026-08-06), bu listeden çıktı
 

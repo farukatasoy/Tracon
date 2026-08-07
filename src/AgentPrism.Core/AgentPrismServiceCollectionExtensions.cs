@@ -74,6 +74,21 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<AgentPrismSchedulingOptions>, AgentPrismSchedulingOptionsValidator>());
 
+        // Tek yurutucu secimi (Faz 42). Ayni gerekce: kendi SectionName'ini
+        // tasir, ayri bir Use...() cagrisi gerektirmez. Varsayilan Enabled=false;
+        // kapaliyken InMemorySingletonLeaseStore'a hicbir cagri gitmez (K1).
+        services.AddOptions<SingletonExecutionOptions>().ValidateOnStart();
+
+        if (configurationSection is not null)
+        {
+            services.Configure<SingletonExecutionOptions>(
+                options => BindSingletonExecution(configurationSection.GetSection("SingletonExecution"), options));
+        }
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<SingletonExecutionOptions>, SingletonExecutionOptionsValidator>());
+        services.TryAddSingleton<ISingletonLeaseStore, InMemorySingletonLeaseStore>();
+
         // Kota ve olay yayini (Faz 21). Zamanlama ile ayni gerekce: kendi
         // SectionName'ini tasir ve ayri bir Use...() cagrisi gerektirmez.
         services.AddOptions<AgentPrismQuotaOptions>().ValidateOnStart();
@@ -1025,6 +1040,33 @@ public static class AgentPrismServiceCollectionExtensions
                 out var maxItemsPerJob))
         {
             options.MaxItemsPerJob = maxItemsPerJob;
+        }
+    }
+
+    /// <summary>Tek yurutucu secimi ayarlarini yapilandirmadan baglar (Faz 42).</summary>
+    private static void BindSingletonExecution(IConfigurationSection section, SingletonExecutionOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TryReadBool(section, nameof(SingletonExecutionOptions.Enabled), out var enabled))
+        {
+            options.Enabled = enabled;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(SingletonExecutionOptions.LeaseDuration)],
+                CultureInfo.InvariantCulture,
+                out var leaseDuration))
+        {
+            options.LeaseDuration = leaseDuration;
+        }
+
+        if (section[nameof(SingletonExecutionOptions.OwnerId)] is { Length: > 0 } ownerId)
+        {
+            options.OwnerId = ownerId;
         }
     }
 

@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (133 kalem)
+## Arşivlenen Kararlar (137 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -142,3 +142,7 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-131 | 176 | Graf tanımdan değil, DERLENMİŞ workflow'dan çıkarılır |
 | K-132 | 177 | Workflow grafı elle SVG ile çizilir; mermaid.js alınmadı |
 | K-133 | 178 | Graf hatası çalıştırmayı `Failed` yapar |
+| K-134 | 179 | `WorkflowJobHandler` ayrı bir pakete değil, `AgentPrism.Core`'a konur |
+| K-135 | 180 | Optional `IJobHandler` bağımlılığı DI'da açık fabrika ile enjekte edilir, kurucu varsayılan değeriyle değil |
+| K-136 | 181 | Zamanlanmış bir işi belirli bir kiracı olarak çalıştırmak `AmbientTenantScope` (AsyncLocal) ile yapılır |
+| K-137 | 182 | İş iptali ayrı bir `cancel_requested` sütunu gerektirmez; `jobs.status` tek gerçek kaynaktır |

@@ -484,6 +484,15 @@ internal abstract class SqlQueriesBase
     /// <summary>Bir puani siler.</summary>
     public string DeleteRunScore { get; protected set; } = string.Empty;
 
+    /// <summary>Tek yurutucu kirasini alir (bos ise ekler, sahibi/suresi uygunsa gunceller).</summary>
+    public string AcquireSingletonLease { get; protected set; } = string.Empty;
+
+    /// <summary>Elde tutulan tek yurutucu kirasini uzatir.</summary>
+    public string RenewSingletonLease { get; protected set; } = string.Empty;
+
+    /// <summary>Tek yurutucu kirasini birakir.</summary>
+    public string ReleaseSingletonLease { get; protected set; } = string.Empty;
+
     /// <summary>Gomulu migration metnindeki sema yer tutucusunu gercek adla degistirir.</summary>
     /// <param name="sql">Ham migration metni.</param>
     /// <returns>Calistirilabilir SQL.</returns>

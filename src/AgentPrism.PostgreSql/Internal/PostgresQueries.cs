@@ -1523,5 +1523,30 @@ internal sealed class PostgresQueries : SqlQueriesBase
         DeleteRunScore = $"""
             DELETE FROM {Schema}.run_scores WHERE id = @id AND tenant_id = @tenant_id;
             """;
+
+        // Kira baskasindaysa ve suresi dolmamissa WHERE yanlis kalir; conflict
+        // satiri GUNCELLENMEZ ve RETURNING hicbir satir uretmez (K-177'nin
+        // PostgreSQL tarafi: tek ifadelik upsert, ikinci sonuc kumesi yoktur).
+        AcquireSingletonLease = $"""
+            INSERT INTO {Schema}.singleton_leases (name, owner_id, expires_at, updated_at)
+            VALUES (@name, @owner_id, @expires_at, @now)
+            ON CONFLICT (name) DO UPDATE SET
+                owner_id   = EXCLUDED.owner_id,
+                expires_at = EXCLUDED.expires_at,
+                updated_at = EXCLUDED.updated_at
+            WHERE {Schema}.singleton_leases.owner_id = EXCLUDED.owner_id
+               OR {Schema}.singleton_leases.expires_at < @now
+            RETURNING name;
+            """;
+
+        RenewSingletonLease = $"""
+            UPDATE {Schema}.singleton_leases
+               SET expires_at = @expires_at, updated_at = @now
+             WHERE name = @name AND owner_id = @owner_id;
+            """;
+
+        ReleaseSingletonLease = $"""
+            DELETE FROM {Schema}.singleton_leases WHERE name = @name AND owner_id = @owner_id;
+            """;
     }
 }

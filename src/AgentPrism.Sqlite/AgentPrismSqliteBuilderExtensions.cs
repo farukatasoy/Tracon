@@ -145,6 +145,11 @@ public static class AgentPrismSqliteBuilderExtensions
         services.Replace(ServiceDescriptor.Singleton<IRetentionPolicyStore, SqlRetentionPolicyStore>());
         services.Replace(ServiceDescriptor.Singleton<IRetentionStore, SqlRetentionStore>());
 
+        // Tek yurutucu secimi (Faz 42). Bellek ici InMemorySingletonLeaseStore'un
+        // yerini alir; cok ornekli bir dagitimda kira paylasimi ancak burada
+        // anlamlidir.
+        services.Replace(ServiceDescriptor.Singleton<ISingletonLeaseStore, SqlSingletonLeaseStore>());
+
         // Konusma kaydi (Faz 29). Yalniz UseVoiceConversation() cagrildiysa bir
         // sey yazar; cagrilmadiysa depo bos kalir. Denetim izi dekoratoruyle
         // SARILMAZ: kayit bir yonetici karari degil, yurutmenin yan urunudur.
