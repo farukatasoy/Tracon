@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
@@ -66,6 +67,16 @@ internal static class EvalEndpoints
             .WithName("AgentPrismClearEvalCases")
             .WithTags("AgentPrism", "Evals")
             .WithSummary("Bir takimin tum vakalarini siler.");
+
+        builder.MapPost("/api/evals/{name}/cases/from-run/{runId:guid}", PromoteRunToCaseAsync)
+            .RequireRole(roles.Operator)
+            .WithName("AgentPrismPromoteRunToEvalCase")
+            .WithTags("AgentPrism", "Evals")
+            .WithSummary("Bir calistirmayi tek istekle bir eval vakasina terfi ettirir.")
+            .WithDescription(
+                "Sorgu, calistirmanin kendi oturumundan okunur; oturumsuz calistirmalar " +
+                "terfi edilemez. Ayni calistirma ikinci kez terfi edilirse mevcut vaka doner " +
+                "(201 degil 200).");
 
         builder.MapPost("/api/evals/{name}/run", TriggerRunAsync)
             .RequireRole(roles.Operator)
@@ -232,6 +243,75 @@ internal static class EvalEndpoints
         return TypedResults.NoContent();
     }
 
+    private static async Task<Results<Created<EvalCase>, Ok<EvalCase>, ProblemHttpResult>> PromoteRunToCaseAsync(
+        string name,
+        Guid runId,
+        [FromBody] EvalCasePromotionRequest? request,
+        [FromServices] IEvalStore evalStore,
+        [FromServices] RunToCasePromoter promoter,
+        [FromServices] ITenantContext tenants,
+        [FromServices] IAuditLog auditLog,
+        [FromServices] IAuditActorResolver actorResolver,
+        [FromServices] ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        var suite = await evalStore.GetSuiteAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
+
+        if (suite is null)
+        {
+            return SuiteNotFound(name);
+        }
+
+        var outcome = await promoter
+            .PromoteAsync(tenants.TenantId, suite, runId, request?.SourceKind, cancellationToken)
+            .ConfigureAwait(false);
+
+        switch (outcome.Status)
+        {
+            case RunPromotionStatus.RunNotFound:
+                return RunNotFoundForPromotion(runId);
+
+            case RunPromotionStatus.AmbiguousSource:
+                return TypedResults.Problem(
+                    title: "Terfi sebebi belirlenemedi",
+                    detail: $"'{runId}' kimlikli calistirma ne basarisiz ne tamamlanmis. " +
+                             "Govdede 'sourceKind' acikca verilmelidir.",
+                    statusCode: StatusCodes.Status400BadRequest);
+
+            case RunPromotionStatus.NoQuery:
+                return TypedResults.Problem(
+                    title: "Calistirmanin sorgusu okunamadi",
+                    detail: $"'{runId}' kimlikli calistirmanin sorgusu okunamadi. Oturumsuz " +
+                             "calistirmalar veya gecmisi okunamayan oturumlar terfi edilemez.",
+                    statusCode: StatusCodes.Status422UnprocessableEntity);
+
+            case RunPromotionStatus.MultiTurn:
+                return TypedResults.Problem(
+                    title: "Cok turlu calistirma terfi edilemez",
+                    detail: $"'{runId}' kimlikli calistirmanin oturumunda birden fazla " +
+                             "kullanici turu var; tek turluk bir vakaya sigmaz.",
+                    statusCode: StatusCodes.Status409Conflict);
+
+            case RunPromotionStatus.AlreadyExists:
+                return TypedResults.Ok(outcome.Case!);
+
+            case RunPromotionStatus.Created:
+            default:
+                await AuditRecorder.WriteAsync(
+                    auditLog,
+                    actorResolver,
+                    loggerFactory.CreateLogger("AgentPrism.EvalEndpoints"),
+                    tenants.TenantId,
+                    action: "eval.case.promoted",
+                    entity: $"eval_case:{outcome.Case!.Id}",
+                    before: null,
+                    after: $$"""{"suiteId":"{{suite.Id}}","runId":"{{runId}}","sourceKind":"{{outcome.Case.SourceKind}}"}""",
+                    cancellationToken).ConfigureAwait(false);
+
+                return TypedResults.Created($"/api/evals/{name}/cases", outcome.Case);
+        }
+    }
+
     private static async Task<Results<Ok<EvalRun>, ProblemHttpResult>> TriggerRunAsync(
         string name,
         [FromBody] EvalRunTriggerRequest? request,
@@ -394,5 +474,13 @@ internal static class EvalEndpoints
         => TypedResults.Problem(
             title: "Eval kosusu bulunamadi",
             detail: $"'{id}' kimlikli bir eval kosusu yok.",
+            statusCode: StatusCodes.Status404NotFound);
+
+    // "Yok" ile "baska kiraciya ait" AYNI 404'u doner; ayri bir mesaj varlik
+    // sizdirirdi (RunEndpoints.SaveFeedbackAsync ile ayni gerekce).
+    private static ProblemHttpResult RunNotFoundForPromotion(Guid runId)
+        => TypedResults.Problem(
+            title: "Calistirma bulunamadi",
+            detail: $"'{runId}' kimlikli bir calistirma yok.",
             statusCode: StatusCodes.Status404NotFound);
 }

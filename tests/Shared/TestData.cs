@@ -136,6 +136,18 @@ public static class TestData
     public static EvalCase EvalCase(Guid suiteId, string query = "soru")
         => new() { SuiteId = suiteId, Seq = 0, Query = query };
 
+    /// <summary>Ornek bir eval vaka taslagi uretir (uretimden terfi, Faz 45).</summary>
+    /// <param name="sourceRunId">Terfi eden calistirma kimligi.</param>
+    /// <param name="query">Sorgu metni.</param>
+    /// <returns>Taslak.</returns>
+    public static EvalCaseDraft EvalCaseDraft(Guid? sourceRunId = null, string query = "soru")
+        => new()
+        {
+            Query = query,
+            SourceRunId = sourceRunId,
+            SourceKind = sourceRunId is null ? null : EvalCaseSource.FailedRun,
+        };
+
     /// <summary>Ornek bir eval kosusu uretir.</summary>
     /// <param name="tenantId">Kiraci kimligi.</param>
     /// <param name="suiteId">Olculen takimin kimligi.</param>

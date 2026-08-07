@@ -373,6 +373,15 @@ internal abstract class SqlQueriesBase
     /// <summary>Bir eval vakasi ekler.</summary>
     public string InsertEvalCase { get; protected set; } = string.Empty;
 
+    /// <summary>
+    /// Takima <c>seq</c>'i atomik olarak hesaplayarak TEK bir eval vakasi ekler
+    /// (uretimden terfi, Faz 45).
+    /// </summary>
+    public string InsertEvalCaseWithComputedSeq { get; protected set; } = string.Empty;
+
+    /// <summary>Bir takimda verilen kaynak calistirmadan terfi edilmis vakayi getirir.</summary>
+    public string SelectEvalCaseBySourceRun { get; protected set; } = string.Empty;
+
     /// <summary>Yeni bir eval kosu kaydi acar.</summary>
     public string InsertEvalRun { get; protected set; } = string.Empty;
 

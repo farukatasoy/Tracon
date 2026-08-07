@@ -53,6 +53,16 @@ public sealed record EvalRunTriggerRequest
     public int? AgentVersion { get; init; }
 }
 
+/// <summary>Bir calistirmayi vakaya terfi etme istegi (Faz 45, F-53).</summary>
+public sealed record EvalCasePromotionRequest
+{
+    /// <summary>
+    /// Terfi sebebini ezer. Verilmezse calistirmanin durumundan ve puanindan
+    /// kendiliginden turetilir.
+    /// </summary>
+    public EvalCaseSource? SourceKind { get; init; }
+}
+
 /// <summary>Tek bir eval kosusunun ayrintili gorunumu: ozet ve vaka sonuclari birlikte.</summary>
 public sealed record EvalRunDetailResponse
 {

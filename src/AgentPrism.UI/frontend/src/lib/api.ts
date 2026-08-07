@@ -18,6 +18,7 @@ import type {
   DiagnosticsReport,
   EvalCase,
   EvalCaseInput,
+  EvalCasePromotionRequest,
   EvalRun,
   EvalRunDetailResponse,
   EvalRunTriggerRequest,
@@ -469,6 +470,8 @@ export const api = {
   evalCases: (name: string) => request<EvalCase[]>(`api/evals/${encodeURIComponent(name)}/cases`),
   saveEvalCases: (name: string, cases: EvalCaseInput[]) =>
     send<EvalCase[]>('PUT', `api/evals/${encodeURIComponent(name)}/cases`, cases),
+  promoteRunToEvalCase: (name: string, runId: string, body: EvalCasePromotionRequest = {}) =>
+    send<EvalCase>('POST', `api/evals/${encodeURIComponent(name)}/cases/from-run/${encodeURIComponent(runId)}`, body),
   triggerEvalRun: (name: string, body: EvalRunTriggerRequest = {}) =>
     send<EvalRun>('POST', `api/evals/${encodeURIComponent(name)}/run`, body),
   evalRuns: (name: string, params: { skip?: number; take?: number } = {}) =>
