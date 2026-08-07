@@ -23,6 +23,8 @@ namespace AgentPrism;
 internal sealed class ModelProviderHealthBackgroundService(
     ModelProviderHealthCache cache,
     IOptionsMonitor<AgentPrismOptions> optionsMonitor,
+    ISingletonLeaseStore leaseStore,
+    IOptionsMonitor<SingletonExecutionOptions> singletonOptionsMonitor,
     ILogger<ModelProviderHealthBackgroundService>? logger = null) : BackgroundService
 {
     /// <inheritdoc />
@@ -33,18 +35,30 @@ internal sealed class ModelProviderHealthBackgroundService(
             return;
         }
 
+        // Tek yurutucu secimi (Faz 42): kapaliysa (varsayilan) guard.IsHeld
+        // daima true'dur ve RunAsync depoya hicbir sorgu atmadan hemen doner.
+        var guard = new SingletonGuard(leaseStore, singletonOptionsMonitor, "model-provider-health", logger);
+        var guardTask = guard.RunAsync(stoppingToken);
+
         using var timer = new PeriodicTimer(interval);
 
         try
         {
             while (await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false))
             {
-                await RunOnceAsync(stoppingToken).ConfigureAwait(false);
+                if (guard.IsHeld)
+                {
+                    await RunOnceAsync(stoppingToken).ConfigureAwait(false);
+                }
             }
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
             // Normal kapanma.
+        }
+        finally
+        {
+            await guardTask.ConfigureAwait(false);
         }
     }
 

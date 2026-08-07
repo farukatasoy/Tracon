@@ -1734,5 +1734,37 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         DeleteRunScore = $"""
             DELETE FROM {Schema}.run_scores WHERE id = @id AND tenant_id = @tenant_id;
             """;
+
+        // MERGE kullanilmaz (K-177). Iki-dalli desen: once UPDATE (sahibi biz
+        // isek veya kira suresi dolmussa), sonra yalniz satir hic yoksa INSERT.
+        // Ikisi de ayni sekilde tek sutun (name) doner; DbHelpers.ExecuteScalarAsync
+        // K-188'in coklu-sonuc-kumesi tuzagina karsi ikinci kumeye kendiliginden duser.
+        AcquireSingletonLease = $"""
+            DECLARE @updated int;
+
+            UPDATE {Schema}.singleton_leases WITH (UPDLOCK, SERIALIZABLE)
+               SET owner_id = @owner_id, expires_at = @expires_at, updated_at = @now
+             OUTPUT inserted.name
+             WHERE name = @name AND (owner_id = @owner_id OR expires_at < @now);
+
+            SET @updated = @@ROWCOUNT;
+
+            IF @updated = 0 AND NOT EXISTS (
+                SELECT 1 FROM {Schema}.singleton_leases WITH (UPDLOCK, SERIALIZABLE)
+                 WHERE name = @name)
+            INSERT INTO {Schema}.singleton_leases (name, owner_id, expires_at, updated_at)
+            OUTPUT inserted.name
+            VALUES (@name, @owner_id, @expires_at, @now);
+            """;
+
+        RenewSingletonLease = $"""
+            UPDATE {Schema}.singleton_leases
+               SET expires_at = @expires_at, updated_at = @now
+             WHERE name = @name AND owner_id = @owner_id;
+            """;
+
+        ReleaseSingletonLease = $"""
+            DELETE FROM {Schema}.singleton_leases WHERE name = @name AND owner_id = @owner_id;
+            """;
     }
 }

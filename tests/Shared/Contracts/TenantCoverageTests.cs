@@ -71,6 +71,7 @@ public sealed class TenantCoverageTests
         ["SqlWorkflowDefinitionStore"] = ["GetAsync", "ListAsync", "SaveAsync", "DeleteAsync"],
         ["SqlTenantStore"] = [],
         ["SqlChatHistoryProvider"] = [],
+        ["SqlSingletonLeaseStore"] = [],
     };
 
     [Fact]
