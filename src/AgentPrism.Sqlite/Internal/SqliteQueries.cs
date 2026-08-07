@@ -1232,8 +1232,13 @@ internal sealed class SqliteQueries : SqlQueriesBase
 
         DeleteEvalSuite = $"DELETE FROM {Schema}eval_suites WHERE tenant_id = @tenant_id AND name = @name;";
 
+        const string evalCaseColumns = """
+            id, suite_id, seq, query, expected_output, expected_tools, context,
+            source_run_id, source_kind, promoted_at
+            """;
+
         SelectEvalCases = $"""
-            SELECT id, suite_id, seq, query, expected_output, expected_tools, context
+            SELECT {evalCaseColumns}
             FROM {Schema}eval_cases
             WHERE suite_id = @suite_id
             ORDER BY seq;
@@ -1246,6 +1251,27 @@ internal sealed class SqliteQueries : SqlQueriesBase
                 (id, suite_id, seq, query, expected_output, expected_tools, context)
             VALUES
                 (@id, @suite_id, @seq, @query, @expected_output, @expected_tools, @context);
+            """;
+
+        // Gerekce PostgreSQL InsertEvalCaseWithComputedSeq ile aynidir
+        // (docs/45-URETIMDEN-EVAL-KUMESI.md, bolum 45.2). SQLite 3.35+ RETURNING
+        // destekler (diger eval sorgularinda zaten kullaniliyor).
+        InsertEvalCaseWithComputedSeq = $"""
+            INSERT INTO {Schema}eval_cases
+                (id, suite_id, seq, query, expected_output, expected_tools, context,
+                 source_run_id, source_kind, promoted_at)
+            VALUES
+                (@id, @suite_id,
+                 COALESCE((SELECT MAX(seq) FROM {Schema}eval_cases WHERE suite_id = @suite_id), -1) + 1,
+                 @query, @expected_output, @expected_tools, @context,
+                 @source_run_id, @source_kind, @promoted_at)
+            RETURNING {evalCaseColumns};
+            """;
+
+        SelectEvalCaseBySourceRun = $"""
+            SELECT {evalCaseColumns}
+            FROM {Schema}eval_cases
+            WHERE suite_id = @suite_id AND source_run_id = @source_run_id;
             """;
 
         const string evalRunColumns = """

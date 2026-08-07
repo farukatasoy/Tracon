@@ -175,7 +175,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             start.Scope.TenantId,
             cancellationSource);
 
-        var scope = await BeginRunAsync(start, cancellationToken).ConfigureAwait(false);
+        var scope = await BeginRunAsync(start, ExtractQuery(messages), cancellationToken).ConfigureAwait(false);
 
         try
         {
@@ -251,7 +251,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             start.Scope.TenantId,
             cancellationSource);
 
-        var scope = await BeginRunAsync(start, cancellationToken).ConfigureAwait(false);
+        var scope = await BeginRunAsync(start, ExtractQuery(messages), cancellationToken).ConfigureAwait(false);
         UsageDetails? usage = null;
         string? pendingApproval = null;
         var enumerator = base.RunCoreStreamingAsync(messages, session, options, cancellationSource.Token)
@@ -428,7 +428,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             prismOptions?.Variant);
     }
 
-    private async ValueTask<RunScope> BeginRunAsync(RunStart start, CancellationToken cancellationToken)
+    private async ValueTask<RunScope> BeginRunAsync(RunStart start, string? query, CancellationToken cancellationToken)
     {
         await start.Writer.StartAsync(
             new RunStartInfo
@@ -452,6 +452,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                 ExperimentId = start.ExperimentId,
                 Variant = start.Variant,
             },
+            query,
             cancellationToken).ConfigureAwait(false);
 
         return new RunScope(
@@ -769,6 +770,14 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     // oturum AgentPrism disinda acilmis demektir; kayda yer tutucu bir deger yazmak
     // yerine bos birakilir.
     private static string? GetSessionId(AgentSession session) => AgentSessionIdentity.GetId(session);
+
+    // Faz 45 (F-53): bu calistirmayi tetikleyen ilk kullanici mesaji
+    // RunEventType.RunStarted olayina yazilir. run_events, girdi metninin
+    // KALICILASTIGI TEK yerdir — oturum yalniz calistirma BASARIYLA
+    // tamamlandiginda kaydedilir (AgentEndpoints.AgentRunStream), bu yuzden
+    // basarisiz bir calistirmanin sorgusu baska hicbir yoldan okunamaz.
+    private static string? ExtractQuery(IEnumerable<ChatMessage> messages)
+        => messages.FirstOrDefault(static message => message.Role == ChatRole.User)?.Text;
 
     private static RunUsage? MergeUsage(RunUsage? primary, RunUsage? extra)
     {

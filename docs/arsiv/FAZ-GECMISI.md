@@ -404,3 +404,21 @@ Dört ders kaldı:
    Kopyalar silinip arayüz temiz üretilince koşum 37 saniyede yeşile döndü.
    Denetim (`find src -name "* 2.*"`) artık faz kapanışının parçasıdır.
 
+## Faz 32 — Doğrulanamayan bir workflow iptal tuzağı (2026-08-06)
+
+Özel bir `AIAgent` alt sınıfı bir workflow grafiğinde `RunCoreStreamingAsync`
+içinde İLK `yield return`'ten SONRA sonsuza `await` ederse, MAF'ın
+`AgentWorkflowBuilder.BuildSequential` grafiği çalıştırmayı yine de
+TAMAMLAR — doğrulanmadı, terk edildi. Bir `BlockingAgent` (ilk parçayı
+yield edip `Task.Delay(Timeout.Infinite, cancellationToken)` ile bekleyen)
+tek düğümlük bir Sequential grafikte kullanıldığında, çalıştırma dışarıdan
+iptal edilmeden ÖNCE `Completed` olarak kapandı — beklenen `Canceled`
+değil. Kök sebep doğrulanamadı (muhtemelen graf yalnız ilk update'i
+"yeterli" sayıp enumeratörü terk ediyor, `Task.Delay`'in kendisi asılı
+kalıyor olabilir). Bu tuzağı test etmeye çalışan `WorkflowCancellationTests`/
+`BlockingAgent` SİLİNDİ; onun yerine iptal mekanizması `RunCancellationRegistry`
+seviyesinde (kaskad) ve `RunRecordingAgent` ile GERÇEK bir bloke eden
+`IChatClient` üzerinden (agent değil, chat client seviyesinde) doğrulandı.
+Workflow'a özgü bir uçtan uca iptal testi hâlâ AÇIK — bkz.
+`docs/32-CALISTIRMA-IPTALI.md` Sonraki Faza Devir Notu.
+

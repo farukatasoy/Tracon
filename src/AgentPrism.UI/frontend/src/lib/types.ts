@@ -1123,6 +1123,9 @@ export interface EvalSuiteSaveRequest {
   checks: unknown;
 }
 
+/** Why a case was promoted from a production run. */
+export type EvalCaseSource = 'FailedRun' | 'NegativeScore' | 'ReferenceRun';
+
 /** A single test case within a suite. */
 export interface EvalCase {
   id: string;
@@ -1132,6 +1135,12 @@ export interface EvalCase {
   expectedOutput?: string | null;
   expectedTools: string[];
   context?: string | null;
+  /** The run this case was promoted from. `null` for hand-written cases. */
+  sourceRunId?: string | null;
+  /** Why it was promoted. `null` for hand-written cases. */
+  sourceKind?: EvalCaseSource | null;
+  /** When it was promoted. `null` for hand-written cases. */
+  promotedAt?: string | null;
 }
 
 /** One entry of the array body of PUT `/api/evals/{name}/cases`. */
@@ -1140,6 +1149,12 @@ export interface EvalCaseInput {
   expectedOutput?: string | null;
   expectedTools?: string[];
   context?: string | null;
+}
+
+/** Body of POST `/api/evals/{name}/cases/from-run/{runId}`. */
+export interface EvalCasePromotionRequest {
+  /** Overrides the auto-detected promotion reason. */
+  sourceKind?: EvalCaseSource | null;
 }
 
 /** Body of POST `/api/evals/{name}/run`. */

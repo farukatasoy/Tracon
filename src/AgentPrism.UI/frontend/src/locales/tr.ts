@@ -671,6 +671,9 @@ export const tr: Messages = {
   'evals.output': 'Çıktı',
   'evals.failureReason': 'Hata nedeni',
   'evals.passed': 'geçti',
+  'evals.promote.title': 'Duruma terfi et',
+  'evals.promote.button': 'Terfi et',
+  'evals.promote.hint': 'Bu çalıştırmayı seçilen kümeye durum olarak ekler. Beklenen çıktıyı yine de elle doldurmanız gerekir.',
 
   /* ------------------------------------------------------- experiments */
   'experiments.description': "Aynı agent'ın saklanan tanım sürümleri arasında A/B testleri. Trafik oturuma göre belirlenimci olarak bölünür; aynı sohbet her zaman aynı sürüme düşer.",

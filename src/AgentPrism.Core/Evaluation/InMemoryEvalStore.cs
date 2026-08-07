@@ -131,6 +131,51 @@ public sealed class InMemoryEvalStore : IEvalStore
     }
 
     /// <inheritdoc />
+    public ValueTask<EvalCaseAddResult> AddCaseAsync(
+        Guid suiteId,
+        EvalCaseDraft draft,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(draft);
+
+        var cases = _cases.GetOrAdd(suiteId, static _ => []);
+
+        lock (cases)
+        {
+            if (draft.SourceRunId is { } sourceRunId)
+            {
+                var existing = cases.Find(candidate => candidate.SourceRunId == sourceRunId);
+
+                if (existing is not null)
+                {
+                    return new ValueTask<EvalCaseAddResult>(new EvalCaseAddResult { Case = existing, Created = false });
+                }
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            var seq = cases.Count == 0 ? 0 : cases.Max(static candidate => candidate.Seq) + 1;
+
+            var created = new EvalCase
+            {
+                Id = AgentPrismId.NewId(now),
+                SuiteId = suiteId,
+                Seq = seq,
+                Query = draft.Query,
+                ExpectedOutput = draft.ExpectedOutput,
+                ExpectedTools = draft.ExpectedTools,
+                Context = draft.Context,
+                SourceRunId = draft.SourceRunId,
+                SourceKind = draft.SourceKind,
+                PromotedAt = now,
+            };
+
+            cases.Add(created);
+
+            return new ValueTask<EvalCaseAddResult>(new EvalCaseAddResult { Case = created, Created = true });
+        }
+    }
+
+    /// <inheritdoc />
     public ValueTask<EvalRun> CreateRunAsync(EvalRun run, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(run);

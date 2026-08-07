@@ -156,6 +156,83 @@ internal sealed class SqlEvalStore : IEvalStore
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// 🚨 <c>seq</c> depo icinde <c>MAX(seq) + 1</c> alt sorgusuyla atomik
+    /// hesaplanir; iki es zamanli terfi ayni degeri hesaplayabilir. Bu durumda
+    /// <c>eval_cases_suite_seq_uq</c> ihlali <see cref="SqlDialect.IsUniqueViolation"/>
+    /// ile yakalanir ve YENIDEN DENENIR. Ayni <c>SourceRunId</c>'nin ikinci kez
+    /// eklenmeye calisilmasi da benzersizlik ihlaline duser (<c>eval_cases_source_run_uq</c>)
+    /// ama farkli yorumlanir: mevcut vaka <c>SelectEvalCaseBySourceRun</c> ile
+    /// okunup <c>Created: false</c> ile donulur (docs/45-URETIMDEN-EVAL-KUMESI.md,
+    /// bolum 45.2).
+    /// </remarks>
+    [TenantAgnostic(
+        "ReplaceCasesAsync ile ayni gerekce: takim kimligi kiraciya suzulmus bir sorgudan gelir.")]
+    public async ValueTask<EvalCaseAddResult> AddCaseAsync(
+        Guid suiteId,
+        EvalCaseDraft draft,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(draft);
+
+        const int maxAttempts = 5;
+
+        for (var attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            var now = DateTimeOffset.UtcNow;
+            var command = CreateCommand(_sql.InsertEvalCaseWithComputedSeq);
+            DbHelpers.Add(command, "id", AgentPrismId.NewId(now));
+            DbHelpers.Add(command, "suite_id", suiteId);
+            DbHelpers.Add(command, "query", draft.Query);
+            AddNullableText(command, "expected_output", draft.ExpectedOutput);
+            AddNullableText(
+                command,
+                "expected_tools",
+                draft.ExpectedTools.Count > 0 ? string.Join(',', draft.ExpectedTools) : null);
+            AddNullableText(command, "context", draft.Context);
+            AddNullableUuid(command, "source_run_id", draft.SourceRunId);
+            Dialect.AddInt16(command, "source_kind", draft.SourceKind is { } kind ? (short)kind : null);
+            Dialect.AddTimestamp(command, "promoted_at", now);
+
+            try
+            {
+                var inserted = await DbHelpers.ReadSingleAsync(command, ReadCase, cancellationToken).ConfigureAwait(false)
+                    ?? throw new AgentPrismException("Eval vakasi eklenemedi.");
+
+                return new EvalCaseAddResult { Case = inserted, Created = true };
+            }
+            catch (DbException ex) when (Dialect.IsUniqueViolation(ex))
+            {
+                if (draft.SourceRunId is { } sourceRunId)
+                {
+                    var existing = await GetCaseBySourceRunAsync(suiteId, sourceRunId, cancellationToken).ConfigureAwait(false);
+
+                    if (existing is not null)
+                    {
+                        return new EvalCaseAddResult { Case = existing, Created = false };
+                    }
+                }
+
+                // Ihlal source_run_id'den degilse seq catismasidir: bir sonraki
+                // denemede MAX(seq) yeniden okunur ve taze bir deger uretilir.
+            }
+        }
+
+        throw new AgentPrismException(
+            $"Eval vakasi eklenemedi: {maxAttempts} denemede sira numarasi atanamadi (cok fazla es zamanli terfi).");
+    }
+
+    private async ValueTask<EvalCase?> GetCaseBySourceRunAsync(
+        Guid suiteId, Guid sourceRunId, CancellationToken cancellationToken)
+    {
+        var command = CreateCommand(_sql.SelectEvalCaseBySourceRun);
+        DbHelpers.Add(command, "suite_id", suiteId);
+        DbHelpers.Add(command, "source_run_id", sourceRunId);
+
+        return await DbHelpers.ReadSingleAsync(command, ReadCase, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
     public async ValueTask<EvalRun> CreateRunAsync(EvalRun run, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(run);
@@ -317,6 +394,9 @@ internal sealed class SqlEvalStore : IEvalStore
                 ? tools.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 : [],
             Context = DbHelpers.GetNullableString(reader, 6),
+            SourceRunId = reader.IsDBNull(7) ? null : reader.GetGuid(7),
+            SourceKind = reader.IsDBNull(8) ? null : (EvalCaseSource)reader.GetInt16(8),
+            PromotedAt = DbHelpers.GetNullableTimestamp(reader, 9),
         };
 
     private static EvalRun ReadRun(DbDataReader reader)

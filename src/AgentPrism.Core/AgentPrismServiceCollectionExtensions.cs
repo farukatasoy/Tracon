@@ -351,6 +351,10 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddSingleton<EvalCheckRegistry>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, EvalJobHandler>());
 
+        // Uretimden vaka terfisi (Faz 45, F-53). Sorgu metnini calistirmanin
+        // oturumundan okur; bagimliliklarin tumu yukarida zaten kayitlidir.
+        services.TryAddSingleton<RunToCasePromoter>();
+
         // Kota ve olay yayini (Faz 21). Depolar her zaman kayitlidir; kural
         // tanimlanmadikca hicbir sey reddedilmez, abone yoksa hicbir olay
         // yayilmaz. Bu yuzden ayri bir Use...() cagrisi gerekmez.

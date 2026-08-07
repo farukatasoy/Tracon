@@ -672,6 +672,9 @@ export const en = {
   'evals.output': 'Output',
   'evals.failureReason': 'Failure reason',
   'evals.passed': 'passed',
+  'evals.promote.title': 'Promote to eval case',
+  'evals.promote.button': 'Promote',
+  'evals.promote.hint': 'Adds this run as a case in the chosen suite. You will still need to fill in the expected output by hand.',
 
   /* ------------------------------------------------------- experiments */
   'experiments.description': 'A/B tests between stored definition versions of the same agent. Traffic is split deterministically by session — the same conversation always lands on the same variant.',

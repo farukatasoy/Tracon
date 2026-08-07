@@ -64,6 +64,22 @@ public sealed class EvalCheckRegistryTests
     }
 
     [Fact]
+    public void ContainsExpected_bos_ExpectedOutput_ile_daima_basarisiz_olur()
+    {
+        // Faz 45 Acik Soru 2: terfi eden bir vaka (Failed/NegativeScore) bos
+        // ExpectedOutput tasir. Olculdu: EvalChecks.ContainsExpected null/bos
+        // ExpectedOutput'ta FIRLATMAZ, sessizce PASSED=false doner — bu yuzden
+        // boyle bir vaka `containsExpected` iceren bir takimda HER ZAMAN
+        // basarisiz gorunur (docs/45-URETIMDEN-EVAL-KUMESI.md, secenek B).
+        var registry = new EvalCheckRegistry([]);
+        var checks = registry.BuildChecks(Parse("""[{"kind":"containsExpected"}]"""));
+
+        var item = new EvalItem("soru", "herhangi bir cikti") { ExpectedOutput = null };
+
+        checks[0].Invoke(item).Passed.ShouldBeFalse();
+    }
+
+    [Fact]
     public void Keywords_verilen_kelimeleri_arar()
     {
         var registry = new EvalCheckRegistry([]);

@@ -29,4 +29,13 @@ public sealed record EvalCase
 
     /// <summary>Modele ek baglam olarak verilecek metin.</summary>
     public string? Context { get; init; }
+
+    /// <summary>Vakanin uretildigi calistirma. Elle yazildiysa <see langword="null"/>.</summary>
+    public Guid? SourceRunId { get; init; }
+
+    /// <summary>Terfi sebebi. Elle yazildiysa <see langword="null"/>.</summary>
+    public EvalCaseSource? SourceKind { get; init; }
+
+    /// <summary>Terfi zamani. Elle yazildiysa <see langword="null"/>.</summary>
+    public DateTimeOffset? PromotedAt { get; init; }
 }
