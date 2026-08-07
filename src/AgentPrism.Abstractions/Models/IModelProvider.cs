@@ -21,8 +21,28 @@ public interface IModelProvider
     /// <summary>Bu saglayicinin sundugu modeller.</summary>
     IReadOnlyList<ModelDescriptor> Models { get; }
 
-    /// <summary>Verilen baglanti icin bir sohbet istemcisi uretir.</summary>
+    /// <summary>
+    /// Verilen baglanti icin <strong>ham</strong> bir sohbet istemcisi uretir.
+    /// </summary>
     /// <param name="binding">Model baglantisi.</param>
-    /// <returns>Sohbet istemcisi.</returns>
+    /// <returns>
+    /// Saglayiciya ozgu istemci. Saglayiciya <em>ozgu</em> dekoratorler (ornek:
+    /// Anthropic'in ayar dekoratoru) burada eklenebilir.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// 🚨 <strong>Ortak boru hattini kurma.</strong> <c>UseFunctionInvocation()</c>,
+    /// <c>UseOpenTelemetry()</c>, icerik guard'i, devre kesici ve ek cozme
+    /// <c>ModelProviderRegistry.CreateChatClient</c> tarafindan eklenir. Faz 48'e
+    /// kadar tool cagri dongusunu her saglayici paketi kendi icinde kuruyordu;
+    /// bunun sonucu, defterin sardigi hicbir halkanin dongunun turlarini
+    /// gorememesiydi — bir tool sonucu modele denetlenmeden giriyordu.
+    /// </para>
+    /// <para>
+    /// Dongu burada da kurulursa ic ice iki <c>FunctionInvokingChatClient</c>
+    /// olusur: ictekisi tool'lari cozer, distakisi hicbir cagri gormez. Zarari
+    /// islevsel degil, olculebilirdir (iki kat sarmalama, yaniltici span agaci).
+    /// </para>
+    /// </remarks>
     IChatClient CreateChatClient(ModelBinding binding);
 }

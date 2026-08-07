@@ -351,7 +351,7 @@
           "Agents"
         ],
         "summary": "Bir agent\u0027i deneme amaciyla calistirir ve yaniti SSE ile akitir.",
-        "description": "Kota asilmissa calistirma baslamaz ve 429 doner; ProblemDetails hangi kotanin asildigini ve sayacin ne zaman sifirlanacagini tasir. \u0027Idempotency-Key\u0027 basligi tasiyan bir istek SSE yerine tek bir JSON yanitla (akissiz) calisir \u2014 Faz 43\u0027un tekillestirme sozlesmesi akissiz bir yanit gerektirir (docs/43-IDEMPOTENCY-KEY.md). \u0027Prefer: respond-async\u0027 basligi tasiyan bir istek calistirmayi kuyruga alir ve \u0027202 Accepted\u0027 \u002B \u0027Location\u0027 doner (Faz 46, docs/46-DAYANIKLI-CALISTIRMA.md).",
+        "description": "Kota asilmissa calistirma baslamaz ve 429 doner; ProblemDetails hangi kotanin asildigini ve sayacin ne zaman sifirlanacagini tasir. \u0027Idempotency-Key\u0027 basligi tasiyan bir istek SSE yerine tek bir JSON yanitla (akissiz) calisir \u2014 Faz 43\u0027un tekillestirme sozlesmesi akissiz bir yanit gerektirir (docs/43-IDEMPOTENCY-KEY.md). \u0027Prefer: respond-async\u0027 basligi tasiyan bir istek calistirmayi kuyruga alir ve \u0027202 Accepted\u0027 \u002B \u0027Location\u0027 doner (Faz 46, docs/46-DAYANIKLI-CALISTIRMA.md). Kayitli bir IContentGuard icerigi engellerse akissiz yanit \u0027422\u0027 doner ve runs.error_type \u0027content_blocked\u0027 olur; AKISLI yanitta durum kodu zaten gonderilmis oldugu icin engelleme SSE \u0027error\u0027 olayi olarak gorunur (Faz 48, docs/48-GUARDRAILS.md).",
         "operationId": "AgentPrismRunAgent",
         "parameters": [
           {
@@ -406,6 +406,16 @@
           },
           "404": {
             "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
             "content": {
               "application/problem\u002Bjson": {
                 "schema": {
@@ -4610,7 +4620,7 @@
           "Governance"
         ],
         "summary": "Filtrelenebilir denetim kayitlarini listeler.",
-        "description": "actor, action, entity ve tarih araligina gore filtrelenebilir. Calistirmalar (agent\u0027in bir mesaji islemesi) bu deftere yazilmaz; runs tablosu zaten tam kaydi tutar.",
+        "description": "actor, action, entity ve tarih araligina gore filtrelenebilir. Calistirmalar (agent\u0027in bir mesaji islemesi) bu deftere yazilmaz; runs tablosu zaten tam kaydi tutar. Tek istisna \u0027content.blocked\u0027 eylemidir (Faz 48): bir IContentGuard\u0027in engelleme karari bir calistirma ayrintisi degil bir YONETISIM kararidir ve calistirma kaydi saklama politikasiyla silindikten sonra da izlenebilir kalmalidir. Kayit yalniz guard ve kural adini tasir, engellenen METNI tasimaz.",
         "operationId": "AgentPrismListAudit",
         "parameters": [
           {
@@ -10309,6 +10319,7 @@
           "CompilationFailed",
           "BudgetExceeded",
           "Canceled",
+          "ContentBlocked",
           null
         ]
       },

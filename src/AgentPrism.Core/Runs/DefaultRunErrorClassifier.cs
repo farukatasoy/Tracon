@@ -30,6 +30,7 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
     private static readonly Dictionary<string, RunErrorClass> StableIdentities = new(StringComparer.Ordinal)
     {
         [AgentPrismContentFilteredException.ContentFilteredErrorType] = RunErrorClass.ContentFiltered,
+        [AgentPrismContentBlockedException.ContentBlockedErrorType] = RunErrorClass.ContentBlocked,
         [AgentPrismCompilationException.CompilationFailedErrorType] = RunErrorClass.CompilationFailed,
         ["AgentPrism.AgentPrismCompilationException"] = RunErrorClass.CompilationFailed,
         [AgentPrismProviderUnavailableException.ProviderUnavailableErrorType] = RunErrorClass.ProviderUnavailable,

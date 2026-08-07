@@ -51,6 +51,11 @@ const EVENT_STYLE: Record<RunEventType, { label: string; hue: string }> = {
   WorkflowOutput: { label: 'workflow.output', hue: 'var(--ap-emerald)' },
   WorkflowRequest: { label: 'workflow.request', hue: 'var(--ap-amber)' },
   RunAwaitingInput: { label: 'run.awaiting-input', hue: 'var(--ap-amber)' },
+  // Phase 48. A guard decision is a policy event, not a model event: masking
+  // gets its own hue so an operator can spot a rewritten prompt at a glance,
+  // and a block shares the danger hue with the other run-ending failures.
+  ContentMasked: { label: 'content.masked', hue: 'var(--ap-violet)' },
+  ContentBlocked: { label: 'content.blocked', hue: 'var(--ap-danger)' },
 };
 
 /**

@@ -89,7 +89,24 @@ var agentPrism = builder.AddAgentPrism()
     .UseWorkflows()
     // Gomulu yonetim arayuzu. Ayri bir esleme cagrisi gerekmez:
     // MapAgentPrism kaydi bulur ve arayuzu ayni onek altina baglar.
-    .UseUI();
+    .UseUI()
+    // Icerik denetimi (Faz 48). 🚨 Bu cagri OLMADAN hicbir istem suzulmez,
+    // hicbir yanit denetlenir ve model boru hattina hicbir halka eklenmez:
+    // kayit K1'in (sifir surpriz) kapisidir, bir Enabled bayragi degil.
+    //
+    // Ornek uygulama guard'i BILEREK aciyor — F-32'nin gosterilebilir olmasi
+    // icin. Yerlesik guard iki karar verir: yasak sozcuk -> Block, PII deseni
+    // -> Mask. Kart deseni Luhn dogrulamasi yapar, boylece bir siparis
+    // numarasi maskelenmez.
+    //
+    // Tuketici kendi kural kumesini IContentGuard uygulayip
+    // .AddContentGuard<T>() ile takar; birden cok guard sirayla calisir ve en
+    // sert karar kazanir.
+    .AddPatternContentGuard(options =>
+    {
+        options.MaskedPii = PiiPatterns.CreditCard | PiiPatterns.Email | PiiPatterns.ProviderApiKey;
+        options.DeniedTerms.Add("gizli-proje");
+    });
 
 // Saglayici istege baglidir. API anahtari yoksa uygulama ag cagrisi yapmayan
 // ornek saglayici ile calisir; hicbir sey kirilmaz.

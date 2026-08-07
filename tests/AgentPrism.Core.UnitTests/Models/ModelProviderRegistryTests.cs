@@ -1,4 +1,5 @@
 using AgentPrism.Core.UnitTests.Fakes;
+using Microsoft.Extensions.AI;
 
 namespace AgentPrism.Core.UnitTests.Models;
 
@@ -76,6 +77,20 @@ public sealed class ModelProviderRegistryTests
         var registry = new ModelProviderRegistry([new FakeModelProvider()]);
 
         registry.List().ShouldHaveSingleItem().Models.ShouldHaveSingleItem().Name.ShouldBe("fake-model");
+    }
+
+    [Fact]
+    public void Boru_hatti_tool_dongusunu_ve_telemetriyi_defter_kurar()
+    {
+        // 🚨 Faz 48: bu iki halka dort saglayici paketinin icinden buraya tasindi.
+        // Kaybolurlarsa agent tool cagrilarini hic yurutmez ve hicbir 'chat' span'i
+        // uretilmez. Ucuncu taraf bir saglayici da bunlari bedava devralir —
+        // FakeModelProvider ham bir istemci donduruyor ve halkalar yine var.
+        using var chatClient = new ModelProviderRegistry([new FakeModelProvider()])
+            .CreateChatClient(TestData.Binding());
+
+        chatClient.GetService(typeof(FunctionInvokingChatClient)).ShouldNotBeNull();
+        chatClient.GetService(typeof(OpenTelemetryChatClient)).ShouldNotBeNull();
     }
 
     [Fact]
