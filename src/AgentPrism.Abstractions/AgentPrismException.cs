@@ -107,6 +107,11 @@ public sealed class AgentPrismContentFilteredException : AgentPrismException
 /// </remarks>
 public sealed class AgentPrismCompilationException : AgentPrismException
 {
+    /// <summary>
+    /// <see cref="AgentPrismException.ErrorType"/> icin yazilan kararli deger.
+    /// </summary>
+    public const string CompilationFailedErrorType = "compilation_failed";
+
     /// <summary>Yeni bir derleme hatasi olusturur.</summary>
     public AgentPrismCompilationException()
     {
@@ -129,6 +134,9 @@ public sealed class AgentPrismCompilationException : AgentPrismException
 
     /// <summary>Derlenemeyen agent'in adi.</summary>
     public string? AgentName { get; init; }
+
+    /// <inheritdoc />
+    public override string ErrorType => CompilationFailedErrorType;
 }
 
 /// <summary>
@@ -142,6 +150,11 @@ public sealed class AgentPrismCompilationException : AgentPrismException
 /// </remarks>
 public sealed class AgentPrismProviderUnavailableException : AgentPrismException
 {
+    /// <summary>
+    /// <see cref="AgentPrismException.ErrorType"/> icin yazilan kararli deger.
+    /// </summary>
+    public const string ProviderUnavailableErrorType = "provider_unavailable";
+
     /// <summary>Yeni bir hata olusturur.</summary>
     public AgentPrismProviderUnavailableException()
     {
@@ -167,4 +180,7 @@ public sealed class AgentPrismProviderUnavailableException : AgentPrismException
 
     /// <summary>Devrenin yari-acik duruma gecip yeniden denenecegi zaman.</summary>
     public DateTimeOffset? RetryAfter { get; init; }
+
+    /// <inheritdoc />
+    public override string ErrorType => ProviderUnavailableErrorType;
 }

@@ -138,6 +138,41 @@ internal static class CatalogEndpoints
                 "Eval/Workflow calistirmalarini varsayilan olarak haric TUTMAZ " +
                 "(bkz. docs/KARARLAR.md K-152); ?kind= ile filtrelenebilir.");
 
+        builder.MapGet("/api/stats/errors", async Task<Ok<IReadOnlyList<RunErrorStatistics>>> (
+                IRunStore runs,
+                string? agentName,
+                double? hours,
+                [FromServices] TimeProvider? timeProvider,
+                CancellationToken cancellationToken) =>
+            {
+                // En fazla 30 gun: daha genis bir aralik kume tablosunu
+                // tarayip tum satirlari sinif+parmak izine gore siralamak
+                // zorunda kalir; /api/stats/timeseries'in kova siniriyla ayni
+                // gerekce.
+                var effectiveHours = Math.Clamp(hours ?? 24, 0.01, 24 * 30);
+                var startedAfter = (timeProvider ?? TimeProvider.System).GetUtcNow().AddHours(-effectiveHours);
+
+                var statistics = await runs.GetStatisticsAsync(
+                    new RunStatisticsQuery
+                    {
+                        AgentName = agentName,
+                        StartedAfter = startedAfter,
+                    },
+                    cancellationToken).ConfigureAwait(false);
+
+                return TypedResults.Ok(statistics.ByErrorClass);
+            })
+            .RequireRole(roles.Reader)
+            .WithName("AgentPrismStatsErrors")
+            .WithTags("AgentPrism", "Agents")
+            .WithSummary("Hata sinifina gore kirilimi ve her sinifin en sik uc kumesini dondurur.")
+            .WithDescription(
+                "/api/stats'in dar bir dilimidir: yalnizca ByErrorClass alanini " +
+                "dondurur (o alan /api/stats yanitinda da vardir). Varsayilan aralik " +
+                "son 24 saattir, ?hours= ile degistirilir. Hata sinifi eklenmeden " +
+                "once yazilmis satirlar Unknown kovasinda gorunur; Unknown orani " +
+                "yuksekse taksonomi eksik demektir.");
+
         builder.MapPost("/api/stats/recalculate-costs", async Task<Ok<RunCostRecalculationResult>> (
                 RunCostRecalculationService recalculation,
                 IAuditLog auditLog,

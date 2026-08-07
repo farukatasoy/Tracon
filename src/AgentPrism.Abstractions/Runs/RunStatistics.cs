@@ -87,6 +87,13 @@ public sealed record RunStatistics
     public IReadOnlyList<RunVersionStatistics> ByVersion { get; init; } = [];
 
     /// <summary>
+    /// Hata sinifina gore kirilim. Yalnizca hata ile biten calistirmalar
+    /// sayilir. Hata sinifi eklenmeden once yazilmis satirlar <c>Unknown</c>
+    /// kovasinda gorunur (K-014 -- gecmis satirlar geriye donuk doldurulmaz).
+    /// </summary>
+    public IReadOnlyList<RunErrorStatistics> ByErrorClass { get; init; } = [];
+
+    /// <summary>
     /// Toplam maliyet. Fiyati tanimsiz bir model varsa o calistirmalarin
     /// maliyeti bu toplama <strong>katilmaz</strong> (yalniz fiyati bilinenler
     /// toplanir); kac calistirmanin dislandigi <see cref="RunsWithUnknownPricing"/>'de
@@ -216,4 +223,36 @@ public sealed record RunAgentStatistics
 
     /// <summary>Bu agent'in toplam token kullanimi.</summary>
     public long TotalTokens { get; init; }
+}
+
+/// <summary>Bir hata sinifinin ozeti.</summary>
+public sealed record RunErrorStatistics
+{
+    /// <summary>Hata sinifi.</summary>
+    public required RunErrorClass Class { get; init; }
+
+    /// <summary>Bu sinifa dusen toplam calistirma sayisi.</summary>
+    public required long TotalRuns { get; init; }
+
+    /// <summary>Bu sinifin en sik uc kumesi, sayiya gore azalan sirada.</summary>
+    public IReadOnlyList<RunErrorCluster> TopClusters { get; init; } = [];
+}
+
+/// <summary>Ayni parmak izini paylasan calistirmalarin ozeti.</summary>
+public sealed record RunErrorCluster
+{
+    /// <summary>Normallestirilmis mesajin ozeti.</summary>
+    public required string Fingerprint { get; init; }
+
+    /// <summary>Bu kumedeki calistirma sayisi.</summary>
+    public required long Count { get; init; }
+
+    /// <summary>Kumedeki en son goruntuye ait ham hata mesaji.</summary>
+    public required string SampleMessage { get; init; }
+
+    /// <summary>Kumedeki en son goruntunun calistirma kimligi.</summary>
+    public required Guid SampleRunId { get; init; }
+
+    /// <summary>Bu kumenin en son goruldugu an (UTC).</summary>
+    public required DateTimeOffset LastSeenAt { get; init; }
 }

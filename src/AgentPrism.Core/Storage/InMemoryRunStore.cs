@@ -351,6 +351,8 @@ public sealed class InMemoryRunStore : IRunStore
         var perAgent = new Dictionary<string, AgentTally>(StringComparer.Ordinal);
         var perModel = new Dictionary<string, ModelTally>(StringComparer.Ordinal);
         var perVersion = new Dictionary<(string AgentName, int Version), AgentTally>();
+        var perErrorClass = new Dictionary<RunErrorClass, long>();
+        var perErrorCluster = new Dictionary<(RunErrorClass Class, string Fingerprint), ErrorClusterTally>();
         decimal? costSum = null;
         string? currency = null;
         long runsWithUnknownPricing = 0;
@@ -419,6 +421,22 @@ public sealed class InMemoryRunStore : IRunStore
                 case RunStatus.Running: running++; break;
                 case RunStatus.AwaitingInput: awaitingInput++; break;
                 default: break;
+            }
+
+            // Hata kirilimi: hata sinifi eklenmeden once yazilmis satirlar
+            // (Class == null) Unknown kovasina duser (K-014 -- geriye donuk
+            // doldurma yapilmaz).
+            if (record.Status == RunStatus.Failed && record.Error is { } runError)
+            {
+                var errorClass = runError.Class ?? RunErrorClass.Unknown;
+                var fingerprint = runError.Fingerprint ?? string.Empty;
+
+                perErrorClass.TryGetValue(errorClass, out var classTotal);
+                perErrorClass[errorClass] = classTotal + 1;
+
+                var clusterKey = (errorClass, fingerprint);
+                perErrorCluster.TryGetValue(clusterKey, out var clusterTally);
+                perErrorCluster[clusterKey] = clusterTally.Add(record, runError);
             }
 
             inputTokens += record.Usage?.InputTokens ?? 0;
@@ -493,6 +511,29 @@ public sealed class InMemoryRunStore : IRunStore
             .Take(Math.Max(query.MaxAgents, 0))
             .ToList();
 
+        var byErrorClass = perErrorClass
+            .Select(pair => new RunErrorStatistics
+            {
+                Class = pair.Key,
+                TotalRuns = pair.Value,
+                TopClusters = [.. perErrorCluster
+                    .Where(cluster => cluster.Key.Class == pair.Key)
+                    .OrderByDescending(static cluster => cluster.Value.Count)
+                    .ThenByDescending(static cluster => cluster.Value.LastSeenAt)
+                    .Take(TopErrorClusterCount)
+                    .Select(static cluster => new RunErrorCluster
+                    {
+                        Fingerprint = cluster.Key.Fingerprint,
+                        Count = cluster.Value.Count,
+                        SampleMessage = cluster.Value.SampleMessage,
+                        SampleRunId = cluster.Value.SampleRunId,
+                        LastSeenAt = cluster.Value.LastSeenAt,
+                    })],
+            })
+            .OrderByDescending(static stat => stat.TotalRuns)
+            .ThenBy(static stat => stat.Class)
+            .ToList();
+
         return new RunStatistics
         {
             TotalRuns = total,
@@ -533,8 +574,12 @@ public sealed class InMemoryRunStore : IRunStore
                 })
                 .OrderBy(static version => version.AgentName, StringComparer.Ordinal)
                 .ThenByDescending(static version => version.Version)],
+            ByErrorClass = byErrorClass,
         };
     }
+
+    /// <summary>Bir hata sinifinin en sik uc kumesini secerken kesilen ust sinir.</summary>
+    private const int TopErrorClusterCount = 3;
 
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<ExperimentVariantResult>> GetExperimentResultsAsync(
@@ -766,6 +811,27 @@ public sealed class InMemoryRunStore : IRunStore
         long OutputTokens,
         long TotalTokens,
         decimal? CostSum);
+
+    /// <summary>Bir hata parmak izi kumesi icin biriken sayaclar.</summary>
+    [StructLayout(LayoutKind.Auto)]
+    private readonly record struct ErrorClusterTally(long Count, string SampleMessage, Guid SampleRunId, DateTimeOffset LastSeenAt)
+    {
+        /// <summary>
+        /// En son goruntuyu gunceller. "Son" burada calistirmanin baslangic
+        /// zamanidir (<see cref="RunRecord.StartedAt"/>) -- kayitta hatanin
+        /// kendisine ozgu ayri bir "olustu" zaman damgasi yoktur.
+        /// </summary>
+        public ErrorClusterTally Add(RunRecord record, RunError error)
+        {
+            var isNewer = Count == 0 || record.StartedAt > LastSeenAt;
+
+            return new ErrorClusterTally(
+                Count + 1,
+                isNewer ? error.Message : SampleMessage,
+                isNewer ? record.Id : SampleRunId,
+                isNewer ? record.StartedAt : LastSeenAt);
+        }
+    }
 
     /// <summary>Bir deney kolu icin biriken sayaclar.</summary>
     [StructLayout(LayoutKind.Auto)]

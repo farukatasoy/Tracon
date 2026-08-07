@@ -1,12 +1,12 @@
 import { type ReactNode, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import { count, money, percent } from '../lib/format';
+import { count, money, percent, relativeTime } from '../lib/format';
 import { usePlural, useT } from '../lib/i18n';
 import { ModelBreakdownChart, StatusDistributionChart, TimeSeriesChart } from '../components/charts';
 import { Badge, ErrorNote, Loading, PageHeader, Panel, cx } from '../components/ui';
 import { Link } from '../lib/router';
-import type { Meta, RunStatistics, TimeSeriesBucket, TimeSeriesPoint } from '../lib/types';
+import type { Meta, RunErrorStatistics, RunStatistics, TimeSeriesBucket, TimeSeriesPoint } from '../lib/types';
 
 type Range = '1h' | '24h' | '7d' | '30d';
 
@@ -137,6 +137,11 @@ export function DashboardScreen({ meta }: { meta: Meta }): ReactNode {
           )}
         </Panel>
 
+        <Panel className="lg:col-span-2" title={t('dashboard.errorBreakdown')}>
+          {stats.isPending && <Loading />}
+          {stats.isSuccess && <ErrorBreakdown classes={stats.data.byErrorClass} />}
+        </Panel>
+
         <Panel className="lg:col-span-2" title={t('dashboard.alerts')}>
           <AlertsRow
             runsWithUnknownPricing={stats.data?.runsWithUnknownPricing}
@@ -189,6 +194,48 @@ function FeedbackSummary({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Failed-run breakdown by class (Faz 44). `Unknown` covers rows written
+ * before error classification existed — a high share there means the
+ * taxonomy is missing a rule, not that runs are actually unclassifiable.
+ */
+function ErrorBreakdown({ classes }: { classes: RunErrorStatistics[] }): ReactNode {
+  const t = useT();
+
+  if (classes.length === 0) {
+    return <p className="px-4 py-4 text-[12px] text-subtle">{t('dashboard.noErrorsInWindow')}</p>;
+  }
+
+  return (
+    <dl className="divide-y divide-line">
+      {classes.map((entry) => {
+        const topCluster = entry.topClusters[0];
+
+        return (
+          <div key={entry.class} className="px-4 py-2">
+            <div className="flex items-center gap-4">
+              <dt className="min-w-0 flex-1 truncate text-[13px]">{t(`dashboard.errorClass.${entry.class}`)}</dt>
+              <dd className="shrink-0 text-[12px] text-subtle">
+                {t('dashboard.errorClassRuns', { runs: count(entry.totalRuns) })}
+              </dd>
+            </div>
+            {topCluster !== undefined && (
+              <p className="mt-1 truncate text-[11px] text-subtle" title={topCluster.sampleMessage}>
+                {t('dashboard.errorClusterSample', {
+                  count: count(topCluster.count),
+                  message: topCluster.sampleMessage,
+                })}
+                {' · '}
+                {relativeTime(topCluster.lastSeenAt)}
+              </p>
+            )}
+          </div>
+        );
+      })}
+    </dl>
   );
 }
 

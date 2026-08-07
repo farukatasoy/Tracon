@@ -148,6 +148,10 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddSingleton<IRunPricingResolver, RunPricingResolver>();
         services.TryAddSingleton<RunCostRecalculationService>();
 
+        // Hata siniflandirici (Faz 44). Taksonomi AgentPrism'in gorusudur;
+        // TryAddSingleton sayesinde tuketicinin kendi siniflandiricisi kazanir (K4).
+        services.TryAddSingleton<IRunErrorClassifier, DefaultRunErrorClassifier>();
+
         // Calistirma iptali defteri (Faz 32). Her zaman kayitlidir: bellek ici
         // bir sozluk tutmaktan baska bir yan etkisi yoktur (K-165'in "yeni
         // davranis varsayilan kapali gelir" karari acik bir yan etki
@@ -498,7 +502,8 @@ public static class AgentPrismServiceCollectionExtensions
                 // testler yesil gorunurdu (K-157'nin dersi).
                 provider.GetRequiredService<QuotaEnforcer>(),
                 provider.GetRequiredService<IWebhookPublisher>(),
-                provider.GetRequiredService<IRunCancellationRegistry>())));
+                provider.GetRequiredService<IRunCancellationRegistry>(),
+                provider.GetRequiredService<IRunErrorClassifier>())));
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, OpenTelemetryAgentDecorator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, ToolApprovalAgentDecorator>());

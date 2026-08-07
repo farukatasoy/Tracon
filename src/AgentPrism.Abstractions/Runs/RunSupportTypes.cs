@@ -21,6 +21,20 @@ public sealed record RunError
 
     /// <summary>Hata mesaji.</summary>
     public required string Message { get; init; }
+
+    /// <summary>
+    /// <see cref="IRunErrorClassifier"/>'in dustugu sinif. Hata sinifi
+    /// eklenmeden ONCE yazilmis eski satirlarda <see langword="null"/>
+    /// (arayuz <c>Unknown</c> kovasinda gosterir).
+    /// </summary>
+    public RunErrorClass? Class { get; init; }
+
+    /// <summary>
+    /// Normallestirilmis mesajin ozeti. Ayni arizanin tekrarlarini kumelemek
+    /// icin kullanilir. <see cref="Class"/> gibi siniflandirici yoksa
+    /// <see langword="null"/>.
+    /// </summary>
+    public string? Fingerprint { get; init; }
 }
 
 /// <summary>

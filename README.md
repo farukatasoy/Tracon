@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici kendi AI harness'ini kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 41 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**, `dotnet new agentprism-api` ile başlatılabilir; `AgentPrism.Testing` ile gerçek model çağırmadan test edilebilir. Çalıştırmalar span/metrik/maliyetle kaydedilir; kiracı yalıtımı sözleşme testleriyle **zorlanır**. Veritabanı/model isteğe bağlı. Faz 8-41 bitti; [kalan](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlı.
+> **Durum:** Faz 44 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**, `dotnet new agentprism-api` ile başlatılabilir; `AgentPrism.Testing` ile model çağırmadan test edilebilir. Çalıştırmalar span/metrik/maliyetle kaydedilir; kiracı yalıtımı zorlanır. Faz 8-44 bitti; [kalan](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlı.
 
 ```csharp
 builder.AddAgentPrism()
@@ -264,7 +264,8 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [33](docs/33-SAGLIK-DENETIMI-VE-TESHIS.md) | Sağlık denetimi (`/health`) ve yapılandırma teşhisi (`/api/diagnostics`) | ✅ Tamamlandı |
 | [34](docs/34-TANIM-DOGRULAMA-UCU.md) | Tanım doğrulama ucu | ✅ Tamamlandı |
 | [35](docs/35-MALIYET-VE-KOTA-METRIKLERI.md) | Maliyet ve kota OTel metrikleri | ✅ Tamamlandı |
-| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 36–52) | Faz 36–43 bitti; kalanı 📋 [adaylarda](docs/UCUNCU-FAZ-ADAYLARI.md) |
+| [44](docs/44-HATA-SINIFLANDIRMA.md) | Hata sınıflandırma | ✅ Tamamlandı |
+| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 36–52) | Faz 36–44 bitti; kalanı 📋 [adaylarda](docs/UCUNCU-FAZ-ADAYLARI.md) |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 

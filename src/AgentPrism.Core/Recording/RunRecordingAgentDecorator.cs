@@ -24,6 +24,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
     private readonly QuotaEnforcer? _quotaEnforcer;
     private readonly IWebhookPublisher? _webhookPublisher;
     private readonly IRunCancellationRegistry? _cancellationRegistry;
+    private readonly IRunErrorClassifier? _errorClassifier;
 
     /// <summary>Yeni bir kayit dekoratoru olusturur.</summary>
     /// <param name="runStore">Olaylarin yazilacagi depo.</param>
@@ -37,6 +38,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
     /// <param name="quotaEnforcer">Kota muhasebecisi. <see langword="null"/> ise tuketim sayilmaz.</param>
     /// <param name="webhookPublisher">Olay yayincisi. <see langword="null"/> ise olay yayilmaz.</param>
     /// <param name="cancellationRegistry">Iptal defteri. <see langword="null"/> ise calistirma disaridan iptal edilemez.</param>
+    /// <param name="errorClassifier">Hata siniflandirici. <see langword="null"/> ise hata sinifi/parmak izi hesaplanmaz.</param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
     public RunRecordingAgentDecorator(
         IRunStore runStore,
@@ -49,7 +51,8 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
         IRunPricingResolver? pricingResolver = null,
         QuotaEnforcer? quotaEnforcer = null,
         IWebhookPublisher? webhookPublisher = null,
-        IRunCancellationRegistry? cancellationRegistry = null)
+        IRunCancellationRegistry? cancellationRegistry = null,
+        IRunErrorClassifier? errorClassifier = null)
     {
         ArgumentNullException.ThrowIfNull(runStore);
         ArgumentNullException.ThrowIfNull(tenantContext);
@@ -67,6 +70,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
         _quotaEnforcer = quotaEnforcer;
         _webhookPublisher = webhookPublisher;
         _cancellationRegistry = cancellationRegistry;
+        _errorClassifier = errorClassifier;
     }
 
     /// <inheritdoc />
@@ -98,6 +102,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
             _pricingResolver,
             _quotaEnforcer,
             _webhookPublisher,
-            _cancellationRegistry);
+            _cancellationRegistry,
+            _errorClassifier);
     }
 }

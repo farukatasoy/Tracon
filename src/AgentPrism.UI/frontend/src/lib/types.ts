@@ -571,6 +571,41 @@ export interface RunModelStatistics {
   totalCost?: number | null;
 }
 
+/**
+ * A run failure's class. `Unknown` is not a failure mode of the classifier —
+ * it is the bucket for rows written before error classification existed, and
+ * for messages that matched no rule. Server-issued value, never translated
+ * (K-232) — only the on-screen label is.
+ */
+export type RunErrorClass =
+  | 'Unknown'
+  | 'ProviderError'
+  | 'ProviderUnavailable'
+  | 'RateLimited'
+  | 'QuotaExceeded'
+  | 'ContentFiltered'
+  | 'ToolError'
+  | 'Timeout'
+  | 'CompilationFailed'
+  | 'BudgetExceeded'
+  | 'Canceled';
+
+/** Runs sharing the same normalized-message fingerprint. */
+export interface RunErrorCluster {
+  fingerprint: string;
+  count: number;
+  sampleMessage: string;
+  sampleRunId: string;
+  lastSeenAt: string;
+}
+
+export interface RunErrorStatistics {
+  class: RunErrorClass;
+  totalRuns: number;
+  /** Up to three clusters, largest first. */
+  topClusters: RunErrorCluster[];
+}
+
 export interface RunStatistics {
   totalRuns: number;
   completedRuns: number;
@@ -589,6 +624,8 @@ export interface RunStatistics {
   runsWithUnknownPricing: number;
   byAgent: RunAgentStatistics[];
   byModel: RunModelStatistics[];
+  /** Failed-run breakdown by class. Rows written before error classification existed fall into `Unknown`. */
+  byErrorClass: RunErrorStatistics[];
   errorRate?: number | null;
   /** Runs (or messages within them) that carry at least one score. Eval runs are excluded, same as `totalRuns`. */
   scoredRuns: number;

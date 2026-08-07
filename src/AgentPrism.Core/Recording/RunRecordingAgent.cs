@@ -48,6 +48,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     private readonly QuotaEnforcer? _quotaEnforcer;
     private readonly IWebhookPublisher? _webhookPublisher;
     private readonly IRunCancellationRegistry? _cancellationRegistry;
+    private readonly IRunErrorClassifier? _errorClassifier;
 
     /// <summary>Yeni bir kayit sarmalayicisi olusturur.</summary>
     /// <param name="innerAgent">Sarmalanan agent.</param>
@@ -90,6 +91,11 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     /// Iptal defteri. <see langword="null"/> ise calistirma disaridan
     /// (<c>POST /api/runs/{id}/cancel</c>) iptal edilemez.
     /// </param>
+    /// <param name="errorClassifier">
+    /// Hata siniflandirici. <see langword="null"/> ise hata sinifi ve kumeleme
+    /// parmak izi hesaplanmaz (<see cref="RunError.Class"/>/<see cref="RunError.Fingerprint"/>
+    /// bos kalir).
+    /// </param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
     public RunRecordingAgent(
         AIAgent innerAgent,
@@ -108,7 +114,8 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         IRunPricingResolver? pricingResolver = null,
         QuotaEnforcer? quotaEnforcer = null,
         IWebhookPublisher? webhookPublisher = null,
-        IRunCancellationRegistry? cancellationRegistry = null)
+        IRunCancellationRegistry? cancellationRegistry = null,
+        IRunErrorClassifier? errorClassifier = null)
         : base(innerAgent)
     {
         ArgumentNullException.ThrowIfNull(runStore);
@@ -132,6 +139,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         _quotaEnforcer = quotaEnforcer;
         _webhookPublisher = webhookPublisher;
         _cancellationRegistry = cancellationRegistry;
+        _errorClassifier = errorClassifier;
     }
 
     /// <inheritdoc />
@@ -572,6 +580,14 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         RunError? error,
         CancellationToken cancellationToken)
     {
+        // 🚨 Siniflandirici YALNIZ hata varken cagrilir: basarili bir
+        // calistirmada (error is null) sicak yolda hic tetiklenmez.
+        if (error is not null && _errorClassifier is not null)
+        {
+            var classification = _errorClassifier.Classify(error);
+            error = error with { Class = classification.Class, Fingerprint = classification.Fingerprint };
+        }
+
         // Sonuc gelmeden biten cagrilar acikca kapatilir; aksi halde arayuzde
         // "basladi ama bitmedi" gorunen bir tool karti kalirdi.
         foreach (var unfinished in scope.Tools.DrainUnfinished("Calistirma tool sonucu gelmeden sonlandi."))

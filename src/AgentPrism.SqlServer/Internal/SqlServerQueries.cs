@@ -344,6 +344,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    total_tokens   = @total_tokens,
                    error_type     = @error_type,
                    error_message  = @error_message,
+                   error_class    = @error_class,
+                   error_fingerprint = @error_fingerprint,
                    input_cost     = @input_cost,
                    output_cost    = @output_cost,
                    cost_currency  = @cost_currency,
@@ -393,7 +395,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             tree.input_tokens, tree.output_tokens, tree.total_tokens, tree.usage_rows,
             r.kind, r.workflow_name, r.agent_version, r.experiment_id, r.variant,
             r.input_cost, r.output_cost, r.cost_currency, r.pricing_source,
-            tree.cost_input, tree.cost_output, tree.cost_currency, tree.unknown_pricing_rows, tree.pricing_rows
+            tree.cost_input, tree.cost_output, tree.cost_currency, tree.unknown_pricing_rows, tree.pricing_rows,
+            r.error_class, r.error_fingerprint
             """;
 
         SelectRun = $"""
@@ -508,6 +511,61 @@ internal sealed class SqlServerQueries : SqlQueriesBase
               AND (@started_after IS NULL OR started_at > @started_after)
             GROUP BY agent_name, agent_version
             ORDER BY agent_name, agent_version DESC;
+
+            -- Besinci sonuc kumesi: hata sinifi kirilimi (Faz 44). error_class
+            -- NULL olan (hata sinifi eklenmeden once yazilmis) satirlar Unknown
+            -- (0) kovasina duser -- K-014 geriye donuk doldurma yapmaz.
+            SELECT CAST(COALESCE(error_class, 0) AS smallint),
+                   CAST(COUNT(*) AS bigint)
+            FROM {Schema}.runs
+            WHERE tenant_id = @tenant_id
+              AND kind <> @kind_eval
+              AND status = @status_failed
+              AND (@agent_name IS NULL OR agent_name = @agent_name)
+              AND (@started_after IS NULL OR started_at > @started_after)
+            GROUP BY COALESCE(error_class, 0)
+            ORDER BY COUNT(*) DESC;
+
+            -- Altinci sonuc kumesi: sinif basina en sik uc parmak izi kumesi.
+            -- Gerekce PostgreSQL 0021_error_classification.sql'e bakin.
+            WITH failed AS (
+                SELECT CAST(COALESCE(error_class, 0) AS smallint) AS error_class,
+                       COALESCE(error_fingerprint, N'') AS error_fingerprint,
+                       error_message,
+                       id,
+                       started_at,
+                       CAST(COUNT(*) OVER (
+                           PARTITION BY COALESCE(error_class, 0), COALESCE(error_fingerprint, N'')
+                       ) AS bigint) AS cluster_count,
+                       MAX(started_at) OVER (
+                           PARTITION BY COALESCE(error_class, 0), COALESCE(error_fingerprint, N'')
+                       ) AS last_seen_at,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY COALESCE(error_class, 0), COALESCE(error_fingerprint, N'')
+                           ORDER BY started_at DESC
+                       ) AS sample_rank
+                FROM {Schema}.runs
+                WHERE tenant_id = @tenant_id
+                  AND kind <> @kind_eval
+                  AND status = @status_failed
+                  AND (@agent_name IS NULL OR agent_name = @agent_name)
+                  AND (@started_after IS NULL OR started_at > @started_after)
+            ),
+            samples AS (
+                SELECT error_class, error_fingerprint, cluster_count, last_seen_at,
+                       id AS sample_run_id, COALESCE(error_message, N'') AS sample_message
+                FROM failed
+                WHERE sample_rank = 1
+            ),
+            ranked AS (
+                SELECT *,
+                       ROW_NUMBER() OVER (PARTITION BY error_class ORDER BY cluster_count DESC, last_seen_at DESC) AS cluster_rank
+                FROM samples
+            )
+            SELECT error_class, error_fingerprint, cluster_count, sample_message, sample_run_id, last_seen_at
+            FROM ranked
+            WHERE cluster_rank <= @top_clusters
+            ORDER BY error_class, cluster_count DESC;
             """;
 
         InsertRunEvent = $"""

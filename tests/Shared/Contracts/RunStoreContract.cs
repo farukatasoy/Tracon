@@ -171,6 +171,34 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
+    public async Task Sonlandirma_hata_sinifi_ve_parmak_izini_saklar()
+    {
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Failed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Error = new RunError
+            {
+                Type = "content_filtered",
+                Message = "yanit filtrelendi",
+                Class = RunErrorClass.ContentFiltered,
+                Fingerprint = "abc123",
+            },
+        });
+
+        var record = await Store.GetRunAsync(runId);
+
+        record.ShouldNotBeNull();
+        record.Error.ShouldNotBeNull();
+        record.Error.Class.ShouldBe(RunErrorClass.ContentFiltered);
+        record.Error.Fingerprint.ShouldBe("abc123");
+    }
+
+    [Fact]
     public async Task Token_bilgisi_yoksa_null_kalir()
     {
         var runId = AgentPrismId.NewId();
@@ -332,6 +360,67 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId(), "alpha"));
 
         (await Store.GetStatisticsAsync(new RunStatisticsQuery())).ErrorRate.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Ozet_hata_sinifina_gore_kirilim_hesaplar()
+    {
+        // Ayni sinifta iki farkli kume: "fp-a" iki kez, "fp-b" bir kez gorulur.
+        await FailedRunAsync(RunErrorClass.ContentFiltered, "fp-a", "a mesaji");
+        await FailedRunAsync(RunErrorClass.ContentFiltered, "fp-a", "a mesaji");
+        await FailedRunAsync(RunErrorClass.ContentFiltered, "fp-b", "b mesaji");
+        await FailedRunAsync(RunErrorClass.Timeout, "fp-c", "c mesaji");
+
+        var stats = await Store.GetStatisticsAsync(new RunStatisticsQuery());
+        var byClass = stats.ByErrorClass.ToDictionary(static entry => entry.Class);
+
+        byClass[RunErrorClass.ContentFiltered].TotalRuns.ShouldBe(3);
+        byClass[RunErrorClass.ContentFiltered].TopClusters.Count.ShouldBe(2);
+
+        // En sik kume (fp-a, 2 calistirma) once gelir.
+        byClass[RunErrorClass.ContentFiltered].TopClusters[0].Fingerprint.ShouldBe("fp-a");
+        byClass[RunErrorClass.ContentFiltered].TopClusters[0].Count.ShouldBe(2);
+        byClass[RunErrorClass.ContentFiltered].TopClusters[1].Fingerprint.ShouldBe("fp-b");
+        byClass[RunErrorClass.ContentFiltered].TopClusters[1].Count.ShouldBe(1);
+
+        byClass[RunErrorClass.Timeout].TotalRuns.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Ozet_ariza_kumesi_sinif_basina_en_fazla_uc_dondurur()
+    {
+        for (var i = 0; i < 5; i++)
+        {
+            await FailedRunAsync(RunErrorClass.ProviderError, $"fp-{i}", $"mesaj {i}");
+        }
+
+        var stats = await Store.GetStatisticsAsync(new RunStatisticsQuery());
+        var providerError = stats.ByErrorClass.Single(static entry => entry.Class == RunErrorClass.ProviderError);
+
+        providerError.TotalRuns.ShouldBe(5);
+        providerError.TopClusters.Count.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task Ozet_hata_sinifi_bos_satirlar_unknown_kovasinda_gorunur()
+    {
+        // Hata sinifi eklenmeden once yazilmis bir satiri simule eder: Class ve
+        // Fingerprint BILEREK bos (K-014 -- gecmis kayitlar geriye donuk
+        // doldurulmaz). Sorgu cokmemeli ve satir Unknown kovasinda gorunmelidir.
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Failed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Error = new RunError { Type = "AgentPrism.AgentPrismCompilationException", Message = "eski kayit" },
+        });
+
+        var stats = await Store.GetStatisticsAsync(new RunStatisticsQuery());
+
+        stats.ByErrorClass.ShouldContain(static entry => entry.Class == RunErrorClass.Unknown && entry.TotalRuns == 1);
     }
 
     [Fact]
@@ -986,6 +1075,26 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
             Status = status,
             CompletedAt = DateTimeOffset.UtcNow,
             Usage = usage,
+        });
+    }
+
+    private async Task FailedRunAsync(RunErrorClass errorClass, string fingerprint, string message)
+    {
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Failed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Error = new RunError
+            {
+                Type = "test_error",
+                Message = message,
+                Class = errorClass,
+                Fingerprint = fingerprint,
+            },
         });
     }
 
