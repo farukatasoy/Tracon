@@ -347,14 +347,17 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    workflow_name = @workflow_name,
                    agent_version = @agent_version,
                    experiment_id = @experiment_id,
-                   variant       = @variant
+                   variant       = @variant,
+                   replay_of_run_id = @replay_of_run_id
              WHERE id = @id;
 
             IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, model_id, status, started_at, is_streaming, event_count,
-                                       parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant)
+                                       parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant,
+                                       replay_of_run_id)
             VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @status, @started_at, @is_streaming, 0,
-                    @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant);
+                    @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant,
+                    @replay_of_run_id);
             """;
 
         UpdateRunCompletion = $"""
@@ -419,7 +422,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             r.kind, r.workflow_name, r.agent_version, r.experiment_id, r.variant,
             r.input_cost, r.output_cost, r.cost_currency, r.pricing_source,
             tree.cost_input, tree.cost_output, tree.cost_currency, tree.unknown_pricing_rows, tree.pricing_rows,
-            r.error_class, r.error_fingerprint
+            r.error_class, r.error_fingerprint,
+            r.replay_of_run_id
             """;
 
         SelectRun = $"""
@@ -635,6 +639,49 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             JOIN {Schema}.conversations c ON c.id = i.conversation_id
             WHERE i.conversation_id = @conversation_id AND c.tenant_id = @tenant_id
             ORDER BY i.seq;
+            """;
+
+        // --- Konusma dallandirma (Faz 47) ---
+        // Gerekce ve sutun anlamlari icin PostgresQueries'e bakin.
+
+        SelectConversationBranchPoint = $"""
+            SELECT COALESCE(MAX(seq), -1), COUNT(*)
+            FROM {Schema}.conversation_items
+            WHERE conversation_id = @conversation_id
+              AND (@up_to_sequence IS NULL OR seq <= @up_to_sequence);
+            """;
+
+        InsertBranchConversation = $"""
+            INSERT INTO {Schema}.conversations
+                (id, tenant_id, agent_name, metadata, created_at, updated_at,
+                 parent_conversation_id, branch_from_seq)
+            SELECT @id, c.tenant_id, c.agent_name, c.metadata, @now, @now,
+                   c.id, @branch_from_seq
+            FROM {Schema}.conversations c
+            WHERE c.id = @parent_conversation_id AND c.tenant_id = @tenant_id;
+            """;
+
+        SelectConversationItemsForBranch = $"""
+            SELECT i.seq, i.item, i.created_at
+            FROM {Schema}.conversation_items i
+            WHERE i.conversation_id = @conversation_id
+              AND (@up_to_sequence IS NULL OR i.seq <= @up_to_sequence)
+            ORDER BY i.seq;
+            """;
+
+        // --- Calistirma girdileri (Faz 47) ---
+        // 🚨 Ikinci yazim yok sayilir; T-SQL'de ON CONFLICT yoktur, kosul
+        // NOT EXISTS ile yazilir (K-177: MERGE kullanilmaz).
+        InsertRunInput = $"""
+            INSERT INTO {Schema}.run_inputs (run_id, tenant_id, messages, created_at)
+            SELECT @run_id, @tenant_id, @messages, @created_at
+            WHERE NOT EXISTS (SELECT 1 FROM {Schema}.run_inputs WHERE run_id = @run_id);
+            """;
+
+        SelectRunInput = $"""
+            SELECT messages, created_at
+            FROM {Schema}.run_inputs
+            WHERE run_id = @run_id AND tenant_id = @tenant_id;
             """;
 
         // --- Tool cagrilari ---

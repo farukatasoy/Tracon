@@ -127,6 +127,8 @@ describe('catalogues', () => {
       'mcp.oauthClientId',
       'settings.bearerToken',
       'settings.authorizationPolicy',
+      'replay.model',
+      'compare.model',
     ]);
 
     for (const key of keys) {

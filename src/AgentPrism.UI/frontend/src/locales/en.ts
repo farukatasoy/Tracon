@@ -471,6 +471,58 @@ export const en = {
   'runDetail.cancel.requested': 'Cancellation requested — the run will stop shortly.',
   'runDetail.cancel.conflict': 'This run could not be canceled: it is not executing on this instance, or it has already finished.',
 
+  /* ------------------------------------------------------------- replay */
+  'replay.title': 'Replay this run',
+  'replay.hint':
+    'Runs the recorded input again under changed conditions. The input never changes — a different input is a new run.',
+  'replay.version': 'Definition version',
+  'replay.versionCurrent': "Today's version",
+  'replay.model': 'Model',
+  'replay.modelDefault': "The definition's own model",
+  'replay.toolMode': 'Tools',
+  'replay.toolMode.NoTools': 'Do not attach tools',
+  'replay.toolMode.ReplayTools': 'Play back recorded results',
+  'replay.toolMode.LiveTools': 'Run tools for real',
+  'replay.toolModeHint.NoTools': 'The model answers without tools. Measures the effect of an instruction change alone.',
+  'replay.toolModeHint.ReplayTools':
+    'No tool body runs. A call with no recorded result stops the replay — that is a finding, not a failure.',
+  'replay.toolModeHint.LiveTools':
+    'Tools run for real and produce side effects. Needs the Admin role; a tool that requires approval is refused.',
+  'replay.button': 'Replay',
+  'replay.running': 'Replaying…',
+  'replay.noInput': 'This run has no recorded input and cannot be replayed.',
+  'replay.sourceLink': 'Replay of',
+  'replay.compare': 'Compare with the source run',
+  'replay.result': 'Replay opened run {runId}.',
+
+  /* ---------------------------------------------------------- comparison */
+  'compare.title': 'Comparison',
+  'compare.left': 'Source',
+  'compare.right': 'Replay',
+  'compare.field': 'Field',
+  'compare.status': 'Status',
+  'compare.version': 'Version',
+  'compare.model': 'Model',
+  'compare.duration': 'Duration',
+  'compare.tokens': 'Tokens',
+  'compare.cost': 'Cost',
+  'compare.toolCalls': 'Tool calls',
+  'compare.errorClass': 'Error class',
+  'compare.scores': 'Scores',
+  'compare.output': 'Output',
+  'compare.same': 'identical',
+  'compare.different': 'differs',
+
+  /* --------------------------------------------------------- branching */
+  'branch.title': 'Branch from here',
+  'branch.button': 'Branch',
+  'branch.running': 'Branching…',
+  'branch.hint':
+    'Copies the conversation up to this message into a new session. Writing to the branch does not change the original.',
+  'branch.done': 'Branch opened: {count} items copied.',
+  'branch.open': 'Open the branch',
+  'branch.unsupported': 'Branching needs a persistent SQL provider.',
+
   /* ----------------------------------------------------------- feedback */
   'feedback.title': 'Feedback',
   'feedback.helpful': 'Helpful',

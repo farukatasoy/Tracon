@@ -283,6 +283,11 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<IRunScoreStore>(),
             provider.GetRequiredService<ITenantContext>()));
 
+        // Calistirma girdileri (Faz 47). Depo her zaman kayitlidir (K-018:
+        // birinci sinif) — yeniden oynatma bir SQL saglayicisi olmadan da
+        // calisir. Kalici saglayicilar bunu kendi uygulamalariyla degistirir.
+        services.TryAddSingleton<IRunInputStore, InMemoryRunInputStore>();
+
         // Script calistirma izinleri. Depo her zaman kayitlidir; calistirma
         // ozelligi ise UseSkillScripts cagrilana kadar KAPALIDIR. Izin kaydinin
         // varligi tek basina bir sey calistirmaz.
@@ -485,6 +490,29 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<ITenantContext>(),
             provider.GetService<TimeProvider>()));
 
+        // Konusma dallandirma (Faz 47). IConversationBranchStore yalnizca bir SQL
+        // saglayicisi acikken kayitlidir; kayitsizken servis "desteklenmiyor"
+        // der ve uc 501 doner (bkz. ConversationBranchService.IsSupported).
+        services.TryAddSingleton(static provider => new ConversationBranchService(
+            provider.GetRequiredService<ISessionStore>(),
+            provider.GetRequiredService<IAgentCatalog>(),
+            provider.GetRequiredService<ITenantContext>(),
+            provider.GetService<IConversationBranchStore>(),
+            provider.GetService<TimeProvider>()));
+
+        // Yeniden oynatma (Faz 47). Katalogu DEGIL, tanim deposunu ve derleyiciyi
+        // kullanir: model bindirmesi ve tool modlari tanimi yeniden derlemeyi
+        // gerektirir ve sonuc onbellege GIRMEZ.
+        services.TryAddSingleton(static provider => new RunReplayService(
+            provider.GetRequiredService<IRunStore>(),
+            provider.GetRequiredService<IRunInputStore>(),
+            provider.GetRequiredService<IAgentDefinitionStore>(),
+            provider.GetRequiredService<IAgentCatalog>(),
+            provider.GetRequiredService<AgentDefinitionCompiler>(),
+            provider.GetRequiredService<IToolRegistry>(),
+            provider.GetServices<IAgentDecorator>(),
+            provider.GetRequiredService<ITenantContext>()));
+
         // Katalog kaynaklari. TryAddEnumerable ayni tipin iki kez eklenmesini engeller.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentSource, CodeAgentSource>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentSource, DefinitionStoreAgentSource>());
@@ -515,7 +543,8 @@ public static class AgentPrismServiceCollectionExtensions
                 provider.GetRequiredService<QuotaEnforcer>(),
                 provider.GetRequiredService<IWebhookPublisher>(),
                 provider.GetRequiredService<IRunCancellationRegistry>(),
-                provider.GetRequiredService<IRunErrorClassifier>())));
+                provider.GetRequiredService<IRunErrorClassifier>(),
+                provider.GetRequiredService<IRunInputStore>())));
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, OpenTelemetryAgentDecorator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, ToolApprovalAgentDecorator>());

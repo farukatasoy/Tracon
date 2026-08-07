@@ -515,6 +515,92 @@ export interface RunRecord {
   cost?: RunCost | null;
   /** Cost of this run's whole subtree. See {@link RunCost} for why it is a separate field. */
   treeCost?: RunTreeCost | null;
+  /**
+   * Source run when this row is a replay (phase 47). Null otherwise.
+   *
+   * The lineage is one-way: the source run never changes and does not know
+   * which runs replayed it.
+   */
+  replayOfRunId?: string | null;
+}
+
+/** How a replay handles the source run's tool calls. */
+export type ReplayToolMode = 'NoTools' | 'ReplayTools' | 'LiveTools';
+
+/** Request body for `POST /api/runs/{id}/replay`. */
+export interface RunReplayRequest {
+  /** Definition version to run. Omitted means today's effective version. */
+  agentVersion?: number | null;
+  /** Model name to override with. Omitted means the definition's own model. */
+  modelId?: string | null;
+  toolMode: ReplayToolMode;
+}
+
+/** Result of a replay. */
+export interface RunReplayResponse {
+  runId: string;
+  sourceRunId: string;
+  toolMode: ReplayToolMode;
+  agentVersion?: number | null;
+  modelId?: string | null;
+  output?: string | null;
+  compareLocation: string;
+}
+
+/** A run's recorded input messages. */
+export interface RunInputResponse {
+  runId: string;
+  createdAt: string;
+  /** Opaque `ChatMessage` shapes; rendered as JSON, never re-interpreted. */
+  messages: unknown[];
+}
+
+/** One side of a run comparison. */
+export interface RunComparisonSide {
+  runId: string;
+  agentName: string;
+  agentVersion?: number | null;
+  modelId?: string | null;
+  status: RunStatus;
+  durationMs?: number | null;
+  usage?: RunUsage | null;
+  cost?: RunCost | null;
+  toolCallCount: number;
+  errorClass?: RunErrorClass | null;
+  errorMessage?: string | null;
+  replayOfRunId?: string | null;
+  output?: string | null;
+  scores: RunScore[];
+}
+
+/**
+ * Two runs side by side.
+ *
+ * The server does not compute the difference; it returns both summaries and the
+ * console renders the comparison (same pattern as the definition version diff).
+ */
+export interface RunComparisonResponse {
+  left: RunComparisonSide;
+  right: RunComparisonSide;
+}
+
+/** Request body for `POST /api/sessions/{id}/branch`. */
+export interface SessionBranchRequest {
+  /** Last sequence number to copy (inclusive). Omitted copies the whole conversation. */
+  upToSequence?: number | null;
+  /** Id for the new session. Omitted means the server generates one. */
+  newSessionId?: string | null;
+}
+
+/** Result of branching a conversation. */
+export interface SessionBranchResult {
+  sessionId: string;
+  conversationId: string;
+  parentSessionId: string;
+  parentConversationId: string;
+  /** Last copied sequence number; -1 when nothing was copied. */
+  branchFromSequence: number;
+  copiedItemCount: number;
 }
 
 export interface RunEvent {

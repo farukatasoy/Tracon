@@ -102,16 +102,3 @@ internal sealed record AgentDefinitionPayload
                 : new Dictionary<string, JsonElement>(Metadata, StringComparer.Ordinal),
         };
 }
-
-/// <summary>
-/// <see cref="SqlChatHistoryProvider"/> tarafindan oturum icinde saklanan durum.
-/// </summary>
-/// <remarks>
-/// Saglayici ornegi tum oturumlarda paylasilir; bu yuzden konusma kimligi
-/// saglayicida degil, oturumun kendi durumunda tasinir.
-/// </remarks>
-internal sealed class ChatHistoryState
-{
-    /// <summary>Bu oturumun mesajlarini tutan konusma kaydinin kimligi.</summary>
-    public Guid ConversationId { get; set; }
-}

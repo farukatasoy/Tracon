@@ -13,7 +13,10 @@ ALTER TABLE {schema}.eval_cases ADD promoted_at datetimeoffset NULL;
 
 -- Kismi (filtreli) benzersiz indeks: source_run_id NULL olan (elle yazilmis)
 -- satirlar kisitin disindadir. Sozdizimi PostgreSQL ile aynidir (K-178 devir notu).
+--
+-- 🚨 EXEC ile sarilir: source_run_id yukarida AYNI toplu islemde ALTER TABLE
+-- ile eklenir; EXEC olmadan "Invalid column name" verir (bkz. 0003_tool_usage.sql).
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'eval_cases_source_run_uq' AND object_id = OBJECT_ID(N'{schema}.eval_cases'))
-CREATE UNIQUE INDEX eval_cases_source_run_uq
+EXEC(N'CREATE UNIQUE INDEX eval_cases_source_run_uq
     ON {schema}.eval_cases (suite_id, source_run_id)
-    WHERE source_run_id IS NOT NULL;
+    WHERE source_run_id IS NOT NULL;');

@@ -75,6 +75,7 @@ public sealed class InMemoryRunStore : IRunStore
             AgentVersion = info.AgentVersion,
             ExperimentId = info.ExperimentId,
             Variant = info.Variant,
+            ReplayOfRunId = info.ReplayOfRunId,
         };
 
         // 🚨 Faz 46: kuyruga alinan bir calistirma icin bu metot AYNI kimlikle
