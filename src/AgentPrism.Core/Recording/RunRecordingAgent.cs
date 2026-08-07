@@ -50,6 +50,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     private readonly IRunCancellationRegistry? _cancellationRegistry;
     private readonly IRunErrorClassifier? _errorClassifier;
     private readonly IRunInputStore? _runInputStore;
+    private readonly RunSampler? _runSampler;
 
     /// <summary>Yeni bir kayit sarmalayicisi olusturur.</summary>
     /// <param name="innerAgent">Sarmalanan agent.</param>
@@ -102,6 +103,10 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     /// <see cref="AgentPrismRunRecordingOptions.RecordRunInput"/> kapaliysa girdi
     /// yazilmaz ve calistirma yeniden oynatilamaz.
     /// </param>
+    /// <param name="runSampler">
+    /// Cevrimici degerlendirme orneklemeleyicisi (Faz 49). <see langword="null"/>
+    /// ise hicbir calistirma orneklenmez.
+    /// </param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
     public RunRecordingAgent(
         AIAgent innerAgent,
@@ -122,7 +127,8 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         IWebhookPublisher? webhookPublisher = null,
         IRunCancellationRegistry? cancellationRegistry = null,
         IRunErrorClassifier? errorClassifier = null,
-        IRunInputStore? runInputStore = null)
+        IRunInputStore? runInputStore = null,
+        RunSampler? runSampler = null)
         : base(innerAgent)
     {
         ArgumentNullException.ThrowIfNull(runStore);
@@ -148,6 +154,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         _cancellationRegistry = cancellationRegistry;
         _errorClassifier = errorClassifier;
         _runInputStore = runInputStore;
+        _runSampler = runSampler;
     }
 
     /// <inheritdoc />
@@ -491,7 +498,8 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             RunId: start.Scope.RunId,
             RootRunId: start.Scope.RootRunId,
             Depth: start.Scope.Depth,
-            SessionId: start.SessionId);
+            SessionId: start.SessionId,
+            Kind: start.Kind);
     }
 
     /// <summary>
@@ -573,6 +581,45 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                 OccurredAt = _timeProvider.GetUtcNow(),
             },
             cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Kok calistirma bittiginde cevrimici degerlendirme icin ornekleme kararini
+    /// verir (Faz 49).
+    /// </summary>
+    /// <remarks>
+    /// 🚨 <see cref="RunSampler.SampleAsync"/> zaten kendi hatasini yutar
+    /// (bkz. sinif belgesi); buradaki <c>try/catch</c> ikinci bir savunma
+    /// katmanidir — ornekleme hicbir sekilde calistirmayi ETKILEMEMELIDIR
+    /// (gozlemlenebilirlik islevselligi bozmaz kurali).
+    /// </remarks>
+    private async ValueTask SampleForOnlineEvalAsync(RunScope scope, RunStatus status, CancellationToken cancellationToken)
+    {
+        if (_runSampler is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _runSampler.SampleAsync(
+                new RunSampleRequest
+                {
+                    RunId = scope.RunId,
+                    TenantId = scope.TenantId,
+                    AgentName = scope.AgentName,
+                    Kind = scope.Kind,
+                    Status = status,
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            if (_logger.IsEnabled(LogLevel.Warning))
+            {
+                _logger.LogWarning(exception, "Cevrimici degerlendirme ornekleme karari basarisiz oldu: calistirma={RunId}.", scope.RunId);
+            }
+        }
     }
 
     /// <summary>Kok calistirma bittiginde <c>run.completed</c>/<c>run.failed</c> yayar.</summary>
@@ -694,6 +741,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         {
             await RecordQuotaAsync(scope, usage, cost, cancellationToken).ConfigureAwait(false);
             await PublishRunEventAsync(scope, status, usage, cost, error, elapsed, cancellationToken).ConfigureAwait(false);
+            await SampleForOnlineEvalAsync(scope, status, cancellationToken).ConfigureAwait(false);
         }
 
         _metrics?.RecordRun(
@@ -920,5 +968,6 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         Guid RunId,
         Guid RootRunId,
         int Depth,
-        string? SessionId);
+        string? SessionId,
+        RunKind Kind);
 }

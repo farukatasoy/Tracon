@@ -54,6 +54,13 @@ public static class WebhookEvents
     /// <summary>Bir kota esigi asildi (%80 veya %100).</summary>
     public const string QuotaThreshold = "quota.threshold";
 
+    /// <summary>
+    /// Cevrimici degerlendirme penceresinin ortalama puani esigin altina dustu
+    /// (Faz 49). Tek bir dusuk puan bu olayi TETIKLEMEZ — asgari ornek sayisi
+    /// asilmis olmalidir.
+    /// </summary>
+    public const string RunScoreLow = "run.score.low";
+
     /// <summary>Abonelik ucunun dogrulanmasi icin gonderilen sinama olayi.</summary>
     public const string Test = "test.ping";
 
@@ -68,6 +75,7 @@ public static class WebhookEvents
         JobFailed,
         EvalCompleted,
         QuotaThreshold,
+        RunScoreLow,
         Test,
     ];
 

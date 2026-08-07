@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (176 kalem)
+## Arşivlenen Kararlar (183 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -148,7 +148,7 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-137 | 182 | İş iptali ayrı bir `cancel_requested` sütunu gerektirmez; `jobs.status` tek gerçek kaynaktır |
 | K-138 | 183 | `jobs` tablosuna `(schedule_id, scheduled_for)` üzerinde benzersiz kısıt eklendi; faz belgesinin DDL'i eksikti |
 | K-139 | 184 | Eval (Faz 18) için yeni bir NuGet paketi eklenmedi |
-| K-140 | 185 | AI yargıç (`AIJudgeLoopEvaluator`/`LoopAgent`) Faz 18 kapsamı dışında bırakıldı |
+| K-140 | 185 | AI yargıç (`AIJudgeLoopEvaluator`/`LoopAgent`) Faz 18 kapsamı dışında bırakıldı — (yeniden açıldı: 2026-08-07, Faz 49 ile karşılandı, bkz. K-327) 🔁 |
 | K-141 | 186 | Eval vaka çalıştırmaları `runs` istatistiklerinden hariç tutulur; `RunKind.Eval` eklendi 👤 |
 | K-142 | 187 | `LocalEvaluator.EvaluateAsync(...).DetailedItems` boş döner; gerçek sonuç `Items[0].Metrics`'tedir |
 | K-143 | 188 | Eval vaka düzenleyici arayüzde JSON değil, tekrarlanan alan formu (query/expectedOutput/expectedTools/context) |
@@ -185,3 +185,10 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-174 | 219 | Mod A kaynak okuması `AgentDefinitionCompiler`'a `IMcpResourceContextProviderFactory` soyutlamasıyla bağlanır |
 | K-175 | 220 | MCP kaynak toplu okuma önbelleği `ConcurrentDictionary`'e geçirildi |
 | K-176 | 221 | SQL kalıcılık mantığı `AgentPrism.Sql.Shared` altında PAYLAŞILAN KAYNAK olarak yaşar 👤 |
+| K-177 | 222 | SQL Server upsert'lerinde `MERGE` KULLANILMAZ |
+| K-178 | 223 | Migration numaraları sağlayıcı başına bağımsızdır |
+| K-179 | 224 | Şema adı kuralı iki sağlayıcıda AYNIDIR |
+| K-180 | 225 | SQL Server'da yoğun yazılan tablolarda birincil anahtar NONCLUSTERED, kümelenmiş indeks zaman sütununda |
+| K-181 | 226 | `AgentPrism.SqlServer` AOT uyumlu olarak İŞARETLENMEZ |
+| K-182 | 227 | Diziler SQL Server'a JSON metni olarak taşınır |
+| K-183 | 228 | İki kalıcılık sağlayıcısı aynı anda kaydedilirse açılışta UYARI loglanır |

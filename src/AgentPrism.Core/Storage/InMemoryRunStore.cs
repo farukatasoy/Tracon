@@ -180,6 +180,11 @@ public sealed class InMemoryRunStore : IRunStore
                 continue;
             }
 
+            if (query.Kind is { } kind && record.Kind != kind)
+            {
+                continue;
+            }
+
             if (!string.Equals(record.TenantId, query.TenantId ?? _tenantContext.TenantId, StringComparison.Ordinal))
             {
                 continue;

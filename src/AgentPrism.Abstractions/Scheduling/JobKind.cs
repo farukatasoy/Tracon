@@ -46,4 +46,14 @@ public enum JobKind
     /// <c>JobRecord.Id</c> calistirma kimligiyle ayni deger tasir.
     /// </remarks>
     AgentRun = 5,
+
+    /// <summary>
+    /// Orneklenmis bir uretim calistirmasini puanlar (Faz 49).
+    /// </summary>
+    /// <remarks>
+    /// Yuk bos veya tanilama amaclidir; puanlanacak calistirmanin kimligi is
+    /// ogesinin (<see cref="JobItemRecord.Input"/>) kendisidir — <see cref="Eval"/>
+    /// isinin vaka kimligini tasima deseniyle aynidir.
+    /// </remarks>
+    OnlineEval = 6,
 }

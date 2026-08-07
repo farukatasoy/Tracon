@@ -98,6 +98,26 @@ internal static class EvalEndpoints
             .WithName("AgentPrismGetEvalRun")
             .WithTags("AgentPrism", "Evals")
             .WithSummary("Tek bir eval kosusunu ve vaka bazinda sonuclarini getirir.");
+
+        builder.MapGet("/api/evaluation/online", GetOnlineEvaluationSummaryAsync)
+            .RequireRole(roles.Reader)
+            .WithName("AgentPrismGetOnlineEvaluationSummary")
+            .WithTags("AgentPrism", "Evals")
+            .WithSummary("Cevrimici degerlendirme penceresinin ozetini dondurur (Faz 49).")
+            .WithDescription(
+                "Pencere icindeki ortalama yargic puani, ornek sayisi ve yargic maliyetini " +
+                "dondurur. Ozet bellek icidir (sureç yeniden baslatilinca sifirlanir); kesin " +
+                "sonuc icin 'run_scores' tablosu dogrudan sorgulanabilir.");
+
+        builder.MapPost("/api/runs/{runId:guid}/judge", JudgeRunAsync)
+            .RequireRole(roles.Operator)
+            .WithName("AgentPrismJudgeRun")
+            .WithTags("AgentPrism", "Evals")
+            .WithSummary("Bir calistirmayi elle yargic(lar)a puanlatir (Faz 49).")
+            .WithDescription(
+                "Ornekleme kararini ATLAR; kalibrasyon ve hata ayiklama icindir. Hicbir " +
+                "IRunJudge kayitli degilse veya calistirmanin girdisi/ciktisi okunamiyorsa " +
+                "bos bir liste doner.");
     }
 
     private static async Task<Ok<IReadOnlyList<EvalSuite>>> ListSuitesAsync(
@@ -450,6 +470,58 @@ internal static class EvalEndpoints
 
         var results = await store.ListCaseResultsAsync(tenants.TenantId, id, cancellationToken).ConfigureAwait(false);
         return TypedResults.Ok(new EvalRunDetailResponse { Run = run, Results = results });
+    }
+
+    private static async Task<Ok<OnlineEvaluationSummary>> GetOnlineEvaluationSummaryAsync(
+        [FromServices] OnlineEvalSummaryService summaryService,
+        [FromServices] ITenantContext tenants,
+        CancellationToken cancellationToken)
+    {
+        var summary = await summaryService.GetSummaryAsync(tenants.TenantId, cancellationToken).ConfigureAwait(false);
+        return TypedResults.Ok(summary);
+    }
+
+    private static async Task<Results<Ok<IReadOnlyList<RunScore>>, ProblemHttpResult>> JudgeRunAsync(
+        Guid runId,
+        [FromServices] IRunStore runs,
+        [FromServices] OnlineEvalJobHandler jobHandler,
+        [FromServices] ITenantContext tenants,
+        [FromServices] IAuditLog auditLog,
+        [FromServices] IAuditActorResolver actorResolver,
+        [FromServices] ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
+
+        // "Yok" ile "baska kiraciya ait" AYNI 404'u doner; ayri bir mesaj varlik
+        // sizdirirdi (RunEndpoints.SaveFeedbackAsync ile ayni gerekce).
+        if (run is null || !string.Equals(run.TenantId, tenants.TenantId, StringComparison.Ordinal))
+        {
+            return RunNotFoundForPromotion(runId);
+        }
+
+        var (scores, failures) = await jobHandler.JudgeRunAsync(run, cancellationToken).ConfigureAwait(false);
+
+        if (scores.Count == 0 && failures.Count > 0)
+        {
+            return TypedResults.Problem(
+                title: "Elle puanlama basarisiz",
+                detail: string.Join("; ", failures),
+                statusCode: StatusCodes.Status502BadGateway);
+        }
+
+        await AuditRecorder.WriteAsync(
+            auditLog,
+            actorResolver,
+            loggerFactory.CreateLogger("AgentPrism.EvalEndpoints"),
+            tenants.TenantId,
+            action: "run.judge.manual",
+            entity: $"run:{runId}",
+            before: null,
+            after: $$"""{"scoredBy":{{scores.Count}},"failed":{{failures.Count}}}""",
+            cancellationToken).ConfigureAwait(false);
+
+        return TypedResults.Ok<IReadOnlyList<RunScore>>(scores);
     }
 
     private static JsonElement BuildRunPayload(string suiteName, string? modelId, int? numRepetitions, int? agentVersion)

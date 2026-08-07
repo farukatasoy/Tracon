@@ -114,6 +114,12 @@ public static class AgentPrismServiceCollectionExtensions
         services.AddOptions<AgentPrismContentGuardOptions>().ValidateOnStart();
         services.AddOptions<PatternContentGuardOptions>().ValidateOnStart();
 
+        // Cevrimici degerlendirme (Faz 49). Ayni gerekce: kendi SectionName'ini
+        // tasir, ayri bir Use...() cagrisi gerektirmez. Iki kapili varsayilan
+        // (Enabled=false VE SampleRate=0) yargic modelinin HIC cagrilmamasini
+        // saglar — bkz. OnlineEvaluationOptions sinif belgesi.
+        services.AddOptions<OnlineEvaluationOptions>().ValidateOnStart();
+
         if (configurationSection is not null)
         {
             services.Configure<AgentPrismQuotaOptions>(
@@ -128,6 +134,8 @@ public static class AgentPrismServiceCollectionExtensions
                 options => BindIdempotency(configurationSection.GetSection("Idempotency"), options));
             services.Configure<AgentPrismAsyncRunOptions>(
                 options => BindAsyncRun(configurationSection.GetSection("AsyncRun"), options));
+            services.Configure<OnlineEvaluationOptions>(
+                options => BindOnlineEvaluation(configurationSection.GetSection("OnlineEvaluation"), options));
 
             var contentGuardSection = configurationSection.GetSection("ContentGuard");
 
@@ -155,6 +163,8 @@ public static class AgentPrismServiceCollectionExtensions
             ServiceDescriptor.Singleton<IValidateOptions<AgentPrismWebhookOptions>, AgentPrismWebhookOptionsValidator>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<AgentPrismRetentionOptions>, AgentPrismRetentionOptionsValidator>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<OnlineEvaluationOptions>, OnlineEvaluationOptionsValidator>());
 
         services.AddLogging();
         services.TryAddEnumerable(
@@ -416,6 +426,24 @@ public static class AgentPrismServiceCollectionExtensions
         // oturumundan okur; bagimliliklarin tumu yukarida zaten kayitlidir.
         services.TryAddSingleton<RunToCasePromoter>();
 
+        // Cevrimici degerlendirme (Faz 49). Ornekleyici ve is isleyicisi her
+        // zaman kayitlidir (K-018: birinci sinif); hicbir sey PUANLAMAZ cunku
+        // OnlineEvaluationOptions varsayilani iki kapiyi de kapali tutar
+        // (Enabled=false, SampleRate=0) ve kayitli hicbir IRunJudge yoktur —
+        // yerlesik yargici acmanin yolu AddModelRunJudge() cagrisidir.
+        services.TryAddSingleton<RunSampler>();
+        services.TryAddSingleton<OnlineEvalSummaryService>();
+
+        // 🚨 Concrete tip AYRICA kaydedilir: POST /api/runs/{id}/judge ucu
+        // JudgeRunAsync'i dogrudan cagirmak icin OnlineEvalJobHandler'i KENDI
+        // tipiyle ister. TryAddEnumerable(Singleton<IJobHandler, T>) yalnizca
+        // arayuz uzerinden cozulebilen bir kayit uretir; concrete tipi AYRI
+        // kaydetmezsek uc DI'da bulamaz. Ayni factory AYNI ornegi doner, boylece
+        // iki kayit (concrete + arayuz) tek bir singleton'i paylasir.
+        services.TryAddSingleton<OnlineEvalJobHandler>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, OnlineEvalJobHandler>(
+            static provider => provider.GetRequiredService<OnlineEvalJobHandler>()));
+
         // Kota ve olay yayini (Faz 21). Depolar her zaman kayitlidir; kural
         // tanimlanmadikca hicbir sey reddedilmez, abone yoksa hicbir olay
         // yayilmaz. Bu yuzden ayri bir Use...() cagrisi gerekmez.
@@ -592,7 +620,10 @@ public static class AgentPrismServiceCollectionExtensions
                 provider.GetRequiredService<IWebhookPublisher>(),
                 provider.GetRequiredService<IRunCancellationRegistry>(),
                 provider.GetRequiredService<IRunErrorClassifier>(),
-                provider.GetRequiredService<IRunInputStore>())));
+                provider.GetRequiredService<IRunInputStore>(),
+                // Faz 49: kayitli olmasi tek basina hicbir sey orneklemez, bkz.
+                // RunSampler/OnlineEvaluationOptions sinif belgeleri.
+                provider.GetRequiredService<RunSampler>())));
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, OpenTelemetryAgentDecorator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, ToolApprovalAgentDecorator>());
@@ -1630,6 +1661,84 @@ public static class AgentPrismServiceCollectionExtensions
                 out var quotaUsageRefreshInterval))
         {
             options.QuotaUsageRefreshInterval = quotaUsageRefreshInterval;
+        }
+    }
+
+    /// <summary><c>AgentPrism:OnlineEvaluation</c> bolumunu baglar.</summary>
+    private static void BindOnlineEvaluation(IConfigurationSection section, OnlineEvaluationOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TryReadBool(section, nameof(OnlineEvaluationOptions.Enabled), out var enabled))
+        {
+            options.Enabled = enabled;
+        }
+
+        if (double.TryParse(
+                section[nameof(OnlineEvaluationOptions.SampleRate)],
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out var sampleRate))
+        {
+            options.SampleRate = sampleRate;
+        }
+
+        if (int.TryParse(
+                section[nameof(OnlineEvaluationOptions.MaxScoresPerHour)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxScoresPerHour))
+        {
+            options.MaxScoresPerHour = maxScoresPerHour;
+        }
+
+        var agentNames = section.GetSection(nameof(OnlineEvaluationOptions.AgentNames));
+
+        if (agentNames.Exists())
+        {
+            var parsed = agentNames.GetChildren()
+                .Select(static child => child.Value)
+                .Where(static name => !string.IsNullOrWhiteSpace(name))
+                .ToList();
+
+            if (parsed.Count > 0)
+            {
+                options.AgentNames.Clear();
+
+                foreach (var name in parsed)
+                {
+                    options.AgentNames.Add(name!);
+                }
+            }
+        }
+
+        if (int.TryParse(
+                section[nameof(OnlineEvaluationOptions.LowScoreThreshold)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var lowScoreThreshold))
+        {
+            options.LowScoreThreshold = lowScoreThreshold;
+        }
+
+        if (int.TryParse(
+                section[nameof(OnlineEvaluationOptions.MinSampleSize)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var minSampleSize))
+        {
+            options.MinSampleSize = minSampleSize;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(OnlineEvaluationOptions.EvaluationWindow)],
+                CultureInfo.InvariantCulture,
+                out var evaluationWindow))
+        {
+            options.EvaluationWindow = evaluationWindow;
         }
     }
 

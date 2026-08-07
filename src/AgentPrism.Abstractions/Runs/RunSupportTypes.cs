@@ -229,6 +229,18 @@ public sealed record RunQuery
 
     /// <summary>Getirilecek ust kayit sayisi.</summary>
     public int Take { get; init; } = 50;
+
+    /// <summary>
+    /// Yalnizca bu turdeki calistirmalari getirir. <see langword="null"/> ise
+    /// tum turler dahildir.
+    /// </summary>
+    /// <remarks>
+    /// Faz 49: yargic calistirmalari <see cref="RunKind.Eval"/>'dir ve
+    /// varsayilan listede (bkz. <see cref="IRunStore.GetStatisticsAsync"/>)
+    /// gorunmez; maliyetlerini gormek isteyen <c>GET /api/runs?kind=Eval</c>
+    /// cagirir.
+    /// </remarks>
+    public RunKind? Kind { get; init; }
 }
 
 /// <summary>Zaman serisi sorgusunun filtresi.</summary>

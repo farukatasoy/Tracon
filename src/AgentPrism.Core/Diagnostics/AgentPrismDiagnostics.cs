@@ -60,6 +60,12 @@ public static class AgentPrismDiagnostics
     /// <summary>Kota kapsaminin tanimli sinirini gosteren gozlemlenen olcer.</summary>
     public const string QuotaLimitGaugeName = "agentprism.quota.limit";
 
+    /// <summary>Yargicin kendi maliyeti icin sayac (Faz 49).</summary>
+    public const string JudgeCostCounterName = "agentprism.judge.cost";
+
+    /// <summary>Yargicin verdigi puanlarin histogrami, 0-100 (Faz 49).</summary>
+    public const string JudgeScoreHistogramName = "agentprism.judge.score";
+
     /// <summary>Span ve metrik etiket adlari. Degistirmek gosterge panolarini kirar.</summary>
     public static class Tags
     {
@@ -128,5 +134,8 @@ public static class AgentPrismDiagnostics
 
         /// <summary>Kotanin uygulandigi olcut: <c>Runs</c>, <c>Tokens</c> veya <c>Cost</c>.</summary>
         public const string QuotaMetric = "agentprism.quota.metric";
+
+        /// <summary>Yargicin adi (<see cref="IRunJudge.Name"/>). Faz 49.</summary>
+        public const string JudgeName = "agentprism.judge.name";
     }
 }

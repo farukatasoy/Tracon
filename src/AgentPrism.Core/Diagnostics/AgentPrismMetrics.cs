@@ -71,6 +71,16 @@ public sealed class AgentPrismMetrics : IDisposable
             AgentPrismDiagnostics.RunCostCounterName,
             unit: "{cost}",
             description: "Calistirma basina para cinsinden maliyet. Agac toplamini icermez (K-151).");
+
+        JudgeCost = _meter.CreateCounter<double>(
+            AgentPrismDiagnostics.JudgeCostCounterName,
+            unit: "{cost}",
+            description: "Bir IRunJudge cagrisinin KENDI maliyeti (Faz 49). Puanlanan agent'in maliyetine dahil degildir.");
+
+        JudgeScore = _meter.CreateHistogram<double>(
+            AgentPrismDiagnostics.JudgeScoreHistogramName,
+            unit: "{score}",
+            description: "Bir IRunJudge'in verdigi puan, 0-100 (Faz 49).");
     }
 
     /// <summary>Calistirma sayaci. Etiketler: agent, status, tenant.</summary>
@@ -90,6 +100,12 @@ public sealed class AgentPrismMetrics : IDisposable
 
     /// <summary>Maliyet sayaci. Etiketler: agent, model, tenant, currency.</summary>
     public Counter<double> RunCost { get; }
+
+    /// <summary>Yargic maliyeti sayaci (Faz 49). Etiketler: yargic, model, tenant, currency.</summary>
+    public Counter<double> JudgeCost { get; }
+
+    /// <summary>Yargic puani histogrami (Faz 49). Etiketler: yargic, agent, tenant.</summary>
+    public Histogram<double> JudgeScore { get; }
 
     /// <summary>Bir calistirmanin sonucunu kaydeder.</summary>
     /// <param name="agentName">Agent adi.</param>
@@ -172,6 +188,38 @@ public sealed class AgentPrismMetrics : IDisposable
                 { AgentPrismDiagnostics.Tags.ModelId, modelId ?? "unknown" },
                 { AgentPrismDiagnostics.Tags.TenantId, tenantId },
                 { AgentPrismDiagnostics.Tags.Currency, currency },
+            });
+
+    /// <summary>Bir yargic cagrisinin KENDI maliyetini kaydeder (Faz 49).</summary>
+    /// <param name="judgeName">Yargicin adi (<see cref="IRunJudge.Name"/>).</param>
+    /// <param name="modelId">Yargicin modeli. <see langword="null"/> ise <c>"unknown"</c> yazilir.</param>
+    /// <param name="tenantId">Kiraci kimligi.</param>
+    /// <param name="cost">Yargicin KENDI maliyeti (girdi + cikti).</param>
+    /// <param name="currency">Para birimi.</param>
+    public void RecordJudgeCost(string judgeName, string? modelId, string tenantId, decimal cost, string currency)
+        => JudgeCost.Add(
+            (double)cost,
+            new TagList
+            {
+                { AgentPrismDiagnostics.Tags.JudgeName, judgeName },
+                { AgentPrismDiagnostics.Tags.ModelId, modelId ?? "unknown" },
+                { AgentPrismDiagnostics.Tags.TenantId, tenantId },
+                { AgentPrismDiagnostics.Tags.Currency, currency },
+            });
+
+    /// <summary>Bir yargicin verdigi puani kaydeder (Faz 49).</summary>
+    /// <param name="judgeName">Yargicin adi (<see cref="IRunJudge.Name"/>).</param>
+    /// <param name="agentName">Puanlanan agent'in adi.</param>
+    /// <param name="tenantId">Kiraci kimligi.</param>
+    /// <param name="score">Puan, 0-100.</param>
+    public void RecordJudgeScore(string judgeName, string agentName, string tenantId, int score)
+        => JudgeScore.Record(
+            score,
+            new TagList
+            {
+                { AgentPrismDiagnostics.Tags.JudgeName, judgeName },
+                { AgentPrismDiagnostics.Tags.AgentName, agentName },
+                { AgentPrismDiagnostics.Tags.TenantId, tenantId },
             });
 
     /// <summary>Bir tool cagrisinin sonucunu kaydeder.</summary>

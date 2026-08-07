@@ -233,6 +233,24 @@ var model = openAiEnabled
     }
     : new ModelBinding { Provider = "echo", Model = "echo-1" };
 
+// Cevrimici degerlendirme (Faz 49). 🚨 Bu cagri yalniz HANGI modelin yargic
+// olarak KULLANILACAGINI kaydeder — tek basina hicbir sey PUANLAMAZ. Asil
+// kapi `AgentPrism:OnlineEvaluation:Enabled` VE `:SampleRate`'tir (K1); ikisi
+// de committed appsettings'te KAPALIDIR, yalniz calisma aninda ortam
+// degiskeniyle acilir (bkz. docs/49-CEVRIMICI-DEGERLENDIRME.md, DoD).
+if (openAiEnabled)
+{
+    agentPrism.AddModelRunJudge(options =>
+    {
+        // Gercek bir kurulumda olculen agent'inkinden AYRI, ucuz bir model
+        // secilir (ayni model kendi ciktisini puanlarken yanli olur). Bu
+        // ornekte tek bir model kayitli oldugu icin ayni deger kullanilir.
+        options.Model = model;
+        options.Criteria.Add("Yanit soruyu dogrudan ve dogru cevapliyor mu?");
+        options.Criteria.Add("Siparis sorularinda uygun tool cagrildi mi?");
+    });
+}
+
 agentPrism
     // Kodda bildirimsel agent. Katalogda "code" kaynagi ile gorunur ve
     // ayni ada sahip bir veritabani tanimina karsi oncelik kazanir.

@@ -88,6 +88,15 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
     onSettled: () => void client.invalidateQueries({ queryKey }),
   });
 
+  // Judge scores (Faz 49) share the same table and query as human feedback;
+  // they are told apart by their `source` prefix (`judge:{name}`).
+  const judgeScores = feedback.data?.filter((score) => score.source.startsWith('judge:')) ?? [];
+
+  const judgeNow = useMutation({
+    mutationFn: () => api.judgeRun(runId),
+    onSuccess: () => void client.invalidateQueries({ queryKey }),
+  });
+
   const busy = rate.isPending || remove.isPending;
 
   const toggle = (value: 0 | 1): void => {
@@ -144,6 +153,28 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
         />
 
         {rate.isError && <ErrorNote error={rate.error} />}
+
+        <div className="mt-2 flex flex-col gap-1 border-t border-line pt-2">
+          {judgeScores.map((score) => (
+            <div key={score.id} className="flex items-center gap-2 text-[11px] text-subtle">
+              <span className="font-semibold text-body">{t('onlineEval.judgeScoreLabel')}</span>
+              <span>{score.source.replace('judge:', '')}</span>
+              <span className="font-semibold text-body">{score.value}/100</span>
+              {score.comment != null && <span>· {score.comment}</span>}
+            </div>
+          ))}
+
+          <div className="flex items-center gap-2">
+            <Button tone="default" onClick={() => judgeNow.mutate()} disabled={judgeNow.isPending} testId="judge-now">
+              {t('onlineEval.judgeButton')}
+            </Button>
+            {judgeNow.isSuccess && judgeNow.data.length === 0 && (
+              <span className="text-[11px] text-subtle">{t('onlineEval.judgeNoJudges')}</span>
+            )}
+          </div>
+
+          {judgeNow.isError && <ErrorNote error={judgeNow.error} />}
+        </div>
       </div>
     </Panel>
   );
