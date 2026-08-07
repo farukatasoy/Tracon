@@ -63,6 +63,11 @@ internal sealed class AgentPrismTestHost : IAsyncDisposable
     /// <c>app.Build()</c> sonrasi, <c>MapAgentPrism</c> cagrisindan once ek yol
     /// baglamak icin (ornek: <c>app.MapHealthChecks("/health")</c>).
     /// </param>
+    /// <param name="configureAfterMap">
+    /// <c>MapAgentPrism</c> cagrisindan SONRA ek yol baglamak icin (ornek:
+    /// <c>app.MapAgentPrismMcpServer()</c> — paylasilan erisim ayarlarini
+    /// <c>MapAgentPrism</c>'den devralmak icin ondan SONRA cagrilmalidir).
+    /// </param>
     /// <returns>Calisan barindirici.</returns>
     public static async Task<AgentPrismTestHost> StartAsync(
         Action<IAgentPrismBuilder>? configureAgentPrism = null,
@@ -70,7 +75,8 @@ internal sealed class AgentPrismTestHost : IAsyncDisposable
         Action<IServiceCollection>? configureServices = null,
         string prefix = "/agentprism",
         bool withOpenApi = false,
-        Action<WebApplication>? configureApp = null)
+        Action<WebApplication>? configureApp = null,
+        Action<WebApplication>? configureAfterMap = null)
     {
         var logs = new RecordingLoggerProvider();
 
@@ -109,6 +115,7 @@ internal sealed class AgentPrismTestHost : IAsyncDisposable
         configureApp?.Invoke(app);
 
         app.MapAgentPrism(prefix, configureEndpoints);
+        configureAfterMap?.Invoke(app);
 
         if (withOpenApi)
         {

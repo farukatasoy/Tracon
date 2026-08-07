@@ -27,6 +27,7 @@ Bir alana dokunmadan önce **yalnız ilgili satırın dosyasını** oku. Hepsini
 | Arayüz (Vite, SPA rota, TS) | [`docs/hafiza/frontend.md`](docs/hafiza/frontend.md) |
 | Model sağlayıcısı (OpenAI, Anthropic, Google, uyumlu uçlar) | [`docs/hafiza/openai-saglayici.md`](docs/hafiza/openai-saglayici.md) |
 | `RunRecording` zinciri, `secret` filtresi, metrik, sürüm | [`docs/hafiza/cekirdek-calistirma.md`](docs/hafiza/cekirdek-calistirma.md) |
+| Dışa açılan MCP/A2A sunucusu (`McpServer/`, `A2A/`) | [`docs/hafiza/mcp-a2a-sunucu.md`](docs/hafiza/mcp-a2a-sunucu.md) |
 
 Aradığın belirli bir şeyse dosyayı açmak yerine **grep** et:
 
@@ -67,10 +68,8 @@ Bunlar alana bağlı değildir; her fazda tekrar tekrar bedel ödettiler.
   `docs/hafiza/cekirdek-calistirma.md`.
 - **🚨 Senkronizasyon kopyaları (`<ad> 2.<uzantı>`) — DÖRT kez yaşandı (Faz 29, 30,
   41, 48).** Kopya gömülü varlık listesine karışır; `dotnet build` **yeşildir** ama
-  arayüz hiç yüklenmez. Faz 41'de E2E'nin **41 testinin tamamı** 19 dakika zaman
-  aşımına uğradı; kopyalar silinince koşum **37 saniyede** yeşile döndü. Faz 48'de
-  belirti farklıydı: `locales/tr 2.ts` **TS2741 ile derlemeyi kırdı** — K-228'in
-  `Messages` tiplemesi sessiz zehirlenmeyi gürültülü hataya çevirdi. `.cs` kopyaları
+  arayüz hiç yüklenmez (Faz 41: 41 E2E testi 19 dk zaman aşımı) veya derleme
+  gürültülü kırılır (Faz 48: `locales/tr 2.ts` → TS2741, K-228). `.cs` kopyaları
   CS0101 yağmuru üretir. Denetim (faz kapanışında zorunlu):
   `find src -name "* 2.*" -not -path "*/node_modules/*"` — çıktı boş olmalıdır.
   Silmek yetmez: `wwwroot`'u kaldırıp `agentprism-frontend.stamp` damgasını da sil.

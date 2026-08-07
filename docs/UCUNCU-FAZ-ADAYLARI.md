@@ -719,8 +719,8 @@ Kalın yazılan kalemler **hâlâ bu listededir**; 📋 işaretliler plana dön�
 | Üretim izinden tek tıkla eval vakası | Langfuse · Braintrust | **Var** | F-53 → [Faz 45](45-URETIMDEN-EVAL-KUMESI.md) ✅ |
 | Üretim trafiğinde LLM-yargıç puanlama | Braintrust · Arize Phoenix · Langfuse | **Yok** | F-71 → [Faz 49](49-CEVRIMICI-DEGERLENDIRME.md) 📋 |
 | Guardrail eklenti noktası | LiteLLM · Portkey · NeMo Guardrails · Guardrails AI | **Yok** | F-32 → [Faz 48](48-GUARDRAILS.md) 📋 |
-| Agent'ı MCP tool'u olarak yayımlama | Dify · n8n · OpenAI AgentKit | **Yok** | F-31 → [Faz 50](50-DISA-ACILAN-AGENT-YUZEYI.md) 📋 |
-| A2A ile satıcılar arası çağrı | Google A2A · sekiz satıcı kurulu | MAF paketi **var** (ön sürüm), kontrol düzlemi yok | F-33 → [Faz 50](50-DISA-ACILAN-AGENT-YUZEYI.md) 📋 |
+| Agent'ı MCP tool'u olarak yayımlama | Dify · n8n · OpenAI AgentKit | **Yok** | F-31 → [Faz 50](50-DISA-ACILAN-AGENT-YUZEYI.md) ✅ |
+| A2A ile satıcılar arası çağrı | Google A2A · sekiz satıcı kurulu | MAF paketi **var** (ön sürüm), kontrol düzlemi yok | F-33 → [Faz 50](50-DISA-ACILAN-AGENT-YUZEYI.md) ✅ |
 | Vektör bellek ve RAG | LlamaIndex · LangChain | Semantic Kernel connector'ları var ama **yalnız ön sürüm** ve `Npgsql` 8'e bağlı | F-30 → [Faz 51](51-VEKTOR-BELLEK-VE-RAG.md) 📋 |
 | Derleme anında tool doğrulama | — | **Yalnız .NET'te mümkün** | F-47 → [Faz 52](52-KAYNAK-URETECI.md) 📋 |
 | Tipli yapılandırılmış çıktı | Pydantic AI · OpenAI · Instructor | **Yok** | F-42 → [Faz 38](38-YAPILANDIRILMIS-CIKTI.md) 📋 |

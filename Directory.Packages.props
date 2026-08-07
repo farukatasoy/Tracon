@@ -31,6 +31,19 @@
   <ItemGroup Label="Microsoft Agent Framework - onsurum (yalnizca AgentPrism.AspNetCore)">
     <PackageVersion Include="Microsoft.Agents.AI.Hosting" Version="1.16.0-preview.260730.1" />
     <PackageVersion Include="Microsoft.Agents.AI.Hosting.OpenAI" Version="1.16.0-alpha.260730.1" />
+    <!--
+      Faz 50: AgentPrism'i disa acan A2A sunucusu. Ayni surum hatti
+      (1.16.0-preview.260730.1), K-008 kapsaminda yalnizca AgentPrism.AspNetCore.
+      `Microsoft.Agents.AI.Hosting.AspNetCore` plan taslaginda OLCULMEMISTI;
+      `AddA2AServer` yalniz KAYIT yapar, HTTP ucunu `A2A.AspNetCore`'un
+      `MapA2A`/`MapHttpA2A` uzantilari acar (K-057'nin yeniden acilma notuna
+      eklenen duzeltme). Olculen artimli maliyet: A2A, A2A.AspNetCore,
+      Microsoft.Agents.AI.Hosting.A2A, Microsoft.Agents.AI.Hosting.AspNetCore
+      (4 paket, hepsi ayni SDK ailesi; yabanci bagimlilik yok).
+    -->
+    <PackageVersion Include="Microsoft.Agents.AI.Hosting.A2A" Version="1.16.0-preview.260730.1" />
+    <PackageVersion Include="Microsoft.Agents.AI.Hosting.AspNetCore" Version="1.16.0-preview.260730.1" />
+    <PackageVersion Include="A2A.AspNetCore" Version="1.0.0-preview2" />
   </ItemGroup>
 
   <ItemGroup Label="Microsoft.Extensions.AI">
@@ -118,6 +131,15 @@
   -->
   <ItemGroup Label="Model Context Protocol">
     <PackageVersion Include="ModelContextProtocol.Core" Version="2.0.0" />
+    <!--
+      Faz 50: AgentPrism'i disa acan MCP sunucusu. K-057'nin kosulu degisti:
+      "AgentPrism yalnizca istemcidir" artik dogru degil. Yalnizca
+      AgentPrism.AspNetCore icine girer; AgentPrism.Mcp (istemci) `.Core`'da
+      kalir. Olculdu (2026-08-07): 13 gecisli paket, tumu Microsoft.Extensions.*
+      ailesinden ve bizim surumlerimizle (10.0.10, Microsoft.Extensions.AI.Abstractions
+      10.8.3) birebir ayni.
+    -->
+    <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.0.0" />
   </ItemGroup>
 
   <ItemGroup Label="Gozlemlenebilirlik">

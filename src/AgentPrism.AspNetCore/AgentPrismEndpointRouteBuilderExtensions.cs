@@ -156,7 +156,47 @@ public static class AgentPrismEndpointRouteBuilderExtensions
         MapMcpOAuthCallback(endpoints, options, normalizedPrefix);
         MapVoiceConversation(endpoints, services, options, normalizedPrefix, roles);
 
+        // Faz 50: MapAgentPrismMcpServer/MapAgentPrismA2A ayri, opsiyonel
+        // uc noktalardir ama AYNI erisim korumasini (loopback + bearer +
+        // policy) kullanmak zorundadir. IServiceCollection'a kayit YAPILAMAZ
+        // (app zaten Build() olmus durumda); IApplicationBuilder.Properties
+        // bu yuzden paylasilan durum icin kullanilir — ayni `app` uzerinde
+        // sonradan cagrilan bir uzanti bu ornegi geri okuyabilir.
+        StoreSharedEndpointOptions(endpoints, options);
+
         return group;
+    }
+
+    private const string SharedEndpointOptionsKey = "AgentPrism.SharedEndpointOptions";
+
+    private static void StoreSharedEndpointOptions(IEndpointRouteBuilder endpoints, AgentPrismEndpointOptions options)
+    {
+        if (endpoints is IApplicationBuilder app)
+        {
+            app.Properties[SharedEndpointOptionsKey] = options;
+        }
+    }
+
+    /// <summary>
+    /// <c>MapAgentPrism</c>'in kaydettigi erisim ayarlarini geri okur. MCP/A2A dis
+    /// yuzeyleri erisim korumasini (loopback, bearer token, authorization policy)
+    /// buradan devralir; ikinci bir ayar kumesi kurulmaz.
+    /// </summary>
+    /// <param name="endpoints">Uygulamanin yonlendirme olusturucusu.</param>
+    /// <param name="protocol">Cagiran dis yuzeyin adi (hata mesaji icin).</param>
+    /// <exception cref="InvalidOperationException"><c>MapAgentPrism</c> henuz cagrilmamissa.</exception>
+    internal static AgentPrismEndpointOptions RequireSharedEndpointOptions(IEndpointRouteBuilder endpoints, string protocol)
+    {
+        if (endpoints is IApplicationBuilder app &&
+            app.Properties.TryGetValue(SharedEndpointOptionsKey, out var value) &&
+            value is AgentPrismEndpointOptions options)
+        {
+            return options;
+        }
+
+        throw new InvalidOperationException(
+            $"{protocol} disa acilmadan once app.MapAgentPrism(...) cagirilmalidir. " +
+            "Erisim korumasi (loopback, bearer token, authorization policy) oradan devralinir.");
     }
 
     /// <summary>

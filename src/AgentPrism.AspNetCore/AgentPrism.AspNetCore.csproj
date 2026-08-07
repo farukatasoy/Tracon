@@ -24,6 +24,18 @@
   <ItemGroup Label="Onsurum MAF bagimliliklari">
     <PackageReference Include="Microsoft.Agents.AI.Hosting" />
     <PackageReference Include="Microsoft.Agents.AI.Hosting.OpenAI" />
+    <!-- Faz 50: A2A disa acma sunucusu. Gerekce: Directory.Packages.props. -->
+    <PackageReference Include="Microsoft.Agents.AI.Hosting.A2A" />
+    <PackageReference Include="Microsoft.Agents.AI.Hosting.AspNetCore" />
+    <PackageReference Include="A2A.AspNetCore" />
+  </ItemGroup>
+
+  <!--
+    MCP sunucusu (Faz 50). GA paket; onsurum grubunda DEGIL. K-057 geregi
+    yalnizca burada — AgentPrism.Mcp (istemci) `.Core`'da kalir.
+  -->
+  <ItemGroup Label="Model Context Protocol - sunucu">
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
   </ItemGroup>
 
 </Project>
