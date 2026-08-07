@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici kendi AI harness'ini kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 48 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**, `dotnet new agentprism-api` ile başlatılabilir; `AgentPrism.Testing` ile model çağırmadan test edilebilir. Çalıştırmalar span/metrik/maliyetle kaydedilir, kiracı yalıtımı zorlanır ve içerik `IContentGuard` ile denetlenebilir. Faz 8-48 bitti; [kalan](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlı.
+> **Durum:** Faz 49 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**, `dotnet new agentprism-api` ile başlatılabilir; `AgentPrism.Testing` ile model çağırmadan test edilebilir. Çalıştırmalar span/metrik/maliyetle kaydedilir, kiracı yalıtımı zorlanır, içerik `IContentGuard` ile denetlenir, üretim trafiği isteğe bağlı bir yargıçla puanlanır. Faz 8-49 bitti; [kalan](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlı.
 
 ```csharp
 builder.AddAgentPrism()
@@ -254,7 +254,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [19](docs/19-SURUM-KARSILASTIRMA-VE-AB.md) | Sürüm karşılaştırma (diff) ve A/B deneyleri: deterministik trafik bölme, Experiments ekranı | ✅ Tamamlandı |
 | [20](docs/20-MALIYET-VE-GOSTERGE-PANELI.md) | Maliyet raporlaması ve gösterge paneli: fiyat kataloğu/yapılandırması, Dashboard giriş ekranı | ✅ Tamamlandı |
 | [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | ✅ Tamamı bitti |
-| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 31–52): puanlama, iptal, teşhis, doğrulama, metrik, saklama sınırı, şablon, yapılandırılmış çıktı, test paketi, OpenAPI, kiracı yalıtımı, tek yürütücü, idempotency, hata sınıflandırma, eval terfisi, dayanıklı çalıştırma, yeniden oynatma, **guardrails** | **Faz 31–48 bitti**; faz başına durum ve kalan 49–52 orada |
+| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 31–52): puanlama, iptal, teşhis, doğrulama, metrik, saklama sınırı, şablon, yapılandırılmış çıktı, test paketi, OpenAPI, kiracı yalıtımı, tek yürütücü, idempotency, hata sınıflandırma, eval terfisi, dayanıklı çalıştırma, yeniden oynatma, **guardrails** | **Faz 31–49 bitti**; faz başına durum ve kalan 50–52 orada |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 

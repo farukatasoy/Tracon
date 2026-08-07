@@ -40,6 +40,9 @@ public sealed record WebhookEventPayload
 
     /// <summary>Kota ozeti. <c>quota.threshold</c> olayinda dolu.</summary>
     public WebhookQuotaSummary? Quota { get; init; }
+
+    /// <summary>Puan penceresi ozeti. <c>run.score.low</c> olayinda dolu.</summary>
+    public WebhookScoreSummary? Score { get; init; }
 }
 
 /// <summary>Bir calistirmanin webhook ozeti.</summary>
@@ -152,6 +155,25 @@ public sealed record WebhookQuotaSummary
 
     /// <summary>Sayacin sifirlanacagi zaman (UTC).</summary>
     public DateTimeOffset? ResetsAt { get; init; }
+}
+
+/// <summary>Bir puan penceresi esiginin webhook ozeti (Faz 49).</summary>
+public sealed record WebhookScoreSummary
+{
+    /// <summary>Pencere icindeki ortalama puan (0-100).</summary>
+    public required double AverageScore { get; init; }
+
+    /// <summary>Pencere icindeki ornek (puanlanmis calistirma) sayisi.</summary>
+    public required long SampleCount { get; init; }
+
+    /// <summary>Asilan dusuk puan esigi.</summary>
+    public required int Threshold { get; init; }
+
+    /// <summary>Pencerenin baslangici (UTC).</summary>
+    public DateTimeOffset? WindowStart { get; init; }
+
+    /// <summary>Pencerenin bitisi (UTC).</summary>
+    public DateTimeOffset? WindowEnd { get; init; }
 }
 
 /// <summary>

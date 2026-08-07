@@ -16,4 +16,9 @@ public enum RunScoreKind
 
     /// <summary>Yildiz puani: <see cref="RunScore.Value"/> 1 ile 5 arasi.</summary>
     Stars = 2,
+
+    /// <summary>
+    /// 0-100 arasi tamsayi yuzde puan. Model tabanli yargic (Faz 49) bunu uretir.
+    /// </summary>
+    Numeric = 3,
 }

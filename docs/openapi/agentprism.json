@@ -1058,6 +1058,13 @@
             }
           },
           {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/RunKind"
+            }
+          },
+          {
             "name": "sessionId",
             "in": "query",
             "schema": {
@@ -2714,6 +2721,66 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EvalRunDetailResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agentprism/api/evaluation/online": {
+      "get": {
+        "tags": [
+          "AgentPrism",
+          "Evals"
+        ],
+        "summary": "Cevrimici degerlendirme penceresinin ozetini dondurur (Faz 49).",
+        "description": "Pencere icindeki ortalama yargic puani, ornek sayisi ve yargic maliyetini dondurur. Ozet bellek icidir (sure\u00E7 yeniden baslatilinca sifirlanir); kesin sonuc icin \u0027run_scores\u0027 tablosu dogrudan sorgulanabilir.",
+        "operationId": "AgentPrismGetOnlineEvaluationSummary",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnlineEvaluationSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agentprism/api/runs/{runId}/judge": {
+      "post": {
+        "tags": [
+          "AgentPrism",
+          "Evals"
+        ],
+        "summary": "Bir calistirmayi elle yargic(lar)a puanlatir (Faz 49).",
+        "description": "Ornekleme kararini ATLAR; kalibrasyon ve hata ayiklama icindir. Hicbir IRunJudge kayitli degilse veya calistirmanin girdisi/ciktisi okunamiyorsa bos bir liste doner.",
+        "operationId": "AgentPrismJudgeRun",
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RunScore"
+                  }
                 }
               }
             }
@@ -8517,7 +8584,8 @@
           "Eval",
           "WebhookDelivery",
           "Retention",
-          "AgentRun"
+          "AgentRun",
+          "OnlineEval"
         ],
         "description": "Bir isin hangi hedefi calistirdigi."
       },
@@ -9461,6 +9529,88 @@
           "Unhealthy"
         ],
         "description": "Bir saglayicinin denetlenen erisilebilirlik durumu."
+      },
+      "OnlineEvaluationSummary": {
+        "required": [
+          "windowStart",
+          "windowEnd",
+          "sampleCount",
+          "lowScoreThreshold",
+          "minSampleSize",
+          "belowThreshold"
+        ],
+        "type": "object",
+        "properties": {
+          "windowStart": {
+            "type": "string",
+            "description": "Pencerenin baslangici (UTC).",
+            "format": "date-time"
+          },
+          "windowEnd": {
+            "type": "string",
+            "description": "Pencerenin bitisi (UTC).",
+            "format": "date-time"
+          },
+          "sampleCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Pencere icindeki ornek (puanlanmis calistirma) sayisi.",
+            "format": "int64"
+          },
+          "averageScore": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "Pencere icindeki ortalama puan, 0-100. Ornek yoksa \u0060null\u0060.",
+            "format": "double"
+          },
+          "lowScoreThreshold": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Yapilandirilmis dusuk puan esigi.",
+            "format": "int32"
+          },
+          "minSampleSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Alarm icin gereken asgari ornek sayisi.",
+            "format": "int32"
+          },
+          "belowThreshold": {
+            "type": "boolean",
+            "description": "Ortalama esigin altinda VE ornek sayisi asgariyi astiysa\n\u0060true\u0060."
+          },
+          "judgeCost": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "Pencere icindeki toplam yargic maliyeti. Bilinmiyorsa \u0060null\u0060.",
+            "format": "double"
+          },
+          "judgeCostCurrency": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Yargic maliyetinin para birimi."
+          }
+        },
+        "description": "Cevrimici degerlendirme penceresinin ozeti (\u0060GET /api/evaluation/online\u0060)."
       },
       "OpenAIErrorBody": {
         "required": [
@@ -10885,7 +11035,8 @@
       "RunScoreKind": {
         "enum": [
           "Binary",
-          "Stars"
+          "Stars",
+          "Numeric"
         ],
         "description": "Bir RunScore\u0027un tasidigi degerin bicimi."
       },

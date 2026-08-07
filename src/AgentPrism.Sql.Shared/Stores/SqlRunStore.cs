@@ -206,6 +206,7 @@ internal sealed class SqlRunStore : IRunStore
         DbHelpers.Add(command, "tenant_id", query.TenantId ?? _tenantContext.TenantId);
         AddNullableText(command, "agent_name", query.AgentName);
         Dialect.AddInt16(command, "status", (short?)query.Status);
+        Dialect.AddInt16(command, "kind", (short?)query.Kind);
         AddNullableText(command, "session_id", query.SessionId);
         Dialect.AddTimestamp(command, "started_after", query.StartedAfter);
         AddNullableUuid(command, "parent_run_id", query.ParentRunId);

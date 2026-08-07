@@ -534,6 +534,18 @@ export const tr: Messages = {
   'feedback.saveError': 'Geri bildirim yazılamadı.',
   'feedback.noneYet': 'Henüz hiçbir çalıştırma puanlanmadı.',
 
+  /* ------------------------------------------------------- onlineEval */
+  'onlineEval.title': 'Çevrimiçi değerlendirme',
+  'onlineEval.noneYet': 'Henüz hiçbir çalıştırma yargılanmadı.',
+  'onlineEval.sampleCount': 'Örneklenen çalıştırma',
+  'onlineEval.averageScore': 'Ortalama puan',
+  'onlineEval.belowThreshold': 'eşiğin altında',
+  'onlineEval.judgeCost': 'Yargıç maliyeti',
+  'onlineEval.judgeScoreLabel': 'Yargıç puanı',
+  'onlineEval.judgeButton': 'Şimdi puanla',
+  'onlineEval.judgeError': 'Bu çalıştırma puanlanamadı.',
+  'onlineEval.judgeNoJudges': 'Kayıtlı bir yargıç yok.',
+
   /* --------------------------------------------------------- dashboard */
   'dashboard.description': "Bütün agent'lar için çalıştırma, hata, token ve tutar.",
   'dashboard.runsOverTime': 'Zamana göre çalıştırmalar',
