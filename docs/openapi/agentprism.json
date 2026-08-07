@@ -351,7 +351,7 @@
           "Agents"
         ],
         "summary": "Bir agent\u0027i deneme amaciyla calistirir ve yaniti SSE ile akitir.",
-        "description": "Kota asilmissa calistirma baslamaz ve 429 doner; ProblemDetails hangi kotanin asildigini ve sayacin ne zaman sifirlanacagini tasir.",
+        "description": "Kota asilmissa calistirma baslamaz ve 429 doner; ProblemDetails hangi kotanin asildigini ve sayacin ne zaman sifirlanacagini tasir. \u0027Idempotency-Key\u0027 basligi tasiyan bir istek SSE yerine tek bir JSON yanitla (akissiz) calisir \u2014 Faz 43\u0027un tekillestirme sozlesmesi akissiz bir yanit gerektirir (docs/43-IDEMPOTENCY-KEY.md).",
         "operationId": "AgentPrismRunAgent",
         "parameters": [
           {

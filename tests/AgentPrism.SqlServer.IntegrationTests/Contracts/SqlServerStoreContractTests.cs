@@ -453,6 +453,28 @@ public sealed class SqlServerSingletonLeaseStoreContractTests(SqlServerFixture f
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
+public sealed class SqlServerIdempotencyStoreContractTests(SqlServerFixture fixture) : IdempotencyStoreContract
+{
+    private SqlServerTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<IIdempotencyStore> CreateStoreAsync()
+    {
+        _context = await SqlServerTestContext.CreateAsync(fixture);
+        return _context.IdempotencyKeys;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}
+
+/// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
 public sealed class SqlServerAgentSkillStoreContractTests(SqlServerFixture fixture) : AgentSkillStoreContract
 {
     private SqlServerTestContext? _context;

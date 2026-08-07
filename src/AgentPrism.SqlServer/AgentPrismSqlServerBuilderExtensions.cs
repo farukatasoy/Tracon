@@ -203,6 +203,11 @@ public static class AgentPrismSqlServerBuilderExtensions
         // yonetici karari degil, kullanicidan gelen geri bildirimdir.
         services.Replace(ServiceDescriptor.Singleton<IRunScoreStore, SqlRunScoreStore>());
 
+        // Idempotency-Key destegi (Faz 43). Bellek ici InMemoryIdempotencyStore'un
+        // yerini alir; cok ornekli bir dagitimda tekillestirme ancak burada
+        // anlamlidir.
+        services.Replace(ServiceDescriptor.Singleton<IIdempotencyStore, SqlIdempotencyStore>());
+
         // A/B deneyleri (Faz 19). IAgentDefinitionStore ile ayni gerekceyle
         // denetim izi dekoratoruyle sarilir: Admin'in bilincli bir karari,
         // yurutmenin yan urunu degil.

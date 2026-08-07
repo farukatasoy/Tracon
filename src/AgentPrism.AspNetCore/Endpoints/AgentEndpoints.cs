@@ -27,7 +27,12 @@ internal static class AgentEndpoints
     /// <param name="prefix">
     /// Ek referanslarini kurarken kullanilacak yol oneki (bkz. <see cref="AttachmentUriReference"/>).
     /// </param>
-    public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles, string prefix)
+    /// <param name="idempotencyFilter">Faz 43 — yalniz <c>/api/agents/{name}/run</c> ucuna eklenir.</param>
+    public static void Map(
+        IEndpointRouteBuilder builder,
+        AgentPrismRolePolicies roles,
+        string prefix,
+        IdempotencyFilter idempotencyFilter)
     {
         builder.MapGet("/api/agents", async Task<Ok<IReadOnlyList<AgentDescriptor>>> (
                 IAgentCatalog catalog,
@@ -121,14 +126,17 @@ internal static class AgentEndpoints
                     cancellationToken).ConfigureAwait(false);
             })
             .RequireRole(roles.Operator)
+            .AddEndpointFilter(idempotencyFilter)
             .WithName("AgentPrismRunAgent")
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Bir agent'i deneme amaciyla calistirir ve yaniti SSE ile akitir.")
             .WithDescription(
                 "Kota asilmissa calistirma baslamaz ve 429 doner; ProblemDetails hangi kotanin " +
-                "asildigini ve sayacin ne zaman sifirlanacagini tasir.")
-            // Basari yaniti her zaman SSE'dir; agent hicbir kosulda JSON govde
-            // olarak calisma sonucu dondurmez (bkz. AgentRunStream).
+                "asildigini ve sayacin ne zaman sifirlanacagini tasir. 'Idempotency-Key' basligi " +
+                "tasiyan bir istek SSE yerine tek bir JSON yanitla (akissiz) calisir — Faz 43'un " +
+                "tekillestirme sozlesmesi akissiz bir yanit gerektirir (docs/43-IDEMPOTENCY-KEY.md).")
+            // Basari yaniti varsayilan olarak SSE'dir (bkz. AgentRunStream); ama
+            // 'Idempotency-Key' basligi tasiyan bir istek JSON govde alir.
             .Produces<string>(StatusCodes.Status200OK, contentType: "text/event-stream")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -423,23 +431,37 @@ internal static class AgentEndpoints
                 statusCode: StatusCodes.Status404NotFound);
         }
 
-        return new AgentRunStream(agent, name, request, sessions, attachments, prefix, runId, assignment);
+        // 🚨 Faz 43: 'Idempotency-Key' tasiyan bir istek akissiz calisir. Saklanan
+        // yanit tekilleştirilebilir olmalidir; bir SSE govdesini saklamak
+        // (zamanlama bilgisi kaybi, ongorulemez boyut) bu fazin kapsami disidir
+        // (docs/43-IDEMPOTENCY-KEY.md, bolum 43.4). Bu yuzden IdempotencyFilter
+        // yerine burada, akis SECIMI aninda karar verilir: filtre akisli bir
+        // istegi hicbir zaman GORMEZ, cunku baslik tasiyan istek zaten akissizdir.
+        var streaming = !httpContext.Request.Headers.ContainsKey(IdempotencyFilter.HeaderName);
+
+        return new AgentRunStream(agent, name, request, sessions, attachments, prefix, runId, assignment, streaming);
     }
 
     /// <summary>
-    /// Deneme calistirmasinin yanitini SSE olarak yazar.
+    /// Deneme calistirmasinin yanitini yazar.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Ayri bir <see cref="IResult"/> olarak yazilir cunku akis basladiktan sonra
-    /// durum kodu degistirilemez; hata durumunda <c>event: error</c> cercevesi
-    /// gonderilir.
+    /// Varsayilan olarak <paramref name="streaming"/> actir ve yanit SSE'dir; ayri
+    /// bir <see cref="IResult"/> olarak yazilir cunku akis basladiktan sonra durum
+    /// kodu degistirilemez, hata durumunda <c>event: error</c> cercevesi gonderilir.
     /// </para>
     /// <para>
     /// Ilk cerceve <c>run</c>'dir ve calistirma kimligini tasir. Kimlik
     /// <see cref="AgentPrismRunOptions"/> ile <em>cagiran tarafindan</em> uretilir;
     /// aksi halde calistirma kaydini yazan sarmalayici kendi kimligini uretir ve
     /// akan yanit hicbir zaman <c>/api/runs/{id}</c> kaydiyla iliskilendirilemezdi.
+    /// </para>
+    /// <para>
+    /// 🚨 <paramref name="streaming"/> kapaliysa (Faz 43, <c>Idempotency-Key</c>)
+    /// yanit tek bir JSON govdedir: baslıklar/durum kodu henuz gonderilmedigi
+    /// icin bir hata gercek bir HTTP durum koduyla (502) donebilir — SSE dalinin
+    /// aksine burada <c>event: error</c> cercevesine gerek yoktur.
     /// </para>
     /// </remarks>
     private sealed class AgentRunStream(
@@ -450,12 +472,25 @@ internal static class AgentEndpoints
         IReadOnlyList<AttachmentDescriptor> attachments,
         string prefix,
         Guid runId,
-        ExperimentAssignment? assignment) : IResult
+        ExperimentAssignment? assignment,
+        bool streaming) : IResult
     {
         public async Task ExecuteAsync(HttpContext httpContext)
         {
             ArgumentNullException.ThrowIfNull(httpContext);
 
+            if (streaming)
+            {
+                await ExecuteStreamingAsync(httpContext).ConfigureAwait(false);
+            }
+            else
+            {
+                await ExecuteBufferedAsync(httpContext).ConfigureAwait(false);
+            }
+        }
+
+        private async Task ExecuteStreamingAsync(HttpContext httpContext)
+        {
             var cancellationToken = httpContext.RequestAborted;
             var writer = await SseWriter.StartAsync(httpContext.Response, cancellationToken).ConfigureAwait(false);
 
@@ -520,6 +555,61 @@ internal static class AgentEndpoints
                     "error",
                     JsonSerializer.Serialize(new AgentRunFailed(ex.GetType().Name, ex.Message), JsonOptions),
                     CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
+        private async Task ExecuteBufferedAsync(HttpContext httpContext)
+        {
+            var cancellationToken = httpContext.RequestAborted;
+
+            Microsoft.Agents.AI.AgentSession? session = null;
+
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(request.SessionId))
+                {
+                    session = await sessions
+                        .GetOrCreateSessionAsync(agent, request.SessionId, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
+                var messages = await BuildMessagesAsync(httpContext, session, cancellationToken)
+                    .ConfigureAwait(false);
+
+                var response = await agent.RunAsync(
+                    messages,
+                    session,
+                    new AgentPrismRunOptions
+                    {
+                        RunId = runId,
+                        AgentVersion = assignment?.Version,
+                        ExperimentId = assignment?.ExperimentId,
+                        Variant = assignment?.Variant,
+                    },
+                    cancellationToken).ConfigureAwait(false);
+
+                if (session is not null)
+                {
+                    await sessions.SaveSessionAsync(agent, session, cancellationToken).ConfigureAwait(false);
+                }
+
+                await Results.Json(
+                        new AgentRunResult(runId, request.SessionId, response),
+                        AIJsonUtilities.DefaultOptions,
+                        statusCode: StatusCodes.Status200OK)
+                    .ExecuteAsync(httpContext).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Istemci baglantiyi kesti.
+            }
+            catch (Exception ex) when (ex is AgentPrismException or InvalidOperationException or HttpRequestException)
+            {
+                await Results.Problem(
+                        title: "Agent calistirilamadi",
+                        detail: ex.Message,
+                        statusCode: StatusCodes.Status502BadGateway)
+                    .ExecuteAsync(httpContext).ConfigureAwait(false);
             }
         }
 
@@ -592,6 +682,9 @@ internal static class AgentEndpoints
         private sealed record AgentRunCompleted(string? SessionId);
 
         private sealed record AgentRunFailed(string Type, string Message);
+
+        /// <summary>Akissiz (Idempotency-Key) calistirmanin JSON yaniti.</summary>
+        private sealed record AgentRunResult(Guid RunId, string? SessionId, Microsoft.Agents.AI.AgentResponse Response);
     }
 
     private static async ValueTask<AgentDescriptor?> FindDescriptorAsync(

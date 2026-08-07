@@ -1548,5 +1548,31 @@ internal sealed class PostgresQueries : SqlQueriesBase
         ReleaseSingletonLease = $"""
             DELETE FROM {Schema}.singleton_leases WHERE name = @name AND owner_id = @owner_id;
             """;
+
+        // Catisma DO NOTHING/UPDATE degil DUZ INSERT'tir: cagiran taraf
+        // SqlDialect.IsUniqueViolation ile ihlali yakalar ve mevcut kaydi
+        // SelectIdempotencyKey ile okur (K-177'nin iki dalli upsert deseninden
+        // FARKLI — burada "zaten var" bir hata degil, normal bir akis dalidir).
+        InsertIdempotencyKey = $"""
+            INSERT INTO {Schema}.idempotency_keys (tenant_id, "key", fingerprint, state, created_at)
+            VALUES (@tenant_id, @key, @fingerprint, 0, @created_at);
+            """;
+
+        SelectIdempotencyKey = $"""
+            SELECT state, fingerprint, status_code, content_type, body, run_id
+              FROM {Schema}.idempotency_keys
+             WHERE tenant_id = @tenant_id AND "key" = @key;
+            """;
+
+        CompleteIdempotencyKey = $"""
+            UPDATE {Schema}.idempotency_keys
+               SET state = 2, status_code = @status_code, content_type = @content_type,
+                   body = @body, run_id = @run_id, completed_at = @completed_at
+             WHERE tenant_id = @tenant_id AND "key" = @key;
+            """;
+
+        DeleteIdempotencyKey = $"""
+            DELETE FROM {Schema}.idempotency_keys WHERE tenant_id = @tenant_id AND "key" = @key;
+            """;
     }
 }

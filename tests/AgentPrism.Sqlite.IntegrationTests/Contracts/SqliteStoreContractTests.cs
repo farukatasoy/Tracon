@@ -453,6 +453,28 @@ public sealed class SqliteSingletonLeaseStoreContractTests(SqliteFixture fixture
 }
 
 /// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />
+public sealed class SqliteIdempotencyStoreContractTests(SqliteFixture fixture) : IdempotencyStoreContract
+{
+    private SqliteTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<IIdempotencyStore> CreateStoreAsync()
+    {
+        _context = await SqliteTestContext.CreateAsync(fixture);
+        return _context.IdempotencyKeys;
+    }
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}
+
+/// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />
 public sealed class SqliteAgentSkillStoreContractTests(SqliteFixture fixture) : AgentSkillStoreContract
 {
     private SqliteTestContext? _context;

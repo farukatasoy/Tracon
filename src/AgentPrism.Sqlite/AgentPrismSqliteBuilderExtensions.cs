@@ -160,6 +160,11 @@ public static class AgentPrismSqliteBuilderExtensions
         // yonetici karari degil, kullanicidan gelen geri bildirimdir.
         services.Replace(ServiceDescriptor.Singleton<IRunScoreStore, SqlRunScoreStore>());
 
+        // Idempotency-Key destegi (Faz 43). Bellek ici InMemoryIdempotencyStore'un
+        // yerini alir; cok ornekli bir dagitimda tekillestirme ancak burada
+        // anlamlidir.
+        services.Replace(ServiceDescriptor.Singleton<IIdempotencyStore, SqlIdempotencyStore>());
+
         services.Replace(ServiceDescriptor.Singleton<IExperimentStore, AuditingExperimentStore>(
             static provider => new AuditingExperimentStore(
                 ActivatorUtilities.CreateInstance<SqlExperimentStore>(provider),

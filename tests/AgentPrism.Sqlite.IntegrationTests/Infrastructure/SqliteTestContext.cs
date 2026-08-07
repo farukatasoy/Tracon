@@ -58,6 +58,7 @@ internal sealed class SqliteTestContext : IAsyncDisposable
         VoiceSessions = new SqlVoiceSessionStore(wrapped);
         RunScores = new SqlRunScoreStore(wrapped);
         SingletonLeases = new SqlSingletonLeaseStore(wrapped);
+        IdempotencyKeys = new SqlIdempotencyStore(wrapped);
         Migrations = new MigrationRunner(wrapped, NullLogger<MigrationRunner>.Instance);
     }
 
@@ -150,6 +151,9 @@ internal sealed class SqliteTestContext : IAsyncDisposable
 
     /// <summary>Tek yurutucu secimi kira deposu (Faz 42).</summary>
     public SqlSingletonLeaseStore SingletonLeases { get; }
+
+    /// <summary>Idempotency deposu (Faz 43).</summary>
+    public SqlIdempotencyStore IdempotencyKeys { get; }
 
     /// <summary>Migration calistiricisi.</summary>
     public MigrationRunner Migrations { get; }

@@ -72,6 +72,7 @@ public sealed class TenantCoverageTests
         ["SqlTenantStore"] = [],
         ["SqlChatHistoryProvider"] = [],
         ["SqlSingletonLeaseStore"] = [],
+        ["SqlIdempotencyStore"] = ["ReserveAsync", "CompleteAsync", "ReleaseAsync"],
     };
 
     [Fact]

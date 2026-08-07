@@ -493,6 +493,23 @@ internal abstract class SqlQueriesBase
     /// <summary>Tek yurutucu kirasini birakir.</summary>
     public string ReleaseSingletonLease { get; protected set; } = string.Empty;
 
+    /// <summary>
+    /// Bir idempotency anahtarini <c>Reserved</c> olarak eklemeyi dener. Anahtar
+    /// zaten varsa <see cref="SqlDialect.IsUniqueViolation"/> ile yakalanan bir
+    /// ihlal firlatir; cagiran taraf o zaman <see cref="SelectIdempotencyKey"/>
+    /// ile mevcut kaydi okur.
+    /// </summary>
+    public string InsertIdempotencyKey { get; protected set; } = string.Empty;
+
+    /// <summary>Bir idempotency anahtarini kiraci+anahtar ile getirir.</summary>
+    public string SelectIdempotencyKey { get; protected set; } = string.Empty;
+
+    /// <summary>Ayrilmis bir idempotency anahtarini <c>Completed</c> yapar ve yaniti yazar.</summary>
+    public string CompleteIdempotencyKey { get; protected set; } = string.Empty;
+
+    /// <summary>Bir idempotency anahtarini siler (basarisiz istekten sonra serbest birakma).</summary>
+    public string DeleteIdempotencyKey { get; protected set; } = string.Empty;
+
     /// <summary>Gomulu migration metnindeki sema yer tutucusunu gercek adla degistirir.</summary>
     /// <param name="sql">Ham migration metni.</param>
     /// <returns>Calistirilabilir SQL.</returns>

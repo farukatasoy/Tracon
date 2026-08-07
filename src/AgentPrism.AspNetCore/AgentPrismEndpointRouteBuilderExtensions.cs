@@ -83,6 +83,27 @@ public static class AgentPrismEndpointRouteBuilderExtensions
         var metaGroup = endpoints.MapGroup(normalizedPrefix).WithTags("AgentPrism");
         MetaEndpoints.Map(metaGroup, options, normalizedPrefix, roles);
 
+        // Idempotency-Key destegi (Faz 43). Govde, filtrenin InvokeAsync'inden
+        // ONCE (bazi uclarda minimal API'nin otomatik baglamasi tarafindan)
+        // tuketilebildigi icin ham baytlarin sonradan okunabilmesi ancak
+        // ONCEDEN tamponlanmisilarsa mumkundur. Baslik TASIMAYAN bir istek icin
+        // bu ara yazilim hicbir sey yapmaz (K1: sessiz maliyet yoktur).
+        if (endpoints is IApplicationBuilder idempotencyApp)
+        {
+            idempotencyApp.Use(static (httpContext, next) =>
+            {
+                if (httpContext.Request.Headers.ContainsKey(IdempotencyFilter.HeaderName))
+                {
+                    httpContext.Request.EnableBuffering();
+                }
+
+                return next(httpContext);
+            });
+        }
+
+        var idempotencyFilter = new IdempotencyFilter(
+            services.GetRequiredService<IOptionsMonitor<AgentPrismIdempotencyOptions>>());
+
         // Korumali grup: loopback + bearer token filtresi, istege bagli policy.
         var group = endpoints.MapGroup(normalizedPrefix).WithTags("AgentPrism");
         group.AddEndpointFilter(new AgentPrismEndpointFilter(options));
@@ -102,7 +123,7 @@ public static class AgentPrismEndpointRouteBuilderExtensions
             group.RequireAuthorization(policy);
         }
 
-        AgentEndpoints.Map(group, roles, normalizedPrefix);
+        AgentEndpoints.Map(group, roles, normalizedPrefix, idempotencyFilter);
         AttachmentEndpoints.Map(group, roles);
         SkillEndpoints.Map(group, roles);
         SkillScriptGrantEndpoints.Map(group, roles);
@@ -127,8 +148,8 @@ public static class AgentPrismEndpointRouteBuilderExtensions
             DiagnosticsEndpoints.Map(group, services, roles);
         }
 
-        OpenAIResponsesEndpoints.Map(group, ResolveSessionStore(services), roles, normalizedPrefix);
-        OpenAIChatCompletionsEndpoints.Map(group, roles);
+        OpenAIResponsesEndpoints.Map(group, ResolveSessionStore(services), roles, normalizedPrefix, idempotencyFilter);
+        OpenAIChatCompletionsEndpoints.Map(group, roles, idempotencyFilter);
         OpenAIConversationsEndpoints.Map(group, roles);
 
         MapUi(endpoints, services, options, normalizedPrefix);

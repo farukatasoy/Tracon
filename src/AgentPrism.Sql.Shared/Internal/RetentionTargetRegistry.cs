@@ -213,6 +213,15 @@ internal static class RetentionTargetRegistry
                 "created_at",
                 "created_at"),
 
+            // Saklanan idempotency yanitlari (Faz 43). Kendi olusturulma zamani
+            // esas alinir; runs'a FK olmadigi icin EXISTS gerekmez.
+            RetentionTargets.IdempotencyKeys => new RetentionTargetDefinition(
+                Table("idempotency_keys"),
+                "created_at < @cutoff",
+                "tenant_id = @tenant_id",
+                "created_at",
+                "created_at"),
+
             _ => throw new ArgumentException($"Bilinmeyen saklama hedefi: '{target}'.", nameof(target)),
         };
     }
