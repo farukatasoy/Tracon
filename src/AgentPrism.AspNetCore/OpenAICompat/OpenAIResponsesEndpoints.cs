@@ -37,11 +37,13 @@ internal static class OpenAIResponsesEndpoints
     /// <param name="sessionStore">Oturum kaliciligi icin kullanilacak depo.</param>
     /// <param name="roles">Cozulmus rol policy'leri.</param>
     /// <param name="prefix">Ek referanslari icin kullanilacak yol oneki.</param>
+    /// <param name="idempotencyFilter">Faz 43 — <c>Idempotency-Key</c> destegi.</param>
     public static void Map(
         IEndpointRouteBuilder builder,
         AgentSessionStore sessionStore,
         AgentPrismRolePolicies roles,
-        string prefix)
+        string prefix,
+        IdempotencyFilter idempotencyFilter)
     {
         builder.MapPost("/v1/responses", (
                 HttpContext httpContext,
@@ -64,6 +66,7 @@ internal static class OpenAIResponsesEndpoints
                     prefix,
                     cancellationToken))
             .RequireRole(roles.Operator)
+            .AddEndpointFilter(idempotencyFilter)
             .WithName("AgentPrismOpenAIResponses")
             .WithTags("AgentPrism", "OpenAI")
             .WithSummary("OpenAI Responses API ile uyumlu calistirma ucu.")

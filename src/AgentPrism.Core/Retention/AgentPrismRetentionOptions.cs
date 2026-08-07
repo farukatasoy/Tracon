@@ -73,6 +73,13 @@ public sealed class AgentPrismRetentionOptions
     /// </summary>
     public RetentionTargetOptions Conversations { get; } = new();
 
+    /// <summary>
+    /// <see cref="RetentionTargets.IdempotencyKeys"/> icin varsayilan (Faz 43).
+    /// Saklanan yanit istemciye zaten gonderilmis oldugu icin yeni bilgi acikca
+    /// etmez; yine de omur sinirlanir (43.5).
+    /// </summary>
+    public RetentionTargetOptions IdempotencyKeys { get; } = new() { MaxAgeDays = 1 };
+
     /// <summary>Bir hedef adina karsilik gelen ayar nesnesini dondurur.</summary>
     /// <param name="target">Bkz. <see cref="RetentionTargets"/>.</param>
     /// <returns>Ayar nesnesi; bilinmeyen hedef icin <see langword="null"/>.</returns>
@@ -90,6 +97,7 @@ public sealed class AgentPrismRetentionOptions
             RetentionTargets.Attachments => Attachments,
             RetentionTargets.Sessions => Sessions,
             RetentionTargets.Conversations => Conversations,
+            RetentionTargets.IdempotencyKeys => IdempotencyKeys,
             _ => null,
         };
 }
