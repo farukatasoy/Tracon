@@ -128,7 +128,7 @@ public static class AgentPrismEndpointRouteBuilderExtensions
         SkillEndpoints.Map(group, roles);
         SkillScriptGrantEndpoints.Map(group, roles);
         SessionEndpoints.Map(group, roles);
-        RunEndpoints.Map(group, options, roles);
+        RunEndpoints.Map(group, options, roles, normalizedPrefix);
         WorkflowEndpoints.Map(group, roles);
         SchedulingEndpoints.Map(group, roles);
         EvalEndpoints.Map(group, roles);

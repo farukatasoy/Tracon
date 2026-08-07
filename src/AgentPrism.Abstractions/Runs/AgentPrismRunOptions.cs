@@ -49,6 +49,7 @@ public sealed class AgentPrismRunOptions : AgentRunOptions
         ExperimentId = other.ExperimentId;
         Variant = other.Variant;
         SessionId = other.SessionId;
+        ReplayOfRunId = other.ReplayOfRunId;
     }
 
     /// <summary>
@@ -135,6 +136,16 @@ public sealed class AgentPrismRunOptions : AgentRunOptions
     /// </para>
     /// </remarks>
     public string? SessionId { get; init; }
+
+    /// <summary>
+    /// Bu calistirma bir yeniden oynatma ise kaynak calistirmanin kimligi
+    /// (Faz 47). Deger <c>runs.replay_of_run_id</c> sutununa yazilir.
+    /// </summary>
+    /// <remarks>
+    /// Alan yalnizca <strong>kok</strong> calistirmada anlamlidir; bir yeniden
+    /// oynatmanin alt cagrilari kendi soy bagini tasimaz.
+    /// </remarks>
+    public Guid? ReplayOfRunId { get; init; }
 
     /// <inheritdoc />
     /// <remarks>

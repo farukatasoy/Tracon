@@ -21,6 +21,8 @@ import { SpinnerIcon } from '../components/icons';
 import { CancelRunButton } from '../components/cancel-run-button';
 import { FeedbackControl } from '../components/feedback-control';
 import { PromoteToEvalCase } from '../components/promote-to-eval-case';
+import { ReplayPanel } from '../components/replay-panel';
+import { RunComparison } from '../components/run-comparison';
 import { TranscriptView } from '../components/transcript';
 import { Waterfall, formatMs } from '../components/waterfall';
 import { StatusBadge, Stat } from './runs';
@@ -201,6 +203,17 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
                 </Link>
               </>
             )}
+            {record.replayOfRunId != null && (
+              <>
+                , {t('replay.sourceLink')}{' '}
+                <Link
+                  to={`runs/${encodeURIComponent(record.replayOfRunId)}`}
+                  className="text-accent underline"
+                >
+                  <Mono>{shortId(record.replayOfRunId, 12, 5)}</Mono>
+                </Link>
+              </>
+            )}
           </>
         }
         actions={
@@ -265,6 +278,23 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
       {(record.status === 'Completed' || record.status === 'Failed') && (
         <div className="mb-4">
           <PromoteToEvalCase runId={record.id} />
+        </div>
+      )}
+
+      {/*
+        A replay is offered only for a settled agent run: a workflow keeps its
+        own resume path (checkpoints), and a run still in flight has no result
+        worth reproducing yet.
+      */}
+      {finished && record.kind === 'Agent' && (
+        <div className="mb-4">
+          <ReplayPanel runId={record.id} agentName={record.agentName} />
+        </div>
+      )}
+
+      {record.replayOfRunId != null && (
+        <div className="mb-4">
+          <RunComparison left={record.replayOfRunId} right={record.id} />
         </div>
       )}
 

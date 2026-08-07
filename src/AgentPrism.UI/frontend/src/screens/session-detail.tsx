@@ -18,6 +18,7 @@ import {
   cx,
 } from '../components/ui';
 import { TranscriptView } from '../components/transcript';
+import { BranchButton } from '../components/branch-button';
 
 type Tab = 'history' | 'state';
 
@@ -94,6 +95,13 @@ export function SessionDetailScreen({ id }: { id: string }): ReactNode {
                       {message.authorName != null && (
                         <span className="text-[11px] text-subtle">{message.authorName}</span>
                       )}
+                      {/*
+                        The index is the item's own `seq`: this list comes from
+                        the chat history provider in sequence order.
+                      */}
+                      <span className="ml-auto">
+                        <BranchButton sessionId={detail.id} upToSequence={index} />
+                      </span>
                     </div>
                     {folded.items.length === 0 ? (
                       <p className="text-[12px] text-subtle">{t('sessionDetail.noContent')}</p>

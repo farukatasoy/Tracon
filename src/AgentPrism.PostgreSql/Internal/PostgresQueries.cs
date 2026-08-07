@@ -246,9 +246,11 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // ikinci kez cagrilir ve satir yerinde guncellenir (yeni satir ACILMAZ).
         InsertRun = $"""
             INSERT INTO {Schema}.runs (id, tenant_id, agent_name, session_id, model_id, status, started_at, is_streaming, event_count,
-                                       parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant)
+                                       parent_run_id, root_run_id, depth, kind, workflow_name, agent_version, experiment_id, variant,
+                                       replay_of_run_id)
             VALUES (@id, @tenant_id, @agent_name, @session_id, @model_id, @status, @started_at, @is_streaming, 0,
-                    @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant)
+                    @parent_run_id, @root_run_id, @depth, @kind, @workflow_name, @agent_version, @experiment_id, @variant,
+                    @replay_of_run_id)
             ON CONFLICT (id) DO UPDATE SET
                 tenant_id     = EXCLUDED.tenant_id,
                 agent_name    = EXCLUDED.agent_name,
@@ -264,7 +266,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 workflow_name = EXCLUDED.workflow_name,
                 agent_version = EXCLUDED.agent_version,
                 experiment_id = EXCLUDED.experiment_id,
-                variant       = EXCLUDED.variant;
+                variant       = EXCLUDED.variant,
+                replay_of_run_id = EXCLUDED.replay_of_run_id;
             """;
 
         UpdateRunCompletion = $"""
@@ -334,7 +337,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
             r.kind, r.workflow_name, r.agent_version, r.experiment_id, r.variant,
             r.input_cost, r.output_cost, r.cost_currency, r.pricing_source,
             tree.cost_input, tree.cost_output, tree.cost_currency, tree.unknown_pricing_rows, tree.pricing_rows,
-            r.error_class, r.error_fingerprint
+            r.error_class, r.error_fingerprint,
+            r.replay_of_run_id
             """;
 
         SelectRun = $"""
@@ -556,6 +560,54 @@ internal sealed class PostgresQueries : SqlQueriesBase
             JOIN {Schema}.conversations c ON c.id = i.conversation_id
             WHERE i.conversation_id = @conversation_id AND c.tenant_id = @tenant_id
             ORDER BY i.seq;
+            """;
+
+        // --- Konusma dallandirma (Faz 47) ---
+
+        SelectConversationBranchPoint = $"""
+            SELECT COALESCE(MAX(seq), -1), COUNT(*)
+            FROM {Schema}.conversation_items
+            WHERE conversation_id = @conversation_id
+              AND (@up_to_sequence IS NULL OR seq <= @up_to_sequence);
+            """;
+
+        // Ustveri (agent_name, metadata) kaynaktan KOPYALANIR: dal ayni agent'in
+        // konusmasidir. Kiraci suzgeci SELECT tarafindadir; baska bir kiracinin
+        // konusmasi icin hicbir satir yazilmaz ve cagiran 0 etkilenen satir gorur.
+        InsertBranchConversation = $"""
+            INSERT INTO {Schema}.conversations
+                (id, tenant_id, agent_name, metadata, created_at, updated_at,
+                 parent_conversation_id, branch_from_seq)
+            SELECT @id, c.tenant_id, c.agent_name, c.metadata, @now, @now,
+                   c.id, @branch_from_seq
+            FROM {Schema}.conversations c
+            WHERE c.id = @parent_conversation_id AND c.tenant_id = @tenant_id;
+            """;
+
+        SelectConversationItemsForBranch = $"""
+            SELECT i.seq, i.item, i.created_at
+            FROM {Schema}.conversation_items i
+            WHERE i.conversation_id = @conversation_id
+              AND (@up_to_sequence IS NULL OR i.seq <= @up_to_sequence)
+            ORDER BY i.seq;
+            """;
+
+        // --- Calistirma girdileri (Faz 47) ---
+
+        // 🚨 `messages` sutunu `json`, `jsonb` DEGIL: ChatMessage icerikleri
+        // polimorfiktir ve `$type` ayraci nesnenin ILK ozelligi olmalidir (K-027).
+        // Ikinci yazim yok sayilir: kuyruga alinan bir calistirma (Faz 46) ayni
+        // kimlikle iki kez baslar ve girdi degismemelidir.
+        InsertRunInput = $"""
+            INSERT INTO {Schema}.run_inputs (run_id, tenant_id, messages, created_at)
+            VALUES (@run_id, @tenant_id, @messages, @created_at)
+            ON CONFLICT (run_id) DO NOTHING;
+            """;
+
+        SelectRunInput = $"""
+            SELECT messages, created_at
+            FROM {Schema}.run_inputs
+            WHERE run_id = @run_id AND tenant_id = @tenant_id;
             """;
 
         // --- Tool cagrilari (Faz 6) ---

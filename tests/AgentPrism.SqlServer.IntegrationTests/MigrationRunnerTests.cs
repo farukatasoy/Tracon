@@ -37,7 +37,8 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
         // Faz 31 `run_scores` tablosunu ekledi: 39 -> 40.
         // Faz 42 `singleton_leases` tablosunu ekledi: 40 -> 41.
         // Faz 43 `idempotency_keys` tablosunu ekledi: 41 -> 42.
-        tableCount.ShouldBe(42);
+        // Faz 47 `run_inputs` tablosunu ekledi: 42 -> 43.
+        tableCount.ShouldBe(43);
     }
 
     [Fact]

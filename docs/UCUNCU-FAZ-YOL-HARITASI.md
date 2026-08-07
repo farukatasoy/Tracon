@@ -1,7 +1,7 @@
 # Üçüncü Faz Yol Haritası (Faz 31 – 52)
 
 > **Durum (2026-08-07): Üç dalga da planlandı; Dalga 1, Dalga 2 ve Dalga 3'ün
-> Faz 46'sı tamamlandı.** Aşağıdaki satırlar tek tek güncel durumu taşır.
+> Faz 46–47'si tamamlandı.** Aşağıdaki satırlar tek tek güncel durumu taşır.
 > Bu tur [`UCUNCU-FAZ-ADAYLARI.md`](UCUNCU-FAZ-ADAYLARI.md) listesinden seçilir.
 > **Yirmi altı kalem** faz dokümanına dönüştürüldü (Faz 31–52) ve aday
 > listesinden **silindi**. Kalan 20 kalem seçilmemiştir.
@@ -84,7 +84,7 @@ Dalga 1 ve 2'nin aksine **sıra burada anlamlıdır**: dört fazın gerçek bir
 | Faz | Doküman | Kalem | Önkoşul / neden burada | Yeni paket | Migration |
 |-----|---------|-------|------------------------|-----------|-----------|
 | 46 | [46-DAYANIKLI-CALISTIRMA.md](46-DAYANIKLI-CALISTIRMA.md) | F-68 (F-39 içinde) | ✅ **Tamamlandı (2026-08-07).** `IRunStore.StartRunAsync` UPSERT'e çevrildi (K-304) — plan öngörmemişti; `Job.Id == RunId` (K-305) | — | — |
-| 47 | [47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md](47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md) | F-54 · F-66 | 📋 Bağımsız. 🚨 Açtığı `run_inputs` tablosu **Faz 49'un girdi kaynağıdır** | — | bir tablo + iki sütun, üç set |
+| 47 | [47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md](47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md) | F-54 · F-66 | ✅ **Tamamlandı (2026-08-07).** `run_inputs` açıldı ve **Faz 49'un girdi kaynağıdır**; dallandırma kopyalamayla yapıldı (K-311), `parent_conversation_id` FK **taşımaz** (K-312, SQL Server 1785). 🚨 Oynatma oturumsuzdur (K-315) ve kuyruğa alma kapsam dışıdır (K-316) | — | 🚨 **gerekti** — `run_inputs` + `runs`'a bir sütun + `conversations`'a iki sütun (PostgreSQL `0023`, SQL Server/SQLite `0011`) |
 | 48 | [48-GUARDRAILS.md](48-GUARDRAILS.md) | F-32 | 📋 Bağımsız. Ertelenen F-72'nin üstüne oturacağı katman | — | — |
 | 49 | [49-CEVRIMICI-DEGERLENDIRME.md](49-CEVRIMICI-DEGERLENDIRME.md) | F-71 | 📋 🚨 **[Faz 31](31-GERI-BILDIRIM-VE-PUANLAMA.md)** — `run_scores` oradan gelir. Faz 47 girdiyi verir | — | — (Faz 31'in tablosu) |
 | 50 | [50-DISA-ACILAN-AGENT-YUZEYI.md](50-DISA-ACILAN-AGENT-YUZEYI.md) | F-31 · F-33 | 📋 Bağımsız. 🚨 **F-56'yı acil hâle getirir** — dış yüzey tek statik token'la korunuyor | — (yeni NuGet: MCP sunucusu) | — |

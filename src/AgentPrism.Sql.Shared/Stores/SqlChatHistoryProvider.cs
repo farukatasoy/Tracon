@@ -29,8 +29,10 @@ internal sealed class SqlChatHistoryProvider : ChatHistoryProvider
     /// </summary>
     /// <remarks>
     /// Bu deger <strong>kararlidir</strong>; degistirmek mevcut oturumlarin gecmisini koparir.
+    /// Anahtar <see cref="AgentPrismSessionStateKeys.ChatHistory"/> ile paylasilir:
+    /// konusma dallandirmasi ayni durumu okuyup yeni oturuma yazar (Faz 47).
     /// </remarks>
-    public const string SessionStateKey = "AgentPrism.ChatHistory";
+    public const string SessionStateKey = AgentPrismSessionStateKeys.ChatHistory;
 
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;

@@ -25,6 +25,10 @@ namespace AgentPrism;
 [JsonSerializable(typeof(WorkflowDefinitionPayload))]
 [JsonSerializable(typeof(ChatHistoryState))]
 [JsonSerializable(typeof(ChatMessage))]
+
+// Calistirma girdisi (Faz 47). Liste TEK bir `json` sutununa yazilir; polimorfik
+// icerigin `$type` ayraci nesnenin ilk ozelligi olarak korunur (K-027).
+[JsonSerializable(typeof(IReadOnlyList<ChatMessage>))]
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
 [JsonSerializable(typeof(IReadOnlyList<ExperimentVariant>))]
 [JsonSerializable(typeof(Dictionary<string, string>))]

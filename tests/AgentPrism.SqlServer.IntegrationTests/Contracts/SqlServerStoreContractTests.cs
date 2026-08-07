@@ -604,3 +604,39 @@ public sealed class SqlServerAgentFileStoreContractTests(SqlServerFixture fixtur
     }
 }
 #pragma warning restore MAAI001
+
+/// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
+public sealed class SqlServerRunInputStoreContractTests(SqlServerFixture fixture) : RunInputStoreContract
+{
+    private SqlServerTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<IRunInputStore> CreateStoreAsync()
+    {
+        _context = await SqlServerTestContext.CreateAsync(fixture);
+        return _context.RunInputs;
+    }
+
+    /// <summary>
+    /// <c>run_inputs.run_id</c> <c>runs</c> tablosuna yabanci anahtardir; girdi
+    /// yazilmadan once satirin var olmasi gerekir.
+    /// </summary>
+    /// <inheritdoc />
+    protected override async ValueTask PrepareRunAsync(Guid runId, string tenantId)
+        => await _context!.Runs.StartRunAsync(new RunStartInfo
+        {
+            RunId = runId,
+            AgentName = "sozlesme",
+            StartedAt = DateTimeOffset.UtcNow,
+            TenantId = tenantId,
+        });
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}

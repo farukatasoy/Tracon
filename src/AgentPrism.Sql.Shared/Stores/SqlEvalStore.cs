@@ -346,7 +346,14 @@ internal sealed class SqlEvalStore : IEvalStore
         AddNullableUuid(command, "run_id", result.RunId);
         DbHelpers.Add(command, "passed", result.Passed);
         AddNullableText(command, "output", result.Output);
-        Dialect.AddJsonb(command, "scores", RawJson(result.Scores));
+
+        // Scores bir LISTEDIR ("[]" sutun varsayilanidir); ayarlanmamis
+        // (Undefined) bir JsonElement RawJson ile "null" yazardi ve SQL
+        // Server'in ISJSON kisiti bunu REDDEDER (ISJSON(N'null') = 0). Postgre/
+        // SQLite'ta json/jsonb 'null' sessizce kabul edildigi icin bu sadece
+        // SQL Server'da gorulur.
+        Dialect.AddJsonb(command, "scores", result.Scores.ValueKind == JsonValueKind.Undefined ? "[]" : RawJson(result.Scores));
+
         AddNullableText(command, "failure_reason", result.FailureReason);
 
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);

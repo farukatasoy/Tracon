@@ -60,6 +60,8 @@ internal sealed class PostgresTestContext : IAsyncDisposable
         RunScores = new SqlRunScoreStore(wrapped);
         SingletonLeases = new SqlSingletonLeaseStore(wrapped);
         IdempotencyKeys = new SqlIdempotencyStore(wrapped);
+        RunInputs = new SqlRunInputStore(wrapped);
+        ConversationBranches = new SqlConversationBranchStore(wrapped);
         Migrations = new MigrationRunner(wrapped, NullLogger<MigrationRunner>.Instance);
     }
 
@@ -155,6 +157,12 @@ internal sealed class PostgresTestContext : IAsyncDisposable
 
     /// <summary>Idempotency deposu (Faz 43).</summary>
     public SqlIdempotencyStore IdempotencyKeys { get; }
+
+    /// <summary>Calistirma girdi deposu (Faz 47).</summary>
+    public SqlRunInputStore RunInputs { get; }
+
+    /// <summary>Konusma dallandirma deposu (Faz 47).</summary>
+    public SqlConversationBranchStore ConversationBranches { get; }
 
     /// <summary>Migration calistiricisi.</summary>
     public MigrationRunner Migrations { get; }

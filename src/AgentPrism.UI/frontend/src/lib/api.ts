@@ -48,12 +48,18 @@ import type {
   RunEvent,
   RunFeedbackRequest,
   RunKind,
+  RunComparisonResponse,
+  RunInputResponse,
   RunRecord,
+  RunReplayRequest,
+  RunReplayResponse,
   RunScore,
   RunStatistics,
   RunStatus,
   RunTrace,
   SessionDetail,
+  SessionBranchRequest,
+  SessionBranchResult,
   SessionRecord,
   TenantDescriptor,
   TimeSeriesBucket,
@@ -293,6 +299,37 @@ export const api = {
       `api/runs/${encodeURIComponent(id)}/feedback/${encodeURIComponent(scoreId)}`,
       { method: 'DELETE' },
     ),
+
+  /**
+   * A run's recorded input. A 404 means the run cannot be replayed — input
+   * recording was off when it started, or retention removed the row.
+   */
+  runInput: (id: string) => request<RunInputResponse>(`api/runs/${encodeURIComponent(id)}/input`),
+
+  /**
+   * Replays a run with its recorded input under changed conditions.
+   *
+   * `ReplayTools` (the default) runs no tool bodies at all: recorded results are
+   * played back. A call with no recorded result stops the replay with a 422 —
+   * that is a finding, not a failure: the new version calls a different tool.
+   */
+  replayRun: (id: string, body: RunReplayRequest) =>
+    send<RunReplayResponse>('POST', `api/runs/${encodeURIComponent(id)}/replay`, body),
+
+  compareRuns: (a: string, b: string) =>
+    request<RunComparisonResponse>(
+      `api/runs/${encodeURIComponent(a)}/compare/${encodeURIComponent(b)}`,
+    ),
+
+  /**
+   * Branches a session's conversation at a point and opens a new session on it.
+   *
+   * Items are copied, not chained: the read path is untouched. A 501 means this
+   * deployment has no SQL provider, where history lives inside the opaque
+   * session state and cannot be copied up to a sequence.
+   */
+  branchSession: (id: string, body: SessionBranchRequest) =>
+    send<SessionBranchResult>('POST', `api/sessions/${encodeURIComponent(id)}/branch`, body),
   toolUsage: (params: { startedAfter?: string; maxTools?: number } = {}) =>
     request<ToolUsage[]>(`api/tools/usage${query(params)}`),
 

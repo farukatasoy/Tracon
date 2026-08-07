@@ -1,4 +1,6 @@
+using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -27,7 +29,15 @@ internal static class RunEndpoints
     /// <param name="builder">Uc grubu.</param>
     /// <param name="options">Erisim ve akis ayarlari.</param>
     /// <param name="roles">Cozulmus rol policy'leri.</param>
-    public static void Map(IEndpointRouteBuilder builder, AgentPrismEndpointOptions options, AgentPrismRolePolicies roles)
+    /// <param name="prefix">
+    /// Normalize edilmis yol oneki. Yeniden oynatma yanitindaki karsilastirma
+    /// adresini kurmak icin gerekir.
+    /// </param>
+    public static void Map(
+        IEndpointRouteBuilder builder,
+        AgentPrismEndpointOptions options,
+        AgentPrismRolePolicies roles,
+        string prefix)
     {
         builder.MapGet("/api/runs", async Task<Ok<IReadOnlyList<RunRecord>>> (
                 IRunStore runs,
@@ -169,6 +179,358 @@ internal static class RunEndpoints
             .WithName("AgentPrismDeleteRunFeedback")
             .WithTags("AgentPrism", "Runs")
             .WithSummary("Bir puani siler.");
+
+        builder.MapGet("/api/runs/{runId:guid}/input", GetRunInputAsync)
+            .RequireRole(roles.Reader)
+            .WithName("AgentPrismGetRunInput")
+            .WithTags("AgentPrism", "Runs")
+            .WithSummary("Bir calistirmanin kayitli girdi mesajlarini dondurur.")
+            .WithDescription(
+                "Girdi kaydi kapaliyken (AgentPrism:RunRecording:RecordRunInput = false) baslamis " +
+                "veya saklama politikasiyla silinmis bir calistirma icin 404 doner; o calistirma " +
+                "yeniden oynatilamaz.");
+
+        builder.MapGet("/api/runs/{a:guid}/compare/{b:guid}", CompareRunsAsync)
+            .RequireRole(roles.Reader)
+            .WithName("AgentPrismCompareRuns")
+            .WithTags("AgentPrism", "Runs")
+            .WithSummary("Iki calistirmanin ozetini yan yana dondurur.")
+            .WithDescription(
+                "Fark SUNUCUDA hesaplanmaz; uc iki ozeti dondurur ve karsilastirmayi arayuz gosterir " +
+                "(Faz 19'un tanim surumu diff'i ile ayni desen).");
+
+        builder.MapPost("/api/runs/{runId:guid}/replay", async (
+                Guid runId,
+                [FromBody] RunReplayRequest request,
+                [FromServices] RunReplayService replays,
+                [FromServices] IAuditLog auditLog,
+                [FromServices] IAuditActorResolver actorResolver,
+                [FromServices] ITenantContext tenants,
+                [FromServices] ILoggerFactory loggerFactory,
+                [FromServices] IAuthorizationService? authorization,
+                HttpContext httpContext,
+                CancellationToken cancellationToken) => await ReplayRunAsync(
+                    runId,
+                    request,
+                    replays,
+                    auditLog,
+                    actorResolver,
+                    tenants,
+                    loggerFactory,
+                    roles,
+                    authorization,
+                    httpContext,
+                    prefix,
+                    cancellationToken).ConfigureAwait(false))
+            .RequireRole(roles.Operator)
+            .WithName("AgentPrismReplayRun")
+            .WithTags("AgentPrism", "Runs")
+            .WithSummary("Kayitli girdiyle yeni bir calistirma acar.")
+            .WithDescription(
+                "Girdi korunur, kosullar degisir: 'agentVersion', 'modelId' ve 'toolMode'. " +
+                "Varsayilan 'toolMode' degeri 'ReplayTools'tur ve HICBIR tool gercekten kosmaz — " +
+                "kayitli sonuclar geri oynatilir. Kayitli sonucu olmayan bir cagri oynatmayi " +
+                "DURDURUR ve 422 doner. 'LiveTools' tool'lari GERCEKTEN calistirir, yan etki " +
+                "uretir, Admin rolu ister ve onay gerektiren bir tool varsa 409 alir. " +
+                "Yeniden oynatma oturumsuzdur: kaynak calistirma bir oturumdaysa yalniz O TURUN " +
+                "girdisi oynatilir, konusma gecmisi tasinmaz.")
+            .Produces<RunReplayResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
+            .ProducesProblem(StatusCodes.Status502BadGateway);
+    }
+
+    private static async Task<Results<Ok<RunInputResponse>, ProblemHttpResult>> GetRunInputAsync(
+        Guid runId,
+        [FromServices] IRunStore runs,
+        [FromServices] IRunInputStore inputs,
+        [FromServices] ITenantContext tenants,
+        CancellationToken cancellationToken)
+    {
+        var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
+
+        if (run is null || !string.Equals(run.TenantId, tenants.TenantId, StringComparison.Ordinal))
+        {
+            return NotFound(runId);
+        }
+
+        var input = await inputs
+            .GetAsync(tenants.TenantId, runId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (input is null)
+        {
+            return TypedResults.Problem(
+                title: "Girdi kaydi yok",
+                detail: $"'{runId}' kimlikli calistirmanin kayitli girdisi yok. Girdi kaydi kapaliyken " +
+                        "baslamis veya saklama politikasiyla silinmis olabilir.",
+                statusCode: StatusCodes.Status404NotFound);
+        }
+
+        return TypedResults.Ok(new RunInputResponse
+        {
+            RunId = input.RunId,
+            CreatedAt = input.CreatedAt,
+            Messages = input.Messages,
+        });
+    }
+
+    private static async Task<Results<Ok<RunComparisonResponse>, ProblemHttpResult>> CompareRunsAsync(
+        Guid a,
+        Guid b,
+        [FromServices] IRunStore runs,
+        [FromServices] IRunScoreStore scores,
+        [FromServices] ITenantContext tenants,
+        CancellationToken cancellationToken)
+    {
+        var left = await runs.GetRunAsync(a, cancellationToken).ConfigureAwait(false);
+        var right = await runs.GetRunAsync(b, cancellationToken).ConfigureAwait(false);
+
+        // Kiraci siniri her iki taraf icin ayri ayri denetlenir; "yok" ile
+        // "baska kiraciya ait" ayni 404'u doner.
+        if (left is null || !string.Equals(left.TenantId, tenants.TenantId, StringComparison.Ordinal))
+        {
+            return NotFound(a);
+        }
+
+        if (right is null || !string.Equals(right.TenantId, tenants.TenantId, StringComparison.Ordinal))
+        {
+            return NotFound(b);
+        }
+
+        return TypedResults.Ok(new RunComparisonResponse
+        {
+            Left = await BuildSideAsync(left, runs, scores, tenants, cancellationToken).ConfigureAwait(false),
+            Right = await BuildSideAsync(right, runs, scores, tenants, cancellationToken).ConfigureAwait(false),
+        });
+    }
+
+    private static async ValueTask<RunComparisonSide> BuildSideAsync(
+        RunRecord run,
+        IRunStore runs,
+        IRunScoreStore scores,
+        ITenantContext tenants,
+        CancellationToken cancellationToken)
+    {
+        var tools = await runs.ListToolInvocationsAsync(run.Id, cancellationToken).ConfigureAwait(false);
+        var runScores = await scores.ListAsync(tenants.TenantId, run.Id, cancellationToken).ConfigureAwait(false);
+
+        return new RunComparisonSide
+        {
+            RunId = run.Id,
+            AgentName = run.AgentName,
+            AgentVersion = run.AgentVersion,
+            ModelId = run.ModelId,
+            Status = run.Status,
+            DurationMs = run.CompletedAt is { } completed
+                ? (long)(completed - run.StartedAt).TotalMilliseconds
+                : null,
+            Usage = run.Usage,
+            Cost = run.Cost,
+            ToolCallCount = tools.Count,
+            ErrorClass = run.Error?.Class,
+            ErrorMessage = run.Error?.Message,
+            ReplayOfRunId = run.ReplayOfRunId,
+            Output = await ReadOutputAsync(runs, run.Id, cancellationToken).ConfigureAwait(false),
+            Scores = runScores,
+        };
+    }
+
+    /// <summary>
+    /// Bir calistirmanin urettigi metni olay akisindan okur.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 Akissiz yol (<c>RunCoreAsync</c>) hem her <c>TextContent</c> icin bir
+    /// <c>MessageDelta</c> hem de sonda bir <c>MessageCompleted</c> yazar; akisli
+    /// yol yalnizca <c>MessageDelta</c> uretir ve esdeger bir "tamamlandi" olayi
+    /// HIC yazmaz. Ikisini toplamak akissiz yolda metni MUKERRER sayardi; bu
+    /// yuzden <c>MessageCompleted</c> varsa o kazanir.
+    /// </remarks>
+    private static async ValueTask<string?> ReadOutputAsync(
+        IRunStore runs,
+        Guid runId,
+        CancellationToken cancellationToken)
+    {
+        var completed = new StringBuilder();
+        var deltas = new StringBuilder();
+
+        await foreach (var runEvent in runs.ReadEventsAsync(runId, 0, cancellationToken).ConfigureAwait(false))
+        {
+            switch (runEvent.Type)
+            {
+                case RunEventType.MessageCompleted when runEvent.Text is { Length: > 0 } text:
+                    completed.Append(text);
+                    break;
+
+                case RunEventType.MessageDelta when runEvent.Text is { Length: > 0 } delta:
+                    deltas.Append(delta);
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        var result = completed.Length > 0 ? completed.ToString() : deltas.ToString();
+
+        return result.Length == 0 ? null : result;
+    }
+
+    /// <summary>
+    /// Kayitli bir calistirmayi ayni girdiyle, degistirilmis kosullarla yeniden calistirir.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Calistirma <strong>akissiz</strong>dir ve tek bir JSON govde doner. Akisli
+    /// bir yeniden oynatma tasarima bir sey katmaz: karsilastirmanin ilgilendigi
+    /// sey nihai ciktidir ve olay akisi zaten
+    /// <c>GET /api/runs/{id}/events</c> ile okunabilir.
+    /// </para>
+    /// <para>
+    /// 🚨 <see cref="ReplayToolMode.LiveTools"/> <c>Admin</c> rolu ister. Uc
+    /// <c>Operator</c> ile baglanmistir; fark BURADA, calisma aninda zorlanir
+    /// cunku rol modun kendisine baglidir. Rol policy'leri hic kayitli degilse
+    /// (yetkilendirme kapali) ek bir denetim yapilmaz — kurulum zaten acik
+    /// bir sekilde korumasizdir.
+    /// </para>
+    /// </remarks>
+    private static async Task<IResult> ReplayRunAsync(
+        Guid runId,
+        [FromBody] RunReplayRequest request,
+        [FromServices] RunReplayService replays,
+        [FromServices] IAuditLog auditLog,
+        [FromServices] IAuditActorResolver actorResolver,
+        [FromServices] ITenantContext tenants,
+        [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] AgentPrismRolePolicies roles,
+        [FromServices] IAuthorizationService? authorization,
+        HttpContext httpContext,
+        string prefix,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (request.ToolMode == ReplayToolMode.LiveTools &&
+            roles.Admin is { } adminPolicy &&
+            authorization is not null)
+        {
+            var authorized = await authorization
+                .AuthorizeAsync(httpContext.User, resource: null, adminPolicy)
+                .ConfigureAwait(false);
+
+            if (!authorized.Succeeded)
+            {
+                return Results.Problem(
+                    title: "Yetki yetersiz",
+                    detail: "'LiveTools' modu tool'lari GERCEKTEN calistirir ve yan etki uretir; " +
+                            "Admin rolu gerekir. Yan etkisiz bir tekrar icin 'ReplayTools' veya " +
+                            "'NoTools' kullanin.",
+                    statusCode: StatusCodes.Status403Forbidden);
+            }
+        }
+
+        var preparation = await replays.PrepareAsync(runId, request, cancellationToken).ConfigureAwait(false);
+
+        if (preparation.Outcome != RunReplayOutcome.Ready)
+        {
+            return preparation.Outcome switch
+            {
+                RunReplayOutcome.RunNotFound => Results.Problem(
+                    title: "Calistirma bulunamadi",
+                    detail: preparation.Detail,
+                    statusCode: StatusCodes.Status404NotFound),
+                RunReplayOutcome.InputNotFound => Results.Problem(
+                    title: "Girdi kaydi yok",
+                    detail: preparation.Detail,
+                    statusCode: StatusCodes.Status404NotFound),
+                RunReplayOutcome.ApprovalRequired => Results.Problem(
+                    title: "Onay gerektiren tool canli calistirilamaz",
+                    detail: preparation.Detail,
+                    statusCode: StatusCodes.Status409Conflict),
+                _ => Results.Problem(
+                    title: "Yeniden oynatma desteklenmiyor",
+                    detail: preparation.Detail,
+                    statusCode: StatusCodes.Status400BadRequest),
+            };
+        }
+
+        var newRunId = AgentPrismId.NewId();
+
+        try
+        {
+            var response = await preparation.Agent!.RunAsync(
+                preparation.Messages,
+                session: null,
+                new AgentPrismRunOptions
+                {
+                    RunId = newRunId,
+                    AgentVersion = preparation.AgentVersion,
+                    ReplayOfRunId = runId,
+                },
+                cancellationToken).ConfigureAwait(false);
+
+            await AuditRecorder.WriteAsync(
+                auditLog,
+                actorResolver,
+                loggerFactory.CreateLogger("AgentPrism.RunEndpoints"),
+                tenants.TenantId,
+                action: "run.replay",
+                entity: $"run:{newRunId}",
+                before: null,
+                after: $$"""{"sourceRunId":"{{runId}}","toolMode":"{{request.ToolMode}}"}""",
+                cancellationToken).ConfigureAwait(false);
+
+            return TypedResults.Ok(new RunReplayResponse
+            {
+                RunId = newRunId,
+                SourceRunId = runId,
+                ToolMode = request.ToolMode,
+                AgentVersion = preparation.AgentVersion,
+                ModelId = preparation.ModelId,
+                Output = response.Text,
+                CompareLocation = $"{prefix}/api/runs/{runId}/compare/{newRunId}",
+            });
+        }
+        catch (ReplayToolMismatchException ex)
+        {
+            // 🚨 422: eslesmeyen bir tool cagrisi bir HATA DEGIL, bir BULGUDUR —
+            // yeni surum farkli bir tool cagiriyor demektir. Sessizce atlamak
+            // modelin goremedigi bir bosluk, canli calistirmak istenmeyen bir
+            // yan etki uretirdi (Faz 47, Acik Soru 3).
+            return Results.Problem(
+                title: "Kayitli tool sonucu bulunamadi",
+                detail: ex.Message,
+                statusCode: StatusCodes.Status422UnprocessableEntity,
+                extensions: new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["toolName"] = ex.ToolName,
+                    ["arguments"] = ex.Arguments,
+                    ["runId"] = newRunId,
+                });
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // 🚨 Istisna tipi DAR bir listeyle yakalanmaz ve bu K-296'nin
+            // dogrudan sonucudur: resmi saglayici SDK'lari
+            // `HttpRequestException` FIRLATMAZ (OpenAI
+            // `System.ClientModel.ClientResultException`, Azure
+            // `RequestFailedException` firlatir) ve dar bir liste, gercek bir
+            // model hatasini islenmemis bir 500'e cevirir. Olculdu: bu uc ilk
+            // yazildiginda `AgentPrismException or InvalidOperationException or
+            // HttpRequestException` listesiyle yazilmisti ve ornek uygulamada
+            // bir `403 model_not_found` tam olarak boyle kacti.
+            //
+            // Calistirma kaydi zaten kapanmistir (RunRecordingAgent hatayi
+            // yakalar ve satiri Failed yazar); burada yapilacak tek is hatayi
+            // istemciye anlasilir bir durum koduyla cevirmektir.
+            return Results.Problem(
+                title: "Yeniden oynatma basarisiz",
+                detail: ex.Message,
+                statusCode: StatusCodes.Status502BadGateway);
+        }
     }
 
     private static async Task<Results<Ok<RunScore>, ProblemHttpResult>> SaveFeedbackAsync(

@@ -78,8 +78,7 @@ Faz 23 kapanisi) 204 testin 204'u de kirilmisti. Kok sebepler:
 
 ## Test altyapisi
 
-- **🚨 `mcr.microsoft.com/mssql/server` yalnizca `linux/amd64`'tur.** Apple Silicon'da Docker Desktop'ta "Use Rosetta for x86_64/amd64 emulation" acik degilse container `exit 133` ile duser ve HICBIR SQL Server testi kosmaz. `azure-sql-edge` arm64 tasir ama ayri bir urundur ve gercek SQL Server'i kanitlamaz.
-- **🚨 `azure-sql-edge` ge​cici ikame artik HER ZAMAN calismayabilir.** K-186'nin kullandigi teknik (imaji `SqlServerFixture`'da gecici degistirip testleri kosturmak) 2026-08-05'te (Faz 25) tekrar denendi ve BASARISIZ oldu: `Testcontainers.MsSql`'in hazir-olma denetimi konteynerin icinde `sqlcmd` ikili dosyasini arar (`MsSqlContainer.FindSqlCmdFilePathAsync`), `azure-sql-edge` imajinda bu arac YOK — container calismis olsa bile `System.NotSupportedException: The sqlcmd binary could not be found` ile fixture baslatma basarisiz olur. K-186'nin basarili kosusu farkli bir Testcontainers surumunde/imaj etiketinde alinmis olabilir; bu artik guvenilir bir yedek yol DEGILDIR. Gercek dogrulama icin linux/amd64 bir makine veya CI gerekir.
+- **🚨 `mcr.microsoft.com/mssql/server` bu makinede hâlâ koşmuyor; `azure-sql-edge` artık GÜVENİLİR bir yerel ikame (K-317, 2026-08-07).** Kök sebep, düzeltme (özel `IWaitUntil`, `sqlcmd` gerekmez) ve tekrar dene rehberi: [`sql-server-yerel-test.md`](sql-server-yerel-test.md).
 - **Sozlesme testleri `tests/Shared/` altindadir** ve saglayici basina bir entegrasyon test projesine derlenir (`AgentPrism.StoreContracts` ad alani). Yeni bir saglayici eklerken sozlesme testi YAZILMAZ; yalnizca kosucu sinif turetilir. SQLite bu iddianin DORDUNCU kanitidir (K-194).
 - **Her test kendi semasini/onekini kullanir** (`t_<16 hex>`), her saglayicida. Bu hem yalitim saglar hem `SchemaName`/`TablePrefix` ayarinin gercekten calistigini her testte dogrular.
 

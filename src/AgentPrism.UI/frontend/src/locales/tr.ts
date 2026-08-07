@@ -470,6 +470,59 @@ export const tr: Messages = {
   'runDetail.cancel.requested': 'İptal istendi — çalıştırma kısa süre içinde duracak.',
   'runDetail.cancel.conflict': 'Bu çalıştırma iptal edilemedi: bu örnekte yürütülmüyor veya zaten sonlanmış.',
 
+  /* ------------------------------------------------------------- replay */
+  'replay.title': 'Bu çalıştırmayı yeniden oynat',
+  'replay.hint':
+    'Kayıtlı girdiyi değişmiş koşullarla yeniden çalıştırır. Girdi değişmez — farklı bir girdi yeni bir çalıştırmadır.',
+  'replay.version': 'Tanım sürümü',
+  'replay.versionCurrent': 'Bugünkü sürüm',
+  'replay.model': 'Model',
+  'replay.modelDefault': 'Tanımın kendi modeli',
+  'replay.toolMode': "Tool'lar",
+  'replay.toolMode.NoTools': "Tool bağlama",
+  'replay.toolMode.ReplayTools': 'Kayıtlı sonuçları geri oynat',
+  'replay.toolMode.LiveTools': "Tool'ları gerçekten çalıştır",
+  'replay.toolModeHint.NoTools':
+    "Model tool'suz cevaplar. Yalnız talimat değişikliğinin etkisini ölçer.",
+  'replay.toolModeHint.ReplayTools':
+    'Hiçbir tool gövdesi koşmaz. Kayıtlı sonucu olmayan bir çağrı oynatmayı durdurur — bu bir hata değil, bir bulgudur.',
+  'replay.toolModeHint.LiveTools':
+    "Tool'lar gerçekten koşar ve yan etki üretir. Admin rolü ister; onay gerektiren bir tool reddedilir.",
+  'replay.button': 'Yeniden oynat',
+  'replay.running': 'Oynatılıyor…',
+  'replay.noInput': 'Bu çalıştırmanın kayıtlı girdisi yok; yeniden oynatılamaz.',
+  'replay.sourceLink': 'Kaynağı',
+  'replay.compare': 'Kaynak çalıştırmayla karşılaştır',
+  'replay.result': 'Yeniden oynatma {runId} çalıştırmasını açtı.',
+
+  /* ---------------------------------------------------------- comparison */
+  'compare.title': 'Karşılaştırma',
+  'compare.left': 'Kaynak',
+  'compare.right': 'Tekrar',
+  'compare.field': 'Alan',
+  'compare.status': 'Durum',
+  'compare.version': 'Sürüm',
+  'compare.model': 'Model',
+  'compare.duration': 'Süre',
+  'compare.tokens': 'Token',
+  'compare.cost': 'Maliyet',
+  'compare.toolCalls': 'Tool çağrısı',
+  'compare.errorClass': 'Hata sınıfı',
+  'compare.scores': 'Puanlar',
+  'compare.output': 'Çıktı',
+  'compare.same': 'aynı',
+  'compare.different': 'farklı',
+
+  /* --------------------------------------------------------- branching */
+  'branch.title': 'Buradan dallan',
+  'branch.button': 'Dallan',
+  'branch.running': 'Dallanıyor…',
+  'branch.hint':
+    'Konuşmayı bu mesaja kadar yeni bir oturuma kopyalar. Dala yazmak ana konuşmayı değiştirmez.',
+  'branch.done': 'Dal açıldı: {count} öğe kopyalandı.',
+  'branch.open': 'Dalı aç',
+  'branch.unsupported': 'Dallandırma kalıcı bir SQL sağlayıcısı ister.',
+
   /* ----------------------------------------------------------- feedback */
   'feedback.title': 'Geri bildirim',
   'feedback.helpful': 'Yararlı',

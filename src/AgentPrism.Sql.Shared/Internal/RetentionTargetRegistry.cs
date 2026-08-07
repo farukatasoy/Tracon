@@ -222,6 +222,16 @@ internal static class RetentionTargetRegistry
                 "created_at",
                 "created_at"),
 
+            // Calistirma girdileri (Faz 47). Kendi tenant_id ve created_at
+            // sutunlarini tasir; runs'a FK'si CASCADE oldugu icin calistirma
+            // silinince zaten gider, ama kendi omru de sinirlanabilmelidir.
+            RetentionTargets.RunInputs => new RetentionTargetDefinition(
+                Table("run_inputs"),
+                "created_at < @cutoff",
+                "tenant_id = @tenant_id",
+                "created_at",
+                "created_at"),
+
             _ => throw new ArgumentException($"Bilinmeyen saklama hedefi: '{target}'.", nameof(target)),
         };
     }

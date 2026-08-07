@@ -437,6 +437,28 @@ public sealed class AgentPrismRunRecordingOptions
     /// sonuna kirpildigini belirten bir isaret eklenir.
     /// </summary>
     public int MaxPayloadLength { get; set; } = 8 * 1024;
+
+    /// <summary>
+    /// Calistirma girdisi <c>run_inputs</c> tablosuna yazilsin mi (Faz 47).
+    /// Kapatilirsa yeniden oynatma calismaz.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 🚨 Varsayilan <strong>acik</strong>tir ve bu bir K1 ("sifir surpriz")
+    /// istisnasi <em>degildir</em>: girdi yeni bir bilgi sinifi acmaz. Oturumlu
+    /// bir calistirmada ayni mesajlar zaten <c>conversation_items</c>'ta duruyor
+    /// (K-107 depoyu tam sohbet gecmisini biriktirmeye bilerek bagladi) ve
+    /// <see cref="RecordToolPayloads"/> bugun <see langword="true"/> geliyor.
+    /// Kapali gelseydi ozellik olu dogardi: yeniden oynatma <em>hicbir</em>
+    /// mevcut calistirma icin calismazdi.
+    /// </para>
+    /// <para>
+    /// Girdi kirpilmaz. <see cref="MaxPayloadLength"/> olay yukleri icindir;
+    /// kirpilmis bir girdi sessizce yanlis bir yeniden oynatma uretirdi.
+    /// Buyume <c>run_inputs</c> saklama hedefiyle sinirlanir.
+    /// </para>
+    /// </remarks>
+    public bool RecordRunInput { get; set; } = true;
 }
 
 /// <summary>

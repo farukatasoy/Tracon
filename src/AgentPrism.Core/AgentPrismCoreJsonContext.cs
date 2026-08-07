@@ -22,4 +22,8 @@ namespace AgentPrism;
 [JsonSerializable(typeof(AgentSkillScriptDefinition))]
 [JsonSerializable(typeof(WorkflowDefinition))]
 [JsonSerializable(typeof(Experiment))]
+
+// Konusma dallandirmasi (Faz 47): oturumun durum cantasindaki konusma kimligi
+// okunur ve yeni oturuma yazilir.
+[JsonSerializable(typeof(ChatHistoryState))]
 internal sealed partial class AgentPrismCoreJsonContext : JsonSerializerContext;

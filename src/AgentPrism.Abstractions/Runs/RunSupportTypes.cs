@@ -145,6 +145,12 @@ public sealed record RunStartInfo
 
     /// <summary>Bu calistirmanin atandigi deney kolunun adi. Deney disi calistirmada <see langword="null"/>.</summary>
     public string? Variant { get; init; }
+
+    /// <summary>
+    /// Bu calistirma bir yeniden oynatma ise kaynak calistirmanin kimligi
+    /// (Faz 47). Normal calistirmada <see langword="null"/>.
+    /// </summary>
+    public Guid? ReplayOfRunId { get; init; }
 }
 
 /// <summary>Bir calistirmayi sonlandirmak icin gereken bilgiler.</summary>

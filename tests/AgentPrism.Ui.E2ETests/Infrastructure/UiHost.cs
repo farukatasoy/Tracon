@@ -170,10 +170,46 @@ internal sealed class UiHost : IAsyncDisposable
 
         await app.StartAsync();
 
+        GuardUiAssets(app);
+
         var address = app.Urls.FirstOrDefault()
             ?? throw new InvalidOperationException("Kestrel bir adres bildirmedi.");
 
         return new UiHost(app, provider, address.TrimEnd('/'), '/' + prefix.Trim('/'));
+    }
+
+    /// <summary>
+    /// Arayuz varliklari gercekten gomulu mu — degilse HEMEN ve ACIK bir
+    /// mesajla dusur.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 Bu bir kolaylik degil, bir <strong>zaman asimi kalkani</strong>dir.
+    /// <c>-p:AgentPrismFrontendEnabled=false</c> ile derlenen bir cozumde (hizli
+    /// ic dongu) veya Node.js bulunmayan bir ortamda <c>AgentPrism.UI</c> hicbir
+    /// varlik gommez. Bu kalkan olmadan her E2E testi bos bir sayfada
+    /// "waiting for heading Dashboard" diyerek 30 saniye bekler; 41 testte bu
+    /// <strong>~20 dakika</strong> eder ve hicbir hata mesaji gercek sebebi
+    /// soylemez. Olculdu: Faz 41'de ayni belirti (o zaman sebep senkronizasyon
+    /// kopyalariydi) 19 dakika kaybettirdi; Faz 47'de bu kez sebep eksik bir
+    /// derleme bayragiydi. Kalkan iki sebebi de ayni anda ve saniyeler icinde
+    /// gorunur kilar.
+    /// </remarks>
+    private static void GuardUiAssets(WebApplication app)
+    {
+        var provider = app.Services.GetService<IAgentPrismUiProvider>();
+
+        if (provider is { HasAssets: true })
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            "Arayuz varliklari gomulu degil; E2E testleri bos bir sayfaya bakardi ve her biri " +
+            "30 saniye zaman asimina ugrardi. Cozumu ARAYUZ ACIK derleyin: " +
+            "`dotnet build AgentPrism.slnx -c Release` (yani `-p:AgentPrismFrontendEnabled=false` " +
+            "OLMADAN). Ayrica `find src -name \"* 2.*\" -not -path \"*/node_modules/*\"` bos " +
+            "donmelidir: senkronizasyon kopyalari gomulu varlik listesini zehirler ve ayni " +
+            "belirtiyi uretir.");
     }
 
     /// <inheritdoc />

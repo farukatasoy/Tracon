@@ -940,6 +940,89 @@
         }
       }
     },
+    "/agentprism/api/sessions/{sessionId}/branch": {
+      "post": {
+        "tags": [
+          "AgentPrism",
+          "Sessions"
+        ],
+        "summary": "Bir konusmayi belirli bir noktadan dallandirir ve yeni bir oturum acar.",
+        "description": "Ogeler \u0027upToSequence\u0027 degerine kadar (dahil) YENI bir konusmaya KOPYALANIR; isaretci yalnizca koken bilgisidir. Dala yazmak ana konusmayi degistirmez. Dallandirma yalnizca kalici bir SQL saglayicisi acikken calisir; bellek ici kurulumda sohbet gecmisi oturum durumunun opak blogunda yasar ve 501 doner.",
+        "operationId": "AgentPrismBranchSession",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionBranchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionBranchResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/agentprism/api/runs": {
       "get": {
         "tags": [
@@ -1283,6 +1366,187 @@
         "responses": {
           "204": {
             "description": "No Content"
+          }
+        }
+      }
+    },
+    "/agentprism/api/runs/{runId}/input": {
+      "get": {
+        "tags": [
+          "AgentPrism",
+          "Runs"
+        ],
+        "summary": "Bir calistirmanin kayitli girdi mesajlarini dondurur.",
+        "description": "Girdi kaydi kapaliyken (AgentPrism:RunRecording:RecordRunInput = false) baslamis veya saklama politikasiyla silinmis bir calistirma icin 404 doner; o calistirma yeniden oynatilamaz.",
+        "operationId": "AgentPrismGetRunInput",
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunInputResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agentprism/api/runs/{a}/compare/{b}": {
+      "get": {
+        "tags": [
+          "AgentPrism",
+          "Runs"
+        ],
+        "summary": "Iki calistirmanin ozetini yan yana dondurur.",
+        "description": "Fark SUNUCUDA hesaplanmaz; uc iki ozeti dondurur ve karsilastirmayi arayuz gosterir (Faz 19\u0027un tanim surumu diff\u0027i ile ayni desen).",
+        "operationId": "AgentPrismCompareRuns",
+        "parameters": [
+          {
+            "name": "a",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "b",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunComparisonResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agentprism/api/runs/{runId}/replay": {
+      "post": {
+        "tags": [
+          "AgentPrism",
+          "Runs"
+        ],
+        "summary": "Kayitli girdiyle yeni bir calistirma acar.",
+        "description": "Girdi korunur, kosullar degisir: \u0027agentVersion\u0027, \u0027modelId\u0027 ve \u0027toolMode\u0027. Varsayilan \u0027toolMode\u0027 degeri \u0027ReplayTools\u0027tur ve HICBIR tool gercekten kosmaz \u2014 kayitli sonuclar geri oynatilir. Kayitli sonucu olmayan bir cagri oynatmayi DURDURUR ve 422 doner. \u0027LiveTools\u0027 tool\u0027lari GERCEKTEN calistirir, yan etki uretir, Admin rolu ister ve onay gerektiren bir tool varsa 409 alir. Yeniden oynatma oturumsuzdur: kaynak calistirma bir oturumdaysa yalniz O TURUN girdisi oynatilir, konusma gecmisi tasinmaz.",
+        "operationId": "AgentPrismReplayRun",
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunReplayRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunReplayResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -5673,6 +5937,1084 @@
         },
         "description": "Iki tanim surumunun ham JSON yaniti (Faz 19.1). Diff hesabi sunucuda yapilmaz;\nistemci iki ham tanimi alan alan karsilastirir."
       },
+      "AIAnnotation": {
+        "type": "object",
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/AIAnnotationCitationAnnotation"
+          },
+          {
+            "$ref": "#/components/schemas/AIAnnotationBase"
+          }
+        ]
+      },
+      "AIAnnotationBase": {
+        "properties": {
+          "annotatedRegions": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AnnotatedRegion"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "AIAnnotationCitationAnnotation": {
+        "required": [
+          "$type"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "citation"
+            ],
+            "type": "string"
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "url": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uri"
+          },
+          "fileId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "toolName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "snippet": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "annotatedRegions": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AnnotatedRegion"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "AIContent": {
+        "type": "object",
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/AIContentDataContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentErrorContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentFunctionCallContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentFunctionResultContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentHostedFileContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentHostedVectorStoreContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentTextContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentTextReasoningContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentUriContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentUsageContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentToolCallContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentToolResultContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentInputRequestContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentInputResponseContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentToolApprovalRequestContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentToolApprovalResponseContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentMcpServerToolCallContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentMcpServerToolResultContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentImageGenerationToolCallContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentImageGenerationToolResultContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentCodeInterpreterToolCallContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentCodeInterpreterToolResultContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentWebSearchToolCallContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentWebSearchToolResultContent"
+          },
+          {
+            "$ref": "#/components/schemas/AIContentBase"
+          }
+        ]
+      },
+      "AIContentBase": {
+        "properties": {
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "AIContentCodeInterpreterToolCallContent": {
+        "required": [
+          "$type",
+          "callId"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "codeInterpreterToolCall"
+            ],
+            "type": "string"
+          },
+          "inputs": {},
+          "callId": {
+            "type": "string"
+          },
+          "annotations": {},
+          "additionalProperties": {}
+        }
+      },
+      "AIContentCodeInterpreterToolResultContent": {
+        "required": [
+          "$type",
+          "callId"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "codeInterpreterToolResult"
+            ],
+            "type": "string"
+          },
+          "outputs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIContent"
+            }
+          },
+          "callId": {
+            "type": "string"
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "AIContentDataContent": {
+        "required": [
+          "$type",
+          "uri"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "data"
+            ],
+            "type": "string"
+          },
+          "uri": {
+            "type": "string",
+            "description": "A data URI representing the content."
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "AIContentErrorContent": {
+        "required": [
+          "$type",
+          "message"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "error"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "errorCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "details": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "AIContentFunctionCallContent": {
+        "required": [
+          "$type",
+          "name",
+          "callId"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "functionCall"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "arguments": {
+            "type": [
+              "null",
+              "object"
+            ]
+          },
+          "informationalOnly": {
+            "type": "boolean"
+          },
+          "callId": {
+            "type": "string"
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "AIContentFunctionResultContent": {
+        "required": [
+          "$type",
+          "result",
+          "callId"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "functionResult"
+            ],
+            "type": "string"
+          },
+          "result": {},
+          "callId": {
+            "type": "string"
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "AIContentHostedFileContent": {
+        "required": [
+          "$type",
+          "fileId"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "hostedFile"
+            ],
+            "type": "string"
+          },
+          "fileId": {
+            "type": "string"
+          },
+          "mediaType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sizeInBytes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "createdAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "purpose": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "scope": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "AIContentHostedVectorStoreContent": {
+        "required": [
+          "$type",
+          "vectorStoreId"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "hostedVectorStore"
+            ],
+            "type": "string"
+          },
+          "vectorStoreId": {
+            "type": "string"
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "AIContentImageGenerationToolCallContent": {
+        "required": [
+          "$type",
+          "callId"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "imageGenerationToolCall"
+            ],
+            "type": "string"
+          },
+          "callId": {
+            "type": "string"
+          },
+          "annotations": {},
+          "additionalProperties": {}
+        }
+      },
+      "AIContentImageGenerationToolResultContent": {
+        "required": [
+          "$type",
+          "callId"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "imageGenerationToolResult"
+            ],
+            "type": "string"
+          },
+          "outputs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIContent"
+            }
+          },
+          "callId": {
+            "type": "string"
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "AIContentInputRequestContent": {
+        "required": [
+          "$type"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "inputRequest"
+            ],
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "AIContentInputResponseContent": {
+        "required": [
+          "$type"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "inputResponse"
+            ],
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "AIContentMcpServerToolCallContent": {
+        "required": [
+          "$type",
+          "name",
+          "serverName",
+          "callId"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "mcpServerToolCall"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "serverName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "arguments": {},
+          "callId": {
+            "type": "string"
+          },
+          "annotations": {},
+          "additionalProperties": {}
+        }
+      },
+      "AIContentMcpServerToolResultContent": {
+        "required": [
+          "$type",
+          "callId"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "mcpServerToolResult"
+            ],
+            "type": "string"
+          },
+          "outputs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIContent"
+            }
+          },
+          "callId": {
+            "type": "string"
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "AIContentTextContent": {
+        "required": [
+          "$type",
+          "text"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "text"
+            ],
+            "type": "string"
+          },
+          "text": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "AIContentTextReasoningContent": {
+        "required": [
+          "$type",
+          "text"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "reasoning"
+            ],
+            "type": "string"
+          },
+          "text": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "protectedData": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "AIContentToolApprovalRequestContent": {
+        "required": [
+          "$type",
+          "toolCall",
+          "requestId"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "toolApprovalRequest"
+            ],
+            "type": "string"
+          },
+          "toolCall": {
+            "$ref": "#/components/schemas/ToolCallContent"
+          },
+          "requiresConfirmation": {
+            "type": "boolean"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "AIContentToolApprovalResponseContent": {
+        "required": [
+          "$type",
+          "approved",
+          "toolCall",
+          "requestId"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "toolApprovalResponse"
+            ],
+            "type": "string"
+          },
+          "approved": {
+            "type": "boolean"
+          },
+          "toolCall": {
+            "$ref": "#/components/schemas/ToolCallContent"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "AIContentToolCallContent": {
+        "required": [
+          "$type",
+          "callId"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "toolCall"
+            ],
+            "type": "string"
+          },
+          "callId": {
+            "type": "string"
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "AIContentToolResultContent": {
+        "required": [
+          "$type",
+          "callId"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "toolResult"
+            ],
+            "type": "string"
+          },
+          "callId": {
+            "type": "string"
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "AIContentUriContent": {
+        "required": [
+          "$type",
+          "uri"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "uri"
+            ],
+            "type": "string"
+          },
+          "uri": {
+            "type": "string",
+            "format": "uri"
+          },
+          "mediaType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "AIContentUsageContent": {
+        "required": [
+          "$type",
+          "details"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "usage"
+            ],
+            "type": "string"
+          },
+          "details": {
+            "$ref": "#/components/schemas/UsageDetails"
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "AIContentWebSearchToolCallContent": {
+        "required": [
+          "$type",
+          "callId"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "webSearchToolCall"
+            ],
+            "type": "string"
+          },
+          "queries": {},
+          "callId": {
+            "type": "string"
+          },
+          "annotations": {},
+          "additionalProperties": {}
+        }
+      },
+      "AIContentWebSearchToolResultContent": {
+        "required": [
+          "$type",
+          "callId"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "webSearchToolResult"
+            ],
+            "type": "string"
+          },
+          "outputs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIContent"
+            }
+          },
+          "callId": {
+            "type": "string"
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "AnnotatedRegion": {
+        "type": "object"
+      },
       "AttachmentDescriptor": {
         "required": [
           "id",
@@ -5874,6 +7216,48 @@
           }
         }
       },
+      "ChatMessage": {
+        "type": "object",
+        "properties": {
+          "authorName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "role": {
+            "$ref": "#/components/schemas/ChatRole"
+          },
+          "contents": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIContent"
+            }
+          },
+          "messageId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
       "ChatMessagePayload": {
         "required": [
           "role",
@@ -5892,6 +7276,7 @@
           }
         }
       },
+      "ChatRole": {},
       "ChatUsage": {
         "required": [
           "prompt_tokens",
@@ -8382,6 +9767,14 @@
         },
         "description": "Kota kullanim ucunun yaniti."
       },
+      "ReplayToolMode": {
+        "enum": [
+          "NoTools",
+          "ReplayTools",
+          "LiveTools"
+        ],
+        "description": "Yeniden oynatmada tool\u0027larin nasil ele alinacagi."
+      },
       "RetentionPolicy": {
         "required": [
           "id",
@@ -8648,6 +10041,147 @@
         },
         "description": "Bir agent\u0027in calistirma ozeti."
       },
+      "RunComparisonResponse": {
+        "required": [
+          "left",
+          "right"
+        ],
+        "type": "object",
+        "properties": {
+          "left": {
+            "description": "Soldaki calistirma.",
+            "$ref": "#/components/schemas/RunComparisonSide"
+          },
+          "right": {
+            "description": "Sagdaki calistirma.",
+            "$ref": "#/components/schemas/RunComparisonSide"
+          }
+        },
+        "description": "Iki calistirmanin yan yana ozeti."
+      },
+      "RunComparisonSide": {
+        "required": [
+          "runId",
+          "agentName",
+          "status",
+          "toolCallCount"
+        ],
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "description": "Calistirma kimligi.",
+            "format": "uuid"
+          },
+          "agentName": {
+            "type": "string",
+            "description": "Agent adi."
+          },
+          "agentVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Tanim surumu. Bilinmiyorsa \u0060null\u0060.",
+            "format": "int32"
+          },
+          "modelId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Kullanilan model."
+          },
+          "status": {
+            "description": "Son durum.",
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "durationMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Sure (milisaniye). Calistirma bitmediyse \u0060null\u0060.",
+            "format": "int64"
+          },
+          "usage": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Token kullanimi.",
+                "$ref": "#/components/schemas/RunUsage"
+              }
+            ]
+          },
+          "cost": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Maliyet.",
+                "$ref": "#/components/schemas/RunCost"
+              }
+            ]
+          },
+          "toolCallCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Tool cagrisi sayisi.",
+            "format": "int32"
+          },
+          "errorClass": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Hata sinifi. Basarili calistirmada \u0060null\u0060.",
+                "$ref": "#/components/schemas/RunErrorClass"
+              }
+            ]
+          },
+          "errorMessage": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Hata mesaji. Basarili calistirmada \u0060null\u0060."
+          },
+          "replayOfRunId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Bu calistirma bir yeniden oynatma ise kaynagi.",
+            "format": "uuid"
+          },
+          "output": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Modelin urettigi metin."
+          },
+          "scores": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RunScore"
+            },
+            "description": "Bu calistirmaya yazilmis puanlar."
+          }
+        },
+        "description": "Karsilastirmanin bir tarafi."
+      },
       "RunCost": {
         "required": [
           "source"
@@ -8884,6 +10418,34 @@
           }
         },
         "description": "Bir calistirma/mesaj puani yazmak icin istek govdesi."
+      },
+      "RunInputResponse": {
+        "required": [
+          "runId",
+          "createdAt",
+          "messages"
+        ],
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "description": "Calistirma kimligi.",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Kaydin olusturulma zamani (UTC).",
+            "format": "date-time"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatMessage"
+            },
+            "description": "Girdi mesajlari. Polimorfik icerikleriyle birlikte, kaydedildikleri gibi."
+          }
+        },
+        "description": "Bir calistirmanin kayitli girdisinin HTTP yaniti."
       },
       "RunKind": {
         "enum": [
@@ -9146,9 +10708,98 @@
                 "$ref": "#/components/schemas/RunTreeCost"
               }
             ]
+          },
+          "replayOfRunId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Bu calistirma bir yeniden oynatma ise kaynak calistirmanin kimligi;\ndegilse \u0060null\u0060.",
+            "format": "uuid"
           }
         },
         "description": "Bir calistirmanin ozeti. Olay akisinin basligi gibidir."
+      },
+      "RunReplayRequest": {
+        "type": "object",
+        "properties": {
+          "agentVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Kullanilacak agent tanim surumu. Verilmezse bugunku etkin surum.",
+            "format": "int32"
+          },
+          "modelId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Bindirilecek model adi. Verilmezse tanimin kendi modeli kullanilir."
+          },
+          "toolMode": {
+            "description": "Tool davranisi. Varsayilan ReplayToolMode.ReplayTools.",
+            "$ref": "#/components/schemas/ReplayToolMode"
+          }
+        },
+        "description": "Bir yeniden oynatma istegi."
+      },
+      "RunReplayResponse": {
+        "required": [
+          "runId",
+          "sourceRunId",
+          "toolMode",
+          "compareLocation"
+        ],
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "description": "Acilan yeni calistirmanin kimligi.",
+            "format": "uuid"
+          },
+          "sourceRunId": {
+            "type": "string",
+            "description": "Kaynak calistirmanin kimligi. \u0060runs.replay_of_run_id\u0060 ile aynidir.",
+            "format": "uuid"
+          },
+          "toolMode": {
+            "description": "Uygulanan tool modu.",
+            "$ref": "#/components/schemas/ReplayToolMode"
+          },
+          "agentVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Kullanilan tanim surumu. Kod agent\u0027inda \u0060null\u0060.",
+            "format": "int32"
+          },
+          "modelId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Kullanilan model."
+          },
+          "output": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Modelin urettigi metin."
+          },
+          "compareLocation": {
+            "type": "string",
+            "description": "Iki calistirmayi yan yana koyan ucun adresi."
+          }
+        },
+        "description": "Bir yeniden oynatmanin sonucu."
       },
       "RunScore": {
         "required": [
@@ -9597,6 +11248,79 @@
           }
         },
         "description": "Bir tanim surumunun calistirma ozeti."
+      },
+      "SessionBranchRequest": {
+        "type": "object",
+        "properties": {
+          "upToSequence": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Dahil edilecek son ogenin sira numarasi (dahil). Verilmezse konusmanin\ntamami kopyalanir.",
+            "format": "int64"
+          },
+          "newSessionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Acilacak yeni oturumun kimligi. Verilmezse uretilir."
+          }
+        },
+        "description": "Bir konusmayi belirli bir noktadan dallandirma istegi."
+      },
+      "SessionBranchResult": {
+        "required": [
+          "sessionId",
+          "conversationId",
+          "parentSessionId",
+          "parentConversationId",
+          "branchFromSequence",
+          "copiedItemCount"
+        ],
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "description": "Yeni oturumun kimligi."
+          },
+          "conversationId": {
+            "type": "string",
+            "description": "Yeni konusmanin kimligi.",
+            "format": "uuid"
+          },
+          "parentSessionId": {
+            "type": "string",
+            "description": "Kaynak oturumun kimligi."
+          },
+          "parentConversationId": {
+            "type": "string",
+            "description": "Kaynak konusmanin kimligi.",
+            "format": "uuid"
+          },
+          "branchFromSequence": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Dal noktasi: yeni konusmaya kopyalanan son ogenin sira numarasi.\nHicbir oge kopyalanmadiysa \u0060-1\u0060.",
+            "format": "int64"
+          },
+          "copiedItemCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Kopyalanan oge sayisi.",
+            "format": "int32"
+          }
+        },
+        "description": "Dallandirma sonucu."
       },
       "SessionDetailResponse": {
         "required": [
@@ -10058,6 +11782,231 @@
         },
         "description": "Kullanicinin \u0022bir daha sorma\u0022 dedigi bir tool cagrisi icin kalici onay kurali."
       },
+      "ToolCallContent": {
+        "type": "object",
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/ToolCallContentFunctionCallContent"
+          },
+          {
+            "$ref": "#/components/schemas/ToolCallContentMcpServerToolCallContent"
+          },
+          {
+            "$ref": "#/components/schemas/ToolCallContentImageGenerationToolCallContent"
+          },
+          {
+            "$ref": "#/components/schemas/ToolCallContentCodeInterpreterToolCallContent"
+          },
+          {
+            "$ref": "#/components/schemas/ToolCallContentWebSearchToolCallContent"
+          },
+          {
+            "$ref": "#/components/schemas/ToolCallContentBase"
+          }
+        ]
+      },
+      "ToolCallContentBase": {
+        "required": [
+          "callId"
+        ],
+        "properties": {
+          "callId": {
+            "type": "string"
+          },
+          "annotations": {},
+          "additionalProperties": {}
+        }
+      },
+      "ToolCallContentCodeInterpreterToolCallContent": {
+        "required": [
+          "$type",
+          "callId"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "codeInterpreterToolCall"
+            ],
+            "type": "string"
+          },
+          "inputs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIContent"
+            }
+          },
+          "callId": {
+            "type": "string"
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "ToolCallContentFunctionCallContent": {
+        "required": [
+          "$type",
+          "name",
+          "callId"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "functionCall"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "arguments": {},
+          "informationalOnly": {
+            "type": "boolean"
+          },
+          "callId": {
+            "type": "string"
+          },
+          "annotations": {},
+          "additionalProperties": {}
+        }
+      },
+      "ToolCallContentImageGenerationToolCallContent": {
+        "required": [
+          "$type",
+          "callId"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "imageGenerationToolCall"
+            ],
+            "type": "string"
+          },
+          "callId": {
+            "type": "string"
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "ToolCallContentMcpServerToolCallContent": {
+        "required": [
+          "$type",
+          "name",
+          "serverName",
+          "callId"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "mcpServerToolCall"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "serverName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "arguments": {
+            "type": [
+              "null",
+              "object"
+            ]
+          },
+          "callId": {
+            "type": "string"
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "ToolCallContentWebSearchToolCallContent": {
+        "required": [
+          "$type",
+          "callId"
+        ],
+        "properties": {
+          "$type": {
+            "enum": [
+              "webSearchToolCall"
+            ],
+            "type": "string"
+          },
+          "queries": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "callId": {
+            "type": "string"
+          },
+          "annotations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AIAnnotation"
+            }
+          },
+          "additionalProperties": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
       "ToolCallUsage": {
         "required": [
           "unit",
@@ -10368,6 +12317,106 @@
           "Error"
         ],
         "description": "Bir span\u0027in sonuc durumu. Veritabaninda \u0060smallint\u0060."
+      },
+      "UsageDetails": {
+        "type": "object",
+        "properties": {
+          "inputTokenCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "outputTokenCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "totalTokenCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "cachedInputTokenCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "reasoningTokenCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "inputAudioTokenCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "inputTextTokenCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "outputAudioTokenCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "outputTextTokenCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "additionalCounts": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int64"
+            }
+          }
+        }
       },
       "ValidationMessage": {
         "required": [

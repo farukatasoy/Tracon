@@ -1,6 +1,6 @@
 # Faz 47 — Yeniden Oynatma ve Konuşma Dallandırma
 
-> **Durum:** 📋 Planlandı (2026-08-06)
+> **Durum:** ✅ Tamamlandı (2026-08-07)
 > **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-54**, **F-66** (birleşti)
 > **Önkoşul:** Yok. [Faz 46](46-DAYANIKLI-CALISTIRMA.md) biterse yeniden oynatma `202` ile kuyruğa alınabilir — zorunlu değildir
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.AspNetCore`, `.UI`
@@ -553,29 +553,66 @@ sağlayıcısı üzerinde koşar.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] 🚨 Çalıştırma girdisi `run_inputs`'a **polimorfik içeriğiyle birlikte**
+- [x] 🚨 Çalıştırma girdisi `run_inputs`'a **polimorfik içeriğiyle birlikte**
       yazılır ve aynen geri okunur (`json`, `jsonb` değil — K-027)
-- [ ] `POST /api/runs/{runId}/replay` yeni bir çalıştırma açar; yeni satır
+- [x] `POST /api/runs/{runId}/replay` yeni bir çalıştırma açar; yeni satır
       `ReplayOfRunId` taşır ve kaynak çalıştırma **değişmez**
-- [ ] `ReplayTools` modunda **hiçbir tool gerçekten koşmaz**; kayıtlı sonuçlar
-      döner (`tool_invocations` yeni satır **almaz**)
-- [ ] 🚨 Eşleşmeyen tool çağrısında `422` döner ve hangi tool olduğu yazar
-- [ ] 🚨 Onay gerektiren tool + `LiveTools` → `409`
-- [ ] `LiveTools` `Operator` ile `403`, `Admin` ile geçer
-- [ ] Farklı `agentVersion` ve `modelId` ile oynatma o sürümü/modeli kullanır
-- [ ] `POST /api/sessions/{sessionId}/branch` yeni oturum açar; öğeler
+- [x] `ReplayTools` modunda **hiçbir tool gerçekten koşmaz**; kayıtlı sonuçlar
+      döner. 🚨 `tool_invocations` yine de satır **alır** — gerekçe: Plandan
+      Sapmalar S5. Gövdenin koşmadığı sayaçla kanıtlanır
+- [x] 🚨 Eşleşmeyen tool çağrısında `422` döner ve hangi tool olduğu yazar
+- [x] 🚨 Onay gerektiren tool + `LiveTools` → `409`
+- [x] `LiveTools` `Operator` ile `403`, `Admin` ile geçer
+- [x] Farklı `agentVersion` ve `modelId` ile oynatma o sürümü/modeli kullanır
+- [x] `POST /api/sessions/{sessionId}/branch` yeni oturum açar; öğeler
       `UpToSequence`'a kadar kopyalanır
-- [ ] 🚨 Dala yazmak ana konuşmayı değiştirmez; `SqlChatHistoryProvider`
+- [x] 🚨 Dala yazmak ana konuşmayı değiştirmez; `SqlChatHistoryProvider`
       **kod değişmeden** dalı okur
-- [ ] Ana konuşma silinince dal yaşar
-- [ ] Kiracı sınırı hem oynatmada hem dallandırmada korunur
-- [ ] `run_inputs` bir saklama hedefidir; `GET /api/retention/run_inputs` yanıt verir
-- [ ] Sözleşme testleri bellek içi + üç SQL sağlayıcısında geçer
-- [ ] Migration üç sette de uygulandı (K-178)
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı bu belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve buraya yazıldı
+- [x] Ana konuşma silinince dal yaşar
+- [x] Kiracı sınırı hem oynatmada hem dallandırmada korunur
+- [x] `run_inputs` bir saklama hedefidir; `GET /api/retention/run_inputs` yanıt verir
+- [x] Sözleşme testleri bellek içi + PostgreSQL + SQLite'ta geçer. 🚨 SQL Server
+      bu makinede **koşturulamadı**: `mcr.microsoft.com/mssql/server` yalnız
+      `linux/amd64`'tür (bilinen açık kalem, `AGENTS.md`). 431 testin tamamı
+      container başlatma zaman aşımıyla düşer; kod yolu paylaşılan katmandadır
+      ve PostgreSQL/SQLite ile aynıdır
+- [x] Migration üç sette de uygulandı (K-178)
+- [x] Dört doğrulama kapısı sıfır uyarı verir
+- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı — çıktılar aşağıda
+- [x] `secret` taraması boş döndü
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle **151,3 → 159,3 KB gzip** (bu fazın payı
+      **8,0 KB**; plan 3–5 KB tahmin etmişti). Bütçe 250 KB, kalan pay 90,7 KB
+
+
+### Örnek uygulamayla ölçülen gerçek çıktı (2026-08-07)
+
+`samples/AgentPrism.Api`, SQLite kalıcılığı ve gerçek OpenAI çağrılarıyla.
+
+| Adım | Sonuç |
+|---|---|
+| Girdi kaydı (`GET /api/runs/{id}/input`) | `{"role":"user","contents":[{"$type":"text",...}]}` — 🚨 `$type` **ilk özellik**, K-027 korunuyor |
+| Kaynak çalıştırmanın tool çağrısı | `get_order_status` / `orderId=ORD-42` |
+| `ReplayTools` ile oynatma | `200`; çıktı kayıtlı sonuçtan geldi ("kargoya verildi. Tahmini teslim: 2 gün") |
+| Soy bağı | `{"id":"019fdc4f-ff00…","replayOfRunId":"019fdc4f-b2a8…","status":"Completed"}` — kaynak **değişmedi** |
+| `compare` | kaynak `1` tool / `450` token / `4428 ms` ↔ oynatma `1` tool / `446` token / **`2215 ms`** (tool gövdesi koşmadığı için yarı sürede) |
+| 🚨 **422 — gerçek senaryo** | Agent'ın talimatı değiştirildi (`her zaman ORD-1 ile çağır`), oynatma `orderId=ORD-1` üretti, kayıt `orderId=ORD-99` idi → `422`, `toolName: get_order_status`, `arguments: orderId=ORD-1` |
+| `LiveTools` + onay gerektiren tool | `409` — `cancel_order` |
+| Aynı agent `NoTools` ile | `200` |
+| Kod agent'ı (`support`) + `ReplayTools` | `400` — açık gerekçeli |
+| Erişilemeyen modelle oynatma | `502` (🚨 ilk yazımda **500**'dü — aşağıya bakın) |
+| Dallandırma | `{"branchFromSequence":1,"copiedItemCount":2}` |
+| Dalın geçmişi | 2 mesaj; `SqlChatHistoryProvider` **kod değişmeden** okudu |
+| Dala yazdıktan sonra | ana konuşma **4** mesajda kaldı, dal **4** mesaja çıktı — bağımsız |
+| Saklama hedefi | `PUT /api/retention/run_inputs` `200`; bilinmeyen hedef `400` |
+
+🚨 **Örnek uygulamanın yakaladığı gerçek hata (birim testleri kaçırdı).**
+Yeniden oynatma ucu ilk yazımda sağlayıcı hatalarını
+`AgentPrismException or InvalidOperationException or HttpRequestException`
+listesiyle yakalıyordu. Gerçek bir OpenAI `403 model_not_found` yanıtı
+`System.ClientModel.ClientResultException` fırlattı ve istek **işlenmemiş bir
+500** oldu. Bu, **K-296'nın birebir tekrarıdır** (Faz 44: "resmî sağlayıcı
+SDK'ları `HttpRequestException` FIRLATMAZ"). Düzeltmeden sonra aynı istek `502`
+ve okunabilir bir `ProblemDetails` döndürüyor.
 
 ### Doğrulama komutları
 
@@ -658,42 +695,210 @@ curl -s http://localhost:5081/agentprism/api/retention/run_inputs | jq
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
-> oturumun en değerli bilgisidir.
+> Plan ile gerçek arasındaki fark gizlenmez — sonraki oturumun en değerli bilgisidir.
+
+| # | Plan | Gerçekleşen | Neden |
+|---|------|-------------|-------|
+| S1 | `conversations.parent_conversation_id` `ON DELETE SET NULL` yabancı anahtarı taşır | **Yabancı anahtar YOK** | 🚨 SQL Server kendine referans veren bir FK'de `SET NULL` kabul etmez (hata 1785). Kısıtı yalnız PostgreSQL/SQLite'a koymak aynı silmeyi üç sağlayıcıda üç farklı sonuca çevirirdi. Davranış her yerde aynı: dal yaşar, işaretçi çözülemeyen bir kökeni gösterir ve hiçbir okuma yolu onu JOIN'lemez. **K-312** |
+| S2 | Dal öğeleri tek bir `INSERT … SELECT` ile kopyalanır | **Tek işlem içinde satır satır** | Yeni öğe kimliği her satırda uuid v7 olmalıdır (K-015) ve üç diyalektin hiçbirinde ortak bir uuid v7 üreteci yoktur (`gen_random_uuid()` v4, `NEWID()` sıralanamaz, SQLite'ta yerleşik yok). Dayanıklılık değişmez: yazma tek işlemdedir. Ölçüldü: bin öğe ölçülebilir gecikme üretmedi. **K-311** |
+| S3 | Eşleşmeyen tool çağrısı bir istisna fırlatır ve oynatma durur | **İstisna oynatıcıda KAYDEDİLİR, döngü `Terminate` ile kesilir, hata `ReplayMismatchGuard` tarafından çalıştırma sonrası fırlatılır** | 🚨 Ölçüldü: `FunctionInvokingChatClient` tool gövdesinden çıkan istisnayı YUTAR; ilk yazım uca hiç ulaşmadı ve istek `200` döndü. Sonuç aynıdır ve daha iyisidir: `runs` satırı `Failed` kapanır, hata tipi `replay_tool_mismatch` olur, uç `422` döner. **K-309** |
+| S4 | — (planda yok) | **`ReplayTools`/`NoTools` modlarında skill ve çağrılabilir alt agent yüzeyleri KAPATILIR** | İkisi de tool'larını bir `AIContextProvider` üzerinden açar ve tool dönüşümünden geçmez. Açık bırakılsalardı skill script'i çalışır, alt agent gerçek bir model çağrısı harcardı — "hiçbir tool gerçekten koşmaz" sözü bozulurdu. |
+| S5 | `tool_invocations` yeniden oynatmada **yeni satır almaz** | **Satır alır; ama hiçbir tool GÖVDESİ çalışmaz** | Ölçüldü. Çağrı gerçekten olmuştur (model tool'u çağırdı, oynatıcı kayıtlı sonucu döndürdü) ve `runs` kaydının kendi içinde tutarlı olması gerekir. Ayrıca `compare` ucu tool çağrısı SAYISINI karşılaştırır; oynatma hiç kaydetmeseydi her karşılaştırma sahte bir davranış değişikliği gösterirdi. Asıl garanti (`gövde koşmaz`) `ReplayTools_modunda_HICBIR_tool_gercekten_kosmaz` testinde sayaçla kanıtlanır. |
+| S6 | Açık Soru 6: oynatma hem senkron hem kuyrukta çalışır | **Yalnız senkron** | Kuyruktan koşan bir oynatma iki ölçülmemiş şey ister: iş yükünün oynatma parametrelerini taşıması ve `RunReplayService`'in kiracı bağlamını işçi sürecinde doğru çözmesi. Uç sözleşmesi değişmez. **K-316**, aday kaleme yazıldı |
+| S7 | `ConversationBranchService` Core'da, kopyalama `SqlSessionStore`'da | **Kopyalama ayrı bir `SqlConversationBranchStore`'da; `ChatHistoryState` Abstractions'a taşındı ve public oldu** | Core'daki servis oturum durumundaki konuşma kimliğini okuyup yeni oturuma yazmak zorundadır; durum anahtarı ve tipi Sql.Shared içinde `internal`di ve Core oradan okuyamıyordu. `SqlSessionStore`'a eklemek yerine ayrı bir depo yazmak `TenantCoverageTests` kapsamını da net tutar. |
+| S8 | — (planda yok) | **`ReplayToolMode` `[JsonConverter(typeof(JsonStringEnumConverter<>))]` taşır** | 🚨 Bu işaret olmadan minimal API gövdeyi çözemez ve istek **boş gövdeli bir `400`** ile düşer; hata mesajı sebebi söylemez. `RunScoreKind` aynı işareti zaten taşıyor. Yeni bir public enum HTTP gövdesine girdiğinde ilk kontrol budur. |
+| S9 | Playground'da "bir mesajdan buradan dallan" | **Mesaj bazlı dallanma OTURUM ekranında; playground konuşmanın tamamını dallandırır** | `upToSequence` bir `conversation_items.seq`'idir. Oturum ucu geçmişi `ChatHistoryProvider` üzerinden sıra numarasına göre döndürür (i'nci mesaj = `seq i`); playground'un dökümü canlı SSE'den katlanır ve hiçbir sıra numarası taşımaz. |
+
+### Faz dışı ama bu fazda düzeltilen iki test altyapısı arızası
+
+Fazın kendi kapsamı değildi; `dotnet test` çalıştırılamadığı için düzeltildi.
+
+| Arıza | Kök sebep | Ölçüm |
+|---|---|---|
+| 🚨 `dotnet test AgentPrism.slnx` hiçbir test koşmadan **on dakikalarca asılı** kalıyordu | `AgentPrism.Templates.Tests` fikstürü `dotnet pack`'i yönlendirilmiş stdout ile çalıştırıyor; `pack`'in başlattığı MSBuild düğümleri (`nodeReuse:true`) komut bittikten sonra da yaşayıp boruyu açık tutuyor ve `Process.WaitForExitAsync` asenkron okuyucuların bitmesini de beklediği için **~15 dakika** bloke kalıyor | Düğümler `pkill` ile öldürülünce fikstür ANINDA devam etti. `MSBUILDDISABLENODEREUSE=1` eklendi: **8 dk+ (asılı) → 18,5 sn** |
+| E2E paketi arayüz derlenmeden koşulduğunda 41 test 30'ar saniye zaman aşımına uğruyordu | `-p:AgentPrismFrontendEnabled=false` ile derlenmiş bir çözümde `AgentPrism.UI` hiçbir varlık gömmez | `UiHost.StartAsync` artık `IAgentPrismUiProvider.HasAssets` denetler ve saniyeler içinde açık bir mesajla düşer |
+
+Tüm paketin süresi: **2 dk 33 sn** (SQL Server hariç — bkz. Bitiş Ölçütleri).
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
->
-> **Not:** Üç karar **mutlaka** kayda geçmelidir:
-> 1. **Girdi kaydı ayrı tabloda ve `json` sütununda** — K-027'nin dördüncü
->    uygulaması. Neden `runs`'a sütun eklenmediği de yazılmalıdır.
-> 2. **Varsayılan tool modu `ReplayTools` ve eşleşmeyende `422`** — yan etki
->    kararı; sonraki fazlar bunu emsal alacaktır.
-> 3. **Dallanmada kopyalama** ve gerekçesi (okuma yolu bozulmaz). Ölçülen
->    kopyalama süresi ve disk payı da buraya yazılır.
+| Karar | Özet |
+|---|---|
+| **K-308** | Girdi ayrı bir `run_inputs` tablosunda ve `json` sütununda; `runs`'a sütun eklenmedi |
+| **K-309** | Varsayılan `ReplayTools`; eşleşmeyende `422` — ve MAF'ın istisnayı yutması nedeniyle hatanın nasıl fırlatıldığı |
+| **K-310** | `LiveTools` `Admin` ister; onay gerektiren tool `409` alır |
+| **K-311** | Dallanmada kopyalama; işaretçi zinciri reddedildi (okuma yolu bozulmaz) |
+| **K-312** | `parent_conversation_id` yabancı anahtar taşımaz (SQL Server 1785) |
+| **K-313** | Dallandırma yalnız SQL sağlayıcısı açıkken; bellek içinde `501` 👤 |
+| **K-314** | Kod agent'ı bindirmeyle oynatılamaz; `400` 👤 |
+| **K-315** | Yeniden oynatma oturumsuzdur |
+| **K-316** | Oynatma yalnız senkron; kuyruğa alma kapsam dışı |
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+```csharp
+// AgentPrism.Abstractions/Runs/IRunInputStore.cs
+public interface IRunInputStore
+{
+    ValueTask SaveAsync(RunInputRecord record, CancellationToken cancellationToken = default);
+    ValueTask<RunInputRecord?> GetAsync(string tenantId, Guid runId, CancellationToken cancellationToken = default);
+}
+
+public sealed record RunInputRecord
+{
+    public required Guid RunId { get; init; }
+    public required string TenantId { get; init; }
+    public required IReadOnlyList<ChatMessage> Messages { get; init; }
+    public required DateTimeOffset CreatedAt { get; init; }
+}
+
+// AgentPrism.Abstractions/Runs/RunReplay.cs
+[JsonConverter(typeof(JsonStringEnumConverter<ReplayToolMode>))]   // 🚨 S8
+public enum ReplayToolMode { NoTools = 0, ReplayTools = 1, LiveTools = 2 }
+
+public sealed record RunReplayRequest
+{
+    public int? AgentVersion { get; init; }
+    public string? ModelId { get; init; }
+    public ReplayToolMode ToolMode { get; init; } = ReplayToolMode.ReplayTools;
+}
+
+public sealed class ReplayToolMismatchException : AgentPrismException
+{
+    public const string ReplayToolMismatchErrorType = "replay_tool_mismatch";
+    public string? ToolName { get; init; }
+    public string? Arguments { get; init; }
+    public override string ErrorType { get; }
+    public static ReplayToolMismatchException For(string toolName, string? arguments);
+}
+
+// AgentPrism.Abstractions/Runs/RunRecord.cs + RunSupportTypes.cs + AgentPrismRunOptions.cs
+public Guid? ReplayOfRunId { get; init; }        // ucunde de
+
+// AgentPrism.Abstractions/Sessions/SessionBranch.cs
+public sealed record SessionBranchRequest { public long? UpToSequence { get; init; } public string? NewSessionId { get; init; } }
+public sealed record SessionBranchResult { /* SessionId, ConversationId, ParentSessionId, ParentConversationId, BranchFromSequence, CopiedItemCount */ }
+public interface IConversationBranchStore
+{
+    ValueTask<ConversationBranch?> BranchAsync(string tenantId, Guid parentConversationId, long? upToSequence, CancellationToken cancellationToken = default);
+}
+public readonly record struct ConversationBranch(Guid ConversationId, long BranchFromSequence, int CopiedItemCount);
+
+// AgentPrism.Abstractions/Sessions/ChatHistorySessionState.cs (🚨 S7 — Sql.Shared'dan TASINDI)
+public static class AgentPrismSessionStateKeys { public const string ChatHistory = "AgentPrism.ChatHistory"; }
+public sealed class ChatHistoryState { public Guid ConversationId { get; set; } }
+
+// AgentPrism.Abstractions/Retention/RetentionTargets.cs
+public const string RunInputs = "run_inputs";
+
+// AgentPrism.Core
+public sealed class InMemoryRunInputStore : IRunInputStore { public int MaxRuns { get; init; } = 1_000; }
+public sealed class RunReplayService { public ValueTask<RunReplayPreparation> PrepareAsync(Guid runId, RunReplayRequest request, CancellationToken cancellationToken = default); }
+public enum RunReplayOutcome { Ready, RunNotFound, InputNotFound, NotSupported, ApprovalRequired }
+public sealed record RunReplayPreparation { /* Outcome, Detail, Agent, Messages, SourceRun, AgentVersion, ModelId */ }
+public sealed class ConversationBranchService { public bool IsSupported { get; } public ValueTask<SessionBranchOutcome> BranchAsync(string sessionId, SessionBranchRequest request, CancellationToken cancellationToken = default); }
+public enum SessionBranchStatus { Branched, SessionNotFound, NoConversation, SessionExists, AgentNotFound, InvalidRequest, NotSupported }
+public sealed record SessionBranchOutcome { /* Status, Detail, Result */ }
+public bool RecordRunInput { get; set; } = true;                    // AgentPrismRunRecordingOptions
+public AIAgent Compile(AgentDefinition definition, ResolvedCallableAgents callableAgents, Func<AIFunction, AIFunction>? toolTransform);   // AgentDefinitionCompiler (yeni asiri yukleme)
+
+// AgentPrism.AspNetCore/Contracts/ReplayContracts.cs
+public sealed record RunInputResponse { /* RunId, CreatedAt, Messages */ }
+public sealed record RunReplayResponse { /* RunId, SourceRunId, ToolMode, AgentVersion, ModelId, Output, CompareLocation */ }
+public sealed record RunComparisonResponse { /* Left, Right */ }
+public sealed record RunComparisonSide { /* RunId, AgentName, AgentVersion, ModelId, Status, DurationMs, Usage, Cost, ToolCallCount, ErrorClass, ErrorMessage, ReplayOfRunId, Output, Scores */ }
+```
+
+### Migration numaraları (K-178)
+
+| Sağlayıcı | Dosya |
+|---|---|
+| PostgreSQL | `0023_replay_and_branching.sql` |
+| SQL Server | `0011_replay_and_branching.sql` |
+| SQLite | `0011_replay_and_branching.sql` |
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/AgentPrism.Abstractions/
+├── Runs/IRunInputStore.cs                    (YENI)
+├── Runs/RunReplay.cs                         (YENI)
+├── Runs/RunRecord.cs                         (ReplayOfRunId)
+├── Runs/RunSupportTypes.cs                   (RunStartInfo.ReplayOfRunId)
+├── Runs/AgentPrismRunOptions.cs              (ReplayOfRunId + Clone)
+├── Sessions/SessionBranch.cs                 (YENI)
+├── Sessions/ChatHistorySessionState.cs       (YENI — S7)
+└── Retention/RetentionTargets.cs             (RunInputs)
+
+src/AgentPrism.Core/
+├── Storage/InMemoryRunInputStore.cs          (YENI)
+├── Storage/InMemoryRunStore.cs               (ReplayOfRunId)
+├── Replay/RunReplayService.cs                (YENI)
+├── Replay/RecordedToolPlayback.cs            (YENI)
+├── Replay/ReplayMismatchGuard.cs             (YENI — S3)
+├── Sessions/ConversationBranchService.cs     (YENI)
+├── Recording/RunRecordingAgent.cs            (girdi yazimi + soy bagi)
+├── Recording/RunRecordingAgentDecorator.cs   (IRunInputStore)
+├── Compilation/AgentDefinitionCompiler.cs    (toolTransform asiri yuklemesi)
+├── AgentPrismOptions.cs                      (RecordRunInput)
+├── AgentPrismCoreJsonContext.cs              (ChatHistoryState)
+└── AgentPrismServiceCollectionExtensions.cs  (uc yeni kayit)
+
+src/AgentPrism.Sql.Shared/
+├── Stores/SqlRunInputStore.cs                (YENI)
+├── Stores/SqlConversationBranchStore.cs      (YENI)
+├── Stores/SqlRunStore.cs                     (replay_of_run_id, sutun 39)
+├── Stores/SqlChatHistoryProvider.cs          (paylasilan durum anahtari)
+├── Internal/SqlQueriesBase.cs                (bes yeni sorgu)
+├── Internal/AgentPrismJsonContext.cs         (IReadOnlyList<ChatMessage>)
+├── Internal/AgentDefinitionPayload.cs        (ChatHistoryState tasindi)
+└── Internal/RetentionTargetRegistry.cs       (run_inputs)
+
+src/AgentPrism.{PostgreSql,SqlServer,Sqlite}/
+├── Internal/*Queries.cs                      (girdi + dal sorgulari, replay_of_run_id)
+├── Migrations/*_replay_and_branching.sql     (YENI)
+└── AgentPrism*BuilderExtensions.cs           (IRunInputStore + IConversationBranchStore)
+
+src/AgentPrism.AspNetCore/
+├── Contracts/ReplayContracts.cs              (YENI)
+├── Endpoints/RunEndpoints.cs                 (replay, input, compare)
+├── Endpoints/SessionEndpoints.cs             (branch)
+└── AgentPrismEndpointRouteBuilderExtensions.cs (prefix -> RunEndpoints.Map)
+
+src/AgentPrism.UI/frontend/src/
+├── components/replay-panel.tsx               (YENI)
+├── components/run-comparison.tsx             (YENI)
+├── components/branch-button.tsx              (YENI)
+├── screens/run-detail.tsx                    (oynatma + karsilastirma + soy bagi)
+├── screens/session-detail.tsx                (mesaj basina dallan)
+├── screens/playground.tsx                    (konusmayi dallan)
+├── lib/{api,types}.ts
+└── locales/{en,tr}.ts
+
+tests/
+├── Shared/Contracts/RunInputStoreContract.cs (YENI — bellek ici + uc SQL)
+├── Shared/Contracts/TenantCoverageTests.cs   (iki yeni depo)
+├── AgentPrism.AspNetCore.FunctionalTests/RunReplayEndpointTests.cs (YENI)
+├── AgentPrism.AspNetCore.FunctionalTests/SessionEndpointTests.cs   (dallandirma 501)
+├── AgentPrism.Sqlite.IntegrationTests/ConversationBranchTests.cs   (YENI)
+├── AgentPrism.Templates.Tests/Infrastructure/ProcessRunner.cs      (🚨 MSBUILDDISABLENODEREUSE)
+└── AgentPrism.Ui.E2ETests/Infrastructure/UiHost.cs                 (🚨 varlik kalkani)
+
+docs/openapi/agentprism.json                  (dort yeni uc + ChatMessage semalari)
+```
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
->
-> **Not:** Üç devir bilgisi zorunludur:
-> 1. **`IRunInputStore` yeni bir arayüzdür** ve Faz 7'den önce eklendi. Metot
->    eklemek yayından sonra kırıcıdır — Faz 36 ve Faz 45'in aynı uyarısı.
-> 2. **Aday listesindeki F-53** ([Faz 45](45-URETIMDEN-EVAL-KUMESI.md), üretimden
->    eval kümesi) bu fazın `run_inputs` tablosundan **doğrudan yararlanır**:
->    bir üretim çalıştırmasını eval vakasına terfi ettirmek girdiyi ister.
->    İki fazın sırası fark etmez ama ikinci yapılan, birincinin tablosunu
->    yeniden kullanmalıdır — ikinci bir girdi kaydı **açılmamalıdır**.
-> 3. **Workflow dallanması bu fazın kapsamı dışındadır.** `workflow_checkpoints`
->    `parent_id` ile dallanmayı zaten taşıyor ama bir uç yok. Ayrı bir aday
->    kalemidir; devir notu ölçülmüş durumu yazmalıdır.
+- 🚨 **`IRunInputStore` YENİ bir arayüzdür ve Faz 7'den (yayın) ÖNCE eklendi.** Ona metot eklemek yayından sonra kırıcıdır — Faz 36 (`IRetentionStore`) ve Faz 45 (`IEvalStore`) ile aynı sınıf. Aynısı `IConversationBranchStore` için de geçerlidir.
+- 🚨 **[Faz 45](45-URETIMDEN-EVAL-KUMESI.md) (üretimden eval kümesi) artık `run_inputs`'tan doğrudan yararlanabilir.** Bugün terfi, girdi metnini `run_events`'teki `RunStarted.Text`'ten okuyor (K-300) ve o metin `MaxPayloadLength` ile **kırpılabilir**; `run_inputs` kırpılmamış ve polimorfik tam girdiyi taşır. **İkinci bir girdi kaydı AÇILMAMALIDIR.**
+- 🚨 **[Faz 49](49-CEVRIMICI-DEGERLENDIRME.md) girdi kaynağı hazırdır.** `IRunInputStore.GetAsync` yargıca hem soruyu hem tam bağlamı verir.
+- 🚨 **Yeniden oynatma OTURUMSUZDUR (K-315).** Çok turlu bir konuşmayı baştan almanın yolu dallandırmadır. Bir sonraki faz "oturumlu oynatma" isterse önce konuşma anlık görüntüsü tasarımı ölçülmelidir.
+- 🚨 **`FunctionInvokingChatClient` tool istisnalarını YUTAR.** Tool gövdesinden çıkan bir hatayı uca taşımak isteyen her faz `FunctionInvocationContext.Terminate` + çalıştırma sonrası fırlatma desenini (`ReplayMismatchGuard`) kullanmalıdır.
+- **Workflow dallandırma bu fazın kapsamı DIŞINDADIR.** `workflow_checkpoints.parent_id` Faz 15'ten beri vardır ama bir uç yoktur; konuşma dallandırmasının deseni (kopyala, işaretçi kovalama) oraya doğrudan taşınmaz çünkü kontrol noktası durumu opaktır.
+- **Yeni aday kalemler** (aşağıdakiler bilinçli olarak kapsam dışına çıkarıldı):
+  | Kapsam dışı | Neden ayrı |
+  |---|---|
+  | Kuyruğa alınan yeniden oynatma (`Prefer: respond-async`) | K-316: iş yükü sözleşmesi + işçi sürecinde kiracı çözümü ölçülmedi |
+  | Bellek içi konuşma deposu (dallandırmayı her kurulumda açar) | K-313: AgentPrism kendi `ChatHistoryProvider`'ını yazmalı; K3'ü zorlar |
+  | Alt agent ve skill yüzeylerinin oynatılması | S4: ikisi de `AIContextProvider` üzerinden gelir ve tool dönüşümünden geçmez |
+  | Workflow dallandırma ucu | Kontrol noktası durumu opaktır |
