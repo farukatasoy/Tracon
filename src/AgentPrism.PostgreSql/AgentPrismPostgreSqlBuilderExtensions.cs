@@ -193,6 +193,11 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         services.Replace(ServiceDescriptor.Singleton<IQuotaStore, SqlQuotaStore>());
         services.Replace(ServiceDescriptor.Singleton<IWebhookStore, SqlWebhookStore>());
 
+        // Kiraci bazli API anahtarlari (Faz 53). Sarilmaz: kota/webhook
+        // depolariyla ayni gerekce, yonetici eylemleri HTTP katmaninda ayrica
+        // denetim izine yazilir.
+        services.Replace(ServiceDescriptor.Singleton<IApiKeyStore, SqlApiKeyStore>());
+
         // Veri saklama ve arsivleme (Faz 25). Politika/kosu deposu (kontrol
         // duzlemi) denetim izi dekoratoruyle SARILMAZ: webhook/kota depolariyla
         // ayni gerekce (yonetici eylemleri HTTP katmaninda ayrica yazilir).

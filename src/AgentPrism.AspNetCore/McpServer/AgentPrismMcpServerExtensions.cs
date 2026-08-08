@@ -54,7 +54,8 @@ public static class AgentPrismMcpServerExtensions
 
         var endpointOptions = AgentPrismEndpointRouteBuilderExtensions.RequireSharedEndpointOptions(endpoints, "MCP");
 
-        ExternalSurfaceGuard.EnsureRemoteAccessNotCombined(endpointOptions.AllowRemoteAccess, "MCP");
+        ExternalSurfaceGuard.EnsureRemoteAccessNotCombined(
+            endpointOptions.AllowRemoteAccess, "MCP", services.GetRequiredService<IApiKeyStore>());
 
         var mcpOptions = mcpOptionsMonitor.CurrentValue;
         var catalog = services.GetRequiredService<IAgentCatalog>();
@@ -74,6 +75,7 @@ public static class AgentPrismMcpServerExtensions
 
         var group = endpoints.MapGroup(pattern).WithTags("AgentPrism", "MCP");
         group.AddEndpointFilter(new AgentPrismEndpointFilter(endpointOptions));
+        group.RequireApiKeyScope(ApiKeyScope.ExternalInvoke);
 
         if (endpointOptions.AuthorizationPolicy is { Length: > 0 } policy)
         {

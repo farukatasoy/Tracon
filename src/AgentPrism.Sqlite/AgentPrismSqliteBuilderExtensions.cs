@@ -141,6 +141,11 @@ public static class AgentPrismSqliteBuilderExtensions
         services.Replace(ServiceDescriptor.Singleton<IQuotaStore, SqlQuotaStore>());
         services.Replace(ServiceDescriptor.Singleton<IWebhookStore, SqlWebhookStore>());
 
+        // Kiraci bazli API anahtarlari (Faz 53). Sarilmaz: kota/webhook
+        // depolariyla ayni gerekce, yonetici eylemleri HTTP katmaninda ayrica
+        // denetim izine yazilir.
+        services.Replace(ServiceDescriptor.Singleton<IApiKeyStore, SqlApiKeyStore>());
+
         // Veri saklama ve arsivleme (Faz 25).
         services.Replace(ServiceDescriptor.Singleton<IRetentionPolicyStore, SqlRetentionPolicyStore>());
         services.Replace(ServiceDescriptor.Singleton<IRetentionStore, SqlRetentionStore>());

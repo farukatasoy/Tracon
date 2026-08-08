@@ -56,11 +56,22 @@ public sealed partial class HttpTenantContext : ITenantContext
 
     /// <inheritdoc />
     /// <remarks>
+    /// <para>
     /// <see cref="AmbientTenantScope.Current"/> ayarliysa (zamanlanmis bir is
     /// yurutuluyorsa, HTTP baglami yoktur) o deger HTTP cozumlemesine tercih
     /// edilir.
+    /// </para>
+    /// <para>
+    /// 🚨 Bir API anahtariyla dogrulanmis bir istekte kiraci ANAHTARIN
+    /// <c>tenant_id</c>'sinden cozulur — bu, claim veya baslikten ONCE gelir
+    /// (bolum 53.5). Anahtar bir sirri KANITLAR; baslik yalnizca istemcinin
+    /// BEYANIDIR. <see cref="AgentPrismEndpointFilter"/> baslik anahtarin
+    /// kiracisiyla celisirse istegi zaten 403 ile reddeder, dolayisiyla bu
+    /// noktaya ulasan bir istekte ikisi ya eslesir ya da baslik hic yoktur.
+    /// </para>
     /// </remarks>
-    public string TenantId => AmbientTenantScope.Current ?? Resolve() ?? _coreOptions.Value.DefaultTenantId;
+    public string TenantId =>
+        AmbientTenantScope.Current ?? ResolveFromApiKey() ?? Resolve() ?? _coreOptions.Value.DefaultTenantId;
 
     /// <summary>
     /// Bir kiraci kimliginin bicimce gecerli olup olmadigini soyler.
@@ -76,6 +87,11 @@ public sealed partial class HttpTenantContext : ITenantContext
         => !string.IsNullOrWhiteSpace(tenantId)
             && tenantId.Length <= 64
             && TenantIdPattern().IsMatch(tenantId);
+
+    private string? ResolveFromApiKey()
+        => _accessor.HttpContext is { } context && ApiKeyRequestContext.Get(context) is { } record
+            ? record.TenantId
+            : null;
 
     private string? Resolve()
     {

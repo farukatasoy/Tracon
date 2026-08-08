@@ -129,6 +129,11 @@ describe('catalogues', () => {
       'settings.authorizationPolicy',
       'replay.model',
       'compare.model',
+      'apiKeys.scope.RunsRead',
+      'apiKeys.scope.RunsWrite',
+      'apiKeys.scope.AgentsRead',
+      'apiKeys.scope.AgentsAdmin',
+      'apiKeys.scope.ExternalInvoke',
     ]);
 
     for (const key of keys) {

@@ -1537,3 +1537,41 @@ export interface RetentionRunTriggerResponse {
   jobId: string;
   target: string;
 }
+
+/**
+ * Tenant-scoped API key scopes (Phase 53). Narrows role policies, never
+ * replaces them: a key's effective authority is `role ∩ scope`.
+ */
+export type ApiKeyScope = 'RunsRead' | 'RunsWrite' | 'AgentsRead' | 'AgentsAdmin' | 'ExternalInvoke';
+
+/**
+ * A tenant-scoped API key.
+ *
+ * There is no raw value or hash field: the record only carries the first
+ * characters of the key for display. The raw value is returned once, only in
+ * {@link ApiKeyCreationResult}, and is never stored anywhere it could leave.
+ */
+export interface ApiKeyRecord {
+  id: string;
+  tenantId: string;
+  name: string;
+  keyPrefix: string;
+  scopes: ApiKeyScope[];
+  expiresAt?: string | null;
+  revokedAt?: string | null;
+  lastUsedAt?: string | null;
+  createdAt: string;
+  isActive: boolean;
+}
+
+export interface ApiKeyCreateRequest {
+  name: string;
+  scopes: ApiKeyScope[];
+  expiresAt?: string | null;
+}
+
+/** Response of a key creation call. The raw value appears here ONLY ONCE. */
+export interface ApiKeyCreationResult {
+  record: ApiKeyRecord;
+  plaintextKey: string;
+}
