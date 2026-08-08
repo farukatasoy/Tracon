@@ -3,6 +3,7 @@
   <Folder Name="/src/">
     <Project Path="src/AgentPrism.Abstractions/AgentPrism.Abstractions.csproj" />
     <Project Path="src/AgentPrism.Core/AgentPrism.Core.csproj" />
+    <Project Path="src/AgentPrism.Generators/AgentPrism.Generators.csproj" />
     <Project Path="src/AgentPrism.PostgreSql/AgentPrism.PostgreSql.csproj" />
     <Project Path="src/AgentPrism.SqlServer/AgentPrism.SqlServer.csproj" />
     <Project Path="src/AgentPrism.Sqlite/AgentPrism.Sqlite.csproj" />
@@ -27,6 +28,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/AgentPrism.AspNetCore.FunctionalTests/AgentPrism.AspNetCore.FunctionalTests.csproj" />
     <Project Path="tests/AgentPrism.Core.UnitTests/AgentPrism.Core.UnitTests.csproj" />
+    <Project Path="tests/AgentPrism.Generators.UnitTests/AgentPrism.Generators.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.Mcp.UnitTests/AgentPrism.Mcp.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.OpenAI.UnitTests/AgentPrism.OpenAI.UnitTests.csproj" />
     <Project Path="tests/AgentPrism.Anthropic.UnitTests/AgentPrism.Anthropic.UnitTests.csproj" />

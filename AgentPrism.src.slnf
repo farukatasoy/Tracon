@@ -4,6 +4,7 @@
     "projects": [
       "src/AgentPrism.Abstractions/AgentPrism.Abstractions.csproj",
       "src/AgentPrism.Core/AgentPrism.Core.csproj",
+      "src/AgentPrism.Generators/AgentPrism.Generators.csproj",
       "src/AgentPrism.PostgreSql/AgentPrism.PostgreSql.csproj",
       "src/AgentPrism.SqlServer/AgentPrism.SqlServer.csproj",
       "src/AgentPrism.Sqlite/AgentPrism.Sqlite.csproj",

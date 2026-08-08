@@ -79,7 +79,10 @@ var agentPrism = builder.AddAgentPrism()
     // Tool'lar YALNIZCA kodda tanimlanir. Arayuz bu listeden secim yaptirir;
     // tool kodu yazdirmaz. Bu bir guvenlik sinirdir.
     // [AgentPrismTool] ile isaretlenmemis metotlar taranmaz.
-    .AddToolsFrom(typeof(OrderTools))
+    // Faz 52: derleme anı kaynak ureteci ile kaydedilir - YANSIMA YOK, AOT
+    // uyarisi yok. Bu derlemedeki [AgentPrismTool] isaretli TUM metotlari bulur
+    // (OrderTools). Baska bir derlemedeki tool'lar icin AddToolsFrom kullanilir.
+    .AddGeneratedTools()
     // Uzak MCP sunuculari. Sunucu tanimi arayuzden veya /api/mcp-servers
     // ucundan eklenir; kesif arka planda yapilir. Kayitli sunucu yoksa hicbir
     // sey olmaz. MCP tool'lari varsayilan olarak onay ister.

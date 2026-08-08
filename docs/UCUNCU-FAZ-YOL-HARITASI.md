@@ -1,8 +1,7 @@
 # Üçüncü Faz Yol Haritası (Faz 31 – 52)
 
-> **Durum (2026-08-07): Üç dalga da planlandı; Dalga 1 ve Dalga 2 tamamlandı,
-> Dalga 3'ün Faz 46, 47 ve 48'i tamamlandı.** Aşağıdaki satırlar tek tek güncel
-> durumu taşır.
+> **Durum (2026-08-08): Üç dalga da tamamlandı — Faz 31-52'nin tamamı bitti.**
+> Aşağıdaki satırlar tek tek güncel durumu taşır.
 > Bu tur [`UCUNCU-FAZ-ADAYLARI.md`](UCUNCU-FAZ-ADAYLARI.md) listesinden seçilir.
 > **Yirmi altı kalem** faz dokümanına dönüştürüldü (Faz 31–52) ve aday
 > listesinden **silindi**. Kalan 20 kalem seçilmemiştir.
@@ -90,7 +89,7 @@ Dalga 1 ve 2'nin aksine **sıra burada anlamlıdır**: dört fazın gerçek bir
 | 49 | [49-CEVRIMICI-DEGERLENDIRME.md](49-CEVRIMICI-DEGERLENDIRME.md) | F-71 | ✅ **Tamamlandı (2026-08-07).** `AIJudgeLoopEvaluator` KULLANILMADI, ölçülerek doğrulandı (K-327); yargıç kendi çalıştırmasını ephemeral bir `ChatClientAgent` + `RunRecordingAgent` ile kaydeder, katalogdan geçmez. Pencere özeti bellek içi (K-332), yeni SQL yüzeyi açılmadı. `RunScore.Author = "judge:{ad}"` ile UPSERT tekilliği kasıtlı devreye sokuldu (K-331) | — | — (Faz 31'in tablosu) |
 | 50 | [50-DISA-ACILAN-AGENT-YUZEYI.md](50-DISA-ACILAN-AGENT-YUZEYI.md) | F-31 · F-33 | ✅ **Tamamlandı (2026-08-08).** 🚨 **F-56'yı acil hâle getirdi** — dış yüzey tek statik token'la korunuyor. Ölçüm düzeltmeleri: A2A maliyeti "+2" değil "+4" paket (K-335), `WithHttpTransport()` üçüncü zorunlu çağrı (K-334), A2A agent başına ayrı kart (K-336) | `ModelContextProtocol.AspNetCore` + A2A trio (4 paket, yalnız `AgentPrism.AspNetCore`) | — |
 | 51 | [51-VEKTOR-BELLEK-VE-RAG.md](51-VEKTOR-BELLEK-VE-RAG.md) | F-30 | ✅ **Tamamlandı (2026-08-08).** 🚨 Ölçüm planın varsayımını düzeltti: metin/ikili gömü farkı yalnız yazma TELİNDEDİR (~2,3×), disk saklama özdeştir — PostgreSQL ikisini de aynı kanonik ikili biçimde saklar (K-341). Test fixture imajı `pgvector/pgvector:pg18`'e değişti (K-346). `IVectorSearchStore` Sql.Shared'in cross-provider katmanından GEÇMEZ (K-344, tek sağlayıcı) | — (yeni NuGet **yok**) | bir tablo + uzantı, **yalnız PostgreSQL** (0024) |
-| 52 | [52-KAYNAK-URETECI.md](52-KAYNAK-URETECI.md) | F-47 | 📋 **Faz 7.** `IAgentPrismBuilder`'a metot ekler; yayından sonra kırıcıdır. K-218'in açık bıraktığı onarımı kapatır | — (üreteç `.Core` nupkg'sinde) | — |
+| 52 | [52-KAYNAK-URETECI.md](52-KAYNAK-URETECI.md) | F-47 | ✅ **Tamamlandı (2026-08-08).** 🚨 Plandan sapıldı: `IAgentPrismBuilder`'a metot EKLENMEDİ — `AddGeneratedTools()` derlemeye özel üretilen bir uzantı metodu (K-350); Core, tüketicinin henüz üretilmemiş koduna ileri referans veremezdi. Sonuç: Faz 7'den önce kırıcı-değişiklik riski bu fazdan kalktı. K-218'in açık bıraktığı onarım kapandı (K-347): `ToolMethodScanner` örnek metotları tarama anında reddeder | — (üreteç `.Core` nupkg'sinde) | — |
 
 ### Neden bu sıra
 
@@ -116,9 +115,9 @@ flowchart LR
 **Faz 48, 50, 51 ve 52 birbirinden bağımsızdır** ve istenen sırada yapılabilir.
 Gerçek bağ üç tanedir: 43 → 46 → 47 → 49 ve 31 → 49.
 
-🚨 **Faz 52 bir istisna taşır:** bağımsızdır ama **Faz 7'den önce** yapılmalıdır.
-`IAgentPrismBuilder` public bir arayüzdür ve ona metot eklemek yayından sonra
-kırıcıdır — Faz 36 ve Faz 45 ile aynı sınıf.
+✅ **Faz 52 tamamlandı ve plandan sapıldı:** `IAgentPrismBuilder`'a metot
+EKLENMEDİ (K-350) — Faz 36/45 ile paylaştığı "Faz 7'den önce kırıcı" riski
+bu yüzden ortadan kalktı.
 
 ### Dalga 3'ün ölçtüğü ve düzelttiği kanıtlar
 

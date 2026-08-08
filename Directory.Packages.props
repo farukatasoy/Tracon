@@ -155,6 +155,22 @@
   </ItemGroup>
 
   <!--
+    Faz 52: AgentPrism.Generators (tool kaynak ureteci). AgentPrism.Core icinde
+    Analyzer olarak tasinir, PrivateAssets=all + ReferenceOutputAssembly=false;
+    tuketicinin bagimlilik grafigine SIZMAZ (dotnet list package ile dogrulanir).
+
+    🚨 Surum 4.8.0'dir, DAHA YENI DEGIL. Olculdu (2026-08-08): .NET 8 SDK GA'nin
+    tasidigi Roslyn 4.8.0'dir (dotnet/roslyn#70919); .NET 9 SDK (9.0.305/306)
+    4.14.0, .NET 10 SDK (10.0.100) 5.0.0 tasir. Uretec, kendisini yukleyen
+    derleyicinin Roslyn'inden YENI olamaz - yeni olursa eski SDK'da SESSIZCE
+    yuklenmez. AgentPrism net8.0'i da hedefledigi (K-005) ve tuketicinin net8.0
+    projesini eski bir 8.0.1xx SDK ile derleyebilecegi icin taban 4.8.0'dir.
+  -->
+  <ItemGroup Label="Kaynak Ureteci (AgentPrism.Generators, IsPackable=false)">
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
+  </ItemGroup>
+
+  <!--
     Test yigini: xunit.v3 + Microsoft Testing Platform (MTP).
     Microsoft.NET.Test.Sdk ve xunit.runner.visualstudio BILEREK YOK - bunlar VSTest icindir
     ve xunit.v3 ile birlikte kullanildiklarinda `dotnet test` calismaz.

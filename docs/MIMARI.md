@@ -700,7 +700,7 @@ yayınlanır — sonra tek pakette sürüm güncellemesi yeterlidir.
 | Paket | AOT uyumlu | Neden |
 |-------|-----------|-------|
 | `AgentPrism.Abstractions` | Evet | Saf sözleşmeler |
-| `AgentPrism.Core` | Evet | Yansıma yalnız `AddToolsFrom` / `AddTool(Delegate)` yolunda; ikisi de işaretli |
+| `AgentPrism.Core` | Evet | Yansıma yalnız `AddToolsFrom` / `AddTool(Delegate)` yolunda (ikisi de işaretli, K-350). **Önerilen yol** `AddGeneratedTools()` (Faz 52) — derleme anında üretilir, sıfır yansıma |
 | `AgentPrism.PostgreSql` | Evet | Npgsql AOT uyumlu |
 | `AgentPrism.SqlServer` | Hayır *(vaat ertelendi)* | Sıfır IL2/IL3 ölçüldü; canlı sorgu doğrulanmadı (K-181) |
 | `AgentPrism.Sqlite` | Hayır *(ölçülmedi)* | `SQLitePCLRaw` yerel kütüphane taşır (K-196) |
