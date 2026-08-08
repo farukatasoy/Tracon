@@ -115,4 +115,68 @@ public sealed class SecretLeakTests
 
         host.Logs.AllText.ShouldNotContain(Token);
     }
+
+    // --- Faz 53: API anahtari ---
+
+    [Fact]
+    public async Task Ham_api_anahtari_listelemede_gorunmez()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        var created = await ApiKeyEndpointTests.CreateKeyAsync(host, "ci", "AgentsRead");
+
+        using var response = await host.Client.GetAsync(new Uri("/agentprism/api/api-keys", UriKind.Relative));
+
+        (await response.Content.ReadAsStringAsync()).ShouldNotContain(created.PlaintextKey);
+    }
+
+    [Fact]
+    public async Task Ham_api_anahtari_denetim_izinde_gorunmez()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        var created = await ApiKeyEndpointTests.CreateKeyAsync(host, "ci", "AgentsRead");
+
+        using var response = await host.Client.GetAsync(new Uri("/agentprism/api/audit", UriKind.Relative));
+
+        (await response.Content.ReadAsStringAsync()).ShouldNotContain(created.PlaintextKey);
+    }
+
+    [Fact]
+    public async Task Ham_api_anahtari_reddedilen_istegin_yanitinda_gorunmez()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync(
+            static builder => builder.AddAgent(TestData.Definition()));
+
+        var created = await ApiKeyEndpointTests.CreateKeyAsync(host, "readonly", "RunsRead");
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/agentprism/api/agents/kod-agent/run")
+        {
+            Content = JsonContent.Create(new AgentRunRequest { Message = "merhaba" }),
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", created.PlaintextKey);
+
+        using var response = await host.Client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.Forbidden);
+        (await response.Content.ReadAsStringAsync()).ShouldNotContain(created.PlaintextKey);
+    }
+
+    [Fact]
+    public async Task Ham_api_anahtari_gunluk_satirlarinda_gorunmez()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        var created = await ApiKeyEndpointTests.CreateKeyAsync(host, "ci", "AgentsRead");
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/agentprism/api/agents");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", created.PlaintextKey);
+
+        using (var response = await host.Client.SendAsync(request))
+        {
+            response.EnsureSuccessStatusCode();
+        }
+
+        host.Logs.AllText.ShouldNotContain(created.PlaintextKey);
+    }
 }

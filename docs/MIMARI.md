@@ -447,20 +447,28 @@ flowchart TD
     POL -->|evet, başarısız| F403["403 Forbidden"]
     POL -->|"hayır ya da başarılı"| LB{"AllowRemoteAccess kapalı<br/>ve istek loopback dışı mı?"}
     LB -->|evet| F403b["403 Forbidden<br/>ProblemDetails"]
-    LB -->|hayır| TOK{"AuthToken tanımlı mı?"}
-    TOK -->|"evet, başlık geçersiz"| F401["401 Unauthorized<br/>WWW-Authenticate: Bearer"]
-    TOK -->|"hayır ya da geçerli"| OK
+    LB -->|hayır| HDR{"Authorization var mı?"}
+    HDR -->|hayır| TOKU{"AuthToken tanımlı mı?"}
+    TOKU -->|evet| F401["401<br/>WWW-Authenticate: Bearer"]
+    TOKU -->|hayır| OK
+    HDR -->|evet| TOK{"statik AuthToken eşleşti mi?"}
+    TOK -->|evet| OK
+    TOK -->|hayır| KEY{"IApiKeyStore'da geçerli mi?"}
+    KEY -->|hayır| F401
+    KEY -->|evet| SC{"uç kapsam ister, anahtar taşımaz mı?"}
+    SC -->|evet| F403c["403"]
+    SC -->|hayır| OK
 
     classDef red fill:#7a1f1f,stroke:#3d0f0f,color:#ffffff
     classDef green fill:#1f6f4a,stroke:#0d3b27,color:#ffffff
-    class F403,F403b,F401 red
+    class F403,F403b,F401,F403c red
     class OK green
 ```
 
 Üç katman, sırayla uygulanır:
 
 1. **Loopback kısıtı** — `AllowRemoteAccess = false` (varsayılan). Loopback dışı istek `403` alır. Kaza ile açılmaya karşı koruma.
-2. **Bearer token** — `AuthToken` doluysa `Authorization: Bearer` başlığı sabit zamanlı karşılaştırma ile denetlenir.
+2. **Bearer token** — statik `AuthToken` sabit zamanlı karşılaştırma ile denetlenir (değişmedi). Eşleşmezse **kiracı bazlı API anahtarı** (Faz 53, `IApiKeyStore`, hash `key_hash`, K-356) denenir: iptal/süre denetiminden geçer, kapsamı (uç istiyorsa) uyuşur. `ApiKeyScope` rolü DARALTIR, yerine geçmez — `rol ∩ kapsam` (K-360). Kiracı anahtarın `tenant_id`'sinden çözülür, claim/başlıktan ÖNCE (bkz. altta); başlık çelişirse `403`. `AllowRemoteAccess` ile MCP/A2A'yı birlikte açmanın koşulu artık geçerli bir `external:invoke` anahtarıdır (`ExternalSurfaceGuard`). `Authorization` başlığı YOKSA ve `AuthToken` tanımsızsa katman atlanır (K1); başlık VARSA her zaman doğrulanır (K-359).
 3. **Authorization policy** — `RequireAuthorization("policy")` ile ASP.NET Core kimlik doğrulama boru hattına bağlanır. Üretimde kullanılan yol budur.
 
 `{prefix}/api/meta` kimlik doğrulaması olmadan erişilebilir. Arayüzün hangi kimlik yöntemini kullanacağını öğrenmesi için gereklidir; hiçbir hassas veri döndürmez.
@@ -514,7 +522,8 @@ demektir ve tasarım kuralı K2'nin bilinçli istisnasıdır:
 
 ```mermaid
 flowchart TD
-    S{"Tenancy.Enabled?"} -->|hayır| D["varsayılan kiracı"]
+    K{"İstek geçerli bir API anahtarıyla mı doğrulandı?"} -->|evet| KT["anahtarın tenant_id'si"]
+    K -->|hayır| S{"Tenancy.Enabled?"} -->|hayır| D["varsayılan kiracı"]
     S -->|evet| C{"ClaimType tanımlı mı?"}
     C -->|evet| AU{"istek kimlik doğrulamasından geçti mi?"}
     AU -->|evet| CL["claim değeri"]
@@ -528,8 +537,11 @@ flowchart TD
     V -->|hayır| D
 
     classDef green fill:#1f6f4a,stroke:#0d3b27,color:#ffffff
-    class T,D green
+    class T,D,KT green
 ```
+
+🚨 **API anahtarı en yüksek önceliktedir** (Faz 53) — bir sırrı KANITLAR, claim/başlık
+yalnızca BEYANDIR; çelişirse filtre isteği buraya hiç ulaştırmadan `403` verir.
 
 🚨 **Claim tanımlıysa başlık hiç okunmaz.** Aksi hâlde kimlik doğrulamasından
 geçmiş bir kullanıcı, bir başlık ekleyerek başka bir kiracının verisine

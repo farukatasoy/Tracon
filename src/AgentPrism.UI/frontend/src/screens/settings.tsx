@@ -19,6 +19,7 @@ import {
 } from '../components/ui';
 import { QuotaPanel } from '../components/quota-panel';
 import { WebhookPanel } from '../components/webhook-panel';
+import { ApiKeyPanel } from '../components/api-key-panel';
 import { RetentionPanel } from '../components/retention-panel';
 import { readVoiceForLocale, writeVoiceForLocale } from '../lib/voice';
 import type { Meta } from '../lib/types';
@@ -226,6 +227,8 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
         <QuotaPanel />
 
         <WebhookPanel />
+
+        <ApiKeyPanel />
 
         <RetentionPanel />
       </div>

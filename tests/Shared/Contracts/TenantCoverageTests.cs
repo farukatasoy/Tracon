@@ -72,6 +72,7 @@ public sealed class TenantCoverageTests
         ["SqlWebhookStore"] =
             ["ListSubscriptionsAsync", "GetSubscriptionAsync", "FindForEventAsync", "SaveSubscriptionAsync",
              "DeleteSubscriptionAsync", "CreateDeliveryAsync", "QueryDeliveriesAsync"],
+        ["SqlApiKeyStore"] = ["CreateAsync", "ListAsync", "RevokeAsync"],
         ["SqlWorkflowCheckpointStore"] = ["CreateAsync", "ReadAsync", "ListAsync", "ListByRunAsync", "DeleteAsync"],
         ["SqlWorkflowDefinitionStore"] = ["GetAsync", "ListAsync", "SaveAsync", "DeleteAsync"],
         ["SqlTenantStore"] = [],

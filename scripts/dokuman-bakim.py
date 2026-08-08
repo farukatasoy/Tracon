@@ -59,7 +59,7 @@ BUTCE = {
     "AGENTS.md": 12_000,
     "MEMORY.md": 8_000,
     "docs/KARARLAR-INDEKS.md": 25_000,
-    "docs/MIMARI.md": 42_000,
+    "docs/MIMARI.md": 44_000,  # K-361 (Faz 53): API anahtarı katmanı bugunku mimarinin gercek buyumesi
     "README.md": 20_000,
 }
 

@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (205 kalem)
+## Arşivlenen Kararlar (211 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -214,3 +214,9 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-203 | 248 | `sessions`/`conversations` ayrı hedeftir |
 | K-204 | 249 | Anthropic ve Google için RESMİ SDK'lar kullanıldı, topluluk paketleri değil 👤 |
 | K-205 | 250 | `Google.GenAI`'ın geçişli ağırlığı bilerek kabul edildi ve tek pakette izole edildi 👤 |
+| K-206 | 251 | İçerik filtresi tespiti `AgentPrism.Core`'da ortak dekoratördür, sağlayıcı paketlerinde değil 👤 |
+| K-207 | 252 | Paket adı `AgentPrism.Google`, sağlayıcı adı `google` 👤 |
+| K-208 | 253 | `ModelBinding.ProviderSettings` sözleşmeye eklendi; bilinmeyen anahtar derleme hatasıdır 👤 |
+| K-209 | 254 | `AgentPrism` meta paketi Anthropic ve Google sağlayıcılarını İÇERMEZ |
+| K-210 | 255 | Sağlayıcı adı `azure-openai`; kimlik fabrikası tüketiciden gelir, `Azure.Identity` alınmadı 👤 |
+| K-211 | 256 | `azure-openai` hiçbir `ProviderSettings` anahtarı sunmaz; `AzureChatExtensions` çalışma anında kırıktır |
