@@ -93,6 +93,7 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         services.Replace(ServiceDescriptor.Singleton(static provider =>
         {
             var options = provider.GetRequiredService<IOptions<AgentPrismPostgreSqlOptions>>().Value;
+            var knowledgeOptions = provider.GetRequiredService<IOptions<AgentPrismKnowledgeOptions>>().Value;
 
             return new SqlStoreContext
             {
@@ -101,6 +102,13 @@ public static class AgentPrismPostgreSqlBuilderExtensions
                 CommandTimeoutSeconds = options.CommandTimeoutSeconds,
                 AutoApplyMigrations = options.AutoApplyMigrations,
                 ProviderName = "PostgreSQL",
+                // Faz 51: migration 0024'un {dimension} yer tutucusu. Sabit sema
+                // yer tutucusundan (schema) AYRI tutulur cunku kurulum aninda
+                // AgentPrismKnowledgeOptions'tan gelir, saglayici basli degildir.
+                MigrationTemplateValues = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["dimension"] = knowledgeOptions.Dimensions.ToString(CultureInfo.InvariantCulture),
+                },
             };
         }));
 
@@ -278,6 +286,14 @@ public static class AgentPrismPostgreSqlBuilderExtensions
         services.Replace(ServiceDescriptor.Singleton<AgentFileStore>(
             static provider => ActivatorUtilities.CreateInstance<SqlAgentFileStore>(provider)));
 #pragma warning restore MAAI001
+
+        // Vektor tabanli anlamsal arama (Faz 51). K4: TEK somut uygulama.
+        // TryAdd: bir tuketici kendi IVectorSearchStore'unu (SQL Server/SQLite
+        // icin) onceden kaydetmisse onunki kazanir.
+        services.TryAddSingleton<IVectorSearchStore>(static provider => new PgVectorSearchStore(
+            provider.GetRequiredService<NpgsqlDataSource>(),
+            provider.GetRequiredService<IOptions<AgentPrismPostgreSqlOptions>>().Value,
+            provider.GetRequiredService<IOptions<AgentPrismKnowledgeOptions>>().Value));
 
         return builder;
     }

@@ -1023,10 +1023,19 @@ internal sealed class SqliteQueries : SqlQueriesBase
             WHERE tenant_id = @tenant_id AND agent_name = @agent_name AND path = @path;
             """;
 
-        SelectAgentFiles = $"""
+        // Faz 51, Is A: onek, derinlik siniri ve glob SQL'e iner. SQLite yerel
+        // regex tasimaz; regex_pattern parametresi PostgresQueries ile ayni
+        // cagri seklini korumak icin gonderilir ama burada KULLANILMAZ — nihai
+        // eslesme daima .NET Regex ile istemcide yapilir. LIKE buyuk/kucuk harfe
+        // duyarlidir (SqliteDataSource'un actigi `case_sensitive_like` pragmasi);
+        // aksi halde diger iki saglayicinin (Ordinal) davranisindan sapardi.
+        SelectAgentFilesFiltered = $"""
             SELECT path, content
             FROM {Schema}agent_files
             WHERE tenant_id = @tenant_id AND agent_name = @agent_name
+              AND path LIKE @prefix_like ESCAPE '\'
+              AND (@prefix_deep_like IS NULL OR path NOT LIKE @prefix_deep_like ESCAPE '\')
+              AND (@name_like IS NULL OR path LIKE @name_like ESCAPE '\')
             ORDER BY path;
             """;
 

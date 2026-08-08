@@ -108,6 +108,12 @@ public static class AgentPrismServiceCollectionExtensions
         // SectionName'ini tasir, ayri bir Use...() cagrisi gerektirmez.
         services.AddOptions<AgentPrismAsyncRunOptions>().ValidateOnStart();
 
+        // Bilgi tabani / anlamsal arama (Faz 51). Ayni gerekce: kendi SectionName'ini
+        // tasir, ayri bir Use...() cagrisi gerektirmez. Yalniz bir IVectorSearchStore
+        // (bugun yalniz PostgreSQL) VE bir IEmbeddingGenerator birlikte kayitliyken
+        // islevsel hale gelir (KnowledgeIngestionService.IsSupported).
+        services.AddOptions<AgentPrismKnowledgeOptions>().ValidateOnStart();
+
         // Icerik denetimi (Faz 48). Ayarlar her zaman kayitlidir ama hicbir
         // IContentGuard kayitli DEGILSE hic okunmazlar: denetim sarmalayicisi boru
         // hattina eklenmez. K1'in kapisi bir bayrak degil, kaydin kendisidir.
@@ -291,8 +297,22 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<Microsoft.Agents.AI.AgentFileStore>(),
             // Kayitli degilse McpResourceUris kullanan bir tanim derleme hatasi alir.
             // AgentPrism.Mcp'nin UseMcp() cagrisi bunu kaydeder.
-            provider.GetService<IMcpResourceContextProviderFactory>()));
+            provider.GetService<IMcpResourceContextProviderFactory>(),
+            // Faz 51: kayitli degilse EnableVectorSearch isteyen bir tanim derleme
+            // hatasi alir. AgentPrism.PostgreSql'in UsePostgreSql() cagrisi kaydeder.
+            provider.GetService<IVectorSearchStore>(),
+            // Tuketici kendi IEmbeddingGenerator'ini kaydeder (K-032'nin deseni).
+            provider.GetService<Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>>(),
+            provider.GetRequiredService<IOptions<AgentPrismKnowledgeOptions>>().Value.MaxResults));
 #pragma warning restore MAAI001
+
+        // Bilgi tabani yonetim yuzeyi (Faz 51): belge yukleme, arama, silme, listeleme.
+        // IsSupported == false iken her metot acik bir AgentPrismException firlatir.
+        services.TryAddSingleton(static provider => new KnowledgeIngestionService(
+            provider.GetRequiredService<ITenantContext>(),
+            provider.GetRequiredService<IOptions<AgentPrismKnowledgeOptions>>(),
+            provider.GetService<IVectorSearchStore>(),
+            provider.GetService<Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>>()));
 
         // Tanim dogrulama ucu (Faz 34, F-60). Gercek derleme yolunu kendi
         // sirasiyla tekrar eder; IAgentCatalog burada dogrudan alinabilir

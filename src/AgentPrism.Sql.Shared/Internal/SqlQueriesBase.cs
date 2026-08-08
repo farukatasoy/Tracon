@@ -130,8 +130,15 @@ internal abstract class SqlQueriesBase
     /// <summary>Kalici agent dosyasini siler.</summary>
     public string DeleteAgentFile { get; protected set; } = string.Empty;
 
-    /// <summary>Bir agent'in tum kalici dosyalarini okur.</summary>
-    public string SelectAgentFiles { get; protected set; } = string.Empty;
+    /// <summary>
+    /// Bir agent'in dosyalarini yol oneki, istege bagli derinlik siniri, istege
+    /// bagli glob suzgeci ve (yalniz PostgreSQL) istege bagli regex on suzgeci ile
+    /// SQL'de daraltarak okur (Faz 51, Is A). Onceki <c>SelectAgentFiles</c>'in
+    /// (tum dosyalari belleğe alan) yerini alir; onek her zaman verilir (kok
+    /// dizin icin <c>"/"</c>), bu yuzden ayri bir "hepsini getir" sorgusuna
+    /// gerek kalmadi.
+    /// </summary>
+    public string SelectAgentFilesFiltered { get; protected set; } = string.Empty;
 
     /// <summary>Bir workflow tanimini kaydeder ve surumunu artirir.</summary>
     public string UpsertWorkflow { get; protected set; } = string.Empty;

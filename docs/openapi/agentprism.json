@@ -3839,6 +3839,210 @@
         }
       }
     },
+    "/agentprism/api/knowledge/{collection}/documents": {
+      "post": {
+        "tags": [
+          "AgentPrism",
+          "Knowledge"
+        ],
+        "summary": "Bir belgeyi bilgi tabanina yukler.",
+        "description": "Govde ya \u0027text\u0027 (sunucu parcalar ve gomuler) ya \u0027chunks\u0027 (hazir parcalar) tasir. Yalniz PostgreSQL: UsePostgreSql() ve bir IEmbeddingGenerator kayitli olmalidir.",
+        "operationId": "AgentPrismUploadKnowledgeDocument",
+        "parameters": [
+          {
+            "name": "collection",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadDocumentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadDocumentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "AgentPrism",
+          "Knowledge"
+        ],
+        "summary": "Bir koleksiyondaki kaynaklari listeler.",
+        "operationId": "AgentPrismListKnowledgeDocuments",
+        "parameters": [
+          {
+            "name": "collection",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agentprism/api/knowledge/{collection}/documents/{sourceId}": {
+      "delete": {
+        "tags": [
+          "AgentPrism",
+          "Knowledge"
+        ],
+        "summary": "Bir kaynagin tum parcalarini siler.",
+        "operationId": "AgentPrismDeleteKnowledgeDocument",
+        "parameters": [
+          {
+            "name": "collection",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sourceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agentprism/api/knowledge/{collection}/search": {
+      "post": {
+        "tags": [
+          "AgentPrism",
+          "Knowledge"
+        ],
+        "summary": "Bir koleksiyonda anlamsal arama yapar (teshis ve kalibrasyon icin).",
+        "operationId": "AgentPrismSearchKnowledge",
+        "parameters": [
+          {
+            "name": "collection",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchKnowledgeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SearchKnowledgeHit"
+                  }
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/agentprism/api/models/health": {
       "get": {
         "tags": [
@@ -9295,6 +9499,17 @@
           "enableTextSearch": {
             "type": "boolean",
             "description": "Dosya deposu uzerinde metin aramasini acar. Arama, kayitli\n\u0060AgentFileStore\u0060 uzerinde calisir; bu fazda varsayilan olarak\nbellek ici depodur."
+          },
+          "enableVectorSearch": {
+            "type": "boolean",
+            "description": "\u0060search_knowledge\u0060 tool\u0027unu acar (Faz 51). \uD83D\uDEA8 Yalniz PostgreSQL:\n        IVectorSearchStore\u0027un tek somut uygulamasi\n        \u0060AgentPrism.PostgreSql\u0060 icindedir. Baska bir saglayici kayitliyken\n        bu bayrak acilirsa derleme AgentPrismCompilationException\n        ile durur; sessizce bos sonuc donmez."
+          },
+          "vectorCollection": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Aranacak koleksiyon adi. Bos ise agent adi kullanilir."
           }
         },
         "description": "Bir agent\u0027a baglanacak bellek saglayicilarini belirler."
@@ -11411,6 +11626,77 @@
         },
         "description": "Bir tanim surumunun calistirma ozeti."
       },
+      "SearchKnowledgeHit": {
+        "required": [
+          "sourceId",
+          "chunkIndex",
+          "content",
+          "distance"
+        ],
+        "type": "object",
+        "properties": {
+          "sourceId": {
+            "type": "string",
+            "description": "Parcanin ait oldugu kaynak kimligi."
+          },
+          "chunkIndex": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Kaynak icindeki sira numarasi.",
+            "format": "int32"
+          },
+          "content": {
+            "type": "string",
+            "description": "Parcanin metni."
+          },
+          "distance": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "Kosinus mesafesi. Kucuk deger daha yakin demektir.",
+            "format": "double"
+          },
+          "metadata": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Yazilirken verilen istege bagli ustveri."
+          }
+        },
+        "description": "Bir anlamsal arama sonucu."
+      },
+      "SearchKnowledgeRequest": {
+        "required": [
+          "query"
+        ],
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Aranacak dogal dil sorgusu."
+          },
+          "top": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Kac sonuc dondurulecegi. Verilmezse yapilandirmadaki varsayilan kullanilir.",
+            "format": "int32"
+          }
+        },
+        "description": "Bir anlamsal arama istegi."
+      },
       "SessionBranchRequest": {
         "type": "object",
         "properties": {
@@ -12479,6 +12765,107 @@
           "Error"
         ],
         "description": "Bir span\u0027in sonuc durumu. Veritabaninda \u0060smallint\u0060."
+      },
+      "UploadDocumentChunk": {
+        "required": [
+          "index",
+          "content"
+        ],
+        "type": "object",
+        "properties": {
+          "index": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Kaynak icindeki sira numarasi.",
+            "format": "int32"
+          },
+          "content": {
+            "type": "string",
+            "description": "Parcanin metni."
+          },
+          "embedding": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
+              "type": [
+                "number",
+                "string"
+              ],
+              "format": "float"
+            },
+            "description": "Parcanin gomusu. Bos ise sunucu gomuler; doluysa oldugu gibi yazilir ve\ndepo boyutuyla eslesmiyorsa 400 doner."
+          },
+          "metadata": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Istege bagli ustveri."
+          }
+        },
+        "description": "Bir yukleme istegindeki tek bir hazir parca."
+      },
+      "UploadDocumentRequest": {
+        "required": [
+          "sourceId"
+        ],
+        "type": "object",
+        "properties": {
+          "sourceId": {
+            "type": "string",
+            "description": "Kaynak kimligi. Ayni kimlikle yeniden yukleme eskiyi degistirir."
+          },
+          "text": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Ham metin. Verilirse sunucu parcalar ve gomuler."
+          },
+          "chunks": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/UploadDocumentChunk"
+            },
+            "description": "Hazir parcalar. float[]? UploadDocumentChunk.Embedding bos birakilirsa\nsunucu gomuler; doldurulmussa OLDUGU GIBI yazilir."
+          }
+        },
+        "description": "Bir belge yukleme istegi."
+      },
+      "UploadDocumentResponse": {
+        "required": [
+          "sourceId",
+          "chunkCount"
+        ],
+        "type": "object",
+        "properties": {
+          "sourceId": {
+            "type": "string",
+            "description": "Yuklenen kaynagin kimligi."
+          },
+          "chunkCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Yazilan parca sayisi.",
+            "format": "int32"
+          }
+        },
+        "description": "Bir belge yukleme isteginin sonucu."
       },
       "UsageDetails": {
         "type": "object",
@@ -13607,6 +13994,9 @@
     },
     {
       "name": "Retention"
+    },
+    {
+      "name": "Knowledge"
     },
     {
       "name": "Models"

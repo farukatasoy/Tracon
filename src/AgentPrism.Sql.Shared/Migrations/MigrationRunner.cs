@@ -197,7 +197,7 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
             try
             {
                 var apply = _context.CreateCommand(
-                    _context.Sql.ApplySchema(migration.Sql),
+                    ApplyTemplate(_context.Sql.ApplySchema(migration.Sql)),
                     connection,
                     transaction);
 
@@ -223,6 +223,25 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
                     ex);
             }
         }
+    }
+
+    /// <summary>
+    /// <see cref="SqlStoreContext.MigrationTemplateValues"/>'daki her anahtari
+    /// <c>{anahtar}</c> yer tutucusunun yerine yazar (Faz 51: <c>{dimension}</c>).
+    /// </summary>
+    private string ApplyTemplate(string sql)
+    {
+        if (_context.MigrationTemplateValues.Count == 0)
+        {
+            return sql;
+        }
+
+        foreach (var (key, value) in _context.MigrationTemplateValues)
+        {
+            sql = sql.Replace("{" + key + "}", value, StringComparison.Ordinal);
+        }
+
+        return sql;
     }
 
     private async ValueTask<Dictionary<int, AppliedMigration>> ReadAppliedAsync(
