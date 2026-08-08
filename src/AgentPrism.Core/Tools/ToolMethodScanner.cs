@@ -1,7 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Microsoft.Extensions.AI;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPrism;
 
@@ -18,9 +17,14 @@ namespace AgentPrism;
 /// <see cref="IAgentPrismBuilder.AddTool(AIFunction, bool)"/> kullanmalidir.
 /// </para>
 /// <para>
-/// Statik metotlar dogrudan baglanir. Ornek metotlarinda tasiyici nesne her cagride
-/// <see cref="AIFunctionArguments.Services"/> uzerinden cozulur; boylece tool sinifi
-/// bagimlilik enjeksiyonundan servis alabilir ve durumu cagrilar arasinda sizmaz.
+/// 🚨 Yalnizca <strong>statik</strong> metotlar desteklenir (karar K-218).
+/// MAF, tool govdesine <see cref="AIFunctionArguments.Services"/> olarak BOS bir
+/// saglayici gecirir (<c>Microsoft.Extensions.AI.EmptyServiceProvider</c>); bir
+/// ornek metodun tasiyici nesnesi bu yoldan COZULEMEZ. Bir ornek metodu
+/// isaretlemek <see cref="Scan"/> anında (calisma anininin en erken noktasinda,
+/// ilk tool cagrisini beklemeden) <see cref="AgentPrismException"/> firlatir.
+/// Ornek metot tool'lari icin tool'u kurulum aninda ornekleyip
+/// <c>AddTool(AIFunctionFactory.Create(...))</c> ile kaydedin.
 /// </para>
 /// </remarks>
 internal static class ToolMethodScanner
@@ -83,22 +87,19 @@ internal static class ToolMethodScanner
             Description = attribute.Description,
         };
 
-        if (method.IsStatic)
+        if (!method.IsStatic)
         {
-            return AIFunctionFactory.Create(method, target: null, options);
+            // K-218: MAF, AIFunctionArguments.Services olarak BOS bir saglayici gecirir
+            // (EmptyServiceProvider, null DEGIL). Bu denetim eskiden cagri aninda,
+            // servis cozumu icinde yasiyordu ve hicbir zaman calismiyordu - `is { }`
+            // deseni hep dogru donuyordu. Onarim: denetim TARAMA anina alinir, burada
+            // kesin calisir.
+            throw new AgentPrismException(
+                $"'{type.FullName}.{method.Name}' bir ornek metodudur ve tool olamaz. MAF, tool govdesine " +
+                "AIFunctionArguments.Services olarak bos bir saglayici gecirir (karar K-218). Metodu `static` " +
+                "yapin veya tool'u kurulum aninda ornekleyip `AddTool(AIFunctionFactory.Create(...))` ile kaydedin.");
         }
 
-        // Ornek metodu: tasiyici nesne cagri aninda cozulur. Servis saglayici yoksa
-        // hata acik olmalidir; sessizce yeni bir nesne uretmek, tool'un bagimliliklari
-        // olmadan calismasina ve anlasilmaz sonuclar dondurmesine yol acardi.
-        return AIFunctionFactory.Create(
-            method,
-            arguments => arguments.Services is { } services
-                ? ActivatorUtilities.GetServiceOrCreateInstance(services, type)
-                : throw new AgentPrismException(
-                    $"'{type.FullName}.{method.Name}' bir ornek metodudur ve tasiyici nesnesi servis saglayicidan " +
-                    "cozulur. Cagri baglaminda servis saglayici yok. Metodu `static` yapin veya tool'u " +
-                    "`AddTool(AIFunctionFactory.Create(...))` ile hazir bir ornek uzerinden kaydedin."),
-            options);
+        return AIFunctionFactory.Create(method, target: null, options);
     }
 }

@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (196 kalem)
+## Arşivlenen Kararlar (201 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -205,3 +205,8 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-194 | 239 | SQLite upsert deseni PostgreSQL ile BİREBİR aynıdır: tek ifadelik `INSERT ... ON CONFLICT ... RETURNING` |
 | K-195 | 240 | `DbHelpers.ToGuid`/`ToBoolean` eklendi: `ExecuteScalarAsync` sonucunun CLR tipi sağlayıcıya göre değişir |
 | K-196 | 241 | `AgentPrism.Sqlite` AOT uyumlu olarak İŞARETLENMEZ (ölçülmedi) |
+| K-197 | 242 | `SQLitePCLRaw.*` paketleri 2.1.12'ye sabitlendi (K-007 deseni) |
+| K-198 | 243 | Saklama SQL'i tek tabloyla üretilir, saglayıcı başına kopyalanmaz |
+| K-199 | 244 | `run_events` partition'ı açılmadı (K-063 ölçümle kapandı) |
+| K-200 | 245 | Parti silme her sağlayıcıda farklı teknik kullanır |
+| K-201 | 246 | `MaxRows` var ama uygulanmıyor (ertelendi → kapandı K-258) |

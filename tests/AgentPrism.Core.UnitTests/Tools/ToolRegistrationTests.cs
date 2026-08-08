@@ -98,25 +98,21 @@ public sealed class ToolRegistrationTests
     }
 
     [Fact]
-    public async Task AddToolsFrom_ornek_metodunu_servis_saglayicidan_cozer()
+    public void AddToolsFrom_ornek_metodunu_tarama_aninda_reddeder()
     {
+        // K-218 onarimi: MAF, tool govdesine AIFunctionArguments.Services olarak
+        // BOS bir saglayici gecirir (EmptyServiceProvider, null DEGIL). Eskiden bu
+        // denetim cagri aninda, hicbir zaman tetiklenmeyen bir `is { }` deseninin
+        // arkasindaydi. Onarim: reddi TARAMA anina tasir, ilk tool cagrisini beklemez.
         var services = new ServiceCollection();
         services.AddSingleton(new SelamlamaAyari("Merhaba"));
-        services.AddAgentPrism().AddToolsFrom<OrnekMetotluSinif>();
 
-        await using var provider = services.BuildServiceProvider();
+        var exception = Should.Throw<AgentPrismException>(
+            () => services.AddAgentPrism().AddToolsFrom<OrnekMetotluSinif>());
 
-        var tool = provider.GetRequiredService<IToolRegistry>();
-        tool.TryGet("selamla", out var function).ShouldBeTrue();
-
-        var result = await function!.InvokeAsync(
-            new Microsoft.Extensions.AI.AIFunctionArguments(StringComparer.Ordinal)
-            {
-                ["ad"] = "Faruk",
-                Services = provider,
-            });
-
-        (result?.ToString() ?? string.Empty).ShouldContain("Merhaba Faruk");
+        exception.Message.ShouldContain(nameof(OrnekMetotluSinif));
+        exception.Message.ShouldContain("Selamla");
+        exception.Message.ShouldContain("K-218");
     }
 
     private static IToolRegistry BuildRegistry(Action<IAgentPrismBuilder> configure)

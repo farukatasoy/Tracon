@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Microsoft.CodeAnalysis.CSharp.SourceGenerators.Testing.XUnit KULLANILMADI:
+    o paket xunit v2 (xunit.assert 2.3.0) cekiyor, bu repo ise xunit.v3 +
+    Microsoft Testing Platform kullaniyor (tests/Directory.Build.props). Ikisini
+    ayni projede referans etmek FactAttribute/TheoryAttribute cakismasina yol
+    acardi. Bunun yerine CSharpGeneratorDriver dogrudan kullanilir - ayni
+    kapsam, tek test kosucusu.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../../src/AgentPrism.Generators/AgentPrism.Generators.csproj" />
+    <ProjectReference Include="../../src/AgentPrism.Core/AgentPrism.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+  </ItemGroup>
+
+</Project>
