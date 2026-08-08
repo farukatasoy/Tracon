@@ -148,5 +148,17 @@ public sealed class MetaEndpointTests
             string? tenantId = null,
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
+
+        public ValueTask TouchHeartbeatAsync(
+            IReadOnlyCollection<Guid> runIds,
+            DateTimeOffset at,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
+            DateTimeOffset staleBefore,
+            int max,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
     }
 }

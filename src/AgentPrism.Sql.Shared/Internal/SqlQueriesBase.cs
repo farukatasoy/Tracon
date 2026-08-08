@@ -329,6 +329,24 @@ internal abstract class SqlQueriesBase
     /// <summary>Bir calistirmanin maliyetini gunceller (yalniz bakim ucu).</summary>
     public string UpdateRunCost { get; protected set; } = string.Empty;
 
+    /// <summary>
+    /// Suren bir calistirmanin heartbeat isaretini yazar (Faz 54). Yalniz
+    /// <c>Running</c> satirlari etkiler.
+    /// </summary>
+    public string TouchRunHeartbeat { get; protected set; } = string.Empty;
+
+    /// <summary>
+    /// Heartbeat esigini asan ust N <c>Running</c> satiri <c>Failed</c> olarak
+    /// kapatir ve kapatilan satirlari dondurur (Faz 54).
+    /// </summary>
+    public string ClaimOrphanedRuns { get; protected set; } = string.Empty;
+
+    /// <summary>
+    /// Bir oksuz calistirmanin kapanisini bildiren <c>RunFailed</c> olayini
+    /// ekler; sira numarasi mevcut en buyuk degerin bir fazlasidir (Faz 54).
+    /// </summary>
+    public string InsertOrphanRunEvent { get; protected set; } = string.Empty;
+
     /// <summary>Bir calistirmayi okur.</summary>
     public string SelectRun { get; protected set; } = string.Empty;
 

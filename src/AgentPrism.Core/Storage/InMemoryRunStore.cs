@@ -24,6 +24,7 @@ public sealed class InMemoryRunStore : IRunStore
     private readonly ConcurrentDictionary<Guid, RunRecord> _runs = new();
     private readonly ConcurrentDictionary<Guid, List<RunEvent>> _events = new();
     private readonly ConcurrentDictionary<Guid, List<ToolInvocationRecord>> _toolInvocations = new();
+    private readonly ConcurrentDictionary<Guid, DateTimeOffset> _heartbeats = new();
     private readonly ConcurrentQueue<Guid> _insertionOrder = new();
     private readonly IRunScoreStore _scores;
     private readonly ITenantContext _tenantContext;
@@ -192,6 +193,110 @@ public sealed class InMemoryRunStore : IRunStore
         }
 
         return default;
+    }
+
+    /// <inheritdoc />
+    public ValueTask TouchHeartbeatAsync(
+        IReadOnlyCollection<Guid> runIds,
+        DateTimeOffset at,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(runIds);
+
+        foreach (var runId in runIds)
+        {
+            // Yalniz Running satirlari icin anlamlidir; var olmayan veya
+            // baska durumdaki bir kimlik sessizce atlanir (bakim sinyali).
+            if (_runs.TryGetValue(runId, out var run) && run.Status == RunStatus.Running)
+            {
+                _heartbeats[runId] = at;
+            }
+        }
+
+        return default;
+    }
+
+    /// <summary>
+    /// Oksuz calistirma hatalarinin kumeleme parmak izi. Bkz. kullanim yerindeki
+    /// gerekce.
+    /// </summary>
+    private const string OrphanedFingerprint = "orphaned";
+
+    /// <inheritdoc />
+    public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
+        DateTimeOffset staleBefore,
+        int max,
+        CancellationToken cancellationToken = default)
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        var candidates = _runs.Values
+            .Where(record => record.Status == RunStatus.Running)
+            .Select(record => (Record: record, LastSeen: _heartbeats.TryGetValue(record.Id, out var hb) ? hb : record.StartedAt))
+            .Where(candidate => candidate.LastSeen < staleBefore)
+            .OrderBy(static candidate => candidate.LastSeen)
+            .Take(Math.Max(max, 0))
+            .ToList();
+
+        var claimed = new List<RunRecord>(candidates.Count);
+
+        foreach (var (record, lastSeen) in candidates)
+        {
+            var message = $"Calistirma yuruten surec yanit vermiyor; son isaret: {lastSeen:O}.";
+            var error = new RunError
+            {
+                Type = "orphaned",
+                Message = message,
+                Class = RunErrorClass.Infrastructure,
+
+                // Sabit bir dize -- bir SHA-256 hash DEGIL. Butun oksuz
+                // calistirmalar AYNI arizadir (surec yanit vermiyor); mesaj
+                // metnindeki degisken zaman damgasini normallestirmek icin
+                // ErrorFingerprint.Compute'a ihtiyac yoktur ve SQL depolari
+                // (ayri bir derleme, ErrorFingerprint'e erisemez) bu sabiti
+                // birebir aynen kullanir -- iki uygulama arasinda davranis
+                // esitligi boylece SADE bir sekilde saglanir.
+                Fingerprint = OrphanedFingerprint,
+            };
+
+            var updated = record with
+            {
+                Status = RunStatus.Failed,
+                CompletedAt = now,
+                Error = error,
+                EventCount = record.EventCount + 1,
+            };
+
+            // Baska bir yol ayni anda kaydi degistirmis olabilir (ornek:
+            // calistirma tam bu sirada normal sekilde tamamlandi); byle bir
+            // yaris cok dusuk ihtimalli olsa da TryUpdate atomik korumayi
+            // saglar -- kacirilirsa satir bir sonraki turda tekrar denenir.
+            if (!_runs.TryUpdate(record.Id, updated, record))
+            {
+                continue;
+            }
+
+            _heartbeats.TryRemove(record.Id, out _);
+
+            if (_events.TryGetValue(record.Id, out var log))
+            {
+                lock (log)
+                {
+                    log.Add(new RunEvent
+                    {
+                        RunId = record.Id,
+                        Sequence = log.Count,
+                        Type = RunEventType.RunFailed,
+                        Timestamp = now,
+                        Text = message,
+                    });
+                }
+            }
+
+            claimed.Add(updated);
+        }
+
+        return new ValueTask<IReadOnlyList<RunRecord>>(claimed);
     }
 
     /// <inheritdoc />
@@ -1033,6 +1138,7 @@ public sealed class InMemoryRunStore : IRunStore
             _runs.TryRemove(oldest, out _);
             _events.TryRemove(oldest, out _);
             _toolInvocations.TryRemove(oldest, out _);
+            _heartbeats.TryRemove(oldest, out _);
         }
     }
 }
