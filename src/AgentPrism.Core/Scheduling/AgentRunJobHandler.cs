@@ -64,7 +64,8 @@ internal sealed class AgentRunJobHandler(
             // ile sonsuza dek 'Queued' gorur. Gercek calistirma hatalari (agent
             // cozuldukten SONRA) bu bloga girmez; RunRecordingAgent onlari
             // zaten Failed olarak kapatir (bkz. RunRecordingAgent.CompleteAsync).
-            await FailQueuedRunAsync(runId, exception, cancellationToken).ConfigureAwait(false);
+            await FailQueuedRunAsync(runId, context.Job.TenantId, exception, cancellationToken)
+                .ConfigureAwait(false);
 
             throw;
         }
@@ -86,7 +87,11 @@ internal sealed class AgentRunJobHandler(
         }
     }
 
-    private async ValueTask FailQueuedRunAsync(Guid runId, Exception exception, CancellationToken cancellationToken)
+    private async ValueTask FailQueuedRunAsync(
+        Guid runId,
+        string tenantId,
+        Exception exception,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -101,6 +106,9 @@ internal sealed class AgentRunJobHandler(
                         Type = exception.GetType().Name,
                         Message = exception.Message,
                     },
+
+                    // Is'in kendi kiracisi; kuyruga dusuren taraf yazmisti (K-355).
+                    TenantId = tenantId,
                 },
                 cancellationToken).ConfigureAwait(false);
         }

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace AgentPrism;
 
 /// <summary>Bir calistirmanin token kullanimi.</summary>
@@ -179,6 +181,23 @@ public sealed record RunCompletion
     /// model biliniyorsa fiyat tanimsiz olsa bile dolu gelir (bkz. <see cref="RunCost"/>).
     /// </summary>
     public RunCost? Cost { get; init; }
+
+    /// <summary>
+    /// Sonlandirilacak calistirmanin BEKLENEN kiracisi. Derinlemesine savunma;
+    /// <see langword="null"/> ise kiraci denetimi yapilmaz.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Gerekce ve ambient kiracinin neden kullanilmadigi:
+    /// <see cref="RunEvent.TenantId"/>. Karar K-355.
+    /// </para>
+    /// <para>
+    /// 🚨 Alan YALNIZ YAZMA tarafindadir ve aktarim sozlesmesinden
+    /// <see cref="JsonIgnoreAttribute"/> ile cikarilir.
+    /// </para>
+    /// </remarks>
+    [JsonIgnore]
+    public string? TenantId { get; init; }
 }
 
 /// <summary>Calistirma listesini filtrelemek icin sorgu.</summary>

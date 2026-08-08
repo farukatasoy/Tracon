@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace AgentPrism;
 
 /// <summary>
@@ -50,4 +52,29 @@ public sealed record RunEvent
 
     /// <summary>Serbest JSON yuku. Tool argumanlari ve sonuclari burada tasinir.</summary>
     public string? Payload { get; init; }
+
+    /// <summary>
+    /// Olayin yazilacagi calistirmanin BEKLENEN kiracisi. Derinlemesine savunma.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Dolu ise depo yazmayi yalnizca hedef calistirma bu kiraciya aitse uygular;
+    /// aksi hâlde yazma dusurulur ve hata verilir. <see langword="null"/> ise
+    /// kiraci denetimi yapilmaz.
+    /// </para>
+    /// <para>
+    /// 🚨 Bu alan ambient kiraciyla DOLDURULMAZ. <see cref="RunStartInfo.TenantId"/>
+    /// ambient kiraciyi bilerek ezebilir (workflow ve is kuyrugu boyle calisir);
+    /// ambient ile suzmek mesru yazmalari sessizce dusururdu. Deger, calistirmayi
+    /// acan tarafin bildigi kiracidir. Gerekce: K-355.
+    /// </para>
+    /// <para>
+    /// 🚨 Alan YALNIZ YAZMA tarafindadir: bir sutuna yazilmaz, yalnizca yazmanin
+    /// <c>WHERE</c> muhafizi olarak kullanilir. Geri okundugunda her zaman
+    /// <see langword="null"/> olurdu; bu yuzden aktarim sozlesmesinden
+    /// <see cref="JsonIgnoreAttribute"/> ile cikarilir.
+    /// </para>
+    /// </remarks>
+    [JsonIgnore]
+    public string? TenantId { get; init; }
 }

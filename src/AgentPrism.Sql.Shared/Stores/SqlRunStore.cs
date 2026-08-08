@@ -105,11 +105,6 @@ internal sealed class SqlRunStore : IRunStore
     }
 
     /// <inheritdoc />
-    [TenantAgnostic(
-        "Olay bir calistirmanin altina yazilir ve kiracisini o calistirmadan miras alir. " +
-        "Cagrida ayri bir kiraci niyeti YOKTUR: RunStartInfo.TenantId ambient kiraciyi bilerek " +
-        "ezebildigi icin (workflow ve is kuyrugu boyle calisir) burada ambient ile filtrelemek " +
-        "mesru yazmalari sessizce dusururdu. Kiraci siniri okuma tarafinda zorlanir.")]
     public async ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(runEvent);
@@ -124,9 +119,17 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableText(command, "payload", runEvent.Payload);
         Dialect.AddTimestamp(command, "created_at", runEvent.Timestamp);
 
+        // 🚨 BEKLENEN kiraci; ambient kiraci DEGIL. RunStartInfo.TenantId ambient
+        // kiraciyi bilerek ezebildigi icin (workflow ve is kuyrugu boyle calisir)
+        // ambient ile suzmek mesru yazmalari dusururdu. NULL ise denetim yok.
+        // Gerekce: K-355.
+        AddNullableText(command, "tenant_id", runEvent.TenantId);
+
+        int affected;
+
         try
         {
-            await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+            affected = await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
         }
         catch (DbException ex) when (Dialect.IsForeignKeyViolation(ex))
         {
@@ -135,10 +138,16 @@ internal sealed class SqlRunStore : IRunStore
                 "Olay eklemeden once StartRunAsync cagrilmalidir.",
                 ex);
         }
+
+        if (affected == 0)
+        {
+            throw new AgentPrismException(
+                $"'{runEvent.RunId}' kimlikli calistirma bulunamadi veya beklenen kiraciya " +
+                $"('{runEvent.TenantId}') ait degil. Olay yazilmadi.");
+        }
     }
 
     /// <inheritdoc />
-    [TenantAgnostic("AppendEventAsync ile ayni gerekce: kiraci calistirmadan miras alinir.")]
     public async ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(completion);
@@ -160,20 +169,27 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableText(command, "cost_currency", completion.Cost?.Currency);
         Dialect.AddInt16(command, "pricing_source", completion.Cost is { } cost ? (short)cost.Source : null);
 
+        // BEKLENEN kiraci (K-355). NULL ise denetim yok.
+        AddNullableText(command, "tenant_id", completion.TenantId);
+
         var affected = await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
 
         if (affected == 0)
         {
-            throw new AgentPrismException($"'{completion.RunId}' kimlikli calistirma bulunamadi.");
+            throw new AgentPrismException(
+                $"'{completion.RunId}' kimlikli calistirma bulunamadi" +
+                (completion.TenantId is null
+                    ? "."
+                    : $" veya beklenen kiraciya ('{completion.TenantId}') ait degil."));
         }
     }
 
     /// <inheritdoc />
-    [TenantAgnostic(
-        "Bakim ucudur ve calistirma kimlikleri her zaman kiraciya gore SUZULMUS bir " +
-        "sorgudan gelir (RunCostRecalculationService). Ambient ile filtrelemek, bir " +
-        "kiraci adina calisan zamanlanmis yeniden hesaplamayi sessizce etkisiz birakirdi.")]
-    public async ValueTask UpdateRunCostAsync(Guid runId, RunCost? cost, CancellationToken cancellationToken = default)
+    public async ValueTask UpdateRunCostAsync(
+        Guid runId,
+        RunCost? cost,
+        string? tenantId = null,
+        CancellationToken cancellationToken = default)
     {
         var command = CreateCommand(_sql.UpdateRunCost);
         DbHelpers.Add(command, "id", runId);
@@ -181,6 +197,11 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableDecimal(command, "output_cost", cost?.OutputCost);
         AddNullableText(command, "cost_currency", cost?.Currency);
         Dialect.AddInt16(command, "pricing_source", cost is { } value ? (short)value.Source : null);
+
+        // BEKLENEN kiraci (K-355). Bakim ucu (POST /api/stats/recalculate-costs)
+        // kimlikleri kiraciya gore SUZULMUS bir sorgudan alir ve ayni kiraciyi
+        // buraya da tasir; boylece iki asamali yolda yaris kalmaz.
+        AddNullableText(command, "tenant_id", tenantId);
 
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
     }
@@ -450,7 +471,6 @@ internal sealed class SqlRunStore : IRunStore
     }
 
     /// <inheritdoc />
-    [TenantAgnostic("AppendEventAsync ile ayni gerekce: kiraci calistirmadan miras alinir.")]
     public async ValueTask RecordToolInvocationAsync(
         ToolInvocationRecord invocation,
         CancellationToken cancellationToken = default)
@@ -481,9 +501,14 @@ internal sealed class SqlRunStore : IRunStore
         Dialect.AddDecimal(command, "cost", invocation.Usage?.Cost);
         AddNullableText(command, "cost_currency", invocation.Usage?.Currency);
 
+        // BEKLENEN kiraci (K-355). NULL ise denetim yok.
+        AddNullableText(command, "tenant_id", invocation.TenantId);
+
+        int affected;
+
         try
         {
-            await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+            affected = await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
         }
         catch (DbException ex) when (Dialect.IsForeignKeyViolation(ex))
         {
@@ -491,6 +516,13 @@ internal sealed class SqlRunStore : IRunStore
                 $"'{invocation.RunId}' kimlikli calistirma bulunamadi. " +
                 "Tool cagrisi kaydetmeden once StartRunAsync cagrilmalidir.",
                 ex);
+        }
+
+        if (affected == 0)
+        {
+            throw new AgentPrismException(
+                $"'{invocation.RunId}' kimlikli calistirma bulunamadi veya beklenen kiraciya " +
+                $"('{invocation.TenantId}') ait degil. Tool cagrisi yazilmadi.");
         }
     }
 

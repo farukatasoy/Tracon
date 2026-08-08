@@ -76,7 +76,11 @@ public sealed class RunCostRecalculationService
                     continue;
                 }
 
-                await _store.UpdateRunCostAsync(run.Id, cost, cancellationToken).ConfigureAwait(false);
+                // Kimlikler kiraciya gore SUZULMUS bir sorgudan geldi; ayni kiraciyi
+                // yazmaya da tasiyoruz (K-355). Iki asamali yolda kayit arada baska
+                // bir kiraciya gecemez.
+                await _store.UpdateRunCostAsync(run.Id, cost, run.TenantId, cancellationToken)
+                    .ConfigureAwait(false);
 
                 if (cost.Source == PricingSource.Unknown)
                 {

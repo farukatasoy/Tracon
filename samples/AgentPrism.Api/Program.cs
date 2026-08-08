@@ -86,7 +86,11 @@ var agentPrism = builder.AddAgentPrism()
     // Uzak MCP sunuculari. Sunucu tanimi arayuzden veya /api/mcp-servers
     // ucundan eklenir; kesif arka planda yapilir. Kayitli sunucu yoksa hicbir
     // sey olmaz. MCP tool'lari varsayilan olarak onay ister.
-    .UseMcp()
+    // Ayarlar `AgentPrism:Mcp` bolumunden okunur; bolum yoksa varsayilanlar
+    // gecerlidir. 🚨 Bu asiri yukleme OLMADAN `AgentPrism:Mcp:RefreshInterval`
+    // gibi bir ortam degiskeni HICBIR HATA VERMEDEN hicbir sey yapmazdi
+    // (olculdu; karar K-353).
+    .UseMcp(builder.Configuration.GetSection(AgentPrismMcpOptions.SectionName))
     // Faz 50: aynanin diger yuzu — AgentPrism'in kendi agent'larini DISA acar.
     // "ozetleyici" bilerek secildi: hicbir tool tasimaz, dolayisiyla onay
     // sinirina hic dokunmaz. Varsayilan MaxDepth=1: disaridan gelen bir cagri

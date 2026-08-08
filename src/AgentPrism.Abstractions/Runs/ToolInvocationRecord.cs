@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace AgentPrism;
 
 /// <summary>
@@ -62,6 +64,26 @@ public sealed record ToolInvocationRecord
     /// <c>docs/28-SES-TOOLLARI.md</c>, bolum 28.5.
     /// </remarks>
     public ToolCallUsage? Usage { get; init; }
+
+    /// <summary>
+    /// Cagriyi yapan calistirmanin BEKLENEN kiracisi. Derinlemesine savunma;
+    /// <see langword="null"/> ise kiraci denetimi yapilmaz.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Gerekce ve ambient kiracinin neden kullanilmadigi:
+    /// <see cref="RunEvent.TenantId"/>. Karar K-355.
+    /// </para>
+    /// <para>
+    /// 🚨 Alan YALNIZ YAZMA tarafindadir: bir sutuna yazilmaz, yalnizca yazmanin
+    /// <c>WHERE</c> muhafizi olarak kullanilir. Geri okundugunda her zaman
+    /// <see langword="null"/> olurdu; bu yuzden HTTP sozlesmesinden
+    /// <see cref="JsonIgnoreAttribute"/> ile cikarilir. Aksi hâlde OpenAPI
+    /// belgesi hicbir zaman dolmayan bir alan ilan ederdi.
+    /// </para>
+    /// </remarks>
+    [JsonIgnore]
+    public string? TenantId { get; init; }
 
     /// <summary>Cagri basarili mi bitti.</summary>
     public bool Succeeded => Error is null;
