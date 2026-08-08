@@ -30,7 +30,14 @@ public sealed class DependencyDirectionTests
     private static readonly Dictionary<string, string[]> AllowedReferences = new(StringComparer.Ordinal)
     {
         ["AgentPrism.Abstractions"] = [],
-        ["AgentPrism.Core"] = ["AgentPrism.Abstractions"],
+        // AgentPrism.Generators (Faz 52) BURAYA calisma-zamani bagimliligi olarak
+        // eklenmedi: ProjectReference'i ReferenceOutputAssembly=false + OutputItemType=Analyzer
+        // tasir, yani Core.dll ONU asla YUKLEMEZ - yalniz derleyiciye analyzer olarak
+        // gecirilir. Yine de .csproj'daki <ProjectReference> etiketi bu testin
+        // okudugu XML'de gorunur, bu yuzden izin verilenler listesine girmesi gerekir.
+        // AgentPrism.Generators kendisi bu sozlugun bir ANAHTARI DEGILDIR (yayimlanmaz,
+        // README zorunlulugu tasimaz - 52.4).
+        ["AgentPrism.Core"] = ["AgentPrism.Abstractions", "AgentPrism.Generators"],
         ["AgentPrism.PostgreSql"] = ["AgentPrism.Core"],
         ["AgentPrism.OpenAI"] = ["AgentPrism.Core"],
         // Anthropic ve Google da yalnizca Core'a baglidir; birbirlerini ve

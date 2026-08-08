@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Kaynak ureteci derleyiciye (csc) yuklenir; hedefi netstandard2.0 olmalidir
+    (Roslyn'in kendi calisma zamani gereksinimi). src/Directory.Build.props'un
+    mirasi olan net8.0;net9.0;net10.0 burada BILEREK ezilir.
+
+    Bu proje YAYIMLANMAZ: AgentPrism.Core'un nupkg'sinde analyzers/dotnet/cs/
+    altinda tasinir (52.4). slnx'e girer ama `dotnet pack` bu projeyi atlar.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <!-- src/Directory.Build.props'tan miras kalan cogul TargetFrameworks'u bosalt (K-263 deseni). -->
+    <TargetFrameworks></TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <!-- IsAotCompatible'i DOGRUDAN degil AgentPrismAotCompatible uzerinden kapat (K-006 deseni, Directory.Build.targets bunu okur). -->
+    <AgentPrismAotCompatible>false</AgentPrismAotCompatible>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <WarnOnPackingNonPackableProject>false</WarnOnPackingNonPackableProject>
+    <Description>AgentPrism [AgentPrismTool] icin derleme anı Roslyn kaynak ureteci. Yayimlanmaz; DLL AgentPrism.Core'un nupkg'sinde tasinir.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup Label="Ic gorunurluk - test projesi">
+    <InternalsVisibleTo Include="AgentPrism.Generators.UnitTests" />
+  </ItemGroup>
+
+</Project>

@@ -9,6 +9,18 @@
   <ItemGroup>
     <ProjectReference Include="../../src/AgentPrism/AgentPrism.csproj" />
     <!--
+      🚨 Yalniz bu REPO icin gerekli. `OutputItemType=Analyzer`, coklu-sicrama
+      ProjectReference zincirlerinde (Api -> AgentPrism -> Core -> Generators)
+      YAYILMAZ - olculdu, AddGeneratedTools() bu satir olmadan CS1061 verir.
+      NuGet'in analyzers/dotnet/cs YAYILIMI yalniz PAKET tuketiminde (PackageReference)
+      gecerlidir; gercek bir dis tuketici yalniz `AgentPrism.Core`'u PackageReference
+      ile alir ve bu satira ihtiyac duymaz. Bkz. docs/52-KAYNAK-URETECI.md.
+    -->
+    <ProjectReference Include="../../src/AgentPrism.Generators/AgentPrism.Generators.csproj"
+                       PrivateAssets="all"
+                       ReferenceOutputAssembly="false"
+                       OutputItemType="Analyzer" />
+    <!--
       SQL Server ve SQLite meta pakete DAHIL DEGILDIR: her tuketici
       Microsoft.Data.SqlClient/SQLitePCLRaw cekmek zorunda kalmasin diye
       (K-185, aynisi SQLite icin de gecerlidir). Kullanmak isteyen acikca
