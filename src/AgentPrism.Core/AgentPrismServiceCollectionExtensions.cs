@@ -238,6 +238,12 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, ModelProviderHealthBackgroundService>());
 
+        // Sema hazir kapisi. SQL'e dokunan arka plan servisleri ilk sorgudan ONCE
+        // bunu bekler; boylece kayit sirasi (.UseMcp() once mi .UseSqlite() once mi)
+        // "no such table" uretmez. Hicbir SQL saglayicisi kayitli degilse kapi
+        // kendiliginden aciktir. Gerekce: K-354.
+        services.TryAddSingleton<SchemaReadyGate>();
+
         // Teshis toplayicisi (Faz 33). IAgentCatalog ve IToolRegistry bu noktadan
         // sonra kayit edilir ama acik fabrika lazy cozer; kayit sirasi onemli degildir.
         services.TryAddSingleton(static provider => new AgentPrismDiagnosticsCollector(

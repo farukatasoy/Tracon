@@ -27,6 +27,7 @@ internal sealed class JobWorkerBackgroundService(
     IJobScheduleStore scheduleStore,
     IEnumerable<IJobHandler> handlers,
     IOptionsMonitor<AgentPrismSchedulingOptions> optionsMonitor,
+    SchemaReadyGate schemaReadyGate,
     TimeProvider? timeProvider = null,
     ILogger<JobWorkerBackgroundService>? logger = null) : BackgroundService
 {
@@ -39,6 +40,18 @@ internal sealed class JobWorkerBackgroundService(
         var options = optionsMonitor.CurrentValue;
 
         if (!options.Enabled || !options.RunWorker || options.PollInterval <= TimeSpan.Zero)
+        {
+            return;
+        }
+
+        // 🚨 Ilk SQL denemesinden ONCE semanin hazir olmasini bekle. PeriodicTimer
+        // bir tur gecikme verir ama GARANTI degildir: kisa bir PollInterval ile
+        // migration henuz bitmemis olabilir. Gerekce: K-354.
+        try
+        {
+            await schemaReadyGate.WaitAsync(stoppingToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
         {
             return;
         }

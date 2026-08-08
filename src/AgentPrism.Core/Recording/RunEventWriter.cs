@@ -48,6 +48,20 @@ public sealed class RunEventWriter
     public Guid RunId { get; }
 
     /// <summary>
+    /// Bu yazicinin yazdigi calistirmanin kiracisi. Derinlemesine savunma icin
+    /// her alt yazmaya damgalanir.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 Deger <see cref="StartAsync"/> icinde <see cref="RunStartInfo.TenantId"/>
+    /// alanindan alinir — <em>ambient</em> kiracidan DEGIL. Calistirmanin kendi
+    /// kiracisi budur; ambient kiraciyi bilerek ezebilir (workflow ve is kuyrugu
+    /// boyle calisir). <see cref="StartAsync"/> cagrilmadan kullanilan bir
+    /// yazicida <see langword="null"/> kalir ve kiraci denetimi yapilmaz.
+    /// Gerekce: K-355.
+    /// </remarks>
+    public string? TenantId { get; private set; }
+
+    /// <summary>
     /// Yazici bir depo hatasi aldigi icin devre disi kaldi mi.
     /// Devre disi bir yazici sessizce hicbir sey yapmaz.
     /// </summary>
@@ -70,6 +84,9 @@ public sealed class RunEventWriter
     public async ValueTask StartAsync(RunStartInfo info, string? query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(info);
+
+        // Calistirmanin kendi kiracisi. Sonraki her alt yazma bunu tasir (K-355).
+        TenantId = info.TenantId;
 
         if (IsDisabled)
         {
@@ -122,6 +139,9 @@ public sealed class RunEventWriter
             Payload = _options.RecordToolPayloads || draft.Type == RunEventType.WorkflowRequest
                 ? Truncate(draft.Payload)
                 : null,
+
+            // Beklenen kiraci damgasi (K-355).
+            TenantId = TenantId,
         };
 
         if (IsDisabled)
@@ -219,6 +239,9 @@ public sealed class RunEventWriter
                     Usage = usage,
                     Error = error,
                     Cost = cost,
+
+                    // Beklenen kiraci damgasi (K-355).
+                    TenantId = TenantId,
                 },
                 cancellationToken).ConfigureAwait(false);
         }

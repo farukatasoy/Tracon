@@ -31,6 +31,7 @@ internal sealed class MigrationHostedService : IHostedService
     private readonly SqlStoreContext _storeContext;
     private readonly AgentPrismOptions _agentPrismOptions;
     private readonly IEnumerable<SqlPersistenceRegistrationMarker> _registrations;
+    private readonly SchemaReadyGate _schemaReadyGate;
     private readonly ILogger<MigrationHostedService> _logger;
 
     /// <summary>Yeni bir baslangic servisi olusturur.</summary>
@@ -38,6 +39,7 @@ internal sealed class MigrationHostedService : IHostedService
     /// <param name="storeContext">Depo baglami.</param>
     /// <param name="agentPrismOptions">AgentPrism ayarlari.</param>
     /// <param name="registrations">Kayitli kalicilik saglayicilari.</param>
+    /// <param name="schemaReadyGate">SQL'e dokunan arka plan servislerini bekleten kapi.</param>
     /// <param name="logger">Gunlukleyici.</param>
     /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
     public MigrationHostedService(
@@ -45,18 +47,21 @@ internal sealed class MigrationHostedService : IHostedService
         SqlStoreContext storeContext,
         IOptions<AgentPrismOptions> agentPrismOptions,
         IEnumerable<SqlPersistenceRegistrationMarker> registrations,
+        SchemaReadyGate schemaReadyGate,
         ILogger<MigrationHostedService> logger)
     {
         ArgumentNullException.ThrowIfNull(runner);
         ArgumentNullException.ThrowIfNull(storeContext);
         ArgumentNullException.ThrowIfNull(agentPrismOptions);
         ArgumentNullException.ThrowIfNull(registrations);
+        ArgumentNullException.ThrowIfNull(schemaReadyGate);
         ArgumentNullException.ThrowIfNull(logger);
 
         _runner = runner;
         _storeContext = storeContext;
         _agentPrismOptions = agentPrismOptions.Value;
         _registrations = registrations;
+        _schemaReadyGate = schemaReadyGate;
         _logger = logger;
     }
 
@@ -71,11 +76,21 @@ internal sealed class MigrationHostedService : IHostedService
                 "AgentPrism migration'lari otomatik uygulanmiyor (AutoApplyMigrations kapali). " +
                 "Semanin guncel olmasi cagiranin sorumlulugundadir.");
 
+            // Kapi ACILIR: sema tuketicinin sorumlulugundadir ve arka plan
+            // servislerini sonsuza dek beklemekte tutmanin faydasi yoktur.
+            _schemaReadyGate.MarkReady();
+
             return;
         }
 
         await _runner.ApplyAsync(cancellationToken).ConfigureAwait(false);
         await EnsureDefaultTenantAsync(cancellationToken).ConfigureAwait(false);
+
+        // 🚨 Kapi yalnizca BURADA, migration ve varsayilan kiraci yaziminin
+        // ikisi de bittikten sonra acilir. Migration hata verirse kapi kapali
+        // kalir; barindirici zaten baslamaz ve bekleyen servisler
+        // stoppingToken uzerinden cikar. Gerekce: K-354.
+        _schemaReadyGate.MarkReady();
     }
 
     /// <inheritdoc />

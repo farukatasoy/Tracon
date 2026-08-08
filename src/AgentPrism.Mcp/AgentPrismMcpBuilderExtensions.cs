@@ -1,3 +1,5 @@
+using System.Globalization;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -48,6 +50,58 @@ public static class AgentPrismMcpBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
+        return UseMcpCore(builder, configure);
+    }
+
+    /// <summary>
+    /// Ayarlari <c>AgentPrism:Mcp</c> bolumunden okuyarak MCP istemcisini kaydeder.
+    /// </summary>
+    /// <param name="builder">AgentPrism yapilandirma zinciri.</param>
+    /// <param name="configurationSection">
+    /// Ayarlarin okunacagi bolum. Genellikle
+    /// <c>configuration.GetSection(AgentPrismMcpOptions.SectionName)</c>.
+    /// </param>
+    /// <param name="configure">
+    /// Bolum baglandiktan SONRA calisan ayar degistirici. Kodda verilen deger
+    /// yapilandirmadan gelen degeri ezer.
+    /// </param>
+    /// <returns>Zincirin devami.</returns>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="builder"/> veya <paramref name="configurationSection"/>
+    /// <see langword="null"/> ise.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// Yapilandirma <strong>acikca</strong> verilir; AgentPrism kendiliginden
+    /// <c>IConfiguration</c> okumaz. Gerekce K1 (sifir surpriz) ve depodaki
+    /// diger <c>Use*</c> uzantilariyla tutarliliktir.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// builder.AddAgentPrism()
+    ///        .UseMcp(builder.Configuration.GetSection(AgentPrismMcpOptions.SectionName));
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public static IAgentPrismBuilder UseMcp(
+        this IAgentPrismBuilder builder,
+        IConfiguration configurationSection,
+        Action<AgentPrismMcpOptions>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(configurationSection);
+
+        return UseMcpCore(builder, options =>
+        {
+            Bind(configurationSection, options);
+            configure?.Invoke(options);
+        });
+    }
+
+    private static IAgentPrismBuilder UseMcpCore(
+        IAgentPrismBuilder builder,
+        Action<AgentPrismMcpOptions>? configure)
+    {
         var services = builder.Services;
 
         services.AddOptions<AgentPrismMcpOptions>();
@@ -85,5 +139,72 @@ public static class AgentPrismMcpBuilderExtensions
         services.AddHostedService<McpDiscoveryService>();
 
         return builder;
+    }
+
+    /// <summary>
+    /// <c>AgentPrism:Mcp</c> bolumunu elle baglar.
+    /// </summary>
+    /// <remarks>
+    /// Elle baglama bir AOT gereksinimidir: <c>Bind()</c> yansimaya dayanir ve
+    /// <c>IL2026</c> + <c>IL3050</c> uretir; kirpilmis uygulamalarda ayarlar
+    /// sessizce bos kalir. Gerekce: <c>docs/KARARLAR.md</c>, karar K-021.
+    /// 🚨 <see cref="AgentPrismMcpOptions"/>'a yeni bir ayar eklendiginde bu
+    /// metoda da eklenmelidir; yoksa ayar sessizce baglanmaz.
+    /// </remarks>
+    private static void Bind(IConfiguration section, AgentPrismMcpOptions options)
+    {
+        if (bool.TryParse(section[nameof(AgentPrismMcpOptions.Enabled)], out var enabled))
+        {
+            options.Enabled = enabled;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(AgentPrismMcpOptions.RefreshInterval)],
+                CultureInfo.InvariantCulture,
+                out var refreshInterval))
+        {
+            options.RefreshInterval = refreshInterval;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(AgentPrismMcpOptions.ConnectionTimeout)],
+                CultureInfo.InvariantCulture,
+                out var connectionTimeout))
+        {
+            options.ConnectionTimeout = connectionTimeout;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismMcpOptions.MaxToolsPerServer)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxToolsPerServer))
+        {
+            options.MaxToolsPerServer = maxToolsPerServer;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismMcpOptions.MaxResourceBytesPerResource)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxResourceBytesPerResource))
+        {
+            options.MaxResourceBytesPerResource = maxResourceBytesPerResource;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismMcpOptions.MaxResourceBytesTotal)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxResourceBytesTotal))
+        {
+            options.MaxResourceBytesTotal = maxResourceBytesTotal;
+        }
+
+        if (section[nameof(AgentPrismMcpOptions.OAuthCallbackBaseUri)] is { Length: > 0 } callbackBaseUri
+            && Uri.TryCreate(callbackBaseUri, UriKind.Absolute, out var parsedCallbackBaseUri))
+        {
+            options.OAuthCallbackBaseUri = parsedCallbackBaseUri;
+        }
     }
 }

@@ -123,3 +123,11 @@
 - **`namespace X;` dosya başına TEK ad alanıyla sınırlıdır** (`CS8954`): iki ad alanı gereken üretilmiş dosyada blok biçimi (`namespace X { }`) kullanılır.
 - **3. taraf soyut/sanal üye override ederken NRT imzasını TAHMİN ETME** (`Microsoft.Extensions.AI.AITool.Description`): reflection dökümü nullable ek açıklamasını GÖSTERMEZ; derleyici `CS8764` ile gerçek imzayı söyler. `NullableAttribute` YOKLUĞU genelde NON-nullable demektir.
 
+
+## Baglantili kaynak ve XML dokumani (K-352)
+
+- **🚨 Ayni kaynak N derlemeye baglanirsa N `.xml` AYNI `<member>` kimligini
+  tasir** (`Sql.Shared` → 620 ortak), `AddOpenApi()` **500** verir. Yalniz
+  `ProjectReference` tuketicisi etkilenir, paket tuketicisi degil.
+- MSBuild item'i olcerken hedefe `DependsOnTargets` ver; `-t:` bagimliyi
+  kosmaz, cikti bos gelir.
