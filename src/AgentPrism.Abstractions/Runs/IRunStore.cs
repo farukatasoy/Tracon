@@ -138,10 +138,15 @@ public interface IRunStore
     /// </summary>
     /// <param name="runId">Calistirma kimligi.</param>
     /// <param name="cost">Yeni maliyet. <see langword="null"/> olabilir.</param>
+    /// <param name="tenantId">
+    /// Calistirmanin BEKLENEN kiracisi. Derinlemesine savunma; <see langword="null"/>
+    /// ise kiraci denetimi yapilmaz. Gerekce: <see cref="RunEvent.TenantId"/>, K-355.
+    /// </param>
     /// <param name="cancellationToken">Iptal belirteci.</param>
     /// <returns>Tamamlanma gorevi.</returns>
     ValueTask UpdateRunCostAsync(
         Guid runId,
         RunCost? cost,
+        string? tenantId = null,
         CancellationToken cancellationToken = default);
 }

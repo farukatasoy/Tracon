@@ -52,4 +52,37 @@
     <PackageReference Include="Microsoft.OpenApi" />
   </ItemGroup>
 
+  <!--
+    🚨 F-76 (olculdu 2026-08-08). AgentPrism.Sql.Shared bir PAKET DEGILDIR; ayni
+    kaynak uc derlemeye LinkBase ile baglanir (K-185). Uc derlemenin XML dokuman
+    dosyasi bu yuzden AYNI kimlikleri tasir - olculdu: SqlServer ile Sqlite
+    arasinda 620 ortak <member> kimligi, ilki `T:AgentPrism.MigrationRunner`.
+
+    Microsoft.AspNetCore.OpenApi'nin GenerateAdditionalXmlFilesForOpenApi hedefi
+    (build/Microsoft.AspNetCore.OpenApi.targets) her ProjectReference'in .xml
+    dosyasini AdditionalFiles'a ekler; XmlCommentGenerator hepsini TEK bir
+    sozlukte toplar ve ikinci ayni kimlikte `ArgumentException` firlatir.
+    Sonuc: /openapi/v1.json 500 doner.
+
+    🚨 KAPSAM OLCULDU: hedefin kosulu `ReferenceSourceTarget == 'ProjectReference'`.
+    Bu ornekte 15 ProjectReference, 368 ResolveAssemblyReference olculdu; NuGet
+    paketleriyle gelen derlemelerin XML'i HIC eklenmez. Gercek bir PackageReference
+    tuketicisi (AgentPrism + SqlServer + Sqlite + AddOpenApi) ucdan uca denendi ve
+    HTTP 200 dondu. Yani hata YALNIZ kaynaktan derleyen (ProjectReference) tuketiciyi
+    etkiler - bu ornek uygulama dahil.
+
+    Cozum: cakisan paylasilan kaynagin dokumanini TEK derlemede birak. SQL saglayici
+    tiplerinin hicbiri HTTP sozlesmesinde gorunmez, dolayisiyla belgeden hicbir sey
+    kaybolmaz. PostgreSql kanonik olarak kalir.
+    Gerekce ve olcum: docs/KARARLAR.md K-352, docs/40-OPENAPI-YAYINI.md.
+  -->
+  <Target Name="AgentPrismRemoveDuplicateSqlXmlDocs"
+          AfterTargets="GenerateAdditionalXmlFilesForOpenApi">
+    <ItemGroup>
+      <AdditionalFiles Remove="@(AdditionalFiles)"
+                       Condition="'%(AdditionalFiles.Filename)' == 'AgentPrism.SqlServer' OR
+                                  '%(AdditionalFiles.Filename)' == 'AgentPrism.Sqlite'" />
+    </ItemGroup>
+  </Target>
+
 </Project>

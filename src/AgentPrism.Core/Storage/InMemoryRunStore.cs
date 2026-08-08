@@ -109,12 +109,38 @@ public sealed class InMemoryRunStore : IRunStore
                 $"'{runEvent.RunId}' kimlikli calistirma bulunamadi. Olay eklemeden once StartRunAsync cagrilmalidir.");
         }
 
+        // BEKLENEN kiraci denetimi (K-355). SQL deposuyla AYNI davranis; sozlesme
+        // testleri iki uygulamayi da ayni iddiayla sinar.
+        EnsureExpectedTenant(runEvent.RunId, runEvent.TenantId, "Olay yazilmadi.");
+
         lock (log)
         {
             log.Add(runEvent);
         }
 
         return default;
+    }
+
+    /// <summary>
+    /// Yazmanin hedef calistirmasi beklenen kiraciya ait mi.
+    /// </summary>
+    /// <param name="runId">Calistirma kimligi.</param>
+    /// <param name="expectedTenantId">Beklenen kiraci. <see langword="null"/> ise denetim yapilmaz.</param>
+    /// <param name="suffix">Hata mesajinin sonuna eklenecek aciklama.</param>
+    /// <exception cref="AgentPrismException">Kiraci uyusmuyorsa.</exception>
+    private void EnsureExpectedTenant(Guid runId, string? expectedTenantId, string suffix)
+    {
+        if (expectedTenantId is null)
+        {
+            return;
+        }
+
+        if (_runs.TryGetValue(runId, out var run)
+            && !string.Equals(run.TenantId, expectedTenantId, StringComparison.Ordinal))
+        {
+            throw new AgentPrismException(
+                $"'{runId}' kimlikli calistirma beklenen kiraciya ('{expectedTenantId}') ait degil. {suffix}");
+        }
     }
 
     /// <inheritdoc />
@@ -126,6 +152,9 @@ public sealed class InMemoryRunStore : IRunStore
         {
             throw new AgentPrismException($"'{completion.RunId}' kimlikli calistirma bulunamadi.");
         }
+
+        // BEKLENEN kiraci denetimi (K-355).
+        EnsureExpectedTenant(completion.RunId, completion.TenantId, "Calistirma sonlandirilmadi.");
 
         _runs[completion.RunId] = existing with
         {
@@ -141,12 +170,24 @@ public sealed class InMemoryRunStore : IRunStore
     }
 
     /// <inheritdoc />
-    public ValueTask UpdateRunCostAsync(Guid runId, RunCost? cost, CancellationToken cancellationToken = default)
+    public ValueTask UpdateRunCostAsync(
+        Guid runId,
+        RunCost? cost,
+        string? tenantId = null,
+        CancellationToken cancellationToken = default)
     {
         // Calistirma dusurulmusse (MaxRuns) cagri sessizce atilir: bu bir bakim
         // ucudur ve calistirmayi kesmemelidir.
         if (_runs.TryGetValue(runId, out var existing))
         {
+            // BEKLENEN kiraci uyusmuyorsa yazma SESSIZCE atlanir — SQL tarafinda
+            // da WHERE kosulu sifir satir gunceller ve hata firlatilmaz (K-355).
+            if (tenantId is not null
+                && !string.Equals(existing.TenantId, tenantId, StringComparison.Ordinal))
+            {
+                return default;
+            }
+
             _runs[runId] = existing with { Cost = cost };
         }
 
@@ -697,6 +738,9 @@ public sealed class InMemoryRunStore : IRunStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(invocation);
+
+        // BEKLENEN kiraci denetimi (K-355).
+        EnsureExpectedTenant(invocation.RunId, invocation.TenantId, "Tool cagrisi yazilmadi.");
 
         // Calistirma dusurulmusse (MaxRuns) cagri sessizce atilir: kayit
         // gozlemlenebilirlik icindir ve calistirmayi kesmemelidir.

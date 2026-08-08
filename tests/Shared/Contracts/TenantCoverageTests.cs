@@ -57,9 +57,14 @@ public sealed class TenantCoverageTests
         ["SqlRetentionStore"] =
             ["CountOlderThanAsync", "ReadForArchiveAsync", "DeleteBatchAsync", "FindRowLimitCutoffAsync"],
         ["SqlRunScoreStore"] = ["UpsertAsync", "ListAsync", "DeleteAsync"],
+        // 🚨 Dort alt yazma yolu 2026-08-08'de muafiyetten cikip kapsama girdi
+        // (K-355): AppendEventAsync, CompleteRunAsync, UpdateRunCostAsync ve
+        // RecordToolInvocationAsync artik cagrinin tasidigi BEKLENEN kiraciya
+        // gore suzuluyor ve RunStoreContract bunu iki yonlu siniyor.
         ["SqlRunStore"] =
             ["StartRunAsync", "GetRunAsync", "QueryRunsAsync", "ReadEventsAsync", "ListToolInvocationsAsync",
-             "GetToolUsageAsync", "GetStatisticsAsync", "GetTimeSeriesAsync", "GetExperimentResultsAsync"],
+             "GetToolUsageAsync", "GetStatisticsAsync", "GetTimeSeriesAsync", "GetExperimentResultsAsync",
+             "AppendEventAsync", "CompleteRunAsync", "UpdateRunCostAsync", "RecordToolInvocationAsync"],
         ["SqlSessionStore"] = ["SaveAsync", "GetAsync", "DeleteAsync", "QueryAsync"],
         ["SqlSkillScriptGrantStore"] = ["ListAsync", "FindActiveAsync", "GrantAsync", "RevokeAsync"],
         ["SqlTraceStore"] = ["WriteSpansAsync", "GetTraceByRunAsync"],

@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (201 kalem)
+## Arşivlenen Kararlar (205 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -210,3 +210,7 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-199 | 244 | `run_events` partition'ı açılmadı (K-063 ölçümle kapandı) |
 | K-200 | 245 | Parti silme her sağlayıcıda farklı teknik kullanır |
 | K-201 | 246 | `MaxRows` var ama uygulanmıyor (ertelendi → kapandı K-258) |
+| K-202 | 247 | Saklama zamanlaması Faz 17'nin kuyruğunu yeniden kullanır |
+| K-203 | 248 | `sessions`/`conversations` ayrı hedeftir |
+| K-204 | 249 | Anthropic ve Google için RESMİ SDK'lar kullanıldı, topluluk paketleri değil 👤 |
+| K-205 | 250 | `Google.GenAI`'ın geçişli ağırlığı bilerek kabul edildi ve tek pakette izole edildi 👤 |

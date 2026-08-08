@@ -25,6 +25,7 @@ internal sealed class McpDiscoveryService : BackgroundService
     private readonly IOptions<AgentPrismMcpOptions> _options;
     private readonly ISingletonLeaseStore _leaseStore;
     private readonly IOptionsMonitor<SingletonExecutionOptions> _singletonOptionsMonitor;
+    private readonly SchemaReadyGate _schemaReadyGate;
     private readonly ILogger<McpDiscoveryService> _logger;
 
     public McpDiscoveryService(
@@ -32,18 +33,21 @@ internal sealed class McpDiscoveryService : BackgroundService
         IOptions<AgentPrismMcpOptions> options,
         ISingletonLeaseStore leaseStore,
         IOptionsMonitor<SingletonExecutionOptions> singletonOptionsMonitor,
+        SchemaReadyGate schemaReadyGate,
         ILogger<McpDiscoveryService> logger)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(leaseStore);
         ArgumentNullException.ThrowIfNull(singletonOptionsMonitor);
+        ArgumentNullException.ThrowIfNull(schemaReadyGate);
         ArgumentNullException.ThrowIfNull(logger);
 
         _catalog = catalog;
         _options = options;
         _leaseStore = leaseStore;
         _singletonOptionsMonitor = singletonOptionsMonitor;
+        _schemaReadyGate = schemaReadyGate;
         _logger = logger;
     }
 
@@ -57,6 +61,18 @@ internal sealed class McpDiscoveryService : BackgroundService
         }
 
         var interval = _options.Value.RefreshInterval;
+
+        // 🚨 Ilk SQL denemesinden ONCE semanin hazir olmasini bekle. Kayit sirasi
+        // `.UseMcp()` `.UseSqlite()`'tan onceyse migration henuz bitmemis olabilir
+        // ve ilk tur "no such table" verirdi. Olculdu (Faz 42); gerekce K-354.
+        try
+        {
+            await _schemaReadyGate.WaitAsync(stoppingToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
 
         // Tek yurutucu secimi (Faz 42): kapaliysa (varsayilan) guard.IsHeld
         // daima true'dur ve RunAsync depoya hicbir sorgu atmadan hemen doner.

@@ -30,3 +30,23 @@
 - **Kurulum anında bilinen, sağlayıcıya özgü migration değerleri (şema DIŞINDA) `SqlStoreContext.MigrationTemplateValues` ile geçer** (2026-08-08, Faz 51, K-346): `{schema}` yer tutucusu `SqlQueriesBase.ApplySchema`'dan geçer; başka bir `{anahtar}` yer tutucusu (örn. `document_embeddings.embedding` sütununun `vector({dimension})` boyutu) `MigrationRunner.ApplyTemplate` ile şema değiştirmesinden SONRA uygulanır. Checksum HAM (değiştirilmemiş) metin üzerinden hesaplanır — `SchemaName` gibi, bu değer de değiştirilse checksum uyuşmazlığı vermez.
 - **PostgreSQL `LIKE 'onek%'` sorgusu locale'e göre bir index range scan'e dönüşebilir** (2026-08-08, Faz 51): test container'ında ölçüldü — 10 000 ilgisiz satır arasında hedef dizin araması `EXPLAIN ANALYZE`'da yalnız **1 satır** okudu (composite `(tenant_id, agent_name, path)` üzerinde). Bu optimizasyon `COLLATE "C"` veya eşdeğerine bağlıdır; farklı locale'lerde tam sayı değişebilir, kanıt satır sayısının toplam depo büyüklüğünden KAT KAT küçük kalmasıdır, mutlak "1" değil.
 - **`pgvector`'ın `vector` sütunu metin (`'[...]'::vector`) ile YA DA ikili protokolle yazılsa da diskte AYNI kanonik ikili gösterimi saklar** (2026-08-08, Faz 51, K-341): ölçüldü — 1536 boyutlu bir gömünün metin gösterimi 14 416 bayt, `pg_column_size` ise 6 148 bayt (`1536×4+4`, tam olarak ikili biçimin kendisi). Metin/ikili farkı YALNIZ yazma sırasındaki istemci→sunucu TELİNDEDİR; disk saklama ve okuma maliyeti özdeştir. Bir vektör paketi (`Pgvector`, `SK.Connectors.PgVector`) yalnızca "daha az tel trafiği" için alınıyorsa bu ölçüm kazancı sorgulatır.
+
+## Alt yazma yollarinda BEKLENEN kiraci (K-355)
+
+- **🚨 Ambient kiraciyla suzmek MESRU yazmalari dusurur.** `RunStartInfo.TenantId`
+  ambient kiraciyi **bilerek** ezer (workflow ve is kuyrugu boyle calisir);
+  bir kez denenip GERI ALINDI (K-280). Dogru cozum cagrinin tasidigi **beklenen**
+  kiracidir: `RunEvent`/`RunCompletion`/`ToolInvocationRecord`'da `TenantId`,
+  `UpdateRunCostAsync`'te `string? tenantId`. Deger `RunEventWriter.StartAsync`
+  icinde `RunStartInfo.TenantId`'den alinir. `null` → denetim yok (geriye donuk
+  uyumlu).
+- **SQL sekli:** UPDATE'lerde `AND (@tenant_id IS NULL OR tenant_id = @tenant_id)`;
+  INSERT'lerde `VALUES` yerine
+  `SELECT ... WHERE EXISTS (SELECT 1 FROM runs r WHERE r.id = @run_id AND (@tenant_id IS NULL OR r.tenant_id = @tenant_id))`.
+  PostgreSQL parametre tiplerini hedef sutunlardan cozer; `INSERT ... SELECT`
+  ek cast gerektirmedi. Uc lehcede de yesil kostu.
+- **🚨 YALNIZ YAZMA tarafindaki bir alan `[JsonIgnore]` ISTER.** Alan bir sutuna
+  yazilmaz, yalnizca `WHERE` muhafizidir; geri okundugunda her zaman `null`
+  olurdu. Isaretlenmezse OpenAPI belgesi **hicbir zaman dolmayan** bir alan ilan
+  eder — `OpenApiSnapshotTests` bunu yakaladi ve `[JsonIgnore]` sonrasi
+  `docs/openapi/agentprism.json` degismedi.

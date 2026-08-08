@@ -4,4 +4,9 @@
     <ProjectReference Include="../../src/AgentPrism.Mcp/AgentPrism.Mcp.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Yapilandirmadan ayar okuma testleri icin bellek ici yapilandirma saglayicisi. -->
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+  </ItemGroup>
+
 </Project>

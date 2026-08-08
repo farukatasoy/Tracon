@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici kendi AI harness'ini kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 52 tamamlandı — AgentPrism **işletilebilirdir**, `dotnet new agentprism-api` ile başlatılabilir; `AgentPrism.Testing` ile model çağırmadan test edilebilir. Çalıştırmalar span/metrik/maliyetle kaydedilir, kiracı yalıtılır, içerik denetlenir, trafik puanlanır, agent'lar MCP/A2A ile dışa açılır, PostgreSQL'de `pgvector` ile anlamsal arama yapılır, tool kaydı yansımasızdır. Faz 8-52 bitti; [kalan](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlı.
+> **Durum:** Faz 52 tamamlandı — AgentPrism **işletilebilirdir**. `dotnet new agentprism-api` ile başlatılır, `AgentPrism.Testing` ile model çağırmadan test edilir. Çalıştırmalar span/metrik/maliyetle kaydedilir, kiracı yalıtılır, içerik denetlenir, trafik puanlanır, agent'lar MCP/A2A ile dışa açılır, `pgvector` ile anlamsal arama yapılır. Faz 8–52 bitti; [Faz 53–56](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlı.
 
 ```csharp
 builder.AddAgentPrism()
@@ -254,7 +254,8 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [19](docs/19-SURUM-KARSILASTIRMA-VE-AB.md) | Sürüm karşılaştırma (diff) ve A/B deneyleri: deterministik trafik bölme, Experiments ekranı | ✅ Tamamlandı |
 | [20](docs/20-MALIYET-VE-GOSTERGE-PANELI.md) | Maliyet raporlaması ve gösterge paneli: fiyat kataloğu/yapılandırması, Dashboard giriş ekranı | ✅ Tamamlandı |
 | [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | ✅ Tamamı bitti |
-| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 31–52): puanlama, iptal, teşhis, doğrulama, metrik, saklama sınırı, şablon, yapılandırılmış çıktı, test paketi, OpenAPI, kiracı yalıtımı, idempotency, hata sınıflandırma, eval terfisi, dayanıklı çalıştırma, yeniden oynatma, guardrails, MCP/A2A, RAG | **31–51 bitti**; kalan 52 orada |
+| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 31–52): puanlamadan RAG'a on dokuz yetenek | **31–52 bitti** |
+| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Dördüncü dalga (Faz [53](docs/53-KIRACI-API-ANAHTARLARI.md)–[56](docs/56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md)): kiracı API anahtarları, öksüz çalıştırma uzlaştırması, asenkron onay kutusu, kanarya yayını | 📋 Planlandı |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 
@@ -308,7 +309,7 @@ yazılmaz. Ayrıntı: [`docs/48-GUARDRAILS.md`](docs/48-GUARDRAILS.md).
 
 ```bash
 dotnet build  AgentPrism.slnx -c Release              # 0 uyarı bekleniyor
-dotnet test   AgentPrism.slnx -c Release --no-build   # 310 test
+dotnet test   AgentPrism.slnx -c Release --no-build   # 3355 test, 16 proje
 dotnet pack   AgentPrism.slnx -c Release --no-build
 dotnet format AgentPrism.slnx --verify-no-changes
 ```

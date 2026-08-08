@@ -406,6 +406,9 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
                         ? null
                         : result.TimedOut ? "Zaman asimi." : $"Cikis kodu {result.ExitCode}.",
                     CreatedAt = _timeProvider.GetUtcNow(),
+
+                    // Suren calistirmanin kendi kiracisi; ambient kiraci DEGIL (K-355).
+                    TenantId = AgentPrismRunContext.Current?.TenantId,
                 },
                 cancellationToken).ConfigureAwait(false);
         }

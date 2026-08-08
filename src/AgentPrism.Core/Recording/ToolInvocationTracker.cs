@@ -31,6 +31,7 @@ internal sealed class ToolInvocationTracker
     private readonly bool _measureDuration;
     private readonly TimeProvider _timeProvider;
     private readonly ToolUsageAccumulator? _usage;
+    private readonly string? _tenantId;
 
     /// <summary>Yeni bir izleyici olusturur.</summary>
     /// <param name="runId">Calistirma kimligi.</param>
@@ -40,11 +41,16 @@ internal sealed class ToolInvocationTracker
     /// Tool'larin bildirdigi token disi olcumler. <see langword="null"/> ise
     /// olcum toplanmaz.
     /// </param>
+    /// <param name="tenantId">
+    /// Calistirmanin BEKLENEN kiracisi. Uretilen her kayda damgalanir;
+    /// <see langword="null"/> ise depo kiraci denetimi yapmaz. Gerekce: K-355.
+    /// </param>
     public ToolInvocationTracker(
         Guid runId,
         bool measureDuration,
         TimeProvider timeProvider,
-        ToolUsageAccumulator? usage = null)
+        ToolUsageAccumulator? usage = null,
+        string? tenantId = null)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
 
@@ -52,6 +58,7 @@ internal sealed class ToolInvocationTracker
         _measureDuration = measureDuration;
         _timeProvider = timeProvider;
         _usage = usage;
+        _tenantId = tenantId;
     }
 
     /// <summary>Bir tool cagrisinin basladigini kaydeder.</summary>
@@ -116,6 +123,9 @@ internal sealed class ToolInvocationTracker
             // Tool kendi olcumunu cagri kimligiyle bildirmis olabilir. Cagrilarin
             // buyuk cogunlugu olcum tasimaz ve alan bos kalir.
             Usage = _usage?.Take(result.CallId),
+
+            // Beklenen kiraci damgasi (K-355).
+            TenantId = _tenantId,
         };
     }
 
@@ -150,6 +160,9 @@ internal sealed class ToolInvocationTracker
                 Duration = _measureDuration ? _timeProvider.GetElapsedTime(pair.Value.StartedAt) : null,
                 Error = reason,
                 CreatedAt = now,
+
+                // Beklenen kiraci damgasi (K-355).
+                TenantId = _tenantId,
             })
             .ToList();
 

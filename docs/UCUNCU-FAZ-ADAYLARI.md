@@ -1,10 +1,18 @@
 # UCUNCU-FAZ-ADAYLARI.md — Üçüncü Tur Aday Yetenekleri
 
-> **Durum (2026-08-06): ÜÇ DALGA DA PLANLANDI; KALAN 20 KALEM SEÇİLMEDİ.**
+> **Durum (2026-08-08): FAZ 31–56 PLANLANDI; KALAN 15 KALEM SEÇİLMEDİ.**
 > İkinci tur (Faz 8–30) [Faz 30](30-ARAYUZ-CILASI.md) ile kapandı. Dalga 1, 2
 > ve 3'ün toplam **yirmi altı** kalemi [Faz 31–52](UCUNCU-FAZ-YOL-HARITASI.md)
 > olarak plana dönüştü ve bölümleri **bu dosyadan silindi**. Kalan kalemler
 > için seçim yapılmadan faz dokümanı yazılmaz.
+>
+> 🚨 **2026-08-08 denetimi dört kalemi daha plana çevirdi ve birini kapattı:**
+> F-56 → [Faz 53](53-KIRACI-API-ANAHTARLARI.md), F-36 →
+> [Faz 54](54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md), F-69 →
+> [Faz 55](55-ASENKRON-ONAY-KUTUSU.md), F-74 →
+> [Faz 56](56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md). **F-76 faza dönüşmedi;
+> bir kusur olarak düzeltildi** (K-352). Aynı denetim numarasız kalan on üç işi
+> **F-90…F-102** olarak listeye aldı.
 >
 > 🚨 **F-72 (ACS uyumu) Dalga 3'e seçildi ama ölçüm sonucu ERTELENDİ** ve bu
 > listede kaldı. Bölümü artık **ölçülmüş kanıt** taşıyor; sonraki oturum
@@ -175,55 +183,9 @@ Bir fikir yalnız bir mercekten iyi görünüyorsa zayıftır. Her kalemin
 
 ## A. Kontrol düzlemi çekirdeği — işletim
 
-### F-36 · Öksüz çalıştırma uzlaştırması 🔥
-
-**Sorun:** Süreç düşerse `runs` satırı sonsuza dek `Running` kalır. Arayüzde
-asla bitmeyen çalıştırmalar birikir ve `RunStatistics.settled` hesabı
-([`RunStatistics.cs:116`](../src/AgentPrism.Abstractions/Runs/RunStatistics.cs))
-bozulur.
-**Kapsam:** Çalıştırma kirası — `runs`'a heartbeat sütunu, açılışta ve
-aralıklarla uzlaştırma. Süresi geçmiş `Running` satırlar `Failed` olarak
-kapanır ve nedeni yazılır. Bir migration.
-**Değer:** Gösterge paneli doğru sayıyı gösterir. Kota hesabı sızmaz.
-**Mercek:** 2, 7.
-**Hazırlık:** Kira deseni `jobs` tablosunda zaten var; aynı desen kopyalanır.
-**Maliyet:** Düşük.
-**Risk:** Kira süresi yanlış seçilirse çalışan bir işi ölü ilan eder. F-68
-yapılırsa uzlaştırma "öldür" değil "devam ettir" olur — sıralama önemlidir.
-**Bağımlılık:** F-57'den sonra ([Faz 42](42-TEK-YURUTUCU-SECIMI.md) — tek
-yürütücü uzlaştırsın; `ISingletonLeaseStore` oradan gelir) **ve**
-[Faz 46](46-DAYANIKLI-CALISTIRMA.md)'dan sonra.
-🚨 **Aciliyeti arttı:** Faz 46 öksüz `Running` satırı **üretir** ve o fazın
-devir notu bu kalemi işaret ediyor. Faz 46'dan önce yapılırsa iki kez yazılır.
-**Ekosistem:** Temporal ve Inngest'te "workflow lease" adıyla standarttır.
-
-### F-69 · Onay kutusu — asenkron onay **YENİ**
-
-**Sorun:** Tool onayı yalnız **aynı istemcinin bir sonraki turunda**
-verilebilir. Uç, gövdede `approvals` alanını bekler
-([`AgentEndpoints.cs:311`](../src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs))
-ve kararı `ToolApprovalResolver` çözer (aynı dosya `:500`). Bekleyen onaylar
-için **depo yok**, `GET /api/approvals/pending` **yok**. Bir arka uç
-`/v1/responses` üzerinden çalıştırma başlatırsa, o çalıştırmanın onayını
-operatör konsoldan veremez — onay isteği o istemcinin yanıtında kalır.
-**Kapsam:** `pending_approvals` tablosu, `GET /api/approvals/pending`,
-`POST /api/approvals/{id}/decide`, arayüzde bir onay kutusu ekranı, Faz 21'in
-webhook'uyla bildirim. Bir migration.
-**Değer:** Onay akışı bugün yalnız Playground'da işe yarıyor. Bu kalem onu
-**üretim yeteneği** yapar.
-**Mercek:** 2, 3.
-**Hazırlık:** MAF'ın `ToolApprovalRequestContent` / `ToolApprovalResponseContent`
-çifti hazır; eksik olan kalıcılık ve ikinci kanal.
-**Maliyet:** Orta. Arayüz payı **ölçülmeli** — tek ekran, tahminî 3–5 KB gzip.
-**Risk:** Onay kararı bir güvenlik kararıdır; rol denetimi Faz 9'un
-`AgentPrismPolicies` yapısıyla aynı olmalıdır. Bekleyen onayın süre sonu
-olmalıdır.
-**Bağımlılık:** [Faz 46](46-DAYANIKLI-CALISTIRMA.md)'dan sonra.
-🚨 **Aciliyeti arttı:** kuyrukta koşan bir çalıştırma onay isterse **kimse
-cevap veremez** — kuyrukta bir istemci yoktur. Faz 46 bu kalemi bir kolaylıktan
-**eksiğe** çevirdi.
-**Ekosistem:** LangGraph `interrupt()` + Studio onay kuyruğu; Mastra
-`suspend`/`resume`.
+> **Bu bölümün her iki kalemi de plana dönüştü (2026-08-08):** F-36 →
+> [Faz 54](54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md), F-69 →
+> [Faz 55](55-ASENKRON-ONAY-KUTUSU.md). Bölümleri buradan silindi.
 
 ## B. Model yüzeyi ve yönlendirme
 
@@ -371,32 +333,6 @@ Faz 48'de **kapsanmadı** ve F-61 ile birlikte düşünülmelidir.
 Kaynak: [spesifikasyon](https://microsoft.github.io/agent-governance-toolkit/packages/agent-control-specification/) ·
 [normatif metin](https://github.com/microsoft/agent-governance-toolkit/blob/main/policy-engine/spec/SPECIFICATION.md)
 
-### F-56 · Kiracı bazlı API anahtarları ve kapsamlar 🔥
-
-**Sorun:** Gelen kimlik doğrulaması **tek statik token**'dır.
-[`AgentPrismEndpointFilter.cs:21-22`](../src/AgentPrism.AspNetCore/Security/AgentPrismEndpointFilter.cs)
-tek bir `_authToken` alanı taşır ve onu kurulum anında okur. Anahtar döndürme
-yok, iptal yok, son kullanım damgası yok, kiracıya bağlanma yok.
-**Kapsam:** `api_keys` tablosu — hash saklanır, ham değer bir kez gösterilir;
-kiracı bağı; kapsam (`runs:write`, `agents:admin`); süre sonu; iptal; son
-kullanım damgası. Faz 9'un rol politikalarıyla birleşir. Bir migration.
-**Değer:** F-40 **giden** anahtarları çözüyordu; bu **gelen** kimliktir ve çok
-kiracılı kurulumda ondan kritiktir. Bugün bir kiracıya kendi anahtarını
-veremezsiniz.
-**Mercek:** 3.
-**Hazırlık:** Sıfırdan; desen iyi bilinir.
-**Maliyet:** Orta.
-**Risk:** Faz 9'un `AgentPrismPolicies` yapısı korunmalıdır. Bu onun
-**alternatifi değil**, ikinci bir kimlik kaynağıdır. Anahtar karşılaştırması
-sabit zamanlı olmalıdır — mevcut kod bunu zaten yapıyor.
-**Bağımlılık:** F-40 ile aynı kiracı modeline dokunur.
-🚨 **Aciliyeti arttı:** [Faz 50](50-DISA-ACILAN-AGENT-YUZEYI.md) bir **dış
-yüzey** açtı (MCP sunucusu, A2A) ve onu bu tek statik token koruyor. O faz
-geçici bir savunma koydu — `AllowRemoteAccess` ile dış yüzey birlikte
-açılamıyor. Kilidin kalkması bu kaleme bağlıdır.
-**Ekosistem:** LiteLLM'in "virtual keys" yeteneğinin gelen yarısı: anahtar
-başına bütçe, hız sınırı ve kapsam.
-
 ### F-75 · Denetim izi değişmezliği (hash zinciri) **YENİ**
 
 **Sorun:** `audit_log` append-only **ruhla** yazılır ama **teknik olarak
@@ -417,50 +353,13 @@ zinciri bunu zorlaştırır. Yavaşlama **ölçülmeli**.
 buluşur. İkisi **birlikte** tasarlanmalıdır.
 **Ekosistem:** AWS CloudTrail ve GCP Cloud Audit Logs bunu yapar.
 
-### F-76 · Paylaşılan SQL kaynağının XML doküman çakışması (`AddOpenApi()` ile 500) **YENİ** — ÖLÇÜLDÜ (2026-08-06)
+### F-76 · Paylaşılan SQL kaynağının XML doküman çakışması — ✅ KAPATILDI (2026-08-08)
 
-**Sorun:** `AgentPrism.Sql.Shared` bir paket değildir; kaynağı
-`<Compile Include="../AgentPrism.Sql.Shared/**/*.cs" LinkBase="Shared" />` ile
-üç ayrı derlemeye (`AgentPrism.SqlServer`, `AgentPrism.Sqlite`,
-`AgentPrism.PostgreSql`) bağlanır (Faz 23, K-185 deseni). `MigrationRunner`,
-`SqlStoreContext` gibi tipler bu üç derlemenin **her birinde aynı tam
-nitelikli adla** (`T:AgentPrism.MigrationRunner`) üretilen `.xml` doküman
-dosyasına yazılır. `Microsoft.AspNetCore.OpenApi`'nin XML yorum kaynak
-üreteci tüm referanslı derlemelerin doküman girdilerini **tek bir sözlükte**
-(doküman kimliğine göre, derlemeden bağımsız) toplar; iki derleme aynı
-kimlikle geldiğinde `ArgumentException: An item with the same key has already
-been added` fırlatır ve `/openapi/v1.json` isteği **500** döner.
-**Kanıt (2026-08-06):** `samples/AgentPrism.Api` (SqlServer + Sqlite birlikte
-referanslanmış, K-185 örneği için bilerek) üzerinde `AddOpenApi()` +
-`MapOpenApi()` ilk kez uçtan uca denendi ve tekrarlandı. Yığın izi:
-`OpenApiXmlCommentCache.GenerateCacheEntries()` →
-`Dictionary<TKey,TValue>.Add`. `AgentPrism.AspNetCore.FunctionalTests` bunu
-**yakalamaz** çünkü hiçbir SQL sağlayıcısına referans vermez — hata yalnız
-2+ SQL sağlayıcısı **birlikte** yüklendiğinde ortaya çıkar.
-**Kapsam:** Kesin çözüm üçünden biri: (a) çakışan shared-source tiplerin XML
-doküman üretimini yalnız birinde bırakacak bir yapılandırma bulunması, (b)
-`AgentPrism.Sql.Shared`'ın gerçek bir iç paket olarak derlenmesi (K-185'in
-"paket değildir" kararını yeniden açar), (c) yukarı akış (`dotnet/aspnetcore`)
-kaynak üreteci sorunu olarak bildirilip beklenmesi.
-**Değer:** Faz 40'ın vaat ettiği "belge gerçek uygulamada üretilebilir"
-iddiası, 2+ SQL sağlayıcısı birlikte kurulu **her** tüketici için bugün
-yanlıştır — `samples/AgentPrism.Api` dahil.
-**Mercek:** 3 (K-185'in kendisini etkiliyor).
-**Hazırlık:** Kanıt tam; kök neden yığın izinden doğrulandı, tahmine
-dayanmıyor.
-**Maliyet:** Bilinmiyor — seçeneğe göre değişir; (a) düşük-orta, (b) K-185
-kararının yeniden açılması, (c) AgentPrism'in kontrolü dışında.
-**Risk:** Faz 40 kapsamının dışında bırakıldı (paket sınırı yalnız
-`AgentPrism.AspNetCore`); `AgentPrism.AspNetCore`'un kendisi K-039 gereği
-`Microsoft.AspNetCore.OpenApi`'ye zaten bağımlı değildir, dolayısıyla bu
-kütüphanenin değil **tüketicinin OpenAPI kurulumunun** karşılaştığı bir
-sorundur — ama K-185 deseninin (Sql.Shared linked-source) doğrudan sonucu
-olduğu için AgentPrism'in kendi mimari kararı kaynaklıdır.
-**Bağımlılık:** K-185 (paylaşılan SQL kaynağı deseni), Faz 40 (OpenAPI
-yayını — bu tuzağı ortaya çıkaran faz).
-**Ekosistem:** `dotnet/aspnetcore` kaynak üreteci sınırlaması; benzer
-"linked-source çoklu derleme" deseni kullanan başka kütüphanelerde de
-görülebilir.
+> **Faza dönüşmedi; bir kusur olarak düzeltildi.** Kapsam ölçülüp **daraltıldı**:
+> hata yalnız `ProjectReference` ile derleyen tüketiciyi etkiliyordu, NuGet
+> paketiyle tüketen bir uygulamayı **etkilemiyordu** (uçtan uca doğrulandı:
+> HTTP 200). Düzeltme `samples/AgentPrism.Api.csproj` içindedir ve K-185'i
+> yeniden açmadı. Tam gerekçe, ölçümler ve koruma testi: **K-352**.
 
 ### F-58 · Veri konusu silme ve ihracı (GDPR)
 
@@ -557,35 +456,9 @@ Bu grup birlikte "agent'ı ölçerek iyileştirme" döngüsünü kurar. Bugün d
 > ([Faz 45](45-URETIMDEN-EVAL-KUMESI.md)), F-54+F-66 yeniden oynatma
 > ([Faz 47](47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md)) ve F-71 çevrimiçi
 > değerlendirme ([Faz 49](49-CEVRIMICI-DEGERLENDIRME.md)).
-> 🚨 **Geriye tek kalem kaldı: F-74** ve önkoşullarının **tamamı** artık
-> planlıdır.
-
-### F-74 · Kanarya yayını ve otomatik geri alma **YENİ**
-
-**Sorun:** Faz 19 A/B deneyini verdi ama **kimse sonuca göre karar vermiyor.**
-[`ExperimentVariantResult.cs:32,63`](../src/AgentPrism.Abstractions/Experiments/ExperimentVariantResult.cs)
-varyant başına `CanceledRuns` ve `settled` hesaplıyor; bu sayıları okuyup
-deneyi durduran hiçbir kod yok. Trafik oranı sabittir; hata oranı patlarsa
-deney kendiliğinden durmaz.
-**Kapsam:** Deneye eşik kuralı (`hata oranı > X` veya `puan < Y` ise durdur),
-kademeli trafik artırma, otomatik geri alma ve denetim kaydı.
-**Değer:** Yeni bir talimat sürümü güvenle yayına alınır.
-**Mercek:** 2, 7.
-**Hazırlık:** `experiments` tablosu ve atama çözücü hazır. Karar mantığı
-sıfırdan.
-**Maliyet:** Orta.
-**Risk:** Otomatik geri alma bir **otomatik eylemdir**. Varsayılan kapalı
-olmalıdır ve her karar denetim izine yazılmalıdır. Az örnekte eşik gürültüye
-tepki verir — asgari örnek sayısı zorunlu olmalıdır.
-**Bağımlılık:** F-52 ([Faz 31](31-GERI-BILDIRIM-VE-PUANLAMA.md)), F-55
-([Faz 44](44-HATA-SINIFLANDIRMA.md)) ve F-71
-([Faz 49](49-CEVRIMICI-DEGERLENDIRME.md))'den sonra.
-🚨 **Üç önkoşulun üçü de artık planlıdır; bu, listedeki en hazır kalemdir.**
-Eşik mantığı [Faz 49](49-CEVRIMICI-DEGERLENDIRME.md)'un `MinSampleSize` +
-pencere kuralını **aynen** kullanmalıdır — üçüncü bir eşik kuralı yazmak üç
-yerde bakım demektir.
-**Ekosistem:** Statsig ve LaunchDarkly'nin "guarded release" yeteneği; LLM
-tarafında Braintrust "CI quality gates".
+> 🚨 **Döngü kapandı (2026-08-08):** son halka F-74 da plana dönüştü →
+> [Faz 56](56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md). Bu bölümde kalem
+> kalmadı; bölümü buradan silindi.
 
 ## F. Paket ailesi ve geliştirici deneyimi
 
@@ -926,17 +799,44 @@ notundadır.
 | **F-88** | Guard kararının transcript'te gösterilmesi | Faz 48 iki olay tipini **ham olay akışına** ekledi; katlanmış transcript görünümü (`transcript.ts`) onları göstermiyor. `compaction` için var olan "sistem konuşmayı değiştirdi" öğesinin kardeşi gerekir: yeni öğe tipi + bileşen + sözlük anahtarları |
 | **F-89** | Kiracı bazlı guard kuralları | `ContentGuardContext.TenantId` **bugün taşınıyor** ve özel bir guard onu kullanabilir; ama yerleşik `PatternContentGuard` tek bir kural kümesi taşır. Kiracı başına kural, kuralların **nerede yaşadığı** sorusunu açar (yapılandırma mı, veritabanı mı) ve K2'ye benzer bir sınır kararı ister |
 
+### Numaralandırılan kapsam-dışı işler (2026-08-08 denetimi)
+
+Aşağıdaki kalemler daha önce **numarasızdı** ve yalnız devir notlarında yaşıyordu.
+2026-08-08 denetimi bunları resmî F-numarasıyla listeye aldı; böylece sonraki bir
+planlama turu onları yeniden **keşfetmek** zorunda kalmaz. ID'ler **F-90**'dan
+devam eder ve sabittir.
+
+| ID | Kalem | Kaynak | Neden ayrı bir kalem |
+|---|---|---|---|
+| **F-90** | PostgreSQL RLS ile derinlemesine savunma | [Faz 41](41-KIRACI-YALITIMININ-ZORLANMASI.md) | SQLite'ta karşılığı **yok**; üç sağlayıcıda davranış ayrışır. Faz 41 sözleşme testi kapısını seçti, RLS'i **iptal etmedi** |
+| **F-91** | MCP OAuth token'ının örnekler arasında paylaşılması | [Faz 42](42-TEK-YURUTUCU-SECIMI.md) | 🚨 **K-059 ile çatışır** — `secret` veritabanına yazılmaz. Kendi kararını ister |
+| **F-92** | Paylaşılan (dağıtık) hız sınırı | [Faz 42](42-TEK-YURUTUCU-SECIMI.md) | K-158 bunu bilerek bellekte tuttu; tek yürütücü seçimi bu sorunu **çözmez**. 🚨 "Bilerek Önerilmeyenler" tablosundaki Redis maddesiyle **çakışır**; alınırsa o karar yeniden açılır |
+| **F-93** | TypeScript istemci paketi ve npm yayını | [Faz 40](40-OPENAPI-YAYINI.md) | İkinci bir dağıtım kanalı; ayrı yayın hattı, kimlik bilgisi ve sürümleme ister. F-63'ten ayrıldı |
+| **F-94** | Çok turlu eval vakası terfisi | [Faz 45](45-URETIMDEN-EVAL-KUMESI.md) | `EvalCase` sözleşmesini değiştirir; Faz 7'den **önce** karara bağlanması ucuzdur |
+| **F-95** | Tur bazlı kontrol noktası (F-68 Okuma B) | [Faz 46](46-DAYANIKLI-CALISTIRMA.md) | 🚨 MAF agent düzeyinde kanca **vermiyor** — ölçüldü. Kancayı AgentPrism yazmak K3'ü zorlar. Kanca yalnız `Microsoft.Agents.AI.Workflows` içinde var |
+| **F-96** | Kuyruğa alınan çalıştırmalarda ek (attachment) desteği | [Faz 46](46-DAYANIKLI-CALISTIRMA.md) | `AttachmentUriReference` bir HTTP yol öneki ister; bu değer yalnız `MapAgentPrism` çağrısı anında bilinir, `AgentRunJobHandler`'ın DI kayıt anında değil |
+| **F-97** | OpenAI uyumlu uçların asenkron sözleşmesi (`background: true`) | [Faz 46](46-DAYANIKLI-CALISTIRMA.md) | Faz 46 `202 Accepted` + `Location` sözleşmesini **yönetim API'sinde** verdi; OpenAI uyumlu yüzeyin kendi sözleşmesi (`response.id` ile yoklama) ayrı bir iştir |
+| **F-98** | Azure AI Content Safety adaptörü | [Faz 48](48-GUARDRAILS.md) | Ağırlık **4 paket** (ölçüldü) — sorun değil. Erteleme gerekçesi doğrulanamazlıktır (K-212 emsali) |
+| **F-99** | `IVectorSearchStore`'un SQL Server / SQLite uygulaması | [Faz 51](51-VEKTOR-BELLEK-VE-RAG.md) | SQL Server'ın yerel `VECTOR` tipi ve SQLite'ın `sqlite-vec` uzantısı **ölçülmedi** (K-343) |
+| **F-100** | Bütçe eşiği uyarısı (proaktif kota alarmı) | 2026-08-08 denetimi | Faz 35 kota ölçerlerini (OTel gauge), Faz 21 giden webhook'u verdi; ikisini bağlayan "eşik aşılınca webhook tetikle" mantığı **yok**. Operatör kota aşımını bugün yalnız gösterge panelinde **görerek** fark ediyor. Var olan iki altyapıyı birleştirir |
+| **F-101** | RAG belge tazeliği takibi | 2026-08-08 denetimi | Faz 51 vektör aramayı getirdi ama gömülerin ne zaman bayatladığını izleyen bir mekanizma yok. `document_embeddings`'e `source_updated_at`/`last_indexed_at` karşılaştırması ve isteğe bağlı bir "yeniden indeksle" ucu. **Doğrulanmadı** — planlanmadan önce şema okunmalı |
+| **F-102** | `EvalStoreContract` eşzamanlılık testi yük altında kırılgan | 2026-08-08 denetimi | 🚨 **Ölçüldü:** `AddCaseAsync_es_zamanli_terfiler_farkli_seq_uretir` PostgreSQL paketinin tamamı koşarken düştü (`SqlEvalStore.AddCaseAsync:221` — "5 denemede sira numarasi atanamadi"), **tek başına ve ikinci tam koşumda geçti** (870/870). Testin kendisi mi yoksa `AddCaseAsync`'in 5 denemelik yeniden deneme sınırı mı yetersiz — karara bağlanmalı. Bir kusur değil, **kırılgan bir test** olarak sınıflandırıldı ama sessiz bırakılmadı |
+
+> **F-100, F-101 ve F-102 dışındakiler** daha önce devir notlarında yazılıydı;
+> bu denetim yalnız numara verdi ve gerekçeleri buraya taşıdı. F-101 **kod
+> tabanında doğrulanmamıştır**; plana dönüşmeden önce ölçülmelidir.
+
 ---
 
 ## Bundan Sonra Ne Kaldı
 
 Üç dalga bittiğinde ekosistem boşluk tablosunun **dokuz satırı** kapanmış olur.
-Kalan 20 kalem üç kümede toplanır:
+2026-08-08 denetiminden sonra **seçilmemiş 15 kalem** kalır (F-90…F-102 hariç):
 
 | Küme | Kalemler | Ortak yanı |
 |---|---|---|
-| **Kimlik ve çok kiracılılık** | F-56, F-40, F-64, F-65 | 🚨 Zinciri F-56 açar ve [Faz 50](50-DISA-ACILAN-AGENT-YUZEYI.md) onu **acil** hâle getirdi |
-| **İşletim boşlukları** | F-36, F-69, F-74, F-44, F-59, F-45 | Altısı da planlanmış bir fazın **doğrudan devamıdır** |
+| **Kimlik ve çok kiracılılık** | F-40, F-64, F-65 | 🚨 Zinciri F-56 açıyordu; o artık [Faz 53](53-KIRACI-API-ANAHTARLARI.md) — bu üçünün **önkoşulu planlandı** |
+| **İşletim boşlukları** | F-44, F-59, F-45 | Üçü de planlanmış bir fazın **doğrudan devamıdır**. F-36, F-69 ve F-74 [Faz 54–56](54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md) oldu |
 | **Uyum ve veri hakları** | F-72 ⏸, F-75, F-58, F-41, F-61 | Kurumsal kapı. F-75 ve F-58 **birlikte** tasarlanmalıdır (silme hakkı ↔ değişmezlik) |
 
 Geriye kalanlar bağımsızdır: F-34 (şablon), F-48 (GitOps), F-50 (istemci+CLI),

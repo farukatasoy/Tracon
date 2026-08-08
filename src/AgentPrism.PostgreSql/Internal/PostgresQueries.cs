@@ -286,7 +286,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 output_cost    = @output_cost,
                 cost_currency  = @cost_currency,
                 pricing_source = @pricing_source
-            WHERE id = @id;
+            WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
             """;
 
         // Yalniz bakim ucu (POST /api/stats/recalculate-costs) tarafindan
@@ -297,7 +297,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 output_cost    = @output_cost,
                 cost_currency  = @cost_currency,
                 pricing_source = @pricing_source
-            WHERE id = @id;
+            WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
             """;
 
         // Agac toplamlari OKUMADA hesaplanir, saklanmaz. Saklansaydi her alt
@@ -519,9 +519,16 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ORDER BY error_class, cluster_count DESC;
             """;
 
+        // 🚨 VALUES degil SELECT ... WHERE EXISTS: yazma yalnizca hedef calistirma
+        // BEKLENEN kiraciya aitse uygulanir (K-355). @tenant_id NULL ise denetim
+        // yapilmaz. Alt sorgu birincil anahtar aramasidir; sicak yazma yolunda
+        // ek maliyeti bir indeks okumasidir.
         InsertRunEvent = $"""
             INSERT INTO {Schema}.run_events (run_id, seq, type, text, tool_name, tool_call_id, payload, created_at)
-            VALUES (@run_id, @seq, @type, @text, @tool_name, @tool_call_id, @payload, @created_at);
+            SELECT @run_id, @seq, @type, @text, @tool_name, @tool_call_id, @payload, @created_at
+            WHERE EXISTS (
+                SELECT 1 FROM {Schema}.runs r
+                WHERE r.id = @run_id AND (@tenant_id IS NULL OR r.tenant_id = @tenant_id));
             """;
 
         SelectRunEvents = $"""
@@ -613,13 +620,16 @@ internal sealed class PostgresQueries : SqlQueriesBase
 
         // --- Tool cagrilari (Faz 6) ---
 
+        // InsertRunEvent ile ayni kiraci muhafizi (K-355).
         InsertToolInvocation = $"""
             INSERT INTO {Schema}.tool_invocations
                 (id, run_id, tool_name, tool_call_id, source, arguments, result, duration_ms, error, created_at,
                  usage_unit, usage_quantity, usage_estimated, cost, cost_currency)
-            VALUES
-                (@id, @run_id, @tool_name, @tool_call_id, @source, @arguments, @result, @duration_ms, @error, @created_at,
-                 @usage_unit, @usage_quantity, @usage_estimated, @cost, @cost_currency);
+            SELECT @id, @run_id, @tool_name, @tool_call_id, @source, @arguments, @result, @duration_ms, @error, @created_at,
+                   @usage_unit, @usage_quantity, @usage_estimated, @cost, @cost_currency
+            WHERE EXISTS (
+                SELECT 1 FROM {Schema}.runs r
+                WHERE r.id = @run_id AND (@tenant_id IS NULL OR r.tenant_id = @tenant_id));
             """;
 
         // 🚨 Yeni sutunlar HER ZAMAN sona eklenir; mevcut sabit-indeks okuyucular

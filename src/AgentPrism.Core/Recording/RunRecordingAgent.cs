@@ -487,7 +487,12 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         return new RunScope(
             start.Writer,
             start.Activity,
-            new ToolInvocationTracker(start.Scope.RunId, start.IsStreaming, _timeProvider, start.Scope.ToolUsage),
+            new ToolInvocationTracker(
+                start.Scope.RunId,
+                start.IsStreaming,
+                _timeProvider,
+                start.Scope.ToolUsage,
+                start.Scope.TenantId),
             start.Scope.AgentName!,
             start.Scope.TenantId!,
             _timeProvider.GetTimestamp(),

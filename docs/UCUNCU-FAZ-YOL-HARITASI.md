@@ -378,3 +378,50 @@ onların aciliyetini **değiştirdi** ve bu bilgi kaybolmamalıdır.
 | **F-56** kiracı bazlı API anahtarları | 🚨 [Faz 50](50-DISA-ACILAN-AGENT-YUZEYI.md) bir **dış yüzey** açtı ve onu tek statik bir token koruyor. `AllowRemoteAccess` kilidi geçici bir savunmadır |
 | **F-69** asenkron onay kutusu | Kuyrukta koşan bir çalıştırma ([Faz 46](46-DAYANIKLI-CALISTIRMA.md)) onay isterse **kimse cevap veremez** — kuyrukta istemci yoktur |
 | **F-74** kanarya ve otomatik geri alma | Üç önkoşulunun üçü de tamamlanır: Faz 31, Faz 44 ve [Faz 49](49-CEVRIMICI-DEGERLENDIRME.md). Eşik mantığı Faz 49'unkiyle **aynı** olmalıdır |
+
+---
+
+## Dördüncü Dalga — Faz 53–56 (2026-08-08)
+
+[`DEGERLENDIRME-RAPORU-2026-08.md`](DEGERLENDIRME-RAPORU-2026-08.md) denetimi,
+Dalga 3'ün **acil hâle getirdiği dört kalemin** tamamını plana çevirdi.
+Kod yazılmadı; fazlar `📋 Planlandı` durumundadır.
+
+| Kalem | Faz | Neden bu sırada | Yeni paket | Migration |
+|---|---|---|---|---|
+| **F-56** kiracı bazlı API anahtarları | [Faz 53](53-KIRACI-API-ANAHTARLARI.md) | 🚨 En acil: Faz 50'nin dış yüzeyi bugün **tek statik token**'la korunuyor ve `AllowRemoteAccess` kilidi geçici bir savunma. Kimlik zayıflığı teorik değil, **kullanılabilir durumda** | Yok | `api_keys` — üç set |
+| **F-36** öksüz çalıştırma uzlaştırması | [Faz 54](54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md) | Faz 46 bu kusuru **üretiyor**. 🚨 Kanıt Faz 46'da **daraldı**: yalnız yeniden denemesiz çöküş orphan üretir | Yok | `runs.heartbeat_at` — üç set |
+| **F-69** asenkron onay kutusu | [Faz 55](55-ASENKRON-ONAY-KUTUSU.md) | Kuyrukta koşan bir çalıştırma onay isterse kimse cevap veremez; Faz 46 bunu kolaylıktan **eksiğe** çevirdi | Yok | `pending_approvals` — üç set |
+| **F-74** kanarya ve otomatik geri alma | [Faz 56](56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md) | Üç önkoşulu da tamam (Faz 31, 44, 49). 🚨 Eşik mantığı Faz 49'un `MinSampleSize` + pencere kuralını **aynen** kullanmalıdır | Yok | `experiments` kanarya alanları — üç set |
+
+### Bu dalgada plana dönüşmeyen kalem
+
+**F-76** (paylaşılan SQL kaynağının XML doküman çakışması) faz olmadı; bir
+**kusur** olarak düzeltildi. Kapsamı ölçülüp daraltıldı: hata yalnız
+`ProjectReference` ile derleyen tüketiciyi etkiliyordu, NuGet paketiyle tüketen
+bir uygulamayı **etkilemiyordu** (uçtan uca doğrulandı). Gerekçe: **K-352**.
+
+### Aynı denetimde düzeltilen diğer üç kusur
+
+Bunlar da faz olmadı; doğrudan düzeltildi ve karar defterine yazıldı.
+
+| Kusur | Karar |
+|---|---|
+| `.UseMcp()` yapılandırma bağlaması sessizce çalışmıyordu | **K-353** |
+| `BackgroundService` başlatma sırası migration ile yarışıyordu | **K-354** — `SchemaReadyGate` |
+| Alt yazma yolları kiracı süzgeci taşımıyordu | **K-355** |
+
+### Faz 7 (Yayın) etkisi
+
+Dört fazın üçü public yüzeyi büyütür ve **Faz 7'den önce yapıldıkları sürece
+bedavadır**:
+
+| Faz | Public yüzey | Yayından sonra maliyeti |
+|---|---|---|
+| Faz 53 | Yeni tipler + `IApiKeyStore` | Yeni tip — ucuz |
+| Faz 54 | 🚨 `IRunStore`'a **iki metot** | Var olan arayüze metot — en pahalı sınıf |
+| Faz 55 | Yeni tipler + `IPendingApprovalStore` | Yeni tip — ucuz |
+| Faz 56 | 🚨 `Experiment` `sealed record`'una **iki alan** | Sürüm kararı |
+
+K-355 zaten üç `sealed record`'a birer alan ekledi ve `IRunStore.UpdateRunCostAsync`
+imzasını değiştirdi — bu da yayından önce bedava oldu.

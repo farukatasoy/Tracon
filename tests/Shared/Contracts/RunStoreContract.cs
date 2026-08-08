@@ -1174,4 +1174,120 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         record.TenantId.ShouldBe(TenantA);
         (await Store.GetRunAsync(runId))!.TenantId.ShouldBe(TenantA);
     }
+
+    // --- Alt yazma yollarinda BEKLENEN kiraci (K-355) ---
+    //
+    // 🚨 Bu dort test bir kusuru kapatir. Faz 41'den 2026-08-08'e kadar
+    // AppendEventAsync / CompleteRunAsync / UpdateRunCostAsync /
+    // RecordToolInvocationAsync hicbir kiraci suzgeci TASIMIYORDU. Ambient
+    // kiraciyla suzmek denenmis ve GERI ALINMISTI: RunStartInfo.TenantId ambient
+    // kiraciyi bilerek ezer (workflow ve is kuyrugu boyle calisir) ve suzgec
+    // mesru yazmalari dusuruyordu. Cozum ambient degil, cagrinin tasidigi
+    // BEKLENEN kiracidir.
+    //
+    // Her test iki yonludur: yanlis kiraci dusurulur, DOGRU kiraci gecer.
+    // Tek yonlu bir denetim, her yazmayi reddeden kirik bir kosulu da gecerdi.
+
+    [Fact]
+    public async Task AppendEventAsync_yanlis_beklenen_kiraciyla_yazmaz()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Should.ThrowAsync<AgentPrismException>(async () =>
+            await Store.AppendEventAsync(TestData.Event(runId, 0) with { TenantId = TenantB }));
+
+        // Dogru kiraci gecer; kosul fazla dar degil.
+        await Store.AppendEventAsync(TestData.Event(runId, 0) with { TenantId = TenantA });
+
+        var events = new List<RunEvent>();
+
+        await foreach (var runEvent in Store.ReadEventsAsync(runId))
+        {
+            events.Add(runEvent);
+        }
+
+        events.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task CompleteRunAsync_yanlis_beklenen_kiraciyla_kapatmaz()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Should.ThrowAsync<AgentPrismException>(async () => await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            TenantId = TenantB,
+        }));
+
+        (await Store.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Running);
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            TenantId = TenantA,
+        });
+
+        (await Store.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Completed);
+    }
+
+    [Fact]
+    public async Task UpdateRunCostAsync_yanlis_beklenen_kiraciyla_guncellemez()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        var cost = new RunCost
+        {
+            InputCost = 1.5m,
+            OutputCost = 2.5m,
+            Currency = "USD",
+            Source = PricingSource.Catalog,
+        };
+
+        // Bakim ucudur: yanlis kiracida SESSIZCE atlanir, hata firlatilmaz.
+        await Store.UpdateRunCostAsync(runId, cost, TenantB);
+        (await Store.GetRunAsync(runId))!.Cost.ShouldBeNull();
+
+        await Store.UpdateRunCostAsync(runId, cost, TenantA);
+        (await Store.GetRunAsync(runId))!.Cost!.InputCost.ShouldBe(1.5m);
+    }
+
+    [Fact]
+    public async Task RecordToolInvocationAsync_yanlis_beklenen_kiraciyla_yazmaz()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        var invocation = new ToolInvocationRecord
+        {
+            Id = AgentPrismId.NewId(),
+            RunId = runId,
+            ToolName = "get_order",
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+
+        await Should.ThrowAsync<AgentPrismException>(async () =>
+            await Store.RecordToolInvocationAsync(invocation with { TenantId = TenantB }));
+
+        (await Store.ListToolInvocationsAsync(runId)).ShouldBeEmpty();
+
+        await Store.RecordToolInvocationAsync(invocation with { TenantId = TenantA });
+
+        (await Store.ListToolInvocationsAsync(runId)).ShouldHaveSingleItem();
+    }
 }

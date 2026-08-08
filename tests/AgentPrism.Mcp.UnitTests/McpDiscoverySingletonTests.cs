@@ -62,7 +62,12 @@ public sealed class McpDiscoverySingletonTests
             NullLoggerFactory.Instance,
             new McpOAuthTokenCacheRegistry());
 
-        return new McpDiscoveryService(catalog, mcpOptions, leaseStore, singletonOptions, logger);
+        // Hicbir SQL kalicilik saglayicisi kayitli degil: kapi kendiliginden aciktir
+        // ve kesif beklemeden baslar (K-354).
+        var schemaReadyGate = new SchemaReadyGate([]);
+
+        return new McpDiscoveryService(
+            catalog, mcpOptions, leaseStore, singletonOptions, schemaReadyGate, logger);
     }
 
     private static StaticOptionsMonitor<T> Options<T>(T value) where T : class => new(value);

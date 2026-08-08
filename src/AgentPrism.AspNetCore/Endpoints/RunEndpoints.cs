@@ -656,7 +656,15 @@ internal static class RunEndpoints
             var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
 
             await runs.CompleteRunAsync(
-                new RunCompletion { RunId = runId, Status = RunStatus.Canceled, CompletedAt = now },
+                // `run` kiraciya gore SUZULMUS bir okumadan geldi; beklenen kiraci
+                // onun kendi kaydidir (K-355).
+                new RunCompletion
+                {
+                    RunId = runId,
+                    Status = RunStatus.Canceled,
+                    CompletedAt = now,
+                    TenantId = run.TenantId,
+                },
                 cancellationToken).ConfigureAwait(false);
 
             await AuditRecorder.WriteAsync(
