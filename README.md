@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici kendi AI harness'ini kurar ve `/agentprism` arayüzünden yönetir.
 
-> **Durum:** Faz 50 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**, `dotnet new agentprism-api` ile başlatılabilir; `AgentPrism.Testing` ile model çağırmadan test edilebilir. Çalıştırmalar span/metrik/maliyetle kaydedilir, kiracı yalıtımı zorlanır, içerik `IContentGuard` ile denetlenir, üretim trafiği bir yargıçla puanlanır, agent'lar MCP/A2A ile dışa açılır. Faz 8-50 bitti; [kalan](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlı.
+> **Durum:** Faz 51 tamamlandı — AgentPrism **işletilebilir bir kontrol düzlemidir**, `dotnet new agentprism-api` ile başlatılabilir; `AgentPrism.Testing` ile model çağırmadan test edilebilir. Çalıştırmalar span/metrik/maliyetle kaydedilir, kiracı yalıtımı zorlanır, içerik denetlenir, üretim trafiği puanlanır, agent'lar MCP/A2A ile dışa açılır, PostgreSQL'de `pgvector` ile anlamsal arama yapılır. Faz 8-51 bitti; [kalan](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlı.
 
 ```csharp
 builder.AddAgentPrism()
@@ -254,7 +254,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [19](docs/19-SURUM-KARSILASTIRMA-VE-AB.md) | Sürüm karşılaştırma (diff) ve A/B deneyleri: deterministik trafik bölme, Experiments ekranı | ✅ Tamamlandı |
 | [20](docs/20-MALIYET-VE-GOSTERGE-PANELI.md) | Maliyet raporlaması ve gösterge paneli: fiyat kataloğu/yapılandırması, Dashboard giriş ekranı | ✅ Tamamlandı |
 | [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | ✅ Tamamı bitti |
-| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 31–52): puanlama, iptal, teşhis, doğrulama, metrik, saklama sınırı, şablon, yapılandırılmış çıktı, test paketi, OpenAPI, kiracı yalıtımı, idempotency, hata sınıflandırma, eval terfisi, dayanıklı çalıştırma, yeniden oynatma, guardrails, MCP/A2A | **Faz 31–50 bitti**; kalan 51–52 orada |
+| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 31–52): puanlama, iptal, teşhis, doğrulama, metrik, saklama sınırı, şablon, yapılandırılmış çıktı, test paketi, OpenAPI, kiracı yalıtımı, idempotency, hata sınıflandırma, eval terfisi, dayanıklı çalıştırma, yeniden oynatma, guardrails, MCP/A2A, RAG | **31–51 bitti**; kalan 52 orada |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 

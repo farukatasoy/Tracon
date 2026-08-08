@@ -63,7 +63,9 @@ internal sealed class SqliteDataSource : DbDataSource
         }
 
         using var command = connection.CreateCommand();
-        command.CommandText = "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;";
+        command.CommandText =
+            "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; " +
+            "PRAGMA case_sensitive_like = ON;";
         command.ExecuteNonQuery();
     }
 }

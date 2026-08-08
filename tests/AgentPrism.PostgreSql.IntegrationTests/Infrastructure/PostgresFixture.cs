@@ -16,10 +16,18 @@ namespace AgentPrism.PostgreSql.IntegrationTests.Infrastructure;
 /// maliyeti bir kez odenir hem de sema adinin yapilandirilabilir olmasi her testte
 /// dogrulanmis olur.
 /// </para>
+/// <para>
+/// 🚨 Imaj <c>postgres:18-alpine</c> DEGIL, <c>pgvector/pgvector:pg18</c>'dir
+/// (Faz 51). Migration 0024 <c>CREATE EXTENSION IF NOT EXISTS vector;</c> calistirir
+/// ve bu HER testte (yalniz vektor testlerinde degil) uygulanir; duz Postgres imaji
+/// uzantiyi tasimadigi icin migration seti butun test paketinde patlardi.
+/// <c>pgvector/pgvector</c> imaji `postgres` resmi imajinin ustune yalniz bu
+/// uzantiyi ekler, baska bir davranis farki yaratmaz.
+/// </para>
 /// </remarks>
 public sealed class PostgresFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:18-alpine")
+    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("pgvector/pgvector:pg18")
         .WithDatabase("agentprism_tests")
         .WithCleanUp(true)
         .Build();

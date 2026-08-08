@@ -38,6 +38,9 @@ public sealed class AgentDefinitionCompiler
     private readonly ITenantContext? _tenantContext;
     private readonly ModelBinding? _utilityModel;
     private readonly IMcpResourceContextProviderFactory? _mcpResources;
+    private readonly IVectorSearchStore? _vectorSearchStore;
+    private readonly IEmbeddingGenerator<string, Embedding<float>>? _embeddingGenerator;
+    private readonly int _knowledgeMaxResults;
 
     // MAAI001: Microsoft.Agents.AI.AgentFileStore "evaluation purposes only"
     // olarak isaretli. Bastirma tek bir dosyada toplanmistir (bu dosya, K-020
@@ -83,6 +86,17 @@ public sealed class AgentDefinitionCompiler
     /// saglayicisi kuran fabrika. <see langword="null"/> ise MCP kaynagi
     /// isteyen bir tanim derleme hatasi alir.
     /// </param>
+    /// <param name="vectorSearchStore">
+    /// Anlamsal arama deposu (Faz 51). <see langword="null"/> ise
+    /// <c>MemorySettings.EnableVectorSearch</c> isteyen bir tanim derleme hatasi alir.
+    /// </param>
+    /// <param name="embeddingGenerator">
+    /// Gomu ureticisi (Faz 51). <see langword="null"/> ise
+    /// <c>MemorySettings.EnableVectorSearch</c> isteyen bir tanim derleme hatasi alir.
+    /// </param>
+    /// <param name="knowledgeMaxResults">
+    /// <c>search_knowledge</c> tool'unun dondurecegi en fazla sonuc sayisi (Faz 51).
+    /// </param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
 #pragma warning disable MAAI001 // AgentFileStore — bkz. _fileStore alanindaki gerekce.
     public AgentDefinitionCompiler(
@@ -97,7 +111,10 @@ public sealed class AgentDefinitionCompiler
         ITenantContext? tenantContext = null,
         ModelBinding? utilityModel = null,
         AgentFileStore? fileStore = null,
-        IMcpResourceContextProviderFactory? mcpResources = null)
+        IMcpResourceContextProviderFactory? mcpResources = null,
+        IVectorSearchStore? vectorSearchStore = null,
+        IEmbeddingGenerator<string, Embedding<float>>? embeddingGenerator = null,
+        int knowledgeMaxResults = 5)
 #pragma warning restore MAAI001
     {
         ArgumentNullException.ThrowIfNull(models);
@@ -115,6 +132,9 @@ public sealed class AgentDefinitionCompiler
         _utilityModel = utilityModel;
         _fileStore = fileStore;
         _mcpResources = mcpResources;
+        _vectorSearchStore = vectorSearchStore;
+        _embeddingGenerator = embeddingGenerator;
+        _knowledgeMaxResults = knowledgeMaxResults;
     }
 
     /// <summary>Tanimi calistirilabilir bir agent'a donusturur.</summary>
@@ -184,6 +204,7 @@ public sealed class AgentDefinitionCompiler
 
         var chatClient = CreateChatClient(definition);
         var tools = ResolveTools(definition);
+        AddVectorSearchTool(definition, tools);
 
         if (toolTransform is not null)
         {
@@ -732,6 +753,54 @@ public sealed class AgentDefinitionCompiler
             (query, cancellationToken) => SearchFileStoreAsync(fileStore, query, cancellationToken),
             new TextSearchProviderOptions(),
             _loggerFactory);
+    }
+
+    /// <summary>
+    /// <see cref="MemorySettings.EnableVectorSearch"/> aciksa <c>search_knowledge</c>
+    /// tool'unu <paramref name="tools"/>'a ekler (Faz 51).
+    /// </summary>
+    /// <exception cref="AgentPrismCompilationException">
+    /// Anlamsal arama isteniyor ancak <see cref="IVectorSearchStore"/>,
+    /// gomu ureticisi veya kiraci cozulemiyorsa.
+    /// </exception>
+    private void AddVectorSearchTool(AgentDefinition definition, List<AITool> tools)
+    {
+        if (definition.Memory is not { EnableVectorSearch: true } memory)
+        {
+            return;
+        }
+
+        if (_vectorSearchStore is null)
+        {
+            throw new AgentPrismCompilationException(
+                $"'{definition.Name}' agent'i anlamsal arama istiyor ancak IVectorSearchStore kayitli " +
+                "degil (bugun yalniz PostgreSQL: UsePostgreSql()).")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
+        if (_embeddingGenerator is null)
+        {
+            throw new AgentPrismCompilationException(
+                $"'{definition.Name}' agent'i anlamsal arama istiyor ancak " +
+                "IEmbeddingGenerator<string, Embedding<float>> kayitli degil.")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
+        var tenantId = _tenantContext?.TenantId ?? definition.TenantId
+            ?? throw new AgentPrismCompilationException(
+                $"'{definition.Name}' agent'i anlamsal arama istiyor ancak kiraci cozulemedi.")
+            {
+                AgentName = definition.Name,
+            };
+
+        var collection = memory.VectorCollection is { Length: > 0 } named ? named : definition.Name;
+
+        tools.Add(VectorSearchToolFactory.Create(
+            _vectorSearchStore, _embeddingGenerator, tenantId, collection, _knowledgeMaxResults));
     }
 
     private AgentFileStore RequireFileStore(AgentDefinition definition)

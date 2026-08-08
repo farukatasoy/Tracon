@@ -95,6 +95,64 @@ public abstract class AgentFileStoreContract : TenantIsolationContract<AgentFile
         (await Store.ListChildrenAsync("/")).ShouldBeEmpty();
     }
 
+    [Fact]
+    public async Task Recursive_false_alt_dizindeki_eslesmeyi_atlar()
+    {
+        // Faz 51, Is A: derinlik siniri SQL'e indi (prefix_deep_like). Bu test
+        // davranisin degismedigini kanitlar.
+        Enter(TenantA);
+
+        await Store.WriteAsync("/notlar/ust.md", "anahtar kelime burada");
+        await Store.WriteAsync("/notlar/alt/derin.md", "anahtar kelime burada da var");
+
+        var shallow = await Store.SearchAsync("/notlar", "anahtar", recursive: false);
+        shallow.ShouldHaveSingleItem().FileName.ShouldBe("/notlar/ust.md");
+
+        var deep = await Store.SearchAsync("/notlar", "anahtar", recursive: true);
+        deep.Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task Glob_suzgeci_dosya_adina_gore_daraltir()
+    {
+        // Faz 51, Is A: glob SQL'e indi (name_like). `*` dizin sinirini asar,
+        // orijinal .NET regex tabanli eslemeyle ayni davranis.
+        Enter(TenantA);
+
+        await Store.WriteAsync("/notlar/a.md", "ortak deger");
+        await Store.WriteAsync("/notlar/a.txt", "ortak deger");
+        await Store.WriteAsync("/notlar/alt/b.md", "ortak deger");
+
+        var results = await Store.SearchAsync("/notlar", "ortak", globPattern: "*.md", recursive: true);
+
+        results.Select(static r => r.FileName)
+            .OrderBy(static name => name, StringComparer.Ordinal)
+            .ShouldBe(["/notlar/a.md", "/notlar/alt/b.md"]);
+    }
+
+    [Fact]
+    public async Task Buyuk_depoda_arama_yalniz_hedef_dizini_dondurur()
+    {
+        // Faz 51, Is A: `LoadAllAsync` kaldirildi. Bu test, cok sayida ILGISIZ
+        // dosya varken hedef dizindeki tek eslesmenin dogru bulundugunu
+        // kanitlar (satir sayisi olcumu Postgres'e ozgu EXPLAIN ile ayrica
+        // yapilir, bkz. docs/51-VEKTOR-BELLEK-VE-RAG.md).
+        Enter(TenantA);
+
+        const int UnrelatedFileCount = 500;
+
+        for (var i = 0; i < UnrelatedFileCount; i++)
+        {
+            await Store.WriteAsync($"/arsiv/dosya-{i:D4}.md", "ilgisiz icerik");
+        }
+
+        await Store.WriteAsync("/hedef/not.md", "aranan-anahtar burada");
+
+        var results = await Store.SearchAsync("/hedef", "aranan-anahtar", recursive: true);
+
+        results.ShouldHaveSingleItem().FileName.ShouldBe("/hedef/not.md");
+    }
+
     /// <summary>
     /// Gecerli kiraciyi ayarlar ve ambient calistirma kapsamini kurar.
     /// </summary>
