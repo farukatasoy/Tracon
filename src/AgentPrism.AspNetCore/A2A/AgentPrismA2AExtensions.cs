@@ -57,7 +57,8 @@ public static class AgentPrismA2AExtensions
 
         var endpointOptions = AgentPrismEndpointRouteBuilderExtensions.RequireSharedEndpointOptions(endpoints, "A2A");
 
-        ExternalSurfaceGuard.EnsureRemoteAccessNotCombined(endpointOptions.AllowRemoteAccess, "A2A");
+        ExternalSurfaceGuard.EnsureRemoteAccessNotCombined(
+            endpointOptions.AllowRemoteAccess, "A2A", services.GetRequiredService<IApiKeyStore>());
 
         var catalog = services.GetRequiredService<IAgentCatalog>();
         var toolRegistry = services.GetRequiredService<IToolRegistry>();
@@ -76,6 +77,7 @@ public static class AgentPrismA2AExtensions
 
         var group = endpoints.MapGroup(pattern).WithTags("AgentPrism", "A2A");
         group.AddEndpointFilter(new AgentPrismEndpointFilter(endpointOptions));
+        group.RequireApiKeyScope(ApiKeyScope.ExternalInvoke);
 
         if (endpointOptions.AuthorizationPolicy is { Length: > 0 } policy)
         {

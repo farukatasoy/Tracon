@@ -2,9 +2,9 @@
 
 **Microsoft Agent Framework için üretim seviyesi agent kontrol düzlemi.**
 
-AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici kendi AI harness'ini kurar ve `/agentprism` arayüzünden yönetir.
+AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici AI harness'ini kurar, `/agentprism` üzerinden yönetir.
 
-> **Durum:** Faz 52 tamamlandı — AgentPrism **işletilebilirdir**. `dotnet new agentprism-api` ile başlatılır, `AgentPrism.Testing` ile model çağırmadan test edilir. Çalıştırmalar span/metrik/maliyetle kaydedilir, kiracı yalıtılır, içerik denetlenir, trafik puanlanır, agent'lar MCP/A2A ile dışa açılır, `pgvector` ile anlamsal arama yapılır. Faz 8–52 bitti; [Faz 53–56](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlı.
+> **Durum:** Faz 53 tamamlandı — AgentPrism **işletilebilirdir**. `dotnet new agentprism-api` ile başlatılır, `AgentPrism.Testing` ile model çağırmadan test edilir. Çalıştırmalar span/metrik/maliyetle kaydedilir, kiracı yalıtılır, agent'lar MCP/A2A ile dışa açılır, `pgvector` ile anlamsal arama yapılır, API anahtarıyla erişim daralır. Faz 8–53 bitti; [Faz 54–56](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlı.
 
 ```csharp
 builder.AddAgentPrism()
@@ -255,7 +255,8 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [20](docs/20-MALIYET-VE-GOSTERGE-PANELI.md) | Maliyet raporlaması ve gösterge paneli: fiyat kataloğu/yapılandırması, Dashboard giriş ekranı | ✅ Tamamlandı |
 | [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | ✅ Tamamı bitti |
 | [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 31–52): puanlamadan RAG'a on dokuz yetenek | **31–52 bitti** |
-| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Dördüncü dalga (Faz [53](docs/53-KIRACI-API-ANAHTARLARI.md)–[56](docs/56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md)): kiracı API anahtarları, öksüz çalıştırma uzlaştırması, asenkron onay kutusu, kanarya yayını | 📋 Planlandı |
+| [53](docs/53-KIRACI-API-ANAHTARLARI.md) | Kiracı bazlı API anahtarları ve kapsamlar | ✅ Tamamlandı |
+| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Dördüncü dalga kalanı (Faz [54](docs/54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md)–[56](docs/56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md)) | 📋 Planlandı |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 

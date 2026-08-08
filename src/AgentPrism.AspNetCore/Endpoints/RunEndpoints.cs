@@ -76,6 +76,7 @@ internal static class RunEndpoints
                 return TypedResults.Ok(records);
             })
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListRuns")
             .WithTags("AgentPrism", "Runs")
             .WithSummary("Calistirmalari en yeniden eskiye listeler.")
@@ -111,6 +112,7 @@ internal static class RunEndpoints
                 return TypedResults.Ok(tree);
             })
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismGetRunTree")
             .WithTags("AgentPrism", "Runs")
             .WithSummary("Bir calistirmanin ait oldugu agacin tamamini kokunden dondurur.");
@@ -123,6 +125,7 @@ internal static class RunEndpoints
                     ? TypedResults.Ok(record)
                     : NotFound(runId))
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismGetRun")
             .WithTags("AgentPrism", "Runs")
             .WithSummary("Tek bir calistirmanin ozetini dondurur.");
@@ -143,6 +146,7 @@ internal static class RunEndpoints
                 return new RunEventStream(runId, runs, options.RunEventPollInterval);
             })
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismStreamRunEvents")
             .WithTags("AgentPrism", "Runs")
             .WithSummary("Bir calistirmanin olaylarini SSE ile akitir; canli ve gecmise donuk ayni yoldur.")
@@ -152,6 +156,7 @@ internal static class RunEndpoints
 
         builder.MapPost("/api/runs/{runId:guid}/cancel", CancelRunAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismCancelRun")
             .WithTags("AgentPrism", "Runs")
             .WithSummary("Suren bir calistirmanin iptalini ister.")
@@ -225,6 +230,7 @@ internal static class RunEndpoints
                     prefix,
                     cancellationToken).ConfigureAwait(false))
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismReplayRun")
             .WithTags("AgentPrism", "Runs")
             .WithSummary("Kayitli girdiyle yeni bir calistirma acar.")

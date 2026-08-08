@@ -82,6 +82,9 @@ import type {
   WebhookSaveRequest,
   WebhookSubscription,
   WebhookTestResponse,
+  ApiKeyCreateRequest,
+  ApiKeyCreationResult,
+  ApiKeyRecord,
   WorkflowCheckpointRecord,
   WorkflowDefinition,
   WorkflowDescriptor,
@@ -561,6 +564,12 @@ export const api = {
     request<WebhookDelivery[]>(
       `api/webhooks/${encodeURIComponent(name)}/deliveries${query(params)}`,
     ),
+
+  apiKeys: () => request<ApiKeyRecord[]>('api/api-keys'),
+  createApiKey: (body: ApiKeyCreateRequest) =>
+    send<ApiKeyCreationResult>('POST', 'api/api-keys', body),
+  revokeApiKey: (id: string) =>
+    request<void>(`api/api-keys/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
   retentionPolicies: () => request<RetentionPolicy[]>('api/retention'),
   saveRetentionPolicy: (target: string, body: RetentionPolicySaveRequest) =>

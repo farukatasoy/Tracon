@@ -62,6 +62,27 @@ internal static class BearerTokenValidator
         return CryptographicOperations.FixedTimeEquals(presentedHash, expectedHash);
     }
 
+    /// <summary>Bir <c>Authorization</c> basligindan ham token degerini cikarir.</summary>
+    /// <param name="authorizationHeader">Ham baslik.</param>
+    /// <returns>Token; baslik <c>Bearer</c> semasi tasimiyorsa veya bossa <see langword="null"/>.</returns>
+    /// <remarks>
+    /// Degerin gecerli oldugunu DOGRULAMAZ — yalnizca ayiklar. Cagiran, statik
+    /// token karsilastirmasindan sonra API anahtari yolunu denemek icin bunu
+    /// kullanir (Faz 53).
+    /// </remarks>
+    public static string? TryExtractToken(string? authorizationHeader)
+    {
+        if (string.IsNullOrEmpty(authorizationHeader) ||
+            !authorizationHeader.StartsWith(BearerPrefix, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var candidate = authorizationHeader[BearerPrefix.Length..].Trim();
+
+        return candidate.Length == 0 ? null : candidate;
+    }
+
     private static void HashUtf8(ReadOnlySpan<char> value, Span<byte> destination)
     {
         var byteCount = Encoding.UTF8.GetByteCount(value);

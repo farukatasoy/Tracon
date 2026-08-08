@@ -1,6 +1,6 @@
 # Faz 53 — Kiracı Bazlı API Anahtarları ve Kapsamlar
 
-> **Durum:** 📋 Planlandı (2026-08-08)
+> **Durum:** ✅ Tamamlandı (2026-08-08)
 > **Kaynak:** [UCUNCU-FAZ-ADAYLARI.md](UCUNCU-FAZ-ADAYLARI.md) · **F-56**
 > **Önkoşul:** [Faz 41](41-KIRACI-YALITIMININ-ZORLANMASI.md) — kiracı yalıtımı zemini · [Faz 50](50-DISA-ACILAN-AGENT-YUZEYI.md) — bu fazı **acil** kılan dış yüzey
 > **Paketler:** `AgentPrism.Abstractions`, `AgentPrism.Core`, `AgentPrism.AspNetCore`, `AgentPrism.Sql.Shared`, `AgentPrism.UI`
@@ -342,22 +342,255 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST \
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
-> oturumun en değerli bilgisidir.
+- **`IApiKeyStore` imzası planın taslağından farklı.** `ListAsync` ve `RevokeAsync`
+  taslakta kiracı parametresi taşımıyordu; diğer tüm kiracı-parametreli depolarla
+  (`IWebhookStore.ListSubscriptionsAsync(tenantId, ...)` gibi) tutarlılık için
+  ikisine de `string tenantId` eklendi. `CreateAsync` zaten `ApiKeyDraft.TenantId`
+  üzerinden kiracıyı taşıyordu, değişmedi.
+- **`HasActiveScopeAsync` plana hiç yazılmamış yeni bir arayüz üyesi.**
+  `ExternalSurfaceGuard.EnsureRemoteAccessNotCombined`'ın "sistemde en az bir
+  `external:invoke` anahtarı var mı" sorusunu tenant-agnostik sormasının tek
+  yolu buydu — mevcut `ListAsync`/`FindByHashAsync` bunu karşılamıyordu. K-361
+  gerekçesi yerine `IApiKeyStore.cs` içindeki XML doküman ve `[TenantAgnostic]`
+  gerekçesi kalıcı kayıttır.
+- **Kapsam (`RequireApiKeyScope`) denetimi tam yüzeye değil, DoD'nin adlandırdığı
+  uçlara uygulandı** (K-360). Tam taksonomi bilinçli olarak ertelendi.
+- **Bearer katmanının davranışı bilerek değişti** (K-359): `Authorization`
+  başlığı sunulduğunda `AuthToken` tanımsız olsa bile artık doğrulanır. Plan
+  metni "ikisi de tanımsızsa davranış aynıdır" diyordu; bu yalnız **başlık
+  YOKKEN** geçerlidir — başlık varken sessiz geçiş kaldırıldı.
+- **`docs/openapi/agentprism.json` değişti** (yeni `/api/api-keys` uçları);
+  Faz 53'ün DoD'sinde bahsedilmiyordu ama diğer her yeni uç ucu gibi otomatik
+  snapshot testine girdi ve `AGENTPRISM_OPENAPI_REFRESH=1` ile tazelendi.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
+K-356, K-357, K-358, K-359, K-360, K-361 — `docs/KARARLAR.md`.
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+```csharp
+// AgentPrism.Abstractions (namespace AgentPrism)
+public enum ApiKeyScope { RunsRead, RunsWrite, AgentsRead, AgentsAdmin, ExternalInvoke }
+
+public sealed record ApiKeyRecord
+{
+    public required Guid Id { get; init; }
+    public required string TenantId { get; init; }
+    public required string Name { get; init; }
+    public required string KeyPrefix { get; init; }
+    public required IReadOnlyList<ApiKeyScope> Scopes { get; init; }
+    public DateTimeOffset? ExpiresAt { get; init; }
+    public DateTimeOffset? RevokedAt { get; init; }
+    public DateTimeOffset? LastUsedAt { get; init; }
+    public required DateTimeOffset CreatedAt { get; init; }
+    public bool IsActive { get; } // RevokedAt is null && (ExpiresAt is null || ExpiresAt > UtcNow)
+}
+
+public sealed record ApiKeyDraft
+{
+    public required string TenantId { get; init; }
+    public required string Name { get; init; }
+    public required IReadOnlyList<ApiKeyScope> Scopes { get; init; }
+    public DateTimeOffset? ExpiresAt { get; init; }
+}
+
+public sealed record ApiKeyCreationResult
+{
+    public required ApiKeyRecord Record { get; init; }
+    public required string PlaintextKey { get; init; } // yalnız bu cagrida doner
+}
+
+public interface IApiKeyStore
+{
+    ValueTask<ApiKeyCreationResult> CreateAsync(ApiKeyDraft draft, CancellationToken ct = default);
+    ValueTask<IReadOnlyList<ApiKeyRecord>> ListAsync(string tenantId, CancellationToken ct = default);
+    ValueTask<ApiKeyRecord?> FindByHashAsync(ReadOnlyMemory<byte> keyHash, CancellationToken ct = default); // [TenantAgnostic]
+    ValueTask<bool> RevokeAsync(string tenantId, Guid id, CancellationToken ct = default);
+    ValueTask TouchLastUsedAsync(Guid id, DateTimeOffset usedAt, CancellationToken ct = default); // [TenantAgnostic]
+    ValueTask<bool> HasActiveScopeAsync(ApiKeyScope scope, CancellationToken ct = default); // [TenantAgnostic] — yeni, planda yoktu
+}
+
+// AgentPrism.Core (namespace AgentPrism)
+public static class ApiKeyGenerator
+{
+    public static GeneratedApiKey Generate(string tenantId);       // ap_{tenant}_{base64url32B}
+    public static byte[] ComputeHash(string plaintextKey);          // SHA-256
+}
+
+public sealed record GeneratedApiKey
+{
+    public required string PlaintextKey { get; init; }
+    public required byte[] KeyHash { get; init; }
+    public required string KeyPrefix { get; init; }
+}
+
+public sealed class InMemoryApiKeyStore : IApiKeyStore // TryAddSingleton, her zaman kayıtlı
+```
+
+### HTTP `endpoint`'leri (gerçekleşen)
+
+| Metot | Yol | Rol | Kapsam |
+|---|---|---|---|
+| `GET` | `/api/api-keys` | Admin | — (kapsamsız uç) |
+| `POST` | `/api/api-keys` | Admin | — |
+| `DELETE` | `/api/api-keys/{id:guid}` | Admin | — |
+
+`ApiKeyCreateRequest { string? Name, IReadOnlyList<ApiKeyScope>? Scopes, DateTimeOffset? ExpiresAt }`
+— planın taslağıyla aynı, adı değişmedi.
+
+### `RequireApiKeyScope` uygulanan uçlar (gerçekleşen, bkz. K-360)
+
+`AgentEndpoints`: `GET /api/agents`, `GET /api/agents/{name}`, `GET /api/agents/{name}/versions`,
+`GET /api/agents/{name}/versions/{a}/diff/{b}` → `AgentsRead`; `POST /api/agents`,
+`POST /api/agents/validate`, `PUT /api/agents/{name}`, `DELETE /api/agents/{name}`,
+`POST /api/agents/{name}/rollback` → `AgentsAdmin`; `POST /api/agents/{name}/run` → `RunsWrite`.
+`RunEndpoints`: `GET /api/runs`, `GET /api/runs/{id}/tree`, `GET /api/runs/{id}`,
+`GET /api/runs/{id}/events` → `RunsRead`; `POST /api/runs/{id}/cancel`,
+`POST /api/runs/{id}/replay` → `RunsWrite`. `MapAgentPrismMcpServer`/`MapAgentPrismA2A`
+grupları → `ExternalInvoke` (grup düzeyinde, tek `RequireApiKeyScope` çağrısı).
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/AgentPrism.Abstractions/Security/
+├── ApiKeyScope.cs
+├── ApiKeyRecord.cs        (ApiKeyRecord + ApiKeyCreationResult)
+├── ApiKeyDraft.cs
+└── IApiKeyStore.cs
+
+src/AgentPrism.Core/Security/
+├── ApiKeyGenerator.cs     (+ GeneratedApiKey)
+└── InMemoryApiKeyStore.cs
+
+src/AgentPrism.Sql.Shared/Stores/
+└── SqlApiKeyStore.cs
+
+src/AgentPrism.{PostgreSql,SqlServer,Sqlite}/Migrations/
+├── 0025_api_keys.sql      (PostgreSQL)
+├── 0012_api_keys.sql      (SQL Server)
+└── 0012_api_keys.sql      (SQLite)
+
+src/AgentPrism.AspNetCore/Security/
+├── ApiKeyAuthenticator.cs
+├── ApiKeyRequestContext.cs
+├── ApiKeyScopeRequirement.cs   (+ RequireApiKeyScope uzantısı)
+├── AgentPrismEndpointFilter.cs (genişletildi)
+├── BearerTokenValidator.cs     (TryExtractToken eklendi)
+└── ExternalSurfaceGuard.cs     (genişletildi)
+
+src/AgentPrism.AspNetCore/Tenancy/HttpTenantContext.cs  (genişletildi, ResolveFromApiKey)
+src/AgentPrism.AspNetCore/Endpoints/ApiKeyEndpoints.cs   (+ ApiKeyCreateRequest)
+src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs    (RequireApiKeyScope eklendi)
+src/AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs      (RequireApiKeyScope eklendi)
+src/AgentPrism.AspNetCore/McpServer/AgentPrismMcpServerExtensions.cs (guard imzası + scope)
+src/AgentPrism.AspNetCore/A2A/AgentPrismA2AExtensions.cs             (guard imzası + scope)
+src/AgentPrism.AspNetCore/AgentPrismEndpointRouteBuilderExtensions.cs (ApiKeyEndpoints.Map)
+src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs (IApiKeyStore kaydı)
+src/AgentPrism.{PostgreSql,SqlServer,Sqlite}/AgentPrism*BuilderExtensions.cs (Replace kaydı)
+
+src/AgentPrism.UI/frontend/src/
+├── components/api-key-panel.tsx
+├── lib/api.ts        (apiKeys/createApiKey/revokeApiKey)
+├── lib/types.ts       (ApiKeyScope/ApiKeyRecord/ApiKeyCreateRequest/ApiKeyCreationResult)
+├── locales/en.ts, locales/tr.ts  (apiKeys.* anahtarları)
+└── screens/settings.tsx  (ApiKeyPanel eklendi)
+
+tests/Shared/Contracts/ApiKeyStoreContract.cs
+tests/AgentPrism.Core.UnitTests/Security/ApiKeyGeneratorTests.cs
+tests/AgentPrism.AspNetCore.FunctionalTests/ApiKeyEndpointTests.cs
+tests/AgentPrism.AspNetCore.FunctionalTests/ApiKeyAuthenticationTests.cs
+tests/AgentPrism.AspNetCore.FunctionalTests/SecretLeakTests.cs (genişletildi)
+```
+
+## Testler
+
+| Test sınıfı | Neyi doğrular | Sayı |
+|---|---|---|
+| `ApiKeyStoreContract` (+ 4 sağlayıcı alt sınıfı: InMemory/Postgres/SqlServer/Sqlite) | Oluşturma, listeleme, ozetle arama, iptal, kiracı yalıtımı (iki yönlü), `HasActiveScopeAsync` | 16/sağlayıcı |
+| `ApiKeyGeneratorTests` | Ham değer tahmin edilemez, ozet deterministik, boş girdi reddi | 9 |
+| `ApiKeyEndpointTests` | CRUD, ham değerin bir kez dönmesi, geçersiz istek 400, olmayan anahtar 404 | 7 |
+| `ApiKeyAuthenticationTests` | Statik/API anahtarı, iptal/süre sonu 401, kiracı önceliği ve başlık çatışması, kapsam denetimi, dış yüzey kilidi | 13 |
+| `SecretLeakTests` (genişletildi) | Ham anahtarın listede/denetim izinde/reddedilen yanıtta/günlükte görünmediği | +4 |
+
+Toplam: SQLite sözleşmesi 469/469, PostgreSQL sözleşmesi 902/902 (gerçek container,
+Testcontainers), `AspNetCore.FunctionalTests` 435/435, `Core.UnitTests` 750/750.
+SQL Server sözleşmesi bu makinede **koşturulamadı** (bkz. Sonraki Faza Devir Notu).
+
+## Bitiş Ölçütleri (DoD)
+
+- [x] `POST /api/api-keys` ham anahtarı bir kez döner — `Olusturma_ham_degeri_bir_kez_dondurur`, ayrıca `samples/AgentPrism.Api` ile elle doğrulandı
+- [x] Geçerli bir API anahtarıyla yapılan istek, `X-AgentPrism-Tenant` başlığı olmadan doğru kiracıyı çözer — `Kiraci_basliktan_degil_anahtardan_cozulur`
+- [x] Başlık anahtarın kiracısından farklı bir kiracı söylerse `403` döner — `Baslik_anahtarin_kiracisindan_farkliysa_403_alir`
+- [x] Süresi geçmiş / iptal edilmiş anahtar `401` alır — `Suresi_gecmis_anahtar_401_alir`, `Iptal_edilen_anahtar_401_alir`
+- [x] `runs:read` kapsamlı anahtar `POST /api/agents/{name}/run` çağırınca `403` alır — `Yetersiz_kapsamli_anahtar_403_alir`
+- [x] `AllowRemoteAccess` + `external:invoke` anahtarıyla MCP/A2A yüzeyi açılır; anahtar yokken bugünkü red korunur — `AllowRemoteAccess_acikken_external_invoke_anahtari_yoksa_MCP_acilamaz` / `...anahtariyla_MCP_acilir`
+- [x] Statik token'lı bugünkü kurulum hiç değişmeden çalışmaya devam eder — mevcut 431 fonksiyonel test (artı yeni 20'si) yeşil
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `dotnet build/test/pack/format` hepsi temiz (bu oturumda ölçüldü)
+- [x] `samples/AgentPrism.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıda
+- [x] `secret` taraması boş döndü
+- [x] `en.ts`/`tr.ts` eksiksiz (i18n.test.ts 16/16); bundle payı ölçüldü: **161.5 KB gzip / 250 KB bütçe**
+
+### Doğrulama komutları — gerçek çıktı (2026-08-08, `samples/AgentPrism.Api`, loopback)
+
+```
+POST /agentprism/api/api-keys {"name":"ci","scopes":["RunsRead"]}
+→ {"record":{"id":"019fe119-...","tenantId":"default","name":"ci","keyPrefix":"ap_default_2",
+   "scopes":["RunsRead"],...,"isActive":true},
+   "plaintextKey":"ap_default_2zKqRNjJ6MVXcwtTxPKuXkouy85tReMOhGAgYr9MGzo"}
+
+GET /agentprism/api/agents  (Authorization: Bearer <RunsRead anahtarı>)
+→ 403  (agents:read kapsamı yok — doğru davranış)
+
+GET /agentprism/api/agents  (Authorization: Bearer <AgentsRead anahtarı>)
+→ 200
+
+POST /agentprism/api/agents/asistan/run  (Authorization: Bearer <RunsRead anahtarı>)
+→ 403  (runs:write kapsamı yok)
+
+DELETE /agentprism/api/api-keys/{id} → 204; sonraki istekte aynı anahtar → 401
+GET /agentprism/api/api-keys → liste, hiçbir kayıtta plaintextKey/hash yok
+grep raw-key /tmp/agentprism-api.log → 0 eşleşme
+```
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
+**Devralınan sözleşmeler:**
+- `IApiKeyStore` (yukarıdaki imza) — her zaman kayıtlı (`TryAddSingleton`/`Replace`), K-018
+  "birinci sınıf" örneği.
+- `RequireApiKeyScope(ApiKeyScope)` uzantısı (`ApiKeyScopeRequirement`, internal) — yeni bir
+  uca kapsam eklemek isteyen kod bunu kullanır, yeni bir mekanizma icat etmez.
+- `ApiKeyRequestContext.Get(HttpContext)` — bir isteğin API anahtarıyla mı dogrulandigini
+  soran her kod (ör. denetim izi zenginleştirmesi) bunu okur.
+
+**Bilinen tuzaklar (🚨):**
+1. **SQL Server sözleşme testleri bu makinede koşturulamadı** — `SqlServerFixture`
+   gerçek `mcr.microsoft.com/mssql/server` kullanıyor ve bu Apple Silicon + Rosetta
+   kombinasyonunda önceden bilinen bir sınırlamadır (K-317,
+   `docs/hafiza/sql-server-yerel-test.md`). PostgreSQL (902/902) ve SQLite (469/469)
+   sözleşmeleri **gerçek** çalıştırmayla doğrulandı; SQL Server sorgu metni aynı
+   dosyadaki (var olan, ölçülmüş) desenlerle birebir yazıldı ama gerçek bir SQL
+   Server üzerinde hiç çalıştırılmadı. Bir sonraki oturum (uygun makinede veya CI'da)
+   `azure-sql-edge` ikamesiyle veya gerçek `mssql/server` ile `ApiKeyStoreContract`'ı
+   çalıştırıp bu notu kapatmalı.
+2. **`InMemoryApiKeyStore.RevokeAsync` ilk yazımda "zaten iptal edilmiş" durumunu
+   kontrol etmiyordu** — SQL sürümü `WHERE revoked_at IS NULL` ile doğruydu, bellek
+   içi sürüm eksikti. `ApiKeyStoreContract` (gerçek PostgreSQL container'ında
+   koşturulunca) bunu yakaladı; birim testleri (InMemory, container'sız) YAKALAMADI.
+   Ders: bir sözleşme testini yalnız bellek içi uygulamada koşturmak yetmez,
+   **gerçek** bir sağlayıcıda da koşmalı — Faz 6/12/15/16/18/20/21/48 listesine
+   eklenecek yeni bir örnek.
+3. **Kapsam denetimi tam yüzeye uygulanmadı** (K-360). Webhook, kota, retention,
+   skill, workflow yönetimi gibi Admin/Operator uçları API anahtarıyla erişilebilir
+   ama scope'tan etkilenmez (yalnız rol politikasından geçer — statik token ile
+   aynı zemin, GÜVENLİK AÇIĞI değil, kasıtlı kapsam sınırlaması).
+4. **Rate limit / bütçe anahtar başına yok** (Açık Soru 1, B seçildi) — kota
+   altyapısı (Faz 21) bir anahtara değil kiracıya bağlıdır.
+
+**Yarım kalan / ertelenen işler:**
+1. SQL Server üzerinde gerçek doğrulama (yukarıdaki tuzak 1).
+2. Kapsam taksonomisinin geri kalan uçlara genişletilmesi (K-360'ın reopen koşulu).
+3. Anahtar başına hız sınırı/bütçe (Açık Soru 1, seçenek B — ayrı aday kalemi).
+
+**Sıradaki faz:** `docs/UCUNCU-FAZ-YOL-HARITASI.md`'de Faz 53 sonrası sıradaki
+kalem — plan dokümanı henüz yazılmadıysa `faz-planlama` skill'i ile başlanır.

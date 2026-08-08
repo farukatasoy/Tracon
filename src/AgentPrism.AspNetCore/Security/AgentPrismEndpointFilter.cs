@@ -1,4 +1,7 @@
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
@@ -15,9 +18,19 @@ namespace AgentPrism;
 /// Reddetme yanitlari nedeni acikca yazar ancak beklenen token hakkinda hicbir
 /// bilgi vermez.
 /// </para>
+/// <para>
+/// 🚨 Faz 53: bearer token katmani artik IKI kimlik kaynagi taniyabilir.
+/// Once <see cref="AgentPrismEndpointOptions.AuthToken"/> ile sabit karsilastirma
+/// denenir (degismedi). Eslesmezse ve bir <c>IApiKeyStore</c> kayitliysa, sunulan
+/// deger o depoda aranir; gecerli, iptal edilmemis ve suresi gecmemis bir anahtar
+/// bulunursa istek o anahtarin kiracisi ve kapsamiyla devam eder (bolum 53.5).
+/// </para>
 /// </remarks>
 internal sealed class AgentPrismEndpointFilter : IEndpointFilter
 {
+    /// <summary>Son kullanim damgasinin en az bu araliktan sonra yeniden yazilmasi (Acik Soru 4).</summary>
+    private static readonly TimeSpan LastUsedTouchInterval = TimeSpan.FromMinutes(1);
+
     private readonly bool _allowRemoteAccess;
     private readonly string? _authToken;
 
@@ -45,7 +58,7 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
     }
 
     /// <inheritdoc />
-    public ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+    public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(next);
@@ -54,29 +67,73 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
 
         if (!_allowRemoteAccess && !LoopbackGuard.IsLocal(httpContext.Connection.RemoteIpAddress))
         {
-            return new ValueTask<object?>(Results.Problem(
+            return Results.Problem(
                 title: "Uzak erisim kapali",
                 detail: "AgentPrism uclari varsayilan olarak yalnizca ayni makineden erisilebilir. " +
                         "Uzak erisim icin AllowRemoteAccess ayarini acin ve bir kimlik dogrulama " +
                         "yontemi (AuthToken veya RequireAuthorization) yapilandirin.",
-                statusCode: StatusCodes.Status403Forbidden));
+                statusCode: StatusCodes.Status403Forbidden);
         }
 
-        if (_authToken is { Length: > 0 } expected)
+        var header = httpContext.Request.Headers.Authorization.ToString();
+
+        if (header.Length == 0)
         {
-            var header = httpContext.Request.Headers.Authorization.ToString();
-
-            if (!BearerTokenValidator.IsValid(header, expected))
+            if (_authToken is { Length: > 0 })
             {
-                httpContext.Response.Headers.WWWAuthenticate = "Bearer";
+                return Unauthorized(httpContext);
+            }
 
-                return new ValueTask<object?>(Results.Problem(
-                    title: "Kimlik dogrulanamadi",
-                    detail: "Gecerli bir 'Authorization: Bearer <token>' basligi gerekiyor.",
-                    statusCode: StatusCodes.Status401Unauthorized));
+            // Ne statik token ne baslik var: bugunku davranis degismez (K1).
+            return await Proceed(httpContext, next, context).ConfigureAwait(false);
+        }
+
+        if (_authToken is { Length: > 0 } expected && BearerTokenValidator.IsValid(header, expected))
+        {
+            return await Proceed(httpContext, next, context).ConfigureAwait(false);
+        }
+
+        var candidate = BearerTokenValidator.TryExtractToken(header);
+
+        if (candidate is not null && httpContext.RequestServices.GetService<IApiKeyStore>() is { } apiKeyStore)
+        {
+            var timeProvider = httpContext.RequestServices.GetService<TimeProvider>() ?? TimeProvider.System;
+            var record = await ApiKeyAuthenticator
+                .AuthenticateAsync(apiKeyStore, candidate, timeProvider, httpContext.RequestAborted)
+                .ConfigureAwait(false);
+
+            if (record is not null)
+            {
+                var conflict = CheckTenantHeaderConflict(httpContext, record);
+
+                if (conflict is not null)
+                {
+                    return conflict;
+                }
+
+                var scopeDenied = CheckScope(httpContext, record);
+
+                if (scopeDenied is not null)
+                {
+                    return scopeDenied;
+                }
+
+                ApiKeyRequestContext.Set(httpContext, record);
+                await TouchLastUsedIfStale(apiKeyStore, record, timeProvider, httpContext.RequestAborted)
+                    .ConfigureAwait(false);
+
+                return await Proceed(httpContext, next, context).ConfigureAwait(false);
             }
         }
 
+        return Unauthorized(httpContext);
+    }
+
+    private static ValueTask<object?> Proceed(
+        HttpContext httpContext,
+        EndpointFilterDelegate next,
+        EndpointFilterInvocationContext context)
+    {
         // Denetim izi aktorunu ortam (ambient) baglamina tasir. AgentPrism.Core'daki
         // AmbientAuditActorResolver bunu bir AsyncLocal uzerinden okur; boylece Core,
         // ASP.NET Core'a bagimlilik eklemeden "kim yapti" sorusunu yanitlayabilir.
@@ -84,5 +141,86 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
         AuditActorContext.Current = httpContext.User;
 
         return next(context);
+    }
+
+    private static ProblemHttpResult Unauthorized(HttpContext httpContext)
+    {
+        httpContext.Response.Headers.WWWAuthenticate = "Bearer";
+
+        return TypedResults.Problem(
+            title: "Kimlik dogrulanamadi",
+            detail: "Gecerli bir 'Authorization: Bearer <token>' basligi gerekiyor.",
+            statusCode: StatusCodes.Status401Unauthorized);
+    }
+
+    /// <summary>
+    /// <c>X-AgentPrism-Tenant</c> basligi API anahtarinin kiracisindan farkli bir
+    /// kiraci soyluyorsa reddeder.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 Baslik anahtari EZEMEZ (bolum 53.5). Ezebilseydi anahtarin kiraci bagi
+    /// hicbir sey ifade etmezdi.
+    /// </remarks>
+    private static ProblemHttpResult? CheckTenantHeaderConflict(HttpContext httpContext, ApiKeyRecord record)
+    {
+        var tenancyOptions = httpContext.RequestServices.GetService<IOptions<AgentPrismTenancyOptions>>()?.Value;
+
+        if (tenancyOptions is not { AllowHeaderResolution: true })
+        {
+            return null;
+        }
+
+        var declared = httpContext.Request.Headers[tenancyOptions.HeaderName].ToString();
+
+        if (declared.Length == 0 || string.Equals(declared, record.TenantId, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return TypedResults.Problem(
+            title: "Kiraci uyusmuyor",
+            detail: $"'{tenancyOptions.HeaderName}' basligi API anahtarinin baglandigi kiraciyi " +
+                    "EZEMEZ. Basligi kaldirin veya anahtarin kiracisiyla eslesen bir deger verin.",
+            statusCode: StatusCodes.Status403Forbidden);
+    }
+
+    /// <summary>
+    /// Cagrilan uc bir kapsam gerektiriyorsa ve anahtar onu tasimiyorsa reddeder.
+    /// </summary>
+    private static ProblemHttpResult? CheckScope(HttpContext httpContext, ApiKeyRecord record)
+    {
+        var requirement = httpContext.GetEndpoint()?.Metadata.GetMetadata<ApiKeyScopeRequirement>();
+
+        if (requirement is null || record.Scopes.Contains(requirement.Scope))
+        {
+            return null;
+        }
+
+        return TypedResults.Problem(
+            title: "Kapsam yetersiz",
+            detail: $"Bu uc '{requirement.Scope}' kapsamini gerektiriyor; anahtar bu kapsami tasimiyor.",
+            statusCode: StatusCodes.Status403Forbidden);
+    }
+
+    /// <summary>
+    /// Son kullanim damgasini yalnizca yeterince eskiyse gunceller (Acik Soru 4).
+    /// </summary>
+    /// <remarks>
+    /// Her istekte yazmak sicak okuma yoluna gereksiz bir <c>UPDATE</c> eklerdi.
+    /// </remarks>
+    private static ValueTask TouchLastUsedIfStale(
+        IApiKeyStore store,
+        ApiKeyRecord record,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        var now = timeProvider.GetUtcNow();
+
+        if (record.LastUsedAt is { } lastUsedAt && now - lastUsedAt < LastUsedTouchInterval)
+        {
+            return default;
+        }
+
+        return store.TouchLastUsedAsync(record.Id, now, cancellationToken);
     }
 }

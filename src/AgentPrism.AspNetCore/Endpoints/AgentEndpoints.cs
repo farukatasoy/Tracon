@@ -40,54 +40,63 @@ internal static class AgentEndpoints
                 CancellationToken cancellationToken)
                 => TypedResults.Ok(await catalog.ListAsync(cancellationToken).ConfigureAwait(false)))
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismListAgents")
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Kodda ve veritabaninda tanimli tum agent'lari listeler.");
 
         builder.MapGet("/api/agents/{name}", GetAgentAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismGetAgent")
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Bir agent'in katalog ozetini ve varsa kalici tanimini dondurur.");
 
         builder.MapPost("/api/agents", CreateAgentAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismCreateAgent")
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Yeni bir agent tanimi olusturur.");
 
         builder.MapPost("/api/agents/validate", ValidateAgentAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismValidateAgent")
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Bir tanimi kaydetmeden ve hicbir model cagirmadan derler.");
 
         builder.MapPut("/api/agents/{name}", UpdateAgentAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismUpdateAgent")
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Bir agent tanimini gunceller ve yeni bir surum uretir.");
 
         builder.MapDelete("/api/agents/{name}", DeleteAgentAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismDeleteAgent")
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Bir agent tanimini ve surum gecmisini siler.");
 
         builder.MapGet("/api/agents/{name}/versions", ListVersionsAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismListAgentVersions")
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Bir tanimin surum gecmisini yeniden eskiye listeler.");
 
         builder.MapPost("/api/agents/{name}/rollback", RollbackAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismRollbackAgent")
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Bir tanimi onceki bir surumun icerigiyle yeni surum olarak yazar.");
 
         builder.MapGet("/api/agents/{name}/versions/{a:int}/diff/{b:int}", GetVersionDiffAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismGetAgentVersionDiff")
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Iki tanim surumunu ham JSON olarak dondurur; diff hesabi arayuzde yapilir.");
@@ -145,6 +154,7 @@ internal static class AgentEndpoints
                     cancellationToken).ConfigureAwait(false);
             })
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .AddEndpointFilter(idempotencyFilter)
             .WithName("AgentPrismRunAgent")
             .WithTags("AgentPrism", "Agents")

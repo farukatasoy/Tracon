@@ -3595,6 +3595,90 @@
         }
       }
     },
+    "/agentprism/api/api-keys": {
+      "get": {
+        "tags": [
+          "AgentPrism",
+          "ApiKeys"
+        ],
+        "summary": "Bir kiracinin API anahtarlarini listeler.",
+        "description": "Yanit ne ham degeri ne de ozeti tasir.",
+        "operationId": "AgentPrismListApiKeys",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ApiKeyRecord"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "AgentPrism",
+          "ApiKeys"
+        ],
+        "summary": "Yeni bir API anahtari uretir.",
+        "description": "Ham deger yanitta YALNIZCA BU CAGRIDA doner ve bir daha uretilemez. Kapsam listesi kapalidir; bilinmeyen bir kapsam reddedilir.",
+        "operationId": "AgentPrismCreateApiKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiKeyCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyCreationResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agentprism/api/api-keys/{id}": {
+      "delete": {
+        "tags": [
+          "AgentPrism",
+          "ApiKeys"
+        ],
+        "summary": "Bir anahtari iptal eder.",
+        "description": "Satir SILINMEZ; iptal damgasi yazilir ve denetim izinde kalir.",
+        "operationId": "AgentPrismRevokeApiKey",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
     "/agentprism/api/retention": {
       "get": {
         "tags": [
@@ -7295,6 +7379,136 @@
       },
       "AnnotatedRegion": {
         "type": "object"
+      },
+      "ApiKeyCreateRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Operatorun anahtari tanimasi icin ad."
+          },
+          "scopes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ApiKeyScope"
+            },
+            "description": "Kapsam kumesi. Bos olamaz; bilinmeyen bir deger reddedilir."
+          },
+          "expiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Sure sonu. Verilmezse anahtar suresizdir.",
+            "format": "date-time"
+          }
+        },
+        "description": "Bir API anahtari olusturmak icin istek govdesi."
+      },
+      "ApiKeyCreationResult": {
+        "required": [
+          "record",
+          "plaintextKey"
+        ],
+        "type": "object",
+        "properties": {
+          "record": {
+            "description": "Kaydedilen, ham deger tasimayan gorunum.",
+            "$ref": "#/components/schemas/ApiKeyRecord"
+          },
+          "plaintextKey": {
+            "type": "string",
+            "description": "Ham anahtar degeri. Bu cagridan sonra bir daha uretilemez; tuketici\nbunu hemen gostermeli ve saklamamalidir."
+          }
+        },
+        "description": "Bir anahtar olusturma isleminin sonucu."
+      },
+      "ApiKeyRecord": {
+        "required": [
+          "id",
+          "tenantId",
+          "name",
+          "keyPrefix",
+          "scopes",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Anahtar kimligi.",
+            "format": "uuid"
+          },
+          "tenantId": {
+            "type": "string",
+            "description": "Anahtarin bagli oldugu kiraci. Dogrulandiginda kiraci BURADAN cozulur."
+          },
+          "name": {
+            "type": "string",
+            "description": "Operatorun anahtari tanimasi icin ad."
+          },
+          "keyPrefix": {
+            "type": "string",
+            "description": "Ham degerin ilk karakterleri; listede anahtari ayirt etmek icindir."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApiKeyScope"
+            },
+            "description": "Kapsam kumesi. Etkili yetki \u0060rol \u2229 kapsam\u0060\u0027dir."
+          },
+          "expiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Sure sonu. \u0060null\u0060 ise suresizdir.",
+            "format": "date-time"
+          },
+          "revokedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Iptal damgasi. Satir SILINMEZ; denetim izi bu alanla korunur.",
+            "format": "date-time"
+          },
+          "lastUsedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Son kullanim zamani. Kullanilmayan anahtari gormek icindir.",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Olusturulma zamani (UTC).",
+            "format": "date-time"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Anahtar iptal edilmemis ve suresi gecmemisse \u0060true\u0060."
+          }
+        },
+        "description": "Bir API anahtarinin veritabaninda saklanan, HAM DEGER TASIMAYAN gorunumu."
+      },
+      "ApiKeyScope": {
+        "enum": [
+          "RunsRead",
+          "RunsWrite",
+          "AgentsRead",
+          "AgentsAdmin",
+          "ExternalInvoke"
+        ],
+        "description": "Bir API anahtarinin acabilecegi yetki kapsami."
       },
       "AttachmentDescriptor": {
         "required": [
@@ -13991,6 +14205,9 @@
     },
     {
       "name": "Webhooks"
+    },
+    {
+      "name": "ApiKeys"
     },
     {
       "name": "Retention"

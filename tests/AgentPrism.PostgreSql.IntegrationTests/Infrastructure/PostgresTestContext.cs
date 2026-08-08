@@ -71,6 +71,7 @@ internal sealed class PostgresTestContext : IAsyncDisposable
         Experiments = new SqlExperimentStore(wrapped, TenantContext);
         Quotas = new SqlQuotaStore(wrapped);
         Webhooks = new SqlWebhookStore(wrapped);
+        ApiKeys = new SqlApiKeyStore(wrapped);
         RetentionPolicies = new SqlRetentionPolicyStore(wrapped);
         RetentionData = new SqlRetentionStore(wrapped);
         VoiceSessions = new SqlVoiceSessionStore(wrapped);
@@ -162,6 +163,9 @@ internal sealed class PostgresTestContext : IAsyncDisposable
 
     /// <summary>Webhook deposu (Faz 21).</summary>
     public SqlWebhookStore Webhooks { get; }
+
+    /// <summary>Kiraci bazli API anahtari deposu (Faz 53).</summary>
+    public SqlApiKeyStore ApiKeys { get; }
 
     /// <summary>Saklama politikasi ve kosu gecmisi deposu (Faz 25).</summary>
     public SqlRetentionPolicyStore RetentionPolicies { get; }

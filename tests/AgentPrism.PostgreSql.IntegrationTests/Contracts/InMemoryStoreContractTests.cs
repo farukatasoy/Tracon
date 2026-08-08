@@ -143,6 +143,14 @@ public sealed class InMemoryWebhookStoreContractTests : WebhookStoreContract
 }
 
 /// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryApiKeyStoreContractTests : ApiKeyStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<IApiKeyStore> CreateStoreAsync()
+        => ValueTask.FromResult<IApiKeyStore>(new InMemoryApiKeyStore());
+}
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
 public sealed class InMemoryRetentionPolicyStoreContractTests : RetentionPolicyStoreContract
 {
     /// <inheritdoc />

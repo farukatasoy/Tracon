@@ -22,6 +22,7 @@ Bir alana dokunmadan önce **yalnız ilgili satırın dosyasını** oku. Hepsini
 | Paylaşılan SQL katmanı, SQL Server, yeni sağlayıcı | [`docs/hafiza/sql-saglayicilari.md`](docs/hafiza/sql-saglayicilari.md) |
 | SQLite'a özgü (indeks ad alanı, upsert, `ExecuteScalarAsync` CLR tipi) | [`docs/hafiza/sqlite.md`](docs/hafiza/sqlite.md) |
 | Minimal API ucu, DI kaydı, HTTP davranışı | [`docs/hafiza/aspnetcore-di.md`](docs/hafiza/aspnetcore-di.md) |
+| Enum/alan JSON serileştirme, `.WithTags`/`.Produces` | [`aspnetcore-json.md`](docs/hafiza/aspnetcore-json.md) |
 | MSBuild, csproj, NuGet, AOT, analyzer tanısı | [`docs/hafiza/build-ve-analyzer.md`](docs/hafiza/build-ve-analyzer.md) |
 | Test yazımı (xunit, Shouldly, Testcontainers, Playwright) | [`docs/hafiza/test-altyapisi.md`](docs/hafiza/test-altyapisi.md) |
 | Arayüz (Vite, SPA rota, TS) | [`docs/hafiza/frontend.md`](docs/hafiza/frontend.md) |

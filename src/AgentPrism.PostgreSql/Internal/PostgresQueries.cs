@@ -1571,6 +1571,62 @@ internal sealed class PostgresQueries : SqlQueriesBase
             OFFSET @skip LIMIT @take;
             """;
 
+        // -------------------------------------------------------------------
+        // Faz 53 -- kiraci bazli API anahtarlari
+        // -------------------------------------------------------------------
+        // 🚨 Sutun listesinde HAM DEGER YOKTUR: yalnizca geri donduruleyemez
+        // key_hash ozeti vardir (bolum 53.2).
+        const string apiKeyColumns = """
+            id, tenant_id, name, key_hash, key_prefix, scopes, expires_at, revoked_at,
+            last_used_at, created_at
+            """;
+
+        InsertApiKey = $"""
+            INSERT INTO {Schema}.api_keys
+                ({apiKeyColumns})
+            VALUES
+                (@id, @tenant_id, @name, @key_hash, @key_prefix, @scopes, @expires_at, @revoked_at,
+                 @last_used_at, @created_at);
+            """;
+
+        SelectApiKeys = $"""
+            SELECT {apiKeyColumns}
+            FROM {Schema}.api_keys
+            WHERE tenant_id = @tenant_id
+            ORDER BY created_at;
+            """;
+
+        // Kiraci suzgeci BILEREK yoktur (bolum 53.5): kiraci bu sorgunun
+        // ciktisidir, girdisi degil.
+        SelectApiKeyByHash = $"""
+            SELECT {apiKeyColumns}
+            FROM {Schema}.api_keys
+            WHERE key_hash = @key_hash;
+            """;
+
+        RevokeApiKey = $"""
+            UPDATE {Schema}.api_keys
+               SET revoked_at = @revoked_at
+             WHERE tenant_id = @tenant_id AND id = @id AND revoked_at IS NULL;
+            """;
+
+        TouchApiKeyLastUsed = $"""
+            UPDATE {Schema}.api_keys
+               SET last_used_at = @last_used_at
+             WHERE id = @id;
+            """;
+
+        // Kurulum saglik denetimi (ExternalSurfaceGuard, bolum 53.4): kiraci
+        // suzgeci BILEREK yoktur.
+        HasApiKeyWithScope = $"""
+            SELECT EXISTS (
+                SELECT 1 FROM {Schema}.api_keys
+                WHERE revoked_at IS NULL
+                  AND (expires_at IS NULL OR expires_at > @now)
+                  AND @scope = ANY (scopes)
+            );
+            """;
+
         const string retentionPolicyColumns =
             "id, tenant_id, target, max_age_days, max_rows, archive, enabled, created_at, updated_at";
 

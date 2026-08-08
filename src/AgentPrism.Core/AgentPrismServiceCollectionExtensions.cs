@@ -476,6 +476,11 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddSingleton<IQuotaStore, InMemoryQuotaStore>();
         services.TryAddSingleton<IWebhookStore, InMemoryWebhookStore>();
 
+        // Kiraci bazli API anahtarlari (Faz 53). Depo her zaman kayitlidir
+        // (K-018: birinci sinif); hicbir anahtar olusturulmadikca statik
+        // bearer token'in davranisi degismez (K1 -- sifir surpriz).
+        services.TryAddSingleton<IApiKeyStore, InMemoryApiKeyStore>();
+
         // 🚨 SSRF korumasi bu istemcinin icine gomulüdur; tuketici degistiremez
         // (K-164). Acik fabrika: TimeProvider kayitli olmayabilir.
         services.TryAddSingleton(static provider => new WebhookHttpClient(

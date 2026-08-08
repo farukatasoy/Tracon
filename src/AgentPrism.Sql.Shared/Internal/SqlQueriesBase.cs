@@ -487,6 +487,24 @@ internal abstract class SqlQueriesBase
     /// <summary>Teslim gecmisini filtreleyerek listeler.</summary>
     public string SelectWebhookDeliveries { get; protected set; } = string.Empty;
 
+    /// <summary>Yeni bir API anahtari ekler.</summary>
+    public string InsertApiKey { get; protected set; } = string.Empty;
+
+    /// <summary>Bir kiracinin API anahtarlarini listeler.</summary>
+    public string SelectApiKeys { get; protected set; } = string.Empty;
+
+    /// <summary>Bir API anahtarini ozetiyle arar. Kiraci suzgeci YOKTUR (bolum 53.5).</summary>
+    public string SelectApiKeyByHash { get; protected set; } = string.Empty;
+
+    /// <summary>Bir API anahtarini kiraci sinirinda iptal eder.</summary>
+    public string RevokeApiKey { get; protected set; } = string.Empty;
+
+    /// <summary>Bir API anahtarinin son kullanim damgasini gunceller.</summary>
+    public string TouchApiKeyLastUsed { get; protected set; } = string.Empty;
+
+    /// <summary>Sistemde verilen kapsami tasiyan gecerli bir anahtar var mi.</summary>
+    public string HasApiKeyWithScope { get; protected set; } = string.Empty;
+
     /// <summary>Bir saklama politikasini ekler veya gunceller (kapsam catismasinda).</summary>
     public string UpsertRetentionPolicy { get; protected set; } = string.Empty;
 

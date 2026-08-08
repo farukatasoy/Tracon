@@ -19,27 +19,54 @@ internal static class ExternalSurfaceGuard
         => exposeAll || exposedAgents.Contains(agentName, StringComparer.Ordinal);
 
     /// <summary>
-    /// <c>AllowRemoteAccess</c> acikken bir dis yuzeyin acilmasini engeller.
+    /// <c>AllowRemoteAccess</c> acikken, sistemde en az bir gecerli
+    /// <see cref="ApiKeyScope.ExternalInvoke"/> kapsamli anahtar yoksa bir dis
+    /// yuzeyin acilmasini engeller.
     /// </summary>
     /// <param name="allowRemoteAccess"><see cref="AgentPrismEndpointOptions.AllowRemoteAccess"/> degeri.</param>
     /// <param name="protocol">Acilan dis yuzeyin adi.</param>
-    /// <exception cref="InvalidOperationException">Uzak erisim acikken cagrilmissa.</exception>
+    /// <param name="apiKeyStore">Anahtar deposu.</param>
+    /// <exception cref="InvalidOperationException">
+    /// Uzak erisim acikken ve gecerli bir <c>external:invoke</c> anahtari yokken cagrilmissa.
+    /// </exception>
     /// <remarks>
-    /// Tek statik bearer token, loopback disina acilmis bir agent yuzeyini
-    /// korumaya yetmez (bolum 50.4). Kalici cozum kiraci bazli API anahtaridir
-    /// (F-56); o gelene kadar bu iki ozellik birlikte acilamaz.
+    /// <para>
+    /// Faz 53 (bolum 53.4) Faz 50'nin kilidini KOSULLANDIRIR, KALDIRMAZ: tek
+    /// statik bearer token loopback disina acilmis bir agent yuzeyini
+    /// korumaya yetmez, ama kiraci bazli, <c>external:invoke</c> kapsamli bir
+    /// API anahtari yeterlidir.
+    /// </para>
+    /// <para>
+    /// 🚨 Senkron cagri BILEREK yapilir: bu denetim acilista, istek isleme
+    /// disinda bir kez calisir (<see cref="AgentPrismMcpServerExtensions.MapAgentPrismMcpServer"/>
+    /// ile ayni gerekce).
+    /// </para>
     /// </remarks>
-    public static void EnsureRemoteAccessNotCombined(bool allowRemoteAccess, string protocol)
+    public static void EnsureRemoteAccessNotCombined(bool allowRemoteAccess, string protocol, IApiKeyStore apiKeyStore)
     {
+        ArgumentNullException.ThrowIfNull(apiKeyStore);
+
         if (!allowRemoteAccess)
         {
             return;
         }
 
+        var hasExternalInvokeKey = apiKeyStore
+            .HasActiveScopeAsync(ApiKeyScope.ExternalInvoke)
+            .AsTask()
+            .GetAwaiter()
+            .GetResult();
+
+        if (hasExternalInvokeKey)
+        {
+            return;
+        }
+
         throw new InvalidOperationException(
-            $"AllowRemoteAccess acikken {protocol} disa acilamaz. Tek statik bearer token, " +
-            "loopback disina acilmis bir agent yuzeyini korumaya yetmez. Kiraci bazli API " +
-            "anahtarlari (F-56) eklendiginde bu kisit kaldirilabilir.");
+            $"AllowRemoteAccess acikken {protocol} disa acilamaz: sistemde 'external:invoke' " +
+            "kapsamli, suresi gecmemis ve iptal edilmemis bir API anahtari yok. Tek statik bearer " +
+            "token, loopback disina acilmis bir agent yuzeyini korumaya yetmez. " +
+            "'POST /api/api-keys' ile 'external:invoke' kapsamli bir anahtar uretin.");
     }
 
     /// <summary>
