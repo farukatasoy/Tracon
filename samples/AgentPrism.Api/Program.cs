@@ -64,6 +64,7 @@ using AgentPrism.Api;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
+using OpenAI;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -125,6 +126,16 @@ if (openAiEnabled)
     // "openai-responses" (Responses API). Agent tanimi hangisini kullanacagini
     // ModelBinding.Provider ile secer.
     agentPrism.UseOpenAI(openAi);
+
+    // Bilgi tabani / anlamsal arama (Faz 51). AgentPrism bir gomu modeli
+    // SECMEZ (K-032'nin deseni: model adlari NuGet yayin hizindan hizli
+    // degisir); tuketici kendi saglayicisini kaydeder. Boyut
+    // (AgentPrismKnowledgeOptions.Dimensions, varsayilan 1536)
+    // "text-embedding-3-small" ile eslesir.
+    builder.Services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(
+        new OpenAIClient(openAi["ApiKey"])
+            .GetEmbeddingClient("text-embedding-3-small")
+            .AsIEmbeddingGenerator());
 }
 else
 {
@@ -578,6 +589,26 @@ if (voiceEnabled && openAiEnabled)
             MaxOutputTokens = 1024,
         },
         ToolNames = ["speak", "transcribe", "list_voices", "get_order_status"],
+    });
+}
+
+// Bilgi tabani asistani (Faz 51). `EnableVectorSearch` yalnizca IVectorSearchStore
+// (bugun yalniz PostgreSQL: UsePostgreSql()) VE bir IEmbeddingGenerator birlikte
+// kayitliyken calisir; ikisinden biri eksikse derleme acik bir hatayla durur.
+// Belge yukleme bir YONETIM islemidir (POST /agentprism/api/knowledge/{collection}/documents),
+// agent'in kendi isi degildir — bkz. docs/51-VEKTOR-BELLEK-VE-RAG.md, 51.6.
+if (openAiEnabled)
+{
+    agentPrism.AddAgent(new AgentDefinition
+    {
+        Name = "bilgi-asistani",
+        DisplayName = "Bilgi Asistani",
+        Description = "Kurumsal bilgi tabaninda anlamsal arama yaparak sorulari yanitlar.",
+        Instructions = "Sen bir kurumsal bilgi asistanisin. Sorulari yanitlamadan once " +
+                       "mutlaka search_knowledge tool'unu kullan; yalnizca tool'un dondurdugu " +
+                       "bilgiye dayanarak cevap ver.",
+        Model = model,
+        Memory = new MemorySettings { EnableVectorSearch = true, VectorCollection = "kurumsal" },
     });
 }
 

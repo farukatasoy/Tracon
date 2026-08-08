@@ -232,6 +232,17 @@ internal static class RetentionTargetRegistry
                 "created_at",
                 "created_at"),
 
+            // Bilgi tabani parcalari (Faz 51). 🚨 Tablo YALNIZ PostgreSQL
+            // migration setinde vardir; bu hedefi SQL Server/SQLite'ta bir
+            // politikaya baglamak calisma aninda "tablo yok" hatasi verir —
+            // bu bilinclidir (bkz. docs/51-VEKTOR-BELLEK-VE-RAG.md, 51.3).
+            RetentionTargets.DocumentEmbeddings => new RetentionTargetDefinition(
+                Table("document_embeddings"),
+                "created_at < @cutoff",
+                "tenant_id = @tenant_id",
+                "created_at",
+                "created_at"),
+
             _ => throw new ArgumentException($"Bilinmeyen saklama hedefi: '{target}'.", nameof(target)),
         };
     }

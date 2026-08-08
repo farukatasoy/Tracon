@@ -106,6 +106,23 @@ internal abstract class SqlDialect
     /// </remarks>
     public abstract bool IsForeignKeyViolation(Exception exception);
 
+    /// <summary>
+    /// Istisna, sunucu tarafina indirilen bir duzenli ifadenin bu saglayici
+    /// tarafindan gecersiz sayilmasindan mi kaynaklaniyor.
+    /// </summary>
+    /// <param name="exception">Yakalanan istisna.</param>
+    /// <returns>Oyleyse <see langword="true"/>.</returns>
+    /// <remarks>
+    /// Yalnizca PostgreSQL <c>~</c> operatorunu on suzgec olarak kullanir (Faz 51,
+    /// Is A); .NET'in <see cref="System.Text.RegularExpressions.Regex"/> sozdizimi
+    /// PostgreSQL'in ARE sozdiziminden zengindir (ornegin adlandirilmis gruplar).
+    /// Boyle bir desen sunucuya gonderildiginde <see cref="SqlAgentFileStore"/>
+    /// bu metotla algilar ve on suzgec OLMADAN yeniden dener; nihai eslesme her
+    /// zaman .NET <c>Regex</c> ile istemcide yapilir, davranis degismez.
+    /// SQL Server ve SQLite bu yola hic girmez ve daima <see langword="false"/> doner.
+    /// </remarks>
+    public abstract bool IsInvalidRegexError(Exception exception);
+
     // --- Saglayiciya ozgu parametre tiplemesi ---
 
     /// <summary>Bir JSON metnini <c>json</c> sutunu icin parametreye baglar.</summary>

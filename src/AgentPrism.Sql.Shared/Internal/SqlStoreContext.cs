@@ -35,6 +35,19 @@ internal sealed class SqlStoreContext
     /// <summary>Bu baglami kuran saglayicinin adi. Gunluk mesajlarinda gorunur.</summary>
     public required string ProviderName { get; init; }
 
+    /// <summary>
+    /// Migration metnindeki <c>{sema-disi}</c> yer tutucularini degistiren ek
+    /// anahtar/deger cifti (ornegin <c>{dimension}</c> — Faz 51'in vektor boyutu).
+    /// </summary>
+    /// <remarks>
+    /// Sema yer tutucusu (<see cref="SqlQueriesBase.SchemaPlaceholder"/>) her
+    /// zaman ayri ve zorunlu olarak degistirilir; bu sozluk KURULUM ANINDA
+    /// bilinen, saglayiciya ozgu ek degerler icindir. Bos ise hicbir ek
+    /// degistirme yapilmaz.
+    /// </remarks>
+    public IReadOnlyDictionary<string, string> MigrationTemplateValues { get; init; } =
+        new Dictionary<string, string>(StringComparer.Ordinal);
+
     /// <summary>Bu saglayicinin SQL metinleri.</summary>
     public SqlQueriesBase Sql => Dialect.Queries;
 

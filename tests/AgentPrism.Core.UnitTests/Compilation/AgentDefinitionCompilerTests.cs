@@ -413,6 +413,83 @@ public sealed class AgentDefinitionCompilerTests
         factory.LastTenantId.ShouldBe("acme");
     }
 
+    [Fact]
+    public void Anlamsal_arama_istenip_depo_kayitli_degilse_derlemeyi_durdurur()
+    {
+        var compiler = CreateCompiler();
+
+        var definition = TestData.Definition() with
+        {
+            Memory = new MemorySettings { EnableVectorSearch = true },
+        };
+
+        var exception = Should.Throw<AgentPrismCompilationException>(() => compiler.Compile(definition));
+
+        exception.AgentName.ShouldBe("test-agent");
+        exception.Message.ShouldContain("IVectorSearchStore");
+    }
+
+    [Fact]
+    public void Anlamsal_arama_istenip_gomu_ureticisi_kayitli_degilse_derlemeyi_durdurur()
+    {
+        var compiler = new AgentDefinitionCompiler(
+            TestData.Providers(new FakeModelProvider()),
+            TestData.Registry(),
+            vectorSearchStore: new FakeVectorSearchStore());
+
+        var definition = TestData.Definition() with
+        {
+            Memory = new MemorySettings { EnableVectorSearch = true },
+        };
+
+        var exception = Should.Throw<AgentPrismCompilationException>(() => compiler.Compile(definition));
+
+        exception.Message.ShouldContain("IEmbeddingGenerator");
+    }
+
+    [Fact]
+    public void Anlamsal_arama_ikisi_de_kayitliyken_tool_baglanir()
+    {
+        var compiler = new AgentDefinitionCompiler(
+            TestData.Providers(new FakeModelProvider()),
+            TestData.Registry(),
+            tenantContext: FixedTenantContext.Default,
+            vectorSearchStore: new FakeVectorSearchStore(),
+            embeddingGenerator: new FakeEmbeddingGenerator());
+
+        var definition = TestData.Definition() with
+        {
+            Memory = new MemorySettings { EnableVectorSearch = true },
+        };
+
+        var agent = compiler.Compile(definition);
+        var options = agent.GetService<ChatClientAgentOptions>();
+
+        options!.ChatOptions!.Tools.ShouldNotBeNull();
+        options.ChatOptions.Tools!.ShouldContain(static tool => tool.Name == "search_knowledge");
+    }
+
+    [Fact]
+    public void Anlamsal_arama_kiraci_cozulemezse_derlemeyi_durdurur()
+    {
+        // tenantContext verilmiyor VE definition.TenantId bos — kiraci hicbir
+        // kaynaktan cozulemez.
+        var compiler = new AgentDefinitionCompiler(
+            TestData.Providers(new FakeModelProvider()),
+            TestData.Registry(),
+            vectorSearchStore: new FakeVectorSearchStore(),
+            embeddingGenerator: new FakeEmbeddingGenerator());
+
+        var definition = TestData.Definition() with
+        {
+            Memory = new MemorySettings { EnableVectorSearch = true },
+        };
+
+        var exception = Should.Throw<AgentPrismCompilationException>(() => compiler.Compile(definition));
+
+        exception.Message.ShouldContain("kiraci");
+    }
+
     private static AgentDefinitionCompiler CreateCompiler()
         => new(TestData.Providers(new FakeModelProvider()), TestData.Registry());
 }

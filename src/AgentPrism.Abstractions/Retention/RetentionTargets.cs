@@ -74,6 +74,13 @@ public static class RetentionTargets
     /// </remarks>
     public const string RunInputs = "run_inputs";
 
+    /// <summary>
+    /// Bilgi tabani parcalari ve gomuleri (Faz 51). 🚨 Tablo yalniz PostgreSQL
+    /// migration setinde vardir; bu hedefi SQL Server veya SQLite uzerinde bir
+    /// politikaya baglamak calisma aninda hata verir (tablo yok).
+    /// </summary>
+    public const string DocumentEmbeddings = "document_embeddings";
+
     /// <summary>Taninan tum hedef adlari.</summary>
     public static IReadOnlyList<string> All { get; } =
     [
@@ -92,6 +99,7 @@ public static class RetentionTargets
         RunScores,
         IdempotencyKeys,
         RunInputs,
+        DocumentEmbeddings,
     ];
 
     /// <summary>Kullanici verisi tasiyan, varsayilan olarak KAPALI olan hedefler.</summary>

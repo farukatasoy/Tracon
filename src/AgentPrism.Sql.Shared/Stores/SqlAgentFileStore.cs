@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Agents.AI;
 
@@ -110,22 +111,27 @@ internal sealed class SqlAgentFileStore : AgentFileStore
     public override Task CreateDirectoryAsync(string path, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Faz 51 (Is A): dizinin ALTINDAKI dosyalar SQL'de onek suzgeciyle daraltilir;
+    /// depodaki toplam dosya sayisindan degil, yalniz bu dizinin altindaki satir
+    /// sayisindan etkilenir. Bkz. <c>docs/51-VEKTOR-BELLEK-VE-RAG.md</c>.
+    /// </remarks>
     public override async Task<IReadOnlyList<FileStoreEntry>> ListChildrenAsync(
         string directory,
         CancellationToken cancellationToken = default)
     {
         var prefix = NormalizeDirectory(directory);
-        var files = await LoadAllAsync(cancellationToken).ConfigureAwait(false);
+        var files = await LoadFilteredAsync(
+            prefix,
+            deepLike: null,
+            nameLike: null,
+            regexPattern: null,
+            cancellationToken).ConfigureAwait(false);
 
         var children = new Dictionary<string, bool>(StringComparer.Ordinal);
 
         foreach (var (path, _) in files)
         {
-            if (!path.StartsWith(prefix, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
             var remainder = path[prefix.Length..];
             var slash = remainder.IndexOf('/');
             var name = slash < 0 ? remainder : remainder[..slash];
@@ -145,6 +151,16 @@ internal sealed class SqlAgentFileStore : AgentFileStore
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Faz 51 (Is A): onek, derinlik siniri (<paramref name="recursive"/>) ve
+    /// <paramref name="globPattern"/> SQL'e iner; <c>LoadAllAsync</c> artik
+    /// cagrilmaz. PostgreSQL ayrica <paramref name="regexPattern"/>'i <c>~</c>
+    /// operatoruyle on suzgec olarak indirir — nihai eslesme yine de HER ZAMAN
+    /// .NET <see cref="Regex"/> ile burada yapilir, davranis degismez. Sunucuya
+    /// gonderilen desen PostgreSQL'in ARE sozdiziminde gecersizse (ornegin .NET'e
+    /// ozgu adlandirilmis gruplar), <see cref="SqlDialect.IsInvalidRegexError"/>
+    /// bunu yakalar ve sorgu on suzgec OLMADAN yeniden calisir.
+    /// </remarks>
     public override async Task<IReadOnlyList<FileSearchResult>> SearchAsync(
         string directory,
         string regexPattern,
@@ -153,30 +169,27 @@ internal sealed class SqlAgentFileStore : AgentFileStore
         CancellationToken cancellationToken = default)
     {
         var prefix = NormalizeDirectory(directory);
-        var files = await LoadAllAsync(cancellationToken).ConfigureAwait(false);
-        var regex = new Regex(regexPattern, RegexOptions.None, TimeSpan.FromSeconds(2));
+        var deepLike = recursive ? null : EscapeLikeLiteral(prefix) + "%/%";
+        var nameLike = string.IsNullOrEmpty(globPattern) ? null : EscapeLikeLiteral(prefix) + TranslateGlobToLike(globPattern);
 
+        List<(string Path, string Content)> files;
+
+        try
+        {
+            files = await LoadFilteredAsync(prefix, deepLike, nameLike, regexPattern, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (DbException ex) when (Dialect.IsInvalidRegexError(ex))
+        {
+            files = await LoadFilteredAsync(prefix, deepLike, nameLike, regexPattern: null, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        var regex = new Regex(regexPattern, RegexOptions.None, TimeSpan.FromSeconds(2));
         var results = new List<FileSearchResult>();
 
         foreach (var (path, content) in files)
         {
-            if (!path.StartsWith(prefix, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            var remainder = path[prefix.Length..];
-
-            if (!recursive && remainder.Contains('/', StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            if (!string.IsNullOrEmpty(globPattern) && !MatchesGlob(remainder, globPattern))
-            {
-                continue;
-            }
-
             var matches = CollectMatches(regex, content);
 
             if (matches.Count > 0)
@@ -209,25 +222,85 @@ internal sealed class SqlAgentFileStore : AgentFileStore
         return matches;
     }
 
-    private static bool MatchesGlob(string name, string globPattern)
+    /// <summary>
+    /// Onek, istege bagli derinlik siniri, istege bagli glob suzgeci ve
+    /// (yalniz PostgreSQL'de etkili) istege bagli regex on suzgeciyle daraltilmis
+    /// dosyalari okur (Faz 51, Is A). <paramref name="deepLike"/> ve
+    /// <paramref name="nameLike"/> cagiran tarafca ONEKI ICEREN tam LIKE
+    /// desenleri olarak kurulur (bkz. <see cref="SearchAsync"/>).
+    /// </summary>
+    private async ValueTask<List<(string Path, string Content)>> LoadFilteredAsync(
+        string prefix,
+        string? deepLike,
+        string? nameLike,
+        string? regexPattern,
+        CancellationToken cancellationToken)
     {
-        var pattern = "^" + Regex.Escape(globPattern)
-            .Replace("\\*", ".*", StringComparison.Ordinal)
-            .Replace("\\?", ".", StringComparison.Ordinal) + "$";
-
-        return Regex.IsMatch(name, pattern, RegexOptions.None, TimeSpan.FromSeconds(1));
-    }
-
-    private async ValueTask<List<(string Path, string Content)>> LoadAllAsync(CancellationToken cancellationToken)
-    {
-        var command = CreateCommand(_sql.SelectAgentFiles);
+        var command = CreateCommand(_sql.SelectAgentFilesFiltered);
         DbHelpers.Add(command, "tenant_id", _tenantContext.TenantId);
         DbHelpers.Add(command, "agent_name", RequireAgentName());
+        Dialect.AddText(command, "prefix_like", EscapeLikeLiteral(prefix) + "%");
+        Dialect.AddText(command, "prefix_deep_like", deepLike);
+        Dialect.AddText(command, "name_like", nameLike);
+        Dialect.AddText(command, "regex_pattern", regexPattern);
 
         return await DbHelpers.ReadListAsync(
             command,
             static reader => (reader.GetString(0), reader.GetString(1)),
             cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Bir metni <c>LIKE</c> deseninde harfi harfine eslesecek sekilde kacislar.</summary>
+    private static string EscapeLikeLiteral(string text)
+    {
+        var builder = new StringBuilder(text.Length);
+
+        foreach (var ch in text)
+        {
+            if (ch is '\\' or '%' or '_')
+            {
+                builder.Append('\\');
+            }
+
+            builder.Append(ch);
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// Bir glob desenini (<c>*</c>/<c>?</c>) <c>LIKE ... ESCAPE '\'</c> desenine cevirir.
+    /// </summary>
+    /// <remarks>
+    /// <c>*</c> orijinal .NET regex tabanli eslemede oldugu gibi <c>/</c> dahil
+    /// HERHANGI bir karakter dizisiyle eslesir (dizin sinirini asabilir); <c>LIKE</c>
+    /// icindeki <c>%</c> ayni davranisi tasir.
+    /// </remarks>
+    private static string TranslateGlobToLike(string globPattern)
+    {
+        var builder = new StringBuilder(globPattern.Length);
+
+        foreach (var ch in globPattern)
+        {
+            if (ch == '*')
+            {
+                builder.Append('%');
+            }
+            else if (ch == '?')
+            {
+                builder.Append('_');
+            }
+            else if (ch is '\\' or '%' or '_')
+            {
+                builder.Append('\\').Append(ch);
+            }
+            else
+            {
+                builder.Append(ch);
+            }
+        }
+
+        return builder.ToString();
     }
 
     private static string RequireAgentName()

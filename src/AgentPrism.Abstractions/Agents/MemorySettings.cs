@@ -4,10 +4,10 @@ namespace AgentPrism;
 /// Bir agent'a baglanacak bellek saglayicilarini belirler.
 /// </summary>
 /// <remarks>
-/// Vektor tabanli anlamsal bellek (MAF'in <c>ChatHistoryMemoryProvider</c>'i)
-/// bilerek burada yoktur: gercek kurucusu bir vektor deposu ve embedding
-/// boyutu ister, depoda somut bir vektor deposu implementasyonu yoktur. Karar
-/// gerekcesi: <c>docs/KARARLAR.md</c>.
+/// MAF'in <c>ChatHistoryMemoryProvider</c>'i (vektor tabanli oturum ici bellek)
+/// bilerek burada yoktur; <see cref="EnableVectorSearch"/> ile karistirilmamalidir
+/// — o, kalici bir bilgi tabaninda anlamsal arama tool'unu acar, MAF'in o
+/// belirli sozlesmesini baglamaz. Gerekce ve sinir: <c>docs/KARARLAR.md</c>.
 /// </remarks>
 public sealed record MemorySettings
 {
@@ -26,4 +26,18 @@ public sealed record MemorySettings
     /// bellek ici depodur.
     /// </summary>
     public bool EnableTextSearch { get; init; }
+
+    /// <summary>
+    /// <c>search_knowledge</c> tool'unu acar (Faz 51). 🚨 Yalniz PostgreSQL:
+    /// <see cref="IVectorSearchStore"/>'un tek somut uygulamasi
+    /// <c>AgentPrism.PostgreSql</c> icindedir. Baska bir saglayici kayitliyken
+    /// bu bayrak acilirsa derleme <see cref="AgentPrismCompilationException"/>
+    /// ile durur; sessizce bos sonuc donmez.
+    /// </summary>
+    public bool EnableVectorSearch { get; init; }
+
+    /// <summary>
+    /// Aranacak koleksiyon adi. Bos ise agent adi kullanilir.
+    /// </summary>
+    public string? VectorCollection { get; init; }
 }

@@ -972,13 +972,17 @@ internal sealed class PostgresQueries : SqlQueriesBase
             WHERE tenant_id = @tenant_id AND agent_name = @agent_name AND path = @path;
             """;
 
-        // Yol hiyerarsisi ve arama istemcide (PostgresAgentFileStore) hesaplanir;
-        // bir agent'in dosya sayisi kucuktur ve LIKE kacislama karmasikligindan
-        // kacinilir.
-        SelectAgentFiles = $"""
+        // Faz 51, Is A: onek, derinlik siniri ve glob SQL'e iner; PostgreSQL
+        // ayrica regex'i `~` operatoruyle on suzgec olarak indirir (nihai
+        // eslesme daima .NET Regex ile istemcide yapilir, degismez).
+        SelectAgentFilesFiltered = $"""
             SELECT path, content
             FROM {Schema}.agent_files
             WHERE tenant_id = @tenant_id AND agent_name = @agent_name
+              AND path LIKE @prefix_like ESCAPE '\'
+              AND (@prefix_deep_like IS NULL OR path NOT LIKE @prefix_deep_like ESCAPE '\')
+              AND (@name_like IS NULL OR path LIKE @name_like ESCAPE '\')
+              AND (@regex_pattern IS NULL OR content ~ @regex_pattern)
             ORDER BY path;
             """;
 

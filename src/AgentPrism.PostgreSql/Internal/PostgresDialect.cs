@@ -27,6 +27,9 @@ internal sealed class PostgresDialect : SqlDialect
     /// <summary>Yabanci anahtar kisiti ihlali SQLSTATE kodu.</summary>
     private const string ForeignKeyViolation = "23503";
 
+    /// <summary>Gecersiz duzenli ifade SQLSTATE kodu.</summary>
+    private const string InvalidRegularExpression = "2201B";
+
     /// <summary>
     /// Migration kilidinin sabit anahtari.
     /// </summary>
@@ -83,6 +86,10 @@ internal sealed class PostgresDialect : SqlDialect
     /// <inheritdoc />
     public override bool IsForeignKeyViolation(Exception exception)
         => exception is PostgresException { SqlState: ForeignKeyViolation };
+
+    /// <inheritdoc />
+    public override bool IsInvalidRegexError(Exception exception)
+        => exception is PostgresException { SqlState: InvalidRegularExpression };
 
     /// <inheritdoc />
     public override void AddJson(DbCommand command, string name, string? value)

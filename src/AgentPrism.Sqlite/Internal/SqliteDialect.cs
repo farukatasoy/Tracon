@@ -175,6 +175,10 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
         => exception is SqliteException sql && sql.SqliteExtendedErrorCode == ForeignKeyConstraint;
 
     /// <inheritdoc />
+    /// <remarks>SQLite duzenli ifadeyi hic sunucuya gondermez; bu yola girmez.</remarks>
+    public override bool IsInvalidRegexError(Exception exception) => false;
+
+    /// <inheritdoc />
     public override void AddJson(DbCommand command, string name, string? value)
         => AddTyped(command, name, DbType.String, value);
 

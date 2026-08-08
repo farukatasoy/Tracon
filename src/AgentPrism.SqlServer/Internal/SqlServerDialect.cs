@@ -147,6 +147,10 @@ internal sealed class SqlServerDialect : SqlDialect
         => exception is SqlException { Number: ForeignKeyViolation };
 
     /// <inheritdoc />
+    /// <remarks>SQL Server duzenli ifadeyi hic sunucuya gondermez; bu yola girmez.</remarks>
+    public override bool IsInvalidRegexError(Exception exception) => false;
+
+    /// <inheritdoc />
     /// <remarks>
     /// SQL Server'da <c>json</c> ile <c>jsonb</c> ayrimi yoktur; ikisi de
     /// <c>nvarchar(max)</c>'tir. K-027'nin anahtar siralamasi sorunu burada

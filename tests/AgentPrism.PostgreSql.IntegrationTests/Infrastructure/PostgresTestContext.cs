@@ -14,14 +14,23 @@ namespace AgentPrism.PostgreSql.IntegrationTests.Infrastructure;
 /// </remarks>
 internal sealed class PostgresTestContext : IAsyncDisposable
 {
+    /// <summary>
+    /// Testlerde kullanilan varsayilan gomu boyutu (Faz 51). Kucuk tutulur:
+    /// vektor testleri disindaki 40+ paket bu degerden BAGIMSIZDIR, yalniz
+    /// <c>document_embeddings.embedding</c> sutununun tipini belirler.
+    /// </summary>
+    public const int DefaultVectorDimensions = 3;
+
     private PostgresTestContext(
         NpgsqlDataSource dataSource,
         AgentPrismPostgreSqlOptions options,
-        ITenantContext tenantContext)
+        ITenantContext tenantContext,
+        int vectorDimensions)
     {
         DataSource = dataSource;
         Options = options;
         TenantContext = tenantContext;
+        VectorDimensions = vectorDimensions;
 
         var wrapped = new SqlStoreContext
         {
@@ -29,6 +38,10 @@ internal sealed class PostgresTestContext : IAsyncDisposable
             Dialect = new PostgresDialect(options.SchemaName),
             CommandTimeoutSeconds = options.CommandTimeoutSeconds,
             ProviderName = "PostgreSQL",
+            MigrationTemplateValues = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["dimension"] = vectorDimensions.ToString(CultureInfo.InvariantCulture),
+            },
         };
 
         StoreContext = wrapped;
@@ -46,6 +59,10 @@ internal sealed class PostgresTestContext : IAsyncDisposable
         AgentSkills = new SqlAgentSkillStore(wrapped);
         Attachments = new SqlAttachmentStore(wrapped);
         AgentFiles = new SqlAgentFileStore(wrapped, TenantContext);
+        Vectors = new PgVectorSearchStore(
+            dataSource,
+            options,
+            new AgentPrismKnowledgeOptions { Dimensions = vectorDimensions });
         Workflows = new SqlWorkflowDefinitionStore(wrapped);
         WorkflowCheckpoints = new SqlWorkflowCheckpointStore(wrapped);
         Jobs = new SqlJobStore(wrapped);
@@ -76,6 +93,9 @@ internal sealed class PostgresTestContext : IAsyncDisposable
 
     /// <summary>Bu baglamin kiraci baglami.</summary>
     public ITenantContext TenantContext { get; }
+
+    /// <summary>Migration 0024'e uygulanan gomu boyutu (Faz 51).</summary>
+    public int VectorDimensions { get; }
 
     /// <summary>Agent tanim deposu.</summary>
     public SqlAgentDefinitionStore AgentDefinitions { get; }
@@ -115,6 +135,9 @@ internal sealed class PostgresTestContext : IAsyncDisposable
 
     /// <summary>Kalici agent dosya belleği (Faz 14).</summary>
     public SqlAgentFileStore AgentFiles { get; }
+
+    /// <summary>Vektor tabanli anlamsal arama deposu (Faz 51).</summary>
+    public PgVectorSearchStore Vectors { get; }
 
     /// <summary>Workflow tanim deposu (Faz 15).</summary>
     public SqlWorkflowDefinitionStore Workflows { get; }
@@ -180,8 +203,9 @@ internal sealed class PostgresTestContext : IAsyncDisposable
     public static ValueTask<PostgresTestContext> CreateAsync(
         PostgresFixture fixture,
         string tenantId = "default",
-        bool applyMigrations = true)
-        => CreateAsync(fixture, new FixedTenantContext(tenantId), applyMigrations);
+        bool applyMigrations = true,
+        int vectorDimensions = DefaultVectorDimensions)
+        => CreateAsync(fixture, new FixedTenantContext(tenantId), applyMigrations, vectorDimensions);
 
     /// <summary>
     /// Kiraci baglami disaridan verilen kurulum. Kiraci yalitimi sozlesmesi
@@ -195,11 +219,12 @@ internal sealed class PostgresTestContext : IAsyncDisposable
     public static async ValueTask<PostgresTestContext> CreateAsync(
         PostgresFixture fixture,
         ITenantContext tenantContext,
-        bool applyMigrations = true)
+        bool applyMigrations = true,
+        int vectorDimensions = DefaultVectorDimensions)
     {
         ArgumentNullException.ThrowIfNull(fixture);
 
-        var context = Create(fixture, NewSchemaName(), tenantContext);
+        var context = Create(fixture, NewSchemaName(), tenantContext, vectorDimensions);
 
         if (applyMigrations)
         {
@@ -217,15 +242,24 @@ internal sealed class PostgresTestContext : IAsyncDisposable
     /// <param name="schemaName">Kullanilacak sema adi.</param>
     /// <param name="tenantId">Kiraci kimligi.</param>
     /// <returns>Ayni semaya bakan yeni baglam.</returns>
-    public static PostgresTestContext Create(PostgresFixture fixture, string schemaName, string tenantId = "default")
-        => Create(fixture, schemaName, new FixedTenantContext(tenantId));
+    public static PostgresTestContext Create(
+        PostgresFixture fixture,
+        string schemaName,
+        string tenantId = "default",
+        int vectorDimensions = DefaultVectorDimensions)
+        => Create(fixture, schemaName, new FixedTenantContext(tenantId), vectorDimensions);
 
     /// <summary>Kiraci baglami disaridan verilen kurulum.</summary>
     /// <param name="fixture">Calisan PostgreSQL container.</param>
     /// <param name="schemaName">Kullanilacak sema adi.</param>
     /// <param name="tenantContext">Depolarin okuyacagi kiraci baglami.</param>
+    /// <param name="vectorDimensions">Migration 0024'e uygulanacak gomu boyutu (Faz 51).</param>
     /// <returns>Ayni arka uca bakan yeni baglam.</returns>
-    public static PostgresTestContext Create(PostgresFixture fixture, string schemaName, ITenantContext tenantContext)
+    public static PostgresTestContext Create(
+        PostgresFixture fixture,
+        string schemaName,
+        ITenantContext tenantContext,
+        int vectorDimensions = DefaultVectorDimensions)
     {
         ArgumentNullException.ThrowIfNull(fixture);
 
@@ -239,7 +273,7 @@ internal sealed class PostgresTestContext : IAsyncDisposable
 
         var dataSource = new NpgsqlDataSourceBuilder(options.ConnectionString).Build();
 
-        return new PostgresTestContext(dataSource, options, tenantContext);
+        return new PostgresTestContext(dataSource, options, tenantContext, vectorDimensions);
     }
 
     /// <summary>Yeni ve benzersiz bir test sema adi uretir.</summary>
