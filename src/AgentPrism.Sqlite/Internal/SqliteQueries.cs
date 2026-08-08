@@ -374,6 +374,50 @@ internal sealed class SqliteQueries : SqlQueriesBase
             WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
             """;
 
+        // Oksuz calistirma uzlastirmasi (Faz 54). Yalniz Running satirlari
+        // etkiler; var olmayan veya baska durumdaki bir kimlik icin sessizce
+        // sifir satir gunceller.
+        TouchRunHeartbeat = $"""
+            UPDATE {Schema}runs
+            SET heartbeat_at = @at
+            WHERE id = @id AND status = @status_running;
+            """;
+
+        // heartbeat_at/started_at zaten ISO 8601 METIN oldugu icin (K-191'in
+        // komsu kurali: zaman damgalari elle yazilir) dogrudan `||` ile
+        // birlestirilebilir -- PostgreSQL'deki `::text` donusumune gerek yok.
+        // error_fingerprint SABIT bir dize ("orphaned") -- gerekce
+        // PostgreSQL surumundeki ile aynidir.
+        ClaimOrphanedRuns = $"""
+            UPDATE {Schema}runs
+            SET status            = @status_failed,
+                completed_at      = @now,
+                error_type        = 'orphaned',
+                error_message     = 'Calistirma yuruten surec yanit vermiyor; son isaret: '
+                                     || COALESCE(heartbeat_at, started_at) || '.',
+                error_class       = @error_class,
+                error_fingerprint = @error_fingerprint,
+                event_count       = event_count + 1
+            WHERE id IN (
+                SELECT id FROM {Schema}runs
+                WHERE status = @status_running
+                  AND COALESCE(heartbeat_at, started_at) < @stale_before
+                ORDER BY COALESCE(heartbeat_at, started_at) ASC
+                LIMIT @max
+            )
+            RETURNING id, tenant_id, agent_name, session_id, status, started_at, completed_at, is_streaming,
+                      model_id, kind, workflow_name, agent_version, experiment_id, variant, replay_of_run_id,
+                      parent_run_id, root_run_id, depth, event_count, error_type, error_message, error_class,
+                      error_fingerprint;
+            """;
+
+        InsertOrphanRunEvent = $"""
+            INSERT INTO {Schema}run_events (run_id, seq, type, text, created_at)
+            VALUES (@run_id,
+                    COALESCE((SELECT MAX(seq) FROM {Schema}run_events WHERE run_id = @run_id), -1) + 1,
+                    @type, @text, @created_at);
+            """;
+
         // 🚨 SQLite'ta LATERAL JOIN yoktur. Agac toplamlari SELECT listesinde
         // korele skaler alt sorgularla hesaplanir; her biri ayri bir tarama
         // yapar ama okuma yolu, saklanan bir toplamin her alt calistirma

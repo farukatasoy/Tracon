@@ -11,6 +11,9 @@ public sealed class RunCancellationRegistry : IRunCancellationRegistry
     public int ActiveCount => _entries.Count;
 
     /// <inheritdoc />
+    public IReadOnlyCollection<Guid> ActiveRunIds => [.. _entries.Keys];
+
+    /// <inheritdoc />
     public IDisposable Register(Guid runId, Guid rootRunId, string? tenantId, CancellationTokenSource source)
     {
         ArgumentNullException.ThrowIfNull(source);

@@ -388,6 +388,50 @@ internal sealed class SqlServerQueries : SqlQueriesBase
              WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
             """;
 
+        // Oksuz calistirma uzlastirmasi (Faz 54). Yalniz Running satirlari
+        // etkiler; var olmayan veya baska durumdaki bir kimlik icin sessizce
+        // sifir satir gunceller.
+        TouchRunHeartbeat = $"""
+            UPDATE {Schema}.runs
+               SET heartbeat_at = @at
+             WHERE id = @id AND status = @status_running;
+            """;
+
+        // TOP (@n) = 0 hata VERMEZ (SQL Server'in FETCH NEXT'inin aksine);
+        // ekstra bir korumaya gerek yok. error_fingerprint SABIT bir dize
+        // ("orphaned") -- gerekce PostgreSQL surumundeki ile aynidir.
+        ClaimOrphanedRuns = $"""
+            UPDATE r
+               SET status            = @status_failed,
+                   completed_at      = @now,
+                   error_type        = N'orphaned',
+                   error_message     = N'Calistirma yuruten surec yanit vermiyor; son isaret: '
+                                        + CONVERT(nvarchar(40), COALESCE(heartbeat_at, started_at), 127) + N'.',
+                   error_class       = @error_class,
+                   error_fingerprint = @error_fingerprint,
+                   event_count       = event_count + 1
+            OUTPUT inserted.id, inserted.tenant_id, inserted.agent_name, inserted.session_id, inserted.status,
+                   inserted.started_at, inserted.completed_at, inserted.is_streaming, inserted.model_id,
+                   inserted.kind, inserted.workflow_name, inserted.agent_version, inserted.experiment_id,
+                   inserted.variant, inserted.replay_of_run_id, inserted.parent_run_id, inserted.root_run_id,
+                   inserted.depth, inserted.event_count, inserted.error_type, inserted.error_message,
+                   inserted.error_class, inserted.error_fingerprint
+              FROM {Schema}.runs AS r
+             WHERE r.id IN (
+                       SELECT TOP (@max) id FROM {Schema}.runs
+                        WHERE status = @status_running
+                          AND COALESCE(heartbeat_at, started_at) < @stale_before
+                     ORDER BY COALESCE(heartbeat_at, started_at) ASC
+                   );
+            """;
+
+        InsertOrphanRunEvent = $"""
+            INSERT INTO {Schema}.run_events (run_id, seq, type, text, created_at)
+            VALUES (@run_id,
+                    COALESCE((SELECT MAX(seq) FROM {Schema}.run_events WHERE run_id = @run_id), -1) + 1,
+                    @type, @text, @created_at);
+            """;
+
         // PostgreSQL'in LEFT JOIN LATERAL ... ON TRUE yapisinin karsiligi
         // OUTER APPLY'dir. Agac toplamlari OKUMADA hesaplanir, saklanmaz.
         var treeJoin = $"""

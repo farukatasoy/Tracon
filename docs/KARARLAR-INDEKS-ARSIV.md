@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (211 kalem)
+## Arşivlenen Kararlar (216 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -220,3 +220,8 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-209 | 254 | `AgentPrism` meta paketi Anthropic ve Google sağlayıcılarını İÇERMEZ |
 | K-210 | 255 | Sağlayıcı adı `azure-openai`; kimlik fabrikası tüketiciden gelir, `Azure.Identity` alınmadı 👤 |
 | K-211 | 256 | `azure-openai` hiçbir `ProviderSettings` anahtarı sunmaz; `AzureChatExtensions` çalışma anında kırıktır |
+| K-212 | 257 | Azure AI Foundry ertelendi; gerekçe sürüm uyumu değil, 37 geçişli paket ve doğrulanamazlık 👤 |
+| K-213 | 258 | Azure'ın Responses yüzeyi desteklenmiyor |
+| K-214 | 259 | `KARARLAR-INDEKS.md`'den tarih sütunu kaldırıldı |
+| K-215 | 260 | Ses sözleşmeleri `AgentPrism.Abstractions`'ta yaşar; ElevenLabs bir uygulamadır |
+| K-216 | 261 | `AgentPrism.Voice` hiçbir NuGet paketi almaz; ham `HttpClient` kullanılır |

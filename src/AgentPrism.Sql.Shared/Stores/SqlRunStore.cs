@@ -207,6 +207,83 @@ internal sealed class SqlRunStore : IRunStore
     }
 
     /// <inheritdoc />
+    [TenantAgnostic(
+        "Kimlikler cagiran surecin KENDI IRunCancellationRegistry defterinden gelir ve zaten " +
+        "o surecin gercekten yuruttugu calistirmalarla sinirlidir; bakim sinyalidir, veri okumaz.")]
+    public async ValueTask TouchHeartbeatAsync(
+        IReadOnlyCollection<Guid> runIds,
+        DateTimeOffset at,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(runIds);
+
+        // Tek bir toplu UPDATE (WHERE id IN (dizi)) SQLite/SQL Server'da dizi
+        // parametresini JSON metnine cevirmeyi gerektirirdi; uuid harf
+        // buyuklugu (K-191) ve dizi serilestirmesinin (System.Text.Json,
+        // kucuk harf) UYUSMAMASI riski tasirdi. Bu surecte AYNI ANDA suren
+        // calistirma sayisi kucuktur (IRunCancellationRegistry.ActiveRunIds);
+        // dongude N tekil UPDATE, bu riski almadan ayni sonucu verir.
+        foreach (var runId in runIds)
+        {
+            var command = CreateCommand(_sql.TouchRunHeartbeat);
+            DbHelpers.Add(command, "id", runId);
+            Dialect.AddTimestamp(command, "at", at);
+            DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
+
+            await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <inheritdoc />
+    [TenantAgnostic(
+        "Bir bakim isidir ve BUTUN kiracilarin oksuz satirlarini tarar; ambient kiraciyla " +
+        "suzmek diger kiracilarin satirlarini sonsuza dek Running birakirdi.")]
+    public async ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
+        DateTimeOffset staleBefore,
+        int max,
+        CancellationToken cancellationToken = default)
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        var command = CreateCommand(_sql.ClaimOrphanedRuns);
+        DbHelpers.Add(command, "status_failed", (short)RunStatus.Failed);
+        Dialect.AddTimestamp(command, "now", now);
+        DbHelpers.Add(command, "error_class", (short)RunErrorClass.Infrastructure);
+        DbHelpers.Add(command, "error_fingerprint", OrphanedFingerprint);
+        DbHelpers.Add(command, "status_running", (short)RunStatus.Running);
+        Dialect.AddTimestamp(command, "stale_before", staleBefore);
+        DbHelpers.Add(command, "max", Math.Max(max, 0));
+
+        var claimed = await DbHelpers.ReadListAsync(command, ReadOrphanedRun, cancellationToken).ConfigureAwait(false);
+
+        // RunEventWriter o surecte artik yoktur; olayi biz yaziyoruz. Bir
+        // sonraki tur bu run_id'yi bir daha GORMEZ (status artik Failed'dir),
+        // bu yuzden N ayri INSERT (birleştirilmiş tek bir yazma yerine) burada
+        // sicak yol maliyeti degildir -- MaxRunsPerScan ile sinirli, dakikada
+        // bir kosan bir bakim isidir.
+        foreach (var record in claimed)
+        {
+            var eventCommand = CreateCommand(_sql.InsertOrphanRunEvent);
+            DbHelpers.Add(eventCommand, "run_id", record.Id);
+            DbHelpers.Add(eventCommand, "type", (short)RunEventType.RunFailed);
+            AddNullableText(eventCommand, "text", record.Error?.Message);
+            Dialect.AddTimestamp(eventCommand, "created_at", now);
+
+            await DbHelpers.ExecuteAsync(eventCommand, cancellationToken).ConfigureAwait(false);
+        }
+
+        return claimed;
+    }
+
+    /// <summary>
+    /// Oksuz calistirma hatalarinin kumeleme parmak izi. Sabit bir dize --
+    /// bir SHA-256 hash DEGIL; gerekce <see cref="InMemoryRunStore"/>'daki
+    /// ayni adli sabitle aynidir (AgentPrism.Core'un ErrorFingerprint'i bu
+    /// derlemeden erisilemez, K-176).
+    /// </summary>
+    private const string OrphanedFingerprint = "orphaned";
+
+    /// <inheritdoc />
     public async ValueTask<RunRecord?> GetRunAsync(Guid runId, CancellationToken cancellationToken = default)
     {
         var command = CreateCommand(_sql.SelectRun);
@@ -599,6 +676,44 @@ internal sealed class SqlRunStore : IRunStore
             ToolCallId = DbHelpers.GetNullableString(reader, 5),
             Payload = DbHelpers.GetNullableString(reader, 6),
             Timestamp = DbHelpers.GetTimestamp(reader, 7),
+        };
+
+    /// <summary>
+    /// <c>ClaimOrphanedRuns</c>'in RETURNING/OUTPUT sutunlarini okur. Bilerek
+    /// <see cref="ReadRun"/>'dan AYRIDIR: o, agac toplamlarinin LATERAL/OUTER
+    /// APPLY birlestirmesine dayanir; oksuz kapama bu maliyeti gerektirmez --
+    /// dogan satirin ne kullanimi ne maliyeti vardir (henuz hic tamamlanmamis
+    /// bir calistirma).
+    /// </summary>
+    private static RunRecord ReadOrphanedRun(DbDataReader reader)
+        => new()
+        {
+            Id = reader.GetGuid(0),
+            TenantId = reader.GetString(1),
+            AgentName = reader.GetString(2),
+            SessionId = DbHelpers.GetNullableString(reader, 3),
+            Status = (RunStatus)reader.GetInt16(4),
+            StartedAt = DbHelpers.GetTimestamp(reader, 5),
+            CompletedAt = reader.IsDBNull(6) ? null : DbHelpers.GetTimestamp(reader, 6),
+            IsStreaming = reader.GetBoolean(7),
+            ModelId = DbHelpers.GetNullableString(reader, 8),
+            Kind = (RunKind)reader.GetInt16(9),
+            WorkflowName = DbHelpers.GetNullableString(reader, 10),
+            AgentVersion = reader.IsDBNull(11) ? null : reader.GetInt32(11),
+            ExperimentId = reader.IsDBNull(12) ? null : reader.GetGuid(12),
+            Variant = DbHelpers.GetNullableString(reader, 13),
+            ReplayOfRunId = reader.IsDBNull(14) ? null : reader.GetGuid(14),
+            ParentRunId = reader.IsDBNull(15) ? null : reader.GetGuid(15),
+            RootRunId = reader.IsDBNull(16) ? null : reader.GetGuid(16),
+            Depth = reader.GetInt16(17),
+            EventCount = reader.GetInt64(18),
+            Error = new RunError
+            {
+                Type = reader.GetString(19),
+                Message = DbHelpers.GetNullableString(reader, 20) ?? string.Empty,
+                Class = reader.IsDBNull(21) ? null : (RunErrorClass)reader.GetInt16(21),
+                Fingerprint = DbHelpers.GetNullableString(reader, 22),
+            },
         };
 
     private static RunRecord ReadRun(DbDataReader reader)

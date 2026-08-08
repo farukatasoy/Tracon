@@ -300,6 +300,57 @@ internal sealed class PostgresQueries : SqlQueriesBase
             WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
             """;
 
+        // Oksuz calistirma uzlastirmasi (Faz 54). Yalniz Running satirlari
+        // etkiler; degeri var olmayan veya baska durumdaki bir kimlik icin
+        // sessizce sifir satir gunceller (bakim sinyali, hata firlatmaz).
+        TouchRunHeartbeat = $"""
+            UPDATE {Schema}.runs
+            SET heartbeat_at = @at
+            WHERE id = @id AND status = @status_running;
+            """;
+
+        // Tek bir ifadede: aday secimi (heartbeat_at yoksa started_at'e duser),
+        // kapama VE hata alanlarinin yazimi. error_message satirin KENDI
+        // heartbeat_at/started_at degerinden turetilir; error_fingerprint
+        // SABIT bir dizedir ("orphaned") -- SHA-256 hash DEGILDIR, cunku tum
+        // oksuz calistirmalar ayni arizadir ve InMemoryRunStore ile davranis
+        // esitligi boyle saglanir (ErrorFingerprint AgentPrism.Core'da internal'dir,
+        // bu derlemeden erisilemez). Queued satirlar status=@status_running
+        // suzgeciyle asla eslesmez (Faz 46'nin sahiplik ayrimi).
+        ClaimOrphanedRuns = $"""
+            UPDATE {Schema}.runs
+            SET status            = @status_failed,
+                completed_at      = @now,
+                error_type        = 'orphaned',
+                error_message     = 'Calistirma yuruten surec yanit vermiyor; son isaret: '
+                                     || COALESCE(heartbeat_at, started_at)::text || '.',
+                error_class       = @error_class,
+                error_fingerprint = @error_fingerprint,
+                event_count       = event_count + 1
+            WHERE id IN (
+                SELECT id FROM {Schema}.runs
+                WHERE status = @status_running
+                  AND COALESCE(heartbeat_at, started_at) < @stale_before
+                ORDER BY COALESCE(heartbeat_at, started_at) ASC
+                LIMIT @max
+            )
+            RETURNING id, tenant_id, agent_name, session_id, status, started_at, completed_at, is_streaming,
+                      model_id, kind, workflow_name, agent_version, experiment_id, variant, replay_of_run_id,
+                      parent_run_id, root_run_id, depth, event_count, error_type, error_message, error_class,
+                      error_fingerprint;
+            """;
+
+        // RunEventWriter o surecte artik yoktur; olayi uzlastirici yazar.
+        // Sira numarasi mevcut en buyuk degerin bir fazlasidir -- calistirma
+        // az once kapatildigi icin yaris riski yoktur (SingletonGuard zaten
+        // tek uzlastiriciyi garanti eder).
+        InsertOrphanRunEvent = $"""
+            INSERT INTO {Schema}.run_events (run_id, seq, type, text, created_at)
+            VALUES (@run_id,
+                    COALESCE((SELECT MAX(seq) FROM {Schema}.run_events WHERE run_id = @run_id), -1) + 1,
+                    @type, @text, @created_at);
+            """;
+
         // Agac toplamlari OKUMADA hesaplanir, saklanmaz. Saklansaydi her alt
         // calistirmanin tamamlanmasi ustundeki her kaydi guncellemek zorunda kalir
         // ve kayit yolu derinlikle birlikte pahalilasirdi. LATERAL alt sorgu

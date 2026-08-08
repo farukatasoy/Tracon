@@ -36,4 +36,16 @@ public interface IRunCancellationRegistry
 
     /// <summary>Bu ornekte suren calistirma sayisi. Teshis ve test icindir.</summary>
     int ActiveCount { get; }
+
+    /// <summary>
+    /// Bu ornekte SU AN suren calistirmalarin kimlikleri.
+    /// </summary>
+    /// <remarks>
+    /// Faz 54: <c>RunHeartbeatWriter</c> bu listeyi kullanarak yalnizca BU
+    /// surecin gercekten yurutuğu calistirmalarin heartbeat'ini yazar. Bir
+    /// baska ornegin Running satirini yanlislikla "canli" isaretlemek
+    /// uzlastirmanin butun amacini gecersiz kilardi -- bkz.
+    /// <c>docs/54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md</c>.
+    /// </remarks>
+    IReadOnlyCollection<Guid> ActiveRunIds { get; }
 }

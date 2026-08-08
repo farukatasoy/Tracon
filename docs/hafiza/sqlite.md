@@ -44,6 +44,15 @@
   Guid'ler (`DbHelpers.Add`) ile nullable Guid'ler (`Dialect.AddUuid`) FARKLI
   harf buyuklugu kullansaydi ayni kimlik iki temsille saklanir ve
   `WHERE`/`JOIN` esitligi sessizce kirilirdi.
+- **🚨 K-191'in dizi kardesi: `AddUuidArray` KUCUK harfli JSON uretir** (2026-08-09,
+  Faz 54, K-365): SQL Server/SQLite `AddUuidArray` `System.Text.Json` ile
+  `Guid[]`'i serilestirir ve varsayilan format kucuk harftir; `runs.id` gibi
+  `DbHelpers.Add` ile yazilan bir sutuna karsi `WHERE id IN (SELECT value FROM
+  json_each(@ids))` yazarsan harf uyusmazligi SESSIZCE sifir satir gunceller.
+  Faz 54 bu riski almamak icin `TouchHeartbeatAsync`'i dizi/`IN` yerine tekil
+  `UPDATE` donguisune tasidi. Gercekten bir dizi-esitligi gerekiyorsa, ya
+  serilestirmeden ONCE `Guid.ToString("D").ToUpperInvariant()` uygula ya da
+  karsilastirmayi `UPPER(value) = UPPER(id)` ile harf-duyarsiz yap.
 - **`decimal` icin ozel islem GEREKMEZ**: surucu tipli/tipsiz fark etmeksizin
   her zaman TEXT yazar, kulturden bagimsizdir. SQL Server'in `Precision`/`Scale`
   zorunlulugu (`sql-saglayicilari.md`) burada YOKTUR.

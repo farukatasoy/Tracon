@@ -13,15 +13,15 @@
 > Bir bölüm bir fazda büyüdüyse, **eski hâlini** arşive taşı; üst üste yığma.
 > Denetim: `python3 scripts/dokuman-bakim.py --denetle`
 
-## Güncel Durum (2026-08-08)
+## Güncel Durum (2026-08-09)
 
 | Paket | Rolü | Durum |
 |-------|------|-------|
 | `AgentPrism.Abstractions` | Sözleşmeler: kayıt, `store`, katalog, iş, eval, deney, kota, webhook, saklama. Bağımlılığı yok. | ✅ |
 | `AgentPrism.Core` | Çalıştırma yolu: derleyici, dekoratörler, kayıt, denetim, skill, workflow doğrulama, fiyat, kota, olay yayını, saklama, konuşma boru hattı (K-222). | ✅ |
-| `AgentPrism.PostgreSql` | Kalıcılık: `PostgresQueries` + `PostgresDialect` + gömülü SQL (`0001`–`0024`). `Store` mantığı `Sql.Shared` ile paylaşılır. `PgVectorSearchStore` (Faz 51) TEK istisnadır — `Sql.Shared`'den geçmez, doğrudan `Npgsql` kullanır (K4, K-344). | ✅ |
-| `AgentPrism.SqlServer` | SQL Server 2019+ / Azure SQL. Aynı `store`'lar, kendi T-SQL metni ve migration seti (`0001`–`0011`). Meta pakete dâhil değil (K-185). | ⚠️ gerçek `mssql/server` koşturulamadı (K-317) |
-| `AgentPrism.Sqlite` | Tek dosya/gömülü kalıcılık. Aynı `store`'lar, kendi SQL metni ve migration seti (`0001`–`0011`, K-190). Meta pakete dâhil değil | ✅ |
+| `AgentPrism.PostgreSql` | Kalıcılık: `PostgresQueries` + `PostgresDialect` + gömülü SQL (`0001`–`0026`). `Store` mantığı `Sql.Shared` ile paylaşılır. `PgVectorSearchStore` (Faz 51) TEK istisnadır — `Sql.Shared`'den geçmez, doğrudan `Npgsql` kullanır (K4, K-344). | ✅ |
+| `AgentPrism.SqlServer` | SQL Server 2019+ / Azure SQL. Aynı `store`'lar, kendi T-SQL metni ve migration seti (`0001`–`0013`). Meta pakete dâhil değil (K-185). | ⚠️ gerçek `mssql/server` koşturulamadı (K-317) |
+| `AgentPrism.Sqlite` | Tek dosya/gömülü kalıcılık. Aynı `store`'lar, kendi SQL metni ve migration seti (`0001`–`0013`, K-190). Meta pakete dâhil değil | ✅ |
 | `AgentPrism.Sql.Shared` | **Paket değil** — paylaşılan kaynak: 24 `store`, `SqlQueriesBase`, `SqlDialect` (K-198), migration runner (K-176). | ✅ |
 | `AgentPrism.OpenAI` | OpenAI ve OpenAI uyumlu her sağlayıcı + sağlık denetimi | ✅ |
 | `AgentPrism.Anthropic` | Anthropic (Claude) — resmî SDK, prompt caching, düşünme. Meta pakete dâhil değil (K-209). | ✅ |

@@ -108,6 +108,12 @@ public static class AgentPrismServiceCollectionExtensions
         // SectionName'ini tasir, ayri bir Use...() cagrisi gerektirmez.
         services.AddOptions<AgentPrismAsyncRunOptions>().ValidateOnStart();
 
+        // Oksuz calistirma uzlastirmasi (Faz 54). Ayni gerekce: kendi
+        // SectionName'ini tasir, ayri bir Use...() cagrisi gerektirmez.
+        // Varsayilan Enabled=false; kapaliyken heartbeat/uzlastirma
+        // sorgularinin hicbiri atilmaz (K1).
+        services.AddOptions<RunReconciliationOptions>().ValidateOnStart();
+
         // Bilgi tabani / anlamsal arama (Faz 51). Ayni gerekce: kendi SectionName'ini
         // tasir, ayri bir Use...() cagrisi gerektirmez. Yalniz bir IVectorSearchStore
         // (bugun yalniz PostgreSQL) VE bir IEmbeddingGenerator birlikte kayitliyken
@@ -140,6 +146,8 @@ public static class AgentPrismServiceCollectionExtensions
                 options => BindIdempotency(configurationSection.GetSection("Idempotency"), options));
             services.Configure<AgentPrismAsyncRunOptions>(
                 options => BindAsyncRun(configurationSection.GetSection("AsyncRun"), options));
+            services.Configure<RunReconciliationOptions>(
+                options => BindRunReconciliation(configurationSection.GetSection("RunReconciliation"), options));
             services.Configure<OnlineEvaluationOptions>(
                 options => BindOnlineEvaluation(configurationSection.GetSection("OnlineEvaluation"), options));
 
@@ -171,6 +179,8 @@ public static class AgentPrismServiceCollectionExtensions
             ServiceDescriptor.Singleton<IValidateOptions<AgentPrismRetentionOptions>, AgentPrismRetentionOptionsValidator>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<OnlineEvaluationOptions>, OnlineEvaluationOptionsValidator>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<RunReconciliationOptions>, RunReconciliationOptionsValidator>());
 
         services.AddLogging();
         services.TryAddEnumerable(
@@ -556,6 +566,13 @@ public static class AgentPrismServiceCollectionExtensions
 
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, JobWorkerBackgroundService>());
+
+        // Oksuz calistirma uzlastirmasi (Faz 54). Ikisi de RunReconciliationOptions.Enabled
+        // kapaliyken (varsayilan) hemen doner ve depoya hicbir sorgu atmaz (K1).
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, RunHeartbeatWriter>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, RunReconciliationService>());
 
         // A/B deneyleri (Faz 19). Admin'in olusturdugu/baslattigi/durdurdugu bir
         // varlik oldugu icin IAgentDefinitionStore ile ayni gerekceyle denetim
@@ -1374,6 +1391,53 @@ public static class AgentPrismServiceCollectionExtensions
                 out var maxAttempts))
         {
             options.MaxAttempts = maxAttempts;
+        }
+    }
+
+    /// <summary><c>AgentPrism:RunReconciliation</c> bolumunu baglar (Faz 54).</summary>
+    private static void BindRunReconciliation(IConfigurationSection section, RunReconciliationOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TryReadBool(section, nameof(RunReconciliationOptions.Enabled), out var enabled))
+        {
+            options.Enabled = enabled;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(RunReconciliationOptions.HeartbeatInterval)],
+                CultureInfo.InvariantCulture,
+                out var heartbeatInterval))
+        {
+            options.HeartbeatInterval = heartbeatInterval;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(RunReconciliationOptions.OrphanThreshold)],
+                CultureInfo.InvariantCulture,
+                out var orphanThreshold))
+        {
+            options.OrphanThreshold = orphanThreshold;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(RunReconciliationOptions.ScanInterval)],
+                CultureInfo.InvariantCulture,
+                out var scanInterval))
+        {
+            options.ScanInterval = scanInterval;
+        }
+
+        if (int.TryParse(
+                section[nameof(RunReconciliationOptions.MaxRunsPerScan)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxRunsPerScan))
+        {
+            options.MaxRunsPerScan = maxRunsPerScan;
         }
     }
 

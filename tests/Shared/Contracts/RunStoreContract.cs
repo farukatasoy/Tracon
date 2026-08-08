@@ -1290,4 +1290,117 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 
         (await Store.ListToolInvocationsAsync(runId)).ShouldHaveSingleItem();
     }
+
+    // --- Oksuz calistirma uzlastirmasi (Faz 54) ---
+
+    [Fact]
+    public async Task TouchHeartbeatAsync_var_olmayan_veya_Running_disi_kimlikte_sessizce_atlanir()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+        });
+
+        // Ne var olmayan bir kimlik ne de Completed bir satir hata firlatmali --
+        // bu bir bakim sinyalidir, calistirmayi kesmemelidir.
+        await Store.TouchHeartbeatAsync([runId, AgentPrismId.NewId()], DateTimeOffset.UtcNow);
+
+        (await Store.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Completed);
+    }
+
+    [Fact]
+    public async Task ClaimOrphanedRunsAsync_esigi_asan_Running_satiri_Failed_yapar()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = AgentPrismId.NewId();
+        var startedAt = DateTimeOffset.UtcNow.AddMinutes(-10);
+        await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = startedAt });
+
+        var claimed = await Store.ClaimOrphanedRunsAsync(
+            staleBefore: DateTimeOffset.UtcNow.AddMinutes(-5),
+            max: 10);
+
+        var record = claimed.ShouldHaveSingleItem();
+        record.Id.ShouldBe(runId);
+        record.Status.ShouldBe(RunStatus.Failed);
+        record.Error.ShouldNotBeNull();
+        record.Error!.Type.ShouldBe("orphaned");
+        record.Error.Class.ShouldBe(RunErrorClass.Infrastructure);
+
+        var stored = await Store.GetRunAsync(runId);
+        stored!.Status.ShouldBe(RunStatus.Failed);
+        stored.Error!.Type.ShouldBe("orphaned");
+
+        // RunEventWriter o surecte artik yoktur; olayi uzlastirma yazmalidir --
+        // olaysiz kapanan bir calistirma "neden bitti" sorusuna cevap veremez.
+        var events = new List<RunEvent>();
+
+        await foreach (var runEvent in Store.ReadEventsAsync(runId))
+        {
+            events.Add(runEvent);
+        }
+
+        events[^1].Type.ShouldBe(RunEventType.RunFailed);
+    }
+
+    [Fact]
+    public async Task ClaimOrphanedRunsAsync_esigi_asmayan_Running_satira_dokunmaz()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow });
+
+        var claimed = await Store.ClaimOrphanedRunsAsync(
+            staleBefore: DateTimeOffset.UtcNow.AddMinutes(-5),
+            max: 10);
+
+        claimed.ShouldNotContain(record => record.Id == runId);
+        (await Store.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Running);
+    }
+
+    [Fact]
+    public async Task ClaimOrphanedRunsAsync_Queued_satira_hicbir_kosulda_dokunmaz()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = AgentPrismId.NewId();
+        var startedAt = DateTimeOffset.UtcNow.AddMinutes(-10);
+        await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = startedAt, Status = RunStatus.Queued });
+
+        var claimed = await Store.ClaimOrphanedRunsAsync(
+            staleBefore: DateTimeOffset.UtcNow.AddMinutes(-5),
+            max: 10);
+
+        claimed.ShouldNotContain(record => record.Id == runId);
+        (await Store.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Queued);
+    }
+
+    [Fact]
+    public async Task TouchHeartbeatAsync_ile_tazelenen_satir_oksuz_sayilmaz()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = AgentPrismId.NewId();
+        var startedAt = DateTimeOffset.UtcNow.AddMinutes(-10);
+        await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = startedAt });
+
+        // heartbeat_at started_at'i EZER: eski bir baslangica ragmen yakin
+        // zamanda isaret vermis bir calistirma canli sayilmalidir.
+        await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow);
+
+        var claimed = await Store.ClaimOrphanedRunsAsync(
+            staleBefore: DateTimeOffset.UtcNow.AddMinutes(-5),
+            max: 10);
+
+        claimed.ShouldNotContain(record => record.Id == runId);
+        (await Store.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Running);
+    }
 }

@@ -492,5 +492,17 @@ public sealed class RunRecordingAgentTests
             string? tenantId = null,
             CancellationToken cancellationToken = default)
             => throw new InvalidOperationException("depo erisilemez");
+
+        public ValueTask TouchHeartbeatAsync(
+            IReadOnlyCollection<Guid> runIds,
+            DateTimeOffset at,
+            CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("depo erisilemez");
+
+        public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
+            DateTimeOffset staleBefore,
+            int max,
+            CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("depo erisilemez");
     }
 }

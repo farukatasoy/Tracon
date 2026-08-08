@@ -149,4 +149,62 @@ public interface IRunStore
         RunCost? cost,
         string? tenantId = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Suren calistirmalarin "hala buradayim" isaretini toplu gunceller (Faz 54).
+    /// </summary>
+    /// <param name="runIds">Isaretlenecek calistirmalarin kimlikleri.</param>
+    /// <param name="at">Isaret zamani (UTC).</param>
+    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <returns>Tamamlanma gorevi.</returns>
+    /// <remarks>
+    /// <para>
+    /// Yalniz <c>Running</c> satirlari etkiler; var olmayan veya baska bir
+    /// durumdaki bir kimlik sessizce atlanir -- bu bir bakim sinyalidir ve
+    /// calistirmayi kesmemelidir.
+    /// </para>
+    /// <para>
+    /// 🚨 <c>[TenantAgnostic]</c>: kimlikler cagiran surecin KENDI
+    /// <c>IRunCancellationRegistry</c> defterinden gelir ve zaten o surecin
+    /// gercekten yuruttugu calistirmalarla sinirlidir; ayrica bir kiraci
+    /// suzgeci kiraci basina ayri sorgu gerektirir ve heartbeat'in amacina
+    /// (dusuk maliyetli, sicak yola eklenmeyen bir sinyal) aykiridir.
+    /// </para>
+    /// </remarks>
+    ValueTask TouchHeartbeatAsync(
+        IReadOnlyCollection<Guid> runIds,
+        DateTimeOffset at,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Uzun sure heartbeat vermemis <c>Running</c> satirlari <c>Failed</c>
+    /// olarak kapatir ve nedenini yazar (Faz 54).
+    /// </summary>
+    /// <param name="staleBefore">
+    /// Bu zamandan once heartbeat vermis (veya hic vermemis) <c>Running</c>
+    /// satirlar oksuz sayilir (UTC).
+    /// </param>
+    /// <param name="max">Bu turda kapatilacak ust satir sayisi.</param>
+    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <returns>Kapatilan calistirmalarin kayitlari.</returns>
+    /// <remarks>
+    /// <para>
+    /// Kapatma ile birlikte olay akisina bir <see cref="RunEventType.RunFailed"/>
+    /// olayi yazilir -- calistirmayi yazan surec artik yoktur, bu yuzden olayi
+    /// bu metot cagirir. Sira numarasi mevcut en buyuk degerin bir fazlasidir.
+    /// </para>
+    /// <para>
+    /// Yalniz <c>Running</c> satirlari etkiler; <c>Queued</c> satirlarin
+    /// sahibi is kuyrugudur ve bu metot ONLARA DOKUNMAZ.
+    /// </para>
+    /// <para>
+    /// 🚨 <c>[TenantAgnostic]</c>: bu bir bakim isidir ve butun kiracilarin
+    /// oksuz satirlarini tarar; ambient kiraciyla suzmek diger kiracilarin
+    /// satirlarini sonsuza dek <c>Running</c> birakirdi.
+    /// </para>
+    /// </remarks>
+    ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
+        DateTimeOffset staleBefore,
+        int max,
+        CancellationToken cancellationToken = default);
 }
