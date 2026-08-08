@@ -73,4 +73,15 @@ public enum RunErrorClass
     /// ayarlarini gevsetmeyi, digeri politikayi gozden gecirmeyi gerektirir.
     /// </remarks>
     ContentBlocked = 11,
+
+    /// <summary>
+    /// Calistirmayi yuruten surec, saglayiciyla hic konusmadan kayboldu
+    /// (ornek: yeniden denemesiz bir <c>agent.RunAsync</c> cokusu).
+    /// </summary>
+    /// <remarks>
+    /// Bu sinifa yalnizca oksuz calistirma uzlastirmasi (Faz 54) duser. Diger
+    /// tum siniflar saglayicidan/toola/kotadan gelen bir yanita dayanir; bu ise
+    /// hicbir yanit ALINAMADIGI icin ayri bir sinif gerektirir.
+    /// </remarks>
+    Infrastructure = 12,
 }

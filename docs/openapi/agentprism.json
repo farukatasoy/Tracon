@@ -10899,6 +10899,7 @@
           "BudgetExceeded",
           "Canceled",
           "ContentBlocked",
+          "Infrastructure",
           null
         ]
       },
