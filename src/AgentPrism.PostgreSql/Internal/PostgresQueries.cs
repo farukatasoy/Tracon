@@ -1858,5 +1858,53 @@ internal sealed class PostgresQueries : SqlQueriesBase
         DeleteIdempotencyKey = $"""
             DELETE FROM {Schema}.idempotency_keys WHERE tenant_id = @tenant_id AND "key" = @key;
             """;
+
+        InsertPendingApproval = $"""
+            INSERT INTO {Schema}.pending_approvals
+                (id, tenant_id, run_id, session_id, request_id, tool_name, arguments, status,
+                 decided_by, decided_at, expires_at, created_at)
+            VALUES
+                (@id, @tenant_id, @run_id, @session_id, @request_id, @tool_name, @arguments, @status,
+                 @decided_by, @decided_at, @expires_at, @created_at);
+            """;
+
+        SelectPendingApprovals = $"""
+            SELECT id, tenant_id, run_id, session_id, request_id, tool_name, arguments, status,
+                   decided_by, decided_at, expires_at, created_at
+              FROM {Schema}.pending_approvals
+             WHERE tenant_id = @tenant_id AND status = @status
+             ORDER BY created_at ASC;
+            """;
+
+        SelectPendingApproval = $"""
+            SELECT id, tenant_id, run_id, session_id, request_id, tool_name, arguments, status,
+                   decided_by, decided_at, expires_at, created_at
+              FROM {Schema}.pending_approvals
+             WHERE id = @id AND tenant_id = @tenant_id;
+            """;
+
+        // WHERE status = @status_pending: ikinci bir karar 0 satir etkiler,
+        // DecideAsync bunu false olarak yorumlar.
+        DecidePendingApproval = $"""
+            UPDATE {Schema}.pending_approvals
+               SET status = @status, decided_by = @decided_by, decided_at = @decided_at
+             WHERE id = @id AND tenant_id = @tenant_id AND status = @status_pending;
+            """;
+
+        // ClaimOrphanedRuns ile AYNI desen: aday secimi + kapama TEK ifadede,
+        // RETURNING ile kapatilan satirlar okunur. Kiraci suzgeci YOKTUR — bir
+        // bakim islemidir.
+        ExpirePendingApprovals = $"""
+            UPDATE {Schema}.pending_approvals
+               SET status = @status_expired
+             WHERE id IN (
+                 SELECT id FROM {Schema}.pending_approvals
+                 WHERE status = @status_pending AND expires_at < @older_than
+                 ORDER BY expires_at ASC
+                 LIMIT @max
+             )
+             RETURNING id, tenant_id, run_id, session_id, request_id, tool_name, arguments, status,
+                       decided_by, decided_at, expires_at, created_at;
+            """;
     }
 }

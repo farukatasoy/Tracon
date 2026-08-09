@@ -662,3 +662,39 @@ public sealed class SqliteRunInputStoreContractTests(SqliteFixture fixture) : Ru
         }
     }
 }
+
+/// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />
+public sealed class SqlitePendingApprovalStoreContractTests(SqliteFixture fixture) : PendingApprovalStoreContract
+{
+    private SqliteTestContext? _context;
+
+    /// <inheritdoc />
+    protected override async ValueTask<IPendingApprovalStore> CreateStoreAsync()
+    {
+        _context = await SqliteTestContext.CreateAsync(fixture, AmbientTenant);
+        return _context.PendingApprovals;
+    }
+
+    /// <summary>
+    /// <c>pending_approvals.run_id</c> <c>runs</c> tablosuna yabanci anahtardir;
+    /// onay yazilmadan once satirin var olmasi gerekir.
+    /// </summary>
+    /// <inheritdoc />
+    protected override async ValueTask PrepareRunAsync(Guid runId, string tenantId)
+        => await _context!.Runs.StartRunAsync(new RunStartInfo
+        {
+            RunId = runId,
+            AgentName = "sozlesme",
+            StartedAt = DateTimeOffset.UtcNow,
+            TenantId = tenantId,
+        });
+
+    /// <inheritdoc />
+    protected override async ValueTask OnDisposeAsync()
+    {
+        if (_context is not null)
+        {
+            await _context.DisposeAsync();
+        }
+    }
+}

@@ -19,9 +19,9 @@
 |-------|------|-------|
 | `AgentPrism.Abstractions` | Sözleşmeler: kayıt, `store`, katalog, iş, eval, deney, kota, webhook, saklama. Bağımlılığı yok. | ✅ |
 | `AgentPrism.Core` | Çalıştırma yolu: derleyici, dekoratörler, kayıt, denetim, skill, workflow doğrulama, fiyat, kota, olay yayını, saklama, konuşma boru hattı (K-222). | ✅ |
-| `AgentPrism.PostgreSql` | Kalıcılık: `PostgresQueries` + `PostgresDialect` + gömülü SQL (`0001`–`0026`). `Store` mantığı `Sql.Shared` ile paylaşılır. `PgVectorSearchStore` (Faz 51) TEK istisnadır — `Sql.Shared`'den geçmez, doğrudan `Npgsql` kullanır (K4, K-344). | ✅ |
-| `AgentPrism.SqlServer` | SQL Server 2019+ / Azure SQL. Aynı `store`'lar, kendi T-SQL metni ve migration seti (`0001`–`0013`). Meta pakete dâhil değil (K-185). | ⚠️ gerçek `mssql/server` koşturulamadı (K-317) |
-| `AgentPrism.Sqlite` | Tek dosya/gömülü kalıcılık. Aynı `store`'lar, kendi SQL metni ve migration seti (`0001`–`0013`, K-190). Meta pakete dâhil değil | ✅ |
+| `AgentPrism.PostgreSql` | Kalıcılık: `PostgresQueries` + `PostgresDialect` + gömülü SQL (`0001`–`0027`). `Store` mantığı `Sql.Shared` ile paylaşılır. `PgVectorSearchStore` (Faz 51) TEK istisnadır — `Sql.Shared`'den geçmez, doğrudan `Npgsql` kullanır (K4, K-344). | ✅ |
+| `AgentPrism.SqlServer` | SQL Server 2019+ / Azure SQL. Aynı `store`'lar, kendi T-SQL metni ve migration seti (`0001`–`0014`). Meta pakete dâhil değil (K-185). | ⚠️ gerçek `mssql/server` koşturulamadı (K-317) |
+| `AgentPrism.Sqlite` | Tek dosya/gömülü kalıcılık. Aynı `store`'lar, kendi SQL metni ve migration seti (`0001`–`0014`, K-190). Meta pakete dâhil değil | ✅ |
 | `AgentPrism.Sql.Shared` | **Paket değil** — paylaşılan kaynak: 24 `store`, `SqlQueriesBase`, `SqlDialect` (K-198), migration runner (K-176). | ✅ |
 | `AgentPrism.OpenAI` | OpenAI ve OpenAI uyumlu her sağlayıcı + sağlık denetimi | ✅ |
 | `AgentPrism.Anthropic` | Anthropic (Claude) — resmî SDK, prompt caching, düşünme. Meta pakete dâhil değil (K-209). | ✅ |
@@ -190,6 +190,7 @@ erDiagram
     runs ||--o{ run_events : "(run_id, seq) PK"
     runs ||--o{ tool_invocations : "run_id"
     runs ||--o| traces : "run_id"
+    runs ||--o{ pending_approvals : "run_id (CASCADE)"
     traces ||--o{ spans : "trace_id"
 
 ```
@@ -246,6 +247,7 @@ yazılırsa aynı satır güncellenir, tekrar kaydı oluşmaz.
 | `retention_runs` | Temizleme koşusu geçmişi (Faz 25) |
 | `voice_sessions` | Konuşma bağlantısı özeti: tur, süre, karakter, kapanış nedeni. **Ses içermez**; `session_id` FK **değil** (Faz 29) |
 | `run_scores` | Çalıştırma/mesaj puanı: ikili/yıldız, yorum. `runs` FK yok (Faz 31) |
+| `pending_approvals` | Kuyruktan koşan bir çalıştırmanın bekleyen tool onayı — MAF oturum durumunun **izdüşümü**, sahibi değil. `run_id` FK **CASCADE** (Faz 55) |
 
 Kurallar:
 
@@ -321,7 +323,9 @@ deney varsa `ResolveAsync(name, version)` çağrılır — sürüm deneyden geli
 `/v1/*` ve alt-agent çağrıları bu adımı görmez (K-131).
 
 **Faz 46:** `Prefer: respond-async` → `Queued` satır + iş kuyruğu, `202`;
-işçi alınca diyagram normal işler (K-304).
+işçi alınca diyagram normal işler (K-304). Kök çalıştırma onay isteyerek
+biterse `AwaitingApproval` ile kapanır ve bir daha DEĞİŞMEZ (K-014); karar
+YENİ bir çalıştırma açar (Faz 55, K-368) — bkz. §7 "Tool onayı".
 
 ### Çalıştırma ağacı
 
@@ -506,6 +510,12 @@ Ek sınırlar:
 `ApprovalRequiredAIFunction` ile sarılır. Sarmalama **defterde** yapılır çünkü
 defter, "bir agent yalnızca kayıtlı bir tool'a işaret edebilir" kuralının
 zorlandığı tek yerdir; başka bir kod yolunun sarmalamayı atlaması mümkün olmaz.
+
+**Asenkron onay kutusu (Faz 55).** Kuyruktan koşan bir çalıştırma onay isteyip
+`AwaitingApproval`'a düşerse `pending_approvals` (izdüşüm) üzerinden
+`POST /api/approvals/{id}/decide` ile kararlanır — denetim izi karardan ÖNCE
+yazılır (K-089/K-370). Senkron/MCP/A2A yolu bu tabloya HİÇ yazmaz; oradaki
+onay bugünkü gibi bir sonraki turun `approvals` alanıyla çözülür (K-372).
 
 **MCP sınırı.** MCP sunucusu eklemek, dışarıdan gelen tool tanımlarını kabul etmek
 demektir ve tasarım kuralı K2'nin bilinçli istisnasıdır:

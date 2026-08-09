@@ -175,6 +175,9 @@ public static class AgentPrismSqliteBuilderExtensions
         // yeniden basladiktan sonra da calisir.
         services.Replace(ServiceDescriptor.Singleton<IRunInputStore, SqlRunInputStore>());
 
+        // Asenkron onay kutusu (Faz 55).
+        services.Replace(ServiceDescriptor.Singleton<IPendingApprovalStore, SqlPendingApprovalStore>());
+
         // Konusma dallandirma (Faz 47). Bellek ici karsiligi YOKTUR: MAF'in
         // InMemoryChatHistoryProvider'i gecmisi oturum durumunun opak blogunda
         // tutar ve belirli bir sira numarasina kadar kopyalanamaz. Kayit yalniz

@@ -80,6 +80,7 @@ internal sealed class PostgresTestContext : IAsyncDisposable
         IdempotencyKeys = new SqlIdempotencyStore(wrapped);
         RunInputs = new SqlRunInputStore(wrapped);
         ConversationBranches = new SqlConversationBranchStore(wrapped);
+        PendingApprovals = new SqlPendingApprovalStore(wrapped, TenantContext);
         Migrations = new MigrationRunner(wrapped, NullLogger<MigrationRunner>.Instance);
     }
 
@@ -112,6 +113,9 @@ internal sealed class PostgresTestContext : IAsyncDisposable
 
     /// <summary>Kalici onay kurali deposu (Faz 6).</summary>
     public SqlToolApprovalRuleStore ApprovalRules { get; }
+
+    /// <summary>Bekleyen onay istegi deposu (Faz 55).</summary>
+    public SqlPendingApprovalStore PendingApprovals { get; }
 
     /// <summary>MCP sunucu deposu (Faz 6).</summary>
     public SqlMcpServerStore McpServers { get; }

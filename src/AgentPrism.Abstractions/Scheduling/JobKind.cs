@@ -56,4 +56,17 @@ public enum JobKind
     /// isinin vaka kimligini tasima deseniyle aynidir.
     /// </remarks>
     OnlineEval = 6,
+
+    /// <summary>
+    /// Bir onay kararindan sonra kuyruga alinmis calistirmayi surduren
+    /// (Faz 55) YENI bir calistirma.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="AgentRun"/>'dan AYRIDIR: <c>AwaitingApproval</c> ile kapanmis
+    /// eski calistirma satiri BIR DAHA DEGISMEZ (K-014, <see cref="RunStatus.AwaitingInput"/>
+    /// ile ayni ilke); bu is YENI bir <c>RunId</c> ile YENI bir <c>runs</c>
+    /// satiri acar. Yuk, karari verilmis bir <see cref="PendingApproval"/>
+    /// kaydinin kimligini tasir.
+    /// </remarks>
+    ApprovalResume = 7,
 }

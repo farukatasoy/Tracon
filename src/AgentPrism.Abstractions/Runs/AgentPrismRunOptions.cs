@@ -50,6 +50,7 @@ public sealed class AgentPrismRunOptions : AgentRunOptions
         Variant = other.Variant;
         SessionId = other.SessionId;
         ReplayOfRunId = other.ReplayOfRunId;
+        SuspendOnApproval = other.SuspendOnApproval;
     }
 
     /// <summary>
@@ -146,6 +147,27 @@ public sealed class AgentPrismRunOptions : AgentRunOptions
     /// oynatmanin alt cagrilari kendi soy bagini tasimaz.
     /// </remarks>
     public Guid? ReplayOfRunId { get; init; }
+
+    /// <summary>
+    /// Yanit onay bekleyen bir tool cagrisi tasirsa calistirmayi
+    /// <see cref="RunStatus.Completed"/> yerine <see cref="RunStatus.AwaitingApproval"/>
+    /// ile kapatir (Faz 55).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Yalniz kuyruktan kosan (<c>Prefer: respond-async</c>) calistirmalarda
+    /// <see langword="true"/> verilir. Senkron HTTP/MCP/A2A yolunda canli bir
+    /// istemci baglantisi vardir ve istegi bir sonraki turde kendisi yanitlar;
+    /// bu yuzden varsayilan <see langword="false"/>'dur ve o yol bu alani hic
+    /// ayarlamaz — davranisi <strong>degismez</strong>.
+    /// </para>
+    /// <para>
+    /// Yalniz kok (<c>Depth == 0</c>) calistirmada anlamlidir. Bir alt agent'in
+    /// onay istemesi zaten <see cref="RunStatus.Failed"/> ile reddedilir (alt
+    /// agent onay isteyemez); bu alan o davranisi degistirmez.
+    /// </para>
+    /// </remarks>
+    public bool SuspendOnApproval { get; init; }
 
     /// <inheritdoc />
     /// <remarks>

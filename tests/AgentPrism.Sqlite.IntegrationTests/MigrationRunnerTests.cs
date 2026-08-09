@@ -39,7 +39,8 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
         // Faz 43 `idempotency_keys` tablosunu ekledi: 41 -> 42.
         // Faz 47 `run_inputs` tablosunu ekledi: 42 -> 43.
         // Faz 53 `api_keys` tablosunu ekledi: 43 -> 44.
-        tableCount.ShouldBe(44);
+        // Faz 55 `pending_approvals` tablosunu ekledi: 44 -> 45.
+        tableCount.ShouldBe(45);
     }
 
     [Fact]

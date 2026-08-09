@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
@@ -24,9 +26,8 @@ public static class AgentPrismMcpServerExtensions
     /// <exception cref="ArgumentNullException"><paramref name="endpoints"/> <see langword="null"/> ise.</exception>
     /// <exception cref="ArgumentException"><paramref name="pattern"/> bos ise.</exception>
     /// <exception cref="InvalidOperationException">
-    /// <c>UseMcpServer()</c> veya <c>MapAgentPrism()</c> onceden cagrilmamissa, uzak
-    /// erisim acikken cagrilmissa, veya disa acik bir agent onay gerektiren bir
-    /// tool tasiyorsa.
+    /// <c>UseMcpServer()</c> veya <c>MapAgentPrism()</c> onceden cagrilmamissa, veya
+    /// uzak erisim acikken cagrilmissa.
     /// </exception>
     /// <remarks>
     /// <para>
@@ -37,6 +38,14 @@ public static class AgentPrismMcpServerExtensions
     /// <para>
     /// 🚨 <c>AllowRemoteAccess</c> aciksa acilista hata verilir. Tek statik token,
     /// disa acilmis bir agent yuzeyi icin yeterli degildir (bolum 50.4).
+    /// </para>
+    /// <para>
+    /// 🚨 Disa acik bir agent onay gerektiren bir tool tasiyorsa uygulama YINE
+    /// hata verir — ama bu metottan senkron olarak degil,
+    /// <see cref="McpApprovalGuardFilter"/> uzerinden: denetim SQL semasi hazir
+    /// olana kadar arka planda bekler (boylece bos bir veritabaninda bu metodun
+    /// kendisi "no such table" ile cokmez, K-354'un ayni deseni), ilk isteğe
+    /// kadar tamamlanir ve hicbir istek onun onune gecemez.
     /// </para>
     /// </remarks>
     public static IEndpointConventionBuilder MapAgentPrismMcpServer(
@@ -57,23 +66,16 @@ public static class AgentPrismMcpServerExtensions
         ExternalSurfaceGuard.EnsureRemoteAccessNotCombined(
             endpointOptions.AllowRemoteAccess, "MCP", services.GetRequiredService<IApiKeyStore>());
 
-        var mcpOptions = mcpOptionsMonitor.CurrentValue;
-        var catalog = services.GetRequiredService<IAgentCatalog>();
-        var toolRegistry = services.GetRequiredService<IToolRegistry>();
-
-        // Senkron cagri BILEREK yapilir: ASP.NET Core'un minimal barindirma
-        // modelinde bir ambient SynchronizationContext yoktur, dolayisiyla
-        // acilista bir kere calisan bu denetim icin kilitlenme riski taşımaz.
-        var descriptors = catalog.ListAsync().AsTask().GetAwaiter().GetResult();
-
-        ExternalSurfaceGuard.EnsureNoApprovalRequiredTools(
-            descriptors,
-            mcpOptions.ExposedAgents,
-            mcpOptions.ExposeAllAgents,
-            toolRegistry,
-            "MCP");
+        var approvalGuardFilter = new McpApprovalGuardFilter(
+            services.GetRequiredService<SchemaReadyGate>(),
+            services.GetRequiredService<IAgentCatalog>(),
+            services.GetRequiredService<IToolRegistry>(),
+            mcpOptionsMonitor,
+            services.GetRequiredService<IHostApplicationLifetime>(),
+            services.GetRequiredService<ILogger<McpApprovalGuardFilter>>());
 
         var group = endpoints.MapGroup(pattern).WithTags("AgentPrism", "MCP");
+        group.AddEndpointFilter(approvalGuardFilter);
         group.AddEndpointFilter(new AgentPrismEndpointFilter(endpointOptions));
         group.RequireApiKeyScope(ApiKeyScope.ExternalInvoke);
 
