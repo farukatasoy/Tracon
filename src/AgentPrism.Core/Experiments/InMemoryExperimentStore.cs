@@ -163,4 +163,95 @@ public sealed class InMemoryExperimentStore : IExperimentStore
         _experiments[key] = stopped;
         return new ValueTask<Experiment>(stopped);
     }
+
+    /// <inheritdoc />
+    public ValueTask<IReadOnlyList<Experiment>> ListRunningWithCanaryAsync(CancellationToken cancellationToken = default)
+    {
+        var result = _experiments.Values
+            .Where(static experiment => experiment.Status == ExperimentStatus.Running && experiment.Canary is not null)
+            .ToList();
+
+        return new ValueTask<IReadOnlyList<Experiment>>(result);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<Experiment> SetCanaryPolicyAsync(
+        string tenantId,
+        string name,
+        CanaryPolicy? policy,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(tenantId);
+        ArgumentNullException.ThrowIfNull(name);
+
+        var key = (tenantId, name);
+
+        if (!_experiments.TryGetValue(key, out var experiment))
+        {
+            throw new AgentPrismException($"'{name}' adinda bir deney bulunamadi.");
+        }
+
+        var updated = experiment with
+        {
+            Canary = policy,
+            UpdatedAt = DateTimeOffset.UtcNow,
+        };
+
+        _experiments[key] = updated;
+        return new ValueTask<Experiment>(updated);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<Experiment> AdvanceCanaryRampAsync(
+        string tenantId,
+        string name,
+        IReadOnlyList<ExperimentVariant> variants,
+        CancellationToken cancellationToken = default)
+        => ApplyCanaryVariantsAsync(tenantId, name, variants, stop: false, reason: null);
+
+    /// <inheritdoc />
+    public ValueTask<Experiment> RollbackCanaryAsync(
+        string tenantId,
+        string name,
+        IReadOnlyList<ExperimentVariant> variants,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(reason);
+
+        return ApplyCanaryVariantsAsync(tenantId, name, variants, stop: true, reason: reason);
+    }
+
+    private ValueTask<Experiment> ApplyCanaryVariantsAsync(
+        string tenantId,
+        string name,
+        IReadOnlyList<ExperimentVariant> variants,
+        bool stop,
+        string? reason)
+    {
+        ArgumentNullException.ThrowIfNull(tenantId);
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(variants);
+
+        var key = (tenantId, name);
+
+        if (!_experiments.TryGetValue(key, out var experiment) || experiment.Status != ExperimentStatus.Running)
+        {
+            throw new AgentPrismException($"'{name}' deneyi calismiyor.");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+
+        var updated = experiment with
+        {
+            Variants = variants,
+            Status = stop ? ExperimentStatus.Stopped : experiment.Status,
+            EndedAt = stop ? now : experiment.EndedAt,
+            RollbackReason = stop ? reason : experiment.RollbackReason,
+            UpdatedAt = now,
+        };
+
+        _experiments[key] = updated;
+        return new ValueTask<Experiment>(updated);
+    }
 }

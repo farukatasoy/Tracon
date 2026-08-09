@@ -61,6 +61,18 @@ internal abstract class SqlQueriesBase
     /// <summary>Bir deneyin kol bazinda calistirma sonuclarini cikarir.</summary>
     public string SelectExperimentResults { get; protected set; } = string.Empty;
 
+    /// <summary>Butun kiracilardaki, Running VE kanarya kurali tanimli deneyleri listeler.</summary>
+    public string SelectRunningExperimentsWithCanary { get; protected set; } = string.Empty;
+
+    /// <summary>Bir deneyin kanarya kuralini tanimlar veya kaldirir.</summary>
+    public string SetExperimentCanaryPolicy { get; protected set; } = string.Empty;
+
+    /// <summary>Kanarya kademeli artirma adimini uygular (yalniz agirlik, Running kalir).</summary>
+    public string AdvanceExperimentCanaryRamp { get; protected set; } = string.Empty;
+
+    /// <summary>Kanarya otomatik geri almasini uygular (agirlik + Stopped + neden).</summary>
+    public string RollbackExperimentCanary { get; protected set; } = string.Empty;
+
     /// <summary>Trace basligini ekler veya gunceller ve kimligini dondurur.</summary>
     public string UpsertTrace { get; protected set; } = string.Empty;
 

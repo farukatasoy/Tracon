@@ -4,7 +4,7 @@
 
 AgentPrism, [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/) üzerine kurulu bir .NET paket ailesidir. Geliştirici AI harness'ini kurar, `/agentprism` üzerinden yönetir.
 
-> **Durum:** Faz 55 tamamlandı — AgentPrism **işletilebilirdir**. `dotnet new agentprism-api` ile başlatılır, `AgentPrism.Testing` ile model çağırmadan test edilir. Çalıştırmalar span/metrik/maliyetle kaydedilir, kiracı yalıtılır, agent'lar MCP/A2A ile dışa açılır, `pgvector` ile anlamsal arama yapılır, API anahtarıyla erişim daralır. Faz 8–55 bitti; [Faz 56](docs/UCUNCU-FAZ-YOL-HARITASI.md) planlı.
+> **Durum:** Faz 56 tamamlandı — AgentPrism **işletilebilirdir**. `dotnet new agentprism-api` ile başlatılır, `AgentPrism.Testing` ile model çağırmadan test edilir. Çalıştırmalar span/metrik/maliyetle kaydedilir, kiracı yalıtılır, agent'lar MCP/A2A ile dışa açılır, `pgvector` ile anlamsal arama yapılır, API anahtarıyla erişim daralır, A/B deneyleri kanarya kuralıyla otomatik geri alınır. Faz 8–56 bitti; dördüncü dalga tamamlandı.
 
 ```csharp
 builder.AddAgentPrism()
@@ -255,8 +255,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [20](docs/20-MALIYET-VE-GOSTERGE-PANELI.md) | Maliyet raporlaması ve gösterge paneli: fiyat kataloğu/yapılandırması, Dashboard giriş ekranı | ✅ Tamamlandı |
 | [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | ✅ Tamamı bitti |
 | [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 31–52): puanlamadan RAG'a on dokuz yetenek | **31–52 bitti** |
-| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Dördüncü dalga (53–55): API anahtarı, öksüz çalıştırma, asenkron onay kutusu | **53–55 bitti** |
-| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Dördüncü dalga: [56](docs/56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md) | 📋 Planlandı |
+| [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Dördüncü dalga (53–56): API anahtarı, öksüz çalıştırma, asenkron onay kutusu, [kanarya yayını](docs/56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md) | **53–56 bitti** |
 | [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
 
 

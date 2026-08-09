@@ -715,26 +715,39 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // --- Deneyler (Faz 19) ---
 
         SelectExperiments = $"""
-            SELECT id, tenant_id, name, agent_name, variants, status, assignment_key, started_at, ended_at, updated_at
+            SELECT id, tenant_id, name, agent_name, variants, status, assignment_key, started_at, ended_at, updated_at,
+                   canary_policy, rollback_reason
             FROM {Schema}.experiments
             WHERE tenant_id = @tenant_id
             ORDER BY name;
             """;
 
         SelectExperiment = $"""
-            SELECT id, tenant_id, name, agent_name, variants, status, assignment_key, started_at, ended_at, updated_at
+            SELECT id, tenant_id, name, agent_name, variants, status, assignment_key, started_at, ended_at, updated_at,
+                   canary_policy, rollback_reason
             FROM {Schema}.experiments
             WHERE tenant_id = @tenant_id AND name = @name;
             """;
 
         SelectRunningExperiment = $"""
-            SELECT id, tenant_id, name, agent_name, variants, status, assignment_key, started_at, ended_at, updated_at
+            SELECT id, tenant_id, name, agent_name, variants, status, assignment_key, started_at, ended_at, updated_at,
+                   canary_policy, rollback_reason
             FROM {Schema}.experiments
             WHERE tenant_id = @tenant_id AND agent_name = @agent_name AND status = 1;
             """;
 
+        SelectRunningExperimentsWithCanary = $"""
+            SELECT id, tenant_id, name, agent_name, variants, status, assignment_key, started_at, ended_at, updated_at,
+                   canary_policy, rollback_reason
+            FROM {Schema}.experiments
+            WHERE status = 1 AND canary_policy IS NOT NULL;
+            """;
+
         // Draft-disi bir deneyi guncelleme girisimi 0 satir dondurur; cagiran
         // taraf bunu onceden GetAsync ile ayirt edip anlamli bir hata verir.
+        // canary_policy/rollback_reason BILEREK SET listesinde YOK: bir Draft
+        // duzenlemesi (SaveAsync) daha once SetCanaryPolicyAsync ile tanimlanmis
+        // kurali silmemelidir.
         UpsertExperiment = $"""
             INSERT INTO {Schema}.experiments (id, tenant_id, name, agent_name, variants, status, assignment_key, updated_at)
             VALUES (@id, @tenant_id, @name, @agent_name, @variants, 0, @assignment_key, @updated_at)
@@ -766,23 +779,58 @@ internal sealed class PostgresQueries : SqlQueriesBase
             RETURNING id;
             """;
 
+        // Durumdan BAGIMSIZ calisir (Draft veya Running) — SaveAsync'in aksine.
+        SetExperimentCanaryPolicy = $"""
+            UPDATE {Schema}.experiments
+            SET canary_policy = @canary_policy, updated_at = @now
+            WHERE tenant_id = @tenant_id AND name = @name
+            RETURNING id;
+            """;
+
+        AdvanceExperimentCanaryRamp = $"""
+            UPDATE {Schema}.experiments
+            SET variants = @variants, updated_at = @now
+            WHERE tenant_id = @tenant_id AND name = @name AND status = 1
+            RETURNING id;
+            """;
+
+        RollbackExperimentCanary = $"""
+            UPDATE {Schema}.experiments
+            SET variants = @variants, status = 2, ended_at = @now, rollback_reason = @rollback_reason, updated_at = @now
+            WHERE tenant_id = @tenant_id AND name = @name AND status = 1
+            RETURNING id;
+            """;
+
+        // run_avg_scores: ONCE calistirma basina ortalama (yazar/judge sayisindan
+        // bagimsiz), SONRA varyant basina bu ortalamalarin ortalamasi. Dogrudan
+        // run_scores JOIN'i (calistirma basina birden fazla puan satiri olabilir)
+        // GROUP BY variant'taki TUM diger toplamlari (token, maliyet, sayim) da
+        // COGALTIRDI — bu yuzden AYRI bir CTE ile once calistirma duzeyine indirilir.
         SelectExperimentResults = $"""
-            SELECT variant,
-                   MAX(agent_version)::int,
+            WITH run_avg_scores AS (
+                SELECT run_id, AVG(value) AS avg_score
+                FROM {Schema}.run_scores
+                WHERE tenant_id = @tenant_id AND kind = @score_kind_numeric AND message_id IS NULL
+                GROUP BY run_id
+            )
+            SELECT r.variant,
+                   MAX(r.agent_version)::int,
                    COUNT(*)::bigint,
-                   COUNT(*) FILTER (WHERE status = @status_completed)::bigint,
-                   COUNT(*) FILTER (WHERE status = @status_failed)::bigint,
-                   COUNT(*) FILTER (WHERE status = @status_canceled)::bigint,
-                   COALESCE(SUM(input_tokens), 0)::bigint,
-                   COALESCE(SUM(output_tokens), 0)::bigint,
-                   COALESCE(SUM(total_tokens), 0)::bigint,
-                   AVG(EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000) FILTER (WHERE completed_at IS NOT NULL),
-                   CASE WHEN COUNT(*) FILTER (WHERE input_cost IS NOT NULL OR output_cost IS NOT NULL) = 0
-                        THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) END,
-                   MAX(cost_currency)
-            FROM {Schema}.runs
-            WHERE tenant_id = @tenant_id AND experiment_id = @experiment_id AND variant IS NOT NULL
-            GROUP BY variant;
+                   COUNT(*) FILTER (WHERE r.status = @status_completed)::bigint,
+                   COUNT(*) FILTER (WHERE r.status = @status_failed)::bigint,
+                   COUNT(*) FILTER (WHERE r.status = @status_canceled)::bigint,
+                   COALESCE(SUM(r.input_tokens), 0)::bigint,
+                   COALESCE(SUM(r.output_tokens), 0)::bigint,
+                   COALESCE(SUM(r.total_tokens), 0)::bigint,
+                   AVG(EXTRACT(EPOCH FROM (r.completed_at - r.started_at)) * 1000) FILTER (WHERE r.completed_at IS NOT NULL),
+                   CASE WHEN COUNT(*) FILTER (WHERE r.input_cost IS NOT NULL OR r.output_cost IS NOT NULL) = 0
+                        THEN NULL ELSE COALESCE(SUM(r.input_cost), 0) + COALESCE(SUM(r.output_cost), 0) END,
+                   MAX(r.cost_currency),
+                   AVG(s.avg_score)
+            FROM {Schema}.runs r
+            LEFT JOIN run_avg_scores s ON s.run_id = r.id
+            WHERE r.tenant_id = @tenant_id AND r.experiment_id = @experiment_id AND r.variant IS NOT NULL
+            GROUP BY r.variant;
             """;
 
         // Bos kovalar da doner (generate_series + LEFT JOIN): aksi halde

@@ -19,3 +19,20 @@ public sealed record ExperimentResultsResponse
     /// <summary>Kol bazinda sonuclar.</summary>
     public required IReadOnlyList<ExperimentVariantResult> Results { get; init; }
 }
+
+/// <summary>
+/// <c>GET /api/experiments/{name}/canary</c> yaniti — kural VE guncel degerlendirme
+/// bir arada.
+/// </summary>
+/// <remarks>
+/// <see cref="Evaluation"/> KALICI DEGILDIR: her cagrida <c>CanaryEvaluator</c> ile
+/// CANLI hesaplanir (bkz. <see cref="CanaryEvaluation"/> sinif belgesi).
+/// </remarks>
+public sealed record ExperimentCanaryResponse
+{
+    /// <summary>Tanimli kanarya kurali. Hic tanimlanmamissa <see langword="null"/>.</summary>
+    public CanaryPolicy? Policy { get; init; }
+
+    /// <summary>Kuralin guncel degerlendirmesi. <see cref="Policy"/> <see langword="null"/> ise <see langword="null"/>.</summary>
+    public CanaryEvaluation? Evaluation { get; init; }
+}

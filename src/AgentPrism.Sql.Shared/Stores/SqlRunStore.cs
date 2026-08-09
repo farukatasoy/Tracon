@@ -647,6 +647,7 @@ internal sealed class SqlRunStore : IRunStore
         DbHelpers.Add(command, "status_completed", (short)RunStatus.Completed);
         DbHelpers.Add(command, "status_failed", (short)RunStatus.Failed);
         DbHelpers.Add(command, "status_canceled", (short)RunStatus.Canceled);
+        DbHelpers.Add(command, "score_kind_numeric", (short)RunScoreKind.Numeric);
 
         return await DbHelpers
             .ReadListAsync(command, ReadExperimentVariantResult, cancellationToken)
@@ -942,6 +943,7 @@ internal sealed class SqlRunStore : IRunStore
             AverageDurationMs = reader.IsDBNull(9) ? null : reader.GetDouble(9),
             TotalCost = DbHelpers.GetNullableDecimal(reader, 10),
             Currency = DbHelpers.GetNullableString(reader, 11),
+            AverageScore = reader.IsDBNull(12) ? null : reader.GetDouble(12),
         };
 
     private void AddNullableText(DbCommand command, string name, string? value)

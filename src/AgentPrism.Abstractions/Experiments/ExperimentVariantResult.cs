@@ -64,4 +64,12 @@ public sealed record ExperimentVariantResult
             return settled == 0 ? null : (double)FailedRuns / settled;
         }
     }
+
+    /// <summary>
+    /// Bu kola atanmis calistirmalarin ortalama sayisal puani (0-100), Faz 49'un
+    /// <c>RunScoreKind.Numeric</c> puanlarindan. Hic puanlanmis calistirma yoksa
+    /// <see langword="null"/> — <c>0</c> DEGIL, "bilinmiyor" (mevcut <c>RunCost</c>
+    /// sozlesmesiyle tutarli).
+    /// </summary>
+    public double? AverageScore { get; init; }
 }

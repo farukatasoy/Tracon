@@ -148,6 +148,65 @@ public sealed class AuditingExperimentStore : IExperimentStore, IAuditDecorated
         return stopped;
     }
 
+    /// <inheritdoc />
+    public ValueTask<IReadOnlyList<Experiment>> ListRunningWithCanaryAsync(CancellationToken cancellationToken = default)
+        => _inner.ListRunningWithCanaryAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public async ValueTask<Experiment> SetCanaryPolicyAsync(
+        string tenantId,
+        string name,
+        CanaryPolicy? policy,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(tenantId);
+        ArgumentNullException.ThrowIfNull(name);
+
+        var existing = await _inner.GetAsync(tenantId, name, cancellationToken).ConfigureAwait(false);
+        var updated = await _inner.SetCanaryPolicyAsync(tenantId, name, policy, cancellationToken).ConfigureAwait(false);
+
+        await AuditRecorder.WriteAsync(
+            _auditLog,
+            _actorResolver,
+            _logger,
+            _tenantContext.TenantId,
+            action: "experiment.canary_policy",
+            entity: $"experiment:{name}",
+            before: existing is null ? null : Serialize(existing),
+            after: Serialize(updated),
+            cancellationToken).ConfigureAwait(false);
+
+        return updated;
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Denetlenmez: yalnizca <c>CanaryEvaluationService</c> tarafindan cagrilir ve
+    /// kademeli artirma 56.2 akis semasina gore denetim izine yazilmaz (yalniz geri
+    /// alma yazilir, bkz. <see cref="RollbackCanaryAsync"/>).
+    /// </remarks>
+    public ValueTask<Experiment> AdvanceCanaryRampAsync(
+        string tenantId,
+        string name,
+        IReadOnlyList<ExperimentVariant> variants,
+        CancellationToken cancellationToken = default)
+        => _inner.AdvanceCanaryRampAsync(tenantId, name, variants, cancellationToken);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Denetlenmez: caginan <c>CanaryEvaluationService</c>, K-089 emsaline uyarak bu
+    /// metodu cagirmadan ONCE kendi denetim kaydini <see cref="IAuditLog.WriteAsync"/>
+    /// ile dogrudan yazar. Burada AYRICA en-iyi-caba bir kayit yazmak, yazma
+    /// basarisiz oldugunda geri almanin yine de uygulanmis olmasi riskini tasirdi.
+    /// </remarks>
+    public ValueTask<Experiment> RollbackCanaryAsync(
+        string tenantId,
+        string name,
+        IReadOnlyList<ExperimentVariant> variants,
+        string reason,
+        CancellationToken cancellationToken = default)
+        => _inner.RollbackCanaryAsync(tenantId, name, variants, reason, cancellationToken);
+
     private static string Serialize(Experiment experiment)
         => JsonSerializer.Serialize(experiment, AgentPrismCoreJsonContext.Default.Experiment);
 }

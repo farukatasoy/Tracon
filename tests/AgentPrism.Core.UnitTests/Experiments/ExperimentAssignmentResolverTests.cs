@@ -85,6 +85,69 @@ public sealed class ExperimentAssignmentResolverTests
         variant.Name.ShouldBeOneOf("a", "b");
     }
 
+    [Fact]
+    public void Kanarya_araligi_fiziksel_sıradan_bagimsiz_hesaplanir()
+    {
+        // control ILK sirada (agirlik 95), canary IKINCI (agirlik 5) -- fiziksel
+        // sira control-once. Kanarya kurali TANIMLI oldugunda bucket hesaplamasi
+        // yine de kanaryayi [0, 5) araligina, control'u [5, 100) araligina koymali
+        // -- 56.4'un "var olan oturumlar kolunu degistirmez" garantisinin temeli.
+        var experiment = Experiment(
+            new ExperimentVariant { Name = "control", Version = 1, Weight = 95 },
+            new ExperimentVariant { Name = "canary", Version = 2, Weight = 5 }) with
+        {
+            Canary = new CanaryPolicy { CanaryVariant = "canary", MinSampleSize = 20 },
+        };
+
+        // Ayni deney, kanarya SIRAYA konmus (fiziksel sira artik onemsiz olmali).
+        var reordered = experiment with
+        {
+            Variants =
+            [
+                new ExperimentVariant { Name = "canary", Version = 2, Weight = 5 },
+                new ExperimentVariant { Name = "control", Version = 1, Weight = 95 },
+            ],
+        };
+
+        for (var i = 0; i < 200; i++)
+        {
+            var key = $"anahtar-{i}";
+
+            ExperimentAssignmentResolver.SelectVariant(experiment, key).Name
+                .ShouldBe(ExperimentAssignmentResolver.SelectVariant(reordered, key).Name);
+        }
+    }
+
+    [Fact]
+    public void Kanarya_agirligi_buyudukce_onceden_kanaryaya_dusen_anahtar_kontrole_kaymaz()
+    {
+        var narrow = Experiment(
+            new ExperimentVariant { Name = "control", Version = 1, Weight = 95 },
+            new ExperimentVariant { Name = "canary", Version = 2, Weight = 5 }) with
+        {
+            Canary = new CanaryPolicy { CanaryVariant = "canary", MinSampleSize = 20 },
+        };
+
+        var wide = narrow with
+        {
+            Variants =
+            [
+                new ExperimentVariant { Name = "canary", Version = 2, Weight = 25 },
+                new ExperimentVariant { Name = "control", Version = 1, Weight = 75 },
+            ],
+        };
+
+        for (var i = 0; i < 200; i++)
+        {
+            var key = $"anahtar-{i}";
+
+            if (string.Equals(ExperimentAssignmentResolver.SelectVariant(narrow, key).Name, "canary", StringComparison.Ordinal))
+            {
+                ExperimentAssignmentResolver.SelectVariant(wide, key).Name.ShouldBe("canary");
+            }
+        }
+    }
+
     private static Experiment Experiment(params ExperimentVariant[] variants)
         => new()
         {

@@ -48,4 +48,16 @@ public sealed record Experiment
 
     /// <summary>Son degistirilme zamani (UTC).</summary>
     public DateTimeOffset? UpdatedAt { get; init; }
+
+    /// <summary>
+    /// Kanarya kurallari. <see langword="null"/> ise otomatik karar YOKTUR (K1) —
+    /// hicbir arka plan servisi bu deneyi degerlendirmez.
+    /// </summary>
+    public CanaryPolicy? Canary { get; init; }
+
+    /// <summary>
+    /// Otomatik geri almanin nedeni. Deney elle durdurulmus veya hic durdurulmamissa
+    /// <see langword="null"/>.
+    /// </summary>
+    public string? RollbackReason { get; init; }
 }

@@ -3007,6 +3007,86 @@
         }
       }
     },
+    "/agentprism/api/experiments/{name}/canary": {
+      "put": {
+        "tags": [
+          "AgentPrism",
+          "Experiments"
+        ],
+        "summary": "Kanarya kuralini tanimlar veya kaldirir (govde \u0027null\u0027).",
+        "description": "Yalnizca iki kollu deneylerde tanimlanabilir: kanaryaVariant kanarya, kalan TEK kol kontrol sayilir. Deneyin durumundan bagimsiz calisir (Draft veya Running).",
+        "operationId": "AgentPrismSetExperimentCanary",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CanaryPolicy"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Experiment"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "AgentPrism",
+          "Experiments"
+        ],
+        "summary": "Kanarya kuralini ve guncel degerlendirmesini getirir.",
+        "description": "Degerlendirme kalici degildir; her cagrida guncel calistirma sonuclariyla yeniden hesaplanir.",
+        "operationId": "AgentPrismGetExperimentCanary",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentCanaryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/agentprism/api/tools": {
       "get": {
         "tags": [
@@ -7762,6 +7842,119 @@
         },
         "description": "Kim, ne zaman, hangi varligi degistirdigini kaydeden bir denetim izi satiri."
       },
+      "CanaryDecisionKind": {
+        "enum": [
+          "InsufficientData",
+          "Healthy",
+          "RollBack"
+        ],
+        "description": "Bir kanarya degerlendirmesinin sonucu."
+      },
+      "CanaryEvaluation": {
+        "required": [
+          "decision",
+          "reason",
+          "evaluatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "decision": {
+            "description": "Degerlendirmenin sonucu.",
+            "$ref": "#/components/schemas/CanaryDecisionKind"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Kararin insan tarafindan okunabilir gerekcesi."
+          },
+          "canary": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Kanarya kolunun guncel sonuclari. Hic calistirma yoksa \u0060null\u0060.",
+                "$ref": "#/components/schemas/ExperimentVariantResult"
+              }
+            ]
+          },
+          "control": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Kontrol kolunun guncel sonuclari. Hic calistirma yoksa \u0060null\u0060.",
+                "$ref": "#/components/schemas/ExperimentVariantResult"
+              }
+            ]
+          },
+          "evaluatedAt": {
+            "type": "string",
+            "description": "Degerlendirmenin yapildigi an (UTC).",
+            "format": "date-time"
+          }
+        },
+        "description": "Bir kanarya politikasinin, kanarya ve kontrol kolunun GUNCEL sonuclarina karsi\ndegerlendirilmesinin sonucu."
+      },
+      "CanaryPolicy": {
+        "required": [
+          "canaryVariant"
+        ],
+        "type": "object",
+        "properties": {
+          "canaryVariant": {
+            "type": "string",
+            "description": "Kanarya kolunun adi. Deneyin \u0060Variants\u0060 listesinde bulunmalidir."
+          },
+          "maxErrorRateDelta": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "Kanaryanin hata orani kontrolden bu kadar YUKSEKSE geri alinir (mutlak fark,\n0.0-1.0). \u0060null\u0060 ise hata orani denetlenmez.",
+            "format": "double"
+          },
+          "minScore": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Kanaryanin ortalama puani (0-100) bu esigin ALTINDAYSA geri alinir.\n\u0060null\u0060 ise puan denetlenmez.",
+            "format": "int32"
+          },
+          "minSampleSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Bir karar verilmeden once hem kanarya hem kontrol kolunun ulasmasi gereken\nasgari sonuclanmis calistirma sayisi.",
+            "format": "int32"
+          },
+          "rampSteps": {
+            "type": "array",
+            "items": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            },
+            "description": "Kanarya agirliginin zamanla artacagi adimlar (ornek: \u0060[5, 25, 50, 100]\u0060).\nBos ise kademeli artirma calismaz; kanarya agirligi \u0060SaveAsync\u0060\u0027te\ntanimlanan degerde sabit kalir ve yalniz geri alma denetlenir."
+          },
+          "rampInterval": {
+            "pattern": "^-?(\\d\u002B\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": "string",
+            "description": "Adimlar arasindaki asgari sure."
+          }
+        },
+        "description": "Bir deneyin kanarya kolu icin otomatik geri alma ve kademeli trafik artirma kurallari."
+      },
       "ChatChoice": {
         "required": [
           "index",
@@ -8624,9 +8817,55 @@
             ],
             "description": "Son degistirilme zamani (UTC).",
             "format": "date-time"
+          },
+          "canary": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Kanarya kurallari. \u0060null\u0060 ise otomatik karar YOKTUR (K1) \u2014\nhicbir arka plan servisi bu deneyi degerlendirmez.",
+                "$ref": "#/components/schemas/CanaryPolicy"
+              }
+            ]
+          },
+          "rollbackReason": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Otomatik geri almanin nedeni. Deney elle durdurulmus veya hic durdurulmamissa\n\u0060null\u0060."
           }
         },
         "description": "Ayni agent\u0027in iki veya daha fazla tanim surumu arasinda trafigi bolen bir A/B deneyi."
+      },
+      "ExperimentCanaryResponse": {
+        "type": "object",
+        "properties": {
+          "policy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Tanimli kanarya kurali. Hic tanimlanmamissa \u0060null\u0060.",
+                "$ref": "#/components/schemas/CanaryPolicy"
+              }
+            ]
+          },
+          "evaluation": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Kuralin guncel degerlendirmesi. CanaryPolicy? ExperimentCanaryResponse.Policy\u0060null\u0060 ise \u0060null\u0060.",
+                "$ref": "#/components/schemas/CanaryEvaluation"
+              }
+            ]
+          }
+        },
+        "description": "\u0060GET /api/experiments/{name}/canary\u0060 yaniti \u2014 kural VE guncel degerlendirme\n        bir arada."
       },
       "ExperimentResultsResponse": {
         "required": [
@@ -8833,6 +9072,16 @@
               "string"
             ],
             "description": "Sonuclanmis calistirmalar icindeki hata orani (0-1). double? RunStatistics.ErrorRate\nile ayni gerekce.",
+            "format": "double"
+          },
+          "averageScore": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "Bu kola atanmis calistirmalarin ortalama sayisal puani (0-100), Faz 49\u0027un\n\u0060RunScoreKind.Numeric\u0060 puanlarindan. Hic puanlanmis calistirma yoksa\n\u0060null\u0060 \u2014 \u00600\u0060 DEGIL, \u0022bilinmiyor\u0022 (mevcut \u0060RunCost\u0060\nsozlesmesiyle tutarli).",
             "format": "double"
           }
         },

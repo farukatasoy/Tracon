@@ -238,7 +238,7 @@ yazılırsa aynı satır güncellenir, tekrar kaydı oluşmaz.
 | `eval_cases` | Takımın vakaları: sorgu, beklenen çıktı/tool'lar, terfi kökeni (Faz 18, 45) |
 | `eval_runs` | Bir takımın tek koşusu: agent sürümü, model, geçme/kalma sayısı (Faz 18) |
 | `eval_case_results` | Vaka bazında sonuç; `case_id` **yabancı anahtar değil** (K-14) (Faz 18) |
-| `experiments` | A/B deneyi: hedef agent, kollar (`variants jsonb`), durum, başlangıç/bitiş (Faz 19) |
+| `experiments` | A/B deneyi: hedef agent, kollar (`variants jsonb`), durum, başlangıç/bitiş, kanarya kuralı (Faz 19, 56) |
 | `quotas` | Kota kuralı: kapsam (kiracı+agent+dönem), üç sınır (`max_runs`/`max_tokens`/`max_cost`) (Faz 21) |
 | `quota_usage` | Dönem sayacı; `agent_name = ''` kiracı geneli. `ON CONFLICT DO UPDATE` ile **atomik** artar (Faz 21) |
 | `webhook_subscriptions` | Olay aboneliği: adres, olay listesi, **`secret` değil** anahtar adı (K-059) (Faz 21) |
