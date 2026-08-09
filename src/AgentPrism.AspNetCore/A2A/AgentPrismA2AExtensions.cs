@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
 
@@ -25,9 +27,8 @@ public static class AgentPrismA2AExtensions
     /// <exception cref="ArgumentNullException"><paramref name="endpoints"/> <see langword="null"/> ise.</exception>
     /// <exception cref="ArgumentException"><paramref name="pattern"/> bos ise.</exception>
     /// <exception cref="InvalidOperationException">
-    /// <c>UseA2A()</c> veya <c>MapAgentPrism()</c> onceden cagrilmamissa, uzak
-    /// erisim acikken cagrilmissa, veya disa acik bir agent onay gerektiren bir
-    /// tool tasiyorsa.
+    /// <c>UseA2A()</c> veya <c>MapAgentPrism()</c> onceden cagrilmamissa, veya
+    /// uzak erisim acikken cagrilmissa.
     /// </exception>
     /// <remarks>
     /// <para>
@@ -40,6 +41,14 @@ public static class AgentPrismA2AExtensions
     /// <para>
     /// <c>MapAgentPrism</c>'in AYNI uc katmanli korumasini uygular — ayarlar
     /// oradan devralinir.
+    /// </para>
+    /// <para>
+    /// 🚨 Disa acik bir agent onay gerektiren bir tool tasiyorsa uygulama YINE
+    /// hata verir — ama bu metottan senkron olarak degil,
+    /// <see cref="A2AApprovalGuardFilter"/> uzerinden: denetim SQL semasi hazir
+    /// olana kadar arka planda bekler (boylece bos bir veritabaninda bu metodun
+    /// kendisi "no such table" ile cokmez, K-354'un ayni deseni), ilk isteğe
+    /// kadar tamamlanir ve hicbir istek onun onune gecemez.
     /// </para>
     /// </remarks>
     public static IEndpointConventionBuilder MapAgentPrismA2A(
@@ -61,21 +70,38 @@ public static class AgentPrismA2AExtensions
             endpointOptions.AllowRemoteAccess, "A2A", services.GetRequiredService<IApiKeyStore>());
 
         var catalog = services.GetRequiredService<IAgentCatalog>();
-        var toolRegistry = services.GetRequiredService<IToolRegistry>();
 
-        // Senkron cagri gerekcesi: AgentPrismMcpServerExtensions.MapAgentPrismMcpServer'daki
-        // ayni not gecerlidir.
-        var descriptors = catalog.ListAsync().AsTask().GetAwaiter().GetResult();
-        var descriptorsByName = descriptors.ToDictionary(static d => d.Name, StringComparer.Ordinal);
+        // Onay guard'i ARTIK burada degil: `A2AApprovalGuardHostedService`
+        // (bkz. `UseA2A`) sema hazir olduktan sonra ayni denetimi yapar. Uc
+        // baglama (bu metot) `app.Run()`'dan ONCE calisir, dolayisiyla
+        // migration'lar henuz bitmemis olabilir — katalog sorgusu bos bir
+        // veritabaninda "no such table" ile patlayabilir. Burada kalan tek
+        // kullanim, agent kartinin (Description/Version) SUSLEMESI icin;
+        // GUVENLIK denetimi olmadigindan basarisizlik durumunda geri donus
+        // (agentName) GUVENLIDIR. Uc saglayicisi arasinda "tablo yok" hatasinin
+        // tipi/mesaji farkli oldugundan genis bir yakalama BILEREK yapilir.
+        Dictionary<string, AgentDescriptor> descriptorsByName;
 
-        ExternalSurfaceGuard.EnsureNoApprovalRequiredTools(
-            descriptors,
-            a2aOptions.ExposedAgents,
-            exposeAll: false,
-            toolRegistry,
-            "A2A");
+        try
+        {
+            var descriptors = catalog.ListAsync().AsTask().GetAwaiter().GetResult();
+            descriptorsByName = descriptors.ToDictionary(static d => d.Name, StringComparer.Ordinal);
+        }
+        catch (Exception)
+        {
+            descriptorsByName = new Dictionary<string, AgentDescriptor>(StringComparer.Ordinal);
+        }
+
+        var approvalGuardFilter = new A2AApprovalGuardFilter(
+            services.GetRequiredService<SchemaReadyGate>(),
+            catalog,
+            services.GetRequiredService<IToolRegistry>(),
+            a2aOptions,
+            services.GetRequiredService<IHostApplicationLifetime>(),
+            services.GetRequiredService<ILogger<A2AApprovalGuardFilter>>());
 
         var group = endpoints.MapGroup(pattern).WithTags("AgentPrism", "A2A");
+        group.AddEndpointFilter(approvalGuardFilter);
         group.AddEndpointFilter(new AgentPrismEndpointFilter(endpointOptions));
         group.RequireApiKeyScope(ApiKeyScope.ExternalInvoke);
 

@@ -56,7 +56,8 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
         // Faz 47 `run_inputs` tablosunu ekledi: 42 -> 43.
         // Faz 51 `document_embeddings` tablosunu ekledi: 43 -> 44.
         // Faz 53 `api_keys` tablosunu ekledi: 44 -> 45.
-        tableCount.ShouldBe(45);
+        // Faz 55 `pending_approvals` tablosunu ekledi: 45 -> 46.
+        tableCount.ShouldBe(46);
     }
 
     [Fact]

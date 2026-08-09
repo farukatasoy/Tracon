@@ -4,9 +4,16 @@ namespace AgentPrism;
 /// MCP ve A2A dis yuzeylerinin paylastigi acilis denetimleri (Faz 50).
 /// </summary>
 /// <remarks>
-/// Iki denetim de <c>MapAgentPrismMcpServer</c>/<c>MapAgentPrismA2A</c> cagrisi
-/// aninda, uygulama daha ilk istegi almadan calisir. Amac K1'in ayni uygulamasi:
-/// sessizce yarim calisan bir dis yuzey yerine acik bir acilis hatasi.
+/// Amac K1'in ayni uygulamasi: sessizce yarim calisan bir dis yuzey yerine
+/// acik bir hata. <see cref="EnsureRemoteAccessNotCombined"/>
+/// <c>MapAgentPrismMcpServer</c>/<c>MapAgentPrismA2A</c> cagrisi aninda (uc
+/// baglama, <c>app.Run()</c>'dan ONCE) calisir; DB'ye dokunmaz. Onay guard'i
+/// (<see cref="EnsureNoApprovalRequiredTools"/>) ise DB'ye dokunur ve bu yuzden
+/// <c>McpApprovalGuardFilter</c>/<c>A2AApprovalGuardFilter</c> icinden, uc
+/// baglama aninda BASLAYAN ama sema hazir olana kadar arka planda bekleyen bir
+/// Task icinde calisir — bos bir veritabaninda "no such table" ile cokmemek
+/// icin (K-354'un ayni deseni). Bu Task her istekten ONCE beklenir; hicbir
+/// istek denetimin onune gecemez.
 /// </remarks>
 internal static class ExternalSurfaceGuard
 {

@@ -3679,6 +3679,108 @@
         }
       }
     },
+    "/agentprism/api/approvals/pending": {
+      "get": {
+        "tags": [
+          "AgentPrism",
+          "Approvals"
+        ],
+        "summary": "Kiracinin bekleyen onay isteklerini listeler.",
+        "operationId": "AgentPrismListPendingApprovals",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PendingApproval"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agentprism/api/approvals/{id}": {
+      "get": {
+        "tags": [
+          "AgentPrism",
+          "Approvals"
+        ],
+        "summary": "Tek bir bekleyen onay istegini getirir.",
+        "operationId": "AgentPrismGetPendingApproval",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PendingApproval"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agentprism/api/approvals/{id}/decide": {
+      "post": {
+        "tags": [
+          "AgentPrism",
+          "Approvals"
+        ],
+        "summary": "Bekleyen bir onay istegine karar verir.",
+        "description": "Karar YENI bir calistirma kuyruga dusurur (ayni sessionId, yeni RunId); eski calistirma AwaitingApproval olarak kalir. Ayni istege ikinci karar 409 alir.",
+        "operationId": "AgentPrismDecideApproval",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalDecisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PendingApproval"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/agentprism/api/retention": {
       "get": {
         "tags": [
@@ -7510,6 +7612,28 @@
         ],
         "description": "Bir API anahtarinin acabilecegi yetki kapsami."
       },
+      "ApprovalDecisionRequest": {
+        "required": [
+          "approved"
+        ],
+        "type": "object",
+        "properties": {
+          "approved": {
+            "type": "boolean",
+            "description": "Istek onaylandi mi."
+          }
+        },
+        "description": "Bekleyen bir onay istegine karar vermek icin istek govdesi."
+      },
+      "ApprovalStatus": {
+        "enum": [
+          "Pending",
+          "Approved",
+          "Rejected",
+          "Expired"
+        ],
+        "description": "Bir bekleyen onay isteginin durumu."
+      },
       "AttachmentDescriptor": {
         "required": [
           "id",
@@ -9003,7 +9127,8 @@
           "WebhookDelivery",
           "Retention",
           "AgentRun",
-          "OnlineEval"
+          "OnlineEval",
+          "ApprovalResume"
         ],
         "description": "Bir isin hangi hedefi calistirdigi."
       },
@@ -10066,6 +10191,85 @@
             "$ref": "#/components/schemas/OpenAIErrorBody"
           }
         }
+      },
+      "PendingApproval": {
+        "required": [
+          "id",
+          "tenantId",
+          "runId",
+          "sessionId",
+          "requestId",
+          "toolName",
+          "status",
+          "expiresAt",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Kayit kimligi.",
+            "format": "uuid"
+          },
+          "tenantId": {
+            "type": "string",
+            "description": "Kiraci kimligi."
+          },
+          "runId": {
+            "type": "string",
+            "description": "Bu istegi ureten, RunStatus.AwaitingApproval ile kapanmis calistirma.",
+            "format": "uuid"
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "Calistirmanin oturumu. Karar uygulanirken devam eden calistirma bu\noturumla kuyruga dusurulur."
+          },
+          "requestId": {
+            "type": "string",
+            "description": "MAF\u0027in urettigi \u0060ToolApprovalRequestContent.RequestId\u0060 degeri."
+          },
+          "toolName": {
+            "type": "string",
+            "description": "Onay isteyen tool\u0027un adi."
+          },
+          "arguments": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Tool cagrisinin argumanlari, \u0060anahtar=deger\u0060 cifleri olarak\n(AOT uyumlu kalmak icin yansimaya dayanan JSON serilestirme\nKULLANILMAZ). Kayit ayarlarindaki \u0060RecordToolPayloads\u0060 kapaliysa\n\u0060null\u0060 kalir."
+          },
+          "status": {
+            "description": "Istegin durumu.",
+            "$ref": "#/components/schemas/ApprovalStatus"
+          },
+          "decidedBy": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Karari veren aktor. Karar verilmediyse \u0060null\u0060."
+          },
+          "decidedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Karar ani. Karar verilmediyse \u0060null\u0060.",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "description": "Bu andan sonra istek ApprovalStatus.Expired sayilir.",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Olusturulma ani.",
+            "format": "date-time"
+          }
+        },
+        "description": "Kuyruktan kosan bir calistirmanin bekleyen tool onay istegi."
       },
       "PricingSource": {
         "enum": [
@@ -11654,7 +11858,8 @@
           "Failed",
           "Canceled",
           "AwaitingInput",
-          "Queued"
+          "Queued",
+          "AwaitingApproval"
         ],
         "description": "Bir calistirmanin durumu."
       },
@@ -14209,6 +14414,9 @@
     },
     {
       "name": "ApiKeys"
+    },
+    {
+      "name": "Approvals"
     },
     {
       "name": "Retention"

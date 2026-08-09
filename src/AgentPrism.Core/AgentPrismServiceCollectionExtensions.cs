@@ -114,6 +114,10 @@ public static class AgentPrismServiceCollectionExtensions
         // sorgularinin hicbiri atilmaz (K1).
         services.AddOptions<RunReconciliationOptions>().ValidateOnStart();
 
+        // Asenkron onay kutusu (Faz 55). Ayni gerekce: kendi SectionName'ini
+        // tasir, ayri bir Use...() cagrisi gerektirmez.
+        services.AddOptions<AgentPrismApprovalOptions>().ValidateOnStart();
+
         // Bilgi tabani / anlamsal arama (Faz 51). Ayni gerekce: kendi SectionName'ini
         // tasir, ayri bir Use...() cagrisi gerektirmez. Yalniz bir IVectorSearchStore
         // (bugun yalniz PostgreSQL) VE bir IEmbeddingGenerator birlikte kayitliyken
@@ -148,6 +152,8 @@ public static class AgentPrismServiceCollectionExtensions
                 options => BindAsyncRun(configurationSection.GetSection("AsyncRun"), options));
             services.Configure<RunReconciliationOptions>(
                 options => BindRunReconciliation(configurationSection.GetSection("RunReconciliation"), options));
+            services.Configure<AgentPrismApprovalOptions>(
+                options => BindApproval(configurationSection.GetSection("Approvals"), options));
             services.Configure<OnlineEvaluationOptions>(
                 options => BindOnlineEvaluation(configurationSection.GetSection("OnlineEvaluation"), options));
 
@@ -382,6 +388,13 @@ public static class AgentPrismServiceCollectionExtensions
         // calisir. Kalici saglayicilar bunu kendi uygulamalariyla degistirir.
         services.TryAddSingleton<IRunInputStore, InMemoryRunInputStore>();
 
+        // Asenkron onay kutusu (Faz 55). Depo her zaman kayitlidir (K-018 ile
+        // AYNI gerekce): kuyruga alinan bir calistirma onay isterse depo
+        // kalici saglayici olmadan da calisir. Kalici saglayicilar bunu kendi
+        // uygulamalariyla degistirir.
+        services.TryAddSingleton<IPendingApprovalStore>(static provider => new InMemoryPendingApprovalStore(
+            provider.GetRequiredService<ITenantContext>()));
+
         // Script calistirma izinleri. Depo her zaman kayitlidir; calistirma
         // ozelligi ise UseSkillScripts cagrilana kadar KAPALIDIR. Izin kaydinin
         // varligi tek basina bir sey calistirmaz.
@@ -440,6 +453,10 @@ public static class AgentPrismServiceCollectionExtensions
         // ekler.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, AgentBatchJobHandler>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, AgentRunJobHandler>());
+
+        // Onay sonrasi surdurme (Faz 55). AgentRunJobHandler'dan AYRIDIR: YENI
+        // bir RunId ile calisir, eskisine dokunmaz (K-014).
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, ApprovalResumeJobHandler>());
 
         // Acik fabrika kullaniliyor: yerlesik DI kabi varsayilan deger tasiyan
         // kurucu parametrelerini doldurmaz ve IWorkflowRunner cogu kurulumda
@@ -573,6 +590,13 @@ public static class AgentPrismServiceCollectionExtensions
             ServiceDescriptor.Singleton<IHostedService, RunHeartbeatWriter>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, RunReconciliationService>());
+
+        // Onay sure sonu taramasi (Faz 55). AgentPrismApprovalOptions.ExpirationEnabled
+        // varsayilan ACIKTIR (RunReconciliationOptions'in aksine bir guvenlik
+        // geregi) ama SQL kayitli degilse SchemaReadyGate hemen acilir ve
+        // ilk turdan sonra hicbir yeni sorgu atilmaz.
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, ApprovalExpirationService>());
 
         // A/B deneyleri (Faz 19). Admin'in olusturdugu/baslattigi/durdurdugu bir
         // varlik oldugu icin IAgentDefinitionStore ile ayni gerekceyle denetim
@@ -1438,6 +1462,45 @@ public static class AgentPrismServiceCollectionExtensions
                 out var maxRunsPerScan))
         {
             options.MaxRunsPerScan = maxRunsPerScan;
+        }
+    }
+
+    /// <summary><c>AgentPrism:Approvals</c> bolumunu baglar (Faz 55).</summary>
+    private static void BindApproval(IConfigurationSection section, AgentPrismApprovalOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(AgentPrismApprovalOptions.DefaultExpiration)],
+                CultureInfo.InvariantCulture,
+                out var defaultExpiration))
+        {
+            options.DefaultExpiration = defaultExpiration;
+        }
+
+        if (TryReadBool(section, nameof(AgentPrismApprovalOptions.ExpirationEnabled), out var expirationEnabled))
+        {
+            options.ExpirationEnabled = expirationEnabled;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(AgentPrismApprovalOptions.ScanInterval)],
+                CultureInfo.InvariantCulture,
+                out var scanInterval))
+        {
+            options.ScanInterval = scanInterval;
+        }
+
+        if (int.TryParse(
+                section[nameof(AgentPrismApprovalOptions.MaxPerScan)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxPerScan))
+        {
+            options.MaxPerScan = maxPerScan;
         }
     }
 
