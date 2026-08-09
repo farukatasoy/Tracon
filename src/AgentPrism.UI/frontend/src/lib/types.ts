@@ -15,8 +15,20 @@ export type AgentOrigin = 'Code' | 'Maf' | 'Database';
  *
  * `Queued` only appears on runs started with `Prefer: respond-async` (phase 46):
  * the row exists but the worker has not picked up the job yet.
+ *
+ * `AwaitingApproval` (phase 55) is the same append-only shape as `AwaitingInput`,
+ * for a queued agent run that hit a tool call requiring approval: there is no
+ * live client to answer it, so the row stays in this status forever and the
+ * decision (`POST api/approvals/{id}/decide`) opens a *new* run.
  */
-export type RunStatus = 'Running' | 'Completed' | 'Failed' | 'Canceled' | 'AwaitingInput' | 'Queued';
+export type RunStatus =
+  | 'Running'
+  | 'Completed'
+  | 'Failed'
+  | 'Canceled'
+  | 'AwaitingInput'
+  | 'Queued'
+  | 'AwaitingApproval';
 
 export type RunEventType =
   | 'RunStarted'
@@ -901,6 +913,33 @@ export interface ToolApprovalDecision {
   reason?: string;
   remember?: boolean;
   rememberArgumentsOnly?: boolean;
+}
+
+export type ApprovalStatus = 'Pending' | 'Approved' | 'Rejected' | 'Expired';
+
+/**
+ * A tool call awaiting operator approval on a *queued* agent run
+ * (phase 55) — distinct from {@link ToolApprovalRule}, which is a persisted
+ * "don't ask again" rule for the synchronous playground flow. This is a
+ * projection of the run's own session state, not the source of truth: the
+ * decision is applied by feeding it back into that session.
+ */
+export interface PendingApproval {
+  id: string;
+  runId: string;
+  sessionId: string;
+  requestId: string;
+  toolName: string;
+  arguments?: string | null;
+  status: ApprovalStatus;
+  decidedBy?: string | null;
+  decidedAt?: string | null;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface ApprovalDecisionRequest {
+  approved: boolean;
 }
 
 /**

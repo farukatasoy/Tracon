@@ -43,7 +43,7 @@ public sealed class UiTests(BrowserFixture browsers)
         (await session.Page.TitleAsync()).ShouldBe("AgentPrism");
 
         // Tum yonetim ekranlari gezinme cubugunda olmalidir.
-        foreach (var screen in new[] { "Agents", "Dashboard", "Playground", "Sessions", "Workflows", "Jobs", "Evals", "Runs", "Tools", "Skills", "Models", "MCP", "Settings" })
+        foreach (var screen in new[] { "Agents", "Dashboard", "Playground", "Sessions", "Workflows", "Jobs", "Evals", "Runs", "Tools", "Skills", "Models", "MCP", "Approvals", "Settings" })
         {
             (await session.Page.GetByRole(AriaRole.Link, new() { Name = screen }).CountAsync())
                 .ShouldBeGreaterThan(0, $"'{screen}' baglantisi bulunamadi.");
@@ -1124,6 +1124,55 @@ public sealed class UiTests(BrowserFixture browsers)
 
         await session.Page.GetByTestId("shortcut-help").WaitForAsync(new() { Timeout = 10_000 });
         await session.Page.GetByText("Keyboard shortcuts").First.WaitForAsync();
+    }
+
+    // --- Faz 55: asenkron onay kutusu ---
+
+    [Fact]
+    public async Task Onaylar_ekrani_bekleyen_istegi_gosterir_ve_onaylaninca_calistirma_tamamlanir()
+    {
+        await using var host = await UiHost.StartAsync(
+            configureServices: services => services.UseScheduling(options =>
+            {
+                // Testin gercek zamanda beklemesi gerekmez; isci hemen yoklar.
+                options.PollInterval = TimeSpan.FromMilliseconds(200);
+                options.LeaseDuration = TimeSpan.FromSeconds(10);
+            }));
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        // Onaylar ekraninin arayuz UZERINDEN tetiklenecek bir yolu yoktur
+        // (kuyruga alma 'Prefer: respond-async' basligi ister, bir form
+        // gonderimi degildir) — bu yuzden bekleyen istek dogrudan API'den
+        // tohumlanir; asil dogrulanan sey Onaylar ekraninin KENDISIDIR.
+        using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
+        using var seedRequest = new HttpRequestMessage(HttpMethod.Post, "api/agents/onay-agent/run")
+        {
+            Content = JsonContent.Create(new { message = "siparisi iptal et", sessionId = "e2e-onay-oturumu" }),
+        };
+        seedRequest.Headers.Add("Prefer", "respond-async");
+
+        using var seedResponse = await api.SendAsync(seedRequest);
+        seedResponse.EnsureSuccessStatusCode();
+
+        await session.Page.GotoAsync($"{host.UiAddress}/approvals");
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Approvals", Exact = true }).WaitForAsync();
+
+        // Isci is'i kuyruktan cekip onay isteyen tool cagrisina ulasana kadar
+        // bekler; ekran 5 saniyede bir kendiliginden tazelenir.
+        await session.Page.GetByText("cancel_order").WaitForAsync(new() { Timeout = 15_000 });
+
+        await session.Page.GetByRole(AriaRole.Button, new() { Name = "Approve" }).ClickAsync();
+
+        // Satir listeden kaybolur: istek artik Pending degildir.
+        await session.Page.GetByText("cancel_order").WaitForAsync(new() { State = WaitForSelectorState.Detached, Timeout = 10_000 });
+        await session.Page.GetByText("Nothing is waiting").WaitForAsync();
+
+        // Karar YENI bir calistirma kuyruga dusurur; o da tamamlanir. Runs
+        // listesinde hem eski (AwaitingApproval'da KALAN, K-014) hem yeni
+        // (Completed) satir gorunmelidir.
+        await session.Page.GotoAsync($"{host.UiAddress}/runs");
+        await session.Page.GetByText("awaiting approval", new() { Exact = true }).WaitForAsync(new() { Timeout = 10_000 });
+        await session.Page.GetByText("completed", new() { Exact = true }).First.WaitForAsync(new() { Timeout = 10_000 });
     }
 
     /// <summary>

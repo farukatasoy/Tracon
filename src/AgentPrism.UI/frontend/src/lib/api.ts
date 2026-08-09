@@ -9,6 +9,7 @@ import type {
   AgentSkillRequest,
   AgentValidationReport,
   AgentVersionDiffResponse,
+  ApprovalDecisionRequest,
   AttachmentDescriptor,
   SkillScriptGrant,
   SkillScriptGrantRequest,
@@ -45,6 +46,7 @@ import type {
   ModelProviderDescriptor,
   ModelProviderHealth,
   OnlineEvaluationSummary,
+  PendingApproval,
   RunCostRecalculationResult,
   RunEvent,
   RunFeedbackRequest,
@@ -401,6 +403,13 @@ export const api = {
   approvalRules: () => request<ToolApprovalRule[]>('api/approvals/rules'),
   deleteApprovalRule: (id: string) =>
     request<void>(`api/approvals/rules/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
+  /** Pending tool-approval requests for queued agent runs (phase 55). */
+  pendingApprovals: () => request<PendingApproval[]>('api/approvals/pending'),
+  decideApproval: (id: string, approved: boolean) =>
+    send<PendingApproval>('POST', `api/approvals/${encodeURIComponent(id)}/decide`, {
+      approved,
+    } satisfies ApprovalDecisionRequest),
 
   /**
    * Uploads a file, returning its stored descriptor.

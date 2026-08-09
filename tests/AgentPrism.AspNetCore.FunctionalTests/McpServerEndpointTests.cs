@@ -94,7 +94,10 @@ public sealed class McpServerEndpointTests
     [Fact]
     public async Task Onay_gerektiren_tool_tasiyan_agent_disa_acilamaz()
     {
-        var exception = await Should.ThrowAsync<InvalidOperationException>(() => AgentPrismTestHost.StartAsync(
+        // Guard artik Map* aninda senkron degil, McpApprovalGuardFilter icinde
+        // arka planda calisir (bkz. AgentPrismMcpServerExtensions) — hata bu
+        // yuzden MapAgentPrismMcpServer()'dan degil, ILK istekten firlar.
+        await using var host = await AgentPrismTestHost.StartAsync(
             configureAgentPrism: builder => builder
                 .AddTool(
                     (Func<string, string>)CancelOrder,
@@ -103,9 +106,47 @@ public sealed class McpServerEndpointTests
                     requiresApproval: true)
                 .AddAgent(TestData.Definition() with { ToolNames = ["cancel_order"] })
                 .UseMcpServer(o => o.ExposedAgents.Add("kod-agent")),
-            configureAfterMap: app => app.MapAgentPrismMcpServer()));
+            configureAfterMap: app => app.MapAgentPrismMcpServer());
+
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            () => McpTestClient.SendAsync(host.Client, "/agentprism/mcp", "tools/list"));
 
         exception.Message.ShouldContain("onay", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task Bos_sqlite_veritabaninda_MapAgentPrismMcpServer_cokmez()
+    {
+        // Regresyon: MapAgentPrismMcpServer() onceden Map* aninda (migration'lar
+        // baslamadan ONCE) katalogu SENKRON okuyordu; tamamen bos (dosyasi HENUZ
+        // olusmamis) bir veritabaninda "no such table" ile cokerdi. Guard
+        // McpApprovalGuardFilter'a tasindiktan sonra Map* artik DB'ye hic
+        // dokunmuyor. `:memory:` KULLANILMAZ: paylasilan onbellek olmadan her
+        // yeni baglanti kendi izole bos veritabanini acar, gercek "bos dosya"
+        // durumunu taklit etmez.
+        var databasePath = Path.Combine(Path.GetTempPath(), $"agentprism-mcp-empty-db-{Guid.NewGuid():N}.db");
+
+        try
+        {
+            await using var host = await AgentPrismTestHost.StartAsync(
+                configureAgentPrism: builder => builder
+                    .UseSqlite($"Data Source={databasePath}")
+                    .AddAgent(TestData.Definition())
+                    .UseMcpServer(o => o.ExposedAgents.Add("kod-agent")),
+                configureAfterMap: app => app.MapAgentPrismMcpServer());
+
+            var (response, body) = await McpTestClient.SendAsync(host.Client, "/agentprism/mcp", "tools/list");
+
+            response.StatusCode.ShouldBe(HttpStatusCode.OK);
+            Tools(body!.Value).GetArrayLength().ShouldBe(1);
+        }
+        finally
+        {
+            foreach (var suffix in new[] { string.Empty, "-wal", "-shm", ".agentprism-migration-lock" })
+            {
+                File.Delete(databasePath + suffix);
+            }
+        }
     }
 
     [Fact]

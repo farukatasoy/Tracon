@@ -588,6 +588,28 @@ internal abstract class SqlQueriesBase
     /// <summary>Bir idempotency anahtarini siler (basarisiz istekten sonra serbest birakma).</summary>
     public string DeleteIdempotencyKey { get; protected set; } = string.Empty;
 
+    /// <summary>Yeni bir bekleyen onay istegi ekler (Faz 55).</summary>
+    public string InsertPendingApproval { get; protected set; } = string.Empty;
+
+    /// <summary>Cagiranin kiracisindaki bekleyen istekleri en eskiden en yeniye listeler.</summary>
+    public string SelectPendingApprovals { get; protected set; } = string.Empty;
+
+    /// <summary>Tek bir bekleyen onay istegini kiraciyla sinirli getirir.</summary>
+    public string SelectPendingApproval { get; protected set; } = string.Empty;
+
+    /// <summary>
+    /// Bekleyen bir istege karar yazar. <c>WHERE</c> yalnizca hala <c>Pending</c>
+    /// durumundaki satiri hedefler; ikinci bir karar 0 satir etkiler.
+    /// </summary>
+    public string DecidePendingApproval { get; protected set; } = string.Empty;
+
+    /// <summary>
+    /// Suresi dolmus, hala <c>Pending</c> durumundaki istekleri <c>Expired</c>
+    /// olarak kapatir ve kapatilan satirlari dondurur (<c>ClaimOrphanedRuns</c>
+    /// ile AYNI desen). Kiraci suzgeci TASIMAZ — bir bakim islemidir.
+    /// </summary>
+    public string ExpirePendingApprovals { get; protected set; } = string.Empty;
+
     /// <summary>Gomulu migration metnindeki sema yer tutucusunu gercek adla degistirir.</summary>
     /// <param name="sql">Ham migration metni.</param>
     /// <returns>Calistirilabilir SQL.</returns>

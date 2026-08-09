@@ -302,3 +302,11 @@ export const StopIcon = ({ className }: IconProps): ReactNode => (
     <rect x="6" y="6" width="12" height="12" rx="2" />
   </Icon>
 );
+
+/** A shield with a checkmark: the shape of an approval gate. */
+export const ApprovalsIcon = ({ className }: IconProps): ReactNode => (
+  <Icon className={className}>
+    <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" />
+    <path d="M9 12l2 2 4-4.5" />
+  </Icon>
+);

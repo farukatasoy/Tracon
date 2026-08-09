@@ -24,6 +24,9 @@ internal static class ScriptedModels
 
     /// <summary>"yonlendirici" kod agent'inin modeli: arka plan gorev tool'lariyla devreder, sonra yankilar.</summary>
     public const string Router = "scripted-router";
+
+    /// <summary>"onay-agent" kod agent'inin modeli: onay isteyen bir tool cagirir, sonra sonucunu yankilar (Faz 55).</summary>
+    public const string Approval = "scripted-approval";
 }
 
 /// <summary>
@@ -92,7 +95,10 @@ internal sealed class UiHost : IAsyncDisposable
                     "background_agents_start_task",
                     new { agentName = "support", input = "ORD-7 nerede", description = "siparis durumu arastirmasi" })
                 .CallsTool("background_agents_wait_for_first_completion", new { taskIds = new[] { 1 } })
-                .EchoesUserMessage());
+                .EchoesUserMessage())
+            .ForModel(ScriptedModels.Approval, cfg => cfg
+                .CallsTool("cancel_order", new { orderId = "ORD-7" })
+                .EchoesLastToolResult());
 
         // Ses uclarinin ihtiyaci yalnizca bu soyutlamalardir; AgentPrism.Voice
         // paketine referans YOKTUR. Tek ornek ikisine birden baglanir.
@@ -137,6 +143,20 @@ internal sealed class UiHost : IAsyncDisposable
                     Model = ScriptedModels.Router,
                 },
                 CallableAgentNames = ["support"],
+                Origin = AgentDefinitionOrigin.Code,
+            })
+            .AddAgent(new AgentDefinition
+            {
+                Name = "onay-agent",
+                DisplayName = "Approval agent",
+                Description = "Onay isteyen bir tool tasiyan, E2E testlerinde kullanilan kod agent'i (Faz 55).",
+                Instructions = "Kisa yanit ver.",
+                Model = new ModelBinding
+                {
+                    Provider = ScriptedModels.ProviderName,
+                    Model = ScriptedModels.Approval,
+                },
+                ToolNames = ["cancel_order"],
                 Origin = AgentDefinitionOrigin.Code,
             })
 

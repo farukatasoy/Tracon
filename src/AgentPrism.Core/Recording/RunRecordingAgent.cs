@@ -217,6 +217,22 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                 return response;
             }
 
+            // Kuyruktan kosan bir kok calistirma (Faz 55) onay isteyerek bittiyse
+            // Completed yerine AwaitingApproval ile kapanir: canli bir istemci
+            // yoktur, karar POST /api/approvals/{id}/decide ile YENI bir
+            // calistirmada gelir (K-014, RunStatus.AwaitingInput ile ayni ilke).
+            // Senkron/MCP/A2A yolu SuspendOnApproval'i HIC ayarlamaz; davranisi
+            // degismez.
+            if (start.Scope.Depth == 0 &&
+                options is AgentPrismRunOptions { SuspendOnApproval: true } &&
+                ChildRunApproval.Describe(response.Messages) is not null)
+            {
+                await CompleteAsync(scope, RunStatus.AwaitingApproval, usage, null, cancellationToken)
+                    .ConfigureAwait(false);
+
+                return response;
+            }
+
             await CompleteAsync(scope, RunStatus.Completed, usage, null, cancellationToken)
                 .ConfigureAwait(false);
 
@@ -269,6 +285,13 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         var scope = await BeginRunAsync(start, messages, cancellationToken).ConfigureAwait(false);
         UsageDetails? usage = null;
         string? pendingApproval = null;
+
+        // Faz 55: kuyruktan kosan bir kok calistirmada onay isteyen bir tool
+        // cagrisi Completed yerine AwaitingApproval'a esler. Gerekce RunCoreAsync
+        // icindeki AYNI notta.
+        var suspendOnApproval = start.Scope.Depth == 0 && options is AgentPrismRunOptions { SuspendOnApproval: true };
+        var topLevelPendingApproval = false;
+
         var enumerator = base.RunCoreStreamingAsync(messages, session, options, cancellationSource.Token)
             .GetAsyncEnumerator(cancellationSource.Token);
 
@@ -321,6 +344,9 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                     ? ChildRunApproval.Describe(update.Contents)
                     : null;
 
+                topLevelPendingApproval = topLevelPendingApproval ||
+                    (suspendOnApproval && ChildRunApproval.Describe(update.Contents) is not null);
+
                 await WriteContentsAsync(scope, update.Contents, cancellationToken).ConfigureAwait(false);
 
                 yield return update;
@@ -331,9 +357,15 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             await enumerator.DisposeAsync().ConfigureAwait(false);
         }
 
+        var streamingStatus = pendingApproval is not null
+            ? RunStatus.Failed
+            : topLevelPendingApproval
+                ? RunStatus.AwaitingApproval
+                : RunStatus.Completed;
+
         await CompleteAsync(
             scope,
-            pendingApproval is null ? RunStatus.Completed : RunStatus.Failed,
+            streamingStatus,
             ToRunUsage(usage),
             pendingApproval is null ? null : ApprovalError(pendingApproval),
             cancellationToken).ConfigureAwait(false);

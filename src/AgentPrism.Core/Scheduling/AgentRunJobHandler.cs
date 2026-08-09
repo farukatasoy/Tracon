@@ -1,5 +1,7 @@
 using System.Text.Json;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
@@ -23,11 +25,25 @@ namespace AgentPrism;
 /// ikinci kez cagrilir; depo <c>StartRunAsync</c>'i bir UPSERT olarak ele alir
 /// (bkz. <c>RunStartInfo.Status</c>) — yeni bir <c>runs</c> satiri ACILMAZ.
 /// </para>
+/// <para>
+/// 🚨 Cagri <c>SuspendOnApproval = true</c> verir (Faz 55): yanit onay bekleyen
+/// bir tool cagrisi tasirsa <see cref="RunRecordingAgent"/> calistirmayi
+/// <see cref="RunStatus.AwaitingApproval"/> ile kapatir (senkron yoldaki
+/// <see cref="RunStatus.Completed"/> davranisindan BILEREK farklidir — burada
+/// canli bir istemci yoktur). Bu isleyici o durumda her istek icin bir
+/// <see cref="PendingApproval"/> satiri yazar; karar
+/// <c>POST /api/approvals/{id}/decide</c> ile verilir ve YENI bir calistirma
+/// kuyruga dusurur (bkz. <c>ApprovalResumeJobHandler</c>).
+/// </para>
 /// </remarks>
 internal sealed class AgentRunJobHandler(
     IAgentCatalog catalog,
     AgentSessionManager sessions,
     IRunStore runStore,
+    IPendingApprovalStore approvalStore,
+    IOptions<AgentPrismOptions> options,
+    IOptionsMonitor<AgentPrismApprovalOptions>? approvalOptionsMonitor = null,
+    IWebhookPublisher? webhookPublisher = null,
     TimeProvider? timeProvider = null,
     ILogger<AgentRunJobHandler>? logger = null) : IJobHandler
 {
@@ -70,21 +86,117 @@ internal sealed class AgentRunJobHandler(
             throw;
         }
 
-        List<Microsoft.Extensions.AI.ChatMessage> messages =
-        [
-            new(Microsoft.Extensions.AI.ChatRole.User, message),
-        ];
+        List<ChatMessage> messages = [new(ChatRole.User, message)];
 
-        await agent.RunAsync(
+        var response = await agent.RunAsync(
             messages,
             session,
-            new AgentPrismRunOptions { RunId = runId },
+            new AgentPrismRunOptions { RunId = runId, SuspendOnApproval = true },
             cancellationToken).ConfigureAwait(false);
 
         if (session is not null)
         {
             await sessions.SaveSessionAsync(agent, session, cancellationToken).ConfigureAwait(false);
         }
+
+        var pendingRequests = CollectPendingApprovalRequests(response.Messages);
+
+        if (pendingRequests.Count == 0)
+        {
+            return;
+        }
+
+        if (session is null)
+        {
+            // Onay bir sonraki turun girdisidir ve YALNIZ oturum gecmisinden
+            // cozulebilir; oturumsuz bir calistirmada bekleyen istek asla
+            // yanitlanamaz. Senkron yolun ayni kisiti icin bkz. AgentEndpoints.RunAsync
+            // ("Onay icin oturum gerekli"). RunRecordingAgent bu calistirmayi
+            // zaten AwaitingApproval ile kapatmisti; burada Failed'e DUZELTILIR.
+            await FailQueuedRunAsync(
+                runId,
+                context.Job.TenantId,
+                new AgentPrismException(
+                    "Kuyruga alinan calistirma onay istedi ama 'sessionId' verilmemisti; " +
+                    "onay bir sonraki turun girdisidir ve oturumsuz cozulemez."),
+                cancellationToken).ConfigureAwait(false);
+
+            return;
+        }
+
+        var expiration = approvalOptionsMonitor?.CurrentValue.DefaultExpiration ?? TimeSpan.FromHours(24);
+        var now = _clock.GetUtcNow();
+
+        foreach (var request in pendingRequests)
+        {
+            var approval = new PendingApproval
+            {
+                Id = AgentPrismId.NewId(),
+                TenantId = context.Job.TenantId,
+                RunId = runId,
+                SessionId = sessionId!,
+                RequestId = request.RequestId,
+                ToolName = request.ToolCall is FunctionCallContent call ? call.Name : "unknown",
+                Arguments = options.Value.RunRecording.RecordToolPayloads && request.ToolCall is FunctionCallContent argsCall
+                    ? FormatArguments(argsCall)
+                    : null,
+                Status = ApprovalStatus.Pending,
+                ExpiresAt = now + expiration,
+                CreatedAt = now,
+            };
+
+            await approvalStore.CreateAsync(approval, cancellationToken).ConfigureAwait(false);
+
+            if (webhookPublisher is not null)
+            {
+                await webhookPublisher.PublishAsync(
+                    context.Job.TenantId,
+                    WebhookEvents.ApprovalPending,
+                    new WebhookEventPayload
+                    {
+                        OccurredAt = now,
+                        Approval = new WebhookApprovalSummary
+                        {
+                            RequestId = approval.Id.ToString(),
+                            RunId = approval.RunId.ToString(),
+                            ToolName = approval.ToolName,
+                        },
+                    },
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    private static List<ToolApprovalRequestContent> CollectPendingApprovalRequests(
+        IEnumerable<ChatMessage> messages)
+    {
+        List<ToolApprovalRequestContent>? requests = null;
+
+        foreach (var message in messages)
+        {
+            foreach (var content in message.Contents)
+            {
+                if (content is ToolApprovalRequestContent request)
+                {
+                    (requests ??= []).Add(request);
+                }
+            }
+        }
+
+        return requests ?? [];
+    }
+
+    private static string? FormatArguments(FunctionCallContent call)
+    {
+        if (call.Arguments is null || call.Arguments.Count == 0)
+        {
+            return null;
+        }
+
+        // RunRecordingAgent.FormatArguments ile AYNI gerekce: AOT uyumlu
+        // kalmak icin elle bicimlendirilir, yansimaya dayanan JSON
+        // serilestirme kullanilmaz.
+        return string.Join(", ", call.Arguments.Select(static pair => $"{pair.Key}={pair.Value}"));
     }
 
     private async ValueTask FailQueuedRunAsync(

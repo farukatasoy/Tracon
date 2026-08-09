@@ -58,4 +58,30 @@ public enum RunStatus
     /// <see cref="AwaitingInput"/> aciklamasindaki ile aynidir.
     /// </remarks>
     Queued = 5,
+
+    /// <summary>
+    /// Calistirma bir tool cagrisi icin operator onayi bekliyor ve bu karar
+    /// gelmeden ilerleyemez.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Yalnizca kuyruktan kosan (<c>Prefer: respond-async</c>, Faz 46) bir agent
+    /// calistirmasinda gorulur: senkron HTTP/MCP/A2A yolunda bekleyen bir onay
+    /// istegi calistirmayi yine <see cref="Completed"/> kapatir (istemci canlidir
+    /// ve isteği bir sonraki turda kendisi yanitlar) — <see cref="AgentPrismRunOptions.SuspendOnApproval"/>
+    /// yalniz kuyruk yolunda acilir (Faz 55).
+    /// </para>
+    /// <para>
+    /// <see cref="AwaitingInput"/> ile AYNI ilkeyi izler: yanitlanmis bir
+    /// calistirma bu durumda <em>kalir</em>, gecmisi geriye donuk degistirmek
+    /// olay akisinin append-only kuralini (K-014) bozardi. Karar
+    /// <c>POST /api/approvals/{id}/decide</c> ile verilir; bu, <strong>yeni</strong>
+    /// bir calistirma kuyruga dusurur (ayni <c>sessionId</c>, yeni <c>RunId</c>).
+    /// </para>
+    /// <para>
+    /// Deger sona eklenmistir; gerekce <see cref="AwaitingInput"/> aciklamasindaki
+    /// ile aynidir.
+    /// </para>
+    /// </remarks>
+    AwaitingApproval = 6,
 }

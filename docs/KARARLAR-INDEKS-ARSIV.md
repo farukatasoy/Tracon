@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (216 kalem)
+## Arşivlenen Kararlar (222 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -225,3 +225,9 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-214 | 259 | `KARARLAR-INDEKS.md`'den tarih sütunu kaldırıldı |
 | K-215 | 260 | Ses sözleşmeleri `AgentPrism.Abstractions`'ta yaşar; ElevenLabs bir uygulamadır |
 | K-216 | 261 | `AgentPrism.Voice` hiçbir NuGet paketi almaz; ham `HttpClient` kullanılır |
+| K-217 | 262 | `AgentRunScope.SessionId` eklendi; oturumsuz yazılan ek saklama tarafından silinir |
+| K-218 | 263 | Tool bağımlılıkları KURULUM anında alınır; `AIFunctionArguments.Services` MAF boru hattında boştur |
+| K-219 | 264 | `tool_invocations` beş ölçüm sütunu taşır; ses maliyeti token maliyetiyle toplanmaz |
+| K-220 | 265 | `POST /api/voice/speak` operatör eylemidir ve `tool_invocations`'a yazmaz |
+| K-221 | 266 | Ses API anahtarı düz `ApiKey`'dir; K-059 yalnız veritabanı içindir |
+| K-222 | 267 | Konuşma katmanı Seçenek A ile ve `AgentPrism.Core`'da |

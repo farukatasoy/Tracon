@@ -385,13 +385,13 @@ onların aciliyetini **değiştirdi** ve bu bilgi kaybolmamalıdır.
 
 [`DEGERLENDIRME-RAPORU-2026-08.md`](DEGERLENDIRME-RAPORU-2026-08.md) denetimi,
 Dalga 3'ün **acil hâle getirdiği dört kalemin** tamamını plana çevirdi.
-Faz 54 tamamlandı; 55–56 hâlâ `📋 Planlandı` durumundadır.
+Faz 53–55 tamamlandı; 56 hâlâ `📋 Planlandı` durumundadır.
 
 | Kalem | Faz | Neden bu sırada | Yeni paket | Migration |
 |---|---|---|---|---|
 | **F-56** kiracı bazlı API anahtarları | [Faz 53](53-KIRACI-API-ANAHTARLARI.md) ✅ | 🚨 En acil: Faz 50'nin dış yüzeyi bugün **tek statik token**'la korunuyor ve `AllowRemoteAccess` kilidi geçici bir savunma. Kimlik zayıflığı teorik değil, **kullanılabilir durumda** | Yok | `api_keys` — üç set |
 | **F-36** öksüz çalıştırma uzlaştırması | [Faz 54](54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md) ✅ | Faz 46 bu kusuru **üretiyor**. 🚨 Kanıt Faz 46'da **daraldı**: yalnız yeniden denemesiz çöküş orphan üretir | Yok | `runs.heartbeat_at` — üç set |
-| **F-69** asenkron onay kutusu | [Faz 55](55-ASENKRON-ONAY-KUTUSU.md) | Kuyrukta koşan bir çalıştırma onay isterse kimse cevap veremez; Faz 46 bunu kolaylıktan **eksiğe** çevirdi | Yok | `pending_approvals` — üç set |
+| **F-69** asenkron onay kutusu | [Faz 55](55-ASENKRON-ONAY-KUTUSU.md) ✅ | Kuyrukta koşan bir çalıştırma onay isterse kimse cevap veremez; Faz 46 bunu kolaylıktan **eksiğe** çevirdi | Yok | `pending_approvals` — üç set |
 | **F-74** kanarya ve otomatik geri alma | [Faz 56](56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md) | Üç önkoşulu da tamam (Faz 31, 44, 49). 🚨 Eşik mantığı Faz 49'un `MinSampleSize` + pencere kuralını **aynen** kullanmalıdır | Yok | `experiments` kanarya alanları — üç set |
 
 ### Bu dalgada plana dönüşmeyen kalem

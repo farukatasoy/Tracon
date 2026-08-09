@@ -99,7 +99,10 @@ public sealed class A2AEndpointTests
     [Fact]
     public async Task Onay_gerektiren_tool_tasiyan_agent_A2Ada_disa_acilamaz()
     {
-        var exception = await Should.ThrowAsync<InvalidOperationException>(() => AgentPrismTestHost.StartAsync(
+        // Guard artik Map* aninda senkron degil, A2AApprovalGuardFilter icinde
+        // arka planda calisir (bkz. AgentPrismA2AExtensions) — hata bu yuzden
+        // MapAgentPrismA2A()'dan degil, ILK istekten firlar.
+        await using var host = await AgentPrismTestHost.StartAsync(
             configureAgentPrism: builder => builder
                 .AddTool(
                     (Func<string, string>)CancelOrder,
@@ -108,9 +111,49 @@ public sealed class A2AEndpointTests
                     requiresApproval: true)
                 .AddAgent(TestData.Definition() with { ToolNames = ["cancel_order"] })
                 .UseA2A(o => o.ExposedAgents.Add("kod-agent")),
-            configureAfterMap: app => app.MapAgentPrismA2A()));
+            configureAfterMap: app => app.MapAgentPrismA2A());
+
+        var exception = await Should.ThrowAsync<InvalidOperationException>(() => host.Client.GetAsync(
+            new Uri("/agentprism/a2a/kod-agent/.well-known/agent-card.json", UriKind.Relative)));
 
         exception.Message.ShouldContain("onay", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task Bos_sqlite_veritabaninda_MapAgentPrismA2A_cokmez()
+    {
+        // Regresyon: MapAgentPrismA2A() onceden Map* aninda (migration'lar
+        // baslamadan ONCE) katalogu SENKRON okuyordu; tamamen bos (dosyasi HENUZ
+        // olusmamis) bir veritabaninda "no such table" ile cokerdi. Guard
+        // A2AApprovalGuardFilter'a tasindiktan sonra Map* artik DB'ye hic
+        // dokunmuyor (agent karti icin kalan okuma da bir DB hatasinda geri
+        // donuse dusuyor). `:memory:` KULLANILMAZ: paylasilan onbellek olmadan
+        // her yeni baglanti kendi izole bos veritabanini acar.
+        var databasePath = Path.Combine(Path.GetTempPath(), $"agentprism-a2a-empty-db-{Guid.NewGuid():N}.db");
+
+        try
+        {
+            await using var host = await AgentPrismTestHost.StartAsync(
+                configureAgentPrism: builder => builder
+                    .UseSqlite($"Data Source={databasePath}")
+                    .AddAgent(TestData.Definition())
+                    .UseA2A(o => o.ExposedAgents.Add("kod-agent")),
+                configureAfterMap: app => app.MapAgentPrismA2A());
+
+            using var response = await host.Client.GetAsync(
+                new Uri("/agentprism/a2a/kod-agent/.well-known/agent-card.json", UriKind.Relative));
+            var body = await AgentPrismTestHost.ReadJsonAsync(response);
+
+            response.StatusCode.ShouldBe(HttpStatusCode.OK);
+            body.GetProperty("name").GetString().ShouldBe("kod-agent");
+        }
+        finally
+        {
+            foreach (var suffix in new[] { string.Empty, "-wal", "-shm", ".agentprism-migration-lock" })
+            {
+                File.Delete(databasePath + suffix);
+            }
+        }
     }
 
     [Fact]

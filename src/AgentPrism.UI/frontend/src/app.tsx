@@ -27,6 +27,7 @@ import { RunDetailScreen } from './screens/run-detail';
 import { ToolsScreen } from './screens/tools';
 import { ModelsScreen } from './screens/models';
 import { McpScreen } from './screens/mcp';
+import { ApprovalsScreen } from './screens/approvals';
 import { SettingsScreen } from './screens/settings';
 import { AuditScreen } from './screens/audit';
 import { DiagnosticsScreen } from './screens/diagnostics';
@@ -83,6 +84,7 @@ const routes = (meta: Meta): RouteDefinition[] => [
   { pattern: 'tools', render: () => <ToolsScreen /> },
   { pattern: 'models', render: () => <ModelsScreen /> },
   { pattern: 'mcp', render: () => <McpScreen meta={meta} /> },
+  { pattern: 'approvals', render: () => <ApprovalsScreen meta={meta} /> },
   { pattern: 'audit', render: () => <AuditScreen /> },
   { pattern: 'diagnostics', render: () => <DiagnosticsScreen /> },
   { pattern: 'settings', render: () => <SettingsScreen meta={meta} /> },

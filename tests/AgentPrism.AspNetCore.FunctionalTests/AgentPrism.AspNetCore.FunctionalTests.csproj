@@ -29,6 +29,12 @@
     <ProjectReference Include="../../src/AgentPrism.Workflows/AgentPrism.Workflows.csproj" />
     <!-- Sahte model saglayicisi (FakeModelProvider): Faz 39, K-007 gerekcesi bolum 39.1. -->
     <ProjectReference Include="../../src/AgentPrism.Testing/AgentPrism.Testing.csproj" />
+    <!--
+      Bos (migration'siz) bir SQLite veritabaninda MapAgentPrismMcpServer/
+      MapAgentPrismA2A'nin cokmedigini dogrulamak icin gercek bir SQL
+      saglayicisi gerekir; diger tum testler bellek ici depolarla calisir.
+    -->
+    <ProjectReference Include="../../src/AgentPrism.Sqlite/AgentPrism.Sqlite.csproj" />
   </ItemGroup>
 
   <ItemGroup>

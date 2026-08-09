@@ -221,3 +221,11 @@ public sealed class InMemoryRunInputStoreContractTests : RunInputStoreContract
     protected override ValueTask<IRunInputStore> CreateStoreAsync()
         => ValueTask.FromResult<IRunInputStore>(new InMemoryRunInputStore());
 }
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryPendingApprovalStoreContractTests : PendingApprovalStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<IPendingApprovalStore> CreateStoreAsync()
+        => ValueTask.FromResult<IPendingApprovalStore>(new InMemoryPendingApprovalStore(AmbientTenant));
+}

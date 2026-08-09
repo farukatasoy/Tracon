@@ -62,6 +62,7 @@ internal sealed class SqliteTestContext : IAsyncDisposable
         IdempotencyKeys = new SqlIdempotencyStore(wrapped);
         RunInputs = new SqlRunInputStore(wrapped);
         ConversationBranches = new SqlConversationBranchStore(wrapped);
+        PendingApprovals = new SqlPendingApprovalStore(wrapped, TenantContext);
         Migrations = new MigrationRunner(wrapped, NullLogger<MigrationRunner>.Instance);
     }
 
@@ -91,6 +92,9 @@ internal sealed class SqliteTestContext : IAsyncDisposable
 
     /// <summary>Kalici onay kurali deposu.</summary>
     public SqlToolApprovalRuleStore ApprovalRules { get; }
+
+    /// <summary>Bekleyen onay istegi deposu (Faz 55).</summary>
+    public SqlPendingApprovalStore PendingApprovals { get; }
 
     /// <summary>MCP sunucu deposu.</summary>
     public SqlMcpServerStore McpServers { get; }

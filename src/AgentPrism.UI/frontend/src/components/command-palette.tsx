@@ -50,6 +50,7 @@ const NAVIGATION = [
   { path: 'skills', key: 'nav.skills', english: 'Skills' },
   { path: 'models', key: 'nav.models', english: 'Models' },
   { path: 'mcp', key: 'nav.mcp', english: 'MCP' },
+  { path: 'approvals', key: 'nav.approvals', english: 'Approvals' },
   { path: 'audit', key: 'nav.audit', english: 'Audit', adminOnly: true },
   { path: 'settings', key: 'nav.settings', english: 'Settings' },
 ] as const;

@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism.Core.UnitTests.Scheduling;
 
@@ -87,8 +88,10 @@ public sealed class AgentRunJobHandlerTests
             catalog,
             new AgentSessionManager(new InMemorySessionStore(), FixedTenantContext.Default),
             runs ?? new InMemoryRunStore(),
+            new InMemoryPendingApprovalStore(),
+            Options.Create(new AgentPrismOptions()),
             timeProvider: null,
-            NullLogger<AgentRunJobHandler>.Instance);
+            logger: NullLogger<AgentRunJobHandler>.Instance);
 
     private static JobContext BuildContext(Guid runId, string message, string targetName = "sahte-agent")
         => new()

@@ -81,6 +81,7 @@ public sealed class TenantCoverageTests
         ["SqlIdempotencyStore"] = ["ReserveAsync", "CompleteAsync", "ReleaseAsync"],
         ["SqlRunInputStore"] = ["SaveAsync", "GetAsync"],
         ["SqlConversationBranchStore"] = ["BranchAsync"],
+        ["SqlPendingApprovalStore"] = ["CreateAsync", "ListPendingAsync", "GetAsync", "DecideAsync", "ExpireAsync"],
     };
 
     [Fact]
