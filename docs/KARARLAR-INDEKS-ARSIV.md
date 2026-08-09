@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (222 kalem)
+## Arşivlenen Kararlar (229 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -231,3 +231,10 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-220 | 265 | `POST /api/voice/speak` operatör eylemidir ve `tool_invocations`'a yazmaz |
 | K-221 | 266 | Ses API anahtarı düz `ApiKey`'dir; K-059 yalnız veritabanı içindir |
 | K-222 | 267 | Konuşma katmanı Seçenek A ile ve `AgentPrism.Core`'da |
+| K-223 | 268 | `MapAgentPrism` `UseWebSockets()`'i koşullu olarak kendisi kurar |
+| K-224 | 269 | WebSocket bearer token'ı alt protokolde taşınır, sorgu dizesinde kabul edilmez |
+| K-225 | 270 | `PersistAudio` yalnız agent'ın ürettiği sesi saklar; kullanıcının sesi hiç saklanmaz 👤 |
+| K-226 | 271 | Artımlı (geçici) transkript yok; çözüm tek atımlıdır 👤 |
+| K-227 | 272 | Ses dakikası bir kota birimi değildir 👤 |
+| K-228 | 273 | i18n kütüphanesi alınmadı; `lib/i18n.tsx` elle yazıldı |
+| K-229 | 274 | `t` fonksiyonu modül düzeyindedir ve kimliği hiç değişmez |

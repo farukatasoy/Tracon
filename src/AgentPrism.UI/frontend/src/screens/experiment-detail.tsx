@@ -1,15 +1,75 @@
-import type { ReactNode } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { absoluteTime, count, relativeTime, percent } from '../lib/format';
 import { useT } from '../lib/i18n';
-import { Badge, Button, Empty, ErrorNote, Loading, Mono, PageHeader, Panel, Table, Td, Th } from '../components/ui';
+import {
+  Badge,
+  Button,
+  Empty,
+  ErrorNote,
+  Field,
+  Loading,
+  Mono,
+  PageHeader,
+  Panel,
+  Select,
+  Table,
+  Td,
+  TextInput,
+  Th,
+} from '../components/ui';
 import { StatusBadge } from './experiments';
-import type { Meta } from '../lib/types';
+import type { CanaryDecisionKind, CanaryPolicy, Meta } from '../lib/types';
+
+function emptyCanaryForm(variantName: string): CanaryFormState {
+  return { canaryVariant: variantName, maxErrorRateDelta: '', minScore: '', minSampleSize: 20, rampSteps: '', rampIntervalHours: 1 };
+}
+
+interface CanaryFormState {
+  canaryVariant: string;
+  maxErrorRateDelta: string;
+  minScore: string;
+  minSampleSize: number;
+  rampSteps: string;
+  rampIntervalHours: number;
+}
+
+function toCanaryPolicy(form: CanaryFormState): CanaryPolicy {
+  return {
+    canaryVariant: form.canaryVariant,
+    maxErrorRateDelta: form.maxErrorRateDelta.trim() === '' ? null : Number(form.maxErrorRateDelta) / 100,
+    minScore: form.minScore.trim() === '' ? null : Number(form.minScore),
+    minSampleSize: form.minSampleSize,
+    rampSteps:
+      form.rampSteps.trim() === ''
+        ? []
+        : form.rampSteps
+            .split(',')
+            .map((step) => Number(step.trim()))
+            .filter((step) => Number.isFinite(step)),
+    rampInterval: `${form.rampIntervalHours}:00:00`,
+  };
+}
+
+function CanaryDecisionBadge({ decision }: { decision: CanaryDecisionKind }): ReactNode {
+  const t = useT();
+
+  switch (decision) {
+    case 'RollBack':
+      return <Badge tone="danger">{t('experiments.canary.decision.rollBack')}</Badge>;
+    case 'Healthy':
+      return <Badge tone="success">{t('experiments.canary.decision.healthy')}</Badge>;
+    default:
+      return <Badge tone="neutral">{t('experiments.canary.decision.insufficientData')}</Badge>;
+  }
+}
 
 export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Meta }): ReactNode {
   const t = useT();
   const client = useQueryClient();
+  const [showCanaryForm, setShowCanaryForm] = useState(false);
+  const [canaryForm, setCanaryForm] = useState<CanaryFormState>(emptyCanaryForm(''));
 
   const experiment = useQuery({ queryKey: ['experiment', name], queryFn: () => api.experiment(name) });
 
@@ -19,10 +79,28 @@ export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Met
     refetchInterval: 5_000,
   });
 
+  const twoArmed = experiment.data != null && experiment.data.variants.length === 2;
+
+  const canary = useQuery({
+    queryKey: ['experimentCanary', name],
+    queryFn: () => api.experimentCanary(name),
+    enabled: twoArmed,
+    refetchInterval: 5_000,
+  });
+
   const invalidate = async (): Promise<void> => {
     await client.invalidateQueries({ queryKey: ['experiment', name] });
     await client.invalidateQueries({ queryKey: ['experiments'] });
+    await client.invalidateQueries({ queryKey: ['experimentCanary', name] });
   };
+
+  const setCanary = useMutation({
+    mutationFn: (policy: CanaryPolicy | null) => api.setExperimentCanary(name, policy),
+    onSuccess: async () => {
+      setShowCanaryForm(false);
+      await invalidate();
+    },
+  });
 
   const start = useMutation({
     mutationFn: () => api.startExperiment(name),
@@ -165,6 +243,175 @@ export function ExperimentDetailScreen({ name, meta }: { name: string; meta: Met
             </Table>
           ))}
       </Panel>
+
+      {twoArmed && (
+        <Panel
+          title={t('experiments.canary.title')}
+          className="mt-4"
+          actions={
+            meta.roles.canAdminister &&
+            data.canary == null &&
+            !showCanaryForm && (
+              <Button
+                testId="canary-enable"
+                onClick={() => {
+                  setCanaryForm(emptyCanaryForm(data.variants[1]?.name ?? data.variants[0]?.name ?? ''));
+                  setShowCanaryForm(true);
+                }}
+              >
+                {t('experiments.canary.enable')}
+              </Button>
+            )
+          }
+        >
+          {data.rollbackReason != null && (
+            <div className="border-b border-line bg-danger/10 p-4 text-[13px]">
+              <span className="font-medium text-danger">{t('experiments.canary.rolledBack')}</span>{' '}
+              <span className="text-muted">{data.rollbackReason}</span>
+            </div>
+          )}
+
+          {showCanaryForm && (
+            <form
+              className="grid gap-3 border-b border-line p-4"
+              onSubmit={(event: FormEvent) => {
+                event.preventDefault();
+                setCanary.mutate(toCanaryPolicy(canaryForm));
+              }}
+            >
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label={t('experiments.canary.canaryVariant')}>
+                  <Select
+                    value={canaryForm.canaryVariant}
+                    testId="canary-variant"
+                    onChange={(value) => setCanaryForm({ ...canaryForm, canaryVariant: value })}
+                  >
+                    {data.variants.map((variant) => (
+                      <option key={variant.name} value={variant.name}>
+                        {variant.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label={t('experiments.canary.minSampleSize')} hint={t('experiments.canary.minSampleSizeHint')}>
+                  <TextInput
+                    type="number"
+                    min={1}
+                    value={canaryForm.minSampleSize}
+                    data-testid="canary-min-sample-size"
+                    onChange={(event) => setCanaryForm({ ...canaryForm, minSampleSize: Number(event.target.value) })}
+                  />
+                </Field>
+                <Field label={t('experiments.canary.maxErrorRateDelta')} hint={t('experiments.canary.maxErrorRateDeltaHint')}>
+                  <TextInput
+                    type="number"
+                    min={0}
+                    max={100}
+                    placeholder="10"
+                    value={canaryForm.maxErrorRateDelta}
+                    data-testid="canary-max-error-rate-delta"
+                    onChange={(event) => setCanaryForm({ ...canaryForm, maxErrorRateDelta: event.target.value })}
+                  />
+                </Field>
+                <Field label={t('experiments.canary.minScore')} hint={t('experiments.canary.minScoreHint')}>
+                  <TextInput
+                    type="number"
+                    min={0}
+                    max={100}
+                    placeholder="60"
+                    value={canaryForm.minScore}
+                    data-testid="canary-min-score"
+                    onChange={(event) => setCanaryForm({ ...canaryForm, minScore: event.target.value })}
+                  />
+                </Field>
+                <Field label={t('experiments.canary.rampSteps')} hint={t('experiments.canary.rampStepsHint')}>
+                  <TextInput
+                    placeholder="5, 25, 50, 100"
+                    value={canaryForm.rampSteps}
+                    data-testid="canary-ramp-steps"
+                    onChange={(event) => setCanaryForm({ ...canaryForm, rampSteps: event.target.value })}
+                  />
+                </Field>
+                <Field label={t('experiments.canary.rampIntervalHours')}>
+                  <TextInput
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    value={canaryForm.rampIntervalHours}
+                    data-testid="canary-ramp-interval"
+                    onChange={(event) => setCanaryForm({ ...canaryForm, rampIntervalHours: Number(event.target.value) })}
+                  />
+                </Field>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button type="submit" tone="primary" testId="canary-save" busy={setCanary.isPending}>
+                  {t('common.save')}
+                </Button>
+                <Button tone="ghost" onClick={() => setShowCanaryForm(false)}>
+                  {t('common.cancel')}
+                </Button>
+                {setCanary.isError && <ErrorNote error={setCanary.error} />}
+              </div>
+            </form>
+          )}
+
+          {canary.isPending && <Loading />}
+          {canary.isError && (
+            <div className="p-4">
+              <ErrorNote error={canary.error} />
+            </div>
+          )}
+
+          {canary.isSuccess &&
+            (canary.data.policy == null ? (
+              !showCanaryForm && <Empty title={t('experiments.canary.empty.title')}>{t('experiments.canary.empty.body')}</Empty>
+            ) : (
+              <div className="p-4">
+                <dl className="mb-4 flex flex-wrap gap-6 text-[13px]">
+                  <div>
+                    <dt className="text-[11px] text-subtle uppercase">{t('experiments.canary.canaryVariant')}</dt>
+                    <dd className="mt-0.5"><Badge tone="accent">{canary.data.policy.canaryVariant}</Badge></dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px] text-subtle uppercase">{t('experiments.canary.maxErrorRateDelta')}</dt>
+                    <dd className="mt-0.5 text-muted">
+                      {canary.data.policy.maxErrorRateDelta != null ? percent(canary.data.policy.maxErrorRateDelta) : '—'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px] text-subtle uppercase">{t('experiments.canary.minScore')}</dt>
+                    <dd className="mt-0.5 text-muted">{canary.data.policy.minScore ?? '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px] text-subtle uppercase">{t('experiments.canary.rampSteps')}</dt>
+                    <dd className="mt-0.5 text-muted">
+                      {canary.data.policy.rampSteps.length > 0 ? canary.data.policy.rampSteps.join(' → ') : '—'}
+                    </dd>
+                  </div>
+                  {canary.data.evaluation != null && (
+                    <div>
+                      <dt className="text-[11px] text-subtle uppercase">{t('experiments.canary.lastEvaluation')}</dt>
+                      <dd className="mt-0.5"><CanaryDecisionBadge decision={canary.data.evaluation.decision} /></dd>
+                    </div>
+                  )}
+                </dl>
+
+                {canary.data.evaluation != null && (
+                  <p className="mb-4 text-[13px] text-muted" title={absoluteTime(canary.data.evaluation.evaluatedAt)}>
+                    {canary.data.evaluation.reason}
+                  </p>
+                )}
+
+                {meta.roles.canAdminister && (
+                  <Button tone="danger" testId="canary-remove" busy={setCanary.isPending} onClick={() => setCanary.mutate(null)}>
+                    {t('experiments.canary.remove')}
+                  </Button>
+                )}
+              </div>
+            ))}
+        </Panel>
+      )}
     </>
   );
 }

@@ -76,6 +76,14 @@ internal sealed class SqlExperimentStore : IExperimentStore
     }
 
     /// <inheritdoc />
+    public async ValueTask<IReadOnlyList<Experiment>> ListRunningWithCanaryAsync(CancellationToken cancellationToken = default)
+    {
+        var command = CreateCommand(_sql.SelectRunningExperimentsWithCanary);
+
+        return await DbHelpers.ReadListAsync(command, ReadExperiment, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
     public async ValueTask<Experiment> SaveAsync(Experiment experiment, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(experiment);
@@ -198,6 +206,89 @@ internal sealed class SqlExperimentStore : IExperimentStore
             ?? throw new AgentPrismException($"'{name}' deneyi durduruldu ama okunamadi.");
     }
 
+    /// <inheritdoc />
+    public async ValueTask<Experiment> SetCanaryPolicyAsync(
+        string tenantId,
+        string name,
+        CanaryPolicy? policy,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(tenantId);
+        ArgumentNullException.ThrowIfNull(name);
+
+        var now = DateTimeOffset.UtcNow;
+        var policyJson = policy is null ? null : JsonSerializer.Serialize(policy, AgentPrismJsonContext.Default.CanaryPolicy);
+
+        var command = CreateCommand(_sql.SetExperimentCanaryPolicy);
+        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.Add(command, "name", name);
+        Dialect.AddJsonb(command, "canary_policy", policyJson);
+        Dialect.AddTimestamp(command, "now", now);
+
+        _ = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false)
+            ?? throw new AgentPrismException($"'{name}' adinda bir deney bulunamadi.");
+
+        return await GetAsync(tenantId, name, cancellationToken).ConfigureAwait(false)
+            ?? throw new AgentPrismException($"'{name}' deneyinin kanarya kurali guncellendi ama okunamadi.");
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<Experiment> AdvanceCanaryRampAsync(
+        string tenantId,
+        string name,
+        IReadOnlyList<ExperimentVariant> variants,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(tenantId);
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(variants);
+
+        var now = DateTimeOffset.UtcNow;
+        var variantsJson = JsonSerializer.Serialize(variants, AgentPrismJsonContext.Default.IReadOnlyListExperimentVariant);
+
+        var command = CreateCommand(_sql.AdvanceExperimentCanaryRamp);
+        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.Add(command, "name", name);
+        Dialect.AddJsonb(command, "variants", variantsJson);
+        Dialect.AddTimestamp(command, "now", now);
+
+        _ = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false)
+            ?? throw new AgentPrismException($"'{name}' deneyi calismiyor.");
+
+        return await GetAsync(tenantId, name, cancellationToken).ConfigureAwait(false)
+            ?? throw new AgentPrismException($"'{name}' deneyinin kanarya agirligi guncellendi ama okunamadi.");
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<Experiment> RollbackCanaryAsync(
+        string tenantId,
+        string name,
+        IReadOnlyList<ExperimentVariant> variants,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(tenantId);
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(variants);
+        ArgumentNullException.ThrowIfNull(reason);
+
+        var now = DateTimeOffset.UtcNow;
+        var variantsJson = JsonSerializer.Serialize(variants, AgentPrismJsonContext.Default.IReadOnlyListExperimentVariant);
+
+        var command = CreateCommand(_sql.RollbackExperimentCanary);
+        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.Add(command, "name", name);
+        Dialect.AddJsonb(command, "variants", variantsJson);
+        AddNullableText(command, "rollback_reason", reason);
+        Dialect.AddTimestamp(command, "now", now);
+
+        _ = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false)
+            ?? throw new AgentPrismException($"'{name}' deneyi calismiyor.");
+
+        return await GetAsync(tenantId, name, cancellationToken).ConfigureAwait(false)
+            ?? throw new AgentPrismException($"'{name}' deneyi geri alindi ama okunamadi.");
+    }
+
     private async ValueTask<AgentPrismException> BuildStartFailureAsync(string tenantId, string name, CancellationToken cancellationToken)
     {
         var existing = await GetAsync(tenantId, name, cancellationToken).ConfigureAwait(false);
@@ -224,6 +315,10 @@ internal sealed class SqlExperimentStore : IExperimentStore
             StartedAt = DbHelpers.GetNullableTimestamp(reader, 7),
             EndedAt = DbHelpers.GetNullableTimestamp(reader, 8),
             UpdatedAt = DbHelpers.GetNullableTimestamp(reader, 9),
+            Canary = DbHelpers.GetNullableString(reader, 10) is { } canaryJson
+                ? JsonSerializer.Deserialize(canaryJson, AgentPrismJsonContext.Default.CanaryPolicy)
+                : null,
+            RollbackReason = DbHelpers.GetNullableString(reader, 11),
         };
 
     private void AddNullableText(DbCommand command, string name, string? value)

@@ -1374,6 +1374,35 @@ export interface Experiment {
   startedAt?: string | null;
   endedAt?: string | null;
   updatedAt?: string | null;
+  canary?: CanaryPolicy | null;
+  rollbackReason?: string | null;
+}
+
+/** Canary rollout and auto-rollback rules for one experiment's canary arm. Only valid on two-armed experiments. */
+export interface CanaryPolicy {
+  canaryVariant: string;
+  maxErrorRateDelta?: number | null;
+  minScore?: number | null;
+  minSampleSize: number;
+  rampSteps: number[];
+  rampInterval: string;
+}
+
+/** Result of evaluating a `CanaryPolicy` against the arms' current results. */
+export type CanaryDecisionKind = 'InsufficientData' | 'Healthy' | 'RollBack';
+
+export interface CanaryEvaluation {
+  decision: CanaryDecisionKind;
+  reason: string;
+  canary?: ExperimentVariantResult | null;
+  control?: ExperimentVariantResult | null;
+  evaluatedAt: string;
+}
+
+/** Body of `GET /api/experiments/{name}/canary`. */
+export interface ExperimentCanaryResponse {
+  policy?: CanaryPolicy | null;
+  evaluation?: CanaryEvaluation | null;
 }
 
 /** Body of PUT `/api/experiments/{name}`. Server-owned fields are deliberately absent. */
@@ -1397,6 +1426,7 @@ export interface ExperimentVariantResult {
   errorRate?: number | null;
   totalCost?: number | null;
   currency?: string | null;
+  averageScore?: number | null;
 }
 
 export interface ExperimentResultsResponse {

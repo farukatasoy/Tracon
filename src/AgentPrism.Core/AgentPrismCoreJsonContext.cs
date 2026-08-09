@@ -22,6 +22,7 @@ namespace AgentPrism;
 [JsonSerializable(typeof(AgentSkillScriptDefinition))]
 [JsonSerializable(typeof(WorkflowDefinition))]
 [JsonSerializable(typeof(Experiment))]
+[JsonSerializable(typeof(CanaryRollbackAuditPayload))]
 
 // Konusma dallandirmasi (Faz 47): oturumun durum cantasindaki konusma kimligi
 // okunur ve yeni oturuma yazilir.

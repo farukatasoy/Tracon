@@ -14,6 +14,7 @@ import type {
   SkillScriptGrant,
   SkillScriptGrantRequest,
   AuditEntry,
+  CanaryPolicy,
   Conversation,
   CurrentTenant,
   DiagnosticsReport,
@@ -26,6 +27,7 @@ import type {
   EvalSuite,
   EvalSuiteSaveRequest,
   Experiment,
+  ExperimentCanaryResponse,
   ExperimentResultsResponse,
   ExperimentSaveRequest,
   JobDetailResponse,
@@ -549,6 +551,10 @@ export const api = {
     send<Experiment>('POST', `api/experiments/${encodeURIComponent(name)}/stop`, {}),
   experimentResults: (name: string) =>
     request<ExperimentResultsResponse>(`api/experiments/${encodeURIComponent(name)}/results`),
+  experimentCanary: (name: string) =>
+    request<ExperimentCanaryResponse>(`api/experiments/${encodeURIComponent(name)}/canary`),
+  setExperimentCanary: (name: string, policy: CanaryPolicy | null) =>
+    send<Experiment>('PUT', `api/experiments/${encodeURIComponent(name)}/canary`, policy),
 
   quotas: () => request<QuotaDefinition[]>('api/quotas'),
   saveQuota: (body: QuotaSaveRequest) => send<QuotaDefinition>('PUT', 'api/quotas', body),

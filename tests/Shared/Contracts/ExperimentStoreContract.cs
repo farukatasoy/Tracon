@@ -163,6 +163,148 @@ public abstract class ExperimentStoreContract : TenantIsolationContract<IExperim
     public async Task Calisan_deney_yoksa_null_doner()
         => (await Store.GetRunningAsync(TenantId, "agent-a")).ShouldBeNull();
 
+    [Fact]
+    public async Task Kanarya_kurali_tanimlanip_okunur()
+    {
+        await Store.SaveAsync(Experiment("d1"));
+
+        var updated = await Store.SetCanaryPolicyAsync(TenantId, "d1", CanaryPolicy());
+
+        updated.Canary.ShouldNotBeNull();
+        updated.Canary!.CanaryVariant.ShouldBe("v2");
+        updated.Canary.MaxErrorRateDelta.ShouldBe(0.1);
+
+        var fetched = await Store.GetAsync(TenantId, "d1");
+        fetched!.Canary.ShouldNotBeNull();
+        fetched.Canary!.RampSteps.ShouldBe([5, 25, 50, 100]);
+    }
+
+    [Fact]
+    public async Task Kanarya_kurali_null_ile_kaldirilir()
+    {
+        await Store.SaveAsync(Experiment("d1"));
+        await Store.SetCanaryPolicyAsync(TenantId, "d1", CanaryPolicy());
+
+        var cleared = await Store.SetCanaryPolicyAsync(TenantId, "d1", null);
+
+        cleared.Canary.ShouldBeNull();
+        (await Store.GetAsync(TenantId, "d1"))!.Canary.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Kanarya_kurali_Draft_deneyde_de_tanimlanabilir()
+    {
+        await Store.SaveAsync(Experiment("d1"));
+
+        // 🚨 SetCanaryPolicyAsync SaveAsync'in aksine duruma bagli DEGILDIR.
+        var updated = await Store.SetCanaryPolicyAsync(TenantId, "d1", CanaryPolicy());
+
+        updated.Status.ShouldBe(ExperimentStatus.Draft);
+        updated.Canary.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task Kanarya_kurali_deneyi_duzenleme_Draft_kisitindan_MUAF_tutulur()
+    {
+        await Store.SaveAsync(Experiment("d1"));
+        await Store.StartAsync(TenantId, "d1");
+
+        // SaveAsync Running'de reddedilir ama SetCanaryPolicyAsync reddedilmez.
+        var updated = await Store.SetCanaryPolicyAsync(TenantId, "d1", CanaryPolicy());
+
+        updated.Status.ShouldBe(ExperimentStatus.Running);
+        updated.Canary.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task Kanarya_rampasi_calisan_deneyde_agirligi_gunceller_ve_Running_kalir()
+    {
+        await Store.SaveAsync(Experiment("d1"));
+        await Store.StartAsync(TenantId, "d1");
+
+        var advanced = await Store.AdvanceCanaryRampAsync(
+            TenantId,
+            "d1",
+            [
+                new ExperimentVariant { Name = "control", Version = 1, Weight = 75 },
+                new ExperimentVariant { Name = "v2", Version = 2, Weight = 25 },
+            ]);
+
+        advanced.Status.ShouldBe(ExperimentStatus.Running);
+        advanced.Variants.Single(static v => string.Equals(v.Name, "v2", StringComparison.Ordinal)).Weight.ShouldBe(25);
+    }
+
+    [Fact]
+    public async Task Kanarya_rampasi_calismayan_deneyde_reddedilir()
+    {
+        await Store.SaveAsync(Experiment("d1"));
+
+        await Should.ThrowAsync<AgentPrismException>(async () => await Store.AdvanceCanaryRampAsync(
+            TenantId,
+            "d1",
+            [
+                new ExperimentVariant { Name = "control", Version = 1, Weight = 75 },
+                new ExperimentVariant { Name = "v2", Version = 2, Weight = 25 },
+            ]));
+    }
+
+    [Fact]
+    public async Task Geri_alma_deneyi_durdurur_agirliklari_dondurur_ve_nedeni_yazar()
+    {
+        await Store.SaveAsync(Experiment("d1"));
+        await Store.StartAsync(TenantId, "d1");
+
+        var rolledBack = await Store.RollbackCanaryAsync(
+            TenantId,
+            "d1",
+            [
+                new ExperimentVariant { Name = "control", Version = 1, Weight = 100 },
+                new ExperimentVariant { Name = "v2", Version = 2, Weight = 0 },
+            ],
+            "hata orani esigin uzerinde");
+
+        rolledBack.Status.ShouldBe(ExperimentStatus.Stopped);
+        rolledBack.EndedAt.ShouldNotBeNull();
+        rolledBack.RollbackReason.ShouldBe("hata orani esigin uzerinde");
+        rolledBack.Variants.Single(static v => string.Equals(v.Name, "v2", StringComparison.Ordinal)).Weight.ShouldBe(0);
+
+        (await Store.GetRunningAsync(TenantId, "agent-a")).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task ListRunningWithCanaryAsync_yalniz_kanarya_tanimli_calisan_deneyleri_getirir()
+    {
+        // d1: kanaryasiz Running -- listede OLMAMALI.
+        await Store.SaveAsync(Experiment("d1", tenantId: "kanarya-a"));
+        await Store.StartAsync("kanarya-a", "d1");
+
+        // d2: kanaryali Draft -- listede OLMAMALI (Running degil).
+        await Store.SaveAsync(Experiment("d2", tenantId: "kanarya-a"));
+        await Store.SetCanaryPolicyAsync("kanarya-a", "d2", CanaryPolicy());
+
+        // d3: kanaryali VE Running -- listede OLMALI, baska bir kiracida bile.
+        await Store.SaveAsync(Experiment("d3", tenantId: "kanarya-b"));
+        await Store.SetCanaryPolicyAsync("kanarya-b", "d3", CanaryPolicy());
+        await Store.StartAsync("kanarya-b", "d3");
+
+        var running = await Store.ListRunningWithCanaryAsync();
+
+        running.ShouldContain(experiment => string.Equals(experiment.Name, "d3", StringComparison.Ordinal));
+        running.ShouldNotContain(experiment => string.Equals(experiment.Name, "d1", StringComparison.Ordinal));
+        running.ShouldNotContain(experiment => string.Equals(experiment.Name, "d2", StringComparison.Ordinal));
+    }
+
+    private static CanaryPolicy CanaryPolicy()
+        => new()
+        {
+            CanaryVariant = "v2",
+            MaxErrorRateDelta = 0.1,
+            MinScore = 60,
+            MinSampleSize = 20,
+            RampSteps = [5, 25, 50, 100],
+            RampInterval = TimeSpan.FromHours(1),
+        };
+
     private static Experiment Experiment(string name, string tenantId = TenantId)
         => new()
         {

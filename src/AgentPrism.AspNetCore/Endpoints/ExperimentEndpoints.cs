@@ -68,6 +68,22 @@ internal static class ExperimentEndpoints
             .WithTags("AgentPrism", "Experiments")
             .WithSummary("Kol bazinda sayi, hata orani, token ve sure ozetini getirir.")
             .WithDescription("Istatistiksel bir 'kazanan' iddiasi yoktur; ham sayilar gosterilir.");
+
+        builder.MapPut("/api/experiments/{name}/canary", SetCanaryAsync)
+            .RequireRole(roles.Admin)
+            .WithName("AgentPrismSetExperimentCanary")
+            .WithTags("AgentPrism", "Experiments")
+            .WithSummary("Kanarya kuralini tanimlar veya kaldirir (govde 'null').")
+            .WithDescription(
+                "Yalnizca iki kollu deneylerde tanimlanabilir: kanaryaVariant kanarya, kalan TEK kol " +
+                "kontrol sayilir. Deneyin durumundan bagimsiz calisir (Draft veya Running).");
+
+        builder.MapGet("/api/experiments/{name}/canary", GetCanaryAsync)
+            .RequireRole(roles.Reader)
+            .WithName("AgentPrismGetExperimentCanary")
+            .WithTags("AgentPrism", "Experiments")
+            .WithSummary("Kanarya kuralini ve guncel degerlendirmesini getirir.")
+            .WithDescription("Degerlendirme kalici degildir; her cagrida guncel calistirma sonuclariyla yeniden hesaplanir.");
     }
 
     private static async Task<Ok<IReadOnlyList<Experiment>>> ListAsync(
@@ -234,6 +250,124 @@ internal static class ExperimentEndpoints
             .ConfigureAwait(false);
 
         return TypedResults.Ok(new ExperimentResultsResponse { Experiment = experiment, Results = results });
+    }
+
+    private static async Task<Results<Ok<Experiment>, ProblemHttpResult>> SetCanaryAsync(
+        string name,
+        [FromBody] CanaryPolicy? policy,
+        [FromServices] IExperimentStore store,
+        [FromServices] ITenantContext tenants,
+        CancellationToken cancellationToken)
+    {
+        var experiment = await store.GetAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
+
+        if (experiment is null)
+        {
+            return ExperimentNotFound(name);
+        }
+
+        if (policy is not null)
+        {
+            var validationError = ValidateCanaryPolicy(experiment, policy);
+
+            if (validationError is not null)
+            {
+                return InvalidExperiment(validationError);
+            }
+        }
+
+        try
+        {
+            var updated = await store.SetCanaryPolicyAsync(tenants.TenantId, name, policy, cancellationToken).ConfigureAwait(false);
+            return TypedResults.Ok(updated);
+        }
+        catch (AgentPrismException ex)
+        {
+            return TypedResults.Problem(title: "Kanarya kurali guncellenemedi", detail: ex.Message, statusCode: StatusCodes.Status409Conflict);
+        }
+    }
+
+    private static async Task<Results<Ok<ExperimentCanaryResponse>, ProblemHttpResult>> GetCanaryAsync(
+        string name,
+        [FromServices] IExperimentStore store,
+        [FromServices] IRunStore runStore,
+        [FromServices] ITenantContext tenants,
+        [FromServices] TimeProvider? timeProvider,
+        CancellationToken cancellationToken)
+    {
+        var experiment = await store.GetAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
+
+        if (experiment is null)
+        {
+            return ExperimentNotFound(name);
+        }
+
+        if (experiment.Canary is not { } policy)
+        {
+            return TypedResults.Ok(new ExperimentCanaryResponse { Policy = null, Evaluation = null });
+        }
+
+        var results = await runStore
+            .GetExperimentResultsAsync(new ExperimentResultsQuery { ExperimentId = experiment.Id, TenantId = tenants.TenantId }, cancellationToken)
+            .ConfigureAwait(false);
+
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
+        var evaluation = CanaryEvaluator.Evaluate(policy, results, now);
+
+        return TypedResults.Ok(new ExperimentCanaryResponse { Policy = policy, Evaluation = evaluation });
+    }
+
+    /// <summary>
+    /// Bir kanarya kuralinin gecerliligini denetler. 56.4'un iki kollu kisiti
+    /// burada zorlanir: kalan kol sayisi 1'den farkliysa oturum kararliligi
+    /// (bkz. <see cref="CanaryPolicy"/> sinif belgesi) garanti edilemez.
+    /// </summary>
+    private static string? ValidateCanaryPolicy(Experiment experiment, CanaryPolicy policy)
+    {
+        if (experiment.Variants.Count != 2)
+        {
+            return "Kanarya kurali yalnizca iki kollu deneylerde tanimlanabilir.";
+        }
+
+        if (!experiment.Variants.Any(variant => string.Equals(variant.Name, policy.CanaryVariant, StringComparison.Ordinal)))
+        {
+            return $"'{policy.CanaryVariant}' adinda bir kol yok.";
+        }
+
+        if (policy.MinSampleSize <= 0)
+        {
+            return "'minSampleSize' pozitif olmalidir.";
+        }
+
+        if (policy.MaxErrorRateDelta is < 0 or > 1)
+        {
+            return "'maxErrorRateDelta' 0 ile 1 arasinda olmalidir.";
+        }
+
+        if (policy.MinScore is < 0 or > 100)
+        {
+            return "'minScore' 0 ile 100 arasinda olmalidir.";
+        }
+
+        if (policy.RampSteps.Count > 0)
+        {
+            if (policy.RampSteps.Any(step => step is <= 0 or > 100))
+            {
+                return "'rampSteps' degerleri 0 ile 100 arasinda (0 haric) olmalidir.";
+            }
+
+            if (!policy.RampSteps.SequenceEqual(policy.RampSteps.OrderBy(static step => step).Distinct()))
+            {
+                return "'rampSteps' kesin artan sirada, tekrarsiz olmalidir.";
+            }
+
+            if (policy.RampInterval <= TimeSpan.Zero)
+            {
+                return "'rampInterval' pozitif olmalidir.";
+            }
+        }
+
+        return null;
     }
 
     private static ProblemHttpResult InvalidExperiment(string detail)
