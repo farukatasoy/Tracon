@@ -136,6 +136,12 @@ public static class AgentPrismServiceCollectionExtensions
         // saglar — bkz. OnlineEvaluationOptions sinif belgesi.
         services.AddOptions<OnlineEvaluationOptions>().ValidateOnStart();
 
+        // Kanarya yayini ve otomatik geri alma (Faz 56). Ayni gerekce: kendi
+        // SectionName'ini tasir, ayri bir Use...() cagrisi gerektirmez.
+        // AutoRollbackEnabled varsayilan false'tur (K1) — acilmadan hicbir deney
+        // kendiliginden durmaz.
+        services.AddOptions<CanaryOptions>().ValidateOnStart();
+
         if (configurationSection is not null)
         {
             services.Configure<AgentPrismQuotaOptions>(
@@ -156,6 +162,8 @@ public static class AgentPrismServiceCollectionExtensions
                 options => BindApproval(configurationSection.GetSection("Approvals"), options));
             services.Configure<OnlineEvaluationOptions>(
                 options => BindOnlineEvaluation(configurationSection.GetSection("OnlineEvaluation"), options));
+            services.Configure<CanaryOptions>(
+                options => BindCanary(configurationSection.GetSection("Canary"), options));
 
             var contentGuardSection = configurationSection.GetSection("ContentGuard");
 
@@ -597,6 +605,12 @@ public static class AgentPrismServiceCollectionExtensions
         // ilk turdan sonra hicbir yeni sorgu atilmaz.
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, ApprovalExpirationService>());
+
+        // Kanarya degerlendirmesi ve otomatik geri alma (Faz 56).
+        // CanaryOptions.AutoRollbackEnabled varsayilan KAPALIDIR (K1); acilmadan
+        // hicbir deney taranmaz.
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, CanaryEvaluationService>());
 
         // A/B deneyleri (Faz 19). Admin'in olusturdugu/baslattigi/durdurdugu bir
         // varlik oldugu icin IAgentDefinitionStore ile ayni gerekceyle denetim
@@ -1501,6 +1515,28 @@ public static class AgentPrismServiceCollectionExtensions
                 out var maxPerScan))
         {
             options.MaxPerScan = maxPerScan;
+        }
+    }
+
+    /// <summary><c>AgentPrism:Canary</c> bolumunu baglar (Faz 56).</summary>
+    private static void BindCanary(IConfigurationSection section, CanaryOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TryReadBool(section, nameof(CanaryOptions.AutoRollbackEnabled), out var autoRollbackEnabled))
+        {
+            options.AutoRollbackEnabled = autoRollbackEnabled;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(CanaryOptions.ScanInterval)],
+                CultureInfo.InvariantCulture,
+                out var scanInterval))
+        {
+            options.ScanInterval = scanInterval;
         }
     }
 

@@ -779,7 +779,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // --- Deneyler ---
 
         const string experimentColumns = """
-            id, tenant_id, name, agent_name, variants, status, assignment_key, started_at, ended_at, updated_at
+            id, tenant_id, name, agent_name, variants, status, assignment_key, started_at, ended_at, updated_at,
+            canary_policy, rollback_reason
             """;
 
         SelectExperiments = $"""
@@ -801,10 +802,19 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             WHERE tenant_id = @tenant_id AND agent_name = @agent_name AND status = 1;
             """;
 
+        SelectRunningExperimentsWithCanary = $"""
+            SELECT {experimentColumns}
+            FROM {Schema}.experiments
+            WHERE status = 1 AND canary_policy IS NOT NULL;
+            """;
+
         // 🚨 Draft-disi bir deney icin UPDATE sifir satir etkiler; INSERT dali
         // yalnizca kayit HIC YOKSA calisir. Aksi halde benzersizlik ihlali
         // olusurdu. `@@ROWCOUNT` degeri once bir degiskene alinir: bilesik bir
         // kosulda alt sorgu once degerlendirilirse sayac sifirlanirdi.
+        // canary_policy/rollback_reason BILEREK SET listesinde YOK: bir Draft
+        // duzenlemesi (SaveAsync) daha once SetCanaryPolicyAsync ile tanimlanmis
+        // kurali silmemelidir.
         UpsertExperiment = $"""
             DECLARE @updated int;
 
@@ -845,25 +855,58 @@ internal sealed class SqlServerQueries : SqlQueriesBase
              WHERE tenant_id = @tenant_id AND name = @name AND status = 1;
             """;
 
+        // Durumdan BAGIMSIZ calisir (Draft veya Running) — SaveAsync'in aksine.
+        SetExperimentCanaryPolicy = $"""
+            UPDATE {Schema}.experiments
+               SET canary_policy = @canary_policy, updated_at = @now
+             OUTPUT inserted.id
+             WHERE tenant_id = @tenant_id AND name = @name;
+            """;
+
+        AdvanceExperimentCanaryRamp = $"""
+            UPDATE {Schema}.experiments
+               SET variants = @variants, updated_at = @now
+             OUTPUT inserted.id
+             WHERE tenant_id = @tenant_id AND name = @name AND status = 1;
+            """;
+
+        RollbackExperimentCanary = $"""
+            UPDATE {Schema}.experiments
+               SET variants = @variants, status = 2, ended_at = @now, rollback_reason = @rollback_reason, updated_at = @now
+             OUTPUT inserted.id
+             WHERE tenant_id = @tenant_id AND name = @name AND status = 1;
+            """;
+
         // EXTRACT(EPOCH FROM (a - b)) * 1000 -> DATEDIFF_BIG(millisecond, b, a).
+        // run_avg_scores: ONCE calistirma basina ortalama, SONRA varyant basina bu
+        // ortalamalarin ortalamasi — PostgreSQL'in ayni CTE'siyle AYNI gerekce
+        // (dogrudan JOIN diger toplamlari cogaltirdi).
         SelectExperimentResults = $"""
-            SELECT variant,
-                   MAX(agent_version),
+            WITH run_avg_scores AS (
+                SELECT run_id, AVG(CAST(value AS float)) AS avg_score
+                FROM {Schema}.run_scores
+                WHERE tenant_id = @tenant_id AND kind = @score_kind_numeric AND message_id IS NULL
+                GROUP BY run_id
+            )
+            SELECT r.variant,
+                   MAX(r.agent_version),
                    CAST(COUNT(*) AS bigint),
-                   CAST(COALESCE(SUM(CASE WHEN status = @status_completed THEN 1 ELSE 0 END), 0) AS bigint),
-                   CAST(COALESCE(SUM(CASE WHEN status = @status_failed    THEN 1 ELSE 0 END), 0) AS bigint),
-                   CAST(COALESCE(SUM(CASE WHEN status = @status_canceled  THEN 1 ELSE 0 END), 0) AS bigint),
-                   CAST(COALESCE(SUM(input_tokens), 0) AS bigint),
-                   CAST(COALESCE(SUM(output_tokens), 0) AS bigint),
-                   CAST(COALESCE(SUM(total_tokens), 0) AS bigint),
-                   AVG(CASE WHEN completed_at IS NOT NULL
-                            THEN CAST(DATEDIFF_BIG(millisecond, started_at, completed_at) AS float) END),
-                   CASE WHEN COALESCE(SUM(CASE WHEN input_cost IS NOT NULL OR output_cost IS NOT NULL THEN 1 ELSE 0 END), 0) = 0
-                        THEN NULL ELSE COALESCE(SUM(input_cost), 0) + COALESCE(SUM(output_cost), 0) END,
-                   MAX(cost_currency)
-            FROM {Schema}.runs
-            WHERE tenant_id = @tenant_id AND experiment_id = @experiment_id AND variant IS NOT NULL
-            GROUP BY variant;
+                   CAST(COALESCE(SUM(CASE WHEN r.status = @status_completed THEN 1 ELSE 0 END), 0) AS bigint),
+                   CAST(COALESCE(SUM(CASE WHEN r.status = @status_failed    THEN 1 ELSE 0 END), 0) AS bigint),
+                   CAST(COALESCE(SUM(CASE WHEN r.status = @status_canceled  THEN 1 ELSE 0 END), 0) AS bigint),
+                   CAST(COALESCE(SUM(r.input_tokens), 0) AS bigint),
+                   CAST(COALESCE(SUM(r.output_tokens), 0) AS bigint),
+                   CAST(COALESCE(SUM(r.total_tokens), 0) AS bigint),
+                   AVG(CASE WHEN r.completed_at IS NOT NULL
+                            THEN CAST(DATEDIFF_BIG(millisecond, r.started_at, r.completed_at) AS float) END),
+                   CASE WHEN COALESCE(SUM(CASE WHEN r.input_cost IS NOT NULL OR r.output_cost IS NOT NULL THEN 1 ELSE 0 END), 0) = 0
+                        THEN NULL ELSE COALESCE(SUM(r.input_cost), 0) + COALESCE(SUM(r.output_cost), 0) END,
+                   MAX(r.cost_currency),
+                   AVG(s.avg_score)
+            FROM {Schema}.runs r
+            LEFT JOIN run_avg_scores s ON s.run_id = r.id
+            WHERE r.tenant_id = @tenant_id AND r.experiment_id = @experiment_id AND r.variant IS NOT NULL
+            GROUP BY r.variant;
             """;
 
         // 🚨 generate_series'in karsiligi ozyinelemeli bir CTE'dir.

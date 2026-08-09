@@ -31,6 +31,10 @@ namespace AgentPrism;
 [JsonSerializable(typeof(IReadOnlyList<ChatMessage>))]
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
 [JsonSerializable(typeof(IReadOnlyList<ExperimentVariant>))]
+
+// Kanarya kurali (Faz 56). Ayri bir `canary_policy` sutununda, `variants`'tan
+// BAGIMSIZ yazilir: SetCanaryPolicyAsync deneyin durumundan bagimsiz calisir.
+[JsonSerializable(typeof(CanaryPolicy))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 
 // Dizi tasima (Faz 23). PostgreSQL yerel dizi gonderir; SQL Server'da dizi

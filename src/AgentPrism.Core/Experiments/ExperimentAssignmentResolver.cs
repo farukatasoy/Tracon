@@ -75,7 +75,7 @@ public sealed class ExperimentAssignmentResolver
 
         var cumulative = 0;
 
-        foreach (var variant in experiment.Variants)
+        foreach (var variant in OrderForAssignment(experiment))
         {
             cumulative += variant.Weight;
 
@@ -88,5 +88,39 @@ public sealed class ExperimentAssignmentResolver
         // Agirlik toplami 100'e ulasmazsa (kayit aninda dogrulandigi icin normalde
         // olmaz) son varyant geri donus olarak kullanilir.
         return experiment.Variants[^1];
+    }
+
+    /// <summary>
+    /// Kova araligi hesaplamasinda kullanilacak varyant sirasi.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 Faz 56: <see cref="Experiment.Canary"/> tanimliyse kanarya kolu HER ZAMAN
+    /// ILK sirada islenir ve boylece <c>[0, kanaryaAgirligi)</c> araligini alir —
+    /// bu aralik <see cref="Experiment.Variants"/>'taki fiziksel sirdan BAGIMSIZDIR.
+    /// Kademeli artirma yalniz kanarya agirligini yukselttigi icin bu aralik
+    /// yalniz BUYUR; daha once kanaryaya dusen bir anahtar hicbir zaman kontrole
+    /// KAYMAZ (docs/56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md, bolum 56.4).
+    /// Kanarya kurali YOKSA (adi gecen Faz 19 A/B deneyleri) sira degismez.
+    /// </remarks>
+    private static IReadOnlyList<ExperimentVariant> OrderForAssignment(Experiment experiment)
+    {
+        if (experiment.Canary is not { } policy)
+        {
+            return experiment.Variants;
+        }
+
+        var canary = experiment.Variants.FirstOrDefault(
+            variant => string.Equals(variant.Name, policy.CanaryVariant, StringComparison.Ordinal));
+
+        if (canary is null)
+        {
+            return experiment.Variants;
+        }
+
+        return
+        [
+            canary,
+            .. experiment.Variants.Where(variant => !string.Equals(variant.Name, policy.CanaryVariant, StringComparison.Ordinal)),
+        ];
     }
 }

@@ -744,12 +744,13 @@ public sealed class InMemoryRunStore : IRunStore
     private const int TopErrorClusterCount = 3;
 
     /// <inheritdoc />
-    public ValueTask<IReadOnlyList<ExperimentVariantResult>> GetExperimentResultsAsync(
+    public async ValueTask<IReadOnlyList<ExperimentVariantResult>> GetExperimentResultsAsync(
         ExperimentResultsQuery query,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
+        var tenantId = query.TenantId ?? _tenantContext.TenantId;
         var perVariant = new Dictionary<string, VariantTally>(StringComparer.Ordinal);
 
         foreach (var record in _runs.Values)
@@ -759,19 +760,41 @@ public sealed class InMemoryRunStore : IRunStore
                 continue;
             }
 
-            if (!string.Equals(record.TenantId, query.TenantId ?? _tenantContext.TenantId, StringComparison.Ordinal))
+            if (!string.Equals(record.TenantId, tenantId, StringComparison.Ordinal))
             {
                 continue;
             }
 
+            var runAverageScore = await GetRunAverageScoreAsync(record, tenantId, cancellationToken).ConfigureAwait(false);
+
             perVariant.TryGetValue(variant, out var tally);
-            perVariant[variant] = tally.Add(record);
+            perVariant[variant] = tally.Add(record, runAverageScore);
         }
 
-        return new ValueTask<IReadOnlyList<ExperimentVariantResult>>(
-        [
-            .. perVariant.Select(pair => pair.Value.ToResult(pair.Key)),
-        ]);
+        return [.. perVariant.Select(pair => pair.Value.ToResult(pair.Key))];
+    }
+
+    /// <summary>
+    /// Bir calistirmanin numerik (Faz 49, <c>RunScoreKind.Numeric</c>) puanlarinin
+    /// ortalamasi. Calistirma duzeyi puan yoksa <see langword="null"/>.
+    /// </summary>
+    private async ValueTask<double?> GetRunAverageScoreAsync(RunRecord record, string tenantId, CancellationToken cancellationToken)
+    {
+        var scores = await _scores.ListAsync(tenantId, record.Id, cancellationToken).ConfigureAwait(false);
+
+        double sum = 0;
+        long count = 0;
+
+        foreach (var score in scores)
+        {
+            if (score.Kind == RunScoreKind.Numeric && score.MessageId is null)
+            {
+                sum += score.Value;
+                count++;
+            }
+        }
+
+        return count == 0 ? null : sum / count;
     }
 
     /// <inheritdoc />
@@ -1012,9 +1035,11 @@ public sealed class InMemoryRunStore : IRunStore
         double TotalDurationMs,
         long SettledCount,
         decimal? CostSum,
-        string? Currency)
+        string? Currency,
+        double ScoreSum,
+        long ScoredRunCount)
     {
-        public VariantTally Add(RunRecord record)
+        public VariantTally Add(RunRecord record, double? runAverageScore)
         {
             var settled = record.CompletedAt is { } completedAt;
             var costSum = CostSum;
@@ -1036,7 +1061,9 @@ public sealed class InMemoryRunStore : IRunStore
                 TotalDurationMs + (settled ? (record.CompletedAt!.Value - record.StartedAt).TotalMilliseconds : 0),
                 SettledCount + (settled ? 1 : 0),
                 costSum,
-                Currency ?? record.Cost?.Currency);
+                Currency ?? record.Cost?.Currency,
+                ScoreSum + (runAverageScore ?? 0),
+                ScoredRunCount + (runAverageScore.HasValue ? 1 : 0));
         }
 
         public ExperimentVariantResult ToResult(string variant)
@@ -1054,6 +1081,7 @@ public sealed class InMemoryRunStore : IRunStore
                 AverageDurationMs = SettledCount == 0 ? null : TotalDurationMs / SettledCount,
                 TotalCost = CostSum,
                 Currency = Currency,
+                AverageScore = ScoredRunCount == 0 ? null : ScoreSum / ScoredRunCount,
             };
     }
 
