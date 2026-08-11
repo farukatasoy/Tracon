@@ -119,6 +119,8 @@ public sealed class VoiceBuilderExtensionsTests
     {
         public string ProviderName => "benimki";
 
+        public int MaxCharactersPerRequest => 5000;
+
         public ValueTask<SpeechAudio> SynthesizeAsync(
             SpeechRequest request,
             CancellationToken cancellationToken = default)

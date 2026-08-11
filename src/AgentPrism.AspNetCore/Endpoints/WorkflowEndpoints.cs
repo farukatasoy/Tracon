@@ -141,11 +141,32 @@ internal static class WorkflowEndpoints
         string name,
         [FromServices] IWorkflowDefinitionStore store,
         [FromServices] ITenantContext tenants,
+        [FromServices] IWorkflowRunner? runner,
         CancellationToken cancellationToken)
     {
         var definition = await store.GetAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
 
-        return definition is null ? NotFound(name) : TypedResults.Ok(definition);
+        if (definition is not null)
+        {
+            return TypedResults.Ok(definition);
+        }
+
+        // 🚨 KOD-tanimli bir workflow (AddWorkflow(...)) hicbir zaman
+        // IWorkflowDefinitionStore'a yazilmaz — serbest bir Workflow grafidir,
+        // duzenlenebilir bir WorkflowDefinition'i hic OLMAZ (bkz.
+        // CodeWorkflowRegistration). Listede gorunup calistirilabilirken bu ucun
+        // "yok" demesi kafa karistiricidir; en azindan SEBEBI ayirt edilir.
+        if (runner is not null && await runner.GetAsync(name, cancellationToken).ConfigureAwait(false) is not null)
+        {
+            return TypedResults.Problem(
+                title: "Duzenlenebilir tanim yok",
+                detail: $"'{name}' kodda tanimli bir workflow'dur (AddWorkflow). Listelenir ve " +
+                        "calistirilabilir ama veritabaninda duzenlenebilir bir WorkflowDefinition " +
+                        "tasimaz.",
+                statusCode: StatusCodes.Status404NotFound);
+        }
+
+        return NotFound(name);
     }
 
     private static async Task<Results<Ok<WorkflowGraph>, ProblemHttpResult>> GetGraphAsync(

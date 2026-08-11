@@ -65,6 +65,9 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
     /// <inheritdoc />
     public string ProviderName => VoiceProviderNames.ElevenLabs;
 
+    /// <inheritdoc />
+    public int MaxCharactersPerRequest => _options.MaxCharactersPerRequest;
+
     private Uri BaseEndpoint => _options.Endpoint ?? DefaultEndpoint;
 
     /// <inheritdoc />

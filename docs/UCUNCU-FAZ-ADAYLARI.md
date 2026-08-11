@@ -18,6 +18,12 @@
 > listede kaldı. Bölümü artık **ölçülmüş kanıt** taşıyor; sonraki oturum
 > ölçümü tekrarlamak zorunda değildir.
 >
+> 🚨 **2026-08-10: manuel kabul testi senaryo yazımının düşürdüğü notların
+> taranması F-103–F-105'i ekledi** (`docs/manuel-test/00-INDEKS.md` §8).
+> Aynı tarama sırasında bulunan gerçek kusurlar (kiracı yalıtımı, `--no-build`
+> paketleme, SSE hata çerçevesi vb.) doğrudan kodlandı — burada yalnız var
+> olmayan bir **yetenek** gerektiren adaylar durur.
+>
 > Bu belge 2026-08-05 tarihli ilk aday listesinin **yerini alır**. Ayrı bir
 > aday listesi dosyası açılmaz; iki yerde tutmak kayma üretir. Eski sürümün
 > tarihsel değeri "hangi iddia yanlış çıktı" bilgisidir ve o bilgi aşağıdaki
@@ -420,6 +426,139 @@ tool **argümanı** denetimini bilerek kapsam dışı bıraktı. O boşluğun sa
 kalemdir; Faz 48'in devir notu bunu yazıyor.
 **Ekosistem:** ACS'nin (F-72) `pre_tool_call` kesişim noktası tam olarak bunu
 tanımlar.
+
+---
+
+### F-103 · API anahtarı kapsam (`scope`) taksonomisinin genişletilmesi
+
+**Sorun:** `RequireApiKeyScope` yalnız DoD'nin adlandırdığı yüzeye uygulandı
+(K-360, Faz 53) — `AgentEndpoints`, `RunEndpoints`'in bir kısmı, MCP/A2A dış
+yüzey grupları. Tam taksonomi **bilinçli olarak ertelendi**; K-360'ın kendi
+metni bunu "ayrı bir aday kalemi" olarak öngörmüştü. O zamandan beri kapanan
+her yeni endpoint ailesi aynı boşluğu miras aldı — manuel kabul testi
+senaryoları yazılırken **dokuz bağımsız oturumda** aynı örüntü yeniden
+keşfedildi (`docs/manuel-test/00-INDEKS.md` §8): `WorkflowEndpoints`,
+`SchedulingEndpoints`, `EvalEndpoints`/`ExperimentEndpoints`,
+`GovernanceEndpoints` (`/api/mcp-servers/*`), `KnowledgeEndpoints`,
+`ApprovalEndpoints`, `RetentionEndpoints`, `QuotaEndpoints`. Bu oturumun kendi
+taraması (`grep -L RequireApiKeyScope src/AgentPrism.AspNetCore/Endpoints/*.cs`)
+listeyi genişletti: `AttachmentEndpoints`, `AuditEndpoints`, `CatalogEndpoints`,
+`ModelHealthEndpoints`, `ObservabilityEndpoints`, `SessionEndpoints`,
+`SkillEndpoints`, `SkillScriptGrantEndpoints`, `VoiceEndpoints`,
+`WebhookEndpoints` de dahil — bazıları kasıtlı olarak muaf olabilir
+(`MetaEndpoints`/`UiEndpoints` tasarım gereği kimlik doğrulamasız;
+`ApiKeyEndpoints`'in kendisi `docs/53-KIRACI-API-ANAHTARLARI.md`'ye göre
+bilerek "kapsamsız uç, yalnız Admin rolü") ama geri kalanı **doğrulanmadı** —
+sonraki planlama oturumu dosya dosya karar vermeli. Sonuç: `EvalEndpoints`/
+`ExperimentEndpoints` için `ApiKeyScope` hiç uygun bir üye taşımıyor (beş üye:
+`RunsRead/RunsWrite/AgentsRead/AgentsAdmin/ExternalInvoke`); diğerleri için üye
+var ama uç onu hiç çağırmıyor. Salt-okunur (`RunsRead`) bir otomasyon anahtarı
+bugün bu uçlarda pratikte TAM yetki taşıyabilir.
+**Kapsam:** (a) yeni `ApiKeyScope` üyeleri mi yoksa var olanların yeniden
+kullanımı mı — tasarım kararı; (b) 10-19 `Endpoints.cs` dosyasına
+`RequireApiKeyScope(...)` eklenmesi; (c) `docs/53-KIRACI-API-ANAHTARLARI.md`'nin
+kapsam-kapsama tablosunun güncellenmesi.
+**Değer:** Bugün salt-okunur amaçla verilmiş bir otomasyon anahtarı, kapsam
+dışı hiçbir uyarı almadan idari eylem (workflow silme, kota değiştirme, MCP
+sunucusu kaydetme) yapabilir — en az ayrıcalık ilkesinin sessizce delinmesi.
+**Mercek:** 2, 3.
+**Hazırlık:** Mekanizma zaten var (`RequireApiKeyScope` uzantısı,
+`ApiKeyScopeRequirement`) — yalnız kapsam genişletilir, yeni bir mekanizma
+icat edilmez.
+**Maliyet:** Orta. Enum'a üye eklemek kırıcı değildir (K-360'ın kendi notu) ama
+her uç için DOĞRU granülerliği seçmek (aşırı-ince taksonomi ile birkaç geniş
+katman arasında) bir tasarım kararıdır ve 10-19 dosyada mekanik uygulama
+gerektirir.
+**Risk:** Var olan API anahtarları, bugün "kapsamsız" olan bir uca erişimi
+varken, yeni bir zorunlu kapsam eklendiğinde o erişimi KAYBEDER — geriye dönük
+uyumluluk/geçiş notu (`docs/KARARLAR.md`'ye) gerekir. `EnablePublicApiTracking=false`
+(Faz 7 beklemede) olduğu için bugün derleme-zamanı bir kırılma değildir ama
+çalışma-zamanı davranış değişikliğidir.
+**Bağımlılık:** Rol politikalarının örnek uygulamada kayıtlı olmaması (bkz.
+F-104) ile birlikte ele alınmalı — ikisi birlikte "API anahtarı kapsamı ∩ rol"
+yetkilendirme modelinin BÜTÜNÜNÜ oluşturur; biri düzeltilip diğeri
+düzeltilmezse örnek uygulamada gözlemlenebilir fark küçük kalır.
+**Ekosistem:** —
+
+---
+
+### F-104 · Örnek uygulama rol politikalarını hiç kaydetmiyor — `RequireRole` her yerde no-op
+
+**Sorun:** `RoleEndpointConventionBuilderExtensions.RequireRole`, policy adı
+`null` çözülürse HİÇBİR yetkilendirme eklemeyen bilinçli bir tasarımdır (bir
+policy kayıtlı değilse uç yalnız üç katmanlı korumadan geçer — eski davranış
+korunur, K1). `samples/AgentPrism.Api/Program.cs` `AgentPrismPolicies.Reader`/
+`.Operator`/`.Admin`'i **hiçbir zaman** `AuthorizationOptions`'a kaydetmiyor
+(`grep -rn "AgentPrismPolicies\." samples/AgentPrism.Api/Program.cs` boş
+döner) — bu üç adı kullanan HER `RequireRole(...)` çağrısı (Skill, Approval,
+Retention, Quota, Workflow'un `respond` ucu, …) örnek uygulamada sessizce
+etkisizdir. Statik bearer token her role açık uçlara eşit erişir. Sonuç: Faz
+55'in kendi "Reader karar veremez" DoD iddiası (izole fonksiyonel test
+host'unda doğrulanmıştı) referans dağıtımda GÖZLEMLENEMEZ — manuel kabul testi
+bu yüzden birden çok dosyada (`13-KIRACI-VE-GUVENLIK.md`, `14-SKILL-VE-SCRIPT.md`,
+`21-DAYANIKLILIK-VE-IPTAL.md`) aynı ortam kısıtını ayrı ayrı kaydetmek zorunda
+kaldı.
+**Kapsam:** Örnek uygulamaya gerçek bir rol kaynağı bağlamak — en basit yol:
+`AuthorizationBuilder.AddPolicy(AgentPrismPolicies.Reader, ...)` + statik
+bearer token'ın yanına (yalnız gösterim amaçlı) bir rol claim'i üreten basit
+bir test/örnek kimlik doğrulama şeması, VEYA API anahtarı kayıtlarına bir rol
+alanı eklenip API-anahtarı doğrulamasının bunu bir claim'e çevirmesi (ikincisi
+F-103 ile kesişir — bkz. Bağımlılık).
+**Değer:** Rol tabanlı yetkilendirmenin gerçek bir dağıtımda NASIL
+görüneceğini gösteren tek referans örnek uygulamadır; bugün bu hikayenin en
+kritik parçası (rolün gerçekten bir şey engellediği) hiç gösterilmiyor.
+**Mercek:** 1, 3.
+**Hazırlık:** Mekanizma zaten var (`AgentPrismPolicies`, `RequireRole`); yalnız
+örnek uygulamanın DI kaydı eksik.
+**Maliyet:** Düşük — tek dosya (`samples/AgentPrism.Api/Program.cs`) + belki
+küçük bir test kimlik doğrulama şeması.
+**Risk:** Örnek uygulamaya statik/sahte bir rol şeması eklemek, gerçek bir
+kimlik sağlayıcısı (OIDC vb.) entegrasyonu gerektiren üretim kurulumuyla
+karıştırılabilir — yorum ile net ayrılmalı ("bu yalnız gösterim amaçlıdır").
+**Bağımlılık:** F-103 (API anahtarı kapsamı) ile birlikte ele alınmalı.
+**Ekosistem:** —
+
+---
+
+### F-105 · Dosya belleği/metin araması aynı kiracı içinde ajan/oturum sınırını gözetmiyor
+
+**Sorun:** `20-BELLEK-RAG-BAGLAM.md` üretilirken bulunan bir kiracı-yalıtımı
+şüphesi bu oturumda kod okumasıyla doğrulandı ve **kiracı boyutu** düzeltildi
+(`TenantPrefixingAgentFileStore` — bkz. `docs/KARARLAR.md`). Ama düzeltme
+kasıtlı olarak **kiracı sınırıyla sınırlı** bırakıldı: `TextSearchProvider`'ın
+arama callback'i (`Func<string, CancellationToken, Task<...>>`) tek başına
+`query` alır — hangi ajan/oturumun aramayı tetiklediğini bilmez. Callback
+`AgentDefinitionCompiler.Compile(...)` anında (bir kez, `CompiledAgentCache`'e
+GİREN paylaşılan `AIAgent`'a bağlı) kurulur ve o compiled agent AYNI kiracının
+TÜM oturumlarınca yeniden kullanılır. Sonuç: aynı kiracı içinde
+`EnableFileMemory` açık bir ajanın/oturumun yazdığı dosya, `EnableTextSearch`
+açık BAŞKA bir ajan/oturum tarafından hâlâ bulunabilir — yalnız kiracılar
+arası sızıntı kapandı, kiracı-İÇİ sızıntı kapanmadı.
+**Kapsam:** Arama callback'inin RUN ZAMANINDA "hangi oturum/ajan çağırıyor"
+sorusuna cevap verebilmesi gerekir — bugünkü derleme-zamanı closure yaklaşımı
+bunu yapısal olarak veremez. Olası yön: `AmbientTenantScope`'a benzer bir
+ambient/`AsyncLocal` "güncel oturum" kapsamı açıp `TenantPrefixingAgentFileStore`'u
+oturum bazında ikinci bir alt önekle (`/{tenantId}/{sessionId}`) sarmalamak —
+YA DA `FileMemoryProvider`'ın kendi (MAF varsayılanı) oturum bazlı çalışma
+klasörü şemasını decompile ederek aynı şemayı arama tarafında yeniden
+üretmek.
+**Değer:** `EnableFileMemory` + `EnableTextSearch` birlikte kullanan HERHANGİ
+bir dağıtımda gerçek bir veri sızıntısı riski — Kritik olmasa da (kiracı
+sınırı değil) Yüksek önemde bir kusur adayı.
+**Mercek:** 2, 3.
+**Hazırlık:** Yok — `AsyncLocal` tabanlı ambient kapsam bu kod tabanında DÖRT
+kez yanlış açılıp düzeltildi (Faz 6, 11, 12, 15 — `docs/hafiza/cekirdek-calistirma.md`);
+bu kalem BEŞİNCİ bir deneme olacak, dikkatli tasarım ister.
+**Maliyet:** Orta-Yüksek. MAF'ın `FileMemoryProvider`'ının kapalı-kutu
+davranışına bağımlı (reflection/decompile ile keşif gerekir — `maf-api-kesfi`
+skill'i kullanılmalı) veya MAF'ın kendi API'sinde bir genişleme noktası
+istenebilir.
+**Risk:** Yanlış uygulanan bir ambient kapsam, sessizce YANLIŞ oturumun
+bağlamını sızdırabilir — tam da düzeltmeye çalıştığı sınıf hatayı üretme
+riski taşır. Kapsamlı testle (farklı ajan/oturum, ardışık ve eşzamanlı
+çalıştırma) doğrulanmalı.
+**Bağımlılık:** Yok.
+**Ekosistem:** —
 
 ---
 

@@ -310,7 +310,7 @@ satır sayısı tam `100`'dür. Bu, DoD'nin 🚨 satırının doğrudan kanıtı
 | `COUNT(*)` büyük tabloda pahalıdır | Tasarım hiç saymaz; tek indeksli `OFFSET/FETCH` sorgusu kullanır | ✅ `FindRowLimitCutoffAsync` hiç `COUNT` çalıştırmaz |
 | SQL Server'da `OFFSET` `ORDER BY` olmadan hata verir (K-026 tuzağı) | Şablon `ORDER BY` taşır; diyalekt testi bunu doğrular | ✅ `RetentionMaxRowsDialectTests` (SQL Server) SQL metnini doğruladı — çalışma anı bu makinede doğrulanamadı (Docker kısıtı) |
 | `eval_case_results` hedefinin sıra sütunu `id`'dir, zaman damgası değil | Açık Soru 2; uygulayan oturum ilk iş olarak ölçer | ✅ Çözüldü — K-261, `RowLimitOrderExpression` ayrıldı |
-| Kiracı filtresi unutulur, bir kiracı diğerinin verisini kırpar | Sözleşme testi iki kiracıyla koşar | 🔄 **Plandan sapma** — kiracı filtresi hiç eklenmedi (K-260); mevcut Faz 25 davranışıyla kasıtlı olarak simetrik |
+| Kiracı filtresi unutulur, bir kiracı diğerinin verisini kırpar | Sözleşme testi iki kiracıyla koşar | 🔄 **Plandan sapma (Faz 36 kapanışında)** — kiracı filtresi o an hiç eklenmemişti (K-260); ⚠️ **ARTIK ESKİMİŞ** — bkz. not aşağıda, `FindRowLimitCutoffAsync` bugün `tenantId` alır |
 | Önizleme ile gerçek koşu ayrışır | Aynı eşik hesabı iki yolda da kullanılır; test bunu doğrular | ✅ Gerçek koşuyla doğrulandı: ikisi de `50` |
 | 🆕 (planda yoktu) Korelasyon SQLite'ta bare ad kullanınca eşleşmez | — | 🚨 Faz 25'in kendi hatası keşfedildi ve düzeltildi — K-259 |
 
@@ -329,11 +329,22 @@ satır sayısı tam `100`'dür. Bu, DoD'nin 🚨 satırının doğrudan kanıtı
    karşılaştırdığı sütunla özdeştir; `eval_case_results`/`workflow_checkpoints`'te
    bağlı tabloya (`eval_runs`/`runs`) bakan korele bir alt sorgudur;
    `skill_script_grants`'te `COALESCE(expires_at, revoked_at)`'tir. Bkz. K-261.
-2. **Açık Soru 3 farklı çözüldü (B, plan A öneriyordu).** `MaxRows` kiracı
-   başına değil, tablo genelinde çalışır — mevcut 3 şablonun (Faz 25, K-198)
-   HİÇBİRİNDE `tenant_id` filtresi yoktur; `MaxAgeDays` da bugün tablo
-   genelinde siler. `MaxRows`'u kiracıya özel yapmak iki eşik arasında asimetri
-   yaratırdı. Bkz. K-260.
+2. **Açık Soru 3 farklı çözüldü (B, plan A öneriyordu) — Faz 36 KAPANIŞINDA.**
+   `MaxRows` kiracı başına değil, tablo genelinde çalışıyordu — o an mevcut 3
+   şablonun (Faz 25, K-198) HİÇBİRİNDE `tenant_id` filtresi yoktu; `MaxAgeDays`
+   da o zaman tablo genelinde siliyordu. `MaxRows`'u kiracıya özel yapmak iki
+   eşik arasında asimetri yaratırdı. Bkz. K-260.
+
+   > ⚠️ **Bu K-260 notu ARTIK ESKİMİŞ (2026-08-10, `docs/manuel-test/20-BELLEK-RAG-BAGLAM.md`
+   > üretilirken kod okumasıyla ölçüldü).** Güncel `IRetentionStore.FindRowLimitCutoffAsync`
+   > imzası bir `string? tenantId` parametresi taşır (`null` ⇒ kurulum genelinde
+   > `'*'` politikası) ve `RetentionExecutor.cs:230` onu gerçekten geçirir —
+   > muhtemelen Faz 41'in `DeleteBatchAsync`'e kiracı sınırlaması eklediği
+   > değişiklikle birlikte veya sonrasında `MaxRows`'a da uygulanmış, ama bu
+   > sayfa hiç güncellenmemiş. Güncel (doğru) davranış
+   > `docs/manuel-test/23-SAKLAMA-ARSIV-KOTA.md`'nin `MT-RET-023` case'i ile iki
+   > kiracıya karşı doğrulanır. Ders: plandan-sapma notları o fazın KAPANIŞ
+   > anına aittir, sonraki fazlarda sessizce eskiyebilir.
 3. **🆕 Faz 25'in kendi hatası keşfedildi ve düzeltildi (plan bunu öngörmüyordu).**
    `eval_case_results`/`workflow_checkpoints`/`attachments` hedeflerinin
    `WherePredicate`'i BARE hedef adını (`eval_case_results.eval_run_id` gibi)

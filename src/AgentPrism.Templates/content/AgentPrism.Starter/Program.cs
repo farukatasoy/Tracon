@@ -8,7 +8,10 @@ using AgentPrism;
 var builder = WebApplication.CreateBuilder(args);
 
 var agentPrism = builder.AddAgentPrism()
-    .AddToolsFrom(typeof(AgentPrism.Starter.OrderTools));
+    // Bu derlemedeki [AgentPrismTool] isaretli tum metotlari derleme aninda
+    // kaynak ureteciyle kaydeder — yansima yok, AOT uyarisi yok (OrderTools).
+    // Baska bir derlemedeki tool'lar icin AddToolsFrom kullanilir.
+    .AddGeneratedTools();
 
 // Kalicilik istege baglidir. Baglanti dizesi bos ise uygulama bellek ici
 // depolarla calisir; hicbir sey kirilmaz, yalnizca veri surecle birlikte biter.

@@ -1,0 +1,1272 @@
+# 12 — Gözlemlenebilirlik ve Maliyet (`OBS`)
+
+> **Alan kodu:** `OBS` · **Faz:** 6 (iz/span), 20 (maliyet + gösterge paneli),
+> 35 (maliyet/kota metrikleri — OTel enstrümanları)
+> **Kaynak:** `src/AgentPrism.UI/frontend/src/screens/dashboard.tsx` (tüm dosya) ·
+> `components/charts.tsx` (`TimeSeriesChart`/`ModelBreakdownChart`/
+> `StatusDistributionChart`) · `components/waterfall.tsx` (iz/span görselleştirme,
+> `run-detail.tsx` üzerinden kullanılır — bkz. Sınır) · `lib/format.ts`
+> (`money`/`count`/`percent`) · `lib/api.ts` (`api.stats/timeseries/toolUsage/
+> modelsHealth/onlineEvaluationSummary`).
+> Sunucu: `src/AgentPrism.AspNetCore/Endpoints/ObservabilityEndpoints.cs`
+> (`/api/runs/{id}/trace`, `/tools`, `/api/tools/usage`) ·
+> `Endpoints/CatalogEndpoints.cs` (`/api/stats`, `/api/stats/timeseries`,
+> `/api/stats/errors`, `/api/stats/recalculate-costs`) ·
+> `Endpoints/ModelHealthEndpoints.cs` · `src/AgentPrism.Core/Diagnostics/`
+> (`RunTraceCollector.cs`, `AgentPrismMetrics.cs`) ·
+> `src/AgentPrism.Core/Quotas/QuotaUsageObserver.cs` (yalnız Faz 35'in
+> ölçerleri — bkz. Sınır) · `src/AgentPrism.Core/Models/RunPricingResolver.cs` ·
+> `src/AgentPrism.Core/Storage/InMemoryRunStore.cs` (`GetTimeSeriesAsync`,
+> `GetToolUsageAsync`).
+>
+> Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
+
+---
+
+## Bu dosya neyi kanıtlar
+
+Dashboard ekranının kendi widget'ları (üst şerit, zaman serisi, model/agent/
+hata kırılımları, uyarılar), bir çalıştırmanın iz (span) ağacının Waterfall
+görselleştirmesi ve **örnekleme** kuralı (Faz 6 — başarılı çalıştırmaların
+yalnız bir kısmı, hatalıların tamamı), maliyet çözümleme sırası (katalog →
+yapılandırma → bilinmeyen, K-032) ve bunun **hiçbir zaman sıfıra düşmediği**
+(bilinmeyen fiyat `null`'dur, `0` değil), ve Faz 35'in **arayüzü olmayan**
+iki OpenTelemetry enstrümanının (`agentprism.run.cost` sayacı,
+`agentprism.quota.usage`/`.limit` gözlemlenen ölçerleri) `dotnet-counters`
+ile gözlemlenmesi.
+
+```mermaid
+flowchart TD
+    A["dashboard.tsx acilir"] --> B["4 bagimsiz sorgu: stats, timeseries, topStrip, health"]
+    B --> C["Ust serit: bugun vs dun (Day kovasi x2)"]
+    B --> D["Zaman serisi + durum dagilimi (araligi secilen kova)"]
+    B --> E["Model kirilimi / En aktif agent'lar / Hata kirilimi (stats)"]
+    B --> F["Uyarilar: fiyatsiz + saglıksız saglayici + bekleyen girdi"]
+    G["run-detail.tsx: bitmis KOK calistirma"] --> H["GET .../trace"]
+    H -->|"orneklendiyse 200"| I["Waterfall: span agaci"]
+    H -->|"orneklenmediyse 404"| J["'SuccessSampleRatio' mesaji"]
+    K["RunRecordingAgent.CompleteAsync"] --> L["RunPricingResolver: katalog -> yapilandirma -> Unknown"]
+    L --> M["runs.cost_* sutunlari + agentprism.run.cost sayaci"]
+    N["QuotaUsageObserver (Faz 35, varsayilan KAPALI)"] -.->|"EnableQuotaUsageGauge=true"| O["agentprism.quota.usage/.limit"]
+```
+
+## Sınır: bu dosya nerede biter
+
+| Konu | Nerede |
+|---|---|
+| Trace panelinin run-detail'de HANGİ KOŞULDA render edildiği (bitmemiş run, alt çalıştırma) | [`11-ARAYUZ-RUN-SESSION-SSE.md`](11-ARAYUZ-RUN-SESSION-SSE.md) `MT-UIRUN-015`/`016` — zaten üretildi. Burada yalnız trace'in **kendi içeriği** (span alanları, örnekleme, hassas veri ayıklama) ölçülür. |
+| Kota **kural motoru** (`QuotaEnforcer`, `QuotaGate`, `429` zorlaması, `PUT /api/quotas`) | `23-SAKLAMA-ARSIV-KOTA.md` (henüz üretilmedi, Faz 21) — burada yalnız Faz 35'in kota kuralını **gözlemleyen** iki OTel ölçeri test edilir, kuralın kendisi değil. |
+| Sağlayıcı hata sınıflandırma kuralının (`DefaultRunErrorClassifier`) kendisi, devre kesici, sağlayıcı sağlığının derin mekaniği | [`05-SAGLAYICI-OPENAI.md`](05-SAGLAYICI-OPENAI.md) · [`06-SAGLAYICI-DIGER.md`](06-SAGLAYICI-DIGER.md) — zaten üretildi. Burada yalnız dashboard'un bu verileri **nasıl gösterdiği** ölçülür. |
+| Geri bildirim/puanlamanın kendi işlevi (thumbs up/down, judge tetikleme) | 🚨 Hiçbir dosyaya atanmamış — bkz. `00-INDEKS.md` §8. Burada yalnız Dashboard'daki **özet** panelin boş/dolu durumu ölçülür, puanlama işlemi ölçülmez. |
+| Çevrimiçi değerlendirmenin (Faz 49) yargıç tanımı, eşik ayarı, örnekleme kuralı | `17-EVAL-VE-DENEYLER.md` (henüz üretilmedi) — burada yalnız Dashboard'daki özet panel ölçülür. |
+| Ayarlar ekranındaki olası fiyat/kota panelleri | Böyle bir panel **yoktur** — grep ile doğrulandı (`dashboard.tsx`'in `configurePricing` bağlantısı yalnız genel `settings` rotasına gider, özel bir alt sayfa yoktur). Fiyat/kota yalnız `dotnet user-secrets`/`curl` ile yönetilir. |
+
+## Koşmadan önce
+
+1. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı uygulanır.
+2. Örnek uygulama çalışır, `manuel-test-token-2026` ile giriş yapılmıştır.
+3. `AgentPrism:Providers:OpenAI:ApiKey` tanımlıdır.
+4. **Örnek uygulama HİÇBİR model fiyatı tanımlamaz** (`grep -rn "InputCostPerMillionTokens\|Pricing" samples/AgentPrism.Api/Program.cs` boş döner) — bu yüzden reset sonrası HER çalıştırma `PricingSource.Unknown`'dur. Bu bir kusur değil, dosyanın kendi başlangıç durumudur; § 8'deki case'ler fiyatı bilerek sonradan tanımlar.
+5. `dotnet-counters` .NET global aracı kuruludur (§ 12 için):
+   ```bash
+   dotnet tool install --global dotnet-counters
+   dotnet-counters ps   # AgentPrism.Api sürecinin PID'sini bulmak için
+   ```
+6. Bu dosyanın birçok case'i `dotnet user-secrets set/remove` ile uygulamayı
+   YENİDEN BAŞLATMAYI gerektirir — her case bunu adım olarak yazar, atlanmaz.
+
+---
+
+# 1 — Üst şerit (`TopStrip`)
+
+### MT-OBS-001 — Reset sonrası tüm Dashboard boş-durumları aynı anda görünür
+
+Sınır durumu — hiç çalıştırma yokken.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 20 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Reset yordamı uygulanmış, hiçbir çalıştırma yapılmamış.
+
+**Adımlar**
+1. "Dashboard" ekranını aç.
+
+**Beklenen sonuç**
+- Üst şeritte dört karo görünür: "Bugünkü Çalıştırma" `0`, "Hata Oranı" `—`
+  (`errorRate`, `point.runs === 0` iken `null` döner, `percent(null) = '—'`),
+  "Bugünkü Token" `0`, "Bugünkü Maliyet" `—`. Hiçbirinde `delta` rozeti YOK
+  (`delta()` her iki taraf da tanımsızsa `null` döner).
+- Zaman serisi grafiği ve durum dağılım çubuğu `charts.noRuns` boş-durumunu
+  gösterir (`points.length === 0`).
+- "Model Kırılımı" aynı boş-durumu gösterir.
+- "En Aktif Agent'lar" `dashboard.noRunsInWindow`, "Hata Kırılımı"
+  `dashboard.noErrorsInWindow` metnini gösterir.
+- "Uyarılar" paneli `dashboard.allClear` metnini gösterir (üçü de sıfır).
+- "Geri Bildirim" `feedback.noneYet`, "Çevrimiçi Değerlendirme"
+  `onlineEval.noneYet` metnini gösterir.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-002 — Fiyat tanımsızken "Bugünkü Maliyet" karosu `—` gösterir, `runsWithUnknownPricing` sıfır DEĞİLDİR
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 20 |
+| **İlgili karar** | K-032 |
+
+**Ön koşul**
+- `playground/support` ile `FIX-PROMPT-02` (`Merhaba`) gönderilmiş, tur
+  tamamlanmış. Hiçbir `AgentPrism:Pricing:*` anahtarı tanımlı DEĞİL
+  (varsayılan durum).
+
+**Adımlar**
+1. "Dashboard" ekranını aç, "Bugünkü Maliyet" karosunu oku.
+2. `curl -s "http://localhost:5080/agentprism/api/stats?maxAgents=10" -H "Authorization: Bearer manuel-test-token-2026" | python3 -m json.tool | grep -i unknownpricing`
+
+**Beklenen sonuç**
+- Adım 1: karo `—` gösterir (`today?.cost === null || undefined`) — `0` DEĞİL.
+- Adım 2: `runsWithUnknownPricing` alanı `0`'dan BÜYÜKTÜR — sunucu bilinmeyen
+  fiyatı ayrıca sayar, sıfır yazmaz (`CatalogEndpoints.cs` açıklaması).
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-003 — Fiyat tanımlandıktan sonra yeni bir çalıştırma "Bugünkü Maliyet" karosunda gerçek bir tutar üretir
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 20 |
+| **İlgili karar** | K-032 |
+
+**Ön koşul**
+```bash
+cd samples/AgentPrism.Api
+dotnet user-secrets set "AgentPrism:Pricing:openai:gpt-5.4-mini:Input" "0.15"
+dotnet user-secrets set "AgentPrism:Pricing:openai:gpt-5.4-mini:Output" "0.60"
+```
+uygulama yeniden başlatılmış.
+
+**Adımlar**
+1. `playground/support` aç, `Merhaba` gönder, tur tamamlansın.
+2. "Dashboard" ekranını aç, "Bugünkü Maliyet" karosunu oku.
+
+**Beklenen sonuç**
+- Karo artık `—` değil, sıfırdan büyük bir sayısal tutar gösterir
+  (`money(today.cost, null)` — bkz. `MT-OBS-004` için para birimi eksikliği).
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-004 — 🚨 "Bugünkü Maliyet" karosu para birimini HİÇBİR ZAMAN göstermez; Model Kırılımı aynı veri için gösterir
+
+`TopStrip`'in maliyet karosu `money(today.cost, null)` çağırır — para birimi
+parametresi SABİT `null`'dır. Aynı sayfadaki `ModelBreakdownChart` ise
+`stats.data.currency`'i gerçekten kullanır. Kod okumasıyla ölçüldü, aşağıda
+gözlemsel olarak doğrulanır.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 20 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+```bash
+dotnet user-secrets set "AgentPrism:Pricing:Currency" "USD"
+```
+uygulama yeniden başlatılmış; `MT-OBS-003`'ün fiyatlandırması hâlâ tanımlı.
+
+**Adımlar**
+1. `playground/support` aç, `Merhaba` gönder, tur tamamlansın.
+2. "Dashboard"ta "Bugünkü Maliyet" karosunun metnini oku.
+3. Aynı sayfada "Model Kırılımı" panelindeki maliyet sütununu oku.
+
+**Beklenen sonuç**
+- Adım 2: yalnız sayı görünür (örn. `0.0012`) — `USD` soneki YOKTUR.
+- Adım 3: AYNI ekranda, aynı veri kümesinden gelen tutarın yanında `USD`
+  soneki VARDIR (`money(model.totalCost, currency)`).
+- İki panel de doğrudur (aynı sayısal değer), yalnız biri para birimini
+  gösterir, diğeri göstermez — bu bir tutarsızlıktır, kusur olarak değil,
+  koşumda doğrulanacak bir gözlem olarak işaretlenir.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-005 — `delta()` hesaplaması: dünü sıfırken bugün de sıfırsa `%0`, dün sıfırken bugün pozitifse rozet HİÇ görünmez
+
+Sınır durumu — sıfıra bölme kaçınması.
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 20 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Örnek uygulama bugün ilk kez başlatılmış olmalı (dün hiç çalıştırma yok,
+  `points[0]` gerçek bir "dün" bucket'ı DEĞİL — `topStrip` sorgusu yalnız 2
+  günlük kova ister ve dünkü bucket veritabanında hiç yoksa sıfır sayılır).
+
+**Adımlar**
+1. Reset uygula, uygulamayı başlat, HİÇBİR çalıştırma yapmadan Dashboard'ı aç
+   ("Bugünkü Çalıştırma" `0`).
+2. Bir çalıştırma yap (`FIX-PROMPT-02`), Dashboard'ı yenile.
+
+**Beklenen sonuç**
+- Adım 1: "Bugünkü Çalıştırma" `0`, delta rozeti YOK (`delta(0,0) = 0` olsa
+  bile bu durumda hem `current` hem `previous` `0`'dır, kod `previous === 0
+  ? (current === 0 ? 0 : null) : ...` dalına göre `0` döner — rozet `+0.0%`
+  olarak GÖRÜNÜR, gizlenmez).
+- Adım 2: "Bugünkü Çalıştırma" `1`, delta `previous === 0 && current !== 0`
+  olduğu için `null` döner — rozet HİÇ görünmez (yüzde artış matematiksel
+  olarak tanımsızdır, `+∞%` yerine hiçbir şey gösterilir).
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 2 — Zaman serisi ve durum dağılımı grafiği
+
+### MT-OBS-006 — Aralık düğmeleri farklı kova boyutuyla istek atar; 30 gün özellikle günlük kovaya düşer
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 20 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- En az birkaç çalıştırma var (önceki case'lerden kalanlar yeterli).
+
+**Adımlar**
+1. Dashboard'ı aç, DevTools ağ sekmesini temizle.
+2. Sırayla `1h`, `24h`, `7d`, `30d` düğmelerine tıkla, her birinde giden
+   `GET api/stats/timeseries?...` isteğinin `bucket` parametresine bak.
+
+**Beklenen sonuç**
+- `1h`/`24h`/`7d` → `bucket=Hour`.
+- `30d` → `bucket=Day` (30 gün × saatlik kova 720 kova eder, sunucunun 500
+  kova sınırını aşardı — `RANGE_CONFIG`'in kod yorumu bunu açıkça gerekçelendirir).
+- Her tıklamada `from`/`to` seçilen pencereye göre YENİDEN hesaplanır (`to`
+  her zaman "şimdi").
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-007 — Zaman serisi grafiğinde çalışma/başarısızlık çizgileri ve durum dağılım çubuğu doğru veriyi çizer
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 20 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- En az bir başarılı (`support`) ve bir başarısız (`MT-UIRUN-011` benzeri,
+  geçersiz model) çalıştırma bugünün penceresinde var.
+
+**Adımlar**
+1. Dashboard'ı `24h` aralığında aç.
+2. `data-testid="timeseries-chart"` SVG'sini incele: mor (çalışma sayısı) ve
+   kesikli gül rengi (başarısız sayısı) çizgileri.
+3. Hemen altındaki `data-testid="status-distribution-chart"`'ı incele.
+
+**Beklenen sonuç**
+- Adım 2: iki çizgi de aynı ölçekte (`Math.max(1, ...runs)`); başarısız
+  çizgisi kesikli (`strokeDasharray`) — renk körlüğünde bile ayırt edilir.
+- Adım 3: her kovada YEŞİLİMSİ (tamamlanan = `runs - failedRuns`) ve KIRMIZI
+  (başarısız) yığılmış iki segment görünür; toplam yükseklik o kovanın run
+  sayısıyla orantılıdır.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 3 — Model kırılımı ve en aktif agent'lar
+
+### MT-OBS-008 — Model kırılımı run sayısına göre azalan sırada çubuklar çizer; fiyat tanımsızken tutar `—`
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 20 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `support` (openai/gpt-5.4-mini) ile birden çok, `claude-destek` (Anthropic
+  anahtarı varsa) ile bir çalıştırma var. Fiyat tanımlı DEĞİL (bu case için
+  `MT-OBS-003`'ün fiyat ayarları GERİ ALINIR: `dotnet user-secrets remove
+  "AgentPrism:Pricing:openai:gpt-5.4-mini:Input"` ve `:Output`, yeniden başlat).
+
+**Adımlar**
+1. Dashboard'ı aç, "Model Kırılımı" panelini incele.
+
+**Beklenen sonuç**
+- Çubuklar `totalRuns`'a göre azalan sırada (en çok çalışan model en üstte,
+  en geniş çubuk).
+- Her satırda model adı, run sayısı, token sayısı ve maliyet sütunu var;
+  fiyat tanımsız olduğu için maliyet sütunu `—` gösterir (`model.totalCost
+  === undefined` VEYA `null` — `money()` ikisini de `—`'ye çevirir).
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-009 — En aktif agent'lar listesinde başarısız run varsa kırmızı ek metin görünür
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 20 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `manuel-destek`'te en az bir başarılı, `MT-OBS-007`'nin agent'ında en az
+  bir başarısız çalıştırma var.
+
+**Adımlar**
+1. Dashboard'ı aç, "En Aktif Agent'lar" panelini incele.
+
+**Beklenen sonuç**
+- Yalnız başarısız run'ı OLAN agent satırında kırmızı
+  `dashboard.agentFailed` metni (`failed: N`) görünür; hiç başarısız run'ı
+  olmayan agent satırında bu ek metin YOKTUR.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 4 — Hata kırılımı
+
+### MT-OBS-010 — Hata sınıfı kırılımı, sınıf başına en sık kümenin örnek mesajını ve son görülme zamanını gösterir
+
+Sınıflandırma kuralının kendisi [`05-SAGLAYICI-OPENAI.md`](05-SAGLAYICI-OPENAI.md)'de
+zaten üretildi; burada yalnız bu ekranın GÖSTERİMİ ölçülür.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 20, 44 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Geçersiz bir model adıyla en az iki başarısız çalıştırma var (aynı hata
+  sınıfına düşecek şekilde — örn. ikisi de `var-olmayan-model-xyz`).
+
+**Adımlar**
+1. Dashboard'ı aç, "Hata Kırılımı" panelini incele.
+
+**Beklenen sonuç**
+- İlgili sınıfın satırında toplam run sayısı ve altında en sık kümenin
+  (`topClusters[0]`) örnek mesajı (`title` tooltip'inde tam metin) ve göreli
+  "son görülme" zamanı görünür.
+- `dashboard.errorClass.<sınıf>` çevirisi mevcutsa okunabilir bir etiket
+  gösterir; yoksa ham anahtar görünür (bu da bir eksik çeviri sinyalidir).
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 5 — Uyarılar paneli
+
+### MT-OBS-011 — Hiçbir koşul tetiklenmediğinde "Her şey yolunda" metni görünür
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 20 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `MT-OBS-003`'ün fiyat ayarları tanımlı (fiyatsız run YOK), tüm sağlayıcılar
+  sağlıklı, hiçbir `AwaitingInput` run YOK. Yalnız `support` ile fiyatlı bir
+  çalıştırma yeterlidir.
+
+**Adımlar**
+1. Dashboard'ı aç, "Uyarılar" panelini incele.
+
+**Beklenen sonuç**
+- `dashboard.allClear` metni tek başına görünür; hiçbir rozet YOK.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-012 — Fiyatı tanımsız run varken sarı uyarı rozeti görünür; "Fiyatı yapılandır" bağlantısı yalnız Admin'e görünür
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 20 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `MT-OBS-002`'nin fiyatsız çalıştırması var (bu dosyanın tek bearer token'ı
+  her zaman `canAdminister = true` taşır — rol ayrımının kendisi
+  [`13-KIRACI-VE-GUVENLIK.md`](13-KIRACI-VE-GUVENLIK.md)'nin konusudur).
+
+**Adımlar**
+1. Dashboard'ı aç, "Uyarılar" panelini incele.
+
+**Beklenen sonuç**
+- Sarı `dashboard.unpricedTitle` tooltip'li bir rozet, fiyatsız run sayısını
+  gösterir.
+- Rozetin yanında `dashboard.configurePricing →` bağlantısı görünür (bu
+  bağlantı özel bir fiyat ekranına DEĞİL, genel `settings` rotasına gider —
+  ayrı bir fiyat paneli yoktur).
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-013 — Bekleyen girdi run'ı varken mavi uyarı rozeti "Çalıştırmalar"a bağlanır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 20, 16 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- [`11-ARAYUZ-RUN-SESSION-SSE.md`](11-ARAYUZ-RUN-SESSION-SSE.md) `MT-UIRUN-012`'nin
+  `ozetle-ve-onayla` çalıştırması hâlâ `AwaitingInput` durumunda.
+
+**Adımlar**
+1. Dashboard'ı aç, "Uyarılar" panelini incele, mavi rozete tıkla.
+
+**Beklenen sonuç**
+- Mavi `dashboard.awaitingRuns` rozeti bekleyen run sayısını gösterir.
+- Tıklanınca `runs` ekranına gider (filtre uygulanmadan — yalnız genel
+  listeye yönlendirir, `AwaitingInput` filtresi otomatik seçilmez).
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 6 — Geri bildirim ve çevrimiçi değerlendirme özetleri
+
+### MT-OBS-014 — Hiç puanlanmış run yokken "henüz yok" metni; çevrimiçi değerlendirme paneli 30 saniyede bir kendiliğinden yenilenir
+
+Derinlemesine puanlama/yargıç testi bu dosyanın kapsamı DIŞINDADIR (bkz.
+Sınır tablosu) — burada yalnız özet panelin varlığı ve yenileme davranışı
+ölçülür.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 20 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Hiçbir run puanlanmamış, hiçbir yargıç çalıştırılmamış.
+
+**Adımlar**
+1. Dashboard'ı aç, "Geri Bildirim" ve "Çevrimiçi Değerlendirme" panellerini
+   incele.
+2. Ağ sekmesinde 35 saniye bekle, `GET api/evaluation/online` isteğinin kaç
+   kez gittiğini say.
+
+**Beklenen sonuç**
+- Adım 1: ikisi de "henüz yok" metnini gösterir (`feedback.noneYet`,
+  `onlineEval.noneYet`).
+- Adım 2: EN AZ iki istek gider (`refetchInterval: 30_000`) — "Geri
+  Bildirim" paneli AYNI davranışı göstermez (o, `stats` sorgusuna bağlıdır,
+  kendi zamanlayıcısı YOKTUR).
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 7 — İz (Trace) ve Waterfall
+
+### MT-OBS-015 — `SuccessSampleRatio = 0` iken: başarılı run'da trace KESİN YOK, başarısız run'da `AlwaysPersistFailures` sayesinde YİNE DE VAR
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 6 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+```bash
+dotnet user-secrets set "AgentPrism:Observability:SuccessSampleRatio" "0"
+```
+uygulama yeniden başlatılmış.
+
+**Adımlar**
+1. `playground/support` aç, `Merhaba` gönder (başarılı), tamamlanınca
+   çalıştırma sayfasında "İz" panelini incele.
+2. Geçersiz bir modelle (`manuel-model-hata` gibi) başarısız bir çalıştırma
+   üret, "İz" panelini incele.
+
+**Beklenen sonuç**
+- Adım 1: `GET .../trace` `404` döner; panel `runDetail.noSpans` boş-
+  durumunu, `AgentPrism:Observability:SuccessSampleRatio` adını anarak
+  gösterir. Oran `0` olduğu için bu SONUÇ GARANTİLİDİR (olasılıksal değil).
+- Adım 2: aynı ayar altında bile trace VARDIR (`200`) — `AlwaysPersistFailures`
+  (varsayılan `true`) örnekleme oranını GEÇERSİZ kılar.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-016 — `SuccessSampleRatio = 1` iken başarılı bir run'da trace KESİN VAR
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 6 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+```bash
+dotnet user-secrets set "AgentPrism:Observability:SuccessSampleRatio" "1"
+```
+uygulama yeniden başlatılmış.
+
+**Adımlar**
+1. `playground/support` aç, `Merhaba` gönder, tamamlanınca "İz" panelini
+   incele.
+
+**Beklenen sonuç**
+- `200` döner; `Waterfall` bileşeni render edilir (span sayısı, `traceId`,
+  toplam süre başlıkta görünür).
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-017 — Waterfall ebeveyn-çocuk yuvalamayı girintiyle gösterir; kök span en üstte
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 6, 12 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `MT-OBS-016`'nın `SuccessSampleRatio=1` ayarı hâlâ etkin.
+
+**Adımlar**
+1. `playground/yonlendirici` aç, `FIX-PROMPT-01` gönder, tamamlansın.
+2. `yonlendirici`'nin KÖK çalıştırmasının "İz" panelini aç (alt çalıştırmanın
+   DEĞİL — bkz. `MT-OBS-021`).
+3. Bir span satırına tıkla, açılan ayrıntı bölümünü incele.
+
+**Beklenen sonuç**
+- Adım 2: en az iki span görünür; `support` agent'ına ait çağrı span'i
+  `yonlendirici`'ninkine göre girintili (`depth * 10px`) satırda, aynı zaman
+  eksenine göre konumlanmış bir çubukla görünür.
+- Adım 3: açılan bölümde `kind`/`status` rozetleri, `spanId` (mono) ve
+  öznitelik tablosu (veya `waterfall.noAttributes` metni) görünür.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-018 — Sıfıra yakın süreli bir span bile en az %0,6 genişlikte GÖRÜNÜR kalır
+
+Sınır durumu — kod, alt-milisaniyelik span'lerin görsel olarak kaybolmasını
+önlemek için taban genişlik uygular.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 6 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `MT-OBS-017`'nin iz verisi açık.
+
+**Adımlar**
+1. En kısa süreli span satırının sağındaki süre etiketini oku (`formatMs`).
+2. O satırın çubuğunu (DevTools ile `style.width`) ölç.
+
+**Beklenen sonuç**
+- Süre `<1ms` gibi çok kısa bir etiket taşısa BİLE çubuk genişliği `%0`
+  DEĞİLDİR — en az `%0.6` (`Math.max(clampPercent(...), 0.6)`), gözle
+  görülür ince bir çizgi kalır.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-019 — 🚨 Hassas öznitelikler varsayılanda ayıklanır; `RecordSensitiveData=true` ile aynı tür çağrıda görünür
+
+`RunTraceCollector.IsSensitive`, anahtar adında (alt dizgi olarak, büyük/
+küçük harf duyarsız) `"message"`/`"prompt"`/`"completion"` geçen HER
+özniteliği varsayılanda siler — semantik bir izin listesi değil, düz bir
+alt dizgi eşleşmesidir.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 6 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `MT-OBS-016`'nın `SuccessSampleRatio=1` ayarı hâlâ etkin.
+- `dotnet user-secrets set "AgentPrism:Observability:RecordSensitiveData" "false"`
+  (varsayılan zaten budur, açıkça yazmak bu case'i belgeler).
+
+**Adımlar**
+1. `playground/support` aç, `Merhaba` gönder, tamamlansın; `runId`'yi not al.
+2. `curl -s "http://localhost:5080/agentprism/api/runs/<runId>/trace" -H "Authorization: Bearer manuel-test-token-2026" | python3 -c "import json,sys; d=json.load(sys.stdin); print([k for s in d['spans'] for k in s['attributes'] if 'message' in k.lower() or 'prompt' in k.lower() or 'completion' in k.lower()])"`
+3. `dotnet user-secrets set "AgentPrism:Observability:RecordSensitiveData" "true"`,
+   uygulamayı yeniden başlat, AYNI adımları tekrarla (yeni bir `runId` ile).
+
+**Beklenen sonuç**
+- Adım 2: liste BOŞTUR — `gen_ai.*.message` gibi hassas anahtarlar hiçbirinde
+  yok.
+- Adım 3: liste artık DOLUDUR (en azından bir `gen_ai.*.message` benzeri
+  anahtar görünür) — bayrak açıkken aynı çağrı gerçek içeriği taşır.
+- Adım 3'ten sonra bayrak `false`'a GERİ ALINIR (varsayılan davranış — sonraki
+  case'ler bunu bekler).
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-020 — Alt çalıştırmanın trace ucu, "span yok" ile "hiç çalıştırma yok"u AYNI mesajla döner
+
+Negatif senaryo — sunucu bu ikisini ayırmaz.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 6 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `MT-OBS-017`'nin `support` alt çalıştırmasının `runId`'si elde.
+
+**Adımlar**
+1. `curl -s -o /dev/null -w "%{http_code}\n" "http://localhost:5080/agentprism/api/runs/<altRunId>/trace" -H "Authorization: Bearer manuel-test-token-2026"`
+2. Aynı isteği rastgele, var olmayan bir GUID ile tekrarla.
+
+**Beklenen sonuç**
+- İkisi de `404` döner ve gövde metni BİREBİR AYNIDIR
+  (`"Trace bulunamadi"` + `SuccessSampleRatio` açıklaması) — sunucu "bu
+  çalıştırma hiç yok" ile "bu çalıştırmanın span'i yok"u ayırt etmez (alt
+  çalıştırmanın trace'i her zaman köke aittir, bu yüzden 404 beklenen
+  sonuçtur — bkz. [`11-ARAYUZ-RUN-SESSION-SSE.md`](11-ARAYUZ-RUN-SESSION-SSE.md)
+  `MT-UIRUN-015`).
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 8 — Maliyet hesaplama ve yeniden hesaplama
+
+### MT-OBS-021 — Fiyat tanımsızken maliyet alanları `null`'dur, `0` DEĞİL
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 20 |
+| **İlgili karar** | K-032 |
+
+**Ön koşul**
+- Hiçbir `AgentPrism:Pricing:*` anahtarı tanımlı DEĞİL. `manuel-bos`
+  (`FIX-AGENT-02`) ile bir çalıştırma üret.
+
+**Adımlar**
+1. `curl -s "http://localhost:5080/agentprism/api/runs/<runId>" -H "Authorization: Bearer manuel-test-token-2026" | python3 -m json.tool | grep -A4 '"cost"'`
+
+**Beklenen sonuç**
+- `cost.source = "Unknown"`, `cost.inputCost = null`, `cost.outputCost = null`
+  — HİÇBİRİ `0` DEĞİLDİR (`0` "ücretsiz model" anlamına gelirdi, `null`
+  "fiyat bilinmiyor" anlamına gelir).
+
+**Doğrulama sorgusu**
+```sql
+SELECT input_cost, output_cost, pricing_source FROM agentprism.runs WHERE id = '<runId>';
+```
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-022 — Yalnız `Input` fiyatı tanımlanınca `outputCost` `null` kalır, `source = Configuration` olur
+
+Sınır durumu — kısmi fiyatlandırma "Unknown"a düşmez.
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 20 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+```bash
+dotnet user-secrets remove "AgentPrism:Pricing:openai:gpt-5.4-mini:Output"
+dotnet user-secrets set "AgentPrism:Pricing:openai:gpt-5.4-mini:Input" "0.15"
+```
+(yalnız `Input` kalacak şekilde), uygulama yeniden başlatılmış.
+
+**Adımlar**
+1. `playground/support` aç, `Merhaba` gönder, tamamlansın.
+2. `curl -s ".../api/runs/<runId>" -H "Authorization: Bearer manuel-test-token-2026" | python3 -m json.tool | grep -A4 '"cost"'`
+
+**Beklenen sonuç**
+- `cost.source = "Configuration"`, `cost.inputCost` sıfırdan büyük bir sayı,
+  `cost.outputCost = null` — kısmi fiyatlandırma geçerli bir durumdur, tüm
+  alanları `Unknown`'a düşürmez.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-023 — Rezerve anahtar: `Pricing:Voice:...` bir "Voice" sağlayıcısı olarak ayrıştırılmaz
+
+Sınır/negatif senaryo — `Voice` ve `Currency` fiyat bölümünde rezerve
+adlardır.
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 20 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+```bash
+dotnet user-secrets set "AgentPrism:Pricing:Voice:openai:gpt-5.4-mini:Input" "999"
+```
+(`openai`'nin GERÇEK `Pricing:openai:...` anahtarı KALDIRILMIŞ olmalı —
+`MT-OBS-022`'den `dotnet user-secrets remove "AgentPrism:Pricing:openai:gpt-5.4-mini:Input"`),
+uygulama yeniden başlatılmış.
+
+**Adımlar**
+1. `playground/support` aç, `Merhaba` gönder, tamamlansın.
+2. Çalıştırmanın `cost.source` alanına bak.
+
+**Beklenen sonuç**
+- `cost.source = "Unknown"` — `Pricing:Voice:openai:gpt-5.4-mini:Input`
+  anahtarı sohbet modeli fiyatı olarak HİÇ okunmaz (`Voice` ayrı, sabit
+  kodlu bir bölümdür; `999` gibi anormal bir tutar bile sohbet maliyetine
+  yansımaz).
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-024 — K-154: aynı model adı iki sağlayıcıda farklı fiyatla tanımlıyken yeniden hesaplama alfabetik İLK sağlayıcıyı seçer
+
+`runs` tablosu sağlayıcı sütunu taşımaz; bir model adı birden fazla
+sağlayıcıda tanımlıysa yeniden hesaplama HANGİ sağlayıcıdan geldiğini
+bilemez ve alfabetik ilkini kazandırır — bilinen ve kabul edilmiş bir
+sınırlama (K-154).
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 20 |
+| **İlgili karar** | K-154 |
+
+**Ön koşul**
+- OpenRouter anahtarı tanımlı.
+```bash
+dotnet user-secrets remove "AgentPrism:Pricing:Voice:openai:gpt-5.4-mini:Input"
+dotnet user-secrets set "AgentPrism:Pricing:openai:gpt-5.4-mini:Input" "1"
+dotnet user-secrets set "AgentPrism:Pricing:openai:gpt-5.4-mini:Output" "1"
+dotnet user-secrets set "AgentPrism:Pricing:openrouter:gpt-5.4-mini:Input" "5"
+dotnet user-secrets set "AgentPrism:Pricing:openrouter:gpt-5.4-mini:Output" "5"
+```
+uygulama yeniden başlatılmış — AYNI model adı (`gpt-5.4-mini`) iki
+sağlayıcıda ÇOK FARKLI fiyatlarla tanımlı.
+
+**Adımlar**
+1. `openrouter-destek` agent'ı (OpenRouter üzerinden `gpt-5.4-mini` kullanır)
+   ile `playground`'da bir çalıştırma yap, tamamlansın, `runId`'yi not al.
+2. `curl -s -X POST ".../api/stats/recalculate-costs" -H "Authorization: Bearer manuel-test-token-2026"`.
+3. Çalıştırmanın güncellenmiş `cost.inputCost` değerine bak.
+
+**Beklenen sonuç**
+- Adım 3: `inputCost` `openrouter`'ın fiyatı (`5`) DEĞİL, alfabetik olarak
+  ÖNCE gelen `openai`'nin fiyatıyla (`1`) hesaplanmıştır — gerçek sağlayıcı
+  OpenRouter olmasına rağmen. Bu, kusur DEĞİL, K-154'ün belgelediği bir
+  sınırlamadır; case bunu koşumda somut sayılarla doğrular.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-025 — `POST /api/stats/recalculate-costs` Admin ister, denetim izine yazar, sayaçları tutarlı döner
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 20 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `MT-OBS-024`'ün karışık fiyatlandırma durumu hâlâ etkin; en az bir
+  fiyatsız (`manuel-bos`) çalıştırma da var.
+
+**Adımlar**
+1. `curl -s -X POST ".../api/stats/recalculate-costs" -H "Authorization: Bearer manuel-test-token-2026" | python3 -m json.tool`.
+2. `SELECT tenant_id, action, entity FROM agentprism.audit_log WHERE action = 'stats.recalculate-costs' ORDER BY occurred_at DESC LIMIT 1;`
+
+**Beklenen sonuç**
+- Adım 1: `runsConsidered >= runsUpdated`, `runsStillUnknown` en az
+  `manuel-bos`'un çalıştırma sayısı kadardır (fiyatsız kalanlar).
+- Adım 2: denetim izine `stats.recalculate-costs` satırı düşmüştür.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 9 — Zaman serisi ucu (`GET api/stats/timeseries`)
+
+### MT-OBS-026 — `from >= to` (eşitlik dahil) `400 "Aralik gecersiz"` döner
+
+Negatif senaryo.
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 20 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. `curl -i "http://localhost:5080/agentprism/api/stats/timeseries?from=2026-08-10T00:00:00Z&to=2026-08-10T00:00:00Z" -H "Authorization: Bearer manuel-test-token-2026"`
+   (`from` ve `to` BİREBİR AYNI).
+
+**Beklenen sonuç**
+- `400`, `"Aralik gecersiz"` — kod `>=` kontrolü yapar, yalnızca `from > to`
+  DEĞİL, `from == to` da reddedilir.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-027 — 30 günlük aralığı saatlik kovayla istemek `400 "Kova sayisi asildi"` döner, günlük kova önerir
+
+Negatif senaryo — 500 kova sınırı.
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 20 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. `curl -i "http://localhost:5080/agentprism/api/stats/timeseries?from=$(date -u -v-31d +%Y-%m-%dT%H:%M:%SZ)&to=$(date -u +%Y-%m-%dT%H:%M:%SZ)&bucket=Hour" -H "Authorization: Bearer manuel-test-token-2026"`
+   (macOS `date -v` sözdizimi; 31 gün × 24 saat = 744 kova, 500 sınırını aşar).
+
+**Beklenen sonuç**
+- `400`, `"Kova sayisi asildi"`; gövde önerilen kovayı adlandırır (`"Onerilen
+  kova: day."` benzeri).
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-028 — Boş kovalar sıfır sayımlarla döner; hiçbir kova ATLANMAZ
+
+Sınır durumu.
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 20 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. `curl -s "http://localhost:5080/agentprism/api/stats/timeseries?from=2020-01-01T00:00:00Z&to=2020-01-02T00:00:00Z&bucket=Hour" -H "Authorization: Bearer manuel-test-token-2026" | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d))"`
+   (kesinlikle hiç çalıştırmanın olmadığı bir tarih aralığı).
+
+**Beklenen sonuç**
+- Tam `24` öge döner (24 saatlik kova), hepsi `runs: 0`, `cost: null` —
+  boş bir aralık BOŞ bir liste DEĞİL, sıfırlanmış kovalarla dolu bir liste
+  döndürür.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-029 — Yalnızca süren run'ları içeren bir kova `averageDurationMs = null` döner, `runs > 0` olsa bile
+
+Sınır durumu.
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 20 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `FIX-PROMPT-04` (uzun, süren) ile bir çalıştırma BAŞLATILMIŞ, henüz
+  BİTMEMİŞ olmalı (akış sürerken hemen sorguyu at).
+
+**Adımlar**
+1. `playground/support` aç, `FIX-PROMPT-04` gönder; HEMEN (akış bitmeden)
+   `curl -s "http://localhost:5080/agentprism/api/stats/timeseries?bucket=Hour" -H "Authorization: Bearer manuel-test-token-2026" | python3 -m json.tool | tail -20`.
+
+**Beklenen sonuç**
+- Son (güncel) kovada `runs >= 1` ama `averageDurationMs: null` — `CompletedAt`
+  henüz yazılmadığı için bu run "settled" sayılmaz ve ortalamaya girmez.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 10 — Araç kullanım ucu (`GET api/tools/usage`)
+
+### MT-OBS-030 — `maxTools=0` sunucuda `1`'e yükseltilir, `0` tool DEĞİL
+
+Sınır durumu — `Math.Clamp(max, 1, 200)`, taban `1`'dir (`/api/stats`'in
+`maxAgents` tabanı `0`'dan FARKLI).
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 6 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- En az bir tool çağrısı yapılmış (`FIX-PROMPT-01`).
+
+**Adımlar**
+1. `curl -s "http://localhost:5080/agentprism/api/tools/usage?maxTools=0" -H "Authorization: Bearer manuel-test-token-2026" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))"`
+
+**Beklenen sonuç**
+- Sonuç `0` DEĞİL, `1`'dir (en az bir tool çağrısı varsa) — `maxTools=0`
+  isteği sessizce `1`'e yuvarlanır.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-031 — `startedAfter` filtresi run'ın BAŞLANGIÇ zamanına göre süzer, tool çağrısının kendi zamanına göre DEĞİL
+
+Sınır durumu.
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 6 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `FIX-PROMPT-01` ile `get_order_status` çağıran bir run bugün yapılmış.
+
+**Adımlar**
+1. `curl -s "http://localhost:5080/agentprism/api/tools/usage?startedAfter=$(date -u -v+1H +%Y-%m-%dT%H:%M:%SZ)" -H "Authorization: Bearer manuel-test-token-2026"`
+   (gelecekteki bir zaman — hiçbir run'ın `StartedAt`'i bunu geçmemiştir).
+
+**Beklenen sonuç**
+- Boş liste `[]` döner — filtre run'ın `StartedAt`'ine uygulanır; tool
+  çağrısının kendi zaman damgası ayrıca değerlendirilmez.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 11 — Model sağlığı (Dashboard özeti)
+
+### MT-OBS-032 — Dashboard sağlık verisini `refresh=true` OLMADAN çeker; 60 saniyelik önbellek payına düşer
+
+Devre kesici ve sağlayıcı sağlığının derin mekaniği zaten
+[`05-SAGLAYICI-OPENAI.md`](05-SAGLAYICI-OPENAI.md)/[`06-SAGLAYICI-DIGER.md`](06-SAGLAYICI-DIGER.md)'de
+üretildi; burada yalnız Dashboard'un bu veriyi NASIL çektiği ölçülür.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 20 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. Dashboard'ı aç, ağ sekmesinde `GET api/models/health` isteğinin sorgu
+   dizgisine bak.
+
+**Beklenen sonuç**
+- İstek `refresh=true` PARAMETRESİ TAŞIMAZ (`api.modelsHealth(false)`) —
+  Dashboard her açılışta canlı bir sağlık taraması TETİKLEMEZ, yalnız son
+  önbelleklenmiş durumu okur.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 12 — Faz 35 metrikleri (`dotnet-counters`)
+
+### MT-OBS-033 — `agentprism.run.cost` sayacı yalnız fiyatı BİLİNEN run'larda artar
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 35 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `MT-OBS-003`'ün fiyatlandırması tanımlı (`openai:gpt-5.4-mini` fiyatlı).
+- `dotnet-counters ps` ile `AgentPrism.Api` sürecinin PID'si bulunmuş.
+
+**Adımlar**
+1. `dotnet-counters monitor -p <pid> --counters AgentPrism` çalıştır, ekranı
+   açık bırak.
+2. `playground/support` aç, `Merhaba` gönder, tamamlansın.
+3. `dotnet-counters` ekranında `agentprism.run.cost` satırının değerine bak.
+4. `manuel-bos` (fiyatsız) ile bir çalıştırma daha yap, sayaç DEĞİŞİYOR mu
+   gözlemle.
+
+**Beklenen sonuç**
+- Adım 3: sayaç sıfırdan büyük bir değere ARTAR, `currency`/`agent_name`/
+  `model_id`/`tenant_id` etiketleriyle görünür.
+- Adım 4: sayaç DEĞİŞMEZ — fiyatsız run `RecordCost` çağrısını hiç
+  TETİKLEMEZ (`cost.Source == Unknown` iken metrik yayılmaz; sıfır yaymak
+  gerçek harcamayı küçük gösterirdi).
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-034 — `agentprism.run.cost` İPTAL edilen bir run'da da (fiyat biliniyorsa) artar
+
+Sınır durumu — harcanan token'ın parası zaten harcanmıştır.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 35, 32 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `MT-OBS-033`'ün fiyatlandırması etkin; `dotnet-counters monitor` açık.
+
+**Adımlar**
+1. `playground/support` aç, `FIX-PROMPT-04` (uzun) gönder; akış sürerken
+   çalıştırma sayfasına geç, "İptal Et"e tıkla, onayla (bkz.
+   [`11-ARAYUZ-RUN-SESSION-SSE.md`](11-ARAYUZ-RUN-SESSION-SSE.md) `MT-UIRUN-022`).
+2. İptal tamamlanınca `agentprism.run.cost` sayacına bak.
+
+**Beklenen sonuç**
+- Sayaç YİNE DE artar (`status = Canceled` ama fiyat biliniyorsa `RecordCost`
+  yine çağrılır) — iptal, o ana kadar harcanan token'ın metriğini SİLMEZ.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-035 — 🚨 `agentprism.quota.usage`/`.limit` VARSAYILANDA (kapalı bayrak) hiçbir ölçüm yaymaz
+
+`EnableQuotaUsageGauge` varsayılanı `false`'tur (`RunCost` sayacının
+AKSİNE, bu ek bir kaynak tüketimidir ve açıkça istenmelidir).
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 35 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Hiçbir `AgentPrism:Observability:EnableQuotaUsageGauge` ayarı YAPILMAMIŞ
+  (varsayılan `false`).
+- `curl -i -X PUT "http://localhost:5080/agentprism/api/quotas" -H "Authorization: Bearer manuel-test-token-2026" -H "Content-Type: application/json" -d '{"period":"Daily","maxRuns":1000}'`
+  ile kiracı geneli bir kota kuralı tanımlanmış (kuralın KENDİSİ Faz 21'in
+  konusudur — burada yalnız SCAFFOLD amaçlı kullanılır, bkz. Sınır tablosu).
+
+**Adımlar**
+1. `dotnet-counters monitor -p <pid> --counters AgentPrism` çalıştır.
+2. `playground/support` ile birkaç çalıştırma yap (kota sayacını doldurmak
+   için).
+3. `agentprism.quota.usage`/`agentprism.quota.limit` satırlarını ara.
+
+**Beklenen sonuç**
+- İkisi de listede İSİM olarak GÖRÜNEBİLİR (enstrüman her zaman kayıtlıdır)
+  ama HİÇBİR ölçüm/etiket YAYMAZ — `Snapshot()` bayrak kapalıyken boş liste
+  döner, veritabanına hiç gidilmez.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-OBS-036 — Bayrak açılınca aynı ölçerler kota kuralına karşılık gelen etiketli değerleri yayar
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 35 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+```bash
+dotnet user-secrets set "AgentPrism:Observability:EnableQuotaUsageGauge" "true"
+dotnet user-secrets set "AgentPrism:Observability:QuotaUsageRefreshInterval" "00:00:05"
+```
+uygulama yeniden başlatılmış; `MT-OBS-035`'in kota kuralı hâlâ tanımlı ve en
+az bir çalıştırma yapılmış olmalı.
+
+**Adımlar**
+1. `dotnet-counters monitor -p <pid> --counters AgentPrism` çalıştır, en az
+   10 saniye bekle (önbellek tazelenmesi için).
+2. `agentprism.quota.usage`/`agentprism.quota.limit` satırlarını oku.
+
+**Beklenen sonuç**
+- İkisi de artık SIFIRDAN FARKLI değer(ler) taşır; etiketler arasında
+  `quota_scope` (boş = kiracı geneli), `quota_period` (`Daily`),
+  `quota_metric` (`Runs`) görünür.
+- `usage`'ın değeri o ana kadarki run sayısına, `limit`'in değeri `1000`'e
+  eşittir (`MT-OBS-035`'in tanımladığı kural).
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---

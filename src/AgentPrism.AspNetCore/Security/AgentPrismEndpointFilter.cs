@@ -85,12 +85,16 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
             }
 
             // Ne statik token ne baslik var: bugunku davranis degismez (K1).
-            return await Proceed(httpContext, next, context).ConfigureAwait(false);
+            return CheckTenancyWhitelist(httpContext) is { } rejectedNoAuth
+                ? rejectedNoAuth
+                : await Proceed(httpContext, next, context).ConfigureAwait(false);
         }
 
         if (_authToken is { Length: > 0 } expected && BearerTokenValidator.IsValid(header, expected))
         {
-            return await Proceed(httpContext, next, context).ConfigureAwait(false);
+            return CheckTenancyWhitelist(httpContext) is { } rejectedStaticToken
+                ? rejectedStaticToken
+                : await Proceed(httpContext, next, context).ConfigureAwait(false);
         }
 
         var candidate = BearerTokenValidator.TryExtractToken(header);
@@ -141,6 +145,66 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
         AuditActorContext.Current = httpContext.User;
 
         return next(context);
+    }
+
+    /// <summary>
+    /// <see cref="AgentPrismTenancyOptions.AllowedTenants"/> doluyken, beyaz listede
+    /// OLMAYAN bicimce gecerli bir aday kiraciyi reddeder.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 🚨 Bu denetim olmadan <see cref="HttpTenantContext.TenantId"/>'nin <c>??</c>
+    /// zinciri (<c>Resolve() ?? DefaultTenantId</c>) beyaz listenin reddettigi bir
+    /// adayi SESSIZCE varsayilan kiraciya dusururdu — tam olarak
+    /// <see cref="AgentPrismTenancyOptions.AllowedTenants"/>'in kendi XML belgesinin
+    /// yasakladigi durum ("listede olmayan bir deger varsayilan kiraciya dusmez").
+    /// Bu yuzden aday burada, istek endpoint'e ulasmadan ONCE, ayni kaynaktan
+    /// (claim veya baslik — <see cref="HttpTenantContext.Resolve"/> ile birebir
+    /// ayni oncelik) okunup denetlenir.
+    /// </para>
+    /// <para>
+    /// Aday HIC saglanmamissa (ne claim ne baslik) ya da bicimce gecersizse bu
+    /// denetim devreye girmez — varsayilan kiraciya dusmek o durumda kasitli
+    /// davranistir (K1: coklu kiracilik acilmadan hicbir sey degismez).
+    /// </para>
+    /// </remarks>
+    private static ProblemHttpResult? CheckTenancyWhitelist(HttpContext httpContext)
+    {
+        var tenancyOptions = httpContext.RequestServices.GetService<IOptions<AgentPrismTenancyOptions>>()?.Value;
+
+        if (tenancyOptions is not { Enabled: true, AllowedTenants.Count: > 0 })
+        {
+            return null;
+        }
+
+        string? candidate;
+
+        if (tenancyOptions.ClaimType is { Length: > 0 } claimType)
+        {
+            candidate = httpContext.User.Identity?.IsAuthenticated == true
+                ? httpContext.User.FindFirst(claimType)?.Value
+                : null;
+        }
+        else if (tenancyOptions.AllowHeaderResolution)
+        {
+            candidate = httpContext.Request.Headers[tenancyOptions.HeaderName].ToString();
+        }
+        else
+        {
+            candidate = null;
+        }
+
+        if (!HttpTenantContext.IsValidTenantId(candidate)
+            || tenancyOptions.AllowedTenants.Contains(candidate, StringComparer.Ordinal))
+        {
+            return null;
+        }
+
+        return TypedResults.Problem(
+            title: "Kiraci reddedildi",
+            detail: "Cozulen kiraci izin verilenler listesinde degil. Bu istek varsayilan " +
+                    "kiracinin verisine SESSIZCE dusurulmez; reddedilir.",
+            statusCode: StatusCodes.Status403Forbidden);
     }
 
     private static ProblemHttpResult Unauthorized(HttpContext httpContext)

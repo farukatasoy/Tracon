@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (229 kalem)
+## Arşivlenen Kararlar (234 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -238,3 +238,8 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-227 | 272 | Ses dakikası bir kota birimi değildir 👤 |
 | K-228 | 273 | i18n kütüphanesi alınmadı; `lib/i18n.tsx` elle yazıldı |
 | K-229 | 274 | `t` fonksiyonu modül düzeyindedir ve kimliği hiç değişmez |
+| K-230 | 275 | Dil tercihi `localStorage`'da; token `sessionStorage`'da kalır (K-047) |
+| K-231 | 276 | Varsayılan dil tarayıcıdan gelir 👤 |
+| K-232 | 277 | Sunucu yanıtları çevrilmez; API sözleşmesi tek dillidir |
+| K-233 | 278 | Rozet metni küçük harf, süzgeç/başlık metni büyük harf: iki ayrı anahtar kümesi |
+| K-234 | 279 | Dil başına ses eşlemesi istemcide tutulur; protokol zaten taşıyordu |
