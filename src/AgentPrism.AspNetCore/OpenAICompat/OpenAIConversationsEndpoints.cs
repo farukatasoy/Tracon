@@ -197,9 +197,14 @@ internal static class OpenAIConversationsEndpoints
             items.AddRange(ToItems(message));
         }
 
+        // 🚨 HasMore ONCEDEN sabit 'false' yaziliyordu; kesilen ogeler sessizce
+        // kayboluyor gibi gorunuyordu. Gercek toplam, kirpmadan ONCE olculur.
+        var hasMore = false;
+
         if (limit is { } max && max > 0 && items.Count > max)
         {
             items = items[..max];
+            hasMore = true;
         }
 
         var list = new ItemListResource(
@@ -207,7 +212,7 @@ internal static class OpenAIConversationsEndpoints
             items,
             items.Count == 0 ? null : items[0].Id,
             items.Count == 0 ? null : items[^1].Id,
-            HasMore: false);
+            hasMore);
 
         return Results.Json(list, OpenAICompatSupport.JsonOptions, statusCode: StatusCodes.Status200OK);
     }

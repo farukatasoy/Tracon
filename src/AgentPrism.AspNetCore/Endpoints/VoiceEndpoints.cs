@@ -98,6 +98,20 @@ internal static class VoiceEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
+        // 🚨 SpeakTool (agent tool cagrisi) bu siniri zaten uyguluyordu; bu HTTP
+        // operator ucu (agent'tan bagimsiz, dogrudan cagrilir) aymiydi ve
+        // XML dokumaninin "ayni sinira uyar" iddiasini karsilamiyordu.
+        var maxCharacters = synthesizer.MaxCharactersPerRequest;
+
+        if (request.Text.Length > maxCharacters)
+        {
+            return TypedResults.Problem(
+                title: "Metin cok uzun",
+                detail: $"Metin {request.Text.Length} karakter; sinir {maxCharacters}. " +
+                        "Metni kisaltin veya 'AgentPrism:Voice:MaxCharactersPerRequest' ayarini yukseltin.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
         SpeechAudio audio;
 
         try

@@ -7,7 +7,8 @@ namespace AgentPrism.Starter;
 /// </summary>
 /// <remarks>
 /// Metot <c>[AgentPrismTool]</c> ile isaretlidir ve
-/// <c>builder.AddAgentPrism().AddToolsFrom(typeof(OrderTools))</c> ile kaydedilir.
+/// <c>builder.AddAgentPrism().AddGeneratedTools()</c> ile derleme aninda
+/// kaynak ureteciyle kaydedilir — yansima yok, AOT uyarisi yok.
 /// Isaretsiz metotlar tool olmaz — bu sinifa yeni bir yardimci metot eklemek onu
 /// kendiliginden agent'lara acmaz. Tool'lar yalnizca kodda tanimlanir; arayuz
 /// yalnizca bu listeden secim yaptirir.

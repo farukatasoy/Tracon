@@ -96,11 +96,23 @@ public sealed class TemplateFixture : IAsyncLifetime
         RegexOptions.None,
         TimeSpan.FromSeconds(1));
 
+    /// <remarks>
+    /// 🚨 <c>Directory.EnumerateFiles</c>'in sirasi dosya sistemine ozgudur ve
+    /// <strong>surume gore SIRALI olmayabilir</strong> (olculdu). Onceki bir
+    /// fazin kapanisindan kalmis eski bir <c>AgentPrism.&lt;eski-surum&gt;.nupkg</c>
+    /// klasorde durursa, ilk eslesen dosya rastgele bicimde ESKI (belki
+    /// analyzer'i eksik, bkz. AgentPrism.Core.csproj'daki '--no-build' notu)
+    /// bir surumu secebilirdi. Aday dosyalar arasindan en SON YAZILAN secilir:
+    /// bu, az once tamamlanan <c>InitializeAsync</c>'in kendi pack ciktisidir.
+    /// </remarks>
     private static string ResolveMetaPackageVersion()
     {
         var match = Directory.EnumerateFiles(RepoPaths.PackageReleaseDirectory, "AgentPrism.*.nupkg")
-                .Select(path => MetaPackageFileName.Match(Path.GetFileName(path)))
-                .FirstOrDefault(m => m.Success)
+                .Select(path => (Path: path, Match: MetaPackageFileName.Match(Path.GetFileName(path))))
+                .Where(candidate => candidate.Match.Success)
+                .OrderByDescending(candidate => File.GetLastWriteTimeUtc(candidate.Path))
+                .Select(candidate => candidate.Match)
+                .FirstOrDefault()
             ?? throw new InvalidOperationException(
                 $"'{RepoPaths.PackageReleaseDirectory}' altinda 'AgentPrism.<surum>.nupkg' bulunamadi.");
 

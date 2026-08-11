@@ -705,6 +705,15 @@ app.MapAgentPrism("/agentprism", options =>
         options.AuthToken = token;
     }
 
+    // 🚨 appsettings.json'daki AgentPrism:Ui:AllowRemoteAccess anahtari daha
+    // once buraya HIC baglanmiyordu — deger orada dursa da hicbir etkisi
+    // olmuyordu (yalnizca dokumantasyon/sema tutarsizligi; varsayilan zaten
+    // guvenli 'false' oldugu icin bir guvenlik acigi degildi).
+    if (builder.Configuration.GetValue<bool?>("AgentPrism:Ui:AllowRemoteAccess") is { } allowRemoteAccess)
+    {
+        options.AllowRemoteAccess = allowRemoteAccess;
+    }
+
     // Teshis ucu varsayilan KAPALIDIR (K1: bilgi veren bir yuzey acikca acilir).
     // Bu ornekte gosterim icin acilir; Admin rolu kayitli degilse yine de
     // uc katmanli korumadan (loopback + bearer token) gecer.

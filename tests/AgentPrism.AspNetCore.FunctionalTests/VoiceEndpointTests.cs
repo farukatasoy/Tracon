@@ -98,6 +98,26 @@ public sealed class VoiceEndpointTests
     }
 
     [Fact]
+    public async Task Sinir_asan_metin_400_doner_ve_saglayiciya_ULASMAZ()
+    {
+        // HTTP operator ucu, SpeakTool'un (agent cagrisi) zaten uyguladigi
+        // MaxCharactersPerRequest sinirini KENDI de uygulamaliydi — onceden
+        // uygulamiyordu (bkz. ISpeechSynthesizer.MaxCharactersPerRequest).
+        await using var host = await AgentPrismTestHost.StartAsync(
+            configureServices: static services =>
+                services.AddSingleton<ISpeechSynthesizer>(new LimitedSynthesizer()));
+
+        using var response = await host.Client.PostAsJsonAsync(
+            new Uri("/agentprism/api/voice/speak", UriKind.Relative),
+            new { text = "bu-metin-on-karakterden-uzun" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        text.Contains("MaxCharactersPerRequest", StringComparison.Ordinal).ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task Saglayici_reddederse_govdesi_yanita_TASINMAZ()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
@@ -142,6 +162,8 @@ public sealed class VoiceEndpointTests
 
         public string ProviderName => "test-ses";
 
+        public int MaxCharactersPerRequest => 5000;
+
         public ValueTask<SpeechAudio> SynthesizeAsync(
             SpeechRequest request,
             CancellationToken cancellationToken = default)
@@ -172,6 +194,8 @@ public sealed class VoiceEndpointTests
     {
         public string ProviderName => "test-ses";
 
+        public int MaxCharactersPerRequest => 5000;
+
         public ValueTask<SpeechAudio> SynthesizeAsync(
             SpeechRequest request,
             CancellationToken cancellationToken = default)
@@ -192,6 +216,8 @@ public sealed class VoiceEndpointTests
     {
         public string ProviderName => "test-ses";
 
+        public int MaxCharactersPerRequest => 5000;
+
         public ValueTask<SpeechAudio> SynthesizeAsync(
             SpeechRequest request,
             CancellationToken cancellationToken = default)
@@ -208,6 +234,30 @@ public sealed class VoiceEndpointTests
             await Task.Yield();
             yield return new byte[] { 0x01 };
         }
+
+        public ValueTask<IReadOnlyList<VoiceDescriptor>> ListVoicesAsync(
+            CancellationToken cancellationToken = default)
+            => ValueTask.FromResult<IReadOnlyList<VoiceDescriptor>>([]);
+    }
+
+    /// <summary>10 karakterlik yapay dusuk sinir tasir; sinir denetimini test eder.</summary>
+    private sealed class LimitedSynthesizer : ISpeechSynthesizer
+    {
+        public string ProviderName => "test-ses";
+
+        public int MaxCharactersPerRequest => 10;
+
+        public ValueTask<SpeechAudio> SynthesizeAsync(
+            SpeechRequest request,
+            CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException(
+                "Sinirin uzerindeki bir istek saglayiciya hic ULASMAMALIYDI.");
+
+        public IAsyncEnumerable<ReadOnlyMemory<byte>> SynthesizeStreamingAsync(
+            SpeechRequest request,
+            CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException(
+                "Sinirin uzerindeki bir istek saglayiciya hic ULASMAMALIYDI.");
 
         public ValueTask<IReadOnlyList<VoiceDescriptor>> ListVoicesAsync(
             CancellationToken cancellationToken = default)

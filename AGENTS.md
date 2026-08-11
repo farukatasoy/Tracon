@@ -158,7 +158,7 @@ Genel .NET kuralları `.editorconfig` içinde zorunlu kılınır. Aşağıdakile
 
 **Tool'lar yalnızca kodda tanımlanır.** Arayüzden agent oluşturulabilir; tool **kodu** yazılamaz. Bu bir güvenlik sınırıdır ve gevşetilmez.
 
-**AOT uyumluluğu.** `Abstractions`, `Core`, `PostgreSql`, `OpenAI` paketleri AOT uyumludur. `reflection`'a dayanan API kullanma. Sırayla dene: (1) elle yaz; (2) `source generator` (`JsonSerializerContext`); (3) kaçınılmazsa `[RequiresUnreferencedCode]` + `[RequiresDynamicCode]` ile işaretle — uyarıyı **bastırma**, çağırana ilet.
+**AOT uyumluluğu.** Sekiz paket uyumludur — `grep -l "AotCompatible>false" src/*/*.csproj` ile listeyi doğrula, burada tekrarlama. `reflection` kullanma. Sırayla dene: (1) elle yaz; (2) `source generator`; (3) kaçınılmazsa `[RequiresUnreferencedCode]` + `[RequiresDynamicCode]` işaretle — uyarıyı **bastırma**, çağırana ilet.
 
 **Ön sürüm MAF paketleri yalnızca `AgentPrism.AspNetCore` içinde.** Karar K-008.
 

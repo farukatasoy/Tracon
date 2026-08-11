@@ -366,6 +366,7 @@ public sealed class AgentDefinitionCompilerTests
 
         var definition = TestData.Definition() with
         {
+            TenantId = "default",
             Memory = new MemorySettings { EnableFileMemory = true, EnableTodo = true, EnableTextSearch = true },
         };
 

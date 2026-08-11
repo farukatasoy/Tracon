@@ -16,28 +16,40 @@ public sealed class CodeAgentSource : IAgentSource
     private readonly AgentDefinitionCompiler _compiler;
     private readonly CompiledAgentCache _cache;
     private readonly IServiceProvider _services;
+    private readonly ITenantContext _tenantContext;
 
     /// <summary>Yeni bir kod kaynagi olusturur.</summary>
     /// <param name="registrations">Kod agent kayitlari.</param>
     /// <param name="compiler">Bildirimsel tanimlari derleyen derleyici.</param>
     /// <param name="cache">Derlenmis agent onbellegi.</param>
     /// <param name="services">Fabrika tabanli kayitlara verilecek servis saglayici.</param>
+    /// <param name="tenantContext">
+    /// Kiraci baglami. Kod agent tanimlari kiraciya baglanmamis olsa da (tum
+    /// kiracilar arasinda paylasilir), <see cref="AgentDefinitionCompiler"/>
+    /// anlamsal arama gibi kiraciya bagli araclari DERLEME ANINDAKI ambiyans
+    /// kiracisina bindirebilir (bkz. <c>AddVectorSearchTool</c>) — onbellek
+    /// anahtarina kiraciyi eklemek bu bindirmenin baska bir kiraciya sizmasini
+    /// engeller.
+    /// </param>
     /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
     /// <exception cref="AgentPrismException">Ayni agent adi birden cok kez kaydedilmisse.</exception>
     public CodeAgentSource(
         IEnumerable<CodeAgentRegistration> registrations,
         AgentDefinitionCompiler compiler,
         CompiledAgentCache cache,
-        IServiceProvider services)
+        IServiceProvider services,
+        ITenantContext tenantContext)
     {
         ArgumentNullException.ThrowIfNull(registrations);
         ArgumentNullException.ThrowIfNull(compiler);
         ArgumentNullException.ThrowIfNull(cache);
         ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(tenantContext);
 
         _compiler = compiler;
         _cache = cache;
         _services = services;
+        _tenantContext = tenantContext;
         _registrations = new Dictionary<string, CodeAgentRegistration>(StringComparer.Ordinal);
 
         foreach (var registration in registrations)
@@ -100,6 +112,7 @@ public sealed class CodeAgentSource : IAgentSource
         var callable = await _compiler.ResolveCallableAgentsAsync(definition, cancellationToken).ConfigureAwait(false);
 
         var agent = _cache.GetOrAdd(
+            _tenantContext.TenantId,
             definition.Name,
             definition.Version,
             CompiledAgentCache.CombineFingerprints(skills.Fingerprint, callable.Fingerprint),

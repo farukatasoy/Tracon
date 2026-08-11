@@ -1,0 +1,1566 @@
+# 18 — MCP İstemcisi/Sunucusu ve A2A Dış Yüzeyi (`MCP`)
+
+> **Alan kodu:** `MCP` · **Faz:** 6, 22, 50
+> **Kaynak:** `src/AgentPrism.Mcp/` (tümü — istemci tarafı: sunucu keşfi,
+> tool/prompt/resource köprüsü, OAuth) · `src/AgentPrism.AspNetCore/McpServer/`
+> (tümü — AgentPrism'i MCP sunucusu olarak dışa açma) ·
+> `src/AgentPrism.AspNetCore/A2A/` (tümü — AgentPrism'i A2A sunucusu olarak
+> dışa açma) · `src/AgentPrism.AspNetCore/Endpoints/GovernanceEndpoints.cs`
+> (yalnız `/api/mcp-servers/*` dalı — MCP sunucu kaydı CRUD, prompt/resource
+> köprüsü, OAuth başlatma) · `src/AgentPrism.AspNetCore/Security/ExternalSurfaceGuard.cs`,
+> `ExternalCallAudit.cs` · `src/AgentPrism.Abstractions/Mcp/McpServerDefinition.cs` ·
+> `src/AgentPrism.UI/frontend/src/screens/mcp.tsx`, `tools.tsx` (yalnız MCP
+> rozeti) · `src/AgentPrism.UI/frontend/src/components/mcp-server-detail.tsx` ·
+> Migration'lar: `mcp_servers` tablosu (PostgreSQL `0002_observability.sql` +
+> `0013_mcp_oauth.sql`; SQL Server/SQLite `0001_initial.sql`).
+>
+> Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
+
+---
+
+## Bu dosya neyi kanıtlar
+
+AgentPrism, Model Context Protocol'ü **iki yönde** de konuşur. Faz 22
+(**istemci** yönü): AgentPrism, dışarıdaki bir MCP sunucusuna bağlanıp
+onun tool/prompt/resource'larını kendi agent'larına tool olarak sunar —
+sunucular kodda değil, veritabanında tanımlıdır ve arka planda periyodik
+taranır. Faz 50 bunun tam tersini ekledi (**sunucu** yönü): AgentPrism'in
+kendi katalog agent'ları, dışarıdaki bir MCP istemcisine (ör. Claude Code
+CLI) tek bir tool olarak sunulabilir. Aynı fazda, kardeş bir protokol olan
+A2A (Agent2Agent) ile agent'lar kendi "agent kartı"nı yayınlayabilir. Faz 6
+temel keşif altyapısını getirmişti; bu dosya Faz 22/50'nin üzerine kurulu
+**bugünkü** yüzeyi test eder.
+
+```mermaid
+flowchart TD
+    subgraph Istemci["AgentPrism ISTEMCI (Faz 22)"]
+        DB["mcp_servers tablosu<br/>(kodda degil, DB'de)"] --> DS["McpDiscoveryService<br/>5 dk'da bir tarar"]
+        DS -->|basarili| TOOLS["AIFunction listesi<br/>{server}_{tool}"]
+        DS -->|ulasilamaz| DEGRADE["o sunucu 0 tool<br/>digerleri etkilenmez"]
+    end
+
+    subgraph Sunucu["AgentPrism SUNUCU (Faz 50)"]
+        CATALOG["IAgentCatalog<br/>CANLI, her istekte okunur"] --> MCPSRV["/agentprism/mcp<br/>tools/list, tools/call"]
+        CATALOG --> A2ASRV["/agentprism/a2a/{agent}<br/>agent-card.json + SendMessage"]
+        GUARD["McpApprovalGuardFilter<br/>onay gerektiren tool varsa"] -.->|UYGULAMA BASLAMAZ| MCPSRV
+    end
+
+    EXT["Dis MCP istemcisi<br/>(Claude Code CLI vb.)"] --> MCPSRV
+    EXT2["Dis A2A istemcisi"] --> A2ASRV
+
+    GOV["PUT/DELETE api/mcp-servers/name<br/>GovernanceEndpoints"] --> DB
+
+    style DEGRADE fill:#1f4a6f,stroke:#0d2740,color:#ffffff
+    style GUARD fill:#6f1f2a,stroke:#400d15,color:#ffffff
+    style GOV fill:#5f4a1e,stroke:#302510,color:#ffffff
+```
+
+## Sınır: bu dosya nerede biter
+
+| Konu | Nerede |
+|---|---|
+| Genel HTTP zarfı, idempotency-key deseni | `07-HTTP-YONETIM-API.md` (zaten üretildi) |
+| Rol/API anahtarı kapsam sisteminin GENEL mekanizması | `13-KIRACI-VE-GUVENLIK.md` (zaten üretildi) — burada yalnız bu alana **özgü** kapsam boşluğu test edilir (§9) |
+| Onay kartı akışının GENEL davranışı (bekleyen onay, `cancel_order` gibi kod-tanımlı tool'lar) | `10-ARAYUZ-AGENT-PLAYGROUND.md` (zaten üretildi) — burada yalnız MCP-kökenli tool'ların onay bayrağı test edilir |
+| Tek yürütücü seçimi (`SingletonGuard`, `McpDiscoveryService`'in kümede tek örnekte taranması) | `16-IS-KUYRUGU-VE-ZAMANLAMA.md` (zaten üretildi, Faz 42 kanıtı) — burada tekrarlanmaz |
+| Audit izinin GENEL şeması | `13-KIRACI-VE-GUVENLIK.md` — burada yalnız `external.call` kaydının varlığı doğrulanır |
+
+> **Rol matrisi burada da NO-OP'tur.** MCP-sunucu ve A2A grupları zaten
+> `RequireRole(...)` HİÇ ÇAĞIRMAZ (kod tasarımı — dış çağıranlar için
+> doğal bir Reader/Operator/Admin kavramı yoktur). **Bu dosyaya özgü
+> olan**: dış yüzeyin kendisi (`/agentprism/mcp`, `/agentprism/a2a`)
+> `RequireApiKeyScope(ExternalInvoke)`'u DOĞRU uygular, ama MCP sunucu
+> **kayıt** API'si (`/api/mcp-servers/*`, `GovernanceEndpoints.cs`) hiçbir
+> `RequireApiKeyScope` çağrısı taşımaz — §9'da ayrı ayrı ölçülür, biri
+> pozitif kontrol biri kusur adayı.
+
+## Koşmadan önce
+
+1. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı uygulanır.
+2. Örnek uygulama çalışır: `cd samples/AgentPrism.Api && dotnet run` →
+   `http://localhost:5080/agentprism`.
+3. Örnek uygulama `ozetleyici` agent'ını **hem** MCP **hem** A2A ile dışa
+   açar (`Program.cs:98-99`, `.UseMcpServer(o =>
+   o.ExposedAgents.Add("ozetleyici"))` / `.UseA2A(o =>
+   o.ExposedAgents.Add("ozetleyici"))`) — bu agent **kasıtlı olarak**
+   hiçbir tool taşımaz, bu yüzden §6/§7'nin onay-sınırı guard'ını hiç
+   tetiklemez. Guard'ı tetiklemek isteyen case'ler (§6 MT-MCP-034, §7
+   MT-MCP-045) GEÇİCİ bir `Program.cs` değişikliği ister — bu değişiklik
+   case sonunda GERİ ALINIR.
+4. `AgentPrism:Mcp` bölümü `appsettings.json`'da tanımlı DEĞİLDİR; örnek
+   uygulama `UseMcp(builder.Configuration.GetSection(...))`
+   (config-bağlı overload) kullanır — §2'nin case'leri bu farkı ölçer.
+5. **Yerel bir test MCP sunucusu bu repo'da hiç dokümante edilmemiştir**
+   (bkz. §5 başlığı) — §1-§4'ün "gerçek bağlantı" gerektiren case'leri
+   tester'ın kendi kuracağı bir sunucuya ihtiyaç duyar; §5 bu kurulumu
+   tarif eder.
+
+```bash
+export APB="Authorization: Bearer manuel-test-token-2026"
+export APU="http://localhost:5080/agentprism"
+export PG="docker exec -i ap-pg psql -U postgres -d agentprism"
+```
+
+> **Gerçek para uyarısı.** §4 MT-MCP-023, §6 MT-MCP-032/036, §7 MT-MCP-041
+> gerçek bir agent çalıştırması içerir (`echo` sağlayıcısı yeterlidir,
+> OpenAI şart değildir — `ozetleyici`/`support` `echo` ile de çalışır).
+> Kalan tüm case'ler model çağırmaz.
+
+---
+
+## Bu dosyanın yerel fixture'ları
+
+| Kimlik | Değer |
+|---|---|
+| `FIX-MCP-01` | Sunucu adı `test-sunucu` · `endpoint: "http://localhost:6060/mcp"` · `transport: "StreamableHttp"` · `requiresApproval: false` · **tester-tedarikli** — bkz. §5, repo'da dokümante edilmiş bir yerel MCP sunucusu YOKTUR |
+| `FIX-MCP-02` | `ozetleyici` — örnek uygulamanın kendi MCP+A2A ile dışa açtığı, tool'suz agent (`00-INDEKS.md` §3.1) |
+
+---
+
+# 1 — MCP İstemcisi: Sunucu Kaydı CRUD ve Doğrulama (Faz 22)
+
+### MT-MCP-001 — `PUT {prefix}/api/mcp-servers/{name}` yeni bir sunucu kaydı oluşturur
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | — |
+
+**Girilecek veri**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/mcp-servers/test-sunucu" -H "$APB" \
+     -H "content-type: application/json" -d '{
+  "endpoint": "http://localhost:6060/mcp",
+  "transport": "StreamableHttp",
+  "description": "Manuel test icin yerel MCP sunucusu",
+  "enabled": true,
+  "requiresApproval": false
+}'
+```
+
+**Beklenen sonuç**
+- `HTTP: 200`, gövdede `id` dolu bir GUID, `requiresApproval: false`
+  (istekte açıkça belirtildiği için varsayılan `true` geçersiz kılınmıştır).
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-002 — `requiresApproval` alanı GÖNDERİLMEZSE varsayılan `true`
+
+Sınır senaryosu.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | — |
+
+**Girilecek veri**
+```bash
+curl -s -X PUT "$APU/api/mcp-servers/varsayilan-onay" -H "$APB" \
+     -H "content-type: application/json" -d '{ "endpoint": "http://localhost:6061/mcp" }'
+curl -s "$APU/api/mcp-servers/varsayilan-onay" -H "$APB" | python3 -c "import json,sys; print(json.load(sys.stdin)['requiresApproval'])"
+```
+
+**Beklenen sonuç**
+- `True` yazdırılır — güvenlik yönü "kapalı" (onay iste) varsayılandır,
+  "açık" (onaysız çalıştır) değil.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-003 — `stdio` transport denemesi → `400`
+
+Negatif senaryo. K-058: stdio taşıması kasıtlı olarak desteklenmez.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | K-058 |
+
+**Girilecek veri**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/mcp-servers/stdio-denemesi" -H "$APB" \
+     -H "content-type: application/json" -d '{ "endpoint": "stdio://bir-komut", "transport": "Stdio" }'
+```
+
+**Beklenen sonuç**
+- `HTTP: 400`. `transport` yalnız `StreamableHttp`/`Sse` kabul eder;
+  `stdio://` bir `Uri` olarak da geçersizdir.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-004 — `http`/`https` DIŞI bir uç adresi → `400`
+
+Negatif senaryo.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | — |
+
+**Girilecek veri**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/mcp-servers/ftp-sunucu" -H "$APB" \
+     -H "content-type: application/json" -d '{ "endpoint": "ftp://ornek.com/mcp" }'
+```
+
+**Beklenen sonuç**
+- `HTTP: 400`.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-005 — `oauthEnabled: true` VE `authorizationConfigurationKey` BİRLİKTE → `400`
+
+Negatif senaryo — karşılıklı dışlayan alanlar.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | — |
+
+**Girilecek veri**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/mcp-servers/karisik-yetki" -H "$APB" \
+     -H "content-type: application/json" -d '{
+  "endpoint": "http://localhost:6062/mcp",
+  "oauthEnabled": true,
+  "authorizationConfigurationKey": "AgentPrism:Mcp:BirTest"
+}'
+```
+
+**Beklenen sonuç**
+- `HTTP: 400` — bir sunucu ya statik başlık tabanlı yetkilendirme ya OAuth
+  kullanabilir, ikisi birden olamaz.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-006 — JSON yanıtında OAuth alanları `oauthEnabled`/`oauthClientId` biçiminde (camelCase, çift büyük harf DEĞİL)
+
+Sınır senaryosu — Faz 22'nin kendi devir notunda kayıtlı, testler
+yakalamamış bir sınıf hata (`docs/22-MCP-DERINLESMESI.md` "Plandan
+Sapmalar"). Bu, önceden bir kez elle `curl` ile yakalanmış bir hatanın
+tekrar tetiklenmediğini doğrular.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | — |
+
+**Girilecek veri**
+```bash
+curl -s -X PUT "$APU/api/mcp-servers/oauth-test" -H "$APB" -H "content-type: application/json" -d '{
+  "endpoint": "http://localhost:6063/mcp",
+  "oauthEnabled": true,
+  "oauthClientId": "test-client",
+  "oauthClientSecretConfigurationKey": "AgentPrism:Mcp:TestSecret",
+  "oauthScopes": "read"
+}' | python3 -m json.tool
+```
+
+**Beklenen sonuç**
+- Ham JSON gövdesinde alan adları `"oauthEnabled"`, `"oauthClientId"`,
+  `"oauthClientSecretConfigurationKey"`, `"oauthScopes"` biçimindedir —
+  `"oAuthEnabled"` (çift büyük harf) DEĞİL. Bu bug bir kez yakalanmıştı;
+  regresyon olup olmadığı burada gözle doğrulanır.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-007 — `GET {prefix}/api/mcp-servers` listede secret DEĞERİ hiç GÖRÜNMEZ
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | K-059 |
+
+**Girilecek veri**
+```bash
+curl -s "$APU/api/mcp-servers" -H "$APB" | python3 -m json.tool
+```
+
+**Beklenen sonuç**
+- Her sunucu satırında `authorizationConfigurationKey` yalnız bir
+  yapılandırma **anahtarı adı** (ör. `"AgentPrism:Mcp:TestSecret"`)
+  taşır — hiçbir gerçek secret DEĞERİ (token, şifre) gövdede yer almaz
+  (K-059). `headers` alanındaki değerler ise OLDUĞU GİBİ döner — bir
+  sunucu kaydı `headers` içine yanlışlıkla bir secret koyarsa, şema bunu
+  ENGELLEMEZ; bu, formun kendi UI notunda da belirtilen bir sorumluluk
+  sınırıdır (§8 MT-MCP-049 ile karşılaştır).
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-008 — `DELETE` sunucu kaydını siler
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | — |
+
+**Girilecek veri**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/mcp-servers/ftp-sunucu" -H "$APB"
+```
+
+**Doğrulama sorgusu**
+```sql
+SELECT count(*) FROM agentprism.mcp_servers WHERE name IN ('ftp-sunucu', 'stdio-denemesi', 'karisik-yetki');
+```
+
+**Beklenen sonuç**
+- `HTTP: 204`. SQL sorgusu `0` döner (bu üç sunucu hiç başarıyla
+  oluşturulmamıştı — negatif case'lerin kalıcı iz bırakmadığının kanıtı).
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 2 — MCP Keşfi: Yenileme Aralığı ve Yapılandırma Bağlama (Faz 22, K-353)
+
+### MT-MCP-010 — Örnek uygulama config-bağlı `UseMcp` overload'ını kullanır — `AgentPrism:Mcp:RefreshInterval` GERÇEKTEN etkilidir
+
+Bu, önceden bir kere kayda geçmiş bir hatanın (K-353: `RefreshInterval`
+`IConfiguration`'a hiç bağlanmıyordu) düzeltmesinin canlı doğrulamasıdır.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | K-353 |
+
+**Girilecek veri**
+```bash
+cd samples/AgentPrism.Api
+dotnet user-secrets set "AgentPrism:Mcp:RefreshInterval" "00:00:10"
+# Uygulamayi yeniden baslat.
+```
+
+**Adımlar**
+1. Uygulamayı yeniden başlat.
+2. MT-MCP-001'deki `test-sunucu` kaydını (varsa yeniden oluştur) düzenle
+   veya yeni bir sunucu ekle.
+3. 15 saniye içinde tool kataloğunun taranıp taranmadığını (uygulama
+   loglarında `McpDiscoveryService` ile ilgili bir tarama satırı, veya
+   `/api/tools` çıktısındaki değişim) gözle.
+
+**Beklenen sonuç**
+- Tarama, VARSAYILAN `5 dakika` yerine `10 saniye`de bir gerçekleşir —
+  `appsettings.json`'daki `AgentPrism:Mcp:RefreshInterval` GERÇEKTEN
+  okunmuştur. (K-353 öncesi bu ayar sessizce yok sayılırdı.)
+- Case sonrası `dotnet user-secrets remove "AgentPrism:Mcp:RefreshInterval"`.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-011 — Per-server ayarlar (`Endpoint`, `Transport`, `Headers`...) HİÇBİR ZAMAN `IConfiguration`'dan okunmaz
+
+Sınır senaryosu — sık karıştırılan bir ayrım.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. `appsettings.json`/`user-secrets`'a `AgentPrism:Mcp:Servers:0:Endpoint`
+   gibi bir anahtar EKLEMEYİ dene (böyle bir yapı zaten kod tarafından
+   okunmaz — bu case'in amacı, bu tür bir anahtarın SESSİZCE yok
+   sayıldığını doğrulamaktır).
+
+**Girilecek veri**
+```bash
+cd samples/AgentPrism.Api
+dotnet user-secrets set "AgentPrism:Mcp:Servers:0:Endpoint" "http://olmayan-bir-yer/mcp"
+# Uygulamayi yeniden baslat.
+curl -s "$APU/api/mcp-servers" -H "$APB" | python3 -c "import json,sys; print([s['name'] for s in json.load(sys.stdin)])"
+```
+
+**Beklenen sonuç**
+- Bu anahtar HİÇBİR etki üretmez — listede böyle bir sunucu YOKTUR.
+  Sunucu kayıtları yalnız `mcp_servers` DB tablosundan gelir. Case sonrası
+  bu `user-secrets` anahtarını kaldır.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-012 — `authorizationConfigurationKey` config'te TANIMSIZ/BOŞSA → istisna YOK, başlık atlanır
+
+Negatif/edge senaryo — sessiz bozulma, hata değil.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `test-sunucu`, `authorizationConfigurationKey: "AgentPrism:Mcp:HicVarOlmayanAnahtar"`
+  ile güncellenmiş (bu anahtar `user-secrets`'ta HİÇ tanımlı DEĞİL).
+
+**Adımlar**
+1. Bir sonraki keşif turunu bekle (veya `POST /api/mcp-servers/refresh`
+   ile elle tetikle).
+2. Uygulama loglarında bir `LogWarning` ara.
+
+**Girilecek veri**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/mcp-servers/refresh" -H "$APB"
+```
+
+**Beklenen sonuç**
+- `HTTP: 200`/`204`. Uygulama ÇÖKMEZ, tarama devam eder. Bağlantı isteği
+  o başlık OLMADAN gönderilir (uygun bir loglama satırı beklenir, ama
+  kesin format koşumda kaydedilir).
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 3 — MCP Keşfi: Sunucuya Ulaşılamaması — Zarif Bozulma (Faz 22)
+
+### MT-MCP-015 — Var olmayan bir MCP sunucusu kaydetmek AGENT KAYDINI ETKİLEMEZ
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. Hiçbir yerde çalışmayan bir uç adresle sunucu kaydet.
+2. Uygulamanın hâlâ ayakta ve `support` agent'ının hâlâ çalışır durumda
+   olduğunu doğrula.
+
+**Girilecek veri**
+```bash
+curl -s -X PUT "$APU/api/mcp-servers/ulasilamayan" -H "$APB" -H "content-type: application/json" -d '{
+  "endpoint": "http://localhost:59999/hic-yok"
+}'
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$APB" \
+     -H "content-type: application/json" -d '{ "message": "Merhaba" }'
+```
+
+**Beklenen sonuç**
+- Sunucu kaydı `HTTP: 200` ile başarıyla oluşur (kayıt anında BAĞLANTI
+  denenmez). Sonraki `run` çağrısı normal şekilde çalışır — ulaşılamayan
+  MCP sunucusu agent kaydını/çalıştırmasını hiç etkilemez.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-016 — Sunucu keşif turu ortasında OFFLINE olursa, ESKİ (bayat) tool listesi KORUNMAZ — boşaltılır
+
+Sınır senaryosu — "bayat veriden iyi, boş liste" tasarım kararı.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- §5'teki yerel test sunucusu (`FIX-MCP-01`) çalışır durumda, en az bir
+  başarılı keşif turu geçmiş (tool listesi dolu).
+
+**Adımlar**
+1. Yerel test sunucusunu DURDUR.
+2. Bir sonraki keşif turunu bekle (veya `POST /refresh`).
+3. `GET /api/tools` (veya agent editöründeki tool listesi) ile
+   `test-sunucu_*` önekli tool'ların durumunu kontrol et.
+
+**Beklenen sonuç**
+- Önceden keşfedilmiş tool'lar LİSTEDEN KAYBOLUR — `RefreshCatalogAsync`
+  başarısız olduğunda önceki iyi listeyi TUTMAZ, `Tools=[]`'a düşürür. Bu,
+  "eski ama muhtemelen hâlâ doğru" bilgi yerine "kesin taze" bilgiyi
+  tercih eden kasıtlı bir tasarımdır.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-017 — Bir sunucunun zaman aşımına uğraması DİĞER sunucuları ETKİLEMEZ
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `ulasilamayan` (MT-MCP-015) ve `test-sunucu` (çalışır durumda) İKİSİ de
+  kayıtlı.
+
+**Adımlar**
+1. `POST /api/mcp-servers/refresh` çağır.
+2. Her iki sunucunun tool katkısını ayrı ayrı kontrol et.
+
+**Beklenen sonuç**
+- `ulasilamayan`'ın `ConnectionTimeout` (varsayılan 30sn) sonunda
+  başarısız olması, `test-sunucu`'nun kendi tool'larını normal şekilde
+  katmasını ENGELLEMEZ — her sunucu bağımsız değerlendirilir.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-018 — Arka plan keşif döngüsü İSTİSNA sonrası ASLA çökmez
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. `ulasilamayan` sunucusu kayıtlıyken uygulamayı en az 2 keşif aralığı
+   (varsayılan 5 dk × 2, veya MT-MCP-010'un kısaltılmış aralığıyla) canlı
+   tut.
+2. Uygulama loglarını izle.
+
+**Beklenen sonuç**
+- Her turda bir `LogError`/`LogWarning` görülür ama uygulama ÇÖKMEZ, HTTP
+  uçları (`/api/agents`, vb.) normal yanıt vermeye devam eder — arka plan
+  servisinin kendi istisna yakalaması (`McpDiscoveryService.ExecuteAsync`)
+  bunu garanti eder.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 4 — MCP Tool Adlandırma, Onay Sınırı, Kaynak Modları (Faz 22)
+
+### MT-MCP-020 — Keşfedilen tool adı `{sunucu}_{tool}` biçiminde niteleniyor — NOKTA AYRACI YOK
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | K-060 |
+
+**Ön koşul**
+- `test-sunucu` çalışır durumda, en az bir tool sunuyor (§5'te kurulur).
+
+**Girilecek veri**
+```bash
+curl -s "$APU/api/tools" -H "$APB" | python3 -c "import json,sys; print([t['name'] for t in json.load(sys.stdin) if t.get('source')=='test-sunucu'])"
+```
+
+**Beklenen sonuç**
+- Tool adları `test-sunucu_<orijinal-ad>` biçimindedir — `test-sunucu.
+  <orijinal-ad>` (nokta ile) DEĞİL. OpenAI-uyumlu sağlayıcılar fonksiyon
+  adında nokta kabul etmediği için bu kasıtlıdır.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-021 — Kod-tanımlı bir tool ile AYNI ADA sahip MCP tool'u ÇAKIŞIRSA kod tool KAZANIR
+
+Sınır senaryosu.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Yerel test MCP sunucusunun `get_order_status` adlı bir tool sunacak
+  şekilde yapılandırıldığı (§5'te tarif edilen sunucunun yapılandırma
+  seçeneğiyle) VE bu sunucunun `Name` alanının `get_order_status` niteleme
+  sonrası `get_order_status_get_order_status` DEĞİL, doğrudan
+  `get_order_status` ile çakışacak şekilde kurulması — pratikte bu, sunucu
+  adının BOŞ/aynı-önek olacak biçimde kurulmasını gerektirir; koşum
+  notunda gerçek çakışmanın nasıl üretildiği kaydedilir.
+
+**Beklenen sonuç**
+- `McpToolRegistry.List()`/`TryGet()` önce kod-kayıtlı tool'lara bakar —
+  aynı isimli bir MCP tool'u varsa GÖRMEZDEN GELİNİR, kod tool'u kazanır.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-022 — `MaxToolsPerServer` aşımı → fazla tool'lar UYARIYLA düşürülür, HATA değil
+
+Sınır senaryosu.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `AgentPrism:Mcp:MaxToolsPerServer` `1` olarak ayarlanmış (test
+  amaçlı), yerel sunucu 2+ tool sunuyor.
+
+**Girilecek veri**
+```bash
+cd samples/AgentPrism.Api
+dotnet user-secrets set "AgentPrism:Mcp:MaxToolsPerServer" "1"
+# Uygulamayi yeniden baslat, keşif turunu bekle.
+curl -s "$APU/api/tools" -H "$APB" | python3 -c "import json,sys; print(len([t for t in json.load(sys.stdin) if t.get('source')=='test-sunucu']))"
+```
+
+**Beklenen sonuç**
+- Sunucu keşfi BAŞARISIZ OLMAZ — yalnız ilk `1` tool tutulur, fazlası
+  uyarı logu ile düşürülür. Case sonrası `MaxToolsPerServer`'ı kaldır.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-023 — `requiresApproval=true` bir MCP tool'u agent tarafından çağrılınca ONAY KARTI üretir
+
+Gerçek entegrasyon — mutlu yol.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `test-sunucu`'nun `requiresApproval` alanını `true` yap (MT-MCP-001'in
+  aksine).
+- `test-sunucu`'nun tool'larından birini kullanan bir agent oluştur veya
+  var olan bir agent'a bu tool'u ekle.
+
+**Adımlar**
+1. Agent'ı, MCP tool'unu tetikleyecek bir mesajla çalıştır.
+2. Yanıtın bir onay kartı (bekleyen onay durumu) üretip üretmediğini
+   gözle.
+
+**Beklenen sonuç**
+- Run, `AwaitingApproval` durumuna düşer (kod-tanımlı `cancel_order`
+  tool'unun `RequiresApproval=true` ile ürettiği davranışla BİREBİR
+  aynı akış) — onay bayrağı, tool'un kaynağından (MCP mi kod mu)
+  bağımsız olarak aynı mekanizmayı kullanır.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-024 — `resources` yeteneği bildiren sunucuda sentetik `{sunucu}_read_resource` tool'u OTOMATİK belirir
+
+Sınır senaryosu — Mode B (agent zamanında karar verir), Mode A'nın
+(`AgentDefinition.McpResourceUris`, derleme/çalışma zamanında enjekte)
+ALTERNATİFİDİR.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Yerel test sunucusu `resources` yeteneğini bildiriyor (§5'in
+  yapılandırmasına bağlı — sunucu bunu desteklemiyorsa bu case `⏭ ATLA`
+  işaretlenir).
+
+**Girilecek veri**
+```bash
+curl -s "$APU/api/tools" -H "$APB" | python3 -c "import json,sys; print([t['name'] for t in json.load(sys.stdin) if 'read_resource' in t['name']])"
+```
+
+**Beklenen sonuç**
+- `test-sunucu_read_resource` adlı sentetik bir tool listede görünür —
+  hiçbir kod veya sunucu tarafı `PUT` ile açıkça tanımlanmamıştır,
+  keşif sırasında OTOMATİK üretilir.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 5 — Yerel Test MCP Sunucusu (İzlek B)
+
+> **Önemli not.** `PROMPT.md` §3'ün "Kapsam kararları" tablosu "Yerel test
+> MCP sunucusu kurulur — dış bağımlılık yok" der, ama bu repo'da böyle bir
+> sunucu **hiç dokümante edilmemiştir**: `docs/`, `samples/`, `scripts/`
+> içinde `npx`/`docker` ile başlatılacak bir MCP sunucusuna dair TEK bir
+> satır yoktur, `tests/AgentPrism.Mcp.UnitTests/` içinde de gerçek/sahte
+> bir üst akış MCP HTTP sunucusu başlatan hiçbir test yoktur. Aşağıdaki
+> kurulum bu boşluğu dolduran **tester-tedarikli altyapıdır** — AgentPrism
+> deposunun bir parçası veya onaylı bir fixture DEĞİLDİR.
+
+### MT-MCP-026 — Yerel bir MCP sunucusu kur (tester-tedarikli altyapı)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. Genel amaçlı, yaygın bilinen bir MCP referans sunucusunu Streamable
+   HTTP üzerinden başlat. Bu repo'nun DIŞINDA, tester tarafından seçilen
+   bir araçtır — aşağıdaki komut yalnız bir ÖRNEKTİR, AgentPrism
+   dokümanlarının bir parçası değildir:
+   ```bash
+   npx -y @modelcontextprotocol/server-everything --port 6060
+   ```
+2. Sunucunun `http://localhost:6060/mcp` üzerinde Streamable HTTP ile
+   ayakta olduğunu doğrula.
+
+**Beklenen sonuç**
+- Sunucu ayakta; en az bir tool ve mümkünse bir `resources` yeteneği
+  sunuyor (§4 MT-MCP-024 buna ihtiyaç duyar).
+- Kullanılan gerçek komut/araç koşum notuna KAYDEDİLİR — sonraki bir
+  oturum bu kararı tekrarlamak zorunda kalmasın diye.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-027 — Yerel sunucuyu AgentPrism'e kaydet, tool keşfi gerçekleşir
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-MCP-026 tamamlandı.
+- `test-sunucu` kaydı MT-MCP-001'de oluşturulmuş, `endpoint` gerçek
+  çalışan sunucuyu gösteriyor.
+
+**Adımlar**
+1. `POST /api/mcp-servers/refresh` ile keşfi elle tetikle (5 dakika
+   beklemek yerine).
+2. `GET /api/tools` ile `test-sunucu_*` önekli tool'ların listede
+   olduğunu doğrula.
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/mcp-servers/refresh" -H "$APB"
+curl -s "$APU/api/tools" -H "$APB" | python3 -c "import json,sys; print([t['name'] for t in json.load(sys.stdin) if t.get('source')=='test-sunucu'])"
+```
+
+**Beklenen sonuç**
+- En az bir `test-sunucu_<ad>` tool'u listede.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-028 — Keşfedilen tool'u GERÇEK bir agent çalıştırmasında kullan (uçtan uca)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-MCP-027'de keşfedilen bir tool'u kullanan bir agent oluştur
+  (`tools` listesine `test-sunucu_<ad>` ekle).
+
+**Adımlar**
+1. Agent'ı, o tool'u tetikleyecek bir mesajla çalıştır.
+2. Run detayında tool çağrısının GERÇEKTEN gerçekleştiğini doğrula.
+
+**Beklenen sonuç**
+- `GET /api/runs/{id}/tree` içinde `test-sunucu_<ad>` adlı bir tool
+  çağrısı görünür, gerçek MCP sunucusundan dönen bir sonuç taşır.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 6 — MCP Sunucusu: AgentPrism'i Dışa Açma (Faz 50)
+
+### MT-MCP-030 — Varsayılan KAPALI: boş beyaz liste + `ExposeAllAgents=false` → `tools/list` BOŞ döner
+
+Negatif/sınır senaryosu.
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 50 |
+| **İlgili karar** | — |
+
+**Beklenen sonuç (koşum, izlek C — `AgentPrism.Testing`)**
+- `AgentPrismTestHost` ile `AgentPrismMcpServerOptions`'ı hiç
+  yapılandırmadan (`ExposedAgents=[]`, `ExposeAllAgents=false`
+  varsayılanlarıyla) `tools/list` çağrıldığında `tools: []` döner —
+  hiçbir agent, açıkça izin verilmedikçe dışa açılmaz.
+- Repo'nun kendi `Bos_beyaz_liste_hicbir_tool_dondurmez` testi
+  (`tests/AgentPrism.AspNetCore.FunctionalTests/McpServerEndpointTests.cs:14`)
+  bu davranışı zaten otomatik doğruluyor — bu case, üretim benzeri örnek
+  uygulama üzerinde AYNI GARANTİYİ elle tekrar doğrular: örnek
+  uygulamada yalnız `ozetleyici` beyaz listededir, başka HİÇBİR agent
+  `tools/list`'te görünmez (bkz. MT-MCP-031).
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-031 — `ozetleyici` fixture: `tools/list` gerçek çıktısı
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 50 |
+| **İlgili karar** | — |
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/mcp" -H "$APB" -H "content-type: application/json" -H "accept: application/json, text/event-stream" \
+     -d '{ "jsonrpc": "2.0", "id": 1, "method": "tools/list" }'
+```
+
+**Beklenen sonuç**
+- Yanıt TAM OLARAK tek bir tool içerir: `agentprism_ozetleyici`,
+  `inputSchema` yalnız `message` (string, required) alanı taşır. Başka
+  hiçbir agent (ör. `support`) listede YOKTUR — beyaz listeye
+  eklenmemiştir.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-032 — `tools/call` gerçek çıktı üretir
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 50 |
+| **İlgili karar** | — |
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/mcp" -H "$APB" -H "content-type: application/json" -H "accept: application/json, text/event-stream" \
+     -d '{ "jsonrpc": "2.0", "id": 2, "method": "tools/call",
+          "params": { "name": "agentprism_ozetleyici", "arguments": { "message": "Bugun hava cok guzeldi. Is yerinde her sey yolunda gitti. Toplantilar verimliydi." } } }'
+```
+
+**Beklenen sonuç**
+- `HTTP: 200`. Yanıt `result.content[0].text` alanında `ozetleyici`
+  agent'ının ürettiği bir özet metni içerir. `GET /api/runs?agentName=ozetleyici`
+  bu çağrıya karşılık gelen YENİ bir kök run (Depth=0) gösterir.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-033 — `message` alanı BOŞ/EKSİKSE hata döner
+
+Negatif senaryo.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 50 |
+| **İlgili karar** | — |
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/mcp" -H "$APB" -H "content-type: application/json" -H "accept: application/json, text/event-stream" \
+     -d '{ "jsonrpc": "2.0", "id": 3, "method": "tools/call",
+          "params": { "name": "agentprism_ozetleyici", "arguments": { "message": "" } } }'
+```
+
+**Beklenen sonuç**
+- Yanıt bir hata içerir (`isError: true` veya JSON-RPC hata nesnesi) —
+  boş mesajla agent çalıştırılmaz.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-034 — Onay gerektiren tool taşıyan bir agent'ı dışa açmaya çalışmak → UYGULAMA BAŞLAMAZ
+
+Kritik negatif senaryo — güvenlik sınırı testi. **Geçici kod değişikliği
+gerektirir, case sonunda geri alınır.**
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 50 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. `samples/AgentPrism.Api/Program.cs`'te GEÇİCİ olarak
+   `.UseMcpServer(o => o.ExposedAgents.Add("ozetleyici"))` satırını
+   `.UseMcpServer(o => o.ExposedAgents.Add("support"))` ile DEĞİŞTİR
+   (`support`, `cancel_order` — `RequiresApproval=true` — tool'unu
+   taşır).
+2. `dotnet run` ile başlatmayı dene.
+
+**Beklenen sonuç**
+- Uygulama başlangıçta `LogCritical` seviyesinde bir hata loglar ve
+  `IHostApplicationLifetime.StopApplication()` ile KENDİNİ KAPATIR —
+  onay gerektiren bir tool asla dış bir MCP istemcisine sessizce
+  sunulamaz.
+- Case sonrası `Program.cs` değişikliği GERİ ALINIR (`git checkout --
+  samples/AgentPrism.Api/Program.cs` veya elle geri yaz), uygulama
+  normal haliyle yeniden başlatılır.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-035 — Canlı katalog: yeni bir agent DB'ye eklenince MCP sunucusu YENİDEN BAŞLATILMADAN görünür
+
+Sınır senaryosu — MCP'nin A2A'dan (§7 MT-MCP-044) FARKLI davrandığı nokta.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 50 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Uygulama normal (MT-MCP-034'ün geri alınmış) haliyle çalışıyor.
+- `AgentPrismMcpServerOptions.ExposeAllAgents` KALICI olarak `true`
+  yapılamaz (kod-only, `Program.cs`'te sabit) — bu yüzden bu case, DB'ye
+  eklenen bir agent'ın `ozetleyici` beyaz listesinde OLMASA BİLE
+  `tools/list` yanıtının anlık olarak DB'deki agent değişikliklerini
+  yansıttığını (isim/açıklama güncellemesi) gözlemleyerek dolaylı
+  doğrulanır: `ozetleyici`'nin `description`'ını `PUT /api/agents/ozetleyici`
+  ile değiştir, HİÇ yeniden başlatmadan `tools/list`'i tekrar çağır.
+
+**Girilecek veri**
+```bash
+curl -s -X PUT "$APU/api/agents/ozetleyici" -H "$APB" -H "content-type: application/json" -d '{
+  "instructions": "Gelen metni tek cumlede ozetle.",
+  "description": "GUNCELLENMIS aciklama - canli katalog testi"
+}'
+curl -s -X POST "$APU/mcp" -H "$APB" -H "content-type: application/json" -H "accept: application/json, text/event-stream" \
+     -d '{ "jsonrpc": "2.0", "id": 4, "method": "tools/list" }'
+```
+
+**Beklenen sonuç**
+- Yanıttaki `description` alanı YENİ metni gösterir — `CatalogToolListHandler`
+  her `tools/list` çağrısında `IAgentCatalog`'u CANLI okur, önbelleklenmiş
+  bir kopya döndürmez.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-036 — Gerçek bir MCP istemcisiyle (Claude Code CLI) uçtan uca el sıkışma
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 50 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Test makinesinde Claude Code CLI kurulu.
+
+**Adımlar**
+1. AgentPrism'in MCP sunucusunu CLI'ye ekle.
+2. Bağlantı durumunu kontrol et.
+
+**Girilecek veri**
+```bash
+claude mcp add --transport http agentprism-manuel-test http://localhost:5080/agentprism/mcp -s local
+claude mcp get agentprism-manuel-test
+```
+
+**Beklenen sonuç**
+- `Status: ✔ Connected`. Bu, AgentPrism'in MCP sunucu yüzeyinin
+  spesifikasyona gerçekten uygun olduğunun (protokolün kendi bir
+  istemcisiyle doğrulanmış) en güçlü kanıtıdır.
+- Case sonrası `claude mcp remove agentprism-manuel-test -s local`.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 7 — A2A: AgentPrism'i Dışa Açma (Faz 50)
+
+### MT-MCP-040 — Agent kartı `GET .well-known/agent-card.json` gerçek çıktısı
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 50 |
+| **İlgili karar** | — |
+
+**Girilecek veri**
+```bash
+curl -s "$APU/a2a/ozetleyici/.well-known/agent-card.json" -H "$APB"
+```
+
+**Beklenen sonuç**
+- Gövde `name: "ozetleyici"`, `capabilities: {streaming: false,
+  pushNotifications: false}`, `defaultInputModes: ["text/plain"]`,
+  `defaultOutputModes: ["text/plain"]`, `supportedInterfaces[0].url`
+  agent'ın alt yoluna işaret eder, `protocolBinding: "JSONRPC"`.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-041 — `SendMessage` JSON-RPC çağrısı — PascalCase metot adı, `ROLE_AGENT`/`ROLE_USER` (spec DIŞI biçim)
+
+Sınır senaryosu — bilinen bir uyumsuzluk, kusur değil (SDK davranışı).
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 50 |
+| **İlgili karar** | — |
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/a2a/ozetleyici/" -H "$APB" -H "content-type: application/json" -d '{
+  "jsonrpc": "2.0", "id": 1, "method": "SendMessage",
+  "params": { "message": { "role": "ROLE_USER", "parts": [{ "text": "Bugun hava cok guzeldi. Is yerinde her sey yolunda gitti. Toplantilar verimliydi." }] } }
+}'
+```
+
+**Beklenen sonuç**
+- `HTTP: 200`. Yanıttaki metot A2A spesifikasyonunun `message/send`
+  METODU DEĞİL, gerçek çağrının kendisi `"SendMessage"` (PascalCase)
+  kullanır — bu SDK'nın (`A2A.AspNetCore`) kendi davranışıdır. Yanıttaki
+  `role` alanı `"ROLE_AGENT"` biçimindedir (`"agent"` DEĞİL,
+  protobuf-tarzı). Standart bir A2A istemcisi bu ikisini beklemeden
+  yazılmışsa uyumsuzluk yaşayabilir — bu, koşum notuna kaydedilecek bir
+  gözlemdir, bir AgentPrism kusuru değildir (bağımlı SDK'nın davranışı).
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-042 — Agent kartındaki `url` alanı GÖRECELİDİR, mutlak DEĞİL
+
+Sınır senaryosu/gözlem.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 50 |
+| **İlgili karar** | — |
+
+**Girilecek veri**
+```bash
+curl -s "$APU/a2a/ozetleyici/.well-known/agent-card.json" -H "$APB" \
+  | python3 -c "import json,sys; print(json.load(sys.stdin)['supportedInterfaces'][0]['url'])"
+```
+
+**Beklenen sonuç**
+- Çıktı `/agentprism/a2a/ozetleyici` gibi GÖRECELİ bir yoldur, `http://...`
+  ile başlayan MUTLAK bir URL DEĞİLDİR. Bir ters vekil (reverse proxy)
+  arkasındaki gerçek bir A2A istemcisi bu URL'yi kendisi tamamlamak
+  zorunda kalabilir — bu bilinen bir sınırlamadır, kusur değildir.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-043 — A2A'da `ExposeAllAgents` seçeneği HİÇ YOKTUR — yalnız kayıt-zamanı sabit liste
+
+Negatif/sınır senaryosu — API yüzeyi karşılaştırması.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 50 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. `AgentPrismA2AOptions` tipinin genel API yüzeyini incele (kod
+   okuması, `src/AgentPrism.AspNetCore/A2A/AgentPrismA2AOptions.cs`) veya
+   dolaylı olarak: `ozetleyici` dışında herhangi bir agent'a A2A yoluyla
+   erişmeyi dene.
+
+**Girilecek veri**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" "$APU/a2a/support/.well-known/agent-card.json" -H "$APB"
+```
+
+**Beklenen sonuç**
+- `support` için `HTTP: 404` (veya eşdeğer "bulunamadı") — MCP'nin
+  aksine (§6, `ExposeAllAgents` seçeneği var), A2A tarafında agent'ları
+  toptan açan bir seçenek yoktur; yalnız `Program.cs`'te `UseA2A(...)`
+  ANINDA açıkça listelenen agent'lar erişilebilir.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-044 — Çalışma anında eklenen agent A2A'da GÖRÜNMEZ — MCP'nin TAM TERSİ davranış
+
+Sınır senaryosu — MT-MCP-035 ile doğrudan karşılaştırmalı, ölçülmüş
+asimetri.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 50 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. Uygulama ÇALIŞIRKEN yeni bir agent oluştur (`PUT /api/agents/yeni-a2a-adayi`).
+2. Bu agent'ın adını, geçici olarak `Program.cs`'teki `UseA2A(o =>
+   o.ExposedAgents.Add(...))` listesine EKLEMEDEN, A2A yoluyla erişmeyi
+   dene.
+
+**Girilecek veri**
+```bash
+curl -s -X PUT "$APU/api/agents/yeni-a2a-adayi" -H "$APB" -H "content-type: application/json" -d '{
+  "instructions": "Test."
+}'
+curl -s -w "\nHTTP: %{http_code}\n" "$APU/a2a/yeni-a2a-adayi/.well-known/agent-card.json" -H "$APB"
+```
+
+**Beklenen sonuç**
+- `HTTP: 404` — `AddA2AServer` KAYIT ZAMANLI bir API'dir
+  (`Microsoft.Agents.AI.Hosting.A2A`), uygulama başladıktan sonra
+  kataloğa eklenen bir agent'ı GÖREMEZ. Uygulamayı yeniden başlatmadan
+  bu agent'ı A2A'ya açmanın hiçbir yolu yoktur — bu, ölçülmüş ve
+  testlerle (`tests/AgentPrism.AspNetCore.FunctionalTests/A2AEndpointTests.cs`)
+  kanıtlanmış, kasıtlı bir sınırlamadır.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-045 — Onay gerektiren tool taşıyan bir agent'ı A2A'ya açmaya çalışmak → AYNI GUARD, UYGULAMA BAŞLAMAZ
+
+Kritik negatif senaryo. **Geçici kod değişikliği gerektirir.**
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 50 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. `Program.cs`'te GEÇİCİ olarak `.UseA2A(o =>
+   o.ExposedAgents.Add("ozetleyici"))` satırını `.UseA2A(o =>
+   o.ExposedAgents.Add("support"))` ile DEĞİŞTİR.
+2. `dotnet run` ile başlatmayı dene.
+
+**Beklenen sonuç**
+- MT-MCP-034 ile BİREBİR aynı sonuç: uygulama `LogCritical` loglar ve
+  kendini kapatır — `A2AApprovalGuardFilter`, `McpApprovalGuardFilter`
+  ile aynı deseni (arka plan görev + `SchemaReadyGate` + her isteğin bu
+  görevi bekelemesi) izler.
+- Case sonrası `Program.cs` değişikliği GERİ ALINIR.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 8 — Arayüz: MCP Sunucu Yönetimi ve Tool Kataloğu Rozetleri
+
+### MT-MCP-047 — Tools ekranında MCP kökenli tool `mcp: {sunucu}` rozetiyle ayrışır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. `/agentprism/tools` ekranını aç.
+2. `test-sunucu_*` önekli bir tool'a bak.
+
+**Beklenen sonuç**
+- Sarı/uyarı tonlu bir rozet `mcp: test-sunucu` metnini gösterir.
+  Kod-tanımlı tool'larda (ör. `get_order_status`) bu rozet HİÇ YOKTUR.
+  Ayrıca, `requiresApproval=true` ise ayrı bir onay rozeti de görünür —
+  ikisi BAĞIMSIZDIR (bir kod tool'u da onay gerektirebilir).
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-048 — `mcp.tsx` formu: OAuth açılınca `authorizationConfigurationKey` alanı OTOMATİK TEMİZLENİR
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | — |
+
+**Adımlar**
+1. `/agentprism/mcp` → "Yeni sunucu".
+2. `authorizationConfigurationKey` alanına bir metin yaz.
+3. "OAuth kullan" onay kutusunu işaretle.
+
+**Beklenen sonuç**
+- `authorizationConfigurationKey` alanı OTOMATİK boşalır (istemci tarafı)
+  — sunucu tarafındaki karşılıklı dışlama kuralını (MT-MCP-005) form
+  seviyesinde önceden yansıtır.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-049 — `mcp.tsx` sunucu listesi tablosunda secret DEĞERİ hiç GÖRÜNMEZ
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | K-059 |
+
+**Adımlar**
+1. `/agentprism/mcp` listesindeki "Yetki" sütununa bak.
+
+**Beklenen sonuç**
+- Sütun ya OAuth istemci kimliğini ya da yapılandırma ANAHTARI ADINI
+  gösterir (`AgentPrism:Mcp:GithubToken` gibi) — asla gerçek bir token/
+  şifre DEĞERİ göstermez. Bu, MT-MCP-007'nin API seviyesindeki kanıtının
+  arayüz tarafındaki karşılığıdır.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 9 — Güvenlik: Dış Yüzey Doğru Korunuyor, Kayıt API'si DEĞİL
+
+### MT-MCP-050 — `/agentprism/mcp` ve `/agentprism/a2a` GRUP SEVİYESİNDE `ExternalInvoke` kapsamını doğru uygular (pozitif kontrol)
+
+Bu, §9'un geri kalanının aksine bir POZİTİF doğrulamadır — dış yüzeyin
+kendisi doğru korunuyor.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 50, 53 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `13-KIRACI-VE-GUVENLIK.md`'nin API anahtarı oluşturma deseni.
+
+**Adımlar**
+1. `ExternalInvoke` kapsamı OLMAYAN (ör. yalnız `RunsRead`) bir API
+   anahtarı üret.
+2. Bu anahtarla `/agentprism/mcp`'ye `tools/list` gönder.
+3. Kontrol: `ExternalInvoke` kapsamlı ikinci bir anahtar üret, aynı
+   çağrının BAŞARILI olduğunu doğrula.
+
+**Girilecek veri**
+```bash
+KEY_JSON=$(curl -s -X POST "$APU/api/api-keys" -H "$APB" -H "content-type: application/json" \
+  -d '{ "name": "mcp-kapsam-testi-yetersiz", "scopes": ["RunsRead"] }')
+RAWKEY=$(echo "$KEY_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)['rawKey'])")
+
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/mcp" -H "Authorization: Bearer $RAWKEY" \
+     -H "content-type: application/json" -H "accept: application/json, text/event-stream" \
+     -d '{ "jsonrpc": "2.0", "id": 1, "method": "tools/list" }'
+```
+
+**Beklenen sonuç**
+- `ExternalInvoke` kapsamı OLMAYAN anahtarla çağrı `HTTP: 403` döner —
+  dış yüzeyin kendisi API-anahtarı kapsam sistemini DOĞRU uygular. (Statik
+  paylaşılan bearer token'ın bu denetimden muaf olduğunu unutma — bu case
+  yalnız veritabanı-destekli API anahtarları için geçerlidir.)
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-051 — `GovernanceEndpoints` (`/api/mcp-servers/*`) API ANAHTARI KAPSAMI HİÇ ÇAĞIRMAZ
+
+🚨 Şüpheli davranış — kod okumasıyla ölçüldü, koşumda doğrulanır. Bu,
+`WorkflowEndpoints`/`SchedulingEndpoints` için önceden ölçülen kalıbın
+(bkz. `00-INDEKS.md` §8) **BEŞİNCİ** bağımsız tekrarıdır — MCP sunucu
+**kayıt** API'si (`GET/PUT/DELETE /api/mcp-servers[/{name}]`, `POST
+/api/mcp-servers/refresh`, `GET/POST /api/mcp-servers/{name}/prompts[/{prompt}]`,
+`GET /api/mcp-servers/{name}/resources[/read]`, `POST
+/api/mcp-servers/{name}/oauth/start` — toplam 15 uç eşlemesi) hiçbir
+`RequireApiKeyScope(...)` çağrısı TAŞIMAZ.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 22, 53 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-MCP-050'deki `RunsRead`-kapsamlı (`ExternalInvoke`'suz) anahtar.
+
+**Adımlar**
+1. Aynı anahtarla YENİ bir MCP sunucusu KAYDETMEYİ dene.
+2. Kontrol grubu: MT-MCP-050'nin doğrudan `/mcp` dış yüzeyi çağrısını
+   (`403` beklenir) tekrar karşılaştır.
+
+**Girilecek veri**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/mcp-servers/kapsam-testi" -H "Authorization: Bearer $RAWKEY" \
+     -H "content-type: application/json" -d '{ "endpoint": "http://localhost:6070/mcp" }'
+```
+
+**Beklenen sonuç (şüphe)**
+- `HTTP: 200` — yalnız `RunsRead` taşıyan, `ExternalInvoke`'u OLMAYAN bir
+  anahtar YENİ bir dış MCP sunucusu kaydedebilir. Bu, kodun kendi
+  yorumunda `"GUVENLIK SINIRI"` diye adlandırdığı bir işlemdir
+  (`GovernanceEndpoints.cs:230`).
+- Doğrularsa: **Kusur, Önem: Yüksek** — MCP sunucu kaydı API anahtarı
+  kapsam sisteminden TAMAMEN bağımsız çalışıyor demektir.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-052 — Varsayılan örnek uygulamada: statik bearer token sahibi HERKES dış MCP sunucusu kaydedebilir
+
+Somut, uçtan uca kanıt — MT-MCP-051'in rol katmanı boyutu.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 22 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Örnek uygulama `AgentPrismPolicies.*` rol politikalarını HİÇ kaydetmez
+  (`00-INDEKS.md` §8'de zaten ölçülmüş) — bu durumda
+  `RequireRole(roles.Admin)` de no-op'tur.
+
+**Adımlar**
+1. `FIX-TOKEN-01` (`manuel-test-token-2026` — aynı token, salt-okunur run
+   incelemesi için de kullanılan token) ile bir MCP sunucusu kaydet.
+
+**Girilecek veri**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/mcp-servers/token-kaniti" -H "$APB" \
+     -H "content-type: application/json" -d '{ "endpoint": "http://saldiran-sunucu.ornek/mcp" }'
+```
+
+**Beklenen sonuç**
+- `HTTP: 200` — bu güvenlik sınırını korumak için ne `RequireRole`
+  (no-op, rol politikaları kayıtlı değil) ne de `RequireApiKeyScope`
+  (hiç çağrılmıyor, MT-MCP-051) devrededir. Bu ortamda, `run`'ları
+  okumak için verilen SIRADAN bir bearer token, agent'ların erişebileceği
+  KEYFİ bir dış sunucuyu (potansiyel olarak kötü niyetli tool'lar
+  sunan) sisteme ekleyebilir.
+- Case sonrası `DELETE /api/mcp-servers/token-kaniti` ile temizle.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MCP-053 — `AllowRemoteAccess=true` + `ExternalInvoke` kapsamlı anahtar YOKKEN → UYGULAMA BAŞLAMAZ (bağımsız koruma)
+
+Pozitif kontrol — MT-MCP-052'nin gösterdiği boşluğa rağmen, ayrı bir
+başlangıç koruması hâlâ vardır.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 50 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Sistemde `ExternalInvoke` kapsamlı HİÇBİR API anahtarı yok (varsayılan
+  temiz durum).
+
+**Adımlar**
+1. `AgentPrismEndpointOptions.AllowRemoteAccess`'i GEÇİCİ olarak `true`
+   yapacak şekilde `Program.cs`'i değiştir (loopback dışı erişimi açar).
+2. `dotnet run` ile başlatmayı dene.
+
+**Beklenen sonuç**
+- Uygulama başlangıçta `InvalidOperationException` fırlatır —
+  `ExternalSurfaceGuard.EnsureRemoteAccessNotCombined`, "loopback dışına
+  aç" ile "yalnız tek bir statik token'la koru"nun AYNI ANDA
+  olamayacağını zorlar. Bu, MT-MCP-052'nin gösterdiği boşluğun bilinçli
+  olarak dar tutulduğunun (yalnız loopback'te izin verilir) kanıtıdır.
+- Case sonrası `Program.cs` değişikliği GERİ ALINIR.
+
+**Gerçek sonuç**
+> _(koşum sırasında doldurulur)_
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı

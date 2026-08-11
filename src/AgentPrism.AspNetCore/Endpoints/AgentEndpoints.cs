@@ -747,8 +747,15 @@ internal static class AgentEndpoints
             {
                 // Istemci baglantiyi kesti. Yazacak kimse kalmadi.
             }
-            catch (Exception ex) when (ex is AgentPrismException or InvalidOperationException or HttpRequestException)
+            catch (Exception ex)
             {
+                // 🚨 K-296: SSE basliklari (200, text/event-stream) ZATEN gonderildi.
+                // Dar bir 'when' filtresi (yalniz AgentPrismException/InvalidOperationException/
+                // HttpRequestException) gercek saglayici SDK istisnalarini (orn. Anthropic'in
+                // AnthropicApiException'i Exception'dan DOGRUDAN turer, HttpRequestException'dan
+                // TUREMEZ) yakalamadan kacirirdi — baglanti 'error' cercevesi UretMEDEN kapanir
+                // ve istemci bunu sessiz basari sanir. Burada yakalanmayan HICBIR sey yoktur:
+                // istemciye HER ZAMAN bir 'error' cercevesi ulasir.
                 await writer.WriteEventAsync(
                     sequence,
                     "error",

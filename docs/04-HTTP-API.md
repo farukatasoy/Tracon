@@ -589,13 +589,23 @@ output[2] type=message role=assistant
 
 ### Gerçek çıktı — yönetim API'si
 
+> 🚨 Bu örnek Faz 4 kapanışının bir anlık görüntüsüdür (2026-08-02). Sonraki
+> fazlar (17, 43, 53) `storage.jobStore`/`jobWorkerEnabled` ve üst düzey
+> `roles` alanlarını ekledi — aşağıdaki gövde **güncel** şekli yansıtır
+> (2026-08-10, `07-HTTP-YONETIM-API.md` üretilirken `MetaEndpoints.cs` ve
+> `AgentPrismMetaResponse.cs`'ten ölçüldü). Faz dokümanlarındaki "gerçek
+> çıktı" örnekleri o fazın kapanış anına aittir; sonraki fazlarda sessizce
+> eskiyebilirler.
+
 ```bash
 $ curl -s localhost:5080/agentprism/api/meta
-{"version":"0.0.0-preview.0.4","prefix":"/agentprism",
+{"version":"0.0.0-preview.0.60","prefix":"/agentprism",
  "authentication":{"allowRemoteAccess":false,"requiresBearerToken":false,
                    "requiresAuthorizationPolicy":false},
  "storage":{"persistent":false,"agentDefinitionStore":"InMemoryAgentDefinitionStore",
-            "runStore":"InMemoryRunStore","sessionStore":"InMemorySessionStore"}}
+            "runStore":"InMemoryRunStore","sessionStore":"InMemorySessionStore",
+            "jobStore":"InMemoryJobStore","jobWorkerEnabled":true},
+ "roles":{"canRead":true,"canOperate":true,"canAdminister":true}}
 
 $ curl -s localhost:5080/agentprism/api/stats
 {"totalRuns":8,"completedRuns":8,"failedRuns":0,"canceledRuns":0,"runningRuns":0,
