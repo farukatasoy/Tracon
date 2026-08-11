@@ -18,6 +18,17 @@ public interface ISpeechSynthesizer
     /// <summary>Saglayici adi. Maliyet kaydinda ve saglik denetiminde kullanilir.</summary>
     string ProviderName { get; }
 
+    /// <summary>
+    /// Tek bir <see cref="SynthesizeAsync"/> cagrisinda kabul edilen en fazla
+    /// karakter sayisi.
+    /// </summary>
+    /// <remarks>
+    /// Tool cagrisi (<c>speak</c>) VE dogrudan HTTP operator ucu
+    /// (<c>POST /api/voice/speak</c>) AYNI degeri okur — sinir iki yoldan da
+    /// tutarli uygulanir.
+    /// </remarks>
+    int MaxCharactersPerRequest { get; }
+
     /// <summary>Bir metni seslendirir.</summary>
     /// <param name="request">Istek.</param>
     /// <param name="cancellationToken">Iptal belirteci.</param>

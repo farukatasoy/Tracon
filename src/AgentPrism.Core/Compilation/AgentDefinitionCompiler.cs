@@ -803,7 +803,13 @@ public sealed class AgentDefinitionCompiler
             _vectorSearchStore, _embeddingGenerator, tenantId, collection, _knowledgeMaxResults));
     }
 
-    private AgentFileStore RequireFileStore(AgentDefinition definition)
+    /// <remarks>
+    /// 🚨 <see cref="TenantPrefixingAgentFileStore"/> ile sarmalar: <see cref="_fileStore"/>
+    /// varsayilan olarak surec genelinde TEK bir paylasilan depodur. Sarmalama
+    /// olmadan farkli kiracilarin dosya bellegi/metin aramasi kok "/" dizininde
+    /// karisirdi — kiraci yalitiminin kirilmasi demektir.
+    /// </remarks>
+    private TenantPrefixingAgentFileStore RequireFileStore(AgentDefinition definition)
     {
         if (_fileStore is null)
         {
@@ -814,7 +820,14 @@ public sealed class AgentDefinitionCompiler
             };
         }
 
-        return _fileStore;
+        var tenantId = _tenantContext?.TenantId ?? definition.TenantId
+            ?? throw new AgentPrismCompilationException(
+                $"'{definition.Name}' agent'i bir bellek saglayicisi istiyor ancak kiraci cozulemedi.")
+            {
+                AgentName = definition.Name,
+            };
+
+        return new TenantPrefixingAgentFileStore(_fileStore, tenantId);
     }
 
     /// <summary>

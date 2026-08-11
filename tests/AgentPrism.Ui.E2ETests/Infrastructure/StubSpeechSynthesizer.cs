@@ -25,6 +25,8 @@ internal sealed class StubSpeechSynthesizer : ISpeechSynthesizer, ISpeechTranscr
 
     public string ProviderName => "test-ses";
 
+    public int MaxCharactersPerRequest => 5000;
+
     public ValueTask<SpeechAudio> SynthesizeAsync(
         SpeechRequest request,
         CancellationToken cancellationToken = default)

@@ -11,24 +11,32 @@ public sealed class DefinitionStoreAgentSource : IVersionedAgentSource
     private readonly IAgentDefinitionStore _store;
     private readonly AgentDefinitionCompiler _compiler;
     private readonly CompiledAgentCache _cache;
+    private readonly ITenantContext _tenantContext;
 
     /// <summary>Yeni bir veritabani kaynagi olusturur.</summary>
     /// <param name="store">Tanim deposu.</param>
     /// <param name="compiler">Tanimlari derleyen derleyici.</param>
     /// <param name="cache">Derlenmis agent onbellegi.</param>
+    /// <param name="tenantContext">
+    /// Kiraci baglami. Onbellek anahtarina kiraciyi eklemek icin gerekir — bkz.
+    /// <see cref="CompiledAgentCache"/>'in kiraci notu.
+    /// </param>
     /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
     public DefinitionStoreAgentSource(
         IAgentDefinitionStore store,
         AgentDefinitionCompiler compiler,
-        CompiledAgentCache cache)
+        CompiledAgentCache cache,
+        ITenantContext tenantContext)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(compiler);
         ArgumentNullException.ThrowIfNull(cache);
+        ArgumentNullException.ThrowIfNull(tenantContext);
 
         _store = store;
         _compiler = compiler;
         _cache = cache;
+        _tenantContext = tenantContext;
     }
 
     /// <inheritdoc />
@@ -81,6 +89,7 @@ public sealed class DefinitionStoreAgentSource : IVersionedAgentSource
         var callable = await _compiler.ResolveCallableAgentsAsync(definition, cancellationToken).ConfigureAwait(false);
 
         return _cache.GetOrAdd(
+            _tenantContext.TenantId,
             definition.Name,
             definition.Version,
             CompiledAgentCache.CombineFingerprints(skills.Fingerprint, callable.Fingerprint),
@@ -103,6 +112,7 @@ public sealed class DefinitionStoreAgentSource : IVersionedAgentSource
         var callable = await _compiler.ResolveCallableAgentsAsync(definition, cancellationToken).ConfigureAwait(false);
 
         return _cache.GetOrAdd(
+            _tenantContext.TenantId,
             definition.Name,
             definition.Version,
             CompiledAgentCache.CombineFingerprints(skills.Fingerprint, callable.Fingerprint),

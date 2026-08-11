@@ -38,6 +38,8 @@ internal sealed class StubVoiceProvider : ISpeechTranscriber, ISpeechSynthesizer
     /// <inheritdoc />
     public string ProviderName => "test-ses";
 
+    public int MaxCharactersPerRequest => 5000;
+
     /// <inheritdoc />
     public async ValueTask<SpeechTranscript> TranscribeAsync(
         Stream audio,

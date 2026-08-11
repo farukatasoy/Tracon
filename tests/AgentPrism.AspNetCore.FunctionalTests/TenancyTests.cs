@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
@@ -67,8 +68,8 @@ public sealed class TenancyTests
     {
         // Beyaz liste doluyken listede olmayan bir deger varsayilan kiraciya
         // dusmemelidir: dusmek, yetkisiz bir istegin varsayilan kiracinin
-        // verisini gormesi demekti. Cozumleme basarisiz olur ve istek yine
-        // varsayilana duser ANCAK bu, istenen kiraciya erisim SAGLAMAZ.
+        // verisini gormesi demekti. Istek SESSIZCE varsayilana dusmek yerine
+        // 403 ile REDDEDILIR (AgentPrismEndpointFilter.CheckTenancyWhitelist).
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.UseTenancy(static options =>
             {
@@ -77,7 +78,11 @@ public sealed class TenancyTests
                 options.AllowedTenants.Add("kiraci-a");
             }));
 
-        (await ReadTenantAsync(host, header: "kiraci-b")).ShouldBe("default");
+        using var rejected = await host.Client.SendAsync(
+            Request(HttpMethod.Get, "/agentprism/api/tenants/current", "kiraci-b", body: null));
+
+        rejected.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+
         (await ReadTenantAsync(host, header: "kiraci-a")).ShouldBe("kiraci-a");
     }
 

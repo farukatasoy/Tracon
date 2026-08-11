@@ -4,12 +4,25 @@ using Microsoft.Agents.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Derlenmis agent'lari <c>(ad, surum, skill parmak izi)</c> anahtariyla onbellege alir.
+/// Derlenmis agent'lari <c>(kiraci, ad, surum, skill parmak izi)</c> anahtariyla onbellege alir.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Tanim guncellenince surum artar ve onbellek <em>dogal olarak</em> gecersizlesir.
 /// Bu yuzden acik bir gecersiz kilma mantigi yoktur; eski surumun girdisi
 /// <see cref="Evict"/> ile temizlenir.
+/// </para>
+/// <para>
+/// 🚨 Anahtarin <c>kiraci</c> bileseni ZORUNLUDUR. Agent adlari yalniz kiraci
+/// icinde benzersizdir (bkz. <c>SqlAgentDefinitionStore</c>) — iki farkli
+/// kiracinin ayni adda (orn. <c>"support"</c>), ayni surumda (ilk kayit her
+/// zaman <c>1</c>) ve ayni bagimlilik parmak izinde (skill/cagrilabilir agent
+/// kullanmiyorlarsa ikisi de bos dize) bir tanimi olmasi sik rastlanan bir
+/// durumdur. Kiraci anahtara dahil edilmezse ikinci kiracinin cozumlemesi
+/// BIRINCI kiracinin derlenmis agent'ini (talimatlari, tool baglamalari —
+/// orn. <c>search_knowledge</c>'in bindirdigi kiraci kimligi dahil) dondurur:
+/// kiraci yalitiminin tam anlamiyla kirilmasi.
+/// </para>
 /// </remarks>
 public sealed class CompiledAgentCache
 {
@@ -21,18 +34,20 @@ public sealed class CompiledAgentCache
     /// <summary>
     /// Agent'i onbellekten getirir; yoksa <paramref name="factory"/> ile uretip ekler.
     /// </summary>
+    /// <param name="tenantId">Cozumlemeyi isteyen kiracinin kimligi.</param>
     /// <param name="name">Agent adi.</param>
     /// <param name="version">Tanim surumu.</param>
     /// <param name="factory">Onbellekte yoksa cagrilan uretici.</param>
     /// <returns>Derlenmis agent.</returns>
     /// <exception cref="ArgumentNullException">Parametrelerden biri <see langword="null"/> ise.</exception>
-    public AIAgent GetOrAdd(string name, int version, Func<AIAgent> factory)
-        => GetOrAdd(name, version, string.Empty, factory);
+    public AIAgent GetOrAdd(string tenantId, string name, int version, Func<AIAgent> factory)
+        => GetOrAdd(tenantId, name, version, string.Empty, factory);
 
     /// <summary>
     /// Agent'i bagimlilik parmak iziyle birlikte onbellekten getirir; yoksa
     /// <paramref name="factory"/> ile uretip ekler.
     /// </summary>
+    /// <param name="tenantId">Cozumlemeyi isteyen kiracinin kimligi.</param>
     /// <param name="name">Agent adi.</param>
     /// <param name="version">Tanim surumu.</param>
     /// <param name="dependencyFingerprint">
@@ -42,8 +57,9 @@ public sealed class CompiledAgentCache
     /// </param>
     /// <param name="factory">Onbellekte yoksa cagrilan uretici.</param>
     /// <returns>Derlenmis agent.</returns>
-    public AIAgent GetOrAdd(string name, int version, string dependencyFingerprint, Func<AIAgent> factory)
+    public AIAgent GetOrAdd(string tenantId, string name, int version, string dependencyFingerprint, Func<AIAgent> factory)
     {
+        ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(dependencyFingerprint);
         ArgumentNullException.ThrowIfNull(factory);
@@ -51,7 +67,7 @@ public sealed class CompiledAgentCache
         // GetOrAdd(key, valueFactory) ayni anahtar icin fabrikayi birden cok kez
         // calistirabilir. Agent uretimi yan etkisizdir, bu yuzden sorun degil;
         // fazla uretilen ornek atilir.
-        return _entries.GetOrAdd(new CacheKey(name, version, dependencyFingerprint), _ => factory());
+        return _entries.GetOrAdd(new CacheKey(tenantId, name, version, dependencyFingerprint), _ => factory());
     }
 
     /// <summary>Birden cok bagimlilik parmak izini tek bir anahtar bileseninde birlestirir.</summary>
@@ -88,5 +104,5 @@ public sealed class CompiledAgentCache
     /// <summary>Onbellegi tamamen bosaltir.</summary>
     public void Clear() => _entries.Clear();
 
-    private readonly record struct CacheKey(string Name, int Version, string DependencyFingerprint);
+    private readonly record struct CacheKey(string TenantId, string Name, int Version, string DependencyFingerprint);
 }

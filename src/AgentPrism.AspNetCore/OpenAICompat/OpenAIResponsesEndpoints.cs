@@ -276,8 +276,11 @@ internal static class OpenAIResponsesEndpoints
             {
                 // Istemci baglantiyi kesti.
             }
-            catch (Exception ex) when (ex is AgentPrismException or InvalidOperationException or HttpRequestException)
+            catch (Exception ex)
             {
+                // 🚨 K-296 (bkz. AgentEndpoints.ExecuteStreamingAsync): dar bir istisna
+                // filtresi gercek saglayici SDK istisnalarini kacirip baglantiyi 'error'
+                // cercevesi UretMEDEN kapatirdi. Burada HER istisna bir cerceveye donusur.
                 var payload = JsonSerializer.Serialize(
                     new ResponsesStreamError("error", ex.Message),
                     OpenAICompatSupport.JsonOptions);

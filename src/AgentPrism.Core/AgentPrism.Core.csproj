@@ -28,11 +28,18 @@
     doludur, disaridaki capraz-hedefleme derlemesinde BOSTUR (olculdu). Bu
     yuzden `BeforeTargets="_GetPackageFiles"` YETMEZ - resmi cozum
     TargetsForTfmSpecificContentInPackage'dir; hedef HER inner build icin
-    tekrar calisir ve TfmSpecificPackageFile ile toplanir. Ureteç DLL'i
-    TFM'den BAGIMSIZ oldugu icin (netstandard2.0) uc kez eklenmesi zararsizdir;
-    NuGet ayni PackagePath+icerigi tekillestirir. `dotnet pack -o /tmp/apk`
-    sonrasi `unzip -l` ile dogrulanir (docs/52-KAYNAK-URETECI.md, dogrulama
-    komutu 4).
+    tekrar calisir ve TfmSpecificPackageFile ile toplanir.
+
+    🚨 @(Analyzer) BILE noBuild bayragiyla paketlerken YETERSIZDIR (2026-08-10,
+    olculdu: noBuild bayragiyla paketleme sonrasi analyzers/dotnet/cs/ BOS
+    cikiyordu, preview.0.56-0.59 paketlerinin dorduncude de eksikti). Sebep:
+    @(Analyzer) ResolveReferences gecisiyle doldurulur ve bu gecis BUILD'e
+    baglidir; noBuild bayragi onu calistirmaz. Bu yuzden ureteç DLL'inin yolu
+    @(Analyzer) UZERINDEN degil, dogrudan Generators projesinin KENDI
+    GetTargetPath hedefinden istenir. Bu hedef build DEGIL, yalniz projenin
+    (zaten var olan) cikti yolunu doner ve noBuild bayragiyla da calisir cunku
+    Generators projesi dogrulama zincirinde Core'dan ONCE normal derlemeyle
+    zaten derlenmis olur.
   -->
   <PropertyGroup>
     <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);AgentPrismPackGeneratorAssembly</TargetsForTfmSpecificContentInPackage>
@@ -44,10 +51,13 @@
     (en yuksek olan net10.0) sabitleyerek tekilligi garanti ederiz.
   -->
   <Target Name="AgentPrismPackGeneratorAssembly" Condition="'$(TargetFramework)' == 'net10.0'">
+    <MSBuild Projects="../AgentPrism.Generators/AgentPrism.Generators.csproj"
+             Targets="GetTargetPath"
+             Properties="Configuration=$(Configuration)">
+      <Output TaskParameter="TargetOutputs" ItemName="AgentPrismGeneratorAssemblyPath" />
+    </MSBuild>
     <ItemGroup>
-      <TfmSpecificPackageFile Include="@(Analyzer)"
-                               Condition="'%(Analyzer.Filename)' == 'AgentPrism.Generators'"
-                               PackagePath="analyzers/dotnet/cs" />
+      <TfmSpecificPackageFile Include="@(AgentPrismGeneratorAssemblyPath)" PackagePath="analyzers/dotnet/cs" />
     </ItemGroup>
   </Target>
 
