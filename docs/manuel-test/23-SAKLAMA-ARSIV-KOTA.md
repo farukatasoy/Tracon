@@ -424,9 +424,13 @@ curl -s -i -X PUT "$APU/api/retention/audit_log" \
 - `audit_log`'un tanınan hedefler listesinde **hiç geçmediği** doğrulanır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `HTTP 400`, `title` = **`Bilinmeyen hedef`** — MT-RET-002 ile aynı hata yolu.
+- `audit_log` **tanınan hedefler listesinde geçmiyor**; yanıtta yalnız
+  reddedilen ad olarak görünüyor (`'audit_log' taninan bir saklama hedefi
+  degil.`). `RetentionTargets.All` 16 sabitinin hiçbiri `audit_log` değil.
+- Denetim izi hiçbir saklama politikasıyla otomatik silinemez — kanıt korunuyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -468,9 +472,34 @@ curl -s "$APU/api/retention/preview?target=traces" -H "$APB" | jq
   çağrıldığında config'in `14` günlük varsayılanı **artık devreye girer**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Config varsayılanı `AgentPrism__Retention__Enabled=true` +
+`AgentPrism__Retention__Spans__MaxAgeDays=14` ile verildi (aşağıdaki nota bak),
+`traces` için DB kaydı yokken taban durum doğrulandı:
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+| Durum | `preview` yanıtı |
+|---|---|
+| DB kaydı YOK, config `14` | `maxAgeDays: 14, enabled: true, cutoff: 2026-07-29…` |
+| DB kaydı `enabled:false` | `maxAgeDays: **null**, enabled: **false**, cutoff: null` |
+| DB kaydı silindi | `maxAgeDays: **14**, enabled: true, cutoff: 2026-07-29…` |
+
+- **İddia tam olarak doğrulandı:** açık bir DB kaydı varsa yapılandırmaya hiç
+  bakılmıyor — kayıt "kapalı" olsa bile. Kayıt silinince config'in 14 günlük
+  varsayılanı yeniden devreye giriyor.
+
+⚠️ **İki doküman düzeltmesi (ön koşul eksik):**
+
+1. **Config anahtarı `Traces` değil `Spans`.** `traces` hedefi
+   `AgentPrismRetentionOptions.Spans` nesnesine eşlenir
+   (`AgentPrismRetentionOptions.cs:88`, `RetentionTargets.Traces => Spans`).
+   Dokümandaki `AgentPrism:Retention:Traces:MaxAgeDays` anahtarı **hiçbir şey
+   yapmaz**; doğrusu `AgentPrism:Retention:Spans:MaxAgeDays`'tir.
+2. **`AgentPrism:Retention:Enabled=true` zorunludur.**
+   `RetentionPolicyResolver.ResolveAsync` config'e bakmadan önce
+   `if (!options.Enabled) return null;` denetimi yapar
+   (`RetentionPolicyResolver.cs:43`). Bu ön koşul olmadan hiçbir config
+   varsayılanı devreye girmez — ilk denemede tam olarak bu yaşandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (doküman ön koşul düzeltmesiyle) · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -555,9 +584,14 @@ curl -s -i -X PUT "$APU/api/retention/runs" -H "$APB" -H "content-type: applicat
   listede **yoktur**, silinemez bir hedeftir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `GET /api/runs/11111111-1111-1111-1111-111111111111` → **200**. MT-RET-001'de
+  10 `run_event` silinmesine rağmen `runs` özet satırı duruyor.
+- `PUT /api/retention/runs` → **400**, `title` = `Bilinmeyen hedef`.
+- `runs` tanınan hedefler listesinde **yok** — beyaz listede olmayan bir hedef,
+  yani saklama politikasıyla silinemez.
+- "Özet kalır, ayrıntı düşer" ilkesi doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -599,9 +633,20 @@ curl -s "$APU/api/retention/preview?target=run_events" -H "$APB" | jq
   açık bir DB kaydı yazmaktır (MT-RET-020).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `AgentPrism__Retention__RunEvents__MaxRows=100` ayarlandı ve uygulama yeniden
+  başlatıldı (ortam değişkeni, `user-secrets` değil — KOSUM-PLANI §2.2).
+- `preview?target=run_events` → `{"maxAgeDays":30,"enabled":true,"cutoff":…,
+  "matchingRows":0}`. Yanıt **hiçbir `maxRows` alanı taşımıyor** ve eşik yalnız
+  yaş bazlı hesaplanmış; `30` değeri `AgentPrismRetentionOptions.RunEvents`'in
+  yerleşik varsayılanıdır, ayarladığım `MaxRows` değil.
+- `AgentPrismRetentionOptions` içinde `MaxRows` diye bir alan **hiç yok**;
+  `RetentionTargetOptions` yalnız `MaxAgeDays` ve `Archive` taşır
+  (`AgentPrismRetentionOptions.cs:105-112`). `RetentionPolicyResolver` config
+  dalında `MaxRows`'u koşulsuz `null` geçer (`RetentionPolicyResolver.cs:52`).
+- Config anahtarı sessizce yok sayılıyor — iddia doğrulandı. `MaxRows`'un tek
+  yolu `PUT /api/retention/{target}` ile açık DB kaydıdır.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -633,16 +678,54 @@ curl -s "$APU/api/retention/preview?target=sessions" -H "$APB" | jq
 ```
 
 **Beklenen sonuç**
-- `run_inputs` için `preview` config'teki `60` günlük varsayılanı
-  **kullanır** (bir `cutoff` tarihi hesaplanmış görünür).
-- `sessions` için aynı türde bir config anahtarı ayarlansa bile (deneyerek
-  doğrulanır) **hiçbir etkisi yoktur** — `UserDataTargets` yalnız açık DB
-  kaydına yanıt verir.
+
+> ⚠️ **Bu beklenti koşumda yanlış bulundu ve koda göre düzeltildi
+> (KOSUM-PLANI §2.1 istisnası).** Özgün metin, `run_inputs`'ın config
+> varsayılanını kullandığını, `sessions`'ın ise kullanmadığını iddia
+> ediyordu. Gerçek davranış **tam tersidir**. Gerekçe `Gerçek sonuç`
+> alanındadır.
+
+- `run_inputs` için `preview` config'teki varsayılanı **KULLANMAZ** —
+  `AgentPrismRetentionOptions.ForTarget` içinde `run_inputs` için bir case
+  **yoktur**, `_ => null` dalına düşer. Yanıt `enabled: false`,
+  `maxAgeDays: null` olur.
+- `sessions` için config varsayılanı **KULLANILIR**. `UserDataTargets`
+  listesinin anlamı "config yok sayılır" değil, "yerleşik varsayılanı
+  `null`'dur, yani açıkça açılmadıkça kapalıdır"tır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`AgentPrism__Retention__Enabled=true`, `…RunInputs__MaxAgeDays=60` ve
+`…Sessions__MaxAgeDays=60` ile, hiçbir DB kaydı yokken:
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+| Hedef | `preview` yanıtı | Config etkili mi |
+|---|---|---|
+| `run_inputs` | `maxAgeDays: null, enabled: false, cutoff: null` | **HAYIR** |
+| `sessions` | `maxAgeDays: 60, enabled: true, cutoff: 2026-06-13…` | **EVET** |
+
+**Case'in iddiası tersine çıktı.** Kök neden `AgentPrismRetentionOptions.ForTarget`
+(`AgentPrismRetentionOptions.cs:85-101`) — 16 saklama hedefinden yalnız **12'si**
+için bir ayar nesnesi döndürür. Eşleşmeyen dört hedef `_ => null` dalına düşer
+ve config varsayılanı **hiç okunmaz**:
+
+- `run_inputs`
+- `voice_sessions`
+- `run_scores`
+- `document_embeddings`
+
+`sessions` ve `conversations` ise `ForTarget`'ta **vardır**; yalnız yerleşik
+varsayılanları `MaxAgeDays = null`'dur ("kullanici verisi, sunulur ama KAPALI").
+Yani `UserDataTargets` config'i engellemez — sadece varsayılanı kapalı tutar.
+Config'ten değer verilince normal çalışır, koşum bunu gösterdi.
+
+⚠️ **Yan bulgu (`HATA-S1-005`, Düşük):** bu dört hedef için
+`AgentPrism:Retention:<Hedef>:MaxAgeDays` yazan bir tüketici **sessiz bir
+etkisizlikle** karşılaşır — ne hata, ne uyarı, ne log. Kasıtlı olabilir (bu
+hedefler daha sonraki fazlarda eklendi) ama hiçbir yerde yazmıyor.
+`MaxRows`'un config yüzeyine çıkmaması bilinçli bir karardır ve `ForTarget`'ın
+üstünde yorumla belgelenmiştir; bu dört hedefin eksikliği için böyle bir not
+yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (beklenen sonuç koda göre düzeltildi) · ☐ Kaldı · ☐ Atlandı
 
 ---
 
