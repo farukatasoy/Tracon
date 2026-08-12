@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (241 kalem)
+## Arşivlenen Kararlar (242 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -250,3 +250,4 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-239 | 284 | `run_scores`: `author` NULL'ı sağlayıcı bazlı işlenir |
 | K-240 | 285 | `ScoredRuns`/`PositiveRate` iki yolla hesaplanır |
 | K-241 | 286 | `InMemoryRunStore`'a isteğe bağlı `IRunScoreStore` eklendi |
+| K-242 | 287 | `FeedbackControl` ikili puan gösterir, yıldız YAZILMADI |
