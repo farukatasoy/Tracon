@@ -18,7 +18,8 @@
       "src/AgentPrism.AspNetCore/AgentPrism.AspNetCore.csproj",
       "src/AgentPrism.UI/AgentPrism.UI.csproj",
       "src/AgentPrism/AgentPrism.csproj",
-      "src/AgentPrism.Templates/AgentPrism.Templates.csproj"
+      "src/AgentPrism.Templates/AgentPrism.Templates.csproj",
+      "src/AgentPrism.Testing/AgentPrism.Testing.csproj"
     ]
   }
 }
