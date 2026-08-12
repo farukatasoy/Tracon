@@ -3,7 +3,14 @@
   <PropertyGroup>
     <RootNamespace>AgentPrism.Api</RootNamespace>
     <UserSecretsId>agentprism-sample-api</UserSecretsId>
-    <InvariantGlobalization>true</InvariantGlobalization>
+    <!--
+      🚨 InvariantGlobalization ACILMAZ. `Microsoft.Data.SqlClient` Globalization
+      Invariant Mode'u DESTEKLEMEZ: `SqlConnection.Open` kosulsuz
+      `NotSupportedException: Globalization Invariant Mode is not supported.`
+      firlatir ve `UseSqlServer()` kullanan uygulama HIC acilmaz. Hata mesaji
+      AgentPrism'i anmaz, bu yuzden tuketici kok nedeni bulamaz. Olculdu
+      (manuel test MT-SQL-024). Gerekce: docs/KARARLAR.md, karar K-392.
+    -->
   </PropertyGroup>
 
   <ItemGroup>
