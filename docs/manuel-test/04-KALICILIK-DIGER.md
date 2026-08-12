@@ -1940,9 +1940,31 @@ docker exec -i ap-pg psql -U postgres -d agentprism -t -c \
   eksikliği değil, granülerlik farkı doğrulanmış olur).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Üçü de temiz kurulumdan ölçüldü (SQLite sıfırdan, SQL Server `agentprism`
+şeması, PostgreSQL şerit şeması `mt_s1`):
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+| Sağlayıcı | Migration | Tablo |
+|---|---|---|
+| SQLite | 15 | **45** |
+| SQL Server | 15 | **45** |
+| PostgreSQL | 28 | **46** |
+
+- **Fark tam olarak 1** ve doküman iddiasını birebir doğruluyor: tablo adı
+  kümelerinin farkı `diff` ile alındı ve tek satır çıktı —
+  `> document_embeddings`. Başka hiçbir tablo bir sağlayıcıda olup diğerinde
+  eksik değil.
+- **SQLite ile SQL Server tablo kümeleri BİREBİR AYNI** — `diff` boş döndü
+  (SQLite adları `agentprism_` öneki soyularak karşılaştırıldı). Granülerlik
+  farkı yalnız migration dosya sayısındadır (15'e karşı 28), nihai şemada
+  değil; SQLite/SQL Server'da eksik bir yetenek YOK.
+- ⚠️ Mutlak sayılar doküman iddiasından (**44/44/45**) 1 fazla: doğrulama
+  sorguları `__migrations` defter tablosunu da sayar. `MT-SQL-020`,
+  `MT-SQL-024` ve `MT-SQL-041` aynı sapmayı kaydetti. **İlişkisel iddia
+  (fark = 1, yalnız `document_embeddings`) tamamen doğrulandı**; yalnız mutlak
+  sayılar "45/45/46 (44 özellik tablosu + 1 migration defteri)" olarak
+  güncellenmelidir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (doküman sayı düzeltmesiyle) · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1979,9 +2001,26 @@ grep -n "SqlIdentifier.IsValidUnquoted" \
   çizgi kuralı üç sağlayıcıda da AYNIDIR.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Üç validator da AYNI statik metodu çağırıyor:
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+- `src/AgentPrism.Sqlite/AgentPrismSqliteOptionsValidator.cs:30` —
+  `SqlIdentifier.IsValidUnquoted(options.TablePrefix)`
+- `src/AgentPrism.SqlServer/AgentPrismSqlServerOptionsValidator.cs:30` —
+  `SqlIdentifier.IsValidUnquoted(options.SchemaName)`
+- `src/AgentPrism.PostgreSql/AgentPrismPostgreSqlOptionsValidator.cs:31` —
+  `SqlIdentifier.IsValidUnquoted(options.SchemaName)`
+
+Tek tanım yeri `src/AgentPrism.Sql.Shared/Internal/SqlIdentifier.cs:38`;
+uzunluk sınırı orada `private const int MaxLength = 63` olarak sabit ve
+yorumu gerekçeyi de yazıyor: "PostgreSQL siniri `NAMEDATALEN - 1` = 63'tur;
+SQL Server 128'e izin verir" — yani en katı kural üç sağlayıcıya da
+taşınabilirlik için uygulanıyor.
+
+Koşum kanıtı da tutarlı: `MT-SQL-002` (SQLite `TablePrefix`) ve `MT-SQL-012`
+(SQL Server `SchemaName`) **birebir aynı** hata metnini üretti — yalnız
+sınıf/alan adı farklıydı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2013,9 +2052,20 @@ curl -s "$APU/api/diagnostics" -H "$APB" | python3 -c \
 - Her iki durumda da `registeredPersistenceProviders` = **1**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Dört kurulum sırayla koşuldu; `persistenceProvider` her birinde doğru:
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+| Kurulum | `persistenceProvider` | `registeredPersistenceProviders` |
+|---|---|---|
+| Hiçbir `Use*()` yok | `InMemory` | 0 |
+| `UseSqlite()` | `SQLite` | 1 |
+| `UsePostgreSql()` | `PostgreSQL` | 1 |
+| `UseSqlServer()` | `SQL Server` | 1 |
+
+Adlar insan tarafından okunabilir biçimde bildiriliyor (`SQL Server` boşluklu,
+`PostgreSQL` kendi büyük/küçük harf düzeniyle). Case'in istediği iki kurulumun
+ötesinde dördü de doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2055,9 +2105,26 @@ SELECT COUNT(*) FROM agentprism.audit_log WHERE before LIKE '%Password=%' OR [af
 - Her iki sorgu da **0** döner.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `grep -rn "Password=AgentPrism\|Password=agentprism" samples/AgentPrism.Api/appsettings*.json`
+  → **0 satır**. Dosyalar yalnız boş placeholder (`"ConnectionString": ""`,
+  `"ApiKey": ""`, `"AuthToken": ""`) ve değeri nereye yazacağını anlatan `//`
+  yorumları taşıyor.
+- **Ön koşul kuruldu:** tarama boş tablo üzerinde anlamsız olacağı için önce
+  SQL Server'da 3 agent oluşturuldu, 3'ü güncellendi, 1'i silindi →
+  `audit_log` **7** satır, `agent_definitions` **2** satır.
+- Dolu tablolar üzerinde tarama — dördü de **0**:
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+  | Aranan | Sonuç |
+  |---|---|
+  | `%Password=%` | 0 |
+  | `%sk-%` (API anahtarı öneki) | 0 |
+  | `%AgentPrism!2026%` (gerçek SQL Server parolası) | 0 |
+  | `%manuel-test-token%` (gerçek `AuthToken`) | 0 |
+- SQLite tarafında da `agentprism_audit_log` sorgusu **0** döndü.
+- Case'in istediği iki desenin ötesinde, koşumda GERÇEKTEN kullanılan parola ve
+  token değerleri de arandı — hiçbiri veritabanına sızmamış.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2102,9 +2169,15 @@ sqlite3 "$SQLITEDB" "SELECT count(*) FROM agentprism_agent_definitions WHERE nam
 - SQL sorgusu **20** döner.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- 20 eş zamanlı `POST` isteğinin **tümü 201** döndü.
+- `agentprism_agent_definitions` içinde `yuk-sqlite-%` deseni **20** satır;
+  `COUNT(DISTINCT name)` de **20** — hiçbir kayıt kaybolmadı, hiçbiri
+  çiftlenmedi.
+- Logda `SQLITE_BUSY`, `database is locked` veya `Unhandled` **yok**
+  (`grep -ci` → 0).
+- Uygulama yük sonrası ayakta: `/health` → HTTP 200.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2154,9 +2227,38 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
 - İzin geri verildikten sonra aynı istek **2xx** döner.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> **Test yöntemi bu senaryoyu tetikleyemiyor — kod kusuru DEĞİL.**
+> `chmod` çalışan bir sürecin ZATEN AÇIK dosya tanıtıcılarını etkilemez; Unix
+> izni `open()` anında denetler, her yazmada değil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+Artan sıkılıkta dört deneme yapıldı, **dördünde de yazma 201 döndü**:
+
+| Deneme | Sonuç |
+|---|---|
+| A) yalnız `.db` → `chmod 444` | POST **201** |
+| B) `.db` + `-wal` + `-shm` → `chmod 444` | POST **201** |
+| C) üstüne dizin → `chmod 555` | POST **201** |
+| D) izinler geri verildi | POST **201** |
+
+**Ayırt edici kanıt** — dosya gerçekten salt-okunurdu, uygulama açık fd'ler
+üzerinden yazıyordu:
+
+- Aynı anda YENİ bir süreçten (`sqlite3` CLI, yeni `open()`) yazma denendi:
+  `Error: stepping, attempt to write a readonly database (8)`. Yani izinler
+  gerçekten uygulanmıştı.
+- `lsof` uygulamanın süreç kimliğinde `.db`, `-wal` ve `-shm` üzerinde **`u`
+  (okuma/yazma) kipinde açık fd'ler** gösterdi (`312u`, `313u`, `314u`,
+  `317u`, `320u`). `Microsoft.Data.Sqlite` bağlantı havuzu bu tanıtıcıları
+  açık tutar.
+- Uygulama hiçbir aşamada çökmedi (`Unhandled`/`shutting down` → 0),
+  `/health` boyunca HTTP 200 döndü.
+
+**Doğru yöntem ne olurdu:** dosya sistemini gerçekten salt-okunur bağlamak
+(`mount -ur`) ya da bir dosya sistemi kotası/hata enjeksiyonu kullanmak —
+`chmod` yetmez. Başlangıç anındaki izin hatası zaten **MT-SQL-006** ile
+kapsanıyor ve orada beklendiği gibi başlatma reddediliyor.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı (yöntem geçersiz — bkz. not)
 
 > **Temizlik:** `chmod 644 "$SQLITEDB"` (adım 4'te zaten yapıldıysa gerek yok).
 
@@ -2200,9 +2302,16 @@ $MSSQL -Q "SELECT COUNT(*) FROM agentprism.agent_definitions WHERE name LIKE 'ma
 - Uygulama loglarında bağlantı havuzu tükenmesi hatası görünmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- **İmaj:** gerçek `mcr.microsoft.com/mssql/server:2022-latest`.
+- 20 eş zamanlı `POST` isteğinin **tümü 201** döndü.
+- `agentprism.agent_definitions` içinde `yuk-mssql-%` deseni **20** satır;
+  `COUNT(DISTINCT name)` de **20** — kayıp ve çiftlenme yok.
+- Logda `deadlock`, `SqlException` veya `Unhandled` **yok** (`grep -ci` → 0).
+- Uygulama yük sonrası ayakta: `/health` → HTTP 200.
+- SQLite karşılığı `MT-SQL-070` ile aynı sonuç; iki sağlayıcı da 20-yönlü eş
+  zamanlı yazmayı bozulmadan karşılıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2246,9 +2355,30 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents/manuel-mssql-yuk-1" -H "$AP
   yeni bir bağlantı kurar, süreç yeniden başlatmaya gerek duymaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- **İmaj:** gerçek `mcr.microsoft.com/mssql/server:2022-latest`. Container
+  durdurma KOSUM-PLANI §2.3'ten bir sapmadır; başka şerit çalışmadığı
+  doğrulanarak kullanıcı onayıyla yapıldı.
+- Başlangıç: `GET /api/agents/yuk-mssql-1` → **200**.
+- **Container durdurulduğunda:**
+  - İstek **500** döndü — anlaşılır bir hata, sessiz başarı değil.
+  - `/health` **`Unhealthy`** (HTTP 503) döndü ama **yanıt verdi** — Kestrel
+    ayakta kaldı.
+  - Uygulama süreci **çökmedi** (`pgrep` → ayakta).
+- **Container geri geldiğinde:** SQL Server tam hazır olana kadar beklendikten
+  sonra art arda 5 deneme yapıldı; **beşi de `GET` 200 ve `/health` 200**
+  döndü. `SqlServerDataSource` yeni bağlantı kurdu, süreç yeniden başlatmaya
+  gerek kalmadı.
+- ⚠️ **Koşum notu — ilk denemede yanlış "Kaldı" alınabilirdi.** `docker start`
+  hemen ardından yapılan sorgu **500** döndü ve hata
+  `A connection was successfully established with the server, but then an error
+  occurred during the pre-login handshake.` idi. Bu AgentPrism kusuru değil:
+  container TCP'yi kabul ediyor ama SQL Server motoru henüz açılmamış oluyor.
+  Dokümandaki `sleep 15` bu makinede **yetersiz**; hazırlık `sqlcmd -Q "SELECT 1;"`
+  başarılı olana kadar döngüyle beklenmelidir.
+- **Doküman düzeltmesi önerilir:** `sleep 15` yerine hazırlık yoklaması
+  (`until docker exec ... sqlcmd -Q "SELECT 1;"; do sleep 2; done`) kullanılmalı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2269,3 +2399,35 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents/manuel-mssql-yuk-1" -H "$AP
 Negatif/sınır case oranı: 001, 002, 005, 006, 010, 011, 012, 015, 021, 022,
 023, 025, 026, 027, 030, 031, 040, 042, 052, 053, 063, 070, 071, 072, 073 —
 **25/40 (%63)**, `PROMPT.md` §4.5'in %40 alt sınırının üzerinde.
+
+---
+
+## Koşum sonucu (2026-08-13, Şerit 1 — oturum S1-1 + S1-2)
+
+**40/40 case koşuldu. Boş kalan yok.**
+
+| Durum | Adet | Case |
+|---|---|---|
+| ☑ Geçti | **34** | — |
+| ☑ Kaldı | **3** | `MT-SQL-004`, `MT-SQL-014` (→ `HATA-S1-002`) · `MT-SQL-005` (→ `HATA-S1-003`) |
+| ☑ Atlandı | **3** | `MT-SQL-001`, `MT-SQL-010` (boş bağlantı dizesi örnek tarafından "yapılandırılmamış" sayılıyor) · `MT-SQL-071` (`chmod` çalışan sürecin açık fd'lerini etkilemiyor) |
+
+Üç "Atlandı" da **yöntem geçersizliğidir, kod kusuru değildir**; gerekçe her
+case'in kendi `Gerçek sonuç` alanında yazılıdır.
+
+**Koşum sırasında düzeltilen kusur:** `HATA-S1-004` — `InvariantGlobalization`
+SQL Server'ı tamamen kırıyordu (örnek **ve** paket şablonu). Karar `K-392` ile
+kaldırıldı, dört doğrulama kapısı yeşil koştu, bloklanan 6 case gerçek SQL
+Server bağlantısıyla yeniden koşuldu. Tüm SQL Server case'leri gerçek
+`mcr.microsoft.com/mssql/server:2022-latest` ile koşuldu (`MT-SQL-042`).
+
+**Bu dosyada düzeltilmesi gereken doküman sapmaları:**
+
+| Nerede | Şu an | Olması gereken |
+|---|---|---|
+| `MT-SQL-020`, `024`, `041`, `060` | tablo sayısı **44** (PostgreSQL 45) | **45** (PostgreSQL **46**) — doğrulama sorgusu `__migrations` defterini de sayar |
+| `MT-SQL-050` adımları | ön koşul yok | "`GET /api/models/health` çağır" adımı eklenmeli; önbellek ısıtılmadan `/health` `Degraded` döner |
+| `MT-SQL-073` adım 3 | `sleep 15` | `until docker exec ... sqlcmd -Q "SELECT 1;"` hazırlık yoklaması — `sleep 15` yetersiz |
+| `MT-SQL-040` | fiyatın katalogdan geleceği varsayılıyor | `gpt-5.4-mini` katalogda fiyatsız; `AgentPrism:Pricing:<saglayici>:<model>:Input` ile verilmeli (`Providers` ara anahtarı YOK, alan adı `Input`/`Output`) |
+
+Ayrıntı ve hata kayıtları: [`SONUCLAR-S1-2026-08-13.md`](SONUCLAR-S1-2026-08-13.md).
