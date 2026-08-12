@@ -536,6 +536,16 @@ yasağına birebir denk düşen bir `dbo` yasağı taşır (K-013).
 > emülasyonu kapalıysa container başlamaz — önce **MT-SQL-042**'yi uygula ve
 > orada kaydedilen ikame imajla devam et.
 
+> 🚨 **KOŞUM ENGELİ (2026-08-13, Şerit 1) — `HATA-S1-004`, Kritik.**
+> Bu bölümün ve §3'ün SQL Server yarısının **gerçek bir bağlantı gerektiren**
+> case'leri koşulamadı. `samples/AgentPrism.Api/AgentPrism.Api.csproj:6`
+> `<InvariantGlobalization>true</InvariantGlobalization>` ayarlıyor;
+> `Microsoft.Data.SqlClient` bu modu desteklemez ve `SqlConnection.Open`
+> anında `System.NotSupportedException: Globalization Invariant Mode is not
+> supported.` fırlatır. Uygulama SQL Server ile **hiç açılmıyor**.
+> Ayar doğrulamasıyla kapanan case'ler (010–013, 016) bağlantı kurulmadan
+> önce sonuçlandığı için koşuldu ve geçti. Ayrıntı: `HATA-S1-004`.
+
 ### MT-SQL-010 — Boş bağlantı dizesiyle başlatma reddedilir
 
 | | |
@@ -563,9 +573,18 @@ cd samples/AgentPrism.Api && dotnet run
   `AgentPrismSqlServerOptions.ConnectionString bos olamaz` metnini taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> **Test yöntemi bu senaryoyu tetikleyemiyor — kod kusuru DEĞİL.** MT-SQL-001'in
+> birebir aynısı, SQL Server tarafında. `samples/AgentPrism.Api/Program.cs:635`
+> `IsNullOrWhiteSpace(sqlServer["ConnectionString"])` kontrolüyle boş değeri
+> "sağlayıcı yapılandırılmamış" sayıp `UseSqlServer(...)`'ı hiç çağırmıyor.
+> Koşuldu: üç bağlantı dizesi de boşken uygulama sorunsuz açıldı
+> (`Now listening` yazıldı), `/api/diagnostics` → `persistenceProvider`
+> = `InMemory`, `registeredPersistenceProviders` = 0, `/health` → `Degraded`.
+> Yani validator'a hiç ulaşılmıyor. Doğrulamak için örnek dışında
+> `UseSqlServer("")` çağıran ayrı bir minimal host gerekir ya da case kod
+> okumasıyla (izlek C) kapatılır.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı (yöntem geçersiz — bkz. not)
 
 > **Temizlik:** `dotnet user-secrets set "AgentPrism:SqlServer:ConnectionString" "Server=localhost,51433;Database=AgentPrism;User Id=sa;Password=AgentPrism!2026;TrustServerCertificate=true"`
 
@@ -609,9 +628,16 @@ $MSSQL -Q "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('dbo');"
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Uygulama başlamayı reddetti; `Now listening` yazılmadı.
+- Mesaj beklenen iki ifadeyi de taşıyor:
+  `AgentPrismSqlServerOptions.SchemaName 'dbo' olamaz. AgentPrism tuketicinin
+  varsayilan semasina dokunmaz. Gerekce: docs/KARARLAR.md, karar K-013.`
+- Doğrulama sorgusu: `dbo` şemasındaki tablo sayısı **0** — denemeden önceki
+  değerle aynı, `dbo`'ya hiçbir tablo yazılmadı.
+- Not: bu case bağlantı kurulmadan, ayar doğrulamasında sonuçlandığı için
+  `HATA-S1-004` (Invariant Globalization) engelinden **etkilenmedi**.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Temizlik:** `dotnet user-secrets set "AgentPrism:SqlServer:SchemaName" "agentprism"`
 
@@ -663,9 +689,17 @@ dotnet run
 - 3. denemede hiçbir DDL **çalıştırılmaz**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Üç deneme de başlamayı reddetti; hiçbirinde `Now listening` yazılmadı.
+- Mesaj beklenen metni taşıyor ve reddedilen değeri de yazıyor:
+  `AgentPrismSqlServerOptions.SchemaName gecerli bir AgentPrism sema adi degil.
+  Kucuk harf veya alt cizgi ile baslamali; kucuk harf, rakam ve alt cizgi
+  icermeli; en cok 63 karakter olmalidir. Gelen deger: '<deger>'.`
+- 3. denemeden sonra `SELECT COUNT(*) FROM sys.tables` normal yanıt verdi —
+  `sys.tables` düşürülmedi, hiçbir DDL çalışmadı.
+- Doğrulama, PostgreSQL ile aynı paylaşılan `SqlIdentifier` kuralını
+  uyguluyor: SQL Server'ın kendi daha geniş tanımlayıcı kuralı değil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Temizlik:** `dotnet user-secrets set "AgentPrism:SqlServer:SchemaName" "agentprism"`
 
@@ -702,9 +736,12 @@ dotnet run
   olmalidir`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `-1` ve `3601` başlamayı reddetti; `Now listening` yazılmadı. Mesaj:
+  `AgentPrismSqlServerOptions.CommandTimeoutSeconds 0 ile 3600 arasinda
+  olmalidir. Gelen deger: -1.` (aynısı `3601` için).
+- SQLite karşılığı MT-SQL-003 ile birebir aynı sınır ve aynı mesaj kalıbı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Temizlik:** `dotnet user-secrets set "AgentPrism:SqlServer:CommandTimeoutSeconds" "30"`
 
@@ -742,9 +779,20 @@ $MSSQL -Q "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('agentpri
 - `/health` `Unhealthy` döner.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> **Koşulamadı — `HATA-S1-004` blokluyor.** SQL Server ile uygulama hiç
+> açılmadığı için `AutoApplyMigrations` davranışı SQL Server tarafında
+> gözlenemedi. Bağlantı `SqlConnection.Open` anında
+> `System.NotSupportedException: Globalization Invariant Mode is not supported.`
+> ile düşüyor; bu, ayarın etkisinden ÖNCE gerçekleşiyor.
+>
+> SQLite karşılığı **MT-SQL-004 koşuldu ve KALDI** (`HATA-S1-002`): kapı
+> `AutoApplyMigrations` kapalıyken açılıyor, A2A/MCP onay denetimleri hazır
+> olmayan şemayı sorguluyor ve uygulama kendini kapatıyor. Kök neden
+> sağlayıcıdan bağımsız (`MigrationHostedService` + `SchemaReadyGate`,
+> `AgentPrism.Sql.Shared`), bu yüzden `HATA-S1-004` çözüldüğünde bu case'in de
+> aynı şekilde kalması BEKLENİR. Yeniden koşulmalıdır.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Temizlik:** `dotnet user-secrets set "AgentPrism:SqlServer:AutoApplyMigrations" "true"`, reset yordamı.
 
@@ -787,9 +835,20 @@ curl -s -m 3 -w "\nHTTP: %{http_code}\n" "http://localhost:5080/health"
 - `/health` isteği bağlantı reddi veya zaman aşımıyla başarısız olur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> **Sonuç belirsiz — `HATA-S1-004` blokluyor.** Gözlenen davranışın **dış
+> biçimi** beklentiyle uyuşuyor: süreç `Hosting failed to start` +
+> `Unhandled exception` yazıp sonlandı, `Now listening` hiç yazılmadı,
+> `/health` isteği bağlantı kuramadı (`HTTP:000`). Yani fail-fast sözleşmesi
+> görünürde korunuyor.
+>
+> Ama **yanlış istisna ile**: beklenen `Microsoft.Data.SqlClient.SqlException`
+> (ağ/host hatası) yerine `System.NotSupportedException: Globalization Invariant
+> Mode is not supported.` geldi — `SqlConnection.TryOpen` daha host'a hiç
+> ulaşmadan patlıyor. Bu case yanlış port'u değil, Invariant Globalization
+> engelini ölçmüş oldu; ayırt edici gücü yok. `HATA-S1-004` çözüldükten sonra
+> yeniden koşulmalıdır.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Temizlik:** `dotnet user-secrets set "AgentPrism:SqlServer:ConnectionString" "Server=localhost,51433;Database=AgentPrism;User Id=sa;Password=AgentPrism!2026;TrustServerCertificate=true"`
 
@@ -824,9 +883,16 @@ grep -n "public static IAgentPrismBuilder UseSqlServer" -A5 \
   `UseSqlServer(Action<Options>)`'a yönlendirir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `AgentPrismSqlServerBuilderExtensions.cs:21-27` — `UseSqlServer(string)`
+  gövdesi `builder.UseSqlServer(options => options.ConnectionString = connectionString)`.
+- `AgentPrismSqlServerBuilderExtensions.cs:39-46` — `UseSqlServer(IConfiguration)`
+  gövdesi `builder.UseSqlServer(options => Bind(configurationSection, options))`.
+- `AgentPrismSqlServerBuilderExtensions.cs:68` — `UseSqlServer(Action<Options>)`
+  tek gerçek kayıt yoludur.
+- MT-SQL-007 ile birebir aynı desen; iki sağlayıcı da tek kayıt yolunda
+  buluşuyor. Kod okuması olduğu için `HATA-S1-004`'ten etkilenmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -962,9 +1028,16 @@ cd samples/AgentPrism.Api && dotnet run
   degismis` metnini taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Uygulama başlamayı reddetti; `Now listening` yazılmadı.
+- Mesaj beklenen metni taşıyor, üstelik iki özeti de karşılaştırmalı veriyor:
+  `AgentPrismException: '0001_initial' migration'i veritabaninda uygulanmis
+  ancak dosyanin icerigi degismis. Veritabanindaki ozet: bozuk, dosyanin ozeti:
+  13CEA2CB…149A6. Uygulanmis bir migration duzenlenmez; degisiklik icin yeni bir
+  migration dosyasi ekleyin.`
+- Mesaj ne yapılacağını da söylüyor (yeni migration ekle) — teşhis için
+  yeterli.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Temizlik:** Reset yordamı (checksum elle düzeltilemez, dosya baştan kurulur).
 
@@ -1010,9 +1083,20 @@ sqlite3 "$SQLITEDB" "SELECT count(*) FROM agentprism___migrations;"
 - `count(*)` tam olarak **15** döner (30 değil).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- İki süreç eş zamanlı başlatıldı (portlar 5081 ve 5091). Yalnız **ikincisi**
+  `AgentPrism 15 migration uyguladi. Sema: agentprism_.` yazdı; birincinin
+  logunda migration satırı hiç görünmedi (0 migration uyguladı).
+- İkisi de sağlıklı açıldı — her iki logda da `Now listening` var.
+- Hiçbir terminalde checksum hatası, `AgentPrismException` veya
+  `Unhandled` yok (`grep -ci` → 0 / 0).
+- `agentprism___migrations` **15** satır — 30 değil.
+- Kilit sidecar dosyası gerçekten oluştu:
+  `agentprism-manuel.db.agentprism_.agentprism-migration-lock` (0 bayt).
+  Adın hem veritabanı dosyasını hem tablo önekini taşıması, aynı `.db`
+  dosyasında farklı `TablePrefix` kullanan kurulumların birbirini
+  kilitlememesini sağlıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Temizlik:** İkinci terminali durdur (`Ctrl+C`).
 
@@ -1055,9 +1139,17 @@ $MSSQL -Q "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('agentpri
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> **Koşulamadı — `HATA-S1-004` blokluyor.** SQL Server ile uygulama hiç
+> açılmadığı için boş DB'de 15 migration uygulanması gözlenemedi. Bağlantı
+> `SqlConnection.Open` anında `System.NotSupportedException: Globalization
+> Invariant Mode is not supported.` ile düşüyor.
+>
+> SQLite karşılığı **MT-SQL-020 koşuldu ve GEÇTİ**; `MigrationRunner` üç
+> sağlayıcıda ortak olduğu için (`AgentPrism.Sql.Shared`) bu case'in de
+> geçmesi beklenir, ama DOĞRULANMADI — diyalekt farkı (`sp_getapplock`,
+> `agentprism.__migrations`) tam olarak burada yaşar. Yeniden koşulmalıdır.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1088,9 +1180,17 @@ cd samples/AgentPrism.Api && dotnet run
 - `$MSSQL -Q "SELECT COUNT(*) FROM agentprism.__migrations;"` hâlâ **15** döner.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> **Koşulamadı — `HATA-S1-004` blokluyor.** SQL Server ile uygulama hiç
+> açılmadığı için yeniden başlatmanın idempotent olması gözlenemedi. Bağlantı
+> `SqlConnection.Open` anında `System.NotSupportedException: Globalization
+> Invariant Mode is not supported.` ile düşüyor.
+>
+> SQLite karşılığı **MT-SQL-021 koşuldu ve GEÇTİ**; `MigrationRunner` üç
+> sağlayıcıda ortak olduğu için (`AgentPrism.Sql.Shared`) bu case'in de
+> geçmesi beklenir, ama DOĞRULANMADI — diyalekt farkı (`sp_getapplock`,
+> `agentprism.__migrations`) tam olarak burada yaşar. Yeniden koşulmalıdır.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1124,9 +1224,17 @@ cd samples/AgentPrism.Api && dotnet run
   degismis` metnini taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> **Koşulamadı — `HATA-S1-004` blokluyor.** SQL Server ile uygulama hiç
+> açılmadığı için checksum bozulunca başlamanın reddedilmesi gözlenemedi. Bağlantı
+> `SqlConnection.Open` anında `System.NotSupportedException: Globalization
+> Invariant Mode is not supported.` ile düşüyor.
+>
+> SQLite karşılığı **MT-SQL-022 koşuldu ve GEÇTİ**; `MigrationRunner` üç
+> sağlayıcıda ortak olduğu için (`AgentPrism.Sql.Shared`) bu case'in de
+> geçmesi beklenir, ama DOĞRULANMADI — diyalekt farkı (`sp_getapplock`,
+> `agentprism.__migrations`) tam olarak burada yaşar. Yeniden koşulmalıdır.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Temizlik:** Reset yordamı.
 
@@ -1173,9 +1281,17 @@ $MSSQL -Q "SELECT COUNT(*) FROM agentprism.__migrations;"
   yeterlidir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> **Koşulamadı — `HATA-S1-004` blokluyor.** SQL Server ile uygulama hiç
+> açılmadığı için `sp_getapplock` ile eşzamanlı migration gözlenemedi. Bağlantı
+> `SqlConnection.Open` anında `System.NotSupportedException: Globalization
+> Invariant Mode is not supported.` ile düşüyor.
+>
+> SQLite karşılığı **MT-SQL-023 koşuldu ve GEÇTİ**; `MigrationRunner` üç
+> sağlayıcıda ortak olduğu için (`AgentPrism.Sql.Shared`) bu case'in de
+> geçmesi beklenir, ama DOĞRULANMADI — diyalekt farkı (`sp_getapplock`,
+> `agentprism.__migrations`) tam olarak burada yaşar. Yeniden koşulmalıdır.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Temizlik:** İkinci terminali durdur (`Ctrl+C`).
 
