@@ -127,9 +127,21 @@ cd samples/AgentPrism.Api && dotnet run
 - `/health` hiçbir zaman yanıt vermez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> **Test yöntemi bu senaryoyu tetikleyemiyor — kod kusuru DEĞİL.**
+> `samples/AgentPrism.Api/Program.cs:632` `IsNullOrWhiteSpace(sqlite["ConnectionString"])`
+> kontrolüyle boş bağlantı dizesini "sağlayıcı yapılandırılmamış" sayıp
+> `UseSqlite(...)`'ı hiç çağırmıyor; uygulama bunun yerine sorunsuz açılıyor
+> ve bellek içi izleğe düşüyor (`/health` → `Degraded`, HTTP 200, konsolda
+> hata yok). `AgentPrismSqliteOptionsValidator.cs:21-27` doğrudan okunarak
+> doğrulandı: validator gerçekten `"AgentPrismSqliteOptions.ConnectionString
+> bos olamaz..."` mesajıyla reddediyor — ama yalnızca `UseSqlite("")` fiilen
+> çağrılırsa. Bu örnek uygulamanın kasıtlı "boş = yapılandırılmamış" tasarımı
+> yüzünden bu case'i bu harness üzerinden koşmanın yolu yok; doğrulamak için
+> ya örnek dışında `UseSqlite("")` çağıran ayrı bir minimal host gerekir ya da
+> case kod okumasıyla (izlek C) kapatılır. SQL Server karşılığı MT-SQL-010
+> aynı sebeple etkilenir (bkz. o case).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı (yöntem geçersiz — bkz. not)
 
 > **Temizlik:** `dotnet user-secrets set "AgentPrism:Sqlite:ConnectionString" "Data Source=agentprism-manuel.db"`
 
@@ -780,9 +792,18 @@ sqlite3 "$SQLITEDB" "SELECT count(*) FROM sqlite_master WHERE type='table';"
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Konsol tam olarak `AgentPrism 15 migration uyguladi. Sema: agentprism_.` yazdı.
+- `agentprism___migrations` içinde **15** satır, sırayla `0001_initial` → `0015_experiment_canary`.
+- `sqlite_master` tablo sayısı **45**, doküman iddiası olan 44 ile ÇELİŞİYOR.
+  Kök sebep kod kusuru değil, dokümanın kendi sorgusuyla tutarsız beklentisi:
+  `SELECT count(*) FROM sqlite_master WHERE type='table'` `agentprism___migrations`
+  defter tablosunu da sayar (44 özellik tablosu + 1 migration defteri = 45).
+  `/api/diagnostics`: `persistenceProvider`="SQLite", `registeredPersistenceProviders`=1,
+  `canConnect`=true, `migrationsUpToDate`=true, `pendingMigrations`=[] — hepsi doğru.
+  **Doküman düzeltmesi önerilir:** bu case ve MT-SQL-024/060'taki "44" beklentisi
+  "45 (44 özellik tablosu + 1 migration defteri)" olarak güncellenmeli.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti (doküman sayı düzeltmesiyle) · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -814,9 +835,11 @@ cd samples/AgentPrism.Api && dotnet run
 - `sqlite3 "$SQLITEDB" "SELECT count(*) FROM agentprism___migrations;"` hâlâ **15** döner.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Yeniden başlatmada konsolda `AgentPrism.MigrationRunner` satırı hiç görünmedi.
+- `/api/diagnostics` `migrationsUpToDate`=true, `pendingMigrations`=[] doğruladı.
+- `agentprism___migrations` hâlâ **15** satır taşıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

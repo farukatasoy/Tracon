@@ -99,9 +99,9 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 - Hiçbir kayıt oluşmaz: `GET $APU/api/agents` çıktısında `manuel-destek` **yoktur**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`valid:true`, `inconclusive:false`, `messages:[]`. `GET /api/agents` sonrasında `manuel-destek` listede yok — doğrulama hiçbir kayıt oluşturmadı. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -143,9 +143,9 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 - `get_order_status` için hiçbir mesaj yoktur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İki `unknown_tool` mesajı, `path` alanları `toolNames[1]` ve `toolNames[2]`, `severity:"Error"`. `get_order_status` için mesaj yok. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -191,9 +191,9 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 - Hiçbir durumda uygulama çökmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+1) `olmayan-saglayici` → `unknown_model`, `valid:false`. 2) `echo`/`katalogda-olmayan-model` → `valid:true` — katalog gerçekten bir doğrulama listesi değil, README ile çelişki yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -235,9 +235,9 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 - Ayar sessizce yok sayılmaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Senaryo `provider:"echo"` ile koşuldu ve `valid:true` döndü — `invalid_setting` beklenirken. Kök neden koda AİT DEĞİL: `samples/AgentPrism.Api/EchoModelProvider.cs`'deki `EchoModelProvider.CreateChatClient`, ağa çıkmayan yerel örnek sağlayıcı olduğu için `ModelBinding.ProviderSettings`'i hiç okumuyor/doğrulamıyor. Gerçek mekanizma (`ModelProviderSettings.Validate`, `src/AgentPrism.Abstractions/Agents/ModelProviderSettings.cs`) ayrıca `provider:"anthropic"` ile doğrulandı ve TAM beklenen sonucu verdi: `invalid_setting`, mesaj "su anahtarlar taninmiyor: anthropic.boyle.bir.ayar.yok. Desteklenen anahtarlar: anthropic.promptCaching, anthropic.thinking.budgetTokens." SONUÇ: Ürün kusuru yok; doküman senaryosu yanlış sağlayıcı seçmiş (echo yerine anthropic/google/azure kullanılmalı). Doküman düzeltme adayı, kod değil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -273,9 +273,9 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
   `skillNames[0]`'dır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`unknown_skill`, `path: "skillNames[0]"`, `valid:false`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -320,9 +320,9 @@ time curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: appl
 - İstek zaman aşımına uğramaz; uygulama çökmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Doküman scriptinde İKİ ayrı hata bulundu: (1) endpoint yolu yanlış — `POST $APU/api/mcp/servers` 405 döner, doğrusu `PUT $APU/api/mcp-servers/{name}`; (2) gövde alanı yanlış — `"url"` değil `"endpoint"` olmalı (`McpServerRequest.Endpoint` `required`). Doğru endpoint+gövdeyle kayıt başarılı. Ardından doğrulama: doküman scriptinin adresi (`127.0.0.1:59999`, dinleyen yok) "connection refused" ile HIZLI döner; `McpToolCatalog.RefreshAsync` (`src/AgentPrism.Mcp/Internal/McpToolCatalog.cs:187`) sunucu bazlı istisnaları içeride yutuyor (log: "MCP sunucusu 'olu-mcp' baglanamadi"), bu yüzden `TryRefreshMcpAsync`'e istisna hiç ulaşmıyor, refresh "başarılı" sayılıyor → sonuç sade `unknown_tool` (`mcp_unreachable` DEĞİL). Yanıt vermeyen bir adresle (`192.0.2.1`, TEST-NET black-hole) TEKRARLANDI: 5.02 saniyede TAM beklenen sonuç alındı — `valid:true`, `inconclusive:true`, `mcp_unreachable`/`Warning`. SONUÇ: `mcp_unreachable` mekanizması doğru çalışıyor ama yalnız GERÇEK zaman aşımında (`OperationCanceledException`) tetikleniyor; aktif red ("connection refused") sessizce `unknown_tool`'a düşüyor — kullanıcı için iki "erişilemez" alt durumu farklı davranıyor. Hem doküman adresi yanlış hem de bu ince sözleşme boşluğu ayrı bir HATA adayı olarak not edildi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -391,9 +391,9 @@ SELECT name, version FROM agentprism.agent_definitions WHERE name LIKE 'manuel-%
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+1) `code:"cycle"`, tam beklenen mesaj. 2) kayıt 400 ile reddedildi. 3) dolaylı döngü (`manuel-a -> manuel-b -> manuel-a`) de 400 ile reddedildi, mesaj zinciri gösteriyor. Hiçbir adımda çökme yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -437,9 +437,9 @@ curl -s -w "\nHTTP: %{http_code}\n" \
 - Sunucu log'unda işlenmemiş bir istisna (`Unhandled exception`) **yoktur**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP 200, `valid:false`, `code:"compilation_error"`, mesaj `Schema` alanının eksik olduğunu söylüyor. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -487,9 +487,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/validate" -H "$APB"
 - Hiçbir adımda 500 dönmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+1) `name:""` → 400, "'name' alani zorunludur" — DOĞRU. 2) `name` alanı JSON'da HİÇ YOK → **HTTP 500** (beklenen: 400 veya `valid=false`; "hiçbir adımda 500 dönmez" ilkesi ihlal edildi). Kök neden (sunucu logundan doğrulandı): `AgentDefinitionRequest.Name` bir C# `required` üye; JSON'da alan hiç yoksa `System.Text.Json` "missing required properties" ile `JsonException` atıyor → `BadHttpRequestException` → uygulamanın genel exception handler'ı bunu 400 yerine 500 ProblemDetails'e çeviriyor. 3) 50.000 karakterlik `instructions` → `valid:true`, çökme/zaman aşımı yok — DOĞRU. GENEL BULGU: bu SİSTEMİK bir örüntü — bkz. MT-CORE-006 (missing `endpoint`) ve MT-CORE-022 (geçersiz enum) notları; gövdesinde `required` alan veya enum tipi olan HERHANGİ bir endpoint'e eksik/geçersiz veri gönderildiğinde muhtemelen 500 dönüyor, 400 değil. Ayrı bir HATA kaydı gerekir; kapsamı bu dosyayı aşıyor, 07-HTTP-YONETIM-API.md'de de doğrulanmalı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -535,9 +535,9 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 - 2. istek `valid=true` döndürür — karşılaştırma büyük/küçük harfe duyarlı değildir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+1) `compilation_error`, "cok-yuksek" reddedildi, geçerli değerler listelendi (None, Low, Medium, High, ExtraHigh). 2) "hIgH" → `valid:true` (büyük/küçük harfe duyarsız).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -580,9 +580,9 @@ D '{"name":"m4","model":{"provider":"echo","model":"echo-1","responseFormat":{"k
   mesajı. `echo` sağlayıcısının desteği koşumda kaydedilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+m1,m2,m3,m4 dördü de tam beklenen mesajları verdi (m4: "modeli yapilandirilmis cikti desteklemiyor" — echo modelinin desteklemediği doğrulandı).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -622,9 +622,9 @@ D '{"name":"c3","model":{"provider":"echo","model":"echo-1"},"compaction":{"stra
 - Üçü de `valid=false`'tur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+c1 (`strategy:"Summarize"`, TriggerTokens yok) → **HTTP 500**. c2 (`strategy:"BoyleBirSeyYok"`) → **HTTP 500**. c3 (ContextWindow, MaxContextWindowTokens yok) → DOĞRU: `compilation_error`, beklenen mesaj. Kök neden (log doğrulandı): c1'de "Summarize" GEÇERLİ bir `CompactionStrategyKind` değeri DEĞİL — doğru ad `Summarization` (bu bir DOKÜMAN TİPOSU); c2'de zaten kasıtlı geçersiz değer. İkisinde de `System.Text.Json`'ın enum dönüştürücüsü tanımadığı string'i `JsonException` ile reddediyor → aynı sistemik 500 örüntüsü (bkz. MT-CORE-009). ÖNEMLİ: doküman'ın c2 için beklediği "mesaj bilinmeyen strateji adını AYNEN taşır" davranışı HTTP API üzerinden HİÇBİR ZAMAN gerçekleşemez — validator/compiler mantığına hiç ulaşılmıyor, JSON ayrıştırma katmanında daha erken patlıyor. "Hiçbir istekte 500 dönmez" ilkesi bu koşumda en az üç ayrı case'de (006 kayıt denemesi, 009-2, 022 c1/c2) ihlal edildi — sistemik, tek endpoint'e özgü değil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -695,9 +695,9 @@ dotnet run -c Release
 - `🚨 istisna ATILMADI` satırı **görünmez**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İstisna GERÇEKTEN atıldı (`AgentPrismCompilationException`, `AgentName="skill-isteyen"` doğru), ama mesaj metni beklenenden FARKLI: `"'skill-isteyen' agent'i 'olmayan-skill' skill'ine isaret ediyor ancak skill bulunamadi."` — `"skill katalogu kayitli degil"` DEĞİL. Kök neden (kod doğrulandı): `AddAgentPrism()` (`src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs:381`) `IAgentSkillCatalog`'u `TryAddSingleton` ile KOŞULSUZ kaydediyor — bir tüketicinin `AddAgentPrism()` çağırdığı hiçbir standart senaryoda katalog "kayıtlı değil" olamaz. `AgentDefinitionCompiler.cs:306` ve `:1137`'deki "skill katalogu kayitli degil" hata dalı bu yüzden normal yollardan erişilemez (muhtemelen ölü kod, yalnız bir tüketici `IAgentSkillCatalog` kaydını elle kaldırırsa tetiklenir). Doküman'ın "minimum kurulumda katalog kayıtlı değildir" öncülü bu sürüm için yanlış. Ürün kusuru değil — davranış tutarlı (eksik skill'e işaret eden tanım her koşulda reddediliyor) ama iki farklı hata mesajından biri pratikte hiç görülmüyor. Doküman düzeltme + olası ölü kod temizliği adayı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -760,9 +760,9 @@ dotnet run -c Release
 - Mesaj `builder.AddAgentPrism().AddTool(...)` yönlendirmesini içerir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Doküman'ın kendi scripti `provider:"echo"` kullanıyor — bu paket İÇİNDE HİÇ YOK (echo yalnız örnek uygulamaya özel, bkz. MT-CORE-023 notu). Bare consumer projesinde kendi basit `IModelProvider` uygulamamla telafi edilip tekrar koşuldu. SONUÇ (mekanizma KANITLANDI çalışıyor): istisna doğru atıldı, `tool-eksik` agent adı mesajda var, eksik tool adı (`hayali_tool`) mesajda var, `builder.AddAgentPrism().AddTool(...)` yönlendirmesi mesajda var. TEK SAPMA: mesaj kayıtlı tool'u `"Var"` olarak listeledi, doküman'ın beklediği `"var_olan_tool"` DEĞİL. Kök neden (XML doküman doğrulandı, `src/AgentPrism.Core/IAgentPrismBuilder.cs:47`): `AddTool(Delegate method, string? name = null, ...)` — "name boş bırakılırsa METOT ADI kullanılır" diye açıkça belgelenmiş, KASITLI davranış. `[AgentPrismTool("var_olan_tool", ...)]` özniteliği yalnız `AddToolsFrom<T>()` tarafından okunur, `.AddTool(delegate)` onu hiç görmez. Doküman'ın kendi scripti bu iki idiomu KARIŞTIRMIŞ: özniteliği koyup ama delegate-tabanlı kaydı kullanmış. Ürün kusuru yok — API tasarımı belgelenmiş şekilde çalışıyor. Doküman düzeltmesi gerekir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -819,9 +819,9 @@ SELECT name, version, display_name FROM agentprism.agent_definitions WHERE name 
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İzole ortamda doğrulandı. `support` agent'ının `origin:"Code"` (ad olarak). Sahte kayıt denemesi HTTP 409 ile TEMİZ reddedildi: "'support' kodda tanimli bir agent'tir ve yonetim API'sinden degistirilemez." `displayName` değişmedi ("Destek Asistani" kaldı), listede tek kayıt.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -852,9 +852,9 @@ curl -s "$APU/api/agents" -H "$APB" \
 - Sıralama ordinal'dir: büyük harfler küçük harflerden önce gelir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`['arastirmaci','cevirmen','ozetleyici','support','yonlendirici']` — SIRALI. (Not: fixture verisinin tamamı küçük harf; büyük/küçük harf ordinal iddiası bu veriyle ayrıca test edilemedi.)
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -895,9 +895,9 @@ SELECT count(*) FROM agentprism.runs WHERE agent_name = 'hic-boyle-bir-agent-yok
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İzole/temiz ortamda: `GET` 404, `RUN` 404, hiçbir `run` kaydı oluşmadı. (İlk denemede paylaşılan ortamın başka bir oturum tarafından o an şeması düşürülmüş olduğu için sahte 500'ler alınmıştı; izolasyondan sonra tekrarlanınca doğru sonuç.)
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -958,9 +958,9 @@ FROM agentprism.runs WHERE agent_name = 'manuel-surum' ORDER BY started_at;
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İlk `run` → `agent_version=1`. Güncelleme sonrası `version=2`, `instructions="IKINCI SURUM TALIMATI."`. Yeniden başlatmadan ikinci `run` → `agent_version=2` (DB'den doğrulandı: `agentprism.runs` tablosunda iki satır, sürüm 1 ve 2). Önbellek doğru geçersiz kılınmış. Doküman notu: `GET /api/agents/{name}` düz değil, `{descriptor, definition, isEditable}` içeren iç içe bir gövde döndürüyor — doküman bunu belirtmiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -997,9 +997,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents/manuel-surum/versions" -H "
 - Hiçbir istekte 500 dönmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`support/versions` → 404, "'support' adinda bir agent yok." — HTTP 4xx şartı sağlanıyor (beklenen ikinci alternatif). Kalite notu: mesaj METİN olarak yanıltıcı — `support` GERÇEKTEN var (kod kaynaklı), yalnız sürüm geçmişi yok; mesaj bunu "yok" diyerek karıştırıyor, doküman'ın beklediği "kod kaynagi" ifadesi de yok. `manuel-surum/versions` → 200, 2 kayıt (v2, v1).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1050,9 +1050,9 @@ WHERE definition::text ILIKE '%apikey%' OR definition::text ILIKE '%connectionst
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`ModelBinding`'de API anahtarı alanı yok (sözleşme gereği). `metadata.not` değeri olduğu gibi geri okundu (serbest alan, beklenen). SQL taraması (`apikey`/`connectionstring` ILIKE) **0 satır** döndürdü — AgentPrism'in kendi yazdığı hiçbir sağlayıcı anahtarı yok; `manuel-secret`'ın kendi metadata değeri de bu terimleri içermiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1086,9 +1086,9 @@ curl -s "$APU/api/tools" -H "$APB" | python3 -m json.tool
 - Her tool'un `jsonSchema` alanı doludur ve parametrelerini tanımlar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Üç tool (`cancel_order`, `get_order_status`, `list_recent_orders`), ada göre sıralı, `cancel_order.requiresApproval:true` diğerleri `false`, üçünün de `source:"generated"`, `jsonSchema` dolu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1146,9 +1146,9 @@ dotnet run -c Release
 - `🚨 istisna ATILMADI` satırı görünmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Mesaj "beklenen istisna:" ile başlıyor, "'ayni_ad' adinda birden cok tool kaydedilmis..." tam eşleşti. "🚨 istisna ATILMADI" satırı görünmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1191,9 +1191,9 @@ for t in json.load(sys.stdin):
 - `cancel_order`'ın adı `ApprovalRequired` gibi bir önek/sonek **taşımaz**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`cancel_order`/`get_order_status`: onay doğru, `description` dolu, `jsonSchema` `orderId` içeriyor, ad önek/sonek taşımıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1236,9 +1236,9 @@ curl -s -w "\ncalistirma HTTP: %{http_code}\n" -X POST "$APU/api/agents/manuel-h
 - Hata metni eksik tool adını taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Kayıt BAŞARILI (201) — tanım kaydedilirken tool adı doğrulanmıyor (ayrı kod yolu, case'in kendi anlattığı gibi). Çalıştırma (`run`) 400 ile reddedildi; mesaj eksik tool adını (`hayali_tool`), kayıtlı tool listesini (`cancel_order, get_order_status, list_recent_orders`) ve yönlendirmeyi (`builder.AddAgentPrism().AddTool(...)`) içerdi. 500 yok. Doküman'ın ikinci kabul edilebilir dalına tam uyuyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1288,9 +1288,9 @@ ORDER BY r.started_at DESC LIMIT 1;
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Gerçek OpenAI çağrısı (gpt-5.4-mini) yapıldı. Yanıt metni tam olarak "ORD-1001 siparişiniz kargoya verilmiş. Tahmini teslimat: 2 gün." — `ORD-1001` dizgisini içeriyor. `get_order_status` tool'u tam bir kez çağrıldı (DB'den doğrulandı). `runs.status` tamamlanmış. İlk denemede `input_cost`/`output_cost` NULL çıktı ama bu ürün kusuru değil: örnek uygulamanın kendi `appsettings.json`'ı `openai`/`gpt-5.4-mini` için hiç fiyat tanımlamıyor (K-032: "fiyat uydurulmaz, deger verilmezse maliyet NULL kalir" — kasıtlı/belgelenmiş, yalnız örnek uygulamanın eksik yapılandırması). Kendi izole sürecime fiyat eklenip tekrar koşuldu: `input_cost=0.0000695`, `output_cost=0.0000560` — pozitif. Mekanizma tam doğrulandı. Doküman notu: doküman örnek uygulamada `Pricing` tanımlı olduğunu varsayıyor; şu an değil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1335,9 +1335,9 @@ GROUP BY r.id ORDER BY max(r.started_at) DESC LIMIT 1;
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+"Merhaba" ile çalıştırma tamamlandı; bu run için `tool_invocations` satır sayısı 0. `input_cost`/`output_cost` yine dolu (fiyat env var'ı hâlâ etkin).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1388,9 +1388,9 @@ WHERE s.external_id = 'manuel-oturum-01';
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Oturum oluştu, ikinci çalıştırmada geçmiş GERÇEKTEN yüklendi/kullanıldı (persist edilen mesaj listesi API'den doğrulandı: 4 mesaj, kronolojik sıra: 2 kullanıcı + 2 asistan). Yalnız "yanıt 'Faruk' içerir" iddiası doğrulanamadı — `echo` sağlayıcısının kendi tasarımı gereği (`EchoChatClient.BuildReply` yalnız SON kullanıcı mesajını yankılar, tam geçmişi değil); bu bir ürün kusuru değil, echo'nun bilinçli sınırlaması (MT-CORE-004/006 ile aynı sınıf).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1435,9 +1435,9 @@ WHERE s.external_id = 'manuel-oturum-01';
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`DELETE` 204, sonraki `GET` 404, aynı kimlikle yeniden çalıştırma 2 mesajlık YENİ bir oturum açtı (eski geçmiş gerçekten silinmiş — mesaj sayısı 4 değil 2).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1471,9 +1471,9 @@ curl -s -o /dev/null -w "2. deneme: %{http_code}\n" -X DELETE "$APU/api/sessions
 - 500 dönmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İki deneme de 404, tamamen aynı/idempotent, 500 yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1518,9 +1518,9 @@ GROUP BY s.external_id;
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`musteri-99` yanıtı `MAVI-42` içermiyor. DB doğrulaması: iki ayrı `conversation_id`, ikisinde de 2'şer mesaj — tam izolasyon. Doküman notu: doküman'ın SQL sorgusu (`s.external_id`, `ci.session_id`) GERÇEK şemayla uyuşmuyor — `sessions.id` zaten dış kimliğin kendisi, `conversation_items` tablosunda `session_id` kolonu yok (yalnız `conversation_id` var; session→conversation bağlantısı `sessions.state` jsonb'sindeki `stateBag['AgentPrism.ChatHistory']['conversationId']` üzerinden kuruluyor).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1569,9 +1569,9 @@ WHERE s.external_id = 'manuel-yaris';
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**GERÇEK VE KRİTİK ürün kusuru — doğrulandı, kanıtlandı.** Aynı YENİ oturum kimliğine ("manuel-yaris") iki eşzamanlı İLK istek gönderildi. İkisi de başarıyla tamamlandı (SSE `event: done`), hiçbiri hata dönmedi. Beklenen: 4 mesaj (sessiz kayıp kabul edilemez). Gerçekleşen: oturumda yalnız **2 mesaj**. KÖK NEDEN (veritabanından birebir kanıtlandı): İKİ AYRI `conversation` satırı oluştu (aynı saniyede, mikrosaniye farkla: `...6880-7137` ve `...6880-700e`) — "bu oturum için conversation var mı" kontrolü ile "yoksa oluştur" arasında klasik check-then-create yarışı var. Oturumun `state->stateBag` alanındaki `conversationId` işaretçisi SON YAZAN istek tarafından ezildi (last-write-wins); kaybeden isteğin conversation'ı ("Ikinci istek." + yanıtı — DOĞRULANDI: veri fiziksel olarak kayıp değil, `seq 0-1` orada) oturumun `state`'inden artık erişilemez durumda — `GET /api/sessions/manuel-yaris` bu mesajları ASLA göstermez, sessizce orphan kaldı. Etki: aynı oturuma HENÜZ hiç mesaj gönderilmemişken eşzamanlı iki istek gelirse (çift tıkla gönder, ağ retry'i, iki sekme) ikinci konuşmanın tamamı SESSİZCE kaybolur. Ayrı bir HATA-NNN kaydı olarak raporlanmalı (Kritik).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1636,9 +1636,9 @@ dotnet run -c Release
 - Red mesajı **gelen değeri** yazar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`1048576: KABUL`, `1048577: RED` (mesajda "0 ile 1048576 arasinda olmalidir" ve gelen değer 1048577), `-1: RED`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1702,9 +1702,9 @@ dotnet run -c Release
 - Varsayılan durumda (`Enabled=false`) hiçbir doğrulama hatası yoktur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`onay=False: RED` — mesajda `PlatformIsolationAcknowledged` adı geçiyor. `onay=True: KABUL`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1758,9 +1758,9 @@ dotnet run -c Release
 - Son satır `SINIRSIZ` yazar — 0 değeri sınırlamayı kaldırır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`MaxDepth=3`, `MaxTotalTokens=200000`, `MaxTotalRuns=25`. Sıfırlanınca `SINIRSIZ`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1813,9 +1813,9 @@ dotnet run -c Release
   düzenli istek atmaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`RecordSensitiveData=False`, `EnableQuotaUsageGauge=False`, `SuccessSampleRatio=0,1`, `AlwaysPersistFailures=True`, `Health.BackgroundInterval=YOK`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1874,9 +1874,9 @@ dotnet run -c Release
 - `🚨 negatif fiyat KABUL EDILDI` satırı görünmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Mesaj "beklenen red:" ile başlıyor: "AgentPrismPricingOptions: 'echo:echo-1' icin fiyat negatif olamaz." — hangi sağlayıcı/model için sorun olduğu açık. "🚨 negatif fiyat KABUL EDILDI" satırı görünmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1943,9 +1943,9 @@ dotnet run -c Release
 - Ses sağlayıcıları listesinde `elevenlabs` vardır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Doküman'ın scripti aynen koşulduğunda `Saglayici sayisi: 0` döndü (beklenen 1). İKİ AYRI, ÜST ÜSTE binen doküman hatası bulundu: (1) `services.AddAgentPrism()` ARGÜMANSIZ çağrılıp AYRICA `services.Configure<AgentPrismOptions>(config.GetSection(...))` çağrılmış — bu standart/reflection-tabanlı binder'ı kullanır. `AgentPrismOptions` ise AOT gerekçesiyle KENDİ elle yazılmış `Bind()` metoduyla bağlanıyor (doğru kullanım: `AddAgentPrism(configSection)`, K-021). Düzeltilip tekrar koşuldu, YİNE 0 döndü. (2) BAĞIMSIZ ikinci kök neden: manuel `BindPricing` (`AgentPrismServiceCollectionExtensions.cs:841-842`) her model için `ReadDecimal(modelSection, "Input")`/`"Output"` KISA anahtarlarını okuyor; doküman'ın JSON'ı ise `"InputCostPerMillionTokens"`/`"OutputCostPerMillionTokens"` (C# özellik adlı UZUN anahtarlar) kullanıyor — hiç eşleşmiyor, `ReadDecimal` sessizce `null` dönüyor, provider HİÇ eklenmiyor, ne hata ne log. İki kök neden de düzeltilip (doğru API + kısa anahtar adları) tekrar koşuldu: TAM beklenen sonuç alındı (Currency=USD, sağlayıcı sayısı=1, yalnız "echo", Ses sağlayıcıları="elevenlabs"). AYRICA ürün-düzeyi bulgu (Orta): yanlış anahtar adıyla yazılan bir `Pricing` girdisi TAMAMEN SESSİZCE düşüyor (istisna/log/uyarı yok) — bu, projenin "bilinmeyen ayar sessizce yok sayılmaz" ilkesiyle (K-034) çelişiyor. Ayrı bir HATA adayı (Orta) + doküman düzeltmesi önerilir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2006,9 +2006,9 @@ dotnet run -c Release
 > İmza farklıysa case yeniden yazılır, `Kaldı` işaretlenmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+"host ayakta" yazdı, istek sayısı 0, süreç sıfır çıkış koduyla bitti. Hiçbir veritabanı/ağ hatası yok (`CreateSlimBuilder` + `UseTestServer`, hiçbir dış bağlantı yapılandırılmadı).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2061,9 +2061,9 @@ dotnet run -c Release
 > kanıtlar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Kurulum hatasız, `RespondsWith`/`EchoesUserMessage` zincirlenebiliyor, "kuyruk kuruldu" yazdı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2117,9 +2117,9 @@ dotnet run -c Release
 - `🚨 v4 KABUL EDILDI` satırı görünmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`sirali: True`, damga farkı 0,0sn (<1s), v4 (`Guid.NewGuid()`) reddedildi: "Kimlik bir UUID surum 7 degeri degil." "🚨 v4 KABUL EDILDI" satırı görünmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2157,9 +2157,9 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 - Hiçbirinde sayı (`0`, `1`, `2`) görünmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`origin` değerleri `"Code"`/`"Database"` (ad olarak, tırnak içinde). `severity` `"Error"` (ad olarak). Hiçbirinde sayı görünmüyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2205,9 +2205,9 @@ SELECT name, version, origin FROM agentprism.agent_definitions ORDER BY name;
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Yeniden başlatma öncesi: toplam 8, kod 5, db 3. Yeniden başlatma SONRASI: AYNI (8/5/3). `manuel-surum` hâlâ var, `version=2` (kalıcı). "AgentPrism N migration uyguladi" log satırı bu turda hiç görünmedi — bu satır yalnız YENİ migration uygulandığında loglanıyor; şema zaten güncel olduğu için migration'lar yeniden uygulanmadı. Tam beklenen davranış.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

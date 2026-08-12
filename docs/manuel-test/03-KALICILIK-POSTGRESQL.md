@@ -115,11 +115,41 @@ cd samples/AgentPrism.Api && dotnet run
 - Süreç sıfırdan farklı bir çıkış koduyla sonlanır; `/health` hiçbir zaman yanıt vermez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> **Kaldı — ama kök neden ürün kusuru değil, case'in İzlek B ile test edilemez olması.**
+> `samples/AgentPrism.Api/Program.cs:639` şu korumayı taşır:
+> `else if (!string.IsNullOrWhiteSpace(postgreSql["ConnectionString"])) { agentPrism.UsePostgreSql(postgreSql); }`.
+> Bağlantı dizesi boş bırakıldığında bu koşul `false` döner ve `UsePostgreSql()`
+> **hiç çağrılmaz** — validator'a hiçbir zaman ulaşılmaz. Uygulama normal
+> başladı (`Now listening on: http://localhost:5080`), `OptionsValidationException`
+> ATILMADI. `GET /agentprism/api/diagnostics`: `"persistenceProvider": "InMemory"`,
+> `"registeredPersistenceProviders": 0`. `/health` **200 Degraded** döndü (kalıcılık
+> değil, model sağlayıcı sağlığı nedeniyle — bkz. `25-SAGLIK-TESHIS-OPENAPI.md`).
+>
+> Ayrı bir yardımcı harness ile (bu case'in adımı DEĞİL, doğrulama amaçlı,
+> `src/AgentPrism.PostgreSql`'e `ProjectReference` veren bir konsol) doğrudan
+> `UsePostgreSql(...)` çağrıldığında validator'ın TAM DA belgelenen gibi
+> çalıştığı doğrulandı:
+> - `UsePostgreSql("")` (string aşırı yüklemesi) çağrı ANINDA
+>   `ArgumentException: The value cannot be an empty string or composed
+>   entirely of whitespace. (Parameter 'connectionString')` fırlatır — belgelenenden
+>   daha erken/sert bir hata.
+> - `UsePostgreSql(IConfiguration)` (örnek uygulamanın kullandığı aşırı yükleme)
+>   çağrının kendisinde atmaz, ama `IOptions<AgentPrismPostgreSqlOptions>.Value`
+>   erişiminde TAM OLARAK belgelenen mesajı taşıyan
+>   `Microsoft.Extensions.Options.OptionsValidationException` fırlatır:
+>   `"AgentPrismPostgreSqlOptions.ConnectionString bos olamaz. ..."`.
+>
+> **Sonuç:** `AgentPrismPostgreSqlOptionsValidator` doğru çalışıyor. Kusur,
+> bu case'in İzlek B (örnek uygulama) üzerinden yazılmış olmasında — örnek
+> uygulamanın kasıtlı "bağlantı dizesi yoksa bellek içi çalış" davranışı
+> (`Program.cs:622` yorumu) bu senaryoyu YAPISAL OLARAK erişilemez kılıyor.
+> Öneri: case'in adımları İzlek A/C'ye (doğrudan `UsePostgreSql()` çağıran bir
+> konsol) taşınmalı; İzlek B için ayrı ve doğru bir case ("boş bağlantı dizesiyle
+> örnek uygulama bellek içi depoya sessizce düşer") eklenmeli.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☒ Kaldı · ☐ Atlandı
 
-> **Temizlik:** `dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism"`
+> **Temizlik:** `dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism"` — uygulandı.
 
 ---
 
@@ -157,11 +187,15 @@ SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi. Uygulama `Unhandled exception. Microsoft.Extensions.Options.OptionsValidationException:
+> AgentPrismPostgreSqlOptions.SchemaName 'public' olamaz. AgentPrism tuketicinin
+> public semasina dokunmaz. Gerekce: docs/KARARLAR.md, karar K-013.` ile
+> başlamadan sonlandı (`Now listening` satırı hiç görünmedi). Doğrulama sorgusu
+> `count = 0` döndü — denemeden önceki durumla aynı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
-> **Temizlik:** `dotnet user-secrets set "AgentPrism:PostgreSql:SchemaName" "agentprism"`
+> **Temizlik:** `dotnet user-secrets set "AgentPrism:PostgreSql:SchemaName" "agentprism"` — uygulandı.
 
 ---
 
@@ -217,11 +251,19 @@ SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'public'
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi, üçü de AYNI biçimde reddetti (mesaj kalıbı sabit,
+> yalnız "Gelen deger" değişiyor):
+> `AgentPrismPostgreSqlOptions.SchemaName gecerli bir tirnaksiz PostgreSQL
+> tanimlayicisi degil. Kucuk harf veya alt cizgi ile baslamali; kucuk harf,
+> rakam ve alt cizgi icermeli; en cok 63 karakter olmalidir. Gelen deger:
+> '<deger>'.` — `Agentprism`, `agent prism`, ve enjeksiyon dizesinin tamamı
+> (`agentprism; DROP SCHEMA public CASCADE;--`) sırayla bu kalıba düştü.
+> Doğrulama sorgusu bir satır döndü — `public` şeması hâlâ var, `DROP SCHEMA`
+> hiç çalışmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
-> **Temizlik:** `dotnet user-secrets set "AgentPrism:PostgreSql:SchemaName" "agentprism"`
+> **Temizlik:** `dotnet user-secrets set "AgentPrism:PostgreSql:SchemaName" "agentprism"` — uygulandı.
 
 ---
 
@@ -266,11 +308,14 @@ dotnet run   # baslar, Ctrl+C
 - 3. ve 4. deneme başarıyla başlar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi, dört değer de. `-1` → `AgentPrismPostgreSqlOptions.CommandTimeoutSeconds
+> 0 ile 3600 arasinda olmalidir. Gelen deger: -1.` ile reddedildi. `3601` → aynı
+> kalıp, `Gelen deger: 3601.` ile reddedildi. `0` ve `3600` ikisi de `Now
+> listening on: http://localhost:5080` ile normal başladı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
-> **Temizlik:** `dotnet user-secrets remove "AgentPrism:PostgreSql:CommandTimeoutSeconds"` (varsayılan 30'a döner).
+> **Temizlik:** `dotnet user-secrets remove "AgentPrism:PostgreSql:CommandTimeoutSeconds"` (varsayılan 30'a döner) — uygulandı.
 
 ---
 
@@ -352,9 +397,12 @@ dotnet run -c Release
 - Üç satır da AYNI `ConnectionString` ve `SchemaName` değerlerini gösterir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi (paketlenmiş `AgentPrism.PostgreSql` 0.0.0-preview.0.64,
+> yerel feed üzerinden). Üç satır da birebir aynı:
+> `ConnectionString='Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism'
+> SchemaName='agentprism'`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -424,9 +472,15 @@ dotnet run -c Release
   ikisi de kullanıcı için anlaşılır bir mesaj taşımalıdır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> `00-INDEKS.md` §8'deki şüphe DOĞRULANDI: `Microsoft.Extensions.Options.OptionsValidationException`
+> fırlıyor — `AgentPrism.AgentPrismException` DEĞİL. Mesaj:
+> `AgentPrismPostgreSqlOptions.ConnectionString bos olamaz. Baglanti dizesini
+> "UsePostgreSql(...)" cagrisinda verin veya 'AgentPrism:PostgreSql:ConnectionString'
+> ayarini "dotnet user-secrets" icinde tanimlayin.` `Validator`, `NpgsqlDataSourceFactory.Create`
+> içindeki kendi boş-dize kontrolünden önce tetikleniyor; o kontrol normal DI
+> akışında gerçekten ulaşılamaz durumda (şüphe kaydındaki tahmin gibi).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -469,11 +523,15 @@ curl -s -m 3 -w "\nHTTP: %{http_code}\n" "http://localhost:5080/health"
   hiç dinlemeye başlamamıştır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi. `Npgsql.NpgsqlException: Failed to connect to 127.0.0.1:1
+> ---> System.Net.Sockets.SocketException (61): Connection refused` zinciri
+> `MigrationRunner.ApplyAsync` → `MigrationHostedService.StartAsync` üzerinden
+> fırladı, süreç ~4 saniyede sonlandı, `Now listening` HİÇ yazılmadı. `/health`
+> isteği `HTTP: 000` (bağlantı kurulamadı) döndü — Kestrel hiç dinlemedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
-> **Temizlik:** `dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism"`
+> **Temizlik:** `dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism"` — uygulandı.
 
 ---
 
@@ -511,9 +569,11 @@ SELECT count(*) FROM agentprism.audit_log WHERE before::text ILIKE '%Password=%'
 - Her iki SQL sorgusu da **0** döner.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi (bu case önceki case'lerden agent kaydı birikince koşuldu —
+> `manuel-denetim` dahil). `grep` sıfır satır döndü (exit code 1). Her iki SQL
+> sorgusu da `count = 0`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -558,9 +618,11 @@ SELECT id, name FROM agentprism.__migrations ORDER BY id;
   `0028_experiment_canary`'dir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi. Log `AgentPrism 28 migration uyguladi. Sema: agentprism.`
+> satırını taşıdı. `count(*) = 28`. `id` 1'den 28'e boşluksuz sıralı, son satır
+> `0028_experiment_canary`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -593,9 +655,10 @@ cd samples/AgentPrism.Api && dotnet run
 - Uygulama normal başlar, hiçbir hata görünmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi. `"... migration uyguladi."` satırı görünmedi (0 eşleşme),
+> `__migrations` hâlâ 28 satır, uygulama normal dinlemeye geçti, hata yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -665,9 +728,13 @@ SELECT id, name, applied_at FROM agentprism.__migrations ORDER BY id LIMIT 7;
   zaman, id 6–28'inki uygulamanın az önceki açılış zamanıdır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi. Log `AgentPrism 23 migration uyguladi. Sema: agentprism.`
+> yazdı (28 − 5). Checksum uyuşmazlığı hatası oluşmadı. `count(*) = 28`; id
+> 1–5'in `applied_at` değeri (`20:04:33.2xx`–`.7xx`, elle yazılan) id 6–28'inkinden
+> (`20:04:45.8xx`, uygulamanın açılış anı) FARKLI — elle yazılan beşi dokunulmadan
+> kaldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -711,12 +778,16 @@ print(hashlib.sha256(data).hexdigest().upper())
 - Mesaj hem veritabanındaki (bozuk) hem dosyadaki (doğru) checksum'ı gösterir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi. `AgentPrism.AgentPrismException: '0001_initial' migration'i
+> veritabaninda uygulanmis ancak dosyanin icerigi degismis. Veritabanindaki
+> ozet: BOZUK00...0000, dosyanin ozeti: FDC95ECB...66F1D. Uygulanmis bir
+> migration duzenlenmez; degisiklik icin yeni bir migration dosyasi ekleyin.`
+> ile başlamadı, `Now listening` görünmedi. Mesaj iki özeti de gösterdi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
-> **Temizlik:** Python komutunun çıktısıyla checksum'ı doğru değere geri yaz veya
-> reset yordamını uygula.
+> **Temizlik:** Checksum `FDC95ECB390F5C465A071751607C6917E022AC4ED684A386413B4FA62F166F1D`
+> değerine geri yazıldı — uygulandı.
 
 ---
 
@@ -760,11 +831,15 @@ SELECT count(*) FROM agentprism.__migrations;
 - `count(*)` tam olarak **28** döner (56 değil — birincil anahtar çakışması yoktur).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi. İki `dotnet` süreci (5080 ve 5090) neredeyse eşzamanlı
+> başlatıldı. Yalnız 5090 örneği `AgentPrism 28 migration uyguladi.` yazdı;
+> 5080 örneği hiç migration log satırı yazmadan doğrudan `Now listening`'e
+> geçti (kilidi aldığında migration'lar zaten bitmişti). İkisi de hatasız
+> dinlemeye başladı. `count(*) = 28` — 56 değil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
-> **Temizlik:** İkinci terminali durdur (`Ctrl+C`).
+> **Temizlik:** İki süreç de `kill -9` ile durduruldu — uygulandı.
 
 ---
 
@@ -810,11 +885,48 @@ curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" 
   döner.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> **Kaldı — gerçek, iki bağımsız denemede TUTARLI biçimde tekrar üretildi.**
+> Log beklenen `AgentPrism migration'lari otomatik uygulanmiyor (AutoApplyMigrations
+> kapali). Semanin guncel olmasi cagiranin sorumlulugundadir.` satırını taşıdı
+> ve `Now listening on: http://localhost:5080` bile yazdı — ama birkaç saniye
+> içinde uygulama KENDİ KENDİNİ KAPATTI:
+> ```
+> crit: AgentPrism.A2AApprovalGuardFilter[0]
+>       A2A disa acik yuzey denetimi basarisiz oldu; uygulama durduruluyor.
+>       Npgsql.PostgresException (0x80004005): 42P01: relation "agentprism.agent_definitions" does not exist
+> info: Microsoft.Hosting.Lifetime[0]
+>       Application is shutting down...
+> ```
+> İki bağımsız denemede de (temiz şema, `AutoApplyMigrations=false` sabit)
+> aynı çöküş oluştu — rastgele bir yarış değil, tutarlı bir davranış.
+> `/health` ve agent kaydı isteklerine ULAŞILAMADI (`HTTP: 000`) çünkü süreç
+> çökme sürecindeydi.
+>
+> **Kök neden** (`src/AgentPrism.AspNetCore/A2A/A2AApprovalGuardFilter.cs`,
+> `src/AgentPrism.Abstractions/Diagnostics/SchemaReadyGate.cs`): örnek uygulama
+> `UseA2A(o => o.ExposedAgents.Add("ozetleyici"))` çağırıyor (`Program.cs:99`,
+> VARSAYILAN yapılandırma). `SchemaReadyGate.MarkReady()`, `AutoApplyMigrations`
+> kapalıyken de `MigrationHostedService` tarafından BİLEREK hemen çağrılıyor
+> (kod yorumu: "o durumda semanin hazir olmasi tuketicinin sorumlulugundadir").
+> Kapı açılır açılmaz `A2AApprovalGuardFilter`'ın arka plan denetimi
+> `IAgentCatalog.ListAsync()` çağırıyor, bu da var olmayan
+> `agentprism.agent_definitions` tablosuna çarpıyor, `catch (Exception)` bloğu
+> bunu `LogCritical` + `lifetime.StopApplication()` ile karşılıyor. Aynı desen
+> `McpApprovalGuardFilter`'da da var (kod yorumu: "AYNI gerekce ve AYNI
+> tasarim") — A2A kapalı olsa MCP'nin de aynı şekilde çökertmesi beklenir.
+>
+> **Etki:** K-354'ün belgelediği sözleşme ("uygulama başlar, sorumluluk
+> operatöre kalır") A2A/MCP açıkken (örnek uygulamanın VARSAYILANI) TAMAMEN
+> geçersiz — uygulama Degraded modda hizmet vermek yerine kendini kapatıyor.
+> Gerçek bir dağıtımda (ör. K8s: API pod, migration Job'undan önce ayağa
+> kalkarsa) bu, `AutoApplyMigrations=false` seçmenin amacını tam tersine
+> çeviren bir crash-loop üretir. Belgede **Yüksek** işaretli; gözlenen etkinin
+> (dokümante edilen sözleşmenin A2A/MCP açıkken TAMAMEN işlevsiz olması,
+> Degraded değil TAM KESİNTİ) **Kritik**'e yükseltilmesi önerilir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☒ Kaldı · ☐ Atlandı
 
-> **Temizlik:** `dotnet user-secrets remove "AgentPrism:PostgreSql:AutoApplyMigrations"`, reset yordamı.
+> **Temizlik:** `dotnet user-secrets remove "AgentPrism:PostgreSql:AutoApplyMigrations"`, reset yordamı — uygulandı.
 
 ---
 
@@ -854,9 +966,11 @@ SELECT count(*) FROM agentprism_ikinci.__migrations;
 - Orijinal `agentprism` şemasındaki veriler (varsa) dokunulmadan kalır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi. Log `AgentPrism 28 migration uyguladi. Sema:
+> agentprism_ikinci.` yazdı. `information_schema.schemata` her iki şemayı da
+> listeledi; her ikisinin `__migrations`'ı `count(*) = 28`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Temizlik:**
 > ```bash
@@ -905,9 +1019,11 @@ WHERE attrelid = 'agentprism.document_embeddings'::regclass AND attname = 'embed
   `3` DEĞİLDİR. Ayar sessizce hiçbir şey yapmamıştır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi. Uygulama normal başladı, checksum uyuşmazlığı hatası
+> oluşmadı. `atttypmod = 1536` — `Dimensions=3` ayarı sessizce hiçbir şey
+> yapmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Temizlik:** `dotnet user-secrets remove "AgentPrism:Knowledge:Dimensions"`
 
@@ -960,9 +1076,20 @@ SELECT count(*) FROM agentprism.audit_log WHERE entity ILIKE '%run%' OR entity I
   satır yoktur; `IRunStore` denetim izi dekoratörüyle SARILMAMIŞTIR.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi. `agent:manuel-denetim` / `agent.create` için tek audit
+> kaydı var. `runs`/`tool_invocations` için `count(*) = 0`.
+>
+> **Yan not (ortam, kusur değil):** `echo` sağlayıcısı yalnız OpenAI anahtarı
+> BOŞ olduğunda kayıtlı oluyor (`samples/AgentPrism.Api/Program.cs:128,149` —
+> `openAiEnabled = !string.IsNullOrWhiteSpace(...)`). Bu makinenin
+> `user-secrets`'ında gerçek bir OpenAI anahtarı zaten tanımlıydı; ilk deneme
+> bu yüzden `'echo' adinda bir model saglayicisi kayitli degil` ile 400 döndü.
+> Bu dosyanın geri kalanı (İzlek B, `echo` kullanan tüm case'ler: 030/060/061)
+> için OpenAI anahtarını GEÇİCİ olarak kaldırdım; MT-PG-047'ye gelindiğinde
+> geri ekleyip o case sonrası yine kaldıracağım. `dotnet user-secrets` dışında
+> hiçbir yere yazılmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1030,9 +1157,17 @@ dotnet run -c Release
   ayrıntısı değil.)
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi — çıktı `Cozumlenen tip: SahteDalStore`. Doc'un anlattığı
+> gibi, script iki noktada düzeltme gerektirdi (imza sürüklenmesi, kanıtlanan
+> davranışı etkilemiyor): gerçek imza `BranchAsync(...)`/`ConversationBranch?`
+> (`CreateBranchAsync`/`ConversationBranchInfo` DEĞİL), ve `UsePostgreSql(...)`
+> `IServiceCollection` üzerinde değil `IAgentPrismBuilder` üzerinde bir
+> extension — `var builder = services.AddAgentPrism();` yakalanıp
+> `builder.UsePostgreSql(...)` çağrılması gerekti (`builder.Services` alttaki
+> AYNI `IServiceCollection`'ı taşıyor, bu yüzden `TryAddSingleton` `services`
+> üzerinden önce çağrılabiliyor).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1084,9 +1219,11 @@ dotnet run -c Release
 - Çıktı `SahteVektorStore` tipini gösterir — `PgVectorSearchStore` DEĞİLDİR.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi — `Cozumlenen tip: SahteVektorStore`. `IVectorSearchStore`
+> imzası doc'la birebir eşleşti; tek düzeltme MT-PG-031'deki gibi
+> `UsePostgreSql`'in `builder` üzerinden çağrılması oldu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1144,9 +1281,13 @@ dotnet run -c Release
   bilerek ezer; MT-PG-031/032'deki davranışla TAM TERSİDİR.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi — `Cozumlenen tip: AgentPrism.SqlRunStore`, `SahteRunStore`
+> DEĞİL. `IRunStore`'un 14 metotlu tam imzası doğrulanıp `throw new
+> NotImplementedException()` gövdeleriyle derlendi (dosya:
+> `src/AgentPrism.Abstractions/Runs/IRunStore.cs`); doc'un öngördüğü gibi
+> yalnız derlenmesi yeterliydi, hiçbiri çalışmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > Not: `SahteRunStore` sınıfının gövdesi koşumda `IRunStore`'un gerçek imzasına
 > göre yazılır (`maf-api-kesfi` benzeri bir reflection ile önce doğrulanır); bu
@@ -1202,9 +1343,36 @@ rm -f samples/AgentPrism.Api/manuel-test-ikinci.db
 - `/health` **Degraded** döner (`registeredPersistenceProviders: 2` verisiyle).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> **Kaldı — uyarı satırı doğru çıktı ama uygulama sonra çöktü; iki bağımsız
+> denemede TUTARLI.** Log beklenen uyarıyı verdi: `AgentPrism'de birden fazla
+> kalicilik saglayicisi kayitli: PostgreSQL, SQLite. Son kayit kazanir ve su an
+> SQLite kullaniliyor. Yalnizca birini cagirin.` Ama birkaç saniye sonra AYNI
+> `MT-PG-025` kusuruyla (`A2AApprovalGuardFilter`/`McpApprovalGuardFilter`)
+> çöktü — `SQLite Error 1: 'no such table: agentprism_agent_definitions'` ile
+> `crit` + `Application is shutting down...`. `Now listening` yazıldıktan hemen
+> sonra süreç öldüğü için `/api/diagnostics` ve `/health` isteklerine hiç
+> ULAŞILAMADI (`HTTP: 000`).
+>
+> **Kök neden — MT-PG-025'ten FARKLI bir tetikleyici, AYNI temel kusur:**
+> burada `AutoApplyMigrations` açık; PostgreSQL şeması önceki case'lerden
+> zaten TAM güncel olduğu için o sağlayıcının `MigrationHostedService`'i
+> saniyeler içinde biter ve `SchemaReadyGate.MarkReady()`'yi HEMEN çağırır.
+> Ama kazanan depo uygulamaları (`Replace` deseniyle) SQLite'a ait ve SQLite'ın
+> KENDİ migration'ı (15 tablo, `agentprism_` şeması, sıfırdan) henüz
+> BİTMEMİŞTİR — `SchemaReadyGate` tek, PAYLAŞILAN bir kapı, hangi sağlayıcının
+> "gerçekten kazanan" olduğunu bilmiyor. Kapı, EN HIZLI biten sağlayıcı
+> (burada zaten migrasyonlu PostgreSQL) tarafından açılıyor, ama guard filter'ın
+> sorguladığı depo SQLite'a ait — tablo henüz yok. Aynı `A2AApprovalGuardFilter`/
+> `McpApprovalGuardFilter` deseni (bkz. `MT-PG-025`) bunu `catch (Exception)` →
+> `StopApplication()` ile karşılıyor.
+>
+> Bu, `MT-PG-025` ile AYNI temel tasarım kusurunun (guard filter'ların
+> `SchemaReadyGate` açılmasını "sorguladığım tablo var" garantisi sanması)
+> İKİNCİ, bağımsız bir tetikleyicisi. Çoklu sağlayıcı yanlış yapılandırması
+> zaten "Kritik" işaretli bir negatif senaryo; gözlenen sonuç (Degraded yanıt
+> yerine TAM çökme) doğrudan bu önem derecesini doğruluyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☒ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1245,9 +1413,21 @@ rm -f samples/AgentPrism.Api/manuel-test-ikinci.db
   PostgreSQL sondadır). `registeredPersistenceProviders` yine **2**'dir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi — bu kez ÇÖKMEDEN. `AgentPrism'de birden fazla kalicilik
+> saglayicisi kayitli: SQLite, PostgreSQL. Son kayit kazanir ve su an
+> PostgreSQL kullaniliyor.` uyarısı, `persistenceProvider: "PostgreSQL"`,
+> `registeredPersistenceProviders: 2`, `/health` → `Degraded` (200).
+>
+> **MT-PG-034'ün kök nedenini doğrulayan kontrast:** burada uygulama
+> ÇÖKMEDİ çünkü kazanan sağlayıcı (PostgreSQL) önceki case'lerden zaten TAM
+> migrasyonlu — `SchemaReadyGate` hangi sağlayıcı tarafından açılırsa açılsın,
+> sorgulanan tablolar zaten vardı. MT-PG-034'te kazanan SQLite'tı ve SQLite'ın
+> KENDİ migrasyonu henüz bitmemişken kapı (muhtemelen daha hızlı biten
+> PostgreSQL tarafından) açılmıştı — bu yüzden orada çöktü, burada çökmedi.
+> Yani çökme, "hangi sağlayıcı kazanıyor" değil "kapıyı açan sağlayıcının
+> migrasyonu, KAZANANIN tablolarını garanti etmiyor" sorunudur — bkz. MT-PG-034.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1293,9 +1473,12 @@ SELECT indexdef FROM pg_indexes WHERE indexname = 'document_embeddings_hnsw_idx'
   ifadelerini içerir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi. `vector` eklentisi kurulu (`extversion 0.8.6`). İndeks
+> listesi dörtünü de taşıyor, artı `document_embeddings_pkey` ve
+> `document_embeddings_uq`. `document_embeddings_hnsw_idx` tanımı:
+> `CREATE INDEX ... USING hnsw (embedding vector_cosine_ops)`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1364,9 +1547,11 @@ dotnet run -c Release
 - `🚨 istisna ATILMADI` satırı görünmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi. `Dimensions: 1536`. İkinci satır: `beklenen istisna: Parca 0
+> gomu uzunlugu (10) depo boyutuyla (1536) eslesmiyor. (Parameter 'chunks')`.
+> `ISTISNA ATILMADI` görünmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1436,9 +1621,11 @@ WHERE tenant_id = 'kiraci-alfa' AND collection = 'manuel-koleksiyon';
   YERDE görünmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi. `arama sonuc sayisi (ikinci yazimdan sonra): 1`, tek satır
+> `manuel-kaynak parca=0 icerik='ikinci surum, tek parca' mesafe=0,0000`. SQL
+> sorgusu da tek satır döndü, aynı içerik. `ilk surum` metni hiçbir yerde yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1500,9 +1687,10 @@ dotnet run -c Release
 - Liste **artan mesafe** sırasındadır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi. `eksen-0 mesafe=0,0000`, ardından `eksen-1 mesafe=1,0000`
+> ve `eksen-2 mesafe=1,0000` — artan sırada.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1558,9 +1746,10 @@ dotnet run -c Release
 - `ALFA'nin gizli belgesi` metni ASLA görünmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi. `kiraci-beta 1 sonuc goruyor: BETA'nin gizli belgesi`.
+> `ALFA'nin gizli belgesi` hiç görünmedi — kiracı yalıtımı korunuyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1615,9 +1804,9 @@ dotnet run -c Release
 - `kalan kaynak sayisi: 0`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi. `silinen parca sayisi: 3`, `kalan kaynak sayisi: 0`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1675,9 +1864,9 @@ dotnet run -c Release
   (mesafe 1.0) elenir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi. `filtresiz: 2`, `filtreli (<=0.5): 1`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1719,9 +1908,12 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/knowledge/gecerli-koleksiy
   BAĞIMSIZ çalıştığını kanıtlar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi. 1. istek **400**: `'gecersiz%2Fkoleksiyon' gecerli bir
+> koleksiyon adi degil. Yalniz harf, rakam, alt cizgi ve tire icerebilir.` 2.
+> istek de **400** ama FARKLI mesajla: `Parca 0 gomu uzunlugu (1) depo
+> boyutuyla (1536) eslesmiyor.` — iki doğrulama bağımsız.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1768,9 +1960,27 @@ curl -s -w "\nHTTP: %{http_code}\n" "http://localhost:5080/health"
   tekrar **200** (`Healthy`) döner — Npgsql havuzu kendiliğinden toparlanır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> **Kısmen Kaldı.** PostgreSQL'e özgü davranış TAM beklendiği gibi: container
+> durdurulmuşken `/health` **503 Unhealthy** döndü; container yeniden
+> başlayıp 3 saniye beklendikten sonra (uygulama YENİDEN BAŞLATILMADAN)
+> `/health` **200**'e döndü — Npgsql havuzu kendiliğinden toparlandı, bu
+> case'in asıl kanıtladığı şey budur.
+>
+> Ama gövde `Healthy` DEĞİL, `Degraded` gösterdi. Kök neden: `AgentPrismHealthCheck`
+> (`src/AgentPrism.AspNetCore/Health/AgentPrismHealthCheck.cs:70-77`) `Healthy`
+> için `report.ModelProviders.Any(status == Healthy)` şartını arıyor — ve
+> `echo` sağlayıcısı (bu dosyanın tamamında ağa çıkmamak için kullanılan tek
+> sağlayıcı) `ModelProviders` listesinde HİÇ YER ALMIYOR (yalnız
+> openai/openai-responses/openrouter/anthropic/google izleniyor). Yani
+> `echo`-only bir kurulumda `/health` YAPISAL OLARAK asla düz `Healthy`
+> döndüremez — en iyi ihtimalle `Degraded` durur. Bu, PostgreSQL'in DEĞİL, bu
+> dosyanın kendi sınır tablosunun "model sağlayıcı devre kesici durumu
+> `25-SAGLIK-TESHIS-OPENAPI.md`'dedir, kapsam dışı" dediği bir alanın
+> (§ "Bu dosya nerede biter") case metnine sızmasıdır — case'in beklenen
+> sonucu kendi belirlediği sınırın dışına taşmış. PostgreSQL'e özgü kısım
+> (`canConnect`, `migrationsUpToDate`) doğrulandı; `Healthy` etiketi doğrulanamadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☒ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1808,11 +2018,18 @@ curl -s "$APU/api/diagnostics" -H "$APB" | python3 -m json.tool
   geçmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> **Kaldı — `MT-PG-025`'in ÜÇÜNCÜ bağımsız tetiklenişi.** Boş şema +
+> `AutoApplyMigrations=false` kombinasyonu, isteği hiç göndermeden ÖNCE
+> uygulamayı çökertti (`A2AApprovalGuardFilter`/`McpApprovalGuardFilter`,
+> `durduruluyor` 2 kez log'da). `curl` bağlantı kuramadı (`HTTP: 000`),
+> `/agentprism/api/diagnostics` gövdesi hiç alınamadı — case'in kendisi
+> koşulamaz durumda. Kök neden `MT-PG-025`'te belgelendi; buraya tekrar
+> yazılmadı. Bu case'in kendisini gerçekten koşabilmek için önce o kusurun
+> düzeltilmesi gerekiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☒ Kaldı · ☐ Atlandı
 
-> **Temizlik:** `dotnet user-secrets remove "AgentPrism:PostgreSql:AutoApplyMigrations"`, reset yordamı.
+> **Temizlik:** `dotnet user-secrets remove "AgentPrism:PostgreSql:AutoApplyMigrations"`, reset yordamı — uygulandı.
 
 ---
 
@@ -1851,9 +2068,11 @@ SELECT to_regclass('agentprism.__migrations');
   teşhis ucu şemaya hiçbir şey YAZMAZ.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> **Kaldı — ön koşul erişilemez.** MT-PG-051'in ön koşulu ("28 bekleyen
+> migration, `AutoApplyMigrations=false`") `MT-PG-025`'in kusuru yüzünden hiç
+> kurulamıyor; uygulama isteği karşılamadan çöküyor. Bu case koşulamadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☒ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1883,9 +2102,15 @@ curl -s -w "\nHTTP: %{http_code}\n" "http://localhost:5080/health"
 - **200**, gövde `Healthy` durumunu gösterir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> **Kaldı.** **200** döndü ama gövde `Degraded`, `Healthy` DEĞİL. Kök neden
+> `MT-PG-050`'de belgelendi: `echo` sağlayıcısı `AgentPrismHealthCheck`'in
+> izlediği `ModelProviders` listesinde hiç yer almıyor, bu yüzden "en az bir
+> model sağlayıcısı sağlıklı" koşulu `echo`-only bir kurulumda YAPISAL OLARAK
+> hiçbir zaman sağlanamıyor. Doc'un "echo yeterli" varsayımı bu case için
+> YANLIŞ — plan `Healthy` sonucu her koşumda değişmez biçimde `Degraded`'e
+> düşer, kod/veri kusuru değil, case'in ön koşul varsayımı hatalı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☒ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1930,9 +2155,10 @@ SELECT count(*) FROM agentprism.agent_definitions WHERE name LIKE 'manuel-esz-%'
   veya benzeri) görünmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi. 20 isteğin 20'si de **201** döndü. `count(*) = 20`. Loglarda
+> `TimeoutException`/pool tükenmesi hatası yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1977,6 +2203,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/manuel-esz-1/run" -
   GEREKMEZ.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> Beklendiği gibi. Container durdurulmuşken istek **500** döndü (`ProblemDetails`
+> gövdesi, `traceId` taşıyor), süreç ÇÖKMEDİ. Container yeniden başlayıp 3
+> saniye beklendikten sonra AYNI istek **200** ile SSE akışını tamamladı
+> (`Echo: merhaba`) — uygulama yeniden başlatılmadan Npgsql havuzu kendiliğinden
+> toparlandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
