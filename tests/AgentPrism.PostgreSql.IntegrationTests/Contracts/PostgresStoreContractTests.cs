@@ -4,169 +4,106 @@ using AgentPrism.StoreContracts;
 namespace AgentPrism.PostgreSql.IntegrationTests.Contracts;
 
 /// <summary>Sozlesme testlerinin PostgreSQL uygulamasi uzerindeki kosumu.</summary>
-public sealed class PostgresAgentDefinitionStoreContractTests(PostgresFixture fixture) : AgentDefinitionStoreContract
+public sealed class PostgresAgentDefinitionStoreContractTests(PostgresSchemaFixture schema)
+    : AgentDefinitionStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IAgentDefinitionStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture, AmbientTenant);
-        return _context.AgentDefinitions;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.AgentDefinitions;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresSkillScriptGrantContractTests(PostgresFixture fixture) : SkillScriptGrantContract
+public sealed class PostgresSkillScriptGrantContractTests(PostgresSchemaFixture schema)
+    : SkillScriptGrantContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<ISkillScriptGrantStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture);
-        return _context.SkillScriptGrants;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.SkillScriptGrants;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresAuditLogContractTests(PostgresFixture fixture) : AuditLogContract
+public sealed class PostgresAuditLogContractTests(PostgresSchemaFixture schema)
+    : AuditLogContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IAuditLog> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture);
-        return _context.AuditLog;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.AuditLog;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresRunStoreContractTests(PostgresFixture fixture) : RunStoreContract
+public sealed class PostgresRunStoreContractTests(PostgresSchemaFixture schema)
+    : RunStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IRunStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture, AmbientTenant);
-        return _context.Runs;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Runs;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresSessionStoreContractTests(PostgresFixture fixture) : SessionStoreContract
+public sealed class PostgresSessionStoreContractTests(PostgresSchemaFixture schema)
+    : SessionStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<ISessionStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture, AmbientTenant);
-        return _context.Sessions;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Sessions;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresToolInvocationContractTests(PostgresFixture fixture) : ToolInvocationContract
+public sealed class PostgresToolInvocationContractTests(PostgresSchemaFixture schema)
+    : ToolInvocationContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IRunStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture, AmbientTenant);
-        return _context.Runs;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Runs;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresAttachmentStoreContractTests(PostgresFixture fixture) : AttachmentStoreContract
+public sealed class PostgresAttachmentStoreContractTests(PostgresSchemaFixture schema)
+    : AttachmentStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IAttachmentStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture);
-        return _context.Attachments;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Attachments;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresTraceStoreContractTests(PostgresFixture fixture) : TraceStoreContract
+public sealed class PostgresTraceStoreContractTests(PostgresSchemaFixture schema)
+    : TraceStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<ITraceStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture, AmbientTenant);
-        return _context.Traces;
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Traces;
     }
 
     /// <summary>
@@ -174,404 +111,237 @@ public sealed class PostgresTraceStoreContractTests(PostgresFixture fixture) : T
     /// yazilamaz.
     /// </summary>
     protected override async ValueTask SeedRunAsync(Guid runId)
-        => await _context!.Runs.StartRunAsync(TestData.Run(runId));
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
-    }
+        => await schema.Context.Runs.StartRunAsync(TestData.Run(runId));
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresWorkflowDefinitionStoreContractTests(PostgresFixture fixture)
-    : WorkflowDefinitionStoreContract
+public sealed class PostgresWorkflowDefinitionStoreContractTests(PostgresSchemaFixture schema)
+    : WorkflowDefinitionStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IWorkflowDefinitionStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture);
-        return _context.Workflows;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Workflows;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresWorkflowCheckpointStoreContractTests(PostgresFixture fixture)
-    : WorkflowCheckpointStoreContract
+public sealed class PostgresWorkflowCheckpointStoreContractTests(PostgresSchemaFixture schema)
+    : WorkflowCheckpointStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IWorkflowCheckpointStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture);
-        return _context.WorkflowCheckpoints;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.WorkflowCheckpoints;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresJobStoreContractTests(PostgresFixture fixture) : JobStoreContract
+public sealed class PostgresJobStoreContractTests(PostgresSchemaFixture schema)
+    : JobStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IJobStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture);
-        return _context.Jobs;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Jobs;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresJobScheduleStoreContractTests(PostgresFixture fixture) : JobScheduleStoreContract
+public sealed class PostgresJobScheduleStoreContractTests(PostgresSchemaFixture schema)
+    : JobScheduleStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IJobScheduleStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture);
-        return _context.JobSchedules;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.JobSchedules;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresEvalStoreContractTests(PostgresFixture fixture) : EvalStoreContract
+public sealed class PostgresEvalStoreContractTests(PostgresSchemaFixture schema)
+    : EvalStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IEvalStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture);
-        return _context.Evals;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Evals;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresExperimentStoreContractTests(PostgresFixture fixture) : ExperimentStoreContract
+public sealed class PostgresExperimentStoreContractTests(PostgresSchemaFixture schema)
+    : ExperimentStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IExperimentStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture);
-        return _context.Experiments;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Experiments;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresQuotaStoreContractTests(PostgresFixture fixture) : QuotaStoreContract
+public sealed class PostgresQuotaStoreContractTests(PostgresSchemaFixture schema)
+    : QuotaStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IQuotaStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture);
-        return _context.Quotas;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Quotas;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresRetentionPolicyStoreContractTests(PostgresFixture fixture) : RetentionPolicyStoreContract
+public sealed class PostgresRetentionPolicyStoreContractTests(PostgresSchemaFixture schema)
+    : RetentionPolicyStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IRetentionPolicyStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture);
-        return _context.RetentionPolicies;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.RetentionPolicies;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresWebhookStoreContractTests(PostgresFixture fixture) : WebhookStoreContract
+public sealed class PostgresWebhookStoreContractTests(PostgresSchemaFixture schema)
+    : WebhookStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IWebhookStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture);
-        return _context.Webhooks;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Webhooks;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresApiKeyStoreContractTests(PostgresFixture fixture) : ApiKeyStoreContract
+public sealed class PostgresApiKeyStoreContractTests(PostgresSchemaFixture schema)
+    : ApiKeyStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IApiKeyStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture);
-        return _context.ApiKeys;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.ApiKeys;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresVoiceSessionStoreContractTests(PostgresFixture fixture) : VoiceSessionStoreContract
+public sealed class PostgresVoiceSessionStoreContractTests(PostgresSchemaFixture schema)
+    : VoiceSessionStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IVoiceSessionStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture);
-        return _context.VoiceSessions;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.VoiceSessions;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresRunScoreStoreContractTests(PostgresFixture fixture) : RunScoreStoreContract
+public sealed class PostgresRunScoreStoreContractTests(PostgresSchemaFixture schema)
+    : RunScoreStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IRunScoreStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture);
-        return _context.RunScores;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.RunScores;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresSingletonLeaseStoreContractTests(PostgresFixture fixture) : SingletonLeaseStoreContract
+public sealed class PostgresSingletonLeaseStoreContractTests(PostgresSchemaFixture schema)
+    : SingletonLeaseStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<ISingletonLeaseStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture);
-        return _context.SingletonLeases;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        await schema.ResetAsync();
+        return schema.Context.SingletonLeases;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresIdempotencyStoreContractTests(PostgresFixture fixture) : IdempotencyStoreContract
+public sealed class PostgresIdempotencyStoreContractTests(PostgresSchemaFixture schema)
+    : IdempotencyStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IIdempotencyStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture);
-        return _context.IdempotencyKeys;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        await schema.ResetAsync();
+        return schema.Context.IdempotencyKeys;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresAgentSkillStoreContractTests(PostgresFixture fixture) : AgentSkillStoreContract
+public sealed class PostgresAgentSkillStoreContractTests(PostgresSchemaFixture schema)
+    : AgentSkillStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IAgentSkillStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture);
-        return _context.AgentSkills;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.AgentSkills;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresToolApprovalRuleStoreContractTests(PostgresFixture fixture) : ToolApprovalRuleStoreContract
+public sealed class PostgresToolApprovalRuleStoreContractTests(PostgresSchemaFixture schema)
+    : ToolApprovalRuleStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IToolApprovalRuleStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture);
-        return _context.ApprovalRules;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.ApprovalRules;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresMcpServerStoreContractTests(PostgresFixture fixture) : McpServerStoreContract
+public sealed class PostgresMcpServerStoreContractTests(PostgresSchemaFixture schema)
+    : McpServerStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IMcpServerStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture);
-        return _context.McpServers;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.McpServers;
     }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresRetentionStoreContractTests(PostgresFixture fixture) : RetentionStoreContract
+public sealed class PostgresRetentionStoreContractTests(PostgresSchemaFixture schema)
+    : RetentionStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IRetentionStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture);
-        return _context.RetentionData;
+        await schema.ResetAsync();
+        return schema.Context.RetentionData;
     }
 
     /// <inheritdoc />
@@ -580,7 +350,7 @@ public sealed class PostgresRetentionStoreContractTests(PostgresFixture fixture)
     /// yabanci anahtar tasimaz ve tek bir yazma ile tohumlanabilir.
     /// </remarks>
     protected override async ValueTask SeedOldRowAsync(string tenantId)
-        => await _context!.VoiceSessions.SaveAsync(new VoiceSessionRecord
+        => await schema.Context.VoiceSessions.SaveAsync(new VoiceSessionRecord
         {
             Id = AgentPrismId.NewId(),
             TenantId = tenantId,
@@ -590,53 +360,32 @@ public sealed class PostgresRetentionStoreContractTests(PostgresFixture fixture)
             EndedAt = new DateTimeOffset(2020, 1, 1, 0, 5, 0, TimeSpan.Zero),
             Turns = 1,
         });
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
-    }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
 #pragma warning disable MAAI001 // AgentFileStore "evaluation purposes only"; gerekce urun kodundaki ile ayni.
-public sealed class PostgresAgentFileStoreContractTests(PostgresFixture fixture) : AgentFileStoreContract
+public sealed class PostgresAgentFileStoreContractTests(PostgresSchemaFixture schema)
+    : AgentFileStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<Microsoft.Agents.AI.AgentFileStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture, AmbientTenant);
-        return _context.AgentFiles;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        await base.OnDisposeAsync();
-
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.AgentFiles;
     }
 }
 #pragma warning restore MAAI001
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresRunInputStoreContractTests(PostgresFixture fixture) : RunInputStoreContract
+public sealed class PostgresRunInputStoreContractTests(PostgresSchemaFixture schema)
+    : RunInputStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IRunInputStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture);
-        return _context.RunInputs;
+        await schema.ResetAsync();
+        return schema.Context.RunInputs;
     }
 
     /// <summary>
@@ -645,34 +394,25 @@ public sealed class PostgresRunInputStoreContractTests(PostgresFixture fixture) 
     /// </summary>
     /// <inheritdoc />
     protected override async ValueTask PrepareRunAsync(Guid runId, string tenantId)
-        => await _context!.Runs.StartRunAsync(new RunStartInfo
+        => await schema.Context.Runs.StartRunAsync(new RunStartInfo
         {
             RunId = runId,
             AgentName = "sozlesme",
             StartedAt = DateTimeOffset.UtcNow,
             TenantId = tenantId,
         });
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
-    }
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
-public sealed class PostgresPendingApprovalStoreContractTests(PostgresFixture fixture) : PendingApprovalStoreContract
+public sealed class PostgresPendingApprovalStoreContractTests(PostgresSchemaFixture schema)
+    : PendingApprovalStoreContract, IClassFixture<PostgresSchemaFixture>
 {
-    private PostgresTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IPendingApprovalStore> CreateStoreAsync()
     {
-        _context = await PostgresTestContext.CreateAsync(fixture, AmbientTenant);
-        return _context.PendingApprovals;
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.PendingApprovals;
     }
 
     /// <summary>
@@ -681,20 +421,11 @@ public sealed class PostgresPendingApprovalStoreContractTests(PostgresFixture fi
     /// </summary>
     /// <inheritdoc />
     protected override async ValueTask PrepareRunAsync(Guid runId, string tenantId)
-        => await _context!.Runs.StartRunAsync(new RunStartInfo
+        => await schema.Context.Runs.StartRunAsync(new RunStartInfo
         {
             RunId = runId,
             AgentName = "sozlesme",
             StartedAt = DateTimeOffset.UtcNow,
             TenantId = tenantId,
         });
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
-    }
 }

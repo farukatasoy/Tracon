@@ -153,7 +153,7 @@ AgentPrism bu boşluğu doldurur. DevUI'nin yerine geçmez — bıraktığı yer
 | `AgentPrism.Abstractions` | ✅ Sözleşmeler; kendi implementasyonunuzu yazacaksanız yeterli |
 | `AgentPrism.Core` | ✅ Çalışma zamanı, katalog, tanım derleyicisi, tool defteri, oturum yönetimi. **Veritabanı gerektirmez.** |
 | `AgentPrism.PostgreSql` | ✅ Kalıcılık — gömülü SQL migration'ları, ayrı `agentprism` şeması |
-| `AgentPrism.SqlServer` | ✅ SQL Server 2019+ / Azure SQL kalıcılığı — aynı şema, kendi migration seti. **Meta pakete dâhil değil**. Sözleşme testleri `azure-sql-edge` ile doğrulandı; `mssql/server` koşmadı |
+| `AgentPrism.SqlServer` | ✅ SQL Server 2019+ / Azure SQL kalıcılığı — aynı şema, kendi migration seti. **Meta pakete dâhil değil**. Sözleşme testleri gerçek `mssql/server` ile doğrulandı (K-386) |
 | `AgentPrism.Sqlite` | ✅ SQLite kalıcılığı — tek dosya, tablo öneki, kendi migration seti. **Meta pakete dâhil değil**. Tek yazıcılıdır; çok örnekli dağıtımda kullanılmaz |
 | `AgentPrism.OpenAI` | ✅ OpenAI sağlayıcı adaptörü — Chat Completions + Responses, tool çağrısı, OpenTelemetry |
 | `AgentPrism.Anthropic` | ✅ Anthropic (Claude) sağlayıcı adaptörü — resmî SDK, prompt caching, genişletilmiş düşünme. **Meta pakete dâhil değil** |

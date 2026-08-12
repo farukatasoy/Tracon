@@ -46,23 +46,33 @@ internal sealed class SqlServerDialect : SqlDialect
     /// <summary>Yabanci anahtar kisiti ihlali hata numarasi.</summary>
     private const int ForeignKeyViolation = 547;
 
-    /// <summary>
-    /// Migration kilidinin kaynak adi.
-    /// </summary>
+    /// <summary>Migration kilidinin kaynak adi on eki.</summary>
     /// <remarks>
-    /// Deger AgentPrism'e ozgudur ve <strong>degistirilmemelidir</strong>: eski surumu
-    /// calistiran bir replika farkli bir ad kullanirsa kilit koruma saglamaz.
+    /// Deger AgentPrism'e ozgudur ve <strong>degistirilmemelidir</strong>. Kilit
+    /// SEMAYA kapsanmistir (K-389): <c>SchemaName</c> iki bagimsiz AgentPrism
+    /// kurulumunun tek veritabanini paylasmasini saglamak icin var, ve kilidin
+    /// korudugu kaynak da tam olarak semadir — ikisini ayni ad altinda kilitlemek
+    /// bagimsiz kurulumlar arasinda gereksiz bir acilis bagimliligi yaratirdi.
+    /// Yuvarlanan bir yukseltmede eski bir replika bu ad degisikliginden once
+    /// baslarsa en kotu sonuc o tek replikanin <c>__migrations</c> benzersizlik
+    /// kisitina carpip yeniden baslamasidir, sema bozulmaz (migration'lar kendi
+    /// transaction'inda kosar).
     /// </remarks>
-    private const string MigrationLockResource = "AgentPrism.Migrations";
+    private const string MigrationLockResourcePrefix = "AgentPrism.Migrations:";
 
     /// <summary>Kilit bekleme ust suresi (milisaniye).</summary>
     private const int LockTimeoutMilliseconds = 30000;
 
     private readonly SqlServerQueries _queries;
+    private readonly string _migrationLockResource;
 
     /// <summary>Yeni bir SQL Server diyalekti olusturur.</summary>
     /// <param name="schemaName">Dogrulanacak sema adi.</param>
-    public SqlServerDialect(string schemaName) => _queries = new SqlServerQueries(schemaName);
+    public SqlServerDialect(string schemaName)
+    {
+        _queries = new SqlServerQueries(schemaName);
+        _migrationLockResource = MigrationLockResourcePrefix + _queries.Schema;
+    }
 
     /// <inheritdoc />
     public override SqlQueriesBase Queries => _queries;
@@ -88,7 +98,7 @@ internal sealed class SqlServerDialect : SqlDialect
         command.CommandType = CommandType.StoredProcedure;
         command.CommandTimeout = commandTimeout;
 
-        AddTyped(command, "@Resource", DbType.String, MigrationLockResource);
+        AddTyped(command, "@Resource", DbType.String, _migrationLockResource);
         AddTyped(command, "@LockMode", DbType.String, "Exclusive");
         AddTyped(command, "@LockOwner", DbType.String, "Session");
         AddTyped(command, "@LockTimeout", DbType.Int32, LockTimeoutMilliseconds);
@@ -126,7 +136,7 @@ internal sealed class SqlServerDialect : SqlDialect
         command.CommandType = CommandType.StoredProcedure;
         command.CommandTimeout = commandTimeout;
 
-        AddTyped(command, "@Resource", DbType.String, MigrationLockResource);
+        AddTyped(command, "@Resource", DbType.String, _migrationLockResource);
         AddTyped(command, "@LockOwner", DbType.String, "Session");
 
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);

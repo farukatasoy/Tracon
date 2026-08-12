@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (234 kalem)
+## Arşivlenen Kararlar (241 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -243,3 +243,10 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-232 | 277 | Sunucu yanıtları çevrilmez; API sözleşmesi tek dillidir |
 | K-233 | 278 | Rozet metni küçük harf, süzgeç/başlık metni büyük harf: iki ayrı anahtar kümesi |
 | K-234 | 279 | Dil başına ses eşlemesi istemcide tutulur; protokol zaten taşıyordu |
+| K-235 | 280 | Konuşma çözümlemesine dil kodu gönderilmez |
+| K-236 | 281 | `--ap-subtle` ve `--ap-muted` WCAG AA'ya göre düzeltildi |
+| K-237 | 282 | Klavye kısayolu metin alanında tetiklenmez; `Ctrl+Enter` yereldir |
+| K-238 | 283 | Komut paleti istemci tarafında arar |
+| K-239 | 284 | `run_scores`: `author` NULL'ı sağlayıcı bazlı işlenir |
+| K-240 | 285 | `ScoredRuns`/`PositiveRate` iki yolla hesaplanır |
+| K-241 | 286 | `InMemoryRunStore`'a isteğe bağlı `IRunScoreStore` eklendi |

@@ -175,10 +175,20 @@ internal sealed class SqlEvalStore : IEvalStore
     {
         ArgumentNullException.ThrowIfNull(draft);
 
-        const int maxAttempts = 5;
+        const int maxAttempts = 10;
 
         for (var attempt = 0; attempt < maxAttempts; attempt++)
         {
+            if (attempt > 0)
+            {
+                // Es zamanli terfiler ayni MAX(seq)'i okuyup ayni degeri
+                // hesaplayabilir; jitter'siz yeniden deneme kaybedenleri ayni
+                // anda tekrar carpistirir (thundering herd, K-385). Rastgele
+                // gecikme kaybedenleri zamanda dagitip yakinsamayi hizlandirir.
+                var jitterMs = Random.Shared.Next(1, (attempt * 5) + 1);
+                await Task.Delay(jitterMs, cancellationToken).ConfigureAwait(false);
+            }
+
             var now = DateTimeOffset.UtcNow;
             var command = CreateCommand(_sql.InsertEvalCaseWithComputedSeq);
             DbHelpers.Add(command, "id", AgentPrismId.NewId(now));

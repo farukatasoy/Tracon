@@ -49,7 +49,7 @@ public abstract class TenantIsolationContract<TStore> : IAsyncLifetime
     /// parametre olarak almayan depolarin sozlesmeleri, kancalarinin ilk
     /// satirinda bu ozelligi ilgili kiraciya ayarlar.
     /// </summary>
-    protected MutableTenantContext AmbientTenant { get; } = new(TenantA);
+    protected MutableTenantContext AmbientTenant { get; private set; } = new(TenantA);
 
     /// <summary>Test edilen depo.</summary>
     protected TStore Store { get; private set; } = default!;
@@ -57,6 +57,26 @@ public abstract class TenantIsolationContract<TStore> : IAsyncLifetime
     /// <summary>Test icin bos bir depo uretir.</summary>
     /// <returns>Kullanima hazir depo.</returns>
     protected abstract ValueTask<TStore> CreateStoreAsync();
+
+    /// <summary>
+    /// Sinif basina paylasilan (birden fazla test tarafindan kullanilan) bir
+    /// kiraci baglamina baglanir ve kiraciyi <see cref="TenantA"/>'ya geri alir.
+    /// </summary>
+    /// <param name="tenant">Sema/test SINIFI fixture'inin sagladigi paylasilan baglam.</param>
+    /// <remarks>
+    /// Store ornekleri sinif basina bir kez kuruldugunda (bkz. sema fixture'lari)
+    /// hepsi AYNI <see cref="ITenantContext"/> nesnesini yakalar; bu yuzden her
+    /// test <see cref="CreateStoreAsync"/> icinde bu metodu cagirarak o nesneye
+    /// baglanmali ve onceki testin kiraciyi <see cref="TenantB"/>'de birakmis
+    /// olabilecegi durumu sifirlamalidir.
+    /// </remarks>
+    protected void UseAmbientTenant(MutableTenantContext tenant)
+    {
+        ArgumentNullException.ThrowIfNull(tenant);
+
+        AmbientTenant = tenant;
+        AmbientTenant.TenantId = TenantA;
+    }
 
     /// <inheritdoc />
     public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();

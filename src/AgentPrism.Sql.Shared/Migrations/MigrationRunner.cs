@@ -9,7 +9,7 @@ namespace AgentPrism;
 /// <remarks>
 /// <para>Akis su adimlardan gecer:</para>
 /// <list type="number">
-///   <item><description>Saglayiciya ozgu migration kilidi alinir — coklu replika ayni anda baslarsa yalnizca biri uygular.</description></item>
+///   <item><description>Saglayiciya ozgu migration kilidi alinir — SEMAYA kapsanmistir (K-389): ayni semaya coklu replika ayni anda baslarsa yalnizca biri uygular.</description></item>
 ///   <item><description>Sema ve <c>__migrations</c> defteri yoksa olusturulur.</description></item>
 ///   <item><description>Uygulanmis her migration'in ozeti dogrulanir; uyusmazlik <strong>hata verir</strong>.</description></item>
 ///   <item><description>Uygulanmamis migration'lar sira ile, her biri kendi islemi icinde calistirilir.</description></item>
@@ -23,6 +23,13 @@ namespace AgentPrism;
 /// Sinif her SQL saglayicisinda ortaktir; kilit bicimi (<c>pg_advisory_lock</c>
 /// / <c>sp_getapplock</c>) ve migration kaynak oneki <see cref="SqlDialect"/>
 /// uzerinden gelir.
+/// </para>
+/// <para>
+/// 🚨 Kilit semaya kapsanmis olsa da bazi migration'lar veritabani GENELINDE
+/// paylasilan bir katalog nesnesi olusturabilir (ornegin PostgreSQL
+/// <c>CREATE EXTENSION IF NOT EXISTS</c>). Iki farkli sema es zamanli ilk kez
+/// migrate olursa bu tur "IF NOT EXISTS" korumali DDL'ler benzersizlik ihlaline
+/// dusebilir; <see cref="ApplyOneAsync"/> bunu guvenle yeniden dener (K-389).
 /// </para>
 /// </remarks>
 public sealed class MigrationRunner : ISqlPersistenceDiagnostics
@@ -185,42 +192,73 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics
             "Uygulanmis bir migration duzenlenmez; degisiklik icin yeni bir migration dosyasi ekleyin.");
     }
 
+    /// <summary>
+    /// Bir migration, veritabani genelinde paylasilan bir katalog nesnesiyle
+    /// (ornegin PostgreSQL <c>CREATE EXTENSION</c>) es zamanli baska bir semanin
+    /// migration'iyla yarisip benzersizlik ihlaline duserse yapilacak deneme sayisi.
+    /// </summary>
+    private const int UniqueViolationRetryAttempts = 8;
+
     private async ValueTask ApplyOneAsync(
         DbConnection connection,
         MigrationDescriptor migration,
         CancellationToken cancellationToken)
     {
-        var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        // Migration'in kendi SQL'i ile deftere yazan INSERT TEK bir round-trip'te
+        // birlikte gonderilir (K-388). __migrations tablosu migration calismadan
+        // ONCE zaten var ve migration'in DDL'inin olusturdugu/degistirdigi hicbir
+        // nesneye referans vermiyor; bu yuzden K-318'in "ayni toplu islemde degisen
+        // bir nesneye referans" tuzagina girmiyor.
+        var sql = ApplyTemplate(_context.Sql.ApplySchema(migration.Sql))
+            + Environment.NewLine
+            + _context.Sql.InsertMigration;
 
-        await using (transaction.ConfigureAwait(false))
+        for (var attempt = 1; attempt <= UniqueViolationRetryAttempts; attempt++)
         {
-            try
+            var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+
+            await using (transaction.ConfigureAwait(false))
             {
-                var apply = _context.CreateCommand(
-                    ApplyTemplate(_context.Sql.ApplySchema(migration.Sql)),
-                    connection,
-                    transaction);
+                try
+                {
+                    var command = _context.CreateCommand(sql, connection, transaction);
+                    var dialect = _context.Dialect;
 
-                await DbHelpers.ExecuteAsync(apply, cancellationToken).ConfigureAwait(false);
+                    dialect.AddInt32(command, "id", migration.Id);
+                    dialect.AddText(command, "name", migration.Name);
+                    dialect.AddText(command, "checksum", migration.Checksum);
+                    dialect.AddTimestamp(command, "applied_at", DateTimeOffset.UtcNow);
 
-                var record = _context.CreateCommand(_context.Sql.InsertMigration, connection, transaction);
-                var dialect = _context.Dialect;
+                    await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+                    await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
 
-                dialect.AddInt32(record, "id", migration.Id);
-                dialect.AddText(record, "name", migration.Name);
-                dialect.AddText(record, "checksum", migration.Checksum);
-                dialect.AddTimestamp(record, "applied_at", DateTimeOffset.UtcNow);
+                    return;
+                }
+                catch (DbException ex) when (
+                    _context.Dialect.IsUniqueViolation(ex) && attempt < UniqueViolationRetryAttempts)
+                {
+                    // Migration kilidi SEMAYA kapsanmistir (K-389): veritabani
+                    // genelinde paylasilan bir katalog nesnesi (ornegin PostgreSQL
+                    // uzantisi) baska bir semanin migration'iyla ayni anda
+                    // olusturulmaya calisilirsa bu benzersizlik ihlaline duser.
+                    // Migration'lar YALNIZCA "IF NOT EXISTS" korumali DDL yazar; bu
+                    // yuzden yeniden denemek guvenlidir — bir sonraki denemede
+                    // koruma nesneyi zaten var bulur ve atlar. 🚨 Rastgele gecikme
+                    // sarttir: onlarca sema fixture'i ayni anda ilk kez migrate
+                    // olurken sabit bir gecikme hepsini ayni anda yeniden
+                    // denetir ve kalabaligi dagitmaz (surden kacinma).
+                    await transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
+                    await Task.Delay(TimeSpan.FromMilliseconds(Random.Shared.Next(10, 40) * attempt), CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                catch (DbException ex) when (_context.Dialect.DescribeDatabaseError(ex) is { } description)
+                {
+                    await transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
 
-                await DbHelpers.ExecuteAsync(record, cancellationToken).ConfigureAwait(false);
-                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-            }
-            catch (DbException ex) when (_context.Dialect.DescribeDatabaseError(ex) is { } description)
-            {
-                await transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
-
-                throw new AgentPrismException(
-                    $"'{migration.Name}' migration'i uygulanamadi: {description}.",
-                    ex);
+                    throw new AgentPrismException(
+                        $"'{migration.Name}' migration'i uygulanamadi: {description}.",
+                        ex);
+                }
             }
         }
     }

@@ -137,6 +137,39 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
         }
     }
 
+    /// <summary>
+    /// K-389: migration kilidi semaya kapsanmistir. A semasinin kilidi acikken
+    /// B semasinin kilidi HEMEN alinabilmelidir; global kilitte olsa B
+    /// kilidin serbest kalmasini beklerdi.
+    /// </summary>
+    [Fact]
+    public async Task Farkli_semalarin_migration_kilitleri_birbirini_engellemez()
+    {
+        var dialectA = new PostgresDialect(PostgresTestContext.NewSchemaName());
+        var dialectB = new PostgresDialect(PostgresTestContext.NewSchemaName());
+
+        await using var connectionA = new NpgsqlConnection(fixture.ConnectionString);
+        await connectionA.OpenAsync();
+        await dialectA.AcquireMigrationLockAsync(connectionA, 30, CancellationToken.None);
+
+        try
+        {
+            await using var connectionB = new NpgsqlConnection(fixture.ConnectionString);
+            await connectionB.OpenAsync();
+
+            var acquireB = dialectB.AcquireMigrationLockAsync(connectionB, 30, CancellationToken.None).AsTask();
+            var winner = await Task.WhenAny(acquireB, Task.Delay(TimeSpan.FromSeconds(5)));
+
+            winner.ShouldBe(acquireB);
+
+            await dialectB.ReleaseMigrationLockAsync(connectionB, 30, CancellationToken.None);
+        }
+        finally
+        {
+            await dialectA.ReleaseMigrationLockAsync(connectionA, 30, CancellationToken.None);
+        }
+    }
+
     [Fact]
     public async Task Gecersiz_sema_adi_reddedilir()
     {

@@ -5,12 +5,14 @@ using Npgsql;
 namespace AgentPrism.PostgreSql.IntegrationTests.Infrastructure;
 
 /// <summary>
-/// Tek bir test icin yalitilmis bir sema kurar ve depolari hazirlar.
+/// Yalitilmis bir sema kurar ve depolari hazirlar.
 /// </summary>
 /// <remarks>
-/// Her test kendi semasini kullanir. Bu iki isi ayni anda yapar: testler birbirinin
-/// verisini gormez, ve <c>SchemaName</c> ayarinin gercekten calistigi her testte
-/// dogrulanmis olur.
+/// Bir sema genellikle bir sozlesme test SINIFI tarafindan paylasilir
+/// (bkz. <see cref="PostgresSchemaFixture"/>); testler arasi izolasyon
+/// <see cref="ResetDataAsync"/> ile saglanir, ayri sema ile degil.
+/// <c>SchemaName</c> ayarinin varsayilan olmayan bir semada dogru calistigi
+/// <c>MigrationRunnerTests</c>'te ayrica dogrulanir.
 /// </remarks>
 internal sealed class PostgresTestContext : IAsyncDisposable
 {
@@ -312,4 +314,57 @@ internal sealed class PostgresTestContext : IAsyncDisposable
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync() => await DataSource.DisposeAsync();
+
+    /// <summary>Onbelleklenen veri sifirlama SQL metni. Sinif basina bir kez hesaplanir.</summary>
+    private string? _resetSql;
+
+    /// <summary>
+    /// Semadaki tum veri tablolarini tek round-trip'te bosaltir; sema ve
+    /// <c>__migrations</c> defteri KALIR.
+    /// </summary>
+    /// <returns>Tamamlanma gorevi.</returns>
+    /// <remarks>
+    /// Tek bir <c>TRUNCATE</c> ifadesinde semadaki TUM tablolar birlikte
+    /// verilir; PostgreSQL boyle bir ifadede tablolar arasi FOREIGN KEY'leri
+    /// <c>CASCADE</c> gerekmeden kendisi cozer. Tablo listesi katalogdan
+    /// okunur, sabit yazilmaz.
+    /// </remarks>
+    public async ValueTask ResetDataAsync()
+    {
+        _resetSql ??= await BuildResetSqlAsync().ConfigureAwait(false);
+
+        if (_resetSql.Length > 0)
+        {
+            await ExecuteAsync(_resetSql).ConfigureAwait(false);
+        }
+    }
+
+    private async ValueTask<string> BuildResetSqlAsync()
+    {
+        var sql = $"""
+            SELECT table_name FROM information_schema.tables
+            WHERE table_schema = '{SchemaName}' AND table_name <> '__migrations';
+            """;
+
+        var tables = new List<string>();
+
+        await using (var command = DataSource.CreateCommand(sql))
+        {
+            await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+
+            while (await reader.ReadAsync().ConfigureAwait(false))
+            {
+                tables.Add(reader.GetString(0));
+            }
+        }
+
+        if (tables.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var qualified = tables.Select(table => $"{SchemaName}.{table}");
+
+        return $"TRUNCATE TABLE {string.Join(", ", qualified)};";
+    }
 }

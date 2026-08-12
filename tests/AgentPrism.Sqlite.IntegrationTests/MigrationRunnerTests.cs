@@ -1,4 +1,5 @@
 using AgentPrism.Sqlite.IntegrationTests.Infrastructure;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AgentPrism.Sqlite.IntegrationTests;
@@ -117,6 +118,39 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
             {
                 await context.DisposeAsync();
             }
+        }
+    }
+
+    /// <summary>
+    /// K-389: migration kilit dosyasi tablo onegine kapsanmistir. A onegi
+    /// icin kilit acikken B onegi icin kilit HEMEN alinabilmelidir; tek bir
+    /// paylasilan kilit dosyasinda olsa B, A'nin serbest kalmasini beklerdi.
+    /// </summary>
+    [Fact]
+    public async Task Farkli_oneklerin_migration_kilitleri_birbirini_engellemez()
+    {
+        var dialectA = new SqliteDialect(SqliteTestContext.NewTablePrefix());
+        var dialectB = new SqliteDialect(SqliteTestContext.NewTablePrefix());
+
+        await using var connectionA = new SqliteConnection(fixture.ConnectionString);
+        await connectionA.OpenAsync();
+        await dialectA.AcquireMigrationLockAsync(connectionA, 30, CancellationToken.None);
+
+        try
+        {
+            await using var connectionB = new SqliteConnection(fixture.ConnectionString);
+            await connectionB.OpenAsync();
+
+            var acquireB = dialectB.AcquireMigrationLockAsync(connectionB, 30, CancellationToken.None).AsTask();
+            var winner = await Task.WhenAny(acquireB, Task.Delay(TimeSpan.FromSeconds(5)));
+
+            winner.ShouldBe(acquireB);
+
+            await dialectB.ReleaseMigrationLockAsync(connectionB, 30, CancellationToken.None);
+        }
+        finally
+        {
+            await dialectA.ReleaseMigrationLockAsync(connectionA, 30, CancellationToken.None);
         }
     }
 

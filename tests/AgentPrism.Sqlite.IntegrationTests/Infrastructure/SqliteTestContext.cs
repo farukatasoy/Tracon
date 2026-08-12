@@ -4,12 +4,14 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace AgentPrism.Sqlite.IntegrationTests.Infrastructure;
 
 /// <summary>
-/// Tek bir test icin yalitilmis bir tablo oneki kurar ve depolari hazirlar.
+/// Yalitilmis bir tablo oneki kurar ve depolari hazirlar.
 /// </summary>
 /// <remarks>
-/// Her test kendi tablo onekini kullanir. Bu iki isi ayni anda yapar: testler
-/// birbirinin verisini gormez, ve <c>TablePrefix</c> ayarinin gercekten
-/// calistigi her testte dogrulanmis olur.
+/// Bir tablo oneki genellikle bir sozlesme test SINIFI tarafindan paylasilir
+/// (bkz. <see cref="SqliteSchemaFixture"/>); testler arasi izolasyon
+/// <see cref="ResetDataAsync"/> ile saglanir, ayri onek ile degil.
+/// <c>TablePrefix</c> ayarinin varsayilan olmayan bir onekte dogru calistigi
+/// <c>MigrationRunnerTests</c>'te ayrica dogrulanir.
 /// </remarks>
 internal sealed class SqliteTestContext : IAsyncDisposable
 {
@@ -313,5 +315,52 @@ internal sealed class SqliteTestContext : IAsyncDisposable
         }
 
         return names;
+    }
+
+    /// <summary>
+    /// Onekteki tum veri tablolarini tek transaction icinde bosaltir; tablolar
+    /// ve <c>__migrations</c> defteri KALIR.
+    /// </summary>
+    /// <returns>Tamamlanma gorevi.</returns>
+    /// <remarks>
+    /// <c>PRAGMA defer_foreign_keys = ON</c> transaction suresince FOREIGN KEY
+    /// denetimini islem sonuna erteler; boylece silme sirasi onemli olmadan
+    /// tum tablolar tek transaction'da bosaltilabilir. Tablo listesi
+    /// katalogdan (<see cref="ReadTableNamesAsync"/>) okunur, sabit yazilmaz.
+    /// </remarks>
+    public async ValueTask ResetDataAsync()
+    {
+        var migrationsTable = $"{TablePrefix}__migrations";
+        var tableNames = (await ReadTableNamesAsync().ConfigureAwait(false))
+            .Where(name => !string.Equals(name, migrationsTable, StringComparison.Ordinal))
+            .ToList();
+
+        if (tableNames.Count == 0)
+        {
+            return;
+        }
+
+        await using var connection = await DataSource.OpenConnectionAsync().ConfigureAwait(false);
+
+        await using (var pragma = connection.CreateCommand())
+        {
+            pragma.CommandText = "PRAGMA defer_foreign_keys = ON;";
+            await pragma.ExecuteNonQueryAsync().ConfigureAwait(false);
+        }
+
+        var transaction = await connection.BeginTransactionAsync().ConfigureAwait(false);
+
+        await using (transaction.ConfigureAwait(false))
+        {
+            foreach (var tableName in tableNames)
+            {
+                await using var command = connection.CreateCommand();
+                command.CommandText = $"DELETE FROM \"{tableName}\";";
+                command.Transaction = transaction;
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }
+
+            await transaction.CommitAsync().ConfigureAwait(false);
+        }
     }
 }

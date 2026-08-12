@@ -30,20 +30,16 @@ internal sealed class PostgresDialect : SqlDialect
     /// <summary>Gecersiz duzenli ifade SQLSTATE kodu.</summary>
     private const string InvalidRegularExpression = "2201B";
 
-    /// <summary>
-    /// Migration kilidinin sabit anahtari.
-    /// </summary>
-    /// <remarks>
-    /// Deger AgentPrism'e ozgudur ve <strong>degistirilmemelidir</strong>: eski surumu
-    /// calistiran bir replika farkli bir anahtar kullanirsa kilit koruma saglamaz.
-    /// </remarks>
-    private const long AdvisoryLockKey = 0x41_50_52_49_53_4D_00_01;
-
     private readonly PostgresQueries _queries;
+    private readonly long _advisoryLockKey;
 
     /// <summary>Yeni bir PostgreSQL diyalekti olusturur.</summary>
     /// <param name="schemaName">Dogrulanacak sema adi.</param>
-    public PostgresDialect(string schemaName) => _queries = new PostgresQueries(schemaName);
+    public PostgresDialect(string schemaName)
+    {
+        _queries = new PostgresQueries(schemaName);
+        _advisoryLockKey = MigrationLockKey.ForSchema(_queries.Schema);
+    }
 
     /// <inheritdoc />
     public override SqlQueriesBase Queries => _queries;
@@ -52,6 +48,12 @@ internal sealed class PostgresDialect : SqlDialect
     public override string MigrationResourcePrefix => "AgentPrism.PostgreSql.Migrations.";
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Kilit anahtari semaya kapsanmistir (K-389): <see cref="MigrationLockKey"/>,
+    /// bagimsiz AgentPrism kurulumlari ayni veritabanini farkli semalarla
+    /// paylastiginda birbirinin acilisini bloklamamalari icin sema adindan
+    /// deterministik bir anahtar turetir.
+    /// </remarks>
     public override async ValueTask AcquireMigrationLockAsync(
         DbConnection connection,
         int commandTimeout,
@@ -59,6 +61,7 @@ internal sealed class PostgresDialect : SqlDialect
         => await ExecuteLockAsync(
             connection,
             "SELECT pg_advisory_lock(@key);",
+            _advisoryLockKey,
             commandTimeout,
             cancellationToken).ConfigureAwait(false);
 
@@ -70,6 +73,7 @@ internal sealed class PostgresDialect : SqlDialect
         => await ExecuteLockAsync(
             connection,
             "SELECT pg_advisory_unlock(@key);",
+            _advisoryLockKey,
             commandTimeout,
             cancellationToken).ConfigureAwait(false);
 
@@ -206,6 +210,7 @@ internal sealed class PostgresDialect : SqlDialect
     private static async ValueTask ExecuteLockAsync(
         DbConnection connection,
         string sql,
+        long key,
         int commandTimeout,
         CancellationToken cancellationToken)
     {
@@ -214,7 +219,7 @@ internal sealed class PostgresDialect : SqlDialect
         var command = connection.CreateCommand();
         command.CommandText = sql;
         command.CommandTimeout = commandTimeout;
-        command.Parameters.Add(new NpgsqlParameter("key", NpgsqlDbType.Bigint) { Value = AdvisoryLockKey });
+        command.Parameters.Add(new NpgsqlParameter("key", NpgsqlDbType.Bigint) { Value = key });
 
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
     }

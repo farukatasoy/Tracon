@@ -10,9 +10,10 @@ namespace AgentPrism.Sqlite.IntegrationTests.Infrastructure;
 /// CI suresini kisaltir (docs/24-SQLITE.md, bolum 24.5).
 /// </para>
 /// <para>
-/// Dosya tum derleme icin bir kez olusturulur; testler birbirinden <em>ayri
-/// tablo oneki</em> kullanarak yalitilir (bkz. <see cref="SqliteTestContext"/>) —
-/// SQL Server/PostgreSQL'in sema yalitimiyla ayni desen.
+/// Dosya tum derleme icin bir kez olusturulur; tablo oneki sozlesme test
+/// SINIFI basina paylasilir (bkz. <see cref="SqliteSchemaFixture"/>,
+/// <see cref="SqliteTestContext"/>), testler arasi izolasyon veri
+/// sifirlamayla saglanir (K-390) — SQL Server/PostgreSQL ile ayni desen.
 /// </para>
 /// </remarks>
 public sealed class SqliteFixture : IAsyncLifetime
@@ -28,11 +29,19 @@ public sealed class SqliteFixture : IAsyncLifetime
     public ValueTask InitializeAsync() => ValueTask.CompletedTask;
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Migration kilit dosyalari artik tablo onegine kapsanmistir (K-389), yani
+    /// dosya adi sinif basina degisir; sabit bir sonek listesi yerine dizin
+    /// glob'u ile taranir.
+    /// </remarks>
     public ValueTask DisposeAsync()
     {
-        foreach (var suffix in new[] { string.Empty, "-wal", "-shm", ".agentprism-migration-lock" })
+        var directory = Path.GetDirectoryName(_databasePath)!;
+        var fileName = Path.GetFileName(_databasePath);
+
+        foreach (var path in Directory.EnumerateFiles(directory, fileName + "*"))
         {
-            File.Delete(_databasePath + suffix);
+            File.Delete(path);
         }
 
         return ValueTask.CompletedTask;

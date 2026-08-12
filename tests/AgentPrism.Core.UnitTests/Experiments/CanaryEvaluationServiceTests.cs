@@ -98,11 +98,13 @@ public sealed class CanaryEvaluationServiceTests
         // ScanInterval ile birden fazla tur atlanabilir; birden fazla adim
         // olsaydi test testin kendi zamanlamasina bagimli hale gelirdi. Tek
         // adimda ramp 25'te SABITLENIR (25'ten buyuk baska adim yok).
+        const int rampedCanaryWeight = 25;
+
         var experiment = await CreateRunningCanaryExperimentAsync(
             experiments,
             maxErrorRateDelta: 0.5,
             minSampleSize: 5,
-            rampSteps: [25],
+            rampSteps: [rampedCanaryWeight],
             canaryWeight: 5,
             controlWeight: 95);
 
@@ -111,8 +113,15 @@ public sealed class CanaryEvaluationServiceTests
         await SeedRunsAsync(runs, experiment.Id, "control", completed: 20, failed: 0);
 
         // Ramp'ten ONCE: sabit iki anahtarin hangi kola dustugunu olc.
+        // Kanarya araligi rampla yalniz BUYUR (bkz. ExperimentAssignmentResolver.
+        // OrderForAssignment), bu yuzden mevcut (ramp oncesi) deneyle bulunan bir
+        // kanarya anahtari guvenlidir. Kontrol anahtari ise ramp SONRASI kontrol
+        // araliginda da kalmalidir; aksi halde [5,25) araligina dusen bir anahtar
+        // FindAssignmentKey tarafindan "control" olarak bulunur ama ramp sirasinda
+        // kanaryaya kayar — deney kimligi her kosuda farkli oldugu icin hash de
+        // degisir ve bu test rastgele (~%21 ihtimalle) basarisiz olurdu.
         var canaryKey = FindAssignmentKey(experiment, "canary");
-        var controlKey = FindAssignmentKey(experiment, "control");
+        var controlKey = FindAssignmentKey(WithCanaryWeight(experiment, rampedCanaryWeight), "control");
 
         var service = CreateService(
             experiments,
@@ -129,8 +138,8 @@ public sealed class CanaryEvaluationServiceTests
 
         var advanced = await experiments.GetAsync(TenantId, experiment.Name);
         advanced!.Status.ShouldBe(ExperimentStatus.Running);
-        advanced.Variants.Single(static v => string.Equals(v.Name, "canary", StringComparison.Ordinal)).Weight.ShouldBe(25);
-        advanced.Variants.Single(static v => string.Equals(v.Name, "control", StringComparison.Ordinal)).Weight.ShouldBe(75);
+        advanced.Variants.Single(static v => string.Equals(v.Name, "canary", StringComparison.Ordinal)).Weight.ShouldBe(rampedCanaryWeight);
+        advanced.Variants.Single(static v => string.Equals(v.Name, "control", StringComparison.Ordinal)).Weight.ShouldBe(100 - rampedCanaryWeight);
 
         // 🚨 56.4: agirlik degisse de var olan oturumlar kolunu DEGISTIRMEMELIDIR.
         ExperimentAssignmentResolver.SelectVariant(advanced, canaryKey).Name.ShouldBe("canary");
@@ -276,6 +285,25 @@ public sealed class CanaryEvaluationServiceTests
         }
 
         throw new InvalidOperationException($"'{variantName}' kolunu ureten bir anahtar bulunamadi.");
+    }
+
+    /// <summary>Kanarya kolunu verilen agirliga sabitleyip digerini tamamlayan bir prob deneyi dondurur.</summary>
+    private static Experiment WithCanaryWeight(Experiment experiment, int canaryWeight)
+    {
+        var canaryVariant = experiment.Canary!.CanaryVariant;
+
+        return experiment with
+        {
+            Variants =
+            [
+                .. experiment.Variants.Select(variant => variant with
+                {
+                    Weight = string.Equals(variant.Name, canaryVariant, StringComparison.Ordinal)
+                        ? canaryWeight
+                        : 100 - canaryWeight,
+                }),
+            ],
+        };
     }
 
     private static StaticOptionsMonitor<T> Options<T>(T value) where T : class => new(value);

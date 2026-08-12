@@ -4,169 +4,106 @@ using AgentPrism.StoreContracts;
 namespace AgentPrism.SqlServer.IntegrationTests.Contracts;
 
 /// <summary>Sozlesme testlerinin SQL Server uygulamasi uzerindeki kosumu.</summary>
-public sealed class SqlServerAgentDefinitionStoreContractTests(SqlServerFixture fixture) : AgentDefinitionStoreContract
+public sealed class SqlServerAgentDefinitionStoreContractTests(SqlServerSchemaFixture schema)
+    : AgentDefinitionStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IAgentDefinitionStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture, AmbientTenant);
-        return _context.AgentDefinitions;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.AgentDefinitions;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerSkillScriptGrantContractTests(SqlServerFixture fixture) : SkillScriptGrantContract
+public sealed class SqlServerSkillScriptGrantContractTests(SqlServerSchemaFixture schema)
+    : SkillScriptGrantContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<ISkillScriptGrantStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
-        return _context.SkillScriptGrants;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.SkillScriptGrants;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerAuditLogContractTests(SqlServerFixture fixture) : AuditLogContract
+public sealed class SqlServerAuditLogContractTests(SqlServerSchemaFixture schema)
+    : AuditLogContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IAuditLog> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
-        return _context.AuditLog;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.AuditLog;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerRunStoreContractTests(SqlServerFixture fixture) : RunStoreContract
+public sealed class SqlServerRunStoreContractTests(SqlServerSchemaFixture schema)
+    : RunStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IRunStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture, AmbientTenant);
-        return _context.Runs;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Runs;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerSessionStoreContractTests(SqlServerFixture fixture) : SessionStoreContract
+public sealed class SqlServerSessionStoreContractTests(SqlServerSchemaFixture schema)
+    : SessionStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<ISessionStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture, AmbientTenant);
-        return _context.Sessions;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Sessions;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerToolInvocationContractTests(SqlServerFixture fixture) : ToolInvocationContract
+public sealed class SqlServerToolInvocationContractTests(SqlServerSchemaFixture schema)
+    : ToolInvocationContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IRunStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture, AmbientTenant);
-        return _context.Runs;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Runs;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerAttachmentStoreContractTests(SqlServerFixture fixture) : AttachmentStoreContract
+public sealed class SqlServerAttachmentStoreContractTests(SqlServerSchemaFixture schema)
+    : AttachmentStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IAttachmentStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
-        return _context.Attachments;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Attachments;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerTraceStoreContractTests(SqlServerFixture fixture) : TraceStoreContract
+public sealed class SqlServerTraceStoreContractTests(SqlServerSchemaFixture schema)
+    : TraceStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<ITraceStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture, AmbientTenant);
-        return _context.Traces;
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Traces;
     }
 
     /// <summary>
@@ -174,404 +111,237 @@ public sealed class SqlServerTraceStoreContractTests(SqlServerFixture fixture) :
     /// yazilamaz.
     /// </summary>
     protected override async ValueTask SeedRunAsync(Guid runId)
-        => await _context!.Runs.StartRunAsync(TestData.Run(runId));
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
-    }
+        => await schema.Context.Runs.StartRunAsync(TestData.Run(runId));
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerWorkflowDefinitionStoreContractTests(SqlServerFixture fixture)
-    : WorkflowDefinitionStoreContract
+public sealed class SqlServerWorkflowDefinitionStoreContractTests(SqlServerSchemaFixture schema)
+    : WorkflowDefinitionStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IWorkflowDefinitionStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
-        return _context.Workflows;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Workflows;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerWorkflowCheckpointStoreContractTests(SqlServerFixture fixture)
-    : WorkflowCheckpointStoreContract
+public sealed class SqlServerWorkflowCheckpointStoreContractTests(SqlServerSchemaFixture schema)
+    : WorkflowCheckpointStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IWorkflowCheckpointStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
-        return _context.WorkflowCheckpoints;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.WorkflowCheckpoints;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerJobStoreContractTests(SqlServerFixture fixture) : JobStoreContract
+public sealed class SqlServerJobStoreContractTests(SqlServerSchemaFixture schema)
+    : JobStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IJobStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
-        return _context.Jobs;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Jobs;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerJobScheduleStoreContractTests(SqlServerFixture fixture) : JobScheduleStoreContract
+public sealed class SqlServerJobScheduleStoreContractTests(SqlServerSchemaFixture schema)
+    : JobScheduleStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IJobScheduleStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
-        return _context.JobSchedules;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.JobSchedules;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerEvalStoreContractTests(SqlServerFixture fixture) : EvalStoreContract
+public sealed class SqlServerEvalStoreContractTests(SqlServerSchemaFixture schema)
+    : EvalStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IEvalStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
-        return _context.Evals;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Evals;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerExperimentStoreContractTests(SqlServerFixture fixture) : ExperimentStoreContract
+public sealed class SqlServerExperimentStoreContractTests(SqlServerSchemaFixture schema)
+    : ExperimentStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IExperimentStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
-        return _context.Experiments;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Experiments;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerQuotaStoreContractTests(SqlServerFixture fixture) : QuotaStoreContract
+public sealed class SqlServerQuotaStoreContractTests(SqlServerSchemaFixture schema)
+    : QuotaStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IQuotaStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
-        return _context.Quotas;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Quotas;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerRetentionPolicyStoreContractTests(SqlServerFixture fixture) : RetentionPolicyStoreContract
+public sealed class SqlServerRetentionPolicyStoreContractTests(SqlServerSchemaFixture schema)
+    : RetentionPolicyStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IRetentionPolicyStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
-        return _context.RetentionPolicies;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.RetentionPolicies;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerWebhookStoreContractTests(SqlServerFixture fixture) : WebhookStoreContract
+public sealed class SqlServerWebhookStoreContractTests(SqlServerSchemaFixture schema)
+    : WebhookStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IWebhookStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
-        return _context.Webhooks;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Webhooks;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerApiKeyStoreContractTests(SqlServerFixture fixture) : ApiKeyStoreContract
+public sealed class SqlServerApiKeyStoreContractTests(SqlServerSchemaFixture schema)
+    : ApiKeyStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IApiKeyStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
-        return _context.ApiKeys;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.ApiKeys;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerVoiceSessionStoreContractTests(SqlServerFixture fixture) : VoiceSessionStoreContract
+public sealed class SqlServerVoiceSessionStoreContractTests(SqlServerSchemaFixture schema)
+    : VoiceSessionStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IVoiceSessionStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
-        return _context.VoiceSessions;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.VoiceSessions;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerRunScoreStoreContractTests(SqlServerFixture fixture) : RunScoreStoreContract
+public sealed class SqlServerRunScoreStoreContractTests(SqlServerSchemaFixture schema)
+    : RunScoreStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IRunScoreStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
-        return _context.RunScores;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.RunScores;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerSingletonLeaseStoreContractTests(SqlServerFixture fixture) : SingletonLeaseStoreContract
+public sealed class SqlServerSingletonLeaseStoreContractTests(SqlServerSchemaFixture schema)
+    : SingletonLeaseStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<ISingletonLeaseStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
-        return _context.SingletonLeases;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        await schema.ResetAsync();
+        return schema.Context.SingletonLeases;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerIdempotencyStoreContractTests(SqlServerFixture fixture) : IdempotencyStoreContract
+public sealed class SqlServerIdempotencyStoreContractTests(SqlServerSchemaFixture schema)
+    : IdempotencyStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IIdempotencyStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
-        return _context.IdempotencyKeys;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        await schema.ResetAsync();
+        return schema.Context.IdempotencyKeys;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerAgentSkillStoreContractTests(SqlServerFixture fixture) : AgentSkillStoreContract
+public sealed class SqlServerAgentSkillStoreContractTests(SqlServerSchemaFixture schema)
+    : AgentSkillStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IAgentSkillStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
-        return _context.AgentSkills;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.AgentSkills;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerToolApprovalRuleStoreContractTests(SqlServerFixture fixture) : ToolApprovalRuleStoreContract
+public sealed class SqlServerToolApprovalRuleStoreContractTests(SqlServerSchemaFixture schema)
+    : ToolApprovalRuleStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IToolApprovalRuleStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
-        return _context.ApprovalRules;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.ApprovalRules;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerMcpServerStoreContractTests(SqlServerFixture fixture) : McpServerStoreContract
+public sealed class SqlServerMcpServerStoreContractTests(SqlServerSchemaFixture schema)
+    : McpServerStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IMcpServerStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
-        return _context.McpServers;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.McpServers;
     }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerRetentionStoreContractTests(SqlServerFixture fixture) : RetentionStoreContract
+public sealed class SqlServerRetentionStoreContractTests(SqlServerSchemaFixture schema)
+    : RetentionStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IRetentionStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
-        return _context.RetentionData;
+        await schema.ResetAsync();
+        return schema.Context.RetentionData;
     }
 
     /// <inheritdoc />
@@ -580,7 +350,7 @@ public sealed class SqlServerRetentionStoreContractTests(SqlServerFixture fixtur
     /// yabanci anahtar tasimaz ve tek bir yazma ile tohumlanabilir.
     /// </remarks>
     protected override async ValueTask SeedOldRowAsync(string tenantId)
-        => await _context!.VoiceSessions.SaveAsync(new VoiceSessionRecord
+        => await schema.Context.VoiceSessions.SaveAsync(new VoiceSessionRecord
         {
             Id = AgentPrismId.NewId(),
             TenantId = tenantId,
@@ -590,53 +360,32 @@ public sealed class SqlServerRetentionStoreContractTests(SqlServerFixture fixtur
             EndedAt = new DateTimeOffset(2020, 1, 1, 0, 5, 0, TimeSpan.Zero),
             Turns = 1,
         });
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
-    }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
 #pragma warning disable MAAI001 // AgentFileStore "evaluation purposes only"; gerekce urun kodundaki ile ayni.
-public sealed class SqlServerAgentFileStoreContractTests(SqlServerFixture fixture) : AgentFileStoreContract
+public sealed class SqlServerAgentFileStoreContractTests(SqlServerSchemaFixture schema)
+    : AgentFileStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<Microsoft.Agents.AI.AgentFileStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture, AmbientTenant);
-        return _context.AgentFiles;
-    }
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        await base.OnDisposeAsync();
-
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.AgentFiles;
     }
 }
 #pragma warning restore MAAI001
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerRunInputStoreContractTests(SqlServerFixture fixture) : RunInputStoreContract
+public sealed class SqlServerRunInputStoreContractTests(SqlServerSchemaFixture schema)
+    : RunInputStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IRunInputStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture);
-        return _context.RunInputs;
+        await schema.ResetAsync();
+        return schema.Context.RunInputs;
     }
 
     /// <summary>
@@ -645,34 +394,25 @@ public sealed class SqlServerRunInputStoreContractTests(SqlServerFixture fixture
     /// </summary>
     /// <inheritdoc />
     protected override async ValueTask PrepareRunAsync(Guid runId, string tenantId)
-        => await _context!.Runs.StartRunAsync(new RunStartInfo
+        => await schema.Context.Runs.StartRunAsync(new RunStartInfo
         {
             RunId = runId,
             AgentName = "sozlesme",
             StartedAt = DateTimeOffset.UtcNow,
             TenantId = tenantId,
         });
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
-    }
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
-public sealed class SqlServerPendingApprovalStoreContractTests(SqlServerFixture fixture) : PendingApprovalStoreContract
+public sealed class SqlServerPendingApprovalStoreContractTests(SqlServerSchemaFixture schema)
+    : PendingApprovalStoreContract, IClassFixture<SqlServerSchemaFixture>
 {
-    private SqlServerTestContext? _context;
-
     /// <inheritdoc />
     protected override async ValueTask<IPendingApprovalStore> CreateStoreAsync()
     {
-        _context = await SqlServerTestContext.CreateAsync(fixture, AmbientTenant);
-        return _context.PendingApprovals;
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.PendingApprovals;
     }
 
     /// <summary>
@@ -681,20 +421,11 @@ public sealed class SqlServerPendingApprovalStoreContractTests(SqlServerFixture 
     /// </summary>
     /// <inheritdoc />
     protected override async ValueTask PrepareRunAsync(Guid runId, string tenantId)
-        => await _context!.Runs.StartRunAsync(new RunStartInfo
+        => await schema.Context.Runs.StartRunAsync(new RunStartInfo
         {
             RunId = runId,
             AgentName = "sozlesme",
             StartedAt = DateTimeOffset.UtcNow,
             TenantId = tenantId,
         });
-
-    /// <inheritdoc />
-    protected override async ValueTask OnDisposeAsync()
-    {
-        if (_context is not null)
-        {
-            await _context.DisposeAsync();
-        }
-    }
 }
