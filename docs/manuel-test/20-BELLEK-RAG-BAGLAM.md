@@ -122,6 +122,21 @@ Bu veriler yalnız bu dosyaya özgüdür, `00-INDEKS.md`'ye girmez (`PROMPT.md`
 | `FIX-MEM-DOC-01` | `sourceId: "izin-notu"` · metin `"Yillik izin 14 gundur. Bes yildan sonra 20 gune cikar."` (Faz 51'in kendi gerçek kanıtıyla aynı örnek — kelime eşleşmesi olmayan sorguyla arandığında bulunması ÖLÇÜLMÜŞ) |
 | `FIX-MEM-QUERY-01` | `"tatil hakkim ne kadar"` — `FIX-MEM-DOC-01` içinde "tatil" kelimesi HİÇ geçmez |
 
+> 🚨 **Koşum sırasında bulunan doküman sapması (2026-08-13, S1-4, ürün kusuru
+> DEĞİL).** `MT-MEM-006/008/009/011/013/027`'nin "Girilecek veri" script'leri
+> yeni bir fixture agent'ı `PUT /api/agents/{ad}` ile kaydediyordu. Ölçüldü:
+> `UpdateAgentAsync` (`AgentEndpoints.cs:303`) yalnız **var olan** bir tanımı
+> günceller — `definitions.GetAsync(name)` `null` dönerse `404 "Agent
+> bulunamadi"` verir (satır ~332). Yeni kayıt `POST /api/agents` gerektirir
+> (`CreateAgentAsync`, aynı gövde, isim URL'de değil gövdede). Altı case'in
+> script'i `POST "$APU/api/agents"` kullanacak şekilde düzeltildi; orijinal
+> (bozuk) `PUT` biçimi burada kayıt olarak kalsın: `PUT
+> "$APU/api/agents/<ad>"` ile aynı gövde → `404`. `MT-MEM-031`'in `PUT
+> "$APU/api/agents/kapsam-kontrol"` çağrısı bu düzeltmenin DIŞINDA
+> bırakıldı — o case kapsam denetiminin (`RequireApiKeyScope`) agent
+> var/yok kontrolünden ÖNCE devreye girip girmediğini ölçüyor; beklenen
+> `403`, endpoint gövdesine hiç girmeden filtre seviyesinde üretilir.
+
 ---
 
 # 1 — Sıkıştırma: Yapısal Doğrulama (Faz 13, İzlek B, model çağırmaz)
@@ -173,9 +188,10 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
   **yoktur**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`valid:false`, `messages[0].code="compilation_error"`, mesaj metni beklenenle
+birebir eşleşti. `GET /api/agents` çıktısında `manuel-tetiksiz` yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -214,9 +230,9 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
   vermedi.`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Mesaj metni beklenenle birebir eşleşti.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -248,9 +264,9 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 - `valid: true`, `messages` dizisi **boştur**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`valid:true`, `messages:[]`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -291,9 +307,20 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/validate" -H "$APB"
   (rapor hiç üretilmedi).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 500` döndü, `400` değil. Gövde: generic `ProblemDetails`
+(`"title":"An error occurred while processing your request."`), `valid` alanı
+yok — bu kısmı beklenene uyuyor ama durum kodu yanlış. Uygulama logu
+(`Unhandled exception`) kök nedeni gösteriyor: `System.Text.Json.JsonException:
+The JSON value could not be converted to AgentPrism.CompactionStrategyKind.`
+istisnası ASP.NET Core'un JSON body binding aşamasında fırlıyor ve hiçbir yerde
+yakalanmıyor — global exception handler'a düşüp genel `500`'e dönüşüyor.
+`ValidateAgentAsync`'in kendi XML dokümanının vaat ettiği "gövde
+ayrıştırılamıyorsa 400" davranışı yalnız `JsonException`'ı **kendi içinde**
+yakalayan bir path için geçerli olabilir; enum dönüştürme hatası minimal
+API'nin body-binding aşamasında (endpoint gövdesine hiç girmeden) oluştuğu için
+o path'e hiç ulaşmıyor. **Kusur, Önem: Orta** — `HATA-S1-007` olarak kaydedildi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -354,9 +381,9 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
   takibi istiyor ancak HarnessSettings.DisableTodoProvider kapatilmis.`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Üç adımın üçü de beklenen mesajla birebir eşleşti.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -390,7 +417,7 @@ başındaki `FIX-MEM-COMPACT-01`) — orada `echo` sağlayıcısıyla (ağa çı
 
 **Girilecek veri**
 ```bash
-curl -s -X PUT "$APU/api/agents/manuel-sikistir" -H "$APB" -H "content-type: application/json" -d '{
+curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" -d '{
   "name": "manuel-sikistir",
   "instructions": "Kisa yanit ver, en fazla 5 kelime kullan.",
   "model": { "provider": "openai", "model": "gpt-5.4-mini" },
@@ -434,9 +461,17 @@ ORDER BY e.created_at DESC;
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Kayıt `POST /api/agents` ile düzeltildi (bkz. dosya başındaki sapma notu),
+`HTTP:201`. 5 turun tamamı `HTTP 200` döndü. Son run'ın `GET
+.../events` (SSE) çıktısında `HistoryCompacted` olayı var: `text:"2 mesaj
+ozetlendi"`, `payload:"beforeMessages=7, afterMessages=5, beforeTokens=34,
+afterTokens=25"` — `afterMessages(5) < beforeMessages(7)` doğrulandı. (Not:
+doc'un `d.get('text')` çıkarma script'i yanıt gövdesinde böyle bir alan
+olmadığı için hep `None` bastı — run yanıtı `response.messages[0].contents[0].text`
+altında; bu yalnız script'in kendi kolaylık çıktısı, bir kusur değil, hiçbir
+`Beklenen sonuç` bu alana bağlı değil.)
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -471,9 +506,11 @@ GROUP BY c.id;
   **küçük** olmalıdır (modelin gördüğü ile diskte saklanan farklıdır).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`mem-sikistir-01` oturumu için `toplam_oge=10` — 5 turun ürettiği tüm
+mesajlar (kullanıcı+asistan) korunmuş, `MT-MEM-006`'nın `afterMessages=5`
+değerinden büyük.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -496,7 +533,7 @@ GROUP BY c.id;
 
 **Girilecek veri**
 ```bash
-curl -s -X PUT "$APU/api/agents/manuel-ozetle" -H "$APB" -H "content-type: application/json" -d '{
+curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" -d '{
   "name": "manuel-ozetle",
   "instructions": "Kisa yanit ver, en fazla 5 kelime kullan.",
   "model": { "provider": "openai", "model": "gpt-5.4-mini" },
@@ -526,9 +563,12 @@ curl -s "$APU/api/runs/<sikistirmali-runId>/events" -H "$APB" | python3 -m json.
   `MergeUsage` ile çalıştırma toplamına **eklenmiştir** (K-108).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Son run'ın olay listesinde `HistoryCompacted`: `payload:"beforeMessages=9,
+afterMessages=7, beforeTokens=36, afterTokens=27"` — `afterTokens(27) <
+beforeTokens(36)`. `GET /api/runs/{id}` yanıtında `usage.totalTokens=232`
+(`NULL` değil, pozitif).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -555,7 +595,7 @@ zaten doğrulanmıştır; bu case yalnız üç iç stratejinin ZİNCİRLEME
 
 **Girilecek veri**
 ```bash
-curl -s -X PUT "$APU/api/agents/manuel-pipeline" -H "$APB" -H "content-type: application/json" -d '{
+curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" -d '{
   "name": "manuel-pipeline",
   "instructions": "Kisa yanit ver, en fazla 5 kelime kullan.",
   "model": { "provider": "openai", "model": "gpt-5.4-mini" },
@@ -576,9 +616,10 @@ done
 - Son run'ın olay listesinde en az bir `HistoryCompacted` olayı vardır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+5 turun tamamı `HTTP:200`. Son run'ın olay listesinde `HistoryCompacted`:
+`payload:"beforeMessages=7, afterMessages=5, beforeTokens=31, afterTokens=23"`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -624,9 +665,10 @@ WHERE r.agent_name = 'support' AND r.session_id = 'mem-kontrol-01' AND e.type = 
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`count=0` — `support` agent'ında (`Compaction` tanımsız) 5 turluk konuşmada
+hiç `HistoryCompacted` üretilmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -662,7 +704,7 @@ tam cümle değil).
 
 **Girilecek veri**
 ```bash
-curl -s -X PUT "$APU/api/agents/manuel-dosya-bellek" -H "$APB" -H "content-type: application/json" -d '{
+curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" -d '{
   "name": "manuel-dosya-bellek",
   "instructions": "Kullanici bir bilgiyi hatirlamani isterse dosya bellegine kisa bir not olarak yaz. Sorulduğunda dosyadan okuyup cevapla.",
   "model": { "provider": "openai", "model": "gpt-5.4-mini" },
@@ -684,9 +726,23 @@ curl -s -X POST "$APU/api/agents/manuel-dosya-bellek/run" -H "$APB" \
 - 2. turun yanıt metni `FILE-7841` dizgisini içerir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+1. tur `HTTP 200` — `FILE-7841` gerçekten `mt_s1.agent_files`'a yazıldı (SQL
+ile doğrulandı: `/default/user-notes.md` içinde `kayıt kodu FILE-7841.`
+satırı var). 2. tur (geri okuma/hatırlama) **`HTTP 500`** ile çöktü —
+tekrarlanan denemelerde de (aynı oturumda ve yeni bir oturumda) hep aynı
+sonuç. Uygulama logu kök nedeni gösteriyor:
+`System.NotSupportedException: JsonTypeInfo metadata for type
+'Microsoft.Agents.AI.AgentRequestMessageSourceAttribution' was not provided
+by TypeInfoResolver of type 'AgentPrism.AgentPrismJsonContext'` — model
+mesajının `AdditionalProperties`'ine MAF'ın eklediği bir "attribution"
+(kaynak bilgisi) nesnesi, AOT kaynak-üretimli JSON context'inde
+kayıtlı değil; HTTP yanıtı serileştirilirken patlıyor. Run kendisi
+sunucu tarafında TAMAMLANIYOR (span/idempotency kaydı yazılıyor, `runs`
+tablosunda `status=2` ile görünüyor — model çağrısı ve maliyeti gerçekleşmiş
+oluyor) ama istemci hiçbir zaman bir yanıt alamıyor. **Kusur, Önem: Yüksek**
+— `HATA-S1-008` olarak kaydedildi (`MT-MEM-012` ile aynı kök neden).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -728,9 +784,16 @@ curl -s -X POST "$APU/api/agents/manuel-todo/run" -H "$APB" \
   gözlemlenen gerçek davranışı kaydeder).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+1. tur (todo'ya iki görev ekleme) doğrudan **`HTTP 500`** ile çöktü —
+`MT-MEM-011`'in 2. turuyla birebir aynı istisna
+(`AgentRequestMessageSourceAttribution` serileştirme hatası, `HATA-S1-008`).
+`TodoProvider`'ın ilk yazma turunda bile bu attribution etiketini eklediği
+görülüyor (`FileMemoryProvider`'dan farkı: o yalnız OKUMA turunda patlıyordu,
+`TodoProvider` YAZMA turunda da patlıyor). 2. tur da aynı nedenle `HTTP 500`.
+İki görevin de yanıtta anılıp anılmadığı hiç ÖLÇÜLEMEDİ — kapsayan kusur
+`HATA-S1-008` bu case'i tamamen bloke ediyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -754,7 +817,7 @@ curl -s -X POST "$APU/api/agents/manuel-todo/run" -H "$APB" \
 
 **Girilecek veri**
 ```bash
-curl -s -X PUT "$APU/api/agents/manuel-dosya-arama" -H "$APB" -H "content-type: application/json" -d '{
+curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" -d '{
   "name": "manuel-dosya-arama",
   "instructions": "Kullanicinin sordugu konuyu dosya belleginde ara ve bulduğun iceriği ozetle.",
   "model": { "provider": "openai", "model": "gpt-5.4-mini" },
@@ -777,9 +840,23 @@ curl -s -X POST "$APU/api/agents/manuel-dosya-arama/run" -H "$APB" \
   **"Kaldı (bilinen, F-105'e bağlı)"** olarak kaydedilmelidir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Yanıt `FILE-7841` dizgisini İÇERMEDİ — beklenenin (F-105 gerekçesiyle
+"bulmalı") TERSİ gözlendi. `GET .../events` çıktısında hiçbir
+`ToolInvoked`/arama olayı yok; model doğrudan "eşleşen kayıt bulamadım"
+yanıtı üretti. Bir kelime değişikliğiyle ("search tool unu kullanarak ara")
+tekrarlandığında model bu kez "bağlı bir arama aracına erişimim yok" dedi —
+yani `TextSearchProvider` (bir `AIContextProvider`, modele araç olarak
+sunulmuyor, MAF'ın kendisi otomatik bağlam enjekte etmesi bekleniyor)
+sorguyla eşleşen içeriği hiç BULAMADI/enjekte ETMEDİ; dosyada `FILE-7841`
+harfiyen mevcut olsa bile (`MT-MEM-011`'in yazdığı `/default/user-notes.md`).
+İki bağımsız denemede de sıfır sonuç — bu, F-105'in beklediği "bulur ama
+izole etmeli" durumundan farklı, daha temel bir sorun: **arama hiç
+çalışmıyor gibi görünüyor**. Kod seviyesinde doğrulanmadı (siyah kutu HTTP
+testi bunun ötesine geçemez); **şüpheli davranış, Önem: Orta** —
+`HATA-S1-009` olarak kaydedildi. `MT-MEM-014`'ün negatif sonucu bu yüzden
+kiracı yalıtımının kanıtı SAYILAMAZ (bkz. o case'in notu).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -844,9 +921,20 @@ curl -s -X POST "$APU/api/agents/manuel-dosya-arama/run" -H "$APB" \
   mantığından şüphelenilmelidir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Sapma: kiracılık `Tenancy:Enabled`/`AllowHeaderResolution` açıldığında
+agent'lar da kiracıya özgü olduğu için (önceki `default` kiracıda kayıtlı
+`manuel-dosya-bellek`/`manuel-dosya-arama` `kiraci-alfa`/`kiraci-beta`'da
+`404` verdi) her iki agent önce `POST /api/agents` ile ilgili
+`X-AgentPrism-Tenant` başlığı altında AYRICA kaydedildi — dokümanın
+atladığı bir ön adım. Sonrasında: yazma turu `HTTP 200`. Arama turunun
+yanıtı `SIZINTI-9902` dizgisini İÇERMEDİ — beklenen sonuçla eşleşiyor GİBİ
+görünüyor, ama `MT-MEM-013`'ün bulgusuna göre (`HATA-S1-009`) arama zaten
+HİÇBİR sorguda bir şey bulamıyor; bu yüzden bu "negatif" sonuç kiracı
+yalıtımının kanıtı değil, muhtemelen aynı temel arama arızasının bir başka
+görünümü. **İnceleme sonucu belirsiz (inconclusive)** — `HATA-S1-009`
+çözülmeden bu case'in gerçek anlamda "Geçti" sayılması mümkün değil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -894,9 +982,16 @@ WHERE tenant_id = 'default' AND collection = 'manuel-bilgi';
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Koşulamadı: `POST /api/knowledge/{collection}/documents` gerçek bir OpenAI
+embedding çağrısı gerektiriyor (`text-embedding-3-small`). Bu şeridin
+kullandığı OpenAI anahtarının bağlı olduğu proje bu modele (ve denenen
+diğer embedding modellerine — `3-large`, `ada-002`) erişemiyor
+(`403 model_not_found`, doğrudan OpenAI API'sine karşı doğrulandı; `/v1/models`
+embedding modeli hiç listelemiyor). Program.cs modeli sabit kodluyor,
+config'den değiştirilemiyor (bkz. dosya başındaki not). Kullanıcı kararı:
+bloke edilen case'ler `Beklemede` bırakılıp koşum sürdürüldü.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -926,9 +1021,10 @@ curl -s "$APU/api/knowledge/manuel-bilgi/documents" -H "$APB"
   (Faz 51 doc, "Plandan Sapmalar" #4).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Koşulamadı: ön koşul `MT-MEM-015` embedding erişimi eksikliğinden
+koşulamadı (bkz. o case'in notu).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -963,9 +1059,10 @@ curl -s -X POST "$APU/api/knowledge/manuel-bilgi/search" -H "$APB" \
   gözlemlenip kaydedilir — Faz 51'in kendi ölçümü `0.241` idi).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Koşulamadı: sorgu embedding'i gerektirir, embedding erişimi yok (bkz.
+`MT-MEM-015`).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1007,9 +1104,10 @@ WHERE tenant_id = 'default' AND collection = 'manuel-bilgi' AND source_id = 'izi
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Koşulamadı: ön koşul `MT-MEM-015` embedding erişimi eksikliğinden
+koşulamadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1050,9 +1148,11 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/knowledge/manuel-bilgi/doc
   parçaları gömer.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 200`, gövde tam olarak `{"sourceId":"hazir-parca","chunkCount":1}`.
+Hazır embedding verildiği için embedding API'ye hiç çıkılmadı (bu, §4'ün
+embedding erişimi olmadan koşulabilen tek yükleme case'i).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1093,9 +1193,10 @@ WHERE tenant_id = 'default' AND collection = 'manuel-bilgi' AND source_id = 'tek
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Koşulamadı: `text` ile yükleme embedding gerektirir, embedding erişimi yok
+(bkz. `MT-MEM-015`).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1132,9 +1233,18 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/knowledge/manuel-bilgi/doc
   hicbiri olamaz.`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`. `detail`: `"Ya text ya da chunks verilmelidir; ikisi birden ya
+da hicbiri olamaz. (Parameter 'text')"` — beklenen metinle BAŞLIYOR ama
+sonunda `.NET`'in `ArgumentException(message, paramName)`'ından otomatik
+eklenen `" (Parameter 'text')"` soneki var; doküman bunu hesaba katmamış.
+Kod: `KnowledgeIngestionService.cs:101-103` `nameof(text)`'i paramName
+olarak veriyor, `KnowledgeEndpoints.cs:85` `ex.Message`'ı doğrudan `detail`
+yapıyor — `ArgumentException.Message` her zaman bu soneki ekler. **Kusur,
+Önem: Düşük** (işlevsel etkisi yok, yalnız dokümante edilen tam metinle
+uyuşmuyor ve iç parametre adını dışa sızdırıyor) — `HATA-S1-010` olarak
+kaydedildi; aynı desen `MT-MEM-022/023/024`'te de tekrarlıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1162,9 +1272,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/knowledge/manuel-bilgi/doc
 - `HTTP: 400`, aynı `detail` metni (`MT-MEM-021` ile aynı kural, ters uç).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, aynı `HATA-S1-010` soneki (`" (Parameter 'text')"`) burada da
+var.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1196,9 +1307,11 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/knowledge/kurumsal%20bilgi
   Yalniz harf, rakam, alt cizgi ve tire icerebilir.`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `detail`: `"'kurumsal bilgi' gecerli bir koleksiyon adi degil.
+Yalniz harf, rakam, alt cizgi ve tire icerebilir. (Parameter 'collection')"`
+— aynı `HATA-S1-010` soneki.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1233,9 +1346,13 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/knowledge/manuel-bilgi/doc
   yazma yok — `UpsertAsync` tek transaction).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `detail`: `"Parca 0 gomu uzunlugu (2) depo boyutuyla (1536)
+eslesmiyor. (Parameter 'chunks')"` — aynı `HATA-S1-010` soneki
+(`document_embeddings`'e satır yazılmadığı ayrıca doğrulanmadı, ama kod
+hatayı `UpsertAsync` çağrılmadan ATIYOR — `EmbedMissingAsync` sonrası,
+`_store.UpsertAsync` çağrısından ÖNCE — dolayısıyla kısmi yazma riski yok).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1289,9 +1406,18 @@ dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" \
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Sapma: `user-secrets remove` yerine (§2.2, şerit izolasyonu)
+`AgentPrism__PostgreSql__ConnectionString=""` ortam değişkeni kullanıldı.
+**Önemli bulgu (kendi kendine düzeltildi):** ilk denemede bu değişkeni
+`unset` ile kaldırdım — bu, `user-secrets`'taki paylaşılan (ve `agentprism`
+şemasına işaret eden) değere GERİ DÜŞTÜ, `mt_s1` yerine paylaşılan şemaya
+4 istek gitti (upload/search embedding hatasından 500 oldu, list boş `[]`
+döndü, delete 0 satır etkiledi — SQL ile doğrulandı, paylaşılan şemada
+hiçbir veri yok/değişmedi, zarar yok). Düzeltme: `=""` ile AÇIKÇA boş değer
+atandı (§2.2'nin tam istediği desen), bu kez doğru çalıştı: dördü de
+`HTTP: 501`, `title`/`detail` metinleri BİREBİR beklenenle eşleşti.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1341,9 +1467,10 @@ WHERE run_id = '<runId>' GROUP BY tool_name;
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Koşulamadı: belge yükleme ve `search_knowledge` tool'unun sorgu embedding'i
+üretmesi gerekiyor, embedding erişimi yok (bkz. `MT-MEM-015`).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1367,7 +1494,7 @@ WHERE run_id = '<runId>' GROUP BY tool_name;
 
 **Girilecek veri**
 ```bash
-curl -s -X PUT "$APU/api/agents/manuel-varsayilan-koleksiyon" -H "$APB" -H "content-type: application/json" -d '{
+curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" -d '{
   "name": "manuel-varsayilan-koleksiyon",
   "instructions": "search_knowledge tool unu kullanarak cevap ver.",
   "model": { "provider": "openai", "model": "gpt-5.4-mini" },
@@ -1385,9 +1512,10 @@ curl -s -X POST "$APU/api/agents/manuel-varsayilan-koleksiyon/run" -H "$APB" \
   koleksiyon, `definition.Name` (`manuel-varsayilan-koleksiyon`) olmuştur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Koşulamadı: belge yükleme embedding gerektiriyor, embedding erişimi yok
+(bkz. `MT-MEM-015`).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1433,9 +1561,11 @@ dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" \
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Sapma: ortam değişkeni `=""` ile kullanıldı (bu kez baştan doğru — bkz.
+`MT-MEM-025`'in notu). `valid:false`, `messages[0].message` beklenenle
+birebir eşleşti.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1485,9 +1615,11 @@ dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" "<OPENAI_ANAHTARINI
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Sapma: `AgentPrism__Providers__OpenAI__ApiKey=""` ortam değişkeni ile
+kapatıldı, PostgreSQL bağlantısı `mt_s1`'e açık bırakıldı. `valid:false`,
+mesaj beklenenle birebir eşleşti.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1550,9 +1682,10 @@ WHERE collection = 'manuel-bilgi' AND source_id = 'alfa-belge';
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Koşulamadı: belge yükleme ve arama embedding gerektiriyor, embedding
+erişimi yok (bkz. `MT-MEM-015`).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1623,9 +1756,23 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/kapsam-kontrol" -H "
   Çürürse not güncellenir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Şüphe **doğrulandı**. `KEY_JSON`'ın alanı doküman'ın varsaydığı `rawKey`
+değil `plaintextKey` — doküman sapması, düzeltilip devam edildi. Adım 2
+(yazma): `HTTP 500` — ama `403` DEĞİL; log embedding erişimi eksikliğinden
+(`HATA` değil, bu şeridin bilinen ortam kısıtı) düştüğünü gösteriyor,
+yani istek kapsam filtresini GEÇTİ ve ingestion mantığına ULAŞTI (403
+hiç üretilmedi). Adım 3 (silme): `HTTP 204` — TAM beklenen gibi, kapsam
+denetimi hiç devrede değil, `RunsRead` anahtarı bir belgeyi serbestçe
+sildi. Adım 4 (kontrol grubu) ilk denemede `500` verdi çünkü dokümanın
+kendi örnek gövdesinde `model` alanı eksikti (`AgentDefinitionRequest`
+zorunlu alan) — bu, `HATA-S1-007` ile aynı kök nedene çarpan ayrı bir
+doküman sapması; `model` eklenerek tekrarlandığında beklenen `HTTP 403`
+(`detail: "Bu uc 'AgentsAdmin' kapsamini gerektiriyor; anahtar bu kapsami
+tasimiyor."`) alındı. Sonuç: kontrol grubu (`AgentEndpoints`) kapsamı
+doğru uyguluyor, `KnowledgeEndpoints` hiç uygulamıyor. **Kusur, Önem:
+Yüksek** — doğrulandı, `HATA-S1-011` olarak kaydedildi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
