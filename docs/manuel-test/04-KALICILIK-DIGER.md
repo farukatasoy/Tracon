@@ -201,11 +201,26 @@ sqlite3 "$SQLITEDB" ".tables"
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Üç deneme de başlamayı reddetti. Hiçbirinde `Now listening` satırı yazılmadı
+  (`grep -c` → 0); süreç `OptionsValidationException` ile sonlandı.
+- Mesaj beklenen metni birebir taşıyor ve reddedilen değeri de yazıyor:
+  `AgentPrismSqliteOptions.TablePrefix gecerli bir AgentPrism tablo oneki
+  degil. Kucuk harf veya alt cizgi ile baslamali; kucuk harf, rakam ve alt
+  cizgi icermeli; en cok 63 karakter olmalidir. Gelen deger: '<deger>'.`
+- Doğrulama sorgusu: `agentprism_tenants` hâlâ `.tables` listesinde — 3.
+  denemedeki `DROP TABLE` çalışmadı. Doğrulama `UseSqlite` içinde `IOptions<T>`
+  ilk çözüldüğü anda olur (`AgentPrismSqliteBuilderExtensions.cs:80`), yani
+  hiçbir SQL metni kurulmadan önce.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Temizlik:** `dotnet user-secrets set "AgentPrism:Sqlite:TablePrefix" "agentprism_"`
+>
+> ⚠️ **Koşum notu:** Bu temizlik önceki oturumda **uygulanmamış**. Şerit
+> açılırken paylaşılan `user-secrets` deposu `AgentPrism:Sqlite:TablePrefix` =
+> `x_; DROP TABLE agentprism_tenants;--` taşıyordu ve uygulamanın açılmasını
+> engelledi. KOSUM-PLANI §2.2 gereği depoya yazılmadı; şerit kendi ortam
+> değişkenlerini açıkça sabitleyerek ilerledi. Bkz. `HATA-S1-001`.
 
 ---
 
@@ -246,9 +261,13 @@ dotnet run
 - `0` kabul edilir, uygulama normal açılır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `-1` ve `3601` başlamayı reddetti; `Now listening` yazılmadı. Mesaj beklendiği
+  gibi, reddedilen değeri de taşıyor: `AgentPrismSqliteOptions.CommandTimeoutSeconds
+  0 ile 3600 arasinda olmalidir. Gelen deger: -1.` (aynısı `3601` için).
+- `0` kabul edildi; uygulama açıldı ve `Now listening` yazdı.
+- Sınırların kendisi (`0` ve `3600`) kabul tarafında — doğrulama kapsayıcı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Temizlik:** `dotnet user-secrets set "AgentPrism:Sqlite:CommandTimeoutSeconds" "30"`
 
@@ -287,9 +306,41 @@ sqlite3 "$SQLITEDB" "SELECT count(*) FROM sqlite_master WHERE type='table';"
 - `/health` bu durumda `Unhealthy` döner (bekleyen migration listesi dolu).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Bilgi satırı beklendiği gibi çıktı: `AgentPrism migration'lari otomatik
+  uygulanmiyor (AutoApplyMigrations kapali). Semanin guncel olmasi cagiranin
+  sorumlulugundadir.`
+- `.db` dosyası oluştu (4096 bayt) ama boş: `count(*)` **0**.
+- **Uygulama açılmadı — kendini kapattı.** `Now listening` satırı yazıldı, hemen
+  ardından `Application is shutting down...` geldi ve süreç sonlandı. `/health`
+  isteği bağlantı kuramadı (`HTTP:000`), yani beklenen `Unhealthy` yanıtı
+  **hiç okunamıyor**.
+- Kapatmayı iki dış yüzey denetimi tetikledi:
+  - `crit: AgentPrism.A2AApprovalGuardFilter — A2A disa acik yuzey denetimi
+    basarisiz oldu; uygulama durduruluyor.` →
+    `SqliteException: no such table: agentprism_agent_definitions`
+    (`A2AApprovalGuardFilter.cs:58`)
+  - `crit: AgentPrism.McpApprovalGuardFilter` — aynı hata
+    (`McpApprovalGuardFilter.cs:86`)
+- Kök neden: `MigrationHostedService.StartAsync` `AutoApplyMigrations` kapalıyken
+  `SchemaReadyGate`'i **bilerek açar** ("semanin hazir olmasi tuketicinin
+  sorumlulugundadir"). İki onay denetimi bu kapıyı bekler ve açılır açılmaz
+  `catalog.ListAsync` ile `agent_definitions` tablosunu sorgular. Şema gerçekte
+  hazır değilse sorgu patlar, `catch (Exception)` bloğu
+  `lifetime.ApplicationStarted.Register(lifetime.StopApplication)` çağırır ve
+  uygulama iner.
+- **Ayırt edici kontrol:** Şema önce `AutoApplyMigrations=true` ile kurulup
+  (45 tablo) sonra `false` ile açıldığında uygulama sorunsuz ayakta kaldı
+  (`kapanma satiri: 0`, `/health` → `Degraded`). Yani kusur `AutoApplyMigrations`
+  ayarında değil, **kapının hazır olmayan şema üzerinde açılmasında**.
+- Sonuç: dokümante edilen "operatör migration'ı dışarıdan uygular" sözleşmesi
+  yalnızca şema ZATEN hazırsa çalışır. İlk kurulumda ya da migration adımı
+  atlandığında operatörün durumu görmesi için tasarlanmış
+  `/health` → `Unhealthy` + bekleyen migration listesi sinyali erişilemez;
+  yerine "no such table" ile kapanma döngüsü oluşur. Örnek uygulama
+  `UseMcpServer()` ve `UseA2A()` çağırdığı için (`Program.cs:98-99`) iki denetim
+  de etkindir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı → `HATA-S1-002` (Yüksek)
 
 > **Temizlik:** `dotnet user-secrets set "AgentPrism:Sqlite:AutoApplyMigrations" "true"`, reset yordamı.
 
@@ -345,9 +396,35 @@ curl -s "$APU/api/agents/manuel-bellek-test" -H "$APB" -w "\nHTTP: %{http_code}\
   bitmiştir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- **`Data Source=:memory:` ile uygulama hiç açılmıyor.** İddia edilenden daha
+  ağır bir durum: veri "bağlantı kapanınca gitmiyor", uygulama başlatmayı
+  tamamlayamıyor. Her iki açılış denemesinde de süreç sonlandı; `POST`/`GET`
+  istekleri bağlantı kuramadı (`HTTP:000`).
+- Log sırası:
+  1. `AgentPrism 15 migration uyguladi. Sema: agentprism_.` — migration'lar
+     gerçekten uygulandı.
+  2. `fail: Microsoft.Extensions.Hosting.Internal.Host[11] — Hosting failed to start`
+     `SqliteException: no such table: agentprism_tenants`
+  3. `Unhandled exception` → süreç ölür.
+- Kök neden: `SqliteDataSource.CreateDbConnection()` her çağrıda **yeni** bir
+  `SqliteConnection` üretir (`Internal/SqliteDataSource.cs:44`). Çıplak
+  `:memory:` veritabanı **bağlantıya özeldir**: `MigrationRunner` kendi
+  bağlantısında 15 migration uygular, bağlantı kapanır, o veritabanı yok olur.
+  Hemen ardından `EnsureDefaultTenantAsync` YENİ bir bağlantı açar — bu boş bir
+  in-memory veritabanıdır ve `agentprism_tenants` orada yoktur
+  (`MigrationHostedService.StartAsync`). Yani `:memory:`, bağlantı başına
+  bağlantı açan bir `DbDataSource` ile yapısal olarak bağdaşmıyor.
+- **Doğrulanan çalışan biçim:** `Data Source=file:apmem?mode=memory&cache=shared`
+  ile uygulama sorunsuz açıldı (15 migration, `/health` → HTTP 200). Paylaşımlı
+  önbellek aynı süreçteki tüm bağlantılara tek bir in-memory veritabanı verir.
+- Bu bir **public API doküman kusurudur** ve tüketiciye IntelliSense'te
+  gösterilir: `AgentPrismSqliteOptions.ConnectionString` XML dokümanı
+  (`AgentPrismSqliteOptions.cs:17-18`) `Data Source=:memory: desteklenir ama
+  kalici DEGILDIR: baglanti kapaninca veri gider` diyor. Gerçekte çıplak
+  `:memory:` hiç desteklenmiyor. Doküman ya `cache=shared` biçimini önermeli ya
+  da `:memory:` desteği kaldırılmalı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı → `HATA-S1-003` (Yüksek)
 
 > **Temizlik:** `dotnet user-secrets set "AgentPrism:Sqlite:ConnectionString" "Data Source=agentprism-manuel.db"`
 
@@ -388,9 +465,14 @@ cd samples/AgentPrism.Api && dotnet run
 - Süreç "Now listening on" satırını hiç yazmadan sonlanır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Uygulama başlamayı reddetti. `Now listening` satırı yazılmadı (`grep -c` → 0).
+- Konsolda beklenen hata: `SqliteException (0x80004005): SQLite Error 14:
+  'unable to open database file'.` — ardından `Hosting failed to start` ve
+  `Unhandled exception` geldi, süreç sonlandı.
+- Dosya sistemi izin hatası yutulmuyor; başlatmayı anlaşılır bir hatayla
+  durduruyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Temizlik:**
 > ```bash
@@ -431,9 +513,15 @@ grep -n "public static IAgentPrismBuilder UseSqlite" -A5 \
   yönlendirir; tek kayıt yolu vardır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `AgentPrismSqliteBuilderExtensions.cs:20-26` — `UseSqlite(string)` gövdesi
+  `builder.UseSqlite(options => options.ConnectionString = connectionString)`.
+- `AgentPrismSqliteBuilderExtensions.cs:38-46` — `UseSqlite(IConfiguration)`
+  gövdesi `builder.UseSqlite(options => Bind(configurationSection, options))`.
+- `AgentPrismSqliteBuilderExtensions.cs:58` — `UseSqlite(Action<Options>)` tek
+  gerçek kayıt yoludur; DI kaydını yalnız o yapar.
+- Üç aşırı yükleme tek kayıt yolunda buluşuyor; sözleşme doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
