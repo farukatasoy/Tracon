@@ -13,20 +13,42 @@
 
 ## 1. Durum
 
+> Son güncelleme: **2026-08-13**, Şerit 1 (oturum S1-1, S1-2, S1-3 kısmi).
+
 | | |
 |---|---|
 | Toplam case | **1097** |
-| Koşuldu | **116** (`01` tam · `02` 28/42 · `03` tam · `04` 3/40 · `14` 1/47) |
-| Kalan | **981** |
+| Koşuldu | **165** (`01` tam · `02` 28/42 · `03` tam · `04` **tam** · `14` 1/47 · `23` 12/26) |
+| Kalan | **932** |
 | Planlanan oturum | **40** (4 paralel şerit + ortak kuyruk) |
-| Tahmini derinlik | Şerit başına ~10 oturum |
 
-> ⚠️ **2026-08-12 23:25 itibarıyla bir oturum hâlâ aktif olabilir.** `03` dosyası
-> o dakikada yazıldı. Şeritleri başlatmadan önce o oturumun bittiğini doğrula
-> (`git status` temiz mi, `docker ps` fazladan container var mı) ve
-> değişiklikleri commit et. Kurulum adımı bunu ilk madde olarak taşır.
+### Şerit ilerlemesi
 
----
+| Şerit | Durum |
+|---|---|
+| 1 — Kalıcılık ve ses | S1-1 ✅ · S1-2 ✅ · **S1-3 🔶 12/26** (`23` §3'ten devam) · S1-4…S1-7 ⏳ |
+| 2 — HTTP ve güvenlik | ⏳ Başlamadı |
+| 3 — Çekirdek ve sağlayıcı | ⏳ Başlamadı |
+| 4 — Arayüz | ⏳ Başlamadı |
+| Ortak kuyruk | ⏳ Başlamadı |
+
+> 🚨 **Şerit 2, 3 ve 4 başlamadan önce `git merge docs/manuel-test` çalıştırıp
+> yeniden derlemelidir.** Şerit 1 koşum sırasında bir **Kritik** kusur düzeltti
+> (`K-392`, commit `aa64bc7`): `InvariantGlobalization` SQL Server'ı tamamen
+> kırıyordu. Düzeltmeyi almayan şerit, SQL Server'a dokunan her case'de aynı
+> duvara çarpar.
+
+### Şerit 1'in bulduğu hatalar
+
+| Hata | Önem | Durum |
+|---|---|---|
+| `HATA-S1-004` — `InvariantGlobalization` SQL Server'ı kırıyor (örnek **ve** şablon) | Kritik | ✅ Düzeltildi (K-392) |
+| `HATA-S1-002` — `AutoApplyMigrations=false` + hazır olmayan şema uygulamayı kapatıyor | Yüksek | ⛔ Açık |
+| `HATA-S1-003` — `Data Source=:memory:` dokümante edildiği hâlde hiç çalışmıyor | Yüksek | ⛔ Açık |
+| `HATA-S1-005` — Dört saklama hedefi config varsayılanını sessizce yok sayıyor | Düşük | ⛔ Açık |
+| `HATA-S1-001` — `user-secrets` temizliği uygulanmamış (süreç kusuru) | Düşük | ⛔ Açık |
+
+Ayrıntı: [`SONUCLAR-S1-2026-08-13.md`](SONUCLAR-S1-2026-08-13.md).
 
 ## 2. Ajanın uyacağı kurallar
 
