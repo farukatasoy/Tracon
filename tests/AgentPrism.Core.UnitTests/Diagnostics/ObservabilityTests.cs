@@ -29,8 +29,9 @@ public sealed class ObservabilityTests
     [Fact]
     public void Calistirma_metrikleri_yayilir()
     {
-        using var metrics = new AgentPrismMetrics();
-        using var collector = new MetricCollector(AgentPrismDiagnostics.MeterName);
+        using var meterFactory = new TestMeterFactory();
+        using var metrics = new AgentPrismMetrics(meterFactory);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         metrics.RecordRun(
             "support",
@@ -54,8 +55,9 @@ public sealed class ObservabilityTests
     {
         // Eksik etiket OpenTelemetry'de AYRI bir zaman serisi uretir ve
         // toplamalar sessizce ikiye bolunur.
-        using var metrics = new AgentPrismMetrics();
-        using var collector = new MetricCollector(AgentPrismDiagnostics.MeterName);
+        using var meterFactory = new TestMeterFactory();
+        using var metrics = new AgentPrismMetrics(meterFactory);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         metrics.RecordRun(
             "support",
@@ -77,8 +79,9 @@ public sealed class ObservabilityTests
     [Fact]
     public void Tool_metrikleri_sure_yoksa_histograma_yazmaz()
     {
-        using var metrics = new AgentPrismMetrics();
-        using var collector = new MetricCollector(AgentPrismDiagnostics.MeterName);
+        using var meterFactory = new TestMeterFactory();
+        using var metrics = new AgentPrismMetrics(meterFactory);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         metrics.RecordToolInvocation("get_order_status", succeeded: true, duration: null);
 
@@ -283,7 +286,29 @@ public sealed class ObservabilityTests
     }
 
     /// <summary>
-    /// Belirli bir <c>Meter</c>'in olcumlerini toplayan basit dinleyici.
+    /// Testin kendi <see cref="AgentPrismMetrics"/> ornegine ozel, tekil kimlikli
+    /// bir <see cref="Meter"/> uretir.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 <see cref="MeterListener"/> sureç genelinde calisir: isme gore filtreleme
+    /// (<c>instrument.Meter.Name == "AgentPrism"</c>) paralel kosan baska bir test
+    /// sinifinin AYNI isimli ama FARKLI <see cref="Meter"/> orneginin olcumlerini de
+    /// yakalar. Testler ayni derlemede varsayilan olarak paralel kostugu icin bu
+    /// gercek bir çapraz-test sizintisiydi, kurgusal degil.
+    /// </remarks>
+    private sealed class TestMeterFactory : IMeterFactory
+    {
+        public Meter Meter { get; } = new(AgentPrismDiagnostics.MeterName);
+
+        public Meter Create(MeterOptions options) => Meter;
+
+        public void Dispose() => Meter.Dispose();
+    }
+
+    /// <summary>
+    /// Belirli bir <c>Meter</c> <strong>orneginin</strong> olcumlerini toplayan
+    /// basit dinleyici. Filtre isme degil, referansa gore yapilir (yukaridaki
+    /// <see cref="TestMeterFactory"/> notuna bakiniz).
     /// </summary>
     private sealed class MetricCollector : IDisposable
     {
@@ -292,11 +317,11 @@ public sealed class ObservabilityTests
         private readonly List<(string Name, double Value)> _doubles = [];
         private readonly Lock _gate = new();
 
-        public MetricCollector(string meterName)
+        public MetricCollector(Meter meter)
         {
             _listener.InstrumentPublished = (instrument, listener) =>
             {
-                if (string.Equals(instrument.Meter.Name, meterName, StringComparison.Ordinal))
+                if (ReferenceEquals(instrument.Meter, meter))
                 {
                     listener.EnableMeasurementEvents(instrument);
                 }

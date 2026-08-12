@@ -1332,15 +1332,25 @@ $MSSQL -Q "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('ikinci')
 | **İzlek** | B |
 | **Önem** | Orta |
 | **İlgili faz** | Faz 23 |
-| **İlgili karar** | K-186, K-317 |
+| **İlgili karar** | K-186, K-317, K-386 |
+
+> **Güncelleme (2026-08-12, K-386):** Bu makinede kök sebep bulundu — kurulu
+> Docker Desktop (4.29.0) host macOS için çok eskiydi, Rosetta VM'e hiç
+> kurulmuyordu. `brew install --cask docker` ile 4.86.0'a güncellendikten
+> sonra gerçek `mcr.microsoft.com/mssql/server:2022-latest` bu makinede
+> BAŞARIYLA çalışıyor (`AgentPrism.SqlServer.IntegrationTests` 479/479).
+> **Beklenen sonuç artık `mssql/server`'dır** — aşağıdaki adımlar hâlâ
+> geçerlidir (Docker Desktop güncel değilse veya başka bir makinede tekrar
+> `exit 133` görülürse `azure-sql-edge` ikamesine düşülür). Ayrıntı:
+> `docs/hafiza/sql-server-yerel-test.md`.
 
 Ortam gözlem case'i — bir kusur değil, bilinen bir platform kısıtının
-kaydıdır. `docs/hafiza/sql-server-yerel-test.md`: Apple Silicon'da Docker
-Desktop'ın `useVirtualizationFrameworkRosetta` ayarı açık olsa bile
-`mcr.microsoft.com/mssql/server` konteyner İÇİNDE amd64 çalıştırırken
+kaydıdır. `docs/hafiza/sql-server-yerel-test.md`: Apple Silicon'da eski bir
+Docker Desktop sürümünde, `useVirtualizationFrameworkRosetta` ayarı açık olsa
+bile `mcr.microsoft.com/mssql/server` konteyner İÇİNDE amd64 çalıştırırken
 `exit 133` ile düşebilir. `README.md`'nin "sözleşme testleri `azure-sql-edge`
-ile doğrulandı" notu bu case'in kaydettiği DURUMU yansıtır — kod HER ZAMAN
-`mssql/server`'ı hedefler (`SqlServerFixture.cs:28`), imaj yalnız yerel
+ile doğrulandı" notu bu case'in kaydettiği eski DURUMU yansıtır — kod HER
+ZAMAN `mssql/server`'ı hedefler (`SqlServerFixture.cs:28`), imaj yalnız yerel
 doğrulamada değişir.
 
 **Ön koşul**

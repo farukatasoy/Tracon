@@ -226,7 +226,7 @@ tests/AgentPrism.PostgreSql.IntegrationTests/  (YENİ)
 | `ServiceRegistrationTests` | `UsePostgreSql()` sonrası üç depo da `Postgres*`; ayar doğrulaması; derlenen agent geçmişi veritabanına yazıyor |
 | `SessionPersistenceTests` | Oturum yeni bir `ServiceProvider`'da geri yükleniyor; sohbet geçmişi sürüyor; çalıştırma kaydı **gerçek** oturum kimliğini taşıyor |
 
-**Testcontainers** kullanılır; her çalıştırmada yerel, tek kullanımlık `postgres:18-alpine` container'ı ayağa kalkar. Uzak veya paylaşılan bir sunucuya hiçbir test bağlanmaz. Container tüm derleme için bir kez başlar; testler **ayrı şema** kullanarak yalıtılır — bu aynı zamanda `SchemaName` ayarının çalıştığını her testte doğrular.
+**Testcontainers** kullanılır; her çalıştırmada yerel, tek kullanımlık bir container ayağa kalkar. Uzak veya paylaşılan bir sunucuya hiçbir test bağlanmaz. Container tüm derleme için bir kez başlar; sema sözleşme test SINIFI başına paylaşılır, testler arası izolasyon `ResetDataAsync` ile veri sıfırlanarak sağlanır (K-390). `SchemaName` ayarının varsayılan olmayan bir semada çalıştığı `MigrationRunnerTests`'te ayrıca doğrulanır.
 
 Sözleşme testleri bellek içi uygulama üzerinde de koşar ve **Docker gerektirmez**; yalnızca `Postgres*` varyantları container'a ihtiyaç duyar.
 

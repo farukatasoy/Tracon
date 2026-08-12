@@ -1,15 +1,20 @@
+using System.Diagnostics;
 using System.Globalization;
+using System.Text;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AgentPrism.SqlServer.IntegrationTests.Infrastructure;
 
 /// <summary>
-/// Tek bir test icin yalitilmis bir sema kurar ve depolari hazirlar.
+/// Yalitilmis bir sema kurar ve depolari hazirlar.
 /// </summary>
 /// <remarks>
-/// Her test kendi semasini kullanir. Bu iki isi ayni anda yapar: testler birbirinin
-/// verisini gormez, ve <c>SchemaName</c> ayarinin gercekten calistigi her testte
-/// dogrulanmis olur.
+/// Bir sema genellikle bir sozlesme test SINIFI tarafindan paylasilir
+/// (bkz. <see cref="SqlServerSchemaFixture"/>); testler arasi izolasyon
+/// <see cref="ResetDataAsync"/> ile saglanir, ayri sema ile degil.
+/// <c>SchemaName</c> ayarinin varsayilan olmayan bir semada dogru calistigi
+/// <c>MigrationRunnerTests</c>'te ayrica dogrulanir.
 /// </remarks>
 internal sealed class SqlServerTestContext : IAsyncDisposable
 {
@@ -283,5 +288,244 @@ internal sealed class SqlServerTestContext : IAsyncDisposable
     /// yuzlerce sema birikirse sistem gorunumleri (sys.indexes uzerinden calisan
     /// migration kosullari) belirgin olarak yavaslar.
     /// </remarks>
-    public async ValueTask DisposeAsync() => await DataSource.DisposeAsync();
+    public async ValueTask DisposeAsync()
+    {
+        await DropSchemaAsync().ConfigureAwait(false);
+        await DataSource.DisposeAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>Onbelleklenen veri sifirlama toplu SQL metni. Sinif basina bir kez hesaplanir.</summary>
+    private string? _resetBatchSql;
+
+    /// <summary>
+    /// Semadaki tum veri tablolarini tek round-trip'te bosaltir; sema ve
+    /// <c>__migrations</c> defteri KALIR.
+    /// </summary>
+    /// <returns>Tamamlanma gorevi.</returns>
+    /// <remarks>
+    /// Silme sirasi <c>sys.foreign_keys</c>'ten hesaplanan bir topolojik siralamadir
+    /// (referans eden tablo, referans edilenden once silinir); tablo listesi de
+    /// katalogdan okunur, sabit yazilmaz. Boylece yeni bir migration tablo eklerse
+    /// bu metot elle guncellenmeden dogru kalir.
+    /// </remarks>
+    public async ValueTask ResetDataAsync()
+    {
+        _resetBatchSql ??= await BuildResetBatchSqlAsync().ConfigureAwait(false);
+
+        if (_resetBatchSql.Length > 0)
+        {
+            await ExecuteAsync(_resetBatchSql).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Silme sirasini katalogdan hesaplar ve tek bir toplu <c>DELETE</c> metni uretir.
+    /// </summary>
+    /// <returns>Calistirilacak SQL metni; sema bossa bos dize.</returns>
+    /// <remarks>
+    /// 🚨 Bu okuma <c>sys.foreign_keys</c>/<c>sys.tables</c> katalog gorunumlerini
+    /// tarar — <see cref="DropSchemaAsync"/> ile ayni paylasilan kaynak. Sinif basina
+    /// bir kez ve butun sinif fixture'lari BASLANGICTA es zamanli calistigi icin
+    /// (bkz. sema fixture'lari) ayni deadlock riski burada da vardir; ayni yeniden
+    /// deneme ile korunur.
+    /// </remarks>
+    private async ValueTask<string> BuildResetBatchSqlAsync()
+    {
+        // SchemaName SqlServerDialect kurulurken SqlIdentifier.RequireSchemaName ile
+        // dogrulanmistir; dogrudan SQL metnine yerlestirmek DropSchemaAsync ile ayni
+        // gerekceyle guvenlidir.
+        var sql = $"""
+            SELECT t.name, NULL
+            FROM sys.tables AS t
+            JOIN sys.schemas AS s ON t.schema_id = s.schema_id
+            WHERE s.name = N'{SchemaName}' AND t.name <> N'__migrations'
+            UNION ALL
+            SELECT tp.name, tr.name
+            FROM sys.foreign_keys AS fk
+            JOIN sys.tables AS tp ON fk.parent_object_id = tp.object_id
+            JOIN sys.tables AS tr ON fk.referenced_object_id = tr.object_id
+            JOIN sys.schemas AS s ON tp.schema_id = s.schema_id
+            WHERE s.name = N'{SchemaName}';
+            """;
+
+        return await RunWithDeadlockRetryAsync(async () =>
+        {
+            var tables = new HashSet<string>(StringComparer.Ordinal);
+            var edges = new List<(string ReferencingTable, string ReferencedTable)>();
+
+            await using (var command = DataSource.CreateCommand(sql))
+            {
+                await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+
+                while (await reader.ReadAsync().ConfigureAwait(false))
+                {
+                    var table = reader.GetString(0);
+                    tables.Add(table);
+
+                    if (!await reader.IsDBNullAsync(1).ConfigureAwait(false))
+                    {
+                        edges.Add((table, reader.GetString(1)));
+                    }
+                }
+            }
+
+            var deletionOrder = DeletionOrder(tables, edges);
+
+            if (deletionOrder.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            var builder = new StringBuilder();
+
+            foreach (var table in deletionOrder)
+            {
+                builder.Append("DELETE FROM ").Append(SchemaName).Append('.').Append(table).Append(";\n");
+            }
+
+            return builder.ToString();
+        }).ConfigureAwait(false);
+    }
+
+    /// <summary>Katalog okumasi bir deadlock'a carparsa yapilacak toplam deneme sayisi.</summary>
+    private const int CatalogDeadlockRetryAttempts = 5;
+
+    /// <summary>
+    /// Bir katalog okumasini/DDL'ini <c>sys.foreign_keys</c>/<c>sys.tables</c>
+    /// uzerindeki metadata kilidi cakismasina (hata 1205) karsi yeniden dener.
+    /// </summary>
+    /// <typeparam name="T">Islemin dondurdugu deger.</typeparam>
+    /// <param name="action">Denenecek islem.</param>
+    /// <returns>Islemin sonucu.</returns>
+    private static async ValueTask<T> RunWithDeadlockRetryAsync<T>(Func<ValueTask<T>> action)
+    {
+        for (var attempt = 1; attempt <= CatalogDeadlockRetryAttempts; attempt++)
+        {
+            try
+            {
+                return await action().ConfigureAwait(false);
+            }
+            catch (SqlException exception) when (
+                exception.Number == DeadlockVictimErrorNumber && attempt < CatalogDeadlockRetryAttempts)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(50 * attempt)).ConfigureAwait(false);
+            }
+        }
+
+        throw new UnreachableException();
+    }
+
+    /// <summary>
+    /// FK grafiginin topolojik sirasini hesaplar (Kahn) ve tersine cevirir: referans
+    /// eden (cocuk) tablolar, referans edilenden (ebeveyn) once silinir.
+    /// </summary>
+    /// <param name="tables">Semadaki tum veri tablolari.</param>
+    /// <param name="edges">(referans eden, referans edilen) FK kenarlari.</param>
+    /// <returns>Silme sirasi.</returns>
+    private static List<string> DeletionOrder(
+        HashSet<string> tables,
+        IReadOnlyList<(string ReferencingTable, string ReferencedTable)> edges)
+    {
+        var dependsOnCount = tables.ToDictionary(t => t, _ => 0, StringComparer.Ordinal);
+        var referencedBy = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        var seenEdges = new HashSet<(string, string)>();
+
+        foreach (var (referencing, referenced) in edges)
+        {
+            if (string.Equals(referencing, referenced, StringComparison.Ordinal) || !seenEdges.Add((referencing, referenced)))
+            {
+                continue;
+            }
+
+            dependsOnCount[referencing]++;
+
+            if (!referencedBy.TryGetValue(referenced, out var children))
+            {
+                children = [];
+                referencedBy[referenced] = children;
+            }
+
+            children.Add(referencing);
+        }
+
+        var queue = new Queue<string>(
+            tables.Where(t => dependsOnCount[t] == 0).OrderBy(t => t, StringComparer.Ordinal));
+        var creationOrder = new List<string>(tables.Count);
+
+        while (queue.Count > 0)
+        {
+            var table = queue.Dequeue();
+            creationOrder.Add(table);
+
+            if (!referencedBy.TryGetValue(table, out var children))
+            {
+                continue;
+            }
+
+            foreach (var child in children.OrderBy(c => c, StringComparer.Ordinal))
+            {
+                if (--dependsOnCount[child] == 0)
+                {
+                    queue.Enqueue(child);
+                }
+            }
+        }
+
+        creationOrder.Reverse();
+
+        return creationOrder;
+    }
+
+    /// <summary>SQL Server'in "deadlock victim" hatasinin numarasi.</summary>
+    private const int DeadlockVictimErrorNumber = 1205;
+
+    /// <summary>
+    /// Sema icindeki tum tablolari (once FOREIGN KEY kisitlarini kaldirarak) ve
+    /// ardindan semanin kendisini birakir. Migration hic uygulanmadiysa (sema
+    /// yoksa) sessizce hicbir sey yapmaz.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 Bu DDL, <c>sys.foreign_keys</c>/<c>sys.tables</c> katalog gorunumlerini
+    /// okur — bunlar TUM veritabaninin paylastigi kaynaklardir. Sinif fixture'lari
+    /// paralel yok edildiginde baska bir sinifin ayni anda calisan sema
+    /// temizligiyle metadata kilidi cakismasi (deadlock) yasanabilir; bu gecicidir
+    /// ve <see cref="RunWithDeadlockRetryAsync{T}"/> ile yeniden denenir.
+    /// </remarks>
+    private async ValueTask DropSchemaAsync()
+    {
+        // SchemaName, SqlServerDialect kurulurken SqlIdentifier.RequireSchemaName
+        // ile dogrulanmistir (yalniz kucuk harf/rakam/alt cizgi); dogrudan SQL
+        // metnine yerlestirmek bu yuzden guvenlidir (bkz. SqlServerQueries.CreateSchema).
+        var sql = $"""
+            IF EXISTS (SELECT 1 FROM sys.schemas WHERE name = N'{SchemaName}')
+            BEGIN
+                DECLARE @sql NVARCHAR(MAX) = N'';
+
+                SELECT @sql += N'ALTER TABLE {SchemaName}.' + QUOTENAME(t.name)
+                    + N' DROP CONSTRAINT ' + QUOTENAME(fk.name) + N';'
+                FROM sys.foreign_keys AS fk
+                JOIN sys.tables AS t ON fk.parent_object_id = t.object_id
+                JOIN sys.schemas AS s ON t.schema_id = s.schema_id
+                WHERE s.name = N'{SchemaName}';
+
+                EXEC sp_executesql @sql;
+                SET @sql = N'';
+
+                SELECT @sql += N'DROP TABLE {SchemaName}.' + QUOTENAME(t.name) + N';'
+                FROM sys.tables AS t
+                JOIN sys.schemas AS s ON t.schema_id = s.schema_id
+                WHERE s.name = N'{SchemaName}';
+
+                EXEC sp_executesql @sql;
+
+                EXEC(N'DROP SCHEMA {SchemaName};');
+            END
+            """;
+
+        await RunWithDeadlockRetryAsync(async () =>
+        {
+            await ExecuteAsync(sql).ConfigureAwait(false);
+            return true;
+        }).ConfigureAwait(false);
+    }
 }

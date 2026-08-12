@@ -206,7 +206,14 @@ CI: SQL Server container'ı ~2 GB bellek ister.
 
 ---
 
-## Açık Kalan — gerçek `mssql/server` hâlâ koşturulamadı
+## Açık Kalan — gerçek `mssql/server` hâlâ koşturulamadı (2026-08-12'de kapandı, K-386)
+
+> **Çözüldü (2026-08-12, K-386):** Kök sebep Rosetta ayarı değil, kurulu
+> Docker Desktop'ın (4.29.0) host macOS için çok eski olmasıydı. 4.86.0'a
+> güncellemek gerçek `mcr.microsoft.com/mssql/server:2022-latest`'i çalışır
+> hale getirdi; `AgentPrism.SqlServer.IntegrationTests` 479/479 yeşil koştu.
+> Ayrıntı: `docs/hafiza/sql-server-yerel-test.md`. Aşağıdaki bölüm o günkü
+> teşhisin ARŞİVİDİR.
 
 **Geliştirme makinesinde `mcr.microsoft.com/mssql/server` hâlâ çalıştırılamıyor.**
 İmaj yalnızca `linux/amd64`; makine Apple Silicon ve Docker'da amd64
@@ -275,7 +282,7 @@ tekrar dene rehberi: `docs/hafiza/sql-server-yerel-test.md`.
 ## Bitiş Ölçütleri (DoD)
 
 - [x] `AgentPrism.SqlServer` paketi üretiliyor (`dotnet pack` sayısı arttı)
-- [x] **Tüm store sözleşme testleri SQL Server üzerinde yeşil** — `azure-sql-edge` (arm64) ile 204/204; gerçek `mssql/server` hâlâ açık (bkz. "Açık Kalan")
+- [x] **Tüm store sözleşme testleri SQL Server üzerinde yeşil** — `azure-sql-edge` (arm64) ile 204/204 (Faz 23 kapanışında); gerçek `mssql/server` ile 479/479 (2026-08-12, K-386)
 - [x] Migration'lar temiz veritabanında ve tekrar çalıştırmada doğru — `MigrationRunnerTests` `azure-sql-edge` üzerinde yeşil
 - [x] Eşzamanlı iki süreçte migration bir kez uygulanıyor — `azure-sql-edge` üzerinde yeşil
 - [ ] Örnek uygulama `UseSqlServer` ile uçtan uca çalışıyor — koşturulamadı (gerçek SQL Server gerektirir)

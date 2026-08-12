@@ -79,9 +79,8 @@ Faz 23 kapanisi) 204 testin 204'u de kirilmisti. Kok sebepler:
 
 ## Test altyapisi
 
-- **🚨 `mcr.microsoft.com/mssql/server` bu makinede hâlâ koşmuyor; `azure-sql-edge` artık GÜVENİLİR bir yerel ikame (K-317, 2026-08-07).** Kök sebep, düzeltme (özel `IWaitUntil`, `sqlcmd` gerekmez) ve tekrar dene rehberi: [`sql-server-yerel-test.md`](sql-server-yerel-test.md).
+- **`mcr.microsoft.com/mssql/server` bu makinede artık koşuyor** (K-386). `azure-sql-edge` ikamesi (K-317) yedek kalır. Kurulum, tekrar dene ve **performans** (K-387..K-391, ayri sema yerine sinif basina paylasilan sema + `ResetDataAsync`): [`sql-server-yerel-test.md`](sql-server-yerel-test.md).
 - **Sozlesme testleri `tests/Shared/` altindadir** ve saglayici basina bir entegrasyon test projesine derlenir (`AgentPrism.StoreContracts` ad alani). Yeni bir saglayici eklerken sozlesme testi YAZILMAZ; yalnizca kosucu sinif turetilir. SQLite bu iddianin DORDUNCU kanitidir (K-194).
-- **Her test kendi semasini/onekini kullanir** (`t_<16 hex>`), her saglayicida. Bu hem yalitim saglar hem `SchemaName`/`TablePrefix` ayarinin gercekten calistigini her testte dogrular.
 
 ## SQLite'a ozgu tuzaklar
 
