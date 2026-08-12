@@ -138,9 +138,37 @@ sqlite3 samples/AgentPrism.Api/agentprism-manuel.db "SELECT count(*) FROM agentp
 - `runs` tablosundaki özet satır (adım 1'de eklenen) **silinmedi**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Politika kaydedildi: `PUT /api/retention/run_events` →
+  `{target: "run_events", maxAgeDays: 30, maxRows: null, archive: false,
+  enabled: true, tenantId: "default"}`.
+- `preview` → `matchingRows: **10**`, `cutoff: 2026-07-13T21:54:54Z`
+  (bugün − 30 gün). Beklenen sayı birebir.
+- `run` → `{jobId: "019ff7f8-…", target: "run_events"}` — senkron silmedi, iş
+  kuyruğa yazdı (MT-RET-004'ün davranışı).
+- `history[0]` → `deletedRows: **10**`, `archivedRows: 0`, `error: **null**`.
+- SQL sayımı → `agentprism_run_events` **2** satır (yalnız güncel olanlar).
+- `agentprism_runs` özet satırı **korundu** (1 satır) — `run_events`
+  silinirken `runs` düşmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+⚠️ **İki doküman düzeltmesi gerekiyor:**
+
+1. **Adım 1'deki `INSERT` güncel şemayla uyuşmuyor.** Doküman
+   `agentprism_runs (id, tenant_id, agent_name, status, created_at, updated_at)`
+   yazıyor; tabloda `created_at`/`updated_at` sütunları **yok**, bunun yerine
+   `started_at TEXT NOT NULL`, `completed_at TEXT NULL` ve
+   `is_streaming INTEGER NOT NULL` var. Koşumda kullanılan doğru biçim:
+   ```sql
+   INSERT INTO agentprism_runs (id, tenant_id, agent_name, status, started_at, is_streaming)
+   VALUES ('11111111-1111-1111-1111-111111111111','default','support',1,datetime('now'),0);
+   ```
+2. **Adım 4'teki `sleep 2` yetersiz.** `run` bir iş kuyruğa yazar; işi
+   çalıştıran arka plan servisi **uygulama ayaktayken** yoklama aralığında
+   işler. İlk denemede `sleep 2` sonrası `history` boş (`[]`) ve tablo hâlâ 12
+   satırdı; uygulama açık bırakılınca iş işlendi ve sonuç beklendiği gibi
+   geldi. Doğrulama, `history` dolana kadar yoklanmalıdır (ya da
+   `agentprism_jobs.status` = 3 beklenmelidir).
+
+**Durum:** ☐ Beklemede · ☑ Geçti (doküman SQL ve bekleme düzeltmesiyle) · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -178,9 +206,17 @@ curl -s -i -X PUT "$APU/api/retention/users_password_hashes" \
   run_inputs, document_embeddings` — **16 hedef**) taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `HTTP 400` döndü.
+- `title` = **`Bilinmeyen hedef`**.
+- `detail` tanınan hedeflerin **tam listesini** taşıyor ve **16 hedefin 16'sı
+  da** yanıtta var (eksik yok): `run_events, tool_invocations, traces, jobs,
+  webhook_deliveries, eval_case_results, workflow_checkpoints,
+  skill_script_grants, attachments, sessions, conversations, voice_sessions,
+  run_scores, idempotency_keys, run_inputs, document_embeddings`.
+- Mesaj reddedilen adı da yazıyor: `'users_password_hashes' taninan bir saklama
+  hedefi degil.` — beyaz liste çalışıyor, tablo adı enjeksiyonu yüzeyi yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -213,9 +249,14 @@ done
   silmez/değiştirmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Üç `preview` çağrısı da **aynı** sayıyı döndü (`matchingRows: 0`).
+- Çağrılar öncesi ve sonrası `agentprism_run_events` **2** satır — `preview`
+  hiçbir satır silmedi/değiştirmedi.
+- Not: bu noktada `matchingRows` 0'dır çünkü eşleşen 10 satır MT-RET-001'de
+  zaten silinmişti. Case'in kanıtladığı şey mutlak sayı değil, **üç çağrının
+  tutarlılığı ve yan etkisizliği**; ikisi de doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -251,9 +292,21 @@ curl -s "$APU/api/jobs/$JOB" -H "$APB" | jq '{kind, targetName, status}'
 - `status` başlangıçta `Pending` (veya kısa süre sonra `Running`/`Completed`)'dir — asla senkron tamamlanmış bir yanıt gövdesiyle gelmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `run` yanıtı **yalnız iki alan** taşıyor: `['jobId', 'target']` →
+  `{"jobId":"019ff7fa-…","target":"run_events"}`. Silinen satır sayısı **yok**
+  — senkron silme yapılmadığının doğrudan kanıtı.
+- `GET /api/jobs/{jobId}` → `kind` = **`Retention`**, `targetName` =
+  **`run_events`**, `status` = `Completed` (sorgu anında iş çoktan işlenmişti;
+  ilk anda `Pending`'di).
+- İş kaydı ayrıca `totalItems: 1`, `doneItems: 1`, `failedItems: 0`,
+  `attempt: 1`, `errorMessage: null` taşıyor; `items[0].input` = `run_events`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+⚠️ **Doküman düzeltmesi:** adım 2'deki `jq '{kind, targetName, status}'`
+yanıtın kökünde bu alanları arıyor, ama yanıt **sarmalanmış**:
+`{"job": {...}, "items": [...]}`. Doğru ifade `jq '.job | {kind, targetName, status}'`
+olmalıdır.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (doküman `jq` yolu düzeltmesiyle) · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -286,9 +339,17 @@ curl -s "$APU/api/retention/preview?target=tool_invocations" -H "$APB" | jq
   **`0`** olması veya hiç hesaplanmamasıdır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Politikasız hedef için `preview` **boş dizi değil**, tek kayıt döndü:
+  `[{"target":"tool_invocations","maxAgeDays":null,"enabled":false,
+  "cutoff":null,"matchingRows":0}]`
+- Kritik alanlar doğru: `enabled` = **`false`**, `matchingRows` = **`0`**,
+  `cutoff` = `null`.
+- "Varsayılan politika yoktur" iddiası doğrulandı — kayıt olmayan bir hedef
+  için hiçbir eşik hesaplanmıyor ve hiçbir satır silinmeye aday değil.
+- Case iki olası biçimden hangisinin geçerli olduğunun kaydedilmesini
+  istiyordu: **`enabled:false` taşıyan kayıt** biçimi geçerlidir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -318,9 +379,15 @@ curl -s "$APU/api/retention/history?target=run_events&take=5" -H "$APB" | jq
 - `target` alanı istenen filtreyle **eşleşir**, başka hedeflerin kayıtları görünmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `history?target=run_events&take=5` → **1** kayıt (o ana kadar bir koşum
+  yapılmıştı).
+- Kayıt beklenen yedi alanın hepsini taşıyor, üstelik `tenantId` de var:
+  `['archivedRows', 'completedAt', 'deletedRows', 'error', 'id', 'startedAt',
+  'target', 'tenantId']`.
+- Filtre çalışıyor: dönen kayıtların `target` kümesi tam olarak
+  `{'run_events'}` — başka hedefin kaydı görünmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
