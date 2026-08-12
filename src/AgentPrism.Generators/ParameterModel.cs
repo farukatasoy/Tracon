@@ -42,9 +42,18 @@ internal enum LeafTypeKind
 }
 
 /// <summary>Tek bir metot parametresinin uretec modeli.</summary>
+/// <param name="IsConcreteArray">
+/// <see cref="ParameterShape.Array"/> icin: parametrenin C# tipi cıplak bir dizi
+/// (<c>T[]</c>) mi, yoksa <c>IReadOnlyList&lt;T&gt;</c> gibi bir arayuz mu.
+/// Calisma zamani yardimcisi (<c>AgentPrismGeneratedToolArguments.GetArray</c>)
+/// her zaman <c>IReadOnlyList&lt;T&gt;</c> doner; hedef <c>T[]</c> ise
+/// <c>SourceWriter</c> bu alana bakarak bir <c>.ToArray()</c> donusumu ekler
+/// (aksi halde CS1503).
+/// </param>
 internal sealed record ParameterModel(
     string Name,
     ParameterShape Shape,
     LeafType? Leaf,
     bool IsRequired,
-    string? DefaultValueLiteral);
+    string? DefaultValueLiteral,
+    bool IsConcreteArray = false);

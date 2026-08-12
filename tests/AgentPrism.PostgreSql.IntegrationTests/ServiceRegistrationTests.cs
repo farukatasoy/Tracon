@@ -138,6 +138,92 @@ public sealed class ServiceRegistrationTests(PostgresFixture fixture)
         itemCount.ShouldBeGreaterThan(0);
     }
 
+    /// <summary>
+    /// 🚨 MT-PKG-082 regresyon testi. <c>AgentPrism.Sql.Shared</c> her SQL
+    /// saglayicisinda AYRI derlenir (K-176, link-based paylasim): bu yuzden
+    /// <c>SqlStoreContext</c>/<c>MigrationRunner</c>/<c>MigrationHostedService</c>
+    /// her saglayicida FARKLI bir CLR tipidir ve <c>services.Replace(...)</c>
+    /// yalniz KENDI tipini degistirir — rakip saglayicinin kaydini SILMEZ.
+    /// Duzeltmeden once bu, iki saglayici birden kayitliyken IKISININ DE
+    /// migration uygulayip kendi veritabanina yazmasina yol aciyordu ("son
+    /// kayit kazanir" iddiasi yalnizca AYNI saglayicinin tekrar kaydi icin
+    /// gecerliydi, FARKLI saglayicilar icin degil).
+    /// </summary>
+    /// <remarks>
+    /// Ikinci gercek bir saglayici (ornegin AgentPrism.Sqlite) BILEREK
+    /// referans ALINMAZ: her SQL saglayici projesi <c>AgentPrism.Sql.Shared</c>'i
+    /// kendi derlemesine link'ler ve <c>MigrationRunner</c> gibi PUBLIC tipler
+    /// iki saglayici ayni projede referanslandiginda CS0433 ile cakisir (bu
+    /// oturumda olculdu). Rakip saglayicinin varligi bu yuzden paylasilan
+    /// (<c>AgentPrism.Abstractions</c>) <see cref="SqlPersistenceRegistrationMarker"/>
+    /// isaretiyle SIMULE edilir — <c>MigrationHostedService.IsWinningProvider()</c>
+    /// tam olarak bu isarete bakar, gercek bir ikinci baglantiya degil.
+    /// </remarks>
+    [Fact]
+    public async Task Kaybeden_saglayici_migration_uygulamaz()
+    {
+        await using var context = await PostgresTestContext.CreateAsync(fixture, applyMigrations: false);
+
+        var services = new ServiceCollection();
+        services.AddSingleton(context.TenantContext);
+
+        services.AddAgentPrism().UsePostgreSql(options =>
+        {
+            options.ConnectionString = fixture.ConnectionString;
+            options.SchemaName = context.SchemaName;
+            options.AutoApplyMigrations = true;
+        });
+
+        // "SQLite" SONRA kayitli gibi davranir: PostgreSQL artik kaybedendir.
+        services.AddSingleton(new SqlPersistenceRegistrationMarker("SQLite"));
+
+        await using var provider = services.BuildServiceProvider();
+
+        foreach (var hosted in provider.GetServices<IHostedService>())
+        {
+            await hosted.StartAsync(CancellationToken.None);
+        }
+
+        // PostgreSQL kaybetti: kendi semasini HIC olusturmamis olmali.
+        var schemaCreated = await context.ScalarAsync<long>(
+            "SELECT count(*) FROM information_schema.schemata WHERE schema_name = "
+            + $"'{context.SchemaName}';");
+
+        schemaCreated.ShouldBe(0);
+    }
+
+    /// <summary>Ayna testi: PostgreSQL SON kayitliysa (kazanan), migration gercekten uygulanir.</summary>
+    [Fact]
+    public async Task Kazanan_saglayici_migration_uygular()
+    {
+        await using var context = await PostgresTestContext.CreateAsync(fixture, applyMigrations: false);
+
+        var services = new ServiceCollection();
+        services.AddSingleton(context.TenantContext);
+
+        // "SQLite" ONCE kayitli gibi davranir.
+        services.AddSingleton(new SqlPersistenceRegistrationMarker("SQLite"));
+
+        services.AddAgentPrism().UsePostgreSql(options =>
+        {
+            options.ConnectionString = fixture.ConnectionString;
+            options.SchemaName = context.SchemaName;
+            options.AutoApplyMigrations = true;
+        });
+
+        await using var provider = services.BuildServiceProvider();
+
+        foreach (var hosted in provider.GetServices<IHostedService>())
+        {
+            await hosted.StartAsync(CancellationToken.None);
+        }
+
+        var migrationCount = await context.ScalarAsync<long>(
+            $"SELECT count(*) FROM {context.SchemaName}.__migrations;");
+
+        migrationCount.ShouldBeGreaterThan(0);
+    }
+
     private ServiceProvider BuildProvider(Action<AgentPrismPostgreSqlOptions>? configure = null)
     {
         var services = new ServiceCollection();
