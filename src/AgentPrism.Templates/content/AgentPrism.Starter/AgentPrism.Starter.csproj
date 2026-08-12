@@ -6,7 +6,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>AgentPrism.Starter</RootNamespace>
     <UserSecretsId>agentprism-starter-10000000-0000-0000-0000-000000000001</UserSecretsId>
-    <InvariantGlobalization>true</InvariantGlobalization>
+    <!--
+      🚨 InvariantGlobalization ACILMAZ. `Microsoft.Data.SqlClient` Globalization
+      Invariant Mode'u DESTEKLEMEZ; bu sablon UseSqlServer secenegini sunar ve o
+      secenekle uretilen proje HIC acilmazdi (`SqlConnection.Open` bir
+      `NotSupportedException` firlatir). Sablon tuketiciye dogrudan gider; kusur
+      da dogrudan giderdi. Olculdu (manuel test MT-SQL-024).
+      Gerekce: docs/KARARLAR.md, karar K-392.
+    -->
   </PropertyGroup>
 
   <ItemGroup>
