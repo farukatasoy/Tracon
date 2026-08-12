@@ -1341,9 +1341,16 @@ sqlite3 "$SQLITEDB" "SELECT count(*) FROM agentprism_agent_definitions WHERE nam
   (`busy_timeout=5000` çakışmaları bekleterek çözer).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `agentprism-manuel.db-wal` ve `agentprism-manuel.db-shm` dosyalarının ikisi de
+  var — WAL modu etkin.
+- 20 eş zamanlı `POST` isteğinin **tümü 201** döndü.
+- `agentprism_agent_definitions` içinde `manuel-sqlite-esz-%` desenine uyan
+  **20** satır — hiçbir yazma kaybolmadı.
+- Uygulama logunda `SQLITE_BUSY` veya `database is locked` **hiç yok**
+  (`grep -ci` → 0). `busy_timeout=5000` çakışmaları hata yerine beklemeyle
+  çözüyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1395,9 +1402,18 @@ sqlite3 "$SQLITEDB" "SELECT count(*) FROM agentprism_agent_definition_versions W
   çalışmıştır (`PRAGMA foreign_keys = ON` etkindir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Kayıt + güncelleme sonrası sürüm sayısı **2** (agent id
+  `019FF7E6-BBB4-79ED-842D-93BBA398988F`).
+- `DELETE` isteği **204** döndü.
+- Silme sonrası sürüm sayısı **0** — `ON DELETE CASCADE` gerçekten çalıştı,
+  yetim satır kalmadı.
+- Not: `sqlite3` komut satırından `PRAGMA foreign_keys;` **0** döner. Bu
+  beklenen bir durumdur ve çelişki değildir — pragma **bağlantı başınadır**,
+  uygulamanın kendi bağlantılarında `SqliteDataSource.OnStateChange` ile
+  `PRAGMA foreign_keys = ON` çalıştırılır; CLI kendi ayrı bağlantısını açar.
+  CASCADE'in gerçekten çalışması bunun kanıtı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1441,9 +1457,20 @@ sqlite3 "$SQLITEDB" ".tables" | tr ' ' '\n' | grep -c "^ikinci_tenants$"
   setleri aynı dosyada ÇAKIŞMADAN bir arada durur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Uygulama açıldı ve `AgentPrism 15 migration uyguladi. Sema: ikinci_.` yazdı —
+  öneke göre AYRI bir migration defteri kuruldu.
+- İki sorgu da **1** döndü: `agentprism_tenants` ve `ikinci_tenants` aynı `.db`
+  dosyasında yan yana duruyor.
+- İki ayrı defter, ikisi de dolu: `agentprism___migrations` 15 satır,
+  `ikinci___migrations` 15 satır.
+- Toplam tablo sayısı **90** = 2 × 45 (44 özellik tablosu + 1 defter). İndeks ve
+  tetikleyici adları da öneki taşıdığı için (K-193) veritabanı genelindeki ad
+  tekliği kuralı ihlal edilmedi.
+- Kilit dosyaları da önek başına ayrı:
+  `agentprism-manuel.db.agentprism_.agentprism-migration-lock` ve
+  `agentprism-manuel.db.ikinci_.agentprism-migration-lock` (K-389).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Temizlik:** `dotnet user-secrets set "AgentPrism:Sqlite:TablePrefix" "agentprism_"`, reset yordamı.
 
@@ -1496,9 +1523,38 @@ $MSSQL -Q "SELECT input_cost, output_cost FROM agentprism.runs WHERE id = '<yuka
   taşır).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- **İmaj:** gerçek `mcr.microsoft.com/mssql/server:2022-latest` (bkz. MT-SQL-042).
+- İlk deneme fiyat üretmedi: `cost` = `{inputCost: null, outputCost: null,
+  source: "Unknown"}`. Çalıştırma başarılıydı (`status`=1, 211 girdi / 13 çıktı
+  token) — sorun model kataloğunun `gpt-5.4-mini` için fiyat taşımaması.
+  `RunPricingResolver.Resolve` bu durumda `PricingSource.Unknown` döndürür
+  (`RunPricingResolver.cs:70`). Case'in kendi beklentisi bunu zaten koşullu
+  yazıyor ("`RunPricingResolver` modeli tanıyorsa"), ama fiyat olmadan
+  `decimal` hassasiyeti ÖLÇÜLEMEZ.
+- Bu yüzden fiyat **yapılandırmadan** verildi (kod değişikliği değil, komut
+  satırı yapılandırması) ve case'in asıl amacı ölçüldü:
+  `--AgentPrism:Pricing:openai:gpt-5.4-mini:Input=12345.6789`
+  `--AgentPrism:Pricing:openai:gpt-5.4-mini:Output=98765.4321`
+  ⚠️ Doğru anahtar yolu `AgentPrism:Pricing:<saglayici>:<model>:Input`'tur —
+  `Providers` ara anahtarı **yoktur** (sınıf üyesi `Providers` olsa da
+  `BindPricing` doğrudan `Pricing`'in çocuklarını dolaşır) ve alan adı
+  `InputCostPerMillionTokens` değil **`Input`**'tur
+  (`AgentPrismServiceCollectionExtensions.cs:807-861`).
+- Sonuç — 211 girdi / 13 çıktı token ile:
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+  | | API yanıtı | SQL'den okunan | Beklenen (elle hesap) |
+  |---|---|---|---|
+  | `inputCost` | `2.6049382479` | `2.6049382479` | `2.6049382479` |
+  | `outputCost` | `1.2839506173` | `1.2839506173` | `1.2839506173` |
+
+- Üçü de **birebir eşleşiyor**; hiçbir basamak yuvarlanmadı. `source` =
+  `Configuration`, `currency` = `USD`.
+- Sütun tipi doğrudan katalogdan doğrulandı: `input_cost` ve `output_cost`
+  **`decimal(20,10)`** — `SqlServerDialect.AddDecimal`'in `Precision=20,
+  Scale=10` yazması etkili. Tipi verilmemiş bir parametrenin düşeceği
+  `decimal(18,0)` durumunda iki değer de `3` ve `1`'e yuvarlanırdı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1539,9 +1595,21 @@ $MSSQL -Q "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('ikinci')
   birbirinden bağımsız, tam tablo setleri taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- **İmaj:** gerçek `mcr.microsoft.com/mssql/server:2022-latest`.
+- Uygulama açıldı ve `AgentPrism 15 migration uyguladi. Sema: ikinci.` yazdı.
+- İki sorgu da **45** döndü (doküman 44 diyor — `MT-SQL-024` ile aynı sapma:
+  doğrulama sorgusu `__migrations` defterini de sayar). `agentprism` ve `ikinci`
+  şemaları aynı veritabanında bağımsız, tam tablo setleri taşıyor.
+- İki ayrı defter, ikisi de dolu: `agentprism.__migrations` 15 satır,
+  `ikinci.__migrations` 15 satır.
+- SQLite'ın önek deseninden farkı doğrulandı: burada `ikinci` gerçek bir SQL
+  Server şemasıdır (`SCHEMA_ID('ikinci')` çözülüyor), tek ad alanını paylaşan
+  bir önek değil.
+- Not: ilk koşumda `agentprism` şeması 0 tablo gösterdi — önceki case'in
+  veritabanı reset'i yüzünden ön koşul (MT-SQL-024) bozulmuştu. Varsayılan şema
+  yeniden kurulup case tekrar koşuldu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Temizlik:** `dotnet user-secrets set "AgentPrism:SqlServer:SchemaName" "agentprism"`, reset yordamı.
 
@@ -1606,9 +1674,19 @@ docker run -d --name ap-mssql -p 51433:1433 \
   kusur değildir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur — hangi imajın kullanıldığı burada kaydedilir)_
+- **Gerçek `mcr.microsoft.com/mssql/server:2022-latest` çalışıyor — ikameye
+  gerek yok.** K-386'nın öngördüğü sonuç doğrulandı.
+- `docker inspect ap-mssql`: imaj `mcr.microsoft.com/mssql/server:2022-latest`,
+  `platform=linux`, durum `running`.
+- Container içi mimari: `uname -m` → **`x86_64`** (Rosetta emülasyonu çalışıyor,
+  `exit 133` yok).
+- Motor sürümü: `Microsoft SQL Server 2022 (RTM-CU26) (KB5093420) -
+  16.0.4265.3 (X64)`.
+- Bu dosyanın SQL Server bölümündeki **her case gerçek `mssql/server` ile
+  koşuldu**; `azure-sql-edge` ikamesi hiç kullanılmadı. Dolayısıyla §2, §3 ve §5
+  sonuçları gerçek motoru kanıtlar.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1657,9 +1735,28 @@ curl -s "$APU/api/diagnostics" -H "$APB" | python3 -m json.tool
   `pendingMigrations` = `[]`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Uygulama normal açıldı. `OptionsValidationException` **hiç yok**
+  (`grep -ci` → 0) — hiçbir validator tetiklenmedi, çünkü hiçbir sağlayıcı
+  kayıtlı değil.
+- `/api/diagnostics` beklenen dört alanı da doğru verdi:
+  `persistenceProvider` = `InMemory`, `registeredPersistenceProviders` = **0**,
+  `migrationsUpToDate` = `True`, `pendingMigrations` = `[]`.
+- ⚠️ **`/health` açılışta `Healthy` DEĞİL, `Degraded` döner** — gerekçe
+  `Henuz saglikli oldugu dogrulanmis bir model saglayicisi yok.` Bu bir kusur
+  değil, ama case'in eksik yazdığı bir ön koşul var: sağlayıcı durumu
+  `AgentPrismDiagnosticsCollector.cs:97` içinde `_healthCache.TryPeek(...)` ile
+  okunur ve bu önbellek **yalnız `GET /api/models/health` çağrılınca dolar**.
+  Başarılı bir gerçek agent çalıştırması onu doldurmaz — bir OpenAI çağrısı
+  yapıldıktan sonra bile beş sağlayıcının beşi de `Unknown` kaldı ve `/health`
+  `Degraded` döndü.
+- Ön koşul uygulandığında beklenen sonuç **doğrulandı**: `GET /api/models/health`
+  çağrıldıktan hemen sonra `/health` → **`Healthy`**.
+- **Doküman düzeltmesi önerilir:** case'in adımlarına "3.5. `GET
+  /api/models/health` çağır (sağlayıcı sağlık önbelleğini ısıt)" eklenmeli.
+  Bu aynı zamanda işletme bilgisidir: yeni açılmış bir örnek, hazır olduğu
+  hâlde readiness probe'a `Degraded` bildirir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti (doküman ön koşul eklemesiyle) · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1694,9 +1791,10 @@ curl -s -X DELETE "$APU/api/agents/manuel-bellekici" -H "$APB" -w "\nHTTP: %{htt
   `InMemoryAgentDefinitionStore` (veya benzeri) tam işlevseldir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Üç istek de 2xx döndü: `POST` **201**, `GET` **200**, `DELETE` **204**.
+- Kalıcılık katmanı olmadan bellek içi depolar tam işlevsel.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1740,9 +1838,11 @@ curl -s "$APU/api/agents/manuel-gecici" -H "$APB" -w "\nHTTP: %{http_code}\n"
 - Yeniden başlatma sonrası aynı sorgu **404** döner.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- İlk açılışta `GET /api/agents/manuel-gecici` → **200**.
+- Uygulama durdurulup yeniden başlatıldıktan sonra aynı sorgu → **404**.
+- Veri süreçle birlikte bitti; bellek içi izleğin tanımı doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1782,9 +1882,18 @@ curl -s -X POST "$APU/api/sessions/herhangi-bir-oturum/branch" -H "$APB" \
   kontrol edilmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- HTTP **501** döndü, `ProblemDetails` gövdesiyle:
+  `title` = `Dallandirma desteklenmiyor`, `status` = 501, `detail` =
+  `Konusma dallandirma yalnizca kalici bir SQL saglayicisi acikken calisir.
+  Bellek ici kurulumda sohbet gecmisi oturum durumunun opak blogunda yasar ve
+  belirli bir noktaya kadar kopyalanamaz; sessizce tamamini kopyalamak istenen
+  dali uretmezdi.`
+- Var olmayan bir oturum kimliği (`herhangi-bir-oturum`) kullanıldı ve yine de
+  501 geldi — depo denetimi oturum varlığından ÖNCE yapılıyor, case'in
+  öngördüğü sıra doğrulandı.
+- Mesaj yalnız "desteklenmiyor" demiyor, NEDEN desteklenmediğini de anlatıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
