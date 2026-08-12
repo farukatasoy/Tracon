@@ -5,6 +5,7 @@
 > tablosu buradadır.
 >
 > Senaryo dosyalarını **üretecek** oturum için: [`PROMPT.md`](PROMPT.md).
+> Senaryoları **koşacak** oturum için: [`KOSUM-PLANI.md`](KOSUM-PLANI.md).
 
 ---
 
@@ -12,10 +13,14 @@
 
 | Aşama | Kim | Ne yapar |
 |---|---|---|
-| **Üretim** | AI oturumu | [`PROMPT.md`](PROMPT.md) protokolüyle senaryo dosyalarını yazar |
-| **Koşum** | İnsan | Dosyaları sırayla açar, adımları uygular, `Durum` kutusunu işaretler |
+| **Üretim** | AI oturumu | [`PROMPT.md`](PROMPT.md) protokolüyle senaryo dosyalarını yazar — **bitti** |
+| **Koşum** | AI oturumu + insan | [`KOSUM-PLANI.md`](KOSUM-PLANI.md) protokolüyle dört paralel şeritte koşar; fiziksel eylem isteyen case'ler insana kalır |
 
 İki aşama karışmaz. Üretim biterken hiçbir test koşulmuş olmaz.
+
+> **Koşum sırasında bu dosyanın §2.4 (`user-secrets`) ve §4 (reset) bölümleri
+> geçerli değildir.** Paralel şeritler onları paylaşamaz; yerine geçen şerit
+> kapsamlı yordamlar [`KOSUM-PLANI.md`](KOSUM-PLANI.md) §2.2 ve §3.3'tedir.
 
 ---
 
@@ -268,8 +273,8 @@ Bu eşleme bir başlangıçtır; üretim oturumu grep ile doğrular ve gerekirse
 | # | Dosya | Alan kodu | Faz | Kaynak | Hedef case | Üretim | Koşum |
 |---|---|---|---|---|---|---|---|
 | 01 | [`01-KURULUM-VE-PAKETLEME.md`](01-KURULUM-VE-PAKETLEME.md) | `PKG` | 0, 52 | `Directory.Build.props` · `Directory.Build.targets` · `src/Directory.Build.props` · `*.csproj` · `src/AgentPrism.Generators` | **48** | ✅ | ☐ |
-| 02 | [`02-CEKIRDEK-VE-KATALOG.md`](02-CEKIRDEK-VE-KATALOG.md) | `CORE` | 1, 3 | `src/AgentPrism.Core` (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/`) · `src/AgentPrism.Abstractions` | **42** | ✅ | ☐ |
-| 03 | [`03-KALICILIK-POSTGRESQL.md`](03-KALICILIK-POSTGRESQL.md) | `PG` | 2, 51 | `src/AgentPrism.PostgreSql` | **36** | ✅ | ☐ |
+| 02 | [`02-CEKIRDEK-VE-KATALOG.md`](02-CEKIRDEK-VE-KATALOG.md) | `CORE` | 1, 3 | `src/AgentPrism.Core` (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/`) · `src/AgentPrism.Abstractions` | **42** | ✅ | ✅ |
+| 03 | [`03-KALICILIK-POSTGRESQL.md`](03-KALICILIK-POSTGRESQL.md) | `PG` | 2, 51 | `src/AgentPrism.PostgreSql` | **36** | ✅ | ✅ (2026-08-12: 29 geçti, 7 kaldı — bkz. [`SONUCLAR-2026-08-12.md`](SONUCLAR-2026-08-12.md)) |
 | 04 | [`04-KALICILIK-DIGER.md`](04-KALICILIK-DIGER.md) | `SQL` | 23, 24 | `src/AgentPrism.Sqlite` · `src/AgentPrism.SqlServer` · `src/AgentPrism.Sql.Shared` | **40** | ✅ | ☐ |
 | 05 | [`05-SAGLAYICI-OPENAI.md`](05-SAGLAYICI-OPENAI.md) | `OAI` | 3, 8 | `src/AgentPrism.OpenAI` (tümü) · devre kesici/sağlık için `src/AgentPrism.Core/Models/ModelProviderCircuitBreaker.cs` · `CircuitBreakingChatClient.cs` · `ModelProviderHealthCache.cs` · `ModelProviderRegistry.cs` | **40** | ✅ | ☐ |
 | 06 | [`06-SAGLAYICI-DIGER.md`](06-SAGLAYICI-DIGER.md) | `PROV` | 8, 26, 27 | `src/AgentPrism.Anthropic` · `src/AgentPrism.Google` · `src/AgentPrism.Azure` | **39** | ✅ | ☐ |
@@ -1022,6 +1027,12 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   üzerinden eşliyor, `02`'nin deseni TEKRARLANMADI. Kod değiştirilmedi, `02`
   de değiştirilmedi (bu oturumun bütçesi yalnız `20`'yi kapsar) — sonraki
   bir oturum `02`'yi bu ölçümle karşılaştırıp gerekirse düzeltmelidir.
+  🔧 **KOŞUMDA DOĞRULANDI (2026-08-12).** `02-CEKIRDEK-VE-KATALOG.md` koşuldu; MT-CORE-053 tam olarak
+  bu şüpheyi doğruladı — `s.external_id` ve `ci.session_id` gerçekten yok, çalışan sorgu
+  `sessions.state->'stateBag'->'AgentPrism.ChatHistory'->>'conversationId'` üzerinden `conversations`'a
+  bağlanmak zorunda kaldı. MT-CORE-033/054'ün sorguları da aynı sorunu taşıyor (`runs.agent_version`
+  alanı doğru ama JOIN'ler kontrol edilmeli). `02`'nin SQL sorguları henüz düzeltilmedi; düzeltme
+  sonraki bir üretim/bakım oturumuna kalıyor.
 - **§7 tablosunun `21` satırı Faz 32/43/44/46/47/54/55'in TAMAMINI ve `~45`
   case hedefini veriyordu; ölçüldü ve KÖKTEN daraltıldı (2026-08-10,
   `21-DAYANIKLILIK-VE-IPTAL.md` üretilirken).** Üretime başlamadan önce
