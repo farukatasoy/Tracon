@@ -785,7 +785,9 @@ INSERT INTO agentprism_runs (id, tenant_id, agent_name, status, created_at, upda
 VALUES ('22222222-2222-2222-2222-222222222222','default','support',1,datetime('now'),datetime('now'));
 WITH RECURSIVE seq(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM seq WHERE x < 150)
 INSERT INTO agentprism_run_events (run_id, seq, type, created_at)
-SELECT '22222222-2222-2222-2222-222222222222', x, 0, datetime('now', '-' || x || ' seconds') FROM seq;
+SELECT '22222222-2222-2222-2222-222222222222', x, 0,
+       strftime('%Y-%m-%dT%H:%M:%S.0000000Z', datetime('now', '-' || x || ' seconds'))
+FROM seq;
 SQL
 
 curl -s -X PUT "$APU/api/retention/run_events" -H "$APB" -H "content-type: application/json" \
@@ -794,12 +796,29 @@ curl -s -X PUT "$APU/api/retention/run_events" -H "$APB" -H "content-type: appli
 curl -s "$APU/api/retention/preview?target=run_events" -H "$APB" | jq
 
 curl -s -X POST "$APU/api/retention/run?target=run_events" -H "$APB" | jq -r '.jobId'
-sleep 2
+sleep 4
 curl -s "$APU/api/retention/history?target=run_events" -H "$APB" | jq '.[0]'
 
 sqlite3 samples/AgentPrism.Api/agentprism-manuel.db \
   "SELECT count(*) FROM agentprism_run_events WHERE run_id='22222222-2222-2222-2222-222222222222';"
 ```
+
+> **Doküman düzeltmesi (kusur değil):** orijinal `Girilecek veri`
+> `datetime('now', ...)` kullanıyordu — SQLite'ın varsayılan biçimi
+> (`YYYY-MM-DD HH:MM:SS`, boşluk ayraçlı). `AgentPrism.Sqlite/Internal/
+> SqliteDialect.cs:251-256`'nın `AddTimestamp`'i tüm `created_at` yazımlarında
+> **`T` ayraçlı** ISO-8601 kullanır (`yyyy-MM-ddTHH:mm:ss.fffffffZ`) ve
+> kod içi yorumu bunun **bilinçli** olduğunu söylüyor: "sözlüksel olarak zaman
+> sıralı DEĞİLDİR" uyarısı tam bu yüzden var. İki biçim karışınca SQLite'ın
+> metin karşılaştırması bozuluyor: `' ' (0x20) < 'T' (0x54)` olduğundan
+> boşluk-ayraçlı HER satır, gerçek saatinden bağımsız olarak T-ayraçlı
+> `cutoff`'tan küçük sayılıyor — ölçüldü: düzeltilmeden önce `preview`
+> `matchingRows: 150` (hepsi), koşu `deletedRows: 150` (tamamı silindi)
+> döndü. Üretim kodu `created_at`'i HER ZAMAN `AddTimestamp` üzerinden yazdığı
+> için gerçek veride bu asla oluşmaz — yalnız bu fixture'ın SQLite'ın kısayol
+> `datetime()`'ını kullanması hataya yol açtı. Yukarıdaki blok düzeltilmiş
+> hâldir. Ayrıca `sleep 2` yetersizdi (iş kuyruğa yazılıp uygulama ayaktayken
+> işleniyor, örüntü `MT-RET-001` ile aynı) — `sleep 4`'e çıkarıldı.
 
 **Beklenen sonuç**
 - `preview` `matchingRows: 50` döner (150 − 100).
@@ -809,9 +828,14 @@ sqlite3 samples/AgentPrism.Api/agentprism-manuel.db \
 - Faz 36'nın kendi kapanış ölçümüyle (150→100, eşik 50) **birebir eşleşir**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Düzeltilmiş fixture ile ölçüldü: `preview` → `{"cutoff":"2026-08-12T22:50:31+00:00","matchingRows":50}`.
+`run` → `history`'nin en yeni kaydı `{"deletedRows":50,"archivedRows":0}`.
+Doğrudan SQL sayımı → `100`. Üçü de beklentiyle **birebir eşleşti**; Faz
+36'nın kapanış ölçümü doğrulandı. (İlk deneme, düzeltilmemiş fixture ile:
+`matchingRows: 150`, `deletedRows: 150` — bu bir SQLite metin-karşılaştırma
+tuzağıydı, yukarıdaki not düzeltildi, ürün kusuru değildi.)
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -848,9 +872,11 @@ curl -s "$APU/api/retention/preview?target=run_events" -H "$APB" | jq
 - `run` çalıştırılsa bile **hiçbir satır** silinmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`{"cutoff":null,"matchingRows":0}` — beklendiği gibi. `cutoff:null` doğrular:
+`FindRowLimitCutoffAsync` 100 satırlık tabloda `maxRows=500` için gerçekten
+`null` döndü, `COUNT(*)` hiç çalışmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -885,9 +911,12 @@ curl -s "$APU/api/retention/preview?target=run_events" -H "$APB" | jq
 - `preview` **daha çok silen** eşiği uygular: `matchingRows: 90`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`{"maxAgeDays":1,"cutoff":"2026-08-12T22:52:01+00:00","matchingRows":90}` —
+tam beklendiği gibi. `cutoff` (~78 saniye önce) hacim eşiğinin (`MaxRows=10`
+→ 100 satırın 10.sı) zaman damgası; yaş eşiği (1 gün önce) çok daha eski
+olduğundan hacim eşiği kazandı. `36.2` kararı doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -945,9 +974,18 @@ sqlite3 samples/AgentPrism.Api/agentprism-manuel.db \
   değiştirilmedi).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Fixture: `kiraci-alfa` 150 satır, `kiraci-beta` 5 satır (ayrı `run` satırları
+üzerinden, `agentprism_run_events`'in kendi `tenant_id` sütunu yok — izolasyon
+`agentprism_runs.tenant_id`'ye korele `EXISTS` ile sağlanıyor). `MaxRows=100`
+politikası yalnız `kiraci-alfa` başlığıyla kaydedildi ve çalıştırıldı.
+`preview` → `matchingRows:50`; `run` → `history` `deletedRows:50`. Koşu
+sonrası doğrudan SQL: `kiraci-alfa` → **`100`**, `kiraci-beta` → **`5`**
+(değişmedi). Tam beklendiği gibi — **K-279 doğrulandı, K-260 çürütüldü.**
+(İlk sayım denemesi işin kuyruktan işlenmesinden önce yapıldığı için henüz
+150 gösterdi — `MT-RET-020`'deki aynı zamanlama deseni; 4 saniye sonra
+yeniden sayıldı ve `100` çıktı.)
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -994,9 +1032,13 @@ curl -s -i -X POST "$APU/api/agents/support/run" \
 - `Retry-After` başlığı saniye cinsinden bir sayı taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İlk çağrı `200`. İkinci çağrı `HTTP/1.1 429 Too Many Requests`, gövde:
+`{"title":"Kota asildi","status":429,"detail":"kiraci geneli icin gunluk
+calistirma kotasi asildi (1/1)...","quotaMetric":"Runs","quotaPeriod":"Daily",
+"quotaLimit":1,"quotaUsed":1,"quotaResetsAt":"2026-08-13T00:00:00.0000000+00:00"}`.
+`Retry-After: 3868` (saniye, gece yarısına kalan süre). Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1025,8 +1067,14 @@ curl -s -X POST "$APU/api/agents/support/run" \
   -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" \
   -d '{"message":"merhaba"}' > /dev/null
 
-curl -s "$APU/api/quotas/usage" -H "$APB" | jq '[.[] | {agentName, period, runs, tokens}]'
+curl -s "$APU/api/quotas/usage" -H "$APB" | jq '.usage[] | {agentName, period, runs, tokens}'
 ```
+
+> **Doküman düzeltmesi (kusur değil):** orijinal `jq '[.[] | ...]'` yanıtı
+> düz bir dizi sayıyordu; gerçek gövde `{tenantId, timeZone, usage:[...],
+> definitions:[...], ...}` bir nesnedir — doğrusu `.usage[]`. Ayrıca
+> kiracı-geneli satırların `agentName`'i `null` değil **boş metin `""`**
+> döner (`select(.agentName==null)` hiç eşleşmez).
 
 **Beklenen sonuç**
 - Sonuç en az dört farklı `(agentName, period)` kombinasyonu içerir:
@@ -1034,9 +1082,14 @@ curl -s "$APU/api/quotas/usage" -H "$APB" | jq '[.[] | {agentName, period, runs,
 - Her birinin `runs` alanı en az `1` artmıştır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`MT-RET-030`'un bloke edici kotası `enabled:false` ile devre dışı bırakıldı
+(o kotanın kendisi bu case'in kapsamı dışı). `run` sonrası `usage[]` tam
+**dört** kombinasyon döndü: `("", Daily)`, `("", Monthly)`, `("support",
+Daily)`, `("support", Monthly)` — hepsi `runs:2` (biri `MT-RET-030`'un ilk
+başarılı çağrısından, biri bu case'in çağrısından; ikisi de aynı güne/aya
+düştüğü için birikti). Dördü de bağımsız sayaç olarak doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1082,9 +1135,12 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST "$APU/api/agents/support/run" \
   ön kontrol yalnız HTTP girişinde) bırakılmıştır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`MT-RET-030`'un kotası yeniden `enabled:true` yapıldı (kullanım zaten `2`,
+sınır `1` — dolu). Yeni istek `429` döndü. Belgelenen yüzey davranışı
+doğrulandı; eşzamanlılık güvencesi (not'ta belirtildiği gibi) birim testlere
+bırakıldı, bu case'te ayrıca ölçülmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1135,9 +1191,26 @@ echo "ONCE=$ONCE SONRA=$SONRA FARK=$((SONRA - ONCE))"
   workflow'u çalıştırmak her seferinde **aynı** artışı üretmelidir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`MT-RET-030`'un bloke edici kotası tekrar `enabled:false` yapıldı (case
+kapsamı dışı). `ONCE=2` (kiracı-geneli günlük `runs`), workflow SSE ile
+uçtan uca çalıştı (`RunCompleted`, iki agent adımı — `ozetleyici`,
+`cevirmen` — tamamlandı, `WorkflowOutput` üretildi). `SONRA=2`.
+**`FARK=0`** — beklenen `1` veya `2` DEĞİL. `usage[]`'te `ozetleyici`/
+`cevirmen` için hiç yeni satır da yok; dört mevcut satırın `updatedAt`'i
+çalıştırmadan önce ve sonra **birebir aynı** kaldı (`22:56:08`). İkinci
+bağımsız çalıştırmayla doğrulandı — tutarlı, deterministik `FARK=0`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Kök neden (ölçüldü, kod okundu)** `grep -rn "RecordQuotaAsync\|QuotaEnforcer"
+src/AgentPrism.AspNetCore/Endpoints/WorkflowEndpoints.cs` **sıfır** sonuç
+döner; `RecordQuotaAsync` yalnız `RunRecordingAgent.cs:779`'dan çağrılır ve
+`WorkflowEndpoints.cs` hiçbir yerde `RunRecordingAgent`'a atıfta bulunmaz.
+Workflow çalıştırma yolu, agent çalıştırma yolundan (`AgentEndpoints` →
+`RunRecordingAgent`) **tamamen ayrı** ve kota muhasebesine hiç uğramıyor.
+`HATA-S1-006` olarak kaydedildi — Kritik: bir kiracı, tanımlı bir kotayı
+`/api/agents/{ad}/run` yerine `/api/workflows/{ad}/run` üzerinden tamamen
+atlatabilir.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1179,8 +1252,12 @@ for i in 1 2 3; do
     -d '{"message":"merhaba"}'
 done
 
-curl -s "$APU/api/quotas/usage" -H "$APB" | jq '[.[] | select(.agentName==null and .period=="Daily")][0]'
+curl -s "$APU/api/quotas/usage" -H "$APB" | jq '[.usage[] | select(.agentName=="" and .period=="Daily")][0]'
 ```
+
+> **Doküman düzeltmesi (kusur değil):** `.[] | select(.agentName==null...)`
+> — aynı `MT-RET-031`/`033` sapması: gövde `.usage[]` içinde, ve kiracı-geneli
+> `agentName` `null` değil `""`.
 
 **Beklenen sonuç (şüphenin doğrulanması)**
 - Üç çağrının **hiçbiri** `429` almaz — maliyet sıfıra yakın bir sınırla
@@ -1192,9 +1269,14 @@ curl -s "$APU/api/quotas/usage" -H "$APB" | jq '[.[] | select(.agentName==null a
   yapılandırmayan her kurulum için sessiz bir etkisizliktir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Ön koşul doğrulandı: `grep -rn "InputCostPerMillionTokens"
+samples/AgentPrism.Api/Program.cs` boş döndü. `maxCost=0.000001` kotasıyla
+üç ardışık çağrının **üçü de `200`** — hiçbiri `429` almadı. Koşu sonrası
+`quota_usage`: `runs:5, tokens:1120, cost:0.0`. `runs`/`tokens` arttı, `cost`
+**tam `0.0`** kaldı. Şüphe tamamen doğrulandı: fiyatsız modelde `MaxCost`
+kuralı fiilen ölü koddur.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1223,11 +1305,25 @@ bir kusurdur ("yaklaşık kota" dürüst bir ifadedir).
 curl -s -X PUT "$APU/api/quotas" -H "$APB" -H "content-type: application/json" \
   -d '{"agentName":"support","period":"Daily","maxRuns":1}'
 
-seq 1 5 | xargs -P5 -I{} curl -s -o /dev/null -w "%{http_code}\n" \
-  -X POST "$APU/api/agents/support/run" \
-  -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" \
-  -d '{"message":"esZAMANLI istek {}"}'
+for i in 1 2 3 4 5; do
+  ( curl -s -o /dev/null -w "%{http_code}\n" -X POST "$APU/api/agents/support/run" \
+    -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" \
+    -d "{\"message\":\"esZAMANLI istek $i\"}" ) &
+done
+wait
 ```
+
+> **Doküman düzeltmesi (kusur değil):** orijinal `seq 1 5 | xargs -P5 -I{}
+> curl ... -H "Idempotency-Key: $(uuidgen)"` **tek** `uuidgen` çağırır —
+> `$(uuidgen)` `xargs`'a değil dış kabuğa ait, komut satırı BİR KEZ kurulur.
+> Sonuç: 5 istek AYNI `Idempotency-Key`'i paylaşır ve test kotayı değil
+> idempotency çakışmasını ölçer (ölçüldü: `409` × 4, `500` × 1 — hiç `200`
+> yok, hiç `429` yok). Düzeltme: her istek kendi alt-kabuğunda (`&` ile arka
+> plana atılan ayrı bir komut) çalışmalı ki `$(uuidgen)` her seferinde yeniden
+> değerlendirilsin. Ayrıca `support` bu dosyanın önceki case'lerinde zaten
+> kullanıldığından (kirli sayaç), koşum **temiz** bir agent kapsamıyla
+> (`yonlendirici`) yapıldı — gerçek koşumda dosyanın kendi sırasını izleyen
+> bir oturum `support` ile de temiz başlayabilir.
 
 **Beklenen sonuç**
 - `maxRuns=1` olmasına rağmen `200` sayısı **1'den fazla olabilir** —
@@ -1239,9 +1335,15 @@ seq 1 5 | xargs -P5 -I{} curl -s -o /dev/null -w "%{http_code}\n" \
   ise gerçek bir kusurdur (kotanın hiç izin vermediği anlamına gelir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İlk deneme (düzeltilmemiş fixture, `arastirmaci` kapsamı, paylaşılan
+idempotency key): `409 × 4`, `500 × 1` — beklenen davranış hiç ölçülemedi,
+saf bir test-kurulumu hatasıydı (yukarıdaki not). Düzeltilmiş fixture ile
+(`yonlendirici` kapsamı, temiz dönem, benzersiz anahtarlar): **`200` × 5** —
+`maxRuns=1` olmasına rağmen beşi de kabul edildi, `quota_usage.runs` **`5`**'e
+çıktı. Sıfır `200` görülmedi; K-159'un dokümante ettiği yaklaşıklık
+doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1297,9 +1399,15 @@ curl -s -i -X POST "$APU/api/agents" -H "$RO" -H "content-type: application/json
   okunur bir anahtara sızıyor olabilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`RunsRead`-yalnız anahtarla `PUT /api/retention/jobs` → **`200`**, politika
+gerçekten yazıldı (`maxAgeDays:30` DB'ye kaydedildi). Kontrol grubu
+`POST /api/agents` (aynı anahtar) → **`403`**
+(`"Bu uc 'AgentsAdmin' kapsamini gerektiriyor"`) — `AgentEndpoints` doğru
+uyguluyor. Ek doğrulama: aynı anahtarla `PUT /api/quotas` de **`200`**
+(`maxRuns:999` yazıldı) — case başlığındaki iki uç ailesinin **ikisi de**
+doğrulandı. Şüphe tamamen doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1345,9 +1453,13 @@ sqlite3 samples/AgentPrism.Api/agentprism-manuel.db \
 - `kiraci-beta`'nın satır sayısı **değişmez**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Fixture: her iki kiracının mevcut satırlarına (100 alfa / 5 beta, MT-RET-023'ten)
+5'er tane **40 gün eski** satır eklendi. `kiraci-alfa` başlığıyla
+`maxAgeDays:30` politikası kaydedildi; `preview` → `matchingRows:5` (yalnız
+eski 5 satır, güncel 100 dokunulmadı). `run` sonrası doğrudan SQL: `kiraci-alfa`
+**`105→100`**, `kiraci-beta` **`10`'da değişmedi**. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1396,9 +1508,11 @@ curl -s -i -X PUT "$APU/api/retention/quota_usage" \
   aday olarak yazılabilir (kodlama değil, bu oturumun kapsamı dışı).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`400 Bad Request` — `"'quota_usage' taninan bir saklama hedefi degil."`
+Gövdedeki geçerli hedef listesi (16 üye) sayıldı, `quota_usage` **listede
+yok**. Şüphe tamamen doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1460,6 +1574,11 @@ dotnet run -c Release
 - Hiçbir veritabanı bağlantısı denenmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`~/agentprism-manuel/saklama-testleri` altında konsol projesi kuruldu,
+`AgentPrism.Testing 0.0.0-preview.0.64` yerel feed'den eklendi (yalnız
+paket eklendi, `dotnet new install`/küresel şablon kaydına dokunulmadı —
+KOSUM-PLANI §2.3'ün kısıtladığı yalnız o). Çıktı tam beklendiği gibi:
+`Store tipi: NullRetentionStore`, `CountOlderThanAsync: 0`,
+`FindRowLimitCutoffAsync: null`. İstisna yok, DB bağlantısı denenmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı

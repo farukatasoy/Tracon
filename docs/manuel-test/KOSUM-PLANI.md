@@ -13,20 +13,20 @@
 
 ## 1. Durum
 
-> Son güncelleme: **2026-08-13**, Şerit 1 (oturum S1-1, S1-2, S1-3 kısmi).
+> Son güncelleme: **2026-08-13**, Şerit 1 (oturum S1-1, S1-2, S1-3 tam).
 
 | | |
 |---|---|
 | Toplam case | **1097** |
-| Koşuldu | **165** (`01` tam · `02` 28/42 · `03` tam · `04` **tam** · `14` 1/47 · `23` 12/26) |
-| Kalan | **932** |
+| Koşuldu | **179** (`01` tam · `02` 28/42 · `03` tam · `04` **tam** · `14` 1/47 · `23` **tam**) |
+| Kalan | **918** |
 | Planlanan oturum | **40** (4 paralel şerit + ortak kuyruk) |
 
 ### Şerit ilerlemesi
 
 | Şerit | Durum |
 |---|---|
-| 1 — Kalıcılık ve ses | S1-1 ✅ · S1-2 ✅ · **S1-3 🔶 12/26** (`23` §3'ten devam) · S1-4…S1-7 ⏳ |
+| 1 — Kalıcılık ve ses | S1-1 ✅ · S1-2 ✅ · **S1-3 ✅** (`23` tamam, 26/26) · S1-4…S1-7 ⏳ (sıradaki: `20-BELLEK-RAG-BAGLAM.md`, PostgreSQL+pgvector) |
 | 2 — HTTP ve güvenlik | ⏳ Başlamadı |
 | 3 — Çekirdek ve sağlayıcı | ⏳ Başlamadı |
 | 4 — Arayüz | ⏳ Başlamadı |
@@ -43,6 +43,7 @@
 | Hata | Önem | Durum |
 |---|---|---|
 | `HATA-S1-004` — `InvariantGlobalization` SQL Server'ı kırıyor (örnek **ve** şablon) | Kritik | ✅ Düzeltildi (K-392) |
+| `HATA-S1-006` — Workflow çalıştırmaları kota muhasebesini tamamen atlıyor | Kritik | ⛔ Açık |
 | `HATA-S1-002` — `AutoApplyMigrations=false` + hazır olmayan şema uygulamayı kapatıyor | Yüksek | ⛔ Açık |
 | `HATA-S1-003` — `Data Source=:memory:` dokümante edildiği hâlde hiç çalışmıyor | Yüksek | ⛔ Açık |
 | `HATA-S1-005` — Dört saklama hedefi config varsayılanını sessizce yok sayıyor | Düşük | ⛔ Açık |
