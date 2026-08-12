@@ -546,9 +546,33 @@ curl -s "$APU/api/retention/history?target=run_events" -H "$APB" | jq '.[0]'
   dosyaları belirtilen yolda oluşur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Aşama 1 — `ArchivePath` yok, `archive=true`:**
+- `history[0]` → `deletedRows: **0**`, `archivedRows: 0`, `error: **null**`.
+- SQL sayımı: **10** satır, hiçbiri silinmedi.
+- Sessiz kalmıyor — uygulama logu açıkça yazıyor:
+  `'run_events' hedefi icin arsivleme istendi ama IArchiveSink kayitli degil;
+  hicbir satir silinmedi.`
+- Case iki olası biçimden hangisinin geçerli olduğunun kaydedilmesini
+  istiyordu: **`deletedRows: 0` + `error: null` + uyarı logu** biçimi
+  geçerlidir. Hata alanı kullanılmıyor; bu bir hata değil, bilinçli bir
+  "yapma" kararı.
+
+**Aşama 2 — `AgentPrism:Retention:ArchivePath` verildi, uygulama yeniden başlatıldı:**
+- `history[0]` → `deletedRows: **10**`, `archivedRows: **10**`, `error: null`.
+- SQL sayımı: **0** satır — satırlar hem arşivlendi hem silindi.
+- Arşiv dosyası hedef adına göre klasörlenmiş olarak oluştu:
+  `<ArchivePath>/run_events/2026-08-12.jsonl.gz`
+- İçerik gerçekten okunabilir JSONL (gzip açıldı), satır başına bir kayıt ve
+  **tüm sütunlar** korunmuş:
+  ```json
+  {"run_id":"22222222-…","seq":1,"type":0,"text":null,"tool_name":null,
+   "tool_call_id":null,"payload":null,"created_at":"2026-07-03 22:01:29"}
+  ```
+- Sessiz veri kaybını engelleyen kural doğrulandı: arşivlenemeyen veri
+  düşürülmüyor, arşivlenebilen veri kaybolmadan düşürülüyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
