@@ -13,20 +13,20 @@
 
 ## 1. Durum
 
-> Son güncelleme: **2026-08-13**, Şerit 1 (oturum S1-1, S1-2, S1-3 tam).
+> Son güncelleme: **2026-08-13**, Şerit 1 (oturum S1-1, S1-2, S1-3, S1-4 tam).
 
 | | |
 |---|---|
 | Toplam case | **1097** |
-| Koşuldu | **179** (`01` tam · `02` 28/42 · `03` tam · `04` **tam** · `14` 1/47 · `23` **tam**) |
-| Kalan | **918** |
+| Koşuldu | **202** (`01` tam · `02` 28/42 · `03` tam · `04` **tam** · `14` 1/47 · `20` 23/31 (8 Beklemede — embedding erişimi yok) · `23` **tam**) |
+| Kalan | **895** |
 | Planlanan oturum | **40** (4 paralel şerit + ortak kuyruk) |
 
 ### Şerit ilerlemesi
 
 | Şerit | Durum |
 |---|---|
-| 1 — Kalıcılık ve ses | S1-1 ✅ · S1-2 ✅ · **S1-3 ✅** (`23` tamam, 26/26) · S1-4…S1-7 ⏳ (sıradaki: `20-BELLEK-RAG-BAGLAM.md`, PostgreSQL+pgvector) |
+| 1 — Kalıcılık ve ses | S1-1 ✅ · S1-2 ✅ · S1-3 ✅ (`23` tamam, 26/26) · **S1-4 ✅** (`20`, 23/31 koşuldu — 13 Geçti/10 Kaldı; 8 Beklemede, embedding erişimi yok) · S1-5…S1-7 ⏳ (sıradaki: `25-SAGLIK-TESHIS-OPENAPI.md`) |
 | 2 — HTTP ve güvenlik | ⏳ Başlamadı |
 | 3 — Çekirdek ve sağlayıcı | ⏳ Başlamadı |
 | 4 — Arayüz | ⏳ Başlamadı |
@@ -46,8 +46,13 @@
 | `HATA-S1-006` — Workflow çalıştırmaları kota muhasebesini tamamen atlıyor | Kritik | ⛔ Açık |
 | `HATA-S1-002` — `AutoApplyMigrations=false` + hazır olmayan şema uygulamayı kapatıyor | Yüksek | ⛔ Açık |
 | `HATA-S1-003` — `Data Source=:memory:` dokümante edildiği hâlde hiç çalışmıyor | Yüksek | ⛔ Açık |
+| `HATA-S1-008` — Bellek sağlayıcıları (dosya belleği okuma, todo) mesaj serileştirmesinde `500` ile çöküyor | Yüksek | ⛔ Açık |
+| `HATA-S1-011` — `KnowledgeEndpoints` API anahtarı kapsam denetimi hiç uygulamıyor | Yüksek | ⛔ Açık |
+| `HATA-S1-007` — `/api/agents/validate`, bilinmeyen enum string'de `400` yerine `500` veriyor | Orta | ⛔ Açık |
+| `HATA-S1-009` — `EnableTextSearch` sorguyla eşleşen içeriği hiç bulamıyor (şüpheli) | Orta | ⛔ Açık |
 | `HATA-S1-005` — Dört saklama hedefi config varsayılanını sessizce yok sayıyor | Düşük | ⛔ Açık |
 | `HATA-S1-001` — `user-secrets` temizliği uygulanmamış (süreç kusuru) | Düşük | ⛔ Açık |
+| `HATA-S1-010` — Bilgi tabanı doğrulama hataları `.NET ArgumentException`'ın iç parametre adını sızdırıyor | Düşük | ⛔ Açık |
 
 Ayrıntı: [`SONUCLAR-S1-2026-08-13.md`](SONUCLAR-S1-2026-08-13.md).
 
@@ -354,7 +359,7 @@ Kalıcılık sağlayıcısı case'e göre değişir; bu şerit `AgentPrism__Sqli
 | S1-1 | [`04`](04-KALICILIK-DIGER.md) | §1–§3 | 19 | SQLite + SQL Server bağlantı, migration. `MT-SQL-001/021` koşuldu, atla. |
 | S1-2 | [`04`](04-KALICILIK-DIGER.md) | §4–§8 | 18 | Sağlayıcıya özgü davranış, bellek içi izlek, taşınabilirlik, yük. |
 | S1-3 | [`23`](23-SAKLAMA-ARSIV-KOTA.md) | tümü | 26 | SQLite ile koş — saklama silme yolları en hızlı orada görünür. |
-| S1-4 | [`20`](20-BELLEK-RAG-BAGLAM.md) | tümü | 31 | **PostgreSQL + pgvector zorunlu.** Gerçek embedding → OpenAI anahtarı. |
+| S1-4 ✅ | [`20`](20-BELLEK-RAG-BAGLAM.md) | tümü | 31 | **Bitti** (2026-08-13): 13 Geçti, 10 Kaldı, 8 Beklemede (embedding erişimi yok — bkz. `SONUCLAR-S1-2026-08-13.md`). |
 | S1-5 | [`25`](25-SAGLIK-TESHIS-OPENAPI.md) | tümü | 28 | Üç sağlayıcıyı da sırayla dener; her geçişte reset. |
 | S1-6 | [`19`](19-COK-MODLULUK-VE-SES.md) | §1–§8 | 37 | Ek yükleme, ses uçları, `speak`/`transcribe`. ElevenLabs anahtarı. |
 | S1-7 | [`19`](19-COK-MODLULUK-VE-SES.md) | §9–§13 | 24 | Gerçek zamanlı konuşma (WebSocket). Ses **kalitesi** kullanıcıya gider. |
