@@ -34,12 +34,12 @@ internal static class ParameterTypeValidator
             ? RenderDefaultValueLiteral(parameter.ExplicitDefaultValue, type)
             : null;
 
-        if (TryGetArrayElementType(type, out var elementType))
+        if (TryGetArrayElementType(type, out var elementType, out var isConcreteArray))
         {
             var elementLeaf = TryCreateLeaf(elementType);
             return elementLeaf is null
                 ? null
-                : new ParameterModel(parameter.Name, ParameterShape.Array, elementLeaf, isRequired, defaultLiteral);
+                : new ParameterModel(parameter.Name, ParameterShape.Array, elementLeaf, isRequired, defaultLiteral, isConcreteArray);
         }
 
         var leaf = TryCreateLeaf(type);
@@ -89,13 +89,16 @@ internal static class ParameterTypeValidator
         return kind is null ? null : LeafType.Scalar(kind.Value, GetFullyQualifiedName(effectiveType), isNullable);
     }
 
-    private static bool TryGetArrayElementType(ITypeSymbol type, out ITypeSymbol elementType)
+    private static bool TryGetArrayElementType(ITypeSymbol type, out ITypeSymbol elementType, out bool isConcreteArray)
     {
         if (type is IArrayTypeSymbol { Rank: 1 } array)
         {
             elementType = array.ElementType;
+            isConcreteArray = true;
             return true;
         }
+
+        isConcreteArray = false;
 
         if (type is INamedTypeSymbol { IsGenericType: true, TypeArguments.Length: 1 } named)
         {
