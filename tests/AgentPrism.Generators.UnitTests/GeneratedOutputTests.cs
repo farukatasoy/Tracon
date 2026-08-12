@@ -145,6 +145,45 @@ public sealed class GeneratedOutputTests
     }
 
     [Fact]
+    public void Ciplak_dizi_parametresi_ToArray_ile_cevrilir_ve_uretilen_kod_derlenir()
+    {
+        // GetArray IReadOnlyList<T> doner; T[] parametreye ortuk donusum yoktur.
+        // Bu test yalnizca metni degil, CIKTI DERLEMESININ HATASIZ oldugunu da
+        // dogrular - MT-PKG-044'te bulunan CS1503 regresyonunu yakalar. Diger
+        // testler yalnizca uretilen metni kontrol eder, derlemeyi hic calistirmaz.
+        const string Source = """
+            using AgentPrism;
+
+            namespace MyApp;
+
+            internal static class Tools
+            {
+                [AgentPrismTool("etiketle", "Etiketler.")]
+                public static void Etiketle(string[] etiketler) { }
+
+                [AgentPrismTool("sayilari_topla", "Sayilari toplar.")]
+                public static int SayilariTopla(int[] sayilar) { var toplam = 0; foreach (var s in sayilar) { toplam += s; } return toplam; }
+
+                [AgentPrismTool("liste_de_calisir", "IReadOnlyList<T> hala GetArray'i dogrudan kullanmali.")]
+                public static int ListeDeCalisir(System.Collections.Generic.IReadOnlyList<int> sayilar) => sayilar.Count;
+            }
+            """;
+
+        var result = GeneratorTestHelper.Run(Source);
+
+        var wrapper = result.SingleWrapperFile(hintNamePrefix: "Etiketle_");
+        wrapper.ShouldContain("global::System.Linq.Enumerable.ToArray(global::AgentPrism.AgentPrismGeneratedToolArguments.GetArray(");
+
+        var listeWrapper = result.SingleWrapperFile(hintNamePrefix: "ListeDeCalisir_");
+        listeWrapper.ShouldNotContain("ToArray");
+
+        var errors = result.OutputCompilation.GetDiagnostics()
+            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToList();
+        errors.ShouldBeEmpty(customMessage: string.Join('\n', errors.Select(e => e.ToString())));
+    }
+
+    [Fact]
     public void CancellationToken_parametresi_semadan_haric_tutulur_ve_dogrudan_baglanir()
     {
         const string Source = """

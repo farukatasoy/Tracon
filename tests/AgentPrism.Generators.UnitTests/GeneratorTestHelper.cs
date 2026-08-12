@@ -92,6 +92,13 @@ internal sealed record GeneratorRunResult(
         => GeneratedFiles().Single(kv => !string.Equals(kv.Key, "AgentPrismGeneratedTools.g.cs", StringComparison.Ordinal)).Value;
 
     /// <summary>
+    /// Birden fazla tool uretildiginde, hint adi <paramref name="hintNamePrefix"/> ile
+    /// baslayan TEK wrapper dosyasinin metnini doner.
+    /// </summary>
+    public string SingleWrapperFile(string hintNamePrefix)
+        => GeneratedFiles().Single(kv => kv.Key.StartsWith(hintNamePrefix, StringComparison.Ordinal)).Value;
+
+    /// <summary>
     /// <paramref name="trackingName"/> ile isaretlenmis adimin bu kosumdaki onbellek
     /// nedenlerini (<see cref="IncrementalStepRunReason"/>) doner.
     /// </summary>

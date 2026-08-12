@@ -68,6 +68,25 @@ internal sealed class MigrationHostedService : IHostedService
     /// <inheritdoc />
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        if (!IsWinningProvider())
+        {
+            // 🚨 Birden fazla kalicilik saglayicisi kayitliysa BURADAN once
+            // WarnOnMultipleProviders() zaten uyarmis olur. Sql.Shared her
+            // saglayicida AYRI derlenir (bu dosya link ile kopyalanir, K-176) —
+            // yani SqlStoreContext/MigrationRunner/MigrationHostedService HER
+            // saglayicida FARKLI bir CLR tipidir. `services.Replace(...)` bu
+            // yuzden yalnizca AYNI saglayicinin kendi tipini degistirir; rakip
+            // saglayicinin kaydini SILMEZ. Bu koruma olmadan kaybeden saglayici
+            // de kendi semasini/varsayilan kiracisini SESSIZCE yazardi (olculdu:
+            // MT-PKG-082, iki veritabaninda da sema olustu). Yalnizca kazanan
+            // (son kaydedilen) saglayici migration uygular; digerleri kapiyi
+            // acar ve hicbir seye dokunmadan cikar.
+            WarnOnMultipleProviders();
+            _schemaReadyGate.MarkReady();
+
+            return;
+        }
+
         WarnOnMultipleProviders();
 
         if (!_storeContext.AutoApplyMigrations)
@@ -119,8 +138,32 @@ internal sealed class MigrationHostedService : IHostedService
             "AgentPrism'de birden fazla kalicilik saglayicisi kayitli: {Providers}. " +
             "Son kayit kazanir ve su an {Winner} kullaniliyor. Yalnizca birini cagirin.",
             string.Join(", ", names),
-            _storeContext.ProviderName);
+            WinningProviderName());
     }
+
+    /// <summary>
+    /// Bu ornegin baglandigi saglayici, "son kayit kazanir" kuralina gore
+    /// kazanan mi.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="_registrations"/> paylasilan (<c>AgentPrism.Abstractions</c>)
+    /// bir tip oldugu icin TUM saglayicilardan gelen isaretleri gorur ve kayit
+    /// sirasini korur; son eleman "son cagrilan" saglayicidir. <see cref="_storeContext"/>
+    /// ise bu derlemeye OZGUDUR (Sql.Shared ayri derlenir) — yalniz kendi adini
+    /// paylasilan listedeki son adla karsilastirarak "kazanan miyim" sorusunu
+    /// yanitlayabilir.
+    /// </remarks>
+    private bool IsWinningProvider()
+    {
+        var names = _registrations.Select(static registration => registration.ProviderName).ToArray();
+
+        return names.Length == 0
+            || string.Equals(names[^1], _storeContext.ProviderName, StringComparison.Ordinal);
+    }
+
+    private string WinningProviderName()
+        => _registrations.Select(static registration => registration.ProviderName).LastOrDefault()
+            ?? _storeContext.ProviderName;
 
     private async ValueTask EnsureDefaultTenantAsync(CancellationToken cancellationToken)
     {

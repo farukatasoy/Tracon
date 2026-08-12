@@ -140,7 +140,13 @@ internal static class SourceWriter
             var required = parameter.IsRequired ? "true" : "false";
             var defaultValue = parameter.IsRequired ? "null" : (parameter.DefaultValueLiteral ?? "null");
 
-            return $"global::AgentPrism.AgentPrismGeneratedToolArguments.GetArray(arguments, {nameLiteral}, static e => {elementConverter}, required: {required}, defaultValue: {defaultValue})";
+            var getArrayCall = $"global::AgentPrism.AgentPrismGeneratedToolArguments.GetArray(arguments, {nameLiteral}, static e => {elementConverter}, required: {required}, defaultValue: {defaultValue})";
+
+            // GetArray IReadOnlyList<T> doner. Hedef parametre ciplak bir dizi (T[])
+            // ise ortuk donusum yoktur (CS1503); .ToArray() ile acikca cevrilir.
+            return parameter.IsConcreteArray
+                ? $"global::System.Linq.Enumerable.ToArray({getArrayCall})"
+                : getArrayCall;
         }
 
         var converter = WriteElementConverter(parameter.Leaf!);

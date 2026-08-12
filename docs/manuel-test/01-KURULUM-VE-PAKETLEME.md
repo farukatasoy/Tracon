@@ -80,9 +80,26 @@ cat global.json
   `allowPrerelease: false` bunu engeller.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+dotnet --list-sdks:
+9.0.305 [/usr/local/share/dotnet/sdk]
+9.0.306 [/usr/local/share/dotnet/sdk]
+10.0.100 [/usr/local/share/dotnet/sdk]
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+dotnet --version: 10.0.100
+
+global.json:
+{
+  "sdk": {
+    "version": "10.0.100",
+    "rollForward": "latestFeature",
+    "allowPrerelease": false
+  }
+}
+```
+`dotnet --version` 10.0.100 — 10.0.1xx bandında. `global.json` üç değeri de birebir taşıyor. Önizleme sürümü yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -113,9 +130,13 @@ npm --version
 - `npm --version` sıfır çıkış kodu verir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+node --version: v20.19.4
+npm --version : 11.6.3
+```
+Node 20.19.4 ≥ 20.19. `npm --version` sıfır çıkış kodu ile döndü.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -155,9 +176,18 @@ docker pull mcr.microsoft.com/mssql/server:2022-latest
   [`00-INDEKS.md`](00-INDEKS.md) §2.1'deki sapma notu uygulanır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+docker info: 29.7.2 · 10 CPU · 8321515520 bayt
+uname -m    : arm64
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+docker pull mcr.microsoft.com/mssql/server:2022-latest
+Status: Image is up to date for mcr.microsoft.com/mssql/server:2022-latest
+```
+Bellek 8321515520 bayt = 8,32 GB (ondalık) / 7,75 GiB (ikili) — sınırda ama
+ondalık yorumla eşik geçiliyor ve imaj zaten çekili, `docker pull` sıfır
+hatayla bitti. `uname -m` `arm64`. Rosetta gerekmedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -200,9 +230,44 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
   kusurdur: asılı kalan alt süreç aranır (`ps aux | grep MSBuild`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+1) dotnet build  -> 40,5 sn · Build succeeded · 0 Warning(s) · 0 Error(s)
+2) dotnet test   -> 1m 37s (97,7 sn) · toplam koşum başarısız
+   - AgentPrism.SqlServer.IntegrationTests      : 480/480 geçti
+   - AgentPrism.AspNetCore.FunctionalTests      : 447/447 geçti
+   - AgentPrism.Ui.E2ETests                     : 41/42 geçti, 1 KALDI
+     -> Playground_konusma_modu_mikrofonu_acar_ve_transkript_gosterir
+        Timeout 30000ms: GetByTestId("voice-transcript") görünür olmadı.
+   - (diğer tüm test projeleri geçti)
+3) dotnet pack (--no-build) -> ~3 sn · exit 0 · tüm .nupkg üretildi
+4) dotnet format --verify-no-changes -> 58 sn · exit 0 · değişiklik bildirilmedi
+```
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+🚨 **Kusur bulundu.** `dotnet test` adımı `failed: 1` ile bitti — kapı kriteri
+(`failed sayısı 0`) sağlanmadı. Kök neden araştırması:
+- Aynı test **izole çalıştırıldığında da 3/3 denemede tutarlı şekilde
+  başarısız oldu** — rastgele/yük kaynaklı bir kırılganlık (flaky) değil,
+  bu makinede **deterministik** bir arıza.
+- Son üç commit (`9182202`, `458c485`, `419981b`) `src/AgentPrism.UI` veya
+  `src/AgentPrism.Voice` dosyalarına dokunmuyor — bu bir gerileme (regresyon)
+  gibi görünmüyor, bu ortama özgü bir sorun olabilir.
+- `docs/hafiza/test-altyapisi.md` sahte ses cihazının (Chromium
+  `--use-fake-device-for-media-stream`) sürekli ton ürettiğini ve elle kapatma
+  düğmesiyle çözüldüğünü belgeliyor; test kodu (`UiTests.cs:155`) bu düğmeyi
+  gerçekten tıklıyor. Sorun bu bilinen tuzak değil.
+- Bu Mac'te `TCC.db` mikrofon izin listesinde ne Terminal ne de `dotnet`
+  süreci için bir kayıt var — macOS'ta Chromium'un sahte cihaz bayrağının bu
+  spesifik ortamda işletim sistemi mikrofon izniyle etkileşimi olası bir
+  neden, ama bu **doğrulanmadı**; tarayıcı konsol/ağ izlemesi yapılmadan
+  kesinleşmez.
+- Süre kriteri sağlandı: toplam koşum 2,5 dakikayı aşmadı, asılı kalan alt
+  süreç yok.
+
+Bu bulgu **Kritik** önemde bir kusur bildirimi olarak açılmalıdır (izlek: UI
+E2E / ses konuşma modu, muhtemelen ortam-bağımlı). Doğrulama derinliği bu
+oturumda tarayıcı içi hata ayıklamayı kapsamadı.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -244,9 +309,32 @@ git checkout -- src/AgentPrism.Abstractions/Tools/AgentPrismToolAttribute.cs
 - Son adımdan sonra `git status` yalnız `docs/manuel-test/` gösterir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+dotnet build  -> Build FAILED (0 Warning(s), 3 Error(s))
+  CS8955: Source file can not contain both file-scoped and normal
+          namespace declarations. (üç TFM için tekrarlanır)
+dotnet format --verify-no-changes -> çıkış kodu 2, 32 satır IDE0055
+git checkout sonrası: git status yalnız docs/manuel-test/ gösteriyor
+```
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+🚨 **Doküman kusuru.** Senaryo, hedeflenen "build yeşil / format kırmızı"
+durumunu bugün üretmiyor: `AgentPrismToolAttribute.cs` artık dosya-kapsamlı
+(`namespace AgentPrism;`) biçimde yazılı. Doküman'ın eklediği klasik
+(süslü parantezli) `namespace AgentPrism.Abstractions.ManuelTest{...}` bloğu
+aynı dosyada ikinci bir ad alanı bildirimi oluşturuyor ve bu **derlemeyi**
+`CS8955` ile kırıyor — yalnızca biçimi bozmuyor. Yani `dotnet build` da kırmızı
+çıkıyor, senaryonun "build farkına varmaz" iddiası bugün doğrulanamıyor.
+
+Buna rağmen `dotnet format` beklenen davranışı gösterdi: çıkış kodu sıfır
+değil (2) ve 32 satır `IDE0055` bildirdi — biçim denetiminin kendisi çalışıyor.
+Son adımdan sonra `git status` yalnız `docs/manuel-test/` gösteriyor; geri alma
+adımı sağlam.
+
+Öneri: doküman'daki enjekte kod parçası, hedef dosyanın **içine** (mevcut
+dosya-kapsamlı ad alanının altına) yalnızca hatalı girintili bir satır ekleyecek
+şekilde güncellenmeli — ayrı bir `namespace{}` bloğu değil.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -292,9 +380,15 @@ rm src/AgentPrism.Core/ManuelUyariTesti.cs
 - Dosya silindikten sonra `dotnet build src/AgentPrism.Core -c Release` yeniden geçer.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+dotnet build src/AgentPrism.Core -c Release -> cikis kodu: 1
+CS1591 error (uc TFM icin, hem tip hem uye icin) -> 6 satir, tumu "error"
+dosya silindikten sonra: Build succeeded, 0 Warning(s), 0 Error(s)
+```
+Derleme başarısız oldu, `CS1591` her yerde `error` olarak çıktı (`warning`
+değil). Dosya silindikten sonra derleme temiz geçti.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -341,9 +435,25 @@ find src -name "* 2.*" -not -path "*/node_modules/*"          # yine bos olmali
   `dotnet build src/AgentPrism.Abstractions -c Release` geçer.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+1. adım find: src/AgentPrism.UI/wwwroot/index 2.html   (BEKLENEN: boş)
+dotnet build src/AgentPrism.Abstractions -c Release -> cikis kodu: 1
+CS0101: The namespace 'AgentPrism' already contains a definition for
+        'AgentPrismToolAttribute' (üç TFM için tekrarlanır)
+4. adım find (kopya silindikten sonra): boş
+dotnet build src/AgentPrism.Abstractions -c Release -> Build succeeded, 0/0
+```
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+🚨 **Bulgu (zararsız).** 1. adımdaki `find`, doküman'ın "boş olmalı" beklentisinin
+aksine `src/AgentPrism.UI/wwwroot/index 2.html` döndürdü — tam olarak
+projenin `MEMORY.md`'de belgelediği bulut senkronizasyon kopyası deseni.
+Zararsız çıktı: `.gitignore:57` bu tam adı zaten hariç tutuyor, dosya git'e
+hiç girmemiş, ve arayüz derlenen bir `.cs` değil statik bir varlık olduğu
+için `CS0101` riski yok. Dosya bu koşumda silindi (`find` artık boş).
+`AgentPrismToolAttribute.cs` kopyası ile asıl senaryo beklendiği gibi çalıştı:
+derleme `CS0101` ile kırıldı, kopya silinince temiz geçti.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -376,9 +486,16 @@ time dotnet build AgentPrism.slnx -c Release -p:AgentPrismFrontendEnabled=false 
 - Bu bayrakla derlenen çıktı ile **E2E testi koşulmaz** — arayüz varlığı yoktur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+time dotnet build ... -p:AgentPrismFrontendEnabled=false -> 10,4 sn, exit 0
+Cikti: NPM ADIMI YOK - beklenen
+Build succeeded. 0 Warning(s) 0 Error(s)
+```
+Çıktı beklendiği gibi `NPM ADIMI YOK - beklenen` yazdı, npm adımı hiç
+çalışmadı, derleme başarılı bitti (~6-10 sn, tam derlemenin ~40 sn'sine
+kıyasla belirgin şekilde hızlı).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -424,9 +541,19 @@ dotnet build src/AgentPrism.UI -c Release
 > dosyaları yanlış sonuç verir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+pack cikis kodu: 1
+error AGENTPRISM0003: AgentPrism.UI: arayuz varligi uretilmemis
+  (.../wwwroot/index.html yok). Ici bos bir arayuz paketi yayinlanamaz.
+  Node.js 20.19+ kurun ve derlemeyi tekrarlayin.
+wwwroot geri konulduktan sonra: Build succeeded, 0 Warning(s), 0 Error(s)
+index.html yeniden var.
+```
+`pack` beklendiği gibi `AGENTPRISM0003` ile başarısız oldu; mesaj hem
+"arayuz varligi uretilmemis" hem "Node.js 20.19+ kurun" ifadelerini taşıyor.
+Dosyalar geri konulduktan sonra normal derleme geçti.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -467,9 +594,14 @@ mv /tmp/ap-voice-readme.md src/AgentPrism.Voice/README.md
 - Dosya geri konduktan sonra aynı komut başarılı biter.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+README.md tasindiktan sonra pack -> cikis kodu: 1
+error AGENTPRISM0001: Yayinlanabilir paket 'AgentPrism.Voice' icin README.md
+  eksik. NuGet paket sayfasinda gorunecek bir README.md dosyasi ekleyin.
+README.md geri konulduktan sonra pack -> cikis kodu: 0, .nupkg + .snupkg üretildi
+```
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -520,9 +652,19 @@ ls /tmp/ap-pack/*.nupkg | grep -i generators || echo "Generators yayimlanmadi - 
 - `AgentPrism.Sql.Shared` bir paket **değildir** ve listede görünmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+nupkg : 17
+snupkg: 16
+Generators yayimlanmadi - beklenen
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+Paketler: AgentPrism, .Abstractions, .Anthropic, .AspNetCore, .Azure, .Core,
+.Google, .Mcp, .OpenAI, .PostgreSql, .SqlServer, .Sqlite, .Templates,
+.Testing, .UI, .Voice, .Workflows  (17 adet, beklenen liste ile birebir)
+```
+17 `.nupkg`, 16 `.snupkg` üretildi (eksik olan `AgentPrism.Templates`).
+`AgentPrism.Generators` listede yok. `AgentPrism.Sql.Shared` görünmüyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -587,9 +729,21 @@ unzip -l /tmp/ap-cozum-nobuild/AgentPrism.Core.*.nupkg | grep analyzers
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur — dört etiketin dördü de tek tek yazılır)_
+```
+tek-build        1
+tek-nobuild      1
+cozum-build      1
+cozum-nobuild    1
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+DLL boyutu (tek-nobuild): 53248 bayt (≈ 52 KB, "~53 KB" beklentisine yakın)
+```
+Dört satırın dördü de `1` — üreteç DLL'i her dört senaryoda da
+`analyzers/dotnet/cs/AgentPrism.Generators.dll` yolunda pakete girmiş.
+Doküman'ın atıfta bulunduğu önceki üretim ölçümünde `tek-nobuild` için `0`
+bekleniyordu (K-348'in tetiklediği şüphe); bugünkü koşumda bu **doğrulanmadı**
+— dördü de geçiyor, kapsam kesinleşmiş durumda ve yayın engeli yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -624,9 +778,14 @@ unzip -l /tmp/ap-pack/AgentPrism.*.nupkg         2>/dev/null | head -1
 - `AgentPrism` (meta) hiçbir `lib/` klasörü içermez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+AgentPrism.Core: lib/net8.0/*.dll+xml, lib/net9.0/*.dll+xml, lib/net10.0/*.dll+xml,
+                 README.md (kökte)
+AgentPrism.Testing: yalnız lib/net10.0/*.dll+xml
+AgentPrism (meta): "meta pakette lib/ yok - beklenen"
+```
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -665,9 +824,24 @@ cat AgentPrism.Core.nuspec
 - 🚨 Hiçbir alan `TODO`, `placeholder` veya boş dize taşımaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+<license type="expression">MIT</license>                    -> var
+<requireLicenseAcceptance>false</requireLicenseAcceptance>   -> YOK (element hiç yazılmamış)
+<readme>README.md</readme>                                   -> var
+<authors>Faruk Atasoy</authors>                               -> var
+<projectUrl>https://github.com/farukatasoy/AgentPrism</projectUrl> -> var
+<repository type="git" url="...AgentPrism" branch="..." commit="9182202..."/> -> var, commit boş değil
+<tags>agentprism ai agents microsoft-agent-framework llm dotnet runtime catalog harness</tags> -> beklenen alt dizgiyi içeriyor
+TODO/placeholder/boş dize -> yok
+```
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+🚨 **Kısmi kusur.** `<requireLicenseAcceptance>` elementi nuspec'te hiç
+yazılmıyor. NuGet bu elementin yokluğunu `false` olarak yorumladığından
+**davranışsal** etki yok (tüketici bir onay ekranıyla karşılaşmaz), ama
+doküman'ın "vardır" iddiası literal olarak doğrulanamadı — element örtük
+varsayılana bırakılmış, açıkça yazılmamış.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -696,9 +870,13 @@ unzip -l /tmp/ap-pack/AgentPrism.Core.*.snupkg | grep -E "\.pdb|\.nuspec"
 - Paket uzantısı `.snupkg`'dir (`.symbols.nupkg` değil).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+lib/net8.0/AgentPrism.Core.pdb, lib/net9.0/AgentPrism.Core.pdb,
+lib/net10.0/AgentPrism.Core.pdb  -> üçü de var
+Uzantı: .snupkg (.symbols.nupkg değil)
+```
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -750,9 +928,21 @@ echo "1: $A"; echo "2: $B"; [ "$A" = "$B" ] && echo "AYNI" || echo "🚨 FARKLI"
 - `FARKLI` çıkarsa gömülü mutlak yol veya zaman damgası aranır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+1: c75d7c1ec70809ac9b9c644a2be84fb85dca89cf5d35471034d705219023a138
+2: c75d7c1ec70809ac9b9c644a2be84fb85dca89cf5d35471034d705219023a138
+AYNI
+```
+İki bağımsız paketleme aynı SHA-256 özetini üretti — build deterministik.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+🚨 Yan not: bu case sırasında `git status` `src/AgentPrism.Voice/README 2.md`
+adlı izlenmeyen bir dosya gösterdi — MT-PKG-016'da README.md hızlıca taşınıp
+geri konurken bulut senkronizasyonunun (muhtemelen iCloud Drive) ürettiği bir
+çakışma kopyası. İçerik orijinaliyle birebir aynıydı (`diff` sıfır fark);
+dosya silindi. Bu, projenin kendi `MEMORY.md`'sinde belgelenen "kopya dosyalar"
+tuzağının doğrudan bir örneği — kod kusuru değil, ortam/senkronizasyon riski.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -792,9 +982,16 @@ grep -E "packageType|<readme>" AgentPrism.Templates.nuspec
 - Paket hiçbir `lib/` klasörü içermez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+content/AgentPrism.Starter/.template.config/template.json    -> var
+content/AgentPrism.Starter/.template.config/dotnetcli.host.json -> var
+content/AgentPrism.Starter/.gitignore                         -> var
+Yollar tek katmanlı (content/content/... yok)
+<packageType name="Template" />                                -> var
+lib/ klasörü yok
+```
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -840,9 +1037,16 @@ git tag -d v1.0.0-preview.1
 - `git tag -d` sonrası `git tag` yine boştur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+etiketsiz : AgentPrism.Abstractions.0.0.0-preview.0.63.nupkg
+etiketli  : AgentPrism.Abstractions.1.0.0-preview.1.nupkg
+git tag -d sonrası: git tag boş
+```
+Etiketsiz sürüm `0.0.0-preview.0.63` biçiminde (`<N>` = commit yüksekliği).
+Etiketten sonra sürüm tam olarak `1.0.0-preview.1`. Etiket silindikten sonra
+`git tag` yine boş.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -882,9 +1086,14 @@ grep -E "<dependency id=" AgentPrism.nuspec | sort -u
   `AgentPrism.Voice`, `AgentPrism.Testing`, `AgentPrism.Templates`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+AgentPrism.AspNetCore, AgentPrism.Mcp, AgentPrism.OpenAI, AgentPrism.PostgreSql,
+AgentPrism.UI, AgentPrism.Workflows   (6 adet, birebir beklenen)
+```
+`SqlServer`, `Sqlite`, `Anthropic`, `Google`, `Azure`, `Voice`, `Testing`,
+`Templates` hiçbiri görünmüyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -924,9 +1133,14 @@ echo "--- Abstractions" && grep -A20 'targetFramework="net10.0"' AgentPrism.Abst
 - Hiçbirinde `OpenTelemetry.Api`, `OpenAI` gibi geçişli paketler **görünmez**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+PostgreSql (net10.0)   : AgentPrism.Core, Npgsql                      -> 2
+Abstractions (net10.0) : Microsoft.Agents.AI.Abstractions,
+                          Microsoft.Extensions.AI.Abstractions         -> 2
+```
+İkisinde de `OpenTelemetry.Api`, `OpenAI` gibi geçişli paketler görünmüyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -969,9 +1183,18 @@ done
   `Microsoft.Agents.AI.Hosting.AspNetCore`, `A2A.AspNetCore`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+Tüm önsürüm satırları (15 satır, 3 TFM × 5 paket) yalnız
+AgentPrism.AspNetCore ile başlıyor:
+  A2A.AspNetCore 1.0.0-preview2
+  Microsoft.Agents.AI.Hosting 1.16.0-preview.260730.1
+  Microsoft.Agents.AI.Hosting.A2A 1.16.0-preview.260730.1
+  Microsoft.Agents.AI.Hosting.AspNetCore 1.16.0-preview.260730.1
+  Microsoft.Agents.AI.Hosting.OpenAI 1.16.0-alpha.260730.1
+```
+Core, Abstractions, PostgreSql, OpenAI hiçbir satırda görünmüyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1007,9 +1230,13 @@ echo "tarama bitti"
 - `Microsoft.CodeAnalysis.CSharp` hiçbir pakette bağımlılık olarak görünmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+tarama bitti
+```
+Hiçbir `🚨` satırı yazılmadı; `Microsoft.CodeAnalysis.CSharp` hiçbir pakette
+bağımlılık olarak görünmüyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1050,9 +1277,17 @@ done
 - Hiçbiri meta pakette (`AgentPrism`) görünmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+AgentPrism.Anthropic  : Anthropic 12.39.0
+AgentPrism.Google     : Google.GenAI 1.16.0
+AgentPrism.OpenAI     : OpenAI 2.12.0
+AgentPrism.PostgreSql : Npgsql 10.0.3
+AgentPrism.SqlServer  : Microsoft.Data.SqlClient 7.0.2
+```
+Her sağlayıcı yalnız kendi paketinde görünüyor; meta pakette (`AgentPrism`)
+hiçbiri yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1135,9 +1370,18 @@ cat $(find obj/generated -name "AgentPrismGeneratedTools.g.cs" | head -1)
   `AIFunctionFactory` dizgilerinin **hiçbiri** geçmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+exit: 0 · Build succeeded · 0 Warning(s) · 0 Error(s)
+Üretilen dosyalar:
+  .../GetOrderStatus_274C17A0Tool.g.cs
+  .../AgentPrismGeneratedTools.g.cs
+İlk satır: // <auto-generated/>
+AddGeneratedTools uzantı metodu namespace AgentPrism içinde tanımlı
+"get_order_status" dizgisi GetOrderStatus_274C17A0Tool.g.cs içinde geçiyor
+System.Reflection / Activator. / GetMethod( / AIFunctionFactory -> hiçbiri geçmiyor
+```
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1175,9 +1419,13 @@ grep -Pn '[ \t]+$' "$G" && echo "🚨 satir sonu boslugu var" || echo "satir son
 - Çıktı `TAB yok` ve `satir sonu temiz` yazar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+format cikis kodu: 0
+TAB yok
+satir sonu temiz
+```
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1229,9 +1477,14 @@ rm Hata.cs
 - Tanı iki ayrı konumda birden bildirilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+exit: 1
+error APG0001: 'ayni_ad' tool adi birden fazla metotta kullanilmis:
+  global::CakisanTools.Bir, global::CakisanTools.Iki. Her tool adi derleme
+  icinde tek olmalidir.  (iki ayrı konumda: satır 6 ve satır 9)
+```
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1295,9 +1548,16 @@ rm Hata.cs
 - Mesaj hem metot adını hem geçersiz tool adını taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+Birinci derleme: 3 farklı geçersiz ad için APG0002 üretti (boşluklu, noktalı,
+  65 karakter) — her biri metot adını ve geçersiz tool adını taşıyor.
+  grep -c "APG0002" -> 6 (MSBuild her hatayı hem satır-içi hem "Build FAILED"
+  özetinde bir daha yazdığı için 3 tanı iki kez görünüyor; doğrulama sorgusu
+  bunu hesaba katmıyor — küçük bir doküman notu, kusur değil).
+İkinci derleme (64 karakter, sınırın tam üstü): 0 APG0002, exit 0, geçti.
+```
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1368,9 +1628,49 @@ rm Hata.cs
 - İkinci derlemede `CancellationToken` bir tool parametresi olarak kabul edilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+Birinci derleme (record parametre):
+  error APG0003: 'BilesikTools.SiparisVer' metodunun 'siparis' parametresi
+  ('Siparis' tipi) ureteç tarafindan desteklenmiyor. Desteklenen tipler:
+  ilkel tipler, string, Guid, DateTime(Offset), enum, bunlarin dizisi/
+  IReadOnlyList<T>'i ve CancellationToken. Baska bir tip icin
+  'AddTool(AIFunctionFactory.Create(...))' ile elle kaydedin.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+İkinci derleme (beyaz liste — string[] dahil): exit 1, APG0003 SAYISI: 0
+  ama derleme YİNE BAŞARISIZ:
+  error CS1503: Argument 12: cannot convert from
+  'System.Collections.Generic.IReadOnlyList<string>' to 'string[]'
+  (Hepsi_AA45331CTool.g.cs:35)
+```
+
+🚨 **Kritik kusur — doğrulandı, tekrar üretilebilir.** Üretecin beyaz listesi
+`T[]` dizi tipini desteklenen bir parametre tipi olarak ilan ediyor
+(`APG0003` mesajının kendisi de "bunlarin dizisi" der), ama üretilen sarmalayıcı
+kod **her zaman** `AgentPrismGeneratedToolArguments.GetArray(...)` çağırıyor —
+bu her koşulda `IReadOnlyList<T>` döndürür ve hedef parametre `T[]` ise
+doğrudan atanamaz (`IReadOnlyList<T>` → `T[]` örtük dönüşümü yoktur).
+
+Kapsam doğrulandı: yalnız `string[]` değil, **her `T[]` parametresi** etkileniyor
+— izole bir `int[]` parametresiyle de aynı desen tekrarlandı
+(`cannot convert from 'IReadOnlyList<int>' to 'int[]'`). `IReadOnlyList<T>`
+parametreleri (örn. `m` alanı) etkilenmiyor, yalnızca çıplak dizi (`T[]`)
+imzaları kırık.
+
+Etki: dokümantasyonda ve `APG0003` hata mesajında "desteklenir" denen bir
+tip, pratikte **her zaman** derlemeyi kırıyor. Bu bir kaçış yolu değil —
+`T[]` parametreli hiçbir tool metodu bu üreteçle asla derlenemez. `Kritik`
+önemde bir kod kusuru bildirimi açılmalıdır (izlek: Faz 52 kaynak üreteci,
+`AgentPrismGeneratedToolArguments.GetArray` / dizi-tipi kod üretimi).
+
+Kök neden bulundu: `src/AgentPrism.Generators/ParameterTypeValidator.cs:98-111`
+(`TryGetArrayElementType`) hem `T[]` hem `IReadOnlyList<T>`/`IList<T>`/
+`IEnumerable<T>`/`List<T>` biçimlerini aynı `ParameterShape.Array`'e
+daraltıyor — orijinal şeklin çıplak dizi mi arayüz mü olduğu bilgisi
+kayboluyor. `SourceWriter.cs:143` bu yüzden her zaman `GetArray(...)`
+çağırıyor (`IReadOnlyList<T>` döner); parametre `T[]` olduğunda `.ToArray()`
+dönüşümü hiç eklenmiyor.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1414,9 +1714,13 @@ rm Hata.cs
 - Mesaj somut bir sarmalayıcı metot yazmayı önerir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+error APG0004: 'GenericTools.Getir' metodu [AgentPrismTool] ile isaretli
+  ancak generic. Tool metotlari generic olamaz; somut bir sarmalayici metot
+  yazin.
+```
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1465,9 +1769,14 @@ mv /tmp/ap-tools-yedek.cs Tools.cs
 - `Tools.cs` geri konduktan sonra aynı derleme geçer.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+error APG0005: 'AddGeneratedTools()' cagrildi ancak bu derlemede
+  [AgentPrismTool] ile isaretli metot yok. Tool metotlarini isaretleyin
+  veya bu cagriyi kaldirin.
+Tools.cs geri konduktan sonra: Build succeeded, 0 Warning(s), 0 Error(s)
+```
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1519,9 +1828,17 @@ rm Hata.cs
 - `-p:NoWarn=APG0006` ile derlemede tanı sayısı **0**'dır ve derleme geçer.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+Birinci derleme: exit 0
+  warning APG0006: 'aciklamasiz' tool'unun aciklamasi yok. Model tool'u ne
+  zaman cagiracagini aciklamadan bilemez; [AgentPrismTool] icin bir
+  aciklama verin.
+Bastırılmış (-p:NoWarn=APG0006): exit 0, tanı sayısı 0
+```
+`TreatWarningsAsErrors` bu tüketici projede yok; derleme uyarıyla birlikte
+başarılı bitti.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1575,9 +1892,16 @@ rm Hata.cs
 - `static` yapıldıktan sonra tanı sayısı **0**'dır ve derleme geçer.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+error APG0007: 'OrnekTools.Getir' bir ornek metodudur ve tool olamaz. MAF,
+  AIFunctionArguments.Services olarak bos bir saglayici gecirir (karar K-218).
+  Metodu 'static' yapin veya tool'u kurulum aninda ornekleyip
+  'AddTool(AIFunctionFactory.Create(...))' ile kaydedin.
+static yapıldıktan sonra: exit 0, tanı sayısı 0
+```
+Mesaj K-218'e açıkça atıf yapıyor ve iki çözüm gösteriyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1632,9 +1956,14 @@ grep -c "GetOrderStatus" "$G"
 - Hiçbir tanı üretilmez — işaretsiz metot bir hata değildir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+exit: 0, 0 Warning(s), 0 Error(s)
+GizliYardimci sayısı: 0
+GetOrderStatus sayısı: 1
+```
+Hiçbir tanı üretilmedi — işaretsiz metot hata değil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1701,9 +2030,16 @@ dotnet build -c Release ; echo "cikis kodu: $?"
   önerilen yansımasız yolu hiç kullanamaz. MT-PKG-021 ile birlikte incelenir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+dotnet add package AgentPrism --version 0.0.0-preview.0.63  -> başarılı
+dotnet build -c Release -> cikis kodu: 0
+Build succeeded. 0 Warning(s) 0 Error(s)
+CS1061 sayısı: 0
+```
+Meta paketi (`AgentPrism`) doğrudan referanslayan bir tüketici derlendi;
+`AddGeneratedTools` bulunamadı hatası çıkmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1749,9 +2085,13 @@ grep -Ec "IL2[0-9]{3}|IL3[0-9]{3}" /tmp/ap-aot.log
 - Üretilen ikili çalışır ve `kayit tamam` yazar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+dotnet publish -r osx-arm64 -p:PublishAot=true -> exit 0
+IL2xxx/IL3xxx sayısı: 0
+Çalıştırma çıktısı: kayit tamam
+```
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1798,9 +2138,15 @@ dotnet publish -c Release -r osx-arm64 -p:PublishAot=true 2>&1 \
   case `Kaldı`'dır: bastırma yapılmış demektir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+warning IL2026: ... 'AddToolsFrom(Type)' ... 'RequiresUnreferencedCodeAttribute' ...
+warning IL3050: ... 'AddToolsFrom(Type)' ... 'RequiresDynamicCodeAttribute' ...
+(hem derleme-anı hem trim/AOT analiz uyarısı olarak iki kez, toplam 4 satır)
+```
+En az bir `IL2026`/`IL3050` çıktı ve `RequiresUnreferencedCode`/
+`RequiresDynamicCode` gerekçesini taşıyor — bastırma yapılmamış.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1841,9 +2187,33 @@ grep -l "AgentPrismAotCompatible>false" src/*/*.csproj | sed 's#src/##;s#/.*##' 
   **doküman** kusurudur, kod kusuru değildir; koda göre düzeltilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+Bayrağı false yapan projeler (10):
+  AgentPrism, AgentPrism.AspNetCore, AgentPrism.Generators, AgentPrism.Mcp,
+  AgentPrism.SqlServer, AgentPrism.Sqlite, AgentPrism.Templates,
+  AgentPrism.Testing, AgentPrism.UI, AgentPrism.Workflows
+  -> beklenen liste ile birebir eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+Geriye kalan (AOT uyumlu, Sql.Shared paket olmadığı için hariç, 8 adet):
+  Abstractions, Anthropic, Azure, Core, Google, OpenAI, PostgreSql, Voice
+  -> beklenen dörtlü liste (Abstractions, Core, PostgreSql, OpenAI) ile
+     eşleşmiyor; gerçek küme 8 paket.
+```
+
+🚨 **Doküman kusuru (bu manuel test dosyasında, kodda değil).** Bu case'in
+kendi "Beklenen sonuç" bölümü "README.md ve AGENTS.md AOT uyumlu paket olarak
+yalnız dördünü sayar" diyor, ama bugün `AGENTS.md:161` şunu yazıyor:
+**"Sekiz paket uyumludur"** — ve bu, koddan türetilen 8'li kümeyle (Abstractions,
+Anthropic, Azure, Core, Google, OpenAI, PostgreSql, Voice) birebir örtüşüyor.
+`README.md`'de AOT'a dair hiçbir iddia yok (arama sıfır sonuç döndürdü).
+Yani kod ↔ `AGENTS.md` **uyumlu**; uyumsuz olan bu manuel test dosyasının
+kendi (muhtemelen eski bir AGENTS.md sürümüne dayanan) beklentisi. Kurala göre
+("Doküman ile kod çelişirse doküman yanlıştır") düzeltilmesi gereken taraf
+`01-KURULUM-VE-PAKETLEME.md`'nin bu beklenen-sonuç metni.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı _(yalnız bu manuel test
+dosyasının beklentisi güncelliğini yitirmiş; kod ve AGENTS.md kendi aralarında
+tutarlı)_
 
 ---
 
@@ -1886,9 +2256,23 @@ dotnet new list agentprism
 - Dil sütunu `C#`, tip sütunu `project`'tir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+Success: AgentPrism.Templates::0.0.0-preview.0.63 installed the following templates:
+Template Name                            Short Name      Language  Tags
+AgentPrism control plane (ASP.NET Core)  agentprism-api  [C#]      Web/AgentPrism/AI/Agents
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+dotnet new list agentprism -> aynı satırı listeliyor
+```
+Kısa ad `agentprism-api`, şablon adı `AgentPrism control plane (ASP.NET Core)`,
+dil `C#`, tip `project` (`--columns-all` ile doğrulandı: `Type: project`).
+
+Not: `dotnet new install AgentPrism.Templates::*-*` sözdizimi zsh altında
+`*-*` glob'unu shell'e genişletmeye çalışıp "no matches found" ile başarısız
+oldu; tırnaklı (`'...*-*'`) hâliyle çalıştı. Ayrıca .NET SDK `::` ayıracının
+kullanımdan kaldırıldığını, yerine `@` kullanılması gerektiğini bildirdi
+(fonksiyonel bir engel değil, bir uyarı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1944,9 +2328,37 @@ open http://localhost:5081/agentprism
   dize** olarak taşır; hiçbir gerçek `secret` içermez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+dotnet new agentprism-api -o . --AgentPrismVersion 0.0.0-preview.0.63
+  -> "template ... created successfully", restore succeeded
+Üretilen: .gitignore, Program.cs, Properties/, README.md, Tools/OrderTools.cs,
+  appsettings.Development.json, appsettings.json, varsayilan.csproj
+dotnet build -c Release -> exit 0, 0 Warning(s), 0 Error(s)
+dotnet run -> "Now listening on: http://localhost:5081"
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+curl .../api/meta -> HTTP 200
+  {"version":"0.0.0-preview.0.63", ... "storage":{"persistent":false,
+   "agentDefinitionStore":"InMemoryAgentDefinitionStore", ...}}
+curl .../agentprism (arayüz kökü) -> HTTP 200
+curl .../api/agents -> [{"name":"support", "displayName":"Destek Asistani",
+   "model":{"provider":"openai","model":"MODEL_ADINI_BURAYA_YAZIN"},
+   "toolNames":["get_order_status"], ...}]
+```
+Hiçbir bağlantı dizesi/API anahtarı tanımlı değilken uygulama ayağa kalktı.
+`appsettings.json` `ApiKey` alanını boş dize taşıyor. Agent listesi boş değil,
+`support` agent'ını gösteriyor (tarayıcıda görsel doğrulama yerine `api/agents`
+uç noktasıyla doğrulandı — bu oturumda gerçek bir tarayıcı açılmadı, headless
+ortam).
+
+🚨 Küçük not: `appsettings.json`'da `ConnectionString` alanı **hiç yok**
+(yalnız `ApiKey: ""`). Bu, varsayılan kalıcılık `memory` olduğu ve
+`ConnectionString`'e ihtiyaç duyulmadığı için beklenen/mantıklı — ama doküman
+"appsettings.json ConnectionString ve ApiKey alanlarını boş dize olarak taşır"
+diyor; `memory` varyantında `ConnectionString` alanı zaten üretilmiyor. Kod
+kusuru değil, doküman ifadesi yalnızca `postgres`/`sqlite`/`sqlserver`
+varyantları için geçerli.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2008,9 +2420,37 @@ curl -s -X POST http://localhost:5081/agentprism/api/agents/support/run \
   tamamlanmış durumu gösterir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+1) Yer tutucuyla (ApiKey boş, model adı sabitlenmemiş):
+   HTTP 400 "'support' agent'i derlenemedi: 'openai' adinda bir model
+   saglayicisi kayitli degil. ... OpenAI icin 'UseOpenAI(apiKey)' cagirin."
+   Uygulama ÇÖKMEDİ.
+2-3) Model adı gpt-5.4-mini olarak düzeltildi, API anahtarı
+   `dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" ...` ile verildi.
+4) Yeniden derleme + çalıştırma sonrası run:
+   HTTP 200, SSE akışı; get_order_status tool'u TAM BİR KEZ çağrıldı
+   (orderId: "ORD-1001"), yanıt metni parça parça "ORD-1001 numarali siparis
+   kargoya verildi..." içeriyor.
+   /agentprism/api/runs -> status: "Completed", modelId: "gpt-5.4-mini",
+   usage.totalTokens: 255
+```
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+🚨 Doküman notu: 1. adımdaki gerçek hata metni doküman'ın beklediği gibi
+`MODEL_ADINI_BURAYA_YAZIN` adını içermiyor — bunun yerine "hiçbir sağlayıcı
+kayıtlı değil" hatası dönüyor. Kök neden: şablonun `Program.cs`'i `UseOpenAI`
+çağrısını **yalnızca `ApiKey` doluysa** yapıyor (tasarım kuralı #1, "sıfır
+sürpriz"); anahtar boşken sağlayıcı hiç kayıtlı olmuyor, bu yüzden hata modeli
+değil sağlayıcının yokluğunu bildiriyor. Bu, dokümanın varsaydığından **daha
+doğru** bir tasarım (anahtar yokken plasholder model adını denemeye bile
+gerek kalmıyor) — kod kusuru değil, doküman'ın beklenen-sonuç metni bu ayrıntıyı
+güncellemeli. Genel iddia (uygulama çökmez, hata anlaşılırdır) doğrulandı.
+
+Ayrıca ilk deneme sırasında önceki adımdan (MT-PKG-071) kalan `dotnet run`
+süreci portu (5081) tutmaya devam etti — `kill %1` yeni bir Bash oturumunda
+işe yaramadı (job kontrolü kalıcı değil). `lsof -ti:5081 | xargs kill -9` ile
+temizlendi. Bu bir kod kusuru değil, bu koşumun kendi süreç yönetimi hatası.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2058,9 +2498,17 @@ done
 - Üç varyant da derlenir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+postgres  : PackageReference AgentPrism (tek), UsePostgreSql(...),
+            appsettings: yalnız PostgreSql bölümü -> derlendi
+sqlite    : + AgentPrism.Sqlite, UseSqlite(...),
+            appsettings: yalnız Sqlite bölümü -> derlendi
+sqlserver : + AgentPrism.SqlServer, UseSqlServer(...),
+            appsettings: yalnız SqlServer bölümü -> derlendi
+Çapraz kirlenme: yok. #if/// #if kalıntısı: yok.
+```
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2106,9 +2554,16 @@ done
 Bu case yalnız üretim ve derlemeyi kapsar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+openai    : ek paket yok (AgentPrism meta içinde), UseOpenAI(...)      -> derlendi
+anthropic : + AgentPrism.Anthropic, UseAnthropic(...)                  -> derlendi
+google    : + AgentPrism.Google, UseGoogle(...)                        -> derlendi
+azure     : + AgentPrism.Azure, UseAzureOpenAI(...)                    -> derlendi
+```
+Dördü de kimlik bilgisi olmadan derlendi. Azure'un gerçek `run` denemesi
+doküman gereği burada **Atlandı** — `06-SAGLAYICI-DIGER.md`'ye bırakıldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2155,9 +2610,15 @@ kill %1
 - Uygulama çökmez ve log'da arayüzle ilgili hata yoktur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+grep -c "UseUI" Program.cs -> 0
+dotnet build -> exit 0
+meta  : 200
+arayuz: 404
+Log'da arayüzle ilgili hata yok, uygulama çökmedi.
+```
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2206,9 +2667,18 @@ dotnet restore 2>&1 | tail -3
   `AgentPrism` paket adını **ve** `99.99.99` sürümünü açıkça yazar (`NU1102`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+1) --skip-restore: <PackageReference Include="AgentPrism" Version="*-*" />
+   "Restoring" satırı çıktıda yok.
+   AGENTPRISM_TEMPLATE_PACKAGE_VERSION yer tutucusu kalmamış.
+2) --AgentPrismVersion 99.99.99 --skip-restore, sonra dotnet restore:
+   error NU1102: Unable to find package AgentPrism with version (>= 99.99.99)
+     - Found 1 version(s) in ap-yerel [ Nearest version: 0.0.0-preview.0.63 ]
+```
+Hata mesajı hem `AgentPrism` paket adını hem `99.99.99` sürümünü açıkça
+taşıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2251,9 +2721,28 @@ grep -E "appsettings\.\*\.json|\.env|secrets" .gitignore
 - `.gitignore` en az bir `secret` deseni içerir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+grep taraması (sk-... / api-key deseni, *.json/*.cs/*.csproj) -> 0 satır
+--- tarama bitti ---
+UserSecretsId -> var (agentprism-starter-568A3F84-890D-4796-B8D4-E0293326B319)
+.gitignore içeriği:
+  bin/
+  obj/
+  *.user
+  appsettings.*.local.json
+```
+Gerçek OpenAI API anahtarı (MT-PKG-072'de kullanıcı tarafından sağlandı ve
+yalnızca `dotnet user-secrets` ile saklandı) hiçbir dosyada bulunmadı.
+`appsettings.json`'daki `ApiKey` boş dize kaldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+Not: `.gitignore`'da literal `secrets` kelimesi yok, ama
+`appsettings.*.local.json` deseni aynı amaca hizmet ediyor (yerel geçersiz
+kılma dosyaları — gerçek `secret`'ların konması beklenen yer — asla commit'e
+girmez). Doğrulama sorgum tam bu satırla eşleşmedi (`appsettings\.\*\.json`
+deseni ile "appsettings.*.local.json" arasında ".local" farkı var); niyet
+karşılanıyor, literal kelime eşleşmiyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2323,9 +2812,15 @@ dotnet run -c Release
 > `MT-CORE` case'leriyle birlikte koşulabilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+once : BenimRunStore
+sonra: BenimRunStore
+```
+Her iki kayıt sırasında da tüketicinin `BenimRunStore`'u kazandı; hiçbir
+istisna atılmadı. `IRunStore`'un 13 üyesi `NotSupportedException` ile
+uygulandı (kaynak: `src/AgentPrism.Abstractions/Runs/IRunStore.cs`).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2377,9 +2872,29 @@ dotnet run -c Release ; echo "cikis kodu: $?"
 - Hiçbir bağlantı denemesi ve hiçbir uyarı log'u yoktur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+cikis kodu: 0
+IRunStore     : InMemoryRunStore
+ISessionStore : AuditingSessionStore
+IToolRegistry : ToolRegistry
+kurulum tamam
+```
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+🚨 **Doküman notu (kod kusuru değil).** `ISessionStore` `InMemory` ile
+başlayan bir ad döndürmedi — `AuditingSessionStore` döndü. Kaynağı incelendi:
+`src/AgentPrism.Core/Audit/AuditingSessionStore.cs`, `ISessionStore`'u yalnız
+**silme** işlemi için denetim izi yazan bir dekoratör ile sarıyor (iç deposu
+yine bellek içi); dış bağımlılık yok, hiçbir bağlantı denemesi ya da uyarı
+log'u yok. `IToolRegistry` için de doküman "InMemory" bekliyordu ama gerçek
+tip adı `ToolRegistry` (öneki hiç yok) — muhtemelen bu bileşen zaten hep
+bellek içi tek bir sınıf ve "InMemory" öneki hiç kullanılmamış. Yalnız
+`IRunStore` beklentiyle birebir eşleşti (`InMemoryRunStore`). Temel iddia
+(hiçbir `Use*` çağrılmadan kurulum ayakta kalır, dış bağımlılık yok) doğrulandı;
+doküman'ın üç satırın hepsi "InMemory" ile başlar beklentisi güncelliğini
+yitirmiş (muhtemelen denetim dekoratörünün eklendiği sonraki bir fazdan beri).
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı _(yalnız isim
+deseni beklentisi güncel değil; davranış doğru)_
 
 ---
 
@@ -2433,9 +2948,51 @@ grep -iE "warn|uyari|birden fazla|multiple" /tmp/ap-cift.log
   doğrulanmıyor demektir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+dotnet build -> exit 0
+dotnet run -> HTTP 200 (meta)
+storage: {"persistent":true,"agentDefinitionStore":"SqlAgentDefinitionStore",
+  "runStore":"SqlRunStore", ...}   (paylaşımlı Sql.Shared tipleri; hangi
+  motor olduğunu isimden ayırt etmek mümkün değil)
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+Log (iki kez, ÇELİŞKİLİ):
+  warn: ... birden fazla kalicilik saglayicisi kayitli: SQLite, PostgreSQL.
+        Son kayit kazanir ve su an SQLite kullaniliyor. ...
+  warn: ... birden fazla kalicilik saglayicisi kayitli: SQLite, PostgreSQL.
+        Son kayit kazanir ve su an PostgreSQL kullaniliyor. ...
+
+Gerçek etki (log'un altında, Npgsql komut izinde):
+  CREATE SCHEMA IF NOT EXISTS agentprism / CREATE TABLE __migrations / ...
+  -> PostgreSQL şeması gerçekten oluşturuldu.
+Ayrıca: manuel-cift.db (SQLite dosyası) da proje dizininde OLUŞTU (4096 bayt,
+  şema yazılmış) — bu koşumda tespit edildi, sonra silindi.
+```
+
+🚨 **Kritik kusur — doğrulandı, kök nedeni bulundu.** README/karar metninin
+iddiası ("üçü aynı anda verilmez; verilirse son kayıt kazanır") **yanlış**:
+gerçekte **her iki sağlayıcı da tam olarak devreye giriyor** — hem PostgreSQL
+şeması hem SQLite dosyası bu koşumda oluştu. "Son kayıt kazanır" yalnızca
+tekil servis kayıtları (`IRunStore` vb., `TryAdd`/son-kayıt-kazanır DI deseni)
+için doğru; ama migration'ı tetikleyen `MigrationHostedService`
+(`src/AgentPrism.Sql.Shared/Migrations/MigrationHostedService.cs`) her
+`Use*Sql()` çağrısında **ayrı bir `IHostedService` örneği** olarak kaydediliyor
+(`AddHostedService` katkılıdır, `TryAdd` değil — .NET tüm kayıtlı hosted
+servisleri çalıştırır). Sonuç: iki bağımsız `MigrationHostedService` örneği
+başlıyor, ikisi de kendi `_storeContext.ProviderName`'ini "kazanan" olarak
+loglayıp (bu yüzden log çelişkili görünüyor) **ikisi de kendi migration'ını
+gerçekten uyguluyor** — "son kayıt kazanır" davranışı migration/şema kurulumu
+için **geçerli değil**.
+
+Etki: bir tüketici yanlışlıkla iki `Use*Sql()` çağırırsa (kopyala-yapıştır,
+geçiş senaryosu), yalnızca "beklenmedik bir uyarı" almaz — **istemeden ikinci
+bir veritabanında şema oluşturur**. Bu, projenin kendi "sıfır sürpriz" ilkesine
+aykırı ve üretimde yanlışlıkla paylaşılan bir PostgreSQL örneğine şema
+yazılması riski taşıyabilir. `Kritik` önemde bir kod kusuru bildirimi
+açılmalıdır (izlek: `MigrationHostedService`, çoklu kalıcılık kaydı; K-183).
+
+Bu koşumun kendi geçici SQLite dosyası (`manuel-cift.db`) temizlendi.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
