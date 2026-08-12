@@ -1,4 +1,5 @@
 using AgentPrism.SqlServer.IntegrationTests.Infrastructure;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AgentPrism.SqlServer.IntegrationTests;
@@ -115,6 +116,39 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
             {
                 await context.DisposeAsync();
             }
+        }
+    }
+
+    /// <summary>
+    /// K-389: migration kilidi semaya kapsanmistir. A semasinin kilidi acikken
+    /// B semasinin kilidi HEMEN alinabilmelidir; global kilitte olsa B en cok
+    /// <c>LockTimeoutMilliseconds</c> (30 sn) beklerdi.
+    /// </summary>
+    [Fact]
+    public async Task Farkli_semalarin_migration_kilitleri_birbirini_engellemez()
+    {
+        var dialectA = new SqlServerDialect(SqlServerTestContext.NewSchemaName());
+        var dialectB = new SqlServerDialect(SqlServerTestContext.NewSchemaName());
+
+        await using var connectionA = new SqlConnection(fixture.ConnectionString);
+        await connectionA.OpenAsync();
+        await dialectA.AcquireMigrationLockAsync(connectionA, 30, CancellationToken.None);
+
+        try
+        {
+            await using var connectionB = new SqlConnection(fixture.ConnectionString);
+            await connectionB.OpenAsync();
+
+            var acquireB = dialectB.AcquireMigrationLockAsync(connectionB, 30, CancellationToken.None).AsTask();
+            var winner = await Task.WhenAny(acquireB, Task.Delay(TimeSpan.FromSeconds(5)));
+
+            winner.ShouldBe(acquireB);
+
+            await dialectB.ReleaseMigrationLockAsync(connectionB, 30, CancellationToken.None);
+        }
+        finally
+        {
+            await dialectA.ReleaseMigrationLockAsync(connectionA, 30, CancellationToken.None);
         }
     }
 

@@ -22,8 +22,9 @@ public sealed class RunCostMetricTests
     public async Task Fiyat_tanimliyken_maliyet_yayilir_ve_etiketler_kararlidir()
     {
         var store = new InMemoryRunStore();
-        using var metrics = new AgentPrismMetrics();
-        using var collector = new MetricCollector(AgentPrismDiagnostics.MeterName);
+        using var meterFactory = new TestMeterFactory();
+        using var metrics = new AgentPrismMetrics(meterFactory);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         var usage = new UsageDetails { InputTokenCount = 1_000_000, OutputTokenCount = 500_000, TotalTokenCount = 1_500_000 };
         var client = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "tamam")) { Usage = usage });
@@ -71,8 +72,9 @@ public sealed class RunCostMetricTests
     public async Task Fiyat_tanimsizsa_hicbir_maliyet_yayilmaz()
     {
         var store = new InMemoryRunStore();
-        using var metrics = new AgentPrismMetrics();
-        using var collector = new MetricCollector(AgentPrismDiagnostics.MeterName);
+        using var meterFactory = new TestMeterFactory();
+        using var metrics = new AgentPrismMetrics(meterFactory);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         var usage = new UsageDetails { InputTokenCount = 10, OutputTokenCount = 10, TotalTokenCount = 20 };
         var client = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "tamam")) { Usage = usage });
@@ -109,8 +111,9 @@ public sealed class RunCostMetricTests
     public async Task Kok_ve_iki_alt_calistirmada_sayac_agac_toplamini_cift_saymaz()
     {
         var store = new InMemoryRunStore();
-        using var metrics = new AgentPrismMetrics();
-        using var collector = new MetricCollector(AgentPrismDiagnostics.MeterName);
+        using var meterFactory = new TestMeterFactory();
+        using var metrics = new AgentPrismMetrics(meterFactory);
+        using var collector = new MetricCollector(meterFactory.Meter);
 
         // Cagri sirasina gore azalan token: kok en cok, alt calistirmalar daha az
         // harcar. Fiyat 2$/M girdi, cikti yok.
@@ -173,18 +176,39 @@ public sealed class RunCostMetricTests
         public string TenantId => "test";
     }
 
-    /// <summary>Belirli bir <c>Meter</c>'in olcumlerini toplayan basit dinleyici.</summary>
+    /// <summary>
+    /// Testin kendi <see cref="AgentPrismMetrics"/> ornegine ozel, tekil kimlikli
+    /// bir <see cref="Meter"/> uretir.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 <see cref="MeterListener"/> sureç genelinde calisir: isme gore filtreleme
+    /// paralel kosan baska bir test sinifinin AYNI isimli ama FARKLI <see cref="Meter"/>
+    /// orneginin olcumlerini de yakalar (bkz. <c>ObservabilityTests.TestMeterFactory</c>).
+    /// </remarks>
+    private sealed class TestMeterFactory : IMeterFactory
+    {
+        public Meter Meter { get; } = new(AgentPrismDiagnostics.MeterName);
+
+        public Meter Create(MeterOptions options) => Meter;
+
+        public void Dispose() => Meter.Dispose();
+    }
+
+    /// <summary>
+    /// Belirli bir <c>Meter</c> <strong>orneginin</strong> olcumlerini toplayan
+    /// basit dinleyici. Filtre isme degil, referansa gore yapilir.
+    /// </summary>
     private sealed class MetricCollector : IDisposable
     {
         private readonly MeterListener _listener = new();
         private readonly List<(string Name, double Value, Dictionary<string, object?> Tags)> _doubles = [];
         private readonly Lock _gate = new();
 
-        public MetricCollector(string meterName)
+        public MetricCollector(Meter meter)
         {
             _listener.InstrumentPublished = (instrument, listener) =>
             {
-                if (string.Equals(instrument.Meter.Name, meterName, StringComparison.Ordinal))
+                if (ReferenceEquals(instrument.Meter, meter))
                 {
                     listener.EnableMeasurementEvents(instrument);
                 }

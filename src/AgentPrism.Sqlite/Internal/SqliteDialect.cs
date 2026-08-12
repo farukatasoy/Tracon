@@ -54,9 +54,11 @@ namespace AgentPrism;
 ///     <c>BEGIN IMMEDIATE</c>'i tum migration suresince acik tutmak
 ///     <see cref="MigrationRunner"/>'in kendi ic-ice islemleriyle CATISIR
 ///     (<c>Microsoft.Data.Sqlite</c> ic-ice islem desteklemez). Sidecar bir
-///     dosya kilidi (<c>&lt;veritabani&gt;.agentprism-migration-lock</c>)
-///     baglantinin islem durumuna hic dokunmadan ayni korumayi verir.
-///     <c>:memory:</c> veritabanlarinda atlanir.
+///     dosya kilidi (<c>&lt;veritabani&gt;.&lt;onek&gt;.agentprism-migration-lock</c>)
+///     baglantinin islem durumuna hic dokunmadan ayni korumayi verir. Kilit
+///     dosyasi TABLO ONEKINE kapsanmistir (K-389): SQLite'ta sema yoktur, tablo
+///     oneki AgentPrism kurulumlarini ayiran karsiligidir, kilit de ona gore
+///     kapsanmalidir. <c>:memory:</c> veritabanlarinda atlanir.
 ///   </description></item>
 /// </list>
 /// </remarks>
@@ -81,12 +83,17 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
     private const int DefaultLockWaitSeconds = 30;
 
     private readonly SqliteQueries _queries;
+    private readonly string _tablePrefix;
 
     private FileStream? _lockFile;
 
     /// <summary>Yeni bir SQLite diyalekti olusturur.</summary>
     /// <param name="tablePrefix">Dogrulanacak tablo onceki.</param>
-    public SqliteDialect(string tablePrefix) => _queries = new SqliteQueries(tablePrefix);
+    public SqliteDialect(string tablePrefix)
+    {
+        _queries = new SqliteQueries(tablePrefix);
+        _tablePrefix = _queries.Schema;
+    }
 
     /// <inheritdoc />
     public override SqlQueriesBase Queries => _queries;
@@ -116,7 +123,7 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
             return;
         }
 
-        var lockPath = dataSource + LockFileSuffix;
+        var lockPath = dataSource + "." + _tablePrefix + LockFileSuffix;
         var waitSeconds = commandTimeout > 0 ? commandTimeout : DefaultLockWaitSeconds;
         var deadline = DateTime.UtcNow.AddSeconds(waitSeconds);
 

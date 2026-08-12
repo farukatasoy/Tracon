@@ -12,10 +12,12 @@ namespace AgentPrism.SqlServer.IntegrationTests.Infrastructure;
 /// yok eder.
 /// </para>
 /// <para>
-/// Container tum derleme icin bir kez baslar; testler birbirinden <em>ayri sema</em>
-/// kullanarak yalitilir (bkz. <see cref="SqlServerTestContext"/>). Boylece hem
-/// baslatma maliyeti bir kez odenir hem de sema adinin yapilandirilabilir olmasi
-/// her testte dogrulanmis olur.
+/// Container tum derleme icin bir kez baslar; sema sozlesme test SINIFI basina
+/// paylasilir (bkz. <see cref="SqlServerSchemaFixture"/>, <see cref="SqlServerTestContext"/>),
+/// testler arasi izolasyon veri sifirlamayla saglanir (K-390). Migrasyon
+/// kilidi de artik veritabani genelinde degil semaya kapsanmistir (K-389); bu
+/// ikisi birlikte 29 sinif fixture'inin migrasyonlarinin PARALEL kosmasini
+/// saglar.
 /// </para>
 /// <para>
 /// 🚨 SQL Server container'i ~2 GB bellek ister; PostgreSQL imajindan belirgin
