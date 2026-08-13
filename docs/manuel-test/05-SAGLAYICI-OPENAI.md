@@ -822,9 +822,13 @@ curl -s "$APU/api/runs/<runId>" -H "$APB" | python3 -m json.tool
   `get_order_status` tool'unun **tam bir kez** çağrıldığı görülür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Yanıt metni "ORD-1001 siparişiniz verilmiş... Tahmini teslimat: 2 gün."
+içeriyor. `get_order_status` tool'u tam bir kez `orderId:"ORD-1001"` ile
+çağrıldı (`id: 13` frame). `GET /api/runs/{runId}`: `status:"Completed"`,
+`usage.totalTokens:307` (null değil, pozitif). runId
+`019ffb8a-1386-763e-bf50-9a5f48e90f70`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -859,9 +863,12 @@ curl -N -s -X POST "$APU/api/agents/support/run" -H "$APB" \
 - Hiçbir çerçevede `event: error` görünmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`Content-Type: text/event-stream` doğrulandı. Çerçeve sırası: 1× `event: run`
+(`data: {"runId":"019ffb8a-ab26-7284-a1b5-8b9472105044","sessionId":"oai-sse-01"}`,
+camelCase) → 5× `event: update` → 1× `event: done`
+(`data: {"sessionId":"oai-sse-01"}`). `event: error` hiç görünmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -894,9 +901,10 @@ curl -s -w "\nHTTP: %{http_code}\nCT: %{content_type}\n" \
 - Gövde tek bir JSON nesnesidir, `text` alanı doludur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 200`, `CT: application/json; charset=utf-8`. Gövde tek JSON nesnesi,
+`response.messages[0].contents[0].text:"tamam"` dolu. `usage.totalTokenCount:224`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -959,9 +967,15 @@ curl -s "$APU/api/runs?agentName=manuel-bozuk-model" -H "$APB" | python3 -m json
   `model_not_found` ya da `404` dizgisini içerir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İlk `curl`: `event: run` sonra `event: error` geldi (bağlantı çerçevesiz
+kapanmadı) — SSE gövdesinde `type` alanı kısa ad `"ClientResultException"`,
+`message` `"HTTP 404 (invalid_request_error: model_not_found)..."` taşıyor.
+`GET /api/runs?agentName=manuel-bozuk-model`: kayıt `status:"Failed"`,
+`error.type:"System.ClientModel.ClientResultException"` (tam nitelenmiş),
+`error.message` `model_not_found` içeriyor, `error.class:"ProviderError"`.
+K-296/K-294 düzeltmesi doğrulandı, regresyon yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Not.** `event: error` çerçevesi GELMEZse (fix'in regresyonu): hemen
 > `AgentEndpoints.cs`'in `ExecuteStreamingAsync`'indeki `catch` bloğunun dar
@@ -1006,9 +1020,11 @@ print([p['name'] for p in d])
   `openai/gpt-5.4-mini`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`/api/models` listesi: `['anthropic','google','openai','openai-responses','openrouter']`
+— `openrouter-responses` yok. `openrouter`'ın `models` dizisi tek girdi taşıyor:
+`openai/gpt-5.4-mini`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1039,7 +1055,10 @@ zamanında** (`ArgumentException`, açılış sırasında) patlar.
 2. `dotnet run`, konsolu oku, satırı kaldır.
 
 **Adımlar (deneme 3 — 33 karakter, sınır aşımı)**
-1. Ekle: `agentPrism.UseOpenAICompatible("a234567890123456789012345678901x", o => o.Endpoint = new Uri("http://localhost:9"));` (33 karakter — `a` + 30 rakam + `1x`, tam olarak sayılmış 33 karakter)
+1. Ekle: `agentPrism.UseOpenAICompatible("a0000000000000000000000000000000x", o => o.Endpoint = new Uri("http://localhost:9"));`
+   (**düzeltildi 2026-08-13**: dokümanın önceki örneği `a234567890123456789012345678901x`
+   `len()` ile ölçülünce fiilen 32 karakterdi — sınırda ve geçerli, 33 değil.
+   Yukarıdaki dizgi gerçek 33 karakterdir.)
 2. `dotnet run`, konsolu oku, satırı kaldır.
 
 **Girilecek veri**
@@ -1063,9 +1082,23 @@ git checkout -- samples/AgentPrism.Api/Program.cs
   zaman yanıt vermez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Üç denemede de `dotnet run` **derleme dahil** (`--no-build` olmadan)
+çalıştırıldı — ilk deneme yanlışlıkla `--no-build` ile koşulup eski
+binary'yi test etti (yanlış negatif, düzeltilip tekrarlandı).
+- Deneme 1 (`"openai"`): `Unhandled exception. System.ArgumentException:
+  'openai' saglayici adi rezervedir. ...` — exit code 134.
+- Deneme 2 (`"OpenRouter2"`): `... 'OpenRouter2' gecerli bir saglayici adi
+  degil. ...` — exit code 134.
+- Deneme 3: **dokümanın kendi örnek dizgisi** `a234567890123456789012345678901x`
+  aslında `len()` ile ölçülünce **32 karakter** çıktı (sınırda, geçerli) — 33
+  karakter değil. Bu bir doküman/test-verisi hatasıdır (ürün hatası değil,
+  KOSUM-PLANI §2.1 istisnası): örnek dizgi `a0000000000000000000000000000000x`
+  (gerçek 33 karakter) ile değiştirildi. Bununla: `... 'a000...x' gecerli bir
+  saglayici adi degil. Ad kucuk harf, rakam ve tire icermeli... en fazla 32
+  karakter olmalidir ...` — exit code 134.
+Üçünde de `/health` hiç yanıt vermedi (süreç Kestrel başlamadan çöktü).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Not.** 32 karakterlik (sınırın tam üzerinde, geçerli) bir adın kabul
 > edildiği ayrıca doğrulanabilir ama bu koşumda ölçüm değeri düşüktür (birim
@@ -1110,9 +1143,12 @@ git checkout -- samples/AgentPrism.Api/Program.cs
   ile başlar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`Unhandled exception. Microsoft.Extensions.Options.OptionsValidationException:
+OpenAIProviderOptions.Endpoint uyumlu saglayicilar icin zorunludur. Bos
+birakilirsa istek sessizce resmi OpenAI adresine giderdi. ...` — tam
+beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1161,9 +1197,10 @@ git checkout -- samples/AgentPrism.Api/Program.cs
   vermeden kayıt başarılıdır (yer tutucu anahtar mekanizması, K-069 civarı).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`curl -m 2 http://localhost:11434/api/tags` bağlantı kuramadı — Ollama bu
+makinede kurulu değil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -1195,9 +1232,9 @@ print('openrouter-responses' in [p['name'] for p in d])
 - Çıktı `False`'tur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Çıktı `False`. `/api/models` listesi `openrouter-responses` içermiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1243,9 +1280,13 @@ git checkout -- samples/AgentPrism.Api/Program.cs
   görünür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Doküman'ın öngördüğü gibi `OpenAIProviderExtensions.Bind` `internal` olduğu
+için erişilemedi; genel `IConfiguration.Bind(object)` uzantı metoduyla
+(`openRouter.Bind(o); o.EnableResponsesSurface = true;`) değiştirildi —
+derlendi ve çalıştı. `/api/models`: `['anthropic','google','openai',
+'openai-responses','openrouter','openrouter-responses']` — çıktı `True`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1278,9 +1319,11 @@ curl -s -X POST "$APU/api/agents/openrouter-destek/run" -H "$APB" \
   `MaxOutputTokens: 512` taşır (S6 sapmasının düzeltmesi, bkz. MT-OAI-057).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Yanıt metni "ORD-1002 siparişiniz kargoya verildi. Tahmini teslimat: 2 gün."
+içeriyor. `get_order_status` tam bir kez `orderId:"ORD-1002"` ile çağrıldı.
+`HTTP 402` görülmedi. runId `019ffb94-2556-7541-afdc-62887ada74a7`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1327,9 +1370,14 @@ curl -s -X POST "$APU/api/agents/manuel-openrouter-token-siniri-yok/run" -H "$AP
   düşülür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İkinci davranış gözlendi: `event: error`, `type:"ClientResultException"`,
+`message:"HTTP 402 (: )\n\nThis request requires more credits, or fewer
+max_tokens. You requested up to 65536 tokens, but can only afford 8816. ..."`
+— hesap bakiyesi düşük (~8816 token karşılığı kredi). Kusur değil, dokümanın
+öngördüğü bakiyeye-bağlı davranış; `MaxOutputTokens` verilmediğinde MAF/OpenAI
+istemcisinin varsayılan `max_tokens=65536` göndermesi doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1367,9 +1415,13 @@ curl -s "$APU/api/models/health/openrouter" -H "$APB" | python3 -m json.tool
   doğrudan `GET {endpoint}/models`'ten okur).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`openai` sağlığı: 5 model (`gpt-5.4-mini`, `gpt-5.6-luna`, `gpt-5.6-terra`, ...)
+— `appsettings.json` katalogundaki 3 modelle sınırlı değil, hesabın ham
+listesi. `openrouter` sağlığı: 200 model (`aion-labs/aion-2.0`, ...). İki
+liste tamamen farklı — iki sağlayıcının farklı `Endpoint`'e bağlandığının
+ağ-seviyesi kanıtı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1404,9 +1456,11 @@ curl -s "$APU/api/models/health" -H "$APB" | python3 -m json.tool
 - Kayıtlıysa `openrouter` de `Healthy`'dir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Beş sağlayıcının hepsi (`anthropic`, `google`, `openai`, `openai-responses`,
+`openrouter`) `status:"Healthy"`, `latency` dolu (`00:00:0X.XXXXXXX`), `models`
+dizisi dolu (openai: 5, openrouter: 200, anthropic: 10, google: 49 model).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1439,9 +1493,11 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/models/health/hic-boyle-bir-saglay
   metnini taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 404`. Gövde `ProblemDetails`: `title:"Saglayici bulunamadi"`,
+`detail:"'hic-boyle-bir-saglayici' adinda kayitli bir model saglayicisi
+yok."` — tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1477,9 +1533,11 @@ curl -s "$APU/api/models/health/openai?refresh=true" -H "$APB" | python3 -c "imp
   `refresh=true` önbelleği atladı).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Çağrı 1: `00:00:10.0110195`. Çağrı 2: `00:00:10.0110195` (birebir aynı —
+önbellekten). Çağrı 3 (`refresh=true`): `00:00:01.0158424` (farklı —
+yeniden ölçüldü).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1521,9 +1579,13 @@ git checkout -- samples/AgentPrism.Api/Program.cs
   dizgilerinin **hiçbirini** içermez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`status:"Unhealthy"`, `detail:"Baglanti hatasi (ConnectionError)."` —
+`ConnectionError` geçerli bir `HttpRequestError` kategorisidir (doküman
+örneği `ConnectionRefused` idi, gerçek kategori farklı ama aynı enum'dan).
+`grep -c` ile `127.0.0.1`, `59999`, `sk-cok-gizli-test-anahtari-12345`
+taraması: `0` — hiçbiri sızmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1568,9 +1630,12 @@ print([(p['name'], p.get('status')) for p in json.load(sys.stdin)])
   bile sağlayıcıya ağ çağrısı yapmaz, doğrudan önbellekten okur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İlk okuma: `openai` → `"Unknown"` (uygulama az önce başlatıldı, hiçbir
+`/health` çağrısı yapılmadan). `/api/models/health/openai` bir kez
+çağrıldıktan sonra ikinci okuma: `openai` → `"Healthy"`. İki `/api/models`
+çağrısı da hızlı: 0.026s ve altındaki python3 ayrıştırması dahil <0.1s.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1633,9 +1698,18 @@ dotnet user-secrets remove "AgentPrism:CircuitBreaker:BreakDuration"
   dönüşür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`dotnet user-secrets` yerine ortam değişkeni kullanıldı
+(`AgentPrism__CircuitBreaker__FailureThreshold=2`,
+`AgentPrism__CircuitBreaker__BreakDuration=00:00:20`) — şerit izolasyonu
+(KOSUM-PLANI §2.2, `user-secrets` deposu makine genelinde paylaşılıyor).
+Deneme 1 ve 2: gerçek OpenAI 404 (`ClientResultException`, `model_not_found`).
+Deneme 3: anında `event: error`,
+`type:"AgentPrismProviderUnavailableException"`,
+`message:"'openai' saglayicisi devre kesici tarafindan gecici olarak
+durduruldu (2 ardisik hata). 20 sn sonra yeniden denenecek."` — tam
+beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1668,9 +1742,16 @@ curl -s "$APU/api/models/health/openai?refresh=true" -H "$APB" | python3 -m json
 - `detail` alanı `Devre kesici acik.` ile başlar ve kalan saniyeyi içerir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İlk koşumda breaker'ı tetikleyen üç denemeden sonra dokümantasyona yazma
+sırasında geçen süre `BreakDuration=20s`'yi aştı ve gecikmeli `refresh=true`
+çağrısı yanlışlıkla `Healthy` döndü (breaker zaten kapanmıştı — ölçüm
+hatası, ürün hatası değil). `BreakDuration=30s`'ye çıkarılıp deneme üçlüsü
+ile bu case'in kendi çağrısı **aynı komutta arka arkaya** koşularak
+tekrarlandı: `status:"Unhealthy"`,
+`detail:"Devre kesici acik. 29 sn sonra yeniden denenecek."` — tam
+beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1706,9 +1787,12 @@ curl -s -X POST "$APU/api/agents/support/run" -H "$APB" \
   `status: Healthy` döner (`RecordSuccess` devreyi `Closed`'a sıfırladı).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`BreakDuration=30s` doldurulup (`sleep 32`) `support` agent'ı çalıştırıldı:
+`event: run` → normal metin akışı ("tamam") → `event: done` — başarıyla
+tamamlandı, hata görülmedi. Ardından `GET /api/models/health/openai`:
+`status:"Healthy"`, `detail:null` — devre `Closed`'a döndü.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1756,9 +1840,13 @@ dotnet user-secrets remove "AgentPrism:CircuitBreaker:FailureThreshold"
   gösterir, devre kesici katmanı hiç eklenmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`AgentPrism__CircuitBreaker__Enabled=false`, `FailureThreshold=1` ile üç
+deneme de gerçek OpenAI'a gitti — üçü de `ClientResultException`/
+`model_not_found` (404), `AgentPrismProviderUnavailableException` hiç
+görünmedi. `GET /api/models/health/openai`: `status:"Healthy"`,
+`detail:null` — ham sonuç, devre kesici katmanı eklenmemiş.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1808,9 +1896,13 @@ curl -s -X POST "$APU/api/agents/support/run" -H "$APB" \
   `catch` bloğunda yakalanıp hata sayılmadan yeniden fırlatılır).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Beş çağrı da `event: error`, `type:"AgentPrismContentBlockedException"`,
+`message:"Icerik 'pattern' guard'i tarafindan engellendi (kural:
+denied-term, yon: Input)..."` ile bloklandı (`HTTP: 200` — SSE bağlantı
+seviyesinde). Altıncı (geçerli) çağrı normal tamamlandı: `run` → `update`
+("tamam") → `done`, hiçbir devre kesici belirtisi yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1847,9 +1939,10 @@ done
 - Her uç için sayım `0`'dır (veya `grep -c` çıkışı boş/0).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Dört uç da (`/api/models`, `/api/models/health`, `/api/models/health/openai`,
+`/api/tools`) tarandı, `grep -c` sayımı hepsinde `0`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1883,9 +1976,14 @@ _(ayrı komut yok — önceki case kayıtları incelenir)_
   `sk-or-...` ile başlayan bir OpenRouter anahtarı geçmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Beş case'in kayıtlı "Gerçek sonuç" metinleri yeniden gözden geçirildi:
+MT-OAI-010 (`Endpoint=sadece-bir-yol` — sorunsuz başladı, anahtar yok),
+MT-OAI-011 (`OptionsValidationException: Timeout sifirdan buyuk olmalidir` —
+anahtar yok), MT-OAI-052 (`Endpoint ... zorunludur` — anahtar yok),
+MT-OAI-073 (`Baglanti hatasi (ConnectionError).` — anahtar yok, ayrıca
+`grep -c` ile doğrulandı). Hiçbirinde `sk-...` veya `sk-or-...` dizgisi yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1936,9 +2034,12 @@ python3 -m json.tool < /tmp/ap-oai-diag.json | grep -A4 -i "openai"
   `UseOpenAICompatible()` `configurationSectionKey: null` geçtiği için (K-249).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 200` (401/403 yok, 13 dosyasına not düşülmesi gerekmedi). `configuration`
+dizisinde `AgentPrism:Providers:OpenAI:ApiKey` **tam olarak bir kez**,
+`resolved:true`, `hint:null`. `openrouter`'a ait hiçbir girdi yok. `key`
+alanları yalnız ayar yolu adı taşıyor, gerçek değer hiçbir yerde yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Not.** `Admin` rolünün bu tokene gerçekte nasıl bağlandığı (rol sistemi
 > hiç kayıtlı değilse üç katmanlı düşüş: loopback + bearer token) koşumda
@@ -1981,8 +2082,10 @@ kill %1
 - `grep -c` çıktısı `0`'dır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Ayrı bir kısa koşum yerine, bu oturumun tüm §5–§9 çalıştırmalarını (onlarca
+gerçek OpenAI çağrısı dahil) kapsayan sürekli konsol logu (`s3-app.log`)
+tarandı — daha geniş kapsam. `grep -c "$ANAHTAR"` çıktısı `0`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Temizlik:** `rm -f /tmp/ap-oai-log.txt`
