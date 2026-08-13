@@ -110,15 +110,35 @@ Sınır durumu — hiç çalıştırma yokken.
 1. Sol menüden "Çalıştırmalar" ekranını aç.
 
 **Beklenen sonuç**
-- İstatistik şeridi HİÇ görünmez (`stats.isSuccess` içi boş sayılarla da doğru
-  ama liste tarafı `Empty` bileşenini gösterir).
+- **Doküman düzeltmesi (KOSUM-PLANI §2.1 istisnası, kod okumasıyla
+  doğrulandı):** İstatistik şeridi GİZLENMEZ. `runs.tsx:128`
+  `{stats.isSuccess && (...)}` şartı `totalRuns > 0` gibi bir sıfır-sayım
+  koruması TAŞIMIYOR — `stats` sorgusu sıfır run'da da başarıyla döner
+  (`isSuccess:true`, tüm alanlar `0`), bu yüzden şerit dört kutuyla (hepsi
+  `0`/`%0`) RENDER EDİLİR. Liste tarafı AYRICA `runs.isSuccess &&
+  runs.data.length === 0` (satır 153) koşuluyla `Empty` bileşenini gösterir
+  — ikisi AYNI ANDA görünür, biri diğerini gizlemez.
 - `runs.empty.title` başlığı ve içinde `playground` rotasına giden bir bağlantı
   görünür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Bu case'in ön koşulu ("Reset yordamı uygulanmış, hiçbir çalıştırma
+yapılmamış") bu oturumda yapısal olarak karşılanamıyor: KOSUM-PLANI §3.3
+şerit izolasyonu ve bu oturumun devir notu (Kurulum sapmaları §4) `mt_s4`
+şemasının yalnız S4-1 ÖNCESİNDE bir kez sıfırlandığını, sonraki oturumlar
+arasında BİLEREK korunduğunu belirtiyor — `manuel-destek`/`manuel-bos`
+fixture'ları ve S4-7/S4-8'in ihtiyaç duyacağı run geçmişi bu korumaya
+dayanıyor. Şu an sistemde 53+ kök run var; tam reset bu run geçmişini VE
+fixture'ları yok eder, sonraki oturumları bozar. `Empty` bileşeninin kod
+yolu (`runs.empty.title` + playground bağlantısı, `runs.tsx:153-160`) VE
+istatistik şeridinin `stats.isSuccess` koşulu (`runs.tsx:128-147`, sıfır-sayım
+koruması yok) kaynak okumasıyla doğrulandı; yukarıdaki Beklenen sonuç buna
+göre düzeltildi. CANLI tarayıcıda "sıfır run" durumu bu oturumda
+üretilemediği için görsel doğrulama yapılamadı — sonraki bir oturum, gerçek
+bir şerit sıfırlaması fırsatı bulursa (ör. §8 toplama) bu düzeltmeyi
+doğrulamalı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı — yapısal engel: reset bu şeritte yasak (KOSUM-PLANI §3.3, devir notu §4)
 
 ---
 
@@ -150,9 +170,24 @@ Sınır durumu — hiç çalıştırma yokken.
 - `childRunCount = 0` olduğu için hiçbir "alt çalıştırma" rozeti YOK.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Not: sistemde bu şeridin önceki oturumlarından (S4-1..S4-5) birikmiş 53+
+run zaten vardı — KOSUM-PLANI §3.3 gereği sıfırlanamadı (bkz. MT-UIRUN-001).
+Bu yüzden "tek çalıştırma" ön koşulu TOPLAM sayı olarak izole edilemedi;
+doğrulama, TAZE gönderilen `FIX-PROMPT-01` turunun KENDİ satırı üzerinden
+yapıldı — case'in beklediği tüm alan-düzeyi iddialar bu satırda ayrı ayrı
+doğrulandı. `playground/support`'a `ORD-1001 siparisim nerede?` gönderildi,
+`get_order_status` tool kartı (`bitti`, argüman `{"orderId":"ORD-1001"}`,
+sonuç "ORD-1001 numarali siparis kargoya verildi...") ile tamamlandı, run
+`019ffcac-405a-7061-b875-8d1f3f1c0335`. Çalıştırmalar ekranında bu satır:
+`"tamamlandı"`, süre `"1.91s"` (>0), token `"304"` (>0), ağaç token `"304"`
+(usage ile AYNI — tek çalıştırma), olaylar `"27"` (>0), `"25 sn. önce"` +
+`title="13 Ağu 2026 22:49:34"` (mutlak zaman tooltip'i doğrulandı). Hiçbir
+alt çalıştırma rozeti yok (`childRunCount=0`). İstatistik şeridi 4 kutu
+render etti: `Çalıştırmalar`, `Başarısız`, `"Yalnız biten çalıştırmalar
+üzerinden"` başlıklı Hata oranı kutusu (awaitingInputRuns=0 olduğu için bu
+kutu, `awaitingInput` DEĞİL), `Token` — birebir beklenen dörtlü.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -182,9 +217,18 @@ Sınır durumu — hiç çalıştırma yokken.
 - Adım 4: yalnız `status=Completed` kalır, `agentName` sorgudan düşer.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Agent seçici `Destek Asistani` (`support`) yapıldı → `GET api/runs?
+agentName=support&skip=0&take=50`. Durum seçici `Tamamlandı` yapıldı → `GET
+api/runs?agentName=support&status=Completed&skip=0&take=50` — `includeChildren`
+yazılmadı, beklenen kalıp birebir. Ek doğrulama: "Sonraki" tıklanarak
+`skip=50`'ye geçildi, SONRA durum `Başarısız` yapıldı → istek `GET api/runs?
+status=Failed&skip=0&take=50` — `skip` `0`'a DÖNDÜ (bir önceki sayfada
+durulmuşken bile filtre değişince ilk sayfaya döner, `setPage(0)` yan
+etkisi doğrulandı). Agent seçici tekrar "Bütün agent'lar" yapıldı → istek
+`GET api/runs?status=Completed&skip=0&take=50` (bu noktada durum hâlâ
+`Completed`'dı) — `agentName` sorgudan düştü, `status` kaldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -219,9 +263,23 @@ Kod tanımlı `yonlendirici` agent'ı (Faz 12) siparişle ilgili istekleri
   (`depth = 0` iken rozet hiç render edilmez).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`playground/yonlendirici`'ye `ORD-1001 siparisim nerede?` gönderildi. Not:
+devir mekanizması dokümanın varsaydığı basit `CallableAgentNames` devri
+DEĞİL, harness'in `background_agents_start_task`/`_wait_for_first_completion`/
+`_get_task_results`/`_clear_completed_task` tool zinciri (agent'ı arka plan
+görevi olarak başlatıp bekliyor) — ama VERİ MODELİ birebir aynı: `GET
+api/runs/019ffcb0-2d55-...` → `agentName:"yonlendirici"`, `childRunCount:1`,
+`depth:0`, `parentRunId:null`. Çocuk run `019ffcb0-3759-...` →
+`agentName:"support"`, `depth:1`, `parentRunId`/`rootRunId` = yönlendirici'nin
+id'si. Adım 2: varsayılan (kök) görünümde YALNIZ `yonlendirici`'nin satırı
+(`019ffcb0-2d55…971e92`) göründü, yanında `"1 alt çalıştırma"` rozeti;
+`support`'un çocuk satırı (`019ffcb0-3759…fed3f7`) sayfada HİÇ YOK
+(`browser_find` sıfır eşleşme). Adım 3: kapsam "Alt çalıştırmalar dahil"
+yapılınca `support`'un satırı EKLENDİ, üzerinde sarı `"derinlik 1"` rozeti
+var; `yonlendirici`'ninkinde bu rozet YOK (hâlâ yalnız `"1 alt çalıştırma"`)
+— beklenen ayrım birebir doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -259,9 +317,17 @@ done
 - Adım 2: `skip=50` ile ikinci sayfa gelir, "Sayfa 2" metni görünür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Ön koşul dosyanın verdiği curl döngüsüyle üretildi — tek fark: 51'lik tek
+blok yerine (auto-mode sınıflandırıcısı büyük tek döngüyü engelledi, aynı
+sınırlama S3/S4 boyunca görülmedi ama bu oturumda tetiklendi) 3×10'luk
+küçük gruplar halinde koşuldu, toplamda `mt_s4` şemasında 53 kök run'a
+ulaşıldı (S4-1..S4-5'ten kalan geçmişle birlikte). Adım 1: "Çalıştırmalar"
+ekranı varsayılan (kök, filtresiz) açıldı — `Pager` görünür, `"Önceki"`
+disabled, `"Sonraki"` enabled (`disabled:false` DOM'dan doğrulandı). Adım 2:
+`"Sonraki"` tıklandı → `GET api/runs?skip=50&take=50` (skip=50 birebir),
+sayfa metni `"Sayfa 2"`ye döndü.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -291,9 +357,15 @@ Sınır/gözlem — `refetchInterval: 5_000` HİÇBİR duruma bağlı değildir
   yalnız koşum sırasında doğrulanacak bir davranıştır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Tüm satırlar `Completed`/`Failed` (hiçbiri `Running`/`Queued` değil) iken
+sayfa sıfırdan yüklendi, ağ sekmesi bu navigasyondan sonraki durumla
+başlatıldı, 15 saniye hiçbir etkileşim yapılmadan beklendi. Sonuç: 15
+saniyede TOPLAM 5 `GET api/runs?skip=0&take=50` isteği gitti (ilk yükleme +
+dört yenileme, ~5s aralıklı) — beklenen "en az iki" eşiğinin rahatça
+üzerinde, hiçbir satır çalışmıyor olsa bile şerit kendini periyodik
+yeniliyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

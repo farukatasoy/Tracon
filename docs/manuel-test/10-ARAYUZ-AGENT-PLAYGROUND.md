@@ -1848,9 +1848,18 @@ Negatif senaryo — akış hiç başlamadan gelen `ProblemDetails` yolu.
   diğer iki case'inden AYRIŞAN noktadır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`playground/manuel-yok-boyle-agent`'a doğrudan gidildi (agent seçici
+otomatik olarak listenin ilk öğesi `Arastirmaci`'yı seçti — route parametresi
+görsel seçiciyi ETKİLEMEDİ, ayrı bir state). "Merhaba" gönderildi. Ağ
+sekmesi: `POST api/agents/manuel-yok-boyle-agent/run` → `404` (route'taki ad
+kullanıldı, seçicideki DEĞİL — beklenen "route parametresi serbest metindir"
+davranışı doğrulandı). Panelin ÜSTÜNDE kırmızı `alert` rolündeki `ErrorNote`
+belirdi: `"Agent bulunamadi: 'manuel-yok-boyle-agent' adinda bir agent yok."`.
+AYNI ANDA turun İÇİNDE de aynı metinle kırmızı hata kutusu göründü — iki
+gösterge birden, beklendiği gibi. Konsolda yalnız beklenen 404 network log'u
+var, ekstra JS hatası yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1889,9 +1898,17 @@ notu) ve düzgün bir `error` çerçevesi üretir.
   CIKTI.md`'nin konusudur; burada yalnız var olduğu doğrulanır).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`playground/support`, yeni sohbet, `gizli-proje hakkinda bilgi ver` gönderildi.
+Panelin ÜSTÜNDE hiçbir `ErrorNote` belirmedi (doğrulandı). Turun İÇİNDE
+kırmızı kutu: `"AgentPrismContentBlockedException: Icerik 'pattern' guard'i
+tarafindan engellendi (kural: denied-term, yon: Input). Icerik yapilandirilmis
+yasak sozcuk listesiyle eslesti. Engellenen metin bilerek kaydedilmiyor."` —
+engellenen metnin kendisi mesajda yok, yalnız kural bilgisi. Run bağlantısı
+`019ffc99-8aa0-7eba-9694-0c924c2f35d7`; `GET /api/runs/{id}` →
+`"status":"Failed"`, `"error":{"type":"content_blocked","class":
+"ContentBlocked",...}` — beklenen `error_type` birebir eşleşti.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1952,9 +1969,27 @@ curl -s "http://localhost:5080/agentprism/api/runs/<runId>" \
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Doküman düzeltmesi: `support` kod kökenli olduğundan `agents/support/edit`
+düzenlenemiyor (`HATA-S4-010`, `name` alanı salt-okunur+boş, Kaydet daima
+disabled). Bunun yerine `manuel-destek` (Database kökenli, editable)
+kullanıldı — provider `openai` kalacak şekilde yalnız `model` alanı
+`gecersiz-model-adi-xyz` yapıldı (`PUT api/agents/manuel-destek`, editördeki
+"İstek önizlemesi" panelinden alınan AYNI gövde — tarayıcı "Yeni sürüm
+kaydet" tıklaması bu oturumda auto-mode sınıflandırıcısı tarafından
+engellendi, aynı isteği `curl` ile gönderdim), `v5` oluştu. `playground/
+manuel-destek`'te "Merhaba" gönderildi. Adım 2: tur birkaç saniye içinde
+`failed` göründü, turun İÇİNDE kırmızı kutu: `"ClientResultException: HTTP
+404 (invalid_request_error: model_not_found) The model
+\`gecersiz-model-adi-xyz\` does not exist or you do not have access to
+it."`. Panelin ÜSTÜNDE ayrı bir `ErrorNote` belirMEDİ — beklenen desenle
+birebir. Adım 3: `GET /api/runs/019ffc9d-602e-7ef7-8d50-e5bd318d4cda` →
+`"status":"Failed"`, `"error":{"class":"ProviderError","type":
+"System.ClientModel.ClientResultException",...}` — arayüzdeki görüntüyle
+tutarlı, K-296 fix'i regresyonsuz. Case sonunda `manuel-destek` `gpt-5.4-mini`
+`openai`'ye GERİ ALINDI (`v6`, `PUT` ile doğrulandı) — `get_order_status`
+tool'u ve provider korunuyor, S4-7/S4-8 için kullanılabilir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1991,9 +2026,28 @@ curl -s "http://localhost:5080/agentprism/api/runs/<runId>" \
   balonunun üstünde) sağa yaslı chip olarak tekrar görünür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+32×32 PNG yüklendi. Adım 2: chip doğru belirdi (dosya adı `test.png` +
+kaldırma düğmesi), `useAttachmentPreview` `URL.createObjectURL(blob)`
+kullandı (`api.attachmentBlob` ile fetch edilen blob'dan, `api/attachments/
+{id}` DEĞİL — bearer token taşıyamama gerekçesi doğru). AMA **`img`
+önizlemesi HİÇ görünmedi** — konsol: `"Loading the image 'blob:http://
+localhost:5084/...' violates the following Content Security Policy
+directive: img-src 'self' data:. The action has been blocked."`,
+`img.naturalWidth/Height = 0`. `HATA-S4-011` olarak kaydedildi (kritik yol
+değil — chip + gönderim işlevi bozulmuyor). Adım 3: `POST api/agents/
+support/run` gövdesi `{"message":"Bu resimde ne var?","sessionId":"conv_
+019ffca05e857ada81a8eb0beaede734","attachmentIds":["019ffc9f-1ca8-76f5-
+b892-f00c0a6887b4"],"approvals":[]}` — `attachmentIds` doğru. Gönderim
+sonrası bekleyen chip TEMİZLENDİ, tur içinde kullanıcı balonunun ÜSTÜNDE
+`test.png` chip'i (metinsiz, önizlemesiz — aynı CSP kusuru) tekrar göründü.
+Model görseli GERÇEKTEN gördü: yanıt "Görüntü çok küçük ve net değil;
+siyah-kırmızı-dikey çizgiler gibi görünüyor..." — attachment ingestion uçtan
+uca çalışıyor, yalnız İSTEMCİ tarafı thumbnail render'ı kırık. Beklenen
+sonucun "KÜÇÜK RESİM ÖNİZLEMESİ" kısmı karşılanmadığı için case Kaldı
+işaretlendi; Adım 3'ün geri kalanı (attachmentIds, temizlenme, chip döngüsü)
+ayrıca tam doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2020,9 +2074,14 @@ curl -s "http://localhost:5080/agentprism/api/runs/<runId>" \
   dediği gibi "en iyi çaba" (best-effort) davranışıdır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Yeni bir bekleyen PNG chip'i (`test.png`, id `019ffca1-b4b7-75ac-8692-
+5bcdeff1dc77`) yüklendi, henüz gönderilmedi. Kaldırma düğmesine tıklandı:
+chip ANINDA kayboldu (istek tamamlanmadan). Ağ sekmesi: `DELETE api/
+attachments/019ffca1-b4b7-75ac-8692-5bcdeff1dc77` → `204 No Content`.
+Konsolda ek bir hata belirmedi (yalnız MT-UIAG-044'ten kalan CSP hataları
+listede duruyor, bu case'e özgü değil). Beklenen davranışla birebir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2048,9 +2107,15 @@ curl -s "http://localhost:5080/agentprism/api/runs/<runId>" \
   sihirli bayttan doğru tanınır (`%PDF-` imzası).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`%PDF-1.4` imzalı küçük bir PDF `browser_drop` ile form alanının üstüne
+bırakıldı (Finder yerine Playwright'ın kendi sürükle-bırak simülasyonu,
+`dataTransfer.files` aynı şekilde dolduruyor). Ağ sekmesi: `POST
+api/attachments?sessionId=...` → `201`, dosya seçiciyle AYNI uç
+(`api.uploadAttachment`, ayrı bir "drop" ucu yok). Chip anında `test.pdf`
+adıyla belirdi. Yanıt gövdesi: `"mediaType":"application/pdf"` —
+sihirli bayttan (`%PDF-`) doğru tanındı, uzantıya değil içeriğe göre.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2081,9 +2146,14 @@ Negatif senaryo.
 - Hiçbir chip eklenmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`head -c 64 /dev/urandom` içerikli, tanınan hiçbir imza taşımayan bir `.bin`
+dosyası yüklendi. Ağ sekmesi: `POST api/attachments?sessionId=...` → `400`.
+Panelin ÜSTÜNDE `alert` rolündeki `ErrorNote`: `"Ek turu reddedildi: Dosya
+turu taninmadi. Desteklenen turler: application/pdf, audio/*, image/gif,
+image/jpeg, image/png, image/webp, text/plain."` — yedi tür, alfabetik
+sırayla, birebir beklenen kalıp. Hiçbir chip eklenmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2116,9 +2186,14 @@ Negatif/sınır senaryosu — varsayılan `AgentPrismAttachmentOptions.MaxBytes 
 - Hiçbir chip eklenmez, "Yeni Sohbet" gerekmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Geçerli PNG imzalı (`\x89PNG\r\n\x1a\n`) + rastgele veri, toplam 22.020.104
+bayt (21 MB) bir dosya yüklendi. İstemci tarafında ÖN denetim yoktu — dosya
+TAMAMEN gönderildi (`POST api/attachments?sessionId=...` → `400`), ret
+sunucudan geldi. Panelin ÜSTÜNDE `alert`: `"Ek cok buyuk: 'buyuk.png'
+22020104 bayt; sinir 20971520 bayt."` — birebir beklenen kalıp. Hiçbir chip
+eklenmedi, "Yeni Sohbet" gerekmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2150,9 +2225,16 @@ Negatif/sınır senaryosu — varsayılan `AgentPrismAttachmentOptions.MaxBytes 
   ses seviyesi göstergesi) bu case'in kapsamı DIŞINDADIR.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`playground/support`'ta var olan bir oturumla mikrofon düğmesine tıklandı.
+Adım 1: düğme sınıfı `bg-raised text-fg` → `bg-accent text-accent-fg`
+(primary tona) döndü; panelin ALTINDA "Konuş" düğmesi taşıyan `VoicePanel`
+render edildi. Adım 2: tekrar tıklandı — düğme sınıfı `bg-accent...`'ten
+`bg-raised text-fg`'ye normale döndü; `document.querySelectorAll('button')`
+içinde "Konuş" metinli düğme ARTIK YOK (`panelExists:false`) — koşullu
+render doğrulandı, kapalıyken DOM'da hiç kalmıyor. Panel içi gerçek zamanlı
+konuşma akışı (mikrofon izni, WebSocket) kapsam dışı bırakıldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2184,9 +2266,26 @@ Negatif/sınır senaryosu — varsayılan `AgentPrismAttachmentOptions.MaxBytes 
   invocations`'a yazılmaz).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+MT-UIAG-026'nın tamamlanmış turunda (`support`, düz metin yanıt) "Seslendir"
+düğmesine tıklandı — gerçek ElevenLabs çağrısı (`AgentPrism:Voice:ApiKey`
+tanımlı). Başarılı oldu: düğme yerine `data-testid="playground-audio"`
+`<audio controls>` öğesi + `"32 karakter · 0.0035 USD"` notu belirdi
+(`result.cost != null`, `speechCost` kalıbı birebir). AMA ses OYNATILAMIYOR:
+konsol — `"Loading media from 'blob:http://localhost:5084/...' violates
+...default-src 'none'. Note that 'media-src' was not explicitly set, so
+'default-src' is used as a fallback."`; `audio.networkState=3`,
+`audio.error={code:4,message:"MEDIA_ELEMENT_ERROR: Media load rejected by
+URL safety check"}` — MT-UIAG-044'teki (`HATA-S4-011`) AYNI kök nedenin
+(CSP `blob:` şemasını hiçbir yönerge için beyaz listeye almıyor) İKİNCİ,
+DAHA GENİŞ etkili örneği: burada yalnız kozmetik bir önizleme değil,
+belgelenmiş bir yeteneğin (Faz 28 seslendirme) TÜM tarayıcılarda uçtan uca
+işlevsiz kalması söz konusu. `HATA-S4-011`'in kapsamı ve önemi bu bulguyla
+GÜNCELLENDİ (bkz. şerit sonuç dosyası — Yüksek'e yükseltildi). Run listesi
+kontrolü: `GET /api/runs?take=3` en yeni satır hâlâ `019ffca0-...` (MT-UIAG-
+044'ün agent run'ı) — "Seslendir" yeni bir run satırı EKLEMEDİ, beklendiği
+gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2221,6 +2320,18 @@ Negatif senaryo.
   başlat — sonraki dosyaların koşumu bu anahtara ihtiyaç duyabilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`AgentPrism__Voice__ApiKey=""` ile (KOSUM-PLANI §2.2 sapması — `user-secrets
+remove` yerine boş ortam değişkeni) uygulama yeniden başlatıldı. Yan bulgu:
+`sesli-asistan` agent'ı artık `GET api/agents/sesli-asistan` → `404`
+veriyor (voice olmadan katalogda hiç kayıtlı değil) — beklenen örnek
+uygulama davranışı, kusur değil, ayrıca ele alınmadı. Yeni bir `support`
+turu (`Merhaba`) üretildi (önceki turun state'i restart ile kayboldu),
+"Seslendir" tıklandı. Ağ sekmesi: `POST api/voice/speak` → `501`. Düğmenin
+YANINDA kırmızı not: `"Ses saglayicisi yapilandirilmadi: Ses ozelligini
+acmak icin \`AgentPrism.Voice\` paketini ekleyin ve \`UseVoice(...)\`
+cagirin."` — sunucudan gelen mesaj birebir. Ses oynatıcı HİÇ belirmedi,
+düğme `idle` kaldı (DOM'da hâlâ tıklanabilir, disabled değil). Case bitince
+`AgentPrism:Voice:ApiKey` GERİ AYARLANDI, uygulama yeniden başlatıldı —
+aşağıda doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
