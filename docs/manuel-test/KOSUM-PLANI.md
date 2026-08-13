@@ -437,7 +437,7 @@ yanına ajan adını yazar — iki ajan aynı oturumu almaz.
 |---|---|---|---|---|
 | K-1 ✅ | [`14`](14-SKILL-VE-SCRIPT.md) | §1–§2 | 20 | **Bitti** (2026-08-13): 19 Geçti, 1 Kaldı (`HATA-K-001`). Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
 | K-2 ✅ | [`14`](14-SKILL-VE-SCRIPT.md) | §3–§5 | 18 | **Bitti** (2026-08-13): 18/18 Geçti, kusur yok. Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
-| K-3 | [`14`](14-SKILL-VE-SCRIPT.md) + [`15`](15-WORKFLOWS.md) | 14 §6–§7 + 15 §1 | 28 | Script sandbox — kendi worktree'nde çalıştır. |
+| K-3 ✅ | [`14`](14-SKILL-VE-SCRIPT.md) + [`15`](15-WORKFLOWS.md) | 14 §6–§7 + 15 §1 | 28 | **Bitti** (2026-08-13): 21 Geçti, 7 Kaldı — **dosya `14` TAMAMEN BİTTİ (47/47)**. `HATA-K-002` (🚨 Kritik: script çalıştırma özelliği `JsonSerializerOptions` çökmesiyle tamamen işlevsiz). Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
 | K-4 | [`15`](15-WORKFLOWS.md) | §2–§6 | 26 | §2 arayüz (6 case). |
 | K-5 | [`15`](15-WORKFLOWS.md) + [`17`](17-EVAL-VE-DENEYLER.md) | 15 §7–§9 + 17 §1–§2 | 27 | — |
 | K-6 | [`17`](17-EVAL-VE-DENEYLER.md) | §3–§6 | 30 | Eval koşusu gerçek model çağırır → ucuz model. |

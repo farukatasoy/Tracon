@@ -90,6 +90,44 @@ beklenen sonucu zaten kanıtladı.
 
 ---
 
-## K-3 — 14 §6–7 + 15 §1, 28 case
+## K-3 — 14 §6–7 (MT-SKILL-057..063, 070) + 15 §1 (MT-WF-001..020), 28 case
+
+**Sonuç:** 21 Geçti, 7 Kaldı. **Dosya `14` (SKILL-VE-SCRIPT) TAMAMEN BİTTİ (47/47, MT-SKILL-071 hariç — o zaten kapsam dışı not).**
+
+### HATA-K-002 — 🚨 KRİTİK: Script çalıştırma özelliği (Faz 11) tamamen çalışmıyor — `JsonSerializerOptions` çöküyor
+
+- **Case:** MT-SKILL-058 (Kritik) — ayrıca MT-SKILL-059/060/061/062/063/070'i de aynı kök nedenle bloke etti
+- **Önem:** Kritik
+- **İzlek:** B
+- **Ortam:** macOS arm64 · net10 · bellek içi kalıcılık · OpenAI `gpt-5.4-mini`
+
+**Beklenen**
+`UseSkillScripts()` açık ve bir skill'e kayıtlı, izinli bir script bağlıyken, o skill'i taşıyan bir agent çalıştırıldığında script gerçekten çalışır ve sonucu modele döner.
+
+**Gerçekleşen**
+Script içeren HERHANGİ bir skill gerçekten etkinleştirildiğinde (`UseSkillScripts()` + `AllowStoredScripts=true`), o skill'e sahip agent'a gönderilen HER istek, model hiç çağrılmadan, şu hatayla çöküyor: `InvalidOperationException: JsonSerializerOptions instance must specify a TypeInfoResolver setting before being marked as read-only.`
+
+**Yeniden üretme**
+1. `agentPrism.UseSkillScripts(o => o.PlatformIsolationAcknowledged = true);` (geçici kod), `Interpreters:sh`, `AllowStoredScripts=true` ayarla, yeniden başlat.
+2. `sh` script'i taşıyan bir skill oluştur, o skille agent bağla, script'e izin ver.
+3. O agent'a HERHANGİ bir mesaj gönder (Playground veya `POST /api/agents/{name}/run`).
+4. `run` `Failed` durumuna düşer, hata `error.message` alanında görünür.
+
+**Kanıt**
+- `src/AgentPrism.Core/Skills/AgentPrismSkillsSource.cs:10`: `private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);` — resolver hiç ayarlanmamış.
+- Aynı dosya `:71-81`: `_scripts is { StoredScriptsEnabled: true }` iken bu `SerializerOptions` MAF'ın `skill.AddScript(script.Name, delegate, description, SerializerOptions)` çağrısına geçiriliyor; MAF içeride `MakeReadOnly()` çağırıyor (resolver popüle edilmeden), .NET'in "TypeInfoResolver olmadan salt-okunur işaretlenemez" korumasını tetikliyor.
+- `StoredScriptsEnabled: false` iken (script kaydı/izin katmanı, §4/§5) bu kod yolu (`skill.AddScript`) hiç çağrılmadığı için sorun gizli kalıyor — bu yüzden 14 case (§4+§5) sorunsuz geçti ama ÇALIŞTIRMA katmanının tamamı (§6) çöküyor.
+- İki ayrı yoldan doğrulandı: Playground üzerinden (gerçek kullanıcı akışı) ve doğrudan `POST /api/agents/{name}/run` — ikisi de aynı, tam belirlenimli hatayı üretti.
+
+**Kapsam**
+Faz 11'in "gerçek çalıştırma" özelliği (script'lerin sandbox'ta çalıştırılması) yayınlanan hâlde TAMAMEN işlevsizdir. `UseSkillScripts()` çağıran ve saklı script'i olan HER tüketici aynı çökmeyi yaşar — bu bir kenar durum değil, özelliğin ana yoludur. Script kaydı/izin (grant) katmanı (§4/§5, K-2'de 14/14 geçti) etkilenmez çünkü o katman `skill.AddScript`'i hiç çağırmaz.
+
+---
+
+Diğer bulgular: MT-WF-020'nin dokümanı düzeltildi (kod kusuru değil) — beklenen "`event: error`" SSE çerçevesi yerine gerçek davranış normal `event: event` içinde `type: "RunFailed"` domain event'i taşıyor; mesaj içeriği doğru, yalnız çerçeve varsayımı yanlıştı. Ayrıntı MT-WF-020'nin case notunda.
+
+---
+
+## K-4 — 15 §2–6, 26 case
 
 _(sıradaki oturum bu başlığın altına yazacak)_

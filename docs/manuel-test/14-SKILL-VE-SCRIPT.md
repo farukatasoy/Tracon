@@ -1638,9 +1638,13 @@ WHERE source = 'skill:scriptli-skill' ORDER BY created_at DESC LIMIT 1;
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+🚨 **KRİTİK KUSUR.** §6'nın ortak ön koşulu (geçici `agentPrism.UseSkillScripts(o => o.PlatformIsolationAcknowledged = true);` kod satırı + `AllowStoredScripts=true`) uygulanıp yeniden derlendikten/başlatıldıktan sonra, `scriptli-skill`'e bağlı (script içeren, gerçekten etkin) HERHANGİ bir agent'a gönderilen HER istek `run` başlarken şu hatayla çöküyor: `InvalidOperationException: JsonSerializerOptions instance must specify a TypeInfoResolver setting before being marked as read-only.` `load_skill` onay kartı hiç çıkmıyor, model hiç çağrılmıyor — hata skill'in MAF'a sunulacağı derleme anında oluşuyor. Hem Playground'dan (`manuel-script-test`, "Fatura kontrol..." promptu) hem doğrudan `POST /api/agents/manuel-script-test/run` ile ("merhaba" gövdesi) doğrulandı, ikisi de aynı hatayı üretti — tam belirlenimli (deterministik), model içeriğinden bağımsız.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Kök neden (kod okunarak doğrulandı):** `src/AgentPrism.Core/Skills/AgentPrismSkillsSource.cs:10` — `private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);` — resolver'ı hiç ayarlanmamış, salt reflection tabanlı bir `JsonSerializerOptions` örneği. Bu örnek `_scripts is { StoredScriptsEnabled: true }` iken (`AgentPrismSkillsSource.cs:71-81`) MAF'ın `skill.AddScript(script.Name, delegate, description, SerializerOptions)` çağrısına aynen geçiriliyor; MAF bu seçenekler nesnesini içeride `MakeReadOnly()` ile donduruyor (resolver popüle edilmeden), bu da .NET'in "TypeInfoResolver olmadan salt-okunur işaretlenemez" korumasını tetikliyor. `StoredScriptsEnabled: false` iken (§4/§5, MT-SKILL-057) bu kod yolu (`skill.AddScript`) hiç çağrılmadığı için sorun gizli kalıyor — bu yüzden script KAYDI/İZNİ katmanındaki 14 case (§4+§5) sorunsuz geçti ama gerçek ÇALIŞTIRMA katmanının TAMAMI (§6) bu satırda çöküyor.
+
+**Kapsam:** Bu, script çalıştırma özelliğinin (Faz 11) yayınlanan hâlde TAMAMEN işlevsiz olduğu anlamına gelir — `UseSkillScripts()` çağıran ve saklı script'i olan HER tüketici aynı çökmeyi yaşar. MT-SKILL-059..063 ve 070 AYNI kök nedenle bloklanıyor (script gerçekten çalıştırılmadan hiçbiri gözlemlenemez); kullanıcı kararıyla bu case'ler tek tek tekrar denenmeden "aynı kök nedenle Kaldı" olarak işaretlendi, ayrıntı için bu case'e bakınız.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1681,9 +1685,9 @@ WHERE action = 'script.denied' ORDER BY created_at DESC LIMIT 1;
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Ön koşulu (MT-SKILL-058 geçti) sağlanamadığı için koşulmadı — MT-SKILL-058'de kaydedilen aynı kök nedenle (`AgentPrismSkillsSource.cs:10`'daki resolver'sız `JsonSerializerOptions`) `scriptli-skill`'i taşıyan HER `run` isteği model hiç çağrılmadan çöküyor; bu case'in kendisi bir onay akışı gerektirdiği için tekrar denenmeden aynı sonucu vereceği kesindir. Kullanıcı kararıyla tekilen tekrar koşulmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 **Temizlik:** İzni yeniden ver (`POST /api/skill-script-grants`,
 `InMemorySkillScriptGrantStore.GrantAsync`'in upsert semantiği
@@ -1734,9 +1738,9 @@ WHERE action = 'script.denied' ORDER BY created_at DESC LIMIT 1;
   `SkillScriptProcessRunner.cs:128-136`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+MT-SKILL-058'in kök nedeniyle (bkz. o case'in notu) bloklu — koşulmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 **Temizlik:** `dotnet user-secrets remove "AgentPrism:Skills:Scripts:Timeout"`.
 
@@ -1773,9 +1777,9 @@ WHERE action = 'script.denied' ORDER BY created_at DESC LIMIT 1;
   zaman aşımı bağımsız kapılardır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+MT-SKILL-058'in kök nedeniyle (bkz. o case'in notu) bloklu — koşulmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 **Temizlik:** `dotnet user-secrets remove "AgentPrism:Skills:Scripts:MaxOutputBytes"`.
 
@@ -1813,9 +1817,9 @@ ortam değişkenleri (`OpenAI__ApiKey` gibi) script sürecine HİÇ ULAŞMAZ.
   çağıran süreci komple boşaltır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+MT-SKILL-058'in kök nedeniyle (bkz. o case'in notu) bloklu — koşulmadı. Bu case Kritik önemde bir güvenlik iddiası taşıdığı için ayrıca not: iddianın kendisi kod okumasıyla (`SkillScriptProcessRunner.cs:92-104`, `ProcessStartInfo.Environment.Clear()` + `EnvironmentAllowList`) makul görünüyor ama gerçek çalıştırma kanıtı bu koşumda alınamadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1849,9 +1853,9 @@ BEKLETİR (`SkillScriptConcurrencyLimiter.cs:25-42`).
   ALMAZ, yalnız GEÇ tamamlanır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+MT-SKILL-058'in kök nedeniyle (bkz. o case'in notu) bloklu — koşulmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1878,9 +1882,9 @@ BEKLETİR (`SkillScriptConcurrencyLimiter.cs:25-42`).
   (`AgentPrismDiagnostics.cs:31,106,109,112,115`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+MT-SKILL-058'in kök nedeniyle (bkz. o case'in notu) bloklu — koşulmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 

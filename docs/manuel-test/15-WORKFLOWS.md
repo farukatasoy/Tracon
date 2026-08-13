@@ -164,9 +164,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/inceleme-zinciri"
 - Gövdede `version: 1`, `tenantId: "default"`, `agentNames: ["ozetleyici","cevirmen"]`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 200`, `version: 1`, `tenantId: "default"`, `agentNames: ["ozetleyici","cevirmen"]`. PostgreSQL kalıcılığıyla koşuldu. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -201,9 +201,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/inceleme-zinciri"
   aksine) — yalnız son hâl saklanır (Faz 15 §15.4).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 200`, `version: 2`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -231,9 +231,9 @@ curl -s "$APU/api/workflows/inceleme-zinciri" -H "$APB"
 - `HTTP: 200`, gövde MT-WF-002'nin sonucuyla birebir aynı.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Gövde MT-WF-002'nin sonucuyla birebir aynı (`version: 2`, güncellenmiş `description`). Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -279,9 +279,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/workflows/ozetle-ve-cevir" -H "$AP
   Generic mesaj dönerse fix'in regresyonudur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 1: `ozetle-ve-cevir` listede (`['inceleme-zinciri', 'ozetle-ve-cevir', 'ozetle-ve-onayla']`). Adım 2: `HTTP: 404`, `title: "Duzenlenebilir tanim yok"`, `detail: "'ozetle-ve-cevir' kodda tanimli bir workflow'dur (AddWorkflow). Listelenir ve calistirilabilir ama veritabaninda duzenlenebilir bir WorkflowDefinition tasimaz."` — generic mesaj DEĞİL, ayırt edici mesaj. Tam beklendiği gibi, fix regresyonu yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -324,9 +324,9 @@ curl -s "$APU/api/workflows" -H "$APB" | python3 -c "import json,sys; d=json.loa
   birlikte not edilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`PUT`: `HTTP: 200`, kayıt kabul edildi. Liste: `{'name': 'ozetle-ve-cevir', 'displayName': None, 'description': 'Metni ozetler, sonra Ingilizceye cevirir. Kodda tanimlidir.', 'origin': 'Code', 'kind': None, 'agentNames': [], 'version': 1, 'updatedAt': None}` — DB kaydı (kind Concurrent, description "Sahte DB Kaydi") görünmüyor, kod kaydı üstün geliyor. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -357,9 +357,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/workflows/inceleme-zinciri" -H "$A
 - Adım 2: `HTTP: 404`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 1: `HTTP: 204`. Adım 2: `HTTP: 404`, `title: "Workflow bulunamadi"`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -386,9 +386,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/workflows/hic-yok-boyle-
 - `HTTP: 404`, `title: "Workflow bulunamadi"`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 404`, `title: "Workflow bulunamadi"`, `detail: "'hic-yok-boyle-workflow' adinda bir workflow yok."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -430,9 +430,9 @@ curl -N -s -X POST "$APU/api/workflows/ozetle-ve-cevir/run" -H "$APB" -H "conten
   geçirilemez).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 1: `HTTP: 404` (silinecek DB kaydı yoktu). Adım 2: `True` (kod-tanımlı workflow listede kalmaya devam etti). Adım 3: normal çalıştı, `WorkflowOutput` üretti (gerçek OpenAI modeliyle, `ozetleyici`/`cevirmen` zincirinden geçti), `RunCompleted` ile bitti. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -466,9 +466,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/%20%20" -H "$APB"
   (`WorkflowDefinitionValidator.cs:32-35`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title: "Workflow tanimi gecersiz"`, `detail: "Workflow tanimin 'name' alani zorunludur."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -503,9 +503,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/kind-eksik" -H "$
   YANLIŞ bir desen kaydolur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Şüphe doğrulandı: `HTTP: 200`, gövdede `kind: "Sequential"` — `kind` alanı hiç gönderilmeden. Kod kusuru değil, ürünün bilinçli tasarım seçimi (`WorkflowKind.Sequential` varsayılan enum değeri `0`); dokümanın kendisi bunu zaten "şüphe" olarak işaretlemişti, şimdi ölçüldü.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -531,9 +531,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/bos-katilimci" -H
   ad tasimalidir." metnini içerir (`WorkflowDefinitionValidator.cs:42-46`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `detail: "'bos-katilimci' workflow'u hicbir agent icermiyor. 'agentNames' en az bir ad tasimalidir."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -559,9 +559,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/tekrar-eden" -H "
   metnini içerir (`WorkflowDefinitionValidator.cs:61-66`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `detail: "'tekrar-eden' workflow'unda 'ozetleyici' agent'i birden fazla kez geciyor. ..."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -589,9 +589,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/tek-concurrent" -
   `GroupChat` için de geçerlidir; bu case yalnız `Concurrent`'i temsil eder.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `detail: "'tek-concurrent' workflow'u 'Concurrent' desenini kullaniyor ve en az iki agent ister; listede 1 ad var."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -618,9 +618,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/yoneticisiz" -H "
   (`WorkflowDefinitionValidator.cs:78-82`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `detail: "'yoneticisiz' workflow'u 'Magentic' desenini kullaniyor ve 'managerAgentName' zorunludur. ..."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -650,9 +650,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/kendini-yoneten" 
   metnini içerir (`WorkflowDefinitionValidator.cs:84-88`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `detail: "'kendini-yoneten' workflow'unda 'ozetleyici' hem yonetici hem katilimci olarak geciyor. ..."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -684,9 +684,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/groupchat-yanlis"
   metnini içerir (`WorkflowDefinitionValidator.cs:94-99`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `detail: "'groupchat-yanlis' workflow'u 'GroupChat' deseninde 'managerAgentName' kullanmaz. ... sirayi kod tarafindaki round-robin yoneticisiyle dagitir."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -717,9 +717,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/yersiz-devir" -H 
   (`WorkflowDefinitionValidator.cs:101-105`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `detail: "'yersiz-devir' workflow'u 'Sequential' deseninde 'handoffInstructions' kullanmaz. Bu alan yalnizca 'Handoff' desenine aittir."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -750,9 +750,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/yersiz-plan-onayi
   içerir (`WorkflowDefinitionValidator.cs:111-116`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `detail: "'yersiz-plan-onayi' workflow'u 'Sequential' deseninde 'requirePlanApproval' kullanmaz. Plan onayi yalnizca 'Magentic' desenine aittir; ..."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -782,9 +782,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/sifir-tur" -H "$A
   pozitif olmalidir."` (`WorkflowDefinitionValidator.cs:118-121`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `detail: "'sifir-tur' workflow'unun 'maxIterations' degeri pozitif olmalidir."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -813,21 +813,29 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/hayali-agent" -H 
 curl -N -s -X POST "$APU/api/workflows/hayali-agent/run" -H "$APB" -H "content-type: application/json" -d '{}'
 ```
 
-**Beklenen sonuç**
+**Beklenen sonuç — DÜZELTİLDİ (koşum sırasında, kod okumasıyla).** Orijinal
+metin "devamında `event: error` çerçevesi gelir" diyordu; bu yanlıştı —
+düzeltilmiş hâli:
 - Adım 1: `HTTP: 200` — yapısal olarak geçerli, kabul edilir.
-- Adım 2: SSE akışı `event: run` çerçevesiyle başlar (bir `runId` üretilmiştir)
-  ama devamında `event: error` çerçevesi gelir; `message` "... 'hayali-agent'
-  workflow'u 'yok-boyle-bir-agent' agent'ini kullaniyor ancak boyle bir agent
-  katalogda yok. Once agent'i tanimlayin, sonra workflow'u kaydedin."
-  metnini içerir (`WorkflowDefinitionCompiler.cs:186-191`, `AgentPrismException`
-  → `WorkflowEndpoints.WorkflowEventStream`'in `catch` bloğu tarafından
-  yakalanır — bu, K-296'nın OpenAI/Anthropic SSE boşluğuna GİRMEZ çünkü tip
-  tam olarak `AgentPrismException`'dır).
+- Adım 2: SSE akışı `event: run` çerçevesiyle başlar (bir `runId`
+  üretilmiştir), ardından normal bir `event: event` çerçevesi gelir; gövdesi
+  `"type":"RunFailed"` ve `"text"` alanında "... 'hayali-agent' workflow'u
+  'yok-boyle-bir-agent' agent'ini kullaniyor ancak boyle bir agent katalogda
+  yok. Once agent'i tanimlayin, sonra workflow'u kaydedin." metnini taşır,
+  akış `event: done` ile normal biter — HTTP bağlantı düzeyinde bir hata
+  YOKTUR. `WorkflowDefinitionCompiler`'ın attığı `AgentPrismException`,
+  `WorkflowRunner`'ın kendi içinde yakalanıp `RunEventType.RunFailed`
+  (`WorkflowRunner.cs:1018`) tipli bir domain event'ine çevriliyor ve normal
+  event akışının bir parçası olarak yayınlanıyor; `WorkflowEndpoints.WorkflowEventStream`'in
+  ayrı `catch (AgentPrismException ...)` bloğu (`event: error` üreten,
+  `WorkflowEndpoints.cs:491-497`) YALNIZCA akışın kendisi (async enumerable)
+  DIŞARI istisna fırlatırsa çalışır — bu case'in hata yolu oraya hiç
+  uğramıyor.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 1: `HTTP: 200`. Adım 2: `event: run` → `event: event` (`{"type":"RunFailed",...,"text":"'hayali-agent' workflow'u 'yok-boyle-bir-agent' agent'ini kullaniyor ancak boyle bir agent katalogda yok. Once agent'i tanimlayin, sonra workflow'u kaydedin."}`) → `event: done`. Mesaj metni birebir doğru; yalnız SSE çerçeve adı dokümanın varsaydığından farklı (`event: error` DEĞİL, `event: event` içinde `type: RunFailed`). Ürün kusuru değil — dokümanın hangi hata mekanizmasının devreye gireceği varsayımı yanlıştı, düzeltildi (yukarıya bakınız).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
