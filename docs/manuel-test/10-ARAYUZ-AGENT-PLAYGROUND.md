@@ -1171,9 +1171,16 @@ Oturum kimliği sunucudan rezerve edilir (K-043) — arayüz kendi biçimini uyd
   (`sessions/{id}`), yanında `playground.historyCarried` notu.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`support` seçiliyken sohbet paneli `playground.empty.title` metnini
+gösterdi. `Merhaba` gönderilince ağ sekmesinde tam beklenen sıra
+gözlemlendi: istek 7 `POST /agentprism/v1/conversations` (200), hemen
+ardından istek 8 `POST /agentprism/api/agents/support/run` (200, SSE).
+Yanıt tamamlanınca başlığın altında `Oturum conv_019ffc7e0…8f9fe2 —
+geçmiş turlar arasında taşınır.` göründü; bağlantı `sessions/
+conv_019ffc7e0ba07ea08df62e92468f9fe2`'ye gidiyor. Metin `locales/tr.ts:1068`
+`playground.historyCarried` anahtarıyla birebir eşleşti.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1200,9 +1207,14 @@ Oturum kimliği sunucudan rezerve edilir (K-043) — arayüz kendi biçimini uyd
   (`spokenText.length > 0`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`FIX-PROMPT-02` benzeri bir istekle (`Merhaba, kisaca kendini tanit.`)
+tetiklenen turda, gönder tıklamasından hemen sonra 50ms aralıklı DOM
+taraması `.ap-stream-caret` sınıfının ~1500ms'de belirip ~1600ms'de
+kaybolduğunu doğruladı — akış sırasında imleç var, bitince yok. Akış
+boyunca `[data-testid="tool-card"]` HİÇ görünmedi. Tur bitince "Seslendir"
+düğmesi (kod adı `Seslendir` = `playground.speak`'in TR çevirisi) belirdi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1236,9 +1248,17 @@ Oturum kimliği sunucudan rezerve edilir (K-043) — arayüz kendi biçimini uyd
   otomatiktir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`FIX-PROMPT-01` gönderildi. Kart ~990ms'de belirdi, İÇİ AÇIK: `get_order_status`
+başlığı + rozet metni "çalışıyor" durumunu yansıtıyordu, `Argümanlar` bölümü
+`{ "orderId": "ORD-1001" }` içeriyordu, `Sonuç` "Sonuç bekleniyor…" gösteriyordu.
+Akış bitince kart HÂLÂ açıktı — rozet "bitti"ye (Tamamlandı) döndü, Sonuç
+alanı `"ORD-1001 numarali siparis kargoya verildi. Tahmini teslim: 2 gun."`
+ile doldu, final metin de aynı bilgiyi Türkçe akıcı cümleyle özetledi.
+Başlığa tıklayınca kart kapandı (`Argümanlar` metni DOM'dan kayboldu),
+tekrar tıklayınca yeniden açıldı (`Argümanlar` geri geldi) — elle
+aç/kapa çalışıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1268,9 +1288,16 @@ Oturum kimliği sunucudan rezerve edilir (K-043) — arayüz kendi biçimini uyd
   `turn.status === 'done'` iken geçirilir, bu koşul artık sağlanmıştır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`FIX-PROMPT-03` gönderildi. `data-testid` taşımayan ama `cancel_order` +
+"onay gerekli" rozetli bir kart belirdi: `Argümanlar` `{ "orderId":
+"ORD-1001" }` dolu, "Onayla"/"Reddet" düğmeleri ve "Bu tool için bir daha
+sorma" checkbox'ı görünür/tıklanabilir. Karttan SONRA hiçbir metin bloğu
+gelmedi. `GET /api/runs/019ffc8a-36d0-7d66-b747-61470955b643` →
+`"status":"Completed"` (arayüzün `done` göstermesiyle uyumlu, `failed`
+DEĞİL). Turun üst bilgisinde `240 token` zaten görünüyordu (usage
+çerçevesi geldi).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1301,9 +1328,15 @@ Oturum kimliği sunucudan rezerve edilir (K-043) — arayüz kendi biçimini uyd
   ürettiği yanıt) akar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`data-testid="approval-approve"` tıklanınca ("Hatırla" işaretsiz):
+orijinal kart ANINDA `onaylandı` rozetine döndü, Onayla/Reddet düğmeleri
+ve checkbox kayboldu. Hemen ardından YENİ bir tur eklendi; bu turun
+balonu YOK, yerine `onay kararı gönderildi` metni (`playground.
+approvalSent`) göründü. Yeni turda `cancel_order` İKİNCİ bir tool kartıyla
+(`bitti` rozeti) gerçek çalıştırmayı gösterdi: `Sonuç` "ORD-1001 numarali
+siparis iptal edildi.", final metin "ORD-1001 siparişiniz iptal edildi."
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1327,13 +1360,34 @@ Oturum kimliği sunucudan rezerve edilir (K-043) — arayüz kendi biçimini uyd
 **Beklenen sonuç**
 - Kart kırmızı `rejected` rozetine döner (`CrossIcon`).
 - Yeni turda agent'ın yanıtı, siparişin İPTAL EDİLMEDİĞİNİ belirten bir metin
-  içerir (deterministik metin eşleşmesi beklenmez — yalnız `cancel_order`
-  tool kartının bu turda HİÇ belirmediği doğrulanır).
+  içerir (deterministik metin eşleşmesi beklenmez). **Doküman düzeltmesi**
+  (koşum sırasında, KOSUM-PLANI §2.1 istisnası): orijinal iddia
+  ("`cancel_order` tool kartının bu turda HİÇ belirmediği doğrulanır")
+  yanlıştı — MAF'ın `FunctionApprovalRequestContent.CreateResponse(false,
+  reason)`'ı reddi normal bir `FunctionResultContent` (sabit metin "Tool
+  call invocation rejected.") olarak sentezliyor; AgentPrism'in transcript
+  render'ı HER `FunctionResultContent`'i (kaynağı ister gerçek tool
+  çalıştırması ister red-stub'u olsun) bir tool kartına çeviriyor. Doğru
+  beklenti: yeni turda `cancel_order` İKİNCİ bir kartla (rozet `bitti`/`ok`
+  — `failed` DEĞİL, çünkü MAF açısından "tamamlanmış" bir çağrı) belirir,
+  ama `Sonuç` alanı gerçek `cancel_order` tool gövdesinin (`OrderTools.
+  CancelOrder`) ÜRETTİĞİ bir metin DEĞİL, sabit red mesajıdır — asıl tool
+  kodu HİÇ çalışmaz (bu kısım orijinal iddiayla tutarlı kalıyor).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`data-testid="approval-reject"` tıklandı. Orijinal kart kırmızı `reddedildi`
+rozetine döndü. Yeni tur (`onay kararı gönderildi`, prompt `null`) eklendi;
+bu turda `cancel_order` bir tool kartıyla belirdi — rozet `bitti` (state
+`ok`, `failed` DEĞİL), `Sonuç` `"Tool call invocation rejected."` (MAF'ın
+sabit red metni, `OrderTools.CancelOrder`'ın ürettiği bir metin değil).
+Final asistan metni: `"Sipariş iptali için işlem başlatamadım. Lütfen
+sipariş numarasını tekrar kontrol edip gönderin ya da iptal edilecek
+siparişin açık olduğundan emin olun."` — siparişin İPTAL EDİLMEDİĞİNİ
+açıkça belirtiyor. `orderId=ORD-1001` argümanları kartta görünüyor ama
+gerçek sipariş durumu değişmedi (tool gövdesi çalışmadı) — `MT-JOB`/`MT-
+API` katmanında ayrıca doğrulanabilir, bu case'in kapsamı yalnız arayüz.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1379,9 +1433,18 @@ WHERE agent_name = 'support' AND tool_name = 'cancel_order';
 Beklenen: tek satır, `arguments_hash IS NULL` (argüman bazlı sınırlama yok).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Yeni sohbette `FIX-PROMPT-03` gönderildi, "Bu tool için bir daha sorma"
+işaretlendi, "Onayla"ya tıklandı. Doğrulama sorgusu (şema `mt_s4`) TEK
+satır döndürdü: `tool_name=cancel_order`, `agent_name=support`,
+`arguments_hash IS NULL` → `t`, `created_at=2026-08-13 19:17:39`. Ardından
+"Yeni Sohbet" ile oturum sıfırlanıp `ORD-1001 siparisimi iptal et` TEKRAR
+gönderildi: 9 saniyelik DOM taraması boyunca `[data-testid="approval-
+approve"]` HİÇ görünmedi (approval-card hiç oluşmadı); `cancel_order`
+tool kartı doğrudan `bitti` durumunda belirdi (~900ms), `Sonuç` GERÇEK
+iptal sonucunu taşıdı: `"ORD-1001 numarali siparis iptal edildi."` — tool
+gerçekten çalıştı, kullanıcıya hiç sorulmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1415,9 +1478,18 @@ Negatif/edge — kasıtlı bir iptal, `AbortError` yolu.
   ölçülür).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Uzun bir istek gönderilip "Durdur" (`workflowDetail.stop`, `busy===true`
+iken görünen düğme) tıklandı — bu denemede abort ilk metin tokenı gelmeden
+(reasoning/ilk chunk aşamasında) gerçekleşti, bu yüzden EKRANDA kalacak
+kısmi metin yoktu (kural ihlal edilmedi — "varsa kalır" ölçüldü, bu turda
+hiç metin oluşmamıştı). Hiçbir hata kutusu görünmedi, tur `Asistan` +
+`çalıştırma` bağlantısında sessizce durdu. "Durdur" düğmesi kayboldu,
+"Gönder" tekrar YAZI GİRİLİNCE etkinleşti (`disabled:false`) — form kilitli
+kalmadı. Sunucu tarafı doğrulama: `GET /api/runs/019ffc85-e555-7995-944c-
+749eb271bc09` → `"status":"Canceled"`, `"error":null` — arayüzün sessizce
+`done` göstermesiyle tutarlı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1446,9 +1518,16 @@ Negatif/edge — kasıtlı bir iptal, `AbortError` yolu.
   koşulu `!event.shiftKey` koşulunu ezer).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`Birinci satır` yazıldı, `Shift+Enter`, `İkinci satır` eklendi — kutu
+içeriği `"Birinci satır\nİkinci satır"` (evaluate ile doğrulandı,
+`white-space: pre-wrap`), istek gitmedi (ağ sayacı 3'te sabit kaldı).
+Ardından düz `Enter`: kutu boşaldı, tur balonu `\n` korunarak (görsel
+olarak iki satır, `pre-wrap` sayesinde) gönderildi. Yeni metin yazılıp
+`ControlOrMeta+Enter` basıldığında da kutu boşaldı ve YENİ bir
+`api/agents/support/run` isteği gitti (istek 14→15) — `Ctrl/Cmd+Enter`
+gönderiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1478,9 +1557,13 @@ Negatif/sınır.
   eklenmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Boş kutuda `send` düğmesi `disabled:true`. Yalnız `"   "` (3 boşluk) yazılınca
+da `disabled:true` kaldı — `trim()` doğru uygulanıyor. Kutu tamamen
+boşaltılıp `Enter` basıldığında ağ sekmesinde YENİ bir `v1/conversations`/
+`api/agents/support/run` çifti gitmedi (istek sayacı 12'de sabit kaldı,
+önceki 3 gerçek turdan kalma).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1507,9 +1590,13 @@ Negatif/sınır.
   null}`) — art arda iki kez tıklanamaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Tamamlanmış bir tur ve `Oturum conv_…` bağlantısı ekrandayken "Yeni
+sohbet"e tıklandı: sohbet paneli `playground.empty.title`'a döndü, `Oturum`
+paragrafı DOM'dan tamamen kayboldu, "Yeni sohbet" düğmesi kendisi
+`disabled` oldu (turns boş + sessionId null). Ardışık ikinci tıklama zaten
+mümkün değil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1538,9 +1625,17 @@ Negatif/sınır.
   `abort.current?.abort()` bağlantıyı de kesip sonra sıfırlar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İki turu olan `support` sohbetindeyken agent seçiciden `Arastirmaci`
+seçildi: adres `playground/arastirmaci`'ye değişti, sohbet paneli
+`playground.empty.title`'a döndü ("Oturum" bağlantısı ve iki eski tur
+tamamen kayboldu — `support`'un turları sızmadı), "Yeni sohbet" düğmesi
+tekrar `disabled` oldu (turns=0, sessionId=null). Adımlar bölümü akış
+DEVAM EDERKEN geçiş yapmayı içermiyor; bu dal (`abort.current?.abort()`)
+yalnız kod okumasıyla doğrulandı (`playground.tsx`'in `reset()` fonksiyonu
+seçim state'i değişmeden ÖNCE çağrılıyor ve önce `abort()` sonra state
+temizliği yapıyor) — canlı olarak ayrıca tetiklenmedi, gereksiz maliyet.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1569,9 +1664,15 @@ Negatif/sınır.
   SSE.md`'nin konusudur, burada yalnız bağlantının ERKEN belirdiği ölçülür).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`FIX-PROMPT-01` gönderildi; DOM taraması `runs/`'a giden bağlantının
+gönderdikten ~20ms sonra (yani `run` çerçevesi gelir gelmez, hiçbir
+tool-card/metin içeriği oluşmadan) zaten mevcut olduğunu doğruladı
+(`href="/agentprism/runs/019ffc88-96c6-7b4e-9ed2-8506623b2e05"`). Yeni
+sekmede açılınca aynı `runId` ile Çalıştırma detayı göründü (26 olay,
+1 tool çağrısı, akışlı — sekme geç açıldığı için o anda zaten
+`tamamlandı` durumundaydı, bu beklenen ve dosyanın kendi notuyla uyumlu).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1601,9 +1702,13 @@ Negatif/sınır.
   hata değildir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`support` (gerçek `openai`/`gpt-5.4-mini` çağrısı) ile gönderilen turlarda
+üst bilgi çubuğunda `273 token` / `224 token` göründü — `locales/tr.ts:1038`
+`settings.modelTokens` (`'{tokens} token'`) kalıbıyla birebir eşleşti.
+MT-UIAG-025/026'nın kendi turlarından gözlemlendi, ayrı bir istek
+harcanmadı (aynı gerçek sağlayıcı çağrıları usage alanını zaten taşıyordu).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1639,9 +1744,16 @@ katlanan transkript sıra numarası (`seq`) taşımaz; tek-mesaj dallandırma
   arayüzün bu hatayı `ErrorNote` ile gösterdiği ölçülür).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+PostgreSQL kalıcılığı aktif. `data-testid="branch-session"` düğmesine
+(`upToSequence` VERİLMEDEN) tıklanınca `sessions/019ffc89-8b85-7ef7-
+b1b4-16d73508e8b2`'ye yönlendi — orijinal oturum `conv_019ffc8896c177
+debe6ddcb700c1f09a`'dan FARKLI yeni bir kimlik. Yeni oturumun Sohbet
+geçmişi orijinal turun TÜMÜNÜ taşıyordu: `user` mesajı, `assistant` +
+`get_order_status` tool kartı (argümanlar dolu), `tool` rolü sonucu, son
+`assistant` metni — hiçbir istek gitmeden (gerçek sağlayıcı çağrısı YOK,
+yalnız sunucu tarafı kopyalama).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1678,9 +1790,23 @@ gider). Yalnız bir kez koşulur.
   kurallara göre yorumlanır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`python3 -c "print('a ' * 25000)"` ile üretilen 49.999 karakterlik metin,
+gerçek bir yapıştırma yerine React'in native value setter'ı + `input`
+olayı ile kutuya verildi (klavyeyle yazmak/`Ctrl+V` yerine aynı DOM etkisini
+üretir). Önce statik kontrol: `[data-testid="playground-input"].maxLength`
+→ `-1` (öznitelik yok). Kutu tüm metni KIRPMADAN kabul etti
+(`el.value.length === 49999`), "Gönder" düğmesi etkindi. Gönderilince ağ
+sekmesinden istek 19'un (`POST api/agents/support/run`) gövdesi çekildi —
+tam 50.110 bayt (JSON zarfı dahil), metin KIRPILMADAN gitti. Sunucu
+uzunluk reddi vermedi: tur normal `done` ile tamamlandı, hata kutusu
+yok. `GET /api/runs/019ffc90-ddd2-755f-8376-c5099aa2f76b` →
+`"status":"Completed"`, `"usage":{"inputTokens":25209,"outputTokens":34,
+"totalTokens":25243}` — model isteği normal işledi (bağlam penceresine
+takılmadı), final yanıt `"Bir sipariş sorusu belirtmediniz. Yardım
+edebilmem için lütfen sipariş numarasını veya müşteri ID'sini yazın."`
+Gerçek `openai`/`gpt-5.4-mini` çağrısı, yalnız BİR KEZ koşuldu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
