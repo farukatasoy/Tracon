@@ -165,9 +165,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/fatura-kontrolu" -H 
 - Gövdede `version: 1`, `createdAt == updatedAt`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 201`, `version: 1`, `createdAt == updatedAt` (`2026-08-13T23:04:47.153926+00:00`). Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -205,9 +205,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/fatura-kontrolu" -H 
   (`InMemoryAgentSkillStore.cs:80-87`, PostgreSQL izleğinde eşdeğer upsert).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 200`, `version: 2`, `createdAt` aynı kaldı, `updatedAt` ilerledi. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -232,9 +232,9 @@ curl -s "$APU/api/skills" -H "$APB" | python3 -m json.tool
 - Liste `fatura-kontrolu`'nu içerir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Liste `fatura-kontrolu`'nu (version 2, güncel açıklamayla) içeriyor. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -281,9 +281,9 @@ WHERE skill_id = (SELECT id FROM agentprism.agent_skills WHERE name = 'test-kayn
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 1: `HTTP: 204`. Adım 2: `HTTP: 404`, `title: "Skill bulunamadi"`. Bellek içi kalıcılıkla koşuldu — PostgreSQL doğrulama sorgusu koşulmadı (case'in kendi metni bunu yalnız PostgreSQL izleğinde ölçülebilir bir tamamlayıcı kanıt olarak sunuyor), HTTP davranışı beklenen sonucu zaten sağlıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -307,9 +307,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/skills/hic-yok" -H "$APB
 - `HTTP: 404`, `title: "Skill bulunamadi"`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 404`, `title: "Skill bulunamadi"`, `detail: "'hic-yok' adinda bir skill yok."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -337,9 +337,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/skill-a" -H "$APB" \
   `Yoldaki ad 'skill-a', govdedeki ad 'skill-b'.`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title: "Ad uyusmuyor"`, `detail: "Yoldaki ad 'skill-a', govdedeki ad 'skill-b'."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -372,9 +372,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/Fatura_Kontrolu" -H 
   doğrudan MAF'ın mesajı).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title: "Skill adi gecersiz"`, `detail: "Skill name must use only lowercase letters, numbers, and hyphens, and must not start or end with a hyphen or contain consecutive hyphens."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -402,9 +402,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/$LONGNAME" -H "$APB"
 - `HTTP: 400`. `detail: "Skill name must be 64 characters or fewer."`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title: "Skill adi gecersiz"`, `detail: "Skill name must be 64 characters or fewer."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -432,9 +432,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/bos-aciklama" -H "$A
   `Skill description is required.`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title: "Skill aciklamasi gecersiz"`, `detail: "Skill description is required."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -467,9 +467,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/cok-uzun-talimat" -H
   varsayılan 64 KB).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title: "Skill talimati cok buyuk"`, `detail: "instructions en fazla 65536 bayt olabilir."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -502,9 +502,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/cok-kaynakli" -H "$A
   `Bir skill en fazla 20 kaynak tasiyabilir.`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title: "Cok fazla kaynak"`, `detail: "Bir skill en fazla 20 kaynak tasiyabilir."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -537,9 +537,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/cakisan-kaynak" -H "
   `Her kaynak adi bos olmamali ve skill icinde benzersiz olmalidir.`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title: "Kaynak adi gecersiz"`, `detail: "Her kaynak adi bos olmamali ve skill icinde benzersiz olmalidir."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -568,9 +568,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/cakisan-kaynak" -H "
   (Faz 10'un bilinçli bundle bütçesi kararı).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Playwright ile koşuldu. Kaydet sonrası `/agentprism/skills` listesine dönüldü, `arayuz-skilli` satırı `0` kaynak ve `Enabled` durumuyla göründü. Edit formuna tekrar girildiğinde talimat metni düz `<textbox>` içinde ham metin olarak duruyor, render edilmiyor. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -598,9 +598,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/cakisan-kaynak" -H "
   seçilmişse) listede görünmeye devam edebilir ama derlemeye girmez (bkz. §2).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Playwright ile koşuldu. Adım 1: "Enabled" kutucuğu kaldırılıp kaydedilince liste satırı `Disabled` rozetine döndü. Adım 2: `support` agent'ının düzenleyicisinde Skills panelinde `arayuz-skilli` checkbox'ı `[disabled]` durumda (erişilebilirlik ağacında `checkbox "arayuz-skilli Disabled Arayuzden olusturulan test skilli." [disabled]`), `fatura-kontrolu` checkbox'ı ise tıklanabilir kaldı. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -651,9 +651,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
   (`AgentDefinitionValidator.cs:280-289`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 201 Created` — agent kaydedildi, hiçbir doğrulama hatası dönmedi. Kök neden: `AgentEndpoints.CreateAgentAsync` (POST /api/agents) yalnız `Validate(request)` (temel şekil denetimi) ve `ValidateCallGraphAsync`'i çağırıyor; `AgentDefinitionValidator.ValidateAsync` (asıl `CheckSkillsAsync`'i, dolayısıyla `unknown_skill` kontrolünü içeren metot) yalnız ayrı `/api/agents/validate` ucundan (`ValidateAgentAsync`, `AgentEndpoints.cs:300-320`) çağrılıyor — CreateAgentAsync/UpdateAgentAsync onu HİÇ çağırmıyor (`AgentEndpoints.cs:247-283` ve `:340-372` okundu, ikisi de aynı desende). Doküman kaydın kendisinin bu denetimi yaptığını varsayıyordu; gerçekte istemci ayrıca `/validate`'i çağırmadıkça bilinmeyen skill adı hiç yakalanmıyor, agent yalnız ÇALIŞTIRILDIĞINDA (derleme anında) patlıyor olabilir — MT-SKILL-021'in "sayı sınırı" asimetrisiyle AYNI sınıf bir varlık-denetimi boşluğu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -710,9 +710,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/iki-skilli-agent/ru
   `AgentPrismException` yakalanıp `400`'e çevrilir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 1: `HTTP: 201`. Adım 2: `HTTP: 400`, `title: "Agent derlenemedi"`, `detail: "'iki-skilli-agent' agent'i en fazla 1 skill tasiyabilir."`. Tam beklendiği gibi — koşumun ilk denemesinde eski uygulama süreci `pkill` deseniyle yakalanamadığı için (apphost ikili adı `AgentPrism.Api`, `dotnet ... .dll` değil) yeniden başlama sessizce başarısız oldu ve `MaxSkillsPerAgent` hiç uygulanmadı (adım 2 yanlışlıkla `200` döndü); PID ile `kill -9` edilip doğru ortam değişkenleriyle yeniden başlatıldıktan sonra tekrarlanan koşum yukarıdaki sonucu verdi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 **Temizlik:** `dotnet user-secrets remove "AgentPrism:Skills:MaxSkillsPerAgent"`.
 
@@ -747,9 +747,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/iki-skilli-agent/ru
 - Model, herhangi bir skill talimatı olmadan genel bir yanıt üretir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`fatura-kontrolu` devre dışı bırakıldıktan sonra `manuel-skill-test`'e prompt gönderildi (API üzerinden `/api/agents/{name}/run`, akış olayları incelendi): hiçbir `load_skill` fonksiyon çağrısı üretilmedi, model genel bir "hangi bilgileri paylaşmalısın" yanıtı verdi, `FATURA_SKILL_ACTIVE` işaretçisi hiç görünmedi. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -793,11 +793,11 @@ HTTP karşılığı yoktur.
 - Model nihai yanıtta `KOD_SKILL_ACTIVE` yazar, `FATURA_SKILL_ACTIVE` DEĞİL.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Playwright ile Playground üzerinden koşuldu. `load_skill` onay kartı `skillName: "fatura-kontrolu"` ile çıktı, onaylandı. `load_skill` sonucu `<description>KOD TANIMLI surum - DB kaydini gecersiz kilar.</description>` içeriyordu (DB'deki "Fatura kontrol kurallarini..." açıklaması DEĞİL) ve talimat metni `KOD_SKILL_ACTIVE` yaz diyordu. Model nihai yanıtı tam olarak `KOD_SKILL_ACTIVE` oldu. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-**Temizlik:** Eklenen `AddSkill(...)` bloğunu `Program.cs`'ten kaldırın.
+**Temizlik:** Eklenen `AddSkill(...)` bloğu `Program.cs`'ten kaldırıldı, proje yeniden derlendi (0 uyarı/hata), uygulama temiz haliyle yeniden başlatıldı.
 
 ---
 
@@ -832,9 +832,9 @@ yansımaz" riskini doğrudan sınar.
   zorlar, eski (önbelleğe alınmış) talimat asla sızmaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 1 (API üzerinden, aynı süreçte MT-SKILL-023'ün temizliği sonrası tekrar kurulan `manuel-skill-test`/`fatura-kontrolu` fixture'ıyla): onaylandıktan sonra model `FATURA_SKILL_ACTIVE` üretti. Adım 2: skill `PUT` ile güncellendi, `version: 2`. Adım 3: YENİ bir Playground sohbetinde (farklı `sessionId`) aynı prompt gönderildi, `load_skill` yeniden onay istedi (yeni sohbet olduğu için beklenen), onaylandı, model tam olarak `FATURA_SKILL_V2` üretti — `FATURA_SKILL_ACTIVE` DEĞİL. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -872,11 +872,11 @@ Uygulama yeniden başlatılır. En az 3 etkin skill oluştur.
   uyuşmazlığıdır; kusur değil, eksik senkronizasyon.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`support` agent düzenleyicisinde `skill-a`/`skill-b`/`skill-c` (üçü de etkin) sırayla seçildi; erişilebilirlik ağacında üçü de `[checked]`, hiçbiri `[disabled]` değildi — arayüz 3. seçimde kilitlenmedi (sunucunun gerçek sınırı `2` olmasına rağmen). Kod-kökenli `support`'un düzenleme formu `name`/`model` alanlarını önceden doldurmadığı için (`Save` bu yüzden devre dışı kaldı — ayrı, ilgisiz bir form-doldurma davranışı) kaydetme adımı API eşdeğeriyle tamamlandı: `POST /api/agents` (`uc-skilli-agent`, 3 skill) `HTTP: 201`, ardından `POST .../run` `HTTP: 400`, `title: "Agent derlenemedi"`, `detail: "'uc-skilli-agent' agent'i en fazla 2 skill tasiyabilir."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-**Temizlik:** `dotnet user-secrets remove "AgentPrism:Skills:MaxSkillsPerAgent"`.
+**Temizlik:** `dotnet user-secrets remove "AgentPrism:Skills:MaxSkillsPerAgent"` uygulandı.
 
 ---
 
