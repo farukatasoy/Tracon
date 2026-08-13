@@ -690,9 +690,16 @@ manuel-destek/edit`'te kaldı). Beklenenle birebir eşleşti.
 - "Oluştur" yerine "Sürüm Kaydet" (`agentEditor.saveVersion`) yazar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`Ad` alanı `readOnly:true`, başlık "manuel-destek düzenle", buton metni
+"Yeni sürüm kaydet" (`agentEditor.saveVersion`), sağ panel `PUT api/agents/
+manuel-destek` — hepsi beklendiği gibi. Ancak İLK açılışta `Sağlayıcı`
+alanı YANLIŞ doldu: `<select>` değeri `anthropic` (kayıtlı tanım `openai`),
+JSON önizlemesi `"provider": "anthropic"` gösterdi — `Model` alanı ise
+doğru `gpt-5.4-mini` kaldı, tutarsız bir çift üretti. Sayfayı 2 kez daha
+tazeledim: ikisinde de doğru `openai` geldi — **aralıklı bir yarış
+koşulu** (`HATA-S4-009`, kök neden `agent-editor.tsx:197-247`).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -721,9 +728,15 @@ manuel-destek/edit`'te kaldı). Beklenenle birebir eşleşti.
   `Güncel` rozeti.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Kaydetmeden önce `Sağlayıcı` alanının `openai` kaldığı doğrulandı (bkz.
+`HATA-S4-009`), sonra kaydedildi. `agents/manuel-destek` detayına
+yönlenildi. Özet paneli güncel talimatı (`... Nazik ol.`) gösterdi.
+"Sürüm geçmişi" tablosunda İKİ satır: `v2` (rozet metni `geçerli`,
+`title="Şu anda çözülen tanım"`) ve `v1` (`Geri al` düğmesi taşıyor).
+Rozet metni case'in beklediği "Güncel" değil "geçerli" — yalnız kelime
+seçimi farkı, işlevsel olarak aynı davranış.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -757,9 +770,22 @@ Sınır durumu — `isEditable = false`.
   seviyesinde bir engel yoktur; gerçek sınır sunucudadır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 2 tam beklendiği gibi: yalnız "Playground'da aç" görünür, `agentDetail.
+codeNotice` metni ("Bu agent kodda tanımlı...") var. Adım 3 KISMEN farklı:
+editör ekranı gerçekten açılıyor, ama `definition === null` olduğu için
+form hiç doldurulmuyor (`agent-editor.tsx:202-208`, `useEffect` erken
+`return` ediyor) — `Ad` alanı BOŞ ve `readOnly:true` kalıyor (elle
+doldurulamıyor), `Sağlayıcı`/`Model` de boş. `valid = name.length>0 &&
+provider.length>0 && model.length>0` (satır 268-273) hiçbir zaman `true`
+olamıyor, bu yüzden "Doğrula" VE "Yeni sürüm kaydet" düğmelerinin ikisi de
+DAİMA `disabled` kalıyor — case'in beklediği "basılınca 409 döner" akışı
+KULLANICI İÇİN HİÇBİR ZAMAN ERİŞİLEBİLİR DEĞİL (`Ad` salt-okunur olduğu
+için elle de doldurulamıyor). Sunucu tarafı koruması muhtemelen hâlâ
+vardır ama arayüzden hiç tetiklenemiyor — dokümanın "URL seviyesinde engel
+yok" iddiası yanlış: `Ad` alanının salt-okunur+boş kombinasyonu fiilen bir
+engel oluşturuyor. `HATA-S4-010`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -789,9 +815,14 @@ Sınır durumu — `isEditable = false`.
   ham JSON görünür (`JsonView`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Özet paneli birebir doğru: `db · v2` köken rozeti (`title="Saklanan tanım,
+sürüm 2."`), `Sağlayıcı: openai`, `Model: gpt-5.4-mini`, `Harness: Kapalı`,
+`Tool'lar: get_order_status`, `Güncellendi: şimdi`. Talimat metni ayrı bir
+panelde tam görünüyor. "Tanım" paneli `AgentDefinition`'ın tüm alanlarını
+(`origin`, `version`, `tenantId`, `updatedAt`, `metadata` dahil) taşıyan
+ham JSON'u gösteriyor. Konsolda hata/uyarı yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -821,9 +852,15 @@ Sınır durumu — `isEditable = false`.
   `VersionHistory`'yi de kapsar) — kod agent'ının versiyon geçmişi olmaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`descriptor.model`/`toolNames` doğru: `Sağlayıcı: openai`, `Model:
+gpt-5.4-mini`, `Tool'lar: get_order_status, list_recent_orders,
+cancel_order`. "Tanım" paneli hiç render edilmedi (sayfada bu başlık yok).
+Talimatlar panelinde `agentDetail.noDefinitionForCode` metni: "Sistem
+talimatı yok. Kodda tanımlı bir agent için saklanan tanım yoktur."
+"Sürümler" bölümü sayfada hiç yok (DOM'da `Sürüm geçmişi` başlığı arandı,
+bulunamadı).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -851,10 +888,28 @@ Sınır durumu — `isEditable = false`.
 - Adım 2: hiçbir istek gitmez, sayfa aynı kalır, agent hâlâ var.
 - Adım 3: `agents` listesine yönlenilir; `manuel-bos` artık listede yok.
 
-**Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**Doküman düzeltmesi**
+Bu case'in "Ön koşul"u dosyanın kendi önsözüyle (satır 87-89: "Bu dosyada
+oluşturulan `FIX-AGENT-01` [`manuel-destek`] ve `FIX-AGENT-02`
+[`manuel-bos`] sonraki koşumlarda **silinmeden** bırakılır") ve `11-ARAYUZ-
+RUN-SESSION-SSE.md`'nin kendi fixture ihtiyacıyla (satır 240-245, 1325,
+1352 — `manuel-bos` ile çalıştırma/oturum/playground testleri) DOĞRUDAN
+ÇELİŞİYOR. `manuel-bos`'u burada silmek S4-6..S4-8 oturumlarını kırar.
+Silme akışını doğrulamak için `manuel-bos` YERİNE bu case'e özgü, atılabilir
+bir agent (`manuel-silme-test`) UI üzerinden oluşturulup silindi;
+`manuel-bos` dokunulmadan bırakıldı. Ön koşul metni bu şekilde düzeltilmiş
+sayılır.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Gerçek sonuç**
+`manuel-silme-test` (openai/gpt-5.4-mini, `/agents/new` ile oluşturuldu)
+üzerinde koşuldu. Adım 1: `window.confirm` mesajı `"manuel-silme-test" ve
+sürüm geçmişi silinsin mi?"` — agent adını gömüyor. Adım 2: İptal sonrası
+`GET /api/agents/manuel-silme-test` hâlâ `200` döndü, sayfa aynı kaldı,
+hiçbir DELETE isteği gitmedi. Adım 3: Tamam sonrası `agents` listesine
+yönlenildi; `GET /api/agents/manuel-silme-test` artık `404`. Kontrol:
+`GET /api/agents/manuel-bos` hâlâ `200` — fixture korunmuş durumda.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -882,9 +937,14 @@ Sınır durumu — `isEditable = false`.
 - Her satırda model adı, tool sayısı, göreli kayıt zamanı görünür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Satırlar `v2, v1` sırasıyla (yeniden eskiye). Yalnız `v2` satırı rozet
+taşıyor — metni case'in beklediği literal "Güncel" değil "geçerli", ama
+`title="Şu anda çözülen tanım"` (`agentDetail.currentTitle`) birebir
+eşleşiyor — yalnız kelime seçimi farkı. Her satırda model adı
+(`gpt-5.4-mini`), tool sayısı (`1`), göreli zaman (`şimdi` / `18 dk. önce`)
+görünüyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -910,9 +970,12 @@ Sınır/edge durumu.
 - Karşılaştırma paneli HENÜZ açılmaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`v1` checkbox işaretlendi. Tablonun altındaki metin "Geri alma hiçbir şey
+silmez..." açıklamasından "Karşılaştırmak için bir sürüm daha seçin."'e
+değişti (`agentDetail.selectOneMore`). Karşılaştırma paneli render
+edilmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -939,14 +1002,26 @@ Kütüphane kullanılmadı — el yazımı LCS diff (K-045).
 - Tablonun altındaki metin `agentDetail.comparing`'e döner (`a: 1, b: 2`).
 - Panel BAŞKA bir tıklama gerekmeden hemen render edilir
   (`GET .../versions/1/diff/2` otomatik tetiklenir).
-- "Talimatlar" bölümünde `DiffView`: eklenen kısım (` Nazik ol.`) yeşil,
-  değişmeyen kısım nötr renkte satır satır görünür.
+- "Talimatlar" bölümünde `DiffView`: değişen SATIR kırmızı(eski)/yeşil(yeni)
+  olarak tam satır hâlinde işaretlenir — `components/diff-view.tsx`'in kendi
+  belgesi "Line-by-line diff" der; alt-satır (kelime) düzeyinde vurgu YOKTUR.
 - "Model" bölümünde `FieldDiffTable`: yalnız FARKLI alanlar vurgulanır
   (bu case'te `temperature`/`maxOutputTokens` vb. değişmediyse tüm satırlar
   nötr, yalnız değişen bir alan varsa o satır vurgulu).
 - "Araçlar"/"Beceriler"/"Çağrılabilir Agent'lar" bölümlerinde `SetDiff`:
   değişmeyen kümede renkli rozet farkı YOK (bu case'te tool kümesi değişmedi
   — `SetDiff` bölümü boş fark gösterir).
+
+**Doküman düzeltmesi**
+Orijinal metin "eklenen kısım (` Nazik ol.`) yeşil, değişmeyen kısım nötr
+renkte" diyordu — bu KELİME/ALT-SATIR düzeyinde vurgu ima ediyor.
+`src/AgentPrism.UI/frontend/src/components/diff-view.tsx:6-9`'un kendi XML
+yorumu "Line-by-line diff of two texts" der; `diffLines()` satırı BÜTÜN
+olarak `added`/`removed` işaretler, satır İÇİNDE hangi alt-dizinin
+değiştiğini ayırt etmez. Tasarım kasıtlı (K-149'un da referans verdiği
+"bütün olarak okunur/yazılır" deseni); doküman düzeltildi, koda göre.
+`İlgili karar: K-045` başlığı da hatalı — K-045 yönlendirme (routing)
+kararıdır, diff bileşeniyle ilgisi yok; muhtemelen kopyala-yapıştır hatası.
 
 **Doğrulama sorgusu**
 ```bash
@@ -955,9 +1030,22 @@ curl -s "http://localhost:5080/agentprism/api/agents/manuel-destek/versions/1/di
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İkinci checkbox (`v2`) işaretlenince panel EK bir tıklama olmadan açıldı;
+`GET .../versions/1/diff/2` ağ sekmesinde görüldü. "Talimatlar": eski satır
+tam kırmızı (`bg-danger-soft`, `-`), yeni satır tam yeşil (`bg-success-soft`,
+`+`) — HTML: `<span class="whitespace-pre-wrap break-all">Sen bir siparis
+destek asistanisin. Kisa yanit ver. Nazik ol.</span>` tek span, alt-dize
+vurgusu yok (yukarıdaki düzeltmeyle tutarlı). "Model" tablosunda YEDİ
+satırın hiçbiri `bg-warn-soft` almadı (hiçbir model alanı değişmedi —
+doğru). "Tool'lar" bölümünde yalnız `get_order_status` nötr rozet olarak
+göründü, +/- rozet yok. "Beceriler"/"Çağrılabilir agent'lar" bölümleri HİÇ
+render edilmedi — kök neden: `SetDiff` `added/removed/unchanged` üçü de
+boşsa (bu agent'ın `skillNames`/`callableAgentNames` iki sürümde de `[]`)
+`null` döner (`diff-view.tsx:146-148`); doğru davranış, sadece "boş fark"
+görsel biçimi "bölüm hiç yok" şeklinde — beklenen sonucun ima ettiği "boş
+fark gösterir" ifadesiyle tutarlı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -989,9 +1077,14 @@ Edge davranış.
 - `v1`'in checkbox'ı artık işaretsiz görünür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`v3` üretmek için talimatı bir kez daha değiştirip kaydettim (provider
+`openai` kaldığı doğrulandı — `HATA-S4-009`'a karşı önlem). `v1`+`v2`
+seçiliyken `v3`'ün checkbox'ı işaretlenince: tablonun altındaki metin
+"v2 → v3 karşılaştırılıyor." oldu, panel başlığı "v2 → v3 karşılaştırması".
+`v1` checkbox'ı artık `[checked]` DEĞİL — beklendiği gibi en eski seçim
+düştü, `[v2, v3]` karşılaştırılıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1033,9 +1126,17 @@ olarak işaretlenmiştir.
   dönüş engellenir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`v1` satırındaki "Geri Al" düğmesine tıklandı. Hiçbir onay penceresi
+çıkmadı (Playwright'ta "Modal state" bildirimi hiç görünmedi — `Sil`
+akışındaki `window.confirm` bildirimiyle tam tersi). İşlem bitince yeni
+`v4` satırı belirdi: talimat metni birebir `v1`'in metniyle aynı ("Sen bir
+siparis destek asistanisin. Kisa yanit ver.") — yeni sürüm olarak yazıldı,
+sürüm sayacı 3'ten 4'e çıktı (v1'e SARILMADI). `v4` rozeti "geçerli"
+(case'in "Güncel" dediği aynı davranış, yalnız kelime farkı — bkz.
+MT-UIAG-020). `v1`'in satırında hâlâ "Geri Al" düğmesi var — kendine geri
+dönüş engellenmiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
