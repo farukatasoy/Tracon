@@ -1411,9 +1411,11 @@ SELECT count(*) FROM agentprism.singleton_leases;
   Tablo migration ile VARDIR ama boştur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`SELECT count(*) FROM mt_s3.singleton_leases;` → `0`. Uygulama bu oturumda
+zaten defalarca çalıştı (`SingletonExecution:Enabled` hiç ayarlanmadı),
+tablo boş. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1444,15 +1446,24 @@ SELECT count(*) FROM agentprism.singleton_leases;
 SELECT name, owner_id, expires_at, updated_at FROM agentprism.singleton_leases ORDER BY name;
 ```
 
-**Beklenen sonuç**
-- İki satır: `mcp-discovery` ve `model-provider-health`, ikisinin de
-  `owner_id`'si `{MachineName}:{ProcessId}:{Guid}` biçiminde ve **aynı
-  sürece** ait (tek örnek çalışıyor, kira her zaman bu sürece gider).
+**Beklenen sonuç (doküman düzeltmesi)**
+- **Doküman güncelliğini yitirmiş:** İki satır değil **üç** satır beklenir
+  — `mcp-discovery`, `model-provider-health` ve `approval-expiration`
+  (`src/AgentPrism.Core/Approvals/ApprovalExpirationService.cs`, Faz 42'nin
+  dokümante edildiği tarihten SONRA eklenmiş üçüncü bir `SingletonGuard`
+  tüketicisi). Üçünün de `owner_id`'si `{MachineName}:{ProcessId}:{Guid}`
+  biçiminde ve **aynı sürece** ait olmalıdır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+3 satır döndü: `approval-expiration`, `mcp-discovery`,
+`model-provider-health` — üçü de AYNI `owner_id` önekini
+(`Faruk-MacBook-Pro:45747:...`) taşıyor, yalnız GUID kısmı farklı (her
+kira kendi GUID'ini üretir, süreç kimliği paylaşılır). Kaynak doğrulandı:
+`ApprovalExpirationService.cs` gerçekten var ve `approval-expiration`
+adını kullanıyor. Doküman kusuru (eksik satır sayısı) yukarıda
+düzeltildi — davranışsal bir ürün kusuru değil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1495,9 +1506,24 @@ sqlite3 singleton-demo.db "SELECT name, owner_id FROM agentprism_singleton_lease
   tamamlanma satırı **hiç görünmez**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**Doküman düzeltmesi (mimari yanlış anlama).** 3 satır (MT-JOB-061'in
+düzeltmesiyle tutarlı), AMA hepsi AYNI sürece ait DEĞİL:
+```
+approval-expiration  | ...:46238:...  (Süreç A, port 5091)
+mcp-discovery         | ...:46238:...  (Süreç A)
+model-provider-health | ...:46259:...  (Süreç B, port 5092)
+```
+Bu sonuç birkaç saniye arayla tekrar sorgulanıp DEĞİŞMEDİĞİ doğrulandı
+(kararlı, yarış eseri değil). Kaynak incelendi: `SingletonGuard`
+her `_leaseName` için AYRI bir örnek olarak kurulur ve BAĞIMSIZ yarışır
+(`SingletonGuard.cs:36,49-67`) — sistemde küresel bir "tek lider" seçimi
+YOKTUR, yalnız **her isim için ayrı ayrı** tek sahiplik garantisi vardır.
+Doküman "tüm kiralar aynı sürece gider" varsayıyordu; bu **mimari bir
+yanlış anlamaydı**, ürün kusuru değil — her kiranın KENDİ İÇİNDE tek
+sahibi olması (iki farklı süreç AYNI kirayı asla paylaşmaması) hâlâ
+doğrulanabilir asıl garanti ve bu garanti tuttu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1535,9 +1561,17 @@ watch -n 2 'sqlite3 singleton-demo.db "SELECT name, owner_id, expires_at FROM ag
   sonrası temizlik iyi pratiktir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Süreç A (PID 46238, iki kirayı tutuyordu: `mcp-discovery`,
+`approval-expiration`) `kill -TERM` ile durduruldu. **3 saniye içinde**
+(ilk poll penceresinde, doğrulanan üst sınırın çok altında) her ÜÇ kira
+da (`model-provider-health` zaten B'deydi) Süreç B'ye (PID 46259) geçti.
+Süreç B'nin logunda `"MCP kesfi tamamlandi: 0 tool kullanilabilir."`
+satırları bu andan sonra tekrar görünmeye başladı (7 kez, düzenli
+aralıklarla). Tam beklendiği gibi (ölçülen devir süresi dokümanın
+öngördüğünden çok daha hızlı — muhtemelen `LeaseDuration=12s` küçük
+tutulduğu için).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1569,9 +1603,10 @@ for i in 1 2 3; do sqlite3 singleton-demo.db "SELECT name, updated_at FROM agent
   vardır).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Üç ardışık okuma: `...46.121`, `...50.113`, `...54.115` — aralıklar
+`~3.99s` ve `~4.00s`. `12/3=4` ile birebir eşleşti. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1609,9 +1644,15 @@ sqlite3 singleton-demo.db "SELECT id, lease_owner, status FROM agentprism_jobs O
   sürece ait olduğu görülmez, hiçbir öge iki kez `runs` satırı üretmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Süreç A yeniden başlatıldı (aynı SQLite dosyası), `ozet-toplu` her iki
+porttan 3'er kez tetiklendi (toplam 6 iş). 12 sn sonra: 6 farklı `id`,
+her biri tam bir `job_items` satırı, her ögenin `run_id`'si **benzersiz**
+(6 farklı GUID) — hiçbir öge iki kez işlenmedi, hiçbir çakışma yok.
+(`lease_owner` tamamlanma sonrası temizleniyor, bu yüzden doğrudan
+gözlenmedi — ama sonucun kendisi çakışmasızlığı kanıtlıyor.) Tam
+beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1643,9 +1684,10 @@ curl -s "$APU/api/diagnostics" -H "$APB" | grep -io "singleton\|lease" | sort -u
   başvurabilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Boş çıktı — `/api/diagnostics` yanıtında `singleton`/`lease` sözcüğü hiç
+geçmiyor. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1677,9 +1719,13 @@ cat /tmp/accepted-body.json
   aynı** — K-305), `location`, `eventsLocation` (`.../events` ile biter).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP/1.1 202 Accepted`. `Location:
+/agentprism/api/runs/019ffbfd-5ae2-734f-b50a-d8ec8ddcfa67`.
+`Preference-Applied: respond-async`. Gövde: `runId` ve `jobId` birebir
+aynı, `location` ve `eventsLocation` (`.../events` ile biter) doğru. Tam
+beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1705,9 +1751,10 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/runs/<runId>" -H "$APB" | python3 
   önceden yazılmıştır (`AgentEndpoints.cs:583-593`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 200`, `status:"Queued"`, `completedAt:null`, `eventCount:0`. `404`
+alınmadı. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1730,9 +1777,14 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/runs/<runId>" -H "$APB" | python3 
   bakılmaz).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+MT-JOB-071'de `Queued` yakalanmıştı; 2 sn sonraki pollingde zaten
+`Completed` (işçi hızlı işledi, `Running` penceresi çok kısa sürdü,
+ayrıca yakalanamadı — dokümanın "kısaca" notuyla tutarlı). Olay listesi
+`get_order_status` için `toolName` alanı taşıyan tam **2** olay
+gösteriyor (`tool.invoking`+`tool.invoked` — bir çağrı). Tam beklendiği
+gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1759,9 +1811,11 @@ curl -s "$APU/api/jobs/<runId>" -H "$APB" | python3 -c "import json,sys; d=json.
   kimliği ile çalıştırma kimliği bilerek AYNI GUID'i taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+SQL: bir satır, `id` runId ile birebir aynı. `GET /api/jobs/{runId}`:
+`job.id` runId ile birebir aynı, `job.kind:"AgentRun"`. Tam beklendiği
+gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1790,9 +1844,14 @@ curl -sN "$APU/api/runs/<runId>/events" -H "$APB"
   genişletilmiş döngüsü, Faz 46 Plandan Sapmalar madde 6).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`202`den hemen sonra `/events`e bağlanıldı: işçi işi alana kadar `:
+bekleniyor` keep-alive yorum satırları geldi (bağlantı canlı tutuldu),
+sonra ilk gerçek olay `event: run.started` (`sequence:0`) olarak geldi,
+ardından `tool.invoking`→`tool.invoked`→`message.delta`→
+`message.completed`→`run.completed` sırayla tam eksiksiz aktı. Hiçbir
+olay kaçırılmadı. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1817,9 +1876,10 @@ curl -s -D - -o /dev/null -X POST "$APU/api/agents/support/run" -H "$APB" \
   bit bit aynı, `Location`/`Preference-Applied` YOKTUR.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP/1.1 200 OK`, `Content-Type: text/event-stream`. `Location`/
+`Preference-Applied` başlıkları yok. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1845,9 +1905,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$A
   calistirmada 'message' zorunludur."` (`AgentEndpoints.cs:536-542`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title:"Istek bos"`, `detail:"Kuyruga alinan bir
+calistirmada 'message' zorunludur."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1877,9 +1938,11 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$A
   `AgentRunJobHandler`'ın DI kayıt anında bilinmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title:"Desteklenmiyor"`, `detail:"Kuyruga alinan ('Prefer:
+respond-async') bir calistirma onay kararlarini veya ekleri bu surumde
+desteklemez."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1912,9 +1975,12 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$A
   (`AgentEndpoints.cs:527-534`). Sessizce SSE'ye düşmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`AgentPrism__AsyncRun__Enabled=false` env var ile yeniden başlatıldı.
+`HTTP: 501`, `title:"Kuyruga alma destegi kapali"`, `detail`
+`AgentPrismAsyncRunOptions.Enabled = false` ifadesini içeriyor. Sessizce
+SSE'ye düşmedi. Ayar kaldırılıp normal başlatıldı. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1948,9 +2014,12 @@ curl -s "$APU/api/jobs?kind=AgentRun" -H "$APB" | python3 -c "import json,sys; p
   `WantsAsync` dallanmasından ÖNCE çalışır (`AgentEndpoints.cs:119-128`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`PUT /api/quotas` ile `support` agent'ına `maxRuns:0` kuralı tanımlandı.
+İstek `HTTP: 429`, `detail:"'support' agent'i icin gunluk calistirma
+kotasi asildi (4/0)..."`. `GET /api/jobs?kind=AgentRun` sayımı `3`'te
+kaldı (yeni iş açılmadı). Kural silindi. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1984,9 +2053,11 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/$RUN_ID/cancel" -H "$
   yeniden başlat.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`RunWorker=false` ile yeniden başlatıldı. `Prefer: respond-async` ile
+`202 Accepted` alındı. Hemen iptal: `HTTP: 202`, `status:"Canceled"`,
+`completedAt` dolu. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2015,9 +2086,11 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/cancel" -H "
   çağrısı `false` döner çünkü iş zaten `Cancelled`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 409`, `title:"Calistirma zaten sonlanmis"`,
+`detail:"...calistirma zaten 'Canceled' durumunda."`. Tam beklendiği
+gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2041,9 +2114,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/00000000-0000-0000-00
 - `HTTP: 404`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 404`, `title:"Calistirma bulunamadi"`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2076,9 +2149,20 @@ curl -s -D - -o /tmp/second.json -X POST "$APU/api/agents/support/run" -H "$APB"
   olmadığı için akışlı-istek reddi bu ucu HİÇ tetiklemez — Faz 46 §46.5).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İkinci istek YENİ bir iş açmadı — gövdedeki `runId`/`jobId`/`location`
+ilk istekle birebir aynı, `Idempotency-Replayed: true` başlığı var. AMA
+ikinci yanıtta **`Location` HTTP başlığı hiç yok** (ve `Preference-Applied`
+de yok) — yalnızca gövdedeki JSON `location` alanı doğru. Kök neden
+doğrulandı: **`HATA-S3-008`** — `IdempotencyResponse` kaydı
+(`src/AgentPrism.Abstractions/Idempotency/IdempotencyTypes.cs:45-56`)
+yalnız `StatusCode`, `ContentType`, `Body`, `RunId` taşıyor; hiçbir HTTP
+başlığı saklamıyor. `IdempotencyReplayResult.ExecuteAsync`
+(`IdempotencyResults.cs:12-19`) yalnız `StatusCode`/`ContentType`/
+`Idempotency-Replayed` başlığını ayarlayıp gövdeyi yazıyor — orijinal
+yanıtın `Location`/`Preference-Applied` başlıkları hiçbir yerde
+saklanmadığı için tekrarlanamıyor. Ayrıntı: `SONUCLAR-S3-2026-08-13.md`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2108,10 +2192,27 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$A
   güncellenmiştir; OpenAI uyumlu uçlar için AYNI mesaj güncellenmemiştir —
   bkz. Plandan Sapmalar madde 8, o uçlar `Prefer`'i hiç tanımadığı için).
 
-**Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**Beklenen sonuç (doküman düzeltmesi)**
+- **Doküman güncelliğini yitirmiş.** Gerçek davranış `400` DEĞİL: kaynak
+  doğrulandı — `AgentEndpoints.cs`'deki `RunAsync`, akış SEÇİMİNİ
+  `var streaming = !httpContext.Request.Headers.ContainsKey(
+  IdempotencyFilter.HeaderName);` ile kendi içinde yapıyor (kod yorumu:
+  "🚨 Faz 43: 'Idempotency-Key' tasiyan bir istek akissiz calisir...").
+  Yani `Idempotency-Key` başlığının VARLIĞI tek başına, `Prefer:
+  respond-async` OLMADAN da, akışsız (buffered JSON) modu seçmeye
+  yeterlidir — genel `IdempotencyFilter`'ın `400` reddi bu uca hiç
+  uygulanmıyor (o yalnız OpenAI uyumlu uçlarda devrede). Doğru beklenti:
+  `HTTP: 200`, normal buffered JSON yanıtı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Gerçek sonuç**
+`HTTP: 200` — `400` ALINMADI. Yanıt normal, akışsız, tamamlanmış bir JSON
+gövdesiydi (`support` agent'ının serbest metin yanıtı). Bu, bu test
+oturumunun `22-GUARDRAIL-VE-YAPISAL-CIKTI.md` bölümünde ONLARCA kez
+kullanılan desenle (`Idempotency-Key` + `Prefer` YOK → buffered JSON)
+tam tutarlıdır — kod-doğrulanmış, kararlı davranış. Doküman kusuru
+yukarıda düzeltildi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2139,9 +2240,11 @@ hiç satır yazmaz; yükü doğrudan `job.payload` taşır.
   öge kümesi kullanmadığının arayüz yansımasıdır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Playwright ile MT-JOB-074'ün `AgentRun` işi açıldı: üst bilgi `AgentRun ·
+support`, `Status: completed`, `Progress: No item`. **Items** paneli:
+"No item" / "This job has no input item." Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2206,6 +2309,17 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/kapsam-kontrol" -H "
   tarayan sistematik bir denetim önerilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**Şüphe DOĞRULANDI.** **Doküman notu:** anahtar alanı `rawKey` değil
+`plaintextKey` (yanıt gövdesi: `{"record":{...},"plaintextKey":"..."}`).
+Yalnız `RunsRead` kapsamlı bir anahtarla: Adım 2 (`PUT
+/api/schedules/kapsam-testi`) → `HTTP:200` (zamanlama oluşturuldu!).
+Adım 3 (`DELETE`) → `HTTP:204` (silindi!). Kapsam kısıtı hiç
+uygulanmadı. Kontrol grubu (Adım 4, `PUT /api/agents/...`) → `HTTP:403`,
+`detail:"Bu uc 'AgentsAdmin' kapsamini gerektiriyor..."` — kapsam
+sisteminin `AgentEndpoints`'te çalıştığını ama `SchedulingEndpoints`'te
+HİÇ devrede olmadığını doğruluyor. `15-WORKFLOWS.md` `MT-WF-100`'ün aynı
+bulgusuyla birlikte bu artık İKİ bağımsız uç grubunda doğrulanmış
+sistematik bir kalıp. Kayıt: **`HATA-S3-009`** (bu dosyanın son
+kusuru — Şerit 3 tamamlandı).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
