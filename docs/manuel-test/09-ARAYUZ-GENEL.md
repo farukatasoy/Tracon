@@ -100,9 +100,9 @@ olabilmesinin tek sebebi budur: konsolun hangi erişim katmanının açık oldu�
 - Boş alanla "Devam et" butonu **devre dışıdır**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+"AgentPrism" başlığı ve "Access token required" kartı görünür. Giriş alanı `placeholder="Bearer token"`, sayfa açılışında odaklanmış (`[active]`). Boş alanla "Continue" butonu `[disabled]`. Konsolda `GET /api/agents` 401'i var — bu beklenen yoklama mekanizmasının kendisi (`AccessGate`nin token kartını tetikleyen 401), kusur değil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -128,9 +128,9 @@ olabilmesinin tek sebebi budur: konsolun hangi erişim katmanının açık oldu�
   **DEĞİL** (K-047: token bir sırdır, sekme ömrüyle sınırlıdır).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Doğru token girilince kabuk (kenar çubuğu + üst çubuk, 17 nav öğesi) açıldı, Dashboard ekranına düştü. `sessionStorage['agentprism.token'] = "manuel-test-token-2026"`, `localStorage['agentprism.token'] = null` — doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -158,9 +158,9 @@ Negatif senaryo.
 - Giriş alanı hâlâ etkileşimlidir; doğru tokenla yeniden denemek kabuğu açar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HATA-S4-001`: `yanlis-token` girilip "Continue"a basılınca kart **sessizce** boş forma döner — `role="alert"` satırı hiç görünmez, giriş alanı temizlenir, buton yeniden devre dışı kalır. Kök neden: `src/AgentPrism.UI/frontend/src/lib/api.ts:155-159`'daki `request()` her 401 yanıtında (yorum: "Dropping it returns the app to the token prompt instead of retrying a credential that is known to be wrong") koşulsuz `setToken(null)` çağırır — bu, yanlış tokenın YOL AÇTIĞI 401'i de kapsar. `access-gate.tsx:53-55`'teki `TokenPrompt failed={token !== null}` render edildiğinde `token` zaten `setToken(null)` ile temizlenmiş olduğundan `failed` her zaman `false` olur; `access.token.rejected` mesajı (satır 110-114) fiilen ölü koddur, hiçbir gerçek akışta render edilemez. Kullanıcı yanlış token girdiğinde NEDEN reddedildiğini görmez.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -186,9 +186,9 @@ Sınır durumu.
   `false` olduğu için `AccessGate` doğrudan `children(meta.data)`'ya düşer.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`GET /api/meta` → `requiresBearerToken:false`. Konsol doğrudan Dashboard'a açıldı, token kartı hiç görünmedi. Not: env değişkenini `unset` etmek yetmedi — alttaki `user-secrets` değeri sızıyordu (config sağlayıcı sırası: env yalnız AYNI anahtar set edilirse user-secrets'ı ezer, unset edilirse alttaki değer geçerli kalır). Boş string (`export AgentPrism__Ui__AuthToken=""`) vermek gerekti — KOSUM-PLANI §2.2'nin zaten belirttiği kural.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > ⚠️ Bu case'i çalıştırdıktan sonra `AuthToken`'ı geri ekleyin — dosyanın geri
 > kalanı token açık varsayımıyla yazıldı.
@@ -219,9 +219,9 @@ Negatif senaryo / sınır durumu.
 - Sayfa beyaz ekran ya da konsolda yakalanmamış bir istisna **vermez**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HATA-S4-002`: Ne "önceden yüklenmiş sekmeden yeniden yükle" ne de "kapalıyken doğrudan aç" adımı belgelenen özel "Sunucuya ulaşılamıyor" kartını üretti. Kestrel tamamen durunca **aynı origin** hem statik kabuğu (`index.html`/JS) hem API'yi sunduğu için tam sayfa yenilemesi ağ seviyesinde `net::ERR_CONNECTION_REFUSED` ile başarısız olur — tarayıcının KENDİ çevrimdışı hata sayfası görünür, React hiç çalışmaz. `GET /agentprism/` yanıtı `Cache-Control: no-cache` taşıdığından disk önbelleğinden de sunulamaz. Kabuk zaten yüklüyken (React çalışırken) sunucuyu durdurup senkronize `focus`/`visibilitychange` olayı tetiklemeyi denedim — TanStack Query'nin `meta` sorgusu yeniden getirilmedi (arka planda gerçek bir odak kaybı/kazanımı olmadığı için tetiklenmedi), dolayısıyla `meta.isError` dalı (`access-gate.tsx:36-49`) bu koşumda hiç gözlemlenemedi. **Kapsam:** Bu, kod aynı origin'den statik+API sunduğu ve service worker/offline kabuk olmadığı sürece HER tarayıcıda böyledir — düzeltmesi (ayrı statik host veya service worker) altyapısal bir karardır, basit bir kod düzeltmesi değildir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -248,9 +248,9 @@ Sınır durumu — tasarım kararının doğrulaması.
   değildir, `lib/auth.ts`'in belgelenmiş tasarım kararıdır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Sekme 0'da token girilip kabuk açıldıktan sonra bağımsız açılan sekme 1 (aynı adres) token kartını yeniden gösterdi — doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -275,9 +275,9 @@ Sınır durumu — tasarım kararının doğrulaması.
   aldığı an `AccessGate` yeniden `TokenPrompt`'a düşer).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Ayarlar → Erişim → "This tab" → "Forget"a tıklanınca `sessionStorage['agentprism.token']` silindi ve sayfa anında token kartına düştü — doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -309,9 +309,9 @@ yalnız arayüzün 403'ü **nasıl gösterdiği** doğrulanır.
   satırı da görünür (`access.denied.remote`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HATA-S4-003` (Yüksek): Loopback dışı bir adresten (`http://192.168.1.102:5084/agentprism/`, `AllowRemoteAccess=false`) konsolu açınca "Erişim reddedildi" kartı **hiç görünmedi** — tarayıcı yalnızca sunucunun ham `ProblemDetails` JSON gövdesini düz metin olarak gösterdi (`{"type":"...","title":"Uzak erisim kapali","status":403,...}`), React hiç çalışmadı. Kök neden: `src/AgentPrism.AspNetCore/Security/AgentPrismEndpointFilter.cs:72-80`'deki loopback denetimi `_allowRemoteAccess` bayrağına bakar ve **`requireBearerToken` parametresinden bağımsız** her uca (statik kabuk ucu dahil) aynı şekilde uygulanır. Sınıfın kendi XML yorumu (satır 42-49) tam olarak bu sınıfın bearer-token içi bir benzer sorunu ÇÖZDÜĞÜNÜ anlatır ("kabuk `requireBearerToken:false` ile çağrılır, yoksa kullanıcı token girebileceği ekranı hiç göremez") ama aynı çözüm loopback denetimine UYGULANMAMIŞ — kabuk ucu da loopback dışı istekte 403 JSON döner, SPA hiç yüklenmez, dolayısıyla `access-gate.tsx`'in "Erişim reddedildi" kartı hiçbir zaman render edilemez. `access.denied.remote` ipucu satırı da aynı nedenle görünmez.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -342,9 +342,9 @@ yalnız arayüzün 403'ü **nasıl gösterdiği** doğrulanır.
   yenilemesi **olmaz**) ve ilgili ekranı yükler.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Kenar çubuğu snapshot'ı 17 öğeyi tam belirtilen sırayla listeledi: Agents, Dashboard, Playground, Sessions, Workflows, Jobs, Evals, Experiments, Runs, Tools, Skills, Models, MCP, Approvals, Audit, Diagnostics, Settings. "Agents"e tıklandı: URL `/agentprism/agents`'a değişti, ilgili ekran yüklendi; tıklama öncesi `window` üzerine konan bir işaretçi (`window.__navtest`) tıklamadan SONRA hâlâ mevcuttu — tam sayfa yenilemesi olmadığı doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -372,9 +372,9 @@ Negatif senaryo.
 - Komut paletindeki (⌘K) navigasyon listesinde de Audit **yoktur** (MT-UI-021).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Atlandı: `13-KIRACI-VE-GUVENLIK.md` §8'in tek belgelenmiş rol-test iskelesi (`RoleTestAuthHandler`) rolü özel bir `X-Test-Role` HTTP başlığından okur. Tarayıcının `AccessGate`/`TokenPrompt` giriş akışı yalnızca `Authorization: Bearer <token>` başlığı gönderir — `X-Test-Role` göndermenin belgelenmiş hiçbir yolu yok. Bu case'i tarayıcıda gerçekten koşturmak, dokümante edilmemiş yeni bir tarayıcı-uyumlu rol şeması icat etmeyi gerektirir; bu, KOSUM-PLANI'nin kod değiştirilmez ilkesinin ve "belirsiz kurulum icat etme" sınırının dışında. `curl` ile eşdeğeri zaten `13-KIRACI-VE-GUVENLIK.md`'nin `MT-SEC-08x` serisinde koşulmuştu (bkz. `SONUCLAR-S2-2026-08-13.md`).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -407,9 +407,9 @@ durmalı.
   **çökmez**, ham denetim verisi görünmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Atlandı — MT-UI-010 ile aynı gerekçe: `Reader` oturumu tarayıcıda kurulamıyor (bkz. MT-UI-010'un notu).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -434,9 +434,9 @@ durmalı.
   ilk segmenti `workflows` olduğu için) aynı öğe vurgulu kalır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`/workflows`e gidince "Workflows" öğesi `bg-raised text-fg` sınıfını aldı, diğerleri `text-muted` kaldı. Alt rota `/workflows/new`e gidince de "Workflows" vurgusu korundu — doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -468,9 +468,9 @@ eşleşmeyi verdi, `screens` anahtarı yoktu).
 - Dil/tema düğmeleri ve `v{sürüm}` etiketi üst çubukta kalmaya devam eder.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+600px genişlikte sol kenar çubuğu (`complementary`) kayboldu, nav öğeleri üst çubuğa (`banner`) taşındı. `header.textContent` içinde dil düğmesi (`en`) ve `v0.0.0-preview.0.88` etiketi hâlâ mevcuttu — üçü de doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -496,9 +496,9 @@ eşleşmeyi verdi, `screens` anahtarı yoktu).
   metnini gösterir, ek satır **yoktur**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+PostgreSQL açıkken: `<span class="...bg-success">` + "Persistent storage", ek satır yok. `PostgreSql:ConnectionString` boşaltılıp yeniden başlatılınca (`/api/meta` → `persistent:false`, `InMemory*Store`): `<span class="...bg-warn">` + "In-memory storage" + `<span class="block text-subtle">Data is lost when the process exits.</span>`. İkisi de doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -526,9 +526,9 @@ Negatif senaryo.
 - Konsol çökmez, beyaz ekran vermez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`/hic-boyle-bir-rota`ya gidince kabuk (kenar çubuğu + üst çubuk) normal kaldı, içerik alanında "Page not found" / "The address does not match any screen in this console." göründü. Hiçbir nav öğesinin tam `bg-raised` sınıfı yoktu (yalnız hover pseudo-class token'ı vardı, aktif değildi). Konsol çökmedi, beyaz ekran yoktu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -556,9 +556,9 @@ Negatif senaryo.
   yenilemesi **olmaz**, kenar çubuğu vurgusu da doğru öğeye kayar).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+SPA link tıklamalarıyla Dashboard → Agents → Runs gezildi. `goBack()` iki kez: sırasıyla Agents, sonra Dashboard'a döndü — URL de eşleşti. `history.forward()` (tarayıcı İleri düğmesiyle aynı `popstate` olayı) bir kez: Agents'a geçti, kenar çubuğunda "Agents" `bg-raised` ile vurgulandı — doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -587,9 +587,9 @@ Sınır durumu.
   "sayfa bulunamadı" **görünmez**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`http://localhost:5084/agentprism` (sondaki `/` olmadan) Dashboard'u doğrudan gösterdi — "sayfa bulunamadı" görünmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
