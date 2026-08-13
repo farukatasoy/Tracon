@@ -100,9 +100,9 @@ olabilmesinin tek sebebi budur: konsolun hangi erişim katmanının açık oldu�
 - Boş alanla "Devam et" butonu **devre dışıdır**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+"AgentPrism" başlığı ve "Access token required" kartı görünür. Giriş alanı `placeholder="Bearer token"`, sayfa açılışında odaklanmış (`[active]`). Boş alanla "Continue" butonu `[disabled]`. Konsolda `GET /api/agents` 401'i var — bu beklenen yoklama mekanizmasının kendisi (`AccessGate`nin token kartını tetikleyen 401), kusur değil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -128,9 +128,9 @@ olabilmesinin tek sebebi budur: konsolun hangi erişim katmanının açık oldu�
   **DEĞİL** (K-047: token bir sırdır, sekme ömrüyle sınırlıdır).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Doğru token girilince kabuk (kenar çubuğu + üst çubuk, 17 nav öğesi) açıldı, Dashboard ekranına düştü. `sessionStorage['agentprism.token'] = "manuel-test-token-2026"`, `localStorage['agentprism.token'] = null` — doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -158,9 +158,9 @@ Negatif senaryo.
 - Giriş alanı hâlâ etkileşimlidir; doğru tokenla yeniden denemek kabuğu açar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HATA-S4-001`: `yanlis-token` girilip "Continue"a basılınca kart **sessizce** boş forma döner — `role="alert"` satırı hiç görünmez, giriş alanı temizlenir, buton yeniden devre dışı kalır. Kök neden: `src/AgentPrism.UI/frontend/src/lib/api.ts:155-159`'daki `request()` her 401 yanıtında (yorum: "Dropping it returns the app to the token prompt instead of retrying a credential that is known to be wrong") koşulsuz `setToken(null)` çağırır — bu, yanlış tokenın YOL AÇTIĞI 401'i de kapsar. `access-gate.tsx:53-55`'teki `TokenPrompt failed={token !== null}` render edildiğinde `token` zaten `setToken(null)` ile temizlenmiş olduğundan `failed` her zaman `false` olur; `access.token.rejected` mesajı (satır 110-114) fiilen ölü koddur, hiçbir gerçek akışta render edilemez. Kullanıcı yanlış token girdiğinde NEDEN reddedildiğini görmez.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -186,9 +186,9 @@ Sınır durumu.
   `false` olduğu için `AccessGate` doğrudan `children(meta.data)`'ya düşer.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`GET /api/meta` → `requiresBearerToken:false`. Konsol doğrudan Dashboard'a açıldı, token kartı hiç görünmedi. Not: env değişkenini `unset` etmek yetmedi — alttaki `user-secrets` değeri sızıyordu (config sağlayıcı sırası: env yalnız AYNI anahtar set edilirse user-secrets'ı ezer, unset edilirse alttaki değer geçerli kalır). Boş string (`export AgentPrism__Ui__AuthToken=""`) vermek gerekti — KOSUM-PLANI §2.2'nin zaten belirttiği kural.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > ⚠️ Bu case'i çalıştırdıktan sonra `AuthToken`'ı geri ekleyin — dosyanın geri
 > kalanı token açık varsayımıyla yazıldı.
@@ -219,9 +219,9 @@ Negatif senaryo / sınır durumu.
 - Sayfa beyaz ekran ya da konsolda yakalanmamış bir istisna **vermez**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HATA-S4-002`: Ne "önceden yüklenmiş sekmeden yeniden yükle" ne de "kapalıyken doğrudan aç" adımı belgelenen özel "Sunucuya ulaşılamıyor" kartını üretti. Kestrel tamamen durunca **aynı origin** hem statik kabuğu (`index.html`/JS) hem API'yi sunduğu için tam sayfa yenilemesi ağ seviyesinde `net::ERR_CONNECTION_REFUSED` ile başarısız olur — tarayıcının KENDİ çevrimdışı hata sayfası görünür, React hiç çalışmaz. `GET /agentprism/` yanıtı `Cache-Control: no-cache` taşıdığından disk önbelleğinden de sunulamaz. Kabuk zaten yüklüyken (React çalışırken) sunucuyu durdurup senkronize `focus`/`visibilitychange` olayı tetiklemeyi denedim — TanStack Query'nin `meta` sorgusu yeniden getirilmedi (arka planda gerçek bir odak kaybı/kazanımı olmadığı için tetiklenmedi), dolayısıyla `meta.isError` dalı (`access-gate.tsx:36-49`) bu koşumda hiç gözlemlenemedi. **Kapsam:** Bu, kod aynı origin'den statik+API sunduğu ve service worker/offline kabuk olmadığı sürece HER tarayıcıda böyledir — düzeltmesi (ayrı statik host veya service worker) altyapısal bir karardır, basit bir kod düzeltmesi değildir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -248,9 +248,9 @@ Sınır durumu — tasarım kararının doğrulaması.
   değildir, `lib/auth.ts`'in belgelenmiş tasarım kararıdır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Sekme 0'da token girilip kabuk açıldıktan sonra bağımsız açılan sekme 1 (aynı adres) token kartını yeniden gösterdi — doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -275,9 +275,9 @@ Sınır durumu — tasarım kararının doğrulaması.
   aldığı an `AccessGate` yeniden `TokenPrompt`'a düşer).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Ayarlar → Erişim → "This tab" → "Forget"a tıklanınca `sessionStorage['agentprism.token']` silindi ve sayfa anında token kartına düştü — doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -309,9 +309,9 @@ yalnız arayüzün 403'ü **nasıl gösterdiği** doğrulanır.
   satırı da görünür (`access.denied.remote`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HATA-S4-003` (Yüksek): Loopback dışı bir adresten (`http://192.168.1.102:5084/agentprism/`, `AllowRemoteAccess=false`) konsolu açınca "Erişim reddedildi" kartı **hiç görünmedi** — tarayıcı yalnızca sunucunun ham `ProblemDetails` JSON gövdesini düz metin olarak gösterdi (`{"type":"...","title":"Uzak erisim kapali","status":403,...}`), React hiç çalışmadı. Kök neden: `src/AgentPrism.AspNetCore/Security/AgentPrismEndpointFilter.cs:72-80`'deki loopback denetimi `_allowRemoteAccess` bayrağına bakar ve **`requireBearerToken` parametresinden bağımsız** her uca (statik kabuk ucu dahil) aynı şekilde uygulanır. Sınıfın kendi XML yorumu (satır 42-49) tam olarak bu sınıfın bearer-token içi bir benzer sorunu ÇÖZDÜĞÜNÜ anlatır ("kabuk `requireBearerToken:false` ile çağrılır, yoksa kullanıcı token girebileceği ekranı hiç göremez") ama aynı çözüm loopback denetimine UYGULANMAMIŞ — kabuk ucu da loopback dışı istekte 403 JSON döner, SPA hiç yüklenmez, dolayısıyla `access-gate.tsx`'in "Erişim reddedildi" kartı hiçbir zaman render edilemez. `access.denied.remote` ipucu satırı da aynı nedenle görünmez.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -342,9 +342,9 @@ yalnız arayüzün 403'ü **nasıl gösterdiği** doğrulanır.
   yenilemesi **olmaz**) ve ilgili ekranı yükler.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Kenar çubuğu snapshot'ı 17 öğeyi tam belirtilen sırayla listeledi: Agents, Dashboard, Playground, Sessions, Workflows, Jobs, Evals, Experiments, Runs, Tools, Skills, Models, MCP, Approvals, Audit, Diagnostics, Settings. "Agents"e tıklandı: URL `/agentprism/agents`'a değişti, ilgili ekran yüklendi; tıklama öncesi `window` üzerine konan bir işaretçi (`window.__navtest`) tıklamadan SONRA hâlâ mevcuttu — tam sayfa yenilemesi olmadığı doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -372,9 +372,9 @@ Negatif senaryo.
 - Komut paletindeki (⌘K) navigasyon listesinde de Audit **yoktur** (MT-UI-021).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Atlandı: `13-KIRACI-VE-GUVENLIK.md` §8'in tek belgelenmiş rol-test iskelesi (`RoleTestAuthHandler`) rolü özel bir `X-Test-Role` HTTP başlığından okur. Tarayıcının `AccessGate`/`TokenPrompt` giriş akışı yalnızca `Authorization: Bearer <token>` başlığı gönderir — `X-Test-Role` göndermenin belgelenmiş hiçbir yolu yok. Bu case'i tarayıcıda gerçekten koşturmak, dokümante edilmemiş yeni bir tarayıcı-uyumlu rol şeması icat etmeyi gerektirir; bu, KOSUM-PLANI'nin kod değiştirilmez ilkesinin ve "belirsiz kurulum icat etme" sınırının dışında. `curl` ile eşdeğeri zaten `13-KIRACI-VE-GUVENLIK.md`'nin `MT-SEC-08x` serisinde koşulmuştu (bkz. `SONUCLAR-S2-2026-08-13.md`).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -407,9 +407,9 @@ durmalı.
   **çökmez**, ham denetim verisi görünmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Atlandı — MT-UI-010 ile aynı gerekçe: `Reader` oturumu tarayıcıda kurulamıyor (bkz. MT-UI-010'un notu).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -434,9 +434,9 @@ durmalı.
   ilk segmenti `workflows` olduğu için) aynı öğe vurgulu kalır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`/workflows`e gidince "Workflows" öğesi `bg-raised text-fg` sınıfını aldı, diğerleri `text-muted` kaldı. Alt rota `/workflows/new`e gidince de "Workflows" vurgusu korundu — doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -468,9 +468,9 @@ eşleşmeyi verdi, `screens` anahtarı yoktu).
 - Dil/tema düğmeleri ve `v{sürüm}` etiketi üst çubukta kalmaya devam eder.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+600px genişlikte sol kenar çubuğu (`complementary`) kayboldu, nav öğeleri üst çubuğa (`banner`) taşındı. `header.textContent` içinde dil düğmesi (`en`) ve `v0.0.0-preview.0.88` etiketi hâlâ mevcuttu — üçü de doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -496,9 +496,9 @@ eşleşmeyi verdi, `screens` anahtarı yoktu).
   metnini gösterir, ek satır **yoktur**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+PostgreSQL açıkken: `<span class="...bg-success">` + "Persistent storage", ek satır yok. `PostgreSql:ConnectionString` boşaltılıp yeniden başlatılınca (`/api/meta` → `persistent:false`, `InMemory*Store`): `<span class="...bg-warn">` + "In-memory storage" + `<span class="block text-subtle">Data is lost when the process exits.</span>`. İkisi de doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -526,9 +526,9 @@ Negatif senaryo.
 - Konsol çökmez, beyaz ekran vermez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`/hic-boyle-bir-rota`ya gidince kabuk (kenar çubuğu + üst çubuk) normal kaldı, içerik alanında "Page not found" / "The address does not match any screen in this console." göründü. Hiçbir nav öğesinin tam `bg-raised` sınıfı yoktu (yalnız hover pseudo-class token'ı vardı, aktif değildi). Konsol çökmedi, beyaz ekran yoktu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -556,9 +556,9 @@ Negatif senaryo.
   yenilemesi **olmaz**, kenar çubuğu vurgusu da doğru öğeye kayar).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+SPA link tıklamalarıyla Dashboard → Agents → Runs gezildi. `goBack()` iki kez: sırasıyla Agents, sonra Dashboard'a döndü — URL de eşleşti. `history.forward()` (tarayıcı İleri düğmesiyle aynı `popstate` olayı) bir kez: Agents'a geçti, kenar çubuğunda "Agents" `bg-raised` ile vurgulandı — doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -587,9 +587,9 @@ Sınır durumu.
   "sayfa bulunamadı" **görünmez**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`http://localhost:5084/agentprism` (sondaki `/` olmadan) Dashboard'u doğrudan gösterdi — "sayfa bulunamadı" görünmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -617,9 +617,13 @@ Sınır durumu.
   örnek: Playground'un istem kutusuna yazarken de palet açılabilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`Cmd+K` basıldığında `role="dialog" aria-modal="true"` taşıyan palet açıldı,
+`document.activeElement` `role="combobox"` (`aria-label="Jump to a screen, an
+agent or a run"`) taşıyan giriş alanıydı. Playground ekranında istem kutusu
+(`textbox "Send a message…"`) odaktayken de `Cmd+K` aynı şekilde paleti açtı
+ve odak yine combobox'a geçti — `insideText: true` davranışı doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -647,9 +651,15 @@ Sınır durumu.
   (navigasyon komutuysa ilgili ekrana gidilir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`agents` yazınca liste iki sonuca daraldı: 1) "Go to Agents" (otomatik seçili,
+`aria-selected="true"`), 2) "Run OpenRouter Destek in the playground" (fuzzy
+eşleşme — "Agent" kelimesi eşleşiyor). Ok-aşağı basınca seçim ikinci satıra
+geçti (`aria-selected="true"` ikinci `option`'a taşındı, birincisi `false`
+oldu). Enter'a basınca palet kapandı ve URL
+`/agentprism/playground/openrouter-destek`'e gitti — vurgulu komutun
+`perform()`'u doğru çalıştı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -676,9 +686,23 @@ Sınır durumu.
 - Adım 2: palet kapanır, odak paleti açan öğeye (⌘K düğmesi) döner.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 1 geçti: birkaç `Tab` sonrası `document.activeElement` hâlâ
+`role="combobox"` girdi alanıydı — `preventDefault()` odak tuzağı doğrulandı.
+Adım 2 kısmen geçti: `Esc` palet diyaloğunu kapattı (`role="dialog"` DOM'dan
+kalktı) ama odak `⌘K` düğmesine (`data-testid="palette-open"`) DÖNMEDİ —
+`document.activeElement` `BODY`'ye düştü. `data-testid="palette-open"`
+düğmesini elle tıklayarak paleti açıp aynı adımları tekrarladığımda da aynı
+sonuç: `Esc` sonrası odak `document.body`'de kaldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Kaldı** — kök neden: `src/AgentPrism.UI/frontend/src/components/layout.tsx:157`
+`onClose={() => setPalette(false)}` yalnızca durumu kapatıyor, açılışta hangi
+öğenin odakta olduğunu tutan bir `ref` yok. `command-palette.tsx:117-122`'deki
+`Escape` dalı da yalnızca `onClose()` çağırıyor, bir focus-restore çağrısı
+yok. Karşılaştırma: aynı dosyadaki `ShortcutHelp` (satır 376-378) kendi "Kapat"
+butonuna `close.current?.focus()` ile odaklanıyor — ama o da açılıştaki
+kendi butonuna odaklanma, palet'i açan öğeye DÖNME değil. `HATA-S4-004`.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -706,9 +730,17 @@ Negatif senaryo.
 - Navigasyon listesinde "Audit" **yoktur** (MT-UI-010 ile tutarlı).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Atlandı — MT-UI-010/011 ile aynı yapısal engel: `Reader` rolündeki bir oturum
+tarayıcıda kurulamıyor (`X-Test-Role` başlığı `AccessGate`'in
+`Authorization: Bearer` akışıyla gönderilemiyor, bkz. MT-UI-010'un notu).
+`canAdminister` filtresinin kod tarafı (`usePaletteCommands` içindeki
+`meta.roles.canAdminister` kontrolleri, `command-palette.tsx`) `Admin`
+oturumunda zaten "Yeni agent"/"Yeni workflow" komutlarının GÖRÜNDÜĞÜ gözlemiyle
+(bu oturumun `roles.canAdminister:true` olduğu `/api/meta` yanıtından
+doğrulandı) dolaylı olarak tutarlı, ama negatif tarafı (rol kapalıyken komutun
+YOK olması) tarayıcıda ölçülemedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -739,9 +771,13 @@ Sınır durumu.
   olduğu için tarayıcının varsayılan davranışı da tetiklenmez).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 1: `g` sonra hemen `a` (`document.dispatchEvent(new KeyboardEvent('keydown', ...))` ile
+gerçek `keydown` olayları tetiklendi) → `location.pathname`
+`/agentprism/agents`'a geçti. Adım 2: `g` bas, 2.2 sn bekle, sonra `a` bas →
+`location.pathname` `/agentprism/dashboard`'da kaldı, hiçbir gezinme
+olmadı. Konsol hatası/uyarı yok (`browser_console_messages` boş).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -769,9 +805,12 @@ Negatif senaryo / sınır durumu.
   kurulmaz).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Playground istem kutusuna (`textarea[data-testid=playground-input]`) harf harf
+(`pressSequentially`) `merhaba` yazıldı; kutunun `.value`'su tam olarak
+`"merhaba"` — `g` harfinden sonraki `e` bir gezinme dizisi olarak yutulmadı,
+hiçbir karakter kayıp değil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -798,9 +837,21 @@ Negatif senaryo / sınır durumu.
   yapmaz, hata vermez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Ön koşulun kendisi kod tarafında YANLIŞ: `input[data-search]` deseni
+YALNIZCA tüketen tarafta var (`src/AgentPrism.UI/frontend/src/components/
+layout.tsx:202`); tüm `src/AgentPrism.UI/frontend/src/screens/*.tsx` dosyaları
+grep'lendi (`grep -rln "data-search" screens/`) — **sıfır** eşleşme. Agents
+listesi (kod okuması VE canlı DOM anlık görüntüsüyle doğrulandı) hiç arama
+kutusu içermiyor; hiçbir ekran içermiyor. `/`'nin bu davranışı `?` kısayol
+yardımında kullanıcıya `shortcuts.focusSearch` ("Focus the search box on this
+screen" / "Bu ekrandaki arama kutusuna odaklan") olarak REKLAM EDİLİYOR
+(`command-palette.tsx:394`, `locales/en.ts:135`, `locales/tr.ts:134`) ama
+hedefi hiçbir zaman yok — ölü/tamamlanmamış bir özellik. Agents ekranında `/`
+basıldığında `document.activeElement` `BODY`'de kaldı, hata fırlamadı (ikinci
+kısım — "hata vermez" — teknik olarak doğru, ama ilk kısım hiçbir ekranda hiç
+gerçekleşemiyor). `HATA-S4-005`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -825,9 +876,15 @@ Negatif senaryo / sınır durumu.
 - `Esc` veya "Kapat" kartı kapatır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`Shift+/` tetiklenince `role="dialog"` "Keyboard shortcuts" kartı açıldı, tam
+11 satır (`dt`/`dd` çifti): Command palette, Go to agents, Go to runs, Go to
+sessions, Go to the dashboard, Go to workflows, Go to the playground, Focus
+the search box, Send the prompt, Close the open layer, This list. "Close"
+butonu açılışta otomatik odaklıydı (`[active]`). `Esc` kartı kapattı
+(`role=dialog` DOM'dan kalktı); ayrı bir denemede "Close" butonuna tıklamak da
+kartı kapattı — ikisi de çalışıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -855,9 +912,22 @@ Negatif senaryo / sınır durumu.
 - `<html data-theme="dark">` ilk DOM anlık görüntüsünde zaten mevcuttur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Atlandı — bu makinenin macOS görünümü fiilen **Dark** (`defaults read -g
+AppleInterfaceStyle` → `Dark`), ama Playwright MCP'nin başlattığı Chromium
+bunu YANSITMIYOR: `window.matchMedia('(prefers-color-scheme: dark)').matches`
+`false` döndü. Mevcut Playwright MCP araç kümesinde `prefers-color-scheme`
+emülasyonu için bir araç (`browser_resize` gibi CDP `Emulation.setEmulatedMedia`
+çağıran bir tool) yok — bu, ilk karede gerçek karanlık tercihle koşulan bir
+yükleme gözlemlemeyi yapısal olarak engelliyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+Destekleyici kod okuması (bulgu değil, doğrulama): `main.tsx:12`
+`applyTheme(readThemePreference())` `createRoot(...).render()`'DAN ÖNCE, modül
+seviyesinde senkron çağrılıyor; `index.html`'in `<body>`si `<div id="root">`
+dışında hiçbir görünür içerik taşımıyor. Bu ikisi birlikte mimari olarak
+"önce açık, sonra karanlık" yanıp sönmesini imkânsız kılıyor — ama bu, canlı
+gözlemin yerini tutmaz.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -885,9 +955,15 @@ Negatif senaryo / sınır durumu.
 - Adım 2: tema, yeniden yükleme sonrası da **korunur**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Başlangıç: `data-theme="light"`, `localStorage['agentprism.theme']="system"`,
+düğme başlığı "Switch to dark theme". Tıklama sonrası: `data-theme="dark"`
+ANINDA (aynı `evaluate` çağrısında ölçüldü), `localStorage['agentprism.theme']
+="dark"` (`system` değil), düğmenin `title`'ı `"Theme: dark"`'a döndü. Sayfa
+`http://localhost:5084/agentprism/dashboard`'a yeniden yüklendikten sonra
+`data-theme` hâlâ `"dark"`, `localStorage` hâlâ `"dark"` — kalıcılık
+doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -915,9 +991,34 @@ Negatif senaryo / sınır durumu.
   üst çubuktaki düğmenin aksine — bu, MT-UI-029'un sınırını **aşan** tek yoldur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İkinci madde geçti (üç seçenek: Follow system/Light/Dark). Birinci madde
+**KALDI**: önce üst çubuktaki düğmeyle tema `dark` yapıldı (MT-UI-027), sonra
+Ayarlar'a SPA içi gezinme ile gidildi (tam sayfa yenilemesi olmadan), `<select>`
+"Follow system" yapıldı. Bu makinenin tarayıcısı `prefers-color-scheme: dark`
+`false` bildiriyor (bkz. MT-UI-026), yani "sistemi izle" `light`'a çözümlenmesi
+gerekiyordu — `document.documentElement.dataset.theme` gerçekten `"light"`'a
+döndü (sayfa GÖRSEL olarak doğru). Ama üst çubuktaki düğmenin kendisi
+YANLIŞ kaldı: `title="Theme: dark"`, `aria-label="Switch to light theme"`,
+ikon hâlâ ay (`MoonIcon`) — sanki tema hâlâ `dark`'mış gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Kaldı** — kök neden: `src/AgentPrism.UI/frontend/src/components/layout.tsx:319-353`
+`ThemeToggle` ve `src/AgentPrism.UI/frontend/src/screens/settings.tsx:31,134-147`
+Ayarlar `<select>`'i **iki bağımsız `useState<ThemePreference>`** taşıyor —
+paylaşılan bir context/store yok. Her ikisi de yalnız MOUNT anında
+`readThemePreference()` ile localStorage'ı okuyor. `ThemeToggle` kabuğun bir
+parçası olduğu için SPA içi gezinmede hiç unmount olmuyor; Ayarlar'ın
+`<select>`'i `writeThemePreference`/`applyTheme`'i doğrudan çağırıp DOM'u
+(`<html data-theme>`) günceller ama `ThemeToggle`'ın kendi `preference`/
+`resolved` state'ini HİÇ bilgilendirmiyor. Sonuç: gerçek tema doğru
+uygulanıyor ama düğmenin metni/ikonu bir sonraki TAM SAYFA YENİLEMESİNE kadar
+eski değerde donuk kalıyor. `HATA-S4-006`.
+
+**Kapsam:** Yalnız bu case değil — Ayarlar'daki `<select>`'ten yapılan HER
+tema değişikliği (`system`/`light`/`dark` hangi yönde olursa olsun) üst
+çubuktaki düğmeyi SPA oturumu boyunca yanıltıcı bırakır; kullanıcı sayfayı
+yenilemeden düğmeye güvenirse yanlış temaya "geçtiğini" sanabilir.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -950,9 +1051,14 @@ da `localStorage` temizliği geri döndürebilir.
   tıklama sayısı üst çubuktan `system`'e geri dönmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`localStorage` temizlenip sayfa yeniden yüklendi: `agentprism.theme` başta
+`"system"`. Düğmeye 1 kez tıklayınca `"dark"` oldu. Art arda 3 tıklama daha
+yapıldı (toplam 4): her seferinde yalnız `"dark"`/`"light"` arasında gidip
+geldi, `"system"` bir daha hiç görünmedi — son değer `"dark"`,
+`document.documentElement.dataset.theme` de `"dark"`. Kod okumasındaki iddia
+canlı ortamda doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -982,9 +1088,15 @@ da `localStorage` temizliği geri döndürebilir.
   geçen bir buton olarak çalışır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Başlangıç: `lang="en"`, `localStorage['agentprism.locale']` boş. Dil düğmesi
+(`data-testid="language-toggle"`, direkt buton — açılır menü değil, tek
+tıklamada diğer dile geçiyor) tıklandı; `location.pathname` DEĞİŞMEDİ (SPA içi
+geçiş, tam sayfa yenilemesi yok), nav etiketleri anında Türkçeye döndü
+("Agents"→"Agent'lar", "Dashboard"→"Gösterge Paneli" vb.), sayfa başlığı
+"Dashboard"→"Gösterge Paneli". `document.documentElement.lang="tr"`,
+`localStorage['agentprism.locale']="tr"`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1010,9 +1122,22 @@ da `localStorage` temizliği geri döndürebilir.
   etiketini `tr` ile eşler).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Atlandı — Playwright MCP'nin başlattığı Chromium'un `navigator.languages`
+listesi `["en-US","en"]` ve mevcut araç kümesinde tarayıcı dilini (Chrome
+başlatma bayrağı `--lang` veya Playwright context `locale` seçeneği) `tr-TR`
+yapacak bir tool yok — bu, MT-UI-026'daki `prefers-color-scheme` engeliyle
+aynı sınıftan bir tooling kısıtı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+Destekleyici doğrulama (bulgu değil): `matchLocale` fonksiyonunun
+(`src/AgentPrism.UI/frontend/src/lib/i18n.tsx:66-76`) birebir kopyası canlı
+sayfada çalıştırıldı — `matchLocale(['tr-TR'])` → `"tr"` döndü, algoritma
+doğru. `initialiseLocale()` (`i18n.tsx:235-240`) da `applyTheme` ile aynı
+desende: `main.tsx`'te React render'ından ÖNCE, senkron çağrılıyor
+(`detectLocale()` → `readLocalePreference()` boşsa `navigator.languages`'a
+bakar). Ama gerçek `navigator.languages=tr-TR` altında canlı bir sayfa
+yüklemesi gözlemlenemedi.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -1045,9 +1170,46 @@ is single-language on purpose."*
   bir kusur değildir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Konsolun kendi metinleri Türkçe (birinci madde geçti). İKİNCİ MADDE KALDI:
+dil Türkçeyken var olmayan bir agent'a gidildiğinde (`/agentprism/agents/
+does-not-exist-xyz`) `role="alert"` kutusu şunu gösterdi: `"Agent bulunamadi:
+'does-not-exist-xyz' adinda bir agent yok."` — bu metin **İNGİLİZCE DEĞİL**,
+Türkçe (aksansız/ASCII harf çevirisi: "bulunamadi", "adinda"). `curl` ile
+doğrudan sunucu doğrulandı — `Accept-Language` başlığı YOK, hatta açıkça
+`Accept-Language: en` gönderilse de yanıt DEĞİŞMİYOR:
+`{"title":"Agent bulunamadi","status":404,"detail":"'does-not-exist-xyz'
+adinda bir agent yok.",...}`. Yani bu, istemcinin dil ayarına göre değil,
+SUNUCU KODUNUN İÇİNE gömülü sabit bir Türkçe string.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Kaldı** — kök neden: `src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs:513-514`
+(ve aynı dosyada 217, 276, 345, 427, 450, 458, 473, 505, 562, 571, 579, 594,
+602, 852, 867, 986, 1001, 1013, 1021, 1031 satırlarındaki HER `title`/`detail`)
+`ProblemDetails` metnini `"Agent bulunamadi"` / `$"'{name}' adinda bir agent
+yok."` gibi SABİT Türkçe (aksansız) string olarak yazıyor — bir kaynak/lokalizasyon
+sistemi veya `CurrentUICulture` YOK, doğrudan literal. `grep -rlE` ile
+repo'da bu ASCII-Türkçe kalıbı (`bulunamadi|kullanimda|gecersiz|desteklenmiyor|
+eksik|zorunlu|gerekli|basarisiz`) taşıyan **28 kaynak dosyası** bulundu — pratik
+olarak `src/AgentPrism.AspNetCore/Endpoints/`'in TAMAMI dahil (`AgentEndpoints`,
+`ApiKeyEndpoints`, `ApprovalEndpoints`, `AttachmentEndpoints`, `CatalogEndpoints`,
+`EvalEndpoints`, `ExperimentEndpoints`, `GovernanceEndpoints`,
+`KnowledgeEndpoints`, `ModelHealthEndpoints`, `ObservabilityEndpoints`,
+`QuotaEndpoints`, `RetentionEndpoints`, `RunEndpoints`, `SchedulingEndpoints`,
+`SessionEndpoints`, `SkillEndpoints`, `SkillScriptGrantEndpoints`,
+`WebhookEndpoints`, `WorkflowEndpoints`, `Voice/VoiceConversationEndpoint.cs`)
+artı `AgentPrism.Core`/`AgentPrism.Workflows`/`AgentPrism.Generators`'daki
+birkaç dosya. `ErrorNote`'un kendi yorumundaki "the API contract is
+single-language on purpose" iddiası — o "tek dil"in **İngilizce** olduğu
+varsayımıyla yazılmış — ama sunucu tarafı fiilen Türkçe. `HATA-S4-007`.
+
+**Kapsam:** Bu case'e özgü değil — HTTP API'nin görünür yüzeyinin BÜYÜK
+ÇOĞUNLUĞU (28 dosya) etkileniyor; İngilizce konuşan HERHANGİ bir API
+tüketicisi (kütüphaneyi tüketen "milyonlarca geliştirici", CLAUDE.md'nin
+kendi tanımı) hata mesajlarını Türkçe alıyor. Şerit 1/2/3'ün önceki HTTP
+case'lerinde bu muhtemelen fark edilmedi çünkü `detail`/`title` alanları
+genelde yalnız VARLIĞI (`404` durumu, alan adı) doğrulanmış, metnin dili
+ayrıca kontrol edilmemişti.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1081,9 +1243,22 @@ metin yoğunluğu en yüksek beş genel ekran.
   genişliklerini bozmaz, iki satıra taşan bir başlık düzeni kırmaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+1280px genişlikte, beş ekranın (Dashboard, Agents liste, Settings, Tools,
+Models) hepsi hem `tr` hem `en`'de programatik olarak tarandı:
+`document.body.innerText.match(/\{\w+\}/g)` (çıplak yer tutucu) ve
+`el.scrollWidth > el.clientWidth` (yatay taşma) her ekranda çalıştırıldı.
+`document.body.scrollWidth` her zaman `≤1280` (pencere genişliği) kaldı —
+yatay sayfa taşması yok. Tek eşleşme: Settings ekranındaki Webhooks panelinde
+`{id}` — kaynağı incelendi (`src/AgentPrism.UI/frontend/src/components/
+webhook-panel.tsx:103`, `<Mono>/api/runs/&#123;id&#125;</Mono>`) ve bu bir
+`interpolate()` kusuru DEĞİL: kasıtlı olarak HTML entity ile kaçırılmış,
+çevrilmeyen, sabit bir REST yol deseni örneği (`webhooks.noticeAfter`
+çeviri anahtarının DIŞINDA, ayrı bir `<Mono>` öğesi). Her iki dilde de
+aynı şekilde göründüğü (i18n katalogunun parçası olmadığı) doğrulandı — kusur
+değil. Buton/rozet metinleri (`code`/`harness` rozetleri, "Yeni agent" vb.)
+görsel olarak taşmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1110,9 +1285,13 @@ metin yoğunluğu en yüksek beş genel ekran.
   `active` locale'e göre biçimlenir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+1000'in üzerine veri üretmek için Playground'da `support` (gpt-5.4-mini)
+agent'ıyla 3 gerçek tur çalıştırıldı (347 + 578 + kalan token'lar). Ayarlar
+ekranının "Activity"/"Etkinlik" panelinde: `en` dilinde `Total tokens: "1,540"`
+(virgül ayraçlı), `tr`'ye geçince AYNI değer `Toplam token: "1.540"` (nokta
+ayraçlı) — `Intl.NumberFormat` locale'e göre doğru biçimlendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1148,9 +1327,11 @@ curl -s "http://localhost:5080/agentprism/api/meta" | python3 -m json.tool
   gösterir (üretimde ikisi aynıdır — `documentBase()`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`GET /api/meta` → `version: "0.0.0-preview.0.88"`, `prefix: "/agentprism"`.
+Ayarlar ekranı: Sürüm `0.0.0-preview.0.88`, Önek `/agentprism`, Arayüz
+tabanı `/agentprism/`, API tabanı `/agentprism/` — dördü de birebir eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1176,9 +1357,15 @@ curl -s "http://localhost:5080/agentprism/api/meta" | python3 -m json.tool
 - "Bu sekme" satırı yalnız token girilmişse görünür (bkz. MT-UI-007).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Ayarlar → Erişim: "Uzaktan erişim" = "yalnız loopback" (`/api/meta`'nın
+`allowRemoteAccess:false` ile tutarlı), "Bearer token" = "gerekli"
+(`requiresBearerToken:true` ile tutarlı), "Authorization policy" =
+"tanımlı değil" (`requiresAuthorizationPolicy:false` ile tutarlı), "Bu
+sekme" satırı token girildiği için "token saklandı" + "Unut" düğmesiyle
+görünüyor. Dördü de beklenenle eşleşiyor (metin ifadeleri Türkçe küçük
+harf üslupla ama anlamca birebir).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1206,9 +1393,13 @@ curl -s "http://localhost:5080/agentprism/api/meta" | python3 -m json.tool
   ipucu satırı görünür (MT-UI-014 ile aynı sinyal, burada metinsel).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Ayarlar → Depolama: "Kip" = "kalıcı". Agent tanımları =
+`SqlAgentDefinitionStore`, Çalıştırmalar = `SqlRunStore`, Oturumlar =
+`SqlSessionStore` — üçü de `GET /api/meta`'nın `storage.*` alanlarıyla
+birebir eşleşiyor. Bellek içi ipucu satırı bu oturumda görünmedi (beklenen —
+persistence açık, koşul sağlanmıyor, bu ekranın kendisi doğru davranış).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1243,9 +1434,26 @@ no built-in model list."*
   boş durum görünür (`models.noModels`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Ön koşul bu ÖRNEK UYGULAMADA fiilen kurulamıyor: `samples/AgentPrism.Api/
+Program.cs:128-149` OpenAI anahtarı boşken KOŞULSUZ `agentPrism.
+AddModelProvider(new EchoModelProvider())` çağırıyor ("Anahtar yoksa
+uygulama ağ çağrısı yapmayan örnek sağlayıcı ile çalışır; hiçbir şey
+kırılmaz" — bilinçli tasarım). Tüm sağlayıcı anahtarları (`OpenAI`,
+`Anthropic`, `Google`, `OpenAICompatible:openrouter`) boş bırakılıp uygulama
+yeniden başlatıldı: Modeller ekranı SIFIR sağlayıcı değil, `echo` adlı TEK
+bir sağlayıcı ve `echo-1` modelini (bağlam 8.192, çıktı 1.024, `streaming`)
+gösterdi — ne kırmızı hata ne de dokümanın tarif ettiği "boş durum kartı"
+(`UseOpenAI`/`UseOpenAICompatible` örnek kodu) göründü, çünkü katalog
+GERÇEKTEN boş değildi. **Doküman düzeltmesi (AGENTS.md: doküman-kod
+çelişkisinde doküman yanlıştır):** bu case'in ön koşulu ("hiçbir sağlayıcı
+kayıtlı değil") `samples/AgentPrism.Api` üzerinden hiçbir zaman
+üretilemez — echo fallback'i kasıtlı olarak bunu engelliyor. Gerçek boş
+katalog durumu yalnız `AgentPrism.Core`'un `ModelProviderRegistry`'sine
+doğrudan birim testiyle ya da örnek uygulama dışında sıfır sağlayıcılı
+özel bir host ile üretilebilir — bu, elle arayüz testinin kapsamı dışında.
+Uygulama normal yapılandırmayla (tüm anahtarlar dolu) yeniden başlatıldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -1271,9 +1479,17 @@ no built-in model list."*
   (`client.setQueryData` yalnız eşleşen `providerName`'i değiştirir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`openai` panelinde "Şimdi denetle"ye tıklandı. Ağ sekmesinde YALNIZ
+`GET /api/models/health/openai?refresh=true` çağrıldı (diğer sağlayıcılar
+için hiçbir istek gitmedi). `anthropic`/`google`/`openai-responses`/
+`openrouter` satırlarının "... sn. önce denetlendi" zaman damgaları
+DEĞİŞMEDİ — yalnız `openai` satırı güncellendi. (Yan not: ilk denetimde
+`openai` bir kez "erişilemiyor"/"Zaman asimi" (10.01s) gösterdi, ikinci
+tıklamada hemen "sağlıklı"ya döndü — geçici bir zaman aşımıydı, kalıcı bir
+kusur değil; bu case'in kapsamı olan "yalnız o satır güncellenir" davranışını
+etkilemedi.)
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1305,9 +1521,13 @@ on the server."*
   agent'ların kullandığını gösterir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+6 tool kartı incelendi (`cancel_order`, `get_order_status`,
+`list_recent_orders`, `list_voices`, `speak`, `transcribe`). Her kartta
+yalnız ad, açıklama, MCP kaynağı rozeti (varsa), kullanan agent linkleri,
+çağrı istatistiği ve JSON şema kutusuyla "Kopyala" düğmesi var. Hiçbir
+kartta düzenle/sil/ekle eylemi yok — ekran gözlemle salt-okunur.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1332,9 +1552,15 @@ on the server."*
   sayaçları ve son çağrı zamanı görünür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`cancel_order` kartında "onay gerekli" rozeti görünüyor
+(tooltip: "Microsoft Agent Framework bu tool'u çalıştırmak yerine bir onay
+isteği üretir; Playground onaylamak veya reddetmek için bir kart gösterir.").
+Bu tool hiç çağrılmadığı için "Hiç çağrılmadı." notu görünüyor — beklenenle
+birebir eşleşiyor. (Karşılaştırma: `get_order_status` 3 kez çağrılmış ve
+"çağrı 3 · başarısız 0 · ortalama 10ms · son 12 dk. önce" istatistiğini
+gösteriyor — çağrılmış/çağrılmamış iki durum da doğru davranıyor.)
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1366,9 +1592,12 @@ bu bölüm derinlemesine değil, kırıcı bir sorun var mı diye kısa bir tara
 - Tema/dil geçişleri Chrome'dakiyle aynı şekilde çalışır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Tooling kısıtı — bu Playwright MCP kurulumu yalnız Chromium'u sürüyor,
+tarayıcı seçim parametresi yok (`browser_navigate`/`browser_tabs` şemasında
+WebKit/Safari seçeneği yok). WebKit/Safari not available in this Playwright
+MCP setup.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -1401,9 +1630,15 @@ doğrulanmadı — yalnız pratik bir taban çizgisidir).
   boyuttadır, üst üste binmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+375px'te 4 ekran (`document.documentElement.scrollWidth` vs `clientWidth`
+ile ölçüldü): Dashboard **481→508** (taşıyor), Ayarlar **481** (taşıyor),
+Modeller **364=364** (taşımıyor, GEÇTİ), Tool'lar **508** (taşıyor). Mobil
+nav şeridinin kendisi (`overflow-x-auto md:hidden`, 09/10'un beklediği gibi)
+doğru çalışıyor — üç ekrandaki taşma BAŞKA, üç AYRI kaynaktan geliyor
+(`HATA-S4-008`). Üst çubuktaki dil/tema düğmeleri kendileri üst üste
+binmiyor (ayrı gözlem, doğru). **`HATA-S4-008` açıldı** — bkz. aşağı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
