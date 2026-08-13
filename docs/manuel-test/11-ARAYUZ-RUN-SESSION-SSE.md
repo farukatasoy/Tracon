@@ -1269,9 +1269,18 @@ yok."` — birebir doğru.
 - Model alanı boş, yer tutucu metni sunucudaki varsayılanı ima eder.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`support`/`FIX-PROMPT-01` (`019ffce9-868f-794a-94b6-cebab323f8f0`) çalıştırma
+sayfasında panel başlığı "Bu çalıştırmayı yeniden oynat" (doküman metniyle
+aynı anlamda, birebir değil). Üç alan birebir: Tool'lar `combobox` varsayılanı
+"Kayıtlı sonuçları geri oynat" (`ReplayTools`); Tanım sürümü `combobox`
+`disabled`, tek seçenek "Bugünkü sürüm" — konsolda `GET
+api/agents/support/versions` `404` (beklenen, `support` kod kökenli); Model
+`textbox` boş, yer tutucu "Tanımın kendi modeli". Konsolda 2. bir `404`
+(`.../trace`) de var — kök run'da span sorgusu hiç atılmadığından beklenen,
+panel doğru "Kayıtlı span yok" boş-durumunu gösteriyor (`HATA-S4-013`'ün alt
+run'a özgü kusuru burada tetiklenmedi).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1306,10 +1315,43 @@ yok."` — birebir doğru.
 SELECT id, replay_of_run_id FROM agentprism.runs WHERE id = '<yeniRunId>';
 ```
 
-**Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**Doküman düzeltmesi (KOSUM-PLANI §2.1 istisnası)**
+`support` KOD kökenlidir (`origin: Code`). `RunReplayService.PrepareFromCatalogAsync`
+(`src/AgentPrism.Core/Replay/RunReplayService.cs:174-196`) kod kökenli bir
+agent için `ReplayTools`/`NoTools` isteklerini KOŞULSUZ `400` ile reddeder —
+"kalici bir tanimi yok, model bindirmesi ve NoTools/ReplayTools modlari
+tanimi yeniden derlemeyi gerektirir... yalnizca LiveTools ile oynatilabilir."
+Kod içi yorum bunun KASITLI olduğunu belirtiyor (K1 atfı): sessizce
+`LiveTools`'a düşmek yan etki üretir, kullanıcı bunu beklemez. Doğrulama:
+`POST .../replay` `{"toolMode":"ReplayTools"}` gerçekten `400` döndü
+(`019ffce9-868f-794a-94b6-cebab323f8f0` üzerinde), UI panel altında kırmızı
+`alert` sunucu metnini birebir gösterdi. `MT-UIRUN-002`'nin ön koşulu
+(`support`) bu case'i ReplayTools ile TEST EDEMEZ — dosyanın kendi fixture
+seçimi bu modla uyumsuz. Mekanizmanın kendisi (gerçek tool çalışmadan yeni
+run açılması, `replayOfRunId` dolu, kayıtlı sonuç aynen dönmesi) DATABASE
+kökenli `manuel-destek` (v6, `FIX-AGENT-01`) üzerinde AYNI istekle ayrıca
+doğrulandı — bkz. Gerçek sonuç.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Gerçek sonuç**
+`support` üzerinde (`019ffce9-868f-794a-94b6-cebab323f8f0`, `ReplayTools`
+varsayılan bırakılıp "Yeniden oynat"a tıklandı): `400`, UI'da inline `alert`
+sunucu `detail` metnini birebir gösterdi, hiçbir yeni `runs` satırı
+OLUŞMADI (yukarıdaki doküman düzeltmesine bakınız — kasıtlı davranış).
+
+Mekanizmanın kendisini doğrulamak için AYNI istek `manuel-destek` (DB
+kökenli, v6, `019ffcec-d2ce-725c-bd0d-5cccaadb51fd`) üzerinde, sürüm
+seçiciden AÇIKÇA `v6` seçilerek tekrarlandı: `200`, yeni run
+`019ffcf4-150b-7b90-829e-199527691758` açıldı, `agentVersion:6`,
+`replayOfRunId:019ffcec-d2ce-725c-bd0d-5cccaadb51fd`. "Tool Çağrıları"
+panelinde `get_order_status` TAZE bir satır olarak görünüyor ama süresi
+(5ms→bulunamadı, kayıttan geri oynatılan) gerçek bir HTTP çağrısı İZİ
+TAŞIMIYOR — kayıtlı `"ORD-1001 numarali siparis kargoya verildi..."` sonucu
+BİREBİR aynı döndü, model YİNE de gerçek bir tur ürettiği için (girdi token
+379, önceki 224'ten farklı) bir sağlayıcı çağrısı YAPILDI ama tool GÖVDESİ
+çalışmadı — doğru davranış budur (yalnız tool sonucu geri oynatılır, metin
+üretimi HER ZAMAN gerçek bir model turudur).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1335,10 +1377,25 @@ SELECT id, replay_of_run_id FROM agentprism.runs WHERE id = '<yeniRunId>';
 - Adım 2: `200` döner; yeni çalıştırmanın "Tool Çağrıları" paneli BOŞTUR
   (`Empty` bileşeni) — model tool çağıramadığı için hiç çağrı kaydı yok.
 
-**Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**Doküman düzeltmesi (KOSUM-PLANI §2.1 istisnası)**
+`MT-UIRUN-027`'deki AYNI kök neden — `support` kod kökenli, `NoTools` da
+`RunReplayService.PrepareFromCatalogAsync`'in kasıtlı `400` engeline takılır
+(`RunReplayService.cs:188-196`). İpucu metni doğru gösterildi ("Model
+tool'suz cevaplar. Yalnız talimat değişikliğinin etkisini ölçer.") ama
+"Yeniden oynat"a basmak yine `400` döndü.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Gerçek sonuç**
+Aynı sayfada (`019ffce9-868f-794a-94b6-cebab323f8f0`), Tool'lar seçicisi
+"Tool bağlama" (`NoTools`) yapılıp "Yeniden oynat"a basıldı: konsolda
+`POST .../replay` `400`, aynı `alert` (`"...NoTools/ReplayTools modlari
+tanimi yeniden derlemeyi gerektirir..."`) göründü. `support` kod kökenli
+olduğu için bu mod da erişilemez — mekanizma `MT-UIRUN-027`'de DB kökenli
+`manuel-destek` üzerinde `ReplayTools` için ayrıca doğrulandığından burada
+tekrar bir DB-kökenli koşum YAPILMADI (aynı kod yolu, `NoTools` yalnız
+`request.ToolMode != LiveTools` dalına giriyor, `ReplayTools` ile aynı
+guard'dan geçiyor).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1370,9 +1427,17 @@ desen). Burada yalnız `LiveTools`'un GERÇEK yan etkisi ölçülür.
 - Panelde bu run'a ait TAZE bir tool-invocation satırı görünür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`support`/`019ffce9-868f-794a-94b6-cebab323f8f0` üzerinde Araç Modu
+`LiveTools` yapılıp "Yeniden oynat"a basıldı — bu mod code-origin agent için
+de İZİN VERİLİR (`PrepareFromCatalogAsync`, yalnız `ModelId`/`ToolMode !=
+LiveTools` reddedilir). `200`, yeni run `019ffcf1-da35-76a7-892e-4c43151d28c3`
+açıldı. Sunucu doğrulaması: `agentVersion:1`, `sessionId:null` (K-014,
+oturumsuz), `inputTokens:495` (kaynağın 278'inden FARKLI — gerçek, taze bir
+model turu), `replayOfRunId:019ffce9-868f-794a-94b6-cebab323f8f0`. Yeni run
+sayfasında "Tool Çağrıları (1)" paneli `get_order_status` TAZE bir satırla
+görünüyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1402,10 +1467,40 @@ otomatik onaylanamaz.
   (K-232 — sunucu metni çevrilmez).
 - Hiçbir yeni `runs` satırı OLUŞMAZ.
 
-**Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**Ortam sapması**
+`support`'ta `cancel_order` için önceki bir oturumdan (S4-5, MT-UIAG-031
+"Hatırla") kalıcı bir `tool_approval_rules` satırı vardı
+(`agent_name='support', tool_name='cancel_order', arguments_hash IS NULL`)
+— bu, `support` üzerinde YENİ bir `FIX-PROMPT-03` denemesinin onay kartı
+ÜRETMEDEN doğrudan gerçek iptali çalıştırdığını gösterdi (canlı doğrulandı).
+Bu yüzden onay kartı fixture'ı AYNI kod yolunu (kod kökenli agent) paylaşan
+`claude-destek` (Anthropic, `claude-haiku-4-5-20251001` — §2.5 en ucuz
+Anthropic modeli) ile üretildi; hiçbir onay kuralı yoktu, kart normal
+şekilde belirdi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Gerçek sonuç**
+`claude-destek`/`FIX-PROMPT-03` (`019ffcec-1f53-77fe-a420-1bef69b5433d`,
+onay kartı üretmiş, `Completed`) üzerinde Araç Modu `LiveTools` yapılıp
+"Yeniden oynat"a basıldı. **`409` DÖNMEDİ** — istek `200` ile başarılı oldu,
+"Yeniden oynatma çalıştırmasını açtı." mesajıyla yeni run
+`019ffcf2-d09f-7188-b390-6b69520f671a` açıldı (`replayOfRunId` kaynağa
+işaret ediyor). Yeni run `Completed`, ama `eventCount:3`
+(`run.started`/`message.completed` boş metinle/`run.completed`) — model bu
+turda `cancel_order`'ı hiç çağırmadı, "Tool Çağrıları (0)" boş. Kök neden:
+`RunReplayService.PrepareAsync`'teki onay-tool koruması (satır 125-133,
+`FindApprovalTool(definition)` kontrolü) YALNIZ `definition is not null`
+dalında (DB kökenli/kalıcı tanımlı agent) çalışıyor;
+`PrepareFromCatalogAsync` (kod kökenli agent yolu, satır 174-210) AYNI
+korumayı UYGULAMIYOR. Sonuç olarak kod kökenli bir agent'ın onay gerektiren
+tool'unu `LiveTools` ile oynatmak DB kökenli agent'lardaki gibi önceden
+net bir `409` ile reddedilmiyor; bunun yerine (bu koşumda) model tool'u hiç
+çağırmadı ve istek sessizce "boş" bir run ile bitti — gerçek bir yetkisiz
+yan etki OLUŞMADI (MAF'ın onay akışı modelin tool çağırmasını gerektirir,
+model bu turda çağırmadı) ama kullanıcıya NEDEN hiçbir şey olmadığını
+açıklayan bir sinyal de YOK; DB kökenli yoldaki net "'LiveTools' modunda
+çalıştırılamaz" uyarısı burada tamamen eksik. Bkz. `HATA-S4-014`.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1447,9 +1542,20 @@ gerçek dal not düşülerek işaretlenir.
   davranışı not düşer, kusur SAYILMAZ.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`manuel-destek`'in eski (`v6`, `get_order_status`) çalıştırması
+(`019ffcec-d2ce-725c-bd0d-5cccaadb51fd`) üzerinde Sürüm seçiciden `v7`
+(`list_recent_orders` bağlı) seçilip, Araç Modu `ReplayTools` bırakılıp
+"Yeniden oynat"a basıldı. **İkinci dal gerçekleşti**: model bu turda HİÇBİR
+tool çağırmadı — `list_recent_orders` müşteri ID gerektirdiğinden ve kayıtlı
+girdi yalnız `ORD-1001` (sipariş ID) içerdiğinden, model
+`"Siparişinizi kontrol edebilmem için müşteri ID'nizi paylaşır mısınız?"`
+diye düz metinle yanıt verdi. `200`, yeni run `019ffcf6-a69a-7122-b9f1-f45b846332c9`
+açıldı, `agentVersion:7`, `eventCount:4` (`run.started`/`message.delta`/
+`message.completed`/`run.completed`, hiç `tool.invoking` yok). Bu, doküman
+kusuru DEĞİL — modelin gerçek davranışı, önceden garanti edilemeyen dal.
+`422` dalı (`toolName:list_recent_orders`) bu koşumda TETİKLENMEDİ.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1482,9 +1588,28 @@ Sınır durumu.
   sonuç verir — bu adım ATLANMAZ.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`AgentPrism__RunRecording__RecordRunInput=false` ile uygulama yeniden
+başlatıldı (§2.2 gereği env değişkeni, `user-secrets` değil), süreç ortamı
+`ps eww` ile doğrulandı (`AgentPrism__RunRecording__RecordRunInput=false`
+gerçekten mevcuttu). `playground/support`'ta `Merhaba` (`FIX-PROMPT-02`)
+gönderildi, tur tamamlandı (`019ffcf8-caa5-77c7-a079-5b3c6ac8f97a`).
+**Beklenenin TERSİ oldu: `GET .../input` `200` döndü**, gövdede girdi
+mesajı BİREBİR vardı (`{"messages":[{"role":"user","contents":[{"$type":
+"text","text":"Merhaba"...}]}]}`) — `RecordRunInput=false` HİÇBİR ETKİ
+YAPMADI, girdi normal şekilde kaydedildi. Kök neden bulundu: manuel (AOT
+uyumlu, reflection'sız) yapılandırma bağlayıcısı
+`AgentPrismServiceCollectionExtensions.BindRunRecording`
+(`src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs:1769-1793`)
+YALNIZ `Enabled`, `RecordMessageDeltas`, `RecordToolPayloads`,
+`MaxPayloadLength` alanlarını okuyor — `RecordRunInput`
+(`AgentPrismRunRecordingOptions.cs:461`, varsayılan `true`) bu bağlayıcıda
+HİÇ ANILMIYOR. Anahtar hangi kaynaktan gelirse gelsin (env, `user-secrets`,
+`appsettings.json`) property sonsuza dek varsayılan `true`'da kalıyor. Bkz.
+`HATA-S4-015`. Adım 3 (`RecordRunInput` override'ının kaldırılması, uygulama
+yeniden başlatma) UYGULANDI — env değişkeni tamamen kaldırılıp uygulama
+yeniden başlatıldı, `/api/meta` ile doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1506,9 +1631,11 @@ Negatif senaryo.
 - `404`, `"Calistirma bulunamadi"` başlığı.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`404`, `title:"Calistirma bulunamadi"`,
+`detail:"'00000000-0000-0000-0000-000000000000' kimlikli bir calistirma yok."`
+— birebir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1554,9 +1681,22 @@ curl -s "http://localhost:5080/agentprism/api/runs/<kaynakId>/compare/<yeniId>" 
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`MT-UIRUN-027`'nin doküman düzeltmesinde üretilen DB-kökenli replay
+(`manuel-destek` v6→v6, kaynak `019ffcec-d2ce-725c-bd0d-5cccaadb51fd`, yeni
+`019ffcf4-150b-7b90-829e-199527691758`) kullanıldı — `support` ile 027/028
+`400` döndüğünden hiç yeni run açılmadı, bu case'in ancak DB-kökenli bir
+replay ile test edilebileceği doğrulandı. Yeni run sayfası açılınca
+"Karşılaştırma" paneli OTOMATİK göründü (hiç tıklama gerekmedi). Tablo
+BİREBİR dokümanın 9 satırını taşıyor: Durum (Completed/Completed), Sürüm
+(6/6), Model (gpt-5.4-mini/gpt-5.4-mini), Süre (1983ms/2684ms — SAĞ yeni),
+Token (250/422), Maliyet (—/—, `AgentPrism:Providers:OpenAI:PricingTable`
+yapılandırılmamış), Tool çağrısı (1/1), Hata sınıfı (—/—), Puanlar (0/0).
+"Çıktı" bölümünde `DiffView` iki cümleyi satır satır kırmızı/yeşil
+işaretledi: SOL `"ORD-1001 siparişiniz kargoya verilmiş. Tahmini teslim
+süresi: 2 gün."`, SAĞ `"ORD-1001 kargoya verilmiş. Tahmini teslim: 2 gün."`
+— modelin ikinci turda kısalttığı ifade fark olarak doğru yakalandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1583,9 +1723,13 @@ Negatif senaryo — sunucu "yok" ile "başka kiracıya ait"i AYNI 404'la örtüy
   kimliği mesajda anılır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Geçerli `a` (`019ffcec-d2ce-725c-bd0d-5cccaadb51fd`), eksik `b`
+(`00000000-0000-0000-0000-000000000000`) ile: `404`,
+`title:"Calistirma bulunamadi"`,
+`detail:"'00000000-0000-0000-0000-000000000000' kimlikli bir calistirma
+yok."` — eksik olan (`b`) tarafın kimliği birebir anıldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1616,9 +1760,14 @@ Negatif senaryo — sunucu "yok" ile "başka kiracıya ait"i AYNI 404'la örtüy
   görünür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 1: `support` seçilince 21 satır, hepsi `support` (programatik: `[...new
+Set(satırAgentları)] = ["support"]`) — oturum kimliği, agent bağlantısı,
+göreli zaman ("2 dk. önce" vb.) sütunları doğru dolu. Adım 2: `manuel-bos`
+seçilince tablo tamamen kayboldu, "Oturum yok" başlığı + "Bir oturum, bir
+agent ilk kez oturum kimliğiyle çalıştığında oluşur. Şuradan başlatın:
+Playground." metni + çalışan Playground bağlantısı göründü — birebir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1648,9 +1797,18 @@ Negatif senaryo — sunucu "yok" ile "başka kiracıya ait"i AYNI 404'la örtüy
   kılınır (`invalidateQueries`), satır listeden kaybolur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Tek bearer token her zaman tam rol taşıdığından düğme her satırda görünüyor
+(`canOperate:true`, dokümanın kendi notuyla tutarlı). Taze bir `manuel-bos`
+oturumu (`conv_019ffcfc45d27c369060f312838dcdb9`, `Merhaba` ile) üretilip
+listenin İLK satırında bulundu. Adım 2: çöp kutusuna tıklanınca tarayıcı
+`confirm()` diyaloğu ("Bu oturum ve geçmişi silinsin mi?") çıktı, "İptal"e
+(`accept:false`) basıldı — ağ sekmesinde HİÇBİR `DELETE` isteği gitmedi,
+satır listede KALDI (doğrulandı). Adım 3: tekrar tıklanıp "Tamam"a
+(`accept:true`) basıldı — `DELETE api/sessions/conv_019ffcfc...` `204`
+döndü, satır listeden kayboldu (bir sonraki en yeni oturum ilk satıra
+geçti) — birebir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1672,9 +1830,10 @@ Negatif senaryo.
 - `404`, `"Oturum bulunamadi"`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`404`, `title:"Oturum bulunamadi"`,
+`detail:"'yok-boyle-bir-oturum' kimlikli bir oturum yok."` — birebir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1707,9 +1866,26 @@ Negatif senaryo.
   oturum durumudur, YORUMLANMAZ.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 2 (Ham Durum) BİREBİR doğru: `stateNotice` metni + `JsonView` içinde
+`stateBag`/`toolApprovalState`/`AgentPrism.ChatHistory` JSON'u.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+Adım 1 (Sohbet geçmişi) düz metin turlarında (user/assistant, rol rozetleri
++ her satırda "Buradan dallan") doğru ama **tool çağrısı turunda YANLIŞ**:
+`GET /api/sessions/{id}` mesaj dizisi `[user/text, assistant/functionCall,
+tool/functionResult, assistant/text, ...]` şeklinde 2 AYRI mesaja bölünmüş
+(MAF'ın kendi geçmiş biçimi — çağrı ve sonucu ayrı `ChatMessage`). Ekran
+her mesajı TEK BAŞINA `foldMessage()`'a veriyor (`session-detail.tsx:88`) —
+bu fonksiyon SSE olaylarından ÇAĞRI+SONUÇ eşleştirmesi için tasarlanmış,
+mesajlar arası korelasyon yapmıyor. Sonuç: `get_order_status` içeren
+`assistant/functionCall` mesajı KALICI "sürüyor" rozeti + "Sonuç
+bekleniyor…" gösteriyor (asla "bitti"ye dönmüyor, konuşma tamamlanmış
+olmasına rağmen); hemen ardındaki `tool/functionResult` mesajı ise
+"Gösterilecek içerik yok." (`sessionDetail.noContent`) gösteriyor — asıl
+sonuç metni (`"ORD-1001 numarali siparis kargoya verildi..."`) HİÇBİR
+yerde görünmüyor. Veri kaybı yok (Ham Durum/run-detail'de doğru), yalnız
+Sohbet geçmişi sekmesinin gösterimi yanıltıcı. Bkz. `HATA-S4-016`.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1750,10 +1926,43 @@ dokümantasyonu) ve bu yoldan okunamaz.
   gerekçesi sunucunun metnini birebir taşır (K-232).
 - Adım 3 ATLANMAZ.
 
-**Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**Doküman düzeltmesi (KOSUM-PLANI §2.1 istisnası)**
+Adım 1'in `detail.messages === null` iddiası bu ortamda YANLIŞ çıktı.
+`support` (kod kökenli, MAF `InMemoryChatHistoryProvider` kullanan) bir
+agent'la üretilen oturum, AgentPrism'in `PostgreSql:ConnectionString` boş
+olsa BİLE `GET /api/sessions/{id}` üzerinden mesajlarını TAM olarak
+döndürdü (`sourceId:"Microsoft.Agents.AI.InMemoryChatHistoryProvider"`).
+Kök neden: "bellek içi" iki BAĞIMSIZ eksendir — (1) AgentPrism'in KENDİ
+`ISessionStore`/`IRunStore` seçimi (bu case'in kastettiği, `AgentPrism:
+PostgreSql:ConnectionString` boşken In-Memory'e düşen taraf) ve (2) MAF
+agent'ının KENDİ `ChatHistoryProvider`'ı (`support` her koşulda —
+PostgreSQL bağlıyken de, boşken de — MAF'ın kendi bellek içi sağlayıcısını
+kullanıyor, `ChatHistoryReader` bu ikinciyi okuyor). Doküman ikisini
+karıştırmış: `ChatHistoryReader.ReadAsync`'in `null` dönme koşulları
+(agent silinmiş/serileştirme uyumsuz/`NotSupportedException`) AgentPrism'in
+SQL/bellek-içi seçimiyle DOĞRUDAN bağlı değil. `Beklenen sonuç` KOSUM-PLANI
+§2.1 istisnasına göre düzeltildi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Gerçek sonuç**
+`AgentPrism__PostgreSql__ConnectionString=""` ile uygulama yeniden
+başlatıldı, `/api/meta` `storage.persistent:false` doğruladı, kenar çubuğu
+"Bellek içi depolama — Süreç kapanınca veri silinir." gösterdi.
+`playground/support`'ta `Merhaba` (`FIX-PROMPT-02`) gönderildi, oturum
+`conv_019ffd024e8e7985b89f3ce4f4a84941` üretildi. Adım 1: `sessions/{id}`
+sayfasında Geçmiş sekmesi mesajları TAM olarak gösterdi (`user`/`Merhaba`,
+`assistant`/`"Merhaba! Nasıl yardımcı olabilirim?"`), HER İKİ satırda da
+"Buradan dallan" düğmesi vardı (yukarıdaki doküman düzeltmesine bakınız).
+Adım 2: ilk mesajın "Buradan dallan"ına tıklandı — `POST .../branch`
+`501`, gövde `title:"Dallandirma desteklenmiyor"`,
+`detail:"Konusma dallandirma yalnizca kalici bir SQL saglayicisi acikken
+calisir. Bellek ici kurulumda sohbet gecmisi oturum durumunun opak
+blogunda yasar ve belirli bir noktaya kadar kopyalanamaz; sessizce
+tamamini kopyalamak istenen dali uretmezdi."` — birebir; UI mesaj
+satırının altında kırmızı `alert` ile bu metni AYNEN gösterdi. Adım 3
+UYGULANDI: `AgentPrism__PostgreSql__ConnectionString` geri kondu, uygulama
+yeniden başlatıldı, `/api/meta` `storage.persistent:true` ile doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1780,9 +1989,30 @@ dokümantasyonu) ve bu yoldan okunamaz.
   yalnız o oturuma ait satırları listeler.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 1: düğme metni `"3 çalıştırma"` — `runs.data.length` ile birebir
+(`plural()`).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+Adım 2: **kırık**. Düğmeye TIKLANINCA (SPA içi gezinme) sayfa "Sayfa
+bulunamadı — Adres bu konsoldaki hiçbir ekrana karşılık gelmiyor." hatası
+gösterdi; `location.href` doğru
+(`.../runs?sessionId=conv_019ffce986767dfa822efd0639b34328`) ama liste hiç
+render edilmedi. AYNI URL'ye tarayıcıdan SIFIRDAN (tam sayfa yüklemesi,
+`page.goto`) gidildiğinde sorun YOK — 50 satır doğru listelendi. Kök neden:
+`lib/router.tsx`'teki `navigate()` fonksiyonu (satır 74-83) `setPath(target
+.replace(/\/+$/, ''))` çağırırken `target`'ı OLDUĞU GİBİ (sorgu dizgisi
+DAHİL, `"runs?sessionId=conv_..."`) router durumuna yazıyor — `currentPath()`
+(satır 55-57, ilk yükleme/`popstate` yolu) ise `window.location.pathname`
+kullanarak sorgu dizgisini doğal olarak hariç tutuyor. `matchRoute('runs',
+'runs?sessionId=conv_...')` (`router.tsx:120-141`) `/` ile bölüyor, sorgu
+dizgisi TEK bir segmente (`"runs?sessionId=conv_..."`) yapışık kaldığından
+`"runs"` deseniyle EŞLEŞMİYOR → hiçbir route bulunamıyor → "Sayfa
+bulunamadı". Kod tabanında sorgu dizgisi taşıyan TEK `Link`/`navigate`
+çağrısı bu düğme (`git grep` doğrulandı, `to={`[a-zA-Z/]*?` deseniyle tek
+sonuç: `session-detail.tsx:58`) — bu yüzden pratik etki dar ama ekranın
+KENDİ birincil eylemi (oturuma ait çalıştırmaları görme) her zaman kırık.
+Bkz. `HATA-S4-017`.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1821,10 +2051,35 @@ SELECT id, parent_session_id, branch_from_sequence, copied_item_count
 FROM agentprism.sessions WHERE id = '<yeniId>';
 ```
 
-**Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**Doküman düzeltmesi (KOSUM-PLANI §2.1 istisnası)**
+Doğrulama sorgusu şemayla UYUŞMUYOR: `mt_s4.sessions` tablosunda
+(`\d mt_s4.sessions`) `parent_session_id`/`branch_from_sequence`/
+`copied_item_count` diye bir SÜTUN YOK — tablo yalnız
+`id, tenant_id, agent_name, state(json), schema_version, created_at,
+updated_at` taşıyor. Bu üç alan yalnız `POST .../branch`'in kendi HTTP YANIT
+GÖVDESİNDE var (`parentSessionId`, `branchFromSequence`, `copiedItemCount`
+— camelCase), kalıcı olarak HİÇ SAKLANMIYOR (soy bilgisi ephemeral). SQL
+yerine yanıt gövdesi doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Gerçek sonuç**
+`support`'ta üç turluk oturum (`conv_019ffce986767dfa822efd0639b34328`:
+`FIX-PROMPT-01`→`Tesekkurler`→`Baska bir sorum daha var`) üzerinde İKİNCİ
+kullanıcı mesajının (`"Tesekkurler"`, `data-testid="branch-at-4"`, `seq=4`)
+"Buradan dallan"ına tıklandı. İstek gövdesi `{"upToSequence":4}`, yanıt
+`201`:
+`{"sessionId":"019ffd04-c8f6-7b56-ae4e-6884aa6a8c84","conversationId":
+"019ffd04-c8fd-7de1-80e0-626ae81f1767","parentSessionId":
+"conv_019ffce986767dfa822efd0639b34328","parentConversationId":
+"019ffce9-871e-7812-918d-087ef279a33e","branchFromSequence":4,
+"copiedItemCount":5}` — tarayıcı otomatik `sessions/019ffd04-c8f6-...`e
+yönlendi. Yeni oturumun Geçmiş sekmesi TAM 5 mesaj gösterdi (`user/FIX-
+PROMPT-01`, `assistant/functionCall`, `tool/functionResult`,
+`assistant/text`, `user/Tesekkurler`) — eski oturumla index 0-4 BİREBİR
+AYNI; ÜÇÜNCÜ tur (`"Baska bir sorum daha var"` ve yanıtı) yeni oturumda
+YOK. "0 çalıştırma" düğmesi (branching yalnız mesaj/durumu kopyalar, run
+geçmişini KOPYALAMAZ — beklenen).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1852,9 +2107,33 @@ FROM agentprism.sessions WHERE id = '<yeniId>';
   okuma yolu dokunulmaz — `BranchSessionAsync` dokümantasyonu).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 1'in kendisi ÇALIŞMIYOR: `playground/support?sessionId=019ffd04-...`
+adresine gidip mesaj gönderilince Playground BAMBAŞKA bir oturum
+(`conv_019ffd06171d78179098de2ed80ee7b4`) üretti — dallanan oturuma HİÇ
+devam etmedi. Kök neden: `screens/playground.tsx` `sessionId` durumunu
+`useState<string | null>(null)` ile başlatıyor (satır 58) ve dosyanın
+TAMAMINDA `URLSearchParams`/`location.search` okuyan TEK BİR satır YOK
+(`git grep` doğrulandı) — adres çubuğundaki `?sessionId=` parametresi
+HİÇBİR ZAMAN okunmuyor. İlk mesaj gönderildiğinde `conversation === null`
+her zaman doğru olduğundan (satır 147-150) `api.createConversation()` ile
+HER SEFERİNDE taze bir oturum açılıyor. `session-detail.tsx`'te de
+Playground'a "devam et" bağlantısı YOK (`grep` sıfır sonuç). Doğrulama
+sorgusunda "veya oturumu Playground'dan yeniden aç" seçeneği de aynı
+nedenle YOK — Playground yalnızca YENİ oturum başlatabiliyor, VAR OLAN
+hiçbir oturumu (dallanmış ya da değil) yükleyemiyor. Bkz. `HATA-S4-018`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+Alttaki INVARIANT (dallanma kaynağı DEĞİŞTİRMEZ) ise DOĞRUDAN API çağrısıyla
+(`POST api/agents/support/run` gövdesi `{"sessionId":"019ffd04-...",
+"message":"Yeni bir mesaj daha (API)","attachmentIds":[],"approvals":[]}`
+— `playground.tsx:157-165`'teki AYNI istek şekli, yalnız `curl` ile)
+BAĞIMSIZ doğrulandı: yeni oturum 5→7 mesaja çıktı (kullanıcı+asistan
+eklendi), ESKİ oturum (`conv_019ffce986767dfa822efd0639b34328`) 8 mesajda
+DEĞİŞMEDEN kaldı — mekanizmanın kendisi doğru, yalnız arayüzde erişim yolu
+yok (aynı `MT-UIRUN-044`'ün kendi başlığında tarif ettiği "API'de var, UI'da
+yok" kalıbı, ama burada `branch`'in kendisi için değil onu TAKİP EDEN
+"devam et" adımı için).
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1890,10 +2169,32 @@ bunu `null` olarak GÖNDERMEZ.
 - Adım 2: `201` döner, `copiedItemCount` TÜM konuşmanın öge sayısına eşittir
   — API düzeyinde işlev tamdır, yalnız arayüzde erişim yolu eksiktir.
 
-**Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**Doküman düzeltmesi (KOSUM-PLANI §2.1 istisnası)**
+Adım 1'in "parametresiz düğme YOKTUR" iddiası YANLIŞ — doküman kendi
+`git grep` komutunu yalnız `session-detail.tsx`'e daraltmış, ama
+`BranchButton`'ın İKİNCİ kullanım yeri `playground.tsx:370`'te
+`<BranchButton sessionId={sessionId} />` — `upToSequence` PROP'U HİÇ
+VERİLMİYOR. `components/branch-button.tsx:26-49`'daki bileşen
+`upToSequence?: number` (isteğe bağlı) alıyor ve `api.branchSession(...,
+{upToSequence: upToSequence ?? null})` gönderiyor — playground'daki "Oturum
+{id} — geçmiş turlar arasında taşınır." satırının YANINDAKİ "Buradan
+dallan" düğmesi (`data-testid="branch-session"`, `upToSequence === undefined`
+dalı) TAM OLARAK bu parametresiz/tüm-konuşma dalını UI'dan tetikliyor.
+`Beklenen sonuç` düzeltildi: "SESSION DETAIL ekranında (mesaj listesinde)
+parametresiz düğme yok, ama PLAYGROUND ekranında (oturum başlığının
+yanında) VAR — ikisi ayrı bileşen örneği, aynı `BranchButton`."
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Gerçek sonuç**
+`playground/support`'ta taze bir tur (`Merhaba tekrar`) gönderildi, oturum
+`conv_019ffd08dcf2730f802173f586537e9d` açıldı. "Oturum {id}" satırının
+yanındaki "Buradan dallan" düğmesine (`data-testid="branch-session"`,
+mesaja bağlı DEĞİL) tıklandı: istek gövdesi `{"upToSequence":null}`, yanıt
+`201`, yeni oturum `019ffd09-37f9-7781-b8e0-19dba79925f8`'e otomatik
+yönlendirildi — TÜM konuşma (2 öge: user+assistant) kopyalandı. Adım 2
+(`curl` ile `{}` gövdesi) ayrıca `MT-UIRUN-045`'in ön koşulunda da
+doğrulandı (`201`, `copiedItemCount` tüm konuşma).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1920,9 +2221,16 @@ Negatif senaryo — yalnız `curl` ile erişilebilir (arayüz kimliği hiç sorm
 - Adım 2: `409`, `"Oturum kimligi kullanimda"` başlığı.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 1: `201`, `Location: /api/sessions/manuel-dal-cakisma-01`,
+`sessionId:"manuel-dal-cakisma-01"` (kaynak: `conv_019ffce986767dfa822efd0639b34328`,
+`branchFromSequence:7`, `copiedItemCount:8` — tüm konuşma). Adım 2: AYNI
+gövdeyle tekrar istek `409`,
+`title:"Oturum kimligi kullanimda"`,
+`detail:"'manuel-dal-cakisma-01' kimlikli bir oturum zaten var. Dal, var
+olan bir oturumun uzerine YAZMAZ; baska bir kimlik verin veya bos birakip
+uretilmesini saglayin."` — birebir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1944,8 +2252,9 @@ Negatif senaryo.
 - `404`, `"Oturum bulunamadi"`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`404`, `title:"Oturum bulunamadi"`,
+`detail:"'yok-boyle-bir-oturum' kimlikli bir oturum yok."` — birebir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
