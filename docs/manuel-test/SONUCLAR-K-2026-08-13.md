@@ -72,6 +72,24 @@ Genel — hem `POST /api/agents` (create) hem `PUT /api/agents/{name}` (update) 
 
 ---
 
-## K-2 — 14 §3–5, 18 case
+## K-2 — 14 §3–5 (MT-SKILL-030..033, 040..046, 050..056), 18 case
+
+**Sonuç:** 18 Geçti, 0 Kaldı.
+
+Kusur bulunmadı. Tek gözlem: MT-SKILL-032'de (reddet senaryosu) `gpt-5.4-mini`
+reddedilen `load_skill` çağrısını bir kez daha denedi ve ikinci bir onay kartı
+üretti — bu kod tarafında bir tekrar mekanizması değil, gerçek modelin kendi
+kararıydı; ikinci ret sonrası tur beklenen şekilde tamamlandı
+(`FATURA_SKILL_ACTIVE` hiç üretilmedi). Not olarak case'in kendi "Gerçek
+sonuç" alanına yazıldı, ayrı bir `HATA` açılmadı (üretim/sağlayıcı
+değişkenliği, kod kusuru değil).
+
+Sapma: MT-SKILL-055'in PostgreSQL doğrulama sorgusu (§ "Doğrulama sorgusu")
+bellek içi kalıcılıkla koşulduğu için çalıştırılmadı; HTTP/arayüz davranışı
+beklenen sonucu zaten kanıtladı.
+
+---
+
+## K-3 — 14 §6–7 + 15 §1, 28 case
 
 _(sıradaki oturum bu başlığın altına yazacak)_
