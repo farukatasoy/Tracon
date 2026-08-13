@@ -94,13 +94,13 @@ export APULAN="http://$LANIP:5080/agentprism"
 > (erişim katmanları, kiracı yönetimi, API anahtarları, roller, denetim izi)
 > hiçbir model çağırmaz.
 >
-> **`appsettings.json`'daki `AgentPrism:Ui:AllowRemoteAccess` anahtarı ÖLÜDÜR
-> (2026-08-10, ölçüldü).** `samples/AgentPrism.Api/Program.cs`'in `MapAgentPrism`
-> çağrısı yalnız `AuthToken` ve `EnableDiagnosticsEndpoint`'i okur;
-> `AllowRemoteAccess` hiçbir yerde `builder.Configuration`'dan okunmaz
-> (`grep -n "AllowRemoteAccess" samples/AgentPrism.Api/Program.cs` boş döner).
-> Bu yüzden §7'deki uzak erişim case'i bir yapılandırma değişikliği değil,
-> **geçici bir kod değişikliği** ister — bkz. o bölümün ön koşulu.
+> **Doküman düzeltmesi (koşumda, 2026-08-13).** Yukarıdaki not artık YANLIŞ:
+> `AgentPrism:Ui:AllowRemoteAccess` anahtarı 2026-08-11'de `Program.cs`'e
+> bağlandı (commit `419981b`, satır 708-715 —
+> `builder.Configuration.GetValue<bool?>("AgentPrism:Ui:AllowRemoteAccess")`).
+> §7'deki `MT-SEC-070`/`071` artık **geçici kod değişikliği GEREKTİRMİYOR**;
+> `AgentPrism__Ui__AllowRemoteAccess` ortam değişkeni/`user-secrets` anahtarı
+> yeterli. Koşum bu şekilde (yalnız yapılandırma ile) yapıldı ve doğrulandı.
 
 ---
 
@@ -130,9 +130,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents" -H "$APB"
 - `HTTP: 200`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 200.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -167,9 +167,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APULAN/api/agents" -H "$APB"
 - Token doğru olmasına rağmen reddedilir — loopback katmanı önce çalışır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 403, title: Uzak erisim kapali, detail AllowRemoteAccess ayarini acin... ile devam ediyor. Dogru token olmasina ragmen reddedildi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -202,9 +202,9 @@ curl -s -D - -o /dev/null "$APU/api/agents"
   `Gecerli bir 'Authorization: Bearer <token>' basligi gerekiyor.`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 401. WWW-Authenticate: Bearer basligi var. Govde title: Kimlik dogrulanamadi, detail Gecerli bir Authorization: Bearer <token> basligi gerekiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -236,9 +236,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents" -H "Authorization: Bearer 
   neden yanlış olduğuna dair hiçbir ipucu yoktur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 401. Govde MT-SEC-003 ile birebir ayni (title/detail) - yanlis token hakkinda ipucu yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -269,9 +269,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents" -H "Authorization: Basic m
   eder (`BearerTokenValidator.cs:31`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 401 - Basic sema reddedildi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -298,9 +298,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents" -H "Authorization: Bearer 
 - `HTTP: 401`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 401.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -339,9 +339,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APULAN/api/meta"
   bilerek istisnadır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 200 - loopback disindan, Authorization basliksiz bile /api/meta erisilebilir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -372,9 +372,9 @@ curl -s "$APU/api/meta" | python3 -m json.tool
   boolean alanları da vardır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+requiresBearerToken, allowRemoteAccess, requiresAuthorizationPolicy alanlarinin ucu var. manuel-test-token-2026 dizgisi govdenin hicbir yerinde gecmiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -409,9 +409,9 @@ curl -s -o /dev/null -w "lan:      %{http_code}\n" "$APULAN/"
   katmanı atlanır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+loopback: 200, lan: 403 - kabuk bearer token'dan muaf ama loopback'ten muaf degil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -454,9 +454,9 @@ curl -s "$APU/api/tenants/current" -H "$APB"
 - `{"tenantId":"default"}` — `AgentPrismOptions.DefaultTenantId` varsayılanı.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+{"tenantId":"default"} - tenancy hic ayarlanmamisken varsayilan kiraciya dusuyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -484,9 +484,9 @@ curl -s "$APU/api/tenants/current" -H "$APB" -H "X-AgentPrism-Tenant: kiraci-alf
 - `{"tenantId":"kiraci-alfa"}`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+{"tenantId":"kiraci-alfa"}
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -521,9 +521,9 @@ curl -s "$APU/api/tenants/current" -H "$APB" -H "X-AgentPrism-Tenant: kiraci-alf
   `null` döner, başlık hiç okunmaz (`HttpTenantContext.cs:113-116`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+{"tenantId":"default"} - AllowHeaderResolution kapaliyken X-AgentPrism-Tenant basligi hic okunmadi, zincir varsayilana dustu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -557,9 +557,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/tenants/current" -H "$APB" \
   `null` döner; zincir varsayılana düşer.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 200, tenantId: default - IsValidTenantId gecersiz degeri reddetti, zincir varsayilana dustu, hata verilmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -608,9 +608,9 @@ curl -s "$APU/api/tenants/current" -H "$APB" -H "X-AgentPrism-Tenant: kiraci-gam
   öncesi davranışa dönüş) **Kusur, Önem: Kritik** — bkz. `00-INDEKS.md` §5.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur — hangi seçenek gerçekleşti, açıkça yazılır)_
+`HTTP: 403`, `title: "Kiraci reddedildi"`, `detail: "Cozulen kiraci izin verilenler listesinde degil. Bu istek varsayilan kiracinin verisine SESSIZCE dusurulmez; reddedilir."` — `{"tenantId":"default"}` DÖNMEDİ. K-393 öncesi kusurun düzeltmesi doğru çalışıyor (düzeltilmiş davranış gözlendi). Geçici `options.AllowedTenants.Add("kiraci-alfa")` satırı `Program.cs`'e eklenip test koşuldu, sonra kaldırılıp yeniden derlendi (`git diff` temiz, iz bırakmadı).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -646,9 +646,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
 - `HTTP: 201`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 201.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -690,9 +690,9 @@ WHERE name = 'manuel-destek' ORDER BY tenant_id;
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 201 (409 DEGIL) - iki farkli kiracida ayni ad serbest birakildi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -722,9 +722,9 @@ curl -s "$APU/api/agents" -H "$APB" -H "X-AgentPrism-Tenant: kiraci-alfa" | pyth
   eklediği başka hiçbir tanım (varsa) görünmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+kiraci-alfa listesinde manuel-destek var (tek kopya, kendi kiracisinin surumu); kiraci-beta'nin ayri satiri sizmadi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -754,9 +754,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/manuel-destek/run" 
 - `HTTP: 200`. Yanıt gövdesinden `runId`'yi not edin (`export RUNID=...`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 200. Not: Idempotency-Key basligi yokken run ucu varsayilan olarak akisli (SSE) yanit veriyor (sistem geneli tutarli davranis, dosya 07'de de gozlendi) - runId event: run cercevesinden okundu: 019ffb05-7e0d-7ade-a93a-5b240cd21758.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -785,9 +785,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/runs/$RUNID" -H "$APB" \
 - `HTTP: 200`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 200.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -821,9 +821,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/runs/$RUNID" -H "$APB" \
   bilgisi bile sızdırılmaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 404 (403 DEGIL) - kiraci-beta'ya calistirmanin var oldugu bilgisi bile sizmadi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -857,9 +857,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents/manuel-destek" \
   kendi kiracısının satırını etkiler.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adim 1: HTTP 204. Adim 2: HTTP 200 - kiraci-alfa'nin kopyasi hala var, kiraci-beta'nin silmesi yalniz kendi satirini etkiledi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -896,9 +896,9 @@ SELECT slug, display_name FROM agentprism.tenants WHERE slug = 'kiraci-alfa';
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 200. Govde slug: kiraci-alfa, displayName: Alfa Musterisi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -928,9 +928,9 @@ curl -s "$APU/api/tenants/kiraci-alfa" -H "$APB" -X PUT \
   (`slug` anahtardır).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 200, displayName guncellendi (Alfa Musterisi (guncel)), ayni id (019ffb04...) - ikinci satir olusmadi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -960,9 +960,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/tenants/kiraci%20alfa" -H "
   cizgi ve tire icermelidir.`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 400, title: Kiraci anahtari gecersiz, detail beklenen metinle birebir eslesiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -990,9 +990,9 @@ curl -s "$APU/api/tenants" -H "$APB" | python3 -m json.tool
 - `kiraci-alfa` listede vardır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+kiraci-alfa listede var.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1026,9 +1026,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents/manuel-destek" -H "$APB" \
   üretmez (`ITenantStore` XML doc, `TenantDescriptor.cs:5-9`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adim 1: HTTP 204. Adim 2: HTTP 200 - kiraci kaydi silinmesi calisma anindaki agent cozumlemesini etkilemedi (ITenantStore kaydi yalniz isim/aciklama kaynagi, zorunlu degil).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1055,9 +1055,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/tenants/hic-yok" -H "$AP
 - `HTTP: 404`. `title: "Kiraci bulunamadi"`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 404, title: Kiraci bulunamadi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1096,9 +1096,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/api-keys" -H "$APB" \
   `export APIKEY_READ_ID=<record.id>`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 200. plaintextKey ap_ ile basliyor (ap_default_RPaDJLnwS0...). record.keyPrefix (ap_default_R, 12 karakter) plaintextKey'in ilk 12 karakteriyle ayni. record.name: manuel-okuma, record.scopes: [RunsRead].
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1128,9 +1128,9 @@ curl -s "$APU/api/api-keys" -H "$APB"
   `revokedAt`, `lastUsedAt`, `createdAt`, `isActive`'dir — `keyHash` yoktur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Yanit govdesinde plaintextKey (ap_default_RPaDJ...) hicbir yerde gecmiyor. Alanlar yalniz id, tenantId, name, keyPrefix, scopes, expiresAt, revokedAt, lastUsedAt, createdAt, isActive - keyHash yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1158,9 +1158,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/api-keys" -H "$APB" \
 - `HTTP: 400`. `detail: "'name' bos olamaz."`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 400, detail: 'name' bos olamaz.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1188,9 +1188,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/api-keys" -H "$APB" \
 - `HTTP: 400`. `detail: "En az bir kapsam ('scopes') secilmelidir."`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 400, detail: En az bir kapsam ('scopes') secilmelidir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1219,9 +1219,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/api-keys" -H "$APB" \
   reddeder, model binding hatası döner.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**KALDI - HATA-S2-006 (Orta).** Beklenen HTTP 400 yerine HTTP 500 (genel ProblemDetails, 'An error occurred while processing your request.') dondu. Kok neden: CreateAsync (ApiKeyEndpoints.cs:57-64) [FromBody] ApiKeyCreateRequest ile OTOMATIK minimal-API govde baglama kullaniyor; bilinmeyen bir ApiKeyScope dizgisi System.Text.Json'in JsonStringEnumConverter'inda bir JsonException firlatir ve bu istisna handler govdesine HIC ULASMADAN once, framework'un kendi govde-baglama asamasinda olusur. Diger uclar (orn. /api/agents/validate, /v1/chat/completions) govdeyi ELLE JsonSerializer.Deserialize + try/catch (JsonException) ile okuyup temiz 400 'Govde cozumlenemedi:' uretiyor; bu uc ise otomatik baglamaya guveniyor ve app.UseExceptionHandler() (Program.cs:682, ozellestirilmemis) istisnayi genel 500 ProblemDetails'a ceviriyor. Kapsam: [FromBody] kullanan diger 10 dosya da (ApprovalEndpoints, EvalEndpoints, ExperimentEndpoints, RetentionEndpoints, QuotaEndpoints, RunEndpoints, SchedulingEndpoints, SkillScriptGrantEndpoints, WebhookEndpoints, WorkflowEndpoints) potansiyel olarak ayni deseni tasiyabilir - ayrintili dogrulanmadi, yalniz bu case olculdu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1250,9 +1250,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/runs" -H "Authorization: Bearer $A
   anahtar bunu taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 200.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1287,9 +1287,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" \
   `Bu uc 'AgentsAdmin' kapsamini gerektiriyor; anahtar bu kapsami tasimiyor.`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 403, title: Kapsam yetersiz, detail: Bu uc 'AgentsAdmin' kapsamini gerektiriyor; anahtar bu kapsami tasimiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1327,9 +1327,9 @@ SELECT id, revoked_at FROM agentprism.api_keys WHERE id = '<APIKEY_READ_ID>';
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adim 1: HTTP 204. Adim 2: HTTP 401 - satir silinmedi, revokedAt yazildi, sonraki istek reddedildi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1361,9 +1361,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/api-keys/$APIKEY_READ_ID
   görünür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 404 - ikinci iptal 'bulunamadi' gibi goruldu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1398,9 +1398,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/runs" -H "Authorization: Bearer $A
 - Adım 3: `HTTP: 401` — `ApiKeyAuthenticator.cs:42`, `ExpiresAt <= now`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+6 saniye sonra HTTP: 401 - suresi gecmis anahtar reddedildi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1443,9 +1443,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents" \
   `'X-AgentPrism-Tenant' basligi API anahtarinin baglandigi kiraciyi EZEMEZ...`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 403, title: Kiraci uyusmuyor, detail: 'X-AgentPrism-Tenant' basligi API anahtarinin baglandigi kiraciyi EZEMEZ...
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1475,9 +1475,9 @@ curl -s "$APU/api/tenants/current" -H "Authorization: Bearer $APIKEY_ALFA"
   `Resolve()`'dan (başlık/claim) ÖNCE denenir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+{"tenantId":"kiraci-alfa"} - baslik verilmeden kiraci dogrudan anahtardan cozuldu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1515,9 +1515,9 @@ curl -s "$APU/api/audit/apikey:$KEYID" -H "$APB" | python3 -m json.tool
 - `revoke` kaydının `before`/`after` alanları `null`'dır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Iki kayit dondu: apikey.create ve apikey.revoke. create kaydinin after alani yalniz name, keyPrefix, scopes tasiyor - ham deger veya ozet yok. revoke kaydinin before/after alanlari null.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1566,9 +1566,9 @@ cd samples/AgentPrism.Api && dotnet run
   kanıtıdır — hiçbir istek bu denetimin önüne geçemez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**Dokuman duzeltmesi uygulandi (yukaridaki not).** Gecici kod degisikligi yerine `AgentPrism__Ui__AllowRemoteAccess=true` ortam degiskeniyle baslatildi ('external:invoke' kapsamli hicbir anahtar yokken). Surec aciliste `Unhandled exception: System.InvalidOperationException: AllowRemoteAccess acikken MCP disa acilamaz: sistemde 'external:invoke' kapsamli, suresi gecmemis ve iptal edilmemis bir API anahtari yok...` ile COKTU (ExternalSurfaceGuard.cs:144). Sync/aciliste calisan denetim dogrulandi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1608,9 +1608,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APULAN/api/agents" -H "$APB"
   kaldırmıştır; MT-SEC-002'nin verdiği `403` burada ALINMAZ.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+SQLite'a gecici olarak gecildi (anahtarin yeniden baslatma boyunca hayatta kalmasi icin - bellek ici depoda case dogal olarak test edilemez, anahtar da fixture'lar gibi silinirdi). Adim 1: HTTP 200, ExternalInvoke kapsamli anahtar uretildi. Adim 2: `AgentPrism__Ui__AllowRemoteAccess=true` ile 0.0.0.0'a baglanarak yeniden baslatildi, surec COKMEDI (basariyla acildi). Adim 3: LAN adresinden dogru token ile istek HTTP 200 dondu - MT-SEC-002'nin 403'u burada alinmadi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Bu bölümden sonra temizlik.** `options.AllowRemoteAccess = true;` satırı
 > Program.cs'ten kaldırılır ve reset yordamı yeniden uygulanır — §8 bu
@@ -1746,9 +1746,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
   yükseltmeyi kırmaz).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 201 - hicbir AgentPrism.* policy'si kayitli olmadigindan RequireRole hicbir sey eklemedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1782,9 +1782,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
 - `HTTP: 403`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 403.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1816,9 +1816,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
 - `HTTP: 201`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 201.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1855,9 +1855,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/api-keys/00000000-0000-0
 - Adım 2: `HTTP: 403` (`404` DEĞİL — rol denetimi handler'dan ÖNCE çalışır).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adim 1: HTTP 200. Adim 2: HTTP 403 (404 DEGIL) - rol denetimi handler'dan once calisti.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1894,9 +1894,9 @@ cd samples/AgentPrism.Api && dotnet run
   (`AgentPrismRolePolicies.cs:82-87`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Gecici olarak §8'in AddAuthentication/AddAuthorization + RoleTestAuthHandler.cs kurulumu geri alinip, MapAgentPrism lambda'sina `options.RequireRolePolicies = true;` eklendi, yeniden derlendi. `dotnet run` aciliste `Unhandled exception: System.InvalidOperationException: AgentPrismEndpointOptions.RequireRolePolicies acik ama su policy'ler kayitli degil: AgentPrism.Reader, AgentPrism.Operator, AgentPrism.Admin...` ile COKTU (AgentPrismRolePolicies.cs:82). Uc policy adi da mesajda gecti.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1927,9 +1927,9 @@ curl -s "$APU/api/meta" | python3 -c "import sys,json;print(json.load(sys.stdin)
   çünkü gerçek kısıt üç katmanlı korumadadır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+{'canRead': True, 'canOperate': True, 'canAdminister': True} - hicbir policy kayitli degilken hepsi true. RequireRolePolicies satiri kaldirilip yeniden derlendi (git diff temiz), RoleTestAuthHandler.cs silindi, sade ornek uygulamayla dogrulandi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1974,9 +1974,9 @@ curl -s "$APU/api/audit?entity=agent:manuel-audit" -H "$APB" | python3 -m json.t
 - Her kaydın `entity: "agent:manuel-audit"`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Uc kayit dondu, en yeniden eskiye: [agent.delete, agent.update, agent.create]. Her kaydin entity alani agent:manuel-audit.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2015,9 +2015,9 @@ curl -s "$APU/api/audit/mcp:manuel-sir-testi" -H "$APB" | python3 -m json.tool
   içerir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+after JSON'unda "Authorization":"***" gorunuyor - ham deger (cok-gizli-deger) govdenin hicbir yerinde yok. Not: ayni kayitta authorizationConfigurationKey, oauthClientSecretConfigurationKey, oauthAuthorizationMode alanlari da *** olarak redakte edilmis (asiri-redaksiyon, alan adinda key/secret/authorization fragmani geciyor olabilir) - bu sizinti degil tam tersi yonde bir gozlem, case'in kendi iddiasini etkilemiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2057,9 +2057,9 @@ curl -s "$APU/api/audit/agent:manuel-token-alani" -H "$APB" | python3 -m json.to
   boşalırdı.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+after.model.maxOutputTokens: 512 - gercek sayisal degeriyle gorunuyor, *** degil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2094,9 +2094,9 @@ curl -s "$APU/api/audit/agent:manuel-aktor-testi" -H "$APB" | python3 -c "import
   durum arayüzde "bilinmiyor" gösterilir, gizlenmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+actor: None (null).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2124,9 +2124,9 @@ curl -s "$APU/api/audit?entity=agent:manuel-audit&limit=1" -H "$APB" | python3 -
 - `1` — `AuditEndpoints.cs:40`, `Math.Clamp(max, 1, 500)`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+limit=1 ile 1 kayit dondu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2156,9 +2156,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/audit/agent:manuel-audit
   Core aynı şablona eşleşen ama kabul edilmeyen bir metotta `405` döner.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 405 (Method Not Allowed).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

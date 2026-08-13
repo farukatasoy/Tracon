@@ -116,9 +116,9 @@ curl -s -w "\nHTTP: %{http_code}\nLocation: %{header_json}\n" \
 - Gövde tam `AgentDefinition`'ı taşır (`name`, `model`, vb.).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 201`, `Location: /agentprism/api/agents/manuel-crud-01`. Gövde `name`, `model` alanlarını taşıyor, `origin: "Database"`, `version: 1`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -154,9 +154,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
   ile biter.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 409`, `title: "Agent adi kullanimda"`, `detail: "'manuel-crud-01' adinda bir tanim zaten var. Guncellemek icin PUT kullanin."`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -194,9 +194,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
   tanim hicbir zaman cozulmezdi.` ile biter.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 409`, `detail`: `"'support' kodda tanimli bir agent'tir ve yonetim API'sinden degistirilemez. Ad cakismasinda kod kazandigi icin ayni adla yazilan bir tanim hicbir zaman cozulmezdi."` — beklenen metinle birebir eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -230,9 +230,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
 - `HTTP: 400`, `title: "Agent adi bos"`, `detail: "'name' alani zorunludur."`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title: "Agent adi bos"`, `detail: "'name' alani zorunludur."`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -267,9 +267,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
   'model.model' alanlari zorunludur."`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title: "Model baglantisi eksik"`, `detail: "'model.provider' ve 'model.model' alanlari zorunludur."`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -300,9 +300,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents/hic-boyle-bir-agent" -H "$A
   adinda bir agent yok."`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 404`, `title: "Agent bulunamadi"`, `detail: "'hic-boyle-bir-agent' adinda bir agent yok."`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -337,9 +337,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/manuel-crud-01" \
   yeni bir ad icin yeni bir tanim olusturun.` ile biter.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title: "Ad uyusmuyor"`, `detail: "Yoldaki ad 'manuel-crud-01', govdedeki ad 'baska-bir-ad'. Agent adi degistirilemez; yeni bir ad icin yeni bir tanim olusturun."`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -373,9 +373,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/support" -H "$APB" \
 - `HTTP: 409`, `title: "Kodda tanimli agent degistirilemez"`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 409`, `title: "Kodda tanimli agent degistirilemez"`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -409,9 +409,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/hic-olusturulmamis" 
 - `HTTP: 404`, `title: "Agent bulunamadi"`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 404`, `title: "Agent bulunamadi"`, `detail: "'hic-olusturulmamis' adinda bir agent yok."`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -454,9 +454,9 @@ curl -s "$APU/api/agents/manuel-crud-01/versions" -H "$APB" | python3 -c "import
   versiyon ilk sırada).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 200` (PUT yanıtı). Versiyon sayısı `1 → 2`. `/versions` listesi `[2, 1]` sırasıyla döndü — en yeni versiyon ilk sırada (yeniden eskiye).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -487,9 +487,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/agents/support" -H "$APB
 - `GET /api/agents/support` hâlâ `200` döner (silinmedi).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 409`, `title: "Kodda tanimli agent degistirilemez"`. Ardından `GET /api/agents/support` → `200` (silinmedi).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -519,9 +519,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/agents/hic-boyle-bir-age
 - `HTTP: 404`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 404`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -552,9 +552,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents/manuel-crud-01" -H "$APB"
 - Ardından okuma: `HTTP: 404`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Silme: `HTTP: 204`, gövde boş. Ardından okuma: `HTTP: 404`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -591,9 +591,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents/manuel-versiyon-testi/versi
 - `HTTP: 404`, `title: "Surum bulunamadi"`, `detail` içinde `99` sayısı geçer.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`manuel-versiyon-testi` oluşturuldu (`version: 1`). `GET /versions/1/diff/99` → `HTTP: 404`, `title: "Surum bulunamadi"`, `detail` içinde `99` sayısı geçiyor: `"'manuel-versiyon-testi' agent'inin 99 numarali surumu yok."`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -626,9 +626,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/manuel-versiyon-tes
   (`AgentEndpoints.cs:387-398`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 404`, `title: "Geri alinamadi"`, `detail: "'manuel-versiyon-testi' agent'inin 99 numarali surumu bulunamadi."`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -680,9 +680,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/validate" -H "$APB"
   sözleşmesi, S8).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İki istek de `HTTP: 200`. Birinci: `valid:true, messages:[]`. İkinci: `valid:false`, `messages[0].severity: "Error"` (dize/ad olarak, sayısal değil).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -733,9 +733,9 @@ echo "run:   $oncesi_run -> $sonrasi_run"
   `runs` satırı açılmadı).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`agent: 13 -> 13`, `run: 0 -> 0` — on doğrulama isteği sonrası hiçbir sayı değişmedi (yan etkisiz).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -767,9 +767,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/validate" -H "$APB"
 - `HTTP: 400`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title: "Gecersiz istek govdesi"`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -822,9 +822,9 @@ curl -s "$APU/api/runs?agentName=support&sessionId=api-idem-01" -H "$APB" | pyth
   kez çalışmadı.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Birinci istek `HTTP: 200`, gövde gerçek çalıştırma sonucu (`runId`, mesaj `"tamam"`). İkinci istek `HTTP: 200`, `Idempotency-Replayed: true` başlığı var. `sessionId: api-idem-01` için `/api/runs` sayısı **`1`** — agent ikinci kez çalışmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -863,9 +863,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$A
 - `HTTP: 422`, `title: "Idempotency-Key farkli bir istek icin kullanilmis"`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 422`, `title: "Idempotency-Key farkli bir istek icin kullanilmis"`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -903,9 +903,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$A
 - `HTTP: 400`, `title: "Akisli istekte Idempotency-Key desteklenmiyor"`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title: "Akisli istekte Idempotency-Key desteklenmiyor"`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -940,9 +940,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$A
   `256` sayıları geçer.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title: "Idempotency-Key cok uzun"`, `detail`: `"Anahtar en fazla 255 karakter olabilir; gelen uzunluk 256."` — 255 ve 256 sayıları geçiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -993,9 +993,9 @@ wait $PID1
   yine kanıtlanmış sayılır, `409` gözlenmediyse not düşülür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP1: 200` (gerçekten çalıştı), `HTTP2: 409` (`Istek zaten isleniyor` — rezervasyon mekanizması gözlendi).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1052,9 +1052,9 @@ curl -s "$APU/api/stats/errors?agentName=manuel-hata-sinifi-testi" -H "$APB" | p
   izine düştü).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Dizide bir giriş var: `class: "ProviderError"`, `totalRuns: 2`. `topClusters[0].count: 2` (aynı `model_not_found` parmak izine iki hata da düştü). `sampleMessage`: `"HTTP 404 (invalid_request_error: model_not_found)..."`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1077,8 +1077,8 @@ curl -s "$APU/api/stats/errors?agentName=manuel-hata-sinifi-testi" -H "$APB" | p
 
 **Girilecek veri**
 ```bash
-curl -s "$APU/api/stats/errors?agentName=manuel-hata-sinifi-testi" -H "$APB" | python3 -c "import json,sys; print(sum(e['count'] for e in json.load(sys.stdin)))"
-curl -s "$APU/api/stats/errors?agentName=manuel-hata-sinifi-testi&hours=0.01" -H "$APB" | python3 -c "import json,sys; print(sum(e['count'] for e in json.load(sys.stdin)))"
+curl -s "$APU/api/stats/errors?agentName=manuel-hata-sinifi-testi" -H "$APB" | python3 -c "import json,sys; print(sum(e['totalRuns'] for e in json.load(sys.stdin)))"
+curl -s "$APU/api/stats/errors?agentName=manuel-hata-sinifi-testi&hours=0.01" -H "$APB" | python3 -c "import json,sys; print(sum(e['totalRuns'] for e in json.load(sys.stdin)))"
 ```
 
 **Beklenen sonuç**
@@ -1087,9 +1087,9 @@ curl -s "$APU/api/stats/errors?agentName=manuel-hata-sinifi-testi&hours=0.01" -H
   düşük veya `0` sayar — pencere daralınca eski hatalar dışarıda kalır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**Doküman düzeltmesi**: `Girilecek veri` scripti `e['count']` alanını okuyordu ama gerçek yanıt şeması bunu taşımıyor — sınıf düzeyinde sayaç `totalRuns`'tır, `count` yalnız iç içe `topClusters[]` dizisinde var. Script `e['totalRuns']` olarak düzeltildi (AGENTS.md: doküman ile kod çelişirse doküman yanlıştır). Düzeltilmiş sorguyla: 24 saatlik varsayılan pencere `2` döndü; `hours=0.01` (36 saniye) de `2` döndü çünkü MT-API-040 hemen öncesinde koşuldu ve hatalar hâlâ o pencerenin içinde — bu, senaryonun kendi notuyla ("MT-API-040'ın hemen ardından koşulmadıysa daha düşük") tutarlı. Sorgu mekanizması hatasız çalıştı, `hours` parametresi işlendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1130,9 +1130,9 @@ curl -s "$APU/api/stats?agentName=manuel-hata-sinifi-testi" -H "$APB" | python3 
   gerçek sayılarla sınar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`totalRuns:2, completedRuns:0, failedRuns:2, canceledRuns:0, runningRuns:0, awaitingInputRuns:0`. `byAgent`'ta `manuel-hata-sinifi-testi` girdisi var (`totalRuns:2, failedRuns:2`). Eşitlik doğrulandı: `totalRuns(2) = completedRuns(0)+failedRuns(2)+canceledRuns(0)+runningRuns(0)+awaitingInputRuns(0)`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1170,9 +1170,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/sessions?skip=-5" -H "$APB" | tail
 - Hiçbir durumda `HTTP: 500` görülmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Üç istek de çökmedi. `take=0` → **`1`** kayıt döndü (`Math.Clamp(0,1,200)`). `take=99999` → `HTTP: 200`. `skip=-5` → `HTTP: 200`. Hiçbir durumda `500` görülmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1202,9 +1202,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/sessions/hic-boyle-bir-oturum" -H 
 - `HTTP: 404`, `title: "Oturum bulunamadi"`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 404`, `title: "Oturum bulunamadi"`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1239,9 +1239,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/sessions/api-idem-01" -H
   gerçek bir "yok" durumu).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Birinci silme: `HTTP: 204`. Okuma: `HTTP: 404`. İkinci silme: `HTTP: 404` (idempotent "başarı" değil, gerçek "yok").
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1280,9 +1280,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/sessions/api-branch-01/bra
 - `HTTP: 501`, `title: "Dallandirma desteklenmiyor"`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 501`, `title: "Dallandirma desteklenmiyor"`, `detail`: "Konusma dallandirma yalnizca kalici bir SQL saglayicisi acikken calisir...".
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1317,9 +1317,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/sessions/hic-boyle-bir-otu
   sırası bu dosyanın kaynak kapsamı dışındadır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 501` — bellek içi kurulumda `NotSupported` kontrolü `SessionNotFound`'dan **önce** çalışıyor (var olmayan oturum için de `404` değil `501` döndü). Gerçek sıra kaydedildi: `NotSupported` ilk kontrol ediliyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1362,9 +1362,9 @@ curl -s "$APU/api/runs?sessionId=api-agac-01&includeChildren=true" -H "$APB" | p
 - `includeChildren=true` ile **`2`** satır (kök + `support` alt çalıştırması).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**KALDI — HATA-S2-001.** `includeChildren` olmadan `1` satır (doğru). Ancak `includeChildren=true` ile de **`1`** satır döndü — beklenen `2` (kök + `support` alt çalıştırması) değil. Kök çalıştırmanın kendisi `childRunCount:1` taşıyor (alt çalıştırma gerçekten var ve kaydedilmiş), ama `/api/runs?sessionId=api-agac-01&includeChildren=true` onu listelemiyor. Kök neden: `InMemoryRunStore.QueryRunsAsync` (`src/AgentPrism.Core/Storage/InMemoryRunStore.cs:339`) `SessionId` eşitlik filtresini `OnlyRootRuns`'tan bağımsız, HER satıra (alt çalıştırmalar dahil) uyguluyor. Alt çalıştırmaların kendi `sessionId` alanı **kasıtlı olarak** `null`'dur (K-217: 'sütun çalıştırma bu oturumla başlatıldı der, kapsam burada üretilen içerik bu oturuma aittir der' — `RunRecordingAgent.cs:481-485`). Aynı filtre deseni `PostgresQueries.cs:409`, `SqliteQueries.cs:458`, `SqlServerQueries.cs:488`'de birebir kopya — **dört store'un tamamını** etkiliyor. Sonuç: `sessionId` + `includeChildren=true` kombinasyonu asla alt çalıştırma göstermez; uç noktanın kendi `WithDescription` metni (`RunEndpoints.cs:83-86`, "'includeChildren=true' kullanin") bu tuzağı belirtmiyor — K1 'sıfır sürpriz' ilkesini ihlal ediyor. Doğru tam-aile görünümü yalnız `rootRunId`/`GET /api/runs/{id}/tree` ile elde ediliyor (MT-API-062 bunu doğruladı, aynı kök çalıştırmanın `/tree`'si doğru `2` satır döndürdü).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1399,9 +1399,9 @@ done
 - Üçü de `HTTP: 404` döner.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Üçü de `HTTP: 404` döndü (`get`, `/tree`, `/events`).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1433,9 +1433,9 @@ curl -s "$APU/api/runs/<support-run-id>/tree" -H "$APB" | python3 -c "import jso
   (kök + kendisi) — ağaç her zaman kökünden çekilir, sorulan satırdan değil.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+MT-API-060'ın kaydettiği alt çalıştırma kimliği (`/tree` üzerinden bulundu, çünkü `includeChildren` listesi onu içermiyordu — bkz. HATA-S2-001) ile sorgulanan `/tree` de **`2`** satır döndürdü (kök + kendisi) — ağaç her zaman kökünden çekiliyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1468,9 +1468,9 @@ curl -sN -H "Last-Event-ID: 1" "$APU/api/runs/<runId>/events" -H "$APB" | head -
   tekrar gönderilmedi).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İlk gönderilen olayın `id:` alanı **`2`**'dir (`0` ve `1` tekrar gönderilmedi) — beklenen `>= 2` ile uyumlu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1515,9 +1515,9 @@ dotnet user-secrets remove "AgentPrism:RunRecording:RecordRunInput" --project sa
   döner) ama girdisi yoktur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**KALDI — HATA-S2-002 (Yüksek).** `AgentPrism:RunRecording:RecordRunInput=false` env değişkeniyle uygulama yeniden başlatıldı, bir çalıştırma yapıldı. `GET /api/runs/{id}` → `200` (çalıştırma var, doğru). `GET /api/runs/{id}/input` → beklenen `404` yerine **`200`** döndü, gövdede kullanıcının gerçek mesajı (`"Merhaba, sadece \"tamam\" yaz."`) aynen kayıtlı. Kök neden: `AgentPrismServiceCollectionExtensions.BindRunRecording` (`src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs:1769-1797`) `Enabled`, `RecordMessageDeltas`, `RecordToolPayloads`, `MaxPayloadLength` alanlarını okuyor ama **`RecordRunInput`'ı hiç okumuyor** — `AgentPrismRunRecordingOptions.RecordRunInput` (`AgentPrismOptions.cs:445`, varsayılan `true`) hiçbir konfigürasyon kaynağından (env değişkeni, `user-secrets`, `appsettings.json`) değiştirilemiyor; her zaman varsayılan `true` kalıyor. `RunEndpoints.cs:196` ve `RunReplayService.cs:113` bu anahtarı açıkça dokümante ediyor ("AgentPrism:RunRecording:RecordRunInput = false") ama devre dışı bırakma sessizce hiçbir etki yapmıyor — bir operatör kişisel veri saklama politikası gereği bu bayrağı kapattığını sanırken veri kaydı kesintisiz sürüyor. Temizlik: env değişkeni kaldırıldı, uygulama varsayılan ayarla yeniden başlatıldı; bu geçici değişiklik kalıcı bir iz bırakmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1550,9 +1550,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/runs?take=99999" -H "$APB" | tail 
 - `take=99999` çökmez, `HTTP: 200` döner (kırpılmış üst sınırla).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`take=0` → **`1`** kayıt. `take=99999` → çökmedi, `HTTP: 200`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1586,9 +1586,9 @@ curl -s "$APU/api/tools" -H "$APB" | python3 -m json.tool
   kodda tanımlanır (güvenlik sınırı, AGENTS.md).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Dizide `get_order_status`, `list_recent_orders`, `cancel_order` var (artı ses tool'ları: `list_voices`, `speak`, `transcribe`). Her girdi `jsonSchema` alanı taşıyor. Uç yalnız `GET`; başka fiil yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1624,9 +1624,9 @@ curl -s -w "\nSure: %{time_total}s\n" "$APU/api/models" -H "$APB" | tail -1
   `Unknown`'dur (önbellek boş).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Yanıt süresi `0.008s` (8ms) — milisaniyeler mertebesinde, gerçek ağ çağrısından belirgin şekilde kısa. Hiçbir `/api/models/health/*` sorgusu yapılmadığı için her sağlayıcının (`anthropic`, `google`, `openai`, `openai-responses`, `openrouter`) `status` alanı `"Unknown"`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1662,9 +1662,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/meta"
 - Hiçbir alanda `ApiKey`, bağlantı dizesi veya agent adı **geçmez**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 200`. Gövde `version`, `prefix`, `authentication` (`allowRemoteAccess`, `requiresBearerToken`, `requiresAuthorizationPolicy`), `storage` (`persistent`, `agentDefinitionStore`, `runStore`, `sessionStore`, `jobStore`, `jobWorkerEnabled`), `roles` (`canRead`, `canOperate`, `canAdminister`) alanlarını taşıyor. Hiçbir alanda `ApiKey`, bağlantı dizesi veya agent adı geçmiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1706,9 +1706,9 @@ curl -s -D - -o /dev/null -w "\nHTTP: %{http_code}\n" "$APU/api/agents" -H "Auth
   bilgi vermez**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İki istek de `HTTP: 401`, `WWW-Authenticate: Bearer` başlığı taşıyor, `content-type: application/problem+json`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1742,9 +1742,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents" -H "$APB" | tail -1
 - `HTTP: 200`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 200`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1791,9 +1791,9 @@ python3 -m json.tool < /tmp/ap-pd-404.json
   değişken veri (`detail` içindeki agent adı gibi) `title`'a **sızmaz**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`content-type: application/problem+json`. Gövde `type`, `title`, `status`, `detail` alanlarını taşıyor; `status: 404` HTTP durum koduyla aynı. `title: "Agent bulunamadi"` kısa/sabit; değişken agent adı yalnız `detail`'de geçiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

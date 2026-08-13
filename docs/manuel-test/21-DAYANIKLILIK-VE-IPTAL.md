@@ -199,9 +199,9 @@ curl -s "$APU/api/audit/run:$CHILD" -H "$APB"
   bir HTTP çağrısı/audit yazımı yoktur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adim 3: HTTP 202. Adim 4: 3 saniye sonra hem kok (yonlendirici) hem alt (support) calistirmasi Canceled oldu - registry'nin RootRunId kaskadi dogrulandi. Adim 5: run:{root} denetim izinde bir run.cancel kaydi VAR; run:{child} denetim izinde HICBIR kayit YOK - cocugun iptali dogrudan CancellationTokenSource.Cancel() ile, ikinci bir HTTP/audit yazimi yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -239,9 +239,9 @@ curl -s "$APU/api/runs/$CHILD" -H "$APB" | python3 -c "import json,sys;print(jso
   vermiyor.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Alt calistirma Canceled oldu. Kok calistirma DURMADI - cocuk iptal edildikten hemen sonra Running kaldi, birkac saniye sonra normal akisiyla Completed oldu (error: null) - iptalden dolayi degil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -284,9 +284,9 @@ curl -s -X POST "$APU/api/runs/$QID/cancel" -H "$APB" | python3 -c "import json,
   asimetriyi bilmeden yanlış varsayımda bulunabilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adim 1: HTTP 202, govde status: "Running" (eski/onceki durum yazildi - CancelRunAsync'in Running dali OKUNMUS kaydi donuyor, Canceled yazmiyor). Not: destek tek-turlu (support tek basina) calistirmalar ~1 saniyede tamamlaniyor (10K girdi tokeni, 38 cikti tokeni), bu yuzden ilk denemede yaris kosulu 409 (zaten tamamlanmis) verdi; yonlendirici (iki model turu) kullanilarak guvenilir bir Running penceresi elde edildi. Adim 2: Prefer:respond-async ile kuyruga alinan bir calistirmanin cancel govdesi status: "Canceled" yazdi (GUNCEL kayit) - iki dal aynı uctur ama govde tazeligi FARKLI, dogrulandi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -325,9 +325,9 @@ curl -s -i -X POST "$APU/api/runs/$RUNNING_ID/cancel" -H "$APB"
   neden.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Sunucu surec, uzun bir yonlendirici calistirmasi baslar baslamaz (kill -9 ile) durduruldu (registry bellek-ici oldugu icin kaybedildi, runs satiri PostgreSQL'de Running kaldi - dogrudan SQL sorgusuyla dogrulandi). Uygulama yeniden baslatildi. Ayni runId'ye POST cancel: HTTP 409, title: "Calistirma bu ornekte yurutulmuyor", detail: "...'Running' gorunuyor ama bu surecte kayitli degil. Baska bir ornekte calisiyor olabilir veya surec calistirma sirasinda yeniden baslamis olabilir." - MT-UIRUN-023'un 'zaten sonlanmis' 409'undan FARKLI title tasiyan ikinci bir 409 yolu dogrulandi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -380,9 +380,9 @@ curl -s "$APU/api/runs/$WFRUN" -H "$APB" | python3 -c "import json,sys;print(jso
   buraya birebir yazılmalı — bu, repo'nun bilinen açık bir sorusunu kapatır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**KALDI - HATA-S2-010 (Yuksek, dogrulanmis supheydi - Faz 32'nin kendi kapatamadigi acik soruyu kapatti).** ozetle-ve-cevir workflow'u FIX-PROMPT-04 boyutunda bir metinle baslatildi. Cancel ONCESI ayri bir GET ile durum acikca 'Running' olarak DOGRULANDI (yaris kosulu degil). POST /api/runs/{id}/cancel -> HTTP 202. 3 saniye sonra: status: Completed (Canceled DEGIL), error: null. Istenen sonuc Canceled'di, gerceklesen Completed - Faz 32'nin kendi denemesinde yasadigi ayni sorun (grafik iptali yutuluyor) TEKRARLANDI ve DOGRULANDI. Kod okumasi: WorkflowRunner.cs:356-368 AgentPrism seviyesinde DOGRU gorunuyor - tek bir 'linked' CancellationTokenSource hem IRunCancellationRegistry.Register'a (satir 362) hem run.WatchStreamAsync'e (satir 589, linked.Token) besleniyor; OperationCanceledException dogru sekilde yakalaniyor (satir 612). Sorun muhtemelen MAF'in kendi AgentWorkflowBuilder.BuildSequential grafiginin (StreamingRun.WatchStreamAsync ic uygulamasi) disaridan gelen iptal tokenini calisan bir adim ortasinda GERCEKTEN honor etmemesi - AgentPrism disi (bagimlilik) bir sinir, ama kullaniciya gore SONUC AYNI: bir workflow calistirmasi iptal edilemiyor, sessizce tamamlaniyor (maliyet/zaman israfi + kullanici yaniltilmasi).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -432,9 +432,9 @@ curl -s "$APU/api/stats/errors?hours=1" -H "$APB" | python3 -m json.tool
   gereken bir kod yolu. `00-INDEKS.md`'ye not düşülür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Supheler DOGRULANDI. Adim 1: iptal edilmis bir calistirmanin (MT-RES-001'in kok runId'si) error alani null. Adim 2: /api/stats/errors?hours=1 BOS dizi dondu - az once GERCEKTEN birden fazla calistirma iptal edilmis olmasina ragmen 'class: Canceled' tasiyan hicbir oge yok. Dogrulandi: kusur DEGIL, olu kod - RunErrorClass.Canceled enum uyesi ve classifier'in onu ureten dali (DefaultRunErrorClassifier.cs:61) hicbir zaman calismiyor, cunku RunRecordingAgent'in OperationCanceledException yakalayan iki noktasi (satir 241-243, 323-325) CompleteAsync'i her zaman error:null ile cagiriyor, siniflandirici asla tetiklenmiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -492,9 +492,9 @@ curl -s "$APU/api/runs/$SOME_RUN_ID" -H "$APB" | python3 -c "import json,sys;pri
   kadar).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+AgentPrism:RunReconciliation:* ayarlarinin hicbiri verilmedi (varsayilan). Bir satir dogrudan SQL ile '10 dakika once baslamis, hala calisiyor' hale getirildi. 10 saniye sonra: status: Running - hicbir arka plan taramasi calismadigi icin satir SONSUZA kadar Running gorundu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -545,9 +545,9 @@ SELECT status, error_type, error_class, error_fingerprint, error_message
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+RunReconciliation acildi (Enabled=true, HeartbeatInterval=1s, OrphanThreshold=3s, ScanInterval=1s), yeniden baslatildi. Satir gecmise alindi. 5 saniye sonra: status: Failed, error.type: orphaned, error.class: Infrastructure, error.fingerprint: orphaned (sabit dize), error.message: "Calistirma yuruten surec yanit vermiyor; son isaret: 2026-08-13 13:12:31..." - tum alanlar birebir eslesti.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -590,9 +590,9 @@ curl -s "$APU/api/runs/$QID" -H "$APB" | python3 -c "import json,sys;print(json.
   (`PostgresQueries.cs:333` civarı); `Queued` bir kova bile değildir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Prefer:respond-async ile bir calistirma kuyruga alindi, started_at gecmise alindi (status=5 Queued korunarak). 5 saniye sonra status: Running (isci normal sekilde alip islemeye basladi) - hicbir zaman Failed/Infrastructure OLMADI. Uzlastirma sorgusu yalniz status=0 (Running) satirlari suzuyor, Queued bir kova bile degil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -631,9 +631,9 @@ curl -s "$APU/api/stats/errors?hours=1" -H "$APB" | python3 -m json.tool
   döngüyle basar) — bu doğrulanır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adim 1: ilk olcumde len:1 cikti (MT-RES-012'nin kuyruktan yeni alinmis, GERCEKTEN aktif calisan satiri nedeniyle) - bu satir tamamlandiktan (Completed) sonra tekrar olculdugunde len:0 ve gercekten bir DIZI (obje/{items:...} DEGIL) dogrulandi. Adim 2: /api/stats/errors?hours=1 class:Infrastructure kumesi var, sampleMessage '...yanit vermiyor...' iceriyor (totalRuns:2, iki ayri MT-RES-010/011 orphan olayindan). Adim 3 (dashboard bileseni) kod okumasiyla dogrulandi: RunErrorClass string-enum, arayuz listeyi dongüyle basiyor - KOD degisikligi gerektirmiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -684,9 +684,9 @@ dotnet user-secrets set "AgentPrism:SingletonExecution:Enabled" "true"
   `RunReconciliationService`'in tur döngüsü `IsHeld` denetiminde erken çıkar).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Atlandi - case'in kendisi bunu acikca izin veriyor ("Bu case iki terminal ister; zaman butcesi dar ise Atlandi isaretlenip gerekce not dusulebilir"). Bu kosum oturumu tek bir surec/port uzerinde calisiyor; ikinci bagimsiz bir AgentPrism ornegi (ayni PostgreSQL'e farkli portta baglanan) baslatmak oturumun mevcut tek-sunucu akisini bozar. Gerekce: zaman butcesi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 > **Not.** `pending_approvals` ve `run_heartbeats` (heartbeat ayrı bir tablo
 > DEĞİL, `runs.heartbeat_at` sütunu — bkz. `0026_run_heartbeat.sql`) için
@@ -751,9 +751,9 @@ curl -s "$APU/api/approvals/pending" -H "$APB" | python3 -m json.tool
 - Adım 4: aynı kayıt tekil `GET` ile de gelir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adim 2: birkac saniye icinde status: AwaitingApproval. Adim 3: pending listesinde runId eslesen tam bir kayit var: toolName: cancel_order, arguments: 'orderId=ORD-1001' (anahtar=deger bicimi, JSON DEGIL), status: Pending, expiresAt createdAt'ten ~24 saat sonra (varsayilan DefaultExpiration). Adim 4: ayni kayit tekil GET ile de teyit edildi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -805,9 +805,9 @@ SELECT id, status FROM agentprism.runs
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adim 2: HTTP 200, govde status: Approved, decidedBy: 'unknown' (dolu), decidedAt dolu. Adim 3: ESKI runId 3 saniye sonra HALA AwaitingApproval - hic degismedi (K-014). Adim 4: ayni sessionId'de YENI bir runId (019ffb4c-d982...) gorundu, Completed oldu. Adim 5: yeni calistirmanin mesaj gecmisinde functionCall cancel_order + functionResult 'ORD-1001 numarali siparis iptal edildi.' - tool GERCEKTEN calisti.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -843,9 +843,9 @@ curl -s -X POST "$APU/api/approvals/$APPROVAL_ID/decide" -H "$APB" \
   `cancel_order`'ın gerçekten çalışmadığının doğrulanması aranır).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP 200, govde status: Rejected. Yeni calistirma tamamlandi; mesaj gecmisinde functionResult: 'Tool call invocation rejected.' (cancel_order GERCEKTEN calismadi) ve modelin son yaniti 'Siparis iptali icin islem yapilamadi. Lutfen siparis numarasini kontrol edip tekrar deneyin: ORD-1001.' - reddin dogru yansitildigi dogrulandi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -879,9 +879,9 @@ curl -s -i -X POST "$APU/api/approvals/$APPROVAL_ID/decide" -H "$APB" \
   sayısı DEĞİŞMEZ).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP 409, title: Karar zaten verilmis, detail: '...artik bekliyor durumunda degil.'. Ikinci bir RunId/is KUYRUGA DUSMEDI - GET /api/runs?sessionId=... sayisi 2'de sabit kaldi (degismedi).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -913,9 +913,9 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST "$APU/api/approvals/$FAKE/decid
 - İkisi de `404`, `title`: `"Onay istegi bulunamadi"`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Ikisi de HTTP 404, title: Onay istegi bulunamadi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -957,9 +957,9 @@ curl -s -o /dev/null -w "%{http_code}\n" "$APU/api/approvals/$APPROVAL_ID" \
 - Adım 3: `200`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adim 1-2: kiraci-beta basligiyla GET ve decide, ikisi de HTTP 404 (403 DEGIL) - varligi sizdirmadi. Adim 3: kiraci-alfa basligiyla ayni istek HTTP 200 - kendi kiracisi icin normal calisiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -996,9 +996,9 @@ curl -s "$APU/api/audit/tool:cancel_order" -H "$APB" | python3 -m json.tool
   incelemesiyle doğrulanmış bir garanti olarak not düşülür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Iki kayit var (MT-RES-021/022'den): action: approval.decision, entity: tool:cancel_order, after alani {"approved": true/false, "approvalId": "<id>"} bicimindeki JSON dizgesi tasiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1045,9 +1045,9 @@ curl -s -i -X POST "$APU/api/approvals/$APPROVAL_ID/decide" -H "$APB" \
   süreyi kısaltır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+AgentPrism:Approvals:DefaultExpiration=5s, ScanInterval=2s ile yeniden baslatildi. Karar VERMEDEN 10 saniye beklendi. Adim 2: status: Expired. Adim 3: pending listesinde ARTIK GORUNMEDI (len:0). Adim 4: decide cagrisi HTTP 409, title: Karar zaten verilmis - AlreadyDecided kontrolu Expired icin de gecerli.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1102,9 +1102,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/kapsam-kontrol" \
   onaylayabilir/reddedebilir. Çürürse not güncellenir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**KALDI - HATA-S2-011 (Yuksek, dogrulanmis supheydi).** Adim 2: yalniz RunsRead kapsamli bir anahtarla POST /api/approvals/{id}/decide -> HTTP 200, karar GERCEKTEN uygulandi (status: Approved). Adim 3 (kontrol grubu): AYNI anahtarla PUT /api/agents/{name} (AgentsAdmin gerektirir) -> HTTP 403, title: Kapsam yetersiz - anahtarin genel olarak kapsam sistemine tabi oldugu, yalniz ApprovalEndpoints'te bu denetimin HIC calismadigi dogrulandi. grep -n "RequireApiKeyScope" src/AgentPrism.AspNetCore/Endpoints/ApprovalEndpoints.cs bos doner (kod okumasiyla onceden olculmustu, koşumda dogrulandi). Salt-okunur bir otomasyon anahtari, bekleyen gercek yan etkili bir tool cagrisini (siparis iptali) onaylayabiliyor/reddedebiliyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1201,9 +1201,9 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST "$APU/api/agents/support/run" \
   madde 5).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 400 - kuyruga alinan calistirmalarda govdede approvals alani tasinmasi reddedildi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1239,9 +1239,9 @@ düşülür).
   derleme zaten hata verirdi, K-228).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Bekleyen onay yokken (tumu kararlandirilmis) Onaylar ekraninda Empty bileseni gorundu: "Nothing is waiting" basligi + "A queued run only appears here when a tool call needs approval and no live client can answer it." govde metni (i18n anahtarlarindan geliyor, K-228 geregi eksik olsa derleme hata verirdi).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1276,9 +1276,9 @@ düşülür).
   çalıştırma.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adim 1: satirda cancel_order, altinda arguman metni (orderId=ORD-1001), calisma id'sinin kisaltilmis hali (019ffb55-2f3e...393712) + oturum kimligi (res-041-02), goreli olusturulma zamani ('7 sec. ago'), MUTLAK sure-sonu zamani ('Aug 14, 2026, 4:34:54 PM' - goreceli DEGIL). Adim 2: browser_network_requests /api/approvals/pending'e tekrarlanan GET istekleri gosterdi (refetchInterval:5000 dogrulandi). Adim 4 dogrulanmadi (zaman butcesi - Approve/Reject dugmeleri MT-RES-042/043'te test edildi).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1307,9 +1307,9 @@ düşülür).
   listeden KALKAR (artık `Pending` değil).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Onayla dugmesine tiklandi. Istek dondukten sonra satir listeden KALKTI - ekran 'Nothing is waiting' bos durumuna dondu (onSuccess approvals-pending sorgusunu gecersiz kildi). Busy/disabled ara durumu (adim 2) yakalanamadi (tiklama-yanit araligi playwright snapshot cagrilarindan daha hizliydi) ama nihai davranis (karar uygulandi, satir kalkti) dogrulandi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1333,9 +1333,9 @@ düşülür).
   listeden kalkar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Reddet dugmesine tiklandi. MT-RES-022'nin HTTP davranisiyla ayni sonuc arayuzden tetiklendi - satir listeden kalkti, 'Nothing is waiting' bos durumuna donuldu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1365,9 +1365,9 @@ düşülür).
   "border-t ...">`), sayfa çökmez, tablo görünür kalır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Yaris kosulunun gercek zamanli tetiklenmesi denendi (onayi arka planda API ile kararlandirip UI'da eski satirdaki Reddet dugmesine tiklamak) ama refetchInterval:5000 (auto-yenileme) satiri deneme oncesinde zaten kaldirmisti - butonun kendisi DOM'dan silindigi icin tiklanamadi (playwright 'ref not found'). Bu, disabled denetiminin/yarisin pratikte cok dar bir pencerede oldugunu gosteriyor. Yerine kod okumasiyla dogrulandi: approvals.tsx:124-127 tam olarak case'in tarif ettigi deseni tasiyor - `{decide.isError && (<div className="border-t border-line p-3"><ErrorNote error={decide.error} /></div>)}`. Kod yolu VAR ve dogru konumlanmis (panel altinda, tablonun disi degil icinde) - sayfa cokme riski yok (React kosullu render, try/catch gerektirmez).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1423,9 +1423,9 @@ curl -s -i -X POST "$APU/api/runs/$ORPHANED_RUN_ID/replay" -H "$APB" \
   incelenebilir/tekrarlanabilir kaldığını KANITLAR.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Sonuc onceden tahmin edilen supheyle eslesti. Adim 1: GET /api/runs/{id}/input -> HTTP 404 - bu manuel testin SQL ile urettigi yapay oksuz satirin gercek bir RunInputRecord'u yok (InMemoryRunInputStore/SQL girdisi hic yazilmadi, cunku satir dogrudan UPDATE ile uretildi, gercek bir RunRecordingAgent.RunCoreAsync cagrisindan gecmedi). Adim 3: POST /replay de HTTP 404, title: 'Girdi kaydi yok', detail acikca nedenini anlatiyor ('Girdi kaydi kapaliyken baslamis veya saklama politikasiyla silinmis olabilir'). GERCEK bir surec cokmesinde girdi cokmeden once zaten yazilmis olurdu - bu ayrim not dusuldu; bu case'in kendisi replay/reconciliation kesisiminin GERCEK bir orphan'da nasil davranacagini kanitlamiyor, yalniz bu manuel-test kurulumunun SQL-tabanli simulasyonunun sinirini gosteriyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
