@@ -421,7 +421,7 @@ Ek doğrulama (case'in asıl konusu olan K-183 davranışını ayrıca sınamak 
 su an 'SQLite' kazaniyor. Yalniz bir Use*() cagirin.` — K-183'ün kendisi
 sağlam çalışıyor, yalnız `:memory:` bağlantı dizesi bozuk.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+ **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de HATA-S1-003 düzeltmesiyle yeniden koşuldu: validator artik ciplak :memory:'yi acikca reddediyor (AgentPrismTestHost dahil). Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -742,7 +742,7 @@ bu kurulumu **tetiklemedi**. MT-DIAG-021'in kendi ön koşulu zaten "rol kurulum
 yapılmamış" diyor; bu case rolün gerçek denetimini istiyor, kurulum olmadan
 anlamlı koşulamaz.
 
-**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de geçici RoleTestAuthHandler kurulumuyla koşuldu, sonra kod eksiksiz geri alındı: reader→403, admin→200. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -993,7 +993,7 @@ such table: agentprism_tenants` ile çöktü — HATA-S1-003. Ek doğrulama
 persistenceProvider: SQLite, registered: 1` — beklenen sayaç davranışı bu
 bağlantı dizesiyle doğru, yalnız dokümanın kendi `:memory:` biçimi bozuk.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+ **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de HATA-S1-003 düzeltmesiyle yeniden koşuldu. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -1266,7 +1266,7 @@ uçları (`VoiceEndpoints.cs:48,55,61,70`) hepsi `.WithTags("AgentPrism",
 "Voice")` çağırıyor — yalnız bu WebSocket ucu ikinci etiketi (`Voice`)
 eksik bırakıyor. İkinci sorgu beklenen: `["AgentPrism"]`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+ **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de düzeltmesiyle yeniden koşuldu: tags artik ["AgentPrism","Voice"]. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -1315,7 +1315,7 @@ her tekil uçta ayrıca `.WithName(...)` çağırıyor; A2A grubu bunu atlıyor.
 Etki sınırlı: yalnız 2/147 işlem etkileniyor, ikisi de dinamik A2A yüzeyinde
 (kod-üretici istemciler bu iki uç için kararsız/otomatik ad üretir).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+ **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de düzeltmesiyle yeniden koşuldu: 147 islemin 147'si de benzersiz operationId taşıyor (0 null). Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 

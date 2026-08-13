@@ -13,13 +13,14 @@
 
 ## 1. Durum
 
-> Son güncelleme: **2026-08-13**, Şerit 1 (oturum S1-1 … S1-7 tam — **Şerit 1'in
-> planlı yedi oturumu bitti**).
+> Son güncelleme: **2026-08-13**, Şerit 1 (oturum S1-1 … S1-7 tam, ardından
+> **S1-8: tüm bulguların düzeltmesi** — kullanıcı kararıyla erkene alınmış
+> toplama benzeri bir oturum, yalnız Şerit 1'in kendi kusurlarını kapsar).
 
 | | |
 |---|---|
 | Toplam case | **1097** |
-| Koşuldu | **290** (`01` tam · `02` 28/42 · `03` tam · `04` **tam** · `14` 1/47 · `19` **tam (61/61)** · `20` 23/31 (8 Beklemede — embedding erişimi yok) · `23` **tam** · `25` 27/28 (1 Beklemede — geçici kod değişikliği gerekiyor)) |
+| Koşuldu | **290** (`01` tam · `02` 28/42 · `03` tam · `04` **tam** · `14` 1/47 · `19` **tam (61/61)** · `20` **tam (31/31)** · `23` **tam** · `25` **tam (28/28)**) |
 | Kalan | **807** |
 | Planlanan oturum | **40** (4 paralel şerit + ortak kuyruk) |
 
@@ -27,37 +28,51 @@
 
 | Şerit | Durum |
 |---|---|
-| 1 — Kalıcılık ve ses | **✅ TÜM 7 OTURUM BİTTİ.** S1-1 ✅ · S1-2 ✅ · S1-3 ✅ (`23` tamam, 26/26) · S1-4 ✅ (`20`, 23/31 koşuldu — 13 Geçti/10 Kaldı; 8 Beklemede, embedding erişimi yok) · S1-5 ✅ (`25`, 27/28 koşuldu — 24 Geçti/3 Kaldı; 1 Beklemede, geçici kod değişikliği gerekiyor) · S1-6 ✅ (`19` §1–§8, 37/37 koşuldu — 35 Geçti/1 Kaldı/1 Atlandı) · **S1-7 ✅** (`19` §9–§13, 24/24 koşuldu — 17 Geçti/2 Kaldı/1 Atlandı/4 Beklemede; dosya `19` TAMAMLANDI 61/61). Sıradaki: boşa düşen ajan **ortak kuyruk**tan (§7 aşağıda) bir oturum alır, kendi şerit numarasında (`S1`, port 5081, şema `mt_s1`) koşar. |
+| 1 — Kalıcılık ve ses | **✅ TÜM 7 OTURUM + S1-8 BİTTİ.** S1-1 ✅ · S1-2 ✅ · S1-3 ✅ (`23` tamam, 26/26) · S1-4 ✅ (`20`, 23/31 koşuldu) · S1-5 ✅ (`25`, 27/28 koşuldu) · S1-6 ✅ (`19` §1–§8, 37/37) · S1-7 ✅ (`19` §9–§13, 24/24; dosya `19` TAMAMLANDI 61/61) · **S1-8 ✅** (2026-08-13: 15 hatanın TAMAMI kodlandı, kalan 8 embedding-bloklu + 1 geçici-kod-gerektiren case koşuldu — bkz. aşağıdaki tablo). Şerit 1'de kod/kusur açığı **sıfır**; yalnız 4 fiziksel-mikrofon case'i (`MT-MM-086/087/088/090`) kullanıcı eylemi bekliyor. Sıradaki: boşa düşen ajan **ortak kuyruk**tan (§7 aşağıda) bir oturum alır, kendi şerit numarasında (`S1`, port 5081, şema `mt_s1`) koşar. |
 | 2 — HTTP ve güvenlik | ⏳ Başlamadı |
 | 3 — Çekirdek ve sağlayıcı | ⏳ Başlamadı |
 | 4 — Arayüz | ⏳ Başlamadı |
 | Ortak kuyruk | ⏳ Başlamadı |
 
-> 🚨 **Şerit 2, 3 ve 4 başlamadan önce `git merge docs/manuel-test` çalıştırıp
-> yeniden derlemelidir.** Şerit 1 koşum sırasında bir **Kritik** kusur düzeltti
-> (`K-392`, commit `aa64bc7`): `InvariantGlobalization` SQL Server'ı tamamen
-> kırıyordu. Düzeltmeyi almayan şerit, SQL Server'a dokunan her case'de aynı
-> duvara çarpar.
+> 🚨 **Şerit 2, 3 ve 4 başlamadan önce `git merge docs/manuel-test` (veya
+> güncel `test/kosum-s1` dalını) alıp yeniden derlemelidir.** Şerit 1, S1-8'de
+> 14 kusuru daha kodladı (K-392'nin üzerine — bkz. aşağıdaki tablo ve
+> `docs/KARARLAR.md` K-393..K-399): iki **Kritik** (`InvariantGlobalization`
+> SQL Server'ı kırıyordu; workflow'lar kota muhasebesinden tamamen kaçıyordu),
+> beşi **Yüksek**. Düzeltmeleri almayan şerit SQL Server, workflow-kota,
+> bellek sağlayıcıları, metin arama, bilgi tabanı kapsam denetimi ve gerçek
+> zamanlı ses case'lerinde aynı duvarlara çarpar.
 
 ### Şerit 1'in bulduğu hatalar
+
+**Hepsi kapandı (2026-08-13, S1-8) — kullanıcı kararıyla KOSUM-PLANI §2.1'den
+sapılıp Şerit 1 kapsamındaki kusurlar erkenden kodlandı** (Şerit 2/3/4 henüz
+başlamadığı için parallel-şerit kıyaslanabilirliği riske girmedi). Dört
+doğrulama kapısı yeşil, her satır canlı sunucuda yeniden doğrulandı. Ayrıntı
+ve karar gerekçeleri: `docs/KARARLAR.md` K-393..K-399,
+[`SONUCLAR-S1-2026-08-13.md`](SONUCLAR-S1-2026-08-13.md) (S1-8 devir notu).
 
 | Hata | Önem | Durum |
 |---|---|---|
 | `HATA-S1-004` — `InvariantGlobalization` SQL Server'ı kırıyor (örnek **ve** şablon) | Kritik | ✅ Düzeltildi (K-392) |
-| `HATA-S1-006` — Workflow çalıştırmaları kota muhasebesini tamamen atlıyor | Kritik | ⛔ Açık |
-| `HATA-S1-015` — Gerçek zamanlı ses turunda `cancel`, `runs` satırını kalıcı `Running`'de bırakıyor (maliyet sessizce kaybolur) | Yüksek | ⛔ Açık |
-| `HATA-S1-002` — `AutoApplyMigrations=false` + hazır olmayan şema uygulamayı kapatıyor | Yüksek | ⛔ Açık |
-| `HATA-S1-003` — `Data Source=:memory:` dokümante edildiği hâlde hiç çalışmıyor | Yüksek | ⛔ Açık |
-| `HATA-S1-008` — Bellek sağlayıcıları (dosya belleği okuma, todo) mesaj serileştirmesinde `500` ile çöküyor | Yüksek | ⛔ Açık |
-| `HATA-S1-011` — `KnowledgeEndpoints` API anahtarı kapsam denetimi hiç uygulamıyor | Yüksek | ⛔ Açık |
-| `HATA-S1-012` — `VoiceConversationEndpoint`'in OpenAPI etiketi eksik | Yüksek | ⛔ Açık |
-| `HATA-S1-007` — `/api/agents/validate`, bilinmeyen enum string'de `400` yerine `500` veriyor | Orta | ⛔ Açık |
-| `HATA-S1-009` — `EnableTextSearch` sorguyla eşleşen içeriği hiç bulamıyor (şüpheli) | Orta | ⛔ Açık |
-| `HATA-S1-013` — İki A2A ucunun `operationId`si yok | Orta | ⛔ Açık |
-| `HATA-S1-014` — `requireBearerToken:false` uçlarına (eşlenmemiş `api/` yolları **ve** gerçek zamanlı ses ucu) geçerli statik bearer token ile istek yanlış `401` döner | Orta | ⛔ Açık |
-| `HATA-S1-005` — Dört saklama hedefi config varsayılanını sessizce yok sayıyor | Düşük | ⛔ Açık |
-| `HATA-S1-001` — `user-secrets` temizliği uygulanmamış (süreç kusuru) | Düşük | ⛔ Açık |
-| `HATA-S1-010` — Bilgi tabanı doğrulama hataları `.NET ArgumentException`'ın iç parametre adını sızdırıyor | Düşük | ⛔ Açık |
+| `HATA-S1-006` — Workflow çalıştırmaları kota muhasebesini tamamen atlıyor | Kritik | ✅ Düzeltildi (K-394) |
+| `HATA-S1-015` — Gerçek zamanlı ses turunda `cancel`, `runs` satırını kalıcı `Running`'de bırakıyor (maliyet sessizce kaybolur) | Yüksek | ✅ Düzeltildi (K-398) |
+| `HATA-S1-002` — `AutoApplyMigrations=false` + hazır olmayan şema uygulamayı kapatıyor | Yüksek | ✅ Düzeltildi (K-393) |
+| `HATA-S1-003` — `Data Source=:memory:` dokümante edildiği hâlde hiç çalışmıyor | Yüksek | ✅ Düzeltildi |
+| `HATA-S1-008` — Bellek sağlayıcıları (dosya belleği okuma, todo) mesaj serileştirmesinde `500` ile çöküyor | Yüksek | ✅ Düzeltildi |
+| `HATA-S1-011` — `KnowledgeEndpoints` API anahtarı kapsam denetimi hiç uygulamıyor | Yüksek | ✅ Düzeltildi (K-397) |
+| `HATA-S1-012` — `VoiceConversationEndpoint`'in OpenAPI etiketi eksik | Yüksek | ✅ Düzeltildi |
+| `HATA-S1-007` — `/api/agents/validate`, bilinmeyen enum string'de `400` yerine `500` veriyor | Orta | ✅ Düzeltildi |
+| `HATA-S1-009` — `EnableTextSearch` sorguyla eşleşen içeriği hiç bulamıyor | Orta | ✅ Düzeltildi (K-396) |
+| `HATA-S1-013` — İki A2A ucunun `operationId`si yok | Orta | ✅ Düzeltildi |
+| `HATA-S1-014` — `requireBearerToken:false` uçlarına (eşlenmemiş `api/` yolları **ve** gerçek zamanlı ses ucu) geçerli statik bearer token ile istek yanlış `401` döner | Orta | ✅ Düzeltildi (K-395) |
+| `HATA-S1-005` — Dört saklama hedefi config varsayılanını sessizce yok sayıyor | Düşük | ✅ Düzeltildi (K-399) |
+| `HATA-S1-001` — `user-secrets` temizliği uygulanmamış (süreç kusuru) | Düşük | ✅ Düzeltildi |
+| `HATA-S1-010` — Bilgi tabanı doğrulama hataları `.NET ArgumentException`'ın iç parametre adını sızdırıyor | Düşük | ✅ Düzeltildi |
+
+**Şerit 1'de kalan tek açık kalem:** `MT-MM-086`/`087`/`088`/`090` — gerçek
+insan + gerçek mikrofon gerektirir, otomatikleştirilemez. Kod/kusur açığı
+**sıfırdır**.
 
 Ayrıntı: [`SONUCLAR-S1-2026-08-13.md`](SONUCLAR-S1-2026-08-13.md).
 

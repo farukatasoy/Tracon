@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
@@ -26,6 +27,16 @@ public sealed class AgentPrismSqliteOptionsValidator : IValidateOptions<AgentPri
                 $"'{AgentPrismSqliteOptions.SectionName}:{nameof(AgentPrismSqliteOptions.ConnectionString)}' " +
                 "ayarini yapilandirmada tanimlayin.");
         }
+        else if (IsBareInMemoryConnectionString(options.ConnectionString))
+        {
+            (failures ??= []).Add(
+                $"{nameof(AgentPrismSqliteOptions)}.{nameof(AgentPrismSqliteOptions.ConnectionString)} ciplak " +
+                "'Data Source=:memory:' kullanamaz: bu kutuphane her islem icin yeni bir baglanti acar ve " +
+                "ciplak ':memory:' her baglantiya kendi izole veritabanini verir (Cache=Shared eklense bile). " +
+                "Migration'lar bir baglantida uygulanir, sonraki sorgu bos bir veritabanina duser. Paylasimli " +
+                "bellek ici veritabani icin URI bicimini kullanin: " +
+                "'Data Source=file:<ad>?mode=memory&cache=shared' veya 'Data Source=file::memory:?cache=shared'.");
+        }
 
         if (!SqlIdentifier.IsValidUnquoted(options.TablePrefix))
         {
@@ -45,5 +56,26 @@ public sealed class AgentPrismSqliteOptionsValidator : IValidateOptions<AgentPri
         return failures is null
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);
+    }
+
+    /// <summary>
+    /// Baglanti dizesinin ciplak (URI olmayan) <c>:memory:</c> veri kaynagi
+    /// kullanip kullanmadigini bildirir. Bkz. <see cref="AgentPrismSqliteOptions.ConnectionString"/>.
+    /// </summary>
+    private static bool IsBareInMemoryConnectionString(string connectionString)
+    {
+        SqliteConnectionStringBuilder builder;
+
+        try
+        {
+            builder = new SqliteConnectionStringBuilder(connectionString);
+        }
+        catch (ArgumentException)
+        {
+            // Baska bir catman (baglanti acilirken) gecersiz sozdizimini bildirir.
+            return false;
+        }
+
+        return string.Equals(builder.DataSource, ":memory:", StringComparison.OrdinalIgnoreCase);
     }
 }

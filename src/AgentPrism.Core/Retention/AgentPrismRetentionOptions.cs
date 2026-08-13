@@ -80,6 +80,34 @@ public sealed class AgentPrismRetentionOptions
     /// </summary>
     public RetentionTargetOptions IdempotencyKeys { get; } = new() { MaxAgeDays = 1 };
 
+    /// <summary>
+    /// <see cref="RetentionTargets.RunInputs"/> icin varsayilan (Faz 47). Kullanici
+    /// verisi degildir (bkz. <see cref="RetentionTargets.RunInputs"/> ustundeki not);
+    /// <see cref="RetentionTargets.UserDataTargets"/>'ta yer almaz ve bu yuzden
+    /// yapilandirma tabanli varsayilan devreye girer.
+    /// </summary>
+    public RetentionTargetOptions RunInputs { get; } = new() { MaxAgeDays = 30 };
+
+    /// <summary>
+    /// <see cref="RetentionTargets.VoiceSessions"/> icin varsayilan (Faz 29). Kayit
+    /// yalniz ozet metrik tasir, ses baytlari degil (bkz. hedefin kendi notu).
+    /// </summary>
+    public RetentionTargetOptions VoiceSessions { get; } = new() { MaxAgeDays = 30 };
+
+    /// <summary>
+    /// <see cref="RetentionTargets.RunScores"/> icin varsayilan (Faz 31).
+    /// <see cref="EvalCaseResults"/> ile ayni omur sinifindadir (degerlendirme geçmisi).
+    /// </summary>
+    public RetentionTargetOptions RunScores { get; } = new() { MaxAgeDays = 180 };
+
+    /// <summary>
+    /// <see cref="RetentionTargets.DocumentEmbeddings"/> icin varsayilan (Faz 51).
+    /// <see cref="RetentionTargetOptions.MaxAgeDays"/> varsayilan <see langword="null"/>'dur:
+    /// bilgi tabani icerigi kullanicinin yukledigi referans veridir, log/olay
+    /// degildir — otomatik silme yalniz acikca istenirse acilmali.
+    /// </summary>
+    public RetentionTargetOptions DocumentEmbeddings { get; } = new();
+
     /// <summary>Bir hedef adina karsilik gelen ayar nesnesini dondurur.</summary>
     /// <param name="target">Bkz. <see cref="RetentionTargets"/>.</param>
     /// <returns>Ayar nesnesi; bilinmeyen hedef icin <see langword="null"/>.</returns>
@@ -98,6 +126,10 @@ public sealed class AgentPrismRetentionOptions
             RetentionTargets.Sessions => Sessions,
             RetentionTargets.Conversations => Conversations,
             RetentionTargets.IdempotencyKeys => IdempotencyKeys,
+            RetentionTargets.RunInputs => RunInputs,
+            RetentionTargets.VoiceSessions => VoiceSessions,
+            RetentionTargets.RunScores => RunScores,
+            RetentionTargets.DocumentEmbeddings => DocumentEmbeddings,
             _ => null,
         };
 }

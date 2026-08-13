@@ -49,6 +49,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     private readonly TimeProvider _timeProvider;
     private readonly SemaphoreSlim _concurrency;
     private readonly IRunCancellationRegistry? _cancellationRegistry;
+    private readonly QuotaEnforcer? _quotaEnforcer;
 
     /// <summary>Yeni bir kosucu olusturur.</summary>
     /// <param name="catalog">Workflow katalogu.</param>
@@ -64,6 +65,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// <param name="cancellationRegistry">
     /// Iptal defteri. <see langword="null"/> ise workflow calistirmasi disaridan iptal edilemez.
     /// </param>
+    /// <param name="quotaEnforcer">
+    /// Kota denetleyici. <see langword="null"/> ise workflow tuketimi kota sayaclarina yazilmaz
+    /// (agent calistirma yoluyla AYNI davranis, bkz. <c>RunRecordingAgent</c>).
+    /// </param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
     public WorkflowRunner(
         WorkflowCatalog catalog,
@@ -76,7 +81,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         AgentPrismMetrics? metrics = null,
         RunTraceCollector? traceCollector = null,
         TimeProvider? timeProvider = null,
-        IRunCancellationRegistry? cancellationRegistry = null)
+        IRunCancellationRegistry? cancellationRegistry = null,
+        QuotaEnforcer? quotaEnforcer = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(runStore);
@@ -98,6 +104,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         _timeProvider = timeProvider ?? TimeProvider.System;
         _concurrency = new SemaphoreSlim(Math.Max(options.Value.MaxConcurrentRuns, 1));
         _cancellationRegistry = cancellationRegistry;
+        _quotaEnforcer = quotaEnforcer;
     }
 
     /// <inheritdoc />
@@ -862,6 +869,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         // altindaki agent calistirmalari tasir, agac toplaminda gorunur.
         await writer.CompleteAsync(status, usage: null, error, cost: null, CancellationToken.None).ConfigureAwait(false);
 
+        await RecordQuotaAsync(execution, scope, CancellationToken.None).ConfigureAwait(false);
+
         // 🚨 Insan bekleyen bir calistirmanin kontrol noktalari ASLA silinmez:
         // yanit tam olarak onlardan devam eder. Temizlik ayari yalnizca gercekten
         // sonuclanmis calistirmalar icindir.
@@ -907,6 +916,48 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         }
 
         activity.Dispose();
+    }
+
+    /// <summary>Workflow'un TAMAMINI (kok seviyesi, tek bir "run") kota sayaclarina yazar.</summary>
+    /// <remarks>
+    /// <para>
+    /// 🚨 HATA-S1-006: workflow calistirmalari daha once kota muhasebesini
+    /// TAMAMEN atliyordu — <c>QuotaEnforcer</c>'a yalniz <c>RunRecordingAgent</c>
+    /// (agent calistirma yolu) degiyordu, <see cref="IWorkflowRunner"/> hicbir
+    /// zaman ona ugramiyordu.
+    /// </para>
+    /// <para>
+    /// Bir workflow satirinin kendi <c>usage</c>/<c>cost</c>'u yoktur (Faz 20,
+    /// <see cref="CompleteAsync"/>'in kendi notuna bkz.); tuketim, az once
+    /// tamamlanan calistirma agacinin toplamindan (<see cref="RunRecord.TreeUsage"/>/
+    /// <see cref="RunRecord.TreeCost"/>) okunur. Workflow'un TAMAMI TEK bir
+    /// "run" sayilir — adim basina degil (agent tarafinda zaten aciklanan ayni
+    /// "kok mu adim mi" tasarim karari, <see cref="RunRecordingAgent"/>'in
+    /// <c>Depth == 0</c> kuraliyla birebir ayni gerekce).
+    /// </para>
+    /// </remarks>
+    private async ValueTask RecordQuotaAsync(WorkflowExecution execution, AgentRunScope scope, CancellationToken cancellationToken)
+    {
+        if (_quotaEnforcer is null)
+        {
+            return;
+        }
+
+        var record = await _runStore.GetRunAsync(execution.RunId, cancellationToken).ConfigureAwait(false);
+
+        await _quotaEnforcer.RecordAsync(
+            new QuotaConsumption
+            {
+                TenantId = scope.TenantId ?? _tenantContext.TenantId,
+                AgentName = execution.WorkflowName,
+                Runs = 1,
+                Tokens = record?.TreeUsage?.TotalTokens ?? 0,
+                Cost = record?.TreeCost is { } treeCost
+                    ? (treeCost.InputCost ?? 0m) + (treeCost.OutputCost ?? 0m)
+                    : null,
+                OccurredAt = _timeProvider.GetUtcNow(),
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     private async ValueTask DiscardCheckpointsAsync(WorkflowExecution execution)

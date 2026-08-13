@@ -37,4 +37,10 @@ public enum ApiKeyScope
     /// disa acik yuzeyi kendiliginden acmamalidir.
     /// </summary>
     ExternalInvoke = 4,
+
+    /// <summary>Bilgi tabani okuma: koleksiyon listeleme, anlamsal arama.</summary>
+    KnowledgeRead = 5,
+
+    /// <summary>Bilgi tabani yazma: belge yukleme, silme.</summary>
+    KnowledgeAdmin = 6,
 }

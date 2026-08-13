@@ -122,8 +122,8 @@ public static class AgentPrismA2AExtensions
             var agentGroup = group.MapGroup(agentPath);
             var card = BuildAgentCard(agentName, descriptor, pattern + agentPath);
 
-            agentGroup.MapA2A(handler, "/");
-            agentGroup.MapWellKnownAgentCard(card, "");
+            agentGroup.MapA2A(handler, "/").WithName($"AgentPrismA2A_{agentName}");
+            agentGroup.MapWellKnownAgentCard(card, "").WithName($"AgentPrismA2AAgentCard_{agentName}");
         }
 
         return group;

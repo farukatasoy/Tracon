@@ -57,21 +57,27 @@ internal static class AgentEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismCreateAgent")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Yeni bir agent tanimi olusturur.");
+            .WithSummary("Yeni bir agent tanimi olusturur.")
+            .Accepts<AgentDefinitionRequest>("application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest);
 
         builder.MapPost("/api/agents/validate", ValidateAgentAsync)
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismValidateAgent")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Bir tanimi kaydetmeden ve hicbir model cagirmadan derler.");
+            .WithSummary("Bir tanimi kaydetmeden ve hicbir model cagirmadan derler.")
+            .Accepts<AgentDefinitionRequest>("application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest);
 
         builder.MapPut("/api/agents/{name}", UpdateAgentAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismUpdateAgent")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Bir agent tanimini gunceller ve yeni bir surum uretir.");
+            .WithSummary("Bir agent tanimini gunceller ve yeni bir surum uretir.")
+            .Accepts<AgentDefinitionRequest>("application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest);
 
         builder.MapDelete("/api/agents/{name}", DeleteAgentAsync)
             .RequireRole(roles.Admin)
@@ -240,12 +246,20 @@ internal static class AgentEndpoints
     }
 
     private static async Task<Results<Created<AgentDefinition>, ProblemHttpResult>> CreateAgentAsync(
-        AgentDefinitionRequest request,
         IAgentCatalog catalog,
         IAgentDefinitionStore definitions,
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
+        var (bound, bindError) = await BindAgentDefinitionRequestAsync(httpContext, cancellationToken).ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        var request = bound!;
+
         if (Validate(request) is { } invalid)
         {
             return invalid;
@@ -284,10 +298,19 @@ internal static class AgentEndpoints
     /// ayirt etmek isteyen bir CI'in karsilastigi tek gercek istek hatasidir.
     /// </remarks>
     private static async Task<Results<Ok<AgentValidationReport>, ProblemHttpResult>> ValidateAgentAsync(
-        AgentDefinitionRequest request,
+        HttpContext httpContext,
         AgentDefinitionValidator validator,
         CancellationToken cancellationToken)
     {
+        var (bound, bindError) = await BindAgentDefinitionRequestAsync(httpContext, cancellationToken).ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        var request = bound!;
+
         if (Validate(request) is { } invalid)
         {
             return invalid;
@@ -302,11 +325,20 @@ internal static class AgentEndpoints
 
     private static async Task<Results<Ok<AgentDefinition>, ProblemHttpResult>> UpdateAgentAsync(
         string name,
-        AgentDefinitionRequest request,
+        HttpContext httpContext,
         IAgentCatalog catalog,
         IAgentDefinitionStore definitions,
         CancellationToken cancellationToken)
     {
+        var (bound, bindError) = await BindAgentDefinitionRequestAsync(httpContext, cancellationToken).ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        var request = bound!;
+
         if (!string.Equals(name, request.Name, StringComparison.Ordinal))
         {
             return TypedResults.Problem(
@@ -999,4 +1031,40 @@ internal static class AgentEndpoints
             title: "Agent bulunamadi",
             detail: $"'{name}' adinda bir agent yok.",
             statusCode: StatusCodes.Status404NotFound);
+
+    /// <summary>
+    /// Govdeyi elle okur (minimal API'nin otomatik JSON baglamasi yerine): bir
+    /// ayristirma hatasi (ornegin taninmayan bir enum degeri) boylece bu ucun
+    /// kendi <c>400</c> sozlesmesine girer, minimal API'nin baglama asamasinda
+    /// fillayip yakalanamayan bir <see cref="JsonException"/> ile genel <c>500</c>'e
+    /// dusmez (HATA-S1-007).
+    /// </summary>
+    private static async Task<(AgentDefinitionRequest? Request, ProblemHttpResult? Error)> BindAgentDefinitionRequestAsync(
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var request = await httpContext.Request
+                .ReadFromJsonAsync<AgentDefinitionRequest>(cancellationToken)
+                .ConfigureAwait(false);
+
+            if (request is null)
+            {
+                return (null, TypedResults.Problem(
+                    title: "Gecersiz istek govdesi",
+                    detail: "Govde bos olamaz.",
+                    statusCode: StatusCodes.Status400BadRequest));
+            }
+
+            return (request, null);
+        }
+        catch (JsonException ex)
+        {
+            return (null, TypedResults.Problem(
+                title: "Gecersiz istek govdesi",
+                detail: ex.Message,
+                statusCode: StatusCodes.Status400BadRequest));
+        }
+    }
 }

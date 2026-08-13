@@ -83,7 +83,9 @@ internal sealed class McpApprovalGuardFilter : IEndpointFilter
             await schemaReadyGate.WaitAsync(lifetime.ApplicationStopping).ConfigureAwait(false);
 
             var options = optionsMonitor.CurrentValue;
-            var descriptors = await catalog.ListAsync(lifetime.ApplicationStopping).ConfigureAwait(false);
+            var descriptors = await ExternalSurfaceGuard
+                .ListCatalogWithRetryAsync(catalog, lifetime, logger, "MCP")
+                .ConfigureAwait(false);
 
             ExternalSurfaceGuard.EnsureNoApprovalRequiredTools(
                 descriptors, options.ExposedAgents, options.ExposeAllAgents, toolRegistry, "MCP");
