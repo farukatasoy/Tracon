@@ -617,9 +617,13 @@ Sınır durumu.
   örnek: Playground'un istem kutusuna yazarken de palet açılabilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`Cmd+K` basıldığında `role="dialog" aria-modal="true"` taşıyan palet açıldı,
+`document.activeElement` `role="combobox"` (`aria-label="Jump to a screen, an
+agent or a run"`) taşıyan giriş alanıydı. Playground ekranında istem kutusu
+(`textbox "Send a message…"`) odaktayken de `Cmd+K` aynı şekilde paleti açtı
+ve odak yine combobox'a geçti — `insideText: true` davranışı doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -647,9 +651,15 @@ Sınır durumu.
   (navigasyon komutuysa ilgili ekrana gidilir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`agents` yazınca liste iki sonuca daraldı: 1) "Go to Agents" (otomatik seçili,
+`aria-selected="true"`), 2) "Run OpenRouter Destek in the playground" (fuzzy
+eşleşme — "Agent" kelimesi eşleşiyor). Ok-aşağı basınca seçim ikinci satıra
+geçti (`aria-selected="true"` ikinci `option`'a taşındı, birincisi `false`
+oldu). Enter'a basınca palet kapandı ve URL
+`/agentprism/playground/openrouter-destek`'e gitti — vurgulu komutun
+`perform()`'u doğru çalıştı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -676,9 +686,23 @@ Sınır durumu.
 - Adım 2: palet kapanır, odak paleti açan öğeye (⌘K düğmesi) döner.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 1 geçti: birkaç `Tab` sonrası `document.activeElement` hâlâ
+`role="combobox"` girdi alanıydı — `preventDefault()` odak tuzağı doğrulandı.
+Adım 2 kısmen geçti: `Esc` palet diyaloğunu kapattı (`role="dialog"` DOM'dan
+kalktı) ama odak `⌘K` düğmesine (`data-testid="palette-open"`) DÖNMEDİ —
+`document.activeElement` `BODY`'ye düştü. `data-testid="palette-open"`
+düğmesini elle tıklayarak paleti açıp aynı adımları tekrarladığımda da aynı
+sonuç: `Esc` sonrası odak `document.body`'de kaldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Kaldı** — kök neden: `src/AgentPrism.UI/frontend/src/components/layout.tsx:157`
+`onClose={() => setPalette(false)}` yalnızca durumu kapatıyor, açılışta hangi
+öğenin odakta olduğunu tutan bir `ref` yok. `command-palette.tsx:117-122`'deki
+`Escape` dalı da yalnızca `onClose()` çağırıyor, bir focus-restore çağrısı
+yok. Karşılaştırma: aynı dosyadaki `ShortcutHelp` (satır 376-378) kendi "Kapat"
+butonuna `close.current?.focus()` ile odaklanıyor — ama o da açılıştaki
+kendi butonuna odaklanma, palet'i açan öğeye DÖNME değil. `HATA-S4-004`.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -706,9 +730,17 @@ Negatif senaryo.
 - Navigasyon listesinde "Audit" **yoktur** (MT-UI-010 ile tutarlı).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Atlandı — MT-UI-010/011 ile aynı yapısal engel: `Reader` rolündeki bir oturum
+tarayıcıda kurulamıyor (`X-Test-Role` başlığı `AccessGate`'in
+`Authorization: Bearer` akışıyla gönderilemiyor, bkz. MT-UI-010'un notu).
+`canAdminister` filtresinin kod tarafı (`usePaletteCommands` içindeki
+`meta.roles.canAdminister` kontrolleri, `command-palette.tsx`) `Admin`
+oturumunda zaten "Yeni agent"/"Yeni workflow" komutlarının GÖRÜNDÜĞÜ gözlemiyle
+(bu oturumun `roles.canAdminister:true` olduğu `/api/meta` yanıtından
+doğrulandı) dolaylı olarak tutarlı, ama negatif tarafı (rol kapalıyken komutun
+YOK olması) tarayıcıda ölçülemedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -739,9 +771,13 @@ Sınır durumu.
   olduğu için tarayıcının varsayılan davranışı da tetiklenmez).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 1: `g` sonra hemen `a` (`document.dispatchEvent(new KeyboardEvent('keydown', ...))` ile
+gerçek `keydown` olayları tetiklendi) → `location.pathname`
+`/agentprism/agents`'a geçti. Adım 2: `g` bas, 2.2 sn bekle, sonra `a` bas →
+`location.pathname` `/agentprism/dashboard`'da kaldı, hiçbir gezinme
+olmadı. Konsol hatası/uyarı yok (`browser_console_messages` boş).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -769,9 +805,12 @@ Negatif senaryo / sınır durumu.
   kurulmaz).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Playground istem kutusuna (`textarea[data-testid=playground-input]`) harf harf
+(`pressSequentially`) `merhaba` yazıldı; kutunun `.value`'su tam olarak
+`"merhaba"` — `g` harfinden sonraki `e` bir gezinme dizisi olarak yutulmadı,
+hiçbir karakter kayıp değil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -798,9 +837,21 @@ Negatif senaryo / sınır durumu.
   yapmaz, hata vermez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Ön koşulun kendisi kod tarafında YANLIŞ: `input[data-search]` deseni
+YALNIZCA tüketen tarafta var (`src/AgentPrism.UI/frontend/src/components/
+layout.tsx:202`); tüm `src/AgentPrism.UI/frontend/src/screens/*.tsx` dosyaları
+grep'lendi (`grep -rln "data-search" screens/`) — **sıfır** eşleşme. Agents
+listesi (kod okuması VE canlı DOM anlık görüntüsüyle doğrulandı) hiç arama
+kutusu içermiyor; hiçbir ekran içermiyor. `/`'nin bu davranışı `?` kısayol
+yardımında kullanıcıya `shortcuts.focusSearch` ("Focus the search box on this
+screen" / "Bu ekrandaki arama kutusuna odaklan") olarak REKLAM EDİLİYOR
+(`command-palette.tsx:394`, `locales/en.ts:135`, `locales/tr.ts:134`) ama
+hedefi hiçbir zaman yok — ölü/tamamlanmamış bir özellik. Agents ekranında `/`
+basıldığında `document.activeElement` `BODY`'de kaldı, hata fırlamadı (ikinci
+kısım — "hata vermez" — teknik olarak doğru, ama ilk kısım hiçbir ekranda hiç
+gerçekleşemiyor). `HATA-S4-005`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -825,9 +876,15 @@ Negatif senaryo / sınır durumu.
 - `Esc` veya "Kapat" kartı kapatır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`Shift+/` tetiklenince `role="dialog"` "Keyboard shortcuts" kartı açıldı, tam
+11 satır (`dt`/`dd` çifti): Command palette, Go to agents, Go to runs, Go to
+sessions, Go to the dashboard, Go to workflows, Go to the playground, Focus
+the search box, Send the prompt, Close the open layer, This list. "Close"
+butonu açılışta otomatik odaklıydı (`[active]`). `Esc` kartı kapattı
+(`role=dialog` DOM'dan kalktı); ayrı bir denemede "Close" butonuna tıklamak da
+kartı kapattı — ikisi de çalışıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -855,9 +912,22 @@ Negatif senaryo / sınır durumu.
 - `<html data-theme="dark">` ilk DOM anlık görüntüsünde zaten mevcuttur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Atlandı — bu makinenin macOS görünümü fiilen **Dark** (`defaults read -g
+AppleInterfaceStyle` → `Dark`), ama Playwright MCP'nin başlattığı Chromium
+bunu YANSITMIYOR: `window.matchMedia('(prefers-color-scheme: dark)').matches`
+`false` döndü. Mevcut Playwright MCP araç kümesinde `prefers-color-scheme`
+emülasyonu için bir araç (`browser_resize` gibi CDP `Emulation.setEmulatedMedia`
+çağıran bir tool) yok — bu, ilk karede gerçek karanlık tercihle koşulan bir
+yükleme gözlemlemeyi yapısal olarak engelliyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+Destekleyici kod okuması (bulgu değil, doğrulama): `main.tsx:12`
+`applyTheme(readThemePreference())` `createRoot(...).render()`'DAN ÖNCE, modül
+seviyesinde senkron çağrılıyor; `index.html`'in `<body>`si `<div id="root">`
+dışında hiçbir görünür içerik taşımıyor. Bu ikisi birlikte mimari olarak
+"önce açık, sonra karanlık" yanıp sönmesini imkânsız kılıyor — ama bu, canlı
+gözlemin yerini tutmaz.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -885,9 +955,15 @@ Negatif senaryo / sınır durumu.
 - Adım 2: tema, yeniden yükleme sonrası da **korunur**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Başlangıç: `data-theme="light"`, `localStorage['agentprism.theme']="system"`,
+düğme başlığı "Switch to dark theme". Tıklama sonrası: `data-theme="dark"`
+ANINDA (aynı `evaluate` çağrısında ölçüldü), `localStorage['agentprism.theme']
+="dark"` (`system` değil), düğmenin `title`'ı `"Theme: dark"`'a döndü. Sayfa
+`http://localhost:5084/agentprism/dashboard`'a yeniden yüklendikten sonra
+`data-theme` hâlâ `"dark"`, `localStorage` hâlâ `"dark"` — kalıcılık
+doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -915,9 +991,34 @@ Negatif senaryo / sınır durumu.
   üst çubuktaki düğmenin aksine — bu, MT-UI-029'un sınırını **aşan** tek yoldur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İkinci madde geçti (üç seçenek: Follow system/Light/Dark). Birinci madde
+**KALDI**: önce üst çubuktaki düğmeyle tema `dark` yapıldı (MT-UI-027), sonra
+Ayarlar'a SPA içi gezinme ile gidildi (tam sayfa yenilemesi olmadan), `<select>`
+"Follow system" yapıldı. Bu makinenin tarayıcısı `prefers-color-scheme: dark`
+`false` bildiriyor (bkz. MT-UI-026), yani "sistemi izle" `light`'a çözümlenmesi
+gerekiyordu — `document.documentElement.dataset.theme` gerçekten `"light"`'a
+döndü (sayfa GÖRSEL olarak doğru). Ama üst çubuktaki düğmenin kendisi
+YANLIŞ kaldı: `title="Theme: dark"`, `aria-label="Switch to light theme"`,
+ikon hâlâ ay (`MoonIcon`) — sanki tema hâlâ `dark`'mış gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Kaldı** — kök neden: `src/AgentPrism.UI/frontend/src/components/layout.tsx:319-353`
+`ThemeToggle` ve `src/AgentPrism.UI/frontend/src/screens/settings.tsx:31,134-147`
+Ayarlar `<select>`'i **iki bağımsız `useState<ThemePreference>`** taşıyor —
+paylaşılan bir context/store yok. Her ikisi de yalnız MOUNT anında
+`readThemePreference()` ile localStorage'ı okuyor. `ThemeToggle` kabuğun bir
+parçası olduğu için SPA içi gezinmede hiç unmount olmuyor; Ayarlar'ın
+`<select>`'i `writeThemePreference`/`applyTheme`'i doğrudan çağırıp DOM'u
+(`<html data-theme>`) günceller ama `ThemeToggle`'ın kendi `preference`/
+`resolved` state'ini HİÇ bilgilendirmiyor. Sonuç: gerçek tema doğru
+uygulanıyor ama düğmenin metni/ikonu bir sonraki TAM SAYFA YENİLEMESİNE kadar
+eski değerde donuk kalıyor. `HATA-S4-006`.
+
+**Kapsam:** Yalnız bu case değil — Ayarlar'daki `<select>`'ten yapılan HER
+tema değişikliği (`system`/`light`/`dark` hangi yönde olursa olsun) üst
+çubuktaki düğmeyi SPA oturumu boyunca yanıltıcı bırakır; kullanıcı sayfayı
+yenilemeden düğmeye güvenirse yanlış temaya "geçtiğini" sanabilir.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -950,9 +1051,14 @@ da `localStorage` temizliği geri döndürebilir.
   tıklama sayısı üst çubuktan `system`'e geri dönmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`localStorage` temizlenip sayfa yeniden yüklendi: `agentprism.theme` başta
+`"system"`. Düğmeye 1 kez tıklayınca `"dark"` oldu. Art arda 3 tıklama daha
+yapıldı (toplam 4): her seferinde yalnız `"dark"`/`"light"` arasında gidip
+geldi, `"system"` bir daha hiç görünmedi — son değer `"dark"`,
+`document.documentElement.dataset.theme` de `"dark"`. Kod okumasındaki iddia
+canlı ortamda doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -982,9 +1088,15 @@ da `localStorage` temizliği geri döndürebilir.
   geçen bir buton olarak çalışır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Başlangıç: `lang="en"`, `localStorage['agentprism.locale']` boş. Dil düğmesi
+(`data-testid="language-toggle"`, direkt buton — açılır menü değil, tek
+tıklamada diğer dile geçiyor) tıklandı; `location.pathname` DEĞİŞMEDİ (SPA içi
+geçiş, tam sayfa yenilemesi yok), nav etiketleri anında Türkçeye döndü
+("Agents"→"Agent'lar", "Dashboard"→"Gösterge Paneli" vb.), sayfa başlığı
+"Dashboard"→"Gösterge Paneli". `document.documentElement.lang="tr"`,
+`localStorage['agentprism.locale']="tr"`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1010,9 +1122,22 @@ da `localStorage` temizliği geri döndürebilir.
   etiketini `tr` ile eşler).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Atlandı — Playwright MCP'nin başlattığı Chromium'un `navigator.languages`
+listesi `["en-US","en"]` ve mevcut araç kümesinde tarayıcı dilini (Chrome
+başlatma bayrağı `--lang` veya Playwright context `locale` seçeneği) `tr-TR`
+yapacak bir tool yok — bu, MT-UI-026'daki `prefers-color-scheme` engeliyle
+aynı sınıftan bir tooling kısıtı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+Destekleyici doğrulama (bulgu değil): `matchLocale` fonksiyonunun
+(`src/AgentPrism.UI/frontend/src/lib/i18n.tsx:66-76`) birebir kopyası canlı
+sayfada çalıştırıldı — `matchLocale(['tr-TR'])` → `"tr"` döndü, algoritma
+doğru. `initialiseLocale()` (`i18n.tsx:235-240`) da `applyTheme` ile aynı
+desende: `main.tsx`'te React render'ından ÖNCE, senkron çağrılıyor
+(`detectLocale()` → `readLocalePreference()` boşsa `navigator.languages`'a
+bakar). Ama gerçek `navigator.languages=tr-TR` altında canlı bir sayfa
+yüklemesi gözlemlenemedi.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -1045,9 +1170,46 @@ is single-language on purpose."*
   bir kusur değildir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Konsolun kendi metinleri Türkçe (birinci madde geçti). İKİNCİ MADDE KALDI:
+dil Türkçeyken var olmayan bir agent'a gidildiğinde (`/agentprism/agents/
+does-not-exist-xyz`) `role="alert"` kutusu şunu gösterdi: `"Agent bulunamadi:
+'does-not-exist-xyz' adinda bir agent yok."` — bu metin **İNGİLİZCE DEĞİL**,
+Türkçe (aksansız/ASCII harf çevirisi: "bulunamadi", "adinda"). `curl` ile
+doğrudan sunucu doğrulandı — `Accept-Language` başlığı YOK, hatta açıkça
+`Accept-Language: en` gönderilse de yanıt DEĞİŞMİYOR:
+`{"title":"Agent bulunamadi","status":404,"detail":"'does-not-exist-xyz'
+adinda bir agent yok.",...}`. Yani bu, istemcinin dil ayarına göre değil,
+SUNUCU KODUNUN İÇİNE gömülü sabit bir Türkçe string.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Kaldı** — kök neden: `src/AgentPrism.AspNetCore/Endpoints/AgentEndpoints.cs:513-514`
+(ve aynı dosyada 217, 276, 345, 427, 450, 458, 473, 505, 562, 571, 579, 594,
+602, 852, 867, 986, 1001, 1013, 1021, 1031 satırlarındaki HER `title`/`detail`)
+`ProblemDetails` metnini `"Agent bulunamadi"` / `$"'{name}' adinda bir agent
+yok."` gibi SABİT Türkçe (aksansız) string olarak yazıyor — bir kaynak/lokalizasyon
+sistemi veya `CurrentUICulture` YOK, doğrudan literal. `grep -rlE` ile
+repo'da bu ASCII-Türkçe kalıbı (`bulunamadi|kullanimda|gecersiz|desteklenmiyor|
+eksik|zorunlu|gerekli|basarisiz`) taşıyan **28 kaynak dosyası** bulundu — pratik
+olarak `src/AgentPrism.AspNetCore/Endpoints/`'in TAMAMI dahil (`AgentEndpoints`,
+`ApiKeyEndpoints`, `ApprovalEndpoints`, `AttachmentEndpoints`, `CatalogEndpoints`,
+`EvalEndpoints`, `ExperimentEndpoints`, `GovernanceEndpoints`,
+`KnowledgeEndpoints`, `ModelHealthEndpoints`, `ObservabilityEndpoints`,
+`QuotaEndpoints`, `RetentionEndpoints`, `RunEndpoints`, `SchedulingEndpoints`,
+`SessionEndpoints`, `SkillEndpoints`, `SkillScriptGrantEndpoints`,
+`WebhookEndpoints`, `WorkflowEndpoints`, `Voice/VoiceConversationEndpoint.cs`)
+artı `AgentPrism.Core`/`AgentPrism.Workflows`/`AgentPrism.Generators`'daki
+birkaç dosya. `ErrorNote`'un kendi yorumundaki "the API contract is
+single-language on purpose" iddiası — o "tek dil"in **İngilizce** olduğu
+varsayımıyla yazılmış — ama sunucu tarafı fiilen Türkçe. `HATA-S4-007`.
+
+**Kapsam:** Bu case'e özgü değil — HTTP API'nin görünür yüzeyinin BÜYÜK
+ÇOĞUNLUĞU (28 dosya) etkileniyor; İngilizce konuşan HERHANGİ bir API
+tüketicisi (kütüphaneyi tüketen "milyonlarca geliştirici", CLAUDE.md'nin
+kendi tanımı) hata mesajlarını Türkçe alıyor. Şerit 1/2/3'ün önceki HTTP
+case'lerinde bu muhtemelen fark edilmedi çünkü `detail`/`title` alanları
+genelde yalnız VARLIĞI (`404` durumu, alan adı) doğrulanmış, metnin dili
+ayrıca kontrol edilmemişti.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1081,9 +1243,22 @@ metin yoğunluğu en yüksek beş genel ekran.
   genişliklerini bozmaz, iki satıra taşan bir başlık düzeni kırmaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+1280px genişlikte, beş ekranın (Dashboard, Agents liste, Settings, Tools,
+Models) hepsi hem `tr` hem `en`'de programatik olarak tarandı:
+`document.body.innerText.match(/\{\w+\}/g)` (çıplak yer tutucu) ve
+`el.scrollWidth > el.clientWidth` (yatay taşma) her ekranda çalıştırıldı.
+`document.body.scrollWidth` her zaman `≤1280` (pencere genişliği) kaldı —
+yatay sayfa taşması yok. Tek eşleşme: Settings ekranındaki Webhooks panelinde
+`{id}` — kaynağı incelendi (`src/AgentPrism.UI/frontend/src/components/
+webhook-panel.tsx:103`, `<Mono>/api/runs/&#123;id&#125;</Mono>`) ve bu bir
+`interpolate()` kusuru DEĞİL: kasıtlı olarak HTML entity ile kaçırılmış,
+çevrilmeyen, sabit bir REST yol deseni örneği (`webhooks.noticeAfter`
+çeviri anahtarının DIŞINDA, ayrı bir `<Mono>` öğesi). Her iki dilde de
+aynı şekilde göründüğü (i18n katalogunun parçası olmadığı) doğrulandı — kusur
+değil. Buton/rozet metinleri (`code`/`harness` rozetleri, "Yeni agent" vb.)
+görsel olarak taşmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1110,9 +1285,13 @@ metin yoğunluğu en yüksek beş genel ekran.
   `active` locale'e göre biçimlenir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+1000'in üzerine veri üretmek için Playground'da `support` (gpt-5.4-mini)
+agent'ıyla 3 gerçek tur çalıştırıldı (347 + 578 + kalan token'lar). Ayarlar
+ekranının "Activity"/"Etkinlik" panelinde: `en` dilinde `Total tokens: "1,540"`
+(virgül ayraçlı), `tr`'ye geçince AYNI değer `Toplam token: "1.540"` (nokta
+ayraçlı) — `Intl.NumberFormat` locale'e göre doğru biçimlendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
