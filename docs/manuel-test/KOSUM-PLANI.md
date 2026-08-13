@@ -13,19 +13,20 @@
 
 ## 1. Durum
 
-> Son güncelleme: **2026-08-13**, Şerit 3'te S3-2 bitti (`05` dosyası
-> TAMAMLANDI, 40/40). Şerit 2 main'e merge edildi (7 oturum, 217/217 case
-> tam). Şerit 1 daha önce bitti (S1-1 … S1-9). Not: Şerit 1'in tamamı ve
-> Şerit 3'ün S3-1 oturumu, plandaki §3 worktree izolasyonu **uygulanmadan**
-> doğrudan `main` üzerinde koşulmuştu — worktree `ap-s1` hiç kurulmadı,
-> `ap-s3` `git rebase main` ile hizalandı. Bu bir plan sapmasıdır, kayıt
-> altına alınır; sonuçları etkilemedi çünkü aynı case iki şeritte koşulmadı.
+> Son güncelleme: **2026-08-13**, Şerit 3 TÜM 7 OTURUM BİTTİ (S3-1..S3-7,
+> `02/05/06/22/16` dosyalarının tümü TAMAMLANDI). Şerit 2 main'e merge edildi
+> (7 oturum, 217/217 case tam). Şerit 1 daha önce bitti (S1-1 … S1-9). Not:
+> Şerit 1'in tamamı ve Şerit 3'ün S3-1 oturumu, plandaki §3 worktree
+> izolasyonu **uygulanmadan** doğrudan `main` üzerinde koşulmuştu — worktree
+> `ap-s1` hiç kurulmadı, `ap-s3` `git rebase main` ile hizalandı. Bu bir plan
+> sapmasıdır, kayıt altına alınır; sonuçları etkilemedi çünkü aynı case iki
+> şeritte koşulmadı.
 
 | | |
 |---|---|
 | Toplam case | **1097** |
-| Koşuldu | **547** (`01` tam · `02` **tam (42/42)** · `03` tam · `04` **tam** · `05` **tam (40/40)** · `07` **tam (43/43)** · `08` **tam (49/49)** · `13` **tam (54/54)** · `14` 1/47 · `18` **tam (43/43)** · `19` **tam (61/61)** · `20` **tam (31/31)** · `21` **tam (28/28)** · `23` **tam** · `25` **tam (28/28)**) |
-| Kalan | **550** |
+| Koşuldu | **682** (`01` tam · `02` **tam (42/42)** · `03` tam · `04` **tam** · `05` **tam (40/40)** · `06` **tam (39/39)** · `07` **tam (43/43)** · `08` **tam (49/49)** · `13` **tam (54/54)** · `14` 1/47 · `16` **tam (61/61)** · `18` **tam (43/43)** · `19` **tam (61/61)** · `20` **tam (31/31)** · `21` **tam (28/28)** · `22` **tam (35/35)** · `23` **tam** · `25` **tam (28/28)**) |
+| Kalan | **415** |
 | Planlanan oturum | **40** (4 paralel şerit + ortak kuyruk) |
 
 ### Şerit ilerlemesi
@@ -34,7 +35,7 @@
 |---|---|
 | 1 — Kalıcılık ve ses | **✅ TÜM 7 OTURUM + S1-8 + S1-9 BİTTİ.** S1-1 ✅ · S1-2 ✅ · S1-3 ✅ (`23` tamam, 26/26) · S1-4 ✅ (`20`, 23/31 koşuldu) · S1-5 ✅ (`25`, 27/28 koşuldu) · S1-6 ✅ (`19` §1–§8, 37/37) · S1-7 ✅ (`19` §9–§13, 24/24; dosya `19` TAMAMLANDI 61/61) · **S1-8 ✅** (2026-08-13: 15 hatanın TAMAMI kodlandı, kalan 8 embedding-bloklu + 1 geçici-kod-gerektiren case koşuldu — bkz. aşağıdaki tablo) · **S1-9 ✅** (2026-08-13: `MT-MM-086/087/088/090` gerçek ElevenLabs anahtarı + Playwright sahte-mikrofon ile koşuldu, dördü de Geçti). Şerit 1'de kod/kusur açığı VE açık case **sıfır**. |
 | 2 — HTTP ve güvenlik | **✅ TÜM 7 OTURUM BİTTİ, main'e merge edildi (2026-08-13).** S2-1 ✅ (`07` tam, 43/43, 41 Geçti, 2 Kaldı) · S2-2+S2-3 ✅ (`08` tam, 49/49, 43 Geçti, 6 Kaldı) · S2-4+S2-5 ✅ (`13` tam, 54/54, 53 Geçti, 1 Kaldı) · S2-6 ✅ (`18` tam, 43/43, 38 Geçti, 5 Kaldı) · S2-7 ✅ (`21` tam, 28/28, 24 Geçti, 2 Kaldı, 2 Atlandı). **217/217 case, 11 hata bulundu (`HATA-S2-001`..`011`, bkz. `SONUCLAR-S2-2026-08-13.md`).** Kod **değiştirilmedi** — düzeltmeler §8 toplama oturumuna bırakıldı. Worktree `ap-s2` kaldırıldı. |
-| 3 — Çekirdek ve sağlayıcı | 🔄 S3-1 ✅ (2026-08-13: `02` zaten tam olduğu için kapsam `05` §1–§4'e daraldı, 13/13 koşuldu, 11 Geçti + 2 Kaldı — `HATA-S3-001`, `HATA-S3-002`). **S3-2 ✅** (2026-08-13: `05` §5–§9, 27/27 koşuldu, 26 Geçti, 1 Atlandı, 0 Kaldı — yeni kusur yok, bkz. `SONUCLAR-S3-2026-08-13.md`). **Dosya `05` TAMAMLANDI (40/40).** Sırada S3-3 (`06-SAGLAYICI-DIGER.md` §1–§8). |
+| 3 — Çekirdek ve sağlayıcı | **✅ TÜM 7 OTURUM BİTTİ (2026-08-13).** S3-1 ✅ (`05` §1–§4, 13/13, 11 Geçti + 2 Kaldı) · S3-2 ✅ (`05` §5–§9, 27/27, 26 Geçti + 1 Atlandı — dosya `05` TAMAMLANDI 40/40) · S3-3 ✅ (`06` §1–§8, 30/30, 28 Geçti + 2 Kaldı) · S3-4 ✅ (`06` §9 + `22` §1–§4, 26/26, 17 Geçti + 9 Atlandı — dosya `06` TAMAMLANDI 39/39, Azure kimliği yok) · S3-5 ✅ (`22` §5–§8, 18/18, 15 Geçti + 3 Kaldı — dosya `22` TAMAMLANDI 35/35) · S3-6 ✅ (`16` §1–§5, 37/37, 37 Geçti) · S3-7 ✅ (`16` §6–§8, 24/24, 22 Geçti + 2 Kaldı — dosya `16` TAMAMLANDI 61/61). **9 hata bulundu (`HATA-S3-001`..`009`, bkz. `SONUCLAR-S3-2026-08-13.md`), çeşitli doküman düzeltmeleri yapıldı (jq/gövde şekli uyuşmazlıkları, PollInterval doğrulayıcı davranışı, mimari yanlış anlamalar).** Kod **değiştirilmedi** — düzeltmeler §8 toplama oturumuna bırakıldı. |
 | 4 — Arayüz | ⏳ Başlamadı |
 | Ortak kuyruk | ⏳ Başlamadı |
 
@@ -405,11 +406,11 @@ Gerçek sağlayıcı çağrılarının çoğu buradadır. §2.5 maliyet kuralı 
 |---|---|---|---|---|
 | S3-1 ✅ | [`05`](05-SAGLAYICI-OPENAI.md) | §1–§4 | 13 | **Bitti** (2026-08-13): `02` dosyası zaten 42/42 tam (bkz. §1 düzeltme notu); S3-1 kapsamı yalnız `05` §1–§4'e daraldı. 11 Geçti, 2 Kaldı (`HATA-S3-001` Endpoint doğrulaması, `HATA-S3-002` boş model adı doğrulaması — ikisi de `Bind()`'ın doğrulayıcıya ulaşmadan geçersiz değeri sessizce elemesi). Ayrıntı `SONUCLAR-S3-2026-08-13.md`. |
 | S3-2 ✅ | [`05`](05-SAGLAYICI-OPENAI.md) | §5–§9 | 27 | **Bitti — dosya `05` TAMAMEN BİTTİ (40/40)** (2026-08-13): 26 Geçti, 1 Atlandı (`MT-OAI-053`, Ollama kurulu değil), 0 Kaldı. Yeni kusur yok. Ayrıntı `SONUCLAR-S3-2026-08-13.md`. |
-| S3-3 | [`06`](06-SAGLAYICI-DIGER.md) | §1–§8 | 30 | Anthropic + Google gerçek çağrı. |
-| S3-4 | [`06`](06-SAGLAYICI-DIGER.md) + [`22`](22-GUARDRAIL-VE-YAPISAL-CIKTI.md) | 06 §9 + 22 §1–§4 | 26 | 06 §9 Azure: 9 case **⏭ Atlandı** işaretlenir, kimlik yok. |
-| S3-5 | [`22`](22-GUARDRAIL-VE-YAPISAL-CIKTI.md) | §5–§8 | 18 | Guardrail: maskeleme, yerleşik desenler, denetim izi. |
-| S3-6 | [`16`](16-IS-KUYRUGU-VE-ZAMANLAMA.md) | §1–§5 | 37 | Zamanlama CRUD, cron, tetikleme, iptal. |
-| S3-7 | [`16`](16-IS-KUYRUGU-VE-ZAMANLAMA.md) | §6–§8 | 24 | `singleton_leases`, `Prefer: respond-async`. Kalıcılık gerekir → PostgreSQL. |
+| S3-3 ✅ | [`06`](06-SAGLAYICI-DIGER.md) | §1–§8 | 30 | **Bitti** (2026-08-13): 28 Geçti, 2 Kaldı (`HATA-S3-003`, `HATA-S3-004` — `HATA-S3-001`/`002`'nin Anthropic+Google genellemesi). Ayrıntı `SONUCLAR-S3-2026-08-13.md`. |
+| S3-4 ✅ | [`06`](06-SAGLAYICI-DIGER.md) + [`22`](22-GUARDRAIL-VE-YAPISAL-CIKTI.md) | 06 §9 + 22 §1–§4 | 26 | **Bitti — dosya `06` TAMAMEN BİTTİ (39/39)** (2026-08-13): 06 §9 Azure 9 case ⏭ Atlandı (kimlik yok); 22 §1–4 17/17 Geçti. `HATA-S3-005` (akışsız `run` ucu K-296 düzeltmesini almamış). |
+| S3-5 ✅ | [`22`](22-GUARDRAIL-VE-YAPISAL-CIKTI.md) | §5–§8 | 18 | **Bitti — dosya `22` TAMAMEN BİTTİ (35/35)** (2026-08-13): 15 Geçti, 3 Kaldı. **`HATA-S3-006` (Kritik)** — guard'ın maskelediği/engellediği girdi `RunStarted` olayında kalıcı, ham hâliyle. `HATA-S3-007` — `errorType` sorgu filtresi sessizce yok sayılıyor. |
+| S3-6 ✅ | [`16`](16-IS-KUYRUGU-VE-ZAMANLAMA.md) | §1–§5 | 37 | **Bitti** (2026-08-13): 37/37 Geçti, 0 Kaldı. Yeni kusur yok — iki doküman düzeltmesi (`PollInterval<=0` uygulamayı başlatmaz; örnek `curl` eksik başlık). |
+| S3-7 ✅ | [`16`](16-IS-KUYRUGU-VE-ZAMANLAMA.md) | §6–§8 | 24 | **Bitti — dosya `16` TAMAMEN BİTTİ (61/61), ŞERİT 3 TAMAMEN BİTTİ** (2026-08-13): 22 Geçti, 2 Kaldı. `HATA-S3-008` (idempotency replay `Location` başlığını kaybediyor), `HATA-S3-009` (`RunsRead` anahtarı zamanlama silebiliyor — `MT-WF-100`'ün aynı kalıbı). Ayrıntı `SONUCLAR-S3-2026-08-13.md`. |
 
 ### Şerit 4 — Arayüz · port 5084 · şema `mt_s4` · Playwright
 
