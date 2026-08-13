@@ -13,35 +13,29 @@
 
 ## 1. Durum
 
-> Son güncelleme: **2026-08-13**, Şerit 1 (oturum S1-1 … S1-7 tam, ardından
-> **S1-8: tüm bulguların düzeltmesi** — kullanıcı kararıyla erkene alınmış
-> toplama benzeri bir oturum, yalnız Şerit 1'in kendi kusurlarını kapsar).
+> Son güncelleme: **2026-08-13**, Şerit 2 main'e merge edildi (7 oturum,
+> 217/217 case tam). Şerit 1 daha önce bitti (S1-1 … S1-9). Not: Şerit 1'in
+> tamamı ve Şerit 3'ün S3-1 oturumu, plandaki §3 worktree izolasyonu
+> **uygulanmadan** doğrudan `main` üzerinde koşuldu — worktree `ap-s1` hiç
+> kurulmadı, `ap-s3` bir commit geride kaldı. Bu bir plan sapmasıdır, kayıt
+> altına alınır; sonuçları etkilemedi çünkü aynı case iki şeritte koşulmadı.
 
 | | |
 |---|---|
 | Toplam case | **1097** |
-| Koşuldu | **303** (`01` tam · `02` **tam (42/42)** — `KOSUM-PLANI` bu sayımı yanlış "28/42" taşıyordu, `SONUCLAR-2026-08-12.md`/HATA-007 zaten tam koşumu kayıtlıyordu, düzeltildi 2026-08-13 · `03` tam · `04` **tam** · `05` 13/40 (S3-1) · `14` 1/47 · `19` **tam (61/61)** · `20` **tam (31/31)** · `23` **tam** · `25` **tam (28/28)**) |
-| Kalan | **794** |
+| Koşuldu | **520** (`01` tam · `02` **tam (42/42)** · `03` tam · `04` **tam** · `05` 13/40 (S3-1) · `07` **tam (43/43)** · `08` **tam (49/49)** · `13` **tam (54/54)** · `14` 1/47 · `18` **tam (43/43)** · `19` **tam (61/61)** · `20` **tam (31/31)** · `21` **tam (28/28)** · `23` **tam** · `25` **tam (28/28)**) |
+| Kalan | **577** |
 | Planlanan oturum | **40** (4 paralel şerit + ortak kuyruk) |
 
 ### Şerit ilerlemesi
 
 | Şerit | Durum |
 |---|---|
-| 1 — Kalıcılık ve ses | **✅ TÜM 7 OTURUM + S1-8 + S1-9 BİTTİ.** S1-1 ✅ · S1-2 ✅ · S1-3 ✅ (`23` tamam, 26/26) · S1-4 ✅ (`20`, 23/31 koşuldu) · S1-5 ✅ (`25`, 27/28 koşuldu) · S1-6 ✅ (`19` §1–§8, 37/37) · S1-7 ✅ (`19` §9–§13, 24/24; dosya `19` TAMAMLANDI 61/61) · **S1-8 ✅** (2026-08-13: 15 hatanın TAMAMI kodlandı, kalan 8 embedding-bloklu + 1 geçici-kod-gerektiren case koşuldu — bkz. aşağıdaki tablo) · **S1-9 ✅** (2026-08-13: `MT-MM-086/087/088/090` gerçek ElevenLabs anahtarı + Playwright sahte-mikrofon ile koşuldu, dördü de Geçti). Şerit 1'de kod/kusur açığı VE açık case **sıfır**. Sıradaki: boşa düşen ajan **ortak kuyruk**tan (§7 aşağıda) bir oturum alır, kendi şerit numarasında (`S1`, port 5081, şema `mt_s1`) koşar. |
-| 2 — HTTP ve güvenlik | ⏳ Başlamadı |
+| 1 — Kalıcılık ve ses | **✅ TÜM 7 OTURUM + S1-8 + S1-9 BİTTİ.** S1-1 ✅ · S1-2 ✅ · S1-3 ✅ (`23` tamam, 26/26) · S1-4 ✅ (`20`, 23/31 koşuldu) · S1-5 ✅ (`25`, 27/28 koşuldu) · S1-6 ✅ (`19` §1–§8, 37/37) · S1-7 ✅ (`19` §9–§13, 24/24; dosya `19` TAMAMLANDI 61/61) · **S1-8 ✅** (2026-08-13: 15 hatanın TAMAMI kodlandı, kalan 8 embedding-bloklu + 1 geçici-kod-gerektiren case koşuldu — bkz. aşağıdaki tablo) · **S1-9 ✅** (2026-08-13: `MT-MM-086/087/088/090` gerçek ElevenLabs anahtarı + Playwright sahte-mikrofon ile koşuldu, dördü de Geçti). Şerit 1'de kod/kusur açığı VE açık case **sıfır**. |
+| 2 — HTTP ve güvenlik | **✅ TÜM 7 OTURUM BİTTİ, main'e merge edildi (2026-08-13).** S2-1 ✅ (`07` tam, 43/43, 41 Geçti, 2 Kaldı) · S2-2+S2-3 ✅ (`08` tam, 49/49, 43 Geçti, 6 Kaldı) · S2-4+S2-5 ✅ (`13` tam, 54/54, 53 Geçti, 1 Kaldı) · S2-6 ✅ (`18` tam, 43/43, 38 Geçti, 5 Kaldı) · S2-7 ✅ (`21` tam, 28/28, 24 Geçti, 2 Kaldı, 2 Atlandı). **217/217 case, 11 hata bulundu (`HATA-S2-001`..`011`, bkz. `SONUCLAR-S2-2026-08-13.md`).** Kod **değiştirilmedi** — düzeltmeler §8 toplama oturumuna bırakıldı. Worktree `ap-s2` kaldırıldı. |
 | 3 — Çekirdek ve sağlayıcı | 🔄 S3-1 ✅ (2026-08-13: `02` zaten tam olduğu için kapsam `05` §1–§4'e daraldı, 13/13 koşuldu, 11 Geçti + 2 Kaldı — `HATA-S3-001`, `HATA-S3-002`, bkz. `SONUCLAR-S3-2026-08-13.md`). Sırada S3-2 (`05` §5–§9). |
 | 4 — Arayüz | ⏳ Başlamadı |
 | Ortak kuyruk | ⏳ Başlamadı |
-
-> 🚨 **Şerit 2, 3 ve 4 başlamadan önce `git merge docs/manuel-test` (veya
-> güncel `test/kosum-s1` dalını) alıp yeniden derlemelidir.** Şerit 1, S1-8'de
-> 14 kusuru daha kodladı (K-392'nin üzerine — bkz. aşağıdaki tablo ve
-> `docs/KARARLAR.md` K-393..K-399): iki **Kritik** (`InvariantGlobalization`
-> SQL Server'ı kırıyordu; workflow'lar kota muhasebesinden tamamen kaçıyordu),
-> beşi **Yüksek**. Düzeltmeleri almayan şerit SQL Server, workflow-kota,
-> bellek sağlayıcıları, metin arama, bilgi tabanı kapsam denetimi ve gerçek
-> zamanlı ses case'lerinde aynı duvarlara çarpar.
 
 ### Şerit 1'in bulduğu hatalar
 
@@ -394,13 +388,13 @@ en hızlı şerittir.
 
 | Oturum | Dosya | Bölüm | Case | Not |
 |---|---|---|---|---|
-| S2-1 | [`07`](07-HTTP-YONETIM-API.md) | tümü | 43 | Saf `curl`. Agent CRUD, `Idempotency-Key`, `ProblemDetails`. |
-| S2-2 | [`08`](08-OPENAI-UYUMLU-UCLAR.md) | §1–§2 | 30 | `/v1/chat/completions` + `/v1/responses`. |
-| S2-3 | [`08`](08-OPENAI-UYUMLU-UCLAR.md) | §3–§5 | 19 | `/v1/conversations`, stok Python `openai` SDK, erişim denetimi. |
-| S2-4 | [`13`](13-KIRACI-VE-GUVENLIK.md) | §1–§5 | 27 | Erişim koruması, kiracı çözümleme ve izolasyonu. **Kritik izlek.** |
-| S2-5 | [`13`](13-KIRACI-VE-GUVENLIK.md) | §6–§9 | 27 | API anahtarları, rol, denetim izi. |
-| S2-6 | [`18`](18-MCP-VE-A2A.md) | tümü | 43 | Yerel test MCP sunucusu kurulur — dış bağımlılık yok. |
-| S2-7 | [`21`](21-DAYANIKLILIK-VE-IPTAL.md) | tümü | 28 | İptal, öksüz uzlaştırma, onay kutusu. §4 arayüz (5 case). |
+| S2-1 ✅ | [`07`](07-HTTP-YONETIM-API.md) | tümü | 43 | **Bitti** (2026-08-13): 41 Geçti, 2 Kaldı. |
+| S2-2 ✅ | [`08`](08-OPENAI-UYUMLU-UCLAR.md) | §1–§2 | 30 | **Bitti**, S2-3 ile birlikte dosya `08` TAMAMLANDI (49/49, 43 Geçti, 6 Kaldı). |
+| S2-3 ✅ | [`08`](08-OPENAI-UYUMLU-UCLAR.md) | §3–§5 | 19 | **Bitti** (yukarıdaki S2-2 toplamına dahil). |
+| S2-4 ✅ | [`13`](13-KIRACI-VE-GUVENLIK.md) | §1–§5 | 27 | **Bitti**: 27/27 tümü Geçti. |
+| S2-5 ✅ | [`13`](13-KIRACI-VE-GUVENLIK.md) | §6–§9 | 27 | **Bitti**, S2-4 ile birlikte dosya `13` TAMAMLANDI (54/54, 53 Geçti, 1 Kaldı). |
+| S2-6 ✅ | [`18`](18-MCP-VE-A2A.md) | tümü | 43 | **Bitti**: 38 Geçti, 5 Kaldı. |
+| S2-7 ✅ | [`21`](21-DAYANIKLILIK-VE-IPTAL.md) | tümü | 28 | **Bitti — ŞERİT 2 TAMAMEN BİTTİ**: 24 Geçti, 2 Kaldı, 2 Atlandı. Ayrıntı: `SONUCLAR-S2-2026-08-13.md`. |
 
 ### Şerit 3 — Çekirdek ve sağlayıcı · port 5083 · şema `mt_s3`
 
