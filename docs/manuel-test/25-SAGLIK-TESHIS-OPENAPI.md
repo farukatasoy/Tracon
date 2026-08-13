@@ -135,9 +135,11 @@ curl -s -i http://localhost:5080/health | tail -1
   eşlemesi).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İlk çağrı `Degraded`. `refresh=true` sonrası dört sağlayıcı (`anthropic`,
+`google`, `openai`, `openai-responses`, `openrouter` — 5 kayıt) hepsi
+`Healthy` döndü. İkinci `/health` çağrısı `Healthy`. Beklenenle birebir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -178,14 +180,24 @@ await using var host = await AgentPrismTestHost.StartAsync(options =>
         .AddAgentPrismHealthChecks();
 });
 
-var check = host.Services.GetServices<IHealthCheck>()
-    .OfType<AgentPrismHealthCheck>()
-    .Single();
+var healthCheckService = host.Services.GetRequiredService<HealthCheckService>();
+var report = await healthCheckService.CheckHealthAsync();
+var entry = report.Entries["agentprism"];
 
-var result = await check.CheckHealthAsync(new HealthCheckContext());
-Console.WriteLine("Durum: " + result.Status);
-Console.WriteLine("Aciklama: " + result.Description);
+Console.WriteLine("Durum: " + entry.Status);
+Console.WriteLine("Aciklama: " + entry.Description);
 ```
+
+> 🚨 **Düzeltildi (koşum, 2026-08-13, doküman kusuru):** orijinal kod
+> `host.Services.GetServices<IHealthCheck>().OfType<AgentPrismHealthCheck>()`
+> kullanıyordu. İki ayrı hata: (1) `AgentPrismHealthCheck` `internal sealed`
+> (`AgentPrismHealthCheck.cs:25`) — dış projeden derlenmez (`CS0122`); (2)
+> `AddHealthChecks()` denetimleri DI konteynerine `IHealthCheck` olarak
+> **kaydetmez** — `IHealthChecksBuilder.AddCheck<T>` bir `HealthCheckRegistration`
+> ekler, `GetServices<IHealthCheck>()` her zaman **boş** döner. Doğru yol
+> `HealthCheckService.CheckHealthAsync()`'i çağırıp `report.Entries["agentprism"]`
+> okumaktır — bu, `/health` ucunun kullandığı gerçek yoldur. Ürün kusuru
+> değildir; senaryonun kendi kod örneği hiç çalıştırılmadan yazılmıştı.
 
 **Beklenen sonuç**
 - `Durum: Degraded`.
@@ -193,9 +205,13 @@ Console.WriteLine("Aciklama: " + result.Description);
   (`AgentPrismHealthCheck.cs:76` mesajıyla birebir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Yukarıdaki düzeltilmiş kodla çalıştırıldı. Çıktı birebir beklenen:
+```
+Durum: Degraded
+Aciklama: Henuz saglikli oldugu dogrulanmis bir model saglayicisi yok.
+```
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -244,9 +260,11 @@ curl -s -i http://localhost:5080/health | tail -1
   toparlanma otomatiktir, uygulamanın yeniden başlatılması **gerekmez**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Container durmadan önce `Healthy` (200). Durdurulunca `503 Service Unavailable`,
+gövde `Unhealthy`. Container yeniden başlayıp 3 sn sonra tekrar `Healthy` (200)
+— uygulama yeniden başlatılmadı, toparlanma otomatik. Beklenenle birebir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -306,9 +324,14 @@ curl -s "$APU/api/diagnostics" -H "$APB" | jq '{migrationsUpToDate, pendingMigra
   kurmak) kullanır, yalnız `ApplyAsync`e güvenmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 1: `28`. Migration silindikten sonra `/health` → `503 Unhealthy`.
+`/api/diagnostics` → `migrationsUpToDate: false`,
+`pendingMigrations: ["0028_experiment_canary"]` — yalnız silinen tek migration.
+Reset (şema düşür + yeniden başlat) sonrası tekrar `28` migration temiz
+uygulandı, `/health` → `Degraded` (henüz sağlayıcı ısıtılmamış, normal).
+Beklenenle birebir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -346,16 +369,36 @@ await using var host = await AgentPrismTestHost.StartAsync(options =>
         .AddHealthChecks()
         .AddAgentPrismHealthChecks();
     options.ConfigureAgentPrism = builder => builder
-        .UseSqlite("Data Source=:memory:")
-        .UseSqlite("Data Source=:memory:");   // ikinci kayit -- K-183
+        .UseSqlite("Data Source=file::memory:?cache=shared")
+        .UseSqlite("Data Source=file::memory:?cache=shared");   // ikinci kayit -- K-183
 });
 
-var check = host.Services.GetServices<IHealthCheck>().OfType<AgentPrismHealthCheck>().Single();
-var result = await check.CheckHealthAsync(new HealthCheckContext());
+var healthCheckService = host.Services.GetRequiredService<HealthCheckService>();
+var report = await healthCheckService.CheckHealthAsync();
+var entry = report.Entries["agentprism"];
 
-Console.WriteLine("Durum: " + result.Status);
-Console.WriteLine("Aciklama: " + result.Description);
+Console.WriteLine("Durum: " + entry.Status);
+Console.WriteLine("Aciklama: " + entry.Description);
 ```
+
+> 🚨 **Doküman düzeltmesi (`HealthCheckService` kısmı) + 🐛 ÜRÜN KUSURU
+> (`:memory:` kısmı — HATA-S1-003'ün tekrarı):**
+> (1) `GetServices<IHealthCheck>().OfType<AgentPrismHealthCheck>()` deseni
+> derlenmez/boş döner (doküman kusuru, MT-DIAG-002'deki gibi) —
+> `HealthCheckService.CheckHealthAsync()` kullanıldı.
+> (2) Orijinal `Data Source=:memory:` ile — **tek** `UseSqlite` çağrısıyla bile
+> (K-183'ün ikinci kaydından bağımsız, aşağıda MT-DIAG-027'de izole doğrulandı)
+> — uygulama `SqliteException: no such table: agentprism_tenants` ile hiç
+> açılmıyor. Bu, `04-KALICILIK-DIGER.md`'nin koşumunda zaten bulunan ve
+> `SONUCLAR-S1-2026-08-13.md`'de kayıtlı **HATA-S1-003**'ün (`Data
+> Source=:memory:` dokümante edildiği hâlde çalışmıyor, `AgentPrism.Sqlite`
+> XML dokümanı hâlâ "desteklenir" diyor) `AgentPrismTestHost` üzerinden
+> **ikinci bir kod yolunda** tekrarıdır — kök neden aynı
+> (`SqliteDataSource.CreateDbConnection` her çağrıda ayrı bağlantı açıyor,
+> çıplak `:memory:` bağlantıya özel). Bu case'in kendi asıl konusu (K-183
+> sayacı) `:memory:` bloğunu atlatmak için `Data
+> Source=file::memory:?cache=shared` (HATA-S1-003'ün "doğrulanan çalışan
+> biçim"i) ile ayrıca koşuldu — sonucu aşağıda.
 
 **Beklenen sonuç**
 - `Durum: Degraded`.
@@ -367,9 +410,18 @@ Console.WriteLine("Aciklama: " + result.Description);
   bu şüpheli bir bulgudur ve not düşülür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Senaryonun kendi kodu (orijinal `Data Source=:memory:`, iki kayıt) çalıştırıldı:
+`SqliteException: no such table: agentprism_tenants` ile `AgentPrismTestHost`
+hiç açılmadı — HATA-S1-003'ün tekrarı (bkz. yukarıdaki not). K-183 sayacı bu
+yüzden hiç ölçülemedi; case bu hâliyle **Kaldı**.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+Ek doğrulama (case'in asıl konusu olan K-183 davranışını ayrıca sınamak için,
+`:memory:` sorununu atlatan `cache=shared` bağlantısıyla): host açıldı,
+`Durum: Degraded`, `Aciklama: Birden fazla kalicilik saglayicisi kayitli (2);
+su an 'SQLite' kazaniyor. Yalniz bir Use*() cagirin.` — K-183'ün kendisi
+sağlam çalışıyor, yalnız `:memory:` bağlantı dizesi bozuk.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -418,10 +470,23 @@ curl -s -i http://localhost:5080/health | tail -1
   devresi açık olsa bile diğer sağlayıcılar (varsa) sağlıklıysa uygulama
   `Unhealthy` **olmaz** (`AgentPrismHealthCheck.cs:63-68`).
 
-**Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+> 🚨 **Düzeltildi (koşum, 2026-08-13, doküman kusuru):** "Girilecek veri"
+> `openrouter-destek` fixture'ını **geçerli** modeliyle çağırıyor
+> (`openai/gpt-5.4-mini` üzerinden OpenRouter, `Program.cs:457`) — gerçek bir
+> anahtarla bu her zaman **başarılı** olur, devreyi asla açmaz. "Adımlar"
+> bölümünün kendisi ise "geçersiz bir model adı" gerektiğini söylüyor
+> (MT-OAI-080'in deseni) — iki bölüm birbiriyle çelişiyordu. Düzeltme:
+> `openrouter` sağlayıcılı, bilerek geçersiz modelli (`openrouter/bu-model-yok-9999`)
+> geçici bir `manuel-diag-bozuk` agent'ı `POST /api/agents` ile kaydedildi
+> (05'in henüz koşulmamış `manuel-bozuk-model` fixture'ının yerine — bu şerit
+> 05'i koşmadı), o agent iki kez çağrıldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Gerçek sonuç**
+İki deneme de gerçek `400`/`ClientResultException` ile başarısız oldu
+(`openrouter/bu-model-yok-9999 is not a valid model ID`). Sonrasında `/health`
+→ `Degraded` — beklenenle birebir (Unhealthy değil).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -472,9 +537,11 @@ Console.WriteLine("Requests.Count: " + provider.Requests.Count);
 - `Requests.Count: 0` — üç sağlık denetimi çağrısı da modele **hiç** istek göndermez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`Requests.Count: 0` — beklendiği gibi. (Aynı `HealthCheckService` düzeltmesi
+MT-DIAG-002'de kayıtlı; bu case orijinal `IHealthCheck` API'sini kullanmadığı
+için değişiklik gerekmedi.)
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -515,8 +582,8 @@ var app = builder.Build();
 
 try
 {
-    var check = app.Services.GetServices<IHealthCheck>().OfType<AgentPrismHealthCheck>().Single();
-    await check.CheckHealthAsync(new HealthCheckContext());
+    var healthCheckService = app.Services.GetRequiredService<HealthCheckService>();
+    await healthCheckService.CheckHealthAsync();
     Console.WriteLine("HATA: istisna beklenirdi");
 }
 catch (InvalidOperationException ex)
@@ -525,15 +592,25 @@ catch (InvalidOperationException ex)
 }
 ```
 
+> 🚨 **Düzeltildi (koşum, 2026-08-13, doküman kusuru — aynı desen
+> MT-DIAG-002'de):** `GetServices<IHealthCheck>().OfType<AgentPrismHealthCheck>()`
+> yerine `HealthCheckService.CheckHealthAsync()` kullanıldı; istisna zaten
+> `CheckHealthAsync` sırasında (Factory çağrısında) fırlatılıyor, davranış
+> beklenenle aynı.
+
 **Beklenen sonuç**
 - `AgentPrismDiagnosticsCollector`in bağımlılıklarından biri (örn.
   `IAgentCatalog`) çözülemediği için bir `InvalidOperationException`
   fırlatılır — kayıt sırasında **değil**, yalnız ilk yoklamada.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+Beklenen: DI cozumu basarisiz -- Unable to resolve service for type 'AgentPrism.AgentPrismDiagnosticsCollector' while attempting to activate 'AgentPrism.
+```
+Beklenen davranışla birebir eşleşiyor — istisna kayıt anında değil yalnız ilk
+yoklamada fırlatılıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -573,9 +650,9 @@ Console.WriteLine("Durum: " + (int)response.StatusCode);
   olduğundan uç hiç haritalanmaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`Durum: 404` — beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -610,9 +687,15 @@ curl -s "$APU/api/diagnostics" -H "$APB" | jq
   `toolCount`, `agentCount` (`AgentPrismDiagnosticsReport.cs`'in gerçekleşen 10 alanı).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`200 OK`. Gövdede tam 10 alanın tümü var: `persistenceProvider: "PostgreSQL"`,
+`registeredPersistenceProviders: 1`, `canConnect: true`, `migrationsUpToDate: true`,
+`pendingMigrations: []`, `modelProviders` (5 kayıt: openai, openai-responses,
+openrouter, anthropic, google — hepsi `status: Unknown`, `circuitOpen: false`,
+henüz ısıtılmadı), `configuration` (3 kayıt: OpenAI/Anthropic/Google anahtarları,
+hepsi `resolved: true`, `hint: null`), `uiEmbedded: true`, `toolCount: 6`,
+`agentCount: 12`. Beklenenle birebir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -650,9 +733,16 @@ curl -s -i "$APU/api/diagnostics" -H "$APB" -H "X-Test-Role: admin"  | head -1
 - `admin` rolüyle **`200 OK`**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Koşulmadı. `13-KIRACI-VE-GUVENLIK.md` §8'in geçici kurulumu
+`samples/AgentPrism.Api/RoleTestAuthHandler.cs` adında **yeni bir dosya**
+eklemeyi ve `Program.cs`'i değiştirmeyi gerektiriyor —
+`KOSUM-PLANI.md` §2.1'in pazarlığa açık olmayan "kod değiştirilmez" kuralına
+girer. Aynı gerekçeyle S1-3 oturumu da (`SONUCLAR-S1-2026-08-13.md`, "Sapmalar")
+bu kurulumu **tetiklemedi**. MT-DIAG-021'in kendi ön koşulu zaten "rol kurulumu
+yapılmamış" diyor; bu case rolün gerçek denetimini istiyor, kurulum olmadan
+anlamlı koşulamaz.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -689,9 +779,9 @@ curl -s "$APU/api/diagnostics" -H "$APB" | grep -F "$KEY" && echo "SIZINTI VAR" 
   `configuration[].resolved: true` biçiminde bir bayrak taşınır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Çıktı `temiz` — gerçek OpenAI anahtarı yanıtın hiçbir yerinde geçmiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -742,9 +832,16 @@ Console.WriteLine("Hint: " + cozulmemis.Hint);
   kanıtıdır (bir alan eklemek için tipin kendisi değişmelidir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Kod derlendi ve çalıştı; çıktı beklenenle birebir:
+```
+Key: AgentPrism:Providers:OpenAI:ApiKey
+Resolved: False
+Hint: dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" "<ANAHTARINIZ>"
+```
+Kaynak (`ConfigurationDiagnostic.cs:4-14`) doğrudan okunarak da doğrulandı —
+tip yalnız `Key`/`Resolved`/`Hint` taşıyor, değeri taşıyan hiçbir alan yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -783,9 +880,9 @@ curl -s "$APU/api/diagnostics" -H "$APB" | \
   örneği olsa da aynı config anahtarını bildirdiklerinden yalnız ilki kayda geçer.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`1` — beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -825,9 +922,10 @@ curl -s "$APU/api/diagnostics" -H "$APB" | jq '{
   tanımlı olsa bile `configuration` listesinde **hiçbir** satırı yoktur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`openrouterModelProvider`: bir öğe (`name: openrouter, status: Unknown,
+circuitOpen: false`). `openrouterConfig`: boş dizi. Beklenenle birebir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -876,14 +974,26 @@ await using (var sqliteli = await AgentPrismTestHost.StartAsync(o =>
 }
 ```
 
+> 🐛 **ÜRÜN KUSURU — HATA-S1-003'ün üçüncü tekrarı (aynı kök neden MT-DIAG-005
+> ve `04-KALICILIK-DIGER.md`nin `MT-SQL-005`'inde).** Yukarıdaki kod, **tek**
+> `UseSqlite("Data Source=:memory:")` çağrısıyla bile (K-183 çoklu-kayıt
+> senaryosu yok) `SqliteException: no such table: agentprism_tenants` ile
+> çöküyor. Bu, HATA-S1-003'ün K-183'ten tamamen bağımsız, en yalın hâlidir —
+> `AgentPrismTestHost` üzerinden bulundu.
+
 **Beklenen sonuç**
 - Bellek içi: `persistenceProvider: InMemory`, `registered: 0`.
 - SQLite: `persistenceProvider: SQLite`, `registered: 1`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Bellek içi blok beklendiği gibi: `Bellek ici -- persistenceProvider: InMemory,
+registered: 0`. SQLite bloğu (`Data Source=:memory:`) `SqliteException: no
+such table: agentprism_tenants` ile çöktü — HATA-S1-003. Ek doğrulama
+(`Data Source=file::memory:?cache=shared` ile): `SQLite --
+persistenceProvider: SQLite, registered: 1` — beklenen sayaç davranışı bu
+bağlantı dizesiyle doğru, yalnız dokümanın kendi `:memory:` biçimi bozuk.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -915,9 +1025,10 @@ curl -s "$APU/api/diagnostics" -H "$APB" | jq '{toolCount, agentCount}'
   `list_recent_orders`, `cancel_order` tool'ları kayıtlıdır).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`agents ucu: 12`, `{toolCount: 6, agentCount: 12}` — birebir eşleşiyor,
+`toolCount > 0`. Beklenenle birebir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -967,9 +1078,11 @@ Console.WriteLine("Dogrudan CollectAsync -- UiEmbedded: " + report.UiEmbedded);
   bu farkın kaynağı `DiagnosticsEndpoints.cs:42`'deki `with` ifadesidir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`Dogrudan CollectAsync -- UiEmbedded: False`. Karşılaştırma: MT-DIAG-021'de
+örnek uygulamanın `/api/diagnostics`ı `uiEmbedded: true` döndürmüştü. Fark
+beklenen kaynaktan geliyor. Beklenenle birebir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1015,9 +1128,9 @@ Console.WriteLine("Requests.Count: " + provider.Requests.Count);
 - `Requests.Count: 0`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`Requests.Count: 0` — beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1055,9 +1168,10 @@ unzip -p ~/agentprism-local-feed/AgentPrism.AspNetCore.*.nupkg \
 - İki tarama da **"temiz"** yazar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İki tarama da `temiz`. `.csproj`'da ve paketlenmiş `.nuspec`'te
+`Microsoft.AspNetCore.OpenApi`/`Microsoft.OpenApi` hiç geçmiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1100,9 +1214,10 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:5080/openapi/v1.json
   uygulamada **ayrıca** doğrular.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`200` döndü (`http://localhost:5081/openapi/v1.json`, şerit portu). 116 yol
+üretildi. Beklenenle birebir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1139,9 +1254,19 @@ jq -r '[.paths[][]? | .tags[0]] | unique' /tmp/apidoc.json
 - İkinci sorgu **tek elemanlı** bir dizi döner: `["AgentPrism"]`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+🐛 **HATA-S1-012.** İlk sorgu **boş DEĞİL** — tam olarak bir uç iki etiketten
+az taşıyor: `GET /agentprism/api/voice/sessions/{sessionId}/stream` (WebSocket
+akış ucu, `operationId: AgentPrismVoiceStream`), yalnız `["AgentPrism"]`
+etiketiyle. Kök neden: `VoiceConversationEndpoint.Map()`
+(`src/AgentPrism.AspNetCore/Voice/VoiceConversationEndpoint.cs:38-52`) hiç
+`.WithTags(...)` çağırmıyor — yalnız `voiceGroup`'un
+(`AgentPrismEndpointRouteBuilderExtensions.cs:252`) grup düzeyindeki tek
+`"AgentPrism"` etiketini devralıyor. Karşılaştırma: aynı dosyadaki diğer ses
+uçları (`VoiceEndpoints.cs:48,55,61,70`) hepsi `.WithTags("AgentPrism",
+"Voice")` çağırıyor — yalnız bu WebSocket ucu ikinci etiketi (`Voice`)
+eksik bırakıyor. İkinci sorgu beklenen: `["AgentPrism"]`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1176,9 +1301,21 @@ jq -r '[.paths[][]?.operationId] | length, ([.[]] | unique | length)' /tmp/apido
 - İkinci sorgunun iki satırı **eşittir** — toplam sayı ile benzersiz sayı aynıdır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+🐛 **HATA-S1-013.** İlk sorgu boş DEĞİL — `null` yazdırıyor. İkinci sorgu
+`147` / `146` — **eşit değil**. Kök neden: iki A2A ucunun `operationId`si hiç
+yok: `POST /agentprism/a2a/ozetleyici` ve
+`GET /agentprism/a2a/ozetleyici/.well-known/agent-card.json`. Bu ikisi jq'nin
+`group_by` mantığında "tekrar eden" (iki `null`) sayılıyor, ilk sorgu bu yüzden
+`null` basıyor. `AgentPrismA2AExtensions.cs:122-126`:
+`agentGroup.MapA2A(handler, "/")` ve `agentGroup.MapWellKnownAgentCard(card,
+"")` — ikisi de üçüncü taraf A2A SDK uzantıları, `.WithName(...)` hiç
+çağrılmıyor (grup yalnız `.WithTags("AgentPrism", "A2A")` alıyor,
+`AgentPrismA2AExtensions.cs:103`). Diğer tüm gruplar (`AgentPrismEndpointRouteBuilderExtensions.cs`)
+her tekil uçta ayrıca `.WithName(...)` çağırıyor; A2A grubu bunu atlıyor.
+Etki sınırlı: yalnız 2/147 işlem etkileniyor, ikisi de dinamik A2A yüzeyinde
+(kod-üretici istemciler bu iki uç için kararsız/otomatik ad üretir).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1214,9 +1351,13 @@ jq '.paths["/agentprism/api/agents/{name}/run"].post.responses' /tmp/apidoc.json
   `ProblemDetails` şeması bildirir (`ProducesProblem` çağrıları).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`200`'ün `content` alanı yalnız `text/event-stream` içeriyor (`application/json`
+yok). `400`, `404`, `429` üçü de `application/problem+json` ile
+`ProblemDetails` şeması bildiriyor. (Ayrıca `202 Accepted` →
+`application/json`/`AcceptedRunResponse` de var — `Prefer: respond-async`
+yolu, beklenen listede yok ama çelişmiyor.) Beklenenle birebir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1251,9 +1392,10 @@ jq '.paths["/agentprism/v1/chat/completions"].post.responses."200".content | key
   tek içerik tipi kalıyordu); bu case o düzeltmenin kalıcılığını doğrular.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`["application/json", "text/event-stream"]` — ikisi de var. Beklenenle
+birebir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1306,9 +1448,10 @@ jq -r '[.paths[][]? | .tags[]] | unique | .[] | select(. == "Diagnostics")' /tmp
   varsayılanı kapalı, örnek uygulama açık) doğru olabilir aynı anda.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Sorgu `Diagnostics` yazdı — örnek uygulamanın belgesinde etiket var (uç
+`Program.cs`'de bilinçli açık). Beklenenle birebir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1346,9 +1489,24 @@ diff <(jq -S . /tmp/apidoc.json) <(jq -S . docs/openapi/agentprism.json) \
   olabilir; koşumda hangisi olduğu kaydedilir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`FARKLI -- yenileme gerekir`. Fark iki nedenden geliyor: (1) `info.title`
+farklı — canlı belge `AgentPrism.Api | v1` (örnek uygulama), işlenmiş dosya
+`AgentPrism.AspNetCore.FunctionalTests | v1` — yani `docs/openapi/agentprism.json`
+`OpenApiSnapshotTests`in **FunctionalTests host**'undan üretilmiş, örnek
+uygulamadan değil; ikisi yapılandırma olarak eşit değil (örnek uygulama
+`Diagnostics`/`A2A`/`Voice` uçlarını açık tutuyor, FunctionalTests host'u
+muhtemelen tutmuyor). (2) Bu yüzden `/agentprism/a2a/ozetleyici`,
+`/agentprism/a2a/ozetleyici/.well-known/agent-card.json`,
+`/agentprism/api/diagnostics`, `/agentprism/api/voice/sessions/{sessionId}/stream`
+işlenmiş dosyada hiç yok; `AgentPrismDiagnosticsReport`/`ConfigurationDiagnostic`/
+`ProviderDiagnostic` şemaları da yok. Diğer taraftan işlenmiş dosyada bir
+`IMcpToolRefresher` şeması ve `requestBody` var ki canlı belgede yok — sürüm
+farkı (FunctionalTests projesi bu şerit'in `dotnet pack` tazelemesinden önce
+üretilmiş olabilir). Doküman kendi "Beklenen sonuç"unda bu ihtimali zaten
+öngörüyor ("bu bir kusur değil, doğal bakım adımıdır") — case bu hâliyle
+Geçti sayılır, yenileme faz kapanışının işidir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1385,8 +1543,9 @@ echo "tsc cikis kodu: $?"
 - `tsc --strict --noEmit` **sıfır** hatayla biter (çıkış kodu `0`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`openapi-typescript` hatasız bitti (179.5ms), `.ts` dosyası üretildi.
+`tsc --strict --noEmit` çıkış kodu `0`. Beklenenle birebir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---

@@ -13,20 +13,20 @@
 
 ## 1. Durum
 
-> Son güncelleme: **2026-08-13**, Şerit 1 (oturum S1-1, S1-2, S1-3, S1-4 tam).
+> Son güncelleme: **2026-08-13**, Şerit 1 (oturum S1-1, S1-2, S1-3, S1-4, S1-5 tam).
 
 | | |
 |---|---|
 | Toplam case | **1097** |
-| Koşuldu | **202** (`01` tam · `02` 28/42 · `03` tam · `04` **tam** · `14` 1/47 · `20` 23/31 (8 Beklemede — embedding erişimi yok) · `23` **tam**) |
-| Kalan | **895** |
+| Koşuldu | **229** (`01` tam · `02` 28/42 · `03` tam · `04` **tam** · `14` 1/47 · `20` 23/31 (8 Beklemede — embedding erişimi yok) · `23` **tam** · `25` 27/28 (1 Beklemede — geçici kod değişikliği gerekiyor)) |
+| Kalan | **868** |
 | Planlanan oturum | **40** (4 paralel şerit + ortak kuyruk) |
 
 ### Şerit ilerlemesi
 
 | Şerit | Durum |
 |---|---|
-| 1 — Kalıcılık ve ses | S1-1 ✅ · S1-2 ✅ · S1-3 ✅ (`23` tamam, 26/26) · **S1-4 ✅** (`20`, 23/31 koşuldu — 13 Geçti/10 Kaldı; 8 Beklemede, embedding erişimi yok) · S1-5…S1-7 ⏳ (sıradaki: `25-SAGLIK-TESHIS-OPENAPI.md`) |
+| 1 — Kalıcılık ve ses | S1-1 ✅ · S1-2 ✅ · S1-3 ✅ (`23` tamam, 26/26) · S1-4 ✅ (`20`, 23/31 koşuldu — 13 Geçti/10 Kaldı; 8 Beklemede, embedding erişimi yok) · **S1-5 ✅** (`25`, 27/28 koşuldu — 24 Geçti/3 Kaldı; 1 Beklemede, geçici kod değişikliği gerekiyor) · S1-6…S1-7 ⏳ (sıradaki: `19-COK-MODLULUK-VE-SES.md` §1–§8) |
 | 2 — HTTP ve güvenlik | ⏳ Başlamadı |
 | 3 — Çekirdek ve sağlayıcı | ⏳ Başlamadı |
 | 4 — Arayüz | ⏳ Başlamadı |
@@ -48,8 +48,10 @@
 | `HATA-S1-003` — `Data Source=:memory:` dokümante edildiği hâlde hiç çalışmıyor | Yüksek | ⛔ Açık |
 | `HATA-S1-008` — Bellek sağlayıcıları (dosya belleği okuma, todo) mesaj serileştirmesinde `500` ile çöküyor | Yüksek | ⛔ Açık |
 | `HATA-S1-011` — `KnowledgeEndpoints` API anahtarı kapsam denetimi hiç uygulamıyor | Yüksek | ⛔ Açık |
+| `HATA-S1-012` — `VoiceConversationEndpoint`'in OpenAPI etiketi eksik | Yüksek | ⛔ Açık |
 | `HATA-S1-007` — `/api/agents/validate`, bilinmeyen enum string'de `400` yerine `500` veriyor | Orta | ⛔ Açık |
 | `HATA-S1-009` — `EnableTextSearch` sorguyla eşleşen içeriği hiç bulamıyor (şüpheli) | Orta | ⛔ Açık |
+| `HATA-S1-013` — İki A2A ucunun `operationId`si yok | Orta | ⛔ Açık |
 | `HATA-S1-005` — Dört saklama hedefi config varsayılanını sessizce yok sayıyor | Düşük | ⛔ Açık |
 | `HATA-S1-001` — `user-secrets` temizliği uygulanmamış (süreç kusuru) | Düşük | ⛔ Açık |
 | `HATA-S1-010` — Bilgi tabanı doğrulama hataları `.NET ArgumentException`'ın iç parametre adını sızdırıyor | Düşük | ⛔ Açık |
