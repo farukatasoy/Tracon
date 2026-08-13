@@ -147,9 +147,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/attachments" -H "$APB" \
   için `export ATT_ID=<id>` ile sakla.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 201`. `mediaType:"image/png"`, `byteSize:68`, `sha256` 64 hex karakter,
+`id:019ff9fb-fc46-7f0b-b198-47053ad21ee6` bir GUID.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -176,9 +177,9 @@ curl -s -X POST "$APU/api/attachments" -H "$APB" \
   yok sayılır; kayıtlı tür sihirli bayttan gelir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`image/png` yazdırıldı — istemcinin `text/plain` iddiası yok sayıldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -206,9 +207,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/attachments" -H "$APB" \
   taşıdığı için düz metin de sayılmaz).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title:"Ek turu reddedildi"`, detay desteklenen türleri listeledi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -234,9 +235,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/attachments" -H "$APB" \
 - `HTTP: 400`, başlık "Ek bos olamaz".
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title:"Ek bos olamaz"`, detay `'file' alani bos.`
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -268,9 +269,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/attachments" -H "$APB" \
   yazar. `rm /tmp/fix-mm-big.bin /tmp/fix-mm-big.png` ile temizle.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title:"Ek cok buyuk"`, detay `20971529 bayt; sinir 20971520 bayt.`
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -317,9 +318,10 @@ for name, (b2, expect_ok) in cases.items():
   bunları yanlışlıkla kabul ederdi, bit maskesi etmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Yedi satırın tamamı beklenen sonuçla `OK` eşleşti: `fb/f3/f2/fa/e3` → `HTTP=201`,
+`e8-ayrilmis-surum`/`e1-ayrilmis-katman` → `HTTP=400`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -349,9 +351,11 @@ diff /tmp/fix-mm.png /tmp/fix-mm-indirilen.png && echo "BAYT BAYT AYNI"
   kendisi). `diff` sıfır fark bildirir, `BAYT BAYT AYNI` yazdırılır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Tüm başlıklar tam beklendiği gibi geldi (`Content-Type: image/png`,
+`Content-Disposition: attachment; filename="test.png"`, `X-Content-Type-Options: nosniff`,
+`ETag` sha256 değeriyle aynı). `diff` sıfır fark bildirdi, `BAYT BAYT AYNI` yazdırıldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -382,9 +386,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/attachments?take=99999&skip=-5" -H
   `Math.Max(skip ?? 0, 0)`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İlk `curl` `1` yazdırdı. İkinci istek `HTTP: 200` döndü — kırpma çalışıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -414,9 +418,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/attachments/$ATT_ID" -H 
   silme idempotent bir "başarı" değil, "artık yok" anlamındadır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Sırasıyla `204`, `404`, `404` geldi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -432,14 +436,21 @@ Kritik negatif senaryo — kiracı yalıtımı.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `FIX-TENANT-01` (`kiraci-alfa`) altında bir ek yüklenmiş (`X-Tenant-Id: kiraci-alfa` başlığıyla).
+- `FIX-TENANT-01` (`kiraci-alfa`) altında bir ek yüklenmiş (`X-AgentPrism-Tenant: kiraci-alfa` başlığıyla).
+- Çok kiracılık açık: `AgentPrism:Tenancy:Enabled=true`, `AgentPrism:Tenancy:AllowHeaderResolution=true`
+  (varsayılan kapalı — `13-KIRACI-VE-GUVENLIK.md` §5 deseniyle aynı).
 
 **Girilecek veri**
+
+> **Doküman düzeltmesi:** Örnek başlık adı `X-Tenant-Id` idi; gerçek başlık
+> `HttpTenantContext.cs:50`'de `X-AgentPrism-Tenant`dır (bkz. `13-KIRACI-VE-GUVENLIK.md`
+> MT-SEC-021, aynı başlığı doğru kullanıyor). Aşağıda düzeltildi.
+
 ```bash
-curl -s -X POST "$APU/api/attachments" -H "$APB" -H "X-Tenant-Id: kiraci-alfa" \
+curl -s -X POST "$APU/api/attachments" -H "$APB" -H "X-AgentPrism-Tenant: kiraci-alfa" \
      -F "file=@/tmp/fix-mm.png;type=image/png" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])"
 # Yukaridaki id'yi ALFA_ID olarak sakla, sonra BETA kiracisiyla dene:
-curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/attachments/$ALFA_ID" -H "$APB" -H "X-Tenant-Id: kiraci-beta" -o /dev/null
+curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/attachments/$ALFA_ID" -H "$APB" -H "X-AgentPrism-Tenant: kiraci-beta" -o /dev/null
 ```
 
 **Beklenen sonuç**
@@ -447,9 +458,14 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/attachments/$ALFA_ID" -H "$APB" -H
   ait olduğu bilgisi hiçbir şekilde sızmaz (403 değil, 404).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İlk deneme (yanlış `X-Tenant-Id` başlığıyla, çok kiracılık kapalı) `HTTP: 200`
+döndü — sapma değil, doküman kusuruydu: gerçek başlık adı `X-AgentPrism-Tenant`
+(`HttpTenantContext.cs:50`), `X-Tenant-Id` sunucu tarafından hiç okunmuyor ve
+sessizce yok sayılıyor. Girilecek veri düzeltildi (yukarıda not edildi),
+çok kiracılık `AgentPrism:Tenancy:Enabled`/`AllowHeaderResolution` ile açılıp
+doğru başlıkla tekrar koşuldu: `HTTP: 404` — beklenen davranış doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -480,9 +496,15 @@ curl -s "$APU/api/attachments?sessionId=musteri-42" -H "$APB" \
   katmanında** yapılır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İlk denemede yalnız bir ek yüklemek (`POST /api/attachments?sessionId=...`)
+gerçek bir `sessions` kaydı OLUŞTURMUYOR — `DeleteSessionAsync` `sessions.DeleteSessionAsync`
+`false` dönünce `404` veriyor (`SessionEndpoints.cs:188-194`). Bu, ön koşulun eksik
+tarifiydi: bir oturumun var sayılması için önce gerçek bir agent çalıştırması
+gerekiyor. `POST /api/agents/support/run` ile `sessionId=musteri-42` üzerinden
+bir tur çalıştırılıp SONRA ek eklendi; bu sırayla silme `204`, listeleme `0`
+döndü — beklenen davranış doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -518,9 +540,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$A
   olduğunu gösterir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 200`, akış hatasız `done` ile bitti, model boş olmayan bir metin üretti.
+`GET /api/runs/{runId}` → `status:"Completed"`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -550,9 +573,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$A
   bir `ProblemDetails` dönemeyeceği için bu sıra kasıtlıdır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title:"Ek bulunamadi"`, düz JSON `ProblemDetails` (SSE değil).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -572,7 +595,7 @@ Negatif senaryo.
 
 **Girilecek veri**
 ```bash
-curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$APB" -H "X-Tenant-Id: kiraci-beta" \
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$APB" -H "X-AgentPrism-Tenant: kiraci-beta" \
      -H "content-type: application/json" -d "{
   \"message\": \"bu ek nedir\",
   \"attachmentIds\": [\"$ALFA_ID\"]
@@ -584,9 +607,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$A
   göremez, akış başlamaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title:"Ek bulunamadi"` (doğru başlık `X-AgentPrism-Tenant` ile,
+bkz. MT-MM-013 doküman düzeltmesi).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -615,9 +639,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$A
   biri dolu olması yeterlidir; boş istek reddi yalnız üçü de boşsa tetiklenir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 200`, akış hatasız `done` ile bitti — `message` boş olsa da yalnız
+`attachmentIds` dolu olması yeterliydi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -657,9 +682,11 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/v1/responses" -H "$APB" \
   gövdedeki base64 blok sohbet geçmişine OLDUĞU GİBİ yazılmaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 200`. `GET /api/attachments` listesinde `sessionId` yanıtın `resp_...`
+kimliğiyle eşleşen, `mediaType:"image/png"`, `byteSize:68` yeni bir kayıt
+oluştu — gömülü base64 ayrı bir `attachments` satırına çözüldü.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -700,9 +727,11 @@ curl -s "$APU/v1/chat/completions" -H "$APB" -H "content-type: application/json"
   bilinçli kapsam kararıdır; koşum bu davranışı doğrular/çürütür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 200`. Model "Resmi göremiyorum, lütfen görseli yükle" yanıtı verdi —
+görsel parça modele hiç ulaşmadı, istek reddedilmedi. Beklenen kapsam dışı
+davranış doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -740,9 +769,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/v1/responses" -H "$APB" \
   hatasını doğrudan istemciye taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `"Dosya turu taninmadi. ..."` — beklenen davranış doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -779,9 +808,38 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/voice/sessions/deneme/stream" -H "
   uygulamayı yeniden başlat — sonraki tüm case'ler bu anahtara ihtiyaç duyar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Birinci istek beklendiği gibi `HTTP: 501`. İkinci istek (`$APB` ile, dokümanın
+kendi komutuyla) `HTTP: 404` DEĞİL, `HTTP: 401` `{"title":"Kimlik dogrulanamadi",
+"detail":"Gecerli bir 'Authorization: Bearer <token>' basligi gerekiyor."}`
+döndü — GEÇERLİ bir bearer token verilmesine rağmen.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+Kök neden: `UseVoiceConversation()` çağrılmadığı için `/api/voice/sessions/{id}/stream`
+gerçekten kayıtlı değil (kod beklendiği gibi çalışıyor), istek
+`api/`-önekli yollar için `UiEndpoints.ServeAsync`'in yakalayıcı (`{**path}`)
+rotasına düşüyor (`UiEndpoints.cs:44-46,66-74`) ve orada `NotFound` (404)
+üretiliyor — AMA yalnız `Authorization` başlığı BOŞSA. Bu grup
+`AgentPrismEndpointFilter(options, requireBearerToken: false)` ile korunuyor
+(`AgentPrismEndpointRouteBuilderExtensions.cs:294`); `requireBearerToken: false`
+olunca `_authToken` `null` olarak ayarlanıyor (`AgentPrismEndpointFilter.cs:57`).
+Başlık BOŞ değilse filtre statik `AuthToken`'ı HİÇ karşılaştırmıyor
+(`_authToken is {Length: >0}` `false` olduğu için `93. satır` atlanıyor),
+doğrudan `IApiKeyStore` üzerinden bir API anahtarı arıyor
+(`AgentPrismEndpointFilter.cs:100-131`); statik bearer token kayıtlı bir API
+anahtarı OLMADIĞI için arama boş dönüyor ve `134. satır`daki genel
+`Unauthorized()` tetikleniyor — mesaj "gecerli bir token gerekiyor" der ama
+tam olarak geçerli olan statik token zaten sağlanmıştı. Doğrulama: aynı
+başlıkla kayıtlı bir rotaya (`/api/voice/health`) istek atıldığında `501`
+düzgün dönüyor (bearer token orada normal şekilde denetleniyor); sorun yalnız
+eşlenmemiş `api/*` yollarında ortaya çıkıyor — rastgele bir yol da
+(`/api/totally-made-up-path-xyz`) aynı `401`i veriyor, yalnız bu uca özgü
+değil. **Kusur — HATA-S1-014, Önem: Orta** (bkz. şerit sonuç dosyası).
+`/api/voice/sessions` (§8 doğrulaması, aynı ön koşulda) beklendiği gibi
+`HTTP: 200`, `[]` döndü — MT-MM-043 bu adımla birleştirildi ve GEÇTİ.
+
+**Ön koşulu geri aldım:** `AgentPrism__Voice__ApiKey` gerçek ElevenLabs
+anahtarıyla ayarlanıp uygulama yeniden başlatıldı (bkz. koşum notu).
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -810,9 +868,12 @@ dotnet run
   yeniden başlat.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Açılış `OptionsValidationException` ile çöktü (exit code 134), mesaj:
+`'pcm_16000' bicimi ek olarak saklanamaz. ...`. Şerit izolasyonu gereği
+`AgentPrism__Voice__OutputFormat` ortam değişkeni kaldırılıp normal
+konfigürasyonla yeniden başlatıldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -841,9 +902,10 @@ dotnet run
   yeniden başlat.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Açılış çöktü (exit code 134), mesaj: `'azure-cognitive-speech' saglayicisi
+taninmiyor. Yerlesik saglayici: 'elevenlabs'. ...`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -872,9 +934,10 @@ dotnet run
   yeniden başlat.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Açılış çöktü (exit code 134), mesaj: `eszamanli istek siniri sifirdan buyuk
+olmalidir.`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -909,9 +972,13 @@ curl -s "$APU/api/voice/health" -H "$APB" | python3 -m json.tool
 - **Geri al:** gerçek anahtarı tekrar ayarla, yeniden başlat.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`isHealthy:false`, `detail:"Ses listesi alinamadi: HTTP 401. API anahtari
+gecersiz."` — sahte anahtar metni yanıtta hiç görünmedi. Sunucu logu
+(`grep -c "SAHTE-GECERSIZ-ANAHTAR-xyz789"`) `0` sonuç verdi — anahtar loglara
+da sızmadı. Gerçek ElevenLabs anahtarı geri ayarlanıp uygulama yeniden
+başlatıldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -937,9 +1004,16 @@ curl -s "$APU/api/voice/voices" -H "$APB" | python3 -m json.tool | head -20
   §9'daki WebSocket istemcisi) bunu kullanır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İlk denemede `HTTP: 500` (`AgentPrismException: Ses listesi alinamadi: HTTP 401.
+API anahtari gecersiz.`) — koşum hatası: sunucu, MT-MM-035'in sahte anahtarıyla
+başlatılmış eski bir işlemdi (yeniden başlatma komutu `pgrep -f
+"AgentPrism.Api.dll"` ile eşleşmedi, `dotnet run` apphost'u macOS'ta farklı bir
+süreç adıyla listeleniyor; eski süreç asla ölmedi). PID'yi doğrudan `kill -9`
+ile sonlandırıp gerçek anahtarla yeniden başlatıldı, `ps eww <pid>` ile ortam
+değişkeninin gerçekten değiştiği doğrulandı. Sonrasında `HTTP: 200`, 10 ses
+döndü, her öğede `voiceId`/`name` doluydu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -963,9 +1037,10 @@ curl -s "$APU/api/voice/health" -H "$APB" | python3 -m json.tool
   ElevenLabs panelinde karakter tüketimi görünmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`isHealthy:true`, `voiceCount:10` (MT-MM-038 ile eşleşiyor), `latency` dolu
+(`00:00:00.2277458`), `detail:null`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1000,9 +1075,15 @@ curl -s -X POST "$APU/api/voice/speak" -H "$APB" -H "content-type: application/j
   çalan bir MP3 olduğunu doğrula.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 200`. `attachment.mediaType:"audio/mpeg"`, `byteSize:42675`,
+`characters:10`, `isEstimated:false`. Bu örnek uygulamada
+`AgentPrism:Pricing:Voice` YAPILANDIRILMIŞ (`appsettings.json:193-200`,
+elevenlabs/eleven_multilingual_v2 = 110 USD/milyon karakter) — bu yüzden
+`cost:0.0011`, `currency:"USD"` doğru hesaplandı (10 × 110e-6 = 0.0011,
+eşleşiyor). İndirilen ek gerçek bir MP3: `file` komutu
+`MPEG ADTS, layer III, v1, 128 kbps, 44.1 kHz` doğruladı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1028,9 +1109,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/voice/speak" -H "$APB" \
   harcanmaz).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title:"Metin bos"`, detay `'text' alani zorunludur.`
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1071,9 +1152,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/voice/speak" -H "$APB" \
   **Kusur, Önem: Orta**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title:"Metin cok uzun"`, detay `Metin 6000 karakter; sinir 5000. ...`
+— fix bekleneni yaptı, istek sağlayıcıya gitmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1100,9 +1182,11 @@ Sınır senaryosu.
   birleştir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+MT-MM-031 ile aynı koşumda (voice kapalı, `UseVoiceConversation()` hiç
+çağrılmamışken) `GET /api/voice/sessions` çağrıldı: `HTTP: 200`, gövde `[]`
+— `501` DEĞİL, boş liste. Beklenen davranış doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1129,8 +1213,12 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/sesli-asistan/run" 
 ```
 
 **Doğrulama sorgusu**
+
+> **Doküman düzeltmesi:** `tool_name` sütunu `attachments` tablosunda yok
+> (bkz. Gerçek sonuç). Aşağıda çıkarıldı.
+
 ```sql
-SELECT tool_name, session_id, run_id, media_type, byte_size
+SELECT session_id, run_id, media_type, byte_size
 FROM agentprism.attachments
 WHERE session_id = 'manuel-mm-speak-1'
 ORDER BY created_at DESC LIMIT 1;
@@ -1144,9 +1232,25 @@ ORDER BY created_at DESC LIMIT 1;
   üzerinden oturum kimliğini görür, ek sahipsiz sayılıp silinmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İlk denemede `speak` tool çağrısı `Error: Function failed.` ile başarısız
+oldu — sunucu logunda kök neden: `AgentPrismException: Ses uretilemedi:
+HTTP 400.` Sebep bu ortama özgüydü: paylaşılan makine-geneli `user-secrets`
+deposundaki `AgentPrism:Voice:DefaultVoiceId` değeri (başka/eski bir
+ElevenLabs anahtarına ait, bu şeridin env değişkeni bunu hiç override
+etmemişti) bu anahtarın hesabında GEÇERSİZ bir ses kimliği taşıyordu.
+`AgentPrism__Voice__DefaultVoiceId` ortam değişkeni MT-MM-038'de doğrulanmış
+gerçek bir kimlikle (`hpp4J3VqNfWAUOO0d1Us`) override edilip yeniden
+başlatıldıktan sonra: akış tamamlandı, `speak` çağrıldı, sonuç
+`"Ses uretildi. attachmentId=019ffa0e-cebd-7274-9547-8cdb2a2ede54, ..."`
+(ham ses yok). SQL sorgusu (düzeltilmiş, `tool_name` sütunu olmadan — bkz.
+not) tek satır döndü: `session_id='manuel-mm-speak-2'` DOLU, `run_id` DOLU.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+> **Doküman düzeltmesi:** Doğrulama sorgusundaki `tool_name` sütunu
+> `attachments` tablosunda YOK (`\d attachments` doğrulandı — sütunlar:
+> id/tenant_id/session_id/run_id/file_name/media_type/byte_size/sha256/
+> content/external_uri/created_by/created_at). Sorgudan çıkarıldı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1180,9 +1284,21 @@ curl -s -X POST "$APU/api/agents/sesli-asistan/run" -H "$APB" \
   işaretlenir ve tekrar denenir.)
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İki denemede de model `speak` tool'unu çağırdı AMA metni 6000 karaktere
+TAMAMLAMADI (1096, sonra daha direktif bir istemle 1207 karakterde kesti) —
+tool başarıyla ses üretti, sınır hiç tetiklenmedi. Kök neden: `sesli-asistan`
+fixture'ının model ayarı `maxOutputTokens:1024` (`GET /api/agents` çıktısı).
+6000 karakterlik bir fonksiyon çağrısı argümanı tek bir tamamlamada
+1024 çıktı token'ına asla sığmaz — model kaç kez denenirse denensin bu
+sınıra token bütçesinden ÖNCE ulaşamaz. Bu, doğrulanabilir bir yapısal
+kısıt (fixture ayarı), model isteksizliği değil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+`⏭ ATLA — model tool'u istenen uzunlukta (6000 kr) hiçbir zaman tetikleyemez;
+sebep `sesli-asistan` fixture'ının `maxOutputTokens=1024` sınırı`. HTTP ucu
+tarafında AYNI sınır MT-MM-042'de doğrudan (model araya girmeden) zaten
+doğrulandı — kapsanan davranış orada kanıtlandı.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -1215,9 +1331,10 @@ curl -s -X POST "$APU/api/agents/sesli-asistan/run" -H "$APB" \
   çağrıldığı ve boş olmayan bir metin döndürdüğü doğrulanır).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`transcribe` çağrıldı, sonuç: `"[dil=tur] Agent Prism manuel test seslendirmesi"`
+— beklenen biçimde, boş olmayan bir metin.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1250,9 +1367,13 @@ curl -s -X POST "$APU/api/agents/sesli-asistan/run" -H "$APB" \
   — `descriptor.MediaType.StartsWith("audio/")` kontrolü.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Model sonucu `"Error: Function failed."` gördü (Microsoft.Extensions.AI'nin
+genel sarmalayıcı mesajı); sunucu logunda gerçek istisna tam beklenen metni
+taşıyordu: `AgentPrismException: '019ffa11-1c59-7b24-853d-ad453065b03e'
+kimlikli ek bir ses dosyasi degil (tur: image/png).`
+(`TranscribeTool.cs:74`).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1281,9 +1402,11 @@ curl -s -X POST "$APU/api/agents/sesli-asistan/run" -H "$APB" \
   TÜKETMEZ.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`list_voices` çağrıldı, sonuç `Ad (kimlik) — kategori` biçiminde 10 satır
+(hesapta 10 ses var, 50 sınırı tetiklenmedi): `"Bella - Professional, Bright,
+Warm (hpp4J3VqNfWAUOO0d1Us) — premade\n..."`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1315,9 +1438,12 @@ WHERE run_id = '<RUN_ID>' AND tool_name = 'speak';
   dolu, değilse `cost` **`NULL`** — sıfır DEĞİL.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Bir satır: `usage_unit='characters'`, `usage_quantity=2` (pozitif),
+`usage_estimated=false`. `AgentPrism:Pricing:Voice` bu ortamda yapılandırılmış
+olduğundan `cost=0.00022`, `cost_currency='USD'` doldu (2 × 110e-6, doğru
+hesaplandı) — sıfır DEĞİL.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1344,9 +1470,10 @@ WHERE run_id = '<RUN_ID>' AND tool_name = 'transcribe';
   ondalık (küçük bir test sesi için birkaç saniye).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`usage_unit='seconds'`, `usage_quantity=2.6006250000` — küçük test sesiyle
+tutarlı bir ondalık.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1378,9 +1505,13 @@ SELECT count(*) FROM agentprism.tool_invocations WHERE tool_name = 'speak'
   görünür kalır (kalıcı değildir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Son 30 dakikada `tool_name='speak'` için `5` satır — MT-MM-046'nın 2 başarısız
++ 1 başarılı denemesi, MT-MM-047'nin 2 başarılı denemesi: TOPLAM 5 agent
+çağrısıyla BİREBİR eşleşti. Her satırın `run_id` DOLU (FK zorunluluğu ile
+tutarlı). MT-MM-040'ın operatör çağrısı (07:34:01, `POST /api/voice/speak`)
+bu listede HİÇ YOK — beklendiği gibi hiç eklemedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

@@ -13,20 +13,20 @@
 
 ## 1. Durum
 
-> Son güncelleme: **2026-08-13**, Şerit 1 (oturum S1-1, S1-2, S1-3, S1-4, S1-5 tam).
+> Son güncelleme: **2026-08-13**, Şerit 1 (oturum S1-1, S1-2, S1-3, S1-4, S1-5, S1-6 tam).
 
 | | |
 |---|---|
 | Toplam case | **1097** |
-| Koşuldu | **229** (`01` tam · `02` 28/42 · `03` tam · `04` **tam** · `14` 1/47 · `20` 23/31 (8 Beklemede — embedding erişimi yok) · `23` **tam** · `25` 27/28 (1 Beklemede — geçici kod değişikliği gerekiyor)) |
-| Kalan | **868** |
+| Koşuldu | **266** (`01` tam · `02` 28/42 · `03` tam · `04` **tam** · `14` 1/47 · `19` 37/61 (§1–§8 tam, §9–§13 kaldı) · `20` 23/31 (8 Beklemede — embedding erişimi yok) · `23` **tam** · `25` 27/28 (1 Beklemede — geçici kod değişikliği gerekiyor)) |
+| Kalan | **831** |
 | Planlanan oturum | **40** (4 paralel şerit + ortak kuyruk) |
 
 ### Şerit ilerlemesi
 
 | Şerit | Durum |
 |---|---|
-| 1 — Kalıcılık ve ses | S1-1 ✅ · S1-2 ✅ · S1-3 ✅ (`23` tamam, 26/26) · S1-4 ✅ (`20`, 23/31 koşuldu — 13 Geçti/10 Kaldı; 8 Beklemede, embedding erişimi yok) · **S1-5 ✅** (`25`, 27/28 koşuldu — 24 Geçti/3 Kaldı; 1 Beklemede, geçici kod değişikliği gerekiyor) · S1-6…S1-7 ⏳ (sıradaki: `19-COK-MODLULUK-VE-SES.md` §1–§8) |
+| 1 — Kalıcılık ve ses | S1-1 ✅ · S1-2 ✅ · S1-3 ✅ (`23` tamam, 26/26) · S1-4 ✅ (`20`, 23/31 koşuldu — 13 Geçti/10 Kaldı; 8 Beklemede, embedding erişimi yok) · S1-5 ✅ (`25`, 27/28 koşuldu — 24 Geçti/3 Kaldı; 1 Beklemede, geçici kod değişikliği gerekiyor) · **S1-6 ✅** (`19` §1–§8, 37/37 koşuldu — 35 Geçti/1 Kaldı/1 Atlandı) · S1-7 ⏳ (sıradaki: `19-COK-MODLULUK-VE-SES.md` §9–§13, gerçek ElevenLabs anahtarı ortam değişkeni olarak zaten mevcut, bkz. `SONUCLAR-S1-2026-08-13.md` devir notu) |
 | 2 — HTTP ve güvenlik | ⏳ Başlamadı |
 | 3 — Çekirdek ve sağlayıcı | ⏳ Başlamadı |
 | 4 — Arayüz | ⏳ Başlamadı |
@@ -52,6 +52,7 @@
 | `HATA-S1-007` — `/api/agents/validate`, bilinmeyen enum string'de `400` yerine `500` veriyor | Orta | ⛔ Açık |
 | `HATA-S1-009` — `EnableTextSearch` sorguyla eşleşen içeriği hiç bulamıyor (şüpheli) | Orta | ⛔ Açık |
 | `HATA-S1-013` — İki A2A ucunun `operationId`si yok | Orta | ⛔ Açık |
+| `HATA-S1-014` — Eşlenmemiş `api/` yollarına geçerli statik bearer token ile istek `404` yerine yanıltıcı `401` döner | Orta | ⛔ Açık |
 | `HATA-S1-005` — Dört saklama hedefi config varsayılanını sessizce yok sayıyor | Düşük | ⛔ Açık |
 | `HATA-S1-001` — `user-secrets` temizliği uygulanmamış (süreç kusuru) | Düşük | ⛔ Açık |
 | `HATA-S1-010` — Bilgi tabanı doğrulama hataları `.NET ArgumentException`'ın iç parametre adını sızdırıyor | Düşük | ⛔ Açık |
@@ -363,8 +364,8 @@ Kalıcılık sağlayıcısı case'e göre değişir; bu şerit `AgentPrism__Sqli
 | S1-3 | [`23`](23-SAKLAMA-ARSIV-KOTA.md) | tümü | 26 | SQLite ile koş — saklama silme yolları en hızlı orada görünür. |
 | S1-4 ✅ | [`20`](20-BELLEK-RAG-BAGLAM.md) | tümü | 31 | **Bitti** (2026-08-13): 13 Geçti, 10 Kaldı, 8 Beklemede (embedding erişimi yok — bkz. `SONUCLAR-S1-2026-08-13.md`). |
 | S1-5 | [`25`](25-SAGLIK-TESHIS-OPENAPI.md) | tümü | 28 | Üç sağlayıcıyı da sırayla dener; her geçişte reset. |
-| S1-6 | [`19`](19-COK-MODLULUK-VE-SES.md) | §1–§8 | 37 | Ek yükleme, ses uçları, `speak`/`transcribe`. ElevenLabs anahtarı. |
-| S1-7 | [`19`](19-COK-MODLULUK-VE-SES.md) | §9–§13 | 24 | Gerçek zamanlı konuşma (WebSocket). Ses **kalitesi** kullanıcıya gider. |
+| S1-6 ✅ | [`19`](19-COK-MODLULUK-VE-SES.md) | §1–§8 | 37 | **Bitti** (2026-08-13): 35 Geçti, 1 Kaldı (`HATA-S1-014`), 1 Atlandı (`MT-MM-047`, yapısal `maxOutputTokens` sınırı). Ayrıntı `SONUCLAR-S1-2026-08-13.md`. |
+| S1-7 | [`19`](19-COK-MODLULUK-VE-SES.md) | §9–§13 | 24 | Gerçek zamanlı konuşma (WebSocket). Ses **kalitesi** kullanıcıya gider. Gerçek ElevenLabs anahtarı ortam değişkeni olarak hazır (bkz. devir notu). |
 
 ### Şerit 2 — HTTP ve güvenlik · port 5082 · şema `mt_s2`
 
