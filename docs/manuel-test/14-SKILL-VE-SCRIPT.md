@@ -913,9 +913,9 @@ değişmesidir** (Faz 10'un 1 numaralı kararı).
   `MT-UIAG-028` ile aynı davranış (MAF çalıştırmayı burada durdurur).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Playwright ile Playground'da koşuldu. `load_skill` onay kartı `arguments: {"skillName":"fatura-kontrolu"}` ile göründü, hiçbir final metin yoktu (yalnız onay kartı). Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -943,9 +943,9 @@ değişmesidir** (Faz 10'un 1 numaralı kararı).
   bir doğrulamadır (`PROMPT.md` §4.1).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+"Hatırla" işaretlenmeden "Onayla"ya tıklandı. Yeni tur `load_skill done` kartı ve `KOD TANIMLI...` DEĞİL, DB'deki gerçek talimatı taşıyan `load_skill` sonucunu içerdi; model nihai yanıtı tam olarak `FATURA_SKILL_ACTIVE` oldu. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -974,9 +974,9 @@ Negatif senaryo.
   talimatı hiçbir zaman bağlama girmedi.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+"Reddet"e tıklandı: kart `rejected` rozetine döndü, `load_skill` sonucu `Tool call invocation rejected.` oldu. Belgelenmeyen bir nüans: model, reddedilen çağrıyı bir kez daha denedi ve İKİNCİ bir `load_skill` onay kartı üretti (gpt-5.4-mini'nin retry davranışı — kod tarafında bir tekrar mekanizması değil, modelin kendi kararı); bu da reddedildi, ardından tur tamamlandı. Nihai yanıt genel bir "hangi fatura bilgilerini paylaşmalısın" metniydi, `FATURA_SKILL_ACTIVE` dizgisini İÇERMİYORDU. Asıl iddia (skill talimatı hiçbir zaman bağlama girmedi) doğrulandı; ekstra onay turu kusur değil, gerçek model davranışı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1007,9 +1007,9 @@ Negatif senaryo.
 - Nihai yanıt yine `FATURA_SKILL_ACTIVE` içerir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 1: prompt gönderildi, onay kartında "Hatırla" işaretlenip "Onayla"ya tıklandı, model `FATURA_SKILL_ACTIVE` üretti. Adım 2/3: "Yeni Sohbet" ile farklı bir `sessionId`'de aynı prompt tekrar gönderildi — bu sefer HİÇBİR onay kartı çıkmadı, `load_skill done` doğrudan göründü, model yine `FATURA_SKILL_ACTIVE` üretti. Tam beklendiği gibi — kalıcı kural (`tool_approval_rules`) çalışıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1046,9 +1046,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/scriptli-skill" -H "
   `'py' uzantisi icin kayitli bir yorumlayici yok.` (`SkillEndpoints.cs:184-190`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title: "Script uzantisi izinli degil"`, `detail: "'py' uzantisi icin kayitli bir yorumlayici yok."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1093,9 +1093,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/scriptli-skill" -H "
   (varsayılan) olduğu için HİÇBİR ŞEKİLDE çalıştırılamaz — bkz. §6.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`dotnet user-secrets set "AgentPrism:Skills:Scripts:Interpreters:sh" "/bin/bash"` ile yeniden başlatıldıktan sonra `HTTP: 201`, script kaydı `content: "echo merhaba-agentprism"` ile döndü. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1131,9 +1131,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/cok-scriptli" -H "$A
   `Bir skill en fazla 10 script tasiyabilir.`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title: "Cok fazla script"`, `detail: "Bir skill en fazla 10 script tasiyabilir."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1168,9 +1168,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/cakisan-script" -H "
   `Her script adi bos olmamali ve skill icinde benzersiz olmalidir.`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title: "Script adi gecersiz"`, `detail: "Her script adi bos olmamali ve skill icinde benzersiz olmalidir."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1202,9 +1202,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/bozuk-sema" -H "$APB
   `parametersSchema gecerli bir JSON nesnesi olmalidir.`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title: "Parametre semasi gecersiz"`, `detail: "parametersSchema gecerli bir JSON nesnesi olmalidir."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1239,9 +1239,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/buyuk-script" -H "$A
   `Her script en fazla 65536 bayt olabilir.`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title: "Script cok buyuk"`, `detail: "Her script en fazla 65536 bayt olabilir."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1276,9 +1276,9 @@ curl -s "$APU/api/skills/scriptli-skill" -H "$APB" | python3 -m json.tool
   `_scripts is { StoredScriptsEnabled: true }` koşulu, `AgentPrismSkillsSource.cs:71`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`GET /api/skills/scriptli-skill` gövdesi `scripts: [{"name":"merhaba",...,"content":"echo merhaba-agentprism",...}]` döndü — tam içerikle, gizlenmeden. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1312,9 +1312,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/skill-script-grants" -H "$
   engellenmiştir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 409`, `title: "Script calistirma kapali"`, `detail: "Izin vermeden once UseSkillScripts(...) ile script calistirmayi acin."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1353,9 +1353,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/skill-script-grants" -H "$
   `AmbientAuditActorResolver.cs:32-35`), `expiresAt: null`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`dotnet user-secrets set "AgentPrism:Skills:Scripts:Enabled" "true"` + `PlatformIsolationAcknowledged` `"true"` ile yeniden başlatıldıktan sonra `HTTP: 201`, `grantedBy: null`, `expiresAt: null`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1386,9 +1386,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/skill-script-grants" -H "$
   `expiresAt gelecekte bir an olmalidir.`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title: "Bitis zamani gecmiste"`, `detail: "expiresAt gelecekte bir an olmalidir."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1416,9 +1416,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/skill-script-grants" -H "$
 - `HTTP: 400`. `title: "Skill adi gerekli"`, `detail: "skillName bos olamaz."`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title: "Skill adi gerekli"`, `detail: "skillName bos olamaz."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1446,9 +1446,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/skill-script-grants" -H "$
   `skills.tsx:154-156`) ve grant tablosu aynı kaydı gösterir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 1: liste `scriptli-skill`/`merhaba` çiftini içerdi. Adım 2: `/agentprism/skills` sayfasında `border-red-500` CSS sınıflı bir uyarı kutusu doğrulandı (`document.querySelector('[class*="border-red"]')` ile), grant tablosunda aynı satır (`scriptli-skill` / `merhaba` / `Granted by: unknown`) göründü. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1479,9 +1479,9 @@ WHERE skill_name = 'scriptli-skill';
 ```
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+"Revoke" düğmesine tıklandı, satır listeden kayboldu, panel "No active grant." metnine döndü. Bellek içi kalıcılıkla koşuldu; PostgreSQL doğrulama sorgusu koşulmadı (satırın silinmediği/`revoked_at` dolduğu iddiası `InMemorySkillScriptGrantStore`'un aynı `active` filtre desenini kullandığı varsayımına dayanır, ayrıca doğrulanmadı).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1506,9 +1506,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/skill-script-grants/hic-
   `'hic-yok-skill' icin gecerli bir calistirma izni yok.`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 404`, `title: "Izin bulunamadi"`, `detail: "'hic-yok-skill' icin gecerli bir calistirma izni yok."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
