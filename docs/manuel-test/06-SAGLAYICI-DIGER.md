@@ -1788,9 +1788,10 @@ curl -s "$APU/api/models" -H "$APB" | python3 -m json.tool
   (`uretim-gpt`), model adı değil.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Bu ortamda gerçek bir Azure OpenAI kaynağı yok (KOSUM-PLANI §1 "Sabit
+gerçekler"). Koşulmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -1829,9 +1830,9 @@ cd samples/AgentPrism.Api && dotnet run
   bir genel adresi yoktur; her kaynagin kendi adresi vardir.` metnini taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Bu ortamda gerçek bir Azure OpenAI kaynağı yok. Koşulmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -1868,9 +1869,9 @@ cd samples/AgentPrism.Api && dotnet run
   AzureOpenAIProviderOptions.CredentialFactory doldurulmalidir.` ile başlar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Bu ortamda gerçek bir Azure OpenAI kaynağı yok. Koşulmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -1916,9 +1917,10 @@ agentPrism.UseAzureOpenAI(o =>
   hiç denenmedi) — bu, `ApiKey`'in sessizce ezildiğinin kanıtıdır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Bu ortamda gerçek bir Azure OpenAI kaynağı VE `az login` yapılmış bir
+Entra kimliği yok. Koşulmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -1965,9 +1967,9 @@ curl -s -X POST "$APU/api/agents/manuel-azure-yanlis-ad/run" -H "$APB" \
 - `GET /api/runs/{runId}` çıktısında `status: Failed`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Bu ortamda gerçek bir Azure OpenAI kaynağı yok. Koşulmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -2012,9 +2014,13 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
   saglayicisi hicbir ek ayar desteklemiyor.` metinlerini içerir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Bu ortamda gerçek bir Azure OpenAI kaynağı yok — `azure-openai`
+sağlayıcısı hiç kayıtlı değil (`UseAzureOpenAI()` hiç çağrılmadı),
+`/api/agents/validate` bu durumda muhtemelen "sağlayıcı bulunamadı"
+türü farklı bir hata dönerdi, dokümanın öngördüğü `invalid_setting`
+akışını KANITLAMAZDI. Koşulmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -2053,9 +2059,9 @@ curl -s "$APU/api/models/health/azure-openai" -H "$APB" | python3 -m json.tool
   kusur değildir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Bu ortamda gerçek bir Azure OpenAI kaynağı yok. Koşulmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -2100,9 +2106,9 @@ curl -s "$APU/api/runs/<runId>" -H "$APB" | python3 -m json.tool
   davranış `05-SAGLAYICI-OPENAI.md` `MT-OAI-040` ile **birebir aynı** olmalıdır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Bu ortamda gerçek bir Azure OpenAI kaynağı yok. Koşulmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -2145,9 +2151,9 @@ done
   ne kaynak adresini.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Bu ortamda gerçek bir Azure OpenAI kaynağı yok. Koşulmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
