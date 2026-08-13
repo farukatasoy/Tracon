@@ -32,7 +32,9 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
     private static readonly TimeSpan LastUsedTouchInterval = TimeSpan.FromMinutes(1);
 
     private readonly bool _allowRemoteAccess;
+    private readonly bool _requireBearerToken;
     private readonly string? _authToken;
+    private readonly string? _staticAuthToken;
 
     /// <summary>Ayarlardan bir filtre kurar.</summary>
     /// <param name="options">Erisim ayarlari.</param>
@@ -54,7 +56,9 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
         // degisiklik calisan uclari etkilememelidir; erisim kurallarinin calisma
         // aninda sessizce gevsemesi guvenlik acisindan kabul edilemez.
         _allowRemoteAccess = options.AllowRemoteAccess;
+        _requireBearerToken = requireBearerToken;
         _authToken = requireBearerToken ? options.AuthToken : null;
+        _staticAuthToken = options.AuthToken;
     }
 
     /// <inheritdoc />
@@ -94,6 +98,22 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
         {
             return CheckTenancyWhitelist(httpContext) is { } rejectedStaticToken
                 ? rejectedStaticToken
+                : await Proceed(httpContext, next, context).ConfigureAwait(false);
+        }
+
+        if (!_requireBearerToken
+            && _staticAuthToken is { Length: > 0 } configured
+            && BearerTokenValidator.IsValid(header, configured))
+        {
+            // Bu uc grubu bearer token katmanini UYGULAMAZ (K1) ama sunulan
+            // deger AgentPrism'in kendi statik AuthToken'iyla eslesiyor — bu bir
+            // API anahtari degildir, IApiKeyStore aramasi hicbir zaman bulamaz ve
+            // asagidaki genel Unauthorized()'a duserdi (HATA-S1-014): dogru token
+            // ile hic token verilmemis gibi ayni yanit donerdi. Baslik YOKMUS gibi
+            // notr davranilir — reddetmez, ek yetki de vermez; ucun kendi mantigina
+            // (varsa, ornegin bir 404/400) ulasilir.
+            return CheckTenancyWhitelist(httpContext) is { } rejectedGroupToken
+                ? rejectedGroupToken
                 : await Proceed(httpContext, next, context).ConfigureAwait(false);
         }
 

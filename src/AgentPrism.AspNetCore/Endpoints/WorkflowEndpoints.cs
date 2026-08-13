@@ -78,6 +78,7 @@ internal static class WorkflowEndpoints
             // Basari yaniti her zaman SSE'dir; motor kayitli degilse 501 doner.
             .Produces<string>(StatusCodes.Status200OK, contentType: "text/event-stream")
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status501NotImplemented);
 
         builder.MapGet("/api/workflows/runs/{runId:guid}/checkpoints", ListCheckpointsAsync)
@@ -253,6 +254,9 @@ internal static class WorkflowEndpoints
         string name,
         [FromBody] WorkflowRunHttpRequest? request,
         [FromServices] IWorkflowRunner? runner,
+        [FromServices] QuotaEnforcer? quotaEnforcer,
+        [FromServices] ITenantContext tenantContext,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         if (runner is null)
@@ -263,6 +267,17 @@ internal static class WorkflowEndpoints
         if (await runner.GetAsync(name, cancellationToken).ConfigureAwait(false) is null)
         {
             return NotFound(name);
+        }
+
+        // 🚨 HATA-S1-006: workflow calistirmalari agent'larla AYNI kota kapisindan
+        // gecer (bkz. AgentEndpoints.cs, ayni desen) — daha once bu denetim hic
+        // yoktu ve tanimli hicbir kota (calistirma sayisi, token, maliyet)
+        // workflow uzerinden atlatilabiliyordu.
+        if (await QuotaGate
+                .CheckAsync(quotaEnforcer, tenantContext, name, httpContext, cancellationToken)
+                .ConfigureAwait(false) is { } quotaProblem)
+        {
+            return quotaProblem;
         }
 
         var runId = AgentPrismId.NewId();

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 
 namespace AgentPrism;
@@ -25,6 +26,13 @@ namespace AgentPrism;
 [JsonSerializable(typeof(WorkflowDefinitionPayload))]
 [JsonSerializable(typeof(ChatHistoryState))]
 [JsonSerializable(typeof(ChatMessage))]
+
+// MAF'in bellek saglayicilarinin (FileMemoryProvider okuma yolu, TodoProvider)
+// ChatMessage.AdditionalProperties'e ekledigi kaynak/provenance bilgisi
+// (HATA-S1-008). Bildirilmezse polimorfik AdditionalProperties sozlugu bu tiple
+// karsilastiginda NotSupportedException firlatir ve hicbir yerde yakalanmaz —
+// bellek sagayicisini KULLANAN her tur sessizce coker (yanit hic donmez).
+[JsonSerializable(typeof(AgentRequestMessageSourceAttribution))]
 
 // Calistirma girdisi (Faz 47). Liste TEK bir `json` sutununa yazilir; polimorfik
 // icerigin `$type` ayraci nesnenin ilk ozelligi olarak korunur (K-027).

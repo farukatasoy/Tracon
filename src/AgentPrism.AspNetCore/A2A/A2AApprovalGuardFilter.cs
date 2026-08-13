@@ -55,7 +55,9 @@ internal sealed class A2AApprovalGuardFilter : IEndpointFilter
         {
             await schemaReadyGate.WaitAsync(lifetime.ApplicationStopping).ConfigureAwait(false);
 
-            var descriptors = await catalog.ListAsync(lifetime.ApplicationStopping).ConfigureAwait(false);
+            var descriptors = await ExternalSurfaceGuard
+                .ListCatalogWithRetryAsync(catalog, lifetime, logger, "A2A")
+                .ConfigureAwait(false);
 
             ExternalSurfaceGuard.EnsureNoApprovalRequiredTools(
                 descriptors, options.ExposedAgents, exposeAll: false, toolRegistry, "A2A");
