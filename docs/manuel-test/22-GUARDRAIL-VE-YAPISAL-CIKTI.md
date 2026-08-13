@@ -147,9 +147,17 @@ curl -s -X POST "$APU/api/agents/fatura-okuyucu/run" \
 - Alan **değerleri** (örn. tam olarak `1250`) iddia edilmez — yalnız yapı ve tip.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**Doküman notu:** `jq '.response.text'` yolu geçerli değil (gerçek gövde
+şekli `response.messages[0].contents[0].text`'tir, düz `response.text`
+değil) — çıktı `null` verir ama bu bir ürün kusuru değildir, dokümanın
+`jq` yolu güncel API gövde şekliyle uyuşmuyor. Doğru yoldan okunduğunda:
+`POST /api/agents` `201` döndü, `model.responseFormat.kind:"JsonSchema"`
+kayıtlı. `run` yanıtındaki metin `{"total":1250,"currency":"TRY"}` — geçerli
+JSON, `total` (number) ve `currency` (string) alanları mevcut. Tam
+beklendiği gibi (bu doküman notu §1'in geri kalan case'lerinde tekrar
+edilmez, aynı düzeltme geçerlidir).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -189,9 +197,11 @@ curl -s -X POST "$APU/api/agents/json-serbest/run" \
 - Alan adları/şekli **serbesttir** — MT-GUARD-001'in aksine hiçbir şema dayatılmaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+SAVE `201`. Yanıt metni `{"sehir":"İstanbul","nufus":15462452}` — geçerli
+JSON, serbest alan adları (MT-GUARD-001'in şemasından farklı). Tam
+beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -232,9 +242,14 @@ Sonra tarayıcıda: `http://localhost:5080/agentprism/agents/duz-metin`.
   `responseFormat` satırı `Text` değerini gösterir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`POST` yanıtı `{'kind': 'Text', 'schema': None, 'schemaName': None,
+'schemaDescription': None}` — `kind` dizgi (`"Text"`), sayısal değil. Ana
+API iddiası doğrulandı. Arayüz (versiyon karşılaştırma tablosu) bu
+oturumda tarayıcıyla ayrıca kontrol edilmedi — bütçe gerekçesiyle Şerit
+4'ün arayüz oturumlarına bırakıldı (bu dosya Şerit 3 kapsamında API
+tarafını kanıtlıyor).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -270,9 +285,12 @@ curl -s -N -X POST "$APU/api/agents/fatura-okuyucu/run" \
   uyan bir JSON belgesi elde edilir (`total`, `currency` alanları).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Çerçeve sayımı: `1 event: run`, `16 event: update`, `1 event: done`, `0
+event: error`. Birleştirilmiş metin: `{"total":980,"currency":"Turk
+Lirasi"}` — geçerli JSON, `total`+`currency` alanları mevcut. Tam
+beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -309,9 +327,13 @@ curl -s -X POST "$APU/api/agents/support/run" \
 - `run` normal serbest metin döner (JSON zorlaması yok).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**Doküman notu:** `GET /api/agents/{name}` gövdesi `{descriptor,
+definition, isEditable}` şeklinde sarmalı — `model` alanı `descriptor.model`
+altında (düz `.model` değil). Doğru yoldan: `descriptor.model.responseFormat`
+`null`. `run` çağrısı `HTTP:200` döndü (`500` verilmedi). Tam beklendiği
+gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -363,9 +385,11 @@ curl -s -i -X POST "$APU/api/agents/kirik/run" \
 - Model **hiç çağrılmaz** (derleme, dispatch'ten önce durur).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 2: `HTTP/1.1 201 Created`. Adım 3: `HTTP/1.1 400 Bad Request`,
+`title:"Agent derlenemedi"`, `detail:"'kirik' agent'i JsonSchema cikti
+kipini secti ancak Schema vermedi."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -408,9 +432,11 @@ curl -s -i -X POST "$APU/api/agents/celiskili-text/run" \
   Schema da verdi` ifadesini taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+SAVE `201`. RUN `400`, `detail:"'celiskili-text' agent'i 'Text' cikti
+kipini secti ancak Schema da verdi. Sema yalnizca JsonSchema kipinde
+kullanilir."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -452,9 +478,11 @@ curl -s -i -X POST "$APU/api/agents/celiskili-json/run" \
 - RUN `400`; detay `'Json' cikti kipini secti ancak Schema da verdi` ifadesini taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+SAVE `201`. RUN `400`, `detail:"'celiskili-json' agent'i 'Json' cikti
+kipini secti ancak Schema da verdi. Sema yalnizca JsonSchema kipinde
+kullanilir."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -495,9 +523,11 @@ curl -s -i -X POST "$APU/api/agents/dizi-sema/run" \
 - RUN `400`; detay `dizi-sema` adını ve `Schema alani bir JSON nesnesi olmalidir` ifadesini taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+SAVE `201` (dizi kabul edildi). RUN `400`, `detail:"'dizi-sema'
+agent'inin Schema alani bir JSON nesnesi olmalidir."`. Tam beklendiği
+gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -546,9 +576,10 @@ curl -s -X POST "$APU/api/agents/bos-sema/run" \
   uygulamadığı** anlamına gelir; hata da almaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+SAVE `201`, RUN `HTTP:200` (400 verilmedi). Yanıt metni `{}` — geçerli
+JSON nesnesi, hiçbir alan zorunlu tutulmadı. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -602,9 +633,12 @@ curl -s -i -X POST "$APU/api/agents/claude-yapisiz-kip/run" \
 - Hiçbir Anthropic API çağrısı yapılmaz (istek derleme aşamasında durur).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+SAVE `201`. RUN `400`, `detail:"'claude-yapisiz-kip' agent'inin modeli
+('anthropic/claude-sonnet-5') yapilandirilmis cikti desteklemiyor."`. Tam
+beklendiği gibi — Anthropic'e hiç bağlanılmadı (geçersiz anahtar hatası
+değil, derleme aşaması reddi).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -645,9 +679,11 @@ curl -s -i -X POST "$APU/api/agents/claude-json-kip/run" \
 - RUN `400`, aynı `yapilandirilmis cikti desteklemiyor` deseni.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+RUN `400`, `detail:"'claude-json-kip' agent'inin modeli
+('anthropic/claude-sonnet-5') yapilandirilmis cikti desteklemiyor."`. Tam
+beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -691,9 +727,11 @@ curl -s -i -X POST "$APU/api/agents/claude-duz-metin/run" \
 - Gerçek bir Anthropic yanıtı döner (serbest metin).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+RUN `400` alınmadı — gerçek Anthropic yanıtı döndü: "Merhaba! Ben,
+sorularını yanıtlamak ve sana yardımcı olmak için buradayım." Tam
+beklendiği gibi (K-267'nin pozitif kontrol grubu doğrulandı).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -744,9 +782,24 @@ curl -s -i -X POST "$APU/api/agents/bilinmeyen-model-kip/run" \
   desteklemiyor` mesajının **hiç çıkmamasıdır**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+SAVE `201`. RUN `500` (`title:"An error occurred while processing your
+request.", detail` **yok**) — `yapilandirilmis cikti desteklemiyor` mesajı
+kesinlikle görünmedi, case'in kendi kriteri karşılandı (**Geçti**). Ancak
+kök neden ayrıca araştırıldı ve bağımsız, daha ciddi bir kusur ortaya
+çıktı — **`HATA-S3-005`**: konsol logu `System.ClientModel.
+ClientResultException: HTTP 404 (invalid_request_error: model_not_found)`
+gösterdi (gerçek OpenAI 404'ü, beklenen gibi), ama bu istisna **hiçbir
+yerde yakalanmadı** — ASP.NET Core'un varsayılan işleyicisine düştü,
+`detail`siz bare `500` üretti. Kaynak: `AgentEndpoints.cs`'deki
+`ExecuteBufferedAsync` (Idempotency-Key/akışsız yol), 2026-08-10'da
+`ExecuteStreamingAsync`'e uygulanan K-296 genel-catch düzeltmesini HİÇ
+almamış — hâlâ dar `catch (Exception ex) when (ex is AgentPrismException
+or InvalidOperationException or HttpRequestException)` filtresini taşıyor.
+`ClientResultException`/`AnthropicApiException` gibi sağlayıcı SDK
+istisnaları (ikisi de doğrudan `Exception`'dan türer) bu filtreden
+kaçıyor. Ayrıntı: `SONUCLAR-S3-2026-08-13.md`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -782,9 +835,10 @@ curl -s -i "$APU/api/agents/support" -H "$APB" | tail -30
 - `500` **dönmez**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP/1.1 200 OK`. `descriptor.model.responseFormat` `None`/`null`. `500`
+dönmedi. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -816,9 +870,14 @@ Tarayıcıda: `http://localhost:5080/agentprism/models`.
 - Arayüzde yalnız `true` olan modellerin kartında **"structured output"** rozeti görünür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+API: `openai/gpt-5.4-mini(+luna,+terra)` → `True`; `anthropic/*` → `False`.
+Playwright ile `/agentprism/models` açıldı (token girişi yapıldı): `openai`
+ve `openai-responses` bölümlerindeki HER üç model satırında `"structured
+output"` rozeti görünüyor; `anthropic` ve `google` bölümlerindeki hiçbir
+satırda görünmüyor (yalnız `streaming`/`tools`/`reasoning`). Tam beklendiği
+gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -856,9 +915,13 @@ kanıtladı).
 - Kutuyu geçerli JSON'a (örn. varsayılan `{"type":"object","properties":{}}`) döndürünce düğme yeniden etkinleşir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Playwright ile `/agentprism/agents/new` açıldı, `JsonSchema` seçildi, şema
+kutusuna `{ bozuk` yazıldı: kutunun altında `alert: "Not valid JSON."`
+belirdi, **`Create` düğmesi `disabled` kaldı**. Kutu
+`{"type":"object","properties":{}}` ile düzeltilince hem `Validate` hem
+`Create` düğmesi yeniden etkinleşti. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
