@@ -1671,9 +1671,13 @@ python3 ~/agentprism-manuel-test/voice_client.py --help
   listesini gösterir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`pip3 install --quiet websockets` hatasız bitti (paket zaten kuruluydu).
+İstemci `~/agentprism-manuel-test/voice_client.py` olarak yazıldı — tek
+sapma: `--host` varsayılanı bu şeridin portuna göre `localhost:5081`
+(dokümandaki `localhost:5080` şerit izolasyonu gereği). `--help` beklenen
+argüman listesini eksiksiz gösterdi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1703,9 +1707,15 @@ yalnız izlek C referansı tekrar edilir.
   `dotnet test tests/AgentPrism.AspNetCore.FunctionalTests -c Release --no-build --filter "FullyQualifiedName~VoiceConversationTests.UseVoiceConversation_cagrilmadiysa|FullyQualifiedName~VoiceConversationTests.Ses_saglayicisi_yoksa"`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Dokümandaki `--filter` sözdizimi (VSTest tarzı) bu MTP tabanlı test
+çalıştırıcısında hiçbir şeyi filtrelemedi — komut sessizce TÜM 447 testi
+koştu (1 kaldı, `ApprovalEndpointTests.Kuyruga_alinan_calistirma_...` —
+bu turla ilgisiz, önceden var olan ayrı bir bulgu). Doğru sözdizimi
+`-- --filter-query "/*/*/VoiceConversationTests/*"`: 17 test (tüm sınıf)
+koştu, `UseVoiceConversation_cagrilmadiysa_HICBIR_uc_acilmaz` VE
+`Ses_saglayicisi_yoksa_501_doner` dahil **hepsi Geçti** (17/17).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1730,9 +1740,23 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/voice/sessions/duz-http-deneme/str
   yükseltme talebi taşımaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Dokümandaki komut (statik `Authorization: Bearer` başlığıyla, `-H "$APB"`)
+`HTTP 401` ("Kimlik dogrulanamadi") döndürdü, `400` DEĞİL — `HATA-S1-014`
+ile AYNI kök nedene çarpıyor: `voiceGroup` de `requireBearerToken: false`
+ile kurulu (`AgentPrismEndpointRouteBuilderExtensions.cs:253` — WebSocket
+el sıkışması sırasında tarayıcı `Authorization` başlığı ekleyemediği için
+bilinçli tasarım, token yerine WS alt protokolüyle taşınır), bu yüzden
+BOŞ OLMAYAN bir `Authorization` başlığı statik token ile hiç
+karşılaştırılmadan doğrudan `IApiKeyStore`'da aranıyor, bulunamayınca genel
+`401` dönüyor — endpoint'in kendi "WebSocket yukseltmesi gerekiyor" `400`
+mantığına hiç ulaşılamıyor. Başlıksız istekte (`Authorization` hiç
+verilmeden) beklenen `400` DOĞRU şekilde alındı — ölçüldü ayrıca kanıt
+olarak. Bu, önceki oturumun `HATA-S1-014`'ünün (eşlenmemiş `api/*` yolları)
+kapsamının MAPLI uçları da (voice conversation grubu) kapsadığını gösteriyor
+— aynı kusur, ikinci bir yüzey. Yeni numara açılmadı, `HATA-S1-014`'ün
+notuna eklendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1756,9 +1780,14 @@ python3 ~/agentprism-manuel-test/voice_client.py --session manuel-ws-token-ok --
   "persistAudio": false}` olur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Tam olarak beklendiği gibi: `BAGLANDI, kabul edilen alt protokol:
+agentprism.voice.v1`, ilk `<<` çerçevesi
+`{"type": "ready", "agent": "sesli-asistan", "sessionId": "manuel-ws-token-ok", "persistAudio": false}`.
+Ardından gerçek OpenAI + ElevenLabs uçtan uca çalıştı (`transcript` →
+`runStarted` → `text` deltaları → `audioStart` → ikili ses çerçeveleri →
+`audioEnd` → `done`).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1784,9 +1813,10 @@ python3 ~/agentprism-manuel-test/voice_client.py --session manuel-ws-token-bad -
   ipucu vermez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`BAGLANTI REDDEDILDI: server rejected WebSocket connection: HTTP 401` —
+tam beklendiği gibi, mesajda beklenen token hakkında hiçbir ipucu yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1817,9 +1847,11 @@ python3 ~/agentprism-manuel-test/voice_client.py --session manuel-ws-query-token
   sayılmaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`BAGLANTI REDDEDILDI: server rejected WebSocket connection: HTTP 401` —
+sorgu dizesindeki token tamamen yok sayıldı, alt protokolde
+`agentprism.token.*` girdisi olmayınca bağlantı reddedildi. Beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1859,9 +1891,22 @@ curl -s "$APU/api/sessions/paylasilan-oturum-id" -H "$APB" -H "X-Tenant-Id: kira
   bağlantısı o kayda hiç dokunmamıştır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İlk denemede `AgentPrism__Tenancy__AllowHeaderResolution` bu şeridin
+ortamında AÇIK DEĞİLDİ — `X-AgentPrism-Tenant: kiraci-alfa` başlığı hiç
+okunmadı, hem ön koşul POST'u hem WebSocket bağlantısı aynı `default`
+kiracısına, aynı oturum kimliğine yazdı (kirlenme: 6 mesaj tek oturumda
+karıştı, `paylasilan-oturum-id` artık `default` kiracısında bu kirli
+durumda duruyor — zararsız, başka case ona bağlı değil). Düzeltme: sunucu
+`AgentPrism__Tenancy__Enabled=true` + `AgentPrism__Tenancy__AllowHeaderResolution=true`
+ile yeniden başlatıldı (S1-3'ün `23` dosyasında uyguladığı aynı desen) ve
+case TEMİZ bir oturum kimliğiyle (`paylasilan-oturum-id-2`) tekrarlandı.
+İkinci denemede: `kiraci-alfa` oturumu doğru tenant'ta oluştu
+(`tenantId:"kiraci-alfa"`, 2 mesaj). WebSocket `default` kiracısıyla
+BAŞARIYLA bağlandı (`ready` çerçevesi geldi) — kendi TAZE oturumunu açtı.
+`kiraci-alfa` oturumu WebSocket turu SONRASINDA da `2` mesajda sabit kaldı
+— hiç değişmedi. Doküman iddiası doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1893,9 +1938,20 @@ python3 ~/agentprism-manuel-test/voice_client.py --session manuel-ws-tur-1 --voi
   DEĞİLDİR).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Sıra tam beklendiği gibi: `ready` → `transcript` (`final:true`,
+`text:"[tone]"`) → `runStarted` (`runId: 019ffa21-f876-7f7a-8960-cc93840f40a4`)
+→ `text` deltaları → `audioStart` (`audio/mpeg`) → ikili ses çerçeveleri →
+`audioEnd` → `done` (`cancelled:false, turn:1`). Sapma: model burada TEK
+değil İKİ ayrı `text`/`audioStart`/`audioEnd` döngüsü üretti (agent iki
+ayrı `speak` tool çağrısı yaptı — "Seslendirme ister misin? İ" ve
+"steren metni gönder." biçiminde bölünmüş bir yanıt). Bu, doğrulanması
+istenen SIRAYI bozmuyor (döngü kendi içinde ready→...→done akışına uyuyor,
+yalnız `text`/`audioStart`/`audioEnd` üçlüsü tekrarlanıyor) — kusur değil,
+gerçek modelin serbest kararı (sinüs tonu anlamsız girdi olduğu için model
+davranışı öngörülemez, MT-MM-070/071'in amacı protokol sırasını doğrulamak,
+model içeriğini değil).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1924,9 +1980,14 @@ FROM agentprism.runs WHERE id = '<RUN_ID>';
   yoldan gelir, TEKRAR EDİLMEZ.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Bir satır: `status: Completed` (API), `agent_name='sesli-asistan'`,
+`model_id='gpt-5.4-mini'`, `input_tokens=392`, `output_tokens=17`,
+`session_id='manuel-ws-tur-1'` — hepsi pozitif ve doğru. Not: SQL sorgusu
+`status` sütununu ham tamsayı (`1`) döndürüyor, doğrudan enum metni değil
+— `GET /api/runs/{id}` üzerinden okundu (`Completed`), doküman sapması
+değil, yalnızca ölçüm kolaylığı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1954,9 +2015,13 @@ python3 ~/agentprism-manuel-test/voice_client.py --session manuel-ws-ikinci-star
   (`error` çerçevesi mi, sessiz yok sayma mı) koşum notuna yazılır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İlk `start` `ready` üretti. İkinci `start` AÇIK bir `error` çerçevesiyle
+reddedildi: `{"type": "error", "message": "Konusma zaten baslatildi; agent baglanti boyunca degismez."}`.
+Bağlantı kapanmadı — ardından gönderilen `stop` normal şekilde işlendi
+(bağlantı kapalı olsaydı istisna fırlardı). Davranış: **açık `error`
+çerçevesi**, sessiz yok sayma DEĞİL.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1988,9 +2053,19 @@ python3 ~/agentprism-manuel-test/voice_client.py --session manuel-ws-bos-commit 
   BEKLENEN sonuçtur (hata değil): boş bir konuşma turu SAYILMAZ.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Doküman sapması: dokümandaki komut `--no-commit` bayrağı taşıyor ama
+kendi yorumu ("aracin kendisi commit gonderir") bununla ÇELİŞİYOR —
+`--no-commit` istemcinin commit'i HİÇ GÖNDERMEMESİNİ sağlıyor, yorum
+metniyle ters. Dokümanın niyetine (boş ses + commit gönderilip sunucunun
+onu sessizce attığını doğrulamak) uymak için `--no-commit` OLMADAN
+tekrarlandı (`manuel-ws-bos-commit-2`, `--max-wait-seconds 10`): `ready`
+geldi, `commit` gönderildi, ardından 10 saniye boyunca HİÇBİR çerçeve
+gelmedi (`ZAMAN ASIMI`) — `transcript`/`runStarted`/`done` YOK. Tam
+beklendiği gibi. (`--no-commit` İLE orijinal deneme de aynı sonucu verdi
+ama commit hiç gönderilmediği için o deneme geçersizdi — boş bir turun
+"süresi dolduğunu" değil, hiç başlamadığını kanıtlıyordu.)
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2015,9 +2090,10 @@ python3 ~/agentprism-manuel-test/voice_client.py --session manuel-ws-bad-format 
   `VoiceAudioFormats.IsKnown` yalnız `webm-opus`/`pcm16`/boş kabul eder.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`{"type": "error", "message": "Bilinmeyen ses bicimi: 'mp3'."}` — tam
+beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2043,9 +2119,11 @@ python3 ~/agentprism-manuel-test/voice_client.py --session manuel-ws-bad-agent -
   yapar).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`{"type": "error", "message": "'yok-boyle-bir-agent' adinda bir agent yok."}`
+— agent adını içeriyor, tam beklendiği gibi. `stop` düzgün gönderildi,
+bağlantı zaten kapalı değildi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2083,9 +2161,43 @@ SELECT status FROM agentprism.runs WHERE id = '<runStarted cerçevesindeki runId
 - `status = 'Canceled'`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İlk yarı doğrulandı: `audioStart` gelir gelmez `cancel` gönderildi, `done`
+çerçevesi `cancelled: true, turn: 1` taşıdı, `GET /api/sessions/...`'in son
+asistan mesajı `[Yanit kullanici tarafindan kesildi.]` dizgisini içeriyordu.
+**SQL/API doğrulaması BAŞARISIZ oldu** → `HATA-S1-015` (Yüksek, yeni). `GET
+/api/runs/<runId>` 15+ saniye sonra bile `status: "Running"`,
+`completedAt: null`, `eventCount: 0`, `usage: null` döndürdü — run KALICI
+OLARAK "Running" durumunda asılı kaldı, `Canceled`'a HİÇ geçmedi. Kök neden
+kod okumasıyla bulundu: `RunRecordingAgent.RunCoreStreamingAsync`
+(`src/AgentPrism.Core/Recording/RunRecordingAgent.cs:255-370`) `CompleteAsync`
+çağrısını (hem `Completed` yolu satır 366 hem `Canceled` yakalayıcısı satır
+323-327) yalnız İKİ yerde tetikler: (a) `enumerator.MoveNextAsync()`
+`OperationCanceledException` fırlatırsa (satır 304-333'teki iç try/catch),
+(b) döngü doğal olarak biterse (satır 353'ten SONRA, 355-358'deki
+`finally`'nin dışında, satır 360-370). Ses turunda kesinti tam bu ikisinin
+ARASINDA oluyor: `VoiceConversationDriver.RespondAsync`
+(`src/AgentPrism.Core/Voice/VoiceConversationDriver.cs:606-632`) her
+`update` alındıktan SONRA (RunRecordingAgent `yield return` ile kontrolü
+DRIVER'a devrettikten sonra) `SpeakAsync` (ElevenLabs TTS ağ çağrısı,
+satır 629) çağırıyor — kesinti tam bu TTS çağrısı SÜRERKEN geliyor
+(`audioStart` zaten gönderilmiş, ses parçaları akıyor). `_turnCancellation.Cancel()`
+bu noktada `SpeakAsync`'i (driver kodu, RunRecordingAgent'ın DIŞINDA) iptal
+ediyor; `RespondAsync`'in `await foreach` döngüsü bir istisnayla çıkıyor,
+bu da RunRecordingAgent'ın `updates` numaralandırıcısını ERKEN
+`DisposeAsync()` ile kapatıyor — C#'ın async-iterator kuralına göre bu yalnız
+298-358 arasındaki `finally` bloğunu (numaralandırıcının kendi
+`DisposeAsync`'i) çalıştırır, 360+ satırındaki (döngüden SONRAKİ) `CompleteAsync`
+çağrısına HİÇ ULAŞILMAZ — ne `Completed` ne `Canceled` yazılır, run
+sonsuza dek `Running` kalır. Etki: yalnız durum yanlış değil — gerçek
+OpenAI (kısmi metin akışı) ve ElevenLabs (üretilen ses parçaları) maliyeti
+GERÇEKTEN oluştu ama `usage`/`cost`/`quota_usage` HİÇ kaydedilmedi (sessiz
+veri kaybı). Bu, kesintiyi TETİKLEYEN her akan (`streaming`) çalıştırma
+için genel bir risktir (yalnız ses'e özgü olmayabilir) — döngü gövdesinde
+bir `yield return` SONRASI, bir sonraki `MoveNextAsync`'ten ÖNCE herhangi
+bir istisna/iptal tüketiciyi (`consumer`) erken `DisposeAsync`'e
+zorlarsa aynı sessiz kayıp oluşur.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2122,9 +2234,12 @@ wait
   ile düşer, sınır tam **5**'te uygulanır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Tam beklendiği gibi: ilk 5 bağlantının hepsi `ready` aldı, `commit`
+gönderilmediği için 20 saniyelik zaman aşımıyla kapandı. 6. bağlantı
+`BAGLANTI REDDEDILDI: server rejected WebSocket connection: HTTP 429`
+ile anında reddedildi — sınır tam **5**'te uygulanıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2152,9 +2267,10 @@ curl -s "$APU/api/attachments?sessionId=manuel-ws-nopersist" -H "$APB" \
   yazdırır — o oturuma bağlı hiçbir ek YOKTUR.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Tam beklendiği gibi: `ready` içinde `"persistAudio": false`, `done`
+çerçevesinde `attachmentId` alanı yoktu, ikinci komut `0` döndü.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2189,9 +2305,15 @@ curl -s "$APU/api/attachments?sessionId=manuel-ws-persist" -H "$APB" | python3 -
   yeniden başlat.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Tam beklendiği gibi: `done` çerçevesinde `attachmentId:
+"019ffa29-5c25-7001-9755-d7785927c50b"` doluydu. `GET /api/attachments?...`
+TAM OLARAK 1 ek listeledi, `mediaType: "audio/mpeg"`, `byteSize: 46020` —
+kullanıcının gönderdiği sinüs tonu hiçbir ek olarak görünmedi. (§2.2 sapması:
+`user-secrets` yerine `AgentPrism__Voice__Conversation__PersistAudio=true`
+ortam değişkeni kullanıldı.) `PersistAudio` MT-MM-088 için geçici olarak
+AÇIK bırakıldı — §13'te tekrar kullanılacak, o bölüm bitince kaldırılacak.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2225,9 +2347,12 @@ FROM agentprism.voice_sessions WHERE session_id = 'manuel-ws-tur-1';
   baytı yer alır — tablo yalnız özet ölçümdür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: `turns:1`, `endReason:"Client"`, `inputSeconds:1.5`, `outputChars:46`.
+SQL: aynı değerler doğrulandı (`end_reason` sütunu ham tamsayı `0` — API'nin
+`"Client"` metnine karşılık gelen enum değeri). Ne HTTP'de ne SQL'de ham ses
+baytı yok — yalnız özet ölçüm. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2254,9 +2379,12 @@ Sınır senaryosu — teknik doğrulama.
   `dotnet test tests/AgentPrism.Core.UnitTests -c Release --no-build --filter "FullyQualifiedName~VoiceUtteranceBufferTests"`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Dokümandaki `--filter` sözdizimi burada da (MT-MM-062 ile aynı sebepten)
+filtrelemedi ama koşulan 8 test zaten TAMAMI `VoiceUtteranceBufferTests`
+sınıfına aitti (`dotnet test ... -- --filter-query "/*/*/VoiceUtteranceBufferTests/*"`
+ile teyit edildi) — 8/8 Geçti.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
