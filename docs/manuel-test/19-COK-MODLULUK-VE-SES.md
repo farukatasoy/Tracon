@@ -2420,9 +2420,18 @@ ile teyit edildi) — 8/8 Geçti.
   akar (`text.delta` çerçeveleri arayüzde birikir) ve ses otomatik çalar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Ajan Playwright ile panele kadar ulaştı (token girişi, `Sesli Asistan`
+seçimi, "Conversation mode" → "Talk" tıklamaları başarılı; bir `sessions`
+kaydı oluştu: `conv_019ffa2b7e4a7ab38c9f6080fd3a8a0a`). Ancak panel
+`"connecting"` durumunda SONSUZA DEK asılı kaldı — sunucu loglarında bu
+oturum için HİÇBİR WebSocket bağlantı denemesi görünmedi (`grep -i voice
+/tmp/ap-s1-server.log` boş): tarayıcı `getUserMedia()` sonucunu bekliyor,
+ama bu headless Playwright oturumunda GERÇEK bir mikrofon cihazı yok ve
+izin istemi hiç görünmedi (sessizce askıda kaldı). Bu case GERÇEK insan
+konuşması gerektirdiği için (KOSUM-PLANI §2.4.2, fiziksel eylem) koşulamadı
+— §5.3 tablosuna eklendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2448,9 +2457,11 @@ ile teyit edildi) — 8/8 Geçti.
   dinleme durumuna geri döner; yeni bir tur hemen başlatılabilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+MT-MM-086 ön koşulu koşulamadığı için bu case de koşulamadı — aynı fiziksel
+eylem engeli (gerçek mikrofon + gerçek konuşma gerekir). §5.3 tablosuna
+eklendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2477,9 +2488,13 @@ ile teyit edildi) — 8/8 Geçti.
 - **Geri al:** `PersistAudio` ayarını kaldır, uygulamayı yeniden başlat.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`PersistAudio=true` zaten açıktı (MT-MM-081'den). Panel açıldı ama
+`getUserMedia()` mikrofon iznini gerektirdiği için "connecting" durumunda
+takıldı (MT-MM-086 ile AYNI engel) — rozetin göründüğü/görünmediği durum
+gözlemlenemedi, çünkü panel `ready` durumuna hiç ulaşmadı. Gerçek mikrofon
+izni GEREKTİREN bir fiziksel eylem — §5.3 tablosuna eklendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2515,9 +2530,16 @@ GERÇEK bir güvensiz-bağlam denemesi bu ortamda pratik değildir.
   açılarak tekrar denenebilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Doğrulandı: `samples/AgentPrism.Api/appsettings.json:31` içinde
+`"AllowRemoteAccess": false` — bu şeritte hiç açılmadı. Doküman kendi
+belirttiği ⏭ ATLA yoluna göre işaretlendi; geçici olarak açıp tekrar
+denemek §2.1'in "kod değiştirilmez" kapsamı DIŞINDA (yalnız config, kod
+değil) ama zaman bütçesi + fiziksel eylem gerektiren diğer §13 case'leri
+(086-088, 090) zaten Beklemede olduğundan bu oturumda AllowRemoteAccess
+açılıp tekrar denenmedi — sonraki fiziksel eylem turunda diğerleriyle
+birlikte ele alınmalı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -2543,6 +2565,9 @@ GERÇEK bir güvensiz-bağlam denemesi bu ortamda pratik değildir.
   bozulmaz, ses seviyesi çubukları her iki temada da okunur kalır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+MT-MM-086 ile AYNI engel: panel `getUserMedia()` mikrofon izni bekliyor,
+gerçek mikrofon olmadan "connecting"te takılı kalıyor — panel içi metinler
+gözlemlenemedi. Gerçek mikrofon izni GEREKTİREN bir fiziksel eylem —
+§5.3 tablosuna eklendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
