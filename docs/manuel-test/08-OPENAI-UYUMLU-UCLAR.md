@@ -1390,9 +1390,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/v1/conversations" -H "$APB" \
 - `object: "conversation"`, `metadata: null` (boş gövdede metadata yoksayılır).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 200. id conv_ oneki + 32 hane hex ile basliyor. object: conversation, metadata alani govdede yok (bos govdede metadata yoksayildi).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1428,9 +1428,9 @@ curl -s -X POST "$APU/v1/conversations" -H "$APB" -H "content-type: application/
   değerleri okur).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+metadata yalniz {"kaynak":"manuel-test"} icerdi - sayi_alani ve bool_alani sessizce dustu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1466,9 +1466,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/v1/conversations" -H "$APB" \
 - `error.message` `Govde cozumlenemedi:` ile başlar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 400, error.message Govde cozumlenemedi: ile basliyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1502,9 +1502,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/v1/conversations/manuel-conv-034-$(uui
 - `object: "conversation"`, `created_at` şimdiki zamana yakın bir Unix damgasıdır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 200, id verilen kimlikle ayni, object: conversation, created_at simdiki zamana yakin.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1541,9 +1541,9 @@ curl -s "$APU/v1/conversations/manuel-conv-035" -H "$APB" | python3 -m json.tool
   edilmedi, doğrudan `/v1/responses`'ta doğdu).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+created_at (1786622404) session'in olusturma zamaniyla (2026-08-13T12:00:04) tutarli - rezervasyon degil, /v1/responses'ta dogdu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1582,9 +1582,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/v1/conversations/manuel-conv-036" -H "
   konuşmasının varlığını bile öğrenemez (kayıt var ama sahiplik uymuyor).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**KALDI - HATA-S2-005 kapsam genislemesi.** Beklenen HTTP 404 yerine HTTP 200 + gecerli bir conversation govdesi dondu (kiraci-beta, kiraci-alfa'nin sohbetinin VARLIGINI dogrulayamadi ama sessizce 'gecerli, bos' bir govde aldi - ayni kok neden: OpenAIConversationsEndpoints.cs:130 dogrudan sessions.GetAsync(id) cagirir, IsOwnedByTenantAsync gibi acik bir denetim YOK; InMemorySessionStore zaten (TenantId,Id) ile kapsadigi icin kiraci-beta baglaminda record hep null donuyor ve kod bunu 'hic kullanilmamis ID' (MT-COMPAT-034 davranisi) ile ayirt edemiyor. Veri sizintisi yok (icerik gorunmuyor), yalniz acik 404 sinyali eksik.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1623,9 +1623,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/sessions/manuel-conv-037" -H "$APB
 - Ardından `GET /api/sessions/manuel-conv-037` `HTTP: 404` döner.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+DELETE yaniti {"id":"manuel-conv-037","object":"conversation.deleted","deleted":true}. Ardindan GET /api/sessions/manuel-conv-037 HTTP 404.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1658,9 +1658,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/v1/conversations/manuel-conv
   için kısa devre yapar, `manager.DeleteSessionAsync` hiç çağrılmaz).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 200, deleted: false - kisa devre dogrulandi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1703,9 +1703,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/sessions/manuel-conv-039" -H "$APB
   başarısız silme girişiminden **etkilenmedi**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**KALDI - HATA-S2-005 kapsam genislemesi.** Adim 2: beklenen HTTP 404 yerine HTTP 200, deleted:false dondu (ayni kok neden: RetrieveAsync/DeleteAsync'de acik kiraci denetimi yok, depo scoping'i geregi kiraci-beta icin kayit gorunmuyor, silme sessizce 'zaten yok' sayiliyor). Adim 3 DOGRU: kiraci-alfa'nin oturumu HTTP 200 ile hala var, 2 orijinal mesaj degismedi - veri kaybi/sizinti YOK, silme fiilen gerceklesmedi (guvenlik acisindan zararsiz, yalniz beklenen acik 404 sinyali eksik).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1745,9 +1745,9 @@ curl -s "$APU/v1/conversations/manuel-conv-040/items" -H "$APB" | python3 -m jso
   **eşleşir**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+data dizisi sirayla message, function_call (get_order_status), function_call_output, message icerdi. function_call ve function_call_output'un call_id alanlari eslesti.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1790,9 +1790,9 @@ curl -s "$APU/v1/conversations/manuel-conv-040/items?limit=2" -H "$APB" | python
   için. `false` dönerse fix'in regresyonudur — **Kusur, Önem: Orta**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+limit=2 ile data tam 2 oge tasidi, has_more: true (gercek toplam 4, kirpma dogru isaretlendi) - fix regresyonu yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1821,9 +1821,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/v1/conversations/manuel-conv-042-denem
 - `data: []`, `first_id: null`, `last_id: null`, `has_more: false`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 200, data: [], has_more: false.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1861,9 +1861,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/v1/conversations/manuel-conv-043/items
 - `HTTP: 404` — `kiraci-beta` `kiraci-alfa`'nın mesaj içeriğini **hiç göremez**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**KALDI - HATA-S2-005 kapsam genislemesi.** Beklenen HTTP 404 yerine HTTP 200, data: [] dondu (ayni kok neden: ListItemsAsync'te acik kiraci denetimi yok; kiraci-beta icin kayit gorunmedigi icin 'kullanilmamis konusma' (MT-COMPAT-042 davranisi) ile ayni bos-liste yanitina dusuyor). Icerik SIZMADI (bos liste, alfa'nin gercek mesajlari gorunmedi) - yalniz acik 404 reddi yerine sessiz bos liste donuyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1901,17 +1901,22 @@ curl -s -D - -o /tmp/ap-compat-044.txt -X POST "$APU/v1/conversations/manuel-con
 cat /tmp/ap-compat-044.txt
 ```
 
-**Beklenen sonuç**
-- `HTTP: 404`.
-- Gövde `{"error":{"message":...}}` biçiminde **DEĞİLDİR** — ASP.NET Core'un
-  varsayılan boş 404 yanıtıdır (`content-type` bile `application/json`
-  olmayabilir). Gerçek OpenAI istemcisi bu farkı `error.type` okuyarak değil,
-  yalnız HTTP durum kodundan anlar — istemci kodu bu ayrımı hesaba katmalıdır.
+**Beklenen sonuç (koşumda düzeltildi)**
+- `HTTP: 405` (**404 değil**) — `/v1/conversations/{id}/items` yol şablonu
+  `GET`/`HEAD` için zaten kayıtlıdır (`OpenAIConversationsEndpoints.cs:74`);
+  ASP.NET Core'un yönlendirme katmanı aynı yol şablonuna eşleşen ama
+  desteklenmeyen bir fiil gördüğünde otomatik olarak `405 Method Not Allowed`
+  üretir (`Allow: GET, HEAD` başlığıyla) — yol şablonu hiç kayıtlı değilmiş
+  gibi çıplak bir `404` değil. Gövde `application/problem+json` bir
+  `ProblemDetails`'tır (`{"error":{...}}` OpenAI zarfı değil, ama tamamen
+  boş da değil). Bu, orijinal varsayımdan (rota hiç bağlı değil → çıplak 404)
+  daha spesifikasyona uygun bir sonuçtur — istemci kodu yine `error.type`
+  okuyarak değil, yalnız HTTP durum kodundan (`405`) ayrımı anlamalıdır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**Dokuman duzeltmesi.** Beklenen 'cikri 404' yerine HTTP 405 (Allow: GET, HEAD) + application/problem+json govde dondu - rota sablonu GET icin zaten kayitli oldugundan ASP.NET Core dogru sekilde 405 uretiyor (rota HIC bagli degilmis gibi bir 404 degil). Bu orijinal varsayimdan daha spesifikasyona uygun bir davranis; Beklenen sonuc metni koşumda duzeltildi (AGENTS.md: dokuman-kod celismesinde dokuman duzeltilir), urun kusuru yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1975,9 +1980,9 @@ python3 /tmp/ap-compat-045.py
 - Zincirlenmiş yanıt `ORD-1001` dizgisini yeniden içerir (geçmiş korunmuş).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Ilk yanit ORD-1001 icerdi. Akis bolumu response.created ile basladi, response.completed ile bitti, 12 event, istisna yok. Zincirlenmis yanit ORD-1001'i yeniden icerdi (gecmis korundu). Stok openai 3.0.0 SDK ile tam uyumlu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2035,9 +2040,9 @@ python3 /tmp/ap-compat-046.py
   istemcisi tam uyumludur).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+conv.id conv_ ile basladi. items.data en az bir message turu icerdi (2 mesaj: kullanici + asistan). deleted.deleted True. Hicbir adimda SDK istisnasi firlamadi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2105,9 +2110,9 @@ python3 /tmp/ap-compat-047.py
   doğru eşler.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Ilk yanit ORD-1001 icerdi. Akis kesintisiz metin yazdirdi, istisna yok. NotFoundError yakalandi, status_code 404 - resmi SDK model_not_found zarfini dogru esledi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2144,9 +2149,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/v1/responses" \
 - `HTTP: 401`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 401.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2180,9 +2185,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/v1/chat/completions" \
   compat uçlarına da uygulanır, ayrı bir kimlik doğrulama yolu yoktur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 401. AgentPrismEndpointFilter compat uclarina da uygulaniyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
