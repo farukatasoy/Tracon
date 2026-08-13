@@ -159,9 +159,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/schedules/ozet-toplu" -H "$
   `createdAt == updatedAt`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 200`. `id:"019ffbdb-5ab7-7e60-a964-e2542bef55e0"`, `nextRunAt:null`,
+`createdAt == updatedAt`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -191,9 +192,10 @@ curl -s -X PUT "$APU/api/schedules/ozet-toplu" -H "$APB" -H "content-type: appli
 - `createdAt` DEĞİŞMEZ, `updatedAt` ilerler.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`id` birebir aynı. `createdAt:"...662962"` değişmedi, `updatedAt`
+`"...455381"`'e ilerledi. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -215,9 +217,9 @@ curl -s "$APU/api/schedules/ozet-toplu" -H "$APB"
 - `HTTP: 200`, MT-JOB-002'nin sonucuyla birebir aynı gövde.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 200`, gövde MT-JOB-002 ile birebir aynı. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -239,9 +241,9 @@ curl -s "$APU/api/schedules" -H "$APB" | python3 -c "import json,sys; print([s['
 - `ozet-toplu` listede.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`['ozet-toplu']`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -265,9 +267,11 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/schedules/ozet-toplu" -H "$APB"
 - MT-JOB-001'i bu case sonrası yeniden oluştur — sonraki case'ler onu kullanır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Silme: `HTTP: 204`. Sonraki `GET`: `HTTP: 404`, `title:"Zamanlama
+bulunamadi"`. `ozet-toplu` yeniden oluşturuldu (`HTTP:200`). Tam
+beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -291,9 +295,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/schedules/hic-yok-boyle-
 - `HTTP: 404`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 404`, `title:"Zamanlama bulunamadi"`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -319,9 +323,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/schedules/hedefsiz" -H "$AP
   zorunludur."` (`SchedulingEndpoints.cs:113-116`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title:"Zamanlama gecersiz"`, `detail:"'targetName' alani
+zorunludur."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -350,9 +355,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/schedules/yanlis-tz" -H "$A
   (`SchedulingEndpoints.cs:120-127`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `detail:"'Dunya/Hicbiryer' gecerli bir saat dilimi degil."`.
+Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -383,9 +389,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/schedules/6-alanli" -H "$AP
   ... Saniye alani desteklenmez."`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `detail:"'0 0 3 * * *' desteklenen bes alanli cron alt
+kumesiyle eslesmiyor."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -415,9 +422,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/schedules/vixie-uzantisi" -
   ayrıştırılamaz → `FormatException`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `detail:"'0 0 L * *' desteklenen bes alanli cron alt
+kumesiyle eslesmiyor."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -450,9 +458,11 @@ curl -s -X PUT "$APU/api/schedules/hesapli-cron" -H "$APB" -H "content-type: app
   `SchedulingEndpoints.cs:138`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Şu an `16:03` iken cron `05 16 * * *` verildi; `nextRunAt:
+"2026-08-13T16:05:00+00:00"` — hedefle birebir eşleşti. Tam beklendiği
+gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -489,9 +499,12 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/schedules/cok-oge" -H "$APB
   (`SchedulingEndpoints.cs:141-147`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`AgentPrism__Scheduling__MaxItemsPerJob=2` env var ile yeniden başlatıldı
+(KOSUM-PLANI §2.2, `user-secrets` yerine env var isolation). `HTTP: 400`,
+`detail:"Yuk 3 oge tasiyor; en fazla 2 oge desteklenir."`. Ayar
+kaldırılıp normal başlatıldı. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -515,9 +528,9 @@ Sınır durumu.
   (§2) bir iş açar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`nextRunAt: null`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -552,9 +565,13 @@ curl -s "$APU/api/jobs?scheduleId=<schedule-id>" -H "$APB" | python3 -m json.too
   dakika iş üretmeye devam eder).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`16:06:00` hedefinde 1 `JobRecord` üretildi: `status:"Completed"`,
+`totalItems:1`, `doneItems:1`, `scheduledFor:"...16:06:00"`,
+`startedAt:"...16:06:02"`. Zamanlamanın `lastRunAt` ilerledi,
+`nextRunAt:"...16:07:00"`'a geçti. Zamanlama silindi (tekrar
+tetiklenmesin diye). Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -579,9 +596,11 @@ Sınır durumu — arayüzden yalnızca iki tür zamanlanabilir; diğer beş
 - Yalnızca iki seçenek: `AgentBatch`, `Workflow` (`jobs.tsx:231-233`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Playwright ile `/agentprism/jobs` → **New schedule** açıldı: `Kind`
+açılır listesi tam olarak iki seçenek taşıyor: "Agent batch" (seçili),
+"Workflow". Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -607,9 +626,13 @@ Sınır durumu — arayüzden yalnızca iki tür zamanlanabilir; diğer beş
 - `GET /api/meta` gövdesinde `storage.jobWorkerEnabled: false`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`AgentPrism__Scheduling__RunWorker=false` env var ile yeniden başlatıldı.
+`/api/meta`: `jobWorkerEnabled:false`. Jobs ekranında uyarı: **"The
+worker is off in this process."** + "...The setting is RunWorker." — tam
+beklenen metin, `RunWorker` adını içeriyor. Ayar kaldırılıp normal
+başlatıldı. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -638,9 +661,11 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/schedules/ozet-toplu/trigg
   (zamanlamanın kendi `payload`'ından), `scheduledFor` şimdiki zamana yakın.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 200`. `id:"019ffbe2-2188-7d27-8ae9-2b47cc0be1db"`,
+`status:"Pending"`, `totalItems:2`, `scheduledFor` şimdiki zamana çok
+yakın. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -672,9 +697,11 @@ curl -s "$APU/api/jobs/<job-id>" -H "$APB" | python3 -m json.tool
   dolu ve **farklı** (her öge kendi `runs` satırını üretir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`status:"Completed"` (10 sn içinde), `doneItems:2`, `failedItems:0`.
+`items[0].status`/`items[1].status`: `"Completed"`, `runId`'ler farklı
+(`019ffbe2-2ff0-...` / `019ffbe2-353e-...`). Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -701,9 +728,10 @@ curl -s "$APU/api/runs/<items[0].runId>" -H "$APB" | python3 -c "import json,sys
   yoktur, her öge normal bir agent çalıştırmasıdır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`agentName:"ozetleyici"`, `status:"Completed"`, `kind:"Agent"`. Tam
+beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -726,9 +754,10 @@ curl -s "$APU/api/jobs/<job-id>" -H "$APB" | python3 -c "import json,sys; d=json
   (`JobDetailResponse`, `SchedulingContracts.cs:44-52`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+MT-JOB-021'de zaten okunan gövde (`GET /api/jobs/{id}`) üst düzeyde tam
+olarak `job` ve `items` anahtarlarını taşıyor. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -752,9 +781,9 @@ curl -s -X POST "$APU/api/schedules/ozet-toplu/trigger" -H "$APB" -H "content-ty
   `request?.Payload ?? schedule.Payload` (`SchedulingEndpoints.cs:200`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`totalItems: 1`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -786,9 +815,12 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/schedules/ozet-toplu/trigg
   en fazla 1 oge desteklenir."` (`SchedulingEndpoints.cs:204-210`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`AgentPrism__Scheduling__MaxItemsPerJob=1` env var ile yeniden başlatıldı.
+`HTTP: 400`, `title:"Tetikleme basarisiz"`, `detail:"Yuk 2 oge tasiyor; en
+fazla 1 oge desteklenir."`. Ayar kaldırılıp normal başlatıldı. Tam
+beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -830,9 +862,16 @@ curl -s "$APU/api/jobs/<job-id>" -H "$APB" | python3 -m json.tool
   doldurma yapılmaz). Bu case yalnız İŞ seviyesindeki hatayı doğrular.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**Doküman notu:** Verilen `curl` komutu `content-type: application/json`
+başlığını taşımıyor — bu hâliyle `415 Unsupported Media Type` döner
+(doküman yazım eksikliği, ürün kusuru değil). Başlık eklenince: ilk
+denemede `job.status:"Pending"` (yeniden deneme için serbest bırakıldı,
+`attempt:1`), `job.errorMessage:"'yok-boyle-bir-agent' adinda bir agent
+bulunamadi. Is basarisiz olarak isaretlenecek."` — mesaj HEMEN
+yazılıyor (yalnız 3. denemede değil). Tam beklendiği gibi (iş seviyesi
+hata, öge döngüsüne hiç girilmedi).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -855,9 +894,11 @@ curl -s "$APU/api/jobs/<job-id>" -H "$APB" | python3 -m json.tool
   maxAttempts` dalı).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+3 deneme sonrası (`attempt:3`) `status:"Failed"`,
+`errorMessage:"'yok-boyle-bir-agent' adinda bir agent bulunamadi. Is
+basarisiz olarak isaretlenecek."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -897,9 +938,11 @@ curl -s "$APU/api/jobs/<job-id>" -H "$APB" | python3 -m json.tool
   `items[0].runId` dolu.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`job.status:"Completed"`, `items[0].status:"Completed"`,
+`items[0].runId:"019ffbe6-f3aa-7f2c-9ab0-567ca55d16b9"`. Tam beklendiği
+gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -927,9 +970,10 @@ curl -s "$APU/api/runs/<items[0].runId>/tree" -H "$APB" | python3 -c "import jso
   `MT-WF-040`'ın aynı yapısı, bu kez iş kuyruğu üzerinden tetiklenmiş).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`kind:"Workflow"`, `workflowName:"ozetle-ve-cevir"`. `/tree` `3` satır
+döndü. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -961,9 +1005,16 @@ Negatif senaryo — `MT-SEC-070`/`MT-WF-090` desenini izler.
   `Pending`'e döner. Koşum kaç deneme sonra `Failed` olduğunu kaydeder.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`Program.cs`'teki `.UseWorkflows()` geçici olarak yorum satırına alındı,
+derlendi (0 uyarı, 0 hata), yeniden başlatıldı. `wf-toplu` tetiklendi:
+`attempt:2`'de hâlâ `Pending`, `errorMessage` zaten dolu (ara denemelerde
+de mesaj yazılıyor — yalnız 3. denemede değil); `attempt:3`'te
+`status:"Failed"`. Mesaj tam beklenen: `"Workflow motoru kayitli degil.
+'AgentPrism.Workflows' paketini ekleyip UseWorkflows() cagirin."`.
+Değişiklik `git checkout --` ile geri alındı, yeniden derlendi (0 uyarı,
+0 hata). Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -996,9 +1047,11 @@ curl -s "$APU/api/jobs/<job-id>" -H "$APB" | python3 -c "import json,sys; print(
 - Sonraki okuma: `status: "Cancelled"`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`AgentPrism__Scheduling__RunWorker=false` env var ile yeniden başlatıldı
+(iptal penceresini genişletmek için). İptal: `HTTP: 204`. Sonraki okuma:
+`status:"Cancelled"`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1028,9 +1081,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/jobs/<job-id>/cancel" -H "
   `404`'ten ayrılır).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 409`, `title:"Is iptal edilemedi"`, `detail:"Is zaten 'Cancelled'
+durumunda."`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1063,9 +1117,12 @@ curl -s "$APU/api/jobs/<job-id>" -H "$APB" | python3 -m json.tool
   İki öge de henüz başlamadıysa `doneItems: 0` ve ikisi de `Pending` kalır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İptal, işçi işi kiralamadan önce yetişti: `status:"Cancelled"`,
+`doneItems:0`, `attempt:0`, `startedAt:null`, ikisi de `items[*].status:
+"Pending"`, `runId:null`. Bu, dokümanın öngördüğü "iki öge de henüz
+başlamadı" dalıdır. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1089,9 +1146,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/jobs/00000000-0000-0000-00
 - `HTTP: 404`, `title: "Is bulunamadi"`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 404`, `title:"Is bulunamadi"`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1117,9 +1174,12 @@ Sınır durumu.
   uygulamada statik token her role sahiptir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İki tamamlanmış iş detay sayfasında (MT-JOB-021, taze bir tetikleme)
+`Cancel` düğmesi **yok** — yalnız Status/Progress/Attempt/Scheduled
+başlıkları var. `RunWorker=false` ile dondurulmuş `Pending` bir işte
+`button "Cancel"` **görünüyor**. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1148,9 +1208,12 @@ Sınır durumu.
   Depolar ve HTTP uçları normal çalışmaya devam eder — yalnız kiralama yok.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`RunWorker=false` ile yeniden başlatıldı, tetiklendi. 20 sn sonra
+`status:"Pending"` (hiç `Leased`/`Running` olmadı). Ayar kaldırılıp
+normal başlatıldı — birkaç saniye içinde `status:"Running"`'e geçti (işçi
+işi aldı). Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1185,9 +1248,12 @@ for i in 1 2 3 4; do sleep 11; curl -s "$APU/api/jobs/<job-id>" -H "$APB" | pyth
   (`JobWorkerBackgroundService.cs:210-223`, `job.Attempt >= maxAttempts`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Taze bir `bozuk-hedef` tetiklemesi izlendi: `attempt:2, Pending` →
+`attempt:3, Failed`. MT-JOB-026'da ayrıca `attempt:1, Pending` de
+gözlenmişti (aynı desen). `MaxAttempts:3` sonrası `Failed`'e kilitlendi.
+Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1209,15 +1275,27 @@ Sınır durumu.
 3. 20 saniye bekle, işin `Pending` kaldığını doğrula.
 4. Ayarı kaldır, yeniden başlat.
 
-**Beklenen sonuç**
-- İş süresiz `Pending` kalır — `ExecuteAsync`'in ilk denetimi
-  `options.PollInterval <= TimeSpan.Zero` de `RunWorker` ile AYNI erken
-  çıkış dalına girer (`JobWorkerBackgroundService.cs:42-45`).
+**Beklenen sonuç (doküman düzeltmesi)**
+- **Doküman kusuru:** `AgentPrism__Scheduling__PollInterval="00:00:00"` ile
+  uygulama hiç **başlamaz** —
+  `AgentPrismSchedulingOptionsValidator.cs:28-32`, `PollInterval <=
+  TimeSpan.Zero` için `OptionsValidationException` fırlatır (`ValidateOnStart`).
+  `JobWorkerBackgroundService.cs:42`'deki `options.PollInterval <=
+  TimeSpan.Zero` erken-çıkış dalı bu yüzden **ölü koddur** — standart
+  `IConfiguration`/`UseScheduling()` yoluyla asla ulaşılamaz (yalnız kod
+  tabanlı, doğrulayıcıyı atlayan bir `AgentPrismSchedulingOptions` örneği
+  bu dalı tetikleyebilir). Doğru beklenti: uygulama başlamayı reddeder.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`AgentPrism__Scheduling__PollInterval=00:00:00` env var ile yeniden
+başlatma denendi. Uygulama **başlamadı**:
+`Unhandled exception. Microsoft.Extensions.Options.OptionsValidationException:
+AgentPrismSchedulingOptions.PollInterval sifirdan buyuk olmalidir. Gelen
+deger: 00:00:00.` Kaynak doğrulandı (yukarıdaki not). Bu, ürün kusuru
+DEĞİL — doğrulayıcı doğru çalışıyor; asıl kusur dokümanın yanlış
+varsayımıydı (yukarıda düzeltildi). Ayar kaldırılıp normal başlatıldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1255,9 +1333,15 @@ SELECT count(*) FROM agentprism.audit_log WHERE occurred_at > now() - interval '
   göz önüne alındığında bir gözlemlenebilirlik boşluğudur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**Doküman notu:** Şemada `occurred_at` değil `created_at` sütunu var
+(sorgu bu şekilde düzeltildi), şema öneki de `mt_s3` (şerit izolasyonu).
+Yeni bir zamanlama oluşturuldu/silindi, bir iş tetiklendi/iptal edildi;
+düzeltilmiş sorgu: `count = 0`. Şüphe/boşluk doğrulandı — hiçbir
+zamanlama/iş eylemi denetim izine düşmüyor. Doküman zaten bunu bilinen
+bir gözlemlenebilirlik boşluğu olarak çerçeveliyordu (yeni `HATA` kaydı
+açılmadı, mevcut çerçeveleme yeterli).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1285,9 +1369,13 @@ Sınır durumu — eşzamanlılık sınırı.
   eşzamanlı `LeaseAsync` çağrısını `MaxConcurrentJobs` ile sınırlar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`MaxConcurrentJobs=1` ile yeniden başlatıldı, `ozet-toplu` art arda 2 kez
+tetiklendi. `t+2s`: `job1:Completed, job2:Pending`. `t+4s`:
+`job1:Completed, job2:Running`. `job2` `job1` tamamlanana kadar
+`Pending` kaldı, kiralanmadı. Ayar kaldırılıp normal başlatıldı. Tam
+beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
