@@ -20,8 +20,8 @@
 | | |
 |---|---|
 | Toplam case | **1097** |
-| Koşuldu | **290** (`01` tam · `02` 28/42 · `03` tam · `04` **tam** · `14` 1/47 · `19` **tam (61/61)** · `20` **tam (31/31)** · `23` **tam** · `25` **tam (28/28)**) |
-| Kalan | **807** |
+| Koşuldu | **303** (`01` tam · `02` **tam (42/42)** — `KOSUM-PLANI` bu sayımı yanlış "28/42" taşıyordu, `SONUCLAR-2026-08-12.md`/HATA-007 zaten tam koşumu kayıtlıyordu, düzeltildi 2026-08-13 · `03` tam · `04` **tam** · `05` 13/40 (S3-1) · `14` 1/47 · `19` **tam (61/61)** · `20` **tam (31/31)** · `23` **tam** · `25` **tam (28/28)**) |
+| Kalan | **794** |
 | Planlanan oturum | **40** (4 paralel şerit + ortak kuyruk) |
 
 ### Şerit ilerlemesi
@@ -30,7 +30,7 @@
 |---|---|
 | 1 — Kalıcılık ve ses | **✅ TÜM 7 OTURUM + S1-8 + S1-9 BİTTİ.** S1-1 ✅ · S1-2 ✅ · S1-3 ✅ (`23` tamam, 26/26) · S1-4 ✅ (`20`, 23/31 koşuldu) · S1-5 ✅ (`25`, 27/28 koşuldu) · S1-6 ✅ (`19` §1–§8, 37/37) · S1-7 ✅ (`19` §9–§13, 24/24; dosya `19` TAMAMLANDI 61/61) · **S1-8 ✅** (2026-08-13: 15 hatanın TAMAMI kodlandı, kalan 8 embedding-bloklu + 1 geçici-kod-gerektiren case koşuldu — bkz. aşağıdaki tablo) · **S1-9 ✅** (2026-08-13: `MT-MM-086/087/088/090` gerçek ElevenLabs anahtarı + Playwright sahte-mikrofon ile koşuldu, dördü de Geçti). Şerit 1'de kod/kusur açığı VE açık case **sıfır**. Sıradaki: boşa düşen ajan **ortak kuyruk**tan (§7 aşağıda) bir oturum alır, kendi şerit numarasında (`S1`, port 5081, şema `mt_s1`) koşar. |
 | 2 — HTTP ve güvenlik | ⏳ Başlamadı |
-| 3 — Çekirdek ve sağlayıcı | ⏳ Başlamadı |
+| 3 — Çekirdek ve sağlayıcı | 🔄 S3-1 ✅ (2026-08-13: `02` zaten tam olduğu için kapsam `05` §1–§4'e daraldı, 13/13 koşuldu, 11 Geçti + 2 Kaldı — `HATA-S3-001`, `HATA-S3-002`, bkz. `SONUCLAR-S3-2026-08-13.md`). Sırada S3-2 (`05` §5–§9). |
 | 4 — Arayüz | ⏳ Başlamadı |
 | Ortak kuyruk | ⏳ Başlamadı |
 
@@ -408,7 +408,7 @@ Gerçek sağlayıcı çağrılarının çoğu buradadır. §2.5 maliyet kuralı 
 
 | Oturum | Dosya | Bölüm | Case | Not |
 |---|---|---|---|---|
-| S3-1 | [`02`](02-CEKIRDEK-VE-KATALOG.md) + [`05`](05-SAGLAYICI-OPENAI.md) | 02 kalan + 05 §1–§4 | 27 | 02'nin kalan 14'ü: `MT-CORE-023/024/041/044/045/060-065/070-072`. |
+| S3-1 ✅ | [`05`](05-SAGLAYICI-OPENAI.md) | §1–§4 | 13 | **Bitti** (2026-08-13): `02` dosyası zaten 42/42 tam (bkz. §1 düzeltme notu); S3-1 kapsamı yalnız `05` §1–§4'e daraldı. 11 Geçti, 2 Kaldı (`HATA-S3-001` Endpoint doğrulaması, `HATA-S3-002` boş model adı doğrulaması — ikisi de `Bind()`'ın doğrulayıcıya ulaşmadan geçersiz değeri sessizce elemesi). Ayrıntı `SONUCLAR-S3-2026-08-13.md`. |
 | S3-2 | [`05`](05-SAGLAYICI-OPENAI.md) | §5–§9 | 27 | Gerçek OpenAI, uyumlu sağlayıcılar, devre kesici, `secret` sızıntısı. |
 | S3-3 | [`06`](06-SAGLAYICI-DIGER.md) | §1–§8 | 30 | Anthropic + Google gerçek çağrı. |
 | S3-4 | [`06`](06-SAGLAYICI-DIGER.md) + [`22`](22-GUARDRAIL-VE-YAPISAL-CIKTI.md) | 06 §9 + 22 §1–§4 | 26 | 06 §9 Azure: 9 case **⏭ Atlandı** işaretlenir, kimlik yok. |

@@ -121,9 +121,11 @@ curl -s "$APU/api/models" -H "$APB" | python3 -m json.tool
   örneği ikisini de besler.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`GET /api/models` yanıtı beş sağlayıcı döndü: `anthropic`, `google`, `openai`,
+`openai-responses`, `openrouter`. `openai` ve `openai-responses` ikisi de
+`gpt-5.4-mini`, `gpt-5.6-luna`, `gpt-5.6-terra` — aynı üç model, aynı sıra.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -161,19 +163,28 @@ curl -s -X POST "$APU/api/agents/manuel-yok-boyle-saglayici/run" -H "$APB" \
      -H "content-type: application/json" -d '{"message":"merhaba"}'
 ```
 
-**Beklenen sonuç**
+**Beklenen sonuç (düzeltildi — koşum kanıtı, doc kusuru)**
 - Kayıt (`POST /api/agents`) başarılıdır — sağlayıcı varlığı kayıt anında
   denetlenmez, yalnız çalıştırma anında.
-- Çalıştırma SSE akışının `error` çerçevesinde
-  `message` alanı `'yok-boyle-bir-saglayici' adinda bir model saglayicisi
-  kayitli degil. Kayitli saglayicilar: ` dizgisini içerir ve ardından virgülle
-  ayrılmış gerçek liste gelir (`openai, openai-responses, ...`).
-- `type` alanı `AgentPrismException`'dır.
+- Bilinmeyen sağlayıcı **derleme (compile) zamanında** yakalanır, bu yüzden
+  akış hiç başlamaz: `POST .../run` senkron `HTTP 400`,
+  `Content-Type: application/problem+json` döner (SSE `error` çerçevesi değil
+  — MT-CORE-024'teki "derleme hatası" ile aynı mekanizma).
+- `detail` alanı `'yok-boyle-bir-saglayici' adinda bir model saglayicisi
+  kayitli degil. Kayitli saglayicilar: ` dizgisini içerir, ardından virgülle
+  ayrılmış gerçek liste gelir (`openai, openai-responses, openrouter,
+  anthropic, google`).
+- `type` alanı standart ProblemDetails RFC 9110 bağlantısıdır
+  (`.../section-15.5.1`), `AgentPrismException` DEĞİLDİR — orijinal beklenti
+  SSE akışı varsayıyordu, kodda böyle değil.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`POST /api/agents` `201`. `POST .../run` → `HTTP/1.1 400`,
+`Content-Type: application/problem+json`, gövde: `{"type":"https://tools.ietf.org/html/rfc9110#section-15.5.1","title":"Agent derlenemedi","status":400,"detail":"'manuel-yok-boyle-saglayici' agent'i derlenemedi: 'yok-boyle-bir-saglayici' adinda bir model saglayicisi kayitli degil. Kayitli saglayicilar: openai, openai-responses, openrouter, anthropic, google. OpenAI icin \`builder.AddAgentPrism().UseOpenAI(apiKey)\` cagirin.",...}`.
+Mesaj metni tam eşleşti. Delivery mekanizması (SSE değil, senkron 400) ve
+`type` alanı dokümanın orijinal beklentisinden farklıydı — yukarıda düzeltildi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -207,28 +218,24 @@ curl -s -X POST "$APU/api/agents/manuel-model-adi-yok/run" -H "$APB" \
      -H "content-type: application/json" -d '{"message":"merhaba"}'
 ```
 
-**Beklenen sonuç**
-- Çalıştırma SSE `error` çerçevesinde `message` alanı `Model adi bos ve
-  varsayilan model tanimli degil.` metnini içerir. `appsettings.json`'da
-  `DefaultModel: "gpt-5.4-mini"` tanımlı olsa da, `OpenAIChatClientFactory`
-  yalnız **kendi** örneğine verilen `options.DefaultModel`'i kullanır — bu
-  değer `openai` sağlayıcısı için doğru şekilde doludur, o yüzden bu case
-  **gerçekte** `DefaultModel`'in çalışıp çalışmadığını değil, alan tamamen
-  boşken hiçbir yedeğin devreye girmediğini kanıtlar (bkz. MT-OAI-004, ters
-  durum).
+**Beklenen sonuç (düzeltildi — koşum kanıtı, doc kusuru)**
+- `POST /api/agents` kaydı kendisi `HTTP 400` ile reddedilir:
+  `detail: "'model.provider' ve 'model.model' alanlari zorunludur."` — agent
+  hiç kaydedilmez, `/run` adımına ulaşılmaz.
+- `OpenAIChatClientFactory`'nin çalıştırma-anı mesajı (`Model adi bos ve
+  varsayilan model tanimli degil.`) bu API yolundan **erişilemez** — kayıt
+  katmanındaki doğrulama ondan önce devreye girer. Ürün kusuru değil: boş
+  model adını daha erken, daha güvenli bir noktada reddetmek beklenenden
+  daha sıkı bir davranış.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`POST /api/agents` → `400`, `application/problem+json`,
+`detail:"'model.provider' ve 'model.model' alanlari zorunludur."`. Agent
+kaydedilmedi; `/run` denemesi (orijinal adım 2) bu yüzden anlamsız hale
+geldi — atlandı. Orijinal beklenti (`OpenAIChatClientFactory`'nin çalıştırma
+anı mesajı) koddan farklı çıktı; yukarıda düzeltildi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
-
-> **Not (düzeltme gerekebilir).** Örnek uygulamanın `DefaultModel` ayarı doluyken
-> bu case'in gerçek davranışı koşum sırasında doğrulanmalıdır: eğer
-> `OpenAIChatClientFactory` her zaman tek bir paylaşılan örnek olarak kurulup
-> `options.DefaultModel` gerçekten `gpt-5.4-mini` taşıyorsa, boş `model.model`
-> alanı hata vermek yerine **sessizce `gpt-5.4-mini`'ye düşebilir**. İki
-> davranıştan hangisi gerçekleştiği "Gerçek sonuç" alanına yazılır ve
-> beklenenle çelişirse `00-INDEKS.md`'ye not düşülür.
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -267,9 +274,15 @@ curl -s "$APU/api/models" -H "$APB" | python3 -c "import json,sys; d=json.load(s
   `alreadyRegistered` bayrağıyla sağlayıcı ekleme adımını atlar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`Program.cs:135`'e ikinci `agentPrism.UseOpenAI(openAi);` çağrısı geçici
+eklendi, derlendi, uygulama başlatıldı — çökme yok, `Now listening on:
+http://localhost:5083` normal çıktı. `GET /api/models` → `['anthropic',
+'google', 'openai', 'openai-responses', 'openrouter']` — `openai` ve
+`openai-responses` yalnız birer kez. Değişiklik `git checkout --
+samples/AgentPrism.Api/Program.cs` ile geri alındı (`git diff` boş
+doğrulandı), uygulama temiz haliyle yeniden derlenip başlatıldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -313,9 +326,25 @@ dotnet user-secrets remove "AgentPrism:Providers:OpenAI:Endpoint"
   deger: 'sadece-bir-yol'.` metnini taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`AgentPrism:Providers:OpenAI:Endpoint=sadece-bir-yol` (env değişkeni,
+şerit izolasyonu — bkz. §2.2) ile uygulama **sorunsuz başladı**,
+`http://localhost:5083`'te dinlemeye geçti, `/api/models` normal yanıt verdi.
+`OptionsValidationException` **hiç fırlatılmadı**.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+Kök neden bulundu: `src/AgentPrism.OpenAI/OpenAIProviderExtensions.cs:164-168`
+`Bind()` metodu `Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri)`
+kullanıyor — `"sadece-bir-yol"` mutlak URI olarak ayrıştırılamadığı için
+`TryCreate` `false` döner ve `options.Endpoint` HİÇ ATANMAZ (varsayılanında
+kalır). `OpenAIProviderOptionsValidator.cs:56`'daki
+`options.Endpoint is { IsAbsoluteUri: false }` denetimi bu yüzden varsayılan
+(adsız) `openai` sağlayıcısı için **hiçbir zaman tetiklenemez** — `Bind()`
+geçersiz değeri doğrulayıcıya ulaşmadan sessizce eler. Bu, tam olarak
+`OpenAIProviderOptionsValidator`'ın kendi XML belgesinin önlemeyi amaçladığı
+senaryo: "Bos birakilirsa istek sessizce resmi OpenAI adresine giderdi" —
+ama burada boş değil, GEÇERSİZ bir değer de aynı sessiz düşüşe uğruyor.
+Kayıt: `HATA-S3-001`.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -354,9 +383,15 @@ dotnet user-secrets remove "AgentPrism:Providers:OpenAI:Timeout"
   00:00:00.` metnini taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`AgentPrism:Providers:OpenAI:Timeout=00:00:00` (env değişkeni) ile uygulama
+`Unhandled exception. Microsoft.Extensions.Options.OptionsValidationException:
+OpenAIProviderOptions.Timeout sifirdan buyuk olmalidir. Gelen deger:
+00:00:00.` ile çöktü, port `5083`'e hiç bağlanmadı. Mesaj birebir eşleşti.
+(MT-OAI-010'un aksine `Bind()` içindeki `TimeSpan.TryParse` "00:00:00"'ı
+geçerli bir `TimeSpan` olarak ayrıştırıp doğrudan atıyor, bu yüzden
+doğrulayıcıya sağlıklı ulaşıyor — Endpoint'teki gibi sessiz eleme yok.)
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -392,9 +427,26 @@ cd samples/AgentPrism.Api && dotnet run
   taşır (dizin `3` — mevcut üç modelden sonraki dördüncü öge, sıfır tabanlı).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`appsettings.json`'a `{"Name": ""}` eklendi (4. öge, dizin 3), uygulama
+**sorunsuz başladı** — `Now listening on: http://localhost:5083`.
+`OptionsValidationException` **hiç fırlatılmadı**.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+Kök neden, HATA-S3-001 ile aynı ailede:
+`OpenAIProviderExtensions.cs:191-198` `BindModels()` şu satırı taşır:
+```csharp
+if (child[nameof(ModelDescriptor.Name)] is not { Length: > 0 } name)
+{
+    continue;
+}
+```
+Boş (veya yok) `Name` alanı taşıyan bir model girdisi `options.Models`
+listesine **hiç eklenmiyor** — sessizce atlanıyor. `OpenAIProviderOptionsValidator`'ın
+`Models[index]` döngüsü (satır 70-78) bu yüzden asla boş isimli bir öge
+görmüyor; doğrulama dalı ölü koddur. Değişiklik
+`git checkout -- samples/AgentPrism.Api/appsettings.json` ile geri alındı
+(`git diff` boş doğrulandı). Kayıt: `HATA-S3-002`.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -453,9 +505,20 @@ dotnet run
   `dotnet user-secrets` ibaresini içerir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`~/agentprism-local-feed`'den (`AgentPrism.Core`/`AgentPrism.OpenAI`
+0.0.0-preview.0.78, `01-KURULUM-VE-PAKETLEME.md` tarafından hazırlanmış,
+yalnız okundu — küresel kurulum adımına dokunulmadı) bağımsız bir konsol
+projesi kuruldu, `UseOpenAI(o => { })` çağrıldı. `dotnet run` şununla
+çöktü: `Microsoft.Extensions.Options.OptionsValidationException:
+OpenAIProviderOptions.ApiKey bos olamaz. Anahtari \`UseOpenAI(apiKey)\`
+cagrisinda verin veya 'AgentPrism:Providers:OpenAI:ApiKey' ayarini
+\`dotnet user-secrets\` icinde tanimlayin.` — mesaj birebir eşleşti. Bu
+kod-yolu (`Action<OpenAIProviderOptions>` overload'u) HATA-S3-001/002'nin
+sessiz-eleme sorununu taşımıyor çünkü hiç `Bind()`/`BindModels()`'tan
+geçmiyor — doğrudan `IValidateOptions` çalışıyor. `/tmp/ap-oai-apikey-test`
+temizlendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Temizlik:** `rm -rf /tmp/ap-oai-apikey-test`
 
@@ -496,9 +559,12 @@ curl -s "$APU/api/models" -H "$APB" | python3 -m json.tool
   — bu dosya fiyat alanlarını **atlar**, bkz. [`12-GOZLEMLENEBILIRLIK-MALIYET.md`](12-GOZLEMLENEBILIRLIK-MALIYET.md)).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`openai` sağlayıcısının `models` dizisi tam üç öge: `gpt-5.4-mini`,
+`gpt-5.6-luna`, `gpt-5.6-terra` — bu sıra alfabetik doğru (`5.4` <
+`5.6-l` < `5.6-t`). Üçünün de `supportsStructuredOutput:true`,
+`contextWindowTokens:null`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -541,9 +607,24 @@ curl -s -X POST "$APU/api/agents/manuel-katalog-disi-model/run" -H "$APB" \
   katalogunda yok; istek yine de gonderiliyor.` günlük satırı görünür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Agent kaydedildi, çalıştırıldı. Uygulama konsolunda **beklenen log satırı
+birebir çıktı**: `'gpt-4o-mini' modeli 'openai' katalogunda yok; istek
+yine de gonderiliyor.` (`/tmp/ap-s3.log:240`) — bu, katalogun bir
+doğrulama listesi olmadığını ve isteğin engellenmeden sağlayıcıya
+iletildiğini kanıtlıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+İkinci iddia ("başarıyla tamamlanır, gerçek yanıt üretir") **bu hesapla
+doğrulanamadı**: istek gerçekten OpenAI'a gitti ve OpenAI'in KENDİSİ
+`HTTP 403 model_not_found` ile reddetti — `Project 'proj_0iwMbkX0bZWgw9Yqq4XK3U4K'
+does not have access to model 'gpt-4o-mini'` (`/tmp/ap-s3.log:292`).
+`GET https://api.openai.com/v1/models` ile doğrulandı: bu hesabın
+erişebildiği TÜM modeller `gpt-5.4-mini`, `gpt-5.6-luna`, `gpt-5.6-terra`
+(üçü de zaten katalogda) artı iki embedding modeli — hesapta kataloğun
+DIŞINDA erişilebilir hiçbir sohbet modeli yok. Bu bir AgentPrism kusuru
+değil, hesabın model erişim kapsamı sınırlı; ürün davranışının kendisi
+(engellemeden iletme + log uyarısı) log kanıtıyla doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -588,9 +669,14 @@ git checkout -- samples/AgentPrism.Api/appsettings.json
   bir `Dictionary` üzerinde son yazanın kazandığı bir birleştirme yapar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`appsettings.json`'a `gpt-5.4-mini` için ikinci bir girdi (`DisplayName:
+"IKINCI TANIM"`, diğer alanlar boş) eklendi. `GET /api/models` →
+`openai` sağlayıcısında **3 model** (4 değil), `gpt-5.4-mini`'nin
+`displayName`'i `IKINCI TANIM` — son yazan kazandı, tek kayıt olarak
+göründü. Değişiklik `git checkout --
+samples/AgentPrism.Api/appsettings.json` ile geri alındı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -648,9 +734,15 @@ curl -s -X POST "$APU/api/agents/manuel-responses-yuzeyi/run" -H "$APB" \
   kalıcılığında (OpenAI'ın kendi konuşma kimliğinde değil) tutulmuştur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İki çalıştırma da `error` çerçevesi ÜRETMEDEN `done` ile bitti.
+`InvalidOperationException` görülmedi. İkinci çalıştırmanın metin
+içeriği `"47"` — ilk mesajdaki "sansli sayim 47" PostgreSQL
+kalıcılığından (`mt_s3` şeması) doğru hatırlandı, aynı `responseId`
+(OpenAI'ın kendi konuşma kimliği) İKİNCİ çalıştırmada FARKLIYDI
+(`resp_0715af...` → `resp_0d9606...`) — geçmiş OpenAI'ın kendi tarafında
+değil AgentPrism'in deposunda tutulduğunu doğruluyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -684,9 +776,10 @@ print(byname['openai']['models'] == byname['openai-responses']['models'])
   `OpenAIModelCatalog.Build(options)` çağrısının sonucuyla kurar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Çıktı `True` — `openai` ve `openai-responses` sağlayıcılarının `models`
+listeleri birebir aynı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
