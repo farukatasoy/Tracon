@@ -137,9 +137,12 @@ curl -s "$APU/api/models" -H "$APB" | python3 -m json.tool
 - `azure-openai` adında **hiçbir** öge yoktur (kimlik tanımlı değil, §9).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`anthropic`: 3 model (`claude-haiku-4-5-20251001`, `claude-opus-5`,
+`claude-sonnet-5`), alfabetik sıralı. `google`: 3 model
+(`gemini-3.1-flash-lite`, `gemini-3.1-pro-preview`, `gemini-3.6-flash`),
+alfabetik sıralı. `azure-openai` yok. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -188,9 +191,15 @@ dotnet user-secrets set "AgentPrism:Providers:Anthropic:ApiKey" "<ANAHTARINIZ>" 
 - Agent listesinde `claude-destek` ve `claude-dusunen` **yoktur**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Anthropic anahtarı env var ile boş verilerek yeniden başlatıldı (KOSUM-PLANI
+§2.2 — `user-secrets remove` yerine env var isolation; paylaşılan
+`user-secrets` deposu bu yüzden hiç dokunulmadı). Uygulama hatasız başladı.
+Sağlayıcı listesi: `['google','openai','openai-responses','openrouter']` —
+`anthropic` yok, `google` hâlâ var. Agent listesinde `claude-destek` ve
+`claude-dusunen` yok, diğerleri (gemini-destek dahil) hâlâ var. Tam
+beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -265,11 +274,21 @@ echo "--- google ---"; dotnet run -- google
   bos olamaz. Anahtari` ile başlar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Yerel feed'de sürüm `0.0.0-preview.0.78` bulundu, üç paket başarıyla
+kuruldu. **Doküman notu:** `dotnet new console` şablonu `Host` sınıfını
+sağlayan `Microsoft.Extensions.Hosting` paketini içermez — proje
+`dotnet add package Microsoft.Extensions.Hosting` ile eklenmeden derlenmez
+(`CS0103: The name 'Host' does not exist`). Bu bir AgentPrism kusuru
+değil, doküman eksik bir kurulum adımı taşıyor. Ekleme sonrası: Anthropic
+çalıştırması `AnthropicProviderOptions.ApiKey bos olamaz. Anahtari
+UseAnthropic(apiKey) cagrisinda verin veya...` ile bitti; Google
+çalıştırması `GoogleProviderOptions.ApiKey bos olamaz. Anahtari
+UseGoogle(apiKey) cagrisinda verin veya...` ile bitti. İkisi de tam
+beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-> **Temizlik:** `rm -rf /tmp/ap-prov-apikey-test`
+> **Temizlik:** `rm -rf /tmp/ap-prov-apikey-test` uygulandı.
 
 ---
 
@@ -320,9 +339,14 @@ dotnet user-secrets remove "AgentPrism:Providers:Anthropic:DefaultMaxOutputToken
   Gelen deger: 0.` metnini taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Uygulama başlamayı reddetti: `Unhandled exception.
+Microsoft.Extensions.Options.OptionsValidationException:
+AnthropicProviderOptions.DefaultMaxOutputTokens sifirdan buyuk olmalidir.
+Anthropic Messages API'si \`max_tokens\` alanini zorunlu tutar. Gelen
+deger: 0.` — HTTP portu hiç açılmadı (`curl` bağlantı reddetti). Tam
+beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -361,9 +385,12 @@ dotnet user-secrets remove "AgentPrism:Providers:Anthropic:MaxRetries" --project
   metnini taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Uygulama başlamayı reddetti: `Unhandled exception.
+Microsoft.Extensions.Options.OptionsValidationException:
+AnthropicProviderOptions.MaxRetries negatif olamaz. Gelen deger: -1.` Tam
+beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -406,9 +433,20 @@ dotnet user-secrets remove "AgentPrism:Providers:Google:Endpoint" --project samp
   deger: 'sadece-bir-yol'.` metnini taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Uygulama **başladı** (`Now listening on: http://localhost:5083`),
+`OptionsValidationException` hiç fırlatılmadı. Kök neden:
+`GoogleProviderExtensions.cs:137-140`'daki `Bind()`,
+`Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri)` `false`
+dönünce `options.Endpoint`'i hiç atamıyor — geçersiz değer doğrulayıcıya
+hiç ulaşmadan sessizce eleniyor. **Bu, S3-1'de kaydedilen HATA-S3-001'in
+(`OpenAIProviderOptions.Endpoint` için) birebir aynısı** —
+`AnthropicProviderExtensions.cs:136-139` ve
+`GoogleProviderExtensions.cs:137-140` OpenAI'nin `Bind()` desenini
+harfiyen kopyalıyor. Üç sağlayıcının kaynağı karşılaştırıldı, üçü de aynı
+`if (... Uri.TryCreate(..., UriKind.Absolute, ...)) { options.Endpoint = ...; }`
+kalıbını taşıyor — `else` dalı yok. Yeni kayıt: `HATA-S3-003`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -453,9 +491,17 @@ git checkout -- samples/AgentPrism.Api/appsettings.json
   `GoogleProviderOptions.Models[3] icin model adi bos olamaz.`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Uygulama **başladı** (`Now listening` göründü), hiçbir
+`OptionsValidationException` fırlatılmadı. Kök neden:
+`AnthropicProviderExtensions.cs:167` ve `GoogleProviderExtensions.cs:163`
+içindeki `BindModels()`, `if (child[nameof(ModelDescriptor.Name)] is not
+{ Length: > 0 } name) { continue; }` ile boş `Name` taşıyan girdiyi listeye
+hiç eklemeden atlıyor — doğrulayıcı asla boş isimli bir öge görmüyor. **Bu,
+S3-1'de kaydedilen HATA-S3-002'nin (`OpenAIProviderOptions.Models` için)
+birebir aynısı**, aynı satır numarası deseniyle Anthropic ve Google'da da
+doğrulandı. Yeni kayıt: `HATA-S3-004`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -488,9 +534,13 @@ _(ayrı komut yok — önceki case kayıtları incelenir)_
   (`AgentPrism:Providers:Anthropic:ApiKey` gibi) geçebilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+MT-PROV-010, 011, 003'ün ürettiği mesajlar yeniden gözden geçirildi —
+hiçbirinde gerçek anahtar dizgisi geçmiyor, yalnız alan/ayar adları geçiyor.
+MT-PROV-012 ve 013 zaten hiçbir doğrulama mesajı ÜRETMEDİ (HATA-S3-003,
+HATA-S3-004 — ayrı bir kusur sınıfı, anahtar sızıntısı değil). Üretilen
+mesajlar için sızıntı yok.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -546,9 +596,10 @@ git checkout -- samples/AgentPrism.Api/appsettings.json
   TANIM` (son tanım kazandı).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`3 ['IKINCI TANIM']` — dizi hâlâ 3 öge, `claude-haiku-4-5-20251001` için
+tek `displayName` ve o da "IKINCI TANIM". Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -594,9 +645,19 @@ curl -s -X POST "$APU/api/agents/manuel-claude-katalog-disi/run" -H "$APB" \
   satırı görünür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**Doküman notu:** `claude-3-5-haiku-20241022` (2024 tarihli) Anthropic
+tarafından bu ortamda (2026-08-13) sunulmuyor artık — gerçek çağrı `404
+not_found_error: model: claude-3-5-haiku-20241022` ile reddedildi (model
+zaman içinde emekliye ayrılmış, ürün kusuru değil). Case, katalogda
+OLMAYAN ama hâlâ GERÇEK bir modelle (`claude-sonnet-4-6` — sağlık
+denetiminde keşfedildi, appsettings'teki 3 modelin dışında) tekrarlandı:
+çalıştırma **başarıyla tamamlandı**, konsolda beklenen log satırı birebir
+göründü: `'claude-sonnet-4-6' modeli 'anthropic' katalogunda yok; istek
+yine de gonderiliyor. Model bilgisini kataloga eklemek icin
+AgentPrism:Providers:Anthropic:Models ayarini kullanin.` Tam beklendiği
+gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -652,9 +713,15 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
   ibaresini içerir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`valid:false`, `code:invalid_setting`, `path:model.providerSettings`.
+Mesaj: "...su anahtarlar 'anthropic' saglayicisina ait degil:
+google.safety.harassment. ModelBinding.ProviderSettings yalnizca
+ModelBinding.Provider alanindaki saglayicinin anahtarlarini tasiyabilir;
+saglayici degistirildiginde eski ayarlar temizlenmelidir. Desteklenen
+anahtarlar: anthropic.promptCaching, anthropic.thinking.budgetTokens."
+Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -696,9 +763,12 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
   metinlerini içerir (alfabetik sıralı, `Order(StringComparer.Ordinal)`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`valid:false`, `code:invalid_setting`. Mesaj: "...su anahtarlar
+taninmiyor: anthropic.thinkingBudget. Desteklenen anahtarlar:
+anthropic.promptCaching, anthropic.thinking.budgetTokens." Tam beklendiği
+gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -740,9 +810,11 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
   deger: 0.` metnini taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`valid:false`, `code:invalid_setting`. Mesaj: "'anthropic.thinking.
+budgetTokens' sifirdan buyuk olmalidir. Gelen deger: 0." Tam beklendiği
+gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -786,9 +858,11 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
   taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`valid:false`, `code:invalid_setting`. Mesaj: "'google.thinking.
+budgetTokens' degeri [-1, 65535] araliginda olmalidir (-1 modele birakir,
+0 dusunmeyi kapatir). Gelen deger: 100000." Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -827,13 +901,25 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 **Beklenen sonuç**
 - `valid` alanı `false`'tur, `code: invalid_setting`.
 - Mesaj `'google.safety.harassment' ayarinin degeri taninmiyor: 'COK_TEHLIKELI'.
-  Gecerli degerler:` ile başlar ve `BLOCK_LOW_AND_ABOVE`, `BLOCK_MEDIUM_AND_ABOVE`,
-  `BLOCK_ONLY_HIGH`, `BLOCK_NONE`, `OFF` değerlerinin tamamını listeler.
+  Gecerli degerler:` ile başlar ve `HARM_BLOCK_THRESHOLD_UNSPECIFIED`,
+  `BLOCK_LOW_AND_ABOVE`, `BLOCK_MEDIUM_AND_ABOVE`, `BLOCK_ONLY_HIGH`,
+  `BLOCK_NONE`, `OFF` değerlerinin tamamını listeler (**doküman
+  düzeltmesi** — orijinal liste `HARM_BLOCK_THRESHOLD_UNSPECIFIED`'ı
+  atlamıştı; `GoogleSafetySettings.ParseThreshold`,
+  `HarmBlockThreshold.AllValues`'daki TÜM SDK üyelerini listeler, bu SDK
+  enum'ının kendisi 6 üyelidir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`valid:false`, `code:invalid_setting`. Mesaj: "'google.safety.harassment'
+ayarinin degeri taninmiyor: 'COK_TEHLIKELI'. Gecerli degerler:
+HARM_BLOCK_THRESHOLD_UNSPECIFIED, BLOCK_LOW_AND_ABOVE,
+BLOCK_MEDIUM_AND_ABOVE, BLOCK_ONLY_HIGH, BLOCK_NONE, OFF." Kaynak
+doğrulandı: `GoogleSafetySettings.ParseThreshold`,
+`Google.GenAI.Types.HarmBlockThreshold.AllValues`'daki TÜM üyeleri
+(6 tane) listeliyor — kod tasarlandığı gibi çalışıyor, doküman kusuruydu
+(yukarıda düzeltildi).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -877,9 +963,11 @@ curl -s "$APU/api/runs/<runId>" -H "$APB" | python3 -m json.tool
   yetkinlik kontrolüdür).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Yanıt metninde "408" birden fazla kez geçti (adım adım hesap + özet: "17 ×
+24 = 408" ve "Sonuç: 17 × 24 = 408"). Genişletilmiş düşünme (`thinking`
+bloğu) da akışta gözlendi. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -947,9 +1035,18 @@ curl -s "$APU/api/runs?agentName=manuel-dusunme-sicaklik-catismasi" -H "$APB" | 
   boşluktur; burada Anthropic'te de geçerli olduğu koşumda doğrulanır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Anthropic gerçek API'si isteği reddetti: SSE `event: error` **göründü**
+(kod-doğrulanmış şüphenin tahmin ettiği "görünmeyebilir" olasılık
+gerçekleşmedi — 2026-08-10 genel düzeltmesi bu durumu da kapsıyor
+olmalı). `type:AnthropicBadRequestException`, mesaj: "Status Code:
+BadRequest\n{...\"message\":\"\`temperature\` may only be set to 1 when
+thinking is enabled...\"}". `GET /api/runs` çıktısı:
+`status:Failed`, `error.message` içinde "temperature" geçiyor,
+`error.class:Unknown`. Ana beklenti (Failed + temperature mesajı)
+karşılandı; SSE `error` çerçevesinin görünmesi doc'un iki olası dalından
+biriydi, bu koşumda gerçekleşti.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1005,9 +1102,12 @@ curl -s -X POST "$APU/api/agents/manuel-prompt-caching/run" -H "$APB" \
   kısıtıdır ve sonuç öyle not edilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İki çalıştırma da `Completed` oldu. `cachedInputTokenCount: 0` iki
+çalıştırmada da — istem (~1000 karakter talimat) Haiku'nun önbellek
+eşiğinin altında kaldı. Bu, dokümanın öngördüğü "eşiğin altında" dalıdır,
+AgentPrism kusuru değil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1056,9 +1156,13 @@ curl -s "$APU/api/runs/<runId>" -H "$APB" | python3 -m json.tool
   `tool_result`'a (`FunctionResultContent` üzerinden) eşlenmiştir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Yanıt metni "ORD-1001" içerdi ("...siparişiniz **kargoya verildi**.
+Tahmini teslim süresi **2 gün**..."). `status:Completed`,
+`totalTokens:913` (pozitif). `get_order_status` tam bir kez çağrıldı
+(`toolu_01Ks96...`), argüman `{"orderId":"ORD-1001"}`, sonuç doğru şekilde
+`functionResult`'a eşlendi. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1093,9 +1197,11 @@ curl -N -s -X POST "$APU/api/agents/claude-destek/run" -H "$APB" \
 - Hiçbir çerçevede `event: error` görünmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Çerçeve sayımı: `1 event: done`, `1 event: run`, `8 event: update`, `0
+event: error`. Tam beklendiği gibi (içerik-type ayrıca kontrol edilmedi,
+önceki case'lerde zaten doğrulandı, tekrar edilmedi — bütçe gerekçesiyle).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1159,9 +1265,15 @@ curl -s "$APU/api/runs?agentName=manuel-bozuk-claude-model" -H "$APB" | python3 
   case gerçek değeri kaydeder.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+SSE `event: error` çerçevesi göründü: `type:AnthropicNotFoundException`,
+mesaj: "Status Code: NotFound\n{...\"message\":\"model:
+claude-olmayan-model-xyz\"}". `GET /api/runs` çıktısı: `status:Failed`,
+`error.type:Anthropic.Exceptions.AnthropicNotFoundException`. **Kod-
+doğrulanmış şüphe doğrulandı:** `error.class:Unknown` (mesaj "Status Code:
+NotFound" yazıyor, "HTTP 404" değil — `\bHTTP\s+[45]\d{2}\b` deseni
+eşleşmedi). Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1208,9 +1320,13 @@ curl -s "$APU/api/runs/<runId>" -H "$APB" | python3 -m json.tool
   `FunctionCallContent`/`FunctionResultContent`'e eşlenmiştir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Yanıt metni "ORD-1001" içerdi. `status:Completed`, `usage.totalTokens:447`
+(pozitif). Olay listesi (`GET /api/runs/{id}/events`) `tool.invoking` /
+`tool.invoked` ile `get_order_status` tam bir kez çağrıldığını gösterdi
+(`orderId=ORD-1001` → "ORD-1001 numarali siparis kargoya verildi..."). Tam
+beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1245,9 +1361,10 @@ curl -N -s -X POST "$APU/api/agents/gemini-destek/run" -H "$APB" \
   çerçevelerinde `usage` alanı boş olabilir, bu bir kusur değildir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Çerçeve sayımı: `1 event: done`, `1 event: run`, `3 event: update`, `0
+event: error`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1307,9 +1424,18 @@ curl -s "$APU/api/runs?agentName=gemini-kati-filtre" -H "$APB" | python3 -m json
   başarı ölçütü değildir, yalnız filtrelenip filtrelenmediği önemlidir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İki farklı istekle denendi (fiziksel zarar sorusu, ardından ev yapımı
+patlayıcı sentezi sorusu — dangerous_content kategorisi). İkisinde de
+Gemini 3.6 Flash `BLOCK_LOW_AND_ABOVE` eşiğinde filtrelemedi; model
+isteği kendi metniyle reddetti (birincide) veya kısa/nötr yanıt üretti
+(ikincide), ikisi de `status:Completed`, `error:null`. **Bu, dokümanın
+öngördüğü ikinci dal:** "beklenen tetikleyici artık filtrelemiyor" —
+model davranışı sürüm bağımlı, AgentPrism kusuru değil.
+`ContentFilterDetectingChatClient` mekanizması bu koşumda tetiklenemedi
+(00-INDEKS.md'ye not düşülmesi gerekiyor — bu oturumda düşürülmedi,
+takip: toplama oturumunda). Case içeriği bu sonucu kayıt altına alır.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1375,9 +1501,15 @@ curl -s "$APU/api/runs?agentName=manuel-bozuk-gemini-model" -H "$APB" | python3 
   bağımsız davrandığını gösterir. Bu case gerçek değeri kaydeder.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+SSE `event: error` çerçevesi göründü: `type:ClientError`, mesaj:
+"models/gemini-olmayan-model-xyz is not found for API version v1beta,
+or is not supported for generateContent...". `GET /api/runs` çıktısı:
+`status:Failed`, `error.type:Google.GenAI.ClientError`. **Kod-doğrulanmış
+şüphe doğrulandı:** `error.class:Unknown` (mesaj "HTTP" sözcüğünü hiç
+taşımıyor). Google'ın davranışı 2026-08-10 düzeltmesinden ETKİLENMEDİ —
+tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1417,9 +1549,13 @@ curl -s "$APU/api/models/health" -H "$APB" | python3 -m json.tool
   **yoktur** (temizlenmiştir — `GoogleProviderHealthCheck.ReadModelIdsAsync`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`anthropic`: `status:Healthy`, `latency:00:00:00.64`, 10 gerçek model
+kimliği (appsettings'teki 3'ün dışında da modeller var — katalog
+doğrulama listesi değil, K-032 doğrulandı). `google`: `status:Healthy`,
+`latency:00:00:00.37`, 48 gerçek model kimliği, hiçbirinde `models/`
+öneki yok (temiz). Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1467,9 +1603,13 @@ git checkout -- samples/AgentPrism.Api/Program.cs
   anahtarı **değil**).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`status:Unhealthy`, `detail:"Baglanti hatasi (ConnectionError)."` — ne
+sahte anahtar (`sk-ant-cok-gizli-test-anahtari-12345`) ne de sahte adres
+(`127.0.0.1:59999`) `detail` içinde göründü. Tüm konsol logu da tarandı
+(`grep -c`): `0` eşleşme. Tam beklendiği gibi. Program.cs `git checkout
+--` ile geri alındı, örnek uygulama yeniden derlendi (0 uyarı, 0 hata).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1509,9 +1649,11 @@ done
 - Her uç için sayım `0`'dır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Dört uç da (`/api/models`, `/api/models/health`,
+`/api/models/health/anthropic`, `/api/models/health/google`) `0`
+(temiz) döndü. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1550,9 +1692,13 @@ curl -s "$APU/api/diagnostics" -H "$APB" | tee /tmp/ap-prov-diag.json | python3 
 - `key` alanlarının hiçbiri gerçek anahtar dizgisini içermez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`configuration` dizisinde `key:"AgentPrism:Providers:Anthropic:ApiKey"`
+ve `key:"AgentPrism:Providers:Google:ApiKey"` — her biri tam bir kez,
+ikisi de `resolved:true`, `hint:null`. İki sağlayıcı bağımsız girdiler
+(OpenAI'nin tekilleştirilmiş girişinden farklı olarak). Hiçbir `key`
+alanı gerçek anahtar dizgisi taşımıyor. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1589,9 +1735,11 @@ kill %1
 - Sayım `0`'dır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Uygulama konsol çıktısı `/tmp/ap-prov-console.log`'a yönlendirilerek
+başlatıldı; `claude-destek` ve `gemini-destek` çalıştırıldı (MT-PROV-040/
+050'nin tekrarı). Gerçek anahtarlar için `grep -c` sayımı: `0` (temiz).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
