@@ -320,7 +320,7 @@ yakalayan bir path için geçerli olabilir; enum dönüştürme hatası minimal
 API'nin body-binding aşamasında (endpoint gövdesine hiç girmeden) oluştuğu için
 o path'e hiç ulaşmıyor. **Kusur, Önem: Orta** — `HATA-S1-007` olarak kaydedildi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+ **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de HATA-S1-007 düzeltmesiyle yeniden koşuldu: govde artik elle okunuyor, gecersiz enum artik 400 (Gecersiz istek govdesi). Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -742,7 +742,7 @@ tablosunda `status=2` ile görünüyor — model çağrısı ve maliyeti gerçek
 oluyor) ama istemci hiçbir zaman bir yanıt alamıyor. **Kusur, Önem: Yüksek**
 — `HATA-S1-008` olarak kaydedildi (`MT-MEM-012` ile aynı kök neden).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+ **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de HATA-S1-008 düzeltmesiyle yeniden koşuldu: okuma turu artik 200, yazilan icerigi dogru hatirliyor. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -793,7 +793,7 @@ görülüyor (`FileMemoryProvider`'dan farkı: o yalnız OKUMA turunda patlıyor
 İki görevin de yanıtta anılıp anılmadığı hiç ÖLÇÜLEMEDİ — kapsayan kusur
 `HATA-S1-008` bu case'i tamamen bloke ediyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+ **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de HATA-S1-008 düzeltmesiyle yeniden koşuldu (ayni AgentRequestMessageSourceAttribution kok nedeni). Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -856,7 +856,7 @@ testi bunun ötesine geçemez); **şüpheli davranış, Önem: Orta** —
 `HATA-S1-009` olarak kaydedildi. `MT-MEM-014`'ün negatif sonucu bu yüzden
 kiracı yalıtımının kanıtı SAYILAMAZ (bkz. o case'in notu).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+ **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de HATA-S1-009 düzeltmesiyle (K-396) yeniden koşuldu: dogal dil sorgusu artik FILE-7841'i buluyor. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -934,7 +934,7 @@ yalıtımının kanıtı değil, muhtemelen aynı temel arama arızasının bir 
 görünümü. **İnceleme sonucu belirsiz (inconclusive)** — `HATA-S1-009`
 çözülmeden bu case'in gerçek anlamda "Geçti" sayılması mümkün değil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+ **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de HATA-S1-009 düzeltmesiyle yeniden koşuldu: bu case'in KENDİ ölçütü (kiraci-beta SIZINTI-9902'yi göremez) sağlandı — arama artik gercekten çalışıyor ve çapraz kiracı sizintisi yok. YENİ GÖZLEM (bu case'in kapsamı DIŞINDA, kök nedeni bu oturumda araştırılmadı): aynı kiracı içinde FARKLI agent (manuel-dosya-arama) manuel-dosya-bellek'in yazdığı dosyayı da göremedi (file_memory_ls boş döndü) — dokümanın "aynı kiracı içinde ajan sınırı yok" iddiasıyla çelişiyor. Sonraki bir oturum için not: agent-bazlı bir izolasyon katmanı mı var yoksa bu belirli test kurulumuna mı özgü, doğrulanmalı.
 
 ---
 
@@ -991,7 +991,7 @@ embedding modeli hiç listelemiyor). Program.cs modeli sabit kodluyor,
 config'den değiştirilemiyor (bkz. dosya başındaki not). Kullanıcı kararı:
 bloke edilen case'ler `Beklemede` bırakılıp koşum sürdürüldü.
 
-**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — HTTP 200, gövde tam olarak {"sourceId":"izin-notu","chunkCount":1}. S1-8'de gerçek embedding erişimli bir OpenAI anahtarıyla koşuldu. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -1024,7 +1024,7 @@ curl -s "$APU/api/knowledge/manuel-bilgi/documents" -H "$APB"
 Koşulamadı: ön koşul `MT-MEM-015` embedding erişimi eksikliğinden
 koşulamadı (bkz. o case'in notu).
 
-**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — ["izin-notu"] döndü, tam beklenen gibi. S1-8'de gerçek embedding erişimli bir OpenAI anahtarıyla koşuldu. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -1062,7 +1062,7 @@ curl -s -X POST "$APU/api/knowledge/manuel-bilgi/search" -H "$APB" \
 Koşulamadı: sorgu embedding'i gerektirir, embedding erişimi yok (bkz.
 `MT-MEM-015`).
 
-**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — sourceId=izin-notu, distance=0.548 (<2.0). S1-8'de gerçek embedding erişimli bir OpenAI anahtarıyla koşuldu. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -1107,7 +1107,7 @@ WHERE tenant_id = 'default' AND collection = 'manuel-bilgi' AND source_id = 'izi
 Koşulamadı: ön koşul `MT-MEM-015` embedding erişimi eksikliğinden
 koşulamadı.
 
-**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — silme 204, sonraki arama [] , liste []. S1-8'de gerçek embedding erişimli bir OpenAI anahtarıyla koşuldu. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -1196,7 +1196,7 @@ WHERE tenant_id = 'default' AND collection = 'manuel-bilgi' AND source_id = 'tek
 Koşulamadı: `text` ile yükleme embedding gerektirir, embedding erişimi yok
 (bkz. `MT-MEM-015`).
 
-**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — iki çağrı da 200; DB'de tek satır, içerik "Ikinci surum..." ile başlıyor. S1-8'de gerçek embedding erişimli bir OpenAI anahtarıyla koşuldu. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -1244,7 +1244,7 @@ yapıyor — `ArgumentException.Message` her zaman bu soneki ekler. **Kusur,
 uyuşmuyor ve iç parametre adını dışa sızdırıyor) — `HATA-S1-010` olarak
 kaydedildi; aynı desen `MT-MEM-022/023/024`'te de tekrarlıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+ **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de HATA-S1-010 düzeltmesiyle yeniden koşuldu: detail artik tam beklenen metinle, sonek yok. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -1275,7 +1275,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/knowledge/manuel-bilgi/doc
 `HTTP: 400`, aynı `HATA-S1-010` soneki (`" (Parameter 'text')"`) burada da
 var.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+ **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de HATA-S1-010 düzeltmesiyle yeniden koşuldu: detail artik tam beklenen metinle. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -1311,7 +1311,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/knowledge/kurumsal%20bilgi
 Yalniz harf, rakam, alt cizgi ve tire icerebilir. (Parameter 'collection')"`
 — aynı `HATA-S1-010` soneki.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+ **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de HATA-S1-010 düzeltmesiyle yeniden koşuldu: detail artik tam beklenen metinle. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -1352,7 +1352,7 @@ eslesmiyor. (Parameter 'chunks')"` — aynı `HATA-S1-010` soneki
 hatayı `UpsertAsync` çağrılmadan ATIYOR — `EmbedMissingAsync` sonrası,
 `_store.UpsertAsync` çağrısından ÖNCE — dolayısıyla kısmi yazma riski yok).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+ **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de HATA-S1-010 düzeltmesiyle yeniden koşuldu: detail artik tam beklenen metinle. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -1470,7 +1470,7 @@ WHERE run_id = '<runId>' GROUP BY tool_name;
 Koşulamadı: belge yükleme ve `search_knowledge` tool'unun sorgu embedding'i
 üretmesi gerekiyor, embedding erişimi yok (bkz. `MT-MEM-015`).
 
-**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — yanıt "14 gün" içeriyor, search_knowledge tam bir kez çağrıldı (tool_invocations doğrulandı). S1-8'de gerçek embedding erişimli bir OpenAI anahtarıyla koşuldu. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -1515,7 +1515,7 @@ curl -s -X POST "$APU/api/agents/manuel-varsayilan-koleksiyon/run" -H "$APB" \
 Koşulamadı: belge yükleme embedding gerektiriyor, embedding erişimi yok
 (bkz. `MT-MEM-015`).
 
-**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — yanıt "bulut-42" içeriyor, varsayılan koleksiyon = agent adı doğrulandı. S1-8'de gerçek embedding erişimli bir OpenAI anahtarıyla koşuldu. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -1685,7 +1685,7 @@ WHERE collection = 'manuel-bilgi' AND source_id = 'alfa-belge';
 Koşulamadı: belge yükleme ve arama embedding gerektiriyor, embedding
 erişimi yok (bkz. `MT-MEM-015`).
 
-**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — kiraci-beta araması [] döndü, kiraci-alfa (kontrol) alfa-belge'yi buldu. S1-8'de gerçek embedding erişimli bir OpenAI anahtarıyla koşuldu. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -1772,7 +1772,7 @@ tasimiyor."`) alındı. Sonuç: kontrol grubu (`AgentEndpoints`) kapsamı
 doğru uyguluyor, `KnowledgeEndpoints` hiç uygulamıyor. **Kusur, Önem:
 Yüksek** — doğrulandı, `HATA-S1-011` olarak kaydedildi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+ **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de HATA-S1-011 düzeltmesiyle (K-397) yeniden koşuldu: RunsRead anahtari artik DELETE'te 403 Kapsam yetersiz aliyor. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 

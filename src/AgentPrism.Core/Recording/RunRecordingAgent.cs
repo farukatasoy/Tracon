@@ -295,6 +295,23 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         var enumerator = base.RunCoreStreamingAsync(messages, session, options, cancellationSource.Token)
             .GetAsyncEnumerator(cancellationSource.Token);
 
+        // 🚨 HATA-S1-015: bu iki bayrak, DisposeAsync()'in tuketici tarafindan
+        // ERKEN cagrildigi (dongu ne dogal bitmis ne de bir istisnayla cikmis)
+        // durumu ayirt eder. C#'in async-iterator kurali geregi, tuketici bir
+        // `yield return`'den SONRA (bir sonraki MoveNextAsync'ten ONCE)
+        // DisposeAsync() cagirirsa, yalniz asagidaki `finally` blogu calisir —
+        // onun ALTINDAKI kod (dogal bitisin CompleteAsync cagrisi) HICBIR ZAMAN
+        // calismaz; disposal metodun geri kalanini normal akisla SURDURMEZ,
+        // yalniz askidaki `finally` bloklarini calistirir. Gercek zamanli ses
+        // turunda kullanici `cancel` gonderdiginde tam bu ariza olusuyordu: TTS
+        // ag cagrisi surerken (`yield return`'den sonra, tuketici -
+        // VoiceConversationDriver.RespondAsync - kontrolu devralmisken) gelen
+        // iptal, tuketicinin `await foreach`'ini erken DisposeAsync()'e
+        // zorluyor, ne `Completed` ne `Canceled` hic yazilmiyordu — run kalici
+        // olarak Running'de asili kaliyordu (gercek maliyet sessizce kaybolur).
+        var naturalEnd = false;
+        var completedByCatch = false;
+
         try
         {
             while (true)
@@ -315,6 +332,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
 
                     if (!await enumerator.MoveNextAsync().ConfigureAwait(false))
                     {
+                        naturalEnd = true;
                         break;
                     }
 
@@ -322,11 +340,13 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                 }
                 catch (OperationCanceledException)
                 {
+                    completedByCatch = true;
                     await CompleteAsync(scope, RunStatus.Canceled, null, null, CancellationToken.None).ConfigureAwait(false);
                     throw;
                 }
                 catch (Exception ex)
                 {
+                    completedByCatch = true;
                     await CompleteAsync(scope, RunStatus.Failed, null, ToRunError(ex), CancellationToken.None)
                         .ConfigureAwait(false);
                     throw;
@@ -355,6 +375,16 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         finally
         {
             await enumerator.DisposeAsync().ConfigureAwait(false);
+
+            // Ne dogal bitis (asagidaki kod tamamlar) ne bir istisna (yukaridaki
+            // catch zaten tamamladi) — tuketicinin erken DisposeAsync()'i. Bu,
+            // terminal durumu yazacak SON sans: asagidaki kod bu noktadan sonra
+            // ASLA calismayacak.
+            if (!naturalEnd && !completedByCatch)
+            {
+                await CompleteAsync(scope, RunStatus.Canceled, ToRunUsage(usage), null, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
         }
 
         var streamingStatus = pendingApproval is not null

@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Compaction;
 using Microsoft.Extensions.AI;
@@ -547,6 +548,13 @@ public sealed class AgentDefinitionCompiler
     private const int DefaultMinimumPreservedGroups = 4;
     private const int DefaultContextWindowMaxOutputTokens = 4096;
 
+    /// <summary>
+    /// <see cref="BuildKeywordPattern"/>'in bir tokeni "anlamli" saymak icin
+    /// gerektirdigi en az uzunluk — kisa doldurucu kelimeleri ("bir", "ile", "mi")
+    /// desenden dislar.
+    /// </summary>
+    private const int MinKeywordLength = 3;
+
     // ContextWindow ve Pipeline stratejileri disariya bir CompactionTrigger
     // parametresi actmaz (kendi ic tetikleyicilerini kendileri kurar/tasir).
     // Bu durumlarda ObservedCompactionStrategy'nin kendi tetikleyicisi olarak
@@ -845,7 +853,7 @@ public sealed class AgentDefinitionCompiler
         CancellationToken cancellationToken)
     {
         var matches = await fileStore
-            .SearchAsync("/", regexPattern: query, globPattern: null, recursive: true, cancellationToken)
+            .SearchAsync("/", regexPattern: BuildKeywordPattern(query), globPattern: null, recursive: true, cancellationToken)
             .ConfigureAwait(false);
 
         return matches.Select(static match => new TextSearchProvider.TextSearchResult
@@ -854,6 +862,35 @@ public sealed class AgentDefinitionCompiler
             SourceName = match.FileName,
             SourceLink = match.FileName,
         });
+    }
+
+    /// <summary>
+    /// <see cref="TextSearchProvider"/>'in modele yazdirdigi dogal dil sorgusunu
+    /// <see cref="AgentFileStore.SearchAsync"/>'in bekledigi bir regex desenine cevirir.
+    /// </summary>
+    /// <remarks>
+    /// HATA-S1-009: <c>SearchAsync</c> bir REGEX bekler (PostgreSQL'de <c>~</c>
+    /// ile, digerlerinde <see cref="Regex"/> ile) ama <see cref="TextSearchProvider"/>
+    /// modele dogal dil sorgusu yazdirir (ornegin "FILE-7841 ile ilgili bir kayit
+    /// var mi?"). Bu ham metni oldugu gibi regex olarak calistirmak neredeyse
+    /// hicbir zaman eslesmez (bosluklar ve noktalama regex anlaminda dar kisitlar
+    /// getirir) — sorgu bunun yerine bosluga gore ayrilmis, kisa doldurucu
+    /// kelimeler haric anlamli tokenlere bolunup her biri kacislanip "VEYA" ile
+    /// birlestirilir; dosyada bu tokenlerden HERHANGI biri (ornegin "FILE-7841")
+    /// gecen bir satir eslesir. Sifir token kalirsa (tum sorgu kisa kelimelerden
+    /// olusuyorsa) ham sorgu kacislanip aynen kullanilir — davranisi hicbir zaman
+    /// bugunkunden daha kotu yapmaz.
+    /// </remarks>
+    private static string BuildKeywordPattern(string query)
+    {
+        var tokens = query
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
+            .Where(static token => token.Length >= MinKeywordLength)
+            .Select(Regex.Escape)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return tokens.Length == 0 ? Regex.Escape(query) : string.Join('|', tokens);
     }
 #pragma warning restore MAAI001
 

@@ -751,6 +751,17 @@ yok.
 
 **Durum:** ☐ Beklemede · ☑ Geçti (beklenen sonuç koda göre düzeltildi) · ☐ Kaldı · ☐ Atlandı
 
+> **Güncelleme (S1-8, 2026-08-13):** `HATA-S1-005` bu oturumda kodlandı —
+> `AgentPrismRetentionOptions`'a dört hedef eklendi VE (ayrıca yakalanan
+> ikincil bir eksiklik olarak) `AgentPrismServiceCollectionExtensions.BindRetention`
+> bu dört hedefi artık biliyor. Sonuç: **case'in ÖZGÜN (ilk yazılan) iddiası
+> artık doğru** — `run_inputs` config varsayılanını KULLANIR, tıpkı
+> `sessions` gibi. Canlıda doğrulandı: `AgentPrism__Retention__RunInputs__MaxAgeDays=60`
+> ile `preview?target=run_inputs` → `{"maxAgeDays":60,"enabled":true,...}`.
+> Yukarıdaki "tersine çıktı" bulgusu artık GEÇERSİZ (kod o zamanki hâlini
+> yansıtıyordu) — tarihsel kayıt olarak bırakıldı, silinmedi. Bkz.
+> `SONUCLAR-S1-2026-08-13.md`, `K-399`.
+
 ---
 
 # 3 — Hacim sınırı: `MaxRows` (Faz 36)
@@ -1210,7 +1221,7 @@ Workflow çalıştırma yolu, agent çalıştırma yolundan (`AgentEndpoints` �
 `/api/agents/{ad}/run` yerine `/api/workflows/{ad}/run` üzerinden tamamen
 atlatabilir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de HATA-S1-006 düzeltmesiyle (K-394) yeniden koşuldu: `ozetle-ve-cevir` 2 kez çalıştırıldı, `ONCE=0 SONRA=2 FARK=2` (workflow'un TAMAMI tek kök "run" sayıldı, tutarlı). 429 kapısı da ayrıca doğrulandı. Bkz. `SONUCLAR-S1-2026-08-13.md`.
 
 ---
 

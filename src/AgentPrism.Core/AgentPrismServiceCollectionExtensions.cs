@@ -1710,6 +1710,14 @@ public static class AgentPrismServiceCollectionExtensions
         BindRetentionTarget(section.GetSection(nameof(AgentPrismRetentionOptions.Attachments)), options.Attachments);
         BindRetentionTarget(section.GetSection(nameof(AgentPrismRetentionOptions.Sessions)), options.Sessions);
         BindRetentionTarget(section.GetSection(nameof(AgentPrismRetentionOptions.Conversations)), options.Conversations);
+
+        // HATA-S1-005: bu dord hedef ForTarget'a eklendiydi ama BURAYA
+        // eklenmemisti — imza degisikligi govdenin HER cagrildigi yerde
+        // uygulanmadan tamamlanmis sayilmaz (bkz. AGENTS.md, Faz 20 notu).
+        BindRetentionTarget(section.GetSection(nameof(AgentPrismRetentionOptions.RunInputs)), options.RunInputs);
+        BindRetentionTarget(section.GetSection(nameof(AgentPrismRetentionOptions.VoiceSessions)), options.VoiceSessions);
+        BindRetentionTarget(section.GetSection(nameof(AgentPrismRetentionOptions.RunScores)), options.RunScores);
+        BindRetentionTarget(section.GetSection(nameof(AgentPrismRetentionOptions.DocumentEmbeddings)), options.DocumentEmbeddings);
     }
 
     private static void BindRetentionTarget(IConfigurationSection section, RetentionTargetOptions options)

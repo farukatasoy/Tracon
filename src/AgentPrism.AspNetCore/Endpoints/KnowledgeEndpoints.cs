@@ -22,6 +22,7 @@ internal static class KnowledgeEndpoints
     {
         builder.MapPost("/api/knowledge/{collection}/documents", UploadAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.KnowledgeAdmin)
             .WithName("AgentPrismUploadKnowledgeDocument")
             .WithTags("AgentPrism", "Knowledge")
             .WithSummary("Bir belgeyi bilgi tabanina yukler.")
@@ -33,6 +34,7 @@ internal static class KnowledgeEndpoints
 
         builder.MapGet("/api/knowledge/{collection}/documents", ListAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.KnowledgeRead)
             .WithName("AgentPrismListKnowledgeDocuments")
             .WithTags("AgentPrism", "Knowledge")
             .WithSummary("Bir koleksiyondaki kaynaklari listeler.")
@@ -40,6 +42,7 @@ internal static class KnowledgeEndpoints
 
         builder.MapDelete("/api/knowledge/{collection}/documents/{sourceId}", DeleteAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.KnowledgeAdmin)
             .WithName("AgentPrismDeleteKnowledgeDocument")
             .WithTags("AgentPrism", "Knowledge")
             .WithSummary("Bir kaynagin tum parcalarini siler.")
@@ -47,6 +50,7 @@ internal static class KnowledgeEndpoints
 
         builder.MapPost("/api/knowledge/{collection}/search", SearchAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.KnowledgeRead)
             .WithName("AgentPrismSearchKnowledge")
             .WithTags("AgentPrism", "Knowledge")
             .WithSummary("Bir koleksiyonda anlamsal arama yapar (teshis ve kalibrasyon icin).")
@@ -84,7 +88,7 @@ internal static class KnowledgeEndpoints
         }
         catch (ArgumentException ex)
         {
-            return Invalid(ex.Message);
+            return Invalid(CleanMessage(ex));
         }
     }
 
@@ -149,12 +153,31 @@ internal static class KnowledgeEndpoints
         }
         catch (ArgumentException ex)
         {
-            return Invalid(ex.Message);
+            return Invalid(CleanMessage(ex));
         }
     }
 
     private static ProblemHttpResult Invalid(string detail)
         => TypedResults.Problem(title: "Gecersiz istek", detail: detail, statusCode: StatusCodes.Status400BadRequest);
+
+    /// <summary>
+    /// <see cref="ArgumentException.Message"/>'in <see cref="ArgumentException.ParamName"/>
+    /// doluyken otomatik ekledigi <c>" (Parameter 'x')"</c> sonekini atar — ic
+    /// .NET parametre adi dis API sozlesmesine sizmasin diye.
+    /// </summary>
+    private static string CleanMessage(ArgumentException ex)
+    {
+        if (ex.ParamName is not { Length: > 0 } paramName)
+        {
+            return ex.Message;
+        }
+
+        var suffix = $" (Parameter '{paramName}')";
+
+        return ex.Message.EndsWith(suffix, StringComparison.Ordinal)
+            ? ex.Message[..^suffix.Length]
+            : ex.Message;
+    }
 
     private static ProblemHttpResult NotSupported()
         => TypedResults.Problem(

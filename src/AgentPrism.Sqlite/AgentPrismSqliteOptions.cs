@@ -14,10 +14,17 @@ public sealed class AgentPrismSqliteOptions
     /// SQLite baglanti dizesi (ornek: <c>Data Source=agentprism.db</c>).
     /// </summary>
     /// <remarks>
-    /// <c>Data Source=:memory:</c> desteklenir ama kalici DEGILDIR: baglanti
-    /// kapaninca veri gider. Baglanti dizesi tipik olarak yalniz bir dosya yolu
-    /// tasir ve SQL Server/PostgreSQL'in aksine kimlik bilgisi icermez; yine de
-    /// bir dagitim ayrintisidir ve kaynak kontrolune yazilmaz.
+    /// 🚨 Ciplak <c>Data Source=:memory:</c> DESTEKLENMEZ: bu kutuphane her
+    /// islem icin <see cref="System.Data.Common.DbDataSource.CreateDbConnection"/>
+    /// ile YENI bir baglanti acar, ve SQLite'ta ciplak <c>:memory:</c> her
+    /// baglantiya kendi izole, anonim veritabanini verir — <c>Cache=Shared</c>
+    /// eklenmesi bile bunu degistirmez (yalniz URI bicimli ad paylasilabilir).
+    /// Sonuc: migration'lar bir baglantida uygulanir, ilk sorgu farkli (bos) bir
+    /// veritabanina duser ve "no such table" ile coker. Bunun yerine paylasimli
+    /// bellek ici bir veritabani icin URI bicimini kullanin, ornegin
+    /// <c>Data Source=file:agentprism?mode=memory&amp;cache=shared</c> veya
+    /// <c>Data Source=file::memory:?cache=shared</c>. Bu ayar dogrulama
+    /// asamasinda (<see cref="AgentPrismSqliteOptionsValidator"/>) reddedilir.
     /// </remarks>
     public string? ConnectionString { get; set; }
 

@@ -340,7 +340,7 @@ sqlite3 "$SQLITEDB" "SELECT count(*) FROM sqlite_master WHERE type='table';"
   `UseMcpServer()` ve `UseA2A()` çağırdığı için (`Program.cs:98-99`) iki denetim
   de etkindir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı → `HATA-S1-002` (Yüksek)
+ **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı → `HATA-S1-002` (Yüksek) — S1-8'de düzeltmesiyle (K-393) yeniden koşuldu: ayrı sunucu + boş şema ile uygulama açık kaldı, /health→Unhealthy. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 > **Temizlik:** `dotnet user-secrets set "AgentPrism:Sqlite:AutoApplyMigrations" "true"`, reset yordamı.
 
@@ -424,7 +424,7 @@ curl -s "$APU/api/agents/manuel-bellek-test" -H "$APB" -w "\nHTTP: %{http_code}\
   `:memory:` hiç desteklenmiyor. Doküman ya `cache=shared` biçimini önermeli ya
   da `:memory:` desteği kaldırılmalı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı → `HATA-S1-003` (Yüksek)
+ **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı → `HATA-S1-003` (Yüksek) — S1-8'de düzeltmesiyle yeniden koşuldu: validator artik ciplak :memory:'yi acik bir OptionsValidationException ile reddediyor. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 > **Temizlik:** `dotnet user-secrets set "AgentPrism:Sqlite:ConnectionString" "Data Source=agentprism-manuel.db"`
 
@@ -797,7 +797,7 @@ $MSSQL -Q "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('agentpri
   sorguluyor ve uygulama iniyor. Kök neden `AgentPrism.Sql.Shared` içinde
   ortak olduğu için sağlayıcıdan bağımsız — bu koşum onu **doğruladı**.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı → `HATA-S1-002` (Yüksek)
+ **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı → `HATA-S1-002` (Yüksek) — S1-8'de düzeltmesiyle (K-393) yeniden koşuldu, SQL Server'da da aynı sonuç. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 > **Temizlik:** `dotnet user-secrets set "AgentPrism:SqlServer:AutoApplyMigrations" "true"`, reset yordamı.
 

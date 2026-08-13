@@ -45,6 +45,7 @@ internal static class VoiceConversationEndpoint
                 (HttpContext context, string sessionId) => HandleAsync(context, sessionId, options))
             .RequireRole(roles.Operator)
             .WithName("AgentPrismVoiceStream")
+            .WithTags("AgentPrism", "Voice")
             .WithSummary("Gercek zamanli konusma icin WebSocket baglantisi acar.")
             .WithDescription(
                 "Istemci -> sunucu: ham ses (ikili) ve denetim mesajlari (JSON metin). " +

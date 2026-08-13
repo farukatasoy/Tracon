@@ -1,3 +1,6 @@
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+
 namespace AgentPrism;
 
 /// <summary>
@@ -17,6 +20,75 @@ namespace AgentPrism;
 /// </remarks>
 internal static class ExternalSurfaceGuard
 {
+    private static readonly TimeSpan MaxCatalogListDelay = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Katalogu, sema henuz sorgulanabilir olmayabilecegi icin uygulama kapanana
+    /// kadar yeniden deneyerek okur.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 🚨 HATA-S1-002: <c>AutoApplyMigrations=false</c> iken
+    /// <see cref="SchemaReadyGate.MarkReady"/> semanin GERCEKTEN sorgulanabilir
+    /// oldugunu dogrulamadan cagrilir (semanin hazirlanmasi tuketicinin
+    /// sorumlulugudur — bkz. <see cref="SchemaReadyGate.MarkReady"/>'nin kendi
+    /// notu). Semayi kuran harici bir gecis adimi uygulama baslarken henuz
+    /// tamamlanmamis olabilir, hatta uygulama omru boyunca hic calismayabilir
+    /// (operator migration'i elle, sonra calistirmayi secebilir). Boyle bir depo
+    /// hatasi calistirmayi HEMEN KESMEMELIDIR (K1, "depo hatasi calistirmayi
+    /// kesmez") — <c>MT-SQL-004</c>'un kendi sozlesmesi de aynisini ister:
+    /// uygulama ACIK kalir, <c>/health</c> <c>Unhealthy</c> bildirir. Bu yuzden
+    /// deneme SAYISI degil, yalnizca <paramref name="lifetime"/>'in
+    /// <see cref="IHostApplicationLifetime.ApplicationStopping"/>'i sinirlar —
+    /// sema hic hazirlanmazsa yalniz A2A/MCP disa acik yuzeyine gelen istekler
+    /// (uygulama kapanana kadar) bu Task'i bekler; uygulamanin geri kalani
+    /// (agent CRUD, saglik ucu, vb.) hemen kullanilabilir kalir ve HICBIR ZAMAN
+    /// <see cref="IHostApplicationLifetime.StopApplication"/> ile durdurulmaz.
+    /// </para>
+    /// </remarks>
+    /// <param name="catalog">Sorgulanacak katalog.</param>
+    /// <param name="lifetime">Uygulama omru — deneme araligi ve iptali bundan okunur.</param>
+    /// <param name="logger">Ara denemelerin uyari olarak yazildigi logger.</param>
+    /// <param name="protocol">Log mesajinda gorunen dis yuzey adi (<c>"A2A"</c>/<c>"MCP"</c>).</param>
+    /// <returns>Katalog ozetleri.</returns>
+    public static async Task<IReadOnlyList<AgentDescriptor>> ListCatalogWithRetryAsync(
+        IAgentCatalog catalog,
+        IHostApplicationLifetime lifetime,
+        ILogger logger,
+        string protocol)
+    {
+        ArgumentNullException.ThrowIfNull(catalog);
+        ArgumentNullException.ThrowIfNull(lifetime);
+        ArgumentNullException.ThrowIfNull(logger);
+
+        var delay = TimeSpan.FromMilliseconds(200);
+
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await catalog.ListAsync(lifetime.ApplicationStopping).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogWarning(
+                    ex,
+                    "{Protocol} disa acik yuzey denetimi icin katalog sorgusu {Attempt}. denemede " +
+                    "basarisiz oldu; sema henuz sorgulanabilir olmayabilir (AutoApplyMigrations=false " +
+                    "ile harici bir gecis adimi bekleniyor olabilir). {DelayMilliseconds} ms sonra " +
+                    "yeniden denenecek; bu arada uygulamanin geri kalani calisir durumda kalir.",
+                    protocol,
+                    attempt,
+                    delay.TotalMilliseconds);
+
+                await Task.Delay(delay, lifetime.ApplicationStopping).ConfigureAwait(false);
+
+                var next = delay * 2;
+                delay = next < MaxCatalogListDelay ? next : MaxCatalogListDelay;
+            }
+        }
+    }
+
     /// <summary>Bir agentin beyaz listede olup olmadigini soyler.</summary>
     /// <param name="agentName">Denetlenecek agent adi.</param>
     /// <param name="exposedAgents">Beyaz liste.</param>

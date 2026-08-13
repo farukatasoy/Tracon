@@ -839,7 +839,7 @@ değil. **Kusur — HATA-S1-014, Önem: Orta** (bkz. şerit sonuç dosyası).
 **Ön koşulu geri aldım:** `AgentPrism__Voice__ApiKey` gerçek ElevenLabs
 anahtarıyla ayarlanıp uygulama yeniden başlatıldı (bkz. koşum notu).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+ **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de HATA-S1-014 düzeltmesiyle (K-395) yeniden koşuldu: doğru statik token artık 404, yanlış token 401. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -1756,7 +1756,7 @@ kapsamının MAPLI uçları da (voice conversation grubu) kapsadığını göste
 — aynı kusur, ikinci bir yüzey. Yeni numara açılmadı, `HATA-S1-014`'ün
 notuna eklendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+ **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de HATA-S1-014 düzeltmesiyle (K-395) yeniden koşuldu: 400 (WebSocket yukseltmesi gerekiyor) artık dogru token ile de aliniyor. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
@@ -2197,7 +2197,7 @@ bir `yield return` SONRASI, bir sonraki `MoveNextAsync`'ten ÖNCE herhangi
 bir istisna/iptal tüketiciyi (`consumer`) erken `DisposeAsync`'e
 zorlarsa aynı sessiz kayıp oluşur.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+ **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — S1-8'de HATA-S1-015 düzeltmesiyle (K-398) yeniden koşuldu: run artık status:Canceled ile tamamlaniyor. Bkz. SONUCLAR-S1-2026-08-13.md.
 
 ---
 
