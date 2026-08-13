@@ -2431,7 +2431,25 @@ izin istemi hiç görünmedi (sessizce askıda kaldı). Bu case GERÇEK insan
 konuşması gerektirdiği için (KOSUM-PLANI §2.4.2, fiziksel eylem) koşulamadı
 — §5.3 tablosuna eklendi.
 
-**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Gerçek sonuç (S1-9 güncellemesi, 2026-08-13)**
+Kök neden "gerçek mikrofon" değil, sahte bir `AgentPrism:Voice:ApiKey`
+(`SAHTE-SES-ANAHTARI-xyz789`) idi — gerçek bir anahtarla panel zaten
+`ready`'ye ulaşabiliyordu, önceki denemeler mikrofon izni adımında
+tıkandığı için bu hiç görülmedi. Kullanıcı gerçek bir ElevenLabs anahtarı
+sağladı (doğrulandı: `GET /v1/voices` → `200`, 10 ses); `DefaultVoiceId`
+de sahte olduğundan (`ses-tr-1`) gerçek bir ID'ye (`JBFqnCBsd6RMkjVDRZzb`)
+güncellendi. "Gerçek insan konuşması" gereksinimi bağımsız bir
+Playwright/Node betiğiyle (paylaşılan MCP kaydına dokunulmadı) karşılandı:
+Chromium `--use-fake-device-for-media-stream --use-fake-ui-for-media-stream
+--use-file-for-fake-audio-capture=<wav>` ile başlatıldı, `wav` macOS
+`say -v Yelda -o merhaba.aiff "Merhaba, nasılsın?"` ile üretilip 16 kHz
+mono PCM'e çevrildi. Panel `listening`e ulaştı, "Send now"a basıldı, gerçek
+STT gerçek kelimeleri transkribe etti: canlı transkript alanında
+`"You: Merhaba, nasılsın? ..."` belirdi, ardından model yanıtı
+(`"Merhaba! İyiyim, teşekkürler. Sen..."`) altyazı olarak aktı ve ses
+otomatik çaldı (`speaking` durumu gözlendi). Konsolda hata yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2461,7 +2479,15 @@ MT-MM-086 ön koşulu koşulamadığı için bu case de koşulamadı — aynı f
 eylem engeli (gerçek mikrofon + gerçek konuşma gerekir). §5.3 tablosuna
 eklendi.
 
-**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Gerçek sonuç (S1-9 güncellemesi, 2026-08-13)**
+MT-MM-086 ile aynı oturumda, `speaking` durumuna geçer geçmez (agent sesli
+yanıt vermeye başladığı an) "Interrupt" düğmesi (`voice-interrupt`) görünür
+oldu ve tıklanınca panel ANINDA `listening` durumuna döndü. Transcript'teki
+yanıt `"Merhaba! İyiyim, teşekkürler. Sen (interrupted)"` şeklinde kesilme
+etiketiyle güncellendi (dokümanın beklediği notla eşdeğer görsel işaret —
+`t('voice.interrupted')`). Ekran görüntüsüyle doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2494,7 +2520,18 @@ takıldı (MT-MM-086 ile AYNI engel) — rozetin göründüğü/görünmediği d
 gözlemlenemedi, çünkü panel `ready` durumuna hiç ulaşmadı. Gerçek mikrofon
 izni GEREKTİREN bir fiziksel eylem — §5.3 tablosuna eklendi.
 
-**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Gerçek sonuç (S1-9 güncellemesi, 2026-08-13)**
+`AgentPrism:Voice:Conversation:PersistAudio` `user-secrets` ile `true`
+yapılıp uygulama yeniden başlatıldı (gerçek ElevenLabs anahtarıyla,
+bkz. MT-MM-086). Playwright/sahte-mikrofon betiğiyle panel açılıp `listening`
+durumuna ulaşıldı: rozet (`voice-recording-notice`) göründü, metni tam
+olarak `"Audio of the reply is being stored"` — beklenen temayla birebir
+eşleşiyor. Ekran görüntüsüyle doğrulandı. **Geri alındı:** `PersistAudio`
+`false`'a döndürülüp uygulama tekrar başlatıldı; `MT-MM-086/087/090`
+denemelerinde (aynı oturum, `PersistAudio=false`) rozet hiç görünmedi —
+karşılaştırma da doğrulanmış oldu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2570,4 +2607,15 @@ gerçek mikrofon olmadan "connecting"te takılı kalıyor — panel içi metinle
 gözlemlenemedi. Gerçek mikrofon izni GEREKTİREN bir fiziksel eylem —
 §5.3 tablosuna eklendi.
 
-**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Gerçek sonuç (S1-9 güncellemesi, 2026-08-13)**
+Panel `listening` durumundayken (MT-MM-086 akışının başı) dil anahtarı
+(`language-toggle`, EN→TR) ve tema anahtarı (`theme-toggle`, açık→koyu)
+art arda değiştirildi. Panel KAPANMADI/bozulmadı boyunca: `Talk`/`End
+conversation` düğmesi, durum etiketi (`listening`→`dinliyor`), "Send
+now"/"Şimdi gönder" düğmesi ve `<html lang>` (`en`→`tr`) hepsi doğru
+çevrildi; karışık dil metni yok. Tema koyuya geçince kontrast bozulmadı,
+ses seviyesi çubukları okunur kaldı (ekran görüntüsüyle doğrulandı — tüm
+kenar çubuğu + gövde koyu temaya geçti, panel açık kaldı). İkisi de eski
+hâline döndürüldü, panel sorunsuz kapandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı

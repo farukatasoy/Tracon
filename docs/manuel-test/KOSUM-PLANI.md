@@ -28,7 +28,7 @@
 
 | Şerit | Durum |
 |---|---|
-| 1 — Kalıcılık ve ses | **✅ TÜM 7 OTURUM + S1-8 BİTTİ.** S1-1 ✅ · S1-2 ✅ · S1-3 ✅ (`23` tamam, 26/26) · S1-4 ✅ (`20`, 23/31 koşuldu) · S1-5 ✅ (`25`, 27/28 koşuldu) · S1-6 ✅ (`19` §1–§8, 37/37) · S1-7 ✅ (`19` §9–§13, 24/24; dosya `19` TAMAMLANDI 61/61) · **S1-8 ✅** (2026-08-13: 15 hatanın TAMAMI kodlandı, kalan 8 embedding-bloklu + 1 geçici-kod-gerektiren case koşuldu — bkz. aşağıdaki tablo). Şerit 1'de kod/kusur açığı **sıfır**; yalnız 4 fiziksel-mikrofon case'i (`MT-MM-086/087/088/090`) kullanıcı eylemi bekliyor. Sıradaki: boşa düşen ajan **ortak kuyruk**tan (§7 aşağıda) bir oturum alır, kendi şerit numarasında (`S1`, port 5081, şema `mt_s1`) koşar. |
+| 1 — Kalıcılık ve ses | **✅ TÜM 7 OTURUM + S1-8 + S1-9 BİTTİ.** S1-1 ✅ · S1-2 ✅ · S1-3 ✅ (`23` tamam, 26/26) · S1-4 ✅ (`20`, 23/31 koşuldu) · S1-5 ✅ (`25`, 27/28 koşuldu) · S1-6 ✅ (`19` §1–§8, 37/37) · S1-7 ✅ (`19` §9–§13, 24/24; dosya `19` TAMAMLANDI 61/61) · **S1-8 ✅** (2026-08-13: 15 hatanın TAMAMI kodlandı, kalan 8 embedding-bloklu + 1 geçici-kod-gerektiren case koşuldu — bkz. aşağıdaki tablo) · **S1-9 ✅** (2026-08-13: `MT-MM-086/087/088/090` gerçek ElevenLabs anahtarı + Playwright sahte-mikrofon ile koşuldu, dördü de Geçti). Şerit 1'de kod/kusur açığı VE açık case **sıfır**. Sıradaki: boşa düşen ajan **ortak kuyruk**tan (§7 aşağıda) bir oturum alır, kendi şerit numarasında (`S1`, port 5081, şema `mt_s1`) koşar. |
 | 2 — HTTP ve güvenlik | ⏳ Başlamadı |
 | 3 — Çekirdek ve sağlayıcı | ⏳ Başlamadı |
 | 4 — Arayüz | ⏳ Başlamadı |
@@ -70,11 +70,14 @@ ve karar gerekçeleri: `docs/KARARLAR.md` K-393..K-399,
 | `HATA-S1-001` — `user-secrets` temizliği uygulanmamış (süreç kusuru) | Düşük | ✅ Düzeltildi |
 | `HATA-S1-010` — Bilgi tabanı doğrulama hataları `.NET ArgumentException`'ın iç parametre adını sızdırıyor | Düşük | ✅ Düzeltildi |
 
-**Şerit 1'de kalan tek açık kalem:** `MT-MM-086`/`087`/`088`/`090` — gerçek
-insan + gerçek mikrofon gerektirir, otomatikleştirilemez. Kod/kusur açığı
-**sıfırdır**.
+**Şerit 1'de açık kalem kalmadı.** S1-9'da (2026-08-13) `MT-MM-086`/`087`/
+`088`/`090` da kapatıldı — kök neden gerçek mikrofon değil, sahte bir
+`Voice:ApiKey`/`DefaultVoiceId` idi; kullanıcı gerçek bir ElevenLabs anahtarı
+sağladı, "gerçek insan konuşması" gereksinimi bağımsız bir Playwright
+betiğiyle (sahte mikrofon + önceden kaydedilmiş WAV) karşılandı. Kod/kusur
+açığı VE açık case **sıfırdır**.
 
-Ayrıntı: [`SONUCLAR-S1-2026-08-13.md`](SONUCLAR-S1-2026-08-13.md).
+Ayrıntı: [`SONUCLAR-S1-2026-08-13.md`](SONUCLAR-S1-2026-08-13.md) (S1-9 devir notu).
 
 ## 2. Ajanın uyacağı kurallar
 
@@ -382,7 +385,7 @@ Kalıcılık sağlayıcısı case'e göre değişir; bu şerit `AgentPrism__Sqli
 | S1-4 ✅ | [`20`](20-BELLEK-RAG-BAGLAM.md) | tümü | 31 | **Bitti** (2026-08-13): 13 Geçti, 10 Kaldı, 8 Beklemede (embedding erişimi yok — bkz. `SONUCLAR-S1-2026-08-13.md`). |
 | S1-5 | [`25`](25-SAGLIK-TESHIS-OPENAPI.md) | tümü | 28 | Üç sağlayıcıyı da sırayla dener; her geçişte reset. |
 | S1-6 ✅ | [`19`](19-COK-MODLULUK-VE-SES.md) | §1–§8 | 37 | **Bitti** (2026-08-13): 35 Geçti, 1 Kaldı (`HATA-S1-014`), 1 Atlandı (`MT-MM-047`, yapısal `maxOutputTokens` sınırı). Ayrıntı `SONUCLAR-S1-2026-08-13.md`. |
-| S1-7 ✅ | [`19`](19-COK-MODLULUK-VE-SES.md) | §9–§13 | 24 | **Bitti** (2026-08-13): 17 Geçti, 2 Kaldı (`HATA-S1-014` kapsam genişlemesi + yeni `HATA-S1-015`), 1 Atlandı (`MT-MM-089`, `AllowRemoteAccess` kapalı), 4 Beklemede (`MT-MM-086/087/088/090` — gerçek mikrofon gerekir, kullanıcı eylemi bekliyor). **Dosya `19` TAMAMLANDI (61/61).** Ayrıntı `SONUCLAR-S1-2026-08-13.md`. |
+| S1-7 ✅ | [`19`](19-COK-MODLULUK-VE-SES.md) | §9–§13 | 24 | **Bitti** (2026-08-13): 17 Geçti, 2 Kaldı (`HATA-S1-014` kapsam genişlemesi + yeni `HATA-S1-015`), 1 Atlandı (`MT-MM-089`, `AllowRemoteAccess` kapalı), 4 Beklemede (`MT-MM-086/087/088/090`). S1-8'de 2 Kaldı → Geçti; **S1-9'da 4 Beklemede → Geçti** (sahte `Voice:ApiKey`/`DefaultVoiceId` kök nedendi, gerçek mikrofon değil). **Dosya `19` TAMAMLANDI (61/61), 0 açık kalem.** Ayrıntı `SONUCLAR-S1-2026-08-13.md`. |
 
 ### Şerit 2 — HTTP ve güvenlik · port 5082 · şema `mt_s2`
 
