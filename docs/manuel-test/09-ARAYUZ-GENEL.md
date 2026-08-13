@@ -1327,9 +1327,11 @@ curl -s "http://localhost:5080/agentprism/api/meta" | python3 -m json.tool
   gösterir (üretimde ikisi aynıdır — `documentBase()`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`GET /api/meta` → `version: "0.0.0-preview.0.88"`, `prefix: "/agentprism"`.
+Ayarlar ekranı: Sürüm `0.0.0-preview.0.88`, Önek `/agentprism`, Arayüz
+tabanı `/agentprism/`, API tabanı `/agentprism/` — dördü de birebir eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1355,9 +1357,15 @@ curl -s "http://localhost:5080/agentprism/api/meta" | python3 -m json.tool
 - "Bu sekme" satırı yalnız token girilmişse görünür (bkz. MT-UI-007).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Ayarlar → Erişim: "Uzaktan erişim" = "yalnız loopback" (`/api/meta`'nın
+`allowRemoteAccess:false` ile tutarlı), "Bearer token" = "gerekli"
+(`requiresBearerToken:true` ile tutarlı), "Authorization policy" =
+"tanımlı değil" (`requiresAuthorizationPolicy:false` ile tutarlı), "Bu
+sekme" satırı token girildiği için "token saklandı" + "Unut" düğmesiyle
+görünüyor. Dördü de beklenenle eşleşiyor (metin ifadeleri Türkçe küçük
+harf üslupla ama anlamca birebir).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1385,9 +1393,13 @@ curl -s "http://localhost:5080/agentprism/api/meta" | python3 -m json.tool
   ipucu satırı görünür (MT-UI-014 ile aynı sinyal, burada metinsel).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Ayarlar → Depolama: "Kip" = "kalıcı". Agent tanımları =
+`SqlAgentDefinitionStore`, Çalıştırmalar = `SqlRunStore`, Oturumlar =
+`SqlSessionStore` — üçü de `GET /api/meta`'nın `storage.*` alanlarıyla
+birebir eşleşiyor. Bellek içi ipucu satırı bu oturumda görünmedi (beklenen —
+persistence açık, koşul sağlanmıyor, bu ekranın kendisi doğru davranış).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1422,9 +1434,26 @@ no built-in model list."*
   boş durum görünür (`models.noModels`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Ön koşul bu ÖRNEK UYGULAMADA fiilen kurulamıyor: `samples/AgentPrism.Api/
+Program.cs:128-149` OpenAI anahtarı boşken KOŞULSUZ `agentPrism.
+AddModelProvider(new EchoModelProvider())` çağırıyor ("Anahtar yoksa
+uygulama ağ çağrısı yapmayan örnek sağlayıcı ile çalışır; hiçbir şey
+kırılmaz" — bilinçli tasarım). Tüm sağlayıcı anahtarları (`OpenAI`,
+`Anthropic`, `Google`, `OpenAICompatible:openrouter`) boş bırakılıp uygulama
+yeniden başlatıldı: Modeller ekranı SIFIR sağlayıcı değil, `echo` adlı TEK
+bir sağlayıcı ve `echo-1` modelini (bağlam 8.192, çıktı 1.024, `streaming`)
+gösterdi — ne kırmızı hata ne de dokümanın tarif ettiği "boş durum kartı"
+(`UseOpenAI`/`UseOpenAICompatible` örnek kodu) göründü, çünkü katalog
+GERÇEKTEN boş değildi. **Doküman düzeltmesi (AGENTS.md: doküman-kod
+çelişkisinde doküman yanlıştır):** bu case'in ön koşulu ("hiçbir sağlayıcı
+kayıtlı değil") `samples/AgentPrism.Api` üzerinden hiçbir zaman
+üretilemez — echo fallback'i kasıtlı olarak bunu engelliyor. Gerçek boş
+katalog durumu yalnız `AgentPrism.Core`'un `ModelProviderRegistry`'sine
+doğrudan birim testiyle ya da örnek uygulama dışında sıfır sağlayıcılı
+özel bir host ile üretilebilir — bu, elle arayüz testinin kapsamı dışında.
+Uygulama normal yapılandırmayla (tüm anahtarlar dolu) yeniden başlatıldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -1450,9 +1479,17 @@ no built-in model list."*
   (`client.setQueryData` yalnız eşleşen `providerName`'i değiştirir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`openai` panelinde "Şimdi denetle"ye tıklandı. Ağ sekmesinde YALNIZ
+`GET /api/models/health/openai?refresh=true` çağrıldı (diğer sağlayıcılar
+için hiçbir istek gitmedi). `anthropic`/`google`/`openai-responses`/
+`openrouter` satırlarının "... sn. önce denetlendi" zaman damgaları
+DEĞİŞMEDİ — yalnız `openai` satırı güncellendi. (Yan not: ilk denetimde
+`openai` bir kez "erişilemiyor"/"Zaman asimi" (10.01s) gösterdi, ikinci
+tıklamada hemen "sağlıklı"ya döndü — geçici bir zaman aşımıydı, kalıcı bir
+kusur değil; bu case'in kapsamı olan "yalnız o satır güncellenir" davranışını
+etkilemedi.)
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1484,9 +1521,13 @@ on the server."*
   agent'ların kullandığını gösterir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+6 tool kartı incelendi (`cancel_order`, `get_order_status`,
+`list_recent_orders`, `list_voices`, `speak`, `transcribe`). Her kartta
+yalnız ad, açıklama, MCP kaynağı rozeti (varsa), kullanan agent linkleri,
+çağrı istatistiği ve JSON şema kutusuyla "Kopyala" düğmesi var. Hiçbir
+kartta düzenle/sil/ekle eylemi yok — ekran gözlemle salt-okunur.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1511,9 +1552,15 @@ on the server."*
   sayaçları ve son çağrı zamanı görünür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`cancel_order` kartında "onay gerekli" rozeti görünüyor
+(tooltip: "Microsoft Agent Framework bu tool'u çalıştırmak yerine bir onay
+isteği üretir; Playground onaylamak veya reddetmek için bir kart gösterir.").
+Bu tool hiç çağrılmadığı için "Hiç çağrılmadı." notu görünüyor — beklenenle
+birebir eşleşiyor. (Karşılaştırma: `get_order_status` 3 kez çağrılmış ve
+"çağrı 3 · başarısız 0 · ortalama 10ms · son 12 dk. önce" istatistiğini
+gösteriyor — çağrılmış/çağrılmamış iki durum da doğru davranıyor.)
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1545,9 +1592,12 @@ bu bölüm derinlemesine değil, kırıcı bir sorun var mı diye kısa bir tara
 - Tema/dil geçişleri Chrome'dakiyle aynı şekilde çalışır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Tooling kısıtı — bu Playwright MCP kurulumu yalnız Chromium'u sürüyor,
+tarayıcı seçim parametresi yok (`browser_navigate`/`browser_tabs` şemasında
+WebKit/Safari seçeneği yok). WebKit/Safari not available in this Playwright
+MCP setup.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -1580,9 +1630,15 @@ doğrulanmadı — yalnız pratik bir taban çizgisidir).
   boyuttadır, üst üste binmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+375px'te 4 ekran (`document.documentElement.scrollWidth` vs `clientWidth`
+ile ölçüldü): Dashboard **481→508** (taşıyor), Ayarlar **481** (taşıyor),
+Modeller **364=364** (taşımıyor, GEÇTİ), Tool'lar **508** (taşıyor). Mobil
+nav şeridinin kendisi (`overflow-x-auto md:hidden`, 09/10'un beklediği gibi)
+doğru çalışıyor — üç ekrandaki taşma BAŞKA, üç AYRI kaynaktan geliyor
+(`HATA-S4-008`). Üst çubuktaki dil/tema düğmeleri kendileri üst üste
+binmiyor (ayrı gözlem, doğru). **`HATA-S4-008` açıldı** — bkz. aşağı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 

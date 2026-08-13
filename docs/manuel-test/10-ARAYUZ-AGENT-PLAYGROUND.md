@@ -120,9 +120,16 @@ flowchart TD
 - Satırın en sağındaki "Çalıştır" düğmesi `playground/{ad}` rotasına gider.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`support` satırında `code` rozeti var, `title="'code' kaynağı tarafından
+kodda tanımlandı. Salt okunur."`. `arastirmaci` satırında `code` YANINDA
+sarı `harness` rozeti var (`title="Harness yetenekleri açık"`). `support`
+satırının tool hücresi `3` gösteriyor, `title="get_order_status,
+list_recent_orders, cancel_order"` — tam tool adları virgülle ayrılmış
+tooltip'te. "Çalıştır" linkinin `href`i `/agentprism/playground/support`.
+Dördü de beklenenle eşleşiyor. (Not: `azure-destek` katalogda hiç yok —
+beklenen, Azure kimliği bu ortamda yapılandırılmamış.)
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -159,9 +166,17 @@ yeniden kanıtlanmaz.
 - Liste normal şekilde okunur (`Reader` rolü `GET /api/agents`'ı geçirir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Case'in kendi ön koşulu tetiklendi: bu oturumda (`mt_s4`, şerit izole) `13-
+KIRACI-VE-GUVENLIK.md`'nin ürettiği API-anahtarı/rol fixture'ı hiç
+oluşturulmadı (o dosya Şerit 2'de `mt_s2` şemasında koşuldu, izole şema/
+şerit paylaşılmıyor — KOSUM-PLANI §2.3). Arayüz tek bir bearer token
+(`AgentPrism:Ui:AuthToken`) destekliyor ve bu token her zaman tam rol
+taşıyor (S4-1'in `MT-UI-010/011` bulgusuyla aynı yapısal engel: `X-Test-
+Role` test iskelesi tarayıcının gerçek `Authorization: Bearer` akışıyla
+uyumsuz). Case'in kendi metni bu durumda ⏭ ATLA'yı ve gerekçe olarak
+"13'ün API-anahtarı fixture'ı bekleniyor" yazılmasını öngörüyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -199,9 +214,18 @@ Sınır durumu.
 - Adım 3'ten sonra: `valid = true`, her iki düğme etkinleşir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 1: `Doğrula` ve `Oluştur` ikisi de `disabled`. Adım 2 (`Ad: gecici-
+test`, `Model` boş): ikisi de hâlâ `disabled`. Adım 4: `Sağlayıcı`
+otomatik `anthropic`'e seçili geldi — bu ortamda 5 sağlayıcı kayıtlı
+(anthropic, google, openai, openai-responses, openrouter, alfabetik
+sırayla) ve `anthropic` alfabetik olarak İLKİ; case'in kendi notu bu
+durumu ("sıra deterministik değildir") zaten öngörüyor, bir kusur değil.
+Adım 3 (`Model: gpt-5.4-mini` yazıldı — alan serbest metin girişli bir
+combobox, seçili sağlayıcının (anthropic) model listesiyle sınırlı
+DEĞİL): sonrasında `Doğrula`/`Oluştur` ikisi de etkinleşti (`disabled`
+kalktı) — beklenenle birebir eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -234,9 +258,19 @@ Sınır durumu.
   yeni satır katalogda `db · v1` rozetiyle görünür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 5: JSON önizlemesi birebir eşleşti: `{"name":"manuel-bos",
+"displayName":null,"description":null,"instructions":"Yalnizca \"tamam\"
+yaz.","model":{"provider":"openai","model":"gpt-5.4-mini",
+"temperature":null,"maxOutputTokens":null,"topP":null,
+"reasoningEffort":null,"responseFormat":null},"toolNames":[],
+"skillNames":[],"callableAgentNames":[],"harness":null,"compaction":null,
+"memory":null}`. Adım 6: "Oluştur"a tıklandı, ekran `/agentprism/agents/
+manuel-bos`'a yönlendi; katalog listesinde `manuel-bos` satırı `db · v1`
+rozetiyle (`title="Saklanan tanım, sürüm 1."`) ve `gpt-5.4-mini` modeliyle
+görünüyor. `FIX-AGENT-02` oluşturuldu, sonraki oturumlar için SİLİNMEDEN
+bırakıldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -274,9 +308,18 @@ somut uygulaması.
   agent `agents/manuel-destek`'te `1` tool ile listelenir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 5: `cancel_order` satırında sarı `approval` rozeti var (checkbox işaretsiz
+bırakıldı, rozet seçimi engellemiyor). Araç listesi yalnız checkbox — hiçbir
+serbest metin alanı yok (6 tool: `cancel_order`, `get_order_status`,
+`list_recent_orders`, `list_voices`, `speak`, `transcribe` — hepsi `GET /api/
+tools`'tan gelen kayıtlı adlar). `get_order_status` işaretlendi, önizleme
+`"toolNames": ["get_order_status"]` gösterdi. Adım 6: "Oluştur"a tıklandı,
+`/agentprism/agents/manuel-destek`'e yönlendi; detay sayfasında "Tool'lar:
+get_order_status" (1 tool) görünüyor, tanım JSON'ı `"toolNames":
+["get_order_status"]`, `"version": 1`, `"origin": "Database"` taşıyor.
+`FIX-AGENT-01` oluşturuldu, sonraki oturumlar için SİLİNMEDEN bırakıldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -305,9 +348,19 @@ Negatif senaryo.
 - Formdaki veri kaybolmaz — kullanıcı adı değiştirip yeniden deneyebilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`POST /api/agents` → `409`, gövde: `{"title":"Agent adi kullanimda",
+"status":409,"detail":"'manuel-bos' adinda bir tanim zaten var. Guncellemek
+icin PUT kullanin."}`. Form kapanmadı (URL `/agentprism/agents/new`'de
+kaldı), kırmızı `ErrorNote` göründü: "Agent adi kullanimda: 'manuel-bos'
+adinda bir tanim zaten var. Guncellemek icin PUT kullanin." — `detail` alanı
+metnin İÇİNDE birebir var (ErrorNote `title: detail` biçiminde birleştirip
+gösteriyor, yalnız `detail` değil — case'in "birebir taşır" iddiasını
+karşılıyor, ekstra `title:` öneki bir kusur değil, ek bağlam). Form verisi
+kaybolmadı: `Ad` alanı hâlâ `manuel-bos`. Konsolda 1 hata var ama bu
+sadece tarayıcının kendi "Failed to load resource: 409" günlüğü — JS
+istisnası değil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -337,9 +390,15 @@ kullanıcıya sunucudan geldiği gibi gösterir.
 - Katalogda ikinci bir `support` satırı **oluşmaz**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`POST /api/agents` (`name: "support"`) → `409`. `ErrorNote`:
+"Agent adi kullanimda: 'support' kodda tanimli bir agent'tir ve yonetim
+API'sinden degistirilemez. Ad cakismasinda kod kazandigi icin ayni adla
+yazilan bir tanim hicbir zaman cozulmezdi." — `MT-UIAG-006`'daki mesajdan
+(farklı `title`/`detail`) tamamen FARKLI, beklenen `detail` metni birebir
+içeride. Katalogda `/agentprism/agents/support`e giden TEK bir link var —
+ikinci bir `support` satırı oluşmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -368,9 +427,17 @@ kullanıcıya sunucudan geldiği gibi gösterir.
   şey kaydetmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 2: "Doğrula"ya tıklandı, "Doğrulama sonucu" paneli `Geçerli` rozetini
+gösterdi, "Sorun bulunamadı. Hiçbir şey kaydedilmedi, hiçbir model
+çağrılmadı." notuyla — model adı (`bilinmeyen-model-adi-xyz`) gerçekte
+OpenAI'de yok ama doğrulayıcı bunu reddetmedi; bu, K-032'nin doğal sonucu
+(AgentPrism model listesini sunucu tarafında bilinçli olarak seçmez/
+doğrulamaz, doğrulama yalnız biçim/şema düzeyinde) — case'in kendi metni
+zaten yalnız "report.valid durumuna göre" göstermeyi bekliyor, kusur değil.
+Adım 3: Agents listesine dönüldü, `manuel-dogrula-test` katalogda YOK —
+doğrulama hiçbir şey kaydetmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -405,9 +472,14 @@ Sınır/negatif senaryo — istemci tarafı doğrulama, sunucuya hiç gitmez.
   çağrısı görünmez) — doğrulama tamamen istemcidedir (`isValidJson`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 3 (`{ bozuk json` yazıldı): `Doğrula` ve `Oluştur` ikisi de `disabled`,
+şemanın altında `alert: "Geçerli JSON değil."` göründü. Metin alanı
+`active` (odakta, düzenlenebilir) kaldı — salt okunur olmadı. Ağ
+sekmesinde bu adım boyunca `POST`/`validate` çağrısı YOK (yalnız önceki
+`GET /api/agents` istekleri var) — doğrulama tamamen istemci taraflı.
+Adım 4 (`{}` yazıldı): iki düğme de tekrar etkinleşti, hata notu kayboldu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -442,9 +514,19 @@ Sınır/negatif senaryo — istemci tarafı doğrulama, sunucuya hiç gitmez.
   null`), doldurulmuş değerler silinmez, yalnız gizlenir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 1: checkbox işaretlendi, 2 sayısal alan ("En fazla bağlam penceresi
+token", "İstek başına en fazla yineleme") + 5 checkbox ("Sıkıştırmayı
+kapat", "Todo izlemeyi kapat", "Dosya belleğini kapat", "Web aramasını
+kapat", "Tool onayı iste") göründü — beklenen 5 boolean ile birebir eşleşiyor.
+Adım 3 (32000/8/`disableWebSearch`/`disableFileMemory` işaretlendi):
+önizleme `"harness": {"maxContextWindowTokens":32000,
+"maximumIterationsPerRequest":8,"disableWebSearch":true,
+"disableFileMemory":true}` — birebir eşleşti. Adım 4 (checkbox kapatıldı):
+`"harness": null`. Checkbox tekrar AÇILDIĞINDA (ek doğrulama) önceki
+değerler (`32000`/`8`/iki `true`) aynen geri geldi — form state hafızada
+korunuyor, yalnız gönderilen gövdeden düşüyor; beklenenle birebir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -481,9 +563,17 @@ açar.
 - Adım 4: tüm alt alanlar kaybolur, `compaction` gövdede `null` gider.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 1 (`SlidingWindow`): "Tetik: token sayısı", "Tetik: mesaj sayısı",
+"Tetik: tur sayısı", "En az korunacak tur" göründü — `minPreservedGroups`/
+özetleme alanları yok. Adım 2 (`ContextWindow`): yalnız "En fazla bağlam
+penceresi token *" (zorunlu işaretli) ve "En fazla çıktı token" göründü,
+`Tetik:` alanları hiçbiri yok. Adım 3 (`Summarization`): "Tetik: token/
+mesaj/tur sayısı" + "En az korunacak grup" + "Özetleme promptu"/"Özetleme
+modeli sağlayıcısı"/"Özetleme modeli adı" göründü, "En az korunacak tur"
+YOK. Adım 4 (`None`'a geri alındı): önizleme `"compaction": null` —
+üçü de beklenenle birebir eşleşti.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -516,9 +606,14 @@ yapar (bu case yalnız arayüzü ölçer).
   bağımsız).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Ön koşul karşılanmıyor: `/agentprism/skills` ekranı "Henüz skill yok"
+gösteriyor — bu `mt_s4` şemasında SIFIR skill kayıtlı (S4-1..S4-3'te hiçbir
+skill senaryo dosyası henüz koşulmadı, `14-SKILL-VE-SCRIPT.md` ortak
+kuyrukta bekliyor). Case'in kendi metni bu durumda ⏭ ATLA'yı öngörüyor
+("yoksa case ⏭ ATLA — örnek uygulama kaç beceri kaydettiğini önce Skills
+ekranından say").
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
 
@@ -553,9 +648,18 @@ Negatif senaryo.
   çevrim açıklamasıdır. Form kapanmaz, veri kaybolmaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 1: `manuel-destek`'i düzenlerken "Çağrılabilir agent'lar" listesinde
+`manuel-destek` kendisi HİÇ yok (13 diğer agent var, kendisi filtrelendi).
+Adım 2: `manuel-cevrim-a` oluşturuldu (`callableAgentNames:
+["manuel-destek"]`), `201` ile kaydedildi. Adım 3: `manuel-destek`
+düzenlendi, `manuel-cevrim-a` çağrılabilir olarak işaretlendi, "Yeni sürüm
+kaydet"e tıklandı → `PUT /api/agents/manuel-destek` → `400`. `ErrorNote`:
+"Cagri grafigi gecersiz: Cagri grafiginde dongu var: manuel-destek ->
+manuel-cevrim-a -> manuel-destek. Dongulu bir grafik, calistirmanin derinlik
+sinirina carpana kadar surmesine yol acar." Form kapanmadı (URL `/agents/
+manuel-destek/edit`'te kaldı). Beklenenle birebir eşleşti.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
