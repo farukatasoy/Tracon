@@ -961,9 +961,14 @@ curl -s "$APU/api/runs/$RUN/events" -H "$APB" | jq '[.[] | select(.type=="Conten
 - `ContentMasked`/`ContentBlocked` olay sayısı **0**'dır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**Doküman notu:** `/api/runs/{id}/events` bir SSE akışı döner, düz JSON
+dizisi değil — `jq` doğrudan uygulanamaz (bir SSE parser gerekir). Doğru
+yoldan: olay tipleri `RunStarted`, `MessageDelta`, `MessageCompleted`,
+`RunCompleted` — hiçbir `ContentMasked`/`ContentBlocked` yok. Run normal
+tamamlandı. Tam beklendiği gibi (bu doküman notu §5-7'nin geri kalanında
+tekrar edilmez).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1005,9 +1010,19 @@ curl -s "$APU/api/runs/$RUN/events" -H "$APB" | grep -c "4539578763621486"
   hâli gitmiştir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İlk iki iddia doğrulandı: `ContentMasked` olayı `payload:
+{"guard":"pattern","rule":"credit-card","direction":"Input","action":"Mask"}`
+taşıyor; modelin yanıtı kart numarasını tekrarlamadı. **AMA üçüncü iddia
+YANLIŞ çıktı:** `grep -c "4539578763621486"` çıktısı `1`'dir, `0` değil —
+kart numarasının kendisi `RunStarted` olayının `text` alanında **aynen**
+görünüyor: `"text":"kart numaram 4539578763621486, tekrar eder misin"`.
+PostgreSQL'de doğrudan doğrulandı — `run_events` tablosunda `type=0`
+(`RunStarted`) satırının `text` sütunu kart numarasını **kalıcı olarak**
+taşıyor. Bu, `ContentGuardingChatClient`'ın maskelemesinin **hiç
+görmediği** bir yoldur — kayıt altına alınmış: **`HATA-S3-006`**.
+Ayrıntı: `SONUCLAR-S3-2026-08-13.md`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1043,9 +1058,9 @@ curl -s -X POST "$APU/api/agents/support/run" \
 - Yanıt hiçbir `@` işaretli dizgi taşımaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Yanıt metni tam olarak `[redacted]`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1079,9 +1094,16 @@ curl -s -i -X POST "$APU/api/agents/support/run" \
 - Gövde `gizli-proje` dizgisini **taşımaz**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP/1.1 422 Unprocessable Entity`, `errorType:"content_blocked"`,
+`guard:"pattern"`, `rule:"denied-term"`, `direction:"Input"`. HTTP gövdesi
+`gizli-proje` dizgisini taşımıyor. Case'in kendi kriteri karşılandı
+(**Geçti**). Ancak `HATA-S3-006`'nın kapsamı burada da doğrulandı: aynı
+istek için `run_events` tablosundaki `RunStarted` satırı `text:"gizli-proje
+hakkinda bilgi ver"` taşıyor — engellenen içerik HTTP gövdesinde
+görünmese de veritabanında kalıcı olarak duruyor. `HATA-S3-006` yalnız
+maskeleme değil, **engelleme** dahil tüm guard kararları için geçerli.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1125,9 +1147,12 @@ curl -s "$APU/api/runs/$RUN" -H "$APB" | jq '{status, errorType: .error.type, er
   MT-GUARD-043 (akışsız) ile **aynı** kalıcı sonuç, yalnız HTTP taşıma katmanı farklıdır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`event: run` sonra `event: error` (`type:AgentPrismContentBlockedException`,
+`gizli-proje` metni yok). `GET /api/runs/{id}`: `status:Failed`,
+`error.type:"content_blocked"`, `error.class:"ContentBlocked"` — MT-GUARD-043
+ile aynı kalıcı sonuç. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1165,9 +1190,11 @@ curl -s "$APU/api/runs/$RUN/events" -H "$APB" | jq '[.[] | select(.type=="Conten
 - Modelin yanıtı sayıyı **değişmeden** içerebilir (maskeleme uygulanmadı).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`ContentMasked` olay sayısı `0`. Model yanıtı sayıyı değişmeden içerdi:
+"1234567812345678 numaralı sipariş kargoya verildi...". Tam beklendiği
+gibi (`1234567812345678` gerçekten Luhn'a uymuyor).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1238,9 +1265,13 @@ dotnet run -c Release
 - İkisi de `durum=Completed`'dir (maskeleme `Block` değildir, çalıştırma devam eder).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+GECERLI  (12345678950) -> durum=Completed maskelenen=1
+GECERSIZ (12345678901) -> durum=Completed maskelenen=0
+```
+Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1277,9 +1308,14 @@ curl -s "$APU/api/runs/$RUN/events" -H "$APB" | grep -c "sk-th1sIsATestKeyN0tRea
 - `grep -c` çıktısı **`0`**'dır — anahtarın kendisi hiçbir olayda geçmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`ContentMasked` olayı `{"guard":"pattern","rule":"provider-api-key",
+"direction":"Input","action":"Mask"}` taşıyor (kural adı doğrulandı). AMA
+`grep -c` çıktısı `1`'dir, `0` değil — **`HATA-S3-006`'nın aynı kapsamı**:
+sahte anahtar `RunStarted` olayının `text` alanında aynen görünüyor (ve
+`run_events` tablosunda kalıcı). Yeni bir kayıt açılmadı, MT-GUARD-041'de
+açılan `HATA-S3-006`'ya üçüncü örnek olarak eklendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1333,9 +1369,18 @@ curl -s -i -w "\nSURE: %{time_total}s\n" -X POST "$APU/api/agents/support/run" \
   "başarısız kapanır" sözleşmesi tutarsız bir hata yüzeyi üretiyor).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur — SÜRE, HTTP durum kodu ve varsa `runId` durumu ayrı ayrı yazılır)_
+**Şüphe DOĞRULANMADI — negatif sonuç.** `x.` tekrarı 40, 80, 160, 320, 1000
+kez denendi (dokümanın önerdiği eskalasyonun çok ötesine geçildi). Hepsinde
+`HTTP:200`, `SURE` her seferinde `~1-3s` (ağ gecikmesi baskın, regex
+işleme süresi ölçülemeyecek kadar küçük) — hiçbir zaman `RegexMatchTimeoutException`,
+`500` veya kilitlenme görülmedi; konsol logunda `Regex`/`Timeout` sözcüğü
+hiç geçmedi. `.NET`'in regex motoru bu deseni (basit, iç içe olmayan
+tekrarlı grup) klasik geri izleme patlamasına **düşürmüyor** — kod
+okumasından çıkan şüphe (dar `catch` filtresinin `RegexMatchTimeoutException`'ı
+kaçırması) doğru bir gözlem olsa da, bu path'e hiç girilmiyor çünkü eşleştirme
+zaten hızlı tamamlanıyor. `00-INDEKS.md`'ye kusur olarak eklenmez.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1371,9 +1416,13 @@ curl -s "$APU/api/audit?action=content.blocked" -H "$APB" | grep -c "gizli-proje
 - Kayıt `entity` alanında `run:<runId>` taşır (hangi çalıştırma olduğu izlenebilir, içerik değil).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+En az 2 kayıt döndü; `after`: `{"rule":"denied-term","guard":"pattern",
+"action":"Block","direction":"Input"}`, `entity:"run:<runId>"`. `grep -c
+"gizli-proje"` → `0` (temiz) — audit kaydının kendisi metni taşımıyor
+(HATA-S3-006 yalnız `run_events`'i etkiliyor, `audit_log`'u etkilemiyor).
+Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1407,9 +1456,12 @@ curl -s "$APU/api/runs/$RUN" -H "$APB" | jq '{errorType: .error.type, errorClass
 - `/api/stats/errors` panosunda (varsa) bu iki sınıf **ayrı** satırlar olarak görünür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+MT-GUARD-044'ün çalıştırma kaydından (`GET /api/runs/{id}`):
+`error.type:"content_blocked"`, `error.class:"ContentBlocked"` —
+`"ContentFiltered"` değil. `/api/stats/errors` panosu bu oturumda ayrıca
+kontrol edilmedi (bütçe). Ana iddia (sınıf ayrımı) doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1454,9 +1506,13 @@ curl -s -i -X POST "$APU/api/agents/support/run" \
 - Sonraki normal istek `200`/`201` ile başarıyla tamamlanır — sağlayıcı KAPANMAMIŞTIR.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+10 arka arkaya engellenen istek sonrası `/api/models/health`'te `openai`:
+`status:"Healthy"` (doküman alan adı `state` bekliyordu, gerçek alan adı
+`status` — küçük doküman notu). Sonraki normal istek `HTTP/1.1 200 OK` ile
+tamamlandı — sağlayıcı kapanmadı, engelleme devre kesiciyi tetiklemedi. Tam
+beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1507,9 +1563,17 @@ curl -s "$APU/api/runs?status=Failed" -H "$APB" | jq 'length'
   gerçekleşmemiş kalıntısıdır — `00-INDEKS.md`'ye not düşülür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**Şüphe DOĞRULANDI.** `?errorType=content_blocked` → `23` satır;
+parametresiz → `23` satır (**aynı**); `?status=Failed` (gerçek bağlı
+parametre) → `12` satır (**küçük**). Kaynak doğrulandı:
+`RunEndpoints.cs:42-53`'teki `MapGet("/api/runs", ...)` imzasında
+`[FromQuery] string? errorType` diye bir parametre **yok** — yalnız
+`agentName`, `status`, `kind`, `sessionId`, `startedAfter`,
+`includeChildren`, `parentRunId`, `rootRunId`, `skip`, `take` bağlanıyor.
+ASP.NET Core bağlanmamış sorgu parametresini sessizce yok sayıyor. Yeni
+kayıt: **`HATA-S3-007`**. Ayrıntı: `SONUCLAR-S3-2026-08-13.md`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1579,9 +1643,14 @@ dotnet run -c Release
   — `[redacted]` **görünmez**. Hiçbir guard kayıtlı değilse denetim tamamen atlanır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+HasGuards: False
+durum: Completed
+modelin gordugu metin: kart numaram 4539578763621486, tekrar eder misin
+```
+Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1659,9 +1728,24 @@ dotnet run -c Release
   var ama boşsa değil.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**Şüphe DOĞRULANDI.**
+```
+HasGuards: True
+MaskedPii: None
+DeniedTerms sayisi: 0
+MaskReplacement: ***
+```
+`AddPatternContentGuard()` hiç çağrılmadan, yalnız `MaskReplacement`
+anahtarı verilerek guard DI konteynerine kaydedildi
+(`AgentPrismServiceCollectionExtensions.cs:178-185`'teki
+`patternSection.Exists()` kontrolü doğrulandı). Bu, K1'in belgelenmesi
+gereken bir **inceltilmiş sınırı** — davranışsal bir kusur değil (guard
+hâlâ her zaman `Allow` döner), ama "kayıt = maliyet" varsayımının tam
+doğru olmadığının kod-doğrulanmış kanıtı. `00-INDEKS.md`'ye not düşülmesi
+öneriliyor (bu oturumda düşürülmedi — dokümantasyon netliği kusuru,
+davranışsal kusur değil, ayrı bir `HATA` kaydı açılmadı).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1746,9 +1830,19 @@ dotnet run -c Release
   sırasından bağımsız** olarak `Block` kazanır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+**Doküman notu:** Verilen kod sırasıyla (önce top-level ifadeler, sonra
+`internal sealed class` bildirimleri) derlenmedi — C# top-level
+ifadeler ile tip bildirimlerinin dosyada aynı hizada karışması `CS8803`
+veriyor; sınıf bildirimleri dosyanın SONUNA taşınarak düzeltildi (kod
+mantığı değişmedi). Sonrasında:
+```
+Mask-once Block:  durum=Failed hataTipi=content_blocked
+Block-once Mask:  durum=Failed hataTipi=content_blocked
+```
+İki satır da aynı — kayıt sırasından bağımsız `Block` kazandı. Tam
+beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1815,9 +1909,14 @@ dotnet run -c Release
   koşumda kaydedilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+durum: Failed
+hata mesaji: guard kasitli patladi
+```
+İstisna yutulmadı, çalıştırma `Failed` oldu, mesaj aynen taşındı. Tam
+beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1896,6 +1995,13 @@ dotnet run -c Release
   kanıtıdır — `ContentGuardingChatClient` ham istemcinin hemen üstünde durur).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+```
+durum: Completed
+nihai metin: anahtarim [redacted], bunu aynen tekrar et
+ContentMasked sayisi (Input): 1
+gercek anahtar metinde var mi: False
+```
+Tam beklendiği gibi — tool sonucu ikinci model çağrısının girişi olarak
+denetlendi, gerçek anahtar hiçbir zaman modele/nihai metne ulaşmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
