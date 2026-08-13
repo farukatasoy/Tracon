@@ -435,7 +435,7 @@ yanına ajan adını yazar — iki ajan aynı oturumu almaz.
 
 | Oturum | Dosya | Bölüm | Case | Kilit |
 |---|---|---|---|---|
-| K-1 | [`14`](14-SKILL-VE-SCRIPT.md) | §1–§2 | 20 | — |
+| K-1 ✅ | [`14`](14-SKILL-VE-SCRIPT.md) | §1–§2 | 20 | **Bitti** (2026-08-13): 19 Geçti, 1 Kaldı (`HATA-K-001`). Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
 | K-2 | [`14`](14-SKILL-VE-SCRIPT.md) | §3–§5 | 18 | — |
 | K-3 | [`14`](14-SKILL-VE-SCRIPT.md) + [`15`](15-WORKFLOWS.md) | 14 §6–§7 + 15 §1 | 28 | Script sandbox — kendi worktree'nde çalıştır. |
 | K-4 | [`15`](15-WORKFLOWS.md) | §2–§6 | 26 | §2 arayüz (6 case). |
