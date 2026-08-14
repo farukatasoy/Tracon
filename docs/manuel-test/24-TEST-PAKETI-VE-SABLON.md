@@ -739,9 +739,14 @@ Console.WriteLine("Yanit: " + response.Text);
   (`FakeModelScript.cs:17`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- **Doküman düzeltmesi**: verilen kod aynen yapıştırılınca `CS0246:
+  'ModelBinding' bulunamadı` ile derlenmedi — `ModelBinding` tipi
+  `AgentPrism` ad alanındadır, doküman yalnız `using AgentPrism.Testing;`
+  yazmış, `using AgentPrism;` eksik. `using AgentPrism;` eklenince: çıktı
+  `Models.Count: 1`, `Model adi: fake-model`, `Yanit: fake response` —
+  beklenenle birebir eşleşti.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -781,9 +786,10 @@ Console.WriteLine(r2.Text);
   (`FakeChatClient.cs:96`'daki `$"Echo: {lastUser?.Text}"`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Çıktı: `Echo: ORD-7 nerede` / `Echo: ikinci soru`. Beklenenle birebir
+  eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -819,9 +825,11 @@ Console.WriteLine((await client.GetResponseAsync([new ChatMessage(ChatRole.User,
 - İlk çağrı `ilk yanit`, ikinci çağrı `ikinci yanit` döner — sırayla, kuyruk mantığıyla.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- (Aynı `using AgentPrism;` eksikliği MT-TEST-020'de kaydedildi, burada
+  da tekrar eklendi.) Çıktı: `ilk yanit` / `ikinci yanit`. Beklenenle
+  birebir eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -864,9 +872,10 @@ Console.WriteLine("3: " + (await client.GetResponseAsync([new ChatMessage(ChatRo
   GÜNCEL kullanıcı mesajını yankılar — sabit bir metne kilitlenmez).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Çıktı: `1: ilk`, `2: Echo: sonraki mesaj`, `3: Echo: ucuncu mesaj`.
+  Beklenenle birebir eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -910,9 +919,10 @@ for (var i = 1; i <= 3; i++)
   hiç yankılanmaz, her ikinci çağrıdan itibaren **aynı sabit** metin döner.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Çıktı: `1: tek yanit`, `2: fake response`, `3: fake response`.
+  Beklenenle birebir eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
