@@ -178,22 +178,38 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     }
 
     /// <inheritdoc />
-    public IAsyncEnumerable<RunEvent> RunStreamingAsync(
+    /// <remarks>
+    /// Bir <c>async IAsyncEnumerable</c> yineleyicisi OLMALIDIR (K-403) —
+    /// <see cref="WorkflowSessionId.Require"/> gecersiz bir <c>sessionId</c>
+    /// icin <see cref="AgentPrismException"/> firlatir. Bu cagri yineleyici
+    /// GOVDESININ disinda (senkron bir yardimci metotta) kalirsa istisna
+    /// <c>WorkflowEventStream</c>'in (SSE yazicisi, `AgentPrism.AspNetCore`)
+    /// <c>await foreach</c> icindeki <c>catch</c> blogundan HIC gecmeden
+    /// dogrudan ASP.NET'in genel
+    /// <c>ExceptionHandlerMiddleware</c>'ine duser — istemci SSE `event: error`
+    /// yerine teshis bilgisi tasimayan duz bir `HTTP 500` alir (HATA-K-005).
+    /// Cagiran katmanin kendi async yardimci metodunda ayni sinifin
+    /// dorduncu tekrari icin bkz. <c>docs/hafiza/cekirdek-calistirma.md</c>.
+    /// </remarks>
+    public async IAsyncEnumerable<RunEvent> RunStreamingAsync(
         WorkflowRunRequest request,
-        CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        return ExecuteAsync(
-            new WorkflowExecution
-            {
-                WorkflowName = request.WorkflowName,
-                RunId = request.RunId ?? AgentPrismId.NewId(),
-                SessionId = WorkflowSessionId.Require(request.SessionId),
-                Message = request.Message,
-                ResumeFrom = null,
-            },
-            cancellationToken);
+        var execution = new WorkflowExecution
+        {
+            WorkflowName = request.WorkflowName,
+            RunId = request.RunId ?? AgentPrismId.NewId(),
+            SessionId = WorkflowSessionId.Require(request.SessionId),
+            Message = request.Message,
+            ResumeFrom = null,
+        };
+
+        await foreach (var runEvent in ExecuteAsync(execution, cancellationToken).ConfigureAwait(false))
+        {
+            yield return runEvent;
+        }
     }
 
     /// <inheritdoc />
