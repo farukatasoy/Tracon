@@ -44,6 +44,16 @@ public sealed record AgentPrismDiagnosticsReport
     /// <summary>Kayitli tool sayisi.</summary>
     public required int ToolCount { get; init; }
 
-    /// <summary>Kayitli agent sayisi.</summary>
-    public required int AgentCount { get; init; }
+    /// <summary>
+    /// Kayitli agent sayisi. Katalog okunamadiysa <see langword="null"/>.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 <see langword="null"/> ve <c>0</c> AYNI SEY DEGILDIR. Bu rapor tam da
+    /// bozuk bir kurulumu tarif etmek icin vardir: <c>AutoApplyMigrations=false</c>
+    /// ile sema henuz uygulanmamisken katalog sorgusu hata verir. O durumda
+    /// <c>0</c> dondurmek "hic agent yok" yalanini soylerdi ve operatoru yanlis
+    /// yone gonderirdi; <see langword="null"/> "sayilamadi" der. Raporun geri
+    /// kalani (ozellikle <see cref="PendingMigrations"/>) yine de doldurulur.
+    /// </remarks>
+    public required int? AgentCount { get; init; }
 }

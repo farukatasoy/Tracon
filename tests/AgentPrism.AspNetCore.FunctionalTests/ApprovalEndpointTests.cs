@@ -47,10 +47,21 @@ public sealed class ApprovalEndpointTests
             });
     }
 
+    /// <summary>
+    /// Bir calistirma beklenen duruma gelene kadar yoklar.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 Sure dolarsa BURADA patlar. Onceki hâli son gordugu durumu sessizce
+    /// dondururdu; cagiran onu denetlemedigi yerlerde (bkz. satir 140, 192) test
+    /// devam eder ve ILGISIZ bir iddiada ("bekleyen onay listesi bos") patlardi.
+    /// Tam cozum kosumunda olculdu: 16 test projesi paralel kosarken 5 sn yetmiyor,
+    /// tek basina 447/447 gecen paket toplu kosumda 1 hata veriyordu. Sure 30 sn'ye
+    /// cikarildi (yuk altinda genis, saglikli bir kosumda yine milisaniyeler surer).
+    /// </remarks>
     private static async Task<string> WaitForStatusAsync(AgentPrismTestHost host, Guid runId, string expected)
     {
         var uri = new Uri($"/agentprism/api/runs/{runId}", UriKind.Relative);
-        var deadline = DateTime.UtcNow.AddSeconds(5);
+        var deadline = DateTime.UtcNow.AddSeconds(30);
         string? status = null;
 
         while (DateTime.UtcNow < deadline)
@@ -60,13 +71,15 @@ public sealed class ApprovalEndpointTests
 
             if (string.Equals(status, expected, StringComparison.Ordinal))
             {
-                break;
+                // `expected` null degildir; esitlik saglandiysa `status` da degildir.
+                return status!;
             }
 
             await Task.Delay(20);
         }
 
-        return status!;
+        throw new InvalidOperationException(
+            $"Calistirma {runId} 30 saniyede '{expected}' durumuna gelmedi; son gorulen durum: '{status}'.");
     }
 
     [Fact]
