@@ -1760,9 +1760,11 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/experiments/uc-varyantli/ca
 - `HTTP: 400` — kanarya yalnız İKİ varyantlı deneylerde tanımlanabilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Üç varyantlı `uc-varyantli` (`34/33/33`) oluşturuldu, `canary` `PUT`
+  edildi. `HTTP: 400`, `detail: "Kanarya kurali yalnizca iki kollu
+  deneylerde tanimlanabilir."` Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1794,9 +1796,11 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/experiments/destek-talimat-
 - `HTTP: 200`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `HTTP: 200`. Yanıtın `canary` alanı `{"canaryVariant":"detayli-talimat",
+  "maxErrorRateDelta":0.2,"minSampleSize":3,"rampSteps":[25,50,100],
+  "rampInterval":"01:00:00"}` içeriyor. Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1821,9 +1825,15 @@ curl -s "$APU/api/experiments/destek-talimat-testi-2/canary" -H "$APB"
   değildir**.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `HTTP: 200`, `evaluation.decision: "InsufficientData"`, `reason: "Asgari
+  sonuclanmis calistirma sayisina (3) ulasilmadi: kanarya 0, kontrol 5."`
+  (MT-EVAL-062'nin 5 run'ı kontrol koluna, `kisa-talimat`'a düştüğü için
+  kontrol zaten 5'te, kanarya kolu `detayli-talimat` hâlâ 0'da). Canlılık
+  doğrulaması: `GET` art arda iki kez çağrıldı, `evaluatedAt` her
+  seferinde değişti (`02:38:24.79...` → `02:38:32.70...`) — sonuç
+  önbelleklenmiyor, her istekte yeniden hesaplanıyor. Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1848,9 +1858,15 @@ curl -s "$APU/api/experiments/destek-talimat-testi-2/canary" -H "$APB"
   deneyi taramaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `dotnet user-secrets list` → hiçbir `AgentPrism:Canary:*` girdisi yok;
+  `appsettings.json`'da da `Canary` bölümü yok (varsayılan durum).
+  `destek-talimat-testi-2` `minSampleSize=3` kanarya politikasıyla `Running`
+  durumda ve kontrol kolunda 5 tamamlanmış run varken (tarama
+  gerçekleşseydi bir işlem yapabilecek olgun bir aday) `rollback_reason`
+  SQL'de `NULL` kaldı — arka plan servisi hiçbir şey yapmadı. Beklenenle
+  eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1902,9 +1918,39 @@ SELECT action, entity, after FROM agentprism.audit_log WHERE action = 'experimen
 - Case sonrası `AgentPrism:Canary:*` `user-secrets` girdilerini kaldır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- **Kurulum uyarlaması** (`destek-talimat-testi-2`'nin varyant sürüm
+  bağları `Running` iken sabittir ve mevcut sürümler zaten çalışan bir
+  model taşıyordu — bir sürümü retroaktif olarak bozmanın yolu yok, çünkü
+  sürüm anlık görüntüleri değişmez; bkz. kod okuması: `CompositeAgentCatalog
+  .ResolveAsync` → `DefinitionStoreAgentSource.ResolveVersionAsync`
+  saklanan `AgentDefinition`'ı DOĞRUDAN kullanır, "canlı" bir tanımla
+  birleştirmez). Bunun yerine: `manuel-destek` var olmayan bir `modelId`
+  (`model-olmayan-xyz-999`) ile `version=5`'e yükseltildi; `destek-talimat
+  -testi-2` durduruldu; YENİ bir deney (`kanarya-geri-alma-testi`,
+  `kontrol`=`version 3` [sağlam], `bozuk-kanarya`=`version 5` [bozuk])
+  oluşturulup `Running` yapıldı; kanarya politikası `minSampleSize=3,
+  maxErrorRateDelta=0.0` ile kuruldu. Farklı `sessionId`'lerle 7 run
+  gönderildi, kova ataması gözlenerek 4'ü `kontrol`'e (hepsi `Completed`),
+  3'ü `bozuk-kanarya`'ya (hepsi `Failed`, model bulunamadığı için) düştü.
+  `AutoRollbackEnabled=true`, `ScanInterval=00:00:30` set edilip uygulama
+  yeniden başlatıldı, ~50 sn içinde (2 tarama döngüsü) sonuç gözlendi:
+  - `experiments.rollback_reason`: `"Kanarya hata orani (%100,0)
+    kontrolden (%0,0) %0,0 esiginden fazla yuksek."` — dolu.
+  - `audit_log`: `action='experiment.auto_rollback'`,
+    `actor='system:canary-evaluator'`,
+    `after={"reason":"...","canaryErrorRate":1,"controlErrorRate":0,
+    "canaryAverageScore":null}`.
+  - `GET /api/experiments/kanarya-geri-alma-testi` → `variants`:
+    `bozuk-kanarya weight=0`, `kontrol weight=100`. Ayrıca gözlenen ek
+    detay (dokümanın belirtmediği): `status` da `"Stopped"`'a geçti
+    (`endedAt` doldu) — geri alma yalnız ağırlığı sıfırlamıyor, deneyi de
+    sonlandırıyor.
+  Üç ana beklenti de birebir doğrulandı. Case sonrası
+  `AgentPrism:Canary:AutoRollbackEnabled`/`:ScanInterval` `user-secrets`'tan
+  kaldırılacak (MT-EVAL-075 bu ayarları tekrar kullanacağı için dosya
+  sonundaki toplu temizliğe bırakıldı).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
