@@ -1037,9 +1037,15 @@ SELECT count(*) FROM agentprism.jobs WHERE kind = 6;  -- JobKind.OnlineEval
   harcanmaz" yorumu) hiçbir şeyin kuyruğa girmesini engeller.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `AgentPrism:OnlineEvaluation` için hiçbir `user-secrets` girdisi yok
+  (`dotnet user-secrets list` doğrulandı — varsayılan durum). `support`
+  agent'ına `FIX-PROMPT-02` gönderildi (`runId=019ffdde-5d11-76a5-81a8-39b58b04866e`),
+  run tamamlandı, 10 sn beklendi. `SELECT count(*) FROM agentprism.jobs
+  WHERE kind = 6` → `0`. `jobs` tablosundaki en son satırın `created_at`'i
+  (`01:13:58`) bu run'ın tamamlanma zamanından (`01:23:56`) önceki bir
+  koşuma ait — run sonrası hiçbir yeni iş kuyruğa girmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1082,9 +1088,16 @@ SELECT kind, value, source, author FROM agentprism.run_scores WHERE run_id = '<R
 - Case sonrası `dotnet user-secrets remove` ile her iki anahtarı kaldır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `AgentPrism:OnlineEvaluation:Enabled=true` ve `:SampleRate=1.0` set edildi,
+  uygulama yeniden başlatıldı. `support` agent'ına `ORD-1001 siparisim
+  nerede?` gönderildi (`runId=019ffddf-3ee3-77d6-bee7-2f572e003a9d`), run
+  tamamlandı, 15 sn beklendi. `jobs` tablosunda `kind=6` (`OnlineEval`),
+  `status=3` (`Completed`) satırı bulundu. `run_scores`'ta `kind=3`
+  (`Numeric`), `value=95`, `source='judge:model'`, `author='judge:model'`
+  satırı bulundu. Beklenenle birebir eşleşiyor. Case sonrası her iki
+  `user-secrets` anahtarı `remove` ile kaldırıldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1116,9 +1129,21 @@ Sınır senaryosu — `RunSampler.IsSampled` FNV-1a hash tabanlıdır,
   notuna bu garantinin gözlemlendiğini/gözlemlenemediğini yazar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Hesaplama doğrulaması (gerçek HTTP çağrısı gerektirmez). `RunSampler.IsSampled`
+  kaynağı okundu: `private static bool IsSampled(Guid runId, double sampleRate)`
+  yalnız `runId`'nin 16 byte'ı üzerinden FNV-1a hash'i hesaplar (offset basis
+  `14695981039346656037`, prime `1099511628211`); `HashCode`, `Random`,
+  `Environment` veya süreç başına değişen HİÇBİR girdi kullanmıyor — saf,
+  durumsuz bir fonksiyon. Bu, aynı `runId`'nin her çağrıda ve her süreç
+  yeniden başlatmasında AYNI kesri üreteceğini matematiksel olarak garanti
+  eder. Ampirik doğrulama: algoritma Python'da birebir yeniden üretilip
+  (`.NET Guid` byte düzeni: Data1/Data2/Data3 little-endian, Data4 olduğu
+  gibi) üç farklı gerçek `runId` için `sampleRate=0.5` ile iki kez
+  hesaplandı — üçü de iki çağrıda da aynı sonucu verdi (ör.
+  `019ffddf-3ee3-...` → kesir `0.7369989531679121`, `sampled=False`, her
+  iki hesaplamada birebir aynı). Belgelenen garanti kodda doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1151,9 +1176,15 @@ SELECT action, entity FROM agentprism.audit_log WHERE action = 'run.judge.manual
 - Audit tablosunda `run.judge.manual` kaydı.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- MT-EVAL-041'in run'ı (`019ffdde-5d11-76a5-81a8-39b58b04866e`, `SampleRate`
+  bu sırada `1.0`'dı ama bu case örneklemeyi hiç kullanmıyor, doğrudan
+  `/judge` çağırıyor) üzerinde `POST /api/runs/{id}/judge` çağrıldı. `HTTP:
+  200`, gövde `[{"kind":"Numeric","value":92,"comment":"...",
+  "source":"judge:model","author":"judge:model",...}]`. Audit tablosunda
+  `action='run.judge.manual', entity='run:019ffdde-...'` kaydı bulundu.
+  Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1182,9 +1213,14 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<ECHO-RUN_ID>/judge" 
   (`onlineEval.judgeNoJudges` mesajı).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- OpenAI sağlayıcısı kapalıyken (bkz. bu case'in koşum notundaki olay —
+  `AgentPrism:Providers:OpenAI:ApiKey` istemsizce boşaltıldı, ayrıntı
+  dosya sonundaki "Sapmalar" bölümünde) `echo` sağlayıcılı `arastirmaci`
+  agent'ına bir run gönderildi (`runId=019ffde2-b5b5-7e9d-8b08-28605fe7800e`),
+  ardından `POST /api/runs/{id}/judge` çağrıldı. `HTTP: 200`, gövde `[]`.
+  Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1218,9 +1254,14 @@ SELECT count(*) FROM agentprism.run_scores WHERE run_id = '<RUN_ID>' AND author 
   günceller (`author`'ın `NULL` olmaması sayesinde), yeni satır eklemez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- MT-EVAL-043'ün aynı run'ı (`019ffdde-5d11-76a5-81a8-39b58b04866e`) için
+  `/judge` ikinci kez çağrıldı. Dönen kaydın `id`'si
+  (`019ffde0-c844-7439-b423-54d6618d7f18`) ilk çağrıyla BİREBİR aynı kaldı
+  (`value`/`comment`/`createdAt` güncellendi, satır değişmedi). SQL:
+  `SELECT count(*) ... WHERE author='judge:model'` → `1`. Beklenenle
+  eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1245,9 +1286,14 @@ curl -s "$APU/api/evaluation/online" -H "$APB"
   olduğu sürece `belowThreshold=false` — tek düşük puan alarm ÜRETMEZ.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `HTTP: 200`. Gövde:
+  `{"windowStart":"...","windowEnd":"...","sampleCount":0,"averageScore":null,
+  "lowScoreThreshold":60,"minSampleSize":20,"belowThreshold":false,
+  "judgeCost":null,"judgeCostCurrency":null}`. Tüm alanlar mevcut,
+  `sampleCount=0 < minSampleSize=20` iken `belowThreshold=false`.
+  Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
