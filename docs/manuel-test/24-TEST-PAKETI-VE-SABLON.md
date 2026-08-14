@@ -2070,9 +2070,16 @@ unzip -p ~/agentprism-local-feed/AgentPrism.Testing.*.nupkg AgentPrism.Testing.n
   `Microsoft.NET.Test.Sdk` dizelerinden **hiçbiri** çıktıda geçmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `<dependencies>` bloğu tam olarak üç bağımlılık listeliyor:
+  `AgentPrism.AspNetCore`, `AgentPrism.Core`, `Microsoft.AspNetCore.TestHost`
+  (sürüm `0.0.0-preview.0.107`/`10.0.10`). Test çerçevesi taraması bu blok
+  içinde "temiz". (Not: `.nuspec`'in `<description>` alanı — bağımlılık
+  bloğunun DIŞINDA — paketin "xunit, NUnit, MSTest'e bağlı değildir"
+  şeklindeki kendi açıklamasında bu isimleri metin olarak geçiriyor; bu
+  bir bağımlılık değil, tarama doğru şekilde yalnız `<dependencies>`
+  bloğuna uygulandı.) Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2109,9 +2116,10 @@ grep -c "AgentPrism.Testing" /Users/farukatasoy/Desktop/projects/AgentPrism/src/
   `Testing` **yoktur** (`src/AgentPrism/AgentPrism.csproj:12-17`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `.nuspec` taraması "temiz". Kaynak `.csproj` taraması `0`. Beklenenle
+  birebir eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2151,9 +2159,21 @@ dotnet build
   hata ile başarısız olur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- **Ortam uyarlaması**: kurulu SDK'nın `dotnet new console --framework`
+  seçenekleri yalnız `net9.0`/`net10.0` sunuyor, `net8.0` artık desteklenen
+  bir seçenek DEĞİL (SDK sürümüyle ilgili, kod kusuru değil) — bunun yerine
+  `net9.0` kullanıldı; paketin `TargetFrameworks`'ü yalnız `net10.0`
+  olduğu için `net9.0` de aynı derecede uyumsuz, iddia geçerliliğini
+  korur. `dotnet add package AgentPrism.Testing` → `error NU1202: Package
+  AgentPrism.Testing 0.0.0-preview.0.107 is not compatible with net9.0
+  (.NETCoreApp,Version=v9.0). ... supports: net10.0`. `.csproj` kontrol
+  edildi: `PackageReference` satırı EKLENMEDİ (CLI restore-zamanı
+  uyumsuzluğu algılayıp değişikliği geri aldı). Sonraki `dotnet build`
+  (paket asla eklenmediği için) beklendiği gibi başarılı — bu, dokümanın
+  "paket eklenmeye ZORLANIRSA" koşuluyla çelişmiyor, zorlanmadı.
+  Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
