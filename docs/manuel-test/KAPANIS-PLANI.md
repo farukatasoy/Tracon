@@ -59,8 +59,8 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 |---|---|
 | Toplam case | **1097** |
 | Koşuldu | **1097** (koşulmamış case **yok**) |
-| ☑ Geçti | **995** |
-| ☒ **Kaldı** | **71** |
+| ☑ Geçti | **996** |
+| ☒ **Kaldı** | **70** |
 | ⏭ Atlandı | **30** |
 | ☐ Beklemede | **1** (`MT-UIRUN-019`) |
 
@@ -73,10 +73,11 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile B** — Guard maskelemesi `RunStarted`'da ham kalıyor | `a3d1dea` | `MT-GUARD-041`, `MT-GUARD-053` |
 | **Aile C** — Eşzamanlı ilk istekte oturum lost update | `f287b12` | `MT-CORE-054` |
 | **Aile D** — `T[]` parametreli tool derlenmiyor; kök neden zaten `75990fd`'de kapanmıştı, kod değişikliği yok, yalnız case yeniden koşuldu | (bu koşum, docs-only) | `MT-PKG-044` |
+| **Aile E** — İki kalıcılık sağlayıcısı; `MigrationHostedService.IsWinningProvider()` zaten kapatmış, kod değişikliği yok, yalnız case yeniden koşuldu | (bu koşum, docs-only) | `MT-PKG-082` |
 
 ### Kalan aileler
 
-Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **E** ile başlar.
+Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **F** ile başlar.
 
 | Aile | Önem | Konu | Case | Durum |
 |---|---|---|---|---|
@@ -84,7 +85,7 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **E** ile başla
 | ~~B~~ | Kritik | Guard maskelemesi `RunStarted`'da ham kalıyor | 2 | ✅ `a3d1dea` |
 | ~~C~~ | Kritik | Eşzamanlı ilk istekte oturum lost update | 1 | ✅ (bu koşum) |
 | ~~D~~ | Kritik | `T[]` parametreli tool derlenmiyor | 1 | ✅ (bu koşum) |
-| **E** | Kritik | İki kalıcılık sağlayıcısı (K-183) | 1 | ⬜ |
+| ~~E~~ | Kritik | İki kalıcılık sağlayıcısı (K-183) | 1 | ✅ (bu koşum) |
 | **F** | Yüksek | 21 endpoint dosyasında kapsam denetimi yok | 4 | ⬜ |
 | **G** | Yüksek | JSON çözümleme hatası `400` yerine `500` | 4 | ⬜ |
 | **H** | Yüksek | Dar `catch` → çıplak `500` | 1 | ⬜ |
@@ -348,17 +349,23 @@ gerekmedi; yalnız case'in `Gerçek sonuç`/`Durum` alanları güncellendi.
 
 **Case:** `MT-PKG-044` ✅.
 
-### Aile E — İki kalıcılık sağlayıcısı 🚨 Kritik
+### ~~Aile E~~ — İki kalıcılık sağlayıcısı 🚨 Kritik ✅ (bu koşum — zaten kapalıydı)
 
-**Önce doğrula:** `MigrationHostedService.IsWinningProvider()` bu kusuru zaten
-kapatmış olabilir (kod yorumu `MT-PKG-082`'yi adıyla anıyor).
+**Doğrulandı:** `MigrationHostedService.IsWinningProvider()` bu kusuru zaten
+kapatmış — kod yorumu `MT-PKG-082`'yi adıyla anıyor ve
+`_registrations` paylaşılan listesindeki **son** kaydı (tüm sağlayıcılar
+arası) kazanan sayıyor; kaybeden migration'a hiç dokunmadan çıkıyor.
+İki entegrasyon testi (`Kaybeden_saglayici_migration_uygulamaz`,
+`Kazanan_saglayici_migration_uygular`, gerçek PostgreSQL'e karşı) zaten repoda.
 
-**Case'in kendisi örnek uygulamayla üretilemez** — `samples/AgentPrism.Api/Program.cs:635-647`
-`if/else-if` ile **tek** sağlayıcı kaydeder. Case, `UsePostgreSql`'den sonra
-geçici bir `UseSqlite(...)` satırı eklemeyi öngörür (MT-PG-034'ün adımlarıyla
-aynı desen); test bitince geri alınır.
+Canlı doğrulama `samples/AgentPrism.Api/Program.cs`'e geçici bir
+`UseSqlite(...)` satırı eklenerek (MT-PG-034 deseni, sonra `git checkout` ile
+geri alındı) yapıldı: iki log satırı artık **tutarlı** (ikisi de "SQLite
+kazandı" diyor — önceki koşumda çelişkiliydi), PostgreSQL şeması
+**oluşmadı** (sayım 0), yalnız SQLite gerçekten yazdı (45 tablo). Kod
+değişikliği gerekmedi.
 
-**Case:** `MT-PKG-082`.
+**Case:** `MT-PKG-082` ✅.
 
 ### Aile F — API anahtarı kapsam denetimi yok 🚨 Yüksek (güvenlik)
 
