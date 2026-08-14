@@ -1692,9 +1692,13 @@ SELECT DISTINCT variant FROM agentprism.runs WHERE experiment_id IS NOT NULL AND
   aynı varyanta düşer.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `destek-talimat-testi-2` (`kisa-talimat`/`version=3`, `detayli-talimat`
+  /`version=4`, `50`/`50`) oluşturulup `Running` yapıldı. `manuel-destek`
+  agent'ına `sessionId="belirlenirlik-testi-42"` ile 5 kez art arda `POST
+  /api/agents/manuel-destek/run` çağrıldı. SQL: `SELECT DISTINCT variant
+  ...` → tek satır, `kisa-talimat`. Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1718,9 +1722,12 @@ SELECT experiment_id, variant, agent_version FROM agentprism.runs WHERE session_
   numarasıyla eşleşir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- SQL sonucu: `experiment_id="019ffe21-a2d1-7078-a720-c9c6dd677a52"`
+  (`destek-talimat-testi-2`'nin `id`'siyle birebir), `variant="kisa-talimat"`
+  (MT-EVAL-062 ile aynı), `agent_version=3` (`kisa-talimat` varyantının
+  `version` değeriyle aynı). Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
