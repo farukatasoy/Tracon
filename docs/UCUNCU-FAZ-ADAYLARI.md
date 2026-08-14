@@ -24,6 +24,11 @@
 > paketleme, SSE hata çerçevesi vb.) doğrudan kodlandı — burada yalnız var
 > olmayan bir **yetenek** gerektiren adaylar durur.
 >
+> 🚨 **2026-08-14: Ortak kuyruk manuel kabul testi kapanışı F-106'yı ekledi**
+> (`HATA-K-003`/K-401) — Magentic round-limit sonrası zarif durdurma, MAF'ın
+> kapalı-kutu orkestrasyon durumuna bağımlı bir yetenek adayıdır. Aynı
+> koşumda bulunan diğer sekiz kusur (`HATA-K-001`..`008`) doğrudan kodlandı.
+>
 > Bu belge 2026-08-05 tarihli ilk aday listesinin **yerini alır**. Ayrı bir
 > aday listesi dosyası açılmaz; iki yerde tutmak kayma üretir. Eski sürümün
 > tarihsel değeri "hangi iddia yanlış çıktı" bilgisidir ve o bilgi aşağıdaki
@@ -558,6 +563,50 @@ bağlamını sızdırabilir — tam da düzeltmeye çalıştığı sınıf hatay
 riski taşır. Kapsamlı testle (farklı ajan/oturum, ardışık ve eşzamanlı
 çalıştırma) doğrulanmalı.
 **Bağımlılık:** Yok.
+**Ekosistem:** —
+
+---
+
+### F-106 · Magentic orkestrasyonu round-limit'e ulaştıktan sonra zarif durmuyor — `WorkflowRunner` bunu önceden kestiremiyor
+
+**Sorun:** `HATA-K-003` (manuel kabul testi, K-401) bir Magentic +
+`requirePlanApproval` iş akışında `maxIterations` plan+onay-sonrası-devam+
+katılımcı döngüsü için yetersiz kalınca şunu ölçtü: MAF'ın Magentic
+orkestratörü round-limit'e ulaşıp kendi `WorkflowOutput`'unu ("Task
+execution stopped due to hitting the maximum round count limit.")
+ürettikten SONRA, `WorkflowRunner`'ın süper-adım pompası orkestratörü BİR
+KEZ DAHA çağırıyor — MAF bunu "orkestrasyon zaten sonlandı" istisnasıyla
+reddediyor, çalıştırma `RunFailed` ile bitiyor. K-401 bu istisnanın
+mesajını ANLAMLI hale getirdi (artık gerçek nedeni gösteriyor) ama
+çalıştırmanın KENDİSİ hâlâ hatayla bitiyor — plan aslında MAF'ın kendi
+tanımına göre "tamamlandı" (round-limit'e vararak durdu) sayılabilecekken,
+AgentPrism bunu temiz bir `Completed` yerine bir `RunFailed` olarak
+kaydediyor.
+**Kapsam:** `WorkflowRunner`'ın MAF'tan gelen `WorkflowOutputEvent`'i
+(round-limit metnini taşıyan) GÖRDÜKTEN sonra, aynı orkestratöre yönelik
+sonraki bir süper-adım çağrısının "zaten sonlandı" istisnasıyla
+başarısız olacağını ÖNCEDEN bilip akışı orada temiz bir `Completed`
+olarak kapatması gerekir — bugünkü kod bu iki olayı (round-limit çıktısı
+ile sonraki başarısız çağrı) ilişkilendirmiyor, MAF'ın ne üreteceğini
+sırayla pompalayıp olduğu gibi yansıtıyor.
+**Değer:** `requirePlanApproval: true` + Magentic KULLANAN her tüketici,
+`maxIterations`'ı plan+onay-sonrası-devam+katılımcı döngüsü için yeterince
+yüksek tutmazsa aynı "opak olmayan ama yine de yanlış" `RunFailed`'i
+görür — ergonomik bir kusur, veri kaybı riski taşımaz (K-401 sonrası
+mesaj zaten doğru nedeni söylüyor).
+**Mercek:** 16 (Workflow yürütme).
+**Hazırlık:** Yok — MAF'ın Magentic durum makinesinin "sonlandı mı"
+sorusuna yanıt veren herkese açık bir API'si var mı, `maf-api-kesfi`
+skill'iyle doğrulanmalı.
+**Maliyet:** Orta. `WorkflowRunner`'ın süper-adım pompasına "önceki
+adımda round-limit çıktısı görüldüyse sonraki çağrıyı deneme, doğrudan
+`Completed`'e geç" mantığı eklenmesi gerekir — MAF'ın kapalı-kutu
+orkestrasyon durumuna bağımlı olabilir.
+**Risk:** Yanlış sezilen bir "zaten sonlandı" durumu, GERÇEKTEN başarısız
+olması gereken bir çalıştırmayı sessizce `Completed` gösterebilir —
+round-limit metninin TAM eşleşmesi yerine MAF'ın kendi tip/durum
+bilgisine dayanmalı, metin eşleştirme kırılgandır.
+**Bağımlılık:** K-401 (mesaj netleştirmesi) zaten main'de.
 **Ekosistem:** —
 
 ---
