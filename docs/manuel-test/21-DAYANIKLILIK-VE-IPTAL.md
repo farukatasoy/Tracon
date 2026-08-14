@@ -1104,7 +1104,11 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/kapsam-kontrol" \
 **Gerçek sonuç**
 **KALDI - HATA-S2-011 (Yuksek, dogrulanmis supheydi).** Adim 2: yalniz RunsRead kapsamli bir anahtarla POST /api/approvals/{id}/decide -> HTTP 200, karar GERCEKTEN uygulandi (status: Approved). Adim 3 (kontrol grubu): AYNI anahtarla PUT /api/agents/{name} (AgentsAdmin gerektirir) -> HTTP 403, title: Kapsam yetersiz - anahtarin genel olarak kapsam sistemine tabi oldugu, yalniz ApprovalEndpoints'te bu denetimin HIC calismadigi dogrulandi. grep -n "RequireApiKeyScope" src/AgentPrism.AspNetCore/Endpoints/ApprovalEndpoints.cs bos doner (kod okumasiyla onceden olculmustu, koşumda dogrulandi). Salt-okunur bir otomasyon anahtari, bekleyen gercek yan etkili bir tool cagrisini (siparis iptali) onaylayabiliyor/reddedebiliyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**GECTI (Aile F, docs/manuel-test/KAPANIS-PLANI.md §6).** ApprovalEndpoints.cs'in ucune RequireApiKeyScope eklendi: GET /api/approvals/pending ve GET /api/approvals/{id} -> RunsRead, POST /api/approvals/{id}/decide -> RunsWrite (§7 mapping tablosunda acikca yoktu, RunsWrite'in kendi tanimindaki "onay verme" ifadesiyle ayni akil yurutmeyle eklendi). Canli PostgreSQL'e karsi yeniden uretildi: RunsRead-kapsamli bir anahtarla POST /api/approvals/{rastgele-id}/decide -> HTTP 403, title: "Kapsam yetersiz", detail: "Bu uc 'RunsWrite' kapsamini gerektiriyor; anahtar bu kapsami tasimiyor." Istek handler'a hic ulasmadan (onay kaydi hic aranmadan) filtrede reddedildi. Kontrol: ayni anahtarla GET /api/approvals/pending -> HTTP 200 (RunsRead hala calisiyor).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

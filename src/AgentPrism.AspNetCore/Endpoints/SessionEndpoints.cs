@@ -38,24 +38,28 @@ internal static class SessionEndpoints
                 return TypedResults.Ok(records);
             })
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListSessions")
             .WithTags("AgentPrism", "Sessions")
             .WithSummary("Oturumlari son guncellemeden eskiye listeler.");
 
         builder.MapGet("/api/sessions/{sessionId}", GetSessionAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismGetSession")
             .WithTags("AgentPrism", "Sessions")
             .WithSummary("Bir oturumun ustverisini ve sohbet gecmisini dondurur.");
 
         builder.MapDelete("/api/sessions/{sessionId}", DeleteSessionAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismDeleteSession")
             .WithTags("AgentPrism", "Sessions")
             .WithSummary("Bir oturumu siler.");
 
         builder.MapPost("/api/sessions/{sessionId}/branch", BranchSessionAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismBranchSession")
             .WithTags("AgentPrism", "Sessions")
             .WithSummary("Bir konusmayi belirli bir noktadan dallandirir ve yeni bir oturum acar.")

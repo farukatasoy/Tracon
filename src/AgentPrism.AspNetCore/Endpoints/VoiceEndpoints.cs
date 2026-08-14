@@ -44,6 +44,7 @@ internal static class VoiceEndpoints
     {
         builder.MapGet("/api/voice/health", CheckHealthAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismVoiceHealth")
             .WithTags("AgentPrism", "Voice")
             .WithSummary("Ses saglayicisinin erisilebilirligini denetler.")
@@ -51,12 +52,14 @@ internal static class VoiceEndpoints
 
         builder.MapGet("/api/voice/voices", ListVoicesAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismVoiceList")
             .WithTags("AgentPrism", "Voice")
             .WithSummary("Kullanilabilir sesleri listeler.");
 
         builder.MapGet("/api/voice/sessions", ListSessionsAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismVoiceSessions")
             .WithTags("AgentPrism", "Voice")
             .WithSummary("Gercek zamanli konusma baglantilarinin ozet kaydini listeler.")
@@ -66,6 +69,7 @@ internal static class VoiceEndpoints
 
         builder.MapPost("/api/voice/speak", SpeakAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismVoiceSpeak")
             .WithTags("AgentPrism", "Voice")
             .WithSummary("Bir metni seslendirir ve ek olarak kaydeder.")

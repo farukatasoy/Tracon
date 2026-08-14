@@ -2322,4 +2322,8 @@ bulgusuyla birlikte bu artık İKİ bağımsız uç grubunda doğrulanmış
 sistematik bir kalıp. Kayıt: **`HATA-S3-009`** (bu dosyanın son
 kusuru — Şerit 3 tamamlandı).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**GECTI (Aile F, docs/manuel-test/KAPANIS-PLANI.md §6).** SchedulingEndpoints.cs'in tum 8 ucuna RequireApiKeyScope eklendi (GET /api/schedules, GET/api/schedules/{name}, GET /api/jobs, GET /api/jobs/{id} -> PlatformRead/RunsRead; PUT/DELETE /api/schedules/{name} -> PlatformAdmin; POST /api/schedules/{name}/trigger, POST /api/jobs/{id}/cancel -> RunsWrite). Canli PostgreSQL'e karsi yeniden uretildi: ayni RunsRead-kapsamli anahtarla Adim 2 (PUT /api/schedules/kapsam-testi) -> HTTP 403, title: "Kapsam yetersiz", detail: "Bu uc 'PlatformAdmin' kapsamini gerektiriyor; anahtar bu kapsami tasimiyor." Adim 3 (DELETE) de ayni sebeple -> HTTP 403 (zamanlama zaten olusmadigi icin de aslinda yok). Kapsam kisiti artik SchedulingEndpoints'te de calisiyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı

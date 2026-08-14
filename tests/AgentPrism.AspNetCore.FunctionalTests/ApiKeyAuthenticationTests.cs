@@ -228,8 +228,25 @@ public sealed class ApiKeyAuthenticationTests
     [Fact]
     public async Task Kapsamsiz_ucta_denetim_yoktur()
     {
-        // /api/api-keys kendisi bir kapsam GEREKTIRMEZ (yalniz rol); AgentsRead
-        // kapsamli bir anahtarla erisilebilmelidir.
+        // /api/tenants/current korumali grubun ARKASINDAKI TEK kapsamsiz uctur
+        // (§7.2, Aile F) — herhangi bir kapsamli anahtarla erisilebilmelidir.
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        var created = await ApiKeyEndpointTests.CreateKeyAsync(host, "reader", "AgentsRead");
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/agentprism/api/tenants/current");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", created.PlaintextKey);
+
+        using var response = await host.Client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Kapsamli_ucta_yanlis_kapsam_403_doner()
+    {
+        // /api/api-keys artik SecurityAdmin gerektirir (Aile F); AgentsRead
+        // kapsamli bir anahtar erisemez.
         await using var host = await AgentPrismTestHost.StartAsync();
 
         var created = await ApiKeyEndpointTests.CreateKeyAsync(host, "reader", "AgentsRead");
@@ -239,7 +256,7 @@ public sealed class ApiKeyAuthenticationTests
 
         using var response = await host.Client.SendAsync(request);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
     // --- Dis yuzey kilidi (bolum 53.4) ---

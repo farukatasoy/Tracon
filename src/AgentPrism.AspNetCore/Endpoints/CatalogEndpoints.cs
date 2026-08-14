@@ -20,6 +20,7 @@ internal static class CatalogEndpoints
         builder.MapGet("/api/tools", Ok<IReadOnlyList<ToolDescriptor>> (IToolRegistry tools)
                 => TypedResults.Ok(tools.List()))
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismListTools")
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Kayitli tool'lari ve JSON semalarini listeler.")
@@ -44,6 +45,7 @@ internal static class CatalogEndpoints
                 return TypedResults.Ok<IReadOnlyList<ModelProviderDescriptor>>(withStatus);
             })
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismListModels")
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Kayitli model saglayicilarini ve modellerini listeler.")
@@ -73,6 +75,7 @@ internal static class CatalogEndpoints
                 return TypedResults.Ok(statistics);
             })
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismStats")
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Calistirma sayilarini, token toplamlarini ve hata oranini dondurur.")
@@ -129,6 +132,7 @@ internal static class CatalogEndpoints
                 }
             })
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismStatsTimeSeries")
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Kova basina calistirma, hata, token ve maliyet zaman serisi.")
@@ -163,6 +167,7 @@ internal static class CatalogEndpoints
                 return TypedResults.Ok(statistics.ByErrorClass);
             })
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismStatsErrors")
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Hata sinifina gore kirilimi ve her sinifin en sik uc kumesini dondurur.")
@@ -200,6 +205,7 @@ internal static class CatalogEndpoints
                 return TypedResults.Ok(result);
             })
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismRecalculateCosts")
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Tum calistirmalarin maliyetini guncel fiyat kaynagina gore yeniden hesaplar.")

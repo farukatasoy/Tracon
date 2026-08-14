@@ -1510,7 +1510,11 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/mcp-servers/kapsam-testi" -
 **Gerçek sonuç**
 **KALDI - HATA-S2-009 (Yuksek, dogrulanmis supheydi).** Yalniz RunsRead kapsamli (ExternalInvoke'suz) bir anahtarla PUT /api/mcp-servers/kapsam-testi -> HTTP 200, sunucu basariyla kaydedildi. GovernanceEndpoints.cs'in MCP sunucusu KAYIT API'si (PUT/DELETE/refresh/prompts/resources/oauth - toplam 15 uc eslemesi) hicbir RequireApiKeyScope cagrisi TASIMIYOR - kodun kendi yorumunda (GovernanceEndpoints.cs:230) 'GUVENLIK SINIRI' diye adlandirilan bir islem, kapsam sisteminden TAMAMEN bagimsiz calisiyor. 00-INDEKS.md'nin izledigi kalibin (WorkflowEndpoints/SchedulingEndpoints ile) BESINCI bagimsiz tekraridir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**GECTI (Aile F, docs/manuel-test/KAPANIS-PLANI.md §6).** GovernanceEndpoints.cs'in MCP sunucusu KAYIT API'sinin tum 15 uc eslemesine RequireApiKeyScope eklendi (PUT/DELETE/refresh -> AgentsAdmin; GET/prompts/resources -> AgentsRead; oauth/start -> SecurityAdmin). Canli PostgreSQL'e karsi yeniden uretildi: ayni RunsRead-kapsamli (ExternalInvoke'suz) anahtarla PUT /api/mcp-servers/kapsam-testi -> HTTP 403, title: "Kapsam yetersiz", detail: "Bu uc 'AgentsAdmin' kapsamini gerektiriyor; anahtar bu kapsami tasimiyor." Sunucu KAYDEDILMEDI (istek handler'a hic ulasmadan filtrede reddedildi).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1551,6 +1555,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/mcp-servers/token-kaniti" -
 
 **Gerçek sonuç**
 **KALDI - HATA-S2-009 ile ayni kok neden, ikinci kanit.** Duz statik bearer token (FIX-TOKEN-01, salt-okunur run inceleme icin verilen ayni token) ile PUT /api/mcp-servers/token-kaniti -> HTTP 200. Ne RequireRole (no-op, rol politikalari kayitli degil) ne RequireApiKeyScope (hic cagrilmiyor) bu sinirlamayi koruyor - bu ortamda run'lari okumak icin verilen SIRADAN bir bearer token, agent'larin erisebilecegi KEYFI bir dis sunucuyu (potansiyel olarak kotu niyetli tool'lar sunan) sisteme ekleyebiliyor. Temizlik: her iki test sunucusu (token-kaniti, kapsam-testi) DELETE ile kaldirildi.
+
+---
+
+**KALDI KALIR - Aile F bu case'i KAPATMADI (docs/manuel-test/KAPANIS-PLANI.md §6/§11).** GovernanceEndpoints.cs'e RequireApiKeyScope eklendi (bkz. MT-MCP-051, artik Gecti) ama bu case'in kok nedeni FARKLIDIR: istek bir API anahtariyla degil DUZ statik AuthToken ile geliyor. AgentPrismEndpointFilter.InvokeAsync'te statik token '_authToken is { Length: > 0 } expected && BearerTokenValidator.IsValid(...)' dalinda eslesir ve dogrudan Proceed()'e gider - ApiKeyRequestContext hic kurulmaz, dolayisiyla CheckScope (ve ondaki ApiKeyScopeRequirement metadata'si) hic calismaz; bu TASARIM GEREGI boyle (bolum 53: kapsam denetimi yalniz ApiKeyRequestContext.Get() bos degilse uygulanir). Canli PostgreSQL'e karsi yeniden uretildi: ayni curl (FIX-TOKEN-01 ile PUT /api/mcp-servers/token-kaniti) Aile F SONRASI da HTTP 200 donuyor, sunucu yine kaydediliyor. Kok neden HATA-S2-009'un IKI ayri yarisidir: (1) API-anahtari kapsam boslugu - Aile F ile kapandi; (2) statik token'in rol politikasi kayitli olmayan bir ornekte fiilen tam-yetkili (root) davranmasi - bu Aile F'nin kapsami DISINDA, ayri bir bulgu olarak izlenir (yeni HATA numarasi kapanis sirasinda docs/KARARLAR.md'ye yazilacak). Temizlik: test-kaniti sunucusu DELETE ile kaldirildi.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 

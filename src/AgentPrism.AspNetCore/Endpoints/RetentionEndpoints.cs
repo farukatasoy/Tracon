@@ -28,18 +28,21 @@ internal static class RetentionEndpoints
     {
         builder.MapGet("/api/retention", ListAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismListRetentionPolicies")
             .WithTags("AgentPrism", "Retention")
             .WithSummary("Bir kiracinin saklama politikalarini listeler.");
 
         builder.MapGet("/api/retention/preview", PreviewAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismPreviewRetention")
             .WithTags("AgentPrism", "Retention")
             .WithSummary("Su an calistirilirsa kac satirin silinecegini gosterir. Silme YAPMAZ.");
 
         builder.MapPost("/api/retention/run", RunAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismRunRetention")
             .WithTags("AgentPrism", "Retention")
             .WithSummary("Temizlemeyi simdi calistirir.")
@@ -47,24 +50,28 @@ internal static class RetentionEndpoints
 
         builder.MapGet("/api/retention/history", HistoryAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismRetentionHistory")
             .WithTags("AgentPrism", "Retention")
             .WithSummary("Gecmis temizleme kosularini listeler.");
 
         builder.MapGet("/api/retention/{target}", GetAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismGetRetentionPolicy")
             .WithTags("AgentPrism", "Retention")
             .WithSummary("Tek bir hedefin saklama politikasini getirir.");
 
         builder.MapPut("/api/retention/{target}", SaveAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismSaveRetentionPolicy")
             .WithTags("AgentPrism", "Retention")
             .WithSummary("Bir hedef icin saklama politikasi olusturur veya gunceller.");
 
         builder.MapDelete("/api/retention/{target}", DeleteAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismDeleteRetentionPolicy")
             .WithTags("AgentPrism", "Retention")
             .WithSummary("Bir hedefin saklama politikasini siler.");

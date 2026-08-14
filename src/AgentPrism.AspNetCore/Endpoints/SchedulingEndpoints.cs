@@ -26,18 +26,21 @@ internal static class SchedulingEndpoints
     {
         builder.MapGet("/api/schedules", ListSchedulesAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismListSchedules")
             .WithTags("AgentPrism", "Scheduling")
             .WithSummary("Bir kiracinin zamanlamalarini listeler.");
 
         builder.MapGet("/api/schedules/{name}", GetScheduleAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismGetSchedule")
             .WithTags("AgentPrism", "Scheduling")
             .WithSummary("Tek bir zamanlamayi getirir.");
 
         builder.MapPut("/api/schedules/{name}", SaveScheduleAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismSaveSchedule")
             .WithTags("AgentPrism", "Scheduling")
             .WithSummary("Zamanlama olusturur veya gunceller.")
@@ -47,30 +50,35 @@ internal static class SchedulingEndpoints
 
         builder.MapDelete("/api/schedules/{name}", DeleteScheduleAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismDeleteSchedule")
             .WithTags("AgentPrism", "Scheduling")
             .WithSummary("Bir zamanlamayi siler.");
 
         builder.MapPost("/api/schedules/{name}/trigger", TriggerScheduleAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismTriggerSchedule")
             .WithTags("AgentPrism", "Scheduling")
             .WithSummary("Bir zamanlamayi hemen, cron beklemeden calistirir.");
 
         builder.MapGet("/api/jobs", ListJobsAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListJobs")
             .WithTags("AgentPrism", "Scheduling")
             .WithSummary("Isleri turune, durumuna veya zamanlamasina gore filtreleyerek listeler.");
 
         builder.MapGet("/api/jobs/{id:guid}", GetJobAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismGetJob")
             .WithTags("AgentPrism", "Scheduling")
             .WithSummary("Bir isi ve ogelerini getirir.");
 
         builder.MapPost("/api/jobs/{id:guid}/cancel", CancelJobAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismCancelJob")
             .WithTags("AgentPrism", "Scheduling")
             .WithSummary("Bir isi iptal eder.")

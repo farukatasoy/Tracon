@@ -1611,7 +1611,24 @@ export interface RetentionRunTriggerResponse {
  * Tenant-scoped API key scopes (Phase 53). Narrows role policies, never
  * replaces them: a key's effective authority is `role ∩ scope`.
  */
-export type ApiKeyScope = 'RunsRead' | 'RunsWrite' | 'AgentsRead' | 'AgentsAdmin' | 'ExternalInvoke';
+export type ApiKeyScope =
+  | 'RunsRead'
+  | 'RunsWrite'
+  | 'AgentsRead'
+  | 'AgentsAdmin'
+  | 'ExternalInvoke'
+  | 'KnowledgeRead'
+  | 'KnowledgeAdmin'
+  | 'WorkflowsRead'
+  | 'WorkflowsAdmin'
+  | 'EvalsRead'
+  | 'EvalsAdmin'
+  | 'ExperimentsRead'
+  | 'ExperimentsAdmin'
+  | 'PlatformRead'
+  | 'PlatformAdmin'
+  | 'SecurityAdmin'
+  | 'AuditRead';
 
 /**
  * A tenant-scoped API key.

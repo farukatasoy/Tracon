@@ -432,9 +432,9 @@ public sealed class InMemoryApiKeyStore : IApiKeyStore // TryAddSingleton, her z
 
 | Metot | Yol | Rol | Kapsam |
 |---|---|---|---|
-| `GET` | `/api/api-keys` | Admin | — (kapsamsız uç) |
-| `POST` | `/api/api-keys` | Admin | — |
-| `DELETE` | `/api/api-keys/{id:guid}` | Admin | — |
+| `GET` | `/api/api-keys` | Admin | `SecurityAdmin` |
+| `POST` | `/api/api-keys` | Admin | `SecurityAdmin` (+ istek bir API anahtarıysa attenuation: kendi taşımadığı kapsamı isteyemez) |
+| `DELETE` | `/api/api-keys/{id:guid}` | Admin | `SecurityAdmin` |
 
 `ApiKeyCreateRequest { string? Name, IReadOnlyList<ApiKeyScope>? Scopes, DateTimeOffset? ExpiresAt }`
 — planın taslağıyla aynı, adı değişmedi.
@@ -449,6 +449,21 @@ public sealed class InMemoryApiKeyStore : IApiKeyStore // TryAddSingleton, her z
 `GET /api/runs/{id}/events` → `RunsRead`; `POST /api/runs/{id}/cancel`,
 `POST /api/runs/{id}/replay` → `RunsWrite`. `MapAgentPrismMcpServer`/`MapAgentPrismA2A`
 grupları → `ExternalInvoke` (grup düzeyinde, tek `RequireApiKeyScope` çağrısı).
+
+**Aile F kapanışı (docs/manuel-test/KAPANIS-PLANI.md §6/§7):** 21 dosyada (`~100`
+uç) hiç `RequireApiKeyScope` yoktu — kapsam sistemi bu uçlarda tamamen
+bypass edilebiliyordu (`HATA-S2-009`, `HATA-S2-011`, `HATA-S3-009`). Tümüne
+metadata eklendi ve 4 yeni kapsam üyesi tanımlandı: `PlatformRead`,
+`PlatformAdmin` (kiracı/kota/saklama/zamanlama/webhook/teşhis/sağlayıcı
+sağlığı okuma+yazma), `SecurityAdmin` (API anahtarı, skill script izni, MCP
+OAuth başlatma — kendini yükseltebilen tek kapsam), `AuditRead` (denetim
+izi). Tam uç→kapsam eşlemesi ve 4 muafiyet (`/api/meta`, oauth/callback,
+`/api/tenants/current`, SPA kabuğu) burada tekrarlanmaz — bkz.
+`docs/manuel-test/KAPANIS-PLANI.md` §7. **Tespit edilen bilinen sınır:**
+`RequireApiKeyScope`, isteği doğrulayan bir `ApiKeyRecord` VARSA çalışır;
+düz statik `AuthToken` bu denetimden muaftır (tasarım gereği, bölüm 53.5) —
+rol politikaları kayıtlı olmayan bir kurulumda statik token fiilen
+tam-yetkili davranır (`MT-MCP-052`, ayrı ve açık bir bulgu).
 
 ## Dosya Listesi (gerçekleşen)
 

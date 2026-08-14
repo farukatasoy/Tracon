@@ -917,6 +917,18 @@ export const en = {
   'apiKeys.scope.AgentsRead': 'agents:read',
   'apiKeys.scope.AgentsAdmin': 'agents:admin',
   'apiKeys.scope.ExternalInvoke': 'external:invoke',
+  'apiKeys.scope.KnowledgeRead': 'knowledge:read',
+  'apiKeys.scope.KnowledgeAdmin': 'knowledge:admin',
+  'apiKeys.scope.WorkflowsRead': 'workflows:read',
+  'apiKeys.scope.WorkflowsAdmin': 'workflows:admin',
+  'apiKeys.scope.EvalsRead': 'evals:read',
+  'apiKeys.scope.EvalsAdmin': 'evals:admin',
+  'apiKeys.scope.ExperimentsRead': 'experiments:read',
+  'apiKeys.scope.ExperimentsAdmin': 'experiments:admin',
+  'apiKeys.scope.PlatformRead': 'platform:read',
+  'apiKeys.scope.PlatformAdmin': 'platform:admin',
+  'apiKeys.scope.SecurityAdmin': 'security:admin',
+  'apiKeys.scope.AuditRead': 'audit:read',
   'apiKeys.notice': 'A scope narrows what the bearer token can already do; it never replaces role policies.',
 
   /* --------------------------------------------------------------- mcp */

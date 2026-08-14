@@ -59,8 +59,8 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 |---|---|
 | Toplam case | **1097** |
 | Koşuldu | **1097** (koşulmamış case **yok**) |
-| ☑ Geçti | **996** |
-| ☒ **Kaldı** | **70** |
+| ☑ Geçti | **999** |
+| ☒ **Kaldı** | **67** |
 | ⏭ Atlandı | **30** |
 | ☐ Beklemede | **1** (`MT-UIRUN-019`) |
 
@@ -74,10 +74,11 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile C** — Eşzamanlı ilk istekte oturum lost update | `f287b12` | `MT-CORE-054` |
 | **Aile D** — `T[]` parametreli tool derlenmiyor; kök neden zaten `75990fd`'de kapanmıştı, kod değişikliği yok, yalnız case yeniden koşuldu | (bu koşum, docs-only) | `MT-PKG-044` |
 | **Aile E** — İki kalıcılık sağlayıcısı; `MigrationHostedService.IsWinningProvider()` zaten kapatmış, kod değişikliği yok, yalnız case yeniden koşuldu | (bu koşum, docs-only) | `MT-PKG-082` |
+| **Aile F** — 21 endpoint dosyasında kapsam denetimi yok; 4 yeni `ApiKeyScope` üyesi (`PlatformRead/Admin`, `SecurityAdmin`, `AuditRead`) + attenuation | `<commit>` | `MT-MCP-051`, `MT-RES-028`, `MT-JOB-090` (3/4 — `MT-MCP-052` ayrı bulgu olarak Kaldı kalır, bkz. §6) |
 
 ### Kalan aileler
 
-Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **F** ile başlar.
+Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **G** ile başlar.
 
 | Aile | Önem | Konu | Case | Durum |
 |---|---|---|---|---|
@@ -86,7 +87,7 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **F** ile başla
 | ~~C~~ | Kritik | Eşzamanlı ilk istekte oturum lost update | 1 | ✅ (bu koşum) |
 | ~~D~~ | Kritik | `T[]` parametreli tool derlenmiyor | 1 | ✅ (bu koşum) |
 | ~~E~~ | Kritik | İki kalıcılık sağlayıcısı (K-183) | 1 | ✅ (bu koşum) |
-| **F** | Yüksek | 21 endpoint dosyasında kapsam denetimi yok | 4 | ⬜ |
+| ~~F~~ | Yüksek | 21 endpoint dosyasında kapsam denetimi yok | 4 | ✅ (bu koşum, 3/4 — `MT-MCP-052` §6'da yeni bulgu) |
 | **G** | Yüksek | JSON çözümleme hatası `400` yerine `500` | 4 | ⬜ |
 | **H** | Yüksek | Dar `catch` → çıplak `500` | 1 | ⬜ |
 | **I** | Yüksek | Kaynak üreteci sahte `mcp:` rozeti | 1 | ⬜ |
@@ -107,7 +108,9 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **F** ile başla
 | **Yeniden koşum** | — | Kusuru zaten kapalı | 8 | ⬜ |
 | **MT-PKG-010** | — | Kök neden `f36eeaf`'te kapandı, case yeniden koşulmalı | 1 | ⬜ |
 
-**Toplam:** 51 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **73**.
+**Toplam:** 47 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **69**. (Aile F
+bitti: 51 → 47. `MT-MCP-052` bu sayıma dahil değildir — Kaldı kalır, ayrı bir
+bulgu olarak izlenir, gelecekte kendi ailesini gerektirebilir.)
 
 ---
 
@@ -367,7 +370,7 @@ değişikliği gerekmedi.
 
 **Case:** `MT-PKG-082` ✅.
 
-### Aile F — API anahtarı kapsam denetimi yok 🚨 Yüksek (güvenlik)
+### ~~Aile F~~ — API anahtarı kapsam denetimi yok 🚨 Yüksek (güvenlik) ✅ (bu koşum)
 
 Ayrıntılı eşleme tablosu **§7**'dedir.
 
@@ -398,6 +401,45 @@ uygular — bu 21'e dahil değildir.
    kendi taşımadığı kapsamı reddetmelidir (attenuation).
 
 **Case:** `MT-MCP-051`, `MT-MCP-052`, `MT-RES-028`, `MT-JOB-090`.
+
+**Uygulanan tasarım (bu koşum):** Tüm 21 dosyanın `~100` ucuna
+`RequireApiKeyScope` eklendi (§7 tablosu — `ApprovalEndpoints.cs`'in üç ucu
+tabloda satır olarak yoktu, `RunsRead`/`RunsWrite` tanımlarındaki "onay
+verme" ifadesiyle aynı akıl yürütmeyle dolduruldu). 4 yeni `ApiKeyScope`
+üyesi eklendi: `PlatformRead`, `PlatformAdmin`, `SecurityAdmin`, `AuditRead`
+(§7.1). `ApiKeyEndpoints.CreateAsync`'e yetki uzatma (attenuation) denetimi
+eklendi: istek bir API anahtarıyla doğrulandıysa, o anahtarın kendi
+taşımadığı bir kapsam için yeni anahtar üretilemez (`400`). Arayüz
+(`types.ts`, `api-key-panel.tsx`, `en.ts`/`tr.ts`) zaten 8 eski kapsamı
+(Knowledge/Workflows/Evals/Experiments) da listelemiyordu — Aile F ile
+birlikte **16 kapsamın tamamı** arayüze eklendi (yalnız 4 yenisi değil).
+Regresyon çiti: `ApiKeyScopeCoverageTests.cs` — korumalı gruptaki HER ucu
+`EndpointDataSource` üzerinden yansımalı tarar, yorumlu 3+3 muafiyet dışında
+hiçbiri `ApiKeyScopeRequirement`siz kalamaz.
+
+**🚨 Ampirik olarak kapanmayan bulgu — `MT-MCP-052`.** Denetimin 1. özelliği
+(yukarıda) doğrulandı: `RequireApiKeyScope` yalnız `ApiKeyRequestContext`
+doluysa (istek bir API anahtarıyla doğrulandıysa) çalışır. `MT-MCP-052`'nin
+sömürdüğü yol düz statik `AuthToken`'dır — bu yol `ApiKeyRequestContext`'i
+hiç kurmaz, dolayısıyla metadata eklemek onu etkilemez. Canlı PostgreSQL'e
+karşı doğrulandı: aynı curl (statik token ile `PUT /api/mcp-servers/...`)
+Aile F sonrası da `HTTP 200`. Kullanıcı kararıyla (bu koşum) `MT-MCP-052`
+**Kaldı kalır** — ayrı, açık bir bulgu olarak izlenir (kök neden: statik
+token + kayıtlı olmayan rol politikaları = fiilen tam yetki). Bu nedenle
+Aile F **3/4** case kapatır; `MT-MCP-051`, `MT-RES-028`, `MT-JOB-090` ✅.
+
+**Değişen dosyalar:** `ApiKeyScope.cs` (+4 üye), 21 endpoint dosyası
+(`RequireApiKeyScope` eklendi), `ApiKeyEndpoints.cs` (+attenuation),
+`ApiKeyAuthenticationTests.cs` (`Kapsamsiz_ucta_denetim_yoktur` artık
+`/api/tenants/current`'ı hedefliyor + yeni `Kapsamli_ucta_yanlis_kapsam_403_doner`),
+`docs/openapi/agentprism.json` (yenilendi). **Yeni dosyalar:**
+`ApiKeyScopeCoverageTests.cs`, `ApiKeyScopeEnforcementTests.cs`.
+
+**Regresyon testleri:** `ApiKeyScopeCoverageTests.cs`
+(`Korumali_gruptaki_her_uc_kapsam_tasir_veya_acikca_muaftir`,
+`Muafiyet_listesindeki_her_satir_gercekten_haritada_var`) ·
+`ApiKeyScopeEnforcementTests.cs` (4 yeni kapsamın nokta doğrulamaları,
+yeniden kullanım regresyonları, yükselme kapısı, attenuation — 12 test).
 
 ### Aile G — JSON çözümleme hatası `400` yerine `500` 🚨 Yüksek
 
