@@ -969,9 +969,10 @@ Console.WriteLine("orderId: " + call.Arguments?["orderId"]);
   (`FakeChatClient.cs:112-136`'daki `ToArguments`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Çıktı: `Tool: get_order_status`, `orderId: ORD-7`. Beklenenle birebir
+  eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1022,9 +1023,10 @@ Console.WriteLine("Models.Count: " + provider.Models.Count);
   olarak `Models` kataloğuna ekler (`FakeModelProvider.cs:186-195`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Çıktı: `router: router yaniti`, `researcher: researcher yaniti`,
+  `Models.Count: 2`. Beklenenle birebir eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1083,9 +1085,13 @@ Console.WriteLine(response.Text);
   taşır — tool hiç **çalıştırılmaz**, çünkü ham istemcide döngü yoktur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `ModelProviderRegistry` üzerinden: çıktı tam olarak `Sonuc: hazirlaniyor
+  (ORD-7)`. Doğrudan `FakeModelProvider.CreateChatClient(binding)` ile
+  (defter olmadan) aynı `ChatOptions` verilince: `Contents:
+  FunctionCallContent` (tek içerik türü), `Text: ''` (boş) — tool hiç
+  çalıştırılmadı. Beklenenle birebir eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1140,9 +1146,10 @@ Console.WriteLine("OutputTokens: " + run.Record.Usage?.OutputTokens);
   `RunRecord.Usage`a **birebir** yansımıştır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Çıktı: `InputTokens: 42`, `OutputTokens: 17`. Beklenenle birebir
+  eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1192,9 +1199,11 @@ Console.WriteLine("Ikinci istek Options: " + (provider.Requests[1].Options is nu
   değerini ayrı ayrı saklar, sızıntı yok.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Çıktı: `Requests.Count: 2`, `Ilk istek son mesaj: birinci`, `Ilk istek
+  Tools.Count: 1`, `Ikinci istek Options: null`. Beklenenle birebir
+  eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1251,9 +1260,11 @@ Console.WriteLine("Basarili -- katalogda olmayan model kaydi engellemedi.");
 - `run.ShouldHaveCompleted()` geçer, "Basarili" satırı yazdırılır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Hiçbir istisna fırlatılmadı, `run.ShouldHaveCompleted()` geçti, "Basarili
+  -- katalogda olmayan model kaydi engellemedi." yazdırıldı. Beklenenle
+  eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
