@@ -59,8 +59,8 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 |---|---|
 | Toplam case | **1097** |
 | Koşuldu | **1097** (koşulmamış case **yok**) |
-| ☑ Geçti | **1006** |
-| ☒ **Kaldı** | **60** |
+| ☑ Geçti | **1008** |
+| ☒ **Kaldı** | **58** |
 | ⏭ Atlandı | **30** |
 | ☐ Beklemede | **1** (`MT-UIRUN-019`) |
 
@@ -79,6 +79,7 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile H** — Dar `catch` → çıplak `500`; üç dosyada (`AgentEndpoints.ExecuteBufferedAsync`, `OpenAIResponsesEndpoints`, `OpenAIChatCompletionsEndpoints`) akışsız yolun dar `when` filtresi kaldırıldı (K-296/K-384'ün akışsız kardeşlere tamamlanması) | `12f163f` | `MT-COMPAT-027` |
 | **Aile I** — Kaynak üreteci `[AgentPrismTool]` kayıtlarına koşulsuz `source: "generated"` yazıyordu; `SourceWriter.WriteAggregator` artık `source` argümanını hiç geçirmiyor (kayıt belgelenen `null` varsayılanını kullanıyor) | `cbecd59` | `MT-MCP-047` |
 | **Aile J** — Agent editörünün iki `useEffect`'i aynı commit'te çözülünce sağlayıcıyı ezen yarış; guard functional `setForm` updater'ının içine, `current` (taze state) üzerinden karar verecek şekilde taşındı | `c0175b9` | `MT-UIAG-014` |
+| **Aile K** — CSP `blob:` şemasını hiçbir yönergede beyaz listeye almıyordu; `EmbeddedUiProvider.ContentSecurityPolicy`'ye `img-src`'e `blob:` + yeni `media-src 'self' blob:;` eklendi | `c1efa8a` | `MT-UIAG-044`, `MT-UIAG-050` |
 
 ### Kalan aileler
 
@@ -96,7 +97,7 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **K** ile başla
 | ~~H~~ | Yüksek | Dar `catch` → çıplak `500` | 1 | ✅ (bu koşum) |
 | ~~I~~ | Yüksek | Kaynak üreteci sahte `mcp:` rozeti | 1 | ✅ (bu koşum) |
 | ~~J~~ | Yüksek | Agent editörü sağlayıcı yarışı | 1 | ✅ (bu koşum) |
-| **K** | Yüksek | CSP `blob:` beyaz listede değil | 2 | ⬜ |
+| ~~K~~ | Yüksek | CSP `blob:` beyaz listede değil | 2 | ✅ (bu koşum) |
 | **L** | Yüksek | SPA geçişi run'ı `Running` bırakıyor | 1 | ⬜ |
 | **M** | Yüksek | Loopback dışı erişimde ham JSON | 1 | ⬜ |
 | **N** | Yüksek | 112 `ProblemDetails` başlığı Türkçe | 1 | ⬜ |
@@ -112,10 +113,11 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **K** ile başla
 | **Yeniden koşum** | — | Kusuru zaten kapalı | 8 | ⬜ |
 | **MT-PKG-010** | — | Kök neden `f36eeaf`'te kapandı, case yeniden koşulmalı | 1 | ⬜ |
 
-**Toplam:** 40 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **62**. (Aile F
+**Toplam:** 38 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **60**. (Aile F
 bitti: 51 → 47; Aile G bitti: 47 → 43; Aile H bitti: 43 → 42; Aile I bitti:
-42 → 41; Aile J bitti: 41 → 40. `MT-MCP-052` bu sayıma dahil değildir — Kaldı
-kalır, ayrı bir bulgu olarak izlenir, gelecekte kendi ailesini gerektirebilir.)
+42 → 41; Aile J bitti: 41 → 40; Aile K bitti: 40 → 38. `MT-MCP-052` bu sayıma
+dahil değildir — Kaldı kalır, ayrı bir bulgu olarak izlenir, gelecekte kendi
+ailesini gerektirebilir.)
 
 ---
 
@@ -712,7 +714,7 @@ bağlıydı, düzeltme değil) birim testi asıl kanıt sayıldı.
 
 **Case:** `MT-UIAG-014` ✅.
 
-### Aile K — CSP `blob:` beyaz listede değil 🚨 Yüksek
+### ~~Aile K~~ — CSP `blob:` beyaz listede değil 🚨 Yüksek ✅ (bu koşum)
 
 **Kusur:** `HATA-S4-011`. Ek önizleme (`img-src`) ve "Seslendir" oynatımı
 (`media-src` yönergesi **hiç yok**) tamamen kırık.
@@ -720,7 +722,46 @@ bağlıydı, düzeltme değil) birim testi asıl kanıt sayıldı.
 **Kök neden:** `src/AgentPrism.UI/Internal/EmbeddedUiProvider.cs:42-51`, `:112`.
 Tüketen: `screens/playground.tsx:676-691`, `:729`, `:621`.
 
-**Case:** `MT-UIAG-044`, `MT-UIAG-050`.
+**Önce ampirik yeniden üretim.** Kod okuması iki case'in kayıtlı gözlemini
+doğruladı: `ContentSecurityPolicy` sabiti `img-src 'self' data:;` taşıyordu
+(`blob:` yok) ve `media-src` yönergesi hiç tanımlı değildi — `default-src
+'none'`'a düşüyordu. `useAttachmentPreview` (`playground.tsx:676-691`) ve
+`SpeakButton` (`playground.tsx:621-637`) ikisi de bearer token taşıyamayan
+dogrudan bir uç yerine `fetch` ile çekilen baytları `URL.createObjectURL`
+ile sarar — kaynak her zaman bir `blob:` URL'idir; bu yüzden ikisi de aynı
+kök nedenden kırılıyordu.
+
+**Uygulanan tasarım:** Tasarım kararı gerektirmeyen, tek satırlık kök neden
+düzeltmesi. `img-src`'e `blob:` eklendi, yeni bir `media-src 'self' blob:;`
+yönergesi eklendi. Kapsam yalnız bu iki yönergeydi — diğer yönergeler
+(`script-src`, `connect-src` vb.) kaynağı zaten `'self'`e sabitliyor ve
+`blob:` gerektiren başka bir tüketici yok.
+
+**Canlı doğrulama:** `samples/AgentPrism.Api`'ye gerçek Postgres'e karşı
+`curl -si -H "Authorization: Bearer ..." http://localhost:5090/agentprism/`
+düzeltme sonrası `Content-Security-Policy: ... img-src 'self' data: blob:;
+media-src 'self' blob:; ...` döndürdü.
+
+**Değişen dosya:** `src/AgentPrism.UI/Internal/EmbeddedUiProvider.cs`
+(`ContentSecurityPolicy` sabiti). **Doküman:** `docs/05-AGENTPRISM-UI.md`'deki
+örnek `curl` çıktısı yeni başlığa göre güncellendi. **Yeni dosya yok.**
+
+**Case:** `MT-UIAG-044` ✅, `MT-UIAG-050` ✅.
+
+**Regresyon testleri:** `tests/AgentPrism.Ui.E2ETests/UiTests.cs` — yeni,
+tarayıcısız `Kabuk_CSP_basligi_blob_URLlerini_ek_onizlemesi_ve_seslendirme_icin_beyaz_listeye_alir`
+kabuk yanıtının `Content-Security-Policy` başlığını doğrudan kontrol eder
+(saniyeler içinde, HTTP GET). İki mevcut Playwright testi
+(`Playground_dosya_yuklenir_onizleme_gorunur_ve_calistirma_devam_eder`,
+`Playground_yaniti_seslendirilir_ve_ses_ogesi_calar`) güçlendirildi: ikisi
+de `document.addEventListener('securitypolicyviolation', ...)` ile ilgili
+kaynağın (ek önizlemesi / ses oynatıcısı) yüklenmesi sırasında GERÇEKTEN
+hiçbir CSP ihlali olmadığını doğrular — sadece `src` niteliğinin `blob:`
+ile başlaması yeterli sayılmıyordu (kusur tam olarak buradan kaçmıştı: eski
+testler yalnız niteliği kontrol ediyordu, tarayıcının kaynağı gerçekten
+yüklemesine izin verilip verilmediğini değil). Üç test de fix geri alınıp
+koşulduğunda KIRMIZI verdiği ampirik olarak doğrulandıktan sonra fix geri
+uygulandı.
 
 ### Aile L — SPA geçişi run'ı `Running` bırakıyor 🚨 Yüksek
 
