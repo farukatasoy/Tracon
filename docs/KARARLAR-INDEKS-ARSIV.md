@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (256 kalem)
+## Arşivlenen Kararlar (257 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -265,3 +265,4 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-254 | 299 | Kota ölçerine `quota.metric` eklendi 👤 |
 | K-255 | 300 | Kota ölçeri `usage`+`limit` için AYRI iki `ObservableGauge`'dur 👤 |
 | K-256 | 301 | `QuotaUsageObserver` senkron kapılı önbellektir, zamanlayıcı değil |
+| K-257 | 302 | Kota ölçeri yalnız KAYITLI kiracıları tarar |

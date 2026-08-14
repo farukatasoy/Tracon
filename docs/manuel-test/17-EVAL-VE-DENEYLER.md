@@ -2656,7 +2656,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/replay" -H "
 
 # 11 — Güvenlik: Eval/Deney Alanında API Anahtarı Kapsamı HİÇ YOK
 
-### MT-EVAL-100 — `ApiKeyScope` enum'ında Eval/Experiment için kapsam YOK — yalnız Role ile sınırlı anahtar TÜM uçlara erişir
+### MT-EVAL-100 — `ApiKeyScope` enum'ında Eval/Experiment için kapsam YOK — yalnız Role ile sınırlı anahtar TÜM uçlara erişir — ✅ DÜZELTİLDİ (2026-08-14, K-407)
 
 🚨 Şüpheli davranış — kod okumasıyla ölçüldü, koşumda doğrulanır. Bu,
 `WorkflowEndpoints`/`SchedulingEndpoints`/`GovernanceEndpoints`'te (§18'de
@@ -2733,11 +2733,25 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/kapsam-kontrol" -H "
   ile AYNI kök nedenin (`ApiKeyScope` enum'ında `Eval`/`Experiment` için
   hiç kapsam tanımlanmamış olması) DÖRDÜNCÜ bağımsız tekrarı doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+**🔧 Kapanış güncellemesi (2026-08-14, HATA-K-008/K-407 — düzeltildi):**
+`ApiKeyScope`'a `EvalsRead`/`EvalsAdmin`/`ExperimentsRead`/`ExperimentsAdmin`
+eklendi; `EvalEndpoints`/`ExperimentEndpoints`'in tüm uçlarına
+`RequireApiKeyScope` eklendi (tanım/veri yönetimi yeni kapsamları, gerçek
+model çağırıp para harcayan `POST /api/evals/{name}/run` var olan
+`RunsWrite`'ı aldı). Aynı senaryo birebir tekrarlandı: yalnız `RunsRead`
+taşıyan anahtarla `PUT /api/evals/{name}` → `403 "EvalsAdmin kapsamini
+gerektiriyor"`, `PUT /api/experiments/{name}` → `403 "ExperimentsAdmin
+kapsamini gerektiriyor"`. Regresyon: ilgili kapsamları taşıyan bir
+anahtarla eval takımı oluşturma `200`. `SchedulingEndpoints`
+(`MT-JOB-090`) ve `GovernanceEndpoints` bu düzeltmenin kapsamı dışında
+bırakıldı — bu koşumun konfirme ettiği HATA-K-NNN listesine dahil
+değillerdi. Ayrıntı: `SONUCLAR-K-2026-08-13.md`, `K-407`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
-### MT-EVAL-101 — `feedback`/`compare`/`input` uçlarında da `RequireApiKeyScope` YOK — `replay`'in AKSİNE
+### MT-EVAL-101 — `feedback`/`compare`/`input` uçlarında da `RequireApiKeyScope` YOK — `replay`'in AKSİNE — ✅ DÜZELTİLDİ (2026-08-14, K-407)
 
 🚨 Şüpheli davranış — aynı dosya (`RunEndpoints.cs`) içinde KARIŞIK bir
 desen: run yaşam döngüsü uçları (`/runs`, `/tree`, `/{id}`, `/events`,
@@ -2788,7 +2802,15 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/replay" -H "
   kapsam denetimini doğru uyguluyor, `feedback` hiç uygulamıyor —
   `RequireApiKeyScope`'un dosya içinde TUTARSIZ uygulandığı kanıtlandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+**🔧 Kapanış güncellemesi (2026-08-14, HATA-K-008/K-407 — düzeltildi):**
+`feedback`(yaz)/`input`/`compare`(oku) uçlarına eksik
+`RequireApiKeyScope(RunsWrite|RunsRead)` çağrıları eklendi. Aynı senaryo
+birebir tekrarlandı: yalnız `RunsRead` taşıyan anahtarla `POST
+.../feedback` artık `403 "RunsWrite kapsamini gerektiriyor"` (kontrast:
+aynı anahtarla `GET .../input` hâlâ `200`, çünkü bu uç yalnız `RunsRead`
+istiyor). Ayrıntı: `SONUCLAR-K-2026-08-13.md`, `K-407`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
