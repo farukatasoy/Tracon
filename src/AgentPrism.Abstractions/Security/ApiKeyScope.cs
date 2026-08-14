@@ -49,4 +49,16 @@ public enum ApiKeyScope
 
     /// <summary>Workflow tanimi yazma: kaydetme, silme. Calistirma bu kapsama dahil DEGILDIR — bkz. <see cref="RunsWrite"/>.</summary>
     WorkflowsAdmin = 8,
+
+    /// <summary>Eval takimi/vaka/kosu okuma: listeleme, tekil getirme, cevrimici degerlendirme ozeti.</summary>
+    EvalsRead = 9,
+
+    /// <summary>Eval takimi/vaka yazma: kaydetme, silme, run'dan vaka terfisi. Kosu tetikleme bu kapsama dahil DEGILDIR — bkz. <see cref="RunsWrite"/>.</summary>
+    EvalsAdmin = 10,
+
+    /// <summary>Deney okuma: listeleme, tekil getirme, sonuclar, kanarya durumu.</summary>
+    ExperimentsRead = 11,
+
+    /// <summary>Deney yazma: kaydetme, silme, baslatma/durdurma, kanarya politikasi.</summary>
+    ExperimentsAdmin = 12,
 }

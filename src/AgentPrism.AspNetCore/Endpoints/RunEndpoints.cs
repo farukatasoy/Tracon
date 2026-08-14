@@ -168,6 +168,7 @@ internal static class RunEndpoints
 
         builder.MapPost("/api/runs/{runId:guid}/feedback", SaveFeedbackAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismSaveRunFeedback")
             .WithTags("AgentPrism", "Runs")
             .WithSummary("Bir calistirmaya veya tek bir mesaja puan yazar.")
@@ -177,18 +178,21 @@ internal static class RunEndpoints
 
         builder.MapGet("/api/runs/{runId:guid}/feedback", ListFeedbackAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListRunFeedback")
             .WithTags("AgentPrism", "Runs")
             .WithSummary("Bir calistirmanin tum puanlarini listeler.");
 
         builder.MapDelete("/api/runs/{runId:guid}/feedback/{scoreId:guid}", DeleteFeedbackAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismDeleteRunFeedback")
             .WithTags("AgentPrism", "Runs")
             .WithSummary("Bir puani siler.");
 
         builder.MapGet("/api/runs/{runId:guid}/input", GetRunInputAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismGetRunInput")
             .WithTags("AgentPrism", "Runs")
             .WithSummary("Bir calistirmanin kayitli girdi mesajlarini dondurur.")
@@ -199,6 +203,7 @@ internal static class RunEndpoints
 
         builder.MapGet("/api/runs/{a:guid}/compare/{b:guid}", CompareRunsAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismCompareRuns")
             .WithTags("AgentPrism", "Runs")
             .WithSummary("Iki calistirmanin ozetini yan yana dondurur.")
