@@ -376,3 +376,23 @@ Varsayılan kurulum sabit `"fake response"` dönüyor; `EchoesUserMessage()` son
 **Doküman düzeltmesi — MT-TEST-020/022/023/024 (tekrarlanan):** dört case'in de kod örneği yalnız `using AgentPrism.Testing;` yazıyor ama `ModelBinding` tipi `AgentPrism` ad alanındadır — `using AgentPrism;` eksik, verilen kod aynen yapıştırılınca `CS0246` ile derlenmiyor. Ekleyince tüm case'ler beklenen çıktıyı üretti. Kod kusuru değil.
 
 **K-8 toplam: 24 case, 24 Geçti, 0 Kaldı.**
+
+## K-9 — 24 §3–5 (MT-TEST-040..045, 050..055, 060..064), 17 case
+
+**Sonuç:** 16 Geçti, 1 Kaldı (doküman düzeltmesi). Kusur bulunmadı. 🔒 Aynı küresel kilit altında koşuldu.
+
+### 24 §3 — `AgentPrismTestHost` (MT-TEST-040..045), 6 case: 5 Geçti, 1 Kaldı
+
+`StartAsync()` `secret`'siz ayağa kalkıyor, `/meta` `200` dönüyor (`version`/`prefix` alanları mevcut). Özel `Prefix` yalnız kendinden yanıt veriyor, eski önek `404`. `DisposeAsync()` sonrası `Client` kullanımı `ObjectDisposedException` fırlatıyor. Olmayan agent'la `RunAsync` `AgentPrismAssertionException` fırlatıyor, mesaj beklenen/bulunan durumu (`404`) taşıyor. `ConfigureServices` `AddAgentPrism()`'den önce çalışıyor, kayıt `host.Services`'ten erişilebiliyor.
+
+**Doküman düzeltmesi — MT-TEST-044:** Case'in kendi sınama kodu (`args.Services is null`) HER ZAMAN `false` — MAF `Services`'i asla gerçek `null` göndermiyor, daima boş-ama-`null`-olmayan bir `EmptyServiceProvider` gönderiyor (`ToolMethodScanner.cs:22,93` yorumları). Düzeltilmiş sınamayla (`args.Services?.GetService(typeof(...))` ile gerçek bir DI kaydı çözmeye çalışmak) K-218'in ASIL iddiası (kayıt çözülemez) doğrulandı: `GetService(...)` `NULL` döndü. `AgentDefinitionCompiler.cs:945`'teki üretim bağlama kodu K-218 yazıldığından beri hiç değişmedi (git log doğrulandı) — üretim davranışında hiçbir regresyon/düzelme yok, yalnızca doküman örneğinin sınama koşulu yanlıştı.
+
+### 24 §4 — `RunAssertions` (MT-TEST-050..055), 6 case: 6 Geçti, 0 Kaldı
+
+`ShouldHaveCompleted`/`ShouldHaveFailedWith`/`ShouldHaveCalledTool(times:)`/`ShouldNotHaveCalledTool` — dördü de hem geçen hem düşen yolda test edildi, düşen yol mesajları dokümanla birebir eşleşti. `ShouldHaveOutputContaining`'in SSE (`/run`) yolunda `MessageCompleted` hiç yazılmadığını (`0`), `MessageDelta` parçalarının birleştirilerek okunduğunu (`1`) doğruladı — Faz 39'un kendi kaydettiği bir hatanın düzeltme kanıtı. README'nin zincirleme iddia örneği hiçbir aşamada istisna atmadan tamamlandı.
+
+### 24 §5 — Paket kalitesi ve sınırlar (MT-TEST-060..064), 5 case: 5 Geçti, 0 Kaldı
+
+`AgentPrism.Testing.nuspec`'in bağımlılık bloğu yalnız 3 gerçek bağımlılık listeliyor, test çerçevesi yok (paketin kendi `<description>`'ındaki "xunit'e bağlı değildir" açıklaması yanlış eşleşme olarak not edildi, gerçek bağımlılık değil). Meta paket `Testing`'e hiç referans vermiyor. `net8.0` (kurulu SDK'da artık desteklenmiyor, `net9.0` kullanıldı — aynı derecede uyumsuz) projeden paket eklemek `NU1202` ile başarısız oluyor, `PackageReference` hiç eklenmiyor. **MT-TEST-063** (önceden iddia edilmez, koşumda ölçülür): gerçek `PublishAot=true` denemesi (`CallsTool`'un yansıma yolunu tetikleyen kodla) **`0` uyarı** üretti — dokümanın kendi öngördüğü alternatif senaryo ("sıfır uyarı çıkması kod yorumunun güncelliğini yitirdiği anlamına gelebilir"), kusur olarak işaretlenmedi, yalnız ölçüm kaydedildi. Depo dışı taze bir tüketici projesinde README'nin zincirleme örneği hiçbir `secret` olmadan başarıyla çalıştı; `FakeChatClient.cs`'te ağ kullanımı olmadığı kod okumasıyla da doğrulandı.
+
+**K-9 toplam: 17 case, 16 Geçti, 1 Kaldı.**
