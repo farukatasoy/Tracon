@@ -49,6 +49,7 @@ internal static class WebhookEndpoints
             .WithName("AgentPrismSaveWebhook")
             .WithTags("AgentPrism", "Webhooks")
             .WithSummary("Webhook aboneligi olusturur veya gunceller.")
+            .Accepts<WebhookSaveRequest>("application/json")
             .WithDescription(
                 "Adres SSRF denetiminden gecer: yalnizca https kabul edilir (http yalnizca " +
                 "AllowInsecureHttp acikken ve loopback hedeflerine). Ozel ag adresleri teslim " +
@@ -104,7 +105,7 @@ internal static class WebhookEndpoints
 
     private static async Task<Results<Ok<WebhookSubscription>, ProblemHttpResult>> SaveAsync(
         string name,
-        [FromBody] WebhookSaveRequest request,
+        HttpContext httpContext,
         [FromServices] IWebhookStore store,
         [FromServices] ITenantContext tenants,
         [FromServices] IOptionsMonitor<AgentPrismWebhookOptions> webhookOptions,
@@ -114,7 +115,16 @@ internal static class WebhookEndpoints
         [FromServices] TimeProvider? timeProvider,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        var (bound, bindError) = await RequestBodyBinding
+            .ReadAsync<WebhookSaveRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        var request = bound!;
 
         var options = webhookOptions.CurrentValue;
 

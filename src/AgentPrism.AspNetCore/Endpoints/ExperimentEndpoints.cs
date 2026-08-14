@@ -42,6 +42,7 @@ internal static class ExperimentEndpoints
             .WithName("AgentPrismSaveExperiment")
             .WithTags("AgentPrism", "Experiments")
             .WithSummary("Deney olusturur veya gunceller.")
+            .Accepts<ExperimentSaveRequest>("application/json")
             .WithDescription(
                 "Yalnizca ayni agent'in surumleri arasinda deney kurulabilir; kod kaynakli " +
                 "agent'larda surum gecmisi olmadigi icin reddedilir. Varyant agirliklari toplami 100 olmalidir.");
@@ -82,6 +83,7 @@ internal static class ExperimentEndpoints
             .WithName("AgentPrismSetExperimentCanary")
             .WithTags("AgentPrism", "Experiments")
             .WithSummary("Kanarya kuralini tanimlar veya kaldirir (govde 'null').")
+            .Accepts<CanaryPolicy>(true, "application/json")
             .WithDescription(
                 "Yalnizca iki kollu deneylerde tanimlanabilir: kanaryaVariant kanarya, kalan TEK kol " +
                 "kontrol sayilir. Deneyin durumundan bagimsiz calisir (Draft veya Running).");
@@ -116,14 +118,23 @@ internal static class ExperimentEndpoints
 
     private static async Task<Results<Ok<Experiment>, ProblemHttpResult>> SaveAsync(
         string name,
-        [FromBody] ExperimentSaveRequest request,
+        HttpContext httpContext,
         [FromServices] IExperimentStore store,
         [FromServices] IAgentCatalog catalog,
         [FromServices] IAgentDefinitionStore definitions,
         [FromServices] ITenantContext tenants,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        var (bound, bindError) = await RequestBodyBinding
+            .ReadAsync<ExperimentSaveRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        var request = bound!;
 
         if (string.IsNullOrWhiteSpace(request.AgentName))
         {
@@ -263,11 +274,20 @@ internal static class ExperimentEndpoints
 
     private static async Task<Results<Ok<Experiment>, ProblemHttpResult>> SetCanaryAsync(
         string name,
-        [FromBody] CanaryPolicy? policy,
+        HttpContext httpContext,
         [FromServices] IExperimentStore store,
         [FromServices] ITenantContext tenants,
         CancellationToken cancellationToken)
     {
+        var (policy, bindError) = await RequestBodyBinding
+            .ReadOptionalAsync<CanaryPolicy>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
         var experiment = await store.GetAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
 
         if (experiment is null)

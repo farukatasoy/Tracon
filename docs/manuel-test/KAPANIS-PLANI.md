@@ -59,8 +59,8 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 |---|---|
 | Toplam case | **1097** |
 | Koşuldu | **1097** (koşulmamış case **yok**) |
-| ☑ Geçti | **999** |
-| ☒ **Kaldı** | **67** |
+| ☑ Geçti | **1003** |
+| ☒ **Kaldı** | **63** |
 | ⏭ Atlandı | **30** |
 | ☐ Beklemede | **1** (`MT-UIRUN-019`) |
 
@@ -75,10 +75,11 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile D** — `T[]` parametreli tool derlenmiyor; kök neden zaten `75990fd`'de kapanmıştı, kod değişikliği yok, yalnız case yeniden koşuldu | (bu koşum, docs-only) | `MT-PKG-044` |
 | **Aile E** — İki kalıcılık sağlayıcısı; `MigrationHostedService.IsWinningProvider()` zaten kapatmış, kod değişikliği yok, yalnız case yeniden koşuldu | (bu koşum, docs-only) | `MT-PKG-082` |
 | **Aile F** — 21 endpoint dosyasında kapsam denetimi yok; 4 yeni `ApiKeyScope` üyesi (`PlatformRead/Admin`, `SecurityAdmin`, `AuditRead`) + attenuation | `c96006c` | `MT-MCP-051`, `MT-RES-028`, `MT-JOB-090` (3/4 — `MT-MCP-052` ayrı bulgu olarak Kaldı kalır, bkz. §6) |
+| **Aile G** — JSON çözümleme hatası `400` yerine `500`; kütüphane çapında `RequestBodyBinding.ReadAsync<T>` — 21 dosya, implicit binding kullanan 9 EK uç dahil | (bu koşum) | `MT-CORE-009`, `MT-CORE-022`, `MT-SEC-054`, `MT-MCP-003` |
 
 ### Kalan aileler
 
-Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **G** ile başlar.
+Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **H** ile başlar.
 
 | Aile | Önem | Konu | Case | Durum |
 |---|---|---|---|---|
@@ -88,7 +89,7 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **G** ile başla
 | ~~D~~ | Kritik | `T[]` parametreli tool derlenmiyor | 1 | ✅ (bu koşum) |
 | ~~E~~ | Kritik | İki kalıcılık sağlayıcısı (K-183) | 1 | ✅ (bu koşum) |
 | ~~F~~ | Yüksek | 21 endpoint dosyasında kapsam denetimi yok | 4 | ✅ (bu koşum, 3/4 — `MT-MCP-052` §6'da yeni bulgu) |
-| **G** | Yüksek | JSON çözümleme hatası `400` yerine `500` | 4 | ⬜ |
+| ~~G~~ | Yüksek | JSON çözümleme hatası `400` yerine `500` | 4 | ✅ (bu koşum) |
 | **H** | Yüksek | Dar `catch` → çıplak `500` | 1 | ⬜ |
 | **I** | Yüksek | Kaynak üreteci sahte `mcp:` rozeti | 1 | ⬜ |
 | **J** | Yüksek | Agent editörü sağlayıcı yarışı | 1 | ⬜ |
@@ -108,9 +109,10 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **G** ile başla
 | **Yeniden koşum** | — | Kusuru zaten kapalı | 8 | ⬜ |
 | **MT-PKG-010** | — | Kök neden `f36eeaf`'te kapandı, case yeniden koşulmalı | 1 | ⬜ |
 
-**Toplam:** 47 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **69**. (Aile F
-bitti: 51 → 47. `MT-MCP-052` bu sayıma dahil değildir — Kaldı kalır, ayrı bir
-bulgu olarak izlenir, gelecekte kendi ailesini gerektirebilir.)
+**Toplam:** 43 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **65**. (Aile F
+bitti: 51 → 47; Aile G bitti: 47 → 43. `MT-MCP-052` bu sayıma dahil değildir —
+Kaldı kalır, ayrı bir bulgu olarak izlenir, gelecekte kendi ailesini
+gerektirebilir.)
 
 ---
 
@@ -441,7 +443,7 @@ Aile F **3/4** case kapatır; `MT-MCP-051`, `MT-RES-028`, `MT-JOB-090` ✅.
 `ApiKeyScopeEnforcementTests.cs` (4 yeni kapsamın nokta doğrulamaları,
 yeniden kullanım regresyonları, yükselme kapısı, attenuation — 12 test).
 
-### Aile G — JSON çözümleme hatası `400` yerine `500` 🚨 Yüksek
+### ~~Aile G~~ — JSON çözümleme hatası `400` yerine `500` 🚨 Yüksek ✅ (bu koşum)
 
 **Kusur:** `HATA-005`, `HATA-S2-006`, `HATA-S2-007`. Eksik `required` alan veya
 bilinmeyen enum değeri → `JsonException` → `BadHttpRequestException` → genel
@@ -460,6 +462,97 @@ tüketici de alsın — örneğe yazmak kusuru gizler.
 Doküman düzeltmesi de gerekir: `MT-CORE-022`'de `"Summarize"` geçersiz,
 doğrusu `Summarization`; c2'nin "mesaj bilinmeyen strateji adını taşır"
 beklentisi HTTP üzerinden **hiçbir zaman** gerçekleşemez.
+
+**Önce ampirik yeniden üretim.** `MT-CORE-009`/`MT-CORE-022` (`/api/agents/validate`)
+zaten kapalı çıktı — önceki bir dalgada (`HATA-S1-007`) `AgentEndpoints`
+gövdeyi elle okuyacak şekilde değiştirilmiş, sonuç dosyaları güncellenmemiş
+(§3'ün uyardığı örüntü). `MT-SEC-054`/`MT-MCP-003` canlı doğrulandı: gerçekten
+500.
+
+**🚨 İlk tasarım denemesi — YETERSİZ çıktı.** İlk yaklaşım yalnız bir global
+ara yazılımdı: `MapAgentPrism` içine, `BadHttpRequestException` yakalayıp
+`InnerException is JsonException` ise `400` `ProblemDetails` yazan bir
+`app.Use(...)` bloğu eklendi (`JsonBindingProblemMiddleware`, "AgentPrism"
+etiketli uçlarla sınırlı — `ITagsMetadata` denetimi). Development'ta (`dotnet
+run`, MT-SEC-054/MT-MCP-003'ün doğrulandığı ortam) çalıştı. Ama minimal API'nin
+otomatik gövde bağlaması `JsonException`'ı yalnız
+`RouteHandlerOptions.ThrowOnBadRequest` açıkken fırlatır — bu bayrağın
+**varsayılanı yalnız `Development` ortamında açıktır** (reflection ile
+`Microsoft.AspNetCore.Routing.RouteHandlerOptions` üzerinde doğrulandı).
+**Production'da** (gerçek dağıtımların çoğu, `ASPNETCORE_ENVIRONMENT` ayarsız)
+istisna hiç atılmaz; minimal API kendisi gövdesiz bir `400` yazar (500 değil,
+ama `ProblemDetails` de değil) ve ara yazılım bu yolu **hiç göremez**.
+`services.Configure<RouteHandlerOptions>(o => o.ThrowOnBadRequest = true)` ile
+bayrağı global açmak da reddedildi: bu, `IOptions<RouteHandlerOptions>`'ın TEK
+paylaşılan örneğini değiştirir — tüketicinin **kendi** ilgisiz uçlarını da
+etkiler ve onlarda da (tüketicinin kendi `UseExceptionHandler()`'ı
+`BadHttpRequestException.StatusCode`'u okumuyorsa) aynı 500 kusurunu üretebilir.
+
+**Uygulanan tasarım (K-409 adayı, kapanışta yazılacak):** Gövde okuma
+ortamdan (Development/Production) **bağımsız** olmalı — `AgentEndpoints`'in
+zaten kullandığı "elle oku, `JsonException`'ı yakala" deseni tek doğru
+çözümdür. Yeni paylaşılan yardımcı `RequestBodyBinding` (statik, iki metot):
+`ReadAsync<T>` (zorunlu gövde — boş gövde de hata sayılır) ve
+`ReadOptionalAsync<T>` (`T?` parametreler için — gövde yoksa hata SAYILMAZ).
+Govde-yokluk denetimi `Content-Length` başlığına **bakmaz** — `TestServer`
+altında istemcinin gönderdiği `Content-Length` güvenilir değildir (dolu bir
+gövde bir regresyonla "boş" sayıldı, ampirik olarak yakalandı); bunun yerine
+`HttpRequest.HasJsonContentType()` denetlenir — gövde/tip hiç yoksa
+`ReadFromJsonAsync` `JsonException` DEĞİL `InvalidOperationException` fırlatır,
+bu da doğru ayırt edicidir. Kütüphanenin gövde-bağlayan **tüm** uçları (21
+dosya) bu deseni kullanacak şekilde değiştirildi — yalnız tahmin edilen ~10
+`[FromBody]` dosyası değil. `[FromBody]` grep'i, örtük bağlama kullanan uçları
+**kaçırdığı** MT-MCP-003'ün kendi bulgusuyla kanıtlandığı için, gerçek kapsam
+`docs/openapi/agentprism.json`'daki `requestBody` taşıyan **her** rota tek tek
+çapraz kontrol edilerek çıkarıldı: tahmin edilen dosyalara ek olarak
+`AgentEndpoints.RollbackAsync`, `AgentEndpoints`'in `/api/agents/{name}/run`
+uç noktası, `SkillEndpoints.SaveAsync`, `SessionEndpoints.BranchSessionAsync`,
+`KnowledgeEndpoints.UploadAsync`/`SearchAsync`, `VoiceEndpoints.SpeakAsync`,
+`GovernanceEndpoints`'in `/api/tenants/{slug}` PUT ve
+`/api/mcp-servers/{name}/prompts/{prompt}` POST uçları da aynı kusuru
+taşıyordu (implicit binding, `[FromBody]` özniteliği yok). İlk ara yazılım
+(`JsonBindingProblemMiddleware`) **kaldırılmadı** — artık yalnız savunma
+katmanıdır: elle okumayı unutan gelecekteki bir uç için, yalnız
+Development'ta 500'ü önler; gerçek düzeltme her zaman `RequestBodyBinding`'dir.
+
+**Case:** `MT-CORE-009` ✅ (zaten kapalıydı, yeniden doğrulandı),
+`MT-CORE-022` ✅ (aynı, doküman düzeltmesiyle — "Summarize" tiposu,
+c2'nin "mesajı aynen taşır" beklentisi asla gerçekleşemez), `MT-SEC-054` ✅,
+`MT-MCP-003` ✅.
+
+**Yeni dosyalar:** `AgentPrism.AspNetCore/Internal/RequestBodyBinding.cs`,
+`AgentPrism.AspNetCore/Internal/JsonBindingProblemMiddleware.cs`,
+`tests/AgentPrism.AspNetCore.FunctionalTests/JsonBindingProblemMiddlewareTests.cs`.
+**Değişen dosyalar:** `AgentPrismEndpointRouteBuilderExtensions.cs`
+(+ara yazılım kaydı) ve gövde bağlayan 21 uç dosyası: `ApiKeyEndpoints.cs`,
+`ApprovalEndpoints.cs`, `EvalEndpoints.cs` (×4), `ExperimentEndpoints.cs` (×2),
+`QuotaEndpoints.cs`, `RetentionEndpoints.cs`, `RunEndpoints.cs` (×3),
+`SchedulingEndpoints.cs` (×2), `SkillScriptGrantEndpoints.cs`,
+`WebhookEndpoints.cs`, `WorkflowEndpoints.cs` (×4), `GovernanceEndpoints.cs`
+(×3 — mcp-servers, tenants, mcp-prompts), `AgentEndpoints.cs` (×2 — rollback,
+run), `SkillEndpoints.cs`, `SessionEndpoints.cs`, `KnowledgeEndpoints.cs` (×2),
+`VoiceEndpoints.cs`. **🚨 Tuzak:** tipli parametreyi (`T request`) `HttpContext
+httpContext` ile değiştirmek OpenAPI `requestBody` üstverisini SESSİZCE
+DÜŞÜRÜR — .NET'in üstveri üretimi gövde şemasını endpoint PARAMETRE
+TİPİNDEN çıkarır; elle okuyan bir endpoint'in artık böyle bir parametresi
+yoktur. `AgentEndpoints`'in zaten bildiği çözüm uygulandı: her rotaya
+`.Accepts<T>("application/json")` (zorunlu) veya `.Accepts<T>(true,
+"application/json")` (opsiyonel, `T?` parametreler için) eklendi —
+`docs/openapi/agentprism.json` yeniden üretildi, 35 `requestBody` de
+korundu. Tek kalıcı fark: opsiyonel gövdelerde önceki `oneOf: [null, $ref]`
+şeması artık düz `$ref` (`required` alanı zaten yok, yani "gövde
+gerekli değil" anlamı korunuyor — yalnız temsil sadeleşti).
+
+**Regresyon testleri:** `JsonBindingProblemMiddlewareTests.cs` — 3 senaryo:
+eskiden `[FromBody]` otomatik bağlama kullanan bir uç (`ApiKeyEndpoints`),
+eskiden örtük bağlama kullanan bir uç (`GovernanceEndpoints`, MT-MCP-003'ün
+kendisi) ve enum dışı bir tür uyuşmazlığı (`RetentionEndpoints`) — üçü de artık
+`400` `ProblemDetails` döner. Ayrıca tam test paketi (`dotnet test`,
+948 fonksiyonel/entegrasyon testi) bu değişiklikten sonra **sıfır regresyon**
+ile geçti; `RequestBodyBinding.ReadOptionalAsync`'in `Content-Length`
+tuzağı bu koşumda üç test ailesinde (`ExperimentEndpointTests`,
+`EvalEndpointTests`, `WorkflowEndpointTests`) yakalanıp düzeltildi —
+tuzak `docs/hafiza/aspnetcore-json.md`'ye yazıldı.
 
 ### Aile H — Dar `catch` → çıplak `500` 🚨 Yüksek
 

@@ -44,6 +44,7 @@ internal static class SchedulingEndpoints
             .WithName("AgentPrismSaveSchedule")
             .WithTags("AgentPrism", "Scheduling")
             .WithSummary("Zamanlama olusturur veya gunceller.")
+            .Accepts<JobScheduleSaveRequest>("application/json")
             .WithDescription(
                 "Cron ifadesi ve saat dilimi burada dogrulanir; bir sonraki calisma " +
                 "zamani kayit aninda hesaplanir. Yuk MaxItemsPerJob sinirini asamaz.");
@@ -60,7 +61,8 @@ internal static class SchedulingEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismTriggerSchedule")
             .WithTags("AgentPrism", "Scheduling")
-            .WithSummary("Bir zamanlamayi hemen, cron beklemeden calistirir.");
+            .WithSummary("Bir zamanlamayi hemen, cron beklemeden calistirir.")
+            .Accepts<JobTriggerRequest>(true, "application/json");
 
         builder.MapGet("/api/jobs", ListJobsAsync)
             .RequireRole(roles.Reader)
@@ -110,13 +112,22 @@ internal static class SchedulingEndpoints
 
     private static async Task<Results<Ok<JobSchedule>, ProblemHttpResult>> SaveScheduleAsync(
         string name,
-        [FromBody] JobScheduleSaveRequest request,
+        HttpContext httpContext,
         [FromServices] IJobScheduleStore store,
         [FromServices] ITenantContext tenants,
         [FromServices] IOptionsMonitor<AgentPrismSchedulingOptions> schedulingOptions,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        var (bound, bindError) = await RequestBodyBinding
+            .ReadAsync<JobScheduleSaveRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        var request = bound!;
 
         if (string.IsNullOrWhiteSpace(request.TargetName))
         {
@@ -191,13 +202,22 @@ internal static class SchedulingEndpoints
 
     private static async Task<Results<Ok<JobRecord>, ProblemHttpResult>> TriggerScheduleAsync(
         string name,
-        [FromBody] JobTriggerRequest? request,
+        HttpContext httpContext,
         [FromServices] IJobScheduleStore scheduleStore,
         [FromServices] IJobStore jobStore,
         [FromServices] ITenantContext tenants,
         [FromServices] IOptionsMonitor<AgentPrismSchedulingOptions> schedulingOptions,
         CancellationToken cancellationToken)
     {
+        var (request, bindError) = await RequestBodyBinding
+            .ReadOptionalAsync<JobTriggerRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
         var schedule = await scheduleStore.GetAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
 
         if (schedule is null)

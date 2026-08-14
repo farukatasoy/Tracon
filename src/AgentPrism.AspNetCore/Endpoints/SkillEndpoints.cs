@@ -36,7 +36,8 @@ internal static class SkillEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismSaveSkill")
             .WithTags("AgentPrism", "Skills")
-            .WithSummary("Skill olusturur veya gunceller.");
+            .WithSummary("Skill olusturur veya gunceller.")
+            .Accepts<AgentSkillRequest>("application/json");
 
         builder.MapDelete("/api/skills/{name}", DeleteAsync)
             .RequireRole(roles.Admin)
@@ -64,13 +65,23 @@ internal static class SkillEndpoints
 
     private static async Task<Results<Ok<AgentSkillDefinition>, Created<AgentSkillDefinition>, ProblemHttpResult>> SaveAsync(
         string name,
-        AgentSkillRequest request,
         IAgentSkillStore store,
         ITenantContext tenantContext,
         IOptions<AgentPrismOptions> options,
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
+        var (bound, bindError) = await RequestBodyBinding
+            .ReadAsync<AgentSkillRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        var request = bound!;
+
         if (!string.Equals(name, request.Name, StringComparison.Ordinal))
         {
             return TypedResults.Problem(
