@@ -1673,9 +1673,11 @@ catch (AgentPrismAssertionException ex)
   (`RunAssertions.cs:51-52`'deki mesaj biçimi).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Çıktı: `GECEN YOL: basarili.` sonra `DUSEN YOL mesaji: Calistirmanin
+  durumu 'Failed' olmasi beklenirdi ama 'Completed' bulundu.` Beklenenle
+  birebir eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1752,9 +1754,11 @@ catch (AgentPrismAssertionException ex)
   'content_blocked' bulundu."` içerir (`RunAssertions.cs:72-73`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Çıktı: `GECEN YOL: dogru hata tipi.` sonra `DUSEN YOL mesaji: Hata
+  tipinin 'baska_bir_tip' olmasi beklenirdi ama 'content_blocked'
+  bulundu.` Beklenenle birebir eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1822,9 +1826,11 @@ catch (AgentPrismAssertionException ex)
   beklenirdi ama 2 kez cagrildi."` içerir (`RunAssertions.cs:96-97`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Çıktı: `GECEN YOL: tam olarak 2 cagri.` sonra `DUSEN YOL mesaji:
+  'get_order_status' tool'unun 5 kez cagrilmasi beklenirdi ama 2 kez
+  cagrildi.` Beklenenle birebir eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1892,9 +1898,11 @@ catch (AgentPrismAssertionException ex)
   beklenirdi ama 1 kez cagrildi."` içerir (`RunAssertions.cs:113-114`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Çıktı: `GECEN YOL: cancel_order hic cagrilmadi.` sonra `DUSEN YOL
+  mesaji: 'get_order_status' tool'unun hic cagrilmamasi beklenirdi ama
+  1 kez cagrildi.` Beklenenle birebir eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1958,9 +1966,10 @@ Console.WriteLine("MessageDelta sayisi: " + run.Events.Count(e => e.Type == RunE
   okur (`RunAssertions.cs:131-142`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Çıktı: `GECEN: cikti iceriyor.`, `MessageCompleted sayisi: 0`,
+  `MessageDelta sayisi: 1`. Beklenenle birebir eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2021,9 +2030,11 @@ Console.WriteLine("Zincir basariyla tamamlandi -- hicbir asamada istisna atilmad
 - `Zincir basariyla tamamlandi` satırı yazdırılır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- README'deki örnek birebir çalıştırıldı, hiçbir aşamada istisna
+  atılmadı. Çıktı: `Zincir basariyla tamamlandi -- hicbir asamada istisna
+  atilmadi.` Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
