@@ -923,8 +923,28 @@ curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" 
 > çeviren bir crash-loop üretir. Belgede **Yüksek** işaretli; gözlenen etkinin
 > (dokümante edilen sözleşmenin A2A/MCP açıkken TAMAMEN işlevsiz olması,
 > Degraded değil TAM KESİNTİ) **Kritik**'e yükseltilmesi önerilir.
+>
+> ---
+>
+> **2026-08-14 yeniden koşum — Geçti.** Kusur `2caa423` (S1-8 dalgası) ile
+> kapanmış: `ExternalSurfaceGuard.ListCatalogWithRetryAsync` katalog sorgusunu
+> artık üstel geri çekilmeyle yeniden dener ve hiçbir koşulda
+> `StopApplication` çağırmaz; log satırı bunu açıkça söylüyor ("bu arada
+> uygulamanin geri kalani calisir durumda kalir"). Bu case'in dört beklentisi
+> de ampirik olarak doğrulandı (temiz `mt_fin` şeması,
+> `AutoApplyMigrations=false`):
+> - `migration'lari otomatik uygulanmiyor` log satırı: **1 kez** yazıldı.
+> - `Application is shutting down`: **0 kez** — uygulama ayakta kaldı.
+> - `/health`: **Unhealthy**, `HTTP 503`.
+> - Agent kaydı: `HTTP 500` (tablo yok). Peş peşe ikinci bir kayıt isteği de
+>   aynı `500`'ü verdi ve `/health` hâlâ yanıt verdi — çökme yok.
+>
+> Not: gövdede `provider:"echo"` kullanılırsa `400 Tanim gecersiz` alınır
+> (gerçek sağlayıcı anahtarları kayıtlıyken `echo` kayıtlı değildir);
+> veritabanına ulaşan yolu görmek için kayıtlı bir sağlayıcı (`openai`)
+> kullanıldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☒ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Temizlik:** `dotnet user-secrets remove "AgentPrism:PostgreSql:AutoApplyMigrations"`, reset yordamı — uygulandı.
 
@@ -1371,8 +1391,32 @@ rm -f samples/AgentPrism.Api/manuel-test-ikinci.db
 > İKİNCİ, bağımsız bir tetikleyicisi. Çoklu sağlayıcı yanlış yapılandırması
 > zaten "Kritik" işaretli bir negatif senaryo; gözlenen sonuç (Degraded yanıt
 > yerine TAM çökme) doğrudan bu önem derecesini doğruluyor.
+>
+> ---
+>
+> **2026-08-14 yeniden koşum — Geçti.** İki düzeltme birlikte kapattı:
+> 1. `2caa423` (S1-8) guard filter'ın `StopApplication` yolunu kaldırdı —
+>    `MT-PG-025`'e bakın.
+> 2. Asıl yarış bu koşumda düzeltildi: `MigrationHostedService.StartAsync`
+>    **kaybeden** sağlayıcının dalında `_schemaReadyGate.MarkReady()`
+>    çağırıyordu. Kapı paylaşılan TEK bir sinyaldir; kaybeden onu anında
+>    açınca kazananın migration'ı daha bitmeden bekleyen arka plan servisleri
+>    boş şemaya sorgu atıyordu. Kaybeden artık kapıyı **açmıyor**; kazanan her
+>    yolda (`AutoApplyMigrations` kapalı olsa bile) `MarkReady` çağırdığı için
+>    kapı asla açılmadan kalmaz.
+>
+> Ampirik (geçici `UseSqlite` satırı `UsePostgreSql`'den SONRA, PostgreSQL
+> şeması zaten güncel):
+> - Uyarı satırı birebir beklendiği gibi: `AgentPrism'de birden fazla kalicilik
+>   saglayicisi kayitli: PostgreSQL, SQLite. Son kayit kazanir ve su an SQLite
+>   kullaniliyor. Yalnizca birini cagirin.`
+> - `registeredPersistenceProviders`: **2** · `persistenceProvider`: **SQLite**
+>   (son çağrılan kazanır) · `/health`: **Degraded**, `HTTP 200`.
+> - `no such table` hatası: **0** · `Application is shutting down`: **0**.
+>
+> Geçici kod değişikliği adım 4'e göre geri alındı (`git diff` boş).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☒ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2018,16 +2062,26 @@ curl -s "$APU/api/diagnostics" -H "$APB" | python3 -m json.tool
   geçmez.
 
 **Gerçek sonuç**
-> **Kaldı — `MT-PG-025`'in ÜÇÜNCÜ bağımsız tetiklenişi.** Boş şema +
-> `AutoApplyMigrations=false` kombinasyonu, isteği hiç göndermeden ÖNCE
-> uygulamayı çökertti (`A2AApprovalGuardFilter`/`McpApprovalGuardFilter`,
-> `durduruluyor` 2 kez log'da). `curl` bağlantı kuramadı (`HTTP: 000`),
-> `/agentprism/api/diagnostics` gövdesi hiç alınamadı — case'in kendisi
-> koşulamaz durumda. Kök neden `MT-PG-025`'te belgelendi; buraya tekrar
-> yazılmadı. Bu case'in kendisini gerçekten koşabilmek için önce o kusurun
-> düzeltilmesi gerekiyor.
+> _(2026-08-13 koşumu: Kaldı — `MT-PG-025` uygulamayı çökertiyordu, istek hiç
+> gönderilemedi.)_
+>
+> **2026-08-14 yeniden koşum — Geçti.** İki ayrı düzeltme gerekti:
+> 1. Çökme `2caa423` (S1-8) ile zaten kapanmıştı: `ExternalSurfaceGuard`
+>    `ListCatalogWithRetryAsync` ile katalog sorgusunu üstel geri çekilmeyle
+>    yeniden dener, uygulamayı durdurmaz. Ampirik: `shutdown` satırı **0**,
+>    `Now listening` yazıldı, süreç ayakta.
+> 2. Ama uç yine de **HTTP 500** dönüyordu — `AgentPrismDiagnosticsCollector`
+>    `_agentCatalog.ListAsync`'i korumasız çağırıyor ve hata, YUKARIDA
+>    toplanmış migration bilgisini de çöpe atıyordu. Teşhis ucunun birincil
+>    kullanım anı tam da budur. Düzeltildi: katalog sorgusu artık `try/catch`
+>    içinde, `AgentCount` `int?` oldu ve okunamayınca `null` gelir.
+>
+> Gözlenen gövde: `persistenceProvider: PostgreSQL`, `canConnect: true`,
+> `migrationsUpToDate: false`, `pendingMigrations` **28 kalem**
+> (`0001_initial` … `0028_experiment_canary`), `agentCount: null`,
+> `toolCount: 6`. `Password=`/bağlantı dizesi/`sk-` taraması: **0 eşleşme**.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☒ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Temizlik:** `dotnet user-secrets remove "AgentPrism:PostgreSql:AutoApplyMigrations"`, reset yordamı — uygulandı.
 
@@ -2068,11 +2122,14 @@ SELECT to_regclass('agentprism.__migrations');
   teşhis ucu şemaya hiçbir şey YAZMAZ.
 
 **Gerçek sonuç**
-> **Kaldı — ön koşul erişilemez.** MT-PG-051'in ön koşulu ("28 bekleyen
-> migration, `AutoApplyMigrations=false`") `MT-PG-025`'in kusuru yüzünden hiç
-> kurulamıyor; uygulama isteği karşılamadan çöküyor. Bu case koşulamadı.
+> _(2026-08-13 koşumu: Kaldı — ön koşul `MT-PG-025` yüzünden kurulamıyordu.)_
+>
+> **2026-08-14 yeniden koşum — Geçti.** Ön koşul artık kurulabiliyor
+> (`MT-PG-051`'e bakın). Üç art arda çağrının üçü de **28** yazdırdı; sayı
+> değişmedi. `SELECT to_regclass('mt_fin.__migrations')` **NULL** döndü —
+> `__migrations` tablosu oluşturulmadı, teşhis ucu şemaya hiçbir şey yazmıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☒ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☒ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
