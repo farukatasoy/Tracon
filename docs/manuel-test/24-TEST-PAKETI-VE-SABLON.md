@@ -424,9 +424,12 @@ curl -s http://localhost:5081/agentprism/api/agents | jq
   bildirimsel tanım) — `displayName: "Destek Asistani"`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Hiçbir `user-secrets` ayarlanmadan `dotnet run -c Release` başlatıldı,
+  bağlantı hatası olmadan ayağa kalktı. `GET /agentprism/api/agents` →
+  `HTTP/1.1 200 OK`, gövde `[{"name":"support","displayName":"Destek
+  Asistani",...}]` — tek agent. Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -470,9 +473,19 @@ diff "$TMP/a"/*.csproj "$TMP/b"/*.csproj
 - İki proje de yalnız `<PackageReference Include="AgentPrism" .../>` taşır (tek satır).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- **Doküman düzeltmesi**: "`diff` boş döner" iddiası, case'in KENDİ
+  girilecek-veri adımlarıyla (`-n Meta.Kontrol` VS `-n Meta.Kontrol2`,
+  İKİ FARKLI proje adı) çelişiyor — farklı proje adı `RootNamespace`'i VE
+  rastgele üretilen `UserSecretsId` GUID'ini kaçınılmaz olarak
+  değiştiriyor, `diff` bu iki satırda fark gösteriyor (doğrulandı).
+  Asıl doğrulanmak istenen özdeş iddia bu değil: her iki `.csproj`
+  dosyası da yalnız TEK bir `<PackageReference Include="AgentPrism"
+  Version="0.0.0-preview.0.107" />` satırı taşıyor, `postgres` seçmek
+  EK bir `PackageReference` satırı EKLEMİYOR — bu, doğrulanmak istenen
+  gerçek iddia, ve doğru. Kod kusuru değil, doküman ifadesi düzeltmeli
+  ("`diff` yalnız `PackageReference` satırlarında boş döner" olmalı).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -508,9 +521,11 @@ ls "$TMP/yok/obj" 2>&1
 - İkinci projede `obj/` klasörü **yoktur veya boştur** — restore adımı atlandı.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- İlk projede `obj/` dolu (`project.assets.json` dahil restore çıktıları).
+  İkinci projede (`--skip-restore true`) `obj/` klasörü **hiç yok** (`ls`:
+  "No such file or directory"). Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -546,9 +561,10 @@ grep "PackageReference Include=\"AgentPrism\"" "$TMP/s"/*.csproj
   token'ının yerini alır).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `<PackageReference Include="AgentPrism" Version="0.0.0-preview.0.107" />`
+  — tam olarak `$SURUM` değeri, `*-*` değil. Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -585,9 +601,13 @@ echo "Cikis kodu: $?"
 - `$TMP/g` dizini **oluşturulmaz veya boş kalır** — kısmi bir proje üretilmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Çıkış kodu `127` (sıfırdan farklı). Hata mesajı: `'mysql' is not a
+  valid value for --persistence. The possible values are: memory,
+  postgres, sqlite, sqlserver` — dört seçenek de listelendi. `$TMP/g`
+  dizini hiç oluşturulmadı ("No such file or directory"). Beklenenle
+  eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -621,9 +641,12 @@ dotnet new agentprism-api -h
   `isHidden: true`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Çıktıda dört bayrağın hepsi (`-p/--persistence`, `-pr/--provider`, `-ui`,
+  `-sr/--skip-restore`), kısa açıklamalar ve varsayılan değerlerle
+  listelendi. `--AgentPrismVersion` hiçbir yerde görünmedi. Beklenenle
+  eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -661,9 +684,11 @@ grep -rn "AgentPrism.Templates" "$TMP/yalin" && echo "REFERANS VAR" || echo "tem
 - Üretilen projenin hiçbir dosyasında `AgentPrism.Templates` dizesi geçmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `unzip -l` taraması: hiçbir `.dll` yok ("dll yok -- beklenen").
+  Üretilen projede `AgentPrism.Templates` dizesi taraması "temiz".
+  Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
