@@ -82,7 +82,7 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile K** — CSP `blob:` şemasını hiçbir yönergede beyaz listeye almıyordu; `EmbeddedUiProvider.ContentSecurityPolicy`'ye `img-src`'e `blob:` + yeni `media-src 'self' blob:;` eklendi | `c1efa8a` | `MT-UIAG-044`, `MT-UIAG-050` |
 | **Aile L** — SPA geçişinin erken `AbortController.abort()`'u `RunStarted` yazıldıktan sonra ama try/finally güvenlik ağına girmeden çalıştırmayı sonsuza dek `Running`de bırakıyordu; `BeginRunAsync` `CreateScope` (saf) + `WriteRunStartAsync` (G/Ç) olarak ikiye bölündü, ikincisi güvenlik ağının içine taşındı | `a61f999` | `MT-UIRUN-007` |
 | **Aile M** — Kabuk loopback kısıtından muaf değildi, loopback dışı erişimde React hiç başlamıyordu; `AgentPrismEndpointFilter`'a `requireLoopback` parametresi eklendi, kabuk grubu bearer token gibi loopback'ten de muaf tutuldu | `58c3268` | `MT-UI-008` |
-| **Aile N** — `ProblemDetails` başlıkları koda gömülü Türkçe'ydi (113 `title:` literali); `src/AgentPrism.AspNetCore/` + besleyen Core/Workflows/Generators dosyaları + OpenAI-uyumlu/A2A/MCP/Voice yüzeyleri İngilizce'ye çevrildi, kaynak taramalı regresyon çiti eklendi | (bu koşum) | `MT-UI-032` |
+| **Aile N** — `ProblemDetails` başlıkları koda gömülü Türkçe'ydi (113 `title:` literali); `src/AgentPrism.AspNetCore/` + besleyen Core/Workflows/Generators dosyaları + OpenAI-uyumlu/A2A/MCP/Voice yüzeyleri İngilizce'ye çevrildi, kaynak taramalı regresyon çiti eklendi | `e9f9006` | `MT-UI-032` |
 
 ### Kalan aileler
 
