@@ -39,6 +39,24 @@
   `kill -9` edilip doğru ortam değişkenleriyle yeniden başlatıldıktan sonra
   case doğru sonucu verdi (bkz. case notu). Sonraki tüm yeniden başlatmalar
   `lsof -tiTCP:5080` ile PID bulup `kill -9` deseniyle yapıldı.
+- **Ajan hatası: OpenAI `user-secrets` anahtarı yanlışlıkla boşaltıldı (K-6,
+  17 §5, MT-EVAL-044 hazırlığı sırasında).** MT-EVAL-044 için OpenAI'yi
+  geçici kapatmak amacıyla anahtarı bellekte tutup `remove` edip sonra geri
+  `set` etmeyi hedefleyen tek bir `bash -c` betiği yazıldı; betik `set -e`
+  taşıyordu ama `DEĞER=$(python3 ...)` atamasının komut ikamesi başarısız
+  olduğunda (UTF-8 BOM nedeniyle) `set -e` bunu YAKALAMADI — betik boş
+  `DEĞER` ile devam etti, gerçek anahtarı `remove` etti, testi çalıştırdı,
+  sonra "geri yükleme" adımında anahtarı BOŞ DİZEYLE `set` etti. Orijinal
+  değer hiçbir dosyaya yazılmamıştı (proje kuralına uyularak) ve sıkıştırma
+  (compaction) sonrası konuşma bağlamında da kalmamıştı — ajan kendi
+  başına kurtaramadı. Kullanıcıya doğrudan bildirildi; kullanıcı anahtarı
+  tekrar paylaştı, `dotnet user-secrets set` ile geri yüklendi, uygulama
+  yeniden başlatılıp gerçek bir `gpt-5.4-mini` çağrısıyla doğrulandı. Diğer
+  hiçbir anahtar (Anthropic/Google/OpenRouter/ElevenLabs/Voice/Ui) etkilenmedi.
+  Ders: birden fazla adımlı, geri-yükleme içeren `secret` betiklerinde
+  `set -e`'ye güvenmek yerine her komutun çıkış kodu AYRICA denetlenmeli;
+  boş/başarısız bir okuma ASLA bir sonraki `set` adımına girdi olarak
+  kullanılmamalı.
 
 ## K-1 — 14 §1–2 (MT-SKILL-001..014, 020..025), 20 case
 
