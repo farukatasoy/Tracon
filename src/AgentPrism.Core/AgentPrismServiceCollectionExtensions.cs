@@ -1778,6 +1778,11 @@ public static class AgentPrismServiceCollectionExtensions
             options.Enabled = enabled;
         }
 
+        if (TryReadBool(recording, nameof(AgentPrismRunRecordingOptions.RecordRunInput), out var recordRunInput))
+        {
+            options.RecordRunInput = recordRunInput;
+        }
+
         if (TryReadBool(recording, nameof(AgentPrismRunRecordingOptions.RecordMessageDeltas), out var recordDeltas))
         {
             options.RecordMessageDeltas = recordDeltas;

@@ -2492,7 +2492,7 @@ curl -s "$APU/api/runs/<RUN_A>/compare/<RUN_B>" -H "$APB"
 
 ---
 
-### MT-EVAL-092 — `GET /input`: `RecordRunInput=false` iken `404`
+### MT-EVAL-092 — `GET /input`: `RecordRunInput=false` iken `404` — ✅ DÜZELTİLDİ (2026-08-14, K-406)
 
 Negatif/ayar-bağımlı senaryo.
 
@@ -2542,7 +2542,18 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/runs/<YENI-RUN_ID>/input" -H "$APB
   bir gizlilik kontrolü kaçağı. Case sonrası `RecordRunInput` secret'ı
   kaldırıldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+**🔧 Kapanış güncellemesi (2026-08-14, HATA-K-007/K-406 — düzeltildi):**
+`BindRunRecording`'e eksik `TryReadBool(recording,
+nameof(AgentPrismRunRecordingOptions.RecordRunInput), ...)` çağrısı
+eklendi. Aynı senaryo birebir tekrarlandı, gerçek sunucuya karşı:
+`RecordRunInput=false` iken yeni bir çalıştırmanın `GET /input`'u artık
+`HTTP: 404`, `"Girdi kaydi yok"`. Regresyon: ayar kaldırılıp (varsayılan
+`true`) uygulama yeniden başlatılınca aynı uç `HTTP: 200` + tam girdi.
+Aynı kök neden bağımsız olarak `HATA-S2-002`/`HATA-S4-015` olarak da
+bulunmuştu — her iki serit sonuç dosyasına da bu karara işaret eden
+kapanış notu eklendi. Ayrıntı: `SONUCLAR-K-2026-08-13.md`, `K-406`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
