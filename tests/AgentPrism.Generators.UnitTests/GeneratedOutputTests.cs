@@ -24,7 +24,7 @@ public sealed class GeneratedOutputTests
 
         var aggregate = result.GeneratedFiles()["AgentPrismGeneratedTools.g.cs"];
         aggregate.ShouldContain("AddGeneratedTools");
-        aggregate.ShouldContain("source: \"generated\"");
+        aggregate.ShouldNotContain("source:");
 
         var wrapperFile = result.SingleWrapperFile();
         wrapperFile.ShouldContain("public override string Name => \"get_order_status\";");

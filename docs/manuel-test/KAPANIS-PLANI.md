@@ -59,8 +59,8 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 |---|---|
 | Toplam case | **1097** |
 | Koşuldu | **1097** (koşulmamış case **yok**) |
-| ☑ Geçti | **1004** |
-| ☒ **Kaldı** | **62** |
+| ☑ Geçti | **1005** |
+| ☒ **Kaldı** | **61** |
 | ⏭ Atlandı | **30** |
 | ☐ Beklemede | **1** (`MT-UIRUN-019`) |
 
@@ -77,10 +77,11 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile F** — 21 endpoint dosyasında kapsam denetimi yok; 4 yeni `ApiKeyScope` üyesi (`PlatformRead/Admin`, `SecurityAdmin`, `AuditRead`) + attenuation | `c96006c` | `MT-MCP-051`, `MT-RES-028`, `MT-JOB-090` (3/4 — `MT-MCP-052` ayrı bulgu olarak Kaldı kalır, bkz. §6) |
 | **Aile G** — JSON çözümleme hatası `400` yerine `500`; kütüphane çapında `RequestBodyBinding.ReadAsync<T>` — 21 dosya, implicit binding kullanan 9 EK uç dahil | `0b28210` | `MT-CORE-009`, `MT-CORE-022`, `MT-SEC-054`, `MT-MCP-003` |
 | **Aile H** — Dar `catch` → çıplak `500`; üç dosyada (`AgentEndpoints.ExecuteBufferedAsync`, `OpenAIResponsesEndpoints`, `OpenAIChatCompletionsEndpoints`) akışsız yolun dar `when` filtresi kaldırıldı (K-296/K-384'ün akışsız kardeşlere tamamlanması) | `12f163f` | `MT-COMPAT-027` |
+| **Aile I** — Kaynak üreteci `[AgentPrismTool]` kayıtlarına koşulsuz `source: "generated"` yazıyordu; `SourceWriter.WriteAggregator` artık `source` argümanını hiç geçirmiyor (kayıt belgelenen `null` varsayılanını kullanıyor) | (bu koşum) | `MT-MCP-047` |
 
 ### Kalan aileler
 
-Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **I** ile başlar.
+Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **J** ile başlar.
 
 | Aile | Önem | Konu | Case | Durum |
 |---|---|---|---|---|
@@ -92,7 +93,7 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **I** ile başla
 | ~~F~~ | Yüksek | 21 endpoint dosyasında kapsam denetimi yok | 4 | ✅ (bu koşum, 3/4 — `MT-MCP-052` §6'da yeni bulgu) |
 | ~~G~~ | Yüksek | JSON çözümleme hatası `400` yerine `500` | 4 | ✅ (bu koşum) |
 | ~~H~~ | Yüksek | Dar `catch` → çıplak `500` | 1 | ✅ (bu koşum) |
-| **I** | Yüksek | Kaynak üreteci sahte `mcp:` rozeti | 1 | ⬜ |
+| ~~I~~ | Yüksek | Kaynak üreteci sahte `mcp:` rozeti | 1 | ✅ (bu koşum) |
 | **J** | Yüksek | Agent editörü sağlayıcı yarışı | 1 | ⬜ |
 | **K** | Yüksek | CSP `blob:` beyaz listede değil | 2 | ⬜ |
 | **L** | Yüksek | SPA geçişi run'ı `Running` bırakıyor | 1 | ⬜ |
@@ -110,10 +111,10 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **I** ile başla
 | **Yeniden koşum** | — | Kusuru zaten kapalı | 8 | ⬜ |
 | **MT-PKG-010** | — | Kök neden `f36eeaf`'te kapandı, case yeniden koşulmalı | 1 | ⬜ |
 
-**Toplam:** 42 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **64**. (Aile F
-bitti: 51 → 47; Aile G bitti: 47 → 43; Aile H bitti: 43 → 42. `MT-MCP-052` bu
-sayıma dahil değildir — Kaldı kalır, ayrı bir bulgu olarak izlenir, gelecekte
-kendi ailesini gerektirebilir.)
+**Toplam:** 41 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **63**. (Aile F
+bitti: 51 → 47; Aile G bitti: 47 → 43; Aile H bitti: 43 → 42; Aile I bitti:
+42 → 41. `MT-MCP-052` bu sayıma dahil değildir — Kaldı kalır, ayrı bir bulgu
+olarak izlenir, gelecekte kendi ailesini gerektirebilir.)
 
 ---
 
@@ -607,7 +608,7 @@ doğrulama sonrası `dotnet user-secrets remove` ile temizlendi.
 `Responses_ucu_saglayici_hatasinda_502_upstream_error_doner`,
 `ChatCompletions_ucu_saglayici_hatasinda_502_upstream_error_doner`).
 
-### Aile I — Kaynak üreteci sahte `mcp:` rozeti 🚨 Yüksek
+### ~~Aile I~~ — Kaynak üreteci sahte `mcp:` rozeti 🚨 Yüksek ✅ (bu koşum)
 
 **Kusur:** `HATA-S2-008`. Üreteç kod-tanımlı `[AgentPrismTool]` tool'larına
 koşulsuz `source:"generated"` yazıyor; arayüz bunu `mcp:` rozetiyle gösteriyor.
@@ -617,7 +618,38 @@ Framework geneli, `dotnet new` şablonu dahil.
 Sözleşme: `AgentPrismToolRegistration.cs:25,41`, `ToolDescriptor.cs:29-37`.
 Görüntüleme: `screens/tools.tsx:71`.
 
-**Case:** `MT-MCP-047`.
+**Önce ampirik yeniden üretim.** Canlı sunucuda (`samples/AgentPrism.Api`,
+`ProjectReference` ile üreteci doğrudan çalıştırıyor) `GET /agentprism/api/tools`
+kod-tanımlı `get_order_status`/`cancel_order`/`list_recent_orders` için
+`"source": "generated"` döndürdüğü doğrulandı — kusur hâlâ açıktı.
+
+**Uygulanan tasarım:** Tasarım kararı gerektirmeyen, tek satırlık kök neden
+düzeltmesi. `SourceWriter.WriteAggregator` her kayıt için `source: "generated"`
+argümanını koşulsuz üretiyordu; bu argüman tamamen kaldırıldı.
+`AgentPrismToolRegistration` constructor'ının varsayılanı zaten `source: null`'dır
+ve bu, hem kendi XML belgesinin ("Kodda tanimli tool'larda null") hem de
+`ToolDescriptor.Source`'un belgesinin ("yalniz uzak MCP sunucusundan gelen
+tool'larda") tarif ettiği sözleşmedir — `McpTenantTools.cs:79`
+(`Source = registration.Source`) ve `tools.tsx:71`
+(`{tool.source != null && <Badge>mcp: {tool.source}</Badge>}`) zaten `null`'ı
+doğru ele alıyordu, aradaki tek kırık halka üreteçti. Kapsam MCP sunucularını
+etkilemez — uzak MCP tool'ları `McpTenantTools.cs` içinde ayrı bir yoldan,
+gerçek sunucu adıyla `Source` alıyor, bu değişmedi.
+
+**Canlı doğrulama:** Aynı `GET /agentprism/api/tools` isteği düzeltme
+sonrası `get_order_status`/`cancel_order`/`list_recent_orders`/`list_voices`/
+`speak`/`transcribe` için `"source": null` döndürdü.
+
+**Değişen dosyalar:** `src/AgentPrism.Generators/SourceWriter.cs`
+(`WriteAggregator`'daki `source: "generated"` argümanı kaldırıldı). **Yeni
+dosya yok.**
+
+**Case:** `MT-MCP-047` ✅.
+
+**Regresyon testleri:**
+`tests/AgentPrism.Generators.UnitTests/GeneratedOutputTests.cs`
+`Isaretli_statik_metot_icin_kayit_uretilir` artık üretilen toplayıcı
+dosyasının `source:` literalini hiç taşımadığını doğruluyor (`ShouldNotContain`).
 
 ### Aile J — Agent editörü sağlayıcı yarışı 🚨 Yüksek
 
