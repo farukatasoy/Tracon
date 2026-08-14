@@ -2225,9 +2225,31 @@ grep -E "warning IL[0-9]+|NETSDK1210" aot-cikti.log
   güncelliğini yitirdiği anlamına gelebilir ve not düşülmelidir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Yeni bağımsız bir konsol projesi (`~/agentprism-manuel/aot-deneme`),
+  `AgentPrism.Testing` eklendi, `.csproj`'a elle `<PublishAot>true</PublishAot>`
+  eklendi. İlk denemede `Program.cs` yalnız `new FakeModelProvider()` ve
+  `.Models.Count` kullanıyordu — `CallsTool`'un kendisi hiç çağrılmadığı
+  için anlamlı olmayabilir diye, `Program.cs` doküman kodunun `.CallsTool
+  ("get_order_status", new { orderId = "ORD-7" })` çağrısını (yansımalı
+  `ToArguments` yolunu GERÇEKTEN tetikleyen) içerecek şekilde
+  güncellendi. `dotnet publish -c Release -r osx-arm64 --self-contained`
+  → **`0` uyarı** (`grep -E "warning IL[0-9]+|NETSDK1210"` boş döndü,
+  hem minimal hem `CallsTool`'lu denemede). Yayımlanan AOT ikilisi
+  doğrudan çalıştırıldı — ÇÖKMEDİ, `Metin: ` (boş, ayrı bir konu —
+  `CallsTool` sonrası `EchoesUserMessage`/`RespondsWith` fallback'i
+  olmadan ham istemci tool sonucunu metne çevirmiyor, MT-TEST-027'de
+  zaten gözlenen davranış) yazdırdı. **Ölçülen sonuç, dokümanın kendi
+  öngördüğü alternatif senaryodur**: sıfır uyarı çıktı — kod yorumu
+  (`AgentPrism.Testing.csproj:21`) muhtemelen güncelliğini yitirmiş ya
+  da trimmer, `IsAotCompatible`/`IsTrimmable` işaretlenmemiş bir
+  paketin İÇİNİ derinlemesine analiz etmiyor (yalnız işaretli 8 paket
+  derin analiz ediliyor — bkz. `MEMORY.md`'nin "sekiz paket uyumludur"
+  notu), bu yüzden `AgentPrism.Testing`'in kendi reflection kullanımı
+  hiç taranmıyor olabilir. Bu koşumda ne pozitif ne negatif "kusur"
+  olarak işaretlenmiyor — dokümanın kendi talimatı gereği yalnız ölçüm
+  kaydediliyor ve not düşülüyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2274,8 +2296,16 @@ dotnet run -c Release
   "Depo dışı tüketici senaryosu") **aynı sonucu** üretir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Tamamen yeni, depo dışı bir dizinde (`~/agentprism-manuel/depo-disi
+  -tuketici`) sıfırdan proje oluşturuldu, `AgentPrism.Testing` eklendi,
+  MT-TEST-055'in kodu birebir yapıştırıldı. `dotnet run -c Release` →
+  `Zincir basariyla tamamlandi -- hicbir asamada istisna atilmadi.`
+  Ağ trafiği iddiası kod okumasıyla da doğrulandı: `FakeChatClient.cs`
+  içinde `HttpClient` veya herhangi bir `Http.` kullanımı YOK — sağlayıcı
+  yapısal olarak ağa çıkamaz. Hiçbir OpenAI/Anthropic/vb. `secret`
+  ayarlanmadan (bu proje `samples/AgentPrism.Api`'nin `user-secrets`
+  deposuna hiç dokunmuyor) program başarıyla bitti. Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
