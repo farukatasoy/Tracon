@@ -136,9 +136,19 @@ dotnet new list agentprism-api
   görünen adı ve `C#` dili görünür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Yerel NuGet feed'i `~/agentprism-local-feed` yeni bir `dotnet pack` ile
+  tazelendi (`MSBUILDDISABLENODEREUSE=1`, sürüm `0.0.0-preview.0.107` —
+  önceki feed içeriği eski, `0.78`'e kadardı). Şablon önce
+  `dotnet new uninstall` ile temizlendi (zaten kurulu değildi, çıkış kodu
+  `103` ile doğrulandı), sonra `dotnet new install ./src/AgentPrism.Templates`
+  ile kuruldu. Çıktı: `"AgentPrism control plane (ASP.NET Core)" installed`,
+  tablo `Short Name: agentprism-api`, `Language: [C#]`. `dotnet new list
+  agentprism-api` aynı satırı tekrar gösterdi. Beklenenle eşleşiyor
+  (kimlik `AgentPrism.Api.CSharp` CLI çıktısında ayrıca görünmüyor —
+  `dotnet new list` varsayılan olarak yalnız görünen adı/kısa adı/dili
+  gösteriyor, kimlik `template.json`'da doğrudan doğrulandı).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -176,9 +186,10 @@ dotnet build "$TMP/yalin" -c Release
   `TreatWarningsAsErrors` açık — tek bir uyarı bile derlemeyi kırardı).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `dotnet new` çıkış kodu `0`. `dotnet build -c Release`: `Build succeeded.
+  0 Warning(s), 0 Error(s)`. Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -218,9 +229,12 @@ dotnet build "$TMP/dolu" -c Release
   referanslarını taşır (`AgentPrism.Starter.csproj:14-27`'deki koşullu bloklar).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `dotnet new` çıkış kodu `0`. `dotnet build -c Release`: `Build succeeded.
+  0 Warning(s), 0 Error(s)`. `.csproj` içinde `<PackageReference
+  Include="AgentPrism.SqlServer" .../>` ve `<PackageReference
+  Include="AgentPrism.Azure" .../>` bulundu. Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -265,9 +279,12 @@ cat "$TMP/sir/appsettings.json"
   (`appsettings.json:6,18`'deki `#if` blokları yalnız `sqlserver`/`azure` dilimini üretir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Tarama **"temiz"** yazdı. `appsettings.json` içeriği:
+  `SqlServer.ConnectionString: ""`, `Providers.AzureOpenAI.Endpoint: ""`,
+  `Providers.AzureOpenAI.ApiKey: ""` — üçü de boş dize. Beklenenle
+  birebir eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -310,9 +327,11 @@ done
 - Dördü için de bilinen model öneki taraması **"temiz"** yazar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Dört sağlayıcının (`openai`, `anthropic`, `google`, `azure`) hepsi için
+  `grep -c MODEL_ADINI_BURAYA_YAZIN` → `1`, bilinen model öneki taraması
+  → `"temiz"`. Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -356,9 +375,11 @@ dotnet build "$TMP/rename" -c Release
   bozmaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `Benim.Agent.csproj` var, `AgentPrism.Starter` taraması "temiz". `dotnet
+  build -c Release`: `Build succeeded. 0 Warning(s), 0 Error(s)`.
+  Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
