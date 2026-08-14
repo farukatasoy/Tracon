@@ -24,7 +24,7 @@ namespace AgentPrism;
 internal static class RequestBodyBinding
 {
     /// <summary>Diger elle-baglama uclarinin da kullandigi ortak baslik.</summary>
-    internal const string ProblemTitle = "Gecersiz istek govdesi";
+    internal const string ProblemTitle = "Invalid request body";
 
     /// <summary>
     /// Govdeyi <typeparamref name="T"/> olarak okur.
@@ -52,7 +52,7 @@ internal static class RequestBodyBinding
             {
                 return (default, TypedResults.Problem(
                     title: ProblemTitle,
-                    detail: "Govde bos olamaz.",
+                    detail: "The body cannot be empty.",
                     statusCode: StatusCodes.Status400BadRequest));
             }
 

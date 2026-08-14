@@ -239,7 +239,7 @@ public sealed class EvalEndpointTests
         using var triggered = await host.Client.PostAsJsonAsync(Run, new { agentVersion = 1 });
 
         triggered.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        (await triggered.Content.ReadAsStringAsync()).ShouldContain("surum gecmisi");
+        (await triggered.Content.ReadAsStringAsync()).ShouldContain("version history");
     }
 
     /// <summary>"musteri-destek-agent" adinda, iki surumu olan bir veritabani agent'i olusturur.</summary>

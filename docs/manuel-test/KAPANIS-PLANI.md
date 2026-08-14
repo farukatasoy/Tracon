@@ -59,8 +59,8 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 |---|---|
 | Toplam case | **1097** |
 | Koşuldu | **1097** (koşulmamış case **yok**) |
-| ☑ Geçti | **1010** |
-| ☒ **Kaldı** | **56** |
+| ☑ Geçti | **1011** |
+| ☒ **Kaldı** | **55** |
 | ⏭ Atlandı | **30** |
 | ☐ Beklemede | **1** (`MT-UIRUN-019`) |
 
@@ -82,6 +82,7 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile K** — CSP `blob:` şemasını hiçbir yönergede beyaz listeye almıyordu; `EmbeddedUiProvider.ContentSecurityPolicy`'ye `img-src`'e `blob:` + yeni `media-src 'self' blob:;` eklendi | `c1efa8a` | `MT-UIAG-044`, `MT-UIAG-050` |
 | **Aile L** — SPA geçişinin erken `AbortController.abort()`'u `RunStarted` yazıldıktan sonra ama try/finally güvenlik ağına girmeden çalıştırmayı sonsuza dek `Running`de bırakıyordu; `BeginRunAsync` `CreateScope` (saf) + `WriteRunStartAsync` (G/Ç) olarak ikiye bölündü, ikincisi güvenlik ağının içine taşındı | `a61f999` | `MT-UIRUN-007` |
 | **Aile M** — Kabuk loopback kısıtından muaf değildi, loopback dışı erişimde React hiç başlamıyordu; `AgentPrismEndpointFilter`'a `requireLoopback` parametresi eklendi, kabuk grubu bearer token gibi loopback'ten de muaf tutuldu | `58c3268` | `MT-UI-008` |
+| **Aile N** — `ProblemDetails` başlıkları koda gömülü Türkçe'ydi (113 `title:` literali); `src/AgentPrism.AspNetCore/` + besleyen Core/Workflows/Generators dosyaları + OpenAI-uyumlu/A2A/MCP/Voice yüzeyleri İngilizce'ye çevrildi, kaynak taramalı regresyon çiti eklendi | (bu koşum) | `MT-UI-032` |
 
 ### Kalan aileler
 
@@ -102,7 +103,7 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **M** ile başla
 | ~~K~~ | Yüksek | CSP `blob:` beyaz listede değil | 2 | ✅ (bu koşum) |
 | ~~L~~ | Yüksek | SPA geçişi run'ı `Running` bırakıyor | 1 | ✅ (bu koşum) |
 | ~~M~~ | Yüksek | Loopback dışı erişimde ham JSON | 1 | ✅ (bu koşum) |
-| **N** | Yüksek | 112 `ProblemDetails` başlığı Türkçe | 1 | ⬜ |
+| ~~N~~ | Yüksek | 113 `ProblemDetails` başlığı Türkçe | 1 | ✅ (bu koşum) |
 | **O** | Orta | Yapılandırmada geçersiz değer sessizce düşüyor | 4 | ⬜ |
 | **P** | Orta | Bağlanmayan yapılandırma anahtarları | 2 | ⬜ |
 | **Q** | Orta | Çapraz kiracı `404` dalı ölü kod | 4 | ⬜ |
@@ -115,11 +116,12 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **M** ile başla
 | **Yeniden koşum** | — | Kusuru zaten kapalı | 8 | ⬜ |
 | **MT-PKG-010** | — | Kök neden `f36eeaf`'te kapandı, case yeniden koşulmalı | 1 | ⬜ |
 
-**Toplam:** 36 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **58**. (Aile F
+**Toplam:** 35 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **57**. (Aile F
 bitti: 51 → 47; Aile G bitti: 47 → 43; Aile H bitti: 43 → 42; Aile I bitti:
 42 → 41; Aile J bitti: 41 → 40; Aile K bitti: 40 → 38; Aile L bitti: 38 → 37;
-Aile M bitti: 37 → 36. `MT-MCP-052` bu sayıma dahil değildir — Kaldı kalır,
-ayrı bir bulgu olarak izlenir, gelecekte kendi ailesini gerektirebilir.)
+Aile M bitti: 37 → 36; Aile N bitti: 36 → 35. `MT-MCP-052` bu sayıma dahil
+değildir — Kaldı kalır, ayrı bir bulgu olarak izlenir, gelecekte kendi
+ailesini gerektirebilir.)
 
 ---
 
@@ -885,10 +887,10 @@ derlemesi olmadan test etmek için).
 doğrular. Fix geri alınıp koşulduğunda kabuk isteği `Forbidden` ile KIRMIZI
 verdiği ampirik olarak doğrulandıktan sonra fix geri uygulandı.
 
-### Aile N — 112 `ProblemDetails` başlığı Türkçe 🚨 Yüksek
+### ~~Aile N~~ — 112 `ProblemDetails` başlığı Türkçe 🚨 Yüksek ✅ (bu koşum)
 
 **Kusur:** `HATA-S4-007`. Sunucunun `ProblemDetails` başlıkları koda gömülü
-Türkçe: **112 farklı `title:` literali, 26 dosya**. Örnek:
+Türkçe: **113 farklı `title:` literali, 26 dosya**. Örnek:
 `AgentEndpoints.cs:513` `"Agent derlenemedi"` ·
 `Security/AgentPrismEndpointFilter.cs:74` `"Uzak erisim kapali"`.
 
@@ -897,12 +899,83 @@ Türkçe: **112 farklı `title:` literali, 26 dosya**. Örnek:
 **İngilizce kalır**. Paket NuGet.org'a uluslararası yayınlanır ve aynı hata
 metni günlükte, testte ve destek kaydında aynı olmalıdır."
 
-```bash
-# Tam liste
-grep -rhoP 'title:\s*"[^"]+"' --include='*.cs' src/AgentPrism.AspNetCore/ | sort -u
-```
+**Önce ampirik yeniden üretim.** `grep -rhoP 'title:\s*"[^"]+"' --include='*.cs'
+src/AgentPrism.AspNetCore/` **113** eşleşme, **26** dosya döndürdü — kusur
+hâlâ tam olarak plan dokümanının öngördüğü boyuttaydı, önceki hiçbir dalga
+buna dokunmamıştı.
 
-**Case:** `MT-UI-032`.
+**Uygulanan kapsam — üç katman:**
+
+1. **Doğrudan `title:`/`detail:` literalleri** — 26 dosyanın tamamı
+   (21 `Endpoints/*.cs` + `Voice/VoiceConversationEndpoint.cs` +
+   `Security/AgentPrismEndpointFilter.cs` + `Idempotency/IdempotencyFilter.cs` +
+   `RateLimiting/AgentPrismRateLimitFilter.cs` + `RateLimiting/QuotaGate.cs` +
+   `Internal/RequestBodyBinding.cs` — sonuncusu `title:` grep'ine
+   yakalanmamıştı çünkü sabit bir `ProblemTitle` alanı kullanıyordu, ayrı
+   taramada bulundu).
+2. **Bu literallerin beslendiği alt katman** — `detail: ex.Message` veya
+   `detail: detail` (validator çıktısı) yolundan Türkçe metin sızmaya devam
+   ederdi; bu yüzden case'in kendi öngördüğü "AgentPrism.Core/
+   AgentPrism.Workflows/AgentPrism.Generators'daki birkaç dosya" kapsamı da
+   aynı geçişte çevrildi: `AttachmentTypeGuard`, `RunTimeSeriesBucketing`,
+   `KnowledgeIngestionService`, `RunReplayService`, `ConversationBranchService`,
+   `WebhookUrlValidator`, `QuotaEnforcer`, `WorkflowDefinitionValidator`
+   (Core) · `WorkflowRunner`, `WorkflowDefinitionCompiler`,
+   `AgentPrismCheckpointStore`, `WorkflowSessionId`, `WorkflowResponseFactory`
+   (Workflows) · `ToolDiagnostics` (Generators — `APG0001`-`APG0007`
+   analyzer tanı mesajları; testler yalnız tanı KİMLİĞİNİ doğruluyor, metni
+   değil, bu yüzden çeviri güvenliydi).
+3. **`ProblemDetails` kullanmayan ama aynı kullanıcı kararının (§5.3)
+   kapsamındaki yüzeyler** — ilk grep bunları yakalamadı çünkü farklı bir
+   hata zarfı kullanıyorlar: OpenAI-uyumlu uçlar
+   (`OpenAIResponsesEndpoints`, `OpenAIChatCompletionsEndpoints`,
+   `OpenAIConversationsEndpoints` — `{"error":{"message":...}}` zarfı),
+   A2A/MCP dış çağrı hataları (`ExternalAgentProxy`,
+   `CatalogToolCallHandler`), `AgentPrism.Voice`'un WebSocket
+   `WriteProblemAsync` yazıcısı (`VoiceConversationEndpoint`). Bunlar da
+   İngilizce'ye çevrildi — aksi halde "sunucu tek dilli" iddiası bu üç
+   yüzeyde yanlış kalırdı.
+
+**Regresyon çiti (en yüksek değerli):**
+`tests/AgentPrism.Core.UnitTests/Architecture/ProblemDetailsLanguageTests.cs`
+— `DependencyDirectionTests.cs` ile aynı desende, tüm `src/` ağacını kaynak
+metni olarak tarar (derleme çıktısını değil) ve her `title:` literalinin
+ASCII-Türkçe kalıp (`bulunamadi`, `gecersiz`, `zorunlu`, ...) taşımadığını
+doğrular. Regex yalnız `title:\s*"..."` bağlamını hedefler — kod yorumları
+(proje kuralı gereği Türkçe kalır) bu kalıba hiç girmez. Fix geri alınıp
+(bir `title:` Türkçe'ye çevrilip) koşulduğunda KIRMIZI verdiği ampirik
+olarak doğrulandıktan sonra fix geri uygulandı.
+
+**Ampirik yeniden üretim ve canlı doğrulama.** Case'in kendi kayıtlı
+tekrarı — dil Türkçeyken var olmayan bir agent'a gitmek
+(`GET /api/agents/does-not-exist-xyz`) — gerçek Postgres'e karşı tekrar
+edildi: yanıt artık `{"title":"Agent not found","detail":"There is no
+agent named 'does-not-exist-xyz'.",...}`. `Accept-Language: en` başlığı
+eklensin ya da eklenmesin yanıt AYNI — sunucu artık gerçekten tek dilli
+(İngilizce), önceki koşumun "sunucu Türkçe'ye sabitlenmiş, dile göre
+değişmiyor" bulgusunun ayna görüntüsü.
+
+**🚨 Yan etki — 29 mevcut test.** İki test projesi eski Türkçe metni
+`ShouldContain`/`ShouldBe` ile doğrudan arıyordu: `Workflows.UnitTests`
+(17: `WorkflowDefinitionValidatorTests`, `WorkflowDefinitionCompilerTests`,
+`WorkflowRunnerTests`, `WorkflowHumanInTheLoopTests`,
+`WorkflowPlanApprovalTests`) ve `AspNetCore.FunctionalTests` (12:
+`RateLimitTests`, `EvalEndpointTests`, `QuotaEndpointTests`,
+`JsonBindingProblemMiddlewareTests` ×3, `AgentCrudTests`,
+`WorkflowEndpointTests`, `GovernanceEndpointTests`, `ExperimentEndpointTests`
+×2, `ContentGuardEndpointTests`). Hepsi yeni İngilizce alt dizeye
+güncellendi — davranış değişmedi, yalnız beklenen dil.
+
+**Case:** `MT-UI-032` ✅.
+
+**Değişen dosyalar:** 26 `AspNetCore` dosyası (§7 grep listesi) +
+`Internal/RequestBodyBinding.cs` + 8 `AgentPrism.Core` dosyası + 5
+`AgentPrism.Workflows` dosyası + `AgentPrism.Generators/ToolDiagnostics.cs`
++ 3 `OpenAICompat` dosyası + `A2A/ExternalAgentProxy.cs` +
+`McpServer/CatalogToolCallHandler.cs` + `Voice/VoiceConversationEndpoint.cs`.
+**Yeni dosya:**
+`tests/AgentPrism.Core.UnitTests/Architecture/ProblemDetailsLanguageTests.cs`.
+**Güncellenen testler:** 29 (yukarıda listeli).
 
 ### Aile O — Yapılandırmada geçersiz değer sessizce düşüyor · Orta
 

@@ -177,7 +177,7 @@ internal static class EvalEndpoints
 
         if (string.IsNullOrWhiteSpace(request.AgentName))
         {
-            return InvalidSuite("'agentName' alani zorunludur.");
+            return InvalidSuite("'agentName' is required.");
         }
 
         try
@@ -262,7 +262,7 @@ internal static class EvalEndpoints
 
         if (cases.Any(static input => string.IsNullOrWhiteSpace(input.Query)))
         {
-            return InvalidSuite("Her vaka bos olmayan bir 'query' alani tasimalidir.");
+            return InvalidSuite("Each case must have a non-empty 'query' field.");
         }
 
         var converted = cases
@@ -337,23 +337,23 @@ internal static class EvalEndpoints
 
             case RunPromotionStatus.AmbiguousSource:
                 return TypedResults.Problem(
-                    title: "Terfi sebebi belirlenemedi",
-                    detail: $"'{runId}' kimlikli calistirma ne basarisiz ne tamamlanmis. " +
-                             "Govdede 'sourceKind' acikca verilmelidir.",
+                    title: "Promotion reason could not be determined",
+                    detail: $"Run '{runId}' is neither failed nor completed. " +
+                             "'sourceKind' must be given explicitly in the body.",
                     statusCode: StatusCodes.Status400BadRequest);
 
             case RunPromotionStatus.NoQuery:
                 return TypedResults.Problem(
-                    title: "Calistirmanin sorgusu okunamadi",
-                    detail: $"'{runId}' kimlikli calistirmanin sorgusu okunamadi. Oturumsuz " +
-                             "calistirmalar veya gecmisi okunamayan oturumlar terfi edilemez.",
+                    title: "Run query could not be read",
+                    detail: $"The query for run '{runId}' could not be read. Runs without a session, " +
+                             "or sessions whose history cannot be read, cannot be promoted.",
                     statusCode: StatusCodes.Status422UnprocessableEntity);
 
             case RunPromotionStatus.MultiTurn:
                 return TypedResults.Problem(
-                    title: "Cok turlu calistirma terfi edilemez",
-                    detail: $"'{runId}' kimlikli calistirmanin oturumunda birden fazla " +
-                             "kullanici turu var; tek turluk bir vakaya sigmaz.",
+                    title: "Multi-turn run cannot be promoted",
+                    detail: $"The session for run '{runId}' has more than one user turn; " +
+                             "it does not fit a single-turn case.",
                     statusCode: StatusCodes.Status409Conflict);
 
             case RunPromotionStatus.AlreadyExists:
@@ -412,16 +412,16 @@ internal static class EvalEndpoints
             if (descriptor?.Origin == AgentDefinitionOrigin.Code)
             {
                 return TypedResults.Problem(
-                    title: "Surum secilemez",
-                    detail: $"'{suite.AgentName}' kodda tanimlidir ve surum gecmisi tutmaz.",
+                    title: "Version cannot be selected",
+                    detail: $"'{suite.AgentName}' is defined in code and has no version history.",
                     statusCode: StatusCodes.Status400BadRequest);
             }
 
             if (await definitions.GetVersionAsync(suite.AgentName, requestedVersion, cancellationToken).ConfigureAwait(false) is null)
             {
                 return TypedResults.Problem(
-                    title: "Surum bulunamadi",
-                    detail: $"'{suite.AgentName}' agent'inin {requestedVersion} numarali surumu yok.",
+                    title: "Version not found",
+                    detail: $"Agent '{suite.AgentName}' has no version {requestedVersion}.",
                     statusCode: StatusCodes.Status400BadRequest);
             }
         }
@@ -431,8 +431,8 @@ internal static class EvalEndpoints
         if (cases.Count == 0)
         {
             return TypedResults.Problem(
-                title: "Kosu baslatilamadi",
-                detail: $"'{name}' takiminin hic vakasi yok.",
+                title: "Run could not be started",
+                detail: $"Suite '{name}' has no cases.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -441,8 +441,8 @@ internal static class EvalEndpoints
         if (cases.Count > maxItems)
         {
             return TypedResults.Problem(
-                title: "Kosu baslatilamadi",
-                detail: $"Takim {cases.Count} vaka tasiyor; en fazla {maxItems} vaka desteklenir.",
+                title: "Run could not be started",
+                detail: $"The suite has {cases.Count} cases; at most {maxItems} are supported.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -558,7 +558,7 @@ internal static class EvalEndpoints
         if (scores.Count == 0 && failures.Count > 0)
         {
             return TypedResults.Problem(
-                title: "Elle puanlama basarisiz",
+                title: "Manual scoring failed",
                 detail: string.Join("; ", failures),
                 statusCode: StatusCodes.Status502BadGateway);
         }
@@ -587,25 +587,25 @@ internal static class EvalEndpoints
         });
 
     private static ProblemHttpResult InvalidSuite(string detail)
-        => TypedResults.Problem(title: "Eval takimi gecersiz", detail: detail, statusCode: StatusCodes.Status400BadRequest);
+        => TypedResults.Problem(title: "Eval suite invalid", detail: detail, statusCode: StatusCodes.Status400BadRequest);
 
     private static ProblemHttpResult SuiteNotFound(string name)
         => TypedResults.Problem(
-            title: "Eval takimi bulunamadi",
-            detail: $"'{name}' adinda bir eval takimi yok.",
+            title: "Eval suite not found",
+            detail: $"There is no eval suite named '{name}'.",
             statusCode: StatusCodes.Status404NotFound);
 
     private static ProblemHttpResult RunNotFound(Guid id)
         => TypedResults.Problem(
-            title: "Eval kosusu bulunamadi",
-            detail: $"'{id}' kimlikli bir eval kosusu yok.",
+            title: "Eval run not found",
+            detail: $"There is no eval run with id '{id}'.",
             statusCode: StatusCodes.Status404NotFound);
 
     // "Yok" ile "baska kiraciya ait" AYNI 404'u doner; ayri bir mesaj varlik
     // sizdirirdi (RunEndpoints.SaveFeedbackAsync ile ayni gerekce).
     private static ProblemHttpResult RunNotFoundForPromotion(Guid runId)
         => TypedResults.Problem(
-            title: "Calistirma bulunamadi",
-            detail: $"'{runId}' kimlikli bir calistirma yok.",
+            title: "Run not found",
+            detail: $"There is no run with id '{runId}'.",
             statusCode: StatusCodes.Status404NotFound);
 }

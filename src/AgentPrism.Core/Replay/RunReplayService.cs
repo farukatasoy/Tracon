@@ -98,7 +98,7 @@ public sealed class RunReplayService
         {
             return RunReplayPreparation.Failed(
                 RunReplayOutcome.RunNotFound,
-                $"'{runId}' kimlikli bir calistirma yok.");
+                $"There is no run with id '{runId}'.");
         }
 
         var input = await _inputs
@@ -109,9 +109,9 @@ public sealed class RunReplayService
         {
             return RunReplayPreparation.Failed(
                 RunReplayOutcome.InputNotFound,
-                $"'{runId}' kimlikli calistirmanin kayitli girdisi yok. Girdi kaydi kapaliyken " +
-                "(AgentPrism:RunRecording:RecordRunInput = false) baslamis veya saklama politikasiyla " +
-                "silinmis olabilir; bu calistirma yeniden oynatilamaz.");
+                $"Run '{runId}' has no recorded input. It may have started while input recording " +
+                "was disabled (AgentPrism:RunRecording:RecordRunInput = false), or been deleted by " +
+                "a retention policy; this run cannot be replayed.");
         }
 
         var definition = await ResolveDefinitionAsync(source.AgentName, request.AgentVersion, cancellationToken)
@@ -126,10 +126,10 @@ public sealed class RunReplayService
         {
             return RunReplayPreparation.Failed(
                 RunReplayOutcome.ApprovalRequired,
-                $"'{definition.Name}' agent'i onay gerektiren '{approvalTool}' tool'unu tasiyor ve " +
-                "'LiveTools' modunda calistirilamaz. Yeniden oynatma arka planda baslayabilir; onay " +
-                "istegi o anda cevaplayacak bir istemci bulamaz (ayni sinir alt agent'lar icin de " +
-                "gecerlidir). 'ReplayTools' veya 'NoTools' kullanin.");
+                $"Agent '{definition.Name}' carries the tool '{approvalTool}', which requires approval, " +
+                "and cannot run in 'LiveTools' mode. A replay may start in the background; the approval " +
+                "request would find no client to answer it at that moment (the same limit applies to " +
+                "sub-agents). Use 'ReplayTools' or 'NoTools'.");
         }
 
         var effective = ApplyOverrides(definition, request);
@@ -181,18 +181,18 @@ public sealed class RunReplayService
         {
             return RunReplayPreparation.Failed(
                 RunReplayOutcome.NotSupported,
-                $"'{source.AgentName}' agent'inin {request.AgentVersion} numarali surumu yok. " +
-                "Kodda tanimli agent'lar surum gecmisi tutmaz.");
+                $"Agent '{source.AgentName}' has no version {request.AgentVersion}. " +
+                "Code-defined agents have no version history.");
         }
 
         if (request.ModelId is not null || request.ToolMode != ReplayToolMode.LiveTools)
         {
             return RunReplayPreparation.Failed(
                 RunReplayOutcome.NotSupported,
-                $"'{source.AgentName}' agent'inin kalici bir tanimi yok (kodda tanimli veya silinmis). " +
-                "Model bindirmesi ve 'NoTools'/'ReplayTools' modlari tanimi yeniden derlemeyi gerektirir. " +
-                "Bu agent yalnizca 'toolMode: LiveTools' ile ve bindirmesiz oynatilabilir — tool'lar " +
-                "GERCEKTEN calisir ve yan etki uretir.");
+                $"Agent '{source.AgentName}' has no persistent definition (code-defined or deleted). " +
+                "Model overrides and 'NoTools'/'ReplayTools' modes require recompiling the definition. " +
+                "This agent can only be replayed with 'toolMode: LiveTools' and no override — tools " +
+                "ACTUALLY run and produce side effects.");
         }
 
         var agent = await _catalog.ResolveAsync(source.AgentName, cancellationToken).ConfigureAwait(false);
@@ -201,7 +201,7 @@ public sealed class RunReplayService
         {
             return RunReplayPreparation.Failed(
                 RunReplayOutcome.NotSupported,
-                $"'{source.AgentName}' adinda bir agent artik yok; calistirma yeniden oynatilamaz.");
+                $"There is no longer an agent named '{source.AgentName}'; the run cannot be replayed.");
         }
 
         // Katalog sarmalayicilari kendisi uygular; ikinci kez sarmalamak

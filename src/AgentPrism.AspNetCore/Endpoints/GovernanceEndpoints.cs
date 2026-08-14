@@ -49,12 +49,12 @@ internal static class GovernanceEndpoints
             {
                 if (coordinator is null)
                 {
-                    return OAuthCallbackPage("MCP OAuth kayitli degil.", success: false);
+                    return OAuthCallbackPage("MCP OAuth is not registered.", success: false);
                 }
 
                 if (string.IsNullOrEmpty(state))
                 {
-                    return OAuthCallbackPage("Gecersiz istek: durum degeri eksik.", success: false);
+                    return OAuthCallbackPage("Invalid request: the state value is missing.", success: false);
                 }
 
                 var result = await coordinator
@@ -63,7 +63,7 @@ internal static class GovernanceEndpoints
 
                 return result.Status == McpOAuthOperationStatus.Ok
                     ? OAuthCallbackPage(
-                        $"'{result.ServerName}' sunucusu icin yetkilendirme tamamlandi. Bu sekmeyi kapatabilirsiniz.",
+                        $"Authorization for server '{result.ServerName}' is complete. You can close this tab.",
                         success: true)
                     : OAuthCallbackPage(DescribeOAuthFailure(result), success: false);
             })
@@ -78,19 +78,19 @@ internal static class GovernanceEndpoints
     private static string DescribeOAuthFailure(McpOAuthCompleteResult result)
         => result.Status switch
         {
-            McpOAuthOperationStatus.InvalidState => "Yetkilendirme oturumu bulunamadi veya suresi doldu. Yeniden deneyin.",
-            McpOAuthOperationStatus.AuthorizationFailed => result.Error ?? "Yetkilendirme saglayici tarafindan reddedildi.",
-            _ => "Beklenmeyen bir hata olustu.",
+            McpOAuthOperationStatus.InvalidState => "The authorization session was not found or has expired. Try again.",
+            McpOAuthOperationStatus.AuthorizationFailed => result.Error ?? "Authorization was rejected by the provider.",
+            _ => "An unexpected error occurred.",
         };
 
     private static ContentHttpResult OAuthCallbackPage(string message, bool success)
         => TypedResults.Text(
             $$"""
             <!doctype html>
-            <html lang="tr">
+            <html lang="en">
             <head><meta charset="utf-8"><title>MCP OAuth</title></head>
             <body style="font-family: system-ui, sans-serif; padding: 2rem; max-width: 40rem; margin: 0 auto;">
-            <h1>{{(success ? "Yetkilendirme tamamlandi" : "Yetkilendirme basarisiz")}}</h1>
+            <h1>{{(success ? "Authorization complete" : "Authorization failed")}}</h1>
             <p>{{System.Net.WebUtility.HtmlEncode(message)}}</p>
             <script>if (window.opener) { window.close(); }</script>
             </body>
@@ -133,9 +133,9 @@ internal static class GovernanceEndpoints
                 if (!HttpTenantContext.IsValidTenantId(slug))
                 {
                     return TypedResults.Problem(
-                        title: "Kiraci anahtari gecersiz",
-                        detail: "Anahtar en fazla 64 karakter olmali ve yalnizca harf, rakam, " +
-                                "nokta, alt cizgi ve tire icermelidir.",
+                        title: "Tenant key invalid",
+                        detail: "The key must be at most 64 characters and contain only letters, " +
+                                "digits, dots, underscores, and hyphens.",
                         statusCode: StatusCodes.Status400BadRequest);
                 }
 
@@ -175,8 +175,8 @@ internal static class GovernanceEndpoints
                 => await tenants.DeleteAsync(slug, cancellationToken).ConfigureAwait(false)
                     ? TypedResults.NoContent()
                     : TypedResults.Problem(
-                        title: "Kiraci bulunamadi",
-                        detail: $"'{slug}' anahtarli bir kiraci kaydi yok.",
+                        title: "Tenant not found",
+                        detail: $"There is no tenant record with key '{slug}'.",
                         statusCode: StatusCodes.Status404NotFound))
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
@@ -268,8 +268,8 @@ internal static class GovernanceEndpoints
                 => await servers.DeleteAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false)
                     ? TypedResults.NoContent()
                     : TypedResults.Problem(
-                        title: "MCP sunucusu bulunamadi",
-                        detail: $"'{name}' adinda bir sunucu yok.",
+                        title: "MCP server not found",
+                        detail: $"There is no server named '{name}'.",
                         statusCode: StatusCodes.Status404NotFound))
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
@@ -288,8 +288,8 @@ internal static class GovernanceEndpoints
                 if (refresher is null)
                 {
                     return TypedResults.Problem(
-                        title: "MCP kayitli degil",
-                        detail: "Tool kesfi icin AgentPrism.Mcp paketini ekleyin ve UseMcp() cagirin.",
+                        title: "MCP not registered",
+                        detail: "Add the AgentPrism.Mcp package and call UseMcp() for tool discovery.",
                         statusCode: StatusCodes.Status501NotImplemented);
                 }
 
@@ -449,7 +449,7 @@ internal static class GovernanceEndpoints
                     McpOperationStatus.ServerNotFound => McpServerNotFoundProblem(name),
                     McpOperationStatus.CapabilityUnsupported => McpCapabilityUnsupportedProblem(name, "resources"),
                     McpOperationStatus.UriNotDeclared => McpUriNotDeclaredProblem(uri),
-                    McpOperationStatus.ItemNotFound => McpItemNotFoundProblem("Kaynak", uri),
+                    McpOperationStatus.ItemNotFound => McpItemNotFoundProblem("Resource", uri),
                     _ => McpConnectionFailedProblem(name),
                 };
             })
@@ -487,9 +487,9 @@ internal static class GovernanceEndpoints
                     }),
                     McpOAuthOperationStatus.ServerNotFound => McpServerNotFoundProblem(name),
                     McpOAuthOperationStatus.NotConfigured => TypedResults.Problem(
-                        title: "OAuth yapilandirilmamis",
-                        detail: "Sunucuda OAuth acik degil, akis Authorization Code degil veya " +
-                                "AgentPrism:Mcp:OAuthCallbackBaseUri ayarlanmamis.",
+                        title: "OAuth not configured",
+                        detail: "OAuth is not enabled on the server, the flow is not Authorization Code, " +
+                                "or AgentPrism:Mcp:OAuthCallbackBaseUri is not set.",
                         statusCode: StatusCodes.Status409Conflict),
                     _ => McpConnectionFailedProblem(name),
                 };
@@ -506,38 +506,38 @@ internal static class GovernanceEndpoints
 
     private static ProblemHttpResult McpNotRegisteredProblem()
         => TypedResults.Problem(
-            title: "MCP kayitli degil",
-            detail: "AgentPrism.Mcp paketini ekleyin ve UseMcp() cagirin.",
+            title: "MCP not registered",
+            detail: "Add the AgentPrism.Mcp package and call UseMcp().",
             statusCode: StatusCodes.Status501NotImplemented);
 
     private static ProblemHttpResult McpServerNotFoundProblem(string name)
         => TypedResults.Problem(
-            title: "MCP sunucusu bulunamadi",
-            detail: $"'{name}' adinda bir sunucu yok.",
+            title: "MCP server not found",
+            detail: $"There is no server named '{name}'.",
             statusCode: StatusCodes.Status404NotFound);
 
     private static ProblemHttpResult McpCapabilityUnsupportedProblem(string name, string capability)
         => TypedResults.Problem(
-            title: "Sunucu desteklemiyor",
-            detail: $"'{name}' sunucusu '{capability}' yetenegini bildirmiyor.",
+            title: "Server does not support this",
+            detail: $"Server '{name}' does not advertise the '{capability}' capability.",
             statusCode: StatusCodes.Status409Conflict);
 
     private static ProblemHttpResult McpConnectionFailedProblem(string name)
         => TypedResults.Problem(
-            title: "Sunucuya baglanilamadi",
-            detail: $"'{name}' sunucusuna ulasilamadi veya istek basarisiz oldu.",
+            title: "Could not connect to server",
+            detail: $"Server '{name}' could not be reached, or the request failed.",
             statusCode: StatusCodes.Status502BadGateway);
 
     private static ProblemHttpResult McpUriNotDeclaredProblem(string uri)
         => TypedResults.Problem(
-            title: "Kaynak bildirilmemis",
-            detail: $"'{uri}' bu sunucunun kaynak listesinde degil.",
+            title: "Resource not declared",
+            detail: $"'{uri}' is not in this server's resource list.",
             statusCode: StatusCodes.Status400BadRequest);
 
     private static ProblemHttpResult McpItemNotFoundProblem(string kind, string name)
         => TypedResults.Problem(
-            title: $"{kind} bulunamadi",
-            detail: $"'{name}' sunucuda yok.",
+            title: $"{kind} not found",
+            detail: $"'{name}' does not exist on the server.",
             statusCode: StatusCodes.Status404NotFound);
 
     private static void MapApprovalRules(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
@@ -561,8 +561,8 @@ internal static class GovernanceEndpoints
                 => await rules.DeleteAsync(tenants.TenantId, ruleId, cancellationToken).ConfigureAwait(false)
                     ? TypedResults.NoContent()
                     : TypedResults.Problem(
-                        title: "Kural bulunamadi",
-                        detail: $"'{ruleId}' kimlikli bir onay kurali yok.",
+                        title: "Rule not found",
+                        detail: $"There is no approval rule with id '{ruleId}'.",
                         statusCode: StatusCodes.Status404NotFound))
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
@@ -577,16 +577,16 @@ internal static class GovernanceEndpoints
         if (string.IsNullOrWhiteSpace(name))
         {
             return TypedResults.Problem(
-                title: "Sunucu adi bos",
-                detail: "Yoldaki ad zorunludur.",
+                title: "Server name empty",
+                detail: "The path name is required.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
         if (!Uri.TryCreate(request.Endpoint, UriKind.Absolute, out var endpoint))
         {
             return TypedResults.Problem(
-                title: "Adres gecersiz",
-                detail: "'endpoint' mutlak bir adres olmalidir.",
+                title: "Address invalid",
+                detail: "'endpoint' must be an absolute address.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -596,10 +596,10 @@ internal static class GovernanceEndpoints
             && !string.Equals(endpoint.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase))
         {
             return TypedResults.Problem(
-                title: "Adres semasi desteklenmiyor",
-                detail: "Yalnizca http ve https kabul edilir. Yerel surec (stdio) aktarimi " +
-                        "bilerek desteklenmez; sunucuda surec baslatmak tool'larin yalnizca " +
-                        "kodda tanimlanmasi kuralini bozar.",
+                title: "Address scheme not supported",
+                detail: "Only http and https are accepted. Local process (stdio) transport is " +
+                        "deliberately unsupported; starting a process on the server would break " +
+                        "the rule that tools are defined in code only.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -608,17 +608,17 @@ internal static class GovernanceEndpoints
             if (string.IsNullOrWhiteSpace(request.OAuthClientId))
             {
                 return TypedResults.Problem(
-                    title: "OAuth istemci kimligi eksik",
-                    detail: "'oauthClientId' OAuth acikken zorunludur.",
+                    title: "OAuth client id missing",
+                    detail: "'oauthClientId' is required when OAuth is enabled.",
                     statusCode: StatusCodes.Status400BadRequest);
             }
 
             if (!string.IsNullOrEmpty(request.AuthorizationConfigurationKey))
             {
                 return TypedResults.Problem(
-                    title: "Cakisan kimlik dogrulama",
-                    detail: "OAuth acikken 'authorizationConfigurationKey' bos olmalidir; ikisi ayni " +
-                            "Authorization basligini yonetmeye calisirdi.",
+                    title: "Conflicting authentication",
+                    detail: "'authorizationConfigurationKey' must be empty when OAuth is enabled; " +
+                            "both would try to manage the same Authorization header.",
                     statusCode: StatusCodes.Status400BadRequest);
             }
         }

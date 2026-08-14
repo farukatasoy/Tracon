@@ -70,7 +70,7 @@ internal sealed class WorkflowDefinitionCompiler
             WorkflowKind.Magentic => await BuildMagenticAsync(definition, participants, cancellationToken)
                 .ConfigureAwait(false),
             _ => throw new AgentPrismException(
-                $"'{definition.Name}' workflow'u bilinmeyen bir desen kullaniyor: '{definition.Kind}'."),
+                $"Workflow '{definition.Name}' uses an unknown pattern: '{definition.Kind}'."),
         };
     }
 
@@ -186,8 +186,8 @@ internal sealed class WorkflowDefinitionCompiler
             if (!known.Contains(info.Name))
             {
                 throw new AgentPrismException(
-                    $"'{workflowName}' workflow'u '{info.Name}' agent'ini kullaniyor ancak boyle bir agent " +
-                    "katalogda yok. Once agent'i tanimlayin, sonra workflow'u kaydedin.");
+                    $"Workflow '{workflowName}' uses agent '{info.Name}', but no such agent exists in " +
+                    "the catalog. Define the agent first, then register the workflow.");
             }
 
             agents.Add(Wrap(workflowName, info));

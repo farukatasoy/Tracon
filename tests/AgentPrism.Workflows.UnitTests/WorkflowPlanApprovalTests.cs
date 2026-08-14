@@ -217,6 +217,6 @@ public sealed class WorkflowPlanApprovalTests
 
         failure.Type.ShouldBe(RunEventType.RunFailed);
         failure.Text.ShouldNotBeNull();
-        failure.Text!.ShouldContain("duzeltme", Case.Sensitive);
+        failure.Text!.ShouldContain("revision text", Case.Sensitive);
     }
 }

@@ -174,10 +174,9 @@ internal static class WorkflowEndpoints
         if (runner is not null && await runner.GetAsync(name, cancellationToken).ConfigureAwait(false) is not null)
         {
             return TypedResults.Problem(
-                title: "Duzenlenebilir tanim yok",
-                detail: $"'{name}' kodda tanimli bir workflow'dur (AddWorkflow). Listelenir ve " +
-                        "calistirilabilir ama veritabaninda duzenlenebilir bir WorkflowDefinition " +
-                        "tasimaz.",
+                title: "No editable definition",
+                detail: $"'{name}' is a workflow defined in code (AddWorkflow). It is listed and " +
+                        "can be run, but does not carry an editable WorkflowDefinition in the database.",
                 statusCode: StatusCodes.Status404NotFound);
         }
 
@@ -208,7 +207,7 @@ internal static class WorkflowEndpoints
             // Gecersiz bir tanim ya da katalogda olmayan bir agent: kullanicinin
             // duzeltebilecegi bir hatadir, sunucu hatasi degil.
             return TypedResults.Problem(
-                title: "Workflow grafi cikarilamadi",
+                title: "Workflow graph could not be extracted",
                 detail: exception.Message,
                 statusCode: StatusCodes.Status400BadRequest);
         }
@@ -254,7 +253,7 @@ internal static class WorkflowEndpoints
         if (WorkflowDefinitionValidator.Validate(definition) is { } message)
         {
             return TypedResults.Problem(
-                title: "Workflow tanimi gecersiz",
+                title: "Workflow definition invalid",
                 detail: message,
                 statusCode: StatusCodes.Status400BadRequest);
         }
@@ -406,7 +405,7 @@ internal static class WorkflowEndpoints
             // Kiraci eslesmemesi de buraya duser ve "bulunamadi" olarak yanitlanir;
             // baska bir kiracinin calistirmasinin varligi sizdirilmaz.
             return TypedResults.Problem(
-                title: "Calistirma bulunamadi",
+                title: "Run not found",
                 detail: exception.Message,
                 statusCode: StatusCodes.Status404NotFound);
         }
@@ -435,8 +434,8 @@ internal static class WorkflowEndpoints
         if (request is null || string.IsNullOrWhiteSpace(request.RequestId))
         {
             return TypedResults.Problem(
-                title: "Yanit gecersiz",
-                detail: "'requestId' alani zorunludur.",
+                title: "Response invalid",
+                detail: "'requestId' is required.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -476,20 +475,20 @@ internal static class WorkflowEndpoints
 
     private static ProblemHttpResult NotRegistered()
         => TypedResults.Problem(
-            title: "Workflow motoru kayitli degil",
-            detail: "Workflow calistirmak icin AgentPrism.Workflows paketini ekleyin ve UseWorkflows() cagirin.",
+            title: "Workflow engine not registered",
+            detail: "Add the AgentPrism.Workflows package and call UseWorkflows() to run workflows.",
             statusCode: StatusCodes.Status501NotImplemented);
 
     private static ProblemHttpResult NotFound(string name)
         => TypedResults.Problem(
-            title: "Workflow bulunamadi",
-            detail: $"'{name}' adinda bir workflow yok.",
+            title: "Workflow not found",
+            detail: $"There is no workflow named '{name}'.",
             statusCode: StatusCodes.Status404NotFound);
 
     private static ProblemHttpResult RunNotFound(Guid runId)
         => TypedResults.Problem(
-            title: "Calistirma bulunamadi",
-            detail: $"'{runId}' kimlikli calistirma yok.",
+            title: "Run not found",
+            detail: $"There is no run with id '{runId}'.",
             statusCode: StatusCodes.Status404NotFound);
 
     /// <summary>

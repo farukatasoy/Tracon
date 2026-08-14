@@ -94,12 +94,12 @@ internal static class QuotaEndpoints
 
         if (request.MaxRuns is null && request.MaxTokens is null && request.MaxCost is null)
         {
-            return Invalid("En az bir sinir ('maxRuns', 'maxTokens' veya 'maxCost') verilmelidir.");
+            return Invalid("At least one limit ('maxRuns', 'maxTokens', or 'maxCost') must be given.");
         }
 
         if (request.MaxRuns is < 0 || request.MaxTokens is < 0 || request.MaxCost is < 0)
         {
-            return Invalid("Sinir degerleri negatif olamaz.");
+            return Invalid("Limit values cannot be negative.");
         }
 
         var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
@@ -155,8 +155,8 @@ internal static class QuotaEndpoints
         if (existing is null)
         {
             return TypedResults.Problem(
-                title: "Kota bulunamadi",
-                detail: $"'{id}' kimlikli bir kota kurali yok.",
+                title: "Quota not found",
+                detail: $"There is no quota rule with id '{id}'.",
                 statusCode: StatusCodes.Status404NotFound);
         }
 
@@ -277,7 +277,7 @@ internal static class QuotaEndpoints
 
     private static ProblemHttpResult Invalid(string detail)
         => TypedResults.Problem(
-            title: "Gecersiz kota",
+            title: "Quota invalid",
             detail: detail,
             statusCode: StatusCodes.Status400BadRequest);
 }

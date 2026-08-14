@@ -31,18 +31,18 @@ public static class WorkflowDefinitionValidator
 
         if (string.IsNullOrWhiteSpace(definition.Name))
         {
-            return "Workflow tanimin 'name' alani zorunludur.";
+            return "The workflow definition's 'name' field is required.";
         }
 
         if (!Enum.IsDefined(definition.Kind))
         {
-            return $"'{definition.Name}' workflow'u bilinmeyen bir desen kullaniyor: '{definition.Kind}'.";
+            return $"Workflow '{definition.Name}' uses an unknown pattern: '{definition.Kind}'.";
         }
 
         if (definition.AgentNames.Count == 0)
         {
-            return $"'{definition.Name}' workflow'u hicbir agent icermiyor. " +
-                   "'agentNames' en az bir ad tasimalidir.";
+            return $"Workflow '{definition.Name}' has no agents. " +
+                   "'agentNames' must carry at least one name.";
         }
 
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -51,7 +51,7 @@ public static class WorkflowDefinitionValidator
         {
             if (string.IsNullOrWhiteSpace(agentName))
             {
-                return $"'{definition.Name}' workflow'unun agent listesinde bos bir ad var.";
+                return $"Workflow '{definition.Name}' has an empty name in its agent list.";
             }
 
             // Tekrar eden ad bilerek reddedilir. Microsoft Agent Framework
@@ -60,31 +60,31 @@ public static class WorkflowDefinitionValidator
             // uretirdi. Bir rol tekrarlaniyorsa ikinci bir agent tanimlanmalidir.
             if (!seen.Add(agentName))
             {
-                return $"'{definition.Name}' workflow'unda '{agentName}' agent'i birden fazla kez geciyor. " +
-                       "Bir workflow'un agent listesi tekrarsiz olmalidir; ayni rol iki kez gerekiyorsa " +
-                       "ikinci bir agent tanimlayin.";
+                return $"Agent '{agentName}' appears more than once in workflow '{definition.Name}'. " +
+                       "A workflow's agent list must have no duplicates; define a second agent if the " +
+                       "same role is needed twice.";
             }
         }
 
         if (definition.Kind is WorkflowKind.Concurrent or WorkflowKind.Handoff or WorkflowKind.GroupChat &&
             definition.AgentNames.Count < 2)
         {
-            return $"'{definition.Name}' workflow'u '{definition.Kind}' desenini kullaniyor ve en az iki agent " +
-                   $"ister; listede {definition.AgentNames.Count} ad var.";
+            return $"Workflow '{definition.Name}' uses the '{definition.Kind}' pattern, which requires " +
+                   $"at least two agents; the list has {definition.AgentNames.Count}.";
         }
 
         if (definition.Kind == WorkflowKind.Magentic)
         {
             if (string.IsNullOrWhiteSpace(definition.ManagerAgentName))
             {
-                return $"'{definition.Name}' workflow'u 'Magentic' desenini kullaniyor ve 'managerAgentName' " +
-                       "zorunludur. Yonetici agent plani kurar, ilerlemeyi izler ve gerektiginde yeniden planlar.";
+                return $"Workflow '{definition.Name}' uses the 'Magentic' pattern, and 'managerAgentName' " +
+                       "is required. The manager agent builds the plan, tracks progress, and replans as needed.";
             }
 
             if (seen.Contains(definition.ManagerAgentName))
             {
-                return $"'{definition.Name}' workflow'unda '{definition.ManagerAgentName}' hem yonetici hem " +
-                       "katilimci olarak geciyor. Yonetici, katilimcilari yonlendirir; kendini yonlendiremez.";
+                return $"In workflow '{definition.Name}', '{definition.ManagerAgentName}' appears as both " +
+                       "manager and participant. The manager directs participants; it cannot direct itself.";
             }
         }
 
@@ -93,15 +93,15 @@ public static class WorkflowDefinitionValidator
         // sey bekliyor demektir ve sessizce yok saymak yaniltir.
         else if (!string.IsNullOrWhiteSpace(definition.ManagerAgentName))
         {
-            return $"'{definition.Name}' workflow'u '{definition.Kind}' deseninde 'managerAgentName' kullanmaz. " +
-                   "Bu alan yalnizca 'Magentic' desenine aittir; 'GroupChat' sirayi kod tarafindaki " +
-                   "round-robin yoneticisiyle dagitir.";
+            return $"Workflow '{definition.Name}' does not use 'managerAgentName' in the " +
+                   $"'{definition.Kind}' pattern. This field belongs only to the 'Magentic' pattern; " +
+                   "'GroupChat' distributes turn order with a round-robin manager on the code side.";
         }
 
         if (definition.Kind != WorkflowKind.Handoff && !string.IsNullOrWhiteSpace(definition.HandoffInstructions))
         {
-            return $"'{definition.Name}' workflow'u '{definition.Kind}' deseninde 'handoffInstructions' " +
-                   "kullanmaz. Bu alan yalnizca 'Handoff' desenine aittir.";
+            return $"Workflow '{definition.Name}' does not use 'handoffInstructions' in the " +
+                   $"'{definition.Kind}' pattern. This field belongs only to the 'Handoff' pattern.";
         }
 
         // Plan onayi yalnizca Magentic'in kavramidir: yonetici agent'in kurdugu
@@ -110,14 +110,14 @@ public static class WorkflowDefinitionValidator
         // olusmadigini gizlerdi - managerAgentName ile ayni kural.
         if (definition.RequirePlanApproval && definition.Kind != WorkflowKind.Magentic)
         {
-            return $"'{definition.Name}' workflow'u '{definition.Kind}' deseninde 'requirePlanApproval' " +
-                   "kullanmaz. Plan onayi yalnizca 'Magentic' desenine aittir; plani kuran yonetici " +
-                   "agent yalnizca o desende bulunur.";
+            return $"Workflow '{definition.Name}' does not use 'requirePlanApproval' in the " +
+                   $"'{definition.Kind}' pattern. Plan approval belongs only to the 'Magentic' pattern; " +
+                   "the manager agent that builds a plan exists only in that pattern.";
         }
 
         if (definition.MaxIterations is <= 0)
         {
-            return $"'{definition.Name}' workflow'unun 'maxIterations' degeri pozitif olmalidir.";
+            return $"Workflow '{definition.Name}''s 'maxIterations' value must be positive.";
         }
 
         return null;

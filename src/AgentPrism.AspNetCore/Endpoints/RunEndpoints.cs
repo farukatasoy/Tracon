@@ -277,9 +277,9 @@ internal static class RunEndpoints
         if (input is null)
         {
             return TypedResults.Problem(
-                title: "Girdi kaydi yok",
-                detail: $"'{runId}' kimlikli calistirmanin kayitli girdisi yok. Girdi kaydi kapaliyken " +
-                        "baslamis veya saklama politikasiyla silinmis olabilir.",
+                title: "No recorded input",
+                detail: $"Run '{runId}' has no recorded input. It may have started while input " +
+                        "recording was disabled, or been deleted by a retention policy.",
                 statusCode: StatusCodes.Status404NotFound);
         }
 
@@ -445,10 +445,10 @@ internal static class RunEndpoints
             if (!authorized.Succeeded)
             {
                 return Results.Problem(
-                    title: "Yetki yetersiz",
-                    detail: "'LiveTools' modu tool'lari GERCEKTEN calistirir ve yan etki uretir; " +
-                            "Admin rolu gerekir. Yan etkisiz bir tekrar icin 'ReplayTools' veya " +
-                            "'NoTools' kullanin.",
+                    title: "Insufficient permission",
+                    detail: "'LiveTools' mode ACTUALLY runs tools and produces side effects; " +
+                            "the Admin role is required. Use 'ReplayTools' or 'NoTools' for a " +
+                            "side-effect-free replay.",
                     statusCode: StatusCodes.Status403Forbidden);
             }
         }
@@ -460,19 +460,19 @@ internal static class RunEndpoints
             return preparation.Outcome switch
             {
                 RunReplayOutcome.RunNotFound => Results.Problem(
-                    title: "Calistirma bulunamadi",
+                    title: "Run not found",
                     detail: preparation.Detail,
                     statusCode: StatusCodes.Status404NotFound),
                 RunReplayOutcome.InputNotFound => Results.Problem(
-                    title: "Girdi kaydi yok",
+                    title: "No recorded input",
                     detail: preparation.Detail,
                     statusCode: StatusCodes.Status404NotFound),
                 RunReplayOutcome.ApprovalRequired => Results.Problem(
-                    title: "Onay gerektiren tool canli calistirilamaz",
+                    title: "A tool requiring approval cannot run live",
                     detail: preparation.Detail,
                     statusCode: StatusCodes.Status409Conflict),
                 _ => Results.Problem(
-                    title: "Yeniden oynatma desteklenmiyor",
+                    title: "Replay not supported",
                     detail: preparation.Detail,
                     statusCode: StatusCodes.Status400BadRequest),
             };
@@ -522,7 +522,7 @@ internal static class RunEndpoints
             // modelin goremedigi bir bosluk, canli calistirmak istenmeyen bir
             // yan etki uretirdi (Faz 47, Acik Soru 3).
             return Results.Problem(
-                title: "Kayitli tool sonucu bulunamadi",
+                title: "Recorded tool result not found",
                 detail: ex.Message,
                 statusCode: StatusCodes.Status422UnprocessableEntity,
                 extensions: new Dictionary<string, object?>(StringComparer.Ordinal)
@@ -548,7 +548,7 @@ internal static class RunEndpoints
             // yakalar ve satiri Failed yazar); burada yapilacak tek is hatayi
             // istemciye anlasilir bir durum koduyla cevirmektir.
             return Results.Problem(
-                title: "Yeniden oynatma basarisiz",
+                title: "Replay failed",
                 detail: ex.Message,
                 statusCode: StatusCodes.Status502BadGateway);
         }
@@ -579,12 +579,12 @@ internal static class RunEndpoints
 
         if (request.Kind == RunScoreKind.Binary && request.Value is not (0 or 1))
         {
-            return InvalidFeedback("Ikili puan ('binary') yalniz 0 veya 1 olabilir.");
+            return InvalidFeedback("A binary score ('binary') can only be 0 or 1.");
         }
 
         if (request.Kind == RunScoreKind.Stars && request.Value is < 1 or > 5)
         {
-            return InvalidFeedback("Yildiz puani ('stars') 1 ile 5 arasinda olmalidir.");
+            return InvalidFeedback("A star score ('stars') must be between 1 and 5.");
         }
 
         var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
@@ -676,8 +676,8 @@ internal static class RunEndpoints
             if (!await jobs.CancelAsync(tenants.TenantId, runId, cancellationToken).ConfigureAwait(false))
             {
                 return TypedResults.Problem(
-                    title: "Calistirma zaten sonlanmis",
-                    detail: $"'{runId}' kimlikli calistirma zaten '{run.Status}' durumunda.",
+                    title: "Run already ended",
+                    detail: $"Run '{runId}' is already in status '{run.Status}'.",
                     statusCode: StatusCodes.Status409Conflict);
             }
 
@@ -713,13 +713,13 @@ internal static class RunEndpoints
         {
             return run.Status == RunStatus.Running
                 ? TypedResults.Problem(
-                    title: "Calistirma bu ornekte yurutulmuyor",
-                    detail: $"'{runId}' kimlikli calistirma 'Running' gorunuyor ama bu surecte kayitli degil. " +
-                            "Baska bir ornekte calisiyor olabilir veya surec calistirma sirasinda yeniden baslamis olabilir.",
+                    title: "Run is not executing on this instance",
+                    detail: $"Run '{runId}' shows as 'Running' but is not registered in this process. " +
+                            "It may be running on a different instance, or the process may have restarted mid-run.",
                     statusCode: StatusCodes.Status409Conflict)
                 : TypedResults.Problem(
-                    title: "Calistirma zaten sonlanmis",
-                    detail: $"'{runId}' kimlikli calistirma zaten '{run.Status}' durumunda.",
+                    title: "Run already ended",
+                    detail: $"Run '{runId}' is already in status '{run.Status}'.",
                     statusCode: StatusCodes.Status409Conflict);
         }
 
@@ -780,8 +780,8 @@ internal static class RunEndpoints
         if (!await scores.DeleteAsync(tenants.TenantId, scoreId, cancellationToken).ConfigureAwait(false))
         {
             return TypedResults.Problem(
-                title: "Puan bulunamadi",
-                detail: $"'{scoreId}' kimlikli bir puan yok.",
+                title: "Score not found",
+                detail: $"There is no score with id '{scoreId}'.",
                 statusCode: StatusCodes.Status404NotFound);
         }
 
@@ -801,7 +801,7 @@ internal static class RunEndpoints
 
     private static ProblemHttpResult InvalidFeedback(string detail)
         => TypedResults.Problem(
-            title: "Gecersiz puan",
+            title: "Score invalid",
             detail: detail,
             statusCode: StatusCodes.Status400BadRequest);
 
@@ -809,8 +809,8 @@ internal static class RunEndpoints
 
     private static ProblemHttpResult NotFound(Guid runId)
         => TypedResults.Problem(
-            title: "Calistirma bulunamadi",
-            detail: $"'{runId}' kimlikli bir calistirma yok.",
+            title: "Run not found",
+            detail: $"There is no run with id '{runId}'.",
             statusCode: StatusCodes.Status404NotFound);
 
     /// <summary>
@@ -872,7 +872,7 @@ internal static class RunEndpoints
 
                     if (!wroteAny)
                     {
-                        await writer.WriteKeepAliveAsync("bekleniyor", cancellationToken).ConfigureAwait(false);
+                        await writer.WriteKeepAliveAsync("waiting", cancellationToken).ConfigureAwait(false);
                     }
 
                     await Task.Delay(pollInterval, cancellationToken).ConfigureAwait(false);

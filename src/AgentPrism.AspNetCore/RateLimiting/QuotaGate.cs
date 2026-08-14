@@ -63,8 +63,8 @@ internal static class QuotaGate
         }
 
         return Results.Problem(
-            title: "Kota asildi",
-            detail: decision.Reason ?? "Bu kiraci icin tanimli kota asildi.",
+            title: "Quota exceeded",
+            detail: decision.Reason ?? "The quota defined for this tenant has been exceeded.",
             statusCode: StatusCodes.Status429TooManyRequests,
             extensions: BuildExtensions(decision));
     }

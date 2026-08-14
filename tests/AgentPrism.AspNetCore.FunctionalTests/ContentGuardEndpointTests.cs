@@ -32,7 +32,7 @@ public sealed class ContentGuardEndpointTests
 
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken);
 
-        problem.GetProperty("title").GetString().ShouldBe("Icerik engellendi");
+        problem.GetProperty("title").GetString().ShouldBe("Content blocked");
         problem.GetProperty("errorType").GetString().ShouldBe("content_blocked");
         problem.GetProperty("guard").GetString().ShouldBe("pattern");
         problem.GetProperty("rule").GetString().ShouldBe("denied-term");

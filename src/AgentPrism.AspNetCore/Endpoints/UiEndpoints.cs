@@ -81,7 +81,7 @@ internal static class UiEndpoints
 
     private static IResult NotFound(string path)
         => Results.Problem(
-            title: "Bulunamadi",
-            detail: $"'{path}' yolunda bir uc veya arayuz varligi yok.",
+            title: "Not found",
+            detail: $"There is no endpoint or console asset at path '{path}'.",
             statusCode: StatusCodes.Status404NotFound);
 }

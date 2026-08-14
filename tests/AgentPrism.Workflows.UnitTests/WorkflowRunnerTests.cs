@@ -184,8 +184,8 @@ public sealed class WorkflowRunnerTests
 
         // Mesaj "yetkisiz" demez: baska bir kiracinin calistirmasinin VAR OLDUGU
         // bilgisi bile sizdirilmaz.
-        exception.Message.ShouldContain("bulunamadi", Case.Sensitive);
-        exception.Message.ShouldNotContain("yetki", Case.Sensitive);
+        exception.Message.ShouldContain("There is no run", Case.Sensitive);
+        exception.Message.ShouldNotContain("permission", Case.Sensitive);
     }
 
     [Fact]
@@ -202,7 +202,7 @@ public sealed class WorkflowRunnerTests
             .Single(record => record.Kind == RunKind.Workflow);
 
         run.Status.ShouldBe(RunStatus.Failed);
-        run.Error!.Message.ShouldContain("'olmayan' adinda bir workflow yok", Case.Sensitive);
+        run.Error!.Message.ShouldContain("There is no workflow named 'olmayan'", Case.Sensitive);
     }
 
     [Fact]

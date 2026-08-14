@@ -42,9 +42,9 @@ public static class RunTimeSeriesBucketing
         }
 
         var suggestion = bucket == TimeSeriesBucket.Hour
-            ? " Onerilen kova: day."
-            : " Araligi daraltin.";
+            ? " Suggested bucket: day."
+            : " Narrow the range.";
         throw new AgentPrismException(
-            $"Istenen aralik {count} kova uretir, en fazla {MaxBuckets} kovaya izin verilir.{suggestion}");
+            $"The requested range produces {count} buckets; at most {MaxBuckets} are allowed.{suggestion}");
     }
 }

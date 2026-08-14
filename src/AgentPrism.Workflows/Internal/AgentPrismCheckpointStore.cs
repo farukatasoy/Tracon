@@ -86,7 +86,7 @@ internal sealed class AgentPrismCheckpointStore : ICheckpointStore<JsonElement>
         // Mesajda kiracidan soz EDILMEZ: baska bir kiracinin kontrol noktasinin
         // var oldugu bilgisi de sizdirilmamalidir.
         return state ?? throw new AgentPrismException(
-            $"'{key.CheckpointId}' kontrol noktasi bulunamadi.");
+            $"Checkpoint '{key.CheckpointId}' was not found.");
     }
 
     /// <inheritdoc />

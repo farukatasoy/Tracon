@@ -83,7 +83,7 @@ internal static class CatalogToolCallHandler
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return Error($"'{agentName}' calistirilamadi: {ex.Message}");
+            return Error($"'{agentName}' could not be run: {ex.Message}");
         }
 
         // Defans katmani: acilis denetimi (ExternalSurfaceGuard) onayli tool tasiyan
@@ -93,8 +93,8 @@ internal static class CatalogToolCallHandler
         if (ChildRunApproval.Describe(response.Messages) is { } pending)
         {
             return Error(
-                $"'{agentName}' agent'i tamamlanamadi: '{pending}' tool'u kullanici onayi istiyor. " +
-                "Dis cagiran bir agent onay isteğine cevap veremez.");
+                $"Agent '{agentName}' could not complete: tool '{pending}' requires user approval. " +
+                "An externally-invoked agent cannot respond to an approval request.");
         }
 
         await ExternalCallAudit.WriteAsync(services, "mcp", agentName, runOptions.RunId!.Value, cancellationToken)

@@ -53,7 +53,7 @@ public sealed class RateLimitTests
         blocked.Headers.RetryAfter.ShouldNotBeNull();
 
         var problem = await AgentPrismTestHost.ReadJsonAsync(blocked);
-        problem.GetProperty("title").GetString().ShouldBe("Hiz siniri asildi");
+        problem.GetProperty("title").GetString().ShouldBe("Rate limit exceeded");
     }
 
     [Fact]

@@ -143,7 +143,7 @@ public sealed class QuotaEndpointTests
         response.Headers.RetryAfter.ShouldNotBeNull();
 
         var problem = await AgentPrismTestHost.ReadJsonAsync(response);
-        problem.GetProperty("title").GetString().ShouldBe("Kota asildi");
+        problem.GetProperty("title").GetString().ShouldBe("Quota exceeded");
         problem.GetProperty("quotaMetric").GetString().ShouldBe("Runs");
         problem.GetProperty("quotaPeriod").GetString().ShouldBe("Daily");
         problem.GetProperty("quotaLimit").GetDecimal().ShouldBe(1);

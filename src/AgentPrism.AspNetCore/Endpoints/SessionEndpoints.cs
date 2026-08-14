@@ -112,19 +112,19 @@ internal static class SessionEndpoints
             return outcome.Status switch
             {
                 SessionBranchStatus.NotSupported => TypedResults.Problem(
-                    title: "Dallandirma desteklenmiyor",
+                    title: "Branching not supported",
                     detail: outcome.Detail,
                     statusCode: StatusCodes.Status501NotImplemented),
                 SessionBranchStatus.SessionNotFound or SessionBranchStatus.AgentNotFound => TypedResults.Problem(
-                    title: "Oturum bulunamadi",
+                    title: "Session not found",
                     detail: outcome.Detail,
                     statusCode: StatusCodes.Status404NotFound),
                 SessionBranchStatus.SessionExists => TypedResults.Problem(
-                    title: "Oturum kimligi kullanimda",
+                    title: "Session id in use",
                     detail: outcome.Detail,
                     statusCode: StatusCodes.Status409Conflict),
                 _ => TypedResults.Problem(
-                    title: "Dallandirilamadi",
+                    title: "Could not branch",
                     detail: outcome.Detail,
                     statusCode: StatusCodes.Status400BadRequest),
             };
@@ -159,8 +159,8 @@ internal static class SessionEndpoints
         if (record is null)
         {
             return TypedResults.Problem(
-                title: "Oturum bulunamadi",
-                detail: $"'{sessionId}' kimlikli bir oturum yok.",
+                title: "Session not found",
+                detail: $"There is no session with id '{sessionId}'.",
                 statusCode: StatusCodes.Status404NotFound);
         }
 
@@ -202,8 +202,8 @@ internal static class SessionEndpoints
         if (!await sessions.DeleteSessionAsync(sessionId, cancellationToken).ConfigureAwait(false))
         {
             return TypedResults.Problem(
-                title: "Oturum bulunamadi",
-                detail: $"'{sessionId}' kimlikli bir oturum yok.",
+                title: "Session not found",
+                detail: $"There is no session with id '{sessionId}'.",
                 statusCode: StatusCodes.Status404NotFound);
         }
 

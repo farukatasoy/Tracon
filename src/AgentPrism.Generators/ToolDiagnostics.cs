@@ -9,56 +9,56 @@ internal static class ToolDiagnostics
 
     public static readonly DiagnosticDescriptor DuplicateName = new(
         "APG0001",
-        "Tool adi cakismasi",
-        "'{0}' tool adi birden fazla metotta kullanilmis: {1}. Her tool adi derleme icinde tek olmalidir.",
+        "Tool name conflict",
+        "Tool name '{0}' is used on more than one method: {1}. Each tool name must be unique within the compilation.",
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     public static readonly DiagnosticDescriptor InvalidName = new(
         "APG0002",
-        "Gecersiz tool adi",
-        "'{0}' metodunun tool adi '{1}' gecersiz. Tool adi 1-64 karakter olmali ve yalnizca harf, rakam, '_' veya '-' icermelidir.",
+        "Invalid tool name",
+        "Method '{0}' has tool name '{1}', which is invalid. A tool name must be 1-64 characters and contain only letters, digits, '_', or '-'.",
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     public static readonly DiagnosticDescriptor UnsupportedParameterType = new(
         "APG0003",
-        "Desteklenmeyen parametre tipi",
-        "'{0}' metodunun '{1}' parametresi ('{2}' tipi) ureteç tarafindan desteklenmiyor. Desteklenen tipler: ilkel tipler, string, Guid, DateTime(Offset), enum, bunlarin dizisi/IReadOnlyList<T>'i ve CancellationToken. Baska bir tip icin 'AddTool(AIFunctionFactory.Create(...))' ile elle kaydedin.",
+        "Unsupported parameter type",
+        "Parameter '{1}' (type '{2}') of method '{0}' is not supported by the generator. Supported types: primitive types, string, Guid, DateTime(Offset), enum, arrays/IReadOnlyList<T> of these, and CancellationToken. For another type, register manually with 'AddTool(AIFunctionFactory.Create(...))'.",
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     public static readonly DiagnosticDescriptor GenericMethod = new(
         "APG0004",
-        "Generic metot tool olamaz",
-        "'{0}' metodu [AgentPrismTool] ile isaretli ancak generic. Tool metotlari generic olamaz; somut bir sarmalayici metot yazin.",
+        "A generic method cannot be a tool",
+        "Method '{0}' is marked with [AgentPrismTool] but is generic. Tool methods cannot be generic; write a concrete wrapper method.",
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     public static readonly DiagnosticDescriptor NoToolsFound = new(
         "APG0005",
-        "Isaretli tool metodu yok",
-        "'AddGeneratedTools()' cagrildi ancak bu derlemede [AgentPrismTool] ile isaretli metot yok. Tool metotlarini isaretleyin veya bu cagriyi kaldirin.",
+        "No marked tool method",
+        "'AddGeneratedTools()' was called, but this compilation has no method marked with [AgentPrismTool]. Mark tool methods, or remove this call.",
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     public static readonly DiagnosticDescriptor MissingDescription = new(
         "APG0006",
-        "Tool aciklamasi eksik",
-        "'{0}' tool'unun aciklamasi yok. Model tool'u ne zaman cagiracagini aciklamadan bilemez; [AgentPrismTool] icin bir aciklama verin.",
+        "Tool description missing",
+        "Tool '{0}' has no description. The model cannot know when to call the tool without one; give a description for [AgentPrismTool].",
         Category,
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
     public static readonly DiagnosticDescriptor InstanceMethod = new(
         "APG0007",
-        "Ornek metodu tool olamaz",
-        "'{0}' bir ornek metodudur ve tool olamaz. MAF, AIFunctionArguments.Services olarak bos bir saglayici gecirir (karar K-218). Metodu 'static' yapin veya tool'u kurulum aninda ornekleyip 'AddTool(AIFunctionFactory.Create(...))' ile kaydedin.",
+        "An instance method cannot be a tool",
+        "'{0}' is an instance method and cannot be a tool. MAF passes an empty provider as AIFunctionArguments.Services (decision K-218). Make the method 'static', or instantiate the tool at setup time and register it with 'AddTool(AIFunctionFactory.Create(...))'.",
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);

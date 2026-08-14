@@ -238,14 +238,14 @@ internal static class ApprovalEndpoints
 
     private static ProblemHttpResult NotFound(Guid id)
         => TypedResults.Problem(
-            title: "Onay istegi bulunamadi",
-            detail: $"'{id}' kimlikli bir bekleyen onay istegi yok veya bu kiraciya ait degil.",
+            title: "Approval request not found",
+            detail: $"There is no pending approval request with id '{id}', or it does not belong to this tenant.",
             statusCode: StatusCodes.Status404NotFound);
 
     private static ProblemHttpResult AlreadyDecided(Guid id)
         => TypedResults.Problem(
-            title: "Karar zaten verilmis",
-            detail: $"'{id}' kimlikli onay istegi artik bekliyor durumunda degil.",
+            title: "Decision already made",
+            detail: $"The approval request with id '{id}' is no longer pending.",
             statusCode: StatusCodes.Status409Conflict);
 }
 

@@ -110,7 +110,7 @@ internal static class OpenAIResponsesEndpoints
         }
         catch (JsonException ex)
         {
-            return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, $"Govde cozumlenemedi: {ex.Message}");
+            return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, $"Body could not be parsed: {ex.Message}");
         }
 
         var agentName = OpenAICompatSupport.ReadAgentName(body);
@@ -119,8 +119,8 @@ internal static class OpenAIResponsesEndpoints
         {
             return OpenAICompatSupport.Error(
                 StatusCodes.Status400BadRequest,
-                "Agent secilmedi. 'model' alanina agent adini yazin veya " +
-                $"'metadata.{OpenAICompatSupport.EntityIdKey}' kullanin. " +
+                "No agent selected. Put the agent name in the 'model' field, or use " +
+                $"'metadata.{OpenAICompatSupport.EntityIdKey}'. " +
                 await KnownAgentsAsync(catalog, cancellationToken).ConfigureAwait(false));
         }
 
@@ -139,7 +139,7 @@ internal static class OpenAIResponsesEndpoints
         {
             return OpenAICompatSupport.Error(
                 StatusCodes.Status404NotFound,
-                $"'{agentName}' adinda bir agent yok. " +
+                $"There is no agent named '{agentName}'. " +
                 await KnownAgentsAsync(catalog, cancellationToken).ConfigureAwait(false),
                 type: "model_not_found");
         }
@@ -152,7 +152,7 @@ internal static class OpenAIResponsesEndpoints
         }
         catch (Exception ex) when (ex is JsonException or ArgumentException or InvalidOperationException or NotSupportedException)
         {
-            return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, $"Istek cozumlenemedi: {ex.Message}");
+            return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, $"Request could not be parsed: {ex.Message}");
         }
 
         var responseId = OpenAIResponses.CreateResponseId();
@@ -171,7 +171,7 @@ internal static class OpenAIResponsesEndpoints
         {
             return OpenAICompatSupport.Error(
                 StatusCodes.Status404NotFound,
-                $"'{loadId}' bulunamadi.",
+                $"'{loadId}' was not found.",
                 type: "not_found_error");
         }
 
@@ -237,8 +237,8 @@ internal static class OpenAIResponsesEndpoints
         var descriptors = await catalog.ListAsync(cancellationToken).ConfigureAwait(false);
 
         return descriptors.Count == 0
-            ? "Katalogda hic agent yok."
-            : $"Kayitli agent'lar: {string.Join(", ", descriptors.Select(static descriptor => descriptor.Name))}.";
+            ? "The catalog has no agents."
+            : $"Registered agents: {string.Join(", ", descriptors.Select(static descriptor => descriptor.Name))}.";
     }
 
     /// <summary>

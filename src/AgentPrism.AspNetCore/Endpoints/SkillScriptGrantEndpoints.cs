@@ -73,20 +73,20 @@ internal static class SkillScriptGrantEndpoints
         if (!options.Value.Skills.Scripts.Enabled)
         {
             return TypedResults.Problem(
-                title: "Script calistirma kapali",
-                detail: "Izin vermeden once UseSkillScripts(...) ile script calistirmayi acin.",
+                title: "Script running disabled",
+                detail: "Enable script running with UseSkillScripts(...) before granting access.",
                 statusCode: StatusCodes.Status409Conflict);
         }
 
         if (string.IsNullOrWhiteSpace(request.SkillName))
         {
-            return Invalid("Skill adi gerekli", "skillName bos olamaz.");
+            return Invalid("Skill name required", "skillName cannot be empty.");
         }
 
         var now = DateTimeOffset.UtcNow;
         if (request.ExpiresAt is { } expires && expires <= now)
         {
-            return Invalid("Bitis zamani gecmiste", "expiresAt gelecekte bir an olmalidir.");
+            return Invalid("Expiration in the past", "expiresAt must be a moment in the future.");
         }
 
         var grant = await store.GrantAsync(
@@ -113,8 +113,8 @@ internal static class SkillScriptGrantEndpoints
         => await store.RevokeAsync(tenantContext.TenantId, skillName, scriptName, cancellationToken).ConfigureAwait(false)
             ? TypedResults.NoContent()
             : TypedResults.Problem(
-                title: "Izin bulunamadi",
-                detail: $"'{skillName}' icin gecerli bir calistirma izni yok.",
+                title: "Grant not found",
+                detail: $"There is no active run grant for '{skillName}'.",
                 statusCode: StatusCodes.Status404NotFound);
 
     private static ProblemHttpResult Invalid(string title, string detail)

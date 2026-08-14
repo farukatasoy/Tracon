@@ -133,12 +133,12 @@ internal static class RetentionEndpoints
 
         if (request.MaxAgeDays is < 1)
         {
-            return Invalid("'maxAgeDays' belirtiliyorsa en az 1 olmalidir.");
+            return Invalid("'maxAgeDays' must be at least 1 if given.");
         }
 
         if (request.MaxRows is < 1)
         {
-            return Invalid("'maxRows' belirtiliyorsa en az 1 olmalidir.");
+            return Invalid("'maxRows' must be at least 1 if given.");
         }
 
         var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
@@ -314,20 +314,20 @@ internal static class RetentionEndpoints
 
     private static ProblemHttpResult UnknownTarget(string target)
         => TypedResults.Problem(
-            title: "Bilinmeyen hedef",
-            detail: $"'{target}' taninan bir saklama hedefi degil. Gecerli hedefler: " +
+            title: "Unknown target",
+            detail: $"'{target}' is not a recognized retention target. Valid targets: " +
                      $"{string.Join(", ", RetentionTargets.All)}.",
             statusCode: StatusCodes.Status400BadRequest);
 
     private static ProblemHttpResult NotFound(string target)
         => TypedResults.Problem(
-            title: "Politika bulunamadi",
-            detail: $"'{target}' hedefi icin bir saklama politikasi yok.",
+            title: "Policy not found",
+            detail: $"There is no retention policy for target '{target}'.",
             statusCode: StatusCodes.Status404NotFound);
 
     private static ProblemHttpResult Invalid(string detail)
         => TypedResults.Problem(
-            title: "Gecersiz politika",
+            title: "Policy invalid",
             detail: detail,
             statusCode: StatusCodes.Status400BadRequest);
 }

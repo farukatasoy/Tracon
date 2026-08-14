@@ -76,14 +76,14 @@ internal static class AttachmentEndpoints
     {
         if (file.Length == 0)
         {
-            return Invalid("Ek bos olamaz", "'file' alani bos.");
+            return Invalid("Attachment cannot be empty", "The 'file' field is empty.");
         }
 
         if (file.Length > guard.MaxBytes)
         {
             return Invalid(
-                "Ek cok buyuk",
-                $"'{file.FileName}' {file.Length} bayt; sinir {guard.MaxBytes} bayt.");
+                "Attachment too large",
+                $"'{file.FileName}' is {file.Length} bytes; the limit is {guard.MaxBytes} bytes.");
         }
 
         byte[] data;
@@ -104,7 +104,7 @@ internal static class AttachmentEndpoints
 
         if (!validation.IsValid)
         {
-            return Invalid("Ek turu reddedildi", validation.Error!);
+            return Invalid("Attachment type rejected", validation.Error!);
         }
 
         var descriptor = await store.SaveAsync(
@@ -175,8 +175,8 @@ internal static class AttachmentEndpoints
 
     private static ProblemHttpResult NotFound(Guid id)
         => TypedResults.Problem(
-            title: "Ek bulunamadi",
-            detail: $"'{id}' kimlikli bir ek yok.",
+            title: "Attachment not found",
+            detail: $"There is no attachment with id '{id}'.",
             statusCode: StatusCodes.Status404NotFound);
 
     /// <summary>

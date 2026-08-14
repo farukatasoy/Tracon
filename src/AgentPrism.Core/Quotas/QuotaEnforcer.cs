@@ -89,7 +89,7 @@ public sealed class QuotaEnforcer(
                 : new QuotaDecision
                 {
                     IsAllowed = false,
-                    Reason = "Kota dogrulanamadi.",
+                    Reason = "Quota could not be verified.",
                 };
         }
 
@@ -215,17 +215,17 @@ public sealed class QuotaEnforcer(
         DateTimeOffset resetsAt)
     {
         var scope = definition.AgentName is null
-            ? "kiraci geneli"
-            : $"'{definition.AgentName}' agent'i";
+            ? "the whole tenant"
+            : $"agent '{definition.AgentName}'";
 
         var metricName = metric switch
         {
-            QuotaMetric.Runs => "calistirma",
+            QuotaMetric.Runs => "run",
             QuotaMetric.Tokens => "token",
-            _ => "maliyet",
+            _ => "cost",
         };
 
-        var periodName = definition.Period == QuotaPeriod.Daily ? "gunluk" : "aylik";
+        var periodName = definition.Period == QuotaPeriod.Daily ? "daily" : "monthly";
 
         return new QuotaDecision
         {
@@ -238,7 +238,7 @@ public sealed class QuotaEnforcer(
             ResetsAt = resetsAt,
             Reason = string.Create(
                 CultureInfo.InvariantCulture,
-                $"{scope} icin {periodName} {metricName} kotasi asildi ({used}/{limit}). Sayac {resetsAt:O} tarihinde sifirlanir."),
+                $"The {periodName} {metricName} quota for {scope} has been exceeded ({used}/{limit}). The counter resets at {resetsAt:O}."),
         };
     }
 

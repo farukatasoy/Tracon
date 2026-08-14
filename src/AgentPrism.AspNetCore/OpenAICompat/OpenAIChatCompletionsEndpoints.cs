@@ -81,7 +81,7 @@ internal static class OpenAIChatCompletionsEndpoints
         }
         catch (JsonException ex)
         {
-            return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, $"Govde cozumlenemedi: {ex.Message}");
+            return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, $"Body could not be parsed: {ex.Message}");
         }
 
         var agentName = OpenAICompatSupport.ReadAgentName(body);
@@ -90,8 +90,8 @@ internal static class OpenAIChatCompletionsEndpoints
         {
             return OpenAICompatSupport.Error(
                 StatusCodes.Status400BadRequest,
-                "Agent secilmedi. 'model' alanina agent adini yazin veya " +
-                $"'metadata.{OpenAICompatSupport.EntityIdKey}' kullanin.");
+                "No agent selected. Put the agent name in the 'model' field, or use " +
+                $"'metadata.{OpenAICompatSupport.EntityIdKey}'.");
         }
 
         AIAgent? agent;
@@ -109,7 +109,7 @@ internal static class OpenAIChatCompletionsEndpoints
         {
             return OpenAICompatSupport.Error(
                 StatusCodes.Status404NotFound,
-                $"'{agentName}' adinda bir agent yok.",
+                $"There is no agent named '{agentName}'.",
                 type: "model_not_found");
         }
 
@@ -177,7 +177,7 @@ internal static class OpenAIChatCompletionsEndpoints
             !body.TryGetProperty("messages", out var raw) ||
             raw.ValueKind is not JsonValueKind.Array)
         {
-            error = "'messages' alani zorunludur ve bir dizi olmalidir.";
+            error = "'messages' is required and must be an array.";
             return false;
         }
 
@@ -187,7 +187,7 @@ internal static class OpenAIChatCompletionsEndpoints
                 !item.TryGetProperty("role", out var roleElement) ||
                 roleElement.ValueKind is not JsonValueKind.String)
             {
-                error = "Her mesaj bir 'role' alani tasimalidir.";
+                error = "Every message must have a 'role' field.";
                 return false;
             }
 
@@ -204,7 +204,7 @@ internal static class OpenAIChatCompletionsEndpoints
 
         if (messages.Count == 0)
         {
-            error = "'messages' bos olamaz.";
+            error = "'messages' cannot be empty.";
             return false;
         }
 
