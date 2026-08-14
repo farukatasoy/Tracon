@@ -441,7 +441,7 @@ yanına ajan adını yazar — iki ajan aynı oturumu almaz.
 | K-4 ✅ | [`15`](15-WORKFLOWS.md) | §2–§6 | 26 | **Bitti** (2026-08-13): 23 Geçti, 3 Kaldı. `HATA-K-003` (Yüksek: Magentic plan onayı sonrası devam `ExecutorFailed`/`RunFailed` ile çöküyor). Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
 | K-5 ✅ | [`15`](15-WORKFLOWS.md) + [`17`](17-EVAL-VE-DENEYLER.md) | 15 §7–§9 + 17 §1–§2 | 27 | **Bitti** (2026-08-14): 21 Geçti, 6 Kaldı — **dosya `15` TAMAMEN BİTTİ (60/60)**. `HATA-K-004/005/006`. Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
 | K-6 ✅ | [`17`](17-EVAL-VE-DENEYLER.md) | §3–§6 | 30 | **Bitti** (2026-08-14): 30/30 Geçti, kusur yok. Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
-| K-7 | [`17`](17-EVAL-VE-DENEYLER.md) | §7–§11 | 26 | Kanarya, geri bildirim, karşılaştırma. |
+| K-7 ✅ | [`17`](17-EVAL-VE-DENEYLER.md) | §7–§11 | 26 | **Bitti** (2026-08-14): 20 Geçti, 4 Kaldı — **dosya `17` TAMAMEN BİTTİ (69/69)**. `HATA-K-007/008`. Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
 | K-8 | [`24`](24-TEST-PAKETI-VE-SABLON.md) | §1–§2 | 24 | 🔒 **Küresel kilit.** `dotnet new install` + `~/agentprism-local-feed`. Aynı anda yalnız bir ajan. |
 | K-9 | [`24`](24-TEST-PAKETI-VE-SABLON.md) | §3–§5 | 17 | 🔒 Aynı kilit. `AgentPrismTestHost`, `RunAssertions`, paket sınırları. |
 

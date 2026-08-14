@@ -284,3 +284,75 @@ Run→vaka terfisi mutlu yol (`201`, `sourceRunId`/`promotedAt` dolu), aynı run
 Kod-kökenli agent'ta deney kurma `400`; DB-kökenli agent ile iki varyantlı deney (`manuel-destek` fixture'ı önceki koşumlardan `version=3` taşıyordu, `version=4` üretilip uyarlandı — ayrıntı case notunda); ağırlık toplamı ≠100 `400`; olmayan sürüm `400`; aynı agent için ikinci `Running` deney `409` (DB kısmi tekil indeksi `experiments_running_agent_uq` doğrulandı); `Running` deneyi silme/düzenleme `409`; `STOP` tek yönlü `Stopped`; arayüzde ağırlık 30+30 iken toplam kırmızı (`rgb(190,18,60)`) ve "Save" devre dışı; `stopped` satırında Edit/Sil yok, `draft` satırında var (kontrast doğrulandı). Kusur bulunmadı.
 
 **K-6 toplam: 30 case, 30 Geçti, 0 Kaldı.**
+
+## K-7 — 17 §7–11 (MT-EVAL-062..063, 070..076, 080..090, 091..094, 100..101), 26 case
+
+**Sonuç:** 20 Geçti, 4 Kaldı (`HATA-K-007`, `HATA-K-008`), 2 doküman-uyarlaması (ön koşul sürüm numaraları/ortam farkı, kusur değil).
+
+### 17 §7 — Atama Belirlenirliği (MT-EVAL-062..063), 2 case: 2 Geçti, 0 Kaldı
+
+Aynı `sessionId` ile 5 art arda çalıştırma HER ZAMAN aynı varyanta düştü (SHA-256/FNV tabanlı kova ataması, önbellek değil); `runs.experiment_id`/`variant`/`agent_version` sütunları tutarlı. Kusur bulunmadı.
+
+### 17 §8 — Kanarya Yayını (MT-EVAL-070..076), 7 case: 7 Geçti, 0 Kaldı
+
+Kanarya kuralı yalnız 2 kollu deneyde tanımlanabiliyor (`400` üç kollu deneyde); geçerli politika `PUT` ediliyor; `GET .../canary` yeterli örnek toplanana kadar `InsufficientData` döndü ve HER çağrıda canlı hesaplandığı (`evaluatedAt` değişti) doğrulandı; `AutoRollbackEnabled` varsayılan kapalı. **MT-EVAL-074 (kritik, en önemli senaryo):** mevcut sürümler `Running` bir deneyde değişmez olduğu için (kod okumasıyla doğrulandı: `CompositeAgentCatalog.ResolveAsync` saklanan `AgentDefinition`'ı doğrudan kullanır) bozuk-modelli yeni bir sürüm (v5) ve taze bir deney (`kanarya-geri-alma-testi`) kuruldu; otomatik geri alma gerçek şekilde tetiklendi — `rollback_reason` doldu, `audit_log`'da `experiment.auto_rollback`/`actor:system:canary-evaluator` kaydı, ağırlıklar kanarya `0`/kontrol `100`'e döndü (deney ayrıca `Stopped`'a geçti — dokümanın belirtmediği ek gözlem). MT-EVAL-075: sağlıklı kanarya ağırlığı otomatik yükseldi (`50→100`, kurulum kova dağılımı nedeniyle ara `25` basamağı atlandı — kusur değil), ramp-up için audit kaydı YOK (doğrulandı). MT-EVAL-076: otomatik geri alınan deneyde kırmızı "Automatically rolled back" banner'ı, manuel `Stop`'ta yok (kontrast doğrulandı). Kusur bulunmadı.
+
+### 17 §9 — Geri Bildirim ve Puanlama (MT-EVAL-080..090), 11 case: 10 Geçti, 1 Kaldı
+
+Binary/Stars puan geçerlilik denetimi (`400` sınır değerlerde); `DELETE` + audit kaydı; programatik yargıç yazısı (`RunSampler`→`OnlineEvalJobHandler`) audit izi bırakmıyor (kontrast: HTTP `/judge` ucu kendi `run.judge.manual` kaydını bırakıyor — doğrulandı); arayüz `FeedbackControl` toggle (1. tıklama kaydeder, 2. SİLER — aşağıya çevirmez, 3. yeniden oluşturur); yorum puansız kaydedilmiyor + yıldız UI hiç yok; "Judge now" yargıç yokken hata banner'ı değil nötr satır-içi mesaj (`rgb(107,107,121)`, `role="alert"` yok).
+
+**HATA yok ama önemli doküman düzeltmesi — MT-EVAL-084 KALDI:** case'in kendi ön koşulu ("bu ortamda `author` `NULL` değildir") YANLIŞ — statik bearer token akışında `author` HER ZAMAN `NULL` kalıyor. `run_scores_target_author_idx` `(tenant_id, run_id, COALESCE(message_id,''), author)` üzerine kurulu, `author`'ın kendisi `COALESCE` edilmiyor → PostgreSQL'de `NULL≠NULL`, tekillik hiç devreye girmiyor. Aynı yazarın ikinci puanı ÜZERİNE YAZMIYOR, ayrı satır ekleniyor — MT-EVAL-085'in zaten "kasıtlı kabul edilmiş davranış" olarak belgelediğinin AYNISI, ama MT-EVAL-084'ün varsaydığı upsert bu ortamda hiç gerçekleşmiyor. Doküman düzeltmesi, kod kusuru değil.
+
+### 17 §10 — Karşılaştırma/Yeniden Oynatma/Girdi (MT-EVAL-091..094), 4 case: 3 Geçti, 1 Kaldı
+
+`GET .../compare/{a}/{b}` iki run'ı ham döndürüyor, tüm alanlar mevcut. `POST .../replay`: `support` kod-kökenli olduğu için yalnız `LiveTools` destekliyor (dokümante edilmemiş ama tutarlı ek kısıt); `agentVersion` belirtilmezse replay GÜNCEL sürümü kullanıyor (kod okumasıyla doğrulandı, `RunReplayRequest.AgentVersion` XML dokümanında zaten yazılı — kusur değil, ama bu koşumda ilk denemede `502` üretti çünkü ortamdaki "güncel sürüm" MT-EVAL-074'ün bozuk v5'iydi); `agentVersion` sabitlenerek hem `ReplayTools` hem `LiveTools` doğru çalıştığı doğrulandı.
+
+**HATA-K-007 (Yüksek) — MT-EVAL-092 KALDI:** `AgentPrism:RunRecording:RecordRunInput=false` HİÇBİR ETKİ yapmıyor; `GET /api/runs/{id}/input` beklenen `404` yerine `200` ve tam girdiyi döndürdü. Ayrıntı aşağıda.
+
+### 17 §11 — Güvenlik: Eval/Deney API Anahtarı Kapsamı (MT-EVAL-100..101), 2 case: 0 Geçti, 2 Kaldı
+
+**HATA-K-008 (Yüksek) — İKİSİ de KALDI:** doküman her iki case'in de "şüphesini" AMPİRİK olarak doğruladı. Ayrıntı aşağıda.
+
+---
+
+### HATA-K-007 — Yüksek: `AgentPrism:RunRecording:RecordRunInput` config'ten HİÇBİR ZAMAN okunmuyor — çalıştırma girdisi kapatılamıyor
+
+- **Case:** MT-EVAL-092
+- **Önem:** Yüksek
+- **İzlek:** B
+
+**Beklenen**
+`AgentPrism:RunRecording:RecordRunInput=false` set edilip uygulama yeniden başlatıldığında, yeni run'ların girdisi kaydedilmez; `GET /api/runs/{id}/input` `404` döner.
+
+**Gerçekleşen**
+`RecordRunInput=false` `user-secrets`'a yazılıp uygulama yeniden başlatıldı, yeni bir run gönderildi, `GET .../input` → `HTTP 200`, tam girdi (`messages: [...]`) döndü. Bayrak hiçbir etki yapmadı.
+
+**Kanıt**
+`AgentPrismServiceCollectionExtensions.cs:1769-1795`'teki `BindRunRecording` metodu `Enabled`, `RecordMessageDeltas`, `RecordToolPayloads`, `MaxPayloadLength`'i config'ten okuyor (`TryReadBool`/`int.TryParse` çağrılarıyla) AMA `RecordRunInput`'u (`AgentPrismOptions.cs:461`, varsayılan `true`) HİÇ okumuyor — ilgili `TryReadBool` çağrısı eksik. `RunRecordingAgent`'ın kendisi `!_options.RecordRunInput` kontrolünü DOĞRU yapıyor (~satır 593); `GET /input` ucu da depoda girdi VARSA `200`/YOKSA `404` mantığını DOĞRU uyguluyor (`RunEndpoints.cs:254-286`) — sorun yalnız bağlama (binding) katmanında, bayrak config/`user-secrets`/ortam değişkeninden asla `false` olamıyor.
+
+**Kapsam**
+Kullanıcı girdisi hassas veri (PII/gizli bilgi) içerebilir; bu bayrak tam da bunu kapatmak için var. Operatör kapattığını sanırken girdi hâlâ kaydediliyor — sessiz bir gizlilik kontrolü kaçağı.
+
+---
+
+### HATA-K-008 — Yüksek: `ApiKeyScope`'ta Eval/Experiment için kapsam YOK — salt-okunur anahtar eval takımı/deney yazabiliyor, feedback yazabiliyor
+
+- **Case:** MT-EVAL-100, MT-EVAL-101
+- **Önem:** Yüksek
+- **İzlek:** B
+
+**Beklenen**
+`EvalEndpoints`/`ExperimentEndpoints`'in yazma uçları, `AgentEndpoints` gibi `RequireApiKeyScope(...)` uygular; yalnız `RunsRead` kapsamlı bir anahtar `403` alır. `RunEndpoints.cs` içindeki `feedback` ucu da `replay` gibi tutarlı bir kapsam gerektirir.
+
+**Gerçekleşen**
+Yalnız `RunsRead` kapsamlı bir anahtarla: `PUT /api/evals/{name}` → `200` (takım oluşturuldu), `PUT /api/experiments/{name}` → `200` (deney oluşturuldu), `POST /api/runs/{id}/feedback` → `200` (puan yazıldı). Kontrol grupları: aynı anahtarla `PUT /api/agents/{name}` → `403 "AgentsAdmin kapsamini gerektiriyor"`, `POST /api/runs/{id}/replay` → `403 "RunsWrite kapsamini gerektiriyor"` — kapsam sistemi `AgentEndpoints`/`replay`'de çalışıyor, eval/experiment/`feedback` yüzeyinde TAMAMEN devre dışı.
+
+**Kanıt**
+`ApiKeyScope` enum'ı yalnız `RunsRead=0, RunsWrite=1, AgentsRead=2, AgentsAdmin=3, ExternalInvoke=4` beş üyeden ibaret — `Eval`/`Experiment` için hiç bir kapsam değeri TANIMLANMAMIŞ. `RunEndpoints.cs` içinde `feedback`/`compare`/`input` uçları `replay`'in aksine hiç `RequireApiKeyScope` çağırmıyor.
+
+**Kapsam**
+`MT-JOB-090` (`16-IS-KUYRUGU-VE-ZAMANLAMA.md`) ve `MT-WF-100` (`15-WORKFLOWS.md`) ile AYNI kök nedenin DÖRDÜNCÜ bağımsız tekrarı. Salt-okunur niyetiyle üretilmiş bir anahtar eval takımı/deney oluşturup gerçek para harcayan çalıştırmaları dolaylı tetikleyebilir, ayrıca herhangi bir run'a keyfi geri bildirim yazabilir.
+
+---
+
+**K-7 toplam: 26 case, 20 Geçti, 4 Kaldı.**
