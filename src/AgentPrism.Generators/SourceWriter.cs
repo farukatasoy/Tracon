@@ -104,7 +104,7 @@ internal static class SourceWriter
         {
             sb.Append("                new(new ").Append(model.GeneratedClassName).Append("(), requiresApproval: ")
               .Append(model.RequiresApproval ? "true" : "false")
-              .Append(", source: \"generated\"),\n");
+              .Append("),\n");
         }
 
         sb.Append("            };\n    }\n}\n\n");

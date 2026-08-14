@@ -1380,7 +1380,24 @@ Program.cs'te GECICI olarak .UseA2A(o => o.ExposedAgents.Add("support")) yapildi
 **Gerçek sonuç**
 **KALDI - HATA-S2-008 (Yuksek).** /agentprism/tools ekraninda test-sunucu_* tool'lari dogru sekilde sari 'mcp: test-sunucu' rozeti gosterdi. AMA ayni ekranda get_order_status, cancel_order, list_recent_orders (UCU DE KOD-TANIMLI, [AgentPrismTool] ozniteligiyle isaretli, MCP ile hicbir ilgisi yok) da YANLIS bir sekilde 'mcp: generated' rozeti gosteriyor - case'in kendi beklentisi ('Kod-tanimli tool'larda bu rozet HIC YOKTUR') ihlal edildi. Kok neden bulundu: src/AgentPrism.Generators/SourceWriter.cs:105-107, [AgentPrismTool] kaynak ureteci HER kod-tanimli tool kaydi icin KOSULSUZ `source: "generated"` literal string'i geciriyor (AgentPrismToolRegistration constructor'inin varsayilani null'dir, XML belgesi de 'Kodda tanimli tool'larda null' diyor - SourceWriter bu sozlesmeyi ihlal ediyor). ToolDescriptor.Source (ToolDescriptor.cs:29-37) kendi belgesinde bu alanin yalniz 'uzak MCP sunucusundan gelen tool'larda' dolu olmasi gerektigini soyluyor. tools.tsx:71 (`{tool.source != null && <Badge>mcp: {tool.source}</Badge>}`) bu degeri kosulsuz MCP rozeti olarak yorumluyor. **Kapsam genis**: [AgentPrismTool] ozniteligi AgentPrism'in ONERILEN, kaynak-ureteci-tabanli (AOT uyumlu) tool tanimlama yontemidir - resmi `dotnet new` sablonu da (AgentPrism.Templates/content/AgentPrism.Starter/Tools/OrderTools.cs) ayni ozniteligi kullaniyor. Bu, [AgentPrismTool] kullanan HER projede, HER kod-tanimli tool'un arayuzde yaniltici bir 'mcp: generated' rozetiyle gosterilecegi anlamina geliyor - yalniz bu ornek uygulamaya ozgu degil, framework genelinde.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**2026-08-14 yeniden koşum (KAPANIS-PLANI Aile I).** Kök neden doğrulandığı
+gibi `src/AgentPrism.Generators/SourceWriter.cs`'nin `WriteAggregator`
+metodunda: her kod-tanımlı tool kaydı için koşulsuz `source: "generated"`
+argümanı üretiliyordu. Düzeltme: bu argüman tamamen kaldırıldı — kayıt artık
+`AgentPrismToolRegistration` constructor'ının `source: null` varsayılanını
+kullanıyor, tıpkı XML belgesinin ("Kodda tanimli tool'larda null") ve
+`ToolDescriptor.Source`'un kendi belgesinin ("yalniz uzak MCP sunucusundan
+gelen tool'larda") tarif ettiği sözleşme gibi. Canlı doğrulama (`samples/AgentPrism.Api`,
+gerçek Postgres şeması, `ProjectReference` ile tazelenmiş üreteç):
+`GET /agentprism/api/tools` artık `get_order_status`, `cancel_order`,
+`list_recent_orders` için `"source": null` döndürüyor — eskiden `"generated"`.
+Regresyon testi: `tests/AgentPrism.Generators.UnitTests/GeneratedOutputTests.cs`
+`Isaretli_statik_metot_icin_kayit_uretilir` artık üretilen toplayıcı dosyasının
+`source:` literalini HİÇ TAŞIMADIĞINI doğruluyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
