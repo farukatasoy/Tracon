@@ -201,10 +201,12 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             start.Scope.TenantId,
             cancellationSource);
 
-        var scope = await BeginRunAsync(start, messages, cancellationToken).ConfigureAwait(false);
+        var scope = CreateScope(start);
 
         try
         {
+            await WriteRunStartAsync(start, messages, cancellationToken).ConfigureAwait(false);
+
             var response = await base.RunCoreAsync(messages, session, options, cancellationSource.Token).ConfigureAwait(false);
 
             foreach (var message in response.Messages)
@@ -293,7 +295,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             start.Scope.TenantId,
             cancellationSource);
 
-        var scope = await BeginRunAsync(start, messages, cancellationToken).ConfigureAwait(false);
+        var scope = CreateScope(start);
         UsageDetails? usage = null;
         string? pendingApproval = null;
 
@@ -325,6 +327,10 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
 
         try
         {
+            // 🚨 HATA-S4-012: bu adim BILEREK try/finally'nin ICINDEDIR — gerekce
+            // WriteRunStartAsync'in kendi belgesinde ve CreateScope'un notunda.
+            await WriteRunStartAsync(start, messages, cancellationToken).ConfigureAwait(false);
+
             while (true)
             {
                 AgentResponseUpdate update;
@@ -520,7 +526,60 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             depth == 0 ? prismOptions?.ReplayOfRunId : null);
     }
 
-    private async ValueTask<RunScope> BeginRunAsync(
+    /// <summary>
+    /// Calistirma kapsamini kurar. Yalniz bellek icinde nesne olusturur, hicbir
+    /// G/C yapmaz — bu yuzden ne istisna atar ne iptal edilir.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 HATA-S4-012: kapsam kurma <see cref="WriteRunStartAsync"/>'ten
+    /// (G/C yapan, iptal edilebilen adim) BILEREK ayrildi. Eski tek-parca
+    /// <c>BeginRunAsync</c>'te kapsam ancak <see cref="SaveInputAsync"/>
+    /// BASARIYLA donunce kuruluyordu; <c>SaveInputAsync</c> ise
+    /// <see cref="OperationCanceledException"/>'i BILEREK yutmaz (K-034 —
+    /// gercek bir iptali sessizce bogmamak icin). Sonuc: RunStarted olayi
+    /// depoya ZATEN yazilmisken (ayri, ONCEKI bir yazma) istemci baglantiyi
+    /// bu dar pencerede keserse istisna cagiranin try/finally guvenlik agina
+    /// hic GIRMEDEN metodun disina firliyordu — calistirma sonsuza dek
+    /// Running'de asili kaliyordu (bkz. RunReconciliationOptions varsayilani
+    /// da kapali, kendiliginden iyilesme yok). Kapsam artik G/C'den ONCE,
+    /// cagiranin kendi try/finally'sinin ICINDE kurulur; boylece
+    /// <see cref="WriteRunStartAsync"/> iptal edilse bile guvenlik agi tam
+    /// bir <see cref="RunScope"/> ile <see cref="CompleteAsync"/> cagirabilir.
+    /// </remarks>
+    private RunScope CreateScope(RunStart start)
+        => new(
+            start.Writer,
+            start.Activity,
+            new ToolInvocationTracker(
+                start.Scope.RunId,
+                start.IsStreaming,
+                _timeProvider,
+                start.Scope.ToolUsage,
+                start.Scope.TenantId),
+            start.Scope.AgentName!,
+            start.Scope.TenantId!,
+            _timeProvider.GetTimestamp(),
+            start.Scope.Budget,
+            start.Scope.ExtraUsage,
+            OwnsTrace: start.Scope.Depth == 0,
+            AgentVersion: start.AgentVersion,
+            RunId: start.Scope.RunId,
+            RootRunId: start.Scope.RootRunId,
+            Depth: start.Scope.Depth,
+            SessionId: start.SessionId,
+            Kind: start.Kind);
+
+    /// <summary>
+    /// Calistirma kaydini acar: <c>runs</c> satirini ve ilk <c>RunStarted</c>
+    /// olayini yazar, girdiyi <see cref="IRunInputStore"/>'a kaydeder.
+    /// </summary>
+    /// <remarks>
+    /// Cagiran bu metodu KENDI try/finally guvenlik aginin ICINDE cagirmalidir
+    /// (bkz. <see cref="CreateScope"/>'un notu) — aksi halde bu adimda olusan
+    /// bir <see cref="OperationCanceledException"/> calistirmayi terminal bir
+    /// duruma hic tasimadan kaybolur.
+    /// </remarks>
+    private async ValueTask WriteRunStartAsync(
         RunStart start,
         IEnumerable<ChatMessage> messages,
         CancellationToken cancellationToken)
@@ -571,28 +630,6 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             cancellationToken).ConfigureAwait(false);
 
         await SaveInputAsync(start, input, cancellationToken).ConfigureAwait(false);
-
-        return new RunScope(
-            start.Writer,
-            start.Activity,
-            new ToolInvocationTracker(
-                start.Scope.RunId,
-                start.IsStreaming,
-                _timeProvider,
-                start.Scope.ToolUsage,
-                start.Scope.TenantId),
-            start.Scope.AgentName!,
-            start.Scope.TenantId!,
-            _timeProvider.GetTimestamp(),
-            start.Scope.Budget,
-            start.Scope.ExtraUsage,
-            OwnsTrace: start.Scope.Depth == 0,
-            AgentVersion: start.AgentVersion,
-            RunId: start.Scope.RunId,
-            RootRunId: start.Scope.RootRunId,
-            Depth: start.Scope.Depth,
-            SessionId: start.SessionId,
-            Kind: start.Kind);
     }
 
     /// <summary>
