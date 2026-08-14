@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, usePath } from '../lib/router';
-import { applyTheme, readThemePreference, writeThemePreference, type ThemePreference } from '../lib/theme';
+import { setThemePreference, useThemePreference } from '../lib/theme';
 import { LOCALES, useLocale, useT, type Locale } from '../lib/i18n';
 import { createShortcutMatcher, isTextEntry, type ShortcutBinding } from '../lib/shortcuts';
 import { cx } from './ui';
@@ -318,25 +318,7 @@ function LanguageToggle(): ReactNode {
 
 function ThemeToggle(): ReactNode {
   const t = useT();
-  const [preference, setPreference] = useState<ThemePreference>(readThemePreference);
-  const [resolved, setResolved] = useState<'light' | 'dark'>(() => applyTheme(readThemePreference()));
-
-  useEffect(() => {
-    setResolved(applyTheme(preference));
-    writeThemePreference(preference);
-
-    if (preference !== 'system') {
-      return;
-    }
-
-    // While following the system, react to the user flipping it in the OS.
-    const media = window.matchMedia('(prefers-color-scheme: dark)');
-    const onChange = (): void => setResolved(applyTheme('system'));
-
-    media.addEventListener('change', onChange);
-
-    return () => media.removeEventListener('change', onChange);
-  }, [preference]);
+  const { preference, resolved } = useThemePreference();
 
   return (
     <button
@@ -344,7 +326,7 @@ function ThemeToggle(): ReactNode {
       data-testid="theme-toggle"
       aria-label={resolved === 'dark' ? t('shell.theme.toLight') : t('shell.theme.toDark')}
       title={t(`shell.theme.${preference === 'system' ? 'system' : preference}`)}
-      onClick={() => setPreference(resolved === 'dark' ? 'light' : 'dark')}
+      onClick={() => setThemePreference(resolved === 'dark' ? 'light' : 'dark')}
       className="rounded-md border border-line bg-raised p-1.5 text-muted transition-colors hover:text-fg"
     >
       {resolved === 'dark' ? <MoonIcon className="size-4" /> : <SunIcon className="size-4" />}

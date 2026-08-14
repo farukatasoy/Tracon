@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import { Link } from '../lib/router';
+import { Link, useSearchParams } from '../lib/router';
 import { absoluteTime, count, duration, percent, relativeTime, shortId } from '../lib/format';
 import { usePlural, useT } from '../lib/i18n';
 import {
@@ -53,6 +53,9 @@ export function RunsScreen(): ReactNode {
   const [status, setStatus] = useState('');
   const [includeChildren, setIncludeChildren] = useState(false);
   const [page, setPage] = useState(0);
+  // `?sessionId=...` (session-detail.tsx's "N runs" button) — a link-driven
+  // filter, not a control on this screen, so it has no `<Select>` of its own.
+  const sessionId = useSearchParams().get('sessionId');
 
   const agents = useQuery({ queryKey: ['agents'], queryFn: api.agents });
   const stats = useQuery({
@@ -61,12 +64,13 @@ export function RunsScreen(): ReactNode {
   });
 
   const runs = useQuery({
-    queryKey: ['runs', agentName, status, includeChildren, page],
+    queryKey: ['runs', agentName, status, includeChildren, page, sessionId],
     queryFn: () =>
       api.runs({
         agentName: agentName.length > 0 ? agentName : undefined,
         status: status.length > 0 ? (status as RunStatus) : undefined,
         includeChildren: includeChildren ? true : undefined,
+        sessionId: sessionId ?? undefined,
         skip: page * PAGE_SIZE,
         take: PAGE_SIZE,
       }),

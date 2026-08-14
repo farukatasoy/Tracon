@@ -122,7 +122,7 @@ public sealed class RunReplayService
             return await PrepareFromCatalogAsync(source, request, input, cancellationToken).ConfigureAwait(false);
         }
 
-        if (request.ToolMode == ReplayToolMode.LiveTools && FindApprovalTool(definition) is { } approvalTool)
+        if (request.ToolMode == ReplayToolMode.LiveTools && FindApprovalTool(definition.ToolNames) is { } approvalTool)
         {
             return RunReplayPreparation.Failed(
                 RunReplayOutcome.ApprovalRequired,
@@ -204,6 +204,28 @@ public sealed class RunReplayService
                 $"There is no longer an agent named '{source.AgentName}'; the run cannot be replayed.");
         }
 
+        // Code-defined agent kendi AgentDefinition'ini tasimaz (yukaridaki kontrol
+        // zaten LiveTools disindaki her modu reddetmisti), ama ayni onay-tool
+        // korumasi burada da gerekli: aksi halde onay gerektiren bir tool'u
+        // tasiyan kod kaynakli bir agent, DB kaynaklinin aksine, hicbir 409
+        // almadan sessizce "hicbir sey olmadi" ile biterdi (HATA-S4-014).
+        // Tool adlari AgentDefinition'dan degil katalog aciklayicisindan (ayni
+        // veri, arayuzun agent listesini de besler) okunur.
+        var descriptors = await _catalog.ListAsync(cancellationToken).ConfigureAwait(false);
+        var descriptor = descriptors.FirstOrDefault(
+            candidate => string.Equals(candidate.Name, source.AgentName, StringComparison.Ordinal));
+
+        if (descriptor is not null && FindApprovalTool(descriptor.ToolNames) is { } approvalTool)
+        {
+            return RunReplayPreparation.Failed(
+                RunReplayOutcome.ApprovalRequired,
+                $"Agent '{source.AgentName}' carries the tool '{approvalTool}', which requires approval, " +
+                "and cannot run in 'LiveTools' mode. A replay may start in the background; the approval " +
+                "request would find no client to answer it at that moment (the same limit applies to " +
+                "sub-agents). This agent has no persistent definition (code-defined or deleted), so " +
+                "'ReplayTools'/'NoTools' are not available either — this run cannot be replayed.");
+        }
+
         // Katalog sarmalayicilari kendisi uygular; ikinci kez sarmalamak
         // calistirmayi iki kez kaydederdi.
         return RunReplayPreparation.Ready(agent, input.Messages, source, agentVersion: null, modelId: source.ModelId);
@@ -250,9 +272,9 @@ public sealed class RunReplayService
         return effective;
     }
 
-    private string? FindApprovalTool(AgentDefinition definition)
+    private string? FindApprovalTool(IReadOnlyList<string> toolNames)
     {
-        if (definition.ToolNames.Count == 0)
+        if (toolNames.Count == 0)
         {
             return null;
         }
@@ -260,7 +282,7 @@ public sealed class RunReplayService
         foreach (var descriptor in _tools.List())
         {
             if (descriptor.RequiresApproval &&
-                definition.ToolNames.Contains(descriptor.Name, StringComparer.Ordinal))
+                toolNames.Contains(descriptor.Name, StringComparer.Ordinal))
             {
                 return descriptor.Name;
             }

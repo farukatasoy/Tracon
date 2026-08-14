@@ -53,14 +53,14 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 
 ## 2. Durum
 
-> Son güncelleme: **2026-08-15**.
+> Son güncelleme: **2026-08-15** (Aile U sonrası).
 
 | | |
 |---|---|
 | Toplam case | **1097** |
 | Koşuldu | **1097** (koşulmamış case **yok**) |
-| ☑ Geçti | **1025** |
-| ☒ **Kaldı** | **41** |
+| ☑ Geçti | **1035** |
+| ☒ **Kaldı** | **31** |
 | ⏭ Atlandı | **30** |
 | ☐ Beklemede | **1** (`MT-UIRUN-019`) |
 
@@ -89,10 +89,11 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile R** — İki ayrı çalıştırma filtresi kusuru: `sessionId`+`includeChildren=true` alt çalıştırmaları hiç göstermiyordu (`SessionId` yalnız KÖK satırda set edilir, K-217; dört depo da kaydın KENDİ oturumuna eşitlik bakıyordu) ve `errorType` sorgu parametresi hiç bağlanmıyordu (sessizce yok sayılıyordu) — dört depoda da (bellek içi + üç SQL lehçesi) kaydın kendi ağacının KÖKÜNE ait oturuma bakacak şekilde düzeltildi, `RunQuery.ErrorType` eklenip bağlandı | (bu koşum) | `MT-API-060`, `MT-GUARD-064` |
 | **Aile S** — Idempotency replay yalnız gövdeyi koruyordu, `Location`/`Preference-Applied` HTTP başlıkları hiç saklanmıyordu; `IdempotencyResponse.Headers` (genel yakalama — yalnız bu ikisine özel değil) eklendi, üç SQL sağlayıcısına yeni `headers` sütunu (migration 0029/0016/0016) | (bu koşum) | `MT-JOB-083` |
 | **Aile T** — MCP "connection refused" zaman aşımından farklı davranıyordu: `McpConnection` ikisini de aynı şekilde yutuyor ama yalnız zaman aşımı istisnası dışarı sızıyordu; `IMcpToolRefresher.RefreshAsync` artık `McpRefreshOutcome` (+`HadUnreachableServers`) dönüyor, iki alt durum artık aynı `mcp_unreachable` sonucunu üretiyor | (bu koşum) | `MT-CORE-006` |
+| **Aile U** — Kalan 10 arayüz kusuru, hepsi bağımsız kök nedenler: yanlış token reddi sinyali kayboluyordu (`rejectToken`/`useTokenRejected`), palet `Esc` sonrası odak dönmüyordu, tema Ayarlar↔üst çubuk senkron değildi (paylaşımlı store), 375px'te Dashboard/Ayarlar/Tool'lar taşıyordu (+ önceden kayıtsız 4. kök neden: `grid-cols` temel sınıfı eksik), kod kökenli agent editörü boş+devre dışı geliyordu, alt çalıştırma İz paneli sonsuz "Loading"da kalıyordu, kod kökenli agent'ta onay-tool koruması `LiveTools`'ta atlanıyordu, oturum geçmişi tool çağrısı turunda kalıcı "sürüyor" kalıyordu, "Çalıştırmalar" düğmesi hem yönlendirmede hem filtrede kırıktı (router sorgu dizgisi + `RunsScreen`'in `sessionId`'i hiç okumaması), çok ucuz modelin maliyeti `0,00`'a yuvarlanıyordu | (bu koşum) | `MT-UI-003`, `MT-UI-020`, `MT-UI-028`, `MT-UI-043`, `MT-UIAG-016`, `MT-UIRUN-015`, `MT-UIRUN-030`, `MT-UIRUN-039`, `MT-UIRUN-041`, `MT-OBS-003` |
 
 ### Kalan aileler
 
-Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **S** ile başlar.
+Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **V** ile başlar.
 
 | Aile | Önem | Konu | Case | Durum |
 |---|---|---|---|---|
@@ -116,18 +117,18 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **S** ile başla
 | ~~R~~ | Orta | Çalıştırma filtreleri | 2 | ✅ (bu koşum) |
 | ~~S~~ | Orta | Idempotency replay başlık kaybı | 1 | ✅ (bu koşum) |
 | ~~T~~ | Orta | MCP "connection refused" → `unknown_tool` | 1 | ✅ (bu koşum) |
-| **U** | Orta/Düşük | Kalan 10 arayüz kusuru | 10 | ⬜ |
+| ~~U~~ | Orta/Düşük | Kalan 10 arayüz kusuru | 10 | ✅ (bu koşum) |
 | **V** | Karışık | Yetenek boşlukları | 8 | ⬜ |
 | **Doküman** | — | Beklenen sonuç koda göre düzeltilir | 13 | ⬜ |
 | **Yeniden koşum** | — | Kusuru zaten kapalı | 8 | ⬜ |
 | **MT-PKG-010** | — | Kök neden `f36eeaf`'te kapandı, case yeniden koşulmalı | 1 | ⬜ |
 
-**Toplam:** 31 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **53**. (Aile F
+**Toplam:** 21 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **43**. (Aile F
 bitti: 51 → 47; Aile G bitti: 47 → 43; Aile H bitti: 43 → 42; Aile I bitti:
 42 → 41; Aile J bitti: 41 → 40; Aile K bitti: 40 → 38; Aile L bitti: 38 → 37;
 Aile M bitti: 37 → 36; Aile N bitti: 36 → 35; Aile O bitti: 35 → 31; Aile P
 bitti: 31 → 29; Aile Q bitti: 29 → 25; Aile R bitti: 25 → 23; Aile S bitti:
-23 → 22; Aile T bitti: 22 → 21.
+23 → 22; Aile T bitti: 22 → 21; Aile U bitti: 21 → 11.
 `MT-MCP-052` bu sayıma dahil değildir — Kaldı kalır, ayrı bir bulgu olarak
 izlenir, gelecekte kendi ailesini gerektirebilir.)
 
@@ -1413,20 +1414,89 @@ doğru alan adını (`endpoint`, `url` değil) kullanıyor.
 `tests/AgentPrism.Core.UnitTests/Compilation/AgentDefinitionValidatorTests.cs`
 `Aktif_red_ile_erisilemeyen_MCP_sunucusu_da_inconclusive_uretir`.
 
-### Aile U — Kalan arayüz kusurları · Orta/Düşük
+### ~~Aile U~~ — Kalan arayüz kusurları · Orta/Düşük ✅ (bu koşum)
 
 | Kusur | Kök neden | Case |
 |---|---|---|
 | `HATA-S4-001` | `lib/api.ts:155-159` 401'de koşulsuz `setToken(null)` → `failed` daima false, ölü kod; `components/access-gate.tsx:53-55` | `MT-UI-003` |
 | `HATA-S4-004` | `components/layout.tsx:157`, `command-palette.tsx:117-122` — `Esc` odağı açan öğeye döndürmüyor | `MT-UI-020` |
 | `HATA-S4-006` | `components/layout.tsx:319-353`, `screens/settings.tsx:31,134-147` — tema `<select>` ile `ThemeToggle` state paylaşmıyor | `MT-UI-028` |
-| `HATA-S4-008` | `components/ui.tsx:44-57` (`Panel`, :49), `screens/settings.tsx:296-301` (`Row`), `screens/tools.tsx:62-78` (:70) — 375px'te yatay taşma, 3 ayrı kök neden | `MT-UI-043` |
+| `HATA-S4-008` | `components/ui.tsx:44-57` (`Panel`, :49), `screens/settings.tsx:296-301` (`Row`), `screens/tools.tsx:62-78` (:70) — 375px'te yatay taşma, 3 ayrı kök neden (+ bu koşumda bulunan 4.: Ayarlar'ın `grid` konteyneri) | `MT-UI-043` |
 | `HATA-S4-010` | `screens/agent-editor.tsx:202-208`, `:268-273` — kod kökenli agent'ta `Ad` boş+salt-okunur → "Sürüm Kaydet" daima disabled | `MT-UIAG-016` |
 | `HATA-S4-013` | `screens/run-detail.tsx:93-98`, `:356-358` — React Query `isPending` + `enabled:false` → kalıcı "Yükleniyor" | `MT-UIRUN-015` |
 | `HATA-S4-014` | `src/AgentPrism.Core/Replay/RunReplayService.cs:125-133`, `:174-210` — `409` yerine sessiz boş `200` | `MT-UIRUN-030` |
 | `HATA-S4-016` | `screens/session-detail.tsx:88` — `foldMessage(message)` mesaj başına çağrılıyor | `MT-UIRUN-039` |
-| `HATA-S4-017` | `lib/router.tsx:74-83`, `:55-57`, `:120-141` — sorgu dizgili SPA gezinme kırık; tetikleyici `session-detail.tsx:58` | `MT-UIRUN-041` |
+| `HATA-S4-017` | `lib/router.tsx:74-83`, `:55-57`, `:120-141` — sorgu dizgili SPA gezinme kırık; tetikleyici `session-detail.tsx:58` (+ bu koşumda bulunan ikinci kusur: `RunsScreen` `sessionId`'i hiç okumuyordu) | `MT-UIRUN-041` |
 | `HATA-S4-019` | `lib/format.ts:136-144` (`money()`) — 4 basamak yuvarlama, gerçek >0 maliyeti `0,00` gösteriyor | `MT-OBS-003` |
+
+**Önce ampirik yeniden üretim.** On kusurun tamamı, düzeltmeden önce kod
+okuması + (uygun olanlarda) canlı sunucu/tarayıcı ile yeniden doğrulandı;
+hiçbiri önceki dalgalarda kapanmamıştı.
+
+**Bu koşumda genişleyen kapsam — iki case, kayıtlı kök nedenden daha
+büyük çıktı:**
+- `MT-UI-043`: `Panel`/`Row`/`tools.tsx` düzeltmeleri sonrası Playwright ile
+  yeniden ölçüldüğünde Ayarlar hâlâ 92px taşıyordu. Dördüncü kök neden:
+  `settings.tsx:43`'teki `grid gap-4 lg:grid-cols-2` konteyneri `lg:` altında
+  temel bir `grid-cols-1` taşımıyordu — CSS Grid'de sütun `auto` sınıfıyla
+  konteynerin kendi genişliğinden BAĞIMSIZ büyüyebilir. `grid-cols-1`
+  eklendi. Aynı desen (temel sınıf olmadan responsive `grid-cols-N`) kod
+  tabanında 30'dan fazla yerde var; yalnız bu case'in kapsamındaki üç ekran
+  düzeltildi, diğerleri **kodlanmadı** — ayrı bir bulgu olarak not düşüldü
+  (bkz. `09-ARAYUZ-GENEL.md` MT-UI-043).
+- `MT-UIRUN-041`: kayıtlı kök neden (router sorgu dizgisi `matchRoute`'u
+  kırıyor) doğrulandı ama TEK başına yeterli değildi — `RunsScreen`
+  (`screens/runs.tsx`) `sessionId` sorgu parametresini HİÇ OKUMUYORDU (grep'le
+  doğrulandı). Router düzeltilse bile düğme kullanıcıyı filtresiz listeye
+  götürürdü. İki parçalı düzeltme: `router.tsx`'e `splitTarget()` (saf
+  fonksiyon, yol/sorgu ayrımı) + `useSearchParams()` hook'u eklendi;
+  `RunsScreen` artık `sessionId`'i okuyup `api.runs()`'a geçiriyor (backend
+  zaten destekliyordu).
+
+**Regresyon (test dosyası → tip):**
+`src/AgentPrism.UI/frontend/src/lib/auth.test.ts` (yeni, Vitest) ·
+`src/AgentPrism.UI/frontend/src/lib/transcript.test.ts` (Vitest, genişletildi
+— `foldMessages`) · `src/AgentPrism.UI/frontend/src/lib/format.test.ts`
+(Vitest, genişletildi — `money`, `splitTarget`, `matchRoute` ile birlikte
+sorgu dizgili yol) ·
+`tests/AgentPrism.Ui.E2ETests/UiTests.cs` (Playwright, 6 yeni test:
+palet odak dönüşü, tema senkronu, kod agenti dolu form, alt çalıştırma İz
+paneli, 375px taşma, oturum çalıştırma filtresi) ·
+`tests/AgentPrism.AspNetCore.FunctionalTests/RunReplayEndpointTests.cs`
+(xUnit, 1 yeni test — fix geri alınıp KIRMIZI verdiği doğrulandı).
+Vitest testi `foldMessages` yazılırken paylaşılan `appendText`'in mesaj
+sınırını aşıp ardışık metni birleştirdiği bir regresyon YAKALANDI ve
+düzeltildi (`boundary` parametresi) — testin kendisi kusuru buldu.
+
+**Canlı doğrulama (Postgres, `mt_fin` şeması, gerçek `support`/`yonlendirici`
+vb. fixture agent'ları):** `MT-UI-003` (yanlış/doğru token döngüsü),
+`MT-UI-020` (palet odak dönüşü), `MT-UI-028` (Ayarlar→üst çubuk senkronu, iki
+yönde), `MT-UI-043` (Dashboard/Ayarlar/Tool'lar üçü de 375px'te 331=331 —
+Tool'lar dalı `cancel_order`'ın GERÇEKTEN 4 agent tarafından kullanıldığı
+canlı veriyle, E2E sabit veri kümesinde tetiklenemeyen tek senaryo),
+`MT-UIAG-016` (`agents/support/edit`'e doğrudan gidiş → dolu+salt-okunur
+`Ad`, "Kaydet" tıklanınca gerçek `409` + beklenen metin). `MT-UIRUN-030`/
+`MT-UIRUN-039`/`MT-UIRUN-041`/`MT-OBS-003` gerçek sağlayıcı çağrısı (maliyet)
+gerektirdiği için yalnız sahte sağlayıcılı E2E/xUnit testleriyle uçtan uca
+doğrulandı — davranış gerçek sunucudan bağımsız, mantık zaten belirlenimci.
+
+**Yeni/değişen dosyalar:** `lib/auth.ts` (+`rejectToken`, `isTokenRejected`,
+`useTokenRejected`), `lib/theme.ts` (+paylaşımlı store —
+`setThemePreference`/`useThemePreference`), `lib/router.tsx`
+(+`splitTarget`, `useSearchParams`, `search` state), `lib/transcript.ts`
+(`foldMessage` → `foldMessages`, `appendText`/`applyContent` +`boundary`),
+`lib/format.ts` (`money`), `components/access-gate.tsx`,
+`components/command-palette.tsx`, `components/layout.tsx`,
+`components/ui.tsx` (`Panel`), `screens/agent-editor.tsx`,
+`screens/run-detail.tsx`, `screens/runs.tsx`, `screens/session-detail.tsx`,
+`screens/settings.tsx` (`Row`, grid konteyneri), `screens/tools.tsx`,
+`src/AgentPrism.Core/Replay/RunReplayService.cs`
+(`FindApprovalTool` imzası + `PrepareFromCatalogAsync`'e koruma). **Yeni
+dosya:** `src/AgentPrism.UI/frontend/src/lib/auth.test.ts`.
+
+**Case:** `MT-UI-003`, `MT-UI-020`, `MT-UI-028`, `MT-UI-043`, `MT-UIAG-016`,
+`MT-UIRUN-015`, `MT-UIRUN-030`, `MT-UIRUN-039`, `MT-UIRUN-041`, `MT-OBS-003`
+✅ (10/10).
 
 ### Aile V — Yetenek boşlukları · Karışık
 

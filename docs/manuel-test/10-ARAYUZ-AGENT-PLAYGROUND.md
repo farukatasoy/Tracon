@@ -809,7 +809,25 @@ vardır ama arayüzden hiç tetiklenemiyor — dokümanın "URL seviyesinde enge
 yok" iddiası yanlış: `Ad` alanının salt-okunur+boş kombinasyonu fiilen bir
 engel oluşturuyor. `HATA-S4-010`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Aile U (bu koşum).** `agent-editor.tsx`'teki yükleme `useEffect`'i
+`definition === null` (kod kökenli) dalında artık `setReady(true)` ile
+yetinmiyor — `existing.data.descriptor`'dan (katalog aciklayicisi, `definition`
+olmasa bile HER ZAMAN vardır) `name`/`displayName`/`description`/
+`provider`/`model`/`toolNames`/`skillNames`/`callableAgentNames` okuyup
+formu dolduruyor. `Ad` hâlâ `readOnly` (bu doğru — isim değiştirilemez) ama
+artık DOLU; `valid` hesaplaması gerçek değerlerle çalışıyor, "Doğrula"/"Yeni
+sürüm kaydet" etkinleşiyor. Canlı Postgres'e karşı `agents/support/edit`'e
+doğrudan gidildi: `Ad` alanı `"support"` değeriyle dolu ve salt-okunur,
+"Doğrula"/"Kaydet" ikisi de etkin; "Yeni sürüm kaydet"e basılınca sunucu
+gerçekten `409` ile `"Code-defined agent cannot be modified: 'support' is
+defined in code..."` metnini döndü — case'in orijinal beklediği akış artık
+gerçekten erişilebilir. Regresyon testi:
+`tests/AgentPrism.Ui.E2ETests/UiTests.cs`
+`Kod_agentine_dogrudan_URL_ile_gidilince_form_ad_ile_dolu_gelir`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

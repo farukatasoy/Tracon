@@ -5,7 +5,7 @@ import { shortId } from '../lib/format';
 import { LOCALES, useLocale, useT } from '../lib/i18n';
 import { rankCommands } from '../lib/palette';
 import { useNavigate } from '../lib/router';
-import { applyTheme, readThemePreference, resolveTheme, writeThemePreference } from '../lib/theme';
+import { setThemePreference, useThemePreference } from '../lib/theme';
 import { cx } from './ui';
 import { SearchIcon } from './icons';
 import type { Meta } from '../lib/types';
@@ -71,15 +71,23 @@ export function CommandPalette({
   const [highlighted, setHighlighted] = useState(0);
   const input = useRef<HTMLInputElement | null>(null);
   const list = useRef<HTMLUListElement | null>(null);
+  // The element that had focus when the palette opened — the ⌘K button when
+  // it was clicked, or wherever focus already was for the keyboard shortcut.
+  // Restored on close; without it, focus falls through to <body>.
+  const trigger = useRef<HTMLElement | null>(null);
 
   const commands = usePaletteCommands(meta, open, onClose, onShowShortcuts);
   const matches = useMemo(() => rankCommands(commands, query).slice(0, 40), [commands, query]);
 
   useEffect(() => {
     if (open) {
+      trigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       setQuery('');
       setHighlighted(0);
       input.current?.focus();
+    } else {
+      trigger.current?.focus();
+      trigger.current = null;
     }
   }, [open]);
 
@@ -224,6 +232,7 @@ function usePaletteCommands(
   const t = useT();
   const { locale, setLocale } = useLocale();
   const navigate = useNavigate();
+  const { resolved } = useThemePreference();
 
   const agents = useQuery({ queryKey: ['agents'], queryFn: api.agents, enabled: open });
   const workflows = useQuery({ queryKey: ['workflows'], queryFn: api.workflows, enabled: open });
@@ -278,10 +287,7 @@ function usePaletteCommands(
       label: t('palette.toggleTheme'),
       keywords: 'theme dark light tema',
       perform: () => {
-        const next = resolveTheme(readThemePreference()) === 'dark' ? 'light' : 'dark';
-
-        writeThemePreference(next);
-        applyTheme(next);
+        setThemePreference(resolved === 'dark' ? 'light' : 'dark');
         onClose();
       },
     });

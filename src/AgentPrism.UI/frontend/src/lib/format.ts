@@ -138,7 +138,13 @@ export function money(value: number | null | undefined, currency: string | null 
     return '—';
   }
 
-  const amount = formatNumber(value, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  // A single turn on a cheap enough model can cost less than 4 decimals can
+  // represent (e.g. 0.00003945): rounded to "0.00" it reads as free, which is
+  // exactly the "0 is not the same as unknown" mixup this function otherwise
+  // guards against for a `null` price. More decimals only for the amounts
+  // that need them — an ordinary cost still prints as it always did.
+  const maximumFractionDigits = value > 0 && value < 0.01 ? 6 : 4;
+  const amount = formatNumber(value, { minimumFractionDigits: 2, maximumFractionDigits });
 
   return currency ? `${amount} ${currency}` : amount;
 }
