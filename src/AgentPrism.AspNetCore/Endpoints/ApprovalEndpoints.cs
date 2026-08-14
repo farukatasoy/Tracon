@@ -34,18 +34,21 @@ internal static class ApprovalEndpoints
     {
         builder.MapGet("/api/approvals/pending", ListPendingAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListPendingApprovals")
             .WithTags("AgentPrism", "Approvals")
             .WithSummary("Kiracinin bekleyen onay isteklerini listeler.");
 
         builder.MapGet("/api/approvals/{id:guid}", GetAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismGetPendingApproval")
             .WithTags("AgentPrism", "Approvals")
             .WithSummary("Tek bir bekleyen onay istegini getirir.");
 
         builder.MapPost("/api/approvals/{id:guid}/decide", DecideAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismDecideApproval")
             .WithTags("AgentPrism", "Approvals")
             .WithSummary("Bekleyen bir onay istegine karar verir.")

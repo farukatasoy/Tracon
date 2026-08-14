@@ -115,6 +115,7 @@ internal static class GovernanceEndpoints
                 CancellationToken cancellationToken)
                 => TypedResults.Ok(await tenants.ListAsync(cancellationToken).ConfigureAwait(false)))
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismListTenants")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Kayitli kiracilari listeler.")
@@ -150,6 +151,7 @@ internal static class GovernanceEndpoints
                 return TypedResults.Ok(saved);
             })
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismSaveTenant")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Bir kiraci kaydini ekler veya gunceller.");
@@ -165,6 +167,7 @@ internal static class GovernanceEndpoints
                         detail: $"'{slug}' anahtarli bir kiraci kaydi yok.",
                         statusCode: StatusCodes.Status404NotFound))
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismDeleteTenant")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Bir kiraci kaydini siler.")
@@ -180,6 +183,7 @@ internal static class GovernanceEndpoints
                 => TypedResults.Ok(
                     await servers.ListAsync(tenants.TenantId, cancellationToken).ConfigureAwait(false)))
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismListMcpServers")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Kayitli uzak MCP sunucularini listeler.")
@@ -223,6 +227,7 @@ internal static class GovernanceEndpoints
                 return TypedResults.Ok(saved);
             })
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismSaveMcpServer")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Bir uzak MCP sunucusu ekler veya gunceller.")
@@ -243,6 +248,7 @@ internal static class GovernanceEndpoints
                         detail: $"'{name}' adinda bir sunucu yok.",
                         statusCode: StatusCodes.Status404NotFound))
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismDeleteMcpServer")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Bir uzak MCP sunucusunu siler.");
@@ -281,6 +287,7 @@ internal static class GovernanceEndpoints
                 return TypedResults.Ok(new McpRefreshResponse { ToolCount = count });
             })
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismRefreshMcpTools")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Uzak MCP sunucularinin tool listesini simdi tazeler.")
@@ -314,6 +321,7 @@ internal static class GovernanceEndpoints
                 };
             })
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismListMcpPrompts")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Bir MCP sunucusunun prompt listesini getirir.")
@@ -346,6 +354,7 @@ internal static class GovernanceEndpoints
                 };
             })
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismGetMcpPrompt")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Bir MCP prompt'unun icerigini argumanlarla cozer.")
@@ -378,6 +387,7 @@ internal static class GovernanceEndpoints
                 };
             })
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismListMcpResources")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Bir MCP sunucusunun kaynak listesini getirir.")
@@ -410,6 +420,7 @@ internal static class GovernanceEndpoints
                 };
             })
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismReadMcpResource")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Bir MCP kaynagini okur.")
@@ -450,6 +461,7 @@ internal static class GovernanceEndpoints
                 };
             })
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.SecurityAdmin)
             .WithName("AgentPrismStartMcpOAuth")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Bir MCP sunucusu icin OAuth yetkilendirme akisini baslatir.")
@@ -502,6 +514,7 @@ internal static class GovernanceEndpoints
                 CancellationToken cancellationToken)
                 => TypedResults.Ok(await rules.ListAsync(tenants.TenantId, cancellationToken).ConfigureAwait(false)))
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListApprovalRules")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Kalici 'bir daha sorma' onay kurallarini listeler.");
@@ -518,6 +531,7 @@ internal static class GovernanceEndpoints
                         detail: $"'{ruleId}' kimlikli bir onay kurali yok.",
                         statusCode: StatusCodes.Status404NotFound))
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismDeleteApprovalRule")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Bir kalici onay kuralini geri alir.")

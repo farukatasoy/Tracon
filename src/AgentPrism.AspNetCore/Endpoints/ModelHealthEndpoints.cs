@@ -26,6 +26,7 @@ internal static class ModelHealthEndpoints
                 CancellationToken cancellationToken)
                 => TypedResults.Ok(await cache.GetAllAsync(refresh ?? false, cancellationToken).ConfigureAwait(false)))
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismModelsHealth")
             .WithTags("AgentPrism", "Models")
             .WithSummary("Tum kayitli saglayicilarin onbellekli saglik durumunu dondurur.")
@@ -50,6 +51,7 @@ internal static class ModelHealthEndpoints
                     : TypedResults.Ok(health);
             })
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismModelHealth")
             .WithTags("AgentPrism", "Models")
             .WithSummary("Tek bir saglayicinin onbellekli saglik durumunu dondurur.");

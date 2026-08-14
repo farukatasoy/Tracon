@@ -3746,7 +3746,7 @@
           "ApiKeys"
         ],
         "summary": "Yeni bir API anahtari uretir.",
-        "description": "Ham deger yanitta YALNIZCA BU CAGRIDA doner ve bir daha uretilemez. Kapsam listesi kapalidir; bilinmeyen bir kapsam reddedilir.",
+        "description": "Ham deger yanitta YALNIZCA BU CAGRIDA doner ve bir daha uretilemez. Kapsam listesi kapalidir; bilinmeyen bir kapsam reddedilir. Istek bir API anahtariyla dogrulandiysa, o anahtarin KENDI TASIMADIGI bir kapsam istenemez (yetki uzatma/attenuation, bolum 53.3).",
         "operationId": "AgentPrismCreateApiKey",
         "requestBody": {
           "content": {
@@ -7736,7 +7736,11 @@
           "EvalsRead",
           "EvalsAdmin",
           "ExperimentsRead",
-          "ExperimentsAdmin"
+          "ExperimentsAdmin",
+          "PlatformRead",
+          "PlatformAdmin",
+          "SecurityAdmin",
+          "AuditRead"
         ],
         "description": "Bir API anahtarinin acabilecegi yetki kapsami."
       },

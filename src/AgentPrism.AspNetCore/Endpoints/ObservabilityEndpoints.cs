@@ -28,6 +28,7 @@ internal static class ObservabilityEndpoints
                                 "(AgentPrism:Observability:SuccessSampleRatio).",
                         statusCode: StatusCodes.Status404NotFound))
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismGetRunTrace")
             .WithTags("AgentPrism", "Runs")
             .WithSummary("Bir calistirmanin span agacini dondurur.")
@@ -42,6 +43,7 @@ internal static class ObservabilityEndpoints
                 => TypedResults.Ok(
                     await runs.ListToolInvocationsAsync(runId, cancellationToken).ConfigureAwait(false)))
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListRunToolInvocations")
             .WithTags("AgentPrism", "Runs")
             .WithSummary("Bir calistirmanin tool cagrilarini zaman sirasina gore listeler.")
@@ -62,6 +64,7 @@ internal static class ObservabilityEndpoints
                     },
                     cancellationToken).ConfigureAwait(false)))
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismToolUsage")
             .WithTags("AgentPrism", "Runs")
             .WithSummary("Tool bazinda cagri sayisi, hata orani ve ortalama sureyi dondurur.")

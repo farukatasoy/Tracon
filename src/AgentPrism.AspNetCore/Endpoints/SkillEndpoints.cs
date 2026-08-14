@@ -19,24 +19,28 @@ internal static class SkillEndpoints
     {
         builder.MapGet("/api/skills", ListAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismListSkills")
             .WithTags("AgentPrism", "Skills")
             .WithSummary("Kiracinin skill'lerini listeler.");
 
         builder.MapGet("/api/skills/{name}", GetAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismGetSkill")
             .WithTags("AgentPrism", "Skills")
             .WithSummary("Tek bir skill ve kaynaklarini dondurur.");
 
         builder.MapPut("/api/skills/{name}", SaveAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismSaveSkill")
             .WithTags("AgentPrism", "Skills")
             .WithSummary("Skill olusturur veya gunceller.");
 
         builder.MapDelete("/api/skills/{name}", DeleteAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismDeleteSkill")
             .WithTags("AgentPrism", "Skills")
             .WithSummary("Skill'i ve cascade kaynaklarini siler.");

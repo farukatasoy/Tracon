@@ -23,6 +23,7 @@ internal static class AttachmentEndpoints
     {
         builder.MapPost("/api/attachments", UploadAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismUploadAttachment")
             .WithTags("AgentPrism", "Attachments")
             .WithSummary("Yeni bir ek yukler.")
@@ -39,6 +40,7 @@ internal static class AttachmentEndpoints
 
         builder.MapGet("/api/attachments/{id:guid}", DownloadAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismDownloadAttachment")
             .WithTags("AgentPrism", "Attachments")
             .WithSummary("Bir ekin ham icerigini akitir.")
@@ -49,12 +51,14 @@ internal static class AttachmentEndpoints
 
         builder.MapGet("/api/attachments", ListAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListAttachments")
             .WithTags("AgentPrism", "Attachments")
             .WithSummary("Ekleri listeler.");
 
         builder.MapDelete("/api/attachments/{id:guid}", DeleteAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismDeleteAttachment")
             .WithTags("AgentPrism", "Attachments")
             .WithSummary("Bir eki siler.");

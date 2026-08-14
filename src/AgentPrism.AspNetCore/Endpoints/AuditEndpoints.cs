@@ -44,6 +44,7 @@ internal static class AuditEndpoints
                 return TypedResults.Ok(entries);
             })
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.AuditRead)
             .WithName("AgentPrismListAudit")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Filtrelenebilir denetim kayitlarini listeler.")
@@ -74,6 +75,7 @@ internal static class AuditEndpoints
                 return TypedResults.Ok(entries);
             })
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.AuditRead)
             .WithName("AgentPrismGetEntityAudit")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Tek bir varligin degisiklik gecmisini, en yeniden eskiye dondurur.");

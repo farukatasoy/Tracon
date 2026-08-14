@@ -18,7 +18,25 @@ import {
 import type { ApiKeyCreationResult, ApiKeyRecord, ApiKeyScope } from '../lib/types';
 
 /** Every scope AgentPrism recognises. Mirrors `ApiKeyScope` on the server. */
-const SCOPES: ApiKeyScope[] = ['RunsRead', 'RunsWrite', 'AgentsRead', 'AgentsAdmin', 'ExternalInvoke'];
+const SCOPES: ApiKeyScope[] = [
+  'RunsRead',
+  'RunsWrite',
+  'AgentsRead',
+  'AgentsAdmin',
+  'ExternalInvoke',
+  'KnowledgeRead',
+  'KnowledgeAdmin',
+  'WorkflowsRead',
+  'WorkflowsAdmin',
+  'EvalsRead',
+  'EvalsAdmin',
+  'ExperimentsRead',
+  'ExperimentsAdmin',
+  'PlatformRead',
+  'PlatformAdmin',
+  'SecurityAdmin',
+  'AuditRead',
+];
 
 /**
  * Tenant-scoped API keys — a second identity source next to the single

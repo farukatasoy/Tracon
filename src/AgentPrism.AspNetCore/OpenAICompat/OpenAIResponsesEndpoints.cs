@@ -66,6 +66,7 @@ internal static class OpenAIResponsesEndpoints
                     prefix,
                     cancellationToken))
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .AddEndpointFilter(idempotencyFilter)
             .WithName("AgentPrismOpenAIResponses")
             .WithTags("AgentPrism", "OpenAI")

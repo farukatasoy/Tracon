@@ -26,12 +26,14 @@ internal static class QuotaEndpoints
     {
         builder.MapGet("/api/quotas", ListAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismListQuotas")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Bir kiracinin kota kurallarini listeler.");
 
         builder.MapPut("/api/quotas", SaveAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismSaveQuota")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Kota kurali olusturur veya gunceller.")
@@ -42,12 +44,14 @@ internal static class QuotaEndpoints
 
         builder.MapDelete("/api/quotas/{id:guid}", DeleteAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismDeleteQuota")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Bir kota kuralini siler.");
 
         builder.MapGet("/api/quotas/usage", GetUsageAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismGetQuotaUsage")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Gecerli donemin kota kullanimini dondurur.")

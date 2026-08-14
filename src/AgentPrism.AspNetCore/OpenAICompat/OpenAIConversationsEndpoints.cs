@@ -46,6 +46,7 @@ internal static class OpenAIConversationsEndpoints
     {
         builder.MapPost("/v1/conversations", CreateAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismOpenAICreateConversation")
             .WithTags("AgentPrism", "OpenAI")
             .WithSummary("Yeni bir konusma kimligi uretir.")
@@ -57,6 +58,7 @@ internal static class OpenAIConversationsEndpoints
 
         builder.MapGet("/v1/conversations/{conversationId}", RetrieveAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismOpenAIGetConversation")
             .WithTags("AgentPrism", "OpenAI")
             .WithSummary("Bir konusmanin ustverisini dondurur.")
@@ -65,6 +67,7 @@ internal static class OpenAIConversationsEndpoints
 
         builder.MapDelete("/v1/conversations/{conversationId}", DeleteAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismOpenAIDeleteConversation")
             .WithTags("AgentPrism", "OpenAI")
             .WithSummary("Bir konusmayi ve altindaki oturumu siler.")
@@ -73,6 +76,7 @@ internal static class OpenAIConversationsEndpoints
 
         builder.MapGet("/v1/conversations/{conversationId}/items", ListItemsAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismOpenAIListConversationItems")
             .WithTags("AgentPrism", "OpenAI")
             .WithSummary("Bir konusmanin mesajlarini OpenAI oge bicimiyle listeler.")

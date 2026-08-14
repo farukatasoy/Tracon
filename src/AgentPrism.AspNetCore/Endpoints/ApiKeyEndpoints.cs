@@ -22,6 +22,7 @@ internal static class ApiKeyEndpoints
     {
         builder.MapGet("/api/api-keys", ListAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.SecurityAdmin)
             .WithName("AgentPrismListApiKeys")
             .WithTags("AgentPrism", "ApiKeys")
             .WithSummary("Bir kiracinin API anahtarlarini listeler.")
@@ -29,15 +30,19 @@ internal static class ApiKeyEndpoints
 
         builder.MapPost("/api/api-keys", CreateAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.SecurityAdmin)
             .WithName("AgentPrismCreateApiKey")
             .WithTags("AgentPrism", "ApiKeys")
             .WithSummary("Yeni bir API anahtari uretir.")
             .WithDescription(
                 "Ham deger yanitta YALNIZCA BU CAGRIDA doner ve bir daha " +
-                "uretilemez. Kapsam listesi kapalidir; bilinmeyen bir kapsam reddedilir.");
+                "uretilemez. Kapsam listesi kapalidir; bilinmeyen bir kapsam reddedilir. " +
+                "Istek bir API anahtariyla dogrulandiysa, o anahtarin KENDI TASIMADIGI " +
+                "bir kapsam istenemez (yetki uzatma/attenuation, bolum 53.3).");
 
         builder.MapDelete("/api/api-keys/{id:guid}", RevokeAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.SecurityAdmin)
             .WithName("AgentPrismRevokeApiKey")
             .WithTags("AgentPrism", "ApiKeys")
             .WithSummary("Bir anahtari iptal eder.")
@@ -56,6 +61,7 @@ internal static class ApiKeyEndpoints
 
     private static async Task<Results<Ok<ApiKeyCreationResult>, ProblemHttpResult>> CreateAsync(
         [FromBody] ApiKeyCreateRequest request,
+        HttpContext httpContext,
         [FromServices] IApiKeyStore store,
         [FromServices] ITenantContext tenants,
         [FromServices] IAuditLog auditLog,
@@ -73,6 +79,21 @@ internal static class ApiKeyEndpoints
         if (request.Scopes is not { Count: > 0 })
         {
             return Invalid("En az bir kapsam ('scopes') secilmelidir.");
+        }
+
+        // Yetki uzatma (attenuation): istegi dogrulayan bir API anahtariysa,
+        // o anahtarin KENDI TASIMADIGI bir kapsam icin yeni anahtar uretemez.
+        // Statik token veya kullanici kimligiyle gelen istekler (Get() null
+        // doner) bu sinirdan etkilenmez — rol politikasi zaten yeterlidir.
+        if (ApiKeyRequestContext.Get(httpContext) is { } caller)
+        {
+            var ungranted = request.Scopes.Where(scope => !caller.Scopes.Contains(scope)).ToList();
+
+            if (ungranted.Count > 0)
+            {
+                return Invalid(
+                    $"Bu anahtarin tasimadigi kapsam(lar) istenemez: {string.Join(", ", ungranted)}.");
+            }
         }
 
         var created = await store.CreateAsync(

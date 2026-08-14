@@ -134,6 +134,18 @@ describe('catalogues', () => {
       'apiKeys.scope.AgentsRead',
       'apiKeys.scope.AgentsAdmin',
       'apiKeys.scope.ExternalInvoke',
+      'apiKeys.scope.KnowledgeRead',
+      'apiKeys.scope.KnowledgeAdmin',
+      'apiKeys.scope.WorkflowsRead',
+      'apiKeys.scope.WorkflowsAdmin',
+      'apiKeys.scope.EvalsRead',
+      'apiKeys.scope.EvalsAdmin',
+      'apiKeys.scope.ExperimentsRead',
+      'apiKeys.scope.ExperimentsAdmin',
+      'apiKeys.scope.PlatformRead',
+      'apiKeys.scope.PlatformAdmin',
+      'apiKeys.scope.SecurityAdmin',
+      'apiKeys.scope.AuditRead',
     ]);
 
     for (const key of keys) {
