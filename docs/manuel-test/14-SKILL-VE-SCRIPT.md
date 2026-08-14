@@ -653,7 +653,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
 **Gerçek sonuç**
 `HTTP: 201 Created` — agent kaydedildi, hiçbir doğrulama hatası dönmedi. Kök neden: `AgentEndpoints.CreateAgentAsync` (POST /api/agents) yalnız `Validate(request)` (temel şekil denetimi) ve `ValidateCallGraphAsync`'i çağırıyor; `AgentDefinitionValidator.ValidateAsync` (asıl `CheckSkillsAsync`'i, dolayısıyla `unknown_skill` kontrolünü içeren metot) yalnız ayrı `/api/agents/validate` ucundan (`ValidateAgentAsync`, `AgentEndpoints.cs:300-320`) çağrılıyor — CreateAgentAsync/UpdateAgentAsync onu HİÇ çağırmıyor (`AgentEndpoints.cs:247-283` ve `:340-372` okundu, ikisi de aynı desende). Doküman kaydın kendisinin bu denetimi yaptığını varsayıyordu; gerçekte istemci ayrıca `/validate`'i çağırmadıkça bilinmeyen skill adı hiç yakalanmıyor, agent yalnız ÇALIŞTIRILDIĞINDA (derleme anında) patlıyor olabilir — MT-SKILL-021'in "sayı sınırı" asimetrisiyle AYNI sınıf bir varlık-denetimi boşluğu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+**🔧 Kapanış güncellemesi (2026-08-14, HATA-K-001/K-404 — düzeltildi):** `CreateAgentAsync`/`UpdateAgentAsync` artık `AgentDefinitionValidator.ValidateAsync`'i SAVE zamanında çağırıyor (skill/tool/callable-agent/model — hepsi, yalnız skill değil, K1 kuralı gereği tam düzeltme). Aynı senaryo birebir tekrarlandı: `HTTP: 400`, `"'hayalet-skilli-agent' agent'i 'hic-var-olmayan-skill' skill'ine isaret ediyor ancak skill bulunamadi."` Regresyon kontrolü: skil'siz geçerli bir agent hâlâ `201` ile kaydediliyor; `PUT` (update) yolunda da aynı red doğrulandı. Ayrıntı: `SONUCLAR-K-2026-08-13.md`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
