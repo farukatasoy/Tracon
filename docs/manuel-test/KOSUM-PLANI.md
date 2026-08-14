@@ -15,7 +15,10 @@
 
 > Son güncelleme: **2026-08-14**, Ortak kuyruk TÜM 9 OTURUM BİTTİ (K-1..K-9,
 > `14/15/17/24` dosyalarının tümü TAMAMLANDI — worktree/branch açılmadan
-> doğrudan `main` üzerinde, kullanıcı talimatıyla koşuldu). Şerit 3 daha önce
+> doğrudan `main` üzerinde, kullanıcı talimatıyla koşuldu) VE §8 kapanış
+> protokolü TAMAMLANDI: bulunan 8 kusurun (`HATA-K-001..008`) TAMAMI
+> kodlandı, doğrulandı, ayrı commit'lerle `main`'e işlendi (K-400..K-407,
+> bkz. `SONUCLAR-K-2026-08-13.md`). Şerit 3 daha önce
 > bitti (S3-1..S3-7, `02/05/06/22/16` TAMAMLANDI). Şerit 2 main'e merge edildi
 > (7 oturum, 217/217 case tam). Şerit 1 daha önce bitti (S1-1 … S1-9). Şerit 4
 > (Arayüz) henüz başlamadı. Not: Şerit 1'in tamamı ve Şerit 3'ün S3-1 oturumu,
@@ -39,7 +42,7 @@
 | 2 — HTTP ve güvenlik | **✅ TÜM 7 OTURUM BİTTİ, main'e merge edildi (2026-08-13).** S2-1 ✅ (`07` tam, 43/43, 41 Geçti, 2 Kaldı) · S2-2+S2-3 ✅ (`08` tam, 49/49, 43 Geçti, 6 Kaldı) · S2-4+S2-5 ✅ (`13` tam, 54/54, 53 Geçti, 1 Kaldı) · S2-6 ✅ (`18` tam, 43/43, 38 Geçti, 5 Kaldı) · S2-7 ✅ (`21` tam, 28/28, 24 Geçti, 2 Kaldı, 2 Atlandı). **217/217 case, 11 hata bulundu (`HATA-S2-001`..`011`, bkz. `SONUCLAR-S2-2026-08-13.md`).** Kod **değiştirilmedi** — düzeltmeler §8 toplama oturumuna bırakıldı. Worktree `ap-s2` kaldırıldı. |
 | 3 — Çekirdek ve sağlayıcı | **✅ TÜM 7 OTURUM BİTTİ (2026-08-13).** S3-1 ✅ (`05` §1–§4, 13/13, 11 Geçti + 2 Kaldı) · S3-2 ✅ (`05` §5–§9, 27/27, 26 Geçti + 1 Atlandı — dosya `05` TAMAMLANDI 40/40) · S3-3 ✅ (`06` §1–§8, 30/30, 28 Geçti + 2 Kaldı) · S3-4 ✅ (`06` §9 + `22` §1–§4, 26/26, 17 Geçti + 9 Atlandı — dosya `06` TAMAMLANDI 39/39, Azure kimliği yok) · S3-5 ✅ (`22` §5–§8, 18/18, 15 Geçti + 3 Kaldı — dosya `22` TAMAMLANDI 35/35) · S3-6 ✅ (`16` §1–§5, 37/37, 37 Geçti) · S3-7 ✅ (`16` §6–§8, 24/24, 22 Geçti + 2 Kaldı — dosya `16` TAMAMLANDI 61/61). **9 hata bulundu (`HATA-S3-001`..`009`, bkz. `SONUCLAR-S3-2026-08-13.md`), çeşitli doküman düzeltmeleri yapıldı (jq/gövde şekli uyuşmazlıkları, PollInterval doğrulayıcı davranışı, mimari yanlış anlamalar).** Kod **değiştirilmedi** — düzeltmeler §8 toplama oturumuna bırakıldı. |
 | 4 — Arayüz | ⏳ Başlamadı |
-| Ortak kuyruk | **✅ TÜM 9 OTURUM BİTTİ (2026-08-14).** K-1 ✅ (`14` §1–§2, 20/20, 19 Geçti + 1 Kaldı) · K-2 ✅ (`14` §3–§5, 18/18, tam Geçti) · K-3 ✅ (`14` §6–§7 + `15` §1, 28/28, 21 Geçti + 7 Kaldı — dosya `14` TAMAMLANDI 47/47) · K-4 ✅ (`15` §2–§6, 26/26, 23 Geçti + 3 Kaldı) · K-5 ✅ (`15` §7–§9 + `17` §1–§2, 27/27, 21 Geçti + 6 Kaldı — dosya `15` TAMAMLANDI 60/60) · K-6 ✅ (`17` §3–§6, 30/30, tam Geçti) · K-7 ✅ (`17` §7–§11, 26/26, 20 Geçti + 4 Kaldı — dosya `17` TAMAMLANDI 69/69) · K-8 ✅ (`24` §1–§2, 24/24, tam Geçti) · K-9 ✅ (`24` §3–§5, 17/17, 16 Geçti + 1 Kaldı — dosya `24` TAMAMLANDI 41/41). **HATA-K-001..008 bulundu (bkz. `SONUCLAR-K-2026-08-13.md`).** Kod **değiştirilmedi** — düzeltmeler §8 kapanış oturumuna bırakıldı. |
+| Ortak kuyruk | **✅ TÜM 9 OTURUM BİTTİ + KAPANIŞ TAMAMLANDI (2026-08-14).** K-1 ✅ (`14` §1–§2, 20/20, 19 Geçti + 1 Kaldı) · K-2 ✅ (`14` §3–§5, 18/18, tam Geçti) · K-3 ✅ (`14` §6–§7 + `15` §1, 28/28, 21 Geçti + 7 Kaldı — dosya `14` TAMAMLANDI 47/47) · K-4 ✅ (`15` §2–§6, 26/26, 23 Geçti + 3 Kaldı) · K-5 ✅ (`15` §7–§9 + `17` §1–§2, 27/27, 21 Geçti + 6 Kaldı — dosya `15` TAMAMLANDI 60/60) · K-6 ✅ (`17` §3–§6, 30/30, tam Geçti) · K-7 ✅ (`17` §7–§11, 26/26, 20 Geçti + 4 Kaldı — dosya `17` TAMAMLANDI 69/69) · K-8 ✅ (`24` §1–§2, 24/24, tam Geçti) · K-9 ✅ (`24` §3–§5, 17/17, 16 Geçti + 1 Kaldı — dosya `24` TAMAMLANDI 41/41). **HATA-K-001..008 bulundu VE 8'i de kodlandı (K-400..K-407, bkz. `SONUCLAR-K-2026-08-13.md`).** Her düzeltmeden sonra dört doğrulama kapısı + canlı sunucuda ampirik doğrulama; ayrı commit. |
 
 ### Şerit 1'in bulduğu hatalar
 
@@ -448,6 +451,30 @@ yanına ajan adını yazar — iki ajan aynı oturumu almaz.
 | K-9 ✅ | [`24`](24-TEST-PAKETI-VE-SABLON.md) | §3–§5 | 17 | **Bitti** (2026-08-14): 16 Geçti, 1 Kaldı — **dosya `24` TAMAMEN BİTTİ (41/41)**. Doküman düzeltmesi (MT-TEST-044). Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
 
 `14` dosyasının `MT-SKILL-071` case'i koşuldu; atla.
+
+### Ortak kuyruk'un bulduğu hatalar
+
+**Hepsi kapandı (2026-08-14, kapanış oturumu) — kullanıcı kararıyla "8 kusuru
+sırayla kodla" seçildi: Kritik önce, sonra Yüksek, her düzeltmeden sonra dört
+doğrulama kapısı, her satır canlı sunucuda yeniden doğrulandı.** Ayrıntı ve
+karar gerekçeleri: `docs/KARARLAR.md` K-400..K-407,
+[`SONUCLAR-K-2026-08-13.md`](SONUCLAR-K-2026-08-13.md).
+
+| Hata | Önem | Durum |
+|---|---|---|
+| `HATA-K-002` — Skill script çalıştırma iki ayrı kök nedenle tamamen çalışmıyordu | Kritik | ✅ Düzeltildi (K-400) |
+| `HATA-K-003` — Magentic plan onayı sonrası devam `ExecutorFailed`/`RunFailed` ile opak hata veriyor | Kritik | ✅ Düzeltildi (K-401, kısmi — "zarif durdurma" F-106'ya yazıldı) |
+| `HATA-K-004` — `AgentPrismWorkflowOptions` hiçbir konfigürasyon kaynağına bağlı değil | Kritik | ✅ Düzeltildi (K-402) |
+| `HATA-K-005` — Workflow `run` ucunda `sessionId` doğrulama hatası düz `HTTP 500`'e düşüyor | Kritik | ✅ Düzeltildi (K-403) |
+| `HATA-K-001` — `POST/PUT /api/agents` bilinmeyen skill/tool/callable-agent adını SAVE zamanında hiç doğrulamıyor | Yüksek | ✅ Düzeltildi (K-404) |
+| `HATA-K-006` — `WorkflowEndpoints` API anahtarı kapsam denetimi hiç uygulamıyor | Yüksek | ✅ Düzeltildi (K-405) |
+| `HATA-K-007` — `AgentPrism:RunRecording:RecordRunInput` config'ten hiçbir zaman okunmuyor | Yüksek | ✅ Düzeltildi (K-406) |
+| `HATA-K-008` — `ApiKeyScope`'ta Eval/Experiment için kapsam yok, `RunEndpoints`'te `feedback`/`compare`/`input` kapsamsız | Yüksek | ✅ Düzeltildi (K-407) |
+
+Ortak kuyruk'ta kod/kusur açığı **sıfır**. `SchedulingEndpoints`
+(`MT-JOB-090`) ve `GovernanceEndpoints`'in aynı kapsam-eksikliği kalıbını
+taşıması bu koşumun konfirme ettiği listeye dahil değildi — bu düzeltmenin
+kapsamı dışında bırakıldı, ayrı bir bulgu/düzeltme gerektirir.
 
 ---
 
