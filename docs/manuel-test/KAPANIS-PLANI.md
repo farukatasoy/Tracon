@@ -59,8 +59,8 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 |---|---|
 | Toplam case | **1097** |
 | Koşuldu | **1097** (koşulmamış case **yok**) |
-| ☑ Geçti | **1008** |
-| ☒ **Kaldı** | **58** |
+| ☑ Geçti | **1009** |
+| ☒ **Kaldı** | **57** |
 | ⏭ Atlandı | **30** |
 | ☐ Beklemede | **1** (`MT-UIRUN-019`) |
 
@@ -80,10 +80,11 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile I** — Kaynak üreteci `[AgentPrismTool]` kayıtlarına koşulsuz `source: "generated"` yazıyordu; `SourceWriter.WriteAggregator` artık `source` argümanını hiç geçirmiyor (kayıt belgelenen `null` varsayılanını kullanıyor) | `cbecd59` | `MT-MCP-047` |
 | **Aile J** — Agent editörünün iki `useEffect`'i aynı commit'te çözülünce sağlayıcıyı ezen yarış; guard functional `setForm` updater'ının içine, `current` (taze state) üzerinden karar verecek şekilde taşındı | `c0175b9` | `MT-UIAG-014` |
 | **Aile K** — CSP `blob:` şemasını hiçbir yönergede beyaz listeye almıyordu; `EmbeddedUiProvider.ContentSecurityPolicy`'ye `img-src`'e `blob:` + yeni `media-src 'self' blob:;` eklendi | `c1efa8a` | `MT-UIAG-044`, `MT-UIAG-050` |
+| **Aile L** — SPA geçişinin erken `AbortController.abort()`'u `RunStarted` yazıldıktan sonra ama try/finally güvenlik ağına girmeden çalıştırmayı sonsuza dek `Running`de bırakıyordu; `BeginRunAsync` `CreateScope` (saf) + `WriteRunStartAsync` (G/Ç) olarak ikiye bölündü, ikincisi güvenlik ağının içine taşındı | `a61f999` | `MT-UIRUN-007` |
 
 ### Kalan aileler
 
-Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **K** ile başlar.
+Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **M** ile başlar.
 
 | Aile | Önem | Konu | Case | Durum |
 |---|---|---|---|---|
@@ -98,7 +99,7 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **K** ile başla
 | ~~I~~ | Yüksek | Kaynak üreteci sahte `mcp:` rozeti | 1 | ✅ (bu koşum) |
 | ~~J~~ | Yüksek | Agent editörü sağlayıcı yarışı | 1 | ✅ (bu koşum) |
 | ~~K~~ | Yüksek | CSP `blob:` beyaz listede değil | 2 | ✅ (bu koşum) |
-| **L** | Yüksek | SPA geçişi run'ı `Running` bırakıyor | 1 | ⬜ |
+| ~~L~~ | Yüksek | SPA geçişi run'ı `Running` bırakıyor | 1 | ✅ (bu koşum) |
 | **M** | Yüksek | Loopback dışı erişimde ham JSON | 1 | ⬜ |
 | **N** | Yüksek | 112 `ProblemDetails` başlığı Türkçe | 1 | ⬜ |
 | **O** | Orta | Yapılandırmada geçersiz değer sessizce düşüyor | 4 | ⬜ |
@@ -113,11 +114,11 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **K** ile başla
 | **Yeniden koşum** | — | Kusuru zaten kapalı | 8 | ⬜ |
 | **MT-PKG-010** | — | Kök neden `f36eeaf`'te kapandı, case yeniden koşulmalı | 1 | ⬜ |
 
-**Toplam:** 38 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **60**. (Aile F
+**Toplam:** 37 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **59**. (Aile F
 bitti: 51 → 47; Aile G bitti: 47 → 43; Aile H bitti: 43 → 42; Aile I bitti:
-42 → 41; Aile J bitti: 41 → 40; Aile K bitti: 40 → 38. `MT-MCP-052` bu sayıma
-dahil değildir — Kaldı kalır, ayrı bir bulgu olarak izlenir, gelecekte kendi
-ailesini gerektirebilir.)
+42 → 41; Aile J bitti: 41 → 40; Aile K bitti: 40 → 38; Aile L bitti: 38 → 37.
+`MT-MCP-052` bu sayıma dahil değildir — Kaldı kalır, ayrı bir bulgu olarak
+izlenir, gelecekte kendi ailesini gerektirebilir.)
 
 ---
 
@@ -763,16 +764,65 @@ yüklemesine izin verilip verilmediğini değil). Üç test de fix geri alınıp
 koşulduğunda KIRMIZI verdiği ampirik olarak doğrulandıktan sonra fix geri
 uygulandı.
 
-### Aile L — SPA geçişi run'ı `Running` bırakıyor 🚨 Yüksek
+### ~~Aile L~~ — SPA geçişi run'ı `Running` bırakıyor 🚨 Yüksek ✅ (bu koşum)
 
 **Kusur:** `HATA-S4-012`. Akış bitmeden run sayfasına SPA geçişi run'ı kalıcı
 `Running`'de asılı bırakıyor; `cancel` de `409` veriyor.
 
-**Kök neden:** `screens/playground.tsx:78` ·
-`src/AgentPrism.Core/Recording/RunRecordingAgent.cs:298-388` ·
-`src/AgentPrism.Abstractions/Runs/RunReconciliationOptions.cs:14-18`.
+**Kök neden — katman sırası:** `screens/playground.tsx:78`
+(`AbortController.abort()`, bileşen unmount) run'ı başlatan POST isteğini
+kesiyor. `src/AgentPrism.Core/Recording/RunRecordingAgent.cs`'in eski
+tek-parça `BeginRunAsync`'i (`RunCoreAsync`/`RunCoreStreamingAsync`'in
+try/finally güvenlik ağının **DIŞINDA** çağrılıyordu) `RunStarted` olayını
+depoya yazdıktan **SONRA** `SaveInputAsync`'i çağırıyordu; `SaveInputAsync`
+(ve altındaki `RunEventWriter.StartAsync`/`AppendAsync`) `OperationCanceledException`'ı
+BİLEREK yutmaz — `catch (Exception ex) when (ex is not OperationCanceledException)`.
+İstemci bu dar pencerede (RunStarted zaten yazılmış, model çağrısı henüz
+başlamamış) bağlantıyı keserse istisna hiçbir güvenlik ağını tetiklemeden
+metodun dışına fırlıyordu: `CompleteAsync` hiç çağrılmıyor, `IRunCancellationRegistry`
+kaydı `using` disposal ile sessizce siliniyor (`cancel` bu yüzden `409`
+veriyor), ve `RunReconciliationOptions.Enabled` varsayılanı `false` olduğu
+için (örnek uygulama da açmıyor) run kendiliğinden asla iyileşmiyordu.
 
-**Case:** `MT-UIRUN-007` (dolaylı: `016`, `018`, `021`, `022`).
+**Uygulanan tasarım:** Tasarım kararı gerektirmeyen, yapısal bir kök neden
+düzeltmesi. `BeginRunAsync` ikiye bölündü: `CreateScope` (yalnız bellek
+içinde `RunScope` kurar — G/Ç yapmaz, hiçbir zaman istisna atmaz veya iptal
+edilmez) ve `WriteRunStartAsync` (asıl G/Ç — `runs` satırını ve
+`RunStarted` olayını yazar, girdiyi kaydeder). Kapsam artık G/Ç'den **ÖNCE**
+kurulur; `WriteRunStartAsync` her iki metodun da (`RunCoreAsync`,
+`RunCoreStreamingAsync`) try/finally güvenlik ağının **İÇİNDE** çağrılır —
+böylece bu adımda oluşan bir iptal, tam bir `RunScope` ile zaten var olan
+HATA-S1-015 mekanizmasının aynısı tarafından `Canceled` olarak kapatılır.
+`RunEventWriter`'ın `OperationCanceledException`'ı BİLEREK yutmayan
+davranışı değiştirilmedi — o davranış mid-stream iptalinin doğru şekilde
+yukarı akmasını sağlayan mevcut, çalışan mekanizmanın ta kendisidir; kusur
+yalnız `BeginRunAsync`'in bu mekanizmanın dışında kalmasıydı.
+
+**Canlı doğrulama:** Gerçek Postgres'e karşı (`samples/AgentPrism.Api`)
+`support` agent'ına 11 istek `curl --max-time` ile 2ms-120ms aralığında
+erken kesildi; 5'i sunucuya ulaşıp bir `runs` satırı açtı, **5'i de**
+`Canceled` ile kapandı (`eventCount:2`; `run_events` sorgusu: seq 0
+`RunStarted`, seq 1 "Calistirma iptal edildi." — hiçbiri `Running`de asılı
+kalmadı). Aynı sunucuda kesilmemiş normal bir istek `Completed` ile doğru
+şekilde tamamlandı — regresyon yok.
+
+**Değişen dosya:** `src/AgentPrism.Core/Recording/RunRecordingAgent.cs`
+(`BeginRunAsync` → `CreateScope` + `WriteRunStartAsync`, çağrı yerleri
+`RunCoreAsync`/`RunCoreStreamingAsync`'te try/finally'nin içine taşındı).
+**Yeni dosya:** `tests/AgentPrism.Core.UnitTests/Recording/RunStartCancellationTests.cs`.
+
+**Case:** `MT-UIRUN-007` ✅ (dolaylı: `016`, `018`, `021`, `022` — bu dördü
+zaten Geçti işaretliydi, HATA-S4-012'nin kalıcı `Running` run'ını yalnız
+sabit veri olarak kullanmışlardı, kod değişikliğinden etkilenmezler).
+
+**Regresyon testleri:** `RunStartCancellationTests.cs` — akışsız
+(`Girdi_kaydi_sirasinda_iptal_akissiz_calistirmayi_Canceled_yazar_Running_de_asili_birakmaz`)
+ve akışlı (`..._akisli_...`) iki senaryo, `SaveInputAsync`'in tam bu
+penceresinde iptali deterministik olarak yeniden üretir (sahte
+`IRunInputStore.SaveAsync` çağrıldığı anda kendi belirtecini iptal edip o
+belirtecten fırlatır). Fix geri alınıp koşulduğunda ikisi de
+`run.Status == RunStatus.Running` ile KIRMIZI verdiği ampirik olarak
+doğrulandıktan sonra fix geri uygulandı.
 
 ### Aile M — Loopback dışı erişimde ham JSON 🚨 Yüksek
 
