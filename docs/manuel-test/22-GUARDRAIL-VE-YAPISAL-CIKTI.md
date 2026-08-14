@@ -1606,7 +1606,23 @@ parametre) → `12` satır (**küçük**). Kaynak doğrulandı:
 ASP.NET Core bağlanmamış sorgu parametresini sessizce yok sayıyor. Yeni
 kayıt: **`HATA-S3-007`**. Ayrıntı: `SONUCLAR-S3-2026-08-13.md`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**GEÇTİ (KAPANIS-PLANI Aile R, bu koşum).** Düzeltme: `RunQuery.ErrorType`
+eklendi, `RunEndpoints.cs` artık `[FromQuery] string? errorType`'i bağlıyor
+ve `RunError.Type`'a eşitlik filtresi olarak geçiyor; dört depoda da
+(bellek içi + üç SQL lehçesi) aynı alan bağlandı. Ayrıntı KAPANIS-PLANI.md
+Aile R.
+
+Canlı PostgreSQL'e karşı yeniden üretildi (`mt_fin` şeması, `FIX-PROMPT-05`
+ile guard engellemesi tetiklendi — `error.type: "content_blocked"`, ayrıca
+karşılaştırma için ayrı bir çalıştırma `upstream_error` ile başarısız
+edildi): `?errorType=content_blocked` → **`1`** satır (yalnız engellenen
+çalıştırma); parametresiz → **`3`** satır (tüm çalıştırmalar); `?status=Failed`
+(kontrol) → **`1`** satır — üçü de artık birbirinden ayrışıyor, filtre gerçekten
+filtreliyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

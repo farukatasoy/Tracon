@@ -1102,6 +1102,13 @@
             }
           },
           {
+            "name": "errorType",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "startedAfter",
             "in": "query",
             "schema": {

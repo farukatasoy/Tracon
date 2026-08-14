@@ -492,7 +492,22 @@ internal sealed class SqlServerQueries : SqlQueriesBase
               AND (@agent_name IS NULL OR r.agent_name = @agent_name)
               AND (@status     IS NULL OR r.status     = @status)
               AND (@kind       IS NULL OR r.kind       = @kind)
-              AND (@session_id IS NULL OR r.session_id = @session_id)
+              AND (@error_type IS NULL OR r.error_type = @error_type)
+              AND (
+                    -- HATA-S2-001: session_id yalniz KOK calistirmada set edilir
+                    -- (K-217); alt calistirmanin kendi session_id'si NULL'dur.
+                    -- Dogrudan esitlik "includeChildren=true" ile birlikte hicbir
+                    -- alt calistirmayi eslestirmezdi -- kaydin kendi agacinin
+                    -- KOKU bu oturuma aitse de eslesir.
+                    @session_id IS NULL
+                 OR r.session_id = @session_id
+                 OR EXISTS (
+                        SELECT 1 FROM {Schema}.runs AS session_root
+                        WHERE session_root.tenant_id = r.tenant_id
+                          AND session_root.id = COALESCE(r.root_run_id, r.id)
+                          AND session_root.session_id = @session_id
+                    )
+              )
               AND (@started_after IS NULL OR r.started_at > @started_after)
               AND (@root_run_id IS NULL OR r.root_run_id = @root_run_id OR r.id = @root_run_id)
               AND (
