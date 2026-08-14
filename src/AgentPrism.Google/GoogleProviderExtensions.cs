@@ -135,8 +135,11 @@ public static class GoogleProviderExtensions
         }
 
         if (section[nameof(GoogleProviderOptions.Endpoint)] is { Length: > 0 } endpoint
-            && Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri))
+            && Uri.TryCreate(endpoint, UriKind.RelativeOrAbsolute, out var endpointUri))
         {
+            // Goreli adresler de atanir: validator IsAbsoluteUri denetimiyle
+            // reddeder. Yalnizca UriKind.Absolute ile parse edip goreliyi
+            // sessizce atlamak validator'in bu dalini erisilemez birakirdi.
             options.Endpoint = endpointUri;
         }
 
@@ -160,14 +163,11 @@ public static class GoogleProviderExtensions
     {
         foreach (var child in section.GetChildren())
         {
-            if (child[nameof(ModelDescriptor.Name)] is not { Length: > 0 } name)
-            {
-                continue;
-            }
-
+            // Bos/eksik ad da eklenir: validator Models[i] dongusuyle reddeder.
+            // Burada atlamak validator'in bu dalini erisilemez birakirdi.
             options.Models.Add(new ModelDescriptor
             {
-                Name = name,
+                Name = child[nameof(ModelDescriptor.Name)] ?? string.Empty,
                 DisplayName = child[nameof(ModelDescriptor.DisplayName)],
                 ContextWindowTokens = ReadInt32(child, nameof(ModelDescriptor.ContextWindowTokens)),
                 MaxOutputTokens = ReadInt32(child, nameof(ModelDescriptor.MaxOutputTokens)),
