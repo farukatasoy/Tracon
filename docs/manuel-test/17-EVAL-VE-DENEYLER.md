@@ -1327,9 +1327,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/experiments/support-deneyi"
   için deneye konu olamaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `HTTP: 400`, `detail: "'support' kodda tanimlidir ve surum gecmisi
+  tutmaz. Kod kaynakli agent'larda deney kurulamaz."` Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1372,9 +1373,16 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/experiments/destek-talimat-
 - `HTTP: 200`, `status: "Draft"`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `manuel-destek` (`FIX-AGENT-01`) önceki oturumlardan zaten `version=3`
+  taşıyordu (doc'un varsaydığı taze `version=1` değil — önceki fazlarda
+  bu fixture üzerinde çalışılmış). Doc'un talimatını uyarlayarak: agent
+  tekrar `PUT` edilip `version=4` üretildi, sonra deney `version=3`/`version=4`
+  varyantlarıyla kuruldu (doc'taki `1`/`2` yerine). `HTTP: 200`,
+  `"status":"Draft"`. Beklenen davranış (fonksiyonel olarak) doğrulandı;
+  sürüm numaraları doc'tan farklı ama anlamı aynı — bu bir dokuman
+  düzeltmesi değil, ortamın önceki koşumlardan kalan durumuna uyarlama.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1405,9 +1413,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/experiments/yanlis-agirlik"
 - `HTTP: 400` — toplam `80`, `100` değil.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `HTTP: 400`, `detail: "Varyant agirliklarinin toplami 100 olmalidir;
+  suan 80."` Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1438,9 +1447,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/experiments/olmayan-surum" 
 - `HTTP: 400` — `version: 99` `manuel-destek` için mevcut değil.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `HTTP: 400`, `detail: "'manuel-destek' agent'inin 99 numarali surumu
+  yok."` Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1486,9 +1496,15 @@ SELECT name, status FROM agentprism.experiments WHERE agent_name = 'manuel-deste
 - SQL sorgusu tam olarak `1` satır döner.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- (Sürüm numaraları MT-EVAL-051'deki uyarlamayla `1`/`2` yerine `3`
+  kullanıldı.) İlk `start`: `HTTP: 200`, `"status":"Running"`. `ikinci-deney`
+  (`manuel-destek`, `version=3`, `weight=100`) `Draft` olarak oluşturuldu,
+  `start` edilince `HTTP: 409`, `detail: "'manuel-destek' agent'i icin
+  baska bir deney zaten calisiyor. Ayni agent icin ayni anda tek deney
+  calisabilir."` SQL: `status=1` (Running) satırı tam `1` adet
+  (`destek-talimat-testi`). Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1512,9 +1528,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/experiments/destek-talim
 - `HTTP: 409` — yalnız `Draft` deneyler silinebilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `HTTP: 409`, `detail: "'destek-talimat-testi' deneyi calisirken
+  silinemez; once durdurulmalidir."` Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1544,9 +1561,11 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/experiments/destek-talimat-
   kodunu koşum kaydeder.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `HTTP: 409`, `detail: "'destek-talimat-testi' deneyi 'Running'
+  durumunda; yalnizca Draft durumundaki deneyler duzenlenebilir."`
+  Başarısız olma beklentisiyle eşleşiyor; gözlemlenen kod `409`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1571,9 +1590,10 @@ curl -s "$APU/api/experiments/destek-talimat-testi" -H "$APB" | python3 -c "impo
   gerekir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `HTTP: 200`, `"status":"Stopped"`, `"endedAt"` dolduruldu. Takip eden
+  `GET` de `"Stopped"` döndürdü. Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1594,9 +1614,13 @@ curl -s "$APU/api/experiments/destek-talimat-testi" -H "$APB" | python3 -c "impo
 - Toplam kırmızı renkte gösterilir; "Kaydet" düğmesi devre dışıdır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `/agentprism/experiments` → "New experiment" açıldı, iki varyantın
+  `Weight %` alanları `30`/`30` yapıldı. Metin "Weights total 60% (must
+  be 100%)" göründü, `browser_evaluate` ile `getComputedStyle(...).color`
+  → `rgb(190, 18, 60)` (kırmızı/rose tonu) doğrulandı. "Save" düğmesi
+  `disabled` özniteliğiyle işaretliydi. Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1618,9 +1642,12 @@ curl -s "$APU/api/experiments/destek-talimat-testi" -H "$APB" | python3 -c "impo
   satırda ikisi de yoktur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `/agentprism/experiments` listesinde `destek-talimat-testi` (`stopped`)
+  satırının son hücresi BOŞ — Edit/Sil düğmesi yok. Karşılaştırma amaçlı:
+  aynı listedeki `ikinci-deney` (`draft`) satırında "Edit" düğmesi VE bir
+  ikinci (sil) düğmesi görünüyor. Kontrast beklenen davranışı doğruluyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
