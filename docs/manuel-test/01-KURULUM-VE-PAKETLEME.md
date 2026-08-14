@@ -3013,7 +3013,42 @@ açılmalıdır (izlek: `MigrationHostedService`, çoklu kalıcılık kaydı; K-
 
 Bu koşumun kendi geçici SQLite dosyası (`manuel-cift.db`) temizlendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Yeniden koşum (2026-08-14, KAPANIS-PLANI Aile E):** Kusur önceki bir
+düzeltme dalgasında zaten kapanmış — kod yorumu `MigrationHostedService.cs:73-83`
+kusuru `MT-PKG-082` adıyla anıyor ve `IsWinningProvider()` artık paylaşılan
+`_registrations` listesindeki **son kaydı** (tüm sağlayıcılar arası, yalnız
+kendi tipi değil) kazanan sayıyor; kaybeden `StartAsync` içinde erkenden
+çıkıp migration'a hiç dokunmuyor. İki entegrasyon testi zaten repoda
+(`tests/AgentPrism.PostgreSql.IntegrationTests/ServiceRegistrationTests.cs`
+`Kaybeden_saglayici_migration_uygulamaz`, `Kazanan_saglayici_migration_uygular`)
+— ikisi de gerçek PostgreSQL'e karşı koşuyor ve kaybedenin şemayı
+**hiç** oluşturmadığını doğruluyor.
+
+Canlı doğrulama: `samples/AgentPrism.Api/Program.cs`'e case'in öngördüğü
+gibi geçici bir `UseSqlite(...)` çağrısı `UsePostgreSql(...)`'in altına
+eklendi (MT-PG-034 deseni), örnek çalıştırıldı, sonra değişiklik
+`git checkout` ile geri alındı.
+
+```
+Log (iki kez, bu kez TUTARLI):
+  warn: ... birden fazla kalicilik saglayicisi kayitli: PostgreSQL, SQLite.
+        Son kayit kazanir ve su an SQLite kullaniliyor. ...
+  warn: ... birden fazla kalicilik saglayicisi kayitli: PostgreSQL, SQLite.
+        Son kayit kazanir ve su an SQLite kullaniliyor. ...
+
+PostgreSQL sema sayimi (mt_e): 0   -> sema OLUSMADI (kaybeden dokunmadi)
+SQLite dosyasi (/tmp/manuel-cift-e.db): 45 tablo -> kazanan gercekten yazdi
+```
+
+Önceki koşumda ikisi de şema yazıyordu ve iki log satırı **çelişkiliydi**
+(biri "SQLite kazandı", biri "PostgreSQL kazandı"). Bu koşumda ikisi de aynı
+kazananı söylüyor ve yalnız o kazanan gerçekten şema yazıyor — kusur giderildi.
+Dört kapı bu koşumda yeşil; kod değişikliği gerekmedi (`Program.cs`'teki
+geçici satır geri alındı, `git status` temiz).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
