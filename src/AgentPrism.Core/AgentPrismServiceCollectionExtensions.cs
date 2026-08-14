@@ -544,7 +544,7 @@ public static class AgentPrismServiceCollectionExtensions
             static provider => new QuotaUsageObserver(
                 provider.GetRequiredService<IQuotaStore>(),
                 provider.GetRequiredService<ITenantStore>(),
-                provider.GetRequiredService<IOptionsMonitor<AgentPrismObservabilityOptions>>(),
+                provider.GetRequiredService<IOptionsMonitor<AgentPrismOptions>>(),
                 provider.GetRequiredService<IOptionsMonitor<AgentPrismQuotaOptions>>(),
                 provider.GetService<System.Diagnostics.Metrics.IMeterFactory>(),
                 provider.GetService<TimeProvider>(),
@@ -801,6 +801,24 @@ public static class AgentPrismServiceCollectionExtensions
         BindAttachments(section.GetSection(nameof(AgentPrismOptions.Attachments)), options.Attachments);
         BindPricing(section.GetSection(nameof(AgentPrismOptions.Pricing)), options.Pricing);
         options.UtilityModel = BindUtilityModel(section.GetSection(nameof(AgentPrismOptions.UtilityModel)));
+        BindValidation(section.GetSection(nameof(AgentPrismOptions.Validation)), options.Validation);
+    }
+
+    /// <summary><c>AgentPrism:Validation</c> bolumunu baglar (K-253).</summary>
+    private static void BindValidation(IConfigurationSection section, AgentPrismValidationOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (TimeSpan.TryParse(
+                section[nameof(AgentPrismValidationOptions.McpTimeout)],
+                CultureInfo.InvariantCulture,
+                out var mcpTimeout))
+        {
+            options.McpTimeout = mcpTimeout;
+        }
     }
 
     /// <summary>
@@ -844,11 +862,12 @@ public static class AgentPrismServiceCollectionExtensions
                 var input = ReadDecimal(modelSection, "Input");
                 var output = ReadDecimal(modelSection, "Output");
 
-                if (input is null && output is null)
-                {
-                    continue;
-                }
-
+                // 🚨 Ikisi de null olsa dahi kayit EKLENIR (K-034): "Input"/"Output"
+                // disinda bir anahtar adiyla yazilan (or. C# ozellik adi
+                // "InputCostPerMillionTokens") bir fiyat girdisi bu yuzden TAMAMEN
+                // SESSIZCE dusmez, ikisi de bos bir ModelPriceOverride olarak
+                // Providers'a girer ve AgentPrismOptionsValidator.ValidatePricing
+                // bunu acilista reddeder (MT-CORE-065).
                 models[modelSection.Key] = new ModelPriceOverride
                 {
                     InputCostPerMillionTokens = input,
@@ -890,11 +909,7 @@ public static class AgentPrismServiceCollectionExtensions
 
                 var perMinute = ReadDecimal(modelSection, nameof(VoicePriceOverride.PerMinute));
 
-                if (perMillionCharacters is null && perMinute is null)
-                {
-                    continue;
-                }
-
+                // 🚨 Ayni gerekce: bkz. BindPricing icindeki yorum (MT-CORE-065).
                 models[modelSection.Key] = new VoicePriceOverride
                 {
                     PerMillionCharacters = perMillionCharacters,
@@ -1855,6 +1870,14 @@ public static class AgentPrismServiceCollectionExtensions
                 out var maxSpans))
         {
             options.MaxSpansPerRun = maxSpans;
+        }
+
+        if (TryReadBool(
+                section,
+                nameof(AgentPrismObservabilityOptions.IncludeAgentVersionTag),
+                out var includeAgentVersionTag))
+        {
+            options.IncludeAgentVersionTag = includeAgentVersionTag;
         }
 
         if (TryReadBool(
