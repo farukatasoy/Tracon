@@ -576,9 +576,9 @@ SELECT status, total, passed, failed, agent_version FROM agentprism.eval_runs WH
   geçtiği için).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Nihai durum `Completed`, `total=1, passed=1, failed=0`. `output` "ORD-1001 siparişiniz kargoya verilmiş..." — `ORD-1001` içeriyor, her iki denetim de (`non_empty`, `contains_expected`) `passed:true`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -613,9 +613,9 @@ RUN_ID=$(curl -s -X POST "$APU/api/evals/tool-cagri-testi/run" -H "$APB" -H "con
   eklenip yeniden koşulursa o vaka `Passed=false` döner.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İlk koşu: `Passed=true`, `reason: "All tools called: get_order_status"`. Karşıt kanıt: `query: "Merhaba"` ile değiştirilip yeniden koşulunca `Passed=false`, `reason: "Missing tool calls: get_order_status"`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -647,9 +647,9 @@ curl -s -X POST "$APU/api/evals/anahtar-kelime-testi/run" -H "$APB" -H "content-
   bayrağının gerçekten etkili olduğunun kanıtıdır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Model yanıtı `ORD-1001`'i birebir aynı büyük harfle içerdi, `Passed=true`, `reason: "All keywords found: ORD-1001"`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -679,9 +679,9 @@ curl -s -X POST "$APU/api/evals/gorsel-testi/run" -H "$APB" -H "content-type: ap
   çalıştığının negatif kanıtıdır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`Passed=false`, `failureReason: "has_image_content: No image content found in conversation"`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -712,9 +712,9 @@ curl -s -X POST "$APU/api/evals/gorsel-testi/run" -H "$APB" \
   olması yeterlidir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+3 tekrarın tamamı ayrı sonuç satırı olarak döndü (üçü de `Passed=false`, `has_image_content` gerekçesiyle), run seviyesinde `total=1, passed=0, failed=1`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -750,9 +750,9 @@ SELECT agent_version FROM agentprism.eval_runs WHERE id = '<RUN_ID>';
   "bu sürüm ne kadar iyi" sorusuna doğru cevap verir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`manuel-destek` (`FIX-AGENT-01`) oluşturuldu, 10 vakalı bir takım (`surum-pinleme-testi`) koşusu tetiklendi. Durum `Running` olduğu anda (`agentVersion: 2` zaten pinlenmiş görünüyordu) agent `PUT` ile tekrar güncellendi (`version: 3`'e çıktı). Koşu bitince hem HTTP yanıtı hem SQL sorgusu `agent_version: 2` gösterdi — koşu SIRASINDA yapılan güncellemeden (versiyon 3) etkilenmedi. Tam beklendiği gibi. (İlk deneme yanlış zamanlamayla — güncelleme `Pending` durumdayken yapılmıştı, pinleme henüz olmamıştı — yanıltıcı bir sonuç verdi; `Running` durumunu yakalayarak doğru tekrarlandı.)
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -792,9 +792,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/evals/denetimsiz-takim/run
   denetim gereklidir.") koşuyu senkron değil, ASENKRON olarak düşürür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Tetikleme `HTTP: 200`. Birkaç saniye sonra `status: "Failed"`, `passed=0, failed=1, total=1`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -825,9 +825,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/evals/destek-degerlendirme
   duyar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `title: "Kosu baslatilamadi"`, `detail: "'destek-degerlendirme' takiminin hic vakasi yok."` Vaka geri eklendi. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -850,9 +850,9 @@ curl -s "$APU/api/evals/destek-degerlendirme/runs?skip=0&take=50" -H "$APB" \
 - MT-EVAL-020'de tetiklenen koşu listede, en yeni önce sıralı.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Liste `1` kayıt döndü, `status: "Completed"` — MT-EVAL-020'nin koşusu. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -881,9 +881,15 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/evals/destek-degerlendirme
 - `HTTP: 201`. Yeni vaka `sourceRunId=<RUN_ID>`, `promotedAt` dolu.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `support` agent'ına `ORD-1001 siparisim nerede?` gönderildi
+  (`runId=019ffddd-029a-7d7f-b906-3acaa8e1242b`), sonra
+  `POST /api/evals/destek-degerlendirme/cases/from-run/<RUN_ID>` çağrıldı.
+  `HTTP: 201`. Yanıt: `sourceRunId="019ffddd-029a-7d7f-b906-3acaa8e1242b"`,
+  `sourceKind="ReferenceRun"`, `promotedAt="2026-08-14T01:22:40.838615+00:00"`,
+  `query`/`expectedOutput`/`expectedTools` run'ın transkriptinden dolduruldu.
+  Beklenenle birebir eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -917,9 +923,12 @@ SELECT count(*) FROM agentprism.eval_cases WHERE source_run_id = '<AYNI-RUN_ID>'
   döner, `2` değil.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Aynı `RUN_ID` ile aynı uç tekrar çağrıldı → `HTTP: 200`, gövde MT-EVAL-035'teki
+  ile birebir aynı vaka kaydı (`id`, `promotedAt` değişmedi). SQL sorgusu
+  `SELECT count(*) ... WHERE source_run_id = '<RUN_ID>'` → `1`. İkinci vaka
+  oluşmadı, kısmi tekil indeks beklendiği gibi çalışıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -945,9 +954,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST \
 - `HTTP: 404`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Sıfır GUID ile çağrıldı → `HTTP: 404`, `detail: "'00000000-0000-0000-0000-000000000000' kimlikli bir calistirma yok."`
+  Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -972,9 +982,22 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST \
 - Case sonrası `destek-degerlendirme` ve `FIX-EVAL-02`'yi geri kur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Tüm 6 eval takımı `DELETE /api/evals/{name}` ile silindi (`GET /api/evals`
+  → `[]`). `http://localhost:5080/agentprism/runs/019ffdd7-1910-78cb-ab36-0c1d9b849481`
+  (MT-EVAL-035'in support run'ı) tarayıcıda açıldı, `browser_snapshot` alındı:
+  Run detay sayfasının tamamı (başlık, istatistik satırı, Feedback, "Replay
+  this run", Transcript, Event timeline, Trace, Tool calls bölümleri) göründü
+  ama hiçbir yerde "Bu run'ı vakaya terfi et" bileşeni yok. Konsolda 2 hata
+  vardı (`/api/agents/support/versions` ve `/api/runs/{id}/trace` → `404`) —
+  ikisi de bu case'le ilgisiz, önceden var olan ayrı uç eksiklikleri.
+  Beklenen davranış doğrulandı: bileşen 0 takım varken render edilmiyor.
+  Case sonrası `destek-degerlendirme` (`support`, `nonEmpty`+`containsExpected`,
+  vaka `ORD-1001 siparisim nerede?` → `ORD-1001`/`get_order_status`) ve
+  `tool-cagri-testi` (`support`, `toolCalled` mode `all` `get_order_status`,
+  vaka `ORD-1001 nerede?`) `PUT /api/evals/{name}` + `PUT .../cases` ile
+  geri kuruldu, ikisi de `HTTP 200` ile doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
