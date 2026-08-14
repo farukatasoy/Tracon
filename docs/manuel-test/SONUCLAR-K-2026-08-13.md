@@ -196,7 +196,7 @@ MT-WF-042'nin "`$type` ilk 40 baytta başlar" iddiası da düzeltildi — K-027'
 
 ## K-5 — 15 §7–9 (MT-WF-080..084, 090..097, 100) + 17 §1–2, 27 case
 
-### 15 §7–9 (14 case): 8 Geçti, 6 Kaldı — **dosya `15` (WORKFLOWS) TAMAMEN BİTTİ (60/60)** — kapanışta MT-WF-091/092/093 düzeltilip yeniden koşuldu, güncel: 11 Geçti, 3 Kaldı
+### 15 §7–9 (14 case): 8 Geçti, 6 Kaldı — **dosya `15` (WORKFLOWS) TAMAMEN BİTTİ (60/60)** — kapanışta MT-WF-091/092/093 (K-402) ve MT-WF-095/096 (K-403) düzeltilip yeniden koşuldu, güncel: 13 Geçti, 1 Kaldı (yalnız MT-WF-100/HATA-K-006 kaldı)
 
 ### HATA-K-004 — 🚨 KRİTİK: `AgentPrismWorkflowOptions` hiçbir konfigürasyon kaynağına bağlı değil — ✅ DÜZELTİLDİ (2026-08-14, K-402)
 
@@ -222,7 +222,7 @@ MT-WF-042'nin "`$type` ilk 40 baytta başlar" iddiası da düzeltildi — K-027'
 
 ---
 
-### HATA-K-005 — 🚨 KRİTİK: Workflow `run` ucunda `sessionId` doğrulama hatası SSE akışını hiç başlatmadan düz `HTTP 500`'e düşüyor
+### HATA-K-005 — 🚨 KRİTİK: Workflow `run` ucunda `sessionId` doğrulama hatası SSE akışını hiç başlatmadan düz `HTTP 500`'e düşüyor — ✅ DÜZELTİLDİ (2026-08-14, K-403)
 
 - **Case:** MT-WF-095 (Düşük), MT-WF-096 (Düşük) — aynı kök neden
 - **Önem:** Yüksek (etkiye göre yükseltildi — istemci hiçbir teşhis bilgisi almıyor)
@@ -239,6 +239,9 @@ Hiçbir SSE çerçevesi gelmiyor — istemci düz, generic bir `HTTP 500` (`{"ti
 
 **Kapsam**
 `POST /api/workflows/{name}/run` ucuna gönderilen HERHANGİ bir geçersiz `sessionId`, istemciye hiçbir teşhis bilgisi vermeyen bir 500 üretir — hata ayıklaması yalnızca sunucu logu erişimi olan biri için mümkündür.
+
+**Düzeltme (2026-08-14, K-403)**
+`RunStreamingAsync` gerçek bir `async IAsyncEnumerable<RunEvent>` yineleyicisi yapıldı (`[EnumeratorCancellation]` ile); `WorkflowExecution` kaydı ve `WorkflowSessionId.Require` çağrısı artık yineleyici gövdesinin içinde, `await foreach` başlamadan hemen önce çalışıyor — ilk `MoveNextAsync()` `WorkflowEventStream`'in kendi `try/catch`'i içinde gerçekleşiyor. `AsyncLocal`/`Activity.Current` async yardımcı metotta açılamaması kuralıyla (Faz 6/11/12/15) aynı sınıfın beşinci tekrarı. MT-WF-095/096 birebir tekrarlanıp doğrulandı: her iki senaryo da artık `event: run` ardından `event: error` (doğru mesaj), `HTTP 200`. Dört doğrulama kapısı temiz (test suitindeki tek geçici başarısızlık — voice/mikrofon Playwright testi — ilgisiz, yeniden koşulunca geçti).
 
 ---
 
@@ -268,7 +271,7 @@ Diğer bulgular: MT-WF-097'de ilk deneme MT-WF-066 ile aynı sebepten (Tenancy k
 
 Kusur bulunmadı. Küçük doküman notları: MT-EVAL-012'nin `DELETE /api/evals/{name}/cases` ucu doküman `HTTP 200` varsaymışken gerçekte `204` dönüyor (repodaki `DELETE` uçlarının tutarlı deseni — kusur değil, düzeltildi); MT-EVAL-004'ün hata mesajı `{kind}` yer tutucusu kullanıyor, doküman doğrudan `regexMatch` yazmıştı (anlam aynı).
 
-**K-5 toplam: 27 case, 21 Geçti, 6 Kaldı** (kapanışta HATA-K-004 düzeltmesiyle MT-WF-091/092/093 yeniden koşulup Geçti'ye çevrildi — güncel: 24 Geçti, 3 Kaldı; ayrıntı yukarıdaki HATA-K-004 notunda).
+**K-5 toplam: 27 case, 21 Geçti, 6 Kaldı** (kapanışta HATA-K-004/K-005 düzeltmeleriyle MT-WF-091/092/093/095/096 yeniden koşulup Geçti'ye çevrildi — güncel: 26 Geçti, 1 Kaldı; ayrıntı yukarıdaki HATA-K-004/HATA-K-005 notlarında).
 
 ## K-6 — 17 §3–6 (MT-EVAL-020..028, 035..038, 040..046, 050..059), 30 case
 

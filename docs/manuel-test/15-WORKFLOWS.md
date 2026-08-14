@@ -2159,7 +2159,9 @@ curl -N -s -X POST "$APU/api/workflows/ozetle-ve-cevir/run" -H "$APB" -H "conten
 **Gerçek sonuç**
 🚨 **KUSUR — SSE akışı hiç başlamadı.** Ne `event: run` ne `event: error` geldi — düz bir HTTP `500` gövdesi: `{"title":"An error occurred while processing your request.","status":500}` (detay yok, tamamen generic). Sunucu logunda kök neden görüldü: `AgentPrism.WorkflowRunner.RunStreamingAsync` (`WorkflowRunner.cs:186`) bir `async` yineleyici DEĞİL — düz bir metottur, gövdesinde `WorkflowSessionId.Require(request.SessionId)` nesne başlatıcısının İÇİNDE SENKRON olarak çağrılır ve `ExecuteAsync(...)`'in döndürdüğü `IAsyncEnumerable`'ı geri döndürür. İstisna bu yüzden `WorkflowEventStream` (SSE yazıcısı) hiç devreye girmeden, `WorkflowEndpoints.RunAsync`'in çağrı zincirinden DOĞRUDAN fırlar ve ASP.NET'in genel `ExceptionHandlerMiddleware`'ine düşer — "Unhandled exception" olarak loglanır (`fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1]`). Asıl mesaj (`"Yurutme oturumu kimligi en fazla 128 karakter olabilir."`) sunucu logunda doğru ama istemciye HİÇ ulaşmıyor. Bu, `RespondStreamingAsync`/`ResumeStreamingAsync`'in (gerçek `async IAsyncEnumerable` yineleyicileri, MT-WF-064/065/094'te doğru `event: error` üreten) davranışından FARKLI — yalnız `RunStreamingAsync`'in bu yapısal farkı bu boşluğu yaratıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+**🔧 Kapanış güncellemesi (2026-08-14, HATA-K-005/K-403 — düzeltildi):** `RunStreamingAsync` gerçek bir `async IAsyncEnumerable` yineleyicisi yapıldı. Aynı senaryo birebir tekrarlandı: artık `event: run` ardından `event: error` (`AgentPrismException`, `message: "Yurutme oturumu kimligi en fazla 128 karakter olabilir."`), `HTTP: 200` (SSE akışı, düz 500 DEĞİL) geliyor. Beklenenle birebir eşleşiyor. Ayrıntı: `SONUCLAR-K-2026-08-13.md`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2188,7 +2190,9 @@ curl -N -s -X POST "$APU/api/workflows/ozetle-ve-cevir/run" -H "$APB" -H "conten
 **Gerçek sonuç**
 MT-WF-095'in AYNI kök nedeniyle KALDI: SSE hiç başlamadı, düz `HTTP 500` (`"An error occurred while processing your request."`) geldi. Sunucu logunda doğru mesaj (`"Yurutme oturumu kimligi yalnizca harf, rakam, '-' ve '_' icerebilir."`) görüldü ama istemciye ulaşmadı — `RunStreamingAsync`'in senkron doğrulaması aynı yapısal nedenle `WorkflowEventStream`'i baypas ediyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+**🔧 Kapanış güncellemesi (2026-08-14, HATA-K-005/K-403 — düzeltildi):** Aynı senaryo birebir tekrarlandı. Artık `event: run` ardından `event: error` (`AgentPrismException`, `message: "Yurutme oturumu kimligi yalnizca harf, rakam, '-' ve '_' icerebilir."`), `HTTP: 200`. Beklenenle birebir eşleşiyor. Ayrıntı: `SONUCLAR-K-2026-08-13.md`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
