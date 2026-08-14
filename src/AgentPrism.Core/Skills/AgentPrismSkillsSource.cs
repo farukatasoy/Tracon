@@ -7,7 +7,18 @@ namespace AgentPrism;
 /// <summary>AgentPrism skill tanimlarini MAF skill kaynagina cevirir.</summary>
 internal sealed class AgentPrismSkillsSource : AgentSkillsSource
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
+    /// <summary>
+    /// MAF, <c>AgentInlineSkill</c>/<c>AddScript</c> icinde bu ornek uzerinde
+    /// <c>MakeReadOnly()</c> cagirir; kaynak-uretilen bir <c>TypeInfoResolver</c>
+    /// olmadan bu, "TypeInfoResolver ayarlanmadan salt-okunur isaretlenemez"
+    /// istisnasi firlatir (K-400). Script argumanlari MarshalArguments uzerinden
+    /// her zaman <see cref="JsonElement"/> olarak akar; kaynak ureteci bu yerlesik
+    /// tipi yansimasiz cozer.
+    /// </summary>
+    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
+    {
+        TypeInfoResolver = AgentPrismSkillsJsonContext.Default,
+    };
 
     private readonly AgentSkillCatalog _catalog;
     private readonly IReadOnlyList<string> _skillNames;

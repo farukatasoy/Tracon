@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <PackageReference Include="Testcontainers.PostgreSql" />
+    <!-- GHSA-q939-rpr3-3284 (SSH.NET, Testcontainers'in gecisli bagimliligi) icin yama surumune sabitler. -->
+    <PackageReference Include="SSH.NET" />
   </ItemGroup>
 
   <!--
