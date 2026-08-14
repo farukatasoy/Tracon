@@ -55,6 +55,37 @@ public interface ISessionStore
     /// <returns>Oturum; yoksa <see langword="null"/>.</returns>
     ValueTask<SessionRecord?> GetAsync(string sessionId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Bir oturum kimliginin sahibi olan kiraciyi, <see cref="ITenantContext"/>'ten
+    /// okunan ambient kiraci filtresine BAKMAKSIZIN dondurur.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 🚨 <see cref="GetAsync"/> ambient kiraciyle filtrelenir; bu yuzden "bu kimlik
+    /// BASKA bir kiraciya mi ait" sorusunu asla cevaplayamaz — cagiran zaten kendi
+    /// kiracisinin baglamindadir ve baska kiracinin kaydi o baglamdan hicbir zaman
+    /// GORULMEZ, sonuc daima <see langword="null"/> olur. HATA-S2-005: OpenAI uyumlu
+    /// uclarin capraz kiraci sahiplik denetimi tam olarak bu yuzden olu koddu — reddetme
+    /// dali hicbir zaman tetiklenmiyordu, kimlik sessizce "hic kullanilmamis" sayilip
+    /// yeni bir oturum aciliyordu.
+    /// </para>
+    /// <para>
+    /// 🚨 Varsayilan uygulama <see cref="GetAsync"/>'i cagirir — dolayisiyla YUKARIDAKI
+    /// KUSURU TASIR ve capraz kiraci sorusuna asla dogru cevap veremez. Bu, yalnizca
+    /// bu yontemi henuz gecersiz kilmamis eski/ozel depolarin derlenmeye devam etmesi
+    /// icindir. Gercek depolar (<c>SqlSessionStore</c>, <c>InMemorySessionStore</c>)
+    /// bu yontemi kiraciden BAGIMSIZ, gercekten dogru bir uygulamayla gecersiz kilar.
+    /// </para>
+    /// </remarks>
+    /// <param name="sessionId">Oturum kimligi.</param>
+    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <returns>
+    /// Kimlik kullanilmissa sahibi kiracinin kimligi; kimlik hic kullanilmamissa
+    /// <see langword="null"/>.
+    /// </returns>
+    async ValueTask<string?> GetOwnerTenantIdAsync(string sessionId, CancellationToken cancellationToken = default)
+        => (await GetAsync(sessionId, cancellationToken).ConfigureAwait(false))?.TenantId;
+
     /// <summary>Oturumu siler.</summary>
     /// <param name="sessionId">Oturum kimligi.</param>
     /// <param name="cancellationToken">Iptal belirteci.</param>

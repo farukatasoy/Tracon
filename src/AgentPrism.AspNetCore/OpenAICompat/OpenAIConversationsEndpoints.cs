@@ -131,12 +131,17 @@ internal static class OpenAIConversationsEndpoints
         ITenantContext tenantContext,
         CancellationToken cancellationToken)
     {
-        var record = await sessions.GetAsync(conversationId, cancellationToken).ConfigureAwait(false);
-
-        if (record is not null && !IsOwnedByTenant(record, tenantContext))
+        // Sahiplik denetimi GetAsync'ten ONCE, kiraciden bagimsiz yapilir; GetAsync
+        // zaten ambient kiraciyle filtrelendigi icin baska kiracinin kaydini
+        // GOREMEZ ve denetimi asla tetikleyemezdi (HATA-S2-005).
+        if (!await OpenAICompatSupport
+                .IsOwnedByTenantAsync(sessions, tenantContext, conversationId, cancellationToken)
+                .ConfigureAwait(false))
         {
             return NotFound(conversationId);
         }
+
+        var record = await sessions.GetAsync(conversationId, cancellationToken).ConfigureAwait(false);
 
         // Kayit yoksa konusma henuz kullanilmamistir; kimlik gecerlidir ve bos doner.
         var conversation = new ConversationResource(
@@ -155,12 +160,14 @@ internal static class OpenAIConversationsEndpoints
         ITenantContext tenantContext,
         CancellationToken cancellationToken)
     {
-        var record = await sessions.GetAsync(conversationId, cancellationToken).ConfigureAwait(false);
-
-        if (record is not null && !IsOwnedByTenant(record, tenantContext))
+        if (!await OpenAICompatSupport
+                .IsOwnedByTenantAsync(sessions, tenantContext, conversationId, cancellationToken)
+                .ConfigureAwait(false))
         {
             return NotFound(conversationId);
         }
+
+        var record = await sessions.GetAsync(conversationId, cancellationToken).ConfigureAwait(false);
 
         var deleted = record is not null &&
                       await manager.DeleteSessionAsync(conversationId, cancellationToken).ConfigureAwait(false);
@@ -181,12 +188,14 @@ internal static class OpenAIConversationsEndpoints
         int? limit,
         CancellationToken cancellationToken)
     {
-        var record = await sessions.GetAsync(conversationId, cancellationToken).ConfigureAwait(false);
-
-        if (record is not null && !IsOwnedByTenant(record, tenantContext))
+        if (!await OpenAICompatSupport
+                .IsOwnedByTenantAsync(sessions, tenantContext, conversationId, cancellationToken)
+                .ConfigureAwait(false))
         {
             return NotFound(conversationId);
         }
+
+        var record = await sessions.GetAsync(conversationId, cancellationToken).ConfigureAwait(false);
 
         var messages = record is null
             ? null
@@ -291,10 +300,6 @@ internal static class OpenAIConversationsEndpoints
         => call.Arguments is null || call.Arguments.Count == 0
             ? null
             : JsonSerializer.Serialize(call.Arguments, AIJsonUtilities.DefaultOptions);
-
-    private static bool IsOwnedByTenant(SessionRecord record, ITenantContext tenantContext)
-        => record.TenantId is null ||
-           string.Equals(record.TenantId, tenantContext.TenantId, StringComparison.Ordinal);
 
     private static IResult NotFound(string conversationId)
         => OpenAICompatSupport.Error(
