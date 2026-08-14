@@ -293,7 +293,7 @@ internal static class GovernanceEndpoints
                         statusCode: StatusCodes.Status501NotImplemented);
                 }
 
-                var count = await refresher.RefreshAsync(cancellationToken).ConfigureAwait(false);
+                var outcome = await refresher.RefreshAsync(cancellationToken).ConfigureAwait(false);
 
                 // Elle tazeleme, kayitli bir sunucuya yapilan yazma degildir; bu yuzden
                 // denetim izi burada, uc katmaninda yazilir.
@@ -305,10 +305,10 @@ internal static class GovernanceEndpoints
                     action: "mcp.refresh",
                     entity: "mcp:*",
                     before: null,
-                    after: $$"""{"toolCount":{{count}}}""",
+                    after: $$"""{"toolCount":{{outcome.ToolCount}}}""",
                     cancellationToken).ConfigureAwait(false);
 
-                return TypedResults.Ok(new McpRefreshResponse { ToolCount = count });
+                return TypedResults.Ok(new McpRefreshResponse { ToolCount = outcome.ToolCount });
             })
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)

@@ -138,6 +138,26 @@ public sealed class AgentDefinitionValidatorTests
     }
 
     [Fact]
+    public async Task Aktif_red_ile_erisilemeyen_MCP_sunucusu_da_inconclusive_uretir()
+    {
+        // HATA-006 / MT-CORE-006: "connection refused" ZAMAN ASIMINA ugramaz —
+        // McpToolCatalog.RefreshAsync bunun icin bir istisna FIRLATMAZ, yalniz
+        // HadUnreachableServers=true doner. Eskiden bu, TryRefreshMcpAsync'in
+        // yalniz istisna yakalayan catch bloklarindan kacip sessizce
+        // "basarili" sayiliyor ve eksik tool unknown_tool'a duşuyordu.
+        var refresher = new FakeMcpToolRefresher(unreachable: true);
+        var (validator, _, _) = CreateValidator(mcpRefresher: refresher);
+
+        var report = await validator.ValidateAsync(TestData.Definition(toolNames: ["mcp-tool"]));
+
+        report.Valid.ShouldBeTrue();
+        report.Inconclusive.ShouldBeTrue();
+        var message = report.Messages.ShouldHaveSingleItem();
+        message.Code.ShouldBe("mcp_unreachable");
+        message.Severity.ShouldBe(ValidationSeverity.Warning);
+    }
+
+    [Fact]
     public async Task Mcp_tazeleme_eksik_tool_u_cozerse_hata_uretilmez()
     {
         var registry = new MutableToolRegistry();
@@ -224,9 +244,9 @@ public sealed class AgentDefinitionValidatorTests
     }
 
     /// <summary>Taze MCP tarama isteklerini denetleyen sahte tazeleyici.</summary>
-    private sealed class FakeMcpToolRefresher(bool hang = false, Action? onRefresh = null) : IMcpToolRefresher
+    private sealed class FakeMcpToolRefresher(bool hang = false, bool unreachable = false, Action? onRefresh = null) : IMcpToolRefresher
     {
-        public async ValueTask<int> RefreshAsync(CancellationToken cancellationToken = default)
+        public async ValueTask<McpRefreshOutcome> RefreshAsync(CancellationToken cancellationToken = default)
         {
             if (hang)
             {
@@ -235,7 +255,7 @@ public sealed class AgentDefinitionValidatorTests
 
             onRefresh?.Invoke();
 
-            return 1;
+            return new McpRefreshOutcome { ToolCount = 1, HadUnreachableServers = unreachable };
         }
     }
 }
