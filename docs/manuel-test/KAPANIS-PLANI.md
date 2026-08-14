@@ -71,7 +71,7 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Adım 0** — dört kapı kırmızıydı; ses turu `commit` çerçevesi kendi sesinin önüne geçiyordu | `f36eeaf` | (`MT-PKG-010`'un kök nedeni — case'in kendisi yeniden koşulmalı) |
 | **Aile A** — şema kapısı + teşhis ucu | `2126aab` | `MT-PG-025`, `MT-PG-034`, `MT-PG-051`, `MT-PG-052` |
 | **Aile B** — Guard maskelemesi `RunStarted`'da ham kalıyor | `a3d1dea` | `MT-GUARD-041`, `MT-GUARD-053` |
-| **Aile C** — Eşzamanlı ilk istekte oturum lost update | (bu koşum) | `MT-CORE-054` |
+| **Aile C** — Eşzamanlı ilk istekte oturum lost update | `f287b12` | `MT-CORE-054` |
 
 ### Kalan aileler
 
