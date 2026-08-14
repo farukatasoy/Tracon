@@ -485,8 +485,8 @@ Content-Type: text/html; charset=utf-8
 Cache-Control: no-cache
 ETag: "5GEJhVqfXvyEXhrb"
 Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline';
-                         img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'self';
-                         form-action 'none'; frame-ancestors 'none'
+                         img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self';
+                         connect-src 'self'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'
 X-Content-Type-Options: nosniff
 Referrer-Policy: same-origin
 
