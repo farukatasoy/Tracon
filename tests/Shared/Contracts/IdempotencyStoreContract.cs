@@ -50,12 +50,13 @@ public abstract class IdempotencyStoreContract : IAsyncLifetime
             CreatedAt = DateTimeOffset.UtcNow,
         };
 
-    private static IdempotencyResponse Response(int statusCode = 200)
+    private static IdempotencyResponse Response(int statusCode = 200, IReadOnlyDictionary<string, string>? headers = null)
         => new()
         {
             StatusCode = statusCode,
             ContentType = "application/json",
             Body = """{"ok":true}""",
+            Headers = headers ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
         };
 
     [Fact]
@@ -93,6 +94,39 @@ public abstract class IdempotencyStoreContract : IAsyncLifetime
         replay.Response.ShouldNotBeNull();
         replay.Response!.StatusCode.ShouldBe(201);
         replay.Response!.Body.ShouldBe("""{"ok":true}""");
+    }
+
+    [Fact]
+    public async Task Tamamlanan_anahtar_saklanan_HTTP_basliklarini_da_doner()
+    {
+        var key = Key();
+        var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Location"] = "/api/runs/abc",
+            ["Preference-Applied"] = "respond-async",
+        };
+
+        await Store.ReserveAsync(Request(Tenant, key));
+        await Store.CompleteAsync(Tenant, key, Response(statusCode: 202, headers: headers));
+
+        var replay = await Store.ReserveAsync(Request(Tenant, key));
+
+        replay.State.ShouldBe(IdempotencyState.Completed);
+        replay.Response!.Headers["Location"].ShouldBe("/api/runs/abc");
+        replay.Response!.Headers["Preference-Applied"].ShouldBe("respond-async");
+    }
+
+    [Fact]
+    public async Task Tamamlanan_anahtar_baslik_YOKKEN_bos_sozluk_doner()
+    {
+        var key = Key();
+
+        await Store.ReserveAsync(Request(Tenant, key));
+        await Store.CompleteAsync(Tenant, key, Response());
+
+        var replay = await Store.ReserveAsync(Request(Tenant, key));
+
+        replay.Response!.Headers.ShouldBeEmpty();
     }
 
     [Fact]

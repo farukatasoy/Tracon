@@ -2162,7 +2162,32 @@ başlığı saklamıyor. `IdempotencyReplayResult.ExecuteAsync`
 yanıtın `Location`/`Preference-Applied` başlıkları hiçbir yerde
 saklanmadığı için tekrarlanamıyor. Ayrıntı: `SONUCLAR-S3-2026-08-13.md`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+Kapanış oturumu (Aile S, `docs/manuel-test/KAPANIS-PLANI.md`): kök neden
+doğrulandığı gibi çıktı — `IdempotencyResponse` govde disi HTTP baslikları
+hic saklamiyordu. `IdempotencyResponse.Headers` (yeni, varsayilan bos
+sozluk) eklendi; `IdempotencyCapturingResult` `Content-Type`/`Content-Length`/
+`Transfer-Encoding`/`Idempotency-Replayed` DISINDA kalan tum yanit
+basliklarini yakalar, `IdempotencyReplayResult` bunlari govdeden ONCE
+yeniden yazar — yalniz `Location`/`Preference-Applied`'e ozel bir alan
+degil, genel bir yakalama (ileride eklenecek her yeni baslik icin ayni
+kusurun tekrar acilmasini onler). SQL depolarinda yeni `headers` sutunu
+(`jsonb`/`TEXT`/`nvarchar(max)`, nullable) — Postgres migration 0029,
+Sqlite/SqlServer migration 0016; serilestirme `SqlWebhookStore`'daki
+`Dictionary<string,string>` deseniyle AYNI (AOT uyumlu kaynak uretilmis
+baglam). Canlı `mt_fin` şemasına karşı doğrulandı: aynı `Idempotency-Key`
+ile ikinci istek artık `Location` (birebir aynı) VE `Preference-Applied`
+başlıklarını taşıyor; `idempotency_keys.headers` sütunu ikisini de JSON
+olarak saklıyor.
+
+**Değişen dosyalar:** `IdempotencyTypes.cs` (+`Headers`),
+`IdempotencyResults.cs` (yakalama + replay), `SqlIdempotencyStore.cs`
+(+serialize/deserialize), üç `*Queries.cs` (Select/Complete sorguları),
+üç migration dosyası. **Regresyon testleri:**
+`IdempotencyStoreContract.cs` (2 yeni test, dört depoda da koşar) ·
+`IdempotencyTests.cs` `Prefer_respond_async_replay_Location_ve_Preference_Applied_basliklarini_da_doner`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

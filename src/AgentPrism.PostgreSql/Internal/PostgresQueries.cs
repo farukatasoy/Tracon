@@ -1913,7 +1913,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
             """;
 
         SelectIdempotencyKey = $"""
-            SELECT state, fingerprint, status_code, content_type, body, run_id
+            SELECT state, fingerprint, status_code, content_type, body, run_id, headers
               FROM {Schema}.idempotency_keys
              WHERE tenant_id = @tenant_id AND "key" = @key;
             """;
@@ -1921,7 +1921,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
         CompleteIdempotencyKey = $"""
             UPDATE {Schema}.idempotency_keys
                SET state = 2, status_code = @status_code, content_type = @content_type,
-                   body = @body, run_id = @run_id, completed_at = @completed_at
+                   body = @body, run_id = @run_id, headers = @headers, completed_at = @completed_at
              WHERE tenant_id = @tenant_id AND "key" = @key;
             """;
 

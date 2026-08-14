@@ -56,4 +56,11 @@ public sealed record IdempotencyResponse
 
     /// <summary>Yanit bir calistirma urettiyse kimligi; aksi halde <see langword="null"/>.</summary>
     public Guid? RunId { get; init; }
+
+    /// <summary>
+    /// Orijinal yanitin, govde/durum kodu/icerik tipi disinda saklanmasi
+    /// gereken HTTP baslikları (orn. <c>Location</c>, <c>Preference-Applied</c>).
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Headers { get; init; } =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 }

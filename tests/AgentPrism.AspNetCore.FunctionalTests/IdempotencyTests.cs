@@ -24,6 +24,15 @@ public sealed class IdempotencyTests
         return await host.Client.SendAsync(request).ConfigureAwait(false);
     }
 
+    private static async Task<HttpResponseMessage> PostAsyncWithKeyAsync(AgentPrismTestHost host, Uri uri, object body, string key)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, uri) { Content = JsonContent.Create(body) };
+        request.Headers.Add(HeaderName, key);
+        request.Headers.Add("Prefer", "respond-async");
+
+        return await host.Client.SendAsync(request).ConfigureAwait(false);
+    }
+
     [Fact]
     public async Task Ayni_anahtar_ayni_govde_agenti_ikinci_kez_calistirmaz()
     {
@@ -47,6 +56,31 @@ public sealed class IdempotencyTests
 
         var provider = host.Services.GetServices<IModelProvider>().OfType<FakeModelProvider>().Single();
         provider.Requests.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Prefer_respond_async_replay_Location_ve_Preference_Applied_basliklarini_da_doner()
+    {
+        // HATA-S3-008 / MT-JOB-083: replay yalniz govdeyi koruyordu; 'Location'
+        // ve 'Preference-Applied' HTTP baslikları saklanmiyordu.
+        await using var host = await AgentPrismTestHost.StartAsync(
+            static builder => builder.AddAgent(TestData.Definition()),
+            configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
+
+        var key = Guid.NewGuid().ToString("N");
+        var body = new AgentRunRequest { Message = "merhaba" };
+
+        using var first = await PostAsyncWithKeyAsync(host, Run, body, key);
+        first.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        first.Headers.GetValues("Preference-Applied").ShouldContain("respond-async", StringComparer.Ordinal);
+        first.Headers.Location.ShouldNotBeNull();
+
+        using var second = await PostAsyncWithKeyAsync(host, Run, body, key);
+        second.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        second.Headers.GetValues("Idempotency-Replayed").ShouldContain("true", StringComparer.Ordinal);
+        second.Headers.GetValues("Preference-Applied").ShouldContain("respond-async", StringComparer.Ordinal);
+        second.Headers.Location.ShouldNotBeNull();
+        second.Headers.Location!.OriginalString.ShouldBe(first.Headers.Location!.OriginalString);
     }
 
     [Fact]
