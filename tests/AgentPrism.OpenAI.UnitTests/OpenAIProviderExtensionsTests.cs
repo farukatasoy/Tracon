@@ -189,6 +189,54 @@ public sealed class OpenAIProviderExtensionsTests
     }
 
     [Fact]
+    public void Yapilandirmadan_gelen_goreli_adres_reddedilir()
+    {
+        // HATA-S3-001: Bind() eskiden Uri.TryCreate(..., UriKind.Absolute, ...)
+        // basarisiz olunca Endpoint'i hic atamiyordu; deger doğrulayiciya
+        // ulasmadan sessizce eleniyordu.
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["ApiKey"] = TestData.ApiKey,
+                ["Endpoint"] = "sadece-bir-yol",
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddAgentPrism().UseOpenAI(configuration);
+
+        using var provider = services.BuildServiceProvider();
+
+        Should.Throw<OptionsValidationException>(
+                () => provider.GetRequiredService<IOptions<OpenAIProviderOptions>>().Value)
+            .Message.ShouldContain(nameof(OpenAIProviderOptions.Endpoint));
+    }
+
+    [Fact]
+    public void Yapilandirmadan_gelen_adsiz_model_reddedilir()
+    {
+        // HATA-S3-002: BindModels() eskiden bos Name'li ogeyi listeye hic
+        // eklemiyordu; doğrulayici boş isimli bir öge asla görmüyordu.
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["ApiKey"] = TestData.ApiKey,
+                ["Models:0:Name"] = "gpt-4o-mini",
+                ["Models:1:Name"] = "",
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddAgentPrism().UseOpenAI(configuration);
+
+        using var provider = services.BuildServiceProvider();
+
+        Should.Throw<OptionsValidationException>(
+                () => provider.GetRequiredService<IOptions<OpenAIProviderOptions>>().Value)
+            .Message.ShouldContain(nameof(OpenAIProviderOptions.Models));
+    }
+
+    [Fact]
     public void Sifir_sure_siniri_reddedilir()
     {
         var services = new ServiceCollection();

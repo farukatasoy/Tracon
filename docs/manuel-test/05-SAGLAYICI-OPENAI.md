@@ -344,7 +344,23 @@ senaryo: "Bos birakilirsa istek sessizce resmi OpenAI adresine giderdi" —
 ama burada boş değil, GEÇERSİZ bir değer de aynı sessiz düşüşe uğruyor.
 Kayıt: `HATA-S3-001`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+**Yeniden koşum (Aile O, bu koşum).** Kök neden düzeltildi:
+`Bind()` artık `Uri.TryCreate(endpoint, UriKind.RelativeOrAbsolute, out
+var endpointUri)` kullanıyor — göreli bir değer de `options.Endpoint`'e
+atanıyor, `IsAbsoluteUri: false` denetimi artık gerçekten tetikleniyor.
+Aynı env değişkeni yeniden verildi
+(`AgentPrism__Providers__OpenAI__Endpoint=sadece-bir-yol`, temiz
+`mt_fin_o` şeması, gerçek Postgres'e karşı): uygulama artık **başlamıyor**,
+konsolda birebir beklenen metin görüldü:
+`Unhandled exception. Microsoft.Extensions.Options.OptionsValidationException:
+OpenAIProviderOptions.Endpoint mutlak bir adres olmalidir. Gelen deger:
+'sadece-bir-yol'.` Regresyon testi:
+`tests/AgentPrism.OpenAI.UnitTests/OpenAIProviderExtensionsTests.cs`
+`Yapilandirmadan_gelen_goreli_adres_reddedilir` (fix geri alınıp koşulduğunda
+KIRMIZI verdiği ampirik olarak doğrulandı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -446,7 +462,23 @@ görmüyor; doğrulama dalı ölü koddur. Değişiklik
 `git checkout -- samples/AgentPrism.Api/appsettings.json` ile geri alındı
 (`git diff` boş doğrulandı). Kayıt: `HATA-S3-002`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+**Yeniden koşum (Aile O, bu koşum).** Kök neden düzeltildi: `BindModels()`
+artık `continue` ile atlamıyor, `Name` boş/yok olsa bile ögeyi
+`Name = child[nameof(ModelDescriptor.Name)] ?? string.Empty` ile listeye
+ekliyor — doğrulayıcının `Models[index]` döngüsü artık boş ismi gerçekten
+görüyor. Aynı adım (`appsettings.json`'a 4. öge olarak `{"Name": ""}`
+eklendi, temiz `mt_fin_o` şeması, gerçek Postgres'e karşı) yeniden koşuldu:
+uygulama artık **başlamıyor**, konsolda birebir beklenen metin görüldü:
+`Unhandled exception. Microsoft.Extensions.Options.OptionsValidationException:
+OpenAIProviderOptions.Models[3] icin model adi bos olamaz.` (dizin `3`,
+beklenen gibi). Değişiklik `git checkout -- samples/AgentPrism.Api/appsettings.json`
+ile geri alındı. Regresyon testi:
+`tests/AgentPrism.OpenAI.UnitTests/OpenAIProviderExtensionsTests.cs`
+`Yapilandirmadan_gelen_adsiz_model_reddedilir` (fix geri alınıp koşulduğunda
+KIRMIZI verdiği ampirik olarak doğrulandı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

@@ -79,6 +79,48 @@ public sealed class AnthropicProviderExtensionsTests
     }
 
     [Fact]
+    public void Yapilandirmadan_gelen_goreli_adres_reddedilir()
+    {
+        // HATA-S3-003: Bind() eskiden Uri.TryCreate(..., UriKind.Absolute, ...)
+        // basarisiz olunca Endpoint'i hic atamiyordu; deger doğrulayiciya
+        // ulasmadan sessizce eleniyordu.
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["ApiKey"] = TestData.ApiKey,
+                ["Endpoint"] = "sadece-bir-yol",
+            })
+            .Build();
+
+        using var provider = Build(builder => builder.UseAnthropic(configuration));
+
+        Should.Throw<OptionsValidationException>(
+                () => provider.GetRequiredService<IOptions<AnthropicProviderOptions>>().Value)
+            .Message.ShouldContain(nameof(AnthropicProviderOptions.Endpoint));
+    }
+
+    [Fact]
+    public void Yapilandirmadan_gelen_adsiz_model_reddedilir()
+    {
+        // HATA-S3-004: BindModels() eskiden bos Name'li ogeyi listeye hic
+        // eklemiyordu; doğrulayici boş isimli bir öge asla görmüyordu.
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["ApiKey"] = TestData.ApiKey,
+                ["Models:0:Name"] = TestData.Model,
+                ["Models:1:Name"] = "",
+            })
+            .Build();
+
+        using var provider = Build(builder => builder.UseAnthropic(configuration));
+
+        Should.Throw<OptionsValidationException>(
+                () => provider.GetRequiredService<IOptions<AnthropicProviderOptions>>().Value)
+            .Message.ShouldContain(nameof(AnthropicProviderOptions.Models));
+    }
+
+    [Fact]
     public void Anahtarsiz_kayit_baslangicta_hata_verir()
     {
         var services = new ServiceCollection();
