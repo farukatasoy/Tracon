@@ -77,6 +77,39 @@ internal sealed class SqlSessionStore : ISessionStore
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Duz bir <c>INSERT</c>'tir; ayni (tenant_id, id) ile eszamanli ikinci bir
+    /// cagri benzersizlik ihlaline duser ve <see cref="SqlDialect.IsUniqueViolation"/>
+    /// ile yakalanip <see langword="false"/>'a cevrilir — tipki <c>SqlIdempotencyStore.ReserveAsync</c>'in
+    /// yaptigi gibi. Bu, <see cref="SaveAsync"/>'in kosulsuz uzerine yazmasinin
+    /// aksine, ayni YENI oturuma gelen eszamanli iki ilk istekten yalniz birinin
+    /// oturumu "kazanmasini" saglar (HATA-004).
+    /// </remarks>
+    public async ValueTask<bool> TryCreateAsync(SessionRecord record, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
+        var command = CreateCommand(_sql.InsertSession);
+        DbHelpers.Add(command, "id", record.Id);
+        DbHelpers.Add(command, "tenant_id", record.TenantId ?? _tenantContext.TenantId);
+        DbHelpers.Add(command, "agent_name", record.AgentName);
+        Dialect.AddJson(command, "state", record.State.GetRawText());
+        DbHelpers.Add(command, "schema_version", CurrentSchemaVersion);
+        Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
+        Dialect.AddTimestamp(command, "updated_at", record.UpdatedAt);
+
+        try
+        {
+            await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+            return true;
+        }
+        catch (DbException ex) when (Dialect.IsUniqueViolation(ex))
+        {
+            return false;
+        }
+    }
+
+    /// <inheritdoc />
     public async ValueTask<SessionRecord?> GetAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(sessionId);

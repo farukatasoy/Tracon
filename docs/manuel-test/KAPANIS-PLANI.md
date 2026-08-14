@@ -59,8 +59,8 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 |---|---|
 | Toplam case | **1097** |
 | Koşuldu | **1097** (koşulmamış case **yok**) |
-| ☑ Geçti | **993** |
-| ☒ **Kaldı** | **73** |
+| ☑ Geçti | **994** |
+| ☒ **Kaldı** | **72** |
 | ⏭ Atlandı | **30** |
 | ☐ Beklemede | **1** (`MT-UIRUN-019`) |
 
@@ -71,16 +71,17 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Adım 0** — dört kapı kırmızıydı; ses turu `commit` çerçevesi kendi sesinin önüne geçiyordu | `f36eeaf` | (`MT-PKG-010`'un kök nedeni — case'in kendisi yeniden koşulmalı) |
 | **Aile A** — şema kapısı + teşhis ucu | `2126aab` | `MT-PG-025`, `MT-PG-034`, `MT-PG-051`, `MT-PG-052` |
 | **Aile B** — Guard maskelemesi `RunStarted`'da ham kalıyor | `a3d1dea` | `MT-GUARD-041`, `MT-GUARD-053` |
+| **Aile C** — Eşzamanlı ilk istekte oturum lost update | (bu koşum) | `MT-CORE-054` |
 
 ### Kalan aileler
 
-Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **C** ile başlar.
+Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **D** ile başlar.
 
 | Aile | Önem | Konu | Case | Durum |
 |---|---|---|---|---|
 | ~~A~~ | Kritik | Şema kapısı, teşhis ucu | 4 | ✅ `2126aab` |
 | ~~B~~ | Kritik | Guard maskelemesi `RunStarted`'da ham kalıyor | 2 | ✅ `a3d1dea` |
-| **C** | Kritik | Eşzamanlı ilk istekte oturum lost update | 1 | ⬜ |
+| ~~C~~ | Kritik | Eşzamanlı ilk istekte oturum lost update | 1 | ✅ (bu koşum) |
 | **D** | Kritik | `T[]` parametreli tool derlenmiyor | 1 | ⬜ |
 | **E** | Kritik | İki kalıcılık sağlayıcısı (K-183) | 1 | ⬜ |
 | **F** | Yüksek | 21 endpoint dosyasında kapsam denetimi yok | 4 | ⬜ |
@@ -244,7 +245,7 @@ kriteri zaten Geçti idi, `RunStarted` tarafı da ayrıca doğrulandı.
 `RunStarted_olayi_maskelenen_girdiyi_ham_tasimaz`,
 `RunStarted_olayi_engellenen_girdiyi_ham_tasimaz`.
 
-### Aile C — Eşzamanlı ilk istekte oturum lost update 🚨 Kritik
+### ~~Aile C~~ — Eşzamanlı ilk istekte oturum lost update 🚨 Kritik ✅ (bu koşum)
 
 **Kusur:** `HATA-004`. Aynı yeni oturuma eşzamanlı iki ilk istek → iki
 `conversations` satırı; `state->stateBag->conversationId` last-write-wins ile
@@ -252,10 +253,74 @@ ezilir, kaybedenin mesajları DB'de ama oturumdan **erişilemez**.
 
 **Kök neden:** check-then-create yarışı. Sonuç dosyası `dosya:satır`
 vermemiş — ampirik kanıt DB düzeyinde (iki satır: `...6880-7137`, `...6880-700e`).
-Oturum ilk kez oluşturulurken atomik `INSERT … ON CONFLICT` / kiracı+oturum
-anahtarında tekillik kısıtı gerekir.
+`src/AgentPrism.Core/Sessions/AgentSessionManager.cs` (`SaveSessionAsync`) ve
+`src/AgentPrism.Sql.Shared/Stores/SqlSessionStore.cs`/`InMemorySessionStore.cs`
+(`SaveAsync`/`ISessionStore.SaveAsync`) — kayıt kim olursa olsun kayıtsız şartsız
+üzerine yazan bir `UPSERT`.
 
-**Case:** `MT-CORE-054`.
+**Tasarım kararı — denenen ve terk edilen ilk yaklaşım:** İlk deneme, oturumu
+`GetOrCreateSessionAsync` içinde HEMEN (agent hiç çalışmadan) atomik olarak
+depoya yazmaktı (`ISessionStore.TryCreateAsync`, `INSERT` + tekillik ihlalini
+yakala — `SqlIdempotencyStore.ReserveAsync`/`SqlExperimentStore.StartAsync`
+ile aynı desen, `SqlDialect.IsUniqueViolation`). Bu YETERSİZ çıktı: konuşma
+gecmişi sağlayıcısının (`SqlChatHistoryProvider`) konuşma kimliği yalnız agent
+GERÇEKTEN çalışırken (`ProvideChatHistoryAsync`) üretilir, oturum
+oluşturulurken değil — regresyon testiyle ampirik olarak doğrulandı (bkz.
+`tests/AgentPrism.PostgreSql.IntegrationTests/SessionPersistenceTests.cs`).
+İki eşzamanlı istek erken-yazılan BOŞ oturumu paylaşsa bile, ikisi de KENDİ
+turunu bağımsız çalıştırıp KENDİ konuşma kimliğini üretiyordu — kusur aynen
+tekrar üretiliyordu, yalnız yarış penceresi kayıyordu.
+
+**Uygulanan tasarım (kapanışta karar defterine yazılacak):** Atomik iddia
+`GetOrCreateSessionAsync`'e değil `SaveSessionAsync`'e taşındı — depoya
+HİÇBİR ŞEY, o oturumun İLK turu tamamlanıp kaydedilene kadar yazılmaz.
+`AgentSessionManager`, depoda kaydı bulunamayıp TAZE açılan oturumları bir
+`ConditionalWeakTable<AgentSession, object>` ile (oturum nesnesinin kendi
+kimliğine bağlı, geçici, sızıntısız) işaretler. O oturumun İLK
+`SaveSessionAsync` çağrısı `ISessionStore.TryCreateAsync` ile atomik dener;
+kaybederse **sessizce üzerine yazmaz**, açık bir `AgentPrismSessionConflictException`
+fırlatır (yeni tip, `AgentPrismException`'dan türer, `ErrorType = "session_conflict"`).
+`AgentEndpoints.cs`'in akışsız (`Idempotency-Key`) yolu bunu `409 Conflict`
+`ProblemDetails`'e çevirir; akışlı (SSE) yol zaten var olan genel `catch`'e
+düşüp `event: error` çerçevesi üretir (K-296 deseni, değişiklik gerekmedi).
+Kaybeden isteğin model turu YİNE de baştan sona çalışır (gerçek maliyet) —
+bu, dağıtık kilitleme gibi çok daha ağır bir çözüme göre kabul edilen bir
+taviz (KOSUM-PLANI'nin kendi kabul kriteri: "bir çakışma denetimi varsa
+isteklerden biri açık bir çakışma hatası döner; bu da kabul edilebilir").
+Sonraki kayıtlar (ve baştan bulunan mevcut oturumların HER kaydı) değişmeden
+koşulsuz `SaveAsync` kullanır — yalnız bir oturumun gerçekten İLK kaydı bu
+korumadan geçer.
+
+**Yeni dosyalar:** yok. **Değişen dosyalar:**
+`src/AgentPrism.Abstractions/Sessions/ISessionStore.cs` (+`TryCreateAsync`,
+varsayılan uygulama check-then-create — geriye dönük uyumluluk için ATOMİK
+DEĞİL, gerçek depolar geçersiz kılar), `AgentPrismException.cs`
+(+`AgentPrismSessionConflictException`), `AgentSessionManager.cs`
+(`GetOrCreateSessionAsync`/`SaveSessionAsync` yeniden yazıldı),
+`Core/Storage/InMemorySessionStore.cs` (+`TryCreateAsync`,
+`ConcurrentDictionary.TryAdd`), `Core/Audit/AuditingSessionStore.cs`
+(+`TryCreateAsync` — **atlanamaz**: dekoratör bu geri çağrıyı override
+etmezse arayüzün varsayılan check-then-create uygulamasına düşer ve DI'da HER
+ZAMAN kayıtlı olan bu dekoratör iç deponun gerçek atomik uygulamasını sessizce
+devre dışı bırakırdı), `Sql.Shared/Stores/SqlSessionStore.cs`
+(+`TryCreateAsync`, düz `INSERT` + `SqlDialect.IsUniqueViolation`
+yakalama — `SqlIdempotencyStore` ile aynı desen), `Sql.Shared/Internal/SqlQueriesBase.cs`
+(+`InsertSession`), `PostgreSql`/`Sqlite`/`SqlServer` `Internal/*Queries.cs`
+(+`InsertSession` sorgusu, üç lehçe), `AgentEndpoints.cs`
+(akışsız yolda `AgentPrismSessionConflictException` → `409`).
+
+**Case:** `MT-CORE-054` ✅.
+
+**Regresyon testleri:**
+`tests/Shared/Contracts/SessionStoreContract.cs`
+(`TryCreateAsync_yeni_kimlikte_true_doner_ve_kaydeder`,
+`TryCreateAsync_var_olan_kimlikte_false_doner_ve_uzerine_yazmaz`,
+`TryCreateAsync_eszamanli_ayni_kimlikte_yalniz_biri_kazanir`,
+`TryCreateAsync_ayni_kimlik_iki_kiracida_bagimsiz_kazanir` — InMemory,
+Postgres, Sqlite, SqlServer'ın dördünde de koşar) ·
+`tests/AgentPrism.PostgreSql.IntegrationTests/SessionPersistenceTests.cs`
+`Ayni_yeni_oturuma_eszamanli_iki_ilk_istek_sessizce_mesaj_kaybetmez` (gerçek
+`Task.WhenAll` eşzamanlılığıyla HATA-004'ü ampirik olarak yeniden üretir).
 
 ### Aile D — `T[]` parametreli tool derlenmiyor 🚨 Kritik
 

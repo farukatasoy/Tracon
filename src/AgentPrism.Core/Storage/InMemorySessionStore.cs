@@ -50,6 +50,21 @@ public sealed class InMemorySessionStore : ISessionStore
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// <see cref="ConcurrentDictionary{TKey, TValue}.TryAdd(TKey, TValue)"/> atomiktir:
+    /// ayni kimlikle eszamanli iki cagridan yalniz biri <see langword="true"/> doner
+    /// (HATA-004).
+    /// </remarks>
+    public ValueTask<bool> TryCreateAsync(SessionRecord record, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
+        var tenantId = record.TenantId ?? _tenantContext.TenantId;
+
+        return new ValueTask<bool>(_sessions.TryAdd((tenantId, record.Id), record with { TenantId = tenantId }));
+    }
+
+    /// <inheritdoc />
     public ValueTask<SessionRecord?> GetAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(sessionId);

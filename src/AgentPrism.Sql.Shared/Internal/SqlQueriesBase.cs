@@ -323,6 +323,18 @@ internal abstract class SqlQueriesBase
     /// <summary>Oturumu ekler veya gunceller.</summary>
     public string UpsertSession { get; protected set; } = string.Empty;
 
+    /// <summary>
+    /// Yeni bir oturumu yalnizca YOKSA ekler. Duz bir <c>INSERT</c>'tir;
+    /// ayni (tenant_id, id) ile eszamanli ikinci bir cagri benzersizlik
+    /// ihlaline duser ve <see cref="SqlDialect.IsUniqueViolation"/> ile
+    /// yakalanir — <see cref="InsertIdempotencyKey"/> ile ayni desen.
+    /// HATA-004: <see cref="UpsertSession"/>'in kosulsuz uzerine yazmasi,
+    /// ayni YENI oturuma gelen eszamanli iki ilk istegin farkli birer
+    /// konusma kimligi uretmesine ve kaybedenin mesajlarinin sessizce
+    /// erisilmez kalmasina yol aciyordu.
+    /// </summary>
+    public string InsertSession { get; protected set; } = string.Empty;
+
     /// <summary>Oturumu okur.</summary>
     public string SelectSession { get; protected set; } = string.Empty;
 

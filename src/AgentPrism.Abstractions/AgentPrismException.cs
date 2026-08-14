@@ -243,6 +243,58 @@ public sealed class AgentPrismProviderUnavailableException : AgentPrismException
 }
 
 /// <summary>
+/// Ayni YENI oturum kimligine eszamanli iki ilk istek geldiginde, kaybeden
+/// istek icin atilir.
+/// </summary>
+/// <remarks>
+/// <para>
+/// HATA-004: <c>AgentSessionManager.GetOrCreateSessionAsync</c> yeni bir oturum
+/// olustururken <c>ISessionStore.TryCreateAsync</c> ile atomik bir kayit dener.
+/// Ayni kimlikle eszamanli ikinci bir istek bu denemede kaybederse, kazananin
+/// konusma gecmisi saglayicisinin (ChatHistoryProvider) konusma kimligini HENUZ
+/// uretmemis olabilecegini bilemez — o kimlik yalniz kazananin ILK turu
+/// calisirken uretilir. Kaybeden yine de kendi turunu calistirsaydi, KENDI
+/// konusma kimligini uretir ve sonraki kaydetme kazananin durumunu sessizce
+/// ezerdi — asil kusur buydu. Bu yuzden kaybeden acik bir catisma hatasi alir;
+/// yeniden deneme normal (yaris disi) yolu izler ve bu kez kazananin ZATEN
+/// yerlesmis kaydini bulur.
+/// </para>
+/// </remarks>
+public sealed class AgentPrismSessionConflictException : AgentPrismException
+{
+    /// <summary>
+    /// <see cref="AgentPrismException.ErrorType"/> icin yazilan kararli deger.
+    /// </summary>
+    public const string SessionConflictErrorType = "session_conflict";
+
+    /// <summary>Yeni bir hata olusturur.</summary>
+    public AgentPrismSessionConflictException()
+    {
+    }
+
+    /// <summary>Yeni bir hata olusturur.</summary>
+    /// <param name="message">Hata mesaji.</param>
+    public AgentPrismSessionConflictException(string message)
+        : base(message)
+    {
+    }
+
+    /// <summary>Yeni bir hata olusturur.</summary>
+    /// <param name="message">Hata mesaji.</param>
+    /// <param name="innerException">Asil hata.</param>
+    public AgentPrismSessionConflictException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+
+    /// <summary>Catisan oturumun kimligi.</summary>
+    public string? SessionId { get; init; }
+
+    /// <inheritdoc />
+    public override string ErrorType => SessionConflictErrorType;
+}
+
+/// <summary>
 /// Bir dis cagiran (MCP veya A2A uzerinden) katalogdaki bir agent'i cagirmak
 /// istedi ama sinir ihlali nedeniyle reddedildi (Faz 50).
 /// </summary>

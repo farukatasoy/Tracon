@@ -83,6 +83,56 @@ public sealed class SessionPersistenceTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task Ayni_yeni_oturuma_eszamanli_iki_ilk_istek_sessizce_mesaj_kaybetmez()
+    {
+        // HATA-004 / MT-CORE-054: check-then-create yarisinda iki eszamanli ilk
+        // istek ayni YENI oturum icin farkli birer konusma kimligi uretiyordu;
+        // ikinci SaveSessionAsync birinciyi SESSIZCE eziyor ve kaybedenin
+        // mesajlari erisilmez kaliyordu — ikisi de "basarili" gorunuyordu.
+        //
+        // Kabul edilen davranis (KAPANIS-PLANI.md §6, Aile C): ya HICBIR mesaj
+        // kaybolmaz, ya da bir catisma denetimi VARSA isteklerden biri ACIK bir
+        // catisma hatasi doner. Bu ikinci dal kabul edilebilir — sessiz kayip
+        // DEGIL. Duzeltmeden sonra: iki eszamanli ilk istekten TAM OLARAK biri
+        // basarili olur, digeri AgentPrismSessionConflictException alir; hicbir
+        // zaman ikisi de sessizce "basarili" olup biri kaybolmaz.
+        await using var context = await PostgresTestContext.CreateAsync(fixture);
+
+        const string SessionId = "es-zamanli-ilk-istek";
+
+        await using var first = BuildProvider(context);
+        await using var second = BuildProvider(context);
+
+        static async Task<Exception?> TryRunFirstTurnAsync(ServiceProvider provider, string message)
+        {
+            try
+            {
+                var agent = await ResolveAsync(provider, "destek");
+                var manager = provider.GetRequiredService<AgentSessionManager>();
+
+                var session = await manager.GetOrCreateSessionAsync(agent, SessionId);
+                await agent.RunAsync(message, session);
+                await manager.SaveSessionAsync(agent, session);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                return ex;
+            }
+        }
+
+        var outcomes = await Task.WhenAll(
+            TryRunFirstTurnAsync(first, "birinci istek"),
+            TryRunFirstTurnAsync(second, "ikinci istek"));
+
+        // Sessiz kayip senaryosunda ikisi de null (basarili) dönerdi ama
+        // oturumda yalniz 2 mesaj kalirdi. Kabul edilen davranis: en fazla biri
+        // basarisiz olur, ve basarisiz olan MUTLAKA acik bir catisma hatasidir.
+        outcomes.Count(static ex => ex is null).ShouldBeGreaterThanOrEqualTo(1, "Iki istek de basarisiz oldu.");
+        outcomes.Where(static ex => ex is not null).ShouldAllBe(static ex => ex is AgentPrismSessionConflictException);
+    }
+
+    [Fact]
     public async Task Calistirma_kaydi_gercek_oturum_kimligini_tasir()
     {
         await using var context = await PostgresTestContext.CreateAsync(fixture);

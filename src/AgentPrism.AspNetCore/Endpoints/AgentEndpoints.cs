@@ -873,6 +873,22 @@ internal static class AgentEndpoints
                         })
                     .ExecuteAsync(httpContext).ConfigureAwait(false);
             }
+            catch (AgentPrismSessionConflictException ex)
+            {
+                // 🚨 HATA-004: ayni YENI oturuma eszamanli iki ilk istek geldiginde
+                // kaybeden burada duser. 502 "yukari akis bozuk" derdi; asil sebep
+                // istemci tarafi bir yaris kosulu — 409 ve kisa bir yeniden deneme
+                // dogru cozumdur.
+                await Results.Problem(
+                        title: "Oturum catismasi",
+                        detail: ex.Message,
+                        statusCode: StatusCodes.Status409Conflict,
+                        extensions: new Dictionary<string, object?>(StringComparer.Ordinal)
+                        {
+                            ["errorType"] = AgentPrismSessionConflictException.SessionConflictErrorType,
+                        })
+                    .ExecuteAsync(httpContext).ConfigureAwait(false);
+            }
             catch (Exception ex) when (ex is AgentPrismException or InvalidOperationException or HttpRequestException)
             {
                 await Results.Problem(
