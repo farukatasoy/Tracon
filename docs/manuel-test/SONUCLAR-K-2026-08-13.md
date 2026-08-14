@@ -128,6 +128,48 @@ Diğer bulgular: MT-WF-020'nin dokümanı düzeltildi (kod kusuru değil) — be
 
 ---
 
-## K-4 — 15 §2–6, 26 case
+## K-4 — 15 §2–6 (MT-WF-030..035, 040..044, 050..053, 060..066, 070..073), 26 case
+
+**Sonuç:** 23 Geçti, 3 Kaldı.
+
+### HATA-K-003 — 🚨 KRİTİK: Magentic + plan onayı, onay sonrası devamda `ExecutorFailed`/`RunFailed` ile çöküyor
+
+- **Case:** MT-WF-071 (Yüksek), MT-WF-073 (Orta) — ikisi de aynı kök nedenle
+- **Önem:** Yüksek
+- **İzlek:** B
+- **Ortam:** macOS arm64 · net10 · PostgreSQL · OpenAI `gpt-5.4-mini`, `Magentic` deseni, `maxIterations: 2`, `requirePlanApproval: true`
+
+**Beklenen**
+Plan onaylandıktan (MT-WF-071) veya düzeltme metniyle reddedildikten (MT-WF-073) sonra yönetici (Magentic manager) akışı temiz biçimde ilerletir — ya katılımcıyı çalıştırıp anlamlı bir `WorkflowOutput` üretir ya da yeniden planlayıp yeni bir `RunAwaitingInput` açar.
+
+**Gerçekleşen**
+- **Onayla (MT-WF-071):** `cevirmen` çalıştı ama `WorkflowOutput.text` gerçek çeviri değil, MAF'ın "`Task execution stopped due to hitting the maximum round count limit.`" sistem mesajıydı; ardından `cevirmen` bir kez daha çağrıldı, `ExecutorFailed` (×2) ve `RunFailed: "Error invoking handler for Microsoft.Agents.AI.Workflows.TurnToken"` ile çöktü.
+- **Düzeltmeyle reddet (MT-WF-073):** Yönetici yeniden PLANLAMADI — doğrudan yürütmeye geçip gerçek bir çeviri ürettikten SONRA `ExecutorFailed` (`TargetInvocationException`) ve `RunFailed: "Error invoking handler for Microsoft.Agents.AI.Workflows.ExternalResponse"` ile çöktü.
+
+**Yeniden üretme**
+1. `PUT /api/workflows/plan-onayli` — `kind: Magentic`, `agentNames: ["cevirmen"]`, `managerAgentName: "ozetleyici"`, `maxIterations: 2`, `requirePlanApproval: true` (case'in kendi reprodüksiyon adımı).
+2. Çalıştır → `RunAwaitingInput` (`PlanReview`).
+3. `respond` ile onayla (`approved:true`) VEYA düzeltme metniyle reddet (`approved:false, text:"..."`).
+4. Akış `ExecutorFailed`/`RunFailed` ile biter, temiz bir `Completed` veya ikinci bir `AwaitingInput` ASLA oluşmaz.
+
+**Kanıt**
+- İki bağımsız çalıştırmada (onayla + reddet) tutarlı biçimde tekrarlandı.
+- `maxIterations: 2` case'in KENDİ reprodüksiyon script'inde belirtilen değer — test kurulumu hatası değil.
+- Tam olay dizisi ve hata metinleri MT-WF-071/073'ün `Gerçek sonuç` alanlarında kayıtlı.
+
+**Kapsam**
+Faz 16'nın Magentic plan onayı özelliği, `maxIterations` sınırının plan+onay+yürütme döngüsü için yetersiz kaldığı durumlarda zarif bir "sınıra ulaşıldı" mesajı yerine bir iç hata zincirine (`ExecutorFailed`/`RunFailed`, `TargetInvocationException`) düşüyor. Bunun (a) yalnızca `maxIterations` ayarlama sorumluluğu tüketiciye ait bir sınır durumu mu, yoksa (b) MAF'ın/AgentPrism'in round-limit'e ulaşıldığında akışı sonlandırma mantığındaki bir kod kusuru mu olduğu ayrı bir kod incelemesi gerektirir — kod bu koşumda değiştirilmedi.
+
+---
+
+Diğer bulgular: MT-WF-020/053/072'de olduğu gibi, workflow içi hatalar (`AgentPrismException` akışın İÇİNDE oluşursa) `event: error` DEĞİL, normal `event: event` içinde `type: RunFailed` olarak geliyor; yalnız akış BAŞLAMADAN (senkron ön-kontrol, ör. MT-WF-064/065) fırlatılan istisnalar gerçek `event: error` çerçevesi üretiyor. Bu, dört case'de (020, 053, 072'de "kod kusuru değil" + 064/065'te "beklendiği gibi") tutarlı biçimde doğrulandı — genel bir kural olarak not edilir, ayrı ayrı `HATA` açılmadı.
+
+MT-WF-042'nin "`$type` ilk 40 baytta başlar" iddiası da düzeltildi — K-027'nin asıl iddiası (sütun tipi `json`, `jsonb` değil) doğru, yalnız `$type` üst nesnede değil, iç içe bir polimorfik dizide (`edges`) görünüyor.
+
+**Sapma:** MT-WF-066'da ilk deneme yanlış sonuç verdi (kiracı yalıtımı "kırılmış" gibi göründü) çünkü `AgentPrism:Tenancy:Enabled` kapalıydı — bu benim test kurulum hatamdı, §5'in ön koşulunu (13-KIRACI-VE-GUVENLIK.md MT-SEC-021'in header çözümlemesi) atlamıştım. Doğru config ile tekrarlanıp gerçek sonuç doğrulandı (bkz. case notu).
+
+---
+
+## K-5 — 15 §7–9 + 17 §1–2, 27 case
 
 _(sıradaki oturum bu başlığın altına yazacak)_

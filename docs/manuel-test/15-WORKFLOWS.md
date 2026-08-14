@@ -867,9 +867,9 @@ Adım 1: `HTTP: 200`. Adım 2: `event: run` → `event: event` (`{"type":"RunFai
   zincir gösterir (`workflows.tsx:100`, `agentNames.join(' → ')`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`ozetle-ve-cevir`/`ozetle-ve-onayla` satırlarında Pattern "code graph" rozeti, Source "code" rozeti göründü. `inceleme-zinciri` satırında Pattern "Sequential" (accent), Source "database" rozeti göründü, Agents sütunu "ozetleyici → cevirmen" gösterdi. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -895,9 +895,9 @@ Sınır durumu — istemci tarafı engel.
   Ağ sekmesinde hiçbir `PUT` isteği görünmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Adım 2: hiçbir alan doldurulmadan `Save` `[disabled]`. Adım 3: yalnız ad girildikten sonra (katılımcı yok) `Save` hâlâ `[disabled]`. Tam beklendiği gibi (buton devre dışıyken tıklama zaten mümkün değil, ağ isteği gitmedi).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -926,9 +926,9 @@ Sınır durumu — istemci tarafı engel.
   rozeti bulunur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`Handoff`: "Handoff instructions" alanı göründü. `GroupChat`: "Handoff instructions" kayboldu, "Max iterations" alanı göründü. `Magentic`: "Manager agent" açılır listesi göründü (seçenekleri: `arastirmaci, bilgi-asistani, claude-destek, claude-dusunen, gemini-destek, gemini-kati-filtre, openrouter-destek, sesli-asistan, support, yonlendirici` — seçili katılımcılar `ozetleyici`/`cevirmen` listede YOK), "Ask a person to approve the plan" checkbox'ı "costs a manager turn" rozetiyle birlikte göründü. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -953,9 +953,9 @@ Sınır durumu.
   `workflow-editor.tsx:134,231-235`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+"Concurrent needs at least two participants." metni `text-warn` (sarı/amber uyarı) CSS sınıfıyla göründü, `Save` `[disabled]`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -978,9 +978,9 @@ Sınır durumu.
 - Grafik paneli ve çalıştırma paneli normal görünür.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Başlık yanında `Edit` düğmesi yok (yalnız "code graph" rozeti var). Graph paneli (Mermaid benzeri düğüm diyagramı, "Copy Mermaid" düğmesiyle) ve Run paneli (mesaj kutusu + Run düğmesi) normal göründü. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1008,9 +1008,9 @@ DEĞİŞMEDİ.
   MT-WF-004'ün ayırt edici mesajını taşır ("Duzenlenebilir tanim yok").
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Form gösterilmedi; `alert` rolündeki bileşen "Duzenlenebilir tanim yok: 'ozetle-ve-cevir' kodda tanimli bir workflow'dur (AddWorkflow). Listelenir ve calistirilabilir ama veritabaninda duzenlenebilir bir WorkflowDefinition tasimaz." metnini gösterdi. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1061,9 +1061,9 @@ curl -s "$APU/api/runs/<runId>/tree" -H "$APB" | python3 -m json.tool
   name=cevirmen` (Faz 12'nin `parent_run_id` mekanizması).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+SSE akışında beklenen tüm tipler en az bir kez göründü: `WorkflowStarted, SuperStepStarted, ExecutorInvoked, ExecutorCompleted, SuperStepCompleted, WorkflowOutput, RunCompleted` (+ `RunStarted`, `MessageDelta`). `/tree`: 3 satır — `depth=0 kind=Workflow agentName=ozetle-ve-cevir workflowName=ozetle-ve-cevir`, `depth=1 kind=Agent agentName=cevirmen parentRunId=<workflow runId>`, `depth=1 kind=Agent agentName=ozetleyici parentRunId=<workflow runId>`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1096,9 +1096,9 @@ ORDER BY kind;
   sırasıyla `ozetleyici`/`cevirmen`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`kind=1` satırında `workflow_name='ozetle-ve-cevir'`, `agent_name='ozetle-ve-cevir'` (NULL değil, `IS NULL` sorgusuyla doğrulandı: `f`). `kind=0` satırlarında `workflow_name IS NULL` (`t`), `agent_name` `cevirmen`/`ozetleyici`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1133,16 +1133,25 @@ WHERE run_id = '<runId>'
 ORDER BY created_at;
 ```
 
-**Beklenen sonuç**
+**Beklenen sonuç — kısmen DÜZELTİLDİ (koşum sırasında, ölçümle).**
 - HTTP listesi: en az 2 kayıt, `parentCheckpointId` zincirlenmiş (ilkinde
   `null`, sonrakilerde bir öncekinin `checkpointId`'si).
-- SQL: `sutun_tipi = json` (`jsonb` DEĞİL — K-027). `ilk_40_bayt` içinde
-  `{"$type":` dizgisi **en baştan** başlar (nesnenin ilk özelliği).
+- SQL: `sutun_tipi = json` (`jsonb` DEĞİL — K-027).
+- `ilk_40_bayt` iddiası YANLIŞTI: en üst seviye `state` nesnesi `{"$type":`
+  ile DEĞİL, `{"stepNumber":0,"workflow":{"executors":{...` ile başlıyor —
+  ilk özellik `stepNumber`'dır. `$type` işaretçisi state içinde gerçekten VAR
+  (`state::text LIKE '%$type%'` → `true`) ama üst nesnede değil, executor
+  kenarlarının (`edges`) polimorfik dizisinin İÇİNDE, çok daha derinde
+  görünüyor (örnek: `..."[{"$type":0,"hasCondition":false,"kind":0,...`).
+  K-027'nin asıl iddiası (sütun tipi `json`, `jsonb` DEĞİL — özellik SIRASI
+  korunur) hâlâ geçerli ve doğrulandı; yalnız "$type ilk 40 bayttadır" alt
+  iddiası yanlıştı, muhtemelen MAF'ın kontrol noktası şemasının farklı bir
+  sürümüne dayanıyordu.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+HTTP: 3 kayıt, `parentCheckpointId` zinciri `null → id1 → id2` doğru sırayla. SQL: `sutun_tipi = json`. İlk 40 bayt: `{"stepNumber":0,"workflow":{"executors":` — `$type` yok ama JSON içinde başka yerde mevcut (yukarıya bakınız). K-027'nin sütun-tipi iddiası doğrulandı; "$type ilk özelliktir" alt iddiası düzeltildi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1174,9 +1183,9 @@ GROUP BY run_id, session_id;
   plandan sapan 5. metodu).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İki ayrı `session_id` (`019ffd920675737f94afcb229c5231df` ve `ikinci-oturum`) için ayrı `run_id` grupları (her biri 3 kayıt), sızma yok. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1211,9 +1220,9 @@ curl -N -s -X POST "$APU/api/workflows/ozetle-ve-cevir/run" -H "$APB" -H "conten
   başlatmayı gerektirir ve isteğe bağlıdır — koşum notuna eklenir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İki farklı `sessionId` (`kimlik-testi-1`, `kimlik-testi-2`) ile iki ayrı çalıştırma, ikisinde de birebir aynı kimliği üretti: `ozetleyici_9fa38dc85895e6af1c1da45815ea9d03`. Tam beklendiği gibi. "Yeniden başlatma sonrası" senaryosu (uygulamayı durdurup tekrar başlatma) koşulmadı — isteğe bağlı olduğu belirtilmişti.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1247,9 +1256,9 @@ curl -N -s -X POST "$APU/api/workflows/inceleme-zinciri/run" -H "$APB" -H "conte
   workflow adı olur (`inceleme-zinciri`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`/tree`: 3 satır — `depth=0 kind=Workflow agentName=inceleme-zinciri workflowName=inceleme-zinciri`, `depth=1 kind=Agent agentName=cevirmen`, `depth=1 kind=Agent agentName=ozetleyici`. Kodda tanımlı ile aynı davranış. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1282,9 +1291,9 @@ curl -N -s -X POST "$APU/api/workflows/runs/<runId>/resume" -H "$APB" -H "conten
   sürdürüp `WorkflowOutput` ürettiğini gösterir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Boş gövdeyle `resume` çağrıldı: `event: run` çerçevesi YENİ bir `runId` (`019ffd94-9a16-...`) bildirdi — orijinal `runId`den (`019ffd94-7aef-...`) farklı, tamamlanmış çalıştırma sorunsuz kabul edildi. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1315,9 +1324,9 @@ curl -N -s -X POST "$APU/api/workflows/runs/<runId>/resume" -H "$APB" -H "conten
   Davranışları" madde 7'nin aynısı, farklı bir bağlamda).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İlk kontrol noktasından `resume` çağrıldı; akış başarıyla başladı ve `event: done` ile bitti. Hem `ozetleyici_7e76fc6f...` hem `cevirmen_f9136cae...` için `MessageDelta` olayları YENİDEN göründü (ikisi de baştan çalıştı) — ilk kontrol noktası ilk super-step öncesine denk geldiği için beklenen davranış. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1348,17 +1357,21 @@ curl -N -s -X POST "$APU/api/workflows/runs/<eski-runId>/resume" -H "$APB" -H "c
      -d '{"checkpointId":"<eski-checkpoint-id>"}'
 ```
 
-**Beklenen sonuç**
-- SSE `event: error`; `message` "'inceleme-zinciri' workflow'u bu kontrol
-  noktasindan sürdürulemiyor: grafin yapisi kontrol noktasi yazildigi
-  andakinden farkli. Workflow tanimi degistirildiyse yeni bir calistirma
-  baslatin. ..." metnini içerir (`WorkflowRunner.cs:806-818`, MAF'ın ham
-  `InvalidDataException`'ı burada anlaşılır bir mesaja çevrilir).
+**Beklenen sonuç — DÜZELTİLDİ (koşum sırasında, MT-WF-020 ile aynı gerekçeyle).**
+Orijinal metin "SSE `event: error`" diyordu; gerçek davranış MT-WF-020'de
+gözlenenin aynısı — çerçeve `event: event` içinde `type: "RunFailed"`, mesaj
+içeriği doğru:
+- `event: run` → `event: event` (`type: "RunFailed"`, `text`: "'inceleme-zinciri'
+  workflow'u bu kontrol noktasindan surdurulemiyor: grafin yapisi kontrol
+  noktasi yazildigi andakinden farkli. Workflow tanimi degistirildiyse yeni
+  bir calistirma baslatin. Uygulama yeniden baslatildiysa eski kontrol
+  noktalari kullanilamaz - executor kimlikleri surec belleginde uretilir.")
+  → `event: done`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Tanım güncellendi (`yonlendirici` eklendi), eski `checkpointId` ile eski `runId` üzerinden `resume` denendi. Sonuç: `event: run` → `event: event` (`type:"RunFailed"`, mesaj birebir yukarıdaki metin) → `event: done`. Mesaj içeriği tam beklendiği gibi; yalnız çerçeve adı (MT-WF-020'nin aynı kök nedeni) `event: error` değil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1399,9 +1412,9 @@ curl -N -s -X POST "$APU/api/workflows/ozetle-ve-onayla/run" -H "$APB" -H "conte
   (devamı model özetidir, birebir eşleşme aranmaz).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Akışın son olayı `RunAwaitingInput` (`sequence:66`), `event: done` normal geldi. Tam bir `WorkflowRequest` olayı (`sequence:62`) göründü — küçük bir hassasiyet notu: doküman "hemen öncesinde" diyordu ama aralarında `ExecutorCompleted`(63)/`SuperStepCompleted`(64) olayları var (doğrudan bitişik değil); asıl iddia (tam olarak bir kez görünmesi, son olayın `RunAwaitingInput` olması) doğrulandı. `GET .../requests`: `form: "Boolean"`, `requestType: "System.String"`, `responseType: "System.Boolean"`, `portId: "yayin-onayi"`, `prompt` "Bu ozet yayinlansin mi?" ile başlıyor. Tam beklendiği gibi (küçük hassasiyet notu dışında).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1431,9 +1444,9 @@ arayüz bilerek beklemeyi tercih eder.
   (`workflowDetail.yes`/`no`) render edilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Çalıştırma çok hızlı tamamlandığı (gerçek model, tek agent + sabit onay portu, ~1-2 sn) için Playwright'ın snapshot alma turu ile Adım 2'nin ara durumunu (akış sürerken panel yok) görsel olarak yakalayamadım — her snapshot çağrısı akış zaten bitmişken geldi. Bunun yerine ağ isteklerini inceledim: `POST .../run` (SSE akışı) TAMAMLANDIKTAN SONRA `GET .../requests` çağrıldığı doğrulandı (istek listesinde run'dan hemen sonra sırayla geldi) — kodun `enabled: finished` koşuluyla tutarlı. Adım 3: panel "Waiting on you" başlığıyla göründü, `prompt` metni ve "Yes"/"No" düğmeleri render edildi. Ana iddia (sorgu yalnız akış bittikten sonra tetiklenir) dolaylı kanıtla doğrulandı; ara durumun görsel kanıtı alınamadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1463,9 +1476,12 @@ curl -N -s -X POST "$APU/api/workflows/runs/<runId>/respond" -H "$APB" -H "conte
 - `GET /api/runs/<yeni-runId>` `status: "Completed"` döner.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+🚨 **KISMEN KALDI.** `event: run` YENİ bir `runId` bildirdi (beklendiği gibi) ve `WorkflowOutput.text` birebir `"Ozet yayinlandi."` oldu (beklendiği gibi). AMA iki ciddi sapma gözlendi:
+1. **`GET /api/runs/<yeni-runId>` `status: "AwaitingInput"` döndü, `"Completed"` DEĞİL.** Akış `RunCompleted` yerine yeniden `RunAwaitingInput` ile bitti (YENİ bir `requestId` ile YENİ bir `WorkflowRequest` üretilmişti, o karşılıksız kaldı).
+2. **`ozetleyici` agent'ı SIFIRDAN yeniden çalıştı** — akışta 40+ `MessageDelta` olayı yeniden göründü (gerçek model tekrar çağrıldı, gerçek ek maliyet oluştu), hâlbuki beklenti yalnız kontrol noktasından ilerlemekti (ozetleyicinin ÖNCEDEN üretilmiş çıktısını yeniden kullanmak).
+Doğrulama için AYNI deneyi ikinci kez tekrarladım (yeni bir çalıştırma + respond): birebir aynı desen — yeniden tam özetleme + yeni bir `WorkflowRequest` + `AwaitingInput` ile bitiş. Tam belirlenimli. Grafın kendisi "dashed edge loops back" notuyla döngüsel olarak tasarlanmış olabilir (`onay-sorusu`/`yayin-onayi` arasında), bu yüzden "bir kez onayla → Completed" beklentisinin kendisi YANLIŞ olabilir — ama gözlenen davranış (her `respond` çağrısının modeli SIFIRDAN yeniden çağırması) `resume`'un checkpoint'ten ÇALIŞMA KALDIĞI YERDEN devam etmesi gereken temel sözleşmesiyle çelişiyor ve gerçek para maliyeti doğuruyor. Kod değiştirilmedi; kök neden netleştirme (döngüsel graf tasarımı mı, yoksa `PrepareResponseAsync`/checkpoint geri yükleme mekanizmasının hatası mı) ayrı bir kod incelemesi gerektirir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1493,9 +1509,9 @@ curl -N -s -X POST "$APU/api/workflows/runs/<runId>/respond" -H "$APB" -H "conte
   birakildi."` değerine eşittir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`WorkflowOutput.text` birebir `"Yayin iptal edildi; ozet arsivde birakildi."` oldu — bu kısım tam beklendiği gibi. Ancak MT-WF-062'nin AYNI kök nedeni burada da tekrarlandı: `ozetleyici` SIFIRDAN yeniden çalıştı (34 `MessageDelta`), yeni bir `WorkflowRequest` üretildi (karşılıksız), akış `RunAwaitingInput` ile bitti (`Completed` değil). İki bağımsız çalıştırmada (onayla + reddet) birebir aynı desen — tam belirlenimli. Metin doğruluğu Geçti sayılır; tamamlanma durumu/yeniden çalıştırma sorunu MT-WF-062'nin `HATA` kaydına referansla not edildi, ayrı bir hata açılmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1526,9 +1542,9 @@ curl -N -s -X POST "$APU/api/workflows/runs/<runId>/respond" -H "$APB" -H "conte
   (`WorkflowRunner.cs:263-265`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Gerçek `event: error` çerçevesi geldi (MT-WF-020/053'ün aksine — bu istisna `PrepareResponseAsync`'te akış hiç başlamadan senkron fırlatıldığı için `WorkflowEventStream`'in `catch` bloğuna gerçekten düşüyor), `message`: "'uydurma-istek-kimligi' kimlikli bekleyen bir istek '<runId>' calistirmasinda yok. Istek listesini GET /api/workflows/runs/{runId}/requests ile tazeleyin." Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1559,9 +1575,9 @@ curl -N -s -X POST "$APU/api/workflows/runs/<tamamlanmis-runId>/respond" -H "$AP
   calistirma yanitlanabilir." metnini içerir (`WorkflowRunner.cs:248-253`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Gerçek `event: error` çerçevesi geldi (MT-WF-064 ile aynı gerekçeyle — senkron ön-kontrol istisnası), `message`: "'<runId>' kimlikli calistirma insan girdisi beklemiyor (durum: Completed). Yalnizca 'AwaitingInput' durumundaki bir calistirma yanitlanabilir." Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1596,9 +1612,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/workflows/runs/<runId>/requests" -
   "yetkisiz" bile demez, varlığı sızdırmaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İlk denemede `AgentPrism:Tenancy:Enabled` kapalı olduğu için `X-AgentPrism-Tenant` başlığı hiç okunmadı, her iki çağrı da aynı (`default`) kiracıyı kullandı ve ikinci çağrı yanlışlıkla `200` döndü — bu bir güvenlik açığı DEĞİL, benim test kurulum hatamdı (koşmadan önce §5'in ön koşulunu — MT-SEC-021'in header çözümlemesini açmayı — atlamışım). `dotnet user-secrets set "AgentPrism:Tenancy:Enabled" "true"` + `AllowHeaderResolution "true"` ile yeniden başlatılıp doğru şekilde tekrarlandı: ikinci çağrı (`kiraci-beta` başlığıyla) `HTTP: 404`, `title: "Calistirma bulunamadi"`, `detail: "'<runId>' kimlikli calistirma bulunamadi."` — varlığı sızdırmadı. Aynı `runId`'ye doğru kiracıdan (`kiraci-alfa`) yapılan kontrol sorgusu `200` ile veriyi döndürdü, izolasyonun çalıştığını doğruladı. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1639,9 +1655,9 @@ curl -N -s -X POST "$APU/api/workflows/plan-onayli/run" -H "$APB" -H "content-ty
   varlığı ve `form` alanı değişmezdir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`PUT`: `HTTP: 200`, `requirePlanApproval: true`. `run`: akış `RunAwaitingInput` ile kapandı. `GET .../requests`: `form: "PlanReview"`, `requestType: "Microsoft.Agents.AI.Workflows.MagenticPlanReviewRequest"`, `responseType: "Microsoft.Agents.AI.Workflows.MagenticPlanReviewResponse"`, `prompt` boş değildi (planın maddeleri). Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1669,9 +1685,9 @@ curl -N -s -X POST "$APU/api/workflows/runs/<runId>/respond" -H "$APB" -H "conte
   üretimi — metnine eşleşme aranmaz).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+🚨 **KISMEN KALDI.** Yeni `runId` açıldı, `ExecutorInvoked(cevirmen_...)` en az bir kez göründü (iki kez), `WorkflowOutput.text` boş değildi — bu üç loose iddia teknik olarak sağlandı. AMA `WorkflowOutput.text` gerçek bir çeviri DEĞİL, MAF'ın kendi sistem mesajıydı: `"Task execution stopped due to hitting the maximum round count limit."` (case'in kendi `PUT` isteğindeki `maxIterations: 2` bu sınıra çok hızlı çarpıyor — plan + onay-sonrası devam + katılımcı çağrısı en az 3 tur gerektiriyor). Bundan SONRA akış `cevirmen`'i BİR KEZ DAHA çağırdı, ardından `ExecutorFailed` (×2) ve son olarak `RunFailed`: `"Error invoking handler for Microsoft.Agents.AI.Workflows.TurnToken"` ile çöktü. Yani run temiz bir `Completed` DEĞİL, bir iç hata zinciriyle bitti. `maxIterations: 2` — tam olarak case'in kendi reprodüksiyon adımlarında belirtilen değer — bu Magentic + plan-onayı bileşimi için yetersiz ve MAF'ın round-limit'e ulaşma davranışı zarif bir durdurma yerine bir çökme zincirine yol açıyor. Kod değiştirilmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1705,9 +1721,9 @@ curl -N -s -X POST "$APU/api/workflows/runs/<runId>/respond" -H "$APB" -H "conte
   dokümante edildi — bu case onu ilk kez ölçer).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Çerçeve `event: error` DEĞİL, MT-WF-020/053/072 ile aynı desende `event: event` içinde `type: "RunFailed"` geldi (bu istisna akışın İÇİNDE, MAF'ın kendi Magentic mantığında oluşuyor — senkron ön-kontrol değil). Metin ölçüldü: `"Plan reddedildi ancak duzeltme metni verilmedi. Yonetici agent'in plani neye gore yeniden kuracagini bilmesi icin 'text' alani zorunludur."` — bu, Faz 16 §16.4'ün "düzeltme metni zorunludur" iddiasını doğrular, `AgentPrismException` mesaj metni koda uygun. Yalnız çerçeve adı beklenenden farklı — MT-WF-020'nin doküman düzeltmesiyle aynı gerekçe.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1737,9 +1753,9 @@ curl -N -s -X POST "$APU/api/workflows/runs/<runId>/respond" -H "$APB" -H "conte
   somut kanıtıdır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+🚨 **KALDI — MT-WF-071 ile AYNI kök nedenle.** Yeni `runId` açıldı ama akış YENİ bir `RunAwaitingInput` ile DEĞİL, doğrudan bir `WorkflowOutput` (gerçek çeviri metni: `"AgentPrism is a family of NuGet packages built on Microsoft Agent Framework."`) ÜRETİP ardından `ExecutorFailed` (`MagenticOrchestrator`, `TargetInvocationException`) ve `RunFailed` (`"Error invoking handler for Microsoft.Agents.AI.Workflows.ExternalResponse"`) ile çöktü. Yönetici yeniden PLANLAMADI (beklenen ikinci `AwaitingInput`/`PlanReview` hiç oluşmadı) — bunun yerine sanki plan zaten onaylanmış gibi doğrudan yürütmeye geçti, sonra dahili bir hata verdi. `maxIterations: 2` sınırının bu senaryoda (ret + yeniden planlama + yürütme, en az 3-4 yönetici turu gerektirir) yetersiz kaldığı MT-WF-071'de zaten gözlemlenmişti; bu case AYNI kısıtın farklı bir çökme belirtisiyle (bu kez `ExternalResponse` handler hatası) tekrarlandığını gösteriyor. Kod değiştirilmedi; ikisi de aynı `HATA` kaydına referans verir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
