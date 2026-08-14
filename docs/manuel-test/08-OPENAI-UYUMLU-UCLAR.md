@@ -1212,7 +1212,32 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/v1/responses" -H "$APB" \
 **Gerçek sonuç**
 **KALDI - HATA-S2-003 (Yuksek).** Once azure-destek hic kayitli DEGILDI (bu ortamda Azure kimligi tanimsizdi -> agentPrism.AddAgent yalniz azureOpenAIEnabled true ise cagriliyor, Program.cs:556-578) - bu kismi doküman duzeltmesidir (asagida). Gecici sahte Azure Endpoint+ApiKey+DefaultDeployment ile agent kayitli hale getirilip GERCEK bir sağlayici hatasi (DNS cozulemedi) tetiklendi. Beklenen HTTP 502 + error.type: upstream_error (OpenAICompatSupport.Error), GERCEKLESEN: HTTP 500, govde ASP.NET Core'un GENEL ProblemDetails sayfasi ({"type":"...","title":"An error occurred while processing your request.","status":500}) - OpenAI hata zarfi DEGIL. Kok neden: OpenAIResponsesEndpoints.cs:213 akissiz yolun catch filtresi hala K-296 ONCESI dar listeyi tasiyor (catch (Exception ex) when (ex is AgentPrismException or InvalidOperationException or HttpRequestException)) - gercek saglayici istisnasi (System.AggregateException, DNS hatasi) bu filtreden GECMIYOR, yakalanmadan ASP.NET Core'un varsayilan isleyicisine sizip 500 ProblemDetails uretiyor. Kapsam: OpenAIChatCompletionsEndpoints.cs:145 (/v1/chat/completions akissiz yolu) AYNI dar filtreyi tasiyor - iki compat ucunun da akissiz yollari etkileniyor. K-296'nin duzeltmesi yalniz akisli varyantlari (ResponsesStream, ChatCompletionsStream) kapsamis, kardes akissiz yollari KACIRMIS.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Duzeltildi (Aile H, bu kosum).** Ucuncu kok neden alani da AYNI dar filtreyi
+tasiyordu: `Endpoints/AgentEndpoints.cs` `ExecuteBufferedAsync` (akissiz
+`/api/agents/{name}/run` yolu, `Idempotency-Key` ile tetiklenir). Uc dosyanin
+ucunde de dar `when` filtresi kaldirildi; K-296/K-384'un akisli kardeslerde
+(ResponsesStream, ChatCompletionsStream, AgentEndpoints.ExecuteStreamingAsync)
+zaten uyguladigi desen — duz `catch (Exception ex)`, `OperationCanceledException`
+ayrica ve ONCE yakalanir (istemci baglantiyi kesince 502 yazmaya calisilmaz) —
+akissiz uc yola da uygulandi.
+
+Ayni sahte Azure Endpoint/ApiKey/DefaultDeployment yontemiyle CANLI PostgreSQL'e
+karsi yeniden dogrulandi (temiz `mt_fin` semasi):
+`POST /v1/responses` → `HTTP 502`, `error.type: upstream_error`, govde
+`{"error":{"message":"Retry failed after 4 tries. (nodename nor servname
+provided...)","type":"upstream_error"}}` — beklenen sonuçla BIREBIR eslesiyor.
+`POST /api/agents/azure-destek/run` (`Idempotency-Key` ile akissiz yol,
+ucuncu kok neden alani) da ayrica dogrulandi: `HTTP 502`,
+`title: "Agent calistirilamadi"`, `application/problem+json`. Regresyon testi:
+`tests/AgentPrism.AspNetCore.FunctionalTests/ProviderOutageErrorHandlingTests.cs`
+— gercek saglayici SDK istisnalarini (`Exception`'dan DOGRUDAN turer, whitelist'e
+UYMAZ) taklit eden `ThrowingModelProvider` ile ucu de (akissiz run, `/v1/responses`,
+`/v1/chat/completions`) kapsar; fix geri alinip calistirildiginda ucu de KIRMIZI
+verdigi (500/ciplak ProblemDetails) ampirik olarak dogrulandi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

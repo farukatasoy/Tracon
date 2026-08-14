@@ -59,8 +59,8 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 |---|---|
 | Toplam case | **1097** |
 | Koşuldu | **1097** (koşulmamış case **yok**) |
-| ☑ Geçti | **1003** |
-| ☒ **Kaldı** | **63** |
+| ☑ Geçti | **1004** |
+| ☒ **Kaldı** | **62** |
 | ⏭ Atlandı | **30** |
 | ☐ Beklemede | **1** (`MT-UIRUN-019`) |
 
@@ -76,10 +76,11 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile E** — İki kalıcılık sağlayıcısı; `MigrationHostedService.IsWinningProvider()` zaten kapatmış, kod değişikliği yok, yalnız case yeniden koşuldu | (bu koşum, docs-only) | `MT-PKG-082` |
 | **Aile F** — 21 endpoint dosyasında kapsam denetimi yok; 4 yeni `ApiKeyScope` üyesi (`PlatformRead/Admin`, `SecurityAdmin`, `AuditRead`) + attenuation | `c96006c` | `MT-MCP-051`, `MT-RES-028`, `MT-JOB-090` (3/4 — `MT-MCP-052` ayrı bulgu olarak Kaldı kalır, bkz. §6) |
 | **Aile G** — JSON çözümleme hatası `400` yerine `500`; kütüphane çapında `RequestBodyBinding.ReadAsync<T>` — 21 dosya, implicit binding kullanan 9 EK uç dahil | `0b28210` | `MT-CORE-009`, `MT-CORE-022`, `MT-SEC-054`, `MT-MCP-003` |
+| **Aile H** — Dar `catch` → çıplak `500`; üç dosyada (`AgentEndpoints.ExecuteBufferedAsync`, `OpenAIResponsesEndpoints`, `OpenAIChatCompletionsEndpoints`) akışsız yolun dar `when` filtresi kaldırıldı (K-296/K-384'ün akışsız kardeşlere tamamlanması) | (bu koşum) | `MT-COMPAT-027` |
 
 ### Kalan aileler
 
-Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **H** ile başlar.
+Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **I** ile başlar.
 
 | Aile | Önem | Konu | Case | Durum |
 |---|---|---|---|---|
@@ -90,7 +91,7 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **H** ile başla
 | ~~E~~ | Kritik | İki kalıcılık sağlayıcısı (K-183) | 1 | ✅ (bu koşum) |
 | ~~F~~ | Yüksek | 21 endpoint dosyasında kapsam denetimi yok | 4 | ✅ (bu koşum, 3/4 — `MT-MCP-052` §6'da yeni bulgu) |
 | ~~G~~ | Yüksek | JSON çözümleme hatası `400` yerine `500` | 4 | ✅ (bu koşum) |
-| **H** | Yüksek | Dar `catch` → çıplak `500` | 1 | ⬜ |
+| ~~H~~ | Yüksek | Dar `catch` → çıplak `500` | 1 | ✅ (bu koşum) |
 | **I** | Yüksek | Kaynak üreteci sahte `mcp:` rozeti | 1 | ⬜ |
 | **J** | Yüksek | Agent editörü sağlayıcı yarışı | 1 | ⬜ |
 | **K** | Yüksek | CSP `blob:` beyaz listede değil | 2 | ⬜ |
@@ -109,10 +110,10 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **H** ile başla
 | **Yeniden koşum** | — | Kusuru zaten kapalı | 8 | ⬜ |
 | **MT-PKG-010** | — | Kök neden `f36eeaf`'te kapandı, case yeniden koşulmalı | 1 | ⬜ |
 
-**Toplam:** 43 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **65**. (Aile F
-bitti: 51 → 47; Aile G bitti: 47 → 43. `MT-MCP-052` bu sayıma dahil değildir —
-Kaldı kalır, ayrı bir bulgu olarak izlenir, gelecekte kendi ailesini
-gerektirebilir.)
+**Toplam:** 42 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **64**. (Aile F
+bitti: 51 → 47; Aile G bitti: 47 → 43; Aile H bitti: 43 → 42. `MT-MCP-052` bu
+sayıma dahil değildir — Kaldı kalır, ayrı bir bulgu olarak izlenir, gelecekte
+kendi ailesini gerektirebilir.)
 
 ---
 
@@ -554,7 +555,7 @@ tuzağı bu koşumda üç test ailesinde (`ExperimentEndpointTests`,
 `EvalEndpointTests`, `WorkflowEndpointTests`) yakalanıp düzeltildi —
 tuzak `docs/hafiza/aspnetcore-json.md`'ye yazıldı.
 
-### Aile H — Dar `catch` → çıplak `500` 🚨 Yüksek
+### ~~Aile H~~ — Dar `catch` → çıplak `500` 🚨 Yüksek ✅ (bu koşum)
 
 **Kusur:** `HATA-S2-003`, `HATA-S3-005`. K-296'nın düzeltmesi **akışsız** kardeş
 yolları kaçırmış; gerçek sağlayıcı hatası `502`/`upstream_error` yerine genel
@@ -566,7 +567,45 @@ yolları kaçırmış; gerçek sağlayıcı hatası `502`/`upstream_error` yerin
 `Endpoints/AgentEndpoints.cs:876` (`ExecuteBufferedAsync`).
 Doğru davranan akışlı yol karşılaştırma için: `ResponsesStream.ExecuteAsync:279`.
 
-**Case:** `MT-COMPAT-027`.
+**Uygulanan tasarım (bu koşum):** K-296/K-384'ün akışlı kardeşlerde
+(`ResponsesStream.ExecuteAsync`, `ChatCompletionsStream.ExecuteAsync`,
+`AgentEndpoints.ExecuteStreamingAsync`) zaten uyguladığı desen üç akışsız yola
+da taşındı: dar `when` filtresi (yalnız `AgentPrismException`/
+`InvalidOperationException`/`HttpRequestException`) kaldırıldı, düz
+`catch (Exception ex)` bırakıldı. `OperationCanceledException` her üç yerde de
+AYRI ve ÖNCE yakalanır (istemci bağlantıyı kesince 502 yazmaya çalışılmaz) —
+`AgentEndpoints.ExecuteBufferedAsync`'te bu catch zaten vardı (satır 873);
+`OpenAIResponsesEndpoints`/`OpenAIChatCompletionsEndpoints`'in akışsız yollarında
+YOKTU, dar filtre `OperationCanceledException`'ı da örtük biçimde dışarı
+sızdırıyordu — genel `catch (Exception ex)`'e geçince bu iki yere de açık bir
+`catch (OperationCanceledException) { throw; }` eklendi ki davranış (iptal
+sessizce yukarı fırlar, 502 gövdesi üretilmez) DEĞİŞMESİN.
+
+**Değişen dosyalar:** `AgentEndpoints.cs` (`ExecuteBufferedAsync`'in son
+`catch`'i genişletildi), `OpenAIResponsesEndpoints.cs`,
+`OpenAIChatCompletionsEndpoints.cs` (ikisine de `catch (OperationCanceledException)
+{ throw; }` + genişletilmiş `catch (Exception ex)` eklendi). **Yeni dosyalar:**
+`tests/AgentPrism.AspNetCore.FunctionalTests/Infrastructure/ThrowingModelProvider.cs`
+(gerçek sağlayıcı SDK istisnalarını taklit eden `IModelProvider` — `Exception`'dan
+DOGRUDAN türer, whitelist'e uymaz), `ProviderOutageErrorHandlingTests.cs` (üç ucu
+da kapsar; fix geri alınıp koşulduğunda üçü de KIRMIZI verdiği ampirik olarak
+doğrulandı).
+
+**Canlı doğrulama:** Sahte Azure `Endpoint`/`ApiKey`/`DefaultDeployment` ile
+`azure-destek` agent'ı geçici olarak kayıtlı hale getirilip (K-183/Aile E
+deseniyle aynı, gerçek Azure kimliği HİÇ kullanılmadı) temiz `mt_fin` şemasına
+karşı gerçek bir DNS çözümleme hatası tetiklendi: `POST /v1/responses` →
+`HTTP 502` + `error.type: upstream_error`; `POST /api/agents/azure-destek/run`
+(`Idempotency-Key` ile akışsız yol) → `HTTP 502` +
+`title: "Agent calistirilamadi"`, `application/problem+json`. Geçici `secret`'lar
+doğrulama sonrası `dotnet user-secrets remove` ile temizlendi.
+
+**Case:** `MT-COMPAT-027` ✅.
+
+**Regresyon testleri:** `ProviderOutageErrorHandlingTests.cs`
+(`Akissiz_calistirma_ucu_saglayici_hatasinda_502_ProblemDetails_doner`,
+`Responses_ucu_saglayici_hatasinda_502_upstream_error_doner`,
+`ChatCompletions_ucu_saglayici_hatasinda_502_upstream_error_doner`).
 
 ### Aile I — Kaynak üreteci sahte `mcp:` rozeti 🚨 Yüksek
 
