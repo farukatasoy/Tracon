@@ -24,18 +24,21 @@ internal static class ExperimentEndpoints
     {
         builder.MapGet("/api/experiments", ListAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.ExperimentsRead)
             .WithName("AgentPrismListExperiments")
             .WithTags("AgentPrism", "Experiments")
             .WithSummary("Bir kiracinin A/B deneylerini listeler.");
 
         builder.MapGet("/api/experiments/{name}", GetAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.ExperimentsRead)
             .WithName("AgentPrismGetExperiment")
             .WithTags("AgentPrism", "Experiments")
             .WithSummary("Tek bir A/B deneyini getirir.");
 
         builder.MapPut("/api/experiments/{name}", SaveAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.ExperimentsAdmin)
             .WithName("AgentPrismSaveExperiment")
             .WithTags("AgentPrism", "Experiments")
             .WithSummary("Deney olusturur veya gunceller.")
@@ -45,12 +48,14 @@ internal static class ExperimentEndpoints
 
         builder.MapDelete("/api/experiments/{name}", DeleteAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.ExperimentsAdmin)
             .WithName("AgentPrismDeleteExperiment")
             .WithTags("AgentPrism", "Experiments")
             .WithSummary("Bir deneyi siler. Calisan bir deney once durdurulmalidir.");
 
         builder.MapPost("/api/experiments/{name}/start", StartAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.ExperimentsAdmin)
             .WithName("AgentPrismStartExperiment")
             .WithTags("AgentPrism", "Experiments")
             .WithSummary("Deneyi baslatir; trafik agirliklara gore bolunmeye baslar.")
@@ -58,12 +63,14 @@ internal static class ExperimentEndpoints
 
         builder.MapPost("/api/experiments/{name}/stop", StopAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.ExperimentsAdmin)
             .WithName("AgentPrismStopExperiment")
             .WithTags("AgentPrism", "Experiments")
             .WithSummary("Deneyi durdurur; yeni calistirmalar guncel surume gider.");
 
         builder.MapGet("/api/experiments/{name}/results", GetResultsAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.ExperimentsRead)
             .WithName("AgentPrismGetExperimentResults")
             .WithTags("AgentPrism", "Experiments")
             .WithSummary("Kol bazinda sayi, hata orani, token ve sure ozetini getirir.")
@@ -71,6 +78,7 @@ internal static class ExperimentEndpoints
 
         builder.MapPut("/api/experiments/{name}/canary", SetCanaryAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.ExperimentsAdmin)
             .WithName("AgentPrismSetExperimentCanary")
             .WithTags("AgentPrism", "Experiments")
             .WithSummary("Kanarya kuralini tanimlar veya kaldirir (govde 'null').")
@@ -80,6 +88,7 @@ internal static class ExperimentEndpoints
 
         builder.MapGet("/api/experiments/{name}/canary", GetCanaryAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.ExperimentsRead)
             .WithName("AgentPrismGetExperimentCanary")
             .WithTags("AgentPrism", "Experiments")
             .WithSummary("Kanarya kuralini ve guncel degerlendirmesini getirir.")

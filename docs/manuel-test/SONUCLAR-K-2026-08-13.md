@@ -305,7 +305,7 @@ Kod-kökenli agent'ta deney kurma `400`; DB-kökenli agent ile iki varyantlı de
 
 ## K-7 — 17 §7–11 (MT-EVAL-062..063, 070..076, 080..090, 091..094, 100..101), 26 case
 
-**Sonuç:** 20 Geçti, 4 Kaldı (`HATA-K-007`, `HATA-K-008`), 2 doküman-uyarlaması (ön koşul sürüm numaraları/ortam farkı, kusur değil). Kapanışta `HATA-K-007` düzeltilip MT-EVAL-092 yeniden koşuldu — güncel: 21 Geçti, 3 Kaldı (yalnız `HATA-K-008`, MT-EVAL-100/101).
+**Sonuç:** 20 Geçti, 4 Kaldı (`HATA-K-007`, `HATA-K-008`), 2 doküman-uyarlaması (ön koşul sürüm numaraları/ortam farkı, kusur değil). Kapanışta `HATA-K-007`/`HATA-K-008` düzeltilip MT-EVAL-092/100/101 yeniden koşuldu — güncel: 24 Geçti, 0 Kaldı.
 
 ### 17 §7 — Atama Belirlenirliği (MT-EVAL-062..063), 2 case: 2 Geçti, 0 Kaldı
 
@@ -327,7 +327,7 @@ Binary/Stars puan geçerlilik denetimi (`400` sınır değerlerde); `DELETE` + a
 
 **HATA-K-007 (Yüksek) — MT-EVAL-092 KALDI:** `AgentPrism:RunRecording:RecordRunInput=false` HİÇBİR ETKİ yapmıyor; `GET /api/runs/{id}/input` beklenen `404` yerine `200` ve tam girdiyi döndürdü. Ayrıntı aşağıda.
 
-### 17 §11 — Güvenlik: Eval/Deney API Anahtarı Kapsamı (MT-EVAL-100..101), 2 case: 0 Geçti, 2 Kaldı
+### 17 §11 — Güvenlik: Eval/Deney API Anahtarı Kapsamı (MT-EVAL-100..101), 2 case: 0 Geçti, 2 Kaldı — kapanışta HATA-K-008/K-407 düzeltilip ikisi de yeniden koşuldu, güncel: 2 Geçti, 0 Kaldı
 
 **HATA-K-008 (Yüksek) — İKİSİ de KALDI:** doküman her iki case'in de "şüphesini" AMPİRİK olarak doğruladı. Ayrıntı aşağıda.
 
@@ -356,7 +356,7 @@ Kullanıcı girdisi hassas veri (PII/gizli bilgi) içerebilir; bu bayrak tam da 
 
 ---
 
-### HATA-K-008 — Yüksek: `ApiKeyScope`'ta Eval/Experiment için kapsam YOK — salt-okunur anahtar eval takımı/deney yazabiliyor, feedback yazabiliyor
+### HATA-K-008 — Yüksek: `ApiKeyScope`'ta Eval/Experiment için kapsam YOK — salt-okunur anahtar eval takımı/deney yazabiliyor, feedback yazabiliyor — ✅ DÜZELTİLDİ (2026-08-14, K-407)
 
 - **Case:** MT-EVAL-100, MT-EVAL-101
 - **Önem:** Yüksek
@@ -373,6 +373,9 @@ Yalnız `RunsRead` kapsamlı bir anahtarla: `PUT /api/evals/{name}` → `200` (t
 
 **Kapsam**
 `MT-JOB-090` (`16-IS-KUYRUGU-VE-ZAMANLAMA.md`) ve `MT-WF-100` (`15-WORKFLOWS.md`) ile AYNI kök nedenin DÖRDÜNCÜ bağımsız tekrarı. Salt-okunur niyetiyle üretilmiş bir anahtar eval takımı/deney oluşturup gerçek para harcayan çalıştırmaları dolaylı tetikleyebilir, ayrıca herhangi bir run'a keyfi geri bildirim yazabilir.
+
+**Düzeltme (2026-08-14, K-407)**
+`ApiKeyScope`'a dört yeni üye eklendi: `EvalsRead`, `EvalsAdmin`, `ExperimentsRead`, `ExperimentsAdmin` (Eval/Experiment ayrı kaynak türleri olduğu için `WorkflowsRead`/`WorkflowsAdmin` deseniyle birebir, ayrı çiftler). `EvalEndpoints`/`ExperimentEndpoints`'in TÜM uçlarına `RequireApiKeyScope` eklendi — tanım/veri yönetimi yeni kaynak-özel kapsamları, gerçek model çağırıp para harcayan uçlar (`POST /api/evals/{name}/run`, `POST /api/runs/{runId}/judge`) var olan `RunsWrite`'ı aldı (`AgentEndpoints`'in kendi `run` ucunun `AgentsAdmin` değil `RunsWrite` istemesiyle aynı mantık). `RunEndpoints`'in `feedback`(yaz)/`input`/`compare`(oku) uçlarına da eksik `RequireApiKeyScope(RunsWrite|RunsRead)` çağrıları eklendi. Ampirik doğrulama (raporun senaryosu birebir tekrarlandı, gerçek sunucuya karşı): yalnız `RunsRead` taşıyan anahtarla `PUT /api/evals/{name}` → `403 "EvalsAdmin kapsamini gerektiriyor"`; `PUT /api/experiments/{name}` → `403 "ExperimentsAdmin kapsamini gerektiriyor"`; `GET /api/evals` → `403 "EvalsRead kapsamini gerektiriyor"`; `POST /api/runs/{id}/feedback` → `403 "RunsWrite kapsamini gerektiriyor"` (kontrast: aynı anahtarla `GET /api/runs/{id}/input` hâlâ `200`, çünkü bu uç yalnız `RunsRead` istiyor). Regresyon: ilgili kapsamları taşıyan bir anahtarla eval takımı oluşturma ve feedback yazma `200`. `docs/openapi/agentprism.json` tazelendi (dört yeni enum değeri). `SchedulingEndpoints` (`MT-JOB-090`) ve `GovernanceEndpoints` bu düzeltmenin kapsamı DIŞINDA bırakıldı — bu koşumun konfirme ettiği HATA-K-NNN listesine dahil değillerdi. Dört doğrulama kapısı temiz.
 
 ---
 
