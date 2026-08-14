@@ -2071,7 +2071,25 @@ sonucun "KÜÇÜK RESİM ÖNİZLEMESİ" kısmı karşılanmadığı için case K
 işaretlendi; Adım 3'ün geri kalanı (attachmentIds, temizlenme, chip döngüsü)
 ayrıca tam doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**2026-08-14 yeniden koşum (KAPANIS-PLANI Aile K).** Kök neden:
+`src/AgentPrism.UI/Internal/EmbeddedUiProvider.cs` `ContentSecurityPolicy`
+sabiti `img-src 'self' data:` taşıyordu, `blob:` şeması yoktu — ek
+önizlemesinin kaynağı (`useAttachmentPreview`, `URL.createObjectURL`) her
+zaman bir `blob:` URL'idir. Düzeltme: `img-src 'self' data: blob:;`. Canlı
+`samples/AgentPrism.Api`'ye karşı `curl` ile doğrulandı — yanıt başlığı artık
+`blob:`'i taşıyor. `tests/AgentPrism.Ui.E2ETests/UiTests.cs`
+`Playground_dosya_yuklenir_onizleme_gorunur_ve_calistirma_devam_eder`
+gerçek bir Chromium'da `document.addEventListener('securitypolicyviolation',
+...)` ile ek önizlemesi yüklenirken CSP ihlali OLMADIĞINI doğrular — fix
+geri alınıp koşulduğunda bu ihlal yakalanıp test KIRMIZI verdiği ampirik
+olarak doğrulandıktan sonra fix geri uygulandı. Ayrıca yeni, tarayıcısız bir
+regresyon testi
+(`Kabuk_CSP_basligi_blob_URLlerini_ek_onizlemesi_ve_seslendirme_icin_beyaz_listeye_alir`)
+kabuk yanıtının `Content-Security-Policy` başlığını doğrudan kontrol eder.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2310,6 +2328,32 @@ kontrolü: `GET /api/runs?take=3` en yeni satır hâlâ `019ffca0-...` (MT-UIAG-
 gibi.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
+---
+
+**2026-08-14 yeniden koşum (KAPANIS-PLANI Aile K).** Aynı kök neden
+(`MT-UIAG-044`'te düzeltilen `EmbeddedUiProvider.ContentSecurityPolicy`);
+bu case ikinci, daha geniş etkili örnekti (`media-src` yönergesi hiç yoktu).
+Düzeltme: `media-src 'self' blob:;` eklendi. Canlı `samples/AgentPrism.Api`'ye
+karşı `curl` ile doğrulandı — yanıt başlığı artık `media-src 'self' blob:`
+taşıyor. Gerçek ElevenLabs ile etkileşimli tarayıcı testi bu koşumda
+YAPILMADI (Aile J'deki kilitlenme emsaliyle aynı gerekçe — mevcut Playwright
+tarayıcısı başka bir oturumca meşguldü). Bunun yerine
+`tests/AgentPrism.Ui.E2ETests/UiTests.cs`
+`Playground_yaniti_seslendirilir_ve_ses_ogesi_calar` (sahte `StubSpeechSynthesizer`,
+gerçek Chromium) güçlendirildi: `document.addEventListener('securitypolicyviolation',
+...)` ile ses oynatıcısı `blob:` kaynağını yüklerken CSP ihlali OLMADIĞINI
+doğrular — fix geri alınıp koşulduğunda bu ihlal yakalanıp test KIRMIZI
+verdiği ampirik olarak doğrulandıktan sonra fix geri uygulandı. Ayrıca yeni,
+tarayıcısız bir regresyon testi
+(`Kabuk_CSP_basligi_blob_URLlerini_ek_onizlemesi_ve_seslendirme_icin_beyaz_listeye_alir`)
+kabuk yanıtının `Content-Security-Policy` başlığını doğrudan kontrol eder.
+Gerçek ElevenLabs ile uçtan uca ses OYNATIMI (yalnızca `<audio>` etiketinin
+CSP altında bloklanmadığı, sesin gerçekten duyulabilir olduğu) bir sonraki
+elle/etkileşimli test turunda ayrıca doğrulanabilir; kök neden düzeltmesi ve
+otomatik regresyon kanıtı yeterli görülerek case Geçti işaretlendi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

@@ -1,3 +1,4 @@
+using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.RegularExpressions;
 using AgentPrism.Ui.E2ETests.Infrastructure;
@@ -97,6 +98,31 @@ public sealed class UiTests(BrowserFixture browsers)
     }
 
     [Fact]
+    public async Task Kabuk_CSP_basligi_blob_URLlerini_ek_onizlemesi_ve_seslendirme_icin_beyaz_listeye_alir()
+    {
+        // Tarayici gerekmez: HATA-S4-011'in kok nedeni tek bir sabit dizedir
+        // (`EmbeddedUiProvider.ContentSecurityPolicy`). Asagidaki iki tarayici
+        // testi (`Playground_yaniti_seslendirilir_ve_ses_ogesi_calar`,
+        // `Playground_dosya_yuklenir_onizleme_gorunur_ve_calistirma_devam_eder`)
+        // ayni kusuru CSP ihlal olayiyla dogrular; bu test o degeri dogrudan
+        // ve saniyeler icinde kontrol eder.
+        await using var host = await UiHost.StartAsync();
+
+        using var http = new HttpClient();
+        using var response = await http.GetAsync(host.UiAddress);
+
+        response.Headers.TryGetValues("Content-Security-Policy", out var values).ShouldBeTrue();
+        var csp = values!.Single();
+
+        // Ek onizlemesi (useAttachmentPreview) ve "Seslendir" oynatimi
+        // (SpeakButton) ikisi de bearer token tasiyamayan dogrudan bir uc
+        // yerine fetch edilen baytlari URL.createObjectURL ile sarar; kaynak
+        // her zaman bir blob: URL'idir.
+        csp.ShouldContain("img-src 'self' data: blob:");
+        csp.ShouldContain("media-src 'self' blob:");
+    }
+
+    [Fact]
     public async Task Playground_yaniti_seslendirilir_ve_ses_ogesi_calar()
     {
         // 🚨 Token ACIK. Bu testin asil konusu budur: `<audio src="api/attachments/{id}">`
@@ -114,6 +140,20 @@ public sealed class UiTests(BrowserFixture browsers)
 
         await session.Page.GotoAsync($"{host.UiAddress}/playground/support");
 
+        // HATA-S4-011: `media-src` yonergesi hic yoktu, `<audio src="blob:...">`
+        // sessizce reddediliyordu (`audio.error.code=4`). `src` niteliginin
+        // varligi bunu YAKALAMAZ; tarayicinin gercekten kaynagi acmaya izin
+        // verdigini kanitlamak icin CSP ihlal olayini dinle.
+        await session.Page.EvaluateAsync(
+            """
+            () => {
+                window.__cspViolations = [];
+                document.addEventListener('securitypolicyviolation', (event) => {
+                    window.__cspViolations.push(event.violatedDirective);
+                });
+            }
+            """);
+
         await session.Page.GetByTestId("playground-input").FillAsync("merhaba");
         await session.Page.GetByTestId("playground-send").ClickAsync();
 
@@ -128,6 +168,15 @@ public sealed class UiTests(BrowserFixture browsers)
         var source = await audio.GetAttributeAsync("src");
         source.ShouldNotBeNull();
         source.StartsWith("blob:", StringComparison.Ordinal).ShouldBeTrue(source);
+
+        var hadCspViolation = await session.Page.EvaluateAsync<bool>(
+            """
+            () => new Promise((resolve) => {
+                if (window.__cspViolations.length > 0) { resolve(true); return; }
+                setTimeout(() => resolve(window.__cspViolations.length > 0), 500);
+            })
+            """);
+        hadCspViolation.ShouldBeFalse();
     }
 
     [Fact]
@@ -208,11 +257,34 @@ public sealed class UiTests(BrowserFixture browsers)
         {
             await session.Page.GotoAsync($"{host.UiAddress}/playground/support");
 
+            // HATA-S4-011: `img-src` blob: taşımıyordu, kucuk resim onizlemesi
+            // (`useAttachmentPreview`) sessizce kayboluyordu (`img.naturalWidth=0`).
+            // Chip'in gorunmesi bunu YAKALAMAZ; tarayicinin nesne URL'ini
+            // yuklemeye gercekten izin verdigini CSP ihlal olayiyla dogrula.
+            await session.Page.EvaluateAsync(
+                """
+                () => {
+                    window.__cspViolations = [];
+                    document.addEventListener('securitypolicyviolation', (event) => {
+                        window.__cspViolations.push(event.violatedDirective);
+                    });
+                }
+                """);
+
             await session.Page.GetByTestId("attachment-input").SetInputFilesAsync(pngPath);
 
             var chip = session.Page.GetByTestId("attachment-chip").First;
             await chip.WaitForAsync(new() { Timeout = 10_000 });
             await chip.GetByText(Path.GetFileName(pngPath)).WaitForAsync();
+
+            var hadCspViolation = await session.Page.EvaluateAsync<bool>(
+                """
+                () => new Promise((resolve) => {
+                    if (window.__cspViolations.length > 0) { resolve(true); return; }
+                    setTimeout(() => resolve(window.__cspViolations.length > 0), 500);
+                })
+                """);
+            hadCspViolation.ShouldBeFalse();
 
             await session.Page.GetByTestId("playground-input").FillAsync("bu resmi tanimla");
             await session.Page.GetByTestId("playground-send").ClickAsync();
