@@ -1648,6 +1648,40 @@ sessizce yok sayılıyor. `MT-OBS-035`'in "varsayılanda kapalı" gözlemi
 teknik olarak DOĞRU kalıyor ama nedeni yanlış: "henüz açılmamış" değil
 "AÇILAMAZ".
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+**2026-08-14 yeniden koşum (Aile P).** Kök neden doğrulandı ve düzeltildi:
+`QuotaUsageObserver` artık standalone `IOptionsMonitor<AgentPrismObservabilityOptions>`
+(hiçbir yerde `services.Configure<AgentPrismObservabilityOptions>` ile kayıtlı
+DEĞİLDİ) yerine doğru bağlanan `IOptionsMonitor<AgentPrismOptions>`'ı enjekte
+edip `.Observability` alt özelliğini okuyor (`QuotaUsageObserver.cs`,
+`AgentPrismServiceCollectionExtensions.cs:547`). Ayrıca `BindObservability`'ye
+eksik olan `IncludeAgentVersionTag` bağlaması ve `Bind()`'a hiç eklenmemiş olan
+`AgentPrismOptions.Validation`/`BindValidation` (K-253, `AgentDefinitionValidator`
+tarafından okunan ama hiçbir zaman config'ten gelemeyen `McpTimeout`) eklendi
+— üçü de "yeni alan eklendi ama `Bind()`'a eklenmedi" kusur sınıfının (K-406 ile
+aynı) ayrı örnekleri. Kalıcı çözüm: `AgentPrismOptions` ağacındaki HER skalar
+alanı yapılandırmadan geri okuyup doğrulayan bir yansımalı test eklendi
+(`tests/AgentPrism.Core.UnitTests/Configuration/AgentPrismOptionsBindingCoverageTests.cs`)
+— gelecekte eklenen bir alan `Bind()`'a eklenmeyi unutulursa bu test kırılır.
+
+Canlı doğrulama (gerçek PostgreSQL'e karşı, `mt_fin_p` şeması):
+`AgentPrism__Observability__EnableQuotaUsageGauge=true` +
+`QuotaUsageRefreshInterval=00:00:05` ile uygulama başlatıldı, `PUT /api/quotas`
+ile kiracı geneli bir kural (`Daily`, `maxRuns:1000`) yazıldı, `support`
+agent'ı bir kez çalıştırıldı (`POST /api/agents/support/run`), `GET
+/api/quotas/usage` gerçek kullanımı gösterdi (`runs:1`). `dotnet-counters
+collect -p <pid> --counters AgentPrism --format json` 12 saniye izledi:
+`agentprism.quota.usage` (`value:1`, `agentprism.quota.metric=Runs,
+agentprism.quota.period=Daily, agentprism.quota.scope=,
+agentprism.tenant.id=default`) ve `agentprism.quota.limit` (`value:1000`,
+aynı etiketler) artık GERÇEKTEN raporlanıyor — önceki koşumun "16 saniyede
+SIFIR olay" bulgusunun tam tersi. Regresyon testleri:
+`tests/AgentPrism.Core.UnitTests/Quotas/QuotaUsageObserverRegistrationTests.cs`
+(DI'dan çözülen `QuotaUsageObserver`'ın `IOptionsMonitor<AgentPrismOptions>`'ı
+gerçekten yapılandırılmış değeri taşıdığını doğrular — var olan
+`QuotaUsageObserverTests.cs` bunu YAKALAMAZ çünkü kurucuyu doğrudan çağırır,
+DI çözümlemesini hiç tetiklemez).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
