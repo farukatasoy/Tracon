@@ -95,10 +95,23 @@ public sealed class SkillScriptSupport
     /// <param name="skillName">Skill adi.</param>
     /// <param name="script">Script tanimi.</param>
     /// <returns>MAF'in cagiracagi delege.</returns>
-    internal Func<string?, CancellationToken, Task<object?>> CreateStoredScriptDelegate(
+    /// <remarks>
+    /// Parametrenin varsayilan degeri (K-400) kasitlidir: MAF'in ureteci
+    /// arguman semasinda bu alani "required" isaretliyor (nullable olsa
+    /// bile) ve modelin JSON `null` gondermesini "deger eksik" olarak
+    /// reddediyor (<c>Microsoft.Agents.AI.AgentSkillsProvider</c>,
+    /// <c>Throw.ArgumentException</c>) — argumansiz bir script icin bu,
+    /// gercek calistirmayi TAMAMEN engeller. Varsayilan bos dize, MAF'in
+    /// alani "required degil" olarak yayinlamasini saglar; govde zaten
+    /// bos/null'i ayni bicimde ele alir.
+    /// </remarks>
+    internal Func<string, CancellationToken, Task<object?>> CreateStoredScriptDelegate(
         string skillName,
         AgentSkillScriptDefinition script)
-        => (arguments, cancellationToken) =>
+    {
+        return RunStoredScript;
+
+        Task<object?> RunStoredScript(string arguments = "", CancellationToken cancellationToken = default)
         {
             JsonElement? parsed = null;
 
@@ -118,7 +131,8 @@ public sealed class SkillScriptSupport
             }
 
             return _runner.RunStoredScriptAsync(skillName, script, parsed, cancellationToken);
-        };
+        }
+    }
 
     private Task<object?> RunFileScriptAsync(
         AgentFileSkill skill,
