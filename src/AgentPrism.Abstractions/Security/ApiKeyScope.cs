@@ -43,4 +43,10 @@ public enum ApiKeyScope
 
     /// <summary>Bilgi tabani yazma: belge yukleme, silme.</summary>
     KnowledgeAdmin = 6,
+
+    /// <summary>Workflow tanimi okuma: katalog listeleme, grafik, kontrol noktasi/istek listeleme.</summary>
+    WorkflowsRead = 7,
+
+    /// <summary>Workflow tanimi yazma: kaydetme, silme. Calistirma bu kapsama dahil DEGILDIR — bkz. <see cref="RunsWrite"/>.</summary>
+    WorkflowsAdmin = 8,
 }

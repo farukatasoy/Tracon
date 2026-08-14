@@ -7730,7 +7730,9 @@
           "AgentsAdmin",
           "ExternalInvoke",
           "KnowledgeRead",
-          "KnowledgeAdmin"
+          "KnowledgeAdmin",
+          "WorkflowsRead",
+          "WorkflowsAdmin"
         ],
         "description": "Bir API anahtarinin acabilecegi yetki kapsami."
       },

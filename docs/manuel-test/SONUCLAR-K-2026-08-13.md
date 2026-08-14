@@ -199,7 +199,7 @@ MT-WF-042'nin "`$type` ilk 40 baytta başlar" iddiası da düzeltildi — K-027'
 
 ## K-5 — 15 §7–9 (MT-WF-080..084, 090..097, 100) + 17 §1–2, 27 case
 
-### 15 §7–9 (14 case): 8 Geçti, 6 Kaldı — **dosya `15` (WORKFLOWS) TAMAMEN BİTTİ (60/60)** — kapanışta MT-WF-091/092/093 (K-402) ve MT-WF-095/096 (K-403) düzeltilip yeniden koşuldu, güncel: 13 Geçti, 1 Kaldı (yalnız MT-WF-100/HATA-K-006 kaldı)
+### 15 §7–9 (14 case): 8 Geçti, 6 Kaldı — **dosya `15` (WORKFLOWS) TAMAMEN BİTTİ (60/60)** — kapanışta MT-WF-091/092/093 (K-402), MT-WF-095/096 (K-403) ve MT-WF-100 (K-405) düzeltilip yeniden koşuldu, güncel: 14 Geçti, 0 Kaldı
 
 ### HATA-K-004 — 🚨 KRİTİK: `AgentPrismWorkflowOptions` hiçbir konfigürasyon kaynağına bağlı değil — ✅ DÜZELTİLDİ (2026-08-14, K-402)
 
@@ -248,7 +248,7 @@ Hiçbir SSE çerçevesi gelmiyor — istemci düz, generic bir `HTTP 500` (`{"ti
 
 ---
 
-### HATA-K-006 — 🚨 Yüksek: `RunsRead`-kapsamlı bir API anahtarı workflow yazabiliyor VE çalıştırabiliyor (doğrulanmış güvenlik açığı)
+### HATA-K-006 — 🚨 Yüksek: `RunsRead`-kapsamlı bir API anahtarı workflow yazabiliyor VE çalıştırabiliyor (doğrulanmış güvenlik açığı) — ✅ DÜZELTİLDİ (2026-08-14, K-405)
 
 - **Case:** MT-WF-100
 - **Önem:** Yüksek
@@ -266,6 +266,9 @@ Yalnız `RunsRead` kapsamlı bir anahtarla: `PUT /api/workflows/{name}` → `200
 **Kapsam**
 Yalnız-okuma niyetiyle üretilmiş bir otomasyon anahtarı, workflow tanımlarını yazabilir/silebilir ve gerçek para harcayan bir Magentic çalıştırmasını başlatabilir — API anahtarı kapsam modelinin ciddi bir ihlali.
 
+**Düzeltme (2026-08-14, K-405)**
+`ApiKeyScope`'a iki yeni üye eklendi: `WorkflowsRead`, `WorkflowsAdmin` (`AgentsRead`/`AgentsAdmin` deseniyle birebir). `WorkflowEndpoints`'in TÜM uçlarına `RequireApiKeyScope` eklendi — tanım yönetimi (`GET`/`PUT`/`DELETE` `/api/workflows*`) yeni `WorkflowsRead`/`WorkflowsAdmin` kapsamlarını, çalıştırma/run-durumu uçları (`run`/`resume`/`respond`, checkpoint/istek listeleme) `AgentEndpoints`'in `POST /api/agents/{name}/run`'un `AgentsAdmin` değil `RunsWrite` istediği presedansını izleyerek var olan `RunsRead`/`RunsWrite`'ı aldı. Ampirik doğrulama (raporun senaryosu birebir tekrarlandı, gerçek sunucuya karşı): yalnız `RunsRead` taşıyan anahtarla `GET /api/workflows` → `403 "WorkflowsRead kapsamini gerektiriyor"`; `PUT /api/workflows/{name}` → `403 "WorkflowsAdmin kapsamini gerektiriyor"`; `POST /api/workflows/{name}/run` → `403 "RunsWrite kapsamini gerektiriyor"`. Regresyon: dört kapsamın TAMAMINI taşıyan bir anahtarla aynı üç uç `200`. `docs/openapi/agentprism.json` tazelendi (`ApiKeyScope` enum listesine iki değer eklendi). Frontend `api-key-panel.tsx`'teki sabit `SCOPES` dizisi henüz bu iki değeri (ve önceden eklenmiş `KnowledgeRead`/`KnowledgeAdmin`'i) içermiyor — ayrı, bu düzeltmenin kapsamı dışında bir boşluk. Dört doğrulama kapısı temiz.
+
 ---
 
 Diğer bulgular: MT-WF-097'de ilk deneme MT-WF-066 ile aynı sebepten (Tenancy kapalı) yanlış sonuç verdi, doğru config ile düzeltilip doğrulandı.
@@ -274,7 +277,7 @@ Diğer bulgular: MT-WF-097'de ilk deneme MT-WF-066 ile aynı sebepten (Tenancy k
 
 Kusur bulunmadı. Küçük doküman notları: MT-EVAL-012'nin `DELETE /api/evals/{name}/cases` ucu doküman `HTTP 200` varsaymışken gerçekte `204` dönüyor (repodaki `DELETE` uçlarının tutarlı deseni — kusur değil, düzeltildi); MT-EVAL-004'ün hata mesajı `{kind}` yer tutucusu kullanıyor, doküman doğrudan `regexMatch` yazmıştı (anlam aynı).
 
-**K-5 toplam: 27 case, 21 Geçti, 6 Kaldı** (kapanışta HATA-K-004/K-005 düzeltmeleriyle MT-WF-091/092/093/095/096 yeniden koşulup Geçti'ye çevrildi — güncel: 26 Geçti, 1 Kaldı; ayrıntı yukarıdaki HATA-K-004/HATA-K-005 notlarında).
+**K-5 toplam: 27 case, 21 Geçti, 6 Kaldı** (kapanışta HATA-K-004/K-005/K-006 düzeltmeleriyle MT-WF-091/092/093/095/096/100 yeniden koşulup Geçti'ye çevrildi — güncel: 27 Geçti, 0 Kaldı; ayrıntı yukarıdaki HATA-K-004/HATA-K-005/HATA-K-006 notlarında).
 
 ## K-6 — 17 §3–6 (MT-EVAL-020..028, 035..038, 040..046, 050..059), 30 case
 

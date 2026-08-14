@@ -34,18 +34,21 @@ internal static class WorkflowEndpoints
     {
         builder.MapGet("/api/workflows", ListAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.WorkflowsRead)
             .WithName("AgentPrismListWorkflows")
             .WithTags("AgentPrism", "Workflows")
             .WithSummary("Kodda tanimli ve veritabaninda saklanan workflow'lari listeler.");
 
         builder.MapGet("/api/workflows/{name}", GetAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.WorkflowsRead)
             .WithName("AgentPrismGetWorkflow")
             .WithTags("AgentPrism", "Workflows")
             .WithSummary("Tek bir workflow tanimini dondurur.");
 
         builder.MapGet("/api/workflows/{name}/graph", GetGraphAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.WorkflowsRead)
             .WithName("AgentPrismGetWorkflowGraph")
             .WithTags("AgentPrism", "Workflows")
             .WithSummary("Workflow'un derlenmis grafini dondurur.")
@@ -56,18 +59,21 @@ internal static class WorkflowEndpoints
 
         builder.MapPut("/api/workflows/{name}", SaveAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.WorkflowsAdmin)
             .WithName("AgentPrismSaveWorkflow")
             .WithTags("AgentPrism", "Workflows")
             .WithSummary("Workflow tanimi olusturur veya gunceller.");
 
         builder.MapDelete("/api/workflows/{name}", DeleteAsync)
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.WorkflowsAdmin)
             .WithName("AgentPrismDeleteWorkflow")
             .WithTags("AgentPrism", "Workflows")
             .WithSummary("Bir workflow tanimini siler.");
 
         builder.MapPost("/api/workflows/{name}/run", RunAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismRunWorkflow")
             .WithTags("AgentPrism", "Workflows")
             .WithSummary("Workflow'u calistirir ve olaylarini SSE ile akitir.")
@@ -83,12 +89,14 @@ internal static class WorkflowEndpoints
 
         builder.MapGet("/api/workflows/runs/{runId:guid}/checkpoints", ListCheckpointsAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListWorkflowCheckpoints")
             .WithTags("AgentPrism", "Workflows")
             .WithSummary("Bir workflow calistirmasinin kontrol noktalarini listeler.");
 
         builder.MapPost("/api/workflows/runs/{runId:guid}/resume", ResumeAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismResumeWorkflow")
             .WithTags("AgentPrism", "Workflows")
             .WithSummary("Bir kontrol noktasindan devam eder ve olaylari SSE ile akitir.")
@@ -97,6 +105,7 @@ internal static class WorkflowEndpoints
 
         builder.MapGet("/api/workflows/runs/{runId:guid}/requests", ListRequestsAsync)
             .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListWorkflowRequests")
             .WithTags("AgentPrism", "Workflows")
             .WithSummary("Bir calistirmanin bekleyen insan girdisi isteklerini listeler.")
@@ -106,6 +115,7 @@ internal static class WorkflowEndpoints
 
         builder.MapPost("/api/workflows/runs/{runId:guid}/respond", RespondAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismRespondWorkflowRequest")
             .WithTags("AgentPrism", "Workflows")
             .WithSummary("Bekleyen bir istegi yanitlar ve calistirmayi sürdürur.")
