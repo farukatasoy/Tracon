@@ -2704,9 +2704,25 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/kapsam-kontrol" -H "
   bağımsız tekrarıdır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- **🚨 HATA-K-008 (Yüksek) — şüphe DOĞRULANDI.** Yalnız `RunsRead`
+  kapsamlı bir API anahtarı (`ap_default_qf4GP...`) üretildi.
+  - Adım 2: `PUT /api/evals/kapsam-testi` → **`HTTP: 200`**, takım
+    gerçekten oluşturuldu.
+  - Adım 3: `PUT /api/experiments/kapsam-testi` → **`HTTP: 200`**, deney
+    gerçekten oluşturuldu (`status:"Draft"`).
+  - Adım 4 (kontrol grubu): `PUT /api/agents/kapsam-kontrol` (aynı
+    anahtarla) → **`HTTP: 403`**, `detail: "Bu uc 'AgentsAdmin'
+    kapsamini gerektiriyor; anahtar bu kapsami tasimiyor."`
+  Kontrol grubunun `403` vermesi, kapsam sisteminin `AgentEndpoints`'te
+  ÇALIŞTIĞINI ama eval/experiment yüzeyinde HİÇ uygulanmadığını
+  kanıtlıyor. Salt-okunur bir anahtarla eval takımı/deney
+  oluşturulabiliyor — bu deneyler `PUT .../start` ile (aynı anahtar,
+  ayrı bir kapsam denetimi olmadığı için) çalıştırılabilir hâle gelip
+  gerçek para harcayan run'lar tetikleyebilir. `MT-JOB-090`/`MT-WF-100`
+  ile AYNI kök nedenin (`ApiKeyScope` enum'ında `Eval`/`Experiment` için
+  hiç kapsam tanımlanmamış olması) DÖRDÜNCÜ bağımsız tekrarı doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2750,9 +2766,18 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/replay" -H "
   uçlara eklenip bazılarına eklenmediğini kanıtlar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- **Şüphe DOĞRULANDI** (aynı `RunsRead`-yalnız anahtar, MT-EVAL-100'den).
+  - Feedback yazma: `POST .../feedback {"kind":"Binary","value":1}` →
+    **`HTTP: 200`** — yalnız okuma amaçlı anahtar geri bildirim
+    YAZABİLDİ.
+  - Replay (kontrol): `POST .../replay {"toolMode":"ReplayTools"}` →
+    **`HTTP: 403`**, `detail: "Bu uc 'RunsWrite' kapsamini gerektiriyor;
+    anahtar bu kapsami tasimiyor."`
+  Kontrast birebir doğrulandı: aynı `RunEndpoints.cs` dosyasında `replay`
+  kapsam denetimini doğru uyguluyor, `feedback` hiç uygulamıyor —
+  `RequireApiKeyScope`'un dosya içinde TUTARSIZ uygulandığı kanıtlandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
