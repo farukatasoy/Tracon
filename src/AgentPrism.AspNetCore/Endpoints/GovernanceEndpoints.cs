@@ -126,7 +126,7 @@ internal static class GovernanceEndpoints
 
         builder.MapPut("/api/tenants/{slug}", async Task<Results<Ok<TenantDescriptor>, ProblemHttpResult>> (
                 string slug,
-                TenantRequest request,
+                HttpContext httpContext,
                 ITenantStore tenants,
                 CancellationToken cancellationToken) =>
             {
@@ -139,12 +139,23 @@ internal static class GovernanceEndpoints
                         statusCode: StatusCodes.Status400BadRequest);
                 }
 
+                var (request, bindError) = await RequestBodyBinding
+                    .ReadAsync<TenantRequest>(httpContext, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (bindError is not null)
+                {
+                    return bindError;
+                }
+
+                var displayName = request!.DisplayName;
+
                 var saved = await tenants.SaveAsync(
                     new TenantDescriptor
                     {
                         Id = Guid.Empty,
                         Slug = slug,
-                        DisplayName = string.IsNullOrWhiteSpace(request.DisplayName) ? slug : request.DisplayName,
+                        DisplayName = string.IsNullOrWhiteSpace(displayName) ? slug : displayName,
                     },
                     cancellationToken).ConfigureAwait(false);
 
@@ -154,7 +165,8 @@ internal static class GovernanceEndpoints
             .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismSaveTenant")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Bir kiraci kaydini ekler veya gunceller.");
+            .WithSummary("Bir kiraci kaydini ekler veya gunceller.")
+            .Accepts<TenantRequest>("application/json");
 
         builder.MapDelete("/api/tenants/{slug}", async Task<Results<NoContent, ProblemHttpResult>> (
                 string slug,
@@ -193,11 +205,22 @@ internal static class GovernanceEndpoints
 
         builder.MapPut("/api/mcp-servers/{name}", async Task<Results<Ok<McpServerDefinition>, ProblemHttpResult>> (
                 string name,
-                McpServerRequest request,
+                HttpContext httpContext,
                 IMcpServerStore servers,
                 ITenantContext tenants,
                 CancellationToken cancellationToken) =>
             {
+                var (bound, bindError) = await RequestBodyBinding
+                    .ReadAsync<McpServerRequest>(httpContext, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (bindError is not null)
+                {
+                    return bindError;
+                }
+
+                var request = bound!;
+
                 if (Validate(name, request) is { } invalid)
                 {
                     return invalid;
@@ -231,6 +254,7 @@ internal static class GovernanceEndpoints
             .WithName("AgentPrismSaveMcpServer")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Bir uzak MCP sunucusu ekler veya gunceller.")
+            .Accepts<McpServerRequest>("application/json")
             .WithDescription(
                 "GUVENLIK SINIRI. MCP sunucusu eklemek, tool tanimlarini disaridan kabul " +
                 "etmek demektir. Yalnizca http/https adresleri kabul edilir; yerel surec " +
@@ -330,7 +354,7 @@ internal static class GovernanceEndpoints
         builder.MapPost("/api/mcp-servers/{name}/prompts/{prompt}", async Task<Results<Ok<McpPromptContent>, ProblemHttpResult>> (
                 string name,
                 string prompt,
-                McpPromptArgumentsRequest? request,
+                HttpContext httpContext,
                 [FromServices] IMcpPromptClient? prompts,
                 ITenantContext tenants,
                 CancellationToken cancellationToken) =>
@@ -338,6 +362,15 @@ internal static class GovernanceEndpoints
                 if (prompts is null)
                 {
                     return McpNotRegisteredProblem();
+                }
+
+                var (request, bindError) = await RequestBodyBinding
+                    .ReadOptionalAsync<McpPromptArgumentsRequest>(httpContext, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (bindError is not null)
+                {
+                    return bindError;
                 }
 
                 var (status, content) = await prompts
@@ -358,6 +391,7 @@ internal static class GovernanceEndpoints
             .WithName("AgentPrismGetMcpPrompt")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Bir MCP prompt'unun icerigini argumanlarla cozer.")
+            .Accepts<McpPromptArgumentsRequest>(true, "application/json")
             .WithDescription(
                 "Donen icerik ANLIK GORUNTUDUR: agent talimatina kopyalanmasi gerekir, calisma " +
                 "aninda yeniden cekilmez (bolum 22.1). 'hash' alani sunucudaki degisimi izlemek icindir.");

@@ -32,7 +32,8 @@ internal static class SkillScriptGrantEndpoints
             .RequireApiKeyScope(ApiKeyScope.SecurityAdmin)
             .WithName("AgentPrismGrantSkillScript")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Bir skill script'ine calistirma izni verir.");
+            .WithSummary("Bir skill script'ine calistirma izni verir.")
+            .Accepts<SkillScriptGrantRequest>("application/json");
 
         builder.MapDelete("/api/skill-script-grants/{skillName}", RevokeAsync)
             .RequireRole(roles.Admin)
@@ -49,13 +50,24 @@ internal static class SkillScriptGrantEndpoints
         => TypedResults.Ok(await store.ListAsync(tenantContext.TenantId, cancellationToken).ConfigureAwait(false));
 
     private static async Task<Results<Created<SkillScriptGrant>, ProblemHttpResult>> GrantAsync(
-        [FromBody] SkillScriptGrantRequest request,
+        HttpContext httpContext,
         ISkillScriptGrantStore store,
         ITenantContext tenantContext,
         IAuditActorResolver actorResolver,
         IOptions<AgentPrismOptions> options,
         CancellationToken cancellationToken)
     {
+        var (bound, bindError) = await RequestBodyBinding
+            .ReadAsync<SkillScriptGrantRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        var request = bound!;
+
         // Script calistirma kapali iken izin vermek yaniltici olurdu: arayuz
         // "izin verildi" gosterir, calistirma yine reddedilirdi.
         if (!options.Value.Skills.Scripts.Enabled)

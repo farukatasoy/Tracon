@@ -52,6 +52,7 @@ internal static class ApprovalEndpoints
             .WithName("AgentPrismDecideApproval")
             .WithTags("AgentPrism", "Approvals")
             .WithSummary("Bekleyen bir onay istegine karar verir.")
+            .Accepts<ApprovalDecisionRequest>("application/json")
             .WithDescription(
                 "Karar YENI bir calistirma kuyruga dusurur (ayni sessionId, yeni RunId); " +
                 "eski calistirma AwaitingApproval olarak kalir. Ayni istege ikinci karar 409 alir.");
@@ -78,7 +79,7 @@ internal static class ApprovalEndpoints
 
     private static async Task<Results<Ok<PendingApproval>, ProblemHttpResult>> DecideAsync(
         Guid id,
-        [FromBody] ApprovalDecisionRequest request,
+        HttpContext httpContext,
         [FromServices] IPendingApprovalStore approvals,
         [FromServices] IRunStore runStore,
         [FromServices] IJobStore jobStore,
@@ -88,7 +89,16 @@ internal static class ApprovalEndpoints
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        var (bound, bindError) = await RequestBodyBinding
+            .ReadAsync<ApprovalDecisionRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        var request = bound!;
 
         var approval = await approvals.GetAsync(id, cancellationToken).ConfigureAwait(false);
 

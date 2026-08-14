@@ -73,6 +73,7 @@ internal static class VoiceEndpoints
             .WithName("AgentPrismVoiceSpeak")
             .WithTags("AgentPrism", "Voice")
             .WithSummary("Bir metni seslendirir ve ek olarak kaydeder.")
+            .Accepts<SpeakRequest>("application/json")
             .WithDescription(
                 "Operator eylemidir ve bir calistirmaya BAGLI DEGILDIR; olcum " +
                 "tool_invocations'a yazilmaz, yanitta dondurulur. Kalici olcum " +
@@ -80,7 +81,7 @@ internal static class VoiceEndpoints
     }
 
     private static async Task<Results<Ok<SpeakResponse>, ProblemHttpResult>> SpeakAsync(
-        SpeakRequest request,
+        HttpContext httpContext,
         [FromServices] ISpeechSynthesizer? synthesizer,
         [FromServices] IVoicePricingReader? pricing,
         AttachmentTypeGuard guard,
@@ -93,6 +94,17 @@ internal static class VoiceEndpoints
         {
             return NotConfigured();
         }
+
+        var (bound, bindError) = await RequestBodyBinding
+            .ReadAsync<SpeakRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        var request = bound!;
 
         if (string.IsNullOrWhiteSpace(request.Text))
         {

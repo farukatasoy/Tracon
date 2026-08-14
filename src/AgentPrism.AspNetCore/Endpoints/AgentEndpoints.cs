@@ -98,7 +98,8 @@ internal static class AgentEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismRollbackAgent")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Bir tanimi onceki bir surumun icerigiyle yeni surum olarak yazar.");
+            .WithSummary("Bir tanimi onceki bir surumun icerigiyle yeni surum olarak yazar.")
+            .Accepts<AgentRollbackRequest>("application/json");
 
         builder.MapGet("/api/agents/{name}/versions/{a:int}/diff/{b:int}", GetVersionDiffAsync)
             .RequireRole(roles.Reader)
@@ -109,7 +110,6 @@ internal static class AgentEndpoints
 
         builder.MapPost("/api/agents/{name}/run", async (
                 string name,
-                AgentRunRequest request,
                 IAgentCatalog catalog,
                 AgentSessionManager sessions,
                 IAttachmentStore attachmentStore,
@@ -122,6 +122,15 @@ internal static class AgentEndpoints
                 HttpContext httpContext,
                 CancellationToken cancellationToken) =>
             {
+                var (request, bindError) = await RequestBodyBinding
+                    .ReadAsync<AgentRunRequest>(httpContext, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (bindError is not null)
+                {
+                    return bindError;
+                }
+
                 // 🚨 Kota denetimi calistirma BASLAMADAN once yapilir. Devam eden
                 // bir calistirma kota asilinca kesilmez (K-162); yalnizca yeni
                 // calistirma 429 alir. Kuyruga alma da yeni bir calistirmadir.
@@ -136,7 +145,7 @@ internal static class AgentEndpoints
                 {
                     return await RunQueuedAsync(
                         name,
-                        request,
+                        request!,
                         catalog,
                         jobStore,
                         runStore,
@@ -149,7 +158,7 @@ internal static class AgentEndpoints
 
                 return await RunAsync(
                     name,
-                    request,
+                    request!,
                     catalog,
                     sessions,
                     attachmentStore,
@@ -165,6 +174,7 @@ internal static class AgentEndpoints
             .WithName("AgentPrismRunAgent")
             .WithTags("AgentPrism", "Agents")
             .WithSummary("Bir agent'i deneme amaciyla calistirir ve yaniti SSE ile akitir.")
+            .Accepts<AgentRunRequest>("application/json")
             .WithDescription(
                 "Kota asilmissa calistirma baslamaz ve 429 doner; ProblemDetails hangi kotanin " +
                 "asildigini ve sayacin ne zaman sifirlanacagini tasir. 'Idempotency-Key' basligi " +
@@ -418,11 +428,22 @@ internal static class AgentEndpoints
 
     private static async Task<Results<Ok<AgentDefinition>, ProblemHttpResult>> RollbackAsync(
         string name,
-        AgentRollbackRequest request,
+        HttpContext httpContext,
         IAgentCatalog catalog,
         IAgentDefinitionStore definitions,
         CancellationToken cancellationToken)
     {
+        var (bound, bindError) = await RequestBodyBinding
+            .ReadAsync<AgentRollbackRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        var request = bound!;
+
         if (await GuardCodeAgentAsync(catalog, name, cancellationToken).ConfigureAwait(false) is { } conflict)
         {
             return conflict;

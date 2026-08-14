@@ -1774,14 +1774,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/WorkflowRunHttpRequest"
-                  }
-                ]
+                "$ref": "#/components/schemas/WorkflowRunHttpRequest"
               }
             }
           }
@@ -1889,14 +1882,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/WorkflowResumeHttpRequest"
-                  }
-                ]
+                "$ref": "#/components/schemas/WorkflowResumeHttpRequest"
               }
             }
           }
@@ -1986,14 +1972,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/WorkflowRespondHttpRequest"
-                  }
-                ]
+                "$ref": "#/components/schemas/WorkflowRespondHttpRequest"
               }
             }
           }
@@ -2175,14 +2154,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/JobTriggerRequest"
-                  }
-                ]
+                "$ref": "#/components/schemas/JobTriggerRequest"
               }
             }
           }
@@ -2591,14 +2563,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/EvalCasePromotionRequest"
-                  }
-                ]
+                "$ref": "#/components/schemas/EvalCasePromotionRequest"
               }
             }
           }
@@ -2650,14 +2615,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/EvalRunTriggerRequest"
-                  }
-                ]
+                "$ref": "#/components/schemas/EvalRunTriggerRequest"
               }
             }
           }
@@ -3070,14 +3028,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/CanaryPolicy"
-                  }
-                ]
+                "$ref": "#/components/schemas/CanaryPolicy"
               }
             }
           }
@@ -5002,14 +4953,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/McpPromptArgumentsRequest"
-                  }
-                ]
+                "$ref": "#/components/schemas/McpPromptArgumentsRequest"
               }
             }
           }

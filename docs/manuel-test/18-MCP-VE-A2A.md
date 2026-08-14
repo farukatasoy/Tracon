@@ -205,7 +205,23 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/mcp-servers/stdio-denemesi"
 **Gerçek sonuç**
 **KALDI - HATA-S2-007 (Orta, HATA-S2-006 ile ayni kok neden).** Beklenen HTTP 400 yerine HTTP 500 (genel ProblemDetails) dondu. Kok neden: PUT /api/mcp-servers/{name} handler'i (GovernanceEndpoints.cs:190-195) McpServerRequest request parametresini ACIK [FromBody] ozniteligi OLMADAN (ORTUK govde baglama) aliyor; McpTransportMode enum'u (McpServerDefinition.cs:33-40) yalniz StreamableHttp ve Sse tasiyor, 'Stdio' hic bir enum uyesi degil - JsonStringEnumConverter bunu JsonException ile reddediyor, bu istisna Validate(name, request) (satir 197, 527) hic cagirilmadan, govde-baglama asamasinda olusuyor ve app.UseExceptionHandler() genel 500'e ceviriyor. Onemli ek bulgu: bu ORTUK (oznitelik olmadan) govde baglama ornegi, HATA-S2-006'nin 'ac [FromBody] kullanan 10 dosya' kapsam tahminini ASIYOR - grep '[FromBody]' bu deseni YAKALAMAZ, gercek etkilenen yuzey daha genis olabilir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Yeniden koşum (Aile G, 2026-08-14).** DÜZELTİLDİ — **HTTP 400**:
+`{"title":"Gecersiz istek govdesi","detail":"The JSON value could not be converted to AgentPrism.McpTransportMode. Path: $.transport..."}`.
+`GovernanceEndpoints`'in `/api/mcp-servers/{name}` PUT handler'i artık
+`RequestBodyBinding.ReadAsync<McpServerRequest>` ile govdeyi elle okuyor —
+implicit binding tamamen kaldırıldı. Bu case'in kendi bulgusu ("grep tabanlı
+tahmin ORTUK baglamayı kaçırır") doğrulandı ve düzeltmenin kapsamını
+genişletti: OpenAPI belgesindeki (`docs/openapi/agentprism.json`)
+`requestBody` taşıyan TÜM rotalar tek tek çapraz kontrol edildi (yalnız
+grep'e güvenilmedi) — implicit binding kullanan 9 EK uç bulundu
+(`AgentEndpoints.RollbackAsync`, `.../run`, `SkillEndpoints.SaveAsync`,
+`SessionEndpoints.BranchSessionAsync`, `KnowledgeEndpoints.UploadAsync`/`SearchAsync`,
+`VoiceEndpoints.SpeakAsync`, `GovernanceEndpoints` tenants PUT + mcp-prompts
+POST) ve hepsi aynı desene taşındı. Ayrıntı `KAPANIS-PLANI.md` §6 Aile G.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

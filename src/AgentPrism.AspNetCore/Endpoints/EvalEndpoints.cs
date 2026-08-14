@@ -45,6 +45,7 @@ internal static class EvalEndpoints
             .WithName("AgentPrismSaveEvalSuite")
             .WithTags("AgentPrism", "Evals")
             .WithSummary("Eval takimi olusturur veya gunceller.")
+            .Accepts<EvalSuiteSaveRequest>("application/json")
             .WithDescription("Denetim tanimlari bildirimseldir; bilinmeyen bir denetim turu kosu aninda hataya donusur.");
 
         builder.MapDelete("/api/evals/{name}", DeleteSuiteAsync)
@@ -66,7 +67,8 @@ internal static class EvalEndpoints
             .RequireApiKeyScope(ApiKeyScope.EvalsAdmin)
             .WithName("AgentPrismSaveEvalCases")
             .WithTags("AgentPrism", "Evals")
-            .WithSummary("Bir takimin tum vakalarini verilen listeyle degistirir.");
+            .WithSummary("Bir takimin tum vakalarini verilen listeyle degistirir.")
+            .Accepts<IReadOnlyList<EvalCaseInput>>("application/json");
 
         builder.MapDelete("/api/evals/{name}/cases", ClearCasesAsync)
             .RequireRole(roles.Admin)
@@ -81,6 +83,7 @@ internal static class EvalEndpoints
             .WithName("AgentPrismPromoteRunToEvalCase")
             .WithTags("AgentPrism", "Evals")
             .WithSummary("Bir calistirmayi tek istekle bir eval vakasina terfi ettirir.")
+            .Accepts<EvalCasePromotionRequest>(true, "application/json")
             .WithDescription(
                 "Sorgu, calistirmanin kendi oturumundan okunur; oturumsuz calistirmalar " +
                 "terfi edilemez. Ayni calistirma ikinci kez terfi edilirse mevcut vaka doner " +
@@ -92,6 +95,7 @@ internal static class EvalEndpoints
             .WithName("AgentPrismTriggerEvalRun")
             .WithTags("AgentPrism", "Evals")
             .WithSummary("Bir eval takimini simdi calistirir.")
+            .Accepts<EvalRunTriggerRequest>(true, "application/json")
             .WithDescription(
                 "Her vaka, olculen agent uzerinde yeni bir oturumda calisir ve kendi 'runs' " +
                 "satirini uretir. Kosu is kuyruguna girer; sonuclar arka planda islenir.");
@@ -154,13 +158,22 @@ internal static class EvalEndpoints
 
     private static async Task<Results<Ok<EvalSuite>, ProblemHttpResult>> SaveSuiteAsync(
         string name,
-        [FromBody] EvalSuiteSaveRequest request,
+        HttpContext httpContext,
         [FromServices] IEvalStore store,
         [FromServices] ITenantContext tenants,
         [FromServices] EvalCheckRegistry checkRegistry,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        var (bound, bindError) = await RequestBodyBinding
+            .ReadAsync<EvalSuiteSaveRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        var request = bound!;
 
         if (string.IsNullOrWhiteSpace(request.AgentName))
         {
@@ -224,12 +237,21 @@ internal static class EvalEndpoints
 
     private static async Task<Results<Ok<IReadOnlyList<EvalCase>>, ProblemHttpResult>> SaveCasesAsync(
         string name,
-        [FromBody] IReadOnlyList<EvalCaseInput> cases,
+        HttpContext httpContext,
         [FromServices] IEvalStore store,
         [FromServices] ITenantContext tenants,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(cases);
+        var (bound, bindError) = await RequestBodyBinding
+            .ReadAsync<IReadOnlyList<EvalCaseInput>>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        var cases = bound!;
 
         var suite = await store.GetSuiteAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
 
@@ -279,7 +301,7 @@ internal static class EvalEndpoints
     private static async Task<Results<Created<EvalCase>, Ok<EvalCase>, ProblemHttpResult>> PromoteRunToCaseAsync(
         string name,
         Guid runId,
-        [FromBody] EvalCasePromotionRequest? request,
+        HttpContext httpContext,
         [FromServices] IEvalStore evalStore,
         [FromServices] RunToCasePromoter promoter,
         [FromServices] ITenantContext tenants,
@@ -288,6 +310,15 @@ internal static class EvalEndpoints
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
+        var (request, bindError) = await RequestBodyBinding
+            .ReadOptionalAsync<EvalCasePromotionRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
         var suite = await evalStore.GetSuiteAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
 
         if (suite is null)
@@ -347,7 +378,7 @@ internal static class EvalEndpoints
 
     private static async Task<Results<Ok<EvalRun>, ProblemHttpResult>> TriggerRunAsync(
         string name,
-        [FromBody] EvalRunTriggerRequest? request,
+        HttpContext httpContext,
         [FromServices] IEvalStore evalStore,
         [FromServices] IJobStore jobStore,
         [FromServices] ITenantContext tenants,
@@ -356,6 +387,15 @@ internal static class EvalEndpoints
         [FromServices] IAgentDefinitionStore definitions,
         CancellationToken cancellationToken)
     {
+        var (request, bindError) = await RequestBodyBinding
+            .ReadOptionalAsync<EvalRunTriggerRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
         var suite = await evalStore.GetSuiteAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
 
         if (suite is null)

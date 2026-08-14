@@ -1221,7 +1221,25 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/api-keys" -H "$APB" \
 **Gerçek sonuç**
 **KALDI - HATA-S2-006 (Orta).** Beklenen HTTP 400 yerine HTTP 500 (genel ProblemDetails, 'An error occurred while processing your request.') dondu. Kok neden: CreateAsync (ApiKeyEndpoints.cs:57-64) [FromBody] ApiKeyCreateRequest ile OTOMATIK minimal-API govde baglama kullaniyor; bilinmeyen bir ApiKeyScope dizgisi System.Text.Json'in JsonStringEnumConverter'inda bir JsonException firlatir ve bu istisna handler govdesine HIC ULASMADAN once, framework'un kendi govde-baglama asamasinda olusur. Diger uclar (orn. /api/agents/validate, /v1/chat/completions) govdeyi ELLE JsonSerializer.Deserialize + try/catch (JsonException) ile okuyup temiz 400 'Govde cozumlenemedi:' uretiyor; bu uc ise otomatik baglamaya guveniyor ve app.UseExceptionHandler() (Program.cs:682, ozellestirilmemis) istisnayi genel 500 ProblemDetails'a ceviriyor. Kapsam: [FromBody] kullanan diger 10 dosya da (ApprovalEndpoints, EvalEndpoints, ExperimentEndpoints, RetentionEndpoints, QuotaEndpoints, RunEndpoints, SchedulingEndpoints, SkillScriptGrantEndpoints, WebhookEndpoints, WorkflowEndpoints) potansiyel olarak ayni deseni tasiyabilir - ayrintili dogrulanmadi, yalniz bu case olculdu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Yeniden koşum (Aile G, 2026-08-14).** DÜZELTİLDİ — **HTTP 400**:
+`{"title":"Gecersiz istek govdesi","detail":"The JSON value could not be converted to AgentPrism.ApiKeyScope. Path: $.scopes[0]..."}`.
+Kök neden düzeltmesi tek endpoint'e özel bir yama DEĞİL, kütüphane çapında bir
+yeniden tasarımdır: `ApiKeyEndpoints.CreateAsync` artık `[FromBody]` otomatik
+baglamasi yerine `RequestBodyBinding.ReadAsync<T>` (yeni,
+`AgentPrism.AspNetCore/Internal/RequestBodyBinding.cs`) ile govdeyi elle okur —
+`AgentEndpoints`'in zaten kullandığı desenle aynı. Bu koşumda tahmin edilen 10
+dosyanın TAMAMI (ve tahminin KAÇIRDIĞI, implicit binding kullanan
+`GovernanceEndpoints`, `AgentEndpoints.RollbackAsync`, `.../run`,
+`SkillEndpoints`, `SessionEndpoints`, `KnowledgeEndpoints` ×2, `VoiceEndpoints`,
+`GovernanceEndpoints` tenants/mcp-prompts uçları) aynı desene taşındı — ayrıntı
+`KAPANIS-PLANI.md` §6 Aile G. Ayrıca kütüphane çapında bir savunma katmanı
+(`JsonBindingProblemMiddleware`) eklendi: elle okumayı unutan gelecekteki bir
+uç için, yalnız `Development` ortamında (framework'ün `ThrowOnBadRequest`
+bayrağı yalnız orada açık) 500'ü 400'e çevirir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

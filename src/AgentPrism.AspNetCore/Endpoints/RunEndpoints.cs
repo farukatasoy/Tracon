@@ -172,6 +172,7 @@ internal static class RunEndpoints
             .WithName("AgentPrismSaveRunFeedback")
             .WithTags("AgentPrism", "Runs")
             .WithSummary("Bir calistirmaya veya tek bir mesaja puan yazar.")
+            .Accepts<RunFeedbackRequest>("application/json")
             .WithDescription(
                 "Ayni yazar ayni hedefi (calistirma veya mesaj) ikinci kez puanladiginda satir " +
                 "GUNCELLENIR, yeni satir acilmaz. 'messageId' bos birakilirsa puan tum calistirmaya aittir.");
@@ -213,7 +214,6 @@ internal static class RunEndpoints
 
         builder.MapPost("/api/runs/{runId:guid}/replay", async (
                 Guid runId,
-                [FromBody] RunReplayRequest request,
                 [FromServices] RunReplayService replays,
                 [FromServices] IAuditLog auditLog,
                 [FromServices] IAuditActorResolver actorResolver,
@@ -223,7 +223,6 @@ internal static class RunEndpoints
                 HttpContext httpContext,
                 CancellationToken cancellationToken) => await ReplayRunAsync(
                     runId,
-                    request,
                     replays,
                     auditLog,
                     actorResolver,
@@ -239,6 +238,7 @@ internal static class RunEndpoints
             .WithName("AgentPrismReplayRun")
             .WithTags("AgentPrism", "Runs")
             .WithSummary("Kayitli girdiyle yeni bir calistirma acar.")
+            .Accepts<RunReplayRequest>("application/json")
             .WithDescription(
                 "Girdi korunur, kosullar degisir: 'agentVersion', 'modelId' ve 'toolMode'. " +
                 "Varsayilan 'toolMode' degeri 'ReplayTools'tur ve HICBIR tool gercekten kosmaz — " +
@@ -412,7 +412,6 @@ internal static class RunEndpoints
     /// </remarks>
     private static async Task<IResult> ReplayRunAsync(
         Guid runId,
-        [FromBody] RunReplayRequest request,
         [FromServices] RunReplayService replays,
         [FromServices] IAuditLog auditLog,
         [FromServices] IAuditActorResolver actorResolver,
@@ -424,7 +423,16 @@ internal static class RunEndpoints
         string prefix,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        var (bound, bindError) = await RequestBodyBinding
+            .ReadAsync<RunReplayRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        var request = bound!;
 
         if (request.ToolMode == ReplayToolMode.LiveTools &&
             roles.Admin is { } adminPolicy &&
@@ -548,7 +556,7 @@ internal static class RunEndpoints
 
     private static async Task<Results<Ok<RunScore>, ProblemHttpResult>> SaveFeedbackAsync(
         Guid runId,
-        [FromBody] RunFeedbackRequest request,
+        HttpContext httpContext,
         [FromServices] IRunStore runs,
         [FromServices] IRunScoreStore scores,
         [FromServices] ITenantContext tenants,
@@ -558,7 +566,16 @@ internal static class RunEndpoints
         [FromServices] TimeProvider? timeProvider,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        var (bound, bindError) = await RequestBodyBinding
+            .ReadAsync<RunFeedbackRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        var request = bound!;
 
         if (request.Kind == RunScoreKind.Binary && request.Value is not (0 or 1))
         {

@@ -67,7 +67,8 @@ internal static class RetentionEndpoints
             .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismSaveRetentionPolicy")
             .WithTags("AgentPrism", "Retention")
-            .WithSummary("Bir hedef icin saklama politikasi olusturur veya gunceller.");
+            .WithSummary("Bir hedef icin saklama politikasi olusturur veya gunceller.")
+            .Accepts<RetentionPolicySaveRequest>("application/json");
 
         builder.MapDelete("/api/retention/{target}", DeleteAsync)
             .RequireRole(roles.Admin)
@@ -105,7 +106,7 @@ internal static class RetentionEndpoints
 
     private static async Task<Results<Ok<RetentionPolicy>, ProblemHttpResult>> SaveAsync(
         string target,
-        [FromBody] RetentionPolicySaveRequest request,
+        HttpContext httpContext,
         [FromServices] IRetentionPolicyStore store,
         [FromServices] ITenantContext tenants,
         [FromServices] IAuditLog auditLog,
@@ -114,7 +115,16 @@ internal static class RetentionEndpoints
         [FromServices] TimeProvider? timeProvider,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        var (bound, bindError) = await RequestBodyBinding
+            .ReadAsync<RetentionPolicySaveRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        var request = bound!;
 
         if (!RetentionTargets.IsKnown(target))
         {

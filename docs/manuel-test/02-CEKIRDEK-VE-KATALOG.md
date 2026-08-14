@@ -489,7 +489,11 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/validate" -H "$APB"
 **Gerçek sonuç**
 1) `name:""` → 400, "'name' alani zorunludur" — DOĞRU. 2) `name` alanı JSON'da HİÇ YOK → **HTTP 500** (beklenen: 400 veya `valid=false`; "hiçbir adımda 500 dönmez" ilkesi ihlal edildi). Kök neden (sunucu logundan doğrulandı): `AgentDefinitionRequest.Name` bir C# `required` üye; JSON'da alan hiç yoksa `System.Text.Json` "missing required properties" ile `JsonException` atıyor → `BadHttpRequestException` → uygulamanın genel exception handler'ı bunu 400 yerine 500 ProblemDetails'e çeviriyor. 3) 50.000 karakterlik `instructions` → `valid:true`, çökme/zaman aşımı yok — DOĞRU. GENEL BULGU: bu SİSTEMİK bir örüntü — bkz. MT-CORE-006 (missing `endpoint`) ve MT-CORE-022 (geçersiz enum) notları; gövdesinde `required` alan veya enum tipi olan HERHANGİ bir endpoint'e eksik/geçersiz veri gönderildiğinde muhtemelen 500 dönüyor, 400 değil. Ayrı bir HATA kaydı gerekir; kapsamı bu dosyayı aşıyor, 07-HTTP-YONETIM-API.md'de de doğrulanmalı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Yeniden koşum (Aile G, 2026-08-14).** `/api/agents/validate` artık `AgentEndpoints.BindAgentDefinitionRequestAsync` ile govdeyi elle okuyor (önceki dalgada kapanmış, HATA-S1-007) — bu case zaten kapalıydı, yalnız yeniden doğrulandı: 2) `name` alanı JSON'da HİÇ YOK → **HTTP 400**, `{"title":"Gecersiz istek govdesi","detail":"JSON deserialization for type 'AgentPrism.AgentDefinitionRequest' was missing required properties including: 'name'."}`. Sistemik bulgunun geri kalanı (Aile G, `KAPANIS-PLANI.md` §6) `AgentPrism.AspNetCore`'da genel bir `RequestBodyBinding.ReadAsync<T>` yardımcı metoduyla kapatıldı — kütüphanenin tüm govde-baglayan uçları artık aynı elle-okuma desenini kullanıyor, ortamdan (Development/Production) bağımsız.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -624,7 +628,11 @@ D '{"name":"c3","model":{"provider":"echo","model":"echo-1"},"compaction":{"stra
 **Gerçek sonuç**
 c1 (`strategy:"Summarize"`, TriggerTokens yok) → **HTTP 500**. c2 (`strategy:"BoyleBirSeyYok"`) → **HTTP 500**. c3 (ContextWindow, MaxContextWindowTokens yok) → DOĞRU: `compilation_error`, beklenen mesaj. Kök neden (log doğrulandı): c1'de "Summarize" GEÇERLİ bir `CompactionStrategyKind` değeri DEĞİL — doğru ad `Summarization` (bu bir DOKÜMAN TİPOSU); c2'de zaten kasıtlı geçersiz değer. İkisinde de `System.Text.Json`'ın enum dönüştürücüsü tanımadığı string'i `JsonException` ile reddediyor → aynı sistemik 500 örüntüsü (bkz. MT-CORE-009). ÖNEMLİ: doküman'ın c2 için beklediği "mesaj bilinmeyen strateji adını AYNEN taşır" davranışı HTTP API üzerinden HİÇBİR ZAMAN gerçekleşemez — validator/compiler mantığına hiç ulaşılmıyor, JSON ayrıştırma katmanında daha erken patlıyor. "Hiçbir istekte 500 dönmez" ilkesi bu koşumda en az üç ayrı case'de (006 kayıt denemesi, 009-2, 022 c1/c2) ihlal edildi — sistemik, tek endpoint'e özgü değil.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Yeniden koşum (Aile G, 2026-08-14).** Aile G'nin `RequestBodyBinding.ReadAsync<T>` düzeltmesi sonrası: c1 → **HTTP 400** (`"The JSON value could not be converted to AgentPrism.CompactionStrategyKind..."`). c2 → **HTTP 400**, aynı mesaj şekli. Beklenen sonuç düzeltmesi (doküman koda göre): c1'in "Summarize" değeri zaten DOKÜMAN TİPOSU (doğrusu `Summarization`) — bu adımda gerçek bir hata YOKTUR, düzeltilmiş adla test edilmeli. c2'nin "mesaj bilinmeyen strateji adını AYNEN taşır" beklentisi HTTP API üzerinden hiçbir zaman gerçekleşemez (JSON ayrıştırma katmanı validator'a hiç ulaşmadan patlar); doğru beklenti `HTTP 400` + JSON dönüştürme hatası mesajıdır — bu artık karşılanıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

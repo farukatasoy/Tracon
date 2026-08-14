@@ -101,6 +101,14 @@ public static class AgentPrismEndpointRouteBuilderExtensions
             });
         }
 
+        // HATA-S2-006/HATA-S2-007: govde baglamasi bir JsonException'a carpinca
+        // genel 500'e degil bu kutuphanenin kendi 400 sozlesmesine dusmeli —
+        // bkz. JsonBindingProblemMiddleware.
+        if (endpoints is IApplicationBuilder jsonProblemApp)
+        {
+            jsonProblemApp.Use(JsonBindingProblemMiddleware.InvokeAsync);
+        }
+
         var idempotencyFilter = new IdempotencyFilter(
             services.GetRequiredService<IOptionsMonitor<AgentPrismIdempotencyOptions>>());
 

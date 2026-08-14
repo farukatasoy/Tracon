@@ -34,6 +34,7 @@ internal static class ApiKeyEndpoints
             .WithName("AgentPrismCreateApiKey")
             .WithTags("AgentPrism", "ApiKeys")
             .WithSummary("Yeni bir API anahtari uretir.")
+            .Accepts<ApiKeyCreateRequest>("application/json")
             .WithDescription(
                 "Ham deger yanitta YALNIZCA BU CAGRIDA doner ve bir daha " +
                 "uretilemez. Kapsam listesi kapalidir; bilinmeyen bir kapsam reddedilir. " +
@@ -60,7 +61,6 @@ internal static class ApiKeyEndpoints
     }
 
     private static async Task<Results<Ok<ApiKeyCreationResult>, ProblemHttpResult>> CreateAsync(
-        [FromBody] ApiKeyCreateRequest request,
         HttpContext httpContext,
         [FromServices] IApiKeyStore store,
         [FromServices] ITenantContext tenants,
@@ -69,7 +69,16 @@ internal static class ApiKeyEndpoints
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        var (bound, bindError) = await RequestBodyBinding
+            .ReadAsync<ApiKeyCreateRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        var request = bound!;
 
         if (string.IsNullOrWhiteSpace(request.Name))
         {
