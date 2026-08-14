@@ -70,7 +70,7 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 |---|---|---|
 | **Adım 0** — dört kapı kırmızıydı; ses turu `commit` çerçevesi kendi sesinin önüne geçiyordu | `f36eeaf` | (`MT-PKG-010`'un kök nedeni — case'in kendisi yeniden koşulmalı) |
 | **Aile A** — şema kapısı + teşhis ucu | `2126aab` | `MT-PG-025`, `MT-PG-034`, `MT-PG-051`, `MT-PG-052` |
-| **Aile B** — Guard maskelemesi `RunStarted`'da ham kalıyor | *(bu commit)* | `MT-GUARD-041`, `MT-GUARD-053` |
+| **Aile B** — Guard maskelemesi `RunStarted`'da ham kalıyor | `a3d1dea` | `MT-GUARD-041`, `MT-GUARD-053` |
 
 ### Kalan aileler
 
@@ -79,7 +79,7 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **C** ile başla
 | Aile | Önem | Konu | Case | Durum |
 |---|---|---|---|---|
 | ~~A~~ | Kritik | Şema kapısı, teşhis ucu | 4 | ✅ `2126aab` |
-| ~~B~~ | Kritik | Guard maskelemesi `RunStarted`'da ham kalıyor | 2 | ✅ *(bu commit)* |
+| ~~B~~ | Kritik | Guard maskelemesi `RunStarted`'da ham kalıyor | 2 | ✅ `a3d1dea` |
 | **C** | Kritik | Eşzamanlı ilk istekte oturum lost update | 1 | ⬜ |
 | **D** | Kritik | `T[]` parametreli tool derlenmiyor | 1 | ⬜ |
 | **E** | Kritik | İki kalıcılık sağlayıcısı (K-183) | 1 | ⬜ |
