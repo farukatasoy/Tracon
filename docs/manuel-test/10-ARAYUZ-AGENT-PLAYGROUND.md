@@ -699,7 +699,31 @@ doğru `gpt-5.4-mini` kaldı, tutarsız bir çift üretti. Sayfayı 2 kez daha
 tazeledim: ikisinde de doğru `openai` geldi — **aralıklı bir yarış
 koşulu** (`HATA-S4-009`, kök neden `agent-editor.tsx:197-247`).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+**Aile J (bu koşum).** Kök neden doğrulandı: iki `useEffect` — tanımı
+yükleyen (A, mevcut satır 197-237) ve sağlayıcıyı varsayılan atayan (B,
+eski satır 241-247) — aynı React commit'inde çözülünce B'nin guard'ı render
+anının **stale** `form.provider` kapanışını okuyordu, uyguladığı
+`setForm` ise `current`'ı (A'nın az önce yazdığı doğru state) alıp yalnız
+`provider` alanını `providers.data[0]` (alfabetik ilk kayıt, canlı
+katalogda `anthropic`) ile eziyordu — gözlenen `anthropic`/`openai` tutarsızlığıyla
+birebir örtüşüyor. **Düzeltme:** guard, effect gövdesinden functional
+`setForm` updater'ının İÇİNE taşındı (yeni `withDefaultProvider(current,
+providerNames)`, `current.provider` — her zaman taze state — üzerinden karar
+verir); artık hangi commit'te hangi effect'in önce/sonra çalıştığından
+BAĞIMSIZ olarak doğru sağlayıcıyı asla ezmiyor. Değişen dosya:
+`src/AgentPrism.UI/frontend/src/screens/agent-editor.tsx`. Regresyon testi
+(yeni dosya `agent-editor.test.ts`, üç senaryo) fix'siz koda karşı koşuldu —
+"var olan sağlayıcıyı ezmez" testi KIRMIZI verdi, doğrulandı. Dört kapı
+yeşil (`dotnet test` 467+42+484 test dahil, sıfır regresyon). Canlı
+Postgres'e karşı `PUT/GET api/agents/mt-uiag-014-test` (provider `google`,
+katalogun alfabetik ilki değil) provider'ı bozulmadan döndü. Tarayıcı
+üzerinden birebir tekrar üretim bu koşumda YAPILMADI — Playwright MCP
+tarayıcısı başka bir çalışan oturumca kilitliydi, o oturum bozulmasın diye
+zorlanmadı; düzeltme artık commit sırasından bağımsız olduğu için (yalnız
+zamanlamaya bağlı önceki haliyle kıyasla) birim testi yeterli kanıt sayıldı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

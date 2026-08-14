@@ -59,7 +59,7 @@ const COMPACTION_STRATEGIES: CompactionStrategyKind[] = [
 const emptyCompaction: CompactionSettings = { strategy: 'None' };
 const emptyMemory: MemorySettings = {};
 
-interface FormState {
+export interface FormState {
   name: string;
   displayName: string;
   description: string;
@@ -83,7 +83,7 @@ interface FormState {
   memory: MemorySettings;
 }
 
-const emptyForm: FormState = {
+export const emptyForm: FormState = {
   name: '',
   displayName: '',
   description: '',
@@ -168,6 +168,21 @@ function memoryHasAnything(memory: MemorySettings): boolean {
 }
 
 /**
+ * Defaults `provider` to the first catalog entry, but only if the form still
+ * has none. Takes `current` (the live state at apply time) rather than a
+ * value captured earlier, so a concurrent update that already set a provider
+ * (e.g. loading an existing definition) is never stomped — see
+ * `agent-editor.test.ts` for the race this guards against (HATA-S4-009).
+ */
+export function withDefaultProvider(current: FormState, providerNames: readonly string[]): FormState {
+  if (current.provider.length > 0 || providerNames.length === 0) {
+    return current;
+  }
+
+  return { ...current, provider: providerNames[0] ?? '' };
+}
+
+/**
  * Create and edit stored agent definitions.
  *
  * Tools are picked from a list, never typed. A definition can only point at a
@@ -239,12 +254,14 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
   // A provider must be chosen before a definition can compile. Defaulting to
   // the only registered provider removes a step that has one correct answer.
   useEffect(() => {
-    if (form.provider.length > 0 || !providers.isSuccess || providers.data.length === 0) {
+    if (!providers.isSuccess || providers.data.length === 0) {
       return;
     }
 
-    setForm((current) => ({ ...current, provider: providers.data[0]?.name ?? '' }));
-  }, [providers.isSuccess, providers.data, form.provider]);
+    const providerNames = providers.data.map((provider) => provider.name);
+
+    setForm((current) => withDefaultProvider(current, providerNames));
+  }, [providers.isSuccess, providers.data]);
 
   const request = useMemo(() => toRequest(form), [form]);
 
