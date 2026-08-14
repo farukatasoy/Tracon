@@ -162,9 +162,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/evals/destek-degerlendirme"
 - `HTTP: 200`, gövdede `id` dolu bir GUID, `createdAt == updatedAt`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 200`, `id: "019ffdcb-dae4-..."`, `createdAt == updatedAt`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -195,9 +195,9 @@ curl -s "$APU/api/evals/destek-degerlendirme" -H "$APB" \
   ilerler; `checks` yeni değerle değişir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`id` birebir aynı, `createdAt` değişmedi, `updatedAt` ilerledi, `checks` tek elemana indi. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -223,9 +223,9 @@ curl -s "$APU/api/evals" -H "$APB" | python3 -c "import json,sys; print([s['name
 - `destek-degerlendirme` listede.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`['destek-degerlendirme']` — listede. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -256,9 +256,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/evals/kirik-takim" -H "$APB
 - `GET /api/evals/kirik-takim` → `404` (kayıt hiç oluşmadı).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `detail: "Bilinmeyen denetim turu: 'regexMatch'. Ozel bir denetimse 'IAgentPrismBuilder.AddEvalCheck(\"{kind}\", ...)' ile kaydedilmelidir."` (mesaj kalıbı `{kind}` yer tutucusu kullanıyor, doküman `regexMatch` doğrudan yazmıştı — küçük bir metin farkı, anlam aynı). `GET` → `404`, kayıt oluşmadı. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -285,9 +285,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/evals/denetimsiz-takim" -H 
 - `HTTP: 200`. Takım oluşur; bu, MT-EVAL-028'in ön koşuludur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 200`, takım `checks: []` ile oluştu. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -311,9 +311,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/evals/hic-yok-boyle-takim" -H "$AP
 - `HTTP: 404`.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 404`, `title: "Eval takimi bulunamadi"`. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -349,9 +349,9 @@ SELECT count(*) FROM agentprism.eval_suites WHERE name = 'denetimsiz-takim';
 - `HTTP: 204`. SQL sorgusu `0` döner.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 204`. SQL sorgusu `count: 0` döndü. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -395,9 +395,9 @@ curl -s "$APU/api/evals/destek-degerlendirme/cases" -H "$APB" | python3 -c "impo
   yerine geçti.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Son `GET` `1` döndü. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -427,9 +427,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/evals/destek-degerlendirme/
   olmamıştır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 400`, `detail: "Her vaka bos olmayan bir 'query' alani tasimalidir."` Sonraki `GET` hâlâ tek eski vakayı (`ORD-1001 siparisim nerede?`) gösterdi — kısmi yazma olmadı. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -454,9 +454,9 @@ curl -s "$APU/api/evals/destek-degerlendirme/cases" -H "$APB"
   vakaya ihtiyaç duyar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 204` (doküman `200` varsaymıştı; `DELETE` uçları bu repoda tutarlı biçimde `204` döner — bkz. MT-EVAL-007, MT-SKILL-004/005 vb. — doküman düzeltmesi, kusur değil), ikinci çağrı `[]` döndü. MT-EVAL-010'un ilk `PUT`'u tekrar uygulanıp tek vaka geri getirildi (§3 için).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -479,9 +479,9 @@ curl -s "$APU/api/evals/destek-degerlendirme/cases" -H "$APB"
   (istemci tarafı, sunucuya hiç istek gitmez).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Boş `query`'li satır eklendikten sonra "Save cases" `[disabled]` oldu. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -504,9 +504,9 @@ curl -s "$APU/api/evals/destek-degerlendirme/cases" -H "$APB"
   → Network) hiç gitmemiştir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+"Save"e tıklandığında satır içi `alert` rolünde "Checks must be valid JSON — an array of check definitions." mesajı göründü, form kapanmadı. Ağ istekleri incelendi: yalnız sayfa yüklemesinin `GET /api/evals`'i vardı, hiçbir `PUT` gitmedi. Tam beklendiği gibi. (İlgisiz bir konsol hatası da gözlendi: `Pattern attribute value [a-zA-Z0-9_-]+ is not a valid regular expression` — tarayıcının yeni `/v` regex modu ile bir input `pattern` özniteliği uyuşmazlığı, bu case'in konusuyla ilgisiz, kozmetik.)
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -529,9 +529,9 @@ UX gözlemi — kusur değil, koşumda doğrulanacak asimetri.
   dönüşü zor bir işlem (vaka+koşu kaskadı) onaysız gerçekleşir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Test amaçlı `silinecek-takim` oluşturulup "Sil" düğmesine tıklandı: hiçbir onay diyaloğu açılmadan satır anında listeden kayboldu. Tam beklendiği gibi (asimetri doğrulandı, kusur değil).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
