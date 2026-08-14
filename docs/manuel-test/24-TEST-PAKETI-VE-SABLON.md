@@ -1305,9 +1305,12 @@ Console.WriteLine(await response.Content.ReadAsStringAsync());
 - Gövde `version` ve `prefix: "/agentprism"` alanlarını içerir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `Durum: 200`. Gövde `"version":"0.0.0-preview.0.107","prefix":
+  "/agentprism",...` içeriyor (ayrıca `authentication`/`storage`/`roles`
+  alt nesneleri de var, dokümanın belirttiği asgari şart karşılandı).
+  Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1345,9 +1348,9 @@ Console.WriteLine("/agentprism: " + (int)varsayilan.StatusCode);
 - `/agentprism: 404` — önek DEĞİŞTİRİLDİĞİNDE eski önek artık hiçbir uca eşlenmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `/panel: 200`, `/agentprism: 404`. Beklenenle birebir eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1394,9 +1397,10 @@ catch (ObjectDisposedException)
 - Çıktı `Beklenen: ObjectDisposedException firlatildi` yazar.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Çıktı: `Beklenen: ObjectDisposedException firlatildi`. Beklenenle
+  birebir eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1442,9 +1446,12 @@ catch (AgentPrismAssertionException ex)
   (agent bulunamadığı için `404` beklenir) içerir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Yakalandı: `'olmayan-agent' calistirilamadi. Beklenen durum kodu
+  basarili, bulunan '404': {...,"title":"Agent bulunamadi","status":404,
+  "detail":"'olmayan-agent' adinda bir agent yok."}`. Beklenenle
+  eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1512,9 +1519,28 @@ Console.WriteLine("Tool sonucu: " + toolResult?.Payload);
   yalnız YANLIŞ deseni ampirik olarak göstermeyi amaçlar.)
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Verilen kod BİREBİR çalıştırıldı: `Tool sonucu: SERVICES DOLU` —
+  beklenenin TAM TERSİ. **Doküman düzeltmesi (kod kusuru değil).** Kod
+  okumasıyla doğrulandı: MAF, `AIFunctionArguments.Services`'i asla
+  gerçek `null` göndermez — daima `Microsoft.Extensions.AI
+  .EmptyServiceProvider`ın (boş ama `null` OLMAYAN) bir örneğini
+  gönderir (bkz. `ToolMethodScanner.cs:22,93`, `VoiceToolBase.cs:22`,
+  `ToolRegistrationTests.cs:102-105`'teki tutarlı yorumlar). Doküman
+  case'inin `args.Services is null` denetimi bu yüzden HER ZAMAN `false`
+  — yanlış koşulu sınıyor. Düzeltilmiş sınama ile (`services.AddSingleton
+  (new MyRegisteredService())` + tool içinde `args.Services?.GetService
+  (typeof(MyRegisteredService))`) K-218'in ASIL iddiası (gerçek DI
+  kayıtları `Services` üzerinden ÇÖZÜLEMEZ) doğrulandı: `Services is
+  null: False; GetService(MyRegisteredService): NULL`. `Directory
+  .Packages.props`'ta MAF/`Microsoft.Extensions.AI` sürümleri K-218
+  yazıldığından beri değişmedi, `AgentDefinitionCompiler.cs:945`'teki
+  `AsAIAgent(options, _loggerFactory, _services)` çağrısı da hiç
+  değişmedi (git log doğrulandı) — üretim boru hattında hiçbir şey
+  değişmedi, yalnızca doküman örneğinin denetim koşulu (`is null` vs
+  `GetService(...) is null`) yanlıştı. K-218'in kendisi hâlâ tam olarak
+  geçerli.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1571,9 +1597,10 @@ Console.WriteLine("Deger: " + deger);
   çakışmadan eklenmiştir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Çıktı: `Sira: ConfigureServices -> ConfigureAgentPrism`, `Deger:
+  ozel-deger`. Beklenenle birebir eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
