@@ -275,16 +275,32 @@ export function VoicePanel({ agent, sessionId }: { agent: string; sessionId: str
       const media = new MediaRecorder(captured, { mimeType: 'audio/webm;codecs=opus' });
       recorder.current = media;
 
+      // 🚨 Every send is chained onto this promise. `Blob.arrayBuffer()` resolves
+      // asynchronously, so unchained sends have two failure modes: chunks can
+      // reach the socket out of order and corrupt the WebM stream, and the
+      // `commit` frame below can overtake the audio it commits — the server
+      // then finds an empty buffer and drops the turn silently
+      // (VoiceConversationDriver.Commit).
+      let pendingSends: Promise<unknown> = Promise.resolve();
+
       media.ondataavailable = (event: BlobEvent) => {
         if (event.data.size > 0 && connection.readyState === WebSocket.OPEN) {
-          void event.data.arrayBuffer().then((buffer) => connection.send(buffer));
+          pendingSends = pendingSends
+            .then(() => event.data.arrayBuffer())
+            .then((buffer) => {
+              if (connection.readyState === WebSocket.OPEN) {
+                connection.send(buffer);
+              }
+            });
         }
       };
 
       media.onstop = () => {
-        if (connection.readyState === WebSocket.OPEN) {
-          connection.send(JSON.stringify({ type: 'commit' }));
-        }
+        void pendingSends.then(() => {
+          if (connection.readyState === WebSocket.OPEN) {
+            connection.send(JSON.stringify({ type: 'commit' }));
+          }
+        });
       };
 
       media.start(250);
