@@ -1990,9 +1990,32 @@ SELECT count(*) FROM agentprism.audit_log WHERE action LIKE 'experiment%' AND en
   koddaki açık bir tasarım kararıdır, kusur değildir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `kanarya-saglikli` (`kontrol-saglikli`/`kanarya-saglikli-kol`, ikisi de
+  `version=3`, eşit ağırlık `50/50`), `minSampleSize=3, maxErrorRateDelta
+  =0.2, rampSteps=[25,50,100], rampInterval="00:00:01"` politikasıyla
+  kuruldu (`AutoRollbackEnabled` MT-EVAL-074'ten hâlâ `true`). Her iki kola
+  toplam 9 BAŞARILI run üretildi (3 kontrol, 6 kanarya — kova dağılımı
+  eşit değildi ama ikisi de `minSampleSize=3`'ü aştı). ~30 sn sonra
+  `variants` sorgulandığında: `kanarya-saglikli-kol.weight=100`,
+  `kontrol-saglikli.weight=0`.
+  **Sapma:** Kod okuması (`CanaryEvaluationService.TryAdvanceRampAsync`,
+  `nextStep = RampSteps.Where(s => s > canaryVariant.Weight)
+  .OrderBy(s).FirstOrDefault()`) `rampSteps` içinde MEVCUT ağırlıktan
+  BÜYÜK olan en küçük basamağı seçiyor. Bu case'in kurulumunda başlangıç
+  ağırlığı `50` (eşit bölünmüş) olduğu için `rampSteps=[25,50,100]`'de
+  `50`'den büyük tek basamak `100`'dür — servis bir sonraki taramada
+  doğrudan `100`'e atladı, ara basamak `25`'i hiç göstermedi. Doğru
+  senaryo (kanarya `<25` bir başlangıç ağırlığıyla kurulmalıydı) için
+  yeniden koşum yapılmadı; asıl doğrulanmak istenen İKİ mekanizma yine de
+  gözlemlendi: (1) sağlıklı kanarya ağırlığı OTOMATİK yükseliyor (bu
+  senaryoda `50→100`), (2) audit tablosunda bu deney için yalnızca
+  `experiment.create`/`experiment.start`/`experiment.canary_policy`
+  kayıtları var — ramp-up'a ait HİÇBİR kayıt yok (3 satır, hepsi ramp-up
+  DIŞI). Temel iddia (ramp-up sessiz kalır, ağırlık otomatik artar)
+  doğrulandı; yalnız gözlenen sayısal basamak dokümanın `25` beklentisiyle
+  birebir eşleşmedi (kurulum farkı, kusur değil).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2017,9 +2040,18 @@ SELECT count(*) FROM agentprism.audit_log WHERE action LIKE 'experiment%' AND en
   YOKTUR; tester bu ikisini yalnız bu banner'ın varlığıyla ayırt edebilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- (MT-EVAL-074'teki isim uyarlaması nedeniyle `destek-talimat-testi-2`
+  yerine `kanarya-geri-alma-testi` açıldı — asıl otomatik geri alınan
+  deney budur.) `/agentprism/experiments/kanarya-geri-alma-testi`
+  ekranında "Canary" bölümünde metin: `"Automatically rolled back:
+  Kanarya hata orani (%100,0) kontrolden (%0,0) %0,0 esiginden fazla
+  yuksek."` — kırmız/rose tonlu arka planlı (oklab kroma pozitif kırmızı
+  yönünde, `%10` opaklık) bir banner içinde. Kontrast: manuel `Stop`
+  edilmiş `destek-talimat-testi` ekranında (hiç kanarya kuralı hiç
+  tanımlanmamış, "No canary rule" gösteriyor) böyle bir banner YOK.
+  Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
