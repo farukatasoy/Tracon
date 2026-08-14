@@ -205,6 +205,16 @@
     <PackageVersion Include="Microsoft.Playwright" Version="1.61.0" />
     <PackageVersion Include="NSubstitute" Version="6.0.0" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
+    <!--
+      Testcontainers.MsSql/PostgreSql 4.13.0'in gecisli bagimliligi SSH.NET
+      2025.1.0, GHSA-q939-rpr3-3284 (yuksek onem, CVE-2026-48798) tasir;
+      NU1903 restore'u kirar. CentralPackageTransitivePinningEnabled kapali
+      (Directory.Build.props:49) oldugu icin gecisli surum burada degil,
+      etkilenen projelerde dogrudan PackageReference ile sabitlenir. Yama
+      surumu (2026.0.0) NuGet cozumlemesinde Testcontainers'in cektigi
+      surumun onune gecer.
+    -->
+    <PackageVersion Include="SSH.NET" Version="2026.0.0" />
     <PackageVersion Include="Testcontainers.MsSql" Version="4.13.0" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.13.0" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
