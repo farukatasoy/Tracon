@@ -1644,7 +1644,9 @@ WHERE source = 'skill:scriptli-skill' ORDER BY created_at DESC LIMIT 1;
 
 **Kapsam:** Bu, script çalıştırma özelliğinin (Faz 11) yayınlanan hâlde TAMAMEN işlevsiz olduğu anlamına gelir — `UseSkillScripts()` çağıran ve saklı script'i olan HER tüketici aynı çökmeyi yaşar. MT-SKILL-059..063 ve 070 AYNI kök nedenle bloklanıyor (script gerçekten çalıştırılmadan hiçbiri gözlemlenemez); kullanıcı kararıyla bu case'ler tek tek tekrar denenmeden "aynı kök nedenle Kaldı" olarak işaretlendi, ayrıntı için bu case'e bakınız.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+**🔧 Kapanış güncellemesi (2026-08-14):** Kök neden HATA-K-002 olarak kodlandı ve düzeltildi (K-400, `SONUCLAR-K-2026-08-13.md`) — bu case'in kendisi yeniden koşulup uçtan uca doğrulandı (yukarıdaki Durum satırına bakınız). MT-SKILL-059..063 ve 070 henüz TEK TEK yeniden koşulmadı (bu düzeltme oturumunun kapsamı "çöküşü gider + doğrula", "her bloklu case'i tekrar koş" değildi) — engel artık kalkmış durumda, bu case'ler gelecek bir koşumda normal şekilde tekrar denenebilir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — Ortak kuyruk kapanışında HATA-K-002 düzeltmesiyle (K-400) yeniden koşuldu: `load_skill` onayı → `merhaba` script onayı → gerçek çalıştırma → `exit_code: 0\nstdout:\nmerhaba-agentprism\n` → model nihai yanıtında `merhaba-agentprism`. Bkz. `SONUCLAR-K-2026-08-13.md`.
 
 ---
 
