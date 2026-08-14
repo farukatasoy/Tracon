@@ -26,6 +26,7 @@ internal static class KnowledgeEndpoints
             .WithName("AgentPrismUploadKnowledgeDocument")
             .WithTags("AgentPrism", "Knowledge")
             .WithSummary("Bir belgeyi bilgi tabanina yukler.")
+            .Accepts<UploadDocumentRequest>("application/json")
             .WithDescription(
                 "Govde ya 'text' (sunucu parcalar ve gomuler) ya 'chunks' (hazir parcalar) tasir. " +
                 "Yalniz PostgreSQL: UsePostgreSql() ve bir IEmbeddingGenerator kayitli olmalidir.")
@@ -54,12 +55,13 @@ internal static class KnowledgeEndpoints
             .WithName("AgentPrismSearchKnowledge")
             .WithTags("AgentPrism", "Knowledge")
             .WithSummary("Bir koleksiyonda anlamsal arama yapar (teshis ve kalibrasyon icin).")
+            .Accepts<SearchKnowledgeRequest>("application/json")
             .ProducesProblem(StatusCodes.Status501NotImplemented);
     }
 
     private static async Task<Results<Ok<UploadDocumentResponse>, ProblemHttpResult>> UploadAsync(
         string collection,
-        UploadDocumentRequest request,
+        HttpContext httpContext,
         KnowledgeIngestionService service,
         CancellationToken cancellationToken)
     {
@@ -67,6 +69,17 @@ internal static class KnowledgeEndpoints
         {
             return NotSupported();
         }
+
+        var (bound, bindError) = await RequestBodyBinding
+            .ReadAsync<UploadDocumentRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        var request = bound!;
 
         try
         {
@@ -123,7 +136,7 @@ internal static class KnowledgeEndpoints
 
     private static async Task<Results<Ok<IReadOnlyList<SearchKnowledgeHit>>, ProblemHttpResult>> SearchAsync(
         string collection,
-        SearchKnowledgeRequest request,
+        HttpContext httpContext,
         KnowledgeIngestionService service,
         CancellationToken cancellationToken)
     {
@@ -131,6 +144,17 @@ internal static class KnowledgeEndpoints
         {
             return NotSupported();
         }
+
+        var (bound, bindError) = await RequestBodyBinding
+            .ReadAsync<SearchKnowledgeRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        var request = bound!;
 
         try
         {

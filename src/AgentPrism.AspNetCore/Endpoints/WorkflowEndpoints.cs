@@ -62,7 +62,8 @@ internal static class WorkflowEndpoints
             .RequireApiKeyScope(ApiKeyScope.WorkflowsAdmin)
             .WithName("AgentPrismSaveWorkflow")
             .WithTags("AgentPrism", "Workflows")
-            .WithSummary("Workflow tanimi olusturur veya gunceller.");
+            .WithSummary("Workflow tanimi olusturur veya gunceller.")
+            .Accepts<WorkflowSaveRequest>("application/json");
 
         builder.MapDelete("/api/workflows/{name}", DeleteAsync)
             .RequireRole(roles.Admin)
@@ -77,6 +78,7 @@ internal static class WorkflowEndpoints
             .WithName("AgentPrismRunWorkflow")
             .WithTags("AgentPrism", "Workflows")
             .WithSummary("Workflow'u calistirir ve olaylarini SSE ile akitir.")
+            .Accepts<WorkflowRunHttpRequest>(true, "application/json")
             .WithDescription(
                 "Her cerceve bir RunEvent tasir. Ilk cerceve calistirma kimligini bildirir; " +
                 "workflow icinde cagrilan her agent kendi runs satirini acar ve " +
@@ -100,6 +102,7 @@ internal static class WorkflowEndpoints
             .WithName("AgentPrismResumeWorkflow")
             .WithTags("AgentPrism", "Workflows")
             .WithSummary("Bir kontrol noktasindan devam eder ve olaylari SSE ile akitir.")
+            .Accepts<WorkflowResumeHttpRequest>(true, "application/json")
             .Produces<string>(StatusCodes.Status200OK, contentType: "text/event-stream")
             .ProducesProblem(StatusCodes.Status501NotImplemented);
 
@@ -119,6 +122,7 @@ internal static class WorkflowEndpoints
             .WithName("AgentPrismRespondWorkflowRequest")
             .WithTags("AgentPrism", "Workflows")
             .WithSummary("Bekleyen bir istegi yanitlar ve calistirmayi sürdürur.")
+            .Accepts<WorkflowRespondHttpRequest>(true, "application/json")
             .WithDescription(
                 "Yanit, kontrol noktasindan sürdürulen yurutmede ayni kimlikle yeniden " +
                 "yayinlanan istekle eslestirilir. Sürdürme YENI bir runs satiri acar; " +
@@ -214,12 +218,21 @@ internal static class WorkflowEndpoints
 
     private static async Task<Results<Ok<WorkflowDefinition>, ProblemHttpResult>> SaveAsync(
         string name,
-        [FromBody] WorkflowSaveRequest request,
+        HttpContext httpContext,
         [FromServices] IWorkflowDefinitionStore store,
         [FromServices] ITenantContext tenants,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        var (bound, bindError) = await RequestBodyBinding
+            .ReadAsync<WorkflowSaveRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        var request = bound!;
 
         var definition = new WorkflowDefinition
         {
@@ -262,7 +275,6 @@ internal static class WorkflowEndpoints
 
     private static async Task<IResult> RunAsync(
         string name,
-        [FromBody] WorkflowRunHttpRequest? request,
         [FromServices] IWorkflowRunner? runner,
         [FromServices] QuotaEnforcer? quotaEnforcer,
         [FromServices] ITenantContext tenantContext,
@@ -272,6 +284,15 @@ internal static class WorkflowEndpoints
         if (runner is null)
         {
             return NotRegistered();
+        }
+
+        var (request, bindError) = await RequestBodyBinding
+            .ReadOptionalAsync<WorkflowRunHttpRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
         }
 
         if (await runner.GetAsync(name, cancellationToken).ConfigureAwait(false) is null)
@@ -331,13 +352,22 @@ internal static class WorkflowEndpoints
 
     private static async Task<IResult> ResumeAsync(
         Guid runId,
-        [FromBody] WorkflowResumeHttpRequest? request,
+        HttpContext httpContext,
         [FromServices] IWorkflowRunner? runner,
         CancellationToken cancellationToken)
     {
         if (runner is null)
         {
             return NotRegistered();
+        }
+
+        var (request, bindError) = await RequestBodyBinding
+            .ReadOptionalAsync<WorkflowResumeHttpRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
         }
 
         var newRunId = AgentPrismId.NewId();
@@ -384,13 +414,22 @@ internal static class WorkflowEndpoints
 
     private static async Task<IResult> RespondAsync(
         Guid runId,
-        [FromBody] WorkflowRespondHttpRequest? request,
+        HttpContext httpContext,
         [FromServices] IWorkflowRunner? runner,
         CancellationToken cancellationToken)
     {
         if (runner is null)
         {
             return NotRegistered();
+        }
+
+        var (request, bindError) = await RequestBodyBinding
+            .ReadOptionalAsync<WorkflowRespondHttpRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
         }
 
         if (request is null || string.IsNullOrWhiteSpace(request.RequestId))

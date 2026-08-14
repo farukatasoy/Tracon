@@ -63,6 +63,7 @@ internal static class SessionEndpoints
             .WithName("AgentPrismBranchSession")
             .WithTags("AgentPrism", "Sessions")
             .WithSummary("Bir konusmayi belirli bir noktadan dallandirir ve yeni bir oturum acar.")
+            .Accepts<SessionBranchRequest>("application/json")
             .WithDescription(
                 "Ogeler 'upToSequence' degerine kadar (dahil) YENI bir konusmaya KOPYALANIR; " +
                 "isaretci yalnizca koken bilgisidir. Dala yazmak ana konusmayi degistirmez. " +
@@ -85,7 +86,7 @@ internal static class SessionEndpoints
     /// </remarks>
     private static async Task<Results<Created<SessionBranchResult>, ProblemHttpResult>> BranchSessionAsync(
         string sessionId,
-        SessionBranchRequest request,
+        HttpContext httpContext,
         ConversationBranchService branches,
         IAuditLog auditLog,
         IAuditActorResolver actorResolver,
@@ -93,7 +94,16 @@ internal static class SessionEndpoints
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        var (bound, bindError) = await RequestBodyBinding
+            .ReadAsync<SessionBranchRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        var request = bound!;
 
         var outcome = await branches.BranchAsync(sessionId, request, cancellationToken).ConfigureAwait(false);
 

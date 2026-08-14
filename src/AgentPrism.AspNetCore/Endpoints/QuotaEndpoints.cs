@@ -37,6 +37,7 @@ internal static class QuotaEndpoints
             .WithName("AgentPrismSaveQuota")
             .WithTags("AgentPrism", "Governance")
             .WithSummary("Kota kurali olusturur veya gunceller.")
+            .Accepts<QuotaSaveRequest>("application/json")
             .WithDescription(
                 "Kapsam (kiraci + agent + donem) benzersizdir: ayni kapsam icin ikinci bir " +
                 "kural yazmak mevcut kuralin uzerine yazar. Uc sinir da bos birakilabilir; " +
@@ -71,7 +72,7 @@ internal static class QuotaEndpoints
     }
 
     private static async Task<Results<Ok<QuotaDefinition>, ProblemHttpResult>> SaveAsync(
-        [FromBody] QuotaSaveRequest request,
+        HttpContext httpContext,
         [FromServices] IQuotaStore store,
         [FromServices] ITenantContext tenants,
         [FromServices] IAuditLog auditLog,
@@ -80,7 +81,16 @@ internal static class QuotaEndpoints
         [FromServices] TimeProvider? timeProvider,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        var (bound, bindError) = await RequestBodyBinding
+            .ReadAsync<QuotaSaveRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        var request = bound!;
 
         if (request.MaxRuns is null && request.MaxTokens is null && request.MaxCost is null)
         {
