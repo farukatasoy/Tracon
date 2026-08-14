@@ -237,6 +237,8 @@ Yalnız-okuma niyetiyle üretilmiş bir otomasyon anahtarı, workflow tanımlar�
 
 Diğer bulgular: MT-WF-097'de ilk deneme MT-WF-066 ile aynı sebepten (Tenancy kapalı) yanlış sonuç verdi, doğru config ile düzeltilip doğrulandı.
 
-### 17 §1–2 (13 case)
+### 17 §1–2 (MT-EVAL-001..007, 010..015), 13 case: 13 Geçti, 0 Kaldı
 
-_(bu oturumun devamında yazılacak)_
+Kusur bulunmadı. Küçük doküman notları: MT-EVAL-012'nin `DELETE /api/evals/{name}/cases` ucu doküman `HTTP 200` varsaymışken gerçekte `204` dönüyor (repodaki `DELETE` uçlarının tutarlı deseni — kusur değil, düzeltildi); MT-EVAL-004'ün hata mesajı `{kind}` yer tutucusu kullanıyor, doküman doğrudan `regexMatch` yazmıştı (anlam aynı).
+
+**K-5 toplam: 27 case, 21 Geçti, 6 Kaldı.**
