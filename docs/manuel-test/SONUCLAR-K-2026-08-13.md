@@ -112,7 +112,7 @@ beklenen sonucu zaten kanıtladı.
 
 **Sonuç:** 21 Geçti, 7 Kaldı. **Dosya `14` (SKILL-VE-SCRIPT) TAMAMEN BİTTİ (47/47, MT-SKILL-071 hariç — o zaten kapsam dışı not).**
 
-### HATA-K-002 — 🚨 KRİTİK: Script çalıştırma özelliği (Faz 11) tamamen çalışmıyor — `JsonSerializerOptions` çöküyor
+### HATA-K-002 — 🚨 KRİTİK: Script çalıştırma özelliği (Faz 11) tamamen çalışmıyor — `JsonSerializerOptions` çöküyor — ✅ DÜZELTİLDİ (2026-08-14, K-400)
 
 - **Case:** MT-SKILL-058 (Kritik) — ayrıca MT-SKILL-059/060/061/062/063/070'i de aynı kök nedenle bloke etti
 - **Önem:** Kritik
@@ -139,6 +139,9 @@ Script içeren HERHANGİ bir skill gerçekten etkinleştirildiğinde (`UseSkillS
 
 **Kapsam**
 Faz 11'in "gerçek çalıştırma" özelliği (script'lerin sandbox'ta çalıştırılması) yayınlanan hâlde TAMAMEN işlevsizdir. `UseSkillScripts()` çağıran ve saklı script'i olan HER tüketici aynı çökmeyi yaşar — bu bir kenar durum değil, özelliğin ana yoludur. Script kaydı/izin (grant) katmanı (§4/§5, K-2'de 14/14 geçti) etkilenmez çünkü o katman `skill.AddScript`'i hiç çağırmaz.
+
+**Düzeltme (2026-08-14, K-400)**
+İki ayrı kök neden kodlandı: (1) `AgentPrismSkillsSource`'a kaynak-üretilen `AgentPrismSkillsJsonContext` (`string`/`JsonElement`/`object`) `TypeInfoResolver` olarak bağlandı — yansıma yok, AOT korunuyor. (2) Düzeltme #1 TEK BAŞINA yetmedi — MAF'ın kendi kodunda (`Microsoft.Agents.AI.AgentSkillsProvider`) İKİNCİ bir çöküş ortaya çıktı: `CreateStoredScriptDelegate`'in `string?` (nullable) parametresini MAF (nullable olsa bile) "required" işaretliyor, modelin argümansız bir script için doğru biçimde gönderdiği JSON `null`'ini "değer eksik" sayıp reddediyordu. `SkillScriptSupport.CreateStoredScriptDelegate` parametresi `string arguman = ""` (varsayılan değerli) yapılarak MAF'ın alanı "required değil" yayınlaması sağlandı. MT-SKILL-058 yeniden koşulup uçtan uca doğrulandı: `load_skill` onayı → `merhaba` script onayı → gerçek çalıştırma → `exit_code: 0\nstdout:\nmerhaba-agentprism\n` → model nihai yanıtında doğru metin. Dört doğrulama kapısı (build/test/pack/format) temiz. MT-SKILL-059..063/070 bu düzeltme oturumunda tek tek yeniden koşulmadı (kapsam dışı bırakıldı) — engel kalktı, gelecek bir koşumda normal şekilde tekrar denenebilir. Ayrıca (ilgisiz, aynı koşumda bulundu): `SSH.NET` `GHSA-q939-rpr3-3284` (`NU1903`, tüm çözümün restore'unu kırıyordu) `Directory.Packages.props`'a yama sürümüyle (`2026.0.0`) sabitlendi.
 
 ---
 
