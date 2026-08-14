@@ -143,8 +143,18 @@ internal static class OpenAIChatCompletionsEndpoints
                 OpenAICompatSupport.JsonOptions,
                 statusCode: StatusCodes.Status200OK);
         }
-        catch (Exception ex) when (ex is AgentPrismException or InvalidOperationException or HttpRequestException)
+        catch (OperationCanceledException)
         {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // 🚨 HATA-S2-003/HATA-S3-005: K-296'nin duzeltmesi yalniz akisli varyanti
+            // (ChatCompletionsStream asagida) kapsamis, bu akissiz kardes yolu
+            // KACIRMIS. Dar bir 'when' filtresi (yalniz AgentPrismException/
+            // InvalidOperationException/HttpRequestException) gercek saglayici SDK
+            // istisnalarini yakalamadan kacirir ve ASP.NET Core'un genel isleyicisine
+            // sizip ciplak 500 uretirdi. Burada yakalanmayan HICBIR sey yoktur.
             return OpenAICompatSupport.Error(StatusCodes.Status502BadGateway, ex.Message, type: "upstream_error");
         }
     }
