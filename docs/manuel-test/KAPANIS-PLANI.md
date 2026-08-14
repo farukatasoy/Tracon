@@ -59,8 +59,8 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 |---|---|
 | Toplam case | **1097** |
 | Koşuldu | **1097** (koşulmamış case **yok**) |
-| ☑ Geçti | **1009** |
-| ☒ **Kaldı** | **57** |
+| ☑ Geçti | **1010** |
+| ☒ **Kaldı** | **56** |
 | ⏭ Atlandı | **30** |
 | ☐ Beklemede | **1** (`MT-UIRUN-019`) |
 
@@ -81,6 +81,7 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile J** — Agent editörünün iki `useEffect`'i aynı commit'te çözülünce sağlayıcıyı ezen yarış; guard functional `setForm` updater'ının içine, `current` (taze state) üzerinden karar verecek şekilde taşındı | `c0175b9` | `MT-UIAG-014` |
 | **Aile K** — CSP `blob:` şemasını hiçbir yönergede beyaz listeye almıyordu; `EmbeddedUiProvider.ContentSecurityPolicy`'ye `img-src`'e `blob:` + yeni `media-src 'self' blob:;` eklendi | `c1efa8a` | `MT-UIAG-044`, `MT-UIAG-050` |
 | **Aile L** — SPA geçişinin erken `AbortController.abort()`'u `RunStarted` yazıldıktan sonra ama try/finally güvenlik ağına girmeden çalıştırmayı sonsuza dek `Running`de bırakıyordu; `BeginRunAsync` `CreateScope` (saf) + `WriteRunStartAsync` (G/Ç) olarak ikiye bölündü, ikincisi güvenlik ağının içine taşındı | `a61f999` | `MT-UIRUN-007` |
+| **Aile M** — Kabuk loopback kısıtından muaf değildi, loopback dışı erişimde React hiç başlamıyordu; `AgentPrismEndpointFilter`'a `requireLoopback` parametresi eklendi, kabuk grubu bearer token gibi loopback'ten de muaf tutuldu | (bu koşum) | `MT-UI-008` |
 
 ### Kalan aileler
 
@@ -100,7 +101,7 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **M** ile başla
 | ~~J~~ | Yüksek | Agent editörü sağlayıcı yarışı | 1 | ✅ (bu koşum) |
 | ~~K~~ | Yüksek | CSP `blob:` beyaz listede değil | 2 | ✅ (bu koşum) |
 | ~~L~~ | Yüksek | SPA geçişi run'ı `Running` bırakıyor | 1 | ✅ (bu koşum) |
-| **M** | Yüksek | Loopback dışı erişimde ham JSON | 1 | ⬜ |
+| ~~M~~ | Yüksek | Loopback dışı erişimde ham JSON | 1 | ✅ (bu koşum) |
 | **N** | Yüksek | 112 `ProblemDetails` başlığı Türkçe | 1 | ⬜ |
 | **O** | Orta | Yapılandırmada geçersiz değer sessizce düşüyor | 4 | ⬜ |
 | **P** | Orta | Bağlanmayan yapılandırma anahtarları | 2 | ⬜ |
@@ -114,11 +115,11 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **M** ile başla
 | **Yeniden koşum** | — | Kusuru zaten kapalı | 8 | ⬜ |
 | **MT-PKG-010** | — | Kök neden `f36eeaf`'te kapandı, case yeniden koşulmalı | 1 | ⬜ |
 
-**Toplam:** 37 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **59**. (Aile F
+**Toplam:** 36 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **58**. (Aile F
 bitti: 51 → 47; Aile G bitti: 47 → 43; Aile H bitti: 43 → 42; Aile I bitti:
-42 → 41; Aile J bitti: 41 → 40; Aile K bitti: 40 → 38; Aile L bitti: 38 → 37.
-`MT-MCP-052` bu sayıma dahil değildir — Kaldı kalır, ayrı bir bulgu olarak
-izlenir, gelecekte kendi ailesini gerektirebilir.)
+42 → 41; Aile J bitti: 41 → 40; Aile K bitti: 40 → 38; Aile L bitti: 38 → 37;
+Aile M bitti: 37 → 36. `MT-MCP-052` bu sayıma dahil değildir — Kaldı kalır,
+ayrı bir bulgu olarak izlenir, gelecekte kendi ailesini gerektirebilir.)
 
 ---
 
@@ -824,14 +825,65 @@ belirtecten fırlatır). Fix geri alınıp koşulduğunda ikisi de
 `run.Status == RunStatus.Running` ile KIRMIZI verdiği ampirik olarak
 doğrulandıktan sonra fix geri uygulandı.
 
-### Aile M — Loopback dışı erişimde ham JSON 🚨 Yüksek
+### ~~Aile M~~ — Loopback dışı erişimde ham JSON 🚨 Yüksek ✅ (bu koşum)
 
 **Kusur:** `HATA-S4-003`. "Erişim reddedildi" kartı yerine ham `ProblemDetails`
 JSON görünüyor.
 
 **Kök neden:** `src/AgentPrism.AspNetCore/Security/AgentPrismEndpointFilter.cs:72-80`.
+Kabuk grubu (`MapUi`, `AgentPrismEndpointRouteBuilderExtensions.cs:301-302`)
+bearer token denetiminden muaf (`requireBearerToken: false`) ama loopback
+kısıtından **muaf değildi** — sınıfın kendi XML yorumu (eski satır 42-49)
+bearer-token için tam olarak aynı sorunu ("kabuk kilitlenirse kullanıcı token
+girebileceği ekranı hiç göremez") çözdüğünü anlatıyordu ama aynı çözüm
+loopback denetimine hiç uygulanmamıştı. `/api/meta` bu filtrenin **tamamından**
+muaf (K-010) olduğu için sorun orada görünmüyordu; yalnız kabuk (statik
+varlıklar) etkileniyordu.
 
-**Case:** `MT-UI-008`. **Aile N ile aynı satırlara dokunur — birlikte yapılabilir.**
+**Önce ampirik yeniden üretim.** Kod okuması kusurun hâlâ açık olduğunu
+doğruladı: `AgentPrismEndpointFilter.InvokeAsync` satır 72'deki loopback
+denetimi `requireBearerToken` parametresinden bağımsız her uca (kabuk dahil)
+aynı şekilde uygulanıyordu.
+
+**Uygulanan tasarım:** Tasarım kararı gerektirmeyen, bearer-token muafiyetiyle
+simetrik bir düzeltme. `AgentPrismEndpointFilter`'a yeni bir `requireLoopback`
+parametresi eklendi (varsayılan `true` — mevcut tüm gruplar davranışını
+korur). `MapUi` artık `requireLoopback: false` ile kuruyor. Veri uçlarındaki
+asıl korumalı grup (`AgentPrismEndpointRouteBuilderExtensions.cs:116-117`,
+`api/agents` vb.) değişmedi — loopback kısıtı orada `true` kalıyor; gerçek
+koruma hâlâ oradan geliyor. `access-gate.tsx` zaten bu akışı (kabuk açılır →
+`probe` sorgusu bir veri ucuna gider → `403` alırsa "Access denied" kartını
+sunucunun ham metniyle gösterir) destekleyecek şekilde yazılmıştı — eksik olan
+yalnızca kabuğun kendisinin loopback dışı istekte hiç açılamamasıydı.
+
+**Canlı doğrulama.** `AuthToken` bu proje için `dotnet user-secrets`'ta kalıcı
+kayıtlı olduğundan (bearer token katmanını devre dışı bırakıp yalnız loopback
+katmanını izole etmek için) geçici olarak `dotnet user-secrets remove` ile
+kaldırıldı, doğrulama sonrası aynı değerle geri eklendi. Gerçek Postgres'e
+karşı, makinenin LAN IP'sinden (`http://192.168.1.102:5090/agentprism/`,
+`AllowRemoteAccess=false`) gerçek bir Playwright oturumuyla: kabuk artık
+yükleniyor (200, HTML), React çalışıyor, `AccessGate` "Access denied" kartını
+sunucunun ham `detail` metniyle ve `access.denied.remote` ipucuyla gösteriyor.
+Aynı LAN IP'den veri ucu (`/api/agents`) hâlâ `403`/`"Uzak erisim kapali"`
+döndürüyor — koruma kaybolmadı, yalnızca kabuk artık React'i başlatabiliyor.
+
+**Değişen dosyalar:** `src/AgentPrism.AspNetCore/Security/AgentPrismEndpointFilter.cs`
+(+`requireLoopback` parametresi, `InvokeAsync`'teki loopback denetimi buna
+bağlandı), `src/AgentPrism.AspNetCore/AgentPrismEndpointRouteBuilderExtensions.cs`
+(`MapUi` çağrısına `requireLoopback: false` eklendi, ilgili XML yorumları
+güncellendi). **Yeni dosya:**
+`tests/AgentPrism.AspNetCore.FunctionalTests/Infrastructure/FakeUiProvider.cs`
+(bu proje `AgentPrism.UI`'a bağımlı değil; kabuk davranışını gerçek varlık
+derlemesi olmadan test etmek için).
+
+**Case:** `MT-UI-008` ✅.
+
+**Regresyon testi:** `tests/AgentPrism.AspNetCore.FunctionalTests/SecurityTests.cs`
+`Kabuk_loopback_disi_istekte_hala_yuklenir_HATA_S4_003` — aynı istekte kabuğun
+(`/agentprism/`) loopback dışı IP'den `200` döndüğünü, veri ucunun
+(`/agentprism/api/agents`) aynı IP'den hâlâ `403` döndürdüğünü tek testte
+doğrular. Fix geri alınıp koşulduğunda kabuk isteği `Forbidden` ile KIRMIZI
+verdiği ampirik olarak doğrulandıktan sonra fix geri uygulandı.
 
 ### Aile N — 112 `ProblemDetails` başlığı Türkçe 🚨 Yüksek
 

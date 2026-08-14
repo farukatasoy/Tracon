@@ -278,9 +278,12 @@ public static class AgentPrismEndpointRouteBuilderExtensions
     /// <remarks>
     /// <para>
     /// Arayuz ucuncu bir gruba baglanir. Sebebi guvenlik katmanlarinin farkli
-    /// olmasidir: kabuk loopback kisitindan ve authorization policy'den gecer,
-    /// ancak bearer token denetiminden muaftir. Ayrinti:
-    /// <see cref="AgentPrismEndpointFilter"/>.
+    /// olmasidir: kabuk authorization policy'den gecer, ancak bearer token
+    /// denetiminden VE loopback kisitindan muaftir — ikisi de kabugun JS
+    /// paketini indirmesini engellerse <c>AccessGate</c>'in kendisi hicbir
+    /// zaman calisamaz (HATA-S4-003). Kabuk veri tasimaz; gercek koruma veri
+    /// uclarindaki (loopback kisiti varsayilan acik olan) filtre orneklerinden
+    /// gelir. Ayrinti: <see cref="AgentPrismEndpointFilter"/>.
     /// </para>
     /// <para>
     /// Kayit yoksa hicbir rota eklenmez. <c>AgentPrism.UI</c> paketi kurulu
@@ -299,7 +302,7 @@ public static class AgentPrismEndpointRouteBuilderExtensions
         }
 
         var uiGroup = endpoints.MapGroup(prefix).WithTags("AgentPrism");
-        uiGroup.AddEndpointFilter(new AgentPrismEndpointFilter(options, requireBearerToken: false));
+        uiGroup.AddEndpointFilter(new AgentPrismEndpointFilter(options, requireBearerToken: false, requireLoopback: false));
 
         if (options.AuthorizationPolicy is { Length: > 0 } policy)
         {
