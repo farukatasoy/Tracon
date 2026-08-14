@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
@@ -1021,12 +1022,36 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             Text = error?.Message,
         };
 
+    /// <summary>
+    /// Bir istisnayi calistirma hatasina cevirir; reflection/handler-cagrisi
+    /// sarmalayicilarini (K-400) soyar.
+    /// </summary>
+    /// <remarks>
+    /// MAF'in ic yurutme boru hatti (ornegin bir Magentic tur-token/dis-yanit
+    /// isleyicisi) bir istisnayi <see cref="TargetInvocationException"/> veya
+    /// tek elemanli bir <see cref="AggregateException"/> ile sarmalayarak
+    /// firlatabilir. Sarmalanmamis mesaj yalniz "Error invoking handler for
+    /// ..." gibi anlamsiz bir metin tasir; gercek neden <c>InnerException</c>'da
+    /// kalir ve sarmalanmadan yazilirsa operator asil arizayi hic goremez
+    /// (HATA-K-003, `MT-WF-071`/`073`). Yalniz TEK katmanli, tek-ic-istisnali
+    /// sarmalayicilar soyulur — dogrudan bir kod hatasi (ornegin coklu ic
+    /// istisnali gercek bir `AggregateException`) oldugu gibi birakilir.
+    /// </remarks>
     private static RunError ToRunError(Exception exception)
-        => new()
+    {
+        var unwrapped = exception switch
         {
-            Type = exception.GetType().FullName ?? exception.GetType().Name,
-            Message = exception.Message,
+            TargetInvocationException { InnerException: { } inner } => inner,
+            AggregateException { InnerExceptions.Count: 1 } aggregate => aggregate.InnerExceptions[0],
+            _ => exception,
         };
+
+        return new RunError
+        {
+            Type = unwrapped.GetType().FullName ?? unwrapped.GetType().Name,
+            Message = unwrapped.Message,
+        };
+    }
 
     /// <summary>Graf duzeyinde bir hatayi calistirma hatasina cevirir.</summary>
     private static RunError ToRunError(WorkflowErrorEvent failure)
