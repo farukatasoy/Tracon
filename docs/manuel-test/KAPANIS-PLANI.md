@@ -74,7 +74,7 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile C** — Eşzamanlı ilk istekte oturum lost update | `f287b12` | `MT-CORE-054` |
 | **Aile D** — `T[]` parametreli tool derlenmiyor; kök neden zaten `75990fd`'de kapanmıştı, kod değişikliği yok, yalnız case yeniden koşuldu | (bu koşum, docs-only) | `MT-PKG-044` |
 | **Aile E** — İki kalıcılık sağlayıcısı; `MigrationHostedService.IsWinningProvider()` zaten kapatmış, kod değişikliği yok, yalnız case yeniden koşuldu | (bu koşum, docs-only) | `MT-PKG-082` |
-| **Aile F** — 21 endpoint dosyasında kapsam denetimi yok; 4 yeni `ApiKeyScope` üyesi (`PlatformRead/Admin`, `SecurityAdmin`, `AuditRead`) + attenuation | `<commit>` | `MT-MCP-051`, `MT-RES-028`, `MT-JOB-090` (3/4 — `MT-MCP-052` ayrı bulgu olarak Kaldı kalır, bkz. §6) |
+| **Aile F** — 21 endpoint dosyasında kapsam denetimi yok; 4 yeni `ApiKeyScope` üyesi (`PlatformRead/Admin`, `SecurityAdmin`, `AuditRead`) + attenuation | `c96006c` | `MT-MCP-051`, `MT-RES-028`, `MT-JOB-090` (3/4 — `MT-MCP-052` ayrı bulgu olarak Kaldı kalır, bkz. §6) |
 
 ### Kalan aileler
 
