@@ -338,6 +338,14 @@ internal abstract class SqlQueriesBase
     /// <summary>Oturumu okur.</summary>
     public string SelectSession { get; protected set; } = string.Empty;
 
+    /// <summary>
+    /// Bir oturum kimliginin sahibi olan kiraciyi, kiraci filtresi UYGULAMADAN okur.
+    /// HATA-S2-005: capraz kiraci sahiplik denetimi <see cref="SelectSession"/>'i
+    /// kullanamaz — o zaten kiraciya gore filtrelenir ve baska kiracinin kaydini
+    /// hicbir zaman gormez.
+    /// </summary>
+    public string SelectSessionOwner { get; protected set; } = string.Empty;
+
     /// <summary>Oturumu siler.</summary>
     public string DeleteSession { get; protected set; } = string.Empty;
 

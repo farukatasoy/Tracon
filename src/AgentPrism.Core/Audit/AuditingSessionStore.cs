@@ -47,6 +47,16 @@ public sealed class AuditingSessionStore : ISessionStore, IAuditDecorated
         => _inner.GetAsync(sessionId, cancellationToken);
 
     /// <inheritdoc />
+    /// <remarks>
+    /// 🚨 <see cref="TryCreateAsync"/>'teki ayni tuzak: bu geri cagri atlanirsa
+    /// dekorator kendi varsayilan (kiraciya gore filtrelenen, dolayisiyla capraz
+    /// kiraci sorusunu asla dogru cevaplamayan) uygulamasina duser ve ic depodaki
+    /// gercekten kiraciden bagimsiz uygulamayi sessizce devre disi birakir.
+    /// </remarks>
+    public ValueTask<string?> GetOwnerTenantIdAsync(string sessionId, CancellationToken cancellationToken = default)
+        => _inner.GetOwnerTenantIdAsync(sessionId, cancellationToken);
+
+    /// <inheritdoc />
     public ValueTask SaveAsync(SessionRecord record, CancellationToken cancellationToken = default)
         => _inner.SaveAsync(record, cancellationToken);
 

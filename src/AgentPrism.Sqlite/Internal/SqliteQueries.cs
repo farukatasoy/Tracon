@@ -309,6 +309,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
             WHERE id = @id AND tenant_id = @tenant_id;
             """;
 
+        SelectSessionOwner = $"SELECT tenant_id FROM {Schema}sessions WHERE id = @id;";
+
         DeleteSession = $"DELETE FROM {Schema}sessions WHERE id = @id AND tenant_id = @tenant_id;";
 
         SelectSessions = $"""

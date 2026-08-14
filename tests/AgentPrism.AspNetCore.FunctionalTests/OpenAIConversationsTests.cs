@@ -242,3 +242,139 @@ public sealed class OpenAIConversationsTests
         return conversationId;
     }
 }
+
+/// <summary>
+/// Konuşma kimliklerine çapraz kiracı erişimi <c>404</c> döner.
+/// </summary>
+/// <remarks>
+/// HATA-S2-005: <c>ISessionStore.GetAsync</c> ambient kiraciyle filtrelenir;
+/// bu yuzden capraz kiraci sahiplik denetimi (<c>record is not null &amp;&amp;
+/// !IsOwnedByTenant(record, ...)</c>) hicbir zaman tetiklenmiyordu — baska
+/// kiracinin kaydi bu baglamdan hicbir zaman GORULMEZ, <c>record</c> daima
+/// <see langword="null"/> donuyordu. Denetim artik <c>ISessionStore.GetOwnerTenantIdAsync</c>
+/// ile, kiraci filtresi UYGULAMADAN yapilir.
+/// </remarks>
+public sealed class OpenAIConversationsCrossTenantTests
+{
+    private const string TenantHeader = "X-AgentPrism-Tenant";
+    private const string TenantAlfa = "kiraci-alfa";
+    private const string TenantBeta = "kiraci-beta";
+
+    [Fact]
+    public async Task Konusma_kimligine_capraz_kiraci_responses_cagrisi_404_doner()
+    {
+        // MT-COMPAT-023
+        await using var host = await StartTenantHostAsync();
+
+        var conversationId = await CreateAndRunAsync(host, TenantAlfa, "Bu benim gizli sohbetim.");
+
+        using var crossTenant = await host.Client.SendAsync(Request(
+            HttpMethod.Post,
+            "/agentprism/v1/responses",
+            TenantBeta,
+            new { model = "kod-agent", conversation = conversationId, input = "Baska bir kiraciyim." }));
+
+        crossTenant.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await AgentPrismTestHost.ReadJsonAsync(crossTenant))
+            .GetProperty("error").GetProperty("type").GetString().ShouldBe("not_found_error");
+
+        // Kiraci-alfa'nin oturumu YENI bir tur almamis olmalidir.
+        using var owned = await host.Client.SendAsync(
+            Request(HttpMethod.Get, $"/agentprism/api/sessions/{conversationId}", TenantAlfa, body: null));
+
+        owned.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Konusma_GET_ucuna_capraz_kiraci_erisimi_404_doner()
+    {
+        // MT-COMPAT-036
+        await using var host = await StartTenantHostAsync();
+
+        var conversationId = await CreateAndRunAsync(host, TenantAlfa, "Alfa kiracisinin sohbeti.");
+
+        using var response = await host.Client.SendAsync(
+            Request(HttpMethod.Get, $"/agentprism/v1/conversations/{conversationId}", TenantBeta, body: null));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await AgentPrismTestHost.ReadJsonAsync(response))
+            .GetProperty("error").GetProperty("type").GetString().ShouldBe("not_found_error");
+    }
+
+    [Fact]
+    public async Task Konusma_silme_ucuna_capraz_kiraci_erisimi_404_doner_ve_sahibin_oturumu_kalir()
+    {
+        // MT-COMPAT-039
+        await using var host = await StartTenantHostAsync();
+
+        var conversationId = await CreateAndRunAsync(host, TenantAlfa, "Alfa kiracisinin sohbeti.");
+
+        using var deleted = await host.Client.SendAsync(
+            Request(HttpMethod.Delete, $"/agentprism/v1/conversations/{conversationId}", TenantBeta, body: null));
+
+        deleted.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+
+        using var owned = await host.Client.SendAsync(
+            Request(HttpMethod.Get, $"/agentprism/api/sessions/{conversationId}", TenantAlfa, body: null));
+
+        owned.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Oge_listesine_capraz_kiraci_erisimi_404_doner()
+    {
+        // MT-COMPAT-043
+        await using var host = await StartTenantHostAsync();
+
+        var conversationId = await CreateAndRunAsync(host, TenantAlfa, "Alfa kiracisinin gizli sohbeti.");
+
+        using var response = await host.Client.SendAsync(
+            Request(HttpMethod.Get, $"/agentprism/v1/conversations/{conversationId}/items", TenantBeta, body: null));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await AgentPrismTestHost.ReadJsonAsync(response))
+            .GetProperty("error").GetProperty("type").GetString().ShouldBe("not_found_error");
+    }
+
+    private static Task<AgentPrismTestHost> StartTenantHostAsync()
+        => AgentPrismTestHost.StartAsync(static builder => builder
+            .AddAgent(TestData.Definition())
+            .UseTenancy(static options =>
+            {
+                options.Enabled = true;
+                options.AllowHeaderResolution = true;
+            }));
+
+    private static async Task<string> CreateAndRunAsync(AgentPrismTestHost host, string tenant, string message)
+    {
+        using var created = await host.Client.SendAsync(
+            Request(HttpMethod.Post, "/agentprism/v1/conversations", tenant, new { }));
+
+        created.EnsureSuccessStatusCode();
+        var conversationId = (await AgentPrismTestHost.ReadJsonAsync(created)).GetProperty("id").GetString()!;
+
+        using var run = await host.Client.SendAsync(Request(
+            HttpMethod.Post,
+            "/agentprism/v1/responses",
+            tenant,
+            new { model = "kod-agent", conversation = conversationId, input = message }));
+
+        run.EnsureSuccessStatusCode();
+
+        return conversationId;
+    }
+
+    private static HttpRequestMessage Request(HttpMethod method, string path, string tenant, object? body)
+    {
+        var request = new HttpRequestMessage(method, new Uri(path, UriKind.Relative));
+
+        request.Headers.Add(TenantHeader, tenant);
+
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
+
+        return request;
+    }
+}
