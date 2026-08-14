@@ -422,7 +422,30 @@ ama bu surecte kayitli degil"` — `IRunCancellationRegistry`de kayıt yok
 hiç açmıyor (`grep -rn RunReconciliation samples/` sıfır sonuç) — bu yüzden
 bu run KENDİLİĞİNDEN asla iyileşmeyecek, sonsuza dek `Running` kalacak.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Yeniden koşum (KAPANIŞ-PLANI Aile L, `a61f999`).** Kök neden bulundu ve
+düzeltildi: `RunRecordingAgent.BeginRunAsync` `RunStarted` olayını depoya
+yazdıktan SONRA `SaveInputAsync`'i çağırıyordu; `SaveInputAsync`
+`OperationCanceledException`'ı BİLEREK yutmuyor (gerçek bir iptali sessizce
+boğmamak için), ama bu çağrı `RunCoreAsync`/`RunCoreStreamingAsync`'in
+try/finally güvenlik ağının (HATA-S1-015) DIŞINDAYDI — istisna hiçbir yeri
+tetiklemeden metodun dışına fırlıyordu. Düzeltme: kapsam kurma (`CreateScope`,
+saf, G/Ç yok) G/Ç yapan adımdan (`WriteRunStartAsync`) ayrıldı; ikincisi artık
+her iki metodun da try/finally'sinin İÇİNDE çalışıyor.
+
+Canlı doğrulama (gerçek Postgres, `samples/AgentPrism.Api`): `support`
+agent'ına 11 istek `curl --max-time` ile 2-120ms aralığında erken kesildi; 5'i
+sunucuya ulaşıp bir `runs` satırı açtı, **5'i de** `Canceled` ile kapandı
+(`eventCount:2`, `run_events` sorgusu: seq 0 `RunStarted`, seq 1 "Calistirma
+iptal edildi." — hiçbiri `Running`de asılı kalmadı). Normal (kesilmemiş) bir
+istek de aynı sunucuda `Completed` ile doğru şekilde tamamlandı, regresyon
+yok. Birim testleri (`RunStartCancellationTests.cs`, akışlı/akışsız iki
+senaryo) `SaveInputAsync`'in tam bu penceresini deterministik olarak tekrar
+üretir; fix geri alınıp koşulduğunda ikisi de `run.Status == Running` ile
+KIRMIZI verdiği ampirik olarak doğrulandıktan sonra fix geri uygulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
