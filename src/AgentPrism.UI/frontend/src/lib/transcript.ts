@@ -119,10 +119,18 @@ function stringify(value: unknown): string | null {
   }
 }
 
-function appendText(items: TranscriptItem[], kind: 'text' | 'reasoning', text: string): void {
+/**
+ * `boundary` stops a run of text from merging into an item that was written
+ * before it — `foldMessages` sets it to the first item index OF the message
+ * being folded, so this message's own text still extends within itself
+ * (streaming deltas do) but never absorbs the previous message's last line.
+ * `foldUpdate`/`foldRunEvents` fold one continuous stream and never pass it,
+ * so their merging is unrestricted as before.
+ */
+function appendText(items: TranscriptItem[], kind: 'text' | 'reasoning', text: string, boundary = 0): void {
   const last = items[items.length - 1];
 
-  if (last !== undefined && last.kind === kind) {
+  if (last !== undefined && last.kind === kind && items.length - 1 >= boundary) {
     last.text += text;
 
     return;
@@ -131,11 +139,11 @@ function appendText(items: TranscriptItem[], kind: 'text' | 'reasoning', text: s
   items.push({ kind, id: `${kind}-${items.length}`, text });
 }
 
-function applyContent(state: TranscriptState, content: ChatContent): void {
+function applyContent(state: TranscriptState, content: ChatContent, boundary = 0): void {
   switch (classify(content)) {
     case 'text': {
       if (typeof content.text === 'string' && content.text.length > 0) {
-        appendText(state.items, 'text', content.text);
+        appendText(state.items, 'text', content.text, boundary);
       }
 
       break;
@@ -143,7 +151,7 @@ function applyContent(state: TranscriptState, content: ChatContent): void {
 
     case 'reasoning': {
       if (typeof content.text === 'string' && content.text.length > 0) {
-        appendText(state.items, 'reasoning', content.text);
+        appendText(state.items, 'reasoning', content.text, boundary);
       }
 
       break;
@@ -265,15 +273,36 @@ export function foldUpdate(state: TranscriptState, update: { contents?: ChatCont
   return next;
 }
 
-/** Folds a recorded chat history (`/api/sessions/{id}`) into transcripts per message. */
-export function foldMessage(message: ChatMessage): TranscriptState {
-  const state: TranscriptState = { items: [], usage: null };
+/**
+ * Folds a recorded chat history (`/api/sessions/{id}`) into one transcript per
+ * message, in order.
+ *
+ * A tool call and its result are two SEPARATE `ChatMessage`s in MAF's history
+ * (`assistant/functionCall` then `tool/functionResult`) — folding each message
+ * on its own would create a fresh 'running' tool item for the call and have
+ * nowhere to apply the result, leaving it stuck 'running' forever with the
+ * actual result text visible nowhere (HATA-S4-016). Folding runs against one
+ * shared accumulator instead, exactly as `foldRunEvents` already does across a
+ * run's events, so a later message's result content can still find and update
+ * the tool item an earlier message's call content created. Each message keeps
+ * only the items it newly added — the result message itself typically adds
+ * none, since it mutates the call's item in place by reference.
+ */
+export function foldMessages(messages: readonly ChatMessage[]): TranscriptState[] {
+  const shared: TranscriptState = { items: [], usage: null };
+  const perMessage: TranscriptState[] = [];
 
-  for (const content of message.contents ?? []) {
-    applyContent(state, content);
+  for (const message of messages) {
+    const before = shared.items.length;
+
+    for (const content of message.contents ?? []) {
+      applyContent(shared, content, before);
+    }
+
+    perMessage.push({ items: shared.items.slice(before), usage: shared.usage });
   }
 
-  return state;
+  return perMessage;
 }
 
 /**

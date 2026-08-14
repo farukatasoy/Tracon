@@ -159,6 +159,29 @@ public sealed class RunReplayEndpointTests
     }
 
     [Fact]
+    public async Task Kod_kaynakli_agentteki_onay_gerektiren_tool_LiveTools_ile_de_409_doner()
+    {
+        // HATA-S4-014: onay-tool korumasi yalniz `definition is not null`
+        // dalinda (DB kaynakli agent, yukaridaki test) calisiyordu.
+        // `PrepareFromCatalogAsync` (kod kaynakli agent yolu) AYNI korumayi
+        // uygulamiyordu — istek 200 ile "basariyla" acilip modelin tool'u
+        // hic cagirmadigi sessiz bir run'a duserdi, kullaniciya NEDEN
+        // hicbir sey olmadigini acikliyan bir sinyal olmadan.
+        await using var host = await AgentPrismTestHost.StartAsync(builder =>
+        {
+            builder.AddToolsFrom(typeof(ReplayProbeTools));
+            builder.AddAgent(TestData.Definition("kod-onay-agenti") with { ToolNames = ["cancel_order"] });
+        });
+
+        var runId = await SeedAsync(
+            host, [new ChatMessage(ChatRole.User, "siparisi iptal et")], agentName: "kod-onay-agenti");
+
+        using var live = await host.Client.PostAsJsonAsync(ReplayUri(runId), new { toolMode = "LiveTools" });
+
+        live.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
     public async Task Kalici_tanimi_olmayan_agent_bindirmeyle_oynatilamaz_400_doner()
     {
         // Kod agent'inin AgentDefinition karsiligi yoktur; model bindirmesi ve

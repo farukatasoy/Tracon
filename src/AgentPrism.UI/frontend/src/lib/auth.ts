@@ -17,6 +17,11 @@ const listeners = new Set<() => void>();
 
 let token: string | null = read();
 
+// Set only by `rejectToken()`, and only when a token was actually attempted:
+// distinguishes "the server rejected this token" from "no token was ever set",
+// which `token === null` alone cannot do once the rejected value is cleared.
+let rejected = false;
+
 function read(): string | null {
   try {
     return window.sessionStorage.getItem(STORAGE_KEY);
@@ -25,26 +30,56 @@ function read(): string | null {
   }
 }
 
-export function getToken(): string | null {
-  return token;
-}
-
-export function setToken(value: string | null): void {
-  token = value && value.length > 0 ? value : null;
-
+function write(value: string | null): void {
   try {
-    if (token === null) {
+    if (value === null) {
       window.sessionStorage.removeItem(STORAGE_KEY);
     } else {
-      window.sessionStorage.setItem(STORAGE_KEY, token);
+      window.sessionStorage.setItem(STORAGE_KEY, value);
     }
   } catch {
     // Storage may be unavailable; the in-memory value still works for this tab.
   }
+}
 
+function notify(): void {
   for (const listener of listeners) {
     listener();
   }
+}
+
+export function getToken(): string | null {
+  return token;
+}
+
+export function isTokenRejected(): boolean {
+  return rejected;
+}
+
+export function setToken(value: string | null): void {
+  token = value && value.length > 0 ? value : null;
+  rejected = false;
+  write(token);
+  notify();
+}
+
+/**
+ * Clears a token the server just answered with 401, marking it as rejected
+ * rather than merely absent.
+ *
+ * A no-op when there was no token to reject: the very first anonymous probe
+ * also gets a 401, and that case must not read back as "your token was
+ * wrong" ({@link useTokenRejected}).
+ */
+export function rejectToken(): void {
+  if (token === null) {
+    return;
+  }
+
+  token = null;
+  rejected = true;
+  write(null);
+  notify();
 }
 
 function subscribe(listener: () => void): () => void {
@@ -57,6 +92,11 @@ function subscribe(listener: () => void): () => void {
 
 export function useToken(): string | null {
   return useSyncExternalStore(subscribe, getToken, () => null);
+}
+
+/** Whether the last token that was set was subsequently rejected by the server. */
+export function useTokenRejected(): boolean {
+  return useSyncExternalStore(subscribe, isTokenRejected, () => false);
 }
 
 /** Authorization header for the current token, or an empty object. */
