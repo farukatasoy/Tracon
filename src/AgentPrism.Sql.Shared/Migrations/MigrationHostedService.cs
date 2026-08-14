@@ -80,9 +80,16 @@ internal sealed class MigrationHostedService : IHostedService
             // de kendi semasini/varsayilan kiracisini SESSIZCE yazardi (olculdu:
             // MT-PKG-082, iki veritabaninda da sema olustu). Yalnizca kazanan
             // (son kaydedilen) saglayici migration uygular; digerleri kapiyi
-            // acar ve hicbir seye dokunmadan cikar.
+            // hicbir seye dokunmadan cikar.
+            //
+            // 🚨 Kapiyi KAYBEDEN ACMAZ. Kapi paylasilan TEK bir sinyaldir; kaybeden
+            // onu hemen acsaydi, kazananin migration'i daha bitmeden acilirdi ve
+            // bekleyen arka plan servisleri bos bir semaya sorgu atardi. Olculdu:
+            // MT-PG-034 (PostgreSQL semasi zaten guncelken SQLite kazanir; kaybeden
+            // PostgreSQL kapiyi aninda acar ve "no such table" ile karsilasilir).
+            // Kazanan HER YOLDA MarkReady cagirir - AutoApplyMigrations kapali olsa
+            // bile - bu yuzden kapi asla acilmadan kalmaz.
             WarnOnMultipleProviders();
-            _schemaReadyGate.MarkReady();
 
             return;
         }

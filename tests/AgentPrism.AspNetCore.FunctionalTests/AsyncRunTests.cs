@@ -67,7 +67,10 @@ public sealed class AsyncRunTests
         var runId = (await AgentPrismTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
         var uri = new Uri($"/agentprism/api/runs/{runId}", UriKind.Relative);
-        var deadline = DateTime.UtcNow.AddSeconds(5);
+        // Sure yuk altinda genis tutulur: 16 test projesi paralel kosarken 5 sn
+        // yetmiyordu (ApprovalEndpointTests'te ayni desen olculdu). Saglikli bir
+        // kosumda dongu yine milisaniyeler icinde cikar.
+        var deadline = DateTime.UtcNow.AddSeconds(30);
         string? status = null;
 
         while (DateTime.UtcNow < deadline)

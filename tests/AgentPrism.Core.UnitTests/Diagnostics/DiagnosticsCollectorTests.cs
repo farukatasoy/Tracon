@@ -138,4 +138,46 @@ public sealed class DiagnosticsCollectorTests
         report.ToolCount.ShouldBe(1);
         report.AgentCount.ShouldBe(0);
     }
+
+    /// <summary>
+    /// Katalog okunamadiginda rapor COKMEZ; <c>AgentCount</c> bos gelir ama
+    /// migration bilgisi korunur.
+    /// </summary>
+    /// <remarks>
+    /// Teshis ucunun birincil kullanim ani semanin HENUZ hazir olmadigi andir
+    /// (<c>AutoApplyMigrations=false</c>). Olculdu: MT-PG-051 — uc tam da
+    /// ihtiyac duyuldugu anda HTTP 500 donuyordu.
+    /// </remarks>
+    [Fact]
+    public async Task Katalog_okunamazsa_rapor_uretilir_ve_AgentCount_bos_gelir()
+    {
+        var services = new ServiceCollection();
+        services.AddAgentPrism().AddModelProvider(new FakeModelProvider());
+        services.AddSingleton<IAgentCatalog>(new ThrowingAgentCatalog());
+
+        await using var provider = services.BuildServiceProvider();
+        var collector = provider.GetRequiredService<AgentPrismDiagnosticsCollector>();
+
+        var report = await collector.CollectAsync();
+
+        report.AgentCount.ShouldBeNull();
+        report.PersistenceProvider.ShouldNotBeNullOrEmpty();
+    }
+
+    private sealed class ThrowingAgentCatalog : IAgentCatalog
+    {
+        public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("relation \"agent_definitions\" does not exist");
+
+        public ValueTask<Microsoft.Agents.AI.AIAgent?> ResolveAsync(
+            string agentName,
+            CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("relation \"agent_definitions\" does not exist");
+
+        public ValueTask<Microsoft.Agents.AI.AIAgent?> ResolveAsync(
+            string agentName,
+            int? version,
+            CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("relation \"agent_definitions\" does not exist");
+    }
 }
