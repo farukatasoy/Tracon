@@ -81,7 +81,7 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile J** — Agent editörünün iki `useEffect`'i aynı commit'te çözülünce sağlayıcıyı ezen yarış; guard functional `setForm` updater'ının içine, `current` (taze state) üzerinden karar verecek şekilde taşındı | `c0175b9` | `MT-UIAG-014` |
 | **Aile K** — CSP `blob:` şemasını hiçbir yönergede beyaz listeye almıyordu; `EmbeddedUiProvider.ContentSecurityPolicy`'ye `img-src`'e `blob:` + yeni `media-src 'self' blob:;` eklendi | `c1efa8a` | `MT-UIAG-044`, `MT-UIAG-050` |
 | **Aile L** — SPA geçişinin erken `AbortController.abort()`'u `RunStarted` yazıldıktan sonra ama try/finally güvenlik ağına girmeden çalıştırmayı sonsuza dek `Running`de bırakıyordu; `BeginRunAsync` `CreateScope` (saf) + `WriteRunStartAsync` (G/Ç) olarak ikiye bölündü, ikincisi güvenlik ağının içine taşındı | `a61f999` | `MT-UIRUN-007` |
-| **Aile M** — Kabuk loopback kısıtından muaf değildi, loopback dışı erişimde React hiç başlamıyordu; `AgentPrismEndpointFilter`'a `requireLoopback` parametresi eklendi, kabuk grubu bearer token gibi loopback'ten de muaf tutuldu | (bu koşum) | `MT-UI-008` |
+| **Aile M** — Kabuk loopback kısıtından muaf değildi, loopback dışı erişimde React hiç başlamıyordu; `AgentPrismEndpointFilter`'a `requireLoopback` parametresi eklendi, kabuk grubu bearer token gibi loopback'ten de muaf tutuldu | `58c3268` | `MT-UI-008` |
 
 ### Kalan aileler
 
