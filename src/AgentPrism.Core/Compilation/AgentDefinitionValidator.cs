@@ -251,9 +251,14 @@ public sealed class AgentDefinitionValidator
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(timeout);
 
-            await _mcpRefresher!.RefreshAsync(cts.Token).ConfigureAwait(false);
+            var outcome = await _mcpRefresher!.RefreshAsync(cts.Token).ConfigureAwait(false);
 
-            return true;
+            // 🚨 HATA-006 / MT-CORE-006: bir MCP sunucusuna baglanti REDDEDILDIGINDE
+            // (aktif "connection refused") McpToolCatalog istisna FIRLATMAZ — o
+            // sunucunun tool'lari listeden duser, tazeleme "basarili" doner. Yalniz
+            // ZAMAN ASIMINDA (asagidaki catch) bir istisna yukselir. Ikisi de ayni
+            // sekilde ele alinmalidir: HadUnreachableServers bu ayrimi kapatir.
+            return !outcome.HadUnreachableServers;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {

@@ -95,13 +95,15 @@ internal sealed class McpToolCatalog : IAsyncDisposable
     /// Tum kiracilarin sunucularini tarar ve tool listesini tazeler.
     /// </summary>
     /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kesfedilen toplam tool sayisi.</returns>
+    /// <returns>Bu tazelemenin sonucu.</returns>
     /// <remarks>
     /// Bir sunucuya ulasilamamasi <strong>hata degildir</strong>: o sunucunun
     /// tool'lari listeden duser, digerleri calismaya devam eder ve bir uyari
-    /// loglanir. Uzak bir sunucunun cokmesi AgentPrism'i durdurmamalidir.
+    /// loglanir. Uzak bir sunucunun cokmesi AgentPrism'i durdurmamalidir —
+    /// ama caginan taraf bunu <see cref="McpRefreshOutcome.HadUnreachableServers"/>
+    /// uzerinden bilebilir (HATA-006, MT-CORE-006).
     /// </remarks>
-    public async ValueTask<int> RefreshAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<McpRefreshOutcome> RefreshAsync(CancellationToken cancellationToken = default)
     {
         await _refreshGate.WaitAsync(cancellationToken).ConfigureAwait(false);
 
@@ -111,6 +113,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
             var byTenant = new Dictionary<string, McpTenantTools>(StringComparer.Ordinal);
             var live = new HashSet<string>(StringComparer.Ordinal);
             var total = 0;
+            var hadUnreachableServers = false;
 
             foreach (var tenantId in tenantIds)
             {
@@ -126,7 +129,9 @@ internal sealed class McpToolCatalog : IAsyncDisposable
                     var key = $"{tenantId}{server.Name}";
                     live.Add(key);
 
-                    var connection = await EnsureConnectionAsync(tenantId, key, server, cancellationToken).ConfigureAwait(false);
+                    var (connection, unreachable) = await EnsureConnectionAsync(tenantId, key, server, cancellationToken).ConfigureAwait(false);
+
+                    hadUnreachableServers |= unreachable;
 
                     if (connection is not null)
                     {
@@ -145,7 +150,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
 
             _byTenant = byTenant;
 
-            return total;
+            return new McpRefreshOutcome { ToolCount = total, HadUnreachableServers = hadUnreachableServers };
         }
         finally
         {
@@ -192,7 +197,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         return ids;
     }
 
-    private async ValueTask<McpConnection?> EnsureConnectionAsync(
+    private async ValueTask<(McpConnection? Connection, bool Unreachable)> EnsureConnectionAsync(
         string tenantId,
         string key,
         McpServerDefinition server,
@@ -207,10 +212,10 @@ internal sealed class McpToolCatalog : IAsyncDisposable
                 // Tanim degismedi: baglanti ayakta kalir, yalnizca tool listesi
                 // tazelenir. Degismeyen bir baglantiyi kapatmak devam eden bir
                 // tool cagrisini kirardi.
-                return await existing.RefreshCatalogAsync(_options.Value, _logger, cancellationToken)
-                    .ConfigureAwait(false)
-                    ? existing
-                    : null;
+                var (refreshed, unreachable) = await existing.RefreshCatalogAsync(_options.Value, _logger, cancellationToken)
+                    .ConfigureAwait(false);
+
+                return refreshed ? (existing, false) : (null, unreachable);
             }
 
             await existing.DisposeAsync().ConfigureAwait(false);
@@ -219,18 +224,18 @@ internal sealed class McpToolCatalog : IAsyncDisposable
 
         var tokenCache = _tokenCaches.GetOrCreate(tenantId, server.Name);
 
-        var connection = await McpConnection
+        var (connection, connectUnreachable) = await McpConnection
             .ConnectAsync(server, _configuration, _options.Value, tokenCache, _loggerFactory, _logger, cancellationToken)
             .ConfigureAwait(false);
 
         if (connection is null)
         {
-            return null;
+            return (null, connectUnreachable);
         }
 
         _connections[key] = connection;
 
-        return connection;
+        return (connection, false);
     }
 
     private async ValueTask CloseRemovedConnectionsAsync(HashSet<string> live)
@@ -263,6 +268,6 @@ internal sealed class McpToolRefresher : IMcpToolRefresher
     }
 
     /// <inheritdoc />
-    public ValueTask<int> RefreshAsync(CancellationToken cancellationToken = default)
+    public ValueTask<McpRefreshOutcome> RefreshAsync(CancellationToken cancellationToken = default)
         => _catalog.RefreshAsync(cancellationToken);
 }
