@@ -215,6 +215,12 @@ public sealed record RunQuery
     /// <summary>Yalnizca bu oturuma ait calistirmalari getirir.</summary>
     public string? SessionId { get; init; }
 
+    /// <summary>
+    /// Yalnizca bu hata turunu (<see cref="RunError.Type"/>) tasiyan calistirmalari
+    /// getirir. <see langword="null"/> ise tum hata turleri dahildir.
+    /// </summary>
+    public string? ErrorType { get; init; }
+
     /// <summary>Bu andan sonra baslayan calistirmalari getirir (UTC).</summary>
     public DateTimeOffset? StartedAfter { get; init; }
 

@@ -316,6 +316,36 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
+    public async Task Sorgu_hata_turune_gore_filtreler()
+    {
+        // HATA-S3-007: RunQuery.ErrorType eklenmeden once bu filtre sessizce
+        // yok sayilir ve TUM calistirmalar dondurulurdu.
+        var blockedId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(blockedId));
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = blockedId,
+            Status = RunStatus.Failed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Error = new RunError { Type = "content_blocked", Message = "engellendi" },
+        });
+
+        var otherId = AgentPrismId.NewId();
+        await Store.StartRunAsync(TestData.Run(otherId));
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = otherId,
+            Status = RunStatus.Failed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Error = new RunError { Type = "upstream_error", Message = "saglayici hatasi" },
+        });
+
+        var results = await Store.QueryRunsAsync(new RunQuery { ErrorType = "content_blocked" });
+
+        results.ShouldHaveSingleItem().Id.ShouldBe(blockedId);
+    }
+
+    [Fact]
     public async Task Olmayan_calistirma_null_doner()
         => (await Store.GetRunAsync(AgentPrismId.NewId())).ShouldBeNull();
 
@@ -713,6 +743,35 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         var all = await Store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false });
 
         all.Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task Sorgu_oturum_filtresi_includeChildren_ile_alt_calistirmalari_da_getirir()
+    {
+        // HATA-S2-001: SessionId yalniz KOK calistirmada set edilir (K-217);
+        // alt calistirmanin kendi SessionId'si NULL'dur. Dogrudan esitlik
+        // "includeChildren=true" ile birlikte verildiginde hicbir alt
+        // calistirmayi eslestirmezdi.
+        var rootId = AgentPrismId.NewId();
+        var childId = AgentPrismId.NewId();
+        var yabanciRootId = AgentPrismId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(rootId) with { SessionId = "oturum-1" });
+        await Store.StartRunAsync(TestData.Run(childId, "arastirmaci") with
+        {
+            ParentRunId = rootId,
+            RootRunId = rootId,
+            Depth = 1,
+        });
+        await Store.StartRunAsync(TestData.Run(yabanciRootId) with { SessionId = "oturum-2" });
+
+        var rootOnly = await Store.QueryRunsAsync(new RunQuery { SessionId = "oturum-1" });
+
+        rootOnly.ShouldHaveSingleItem().Id.ShouldBe(rootId);
+
+        var withChildren = await Store.QueryRunsAsync(new RunQuery { SessionId = "oturum-1", OnlyRootRuns = false });
+
+        withChildren.Select(static run => run.Id).ShouldBe([rootId, childId], ignoreOrder: true);
     }
 
     [Fact]

@@ -312,6 +312,30 @@ public sealed class InMemoryRunStore : IRunStore
     {
         ArgumentNullException.ThrowIfNull(query);
 
+        var effectiveTenantId = query.TenantId ?? _tenantContext.TenantId;
+
+        // HATA-S2-001: SessionId yalniz KOK calistirmada set edilir (K-217);
+        // alt calistirmalarin kendi SessionId'si her zaman null'dur. Dogrudan
+        // esitlik denetimi bu yuzden "includeChildren=true" ile birlikte
+        // verildiginde hicbir alt calistirmayi asla eslestirmezdi. Once bu
+        // oturuma ait KOK calistirmalarin kimligini topla, sonra her kaydi
+        // kendi agacinin KOKUNE (RootRunId ?? Id) gore esle.
+        HashSet<Guid>? sessionRootIds = null;
+
+        if (query.SessionId is { } sessionId)
+        {
+            sessionRootIds = [];
+
+            foreach (var candidate in _runs.Values)
+            {
+                if (string.Equals(candidate.SessionId, sessionId, StringComparison.Ordinal)
+                    && string.Equals(candidate.TenantId, effectiveTenantId, StringComparison.Ordinal))
+                {
+                    sessionRootIds.Add(candidate.Id);
+                }
+            }
+        }
+
         var matches = new List<RunRecord>();
 
         foreach (var record in _runs.Values)
@@ -331,12 +355,17 @@ public sealed class InMemoryRunStore : IRunStore
                 continue;
             }
 
-            if (!string.Equals(record.TenantId, query.TenantId ?? _tenantContext.TenantId, StringComparison.Ordinal))
+            if (!string.Equals(record.TenantId, effectiveTenantId, StringComparison.Ordinal))
             {
                 continue;
             }
 
-            if (query.SessionId is { } sessionId && !string.Equals(record.SessionId, sessionId, StringComparison.Ordinal))
+            if (sessionRootIds is not null && !sessionRootIds.Contains(record.RootRunId ?? record.Id))
+            {
+                continue;
+            }
+
+            if (query.ErrorType is { } errorType && !string.Equals(record.Error?.Type, errorType, StringComparison.Ordinal))
             {
                 continue;
             }

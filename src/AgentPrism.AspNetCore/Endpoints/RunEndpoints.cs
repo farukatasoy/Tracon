@@ -45,6 +45,7 @@ internal static class RunEndpoints
                 [FromQuery] RunStatus? status,
                 [FromQuery] RunKind? kind,
                 [FromQuery] string? sessionId,
+                [FromQuery] string? errorType,
                 [FromQuery] DateTimeOffset? startedAfter,
                 [FromQuery] bool? includeChildren,
                 [FromQuery] Guid? parentRunId,
@@ -60,6 +61,7 @@ internal static class RunEndpoints
                         Status = status,
                         Kind = kind,
                         SessionId = sessionId,
+                        ErrorType = errorType,
                         StartedAfter = startedAfter,
 
                         // Varsayilan yalniz kok calistirmalardir: bir agent baska

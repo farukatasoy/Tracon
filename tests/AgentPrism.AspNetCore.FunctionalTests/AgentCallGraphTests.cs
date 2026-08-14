@@ -123,6 +123,86 @@ public sealed class AgentCallGraphTests
     }
 
     [Fact]
+    public async Task Oturum_filtresi_includeChildren_ile_alt_calistirmalari_da_doner()
+    {
+        // HATA-S2-001 / MT-API-060: SessionId yalniz KOK calistirmada set
+        // edilir (K-217). Dogrudan esitlik filtresi "includeChildren=true" ile
+        // birlikte verildiginde alt calistirmayi hicbir zaman eslestirmezdi.
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        var runs = host.Services.GetRequiredService<IRunStore>();
+        var rootId = AgentPrismId.NewId();
+        var childId = AgentPrismId.NewId();
+
+        await runs.StartRunAsync(new RunStartInfo
+        {
+            RunId = rootId,
+            AgentName = "yonlendirici",
+            StartedAt = DateTimeOffset.UtcNow,
+            SessionId = "api-agac-01",
+        });
+
+        await runs.StartRunAsync(new RunStartInfo
+        {
+            RunId = childId,
+            AgentName = "arastirmaci",
+            StartedAt = DateTimeOffset.UtcNow,
+            ParentRunId = rootId,
+            RootRunId = rootId,
+            Depth = 1,
+        });
+
+        using var rootOnly = await host.Client.GetAsync(
+            new Uri("/agentprism/api/runs?sessionId=api-agac-01", UriKind.Relative));
+
+        (await IdsAsync(rootOnly)).ShouldBe([rootId.ToString()]);
+
+        using var withChildren = await host.Client.GetAsync(
+            new Uri("/agentprism/api/runs?sessionId=api-agac-01&includeChildren=true", UriKind.Relative));
+
+        (await IdsAsync(withChildren)).ShouldBe(
+            [rootId.ToString(), childId.ToString()],
+            ignoreOrder: true);
+    }
+
+    [Fact]
+    public async Task ErrorType_filtresi_baglanir_ve_filtreler()
+    {
+        // HATA-S3-007 / MT-GUARD-064: RunEndpoints.MapGet("/api/runs", ...)
+        // eskiden "errorType" adinda bir parametre baglamiyordu; ASP.NET Core
+        // bilinmeyen sorgu parametresini sessizce yok sayiyor, sonuc HER ZAMAN
+        // filtresizmis gibi donuyordu.
+        await using var host = await AgentPrismTestHost.StartAsync();
+
+        var runs = host.Services.GetRequiredService<IRunStore>();
+        var blockedId = AgentPrismId.NewId();
+        var otherId = AgentPrismId.NewId();
+
+        await runs.StartRunAsync(new RunStartInfo { RunId = blockedId, AgentName = "a", StartedAt = DateTimeOffset.UtcNow });
+        await runs.CompleteRunAsync(new RunCompletion
+        {
+            RunId = blockedId,
+            Status = RunStatus.Failed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Error = new RunError { Type = "content_blocked", Message = "engellendi" },
+        });
+
+        await runs.StartRunAsync(new RunStartInfo { RunId = otherId, AgentName = "a", StartedAt = DateTimeOffset.UtcNow });
+        await runs.CompleteRunAsync(new RunCompletion
+        {
+            RunId = otherId,
+            Status = RunStatus.Failed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Error = new RunError { Type = "upstream_error", Message = "saglayici hatasi" },
+        });
+
+        using var filtered = await host.Client.GetAsync(
+            new Uri("/agentprism/api/runs?errorType=content_blocked", UriKind.Relative));
+
+        (await IdsAsync(filtered)).ShouldBe([blockedId.ToString()]);
+    }
+
+    [Fact]
     public async Task Olmayan_calistirmanin_agaci_404_doner()
     {
         await using var host = await AgentPrismTestHost.StartAsync();

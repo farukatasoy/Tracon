@@ -53,14 +53,14 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 
 ## 2. Durum
 
-> Son güncelleme: **2026-08-14**.
+> Son güncelleme: **2026-08-15**.
 
 | | |
 |---|---|
 | Toplam case | **1097** |
 | Koşuldu | **1097** (koşulmamış case **yok**) |
-| ☑ Geçti | **1021** |
-| ☒ **Kaldı** | **45** |
+| ☑ Geçti | **1023** |
+| ☒ **Kaldı** | **43** |
 | ⏭ Atlandı | **30** |
 | ☐ Beklemede | **1** (`MT-UIRUN-019`) |
 
@@ -86,10 +86,11 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile O** — OpenAI/Anthropic/Google `Bind()`'ı geçersiz `Endpoint` (göreli adres) ve boş model adını doğrulayıcıya ulaşmadan sessizce eliyordu; üç sağlayıcının `Bind()`'ı `UriKind.RelativeOrAbsolute` ile geçersiz `Endpoint`'i de atıyor, `BindModels()` boş `Name`'i de listeye ekliyor — doğrulayıcının ölü dalları artık erişilebilir | (bu koşum) | `MT-OAI-010`, `MT-OAI-012`, `MT-PROV-012`, `MT-PROV-013` |
 | **Aile P** — `Pricing` yanlış anahtar adında sessizce düşüyordu (K-034) ve `QuotaUsageObserver` hiç kayıtlı olmayan bir standalone `IOptionsMonitor<AgentPrismObservabilityOptions>` enjekte ediyordu (HATA-S4-020); ayrıca `BindObservability`'de `IncludeAgentVersionTag`, `Bind()`'da hiç `AgentPrismOptions.Validation` yoktu (K-253) — üçü de aynı "alan eklendi ama Bind()'a eklenmedi" sınıfı; `BindPricing`/`BindVoicePricing` artık boş kaydı da ekliyor ve `AgentPrismOptionsValidator` reddediyor, `QuotaUsageObserver` artık doğru bağlanan `IOptionsMonitor<AgentPrismOptions>` kullanıyor, eksik iki bağlama eklendi, kalıcı çözüm olarak tüm `AgentPrismOptions` ağacını tarayan yansımalı bir kapsama testi eklendi | (bu koşum) | `MT-CORE-065`, `MT-OBS-036` |
 | **Aile Q** — `ISessionStore.GetAsync` DÖRDÜNCÜ depoda da (InMemory + Postgres/Sqlite/SqlServer) ambient kiraciyle filtreleniyordu; capraz kiraci sahiplik denetimi (`OpenAICompatSupport.IsOwnedByTenantAsync` ve `OpenAIConversationsEndpoints`'in yerel kopyasi) bu yuzden hicbir zaman tetiklenmiyordu — yeni `ISessionStore.GetOwnerTenantIdAsync` (kiraci filtresiz) eklendi, dort deponun tumu gecersiz kildi, `AuditingSessionStore` dekoratoru acikca ilettti (K-018 tuzagi), `OpenAIConversationsEndpoints`'in olu-kod yerel kontrolu kaldirilip ortak yardimciya tasindi | (bu koşum) | `MT-COMPAT-023`, `MT-COMPAT-036`, `MT-COMPAT-039`, `MT-COMPAT-043` |
+| **Aile R** — İki ayrı çalıştırma filtresi kusuru: `sessionId`+`includeChildren=true` alt çalıştırmaları hiç göstermiyordu (`SessionId` yalnız KÖK satırda set edilir, K-217; dört depo da kaydın KENDİ oturumuna eşitlik bakıyordu) ve `errorType` sorgu parametresi hiç bağlanmıyordu (sessizce yok sayılıyordu) — dört depoda da (bellek içi + üç SQL lehçesi) kaydın kendi ağacının KÖKÜNE ait oturuma bakacak şekilde düzeltildi, `RunQuery.ErrorType` eklenip bağlandı | (bu koşum) | `MT-API-060`, `MT-GUARD-064` |
 
 ### Kalan aileler
 
-Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **R** ile başlar.
+Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **S** ile başlar.
 
 | Aile | Önem | Konu | Case | Durum |
 |---|---|---|---|---|
@@ -110,7 +111,7 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **R** ile başla
 | ~~O~~ | Orta | Yapılandırmada geçersiz değer sessizce düşüyor | 4 | ✅ (bu koşum) |
 | ~~P~~ | Orta | Bağlanmayan yapılandırma anahtarları | 2 | ✅ (bu koşum) |
 | ~~Q~~ | Orta | Çapraz kiracı `404` dalı ölü kod | 4 | ✅ (bu koşum) |
-| **R** | Orta | Çalıştırma filtreleri | 2 | ⬜ |
+| ~~R~~ | Orta | Çalıştırma filtreleri | 2 | ✅ (bu koşum) |
 | **S** | Orta | Idempotency replay başlık kaybı | 1 | ⬜ |
 | **T** | Orta | MCP "connection refused" → `unknown_tool` | 1 | ⬜ |
 | **U** | Orta/Düşük | Kalan 10 arayüz kusuru | 10 | ⬜ |
@@ -123,7 +124,7 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **R** ile başla
 bitti: 51 → 47; Aile G bitti: 47 → 43; Aile H bitti: 43 → 42; Aile I bitti:
 42 → 41; Aile J bitti: 41 → 40; Aile K bitti: 40 → 38; Aile L bitti: 38 → 37;
 Aile M bitti: 37 → 36; Aile N bitti: 36 → 35; Aile O bitti: 35 → 31; Aile P
-bitti: 31 → 29; Aile Q bitti: 29 → 25.
+bitti: 31 → 29; Aile Q bitti: 29 → 25; Aile R bitti: 25 → 23.
 `MT-MCP-052` bu sayıma dahil değildir — Kaldı kalır, ayrı bir bulgu olarak
 izlenir, gelecekte kendi ailesini gerektirebilir.)
 
@@ -1223,20 +1224,77 @@ InMemory, Postgres, Sqlite, SqlServer'ın dördünde de koşar) ·
 (yeni `OpenAIConversationsCrossTenantTests` sınıfı, 4 test — dört case'in
 kendisini gerçek `AgentPrismTestHost` üzerinde birebir yeniden üretir).
 
-### Aile R — Çalıştırma filtreleri · Orta
+### ~~Aile R~~ — Çalıştırma filtreleri · Orta ✅ (bu koşum)
 
-**İki ayrı kusur:**
+**İki ayrı kusur, aynı köke (çalıştırma sorgu filtreleri) ait, tek aile.**
 
-- `HATA-S2-001` — `GET /api/runs?sessionId=X&includeChildren=true` alt
-  çalıştırmaları hiç göstermiyor (`/tree` doğru).
-  Kök neden: `Core/Storage/InMemoryRunStore.cs:339` ·
-  `RunRecordingAgent.cs:481-485` (K-217, child `SessionId=null`) ·
-  `RunEndpoints.cs:83-86` · **dört store**: `PostgresQueries.cs:409`,
-  `SqliteQueries.cs:458`, `SqlServerQueries.cs:488`. → `MT-API-060`
-- `HATA-S3-007` — `GET /api/runs?errorType=` **sessizce yok sayılıyor**;
-  parametre hiç bağlanmıyor. `RunEndpoints.cs:42-53`. → `MT-GUARD-064`
-  (alternatif: `docs/48-GUARDRAILS.md`'den kaldırmak — ama sessiz yok sayma
-  K-034 ihlalidir, bağlamak doğrusu).
+**Kusur 1 — `HATA-S2-001`.** `GET /api/runs?sessionId=X&includeChildren=true`
+alt çalıştırmaları hiç göstermiyordu (`/tree` doğru davranıyordu). Kök
+neden: `SessionId` yalnız KÖK çalıştırmada set edilir (K-217: alt
+çalıştırmanın kendi `SessionId`'si kasıtlı olarak `null`'dur —
+`RunRecordingAgent.cs:481-485`); dört depo da (`Core/Storage/InMemoryRunStore.cs:339`,
+`PostgresQueries.cs:409`, `SqliteQueries.cs:458`, `SqlServerQueries.cs:488`)
+filtreyi kaydın KENDİ `session_id`'sine dogrudan eşitlikle uyguluyordu —
+`OnlyRootRuns`'tan bağımsız, alt çalıştırmalar dahil HER satıra. Sonuç:
+`sessionId` + `includeChildren=true` kombinasyonu asla alt çalıştırma
+göstermiyordu.
+
+**Uygulanan tasarım (K-410 adayı, kapanışta yazılacak):** Filtre, kaydın
+KENDİ `session_id`'sine değil, kendi ağacının KÖKÜNE (`RootRunId ?? Id`)
+ait çalıştırmanın `session_id`'sine bakacak şekilde değiştirildi.
+Bellek içi depoda (`InMemoryRunStore.QueryRunsAsync`): sorgu önce bu
+oturuma ait KÖK çalıştırmaların kimliğini (`sessionRootIds`) topluyor,
+sonra her kaydı `RootRunId ?? Id`'nin bu kümede olup olmadığına göre
+eşliyor — kök satırın kendi `Id`'si zaten kümede olduğundan tek koşul
+hem kökü hem altını kapsıyor. Üç SQL lehçesinde (`PostgresQueries.cs`,
+`SqliteQueries.cs`, `SqlServerQueries.cs`) aynı desen bir `EXISTS`
+alt sorgusuyla uygulandı: `r.session_id = @session_id OR EXISTS (SELECT 1
+FROM runs session_root WHERE session_root.id = COALESCE(r.root_run_id,
+r.id) AND session_root.session_id = @session_id)`. Çok-köklü bir oturum
+(aynı `sessionId` ile birden fazla bağımsız kök çalıştırma) senaryosunda
+da doğru çalışır — canlı doğrulamada kazayla ortaya çıktı (aşağıya bkz.)
+ve düzeltmeyi bu senaryoda da doğruladı.
+
+**Kusur 2 — `HATA-S3-007`.** `GET /api/runs?errorType=` **sessizce yok
+sayılıyordu**; `RunEndpoints.cs:42-53`'teki `MapGet("/api/runs", ...)`
+imzasında böyle bir parametre hiç yoktu — ASP.NET Core bağlanmamış sorgu
+parametresini sessizce yok sayar, filtre HİÇBİR ŞEYİ elemiyordu (K-034
+ihlali: `docs/48-GUARDRAILS.md`'nin plan aşamasındaki doğrulama komutu bu
+parametreyi varsaymıştı ama kod tarafında hiç gerçekleşmemişti).
+
+**Uygulanan tasarım:** `RunQuery.ErrorType` (yeni alan, `RunError.Type`'a
+eşitlik) eklendi; `RunEndpoints.cs` artık `[FromQuery] string? errorType`'i
+bağlıyor. Dört depoda da (bellek içi + üç SQL lehçesi) aynı alan
+`RunError.Type`/`error_type` sütununa eşitlikle filtreleniyor —
+`SqlRunStore.QueryRunsAsync` yeni `@error_type` parametresini bağlıyor.
+
+**Değişen dosyalar:** `AgentPrism.Abstractions/Runs/RunSupportTypes.cs`
+(`RunQuery.ErrorType`), `AgentPrism.AspNetCore/Endpoints/RunEndpoints.cs`
+(`errorType` parametresi bağlandı), `AgentPrism.Core/Storage/InMemoryRunStore.cs`
+(`QueryRunsAsync` — kök-tabanlı oturum eşleşmesi + `ErrorType` filtresi),
+`AgentPrism.PostgreSql/Internal/PostgresQueries.cs`,
+`AgentPrism.Sqlite/Internal/SqliteQueries.cs`,
+`AgentPrism.SqlServer/Internal/SqlServerQueries.cs` (`SelectRuns` —
+`EXISTS` alt sorgusu + `error_type` eşitliği), `AgentPrism.Sql.Shared/Stores/SqlRunStore.cs`
+(`@error_type` parametre bağlama), `docs/openapi/agentprism.json`
+(yenilendi — `errorType` sorgu parametresi eklendi).
+
+**Case:** `MT-API-060` ✅, `MT-GUARD-064` ✅.
+
+**Regresyon testleri:** `tests/Shared/Contracts/RunStoreContract.cs`
+(`Sorgu_oturum_filtresi_includeChildren_ile_alt_calistirmalari_da_getirir`,
+`Sorgu_hata_turune_gore_filtreler` — InMemory, Postgres, Sqlite,
+SqlServer'ın dördünde de koşar) ·
+`tests/AgentPrism.AspNetCore.FunctionalTests/AgentCallGraphTests.cs`
+(`Oturum_filtresi_includeChildren_ile_alt_calistirmalari_da_doner`,
+`ErrorType_filtresi_baglanir_ve_filtreler` — gerçek `AgentPrismTestHost`
+HTTP yüzeyinden).
+
+Canlı PostgreSQL'e karşı doğrulandı (`mt_fin` şeması): `sessionId`
++ `includeChildren=true` alt çalıştırmayı artık doğru içeriyor
+(çok-köklü senaryoda `2`→`4` satır); `errorType=content_blocked` artık
+`1` satır (parametresiz `3`, kontrol `status=Failed` `1`) — üçü de
+birbirinden ayrışıyor.
 
 ### Aile S — Idempotency replay başlık kaybı · Orta
 

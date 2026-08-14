@@ -306,6 +306,7 @@ internal sealed class SqlRunStore : IRunStore
         Dialect.AddInt16(command, "status", (short?)query.Status);
         Dialect.AddInt16(command, "kind", (short?)query.Kind);
         AddNullableText(command, "session_id", query.SessionId);
+        AddNullableText(command, "error_type", query.ErrorType);
         Dialect.AddTimestamp(command, "started_after", query.StartedAfter);
         AddNullableUuid(command, "parent_run_id", query.ParentRunId);
         AddNullableUuid(command, "root_run_id", query.RootRunId);
