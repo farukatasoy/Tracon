@@ -32,6 +32,7 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
     private static readonly TimeSpan LastUsedTouchInterval = TimeSpan.FromMinutes(1);
 
     private readonly bool _allowRemoteAccess;
+    private readonly bool _requireLoopback;
     private readonly bool _requireBearerToken;
     private readonly string? _authToken;
     private readonly string? _staticAuthToken;
@@ -43,12 +44,21 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
     /// <see langword="false"/> gecilir: bir tarayici <c>&lt;script src&gt;</c>
     /// istegine <c>Authorization</c> basligi ekleyemez, dolayisiyla bu katman
     /// kabugu kilitlerse arayuz hicbir zaman acilamaz ve kullanici token'i
-    /// girebilecegi bir ekran goremezdi. Kabuk veri tasimaz; loopback ve
-    /// authorization policy katmanlari yine uygulanir ve her veri ucu tam
-    /// korumada kalir.
+    /// girebilecegi bir ekran goremezdi. Kabuk veri tasimaz; authorization
+    /// policy katmani yine uygulanir ve her veri ucu tam korumada kalir.
+    /// </param>
+    /// <param name="requireLoopback">
+    /// Loopback kisiti uygulansin mi. Arayuzun statik varliklari icin
+    /// <see langword="false"/> gecilir: kisit kabuga uygulanirsa loopback disi
+    /// bir istemci JS paketini hic indiremez, <c>AccessGate</c>'in kendisi
+    /// (HATA-S4-003) hicbir zaman calisamaz ve kullanici "Erisim reddedildi"
+    /// kartini goremeden ham sunucu JSON'iyla kalir. Kabuk veri tasimaz;
+    /// gercek koruma veri uclarindaki (bu bayrak varsayilan <see langword="true"/>
+    /// olan) filtre orneklerinden gelir — kabuk yalnizca oraya yapilan bir
+    /// probe istegi 403 dondugunde kullaniciya dogru mesaji gosterebilir.
     /// </param>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> <see langword="null"/> ise.</exception>
-    public AgentPrismEndpointFilter(AgentPrismEndpointOptions options, bool requireBearerToken = true)
+    public AgentPrismEndpointFilter(AgentPrismEndpointOptions options, bool requireBearerToken = true, bool requireLoopback = true)
     {
         ArgumentNullException.ThrowIfNull(options);
 
@@ -56,6 +66,7 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
         // degisiklik calisan uclari etkilememelidir; erisim kurallarinin calisma
         // aninda sessizce gevsemesi guvenlik acisindan kabul edilemez.
         _allowRemoteAccess = options.AllowRemoteAccess;
+        _requireLoopback = requireLoopback;
         _requireBearerToken = requireBearerToken;
         _authToken = requireBearerToken ? options.AuthToken : null;
         _staticAuthToken = options.AuthToken;
@@ -69,7 +80,7 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
 
         var httpContext = context.HttpContext;
 
-        if (!_allowRemoteAccess && !LoopbackGuard.IsLocal(httpContext.Connection.RemoteIpAddress))
+        if (_requireLoopback && !_allowRemoteAccess && !LoopbackGuard.IsLocal(httpContext.Connection.RemoteIpAddress))
         {
             return Results.Problem(
                 title: "Uzak erisim kapali",
