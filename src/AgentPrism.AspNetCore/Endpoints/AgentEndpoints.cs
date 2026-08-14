@@ -248,6 +248,7 @@ internal static class AgentEndpoints
     private static async Task<Results<Created<AgentDefinition>, ProblemHttpResult>> CreateAgentAsync(
         IAgentCatalog catalog,
         IAgentDefinitionStore definitions,
+        AgentDefinitionValidator validator,
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
@@ -268,6 +269,11 @@ internal static class AgentEndpoints
         if (await ValidateCallGraphAsync(catalog, request, cancellationToken).ConfigureAwait(false) is { } cycle)
         {
             return cycle;
+        }
+
+        if (await ValidateEntitiesAsync(validator, request, cancellationToken).ConfigureAwait(false) is { } entities)
+        {
+            return entities;
         }
 
         if (await FindDescriptorAsync(catalog, request.Name, cancellationToken).ConfigureAwait(false) is { } existing)
@@ -328,6 +334,7 @@ internal static class AgentEndpoints
         HttpContext httpContext,
         IAgentCatalog catalog,
         IAgentDefinitionStore definitions,
+        AgentDefinitionValidator validator,
         CancellationToken cancellationToken)
     {
         var (bound, bindError) = await BindAgentDefinitionRequestAsync(httpContext, cancellationToken).ConfigureAwait(false);
@@ -361,6 +368,11 @@ internal static class AgentEndpoints
         if (await ValidateCallGraphAsync(catalog, request, cancellationToken).ConfigureAwait(false) is { } cycle)
         {
             return cycle;
+        }
+
+        if (await ValidateEntitiesAsync(validator, request, cancellationToken).ConfigureAwait(false) is { } entities)
+        {
+            return entities;
         }
 
         if (await definitions.GetAsync(name, cancellationToken).ConfigureAwait(false) is null)
@@ -987,6 +999,39 @@ internal static class AgentEndpoints
                 detail: problem,
                 statusCode: StatusCodes.Status400BadRequest)
             : null;
+    }
+
+    /// <summary>
+    /// Kaydetmeden once tanimi tam olarak dogrular (K-404) — model, tool,
+    /// skill ve cagrilabilir-agent VARLIK denetimleri dahil. Bu denetim
+    /// oncesinde yalniz ayri <c>POST /api/agents/validate</c> ucu
+    /// cagirilirdi; SAVE yolunun kendisi bilinmeyen bir skill/tool adini
+    /// hicbir hata vermeden kaydederdi (HATA-K-001).
+    /// </summary>
+    private static async ValueTask<ProblemHttpResult?> ValidateEntitiesAsync(
+        AgentDefinitionValidator validator,
+        AgentDefinitionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var report = await validator
+            .ValidateAsync(request.ToDefinition(), cancellationToken)
+            .ConfigureAwait(false);
+
+        if (report.Valid)
+        {
+            return null;
+        }
+
+        var detail = string.Join(
+            " ",
+            report.Messages
+                .Where(static message => message.Severity == ValidationSeverity.Error)
+                .Select(static message => message.Message));
+
+        return TypedResults.Problem(
+            title: "Tanim gecersiz",
+            detail: detail,
+            statusCode: StatusCodes.Status400BadRequest);
     }
 
     private static async ValueTask<ProblemHttpResult?> GuardCodeAgentAsync(
