@@ -87,9 +87,9 @@ internal sealed class McpDiscoveryService : BackgroundService
                 {
                     try
                     {
-                        var count = await _catalog.RefreshAsync(stoppingToken).ConfigureAwait(false);
+                        var outcome = await _catalog.RefreshAsync(stoppingToken).ConfigureAwait(false);
 
-                        _logger.LogInformation("MCP kesfi tamamlandi: {ToolCount} tool kullanilabilir.", count);
+                        _logger.LogInformation("MCP kesfi tamamlandi: {ToolCount} tool kullanilabilir.", outcome.ToolCount);
                     }
                     catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                     {

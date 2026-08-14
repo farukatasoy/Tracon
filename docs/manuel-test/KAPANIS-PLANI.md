@@ -59,8 +59,8 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 |---|---|
 | Toplam case | **1097** |
 | Koşuldu | **1097** (koşulmamış case **yok**) |
-| ☑ Geçti | **1024** |
-| ☒ **Kaldı** | **42** |
+| ☑ Geçti | **1025** |
+| ☒ **Kaldı** | **41** |
 | ⏭ Atlandı | **30** |
 | ☐ Beklemede | **1** (`MT-UIRUN-019`) |
 
@@ -88,6 +88,7 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile Q** — `ISessionStore.GetAsync` DÖRDÜNCÜ depoda da (InMemory + Postgres/Sqlite/SqlServer) ambient kiraciyle filtreleniyordu; capraz kiraci sahiplik denetimi (`OpenAICompatSupport.IsOwnedByTenantAsync` ve `OpenAIConversationsEndpoints`'in yerel kopyasi) bu yuzden hicbir zaman tetiklenmiyordu — yeni `ISessionStore.GetOwnerTenantIdAsync` (kiraci filtresiz) eklendi, dort deponun tumu gecersiz kildi, `AuditingSessionStore` dekoratoru acikca ilettti (K-018 tuzagi), `OpenAIConversationsEndpoints`'in olu-kod yerel kontrolu kaldirilip ortak yardimciya tasindi | (bu koşum) | `MT-COMPAT-023`, `MT-COMPAT-036`, `MT-COMPAT-039`, `MT-COMPAT-043` |
 | **Aile R** — İki ayrı çalıştırma filtresi kusuru: `sessionId`+`includeChildren=true` alt çalıştırmaları hiç göstermiyordu (`SessionId` yalnız KÖK satırda set edilir, K-217; dört depo da kaydın KENDİ oturumuna eşitlik bakıyordu) ve `errorType` sorgu parametresi hiç bağlanmıyordu (sessizce yok sayılıyordu) — dört depoda da (bellek içi + üç SQL lehçesi) kaydın kendi ağacının KÖKÜNE ait oturuma bakacak şekilde düzeltildi, `RunQuery.ErrorType` eklenip bağlandı | (bu koşum) | `MT-API-060`, `MT-GUARD-064` |
 | **Aile S** — Idempotency replay yalnız gövdeyi koruyordu, `Location`/`Preference-Applied` HTTP başlıkları hiç saklanmıyordu; `IdempotencyResponse.Headers` (genel yakalama — yalnız bu ikisine özel değil) eklendi, üç SQL sağlayıcısına yeni `headers` sütunu (migration 0029/0016/0016) | (bu koşum) | `MT-JOB-083` |
+| **Aile T** — MCP "connection refused" zaman aşımından farklı davranıyordu: `McpConnection` ikisini de aynı şekilde yutuyor ama yalnız zaman aşımı istisnası dışarı sızıyordu; `IMcpToolRefresher.RefreshAsync` artık `McpRefreshOutcome` (+`HadUnreachableServers`) dönüyor, iki alt durum artık aynı `mcp_unreachable` sonucunu üretiyor | (bu koşum) | `MT-CORE-006` |
 
 ### Kalan aileler
 
@@ -114,7 +115,7 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **S** ile başla
 | ~~Q~~ | Orta | Çapraz kiracı `404` dalı ölü kod | 4 | ✅ (bu koşum) |
 | ~~R~~ | Orta | Çalıştırma filtreleri | 2 | ✅ (bu koşum) |
 | ~~S~~ | Orta | Idempotency replay başlık kaybı | 1 | ✅ (bu koşum) |
-| **T** | Orta | MCP "connection refused" → `unknown_tool` | 1 | ⬜ |
+| ~~T~~ | Orta | MCP "connection refused" → `unknown_tool` | 1 | ✅ (bu koşum) |
 | **U** | Orta/Düşük | Kalan 10 arayüz kusuru | 10 | ⬜ |
 | **V** | Karışık | Yetenek boşlukları | 8 | ⬜ |
 | **Doküman** | — | Beklenen sonuç koda göre düzeltilir | 13 | ⬜ |
@@ -125,7 +126,8 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **S** ile başla
 bitti: 51 → 47; Aile G bitti: 47 → 43; Aile H bitti: 43 → 42; Aile I bitti:
 42 → 41; Aile J bitti: 41 → 40; Aile K bitti: 40 → 38; Aile L bitti: 38 → 37;
 Aile M bitti: 37 → 36; Aile N bitti: 36 → 35; Aile O bitti: 35 → 31; Aile P
-bitti: 31 → 29; Aile Q bitti: 29 → 25; Aile R bitti: 25 → 23; Aile S bitti: 23 → 22.
+bitti: 31 → 29; Aile Q bitti: 29 → 25; Aile R bitti: 25 → 23; Aile S bitti:
+23 → 22; Aile T bitti: 22 → 21.
 `MT-MCP-052` bu sayıma dahil değildir — Kaldı kalır, ayrı bir bulgu olarak
 izlenir, gelecekte kendi ailesini gerektirebilir.)
 
@@ -1349,17 +1351,67 @@ Sqlite, SqlServer'ın dördünde de koşar) ·
 `tests/AgentPrism.AspNetCore.FunctionalTests/IdempotencyTests.cs`
 `Prefer_respond_async_replay_Location_ve_Preference_Applied_basliklarini_da_doner`.
 
-### Aile T — MCP "connection refused" → `unknown_tool` · Orta
+### ~~Aile T~~ — MCP "connection refused" → `unknown_tool` · Orta ✅ (bu koşum)
 
 **Kusur:** `HATA-006`. `mcp_unreachable` yalnız gerçek timeout'ta tetikleniyor;
 aktif red sessizce `unknown_tool`'a düşüyor.
 
-**Kök neden:** `src/AgentPrism.Mcp/Internal/McpToolCatalog.cs:187` bağlantı
-istisnalarını yutuyor. Black-hole adresle (`192.0.2.1`) doğru sonuç 5.02 sn'de
-alınıyor — yani yalnız red yolu kırık.
+**Kök neden (doğrulandı, daha derin):** `McpConnection.ConnectAsync`/
+`RefreshCatalogAsync` (`src/AgentPrism.Mcp/Internal/McpConnection.cs`) HER
+türlü bağlantı hatasını (zaman aşımı VEYA aktif red) aynı `catch` bloğunda
+yutup `null`/`false` döner — bu KENDİSİ doğru davranış (bir sunucunun
+çökmesi TÜM kataloğu durdurmamalı). Asıl kusur bir katman yukarıda:
+`McpToolCatalog.RefreshAsync` bu iki alt durumu (gerçek ağlayıcı hatası vs.
+kasıtlı atlama) ayırt eden HİÇBİR sinyal üretmiyordu — yalnız `int` (tool
+sayısı) dönüyordu. `AgentDefinitionValidator.TryRefreshMcpAsync`
+(`src/AgentPrism.Core/Compilation/AgentDefinitionValidator.cs:247-269`) bu
+yüzden yalnız DIŞARI FIRLAYAN bir istisnayı görebiliyordu — bu da yalnız
+belirli bir zamanlama yarışında (`TryRefreshMcpAsync`'in kendi `mcpTimeout`
+linked-token'ı, `McpConnection`'ın kendi `ConnectionTimeout`'undan ÖNCE
+ateşlenirse) gerçekleşiyordu. Aktif red (`ECONNREFUSED`) hemen (mikrosaniyeler
+içinde) döndüğü için hiçbir zaman aşımı token'ı ateşlenmeden önce hata
+alınıyor — `McpConnection`'ın kendi `catch`'i bunu sessizce yutuyor,
+`RefreshAsync` istisnasız tamamlanıyor, `TryRefreshMcpAsync` "başarılı"
+sanıyor, tool hâlâ eksik olduğu için `unknown_tool`'a düşüyor.
 
-**Case:** `MT-CORE-006`. Doküman düzeltmesi de var: yol
-`PUT /api/mcp-servers/{name}`, alan `endpoint` (`url` değil).
+**Uygulanan tasarım (bu koşum):** `IMcpToolRefresher.RefreshAsync` artık
+düz `int` değil yeni `McpRefreshOutcome` (`ToolCount` + `HadUnreachableServers`)
+döner — `IMcpToolRefresher` yalnız iki dahili çağıran taşıyan dar bir
+plumbing arayüzü olduğu için (üçüncü taraf genişletme noktası değil, bkz.
+kendi XML dokümanı) bu imza değişikliği kabul edildi; genel API kırılmadı
+çünkü `McpConnection`/`McpToolCatalog`/`McpToolRefresher`'ın hepsi
+`internal`. `McpConnection.ConnectAsync`/`RefreshCatalogAsync` artık
+`(Connection/Refreshed, Unreachable)` ikilisi döner — `Unreachable`
+yalnız GERÇEK bir bağlantı denemesi (`catch` bloğu) başarısız olduğunda
+`true`'dur; `ShouldSkipConnection`'ın kasıtlı atlaması (geçersiz ad/adres,
+eksik OAuth geri dönüş yapılandırması — kalıcı yapılandırma sorunları,
+yeniden denenince düzelmez) `false` kalır. `McpToolCatalog.RefreshAsync`
+tüm sunucular/kiracılar üzerinde bu bayrağı `|=` ile toplar.
+`TryRefreshMcpAsync` artık zaman aşımı istisnasına ek olarak
+`outcome.HadUnreachableServers`'ı da kontrol eder — iki alt durum artık
+AYNI şekilde `mcp_unreachable` üretir, zamanlama yarışına bağımlı değildir.
+
+**Değişen dosyalar:** `IMcpToolRefresher.cs` (+`McpRefreshOutcome`),
+`McpConnection.cs`, `McpToolCatalog.cs` (`RefreshAsync`/`EnsureConnectionAsync`/
+`McpToolRefresher`), `McpDiscoveryService.cs`, `GovernanceEndpoints.cs`
+(çağrı yerleri yeni dönüş tipine uyarlandı), `AgentDefinitionValidator.cs`.
+
+**Canlı doğrulama:** Temiz `mt_fin` şemasına karşı iki senaryo karşılaştırıldı:
+`127.0.0.1:59999` (connection refused) artık **33 ms**'de
+`mcp_unreachable`/`Inconclusive` veriyor (önceden sessizce `unknown_tool`);
+`192.0.2.1` (black-hole, gerçek zaman aşımı) hâlâ **~5.02 sn**'de aynı
+sonucu veriyor — regresyon yok, iki yol artık tutarlı.
+
+**Case:** `MT-CORE-006` ✅. Doküman düzeltmesi de yapıldı (`02-CEKIRDEK-VE-KATALOG.md`):
+"Girilecek veri" scripti artık doğru uç (`PUT /api/mcp-servers/{name}`) ve
+doğru alan adını (`endpoint`, `url` değil) kullanıyor.
+
+**Regresyon testleri:** `tests/AgentPrism.Mcp.UnitTests/McpToolCatalogReachabilityTests.cs`
+(`Baglanti_reddedilen_sunucu_HadUnreachableServers_true_yapar` — gerçek
+`ECONNREFUSED` ile `McpToolCatalog.RefreshAsync` seviyesinde,
+`Kayitli_sunucu_yokken_HadUnreachableServers_false_kalir` — negatif kontrol) ·
+`tests/AgentPrism.Core.UnitTests/Compilation/AgentDefinitionValidatorTests.cs`
+`Aktif_red_ile_erisilemeyen_MCP_sunucusu_da_inconclusive_uretir`.
 
 ### Aile U — Kalan arayüz kusurları · Orta/Düşük
 

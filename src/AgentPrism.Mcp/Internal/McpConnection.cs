@@ -87,8 +87,12 @@ internal sealed class McpConnection : IAsyncDisposable
     /// <summary>
     /// Sunucuya baglanir ve tool'larini kesfeder.
     /// </summary>
-    /// <returns>Baglanti; kurulamadiysa <see langword="null"/>.</returns>
-    public static async ValueTask<McpConnection?> ConnectAsync(
+    /// <returns>
+    /// Baglanti (kurulamadiysa <see langword="null"/>) ve baglanma girisiminin
+    /// GERCEK bir aglayici hatasiyla (zaman asimi, baglanti reddi) mi yoksa
+    /// kasitli bir atlamayla mi basarisiz oldugu (<c>Unreachable</c>).
+    /// </returns>
+    public static async ValueTask<(McpConnection? Connection, bool Unreachable)> ConnectAsync(
         McpServerDefinition server,
         IConfiguration configuration,
         AgentPrismMcpOptions options,
@@ -99,7 +103,7 @@ internal sealed class McpConnection : IAsyncDisposable
     {
         if (ShouldSkipConnection(server, options, logger))
         {
-            return null;
+            return (null, false);
         }
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -121,26 +125,31 @@ internal sealed class McpConnection : IAsyncDisposable
                 options,
                 logger);
 
-            if (await connection.RefreshCatalogAsync(options, logger, cancellationToken).ConfigureAwait(false))
+            var (refreshed, unreachable) = await connection.RefreshCatalogAsync(options, logger, cancellationToken).ConfigureAwait(false);
+
+            if (refreshed)
             {
-                return connection;
+                return (connection, false);
             }
 
             await connection.DisposeAsync().ConfigureAwait(false);
 
-            return null;
+            return (null, unreachable);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             // Uzak sunucunun cokmesi AgentPrism'i durdurmaz: o sunucunun
-            // tool'lari listeden duser, digerleri calismaya devam eder.
+            // tool'lari listeden duser, digerleri calismaya devam eder. AMA
+            // bu GERCEK bir aglayici hatasidir (zaman asimi/baglanti reddi) —
+            // caginan taraf bunu "sunucu bilerek atlandi"dan ayirt edebilmelidir
+            // (HATA-006, MT-CORE-006).
             logger.LogWarning(
                 ex,
                 "MCP sunucusu '{ServerName}' ({Endpoint}) baglanamadi; tool'lari bu tazelemede listelenmeyecek.",
                 server.Name,
                 server.Endpoint);
 
-            return null;
+            return (null, true);
         }
     }
 
@@ -183,8 +192,12 @@ internal sealed class McpConnection : IAsyncDisposable
     /// <summary>
     /// Sunucunun tool ve (destekleniyorsa) kaynak listesini yeniden okur.
     /// </summary>
-    /// <returns>Okuma basarili ise <see langword="true"/>.</returns>
-    public async ValueTask<bool> RefreshCatalogAsync(
+    /// <returns>
+    /// Okuma basarili ise <see langword="true"/>; degilse ayrica bunun GERCEK
+    /// bir aglayici hatasindan mi kaynaklandigini bildirir (<c>Unreachable</c>,
+    /// HATA-006, MT-CORE-006).
+    /// </returns>
+    public async ValueTask<(bool Refreshed, bool Unreachable)> RefreshCatalogAsync(
         AgentPrismMcpOptions options,
         ILogger logger,
         CancellationToken cancellationToken)
@@ -219,7 +232,7 @@ internal sealed class McpConnection : IAsyncDisposable
 
             Tools = toolRegistrations;
 
-            return true;
+            return (true, false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
@@ -231,7 +244,7 @@ internal sealed class McpConnection : IAsyncDisposable
             Tools = [];
             DeclaredResourceCache = [];
 
-            return false;
+            return (false, true);
         }
     }
 

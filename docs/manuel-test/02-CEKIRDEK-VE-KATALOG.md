@@ -302,8 +302,8 @@ Zaman aşımı varsayılanı 5 saniyedir; sonuç `Inconclusive` olur, `Valid` d�
 
 **Girilecek veri**
 ```bash
-curl -s -X POST "$APU/api/mcp/servers" -H "$APB" -H "content-type: application/json" \
-  -d '{ "name": "olu-mcp", "url": "http://127.0.0.1:59999/mcp", "enabled": true }'
+curl -s -X PUT "$APU/api/mcp-servers/olu-mcp" -H "$APB" -H "content-type: application/json" \
+  -d '{ "endpoint": "http://127.0.0.1:59999/mcp", "enabled": true }'
 
 time curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: application/json" -d '{
   "name": "manuel-mcp-belirsiz",
@@ -322,7 +322,45 @@ time curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: appl
 **Gerçek sonuç**
 Doküman scriptinde İKİ ayrı hata bulundu: (1) endpoint yolu yanlış — `POST $APU/api/mcp/servers` 405 döner, doğrusu `PUT $APU/api/mcp-servers/{name}`; (2) gövde alanı yanlış — `"url"` değil `"endpoint"` olmalı (`McpServerRequest.Endpoint` `required`). Doğru endpoint+gövdeyle kayıt başarılı. Ardından doğrulama: doküman scriptinin adresi (`127.0.0.1:59999`, dinleyen yok) "connection refused" ile HIZLI döner; `McpToolCatalog.RefreshAsync` (`src/AgentPrism.Mcp/Internal/McpToolCatalog.cs:187`) sunucu bazlı istisnaları içeride yutuyor (log: "MCP sunucusu 'olu-mcp' baglanamadi"), bu yüzden `TryRefreshMcpAsync`'e istisna hiç ulaşmıyor, refresh "başarılı" sayılıyor → sonuç sade `unknown_tool` (`mcp_unreachable` DEĞİL). Yanıt vermeyen bir adresle (`192.0.2.1`, TEST-NET black-hole) TEKRARLANDI: 5.02 saniyede TAM beklenen sonuç alındı — `valid:true`, `inconclusive:true`, `mcp_unreachable`/`Warning`. SONUÇ: `mcp_unreachable` mekanizması doğru çalışıyor ama yalnız GERÇEK zaman aşımında (`OperationCanceledException`) tetikleniyor; aktif red ("connection refused") sessizce `unknown_tool`'a düşüyor — kullanıcı için iki "erişilemez" alt durumu farklı davranıyor. Hem doküman adresi yanlış hem de bu ince sözleşme boşluğu ayrı bir HATA adayı olarak not edildi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+Kapanış oturumu (Aile T, `docs/manuel-test/KAPANIS-PLANI.md`): kök neden
+doğrulandığı gibi çıktı — `McpConnection.ConnectAsync`/`RefreshCatalogAsync`
+HER türlü (zaman aşımı VEYA aktif red) bağlantı hatasını kendi içinde
+yutuyordu, `McpToolCatalog.RefreshAsync` da bu iki alt durumu ayırt eden
+hiçbir sinyal üretmiyordu — `AgentDefinitionValidator.TryRefreshMcpAsync`
+yalnız DIŞARI FIRLAYAN bir istisnayı (yalnız zaman aşımının, belirli bir
+zamanlama yarışında, ürettiği) görebiliyordu. `IMcpToolRefresher.RefreshAsync`
+artık `int` değil yeni `McpRefreshOutcome` (`ToolCount` + `HadUnreachableServers`)
+döner — `McpConnection`/`McpToolCatalog` (ikisi de `internal`, herkese açık
+API kırılmadı) artık bağlantı/katalog-okuma başarısızlığının GERÇEK bir
+ağlayıcı hatasından mı (yeniden denenince düzelebilir) yoksa kasıtlı bir
+atlamadan mı (kalıcı yapılandırma sorunu — ad/adres geçersiz, OAuth geri
+dönüş adresi eksik) kaynaklandığını ayırt edip yukarı taşıyor.
+`TryRefreshMcpAsync` artık zaman aşımı istisnasına ek olarak bu yeni alanı
+da kontrol ediyor — iki alt durum artık AYNI şekilde `mcp_unreachable`
+üretiyor. Canlı `mt_fin` şemasına karşı doğrulandı: `127.0.0.1:59999`
+(connection refused) artık **33 ms**'de `mcp_unreachable`/`Inconclusive`
+veriyor (önceden sessizce `unknown_tool`); `192.0.2.1` (black-hole, gerçek
+zaman aşımı) hâlâ **~5.02 sn**'de aynı sonucu veriyor — regresyon yok.
+
+**Değişen dosyalar:** `IMcpToolRefresher.cs` (+`McpRefreshOutcome`),
+`McpConnection.cs` (`ConnectAsync`/`RefreshCatalogAsync` artık `Unreachable`
+bayrağı da döner), `McpToolCatalog.cs` (`RefreshAsync`/`EnsureConnectionAsync`/
+`McpToolRefresher` bayrağı yukarı taşır), `McpDiscoveryService.cs`,
+`GovernanceEndpoints.cs` (çağrı yerleri yeni dönüş tipine uyarlandı),
+`AgentDefinitionValidator.cs` (`TryRefreshMcpAsync` yeni bayrağı okur).
+
+**Regresyon testleri:** `tests/AgentPrism.Mcp.UnitTests/McpToolCatalogReachabilityTests.cs`
+(gerçek "connection refused" ile `McpToolCatalog.RefreshAsync` seviyesinde,
+kayıtlı sunucu yokken negatif kontrol) ·
+`tests/AgentPrism.Core.UnitTests/Compilation/AgentDefinitionValidatorTests.cs`
+`Aktif_red_ile_erisilemeyen_MCP_sunucusu_da_inconclusive_uretir`.
+
+**Case:** `MT-CORE-006` ✅. Doküman düzeltmesi de yapıldı: yukarıdaki
+"Girilecek veri" scripti artık doğru uç (`PUT /api/mcp-servers/{name}`) ve
+doğru alan adını (`endpoint`) kullanıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
