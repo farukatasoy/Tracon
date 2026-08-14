@@ -2082,9 +2082,15 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/feedback" -H
 - `HTTP: 200`/`201`. `GET /api/runs/<RUN_ID>/feedback` yeni satırı gösterir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `support` agent'ına `ORD-1001 siparisim nerede?` gönderildi
+  (`runId=019ffec7-e060-7c5f-bb9c-24cd4dbeaadf`). `POST .../feedback`
+  `{"kind":"Binary","value":1,"comment":"Dogru cevap."}` → `HTTP: 200`.
+  Takip eden `GET .../feedback` yeni satırı (`id`, `value:1`,
+  `comment:"Dogru cevap."`, `source:"human"`) gösterdi. Beklenenle
+  eşleşiyor. Not: `author` alanı `null` döndü — bu, MT-EVAL-084'ün
+  kendi ön koşul varsayımıyla çelişiyor, ayrıntı o case'in notunda.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2109,9 +2115,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/feedback" -H
 - `HTTP: 400`, `detail: "Ikili puan ('binary') yalniz 0 veya 1 olabilir."`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `HTTP: 400`, `detail: "Ikili puan ('binary') yalniz 0 veya 1 olabilir."`
+  Beklenenle birebir eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2138,9 +2145,11 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/feedback" -H
   yalnız `curl` veya doğrudan API tüketicisi bir `Stars` puanı yazabilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `HTTP: 200`, `{"kind":"Stars","value":4,...}`. SQL: `run_scores` içinde
+  `kind=2, value=4` satırı bulundu. Arayüz kontrolü MT-EVAL-089'a
+  bırakıldı. Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2168,9 +2177,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/feedback" -H
   olmalidir."`
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- İkisi de `HTTP: 400`, `detail: "Yildiz puani ('stars') 1 ile 5 arasinda
+  olmalidir."` Beklenenle birebir eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2204,9 +2214,29 @@ SELECT count(*), value, comment FROM agentprism.run_scores WHERE run_id = '<RUN_
   bağlı sabit bir değere karşılık gelir, `NULL` değildir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- İkinci `POST .../feedback` `{"kind":"Binary","value":0,"comment":
+  "Fikrim degisti."}` ile gönderildi, `HTTP: 200`. SQL: `SELECT count(*),
+  value, comment, author FROM run_scores WHERE run_id=... AND kind=1
+  GROUP BY value, comment, author` → **2 satır** döndü (`value=1,
+  comment="Dogru cevap.", author=NULL` VE `value=0, comment="Fikrim
+  degisti.", author=NULL`) — ilk puan ÜZERİNE YAZILMADI, ikinci ayrı bir
+  satır olarak eklendi. Bu case'in ön koşulu ("bu ortamda `author` alanı
+  ... `NULL` değildir") BU ORTAM için YANLIŞ: statik bearer token akışında
+  `author` GERÇEKTE `NULL` kalıyor (MT-EVAL-080/082'de de gözlendi).
+  `run_scores_target_author_idx` tekil indeksi `(tenant_id, run_id,
+  COALESCE(message_id,''), author)` üzerine kurulu — `author`'ın kendisi
+  `COALESCE` edilmiyor, PostgreSQL'de `NULL ≠ NULL` olduğu için tekillik
+  hiç devreye girmiyor (doğrulandı, `\d run_scores` ile indeks tanımı
+  okundu). Bu, MT-EVAL-085'in "açık soru 4" olarak zaten belgelediği,
+  KASITLI KABUL EDİLMİŞ davranışın AYNISI — ama MT-EVAL-084'ün kendi ön
+  koşulu bu ortamda doğru değil, dolayısıyla case'in TANIMLADIĞI senaryo
+  (author-tabanlı upsert) bu ortamda hiç gerçekleşmiyor. **Doküman
+  düzeltmesi, kod kusuru değil**: case'in ön koşulu güncellenmeli
+  ("`author` bu ortamda `NULL`'dur, upsert gerçekleşmez" şeklinde) —
+  ancak koşum kuralı gereği bu düzeltme yalnız kaydedilir, dosyaya
+  uygulanmaz.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2238,9 +2268,15 @@ olduğu için tekillik hiç devreye girmez.
   olarak işaretlenmez, yalnız doğrulanır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Ayrı bir `AgentPrism.Testing` entegrasyon testi kurulumuna gerek
+  kalmadı: MT-EVAL-084'ün kendi koşumu bu davranışı GERÇEK REST
+  uçlarıyla, gerçek `author IS NULL` koşuluyla zaten kanıtladı. SQL:
+  `SELECT count(*) FROM run_scores WHERE run_id='019ffec7-...' AND
+  author IS NULL` → `2` (Binary `value=1` ve `value=0` satırları), `1`
+  DEĞİL. Beklenenle (sayısal olarak) eşleşiyor — kod okumasıyla ölçülen
+  "kasıtlı kabul edilmiş davranış" iddiası doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2268,9 +2304,10 @@ SELECT action FROM agentprism.audit_log WHERE action = 'run.feedback.delete' ORD
 - `HTTP: 204`. Audit tablosunda `run.feedback.delete` kaydı.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `HTTP: 204`. Audit: `action='run.feedback.delete'` kaydı bulundu.
+  Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2305,9 +2342,19 @@ SELECT count(*) FROM agentprism.audit_log WHERE action LIKE 'run.feedback%' AND 
   puanlama yollarının hiçbir izinin kalmaması ayrı bir gözlemdir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Karşılaştırma çifti: MT-EVAL-043'ün run'ı (`019ffdde-...`, `POST
+  /judge` HTTP ucu ile manuel yargılandı) `audit_log`'da bulundu
+  (`run.judge.manual`, önceki case'lerde zaten doğrulandı). MT-EVAL-041'in
+  run'ı (`019ffddf-3ee3-77d6-bee7-2f572e003a9d`, `RunSampler`'ın otomatik
+  örneklemesiyle `OnlineEvalJobHandler` üzerinden yargılandı, HTTP `/judge`
+  ucu HİÇ çağrılmadı) için: `SELECT count(*) FROM audit_log WHERE entity
+  LIKE '%<runId>%'` → `0` satır — bu run için audit_log'da HİÇBİR kayıt
+  yok (ne `run.judge*` ne `run.feedback*`). Beklenen ayrım doğrulandı:
+  HTTP uç işleyicisi kendi audit kaydını YAZIYOR, ama `IRunScoreStore
+  .UpsertAsync`'in kendisi (otomatik örnekleme yolunun kullandığı) hiçbir
+  iz bırakmıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2330,9 +2377,19 @@ SELECT count(*) FROM agentprism.audit_log WHERE action LIKE 'run.feedback%' AND 
   üzerinden `remove.mutate`). Üçüncü bir tıklama tekrar oluşturur.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Aynı run'ın detay ekranında "Helpful" düğmesine 3 kez tıklandı, her
+  seferinde `GET .../feedback` ile durum doğrulandı:
+  1. Tıklama: `[{"value":1,"comment":"Test yorumu - puan yokken",...}]`
+     (MT-EVAL-089'da yazılan bekleyen yorum bu ilk puanla birlikte
+     kaydedildi — puan yokken kaydedilmeme kuralını çiğnemiyor, yalnız
+     puan OLUŞTUĞUNDA birlikte gönderiliyor).
+  2. Tıklama: `[]` — puan KOMPLE SİLİNDİ, `value:0`'a (başparmak aşağı)
+     ÇEVRİLMEDİ.
+  3. Tıklama: `[{"value":1,"comment":null,...}]` — YENİ bir `id` ile
+     yeniden oluşturuldu.
+  Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2356,9 +2413,14 @@ SELECT count(*) FROM agentprism.audit_log WHERE action LIKE 'run.feedback%' AND 
   .Stars` yalnız API üzerinden (MT-EVAL-082) yazılabilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- Hiç puanlanmamış yeni bir run'ın (`019ffeca-a5b4-7f71-86a1-52d475d99007`)
+  detay ekranı açıldı. Yorum kutusuna "Test yorumu - puan yokken" yazıldı,
+  `Tab` ile blur edildi. `GET /api/runs/{id}/feedback` → `[]` — hiçbir
+  şey kaydedilmedi. Sayfada `browser_find` ile "star" arandı, gerçek bir
+  yıldız kontrolü bulunamadı (eşleşmeler yalnız "run.started"/"tool call"
+  gibi alakasız metinlerdi). Beklenenle eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2382,9 +2444,17 @@ SELECT count(*) FROM agentprism.audit_log WHERE action LIKE 'run.feedback%' AND 
   DEĞİL, beklenen bir boş-sonuç mesajı.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- OpenAI `user-secrets` anahtarı geçici olarak kaldırılıp uygulama
+  yeniden başlatıldı (bu kez betik hatası yapılmadan — çıkış kodu her
+  adımda ayrıca denetlendi). `echo` sağlayıcılı `arastirmaci` agent'ından
+  bir run üretildi, run detay ekranı açılıp "Judge now" tıklandı. Sonuç:
+  düğmenin yanında `"No judge is configured."` satır-içi metni belirdi
+  — `role="alert"` YOK, renk `rgb(107,107,121)` (nötr gri, hata kırmızısı
+  DEĞİL). Beklenen davranış (hata banner'ı değil, beklenen boş-sonuç
+  mesajı) doğrulandı. Ardından OpenAI anahtarı `user-secrets`'a geri
+  yazıldı, uygulama yeniden başlatılıp gerçek bir çağrıyla doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
