@@ -196,9 +196,9 @@ MT-WF-042'nin "`$type` ilk 40 baytta başlar" iddiası da düzeltildi — K-027'
 
 ## K-5 — 15 §7–9 (MT-WF-080..084, 090..097, 100) + 17 §1–2, 27 case
 
-### 15 §7–9 (14 case): 8 Geçti, 6 Kaldı — **dosya `15` (WORKFLOWS) TAMAMEN BİTTİ (60/60)**
+### 15 §7–9 (14 case): 8 Geçti, 6 Kaldı — **dosya `15` (WORKFLOWS) TAMAMEN BİTTİ (60/60)** — kapanışta MT-WF-091/092/093 düzeltilip yeniden koşuldu, güncel: 11 Geçti, 3 Kaldı
 
-### HATA-K-004 — 🚨 KRİTİK: `AgentPrismWorkflowOptions` hiçbir konfigürasyon kaynağına bağlı değil
+### HATA-K-004 — 🚨 KRİTİK: `AgentPrismWorkflowOptions` hiçbir konfigürasyon kaynağına bağlı değil — ✅ DÜZELTİLDİ (2026-08-14, K-402)
 
 - **Case:** MT-WF-091 (Orta), MT-WF-092 (Orta), MT-WF-093 (Orta) — üçü de aynı kök neden
 - **Önem:** Kritik
@@ -216,6 +216,9 @@ MT-WF-042'nin "`$type` ilk 40 baytta başlar" iddiası da düzeltildi — K-027'
 
 **Kapsam**
 `AgentPrismWorkflowOptions`'ın YEDİ alanının TAMAMI (`Enabled`, `EnableCheckpointing`, `MaxConcurrentRuns`, `RunTimeout`, `MaxSuperSteps`, `KeepCheckpointsAfterCompletion`) etkilenir. Sonsuz döngü koruması (`MaxSuperSteps`), motor kapatma anahtarı (`Enabled`) ve checkpoint kontrolü (`EnableCheckpointing`) gibi üretim-kritik güvenlik sınırlarının HİÇBİRİ konfigürasyonla ayarlanamaz — yalnızca `Program.cs`'te `UseWorkflows(o => ...)` ile kodda sabitlenebilir.
+
+**Düzeltme (2026-08-14, K-402)**
+`UseWorkflows()` artık `OptionsBuilder<AgentPrismWorkflowOptions>.BindConfiguration("AgentPrism:Workflows")` çağırıyor (`Microsoft.Extensions.Options.ConfigurationExtensions`, yeni bağımlılık — `AgentPrism.Workflows` zaten `AgentPrismAotCompatible=false` olduğu için reflection tabanlı bağlama burada kabul edilebilir). `configure` lambda'sı bağlamadan SONRA çalışır, kod hâlâ üzerine yazabilir. Üç alan ayrı ayrı yeniden koşulup doğrulandı: `Enabled=false` → çalıştırma doğru `AgentPrismException` ile reddedildi; `MaxSuperSteps=2` → 3 süper-step üreten gerçek bir workflow doğru mesajla `RunFailed`/`status:Failed` oldu; `EnableCheckpointing=false` → hiç checkpoint yazılmadı (`count=0`), `resume` denemesi doğru "kontrol noktası yok" hatasını (checkpointing'in kapalı olduğunu da açıklayan bir varyantla) verdi. MT-WF-091/092/093 üçü de yeniden koşulup `Geçti`'ye çevrildi. Dört doğrulama kapısı temiz.
 
 ---
 
@@ -265,7 +268,7 @@ Diğer bulgular: MT-WF-097'de ilk deneme MT-WF-066 ile aynı sebepten (Tenancy k
 
 Kusur bulunmadı. Küçük doküman notları: MT-EVAL-012'nin `DELETE /api/evals/{name}/cases` ucu doküman `HTTP 200` varsaymışken gerçekte `204` dönüyor (repodaki `DELETE` uçlarının tutarlı deseni — kusur değil, düzeltildi); MT-EVAL-004'ün hata mesajı `{kind}` yer tutucusu kullanıyor, doküman doğrudan `regexMatch` yazmıştı (anlam aynı).
 
-**K-5 toplam: 27 case, 21 Geçti, 6 Kaldı.**
+**K-5 toplam: 27 case, 21 Geçti, 6 Kaldı** (kapanışta HATA-K-004 düzeltmesiyle MT-WF-091/092/093 yeniden koşulup Geçti'ye çevrildi — güncel: 24 Geçti, 3 Kaldı; ayrıntı yukarıdaki HATA-K-004 notunda).
 
 ## K-6 — 17 §3–6 (MT-EVAL-020..028, 035..038, 040..046, 050..059), 30 case
 

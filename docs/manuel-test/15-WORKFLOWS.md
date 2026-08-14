@@ -2007,7 +2007,9 @@ curl -N -s -X POST "$APU/api/workflows/ozetle-ve-cevir/run" -H "$APB" -H "conten
 **Gerçek sonuç**
 🚨 **KRİTİK KUSUR — kök neden: `AgentPrismWorkflowOptions` hiç config'e bağlı değil.** `dotnet user-secrets set "AgentPrism:Workflows:Enabled" "false"` ile yeniden başlatıldıktan sonra çalıştırma HİÇ engellenmedi — akış normal şekilde `RunCompleted` ile bitti, gerçek model iki kez çağrıldı (gerçek ücret oluştu). Kök neden kod okumasıyla kesin biçimde bulundu: `src/AgentPrism.Workflows/AgentPrismWorkflowsBuilderExtensions.cs:52`'deki `UseWorkflows()` yalnızca `services.AddOptions<AgentPrismWorkflowOptions>();` çağırıyor — `AgentPrismWorkflowOptions.SectionName` sabiti (`"AgentPrism:Workflows"`, dosyada tanımlı) HİÇBİR YERDE kullanılmıyor (`grep` ile doğrulandı, sıfır eşleşme); `IConfiguration`'a bağlayan tek yol, yalnızca kod içinde geçirilebilen isteğe bağlı `configure` lambda parametresi. Sonuç: `Enabled`, `EnableCheckpointing`, `MaxConcurrentRuns`, `RunTimeout`, `MaxSuperSteps`, `KeepCheckpointsAfterCompletion` — bu sınıfın YEDİ alanının TAMAMI — `appsettings.json`/`dotnet user-secrets` üzerinden asla okunamaz, sessizce C# varsayılanlarında kalır. Bu, MT-WF-092 ve MT-WF-093'te AYNI kök nedenle tekrar doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+**🔧 Kapanış güncellemesi (2026-08-14, HATA-K-004/K-402 — düzeltildi):** `UseWorkflows()` artık `BindConfiguration` ile `AgentPrism:Workflows`'a bağlanıyor. Aynı senaryo birebir tekrarlandı: `Enabled=false` set edilip yeniden başlatıldıktan sonra `curl` çalıştırması `event: error` ile doğru şekilde reddedildi — `{"type":"AgentPrismException","message":"Workflow calistirma kapali. 'AgentPrism:Workflows:Enabled' ayarini acin."}`. Beklenenle birebir eşleşiyor. Ayrıntı: `SONUCLAR-K-2026-08-13.md`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2046,7 +2048,9 @@ curl -N -s -X POST "$APU/api/workflows/ozetle-ve-cevir/run" -H "$APB" -H "conten
 **Gerçek sonuç**
 MT-WF-091'in AYNI kök nedeniyle KALDI: `MaxSuperSteps: "2"` set edilip yeniden başlatıldıktan sonra `ozetle-ve-cevir` (3 super-step üretir) hiçbir sınırla karşılaşmadan `RunCompleted` ile normal bitti — sınır asla uygulanmadı, `AgentPrismWorkflowOptions`'ın konfigürasyona hiç bağlanmaması nedeniyle.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+**🔧 Kapanış güncellemesi (2026-08-14, HATA-K-004/K-402 — düzeltildi):** Aynı senaryo birebir tekrarlandı. `MaxSuperSteps=2` set edilip `ozetle-ve-cevir` çalıştırıldı: `RunFailed` — `"Workflow 2 super-step sinirini asti ve durduruldu. Devretme veya grup sohbeti dongusu sonlanmiyor olabilir; 'maxIterations' degerini dusurun veya agent talimatlarina bir bitirme kosulu ekleyin."` (dokümanın beklediği metinle birebir). `GET /api/runs/{runId}` → `status: "Failed"`. Beklenenle eşleşiyor. Ayrıntı: `SONUCLAR-K-2026-08-13.md`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2086,7 +2090,9 @@ curl -N -s -X POST "$APU/api/workflows/runs/<runId>/resume" -H "$APB" -H "conten
 **Gerçek sonuç**
 MT-WF-091/092'nin AYNI kök nedeniyle KALDI: `EnableCheckpointing: "false"` set edilip yeniden başlatıldıktan sonra çalıştırma sırasında YİNE DE 3 kontrol noktası yazıldı (`SELECT count(*) ... = 3`), ayar hiç okunmadı. `resume` denemesi de normal şekilde başarılı oldu (ne "EnableCheckpointing acik olmalidir" ne "kontrol noktasi yok" hatası — checkpoint zaten mevcuttu). `AgentPrismWorkflowOptions`'ın konfigürasyona hiç bağlanmaması aynı kök neden.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+**🔧 Kapanış güncellemesi (2026-08-14, HATA-K-004/K-402 — düzeltildi):** Aynı senaryo birebir tekrarlandı. `EnableCheckpointing=false` set edilip `ozetle-ve-cevir` çalıştırıldı: `SELECT count(*) FROM workflow_checkpoints WHERE run_id=...` → `0` — hiç checkpoint yazılmadı (beklenen davranış). `resume` denemesi → `event: error`, `AgentPrismException`: `"'<runId>' kimlikli calistirmanin kontrol noktasi yok. Kontrol noktasi yazimi kapaliyken baslatilan bir calistirma sürdürulemez."` — dokümanın kendi öngördüğü belirsizlik (`RequireCheckpointAsync`'in "kontrol noktasi yok" dalı mı, yoksa `EnableCheckpointing` dalı mı önce tetiklenir) netleşti: "kontrol noktasi yok" dalı tetikleniyor, AMA mesaj checkpointing'in KAPALI olduğunu da açıkça belirtiyor — iki savunma katmanı arasındaki belirsizlik pratikte zararsız (mesaj her iki durumu da kapsıyor). Ayrıntı: `SONUCLAR-K-2026-08-13.md`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
