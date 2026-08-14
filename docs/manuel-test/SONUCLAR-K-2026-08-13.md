@@ -60,9 +60,9 @@
 
 ## K-1 — 14 §1–2 (MT-SKILL-001..014, 020..025), 20 case
 
-**Sonuç:** 19 Geçti, 1 Kaldı.
+**Sonuç:** 20 Geçti, 0 Kaldı.
 
-### HATA-K-001 — `POST/PUT /api/agents`, bilinmeyen skill adını SAVE zamanında hiç doğrulamıyor
+### HATA-K-001 — `POST/PUT /api/agents`, bilinmeyen skill adını SAVE zamanında hiç doğrulamıyor — ✅ DÜZELTİLDİ (2026-08-14, K-404)
 
 - **Case:** MT-SKILL-020
 - **Önem:** Yüksek
@@ -87,6 +87,9 @@
 
 **Kapsam**
 Genel — hem `POST /api/agents` (create) hem `PUT /api/agents/{name}` (update) etkilenir; yalnız skill değil, aynı kod yolunun kapsadığı diğer varlık denetimleri de (tool adı, callable-agent adı — `AgentDefinitionValidator.cs` içindeki diğer `Check*Async` metotları) muhtemelen aynı şekilde SAVE zamanında hiç çalışmıyor; bu koşum yalnız skill yüzeyini ölçtü, diğerleri ayrı bir doğrulama gerektirir. Kullanıcı arayüzü "Validate" düğmesini ayrıca çağırdığı için arayüz yolunda bu boşluk gizli kalabilir; doğrudan API tüketen istemciler etkilenir.
+
+**Düzeltme (2026-08-14, K-404)**
+`AgentDefinitionValidator` artık `CreateAgentAsync` ve `UpdateAgentAsync` içine tam olarak kablolandı — her iki uç da yeni `ValidateEntitiesAsync` yardımcı metodunu `ValidateCallGraphAsync`'ten sonra, mevcut isim çakışması/varlık denetiminden önce çağırıyor; doğrulama başarısızsa `400` + `"Tanim gecersiz"` başlığı + hata mesajları döner (`AgentEndpoints.cs`). Yalnız skill değil, `AgentDefinitionValidator.ValidateAsync`'in kapsadığı tüm `Check*Async` denetimleri (tool adı, callable-agent adı dahil) artık SAVE zamanında çalışıyor. Ampirik doğrulama: yukarıdaki `curl` artık `HTTP: 400` ve beklenen `unknown_skill` mesajını döndürüyor; regresyon kontrolü — geçerli (skill'siz) bir agent hâlâ `201` alıyor, bilinmeyen skill içeren bir `PUT` de aynı şekilde `400` alıyor. Dört kapı (`build`/`test`/`pack`/`format`) temiz.
 
 ---
 
