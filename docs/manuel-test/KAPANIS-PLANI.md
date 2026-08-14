@@ -75,7 +75,7 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile D** — `T[]` parametreli tool derlenmiyor; kök neden zaten `75990fd`'de kapanmıştı, kod değişikliği yok, yalnız case yeniden koşuldu | (bu koşum, docs-only) | `MT-PKG-044` |
 | **Aile E** — İki kalıcılık sağlayıcısı; `MigrationHostedService.IsWinningProvider()` zaten kapatmış, kod değişikliği yok, yalnız case yeniden koşuldu | (bu koşum, docs-only) | `MT-PKG-082` |
 | **Aile F** — 21 endpoint dosyasında kapsam denetimi yok; 4 yeni `ApiKeyScope` üyesi (`PlatformRead/Admin`, `SecurityAdmin`, `AuditRead`) + attenuation | `c96006c` | `MT-MCP-051`, `MT-RES-028`, `MT-JOB-090` (3/4 — `MT-MCP-052` ayrı bulgu olarak Kaldı kalır, bkz. §6) |
-| **Aile G** — JSON çözümleme hatası `400` yerine `500`; kütüphane çapında `RequestBodyBinding.ReadAsync<T>` — 21 dosya, implicit binding kullanan 9 EK uç dahil | (bu koşum) | `MT-CORE-009`, `MT-CORE-022`, `MT-SEC-054`, `MT-MCP-003` |
+| **Aile G** — JSON çözümleme hatası `400` yerine `500`; kütüphane çapında `RequestBodyBinding.ReadAsync<T>` — 21 dosya, implicit binding kullanan 9 EK uç dahil | `0b28210` | `MT-CORE-009`, `MT-CORE-022`, `MT-SEC-054`, `MT-MCP-003` |
 
 ### Kalan aileler
 
@@ -443,7 +443,7 @@ Aile F **3/4** case kapatır; `MT-MCP-051`, `MT-RES-028`, `MT-JOB-090` ✅.
 `ApiKeyScopeEnforcementTests.cs` (4 yeni kapsamın nokta doğrulamaları,
 yeniden kullanım regresyonları, yükselme kapısı, attenuation — 12 test).
 
-### ~~Aile G~~ — JSON çözümleme hatası `400` yerine `500` 🚨 Yüksek ✅ (bu koşum)
+### ~~Aile G~~ — JSON çözümleme hatası `400` yerine `500` 🚨 Yüksek ✅ (`0b28210`)
 
 **Kusur:** `HATA-005`, `HATA-S2-006`, `HATA-S2-007`. Eksik `required` alan veya
 bilinmeyen enum değeri → `JsonException` → `BadHttpRequestException` → genel
