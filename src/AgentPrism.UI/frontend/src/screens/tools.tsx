@@ -67,7 +67,7 @@ export function ToolsScreen(): ReactNode {
                     <p className="mt-0.5 text-[12px] text-muted">{tool.description}</p>
                   )}
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                   {tool.source != null && (
                     <Badge
                       tone="warn"

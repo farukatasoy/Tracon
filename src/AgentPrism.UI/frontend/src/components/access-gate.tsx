@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ApiError, api } from '../lib/api';
-import { setToken, useToken } from '../lib/auth';
+import { setToken, useToken, useTokenRejected } from '../lib/auth';
 import { useT } from '../lib/i18n';
 import { Button, Field, Loading, Panel, TextInput } from './ui';
 import { PrismMark } from './icons';
@@ -17,6 +17,7 @@ import type { Meta } from '../lib/types';
 export function AccessGate({ children }: { children: (meta: Meta) => ReactNode }): ReactNode {
   const t = useT();
   const token = useToken();
+  const rejected = useTokenRejected();
 
   const meta = useQuery({ queryKey: ['meta'], queryFn: api.meta, retry: false });
 
@@ -51,7 +52,7 @@ export function AccessGate({ children }: { children: (meta: Meta) => ReactNode }
   const error = probe.error;
 
   if (error instanceof ApiError && error.status === 401) {
-    return <Centered><TokenPrompt failed={token !== null} /></Centered>;
+    return <Centered><TokenPrompt failed={rejected} /></Centered>;
   }
 
   if (meta.data.authentication.requiresBearerToken && token === null) {

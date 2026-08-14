@@ -46,9 +46,11 @@ export function Panel({
       className={cx('rounded-lg border border-line bg-panel shadow-panel', className)}
     >
       {(title !== undefined || actions !== undefined) && (
-        <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
-          <h2 className="text-[13px] font-semibold tracking-tight">{title}</h2>
-          {actions !== undefined && <div className="flex items-center gap-1.5">{actions}</div>}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-2.5">
+          <h2 className="min-w-0 text-[13px] font-semibold tracking-tight">{title}</h2>
+          {actions !== undefined && (
+            <div className="flex flex-wrap items-center gap-1.5">{actions}</div>
+          )}
         </div>
       )}
       {children}

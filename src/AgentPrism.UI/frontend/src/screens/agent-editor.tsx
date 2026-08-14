@@ -217,6 +217,25 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
     const definition = existing.data.definition;
 
     if (definition === null) {
+      // Code-defined agents have no persisted definition to load — but the
+      // catalog descriptor still knows the name/provider/model. Leaving the
+      // form at `emptyForm` left `Ad` blank AND read-only (`editing` is true):
+      // nothing the user could do would ever make `valid` true, so "Validate"/
+      // "Save new version" stayed permanently disabled and the 409 the server
+      // would answer with was never reachable (HATA-S4-010).
+      const descriptor = existing.data.descriptor;
+
+      setForm((current) => ({
+        ...current,
+        name: descriptor.name,
+        displayName: descriptor.displayName ?? '',
+        description: descriptor.description ?? '',
+        provider: descriptor.model?.provider ?? current.provider,
+        model: descriptor.model?.model ?? current.model,
+        toolNames: [...descriptor.toolNames],
+        skillNames: [...descriptor.skillNames],
+        callableAgentNames: [...descriptor.callableAgentNames],
+      }));
       setReady(true);
 
       return;

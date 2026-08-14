@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { emptyTranscript, foldRunEvents, foldUpdate } from './transcript';
-import type { RunEvent } from './types';
+import { emptyTranscript, foldMessages, foldRunEvents, foldUpdate } from './transcript';
+import type { ChatMessage, RunEvent } from './types';
 
 const event = (partial: Partial<RunEvent> & Pick<RunEvent, 'type' | 'sequence'>): RunEvent => ({
   runId: 'run-1',
@@ -130,5 +130,72 @@ describe('foldRunEvents', () => {
     ]);
 
     expect(state.items).toEqual([{ kind: 'error', id: 'error-1', message: 'model unavailable' }]);
+  });
+});
+
+describe('foldMessages', () => {
+  it('folds a plain user/assistant exchange one item per message', () => {
+    const messages: ChatMessage[] = [
+      { role: 'user', contents: [{ $type: 'text', text: 'Hello' }] },
+      { role: 'assistant', contents: [{ $type: 'text', text: 'Hi there' }] },
+    ];
+
+    const folds = foldMessages(messages);
+
+    expect(folds).toHaveLength(2);
+    expect(folds[0]?.items).toEqual([{ kind: 'text', id: 'text-0', text: 'Hello' }]);
+    // A fresh item, not merged into the previous message's — `id` counts from
+    // the shared accumulator, so the second message's own item is "text-1".
+    expect(folds[1]?.items).toEqual([{ kind: 'text', id: 'text-1', text: 'Hi there' }]);
+  });
+
+  it('completes a tool call whose result arrives in the NEXT message', () => {
+    // MAF splits a call and its result across two separate ChatMessages
+    // (assistant/functionCall, then tool/functionResult) — folding each
+    // message on its own (the pre-fix `foldMessage`) left the call stuck
+    // 'running' forever, since the result had nowhere to apply (HATA-S4-016).
+    const messages: ChatMessage[] = [
+      { role: 'user', contents: [{ $type: 'text', text: 'Where is my order?' }] },
+      {
+        role: 'assistant',
+        contents: [{ $type: 'functionCall', callId: 'c1', name: 'get_order_status', arguments: { orderId: 'ORD-1001' } }],
+      },
+      { role: 'tool', contents: [{ $type: 'functionResult', callId: 'c1', result: 'shipped' }] },
+      { role: 'assistant', contents: [{ $type: 'text', text: 'Your order shipped.' }] },
+    ];
+
+    const folds = foldMessages(messages);
+
+    expect(folds).toHaveLength(4);
+    // The call's own message now shows the completed card, result included.
+    expect(folds[1]?.items).toEqual([
+      {
+        kind: 'tool',
+        id: 'tool-c1',
+        callId: 'c1',
+        name: 'get_order_status',
+        args: JSON.stringify({ orderId: 'ORD-1001' }, null, 2),
+        result: 'shipped',
+        error: null,
+        state: 'ok',
+      },
+    ]);
+    // The result message mutated that same item in place; it adds nothing of
+    // its own (the screen falls back to "no content" for this row, same as
+    // it always has — the result text is no longer invisible, just attached
+    // to the call instead).
+    expect(folds[2]?.items).toEqual([]);
+  });
+
+  it('leaves an unmatched result inert rather than crashing', () => {
+    const messages: ChatMessage[] = [
+      { role: 'tool', contents: [{ $type: 'functionResult', callId: 'no-such-call', result: 'x' }] },
+    ];
+
+    expect(foldMessages(messages)[0]?.items).toEqual([]);
+  });
+
+  it('returns one state per message even for an empty message list', () => {
+    expect(foldMessages([])).toEqual([]);
   });
 });

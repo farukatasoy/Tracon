@@ -27,6 +27,7 @@ export interface RouteMatch {
 
 interface RouterValue {
   path: string;
+  search: string;
   navigate: (to: string, options?: { replace?: boolean }) => void;
 }
 
@@ -53,15 +54,36 @@ export function toRelativePath(pathname: string, base: string): string {
   return relative.replace(/^\/+/, '').replace(/\/+$/, '');
 }
 
-function currentPath(): string {
-  return toRelativePath(window.location.pathname, uiBase);
+/**
+ * Splits a navigation target into the path route patterns match against and
+ * its query string.
+ *
+ * Pulled out as a pure function so this split is unit-testable without a
+ * browser. Storing the query string glued to the path (the previous
+ * behaviour) made `matchRoute` fail on any target that carried one — the
+ * whole thing landed in one path segment and matched no pattern, so
+ * `runs?sessionId=...` 404'd on SPA navigation while a full page load (which
+ * reads `window.location.pathname`, naturally excluding the query) worked
+ * (HATA-S4-017).
+ */
+export function splitTarget(to: string): { path: string; search: string } {
+  const withoutLeadingSlash = to.replace(/^\/+/, '');
+  const queryIndex = withoutLeadingSlash.indexOf('?');
+  const rawPath = queryIndex === -1 ? withoutLeadingSlash : withoutLeadingSlash.slice(0, queryIndex);
+  const search = queryIndex === -1 ? '' : withoutLeadingSlash.slice(queryIndex);
+
+  return { path: rawPath.replace(/\/+$/, ''), search };
+}
+
+function currentLocation(): { path: string; search: string } {
+  return { path: toRelativePath(window.location.pathname, uiBase), search: window.location.search };
 }
 
 export function RouterProvider({ children }: { children: ReactNode }): ReactNode {
-  const [path, setPath] = useState(currentPath);
+  const [location, setLocation] = useState(currentLocation);
 
   useEffect(() => {
-    const onPopState = (): void => setPath(currentPath());
+    const onPopState = (): void => setLocation(currentLocation());
 
     window.addEventListener('popstate', onPopState);
 
@@ -69,8 +91,7 @@ export function RouterProvider({ children }: { children: ReactNode }): ReactNode
   }, []);
 
   const navigate = useCallback((to: string, options?: { replace?: boolean }) => {
-    const target = to.replace(/^\/+/, '');
-    const url = uiBase + target;
+    const url = uiBase + to.replace(/^\/+/, '');
 
     if (options?.replace === true) {
       window.history.replaceState(null, '', url);
@@ -78,11 +99,14 @@ export function RouterProvider({ children }: { children: ReactNode }): ReactNode
       window.history.pushState(null, '', url);
     }
 
-    setPath(target.replace(/\/+$/, ''));
+    setLocation(splitTarget(to));
     window.scrollTo(0, 0);
   }, []);
 
-  const value = useMemo<RouterValue>(() => ({ path, navigate }), [path, navigate]);
+  const value = useMemo<RouterValue>(
+    () => ({ path: location.path, search: location.search, navigate }),
+    [location, navigate],
+  );
 
   return <RouterContext.Provider value={value}>{children}</RouterContext.Provider>;
 }
@@ -103,6 +127,13 @@ export function useNavigate(): (to: string, options?: { replace?: boolean }) => 
 
 export function usePath(): string {
   return useRouter().path;
+}
+
+/** The current navigation target's query string, parsed. */
+export function useSearchParams(): URLSearchParams {
+  const { search } = useRouter();
+
+  return useMemo(() => new URLSearchParams(search), [search]);
 }
 
 /**

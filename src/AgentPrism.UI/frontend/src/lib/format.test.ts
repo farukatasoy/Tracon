@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { count, duration, latencyText, money, percent, prettyJson, relativeTime, shortId } from './format';
-import { matchRoute, toRelativePath } from './router';
+import { matchRoute, splitTarget, toRelativePath } from './router';
 import { initialiseLocale } from './i18n';
 
 // Formatting is locale aware (Intl). The tests read English so that a wrong
@@ -68,6 +68,19 @@ describe('money', () => {
   it('shows enough precision for sub-cent per-token costs', () => {
     expect(money(0.123456, 'USD')).toBe('0.1235 USD');
   });
+
+  it('never rounds a real, tiny cost down to the same text as zero', () => {
+    // HATA-S4-019: a single turn on a cheap model can cost less than 4
+    // decimals can represent. Rounded to "0.00" it is indistinguishable from
+    // a genuinely free run — the exact confusion `money(0, ...)` vs
+    // `money(null, ...)` already exists to avoid for an undefined price.
+    expect(money(0.00003945, 'USD')).not.toBe('0.00 USD');
+    expect(money(0.00003945, 'USD')).toBe('0.000039 USD');
+  });
+
+  it('still prints an exact zero as 0.00, not with the extra precision', () => {
+    expect(money(0, 'USD')).toBe('0.00 USD');
+  });
 });
 
 describe('latencyText', () => {
@@ -129,6 +142,36 @@ describe('matchRoute', () => {
     // relies on order, so the literal pattern must be tried first.
     expect(matchRoute('agents/new', 'agents/new')).not.toBeNull();
     expect(matchRoute('agents/:name', 'agents/new')).not.toBeNull();
+  });
+});
+
+describe('splitTarget', () => {
+  it('separates a plain path from an empty query string', () => {
+    expect(splitTarget('runs')).toEqual({ path: 'runs', search: '' });
+  });
+
+  it('separates a path from its query string', () => {
+    expect(splitTarget('runs?sessionId=conv_1')).toEqual({ path: 'runs', search: '?sessionId=conv_1' });
+  });
+
+  it('strips a leading slash', () => {
+    expect(splitTarget('/runs?sessionId=conv_1')).toEqual({ path: 'runs', search: '?sessionId=conv_1' });
+  });
+
+  it('strips a trailing slash from the path only, not the query string', () => {
+    expect(splitTarget('agents/support/')).toEqual({ path: 'agents/support', search: '' });
+  });
+
+  it('feeds matchRoute a path that matches the same pattern the query-free path would (HATA-S4-017)', () => {
+    // Before the fix, `navigate()` stored the WHOLE target — query string
+    // still attached — as the path routes match against; the query string
+    // glued itself to the last segment on the `/` split and no pattern
+    // matched, so the SPA rendered "page not found" while a full page load
+    // (which reads `window.location.pathname`, naturally excluding the
+    // query) worked.
+    const { path } = splitTarget('runs?sessionId=conv_019ffce986767dfa822efd0639b34328');
+
+    expect(matchRoute('runs', path)).not.toBeNull();
   });
 });
 

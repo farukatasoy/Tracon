@@ -4,7 +4,7 @@ import { api } from '../lib/api';
 import { apiBase, uiBase } from '../lib/base';
 import { setToken, useToken } from '../lib/auth';
 import { Link } from '../lib/router';
-import { readThemePreference, writeThemePreference, applyTheme, type ThemePreference } from '../lib/theme';
+import { setThemePreference, useThemePreference, type ThemePreference } from '../lib/theme';
 import { count } from '../lib/format';
 import { LOCALES, useLocale, useT, type Locale } from '../lib/i18n';
 import {
@@ -28,7 +28,7 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
   const t = useT();
   const { locale, setLocale } = useLocale();
   const token = useToken();
-  const [preference, setPreference] = useState<ThemePreference>(readThemePreference);
+  const { preference } = useThemePreference();
 
   const stats = useQuery({ queryKey: ['stats', ''], queryFn: () => api.stats({}) });
   const tenant = useQuery({ queryKey: ['current-tenant'], queryFn: api.currentTenant });
@@ -40,7 +40,7 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
         description={t('settings.description')}
       />
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Panel title={t('settings.instance')}>
           <dl className="divide-y divide-line">
             <Row label={t('agentDetail.version')}>
@@ -133,13 +133,7 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
               </span>
               <Select
                 value={preference}
-                onChange={(value) => {
-                  const next = value as ThemePreference;
-
-                  setPreference(next);
-                  writeThemePreference(next);
-                  applyTheme(next);
-                }}
+                onChange={(value) => setThemePreference(value as ThemePreference)}
               >
                 <option value="system">{t('settings.followSystem')}</option>
                 <option value="light">{t('settings.light')}</option>
@@ -297,7 +291,7 @@ function Row({ label, children }: { label: string; children: ReactNode }): React
   return (
     <div className="flex items-center gap-4 px-4 py-2">
       <dt className="w-40 shrink-0 text-[12px] text-subtle">{label}</dt>
-      <dd className="min-w-0 flex-1 text-[13px]">{children}</dd>
+      <dd className="min-w-0 flex-1 text-[13px] break-words">{children}</dd>
     </div>
   );
 }

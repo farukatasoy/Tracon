@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.RegularExpressions;
@@ -29,6 +30,10 @@ public sealed class UiTests(BrowserFixture browsers)
     /// <summary>Eval kosu detay basligini bulan desen.</summary>
     private static readonly Regex EvalRunHeadingPattern =
         new("^Eval run ", RegexOptions.None, TimeSpan.FromSeconds(1));
+
+    /// <summary>Oturum sayfasindaki "N run(s)" dugmesini bulan desen.</summary>
+    private static readonly Regex SessionRunsButtonPattern =
+        new(@"^\d+ runs?$", RegexOptions.None, TimeSpan.FromSeconds(1));
 
     [Fact]
     public async Task Arayuz_acilir_ve_ana_ekran_cizilir()
@@ -79,6 +84,27 @@ public sealed class UiTests(BrowserFixture browsers)
     }
 
     [Fact]
+    public async Task Genel_ekranlar_375px_genislikte_yatay_tasma_yapmaz()
+    {
+        // HATA-S4-008. Tool'lar ekranindaki ucuncu kok neden (bir tool'u
+        // birden fazla agent kullandiginda rozet satirinin sarmamasi) bu
+        // sabit veri kumesiyle tetiklenemez (her tool tek agent'a bagli);
+        // o dal canli sunucuda ayrica dogrulanir (KAPANIS-PLANI.md §6).
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.SetViewportSizeAsync(375, 812);
+
+        await session.Page.GotoAsync(host.UiAddress);
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
+        await AssertNoHorizontalOverflowAsync(session.Page, "Dashboard");
+
+        await session.Page.GotoAsync($"{host.UiAddress}/settings");
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Settings" }).WaitForAsync();
+        await AssertNoHorizontalOverflowAsync(session.Page, "Settings");
+    }
+
+    [Fact]
     public async Task Kod_agenti_listede_gorunur_ve_duzenlenemez()
     {
         await using var host = await UiHost.StartAsync();
@@ -95,6 +121,29 @@ public sealed class UiTests(BrowserFixture browsers)
         await session.Page.GetByText("This agent is declared in code").WaitForAsync();
 
         (await session.Page.GetByRole(AriaRole.Link, new() { Name = "Edit" }).CountAsync()).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Kod_agentine_dogrudan_URL_ile_gidilince_form_ad_ile_dolu_gelir()
+    {
+        // HATA-S4-010: liste ekrani "Edit"i gizler (K1 gorevine gore), ama
+        // duzenleme URL'sine dogrudan gidildiginde form bos + salt-okunur
+        // "Ad" ile aciliyordu — Dogrula/Kaydet dugmeleri hicbir zaman
+        // etkinlesemiyordu, case'in beklendigi 409 akisi hic erisilemezdi.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/agents/support/edit");
+
+        var name = session.Page.GetByTestId("agent-name");
+
+        await Assertions.Expect(name).ToHaveValueAsync("support", new() { Timeout = 10_000 });
+        (await name.IsEditableAsync()).ShouldBeFalse("Kod agentinin adi hala duzenlenebilir olmamali.");
+
+        (await session.Page.GetByTestId("agent-validate").IsDisabledAsync())
+            .ShouldBeFalse("Dogrula dugmesi form dolu oldugu halde devre disi kaldi.");
+        (await session.Page.GetByTestId("agent-save").IsDisabledAsync())
+            .ShouldBeFalse("Kaydet dugmesi form dolu oldugu halde devre disi kaldi.");
     }
 
     [Fact]
@@ -423,6 +472,42 @@ public sealed class UiTests(BrowserFixture browsers)
     }
 
     [Fact]
+    public async Task Ayarlardaki_tema_secici_ust_cubuktaki_dugmeyi_ayni_oturumda_gunceller()
+    {
+        // HATA-S4-006: Settings ekranindaki <select> temayi dogru uyguluyordu
+        // (<html data-theme> gercekten degisiyordu) ama ust cubuktaki
+        // ThemeToggle kendi ayri useState'ini hicbir zaman ogrenmiyordu — SPA
+        // oturumu boyunca yanlis ikon/baslik (title="Theme: dark") gosteriyordu,
+        // tam sayfa yenilemesine kadar.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/settings");
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Settings" }).WaitForAsync();
+
+        // Once ust cubuktaki dugmeyle "dark" yap: asagidaki "light" secimi boylece
+        // bu makinenin sistem renk tercihinden bagimsiz, gercek bir degisikliktir.
+        if (!string.Equals(await session.Page.GetAttributeAsync("html", "data-theme"), "dark", StringComparison.Ordinal))
+        {
+            await session.Page.GetByTestId("theme-toggle").ClickAsync();
+        }
+
+        (await session.Page.GetAttributeAsync("html", "data-theme")).ShouldBe("dark");
+
+        // The wrapping <label>'s accessible name concatenates the <select>'s
+        // own rendered option text ("ThemeFollow systemLightDark"), so
+        // GetByLabel("Theme") never matches exactly; scope by the wrapper
+        // instead.
+        await session.Page.Locator("label", new() { HasText = "Theme" }).Locator("select")
+            .SelectOptionAsync("light");
+
+        (await session.Page.GetAttributeAsync("html", "data-theme")).ShouldBe("light");
+
+        (await session.Page.GetByTestId("theme-toggle").GetAttributeAsync("title"))
+            .ShouldBe("Theme: light", "Ust cubuktaki dugme Ayarlar'daki degisikligi ogrenmedi.");
+    }
+
+    [Fact]
     public async Task Token_gerektiginde_kabuk_acilir_ve_token_sorulur()
     {
         await using var host = await UiHost.StartAsync(authToken: "gizli-token");
@@ -492,6 +577,40 @@ public sealed class UiTests(BrowserFixture browsers)
     }
 
     [Fact]
+    public async Task Alt_calistirmanin_iz_paneli_koke_git_baglantisini_gosterir_yuklenerek_asili_kalmaz()
+    {
+        // HATA-S4-013: trace sorgusu `enabled: finished && parentRunId ==
+        // null` disinda kalinca (her alt calistirmada) React Query'nin
+        // `isPending`'i KALICI true kalir; panel bunu ILK sirada kontrol
+        // ettigi icin sonsuz "Loading" gosteriyordu, "root run" bagi hicbir
+        // zaman belirmiyordu.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/playground/yonlendirici");
+        await session.Page.GetByTestId("playground-input").FillAsync("ORD-7 nerede");
+        await session.Page.GetByTestId("playground-send").ClickAsync();
+
+        await session.Page.GetByText("Echo:").First.WaitForAsync(new() { Timeout = 30_000 });
+
+        await session.Page.GetByRole(AriaRole.Link, new() { NameRegex = RunLinkPattern }).First.ClickAsync();
+
+        var callTree = session.Page.Locator(
+            "section", new() { Has = session.Page.GetByRole(AriaRole.Heading, new() { Name = "Call tree" }) });
+
+        await callTree.WaitForAsync(new() { Timeout = 30_000 });
+
+        // Agac satirindaki tek baglanti alt calistirmadir (kok satir kendisi
+        // - "this run" - baglanti degil salt metindir).
+        await callTree.Locator("a[href*='/runs/']").First.ClickAsync();
+
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Trace" }).WaitForAsync();
+
+        await session.Page.GetByText("Spans live on the root run").WaitForAsync(new() { Timeout = 15_000 });
+        await session.Page.GetByRole(AriaRole.Link, new() { Name = "root run" }).WaitForAsync();
+    }
+
+    [Fact]
     public async Task Runs_ekrani_varsayilan_olarak_yalniz_kokleri_listeler()
     {
         await using var host = await UiHost.StartAsync();
@@ -516,6 +635,40 @@ public sealed class UiTests(BrowserFixture browsers)
 
         await session.Page.GetByText("depth 1", new() { Exact = true }).First
             .WaitForAsync(new() { Timeout = 30_000 });
+    }
+
+    [Fact]
+    public async Task Oturum_sayfasindaki_calistirmalar_dugmesi_filtrelenmis_listeye_gider()
+    {
+        // HATA-S4-017: navigate() sorgu dizgisini (?sessionId=...) yol
+        // eslesmesine tasiyordu; SPA ici tiklama "Page not found" veriyordu,
+        // yalniz tam sayfa yenilemesi (window.location.pathname sorguyu
+        // dogal olarak disarida birakir) calisiyordu.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/playground/support");
+        await session.Page.GetByTestId("playground-input").FillAsync("ORD-7 nerede");
+        await session.Page.GetByTestId("playground-send").ClickAsync();
+
+        await session.Page.GetByText("Echo:").First.WaitForAsync(new() { Timeout = 30_000 });
+
+        await session.Page.Locator("a[href*='/sessions/']").First.ClickAsync();
+
+        var runsButton = session.Page.GetByRole(AriaRole.Button, new() { NameRegex = SessionRunsButtonPattern });
+
+        await runsButton.WaitForAsync(new() { Timeout = 15_000 });
+
+        var label = await runsButton.TextContentAsync();
+        var expectedCount = int.Parse(label!.Split(' ')[0], CultureInfo.InvariantCulture);
+
+        await runsButton.ClickAsync();
+
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Runs" })
+            .WaitForAsync(new() { Timeout = 15_000 });
+        (await session.Page.GetByText("Page not found").CountAsync()).ShouldBe(0);
+
+        (await session.Page.Locator("tbody tr").CountAsync()).ShouldBe(expectedCount);
     }
 
     [Fact]
@@ -1124,6 +1277,31 @@ public sealed class UiTests(BrowserFixture browsers)
     }
 
     [Fact]
+    public async Task Komut_paleti_Esc_sonrasi_odagi_acan_dugmeye_dondurur()
+    {
+        // HATA-S4-004: Esc paleti kapatiyordu ama odagi hicbir yere
+        // dondurmuyordu (document.activeElement <body>'ye dusuyordu).
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host, locale: "en-US");
+
+        await session.Page.GotoAsync(host.UiAddress);
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
+
+        await session.Page.GetByTestId("palette-open").ClickAsync();
+        await session.Page.GetByTestId("command-palette").WaitForAsync();
+
+        await session.Page.Keyboard.PressAsync("Escape");
+
+        await session.Page.GetByTestId("command-palette").WaitForAsync(
+            new() { State = WaitForSelectorState.Detached, Timeout = 10_000 });
+
+        var focusIsOnTrigger = await session.Page.EvaluateAsync<bool>(
+            "() => document.activeElement === document.querySelector('[data-testid=\"palette-open\"]')");
+
+        focusIsOnTrigger.ShouldBeTrue("Esc sonrasi odak paleti acan dugmeye donmedi.");
+    }
+
+    [Fact]
     public async Task Komut_paleti_rol_bazli_filtrelenir()
     {
         // Admin policy'si basarisiz olunca "New agent" komutu paletten de
@@ -1271,5 +1449,19 @@ public sealed class UiTests(BrowserFixture browsers)
         await session.Page.GetByTestId("agent-save").ClickAsync();
 
         await session.Page.GetByRole(AriaRole.Heading, new() { Name = name }).WaitForAsync(new() { Timeout = 15_000 });
+    }
+
+    /// <summary>
+    /// Sayfanin kendisinin 375px genislikte yatay kaymadigini dogrular.
+    /// HATA-S4-008: <c>Panel</c>'in baslik+aksiyon satiri ve <c>Row</c>'un
+    /// deger sutunu (uzun URL degerleri) sarma tasimadigi icin dar ekranda
+    /// sayfanin geneli genisliyordu — icindeki tablolar/kartlar degil.
+    /// </summary>
+    private static async Task AssertNoHorizontalOverflowAsync(IPage page, string screen)
+    {
+        var overflow = await page.EvaluateAsync<int>(
+            "() => document.documentElement.scrollWidth - document.documentElement.clientWidth");
+
+        overflow.ShouldBeLessThanOrEqualTo(0, $"{screen} 375px genislikte yatay tasiyor ({overflow}px).");
     }
 }

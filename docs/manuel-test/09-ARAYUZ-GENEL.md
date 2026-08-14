@@ -160,7 +160,24 @@ Negatif senaryo.
 **Gerçek sonuç**
 `HATA-S4-001`: `yanlis-token` girilip "Continue"a basılınca kart **sessizce** boş forma döner — `role="alert"` satırı hiç görünmez, giriş alanı temizlenir, buton yeniden devre dışı kalır. Kök neden: `src/AgentPrism.UI/frontend/src/lib/api.ts:155-159`'daki `request()` her 401 yanıtında (yorum: "Dropping it returns the app to the token prompt instead of retrying a credential that is known to be wrong") koşulsuz `setToken(null)` çağırır — bu, yanlış tokenın YOL AÇTIĞI 401'i de kapsar. `access-gate.tsx:53-55`'teki `TokenPrompt failed={token !== null}` render edildiğinde `token` zaten `setToken(null)` ile temizlenmiş olduğundan `failed` her zaman `false` olur; `access.token.rejected` mesajı (satır 110-114) fiilen ölü koddur, hiçbir gerçek akışta render edilemez. Kullanıcı yanlış token girdiğinde NEDEN reddedildiğini görmez.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Aile U (bu koşum).** Kök neden düzeltildi: `src/AgentPrism.UI/frontend/src/lib/auth.ts`'e
+`rejectToken()` eklendi — token'ı `null` yapmadan ÖNCE (yalnız o token gerçekten
+denenmişse, ilk anonim `probe`'un 401'ini "reddedildi" saymadan) bir `rejected`
+bayrağı set eder, yeni `useTokenRejected()` hook'u bunu okur. `api.ts`'teki
+`setToken(null)` çağrısı `rejectToken()`'a çevrildi; `access-gate.tsx`
+`TokenPrompt failed={token !== null}` yerine `failed={rejected}` kullanıyor.
+`setToken()` (yeni token gönderimi VEYA Ayarlar'daki "Forget" çıkışı) bayrağı
+temizler. Canlı Postgres'e karşı doğrulandı: `yanlis-token` girilip "Continue"a
+basılınca kart artık kapanmıyor, `role="alert"` satırı "The server rejected
+that token. Check the value configured in AgentPrismEndpointOptions.AuthToken."
+metniyle görünüyor; ardından doğru token girilip tekrar denendiğinde kabuk
+normal şekilde açılıyor. Regresyon testi: `src/AgentPrism.UI/frontend/src/lib/auth.test.ts`
+(`rejectToken` — token yokken no-op, token varken reddedildi işaretler;
+`setToken` — yeni gönderim ve "Forget" ikisi de bayrağı temizler).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -724,7 +741,21 @@ yok. Karşılaştırma: aynı dosyadaki `ShortcutHelp` (satır 376-378) kendi "K
 butonuna `close.current?.focus()` ile odaklanıyor — ama o da açılıştaki
 kendi butonuna odaklanma, palet'i açan öğeye DÖNME değil. `HATA-S4-004`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Aile U (bu koşum).** `command-palette.tsx`'e `trigger` ref'i eklendi: palet
+açılırken (`open` `false`→`true`) `document.activeElement` (⌘K düğmesi
+tıklamayla açıldıysa düğmenin kendisi, klavye kısayoluyla açıldıysa odak zaten
+neredeyse orası) kaydedilir; kapanırken (`open` `true`→`false`) o elemana
+`.focus()` çağrılır. Tek `useEffect`, `open`'a bağlı — mevcut "açılışta input'a
+odaklan" efektiyle birleştirildi, yeni bir efekt eklenmedi. Canlı sunucuda
+doğrulandı: ⌘K düğmesine tıklanıp `Esc`'e basıldığında `document.activeElement`
+tekrar `[data-testid="palette-open"]`. Regresyon testi:
+`tests/AgentPrism.Ui.E2ETests/UiTests.cs`
+`Komut_paleti_Esc_sonrasi_odagi_acan_dugmeye_dondurur` (gerçek tarayıcı,
+`document.activeElement` doğrudan kontrol edilir).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1040,7 +1071,24 @@ tema değişikliği (`system`/`light`/`dark` hangi yönde olursa olsun) üst
 çubuktaki düğmeyi SPA oturumu boyunca yanıltıcı bırakır; kullanıcı sayfayı
 yenilemeden düğmeye güvenirse yanlış temaya "geçtiğini" sanabilir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Aile U (bu koşum).** `src/AgentPrism.UI/frontend/src/lib/theme.ts`'e
+paylaşımlı bir store eklendi (`auth.ts`'teki desenin aynısı —
+`useSyncExternalStore`): `setThemePreference()` tek yazma yolu,
+`useThemePreference()` tek okuma yolu. `ThemeToggle` (layout.tsx) ve Ayarlar
+`<select>`'i artık kendi `useState`'lerini taşımıyor, ikisi de bu hook'u
+kullanıyor. Komut paletinin "Tema değiştir" eylemi de (üçüncü, gözden kaçan
+bir yazma yolu — `command-palette.tsx`) aynı `setThemePreference()`'a
+bağlandı. "Sistemi izle"deyken OS tercihini dinleyen `matchMedia` listener'ı
+artık bileşen başına değil, modül düzeyinde TEK sefer kurulur. Canlı Postgres'e
+karşı doğrulandı: Ayarlar'daki `<select>`'ten "Dark" seçilince üst çubuktaki
+düğmenin `title` özniteliği AYNI SPA oturumunda (sayfa yenilemeden)
+`"Theme: dark"`'a dönüyor; "Light" seçilince `"Theme: light"`'a. Regresyon
+testi: `tests/AgentPrism.Ui.E2ETests/UiTests.cs`
+`Ayarlardaki_tema_secici_ust_cubuktaki_dugmeyi_ayni_oturumda_gunceller`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1687,7 +1735,41 @@ doğru çalışıyor — üç ekrandaki taşma BAŞKA, üç AYRI kaynaktan geliy
 (`HATA-S4-008`). Üst çubuktaki dil/tema düğmeleri kendileri üst üste
 binmiyor (ayrı gözlem, doğru). **`HATA-S4-008` açıldı** — bkz. aşağı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Aile U (bu koşum).** Üç bilinen kök neden düzeltildi: `ui.tsx`'teki
+`Panel` başlık+aksiyon satırına `flex-wrap` (+ başlığa `min-w-0`),
+`settings.tsx`'teki `Row`'un `dd`'sine `break-words` (uzun URL değerleri
+artık sarıyor), `tools.tsx`'teki rozet+agent-link satırına `flex-wrap`.
+**Dördüncü, önceden kayıtlı olmayan bir kök neden de bulundu**: düzeltmeler
+sonrası Playwright ile yeniden ölçüldüğünde Ayarlar hâlâ 92px taşıyordu —
+`settings.tsx:43`'teki `<div className="grid gap-4 lg:grid-cols-2">`'nin
+`lg:` ALTINDA temel bir `grid-cols-1` taşımaması: CSS Grid'de sütun
+`auto` sınıfıyla içerik genişliğine göre büyüyebilir ve konteynerin kendi
+genişliğiyle SINIRLI DEĞİLDİR — grid öğesi (Panel) konteynerinin (343px)
+dışına, 451px'e kadar taşabiliyordu. `grid-cols-1` eklenerek sütun `1fr`'e
+(konteyner genişliğine) sabitlendi. Aynı desen (`grid ... lg:grid-cols-N`
+temel sınıf olmadan) kod tabanında 30'dan fazla yerde tekrarlanıyor ama
+yalnız bu üçlü (Dashboard/Ayarlar/Tool'lar) bu case'in kapsamındadır —
+diğerleri doğrulanmamış, ayrı bir bulgu olarak not düşülür (aşağıdaki not).
+Canlı Postgres'e karşı 375px'te üçü de yeniden ölçüldü: Dashboard 331=331,
+Ayarlar 331=331, Tool'lar (`cancel_order`, GERÇEKTEN 4 agent tarafından
+kullanılıyor) 331=331 — hiçbiri taşmıyor. Regresyon testi:
+`tests/AgentPrism.Ui.E2ETests/UiTests.cs`
+`Genel_ekranlar_375px_genislikte_yatay_tasma_yapmaz` (Dashboard+Ayarlar,
+sabit E2E veri kümesiyle tetiklenebilen ikisi; Tool'lar dalı yalnız canlı
+sunucuda doğrulandı — E2E fixture'ında hiçbir tool birden fazla agent
+tarafından kullanılmıyor).
+
+**🚨 Ayrı bulgu (kodlanmadı) — grid-cols temel sınıfı deseni.** `grid
+gap-* [breakpoint]:grid-cols-N` (temel `grid-cols-1` OLMADAN) deseni
+`agent-editor.tsx`, `run-detail.tsx`, `agent-detail.tsx`, `diagnostics.tsx`
+ve daha birçok ekranda tekrarlanıyor. Her biri AYNI taşma sınıfını
+üretebilir ama içeriğin genişliğine bağlıdır — doğrulanmadan varsayılamaz.
+Kapsam dışı bırakıldı (yalnız bu case'in üç ekranı düzeltildi); gelecekte
+dar-ekran şikayeti gelirse ilk bakılacak yer burasıdır.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

@@ -823,7 +823,20 @@ alt çalıştırmada) kod `<Empty>` dalına HİÇBİR ZAMAN ulaşamıyor, kullan
 sonsuz bir yükleniyor göstergesi görüyor — doküman iddiasının aksine "köke
 git" bağlantısı hiç belirmiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Aile U (bu koşum).** `run-detail.tsx`'teki üçlü ifade yeniden sıralandı:
+`record.parentRunId != null` kontrolü (query'nin `enabled` koşuluyla BİREBİR
+aynı, yani "bu sorgu asla çalışmayacak" bilgisi zaten deterministik olarak
+biliniyor) artık `trace.isPending`den ÖNCE geliyor. Sorgu tanımına
+dokunulmadı — yalnız render sırası düzeltildi. Canlı sunucuda `yonlendirici`
+üzerinden bir alt çalıştırma üretilip Trace paneli kontrol edildi: "Spans
+live on the root run" başlığı + kök çalıştırmaya giden bağlantı hemen
+görünüyor, kalıcı "Loading" YOK. Regresyon testi:
+`tests/AgentPrism.Ui.E2ETests/UiTests.cs`
+`Alt_calistirmanin_iz_paneli_koke_git_baglantisini_gosterir_yuklenerek_asili_kalmaz`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1523,7 +1536,24 @@ model bu turda çağırmadı) ama kullanıcıya NEDEN hiçbir şey olmadığın�
 açıklayan bir sinyal de YOK; DB kökenli yoldaki net "'LiveTools' modunda
 çalıştırılamaz" uyarısı burada tamamen eksik. Bkz. `HATA-S4-014`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Aile U (bu koşum).** `RunReplayService.PrepareFromCatalogAsync`'e aynı
+onay-tool koruması eklendi. `FindApprovalTool` artık `AgentDefinition`
+yerine düz `IReadOnlyList<string> toolNames` alıyor (DB yolu da bu imzaya
+geçirildi); kod kökenli yolda tool adları `_catalog.ListAsync()`'in
+döndürdüğü `AgentDescriptor.ToolNames`'ten (arayüzün agent listesini de
+besleyen aynı veri) okunuyor — kod kökenli agent'ların `AgentDefinition`'ı
+olmadığı için başka kaynak yok. Bulunursa `409`/`ApprovalRequired` döner;
+mesaj DB yolundakinden farklı ("Use 'ReplayTools' or 'NoTools'" YERİNE bu
+agent'ın o modları da desteklemediği açıklanır, çünkü kod kökenli agent
+yalnız `LiveTools`'ta oynatılabilir — DB yolunun mesajı burada yanlış olurdu).
+Regresyon testi (fix geri alınıp KIRMIZI verdiği doğrulandıktan sonra fix
+geri uygulandı):
+`tests/AgentPrism.AspNetCore.FunctionalTests/RunReplayEndpointTests.cs`
+`Kod_kaynakli_agentteki_onay_gerektiren_tool_LiveTools_ile_de_409_doner`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1908,7 +1938,29 @@ sonuç metni (`"ORD-1001 numarali siparis kargoya verildi..."`) HİÇBİR
 yerde görünmüyor. Veri kaybı yok (Ham Durum/run-detail'de doğru), yalnız
 Sohbet geçmişi sekmesinin gösterimi yanıltıcı. Bkz. `HATA-S4-016`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Aile U (bu koşum).** `transcript.ts`'teki `foldMessage` (tek mesaj, taze
+state) kaldırıldı; yerine `foldMessages(messages)` geldi — `foldRunEvents`'in
+zaten kullandığı desenin aynısı: TÜM mesajlar TEK paylaşılan bir
+`TranscriptState` üzerinde sırayla katlanır, her mesaj yalnız KENDİ
+eklediği item'ları tutar (bir mesajın `functionResult`'ı, önceki mesajın
+`functionCall`'unun açtığı item'ı REFERANSLA günceller — yeni item eklemez).
+`session-detail.tsx` artık `detail.messages`'ı bir kez `foldMessages`'tan
+geçirip her satıra kendi dilimini veriyor. **Tuzak (birim testiyle
+yakalandı):** paylaşılan `appendText` bitişik metin item'larını birleştirme
+mantığı (`foldUpdate`/`foldRunEvents` için doğru — tek akışı katlıyorlar)
+mesaj sınırını da aşıp ARDIŞIK İKİ FARKLI MESAJIN metnini birleştiriyordu;
+`appendText`/`applyContent`'e opsiyonel bir `boundary` parametresi eklendi
+(yalnız `foldMessages` geçiriyor, `foldUpdate`/`foldRunEvents` davranışı
+DEĞİŞMEDİ). Canlı sunucuda `support`'a tool çağrısı gerektiren bir istek
+(`get_order_status`) gönderilip oturum sayfası kontrol edildi: çağrı artık
+"bitti" durumunda, sonuç metni çağrının kendi kartında görünüyor. Regresyon
+testleri: `src/AgentPrism.UI/frontend/src/lib/transcript.test.ts`
+(`foldMessages` — düz metin turlarında ayrı item, ÇAĞRI+SONUÇ farklı
+mesajlarda birleşiyor, eşleşmeyen sonuç sessizce yutuluyor, boş dizi).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2035,7 +2087,33 @@ sonuç: `session-detail.tsx:58`) — bu yüzden pratik etki dar ama ekranın
 KENDİ birincil eylemi (oturuma ait çalıştırmaları görme) her zaman kırık.
 Bkz. `HATA-S4-017`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Aile U (bu koşum).** Kayıtlı kök neden doğrulandı ama **kapsamı eksikti** —
+düzeltilmesi gereken ikinci, bağımsız bir kusur daha bulundu: `RunsScreen`
+(`screens/runs.tsx`) `sessionId` sorgu parametresini HİÇ OKUMUYORDU (ne
+`URLSearchParams`, ne router state'i — grep'le doğrulandı, dosyada
+`sessionId` hiç geçmiyordu). Yani router düzeltilse bile düğme kullanıcıyı
+FİLTRESİZ "Çalıştırmalar" ekranına götürürdü — case'in "yalnız o oturuma
+ait satırları listeler" beklentisi hâlâ karşılanmazdı. İki parçalı düzeltme:
+(1) `router.tsx`'e `splitTarget()` (saf fonksiyon) + `search` state'i
+eklendi; `navigate()` artık yol ve sorgu dizgisini AYRI tutuyor, `matchRoute`
+yalnız yolu görüyor. Yeni `useSearchParams()` hook'u sorgu dizgisini
+`URLSearchParams`e çeviriyor. (2) `RunsScreen` artık `useSearchParams().get
+('sessionId')`'i okuyup `api.runs({..., sessionId})`'e geçiriyor (backend
+zaten destekliyordu — `session-detail.tsx`'in kendisi `api.runs({sessionId:
+id})` çağırıyordu, yalnız `RunsScreen`'in KENDİSİ hiç filtrelemiyordu).
+Canlı Postgres'e karşı doğrulanmadı (gerçek sağlayıcı çağrısı gerektirdiği
+için maliyet nedeniyle atlandı) — sahte sağlayıcılı E2E testinde uçtan uca
+doğrulandı: bir oturumda 1 çalıştırma üretilip "1 run" düğmesine tıklandı,
+`Runs` ekranı "Page not found" GÖSTERMEDEN açıldı ve tablo TAM 1 satır
+listeledi. Regresyon testleri:
+`src/AgentPrism.UI/frontend/src/lib/format.test.ts`
+(`splitTarget` — yol/sorgu ayrımı, `matchRoute`'a beslendiğinde eşleşme) ·
+`tests/AgentPrism.Ui.E2ETests/UiTests.cs`
+`Oturum_sayfasindaki_calistirmalar_dugmesi_filtrelenmis_listeye_gider`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

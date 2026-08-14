@@ -208,7 +208,17 @@ modelin TEK kısa turu ondalık basamak 5'te başlayan bir tutar (`0.00003945`)
 onu `"0,00"`'a kırpar. `/api/stats`'in HAM `totalCost` alanı (`3.945e-05`)
 doğru — sorun yalnız istemci tarafı biçimlendirme hassasiyetinde.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Aile U (bu koşum).** `format.ts`'teki `money()` artık `value > 0 && value <
+0.01` iken `maximumFractionDigits`'i 4'ten 6'ya çıkarıyor (aksi halde 4'te
+kalıyor — tam `0` hâlâ `"0.00"` yazar, `MT-OBS-003`'ün kendi belgesindeki
+"asla `0` olarak gösterilmez" ilkesiyle çelişmez). `0.00003945` artık
+`"0.000039"` yazıyor — sıfırdan görsel olarak ayırt edilebilir. Regresyon
+testi: `src/AgentPrism.UI/frontend/src/lib/format.test.ts`
+(`money` — `0.00003945` artık `"0.00 USD"` DEĞİL, tam `0` hâlâ `"0.00 USD"`).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

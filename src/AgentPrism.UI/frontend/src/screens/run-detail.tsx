@@ -353,11 +353,12 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
       {finished && (
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <Panel title={t('runDetail.trace')}>
-            {trace.isPending ? (
-              <Loading />
-            ) : trace.isSuccess ? (
-              <Waterfall trace={trace.data} />
-            ) : record.parentRunId != null ? (
+            {record.parentRunId != null ? (
+              // `trace` is `enabled: finished && parentRunId == null` (a
+              // sub-run shares its root's trace, so its own request would
+              // always 404) — checked first because a disabled query's
+              // `isPending` never leaves `true` (React Query v5), which would
+              // otherwise show a permanent spinner instead of this link.
               <Empty title={t('runDetail.spansOnRoot.title')}>
                 {t('runDetail.spansOnRoot.before')}{' '}
                 <Link
@@ -368,6 +369,10 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
                 </Link>{' '}
                 {t('runDetail.spansOnRoot.after')}
               </Empty>
+            ) : trace.isPending ? (
+              <Loading />
+            ) : trace.isSuccess ? (
+              <Waterfall trace={trace.data} />
             ) : (
               <Empty title={t('runDetail.noSpans.title')}>
                 {t('runDetail.noSpans.body')}{' '}

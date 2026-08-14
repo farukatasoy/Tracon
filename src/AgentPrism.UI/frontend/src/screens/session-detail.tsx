@@ -4,7 +4,7 @@ import { api } from '../lib/api';
 import { Link } from '../lib/router';
 import { absoluteTime, relativeTime } from '../lib/format';
 import { usePlural, useT } from '../lib/i18n';
-import { foldMessage } from '../lib/transcript';
+import { foldMessages } from '../lib/transcript';
 import {
   Badge,
   Button,
@@ -39,6 +39,7 @@ export function SessionDetailScreen({ id }: { id: string }): ReactNode {
   }
 
   const detail = session.data;
+  const folds = detail.messages === null ? [] : foldMessages(detail.messages);
 
   return (
     <>
@@ -83,7 +84,7 @@ export function SessionDetailScreen({ id }: { id: string }): ReactNode {
           ) : (
             <div className="flex flex-col divide-y divide-line">
               {detail.messages.map((message, index) => {
-                const folded = foldMessage(message);
+                const folded = folds[index] ?? { items: [], usage: null };
                 const role = (message.role ?? 'unknown').toLowerCase();
 
                 return (

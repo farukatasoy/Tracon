@@ -1,5 +1,5 @@
 import { apiUrl } from './base';
-import { authHeaders, setToken } from './auth';
+import { authHeaders, rejectToken } from './auth';
 import type {
   AgentDefinition,
   AgentDefinitionRequest,
@@ -154,8 +154,9 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (response.status === 401) {
     // The stored token was rejected. Dropping it returns the app to the token
-    // prompt instead of retrying a credential that is known to be wrong.
-    setToken(null);
+    // prompt instead of retrying a credential that is known to be wrong, and
+    // marks it as rejected (not merely absent) so the prompt can explain why.
+    rejectToken();
   }
 
   if (!response.ok) {
