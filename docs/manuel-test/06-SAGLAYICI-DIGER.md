@@ -446,7 +446,24 @@ harfiyen kopyalıyor. Üç sağlayıcının kaynağı karşılaştırıldı, ü�
 `if (... Uri.TryCreate(..., UriKind.Absolute, ...)) { options.Endpoint = ...; }`
 kalıbını taşıyor — `else` dalı yok. Yeni kayıt: `HATA-S3-003`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+**Yeniden koşum (Aile O, bu koşum).** Kök neden düzeltildi — üç sağlayıcının
+(OpenAI, Anthropic, Google) `Bind()`'ı artık `Uri.TryCreate(endpoint,
+UriKind.RelativeOrAbsolute, out var endpointUri)` kullanıyor; göreli bir
+değer de atanıyor, `IsAbsoluteUri: false` denetimi artık tetikleniyor. Aynı
+adım (`AgentPrism__Providers__Google__Endpoint=sadece-bir-yol`, temiz
+`mt_fin_o` şeması, gerçek Postgres'e karşı) yeniden koşuldu: uygulama artık
+**başlamıyor**, konsolda birebir beklenen metin görüldü:
+`Unhandled exception. Microsoft.Extensions.Options.OptionsValidationException:
+GoogleProviderOptions.Endpoint mutlak bir adres olmalidir. Gelen deger:
+'sadece-bir-yol'.` Regresyon testi:
+`tests/AgentPrism.Google.UnitTests/GoogleProviderExtensionsTests.cs`
+`Yapilandirmadan_gelen_goreli_adres_reddedilir` (Anthropic için eşdeğeri
+`tests/AgentPrism.Anthropic.UnitTests/AnthropicProviderExtensionsTests.cs`'de
+— fix geri alınıp koşulduğunda ikisi de KIRMIZI verdiği ampirik olarak
+doğrulandı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -501,7 +518,33 @@ S3-1'de kaydedilen HATA-S3-002'nin (`OpenAIProviderOptions.Models` için)
 birebir aynısı**, aynı satır numarası deseniyle Anthropic ve Google'da da
 doğrulandı. Yeni kayıt: `HATA-S3-004`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+**Yeniden koşum (Aile O, bu koşum).** Kök neden düzeltildi — üç sağlayıcının
+`BindModels()`'ı artık boş/eksik `Name`'i `continue` ile atlamıyor, ögeyi
+`Name = ... ?? string.Empty` ile listeye ekliyor; doğrulayıcının
+`Models[index]` döngüsü artık boş ismi gerçekten görüyor. Aynı adım
+(Anthropic VE Google `Models` dizilerine `{"Name": ""}` eklendi, temiz
+`mt_fin_o` şeması, gerçek Postgres'e karşı) yeniden koşuldu: uygulama artık
+**başlamıyor**. Gözlenen konsol çıktısı beklenenden **kısmen** farklı: yalnız
+**tek** bir `OptionsValidationException` görüldü —
+`AnthropicProviderOptions.Models[3] icin model adi bos olamaz.` — Google'ın
+kendi hatası hiç yazdırılmadı. Kök neden: `AddModelProvider` her sağlayıcıyı
+ayrı bir `IModelProvider` fabrikası olarak kaydediyor; `MapAgentPrism`
+`IEnumerable<IModelProvider>`'ı çözerken Anthropic'in fabrikası (kayıt
+sırasında önce gelir) istisna atınca .NET DI'nin `IEnumerable` çözümü orada
+durur, Google'ın fabrikası hiç çağrılmaz. Bu, Aile O'nun kök nedeniyle
+(BindModels'in sessiz eleme) **ilgisiz**, ayrı bir DI çözümleme davranışı —
+case'in kendi kabul kriteri buna zaten izin veriyordu ("iki ayrı ... **veya**
+birleşik hata listesi"); burada gözlenen üçüncü bir örüntü (yalnız ilki)
+olsa da temel iddia ("uygulama sessizce başlamaz") doğrulandı. Değişiklik
+`git checkout -- samples/AgentPrism.Api/appsettings.json` ile geri alındı.
+Regresyon testleri: `tests/AgentPrism.Anthropic.UnitTests/AnthropicProviderExtensionsTests.cs`
+ve `tests/AgentPrism.Google.UnitTests/GoogleProviderExtensionsTests.cs`
+`Yapilandirmadan_gelen_adsiz_model_reddedilir` (ikisi ayrı ayrı, kendi
+sağlayıcı ayarında; fix geri alınıp koşulduğunda ikisi de KIRMIZI verdiği
+ampirik olarak doğrulandı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

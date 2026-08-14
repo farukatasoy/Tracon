@@ -59,8 +59,8 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 |---|---|
 | Toplam case | **1097** |
 | Koşuldu | **1097** (koşulmamış case **yok**) |
-| ☑ Geçti | **1011** |
-| ☒ **Kaldı** | **55** |
+| ☑ Geçti | **1015** |
+| ☒ **Kaldı** | **51** |
 | ⏭ Atlandı | **30** |
 | ☐ Beklemede | **1** (`MT-UIRUN-019`) |
 
@@ -83,10 +83,11 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile L** — SPA geçişinin erken `AbortController.abort()`'u `RunStarted` yazıldıktan sonra ama try/finally güvenlik ağına girmeden çalıştırmayı sonsuza dek `Running`de bırakıyordu; `BeginRunAsync` `CreateScope` (saf) + `WriteRunStartAsync` (G/Ç) olarak ikiye bölündü, ikincisi güvenlik ağının içine taşındı | `a61f999` | `MT-UIRUN-007` |
 | **Aile M** — Kabuk loopback kısıtından muaf değildi, loopback dışı erişimde React hiç başlamıyordu; `AgentPrismEndpointFilter`'a `requireLoopback` parametresi eklendi, kabuk grubu bearer token gibi loopback'ten de muaf tutuldu | `58c3268` | `MT-UI-008` |
 | **Aile N** — `ProblemDetails` başlıkları koda gömülü Türkçe'ydi (113 `title:` literali); `src/AgentPrism.AspNetCore/` + besleyen Core/Workflows/Generators dosyaları + OpenAI-uyumlu/A2A/MCP/Voice yüzeyleri İngilizce'ye çevrildi, kaynak taramalı regresyon çiti eklendi | `e9f9006` | `MT-UI-032` |
+| **Aile O** — OpenAI/Anthropic/Google `Bind()`'ı geçersiz `Endpoint` (göreli adres) ve boş model adını doğrulayıcıya ulaşmadan sessizce eliyordu; üç sağlayıcının `Bind()`'ı `UriKind.RelativeOrAbsolute` ile geçersiz `Endpoint`'i de atıyor, `BindModels()` boş `Name`'i de listeye ekliyor — doğrulayıcının ölü dalları artık erişilebilir | (bu koşum) | `MT-OAI-010`, `MT-OAI-012`, `MT-PROV-012`, `MT-PROV-013` |
 
 ### Kalan aileler
 
-Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **M** ile başlar.
+Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **P** ile başlar.
 
 | Aile | Önem | Konu | Case | Durum |
 |---|---|---|---|---|
@@ -104,7 +105,7 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **M** ile başla
 | ~~L~~ | Yüksek | SPA geçişi run'ı `Running` bırakıyor | 1 | ✅ (bu koşum) |
 | ~~M~~ | Yüksek | Loopback dışı erişimde ham JSON | 1 | ✅ (bu koşum) |
 | ~~N~~ | Yüksek | 113 `ProblemDetails` başlığı Türkçe | 1 | ✅ (bu koşum) |
-| **O** | Orta | Yapılandırmada geçersiz değer sessizce düşüyor | 4 | ⬜ |
+| ~~O~~ | Orta | Yapılandırmada geçersiz değer sessizce düşüyor | 4 | ✅ (bu koşum) |
 | **P** | Orta | Bağlanmayan yapılandırma anahtarları | 2 | ⬜ |
 | **Q** | Orta | Çapraz kiracı `404` dalı ölü kod | 4 | ⬜ |
 | **R** | Orta | Çalıştırma filtreleri | 2 | ⬜ |
@@ -116,12 +117,12 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **M** ile başla
 | **Yeniden koşum** | — | Kusuru zaten kapalı | 8 | ⬜ |
 | **MT-PKG-010** | — | Kök neden `f36eeaf`'te kapandı, case yeniden koşulmalı | 1 | ⬜ |
 
-**Toplam:** 35 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **57**. (Aile F
+**Toplam:** 31 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **53**. (Aile F
 bitti: 51 → 47; Aile G bitti: 47 → 43; Aile H bitti: 43 → 42; Aile I bitti:
 42 → 41; Aile J bitti: 41 → 40; Aile K bitti: 40 → 38; Aile L bitti: 38 → 37;
-Aile M bitti: 37 → 36; Aile N bitti: 36 → 35. `MT-MCP-052` bu sayıma dahil
-değildir — Kaldı kalır, ayrı bir bulgu olarak izlenir, gelecekte kendi
-ailesini gerektirebilir.)
+Aile M bitti: 37 → 36; Aile N bitti: 36 → 35; Aile O bitti: 35 → 31.
+`MT-MCP-052` bu sayıma dahil değildir — Kaldı kalır, ayrı bir bulgu olarak
+izlenir, gelecekte kendi ailesini gerektirebilir.)
 
 ---
 
@@ -977,7 +978,7 @@ güncellendi — davranış değişmedi, yalnız beklenen dil.
 `tests/AgentPrism.Core.UnitTests/Architecture/ProblemDetailsLanguageTests.cs`.
 **Güncellenen testler:** 29 (yukarıda listeli).
 
-### Aile O — Yapılandırmada geçersiz değer sessizce düşüyor · Orta
+### ~~Aile O~~ — Yapılandırmada geçersiz değer sessizce düşüyor · Orta ✅ (bu koşum)
 
 **Kusur:** `HATA-S3-001..004`. `Bind()` geçersiz değeri doğrulayıcıya
 **ulaşmadan** eliyor; doğrulayıcı dalı erişilemez ölü koda dönüyor.
@@ -988,7 +989,52 @@ güncellendi — davranış değişmedi, yalnız beklenen dil.
 `src/AgentPrism.Anthropic/AnthropicProviderExtensions.cs:136-139`, `:167` ·
 `src/AgentPrism.Google/GoogleProviderExtensions.cs:137-140`, `:163`.
 
-**Case:** `MT-OAI-010`, `MT-OAI-012`, `MT-PROV-012`, `MT-PROV-013`.
+**Önce ampirik yeniden üretim.** Dört gate baseline'da yeşildi (regresyon
+yok). Kod okuması dört case'in kayıtlı kök nedenini doğruladı: üç sağlayıcının
+`Bind()`'ı `Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri)`
+`false` dönünce `options.Endpoint`'i hiç atamıyordu, `BindModels()` boş/eksik
+`Name`'i `continue` ile listeye hiç eklemiyordu — üçünün de kendi
+`OptionsValidationOptions` doğrulayıcısında bu iki durumu yakalayan dal
+(`Endpoint is { IsAbsoluteUri: false }`, `Models[index]` döngüsü) zaten
+vardı ama hiçbir zaman tetiklenmiyordu (ölü kod).
+
+**Uygulanan tasarım:** Tasarım kararı gerektirmeyen, üç dosyada tekrarlanan
+aynı kök neden düzeltmesi. `Bind()` artık `Uri.TryCreate(endpoint,
+UriKind.RelativeOrAbsolute, out var endpointUri)` kullanıyor — göreli bir
+adres de `options.Endpoint`'e atanıyor, geçersizliği doğrulayıcı karar
+veriyor (tamamen ayrıştırılamayan bir dize hâlâ atanmaz — kapsam yalnız
+case'lerin kapsadığı "göreli adres" senaryosudur). `BindModels()` artık
+`continue` ile atlamıyor; boş/eksik `Name`'i `Name = child[...] ??
+string.Empty` ile listeye ekliyor, doğrulayıcının kendi `Models[index]`
+döngüsü boş ismi görüyor. `OpenAICompatibleProviderExtensions` aynı
+`OpenAIProviderExtensions.Bind()`'ı çağırdığı için ayrıca değişiklik
+gerektirmedi.
+
+**Canlı doğrulama.** Gerçek Postgres'e karşı (`mt_fin_o` şeması), env
+değişkeniyle `Endpoint=sadece-bir-yol` verilince OpenAI ve Google ayrı ayrı
+beklenen `OptionsValidationException` mesajıyla başlamayı reddetti;
+`appsettings.json`'a geçici `{"Name": ""}` eklenince OpenAI beklenen
+`Models[3]` mesajıyla, Anthropic+Google birlikte test edildiğinde ise
+yalnız Anthropic'in mesajı (`.NET`'in `IEnumerable<IModelProvider>` çözümü
+ilk istisnada durduğu için Google'ınki hiç yazdırılmadı — Aile O'nun kök
+nedeniyle ilgisiz, ayrı bir DI davranışı, vaka dosyasında not edildi)
+görüldü. Dört durumda da uygulama artık **sessizce başlamıyor**.
+
+**Yeni dosya yok.** **Değişen dosyalar:**
+`src/AgentPrism.OpenAI/OpenAIProviderExtensions.cs`,
+`src/AgentPrism.Anthropic/AnthropicProviderExtensions.cs`,
+`src/AgentPrism.Google/GoogleProviderExtensions.cs` (üçünde de `Bind()` +
+`BindModels()`).
+
+**Case:** `MT-OAI-010` ✅, `MT-OAI-012` ✅, `MT-PROV-012` ✅, `MT-PROV-013` ✅.
+
+**Regresyon testleri:** `tests/AgentPrism.OpenAI.UnitTests/OpenAIProviderExtensionsTests.cs`,
+`tests/AgentPrism.Anthropic.UnitTests/AnthropicProviderExtensionsTests.cs`,
+`tests/AgentPrism.Google.UnitTests/GoogleProviderExtensionsTests.cs` — her
+birine `Yapilandirmadan_gelen_goreli_adres_reddedilir` ve
+`Yapilandirmadan_gelen_adsiz_model_reddedilir` eklendi (6 test toplam). Fix
+geri alınıp koşulduğunda altısı da KIRMIZI verdiği ampirik olarak
+doğrulandıktan sonra fix geri uygulandı.
 
 ### Aile P — Bağlanmayan yapılandırma anahtarları · Orta
 
