@@ -59,8 +59,8 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 |---|---|
 | Toplam case | **1097** |
 | Koşuldu | **1097** (koşulmamış case **yok**) |
-| ☑ Geçti | **1005** |
-| ☒ **Kaldı** | **61** |
+| ☑ Geçti | **1006** |
+| ☒ **Kaldı** | **60** |
 | ⏭ Atlandı | **30** |
 | ☐ Beklemede | **1** (`MT-UIRUN-019`) |
 
@@ -78,10 +78,11 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile G** — JSON çözümleme hatası `400` yerine `500`; kütüphane çapında `RequestBodyBinding.ReadAsync<T>` — 21 dosya, implicit binding kullanan 9 EK uç dahil | `0b28210` | `MT-CORE-009`, `MT-CORE-022`, `MT-SEC-054`, `MT-MCP-003` |
 | **Aile H** — Dar `catch` → çıplak `500`; üç dosyada (`AgentEndpoints.ExecuteBufferedAsync`, `OpenAIResponsesEndpoints`, `OpenAIChatCompletionsEndpoints`) akışsız yolun dar `when` filtresi kaldırıldı (K-296/K-384'ün akışsız kardeşlere tamamlanması) | `12f163f` | `MT-COMPAT-027` |
 | **Aile I** — Kaynak üreteci `[AgentPrismTool]` kayıtlarına koşulsuz `source: "generated"` yazıyordu; `SourceWriter.WriteAggregator` artık `source` argümanını hiç geçirmiyor (kayıt belgelenen `null` varsayılanını kullanıyor) | `cbecd59` | `MT-MCP-047` |
+| **Aile J** — Agent editörünün iki `useEffect`'i aynı commit'te çözülünce sağlayıcıyı ezen yarış; guard functional `setForm` updater'ının içine, `current` (taze state) üzerinden karar verecek şekilde taşındı | `c0175b9` | `MT-UIAG-014` |
 
 ### Kalan aileler
 
-Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **J** ile başlar.
+Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **K** ile başlar.
 
 | Aile | Önem | Konu | Case | Durum |
 |---|---|---|---|---|
@@ -94,7 +95,7 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **J** ile başla
 | ~~G~~ | Yüksek | JSON çözümleme hatası `400` yerine `500` | 4 | ✅ (bu koşum) |
 | ~~H~~ | Yüksek | Dar `catch` → çıplak `500` | 1 | ✅ (bu koşum) |
 | ~~I~~ | Yüksek | Kaynak üreteci sahte `mcp:` rozeti | 1 | ✅ (bu koşum) |
-| **J** | Yüksek | Agent editörü sağlayıcı yarışı | 1 | ⬜ |
+| ~~J~~ | Yüksek | Agent editörü sağlayıcı yarışı | 1 | ✅ (bu koşum) |
 | **K** | Yüksek | CSP `blob:` beyaz listede değil | 2 | ⬜ |
 | **L** | Yüksek | SPA geçişi run'ı `Running` bırakıyor | 1 | ⬜ |
 | **M** | Yüksek | Loopback dışı erişimde ham JSON | 1 | ⬜ |
@@ -111,10 +112,10 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **J** ile başla
 | **Yeniden koşum** | — | Kusuru zaten kapalı | 8 | ⬜ |
 | **MT-PKG-010** | — | Kök neden `f36eeaf`'te kapandı, case yeniden koşulmalı | 1 | ⬜ |
 
-**Toplam:** 41 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **63**. (Aile F
+**Toplam:** 40 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **62**. (Aile F
 bitti: 51 → 47; Aile G bitti: 47 → 43; Aile H bitti: 43 → 42; Aile I bitti:
-42 → 41. `MT-MCP-052` bu sayıma dahil değildir — Kaldı kalır, ayrı bir bulgu
-olarak izlenir, gelecekte kendi ailesini gerektirebilir.)
+42 → 41; Aile J bitti: 41 → 40. `MT-MCP-052` bu sayıma dahil değildir — Kaldı
+kalır, ayrı bir bulgu olarak izlenir, gelecekte kendi ailesini gerektirebilir.)
 
 ---
 
@@ -651,15 +652,65 @@ dosya yok.**
 `Isaretli_statik_metot_icin_kayit_uretilir` artık üretilen toplayıcı
 dosyasının `source:` literalini hiç taşımadığını doğruluyor (`ShouldNotContain`).
 
-### Aile J — Agent editörü sağlayıcı yarışı 🚨 Yüksek
+### ~~Aile J~~ — Agent editörü sağlayıcı yarışı 🚨 Yüksek ✅ (bu koşum)
 
 **Kusur:** `HATA-S4-009`. `Sağlayıcı` alanı aralıklı olarak yanlış (`anthropic`)
 doluyor → **sessiz veri bozulması**.
 
 **Kök neden:** `src/AgentPrism.UI/frontend/src/screens/agent-editor.tsx:197-247`
-(A: 197-237, B: 241-247 stale closure).
+(A: 197-237, tanımı yükler; B: 241-247, `stale closure`).
 
-**Case:** `MT-UIAG-014`.
+**Önce ampirik yeniden üretim.** Kod okuması `MT-UIAG-014`'ün kayıtlı
+gözleminin (definition `openai`, `<select>` `anthropic` gösterdi) doğru kök
+nedene işaret ettiğini doğruladı: canlı `/api/models` katalog sırası
+alfabetiktir (`anthropic, google, openai, openai-responses, openrouter`) —
+gözlenen yanlış değer (`anthropic`) tam olarak alfabetik ilk kayıt.
+
+**İki effect'in etkileşimi:** A (tanımı yükleyen) `existing.isSuccess`
+olunca **tüm** formu (`provider` dahil) tek `setForm(tamObje)` çağrısıyla
+yazar ve `ready=true` yapar. B (varsayılan sağlayıcı atayan) `providers`
+kataloğu yüklenince ve form'da sağlayıcı yoksa ilk kaydı atar — ama guard
+(`if (form.provider.length > 0 …) return;`) effect gövdesinde render
+anının **stale** `form` kapanışını okuyordu; uyguladığı `setForm((current)
+=> ({...current, provider: data[0]}))` ise `current`'ı — yani **taze**
+state'i — alıp koşulsuz eziyordu. İki effect aynı React commit'inde
+(iki query aynı anda/cache'ten çözülünce) sıraya girdiğinde: A'nın
+`setForm` çağrısı kuyruğa girer, B (aynı render'ın stale `form.provider ===
+''` kapanışını gördüğü için) guard'ı geçer ve kendi `setForm`'unu da
+kuyruğa ekler; React bu ikisini sırayla uyguladığında B'nin updater'ı
+A'nın az önce yazdığı **doğru** `current.provider`'ı görür ama hiç
+kontrol etmeden `providers.data[0]` ile ezer.
+
+**Uygulanan tasarım:** Guard, effect gövdesinden functional `setForm`
+updater'ının İÇİNE taşındı. Yeni saf fonksiyon `withDefaultProvider(current,
+providerNames)` kararı `current.provider` üzerinden verir — bu her zaman
+uygulanma anındaki taze state'tir, hangi effect'in hangi commit'te önce/
+sonra çalıştığından bağımsızdır. B artık yalnız `setForm((current) =>
+withDefaultProvider(current, providerNames))` çağırır; A'nın yazdığı
+sağlayıcı artık hiçbir zaman ezilmiyor.
+
+**Değişen dosya:** `src/AgentPrism.UI/frontend/src/screens/agent-editor.tsx`
+(`FormState`/`emptyForm` test edilebilirlik için `export` edildi,
+`withDefaultProvider` yeni saf fonksiyon). **Yeni dosya:**
+`src/AgentPrism.UI/frontend/src/screens/agent-editor.test.ts`.
+
+**Regresyon testi:** `agent-editor.test.ts` üç senaryo — boş formda
+varsayılan atama, boş katalogda no-op, ve **eşzamanlı bir güncellemenin
+zaten yazdığı sağlayıcının ezilmediği** (asıl kusuru kapsayan senaryo).
+Bu üçüncü test, fix'ten önceki koda karşı (eski `setForm` çağrısı geçici
+olarak geri konularak) **KIRMIZI** verdiği ampirik olarak doğrulandıktan
+sonra fix geri uygulandı.
+
+**Canlı doğrulama:** Sahte bir kilitlenme nedeniyle (Playwright MCP
+tarayıcısı başka bir çalışan oturumca kilitliydi, o oturum bozulmasın
+diye zorlanmadı) tarayıcı üzerinden birebir tekrar üretim YAPILMADI.
+Bunun yerine canlı Postgres'e karşı, katalogun alfabetik ilki OLMAYAN bir
+sağlayıcıyla (`google`) agent oluşturulup `PUT`/`GET api/agents/
+mt-uiag-014-test` ile provider'ın bozulmadan döndüğü doğrulandı — düzeltme
+artık commit sırasından bağımsız olduğu için (kusurun kendisi zamanlamaya
+bağlıydı, düzeltme değil) birim testi asıl kanıt sayıldı.
+
+**Case:** `MT-UIAG-014` ✅.
 
 ### Aile K — CSP `blob:` beyaz listede değil 🚨 Yüksek
 
