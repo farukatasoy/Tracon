@@ -44,6 +44,7 @@ internal static class OpenAIChatCompletionsEndpoints
     {
         builder.MapPost("/v1/chat/completions", HandleAsync)
             .RequireRole(roles.Operator)
+            .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .AddEndpointFilter(idempotencyFilter)
             .WithName("AgentPrismOpenAIChatCompletions")
             .WithTags("AgentPrism", "OpenAI")

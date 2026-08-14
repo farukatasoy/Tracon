@@ -42,6 +42,7 @@ internal static class DiagnosticsEndpoints
                 return TypedResults.Ok(report with { UiEmbedded = uiProvider?.HasAssets ?? false });
             })
             .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismDiagnostics")
             .WithTags("AgentPrism", "Diagnostics")
             .WithSummary("Kurulumun kendi kendini denetleyen ozet raporunu dondurur.")

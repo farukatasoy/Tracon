@@ -61,4 +61,22 @@ public enum ApiKeyScope
 
     /// <summary>Deney yazma: kaydetme, silme, baslatma/durdurma, kanarya politikasi.</summary>
     ExperimentsAdmin = 12,
+
+    /// <summary>
+    /// Platform isletim yapilandirmasi ve saglik okuma: kiraci kaydi, kota,
+    /// saklama, zamanlama, webhook, teshis, saglayici sagligi.
+    /// </summary>
+    PlatformRead = 13,
+
+    /// <summary>Platform isletim yapilandirmasi yazma ve saklama temizligini calistirma.</summary>
+    PlatformAdmin = 14,
+
+    /// <summary>
+    /// Yetki ureten/uzatan yuzeyler: API anahtari, skill script izni, MCP
+    /// OAuth baslatma. Kendini yukseltebilen tek kapsam — nadir verilmelidir.
+    /// </summary>
+    SecurityAdmin = 15,
+
+    /// <summary>Denetim izi okuma.</summary>
+    AuditRead = 16,
 }
