@@ -1030,7 +1030,11 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/v1/responses" -H "$APB" -H "$T
 **Gerçek sonuç**
 **KALDI - HATA-S2-005 (Orta).** Ikinci cagri (kiraci-beta, ayni conversation kimligi manuel-conv-023) beklenen HTTP 404/not_found_error yerine HTTP 200 dondu, gercek bir model yaniti uretti. Veri SIZINTISI YOK - dogrulandi: GET /api/sessions/manuel-conv-023 tenant-alfa basligiyla hala yalniz orijinal 2 mesaji gosteriyor (tenant-beta'nin mesaji ORAYA yazilmadi); tenant-beta basligiyla ayni ID icin TAMAMEN AYRI, bagimsiz bir SessionRecord (tenantId: kiraci-beta) sessizce OLUSTURULMUS. Kok neden: OpenAICompatSupport.IsOwnedByTenantAsync (OpenAICompatSupport.cs:103-113) store.GetAsync(sessionId) cagirir ve kendi kod yorumunda 'Bellek ici depo kiraci filtresi uygulamaz' (satir 100-101) diye ACIKLAR - ama bu VARSAYIM YANLIS: InMemorySessionStore._sessions sozlugu (TenantId, Id) BILESIK anahtarla tutuluyor (InMemorySessionStore.cs:20) ve GetAsync (satir 53-59) DAIMA ambient _tenantContext.TenantId ile sorguluyor - yani depo ZATEN kiraci-kapsamli. Sonuc: tenant-beta baglaminda store.GetAsync('manuel-conv-023') HICBIR ZAMAN tenant-alfa'nin kaydini GOREMEZ (farkli anahtar), record her zaman null donuyor, IsOwnedByTenantAsync'in 'record?.TenantId is null -> true (izin ver)' dali her zaman tetikleniyor - HTTP katmanindaki 404 reddi PRATIKTE HICBIR ZAMAN calismiyor (olu kod), yerine sessizce yeni bir oturum aciliyor. Veri gizliligi baska bir mekanizmayla (depo seviyesi kiraci ayrimi) korunuyor ama kodun kendi belgeledigi/iddia ettigi acik 404 reddi calismiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**GECTI (Aile Q, bu kosum).** Kok neden yapisaldi: `ISessionStore.GetAsync` UCUN DORDUNUN (InMemory + Postgres/Sqlite/SqlServer) hepsinde ambient kiraciyle filtreleniyordu, dolayisiyla capraz kiraci sorusu hicbir zaman dogru cevaplanamiyordu. Duzeltme: yeni `ISessionStore.GetOwnerTenantIdAsync(sessionId)` metodu eklendi - kiraci filtresi UYGULAMADAN kaydin gercek sahibini doner (InMemory: `_sessions` anahtarlarini tarar; SQL: yeni `SelectSessionOwner` sorgusu, `WHERE id = @id` - `tenant_id` filtresi YOK). `OpenAICompatSupport.IsOwnedByTenantAsync` artik bunu kullaniyor; `OpenAIResponsesEndpoints.cs`'in zaten cagirdigi bu ortak yardimci sayesinde `/v1/responses` da otomatik duzeldi. Canlı Postgres'e karsi yeniden uretildi (gecici `mt_fin_q` semasi): ikinci cagri (kiraci-beta, ayni conversation kimligi) artik `HTTP 404` + `error.type: not_found_error` donuyor; kiraci-alfa'nin oturumu (`GET /api/sessions/manuel-conv-023-q`) YENI bir tur ALMADAN, orijinal 2 mesajla degismeden kaldi. Regresyon: `SessionStoreContract.GetOwnerTenantIdAsync_ambient_kiraciden_bagimsiz_gercek_sahibi_doner` (4 saglayicida da kosar) + `OpenAIConversationsCrossTenantTests.Konusma_kimligine_capraz_kiraci_responses_cagrisi_404_doner`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1609,7 +1613,11 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/v1/conversations/manuel-conv-036" -H "
 **Gerçek sonuç**
 **KALDI - HATA-S2-005 kapsam genislemesi.** Beklenen HTTP 404 yerine HTTP 200 + gecerli bir conversation govdesi dondu (kiraci-beta, kiraci-alfa'nin sohbetinin VARLIGINI dogrulayamadi ama sessizce 'gecerli, bos' bir govde aldi - ayni kok neden: OpenAIConversationsEndpoints.cs:130 dogrudan sessions.GetAsync(id) cagirir, IsOwnedByTenantAsync gibi acik bir denetim YOK; InMemorySessionStore zaten (TenantId,Id) ile kapsadigi icin kiraci-beta baglaminda record hep null donuyor ve kod bunu 'hic kullanilmamis ID' (MT-COMPAT-034 davranisi) ile ayirt edemiyor. Veri sizintisi yok (icerik gorunmuyor), yalniz acik 404 sinyali eksik.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**GECTI (Aile Q, bu kosum).** `RetrieveAsync` artik `sessions.GetAsync`'ten ONCE, `OpenAICompatSupport.IsOwnedByTenantAsync` (yeni `ISessionStore.GetOwnerTenantIdAsync` uzerinden, kiraci filtresi UYGULAMADAN) ile sahiplik denetimi yapiyor - dosyanin kendi local `IsOwnedByTenant` yardimcisi (olu koddu, `record` zaten hep null geliyordu) kaldirildi. Kok neden ve tasarim: MT-COMPAT-023'un notuna bakiniz. Canlı Postgres'e karsi yeniden uretildi: `GET /v1/conversations/manuel-conv-036-q` kiraci-beta basligiyla artik `HTTP 404` + `error.type: not_found_error` donuyor; ayni ID'yi kiraci-alfa kendi basligiyla sorguladiginda (negatif kontrol) `HTTP 200` olarak dogru calismaya devam ediyor. Regresyon: `OpenAIConversationsCrossTenantTests.Konusma_GET_ucuna_capraz_kiraci_erisimi_404_doner`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1730,7 +1738,11 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/sessions/manuel-conv-039" -H "$APB
 **Gerçek sonuç**
 **KALDI - HATA-S2-005 kapsam genislemesi.** Adim 2: beklenen HTTP 404 yerine HTTP 200, deleted:false dondu (ayni kok neden: RetrieveAsync/DeleteAsync'de acik kiraci denetimi yok, depo scoping'i geregi kiraci-beta icin kayit gorunmuyor, silme sessizce 'zaten yok' sayiliyor). Adim 3 DOGRU: kiraci-alfa'nin oturumu HTTP 200 ile hala var, 2 orijinal mesaj degismedi - veri kaybi/sizinti YOK, silme fiilen gerceklesmedi (guvenlik acisindan zararsiz, yalniz beklenen acik 404 sinyali eksik).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**GECTI (Aile Q, bu kosum).** `DeleteAsync` artik `sessions.GetAsync`'ten ONCE `OpenAICompatSupport.IsOwnedByTenantAsync` ile sahiplik denetimi yapiyor. Kok neden ve tasarim: MT-COMPAT-023'un notuna bakiniz. Canlı Postgres'e karsi yeniden uretildi: Adim 2 (`DELETE .../manuel-conv-039-q` kiraci-beta basligiyla) artik `HTTP 404` donuyor; Adim 3 (`GET /api/sessions/manuel-conv-039-q` kiraci-alfa basligiyla) `HTTP 200`, orijinal 2 mesaj degismeden - kiraci-alfa'nin oturumu kiraci-beta'nin basarisiz silme girisiminden ETKILENMEDI. Regresyon: `OpenAIConversationsCrossTenantTests.Konusma_silme_ucuna_capraz_kiraci_erisimi_404_doner_ve_sahibin_oturumu_kalir`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1888,7 +1900,11 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/v1/conversations/manuel-conv-043/items
 **Gerçek sonuç**
 **KALDI - HATA-S2-005 kapsam genislemesi.** Beklenen HTTP 404 yerine HTTP 200, data: [] dondu (ayni kok neden: ListItemsAsync'te acik kiraci denetimi yok; kiraci-beta icin kayit gorunmedigi icin 'kullanilmamis konusma' (MT-COMPAT-042 davranisi) ile ayni bos-liste yanitina dusuyor). Icerik SIZMADI (bos liste, alfa'nin gercek mesajlari gorunmedi) - yalniz acik 404 reddi yerine sessiz bos liste donuyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**GECTI (Aile Q, bu kosum).** `ListItemsAsync` artik `sessions.GetAsync`'ten ONCE `OpenAICompatSupport.IsOwnedByTenantAsync` ile sahiplik denetimi yapiyor. Kok neden ve tasarim: MT-COMPAT-023'un notuna bakiniz. Canlı Postgres'e karsi yeniden uretildi: `GET /v1/conversations/manuel-conv-043-q/items` kiraci-beta basligiyla artik `HTTP 404` + `error.type: not_found_error` donuyor (eskiden `data: []` ile sessizce ayirt edilemeyen bos liste). Regresyon: `OpenAIConversationsCrossTenantTests.Oge_listesine_capraz_kiraci_erisimi_404_doner`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

@@ -97,8 +97,15 @@ internal static class OpenAICompatSupport
     /// <remarks>
     /// <c>conversation</c> ve <c>previous_response_id</c> istemciden gelir ve
     /// <strong>guvenilmez</strong> kabul edilir. Denetim burada, HTTP katmaninda
-    /// yapilir; depoya birakilmaz. Bellek ici depo kiraci filtresi uygulamaz,
-    /// dolayisiyla depoya guvenmek kurulumdan kuruluma degisen bir garanti olurdu.
+    /// yapilir.
+    /// <para>
+    /// 🚨 <see cref="ISessionStore.GetAsync"/> KULLANILMAZ: o ambient kiraciyle
+    /// filtrelenir, dolayisiyla capraz kiraci sorusunu asla dogru cevaplayamaz —
+    /// baska kiracinin kaydi bu baglamdan hicbir zaman GORULMEZ ve sonuc daima
+    /// "kayit yok, izin ver" olurdu (HATA-S2-005). Bunun yerine
+    /// <see cref="ISessionStore.GetOwnerTenantIdAsync"/> kullanilir; o kiraci
+    /// filtresi UYGULAMAZ.
+    /// </para>
     /// </remarks>
     public static async ValueTask<bool> IsOwnedByTenantAsync(
         ISessionStore store,
@@ -106,10 +113,10 @@ internal static class OpenAICompatSupport
         string sessionId,
         CancellationToken cancellationToken)
     {
-        var record = await store.GetAsync(sessionId, cancellationToken).ConfigureAwait(false);
+        var ownerTenantId = await store.GetOwnerTenantIdAsync(sessionId, cancellationToken).ConfigureAwait(false);
 
-        return record?.TenantId is null ||
-               string.Equals(record.TenantId, tenantContext.TenantId, StringComparison.Ordinal);
+        return ownerTenantId is null ||
+               string.Equals(ownerTenantId, tenantContext.TenantId, StringComparison.Ordinal);
     }
 
     /// <summary>Unix saniyesi cinsinden simdiki zaman.</summary>

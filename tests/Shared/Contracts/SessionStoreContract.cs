@@ -200,4 +200,24 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
         (await Store.TryCreateAsync(TestData.Session("paylasilan-id") with { TenantId = TenantA })).ShouldBeTrue();
         (await Store.TryCreateAsync(TestData.Session("paylasilan-id") with { TenantId = TenantB })).ShouldBeTrue();
     }
+
+    [Fact]
+    public async Task GetOwnerTenantIdAsync_hic_kullanilmamis_kimlikte_null_doner()
+    {
+        AmbientTenant.TenantId = TenantA;
+        (await Store.GetOwnerTenantIdAsync("hic-kullanilmamis")).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task GetOwnerTenantIdAsync_ambient_kiraciden_bagimsiz_gercek_sahibi_doner()
+    {
+        // HATA-S2-005: GetAsync ambient kiraciyle filtrelenir, dolayisiyla capraz
+        // kiraci sahiplik sorusunu asla dogru cevaplayamaz. GetOwnerTenantIdAsync
+        // kiraci filtresi UYGULAMAMALIDIR.
+        AmbientTenant.TenantId = TenantA;
+        await Store.SaveAsync(TestData.Session("gizli") with { TenantId = TenantA });
+
+        AmbientTenant.TenantId = TenantB;
+        (await Store.GetOwnerTenantIdAsync("gizli")).ShouldBe(TenantA);
+    }
 }

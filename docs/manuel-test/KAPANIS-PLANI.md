@@ -59,8 +59,8 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 |---|---|
 | Toplam case | **1097** |
 | Koşuldu | **1097** (koşulmamış case **yok**) |
-| ☑ Geçti | **1017** |
-| ☒ **Kaldı** | **49** |
+| ☑ Geçti | **1021** |
+| ☒ **Kaldı** | **45** |
 | ⏭ Atlandı | **30** |
 | ☐ Beklemede | **1** (`MT-UIRUN-019`) |
 
@@ -85,10 +85,11 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile N** — `ProblemDetails` başlıkları koda gömülü Türkçe'ydi (113 `title:` literali); `src/AgentPrism.AspNetCore/` + besleyen Core/Workflows/Generators dosyaları + OpenAI-uyumlu/A2A/MCP/Voice yüzeyleri İngilizce'ye çevrildi, kaynak taramalı regresyon çiti eklendi | `e9f9006` | `MT-UI-032` |
 | **Aile O** — OpenAI/Anthropic/Google `Bind()`'ı geçersiz `Endpoint` (göreli adres) ve boş model adını doğrulayıcıya ulaşmadan sessizce eliyordu; üç sağlayıcının `Bind()`'ı `UriKind.RelativeOrAbsolute` ile geçersiz `Endpoint`'i de atıyor, `BindModels()` boş `Name`'i de listeye ekliyor — doğrulayıcının ölü dalları artık erişilebilir | (bu koşum) | `MT-OAI-010`, `MT-OAI-012`, `MT-PROV-012`, `MT-PROV-013` |
 | **Aile P** — `Pricing` yanlış anahtar adında sessizce düşüyordu (K-034) ve `QuotaUsageObserver` hiç kayıtlı olmayan bir standalone `IOptionsMonitor<AgentPrismObservabilityOptions>` enjekte ediyordu (HATA-S4-020); ayrıca `BindObservability`'de `IncludeAgentVersionTag`, `Bind()`'da hiç `AgentPrismOptions.Validation` yoktu (K-253) — üçü de aynı "alan eklendi ama Bind()'a eklenmedi" sınıfı; `BindPricing`/`BindVoicePricing` artık boş kaydı da ekliyor ve `AgentPrismOptionsValidator` reddediyor, `QuotaUsageObserver` artık doğru bağlanan `IOptionsMonitor<AgentPrismOptions>` kullanıyor, eksik iki bağlama eklendi, kalıcı çözüm olarak tüm `AgentPrismOptions` ağacını tarayan yansımalı bir kapsama testi eklendi | (bu koşum) | `MT-CORE-065`, `MT-OBS-036` |
+| **Aile Q** — `ISessionStore.GetAsync` DÖRDÜNCÜ depoda da (InMemory + Postgres/Sqlite/SqlServer) ambient kiraciyle filtreleniyordu; capraz kiraci sahiplik denetimi (`OpenAICompatSupport.IsOwnedByTenantAsync` ve `OpenAIConversationsEndpoints`'in yerel kopyasi) bu yuzden hicbir zaman tetiklenmiyordu — yeni `ISessionStore.GetOwnerTenantIdAsync` (kiraci filtresiz) eklendi, dort deponun tumu gecersiz kildi, `AuditingSessionStore` dekoratoru acikca ilettti (K-018 tuzagi), `OpenAIConversationsEndpoints`'in olu-kod yerel kontrolu kaldirilip ortak yardimciya tasindi | (bu koşum) | `MT-COMPAT-023`, `MT-COMPAT-036`, `MT-COMPAT-039`, `MT-COMPAT-043` |
 
 ### Kalan aileler
 
-Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **Q** ile başlar.
+Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **R** ile başlar.
 
 | Aile | Önem | Konu | Case | Durum |
 |---|---|---|---|---|
@@ -108,7 +109,7 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **Q** ile başla
 | ~~N~~ | Yüksek | 113 `ProblemDetails` başlığı Türkçe | 1 | ✅ (bu koşum) |
 | ~~O~~ | Orta | Yapılandırmada geçersiz değer sessizce düşüyor | 4 | ✅ (bu koşum) |
 | ~~P~~ | Orta | Bağlanmayan yapılandırma anahtarları | 2 | ✅ (bu koşum) |
-| **Q** | Orta | Çapraz kiracı `404` dalı ölü kod | 4 | ⬜ |
+| ~~Q~~ | Orta | Çapraz kiracı `404` dalı ölü kod | 4 | ✅ (bu koşum) |
 | **R** | Orta | Çalıştırma filtreleri | 2 | ⬜ |
 | **S** | Orta | Idempotency replay başlık kaybı | 1 | ⬜ |
 | **T** | Orta | MCP "connection refused" → `unknown_tool` | 1 | ⬜ |
@@ -122,7 +123,7 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **Q** ile başla
 bitti: 51 → 47; Aile G bitti: 47 → 43; Aile H bitti: 43 → 42; Aile I bitti:
 42 → 41; Aile J bitti: 41 → 40; Aile K bitti: 40 → 38; Aile L bitti: 38 → 37;
 Aile M bitti: 37 → 36; Aile N bitti: 36 → 35; Aile O bitti: 35 → 31; Aile P
-bitti: 31 → 29.
+bitti: 31 → 29; Aile Q bitti: 29 → 25.
 `MT-MCP-052` bu sayıma dahil değildir — Kaldı kalır, ayrı bir bulgu olarak
 izlenir, gelecekte kendi ailesini gerektirebilir.)
 
@@ -1134,17 +1135,93 @@ sarmalıyor).
 **Regresyon testleri:** yukarıdaki üç yeni dosya (kapsama testi 1, Pricing
 bağlama/doğrulama testleri 5, DI-kaydı testleri 2 — toplam 8 yeni test).
 
-### Aile Q — Çapraz kiracı `404` dalı ölü kod · Orta
+### ~~Aile Q~~ — Çapraz kiracı `404` dalı ölü kod · Orta ✅ (bu koşum)
 
 **Kusur:** `HATA-S2-005`. Çapraz kiracı `conversation` erişimi `404` yerine
 **sessizce yeni oturum açıyor**; belgelenen reddetme dalı erişilemez.
 **Veri sızıntısı YOK** (negatif kontrol `MT-SEC-035` yönetim API'sinin
 etkilenmediğini doğruladı).
 
-**Kök neden:** `OpenAICompat/OpenAICompatSupport.cs:100-113`
-(`IsOwnedByTenantAsync`) · `InMemorySessionStore.cs:20`, `:53-59`.
+**Kök neden — yapısal, tek dosyayla sınırlı değil:**
+`OpenAICompat/OpenAICompatSupport.cs:103-113` (`IsOwnedByTenantAsync`) ve
+`OpenAICompat/OpenAIConversationsEndpoints.cs`'in kendi yerel `IsOwnedByTenant`
+kopyası (Retrieve/Delete/ListItems) **hepsi** önce `ISessionStore.GetAsync`
+çağırıp sonucun `TenantId`'sine bakıyordu. Ama `GetAsync`'in **dördü de**
+(`InMemorySessionStore.cs:68-74`, `Sql.Shared/Stores/SqlSessionStore.cs:113-133`
+ve üç lehçenin `SelectSession` sorgusu) ambient `ITenantContext.TenantId` ile
+filtrelidir — `InMemorySessionStore._sessions` sözlüğü `(TenantId, Id)`
+bileşik anahtar taşır, SQL tarafında `WHERE id = @id AND tenant_id = @tenant_id`.
+Sonuç: `kiraci-beta` bağlamında `GetAsync('alfa-nin-id')` **hiçbir zaman**
+`kiraci-alfa`'nın kaydını göremez — kayıt her zaman `null` döner, "sahiplik
+uymuyor" dalı hiçbir zaman tetiklenemez. Bu, tek bir uçtaki eksik bir denetim
+değil; **depo katmanının kendisi** çapraz kiracı sorusuna cevap veremiyordu.
 
-**Case:** `MT-COMPAT-023`, `MT-COMPAT-036`, `MT-COMPAT-039`, `MT-COMPAT-043`.
+**Uygulanan tasarım (K-410 adayı, kapanışta yazılacak):** `ISessionStore`'a
+yeni bir üye eklendi: `GetOwnerTenantIdAsync(sessionId)` — ambient kiraci
+filtresi **uygulamadan** kaydın gerçek sahibini döner. Varsayılan arayüz
+uygulaması (geriye dönük uyumluluk için, `TryCreateAsync`'in K-018 emsaliyle
+aynı desen) yine `GetAsync`'i çağırır — dolayısıyla YUKARIDAKİ KUSURU TAŞIR;
+bu yalnızca üçüncü taraf/eski `ISessionStore` uygulamalarının derlenmeye devam
+etmesi içindir. Gerçek dört depo gerçekten kiracıdan bağımsız bir uygulamayla
+geçersiz kılar:
+- `InMemorySessionStore`: `_sessions.Keys`'i tarar, eşleşen `Id`'nin
+  `TenantId`'sini döner (anahtar `(TenantId, Id)` olduğu için ambient
+  filtreye ihtiyaç yok — zaten tüm kiracılar aynı sözlükte).
+- `SqlSessionStore`: yeni `SqlQueriesBase.SelectSessionOwner` sorgusu —
+  `SELECT tenant_id FROM sessions WHERE id = @id;` (Postgres/Sqlite/SqlServer
+  üçünde de `tenant_id` filtresi **yok**, bilinçli).
+- `AuditingSessionStore` (dekoratör): `_inner.GetOwnerTenantIdAsync`'e açıkça
+  yönlendirir — **atlanamaz**: bu her zaman DI'da kayıtlı tek `ISessionStore`
+  olduğu için (K-018), atlanırsa arayüzün yanlış varsayılanına düşüp iç
+  depodaki gerçek uygulamayı sessizce devre dışı bırakırdı (`TryCreateAsync`
+  ile aynı tuzak, Aile C).
+
+`OpenAICompatSupport.IsOwnedByTenantAsync` artık `GetOwnerTenantIdAsync`
+kullanıyor. `OpenAIConversationsEndpoints.cs`'in üç ucu (Retrieve/Delete/
+ListItems) kendi yerel, ölü `IsOwnedByTenant` kopyalarını **kaldırdı** ve
+sahiplik denetimini `sessions.GetAsync`'ten **ÖNCE**, ortak
+`OpenAICompatSupport.IsOwnedByTenantAsync` ile yapacak şekilde yeniden
+sıralandı — `OpenAIResponsesEndpoints.cs` zaten bu ortak yardımcıyı doğru
+sırada çağırıyordu (`loadId` yüklenmeden önce), bu yüzden `/v1/responses`
+(MT-COMPAT-023) depo düzeyindeki düzeltmeyle **otomatik** düzeldi, dosyasında
+değişiklik gerekmedi.
+
+**Canlı doğrulama** (gerçek PostgreSQL'e karşı, geçici `mt_fin_q` şeması,
+`AgentPrism:Tenancy:Enabled`/`AllowHeaderResolution` geçici açılıp sonra
+kaldırıldı): dördü de artık `kiraci-beta` başlığıyla `HTTP 404` +
+`error.type: not_found_error` dönüyor; `kiraci-alfa`'nın oturumu her
+senaryoda değişmeden kaldı (MT-COMPAT-039'un adım 3'ü: silme girişiminden
+sonra `GET /api/sessions/...` hâlâ `200`, orijinal 2 mesaj). Negatif kontrol:
+aynı kimliğe kendi kiracısıyla erişim (`200`) ve hiç kullanılmamış bir kimlik
+(`200`, boş — MT-COMPAT-034'ün belgelediği OpenAI'den tek fark) davranışları
+**değişmedi**.
+
+**Değişen dosyalar:** `AgentPrism.Abstractions/Sessions/ISessionStore.cs`
+(+`GetOwnerTenantIdAsync`), `AgentPrism.Core/Storage/InMemorySessionStore.cs`,
+`AgentPrism.Core/Audit/AuditingSessionStore.cs`,
+`AgentPrism.Sql.Shared/Stores/SqlSessionStore.cs`,
+`AgentPrism.Sql.Shared/Internal/SqlQueriesBase.cs` (+`SelectSessionOwner`),
+`AgentPrism.PostgreSql`/`Sqlite`/`SqlServer` `Internal/*Queries.cs`
+(+`SelectSessionOwner` sorgusu, üç lehçe),
+`AgentPrism.AspNetCore/OpenAICompat/OpenAICompatSupport.cs`
+(`IsOwnedByTenantAsync` artık `GetOwnerTenantIdAsync` kullanıyor),
+`AgentPrism.AspNetCore/OpenAICompat/OpenAIConversationsEndpoints.cs`
+(üç ucun sırası değişti, yerel `IsOwnedByTenant` kaldırıldı),
+`tests/Shared/Contracts/TenantCoverageTests.cs` (`SqlSessionStore`'un kapsam
+listesine `GetOwnerTenantIdAsync` eklendi).
+
+**Yeni dosyalar:** yok (mevcut sözleşme/test dosyalarına eklendi).
+
+**Case:** `MT-COMPAT-023` ✅, `MT-COMPAT-036` ✅, `MT-COMPAT-039` ✅,
+`MT-COMPAT-043` ✅.
+
+**Regresyon testleri:** `tests/Shared/Contracts/SessionStoreContract.cs`
+(`GetOwnerTenantIdAsync_hic_kullanilmamis_kimlikte_null_doner`,
+`GetOwnerTenantIdAsync_ambient_kiraciden_bagimsiz_gercek_sahibi_doner` —
+InMemory, Postgres, Sqlite, SqlServer'ın dördünde de koşar) ·
+`tests/AgentPrism.AspNetCore.FunctionalTests/OpenAIConversationsTests.cs`
+(yeni `OpenAIConversationsCrossTenantTests` sınıfı, 4 test — dört case'in
+kendisini gerçek `AgentPrismTestHost` üzerinde birebir yeniden üretir).
 
 ### Aile R — Çalıştırma filtreleri · Orta
 
