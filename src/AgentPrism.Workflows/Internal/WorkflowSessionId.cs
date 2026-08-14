@@ -33,7 +33,7 @@ internal static class WorkflowSessionId
         if (sessionId.Length > MaxLength)
         {
             throw new AgentPrismException(
-                $"Yurutme oturumu kimligi en fazla {MaxLength} karakter olabilir.");
+                $"Execution session id may be at most {MaxLength} characters.");
         }
 
         // Regex yerine elle dongu: MA0009 zaman asimi verilemeyen her regex'i
@@ -43,7 +43,7 @@ internal static class WorkflowSessionId
             if (!char.IsAsciiLetterOrDigit(character) && character is not ('-' or '_'))
             {
                 throw new AgentPrismException(
-                    "Yurutme oturumu kimligi yalnizca harf, rakam, '-' ve '_' icerebilir.");
+                    "Execution session id may only contain letters, digits, '-', and '_'.");
             }
         }
 

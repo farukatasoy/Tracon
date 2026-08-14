@@ -36,7 +36,7 @@ public sealed class JsonBindingProblemMiddlewareTests
         response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
 
         var json = await AgentPrismTestHost.ReadJsonAsync(response);
-        json.GetProperty("title").GetString().ShouldBe("Gecersiz istek govdesi");
+        json.GetProperty("title").GetString().ShouldBe("Invalid request body");
         (json.GetProperty("detail").GetString() ?? string.Empty).ShouldContain("ApiKeyScope");
     }
 
@@ -56,7 +56,7 @@ public sealed class JsonBindingProblemMiddlewareTests
         response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
 
         var json = await AgentPrismTestHost.ReadJsonAsync(response);
-        json.GetProperty("title").GetString().ShouldBe("Gecersiz istek govdesi");
+        json.GetProperty("title").GetString().ShouldBe("Invalid request body");
         (json.GetProperty("detail").GetString() ?? string.Empty).ShouldContain("McpTransportMode");
     }
 
@@ -80,6 +80,6 @@ public sealed class JsonBindingProblemMiddlewareTests
         response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
 
         var json = await AgentPrismTestHost.ReadJsonAsync(response);
-        json.GetProperty("title").GetString().ShouldBe("Gecersiz istek govdesi");
+        json.GetProperty("title").GetString().ShouldBe("Invalid request body");
     }
 }

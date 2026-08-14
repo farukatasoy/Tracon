@@ -46,8 +46,8 @@ internal static class WorkflowResponseFactory
             if (answer.Text is not { Length: > 0 } revision)
             {
                 throw new AgentPrismException(
-                    "Plan reddedildi ancak duzeltme metni verilmedi. Yonetici agent'in plani neye " +
-                    "gore yeniden kuracagini bilmesi icin 'text' alani zorunludur.");
+                    "The plan was rejected but no revision text was given. The 'text' field is " +
+                    "required so the manager agent knows what to rebuild the plan against.");
             }
 
             return request.CreateResponse(review.Revise(revision));
@@ -89,20 +89,20 @@ internal static class WorkflowResponseFactory
         // tam olarak bu bicimi bekler.
         var target = Type.GetType(request.PortInfo.ResponseType.ToString(), throwOnError: false)
                      ?? throw new AgentPrismException(
-                         $"'{request.PortInfo.ResponseType.TypeName}' yanit tipi bu surecte cozulemedi. " +
-                         "Tipi tanimlayan derleme yuklu degil; workflow'u tanimlayan paketin " +
-                         "uygulamaya referansli oldugundan emin olun.");
+                         $"Response type '{request.PortInfo.ResponseType.TypeName}' could not be resolved " +
+                         "in this process. The assembly defining the type is not loaded; make sure the " +
+                         "package defining the workflow is referenced by the application.");
 
         try
         {
             return JsonSerializer.Deserialize(json, target, JsonSerializerOptions.Web)
                    ?? throw new AgentPrismException(
-                       $"Yanit govdesi '{request.PortInfo.ResponseType.TypeName}' tipine cevrildiginde bos kaldi.");
+                       $"The response body was empty after conversion to type '{request.PortInfo.ResponseType.TypeName}'.");
         }
         catch (JsonException exception)
         {
             throw new AgentPrismException(
-                $"Yanit govdesi '{request.PortInfo.ResponseType.TypeName}' tipine cevrilemedi: {exception.Message}",
+                $"The response body could not be converted to type '{request.PortInfo.ResponseType.TypeName}': {exception.Message}",
                 exception);
         }
     }

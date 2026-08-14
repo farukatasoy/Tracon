@@ -22,9 +22,9 @@ internal static class ObservabilityEndpoints
                 => await traces.GetTraceByRunAsync(runId, cancellationToken).ConfigureAwait(false) is { } trace
                     ? TypedResults.Ok(trace)
                     : TypedResults.Problem(
-                        title: "Trace bulunamadi",
-                        detail: $"'{runId}' calistirmasi icin kayitli span yok. Span yazma yolu " +
-                                "orneklenir: basarili calistirmalarin yalnizca bir kismi kaydedilir " +
+                        title: "Trace not found",
+                        detail: $"There are no recorded spans for run '{runId}'. Span writing is " +
+                                "sampled: only a portion of successful runs is recorded " +
                                 "(AgentPrism:Observability:SuccessSampleRatio).",
                         statusCode: StatusCodes.Status404NotFound))
             .RequireRole(roles.Reader)

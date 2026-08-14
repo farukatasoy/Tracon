@@ -182,7 +182,7 @@ internal static class KnowledgeEndpoints
     }
 
     private static ProblemHttpResult Invalid(string detail)
-        => TypedResults.Problem(title: "Gecersiz istek", detail: detail, statusCode: StatusCodes.Status400BadRequest);
+        => TypedResults.Problem(title: "Invalid request", detail: detail, statusCode: StatusCodes.Status400BadRequest);
 
     /// <summary>
     /// <see cref="ArgumentException.Message"/>'in <see cref="ArgumentException.ParamName"/>
@@ -205,8 +205,8 @@ internal static class KnowledgeEndpoints
 
     private static ProblemHttpResult NotSupported()
         => TypedResults.Problem(
-            title: "Bilgi tabani desteklenmiyor",
-            detail: "Bir IVectorSearchStore (bugun yalniz PostgreSQL: UsePostgreSql()) VE bir " +
-                    "IEmbeddingGenerator<string, Embedding<float>> birlikte kayitli olmalidir.",
+            title: "Knowledge base not supported",
+            detail: "An IVectorSearchStore (today only PostgreSQL: UsePostgreSql()) AND an " +
+                    "IEmbeddingGenerator<string, Embedding<float>> must both be registered.",
             statusCode: StatusCodes.Status501NotImplemented);
 }

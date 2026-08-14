@@ -88,17 +88,17 @@ public sealed class ConversationBranchService
         {
             return SessionBranchOutcome.Failed(
                 SessionBranchStatus.NotSupported,
-                "Konusma dallandirma yalnizca kalici bir SQL saglayicisi acikken calisir. " +
-                "Bellek ici kurulumda sohbet gecmisi oturum durumunun opak blogunda yasar ve " +
-                "belirli bir noktaya kadar kopyalanamaz; sessizce tamamini kopyalamak " +
-                "istenen dali uretmezdi.");
+                "Conversation branching only works when a persistent SQL provider is enabled. " +
+                "In an in-memory setup, chat history lives in the opaque session state block and " +
+                "cannot be copied up to a point; silently copying all of it would not produce the " +
+                "requested branch.");
         }
 
         if (request.UpToSequence is < 0)
         {
             return SessionBranchOutcome.Failed(
                 SessionBranchStatus.InvalidRequest,
-                "'upToSequence' negatif olamaz. Bos birakilirsa konusmanin tamami kopyalanir.");
+                "'upToSequence' cannot be negative. Leave it empty to copy the entire conversation.");
         }
 
         var record = await _sessions.GetAsync(sessionId, cancellationToken).ConfigureAwait(false);
@@ -108,7 +108,7 @@ public sealed class ConversationBranchService
         {
             return SessionBranchOutcome.Failed(
                 SessionBranchStatus.SessionNotFound,
-                $"'{sessionId}' kimlikli bir oturum yok.");
+                $"There is no session with id '{sessionId}'.");
         }
 
         var newSessionId = request.NewSessionId is { Length: > 0 } requested
@@ -119,8 +119,8 @@ public sealed class ConversationBranchService
         {
             return SessionBranchOutcome.Failed(
                 SessionBranchStatus.SessionExists,
-                $"'{newSessionId}' kimlikli bir oturum zaten var. Dal, var olan bir oturumun " +
-                "uzerine YAZMAZ; baska bir kimlik verin veya bos birakip uretilmesini saglayin.");
+                $"A session with id '{newSessionId}' already exists. Branching does NOT overwrite " +
+                "an existing session; give a different id or leave it empty to have one generated.");
         }
 
         var agent = await _catalog.ResolveAsync(record.AgentName, cancellationToken).ConfigureAwait(false);
@@ -129,8 +129,8 @@ public sealed class ConversationBranchService
         {
             return SessionBranchOutcome.Failed(
                 SessionBranchStatus.AgentNotFound,
-                $"'{record.AgentName}' adinda bir agent yok; oturum geri yuklenemedigi icin " +
-                "konusmasi dallandirilamaz.");
+                $"There is no agent named '{record.AgentName}'; the session cannot be restored, " +
+                "so its conversation cannot be branched.");
         }
 
         AgentSession session;
@@ -145,7 +145,7 @@ public sealed class ConversationBranchService
         {
             return SessionBranchOutcome.Failed(
                 SessionBranchStatus.AgentNotFound,
-                $"'{sessionId}' oturumu '{record.AgentName}' agent'i ile geri yuklenemedi: {ex.Message}");
+                $"Session '{sessionId}' could not be restored with agent '{record.AgentName}': {ex.Message}");
         }
 
         if (!session.StateBag.TryGetValue<ChatHistoryState>(
@@ -157,8 +157,8 @@ public sealed class ConversationBranchService
         {
             return SessionBranchOutcome.Failed(
                 SessionBranchStatus.NoConversation,
-                $"'{sessionId}' oturumunun henuz bir konusmasi yok. Dallandirilacak bir sey " +
-                "olmasi icin oturumda en az bir tur calismis olmalidir.");
+                $"Session '{sessionId}' has no conversation yet. At least one turn must have run in " +
+                "the session for there to be anything to branch.");
         }
 
         var branch = await _branchStore
@@ -169,8 +169,8 @@ public sealed class ConversationBranchService
         {
             return SessionBranchOutcome.Failed(
                 SessionBranchStatus.NoConversation,
-                $"'{state.ConversationId}' konusmasi bulunamadi; oturum bir konusmaya isaret ediyor " +
-                "ama kayit silinmis olabilir.");
+                $"Conversation '{state.ConversationId}' was not found; the session points to a " +
+                "conversation, but the record may have been deleted.");
         }
 
         // Yeni oturum, kaynagin durumunu aynen tasir; yalniz konusma kimligi ve

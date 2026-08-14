@@ -335,7 +335,7 @@ public sealed class GovernanceEndpointTests
 
         var body = await response.Content.ReadAsStringAsync();
 
-        body.ShouldContain("basarisiz");
+        body.ShouldContain("failed");
     }
 
     [Fact]

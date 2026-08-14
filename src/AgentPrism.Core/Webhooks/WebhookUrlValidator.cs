@@ -48,12 +48,12 @@ public static class WebhookUrlValidator
 
         if (string.IsNullOrWhiteSpace(url))
         {
-            return new WebhookUrlVerdict(false, "Adres bos olamaz.", null);
+            return new WebhookUrlVerdict(false, "Address cannot be empty.", null);
         }
 
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
         {
-            return new WebhookUrlVerdict(false, "Adres mutlak bir URI olmalidir.", null);
+            return new WebhookUrlVerdict(false, "Address must be an absolute URI.", null);
         }
 
         if (string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.Ordinal))
@@ -63,7 +63,7 @@ public static class WebhookUrlValidator
 
         if (!string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.Ordinal))
         {
-            return new WebhookUrlVerdict(false, $"'{uri.Scheme}' semasi desteklenmiyor; yalnizca https kullanin.", null);
+            return new WebhookUrlVerdict(false, $"Scheme '{uri.Scheme}' is not supported; use https only.", null);
         }
 
         // http YALNIZCA loopback hedefleri icin ve acik izinle. Yerel
@@ -71,12 +71,12 @@ public static class WebhookUrlValidator
         // gondermek olay icerigini aga acar.
         if (!settings.AllowInsecureHttp)
         {
-            return new WebhookUrlVerdict(false, "http desteklenmiyor; https kullanin veya AllowInsecureHttp ayarini acin.", null);
+            return new WebhookUrlVerdict(false, "http is not supported; use https or enable the AllowInsecureHttp setting.", null);
         }
 
         if (!IsLoopbackHost(uri))
         {
-            return new WebhookUrlVerdict(false, "http yalnizca loopback (localhost) hedefleri icin kullanilabilir.", null);
+            return new WebhookUrlVerdict(false, "http can only be used for loopback (localhost) targets.", null);
         }
 
         return new WebhookUrlVerdict(true, null, null);
@@ -122,13 +122,13 @@ public static class WebhookUrlValidator
             }
             catch (SocketException exception)
             {
-                return new WebhookUrlVerdict(false, $"Adres cozumlenemedi: {exception.Message}", null);
+                return new WebhookUrlVerdict(false, $"Address could not be resolved: {exception.Message}", null);
             }
         }
 
         if (addresses.Length == 0)
         {
-            return new WebhookUrlVerdict(false, "Adres hicbir IP'ye cozumlenmedi.", null);
+            return new WebhookUrlVerdict(false, "Address did not resolve to any IP.", null);
         }
 
         // 🚨 Cozulen adreslerin HERHANGI biri reddedilirse hedef reddedilir.
@@ -140,7 +140,7 @@ public static class WebhookUrlValidator
             {
                 return new WebhookUrlVerdict(
                     false,
-                    $"Hedef ozel bir ag adresine ({address}) cozumleniyor; AllowPrivateNetworkTargets kapali.",
+                    $"The target resolves to a private network address ({address}); AllowPrivateNetworkTargets is disabled.",
                     null);
             }
         }

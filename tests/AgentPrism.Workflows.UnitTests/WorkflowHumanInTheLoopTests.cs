@@ -165,7 +165,7 @@ public sealed class WorkflowHumanInTheLoopTests
         var error = await Should.ThrowAsync<AgentPrismException>(
             async () => await CollectResponse(runner, run.Id, "herhangi", approved: true));
 
-        error.Message.ShouldContain("beklemiyor", Case.Sensitive);
+        error.Message.ShouldContain("is not awaiting human input", Case.Sensitive);
     }
 
     [Fact]
@@ -186,7 +186,7 @@ public sealed class WorkflowHumanInTheLoopTests
         var error = await Should.ThrowAsync<AgentPrismException>(
             async () => await CollectResponse(runner, run.Id, pending.RequestId, approved: true));
 
-        error.Message.ShouldContain("bulunamadi", Case.Sensitive);
+        error.Message.ShouldContain("There is no run", Case.Sensitive);
     }
 
     [Fact]

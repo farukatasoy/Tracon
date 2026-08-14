@@ -111,7 +111,7 @@ internal static class OpenAIConversationsEndpoints
             {
                 return OpenAICompatSupport.Error(
                     StatusCodes.Status400BadRequest,
-                    $"Govde cozumlenemedi: {ex.Message}");
+                    $"Body could not be parsed: {ex.Message}");
             }
         }
 
@@ -299,7 +299,7 @@ internal static class OpenAIConversationsEndpoints
     private static IResult NotFound(string conversationId)
         => OpenAICompatSupport.Error(
             StatusCodes.Status404NotFound,
-            $"'{conversationId}' bulunamadi.",
+            $"'{conversationId}' was not found.",
             type: "not_found_error");
 
     private static Dictionary<string, string>? ReadMetadata(JsonElement body)

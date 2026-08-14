@@ -272,9 +272,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         if (record.Status != RunStatus.AwaitingInput)
         {
             throw new AgentPrismException(
-                $"'{request.RunId}' kimlikli calistirma insan girdisi beklemiyor " +
-                $"(durum: {record.Status}). Yalnizca 'AwaitingInput' durumundaki bir " +
-                "calistirma yanitlanabilir.");
+                $"Run '{request.RunId}' is not awaiting human input " +
+                $"(status: {record.Status}). Only a run in 'AwaitingInput' status " +
+                "can be responded to.");
         }
 
         // Istek kimligi DOGRULANIR. Bilinmeyen bir kimlikle sürdürme, kullaniciya
@@ -285,8 +285,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         if (!pending.Any(candidate => string.Equals(candidate.RequestId, request.RequestId, StringComparison.Ordinal)))
         {
             throw new AgentPrismException(
-                $"'{request.RequestId}' kimlikli bekleyen bir istek '{request.RunId}' calistirmasinda yok. " +
-                "Istek listesini GET /api/workflows/runs/{runId}/requests ile tazeleyin.");
+                $"There is no pending request with id '{request.RequestId}' on run '{request.RunId}'. " +
+                "Refresh the request list with GET /api/workflows/runs/{runId}/requests.");
         }
 
         return new WorkflowExecution
@@ -315,19 +315,19 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         if (record is null ||
             !string.Equals(record.TenantId, _tenantContext.TenantId, StringComparison.Ordinal))
         {
-            throw new AgentPrismException($"'{runId}' kimlikli calistirma bulunamadi.");
+            throw new AgentPrismException($"There is no run with id '{runId}'.");
         }
 
         if (record.Kind != RunKind.Workflow || record.WorkflowName is not { Length: > 0 })
         {
             throw new AgentPrismException(
-                $"'{runId}' kimlikli calistirma bir workflow calistirmasi degil; sürdürulemez.");
+                $"Run '{runId}' is not a workflow run; it cannot be resumed.");
         }
 
         if (record.SessionId is not { Length: > 0 })
         {
             throw new AgentPrismException(
-                $"'{runId}' kimlikli calistirmanin yurutme oturumu yok; sürdürulemez.");
+                $"Run '{runId}' has no execution session; it cannot be resumed.");
         }
 
         return record;
@@ -352,8 +352,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         return checkpoints.Count > 0
             ? checkpoints[^1].CheckpointId
             : throw new AgentPrismException(
-                $"'{runId}' kimlikli calistirmanin kontrol noktasi yok. " +
-                "Kontrol noktasi yazimi kapaliyken baslatilan bir calistirma sürdürulemez.");
+                $"Run '{runId}' has no checkpoint. " +
+                "A run started while checkpoint writing was disabled cannot be resumed.");
     }
 
     private async IAsyncEnumerable<RunEvent> ExecuteAsync(
@@ -363,7 +363,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         if (!_options.Value.Enabled)
         {
             throw new AgentPrismException(
-                "Workflow calistirma kapali. 'AgentPrism:Workflows:Enabled' ayarini acin.");
+                "Workflow execution is disabled. Enable the 'AgentPrism:Workflows:Enabled' setting.");
         }
 
         var settings = _options.Value;
@@ -473,7 +473,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             if (workflow is null)
             {
                 throw new AgentPrismException(
-                    $"'{execution.WorkflowName}' adinda bir workflow yok.");
+                    $"There is no workflow named '{execution.WorkflowName}'.");
             }
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
@@ -816,7 +816,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             if (checkpointManager is null)
             {
                 throw new AgentPrismException(
-                    "Kontrol noktasindan sürdürme icin 'AgentPrism:Workflows:EnableCheckpointing' acik olmalidir.");
+                    "'AgentPrism:Workflows:EnableCheckpointing' must be enabled to resume from a checkpoint.");
             }
 
             try
@@ -834,11 +834,11 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 // kimliklerinin degismis olmasidir: ya workflow tanimi
                 // guncellenmistir ya da uygulama yeniden baslatilmistir.
                 throw new AgentPrismException(
-                    $"'{execution.WorkflowName}' workflow'u bu kontrol noktasindan sürdürulemiyor: " +
-                    "grafin yapisi kontrol noktasi yazildigi andakinden farkli. " +
-                    "Workflow tanimi degistirildiyse yeni bir calistirma baslatin. " +
-                    "Uygulama yeniden baslatildiysa eski kontrol noktalari kullanilamaz - " +
-                    "executor kimlikleri surec belleğinde uretilir.",
+                    $"Workflow '{execution.WorkflowName}' cannot be resumed from this checkpoint: " +
+                    "the graph's structure differs from when the checkpoint was written. " +
+                    "If the workflow definition changed, start a new run. " +
+                    "If the application restarted, old checkpoints cannot be used - " +
+                    "executor ids are generated in process memory.",
                     exception);
             }
         }

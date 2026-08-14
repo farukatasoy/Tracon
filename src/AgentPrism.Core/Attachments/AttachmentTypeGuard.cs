@@ -43,25 +43,25 @@ public sealed class AttachmentTypeGuard
     {
         if (data.Length == 0)
         {
-            return AttachmentValidationResult.Invalid("Ek bos olamaz.");
+            return AttachmentValidationResult.Invalid("The attachment cannot be empty.");
         }
 
         if (data.Length > _options.MaxBytes)
         {
             return AttachmentValidationResult.Invalid(
-                $"Ek boyutu {_options.MaxBytes.ToString("N0", CultureInfo.InvariantCulture)} bayt sinirini asiyor.");
+                $"Attachment size exceeds the {_options.MaxBytes.ToString("N0", CultureInfo.InvariantCulture)} byte limit.");
         }
 
         if (SniffMediaType(data) is not { } sniffed)
         {
             return AttachmentValidationResult.Invalid(
-                "Dosya turu taninmadi. Desteklenen turler: " +
+                "File type not recognized. Supported types: " +
                 string.Join(", ", _options.AllowedMediaTypes.OrderBy(static value => value, StringComparer.Ordinal)) + ".");
         }
 
         return IsAllowed(sniffed)
             ? AttachmentValidationResult.Valid(sniffed)
-            : AttachmentValidationResult.Invalid($"'{sniffed}' turune izin verilmiyor.");
+            : AttachmentValidationResult.Invalid($"'{sniffed}' is not an allowed type.");
     }
 
     private bool IsAllowed(string mediaType)

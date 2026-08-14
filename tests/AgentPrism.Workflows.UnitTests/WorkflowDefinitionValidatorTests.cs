@@ -16,13 +16,13 @@ public sealed class WorkflowDefinitionValidatorTests
     public void Bos_agent_listesi_reddedilir()
         => WorkflowDefinitionValidator
             .Validate(Definition(WorkflowKind.Sequential, []))!
-            .ShouldContain("hicbir agent icermiyor", Case.Sensitive);
+            .ShouldContain("has no agents", Case.Sensitive);
 
     [Fact]
     public void Tekrar_eden_agent_adi_reddedilir()
         => WorkflowDefinitionValidator
             .Validate(Definition(WorkflowKind.Sequential, ["a", "b", "a"]))!
-            .ShouldContain("birden fazla kez geciyor", Case.Sensitive);
+            .ShouldContain("appears more than once", Case.Sensitive);
 
     [Theory]
     [InlineData(WorkflowKind.Concurrent)]
@@ -31,13 +31,13 @@ public sealed class WorkflowDefinitionValidatorTests
     public void Iki_agent_isteyen_desenler_tek_agentle_reddedilir(WorkflowKind kind)
         => WorkflowDefinitionValidator
             .Validate(Definition(kind, ["a"]))!
-            .ShouldContain("en az iki agent", Case.Sensitive);
+            .ShouldContain("at least two agents", Case.Sensitive);
 
     [Fact]
     public void Magentic_yonetici_agent_ister()
         => WorkflowDefinitionValidator
             .Validate(Definition(WorkflowKind.Magentic, ["a"]))!
-            .ShouldContain("'managerAgentName' zorunludur", Case.Sensitive);
+            .ShouldContain("'managerAgentName' is required", Case.Sensitive);
 
     [Fact]
     public void Magentic_yonetici_ayni_anda_katilimci_olamaz()
@@ -45,7 +45,7 @@ public sealed class WorkflowDefinitionValidatorTests
         var definition = Definition(WorkflowKind.Magentic, ["a", "b"]) with { ManagerAgentName = "a" };
 
         WorkflowDefinitionValidator.Validate(definition)!
-            .ShouldContain("hem yonetici hem katilimci", Case.Sensitive);
+            .ShouldContain("both manager and participant", Case.Sensitive);
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public sealed class WorkflowDefinitionValidatorTests
         var definition = Definition(WorkflowKind.GroupChat, ["a", "b"]) with { ManagerAgentName = "c" };
 
         WorkflowDefinitionValidator.Validate(definition)!
-            .ShouldContain("yalnizca 'Magentic' desenine aittir", Case.Sensitive);
+            .ShouldContain("belongs only to the 'Magentic' pattern", Case.Sensitive);
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public sealed class WorkflowDefinitionValidatorTests
         var definition = Definition(WorkflowKind.GroupChat, ["a", "b"]) with { MaxIterations = 0 };
 
         WorkflowDefinitionValidator.Validate(definition)!
-            .ShouldContain("pozitif olmalidir", Case.Sensitive);
+            .ShouldContain("must be positive", Case.Sensitive);
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public sealed class WorkflowDefinitionValidatorTests
         var definition = Definition((WorkflowKind)99, ["a", "b"]);
 
         WorkflowDefinitionValidator.Validate(definition)!
-            .ShouldContain("bilinmeyen bir desen", Case.Sensitive);
+            .ShouldContain("uses an unknown pattern", Case.Sensitive);
     }
 
     [Fact]

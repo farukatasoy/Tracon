@@ -131,7 +131,7 @@ internal static class SchedulingEndpoints
 
         if (string.IsNullOrWhiteSpace(request.TargetName))
         {
-            return InvalidSchedule("'targetName' alani zorunludur.");
+            return InvalidSchedule("'targetName' is required.");
         }
 
         TimeZoneInfo timeZone;
@@ -142,7 +142,7 @@ internal static class SchedulingEndpoints
         }
         catch (Exception exception) when (exception is TimeZoneNotFoundException or InvalidTimeZoneException)
         {
-            return InvalidSchedule($"'{request.TimeZone}' gecerli bir saat dilimi degil.");
+            return InvalidSchedule($"'{request.TimeZone}' is not a valid time zone.");
         }
 
         DateTimeOffset? nextRunAt = null;
@@ -151,7 +151,7 @@ internal static class SchedulingEndpoints
         {
             if (!CronExpression.TryParse(cron, out var parsed))
             {
-                return InvalidSchedule($"'{cron}' desteklenen bes alanli cron alt kumesiyle eslesmiyor.");
+                return InvalidSchedule($"'{cron}' does not match the supported five-field cron subset.");
             }
 
             nextRunAt = parsed!.GetNextOccurrence(DateTimeOffset.UtcNow, timeZone);
@@ -162,7 +162,7 @@ internal static class SchedulingEndpoints
 
         if (itemCount > maxItems)
         {
-            return InvalidSchedule($"Yuk {itemCount} oge tasiyor; en fazla {maxItems} oge desteklenir.");
+            return InvalidSchedule($"The payload has {itemCount} items; at most {maxItems} are supported.");
         }
 
         var existing = await store.GetAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
@@ -232,8 +232,8 @@ internal static class SchedulingEndpoints
         if (items.Count > maxItems)
         {
             return TypedResults.Problem(
-                title: "Tetikleme basarisiz",
-                detail: $"Yuk {items.Count} oge tasiyor; en fazla {maxItems} oge desteklenir.",
+                title: "Trigger failed",
+                detail: $"The payload has {items.Count} items; at most {maxItems} are supported.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -321,23 +321,23 @@ internal static class SchedulingEndpoints
         return job is null
             ? JobNotFound(id)
             : TypedResults.Problem(
-                title: "Is iptal edilemedi",
-                detail: $"Is zaten '{job.Status}' durumunda.",
+                title: "Job could not be canceled",
+                detail: $"The job is already in status '{job.Status}'.",
                 statusCode: StatusCodes.Status409Conflict);
     }
 
     private static ProblemHttpResult InvalidSchedule(string detail)
-        => TypedResults.Problem(title: "Zamanlama gecersiz", detail: detail, statusCode: StatusCodes.Status400BadRequest);
+        => TypedResults.Problem(title: "Schedule invalid", detail: detail, statusCode: StatusCodes.Status400BadRequest);
 
     private static ProblemHttpResult ScheduleNotFound(string name)
         => TypedResults.Problem(
-            title: "Zamanlama bulunamadi",
-            detail: $"'{name}' adinda bir zamanlama yok.",
+            title: "Schedule not found",
+            detail: $"There is no schedule named '{name}'.",
             statusCode: StatusCodes.Status404NotFound);
 
     private static ProblemHttpResult JobNotFound(Guid id)
         => TypedResults.Problem(
-            title: "Is bulunamadi",
-            detail: $"'{id}' kimlikli bir is yok.",
+            title: "Job not found",
+            detail: $"There is no job with id '{id}'.",
             statusCode: StatusCodes.Status404NotFound);
 }

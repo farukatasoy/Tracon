@@ -224,8 +224,8 @@ internal static class AgentEndpoints
         if (left is null || right is null)
         {
             return TypedResults.Problem(
-                title: "Surum bulunamadi",
-                detail: $"'{name}' agent'inin {(left is null ? a : b)} numarali surumu yok.",
+                title: "Version not found",
+                detail: $"Agent '{name}' has no version {(left is null ? a : b)}.",
                 statusCode: StatusCodes.Status404NotFound);
         }
 
@@ -289,11 +289,12 @@ internal static class AgentEndpoints
         if (await FindDescriptorAsync(catalog, request.Name, cancellationToken).ConfigureAwait(false) is { } existing)
         {
             return TypedResults.Problem(
-                title: "Agent adi kullanimda",
+                title: "Agent name in use",
                 detail: existing.Origin == AgentDefinitionOrigin.Code
-                    ? $"'{request.Name}' kodda tanimli bir agent'tir ve yonetim API'sinden degistirilemez. " +
-                      "Ad cakismasinda kod kazandigi icin ayni adla yazilan bir tanim hicbir zaman cozulmezdi."
-                    : $"'{request.Name}' adinda bir tanim zaten var. Guncellemek icin PUT kullanin.",
+                    ? $"'{request.Name}' is an agent defined in code and cannot be changed from the " +
+                      "management API. Code wins name conflicts, so a definition written with the same " +
+                      "name would never resolve."
+                    : $"A definition named '{request.Name}' already exists. Use PUT to update it.",
                 statusCode: StatusCodes.Status409Conflict);
         }
 
@@ -359,9 +360,9 @@ internal static class AgentEndpoints
         if (!string.Equals(name, request.Name, StringComparison.Ordinal))
         {
             return TypedResults.Problem(
-                title: "Ad uyusmuyor",
-                detail: $"Yoldaki ad '{name}', govdedeki ad '{request.Name}'. Agent adi degistirilemez; " +
-                        "yeni bir ad icin yeni bir tanim olusturun.",
+                title: "Name mismatch",
+                detail: $"The path name is '{name}', the body name is '{request.Name}'. An agent's name " +
+                        "cannot be changed; create a new definition for a new name.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -457,7 +458,7 @@ internal static class AgentEndpoints
         catch (AgentPrismException ex)
         {
             return TypedResults.Problem(
-                title: "Geri alinamadi",
+                title: "Rollback failed",
                 detail: ex.Message,
                 statusCode: StatusCodes.Status404NotFound);
         }
@@ -480,16 +481,16 @@ internal static class AgentEndpoints
         if (string.IsNullOrWhiteSpace(request.Message) && request.Approvals.Count == 0 && request.AttachmentIds.Count == 0)
         {
             return Results.Problem(
-                title: "Istek bos",
-                detail: "'message', 'attachmentIds' veya 'approvals' alanlarindan biri zorunludur.",
+                title: "Empty request",
+                detail: "One of 'message', 'attachmentIds', or 'approvals' is required.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
         if (request.Approvals.Count > 0 && string.IsNullOrWhiteSpace(request.SessionId))
         {
             return Results.Problem(
-                title: "Onay icin oturum gerekli",
-                detail: "Bekleyen onay istegi oturum gecmisinde yasar; 'sessionId' zorunludur.",
+                title: "Session required for approval",
+                detail: "A pending approval request lives in session history; 'sessionId' is required.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -503,8 +504,8 @@ internal static class AgentEndpoints
                     .ConfigureAwait(false) is not { } descriptor)
             {
                 return Results.Problem(
-                    title: "Ek bulunamadi",
-                    detail: $"'{attachmentId}' kimlikli bir ek yok veya bu kiraciya ait degil.",
+                    title: "Attachment not found",
+                    detail: $"There is no attachment with id '{attachmentId}', or it does not belong to this tenant.",
                     statusCode: StatusCodes.Status400BadRequest);
             }
 
@@ -535,7 +536,7 @@ internal static class AgentEndpoints
         catch (AgentPrismException ex)
         {
             return Results.Problem(
-                title: "Agent derlenemedi",
+                title: "Agent compilation failed",
                 detail: ex.Message,
                 statusCode: StatusCodes.Status400BadRequest);
         }
@@ -543,8 +544,8 @@ internal static class AgentEndpoints
         if (agent is null)
         {
             return Results.Problem(
-                title: "Agent bulunamadi",
-                detail: $"'{name}' adinda bir agent yok.",
+                title: "Agent not found",
+                detail: $"There is no agent named '{name}'.",
                 statusCode: StatusCodes.Status404NotFound);
         }
 
@@ -592,26 +593,26 @@ internal static class AgentEndpoints
         if (!options.Enabled)
         {
             return Results.Problem(
-                title: "Kuyruga alma destegi kapali",
-                detail: "'Prefer: respond-async' basligi gonderildi ama bu kurulumda kuyruga alma " +
-                        "destegi kapali (AgentPrismAsyncRunOptions.Enabled = false).",
+                title: "Queuing not enabled",
+                detail: "The 'Prefer: respond-async' header was sent, but queuing support is disabled " +
+                        "in this setup (AgentPrismAsyncRunOptions.Enabled = false).",
                 statusCode: StatusCodes.Status501NotImplemented);
         }
 
         if (string.IsNullOrWhiteSpace(request.Message))
         {
             return Results.Problem(
-                title: "Istek bos",
-                detail: "Kuyruga alinan bir calistirmada 'message' zorunludur.",
+                title: "Empty request",
+                detail: "'message' is required for a queued run.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
         if (request.Approvals.Count > 0 || request.AttachmentIds.Count > 0)
         {
             return Results.Problem(
-                title: "Desteklenmiyor",
-                detail: "Kuyruga alinan ('Prefer: respond-async') bir calistirma onay kararlarini " +
-                        "veya ekleri bu surumde desteklemez.",
+                title: "Not supported",
+                detail: "A queued run ('Prefer: respond-async') does not support approval decisions " +
+                        "or attachments in this version.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -624,7 +625,7 @@ internal static class AgentEndpoints
         catch (AgentPrismException ex)
         {
             return Results.Problem(
-                title: "Agent derlenemedi",
+                title: "Agent compilation failed",
                 detail: ex.Message,
                 statusCode: StatusCodes.Status400BadRequest);
         }
@@ -632,8 +633,8 @@ internal static class AgentEndpoints
         if (agent is null)
         {
             return Results.Problem(
-                title: "Agent bulunamadi",
-                detail: $"'{name}' adinda bir agent yok.",
+                title: "Agent not found",
+                detail: $"There is no agent named '{name}'.",
                 statusCode: StatusCodes.Status404NotFound);
         }
 
@@ -882,7 +883,7 @@ internal static class AgentEndpoints
                 // ProblemDetails guard ve kural adini tasir, engellenen metni
                 // TASIMAZ (ex.Message de tasimaz).
                 await Results.Problem(
-                        title: "Icerik engellendi",
+                        title: "Content blocked",
                         detail: ex.Message,
                         statusCode: StatusCodes.Status422UnprocessableEntity,
                         extensions: new Dictionary<string, object?>(StringComparer.Ordinal)
@@ -901,7 +902,7 @@ internal static class AgentEndpoints
                 // istemci tarafi bir yaris kosulu — 409 ve kisa bir yeniden deneme
                 // dogru cozumdur.
                 await Results.Problem(
-                        title: "Oturum catismasi",
+                        title: "Session conflict",
                         detail: ex.Message,
                         statusCode: StatusCodes.Status409Conflict,
                         extensions: new Dictionary<string, object?>(StringComparer.Ordinal)
@@ -921,7 +922,7 @@ internal static class AgentEndpoints
                 // HICBIR sey yoktur — OperationCanceledException ve daha ozel
                 // AgentPrism istisnalari yukarida zaten ayri catch bloklarinda.
                 await Results.Problem(
-                        title: "Agent calistirilamadi",
+                        title: "Agent run failed",
                         detail: ex.Message,
                         statusCode: StatusCodes.Status502BadGateway)
                     .ExecuteAsync(httpContext).ConfigureAwait(false);
@@ -1040,7 +1041,7 @@ internal static class AgentEndpoints
 
         return AgentCallGraph.Validate(request.Name, request.CallableAgentNames, descriptors) is { } problem
             ? TypedResults.Problem(
-                title: "Cagri grafigi gecersiz",
+                title: "Call graph invalid",
                 detail: problem,
                 statusCode: StatusCodes.Status400BadRequest)
             : null;
@@ -1074,7 +1075,7 @@ internal static class AgentEndpoints
                 .Select(static message => message.Message));
 
         return TypedResults.Problem(
-            title: "Tanim gecersiz",
+            title: "Definition invalid",
             detail: detail,
             statusCode: StatusCodes.Status400BadRequest);
     }
@@ -1088,9 +1089,9 @@ internal static class AgentEndpoints
 
         return descriptor?.Origin == AgentDefinitionOrigin.Code
             ? TypedResults.Problem(
-                title: "Kodda tanimli agent degistirilemez",
-                detail: $"'{name}' kodda tanimlidir. Kod tanimlari derleme zamaninda dogrulanir ve " +
-                        "yonetim API'sinden degistirilemez; degisiklik icin uygulama kodunu guncelleyin.",
+                title: "Code-defined agent cannot be modified",
+                detail: $"'{name}' is defined in code. Code definitions are validated at compile time " +
+                        "and cannot be changed from the management API; update the application code to change it.",
                 statusCode: StatusCodes.Status409Conflict)
             : null;
     }
@@ -1100,16 +1101,16 @@ internal static class AgentEndpoints
         if (string.IsNullOrWhiteSpace(request.Name))
         {
             return TypedResults.Problem(
-                title: "Agent adi bos",
-                detail: "'name' alani zorunludur.",
+                title: "Agent name empty",
+                detail: "'name' is required.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
         if (string.IsNullOrWhiteSpace(request.Model?.Provider) || string.IsNullOrWhiteSpace(request.Model.Model))
         {
             return TypedResults.Problem(
-                title: "Model baglantisi eksik",
-                detail: "'model.provider' ve 'model.model' alanlari zorunludur.",
+                title: "Model binding missing",
+                detail: "'model.provider' and 'model.model' are required.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -1118,8 +1119,8 @@ internal static class AgentEndpoints
 
     private static ProblemHttpResult NotFound(string name)
         => TypedResults.Problem(
-            title: "Agent bulunamadi",
-            detail: $"'{name}' adinda bir agent yok.",
+            title: "Agent not found",
+            detail: $"There is no agent named '{name}'.",
             statusCode: StatusCodes.Status404NotFound);
 
     /// <summary>
@@ -1142,8 +1143,8 @@ internal static class AgentEndpoints
             if (request is null)
             {
                 return (null, TypedResults.Problem(
-                    title: "Gecersiz istek govdesi",
-                    detail: "Govde bos olamaz.",
+                    title: "Invalid request body",
+                    detail: "The body cannot be empty.",
                     statusCode: StatusCodes.Status400BadRequest));
             }
 
@@ -1152,7 +1153,7 @@ internal static class AgentEndpoints
         catch (JsonException ex)
         {
             return (null, TypedResults.Problem(
-                title: "Gecersiz istek govdesi",
+                title: "Invalid request body",
                 detail: ex.Message,
                 statusCode: StatusCodes.Status400BadRequest));
         }

@@ -79,11 +79,11 @@ internal sealed class AgentPrismRateLimitFilter : IEndpointFilter, IDisposable
             ((int)Math.Ceiling(retryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
 
         return Results.Problem(
-            title: "Hiz siniri asildi",
+            title: "Rate limit exceeded",
             detail: string.Create(
                 CultureInfo.InvariantCulture,
-                $"Bu kurulumda {options.Window.TotalSeconds:0} saniyede en fazla {options.PermitLimit} istek yapilabilir. " +
-                $"{retryAfter.TotalSeconds:0} saniye sonra tekrar deneyin."),
+                $"This setup allows at most {options.PermitLimit} requests per {options.Window.TotalSeconds:0} seconds. " +
+                $"Retry after {retryAfter.TotalSeconds:0} seconds."),
             statusCode: StatusCodes.Status429TooManyRequests);
     }
 
