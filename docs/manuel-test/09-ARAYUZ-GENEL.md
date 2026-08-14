@@ -311,7 +311,29 @@ yalnız arayüzün 403'ü **nasıl gösterdiği** doğrulanır.
 **Gerçek sonuç**
 `HATA-S4-003` (Yüksek): Loopback dışı bir adresten (`http://192.168.1.102:5084/agentprism/`, `AllowRemoteAccess=false`) konsolu açınca "Erişim reddedildi" kartı **hiç görünmedi** — tarayıcı yalnızca sunucunun ham `ProblemDetails` JSON gövdesini düz metin olarak gösterdi (`{"type":"...","title":"Uzak erisim kapali","status":403,...}`), React hiç çalışmadı. Kök neden: `src/AgentPrism.AspNetCore/Security/AgentPrismEndpointFilter.cs:72-80`'deki loopback denetimi `_allowRemoteAccess` bayrağına bakar ve **`requireBearerToken` parametresinden bağımsız** her uca (statik kabuk ucu dahil) aynı şekilde uygulanır. Sınıfın kendi XML yorumu (satır 42-49) tam olarak bu sınıfın bearer-token içi bir benzer sorunu ÇÖZDÜĞÜNÜ anlatır ("kabuk `requireBearerToken:false` ile çağrılır, yoksa kullanıcı token girebileceği ekranı hiç göremez") ama aynı çözüm loopback denetimine UYGULANMAMIŞ — kabuk ucu da loopback dışı istekte 403 JSON döner, SPA hiç yüklenmez, dolayısıyla `access-gate.tsx`'in "Erişim reddedildi" kartı hiçbir zaman render edilemez. `access.denied.remote` ipucu satırı da aynı nedenle görünmez.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Yeniden koşum (Aile M, KAPANIS-PLANI.md).** `AgentPrismEndpointFilter`'a yeni bir
+`requireLoopback` parametresi eklendi (varsayılan `true`); kabuk grubu
+(`MapUi`) artık `requireLoopback: false` ile kuruluyor — tıpkı bearer token
+muafiyeti gibi. Veri uçlarındaki asıl korumalı grup (`api/agents` vb.)
+değişmedi, loopback kısıtı orada `true` kalıyor. Canlı Postgres'e karşı
+(`AuthToken` geçici olarak `dotnet user-secrets remove` ile kaldırılıp
+doğrulama sonrası geri eklendi — yalnız remote-access katmanını izole etmek
+için) LAN IP'den (`http://192.168.1.102:5090/agentprism/`) gerçek bir
+Playwright oturumuyla tekrar üretildi: kabuk artık yükleniyor, React çalışıyor
+ve `AccessGate` "Access denied" kartını sunucunun ham `detail` metniyle
+(`"AgentPrism uclari varsayilan olarak..."`) ve `access.denied.remote`
+ipucuyla (`"Remote access is off. ..."`) doğru şekilde gösteriyor. Veri ucu
+(`/api/agents`) aynı LAN IP'den hâlâ `403`/`"Uzak erisim kapali"` döndürmeye
+devam ediyor — koruma kaybolmadı, yalnızca kabuğun kendisi artık React'i
+başlatabiliyor. Regresyon testi:
+`tests/AgentPrism.AspNetCore.FunctionalTests/SecurityTests.cs`
+`Kabuk_loopback_disi_istekte_hala_yuklenir_HATA_S4_003` (fix geri alınıp
+koşulduğunda `Forbidden` ile KIRMIZI verdiği ampirik olarak doğrulandıktan
+sonra fix geri uygulandı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

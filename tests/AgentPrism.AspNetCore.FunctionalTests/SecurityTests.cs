@@ -83,6 +83,32 @@ public sealed class SecurityTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    [Fact]
+    public async Task Kabuk_loopback_disi_istekte_hala_yuklenir_HATA_S4_003()
+    {
+        // MT-UI-008: kabuk loopback kisitindan da muaf olmali — degilse loopback
+        // disi bir istemci JS paketini hic indiremez, AccessGate hicbir zaman
+        // calisamaz ve kullanici "Erisim reddedildi" karti yerine ham
+        // ProblemDetails JSON'iyla kalir. Veri uclari (asagidaki ikinci istek)
+        // korumali kalmalidir; gercek red mesaji oradan gelir.
+        await using var host = await AgentPrismTestHost.StartAsync(
+            configureServices: static services => services.AddSingleton<IAgentPrismUiProvider, FakeUiProvider>());
+
+        using var shellRequest = new HttpRequestMessage(HttpMethod.Get, "/agentprism/");
+        shellRequest.Headers.Add(AgentPrismTestHost.RemoteIpHeader, "203.0.113.7");
+
+        using var shellResponse = await host.Client.SendAsync(shellRequest);
+
+        shellResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var dataRequest = new HttpRequestMessage(HttpMethod.Get, "/agentprism/api/agents");
+        dataRequest.Headers.Add(AgentPrismTestHost.RemoteIpHeader, "203.0.113.7");
+
+        using var dataResponse = await host.Client.SendAsync(dataRequest);
+
+        dataResponse.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
     // --- 2. katman: bearer token ---
 
     [Fact]
