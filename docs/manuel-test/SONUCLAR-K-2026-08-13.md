@@ -260,3 +260,27 @@ Diğer bulgular: MT-WF-097'de ilk deneme MT-WF-066 ile aynı sebepten (Tenancy k
 Kusur bulunmadı. Küçük doküman notları: MT-EVAL-012'nin `DELETE /api/evals/{name}/cases` ucu doküman `HTTP 200` varsaymışken gerçekte `204` dönüyor (repodaki `DELETE` uçlarının tutarlı deseni — kusur değil, düzeltildi); MT-EVAL-004'ün hata mesajı `{kind}` yer tutucusu kullanıyor, doküman doğrudan `regexMatch` yazmıştı (anlam aynı).
 
 **K-5 toplam: 27 case, 21 Geçti, 6 Kaldı.**
+
+## K-6 — 17 §3–6 (MT-EVAL-020..028, 035..038, 040..046, 050..059), 30 case
+
+**Sonuç:** 30 Geçti, 0 Kaldı. Kusur bulunmadı.
+
+### 17 §3 (MT-EVAL-020..028), 9 case: 9 Geçti, 0 Kaldı
+
+Mutlu yol koşusu, `toolCalled`/`keywords`/`hasImageContent` denetimleri, `numRepetitions` tekrar başarısızlığı, sürüm pinleme (ilk deneme yanlış zamanlamayla yanıltıcıydı — bkz. bu K-6 girdisinin altındaki not — 10 case'lik hızlı-yoklama ile düzeltilip doğrulandı), boş `checks:[]` ile `Failed` run, 0 vakalı takımda senkron `400`, koşu geçmişi listesi. Kusur bulunmadı.
+
+### 17 §4 (MT-EVAL-035..038), 4 case: 4 Geçti, 0 Kaldı
+
+Run→vaka terfisi mutlu yol (`201`, `sourceRunId`/`promotedAt` dolu), aynı run'ı ikinci terfi `200` idempotent (DB'nin kısmi tekil indeksi `eval_cases_source_run_uq` doğrulandı, ikinci satır oluşmadı), var olmayan `runId` `404`, `PromoteToEvalCase` bileşeni 0 takım varken render edilmiyor (tüm takımlar silinip run detay sayfası incelendi, sonra `destek-degerlendirme`/`tool-cagri-testi` fixture'ları geri kuruldu). Kusur bulunmadı.
+
+### 17 §5 (MT-EVAL-040..046), 7 case: 7 Geçti, 0 Kaldı
+
+`SampleRate<=0` hiçbir işi kuyruğa yazmıyor; `Enabled+SampleRate=1.0` her tamamlanan run'ı örnekliyor (`jobs`/`run_scores` doğrulandı, gerçek `gpt-5.4-mini` yargıç çağrısı); `RunSampler.IsSampled`'ın FNV-1a tabanlı, süreç-bağımsız determinizmi kod okuması + Python'da birebir yeniden üretilen hesaplamayla doğrulandı; `/judge` örneklemeyi atlayıp doğrudan puanlıyor (audit kaydı dahil); yargıç yokken `[]`; aynı run'ı iki kez yargılamak `UPSERT` (tek satır); `GET /api/evaluation/online` doğru alanları dönüyor. Kusur bulunmadı.
+
+**⚠️ Ajan hatası (kusur değil, koşum kazası).** MT-EVAL-044 hazırlığı sırasında OpenAI `user-secrets` anahtarı bir betik hatasıyla (`set -e` başarısız komut ikamesini yakalamadı) boş dizeyle üzerine yazıldı; kullanıcıdan yeni anahtar istenip geri yüklendi. Ayrıntı `## Sapmalar` bölümünde.
+
+### 17 §6 (MT-EVAL-050..059), 10 case: 10 Geçti, 0 Kaldı
+
+Kod-kökenli agent'ta deney kurma `400`; DB-kökenli agent ile iki varyantlı deney (`manuel-destek` fixture'ı önceki koşumlardan `version=3` taşıyordu, `version=4` üretilip uyarlandı — ayrıntı case notunda); ağırlık toplamı ≠100 `400`; olmayan sürüm `400`; aynı agent için ikinci `Running` deney `409` (DB kısmi tekil indeksi `experiments_running_agent_uq` doğrulandı); `Running` deneyi silme/düzenleme `409`; `STOP` tek yönlü `Stopped`; arayüzde ağırlık 30+30 iken toplam kırmızı (`rgb(190,18,60)`) ve "Save" devre dışı; `stopped` satırında Edit/Sil yok, `draft` satırında var (kontrast doğrulandı). Kusur bulunmadı.
+
+**K-6 toplam: 30 case, 30 Geçti, 0 Kaldı.**
