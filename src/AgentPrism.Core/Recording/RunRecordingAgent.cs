@@ -51,6 +51,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     private readonly IRunErrorClassifier? _errorClassifier;
     private readonly IRunInputStore? _runInputStore;
     private readonly RunSampler? _runSampler;
+    private readonly ContentGuardPipeline? _contentGuardPipeline;
 
     /// <summary>Yeni bir kayit sarmalayicisi olusturur.</summary>
     /// <param name="innerAgent">Sarmalanan agent.</param>
@@ -107,6 +108,14 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     /// Cevrimici degerlendirme orneklemeleyicisi (Faz 49). <see langword="null"/>
     /// ise hicbir calistirma orneklenmez.
     /// </param>
+    /// <param name="contentGuardPipeline">
+    /// Icerik denetimi boru hatti (Faz 48). <see langword="null"/> veya
+    /// <see cref="ContentGuardPipeline.HasGuards"/> <see langword="false"/> ise
+    /// girdi ham kaydedilir. Verilmisse <c>RunStarted</c> olayina ve
+    /// <see cref="IRunInputStore"/>'a yazilan girdi, <see cref="ContentGuardingChatClient"/>'in
+    /// modele gonderdigi ile AYNI denetimden gecer — ikisi ayrilirsa maskelenen/engellenen
+    /// icerik kalici depoda ham kalir (HATA-S3-006).
+    /// </param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
     public RunRecordingAgent(
         AIAgent innerAgent,
@@ -128,7 +137,8 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         IRunCancellationRegistry? cancellationRegistry = null,
         IRunErrorClassifier? errorClassifier = null,
         IRunInputStore? runInputStore = null,
-        RunSampler? runSampler = null)
+        RunSampler? runSampler = null,
+        ContentGuardPipeline? contentGuardPipeline = null)
         : base(innerAgent)
     {
         ArgumentNullException.ThrowIfNull(runStore);
@@ -155,6 +165,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         _errorClassifier = errorClassifier;
         _runInputStore = runInputStore;
         _runSampler = runSampler;
+        _contentGuardPipeline = contentGuardPipeline;
     }
 
     /// <inheritdoc />
@@ -517,6 +528,21 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         // Girdi listesi BIR kez maddelestirilir: hem sorgu metni hem girdi kaydi
         // ayni koleksiyonu okur.
         var input = messages as IReadOnlyList<ChatMessage> ?? [.. messages];
+
+        // 🚨 Kayda giden girdi, guard boru hattindan ayrica gecirilir: aksi halde
+        // maskelenen/engellenen icerik RunStarted olayinda ve IRunInputStore'da
+        // HAM kalir — modele giden ContentGuardingChatClient icinde zaten
+        // maskelenir, ama bu kayit HIC o istemciye ugramaz (HATA-S3-006).
+        // ContentGuardPipeline.PreviewAsync kullanilir: InspectAsync degil, cunku
+        // bu noktada calistirma satiri (runs) henuz yok — bkz. o metodun belgesi.
+        // Cagirana geciren `messages` degiskeni BILEREK degistirilmez, modele
+        // giden metin bu maskelemeden etkilenmemelidir.
+        if (_contentGuardPipeline is { HasGuards: true } guardPipeline && guardPipeline.Options.InspectInput)
+        {
+            input = await ContentGuardMessageMasker
+                .PreviewAsync(guardPipeline, ContentGuardDirection.Input, input, _modelId, cancellationToken)
+                .ConfigureAwait(false);
+        }
 
         await start.Writer.StartAsync(
             new RunStartInfo

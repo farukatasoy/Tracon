@@ -153,6 +153,82 @@ public sealed class ContentGuardPipeline
     }
 
     /// <summary>
+    /// <paramref name="text"/>'i tum guard'lardan gecirir ama <strong>hicbir karar
+    /// kaydi yapmaz</strong> — olay yazicisina veya denetim izine yazmaz.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 🚨 <see cref="RunRecordingAgent"/>'in <c>BeginRunAsync</c>'i icin vardir:
+    /// <c>RunStarted</c> olayina ve <see cref="IRunInputStore"/>'a yazilacak
+    /// metnin guard karariyla AYNI olmasi gerekir (HATA-S3-006), ama bu asamada
+    /// calistirma satiri (<c>runs</c>) HENUZ olusturulmamistir. <see cref="InspectAsync"/>
+    /// bir karar bulunca <c>scope.Writer.AppendAsync</c> cagirir; <c>runs</c> satiri
+    /// yoksa depo bunu reddeder ve yazici tum calistirma icin KALICI olarak devre
+    /// disi kalir (<see cref="RunEventWriter.IsDisabled"/>). Bu metot o riski
+    /// tasimadan AYNI guard sirasini ve maskeleme zincirini uygular; gercek karar
+    /// kaydi <see cref="ContentGuardingChatClient"/> modele giderken
+    /// <see cref="InspectAsync"/>'i normal sekilde cagirdiginda olusur.
+    /// </para>
+    /// <para>
+    /// Engelleme durumunda <strong>istisna atilmaz</strong> — cagiran calistirmayi
+    /// baslatmaya devam etmelidir; gercek engelleme modele giderken olusur ve
+    /// calistirma o zaman <c>Failed</c>/<c>content_blocked</c> ile kapanir.
+    /// </para>
+    /// </remarks>
+    /// <returns>
+    /// Kaydedilecek metin; hicbir guard degisiklik istemediyse <see langword="null"/>
+    /// (cagiran orijinal metni kullanmalidir).
+    /// </returns>
+    public async ValueTask<string?> PreviewAsync(
+        ContentGuardDirection direction,
+        string text,
+        string? modelId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return null;
+        }
+
+        var scope = AgentPrismRunContext.Current;
+        var current = text;
+        var changed = false;
+
+        foreach (var guard in _guards)
+        {
+            var context = new ContentGuardContext
+            {
+                Direction = direction,
+                Text = current,
+                RunId = scope?.RunId,
+                TenantId = scope?.TenantId ?? _tenantContext.TenantId,
+                AgentName = scope?.AgentName,
+                ModelId = modelId,
+            };
+
+            var result = await guard.InspectAsync(context, cancellationToken).ConfigureAwait(false);
+
+            switch (result.Action)
+            {
+                case ContentGuardAction.Block:
+                    // Engellenen metin bilerek kaydedilmiyor (K-059'un ruhu, ayni
+                    // gerekce InspectAsync'in istisna mesajinda).
+                    return "[content_blocked]";
+
+                case ContentGuardAction.Mask when result.MaskedText is { } replacement:
+                    current = replacement;
+                    changed = true;
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        return changed ? current : null;
+    }
+
+    /// <summary>
     /// Karari calistirma olayina, engellemeyi ayrica denetim izine yazar.
     /// </summary>
     /// <remarks>

@@ -131,6 +131,51 @@ public sealed class ContentGuardRecordingTests
     }
 
     [Fact]
+    public async Task RunStarted_olayi_maskelenen_girdiyi_ham_tasimaz()
+    {
+        // HATA-S3-006: ContentGuardingChatClient modele giden metni maskeler,
+        // ama RunRecordingAgent.BeginRunAsync RunStarted olayini modele
+        // ULASMADAN, kendi yazdigi HAM `messages` listesinden yazardi.
+        var store = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
+        var pipeline = TestData.ContentGuards(guards: StubContentGuard.Masking(CardNumber, "[redacted]"));
+        var agent = Agent(store, new FakeChatClient(), pipeline);
+
+        await agent.RunAsync($"kart numaram {CardNumber}");
+
+        var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+
+        var started = (await ReadEventsAsync(store, run.Id))
+            .Where(static runEvent => runEvent.Type == RunEventType.RunStarted)
+            .ShouldHaveSingleItem();
+
+        (started.Text ?? string.Empty).ShouldNotContain(CardNumber, Case.Sensitive);
+        (started.Text ?? string.Empty).ShouldContain("[redacted]", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task RunStarted_olayi_engellenen_girdiyi_ham_tasimaz()
+    {
+        // Ayni kok neden engelleme icin de gecerli (HATA-S3-006, MT-GUARD-043
+        // kapsam genislemesi): RunStarted, gercek engelleme modele giderken
+        // olusmadan ONCE zaten ham metni yazardi.
+        var store = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
+        var pipeline = TestData.ContentGuards(guards: StubContentGuard.Blocking("gizli-proje"));
+        var agent = Agent(store, new FakeChatClient(), pipeline);
+
+        await Should.ThrowAsync<AgentPrismContentBlockedException>(
+            () => agent.RunAsync("gizli-proje hakkinda bilgi ver"));
+
+        var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+        run.Status.ShouldBe(RunStatus.Failed);
+
+        var started = (await ReadEventsAsync(store, run.Id))
+            .Where(static runEvent => runEvent.Type == RunEventType.RunStarted)
+            .ShouldHaveSingleItem();
+
+        (started.Text ?? string.Empty).ShouldNotContain("gizli-proje", Case.Sensitive);
+    }
+
+    [Fact]
     public async Task Guard_baglami_calistirma_kimligini_ve_kiraciyi_tasir()
     {
         // Kiraci bazli kural yazilabilmesinin sarti.
@@ -154,11 +199,15 @@ public sealed class ContentGuardRecordingTests
         FakeChatClient client,
         IContentGuard guard,
         IAuditLog? auditLog = null)
+        => Agent(store, client, TestData.ContentGuards(auditLog, guards: guard));
+
+    private static RunRecordingAgent Agent(
+        InMemoryRunStore store,
+        FakeChatClient client,
+        ContentGuardPipeline pipeline)
     {
         var compiler = new AgentDefinitionCompiler(
-            TestData.Providers(
-                TestData.ContentGuards(auditLog, guards: guard),
-                new FakeModelProvider(client)),
+            TestData.Providers(pipeline, new FakeModelProvider(client)),
             TestData.Registry());
 
         return new RunRecordingAgent(
@@ -167,7 +216,8 @@ public sealed class ContentGuardRecordingTests
             FixedTenantContext.Default,
             new AgentPrismRunRecordingOptions(),
             NullLogger<RunRecordingAgent>.Instance,
-            errorClassifier: new DefaultRunErrorClassifier());
+            errorClassifier: new DefaultRunErrorClassifier(),
+            contentGuardPipeline: pipeline);
     }
 
     private static async Task<List<RunEvent>> ReadEventsAsync(InMemoryRunStore store, Guid runId)
