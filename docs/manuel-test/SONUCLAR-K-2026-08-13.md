@@ -170,6 +170,73 @@ MT-WF-042'nin "`$type` ilk 40 baytta başlar" iddiası da düzeltildi — K-027'
 
 ---
 
-## K-5 — 15 §7–9 + 17 §1–2, 27 case
+## K-5 — 15 §7–9 (MT-WF-080..084, 090..097, 100) + 17 §1–2, 27 case
 
-_(sıradaki oturum bu başlığın altına yazacak)_
+### 15 §7–9 (14 case): 8 Geçti, 6 Kaldı — **dosya `15` (WORKFLOWS) TAMAMEN BİTTİ (60/60)**
+
+### HATA-K-004 — 🚨 KRİTİK: `AgentPrismWorkflowOptions` hiçbir konfigürasyon kaynağına bağlı değil
+
+- **Case:** MT-WF-091 (Orta), MT-WF-092 (Orta), MT-WF-093 (Orta) — üçü de aynı kök neden
+- **Önem:** Kritik
+- **İzlek:** B
+- **Ortam:** macOS arm64 · net10 · PostgreSQL
+
+**Beklenen**
+`AgentPrism:Workflows:Enabled`/`MaxSuperSteps`/`EnableCheckpointing` gibi `dotnet user-secrets`/`appsettings.json` ile verilen değerler, uygulama yeniden başlatıldığında `AgentPrismWorkflowOptions`'a yansır.
+
+**Gerçekleşen**
+Üç ayrı alan (`Enabled=false`, `MaxSuperSteps=2`, `EnableCheckpointing=false`) ayrı ayrı denendi, üçü de HİÇBİR ETKİ göstermedi — çalıştırmalar sanki ayar hiç verilmemiş gibi normal şekilde tamamlandı (gerçek model çağrıları dahil, gerçek ücret oluşarak).
+
+**Kanıt**
+`src/AgentPrism.Workflows/AgentPrismWorkflowsBuilderExtensions.cs:52` — `UseWorkflows()` yalnızca `services.AddOptions<AgentPrismWorkflowOptions>();` çağırıyor. `AgentPrismWorkflowOptions.SectionName` sabiti (`"AgentPrism:Workflows"`) tanımlı ama `grep -rn "AgentPrismWorkflowOptions.SectionName"` sıfır sonuç veriyor — hiçbir yerde `IConfiguration`'a bağlanmıyor. Diğer tüm `Use*()` uzantıları (`UseOpenAI`, `UsePostgreSql`, `UseSkillScripts` vb.) config bölümünü açıkça `Bind()` ederken, `UseWorkflows()` yalnızca kod-içi `configure` lambda parametresini destekliyor.
+
+**Kapsam**
+`AgentPrismWorkflowOptions`'ın YEDİ alanının TAMAMI (`Enabled`, `EnableCheckpointing`, `MaxConcurrentRuns`, `RunTimeout`, `MaxSuperSteps`, `KeepCheckpointsAfterCompletion`) etkilenir. Sonsuz döngü koruması (`MaxSuperSteps`), motor kapatma anahtarı (`Enabled`) ve checkpoint kontrolü (`EnableCheckpointing`) gibi üretim-kritik güvenlik sınırlarının HİÇBİRİ konfigürasyonla ayarlanamaz — yalnızca `Program.cs`'te `UseWorkflows(o => ...)` ile kodda sabitlenebilir.
+
+---
+
+### HATA-K-005 — 🚨 KRİTİK: Workflow `run` ucunda `sessionId` doğrulama hatası SSE akışını hiç başlatmadan düz `HTTP 500`'e düşüyor
+
+- **Case:** MT-WF-095 (Düşük), MT-WF-096 (Düşük) — aynı kök neden
+- **Önem:** Yüksek (etkiye göre yükseltildi — istemci hiçbir teşhis bilgisi almıyor)
+- **İzlek:** B
+
+**Beklenen**
+Geçersiz `sessionId` (128 karakter sınırı aşımı veya izin verilmeyen karakter) gönderildiğinde SSE akışı `event: run` ile başlar, ardından açıklayıcı bir `event: error` çerçevesi gelir.
+
+**Gerçekleşen**
+Hiçbir SSE çerçevesi gelmiyor — istemci düz, generic bir `HTTP 500` (`{"title":"An error occurred while processing your request."}`, detay YOK) alıyor. Sunucu logunda doğru hata mesajı görülüyor ama istemciye hiç ulaşmıyor.
+
+**Kanıt**
+`src/AgentPrism.Workflows/Internal/WorkflowRunner.cs:186` — `RunStreamingAsync` bir `async IAsyncEnumerable` yineleyicisi DEĞİL, düz bir metottur; `WorkflowSessionId.Require(request.SessionId)` çağrısı nesne başlatıcısının içinde SENKRON çalışır ve metot gövdesi `ExecuteAsync(...)`'in ürettiği `IAsyncEnumerable`'ı yalnızca DÖNDÜRÜR. İstisna bu yüzden `WorkflowEventStream`'in (SSE yazıcısı, `event: error` üreten `catch` bloğunu taşıyan sınıf) hiç devreye girmesine fırsat kalmadan doğrudan `WorkflowEndpoints.RunAsync`'ten fırlar, ASP.NET'in genel `ExceptionHandlerMiddleware`'ine düşer. Sunucu logu: `fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1] An unhandled exception has occurred while executing the request.` Karşılaştırma: `RespondStreamingAsync`/`ResumeStreamingAsync` gerçek `async IAsyncEnumerable` yineleyicileridir (MT-WF-064/065/094'te doğru `event: error` üretirler) — yalnız `RunStreamingAsync`'in bu yapısal farkı bu boşluğu yaratır.
+
+**Kapsam**
+`POST /api/workflows/{name}/run` ucuna gönderilen HERHANGİ bir geçersiz `sessionId`, istemciye hiçbir teşhis bilgisi vermeyen bir 500 üretir — hata ayıklaması yalnızca sunucu logu erişimi olan biri için mümkündür.
+
+---
+
+### HATA-K-006 — 🚨 Yüksek: `RunsRead`-kapsamlı bir API anahtarı workflow yazabiliyor VE çalıştırabiliyor (doğrulanmış güvenlik açığı)
+
+- **Case:** MT-WF-100
+- **Önem:** Yüksek
+- **İzlek:** B
+
+**Beklenen**
+`WorkflowEndpoints`'in yazma/çalıştırma uçları da `AgentEndpoints`/`RunEndpoints` gibi `RequireApiKeyScope(...)` uygular; yalnız `RunsRead` kapsamlı bir anahtar `PUT`/`run`'a `403` alır.
+
+**Gerçekleşen**
+Yalnız `RunsRead` kapsamlı bir anahtarla: `PUT /api/workflows/{name}` → `200` (tanım yazıldı), `POST /api/workflows/{name}/run` → `200` (gerçek bir çalıştırma başladı, gerçek model çağrısı, gerçek ücret). Kontrol grubu: aynı anahtarla `PUT /api/agents/{name}` → `403 "Kapsam yetersiz"` — kapsam sistemi `AgentEndpoints`'te çalışıyor, `WorkflowEndpoints`'te TAMAMEN devre dışı.
+
+**Kanıt**
+`WorkflowEndpoints.Map`'in hiçbir ucu `.RequireApiKeyScope(...)` çağırmıyor (doküman zaten bunu kod okumasıyla şüphe olarak işaretlemişti — bu koşum ampirik olarak doğruladı).
+
+**Kapsam**
+Yalnız-okuma niyetiyle üretilmiş bir otomasyon anahtarı, workflow tanımlarını yazabilir/silebilir ve gerçek para harcayan bir Magentic çalıştırmasını başlatabilir — API anahtarı kapsam modelinin ciddi bir ihlali.
+
+---
+
+Diğer bulgular: MT-WF-097'de ilk deneme MT-WF-066 ile aynı sebepten (Tenancy kapalı) yanlış sonuç verdi, doğru config ile düzeltilip doğrulandı.
+
+### 17 §1–2 (13 case)
+
+_(bu oturumun devamında yazılacak)_

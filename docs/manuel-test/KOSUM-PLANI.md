@@ -439,7 +439,7 @@ yanına ajan adını yazar — iki ajan aynı oturumu almaz.
 | K-2 ✅ | [`14`](14-SKILL-VE-SCRIPT.md) | §3–§5 | 18 | **Bitti** (2026-08-13): 18/18 Geçti, kusur yok. Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
 | K-3 ✅ | [`14`](14-SKILL-VE-SCRIPT.md) + [`15`](15-WORKFLOWS.md) | 14 §6–§7 + 15 §1 | 28 | **Bitti** (2026-08-13): 21 Geçti, 7 Kaldı — **dosya `14` TAMAMEN BİTTİ (47/47)**. `HATA-K-002` (🚨 Kritik: script çalıştırma özelliği `JsonSerializerOptions` çökmesiyle tamamen işlevsiz). Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
 | K-4 ✅ | [`15`](15-WORKFLOWS.md) | §2–§6 | 26 | **Bitti** (2026-08-13): 23 Geçti, 3 Kaldı. `HATA-K-003` (Yüksek: Magentic plan onayı sonrası devam `ExecutorFailed`/`RunFailed` ile çöküyor). Ayrıntı `SONUCLAR-K-2026-08-13.md`. |
-| K-5 | [`15`](15-WORKFLOWS.md) + [`17`](17-EVAL-VE-DENEYLER.md) | 15 §7–§9 + 17 §1–§2 | 27 | — |
+| K-5 ⏳ | [`15`](15-WORKFLOWS.md) + [`17`](17-EVAL-VE-DENEYLER.md) | 15 §7–§9 + 17 §1–§2 | 27 | 15 §7-9 bitti (14/14: 8 Geçti, 6 Kaldı — **dosya `15` TAMAMEN BİTTİ, 60/60**). 17 §1-2 sürüyor. |
 | K-6 | [`17`](17-EVAL-VE-DENEYLER.md) | §3–§6 | 30 | Eval koşusu gerçek model çağırır → ucuz model. |
 | K-7 | [`17`](17-EVAL-VE-DENEYLER.md) | §7–§11 | 26 | Kanarya, geri bildirim, karşılaştırma. |
 | K-8 | [`24`](24-TEST-PAKETI-VE-SABLON.md) | §1–§2 | 24 | 🔒 **Küresel kilit.** `dotnet new install` + `~/agentprism-local-feed`. Aynı anda yalnız bir ajan. |

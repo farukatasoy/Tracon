@@ -1792,9 +1792,9 @@ curl -s "$APU/api/workflows/ozetle-ve-cevir/graph" -H "$APB" | python3 -m json.t
 - `mermaid` alanı `flowchart` ile başlayan bir metin taşır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`HTTP: 200`. `nodes` listesinde `id: "ozetleyici_9fa38dc85895e6af1c1da45815ea9d03"` — MT-WF-040/044'te gözlenen `ExecutorInvoked.text` ile birebir aynı — `kind: "Agent"`, `agentName: "ozetleyici"`. `startExecutorId` aynı düğüme işaret ediyor. `mermaid` alanı `"flowchart TD\n..."` ile başlıyor. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1826,9 +1826,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/workflows/hic-calismadi/graph" -H 
   okumaz.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Hiç çalıştırılmamış TAZE `hic-calismadi` tanımı için `HTTP: 200`, tam bir graf (nodes/edges/mermaid) üretildi. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1856,9 +1856,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/workflows/hic-calismadi/graph" -H 
   (`--ap-emerald`). Hiçbir düğüm `failed` (kırmızı) değildir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Çalıştırma çok hızlı tamamlandığı için (MT-WF-061'de olduğu gibi) Adım 2'nin ara durumunu (`running`/nabız) Playwright turlarıyla yakalayamadım — her `evaluate` çağrısı akış zaten bitmişken geldi. Adım 3 doğrulandı: `document.querySelectorAll('[data-testid="workflow-node"][data-state]')` üç düğümün de (`OutputMessages`, `cevirmen`, `ozetleyici`) `data-state="done"` olduğunu gösterdi, hiçbiri `failed` değildi. Son durum tam beklendiği gibi; ara durumun görsel kanıtı alınamadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1892,9 +1892,9 @@ curl -s "$APU/api/workflows/cift-gorus/graph" -H "$APB" | \
   kimlikler `null` döner — `WorkflowGraphReader.cs:98-105`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`2 ['cevirmen', 'ozetleyici']` (sıra farklı ama önemsiz — sayı ve üyelik doğru). `Batcher`/`Start`/`ConcurrentEnd` düğümleri `Agent` sayılmadı. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1917,9 +1917,9 @@ curl -s "$APU/api/workflows/cift-gorus/graph" -H "$APB" | \
   değil).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`navigator.clipboard.writeText` yamalanarak (OS pano izin diyaloğu otomasyonda askıda kaldığı için doğrudan okuma yerine bu yöntem kullanıldı) "Copy" düğmesine tıklandı: yakalanan metin `"flowchart TD\n  ozetleyici_9fa38dc85895e6..."` ile başladı. Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1964,9 +1964,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/workflows/ozetle-ve-cevir/graph" -
 - `graph`: `HTTP: 501` (aynı `NotRegistered` yardımcı metodu).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+`.UseWorkflows()` yorum satırına alınıp yeniden başlatıldı. Katalog: `HTTP: 200`, kod tanımlı `ozetle-ve-cevir`/`ozetle-ve-onayla` listede YOK (yalnız DB kayıtları göründü). `run`: `HTTP: 501`, `title: "Workflow motoru kayitli degil"`, `detail: "Workflow calistirmak icin AgentPrism.Workflows paketini ekleyin ve UseWorkflows() cagirin."` `graph`: `HTTP: 501`, aynı hata. Tam beklendiği gibi. Değişiklik geri alındı, yeniden derlendi/başlatıldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2001,9 +2001,9 @@ curl -N -s -X POST "$APU/api/workflows/ozetle-ve-cevir/run" -H "$APB" -H "conten
   boşluğuna girmez.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+🚨 **KRİTİK KUSUR — kök neden: `AgentPrismWorkflowOptions` hiç config'e bağlı değil.** `dotnet user-secrets set "AgentPrism:Workflows:Enabled" "false"` ile yeniden başlatıldıktan sonra çalıştırma HİÇ engellenmedi — akış normal şekilde `RunCompleted` ile bitti, gerçek model iki kez çağrıldı (gerçek ücret oluştu). Kök neden kod okumasıyla kesin biçimde bulundu: `src/AgentPrism.Workflows/AgentPrismWorkflowsBuilderExtensions.cs:52`'deki `UseWorkflows()` yalnızca `services.AddOptions<AgentPrismWorkflowOptions>();` çağırıyor — `AgentPrismWorkflowOptions.SectionName` sabiti (`"AgentPrism:Workflows"`, dosyada tanımlı) HİÇBİR YERDE kullanılmıyor (`grep` ile doğrulandı, sıfır eşleşme); `IConfiguration`'a bağlayan tek yol, yalnızca kod içinde geçirilebilen isteğe bağlı `configure` lambda parametresi. Sonuç: `Enabled`, `EnableCheckpointing`, `MaxConcurrentRuns`, `RunTimeout`, `MaxSuperSteps`, `KeepCheckpointsAfterCompletion` — bu sınıfın YEDİ alanının TAMAMI — `appsettings.json`/`dotnet user-secrets` üzerinden asla okunamaz, sessizce C# varsayılanlarında kalır. Bu, MT-WF-092 ve MT-WF-093'te AYNI kök nedenle tekrar doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2040,9 +2040,9 @@ curl -N -s -X POST "$APU/api/workflows/ozetle-ve-cevir/run" -H "$APB" -H "conten
   kaydedilir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+MT-WF-091'in AYNI kök nedeniyle KALDI: `MaxSuperSteps: "2"` set edilip yeniden başlatıldıktan sonra `ozetle-ve-cevir` (3 super-step üretir) hiçbir sınırla karşılaşmadan `RunCompleted` ile normal bitti — sınır asla uygulanmadı, `AgentPrismWorkflowOptions`'ın konfigürasyona hiç bağlanmaması nedeniyle.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2080,9 +2080,9 @@ curl -N -s -X POST "$APU/api/workflows/runs/<runId>/resume" -H "$APB" -H "conten
   katmanının hangisinin önce tetiklendiğini netleştirir).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+MT-WF-091/092'nin AYNI kök nedeniyle KALDI: `EnableCheckpointing: "false"` set edilip yeniden başlatıldıktan sonra çalıştırma sırasında YİNE DE 3 kontrol noktası yazıldı (`SELECT count(*) ... = 3`), ayar hiç okunmadı. `resume` denemesi de normal şekilde başarılı oldu (ne "EnableCheckpointing acik olmalidir" ne "kontrol noktasi yok" hatası — checkpoint zaten mevcuttu). `AgentPrismWorkflowOptions`'ın konfigürasyona hiç bağlanmaması aynı kök neden.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2119,9 +2119,9 @@ curl -N -s -X POST "$APU/api/workflows/runs/00000000-0000-0000-0000-000000000000
   gelinmez).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+Gerçek `event: error` çerçevesi geldi (bu istisna `ResumeStreamingAsync`'in kendisi bir `async IAsyncEnumerable` yineleyici metodu olduğu için, `RunStreamingAsync`'in aksine, doğal biçimde `WorkflowEventStream`'in `catch` bloğuna ulaşıyor), `message`: "'00000000-0000-0000-0000-000000000000' kimlikli calistirma bulunamadi." Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2147,9 +2147,9 @@ curl -N -s -X POST "$APU/api/workflows/ozetle-ve-cevir/run" -H "$APB" -H "conten
   karakter olabilir."` (`WorkflowSessionId.cs:33-37`).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+🚨 **KUSUR — SSE akışı hiç başlamadı.** Ne `event: run` ne `event: error` geldi — düz bir HTTP `500` gövdesi: `{"title":"An error occurred while processing your request.","status":500}` (detay yok, tamamen generic). Sunucu logunda kök neden görüldü: `AgentPrism.WorkflowRunner.RunStreamingAsync` (`WorkflowRunner.cs:186`) bir `async` yineleyici DEĞİL — düz bir metottur, gövdesinde `WorkflowSessionId.Require(request.SessionId)` nesne başlatıcısının İÇİNDE SENKRON olarak çağrılır ve `ExecuteAsync(...)`'in döndürdüğü `IAsyncEnumerable`'ı geri döndürür. İstisna bu yüzden `WorkflowEventStream` (SSE yazıcısı) hiç devreye girmeden, `WorkflowEndpoints.RunAsync`'in çağrı zincirinden DOĞRUDAN fırlar ve ASP.NET'in genel `ExceptionHandlerMiddleware`'ine düşer — "Unhandled exception" olarak loglanır (`fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1]`). Asıl mesaj (`"Yurutme oturumu kimligi en fazla 128 karakter olabilir."`) sunucu logunda doğru ama istemciye HİÇ ulaşmıyor. Bu, `RespondStreamingAsync`/`ResumeStreamingAsync`'in (gerçek `async IAsyncEnumerable` yineleyicileri, MT-WF-064/065/094'te doğru `event: error` üreten) davranışından FARKLI — yalnız `RunStreamingAsync`'in bu yapısal farkı bu boşluğu yaratıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2176,9 +2176,9 @@ curl -N -s -X POST "$APU/api/workflows/ozetle-ve-cevir/run" -H "$APB" -H "conten
   VE `!` her ikisi de reddedilir, ilk karşılaşılan karakterde durur).
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+MT-WF-095'in AYNI kök nedeniyle KALDI: SSE hiç başlamadı, düz `HTTP 500` (`"An error occurred while processing your request."`) geldi. Sunucu logunda doğru mesaj (`"Yurutme oturumu kimligi yalnizca harf, rakam, '-' ve '_' icerebilir."`) görüldü ama istemciye ulaşmadı — `RunStreamingAsync`'in senkron doğrulaması aynı yapısal nedenle `WorkflowEventStream`'i baypas ediyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2209,9 +2209,9 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/workflows/runs/<runId>/checkpoints
   XML dokümanı: "Baska bir kiracinin noktasi bulunamadi doner").
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+İlk denemede `AgentPrism:Tenancy:Enabled` kapalıydı (MT-WF-066'daki gibi test kurulum hatası), yanlışlıkla `200` alındı. `Tenancy:Enabled`/`AllowHeaderResolution` açılıp yeniden başlatıldıktan sonra doğru şekilde tekrarlandı: `kiraci-beta` başlığıyla `HTTP: 404`, `title: "Calistirma bulunamadi"`, `detail: "'<runId>' kimlikli calistirma yok."` Tam beklendiği gibi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2282,6 +2282,6 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/kapsam-kontrol" -H "
   güncellenir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+🚨 **ŞÜPHE DOĞRULANDI — KUSUR, Önem: Yüksek.** Yalnız `RunsRead` kapsamlı bir anahtar üretildi (`plaintextKey` alanı — doküman `rawKey` varsaymıştı, düzeltildi). Adım 2: `PUT /api/workflows/kapsam-testi` → `HTTP: 200` — kayıt kabul edildi. Adım 3: `POST /api/workflows/kapsam-testi/run` → `HTTP: 200`, gerçek bir çalıştırma başlatıldı (`event: done`, gerçek `runId`, gerçek model çağrısı — gerçek ücret oluştu). Adım 4 (kontrol grubu): `PUT /api/agents/kapsam-kontrol` aynı anahtarla → `HTTP: 403`, `title: "Kapsam yetersiz"`, `detail: "Bu uc 'AgentsAdmin' kapsamini gerektiriyor; anahtar bu kapsami tasimiyor."` — kapsam sistemi `AgentEndpoints`'te ÇALIŞIYOR, `WorkflowEndpoints`'te TAMAMEN DEVRE DIŞI. Doğrulandı: yalnız-okuma niyetiyle üretilmiş bir otomasyon anahtarı workflow tanımlarını yazabilir/silebilir VE gerçek para harcayan bir çalıştırma başlatabilir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
