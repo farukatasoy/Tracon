@@ -15,6 +15,14 @@ internal sealed class IdempotencyReplayResult(IdempotencyResponse response) : IR
         httpContext.Response.ContentType = response.ContentType;
         httpContext.Response.Headers[IdempotencyFilter.ReplayedHeaderName] = "true";
 
+        // HATA-S3-008: orijinal yanitin govde disi basliklari (Location,
+        // Preference-Applied) da replay edilir — yalniz govde/durum kodu/
+        // icerik tipi degil.
+        foreach (var header in response.Headers)
+        {
+            httpContext.Response.Headers[header.Key] = header.Value;
+        }
+
         await httpContext.Response.WriteAsync(response.Body, httpContext.RequestAborted).ConfigureAwait(false);
     }
 }
@@ -75,6 +83,7 @@ internal sealed class IdempotencyCapturingResult(
                     StatusCode = statusCode,
                     ContentType = httpContext.Response.ContentType ?? "application/octet-stream",
                     Body = Encoding.UTF8.GetString(bytes),
+                    Headers = CaptureReplayableHeaders(httpContext.Response.Headers),
                 },
                 CancellationToken.None).ConfigureAwait(false);
         }
@@ -85,4 +94,34 @@ internal sealed class IdempotencyCapturingResult(
 
         await original.WriteAsync(bytes, httpContext.RequestAborted).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Content-Type/govde uzunlugu/kendi tekrar isareti disinda kalan
+    /// basliklari yakalar — bunlarin her biri yeniden yazilirken (veya hic
+    /// yazilmayarak) ASP.NET Core tarafindan zaten dogru uretilir.
+    /// </summary>
+    private static Dictionary<string, string> CaptureReplayableHeaders(IHeaderDictionary headers)
+    {
+        var captured = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var header in headers)
+        {
+            if (ManagedHeaderNames.Contains(header.Key))
+            {
+                continue;
+            }
+
+            captured[header.Key] = header.Value.ToString();
+        }
+
+        return captured;
+    }
+
+    private static readonly HashSet<string> ManagedHeaderNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Content-Type",
+        "Content-Length",
+        "Transfer-Encoding",
+        IdempotencyFilter.ReplayedHeaderName,
+    };
 }

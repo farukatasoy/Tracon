@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Text.Json;
 
 namespace AgentPrism;
 
@@ -88,6 +89,7 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
         Dialect.AddText(command, "content_type", response.ContentType);
         Dialect.AddText(command, "body", response.Body);
         Dialect.AddUuid(command, "run_id", response.RunId);
+        Dialect.AddJsonb(command, "headers", SerializeHeaders(response.Headers));
         Dialect.AddTimestamp(command, "completed_at", DateTimeOffset.UtcNow);
 
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
@@ -133,9 +135,39 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
             ContentType = DbHelpers.GetNullableString(reader, 3) ?? string.Empty,
             Body = DbHelpers.GetNullableString(reader, 4) ?? string.Empty,
             RunId = DbHelpers.GetNullableGuid(reader, 5),
+            Headers = DeserializeHeaders(DbHelpers.GetNullableString(reader, 6)),
         };
 
         return new StoredEntry(state, fingerprint, response);
+    }
+
+    // 🚨 Kaynak uretilmis baglam: AOT uyumlulugu icin yansimaya dayanan
+    // serilestirme kullanilmaz (SqlWebhookStore.SerializeHeaders/DeserializeHeaders
+    // ile ayni desen).
+    private static string? SerializeHeaders(IReadOnlyDictionary<string, string> headers)
+    {
+        if (headers.Count == 0)
+        {
+            return null;
+        }
+
+        return JsonSerializer.Serialize(
+            headers.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase),
+            AgentPrismJsonContext.Default.DictionaryStringString);
+    }
+
+    private static Dictionary<string, string> DeserializeHeaders(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var parsed = JsonSerializer.Deserialize(json, AgentPrismJsonContext.Default.DictionaryStringString);
+
+        return parsed is null
+            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, string>(parsed, StringComparer.OrdinalIgnoreCase);
     }
 
     private sealed record StoredEntry(IdempotencyState State, string Fingerprint, IdempotencyResponse? Response);

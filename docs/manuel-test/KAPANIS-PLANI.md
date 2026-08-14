@@ -59,8 +59,8 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 |---|---|
 | Toplam case | **1097** |
 | Koşuldu | **1097** (koşulmamış case **yok**) |
-| ☑ Geçti | **1023** |
-| ☒ **Kaldı** | **43** |
+| ☑ Geçti | **1024** |
+| ☒ **Kaldı** | **42** |
 | ⏭ Atlandı | **30** |
 | ☐ Beklemede | **1** (`MT-UIRUN-019`) |
 
@@ -87,6 +87,7 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile P** — `Pricing` yanlış anahtar adında sessizce düşüyordu (K-034) ve `QuotaUsageObserver` hiç kayıtlı olmayan bir standalone `IOptionsMonitor<AgentPrismObservabilityOptions>` enjekte ediyordu (HATA-S4-020); ayrıca `BindObservability`'de `IncludeAgentVersionTag`, `Bind()`'da hiç `AgentPrismOptions.Validation` yoktu (K-253) — üçü de aynı "alan eklendi ama Bind()'a eklenmedi" sınıfı; `BindPricing`/`BindVoicePricing` artık boş kaydı da ekliyor ve `AgentPrismOptionsValidator` reddediyor, `QuotaUsageObserver` artık doğru bağlanan `IOptionsMonitor<AgentPrismOptions>` kullanıyor, eksik iki bağlama eklendi, kalıcı çözüm olarak tüm `AgentPrismOptions` ağacını tarayan yansımalı bir kapsama testi eklendi | (bu koşum) | `MT-CORE-065`, `MT-OBS-036` |
 | **Aile Q** — `ISessionStore.GetAsync` DÖRDÜNCÜ depoda da (InMemory + Postgres/Sqlite/SqlServer) ambient kiraciyle filtreleniyordu; capraz kiraci sahiplik denetimi (`OpenAICompatSupport.IsOwnedByTenantAsync` ve `OpenAIConversationsEndpoints`'in yerel kopyasi) bu yuzden hicbir zaman tetiklenmiyordu — yeni `ISessionStore.GetOwnerTenantIdAsync` (kiraci filtresiz) eklendi, dort deponun tumu gecersiz kildi, `AuditingSessionStore` dekoratoru acikca ilettti (K-018 tuzagi), `OpenAIConversationsEndpoints`'in olu-kod yerel kontrolu kaldirilip ortak yardimciya tasindi | (bu koşum) | `MT-COMPAT-023`, `MT-COMPAT-036`, `MT-COMPAT-039`, `MT-COMPAT-043` |
 | **Aile R** — İki ayrı çalıştırma filtresi kusuru: `sessionId`+`includeChildren=true` alt çalıştırmaları hiç göstermiyordu (`SessionId` yalnız KÖK satırda set edilir, K-217; dört depo da kaydın KENDİ oturumuna eşitlik bakıyordu) ve `errorType` sorgu parametresi hiç bağlanmıyordu (sessizce yok sayılıyordu) — dört depoda da (bellek içi + üç SQL lehçesi) kaydın kendi ağacının KÖKÜNE ait oturuma bakacak şekilde düzeltildi, `RunQuery.ErrorType` eklenip bağlandı | (bu koşum) | `MT-API-060`, `MT-GUARD-064` |
+| **Aile S** — Idempotency replay yalnız gövdeyi koruyordu, `Location`/`Preference-Applied` HTTP başlıkları hiç saklanmıyordu; `IdempotencyResponse.Headers` (genel yakalama — yalnız bu ikisine özel değil) eklendi, üç SQL sağlayıcısına yeni `headers` sütunu (migration 0029/0016/0016) | (bu koşum) | `MT-JOB-083` |
 
 ### Kalan aileler
 
@@ -112,7 +113,7 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **S** ile başla
 | ~~P~~ | Orta | Bağlanmayan yapılandırma anahtarları | 2 | ✅ (bu koşum) |
 | ~~Q~~ | Orta | Çapraz kiracı `404` dalı ölü kod | 4 | ✅ (bu koşum) |
 | ~~R~~ | Orta | Çalıştırma filtreleri | 2 | ✅ (bu koşum) |
-| **S** | Orta | Idempotency replay başlık kaybı | 1 | ⬜ |
+| ~~S~~ | Orta | Idempotency replay başlık kaybı | 1 | ✅ (bu koşum) |
 | **T** | Orta | MCP "connection refused" → `unknown_tool` | 1 | ⬜ |
 | **U** | Orta/Düşük | Kalan 10 arayüz kusuru | 10 | ⬜ |
 | **V** | Karışık | Yetenek boşlukları | 8 | ⬜ |
@@ -124,7 +125,7 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **S** ile başla
 bitti: 51 → 47; Aile G bitti: 47 → 43; Aile H bitti: 43 → 42; Aile I bitti:
 42 → 41; Aile J bitti: 41 → 40; Aile K bitti: 40 → 38; Aile L bitti: 38 → 37;
 Aile M bitti: 37 → 36; Aile N bitti: 36 → 35; Aile O bitti: 35 → 31; Aile P
-bitti: 31 → 29; Aile Q bitti: 29 → 25; Aile R bitti: 25 → 23.
+bitti: 31 → 29; Aile Q bitti: 29 → 25; Aile R bitti: 25 → 23; Aile S bitti: 23 → 22.
 `MT-MCP-052` bu sayıma dahil değildir — Kaldı kalır, ayrı bir bulgu olarak
 izlenir, gelecekte kendi ailesini gerektirebilir.)
 
@@ -1296,15 +1297,57 @@ Canlı PostgreSQL'e karşı doğrulandı (`mt_fin` şeması): `sessionId`
 `1` satır (parametresiz `3`, kontrol `status=Failed` `1`) — üçü de
 birbirinden ayrışıyor.
 
-### Aile S — Idempotency replay başlık kaybı · Orta
+### ~~Aile S~~ — Idempotency replay başlık kaybı · Orta ✅ (bu koşum)
 
 **Kusur:** `HATA-S3-008`. Replay yalnız gövdeyi koruyor; `Location` ve
 `Preference-Applied` kayboluyor.
 
-**Kök neden:** `src/AgentPrism.Abstractions/Idempotency/IdempotencyTypes.cs:45-56` ·
-`src/AgentPrism.AspNetCore/Idempotency/IdempotencyResults.cs:12-19`.
+**Kök neden (doğrulandı):** `src/AgentPrism.Abstractions/Idempotency/IdempotencyTypes.cs:45-56`
+(`IdempotencyResponse` yalnız `StatusCode`/`ContentType`/`Body`/`RunId`
+taşıyor, hiçbir HTTP başlığı saklamıyor) ·
+`src/AgentPrism.AspNetCore/Idempotency/IdempotencyResults.cs:12-19`
+(`IdempotencyReplayResult.ExecuteAsync` yalnız `StatusCode`/`ContentType`/
+`Idempotency-Replayed` ayarlayıp gövdeyi yazıyor).
 
-**Case:** `MT-JOB-083`.
+**Uygulanan tasarım (bu koşum):** `IdempotencyResponse`'a yeni
+`Headers` alanı eklendi (`IReadOnlyDictionary<string, string>`,
+varsayılan boş sözlük — geriye dönük kırıcı değil). `IdempotencyCapturingResult`
+artık `Content-Type`/`Content-Length`/`Transfer-Encoding`/
+`Idempotency-Replayed` DIŞINDA kalan TÜM yanıt başlıklarını yakalar — yalnız
+`Location`/`Preference-Applied`'e özel bir alan değil, genel bir yakalama;
+gerekçe: kök neden notu "hiçbir HTTP başlığı saklamıyor" diyor, gelecekte
+eklenecek her yeni başlık için aynı kusurun tekrar açılmasını önlemek. SQL
+depolarında yeni `headers` sütunu (PostgreSQL `jsonb`, SQLite/SQL Server
+`TEXT`/`nvarchar(max)`, üçü de nullable — migration 0029/0016/0016);
+serileştirme `SqlWebhookStore.SerializeHeaders`/`DeserializeHeaders`
+deseniyle AYNI (kaynak üretilmiş `AgentPrismJsonContext.DictionaryStringString`,
+AOT uyumlu). 🚨 PostgreSQL'de `Dialect.AddText` DEĞİL `Dialect.AddJsonb`
+kullanılmalı — `AddText` düz `text` parametresi bağlar, `jsonb` sütununa
+yazarken Npgsql `42804: column "headers" is of type jsonb but expression
+is of type text` verir (ampirik olarak entegrasyon testinde yakalandı).
+
+**Değişen dosyalar:** `IdempotencyTypes.cs` (+`Headers`),
+`IdempotencyResults.cs` (`IdempotencyCapturingResult`/`IdempotencyReplayResult`),
+`SqlIdempotencyStore.cs` (+`SerializeHeaders`/`DeserializeHeaders`),
+`PostgresQueries.cs`/`SqliteQueries.cs`/`SqlServerQueries.cs`
+(Select/Complete sorguları). **Yeni dosyalar:**
+`0029_idempotency_response_headers.sql` (PostgreSQL),
+`0016_idempotency_response_headers.sql` (SQLite, SQL Server).
+
+**Canlı doğrulama:** Temiz `mt_fin` şemasına karşı `Prefer: respond-async` +
+aynı `Idempotency-Key` ile iki istek: ikinci yanıt artık `Location`
+(ilkiyle birebir aynı) VE `Preference-Applied` başlıklarını taşıyor;
+`idempotency_keys.headers` sütunu ikisini de JSON olarak saklıyor
+(doğrudan `psql` ile doğrulandı).
+
+**Case:** `MT-JOB-083` ✅.
+
+**Regresyon testleri:** `IdempotencyStoreContract.cs`
+(`Tamamlanan_anahtar_saklanan_HTTP_basliklarini_da_doner`,
+`Tamamlanan_anahtar_baslik_YOKKEN_bos_sozluk_doner` — InMemory, Postgres,
+Sqlite, SqlServer'ın dördünde de koşar) ·
+`tests/AgentPrism.AspNetCore.FunctionalTests/IdempotencyTests.cs`
+`Prefer_respond_async_replay_Location_ve_Preference_Applied_basliklarini_da_doner`.
 
 ### Aile T — MCP "connection refused" → `unknown_tool` · Orta
 
