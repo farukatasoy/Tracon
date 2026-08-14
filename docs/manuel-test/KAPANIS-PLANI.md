@@ -59,8 +59,8 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 |---|---|
 | Toplam case | **1097** |
 | Koşuldu | **1097** (koşulmamış case **yok**) |
-| ☑ Geçti | **1015** |
-| ☒ **Kaldı** | **51** |
+| ☑ Geçti | **1017** |
+| ☒ **Kaldı** | **49** |
 | ⏭ Atlandı | **30** |
 | ☐ Beklemede | **1** (`MT-UIRUN-019`) |
 
@@ -84,10 +84,11 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile M** — Kabuk loopback kısıtından muaf değildi, loopback dışı erişimde React hiç başlamıyordu; `AgentPrismEndpointFilter`'a `requireLoopback` parametresi eklendi, kabuk grubu bearer token gibi loopback'ten de muaf tutuldu | `58c3268` | `MT-UI-008` |
 | **Aile N** — `ProblemDetails` başlıkları koda gömülü Türkçe'ydi (113 `title:` literali); `src/AgentPrism.AspNetCore/` + besleyen Core/Workflows/Generators dosyaları + OpenAI-uyumlu/A2A/MCP/Voice yüzeyleri İngilizce'ye çevrildi, kaynak taramalı regresyon çiti eklendi | `e9f9006` | `MT-UI-032` |
 | **Aile O** — OpenAI/Anthropic/Google `Bind()`'ı geçersiz `Endpoint` (göreli adres) ve boş model adını doğrulayıcıya ulaşmadan sessizce eliyordu; üç sağlayıcının `Bind()`'ı `UriKind.RelativeOrAbsolute` ile geçersiz `Endpoint`'i de atıyor, `BindModels()` boş `Name`'i de listeye ekliyor — doğrulayıcının ölü dalları artık erişilebilir | (bu koşum) | `MT-OAI-010`, `MT-OAI-012`, `MT-PROV-012`, `MT-PROV-013` |
+| **Aile P** — `Pricing` yanlış anahtar adında sessizce düşüyordu (K-034) ve `QuotaUsageObserver` hiç kayıtlı olmayan bir standalone `IOptionsMonitor<AgentPrismObservabilityOptions>` enjekte ediyordu (HATA-S4-020); ayrıca `BindObservability`'de `IncludeAgentVersionTag`, `Bind()`'da hiç `AgentPrismOptions.Validation` yoktu (K-253) — üçü de aynı "alan eklendi ama Bind()'a eklenmedi" sınıfı; `BindPricing`/`BindVoicePricing` artık boş kaydı da ekliyor ve `AgentPrismOptionsValidator` reddediyor, `QuotaUsageObserver` artık doğru bağlanan `IOptionsMonitor<AgentPrismOptions>` kullanıyor, eksik iki bağlama eklendi, kalıcı çözüm olarak tüm `AgentPrismOptions` ağacını tarayan yansımalı bir kapsama testi eklendi | (bu koşum) | `MT-CORE-065`, `MT-OBS-036` |
 
 ### Kalan aileler
 
-Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **P** ile başlar.
+Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **Q** ile başlar.
 
 | Aile | Önem | Konu | Case | Durum |
 |---|---|---|---|---|
@@ -106,7 +107,7 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **P** ile başla
 | ~~M~~ | Yüksek | Loopback dışı erişimde ham JSON | 1 | ✅ (bu koşum) |
 | ~~N~~ | Yüksek | 113 `ProblemDetails` başlığı Türkçe | 1 | ✅ (bu koşum) |
 | ~~O~~ | Orta | Yapılandırmada geçersiz değer sessizce düşüyor | 4 | ✅ (bu koşum) |
-| **P** | Orta | Bağlanmayan yapılandırma anahtarları | 2 | ⬜ |
+| ~~P~~ | Orta | Bağlanmayan yapılandırma anahtarları | 2 | ✅ (bu koşum) |
 | **Q** | Orta | Çapraz kiracı `404` dalı ölü kod | 4 | ⬜ |
 | **R** | Orta | Çalıştırma filtreleri | 2 | ⬜ |
 | **S** | Orta | Idempotency replay başlık kaybı | 1 | ⬜ |
@@ -120,7 +121,8 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **P** ile başla
 **Toplam:** 31 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **53**. (Aile F
 bitti: 51 → 47; Aile G bitti: 47 → 43; Aile H bitti: 43 → 42; Aile I bitti:
 42 → 41; Aile J bitti: 41 → 40; Aile K bitti: 40 → 38; Aile L bitti: 38 → 37;
-Aile M bitti: 37 → 36; Aile N bitti: 36 → 35; Aile O bitti: 35 → 31.
+Aile M bitti: 37 → 36; Aile N bitti: 36 → 35; Aile O bitti: 35 → 31; Aile P
+bitti: 31 → 29.
 `MT-MCP-052` bu sayıma dahil değildir — Kaldı kalır, ayrı bir bulgu olarak
 izlenir, gelecekte kendi ailesini gerektirebilir.)
 
@@ -1036,7 +1038,7 @@ birine `Yapilandirmadan_gelen_goreli_adres_reddedilir` ve
 geri alınıp koşulduğunda altısı da KIRMIZI verdiği ampirik olarak
 doğrulandıktan sonra fix geri uygulandı.
 
-### Aile P — Bağlanmayan yapılandırma anahtarları · Orta
+### ~~Aile P~~ — Bağlanmayan yapılandırma anahtarları · Orta ✅ (bu koşum)
 
 **Kusur:** `HATA-007`, `HATA-S4-020` **ve bu koşumda bulunan yeni bir kalem**.
 
@@ -1055,7 +1057,82 @@ kez tekrarlandı. Düzeltmenin bir parçası olarak, her `AgentPrismOptions`
 alanının bağlandığını doğrulayan bir **yansımalı test** ekle — tek kalıcı çözüm
 budur. Tuzak `docs/hafiza/cekirdek-calistirma.md`'ye yazılır.
 
-**Case:** `MT-CORE-065`, `MT-OBS-036`.
+**Önce ampirik yeniden üretim.** Kod okuması `IncludeAgentVersionTag`'in
+gerçekten bağlanmadığını doğruladı. Ayrıca kod okuması sırasında **üçüncü**,
+hiçbir case tarafından yakalanmamış bir örnek daha bulundu:
+`AgentPrismOptions.Validation` (`AgentPrismValidationOptions.McpTimeout`,
+K-253'te "`AgentPrism:Validation:McpTimeout`, varsayılan 5 sn" olarak
+belgelenmiş ve `AgentDefinitionValidator.cs:93`'te okunuyor) `Bind()`
+içinde **hiç** çağrılmıyordu — `grep -n "BindValidation" ...` sıfır sonuç.
+`MT-OBS-036`'nın kendi "Gerçek sonuç"u da yeniden okununca asıl kök nedenin
+bu tablonun ima ettiğinden farklı olduğu görüldü: `EnableQuotaUsageGauge`
+`BindObservability` içinde ZATEN bağlıydı (önceki bir dalgada kapanmış);
+asıl kırık olan `QuotaUsageObserver`'ın DI kaydıydı —
+`AgentPrismServiceCollectionExtensions.cs:547` standalone
+`IOptionsMonitor<AgentPrismObservabilityOptions>` enjekte ediyordu ama bu tür
+hiçbir yerde `services.Configure<AgentPrismObservabilityOptions>` ile
+kayıtlı DEĞİLDİ (`grep -n "Configure<AgentPrismObservabilityOptions>" src/`
+sıfır sonuç) — konteyner GERÇEKTEN yapılandırılmış olsa dahi bu türe HER
+ZAMAN varsayılan (kapalı) bir örnek veriyordu.
+
+**Uygulanan tasarım (bu koşum):**
+
+1. `BindObservability`'ye eksik `IncludeAgentVersionTag` bağlaması eklendi.
+2. `Bind()`'a yeni `BindValidation` çağrısı eklendi (K-253'ün belgelediği
+   ama hiç var olmayan bağlama).
+3. `QuotaUsageObserver` artık standalone
+   `IOptionsMonitor<AgentPrismObservabilityOptions>` yerine doğru bağlanan
+   `IOptionsMonitor<AgentPrismOptions>` enjekte edip `.Observability` alt
+   özelliğini okuyor — ayrı, yanlış kayıtlı bir seçenek türü eklemek yerine
+   `RunRecordingAgentDecorator`'ın zaten kullandığı deseni izler.
+4. **Kalıcı çözüm:** `tests/AgentPrism.Core.UnitTests/Configuration/AgentPrismOptionsBindingCoverageTests.cs`
+   — `AgentPrismOptions` ağacındaki HER skalar (bool/int/long/double/decimal/
+   string/TimeSpan/enum) alanı reflection ile bulur, her birine sentetik bir
+   yapılandırma değeri yazar, `AddAgentPrism()` üzerinden bağlar ve sonucu
+   karşılaştırır. Koleksiyon/sözlük tipli alanlar (`Providers`, `Voice`,
+   `AllowedMediaTypes`, `SkillRoots`, `Interpreters`, `EnvironmentAllowList`)
+   ve özel dönüşüm yapan `UtilityModel` açık gerekçeyle hariç tutulur — testin
+   kendisi, kategorize edilmemiş yeni bir alan tipiyle karşılaşırsa da
+   (`InvalidOperationException`) başarısız olur.
+5. **Ayrıca (kapsam genişletildi, aynı K-034 kusur ailesi):** `BindPricing`/
+   `BindVoicePricing`'in "ne Input ne Output eşleşti" durumunda modeli
+   `continue` ile TAMAMEN atlaması da düzeltildi — artık ikisi de boş bir
+   `ModelPriceOverride`/`VoicePriceOverride` kaydı olarak `Providers`/`Voice`'a
+   giriyor, `AgentPrismOptionsValidator.ValidatePricing` bunu açılışta açıkça
+   reddediyor (önceden erişilemez ölü koddu, Aile O'daki desenle aynı).
+
+**Canlı doğrulama** (gerçek PostgreSQL'e karşı, `mt_fin_p` şeması):
+
+- Yanlış Pricing anahtarı (`InputCostPerMillionTokens`) ile uygulama
+  **başlamayı reddetti**: `OptionsValidationException: AgentPrismPricingOptions:
+  'echo:echo-1' ne 'Input' ne 'Output' tasiyor — anahtar adini kontrol edin.`
+- `EnableQuotaUsageGauge=true` + `QuotaUsageRefreshInterval=00:00:05` ile
+  uygulama başlatıldı, `PUT /api/quotas` ile kiracı geneli kural yazıldı,
+  `support` agent'ı bir kez çalıştırıldı, `dotnet-counters collect` 12 saniye
+  izledi: `agentprism.quota.usage` (`value:1`) ve `agentprism.quota.limit`
+  (`value:1000`) doğru etiketlerle GERÇEKTEN raporlandı — `MT-OBS-036`'nın
+  kendi "16 saniyede sıfır olay" bulgusunun tam tersi.
+
+**Değişen dosyalar:** `AgentPrismServiceCollectionExtensions.cs`
+(`BindObservability` +`IncludeAgentVersionTag`, yeni `BindValidation` +
+`Bind()` çağrısı, `BindPricing`/`BindVoicePricing` artık boş kaydı da ekliyor,
+DI fabrikası `QuotaUsageObserver`'a `IOptionsMonitor<AgentPrismOptions>`
+geçiriyor), `Quotas/QuotaUsageObserver.cs` (kurucu parametresi + `Snapshot()`
+içindeki okuma), `AgentPrismOptionsValidator.cs` (`ValidatePricing`'e
+"ikisi de boş" denetimi),
+`tests/AgentPrism.Core.UnitTests/Quotas/QuotaUsageObserverTests.cs` (5 çağrı
+`AgentPrismObservabilityOptions` yerine `AgentPrismOptions { Observability = ... }`
+sarmalıyor).
+
+**Yeni dosyalar:**
+`tests/AgentPrism.Core.UnitTests/Configuration/AgentPrismOptionsBindingCoverageTests.cs`,
+`tests/AgentPrism.Core.UnitTests/Configuration/AgentPrismPricingBindingTests.cs`,
+`tests/AgentPrism.Core.UnitTests/Quotas/QuotaUsageObserverRegistrationTests.cs`.
+
+**Case:** `MT-CORE-065` ✅, `MT-OBS-036` ✅.
+
+**Regresyon testleri:** yukarıdaki üç yeni dosya (kapsama testi 1, Pricing
+bağlama/doğrulama testleri 5, DI-kaydı testleri 2 — toplam 8 yeni test).
 
 ### Aile Q — Çapraz kiracı `404` dalı ölü kod · Orta
 

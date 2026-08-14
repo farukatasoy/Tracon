@@ -37,7 +37,7 @@ public sealed class QuotaUsageObserver : IHostedService, IDisposable
 {
     private readonly IQuotaStore _quotaStore;
     private readonly ITenantStore _tenantStore;
-    private readonly IOptionsMonitor<AgentPrismObservabilityOptions> _observabilityOptions;
+    private readonly IOptionsMonitor<AgentPrismOptions> _options;
     private readonly IOptionsMonitor<AgentPrismQuotaOptions> _quotaOptions;
     private readonly TimeProvider _clock;
     private readonly ILogger<QuotaUsageObserver>? _logger;
@@ -54,7 +54,12 @@ public sealed class QuotaUsageObserver : IHostedService, IDisposable
     /// <summary>Yeni bir kota olcer olusturur.</summary>
     /// <param name="quotaStore">Kota kural ve sayac deposu.</param>
     /// <param name="tenantStore">Kayitli kiracilarin deposu.</param>
-    /// <param name="observabilityOptions">Olcer acik/kapali ve onbellek araligi ayarlari.</param>
+    /// <param name="options">
+    /// Olcer acik/kapali ve onbellek araligi ayarlarini tasiyan <see cref="AgentPrismOptions.Observability"/>'in
+    /// bagli oldugu kok tip. <see cref="AgentPrismObservabilityOptions"/> kendi basina (standalone)
+    /// hicbir yerde <c>services.Configure&lt;AgentPrismObservabilityOptions&gt;</c> ile kayitli DEGILDIR —
+    /// yalnizca <see cref="AgentPrismOptions.Observability"/> uzerinden baglanir (HATA-S4-020).
+    /// </param>
     /// <param name="quotaOptions">Kota donem hesabinin saat dilimi ayari.</param>
     /// <param name="meterFactory">
     /// Olcum fabrikasi. <see langword="null"/> ise kendi <see cref="Meter"/> ornegi
@@ -66,7 +71,7 @@ public sealed class QuotaUsageObserver : IHostedService, IDisposable
     public QuotaUsageObserver(
         IQuotaStore quotaStore,
         ITenantStore tenantStore,
-        IOptionsMonitor<AgentPrismObservabilityOptions> observabilityOptions,
+        IOptionsMonitor<AgentPrismOptions> options,
         IOptionsMonitor<AgentPrismQuotaOptions> quotaOptions,
         IMeterFactory? meterFactory = null,
         TimeProvider? timeProvider = null,
@@ -74,12 +79,12 @@ public sealed class QuotaUsageObserver : IHostedService, IDisposable
     {
         ArgumentNullException.ThrowIfNull(quotaStore);
         ArgumentNullException.ThrowIfNull(tenantStore);
-        ArgumentNullException.ThrowIfNull(observabilityOptions);
+        ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(quotaOptions);
 
         _quotaStore = quotaStore;
         _tenantStore = tenantStore;
-        _observabilityOptions = observabilityOptions;
+        _options = options;
         _quotaOptions = quotaOptions;
         _clock = timeProvider ?? TimeProvider.System;
         _logger = logger;
@@ -138,7 +143,7 @@ public sealed class QuotaUsageObserver : IHostedService, IDisposable
 
     private IReadOnlyList<QuotaGaugeSample> Snapshot()
     {
-        if (!_observabilityOptions.CurrentValue.EnableQuotaUsageGauge)
+        if (!_options.CurrentValue.Observability.EnableQuotaUsageGauge)
         {
             return [];
         }
@@ -147,7 +152,7 @@ public sealed class QuotaUsageObserver : IHostedService, IDisposable
 
         try
         {
-            var interval = _observabilityOptions.CurrentValue.QuotaUsageRefreshInterval;
+            var interval = _options.CurrentValue.Observability.QuotaUsageRefreshInterval;
             var now = _clock.GetUtcNow();
 
             if (_lastRefreshedAt is null || now - _lastRefreshedAt.Value >= interval)

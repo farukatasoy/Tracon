@@ -229,6 +229,18 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
                     (failures ??= []).Add(
                         $"{nameof(AgentPrismPricingOptions)}: '{providerName}:{modelName}' icin fiyat negatif olamaz.");
                 }
+
+                // 🚨 K-034 (MT-CORE-065): BindPricing artik ikisi de bos bir kaydi da
+                // ekliyor — bu, "Input"/"Output" disinda bir anahtarla (or. C#
+                // ozellik adi "InputCostPerMillionTokens") yazilan bir fiyatin
+                // TAMAMEN SESSIZCE dusmesi yerine burada acikca reddedilmesi
+                // icindir.
+                if (price.InputCostPerMillionTokens is null && price.OutputCostPerMillionTokens is null)
+                {
+                    (failures ??= []).Add(
+                        $"{nameof(AgentPrismPricingOptions)}: '{providerName}:{modelName}' ne 'Input' ne 'Output' " +
+                        "tasiyor — anahtar adini kontrol edin.");
+                }
             }
         }
 
@@ -240,6 +252,15 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
                 {
                     (failures ??= []).Add(
                         $"{nameof(AgentPrismPricingOptions)}: 'Voice:{providerName}:{modelName}' icin fiyat negatif olamaz.");
+                }
+
+                // 🚨 Ayni gerekce: bkz. yukaridaki Providers denetimi (MT-CORE-065).
+                if (price.PerMillionCharacters is null && price.PerMinute is null)
+                {
+                    (failures ??= []).Add(
+                        $"{nameof(AgentPrismPricingOptions)}: 'Voice:{providerName}:{modelName}' ne " +
+                        $"'{nameof(VoicePriceOverride.PerMillionCharacters)}' ne '{nameof(VoicePriceOverride.PerMinute)}' " +
+                        "tasiyor — anahtar adini kontrol edin.");
                 }
             }
         }

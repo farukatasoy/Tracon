@@ -24,7 +24,7 @@ public sealed class QuotaUsageObserverTests
         using var observer = new QuotaUsageObserver(
             store,
             tenants,
-            Options(new AgentPrismObservabilityOptions { EnableQuotaUsageGauge = false }),
+            Options(new AgentPrismOptions { Observability = new AgentPrismObservabilityOptions { EnableQuotaUsageGauge = false } }),
             Options(new AgentPrismQuotaOptions()));
 
         using var collector = new GaugeCollector(AgentPrismDiagnostics.MeterName);
@@ -49,7 +49,7 @@ public sealed class QuotaUsageObserverTests
         using var observer = new QuotaUsageObserver(
             store,
             tenants,
-            Options(new AgentPrismObservabilityOptions { EnableQuotaUsageGauge = true }),
+            Options(new AgentPrismOptions { Observability = new AgentPrismObservabilityOptions { EnableQuotaUsageGauge = true } }),
             Options(new AgentPrismQuotaOptions()),
             timeProvider: clock);
 
@@ -86,7 +86,7 @@ public sealed class QuotaUsageObserverTests
         using var observer = new QuotaUsageObserver(
             store,
             tenants,
-            Options(new AgentPrismObservabilityOptions { EnableQuotaUsageGauge = true }),
+            Options(new AgentPrismOptions { Observability = new AgentPrismObservabilityOptions { EnableQuotaUsageGauge = true } }),
             Options(new AgentPrismQuotaOptions()),
             timeProvider: clock);
 
@@ -105,10 +105,13 @@ public sealed class QuotaUsageObserverTests
         using var observer = new QuotaUsageObserver(
             store,
             tenants,
-            Options(new AgentPrismObservabilityOptions
+            Options(new AgentPrismOptions
             {
-                EnableQuotaUsageGauge = true,
-                QuotaUsageRefreshInterval = TimeSpan.FromSeconds(30),
+                Observability = new AgentPrismObservabilityOptions
+                {
+                    EnableQuotaUsageGauge = true,
+                    QuotaUsageRefreshInterval = TimeSpan.FromSeconds(30),
+                },
             }),
             Options(new AgentPrismQuotaOptions()),
             timeProvider: clock);
@@ -139,7 +142,7 @@ public sealed class QuotaUsageObserverTests
         using var observer = new QuotaUsageObserver(
             store,
             tenants,
-            Options(new AgentPrismObservabilityOptions { EnableQuotaUsageGauge = true }),
+            Options(new AgentPrismOptions { Observability = new AgentPrismObservabilityOptions { EnableQuotaUsageGauge = true } }),
             Options(new AgentPrismQuotaOptions()),
             timeProvider: clock);
 
