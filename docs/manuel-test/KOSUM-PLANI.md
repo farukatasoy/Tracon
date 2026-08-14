@@ -13,6 +13,17 @@
 
 ## 1. Durum
 
+> # ⛔ BU BÖLÜM BAYATTIR — [`KAPANIS-PLANI.md`](KAPANIS-PLANI.md)'yi oku
+>
+> **Koşum bitti: 1097/1097 case koşuldu, koşulmamış case YOK.** Aşağıdaki
+> tablonun üç iddiası yanlıştır ve düzeltilmesi kapanışa (§8/2) bırakılmıştır:
+> "898 koşuldu" (gerçek: **1097**), "Şerit 4 başlamadı" (gerçek: **bitti**,
+> `SONUCLAR-S4-2026-08-13.md`), "kalan 199 case" (gerçek: **0**).
+>
+> Kalan iş yalnız **kusurlardır** ve §8'i yürüten
+> [`KAPANIS-PLANI.md`](KAPANIS-PLANI.md) tarafından aile aile yönetilir.
+> Kapanış oturumu açan ajan **o dosyayı** okur, bunu değil.
+
 > Son güncelleme: **2026-08-14**, Ortak kuyruk TÜM 9 OTURUM BİTTİ (K-1..K-9,
 > `14/15/17/24` dosyalarının tümü TAMAMLANDI — worktree/branch açılmadan
 > doğrudan `main` üzerinde, kullanıcı talimatıyla koşuldu) VE §8 kapanış
@@ -479,6 +490,11 @@ kapsamı dışında bırakıldı, ayrı bir bulgu/düzeltme gerektirir.
 ---
 
 ## 8. Kapanış
+
+> **Bu bölüm [`KAPANIS-PLANI.md`](KAPANIS-PLANI.md) tarafından yürütülür.**
+> Orada 75 açık case, 21 kusur ailesine bölünmüştür; her aile ayrı bir oturumda
+> kodlanır. Aşağıdaki merge adımı **gereksizdir** — dört şeridin dalı zaten
+> `main`'e alınmış ve worktree'ler kaldırılmıştır.
 
 Tüm şeritler bitince tek bir toplama oturumu:
 
