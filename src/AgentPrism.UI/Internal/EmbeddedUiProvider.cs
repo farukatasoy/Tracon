@@ -36,14 +36,21 @@ internal sealed class EmbeddedUiProvider : IAgentPrismUiProvider
     /// Arayuz yalnizca kendi kaynagina baglanir; disaridan betik, yazi tipi veya
     /// veri cekmez. <c>style-src</c> icinde <c>'unsafe-inline'</c> vardir cunku
     /// React bilesenlerinin <c>style</c> nitelikleri satir ici stil sayilir.
-    /// <c>frame-ancestors 'none'</c> arayuzun baska bir sayfaya cerceve icinde
-    /// gomulmesini engeller - tiklama hirsizligina (clickjacking) karsi.
+    /// <c>img-src</c> ve <c>media-src</c> <c>blob:</c> taşır: ek onizlemesi ve
+    /// seslendirme oynatimi, bearer token tasiyamayan dogrudan <c>&lt;img
+    /// src="api/attachments/{id}"&gt;</c>/<c>&lt;audio src="..."&gt;</c> yerine
+    /// <c>fetch</c> ile cekilen baytlari <c>URL.createObjectURL</c> ile sarar
+    /// (<c>useAttachmentPreview</c>, <c>SpeakButton</c>) - kaynak her zaman bir
+    /// <c>blob:</c> URL'idir. <c>frame-ancestors 'none'</c> arayuzun baska bir
+    /// sayfaya cerceve icinde gomulmesini engeller - tiklama hirsizligina
+    /// (clickjacking) karsi.
     /// </remarks>
     private const string ContentSecurityPolicy =
         "default-src 'none'; " +
         "script-src 'self'; " +
         "style-src 'self' 'unsafe-inline'; " +
-        "img-src 'self' data:; " +
+        "img-src 'self' data: blob:; " +
+        "media-src 'self' blob:; " +
         "font-src 'self'; " +
         "connect-src 'self'; " +
         "base-uri 'self'; " +
