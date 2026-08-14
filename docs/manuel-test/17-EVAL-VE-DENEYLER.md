@@ -2481,9 +2481,14 @@ curl -s "$APU/api/runs/<RUN_A>/compare/<RUN_B>" -H "$APB"
   taraf döner, karşılaştırma arayüzde hesaplanır.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `GET /api/runs/{a}/compare/{b}` iki farklı agent'a ait run'la (`support`
+  ve `arastirmaci`) çağrıldı. `HTTP: 200`. Hem `left` hem `right`
+  belirtilen tüm alanları taşıyor (`runId, agentName, agentVersion,
+  modelId, status, durationMs, usage, cost, toolCallCount, output,
+  scores`). Fark hesaplaması yok, iki ham nesne dönüyor. Beklenenle
+  eşleşiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2512,9 +2517,32 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/runs/<YENI-RUN_ID>/input" -H "$APB
   :RecordRunInput"` ile varsayılana dön.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `AgentPrism:RunRecording:RecordRunInput=false` set edilip uygulama
+  yeniden başlatıldı, `support` agent'ına yeni bir run gönderildi
+  (`runId=019ffece-9276-7457-88a5-b27278c04dd9`), `GET .../input`
+  çağrıldı. Beklenen `404` yerine **`HTTP: 200`**, tam girdi
+  (`messages: [...]`) döndü — `RecordRunInput=false` HİÇBİR ETKİ
+  yapmadı.
+  **🚨 HATA-K-007 (Yüksek).** Kök neden koddan doğrulandı:
+  `AgentPrismServiceCollectionExtensions.cs:1769-1795`'teki
+  `BindRunRecording` metodu `Enabled`, `RecordMessageDeltas`,
+  `RecordToolPayloads`, `MaxPayloadLength` alanlarını config'ten okuyor
+  AMA `RecordRunInput`'u (varsayılanı `true`, `AgentPrismOptions.cs:461`)
+  HİÇ okumuyor — `TryReadBool(recording, nameof(...RecordRunInput), ...)`
+  çağrısı eksik. Sonuç: bu bayrak config/`user-secrets`/ortam
+  değişkeninden ASLA `false` olamıyor, her zaman derleme-zamanı
+  varsayılanı (`true`) geçerli kalıyor. `RunEndpoints.cs`'teki `GET
+  /input` ucunun kendisi doğru çalışıyor (depoda girdi VARSA `200`,
+  YOKSA `404` — sorun bu uçta değil); `RunRecordingAgent` de
+  `!_options.RecordRunInput` kontrolünü doğru yapıyor (satır ~593) —
+  sorun yalnız bağlama (binding) katmanında. Etki: kullanıcı girdisi
+  hassas veri (PII/gizli bilgi) içerebilir; bu bayrak tam da bunu
+  KAPATMAK için var (bkz. dosyanın kendi güvenlik notu, §2), ama
+  operatör onu kapattığını sanırken aslında hâlâ KAYDEDİLİYOR — sessiz
+  bir gizlilik kontrolü kaçağı. Case sonrası `RecordRunInput` secret'ı
+  kaldırıldı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2543,9 +2571,26 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/replay" -H "
   çağrılmaz — kaydedilmiş sonuç enjekte edilir.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- `support` kod-kökenli olduğu için `ReplayTools`/`NoTools` reddediyor
+  (`"'support' agent'inin kalici bir tanimi yok ... yalnizca LiveTools ile
+  oynatilabilir"` — bu, dosyanın kendisinin belgelemediği ama tutarlı bir
+  ek kısıt, kusur değil). Bunun yerine DB-kökenli `manuel-destek`
+  (`version=3`, `get_order_status` araçlı) ile `ORD-1001 siparisim
+  nerede?` çalıştırıldı (`runId=019ffed0-...`, `toolCallCount=1`).
+  `{"toolMode":"ReplayTools"}` (sürüm belirtilmeden) İLK denemede `502`
+  verdi — kod okumasıyla doğrulandı: `agentVersion` istekte verilmezse
+  replay `IAgentDefinitionStore.GetAsync` ile agent'ın GÜNCEL (en son)
+  sürümünü kullanıyor (`RunReplayRequest.AgentVersion` XML dokümanı:
+  "Verilmezse bugünkü etkin sürüm"), bu ortamda `manuel-destek`'in güncel
+  sürümü (v5) MT-EVAL-074 için kasıtlı bozulmuş modeli taşıyordu — bu
+  dokümanlanmış tasarım gereği beklenen davranış, kusur değil.
+  `{"toolMode":"ReplayTools","agentVersion":3}` ile düzeltilip tekrar
+  çağrıldı: `HTTP: 200`, `compareLocation:"/agentprism/api/runs/
+  019ffed0-.../compare/019ffed2-..."`, `agentVersion:3`,
+  `replayOfRunId:"019ffed0-..."`. Beklenenle eşleşiyor (sürüm parametresi
+  gerekliliği doküman notu olarak eklendi).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2583,9 +2628,18 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/replay" -H "
   kaydeder.
 
 **Gerçek sonuç**
-> _(koşum sırasında doldurulur)_
+- (MT-EVAL-093'teki gibi `agentVersion:3` belirtilerek çağrıldı — sürüm
+  belirtilmezse replay her zaman güncel sürümü kullanıyor, ayrıntı o
+  case'in notunda.) `{"toolMode":"LiveTools","agentVersion":3}` →
+  `HTTP: 200`, `compareLocation` dolu, yeni bir çıktı üretildi (modelin
+  gerçekten tekrar çağrıldığını gösteren farklı ifadeli ama anlamca aynı
+  bir yanıt). Beklenen davranış (statik-token ortamında rol ayrımı no-op,
+  `200` dönüyor) doğrulandı. **Koşum notu**: bu ortamda `Operator`/`Admin`
+  rol ayrımı hiç uygulanmadığı için, dokümanın iddia ettiği "gerçek bir
+  rol-ayrımlı ortamda `403` beklenir" savı bu koşumda DOĞRULANAMADI —
+  yalnız kod okumasıyla ölçülen bir iddia olarak kalır.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
