@@ -59,8 +59,8 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 |---|---|
 | Toplam case | **1097** |
 | Koşuldu | **1097** (koşulmamış case **yok**) |
-| ☑ Geçti | **991** |
-| ☒ **Kaldı** | **75** |
+| ☑ Geçti | **993** |
+| ☒ **Kaldı** | **73** |
 | ⏭ Atlandı | **30** |
 | ☐ Beklemede | **1** (`MT-UIRUN-019`) |
 
@@ -70,15 +70,16 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 |---|---|---|
 | **Adım 0** — dört kapı kırmızıydı; ses turu `commit` çerçevesi kendi sesinin önüne geçiyordu | `f36eeaf` | (`MT-PKG-010`'un kök nedeni — case'in kendisi yeniden koşulmalı) |
 | **Aile A** — şema kapısı + teşhis ucu | `2126aab` | `MT-PG-025`, `MT-PG-034`, `MT-PG-051`, `MT-PG-052` |
+| **Aile B** — Guard maskelemesi `RunStarted`'da ham kalıyor | *(bu commit)* | `MT-GUARD-041`, `MT-GUARD-053` |
 
 ### Kalan aileler
 
-Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **B** ile başlar.
+Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **C** ile başlar.
 
 | Aile | Önem | Konu | Case | Durum |
 |---|---|---|---|---|
 | ~~A~~ | Kritik | Şema kapısı, teşhis ucu | 4 | ✅ `2126aab` |
-| **B** | Kritik | Guard maskelemesi `RunStarted`'da ham kalıyor | 2 | ⬜ |
+| ~~B~~ | Kritik | Guard maskelemesi `RunStarted`'da ham kalıyor | 2 | ✅ *(bu commit)* |
 | **C** | Kritik | Eşzamanlı ilk istekte oturum lost update | 1 | ⬜ |
 | **D** | Kritik | `T[]` parametreli tool derlenmiyor | 1 | ⬜ |
 | **E** | Kritik | İki kalıcılık sağlayıcısı (K-183) | 1 | ⬜ |
@@ -103,7 +104,7 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **B** ile başla
 | **Yeniden koşum** | — | Kusuru zaten kapalı | 8 | ⬜ |
 | **MT-PKG-010** | — | Kök neden `f36eeaf`'te kapandı, case yeniden koşulmalı | 1 | ⬜ |
 
-**Toplam:** 53 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **75**.
+**Toplam:** 51 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **73**.
 
 ---
 
@@ -196,7 +197,7 @@ yeniden derlenmezse E2E testi eski bundle'ı koşar.
 
 Her aile: kök neden (`dosya:satır`) · kapanan case · tasarım notu.
 
-### Aile B — Guard'ın maskelediği girdi `RunStarted`'da ham kalıyor 🚨 Kritik
+### ~~Aile B~~ — Guard'ın maskelediği girdi `RunStarted`'da ham kalıyor 🚨 Kritik ✅ (bu koşum)
 
 **Kusur:** `HATA-S3-006`. Maskelenen/engellenen girdi (kredi kartı, `sk-…`)
 `run_events`'e **ham** yazılıyor ve SSE ile yeniden oynatılıyor.
@@ -213,8 +214,35 @@ kaydeder.
 guard hattını (`ContentGuardPipeline`) okut. İkincisi daha az kırıcı görünüyor
 ama `IContentGuard` çağrısını iki kez yapar — karar `docs/KARARLAR.md`'ye yazılır.
 
-**Case:** `MT-GUARD-041` (kredi kartı), `MT-GUARD-053` (sağlayıcı API anahtarı).
-Kapsam notu: `MT-GUARD-043` aynı kök nedeni paylaşır.
+**Uygulanan tasarım (K-408 adayı, kapanışta yazılacak):** İkinci seçenek
+seçildi, ama `ContentGuardPipeline.InspectAsync` DEĞİL — yeni bir
+`ContentGuardPipeline.PreviewAsync` metodu eklendi. Gerekçe: `InspectAsync`
+karar bulunca `scope.Writer.AppendAsync` çağırır (`ContentMasked`/
+`ContentBlocked` olayı + engellemede denetim izi); `BeginRunAsync` bu noktada
+henüz `StartAsync`'i çağırmamıştır, yani `runs` satırı **yoktur**.
+`run_events.run_id` bir FK taşır (canlı Postgres'te doğrulandı) — `runs`
+satırı yokken `AppendEventAsync` istisna atar, `RunEventWriter` bunu yutup
+`IsDisabled=true` yapar ve **o çalıştırmanın TÜM kaydı** (RunStarted dahil)
+sessizce kaybolur. `PreviewAsync` aynı guard sırasını/maskeleme zincirini
+uygular ama hiçbir olay/denetim izi yazmaz ve engellemede istisna ATMAZ
+(sadece `"[content_blocked]"` işaretini döner); gerçek karar kaydı — tam
+olarak bugünkü gibi — mesaj modele giderken `ContentGuardingChatClient`
+`InspectAsync`'i çağırdığında oluşur. İki path'in ortak mesaj-tarama
+mantığı `ContentGuardMessageMasker` (yeni dosya) içinde paylaşılır.
+Yeni dosyalar: `src/AgentPrism.Core/Guards/ContentGuardMessageMasker.cs`.
+Değişen dosyalar: `ContentGuardPipeline.cs` (+`PreviewAsync`),
+`ContentGuardingChatClient.cs` (mesaj-tarama `ContentGuardMessageMasker`'a
+taşındı), `RunRecordingAgent.cs`/`RunRecordingAgentDecorator.cs`
+(+`ContentGuardPipeline?` parametresi), `AgentPrismServiceCollectionExtensions.cs`
+(DI fabrikasına `ContentGuardPipeline` satırı eklendi — K-157 tuzağı).
+
+**Case:** `MT-GUARD-041` (kredi kartı) ✅, `MT-GUARD-053` (sağlayıcı API
+anahtarı) ✅. Kapsam notu: `MT-GUARD-043` aynı kök nedeni paylaşır — kendi
+kriteri zaten Geçti idi, `RunStarted` tarafı da ayrıca doğrulandı.
+
+**Regresyon testleri:** `tests/AgentPrism.Core.UnitTests/Guards/ContentGuardRecordingTests.cs`
+`RunStarted_olayi_maskelenen_girdiyi_ham_tasimaz`,
+`RunStarted_olayi_engellenen_girdiyi_ham_tasimaz`.
 
 ### Aile C — Eşzamanlı ilk istekte oturum lost update 🚨 Kritik
 
