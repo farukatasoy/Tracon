@@ -356,3 +356,23 @@ Yalnız `RunsRead` kapsamlı bir anahtarla: `PUT /api/evals/{name}` → `200` (t
 ---
 
 **K-7 toplam: 26 case, 20 Geçti, 4 Kaldı.**
+
+## K-8 — 24 §1–2 (MT-TEST-001..013, 020..030), 24 case
+
+**Sonuç:** 24 Geçti, 0 Kaldı, 2 doküman düzeltmesi. Kusur bulunmadı. 🔒 Küresel kilit altında koşuldu (`~/agentprism-local-feed`/`dotnet new install`) — tek ajan.
+
+Yerel NuGet feed'i taze bir `dotnet pack` (`MSBUILDDISABLENODEREUSE=1`) ile tazelendi; feed'in önceki içeriği eski sürümlere (`0.60`–`0.78`) kadardı, koşum sürümü `0.0.0-preview.0.107`.
+
+### 24 §1 — Şablon: `dotnet new agentprism-api` (MT-TEST-001..013), 13 case: 13 Geçti, 0 Kaldı
+
+Şablon paketten kurulup listeleniyor; en yalın (`memory`+`openai`+`ui:false`) ve en dolu (`sqlserver`+`azure`+`ui:true`) birleşimler sıfır uyarıyla derleniyor, en dolu birleşim doğru paket referanslarını taşıyor; üretilen `appsettings.json`'da `secret` yok, tüm alanlar boş; dört sağlayıcının (`openai`/`anthropic`/`google`/`azure`) hiçbiri sabit model adı taşımıyor; `-n` ile yeniden adlandırma hiçbir `AgentPrism.Starter` kalıntısı bırakmıyor; varsayılan (`memory`) birleşim `secret`'siz `dotnet run` ile ayağa kalkıyor; `--skip-restore` `obj/`'yi tamamen atlıyor; `--AgentPrismVersion` tam sürümü sabitliyor; geçersiz `--persistence` `127` ile reddediliyor; `-h` çıktısında dört bayrak görünüyor, `AgentPrismVersion` gizli; şablon paketinde `.dll` yok, üretilen proje `AgentPrism.Templates`'e hiç referans vermiyor.
+
+**Doküman düzeltmesi — MT-TEST-008:** "İki `.csproj` birebir aynıdır (`diff` boş döner)" iddiası case'in KENDİ girilecek-veri adımlarıyla çelişiyor — iki proje farklı adlarla (`Meta.Kontrol`/`Meta.Kontrol2`) üretiliyor, bu da `RootNamespace`/`UserSecretsId`'yi kaçınılmaz olarak değiştiriyor. Asıl doğrulanmak istenen iddia (postgres seçmek ek `PackageReference` eklemiyor) doğru — her iki `.csproj` da tek satır `<PackageReference Include="AgentPrism" .../>` taşıyor. Kod kusuru değil.
+
+### 24 §2 — `FakeModelProvider` (MT-TEST-020..030), 11 case: 11 Geçti, 0 Kaldı
+
+Varsayılan kurulum sabit `"fake response"` dönüyor; `EchoesUserMessage()` son mesajı `Echo: ` önekiyle yankılıyor; `RespondsWith(...)` yanıtları sırayla tüketiyor; kuyruk+`EchoesUserMessage()` fallback karışımında önce kuyruktan sonra güncel mesajın yankısından dönüyor; fallback tanımlanmamışsa kuyruk sonrası sabit `"fake response"` tekrarlanıyor; `CallsTool(...)` `FunctionCallContent` üretiyor, anonim tip argümanları doğru kopyalanıyor; `ForModel(...)` modeller arası bağımsız kuyruk tutuyor; `EchoesLastToolResult` `ModelProviderRegistry` üzerinden gerçek tool-çağrı döngüsünde çalışıyor, HAM istemcide (defter olmadan) tool hiç çalıştırılmıyor (kontrast doğrulandı); `RespondsWith(text,inputTokens,outputTokens)` gerçek boru hattında `RunRecord.Usage`'a birebir yansıyor; `Requests` listesi her isteğin kendi `ChatOptions`'ını ayrı saklıyor; katalogda olmayan model adı agent kaydını engellemiyor (K-032 kasıtlı tasarım).
+
+**Doküman düzeltmesi — MT-TEST-020/022/023/024 (tekrarlanan):** dört case'in de kod örneği yalnız `using AgentPrism.Testing;` yazıyor ama `ModelBinding` tipi `AgentPrism` ad alanındadır — `using AgentPrism;` eksik, verilen kod aynen yapıştırılınca `CS0246` ile derlenmiyor. Ekleyince tüm case'ler beklenen çıktıyı üretti. Kod kusuru değil.
+
+**K-8 toplam: 24 case, 24 Geçti, 0 Kaldı.**
