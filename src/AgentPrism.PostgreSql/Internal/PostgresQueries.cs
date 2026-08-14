@@ -222,6 +222,11 @@ internal sealed class PostgresQueries : SqlQueriesBase
                     updated_at     = EXCLUDED.updated_at;
             """;
 
+        InsertSession = $"""
+            INSERT INTO {Schema}.sessions (id, tenant_id, agent_name, state, schema_version, created_at, updated_at)
+            VALUES (@id, @tenant_id, @agent_name, @state, @schema_version, @created_at, @updated_at);
+            """;
+
         SelectSession = $"""
             SELECT agent_name, state, schema_version, created_at, updated_at, tenant_id
             FROM {Schema}.sessions

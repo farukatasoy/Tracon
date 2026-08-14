@@ -143,4 +143,61 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
 
         page.Select(static session => session.Id).ShouldBe(["s1", "s2"]);
     }
+
+    [Fact]
+    public async Task TryCreateAsync_yeni_kimlikte_true_doner_ve_kaydeder()
+    {
+        var record = TestData.Session("yeni") with { State = TestData.State("""{"turn":1}""") };
+
+        (await Store.TryCreateAsync(record)).ShouldBeTrue();
+
+        var loaded = await Store.GetAsync("yeni");
+        loaded.ShouldNotBeNull();
+        loaded.State.GetProperty("turn").GetInt32().ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task TryCreateAsync_var_olan_kimlikte_false_doner_ve_uzerine_yazmaz()
+    {
+        await Store.SaveAsync(TestData.Session("var-olan") with { State = TestData.State("""{"turn":1}""") });
+
+        var created = await Store.TryCreateAsync(
+            TestData.Session("var-olan") with { State = TestData.State("""{"turn":2}""") });
+
+        created.ShouldBeFalse();
+
+        var loaded = await Store.GetAsync("var-olan");
+        loaded.ShouldNotBeNull();
+        loaded.State.GetProperty("turn").GetInt32().ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task TryCreateAsync_eszamanli_ayni_kimlikte_yalniz_biri_kazanir()
+    {
+        // HATA-004: check-then-create yarisinda iki eszamanli ilk istek ayni
+        // YENI oturuma farkli birer konusma kimligi uretiyordu. TryCreateAsync
+        // atomik olmalidir: N eszamanli cagridan tam olarak biri kazanmalidir.
+        const int Concurrency = 8;
+
+        var attempts = Enumerable.Range(0, Concurrency)
+            .Select(i => Store.TryCreateAsync(
+                    TestData.Session("yaris") with { State = TestData.State($$"""{"turn":{{i}}}""") })
+                .AsTask());
+
+        var results = await Task.WhenAll(attempts);
+
+        results.Count(static won => won).ShouldBe(1);
+
+        var loaded = await Store.GetAsync("yaris");
+        loaded.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task TryCreateAsync_ayni_kimlik_iki_kiracida_bagimsiz_kazanir()
+    {
+        // Birincil anahtar (tenant_id, id)'dir (K-018); benzersizlik ihlali tek
+        // basina kimlige degil kiraci+kimlik ciftine bakmalidir.
+        (await Store.TryCreateAsync(TestData.Session("paylasilan-id") with { TenantId = TenantA })).ShouldBeTrue();
+        (await Store.TryCreateAsync(TestData.Session("paylasilan-id") with { TenantId = TenantB })).ShouldBeTrue();
+    }
 }

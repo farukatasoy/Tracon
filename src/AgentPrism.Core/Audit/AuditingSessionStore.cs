@@ -51,6 +51,18 @@ public sealed class AuditingSessionStore : ISessionStore, IAuditDecorated
         => _inner.SaveAsync(record, cancellationToken);
 
     /// <inheritdoc />
+    /// <remarks>
+    /// 🚨 Bu geri caginin ATLANMASI, dekoratorun kendi <c>ISessionStore.TryCreateAsync</c>
+    /// varsayilan uygulamasina (bu sinifin <see cref="GetAsync"/>/<see cref="SaveAsync"/>'i
+    /// uzerinden check-then-create) duser ve ic depodaki GERCEK atomik uygulamayi
+    /// (<c>SqlSessionStore</c>/<c>InMemorySessionStore</c>) devre disi birakirdi —
+    /// <c>AuditingSessionStore</c> DI'da HER ZAMAN kayitli tek <see cref="ISessionStore"/>
+    /// oldugu icin (K-018) bu, HATA-004 duzeltmesini sessizce etkisiz kilardi.
+    /// </remarks>
+    public ValueTask<bool> TryCreateAsync(SessionRecord record, CancellationToken cancellationToken = default)
+        => _inner.TryCreateAsync(record, cancellationToken);
+
+    /// <inheritdoc />
     public ValueTask<IReadOnlyList<SessionRecord>> QueryAsync(
         SessionQuery query,
         CancellationToken cancellationToken = default)

@@ -16,6 +16,39 @@ public interface ISessionStore
     /// <returns>Tamamlanma gorevi.</returns>
     ValueTask SaveAsync(SessionRecord record, CancellationToken cancellationToken = default);
 
+    /// <summary>Yeni bir oturum kaydini yalnizca YOKSA olusturur.</summary>
+    /// <remarks>
+    /// <para>
+    /// Ayni <see cref="SessionRecord.Id"/> ile eszamanli iki cagri geldiginde
+    /// YALNIZ biri <see langword="true"/> donmelidir; kaybeden <see langword="false"/>
+    /// alip <see cref="GetAsync"/> ile kazananin kaydini okumalidir.
+    /// </para>
+    /// <para>
+    /// 🚨 Varsayilan uygulama ATOMIK DEGILDIR (check-then-create) — yalnizca
+    /// bu yontemi henuz gecersiz kilmamis eski depolarin derlenmeye devam
+    /// etmesi icindir. Gercek depolar (<c>SqlSessionStore</c>, <c>InMemorySessionStore</c>)
+    /// bu yontemi GERCEKTEN atomik olarak gecersiz kilar. HATA-004: atomiklik
+    /// olmadan, ayni YENI oturuma gelen eszamanli iki ilk istek birbirinden
+    /// habersiz iki farkli konusma kimligi uretir; ikinci <see cref="SaveAsync"/>
+    /// birinciyi kosulsuzca ezer ve kaybedenin mesajlari sessizce erisilmez kalir.
+    /// </para>
+    /// </remarks>
+    /// <param name="record">Olusturulacak oturum.</param>
+    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <returns>Olusturulduysa <see langword="true"/>; ayni kimlikle kayit zaten varsa <see langword="false"/>.</returns>
+    async ValueTask<bool> TryCreateAsync(SessionRecord record, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
+        if (await GetAsync(record.Id, cancellationToken).ConfigureAwait(false) is not null)
+        {
+            return false;
+        }
+
+        await SaveAsync(record, cancellationToken).ConfigureAwait(false);
+        return true;
+    }
+
     /// <summary>Oturumu getirir.</summary>
     /// <param name="sessionId">Oturum kimligi.</param>
     /// <param name="cancellationToken">Iptal belirteci.</param>
