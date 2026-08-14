@@ -153,7 +153,7 @@ Diğer bulgular: MT-WF-020'nin dokümanı düzeltildi (kod kusuru değil) — be
 
 **Sonuç:** 23 Geçti, 3 Kaldı.
 
-### HATA-K-003 — 🚨 KRİTİK: Magentic + plan onayı, onay sonrası devamda `ExecutorFailed`/`RunFailed` ile çöküyor
+### HATA-K-003 — 🚨 KRİTİK: Magentic + plan onayı, onay sonrası devamda `ExecutorFailed`/`RunFailed` ile çöküyor — ✅ KISMEN DÜZELTİLDİ (2026-08-14, K-401 — hata mesajı netleşti, çalıştırma hâlâ `RunFailed`; "zarif durdurma" F-106'ya devredildi)
 
 - **Case:** MT-WF-071 (Yüksek), MT-WF-073 (Orta) — ikisi de aynı kök nedenle
 - **Önem:** Yüksek
@@ -180,6 +180,9 @@ Plan onaylandıktan (MT-WF-071) veya düzeltme metniyle reddedildikten (MT-WF-07
 
 **Kapsam**
 Faz 16'nın Magentic plan onayı özelliği, `maxIterations` sınırının plan+onay+yürütme döngüsü için yetersiz kaldığı durumlarda zarif bir "sınıra ulaşıldı" mesajı yerine bir iç hata zincirine (`ExecutorFailed`/`RunFailed`, `TargetInvocationException`) düşüyor. Bunun (a) yalnızca `maxIterations` ayarlama sorumluluğu tüketiciye ait bir sınır durumu mu, yoksa (b) MAF'ın/AgentPrism'in round-limit'e ulaşıldığında akışı sonlandırma mantığındaki bir kod kusuru mu olduğu ayrı bir kod incelemesi gerektirir — kod bu koşumda değiştirilmedi.
+
+**Düzeltme (2026-08-14, K-401) — kısmi**
+Kod incelemesi tamamlandı: `WorkflowRunner.cs`'de `TargetInvocationException`/`InnerException` soyan HİÇBİR kod yoktu — `ToRunError(Exception)` sarmalayıcının kendi anlamsız `.Message`'ını yazıyordu. Bu (b)'nin "opak hata" yarısıydı ve AgentPrism'in KENDİ kodundaki bir eksiklikti; düzeltildi (`ToRunError` artık `TargetInvocationException`/tek-elemanlı `AggregateException`'ı soyup gerçek nedeni yazıyor). `MT-WF-071` birebir tekrarlanıp doğrulandı: `RunFailed.Text` artık `"This Magentic orchestration has already terminated. To process new messages, create a new workflow instance."` — eskiden opak `"Error invoking handler for Microsoft.Agents.AI.Workflows.TurnToken"`. Çalıştırmanın KENDİSİ hâlâ `RunFailed` ile bitiyor (bu doğru — plan gerçekten tamamlanmadı, gizlemek yanlış olurdu). MAF'ın round-limit-sonrası fazla çağrısını ÖNCEDEN kestirip akışı zarif bir `Completed`'e çevirmek ((a)/(b)'nin geri kalanı, raporun "zarif durdurma" beklentisi) MAF'ın kapalı-kutu orkestrasyon durumuna bağımlı, daha kapsamlı bir tasarım kararı gerektiriyor — `F-106` olarak `docs/UCUNCU-FAZ-ADAYLARI.md`'ye yazıldı, kodlanmadı. Dört doğrulama kapısı temiz.
 
 ---
 
