@@ -1,6 +1,7 @@
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
@@ -31,6 +32,13 @@ public static class AgentPrismWorkflowsBuilderExtensions
     /// degilken HTTP katmani tanimlari listeleyip yonetebilir, yalnizca
     /// calistirma ucu <c>501</c> doner.
     /// </para>
+    /// <para>
+    /// <see cref="AgentPrismWorkflowOptions.SectionName"/> (<c>AgentPrism:Workflows</c>)
+    /// <c>IConfiguration</c>'dan BAGLANIR (K-402) — diger tum <c>Use*()</c>
+    /// uzantilariyla (<c>UseOpenAI</c>, <c>UsePostgreSql</c>, <c>UseSkillScripts</c>
+    /// vb.) ayni sozlesme. <paramref name="configure"/> bu baglamadan SONRA
+    /// calisir, boylece kod hala config'in uzerine yazabilir.
+    /// </para>
     /// <example>
     /// <code>
     /// builder.AddAgentPrism()
@@ -49,7 +57,9 @@ public static class AgentPrismWorkflowsBuilderExtensions
 
         var services = builder.Services;
 
-        services.AddOptions<AgentPrismWorkflowOptions>();
+        services
+            .AddOptions<AgentPrismWorkflowOptions>()
+            .BindConfiguration(AgentPrismWorkflowOptions.SectionName);
 
         if (configure is not null)
         {
