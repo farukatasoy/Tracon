@@ -59,8 +59,8 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 |---|---|
 | Toplam case | **1097** |
 | Koşuldu | **1097** (koşulmamış case **yok**) |
-| ☑ Geçti | **994** |
-| ☒ **Kaldı** | **72** |
+| ☑ Geçti | **995** |
+| ☒ **Kaldı** | **71** |
 | ⏭ Atlandı | **30** |
 | ☐ Beklemede | **1** (`MT-UIRUN-019`) |
 
@@ -72,17 +72,18 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile A** — şema kapısı + teşhis ucu | `2126aab` | `MT-PG-025`, `MT-PG-034`, `MT-PG-051`, `MT-PG-052` |
 | **Aile B** — Guard maskelemesi `RunStarted`'da ham kalıyor | `a3d1dea` | `MT-GUARD-041`, `MT-GUARD-053` |
 | **Aile C** — Eşzamanlı ilk istekte oturum lost update | `f287b12` | `MT-CORE-054` |
+| **Aile D** — `T[]` parametreli tool derlenmiyor; kök neden zaten `75990fd`'de kapanmıştı, kod değişikliği yok, yalnız case yeniden koşuldu | (bu koşum, docs-only) | `MT-PKG-044` |
 
 ### Kalan aileler
 
-Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **D** ile başlar.
+Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **E** ile başlar.
 
 | Aile | Önem | Konu | Case | Durum |
 |---|---|---|---|---|
 | ~~A~~ | Kritik | Şema kapısı, teşhis ucu | 4 | ✅ `2126aab` |
 | ~~B~~ | Kritik | Guard maskelemesi `RunStarted`'da ham kalıyor | 2 | ✅ `a3d1dea` |
 | ~~C~~ | Kritik | Eşzamanlı ilk istekte oturum lost update | 1 | ✅ (bu koşum) |
-| **D** | Kritik | `T[]` parametreli tool derlenmiyor | 1 | ⬜ |
+| ~~D~~ | Kritik | `T[]` parametreli tool derlenmiyor | 1 | ✅ (bu koşum) |
 | **E** | Kritik | İki kalıcılık sağlayıcısı (K-183) | 1 | ⬜ |
 | **F** | Yüksek | 21 endpoint dosyasında kapsam denetimi yok | 4 | ⬜ |
 | **G** | Yüksek | JSON çözümleme hatası `400` yerine `500` | 4 | ⬜ |
@@ -322,19 +323,30 @@ Postgres, Sqlite, SqlServer'ın dördünde de koşar) ·
 `Ayni_yeni_oturuma_eszamanli_iki_ilk_istek_sessizce_mesaj_kaybetmez` (gerçek
 `Task.WhenAll` eşzamanlılığıyla HATA-004'ü ampirik olarak yeniden üretir).
 
-### Aile D — `T[]` parametreli tool derlenmiyor 🚨 Kritik
+### ~~Aile D~~ — `T[]` parametreli tool derlenmiyor 🚨 Kritik ✅ (bu koşum — zaten kapalıydı)
 
 **Kusur:** `MT-PKG-044`. `APG0003` diziyi "desteklenir" ilan ediyor ama
 `T[]` parametreli hiçbir tool metodu derlenmiyor (`CS1503: IReadOnlyList<T>` → `T[]`).
 `int[]` ile de tekrar üretildi.
 
-**Kök neden:**
+**Kök neden (o zaman):**
 `src/AgentPrism.Generators/ParameterTypeValidator.cs:98-111`
 (`TryGetArrayElementType` çıplak dizi/arayüz ayrımını kaybediyor) ·
 `src/AgentPrism.Generators/SourceWriter.cs:143` (her zaman `GetArray(...)`,
 `.ToArray()` eklenmiyor).
 
-**Case:** `MT-PKG-044`.
+**Bu koşumda bulunan:** Kusur zaten `75990fd`'de kapanmış — §3'ün uyardığı
+"kapalı ama sonuç dosyası güncellenmedi" örneklerinden biri daha.
+`ParameterModel.IsConcreteArray` alanı ekli, `SourceWriter.cs:147`
+`.ToArray()` sarmalıyor, ve genişletilmiş bir regresyon testi
+(`GeneratedOutputTests.cs` `Ciplak_dizi_parametresi_ToArray_ile_cevrilir_ve_uretilen_kod_derlenir`,
+`int[]`/`string[]`/`IReadOnlyList<int>` karışımını gerçek Roslyn derlemesinden
+geçiriyor) zaten repoda. Canlı doğrulama tazelenmiş
+`AgentPrism.0.0.0-preview.0.138` paketiyle `~/agentprism-manuel/uretec`'te
+tekrarlandı: `APG0003` sayısı 0, derleme 0 hata ile bitti. Kod değişikliği
+gerekmedi; yalnız case'in `Gerçek sonuç`/`Durum` alanları güncellendi.
+
+**Case:** `MT-PKG-044` ✅.
 
 ### Aile E — İki kalıcılık sağlayıcısı 🚨 Kritik
 

@@ -1670,7 +1670,28 @@ kayboluyor. `SourceWriter.cs:143` bu yüzden her zaman `GetArray(...)`
 çağırıyor (`IReadOnlyList<T>` döner); parametre `T[]` olduğunda `.ToArray()`
 dönüşümü hiç eklenmiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Yeniden koşum (2026-08-14, KAPANIS-PLANI Aile D):** Kusur önceki bir
+düzeltme dalgasında (commit `75990fd`) zaten kapanmış — sonuç dosyası
+güncellenmemişti. `ParameterModel.IsConcreteArray` alanı ve
+`SourceWriter.cs:147` `.ToArray()` sarmalaması kod tabanında hâlihazırda
+mevcut. Regresyon testi zaten var:
+`tests/AgentPrism.Generators.UnitTests/GeneratedOutputTests.cs`
+`Ciplak_dizi_parametresi_ToArray_ile_cevrilir_ve_uretilen_kod_derlenir` —
+`int[]`, `string[]` ve `IReadOnlyList<int>` parametreli tool'ları gerçek
+Roslyn derlemesinden geçirip `GetDiagnostics()` ile sıfır hata doğruluyor.
+
+Canlı doğrulama: case'in adımları tazelenmiş `AgentPrism.0.0.0-preview.0.138`
+paketine karşı `~/agentprism-manuel/uretec`'te aynen koşuldu.
+1. Adım (`record` parametreli tool) → yine `APG0003` verdi, beklendiği gibi.
+2. Adım (beyaz liste + ayrıca izole `int[]` tool'u `SayilariTopla`) → `APG0003`
+   sayısı **0**, derleme **0 Error(s)** ile bitti — `CS1503` **yok**.
+
+Dört kapı da bu koşumda yeşil (`dotnet build`/`test`/`pack`/`format`); kod
+değişikliği gerekmedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
