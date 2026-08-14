@@ -1022,7 +1022,20 @@ taşıyor. Bu, `ContentGuardingChatClient`'ın maskelemesinin **hiç
 görmediği** bir yoldur — kayıt altına alınmış: **`HATA-S3-006`**.
 Ayrıntı: `SONUCLAR-S3-2026-08-13.md`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**2026-08-14 yeniden koşum (kök neden düzeltildi, `docs/manuel-test/KAPANIS-PLANI.md`
+Aile B):** `RunRecordingAgent.BeginRunAsync` artık `ContentGuardPipeline.PreviewAsync`
+ile `RunStarted` olayına ve `IRunInputStore`'a yazılacak metni, modele giden
+yoldan **bağımsız ama aynı** guard zincirinden geçiriyor (`runs` satırı henüz
+yokken `InspectAsync`'in olay/denetim izi yazma yan etkisi devre dışı
+bırakılarak — bkz. `ContentGuardPipeline.PreviewAsync` belgesi). Canlı
+PostgreSQL'e karşı aynı istem yeniden gönderildi: `run_events` tablosunda
+`type=0` satırının `text` sütunu artık `"kart numaram [redacted], tekrar eder
+misin"` — kart numarası hiçbir olayda geçmiyor (`grep -c` çıktısı `0`).
+Regresyon testi: `ContentGuardRecordingTests.RunStarted_olayi_maskelenen_girdiyi_ham_tasimaz`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1102,6 +1115,18 @@ istek için `run_events` tablosundaki `RunStarted` satırı `text:"gizli-proje
 hakkinda bilgi ver"` taşıyor — engellenen içerik HTTP gövdesinde
 görünmese de veritabanında kalıcı olarak duruyor. `HATA-S3-006` yalnız
 maskeleme değil, **engelleme** dahil tüm guard kararları için geçerli.
+
+---
+
+**2026-08-14 yeniden koşum (`HATA-S3-006` düzeltildi, bkz. MT-GUARD-041):**
+Canlı PostgreSQL'e karşı aynı istem yeniden gönderildi (`422`, gövde
+degismedi). `run_events` tablosunda `type=0` (`RunStarted`) satırının `text`
+sütunu artık `"[content_blocked]"` — `gizli-proje` metni hiçbir olayda
+geçmiyor. `ContentGuardPipeline.PreviewAsync` engelleme kararında metni
+sabit bir işaretle değiştirir (K-059'un ruhu: engellenen içerik hiçbir yere
+kalıcılaşmaz), gerçek engelleme yine modele giderken
+`ContentGuardingChatClient` üzerinden normal şekilde oluşur.
+Regresyon testi: `ContentGuardRecordingTests.RunStarted_olayi_engellenen_girdiyi_ham_tasimaz`.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -1315,7 +1340,15 @@ sahte anahtar `RunStarted` olayının `text` alanında aynen görünüyor (ve
 `run_events` tablosunda kalıcı). Yeni bir kayıt açılmadı, MT-GUARD-041'de
 açılan `HATA-S3-006`'ya üçüncü örnek olarak eklendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**2026-08-14 yeniden koşum (`HATA-S3-006` düzeltildi, bkz. MT-GUARD-041):**
+Canlı PostgreSQL'e karşı aynı istem yeniden gönderildi. `ContentMasked` olayı
+aynı şekilde `rule:"provider-api-key"` taşıyor; `grep -c
+"sk-th1sIsATestKeyN0tReal1234567890"` çıktısı artık `0`. `RunStarted`
+olayının `text` alanı sahte anahtarı taşımıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

@@ -709,7 +709,10 @@ public static class AgentPrismServiceCollectionExtensions
                 provider.GetRequiredService<IRunInputStore>(),
                 // Faz 49: kayitli olmasi tek basina hicbir sey orneklemez, bkz.
                 // RunSampler/OnlineEvaluationOptions sinif belgeleri.
-                provider.GetRequiredService<RunSampler>())));
+                provider.GetRequiredService<RunSampler>(),
+                // HATA-S3-006: bu satir olmadan RunStarted olayina ve
+                // IRunInputStore'a yazilan girdi guard'lardan hic gecmez.
+                provider.GetRequiredService<ContentGuardPipeline>())));
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, OpenTelemetryAgentDecorator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, ToolApprovalAgentDecorator>());

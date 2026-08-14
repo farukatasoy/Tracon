@@ -128,89 +128,26 @@ internal sealed class ContentGuardingChatClient(
     /// kalicilasir ve kullanicinin kendi yazdigi metin geri alinamaz sekilde
     /// kaybolurdu.
     /// </remarks>
-    private async ValueTask<IEnumerable<ChatMessage>> InspectInputAsync(
+    private ValueTask<IEnumerable<ChatMessage>> InspectInputAsync(
         IEnumerable<ChatMessage> messages,
         CancellationToken cancellationToken)
     {
         // Liste zaten bir IReadOnlyList ise kopyalanmaz: MAF mesajlari liste olarak
         // gecirir ve eslesme yoksa hicbir tahsis olmaz.
         var buffer = messages as IReadOnlyList<ChatMessage> ?? [.. messages];
-        List<ChatMessage>? rebuilt = null;
 
-        for (var index = 0; index < buffer.Count; index++)
-        {
-            var message = buffer[index];
-
-            // Sistem talimati bilerek atlanir.
-            var replacement = message.Role == ChatRole.System
-                ? null
-                : await InspectMessageAsync(message, cancellationToken).ConfigureAwait(false);
-
-            if (replacement is null)
-            {
-                rebuilt?.Add(message);
-                continue;
-            }
-
-            if (rebuilt is null)
-            {
-                rebuilt = new List<ChatMessage>(buffer.Count);
-
-                for (var earlier = 0; earlier < index; earlier++)
-                {
-                    rebuilt.Add(buffer[earlier]);
-                }
-            }
-
-            rebuilt.Add(replacement);
-        }
-
-        return rebuilt ?? buffer;
+        return MaskAsync(buffer, cancellationToken);
     }
 
-    private async ValueTask<ChatMessage?> InspectMessageAsync(ChatMessage message, CancellationToken cancellationToken)
-    {
-        List<AIContent>? contents = null;
-
-        for (var index = 0; index < message.Contents.Count; index++)
-        {
-            var content = message.Contents[index];
-
-            if (ReadText(content) is not { Length: > 0 } text)
-            {
-                continue;
-            }
-
-            var masked = await pipeline
-                .InspectAsync(ContentGuardDirection.Input, text, modelId, cancellationToken)
-                .ConfigureAwait(false);
-
-            if (masked is null)
-            {
-                continue;
-            }
-
-            contents ??= [.. message.Contents];
-            contents[index] = WriteText(content, masked);
-        }
-
-        if (contents is null)
-        {
-            return null;
-        }
-
-        var clone = message.Clone();
-        clone.Contents = contents;
-
-        // 🚨 Ham gosterim BILEREK dusurulur. Bazi saglayici adaptorleri istegi
-        // ChatOptions.RawRepresentationFactory / RawRepresentation uzerinden
-        // kurar; onu tasimak MASKELENMEMIS metnin aga cikmasina yol acardi
-        // (Faz 26'da olculdu: Anthropic adaptoru verilen ham nesnenin uzerine
-        // yazmiyor). Maskeleme sessizce etkisiz kalmamalidir.
-        clone.RawRepresentation = null;
-
-        return clone;
-    }
+    // RunRecordingAgent ile PAYLASILAN mantik: kayit yolu (RunStarted olayi,
+    // IRunInputStore) ayni denetimi ayni sirada uygular ki modele giden ile
+    // kaydedilen HIC ayrilmasin (HATA-S3-006).
+    private async ValueTask<IEnumerable<ChatMessage>> MaskAsync(
+        IReadOnlyList<ChatMessage> buffer,
+        CancellationToken cancellationToken)
+        => await ContentGuardMessageMasker
+            .MaskAsync(pipeline, ContentGuardDirection.Input, buffer, modelId, cancellationToken)
+            .ConfigureAwait(false);
 
     /// <summary>
     /// Yaniti denetler ve gerekiyorsa maskelenmis mesajlarla degistirir.
@@ -251,7 +188,7 @@ internal sealed class ContentGuardingChatClient(
         {
             var content = message.Contents[index];
 
-            if (ReadText(content) is not { Length: > 0 } text)
+            if (ContentGuardMessageMasker.ReadText(content) is not { Length: > 0 } text)
             {
                 continue;
             }
@@ -266,7 +203,7 @@ internal sealed class ContentGuardingChatClient(
             }
 
             contents ??= [.. message.Contents];
-            contents[index] = WriteText(content, masked);
+            contents[index] = ContentGuardMessageMasker.WriteText(content, masked);
         }
 
         if (contents is null)
@@ -295,7 +232,7 @@ internal sealed class ContentGuardingChatClient(
         {
             var content = update.Contents[index];
 
-            if (ReadText(content) is not { Length: > 0 } text)
+            if (ContentGuardMessageMasker.ReadText(content) is not { Length: > 0 } text)
             {
                 continue;
             }
@@ -310,7 +247,7 @@ internal sealed class ContentGuardingChatClient(
             }
 
             contents ??= [.. update.Contents];
-            contents[index] = WriteText(content, masked);
+            contents[index] = ContentGuardMessageMasker.WriteText(content, masked);
         }
 
         if (contents is null)
@@ -408,26 +345,4 @@ internal sealed class ContentGuardingChatClient(
             buffered[position] = clone;
         }
     }
-
-    /// <summary>
-    /// Denetlenebilir metni okur; denetlenemeyen icerik icin <see langword="null"/>.
-    /// </summary>
-    /// <remarks>
-    /// 🚨 <see cref="FunctionResultContent"/> bilerek kapsanir: bir tool sonucu
-    /// modelin gordugu icerigin parcasidir ve uzak bir MCP tool'unun dondurdugu
-    /// zararli metin tam olarak buradan girer.
-    /// </remarks>
-    private static string? ReadText(AIContent content) => content switch
-    {
-        TextContent text => text.Text,
-        FunctionResultContent { Result: string result } => result,
-        FunctionResultContent { Result: { } result } => result.ToString(),
-        _ => null,
-    };
-
-    private static AIContent WriteText(AIContent content, string text) => content switch
-    {
-        FunctionResultContent result => new FunctionResultContent(result.CallId, text) { Exception = result.Exception },
-        _ => new TextContent(text),
-    };
 }

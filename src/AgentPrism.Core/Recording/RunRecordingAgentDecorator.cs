@@ -27,6 +27,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
     private readonly IRunErrorClassifier? _errorClassifier;
     private readonly IRunInputStore? _runInputStore;
     private readonly RunSampler? _runSampler;
+    private readonly ContentGuardPipeline? _contentGuardPipeline;
 
     /// <summary>Yeni bir kayit dekoratoru olusturur.</summary>
     /// <param name="runStore">Olaylarin yazilacagi depo.</param>
@@ -43,6 +44,10 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
     /// <param name="errorClassifier">Hata siniflandirici. <see langword="null"/> ise hata sinifi/parmak izi hesaplanmaz.</param>
     /// <param name="runInputStore">Girdi deposu. <see langword="null"/> ise girdi kaydedilmez ve yeniden oynatma calismaz.</param>
     /// <param name="runSampler">Cevrimici degerlendirme orneklemeleyicisi (Faz 49). <see langword="null"/> ise hicbir calistirma orneklenmez.</param>
+    /// <param name="contentGuardPipeline">
+    /// Icerik denetimi boru hatti (Faz 48). <see langword="null"/> ise kayitli
+    /// girdi denetlenmeden yazilir. Bkz. <see cref="RunRecordingAgent"/> kurucusundaki not (HATA-S3-006).
+    /// </param>
     /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
     public RunRecordingAgentDecorator(
         IRunStore runStore,
@@ -58,7 +63,8 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
         IRunCancellationRegistry? cancellationRegistry = null,
         IRunErrorClassifier? errorClassifier = null,
         IRunInputStore? runInputStore = null,
-        RunSampler? runSampler = null)
+        RunSampler? runSampler = null,
+        ContentGuardPipeline? contentGuardPipeline = null)
     {
         ArgumentNullException.ThrowIfNull(runStore);
         ArgumentNullException.ThrowIfNull(tenantContext);
@@ -79,6 +85,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
         _errorClassifier = errorClassifier;
         _runInputStore = runInputStore;
         _runSampler = runSampler;
+        _contentGuardPipeline = contentGuardPipeline;
     }
 
     /// <inheritdoc />
@@ -113,6 +120,7 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
             _cancellationRegistry,
             _errorClassifier,
             _runInputStore,
-            _runSampler);
+            _runSampler,
+            _contentGuardPipeline);
     }
 }
