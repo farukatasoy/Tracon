@@ -109,8 +109,8 @@ internal static class VoiceEndpoints
         if (string.IsNullOrWhiteSpace(request.Text))
         {
             return TypedResults.Problem(
-                title: "Metin bos",
-                detail: "'text' alani zorunludur.",
+                title: "Text empty",
+                detail: "'text' is required.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -122,9 +122,9 @@ internal static class VoiceEndpoints
         if (request.Text.Length > maxCharacters)
         {
             return TypedResults.Problem(
-                title: "Metin cok uzun",
-                detail: $"Metin {request.Text.Length} karakter; sinir {maxCharacters}. " +
-                        "Metni kisaltin veya 'AgentPrism:Voice:MaxCharactersPerRequest' ayarini yukseltin.",
+                title: "Text too long",
+                detail: $"The text is {request.Text.Length} characters; the limit is {maxCharacters}. " +
+                        "Shorten the text or raise the 'AgentPrism:Voice:MaxCharactersPerRequest' setting.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -143,7 +143,7 @@ internal static class VoiceEndpoints
             // Mesaj yalnizca durum kodu ve gerekce tasir; saglayicinin govdesi
             // (istegi ve bazen anahtar parcasini yankilayan) hicbir zaman gecmez.
             return TypedResults.Problem(
-                title: "Ses uretilemedi",
+                title: "Speech could not be generated",
                 detail: exception.Message,
                 statusCode: StatusCodes.Status502BadGateway);
         }
@@ -153,7 +153,7 @@ internal static class VoiceEndpoints
         if (!validation.IsValid)
         {
             return TypedResults.Problem(
-                title: "Uretilen ses kaydedilemedi",
+                title: "Generated speech could not be saved",
                 detail: validation.Error,
                 statusCode: StatusCodes.Status502BadGateway);
         }
@@ -250,7 +250,7 @@ internal static class VoiceEndpoints
 
     private static ProblemHttpResult NotConfigured()
         => TypedResults.Problem(
-            title: "Ses saglayicisi yapilandirilmadi",
-            detail: "Ses ozelligini acmak icin `AgentPrism.Voice` paketini ekleyin ve `UseVoice(...)` cagirin.",
+            title: "Voice provider not configured",
+            detail: "Add the `AgentPrism.Voice` package and call `UseVoice(...)` to enable voice.",
             statusCode: StatusCodes.Status501NotImplemented);
 }

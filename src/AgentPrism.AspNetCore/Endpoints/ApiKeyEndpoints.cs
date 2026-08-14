@@ -82,12 +82,12 @@ internal static class ApiKeyEndpoints
 
         if (string.IsNullOrWhiteSpace(request.Name))
         {
-            return Invalid("'name' bos olamaz.");
+            return Invalid("'name' cannot be empty.");
         }
 
         if (request.Scopes is not { Count: > 0 })
         {
-            return Invalid("En az bir kapsam ('scopes') secilmelidir.");
+            return Invalid("At least one scope ('scopes') must be selected.");
         }
 
         // Yetki uzatma (attenuation): istegi dogrulayan bir API anahtariysa,
@@ -101,7 +101,7 @@ internal static class ApiKeyEndpoints
             if (ungranted.Count > 0)
             {
                 return Invalid(
-                    $"Bu anahtarin tasimadigi kapsam(lar) istenemez: {string.Join(", ", ungranted)}.");
+                    $"Cannot request scope(s) this key does not carry: {string.Join(", ", ungranted)}.");
             }
         }
 
@@ -187,13 +187,13 @@ internal static class ApiKeyEndpoints
 
     private static ProblemHttpResult NotFound(Guid id)
         => TypedResults.Problem(
-            title: "Anahtar bulunamadi",
-            detail: $"'{id}' kimlikli bir API anahtari yok.",
+            title: "Key not found",
+            detail: $"There is no API key with id '{id}'.",
             statusCode: StatusCodes.Status404NotFound);
 
     private static Results<Ok<ApiKeyCreationResult>, ProblemHttpResult> Invalid(string detail)
         => TypedResults.Problem(
-            title: "Gecersiz istek",
+            title: "Invalid request",
             detail: detail,
             statusCode: StatusCodes.Status400BadRequest);
 }

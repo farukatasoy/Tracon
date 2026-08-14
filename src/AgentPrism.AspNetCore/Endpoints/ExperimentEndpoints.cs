@@ -138,7 +138,7 @@ internal static class ExperimentEndpoints
 
         if (string.IsNullOrWhiteSpace(request.AgentName))
         {
-            return InvalidExperiment("'agentName' alani zorunludur.");
+            return InvalidExperiment("'agentName' is required.");
         }
 
         var descriptors = await catalog.ListAsync(cancellationToken).ConfigureAwait(false);
@@ -148,34 +148,34 @@ internal static class ExperimentEndpoints
         if (descriptor is null)
         {
             return TypedResults.Problem(
-                title: "Agent bulunamadi",
-                detail: $"'{request.AgentName}' adinda bir agent yok.",
+                title: "Agent not found",
+                detail: $"There is no agent named '{request.AgentName}'.",
                 statusCode: StatusCodes.Status404NotFound);
         }
 
         if (descriptor.Origin == AgentDefinitionOrigin.Code)
         {
             return InvalidExperiment(
-                $"'{request.AgentName}' kodda tanimlidir ve surum gecmisi tutmaz. Kod kaynakli agent'larda deney kurulamaz.");
+                $"'{request.AgentName}' is defined in code and has no version history. Experiments cannot be set up on code-sourced agents.");
         }
 
         if (request.Variants.Count == 0)
         {
-            return InvalidExperiment("Bir deney en az bir varyant tasimalidir.");
+            return InvalidExperiment("An experiment must have at least one variant.");
         }
 
         var totalWeight = request.Variants.Sum(static variant => variant.Weight);
 
         if (totalWeight != 100)
         {
-            return InvalidExperiment($"Varyant agirliklarinin toplami 100 olmalidir; suan {totalWeight}.");
+            return InvalidExperiment($"Variant weights must sum to 100; currently {totalWeight}.");
         }
 
         foreach (var variant in request.Variants)
         {
             if (await definitions.GetVersionAsync(request.AgentName, variant.Version, cancellationToken).ConfigureAwait(false) is null)
             {
-                return InvalidExperiment($"'{request.AgentName}' agent'inin {variant.Version} numarali surumu yok.");
+                return InvalidExperiment($"Agent '{request.AgentName}' has no version {variant.Version}.");
             }
         }
 
@@ -197,7 +197,7 @@ internal static class ExperimentEndpoints
         }
         catch (AgentPrismException ex)
         {
-            return TypedResults.Problem(title: "Deney kaydedilemedi", detail: ex.Message, statusCode: StatusCodes.Status409Conflict);
+            return TypedResults.Problem(title: "Experiment could not be saved", detail: ex.Message, statusCode: StatusCodes.Status409Conflict);
         }
     }
 
@@ -215,7 +215,7 @@ internal static class ExperimentEndpoints
         }
         catch (AgentPrismException ex)
         {
-            return TypedResults.Problem(title: "Deney silinemedi", detail: ex.Message, statusCode: StatusCodes.Status409Conflict);
+            return TypedResults.Problem(title: "Experiment could not be deleted", detail: ex.Message, statusCode: StatusCodes.Status409Conflict);
         }
     }
 
@@ -231,7 +231,7 @@ internal static class ExperimentEndpoints
         }
         catch (AgentPrismException ex)
         {
-            return TypedResults.Problem(title: "Deney baslatilamadi", detail: ex.Message, statusCode: StatusCodes.Status409Conflict);
+            return TypedResults.Problem(title: "Experiment could not be started", detail: ex.Message, statusCode: StatusCodes.Status409Conflict);
         }
     }
 
@@ -247,7 +247,7 @@ internal static class ExperimentEndpoints
         }
         catch (AgentPrismException ex)
         {
-            return TypedResults.Problem(title: "Deney durdurulamadi", detail: ex.Message, statusCode: StatusCodes.Status409Conflict);
+            return TypedResults.Problem(title: "Experiment could not be stopped", detail: ex.Message, statusCode: StatusCodes.Status409Conflict);
         }
     }
 
@@ -312,7 +312,7 @@ internal static class ExperimentEndpoints
         }
         catch (AgentPrismException ex)
         {
-            return TypedResults.Problem(title: "Kanarya kurali guncellenemedi", detail: ex.Message, statusCode: StatusCodes.Status409Conflict);
+            return TypedResults.Problem(title: "Canary rule could not be updated", detail: ex.Message, statusCode: StatusCodes.Status409Conflict);
         }
     }
 
@@ -355,44 +355,44 @@ internal static class ExperimentEndpoints
     {
         if (experiment.Variants.Count != 2)
         {
-            return "Kanarya kurali yalnizca iki kollu deneylerde tanimlanabilir.";
+            return "A canary rule can only be defined on two-variant experiments.";
         }
 
         if (!experiment.Variants.Any(variant => string.Equals(variant.Name, policy.CanaryVariant, StringComparison.Ordinal)))
         {
-            return $"'{policy.CanaryVariant}' adinda bir kol yok.";
+            return $"There is no variant named '{policy.CanaryVariant}'.";
         }
 
         if (policy.MinSampleSize <= 0)
         {
-            return "'minSampleSize' pozitif olmalidir.";
+            return "'minSampleSize' must be positive.";
         }
 
         if (policy.MaxErrorRateDelta is < 0 or > 1)
         {
-            return "'maxErrorRateDelta' 0 ile 1 arasinda olmalidir.";
+            return "'maxErrorRateDelta' must be between 0 and 1.";
         }
 
         if (policy.MinScore is < 0 or > 100)
         {
-            return "'minScore' 0 ile 100 arasinda olmalidir.";
+            return "'minScore' must be between 0 and 100.";
         }
 
         if (policy.RampSteps.Count > 0)
         {
             if (policy.RampSteps.Any(step => step is <= 0 or > 100))
             {
-                return "'rampSteps' degerleri 0 ile 100 arasinda (0 haric) olmalidir.";
+                return "'rampSteps' values must be between 0 (exclusive) and 100.";
             }
 
             if (!policy.RampSteps.SequenceEqual(policy.RampSteps.OrderBy(static step => step).Distinct()))
             {
-                return "'rampSteps' kesin artan sirada, tekrarsiz olmalidir.";
+                return "'rampSteps' must be strictly increasing, with no duplicates.";
             }
 
             if (policy.RampInterval <= TimeSpan.Zero)
             {
-                return "'rampInterval' pozitif olmalidir.";
+                return "'rampInterval' must be positive.";
             }
         }
 
@@ -400,11 +400,11 @@ internal static class ExperimentEndpoints
     }
 
     private static ProblemHttpResult InvalidExperiment(string detail)
-        => TypedResults.Problem(title: "Deney gecersiz", detail: detail, statusCode: StatusCodes.Status400BadRequest);
+        => TypedResults.Problem(title: "Experiment invalid", detail: detail, statusCode: StatusCodes.Status400BadRequest);
 
     private static ProblemHttpResult ExperimentNotFound(string name)
         => TypedResults.Problem(
-            title: "Deney bulunamadi",
-            detail: $"'{name}' adinda bir deney yok.",
+            title: "Experiment not found",
+            detail: $"There is no experiment named '{name}'.",
             statusCode: StatusCodes.Status404NotFound);
 }

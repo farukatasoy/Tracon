@@ -153,8 +153,8 @@ internal sealed class ExternalAgentProxy : AIAgent
         // SONRADAN guncellenip onayli bir tool eklenebilir. K-103'un ayni
         // sinirinin calisma anindaki ikinci uygulamasi.
         throw new AgentPrismExternalCallException(
-            $"'{_agentName}' agent'i tamamlanamadi: '{pending}' tool'u kullanici onayi istiyor. " +
-            "Dis cagiran bir agent onay isteğine cevap veremez.")
+            $"Agent '{_agentName}' could not complete: tool '{pending}' requires user approval. " +
+            "An externally-invoked agent cannot respond to an approval request.")
         {
             AgentName = _agentName,
             Protocol = "a2a",

@@ -45,8 +45,8 @@ internal static class ModelHealthEndpoints
 
                 return health is null
                     ? TypedResults.Problem(
-                        title: "Saglayici bulunamadi",
-                        detail: $"'{provider}' adinda kayitli bir model saglayicisi yok.",
+                        title: "Provider not found",
+                        detail: $"There is no registered model provider named '{provider}'.",
                         statusCode: StatusCodes.Status404NotFound)
                     : TypedResults.Ok(health);
             })

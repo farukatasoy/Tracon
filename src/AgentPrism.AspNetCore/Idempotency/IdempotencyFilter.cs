@@ -75,18 +75,18 @@ internal sealed class IdempotencyFilter : IEndpointFilter
         if (!options.Enabled)
         {
             return Results.Problem(
-                title: "Idempotency destegi kapali",
-                detail: $"'{HeaderName}' basligi gonderildi ama bu kurulumda idempotency destegi kapali " +
-                        "(AgentPrismIdempotencyOptions.Enabled = false). Istek YINE DE islenir ama " +
-                        "tekrarlanan bir istek yeniden calisir; korundugunuzu VARSAYMAYIN.",
+                title: "Idempotency support disabled",
+                detail: $"The '{HeaderName}' header was sent, but idempotency support is disabled in " +
+                        "this setup (AgentPrismIdempotencyOptions.Enabled = false). The request is " +
+                        "processed ANYWAY, but a repeated request runs again; do NOT assume you are protected.",
                 statusCode: StatusCodes.Status501NotImplemented);
         }
 
         if (key.Length > options.MaxKeyLength)
         {
             return Results.Problem(
-                title: "Idempotency-Key cok uzun",
-                detail: $"Anahtar en fazla {options.MaxKeyLength} karakter olabilir; gelen uzunluk {key.Length}.",
+                title: "Idempotency-Key too long",
+                detail: $"The key may be at most {options.MaxKeyLength} characters; received length {key.Length}.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -96,10 +96,10 @@ internal sealed class IdempotencyFilter : IEndpointFilter
         if (isStreaming)
         {
             return Results.Problem(
-                title: "Akisli istekte Idempotency-Key desteklenmiyor",
-                detail: $"'{HeaderName}' basligi tasiyan bir istek akisli (SSE, 'stream: true') olamaz. " +
-                        "Saklanan bir SSE govdesini yeniden oynatmak bu surumun kapsami disidir " +
-                        "(docs/43-IDEMPOTENCY-KEY.md, bolum 43.4).",
+                title: "Idempotency-Key not supported on streaming requests",
+                detail: $"A request carrying the '{HeaderName}' header cannot be streaming (SSE, " +
+                        "'stream: true'). Replaying a stored SSE body is out of scope for this " +
+                        "version (docs/43-IDEMPOTENCY-KEY.md, section 43.4).",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -123,15 +123,15 @@ internal sealed class IdempotencyFilter : IEndpointFilter
 
             case IdempotencyState.InProgress:
                 return Results.Problem(
-                    title: "Istek zaten isleniyor",
-                    detail: $"'{key}' anahtarli bir istek hala isleniyor. Ayni gövdeyle yeniden deneyin.",
+                    title: "Request already in progress",
+                    detail: $"A request with key '{key}' is still being processed. Retry with the same body.",
                     statusCode: StatusCodes.Status409Conflict);
 
             case IdempotencyState.FingerprintMismatch:
                 return Results.Problem(
-                    title: "Idempotency-Key farkli bir istek icin kullanilmis",
-                    detail: $"'{key}' anahtari daha once FARKLI bir govdeyle tamamlanmis bir istekte kullanildi. " +
-                            "Ayni anahtari farkli bir istek icin yeniden kullanmayin.",
+                    title: "Idempotency-Key used for a different request",
+                    detail: $"The key '{key}' was already used on a request that completed with a " +
+                            "DIFFERENT body. Do not reuse the same key for a different request.",
                     statusCode: StatusCodes.Status422UnprocessableEntity);
 
             default:

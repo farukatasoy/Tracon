@@ -85,8 +85,8 @@ internal static class SkillEndpoints
         if (!string.Equals(name, request.Name, StringComparison.Ordinal))
         {
             return TypedResults.Problem(
-                title: "Ad uyusmuyor",
-                detail: $"Yoldaki ad '{name}', govdedeki ad '{request.Name}'.",
+                title: "Name mismatch",
+                detail: $"The path name is '{name}', the body name is '{request.Name}'.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -120,28 +120,28 @@ internal static class SkillEndpoints
     {
         if (!AgentSkillFrontmatter.ValidateName(request.Name, out var nameReason))
         {
-            return Invalid("Skill adi gecersiz", nameReason);
+            return Invalid("Skill name invalid", nameReason);
         }
 
         if (!AgentSkillFrontmatter.ValidateDescription(request.Description, out var descriptionReason))
         {
-            return Invalid("Skill aciklamasi gecersiz", descriptionReason);
+            return Invalid("Skill description invalid", descriptionReason);
         }
 
         if (request.Compatibility is { Length: > 0 }
             && !AgentSkillFrontmatter.ValidateCompatibility(request.Compatibility, out var compatibilityReason))
         {
-            return Invalid("Skill uyumlulugu gecersiz", compatibilityReason);
+            return Invalid("Skill compatibility invalid", compatibilityReason);
         }
 
         if (Encoding.UTF8.GetByteCount(request.Instructions) > options.MaxInstructionsLength)
         {
-            return Invalid("Skill talimati cok buyuk", $"instructions en fazla {options.MaxInstructionsLength} bayt olabilir.");
+            return Invalid("Skill instructions too large", $"instructions may be at most {options.MaxInstructionsLength} bytes.");
         }
 
         if (request.Resources.Count > options.MaxResourcesPerSkill)
         {
-            return Invalid("Cok fazla kaynak", $"Bir skill en fazla {options.MaxResourcesPerSkill} kaynak tasiyabilir.");
+            return Invalid("Too many resources", $"A skill may carry at most {options.MaxResourcesPerSkill} resources.");
         }
 
         var resourceNames = new HashSet<string>(StringComparer.Ordinal);
@@ -149,12 +149,12 @@ internal static class SkillEndpoints
         {
             if (string.IsNullOrWhiteSpace(resource.Name) || !resourceNames.Add(resource.Name))
             {
-                return Invalid("Kaynak adi gecersiz", "Her kaynak adi bos olmamali ve skill icinde benzersiz olmalidir.");
+                return Invalid("Resource name invalid", "Every resource name must be non-empty and unique within the skill.");
             }
 
             if (Encoding.UTF8.GetByteCount(resource.Content) > options.MaxResourceContentLength)
             {
-                return Invalid("Skill kaynagi cok buyuk", $"Her kaynak en fazla {options.MaxResourceContentLength} bayt olabilir.");
+                return Invalid("Skill resource too large", $"Each resource may be at most {options.MaxResourceContentLength} bytes.");
             }
         }
 
@@ -182,8 +182,8 @@ internal static class SkillEndpoints
         if (request.Scripts.Count > options.MaxScriptsPerSkill)
         {
             return Invalid(
-                "Cok fazla script",
-                $"Bir skill en fazla {options.MaxScriptsPerSkill} script tasiyabilir.");
+                "Too many scripts",
+                $"A skill may carry at most {options.MaxScriptsPerSkill} scripts.");
         }
 
         var names = new HashSet<string>(StringComparer.Ordinal);
@@ -192,30 +192,30 @@ internal static class SkillEndpoints
             if (string.IsNullOrWhiteSpace(script.Name) || !names.Add(script.Name))
             {
                 return Invalid(
-                    "Script adi gecersiz",
-                    "Her script adi bos olmamali ve skill icinde benzersiz olmalidir.");
+                    "Script name invalid",
+                    "Every script name must be non-empty and unique within the skill.");
             }
 
             var extension = script.Extension.TrimStart('.');
             if (extension.Length == 0 || !options.Interpreters.ContainsKey(extension))
             {
                 return Invalid(
-                    "Script uzantisi izinli degil",
-                    $"'{script.Extension}' uzantisi icin kayitli bir yorumlayici yok.");
+                    "Script extension not allowed",
+                    $"There is no registered interpreter for the '{script.Extension}' extension.");
             }
 
             if (Encoding.UTF8.GetByteCount(script.Content) > options.MaxScriptContentLength)
             {
                 return Invalid(
-                    "Script cok buyuk",
-                    $"Her script en fazla {options.MaxScriptContentLength} bayt olabilir.");
+                    "Script too large",
+                    $"Each script may be at most {options.MaxScriptContentLength} bytes.");
             }
 
             if (script.ParametersSchema is { Length: > 0 } schema && !IsJsonObject(schema))
             {
                 return Invalid(
-                    "Parametre semasi gecersiz",
-                    "parametersSchema gecerli bir JSON nesnesi olmalidir.");
+                    "Parameter schema invalid",
+                    "parametersSchema must be a valid JSON object.");
             }
         }
 
@@ -240,7 +240,7 @@ internal static class SkillEndpoints
 
     private static ProblemHttpResult NotFound(string name)
         => TypedResults.Problem(
-            title: "Skill bulunamadi",
-            detail: $"'{name}' adinda bir skill yok.",
+            title: "Skill not found",
+            detail: $"There is no skill named '{name}'.",
             statusCode: StatusCodes.Status404NotFound);
 }

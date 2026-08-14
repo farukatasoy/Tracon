@@ -149,7 +149,7 @@ public sealed class AgentCrudTests
         using var response = await host.Client.PostAsJsonAsync(Agents, TestData.Request(name: "kod-agent"));
 
         response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
-        (await response.Content.ReadAsStringAsync()).ShouldContain("kodda tanimli");
+        (await response.Content.ReadAsStringAsync()).ShouldContain("defined in code");
     }
 
     [Fact]

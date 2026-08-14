@@ -102,7 +102,7 @@ public sealed class WorkflowEndpointTests
 
         var problem = await AgentPrismTestHost.ReadJsonAsync(response);
 
-        problem.GetProperty("detail").GetString()!.ShouldContain("hicbir agent icermiyor", Case.Sensitive);
+        problem.GetProperty("detail").GetString()!.ShouldContain("has no agents", Case.Sensitive);
     }
 
     [Fact]

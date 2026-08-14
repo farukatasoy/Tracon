@@ -1231,7 +1231,34 @@ case'lerinde bu muhtemelen fark edilmedi çünkü `detail`/`title` alanları
 genelde yalnız VARLIĞI (`404` durumu, alan adı) doğrulanmış, metnin dili
 ayrıca kontrol edilmemişti.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Yeniden koşum (Aile N, KAPANIS-PLANI.md).** `src/AgentPrism.AspNetCore/`
+altındaki 26 dosyadaki **113 `title:` literalinin tamamı** ve eşlik eden
+`detail:` metinleri İngilizce'ye çevrildi — bu case'in kendi tekrar
+üretimindeki tam örnek dahil: `GET /api/agents/does-not-exist-xyz` artık
+`{"title":"Agent not found","detail":"There is no agent named
+'does-not-exist-xyz'.",...}` döner (canlı Postgres'e karşı doğrulandı,
+`Accept-Language: en` başlığıyla/başlıksız fark yok — sunucu zaten tek
+dilli). Kapsam yalnız `title:`/`detail:` literalleriyle sınırlı kalmadı:
+bu literallerin beslendiği alttaki `AgentPrismException`/doğrulayıcı
+mesajları da (AgentPrism.Core, AgentPrism.Workflows, AgentPrism.Generators
+— case'in kendi öngördüğü "birkaç dosya" kapsamı) aynı geçişte çevrildi,
+aksi halde `detail: ex.Message` yolundan Türkçe metin sızmaya devam
+ederdi. Ek olarak OpenAI-uyumlu uçlar (`/v1/responses`,
+`/v1/chat/completions`, `/v1/conversations`), A2A/MCP dış çağrı hata
+metinleri ve `AgentPrism.Voice`'un WebSocket ProblemDetails yazıcısı da
+aynı ilkeyle çevrildi — bunlar `ProblemDetails` kullanmadığı için ilk
+grep'in (113 sayımı) dışında kalmıştı ama aynı kullanıcı kararının
+(§5.3) kapsamındaydı. Regresyon çiti:
+`tests/AgentPrism.Core.UnitTests/Architecture/ProblemDetailsLanguageTests.cs`
+— tüm `src/` ağacını tarar, her `title:` literalinin ASCII-Türkçe
+kalıp taşımadığını doğrular (fix geri alınıp koşulduğunda KIRMIZI
+verdiği ampirik olarak doğrulandı). 29 mevcut test (Workflows.UnitTests
++ AspNetCore.FunctionalTests) eski Türkçe metni doğrudan `ShouldContain`
+ile arıyordu; hepsi yeni İngilizce alt dizeye güncellendi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

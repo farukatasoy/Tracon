@@ -62,7 +62,7 @@ public sealed class ExperimentEndpointTests
             Request() with { AgentName = "kod-agenti" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        (await response.Content.ReadAsStringAsync()).ShouldContain("surum gecmisi");
+        (await response.Content.ReadAsStringAsync()).ShouldContain("version history");
     }
 
     [Fact]
@@ -211,7 +211,7 @@ public sealed class ExperimentEndpointTests
         using var response = await host.Client.PutAsJsonAsync(Canary, CanaryPolicy());
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        (await response.Content.ReadAsStringAsync()).ShouldContain("iki kollu");
+        (await response.Content.ReadAsStringAsync()).ShouldContain("two-variant");
     }
 
     [Fact]

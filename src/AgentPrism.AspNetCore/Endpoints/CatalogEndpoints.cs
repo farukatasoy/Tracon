@@ -102,8 +102,8 @@ internal static class CatalogEndpoints
                 if (effectiveFrom >= effectiveTo)
                 {
                     return TypedResults.Problem(
-                        title: "Aralik gecersiz",
-                        detail: "'from' 'to''dan once olmalidir.",
+                        title: "Range invalid",
+                        detail: "'from' must be before 'to'.",
                         statusCode: StatusCodes.Status400BadRequest);
                 }
 
@@ -126,7 +126,7 @@ internal static class CatalogEndpoints
                 catch (AgentPrismException ex)
                 {
                     return TypedResults.Problem(
-                        title: "Kova sayisi asildi",
+                        title: "Bucket count exceeded",
                         detail: ex.Message,
                         statusCode: StatusCodes.Status400BadRequest);
                 }

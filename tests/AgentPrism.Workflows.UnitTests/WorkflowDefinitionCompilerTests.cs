@@ -131,7 +131,7 @@ public sealed class WorkflowDefinitionCompilerTests
             }));
 
         exception.Message.ShouldContain("'olmayan-agent'", Case.Sensitive);
-        exception.Message.ShouldContain("katalogda yok", Case.Sensitive);
+        exception.Message.ShouldContain("no such agent exists in the catalog", Case.Sensitive);
     }
 
     [Fact]
@@ -147,6 +147,6 @@ public sealed class WorkflowDefinitionCompilerTests
                 AgentNames = [],
             }));
 
-        exception.Message.ShouldContain("hicbir agent icermiyor", Case.Sensitive);
+        exception.Message.ShouldContain("has no agents", Case.Sensitive);
     }
 }

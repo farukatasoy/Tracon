@@ -135,12 +135,12 @@ internal static class WebhookEndpoints
 
         if (!verdict.IsAllowed)
         {
-            return Invalid(verdict.Reason ?? "Adres gecersiz.");
+            return Invalid(verdict.Reason ?? "Address invalid.");
         }
 
         if (request.Events is not { Count: > 0 })
         {
-            return Invalid("En az bir olay ('events') secilmelidir.");
+            return Invalid("At least one event ('events') must be selected.");
         }
 
         var unknown = request.Events.Where(eventType => !WebhookEvents.IsKnown(eventType)).ToList();
@@ -148,8 +148,8 @@ internal static class WebhookEndpoints
         if (unknown.Count > 0)
         {
             return Invalid(
-                $"Taninmayan olay: {string.Join(", ", unknown)}. " +
-                $"Gecerli olaylar: {string.Join(", ", WebhookEvents.All)}.");
+                $"Unrecognized event: {string.Join(", ", unknown)}. " +
+                $"Valid events: {string.Join(", ", WebhookEvents.All)}.");
         }
 
         var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
@@ -243,7 +243,7 @@ internal static class WebhookEndpoints
 
         if (!subscription.Enabled)
         {
-            return Invalid($"'{name}' aboneligi devre disi; once etkinlestirin.");
+            return Invalid($"Subscription '{name}' is disabled; enable it first.");
         }
 
         // Sinama olayi, aboneligin olay listesinden BAGIMSIZ gonderilir: bir
@@ -257,8 +257,8 @@ internal static class WebhookEndpoints
             Name = name,
             Queued = queued,
             Message = queued
-                ? "Sinama olayi kuyruga yazildi. Sonucu 'deliveries' ucunden izleyin."
-                : "Olay yayini kapali (AgentPrism:Webhooks:Enabled=false).",
+                ? "Test event was queued. Track the result via the 'deliveries' endpoint."
+                : "Event publishing is disabled (AgentPrism:Webhooks:Enabled=false).",
         });
     }
 
@@ -377,13 +377,13 @@ internal static class WebhookEndpoints
 
     private static ProblemHttpResult NotFound(string name)
         => TypedResults.Problem(
-            title: "Abonelik bulunamadi",
-            detail: $"'{name}' adinda bir webhook aboneligi yok.",
+            title: "Subscription not found",
+            detail: $"There is no webhook subscription named '{name}'.",
             statusCode: StatusCodes.Status404NotFound);
 
     private static ProblemHttpResult Invalid(string detail)
         => TypedResults.Problem(
-            title: "Gecersiz abonelik",
+            title: "Subscription invalid",
             detail: detail,
             statusCode: StatusCodes.Status400BadRequest);
 }

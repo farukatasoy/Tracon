@@ -83,10 +83,10 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
         if (_requireLoopback && !_allowRemoteAccess && !LoopbackGuard.IsLocal(httpContext.Connection.RemoteIpAddress))
         {
             return Results.Problem(
-                title: "Uzak erisim kapali",
-                detail: "AgentPrism uclari varsayilan olarak yalnizca ayni makineden erisilebilir. " +
-                        "Uzak erisim icin AllowRemoteAccess ayarini acin ve bir kimlik dogrulama " +
-                        "yontemi (AuthToken veya RequireAuthorization) yapilandirin.",
+                title: "Remote access disabled",
+                detail: "AgentPrism endpoints are reachable only from the same machine by default. " +
+                        "For remote access, enable the AllowRemoteAccess setting and configure an " +
+                        "authentication method (AuthToken or RequireAuthorization).",
                 statusCode: StatusCodes.Status403Forbidden);
         }
 
@@ -232,9 +232,9 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
         }
 
         return TypedResults.Problem(
-            title: "Kiraci reddedildi",
-            detail: "Cozulen kiraci izin verilenler listesinde degil. Bu istek varsayilan " +
-                    "kiracinin verisine SESSIZCE dusurulmez; reddedilir.",
+            title: "Tenant rejected",
+            detail: "The resolved tenant is not on the allow list. This request is NOT silently " +
+                    "downgraded to the default tenant's data; it is rejected.",
             statusCode: StatusCodes.Status403Forbidden);
     }
 
@@ -243,8 +243,8 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
         httpContext.Response.Headers.WWWAuthenticate = "Bearer";
 
         return TypedResults.Problem(
-            title: "Kimlik dogrulanamadi",
-            detail: "Gecerli bir 'Authorization: Bearer <token>' basligi gerekiyor.",
+            title: "Authentication failed",
+            detail: "A valid 'Authorization: Bearer <token>' header is required.",
             statusCode: StatusCodes.Status401Unauthorized);
     }
 
@@ -273,9 +273,9 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
         }
 
         return TypedResults.Problem(
-            title: "Kiraci uyusmuyor",
-            detail: $"'{tenancyOptions.HeaderName}' basligi API anahtarinin baglandigi kiraciyi " +
-                    "EZEMEZ. Basligi kaldirin veya anahtarin kiracisiyla eslesen bir deger verin.",
+            title: "Tenant mismatch",
+            detail: $"The '{tenancyOptions.HeaderName}' header CANNOT override the tenant the API " +
+                    "key is bound to. Remove the header or give a value matching the key's tenant.",
             statusCode: StatusCodes.Status403Forbidden);
     }
 
@@ -292,8 +292,8 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
         }
 
         return TypedResults.Problem(
-            title: "Kapsam yetersiz",
-            detail: $"Bu uc '{requirement.Scope}' kapsamini gerektiriyor; anahtar bu kapsami tasimiyor.",
+            title: "Insufficient scope",
+            detail: $"This endpoint requires the '{requirement.Scope}' scope; the key does not carry it.",
             statusCode: StatusCodes.Status403Forbidden);
     }
 

@@ -99,7 +99,7 @@ public sealed partial class KnowledgeIngestionService
         if (string.IsNullOrEmpty(text) == (chunks is null or []))
         {
             throw new ArgumentException(
-                $"Ya {nameof(text)} ya da {nameof(chunks)} verilmelidir; ikisi birden ya da hicbiri olamaz.",
+                $"Either {nameof(text)} or {nameof(chunks)} must be given; not both, and not neither.",
                 nameof(text));
         }
 
@@ -112,8 +112,8 @@ public sealed partial class KnowledgeIngestionService
             if (chunk.Embedding.Length != _store!.Dimensions)
             {
                 throw new ArgumentException(
-                    $"Parca {chunk.Index} gomu uzunlugu ({chunk.Embedding.Length}) depo boyutuyla " +
-                    $"({_store.Dimensions}) eslesmiyor.",
+                    $"Chunk {chunk.Index} embedding length ({chunk.Embedding.Length}) does not match " +
+                    $"the store dimension ({_store.Dimensions}).",
                     nameof(chunks));
             }
         }
@@ -255,9 +255,9 @@ public sealed partial class KnowledgeIngestionService
         if (!IsSupported)
         {
             throw new AgentPrismException(
-                "Bilgi tabani desteklenmiyor: bir IVectorSearchStore (bugun yalniz PostgreSQL, " +
-                "UsePostgreSql()) VE bir IEmbeddingGenerator<string, Embedding<float>> birlikte " +
-                "kayitli olmalidir.");
+                "Knowledge base not supported: an IVectorSearchStore (today only PostgreSQL, " +
+                "UsePostgreSql()) AND an IEmbeddingGenerator<string, Embedding<float>> must both " +
+                "be registered.");
         }
     }
 
@@ -272,8 +272,8 @@ public sealed partial class KnowledgeIngestionService
         if (!ValidCollectionName().IsMatch(collection))
         {
             throw new ArgumentException(
-                $"'{collection}' gecerli bir koleksiyon adi degil. Yalniz harf, rakam, alt cizgi ve " +
-                "tire icerebilir.",
+                $"'{collection}' is not a valid collection name. It may only contain letters, digits, " +
+                "underscores, and hyphens.",
                 nameof(collection));
         }
     }

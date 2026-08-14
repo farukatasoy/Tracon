@@ -68,9 +68,9 @@ internal static class VoiceConversationEndpoint
             await WriteProblemAsync(
                 context,
                 StatusCodes.Status501NotImplemented,
-                "Ses saglayicisi yapilandirilmadi",
-                "Konusma hem cozum hem sentez ister: bir ISpeechTranscriber ve bir " +
-                "ISpeechSynthesizer kaydedin (ornegin `UseVoice(...)`).").ConfigureAwait(false);
+                "Voice provider not configured",
+                "Conversation requires both transcription and synthesis: register an " +
+                "ISpeechTranscriber and an ISpeechSynthesizer (e.g. `UseVoice(...)`).").ConfigureAwait(false);
 
             return;
         }
@@ -80,9 +80,9 @@ internal static class VoiceConversationEndpoint
             await WriteProblemAsync(
                 context,
                 StatusCodes.Status400BadRequest,
-                "WebSocket yukseltmesi gerekiyor",
-                "Bu uc yalnizca WebSocket ile kullanilir. Istek bir yukseltme istegi degilse " +
-                "veya uygulamada WebSocket ara yazilimi yoksa bu hata doner.").ConfigureAwait(false);
+                "WebSocket upgrade required",
+                "This endpoint can only be used over WebSocket. This error is returned if the " +
+                "request is not an upgrade request, or the application has no WebSocket middleware.").ConfigureAwait(false);
 
             return;
         }
@@ -93,8 +93,8 @@ internal static class VoiceConversationEndpoint
             await WriteProblemAsync(
                 context,
                 StatusCodes.Status401Unauthorized,
-                "Kimlik dogrulanamadi",
-                $"Token '{VoiceConversationProtocol.TokenSubProtocolPrefix}<token>' alt protokolu ile gonderilir.")
+                "Authentication failed",
+                $"Send the token via the '{VoiceConversationProtocol.TokenSubProtocolPrefix}<token>' subprotocol.")
                 .ConfigureAwait(false);
 
             return;
@@ -110,8 +110,8 @@ internal static class VoiceConversationEndpoint
             await WriteProblemAsync(
                 context,
                 StatusCodes.Status404NotFound,
-                "Oturum bulunamadi",
-                $"'{sessionId}' kimlikli bir oturum yok veya bu kiraciya ait degil.").ConfigureAwait(false);
+                "Session not found",
+                $"There is no session with id '{sessionId}', or it does not belong to this tenant.").ConfigureAwait(false);
 
             return;
         }
@@ -126,8 +126,8 @@ internal static class VoiceConversationEndpoint
             await WriteProblemAsync(
                 context,
                 StatusCodes.Status429TooManyRequests,
-                "Es zamanli konusma siniri doldu",
-                $"Bir kiraci en fazla {driver.Limiter.Limit} konusma baglantisi acabilir.").ConfigureAwait(false);
+                "Concurrent conversation limit reached",
+                $"A tenant may open at most {driver.Limiter.Limit} conversation connections.").ConfigureAwait(false);
 
             return;
         }
