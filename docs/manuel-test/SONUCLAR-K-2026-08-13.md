@@ -305,7 +305,7 @@ Kod-kökenli agent'ta deney kurma `400`; DB-kökenli agent ile iki varyantlı de
 
 ## K-7 — 17 §7–11 (MT-EVAL-062..063, 070..076, 080..090, 091..094, 100..101), 26 case
 
-**Sonuç:** 20 Geçti, 4 Kaldı (`HATA-K-007`, `HATA-K-008`), 2 doküman-uyarlaması (ön koşul sürüm numaraları/ortam farkı, kusur değil).
+**Sonuç:** 20 Geçti, 4 Kaldı (`HATA-K-007`, `HATA-K-008`), 2 doküman-uyarlaması (ön koşul sürüm numaraları/ortam farkı, kusur değil). Kapanışta `HATA-K-007` düzeltilip MT-EVAL-092 yeniden koşuldu — güncel: 21 Geçti, 3 Kaldı (yalnız `HATA-K-008`, MT-EVAL-100/101).
 
 ### 17 §7 — Atama Belirlenirliği (MT-EVAL-062..063), 2 case: 2 Geçti, 0 Kaldı
 
@@ -321,7 +321,7 @@ Binary/Stars puan geçerlilik denetimi (`400` sınır değerlerde); `DELETE` + a
 
 **HATA yok ama önemli doküman düzeltmesi — MT-EVAL-084 KALDI:** case'in kendi ön koşulu ("bu ortamda `author` `NULL` değildir") YANLIŞ — statik bearer token akışında `author` HER ZAMAN `NULL` kalıyor. `run_scores_target_author_idx` `(tenant_id, run_id, COALESCE(message_id,''), author)` üzerine kurulu, `author`'ın kendisi `COALESCE` edilmiyor → PostgreSQL'de `NULL≠NULL`, tekillik hiç devreye girmiyor. Aynı yazarın ikinci puanı ÜZERİNE YAZMIYOR, ayrı satır ekleniyor — MT-EVAL-085'in zaten "kasıtlı kabul edilmiş davranış" olarak belgelediğinin AYNISI, ama MT-EVAL-084'ün varsaydığı upsert bu ortamda hiç gerçekleşmiyor. Doküman düzeltmesi, kod kusuru değil.
 
-### 17 §10 — Karşılaştırma/Yeniden Oynatma/Girdi (MT-EVAL-091..094), 4 case: 3 Geçti, 1 Kaldı
+### 17 §10 — Karşılaştırma/Yeniden Oynatma/Girdi (MT-EVAL-091..094), 4 case: 3 Geçti, 1 Kaldı — kapanışta HATA-K-007/K-406 düzeltilip MT-EVAL-092 yeniden koşuldu, güncel: 4 Geçti, 0 Kaldı
 
 `GET .../compare/{a}/{b}` iki run'ı ham döndürüyor, tüm alanlar mevcut. `POST .../replay`: `support` kod-kökenli olduğu için yalnız `LiveTools` destekliyor (dokümante edilmemiş ama tutarlı ek kısıt); `agentVersion` belirtilmezse replay GÜNCEL sürümü kullanıyor (kod okumasıyla doğrulandı, `RunReplayRequest.AgentVersion` XML dokümanında zaten yazılı — kusur değil, ama bu koşumda ilk denemede `502` üretti çünkü ortamdaki "güncel sürüm" MT-EVAL-074'ün bozuk v5'iydi); `agentVersion` sabitlenerek hem `ReplayTools` hem `LiveTools` doğru çalıştığı doğrulandı.
 
@@ -333,7 +333,7 @@ Binary/Stars puan geçerlilik denetimi (`400` sınır değerlerde); `DELETE` + a
 
 ---
 
-### HATA-K-007 — Yüksek: `AgentPrism:RunRecording:RecordRunInput` config'ten HİÇBİR ZAMAN okunmuyor — çalıştırma girdisi kapatılamıyor
+### HATA-K-007 — Yüksek: `AgentPrism:RunRecording:RecordRunInput` config'ten HİÇBİR ZAMAN okunmuyor — çalıştırma girdisi kapatılamıyor — ✅ DÜZELTİLDİ (2026-08-14, K-406)
 
 - **Case:** MT-EVAL-092
 - **Önem:** Yüksek
@@ -350,6 +350,9 @@ Binary/Stars puan geçerlilik denetimi (`400` sınır değerlerde); `DELETE` + a
 
 **Kapsam**
 Kullanıcı girdisi hassas veri (PII/gizli bilgi) içerebilir; bu bayrak tam da bunu kapatmak için var. Operatör kapattığını sanırken girdi hâlâ kaydediliyor — sessiz bir gizlilik kontrolü kaçağı.
+
+**Düzeltme (2026-08-14, K-406)**
+`BindRunRecording`'e eksik `TryReadBool(recording, nameof(AgentPrismRunRecordingOptions.RecordRunInput), ...)` çağrısı eklendi — diğer beş alanla (`Enabled`, `RecordMessageDeltas`, `RecordToolPayloads`, `MaxPayloadLength`) birebir aynı desen. Ampirik doğrulama (gerçek sunucuya karşı, MT-EVAL-092'nin birebir tekrarı): `RecordRunInput=false` iken yeni bir çalıştırmanın `GET /input`'u artık `HTTP: 404`, `"Girdi kaydi yok"`. Regresyon: ayar kaldırılıp (varsayılan `true`) yeniden başlatılınca aynı uç `HTTP: 200` + tam girdi. Aynı kök neden bu Ortak Kuyruk koşumundan ÖNCE de iki AYRI serit sonucunda bağımsız olarak bulunmuştu (`HATA-S2-002`/`MT-API-064`, `HATA-S4-015`/`MT-UIRUN-032`) — her iki serit sonuç dosyasına da bu karara işaret eden kapanış notu eklendi. Dört doğrulama kapısı temiz.
 
 ---
 
