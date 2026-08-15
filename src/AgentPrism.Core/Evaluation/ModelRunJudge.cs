@@ -9,25 +9,24 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Yerlesik, model cagiran <see cref="IRunJudge"/> uygulamasi — Faz 49.
+/// Provides the built-in, model-backed <see cref="IRunJudge"/> implementation — phase 49.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 Yargicin KENDI cagrisi de bir <see cref="RunRecordingAgent"/> sarmalayicisi
-/// uzerinden yapilir ve <see cref="RunKind.Eval"/> ile kaydedilir — tipki
-/// <c>EvalJobHandler</c>'in her vakayi calistirdigi desen gibi. Boylece maliyet
-/// otomatik hesaplanir ve <c>runs</c> tablosuna dusen bu satir zaten
-/// <c>RunStatistics</c>'ten HARIC TUTULUR (bkz. <c>InMemoryRunStore.cs</c>,
-/// <c>SqlRunStore.cs</c>) — olculen agent'in maliyeti sismez, yeni bir sutun
-/// gerekmez. Kayit dekoratoru kotayi (<c>quotaEnforcer: null</c>) VE olay
-/// yayinini (<c>webhookPublisher: null</c>) bilerek DEVRE DISI kurar: yargic
-/// bir kontrol duzlemi maliyetidir, kullanicinin kotasini tuketmez ve kendi
-/// <c>run.completed</c> gurultusunu yaymaz.
+/// 🚨 The judge's own call goes through a <see cref="RunRecordingAgent"/> wrapper
+/// and is recorded as <see cref="RunKind.Eval"/>, like every case run from
+/// <c>EvalJobHandler</c>. This computes cost automatically and excludes the row
+/// from <c>RunStatistics</c>, so the evaluated agent's cost does not grow and no
+/// new column is needed. The recording decorator deliberately disables quota
+/// enforcement with <c>quotaEnforcer: null</c> and event publishing with
+/// <c>webhookPublisher: null</c>. A judge is a control-plane cost, does not use
+/// the user's quota, and does not publish its own <c>run.completed</c> noise.
 /// </para>
 /// <para>
-/// Yapilandirilmis cikti (Faz 38) <c>ChatResponseFormat.ForJsonSchema(JsonElement, ...)</c>
-/// asiri yuklemesiyle istenir — elle yazilmis sema, yansimaya dayanmaz ve
-/// <c>AgentPrism.Core</c>'un AOT duruşunu bozmaz.
+/// Structured output (phase 38) uses the
+/// <c>ChatResponseFormat.ForJsonSchema(JsonElement, ...)</c> overload. Its
+/// manually written schema does not use reflection and preserves the AOT stance
+/// of <c>AgentPrism.Core</c>.
 /// </para>
 /// </remarks>
 public sealed class ModelRunJudge(
@@ -69,7 +68,7 @@ public sealed class ModelRunJudge(
             ResponseFormat = ChatResponseFormat.ForJsonSchema(
                 JudgmentSchema,
                 schemaName: "run_judgment",
-                schemaDescription: "Bir calistirmanin kalite puani."),
+                schemaDescription: "The quality score for a run."),
         };
 
         var judgeAgentId = $"judge:{Name}";
@@ -86,8 +85,8 @@ public sealed class ModelRunJudge(
             loggerFactory,
             services);
 
-        // Yargicin KENDI calistirmasini kayit altina alan sarmalayici. Kota ve
-        // webhook BILEREK gecirilmez (yukaridaki sinif belgesi).
+        // This wrapper records the judge's own run. Quota enforcement and webhook
+        // publishing are deliberately not supplied; see the class documentation.
         var recordingAgent = new RunRecordingAgent(
             innerAgent: innerAgent,
             runStore: runStore,
@@ -126,12 +125,11 @@ public sealed class ModelRunJudge(
             }
             : null;
 
-        // 🚨 Bu, yargicin KENDI maliyetidir ve `agentprism.judge.cost` etiketiyle
-        // AYRICA yayilir. `RunRecordingAgent.CompleteAsync` zaten ayni maliyeti
-        // genel `agentprism.run.cost` sayacina yazdi (judge'in KENDI `runs` satiri
-        // icin) — burada ikinci kez hesaplamak (ayni pricingResolver, ucuz bir
-        // bellek ici arama) puanlanan agent'in ozetini SISMEZ, yalnizca yargica
-        // ozgu bir gosterge ekler.
+        // 🚨 This is the judge's own cost and is also emitted with the
+        // `agentprism.judge.cost` tag. RunRecordingAgent.CompleteAsync has already
+        // written it to the general `agentprism.run.cost` counter for the judge's
+        // own row. Resolving it again through the same inexpensive in-memory lookup
+        // does not inflate the evaluated agent's summary; it adds a judge-specific metric.
         var judgeCost = usage is not null ? pricingResolver?.Resolve(options.Model.Provider, options.Model.Model, usage) : null;
 
         if (judgeCost is { Source: not PricingSource.Unknown } cost)
@@ -154,12 +152,12 @@ public sealed class ModelRunJudge(
         var builder = new StringBuilder();
 
         builder.AppendLine(
-            "Bir yapay zeka asistaninin ürettiği yanıtın kalitesini degerlendiren bir yargicsin. " +
-            "Asagida bir calistirmanin girdisi ve ciktisi verilecek.");
+            "You are a judge who evaluates the quality of an AI assistant response. " +
+            "The input and output of a run are provided below.");
 
         if (options.Criteria.Count > 0)
         {
-            builder.AppendLine("Degerlendirme olcutleri:");
+            builder.AppendLine("Evaluation criteria:");
 
             foreach (var criterion in options.Criteria)
             {
@@ -173,8 +171,8 @@ public sealed class ModelRunJudge(
         }
 
         builder.AppendLine(
-            "Yalnizca verilen JSON semasina uyan bir nesne dondur: 'score' 0-100 arasi bir " +
-            "tamsayidir (karar veremiyorsan null birak), 'reason' kisa bir gerekcedir.");
+            "Return only an object that matches the supplied JSON schema. 'score' is an integer from 0 to 100 " +
+            "(use null if you cannot decide), and 'reason' is a short rationale.");
 
         return builder.ToString();
     }
@@ -183,7 +181,7 @@ public sealed class ModelRunJudge(
     {
         var builder = new StringBuilder();
 
-        builder.AppendLine("## Girdi");
+        builder.AppendLine("## Input");
 
         foreach (var message in context.Input)
         {
@@ -191,31 +189,32 @@ public sealed class ModelRunJudge(
         }
 
         builder.AppendLine();
-        builder.AppendLine("## Cikti");
+        builder.AppendLine("## Output");
         builder.AppendLine(context.Output);
 
         if (context.ToolNames.Count > 0)
         {
             builder.AppendLine();
-            builder.AppendLine(CultureInfo.InvariantCulture, $"## Cagrilan tool'lar: {string.Join(", ", context.ToolNames)}");
+            builder.AppendLine(CultureInfo.InvariantCulture, $"## Called tools: {string.Join(", ", context.ToolNames)}");
         }
 
         return builder.ToString();
     }
 
     /// <summary>
-    /// Yargicin JSON yanitini ayristirir.
+    /// Parses the judge JSON response.
     /// </summary>
     /// <remarks>
-    /// Ayristirilamayan bir yanit istisna FIRLATMAZ: <see langword="null"/> puan
-    /// dondurur ve <see cref="OnlineEvalJobHandler"/> hicbir puan yazmaz — sessiz
-    /// bir <c>0</c> yazilmaz, olcum yoklugu ile sifir olcum karistirilmaz.
+    /// A response that cannot be parsed does not throw. It returns a
+    /// <see langword="null"/> score, and <see cref="OnlineEvalJobHandler"/> writes
+    /// no score. It does not silently write <c>0</c>, which would confuse no
+    /// measurement with a zero measurement.
     /// </remarks>
     private static (int? Score, string? Reason) ParseJudgment(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
         {
-            return (null, "Yargic bos yanit dondurdu.");
+            return (null, "The judge returned an empty response.");
         }
 
         try
@@ -242,7 +241,7 @@ public sealed class ModelRunJudge(
         }
         catch (JsonException exception)
         {
-            return (null, $"Yargic yaniti ayristirilamadi: {exception.Message}");
+            return (null, $"The judge response could not be parsed: {exception.Message}");
         }
     }
 
