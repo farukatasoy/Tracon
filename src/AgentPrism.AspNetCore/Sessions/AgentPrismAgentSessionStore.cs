@@ -4,36 +4,37 @@ using Microsoft.Agents.AI.Hosting;
 namespace AgentPrism;
 
 /// <summary>
-/// Microsoft Agent Framework'un <see cref="AgentSessionStore"/> soyutlamasini
-/// AgentPrism'in <see cref="AgentSessionManager"/> sinifina baglar.
+/// Connects the Microsoft Agent Framework's <see cref="AgentSessionStore"/>
+/// abstraction to AgentPrism's <see cref="AgentSessionManager"/> class.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Kendi kalicilik kodunu <strong>yazmaz</strong>; yalnizca delege eder. Boylece
-/// oturumlar hangi yoldan gelirse gelsin (yonetim API'si, OpenAI uyumlu uclar veya
-/// MAF barindirma yapilari) ayni depoya, ayni kimlik damgasiyla ve ayni kiraci
-/// yalitimi ile yazilir.
+/// <strong>Does not write</strong> its own persistence code; it only delegates.
+/// This way, sessions are written to the same store, with the same identity
+/// stamp, and with the same tenant isolation, no matter which path they come
+/// through (the management API, OpenAI-compatible endpoints, or MAF hosting
+/// constructs).
 /// </para>
 /// <para>
-/// Bu sinif <c>AgentPrism.AspNetCore</c> icindedir cunku <see cref="AgentSessionStore"/>
-/// on surum <c>Microsoft.Agents.AI.Hosting</c> paketindedir ve K-008 geregi
-/// <c>AgentPrism.Core</c> o pakete baglanamaz.
-/// Gerekce: <c>docs/KARARLAR.md</c>, kararlar K-008 ve K-026.
+/// This class lives in <c>AgentPrism.AspNetCore</c> because
+/// <see cref="AgentSessionStore"/> is in the prerelease <c>Microsoft.Agents.AI.Hosting</c>
+/// package, and per K-008 <c>AgentPrism.Core</c> cannot depend on that package.
+/// Rationale: <c>docs/KARARLAR.md</c>, decisions K-008 and K-026.
 /// </para>
 /// <para>
-/// Cok kiracili kurulumlarda bu ornek MAF'in
-/// <c>IsolationKeyScopedAgentSessionStore</c> sinifi ile sarmalanabilir; bunun icin
-/// tuketici kendi <see cref="AgentSessionStore"/> kaydini <c>MapAgentPrism</c>
-/// cagrisindan once yapar.
+/// In multi-tenant setups, this instance can be wrapped with MAF's
+/// <c>IsolationKeyScopedAgentSessionStore</c> class; to do so, the consumer
+/// registers its own <see cref="AgentSessionStore"/> before calling
+/// <c>MapAgentPrism</c>.
 /// </para>
 /// </remarks>
 public sealed class AgentPrismAgentSessionStore : AgentSessionStore
 {
     private readonly AgentSessionManager _sessions;
 
-    /// <summary>Yeni bir kopru olusturur.</summary>
-    /// <param name="sessions">Delege edilecek oturum yoneticisi.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="sessions"/> <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new bridge.</summary>
+    /// <param name="sessions">The session manager to delegate to.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="sessions"/> is <see langword="null"/>.</exception>
     public AgentPrismAgentSessionStore(AgentSessionManager sessions)
     {
         ArgumentNullException.ThrowIfNull(sessions);
@@ -42,8 +43,8 @@ public sealed class AgentPrismAgentSessionStore : AgentSessionStore
 
     /// <inheritdoc />
     /// <remarks>
-    /// Kayit yoksa yeni bir oturum acilir. Donen oturum her iki durumda da
-    /// <paramref name="sessionStoreId"/> ile damgalanmistir.
+    /// If no record exists, a new session is opened. The returned session is
+    /// stamped with <paramref name="sessionStoreId"/> in both cases.
     /// </remarks>
     public override ValueTask<AgentSession> GetSessionAsync(
         AIAgent agent,
@@ -58,9 +59,10 @@ public sealed class AgentPrismAgentSessionStore : AgentSessionStore
         AgentSession session,
         CancellationToken cancellationToken = default)
     {
-        // Oturum bu kopru disinda acilmis olabilir (MAF barindirma yapilari kendi
-        // oturumlarini uretir). Kaydetmeden once kimligi damgalamak, kaydin dogru
-        // anahtarla yazilmasini ve calistirma kayitlarinin oturumu bulabilmesini saglar.
+        // The session may have been opened outside this bridge (MAF hosting
+        // constructs produce their own sessions). Stamping the identity before
+        // saving ensures the record is written with the correct key and that run
+        // records can find the session.
         AgentSessionIdentity.SetId(session, sessionStoreId);
 
         await _sessions.SaveSessionAsync(agent, session, cancellationToken).ConfigureAwait(false);

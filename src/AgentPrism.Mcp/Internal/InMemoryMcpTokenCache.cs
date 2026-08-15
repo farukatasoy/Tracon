@@ -3,14 +3,15 @@ using ModelContextProtocol.Authentication;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir MCP sunucusunun OAuth token'larini surec bellegi icinde tutan onbellek.
+/// A cache that keeps an MCP server's OAuth tokens in process memory.
 /// </summary>
 /// <remarks>
-/// Token'lar hicbir zaman veritabanina yazilmaz (docs/22-MCP-DERINLESMESI.md,
-/// bolum 22.3, karar #3). Bu ornek, ayni <c>(kiraci, sunucu)</c> ciftinin hem
-/// etkilesimli yetkilendirme akisi (<see cref="McpOAuthAuthorizationCoordinator"/>)
-/// hem arka plan yeniden baglanmasi (<see cref="McpToolCatalog"/>) tarafindan
-/// paylasilir; boylece bir kez alinan token, surec calisirken tekrar kullanilir.
+/// Tokens are never written to the database (docs/22-MCP-DERINLESMESI.md,
+/// section 22.3, decision #3). This instance is shared by both the
+/// interactive authorization flow (<see cref="McpOAuthAuthorizationCoordinator"/>)
+/// and the background reconnection (<see cref="McpToolCatalog"/>) for the
+/// same <c>(tenant, server)</c> pair; a token obtained once is thus reused
+/// for the lifetime of the process.
 /// </remarks>
 internal sealed class InMemoryMcpTokenCache : ITokenCache, IDisposable
 {

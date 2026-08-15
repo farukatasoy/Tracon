@@ -6,16 +6,16 @@ using Microsoft.AspNetCore.Http.Features;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir <see cref="HttpResponse"/> uzerine Server-Sent Events cerceveleri yazar.
+/// Writes Server-Sent Events frames onto an <see cref="HttpResponse"/>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Yanit arabellegi kapatilir ve her cerceveden sonra akis bosaltilir; aksi halde
-/// olaylar istemciye ancak yanit kapandiginda ulasirdi.
+/// Response buffering is disabled and the stream is flushed after every frame;
+/// otherwise events would reach the client only once the response closes.
 /// </para>
 /// <para>
-/// <c>X-Accel-Buffering: no</c> basligi nginx gibi ters vekillerin akisi
-/// arabelleklemesini engeller.
+/// The <c>X-Accel-Buffering: no</c> header stops reverse proxies like nginx from
+/// buffering the stream.
 /// </para>
 /// </remarks>
 internal sealed class SseWriter
@@ -24,10 +24,10 @@ internal sealed class SseWriter
 
     private SseWriter(HttpResponse response) => _response = response;
 
-    /// <summary>Yanit basliklarini kurar ve yazmaya hazir bir yazici dondurur.</summary>
-    /// <param name="response">Yazilacak yanit.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kullanima hazir yazici.</returns>
+    /// <summary>Sets up the response headers and returns a writer ready for use.</summary>
+    /// <param name="response">The response to write to.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The writer, ready for use.</returns>
     public static async Task<SseWriter> StartAsync(HttpResponse response, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(response);
@@ -38,7 +38,7 @@ internal sealed class SseWriter
         response.Headers.Pragma = "no-cache";
         response.Headers.ContentEncoding = "identity";
 
-        // Ters vekil arabelleklemesini kapatir (nginx ve turevleri).
+        // Disables reverse proxy buffering (nginx and derivatives).
         response.Headers["X-Accel-Buffering"] = "no";
 
         response.HttpContext.Features.Get<IHttpResponseBodyFeature>()?.DisableBuffering();
@@ -48,15 +48,15 @@ internal sealed class SseWriter
         return new SseWriter(response);
     }
 
-    /// <summary>Bir olay cercevesi yazar ve akisi bosaltir.</summary>
+    /// <summary>Writes an event frame and flushes the stream.</summary>
     /// <param name="id">
-    /// Olay kimligi. Istemci baglanti koptugunda bunu <c>Last-Event-ID</c> basliginda
-    /// geri gonderir. Bos birakilirsa <c>id</c> alani yazilmaz.
+    /// The event id. The client sends this back in the <c>Last-Event-ID</c> header
+    /// when the connection drops. If left empty, the <c>id</c> field is not written.
     /// </param>
-    /// <param name="eventName">Olay adi. Bos birakilirsa <c>event</c> alani yazilmaz.</param>
-    /// <param name="data">Veri govdesi. Satir sonlari SSE kuralina gore bolunur.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <param name="eventName">The event name. If left empty, the <c>event</c> field is not written.</param>
+    /// <param name="data">The data body. Line breaks are split per the SSE rule.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
     public async Task WriteEventAsync(
         long? id,
         string? eventName,
@@ -75,8 +75,8 @@ internal sealed class SseWriter
             frame.Append("event: ").Append(eventName).Append('\n');
         }
 
-        // SSE'de her veri satiri kendi "data: " onekini tasir. Coklu satirli bir
-        // yuku tek satir gibi yazmak istemcide bozuk cozumlemeye yol acar.
+        // In SSE, every data line carries its own "data: " prefix. Writing a
+        // multi-line payload as a single line causes broken parsing on the client.
         foreach (var line in data.AsSpan().EnumerateLines())
         {
             frame.Append("data: ").Append(line).Append('\n');
@@ -87,14 +87,14 @@ internal sealed class SseWriter
         await WriteRawAsync(frame.ToString(), cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Hazir bicimlenmis bir cerceveyi oldugu gibi yazar.</summary>
+    /// <summary>Writes an already-formatted frame as-is.</summary>
     /// <param name="frame">
-    /// Tam SSE cercevesi. Microsoft Agent Framework'un
-    /// <c>OpenAIResponses.WriteResponseStreamAsync</c> ciktisi zaten bu bicimdedir;
-    /// yeniden cerceveleme bozulmaya yol acardi.
+    /// The complete SSE frame. The Microsoft Agent Framework's
+    /// <c>OpenAIResponses.WriteResponseStreamAsync</c> output is already in this
+    /// format; reframing it would cause corruption.
     /// </param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
     public async Task WriteRawAsync(string frame, CancellationToken cancellationToken)
     {
         await _response.WriteAsync(frame, cancellationToken).ConfigureAwait(false);
@@ -102,25 +102,27 @@ internal sealed class SseWriter
     }
 
     /// <summary>
-    /// Yorum satiri yazar. Istemci yok sayar; baglantiyi ve ara vekilleri canli tutar.
+    /// Writes a comment line. The client ignores it; it keeps the connection and
+    /// intermediate proxies alive.
     /// </summary>
-    /// <param name="text">Yorum metni.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <param name="text">The comment text.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
     public Task WriteKeepAliveAsync(string text, CancellationToken cancellationToken)
         => WriteRawAsync($": {text}\n\n", cancellationToken);
 
     /// <summary>
-    /// <c>Last-Event-ID</c> basligini okur ve bir sonraki sira numarasini dondurur.
+    /// Reads the <c>Last-Event-ID</c> header and returns the next sequence number.
     /// </summary>
-    /// <param name="request">Gelen istek.</param>
+    /// <param name="request">The incoming request.</param>
     /// <returns>
-    /// Okumaya baslanacak sira numarasi. Baslik yoksa veya cozumlenemezse
-    /// bastan (<c>0</c>) baslanir.
+    /// The sequence number to resume reading from. If the header is absent or
+    /// cannot be parsed, reading starts from the beginning (<c>0</c>).
     /// </returns>
     /// <remarks>
-    /// Baslik istemcinin <em>aldigi son</em> olayin kimligidir; okuma bir sonraki
-    /// olaydan devam etmelidir, aksi halde son olay tekrar gonderilir.
+    /// The header is the id of the <em>last</em> event the client received;
+    /// reading must resume from the next event, otherwise the last event is sent
+    /// again.
     /// </remarks>
     public static long ReadResumeSequence(HttpRequest request)
     {

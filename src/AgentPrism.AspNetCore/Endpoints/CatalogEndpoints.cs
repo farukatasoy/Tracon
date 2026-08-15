@@ -8,13 +8,13 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Salt okunur defter uclari: tool'lar, model saglayicilari ve calistirma ozeti.
+/// Read-only catalog endpoints: tools, model providers, and run summaries.
 /// </summary>
 internal static class CatalogEndpoints
 {
-    /// <summary>Defter uclarini baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Maps the catalog endpoints.</summary>
+    /// <param name="builder">The endpoint group.</param>
+    /// <param name="roles">The resolved role policies.</param>
     public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/tools", Ok<IReadOnlyList<ToolDescriptor>> (IToolRegistry tools)
@@ -23,10 +23,10 @@ internal static class CatalogEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismListTools")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Kayitli tool'lari ve JSON semalarini listeler.")
+            .WithSummary("Lists registered tools and their JSON schemas.")
             .WithDescription(
-                "Tool'lar yalnizca kodda tanimlanir. Bu uc bir yazma yolu sunmaz; " +
-                "arayuz agent tanimlarken bu listeden secim yaptirir.");
+                "Tools are defined only in code. This endpoint does not offer a write path; " +
+                "the UI lets users pick from this list when defining an agent.");
 
         builder.MapGet("/api/models", Ok<IReadOnlyList<ModelProviderDescriptor>> (
                 IModelProviderRegistry models,
@@ -48,13 +48,13 @@ internal static class CatalogEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismListModels")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Kayitli model saglayicilarini ve modellerini listeler.")
+            .WithSummary("Lists registered model providers and their models.")
             .WithDescription(
-                "Model katalogu yapilandirmadan gelir; AgentPrism yerlesik model listesi tasimaz. " +
-                "Bos liste bir hata degildir. Katalog bir dogrulama listesi de degildir: " +
-                "burada olmayan bir model adi da kullanilabilir. `status` alani ONBELLEKTEN " +
-                "gelir ve bu uc saglayiciya ag cagrisi yapmaz; guncel bir denetim icin " +
-                "/api/models/health kullanin.");
+                "The model catalog comes from configuration; AgentPrism does not ship a built-in model list. " +
+                "An empty list is not an error. The catalog is also not a validation list: " +
+                "a model name that is not listed here can still be used. The `status` field comes " +
+                "FROM THE CACHE, and this endpoint makes no network call to the provider; use " +
+                "/api/models/health for an up-to-date check.");
 
         builder.MapGet("/api/stats", async Task<Ok<RunStatistics>> (
                 IRunStore runs,
@@ -78,12 +78,12 @@ internal static class CatalogEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismStats")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Calistirma sayilarini, token toplamlarini ve hata oranini dondurur.")
+            .WithSummary("Returns run counts, token totals, and the error rate.")
             .WithDescription(
-                "Ozet deponun kendisinde hesaplanir. Maliyet (Faz 20) yalniz fiyat " +
-                "yapilandirildiginda (model kataloğu veya AgentPrism:Pricing) doludur; " +
-                "fiyati tanimsiz modellerin sayisi RunsWithUnknownPricing alaninda " +
-                "ayrica sayilir — sifir yazilmaz.");
+                "The summary is computed in the store itself. Cost (Phase 20) is populated " +
+                "only when pricing is configured (model catalog or AgentPrism:Pricing); " +
+                "the count of models with undefined pricing is counted separately in the " +
+                "RunsWithUnknownPricing field — it is not written as zero.");
 
         builder.MapGet("/api/stats/timeseries", async Task<Results<Ok<IReadOnlyList<TimeSeriesPoint>>, ProblemHttpResult>> (
                 IRunStore runs,
@@ -135,12 +135,12 @@ internal static class CatalogEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismStatsTimeSeries")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Kova basina calistirma, hata, token ve maliyet zaman serisi.")
+            .WithSummary("Per-bucket time series of runs, errors, tokens, and cost.")
             .WithDescription(
-                "Bos kovalar da doner. Varsayilan aralik son 24 saat, varsayilan kova " +
-                "saattir. En fazla 500 kova; asilirsa 400. Bu uc, /api/stats'in aksine " +
-                "Eval/Workflow calistirmalarini varsayilan olarak haric TUTMAZ " +
-                "(bkz. docs/KARARLAR.md K-152); ?kind= ile filtrelenebilir.");
+                "Empty buckets are returned too. The default range is the last 24 hours, " +
+                "the default bucket is an hour. At most 500 buckets; exceeding that returns 400. " +
+                "Unlike /api/stats, this endpoint does NOT exclude Eval/Workflow runs " +
+                "by default (see docs/KARARLAR.md K-152); it can be filtered with ?kind=.");
 
         builder.MapGet("/api/stats/errors", async Task<Ok<IReadOnlyList<RunErrorStatistics>>> (
                 IRunStore runs,
@@ -149,10 +149,9 @@ internal static class CatalogEndpoints
                 [FromServices] TimeProvider? timeProvider,
                 CancellationToken cancellationToken) =>
             {
-                // En fazla 30 gun: daha genis bir aralik kume tablosunu
-                // tarayip tum satirlari sinif+parmak izine gore siralamak
-                // zorunda kalir; /api/stats/timeseries'in kova siniriyla ayni
-                // gerekce.
+                // At most 30 days: a wider range would have to scan the entire
+                // bucket table and group all rows by class+fingerprint; the same
+                // rationale as the bucket limit in /api/stats/timeseries.
                 var effectiveHours = Math.Clamp(hours ?? 24, 0.01, 24 * 30);
                 var startedAfter = (timeProvider ?? TimeProvider.System).GetUtcNow().AddHours(-effectiveHours);
 
@@ -170,13 +169,13 @@ internal static class CatalogEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismStatsErrors")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Hata sinifina gore kirilimi ve her sinifin en sik uc kumesini dondurur.")
+            .WithSummary("Returns the breakdown by error class and each class's top three clusters.")
             .WithDescription(
-                "/api/stats'in dar bir dilimidir: yalnizca ByErrorClass alanini " +
-                "dondurur (o alan /api/stats yanitinda da vardir). Varsayilan aralik " +
-                "son 24 saattir, ?hours= ile degistirilir. Hata sinifi eklenmeden " +
-                "once yazilmis satirlar Unknown kovasinda gorunur; Unknown orani " +
-                "yuksekse taksonomi eksik demektir.");
+                "This is a narrow slice of /api/stats: it returns only the ByErrorClass field " +
+                "(that field is also present in the /api/stats response). The default range " +
+                "is the last 24 hours, changed with ?hours=. Rows written before error " +
+                "classification existed appear in the Unknown bucket; a high Unknown share " +
+                "means the taxonomy is incomplete.");
 
         builder.MapPost("/api/stats/recalculate-costs", async Task<Ok<RunCostRecalculationResult>> (
                 RunCostRecalculationService recalculation,
@@ -208,12 +207,12 @@ internal static class CatalogEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismRecalculateCosts")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Tum calistirmalarin maliyetini guncel fiyat kaynagina gore yeniden hesaplar.")
+            .WithSummary("Recalculates the cost of all runs based on the current pricing source.")
             .WithDescription(
-                "Bakim ucudur. Fiyat sonradan tanimlandiginda gecmis calistirmalari " +
-                "tazelemek icin kullanilir. Saglayici gecmis satirlarda tutulmaz; ayni " +
-                "model adi birden fazla saglayicida tanimliysa alfabetik ilk eslesen " +
-                "kazanir (bkz. docs/KARARLAR.md K-154). Admin ister; cagri denetim " +
-                "izine yazilir.");
+                "This is a maintenance endpoint. It is used to refresh past runs when " +
+                "pricing is defined later. The provider is not kept on historical rows; " +
+                "if the same model name is defined for more than one provider, the first " +
+                "alphabetical match wins (see docs/KARARLAR.md K-154). Requires Admin; " +
+                "the call is written to the audit trail.");
     }
 }

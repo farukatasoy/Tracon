@@ -16,8 +16,8 @@
           "AgentPrism",
           "Meta"
         ],
-        "summary": "AgentPrism surumunu, kimlik yontemini, aktif depolari ve rol yetkilerini bildirir.",
-        "description": "Kimlik dogrulamasi gerektirmez. Sir, kiraci verisi veya agent bilgisi icermez.",
+        "summary": "Reports the AgentPrism version, authentication method, active stores, and role authorizations.",
+        "description": "Requires no authentication. Contains no secret, tenant data, or agent information.",
         "operationId": "AgentPrismMeta",
         "responses": {
           "200": {
@@ -39,7 +39,7 @@
           "AgentPrism",
           "Agents"
         ],
-        "summary": "Kodda ve veritabaninda tanimli tum agent\u0027lari listeler.",
+        "summary": "Lists all agents defined in code and in the database.",
         "operationId": "AgentPrismListAgents",
         "responses": {
           "200": {
@@ -62,7 +62,7 @@
           "AgentPrism",
           "Agents"
         ],
-        "summary": "Yeni bir agent tanimi olusturur.",
+        "summary": "Creates a new agent definition.",
         "operationId": "AgentPrismCreateAgent",
         "requestBody": {
           "content": {
@@ -104,7 +104,7 @@
           "AgentPrism",
           "Agents"
         ],
-        "summary": "Bir agent\u0027in katalog ozetini ve varsa kalici tanimini dondurur.",
+        "summary": "Returns an agent\u0027s catalog summary and its persisted definition, if any.",
         "operationId": "AgentPrismGetAgent",
         "parameters": [
           {
@@ -134,7 +134,7 @@
           "AgentPrism",
           "Agents"
         ],
-        "summary": "Bir agent tanimini gunceller ve yeni bir surum uretir.",
+        "summary": "Updates an agent definition and produces a new version.",
         "operationId": "AgentPrismUpdateAgent",
         "parameters": [
           {
@@ -184,7 +184,7 @@
           "AgentPrism",
           "Agents"
         ],
-        "summary": "Bir agent tanimini ve surum gecmisini siler.",
+        "summary": "Deletes an agent definition and its version history.",
         "operationId": "AgentPrismDeleteAgent",
         "parameters": [
           {
@@ -209,7 +209,7 @@
           "AgentPrism",
           "Agents"
         ],
-        "summary": "Bir tanimi kaydetmeden ve hicbir model cagirmadan derler.",
+        "summary": "Compiles a definition without saving it and without calling any model.",
         "operationId": "AgentPrismValidateAgent",
         "requestBody": {
           "content": {
@@ -251,7 +251,7 @@
           "AgentPrism",
           "Agents"
         ],
-        "summary": "Bir tanimin surum gecmisini yeniden eskiye listeler.",
+        "summary": "Lists a definition\u0027s version history, newest first.",
         "operationId": "AgentPrismListAgentVersions",
         "parameters": [
           {
@@ -286,7 +286,7 @@
           "AgentPrism",
           "Agents"
         ],
-        "summary": "Bir tanimi onceki bir surumun icerigiyle yeni surum olarak yazar.",
+        "summary": "Writes a definition as a new version with the content of a previous version.",
         "operationId": "AgentPrismRollbackAgent",
         "parameters": [
           {
@@ -328,7 +328,7 @@
           "AgentPrism",
           "Agents"
         ],
-        "summary": "Iki tanim surumunu ham JSON olarak dondurur; diff hesabi arayuzde yapilir.",
+        "summary": "Returns two definition versions as raw JSON; the diff is computed in the UI.",
         "operationId": "AgentPrismGetAgentVersionDiff",
         "parameters": [
           {
@@ -380,8 +380,8 @@
           "AgentPrism",
           "Agents"
         ],
-        "summary": "Bir agent\u0027i deneme amaciyla calistirir ve yaniti SSE ile akitir.",
-        "description": "Kota asilmissa calistirma baslamaz ve 429 doner; ProblemDetails hangi kotanin asildigini ve sayacin ne zaman sifirlanacagini tasir. \u0027Idempotency-Key\u0027 basligi tasiyan bir istek SSE yerine tek bir JSON yanitla (akissiz) calisir \u2014 Faz 43\u0027un tekillestirme sozlesmesi akissiz bir yanit gerektirir (docs/43-IDEMPOTENCY-KEY.md). \u0027Prefer: respond-async\u0027 basligi tasiyan bir istek calistirmayi kuyruga alir ve \u0027202 Accepted\u0027 \u002B \u0027Location\u0027 doner (Faz 46, docs/46-DAYANIKLI-CALISTIRMA.md). Kayitli bir IContentGuard icerigi engellerse akissiz yanit \u0027422\u0027 doner ve runs.error_type \u0027content_blocked\u0027 olur; AKISLI yanitta durum kodu zaten gonderilmis oldugu icin engelleme SSE \u0027error\u0027 olayi olarak gorunur (Faz 48, docs/48-GUARDRAILS.md).",
+        "summary": "Runs an agent for trial purposes and streams the response via SSE.",
+        "description": "If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. A request carrying the \u0027Idempotency-Key\u0027 header runs with a single JSON response (non-streaming) instead of SSE \u2014 Phase 43\u0027s deduplication contract requires a non-streaming response (docs/43-IDEMPOTENCY-KEY.md). A request carrying the \u0027Prefer: respond-async\u0027 header queues the run and returns \u0027202 Accepted\u0027 \u002B \u0027Location\u0027 (Phase 46, docs/46-DAYANIKLI-CALISTIRMA.md). If a registered IContentGuard blocks the content, the non-streaming response returns \u0027422\u0027 and runs.error_type becomes \u0027content_blocked\u0027; in the STREAMING response the status code has already been sent, so the block appears as an SSE \u0027error\u0027 event (Phase 48, docs/48-GUARDRAILS.md).",
         "operationId": "AgentPrismRunAgent",
         "parameters": [
           {
@@ -483,8 +483,8 @@
           "AgentPrism",
           "Attachments"
         ],
-        "summary": "Yeni bir ek yukler.",
-        "description": "Govde \u0027multipart/form-data\u0027 olmalidir ve bir \u0027file\u0027 alani tasimalidir. Tur, istemcinin bildirdigi Content-Type\u0027a degil sihirli bayta gore dogrulanir.",
+        "summary": "Uploads a new attachment.",
+        "description": "The body must be \u0027multipart/form-data\u0027 and must carry a \u0027file\u0027 field. The type is validated by magic bytes, not by the Content-Type the client reports.",
         "operationId": "AgentPrismUploadAttachment",
         "parameters": [
           {
@@ -531,7 +531,7 @@
           "AgentPrism",
           "Attachments"
         ],
-        "summary": "Ekleri listeler.",
+        "summary": "Lists attachments.",
         "operationId": "AgentPrismListAttachments",
         "parameters": [
           {
@@ -589,7 +589,7 @@
           "AgentPrism",
           "Attachments"
         ],
-        "summary": "Bir ekin ham icerigini akitir.",
+        "summary": "Streams the raw content of an attachment.",
         "operationId": "AgentPrismDownloadAttachment",
         "parameters": [
           {
@@ -630,7 +630,7 @@
           "AgentPrism",
           "Attachments"
         ],
-        "summary": "Bir eki siler.",
+        "summary": "Deletes an attachment.",
         "operationId": "AgentPrismDeleteAttachment",
         "parameters": [
           {
@@ -656,7 +656,7 @@
           "AgentPrism",
           "Skills"
         ],
-        "summary": "Kiracinin skill\u0027lerini listeler.",
+        "summary": "Lists the tenant\u0027s skills.",
         "operationId": "AgentPrismListSkills",
         "responses": {
           "200": {
@@ -681,7 +681,7 @@
           "AgentPrism",
           "Skills"
         ],
-        "summary": "Tek bir skill ve kaynaklarini dondurur.",
+        "summary": "Returns a single skill and its resources.",
         "operationId": "AgentPrismGetSkill",
         "parameters": [
           {
@@ -711,7 +711,7 @@
           "AgentPrism",
           "Skills"
         ],
-        "summary": "Skill olusturur veya gunceller.",
+        "summary": "Creates or updates a skill.",
         "operationId": "AgentPrismSaveSkill",
         "parameters": [
           {
@@ -761,7 +761,7 @@
           "AgentPrism",
           "Skills"
         ],
-        "summary": "Skill\u0027i ve cascade kaynaklarini siler.",
+        "summary": "Deletes a skill and its cascading resources.",
         "operationId": "AgentPrismDeleteSkill",
         "parameters": [
           {
@@ -786,7 +786,7 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Kiracinin script calistirma izinlerini listeler.",
+        "summary": "Lists the tenant\u0027s script run grants.",
         "operationId": "AgentPrismListSkillScriptGrants",
         "responses": {
           "200": {
@@ -809,7 +809,7 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Bir skill script\u0027ine calistirma izni verir.",
+        "summary": "Grants run permission to a skill script.",
         "operationId": "AgentPrismGrantSkillScript",
         "requestBody": {
           "content": {
@@ -841,7 +841,7 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Bir script calistirma iznini iptal eder.",
+        "summary": "Revokes a script run grant.",
         "operationId": "AgentPrismRevokeSkillScript",
         "parameters": [
           {
@@ -873,7 +873,7 @@
           "AgentPrism",
           "Sessions"
         ],
-        "summary": "Oturumlari son guncellemeden eskiye listeler.",
+        "summary": "Lists sessions from most recently updated to oldest.",
         "operationId": "AgentPrismListSessions",
         "parameters": [
           {
@@ -931,7 +931,7 @@
           "AgentPrism",
           "Sessions"
         ],
-        "summary": "Bir oturumun ustverisini ve sohbet gecmisini dondurur.",
+        "summary": "Returns a session\u0027s metadata and chat history.",
         "operationId": "AgentPrismGetSession",
         "parameters": [
           {
@@ -961,7 +961,7 @@
           "AgentPrism",
           "Sessions"
         ],
-        "summary": "Bir oturumu siler.",
+        "summary": "Deletes a session.",
         "operationId": "AgentPrismDeleteSession",
         "parameters": [
           {
@@ -986,8 +986,8 @@
           "AgentPrism",
           "Sessions"
         ],
-        "summary": "Bir konusmayi belirli bir noktadan dallandirir ve yeni bir oturum acar.",
-        "description": "Ogeler \u0027upToSequence\u0027 degerine kadar (dahil) YENI bir konusmaya KOPYALANIR; isaretci yalnizca koken bilgisidir. Dala yazmak ana konusmayi degistirmez. Dallandirma yalnizca kalici bir SQL saglayicisi acikken calisir; bellek ici kurulumda sohbet gecmisi oturum durumunun opak blogunda yasar ve 501 doner.",
+        "summary": "Branches a conversation from a specific point and opens a new session.",
+        "description": "Items up to and including \u0027upToSequence\u0027 are COPIED into a NEW conversation; the pointer is only provenance information. Writing to the branch does not change the parent conversation. Branching only works while a persistent SQL provider is enabled; in an in-memory setup, chat history lives in an opaque blob of session state and this returns 501.",
         "operationId": "AgentPrismBranchSession",
         "parameters": [
           {
@@ -1069,8 +1069,8 @@
           "AgentPrism",
           "Runs"
         ],
-        "summary": "Calistirmalari en yeniden eskiye listeler.",
-        "description": "Varsayilan olarak YALNIZ kok calistirmalar doner. Alt calistirmalari da gormek icin \u0027includeChildren=true\u0027 kullanin; tek bir agacin tamami icin \u0027rootRunId\u0027, bir calistirmanin dogrudan cocuklari icin \u0027parentRunId\u0027 verin.",
+        "summary": "Lists runs from newest to oldest.",
+        "description": "By default, ONLY root runs are returned. To also see child runs, use \u0027includeChildren=true\u0027; pass \u0027rootRunId\u0027 for an entire tree, or \u0027parentRunId\u0027 for the direct children of a run.",
         "operationId": "AgentPrismListRuns",
         "parameters": [
           {
@@ -1187,7 +1187,7 @@
           "AgentPrism",
           "Runs"
         ],
-        "summary": "Bir calistirmanin ait oldugu agacin tamamini kokunden dondurur.",
+        "summary": "Returns the entire tree a run belongs to, starting from the root.",
         "operationId": "AgentPrismGetRunTree",
         "parameters": [
           {
@@ -1223,7 +1223,7 @@
           "AgentPrism",
           "Runs"
         ],
-        "summary": "Tek bir calistirmanin ozetini dondurur.",
+        "summary": "Returns the summary of a single run.",
         "operationId": "AgentPrismGetRun",
         "parameters": [
           {
@@ -1256,8 +1256,8 @@
           "AgentPrism",
           "Runs"
         ],
-        "summary": "Bir calistirmanin olaylarini SSE ile akitir; canli ve gecmise donuk ayni yoldur.",
-        "description": "Baglanti koparsa istemci \u0027Last-Event-ID\u0027 basligiyla kaldigi sira numarasindan devam eder. Calistirma hala suruyorsa akis tamamlanana kadar acik kalir.",
+        "summary": "Streams a run\u0027s events over SSE; live and historical use the same path.",
+        "description": "If the connection drops, the client resumes from its last sequence number using the \u0027Last-Event-ID\u0027 header. If the run is still in progress, the stream stays open until it completes.",
         "operationId": "AgentPrismStreamRunEvents",
         "parameters": [
           {
@@ -1283,8 +1283,8 @@
           "AgentPrism",
           "Runs"
         ],
-        "summary": "Suren bir calistirmanin iptalini ister.",
-        "description": "202 yalnizca iptal ISTENDIGINI bildirir; nihai durum \u0027GET /api/runs/{id}\u0027 ile okunur. Calistirma bu ornekte yurutulmuyorsa (baska bir ornek veya yeniden baslamis surec) 409 doner. Kok calistirmanin iptali agactaki tum alt calistirmalari da durdurur; bir alt calistirmanin tek basina iptali koku etkilemez.",
+        "summary": "Requests cancellation of a running run.",
+        "description": "202 only reports that cancellation was REQUESTED; the final status is read from \u0027GET /api/runs/{id}\u0027. Returns 409 if the run is not executing on this instance (a different instance, or a restarted process). Canceling a root run also stops every child run in the tree; canceling a child run on its own does not affect the root.",
         "operationId": "AgentPrismCancelRun",
         "parameters": [
           {
@@ -1317,8 +1317,8 @@
           "AgentPrism",
           "Runs"
         ],
-        "summary": "Bir calistirmaya veya tek bir mesaja puan yazar.",
-        "description": "Ayni yazar ayni hedefi (calistirma veya mesaj) ikinci kez puanladiginda satir GUNCELLENIR, yeni satir acilmaz. \u0027messageId\u0027 bos birakilirsa puan tum calistirmaya aittir.",
+        "summary": "Writes a score for a run or for a single message.",
+        "description": "When the same author scores the same target (run or message) a second time, the row is UPDATED, not a new row opened. If \u0027messageId\u0027 is left blank, the score applies to the whole run.",
         "operationId": "AgentPrismSaveRunFeedback",
         "parameters": [
           {
@@ -1359,7 +1359,7 @@
           "AgentPrism",
           "Runs"
         ],
-        "summary": "Bir calistirmanin tum puanlarini listeler.",
+        "summary": "Lists all scores for a run.",
         "operationId": "AgentPrismListRunFeedback",
         "parameters": [
           {
@@ -1395,7 +1395,7 @@
           "AgentPrism",
           "Runs"
         ],
-        "summary": "Bir puani siler.",
+        "summary": "Deletes a score.",
         "operationId": "AgentPrismDeleteRunFeedback",
         "parameters": [
           {
@@ -1430,8 +1430,8 @@
           "AgentPrism",
           "Runs"
         ],
-        "summary": "Bir calistirmanin kayitli girdi mesajlarini dondurur.",
-        "description": "Girdi kaydi kapaliyken (AgentPrism:RunRecording:RecordRunInput = false) baslamis veya saklama politikasiyla silinmis bir calistirma icin 404 doner; o calistirma yeniden oynatilamaz.",
+        "summary": "Returns the recorded input messages for a run.",
+        "description": "Returns 404 for a run that started while input recording was disabled (AgentPrism:RunRecording:RecordRunInput = false), or that was deleted by a retention policy; such a run cannot be replayed.",
         "operationId": "AgentPrismGetRunInput",
         "parameters": [
           {
@@ -1464,8 +1464,8 @@
           "AgentPrism",
           "Runs"
         ],
-        "summary": "Iki calistirmanin ozetini yan yana dondurur.",
-        "description": "Fark SUNUCUDA hesaplanmaz; uc iki ozeti dondurur ve karsilastirmayi arayuz gosterir (Faz 19\u0027un tanim surumu diff\u0027i ile ayni desen).",
+        "summary": "Returns the summaries of two runs side by side.",
+        "description": "The diff is NOT computed on the server; the endpoint returns the two summaries and the UI shows the comparison (the same pattern as the definition-version diff in Phase 19).",
         "operationId": "AgentPrismCompareRuns",
         "parameters": [
           {
@@ -1507,8 +1507,8 @@
           "AgentPrism",
           "Runs"
         ],
-        "summary": "Kayitli girdiyle yeni bir calistirma acar.",
-        "description": "Girdi korunur, kosullar degisir: \u0027agentVersion\u0027, \u0027modelId\u0027 ve \u0027toolMode\u0027. Varsayilan \u0027toolMode\u0027 degeri \u0027ReplayTools\u0027tur ve HICBIR tool gercekten kosmaz \u2014 kayitli sonuclar geri oynatilir. Kayitli sonucu olmayan bir cagri oynatmayi DURDURUR ve 422 doner. \u0027LiveTools\u0027 tool\u0027lari GERCEKTEN calistirir, yan etki uretir, Admin rolu ister ve onay gerektiren bir tool varsa 409 alir. Yeniden oynatma oturumsuzdur: kaynak calistirma bir oturumdaysa yalniz O TURUN girdisi oynatilir, konusma gecmisi tasinmaz.",
+        "summary": "Starts a new run with recorded input.",
+        "description": "The input is preserved, the conditions change: \u0027agentVersion\u0027, \u0027modelId\u0027, and \u0027toolMode\u0027. The default \u0027toolMode\u0027 value is \u0027ReplayTools\u0027, and NO tool actually runs \u2014 recorded results are replayed. Replaying a call with no recorded result STOPS the replay and returns 422. \u0027LiveTools\u0027 ACTUALLY runs tools, produces side effects, requires the Admin role, and returns 409 if a tool requires approval. Replay is sessionless: if the source run belongs to a session, only that TURN\u0027s input is replayed; the conversation history is not carried over.",
         "operationId": "AgentPrismReplayRun",
         "parameters": [
           {
@@ -1611,7 +1611,7 @@
           "AgentPrism",
           "Workflows"
         ],
-        "summary": "Kodda tanimli ve veritabaninda saklanan workflow\u0027lari listeler.",
+        "summary": "Lists workflows defined in code and stored in the database.",
         "operationId": "AgentPrismListWorkflows",
         "responses": {
           "200": {
@@ -1636,7 +1636,7 @@
           "AgentPrism",
           "Workflows"
         ],
-        "summary": "Tek bir workflow tanimini dondurur.",
+        "summary": "Returns a single workflow definition.",
         "operationId": "AgentPrismGetWorkflow",
         "parameters": [
           {
@@ -1666,7 +1666,7 @@
           "AgentPrism",
           "Workflows"
         ],
-        "summary": "Workflow tanimi olusturur veya gunceller.",
+        "summary": "Creates or updates a workflow definition.",
         "operationId": "AgentPrismSaveWorkflow",
         "parameters": [
           {
@@ -1706,7 +1706,7 @@
           "AgentPrism",
           "Workflows"
         ],
-        "summary": "Bir workflow tanimini siler.",
+        "summary": "Deletes a workflow definition.",
         "operationId": "AgentPrismDeleteWorkflow",
         "parameters": [
           {
@@ -1731,8 +1731,8 @@
           "AgentPrism",
           "Workflows"
         ],
-        "summary": "Workflow\u0027un derlenmis grafini dondurur.",
-        "description": "Dugum kimlikleri calistirma olaylarindaki executor kimlikleriyle birebir ayni olur; arayuz dugumleri canli olarak bu sayede renklendirir. Yanit ayrica Microsoft Agent Framework\u0027un urettigi Mermaid metnini tasir.",
+        "summary": "Returns the compiled graph of the workflow.",
+        "description": "Node IDs are identical to the executor IDs in run events; this is how the UI colors nodes live. The response also carries the Mermaid text generated by Microsoft Agent Framework.",
         "operationId": "AgentPrismGetWorkflowGraph",
         "parameters": [
           {
@@ -1764,8 +1764,8 @@
           "AgentPrism",
           "Workflows"
         ],
-        "summary": "Workflow\u0027u calistirir ve olaylarini SSE ile akitir.",
-        "description": "Her cerceve bir RunEvent tasir. Ilk cerceve calistirma kimligini bildirir; workflow icinde cagrilan her agent kendi runs satirini acar ve GET /api/runs/{runId}/tree ile agac olarak gorulur.",
+        "summary": "Runs the workflow and streams its events over SSE.",
+        "description": "Each frame carries a RunEvent. The first frame reports the run ID; every agent invoked within the workflow opens its own runs row, viewable as a tree via GET /api/runs/{runId}/tree.",
         "operationId": "AgentPrismRunWorkflow",
         "parameters": [
           {
@@ -1836,7 +1836,7 @@
           "AgentPrism",
           "Workflows"
         ],
-        "summary": "Bir workflow calistirmasinin kontrol noktalarini listeler.",
+        "summary": "Lists the checkpoints of a workflow run.",
         "operationId": "AgentPrismListWorkflowCheckpoints",
         "parameters": [
           {
@@ -1872,7 +1872,7 @@
           "AgentPrism",
           "Workflows"
         ],
-        "summary": "Bir kontrol noktasindan devam eder ve olaylari SSE ile akitir.",
+        "summary": "Resumes from a checkpoint and streams events over SSE.",
         "operationId": "AgentPrismResumeWorkflow",
         "parameters": [
           {
@@ -1924,8 +1924,8 @@
           "AgentPrism",
           "Workflows"
         ],
-        "summary": "Bir calistirmanin bekleyen insan girdisi isteklerini listeler.",
-        "description": "Yalnizca \u0027AwaitingInput\u0027 durumundaki bir calistirma istek dondurur. Istekler calistirmanin olay akisindan okunur; ayri bir tablo yoktur.",
+        "summary": "Lists a run\u0027s pending human input requests.",
+        "description": "Only a run in the \u0027AwaitingInput\u0027 state returns requests. Requests are read from the run\u0027s event stream; there is no separate table.",
         "operationId": "AgentPrismListWorkflowRequests",
         "parameters": [
           {
@@ -1961,8 +1961,8 @@
           "AgentPrism",
           "Workflows"
         ],
-        "summary": "Bekleyen bir istegi yanitlar ve calistirmayi s\u00FCrd\u00FCrur.",
-        "description": "Yanit, kontrol noktasindan s\u00FCrd\u00FCrulen yurutmede ayni kimlikle yeniden yayinlanan istekle eslestirilir. S\u00FCrd\u00FCrme YENI bir runs satiri acar; olaylar SSE ile akar.",
+        "summary": "Responds to a pending request and resumes the run.",
+        "description": "The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE.",
         "operationId": "AgentPrismRespondWorkflowRequest",
         "parameters": [
           {
@@ -2024,7 +2024,7 @@
           "AgentPrism",
           "Scheduling"
         ],
-        "summary": "Bir kiracinin zamanlamalarini listeler.",
+        "summary": "Lists a tenant\u0027s schedules.",
         "operationId": "AgentPrismListSchedules",
         "responses": {
           "200": {
@@ -2049,7 +2049,7 @@
           "AgentPrism",
           "Scheduling"
         ],
-        "summary": "Tek bir zamanlamayi getirir.",
+        "summary": "Gets a single schedule.",
         "operationId": "AgentPrismGetSchedule",
         "parameters": [
           {
@@ -2079,8 +2079,8 @@
           "AgentPrism",
           "Scheduling"
         ],
-        "summary": "Zamanlama olusturur veya gunceller.",
-        "description": "Cron ifadesi ve saat dilimi burada dogrulanir; bir sonraki calisma zamani kayit aninda hesaplanir. Yuk MaxItemsPerJob sinirini asamaz.",
+        "summary": "Creates or updates a schedule.",
+        "description": "The cron expression and time zone are validated here; the next run time is computed at save time. The payload cannot exceed the MaxItemsPerJob limit.",
         "operationId": "AgentPrismSaveSchedule",
         "parameters": [
           {
@@ -2120,7 +2120,7 @@
           "AgentPrism",
           "Scheduling"
         ],
-        "summary": "Bir zamanlamayi siler.",
+        "summary": "Deletes a schedule.",
         "operationId": "AgentPrismDeleteSchedule",
         "parameters": [
           {
@@ -2145,7 +2145,7 @@
           "AgentPrism",
           "Scheduling"
         ],
-        "summary": "Bir zamanlamayi hemen, cron beklemeden calistirir.",
+        "summary": "Runs a schedule immediately, without waiting for the cron schedule.",
         "operationId": "AgentPrismTriggerSchedule",
         "parameters": [
           {
@@ -2186,7 +2186,7 @@
           "AgentPrism",
           "Scheduling"
         ],
-        "summary": "Isleri turune, durumuna veya zamanlamasina gore filtreleyerek listeler.",
+        "summary": "Lists jobs, filtered by kind, status, or schedule.",
         "operationId": "AgentPrismListJobs",
         "parameters": [
           {
@@ -2259,7 +2259,7 @@
           "AgentPrism",
           "Scheduling"
         ],
-        "summary": "Bir isi ve ogelerini getirir.",
+        "summary": "Gets a job and its items.",
         "operationId": "AgentPrismGetJob",
         "parameters": [
           {
@@ -2292,8 +2292,8 @@
           "AgentPrism",
           "Scheduling"
         ],
-        "summary": "Bir isi iptal eder.",
-        "description": "Yalnizca Pending, Leased veya Running durumundaki bir is iptal edilebilir. Yurutucu isci ogeler arasinda iptal talebini kontrol eder ve isbirlikci sekilde durur.",
+        "summary": "Cancels a job.",
+        "description": "Only a job in the Pending, Leased, or Running status can be canceled. The executing worker checks the cancellation request between items and stops cooperatively.",
         "operationId": "AgentPrismCancelJob",
         "parameters": [
           {
@@ -2319,7 +2319,7 @@
           "AgentPrism",
           "Evals"
         ],
-        "summary": "Bir kiracinin eval takimlarini listeler.",
+        "summary": "Lists a tenant\u0027s eval suites.",
         "operationId": "AgentPrismListEvalSuites",
         "responses": {
           "200": {
@@ -2344,7 +2344,7 @@
           "AgentPrism",
           "Evals"
         ],
-        "summary": "Tek bir eval takimini getirir.",
+        "summary": "Gets a single eval suite.",
         "operationId": "AgentPrismGetEvalSuite",
         "parameters": [
           {
@@ -2374,8 +2374,8 @@
           "AgentPrism",
           "Evals"
         ],
-        "summary": "Eval takimi olusturur veya gunceller.",
-        "description": "Denetim tanimlari bildirimseldir; bilinmeyen bir denetim turu kosu aninda hataya donusur.",
+        "summary": "Creates or updates an eval suite.",
+        "description": "Check definitions are declarative; an unknown check type turns into an error at run time.",
         "operationId": "AgentPrismSaveEvalSuite",
         "parameters": [
           {
@@ -2415,7 +2415,7 @@
           "AgentPrism",
           "Evals"
         ],
-        "summary": "Bir eval takimini siler (vakalar ve kosular birlikte).",
+        "summary": "Deletes an eval suite (together with its cases and runs).",
         "operationId": "AgentPrismDeleteEvalSuite",
         "parameters": [
           {
@@ -2440,7 +2440,7 @@
           "AgentPrism",
           "Evals"
         ],
-        "summary": "Bir takimin vakalarini listeler.",
+        "summary": "Lists a suite\u0027s cases.",
         "operationId": "AgentPrismListEvalCases",
         "parameters": [
           {
@@ -2473,7 +2473,7 @@
           "AgentPrism",
           "Evals"
         ],
-        "summary": "Bir takimin tum vakalarini verilen listeyle degistirir.",
+        "summary": "Replaces all of a suite\u0027s cases with the given list.",
         "operationId": "AgentPrismSaveEvalCases",
         "parameters": [
           {
@@ -2519,7 +2519,7 @@
           "AgentPrism",
           "Evals"
         ],
-        "summary": "Bir takimin tum vakalarini siler.",
+        "summary": "Deletes all of a suite\u0027s cases.",
         "operationId": "AgentPrismClearEvalCases",
         "parameters": [
           {
@@ -2544,8 +2544,8 @@
           "AgentPrism",
           "Evals"
         ],
-        "summary": "Bir calistirmayi tek istekle bir eval vakasina terfi ettirir.",
-        "description": "Sorgu, calistirmanin kendi oturumundan okunur; oturumsuz calistirmalar terfi edilemez. Ayni calistirma ikinci kez terfi edilirse mevcut vaka doner (201 degil 200).",
+        "summary": "Promotes a run to an eval case in a single request.",
+        "description": "The query is read from the run\u0027s own session; runs without a session cannot be promoted. If the same run is promoted a second time, the existing case is returned (200, not 201).",
         "operationId": "AgentPrismPromoteRunToEvalCase",
         "parameters": [
           {
@@ -2605,8 +2605,8 @@
           "AgentPrism",
           "Evals"
         ],
-        "summary": "Bir eval takimini simdi calistirir.",
-        "description": "Her vaka, olculen agent uzerinde yeni bir oturumda calisir ve kendi \u0027runs\u0027 satirini uretir. Kosu is kuyruguna girer; sonuclar arka planda islenir.",
+        "summary": "Runs an eval suite now.",
+        "description": "Each case runs in a new session on the agent being evaluated and produces its own \u0027runs\u0027 row. The run is queued as a job; results are processed in the background.",
         "operationId": "AgentPrismTriggerEvalRun",
         "parameters": [
           {
@@ -2647,7 +2647,7 @@
           "AgentPrism",
           "Evals"
         ],
-        "summary": "Bir takimin gecmis kosularini listeler.",
+        "summary": "Lists a suite\u0027s past runs.",
         "operationId": "AgentPrismListEvalRuns",
         "parameters": [
           {
@@ -2706,7 +2706,7 @@
           "AgentPrism",
           "Evals"
         ],
-        "summary": "Tek bir eval kosusunu ve vaka bazinda sonuclarini getirir.",
+        "summary": "Gets a single eval run and its per-case results.",
         "operationId": "AgentPrismGetEvalRun",
         "parameters": [
           {
@@ -2739,8 +2739,8 @@
           "AgentPrism",
           "Evals"
         ],
-        "summary": "Cevrimici degerlendirme penceresinin ozetini dondurur (Faz 49).",
-        "description": "Pencere icindeki ortalama yargic puani, ornek sayisi ve yargic maliyetini dondurur. Ozet bellek icidir (sure\u00E7 yeniden baslatilinca sifirlanir); kesin sonuc icin \u0027run_scores\u0027 tablosu dogrudan sorgulanabilir.",
+        "summary": "Returns a summary of the online evaluation window (Phase 49).",
+        "description": "Returns the average judge score, sample count, and judge cost within the window. The summary is in-memory (it resets when the process restarts); for an authoritative result, the \u0027run_scores\u0027 table can be queried directly.",
         "operationId": "AgentPrismGetOnlineEvaluationSummary",
         "responses": {
           "200": {
@@ -2762,8 +2762,8 @@
           "AgentPrism",
           "Evals"
         ],
-        "summary": "Bir calistirmayi elle yargic(lar)a puanlatir (Faz 49).",
-        "description": "Ornekleme kararini ATLAR; kalibrasyon ve hata ayiklama icindir. Hicbir IRunJudge kayitli degilse veya calistirmanin girdisi/ciktisi okunamiyorsa bos bir liste doner.",
+        "summary": "Manually has judge(s) score a run (Phase 49).",
+        "description": "This SKIPS the sampling decision; it is for calibration and debugging. If no IRunJudge is registered, or the run\u0027s input/output cannot be read, an empty list is returned.",
         "operationId": "AgentPrismJudgeRun",
         "parameters": [
           {
@@ -2799,7 +2799,7 @@
           "AgentPrism",
           "Experiments"
         ],
-        "summary": "Bir kiracinin A/B deneylerini listeler.",
+        "summary": "Lists a tenant\u0027s A/B experiments.",
         "operationId": "AgentPrismListExperiments",
         "responses": {
           "200": {
@@ -2824,7 +2824,7 @@
           "AgentPrism",
           "Experiments"
         ],
-        "summary": "Tek bir A/B deneyini getirir.",
+        "summary": "Gets a single A/B experiment.",
         "operationId": "AgentPrismGetExperiment",
         "parameters": [
           {
@@ -2854,8 +2854,8 @@
           "AgentPrism",
           "Experiments"
         ],
-        "summary": "Deney olusturur veya gunceller.",
-        "description": "Yalnizca ayni agent\u0027in surumleri arasinda deney kurulabilir; kod kaynakli agent\u0027larda surum gecmisi olmadigi icin reddedilir. Varyant agirliklari toplami 100 olmalidir.",
+        "summary": "Creates or updates an experiment.",
+        "description": "An experiment can only be set up between versions of the same agent; code-sourced agents have no version history, so they are rejected. Variant weights must sum to 100.",
         "operationId": "AgentPrismSaveExperiment",
         "parameters": [
           {
@@ -2895,7 +2895,7 @@
           "AgentPrism",
           "Experiments"
         ],
-        "summary": "Bir deneyi siler. Calisan bir deney once durdurulmalidir.",
+        "summary": "Deletes an experiment. A running experiment must be stopped first.",
         "operationId": "AgentPrismDeleteExperiment",
         "parameters": [
           {
@@ -2920,8 +2920,8 @@
           "AgentPrism",
           "Experiments"
         ],
-        "summary": "Deneyi baslatir; trafik agirliklara gore bolunmeye baslar.",
-        "description": "Ayni agent icin ayni anda tek deney calisabilir.",
+        "summary": "Starts the experiment; traffic begins splitting according to the weights.",
+        "description": "Only one experiment can run for the same agent at a time.",
         "operationId": "AgentPrismStartExperiment",
         "parameters": [
           {
@@ -2953,7 +2953,7 @@
           "AgentPrism",
           "Experiments"
         ],
-        "summary": "Deneyi durdurur; yeni calistirmalar guncel surume gider.",
+        "summary": "Stops the experiment; new runs go to the current version.",
         "operationId": "AgentPrismStopExperiment",
         "parameters": [
           {
@@ -2985,8 +2985,8 @@
           "AgentPrism",
           "Experiments"
         ],
-        "summary": "Kol bazinda sayi, hata orani, token ve sure ozetini getirir.",
-        "description": "Istatistiksel bir \u0027kazanan\u0027 iddiasi yoktur; ham sayilar gosterilir.",
+        "summary": "Gets a per-arm summary of count, error rate, tokens, and duration.",
+        "description": "There is no statistical claim of a \u0027winner\u0027; raw counts are shown.",
         "operationId": "AgentPrismGetExperimentResults",
         "parameters": [
           {
@@ -3018,8 +3018,8 @@
           "AgentPrism",
           "Experiments"
         ],
-        "summary": "Kanarya kuralini tanimlar veya kaldirir (govde \u0027null\u0027).",
-        "description": "Yalnizca iki kollu deneylerde tanimlanabilir: kanaryaVariant kanarya, kalan TEK kol kontrol sayilir. Deneyin durumundan bagimsiz calisir (Draft veya Running).",
+        "summary": "Defines or removes the canary rule (a \u0027null\u0027 body removes it).",
+        "description": "Can only be defined on two-arm experiments: canaryVariant is the canary, and the single remaining arm counts as control. Works regardless of the experiment\u0027s status (Draft or Running).",
         "operationId": "AgentPrismSetExperimentCanary",
         "parameters": [
           {
@@ -3058,8 +3058,8 @@
           "AgentPrism",
           "Experiments"
         ],
-        "summary": "Kanarya kuralini ve guncel degerlendirmesini getirir.",
-        "description": "Degerlendirme kalici degildir; her cagrida guncel calistirma sonuclariyla yeniden hesaplanir.",
+        "summary": "Gets the canary rule and its current evaluation.",
+        "description": "The evaluation is not persisted; it is recalculated on every call using current run results.",
         "operationId": "AgentPrismGetExperimentCanary",
         "parameters": [
           {
@@ -3091,8 +3091,8 @@
           "AgentPrism",
           "Agents"
         ],
-        "summary": "Kayitli tool\u0027lari ve JSON semalarini listeler.",
-        "description": "Tool\u0027lar yalnizca kodda tanimlanir. Bu uc bir yazma yolu sunmaz; arayuz agent tanimlarken bu listeden secim yaptirir.",
+        "summary": "Lists registered tools and their JSON schemas.",
+        "description": "Tools are defined only in code. This endpoint does not offer a write path; the UI lets users pick from this list when defining an agent.",
         "operationId": "AgentPrismListTools",
         "responses": {
           "200": {
@@ -3117,8 +3117,8 @@
           "AgentPrism",
           "Agents"
         ],
-        "summary": "Kayitli model saglayicilarini ve modellerini listeler.",
-        "description": "Model katalogu yapilandirmadan gelir; AgentPrism yerlesik model listesi tasimaz. Bos liste bir hata degildir. Katalog bir dogrulama listesi de degildir: burada olmayan bir model adi da kullanilabilir. \u0060status\u0060 alani ONBELLEKTEN gelir ve bu uc saglayiciya ag cagrisi yapmaz; guncel bir denetim icin /api/models/health kullanin.",
+        "summary": "Lists registered model providers and their models.",
+        "description": "The model catalog comes from configuration; AgentPrism does not ship a built-in model list. An empty list is not an error. The catalog is also not a validation list: a model name that is not listed here can still be used. The \u0060status\u0060 field comes FROM THE CACHE, and this endpoint makes no network call to the provider; use /api/models/health for an up-to-date check.",
         "operationId": "AgentPrismListModels",
         "responses": {
           "200": {
@@ -3143,8 +3143,8 @@
           "AgentPrism",
           "Agents"
         ],
-        "summary": "Calistirma sayilarini, token toplamlarini ve hata oranini dondurur.",
-        "description": "Ozet deponun kendisinde hesaplanir. Maliyet (Faz 20) yalniz fiyat yapilandirildiginda (model katalo\u011Fu veya AgentPrism:Pricing) doludur; fiyati tanimsiz modellerin sayisi RunsWithUnknownPricing alaninda ayrica sayilir \u2014 sifir yazilmaz.",
+        "summary": "Returns run counts, token totals, and the error rate.",
+        "description": "The summary is computed in the store itself. Cost (Phase 20) is populated only when pricing is configured (model catalog or AgentPrism:Pricing); the count of models with undefined pricing is counted separately in the RunsWithUnknownPricing field \u2014 it is not written as zero.",
         "operationId": "AgentPrismStats",
         "parameters": [
           {
@@ -3195,8 +3195,8 @@
           "AgentPrism",
           "Agents"
         ],
-        "summary": "Kova basina calistirma, hata, token ve maliyet zaman serisi.",
-        "description": "Bos kovalar da doner. Varsayilan aralik son 24 saat, varsayilan kova saattir. En fazla 500 kova; asilirsa 400. Bu uc, /api/stats\u0027in aksine Eval/Workflow calistirmalarini varsayilan olarak haric TUTMAZ (bkz. docs/KARARLAR.md K-152); ?kind= ile filtrelenebilir.",
+        "summary": "Per-bucket time series of runs, errors, tokens, and cost.",
+        "description": "Empty buckets are returned too. The default range is the last 24 hours, the default bucket is an hour. At most 500 buckets; exceeding that returns 400. Unlike /api/stats, this endpoint does NOT exclude Eval/Workflow runs by default (see docs/KARARLAR.md K-152); it can be filtered with ?kind=.",
         "operationId": "AgentPrismStatsTimeSeries",
         "parameters": [
           {
@@ -3267,8 +3267,8 @@
           "AgentPrism",
           "Agents"
         ],
-        "summary": "Hata sinifina gore kirilimi ve her sinifin en sik uc kumesini dondurur.",
-        "description": "/api/stats\u0027in dar bir dilimidir: yalnizca ByErrorClass alanini dondurur (o alan /api/stats yanitinda da vardir). Varsayilan aralik son 24 saattir, ?hours= ile degistirilir. Hata sinifi eklenmeden once yazilmis satirlar Unknown kovasinda gorunur; Unknown orani yuksekse taksonomi eksik demektir.",
+        "summary": "Returns the breakdown by error class and each class\u0027s top three clusters.",
+        "description": "This is a narrow slice of /api/stats: it returns only the ByErrorClass field (that field is also present in the /api/stats response). The default range is the last 24 hours, changed with ?hours=. Rows written before error classification existed appear in the Unknown bucket; a high Unknown share means the taxonomy is incomplete.",
         "operationId": "AgentPrismStatsErrors",
         "parameters": [
           {
@@ -3314,8 +3314,8 @@
           "AgentPrism",
           "Agents"
         ],
-        "summary": "Tum calistirmalarin maliyetini guncel fiyat kaynagina gore yeniden hesaplar.",
-        "description": "Bakim ucudur. Fiyat sonradan tanimlandiginda gecmis calistirmalari tazelemek icin kullanilir. Saglayici gecmis satirlarda tutulmaz; ayni model adi birden fazla saglayicida tanimliysa alfabetik ilk eslesen kazanir (bkz. docs/KARARLAR.md K-154). Admin ister; cagri denetim izine yazilir.",
+        "summary": "Recalculates the cost of all runs based on the current pricing source.",
+        "description": "This is a maintenance endpoint. It is used to refresh past runs when pricing is defined later. The provider is not kept on historical rows; if the same model name is defined for more than one provider, the first alphabetical match wins (see docs/KARARLAR.md K-154). Requires Admin; the call is written to the audit trail.",
         "operationId": "AgentPrismRecalculateCosts",
         "responses": {
           "200": {
@@ -3337,7 +3337,7 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Bir kiracinin kota kurallarini listeler.",
+        "summary": "Lists a tenant\u0027s quota rules.",
         "operationId": "AgentPrismListQuotas",
         "responses": {
           "200": {
@@ -3360,8 +3360,8 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Kota kurali olusturur veya gunceller.",
-        "description": "Kapsam (kiraci \u002B agent \u002B donem) benzersizdir: ayni kapsam icin ikinci bir kural yazmak mevcut kuralin uzerine yazar. Uc sinir da bos birakilabilir; yalnizca dolu olanlar uygulanir.",
+        "summary": "Creates or updates a quota rule.",
+        "description": "The scope (tenant \u002B agent \u002B period) is unique: writing a second rule for the same scope overwrites the existing rule. Each limit can also be left empty; only the ones that are set are enforced.",
         "operationId": "AgentPrismSaveQuota",
         "requestBody": {
           "content": {
@@ -3393,7 +3393,7 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Bir kota kuralini siler.",
+        "summary": "Deletes a quota rule.",
         "operationId": "AgentPrismDeleteQuota",
         "parameters": [
           {
@@ -3419,8 +3419,8 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Gecerli donemin kota kullanimini dondurur.",
-        "description": "Bos \u0027agentName\u0027 degeri kiraci geneli sayacini gosterir. Sayaclar yaklasiktir: denetim calistirma oncesinde, tuketim sonrasinda yazilir.",
+        "summary": "Returns the current period\u0027s quota usage.",
+        "description": "An empty \u0027agentName\u0027 value shows the tenant-wide counter. Counters are approximate: the check happens before a run starts, and consumption is written after it finishes.",
         "operationId": "AgentPrismGetQuotaUsage",
         "parameters": [
           {
@@ -3458,8 +3458,8 @@
           "AgentPrism",
           "Webhooks"
         ],
-        "summary": "Bir kiracinin webhook aboneliklerini listeler.",
-        "description": "Yanit hicbir sir tasimaz; yalnizca imzalama anahtarinin ADI doner.",
+        "summary": "Lists a tenant\u0027s webhook subscriptions.",
+        "description": "The response carries no secret; only the NAME of the signing key is returned.",
         "operationId": "AgentPrismListWebhooks",
         "responses": {
           "200": {
@@ -3484,7 +3484,7 @@
           "AgentPrism",
           "Webhooks"
         ],
-        "summary": "Tek bir aboneligi getirir.",
+        "summary": "Gets a single subscription.",
         "operationId": "AgentPrismGetWebhook",
         "parameters": [
           {
@@ -3514,8 +3514,8 @@
           "AgentPrism",
           "Webhooks"
         ],
-        "summary": "Webhook aboneligi olusturur veya gunceller.",
-        "description": "Adres SSRF denetiminden gecer: yalnizca https kabul edilir (http yalnizca AllowInsecureHttp acikken ve loopback hedeflerine). Ozel ag adresleri teslim aninda da yeniden denetlenir.",
+        "summary": "Creates or updates a webhook subscription.",
+        "description": "The address passes an SSRF check: only https is accepted (http only when AllowInsecureHttp is enabled and only to loopback targets). Private network addresses are re-checked again at delivery time.",
         "operationId": "AgentPrismSaveWebhook",
         "parameters": [
           {
@@ -3555,7 +3555,7 @@
           "AgentPrism",
           "Webhooks"
         ],
-        "summary": "Bir aboneligi ve teslim gecmisini siler.",
+        "summary": "Deletes a subscription and its delivery history.",
         "operationId": "AgentPrismDeleteWebhook",
         "parameters": [
           {
@@ -3580,8 +3580,8 @@
           "AgentPrism",
           "Webhooks"
         ],
-        "summary": "Aboneligin ucuna bir sinama olayi gonderir.",
-        "description": "Olay kuyruga yazilir ve arka plan iscisi teslim eder; yanit teslimin sonucunu degil, kuyruga alindigini bildirir.",
+        "summary": "Sends a test event to the subscription\u0027s endpoint.",
+        "description": "The event is written to the queue and delivered by a background worker; the response reports that it was queued, not the delivery outcome.",
         "operationId": "AgentPrismTestWebhook",
         "parameters": [
           {
@@ -3613,7 +3613,7 @@
           "AgentPrism",
           "Webhooks"
         ],
-        "summary": "Bir aboneligin teslim gecmisini listeler.",
+        "summary": "Lists a subscription\u0027s delivery history.",
         "operationId": "AgentPrismListWebhookDeliveries",
         "parameters": [
           {
@@ -3679,8 +3679,8 @@
           "AgentPrism",
           "ApiKeys"
         ],
-        "summary": "Bir kiracinin API anahtarlarini listeler.",
-        "description": "Yanit ne ham degeri ne de ozeti tasir.",
+        "summary": "Lists a tenant\u0027s API keys.",
+        "description": "The response carries neither the raw value nor a hash.",
         "operationId": "AgentPrismListApiKeys",
         "responses": {
           "200": {
@@ -3703,8 +3703,8 @@
           "AgentPrism",
           "ApiKeys"
         ],
-        "summary": "Yeni bir API anahtari uretir.",
-        "description": "Ham deger yanitta YALNIZCA BU CAGRIDA doner ve bir daha uretilemez. Kapsam listesi kapalidir; bilinmeyen bir kapsam reddedilir. Istek bir API anahtariyla dogrulandiysa, o anahtarin KENDI TASIMADIGI bir kapsam istenemez (yetki uzatma/attenuation, bolum 53.3).",
+        "summary": "Generates a new API key.",
+        "description": "The raw value is returned in the response ONLY ON THIS CALL and cannot be produced again. The scope list is closed; an unknown scope is rejected. If the request was authenticated with an API key, a scope that key does NOT ITSELF CARRY cannot be requested (privilege extension/attenuation, section 53.3).",
         "operationId": "AgentPrismCreateApiKey",
         "requestBody": {
           "content": {
@@ -3736,8 +3736,8 @@
           "AgentPrism",
           "ApiKeys"
         ],
-        "summary": "Bir anahtari iptal eder.",
-        "description": "Satir SILINMEZ; iptal damgasi yazilir ve denetim izinde kalir.",
+        "summary": "Revokes a key.",
+        "description": "The row is NOT deleted; a revocation timestamp is written and stays in the audit trail.",
         "operationId": "AgentPrismRevokeApiKey",
         "parameters": [
           {
@@ -3763,7 +3763,7 @@
           "AgentPrism",
           "Approvals"
         ],
-        "summary": "Kiracinin bekleyen onay isteklerini listeler.",
+        "summary": "Lists the tenant\u0027s pending approval requests.",
         "operationId": "AgentPrismListPendingApprovals",
         "responses": {
           "200": {
@@ -3788,7 +3788,7 @@
           "AgentPrism",
           "Approvals"
         ],
-        "summary": "Tek bir bekleyen onay istegini getirir.",
+        "summary": "Returns a single pending approval request.",
         "operationId": "AgentPrismGetPendingApproval",
         "parameters": [
           {
@@ -3821,8 +3821,8 @@
           "AgentPrism",
           "Approvals"
         ],
-        "summary": "Bekleyen bir onay istegine karar verir.",
-        "description": "Karar YENI bir calistirma kuyruga dusurur (ayni sessionId, yeni RunId); eski calistirma AwaitingApproval olarak kalir. Ayni istege ikinci karar 409 alir.",
+        "summary": "Decides a pending approval request.",
+        "description": "The decision enqueues a NEW run (same sessionId, new RunId); the old run stays AwaitingApproval. A second decision on the same request gets 409.",
         "operationId": "AgentPrismDecideApproval",
         "parameters": [
           {
@@ -3865,7 +3865,7 @@
           "AgentPrism",
           "Retention"
         ],
-        "summary": "Bir kiracinin saklama politikalarini listeler.",
+        "summary": "Lists a tenant\u0027s retention policies.",
         "operationId": "AgentPrismListRetentionPolicies",
         "responses": {
           "200": {
@@ -3890,7 +3890,7 @@
           "AgentPrism",
           "Retention"
         ],
-        "summary": "Su an calistirilirsa kac satirin silinecegini gosterir. Silme YAPMAZ.",
+        "summary": "Shows how many rows would be deleted if run now. Does NOT delete.",
         "operationId": "AgentPrismPreviewRetention",
         "parameters": [
           {
@@ -3924,8 +3924,8 @@
           "AgentPrism",
           "Retention"
         ],
-        "summary": "Temizlemeyi simdi calistirir.",
-        "description": "Senkron calismaz: bir JobKind.Retention isi kuyruga yazilir ve kuyrukta islenir.",
+        "summary": "Runs the cleanup now.",
+        "description": "Does not run synchronously: a JobKind.Retention job is enqueued and processed from the queue.",
         "operationId": "AgentPrismRunRetention",
         "parameters": [
           {
@@ -3956,7 +3956,7 @@
           "AgentPrism",
           "Retention"
         ],
-        "summary": "Gecmis temizleme kosularini listeler.",
+        "summary": "Lists past cleanup runs.",
         "operationId": "AgentPrismRetentionHistory",
         "parameters": [
           {
@@ -4014,7 +4014,7 @@
           "AgentPrism",
           "Retention"
         ],
-        "summary": "Tek bir hedefin saklama politikasini getirir.",
+        "summary": "Gets the retention policy for a single target.",
         "operationId": "AgentPrismGetRetentionPolicy",
         "parameters": [
           {
@@ -4044,7 +4044,7 @@
           "AgentPrism",
           "Retention"
         ],
-        "summary": "Bir hedef icin saklama politikasi olusturur veya gunceller.",
+        "summary": "Creates or updates the retention policy for a target.",
         "operationId": "AgentPrismSaveRetentionPolicy",
         "parameters": [
           {
@@ -4084,7 +4084,7 @@
           "AgentPrism",
           "Retention"
         ],
-        "summary": "Bir hedefin saklama politikasini siler.",
+        "summary": "Deletes the retention policy for a target.",
         "operationId": "AgentPrismDeleteRetentionPolicy",
         "parameters": [
           {
@@ -4109,8 +4109,8 @@
           "AgentPrism",
           "Knowledge"
         ],
-        "summary": "Bir belgeyi bilgi tabanina yukler.",
-        "description": "Govde ya \u0027text\u0027 (sunucu parcalar ve gomuler) ya \u0027chunks\u0027 (hazir parcalar) tasir. Yalniz PostgreSQL: UsePostgreSql() ve bir IEmbeddingGenerator kayitli olmalidir.",
+        "summary": "Uploads a document to the knowledge base.",
+        "description": "The body carries either \u0027text\u0027 (the server chunks and embeds it) or \u0027chunks\u0027 (pre-chunked). PostgreSQL only: UsePostgreSql() and an IEmbeddingGenerator must be registered.",
         "operationId": "AgentPrismUploadKnowledgeDocument",
         "parameters": [
           {
@@ -4170,7 +4170,7 @@
           "AgentPrism",
           "Knowledge"
         ],
-        "summary": "Bir koleksiyondaki kaynaklari listeler.",
+        "summary": "Lists the sources in a collection.",
         "operationId": "AgentPrismListKnowledgeDocuments",
         "parameters": [
           {
@@ -4215,7 +4215,7 @@
           "AgentPrism",
           "Knowledge"
         ],
-        "summary": "Bir kaynagin tum parcalarini siler.",
+        "summary": "Deletes all chunks of a source.",
         "operationId": "AgentPrismDeleteKnowledgeDocument",
         "parameters": [
           {
@@ -4258,7 +4258,7 @@
           "AgentPrism",
           "Knowledge"
         ],
-        "summary": "Bir koleksiyonda anlamsal arama yapar (teshis ve kalibrasyon icin).",
+        "summary": "Performs a semantic search in a collection (for diagnostics and calibration).",
         "operationId": "AgentPrismSearchKnowledge",
         "parameters": [
           {
@@ -4313,8 +4313,8 @@
           "AgentPrism",
           "Models"
         ],
-        "summary": "Tum kayitli saglayicilarin onbellekli saglik durumunu dondurur.",
-        "description": "Bir saglayici IModelProviderHealthCheck uygulamiyorsa durumu Unknown\u0027dir; bu bir hata degildir. Devresi acik olan bir saglayici Unhealthy olarak gorunur. Hata detayi API anahtari veya uc adresi ICERMEZ.",
+        "summary": "Returns the cached health status of all registered providers.",
+        "description": "If a provider does not implement IModelProviderHealthCheck, its status is Unknown; this is not an error. A provider whose circuit is open shows as Unhealthy. The error detail does NOT include an API key or endpoint address.",
         "operationId": "AgentPrismModelsHealth",
         "parameters": [
           {
@@ -4348,7 +4348,7 @@
           "AgentPrism",
           "Models"
         ],
-        "summary": "Tek bir saglayicinin onbellekli saglik durumunu dondurur.",
+        "summary": "Returns the cached health status of a single provider.",
         "operationId": "AgentPrismModelHealth",
         "parameters": [
           {
@@ -4387,8 +4387,8 @@
           "AgentPrism",
           "Voice"
         ],
-        "summary": "Ses saglayicisinin erisilebilirligini denetler.",
-        "description": "Denetim ucret uretmez: ses uretilmez, kullanilabilir sesler okunur.",
+        "summary": "Checks the voice provider\u0027s availability.",
+        "description": "The check does not incur cost: no speech is generated, only the available voices are read.",
         "operationId": "AgentPrismVoiceHealth",
         "responses": {
           "200": {
@@ -4410,7 +4410,7 @@
           "AgentPrism",
           "Voice"
         ],
-        "summary": "Kullanilabilir sesleri listeler.",
+        "summary": "Lists the available voices.",
         "operationId": "AgentPrismVoiceList",
         "responses": {
           "200": {
@@ -4435,8 +4435,8 @@
           "AgentPrism",
           "Voice"
         ],
-        "summary": "Gercek zamanli konusma baglantilarinin ozet kaydini listeler.",
-        "description": "Kayit ses ICERMEZ: yalnizca sure, tur sayisi ve olcum tasir. Konusma katmani acik degilse liste bostur.",
+        "summary": "Lists the summary record of real-time speech connections.",
+        "description": "The record does NOT contain audio: it only carries duration, turn count, and metering. If the speech layer is not enabled, the list is empty.",
         "operationId": "AgentPrismVoiceSessions",
         "parameters": [
           {
@@ -4501,8 +4501,8 @@
           "AgentPrism",
           "Voice"
         ],
-        "summary": "Bir metni seslendirir ve ek olarak kaydeder.",
-        "description": "Operator eylemidir ve bir calistirmaya BAGLI DEGILDIR; olcum tool_invocations\u0027a yazilmaz, yanitta dondurulur. Kalici olcum isteniyorsa agent\u0027in \u0060speak\u0060 tool\u0027unu kullanin.",
+        "summary": "Synthesizes speech from text and saves it as an attachment.",
+        "description": "This is an operator action and is NOT tied to a run; the metering is not written to tool_invocations, it is returned in the response. If persistent metering is required, use the agent\u0027s \u0060speak\u0060 tool.",
         "operationId": "AgentPrismVoiceSpeak",
         "requestBody": {
           "content": {
@@ -4534,8 +4534,8 @@
           "AgentPrism",
           "Runs"
         ],
-        "summary": "Bir calistirmanin span agacini dondurur.",
-        "description": "Span\u0027ler ornekleme ile yazilir. Hatali calistirmalarin span\u0027leri varsayilan olarak her zaman kaydedilir; basarililar yapilandirilabilir bir orandadir.",
+        "summary": "Returns a run\u0027s span tree.",
+        "description": "Spans are written with sampling. Spans for failed runs are always recorded by default; successes are recorded at a configurable rate.",
         "operationId": "AgentPrismGetRunTrace",
         "parameters": [
           {
@@ -4568,8 +4568,8 @@
           "AgentPrism",
           "Runs"
         ],
-        "summary": "Bir calistirmanin tool cagrilarini zaman sirasina gore listeler.",
-        "description": "Sure yalnizca akisli calistirmalarda olculur: akissiz calistirmada butun mesajlar tek seferde gorulur ve cagri ile sonuc arasindaki gercek sure okunamaz.",
+        "summary": "Lists a run\u0027s tool calls in chronological order.",
+        "description": "Duration is measured only for streaming runs: in a non-streaming run all messages arrive at once, so the true duration between call and result cannot be read.",
         "operationId": "AgentPrismListRunToolInvocations",
         "parameters": [
           {
@@ -4605,8 +4605,8 @@
           "AgentPrism",
           "Runs"
         ],
-        "summary": "Tool bazinda cagri sayisi, hata orani ve ortalama sureyi dondurur.",
-        "description": "Ozet deponun kendisinde hesaplanir; sayfalanmis bir alt kume degildir.",
+        "summary": "Returns call count, error rate, and average duration per tool.",
+        "description": "The summary is computed by the store itself; it is not a paginated subset.",
         "operationId": "AgentPrismToolUsage",
         "parameters": [
           {
@@ -4653,8 +4653,8 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Gecerli istegin kiracisini dondurur.",
-        "description": "Kiraci istekten cozulur. Tek kiracili kurulumda her zaman varsayilan kiraci doner. Bu uc korumali gruptadir; /api/meta kiraci bilgisi tasimaz.",
+        "summary": "Returns the current request\u0027s tenant.",
+        "description": "The tenant is resolved from the request. In a single-tenant setup, it always returns the default tenant. This endpoint is in the protected group; /api/meta does not carry tenant information.",
         "operationId": "AgentPrismCurrentTenant",
         "responses": {
           "200": {
@@ -4676,8 +4676,8 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Kayitli kiracilari listeler.",
-        "description": "Kiraci kaydi ZORUNLU DEGILDIR. Diger tablolardaki tenant_id bu kaydin slug degeriyle ayni metindir ancak yabanci anahtarla baglanmaz; kaydi olmayan bir kiraci calisma aninda hata uretmez.",
+        "summary": "Lists registered tenants.",
+        "description": "A tenant record is NOT REQUIRED. The tenant_id in other tables is the same text as this record\u0027s slug value, but it is not connected by a foreign key; a tenant with no record does not produce an error at runtime.",
         "operationId": "AgentPrismListTenants",
         "responses": {
           "200": {
@@ -4702,7 +4702,7 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Bir kiraci kaydini ekler veya gunceller.",
+        "summary": "Adds or updates a tenant record.",
         "operationId": "AgentPrismSaveTenant",
         "parameters": [
           {
@@ -4742,8 +4742,8 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Bir kiraci kaydini siler.",
-        "description": "Yalnizca kayit silinir; kiracinin agent\u0027lari, oturumlari ve calistirmalari kalir.",
+        "summary": "Deletes a tenant record.",
+        "description": "Only the record is deleted; the tenant\u0027s agents, sessions, and runs remain.",
         "operationId": "AgentPrismDeleteTenant",
         "parameters": [
           {
@@ -4768,8 +4768,8 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Kayitli uzak MCP sunucularini listeler.",
-        "description": "Yanit SIR TASIMAZ: kimlik dogrulama degeri saklanmaz, yalnizca degerin okunacagi yapilandirma anahtarinin adi doner.",
+        "summary": "Lists registered remote MCP servers.",
+        "description": "The response CARRIES NO SECRETS: the authentication value is not stored; only the name of the configuration key from which the value will be read is returned.",
         "operationId": "AgentPrismListMcpServers",
         "responses": {
           "200": {
@@ -4794,8 +4794,8 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Bir uzak MCP sunucusu ekler veya gunceller.",
-        "description": "GUVENLIK SINIRI. MCP sunucusu eklemek, tool tanimlarini disaridan kabul etmek demektir. Yalnizca http/https adresleri kabul edilir; yerel surec (stdio) aktarimi desteklenmez. Tool\u0027lar varsayilan olarak onay ister.",
+        "summary": "Adds or updates a remote MCP server.",
+        "description": "SECURITY BOUNDARY. Adding an MCP server means accepting tool definitions from an external source. Only http/https addresses are accepted; local process (stdio) transport is not supported. Tools require approval by default.",
         "operationId": "AgentPrismSaveMcpServer",
         "parameters": [
           {
@@ -4835,7 +4835,7 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Bir uzak MCP sunucusunu siler.",
+        "summary": "Deletes a remote MCP server.",
         "operationId": "AgentPrismDeleteMcpServer",
         "parameters": [
           {
@@ -4860,8 +4860,8 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Uzak MCP sunucularinin tool listesini simdi tazeler.",
-        "description": "Tazeleme normalde arka planda belirli araliklarla yapilir. Bu uc, yeni eklenen bir sunucunun tool\u0027larinin bir sonraki tazelemeyi beklemeden gorunmesi icindir.",
+        "summary": "Refreshes the tool list of remote MCP servers now.",
+        "description": "The refresh normally happens in the background at fixed intervals. This endpoint lets the tools of a newly added server appear without waiting for the next scheduled refresh.",
         "operationId": "AgentPrismRefreshMcpTools",
         "requestBody": {
           "content": {
@@ -4899,8 +4899,8 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Bir MCP sunucusunun prompt listesini getirir.",
-        "description": "Sunucu \u0027prompts\u0027 yetenegini bildirmiyorsa istek hic gonderilmez.",
+        "summary": "Gets an MCP server\u0027s prompt list.",
+        "description": "If the server does not advertise the \u0027prompts\u0027 capability, the request is never sent.",
         "operationId": "AgentPrismListMcpPrompts",
         "parameters": [
           {
@@ -4935,8 +4935,8 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Bir MCP prompt\u0027unun icerigini argumanlarla cozer.",
-        "description": "Donen icerik ANLIK GORUNTUDUR: agent talimatina kopyalanmasi gerekir, calisma aninda yeniden cekilmez (bolum 22.1). \u0027hash\u0027 alani sunucudaki degisimi izlemek icindir.",
+        "summary": "Resolves an MCP prompt\u0027s content with arguments.",
+        "description": "The returned content is a SNAPSHOT: it must be copied into the agent\u0027s instructions; it is not re-fetched at runtime (section 22.1). The \u0027hash\u0027 field is for tracking changes on the server.",
         "operationId": "AgentPrismGetMcpPrompt",
         "parameters": [
           {
@@ -4985,8 +4985,8 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Bir MCP sunucusunun kaynak listesini getirir.",
-        "description": "Sunucu \u0027resources\u0027 yetenegini bildirmiyorsa istek hic gonderilmez.",
+        "summary": "Gets an MCP server\u0027s resource list.",
+        "description": "If the server does not advertise the \u0027resources\u0027 capability, the request is never sent.",
         "operationId": "AgentPrismListMcpResources",
         "parameters": [
           {
@@ -5021,8 +5021,8 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Bir MCP kaynagini okur.",
-        "description": "Yalniz sunucunun ListResourcesAsync ile bildirdigi URI\u0027ler kabul edilir; serbest URI SSRF riski tasidigi icin reddedilir (bolum 22.2).",
+        "summary": "Reads an MCP resource.",
+        "description": "Only URIs advertised by the server\u0027s ListResourcesAsync are accepted; an arbitrary URI is rejected because it carries an SSRF risk (section 22.2).",
         "operationId": "AgentPrismReadMcpResource",
         "parameters": [
           {
@@ -5062,8 +5062,8 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Bir MCP sunucusu icin OAuth yetkilendirme akisini baslatir.",
-        "description": "Donen \u0027authorizationUri\u0027 adresine yonetici yonlendirilir. Saglayici onaydan sonra \u0027/oauth/callback\u0027 ucuna doner; bu uc CSRF korumasi icin \u0027state\u0027 degerini kullanir.",
+        "summary": "Starts the OAuth authorization flow for an MCP server.",
+        "description": "The administrator is redirected to the returned \u0027authorizationUri\u0027. After approval, the provider redirects back to the \u0027/oauth/callback\u0027 endpoint; that endpoint uses the \u0027state\u0027 value for CSRF protection.",
         "operationId": "AgentPrismStartMcpOAuth",
         "parameters": [
           {
@@ -5095,7 +5095,7 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Kalici \u0027bir daha sorma\u0027 onay kurallarini listeler.",
+        "summary": "Lists persistent \u0027don\u0027t ask again\u0027 approval rules.",
         "operationId": "AgentPrismListApprovalRules",
         "responses": {
           "200": {
@@ -5120,8 +5120,8 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Bir kalici onay kuralini geri alir.",
-        "description": "Kural silindikten sonra o tool icin onay yeniden sorulur.",
+        "summary": "Revokes a persistent approval rule.",
+        "description": "After the rule is deleted, approval is asked again for that tool.",
         "operationId": "AgentPrismDeleteApprovalRule",
         "parameters": [
           {
@@ -5147,8 +5147,8 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Filtrelenebilir denetim kayitlarini listeler.",
-        "description": "actor, action, entity ve tarih araligina gore filtrelenebilir. Calistirmalar (agent\u0027in bir mesaji islemesi) bu deftere yazilmaz; runs tablosu zaten tam kaydi tutar. Tek istisna \u0027content.blocked\u0027 eylemidir (Faz 48): bir IContentGuard\u0027in engelleme karari bir calistirma ayrintisi degil bir YONETISIM kararidir ve calistirma kaydi saklama politikasiyla silindikten sonra da izlenebilir kalmalidir. Kayit yalniz guard ve kural adini tasir, engellenen METNI tasimaz.",
+        "summary": "Lists audit entries, filterable by actor, action, entity, and date range.",
+        "description": "Filterable by actor, action, entity, and date range. Runs (an agent processing a message) are not written to this log; the runs table already keeps the full record. The one exception is the \u0027content.blocked\u0027 action (Phase 48): an IContentGuard\u0027s block decision is a GOVERNANCE decision, not a run detail, and must remain traceable even after the run record is deleted by retention policy. The entry carries only the guard and rule name, never the blocked TEXT.",
         "operationId": "AgentPrismListAudit",
         "parameters": [
           {
@@ -5224,7 +5224,7 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "Tek bir varligin degisiklik gecmisini, en yeniden eskiye dondurur.",
+        "summary": "Returns a single entity\u0027s change history, newest first.",
         "operationId": "AgentPrismGetEntityAudit",
         "parameters": [
           {
@@ -5271,8 +5271,8 @@
           "AgentPrism",
           "OpenAI"
         ],
-        "summary": "OpenAI Responses API ile uyumlu calistirma ucu.",
-        "description": "Agent, \u0027model\u0027 alanindan secilir; bulunamazsa \u0027metadata.entity_id\u0027 denenir. \u0027conversation\u0027 verilirse oturum o kimlikle, verilmezse uretilen yanit kimligiyle saklanir; boylece \u0027previous_response_id\u0027 ile zincirleme calisir.",
+        "summary": "Run endpoint compatible with the OpenAI Responses API.",
+        "description": "The agent is selected from the \u0027model\u0027 field; if not found, \u0027metadata.entity_id\u0027 is tried. If \u0027conversation\u0027 is given the session is stored under that identifier; if not, under the generated response identifier, so chaining with \u0027previous_response_id\u0027 works.",
         "operationId": "AgentPrismOpenAIResponses",
         "responses": {
           "200": {
@@ -5329,8 +5329,8 @@
           "AgentPrism",
           "OpenAI"
         ],
-        "summary": "OpenAI Chat Completions API ile uyumlu calistirma ucu.",
-        "description": "Durumsuzdur: gecmisi istemci tasir. Agent, \u0027model\u0027 alanindan secilir; bulunamazsa \u0027metadata.entity_id\u0027 denenir.",
+        "summary": "Run endpoint compatible with the OpenAI Chat Completions API.",
+        "description": "Stateless: the client carries history. The agent is selected from the \u0027model\u0027 field; if not found, \u0027metadata.entity_id\u0027 is tried.",
         "operationId": "AgentPrismOpenAIChatCompletions",
         "responses": {
           "200": {
@@ -5387,8 +5387,8 @@
           "AgentPrism",
           "OpenAI"
         ],
-        "summary": "Yeni bir konusma kimligi uretir.",
-        "description": "Kimlik rezervasyonudur: oturum ilk /v1/responses cagrisinda dogar. Donen kimlik dogrudan \u0027conversation\u0027 alaninda kullanilir.",
+        "summary": "Generates a new conversation identifier.",
+        "description": "An identifier reservation: the session is born on the first /v1/responses call. The returned identifier is used directly in the \u0027conversation\u0027 field.",
         "operationId": "AgentPrismOpenAICreateConversation",
         "responses": {
           "200": {
@@ -5420,7 +5420,7 @@
           "AgentPrism",
           "OpenAI"
         ],
-        "summary": "Bir konusmanin ustverisini dondurur.",
+        "summary": "Returns a conversation\u0027s metadata.",
         "operationId": "AgentPrismOpenAIGetConversation",
         "parameters": [
           {
@@ -5460,7 +5460,7 @@
           "AgentPrism",
           "OpenAI"
         ],
-        "summary": "Bir konusmayi ve altindaki oturumu siler.",
+        "summary": "Deletes a conversation and the session underneath it.",
         "operationId": "AgentPrismOpenAIDeleteConversation",
         "parameters": [
           {
@@ -5502,7 +5502,7 @@
           "AgentPrism",
           "OpenAI"
         ],
-        "summary": "Bir konusmanin mesajlarini OpenAI oge bicimiyle listeler.",
+        "summary": "Lists a conversation\u0027s messages in the OpenAI item format.",
         "operationId": "AgentPrismOpenAIListConversationItems",
         "parameters": [
           {
@@ -5556,8 +5556,8 @@
           "AgentPrism",
           "Governance"
         ],
-        "summary": "OAuth saglayicisinin geri donus istegini isler.",
-        "description": "Bu uc erisim katmanlarinin disindadir: saglayicinin yonlendirdigi tarayici bizim bearer token\u0027imizi tasiyamaz. Guvenlik, tek kullanimlik \u0027state\u0027 degerine dayanir.",
+        "summary": "Processes the OAuth provider\u0027s callback request.",
+        "description": "This endpoint is outside the access layers: the browser redirected by the provider cannot carry our bearer token. Security relies on the single-use \u0027state\u0027 value.",
         "operationId": "AgentPrismMcpOAuthCallback",
         "parameters": [
           {
@@ -5618,24 +5618,24 @@
         "properties": {
           "runId": {
             "type": "string",
-            "description": "Calistirma kimligi.",
+            "description": "Run identifier.",
             "format": "uuid"
           },
           "jobId": {
             "type": "string",
-            "description": "Isi tasiyan kuyruk kaydinin kimligi.",
+            "description": "Identifier of the queue record carrying the work.",
             "format": "uuid"
           },
           "location": {
             "type": "string",
-            "description": "Calistirma kaydinin adresi. \u0060Location\u0060 basligiyla aynidir."
+            "description": "Address of the run record. Same as the \u0060Location\u0060 header."
           },
           "eventsLocation": {
             "type": "string",
-            "description": "Olay akisinin adresi."
+            "description": "Address of the event stream."
           }
         },
-        "description": "Kuyruga alinmis bir calistirmanin \u0060202 Accepted\u0060 yaniti (Faz 46)."
+        "description": "\u0060202 Accepted\u0060 response for a queued run (Phase 46)."
       },
       "AgentDefinition": {
         "required": [
@@ -5785,31 +5785,31 @@
         "properties": {
           "name": {
             "type": "string",
-            "description": "Agent adi. Katalogda benzersizdir."
+            "description": "Agent name. Unique within the catalog."
           },
           "displayName": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Arayuzde gosterilecek ad."
+            "description": "Name shown in the UI."
           },
           "description": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Kisa aciklama."
+            "description": "Short description."
           },
           "instructions": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Sistem talimati."
+            "description": "System instructions."
           },
           "model": {
-            "description": "Model baglantisi: saglayici, model ve ornekleme ayarlari.",
+            "description": "Model binding: provider, model, and sampling settings.",
             "$ref": "#/components/schemas/ModelBinding"
           },
           "toolNames": {
@@ -5817,21 +5817,21 @@
             "items": {
               "type": "string"
             },
-            "description": "Kullanilacak tool adlari. Tool\u0027lar yalnizca kodda tanimlanir; burada\nyalnizca kayitli bir tool\u0027un adi verilebilir."
+            "description": "Names of tools to use. Tools are defined only in code; only the name of\nan already registered tool may be given here."
           },
           "skillNames": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "description": "Calisma aninda yuklenebilecek skill adlari."
+            "description": "Names of skills that can be loaded at runtime."
           },
           "callableAgentNames": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "description": "Bu agent\u0027in cagirabilecegi diger agent adlari."
+            "description": "Names of other agents this agent may call."
           },
           "harness": {
             "oneOf": [
@@ -5839,7 +5839,7 @@
                 "type": "null"
               },
               {
-                "description": "Harness ayarlari. Bos birakilirsa duz sohbet agent\u0027i derlenir.",
+                "description": "Harness settings. If left empty, a plain chat agent is compiled.",
                 "$ref": "#/components/schemas/HarnessSettings"
               }
             ]
@@ -5850,7 +5850,7 @@
                 "type": "null"
               },
               {
-                "description": "Baglam sikistirma ayarlari. Bos birakilirsa sikistirma uygulanmaz.",
+                "description": "Context compaction settings. If left empty, no compaction is applied.",
                 "$ref": "#/components/schemas/CompactionSettings"
               }
             ]
@@ -5861,13 +5861,13 @@
                 "type": "null"
               },
               {
-                "description": "Bellek saglayicisi ayarlari. Bos birakilirsa hicbir bellek saglayicisi eklenmez.",
+                "description": "Memory provider settings. If left empty, no memory provider is added.",
                 "$ref": "#/components/schemas/MemorySettings"
               }
             ]
           }
         },
-        "description": "Agent tanimi olusturma ve guncelleme istegi."
+        "description": "Request to create or update an agent definition."
       },
       "AgentDescriptor": {
         "required": [
@@ -5967,7 +5967,7 @@
         "type": "object",
         "properties": {
           "descriptor": {
-            "description": "Katalog ozeti.",
+            "description": "Catalog summary.",
             "$ref": "#/components/schemas/AgentDescriptor"
           },
           "definition": {
@@ -5976,17 +5976,17 @@
                 "type": "null"
               },
               {
-                "description": "Kalici tanim. Agent yalnizca kodda tanimliysa \u0060null\u0060.",
+                "description": "Persistent definition. \u0060null\u0060 if the agent is defined only in code.",
                 "$ref": "#/components/schemas/AgentDefinition"
               }
             ]
           },
           "isEditable": {
             "type": "boolean",
-            "description": "Bu agent yonetim API\u0027sinden degistirilebilir mi."
+            "description": "Whether this agent can be modified through the management API."
           }
         },
-        "description": "Tek bir agent\u0027in ayrintili gorunumu."
+        "description": "Detailed view of a single agent."
       },
       "AgentPrismAuthenticationMeta": {
         "required": [
@@ -5998,18 +5998,18 @@
         "properties": {
           "allowRemoteAccess": {
             "type": "boolean",
-            "description": "Loopback disindan erisime izin veriliyor mu."
+            "description": "Whether access from outside loopback is allowed."
           },
           "requiresBearerToken": {
             "type": "boolean",
-            "description": "\u0060Authorization: Bearer\u0060 basligi bekleniyor mu."
+            "description": "Whether an \u0060Authorization: Bearer\u0060 header is expected."
           },
           "requiresAuthorizationPolicy": {
             "type": "boolean",
-            "description": "Bir ASP.NET Core authorization policy uygulaniyor mu."
+            "description": "Whether an ASP.NET Core authorization policy is applied."
           }
         },
-        "description": "Hangi kimlik dogrulama katmanlarinin acik oldugunu bildirir."
+        "description": "Reports which authentication layers are enabled."
       },
       "AgentPrismMetaResponse": {
         "required": [
@@ -6023,26 +6023,26 @@
         "properties": {
           "version": {
             "type": "string",
-            "description": "AgentPrism surumu."
+            "description": "AgentPrism version."
           },
           "prefix": {
             "type": "string",
-            "description": "Uclarin baglandigi yol oneki. Arayuz kendi cagrilarini buna gore kurar."
+            "description": "Path prefix the endpoints are connected to. The UI builds its own calls from this."
           },
           "authentication": {
-            "description": "Aktif kimlik dogrulama yontemleri.",
+            "description": "Active authentication methods.",
             "$ref": "#/components/schemas/AgentPrismAuthenticationMeta"
           },
           "storage": {
-            "description": "Aktif depolama uygulamalari.",
+            "description": "Active storage implementations.",
             "$ref": "#/components/schemas/AgentPrismStorageMeta"
           },
           "roles": {
-            "description": "Gecerli caginin rol yetkileri.",
+            "description": "Role permissions of the current caller.",
             "$ref": "#/components/schemas/AgentPrismRoleMeta"
           }
         },
-        "description": "\u0060{prefix}/api/meta\u0060 yaniti. Arayuzun kendini yapilandirmasi icin gereken\n        en az bilgiyi tasir."
+        "description": "Response for \u0060{prefix}/api/meta\u0060. Carries the minimum information the\nUI needs to configure itself."
       },
       "AgentPrismRoleMeta": {
         "required": [
@@ -6054,18 +6054,18 @@
         "properties": {
           "canRead": {
             "type": "boolean",
-            "description": "Agent, calistirma, oturum, trace ve istatistik okuma yetkisi var mi."
+            "description": "Whether the caller may read agents, runs, sessions, traces, and statistics."
           },
           "canOperate": {
             "type": "boolean",
-            "description": "Reader\u0027a ek olarak calistirma baslatma, onay verme, oturum silme yetkisi var mi."
+            "description": "Whether the caller may, in addition to Reader, start runs, give approvals, and delete sessions."
           },
           "canAdminister": {
             "type": "boolean",
-            "description": "Agent tanimi yazma, MCP sunucusu ekleme, kiraci ve denetim izi yonetimi yetkisi var mi."
+            "description": "Whether the caller may write agent definitions, add MCP servers, and manage tenants and audit trails."
           }
         },
-        "description": "Gecerli iste\u011Fin sahibinin hangi rol seviyelerini karsiladigini bildirir."
+        "description": "Reports which role levels the current request\u0027s caller satisfies."
       },
       "AgentPrismStorageMeta": {
         "required": [
@@ -6080,30 +6080,30 @@
         "properties": {
           "persistent": {
             "type": "boolean",
-            "description": "Uc deponun ucu de kalici mi. Herhangi biri bellek ici ise\n\u0060false\u0060 doner."
+            "description": "Whether all three stores are persistent. Returns\n\u0060false\u0060 if any is in-memory."
           },
           "agentDefinitionStore": {
             "type": "string",
-            "description": "Agent tanimi deposunun tip adi."
+            "description": "Type name of the agent definition store."
           },
           "runStore": {
             "type": "string",
-            "description": "Calistirma deposunun tip adi."
+            "description": "Type name of the run store."
           },
           "sessionStore": {
             "type": "string",
-            "description": "Oturum deposunun tip adi."
+            "description": "Type name of the session store."
           },
           "jobStore": {
             "type": "string",
-            "description": "Is kuyrugu deposunun tip adi (Faz 17)."
+            "description": "Type name of the job queue store (Phase 17)."
           },
           "jobWorkerEnabled": {
             "type": "boolean",
-            "description": "Arka plan is iscisi bu surecte calisiyor mu. \u0060false\u0060 ise\nkuyruk yine de yazilabilir/okunabilir; yalnizca bu surec is kiralamaz."
+            "description": "Whether the background job worker is running in this process. If\n\u0060false\u0060, the queue can still be written to and read\nfrom; only this process does not lease jobs."
           }
         },
-        "description": "Hangi depolama uygulamalarinin aktif oldugunu bildirir."
+        "description": "Reports which storage implementations are active."
       },
       "AgentResponseFormat": {
         "required": [
@@ -6163,11 +6163,11 @@
               "integer",
               "string"
             ],
-            "description": "Donulecek surum numarasi.",
+            "description": "Version number to roll back to.",
             "format": "int32"
           }
         },
-        "description": "Bir tanimi onceki bir surume dondurme istegi."
+        "description": "Request to roll back a definition to a previous version."
       },
       "AgentRunRequest": {
         "type": "object",
@@ -6177,21 +6177,21 @@
               "null",
               "string"
             ],
-            "description": "Kullanici mesaji. Yalnizca IReadOnlyList\u0026lt;ToolApprovalDecision\u0026gt; AgentRunRequest.Approvals gonderiliyorsa bos birakilabilir."
+            "description": "User message. May be left empty only if IReadOnlyList\u0026lt;ToolApprovalDecision\u0026gt; AgentRunRequest.Approvals is sent."
           },
           "sessionId": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Oturum kimligi. Verilmezse calistirma oturumsuzdur ve gecmis tasinmaz."
+            "description": "Session identifier. If not given, the run is sessionless and no history\nis carried."
           },
           "approvals": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ToolApprovalDecision"
             },
-            "description": "Bekleyen tool cagrilarina verilen onay kararlari."
+            "description": "Approval decisions for pending tool calls."
           },
           "attachmentIds": {
             "type": "array",
@@ -6199,10 +6199,10 @@
               "type": "string",
               "format": "uuid"
             },
-            "description": "Onceden \u0060POST /api/attachments\u0060 ile yuklenmis eklerin kimlikleri."
+            "description": "Identifiers of attachments previously uploaded via \u0060POST /api/attachments\u0060."
           }
         },
-        "description": "Arayuzden yapilan deneme calistirmasinin istegi."
+        "description": "Request for a trial run made from the UI."
       },
       "AgentSkillDefinition": {
         "required": [
@@ -6309,61 +6309,61 @@
         "properties": {
           "name": {
             "type": "string",
-            "description": "Skill adi."
+            "description": "Skill name."
           },
           "description": {
             "type": "string",
-            "description": "Skill aciklamasi."
+            "description": "Skill description."
           },
           "instructions": {
             "type": "string",
-            "description": "Markdown talimatlari."
+            "description": "Markdown instructions."
           },
           "compatibility": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Uyumluluk bildirimi."
+            "description": "Compatibility statement."
           },
           "license": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Skill lisansi."
+            "description": "Skill license."
           },
           "allowedTools": {
             "type": [
               "null",
               "string"
             ],
-            "description": "MAF frontmatter\u0027indaki izinli tool bildirimi."
+            "description": "Allowed-tools declaration from the MAF frontmatter."
           },
           "metadata": {
             "type": "object",
-            "description": "Uygulamaya ozgu metadata."
+            "description": "Application-specific metadata."
           },
           "enabled": {
             "type": "boolean",
-            "description": "Skill etkin mi."
+            "description": "Whether the skill is enabled."
           },
           "resources": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/AgentSkillResourceDefinition"
             },
-            "description": "Skill kaynaklari."
+            "description": "Skill resources."
           },
           "scripts": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/AgentSkillScriptDefinition"
             },
-            "description": "Skill script\u0027leri."
+            "description": "Skill scripts."
           }
         },
-        "description": "Skill olusturma veya guncelleme istegi."
+        "description": "Request to create or update a skill."
       },
       "AgentSkillResourceDefinition": {
         "required": [
@@ -6465,15 +6465,15 @@
         "type": "object",
         "properties": {
           "left": {
-            "description": "Karsilastirmanin sol (genelde eski) tarafi.",
+            "description": "Left (usually older) side of the comparison.",
             "$ref": "#/components/schemas/AgentDefinition"
           },
           "right": {
-            "description": "Karsilastirmanin sag (genelde yeni) tarafi.",
+            "description": "Right (usually newer) side of the comparison.",
             "$ref": "#/components/schemas/AgentDefinition"
           }
         },
-        "description": "Iki tanim surumunun ham JSON yaniti (Faz 19.1). Diff hesabi sunucuda yapilmaz;\nistemci iki ham tanimi alan alan karsilastirir."
+        "description": "Raw JSON response for comparing two definition versions (Phase 19.1). The\ndiff is not computed on the server; the client compares the two raw\ndefinitions field by field."
       },
       "AIAnnotation": {
         "type": "object",
@@ -7561,7 +7561,7 @@
               "null",
               "string"
             ],
-            "description": "Operatorun anahtari tanimasi icin ad."
+            "description": "Gets the name that lets the operator identify the key."
           },
           "scopes": {
             "type": [
@@ -7571,18 +7571,18 @@
             "items": {
               "$ref": "#/components/schemas/ApiKeyScope"
             },
-            "description": "Kapsam kumesi. Bos olamaz; bilinmeyen bir deger reddedilir."
+            "description": "Gets the set of scopes. Cannot be empty; an unknown value is rejected."
           },
           "expiresAt": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Sure sonu. Verilmezse anahtar suresizdir.",
+            "description": "Gets the expiration time. If not given, the key never expires.",
             "format": "date-time"
           }
         },
-        "description": "Bir API anahtari olusturmak icin istek govdesi."
+        "description": "The request body for creating an API key."
       },
       "ApiKeyCreationResult": {
         "required": [
@@ -7703,10 +7703,10 @@
         "properties": {
           "approved": {
             "type": "boolean",
-            "description": "Istek onaylandi mi."
+            "description": "Gets whether the request was approved."
           }
         },
-        "description": "Bekleyen bir onay istegine karar vermek icin istek govdesi."
+        "description": "Request body for deciding a pending approval request."
       },
       "ApprovalStatus": {
         "enum": [
@@ -8278,10 +8278,10 @@
         "properties": {
           "tenantId": {
             "type": "string",
-            "description": "Kiraci kimligi."
+            "description": "Tenant identifier."
           }
         },
-        "description": "Gecerli istegin kiracisi."
+        "description": "Tenant of the current request."
       },
       "DeletedResource": {
         "required": [
@@ -8392,31 +8392,31 @@
         "properties": {
           "query": {
             "type": "string",
-            "description": "Agent\u0027a gonderilecek sorgu metni."
+            "description": "Query text to send to the agent."
           },
           "expectedOutput": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Beklenen cikti."
+            "description": "Expected output."
           },
           "expectedTools": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "description": "\u0060toolCalled\u0060 denetiminde aranan tool adlari."
+            "description": "Tool names looked for by the \u0060toolCalled\u0060 check."
           },
           "context": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Modele ek baglam olarak verilecek metin."
+            "description": "Text to give the model as extra context."
           }
         },
-        "description": "Bir eval vakasinin girdi bicimi (istekte)."
+        "description": "Input shape of an eval case (in a request)."
       },
       "EvalCasePromotionRequest": {
         "type": "object",
@@ -8427,13 +8427,13 @@
                 "type": "null"
               },
               {
-                "description": "Terfi sebebini ezer. Verilmezse calistirmanin durumundan ve puanindan\nkendiliginden turetilir.",
+                "description": "Overrides the promotion reason. If not given, it is derived\nautomatically from the run\u0027s status and score.",
                 "$ref": "#/components/schemas/EvalCaseSource"
               }
             ]
           }
         },
-        "description": "Bir calistirmayi vakaya terfi etme istegi (Faz 45, F-53)."
+        "description": "Request to promote a run to a case (Phase 45, F-53)."
       },
       "EvalCaseResult": {
         "required": [
@@ -8623,7 +8623,7 @@
         "type": "object",
         "properties": {
           "run": {
-            "description": "Kosu ozeti.",
+            "description": "Run summary.",
             "$ref": "#/components/schemas/EvalRun"
           },
           "results": {
@@ -8631,10 +8631,10 @@
             "items": {
               "$ref": "#/components/schemas/EvalCaseResult"
             },
-            "description": "Vaka bazinda sonuclar."
+            "description": "Per-case results."
           }
         },
-        "description": "Tek bir eval kosusunun ayrintili gorunumu: ozet ve vaka sonuclari birlikte."
+        "description": "Detailed view of a single eval run: summary and case results together."
       },
       "EvalRunStatus": {
         "enum": [
@@ -8654,7 +8654,7 @@
               "null",
               "string"
             ],
-            "description": "Bu kosu icin kaydedilecek model kimligi. Verilmezse agent\u0027in guncel\ntanimindaki model kullanilir."
+            "description": "Model identifier to record for this run. If not given, the model in\nthe agent\u0027s current definition is used."
           },
           "numRepetitions": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -8663,7 +8663,7 @@
               "integer",
               "string"
             ],
-            "description": "Her vakanin kararliligini olcmek icin kac kez tekrarlanacagi. Verilmezse 1.",
+            "description": "Number of times to repeat each case to measure its stability. If not\ngiven, 1.",
             "format": "int32"
           },
           "agentVersion": {
@@ -8673,11 +8673,11 @@
               "integer",
               "string"
             ],
-            "description": "Bu kosu icin olculecek tanim surumu. Verilmezse agent\u0027in guncel surumu\nkullanilir. Kod kaynakli agent\u0027larda (surum gecmisi yok) 400 ile reddedilir.",
+            "description": "Definition version to measure for this run. If not given, the agent\u0027s\ncurrent version is used. Rejected with 400 for code-sourced agents (no\nversion history).",
             "format": "int32"
           }
         },
-        "description": "Bir eval kosusunu hemen tetikleme istegi."
+        "description": "Request to trigger an eval run immediately."
       },
       "EvalSuite": {
         "required": [
@@ -8739,18 +8739,18 @@
               "null",
               "string"
             ],
-            "description": "Kisa aciklama."
+            "description": "Short description."
           },
           "agentName": {
             "type": "string",
-            "description": "Bu takimin olctugu agent\u0027in adi."
+            "description": "Name of the agent this suite measures."
           },
           "checks": {
-            "description": "Denetim tanimlari. Bkz. JsonElement EvalSuite.Checks.",
+            "description": "Check definitions. See JsonElement EvalSuite.Checks.",
             "$ref": "#/components/schemas/JsonElement"
           }
         },
-        "description": "Bir eval takimi olusturma/guncelleme istegi."
+        "description": "Request to create/update an eval suite."
       },
       "Experiment": {
         "required": [
@@ -8851,7 +8851,7 @@
                 "type": "null"
               },
               {
-                "description": "Tanimli kanarya kurali. Hic tanimlanmamissa \u0060null\u0060.",
+                "description": "The defined canary rule. \u0060null\u0060 if none has been defined.",
                 "$ref": "#/components/schemas/CanaryPolicy"
               }
             ]
@@ -8862,13 +8862,13 @@
                 "type": "null"
               },
               {
-                "description": "Kuralin guncel degerlendirmesi. CanaryPolicy? ExperimentCanaryResponse.Policy\u0060null\u0060 ise \u0060null\u0060.",
+                "description": "Current evaluation of the rule. \u0060null\u0060 if CanaryPolicy? ExperimentCanaryResponse.Policy is \u0060null\u0060.",
                 "$ref": "#/components/schemas/CanaryEvaluation"
               }
             ]
           }
         },
-        "description": "\u0060GET /api/experiments/{name}/canary\u0060 yaniti \u2014 kural VE guncel degerlendirme\n        bir arada."
+        "description": "Response for \u0060GET /api/experiments/{name}/canary\u0060 \u2014 the rule AND its\ncurrent evaluation together."
       },
       "ExperimentResultsResponse": {
         "required": [
@@ -8878,7 +8878,7 @@
         "type": "object",
         "properties": {
           "experiment": {
-            "description": "Deneyin kendisi.",
+            "description": "The experiment itself.",
             "$ref": "#/components/schemas/Experiment"
           },
           "results": {
@@ -8886,10 +8886,10 @@
             "items": {
               "$ref": "#/components/schemas/ExperimentVariantResult"
             },
-            "description": "Kol bazinda sonuclar."
+            "description": "Per-arm results."
           }
         },
-        "description": "Bir deneyin varyant bazinda sonuc gorunumu."
+        "description": "Per-variant results view of an experiment."
       },
       "ExperimentSaveRequest": {
         "required": [
@@ -8900,17 +8900,17 @@
         "properties": {
           "agentName": {
             "type": "string",
-            "description": "Trafigi bolunecek agent\u0027in adi."
+            "description": "Name of the agent whose traffic is split."
           },
           "variants": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ExperimentVariant"
             },
-            "description": "Deneyin kollari. Agirlik toplami 100 olmalidir."
+            "description": "The experiment\u0027s arms. Weights must sum to 100."
           }
         },
-        "description": "Bir deney olusturma/guncelleme istegi. Ad yoldan gelir."
+        "description": "Request to create/update an experiment. The name comes from the path."
       },
       "ExperimentStatus": {
         "enum": [
@@ -9295,7 +9295,7 @@
         "type": "object",
         "properties": {
           "job": {
-            "description": "Is kaydi.",
+            "description": "Job record.",
             "$ref": "#/components/schemas/JobRecord"
           },
           "items": {
@@ -9303,10 +9303,10 @@
             "items": {
               "$ref": "#/components/schemas/JobItemRecord"
             },
-            "description": "Isin ogeleri, sira numarasina gore."
+            "description": "The job\u0027s items, in sequence order."
           }
         },
-        "description": "Tek bir isin ayrintili gorunumu: kayit ve ogeleri birlikte."
+        "description": "Detailed view of a single job: record and items together."
       },
       "JobItemRecord": {
         "required": [
@@ -9621,34 +9621,34 @@
         "type": "object",
         "properties": {
           "kind": {
-            "description": "Bu zamanlamanin urettigi isin turu.",
+            "description": "Kind of job this schedule produces.",
             "$ref": "#/components/schemas/JobKind"
           },
           "targetName": {
             "type": "string",
-            "description": "Calistirilacak agent veya workflow adi."
+            "description": "Name of the agent or workflow to run."
           },
           "cron": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Bes alanli cron ifadesi. Bos birakilirsa zamanlama yalnizca elle\n(\u0060POST .../trigger\u0060) tetiklenir."
+            "description": "Five-field cron expression. If left empty, the schedule can only be\ntriggered manually (\u0060POST .../trigger\u0060)."
           },
           "timeZone": {
             "type": "string",
-            "description": "string? JobScheduleSaveRequest.Cron ifadesinin yorumlanacagi saat dilimi."
+            "description": "Time zone the string? JobScheduleSaveRequest.Cron expression is interpreted in."
           },
           "payload": {
-            "description": "Girdi kumesi veya parametreler.",
+            "description": "Input set or parameters.",
             "$ref": "#/components/schemas/JsonElement"
           },
           "enabled": {
             "type": "boolean",
-            "description": "Zamanlama etkin mi."
+            "description": "Whether the schedule is enabled."
           }
         },
-        "description": "Bir zamanlama olusturma/guncelleme istegi."
+        "description": "Request to create/update a schedule."
       },
       "JobStatus": {
         "enum": [
@@ -9670,13 +9670,13 @@
                 "type": "null"
               },
               {
-                "description": "Bu calistirma icin kullanilacak yuk. Bos birakilirsa zamanlamanin kendi\nyuku kullanilir.",
+                "description": "Payload to use for this run. If left empty, the schedule\u0027s own payload\nis used.",
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           }
         },
-        "description": "Bir zamanlamayi hemen tetikleme istegi."
+        "description": "Request to trigger a schedule immediately."
       },
       "JsonElement": {},
       "McpOAuthAuthorizationMode": {
@@ -9694,14 +9694,14 @@
         "properties": {
           "authorizationUri": {
             "type": "string",
-            "description": "Yoneticinin yonlendirilecegi yetkilendirme adresi."
+            "description": "Authorization address the admin is redirected to."
           },
           "state": {
             "type": "string",
-            "description": "CSRF korumasi icin uretilen tek kullanimlik durum degeri."
+            "description": "Single-use state value generated for CSRF protection."
           }
         },
-        "description": "OAuth Mod 1 baslatma yaniti."
+        "description": "Response for starting OAuth Mode 1."
       },
       "McpPromptArgumentsRequest": {
         "type": "object",
@@ -9714,10 +9714,10 @@
             "additionalProperties": {
               "type": "string"
             },
-            "description": "Prompt argumanlari."
+            "description": "Prompt arguments."
           }
         },
-        "description": "Bir MCP prompt\u0027unu argumanlarla cozme istegi."
+        "description": "Request to resolve an MCP prompt with arguments."
       },
       "McpPromptArgumentSummary": {
         "required": [
@@ -9807,11 +9807,11 @@
               "integer",
               "string"
             ],
-            "description": "Tazeleme sonrasi kullanilabilir toplam tool sayisi.",
+            "description": "Total number of tools available after the refresh.",
             "format": "int32"
           }
         },
-        "description": "MCP tool tazeleme sonucu."
+        "description": "Result of an MCP tool refresh."
       },
       "McpResourceContent": {
         "required": [
@@ -10002,14 +10002,14 @@
               "null",
               "string"
             ],
-            "description": "Aciklama."
+            "description": "Description."
           },
           "endpoint": {
             "type": "string",
-            "description": "Sunucu adresi. Yalnizca \u0060http\u0060 ve \u0060https\u0060 kabul edilir."
+            "description": "Server address. Only \u0060http\u0060 and \u0060https\u0060 are accepted."
           },
           "transport": {
-            "description": "Aktarim bicimi.",
+            "description": "Transport mode.",
             "$ref": "#/components/schemas/McpTransportMode"
           },
           "authorizationConfigurationKey": {
@@ -10017,7 +10017,7 @@
               "null",
               "string"
             ],
-            "description": "\u0060Authorization\u0060 basliginin degerinin okunacagi yapilandirma anahtari.\n        Ornek: \u0060AgentPrism:Mcp:GithubToken\u0060."
+            "description": "Configuration key the \u0060Authorization\u0060 header\u0027s value is read from.\nExample: \u0060AgentPrism:Mcp:GithubToken\u0060."
           },
           "headers": {
             "type": [
@@ -10027,47 +10027,47 @@
             "additionalProperties": {
               "type": "string"
             },
-            "description": "Ek istek basliklari. \u003Cstrong\u003ESir tasimamalidir\u003C/strong\u003E \u2014 bu degerler\noldugu gibi saklanir ve listeleme ucunda gorunur."
+            "description": "Extra request headers. \u003Cstrong\u003EMust not carry secrets\u003C/strong\u003E \u2014 these\nvalues are stored as-is and appear in the listing endpoint."
           },
           "enabled": {
             "type": "boolean",
-            "description": "Sunucu etkin mi."
+            "description": "Whether the server is enabled."
           },
           "requiresApproval": {
             "type": "boolean",
-            "description": "Bu sunucunun tool\u0027lari onay ister mi. Varsayilan \u0060true\u0060."
+            "description": "Whether this server\u0027s tools require approval. Default \u0060true\u0060."
           },
           "oauthEnabled": {
             "type": "boolean",
-            "description": "OAuth ile kimlik dogrulama acik mi. Acikken string? McpServerRequest.AuthorizationConfigurationKey\nbos olmalidir."
+            "description": "Whether OAuth authentication is enabled. While on,\nstring? McpServerRequest.AuthorizationConfigurationKey must be empty."
           },
           "oauthClientId": {
             "type": [
               "null",
               "string"
             ],
-            "description": "OAuth istemci kimligi."
+            "description": "OAuth client identifier."
           },
           "oauthClientSecretConfigurationKey": {
             "type": [
               "null",
               "string"
             ],
-            "description": "OAuth istemci gizli anahtarinin degerinin okunacagi yapilandirma anahtari.\nDeger gonderilmez; yalniz anahtarin adi."
+            "description": "Configuration key the OAuth client secret\u0027s value is read from. The\nvalue itself is not sent; only the key\u0027s name is."
           },
           "oauthScopes": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Bosluk ile ayrilmis OAuth scope listesi."
+            "description": "Space-separated list of OAuth scopes."
           },
           "oauthAuthorizationMode": {
-            "description": "OAuth yetkilendirme akisi.",
+            "description": "OAuth authorization flow.",
             "$ref": "#/components/schemas/McpOAuthAuthorizationMode"
           }
         },
-        "description": "MCP sunucusu olusturma ve guncelleme istegi."
+        "description": "Request to create/update an MCP server."
       },
       "McpTransportMode": {
         "enum": [
@@ -10661,10 +10661,10 @@
               "null",
               "string"
             ],
-            "description": "Kuralin baglandigi agent. Bos birakilirsa kural kiracinin tum\ncalistirmalarina uygulanir."
+            "description": "Gets the agent the rule is bound to. If left empty, the rule applies to all\nof the tenant\u0027s runs."
           },
           "period": {
-            "description": "Sayacin sifirlanma araligi.",
+            "description": "Gets the counter\u0027s reset interval.",
             "$ref": "#/components/schemas/QuotaPeriod"
           },
           "maxRuns": {
@@ -10674,7 +10674,7 @@
               "integer",
               "string"
             ],
-            "description": "Donem basina en fazla calistirma sayisi.",
+            "description": "Gets the maximum number of runs per period.",
             "format": "int64"
           },
           "maxTokens": {
@@ -10684,7 +10684,7 @@
               "integer",
               "string"
             ],
-            "description": "Donem basina en fazla token.",
+            "description": "Gets the maximum number of tokens per period.",
             "format": "int64"
           },
           "maxCost": {
@@ -10694,15 +10694,15 @@
               "number",
               "string"
             ],
-            "description": "Donem basina en fazla para tutari.",
+            "description": "Gets the maximum monetary amount per period.",
             "format": "double"
           },
           "enabled": {
             "type": "boolean",
-            "description": "Kural etkin mi."
+            "description": "Gets whether the rule is enabled."
           }
         },
-        "description": "Bir kota kuralini kaydetmek icin istek govdesi."
+        "description": "Request body for saving a quota rule."
       },
       "QuotaUsageRecord": {
         "required": [
@@ -10779,38 +10779,38 @@
         "properties": {
           "tenantId": {
             "type": "string",
-            "description": "Kiraci kimligi."
+            "description": "Gets the tenant identifier."
           },
           "timeZone": {
             "type": "string",
-            "description": "Donem sinirlarinin hesaplandigi saat dilimi."
+            "description": "Gets the time zone the period boundaries are computed in."
           },
           "usage": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/QuotaUsageRecord"
             },
-            "description": "Gecerli donemin sayaclari."
+            "description": "Gets the current period\u0027s counters."
           },
           "definitions": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/QuotaDefinition"
             },
-            "description": "Tanimli kota kurallari. Arayuz yuzdeyi bunlardan hesaplar."
+            "description": "Gets the defined quota rules. The UI computes the percentage from these."
           },
           "dailyResetsAt": {
             "type": "string",
-            "description": "Gunluk sayaclarin sifirlanacagi an (UTC).",
+            "description": "Gets the moment (UTC) the daily counters reset.",
             "format": "date-time"
           },
           "monthlyResetsAt": {
             "type": "string",
-            "description": "Aylik sayaclarin sifirlanacagi an (UTC).",
+            "description": "Gets the moment (UTC) the monthly counters reset.",
             "format": "date-time"
           }
         },
-        "description": "Kota kullanim ucunun yaniti."
+        "description": "Response for the quota usage endpoint."
       },
       "ReplayToolMode": {
         "enum": [
@@ -10894,7 +10894,7 @@
               "integer",
               "string"
             ],
-            "description": "Bu yastan eski satirlar silinmeye adaydir.",
+            "description": "Rows older than this age are candidates for deletion.",
             "format": "int32"
           },
           "maxRows": {
@@ -10904,19 +10904,19 @@
               "integer",
               "string"
             ],
-            "description": "Hedefte tutulacak en fazla satir sayisi. En eski satirlar silinir.",
+            "description": "The maximum number of rows to keep for the target. The oldest rows are deleted.",
             "format": "int64"
           },
           "archive": {
             "type": "boolean",
-            "description": "Silmeden once arsivlensin mi."
+            "description": "Whether to archive rows before deleting them."
           },
           "enabled": {
             "type": "boolean",
-            "description": "Politika etkin mi."
+            "description": "Whether the policy is enabled."
           }
         },
-        "description": "Bir saklama politikasini kaydetmek icin istek govdesi."
+        "description": "Request body for saving a retention policy."
       },
       "RetentionPreview": {
         "required": [
@@ -11034,15 +11034,15 @@
         "properties": {
           "jobId": {
             "type": "string",
-            "description": "Kuyruga yazilan isin kimligi.",
+            "description": "The id of the enqueued job.",
             "format": "uuid"
           },
           "target": {
             "type": "string",
-            "description": "Islenecek hedef; tumu icin \u0060\u0022*\u0022\u0060."
+            "description": "The target to process; \u0060\u0022*\u0022\u0060 for all targets."
           }
         },
-        "description": "Bir \u0022simdi calistir\u0022 isteginin yaniti."
+        "description": "Response to a \u0022run now\u0022 request."
       },
       "RunAgentStatistics": {
         "required": [
@@ -11094,15 +11094,15 @@
         "type": "object",
         "properties": {
           "left": {
-            "description": "Soldaki calistirma.",
+            "description": "The left-hand run.",
             "$ref": "#/components/schemas/RunComparisonSide"
           },
           "right": {
-            "description": "Sagdaki calistirma.",
+            "description": "The right-hand run.",
             "$ref": "#/components/schemas/RunComparisonSide"
           }
         },
-        "description": "Iki calistirmanin yan yana ozeti."
+        "description": "Side-by-side summary of two runs."
       },
       "RunComparisonSide": {
         "required": [
@@ -11115,12 +11115,12 @@
         "properties": {
           "runId": {
             "type": "string",
-            "description": "Calistirma kimligi.",
+            "description": "Run identifier.",
             "format": "uuid"
           },
           "agentName": {
             "type": "string",
-            "description": "Agent adi."
+            "description": "Agent name."
           },
           "agentVersion": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -11129,7 +11129,7 @@
               "integer",
               "string"
             ],
-            "description": "Tanim surumu. Bilinmiyorsa \u0060null\u0060.",
+            "description": "Definition version. \u0060null\u0060 if unknown.",
             "format": "int32"
           },
           "modelId": {
@@ -11137,10 +11137,10 @@
               "null",
               "string"
             ],
-            "description": "Kullanilan model."
+            "description": "Model used."
           },
           "status": {
-            "description": "Son durum.",
+            "description": "Final status.",
             "$ref": "#/components/schemas/RunStatus"
           },
           "durationMs": {
@@ -11150,7 +11150,7 @@
               "integer",
               "string"
             ],
-            "description": "Sure (milisaniye). Calistirma bitmediyse \u0060null\u0060.",
+            "description": "Duration (milliseconds). \u0060null\u0060 if the run has not finished.",
             "format": "int64"
           },
           "usage": {
@@ -11159,7 +11159,7 @@
                 "type": "null"
               },
               {
-                "description": "Token kullanimi.",
+                "description": "Token usage.",
                 "$ref": "#/components/schemas/RunUsage"
               }
             ]
@@ -11170,7 +11170,7 @@
                 "type": "null"
               },
               {
-                "description": "Maliyet.",
+                "description": "Cost.",
                 "$ref": "#/components/schemas/RunCost"
               }
             ]
@@ -11181,7 +11181,7 @@
               "integer",
               "string"
             ],
-            "description": "Tool cagrisi sayisi.",
+            "description": "Number of tool calls.",
             "format": "int32"
           },
           "errorClass": {
@@ -11190,7 +11190,7 @@
                 "type": "null"
               },
               {
-                "description": "Hata sinifi. Basarili calistirmada \u0060null\u0060.",
+                "description": "Error class. \u0060null\u0060 for a successful run.",
                 "$ref": "#/components/schemas/RunErrorClass"
               }
             ]
@@ -11200,14 +11200,14 @@
               "null",
               "string"
             ],
-            "description": "Hata mesaji. Basarili calistirmada \u0060null\u0060."
+            "description": "Error message. \u0060null\u0060 for a successful run."
           },
           "replayOfRunId": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Bu calistirma bir yeniden oynatma ise kaynagi.",
+            "description": "Source of this run, if it is a replay.",
             "format": "uuid"
           },
           "output": {
@@ -11215,17 +11215,17 @@
               "null",
               "string"
             ],
-            "description": "Modelin urettigi metin."
+            "description": "Text produced by the model."
           },
           "scores": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/RunScore"
             },
-            "description": "Bu calistirmaya yazilmis puanlar."
+            "description": "Scores written against this run."
           }
         },
-        "description": "Karsilastirmanin bir tarafi."
+        "description": "One side of the comparison."
       },
       "RunCost": {
         "required": [
@@ -11437,7 +11437,7 @@
         "type": "object",
         "properties": {
           "kind": {
-            "description": "Puanin bicimi.",
+            "description": "The format of the score.",
             "$ref": "#/components/schemas/RunScoreKind"
           },
           "value": {
@@ -11446,7 +11446,7 @@
               "integer",
               "string"
             ],
-            "description": "RunScoreKind.Binary icin 0/1, RunScoreKind.Stars icin 1..5.",
+            "description": "0/1 for RunScoreKind.Binary, 1..5 for RunScoreKind.Stars.",
             "format": "int32"
           },
           "messageId": {
@@ -11454,17 +11454,17 @@
               "null",
               "string"
             ],
-            "description": "Puanlanan mesajin kimligi. Bos birakilirsa puan tum calistirmaya aittir."
+            "description": "The id of the scored message. If left blank, the score applies to the whole run."
           },
           "comment": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Serbest metin yorum."
+            "description": "Free-text comment."
           }
         },
-        "description": "Bir calistirma/mesaj puani yazmak icin istek govdesi."
+        "description": "Request body for writing a run/message score."
       },
       "RunInputResponse": {
         "required": [
@@ -11476,12 +11476,12 @@
         "properties": {
           "runId": {
             "type": "string",
-            "description": "Calistirma kimligi.",
+            "description": "Run identifier.",
             "format": "uuid"
           },
           "createdAt": {
             "type": "string",
-            "description": "Kaydin olusturulma zamani (UTC).",
+            "description": "Creation time of the record (UTC).",
             "format": "date-time"
           },
           "messages": {
@@ -11489,10 +11489,10 @@
             "items": {
               "$ref": "#/components/schemas/ChatMessage"
             },
-            "description": "Girdi mesajlari. Polimorfik icerikleriyle birlikte, kaydedildikleri gibi."
+            "description": "Input messages, with their polymorphic content, exactly as recorded."
           }
         },
-        "description": "Bir calistirmanin kayitli girdisinin HTTP yaniti."
+        "description": "HTTP response for a run\u0027s recorded input."
       },
       "RunKind": {
         "enum": [
@@ -11805,16 +11805,16 @@
         "properties": {
           "runId": {
             "type": "string",
-            "description": "Acilan yeni calistirmanin kimligi.",
+            "description": "Identifier of the newly started run.",
             "format": "uuid"
           },
           "sourceRunId": {
             "type": "string",
-            "description": "Kaynak calistirmanin kimligi. \u0060runs.replay_of_run_id\u0060 ile aynidir.",
+            "description": "Identifier of the source run. Same as \u0060runs.replay_of_run_id\u0060.",
             "format": "uuid"
           },
           "toolMode": {
-            "description": "Uygulanan tool modu.",
+            "description": "Tool mode applied.",
             "$ref": "#/components/schemas/ReplayToolMode"
           },
           "agentVersion": {
@@ -11824,7 +11824,7 @@
               "integer",
               "string"
             ],
-            "description": "Kullanilan tanim surumu. Kod agent\u0027inda \u0060null\u0060.",
+            "description": "Definition version used. \u0060null\u0060 for a code agent.",
             "format": "int32"
           },
           "modelId": {
@@ -11832,21 +11832,21 @@
               "null",
               "string"
             ],
-            "description": "Kullanilan model."
+            "description": "Model used."
           },
           "output": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Modelin urettigi metin."
+            "description": "Text produced by the model."
           },
           "compareLocation": {
             "type": "string",
-            "description": "Iki calistirmayi yan yana koyan ucun adresi."
+            "description": "Address of the endpoint that places the two runs side by side."
           }
         },
-        "description": "Bir yeniden oynatmanin sonucu."
+        "description": "Result of a replay."
       },
       "RunScore": {
         "required": [
@@ -12309,7 +12309,7 @@
         "properties": {
           "sourceId": {
             "type": "string",
-            "description": "Parcanin ait oldugu kaynak kimligi."
+            "description": "Identifier of the source the chunk belongs to."
           },
           "chunkIndex": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -12317,12 +12317,12 @@
               "integer",
               "string"
             ],
-            "description": "Kaynak icindeki sira numarasi.",
+            "description": "Sequence number within the source.",
             "format": "int32"
           },
           "content": {
             "type": "string",
-            "description": "Parcanin metni."
+            "description": "The chunk\u0027s text."
           },
           "distance": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
@@ -12330,7 +12330,7 @@
               "number",
               "string"
             ],
-            "description": "Kosinus mesafesi. Kucuk deger daha yakin demektir.",
+            "description": "Cosine distance. A smaller value means closer.",
             "format": "double"
           },
           "metadata": {
@@ -12341,10 +12341,10 @@
             "additionalProperties": {
               "type": "string"
             },
-            "description": "Yazilirken verilen istege bagli ustveri."
+            "description": "Optional metadata given at write time."
           }
         },
-        "description": "Bir anlamsal arama sonucu."
+        "description": "A semantic search hit."
       },
       "SearchKnowledgeRequest": {
         "required": [
@@ -12354,7 +12354,7 @@
         "properties": {
           "query": {
             "type": "string",
-            "description": "Aranacak dogal dil sorgusu."
+            "description": "Natural language query to search."
           },
           "top": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -12363,11 +12363,11 @@
               "integer",
               "string"
             ],
-            "description": "Kac sonuc dondurulecegi. Verilmezse yapilandirmadaki varsayilan kullanilir.",
+            "description": "Number of results to return. If not given, the default in configuration is used.",
             "format": "int32"
           }
         },
-        "description": "Bir anlamsal arama istegi."
+        "description": "A semantic search request."
       },
       "SessionBranchRequest": {
         "type": "object",
@@ -12454,27 +12454,27 @@
         "properties": {
           "id": {
             "type": "string",
-            "description": "Oturum kimligi."
+            "description": "Session identifier."
           },
           "agentName": {
             "type": "string",
-            "description": "Oturumun ait oldugu agent."
+            "description": "Agent the session belongs to."
           },
           "tenantId": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Kiraci kimligi."
+            "description": "Tenant identifier."
           },
           "createdAt": {
             "type": "string",
-            "description": "Olusturulma zamani.",
+            "description": "Creation time.",
             "format": "date-time"
           },
           "updatedAt": {
             "type": "string",
-            "description": "Son guncelleme zamani.",
+            "description": "Last update time.",
             "format": "date-time"
           },
           "messages": {
@@ -12483,17 +12483,17 @@
                 "type": "null"
               },
               {
-                "description": "Sohbet gecmisi. Gecmis okunamadiysa (agent artik katalogda yoksa)\n\u0060null\u0060 doner.",
+                "description": "Chat history. Returns \u0060null\u0060 if the history could not\nbe read (e.g. the agent is no longer in the catalog).",
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "state": {
-            "description": "Serilestirilmis oturum durumu.",
+            "description": "Serialized session state.",
             "$ref": "#/components/schemas/JsonElement"
           }
         },
-        "description": "Tek bir oturumun ayrintili gorunumu: ustveri ve sohbet gecmisi."
+        "description": "Detailed view of a single session: metadata and chat history."
       },
       "SessionRecord": {
         "required": [
@@ -12603,25 +12603,25 @@
         "properties": {
           "skillName": {
             "type": "string",
-            "description": "Izin verilen skill\u0027in adi."
+            "description": "Name of the skill being granted permission."
           },
           "scriptName": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Izin verilen script\u0027in adi. \u0060null\u0060 ise skill\u0027in tum\nscript\u0027leri kapsanir."
+            "description": "Name of the script being granted permission. If \u0060null\u0060,\nevery script of the skill is covered."
           },
           "expiresAt": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Iznin bitis zamani. \u0060null\u0060 ise sinirsizdir.",
+            "description": "Expiration time of the grant. If \u0060null\u0060, it is unlimited.",
             "format": "date-time"
           }
         },
-        "description": "Script calistirma izni verme istegi."
+        "description": "Request to grant script execution permission."
       },
       "SpeakRequest": {
         "required": [
@@ -12736,10 +12736,10 @@
               "null",
               "string"
             ],
-            "description": "Arayuzde gosterilecek ad. Bos birakilirsa anahtar kullanilir."
+            "description": "Name shown in the UI. If left empty, the key is used."
           }
         },
-        "description": "Kiraci kaydi olusturma ve guncelleme istegi."
+        "description": "Request to create/update a tenant record."
       },
       "TimeSeriesBucket": {
         "enum": [
@@ -12827,29 +12827,29 @@
         "properties": {
           "requestId": {
             "type": "string",
-            "description": "Onaylanan istegin kimligi. Akista gelen\n\u0060ToolApprovalRequestContent.RequestId\u0060 degeridir."
+            "description": "Identifier of the approved request. This is the\n\u0060ToolApprovalRequestContent.RequestId\u0060 value received in the stream."
           },
           "approved": {
             "type": "boolean",
-            "description": "Cagri onaylandi mi."
+            "description": "Whether the call is approved."
           },
           "reason": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Karar gerekcesi. Modele iletilir."
+            "description": "Reason for the decision. Passed on to the model."
           },
           "remember": {
             "type": "boolean",
-            "description": "Karar kalici bir kural olarak kaydedilsin mi (\u0022bir daha sorma\u0022).\nYalnizca bool ToolApprovalDecision.Approved\u0060true\u0060 iken anlamlidir."
+            "description": "Whether the decision should be saved as a permanent rule (\u0022don\u0027t ask\nagain\u0022). Meaningful only while bool ToolApprovalDecision.Approved is \u0060true\u0060."
           },
           "rememberArgumentsOnly": {
             "type": "boolean",
-            "description": "Kalici kural yalnizca ayni argumanlarla yapilan cagriyi mi kapsasin.\n\u0060false\u0060 ise tool\u0027un her cagrisini kapsar."
+            "description": "Whether the permanent rule covers only a call with the same arguments.\nIf \u0060false\u0060, it covers every call to the tool."
           }
         },
-        "description": "Arayuzden gonderilen tool onay karari."
+        "description": "Tool approval decision sent from the UI."
       },
       "ToolApprovalRule": {
         "required": [
@@ -13451,12 +13451,12 @@
               "integer",
               "string"
             ],
-            "description": "Kaynak icindeki sira numarasi.",
+            "description": "Sequence number within the source.",
             "format": "int32"
           },
           "content": {
             "type": "string",
-            "description": "Parcanin metni."
+            "description": "The chunk\u0027s text."
           },
           "embedding": {
             "type": [
@@ -13471,7 +13471,7 @@
               ],
               "format": "float"
             },
-            "description": "Parcanin gomusu. Bos ise sunucu gomuler; doluysa oldugu gibi yazilir ve\ndepo boyutuyla eslesmiyorsa 400 doner."
+            "description": "The chunk\u0027s embedding. If empty, the server embeds it; if filled in, it\nis written as is and returns 400 if it does not match the store\u0027s dimension."
           },
           "metadata": {
             "type": [
@@ -13481,10 +13481,10 @@
             "additionalProperties": {
               "type": "string"
             },
-            "description": "Istege bagli ustveri."
+            "description": "Optional metadata."
           }
         },
-        "description": "Bir yukleme istegindeki tek bir hazir parca."
+        "description": "A single ready-made chunk in an upload request."
       },
       "UploadDocumentRequest": {
         "required": [
@@ -13494,14 +13494,14 @@
         "properties": {
           "sourceId": {
             "type": "string",
-            "description": "Kaynak kimligi. Ayni kimlikle yeniden yukleme eskiyi degistirir."
+            "description": "Source identifier. Uploading again with the same identifier replaces the old one."
           },
           "text": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Ham metin. Verilirse sunucu parcalar ve gomuler."
+            "description": "Raw text. If given, the server chunks and embeds it."
           },
           "chunks": {
             "type": [
@@ -13511,10 +13511,10 @@
             "items": {
               "$ref": "#/components/schemas/UploadDocumentChunk"
             },
-            "description": "Hazir parcalar. float[]? UploadDocumentChunk.Embedding bos birakilirsa\nsunucu gomuler; doldurulmussa OLDUGU GIBI yazilir."
+            "description": "Ready-made chunks. If float[]? UploadDocumentChunk.Embedding is\nleft empty, the server embeds it; if it is filled in, it is written AS IS."
           }
         },
-        "description": "Bir belge yukleme istegi."
+        "description": "Request to upload a document."
       },
       "UploadDocumentResponse": {
         "required": [
@@ -13525,7 +13525,7 @@
         "properties": {
           "sourceId": {
             "type": "string",
-            "description": "Yuklenen kaynagin kimligi."
+            "description": "Identifier of the uploaded source."
           },
           "chunkCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -13533,11 +13533,11 @@
               "integer",
               "string"
             ],
-            "description": "Yazilan parca sayisi.",
+            "description": "Number of chunks written.",
             "format": "int32"
           }
         },
-        "description": "Bir belge yukleme isteginin sonucu."
+        "description": "Result of a document upload request."
       },
       "UsageDetails": {
         "type": "object",
@@ -13945,7 +13945,7 @@
               "null",
               "string"
             ],
-            "description": "Olaylarin gonderilecegi adres. Yalnizca \u0060https\u0060 (veya loopback \u0060http\u0060)."
+            "description": "The address events are sent to. Only \u0060https\u0060 (or loopback \u0060http\u0060)."
           },
           "events": {
             "type": [
@@ -13955,14 +13955,14 @@
             "items": {
               "type": "string"
             },
-            "description": "Abone olunan olay adlari. Bkz. WebhookEvents."
+            "description": "The names of the subscribed events. See WebhookEvents."
           },
           "secretConfigurationKey": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Imzalama sirrinin okunacagi yapilandirma anahtarinin \u003Cstrong\u003Eadi\u003C/strong\u003E.\nSirrin kendisi degildir."
+            "description": "The \u003Cstrong\u003Ename\u003C/strong\u003E of the configuration key from which the signing secret is read.\nNot the secret itself."
           },
           "headers": {
             "type": [
@@ -13972,14 +13972,14 @@
             "additionalProperties": {
               "type": "string"
             },
-            "description": "Her istege eklenecek ek basliklar."
+            "description": "Additional headers to add to every request."
           },
           "enabled": {
             "type": "boolean",
-            "description": "Abonelik etkin mi."
+            "description": "Whether the subscription is enabled."
           }
         },
-        "description": "Bir webhook aboneligini kaydetmek icin istek govdesi."
+        "description": "The request body for saving a webhook subscription."
       },
       "WebhookSubscription": {
         "required": [
@@ -14067,18 +14067,18 @@
         "properties": {
           "name": {
             "type": "string",
-            "description": "Abonelik adi."
+            "description": "The subscription name."
           },
           "queued": {
             "type": "boolean",
-            "description": "Olay kuyruga yazildi mi."
+            "description": "Whether the event was written to the queue."
           },
           "message": {
             "type": "string",
-            "description": "Kullaniciya gosterilecek aciklama."
+            "description": "The description shown to the user."
           }
         },
-        "description": "Sinama olayinin yaniti."
+        "description": "The response for the test event."
       },
       "WorkflowCheckpointRecord": {
         "required": [
@@ -14490,21 +14490,21 @@
         "properties": {
           "requestId": {
             "type": "string",
-            "description": "Yanitlanan istegin kimligi."
+            "description": "Identifier of the request being answered."
           },
           "approved": {
             "type": [
               "null",
               "boolean"
             ],
-            "description": "Evet/hayir yaniti. Plan onayinda \u0060true\u0060 plani onaylar,\n\u0060false\u0060 ise string? WorkflowRespondHttpRequest.Text alanindaki duzeltmeyle\ngeri gonderir."
+            "description": "Yes/no response. In a plan approval, \u0060true\u0060 approves\nthe plan; \u0060false\u0060 sends it back with the correction in\nthe string? WorkflowRespondHttpRequest.Text field."
           },
           "text": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Metin yaniti; plan onayinda duzeltme talimatidir."
+            "description": "Text response; in a plan approval this is the correction instruction."
           },
           "data": {
             "oneOf": [
@@ -14512,7 +14512,7 @@
                 "type": "null"
               },
               {
-                "description": "Serbest yanit govdesi. Portun yanit tipine cozulur.",
+                "description": "Free-form response body. Resolved against the port\u0027s response type.",
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
@@ -14522,10 +14522,10 @@
               "null",
               "string"
             ],
-            "description": "S\u00FCrd\u00FCrulecek kontrol noktasinin kimligi. Bos birakilirsa calistirmanin\nen son kontrol noktasi kullanilir."
+            "description": "Identifier of the checkpoint to resume. If left empty, the run\u0027s most\nrecent checkpoint is used."
           }
         },
-        "description": "Bekleyen bir insan girdisi istegine verilen yanit."
+        "description": "Response to a pending human input request."
       },
       "WorkflowResumeHttpRequest": {
         "type": "object",
@@ -14535,10 +14535,10 @@
               "null",
               "string"
             ],
-            "description": "Devam edilecek kontrol noktasinin kimligi. Bos birakilirsa calistirmanin\nen son kontrol noktasi kullanilir."
+            "description": "Identifier of the checkpoint to resume from. If left empty, the run\u0027s\nmost recent checkpoint is used."
           }
         },
-        "description": "Bir workflow\u0027u kontrol noktasindan s\u00FCrd\u00FCrme istegi."
+        "description": "Request to resume a workflow from a checkpoint."
       },
       "WorkflowRunHttpRequest": {
         "type": "object",
@@ -14548,17 +14548,17 @@
               "null",
               "string"
             ],
-            "description": "Grafa girecek kullanici mesaji."
+            "description": "User message to feed into the graph."
           },
           "sessionId": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Yurutme oturumunun kimligi. Bos birakilirsa uretilir. Kontrol noktalari\nbu deger altinda gruplanir."
+            "description": "Identifier of the execution session. If left empty, one is generated.\nCheckpoints are grouped under this value."
           }
         },
-        "description": "Bir workflow\u0027u calistirma istegi."
+        "description": "Request to run a workflow."
       },
       "WorkflowSaveRequest": {
         "type": "object",
@@ -14568,17 +14568,17 @@
               "null",
               "string"
             ],
-            "description": "Arayuzde gosterilecek ad."
+            "description": "Name shown in the UI."
           },
           "description": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Workflow\u0027un ne yaptigini anlatan kisa aciklama."
+            "description": "Short description of what the workflow does."
           },
           "kind": {
-            "description": "Kullanilacak hazir desen.",
+            "description": "Built-in pattern to use.",
             "$ref": "#/components/schemas/WorkflowKind"
           },
           "agentNames": {
@@ -14589,14 +14589,14 @@
             "items": {
               "type": "string"
             },
-            "description": "Grafa girecek agent adlari."
+            "description": "Names of agents to add to the graph."
           },
           "managerAgentName": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Yonetici agent\u0027in adi. Yalnizca WorkflowKind.Magentic icin."
+            "description": "Name of the manager agent. Only for WorkflowKind.Magentic."
           },
           "maxIterations": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -14605,7 +14605,7 @@
               "integer",
               "string"
             ],
-            "description": "En fazla tur sayisi.",
+            "description": "Maximum number of turns.",
             "format": "int32"
           },
           "handoffInstructions": {
@@ -14613,14 +14613,14 @@
               "null",
               "string"
             ],
-            "description": "Devretme talimati. Yalnizca WorkflowKind.Handoff icin."
+            "description": "Handoff instructions. Only for WorkflowKind.Handoff."
           },
           "requirePlanApproval": {
             "type": "boolean",
-            "description": "Yonetici agent\u0027in plani insana onaylatilsin mi.\nYalnizca WorkflowKind.Magentic icin."
+            "description": "Whether the manager agent\u0027s plan must be approved by a human. Only for\nWorkflowKind.Magentic."
           }
         },
-        "description": "Bir workflow tanimini kaydetme istegi."
+        "description": "Request to save a workflow definition."
       }
     }
   },

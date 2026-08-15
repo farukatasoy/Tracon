@@ -4,26 +4,26 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace AgentPrism;
 
 /// <summary>
-/// Gomulu yonetim arayuzunu kaydeden uzantilar.
+/// Provides extensions that register the embedded management UI.
 /// </summary>
 public static class AgentPrismUiBuilderExtensions
 {
     /// <summary>
-    /// Gomulu yonetim arayuzunu kaydeder. <c>MapAgentPrism()</c> kaydi bulur ve
-    /// arayuz rotalarini ayni onek altina baglar.
+    /// Registers the embedded management UI. <c>MapAgentPrism()</c> finds the
+    /// registration and binds the UI routes under the same prefix.
     /// </summary>
-    /// <param name="builder">AgentPrism yapilandirma zinciri.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> <see langword="null"/> ise.</exception>
+    /// <param name="builder">The AgentPrism configuration chain.</param>
+    /// <returns>The continuation of the chain.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     /// <remarks>
     /// <para>
-    /// Ayri bir esleme cagrisi gerekmez. Onek tek yerde - <c>MapAgentPrism()</c>
-    /// icinde - yazilir; iki yerde yazilan bir onek senkron kalmadiginda arayuz
-    /// hicbir hata vermeden bos bir sayfa gosterirdi.
+    /// No separate mapping call is required. The prefix is written in one place -
+    /// inside <c>MapAgentPrism()</c> - because a prefix written in two places,
+    /// once out of sync, would make the UI show a blank page without any error.
     /// </para>
     /// <para>
-    /// Kayit <c>TryAdd</c> ile yapilir. Kendi <see cref="IAgentPrismUiProvider"/>
-    /// uygulamasini daha once kaydeden bir tuketici kazanir (kural K4).
+    /// Registration uses <c>TryAdd</c>. A consumer that registers its own
+    /// <see cref="IAgentPrismUiProvider"/> implementation earlier wins (rule K4).
     /// </para>
     /// <example>
     /// <code>

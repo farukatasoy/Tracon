@@ -5,37 +5,38 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Saklanmis bir oturumun sohbet gecmisini okur.
+/// Reads the chat history of a stored session.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Gecmis, kayitli <see cref="ChatHistoryProvider"/> uzerinden okunur.
-/// <c>InvokingAsync</c> ve <c>InvokingContext</c> kurucusu Microsoft Agent
-/// Framework'un public yuzeyindedir; saglayici bu cagrida yalnizca okur, hicbir sey
-/// yazmaz. Ayni yol hem bellek ici hem PostgreSQL kurulumunda calisir
-/// (<c>AddAgentPrism()</c> saglayiciyi acikca kaydeder, karar K-037).
+/// The history is read through the registered <see cref="ChatHistoryProvider"/>.
+/// <c>InvokingAsync</c> and the <c>InvokingContext</c> constructor are part of the
+/// Microsoft Agent Framework's public surface; the provider only reads in this call,
+/// it writes nothing. The same path works for both the in-memory and the PostgreSQL
+/// setup (<c>AddAgentPrism()</c> registers the provider explicitly, decision K-037).
 /// </para>
 /// <para>
-/// Hem yonetim API'si (<c>/api/sessions/{id}</c>) hem OpenAI uyumlu Conversations
-/// ucu (<c>/v1/conversations/{id}/items</c>) buradan okur; iki uc ayni gercegi
-/// gostermelidir.
+/// Both the management API (<c>/api/sessions/{id}</c>) and the OpenAI-compatible
+/// Conversations endpoint (<c>/v1/conversations/{id}/items</c>) read from here; the
+/// two endpoints must show the same truth.
 /// </para>
 /// </remarks>
 internal static class ChatHistoryReader
 {
-    /// <summary>Bir oturum kaydinin sohbet gecmisini okur.</summary>
-    /// <param name="record">Oturum kaydi.</param>
-    /// <param name="catalog">Agent katalogu.</param>
-    /// <param name="chatHistory">Kayitli sohbet gecmisi saglayicisi.</param>
-    /// <param name="loggerFactory">Gunlukleyici fabrikasi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <summary>Reads the chat history of a session record.</summary>
+    /// <param name="record">The session record.</param>
+    /// <param name="catalog">The agent catalog.</param>
+    /// <param name="chatHistory">The registered chat history provider.</param>
+    /// <param name="loggerFactory">The logger factory.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
-    /// Mesajlar; gecmis okunamadiysa <see langword="null"/>.
+    /// The messages; <see langword="null"/> if the history could not be read.
     /// </returns>
     /// <remarks>
-    /// Gecmisin okunamamasi bir hata <strong>degildir</strong>: agent silinmis,
-    /// saglayicisi kaldirilmis veya MAF serilestirme bicimi degismis olabilir.
-    /// Gozlemlenebilirlik islevselligi bozmaz; cagiran taraf ustveriyi yine dondurur.
+    /// Failing to read the history is <strong>not</strong> an error: the agent may
+    /// have been deleted, its provider removed, or the MAF serialization format may
+    /// have changed. Observability does not break functionality; the caller still
+    /// returns the metadata.
     /// </remarks>
     public static async ValueTask<IReadOnlyList<ChatMessage>?> ReadAsync(
         SessionRecord record,
@@ -65,7 +66,7 @@ internal static class ChatHistoryReader
                 .CreateLogger(typeof(ChatHistoryReader).FullName!)
                 .LogWarning(
                     ex,
-                    "'{SessionId}' oturumunun sohbet gecmisi okunamadi. Ustveri gecmissiz donduruluyor.",
+                    "Could not read the chat history of session '{SessionId}'. Returning metadata without history.",
                     record.Id);
 
             return null;
@@ -73,18 +74,18 @@ internal static class ChatHistoryReader
     }
 
     /// <summary>
-    /// Cozulmus bir agent ve acik bir oturumun sohbet gecmisini okur.
+    /// Reads the chat history of a resolved agent and an open session.
     /// </summary>
-    /// <param name="agent">Cozulmus agent.</param>
-    /// <param name="session">Acik oturum.</param>
-    /// <param name="chatHistory">Kayitli sohbet gecmisi saglayicisi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Mesajlar.</returns>
+    /// <param name="agent">The resolved agent.</param>
+    /// <param name="session">The open session.</param>
+    /// <param name="chatHistory">The registered chat history provider.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The messages.</returns>
     /// <remarks>
-    /// Bekleyen tool onay isteklerini bulmak icin de bu yol kullanilir: onay
-    /// yanitini uretebilmek icin ISTEGIN KENDISI gerekir
-    /// (<c>ToolApprovalRequestContent.CreateResponse</c>), ve istek yalnizca
-    /// oturum gecmisinde yasar.
+    /// This path is also used to find pending tool approval requests: producing an
+    /// approval response requires the REQUEST ITSELF
+    /// (<c>ToolApprovalRequestContent.CreateResponse</c>), and the request lives
+    /// only in the session history.
     /// </remarks>
     public static async ValueTask<IReadOnlyList<ChatMessage>> ReadAsync(
         AIAgent agent,
@@ -92,12 +93,12 @@ internal static class ChatHistoryReader
         ChatHistoryProvider chatHistory,
         CancellationToken cancellationToken)
     {
-        // MAAI001: InvokingContext kurucusu "for evaluation purposes only" isaretlidir
-        // ve TreatWarningsAsErrors ile build'i kirar. Bastirma bilincli ve TEK
-        // NOKTADADIR: gecmisi okumanin baska public yolu yoktur
-        // (ProvideChatHistoryAsync protected'tir) ve bu cagri yalnizca okur.
-        // MAF bu API'yi degistirirse yalnizca burasi guncellenir.
-        // Gerekce: docs/KARARLAR.md, karar K-037.
+        // MAAI001: the InvokingContext constructor is marked "for evaluation purposes only"
+        // and breaks the build under TreatWarningsAsErrors. The suppression is deliberate
+        // and lives in EXACTLY ONE PLACE: there is no other public way to read the
+        // history (ProvideChatHistoryAsync is protected), and this call only reads.
+        // If MAF changes this API, only this spot needs updating.
+        // Rationale: docs/KARARLAR.md, decision K-037.
 #pragma warning disable MAAI001
         var context = new ChatHistoryProvider.InvokingContext(agent, session, []);
 #pragma warning restore MAAI001

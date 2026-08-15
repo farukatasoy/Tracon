@@ -4,30 +4,30 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism;
 
 /// <summary>
-/// AgentPrism agent'larini A2A uzerinden yayimlamak icin servis kaydini yapan
-/// uzantilar.
+/// Extensions that register the services needed to publish AgentPrism agents
+/// over A2A.
 /// </summary>
 public static class AgentPrismA2ABuilderExtensions
 {
     /// <summary>
-    /// <see cref="AgentPrismA2AOptions.ExposedAgents"/>'teki her agent icin bir
-    /// A2A sunucusu kaydeder. HTTP ucu ayrica <c>app.MapAgentPrismA2A(...)</c> ile
-    /// baglanmalidir.
+    /// Registers an A2A server for each agent in
+    /// <see cref="AgentPrismA2AOptions.ExposedAgents"/>. The HTTP endpoint must
+    /// still be connected separately with <c>app.MapAgentPrismA2A(...)</c>.
     /// </summary>
-    /// <param name="builder">AgentPrism yapilandirma zinciri.</param>
-    /// <param name="configure">Ayar degistirici.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> <see langword="null"/> ise.</exception>
+    /// <param name="builder">The AgentPrism configuration chain.</param>
+    /// <param name="configure">Options mutator.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     /// <remarks>
     /// <para>
-    /// 🚨 <c>ExposedAgents</c> BURADA, kayit zamaninda okunur ve SABITLENIR.
-    /// <c>AddA2AServer</c> bir agent ORNEGI ister; AgentPrism'in katalogu
-    /// calisma aninda degisebildigi icin (K-019, MAF'in kendi kayit defteri
-    /// KULLANILMIYOR) her ad icin gec-cozumlu bir <see cref="ExternalAgentProxy"/>
-    /// kaydedilir — gercek agent HER cagrida katalogdan cozulur, ama HANGI
-    /// adlarin A2A'da var oldugu kayit ANINDA sabitlenir (bolum 50.5).
+    /// 🚨 <c>ExposedAgents</c> is read and FROZEN HERE, at registration time.
+    /// <c>AddA2AServer</c> requires an agent INSTANCE; because AgentPrism's
+    /// catalog can change at runtime (K-019, MAF's own registry is NOT used), a
+    /// lazily-resolved <see cref="ExternalAgentProxy"/> is registered for each
+    /// name — the real agent is resolved from the catalog on EVERY call, but
+    /// WHICH names exist in A2A is frozen at registration time (section 50.5).
     /// </para>
-    /// <para>Varsayilan olarak hicbir agent disa acik degildir (K1).</para>
+    /// <para>By default no agent is exposed (K1).</para>
     /// </remarks>
     public static IAgentPrismBuilder UseA2A(
         this IAgentPrismBuilder builder,
@@ -40,11 +40,11 @@ public static class AgentPrismA2ABuilderExtensions
         var options = new AgentPrismA2AOptions();
         configure?.Invoke(options);
 
-        // Deger BURADA (kayit zamaninda) DI'a konur; MapAgentPrismA2A() onu
-        // Build() sonrasi geri okur. AgentPrismMcpServerOptions'tan farkli
-        // olarak IOptionsMonitor DEGIL duz bir singleton'dir: A2A'nin listesi
-        // zaten sabittir, IOptionsMonitor'in "calisma aninda degisebilir"
-        // vaadi burada karsiliksizdir.
+        // The value is put into DI HERE (at registration time); MapAgentPrismA2A()
+        // reads it back after Build(). Unlike AgentPrismMcpServerOptions this is
+        // a plain singleton, NOT an IOptionsMonitor: A2A's list is already
+        // frozen, so IOptionsMonitor's "can change at runtime" promise has no
+        // counterpart here.
         services.AddSingleton(options);
 
         foreach (var agentName in options.ExposedAgents)
@@ -55,12 +55,12 @@ public static class AgentPrismA2ABuilderExtensions
 
             services.AddA2AServer(proxy, register =>
             {
-                // Onay gerektiren bir arada askiya alma MAF'ta yoktur (K-103).
-                // Arka plan modu bu askiya almanin baska bir bicimidir; ayni
-                // sinirdan kacinmak icin acikca kapatilir.
+                // MAF has no mid-run approval suspension (K-103). Background
+                // mode is another form of that same suspension; it is turned
+                // off explicitly to avoid the same boundary.
                 //
-                // MEAI001: AgentRunMode "degerlendirme amaclidir" isaretli.
-                // Kullanim bu TEK dosyada toplanir (MAAI001 deseniyle ayni).
+                // MEAI001: AgentRunMode is marked "for evaluation purposes".
+                // Usage is consolidated in this ONE file (same pattern as MAAI001).
 #pragma warning disable MEAI001
                 register.AgentRunMode = AgentRunMode.DisallowBackground;
 #pragma warning restore MEAI001

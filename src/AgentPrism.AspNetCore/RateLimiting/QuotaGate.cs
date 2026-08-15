@@ -4,31 +4,31 @@ using Microsoft.AspNetCore.Http;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir calistirma baslamadan once kota denetimini yapan ve asimda
-/// <c>429</c> ureten yardimci.
+/// Helper that checks the quota before a run starts and produces a
+/// <c>429</c> when it is exceeded.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Denetim, calistirmayi baslatan her ucta <strong>acikca</strong> cagrilir; bir
-/// uc filtresi degildir. Sebep: OpenAI uyumlu uclarda agent adi rota degerinde
-/// degil govdedeki <c>model</c> alanindadir ve bir filtrenin govdeyi okumasi
-/// istegi iki kez ayristirmayi gerektirirdi.
+/// The check is called <strong>explicitly</strong> at every endpoint that starts a
+/// run; it is not an endpoint filter. Reason: on OpenAI-compatible endpoints, the
+/// agent name is not in the route value but in the body's <c>model</c> field, and a
+/// filter reading the body would require parsing the request twice.
 /// </para>
 /// <para>
-/// 🚨 Devam eden bir calistirma kota asilinca <strong>kesilmez</strong> (K-162).
-/// Bu kapi yalnizca <em>yeni</em> calistirmayi durdurur.
+/// 🚨 An ongoing run is <strong>not cut off</strong> when the quota is exceeded
+/// (K-162). This gate only stops a <em>new</em> run.
 /// </para>
 /// </remarks>
 internal static class QuotaGate
 {
-    /// <summary>Kotayi denetler; asilmissa dondurulecek yaniti uretir.</summary>
-    /// <param name="enforcer">Kota denetleyici. <see langword="null"/> ise denetim yapilmaz.</param>
-    /// <param name="tenants">Kiraci baglami.</param>
-    /// <param name="agentName">Calistirilacak agent'in adi.</param>
-    /// <param name="httpContext">Istek baglami. <c>Retry-After</c> basligi buraya yazilir.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <summary>Checks the quota; produces the response to return if it is exceeded.</summary>
+    /// <param name="enforcer">The quota enforcer. If <see langword="null"/>, no check is performed.</param>
+    /// <param name="tenants">The tenant context.</param>
+    /// <param name="agentName">The name of the agent to run.</param>
+    /// <param name="httpContext">The request context. The <c>Retry-After</c> header is written here.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
-    /// Kota asilmissa dondurulecek <c>429</c> yaniti; asilmamissa
+    /// The <c>429</c> response to return if the quota is exceeded; otherwise
     /// <see langword="null"/>.
     /// </returns>
     public static async ValueTask<IResult?> CheckAsync(
@@ -52,8 +52,8 @@ internal static class QuotaGate
             return null;
         }
 
-        // Sayacin ne zaman sifirlanacagi biliniyorsa istemciye Retry-After
-        // olarak verilir; istemcinin tahmin etmesi gerekmemelidir.
+        // If it is known when the counter resets, that is given to the client as
+        // Retry-After; the client should not have to guess.
         if (decision.ResetsAt is { } resetsAt)
         {
             var seconds = Math.Max(1, (int)Math.Ceiling((resetsAt - DateTimeOffset.UtcNow).TotalSeconds));
@@ -71,9 +71,9 @@ internal static class QuotaGate
 
     private static Dictionary<string, object?> BuildExtensions(QuotaDecision decision)
     {
-        // ProblemDetails'in uzantilari makine tarafindan okunabilir olmalidir:
-        // istemci "hangi kota, ne kadar, ne zaman sifirlanir" sorularini metni
-        // ayristirmadan yanitlayabilmelidir.
+        // The ProblemDetails extensions must be machine-readable: the client should
+        // be able to answer "which quota, how much, when does it reset" without
+        // parsing the text.
         var extensions = new Dictionary<string, object?>(StringComparer.Ordinal)
         {
             ["quotaMetric"] = decision.Metric?.ToString(),

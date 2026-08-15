@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Tek bir kiracinin kesfedilmis MCP tool'larinin degismez anlik goruntusu.
+/// An immutable snapshot of a single tenant's discovered MCP tools.
 /// </summary>
 internal sealed class McpTenantTools
 {
@@ -17,28 +17,29 @@ internal sealed class McpTenantTools
         Descriptors = descriptors;
     }
 
-    /// <summary>Bos kume.</summary>
+    /// <summary>The empty set.</summary>
     public static McpTenantTools Empty { get; } = new([], []);
 
-    /// <summary>Arayuze gosterilen tool tanimlari; ada gore sirali.</summary>
+    /// <summary>The tool descriptors shown in the UI; sorted by name.</summary>
     public IReadOnlyList<ToolDescriptor> Descriptors { get; }
 
-    /// <summary>Adi verilen tool'u getirir.</summary>
-    /// <param name="name">Tool adi.</param>
-    /// <param name="tool">Bulunan tool.</param>
-    /// <returns>Tool kayitliysa <see langword="true"/>.</returns>
+    /// <summary>Gets the tool with the given name.</summary>
+    /// <param name="name">The tool name.</param>
+    /// <param name="tool">The tool found.</param>
+    /// <returns><see langword="true"/> if the tool is registered.</returns>
     public bool TryGet(string name, [NotNullWhen(true)] out AIFunction? tool)
         => _tools.TryGetValue(name, out tool);
 
-    /// <summary>Kayitlardan degismez bir kume kurar.</summary>
-    /// <param name="registrations">Kesfedilmis tool kayitlari.</param>
-    /// <param name="logger">Ad cakismalarinin bildirilecegi gunlukleyici.</param>
-    /// <returns>Kume.</returns>
+    /// <summary>Builds an immutable set from registrations.</summary>
+    /// <param name="registrations">The discovered tool registrations.</param>
+    /// <param name="logger">The logger name collisions are reported to.</param>
+    /// <returns>The set.</returns>
     /// <remarks>
-    /// Ad cakismasi <strong>hata degildir</strong>. Kod defterinde cakisma
-    /// derleme aninda fark edilir ve atmak dogrudur; MCP'de ad uzak sunucudan
-    /// gelir ve iki sunucunun ayni adi uretmesi AgentPrism'i cokertmemelidir.
-    /// Ikinci kayit atlanir ve uyari loglanir.
+    /// A name collision is <strong>not an error</strong>. In the code
+    /// registry a collision is caught at compile time, and throwing there is
+    /// correct; in MCP the name comes from a remote server, and two servers
+    /// producing the same name must not crash AgentPrism. The second
+    /// registration is skipped and a warning is logged.
     /// </remarks>
     public static McpTenantTools Create(
         IReadOnlyList<AgentPrismToolRegistration> registrations,
@@ -51,9 +52,9 @@ internal sealed class McpTenantTools
         {
             var name = registration.Function.Name;
 
-            // Onay sarmalamasi burada yapilir. Kodda kayitli tool'larda ayni
-            // isi ToolRegistry yapar; MCP tool'lari o deftere girmedigi icin
-            // sarmalama bu yolda tekrarlanir.
+            // The approval wrapping happens here. For tools registered in
+            // code, ToolRegistry does the same job; MCP tools do not go
+            // through that registry, so the wrapping is repeated on this path.
             var function = registration.RequiresApproval
                 ? new ApprovalRequiredAIFunction(registration.Function)
                 : registration.Function;
@@ -61,8 +62,8 @@ internal sealed class McpTenantTools
             if (!tools.TryAdd(name, function))
             {
                 logger.LogWarning(
-                    "MCP tool adi '{ToolName}' birden cok kez uretildi; ikinci kayit atlandi. " +
-                    "Sunucu adlarini birbirinden ayirt edilebilir secin.",
+                    "MCP tool name '{ToolName}' was produced more than once; the second registration was skipped. " +
+                    "Choose server names that are distinguishable from one another.",
                     name);
 
                 continue;

@@ -10,19 +10,19 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Eval takimi/vaka yonetimi, kosu tetikleme ve sonuc goruntuleme uclari (Faz 18).
+/// Endpoints for eval suite/case management, run triggering, and result viewing (Phase 18).
 /// </summary>
 /// <remarks>
-/// 🚨 <see cref="IEvalStore"/> disindaki tum bagimliliklar <c>[FromServices]</c>
-/// ile <strong>acikca</strong> isaretlenir — gerekce <see cref="SchedulingEndpoints"/>
-/// ile aynidir. Kosu tetikleme, mevcut is kuyrugunu (<see cref="IJobStore"/>,
-/// <see cref="JobKind.Eval"/>) kullanir; ayri bir yurutme yolu yoktur.
+/// 🚨 All dependencies other than <see cref="IEvalStore"/> are marked
+/// <strong>explicitly</strong> with <c>[FromServices]</c> — the rationale is the
+/// same as <see cref="SchedulingEndpoints"/>. Triggering a run uses the existing
+/// job queue (<see cref="IJobStore"/>, <see cref="JobKind.Eval"/>); there is no separate execution path.
 /// </remarks>
 internal static class EvalEndpoints
 {
-    /// <summary>Eval uclarini baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Maps the eval endpoints.</summary>
+    /// <param name="builder">The endpoint group.</param>
+    /// <param name="roles">The resolved role policies.</param>
     public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/evals", ListSuitesAsync)
@@ -30,44 +30,44 @@ internal static class EvalEndpoints
             .RequireApiKeyScope(ApiKeyScope.EvalsRead)
             .WithName("AgentPrismListEvalSuites")
             .WithTags("AgentPrism", "Evals")
-            .WithSummary("Bir kiracinin eval takimlarini listeler.");
+            .WithSummary("Lists a tenant's eval suites.");
 
         builder.MapGet("/api/evals/{name}", GetSuiteAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.EvalsRead)
             .WithName("AgentPrismGetEvalSuite")
             .WithTags("AgentPrism", "Evals")
-            .WithSummary("Tek bir eval takimini getirir.");
+            .WithSummary("Gets a single eval suite.");
 
         builder.MapPut("/api/evals/{name}", SaveSuiteAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.EvalsAdmin)
             .WithName("AgentPrismSaveEvalSuite")
             .WithTags("AgentPrism", "Evals")
-            .WithSummary("Eval takimi olusturur veya gunceller.")
+            .WithSummary("Creates or updates an eval suite.")
             .Accepts<EvalSuiteSaveRequest>("application/json")
-            .WithDescription("Denetim tanimlari bildirimseldir; bilinmeyen bir denetim turu kosu aninda hataya donusur.");
+            .WithDescription("Check definitions are declarative; an unknown check type turns into an error at run time.");
 
         builder.MapDelete("/api/evals/{name}", DeleteSuiteAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.EvalsAdmin)
             .WithName("AgentPrismDeleteEvalSuite")
             .WithTags("AgentPrism", "Evals")
-            .WithSummary("Bir eval takimini siler (vakalar ve kosular birlikte).");
+            .WithSummary("Deletes an eval suite (together with its cases and runs).");
 
         builder.MapGet("/api/evals/{name}/cases", ListCasesAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.EvalsRead)
             .WithName("AgentPrismListEvalCases")
             .WithTags("AgentPrism", "Evals")
-            .WithSummary("Bir takimin vakalarini listeler.");
+            .WithSummary("Lists a suite's cases.");
 
         builder.MapPut("/api/evals/{name}/cases", SaveCasesAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.EvalsAdmin)
             .WithName("AgentPrismSaveEvalCases")
             .WithTags("AgentPrism", "Evals")
-            .WithSummary("Bir takimin tum vakalarini verilen listeyle degistirir.")
+            .WithSummary("Replaces all of a suite's cases with the given list.")
             .Accepts<IReadOnlyList<EvalCaseInput>>("application/json");
 
         builder.MapDelete("/api/evals/{name}/cases", ClearCasesAsync)
@@ -75,66 +75,66 @@ internal static class EvalEndpoints
             .RequireApiKeyScope(ApiKeyScope.EvalsAdmin)
             .WithName("AgentPrismClearEvalCases")
             .WithTags("AgentPrism", "Evals")
-            .WithSummary("Bir takimin tum vakalarini siler.");
+            .WithSummary("Deletes all of a suite's cases.");
 
         builder.MapPost("/api/evals/{name}/cases/from-run/{runId:guid}", PromoteRunToCaseAsync)
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.EvalsAdmin)
             .WithName("AgentPrismPromoteRunToEvalCase")
             .WithTags("AgentPrism", "Evals")
-            .WithSummary("Bir calistirmayi tek istekle bir eval vakasina terfi ettirir.")
+            .WithSummary("Promotes a run to an eval case in a single request.")
             .Accepts<EvalCasePromotionRequest>(true, "application/json")
             .WithDescription(
-                "Sorgu, calistirmanin kendi oturumundan okunur; oturumsuz calistirmalar " +
-                "terfi edilemez. Ayni calistirma ikinci kez terfi edilirse mevcut vaka doner " +
-                "(201 degil 200).");
+                "The query is read from the run's own session; runs without a session " +
+                "cannot be promoted. If the same run is promoted a second time, the " +
+                "existing case is returned (200, not 201).");
 
         builder.MapPost("/api/evals/{name}/run", TriggerRunAsync)
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismTriggerEvalRun")
             .WithTags("AgentPrism", "Evals")
-            .WithSummary("Bir eval takimini simdi calistirir.")
+            .WithSummary("Runs an eval suite now.")
             .Accepts<EvalRunTriggerRequest>(true, "application/json")
             .WithDescription(
-                "Her vaka, olculen agent uzerinde yeni bir oturumda calisir ve kendi 'runs' " +
-                "satirini uretir. Kosu is kuyruguna girer; sonuclar arka planda islenir.");
+                "Each case runs in a new session on the agent being evaluated and produces " +
+                "its own 'runs' row. The run is queued as a job; results are processed in the background.");
 
         builder.MapGet("/api/evals/{name}/runs", ListRunsAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.EvalsRead)
             .WithName("AgentPrismListEvalRuns")
             .WithTags("AgentPrism", "Evals")
-            .WithSummary("Bir takimin gecmis kosularini listeler.");
+            .WithSummary("Lists a suite's past runs.");
 
         builder.MapGet("/api/evals/runs/{id:guid}", GetRunAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.EvalsRead)
             .WithName("AgentPrismGetEvalRun")
             .WithTags("AgentPrism", "Evals")
-            .WithSummary("Tek bir eval kosusunu ve vaka bazinda sonuclarini getirir.");
+            .WithSummary("Gets a single eval run and its per-case results.");
 
         builder.MapGet("/api/evaluation/online", GetOnlineEvaluationSummaryAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.EvalsRead)
             .WithName("AgentPrismGetOnlineEvaluationSummary")
             .WithTags("AgentPrism", "Evals")
-            .WithSummary("Cevrimici degerlendirme penceresinin ozetini dondurur (Faz 49).")
+            .WithSummary("Returns a summary of the online evaluation window (Phase 49).")
             .WithDescription(
-                "Pencere icindeki ortalama yargic puani, ornek sayisi ve yargic maliyetini " +
-                "dondurur. Ozet bellek icidir (sureç yeniden baslatilinca sifirlanir); kesin " +
-                "sonuc icin 'run_scores' tablosu dogrudan sorgulanabilir.");
+                "Returns the average judge score, sample count, and judge cost within the " +
+                "window. The summary is in-memory (it resets when the process restarts); for " +
+                "an authoritative result, the 'run_scores' table can be queried directly.");
 
         builder.MapPost("/api/runs/{runId:guid}/judge", JudgeRunAsync)
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismJudgeRun")
             .WithTags("AgentPrism", "Evals")
-            .WithSummary("Bir calistirmayi elle yargic(lar)a puanlatir (Faz 49).")
+            .WithSummary("Manually has judge(s) score a run (Phase 49).")
             .WithDescription(
-                "Ornekleme kararini ATLAR; kalibrasyon ve hata ayiklama icindir. Hicbir " +
-                "IRunJudge kayitli degilse veya calistirmanin girdisi/ciktisi okunamiyorsa " +
-                "bos bir liste doner.");
+                "This SKIPS the sampling decision; it is for calibration and debugging. " +
+                "If no IRunJudge is registered, or the run's input/output cannot be read, " +
+                "an empty list is returned.");
     }
 
     private static async Task<Ok<IReadOnlyList<EvalSuite>>> ListSuitesAsync(
@@ -182,8 +182,8 @@ internal static class EvalEndpoints
 
         try
         {
-            // Denetimler kayit aninda dogrulanir: bilinmeyen bir tur adi kosu
-            // baslamadan, hemen geri bildirilir.
+            // Checks are validated at save time: an unknown type name is reported
+            // immediately, before a run starts.
             checkRegistry.BuildChecks(request.Checks);
         }
         catch (AgentPrismException exception)
@@ -546,8 +546,9 @@ internal static class EvalEndpoints
     {
         var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
 
-        // "Yok" ile "baska kiraciya ait" AYNI 404'u doner; ayri bir mesaj varlik
-        // sizdirirdi (RunEndpoints.SaveFeedbackAsync ile ayni gerekce).
+        // "Does not exist" and "belongs to another tenant" return the SAME 404;
+        // a distinct message would leak existence (same rationale as
+        // RunEndpoints.SaveFeedbackAsync).
         if (run is null || !string.Equals(run.TenantId, tenants.TenantId, StringComparison.Ordinal))
         {
             return RunNotFoundForPromotion(runId);
@@ -601,8 +602,9 @@ internal static class EvalEndpoints
             detail: $"There is no eval run with id '{id}'.",
             statusCode: StatusCodes.Status404NotFound);
 
-    // "Yok" ile "baska kiraciya ait" AYNI 404'u doner; ayri bir mesaj varlik
-    // sizdirirdi (RunEndpoints.SaveFeedbackAsync ile ayni gerekce).
+    // "Does not exist" and "belongs to another tenant" return the SAME 404;
+    // a distinct message would leak existence (same rationale as
+    // RunEndpoints.SaveFeedbackAsync).
     private static ProblemHttpResult RunNotFoundForPromotion(Guid runId)
         => TypedResults.Problem(
             title: "Run not found",

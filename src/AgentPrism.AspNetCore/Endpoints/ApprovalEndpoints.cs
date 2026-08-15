@@ -8,28 +8,28 @@ using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
 
-/// <summary>Asenkron onay kutusu uclari (Faz 55).</summary>
+/// <summary>Asynchronous approval mailbox endpoints (Phase 55).</summary>
 /// <remarks>
 /// <para>
-/// Bekleyen bir onay istegi, kuyruktan kosan (<c>Prefer: respond-async</c>,
-/// Faz 46) bir calistirmanin <see cref="RunStatus.AwaitingApproval"/> ile
-/// kapanmasindan dogar (bkz. <c>AgentRunJobHandler</c>). Karar
-/// <see cref="DecideAsync"/> ile verilir; eski calistirma satiri BIR DAHA
-/// DEGISMEZ (K-014, <see cref="RunStatus.AwaitingInput"/> ile ayni ilke) —
-/// karar YENI bir calistirmayi (ayni <c>sessionId</c>, yeni <c>RunId</c>)
-/// kuyruga dusurur.
+/// A pending approval request arises when a run driven from the queue
+/// (<c>Prefer: respond-async</c>, Phase 46) closes with
+/// <see cref="RunStatus.AwaitingApproval"/> (see <c>AgentRunJobHandler</c>). The
+/// decision is made through <see cref="DecideAsync"/>; the old run row is NEVER
+/// changed again (K-014, the same principle as <see cref="RunStatus.AwaitingInput"/>) —
+/// the decision enqueues a NEW run (same <c>sessionId</c>, new <c>RunId</c>).
 /// </para>
 /// <para>
-/// 🚨 <see cref="IPendingApprovalStore.DecideAsync"/> cagirmadan ONCE denetim
-/// izine yazilir: K-089'un ayni istisnasi ("denetim izine yazilamayan bir
-/// onay kararı uygulanmaz"). Yazma basarisiz olursa karar hic uygulanmaz.
+/// 🚨 It is written to the audit trail BEFORE calling
+/// <see cref="IPendingApprovalStore.DecideAsync"/>: the same exception as K-089
+/// ("an approval decision that cannot be written to the audit trail is not
+/// applied"). If the write fails, the decision is never applied at all.
 /// </para>
 /// </remarks>
 internal static class ApprovalEndpoints
 {
-    /// <summary>Onay uclarini baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Maps the approval endpoints.</summary>
+    /// <param name="builder">The endpoint group.</param>
+    /// <param name="roles">The resolved role policies.</param>
     public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/approvals/pending", ListPendingAsync)
@@ -37,25 +37,25 @@ internal static class ApprovalEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListPendingApprovals")
             .WithTags("AgentPrism", "Approvals")
-            .WithSummary("Kiracinin bekleyen onay isteklerini listeler.");
+            .WithSummary("Lists the tenant's pending approval requests.");
 
         builder.MapGet("/api/approvals/{id:guid}", GetAsync)
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismGetPendingApproval")
             .WithTags("AgentPrism", "Approvals")
-            .WithSummary("Tek bir bekleyen onay istegini getirir.");
+            .WithSummary("Returns a single pending approval request.");
 
         builder.MapPost("/api/approvals/{id:guid}/decide", DecideAsync)
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismDecideApproval")
             .WithTags("AgentPrism", "Approvals")
-            .WithSummary("Bekleyen bir onay istegine karar verir.")
+            .WithSummary("Decides a pending approval request.")
             .Accepts<ApprovalDecisionRequest>("application/json")
             .WithDescription(
-                "Karar YENI bir calistirma kuyruga dusurur (ayni sessionId, yeni RunId); " +
-                "eski calistirma AwaitingApproval olarak kalir. Ayni istege ikinci karar 409 alir.");
+                "The decision enqueues a NEW run (same sessionId, new RunId); the old run " +
+                "stays AwaitingApproval. A second decision on the same request gets 409.");
     }
 
     private static async Task<Ok<IReadOnlyList<PendingApproval>>> ListPendingAsync(
@@ -116,9 +116,10 @@ internal static class ApprovalEndpoints
         var actor = actorResolver.Resolve() ?? "unknown";
         var now = DateTimeOffset.UtcNow;
 
-        // 🚨 K-089: denetim izi karardan ONCE yazilir. Yazma basarisiz olursa
-        // istisna cagiranin 500 almasina yol acar ve DecideAsync HIC cagrilmaz —
-        // "denetim izine yazilamayan bir onay kararı uygulanmaz".
+        // 🚨 K-089: the audit trail entry is written BEFORE the decision. If the
+        // write fails, the exception causes the caller to get 500 and DecideAsync
+        // is NEVER called — "an approval decision that cannot be written to the
+        // audit trail is not applied".
         await WriteAuditOrThrowAsync(
             auditLog,
             actorResolver,
@@ -134,19 +135,19 @@ internal static class ApprovalEndpoints
 
         if (!applied)
         {
-            // Es zamanli ikinci bir karar (nadir yaris). Denetim izi az once
-            // yazilmis "denenen" karari dogru sekilde yansitir; DB'nin
-            // WHERE status = Pending korumasi gercek durumu belirler.
+            // A concurrent second decision (rare race). The audit trail already
+            // correctly reflects the "attempted" decision just written; the DB's
+            // WHERE status = Pending guard determines the true state.
             return AlreadyDecided(id);
         }
 
-        // Karar ne olursa olsun (onay/ret) calistirma SURDURULUR: model bir
-        // sonucu ya da bir reddi gormeli ve buna gore devam etmelidir — senkron
-        // yoldaki ToolApprovalResolver ile AYNI davranis.
+        // Regardless of the decision (approve/reject) the run is RESUMED: the model
+        // must see a result or a rejection and proceed accordingly — the SAME
+        // behavior as ToolApprovalResolver on the synchronous path.
         var originalRun = await runStore.GetRunAsync(approval.RunId, cancellationToken).ConfigureAwait(false)
             ?? throw new AgentPrismException(
-                $"'{approval.RunId}' kimlikli calistirma bulunamadi; 'pending_approvals.run_id' " +
-                "yabanci anahtari bunu imkansiz saymaliydi.");
+                $"There is no run with id '{approval.RunId}'; the 'pending_approvals.run_id' " +
+                "foreign key should have made this impossible.");
 
         var newRunId = AgentPrismId.NewId();
 
@@ -183,11 +184,10 @@ internal static class ApprovalEndpoints
         return TypedResults.Ok(decided!);
     }
 
-    /// <summary>Karar denetim izine yazilamazsa firlatir; basarili yazimda doner.</summary>
+    /// <summary>Throws if the decision cannot be written to the audit trail; returns on a successful write.</summary>
     /// <remarks>
-    /// <c>AuditRecorder.WriteAsync</c>'in AKSINE hatayi YUTMAZ — K-089'un ayni
-    /// istisnasi (<c>SandboxedSkillScriptRunner.WriteAuditOrThrowAsync</c> ile
-    /// AYNI desen).
+    /// UNLIKE <c>AuditRecorder.WriteAsync</c>, it does NOT swallow the error — the same
+    /// exception as K-089 (the SAME pattern as <c>SandboxedSkillScriptRunner.WriteAuditOrThrowAsync</c>).
     /// </remarks>
     private static async ValueTask WriteAuditOrThrowAsync(
         IAuditLog auditLog,
@@ -219,11 +219,11 @@ internal static class ApprovalEndpoints
         {
             logger.LogError(
                 ex,
-                "'{ApprovalId}' kimlikli onay karari denetim izine yazilamadi; karar uygulanmadi.",
+                "Failed to write the approval decision with id '{ApprovalId}' to the audit trail; the decision was not applied.",
                 approval.Id);
 
             throw new AgentPrismException(
-                $"'{approval.Id}' kimlikli onay karari denetim izine yazilamadigi icin uygulanmadi.",
+                $"The approval decision with id '{approval.Id}' was not applied because it could not be written to the audit trail.",
                 ex);
         }
     }
@@ -249,9 +249,9 @@ internal static class ApprovalEndpoints
             statusCode: StatusCodes.Status409Conflict);
 }
 
-/// <summary>Bekleyen bir onay istegine karar vermek icin istek govdesi.</summary>
+/// <summary>Request body for deciding a pending approval request.</summary>
 public sealed record ApprovalDecisionRequest
 {
-    /// <summary>Istek onaylandi mi.</summary>
+    /// <summary>Gets whether the request was approved.</summary>
     public required bool Approved { get; init; }
 }

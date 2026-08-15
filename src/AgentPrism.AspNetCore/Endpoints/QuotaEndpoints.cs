@@ -10,18 +10,18 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
-/// <summary>Kota tanimi ve kullanim uclari (Faz 21).</summary>
+/// <summary>Quota definition and usage endpoints (Phase 21).</summary>
 /// <remarks>
-/// 🚨 Tum bagimliliklar <c>[FromServices]</c> ile <strong>acikca</strong>
-/// isaretlenir: minimal API'de kayitli olmayabilecek bir tip uc imzasinda
-/// isaretsiz kalirsa "Body was inferred" hatasi TUM uclari kirar (Faz 9 dersi,
-/// <c>docs/hafiza/aspnetcore-di.md</c>).
+/// 🚨 All dependencies are marked <strong>explicitly</strong> with
+/// <c>[FromServices]</c>: in a minimal API, if a type that may not be
+/// registered is left unmarked in an endpoint signature, a "Body was inferred"
+/// error breaks ALL endpoints (Phase 9 lesson, <c>docs/hafiza/aspnetcore-di.md</c>).
 /// </remarks>
 internal static class QuotaEndpoints
 {
-    /// <summary>Kota uclarini baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Maps the quota endpoints.</summary>
+    /// <param name="builder">The endpoint group.</param>
+    /// <param name="roles">The resolved role policies.</param>
     public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/quotas", ListAsync)
@@ -29,36 +29,36 @@ internal static class QuotaEndpoints
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismListQuotas")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Bir kiracinin kota kurallarini listeler.");
+            .WithSummary("Lists a tenant's quota rules.");
 
         builder.MapPut("/api/quotas", SaveAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismSaveQuota")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Kota kurali olusturur veya gunceller.")
+            .WithSummary("Creates or updates a quota rule.")
             .Accepts<QuotaSaveRequest>("application/json")
             .WithDescription(
-                "Kapsam (kiraci + agent + donem) benzersizdir: ayni kapsam icin ikinci bir " +
-                "kural yazmak mevcut kuralin uzerine yazar. Uc sinir da bos birakilabilir; " +
-                "yalnizca dolu olanlar uygulanir.");
+                "The scope (tenant + agent + period) is unique: writing a second " +
+                "rule for the same scope overwrites the existing rule. Each limit can also be left " +
+                "empty; only the ones that are set are enforced.");
 
         builder.MapDelete("/api/quotas/{id:guid}", DeleteAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismDeleteQuota")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Bir kota kuralini siler.");
+            .WithSummary("Deletes a quota rule.");
 
         builder.MapGet("/api/quotas/usage", GetUsageAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismGetQuotaUsage")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Gecerli donemin kota kullanimini dondurur.")
+            .WithSummary("Returns the current period's quota usage.")
             .WithDescription(
-                "Bos 'agentName' degeri kiraci geneli sayacini gosterir. Sayaclar yaklasiktir: " +
-                "denetim calistirma oncesinde, tuketim sonrasinda yazilir.");
+                "An empty 'agentName' value shows the tenant-wide counter. Counters are approximate: " +
+                "the check happens before a run starts, and consumption is written after it finishes.");
     }
 
     private static async Task<Ok<IReadOnlyList<QuotaDefinition>>> ListAsync(
@@ -201,8 +201,8 @@ internal static class QuotaEndpoints
             },
             cancellationToken).ConfigureAwait(false);
 
-        // Yalnizca GECERLI donemin sayaclari dondurulur: gecmis donemler
-        // "kullanim cubugu" icin gurultudur ve arayuzde yanlis yuzde uretirdi.
+        // Only the counters of the CURRENT period are returned: past periods
+        // are noise for the "usage bar" and would produce a wrong percentage in the UI.
         var current = usage
             .Where(record => record.PeriodStart == QuotaPeriodCalculator.GetPeriodStart(now, record.Period, timeZone))
             .ToList();
@@ -218,11 +218,11 @@ internal static class QuotaEndpoints
         });
     }
 
-    /// <summary>Bir kurali denetim izi icin JSON olarak ozetler.</summary>
+    /// <summary>Summarizes a rule as JSON for the audit trail.</summary>
     /// <remarks>
-    /// Kural hicbir sir tasimaz, bu yuzden sir suzgecinin gizleyecegi bir alan
-    /// yoktur; yine de kayit <see cref="AuditRecorder"/> uzerinden gecer ve
-    /// suzgec her zaman uygulanir.
+    /// A rule carries no secret, so there is no field for the secret filter to
+    /// redact; the entry still passes through <see cref="AuditRecorder"/> and
+    /// the filter is always applied.
     /// </remarks>
     private static string Describe(QuotaDefinition definition)
     {
@@ -282,49 +282,49 @@ internal static class QuotaEndpoints
             statusCode: StatusCodes.Status400BadRequest);
 }
 
-/// <summary>Bir kota kuralini kaydetmek icin istek govdesi.</summary>
+/// <summary>Request body for saving a quota rule.</summary>
 public sealed record QuotaSaveRequest
 {
     /// <summary>
-    /// Kuralin baglandigi agent. Bos birakilirsa kural kiracinin tum
-    /// calistirmalarina uygulanir.
+    /// Gets the agent the rule is bound to. If left empty, the rule applies to all
+    /// of the tenant's runs.
     /// </summary>
     public string? AgentName { get; init; }
 
-    /// <summary>Sayacin sifirlanma araligi.</summary>
+    /// <summary>Gets the counter's reset interval.</summary>
     public QuotaPeriod Period { get; init; } = QuotaPeriod.Daily;
 
-    /// <summary>Donem basina en fazla calistirma sayisi.</summary>
+    /// <summary>Gets the maximum number of runs per period.</summary>
     public long? MaxRuns { get; init; }
 
-    /// <summary>Donem basina en fazla token.</summary>
+    /// <summary>Gets the maximum number of tokens per period.</summary>
     public long? MaxTokens { get; init; }
 
-    /// <summary>Donem basina en fazla para tutari.</summary>
+    /// <summary>Gets the maximum monetary amount per period.</summary>
     public decimal? MaxCost { get; init; }
 
-    /// <summary>Kural etkin mi.</summary>
+    /// <summary>Gets whether the rule is enabled.</summary>
     public bool Enabled { get; init; } = true;
 }
 
-/// <summary>Kota kullanim ucunun yaniti.</summary>
+/// <summary>Response for the quota usage endpoint.</summary>
 public sealed record QuotaUsageResponse
 {
-    /// <summary>Kiraci kimligi.</summary>
+    /// <summary>Gets the tenant identifier.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Donem sinirlarinin hesaplandigi saat dilimi.</summary>
+    /// <summary>Gets the time zone the period boundaries are computed in.</summary>
     public required string TimeZone { get; init; }
 
-    /// <summary>Gecerli donemin sayaclari.</summary>
+    /// <summary>Gets the current period's counters.</summary>
     public required IReadOnlyList<QuotaUsageRecord> Usage { get; init; }
 
-    /// <summary>Tanimli kota kurallari. Arayuz yuzdeyi bunlardan hesaplar.</summary>
+    /// <summary>Gets the defined quota rules. The UI computes the percentage from these.</summary>
     public required IReadOnlyList<QuotaDefinition> Definitions { get; init; }
 
-    /// <summary>Gunluk sayaclarin sifirlanacagi an (UTC).</summary>
+    /// <summary>Gets the moment (UTC) the daily counters reset.</summary>
     public required DateTimeOffset DailyResetsAt { get; init; }
 
-    /// <summary>Aylik sayaclarin sifirlanacagi an (UTC).</summary>
+    /// <summary>Gets the moment (UTC) the monthly counters reset.</summary>
     public required DateTimeOffset MonthlyResetsAt { get; init; }
 }

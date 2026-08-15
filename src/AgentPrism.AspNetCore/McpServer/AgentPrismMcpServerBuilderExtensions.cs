@@ -3,31 +3,32 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism;
 
 /// <summary>
-/// AgentPrism agent'larini MCP tool'u olarak yayimlamak icin servis kaydini yapan
-/// uzantilar.
+/// Extensions that register the services needed to publish AgentPrism agents
+/// as MCP tools.
 /// </summary>
 public static class AgentPrismMcpServerBuilderExtensions
 {
     /// <summary>
-    /// MCP sunucu servislerini kaydeder. HTTP ucu ayrica
-    /// <c>app.MapAgentPrismMcpServer(...)</c> ile baglanmalidir.
+    /// Registers the MCP server services. The HTTP endpoint must still be
+    /// connected separately with <c>app.MapAgentPrismMcpServer(...)</c>.
     /// </summary>
-    /// <param name="builder">AgentPrism yapilandirma zinciri.</param>
-    /// <param name="configure">Ayar degistirici.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> <see langword="null"/> ise.</exception>
+    /// <param name="builder">The AgentPrism configuration chain.</param>
+    /// <param name="configure">Options mutator.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     /// <remarks>
     /// <para>
-    /// Kayit BURADA yapilir, <c>MapAgentPrismMcpServer</c>'da degil: MCP SDK'sinin
-    /// <c>AddMcpServer()</c> cagrisi <see cref="IServiceCollection"/> uzerinde
-    /// calisir ve uygulama <c>Build()</c> olmadan ONCE yapilmalidir. `Map...`
-    /// uzantilari yalniz zaten kurulmus servisleri HTTP'ye baglar (K-251 deseni).
+    /// Registration happens HERE, not in <c>MapAgentPrismMcpServer</c>: the MCP
+    /// SDK's <c>AddMcpServer()</c> call operates on <see cref="IServiceCollection"/>
+    /// and must happen BEFORE the application is <c>Build()</c>-ed. The
+    /// `Map...` extensions only connect already-built services to HTTP
+    /// (K-251 pattern).
     /// </para>
     /// <para>
-    /// Varsayilan olarak <strong>hicbir agent disa acik degildir</strong> (K1).
-    /// Disa acmak <see cref="AgentPrismMcpServerOptions.ExposedAgents"/> veya
-    /// <see cref="AgentPrismMcpServerOptions.ExposeAllAgents"/> ile acik bir
-    /// tercih gerektirir.
+    /// By default <strong>no agent is exposed</strong> (K1). Exposing one
+    /// requires an explicit choice via
+    /// <see cref="AgentPrismMcpServerOptions.ExposedAgents"/> or
+    /// <see cref="AgentPrismMcpServerOptions.ExposeAllAgents"/>.
     /// </para>
     /// <example>
     /// <code>

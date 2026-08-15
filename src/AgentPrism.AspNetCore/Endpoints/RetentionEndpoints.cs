@@ -8,22 +8,24 @@ using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
 
-/// <summary>Veri saklama politikasi ve arsivleme uclari (Faz 25).</summary>
+/// <summary>Data retention policy and archiving endpoints (Phase 25).</summary>
 /// <remarks>
 /// <para>
-/// 🚨 <c>preview</c> ucu zorunludur: kimse ne kadar veri sileceğini bilmeden
-/// silme baslatmamalidir. Hicbir uc dogrudan silme yapmaz — <c>run</c> ucu
-/// bile isi kuyruga yazar (<see cref="JobKind.Retention"/>), senkron calismaz.
+/// 🚨 The <c>preview</c> endpoint is mandatory: no one should start a deletion
+/// without knowing how much data it will delete. No endpoint deletes directly
+/// — even the <c>run</c> endpoint enqueues a job (<see cref="JobKind.Retention"/>);
+/// it does not run synchronously.
 /// </para>
 /// <para>
-/// Tum bagimliliklar <c>[FromServices]</c> ile acikca isaretlenir (Faz 9 dersi).
+/// All dependencies are explicitly marked with <c>[FromServices]</c> (a lesson
+/// from Phase 9).
 /// </para>
 /// </remarks>
 internal static class RetentionEndpoints
 {
-    /// <summary>Saklama uclarini baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Maps the retention endpoints.</summary>
+    /// <param name="builder">The endpoint route builder.</param>
+    /// <param name="roles">The resolved role policies.</param>
     public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/retention", ListAsync)
@@ -31,43 +33,43 @@ internal static class RetentionEndpoints
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismListRetentionPolicies")
             .WithTags("AgentPrism", "Retention")
-            .WithSummary("Bir kiracinin saklama politikalarini listeler.");
+            .WithSummary("Lists a tenant's retention policies.");
 
         builder.MapGet("/api/retention/preview", PreviewAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismPreviewRetention")
             .WithTags("AgentPrism", "Retention")
-            .WithSummary("Su an calistirilirsa kac satirin silinecegini gosterir. Silme YAPMAZ.");
+            .WithSummary("Shows how many rows would be deleted if run now. Does NOT delete.");
 
         builder.MapPost("/api/retention/run", RunAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismRunRetention")
             .WithTags("AgentPrism", "Retention")
-            .WithSummary("Temizlemeyi simdi calistirir.")
-            .WithDescription("Senkron calismaz: bir JobKind.Retention isi kuyruga yazilir ve kuyrukta islenir.");
+            .WithSummary("Runs the cleanup now.")
+            .WithDescription("Does not run synchronously: a JobKind.Retention job is enqueued and processed from the queue.");
 
         builder.MapGet("/api/retention/history", HistoryAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismRetentionHistory")
             .WithTags("AgentPrism", "Retention")
-            .WithSummary("Gecmis temizleme kosularini listeler.");
+            .WithSummary("Lists past cleanup runs.");
 
         builder.MapGet("/api/retention/{target}", GetAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismGetRetentionPolicy")
             .WithTags("AgentPrism", "Retention")
-            .WithSummary("Tek bir hedefin saklama politikasini getirir.");
+            .WithSummary("Gets the retention policy for a single target.");
 
         builder.MapPut("/api/retention/{target}", SaveAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismSaveRetentionPolicy")
             .WithTags("AgentPrism", "Retention")
-            .WithSummary("Bir hedef icin saklama politikasi olusturur veya gunceller.")
+            .WithSummary("Creates or updates the retention policy for a target.")
             .Accepts<RetentionPolicySaveRequest>("application/json");
 
         builder.MapDelete("/api/retention/{target}", DeleteAsync)
@@ -75,7 +77,7 @@ internal static class RetentionEndpoints
             .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismDeleteRetentionPolicy")
             .WithTags("AgentPrism", "Retention")
-            .WithSummary("Bir hedefin saklama politikasini siler.");
+            .WithSummary("Deletes the retention policy for a target.");
     }
 
     private static async Task<Ok<IReadOnlyList<RetentionPolicy>>> ListAsync(
@@ -277,7 +279,7 @@ internal static class RetentionEndpoints
         return TypedResults.Ok(runs);
     }
 
-    /// <summary>Bir politikayi denetim izi icin ozetler.</summary>
+    /// <summary>Summarizes a policy for the audit trail.</summary>
     private static string Describe(RetentionPolicy policy)
     {
         using var buffer = new MemoryStream();
@@ -332,28 +334,28 @@ internal static class RetentionEndpoints
             statusCode: StatusCodes.Status400BadRequest);
 }
 
-/// <summary>Bir saklama politikasini kaydetmek icin istek govdesi.</summary>
+/// <summary>Request body for saving a retention policy.</summary>
 public sealed record RetentionPolicySaveRequest
 {
-    /// <summary>Bu yastan eski satirlar silinmeye adaydir.</summary>
+    /// <summary>Rows older than this age are candidates for deletion.</summary>
     public int? MaxAgeDays { get; init; }
 
-    /// <summary>Hedefte tutulacak en fazla satir sayisi. En eski satirlar silinir.</summary>
+    /// <summary>The maximum number of rows to keep for the target. The oldest rows are deleted.</summary>
     public long? MaxRows { get; init; }
 
-    /// <summary>Silmeden once arsivlensin mi.</summary>
+    /// <summary>Whether to archive rows before deleting them.</summary>
     public bool Archive { get; init; }
 
-    /// <summary>Politika etkin mi.</summary>
+    /// <summary>Whether the policy is enabled.</summary>
     public bool Enabled { get; init; } = true;
 }
 
-/// <summary>Bir "simdi calistir" isteginin yaniti.</summary>
+/// <summary>Response to a "run now" request.</summary>
 public sealed record RetentionRunTriggerResponse
 {
-    /// <summary>Kuyruga yazilan isin kimligi.</summary>
+    /// <summary>The id of the enqueued job.</summary>
     public required Guid JobId { get; init; }
 
-    /// <summary>Islenecek hedef; tumu icin <c>"*"</c>.</summary>
+    /// <summary>The target to process; <c>"*"</c> for all targets.</summary>
     public required string Target { get; init; }
 }

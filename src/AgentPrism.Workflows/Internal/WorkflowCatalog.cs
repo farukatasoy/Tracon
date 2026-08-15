@@ -3,13 +3,14 @@ using Microsoft.Agents.AI.Workflows;
 namespace AgentPrism;
 
 /// <summary>
-/// Kodda tanimli ve veritabaninda saklanan workflow'lari tek bir katalogda birlestirir.
+/// Combines the workflows defined in code and stored in the database into a
+/// single catalog.
 /// </summary>
 /// <remarks>
-/// Ad cakismasinda <strong>kod kazanir</strong>. Ayni kural agent katalogunda da
-/// gecerlidir (K-019): kodda tanimli olan derleme zamaninda dogrulanmistir ve
-/// veritabanina yazma yetkisi olan biri, kodda kayitli bir davranisi ele
-/// geciremez.
+/// On a name clash, <strong>code wins</strong>. The same rule applies to the
+/// agent catalog (K-019): a definition in code is validated at build time, and
+/// someone with write access to the database cannot take over a behavior
+/// registered in code.
 /// </remarks>
 internal sealed class WorkflowCatalog
 {
@@ -19,13 +20,13 @@ internal sealed class WorkflowCatalog
     private readonly ITenantContext _tenantContext;
     private readonly IServiceProvider _services;
 
-    /// <summary>Yeni bir katalog olusturur.</summary>
-    /// <param name="codeWorkflows">Kodda kayitli workflow'lar.</param>
-    /// <param name="store">Veritabani tanim deposu.</param>
-    /// <param name="compiler">Tanim derleyicisi.</param>
-    /// <param name="tenantContext">Kiraci baglami.</param>
-    /// <param name="services">Kod fabrikalarinin kullanacagi servis saglayici.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new catalog.</summary>
+    /// <param name="codeWorkflows">The workflows registered in code.</param>
+    /// <param name="store">The database definition store.</param>
+    /// <param name="compiler">The definition compiler.</param>
+    /// <param name="tenantContext">The tenant context.</param>
+    /// <param name="services">The service provider used by code factories.</param>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public WorkflowCatalog(
         IEnumerable<CodeWorkflowRegistration> codeWorkflows,
         IWorkflowDefinitionStore store,
@@ -48,9 +49,9 @@ internal sealed class WorkflowCatalog
         _services = services;
     }
 
-    /// <summary>Katalogdaki tum workflow'lari ada gore listeler.</summary>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Ozetler.</returns>
+    /// <summary>Lists every workflow in the catalog, ordered by name.</summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The summaries.</returns>
     public async ValueTask<IReadOnlyList<WorkflowDescriptor>> ListAsync(
         CancellationToken cancellationToken = default)
     {
@@ -63,7 +64,7 @@ internal sealed class WorkflowCatalog
             descriptors[definition.Name] = Describe(definition);
         }
 
-        // Kod kayitlari SONRA yazilir ve veritabanindakinin uzerine gecer.
+        // Code registrations are written LAST and overwrite the database entry.
         foreach (var registration in _codeWorkflows.Values)
         {
             descriptors[registration.Name] = new WorkflowDescriptor
@@ -77,10 +78,10 @@ internal sealed class WorkflowCatalog
         return [.. descriptors.Values.OrderBy(static descriptor => descriptor.Name, StringComparer.Ordinal)];
     }
 
-    /// <summary>Tek bir workflow'un ozetini getirir.</summary>
-    /// <param name="name">Workflow adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Ozet; yoksa <see langword="null"/>.</returns>
+    /// <summary>Gets the summary of a single workflow.</summary>
+    /// <param name="name">The workflow name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The summary; <see langword="null"/> if it does not exist.</returns>
     public async ValueTask<WorkflowDescriptor?> GetAsync(string name, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -102,17 +103,17 @@ internal sealed class WorkflowCatalog
         return definition is null ? null : Describe(definition);
     }
 
-    /// <summary>Adi verilen workflow'u calistirilabilir bir grafa cevirir.</summary>
-    /// <param name="name">Workflow adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kurulmus graf; workflow katalogda yoksa <see langword="null"/>.</returns>
-    /// <exception cref="AgentPrismException">Tanim gecersizse veya bir agent bulunamiyorsa.</exception>
+    /// <summary>Turns the named workflow into a runnable graph.</summary>
+    /// <param name="name">The workflow name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The built graph; <see langword="null"/> if the workflow is not in the catalog.</returns>
+    /// <exception cref="AgentPrismException">The definition is invalid, or an agent cannot be found.</exception>
     /// <remarks>
-    /// Graf <strong>her calistirmada yeniden kurulur</strong>, onbelleklenmez.
-    /// Sebep: Microsoft Agent Framework executor'lari durum tasir ve ayni
-    /// <see cref="Workflow"/> ornegini es zamanli iki calistirmada kullanmak
-    /// durumu paylastirirdi. Kurulum maliyeti bir model cagrisinin yaninda
-    /// olculemeyecek kadar kucuktur.
+    /// The graph is <strong>rebuilt on every run</strong>, never cached.
+    /// Reason: Microsoft Agent Framework executors carry state, and using the
+    /// same <see cref="Workflow"/> instance for two concurrent runs would
+    /// share that state between them. The build cost is negligible next to a
+    /// single model call.
     /// </remarks>
     public async ValueTask<Workflow?> ResolveAsync(string name, CancellationToken cancellationToken = default)
     {

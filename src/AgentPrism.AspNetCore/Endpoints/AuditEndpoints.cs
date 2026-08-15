@@ -5,16 +5,16 @@ using Microsoft.AspNetCore.Routing;
 
 namespace AgentPrism;
 
-/// <summary>Denetim izi okuma uclari.</summary>
+/// <summary>Audit trail read endpoints.</summary>
 /// <remarks>
-/// Salt okunurdur: silme veya duzeltme ucu yoktur ve olmayacaktir. Saklama
-/// politikasi Faz 25'in isidir.
+/// Read-only: there is no delete or amend endpoint, and there will not be. Retention
+/// policy is Phase 25's concern.
 /// </remarks>
 internal static class AuditEndpoints
 {
-    /// <summary>Denetim izi uclarini baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Maps the audit trail endpoints.</summary>
+    /// <param name="builder">The endpoint group.</param>
+    /// <param name="roles">The resolved role policies.</param>
     public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/audit", async Task<Ok<IReadOnlyList<AuditEntry>>> (
@@ -47,14 +47,14 @@ internal static class AuditEndpoints
             .RequireApiKeyScope(ApiKeyScope.AuditRead)
             .WithName("AgentPrismListAudit")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Filtrelenebilir denetim kayitlarini listeler.")
+            .WithSummary("Lists audit entries, filterable by actor, action, entity, and date range.")
             .WithDescription(
-                "actor, action, entity ve tarih araligina gore filtrelenebilir. Calistirmalar " +
-                "(agent'in bir mesaji islemesi) bu deftere yazilmaz; runs tablosu zaten tam kaydi tutar. " +
-                "Tek istisna 'content.blocked' eylemidir (Faz 48): bir IContentGuard'in engelleme " +
-                "karari bir calistirma ayrintisi degil bir YONETISIM kararidir ve calistirma kaydi " +
-                "saklama politikasiyla silindikten sonra da izlenebilir kalmalidir. Kayit yalniz " +
-                "guard ve kural adini tasir, engellenen METNI tasimaz.");
+                "Filterable by actor, action, entity, and date range. Runs (an agent processing " +
+                "a message) are not written to this log; the runs table already keeps the full " +
+                "record. The one exception is the 'content.blocked' action (Phase 48): an " +
+                "IContentGuard's block decision is a GOVERNANCE decision, not a run detail, and " +
+                "must remain traceable even after the run record is deleted by retention policy. " +
+                "The entry carries only the guard and rule name, never the blocked TEXT.");
 
         builder.MapGet("/api/audit/{entity}", async Task<Ok<IReadOnlyList<AuditEntry>>> (
                 string entity,
@@ -78,6 +78,6 @@ internal static class AuditEndpoints
             .RequireApiKeyScope(ApiKeyScope.AuditRead)
             .WithName("AgentPrismGetEntityAudit")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Tek bir varligin degisiklik gecmisini, en yeniden eskiye dondurur.");
+            .WithSummary("Returns a single entity's change history, newest first.");
     }
 }

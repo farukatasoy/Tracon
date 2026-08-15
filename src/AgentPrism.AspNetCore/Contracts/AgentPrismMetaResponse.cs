@@ -1,107 +1,110 @@
 namespace AgentPrism;
 
 /// <summary>
-/// <c>{prefix}/api/meta</c> yaniti. Arayuzun kendini yapilandirmasi icin gereken
-/// en az bilgiyi tasir.
+/// Response for <c>{prefix}/api/meta</c>. Carries the minimum information the
+/// UI needs to configure itself.
 /// </summary>
 /// <remarks>
-/// Bu uc <strong>kimlik dogrulamasi olmadan</strong> erisilebilir; arayuz hangi
-/// kimlik yontemini kullanacagini baska turlu ogrenemez. Bu yuzden icerigi
-/// bilerek dardir: sir, kiraci verisi, agent adi veya sayim bilgisi icermez.
-/// Gerekce: <c>docs/KARARLAR.md</c>, karar K-010.
+/// This endpoint is reachable <strong>without authentication</strong>; the UI
+/// has no other way to learn which authentication method to use. Its content
+/// is therefore deliberately narrow: it carries no secret, tenant data, agent
+/// name, or count information. Rationale: <c>docs/KARARLAR.md</c>, decision K-010.
 /// </remarks>
 public sealed record AgentPrismMetaResponse
 {
-    /// <summary>AgentPrism surumu.</summary>
+    /// <summary>AgentPrism version.</summary>
     public required string Version { get; init; }
 
-    /// <summary>Uclarin baglandigi yol oneki. Arayuz kendi cagrilarini buna gore kurar.</summary>
+    /// <summary>Path prefix the endpoints are connected to. The UI builds its own calls from this.</summary>
     public required string Prefix { get; init; }
 
-    /// <summary>Aktif kimlik dogrulama yontemleri.</summary>
+    /// <summary>Active authentication methods.</summary>
     public required AgentPrismAuthenticationMeta Authentication { get; init; }
 
-    /// <summary>Aktif depolama uygulamalari.</summary>
+    /// <summary>Active storage implementations.</summary>
     public required AgentPrismStorageMeta Storage { get; init; }
 
-    /// <summary>Gecerli caginin rol yetkileri.</summary>
+    /// <summary>Role permissions of the current caller.</summary>
     public required AgentPrismRoleMeta Roles { get; init; }
 }
 
 /// <summary>
-/// Gecerli isteğin sahibinin hangi rol seviyelerini karsiladigini bildirir.
+/// Reports which role levels the current request's caller satisfies.
 /// </summary>
 /// <remarks>
-/// Arayuz yetkisi olmayan duzenleme dugmelerini bu alana gore gizler; sunucu
-/// tarafi yetkilendirme yine de tek gercektir, bu alan bir guvenlik onlemi
-/// <strong>degildir</strong>. Ilgili rol policy'si (<see cref="AgentPrismPolicies"/>)
-/// tuketicinin authorization yapilandirmasinda kayitli degilse karsilik gelen
-/// alan <see langword="true"/> doner: rol kisiti yoktur, uc yalnizca mevcut
-/// uc katmanli korumadan gecer.
+/// The UI uses this field to hide edit buttons the caller has no permission
+/// for; server-side authorization is still the only source of truth, this
+/// field is <strong>not</strong> a security measure. If the corresponding role
+/// policy (<see cref="AgentPrismPolicies"/>) is not registered in the
+/// consumer's authorization configuration, the corresponding field returns
+/// <see langword="true"/>: there is no role restriction, the endpoint only
+/// passes through the existing three-layer protection.
 /// </remarks>
 public sealed record AgentPrismRoleMeta
 {
-    /// <summary>Agent, calistirma, oturum, trace ve istatistik okuma yetkisi var mi.</summary>
+    /// <summary>Whether the caller may read agents, runs, sessions, traces, and statistics.</summary>
     public required bool CanRead { get; init; }
 
-    /// <summary>Reader'a ek olarak calistirma baslatma, onay verme, oturum silme yetkisi var mi.</summary>
+    /// <summary>Whether the caller may, in addition to Reader, start runs, give approvals, and delete sessions.</summary>
     public required bool CanOperate { get; init; }
 
-    /// <summary>Agent tanimi yazma, MCP sunucusu ekleme, kiraci ve denetim izi yonetimi yetkisi var mi.</summary>
+    /// <summary>Whether the caller may write agent definitions, add MCP servers, and manage tenants and audit trails.</summary>
     public required bool CanAdminister { get; init; }
 }
 
 /// <summary>
-/// Hangi kimlik dogrulama katmanlarinin acik oldugunu bildirir.
+/// Reports which authentication layers are enabled.
 /// </summary>
 /// <remarks>
-/// Yalnizca <see langword="bool"/> alanlar tasir. Policy adi bilerek
-/// <strong>dondurulmez</strong>: arayuz o adla bir sey yapamaz ve ad, kimlik
-/// dogrulamasi olmayan bir uctan sizan bir yapilandirma ayrintisi olurdu.
+/// Carries only <see langword="bool"/> fields. The policy name is
+/// deliberately <strong>not</strong> returned: the UI cannot do anything with
+/// the name, and the name would be a configuration detail leaking from an
+/// unauthenticated endpoint.
 /// </remarks>
 public sealed record AgentPrismAuthenticationMeta
 {
-    /// <summary>Loopback disindan erisime izin veriliyor mu.</summary>
+    /// <summary>Whether access from outside loopback is allowed.</summary>
     public required bool AllowRemoteAccess { get; init; }
 
-    /// <summary><c>Authorization: Bearer</c> basligi bekleniyor mu.</summary>
+    /// <summary>Whether an <c>Authorization: Bearer</c> header is expected.</summary>
     public required bool RequiresBearerToken { get; init; }
 
-    /// <summary>Bir ASP.NET Core authorization policy uygulaniyor mu.</summary>
+    /// <summary>Whether an ASP.NET Core authorization policy is applied.</summary>
     public required bool RequiresAuthorizationPolicy { get; init; }
 }
 
 /// <summary>
-/// Hangi depolama uygulamalarinin aktif oldugunu bildirir.
+/// Reports which storage implementations are active.
 /// </summary>
 /// <remarks>
-/// Bellek ici depolar desteklenen bir moddur, bir test yardimcisi degildir
-/// (karar K-018). Ancak sinirlari vardir — surec omru ve tek dugum — ve arayuz
-/// bunu kullaniciya gosterebilmelidir.
+/// In-memory stores are a supported mode, not a test helper (decision K-018).
+/// They do have limits, however — process lifetime and single node — and the
+/// UI should be able to show this to the user.
 /// </remarks>
 public sealed record AgentPrismStorageMeta
 {
     /// <summary>
-    /// Uc deponun ucu de kalici mi. Herhangi biri bellek ici ise
-    /// <see langword="false"/> doner.
+    /// Whether all three stores are persistent. Returns
+    /// <see langword="false"/> if any is in-memory.
     /// </summary>
     public required bool Persistent { get; init; }
 
-    /// <summary>Agent tanimi deposunun tip adi.</summary>
+    /// <summary>Type name of the agent definition store.</summary>
     public required string AgentDefinitionStore { get; init; }
 
-    /// <summary>Calistirma deposunun tip adi.</summary>
+    /// <summary>Type name of the run store.</summary>
     public required string RunStore { get; init; }
 
-    /// <summary>Oturum deposunun tip adi.</summary>
+    /// <summary>Type name of the session store.</summary>
     public required string SessionStore { get; init; }
 
-    /// <summary>Is kuyrugu deposunun tip adi (Faz 17).</summary>
+    /// <summary>Type name of the job queue store (Phase 17).</summary>
     public required string JobStore { get; init; }
 
     /// <summary>
-    /// Arka plan is iscisi bu surecte calisiyor mu. <see langword="false"/> ise
-    /// kuyruk yine de yazilabilir/okunabilir; yalnizca bu surec is kiralamaz.
+    /// Whether the background job worker is running in this process. If
+    /// <see langword="false"/>, the queue can still be written to and read
+    /// from; only this process does not lease jobs.
     /// </summary>
     public required bool JobWorkerEnabled { get; init; }
 }

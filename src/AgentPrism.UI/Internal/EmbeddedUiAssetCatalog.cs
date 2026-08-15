@@ -4,29 +4,29 @@ using System.Reflection;
 namespace AgentPrism;
 
 /// <summary>
-/// Assembly'ye gomulu arayuz varliklarinin dizini.
+/// Index of the UI assets embedded in the assembly.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Varliklar <c>AgentPrism.UI.wwwroot/</c> onekiyle gomulur. Onek kaldirildiginda
-/// kalan ad, istemcinin gordugu yoldur.
+/// Assets are embedded with the <c>AgentPrism.UI.wwwroot/</c> prefix. Once the prefix is
+/// removed, the remaining name is the path the client sees.
 /// </para>
 /// <para>
-/// <c>.br</c> ile biten bir kaynak Brotli ile sikistirilmis olarak saklanir ve
-/// mantiksal yolu bu uzanti kaldirilmis halidir. Bir bildirim (manifest) dosyasina
-/// gerek yoktur: saklama bicimi adin kendisinden okunur. Boylece derleme zinciri ile
-/// calisma zamani arasinda senkron kalmasi gereken ikinci bir dosya olusmaz.
+/// A resource ending in <c>.br</c> is stored Brotli-compressed, and its logical path is
+/// the name with that extension removed. No manifest file is needed: the storage format
+/// is read from the name itself. This avoids a second file that would have to stay in
+/// sync between the build chain and the runtime.
 /// </para>
 /// </remarks>
 internal static class EmbeddedUiAssetCatalog
 {
-    /// <summary>Gomulu varliklarin kaynak adi oneki.</summary>
+    /// <summary>The resource name prefix for embedded assets.</summary>
     public const string ResourcePrefix = "AgentPrism.UI.wwwroot/";
 
-    /// <summary>Tek sayfa uygulamanin kabuk dosyasi.</summary>
+    /// <summary>The shell file of the single-page application.</summary>
     public const string ShellPath = "index.html";
 
-    /// <summary>Kabugun icerik tipi.</summary>
+    /// <summary>The content type of the shell.</summary>
     public const string HtmlContentType = "text/html; charset=utf-8";
 
     private static readonly FrozenDictionary<string, string> ContentTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -51,9 +51,9 @@ internal static class EmbeddedUiAssetCatalog
         [".webmanifest"] = "application/manifest+json",
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Assembly'deki arayuz varliklarini okur.</summary>
-    /// <param name="assembly">Varliklarin gomulu oldugu assembly.</param>
-    /// <returns>Yola gore dizinlenmis varliklar. Varlik yoksa bos sozluk.</returns>
+    /// <summary>Reads the UI assets in the assembly.</summary>
+    /// <param name="assembly">The assembly the assets are embedded in.</param>
+    /// <returns>Assets indexed by path. An empty dictionary if there are no assets.</returns>
     public static FrozenDictionary<string, UiAsset> Load(Assembly assembly)
     {
         var assets = new Dictionary<string, UiAsset>(StringComparer.Ordinal);
@@ -65,10 +65,10 @@ internal static class EmbeddedUiAssetCatalog
                 continue;
             }
 
-            // MSBuild'in %(RecursiveDir) metadatasi Windows'ta ters bolu uretir.
-            // Istemcinin gordugu yol her zaman ileri bolu tasir; normallestirme
-            // burada yapilir, boylece paket hangi isletim sisteminde derlenirse
-            // derlensin ayni yollari sunar.
+            // MSBuild's %(RecursiveDir) metadata produces backslashes on Windows.
+            // The path the client sees always uses forward slashes; normalization
+            // happens here, so the package serves the same paths regardless of
+            // which operating system it was built on.
             var name = resourceName[ResourcePrefix.Length..].Replace('\\', '/');
             var isBrotli = name.EndsWith(".br", StringComparison.Ordinal);
             var path = isBrotli ? name[..^3] : name;

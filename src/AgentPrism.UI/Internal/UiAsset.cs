@@ -1,34 +1,34 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Gomulu bir arayuz varliginin tanimi.
+/// Represents the definition of an embedded UI asset.
 /// </summary>
 /// <remarks>
-/// Icerik derleme aninda uretildigi ve bir daha degismedigi icin tum alanlar
-/// degismezdir; tek ornek tum isteklerce paylasilir.
+/// Because the content is produced at build time and never changes afterward, all
+/// fields are immutable; a single instance is shared across all requests.
 /// </remarks>
 internal sealed class UiAsset
 {
-    /// <summary>Varligin gomulu kaynak adi.</summary>
+    /// <summary>Gets the embedded resource name of the asset.</summary>
     public required string ResourceName { get; init; }
 
-    /// <summary>Taban yola gore varlik yolu. Ornek: <c>assets/index-a1b2c3.js</c>.</summary>
+    /// <summary>Gets the asset path relative to the base path. Example: <c>assets/index-a1b2c3.js</c>.</summary>
     public required string Path { get; init; }
 
-    /// <summary>Icerik tipi.</summary>
+    /// <summary>Gets the content type.</summary>
     public required string ContentType { get; init; }
 
-    /// <summary>Icerik Brotli ile sikistirilmis olarak mi saklaniyor.</summary>
+    /// <summary>Gets whether the content is stored Brotli-compressed.</summary>
     public required bool IsBrotli { get; init; }
 
     /// <summary>
-    /// Dosya adi icerigin ozetini tasiyor mu. Tasiyorsa yanit sonsuza kadar
-    /// onbelleklenebilir.
+    /// Gets whether the file name carries a content hash. If it does, the response can be
+    /// cached forever.
     /// </summary>
     /// <remarks>
-    /// Vite <c>assets/</c> altindaki her dosyaya icerik ozeti ekler; icerik
-    /// degistiginde ad da degisir. Bu yuzden o dosyalar <c>immutable</c> olarak
-    /// isaretlenir. <c>index.html</c> sabit adlidir ve her zaman yeniden dogrulanir.
+    /// Vite appends a content hash to every file under <c>assets/</c>; when the content
+    /// changes, the name changes too. That is why those files are marked <c>immutable</c>.
+    /// <c>index.html</c> has a fixed name and is always revalidated.
     /// </remarks>
     public required bool Immutable { get; init; }
 }

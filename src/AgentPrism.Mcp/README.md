@@ -1,6 +1,6 @@
 # AgentPrism.Mcp
 
-Uzak **Model Context Protocol** sunucularinin tool'larini AgentPrism kataloguna baglar.
+Connects tools from remote **Model Context Protocol** servers into the AgentPrism catalog.
 
 ```csharp
 builder.AddAgentPrism()
@@ -9,78 +9,82 @@ builder.AddAgentPrism()
        .UseMcp();
 ```
 
-Sunucular kodda degil, **veritabaninda** tanimlidir; arayuzden veya
-`PUT {prefix}/api/mcp-servers/{ad}` ucundan eklenir. Kesif arka planda yapilir ve
-bulunan tool'lar kodda kayitli tool'larin yaninda listelenir.
+Servers are defined not in code but in the **database**; they are added from
+the UI or via the `PUT {prefix}/api/mcp-servers/{name}` endpoint. Discovery
+happens in the background, and the tools found are listed alongside the
+tools registered in code.
 
-## Guvenlik siniri
+## Security boundary
 
-MCP sunucusu eklemek, **disaridan gelen tool tanimlarini kabul etmek** demektir ve
-AgentPrism'in "tool'lar yalnizca kodda tanimlanir" kuralinin (K2) bilincli bir
-istisnasidir. Su korumalarla gelir:
+Adding an MCP server means **accepting tool definitions from an external
+source**, and is a deliberate exception to AgentPrism's "tools are defined
+only in code" rule (K2). It comes with the following safeguards:
 
-| Koruma | Nasil |
-|--------|-------|
-| Yalnizca uzak sunucu | Yalnizca `http`/`https`. **Stdio yoktur** — sunucuda surec baslatmak, arayuze erisen birinin sunucuda program calistirmasi demektir |
-| Onay zorunlulugu | MCP tool'lari varsayilan olarak `RequiresApproval = true`; cagri kullanicinin onayini bekler |
-| Ad ele gecirme yok | Kodda kayitli bir tool'un adini tasiyan MCP tool'u **yok sayilir**; kod her zaman kazanir |
-| Sir sizmaz | Sunucu kaydi kimlik dogrulama **degerini** tasimaz, yalnizca degerin okunacagi yapilandirma anahtarinin **adini** tasir |
-| Denetim izi | Her cagri kaynak sunucu adiyla `tool_invocations` tablosuna yazilir |
-| Hacim siniri | Sunucu basina ust tool sayisi (`MaxToolsPerServer`, varsayilan 100) |
+| Safeguard | How |
+|--------|-----|
+| Remote server only | Only `http`/`https`. **No stdio** — starting a process on the server would mean anyone with UI access could run programs on the server |
+| Approval required | MCP tools default to `RequiresApproval = true`; a call waits for user approval |
+| No name hijacking | An MCP tool carrying the name of a tool already registered in code is **ignored**; code always wins |
+| No secret leakage | The server record carries no authentication **value**, only the **name** of the configuration key the value is read from |
+| Audit trail | Every call is written to the `tool_invocations` table with the source server name |
+| Volume limit | An upper bound on tool count per server (`MaxToolsPerServer`, default 100) |
 
-## Kimlik dogrulama
+## Authentication
 
-Sir veritabanina **yazilmaz**. Sunucu kaydinda yalnizca anahtarin adi durur:
+A secret is **never written** to the database. Only the key's name is stored
+in the server record:
 
 ```json
 {
-  "endpoint": "https://mcp.ornek.com/mcp",
-  "authorizationConfigurationKey": "AgentPrism:Mcp:OrnekToken"
+  "endpoint": "https://mcp.example.com/mcp",
+  "authorizationConfigurationKey": "AgentPrism:Mcp:ExampleToken"
 }
 ```
 
-Deger calisma aninda `IConfiguration` uzerinden cozulur:
+The value is resolved at run time through `IConfiguration`:
 
 ```bash
-dotnet user-secrets set "AgentPrism:Mcp:OrnekToken" "Bearer ..."
+dotnet user-secrets set "AgentPrism:Mcp:ExampleToken" "Bearer ..."
 ```
 
-Boylece veritabani yedegi, denetim izi ve arayuz yaniti hicbir zaman sir tasimaz.
+This way, the database backup, the audit trail, and the UI response never carry a secret.
 
-## Tool adlari
+## Tool names
 
-Kesfedilen tool'lar `{sunucu}_{tool}` bicimiyle adlandirilir. Onek zorunludur: iki
-farkli sunucuda ayni adli tool bulunmasi olagandir. Nokta **kullanilmaz** — OpenAI
-ve uyumlu saglayicilar fonksiyon adlarinda yalnizca `[a-zA-Z0-9_-]` kabul eder.
+Discovered tools are named in the form `{server}_{tool}`. The prefix is
+mandatory: it is common for two different servers to have a tool with the
+same name. A dot is **not used** — OpenAI and compatible providers accept
+only `[a-zA-Z0-9_-]` in function names.
 
-## Ayarlar
+## Options
 
-| Ayar | Varsayilan | Ne yapar |
+| Option | Default | What it does |
 |------|-----------|----------|
-| `Enabled` | `true` | Kesif acik mi |
-| `RefreshInterval` | 5 dk | Tool listesi ne siklikta tazelenir |
-| `ConnectionTimeout` | 30 sn | Baglanma ve listeleme ust suresi |
-| `MaxToolsPerServer` | 100 | Sunucu basina ust tool sayisi |
+| `Enabled` | `true` | Whether discovery is on |
+| `RefreshInterval` | 5 min | How often the tool list is refreshed |
+| `ConnectionTimeout` | 30 sec | The upper bound for connecting and listing |
+| `MaxToolsPerServer` | 100 | The upper bound on tool count per server |
 
-Tazeleme normalde arka planda yapilir. Yeni eklenen bir sunucunun tool'larini hemen
-gormek icin `POST {prefix}/api/mcp-servers/refresh`.
+Refresh normally happens in the background. To see a newly added server's
+tools right away, call `POST {prefix}/api/mcp-servers/refresh`.
 
-## Davranis
+## Behavior
 
-- Bir sunucuya **ulasilamamasi hata degildir**: o sunucunun tool'lari listeden duser,
-  digerleri calismaya devam eder, bir uyari loglanir.
-- Ilk kesif uygulama acilisini **bloklamaz**. Erisilemeyen bir MCP sunucusu
-  uygulamayi baslatmaktan alikoymaz.
-- Baglantilar tazeleme arasinda **ayakta tutulur**; yalnizca sunucu tanimi
-  degistiginde yeniden kurulur. Degismeyen bir baglantiyi kapatmak, o sirada devam
-  eden bir tool cagrisini kirardi.
-- Tool'lar **kiraciya gore** cozulur: bir kiracinin sunucusundan gelen tool baska
-  bir kiracida gorunmez.
+- Being unable to **reach a server is not an error**: that server's tools
+  drop out of the list, the others keep working, a warning is logged.
+- The first discovery **does not block** application startup. An
+  unreachable MCP server does not prevent the application from starting.
+- Connections are **kept alive** between refreshes; they are only
+  re-established when the server definition changes. Closing an unchanged
+  connection would break a tool call in progress.
+- Tools are resolved **per tenant**: a tool coming from one tenant's server
+  is not visible to another tenant.
 
 ## AOT
 
-Bu paket **AOT uyumlu degildir**. MCP tool semalari calisma aninda cozulur ve
-`ModelContextProtocol.Core` JSON serilestirmede yansima kullanir.
-`AgentPrism.Abstractions`, `.Core`, `.PostgreSql` ve `.OpenAI` AOT uyumlu kalir.
+This package is **not AOT-compatible**. MCP tool schemas are resolved at run
+time, and `ModelContextProtocol.Core` uses reflection for JSON
+serialization. `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, and
+`.OpenAI` remain AOT-compatible.
 
-Ayrinti: [`docs/06-GOZLEMLENEBILIRLIK.md`](https://github.com/farukatasoy/AgentPrism/blob/main/docs/06-GOZLEMLENEBILIRLIK.md)
+Details: [`docs/06-GOZLEMLENEBILIRLIK.md`](https://github.com/farukatasoy/AgentPrism/blob/main/docs/06-GOZLEMLENEBILIRLIK.md)

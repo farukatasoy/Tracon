@@ -8,24 +8,25 @@ using ModelContextProtocol.Client;
 namespace AgentPrism;
 
 /// <summary>
-/// Kiraci basina kesfedilmis MCP tool'larini tutar ve tazeler.
+/// Holds and refreshes discovered MCP tools per tenant.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Neden onbellek?</strong> <see cref="IToolRegistry"/> es zamanlidir
-/// (<c>List</c>, <c>TryGet</c>); MCP kesfi ise ag uzerinden yapilan bir async
-/// islemdir. Kesif arka planda yapilir, sonucu burada saklanir ve defter onu
-/// es zamanli okur. Kesif henuz tamamlanmadiysa MCP tool'lari gorunmez ve o
-/// tool'a isaret eden bir agent derlenirken acik bir hata verir — sessizce
-/// eksik tool'la calismaz.
+/// <strong>Why a cache?</strong> <see cref="IToolRegistry"/> is synchronous
+/// (<c>List</c>, <c>TryGet</c>); MCP discovery, on the other hand, is an
+/// async operation over the network. Discovery happens in the background,
+/// its result is stored here, and the registry reads it synchronously. If
+/// discovery has not completed yet, MCP tools are not visible, and an agent
+/// referencing such a tool fails with an explicit error while compiling — it
+/// never silently runs with a missing tool.
 /// </para>
 /// <para>
-/// <strong>Baglanti neden saklaniyor?</strong> <c>McpClientTool</c> cagri aninda
-/// istemci uzerinden uzak sunucuya gider; istemci kapatilirsa tool cagrilamaz.
-/// Bu yuzden baglantilar tazeleme arasinda ayakta tutulur ve yalnizca sunucu
-/// tanimi <em>degistiginde</em> yeniden kurulur. Degismeyen bir sunucunun
-/// baglantisini her tazelemede kapatmak, o sirada devam eden bir tool cagrisini
-/// kirardi.
+/// <strong>Why is the connection kept?</strong> A <c>McpClientTool</c> call
+/// goes to the remote server through the client at call time; if the client
+/// is closed, the tool cannot be called. This is why connections are kept
+/// alive between refreshes and are only re-established when the server
+/// definition <em>changes</em>. Closing an unchanged server's connection on
+/// every refresh would break a tool call in progress.
 /// </para>
 /// </remarks>
 internal sealed class McpToolCatalog : IAsyncDisposable
@@ -39,16 +40,16 @@ internal sealed class McpToolCatalog : IAsyncDisposable
     private readonly ILogger<McpToolCatalog> _logger;
     private readonly McpOAuthTokenCacheRegistry _tokenCaches;
 
-    // Okuma yolu kilitsizdir: her tazeleme yeni bir sozluk kurar ve referansi
-    // atomik olarak degistirir. Okuyucular tutarli bir anlik goruntu gorur.
+    // The read path is lock-free: every refresh builds a new dictionary and
+    // swaps the reference atomically. Readers always see a consistent snapshot.
     private volatile Dictionary<string, McpTenantTools> _byTenant = new(StringComparer.Ordinal);
 
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
 
-    // ConcurrentDictionary: yazma her zaman _refreshGate altinda tek yazardir,
-    // ancak Mod A baglam saglayicisi (McpResourceContextProvider) her agent
-    // calistirmasinda kilitsiz okur. Duz Dictionary'de bu okuma bir tazeleme ile
-    // yarisirsa bozulurdu.
+    // ConcurrentDictionary: writes are always single-writer under
+    // _refreshGate, but the Mode A context provider (McpResourceContextProvider)
+    // reads lock-free on every agent run. A plain Dictionary would corrupt if
+    // this read raced a refresh.
     private readonly ConcurrentDictionary<string, McpConnection> _connections = new(StringComparer.Ordinal);
 
     public McpToolCatalog(
@@ -78,30 +79,30 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         _tokenCaches = tokenCaches;
     }
 
-    /// <summary>Bir kiracinin kesfedilmis tool'larini dondurur.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <returns>Tool kumesi; kesif yapilmadiysa bos kume.</returns>
+    /// <summary>Returns a tenant's discovered tools.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <returns>The tool set; the empty set if discovery has not run yet.</returns>
     public McpTenantTools ForTenant(string tenantId)
         => _byTenant.TryGetValue(tenantId, out var tools) ? tools : McpTenantTools.Empty;
 
     /// <summary>
-    /// Bir kiracinin belirli bir sunucuya ait canli baglantisini dondurur (Mod A).
+    /// Returns a tenant's live connection to a specific server (Mode A).
     /// </summary>
-    /// <returns>Baglanti su an ayakta ise <see langword="true"/>; sunucu erisilemezse veya kapaliysa <see langword="false"/>.</returns>
+    /// <returns><see langword="true"/> if the connection is currently up; <see langword="false"/> if the server is unreachable or disabled.</returns>
     public bool TryGetConnection(string tenantId, string serverName, [NotNullWhen(true)] out McpConnection? connection)
         => _connections.TryGetValue($"{tenantId}{serverName}", out connection);
 
     /// <summary>
-    /// Tum kiracilarin sunucularini tarar ve tool listesini tazeler.
+    /// Scans every tenant's servers and refreshes the tool list.
     /// </summary>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Bu tazelemenin sonucu.</returns>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The outcome of this refresh.</returns>
     /// <remarks>
-    /// Bir sunucuya ulasilamamasi <strong>hata degildir</strong>: o sunucunun
-    /// tool'lari listeden duser, digerleri calismaya devam eder ve bir uyari
-    /// loglanir. Uzak bir sunucunun cokmesi AgentPrism'i durdurmamalidir —
-    /// ama caginan taraf bunu <see cref="McpRefreshOutcome.HadUnreachableServers"/>
-    /// uzerinden bilebilir (HATA-006, MT-CORE-006).
+    /// Being unable to reach a server is <strong>not an error</strong>: that
+    /// server's tools drop out of the list, the others keep working, and a
+    /// warning is logged. A remote server crashing must not stop AgentPrism —
+    /// but the caller can learn about it through
+    /// <see cref="McpRefreshOutcome.HadUnreachableServers"/> (HATA-006, MT-CORE-006).
     /// </remarks>
     public async ValueTask<McpRefreshOutcome> RefreshAsync(CancellationToken cancellationToken = default)
     {
@@ -171,12 +172,12 @@ internal sealed class McpToolCatalog : IAsyncDisposable
     }
 
     /// <summary>
-    /// Kesif yapilacak kiracilarin listesini cikarir.
+    /// Derives the list of tenants to run discovery for.
     /// </summary>
     /// <remarks>
-    /// Kayitli kiracilara varsayilan kiraci her zaman eklenir: kiraci kaydi
-    /// zorunlu degildir ve tek kiracili bir kurulumda <c>tenants</c> tablosu
-    /// bos olabilir.
+    /// The default tenant is always added to the registered tenants: tenant
+    /// registration is not mandatory, and in a single-tenant setup the
+    /// <c>tenants</c> table may be empty.
     /// </remarks>
     private async ValueTask<IReadOnlyCollection<string>> ResolveTenantIdsAsync(CancellationToken cancellationToken)
     {
@@ -191,7 +192,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogWarning(ex, "Kiraci listesi okunamadi; MCP kesfi yalnizca varsayilan kiraci icin yapilacak.");
+            _logger.LogWarning(ex, "Could not read the tenant list; MCP discovery will run only for the default tenant.");
         }
 
         return ids;
@@ -209,9 +210,9 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         {
             if (string.Equals(existing.FingerprintValue, fingerprint, StringComparison.Ordinal))
             {
-                // Tanim degismedi: baglanti ayakta kalir, yalnizca tool listesi
-                // tazelenir. Degismeyen bir baglantiyi kapatmak devam eden bir
-                // tool cagrisini kirardi.
+                // The definition has not changed: the connection stays up,
+                // only the tool list is refreshed. Closing an unchanged
+                // connection would break a tool call in progress.
                 var (refreshed, unreachable) = await existing.RefreshCatalogAsync(_options.Value, _logger, cancellationToken)
                     .ConfigureAwait(false);
 
@@ -253,9 +254,9 @@ internal sealed class McpToolCatalog : IAsyncDisposable
 }
 
 /// <summary>
-/// <see cref="IMcpToolRefresher"/> uygulamasi. HTTP katmani tazelemeyi bu
-/// arayuz uzerinden tetikler; boylece <c>AgentPrism.AspNetCore</c> MCP paketine
-/// bagli kalmaz.
+/// The <see cref="IMcpToolRefresher"/> implementation. The HTTP layer
+/// triggers refresh through this interface, so <c>AgentPrism.AspNetCore</c>
+/// does not depend on the MCP package.
 /// </summary>
 internal sealed class McpToolRefresher : IMcpToolRefresher
 {

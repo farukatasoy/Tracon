@@ -7,21 +7,21 @@ using ModelContextProtocol.Server;
 namespace AgentPrism;
 
 /// <summary>
-/// <c>tools/list</c> istegini katalogdaki disa acik agent'lardan uretir.
+/// Produces the <c>tools/list</c> response from the exposed agents in the catalog.
 /// </summary>
 /// <remarks>
-/// Bir <see cref="McpRequestHandler{TParams,TResult}"/>'tir; katalog **her istekte**
-/// okunur, tool listesi yayimlanmaz. Bu, calisma aninda eklenen bir agent'in yeni bir
-/// sunucu kurulmadan gorunmesini saglar (bolum 50.3).
+/// An <see cref="McpRequestHandler{TParams,TResult}"/>; the catalog is read on
+/// **every request**, the tool list is not cached. This lets an agent added at
+/// runtime appear without setting up a new server (section 50.3).
 /// </remarks>
 internal static class CatalogToolListHandler
 {
     private static readonly JsonElement InputSchema = BuildInputSchema();
 
-    /// <summary><c>tools/list</c> isteğini isler.</summary>
-    /// <param name="request">Istek baglami.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Disa acik agent'lardan uretilen tool listesi.</returns>
+    /// <summary>Handles a <c>tools/list</c> request.</summary>
+    /// <param name="request">Request context.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The tool list produced from the exposed agents.</returns>
     public static async ValueTask<ListToolsResult> HandleAsync(
         RequestContext<ListToolsRequestParams> request,
         CancellationToken cancellationToken)
@@ -51,13 +51,13 @@ internal static class CatalogToolListHandler
         return new ListToolsResult { Tools = tools };
     }
 
-    /// <summary>MCP istek baglamindan servis saglayiciyi okur.</summary>
-    /// <param name="context">Mesaj baglami.</param>
-    /// <returns>Istegin bagli oldugu servis saglayici.</returns>
-    /// <exception cref="InvalidOperationException">Baglam servis saglayici tasimiyorsa.</exception>
+    /// <summary>Reads the service provider from the MCP request context.</summary>
+    /// <param name="context">Message context.</param>
+    /// <returns>The service provider the request is attached to.</returns>
+    /// <exception cref="InvalidOperationException">The context carries no service provider.</exception>
     internal static IServiceProvider RequireServices(MessageContext context)
         => context.Services ?? throw new InvalidOperationException(
-            "MCP istek baglaminda servis saglayici yok. MapAgentPrismMcpServer yalniz HTTP tasimasi uzerinden calisir.");
+            "The MCP request context has no service provider. MapAgentPrismMcpServer only works over HTTP transport.");
 
     private static JsonElement BuildInputSchema()
     {
@@ -68,7 +68,7 @@ internal static class CatalogToolListHandler
               "properties": {
                 "message": {
                   "type": "string",
-                  "description": "Agent'a gonderilecek kullanici mesaji."
+                  "description": "User message to send to the agent."
                 }
               },
               "required": ["message"]

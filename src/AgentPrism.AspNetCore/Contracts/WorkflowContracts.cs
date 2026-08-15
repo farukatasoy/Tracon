@@ -2,92 +2,93 @@ using System.Text.Json;
 
 namespace AgentPrism;
 
-/// <summary>Bir workflow tanimini kaydetme istegi.</summary>
+/// <summary>Request to save a workflow definition.</summary>
 /// <remarks>
-/// Ad <em>yoldan</em> gelir, govdeden degil. Iki kaynak olmasi, ikisinin
-/// celismesi durumunda hangisinin kazandigini sormaya yol acardi.
+/// The name comes from the <em>path</em>, not the body. Having two sources
+/// would raise the question of which one wins when they conflict.
 /// </remarks>
 public sealed record WorkflowSaveRequest
 {
-    /// <summary>Arayuzde gosterilecek ad.</summary>
+    /// <summary>Name shown in the UI.</summary>
     public string? DisplayName { get; init; }
 
-    /// <summary>Workflow'un ne yaptigini anlatan kisa aciklama.</summary>
+    /// <summary>Short description of what the workflow does.</summary>
     public string? Description { get; init; }
 
-    /// <summary>Kullanilacak hazir desen.</summary>
+    /// <summary>Built-in pattern to use.</summary>
     public WorkflowKind Kind { get; init; }
 
-    /// <summary>Grafa girecek agent adlari.</summary>
+    /// <summary>Names of agents to add to the graph.</summary>
     public IReadOnlyList<string>? AgentNames { get; init; }
 
-    /// <summary>Yonetici agent'in adi. Yalnizca <see cref="WorkflowKind.Magentic"/> icin.</summary>
+    /// <summary>Name of the manager agent. Only for <see cref="WorkflowKind.Magentic"/>.</summary>
     public string? ManagerAgentName { get; init; }
 
-    /// <summary>En fazla tur sayisi.</summary>
+    /// <summary>Maximum number of turns.</summary>
     public int? MaxIterations { get; init; }
 
-    /// <summary>Devretme talimati. Yalnizca <see cref="WorkflowKind.Handoff"/> icin.</summary>
+    /// <summary>Handoff instructions. Only for <see cref="WorkflowKind.Handoff"/>.</summary>
     public string? HandoffInstructions { get; init; }
 
     /// <summary>
-    /// Yonetici agent'in plani insana onaylatilsin mi.
-    /// Yalnizca <see cref="WorkflowKind.Magentic"/> icin.
+    /// Whether the manager agent's plan must be approved by a human. Only for
+    /// <see cref="WorkflowKind.Magentic"/>.
     /// </summary>
     public bool RequirePlanApproval { get; init; }
 }
 
-/// <summary>Bir workflow'u calistirma istegi.</summary>
+/// <summary>Request to run a workflow.</summary>
 public sealed record WorkflowRunHttpRequest
 {
-    /// <summary>Grafa girecek kullanici mesaji.</summary>
+    /// <summary>User message to feed into the graph.</summary>
     public string? Message { get; init; }
 
     /// <summary>
-    /// Yurutme oturumunun kimligi. Bos birakilirsa uretilir. Kontrol noktalari
-    /// bu deger altinda gruplanir.
+    /// Identifier of the execution session. If left empty, one is generated.
+    /// Checkpoints are grouped under this value.
     /// </summary>
     public string? SessionId { get; init; }
 }
 
-/// <summary>Bir workflow'u kontrol noktasindan sürdürme istegi.</summary>
+/// <summary>Request to resume a workflow from a checkpoint.</summary>
 public sealed record WorkflowResumeHttpRequest
 {
     /// <summary>
-    /// Devam edilecek kontrol noktasinin kimligi. Bos birakilirsa calistirmanin
-    /// en son kontrol noktasi kullanilir.
+    /// Identifier of the checkpoint to resume from. If left empty, the run's
+    /// most recent checkpoint is used.
     /// </summary>
     public string? CheckpointId { get; init; }
 }
 
-/// <summary>Bekleyen bir insan girdisi istegine verilen yanit.</summary>
+/// <summary>Response to a pending human input request.</summary>
 /// <remarks>
-/// Hangi alanin okunacagini portun yanit tipi belirler; sunucu bunu
-/// <see cref="WorkflowPendingRequest.Form"/> alaninda bildirir. Cevrilemeyen bir
-/// yanit <c>400</c> ile reddedilir - yanlis tipte bir yaniti sessizce kabul
-/// etmek, yurutmeyi anlasilmaz bir noktada bozardi.
+/// Which field is read is determined by the port's response type; the server
+/// reports this in the <see cref="WorkflowPendingRequest.Form"/> field. A
+/// response that cannot be translated is rejected with <c>400</c> — silently
+/// accepting a response of the wrong type would break execution at a point
+/// that is hard to understand.
 /// </remarks>
 public sealed record WorkflowRespondHttpRequest
 {
-    /// <summary>Yanitlanan istegin kimligi.</summary>
+    /// <summary>Identifier of the request being answered.</summary>
     public required string RequestId { get; init; }
 
     /// <summary>
-    /// Evet/hayir yaniti. Plan onayinda <see langword="true"/> plani onaylar,
-    /// <see langword="false"/> ise <see cref="Text"/> alanindaki duzeltmeyle
-    /// geri gonderir.
+    /// Yes/no response. In a plan approval, <see langword="true"/> approves
+    /// the plan; <see langword="false"/> sends it back with the correction in
+    /// the <see cref="Text"/> field.
     /// </summary>
     public bool? Approved { get; init; }
 
-    /// <summary>Metin yaniti; plan onayinda duzeltme talimatidir.</summary>
+    /// <summary>Text response; in a plan approval this is the correction instruction.</summary>
     public string? Text { get; init; }
 
-    /// <summary>Serbest yanit govdesi. Portun yanit tipine cozulur.</summary>
+    /// <summary>Free-form response body. Resolved against the port's response type.</summary>
     public JsonElement? Data { get; init; }
 
     /// <summary>
-    /// Sürdürulecek kontrol noktasinin kimligi. Bos birakilirsa calistirmanin
-    /// en son kontrol noktasi kullanilir.
+    /// Identifier of the checkpoint to resume. If left empty, the run's most
+    /// recent checkpoint is used.
     /// </summary>
     public string? CheckpointId { get; init; }
 }

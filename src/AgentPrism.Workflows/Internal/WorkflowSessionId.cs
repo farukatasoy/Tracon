@@ -3,26 +3,25 @@ using System.Globalization;
 namespace AgentPrism;
 
 /// <summary>
-/// Yurutme oturumu kimliklerini dogrular.
+/// Validates execution session ids.
 /// </summary>
 /// <remarks>
-/// 🚨 <strong>Oturum kimligi istemciden gelir ve guvenilmez girdidir.</strong>
-/// Kontrol noktalari bu deger altinda gruplanir; dogrulanmadan kullanilmasi,
-/// bir kullanicinin baska bir yurutmenin durumunu okumasina veya uzerine
-/// yazmasina yol acar. Ayni dogrulama Faz 4'te <c>conversation_id</c> icin
-/// yapilmisti.
+/// 🚨 <strong>The session id comes from the client and is untrusted input.</strong>
+/// Checkpoints are grouped under this value; using it without validation would
+/// let one user read or overwrite another execution's state. The same
+/// validation was applied to <c>conversation_id</c> in phase 4.
 /// </remarks>
 internal static class WorkflowSessionId
 {
-    /// <summary>Kabul edilen en fazla karakter sayisi.</summary>
+    /// <summary>The maximum number of characters accepted.</summary>
     public const int MaxLength = 128;
 
     /// <summary>
-    /// Verilen kimligi dogrular; bos ise yeni bir kimlik uretir.
+    /// Validates the given id; generates a new one if it is empty.
     /// </summary>
-    /// <param name="sessionId">Istemciden gelen kimlik.</param>
-    /// <returns>Kullanilabilir kimlik.</returns>
-    /// <exception cref="AgentPrismException">Kimlik gecerli bicimde degilse.</exception>
+    /// <param name="sessionId">The id supplied by the client.</param>
+    /// <returns>A usable id.</returns>
+    /// <exception cref="AgentPrismException">The id is not in a valid format.</exception>
     public static string Require(string? sessionId)
     {
         if (string.IsNullOrWhiteSpace(sessionId))
@@ -36,8 +35,9 @@ internal static class WorkflowSessionId
                 $"Execution session id may be at most {MaxLength} characters.");
         }
 
-        // Regex yerine elle dongu: MA0009 zaman asimi verilemeyen her regex'i
-        // isaretler ve bu kadar basit bir desende regex zaten gereksizdir.
+        // A manual loop instead of a regex: MA0009 flags every regex that
+        // cannot be given a timeout, and a regex is unnecessary for a pattern
+        // this simple anyway.
         foreach (var character in sessionId)
         {
             if (!char.IsAsciiLetterOrDigit(character) && character is not ('-' or '_'))

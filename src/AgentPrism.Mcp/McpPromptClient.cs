@@ -7,14 +7,15 @@ using ModelContextProtocol.Protocol;
 
 namespace AgentPrism;
 
-/// <summary><see cref="IMcpPromptClient"/> uygulamasi.</summary>
+/// <summary>The <see cref="IMcpPromptClient"/> implementation.</summary>
 /// <remarks>
-/// Her cagri kisa omurlu, ayri bir baglanti kurar ve isini bitirince kapatir;
-/// <see cref="McpToolCatalog"/>'un arka planda tuttugu tool kesif baglantisiyla
-/// paylasilmaz (bolum 22.1'in "Doğrulanmış API" notu). OAuth acik bir sunucuda,
-/// zaten alinmis bir token varsa <see cref="McpOAuthTokenCacheRegistry"/>
-/// uzerinden paylasilir; yoksa baglanti basarisiz olur ve yonetici once
-/// <c>/oauth/start</c> ile yetkilendirmelidir.
+/// Every call establishes a short-lived, separate connection and closes it
+/// when done; it is not shared with the tool discovery connection
+/// <see cref="McpToolCatalog"/> keeps in the background (section 22.1's
+/// "Verified API" note). On a server with OAuth enabled, a token already
+/// obtained is shared through <see cref="McpOAuthTokenCacheRegistry"/> if
+/// one exists; otherwise the connection fails and the administrator must
+/// authorize first via <c>/oauth/start</c>.
 /// </remarks>
 internal sealed class McpPromptClient : IMcpPromptClient
 {
@@ -78,7 +79,7 @@ internal sealed class McpPromptClient : IMcpPromptClient
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            _logger.LogWarning(ex, "MCP sunucusu '{ServerName}' prompt listesi okunamadi.", serverName);
+            _logger.LogWarning(ex, "Could not read the prompt list of MCP server '{ServerName}'.", serverName);
 
             return new McpPromptListResult { Status = McpOperationStatus.ConnectionFailed };
         }
@@ -127,7 +128,7 @@ internal sealed class McpPromptClient : IMcpPromptClient
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            _logger.LogWarning(ex, "MCP sunucusu '{ServerName}' prompt'u '{PromptName}' okunamadi.", serverName, promptName);
+            _logger.LogWarning(ex, "Could not read prompt '{PromptName}' of MCP server '{ServerName}'.", promptName, serverName);
 
             return (McpOperationStatus.ConnectionFailed, null);
         }

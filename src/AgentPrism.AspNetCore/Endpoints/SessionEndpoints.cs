@@ -10,13 +10,13 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Oturum listeleme, okuma ve silme uclari.
+/// Session listing, reading, and deletion endpoints.
 /// </summary>
 internal static class SessionEndpoints
 {
-    /// <summary>Oturum uclarini baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Maps the session endpoints.</summary>
+    /// <param name="builder">The endpoint group.</param>
+    /// <param name="roles">The resolved role policies.</param>
     public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/sessions", async Task<Ok<IReadOnlyList<SessionRecord>>> (
@@ -41,34 +41,35 @@ internal static class SessionEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListSessions")
             .WithTags("AgentPrism", "Sessions")
-            .WithSummary("Oturumlari son guncellemeden eskiye listeler.");
+            .WithSummary("Lists sessions from most recently updated to oldest.");
 
         builder.MapGet("/api/sessions/{sessionId}", GetSessionAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismGetSession")
             .WithTags("AgentPrism", "Sessions")
-            .WithSummary("Bir oturumun ustverisini ve sohbet gecmisini dondurur.");
+            .WithSummary("Returns a session's metadata and chat history.");
 
         builder.MapDelete("/api/sessions/{sessionId}", DeleteSessionAsync)
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismDeleteSession")
             .WithTags("AgentPrism", "Sessions")
-            .WithSummary("Bir oturumu siler.");
+            .WithSummary("Deletes a session.");
 
         builder.MapPost("/api/sessions/{sessionId}/branch", BranchSessionAsync)
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismBranchSession")
             .WithTags("AgentPrism", "Sessions")
-            .WithSummary("Bir konusmayi belirli bir noktadan dallandirir ve yeni bir oturum acar.")
+            .WithSummary("Branches a conversation from a specific point and opens a new session.")
             .Accepts<SessionBranchRequest>("application/json")
             .WithDescription(
-                "Ogeler 'upToSequence' degerine kadar (dahil) YENI bir konusmaya KOPYALANIR; " +
-                "isaretci yalnizca koken bilgisidir. Dala yazmak ana konusmayi degistirmez. " +
-                "Dallandirma yalnizca kalici bir SQL saglayicisi acikken calisir; bellek ici " +
-                "kurulumda sohbet gecmisi oturum durumunun opak blogunda yasar ve 501 doner.")
+                "Items up to and including 'upToSequence' are COPIED into a NEW conversation; " +
+                "the pointer is only provenance information. Writing to the branch does not " +
+                "change the parent conversation. Branching only works while a persistent SQL " +
+                "provider is enabled; in an in-memory setup, chat history lives in an opaque " +
+                "blob of session state and this returns 501.")
             .Produces<SessionBranchResult>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -77,12 +78,12 @@ internal static class SessionEndpoints
     }
 
     /// <summary>
-    /// Bir oturumun konusmasini dallandirir ve dali tasiyan yeni bir oturum acar.
+    /// Branches a session's conversation and opens a new session that carries the branch.
     /// </summary>
     /// <remarks>
-    /// Uc oturum uzerindedir, konusma uzerinde degil: konusma kimligi oturum
-    /// durumunda yasar ve dallanan konusmayi kullanmanin tek yolu o kimligi
-    /// tasiyan yeni bir oturumdur.
+    /// The endpoint operates on the session, not the conversation: the conversation id
+    /// lives in the session state, and the only way to use the branched conversation is
+    /// through a new session that carries that id.
     /// </remarks>
     private static async Task<Results<Created<SessionBranchResult>, ProblemHttpResult>> BranchSessionAsync(
         string sessionId,
@@ -183,14 +184,15 @@ internal static class SessionEndpoints
     }
 
     /// <summary>
-    /// Bir oturumu ve ona bagli tum ekleri siler.
+    /// Deletes a session and all attachments linked to it.
     /// </summary>
     /// <remarks>
-    /// Ekler oturumdan SONRA silinir: oturum bulunamazsa hicbir yan etki olmaz.
-    /// Bu cagri, kalici (PostgreSQL) ve bellek ici depoda ekleri temizleyen TEK
-    /// yoldur — <c>attachments.session_id</c> BILEREK yabanci anahtar degildir
-    /// (bkz. migration 0006 yorumu: bir ek, oturumu hic acilmadan once
-    /// yuklenebilir). Gerekce: <c>docs/14-COK-MODLULUK.md</c>, acik soru 2.
+    /// Attachments are deleted AFTER the session: if the session is not found, there
+    /// is no side effect. This call is the ONLY way to clean up attachments in both
+    /// the persistent (PostgreSQL) and in-memory stores — <c>attachments.session_id</c>
+    /// is DELIBERATELY not a foreign key (see the migration 0006 comment: an
+    /// attachment can be uploaded before a session is ever opened). Rationale:
+    /// <c>docs/14-COK-MODLULUK.md</c>, open question 2.
     /// </remarks>
     private static async Task<Results<NoContent, ProblemHttpResult>> DeleteSessionAsync(
         string sessionId,

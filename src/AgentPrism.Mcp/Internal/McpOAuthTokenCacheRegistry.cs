@@ -3,19 +3,20 @@ using System.Collections.Concurrent;
 namespace AgentPrism;
 
 /// <summary>
-/// Kiraci+sunucu basina paylasilan <see cref="InMemoryMcpTokenCache"/> ornekleri.
+/// <see cref="InMemoryMcpTokenCache"/> instances shared per tenant+server pair.
 /// </summary>
 /// <remarks>
-/// Aradaki kontrat basittir: ayni <c>(tenantId, serverName)</c> ciftini isteyen
-/// her cagiran ayni onbellek nesnesini alir. Bu, <see cref="McpOAuthAuthorizationCoordinator"/>'un
-/// etkilesimli akista aldigi token'lari, <see cref="McpToolCatalog"/>'un arka
-/// plan yeniden baglanmalarinin da gorebilmesini saglar.
+/// The contract is simple: every caller requesting the same <c>(tenantId,
+/// serverName)</c> pair gets the same cache instance. This lets tokens
+/// obtained by <see cref="McpOAuthAuthorizationCoordinator"/> during the
+/// interactive flow also be visible to <see cref="McpToolCatalog"/>'s
+/// background reconnections.
 /// </remarks>
 internal sealed class McpOAuthTokenCacheRegistry
 {
     private readonly ConcurrentDictionary<string, InMemoryMcpTokenCache> _caches = new(StringComparer.Ordinal);
 
-    /// <summary>Verilen kiraci+sunucu icin onbellegi getirir; yoksa olusturur.</summary>
+    /// <summary>Gets the cache for the given tenant+server pair; creates it if missing.</summary>
     public InMemoryMcpTokenCache GetOrCreate(string tenantId, string serverName)
         => _caches.GetOrAdd(Key(tenantId, serverName), static _ => new InMemoryMcpTokenCache());
 

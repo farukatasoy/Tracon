@@ -7,19 +7,20 @@ using Microsoft.AspNetCore.Routing;
 namespace AgentPrism;
 
 /// <summary>
-/// A/B deneyi yonetimi, yasam dongusu ve sonuc goruntuleme uclari (Faz 19.3-19.4).
+/// A/B experiment management, lifecycle, and result viewing endpoints (Phase 19.3-19.4).
 /// </summary>
 /// <remarks>
-/// 🚨 <see cref="IExperimentStore"/> disindaki tum bagimliliklar <c>[FromServices]</c>
-/// ile <strong>acikca</strong> isaretlenir — gerekce <see cref="EvalEndpoints"/> ile
-/// aynidir. Sonuclar bu depoda degil, <see cref="IRunStore.GetExperimentResultsAsync"/>
-/// uzerinden gelir (K-041: hesap depoda yapilir).
+/// 🚨 All dependencies outside of <see cref="IExperimentStore"/> are marked
+/// <strong>explicitly</strong> with <c>[FromServices]</c> — the rationale is the
+/// same as in <see cref="EvalEndpoints"/>. Results do not come from this store;
+/// they come through <see cref="IRunStore.GetExperimentResultsAsync"/>
+/// (K-041: the computation happens in the store).
 /// </remarks>
 internal static class ExperimentEndpoints
 {
-    /// <summary>Deney uclarini baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Maps the experiment endpoints.</summary>
+    /// <param name="builder">The endpoint group.</param>
+    /// <param name="roles">The resolved role policies.</param>
     public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/experiments", ListAsync)
@@ -27,74 +28,74 @@ internal static class ExperimentEndpoints
             .RequireApiKeyScope(ApiKeyScope.ExperimentsRead)
             .WithName("AgentPrismListExperiments")
             .WithTags("AgentPrism", "Experiments")
-            .WithSummary("Bir kiracinin A/B deneylerini listeler.");
+            .WithSummary("Lists a tenant's A/B experiments.");
 
         builder.MapGet("/api/experiments/{name}", GetAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.ExperimentsRead)
             .WithName("AgentPrismGetExperiment")
             .WithTags("AgentPrism", "Experiments")
-            .WithSummary("Tek bir A/B deneyini getirir.");
+            .WithSummary("Gets a single A/B experiment.");
 
         builder.MapPut("/api/experiments/{name}", SaveAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.ExperimentsAdmin)
             .WithName("AgentPrismSaveExperiment")
             .WithTags("AgentPrism", "Experiments")
-            .WithSummary("Deney olusturur veya gunceller.")
+            .WithSummary("Creates or updates an experiment.")
             .Accepts<ExperimentSaveRequest>("application/json")
             .WithDescription(
-                "Yalnizca ayni agent'in surumleri arasinda deney kurulabilir; kod kaynakli " +
-                "agent'larda surum gecmisi olmadigi icin reddedilir. Varyant agirliklari toplami 100 olmalidir.");
+                "An experiment can only be set up between versions of the same agent; " +
+                "code-sourced agents have no version history, so they are rejected. Variant weights must sum to 100.");
 
         builder.MapDelete("/api/experiments/{name}", DeleteAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.ExperimentsAdmin)
             .WithName("AgentPrismDeleteExperiment")
             .WithTags("AgentPrism", "Experiments")
-            .WithSummary("Bir deneyi siler. Calisan bir deney once durdurulmalidir.");
+            .WithSummary("Deletes an experiment. A running experiment must be stopped first.");
 
         builder.MapPost("/api/experiments/{name}/start", StartAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.ExperimentsAdmin)
             .WithName("AgentPrismStartExperiment")
             .WithTags("AgentPrism", "Experiments")
-            .WithSummary("Deneyi baslatir; trafik agirliklara gore bolunmeye baslar.")
-            .WithDescription("Ayni agent icin ayni anda tek deney calisabilir.");
+            .WithSummary("Starts the experiment; traffic begins splitting according to the weights.")
+            .WithDescription("Only one experiment can run for the same agent at a time.");
 
         builder.MapPost("/api/experiments/{name}/stop", StopAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.ExperimentsAdmin)
             .WithName("AgentPrismStopExperiment")
             .WithTags("AgentPrism", "Experiments")
-            .WithSummary("Deneyi durdurur; yeni calistirmalar guncel surume gider.");
+            .WithSummary("Stops the experiment; new runs go to the current version.");
 
         builder.MapGet("/api/experiments/{name}/results", GetResultsAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.ExperimentsRead)
             .WithName("AgentPrismGetExperimentResults")
             .WithTags("AgentPrism", "Experiments")
-            .WithSummary("Kol bazinda sayi, hata orani, token ve sure ozetini getirir.")
-            .WithDescription("Istatistiksel bir 'kazanan' iddiasi yoktur; ham sayilar gosterilir.");
+            .WithSummary("Gets a per-arm summary of count, error rate, tokens, and duration.")
+            .WithDescription("There is no statistical claim of a 'winner'; raw counts are shown.");
 
         builder.MapPut("/api/experiments/{name}/canary", SetCanaryAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.ExperimentsAdmin)
             .WithName("AgentPrismSetExperimentCanary")
             .WithTags("AgentPrism", "Experiments")
-            .WithSummary("Kanarya kuralini tanimlar veya kaldirir (govde 'null').")
+            .WithSummary("Defines or removes the canary rule (a 'null' body removes it).")
             .Accepts<CanaryPolicy>(true, "application/json")
             .WithDescription(
-                "Yalnizca iki kollu deneylerde tanimlanabilir: kanaryaVariant kanarya, kalan TEK kol " +
-                "kontrol sayilir. Deneyin durumundan bagimsiz calisir (Draft veya Running).");
+                "Can only be defined on two-arm experiments: canaryVariant is the canary, " +
+                "and the single remaining arm counts as control. Works regardless of the experiment's status (Draft or Running).");
 
         builder.MapGet("/api/experiments/{name}/canary", GetCanaryAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.ExperimentsRead)
             .WithName("AgentPrismGetExperimentCanary")
             .WithTags("AgentPrism", "Experiments")
-            .WithSummary("Kanarya kuralini ve guncel degerlendirmesini getirir.")
-            .WithDescription("Degerlendirme kalici degildir; her cagrida guncel calistirma sonuclariyla yeniden hesaplanir.");
+            .WithSummary("Gets the canary rule and its current evaluation.")
+            .WithDescription("The evaluation is not persisted; it is recalculated on every call using current run results.");
     }
 
     private static async Task<Ok<IReadOnlyList<Experiment>>> ListAsync(
@@ -347,9 +348,9 @@ internal static class ExperimentEndpoints
     }
 
     /// <summary>
-    /// Bir kanarya kuralinin gecerliligini denetler. 56.4'un iki kollu kisiti
-    /// burada zorlanir: kalan kol sayisi 1'den farkliysa oturum kararliligi
-    /// (bkz. <see cref="CanaryPolicy"/> sinif belgesi) garanti edilemez.
+    /// Validates a canary rule. The two-arm constraint from 56.4 is enforced
+    /// here: if the number of remaining arms is not 1, session stickiness
+    /// (see the <see cref="CanaryPolicy"/> class documentation) cannot be guaranteed.
     /// </summary>
     private static string? ValidateCanaryPolicy(Experiment experiment, CanaryPolicy policy)
     {

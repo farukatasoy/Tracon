@@ -6,47 +6,47 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Arayuzden gelen onay kararlarini Microsoft Agent Framework'un bekledigi
-/// yanit iceriklerine cevirir ve "bir daha sorma" kurallarini kaydeder.
+/// Converts approval decisions from the UI into the response content the Microsoft
+/// Agent Framework expects, and records "don't ask again" rules.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Onay bir sonraki turun girdisidir.</strong> MAF, bekleyen bir tool
-/// cagrisini <c>ToolApprovalRequestContent</c> olarak yanitta dondurur ve karari
-/// bir sonraki calistirmanin mesajlarinda <c>ToolApprovalResponseContent</c>
-/// olarak bekler. Bu yuzden ayri bir "devam et" ucu yoktur; karar calistirma
-/// isteginin govdesinde tasinir.
+/// <strong>The approval is the next turn's input.</strong> MAF returns a pending
+/// tool call in the response as <c>ToolApprovalRequestContent</c>, and expects the
+/// decision in the next run's messages as <c>ToolApprovalResponseContent</c>. This
+/// is why there is no separate "continue" endpoint; the decision is carried in the
+/// body of the run request.
 /// </para>
 /// <para>
-/// <strong>"Bir daha sorma" MAF'in kendi bicimiyle degil, bizim depomuzda
-/// tutulur.</strong> MAF <c>CreateAlwaysApproveToolResponse</c> sunar ancak o
-/// karari kalicilastiracak bir yer sunmaz; kural surec bellegiyle sinirli kalir,
-/// kiraciya baglanamaz ve arayuzden geri alinamazdi. Kural
-/// <see cref="IToolApprovalRuleStore"/> icine yazilir ve sonraki calistirmalarda
-/// <see cref="ToolApprovalRuleEvaluator"/> tarafindan uygulanir.
-/// Gerekce: <c>docs/KARARLAR.md</c>, karar K-061.
+/// <strong>"Don't ask again" is kept in our own store, not in MAF's own format.</strong>
+/// MAF offers <c>CreateAlwaysApproveToolResponse</c>, but it offers no place to
+/// persist that decision; the rule would stay confined to process memory, could not
+/// be scoped to a tenant, and could not be revoked from the UI. The rule is written
+/// into <see cref="IToolApprovalRuleStore"/> and enforced by
+/// <see cref="ToolApprovalRuleEvaluator"/> on subsequent runs.
+/// Rationale: <c>docs/KARARLAR.md</c>, decision K-061.
 /// </para>
 /// </remarks>
 internal static class ToolApprovalResolver
 {
     /// <summary>
-    /// Kararlari oturum gecmisindeki bekleyen isteklerle eslestirir ve
-    /// gonderilecek mesaji uretir.
+    /// Matches decisions against pending requests in the session history and
+    /// produces the message to send.
     /// </summary>
-    /// <param name="decisions">Arayuzden gelen kararlar.</param>
-    /// <param name="agent">Cozulmus agent.</param>
-    /// <param name="agentName">Agent adi. Kalici kural bu ada baglanir.</param>
-    /// <param name="session">Acik oturum.</param>
-    /// <param name="chatHistory">Sohbet gecmisi saglayicisi.</param>
-    /// <param name="rules">Kalici kural deposu.</param>
-    /// <param name="tenantContext">Kiraci baglami.</param>
-    /// <param name="auditLog">Denetim izi defteri.</param>
-    /// <param name="actorResolver">Aktor cozumleyici.</param>
-    /// <param name="logger">Gunlukleyici.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <param name="decisions">The decisions coming from the UI.</param>
+    /// <param name="agent">The resolved agent.</param>
+    /// <param name="agentName">The agent name. The persisted rule is scoped to this name.</param>
+    /// <param name="session">The open session.</param>
+    /// <param name="chatHistory">The chat history provider.</param>
+    /// <param name="rules">The persisted rule store.</param>
+    /// <param name="tenantContext">The tenant context.</param>
+    /// <param name="auditLog">The audit log.</param>
+    /// <param name="actorResolver">The actor resolver.</param>
+    /// <param name="logger">The logger.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
-    /// Onay yanitlarini tasiyan mesaj; eslesen bekleyen istek yoksa
-    /// <see langword="null"/>.
+    /// The message carrying the approval responses; <see langword="null"/> if no
+    /// pending request matches.
     /// </returns>
     public static async ValueTask<ChatMessage?> BuildResponseMessageAsync(
         IReadOnlyList<ToolApprovalDecision> decisions,
@@ -79,7 +79,7 @@ internal static class ToolApprovalResolver
             if (!pending.TryGetValue(decision.RequestId, out var request))
             {
                 logger.LogWarning(
-                    "'{RequestId}' kimlikli bekleyen bir onay istegi bulunamadi; karar yok sayildi.",
+                    "No pending approval request with id '{RequestId}' was found; the decision was ignored.",
                     decision.RequestId);
 
                 continue;
@@ -110,10 +110,10 @@ internal static class ToolApprovalResolver
         return contents.Count == 0 ? null : new ChatMessage(ChatRole.User, contents);
     }
 
-    /// <summary>Oturum gecmisindeki yanitlanmamis onay isteklerini toplar.</summary>
+    /// <summary>Collects the unanswered approval requests in the session history.</summary>
     /// <remarks>
-    /// Yanitlanmis istekler elenir: ayni istege ikinci bir yanit gondermek
-    /// modele celiskili girdi verirdi.
+    /// Answered requests are filtered out: sending a second response to the same
+    /// request would give the model contradictory input.
     /// </remarks>
     private static Dictionary<string, ToolApprovalRequestContent> CollectPendingRequests(
         IReadOnlyList<ChatMessage> history)
@@ -161,7 +161,7 @@ internal static class ToolApprovalResolver
         if (request.ToolCall is not FunctionCallContent call)
         {
             logger.LogWarning(
-                "'{RequestId}' istegi bir fonksiyon cagrisi tasimiyor; kalici onay kurali yazilamadi.",
+                "Request '{RequestId}' does not carry a function call; the persisted approval rule could not be written.",
                 decision.RequestId);
 
             return;
@@ -185,11 +185,11 @@ internal static class ToolApprovalResolver
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // Kural yazilamamasi calistirmayi kesmez: bu turun onayi zaten
-            // verildi, yalnizca bir sonraki turda tekrar sorulur.
+            // Failing to write the rule does not interrupt the run: this turn's
+            // approval was already given; only the next turn asks again.
             logger.LogWarning(
                 ex,
-                "'{ToolName}' icin kalici onay kurali yazilamadi; onay bir sonraki cagrida yeniden sorulacak.",
+                "The persisted approval rule for '{ToolName}' could not be written; approval will be asked for again on the next call.",
                 call.Name);
         }
     }

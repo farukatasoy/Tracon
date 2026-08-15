@@ -5,13 +5,13 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// A2A uzerinden disa acik agent'larin onay gerektiren bir tool tasimadigini
-/// dogrulayan, istek isleme icinde calisan guard.
+/// Guard, running inside request processing, that verifies no agent exposed
+/// through A2A carries a tool that requires approval.
 /// </summary>
 /// <remarks>
-/// <see cref="McpApprovalGuardFilter"/> ile AYNI gerekce ve AYNI tasarim: bir
-/// <c>IHostedService</c> DEGIL, bir arka plan <see cref="Task"/>'tir — gerekce
-/// icin <see cref="McpApprovalGuardFilter"/>'in belgesine bakin.
+/// Same rationale and same design as <see cref="McpApprovalGuardFilter"/>: NOT
+/// an <c>IHostedService</c>, but a background <see cref="Task"/> — see
+/// <see cref="McpApprovalGuardFilter"/>'s documentation for the rationale.
 /// </remarks>
 internal sealed class A2AApprovalGuardFilter : IEndpointFilter
 {
@@ -64,16 +64,16 @@ internal sealed class A2AApprovalGuardFilter : IEndpointFilter
         }
         catch (OperationCanceledException) when (lifetime.ApplicationStopping.IsCancellationRequested)
         {
-            // Uygulama kapaniyor; denetimin sonucu artik onemsiz.
+            // Application is shutting down; the check's outcome no longer matters.
         }
         catch (Exception ex)
         {
-            logger.LogCritical(ex, "A2A disa acik yuzey denetimi basarisiz oldu; uygulama durduruluyor.");
+            logger.LogCritical(ex, "A2A external surface check failed; stopping the application.");
 
-            // Gerekce McpApprovalGuardFilter ile AYNI: StopApplication() Host
-            // kendi baslatma dongusunu surdururken cagrilirsa Host.StartAsync
-            // OperationCanceledException ile patlar. ApplicationStarted'a kadar
-            // ertelenir.
+            // Same rationale as McpApprovalGuardFilter: if StopApplication() is
+            // called while the Host is still running its own startup loop,
+            // Host.StartAsync blows up with an OperationCanceledException. It is
+            // deferred until ApplicationStarted.
             lifetime.ApplicationStarted.Register(lifetime.StopApplication);
 
             throw;

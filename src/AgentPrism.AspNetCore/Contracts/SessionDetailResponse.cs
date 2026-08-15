@@ -3,43 +3,44 @@ using System.Text.Json;
 namespace AgentPrism;
 
 /// <summary>
-/// Tek bir oturumun ayrintili gorunumu: ustveri ve sohbet gecmisi.
+/// Detailed view of a single session: metadata and chat history.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="Messages"/>, Microsoft Agent Framework'un <c>ChatMessage</c>
-/// dizisidir ve <c>Microsoft.Extensions.AI</c> serilestirme ayarlariyla
-/// uretilir. AgentPrism bunun uzerine kendi paralel tip hiyerarsisini koymaz
-/// (kural K3); JSON bicimi de bu yuzden MAF'in belgelenmis bicimidir.
+/// <see cref="Messages"/> is Microsoft Agent Framework's <c>ChatMessage</c>
+/// array, produced with <c>Microsoft.Extensions.AI</c> serialization
+/// settings. AgentPrism does not layer its own parallel type hierarchy on top
+/// of this (rule K3); the JSON shape is therefore MAF's documented shape.
 /// </para>
 /// <para>
-/// <see cref="State"/> oturumun serilestirilmis halidir ve <strong>opaktir</strong>.
-/// Icerigi MAF'a aittir; AgentPrism yorumlamaz.
+/// <see cref="State"/> is the serialized form of the session and is
+/// <strong>opaque</strong>. Its content belongs to MAF; AgentPrism does not
+/// interpret it.
 /// </para>
 /// </remarks>
 public sealed record SessionDetailResponse
 {
-    /// <summary>Oturum kimligi.</summary>
+    /// <summary>Session identifier.</summary>
     public required string Id { get; init; }
 
-    /// <summary>Oturumun ait oldugu agent.</summary>
+    /// <summary>Agent the session belongs to.</summary>
     public required string AgentName { get; init; }
 
-    /// <summary>Kiraci kimligi.</summary>
+    /// <summary>Tenant identifier.</summary>
     public string? TenantId { get; init; }
 
-    /// <summary>Olusturulma zamani.</summary>
+    /// <summary>Creation time.</summary>
     public required DateTimeOffset CreatedAt { get; init; }
 
-    /// <summary>Son guncelleme zamani.</summary>
+    /// <summary>Last update time.</summary>
     public required DateTimeOffset UpdatedAt { get; init; }
 
     /// <summary>
-    /// Sohbet gecmisi. Gecmis okunamadiysa (agent artik katalogda yoksa)
-    /// <see langword="null"/> doner.
+    /// Chat history. Returns <see langword="null"/> if the history could not
+    /// be read (e.g. the agent is no longer in the catalog).
     /// </summary>
     public JsonElement? Messages { get; init; }
 
-    /// <summary>Serilestirilmis oturum durumu.</summary>
+    /// <summary>Serialized session state.</summary>
     public required JsonElement State { get; init; }
 }

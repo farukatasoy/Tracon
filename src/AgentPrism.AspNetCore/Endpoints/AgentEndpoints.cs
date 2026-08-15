@@ -12,23 +12,23 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Agent katalogu ve tanim yonetimi uclari.
+/// Agent catalog and definition management endpoints.
 /// </summary>
 /// <remarks>
-/// Kodda tanimli agent'lar salt okunurdur. Ad cakismasinda kod kazanir
-/// (karar K-003); veritabanina yazilan ayni adli bir tanim hicbir zaman
-/// cozulmezdi. Bu yuzden yazma uclari boyle bir istegi sessizce kabul etmek
-/// yerine <c>409 Conflict</c> dondurur.
+/// Agents defined in code are read-only. Code wins name conflicts
+/// (decision K-003); a definition written to the database with the same name
+/// would never resolve. This is why the write endpoints return
+/// <c>409 Conflict</c> instead of silently accepting such a request.
 /// </remarks>
 internal static class AgentEndpoints
 {
-    /// <summary>Agent uclarini baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Maps the agent endpoints.</summary>
+    /// <param name="builder">The endpoint group.</param>
+    /// <param name="roles">The resolved role policies.</param>
     /// <param name="prefix">
-    /// Ek referanslarini kurarken kullanilacak yol oneki (bkz. <see cref="AttachmentUriReference"/>).
+    /// The path prefix used when building attachment references (see <see cref="AttachmentUriReference"/>).
     /// </param>
-    /// <param name="idempotencyFilter">Faz 43 — yalniz <c>/api/agents/{name}/run</c> ucuna eklenir.</param>
+    /// <param name="idempotencyFilter">Phase 43 — added only to the <c>/api/agents/{name}/run</c> endpoint.</param>
     public static void Map(
         IEndpointRouteBuilder builder,
         AgentPrismRolePolicies roles,
@@ -43,21 +43,21 @@ internal static class AgentEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismListAgents")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Kodda ve veritabaninda tanimli tum agent'lari listeler.");
+            .WithSummary("Lists all agents defined in code and in the database.");
 
         builder.MapGet("/api/agents/{name}", GetAgentAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismGetAgent")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Bir agent'in katalog ozetini ve varsa kalici tanimini dondurur.");
+            .WithSummary("Returns an agent's catalog summary and its persisted definition, if any.");
 
         builder.MapPost("/api/agents", CreateAgentAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismCreateAgent")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Yeni bir agent tanimi olusturur.")
+            .WithSummary("Creates a new agent definition.")
             .Accepts<AgentDefinitionRequest>("application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
@@ -66,7 +66,7 @@ internal static class AgentEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismValidateAgent")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Bir tanimi kaydetmeden ve hicbir model cagirmadan derler.")
+            .WithSummary("Compiles a definition without saving it and without calling any model.")
             .Accepts<AgentDefinitionRequest>("application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
@@ -75,7 +75,7 @@ internal static class AgentEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismUpdateAgent")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Bir agent tanimini gunceller ve yeni bir surum uretir.")
+            .WithSummary("Updates an agent definition and produces a new version.")
             .Accepts<AgentDefinitionRequest>("application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
@@ -84,21 +84,21 @@ internal static class AgentEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismDeleteAgent")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Bir agent tanimini ve surum gecmisini siler.");
+            .WithSummary("Deletes an agent definition and its version history.");
 
         builder.MapGet("/api/agents/{name}/versions", ListVersionsAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismListAgentVersions")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Bir tanimin surum gecmisini yeniden eskiye listeler.");
+            .WithSummary("Lists a definition's version history, newest first.");
 
         builder.MapPost("/api/agents/{name}/rollback", RollbackAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismRollbackAgent")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Bir tanimi onceki bir surumun icerigiyle yeni surum olarak yazar.")
+            .WithSummary("Writes a definition as a new version with the content of a previous version.")
             .Accepts<AgentRollbackRequest>("application/json");
 
         builder.MapGet("/api/agents/{name}/versions/{a:int}/diff/{b:int}", GetVersionDiffAsync)
@@ -106,7 +106,7 @@ internal static class AgentEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismGetAgentVersionDiff")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Iki tanim surumunu ham JSON olarak dondurur; diff hesabi arayuzde yapilir.");
+            .WithSummary("Returns two definition versions as raw JSON; the diff is computed in the UI.");
 
         builder.MapPost("/api/agents/{name}/run", async (
                 string name,
@@ -131,9 +131,9 @@ internal static class AgentEndpoints
                     return bindError;
                 }
 
-                // 🚨 Kota denetimi calistirma BASLAMADAN once yapilir. Devam eden
-                // bir calistirma kota asilinca kesilmez (K-162); yalnizca yeni
-                // calistirma 429 alir. Kuyruga alma da yeni bir calistirmadir.
+                // 🚨 The quota check happens BEFORE the run starts. An in-progress
+                // run is not cut off when the quota is exceeded (K-162); only a new
+                // run gets a 429. Queuing also counts as a new run.
                 if (await QuotaGate
                         .CheckAsync(quotaEnforcer, tenantContext, name, httpContext, cancellationToken)
                         .ConfigureAwait(false) is { } quotaProblem)
@@ -173,22 +173,23 @@ internal static class AgentEndpoints
             .AddEndpointFilter(idempotencyFilter)
             .WithName("AgentPrismRunAgent")
             .WithTags("AgentPrism", "Agents")
-            .WithSummary("Bir agent'i deneme amaciyla calistirir ve yaniti SSE ile akitir.")
+            .WithSummary("Runs an agent for trial purposes and streams the response via SSE.")
             .Accepts<AgentRunRequest>("application/json")
             .WithDescription(
-                "Kota asilmissa calistirma baslamaz ve 429 doner; ProblemDetails hangi kotanin " +
-                "asildigini ve sayacin ne zaman sifirlanacagini tasir. 'Idempotency-Key' basligi " +
-                "tasiyan bir istek SSE yerine tek bir JSON yanitla (akissiz) calisir — Faz 43'un " +
-                "tekillestirme sozlesmesi akissiz bir yanit gerektirir (docs/43-IDEMPOTENCY-KEY.md). " +
-                "'Prefer: respond-async' basligi tasiyan bir istek calistirmayi kuyruga alir ve " +
-                "'202 Accepted' + 'Location' doner (Faz 46, docs/46-DAYANIKLI-CALISTIRMA.md). " +
-                "Kayitli bir IContentGuard icerigi engellerse akissiz yanit '422' doner ve " +
-                "runs.error_type 'content_blocked' olur; AKISLI yanitta durum kodu zaten " +
-                "gonderilmis oldugu icin engelleme SSE 'error' olayi olarak gorunur " +
-                "(Faz 48, docs/48-GUARDRAILS.md).")
-            // Basari yaniti varsayilan olarak SSE'dir (bkz. AgentRunStream); ama
-            // 'Idempotency-Key' basligi tasiyan bir istek JSON govde, 'Prefer:
-            // respond-async' tasiyan bir istek 202 govde alir.
+                "If the quota is exceeded, the run does not start and a 429 is returned; the " +
+                "ProblemDetails carries which quota was exceeded and when the counter resets. A " +
+                "request carrying the 'Idempotency-Key' header runs with a single JSON response " +
+                "(non-streaming) instead of SSE — Phase 43's deduplication contract requires a " +
+                "non-streaming response (docs/43-IDEMPOTENCY-KEY.md). A request carrying the " +
+                "'Prefer: respond-async' header queues the run and returns '202 Accepted' + " +
+                "'Location' (Phase 46, docs/46-DAYANIKLI-CALISTIRMA.md). If a registered " +
+                "IContentGuard blocks the content, the non-streaming response returns '422' and " +
+                "runs.error_type becomes 'content_blocked'; in the STREAMING response the status " +
+                "code has already been sent, so the block appears as an SSE 'error' event " +
+                "(Phase 48, docs/48-GUARDRAILS.md).")
+            // The success response is SSE by default (see AgentRunStream); but a
+            // request carrying the 'Idempotency-Key' header gets a JSON body, and
+            // one carrying 'Prefer: respond-async' gets a 202 body.
             .Produces<string>(StatusCodes.Status200OK, contentType: "text/event-stream")
             .Produces<AcceptedRunResponse>(StatusCodes.Status202Accepted)
             .ProducesProblem(StatusCodes.Status400BadRequest)
@@ -199,11 +200,11 @@ internal static class AgentEndpoints
     }
 
     /// <summary>
-    /// Istek <c>Prefer: respond-async</c> tercihini tasiyor mu (RFC 7240).
+    /// Determines whether the request carries the <c>Prefer: respond-async</c> preference (RFC 7240).
     /// </summary>
     /// <remarks>
-    /// Baslik TASIMAYAN bir istek icin bu denetim tek bir sozluk aramasidir;
-    /// hicbir ek sorgu atilmaz (K1: sessiz maliyet yoktur).
+    /// For a request that does NOT carry the header, this check is a single
+    /// dictionary lookup; no extra query is made (K1: no silent cost).
     /// </remarks>
     private static bool WantsAsync(HttpContext httpContext)
         => httpContext.Request.Headers.TryGetValue("Prefer", out var values) &&
@@ -305,14 +306,15 @@ internal static class AgentEndpoints
     }
 
     /// <summary>
-    /// Bir tanimi kaydetmeden ve hicbir model cagirmadan derler.
+    /// Compiles a definition without saving it and without calling any model.
     /// </summary>
     /// <remarks>
-    /// Dogrulama basarisizligi bir HTTP hatasi degildir: istek gecerliyse yanit
-    /// her zaman <c>200</c>'dur, sonuc <see cref="AgentValidationReport.Valid"/>
-    /// alaninda tasinir. Yalnizca govde ayristirilamiyorsa (bu ucun kendi ismi/model
-    /// alani denetimi) <c>400</c> donulur — bu, agin hatasiyla dogrulama hatasini
-    /// ayirt etmek isteyen bir CI'in karsilastigi tek gercek istek hatasidir.
+    /// A validation failure is not an HTTP error: if the request is well-formed,
+    /// the response is always <c>200</c>, and the result is carried in the
+    /// <see cref="AgentValidationReport.Valid"/> field. Only when the body
+    /// cannot be parsed (this endpoint's own name/model field check) is
+    /// <c>400</c> returned — this is the only genuine request error a CI that
+    /// wants to distinguish a network error from a validation error would see.
     /// </remarks>
     private static async Task<Results<Ok<AgentValidationReport>, ProblemHttpResult>> ValidateAgentAsync(
         HttpContext httpContext,
@@ -476,8 +478,8 @@ internal static class AgentEndpoints
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
-        // Onay kararlari tek basina gecerli bir istektir: kullanici bekleyen bir
-        // tool cagrisini onaylarken yeni bir mesaj yazmaz.
+        // Approval decisions are a valid request on their own: a user approving
+        // a pending tool call does not write a new message.
         if (string.IsNullOrWhiteSpace(request.Message) && request.Approvals.Count == 0 && request.AttachmentIds.Count == 0)
         {
             return Results.Problem(
@@ -494,8 +496,8 @@ internal static class AgentEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        // Ek sahipligi akis baslamadan once dogrulanir: yanit basladiktan sonra
-        // duzgun bir ProblemDetails donduremeyiz.
+        // Attachment ownership is validated before the stream starts: once the
+        // response has begun, we cannot return a proper ProblemDetails.
         var attachments = new List<AttachmentDescriptor>(request.AttachmentIds.Count);
 
         foreach (var attachmentId in request.AttachmentIds)
@@ -512,9 +514,9 @@ internal static class AgentEndpoints
             attachments.Add(descriptor);
         }
 
-        // Kimlik burada uretilir (AgentRunStream.ExecuteAsync icinde degil): deney
-        // atama anahtari (oturum kimligi ?? calistirma kimligi) akis baslamadan
-        // once bilinmelidir.
+        // The id is generated here (not inside AgentRunStream.ExecuteAsync): the
+        // experiment assignment key (session id ?? run id) must be known before
+        // the stream starts.
         var runId = AgentPrismId.NewId();
         var assignmentKey = request.SessionId ?? runId.ToString("D");
 
@@ -524,9 +526,10 @@ internal static class AgentEndpoints
 
         Microsoft.Agents.AI.AIAgent? agent;
 
-        // Cozumleme bildirimsel bir tanimi derler; bilinmeyen tool veya saglayici
-        // burada hata verir. Yanit henuz baslamadigi icin duzgun bir ProblemDetails
-        // dondurebiliyoruz - akis basladiktan sonra bu mumkun olmaz.
+        // Resolution compiles a declarative definition; an unknown tool or
+        // provider fails here. The response has not started yet, so we can
+        // still return a proper ProblemDetails - this is not possible once the
+        // stream has started.
         try
         {
             agent = assignment is null
@@ -549,33 +552,35 @@ internal static class AgentEndpoints
                 statusCode: StatusCodes.Status404NotFound);
         }
 
-        // 🚨 Faz 43: 'Idempotency-Key' tasiyan bir istek akissiz calisir. Saklanan
-        // yanit tekilleştirilebilir olmalidir; bir SSE govdesini saklamak
-        // (zamanlama bilgisi kaybi, ongorulemez boyut) bu fazin kapsami disidir
-        // (docs/43-IDEMPOTENCY-KEY.md, bolum 43.4). Bu yuzden IdempotencyFilter
-        // yerine burada, akis SECIMI aninda karar verilir: filtre akisli bir
-        // istegi hicbir zaman GORMEZ, cunku baslik tasiyan istek zaten akissizdir.
+        // 🚨 Phase 43: a request carrying 'Idempotency-Key' runs non-streaming.
+        // The stored response must be deduplicatable; storing an SSE body
+        // (loss of timing information, unpredictable size) is out of scope for
+        // this phase (docs/43-IDEMPOTENCY-KEY.md, section 43.4). This is why
+        // the decision is made here, at the moment the stream mode is CHOSEN,
+        // rather than in IdempotencyFilter: the filter never SEES a streaming
+        // request, because a request carrying the header is already non-streaming.
         var streaming = !httpContext.Request.Headers.ContainsKey(IdempotencyFilter.HeaderName);
 
         return new AgentRunStream(agent, name, request, sessions, attachments, prefix, runId, assignment, streaming);
     }
 
     /// <summary>
-    /// Calistirmayi kuyruga alir ve <c>202 Accepted</c> doner (Faz 46).
+    /// Queues the run and returns <c>202 Accepted</c> (Phase 46).
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Onay kararlari ve ekler bu surumde desteklenmez: ikisi de canli bir
-    /// istemci baglantisi (onay: bir sonraki turun girdisi; ek: yol oneki
-    /// gerektiren bir <c>UriContent</c> referansi) varsayar, kuyruktan kosan
-    /// bir isin bu baglami yoktur.
+    /// Approval decisions and attachments are not supported in this version:
+    /// both assume a live client connection (approval: input for the next
+    /// turn; attachment: a <c>UriContent</c> reference that requires the path
+    /// prefix), and a job running from the queue has no such context.
     /// </para>
     /// <para>
-    /// Burada uretilen calistirma kimligi hem <c>runs</c> satirinin hem
-    /// <c>jobs</c> kaydinin kimligidir: ikisi ayni deger tasir. Bu, istemciye
-    /// donen <c>Location</c>'in is kuyruktan kosana kadar da anlamli kalmasini
-    /// saglar — <c>GET /api/runs/{id}</c> gercek satir henuz yoksa <c>404</c>
-    /// degil, az once yazilan <see cref="RunStatus.Queued"/> satirini gorur.
+    /// The run id generated here is the id of both the <c>runs</c> row and the
+    /// <c>jobs</c> record: they carry the same value. This ensures the
+    /// <c>Location</c> returned to the client stays meaningful even before the
+    /// job runs from the queue — if the actual row does not exist yet,
+    /// <c>GET /api/runs/{id}</c> sees the just-written <see cref="RunStatus.Queued"/>
+    /// row instead of a <c>404</c>.
     /// </para>
     /// </remarks>
     private static async Task<IResult> RunQueuedAsync(
@@ -641,11 +646,11 @@ internal static class AgentEndpoints
         var runId = AgentPrismId.NewId();
         var now = DateTimeOffset.UtcNow;
 
-        // Yer tutucu satir: isci is'i alip agent'i GERCEKTEN calistirana kadar
-        // istemci bu kimlikle GET /api/runs/{id} cagirirsa 404 degil, Queued
-        // gormelidir. Ayni kimlikle StartRunAsync isci tarafindan IKINCI kez
-        // cagrildiginda (bkz. AgentRunJobHandler) depo bunu bir UPSERT olarak
-        // ele alir; yeni bir satir ACILMAZ.
+        // Placeholder row: if the client calls GET /api/runs/{id} with this id
+        // before the worker picks up the job and ACTUALLY runs the agent, it
+        // should see Queued, not 404. When StartRunAsync is called a SECOND
+        // time with the same id by the worker (see AgentRunJobHandler), the
+        // store treats this as an UPSERT; no new row is OPENED.
         await runStore.StartRunAsync(
             new RunStartInfo
             {
@@ -658,11 +663,12 @@ internal static class AgentEndpoints
             },
             cancellationToken).ConfigureAwait(false);
 
-        // 🚨 Job.Id calistirma kimligiyle AYNI verilir (AgentPrismId.NewId()
-        // burada TEKRAR cagrilmaz). Faz 17'nin genel deseninde is kimligi ile
-        // calistirma kimligi ayridir; burada bilerek birlestirilir, aksi halde
-        // isci is'i almadan once GET /api/runs/{id} 404 disinda bir sey
-        // dondurmenin ikinci bir yolu (is deposunu tarama) gerekirdi.
+        // 🚨 Job.Id is given the SAME value as the run id (AgentPrismId.NewId()
+        // is NOT called again here). In Phase 17's general pattern the job id
+        // and the run id are separate; here they are deliberately merged,
+        // otherwise a second way (scanning the job store) would be needed for
+        // GET /api/runs/{id} to return something other than 404 before the
+        // worker picks up the job.
         var job = await jobStore.EnqueueAsync(
             new JobRecord
             {
@@ -679,9 +685,10 @@ internal static class AgentEndpoints
             [],
             cancellationToken).ConfigureAwait(false);
 
-        // 🚨 RFC 7240 tercihi *tavsiye* sayar; sunucu yok sayabilir. AgentPrism
-        // bu belirsizligi tasimaz: tercih uygulandiysa yanit hem 202 HEM
-        // 'Preference-Applied' tasir (Faz 43'un ayni kuralinin tekrari).
+        // 🚨 RFC 7240 treats the preference as *advisory*; the server may ignore
+        // it. AgentPrism does not carry this ambiguity: if the preference was
+        // applied, the response carries BOTH 202 AND 'Preference-Applied'
+        // (repeats the same rule from Phase 43).
         httpContext.Response.Headers["Preference-Applied"] = "respond-async";
 
         var location = $"{prefix}/api/runs/{runId}";
@@ -696,8 +703,8 @@ internal static class AgentEndpoints
     }
 
     /// <summary>
-    /// <see cref="JobKind.AgentRun"/> isinin yukunu kurar. Ayristirma
-    /// <c>AgentRunJobHandler.ParsePayload</c>'dadir (elle, AOT uyumlu).
+    /// Builds the payload for a <see cref="JobKind.AgentRun"/> job. Parsing
+    /// happens in <c>AgentRunJobHandler.ParsePayload</c> (hand-written, AOT-compatible).
     /// </summary>
     private static JsonElement BuildQueuedRunPayload(Guid runId, string message, string? sessionId)
         => JsonSerializer.SerializeToElement(new
@@ -708,25 +715,27 @@ internal static class AgentEndpoints
         });
 
     /// <summary>
-    /// Deneme calistirmasinin yanitini yazar.
+    /// Writes the response for a trial run.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Varsayilan olarak <paramref name="streaming"/> actir ve yanit SSE'dir; ayri
-    /// bir <see cref="IResult"/> olarak yazilir cunku akis basladiktan sonra durum
-    /// kodu degistirilemez, hata durumunda <c>event: error</c> cercevesi gonderilir.
+    /// By default <paramref name="streaming"/> is on and the response is SSE; it
+    /// is written as a separate <see cref="IResult"/> because the status code
+    /// cannot be changed once the stream has started, so an <c>event: error</c>
+    /// frame is sent on failure instead.
     /// </para>
     /// <para>
-    /// Ilk cerceve <c>run</c>'dir ve calistirma kimligini tasir. Kimlik
-    /// <see cref="AgentPrismRunOptions"/> ile <em>cagiran tarafindan</em> uretilir;
-    /// aksi halde calistirma kaydini yazan sarmalayici kendi kimligini uretir ve
-    /// akan yanit hicbir zaman <c>/api/runs/{id}</c> kaydiyla iliskilendirilemezdi.
+    /// The first frame is <c>run</c> and carries the run id. The id is
+    /// generated <em>by the caller</em>, using <see cref="AgentPrismRunOptions"/>;
+    /// otherwise the wrapper that writes the run record would generate its own
+    /// id, and the streaming response could never be correlated with the
+    /// <c>/api/runs/{id}</c> record.
     /// </para>
     /// <para>
-    /// 🚨 <paramref name="streaming"/> kapaliysa (Faz 43, <c>Idempotency-Key</c>)
-    /// yanit tek bir JSON govdedir: baslıklar/durum kodu henuz gonderilmedigi
-    /// icin bir hata gercek bir HTTP durum koduyla (502) donebilir — SSE dalinin
-    /// aksine burada <c>event: error</c> cercevesine gerek yoktur.
+    /// 🚨 When <paramref name="streaming"/> is off (Phase 43, <c>Idempotency-Key</c>),
+    /// the response is a single JSON body: since headers/status code have not
+    /// been sent yet, an error can be returned with a real HTTP status code
+    /// (502) — unlike the SSE branch, an <c>event: error</c> frame is not needed here.
     /// </para>
     /// </remarks>
     private sealed class AgentRunStream(
@@ -811,17 +820,18 @@ internal static class AgentEndpoints
             }
             catch (OperationCanceledException)
             {
-                // Istemci baglantiyi kesti. Yazacak kimse kalmadi.
+                // The client disconnected. No one is left to write to.
             }
             catch (Exception ex)
             {
-                // 🚨 K-296: SSE basliklari (200, text/event-stream) ZATEN gonderildi.
-                // Dar bir 'when' filtresi (yalniz AgentPrismException/InvalidOperationException/
-                // HttpRequestException) gercek saglayici SDK istisnalarini (orn. Anthropic'in
-                // AnthropicApiException'i Exception'dan DOGRUDAN turer, HttpRequestException'dan
-                // TUREMEZ) yakalamadan kacirirdi — baglanti 'error' cercevesi UretMEDEN kapanir
-                // ve istemci bunu sessiz basari sanir. Burada yakalanmayan HICBIR sey yoktur:
-                // istemciye HER ZAMAN bir 'error' cercevesi ulasir.
+                // 🚨 K-296: the SSE headers (200, text/event-stream) have ALREADY been
+                // sent. A narrow 'when' filter (only AgentPrismException/InvalidOperationException/
+                // HttpRequestException) would miss real provider SDK exceptions uncaught
+                // (e.g. Anthropic's AnthropicApiException derives DIRECTLY from Exception,
+                // NOT from HttpRequestException) — the connection would close WITHOUT
+                // producing an 'error' frame, and the client would mistake this for
+                // silent success. Nothing goes uncaught here: the client ALWAYS
+                // receives an 'error' frame.
                 await writer.WriteEventAsync(
                     sequence,
                     "error",
@@ -873,15 +883,15 @@ internal static class AgentEndpoints
             }
             catch (OperationCanceledException)
             {
-                // Istemci baglantiyi kesti.
+                // The client disconnected.
             }
             catch (AgentPrismContentBlockedException ex)
             {
-                // 🚨 Engelleme bir ISTEMCI hatasidir: istek anlasildi ama politika
-                // onu gecirmedi ve yeniden denemek ise yaramaz. 502 "yukari akis
-                // bozuk" derdi ve istemciyi yeniden denemeye yonlendirirdi.
-                // ProblemDetails guard ve kural adini tasir, engellenen metni
-                // TASIMAZ (ex.Message de tasimaz).
+                // 🚨 A block is a CLIENT error: the request was understood, but the
+                // policy did not let it through, and retrying would not help. A 502
+                // would say "upstream is broken" and steer the client toward
+                // retrying. The ProblemDetails carries the guard and rule name; it
+                // does NOT carry the blocked text (nor does ex.Message).
                 await Results.Problem(
                         title: "Content blocked",
                         detail: ex.Message,
@@ -897,10 +907,10 @@ internal static class AgentEndpoints
             }
             catch (AgentPrismSessionConflictException ex)
             {
-                // 🚨 HATA-004: ayni YENI oturuma eszamanli iki ilk istek geldiginde
-                // kaybeden burada duser. 502 "yukari akis bozuk" derdi; asil sebep
-                // istemci tarafi bir yaris kosulu — 409 ve kisa bir yeniden deneme
-                // dogru cozumdur.
+                // 🚨 HATA-004: when two concurrent initial requests arrive for the
+                // same NEW session, the loser lands here. A 502 would say "upstream
+                // is broken"; the actual cause is a client-side race condition — a
+                // 409 and a short retry are the correct fix.
                 await Results.Problem(
                         title: "Session conflict",
                         detail: ex.Message,
@@ -913,14 +923,14 @@ internal static class AgentEndpoints
             }
             catch (Exception ex)
             {
-                // 🚨 HATA-S2-003/HATA-S3-005: K-296'nin duzeltmesi yalniz akisli
-                // kardes yolu (ExecuteStreamingAsync yukarida) kapsamis, bu akissiz
-                // yolu KACIRMIS. Dar bir 'when' filtresi (yalniz AgentPrismException/
-                // InvalidOperationException/HttpRequestException) gercek saglayici SDK
-                // istisnalarini yakalamadan kacirir ve ASP.NET Core'un genel
-                // isleyicisine sizip ciplak 500 uretirdi. Burada yakalanmayan
-                // HICBIR sey yoktur — OperationCanceledException ve daha ozel
-                // AgentPrism istisnalari yukarida zaten ayri catch bloklarinda.
+                // 🚨 HATA-S2-003/HATA-S3-005: K-296's fix covered only the streaming
+                // sibling path (ExecuteStreamingAsync above) and MISSED this
+                // non-streaming path. A narrow 'when' filter (only AgentPrismException/
+                // InvalidOperationException/HttpRequestException) would let real
+                // provider SDK exceptions go uncaught, leaking into ASP.NET Core's
+                // generic handler and producing a bare 500. Nothing goes uncaught
+                // here — OperationCanceledException and the more specific
+                // AgentPrism exceptions already have their own catch blocks above.
                 await Results.Problem(
                         title: "Agent run failed",
                         detail: ex.Message,
@@ -932,12 +942,13 @@ internal static class AgentEndpoints
         private static JsonSerializerOptions JsonOptions { get; } = new(JsonSerializerDefaults.Web);
 
         /// <summary>
-        /// Gonderilecek mesajlari kurar: varsa onay yanitlari, varsa kullanici mesaji.
+        /// Builds the messages to send: approval responses if any, then the user message if any.
         /// </summary>
         /// <remarks>
-        /// Onay yanitlari kullanici mesajindan ONCE gelir. Microsoft Agent Framework
-        /// bekleyen cagriyi yanitlamadan yeni bir kullanici mesajini isleyemez;
-        /// ters sira, modelin yanitlanmamis bir onay istegiyle karsilasmasina yol acardi.
+        /// Approval responses come BEFORE the user message. Microsoft Agent
+        /// Framework cannot process a new user message without answering a
+        /// pending call first; the reverse order would leave the model facing
+        /// an unanswered approval request.
         /// </remarks>
         private async ValueTask<List<ChatMessage>> BuildMessagesAsync(
             HttpContext httpContext,
@@ -977,9 +988,9 @@ internal static class AgentEndpoints
                 contents.Add(new TextContent(request.Message));
             }
 
-            // Ikili icerik burada TASINMAZ: yalniz kucuk bir UriContent referansi
-            // eklenir. Gercek baytlar model cagrisindan hemen once, saglayiciya
-            // gonderilmeden ONCE cozulur (bkz. AttachmentResolvingChatClient).
+            // Binary content is NOT carried here: only a small UriContent reference
+            // is added. The actual bytes are resolved right before the model
+            // call, BEFORE being sent to the provider (see AttachmentResolvingChatClient).
             foreach (var attachment in attachments)
             {
                 contents.Add(new UriContent(AttachmentUriReference.Create(prefix, attachment.Id), attachment.MediaType));
@@ -999,7 +1010,7 @@ internal static class AgentEndpoints
 
         private sealed record AgentRunFailed(string Type, string Message);
 
-        /// <summary>Akissiz (Idempotency-Key) calistirmanin JSON yaniti.</summary>
+        /// <summary>The JSON response for a non-streaming (Idempotency-Key) run.</summary>
         private sealed record AgentRunResult(Guid RunId, string? SessionId, Microsoft.Agents.AI.AgentResponse Response);
     }
 
@@ -1020,12 +1031,12 @@ internal static class AgentEndpoints
     }
 
     /// <summary>
-    /// Tanimin cagri grafigini denetler ve sorunluysa <c>400</c> uretir.
+    /// Validates the definition's call graph and produces <c>400</c> if it has a problem.
     /// </summary>
     /// <remarks>
-    /// Denetim <strong>kaydetme aninda</strong> yapilir. Calisma anina birakilsaydi
-    /// kullanici hatayi ancak agent'i calistirdiginda ve derinlik sayaci dolduktan
-    /// sonra - yani token harcadiktan sonra - gorurdu.
+    /// The check happens <strong>at save time</strong>. If it were left to run
+    /// time, the user would only see the error after running the agent and
+    /// after the depth counter filled up - that is, after spending tokens.
     /// </remarks>
     private static async ValueTask<ProblemHttpResult?> ValidateCallGraphAsync(
         IAgentCatalog catalog,
@@ -1048,11 +1059,11 @@ internal static class AgentEndpoints
     }
 
     /// <summary>
-    /// Kaydetmeden once tanimi tam olarak dogrular (K-404) — model, tool,
-    /// skill ve cagrilabilir-agent VARLIK denetimleri dahil. Bu denetim
-    /// oncesinde yalniz ayri <c>POST /api/agents/validate</c> ucu
-    /// cagirilirdi; SAVE yolunun kendisi bilinmeyen bir skill/tool adini
-    /// hicbir hata vermeden kaydederdi (HATA-K-001).
+    /// Fully validates the definition before saving (K-404) — including model,
+    /// tool, skill, and callable-agent EXISTENCE checks. Before this check
+    /// existed, only the separate <c>POST /api/agents/validate</c> endpoint was
+    /// called; the SAVE path itself would save an unknown skill/tool name
+    /// without any error (HATA-K-001).
     /// </summary>
     private static async ValueTask<ProblemHttpResult?> ValidateEntitiesAsync(
         AgentDefinitionValidator validator,
@@ -1124,11 +1135,11 @@ internal static class AgentEndpoints
             statusCode: StatusCodes.Status404NotFound);
 
     /// <summary>
-    /// Govdeyi elle okur (minimal API'nin otomatik JSON baglamasi yerine): bir
-    /// ayristirma hatasi (ornegin taninmayan bir enum degeri) boylece bu ucun
-    /// kendi <c>400</c> sozlesmesine girer, minimal API'nin baglama asamasinda
-    /// fillayip yakalanamayan bir <see cref="JsonException"/> ile genel <c>500</c>'e
-    /// dusmez (HATA-S1-007).
+    /// Reads the body by hand (instead of minimal API's automatic JSON
+    /// binding): a parsing error (for example, an unrecognized enum value)
+    /// thus falls under this endpoint's own <c>400</c> contract, rather than
+    /// falling through to a generic <c>500</c> from a <see cref="JsonException"/>
+    /// thrown and left uncaught during minimal API's binding stage (HATA-S1-007).
     /// </summary>
     private static async Task<(AgentDefinitionRequest? Request, ProblemHttpResult? Error)> BindAgentDefinitionRequestAsync(
         HttpContext httpContext,

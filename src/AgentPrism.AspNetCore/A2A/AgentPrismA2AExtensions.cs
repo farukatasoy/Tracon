@@ -10,45 +10,46 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// AgentPrism agent'larini A2A uzerinden yayimlayan HTTP ucunu baglayan
-/// uzantilar.
+/// Extensions that connect the HTTP endpoint that publishes AgentPrism agents
+/// over A2A.
 /// </summary>
 public static class AgentPrismA2AExtensions
 {
-    /// <summary>Varsayilan yol oneki.</summary>
+    /// <summary>Default path prefix.</summary>
     public const string DefaultPattern = "/agentprism/a2a";
 
     /// <summary>
-    /// <c>UseA2A()</c> ile kayitli agent'lari A2A uzerinden yayimlar.
+    /// Publishes the agents registered via <c>UseA2A()</c> over A2A.
     /// </summary>
-    /// <param name="endpoints">Uygulamanin yonlendirme olusturucusu.</param>
-    /// <param name="pattern">Yol oneki. Varsayilan <c>/agentprism/a2a</c>.</param>
-    /// <returns>Ucun sozlesme olusturucusu.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="endpoints"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="ArgumentException"><paramref name="pattern"/> bos ise.</exception>
+    /// <param name="endpoints">The application's routing builder.</param>
+    /// <param name="pattern">Path prefix. Default is <c>/agentprism/a2a</c>.</param>
+    /// <returns>The endpoint's convention builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="endpoints"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="pattern"/> is empty.</exception>
     /// <exception cref="InvalidOperationException">
-    /// <c>UseA2A()</c> veya <c>MapAgentPrism()</c> onceden cagrilmamissa, veya
-    /// uzak erisim acikken cagrilmissa.
+    /// <c>UseA2A()</c> or <c>MapAgentPrism()</c> has not been called first, or
+    /// this is called while remote access is enabled.
     /// </exception>
     /// <remarks>
     /// <para>
-    /// Her disa acik agent kendi alt yoluna baglanir: <c>{pattern}/{agent}</c>.
-    /// A2A protokolu tek bir sunucuyu tek bir agent kimligi olarak modeller;
-    /// birden fazla agent'in AYNI <c>.well-known/agent-card.json</c> yolunu
-    /// paylasmasi mumkun degildir. Her agent'in karti kendi alt yolunda
-    /// (<c>{pattern}/{agent}/.well-known/agent-card.json</c>) yayimlanir.
+    /// Each exposed agent is mapped to its own sub-path: <c>{pattern}/{agent}</c>.
+    /// The A2A protocol models a single server as a single agent identity;
+    /// multiple agents cannot share the SAME <c>.well-known/agent-card.json</c>
+    /// path. Each agent's card is published at its own sub-path
+    /// (<c>{pattern}/{agent}/.well-known/agent-card.json</c>).
     /// </para>
     /// <para>
-    /// <c>MapAgentPrism</c>'in AYNI uc katmanli korumasini uygular — ayarlar
-    /// oradan devralinir.
+    /// Applies the SAME three-layer protection as <c>MapAgentPrism</c> —
+    /// settings are inherited from there.
     /// </para>
     /// <para>
-    /// 🚨 Disa acik bir agent onay gerektiren bir tool tasiyorsa uygulama YINE
-    /// hata verir — ama bu metottan senkron olarak degil,
-    /// <see cref="A2AApprovalGuardFilter"/> uzerinden: denetim SQL semasi hazir
-    /// olana kadar arka planda bekler (boylece bos bir veritabaninda bu metodun
-    /// kendisi "no such table" ile cokmez, K-354'un ayni deseni), ilk isteğe
-    /// kadar tamamlanir ve hicbir istek onun onune gecemez.
+    /// 🚨 If an exposed agent carries a tool that requires approval the
+    /// application STILL fails — but not synchronously from this method,
+    /// rather through <see cref="A2AApprovalGuardFilter"/>: the check waits in
+    /// the background until the SQL schema is ready (so this method itself
+    /// does not crash with "no such table" against an empty database, the same
+    /// pattern as K-354), completes by the first request, and no request can
+    /// get ahead of it.
     /// </para>
     /// </remarks>
     public static IEndpointConventionBuilder MapAgentPrismA2A(
@@ -61,8 +62,8 @@ public static class AgentPrismA2AExtensions
         var services = endpoints.ServiceProvider;
         var a2aOptions = services.GetService<AgentPrismA2AOptions>()
             ?? throw new InvalidOperationException(
-                "A2A servisleri kayitli degil. MapAgentPrismA2A() cagrisindan once " +
-                "builder.UseA2A(...) cagirin.");
+                "A2A services are not registered. Call builder.UseA2A(...) before " +
+                "calling MapAgentPrismA2A().");
 
         var endpointOptions = AgentPrismEndpointRouteBuilderExtensions.RequireSharedEndpointOptions(endpoints, "A2A");
 
@@ -71,15 +72,15 @@ public static class AgentPrismA2AExtensions
 
         var catalog = services.GetRequiredService<IAgentCatalog>();
 
-        // Onay guard'i ARTIK burada degil: `A2AApprovalGuardHostedService`
-        // (bkz. `UseA2A`) sema hazir olduktan sonra ayni denetimi yapar. Uc
-        // baglama (bu metot) `app.Run()`'dan ONCE calisir, dolayisiyla
-        // migration'lar henuz bitmemis olabilir — katalog sorgusu bos bir
-        // veritabaninda "no such table" ile patlayabilir. Burada kalan tek
-        // kullanim, agent kartinin (Description/Version) SUSLEMESI icin;
-        // GUVENLIK denetimi olmadigindan basarisizlik durumunda geri donus
-        // (agentName) GUVENLIDIR. Uc saglayicisi arasinda "tablo yok" hatasinin
-        // tipi/mesaji farkli oldugundan genis bir yakalama BILEREK yapilir.
+        // The approval guard no longer lives here: `A2AApprovalGuardHostedService`
+        // (see `UseA2A`) performs the same check after the schema is ready.
+        // Endpoint mapping (this method) runs BEFORE `app.Run()`, so migrations
+        // may not have finished yet — a catalog query could blow up with
+        // "no such table" against an empty database. The only remaining use
+        // here is to DECORATE the agent card (Description/Version); since
+        // there is no SECURITY check, falling back to agentName on failure is
+        // SAFE. A broad catch is DELIBERATE because the type/message of the
+        // "no such table" error differs across providers.
         Dictionary<string, AgentDescriptor> descriptorsByName;
 
         try

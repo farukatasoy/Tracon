@@ -9,12 +9,12 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
-/// <summary>Markdown tabanli skill yonetim uclari.</summary>
+/// <summary>Markdown-based skill management endpoints.</summary>
 internal static class SkillEndpoints
 {
-    /// <summary>Skill uclarini baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Maps the skill endpoints.</summary>
+    /// <param name="builder">The endpoint group.</param>
+    /// <param name="roles">The resolved role policies.</param>
     public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/skills", ListAsync)
@@ -22,21 +22,21 @@ internal static class SkillEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismListSkills")
             .WithTags("AgentPrism", "Skills")
-            .WithSummary("Kiracinin skill'lerini listeler.");
+            .WithSummary("Lists the tenant's skills.");
 
         builder.MapGet("/api/skills/{name}", GetAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismGetSkill")
             .WithTags("AgentPrism", "Skills")
-            .WithSummary("Tek bir skill ve kaynaklarini dondurur.");
+            .WithSummary("Returns a single skill and its resources.");
 
         builder.MapPut("/api/skills/{name}", SaveAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismSaveSkill")
             .WithTags("AgentPrism", "Skills")
-            .WithSummary("Skill olusturur veya gunceller.")
+            .WithSummary("Creates or updates a skill.")
             .Accepts<AgentSkillRequest>("application/json");
 
         builder.MapDelete("/api/skills/{name}", DeleteAsync)
@@ -44,7 +44,7 @@ internal static class SkillEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismDeleteSkill")
             .WithTags("AgentPrism", "Skills")
-            .WithSummary("Skill'i ve cascade kaynaklarini siler.");
+            .WithSummary("Deletes a skill and its cascading resources.");
     }
 
     private static async Task<Ok<IReadOnlyList<AgentSkillDefinition>>> ListAsync(
@@ -162,13 +162,13 @@ internal static class SkillEndpoints
     }
 
     /// <summary>
-    /// Script tanimlarini dogrular.
+    /// Validates the script definitions.
     /// </summary>
     /// <remarks>
-    /// Script'ler <strong>kapali oldugunda da</strong> kaydedilebilir; kayit ile
-    /// calistirma ayri yetkilerdir. Ancak yorumlayici beyaz listesinde olmayan
-    /// bir uzanti kabul edilmez: boyle bir kayit hicbir zaman calistirilamazdi
-    /// ve sessizce olu veri birakirdi.
+    /// Scripts can be saved <strong>even when execution is disabled</strong>; saving and
+    /// executing are separate permissions. However, an extension that is not on the
+    /// interpreter allowlist is rejected: such a saved script could never be run
+    /// and would silently leave dead data behind.
     /// </remarks>
     private static ProblemHttpResult? ValidateScripts(
         AgentSkillRequest request,

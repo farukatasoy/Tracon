@@ -452,9 +452,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 IsStreaming = true,
             },
 
-            // Workflow calistirmalari yapilandirilmis bir girdiyle baslar, tek bir
-            // kullanici mesajiyla degil; Faz 45'in eval vaka terfisi yalniz agent
-            // calistirmalarini kapsar (docs/45-URETIMDEN-EVAL-KUMESI.md).
+            // Workflow runs start with a structured input, not a single user
+            // message; phase 45's eval case promotion covers only agent
+            // runs (docs/45-URETIMDEN-EVAL-KUMESI.md).
             query: null,
             linked.Token).ConfigureAwait(false);
 
@@ -464,9 +464,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         var status = RunStatus.Completed;
         RunError? error = null;
 
-        // Graf kurulumu ayri denenir: burada olusan bir hata (agent bulunamadi,
-        // tanim gecersiz) kullanicinin duzeltebilecegi bir hatadir ve
-        // calistirmayi acik birakmamalidir.
+        // Graph setup is tried separately: an error here (agent not found,
+        // invalid definition) is one the user can fix, and it must not leave
+        // the run open.
         Workflow? workflow = null;
 
         try
@@ -523,19 +523,20 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
         await CompleteAsync(execution, scope, writer, status, error, activity, startedAt).ConfigureAwait(false);
 
-        // Kapanis olayini da istemci gormelidir: akis "bitti" demeden kesilirse
-        // istemci baglantinin koptugunu mu yoksa isin bittigini mi anlayamaz.
+        // The client must also see the closing event: if the stream cuts off
+        // before saying "done", the client cannot tell a dropped connection
+        // from a finished job.
         yield return LastEvent(execution, writer, status, error);
     }
 
     /// <summary>
-    /// Grafi calistirir ve olaylarini akitir. Hatalar istisna olarak degil
-    /// <see cref="PumpedEvent"/> icinde dondurulur.
+    /// Runs the graph and streams its events. Errors are returned inside a
+    /// <see cref="PumpedEvent"/>, not thrown as exceptions.
     /// </summary>
     /// <remarks>
-    /// Bir <c>async iterator</c> govdesinde <c>yield return</c> ile
-    /// <c>try/catch</c> ayni blokta bulunamaz; bu yuzden hata bir deger olarak
-    /// tasinir ve cagiran onu duruma cevirir.
+    /// In an <c>async iterator</c> body, <c>yield return</c> cannot appear in
+    /// the same block as <c>try/catch</c>; the error is therefore carried as a
+    /// value and the caller turns it into a status.
     /// </remarks>
     private async IAsyncEnumerable<PumpedEvent> PumpAsync(
         Workflow workflow,
@@ -547,13 +548,14 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         CancellationTokenSource timeout,
         CancellationTokenSource linked)
     {
-        // 🚨 Kapsam yurutme BASLAMADAN once yazilir, dongudeki atama yetmez.
-        // Olculdu (Faz 15): InProcessExecution.RunStreamingAsync executor'lari
-        // suren bir arka plan gorevi baslatir ve o gorev ExecutionContext'i
-        // TAM O ANDA yakalar. Kapsam yalnizca MoveNextAsync oncesinde
-        // yazilsaydi alt agent cagrilari "calistirma kaydi kapali" diyerek
-        // reddedilir, workflow sessizce bos calisirdi -- hicbir agent satiri
-        // ve hicbir kontrol noktasi olusmazdi.
+        // 🚨 The scope is written BEFORE execution starts; the assignment
+        // inside the loop is not enough. Measured (phase 15):
+        // InProcessExecution.RunStreamingAsync starts a background task that
+        // runs the executors, and that task captures the ExecutionContext AT
+        // THAT EXACT MOMENT. If the scope were only written before
+        // MoveNextAsync, nested agent calls would be rejected with "run
+        // recording is closed" and the workflow would run silently empty --
+        // producing no agent row and no checkpoint at all.
         AgentPrismRunContext.SetCurrent(scope);
 
         StreamingRun? run = null;
@@ -572,8 +574,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             startupFailure = PumpedEvent.FromFailure(ToRunError(exception));
         }
 
-        // 🚨 `yield return` bir `catch` blogunun icinde yazilamaz (CS1631).
-        // Hata bu yuzden bir degere alinir ve blok bittikten SONRA akitilir.
+        // 🚨 `yield return` cannot appear inside a `catch` block (CS1631).
+        // The error is therefore captured as a value and streamed AFTER the
+        // block ends.
         if (startupFailure is { } failure)
         {
             yield return failure;
@@ -589,19 +592,19 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         {
             var superSteps = 0;
 
-            // Bekleyen isteklere verilecek yanitlar kimlige gore aranir; ayni
-            // istek iki kez yanitlanmaz.
+            // Answers for pending requests are looked up by id; the same
+            // request is never answered twice.
             var answers = execution.Answers.ToDictionary(
                 static answer => answer.RequestId,
                 StringComparer.Ordinal);
 
             var delivered = new HashSet<string>(StringComparer.Ordinal);
 
-            // 🚨 Yanit gonderildikten SONRA akis yeniden acilmalidir. Olculdu
-            // (Faz 16): SendResponseAsync bir mesaj kuyruklar ama o sirada
-            // tuketilen WatchStreamAsync numaralandiricisi zaten bitmeye karar
-            // vermistir; yalnizca yeni bir numaralandirici devam eden
-            // super-step'leri gorur.
+            // 🚨 The stream must be reopened AFTER the response is sent.
+            // Measured (phase 16): SendResponseAsync queues a message, but the
+            // WatchStreamAsync enumerator being consumed at that moment has
+            // already decided to finish; only a new enumerator sees the
+            // continuing super-steps.
             while (true)
             {
                 var responded = false;
@@ -618,10 +621,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
                         try
                         {
-                            // 🚨 Kapsam HER adimda yeniden yazilir; gerekcesi sinif
-                            // aciklamasindadir. Executor'lar tam olarak bu cagrinin
-                            // icinde calisir, dolayisiyla kapsami yalnizca dongunun
-                            // disinda yazmak yetmez.
+                            // 🚨 The scope is rewritten on EVERY step; the reason
+                            // is in the class documentation. Executors run
+                            // exactly inside this call, so writing the scope
+                            // only outside the loop is not enough.
                             AgentPrismRunContext.SetCurrent(scope);
 
                             if (await enumerator.MoveNextAsync().ConfigureAwait(false))
@@ -656,18 +659,18 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                             yield return PumpedEvent.FromFailure(new RunError
                             {
                                 Type = nameof(AgentPrismException),
-                                Message = $"Workflow {settings.MaxSuperSteps} super-step sinirini asti ve durduruldu. " +
-                                          "Devretme veya grup sohbeti dongusu sonlanmiyor olabilir; " +
-                                          "'maxIterations' degerini dusurun veya agent talimatlarina bir " +
-                                          "bitirme kosulu ekleyin.",
+                                Message = $"Workflow exceeded the {settings.MaxSuperSteps} super-step limit and was " +
+                                          "stopped. The handoff or group chat loop may not be terminating; " +
+                                          "lower the 'maxIterations' value or add a termination condition to " +
+                                          "the agent instructions.",
                             });
 
                             yield break;
                         }
 
-                        // Yanit, olay akisa yazilmadan ONCE gonderilir: bekleyen
-                        // istek olayi yalnizca gercekten bekleyen bir istegi
-                        // anlatmalidir.
+                        // The response is sent BEFORE the event is written to the
+                        // stream: a pending-request event should describe only a
+                        // request that is genuinely still pending.
                         if (workflowEvent is RequestInfoEvent info)
                         {
                             var delivery = await TryRespondAsync(run, info.Request, answers, delivered)
@@ -692,8 +695,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                         if (!mapping.IsKnown)
                         {
                             _logger.LogWarning(
-                                "Bilinmeyen workflow olayi '{EventType}' calistirma {RunId} icinde atlandi. " +
-                                "Microsoft Agent Framework yeni bir olay tipi eklemis olabilir.",
+                                "Unknown workflow event '{EventType}' was skipped in run {RunId}. " +
+                                "Microsoft Agent Framework may have added a new event type.",
                                 workflowEvent.GetType().Name,
                                 execution.RunId);
 
@@ -713,11 +716,12 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                         yield return PumpedEvent.FromEvent(
                             await writer.AppendAsync(draft, linked.Token).ConfigureAwait(false));
 
-                        // 🚨 Graf hatasi calistirmayi BASARISIZ yapar. Olculdu
-                        // (Faz 16): olay akisina yazilip durum degistirilmeyince
-                        // bir executor patlamis, cikti hic uretilmemis ve
-                        // calistirma yine de "Completed" kaydedilmisti - listede
-                        // yesil gorunen ama hicbir sonucu olmayan bir satir.
+                        // 🚨 A graph-level error FAILS the run. Measured
+                        // (phase 16): when it was only written to the event
+                        // stream without changing the status, an executor had
+                        // crashed, no output was ever produced, and the run
+                        // was still recorded as "Completed" - a row that
+                        // looked green in the list but had no result.
                         if (workflowEvent is WorkflowErrorEvent graphError)
                         {
                             yield return PumpedEvent.FromFailure(ToRunError(graphError));
@@ -735,10 +739,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 }
             }
 
-            // Hâlâ bekleyen bir istek varsa yurutme yarim degil, ASKIDADIR:
-            // durumu kontrol noktasina yazilmistir ve bir insan yaniti geldiginde
-            // tam olarak buradan devam eder. Bunu hata saymak, calistirmayi
-            // basarisiz gostermek olurdu.
+            // When a request is still pending, execution is not half-done, it
+            // is SUSPENDED: its state has been written to a checkpoint and it
+            // resumes from exactly here once a human answer arrives. Counting
+            // this as an error would wrongly mark the run as failed.
             var finalStatus = await run.GetStatusAsync(CancellationToken.None).ConfigureAwait(false);
 
             if (finalStatus == Microsoft.Agents.AI.Workflows.RunStatus.PendingRequests)
@@ -748,24 +752,25 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                     : PumpedEvent.FromFailure(new RunError
                     {
                         Type = nameof(AgentPrismException),
-                        Message = "Workflow bir insan yaniti bekliyor ancak kontrol noktasi yazimi kapali " +
-                                  "oldugu icin bu bekleme sürdürulemez. " +
-                                  "'AgentPrism:Workflows:EnableCheckpointing' ayarini acin.",
+                        Message = "Workflow is waiting for a human answer, but checkpoint writing is " +
+                                  "disabled, so this wait cannot be resumed. " +
+                                  "Enable the 'AgentPrism:Workflows:EnableCheckpointing' setting.",
                     });
             }
         }
     }
 
     /// <summary>
-    /// Bekleyen bir istege elimizde yanit varsa gonderir.
+    /// Sends the answer we hold for a pending request, if any.
     /// </summary>
     /// <returns>
-    /// Yanit gonderildi mi ve gonderilirken bir cevrim hatasi olustu mu.
+    /// Whether the answer was sent, and whether a conversion error occurred while sending it.
     /// </returns>
     /// <remarks>
-    /// Cevrim hatasi (yanlis tip, eksik alan) <strong>calistirmayi bitirir</strong>.
-    /// Yutulup bekleme durumuna donulseydi kullanici ayni yaniti tekrar tekrar
-    /// gonderir ve neden ilerlemedigini goremezdi.
+    /// A conversion error (wrong type, missing field) <strong>ends the
+    /// run</strong>. Swallowing it and going back to waiting would make the
+    /// user resend the same answer over and over with no way to see why it
+    /// does not progress.
     /// </remarks>
     private static async ValueTask<ResponseDelivery> TryRespondAsync(
         StreamingRun run,
@@ -798,10 +803,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         return new ResponseDelivery(true, null);
     }
 
-    /// <summary>Grafi baslatir ve ilk turu tetikler.</summary>
+    /// <summary>Starts the graph and triggers the first turn.</summary>
     /// <remarks>
-    /// 🚨 <c>TurnToken</c> gonderilmezse graf gelen mesaji yalnizca yutar ve
-    /// hicbir agent konusmaz. Olculdu (Faz 15).
+    /// 🚨 If <c>TurnToken</c> is not sent, the graph only swallows the
+    /// incoming message and no agent speaks. Measured (phase 15).
     /// </remarks>
     private async ValueTask<StreamingRun> StartAsync(
         Workflow workflow,
@@ -832,10 +837,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             }
             catch (InvalidDataException exception)
             {
-                // MAF'in ham mesaji ("not compatible with the workflow") ne
-                // yapilmasi gerektigini soylemez. Tek gercek sebebi executor
-                // kimliklerinin degismis olmasidir: ya workflow tanimi
-                // guncellenmistir ya da uygulama yeniden baslatilmistir.
+                // MAF's raw message ("not compatible with the workflow") does
+                // not say what to do about it. The only real cause is that
+                // executor ids have changed: either the workflow definition
+                // was updated, or the application was restarted.
                 throw new AgentPrismException(
                     $"Workflow '{execution.WorkflowName}' cannot be resumed from this checkpoint: " +
                     "the graph's structure differs from when the checkpoint was written. " +
@@ -854,9 +859,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 input.Add(new ChatMessage(ChatRole.User, message));
             }
 
-            // Kontrol noktasi kapaliyken AYRI bir asiri yukleme cagrilir:
-            // yonetici parametresi nullable degildir ve null gecmek calisma
-            // aninda patlardi.
+            // A SEPARATE overload is called when checkpointing is off: the
+            // manager parameter is not nullable, and passing null would crash
+            // at run time.
             run = checkpointManager is null
                 ? await InProcessExecution.RunStreamingAsync(
                     workflow,
@@ -871,25 +876,26 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                     cancellationToken).ConfigureAwait(false);
         }
 
-        // 🚨 MT-WF-062: bir /respond cagrisinda (Answers dolu) EKSTRA bir
-        // TurnToken gonderilmemelidir: kontrol noktasi bekleyen istegi zaten
-        // KENDISI yeniden yayinlar (docs/16-WORKFLOWS-ARAYUZ.md #3) - fazladan
-        // token'in graf GIRIS dugumu bir AIAgentBinding (turn-token'a ABONE bir
-        // agent-host) oldugunda GORUNUR bir yan etkisi vardir: agent "yeni bir
-        // tur" sanip SIFIRDAN yeniden calisir, ikinci (karsiliksiz) bir
-        // WorkflowRequest uretir ve akis yeniden AwaitingInput'a duser - onceden
-        // OLCULDU, HER respond cagrisinda %100 tekrarlanan bir desendi. Duz
-        // executor'lardan kurulu bir grafta (TurnToken'a abone degiller) bu
-        // fazladan token'in gorunur etkisi yoktu, bu yuzden mevcut coverage
-        // (ApprovalWorkflow, WorkflowRunnerTests) kusuru hic yakalamamisti.
-        // 🚨 Bu, DUZ bir /resume'dan (Answers BOS) BILEREK ayirt edilir: ilk
-        // denemede TUM surdurmelerde (Answers bos olsa bile) token atlanmisti
-        // ve ampirik olarak KontrolNoktasindanSurdurulur testini 10 dakikaya
-        // kadar asili birakti (bekleyen hicbir istegi olmayan, TAMAMEN Idle bir
-        // kontrol noktasinda TurnToken'siz akis hicbir zaman dogal olarak
-        // bitmiyor, yalniz RunTimeout'ta duruyor). Bir bekleyen istegi CEVAPLAMA
-        // disindaki surdurmeler bu yuzden ESKI (her zaman token gonderen)
-        // davranisi KORUR.
+        // 🚨 MT-WF-062: an EXTRA TurnToken must NOT be sent on a /respond call
+        // (Answers non-empty): the checkpoint already republishes the pending
+        // request BY ITSELF (docs/16-WORKFLOWS-ARAYUZ.md #3) - the extra token
+        // has a VISIBLE side effect whenever the graph's ENTRY node is an
+        // AIAgentBinding (an agent-host SUBSCRIBED to the turn token): the
+        // agent thinks it is "a new turn", reruns FROM SCRATCH, produces a
+        // second (unanswered) WorkflowRequest, and the stream falls back into
+        // AwaitingInput - previously MEASURED, a pattern that repeated 100% of
+        // the time on EVERY respond call. On a graph made of plain executors
+        // (not subscribed to TurnToken) this extra token had no visible
+        // effect, which is why the existing coverage (ApprovalWorkflow,
+        // WorkflowRunnerTests) never caught the defect at all.
+        // 🚨 This is DELIBERATELY distinguished from a PLAIN /resume (Answers
+        // EMPTY): the first attempt skipped the token on ALL resumes (even
+        // when Answers was empty) and empirically left the
+        // KontrolNoktasindanSurdurulur test hanging for up to 10 minutes (a
+        // stream with no TurnToken on a checkpoint that has no pending request
+        // at all, FULLY Idle, never ends naturally - it only stops at
+        // RunTimeout). Resumes OTHER than ANSWERING a pending request
+        // therefore KEEP the OLD behavior (always sending the token).
         if (execution.Answers.Count == 0)
         {
             await run.TrySendMessageAsync(new TurnToken(emitEvents: true)).ConfigureAwait(false);
@@ -907,15 +913,15 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         Activity? activity,
         long startedAt)
     {
-        // Bir workflow satirinin kendi modeli yoktur (Faz 20): maliyeti yalniz
-        // altindaki agent calistirmalari tasir, agac toplaminda gorunur.
+        // A workflow row has no model of its own (phase 20): only the agent
+        // runs beneath it carry cost, which shows up in the tree total.
         await writer.CompleteAsync(status, usage: null, error, cost: null, CancellationToken.None).ConfigureAwait(false);
 
         await RecordQuotaAsync(execution, scope, CancellationToken.None).ConfigureAwait(false);
 
-        // 🚨 Insan bekleyen bir calistirmanin kontrol noktalari ASLA silinmez:
-        // yanit tam olarak onlardan devam eder. Temizlik ayari yalnizca gercekten
-        // sonuclanmis calistirmalar icindir.
+        // 🚨 The checkpoints of a run awaiting a human are NEVER deleted: the
+        // response resumes from exactly those checkpoints. The cleanup
+        // setting is only for runs that have genuinely finished.
         if (!_options.Value.KeepCheckpointsAfterCompletion && status != RunStatus.AwaitingInput)
         {
             await DiscardCheckpointsAsync(execution).ConfigureAwait(false);
@@ -943,8 +949,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             activity.SetStatus(ActivityStatusCode.Error, error.Message);
         }
 
-        // Span toplayiciya gecmeden ONCE durdurulur: durdurma ActivityStopped
-        // olayini tetikler ve kok span'in kendisi de tampona girer.
+        // The span is stopped BEFORE it goes to the collector: stopping
+        // triggers the ActivityStopped event, and the root span itself also
+        // enters the buffer.
         activity.Stop();
 
         if (_traceCollector is not null)
@@ -960,22 +967,22 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         activity.Dispose();
     }
 
-    /// <summary>Workflow'un TAMAMINI (kok seviyesi, tek bir "run") kota sayaclarina yazar.</summary>
+    /// <summary>Writes the ENTIRE workflow (root level, a single "run") to the quota counters.</summary>
     /// <remarks>
     /// <para>
-    /// 🚨 HATA-S1-006: workflow calistirmalari daha once kota muhasebesini
-    /// TAMAMEN atliyordu — <c>QuotaEnforcer</c>'a yalniz <c>RunRecordingAgent</c>
-    /// (agent calistirma yolu) degiyordu, <see cref="IWorkflowRunner"/> hicbir
-    /// zaman ona ugramiyordu.
+    /// 🚨 HATA-S1-006: workflow runs used to skip quota accounting
+    /// ENTIRELY — only <c>RunRecordingAgent</c> (the agent run path) reached
+    /// <c>QuotaEnforcer</c>; <see cref="IWorkflowRunner"/> never touched it.
     /// </para>
     /// <para>
-    /// Bir workflow satirinin kendi <c>usage</c>/<c>cost</c>'u yoktur (Faz 20,
-    /// <see cref="CompleteAsync"/>'in kendi notuna bkz.); tuketim, az once
-    /// tamamlanan calistirma agacinin toplamindan (<see cref="RunRecord.TreeUsage"/>/
-    /// <see cref="RunRecord.TreeCost"/>) okunur. Workflow'un TAMAMI TEK bir
-    /// "run" sayilir — adim basina degil (agent tarafinda zaten aciklanan ayni
-    /// "kok mu adim mi" tasarim karari, <see cref="RunRecordingAgent"/>'in
-    /// <c>Depth == 0</c> kuraliyla birebir ayni gerekce).
+    /// A workflow row has no <c>usage</c>/<c>cost</c> of its own (phase 20,
+    /// see the note on <see cref="CompleteAsync"/>); consumption is read from
+    /// the total of the run tree that just completed
+    /// (<see cref="RunRecord.TreeUsage"/>/<see cref="RunRecord.TreeCost"/>).
+    /// The ENTIRE workflow counts as a SINGLE "run" — not per step (the same
+    /// "root vs. step" design decision already explained on the agent side,
+    /// identical in rationale to <see cref="RunRecordingAgent"/>'s
+    /// <c>Depth == 0</c> rule).
     /// </para>
     /// </remarks>
     private async ValueTask RecordQuotaAsync(WorkflowExecution execution, AgentRunScope scope, CancellationToken cancellationToken)
@@ -1012,10 +1019,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            // Temizlik islevsel degildir; basarisizligi calistirmayi etkilemez.
+            // Cleanup is not functional; its failure does not affect the run.
             _logger.LogWarning(
                 exception,
-                "Calistirma {RunId} icin kontrol noktalari silinemedi.",
+                "Could not delete checkpoints for run {RunId}.",
                 execution.RunId);
         }
     }
@@ -1028,8 +1035,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            // Iptal edilemeyen bir yurutme, sinirin asildigi gercegini
-            // degistirmez; hata yutulur ve calistirma yine de kapatilir.
+            // A run that cannot be canceled does not change the fact that the
+            // limit was exceeded; the error is swallowed and the run is
+            // closed anyway.
         }
     }
 
@@ -1064,19 +1072,20 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         };
 
     /// <summary>
-    /// Bir istisnayi calistirma hatasina cevirir; reflection/handler-cagrisi
-    /// sarmalayicilarini (K-400) soyar.
+    /// Converts an exception into a run error; strips reflection/handler-invocation
+    /// wrappers (K-400).
     /// </summary>
     /// <remarks>
-    /// MAF'in ic yurutme boru hatti (ornegin bir Magentic tur-token/dis-yanit
-    /// isleyicisi) bir istisnayi <see cref="TargetInvocationException"/> veya
-    /// tek elemanli bir <see cref="AggregateException"/> ile sarmalayarak
-    /// firlatabilir. Sarmalanmamis mesaj yalniz "Error invoking handler for
-    /// ..." gibi anlamsiz bir metin tasir; gercek neden <c>InnerException</c>'da
-    /// kalir ve sarmalanmadan yazilirsa operator asil arizayi hic goremez
-    /// (HATA-K-003, `MT-WF-071`/`073`). Yalniz TEK katmanli, tek-ic-istisnali
-    /// sarmalayicilar soyulur — dogrudan bir kod hatasi (ornegin coklu ic
-    /// istisnali gercek bir `AggregateException`) oldugu gibi birakilir.
+    /// MAF's internal execution pipeline (for example a Magentic turn-token /
+    /// external-response handler) can throw an exception wrapped in a
+    /// <see cref="TargetInvocationException"/> or a single-element
+    /// <see cref="AggregateException"/>. The wrapped message carries only a
+    /// meaningless text like "Error invoking handler for ..."; the real cause
+    /// stays in <c>InnerException</c>, and if written unwrapped the operator
+    /// never sees the actual fault at all (HATA-K-003, `MT-WF-071`/`073`).
+    /// Only SINGLE-layer, single-inner-exception wrappers are stripped — a
+    /// direct code error (for example a genuine `AggregateException` with
+    /// multiple inner exceptions) is left as is.
     /// </remarks>
     private static RunError ToRunError(Exception exception)
     {
@@ -1094,17 +1103,17 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         };
     }
 
-    /// <summary>Graf duzeyinde bir hatayi calistirma hatasina cevirir.</summary>
+    /// <summary>Converts a graph-level error into a run error.</summary>
     private static RunError ToRunError(WorkflowErrorEvent failure)
         => failure.Exception is { } exception
             ? ToRunError(exception)
             : new RunError
             {
                 Type = nameof(WorkflowErrorEvent),
-                Message = "Workflow yurutmesi bir hata ile durdu.",
+                Message = "Workflow execution stopped with an error.",
             };
 
-    /// <summary>Tek bir yurutmenin tarifi.</summary>
+    /// <summary>The recipe for a single run.</summary>
     private sealed record WorkflowExecution
     {
         public required string WorkflowName { get; init; }
@@ -1115,28 +1124,28 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
         public required string? Message { get; init; }
 
-        /// <summary>Sürdürulecek kontrol noktasi. Yeni calistirmada <see langword="null"/>.</summary>
+        /// <summary>The checkpoint to resume from. <see langword="null"/> for a new run.</summary>
         public required string? ResumeFrom { get; init; }
 
         /// <summary>
-        /// Bekleyen isteklere verilecek yanitlar. Yalnizca <c>/respond</c> yolunda dolu.
+        /// The answers to give to pending requests. Only populated on the <c>/respond</c> path.
         /// </summary>
         public IReadOnlyList<WorkflowAnswer> Answers { get; init; } = [];
     }
 
-    /// <summary>Bir yanit gonderme denemesinin sonucu.</summary>
-    /// <param name="Delivered">Yanit yurutmeye gonderildi mi.</param>
-    /// <param name="Failure">Yanit cevrilemediyse hata.</param>
+    /// <summary>The result of one attempt to send a response.</summary>
+    /// <param name="Delivered">Whether the response was sent to execution.</param>
+    /// <param name="Failure">The error, if the response could not be converted.</param>
     private readonly record struct ResponseDelivery(bool Delivered, RunError? Failure);
 
-    /// <summary>Pompadan cikan tek bir sonuc: olay, hata, iptal veya bekleme.</summary>
+    /// <summary>A single result coming out of the pump: an event, an error, a cancellation, or a wait.</summary>
     private readonly record struct PumpedEvent(RunEvent? Event, RunError? Failure, bool Canceled, bool Awaiting)
     {
         public static PumpedEvent FromEvent(RunEvent runEvent) => new(runEvent, null, false, false);
 
         public static PumpedEvent FromFailure(RunError error) => new(null, error, false, false);
 
-        /// <summary>Yurutme bir insan yanitini bekliyor.</summary>
+        /// <summary>Execution is waiting for a human answer.</summary>
         public static PumpedEvent FromAwaiting() => new(null, null, false, true);
 
         public static PumpedEvent FromCancellation(bool timedOut)
@@ -1146,9 +1155,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                     new RunError
                     {
                         Type = nameof(TimeoutException),
-                        Message = "Workflow zaman asimina ugradi ve durduruldu. " +
-                                  "'AgentPrism:Workflows:RunTimeout' degerini yukseltin veya " +
-                                  "grafi kisaltin.",
+                        Message = "Workflow timed out and was stopped. " +
+                                  "Raise the 'AgentPrism:Workflows:RunTimeout' value, or " +
+                                  "shorten the graph.",
                     },
                     false,
                     false)

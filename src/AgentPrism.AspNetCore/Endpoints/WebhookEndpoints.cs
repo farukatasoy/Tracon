@@ -8,24 +8,24 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
-/// <summary>Webhook abonelik ve teslim uclari (Faz 21).</summary>
+/// <summary>Webhook subscription and delivery endpoints (Phase 21).</summary>
 /// <remarks>
 /// <para>
-/// 🚨 Bu uclarin hicbiri bir <strong>sir</strong> kabul etmez veya dondurmez.
-/// Sozlesmede sir alani <em>hic yoktur</em>: istek govdesi yalnizca
-/// <see cref="WebhookSaveRequest.SecretConfigurationKey"/> (anahtarin ADI)
-/// tasir (K-059). Fazladan gonderilen bir <c>secret</c> alani baglanmaz ve
-/// sessizce yok sayilir.
+/// 🚨 None of these endpoints accept or return a <strong>secret</strong>.
+/// The contract has <em>no secret field at all</em>: the request body carries
+/// only <see cref="WebhookSaveRequest.SecretConfigurationKey"/> (the NAME of
+/// the key) (K-059). An extra <c>secret</c> field sent by the client is not
+/// bound and is silently ignored.
 /// </para>
 /// <para>
-/// Tum bagimliliklar <c>[FromServices]</c> ile acikca isaretlenir (Faz 9 dersi).
+/// All dependencies are explicitly marked with <c>[FromServices]</c> (lesson from Phase 9).
 /// </para>
 /// </remarks>
 internal static class WebhookEndpoints
 {
-    /// <summary>Webhook uclarini baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Maps the webhook endpoints.</summary>
+    /// <param name="builder">The endpoint group.</param>
+    /// <param name="roles">The resolved role policies.</param>
     public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/webhooks", ListAsync)
@@ -33,51 +33,51 @@ internal static class WebhookEndpoints
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismListWebhooks")
             .WithTags("AgentPrism", "Webhooks")
-            .WithSummary("Bir kiracinin webhook aboneliklerini listeler.")
-            .WithDescription("Yanit hicbir sir tasimaz; yalnizca imzalama anahtarinin ADI doner.");
+            .WithSummary("Lists a tenant's webhook subscriptions.")
+            .WithDescription("The response carries no secret; only the NAME of the signing key is returned.");
 
         builder.MapGet("/api/webhooks/{name}", GetAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismGetWebhook")
             .WithTags("AgentPrism", "Webhooks")
-            .WithSummary("Tek bir aboneligi getirir.");
+            .WithSummary("Gets a single subscription.");
 
         builder.MapPut("/api/webhooks/{name}", SaveAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismSaveWebhook")
             .WithTags("AgentPrism", "Webhooks")
-            .WithSummary("Webhook aboneligi olusturur veya gunceller.")
+            .WithSummary("Creates or updates a webhook subscription.")
             .Accepts<WebhookSaveRequest>("application/json")
             .WithDescription(
-                "Adres SSRF denetiminden gecer: yalnizca https kabul edilir (http yalnizca " +
-                "AllowInsecureHttp acikken ve loopback hedeflerine). Ozel ag adresleri teslim " +
-                "aninda da yeniden denetlenir.");
+                "The address passes an SSRF check: only https is accepted (http only when " +
+                "AllowInsecureHttp is enabled and only to loopback targets). Private network " +
+                "addresses are re-checked again at delivery time.");
 
         builder.MapDelete("/api/webhooks/{name}", DeleteAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismDeleteWebhook")
             .WithTags("AgentPrism", "Webhooks")
-            .WithSummary("Bir aboneligi ve teslim gecmisini siler.");
+            .WithSummary("Deletes a subscription and its delivery history.");
 
         builder.MapPost("/api/webhooks/{name}/test", TestAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismTestWebhook")
             .WithTags("AgentPrism", "Webhooks")
-            .WithSummary("Aboneligin ucuna bir sinama olayi gonderir.")
+            .WithSummary("Sends a test event to the subscription's endpoint.")
             .WithDescription(
-                "Olay kuyruga yazilir ve arka plan iscisi teslim eder; yanit teslimin " +
-                "sonucunu degil, kuyruga alindigini bildirir.");
+                "The event is written to the queue and delivered by a background worker; the " +
+                "response reports that it was queued, not the delivery outcome.");
 
         builder.MapGet("/api/webhooks/{name}/deliveries", ListDeliveriesAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismListWebhookDeliveries")
             .WithTags("AgentPrism", "Webhooks")
-            .WithSummary("Bir aboneligin teslim gecmisini listeler.");
+            .WithSummary("Lists a subscription's delivery history.");
     }
 
     private static async Task<Ok<IReadOnlyList<WebhookSubscription>>> ListAsync(
@@ -128,9 +128,10 @@ internal static class WebhookEndpoints
 
         var options = webhookOptions.CurrentValue;
 
-        // 🚨 SSRF: kaydetme aninda semaya gore denetlenir. DNS cozumlemesi
-        // burada YAPILMAZ (kayit yavaslar ve hedef o an erisilemez olabilir);
-        // gercek koruma teslim aninda, baglanti geri cagrisinda uygulanir.
+        // 🚨 SSRF: checked by scheme at save time. DNS resolution is NOT done
+        // here (it would slow down saving and the target might be
+        // unreachable at that moment); the actual protection is applied at
+        // delivery time, in the connection callback.
         var verdict = WebhookUrlValidator.ValidateFormat(request.Url, options);
 
         if (!verdict.IsAllowed)
@@ -170,8 +171,8 @@ internal static class WebhookEndpoints
                 Headers = request.Headers ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
                 Enabled = request.Enabled,
 
-                // Kaydetmek sayaci sifirlar: yonetici adresi duzelttiginde
-                // abonelik hemen kapanmis durumda kalmamalidir.
+                // Saving resets the counter: when an admin fixes the address,
+                // the subscription should not remain immediately disabled.
                 ConsecutiveFailures = 0,
                 CreatedAt = previous?.CreatedAt ?? now,
                 UpdatedAt = now,
@@ -246,9 +247,9 @@ internal static class WebhookEndpoints
             return Invalid($"Subscription '{name}' is disabled; enable it first.");
         }
 
-        // Sinama olayi, aboneligin olay listesinden BAGIMSIZ gonderilir: bir
-        // ucun ayakta oldugunu dogrulamak icin listeye 'test.ping' eklemek
-        // gerekmemelidir.
+        // The test event is sent INDEPENDENTLY of the subscription's event
+        // list: adding 'test.ping' to the list should not be required just
+        // to verify that an endpoint is alive.
         var queued = await PublishTestAsync(publisher, store, subscription, tenants, timeProvider, cancellationToken)
             .ConfigureAwait(false);
 
@@ -303,10 +304,11 @@ internal static class WebhookEndpoints
     {
         var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
 
-        // Abonelik 'test.ping' olayina abone degilse gecici olarak listeye
-        // eklenir; yayinci abonelikleri olaya gore secer. Kalici degisiklik
-        // yapilmaz, degistirilmis kopya yalnizca bu cagri icin kaydedilir ve
-        // hemen geri alinir.
+        // If the subscription is not subscribed to the 'test.ping' event, it
+        // is temporarily added to the list; the publisher selects
+        // subscriptions by event. No permanent change is made — the
+        // modified copy is saved only for this call and immediately
+        // reverted.
         if (subscription.Events.Contains(WebhookEvents.Test, StringComparer.Ordinal))
         {
             return await publisher
@@ -337,10 +339,10 @@ internal static class WebhookEndpoints
     private static WebhookEventPayload BuildTestPayload(DateTimeOffset now)
         => new() { OccurredAt = now };
 
-    /// <summary>Bir aboneligi denetim izi icin ozetler.</summary>
+    /// <summary>Summarizes a subscription for the audit trail.</summary>
     /// <remarks>
-    /// Ozette yalnizca anahtarin ADI vardir. Sirrin kendisi hicbir zaman bu
-    /// surecte bir kayda yazilmaz (K-059).
+    /// The summary contains only the NAME of the key. The secret itself is
+    /// never written to a record in this process (K-059).
     /// </remarks>
     private static string Describe(WebhookSubscription subscription)
     {
@@ -388,41 +390,42 @@ internal static class WebhookEndpoints
             statusCode: StatusCodes.Status400BadRequest);
 }
 
-/// <summary>Bir webhook aboneligini kaydetmek icin istek govdesi.</summary>
+/// <summary>The request body for saving a webhook subscription.</summary>
 /// <remarks>
-/// 🚨 Bu sozlesmede <strong>sir alani yoktur</strong>. Istemcinin gonderdigi
-/// fazladan bir <c>secret</c> alani baglanmaz ve hicbir yere yazilmaz (K-059).
+/// 🚨 This contract has <strong>no secret field</strong>. An extra
+/// <c>secret</c> field sent by the client is not bound and is not written
+/// anywhere (K-059).
 /// </remarks>
 public sealed record WebhookSaveRequest
 {
-    /// <summary>Olaylarin gonderilecegi adres. Yalnizca <c>https</c> (veya loopback <c>http</c>).</summary>
+    /// <summary>The address events are sent to. Only <c>https</c> (or loopback <c>http</c>).</summary>
     public string? Url { get; init; }
 
-    /// <summary>Abone olunan olay adlari. Bkz. <see cref="WebhookEvents"/>.</summary>
+    /// <summary>The names of the subscribed events. See <see cref="WebhookEvents"/>.</summary>
     public IReadOnlyList<string>? Events { get; init; }
 
     /// <summary>
-    /// Imzalama sirrinin okunacagi yapilandirma anahtarinin <strong>adi</strong>.
-    /// Sirrin kendisi degildir.
+    /// The <strong>name</strong> of the configuration key from which the signing secret is read.
+    /// Not the secret itself.
     /// </summary>
     public string? SecretConfigurationKey { get; init; }
 
-    /// <summary>Her istege eklenecek ek basliklar.</summary>
+    /// <summary>Additional headers to add to every request.</summary>
     public IReadOnlyDictionary<string, string>? Headers { get; init; }
 
-    /// <summary>Abonelik etkin mi.</summary>
+    /// <summary>Whether the subscription is enabled.</summary>
     public bool Enabled { get; init; } = true;
 }
 
-/// <summary>Sinama olayinin yaniti.</summary>
+/// <summary>The response for the test event.</summary>
 public sealed record WebhookTestResponse
 {
-    /// <summary>Abonelik adi.</summary>
+    /// <summary>The subscription name.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Olay kuyruga yazildi mi.</summary>
+    /// <summary>Whether the event was written to the queue.</summary>
     public required bool Queued { get; init; }
 
-    /// <summary>Kullaniciya gosterilecek aciklama.</summary>
+    /// <summary>The description shown to the user.</summary>
     public required string Message { get; init; }
 }

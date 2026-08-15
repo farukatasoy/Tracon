@@ -1,34 +1,37 @@
 <!--
-  DIKKAT: Bu proje SDK'yi acik Import ile yukler, `Sdk="..."` niteligi ile degil.
+  WARNING: This project loads the SDK via an explicit Import, not via the
+  `Sdk="..."` attribute.
 
-  Sebep olculdu: `Sdk` niteligi kullanildiginda SDK hedefleri projenin EN SONUNA
-  yerlestirilir. AgentPrism.UI.Frontend.targets ondan once yuklenir ve icindeki
-  BeforeTargets="AssignTargetPaths" hedefi soyle bir mesajla sessizce atilir:
+  Reason, measured: when the `Sdk` attribute is used, the SDK targets are
+  placed at the VERY END of the project. AgentPrism.UI.Frontend.targets loads
+  before that, and its BeforeTargets="AssignTargetPaths" target is silently
+  dropped with a message like:
 
       The target "AssignTargetPaths" listed in a BeforeTargets attribute
       does not exist in the project, and will be ignored.
 
-  Sonuc: arayuz varliklari hic gomulmez ve paket sessizce arayuzsuz uretilir.
-  Acik Import biciminde frontend hedefleri SDK hedeflerinden SONRA yuklenir.
+  Result: the UI assets are never embedded, and the package is silently
+  produced without a UI. With the explicit Import form, the frontend targets
+  load AFTER the SDK targets.
 -->
 <Project>
 
   <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
 
   <PropertyGroup>
-    <Description>AgentPrismUI - gomulu yonetim arayuzu. React + TypeScript ile yazilmis tek sayfa uygulama, assembly icine gomulur ve /agentprism altindan sunulur. Tuketici projede hicbir JavaScript bagimliligi olusturmaz.</Description>
+    <Description>AgentPrismUI - embedded management UI. Single-page application written with React + TypeScript, embedded in the assembly, and served under /agentprism. Creates no JavaScript dependency in the consumer's project.</Description>
     <PackageTags>$(CommonPackageTags);ui;dashboard;devui;playground</PackageTags>
-    <!-- Gomulu varlik tarama ve ASP.NET Core baglantisi nedeniyle AOT vaadi verilemez. -->
+    <!-- No AOT promise can be made because of embedded asset scanning and the ASP.NET Core dependency. -->
     <AgentPrismAotCompatible>false</AgentPrismAotCompatible>
   </PropertyGroup>
 
   <PropertyGroup Label="Frontend build">
     <!--
-      Frontend kaynagi frontend/ altinda. Vite ciktisi wwwroot/ icine yazilir ve
-      EmbeddedResource olarak assembly'ye gomulur. Zincir
-      AgentPrism.UI.Frontend.targets icinde tanimlidir ve artimsaldir.
+      The frontend source lives under frontend/. The Vite output is written into
+      wwwroot/ and embedded in the assembly as an EmbeddedResource. The chain is
+      defined in AgentPrism.UI.Frontend.targets and is incremental.
 
-      Hizli bir ic dongu icin kapatilabilir:  dotnet build -p:AgentPrismFrontendEnabled=false
+      Can be disabled for a fast inner loop:  dotnet build -p:AgentPrismFrontendEnabled=false
     -->
     <AgentPrismFrontendEnabled Condition=" '$(AgentPrismFrontendEnabled)' == '' ">true</AgentPrismFrontendEnabled>
     <AgentPrismFrontendRoot>$(MSBuildProjectDirectory)/frontend</AgentPrismFrontendRoot>
@@ -44,8 +47,8 @@
   </ItemGroup>
 
   <!--
-    Frontend kaynaklarini IDE agacinda goster, derlemeye dahil etme.
-    node_modules ve derleme ciktisi haric tutulur.
+    Show the frontend sources in the IDE tree, but do not include them in the
+    build. node_modules and the build output are excluded.
   -->
   <ItemGroup>
     <None Include="frontend/**/*"

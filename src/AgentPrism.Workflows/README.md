@@ -1,10 +1,10 @@
 # AgentPrism.Workflows
 
-AgentPrism icin workflow yurutme motoru. Katalogdaki agent'lari hazir desenlerle
-birbirine baglar, her yurutmeyi `runs` tablosuna kaydeder ve kontrol
-noktalarindan surdurulebilir kilar.
+Workflow execution engine for AgentPrism. It chains catalog agents together
+with ready-made patterns, records every run in the `runs` table, and makes
+runs resumable from checkpoints.
 
-## Kurulum
+## Setup
 
 ```csharp
 builder.AddAgentPrism()
@@ -13,81 +13,81 @@ builder.AddAgentPrism()
        .UseWorkflows();
 ```
 
-## Arayuzden tanimlanan workflow
+## Workflows defined from the UI
 
-Bir workflow tanimi bir **graftir**, kod degildir: yalnizca katalogdaki
-agent'larin adlarini ve bir deseni tasir.
+A workflow definition is a **graph**, not code: it only carries the names of
+catalog agents and a pattern.
 
-| Desen | Ne yapar |
+| Pattern | What it does |
 |-------|----------|
-| `Sequential` | Agent'lar sirayla calisir; her cikti sonrakinin girdisidir |
-| `Concurrent` | Agent'lar ayni anda calisir; sonuclar birlestirilir |
-| `Handoff` | Ilk agent isi baslatir, gerektiginde digerlerine devreder |
-| `GroupChat` | Round-robin bir yonetici sirayi dagitir |
-| `Magentic` | Yonetici agent plan kurar, ilerlemeyi izler, yeniden planlar |
+| `Sequential` | Agents run in order; each output feeds the next input |
+| `Concurrent` | Agents run at the same time; the results are merged |
+| `Handoff` | The first agent starts the work, handing off to others as needed |
+| `GroupChat` | A round-robin manager distributes the turn |
+| `Magentic` | A manager agent builds a plan, tracks progress, and replans |
 
 ```http
-PUT /agentprism/api/workflows/inceleme
+PUT /agentprism/api/workflows/review
 Content-Type: application/json
 
 {
   "kind": "Sequential",
-  "agentNames": ["arastirmaci", "yazar", "editor"]
+  "agentNames": ["researcher", "writer", "editor"]
 }
 ```
 
-## Kodda tanimlanan workflow
+## Workflows defined in code
 
-Serbest graf — ozel `Executor` tipleri, kosullu kenarlar, alt workflow'lar —
-yalnizca kodda tanimlanir:
+A free-form graph — custom `Executor` types, conditional edges, sub-workflows
+— is defined only in code:
 
 ```csharp
-builder.AddWorkflow("ozel-graf", services =>
+builder.AddWorkflow("custom-graph", services =>
 {
     var start = ExecutorBindingExtensions.BindAsExecutor<string, string>(
-        input => input.ToUpperInvariant(), id: "buyut");
+        input => input.ToUpperInvariant(), id: "uppercase");
 
-    return new WorkflowBuilder(start).WithName("ozel-graf").Build();
+    return new WorkflowBuilder(start).WithName("custom-graph").Build();
 });
 ```
 
-## Calistirma
+## Running
 
 ```http
-POST /agentprism/api/workflows/inceleme/run
-{ "message": "Q3 raporunu incele" }
+POST /agentprism/api/workflows/review/run
+{ "message": "Review the Q3 report" }
 ```
 
-Yanit SSE'dir. Her cerceve bir `RunEvent` tasir; ilk cerceve calistirma
-kimligini bildirir. Workflow icinde cagrilan her agent kendi `runs` satirini
-acar ve workflow satirinin altina baglanir — `GET /api/runs/{id}/tree` agacin
-tamamini dondurur.
+The response is SSE. Every frame carries a `RunEvent`; the first frame reports
+the run id. Every agent called inside the workflow opens its own `runs` row
+and attaches under the workflow row — `GET /api/runs/{id}/tree` returns the
+whole tree.
 
-## Kontrol noktalari
+## Checkpoints
 
-Her super-step'te bir kontrol noktasi yazilir. Yarim kalan bir yurutme
-ortasindan devam ettirilebilir:
+A checkpoint is written at every super-step. A run that stopped partway
+through can be resumed from where it left off:
 
 ```http
 GET  /agentprism/api/workflows/runs/{runId}/checkpoints
 POST /agentprism/api/workflows/runs/{runId}/resume
 ```
 
-Kalici sürdürme `UsePostgreSql()` gerektirir; bellek ici kurulumda kontrol
-noktalari surec omruyle sinirlidir.
+Durable resuming requires `UsePostgreSql()`; in an in-memory setup,
+checkpoints are limited to the lifetime of the process.
 
-## Sinirlar
+## Limits
 
-| Ayar | Varsayilan | Ne yapar |
+| Setting | Default | What it does |
 |------|-----------|----------|
-| `MaxConcurrentRuns` | 4 | Ayni anda calisan workflow sayisi |
-| `RunTimeout` | 10 dk | Tek bir calistirmanin en fazla suresi |
-| `MaxSuperSteps` | 100 | Sonsuz dongu korumasi |
-| `EnableCheckpointing` | `true` | Kontrol noktasi yazimi |
+| `MaxConcurrentRuns` | 4 | The number of workflows running at the same time |
+| `RunTimeout` | 10 min | The maximum duration of a single run |
+| `MaxSuperSteps` | 100 | Infinite-loop protection |
+| `EnableCheckpointing` | `true` | Checkpoint writing |
 
-Bu paket **AOT uyumlu degildir**: yurutme motoru yansima kullanir. Diger
-AgentPrism paketleri etkilenmez.
+This package is **not AOT compatible**: the execution engine uses reflection.
+Other AgentPrism packages are not affected.
 
-## Lisans
+## License
 
 MIT

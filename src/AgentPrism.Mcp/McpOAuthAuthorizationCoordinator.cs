@@ -9,29 +9,30 @@ using ModelContextProtocol.Client;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="IMcpOAuthCoordinator"/> uygulamasi: OAuth Mod 1 (yetkilendirme
-/// kodu) akisini, sunucu tarafinda beklenen bir tarayici yonlendirmesiyle
-/// koprulemektedir.
+/// The <see cref="IMcpOAuthCoordinator"/> implementation: bridges the OAuth
+/// Mode 1 (authorization code) flow with the browser redirect the server
+/// expects.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <c>ModelContextProtocol.Core</c>'un <c>ClientOAuthOptions.AuthorizationCallbackHandler</c>'i
-/// <c>McpClient.CreateAsync</c> cagrisi <strong>icinde</strong>, o cagriyi
-/// tamamlamadan once cagrilir ve yetkilendirme sonucunu (kod) bekler. Bu sinif
-/// o beklemeyi iki <see cref="TaskCompletionSource{TResult}"/> ile HTTP
-/// istekleri arasina koprule:
+/// <c>ModelContextProtocol.Core</c>'s <c>ClientOAuthOptions.AuthorizationCallbackHandler</c>
+/// is called <strong>inside</strong> the <c>McpClient.CreateAsync</c> call,
+/// before that call completes, and awaits the authorization result (the
+/// code). This class bridges that wait across HTTP requests using two
+/// <see cref="TaskCompletionSource{TResult}"/> instances:
 /// </para>
 /// <list type="number">
-///   <item><description><see cref="StartAsync"/> bir baglanti girisimini arka planda baslatir ve
-///   yalnizca yetkilendirme adresi hazir olana kadar bekler.</description></item>
-///   <item><description>Yonetici saglayicida onay verir; saglayici <c>/oauth/callback</c>'e doner.</description></item>
-///   <item><description><see cref="CompleteAsync"/> kodu arka plandaki bekleyen goreve iletir ve
-///   token degisiminin sonucunu bekler.</description></item>
+///   <item><description><see cref="StartAsync"/> starts a connection attempt in the
+///   background and waits only until the authorization address is ready.</description></item>
+///   <item><description>The administrator grants consent on the provider; the provider
+///   redirects to <c>/oauth/callback</c>.</description></item>
+///   <item><description><see cref="CompleteAsync"/> forwards the code to the pending
+///   background task and awaits the outcome of the token exchange.</description></item>
 /// </list>
 /// <para>
-/// Basarili bir degisim sonrasi token'lar <see cref="McpOAuthTokenCacheRegistry"/>
-/// uzerinden <see cref="McpToolCatalog"/>'un arka plan yeniden baglanmalariyla
-/// paylasilir; hicbir zaman veritabanina yazilmaz.
+/// After a successful exchange, the tokens are shared with
+/// <see cref="McpToolCatalog"/>'s background reconnections through
+/// <see cref="McpOAuthTokenCacheRegistry"/>; they are never written to the database.
 /// </para>
 /// </remarks>
 internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
@@ -122,9 +123,10 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
         }
         catch (Exception)
         {
-            // Ya zaman asimi (yetkilendirme adresi hic uretilemedi) ya da arka
-            // plan baglanti girisimi OAuth adimina varmadan basarisiz oldu
-            // (ornegin DNS/TLS hatasi); ikisi de ayni "baglanilamadi" sonucudur.
+            // Either a timeout (the authorization address was never
+            // produced) or the background connection attempt failed before
+            // reaching the OAuth step (e.g. a DNS/TLS error); both are the
+            // same "could not connect" outcome.
             _pending.TryRemove(state, out _);
 
             return new McpOAuthStartResult { Status = McpOAuthOperationStatus.ConnectionFailed };
@@ -148,7 +150,7 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
         if (string.IsNullOrEmpty(code))
         {
             pending.CodeReceived.TrySetException(
-                new InvalidOperationException("Saglayici yetkilendirme kodu dondurmedi; kullanici reddetmis olabilir."));
+                new InvalidOperationException("The provider did not return an authorization code; the user may have declined."));
         }
         else
         {
@@ -175,15 +177,16 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
             {
                 Status = McpOAuthOperationStatus.AuthorizationFailed,
                 ServerName = pending.ServerName,
-                Error = "Token degisimi zaman asimina ugradi.",
+                Error = "The token exchange timed out.",
             };
         }
     }
 
     /// <summary>
-    /// Bir <c>McpClient.CreateAsync</c> baglantisini etkilesimli OAuth ile
-    /// baslatir. Yetkilendirme adresi hazir olunca <see cref="PendingAuthorization.AuthorizationUriReady"/>'i,
-    /// islem bitince <see cref="PendingAuthorization.Completed"/>'i tamamlar.
+    /// Starts a <c>McpClient.CreateAsync</c> connection with interactive
+    /// OAuth. Completes <see cref="PendingAuthorization.AuthorizationUriReady"/>
+    /// once the authorization address is ready, and
+    /// <see cref="PendingAuthorization.Completed"/> once the process finishes.
     /// </summary>
     private async Task RunAuthorizationAsync(string state, McpServerDefinition server, Uri baseUri, PendingAuthorization pending)
     {
@@ -217,7 +220,7 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
 
             var transport = new HttpClientTransport(transportOptions, _loggerFactory);
 
-            // Yoneticinin saglayicida onay vermesi icin makul bir ust sinir.
+            // A reasonable upper bound for the administrator to grant consent on the provider.
             using var timeout = new CancellationTokenSource(AuthorizationWindow);
             var client = await McpClient
                 .CreateAsync(transport, clientOptions: null, _loggerFactory, timeout.Token)
@@ -227,8 +230,9 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
             {
                 pending.Completed.TrySetResult((true, null));
 
-                // Yeni token'lar hazir; katalogu hemen tazele ki tool'lar bir
-                // sonraki periyodik dongu yerine simdi gorunsun.
+                // New tokens are ready; refresh the catalog now so tools
+                // become visible immediately instead of waiting for the next
+                // periodic cycle.
                 await _catalog.RefreshAsync(CancellationToken.None).ConfigureAwait(false);
             }
             finally
@@ -241,7 +245,7 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
             pending.AuthorizationUriReady.TrySetException(ex);
             pending.Completed.TrySetResult((false, ex.Message));
 
-            _logger.LogWarning(ex, "MCP sunucusu '{ServerName}' icin OAuth yetkilendirmesi basarisiz oldu.", server.Name);
+            _logger.LogWarning(ex, "OAuth authorization for MCP server '{ServerName}' failed.", server.Name);
         }
         finally
         {
@@ -249,7 +253,7 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
         }
     }
 
-    /// <summary>Suresi dolmus (yoneticinin akisi terk ettigi) bekleyen kayitlari temizler.</summary>
+    /// <summary>Clears pending entries that have expired (the administrator abandoned the flow).</summary>
     private void PurgeExpired()
     {
         var cutoff = DateTimeOffset.UtcNow - AuthorizationWindow;

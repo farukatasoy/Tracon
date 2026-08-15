@@ -7,20 +7,21 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Mod A: <see cref="AgentDefinition.McpResourceUris"/>'i her cagrida
-/// baglama ekleyen <see cref="AIContextProvider"/>.
+/// Mode A: an <see cref="AIContextProvider"/> that adds
+/// <see cref="AgentDefinition.McpResourceUris"/> to the context on every call.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Icerik <see cref="McpConnection"/>'in kendi onbellegi uzerinden okunur;
-/// bu saglayici durumsuzdur ve derlenmis agent onbellegiyle (<c>CompiledAgentCache</c>)
-/// birlikte uzun sure yasar. Ongorulebilirlik boylece korunur: sunucu
-/// degismedigi surece her cagrida ayni icerik girer; degisince abonelik
-/// onbellegi gecersiz kilar ve bir sonraki okuma taze ceker (bolum 22.2).
+/// Content is read through <see cref="McpConnection"/>'s own cache; this
+/// provider is stateless and lives long alongside the compiled agent cache
+/// (<c>CompiledAgentCache</c>). Predictability is preserved this way: as
+/// long as the server does not change, the same content is added on every
+/// call; when it changes, the subscription invalidates the cache and the
+/// next read fetches it fresh (section 22.2).
 /// </para>
 /// <para>
-/// Yalnizca sunucunun <c>ListResourcesAsync</c> ile bildirdigi URI'ler
-/// okunur; kayitli olmayan bir referans sessizce atlanir ve loglanir.
+/// Only URIs the server declares via <c>ListResourcesAsync</c> are read; an
+/// undeclared reference is silently skipped and logged.
 /// </para>
 /// </remarks>
 internal sealed class McpResourceContextProvider : AIContextProvider
@@ -65,7 +66,7 @@ internal sealed class McpResourceContextProvider : AIContextProvider
             if (remainingBudget <= 0)
             {
                 builder.AppendLine(
-                    "[MCP kaynak toplam boyut siniri asildi; kalan kaynaklar atlandi]");
+                    "[MCP resource total size limit exceeded; remaining resources skipped]");
 
                 break;
             }
@@ -88,7 +89,7 @@ internal sealed class McpResourceContextProvider : AIContextProvider
     {
         if (!McpResourceReference.TryParse(reference, out var serverName, out var uri))
         {
-            _logger.LogWarning("MCP kaynak referansi '{Reference}' gecersiz; '{{sunucu}}:{{uri}}' bicimi bekleniyor.", reference);
+            _logger.LogWarning("MCP resource reference '{Reference}' is invalid; expected format is '{{server}}:{{uri}}'.", reference);
 
             return;
         }
@@ -96,7 +97,7 @@ internal sealed class McpResourceContextProvider : AIContextProvider
         if (!_catalog.TryGetConnection(_tenantId, serverName, out var connection))
         {
             _logger.LogWarning(
-                "MCP sunucusu '{ServerName}' su an erisilemiyor; '{Uri}' kaynagi bu calistirmada baglama eklenmeyecek.",
+                "MCP server '{ServerName}' is currently unreachable; resource '{Uri}' will not be added to context for this run.",
                 serverName,
                 uri);
 
@@ -112,7 +113,7 @@ internal sealed class McpResourceContextProvider : AIContextProvider
         if (status != McpOperationStatus.Ok || content is null)
         {
             _logger.LogWarning(
-                "MCP kaynagi '{ServerName}:{Uri}' okunamadi ({Status}); bu calistirmada baglama eklenmeyecek.",
+                "Could not read MCP resource '{ServerName}:{Uri}' ({Status}); it will not be added to context for this run.",
                 serverName,
                 uri,
                 status);
@@ -120,13 +121,13 @@ internal sealed class McpResourceContextProvider : AIContextProvider
             return;
         }
 
-        builder.AppendLine(CultureInfo.InvariantCulture, $"### MCP kaynagi: {serverName}:{uri}");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"### MCP resource: {serverName}:{uri}");
 
         if (content.IsBinary)
         {
             builder.AppendLine(
                 CultureInfo.InvariantCulture,
-                $"[ikili icerik, {content.ByteSize} bayt, {content.MimeType ?? "bilinmeyen tur"}]");
+                $"[binary content, {content.ByteSize} bytes, {content.MimeType ?? "unknown type"}]");
         }
         else
         {
@@ -136,7 +137,7 @@ internal sealed class McpResourceContextProvider : AIContextProvider
             {
                 builder.AppendLine(
                     CultureInfo.InvariantCulture,
-                    $"[kirpildi: sinir {perResourceLimit} bayt, ham boyut {content.ByteSize} bayt]");
+                    $"[truncated: limit {perResourceLimit} bytes, raw size {content.ByteSize} bytes]");
             }
         }
 
@@ -144,7 +145,7 @@ internal sealed class McpResourceContextProvider : AIContextProvider
     }
 }
 
-/// <summary><see cref="IMcpResourceContextProviderFactory"/> uygulamasi.</summary>
+/// <summary>The <see cref="IMcpResourceContextProviderFactory"/> implementation.</summary>
 internal sealed class McpResourceContextProviderFactory : IMcpResourceContextProviderFactory
 {
     private readonly McpToolCatalog _catalog;

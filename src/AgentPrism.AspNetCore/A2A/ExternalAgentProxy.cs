@@ -7,25 +7,25 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism;
 
 /// <summary>
-/// Katalogdaki bir agent'i A2A sunucusuna baglamak icin geciktirilmis (lazy) bir
-/// <see cref="AIAgent"/> sarmalayicisi.
+/// A lazy <see cref="AIAgent"/> wrapper for connecting a catalog agent to the
+/// A2A server.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <c>AddA2AServer(services, AIAgent agent, ...)</c> BIR NESNE ORNEGI ister ve bu
-/// cagri <see cref="IServiceProvider"/> daha kurulmadan (<c>Build()</c> ONCESI,
-/// <c>UseA2A()</c> icinde) yapilmalidir (bolum 50.5) — ama katalogdaki gercek
-/// agent yalniz kurulmus bir kap uzerinden cozulebilir. Bu sinif iki zamanlamayi
-/// <see cref="CallableAgentResolver"/>'in kullandigi ayni "gec cozum" deseniyle
-/// uzlastirir: <see cref="AttachServices"/> <c>MapAgentPrismA2A()</c> tarafindan
-/// (uygulama <c>Build()</c> olduktan sonra) BIR KEZ cagrilir, gercek cozum ise
-/// HER cagrida yapilir.
+/// <c>AddA2AServer(services, AIAgent agent, ...)</c> requires an OBJECT
+/// INSTANCE, and this call must be made BEFORE the <see cref="IServiceProvider"/>
+/// is built (<c>Build()</c>, inside <c>UseA2A()</c>) (section 50.5) — but the
+/// real catalog agent can only be resolved through a built container. This
+/// class reconciles the two timings with the same "lazy resolution" pattern
+/// used by <see cref="CallableAgentResolver"/>: <see cref="AttachServices"/> is
+/// called ONCE by <c>MapAgentPrismA2A()</c> (after the application is
+/// <c>Build()</c>-ed), while the actual resolution happens on EVERY call.
 /// </para>
 /// <para>
-/// <see cref="ChildAgentInvoker"/>'dan FARKLIDIR: o bir agent'in BASKA bir
-/// agent'i cagirmasini modeller ve ambient bir UST kapsam (derinlik, butce,
-/// kiraci) bekler. Bu sinif ise HER ZAMAN yeni bir KOK calistirma baslatir —
-/// dis cagiranin boyle bir ust kapsami yoktur.
+/// DIFFERS from <see cref="ChildAgentInvoker"/>: that models one agent calling
+/// ANOTHER agent and expects an ambient PARENT scope (depth, budget, tenant).
+/// This class ALWAYS starts a new ROOT run — an external caller has no such
+/// parent scope.
 /// </para>
 /// </remarks>
 internal sealed class ExternalAgentProxy : AIAgent
@@ -33,8 +33,8 @@ internal sealed class ExternalAgentProxy : AIAgent
     private readonly string _agentName;
     private IServiceProvider? _services;
 
-    /// <summary>Yeni bir gec-cozumlu vekil olusturur.</summary>
-    /// <param name="agentName">Katalogdaki hedef agent'in adi.</param>
+    /// <summary>Creates a new lazily-resolved proxy.</summary>
+    /// <param name="agentName">Name of the target agent in the catalog.</param>
     public ExternalAgentProxy(string agentName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentName);
@@ -46,20 +46,20 @@ internal sealed class ExternalAgentProxy : AIAgent
     public override string Name => _agentName;
 
     /// <summary>
-    /// Her cagriya kopyalanacak butce sablonu. Nesnenin kendisi PAYLASILMAZ;
-    /// her <c>RunCoreAsync</c> cagrisi kendi <see cref="AgentRunBudget"/>
-    /// ornegini uretir.
+    /// Budget template copied for each call. The object itself is NOT shared;
+    /// each <c>RunCoreAsync</c> call produces its own <see cref="AgentRunBudget"/>
+    /// instance.
     /// </summary>
     public AgentRunBudget BudgetTemplate { get; set; } = new() { MaxDepth = 1 };
 
     /// <summary>
-    /// Uygulama <c>Build()</c> olduktan sonra kok servis saglayiciyi baglar.
+    /// Attaches the root service provider after the application is <c>Build()</c>-ed.
     /// </summary>
-    /// <param name="services">Uygulamanin servis saglayicisi.</param>
+    /// <param name="services">The application's service provider.</param>
     /// <remarks>
-    /// <c>MapAgentPrismA2A()</c> tarafindan agent basina BIR KEZ cagrilir. Bu
-    /// asamaya kadar cagrilan yol yoktur cunku A2A sunucusu henuz HTTP'ye
-    /// baglanmamistir.
+    /// Called ONCE per agent by <c>MapAgentPrismA2A()</c>. There is no call path
+    /// before this point because the A2A server has not yet been connected to
+    /// HTTP.
     /// </remarks>
     internal void AttachServices(IServiceProvider services) => _services = services;
 
@@ -148,10 +148,11 @@ internal sealed class ExternalAgentProxy : AIAgent
             return;
         }
 
-        // Defans katmani: acilis denetimi (ExternalSurfaceGuard) onayli tool
-        // tasiyan bir agent'in disa acilmasini zaten engeller, ama tanim
-        // SONRADAN guncellenip onayli bir tool eklenebilir. K-103'un ayni
-        // sinirinin calisma anindaki ikinci uygulamasi.
+        // Defense layer: the startup check (ExternalSurfaceGuard) already
+        // prevents exposing an agent carrying a tool that requires approval,
+        // but the definition can be updated AFTERWARD to add an approval-
+        // requiring tool. This is the runtime enforcement of the same K-103
+        // boundary.
         throw new AgentPrismExternalCallException(
             $"Agent '{_agentName}' could not complete: tool '{pending}' requires user approval. " +
             "An externally-invoked agent cannot respond to an approval request.")
@@ -166,9 +167,9 @@ internal sealed class ExternalAgentProxy : AIAgent
         {
             RunId = AgentPrismId.NewId(),
 
-            // Ayni sablon degerleriyle YENI bir butce. Nesnenin kendisini
-            // paylasmak, tum A2A cagrilarinin omur boyu tek bir butceyi
-            // tuketmesine yol acardi; her dis cagri kendi agacinin koku olmali.
+            // A NEW budget with the same template values. Sharing the object
+            // itself would let all A2A calls, for the app's lifetime, consume a
+            // single budget; each external call must be the root of its own tree.
             Budget = new AgentRunBudget
             {
                 MaxDepth = BudgetTemplate.MaxDepth,
@@ -180,13 +181,13 @@ internal sealed class ExternalAgentProxy : AIAgent
     private async ValueTask<AIAgent> ResolveAsync(CancellationToken cancellationToken)
     {
         var services = _services ?? throw new InvalidOperationException(
-            $"'{_agentName}' A2A vekili bir servis saglayiciya baglanmamis. " +
-            "MapAgentPrismA2A() cagrisi eksik olabilir.");
+            $"The A2A proxy for '{_agentName}' is not attached to a service provider. " +
+            "The call to MapAgentPrismA2A() may be missing.");
 
         var catalog = services.GetRequiredService<IAgentCatalog>();
         var agent = await catalog.ResolveAsync(_agentName, cancellationToken).ConfigureAwait(false);
 
-        return agent ?? throw new AgentPrismExternalCallException($"'{_agentName}' adinda bir agent katalogda yok.")
+        return agent ?? throw new AgentPrismExternalCallException($"There is no agent named '{_agentName}' in the catalog.")
         {
             AgentName = _agentName,
             Protocol = "a2a",

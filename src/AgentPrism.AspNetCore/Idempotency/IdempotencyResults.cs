@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Http;
 
 namespace AgentPrism;
 
-/// <summary>Saklanan bir idempotency yanitini oldugu gibi yeniden yazar.</summary>
+/// <summary>Writes a stored idempotency response back out, unchanged.</summary>
 internal sealed class IdempotencyReplayResult(IdempotencyResponse response) : IResult
 {
     /// <inheritdoc />
@@ -15,9 +15,8 @@ internal sealed class IdempotencyReplayResult(IdempotencyResponse response) : IR
         httpContext.Response.ContentType = response.ContentType;
         httpContext.Response.Headers[IdempotencyFilter.ReplayedHeaderName] = "true";
 
-        // HATA-S3-008: orijinal yanitin govde disi basliklari (Location,
-        // Preference-Applied) da replay edilir — yalniz govde/durum kodu/
-        // icerik tipi degil.
+        // HATA-S3-008: the original response's non-body headers (Location,
+        // Preference-Applied) are replayed too — not just body/status code/content type.
         foreach (var header in response.Headers)
         {
             httpContext.Response.Headers[header.Key] = header.Value;
@@ -28,16 +27,16 @@ internal sealed class IdempotencyReplayResult(IdempotencyResponse response) : IR
 }
 
 /// <summary>
-/// Ic sonucun ACTUALLY yazdigi baytlari tamponlayip idempotency deposuna
-/// kaydeder, sonra gercek yanita yazar.
+/// Buffers the bytes the inner result ACTUALLY writes, saves them to the
+/// idempotency store, then writes them to the real response.
 /// </summary>
 /// <remarks>
-/// Bir uc filtresi, dondurulen <see cref="IResult"/>'in ICINDE ne yazildigini
-/// goremez — ASP.NET Core bu yaniti filtre zincirinin DISINDA calistirir.
-/// Bu sarmalayici, gercek yazimi kendi <see cref="ExecuteAsync"/>'i icinde
-/// tetikleyerek (govdeyi gecici olarak bir <see cref="MemoryStream"/> ile
-/// degistirerek) o baytlari YAKALAR — ASP.NET Core'un yanit onbellekleme
-/// ara yazilimiyla ayni teknik.
+/// An endpoint filter cannot see what gets written INSIDE the returned
+/// <see cref="IResult"/> — ASP.NET Core runs that result OUTSIDE the filter chain.
+/// This wrapper CAPTURES those bytes by triggering the actual write inside its
+/// own <see cref="ExecuteAsync"/> (temporarily swapping the body for a
+/// <see cref="MemoryStream"/>) — the same technique ASP.NET Core's response
+/// caching middleware uses.
 /// </remarks>
 internal sealed class IdempotencyCapturingResult(
     IResult inner,
@@ -71,8 +70,8 @@ internal sealed class IdempotencyCapturingResult(
         var bytes = buffer.ToArray();
         var statusCode = httpContext.Response.StatusCode;
 
-        // 🚨 Basarisiz calistirma SAKLANMAZ; kayit silinir ki ayni anahtarla
-        // yeniden deneme calissin (docs/43-IDEMPOTENCY-KEY.md, bolum 43.2).
+        // 🚨 A failed run is NOT stored; the reservation is released so a retry with
+        // the same key works (docs/43-IDEMPOTENCY-KEY.md, section 43.2).
         if (statusCode is >= 200 and < 300)
         {
             await store.CompleteAsync(
@@ -96,9 +95,9 @@ internal sealed class IdempotencyCapturingResult(
     }
 
     /// <summary>
-    /// Content-Type/govde uzunlugu/kendi tekrar isareti disinda kalan
-    /// basliklari yakalar — bunlarin her biri yeniden yazilirken (veya hic
-    /// yazilmayarak) ASP.NET Core tarafindan zaten dogru uretilir.
+    /// Captures the headers other than Content-Type/body length/the replay marker
+    /// itself — each of these is already produced correctly by ASP.NET Core when
+    /// the response is rewritten (or simply omitted).
     /// </summary>
     private static Dictionary<string, string> CaptureReplayableHeaders(IHeaderDictionary headers)
     {

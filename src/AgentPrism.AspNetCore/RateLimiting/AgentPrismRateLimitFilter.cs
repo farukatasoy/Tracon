@@ -7,19 +7,19 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// AgentPrism'in kendi uc grubuna sabit pencereli bir hiz siniri uygular.
+/// Applies a fixed-window rate limit to AgentPrism's own endpoint group.
 /// </summary>
 /// <remarks>
 /// <para>
-/// AgentPrism kendi middleware'ini <strong>yazmaz</strong>: .NET'in
-/// <see cref="PartitionedRateLimiter"/> tipi uzerine ince bir katman kurar.
-/// <c>System.Threading.RateLimiting</c> ASP.NET Core paylasilan cercevesinden
-/// gelir; ek bir paket bagimliligi yoktur (21.1'in olcumu).
+/// AgentPrism <strong>does not write</strong> its own middleware: it builds a thin
+/// layer over .NET's <see cref="PartitionedRateLimiter"/> type.
+/// <c>System.Threading.RateLimiting</c> comes from the ASP.NET Core shared framework;
+/// there is no extra package dependency (measured in 21.1).
 /// </para>
 /// <para>
-/// Tuketici zaten <c>AddRateLimiter()</c> kullaniyorsa AgentPrism onunla
-/// yarismaz: bu filtre yalnizca AgentPrism'in uc grubuna uygulanir ve
-/// tuketicinin genel sinirini degistirmez.
+/// If the consumer already uses <c>AddRateLimiter()</c>, AgentPrism does not
+/// compete with it: this filter applies only to AgentPrism's endpoint group and
+/// does not change the consumer's overall limit.
 /// </para>
 /// </remarks>
 internal sealed class AgentPrismRateLimitFilter : IEndpointFilter, IDisposable
@@ -27,9 +27,9 @@ internal sealed class AgentPrismRateLimitFilter : IEndpointFilter, IDisposable
     private readonly PartitionedRateLimiter<HttpContext> _limiter;
     private readonly IOptionsMonitor<AgentPrismRateLimitOptions> _optionsMonitor;
 
-    /// <summary>Yeni bir hiz siniri filtresi olusturur.</summary>
-    /// <param name="optionsMonitor">Hiz siniri ayarlari.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="optionsMonitor"/> <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new rate limit filter.</summary>
+    /// <param name="optionsMonitor">The rate limit settings.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="optionsMonitor"/> is <see langword="null"/>.</exception>
     public AgentPrismRateLimitFilter(IOptionsMonitor<AgentPrismRateLimitOptions> optionsMonitor)
     {
         ArgumentNullException.ThrowIfNull(optionsMonitor);
@@ -68,9 +68,8 @@ internal sealed class AgentPrismRateLimitFilter : IEndpointFilter, IDisposable
             return await next(context).ConfigureAwait(false);
         }
 
-        // Retry-After, sinirlayicinin bildirdigi bekleme suresidir; bildirmiyorsa
-        // pencerenin tamami kullanilir. Istemcinin ne zaman tekrar deneyecegini
-        // tahmin etmesi gerekmemelidir.
+        // Retry-After is the wait time reported by the limiter; if it reports none,
+        // the full window is used. The client should not have to guess when to retry.
         var retryAfter = lease.TryGetMetadata(MetadataName.RetryAfter, out var metadata)
             ? metadata
             : options.Window;
@@ -97,21 +96,21 @@ internal sealed class AgentPrismRateLimitFilter : IEndpointFilter, IDisposable
             return "__global";
         }
 
-        // Kiraci baglami singleton'dir ve HTTP baglamini okur; istek disinda
-        // cozulemez, bu yuzden burada cozulur.
+        // The tenant context is a singleton and reads the HTTP context; it cannot be
+        // resolved outside a request, so it is resolved here.
         var tenants = context.RequestServices.GetService<ITenantContext>();
 
         return tenants?.TenantId ?? "__default";
     }
 }
 
-/// <summary>Sabit pencereli bolum kurulumunu tek yerde tutan yardimci.</summary>
+/// <summary>Helper that keeps fixed-window partition setup in one place.</summary>
 internal static class RateLimitPartitionExtensions
 {
-    /// <summary>Verilen ayarlarla sabit pencereli bir bolum kurar.</summary>
-    /// <param name="key">Bolum anahtari.</param>
-    /// <param name="options">Hiz siniri ayarlari.</param>
-    /// <returns>Bolum tanimi.</returns>
+    /// <summary>Builds a fixed-window partition with the given settings.</summary>
+    /// <param name="key">The partition key.</param>
+    /// <param name="options">The rate limit settings.</param>
+    /// <returns>The partition definition.</returns>
     public static System.Threading.RateLimiting.RateLimitPartition<string> CreateFixedWindow(
         string key,
         AgentPrismRateLimitOptions options)

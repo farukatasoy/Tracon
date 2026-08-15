@@ -2,112 +2,114 @@ using Microsoft.Extensions.AI;
 
 namespace AgentPrism;
 
-/// <summary>Bir calistirmanin kayitli girdisinin HTTP yaniti.</summary>
+/// <summary>HTTP response for a run's recorded input.</summary>
 public sealed record RunInputResponse
 {
-    /// <summary>Calistirma kimligi.</summary>
+    /// <summary>Run identifier.</summary>
     public required Guid RunId { get; init; }
 
-    /// <summary>Kaydin olusturulma zamani (UTC).</summary>
+    /// <summary>Creation time of the record (UTC).</summary>
     public required DateTimeOffset CreatedAt { get; init; }
 
     /// <summary>
-    /// Girdi mesajlari. Polimorfik icerikleriyle birlikte, kaydedildikleri gibi.
+    /// Input messages, with their polymorphic content, exactly as recorded.
     /// </summary>
     public required IReadOnlyList<ChatMessage> Messages { get; init; }
 }
 
-/// <summary>Bir yeniden oynatmanin sonucu.</summary>
+/// <summary>Result of a replay.</summary>
 public sealed record RunReplayResponse
 {
-    /// <summary>Acilan yeni calistirmanin kimligi.</summary>
+    /// <summary>Identifier of the newly started run.</summary>
     public required Guid RunId { get; init; }
 
-    /// <summary>Kaynak calistirmanin kimligi. <c>runs.replay_of_run_id</c> ile aynidir.</summary>
+    /// <summary>Identifier of the source run. Same as <c>runs.replay_of_run_id</c>.</summary>
     public required Guid SourceRunId { get; init; }
 
-    /// <summary>Uygulanan tool modu.</summary>
+    /// <summary>Tool mode applied.</summary>
     public required ReplayToolMode ToolMode { get; init; }
 
-    /// <summary>Kullanilan tanim surumu. Kod agent'inda <see langword="null"/>.</summary>
+    /// <summary>Definition version used. <see langword="null"/> for a code agent.</summary>
     public int? AgentVersion { get; init; }
 
-    /// <summary>Kullanilan model.</summary>
+    /// <summary>Model used.</summary>
     public string? ModelId { get; init; }
 
-    /// <summary>Modelin urettigi metin.</summary>
+    /// <summary>Text produced by the model.</summary>
     public string? Output { get; init; }
 
-    /// <summary>Iki calistirmayi yan yana koyan ucun adresi.</summary>
+    /// <summary>Address of the endpoint that places the two runs side by side.</summary>
     public required string CompareLocation { get; init; }
 }
 
-/// <summary>Iki calistirmanin yan yana ozeti.</summary>
+/// <summary>Side-by-side summary of two runs.</summary>
 /// <remarks>
-/// 🚨 Fark <strong>sunucuda hesaplanmaz</strong>; uc yalnizca iki ozeti dondurur
-/// ve karsilastirmayi arayuz gosterir. Faz 19'un tanim surumu diff'i ayni deseni
-/// izler ve arayuzde zaten bir diff bileseni vardir; ikinci bir hesap iki yerde
-/// bakim demektir.
+/// 🚨 The diff is <strong>not computed on the server</strong>; the endpoint
+/// only returns the two summaries and the UI shows the comparison. Phase 19's
+/// definition version diff follows the same pattern and the UI already has a
+/// diff component; a second computation would mean maintenance in two places.
 /// </remarks>
 public sealed record RunComparisonResponse
 {
-    /// <summary>Soldaki calistirma.</summary>
+    /// <summary>The left-hand run.</summary>
     public required RunComparisonSide Left { get; init; }
 
-    /// <summary>Sagdaki calistirma.</summary>
+    /// <summary>The right-hand run.</summary>
     public required RunComparisonSide Right { get; init; }
 }
 
-/// <summary>Karsilastirmanin bir tarafi.</summary>
+/// <summary>One side of the comparison.</summary>
 public sealed record RunComparisonSide
 {
-    /// <summary>Calistirma kimligi.</summary>
+    /// <summary>Run identifier.</summary>
     public required Guid RunId { get; init; }
 
-    /// <summary>Agent adi.</summary>
+    /// <summary>Agent name.</summary>
     public required string AgentName { get; init; }
 
-    /// <summary>Tanim surumu. Bilinmiyorsa <see langword="null"/>.</summary>
+    /// <summary>Definition version. <see langword="null"/> if unknown.</summary>
     public int? AgentVersion { get; init; }
 
-    /// <summary>Kullanilan model.</summary>
+    /// <summary>Model used.</summary>
     public string? ModelId { get; init; }
 
-    /// <summary>Son durum.</summary>
+    /// <summary>Final status.</summary>
     public required RunStatus Status { get; init; }
 
-    /// <summary>Sure (milisaniye). Calistirma bitmediyse <see langword="null"/>.</summary>
+    /// <summary>Duration (milliseconds). <see langword="null"/> if the run has not finished.</summary>
     public long? DurationMs { get; init; }
 
-    /// <summary>Token kullanimi.</summary>
+    /// <summary>Token usage.</summary>
     public RunUsage? Usage { get; init; }
 
-    /// <summary>Maliyet.</summary>
+    /// <summary>Cost.</summary>
     public RunCost? Cost { get; init; }
 
-    /// <summary>Tool cagrisi sayisi.</summary>
+    /// <summary>Number of tool calls.</summary>
     public required int ToolCallCount { get; init; }
 
-    /// <summary>Hata sinifi. Basarili calistirmada <see langword="null"/>.</summary>
+    /// <summary>Error class. <see langword="null"/> for a successful run.</summary>
     public RunErrorClass? ErrorClass { get; init; }
 
-    /// <summary>Hata mesaji. Basarili calistirmada <see langword="null"/>.</summary>
+    /// <summary>Error message. <see langword="null"/> for a successful run.</summary>
     public string? ErrorMessage { get; init; }
 
-    /// <summary>Bu calistirma bir yeniden oynatma ise kaynagi.</summary>
+    /// <summary>Source of this run, if it is a replay.</summary>
     public Guid? ReplayOfRunId { get; init; }
 
     /// <summary>
-    /// Modelin urettigi metin.
+    /// Text produced by the model.
     /// </summary>
     /// <remarks>
-    /// 🚨 Akissiz yol <c>MessageCompleted</c> yazar, akisli yol yalnizca
-    /// <c>MessageDelta</c> uretir (bkz. <c>docs/hafiza/cekirdek-calistirma.md</c>).
-    /// Ikisi TOPLANMAZ: <c>MessageCompleted</c> varsa o kullanilir, yoksa
-    /// parcalar birlestirilir — aksi halde akissiz yolda metin iki kez sayilir.
+    /// 🚨 The non-streaming path writes <c>MessageCompleted</c>, the streaming
+    /// path produces only <c>MessageDelta</c> (see
+    /// <c>docs/hafiza/cekirdek-calistirma.md</c>). The two are NOT SUMMED:
+    /// if <c>MessageCompleted</c> is present it is used, otherwise the chunks
+    /// are concatenated — otherwise the text would be counted twice on the
+    /// non-streaming path.
     /// </remarks>
     public string? Output { get; init; }
 
-    /// <summary>Bu calistirmaya yazilmis puanlar.</summary>
+    /// <summary>Scores written against this run.</summary>
     public IReadOnlyList<RunScore> Scores { get; init; } = [];
 }

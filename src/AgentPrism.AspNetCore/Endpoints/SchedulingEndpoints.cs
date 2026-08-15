@@ -8,20 +8,20 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Zamanlama tanimlari, elle tetikleme ve is kuyrugu goruntuleme uclari (Faz 17).
+/// Schedule definitions, manual triggering, and job queue viewing endpoints (Phase 17).
 /// </summary>
 /// <remarks>
-/// 🚨 <see cref="IJobScheduleStore"/>/<see cref="IJobStore"/> disindaki tum
-/// bagimliliklar <c>[FromServices]</c> ile <strong>acikca</strong> isaretlenir —
-/// gerekce <see cref="WorkflowEndpoints"/> ile aynidir. Workflow'un aksine
-/// burada opsiyonel bir motor yoktur: kuyruk ve zamanlama depolari her zaman
-/// kayitlidir (K-018), bu yuzden <c>501</c> deseni gerekmez.
+/// 🚨 All dependencies other than <see cref="IJobScheduleStore"/>/<see cref="IJobStore"/>
+/// are marked <strong>explicitly</strong> with <c>[FromServices]</c> — the rationale
+/// is the same as <see cref="WorkflowEndpoints"/>. Unlike Workflow, there is no
+/// optional engine here: the queue and schedule stores are always registered
+/// (K-018), so the <c>501</c> pattern is not needed.
 /// </remarks>
 internal static class SchedulingEndpoints
 {
-    /// <summary>Zamanlama ve is uclarini baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Maps the scheduling and job endpoints.</summary>
+    /// <param name="builder">The endpoint group.</param>
+    /// <param name="roles">The resolved role policies.</param>
     public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/schedules", ListSchedulesAsync)
@@ -29,39 +29,39 @@ internal static class SchedulingEndpoints
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismListSchedules")
             .WithTags("AgentPrism", "Scheduling")
-            .WithSummary("Bir kiracinin zamanlamalarini listeler.");
+            .WithSummary("Lists a tenant's schedules.");
 
         builder.MapGet("/api/schedules/{name}", GetScheduleAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismGetSchedule")
             .WithTags("AgentPrism", "Scheduling")
-            .WithSummary("Tek bir zamanlamayi getirir.");
+            .WithSummary("Gets a single schedule.");
 
         builder.MapPut("/api/schedules/{name}", SaveScheduleAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismSaveSchedule")
             .WithTags("AgentPrism", "Scheduling")
-            .WithSummary("Zamanlama olusturur veya gunceller.")
+            .WithSummary("Creates or updates a schedule.")
             .Accepts<JobScheduleSaveRequest>("application/json")
             .WithDescription(
-                "Cron ifadesi ve saat dilimi burada dogrulanir; bir sonraki calisma " +
-                "zamani kayit aninda hesaplanir. Yuk MaxItemsPerJob sinirini asamaz.");
+                "The cron expression and time zone are validated here; the next run " +
+                "time is computed at save time. The payload cannot exceed the MaxItemsPerJob limit.");
 
         builder.MapDelete("/api/schedules/{name}", DeleteScheduleAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismDeleteSchedule")
             .WithTags("AgentPrism", "Scheduling")
-            .WithSummary("Bir zamanlamayi siler.");
+            .WithSummary("Deletes a schedule.");
 
         builder.MapPost("/api/schedules/{name}/trigger", TriggerScheduleAsync)
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismTriggerSchedule")
             .WithTags("AgentPrism", "Scheduling")
-            .WithSummary("Bir zamanlamayi hemen, cron beklemeden calistirir.")
+            .WithSummary("Runs a schedule immediately, without waiting for the cron schedule.")
             .Accepts<JobTriggerRequest>(true, "application/json");
 
         builder.MapGet("/api/jobs", ListJobsAsync)
@@ -69,24 +69,24 @@ internal static class SchedulingEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListJobs")
             .WithTags("AgentPrism", "Scheduling")
-            .WithSummary("Isleri turune, durumuna veya zamanlamasina gore filtreleyerek listeler.");
+            .WithSummary("Lists jobs, filtered by kind, status, or schedule.");
 
         builder.MapGet("/api/jobs/{id:guid}", GetJobAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismGetJob")
             .WithTags("AgentPrism", "Scheduling")
-            .WithSummary("Bir isi ve ogelerini getirir.");
+            .WithSummary("Gets a job and its items.");
 
         builder.MapPost("/api/jobs/{id:guid}/cancel", CancelJobAsync)
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismCancelJob")
             .WithTags("AgentPrism", "Scheduling")
-            .WithSummary("Bir isi iptal eder.")
+            .WithSummary("Cancels a job.")
             .WithDescription(
-                "Yalnizca Pending, Leased veya Running durumundaki bir is iptal edilebilir. " +
-                "Yurutucu isci ogeler arasinda iptal talebini kontrol eder ve isbirlikci sekilde durur.");
+                "Only a job in the Pending, Leased, or Running status can be canceled. " +
+                "The executing worker checks the cancellation request between items and stops cooperatively.");
     }
 
     private static async Task<Ok<IReadOnlyList<JobSchedule>>> ListSchedulesAsync(
@@ -312,10 +312,10 @@ internal static class SchedulingEndpoints
             return TypedResults.NoContent();
         }
 
-        // Iptal basarisiz oldu: ya is yok ya da zaten iptal edilemeyecek bir
-        // durumda (Completed/Failed/Cancelled). Ikisini ayirt etmek icin kaydi
-        // tekrar okumak, "bulunamadi" (404) ile "durum uygun degil" (409)
-        // arasinda anlamli bir fark birakir.
+        // The cancellation failed: either the job does not exist or it is already
+        // in a status that cannot be canceled (Completed/Failed/Cancelled). Reading
+        // the record again to distinguish between the two leaves a meaningful
+        // difference between "not found" (404) and "status not eligible" (409).
         var job = await store.GetAsync(tenants.TenantId, id, cancellationToken).ConfigureAwait(false);
 
         return job is null

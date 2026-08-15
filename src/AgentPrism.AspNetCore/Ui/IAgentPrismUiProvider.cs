@@ -3,54 +3,58 @@ using Microsoft.AspNetCore.Http;
 namespace AgentPrism;
 
 /// <summary>
-/// Yonetim arayuzunun statik varliklarini sunan kaynak.
+/// Source that serves the management UI's static assets.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bu soyutlama bilerek <strong>tek metotludur</strong>. Varlik listesi, icerik tipi,
-/// <c>ETag</c>, onbellek basliklari, sikistirma bicimi ve tek sayfa uygulama geri
-/// donusu tamamen uygulamaya aittir. Boylece arayuz paketi kendi paketleme bicimini
-/// degistirdiginde HTTP katmaninin public API'si degismez.
+/// This abstraction is deliberately <strong>single-method</strong>. The asset
+/// list, content type, <c>ETag</c>, cache headers, compression format, and
+/// single-page-application fallback all belong entirely to the implementation.
+/// This way, the HTTP layer's public API stays unchanged when the UI package
+/// changes its own bundling format.
 /// </para>
 /// <para>
-/// Bagimlilik yonu <c>AgentPrism.UI → AgentPrism.AspNetCore</c> seklindedir ve
-/// tersine cevrilemez. Bu yuzden <c>MapAgentPrism</c> arayuz paketini dogrudan
-/// cagiramaz; kaydi servis saglayicidan cozer. Kayit yoksa arayuz rotalari hic
-/// baglanmaz ve HTTP yuzeyi Faz 4'teki haliyle kalir.
+/// The dependency direction is <c>AgentPrism.UI → AgentPrism.AspNetCore</c> and
+/// cannot be reversed. This is why <c>MapAgentPrism</c> cannot call the UI
+/// package directly; it resolves the registration from the service provider. If
+/// no registration exists, the UI routes are never wired up and the HTTP surface
+/// stays as it was in Phase 4.
 /// </para>
 /// <para>
-/// Uygulamalar <c>TryAdd</c> ile kaydedilir; tuketicinin kendi kaydi kazanir (kural K4).
+/// Implementations are registered with <c>TryAdd</c>; the consumer's own
+/// registration wins (rule K4).
 /// </para>
 /// </remarks>
 public interface IAgentPrismUiProvider
 {
     /// <summary>
-    /// Sunulacak varlik var mi. <see langword="false"/> ise arayuz rotalari
-    /// hic baglanmaz.
+    /// Whether an asset is available to serve. If <see langword="false"/>, the UI
+    /// routes are never wired up.
     /// </summary>
     /// <remarks>
-    /// Arayuz varliklari derleme sirasinda uretilir. Node.js bulunmayan bir ortamda
-    /// derlenen bir paket bos kalabilir; bu durumda bos bir sayfa sunmak yerine
-    /// rotalari hic acmamak dogrudur - tüketici 404 gorur ve nedenini arar.
+    /// UI assets are produced at build time. A package built in an environment
+    /// without Node.js can end up empty; in that case, it is correct to never open
+    /// the routes rather than serve a blank page — the consumer sees a 404 and
+    /// looks for the reason.
     /// </remarks>
     bool HasAssets { get; }
 
-    /// <summary>Bir arayuz istegini karsilar.</summary>
-    /// <param name="context">Istek baglami.</param>
+    /// <summary>Serves a UI request.</summary>
+    /// <param name="context">The request context.</param>
     /// <param name="basePath">
-    /// Arayuzun baglandigi taban yol; her zaman <c>/</c> ile biter. Ornek:
-    /// <c>/agentprism/</c>. Uygulama bunu <c>index.html</c> icindeki
-    /// <c>&lt;base href&gt;</c> etiketine yazar; boylece arayuz herhangi bir
-    /// onek altinda calisir.
+    /// The base path the UI is mounted under; always ends with <c>/</c>. Example:
+    /// <c>/agentprism/</c>. The implementation writes this into the
+    /// <c>&lt;base href&gt;</c> tag inside <c>index.html</c>, so the UI works
+    /// under any prefix.
     /// </param>
     /// <param name="relativePath">
-    /// Taban yola gore istenen varlik yolu. Kok istegi icin bos dizedir.
-    /// Bas taraftaki <c>/</c> kaldirilmistir.
+    /// The requested asset path relative to the base path. An empty string for
+    /// the root request. The leading <c>/</c> has been removed.
     /// </param>
     /// <returns>
-    /// Istek karsilandiysa <see langword="true"/>. <see langword="false"/> donerse
-    /// cagiran <c>404</c> uretir; uygulama bu durumda yanita <strong>hicbir sey
-    /// yazmamis</strong> olmalidir.
+    /// <see langword="true"/> if the request was served. If it returns
+    /// <see langword="false"/>, the caller produces a <c>404</c>; in that case the
+    /// implementation must have written <strong>nothing</strong> to the response.
     /// </returns>
     ValueTask<bool> TryServeAsync(HttpContext context, string basePath, string relativePath);
 }

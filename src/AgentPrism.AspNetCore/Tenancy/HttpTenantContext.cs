@@ -5,28 +5,28 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Kiraciyi gecerli HTTP isteginden cozer.
+/// Resolves the tenant from the current HTTP request.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Sinif <strong>singleton</strong>'dir ve <see cref="IHttpContextAccessor"/>
-/// uzerinden calisir. Kapsamli (scoped) bir uygulama, <see cref="ITenantContext"/>
-/// enjekte eden singleton servislerde (depolar, dekoratorler) yakalanmis bagimlilik
-/// uretirdi ve ASP.NET Core bunu baslangicta hata olarak bildirirdi.
+/// The class is a <strong>singleton</strong> and works through
+/// <see cref="IHttpContextAccessor"/>. A scoped implementation would produce a
+/// captive dependency in singleton services that inject <see cref="ITenantContext"/>
+/// (stores, decorators), and ASP.NET Core would report this as a startup error.
 /// </para>
 /// <para>
-/// Cozum sirasi:
+/// Resolution order:
 /// </para>
 /// <list type="number">
-///   <item><description>Cok kiracililik kapaliysa → varsayilan kiraci.</description></item>
-///   <item><description>Claim tipi ayarli ve kullanici kimlik dogrulamasindan gectiyse → claim.</description></item>
-///   <item><description>Baslik cozumu aciksa → baslik.</description></item>
-///   <item><description>Hicbiri yoksa → varsayilan kiraci.</description></item>
+///   <item><description>If multi-tenancy is disabled → the default tenant.</description></item>
+///   <item><description>If a claim type is set and the user passed authentication → the claim.</description></item>
+///   <item><description>If header resolution is enabled → the header.</description></item>
+///   <item><description>If none apply → the default tenant.</description></item>
 /// </list>
 /// <para>
-/// 🚨 Claim ayarliyken <strong>baslik hic okunmaz</strong>. Aksi halde kimlik
-/// dogrulamasindan gecmis bir kullanici, bir baslik ekleyerek baska bir kiracinin
-/// verisine erisebilirdi.
+/// 🚨 While the claim is set, the <strong>header is never read</strong>. Otherwise
+/// an authenticated user could access another tenant's data simply by adding a
+/// header.
 /// </para>
 /// </remarks>
 public sealed partial class HttpTenantContext : ITenantContext
@@ -35,11 +35,11 @@ public sealed partial class HttpTenantContext : ITenantContext
     private readonly IOptions<AgentPrismOptions> _coreOptions;
     private readonly IOptions<AgentPrismTenancyOptions> _tenancyOptions;
 
-    /// <summary>Yeni bir HTTP kiraci baglami olusturur.</summary>
-    /// <param name="accessor">Gecerli istegi cozen erisimci.</param>
-    /// <param name="coreOptions">AgentPrism ayarlari.</param>
-    /// <param name="tenancyOptions">Kiraci cozumleme ayarlari.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new HTTP tenant context.</summary>
+    /// <param name="accessor">The accessor that resolves the current request.</param>
+    /// <param name="coreOptions">The AgentPrism settings.</param>
+    /// <param name="tenancyOptions">The tenant resolution settings.</param>
+    /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
     public HttpTenantContext(
         IHttpContextAccessor accessor,
         IOptions<AgentPrismOptions> coreOptions,
@@ -57,31 +57,32 @@ public sealed partial class HttpTenantContext : ITenantContext
     /// <inheritdoc />
     /// <remarks>
     /// <para>
-    /// <see cref="AmbientTenantScope.Current"/> ayarliysa (zamanlanmis bir is
-    /// yurutuluyorsa, HTTP baglami yoktur) o deger HTTP cozumlemesine tercih
-    /// edilir.
+    /// If <see cref="AmbientTenantScope.Current"/> is set (a scheduled job is
+    /// running and there is no HTTP context), that value is preferred over HTTP
+    /// resolution.
     /// </para>
     /// <para>
-    /// 🚨 Bir API anahtariyla dogrulanmis bir istekte kiraci ANAHTARIN
-    /// <c>tenant_id</c>'sinden cozulur — bu, claim veya baslikten ONCE gelir
-    /// (bolum 53.5). Anahtar bir sirri KANITLAR; baslik yalnizca istemcinin
-    /// BEYANIDIR. <see cref="AgentPrismEndpointFilter"/> baslik anahtarin
-    /// kiracisiyla celisirse istegi zaten 403 ile reddeder, dolayisiyla bu
-    /// noktaya ulasan bir istekte ikisi ya eslesir ya da baslik hic yoktur.
+    /// 🚨 On a request authenticated with an API key, the tenant is resolved from
+    /// the KEY's <c>tenant_id</c> — this comes BEFORE the claim or the header
+    /// (section 53.5). The key PROVES a secret; the header is only the client's
+    /// DECLARATION. <see cref="AgentPrismEndpointFilter"/> already rejects the
+    /// request with 403 if the header conflicts with the key's tenant, so by the
+    /// time a request reaches this point, the two either match or the header is
+    /// absent.
     /// </para>
     /// </remarks>
     public string TenantId =>
         AmbientTenantScope.Current ?? ResolveFromApiKey() ?? Resolve() ?? _coreOptions.Value.DefaultTenantId;
 
     /// <summary>
-    /// Bir kiraci kimliginin bicimce gecerli olup olmadigini soyler.
+    /// Says whether a tenant id is well-formed.
     /// </summary>
-    /// <param name="tenantId">Denetlenecek deger.</param>
-    /// <returns>Deger kabul edilebilirse <see langword="true"/>.</returns>
+    /// <param name="tenantId">The value to check.</param>
+    /// <returns><see langword="true"/> if the value is acceptable.</returns>
     /// <remarks>
-    /// Kimlik veritabaninda bir metin sutunudur ve sorgu parametresi olarak gider;
-    /// SQL enjeksiyonu mumkun degildir. Bicim kisiti yine de vardir: kontrolsuz
-    /// bir deger gunluklere, denetim izine ve arayuze oldugu gibi yansirdi.
+    /// The id is a text column in the database and travels as a query parameter;
+    /// SQL injection is not possible. A format constraint still applies: an
+    /// unchecked value would be reflected as-is into logs, the audit trail, and the UI.
     /// </remarks>
     public static bool IsValidTenantId(string? tenantId)
         => !string.IsNullOrWhiteSpace(tenantId)
@@ -102,7 +103,7 @@ public sealed partial class HttpTenantContext : ITenantContext
             return null;
         }
 
-        // Claim ayarliysa baslik HIC okunmaz.
+        // If the claim is set, the header is NEVER read.
         if (options.ClaimType is { Length: > 0 } claimType)
         {
             return context.User.Identity?.IsAuthenticated == true
@@ -130,8 +131,9 @@ public sealed partial class HttpTenantContext : ITenantContext
             return candidate;
         }
 
-        // Beyaz liste doluysa disindaki bir deger varsayilan kiraciya DUSMEZ;
-        // dusmek, yetkisiz bir istegin varsayilan kiracinin verisini gormesi demekti.
+        // If the allowlist is non-empty, a value outside it does NOT fall back to
+        // the default tenant; falling back would let an unauthorized request see
+        // the default tenant's data.
         return options.AllowedTenants.Contains(candidate, StringComparer.Ordinal) ? candidate : null;
     }
 

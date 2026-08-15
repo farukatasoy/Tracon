@@ -5,31 +5,32 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Kodda tanimlanan bir workflow grafina katalogdaki agent'lari baglar.
+/// Binds catalog agents to a workflow graph defined in code.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 <strong>Katalogdan alinan agent'i grafa DOGRUDAN koymayin.</strong>
-/// <c>IAgentCatalog.ResolveAsync</c> calistirma kaydi sarmalayicisini tasiyan
-/// bir agent dondurur, ancak Microsoft Agent Framework onu <c>options = null</c>
-/// ile cagirir; sarmalayici agac bilgisini gelen ayarlardan okuyamaz ve KENDI
-/// kok satirini acar. Sonuc: workflow calistirmasi bos gorunur, agent'lar
-/// listede bagimsiz koklerdir ve waterfall dogru cizilmez. Olculdu (Faz 15):
-/// ornek uygulamada agac uc satir yerine bir satir dondu.
+/// 🚨 <strong>Do NOT put an agent taken from the catalog DIRECTLY into the
+/// graph.</strong> <c>IAgentCatalog.ResolveAsync</c> returns an agent carrying
+/// the run-recording wrapper, but Microsoft Agent Framework calls it with
+/// <c>options = null</c>; the wrapper cannot read tree info from the incoming
+/// settings and opens ITS OWN root row instead. Result: the workflow run
+/// looks empty, the agents are independent roots in the list, and the
+/// waterfall is drawn wrong. Measured (phase 15): in the sample app, the tree
+/// came back as one row instead of three.
 /// </para>
 /// <para>
-/// Bu yardimci agent'i <see cref="ChildAgentInvoker"/> ile sarar. Sarmalayici
-/// agac bilgisini ortam kapsamindan okur, derinlik/butce/kiraci sinirlarini
-/// uygular ve alt calistirmayi workflow satirinin altina baglar. Arayuzden
-/// tanimlanan workflow'larda ayni sarmalama derleyici tarafindan yapilir.
+/// This helper wraps the agent with <see cref="ChildAgentInvoker"/>. The
+/// wrapper reads tree info from the ambient scope, applies the depth/budget/
+/// tenant limits, and attaches the sub-run under the workflow row. For
+/// workflows defined from the UI, the compiler does the same wrapping.
 /// </para>
 /// <example>
 /// <code>
-/// agentPrism.AddWorkflow("ozetle-ve-cevir", services =>
-///     AgentWorkflowBuilder.BuildSequential("ozetle-ve-cevir",
+/// agentPrism.AddWorkflow("summarize-and-translate", services =>
+///     AgentWorkflowBuilder.BuildSequential("summarize-and-translate",
 ///     [
-///         services.GetWorkflowAgent("ozetle-ve-cevir", "ozetleyici"),
-///         services.GetWorkflowAgent("ozetle-ve-cevir", "cevirmen"),
+///         services.GetWorkflowAgent("summarize-and-translate", "summarizer"),
+///         services.GetWorkflowAgent("summarize-and-translate", "translator"),
 ///     ]));
 /// </code>
 /// </example>
@@ -37,31 +38,33 @@ namespace AgentPrism;
 public static class WorkflowAgentBinding
 {
     /// <summary>
-    /// Katalogdaki bir agent'i, workflow grafina konabilecek bicimde sarar.
+    /// Wraps a catalog agent in a form that can be placed in a workflow graph.
     /// </summary>
-    /// <param name="services">Servis saglayici.</param>
-    /// <param name="workflowName">Sarmalayan workflow'un adi. Hata mesajlarinda gorunur.</param>
-    /// <param name="agentName">Baglanacak agent'in adi.</param>
+    /// <param name="services">The service provider.</param>
+    /// <param name="workflowName">The name of the enclosing workflow. Appears in error messages.</param>
+    /// <param name="agentName">The name of the agent to bind.</param>
     /// <param name="description">
-    /// Agent'in ne yaptigini anlatan aciklama. <c>GroupChat</c> ve
-    /// <c>Magentic</c> desenlerinde modele gonderilen katilimci listesine girer;
-    /// bos birakilirsa yonetici agent'in ne zaman kimi cagiracagini bilmesi
-    /// zorlasir.
+    /// A description of what the agent does. In the <c>GroupChat</c> and
+    /// <c>Magentic</c> patterns it reaches the participant list sent to the
+    /// model; leaving it empty makes it harder for the manager agent to know
+    /// when to call whom.
     /// </param>
-    /// <returns>Grafa konabilecek agent.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="services"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="ArgumentException">Adlardan biri bos ise.</exception>
+    /// <returns>An agent that can be placed in the graph.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">One of the names is empty.</exception>
     /// <remarks>
     /// <para>
-    /// Agent <strong>gec cozulur</strong>: bu cagri katalogu okumaz, yalnizca
-    /// bir sarmalayici kurar. Boylece agent tanimi degistiginde derlenmis
-    /// workflow bayatlamaz ve fabrikanin es zamanli olmasi sorun cikarmaz.
+    /// The agent is resolved <strong>lazily</strong>: this call does not read
+    /// the catalog, it only builds a wrapper. This way, when an agent
+    /// definition changes, the compiled workflow does not go stale, and the
+    /// factory being synchronous causes no problem.
     /// </para>
     /// <para>
-    /// Ayni <c>(workflowName, agentName)</c> cifti icin <strong>ayni ornek</strong>
-    /// doner. Bu bilinclidir: Microsoft Agent Framework executor kimliklerini
-    /// agent ornegin kimliginden turetir ve her cagride yeni bir ornek
-    /// dondurmek kontrol noktalarini uyumsuz yapardi.
+    /// The <strong>same instance</strong> is returned for the same
+    /// <c>(workflowName, agentName)</c> pair. This is deliberate: Microsoft
+    /// Agent Framework derives executor ids from the agent instance's
+    /// identity, and returning a new instance on every call would make
+    /// checkpoints incompatible.
     /// </para>
     /// </remarks>
     public static AIAgent GetWorkflowAgent(

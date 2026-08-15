@@ -10,38 +10,40 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// OpenAI Conversations API ile uyumlu uclar.
+/// Endpoints compatible with the OpenAI Conversations API.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>AgentPrism'de konusma ile oturum ayni seydir.</strong> Bir konusma kimligi,
-/// oturum deposundaki bir oturumun kimligidir; <c>/v1/responses</c> cagrisindaki
-/// <c>conversation</c> alani da ayni kimligi kullanir. Bu bilincli bir modelleme
-/// karari: ikinci bir kimlik uzayi acmak, ayni sohbetin iki farkli yerden farkli
-/// gorunmesine yol acardi. Gerekce: <c>docs/KARARLAR.md</c>, karar K-043.
+/// <strong>In AgentPrism a conversation and a session are the same thing.</strong>
+/// A conversation identifier is the identifier of a session in the session
+/// store; the <c>conversation</c> field in a <c>/v1/responses</c> call uses
+/// the same identifier. This is a deliberate modeling decision: opening a
+/// second identifier space would cause the same chat to look different from
+/// two different places. Rationale: <c>docs/KARARLAR.md</c>, decision K-043.
 /// </para>
 /// <para>
-/// <c>POST /v1/conversations</c> bir <strong>kimlik rezervasyonudur</strong>: kimlik
-/// uretilir ve dondurulur, oturum ilk <c>/v1/responses</c> cagrisinda dogar. Bunun
-/// sebebi bir oturumun bir agent'a baglı olmasidir; konusma olusturulurken hangi
-/// agent'in kullanilacagi henuz bilinmez. Sonuc olarak henuz kullanilmamis bir
-/// konusma <c>404</c> degil, <strong>bos</strong> doner — gercek OpenAI'den tek
-/// davranis farki budur ve dokumante edilmistir.
+/// <c>POST /v1/conversations</c> is an <strong>identifier reservation</strong>:
+/// the identifier is generated and returned, and the session is born on the
+/// first <c>/v1/responses</c> call. The reason is that a session is bound to
+/// an agent; which agent will be used is not yet known when the conversation
+/// is created. As a result, a conversation that has not been used yet returns
+/// <strong>empty</strong>, not <c>404</c> — this is the one behavior
+/// difference from real OpenAI, and it is documented.
 /// </para>
 /// <para>
-/// <c>POST /v1/conversations/{id}/items</c> <strong>desteklenmez</strong>: gecmise
-/// dogrudan mesaj yazmak bir agent baglantisi ve sohbet gecmisi saglayicisinin
-/// yazma yolunu gerektirir. Mesaj eklemenin dogru yolu bir <c>/v1/responses</c>
-/// cagrisidir.
+/// <c>POST /v1/conversations/{id}/items</c> is <strong>not supported</strong>:
+/// writing a message directly to history requires an agent binding and the
+/// chat history provider's write path. The correct way to add a message is a
+/// <c>/v1/responses</c> call.
 /// </para>
 /// </remarks>
 internal static class OpenAIConversationsEndpoints
 {
     private const string ConversationIdPrefix = "conv_";
 
-    /// <summary>Conversations uclarini baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Connects the Conversations endpoints.</summary>
+    /// <param name="builder">Endpoint group.</param>
+    /// <param name="roles">Resolved role policies.</param>
     public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapPost("/v1/conversations", CreateAsync)
@@ -49,10 +51,10 @@ internal static class OpenAIConversationsEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismOpenAICreateConversation")
             .WithTags("AgentPrism", "OpenAI")
-            .WithSummary("Yeni bir konusma kimligi uretir.")
+            .WithSummary("Generates a new conversation identifier.")
             .WithDescription(
-                "Kimlik rezervasyonudur: oturum ilk /v1/responses cagrisinda dogar. " +
-                "Donen kimlik dogrudan 'conversation' alaninda kullanilir.")
+                "An identifier reservation: the session is born on the first /v1/responses call. " +
+                "The returned identifier is used directly in the 'conversation' field.")
             .Produces<ConversationResource>(StatusCodes.Status200OK)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status400BadRequest);
 
@@ -61,7 +63,7 @@ internal static class OpenAIConversationsEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismOpenAIGetConversation")
             .WithTags("AgentPrism", "OpenAI")
-            .WithSummary("Bir konusmanin ustverisini dondurur.")
+            .WithSummary("Returns a conversation's metadata.")
             .Produces<ConversationResource>(StatusCodes.Status200OK)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound);
 
@@ -70,7 +72,7 @@ internal static class OpenAIConversationsEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismOpenAIDeleteConversation")
             .WithTags("AgentPrism", "OpenAI")
-            .WithSummary("Bir konusmayi ve altindaki oturumu siler.")
+            .WithSummary("Deletes a conversation and the session underneath it.")
             .Produces<DeletedResource>(StatusCodes.Status200OK)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound);
 
@@ -79,7 +81,7 @@ internal static class OpenAIConversationsEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismOpenAIListConversationItems")
             .WithTags("AgentPrism", "OpenAI")
-            .WithSummary("Bir konusmanin mesajlarini OpenAI oge bicimiyle listeler.")
+            .WithSummary("Lists a conversation's messages in the OpenAI item format.")
             .Produces<ItemListResource>(StatusCodes.Status200OK)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound);
     }
@@ -89,12 +91,13 @@ internal static class OpenAIConversationsEndpoints
         ITenantContext tenantContext,
         CancellationToken cancellationToken)
     {
-        // Govde istege baglidir; OpenAI 'metadata' kabul eder.
+        // The body is optional; OpenAI accepts 'metadata'.
         //
-        // Ham metin olarak okunur, ContentLength'e GUVENILMEZ: parcali (chunked)
-        // aktarimda baslik gelmez ve ContentLength null olur — olculdu, istemcinin
-        // gonderdigi metadata sessizce dusuyordu. Bos govde ile bozuk govde
-        // ayrimi burada acikca yapilir; bozuk govde sessizce yok sayilmaz.
+        // Read as raw text; ContentLength is NOT TRUSTED: chunked transfer
+        // carries no header and ContentLength is null — measured, the
+        // client's metadata was silently getting dropped. The distinction
+        // between an empty body and a malformed body is made explicitly here;
+        // a malformed body is not silently ignored.
         JsonElement body = default;
 
         var raw = await new StreamReader(httpContext.Request.Body)
@@ -131,9 +134,10 @@ internal static class OpenAIConversationsEndpoints
         ITenantContext tenantContext,
         CancellationToken cancellationToken)
     {
-        // Sahiplik denetimi GetAsync'ten ONCE, kiraciden bagimsiz yapilir; GetAsync
-        // zaten ambient kiraciyle filtrelendigi icin baska kiracinin kaydini
-        // GOREMEZ ve denetimi asla tetikleyemezdi (HATA-S2-005).
+        // The ownership check runs BEFORE GetAsync, independent of the tenant;
+        // because GetAsync is already filtered by the ambient tenant, it
+        // CANNOT SEE another tenant's record and could never trigger the
+        // check (HATA-S2-005).
         if (!await OpenAICompatSupport
                 .IsOwnedByTenantAsync(sessions, tenantContext, conversationId, cancellationToken)
                 .ConfigureAwait(false))
@@ -143,7 +147,7 @@ internal static class OpenAIConversationsEndpoints
 
         var record = await sessions.GetAsync(conversationId, cancellationToken).ConfigureAwait(false);
 
-        // Kayit yoksa konusma henuz kullanilmamistir; kimlik gecerlidir ve bos doner.
+        // If there is no record the conversation has not been used yet; the identifier is valid and an empty result is returned.
         var conversation = new ConversationResource(
             conversationId,
             "conversation",
@@ -210,8 +214,8 @@ internal static class OpenAIConversationsEndpoints
             items.AddRange(ToItems(message));
         }
 
-        // 🚨 HasMore ONCEDEN sabit 'false' yaziliyordu; kesilen ogeler sessizce
-        // kayboluyor gibi gorunuyordu. Gercek toplam, kirpmadan ONCE olculur.
+        // 🚨 HasMore used to be written as a fixed 'false'; truncated items
+        // appeared to silently vanish. The real total is measured BEFORE trimming.
         var hasMore = false;
 
         if (limit is { } max && max > 0 && items.Count > max)
@@ -231,11 +235,11 @@ internal static class OpenAIConversationsEndpoints
     }
 
     /// <summary>
-    /// Bir <see cref="ChatMessage"/> nesnesini OpenAI oge kaynaklarina cevirir.
+    /// Converts a <see cref="ChatMessage"/> into OpenAI item resources.
     /// </summary>
     /// <remarks>
-    /// Tek bir mesaj birden fazla oge uretebilir: model hem tool cagirip hem metin
-    /// donebilir. Sira korunur.
+    /// A single message can produce more than one item: the model can both
+    /// call a tool and return text. Order is preserved.
     /// </remarks>
     private static IEnumerable<ItemResource> ToItems(ChatMessage message)
     {

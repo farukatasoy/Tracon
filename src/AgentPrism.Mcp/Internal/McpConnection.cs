@@ -11,8 +11,8 @@ using ModelContextProtocol.Protocol;
 namespace AgentPrism;
 
 /// <summary>
-/// Tek bir uzak MCP sunucusuna acilmis baglanti; kesfedilmis tool'lari ve
-/// (Mod A/B icin) kaynak onbellegini tasir.
+/// An open connection to a single remote MCP server; carries its discovered
+/// tools and (for Mode A/B) its resource cache.
 /// </summary>
 internal sealed class McpConnection : IAsyncDisposable
 {
@@ -20,15 +20,16 @@ internal sealed class McpConnection : IAsyncDisposable
     private readonly string _serverName;
     private readonly bool _requiresApproval;
 
-    // Mod B'nin (read_resource tool) kendi cagri anindaki turdeki gunlukleyici
-    // ve ayarlara erisebilmesi icin en son RefreshCatalogAsync/ConnectAsync
-    // cagrisindan saklanir.
+    // Kept from the most recent RefreshCatalogAsync/ConnectAsync call so that
+    // Mode B (the read_resource tool) can access the logger and options of
+    // the type at its own call time.
     private AgentPrismMcpOptions _options;
     private ILogger _logger;
 
-    // Kaynak onbellegi: URI -> son okunan icerik. Abonelik yalniz bu kaydi
-    // gecersiz kilar (Invalidated = true); icerik yeniden okunmaz, bir sonraki
-    // istekte taze cekilir (docs/22-MCP-DERINLESMESI.md, bolum 22.2).
+    // Resource cache: URI -> the last content read. A subscription only
+    // invalidates this entry (Invalidated = true); the content is not
+    // re-read immediately, it is fetched fresh on the next request
+    // (docs/22-MCP-DERINLESMESI.md, section 22.2).
     private readonly Dictionary<string, CachedResource> _resourceCache = new(StringComparer.Ordinal);
     private readonly HashSet<string> _subscribedUris = new(StringComparer.Ordinal);
     private readonly List<IAsyncDisposable> _subscriptions = [];
@@ -53,28 +54,30 @@ internal sealed class McpConnection : IAsyncDisposable
         Tools = [];
     }
 
-    /// <summary>Baglantinin kuruldugu tanimin parmak izi.</summary>
+    /// <summary>The fingerprint of the definition the connection was established from.</summary>
     public string FingerprintValue { get; }
 
-    /// <summary>Bu sunucudan kesfedilmis tool kayitlari (uzak tool'lar + varsa <c>read_resource</c>).</summary>
+    /// <summary>The tool registrations discovered from this server (remote tools + <c>read_resource</c> if present).</summary>
     public IReadOnlyList<AgentPrismToolRegistration> Tools { get; private set; }
 
-    /// <summary>Sunucunun bildirdigi yetenekler.</summary>
+    /// <summary>The capabilities reported by the server.</summary>
     public ServerCapabilities ServerCapabilities => _client.ServerCapabilities;
 
-    /// <summary>Sunucu <c>prompts</c> yetenegini bildiriyor mu.</summary>
+    /// <summary>Whether the server reports the <c>prompts</c> capability.</summary>
     public bool SupportsPrompts => ServerCapabilities.Prompts is not null;
 
-    /// <summary>Sunucu <c>resources</c> yetenegini bildiriyor mu.</summary>
+    /// <summary>Whether the server reports the <c>resources</c> capability.</summary>
     public bool SupportsResources => ServerCapabilities.Resources is not null;
 
     /// <summary>
-    /// Sunucu tanimindan baglantiyi yeniden kurmayi gerektiren alanlarin parmak izi.
+    /// The fingerprint of the fields in the server definition that require
+    /// the connection to be re-established.
     /// </summary>
     /// <remarks>
-    /// <c>RequiresApproval</c> ve OAuth alanlari parmak izine <strong>dahildir</strong>:
-    /// bunlardan biri degisince baglanti yeniden kurulmalidir. <c>Description</c>
-    /// dahil degildir; baglantiyi etkilemez.
+    /// <c>RequiresApproval</c> and the OAuth fields are <strong>included</strong>
+    /// in the fingerprint: when any of them changes, the connection must be
+    /// re-established. <c>Description</c> is not included; it does not affect
+    /// the connection.
     /// </remarks>
     public static string ComputeFingerprint(McpServerDefinition server)
         => string.Create(
@@ -85,12 +88,12 @@ internal sealed class McpConnection : IAsyncDisposable
             $"{string.Join(",", server.Headers.OrderBy(static pair => pair.Key, StringComparer.Ordinal).Select(static pair => $"{pair.Key}={pair.Value}"))}");
 
     /// <summary>
-    /// Sunucuya baglanir ve tool'larini kesfeder.
+    /// Connects to the server and discovers its tools.
     /// </summary>
     /// <returns>
-    /// Baglanti (kurulamadiysa <see langword="null"/>) ve baglanma girisiminin
-    /// GERCEK bir aglayici hatasiyla (zaman asimi, baglanti reddi) mi yoksa
-    /// kasitli bir atlamayla mi basarisiz oldugu (<c>Unreachable</c>).
+    /// The connection (<see langword="null"/> if it could not be established),
+    /// and whether the connection attempt failed with a REAL network error
+    /// (timeout, connection refused) or with a deliberate skip (<c>Unreachable</c>).
     /// </returns>
     public static async ValueTask<(McpConnection? Connection, bool Unreachable)> ConnectAsync(
         McpServerDefinition server,
@@ -138,14 +141,14 @@ internal sealed class McpConnection : IAsyncDisposable
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            // Uzak sunucunun cokmesi AgentPrism'i durdurmaz: o sunucunun
-            // tool'lari listeden duser, digerleri calismaya devam eder. AMA
-            // bu GERCEK bir aglayici hatasidir (zaman asimi/baglanti reddi) —
-            // caginan taraf bunu "sunucu bilerek atlandi"dan ayirt edebilmelidir
-            // (HATA-006, MT-CORE-006).
+            // A remote server crashing does not stop AgentPrism: that server's
+            // tools drop out of the list, the others keep working. BUT this is
+            // a REAL network error (timeout/connection refused) — the caller
+            // must be able to tell this apart from "the server was deliberately
+            // skipped" (HATA-006, MT-CORE-006).
             logger.LogWarning(
                 ex,
-                "MCP sunucusu '{ServerName}' ({Endpoint}) baglanamadi; tool'lari bu tazelemede listelenmeyecek.",
+                "MCP server '{ServerName}' ({Endpoint}) could not connect; its tools will not be listed in this refresh.",
                 server.Name,
                 server.Endpoint);
 
@@ -153,14 +156,14 @@ internal sealed class McpConnection : IAsyncDisposable
         }
     }
 
-    /// <summary>Baglanti girisiminin hic yapilmamasini gerektiren durumlari denetler.</summary>
+    /// <summary>Checks for conditions that require the connection attempt to never be made at all.</summary>
     private static bool ShouldSkipConnection(McpServerDefinition server, AgentPrismMcpOptions options, ILogger logger)
     {
         if (!McpToolNaming.IsValidServerName(server.Name))
         {
             logger.LogWarning(
-                "MCP sunucusu '{ServerName}' atlandi: ad yalnizca harf, rakam, alt cizgi ve tire icerebilir. " +
-                "Tool adlari sunucu adiyla oneklendigi icin bu kisit saglayici tarafindan zorunlu kilinir.",
+                "MCP server '{ServerName}' skipped: the name may contain only letters, digits, underscores, and hyphens. " +
+                "Tool names are prefixed with the server name, so the provider enforces this constraint.",
                 server.Name);
 
             return true;
@@ -169,8 +172,8 @@ internal sealed class McpConnection : IAsyncDisposable
         if (!McpTransportFactory.IsRemoteHttp(server.Endpoint))
         {
             logger.LogWarning(
-                "MCP sunucusu '{ServerName}' atlandi: yalnizca http ve https adresleri kabul edilir. " +
-                "Yerel surec (stdio) aktarimi bilerek desteklenmez.",
+                "MCP server '{ServerName}' skipped: only http and https addresses are accepted. " +
+                "Local process (stdio) transport is deliberately not supported.",
                 server.Name);
 
             return true;
@@ -179,8 +182,8 @@ internal sealed class McpConnection : IAsyncDisposable
         if (McpTransportFactory.RequiresUnconfiguredCallback(server, options))
         {
             logger.LogWarning(
-                "MCP sunucusu '{ServerName}' atlandi: OAuth acik ama AgentPrism:Mcp:OAuthCallbackBaseUri " +
-                "ayarlanmamis. Geri donus adresi olmadan saglayicida kayitli bir yonlendirme kurulamaz.",
+                "MCP server '{ServerName}' skipped: OAuth is enabled but AgentPrism:Mcp:OAuthCallbackBaseUri " +
+                "is not set. Without a callback address, no redirect registered with the provider can be established.",
                 server.Name);
 
             return true;
@@ -190,11 +193,11 @@ internal sealed class McpConnection : IAsyncDisposable
     }
 
     /// <summary>
-    /// Sunucunun tool ve (destekleniyorsa) kaynak listesini yeniden okur.
+    /// Re-reads the server's tool list and (if supported) resource list.
     /// </summary>
     /// <returns>
-    /// Okuma basarili ise <see langword="true"/>; degilse ayrica bunun GERCEK
-    /// bir aglayici hatasindan mi kaynaklandigini bildirir (<c>Unreachable</c>,
+    /// <see langword="true"/> if the read succeeded; otherwise also reports
+    /// whether this stemmed from a REAL network error (<c>Unreachable</c>,
     /// HATA-006, MT-CORE-006).
     /// </returns>
     public async ValueTask<(bool Refreshed, bool Unreachable)> RefreshCatalogAsync(
@@ -210,8 +213,9 @@ internal sealed class McpConnection : IAsyncDisposable
 
         try
         {
-            // Yetenek denetimi zorunludur: sunucu tools bildirmiyorsa istek
-            // hic gonderilmez (docs/22-MCP-DERINLESMESI.md, "Doğrulanmış API").
+            // The capability check is mandatory: if the server does not
+            // declare tools, the request is never sent at all
+            // (docs/22-MCP-DERINLESMESI.md, "Verified API").
             var discoveredTools = ServerCapabilities.Tools is null
                 ? []
                 : await _client.ListToolsAsync(options: null, timeout.Token).ConfigureAwait(false);
@@ -238,7 +242,7 @@ internal sealed class McpConnection : IAsyncDisposable
         {
             logger.LogWarning(
                 ex,
-                "MCP sunucusu '{ServerName}' tool/kaynak listesi okunamadi; onceki liste dusuruldu.",
+                "Could not read the tool/resource list of MCP server '{ServerName}'; the previous list was dropped.",
                 _serverName);
 
             Tools = [];
@@ -248,24 +252,24 @@ internal sealed class McpConnection : IAsyncDisposable
         }
     }
 
-    /// <summary>Sunucunun prompt listesini getirir (Faz 22.1).</summary>
+    /// <summary>Retrieves the server's prompt list (Phase 22.1).</summary>
     public async ValueTask<IList<McpClientPrompt>> ListPromptsAsync(CancellationToken cancellationToken)
         => await _client.ListPromptsAsync(options: null, cancellationToken).ConfigureAwait(false);
 
-    /// <summary>Bir prompt'un icerigini argumanlarla cozer (Faz 22.1).</summary>
+    /// <summary>Resolves a prompt's content with arguments (Phase 22.1).</summary>
     public async ValueTask<GetPromptResult> GetPromptAsync(
         string name,
         IReadOnlyDictionary<string, object?>? arguments,
         CancellationToken cancellationToken)
         => await _client.GetPromptAsync(name, arguments, options: null, cancellationToken).ConfigureAwait(false);
 
-    /// <summary>Sunucunun bildirdigi kaynak listesini dondurur (ham protokol tipi).</summary>
+    /// <summary>Returns the resource list reported by the server (raw protocol type).</summary>
     public IReadOnlyList<Resource> DeclaredResources => DeclaredResourceCache;
 
     /// <summary>
-    /// Mod A: bir kaynagi onbellek uzerinden okur. Yalniz bildirilen URI'ler
-    /// okunabilir; kabul edilen bir okuma ilk kullanimda kaynagi (destekleniyorsa)
-    /// abone yapar.
+    /// Mode A: reads a resource through the cache. Only declared URIs can be
+    /// read; an accepted read subscribes to the resource (if supported) on
+    /// first use.
     /// </summary>
     public async ValueTask<(McpOperationStatus Status, McpResourceContent? Content)> ReadDeclaredResourceAsync(
         string uri,
@@ -310,7 +314,7 @@ internal sealed class McpConnection : IAsyncDisposable
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            logger.LogWarning(ex, "MCP sunucusu '{ServerName}' kaynagi '{Uri}' okunamadi.", _serverName, uri);
+            logger.LogWarning(ex, "Could not read resource '{Uri}' of MCP server '{ServerName}'.", uri, _serverName);
 
             return (McpOperationStatus.ConnectionFailed, null);
         }
@@ -340,9 +344,10 @@ internal sealed class McpConnection : IAsyncDisposable
     }
 
     /// <summary>
-    /// Sunucu <c>resources.subscribe</c> destekliyorsa ve bu URI icin henuz
-    /// abonelik kurulmadiysa, abone olur. Aboneligin tek isi bildirim geldiginde
-    /// onbellek kaydini gecersiz kilmaktir; icerik bildirimde YENIDEN OKUNMAZ.
+    /// Subscribes if the server supports <c>resources.subscribe</c> and no
+    /// subscription has been established for this URI yet. The only job of
+    /// the subscription is to invalidate the cache entry when a notification
+    /// arrives; the content is NOT re-read on notification.
     /// </summary>
     private async ValueTask EnsureSubscribedAsync(string uri, ILogger logger, CancellationToken cancellationToken)
     {
@@ -361,10 +366,10 @@ internal sealed class McpConnection : IAsyncDisposable
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            // Abonelik kurulamamasi okumayi basarisiz kilmaz: kaynak bir
-            // sonraki calistirmaya kadar onbellekte kalir, gecersiz kilinmaz.
+            // Failing to subscribe does not fail the read: the resource
+            // stays in the cache until the next run and is not invalidated.
             _subscribedUris.Remove(uri);
-            logger.LogWarning(ex, "MCP sunucusu '{ServerName}' kaynagi '{Uri}' icin abonelik kurulamadi.", _serverName, uri);
+            logger.LogWarning(ex, "Could not subscribe to resource '{Uri}' of MCP server '{ServerName}'.", uri, _serverName);
         }
     }
 
@@ -432,15 +437,15 @@ internal sealed class McpConnection : IAsyncDisposable
         var function = AIFunctionFactory.Create(
             ReadResourceToolBodyAsync,
             name: qualifiedName,
-            description: $"'{_serverName}' MCP sunucusunun bildirdigi kayitli bir kaynagi okur. " +
-                          "Yalnizca sunucunun kaynak listesinde bulunan URI'ler kabul edilir.");
+            description: $"Reads a resource declared by the '{_serverName}' MCP server. " +
+                          "Only URIs present in the server's resource list are accepted.");
 
         return new AgentPrismToolRegistration(function, requiresApproval: _requiresApproval, source: _serverName);
     }
 
-    [Description("Kayitli bir MCP kaynagini okur.")]
+    [Description("Reads a declared MCP resource.")]
     private async Task<string> ReadResourceToolBodyAsync(
-        [Description("Okunacak kaynagin URI'si; sunucunun bildirdigi kaynak listesinden birine esit olmalidir.")]
+        [Description("The URI of the resource to read; must match one from the server's declared resource list.")]
         string uri,
         CancellationToken cancellationToken)
     {
@@ -454,15 +459,15 @@ internal sealed class McpConnection : IAsyncDisposable
         return status switch
         {
             McpOperationStatus.Ok when content is { IsBinary: true } =>
-                $"[ikili icerik, {content.ByteSize} bayt, {content.MimeType ?? "bilinmeyen tur"}]",
+                $"[binary content, {content.ByteSize} bytes, {content.MimeType ?? "unknown type"}]",
             McpOperationStatus.Ok => content?.Text ?? string.Empty,
             McpOperationStatus.UriNotDeclared =>
-                throw new InvalidOperationException($"'{uri}' '{_serverName}' sunucusunun bildirdigi kaynaklar arasinda degil."),
+                throw new InvalidOperationException($"'{uri}' is not among the resources declared by server '{_serverName}'."),
             McpOperationStatus.CapabilityUnsupported =>
-                throw new InvalidOperationException($"'{_serverName}' sunucusu kaynak okumayi desteklemiyor."),
+                throw new InvalidOperationException($"Server '{_serverName}' does not support reading resources."),
             McpOperationStatus.ItemNotFound =>
-                throw new InvalidOperationException($"'{uri}' '{_serverName}' sunucusunda bulunamadi."),
-            _ => throw new InvalidOperationException($"'{uri}' okunamadi."),
+                throw new InvalidOperationException($"'{uri}' was not found on server '{_serverName}'."),
+            _ => throw new InvalidOperationException($"'{uri}' could not be read."),
         };
     }
 
@@ -478,8 +483,8 @@ internal sealed class McpConnection : IAsyncDisposable
             if (registrations.Count >= options.MaxToolsPerServer)
             {
                 logger.LogWarning(
-                    "MCP sunucusu '{ServerName}' {Limit} tool sinirini asti; fazlasi atiliyor. " +
-                    "Sinir AgentPrism:Mcp:MaxToolsPerServer ile degistirilir.",
+                    "MCP server '{ServerName}' exceeded the {Limit} tool limit; the excess is being dropped. " +
+                    "The limit is changed with AgentPrism:Mcp:MaxToolsPerServer.",
                     _serverName,
                     options.MaxToolsPerServer);
 
@@ -489,18 +494,19 @@ internal sealed class McpConnection : IAsyncDisposable
             if (McpToolNaming.TryQualify(_serverName, tool.Name) is not { } qualified)
             {
                 logger.LogWarning(
-                    "MCP sunucusu '{ServerName}' tool'u '{ToolName}' atlandi: ad yalnizca harf, rakam, " +
-                    "alt cizgi ve tire icerebilir.",
-                    _serverName,
-                    tool.Name);
+                    "Tool '{ToolName}' of MCP server '{ServerName}' was skipped: the name may contain only " +
+                    "letters, digits, underscores, and hyphens.",
+                    tool.Name,
+                    _serverName);
 
                 continue;
             }
 
             registrations.Add(new AgentPrismToolRegistration(
                 tool.WithName(qualified),
-                // Uzak tool tanimi kodda degil, sunucuda yasar ve sunucu onu
-                // istedigi zaman degistirebilir. Onay varsayilani bu yuzden acik.
+                // The remote tool definition lives on the server, not in code,
+                // and the server can change it at any time. This is why
+                // approval defaults to required.
                 requiresApproval: _requiresApproval,
                 source: _serverName));
         }

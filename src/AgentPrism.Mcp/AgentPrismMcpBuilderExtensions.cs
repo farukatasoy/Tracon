@@ -7,32 +7,32 @@ using Microsoft.Extensions.Hosting;
 namespace AgentPrism;
 
 /// <summary>
-/// Uzak MCP sunucularindan tool kesfini kaydeden uzantilar.
+/// Extensions that register tool discovery from remote MCP servers.
 /// </summary>
 public static class AgentPrismMcpBuilderExtensions
 {
     /// <summary>
-    /// Model Context Protocol istemcisini kaydeder. Kayitli ve etkin her MCP
-    /// sunucusunun tool'lari kesfedilir ve kodda kayitli tool'larin yaninda
-    /// listelenir.
+    /// Registers the Model Context Protocol client. Tools from every registered
+    /// and enabled MCP server are discovered and listed alongside the tools
+    /// registered in code.
     /// </summary>
-    /// <param name="builder">AgentPrism yapilandirma zinciri.</param>
-    /// <param name="configure">Ayar degistirici.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> <see langword="null"/> ise.</exception>
+    /// <param name="builder">The AgentPrism configuration chain.</param>
+    /// <param name="configure">The option modifier.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     /// <remarks>
     /// <para>
-    /// <strong>Guvenlik siniri.</strong> MCP sunucusu eklemek, disaridan gelen
-    /// tool tanimlarini kabul etmek demektir ve tasarim kurali K2'nin
-    /// ("tool'lar yalnizca kodda tanimlanir") bilincli bir istisnasidir.
-    /// Su korumalarla gelir:
+    /// <strong>Security boundary.</strong> Adding an MCP server means accepting
+    /// tool definitions from an external source, and is a deliberate exception
+    /// to design rule K2 ("tools are defined only in code"). It comes with the
+    /// following safeguards:
     /// </para>
     /// <list type="bullet">
-    ///   <item><description>Yalnizca <em>uzak</em> HTTP sunuculari; yerel surec (stdio) aktarimi yoktur.</description></item>
-    ///   <item><description>MCP tool'lari varsayilan olarak <strong>onay ister</strong>.</description></item>
-    ///   <item><description>Kodda kayitli bir tool'un adi MCP tarafindan ele gecirilemez.</description></item>
-    ///   <item><description>Sunucu tanimi sir tasimaz; kimlik dogrulama degeri yapilandirmadan cozulur.</description></item>
-    ///   <item><description>Her cagri, kaynak sunucu adiyla <c>tool_invocations</c> tablosuna yazilir.</description></item>
+    ///   <item><description>Only <em>remote</em> HTTP servers; there is no local process (stdio) transport.</description></item>
+    ///   <item><description>MCP tools <strong>require approval</strong> by default.</description></item>
+    ///   <item><description>A tool name already registered in code can never be hijacked by MCP.</description></item>
+    ///   <item><description>The server definition carries no secret; the authentication value is resolved from configuration.</description></item>
+    ///   <item><description>Every call is written to the <c>tool_invocations</c> table with the source server name.</description></item>
     /// </list>
     /// <example>
     /// <code>
@@ -54,27 +54,28 @@ public static class AgentPrismMcpBuilderExtensions
     }
 
     /// <summary>
-    /// Ayarlari <c>AgentPrism:Mcp</c> bolumunden okuyarak MCP istemcisini kaydeder.
+    /// Registers the MCP client, reading options from the <c>AgentPrism:Mcp</c> section.
     /// </summary>
-    /// <param name="builder">AgentPrism yapilandirma zinciri.</param>
+    /// <param name="builder">The AgentPrism configuration chain.</param>
     /// <param name="configurationSection">
-    /// Ayarlarin okunacagi bolum. Genellikle
+    /// The section options are read from. Typically
     /// <c>configuration.GetSection(AgentPrismMcpOptions.SectionName)</c>.
     /// </param>
     /// <param name="configure">
-    /// Bolum baglandiktan SONRA calisan ayar degistirici. Kodda verilen deger
-    /// yapilandirmadan gelen degeri ezer.
+    /// The option modifier that runs AFTER the section is bound. A value given
+    /// in code overrides the value coming from configuration.
     /// </param>
-    /// <returns>Zincirin devami.</returns>
+    /// <returns>The chain, for further configuration.</returns>
     /// <exception cref="ArgumentNullException">
-    /// <paramref name="builder"/> veya <paramref name="configurationSection"/>
-    /// <see langword="null"/> ise.
+    /// <paramref name="builder"/> or <paramref name="configurationSection"/>
+    /// is <see langword="null"/>.
     /// </exception>
     /// <remarks>
     /// <para>
-    /// Yapilandirma <strong>acikca</strong> verilir; AgentPrism kendiliginden
-    /// <c>IConfiguration</c> okumaz. Gerekce K1 (sifir surpriz) ve depodaki
-    /// diger <c>Use*</c> uzantilariyla tutarliliktir.
+    /// Configuration is provided <strong>explicitly</strong>; AgentPrism never
+    /// reads <c>IConfiguration</c> on its own. This follows from rationale K1
+    /// (zero surprises) and stays consistent with the other <c>Use*</c>
+    /// extensions in the repository.
     /// </para>
     /// <example>
     /// <code>
@@ -114,9 +115,9 @@ public static class AgentPrismMcpBuilderExtensions
         services.TryAddSingleton<McpOAuthTokenCacheRegistry>();
         services.TryAddSingleton<McpToolCatalog>();
 
-        // Defter DEGISTIRILIR, TryAdd ile eklenmez: AddAgentPrism() zincirde
-        // once calisir ve ToolRegistry'yi zaten kaydetmis olur. Yeni defter
-        // eskisini sarmalar; kodda kayitli tool'lar oncelikli kalir.
+        // The registry is REPLACED, not added with TryAdd: AddAgentPrism() runs
+        // earlier in the chain and has already registered ToolRegistry. The new
+        // registry wraps the old one; tools registered in code keep priority.
         services.Replace(ServiceDescriptor.Singleton<IToolRegistry>(static provider => new McpToolRegistry(
             new ToolRegistry(provider.GetServices<AgentPrismToolRegistration>()),
             provider.GetRequiredService<McpToolCatalog>(),
@@ -124,14 +125,14 @@ public static class AgentPrismMcpBuilderExtensions
 
         services.TryAddSingleton<IMcpToolRefresher, McpToolRefresher>();
 
-        // Mod A: AgentDefinitionCompiler (AgentPrism.Core) bu fabrikayi
-        // opsiyonel bir bagimlilik olarak cozer; kayitli degilse
-        // McpResourceUris kullanan bir tanim derleme hatasi alir.
+        // Mode A: AgentDefinitionCompiler (AgentPrism.Core) resolves this
+        // factory as an optional dependency; if it is not registered, a
+        // definition using McpResourceUris fails to compile.
         services.TryAddSingleton<IMcpResourceContextProviderFactory, McpResourceContextProviderFactory>();
 
-        // Prompts/Resources (22.1/22.2) ve OAuth Mod 1 (22.3): GovernanceEndpoints
-        // (AgentPrism.AspNetCore) bu soyutlamalari opsiyonel servisler olarak
-        // cozer; kayitli degilse ilgili uclar 501 doner.
+        // Prompts/Resources (22.1/22.2) and OAuth Mode 1 (22.3): GovernanceEndpoints
+        // (AgentPrism.AspNetCore) resolves these abstractions as optional
+        // services; if not registered, the corresponding endpoints return 501.
         services.TryAddSingleton<IMcpPromptClient, McpPromptClient>();
         services.TryAddSingleton<IMcpResourceClient, McpResourceClient>();
         services.TryAddSingleton<IMcpOAuthCoordinator, McpOAuthAuthorizationCoordinator>();
@@ -142,14 +143,16 @@ public static class AgentPrismMcpBuilderExtensions
     }
 
     /// <summary>
-    /// <c>AgentPrism:Mcp</c> bolumunu elle baglar.
+    /// Manually binds the <c>AgentPrism:Mcp</c> section.
     /// </summary>
     /// <remarks>
-    /// Elle baglama bir AOT gereksinimidir: <c>Bind()</c> yansimaya dayanir ve
-    /// <c>IL2026</c> + <c>IL3050</c> uretir; kirpilmis uygulamalarda ayarlar
-    /// sessizce bos kalir. Gerekce: <c>docs/KARARLAR.md</c>, karar K-021.
-    /// 🚨 <see cref="AgentPrismMcpOptions"/>'a yeni bir ayar eklendiginde bu
-    /// metoda da eklenmelidir; yoksa ayar sessizce baglanmaz.
+    /// Manual binding is an AOT requirement: <c>Bind()</c> relies on
+    /// reflection and produces <c>IL2026</c> + <c>IL3050</c>; in trimmed
+    /// applications the options would silently stay empty. Rationale:
+    /// <c>docs/KARARLAR.md</c>, decision K-021.
+    /// 🚨 When a new option is added to <see cref="AgentPrismMcpOptions"/>, it
+    /// must also be added to this method; otherwise the option silently fails
+    /// to bind.
     /// </remarks>
     private static void Bind(IConfiguration section, AgentPrismMcpOptions options)
     {

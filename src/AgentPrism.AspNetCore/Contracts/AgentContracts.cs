@@ -1,60 +1,60 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Agent tanimi olusturma ve guncelleme istegi.
+/// Request to create or update an agent definition.
 /// </summary>
 /// <remarks>
-/// <see cref="AgentDefinition"/> dogrudan baglanmaz. Tanimin <c>Origin</c>,
-/// <c>Version</c>, <c>TenantId</c> ve <c>UpdatedAt</c> alanlari sunucuya aittir;
-/// istemcinin bunlari belirlemesine izin vermek surum gecmisini ve kiraci
-/// yalitimini bozardi.
+/// Does not bind directly to <see cref="AgentDefinition"/>. The definition's
+/// <c>Origin</c>, <c>Version</c>, <c>TenantId</c>, and <c>UpdatedAt</c> fields
+/// belong to the server; letting the client set these would break version
+/// history and tenant isolation.
 /// </remarks>
 public sealed record AgentDefinitionRequest
 {
-    /// <summary>Agent adi. Katalogda benzersizdir.</summary>
+    /// <summary>Agent name. Unique within the catalog.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Arayuzde gosterilecek ad.</summary>
+    /// <summary>Name shown in the UI.</summary>
     public string? DisplayName { get; init; }
 
-    /// <summary>Kisa aciklama.</summary>
+    /// <summary>Short description.</summary>
     public string? Description { get; init; }
 
-    /// <summary>Sistem talimati.</summary>
+    /// <summary>System instructions.</summary>
     public string? Instructions { get; init; }
 
-    /// <summary>Model baglantisi: saglayici, model ve ornekleme ayarlari.</summary>
+    /// <summary>Model binding: provider, model, and sampling settings.</summary>
     public required ModelBinding Model { get; init; }
 
     /// <summary>
-    /// Kullanilacak tool adlari. Tool'lar yalnizca kodda tanimlanir; burada
-    /// yalnizca kayitli bir tool'un adi verilebilir.
+    /// Names of tools to use. Tools are defined only in code; only the name of
+    /// an already registered tool may be given here.
     /// </summary>
     public IReadOnlyList<string> ToolNames { get; init; } = [];
 
-    /// <summary>Calisma aninda yuklenebilecek skill adlari.</summary>
+    /// <summary>Names of skills that can be loaded at runtime.</summary>
     public IReadOnlyList<string> SkillNames { get; init; } = [];
 
     /// <summary>
-    /// Bu agent'in cagirabilecegi diger agent adlari.
+    /// Names of other agents this agent may call.
     /// </summary>
     /// <remarks>
-    /// Cagri grafigi kaydetme aninda denetlenir: bilinmeyen ad, kendi kendini
-    /// cagirma ve dolayli dongu <c>400 Bad Request</c> ile reddedilir.
+    /// Checked at the moment the call graph is saved: an unknown name,
+    /// self-calling, and indirect cycles are rejected with <c>400 Bad Request</c>.
     /// </remarks>
     public IReadOnlyList<string> CallableAgentNames { get; init; } = [];
 
-    /// <summary>Harness ayarlari. Bos birakilirsa duz sohbet agent'i derlenir.</summary>
+    /// <summary>Harness settings. If left empty, a plain chat agent is compiled.</summary>
     public HarnessSettings? Harness { get; init; }
 
-    /// <summary>Baglam sikistirma ayarlari. Bos birakilirsa sikistirma uygulanmaz.</summary>
+    /// <summary>Context compaction settings. If left empty, no compaction is applied.</summary>
     public CompactionSettings? Compaction { get; init; }
 
-    /// <summary>Bellek saglayicisi ayarlari. Bos birakilirsa hicbir bellek saglayicisi eklenmez.</summary>
+    /// <summary>Memory provider settings. If left empty, no memory provider is added.</summary>
     public MemorySettings? Memory { get; init; }
 
-    /// <summary>Istegi kalici bir tanima cevirir.</summary>
-    /// <returns>Veritabanina yazilabilir tanim.</returns>
+    /// <summary>Converts the request into a persistable definition.</summary>
+    /// <returns>A definition ready to be written to the database.</returns>
     public AgentDefinition ToDefinition()
         => new()
         {
@@ -73,51 +73,52 @@ public sealed record AgentDefinitionRequest
         };
 }
 
-/// <summary>Skill olusturma veya guncelleme istegi.</summary>
+/// <summary>Request to create or update a skill.</summary>
 public sealed record AgentSkillRequest
 {
-    /// <summary>Skill adi.</summary>
+    /// <summary>Skill name.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Skill aciklamasi.</summary>
+    /// <summary>Skill description.</summary>
     public required string Description { get; init; }
 
-    /// <summary>Markdown talimatlari.</summary>
+    /// <summary>Markdown instructions.</summary>
     public required string Instructions { get; init; }
 
-    /// <summary>Uyumluluk bildirimi.</summary>
+    /// <summary>Compatibility statement.</summary>
     public string? Compatibility { get; init; }
 
-    /// <summary>Skill lisansi.</summary>
+    /// <summary>Skill license.</summary>
     public string? License { get; init; }
 
-    /// <summary>MAF frontmatter'indaki izinli tool bildirimi.</summary>
+    /// <summary>Allowed-tools declaration from the MAF frontmatter.</summary>
     public string? AllowedTools { get; init; }
 
-    /// <summary>Uygulamaya ozgu metadata.</summary>
+    /// <summary>Application-specific metadata.</summary>
     public IReadOnlyDictionary<string, System.Text.Json.JsonElement> Metadata { get; init; }
         = new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal);
 
-    /// <summary>Skill etkin mi.</summary>
+    /// <summary>Whether the skill is enabled.</summary>
     public bool Enabled { get; init; } = true;
 
-    /// <summary>Skill kaynaklari.</summary>
+    /// <summary>Skill resources.</summary>
     public IReadOnlyList<AgentSkillResourceDefinition> Resources { get; init; } = [];
 
     /// <summary>
-    /// Skill script'leri.
+    /// Skill scripts.
     /// </summary>
     /// <remarks>
-    /// Buraya yazilan icerik <strong>sunucuda calistirilabilir</strong>. Yazmak
-    /// tek basina yetmez: script yalnizca <c>AgentPrismSkillScriptOptions</c>
-    /// icinde <c>Enabled</c> ve <c>AllowStoredScripts</c> aciksa ve kiraci icin
-    /// gecerli bir <c>SkillScriptGrant</c> varsa calisir.
+    /// Content written here <strong>can be executed on the server</strong>.
+    /// Writing it is not enough by itself: a script runs only when
+    /// <c>AgentPrismSkillScriptOptions</c> has both <c>Enabled</c> and
+    /// <c>AllowStoredScripts</c> turned on, and a valid <c>SkillScriptGrant</c>
+    /// exists for the tenant.
     /// </remarks>
     public IReadOnlyList<AgentSkillScriptDefinition> Scripts { get; init; } = [];
 
-    /// <summary>Istegi kalici skill tanimina cevirir.</summary>
-    /// <param name="tenantId">Gecerli kiraci kimligi.</param>
-    /// <returns>Kaydedilmeye hazir skill.</returns>
+    /// <summary>Converts the request into a persistable skill definition.</summary>
+    /// <param name="tenantId">The current tenant identifier.</param>
+    /// <returns>A skill ready to be saved.</returns>
     public AgentSkillDefinition ToDefinition(string tenantId)
         => new()
         {
@@ -135,130 +136,135 @@ public sealed record AgentSkillRequest
         };
 }
 
-/// <summary>Script calistirma izni verme istegi.</summary>
+/// <summary>Request to grant script execution permission.</summary>
 /// <remarks>
-/// Izin vermek, bu kiracinin adina sunucuda kod calistirilmasina yetki vermektir.
-/// Bu yuzden ilgili uc yalnizca yonetici rolune aciktir ve her istek denetim
-/// izine yazilir.
+/// Granting permission means authorizing code to run on the server on behalf
+/// of this tenant. Because of this, the corresponding endpoint is open only to
+/// the admin role and every request is written to the audit log.
 /// </remarks>
 public sealed record SkillScriptGrantRequest
 {
-    /// <summary>Izin verilen skill'in adi.</summary>
+    /// <summary>Name of the skill being granted permission.</summary>
     public required string SkillName { get; init; }
 
     /// <summary>
-    /// Izin verilen script'in adi. <see langword="null"/> ise skill'in tum
-    /// script'leri kapsanir.
+    /// Name of the script being granted permission. If <see langword="null"/>,
+    /// every script of the skill is covered.
     /// </summary>
     public string? ScriptName { get; init; }
 
-    /// <summary>Iznin bitis zamani. <see langword="null"/> ise sinirsizdir.</summary>
+    /// <summary>Expiration time of the grant. If <see langword="null"/>, it is unlimited.</summary>
     public DateTimeOffset? ExpiresAt { get; init; }
 }
 
 /// <summary>
-/// Tek bir agent'in ayrintili gorunumu.
+/// Detailed view of a single agent.
 /// </summary>
 /// <remarks>
-/// Katalog hem kodda hem veritabaninda tanimli agent'lari gosterir. Kodda
-/// tanimlananlar <strong>duzenlenemez</strong>: ad cakismasinda kod kazanir
-/// (karar K-003), dolayisiyla veritabanina yazilan bir tanim hicbir zaman
-/// cozulmezdi. <see cref="IsEditable"/> arayuzun bunu onceden bilmesini saglar.
+/// The catalog shows agents defined both in code and in the database. Those
+/// defined in code <strong>cannot be edited</strong>: on a name collision,
+/// code wins (decision K-003), so a definition written to the database would
+/// never resolve. <see cref="IsEditable"/> lets the UI know this in advance.
 /// </remarks>
 public sealed record AgentDetailResponse
 {
-    /// <summary>Katalog ozeti.</summary>
+    /// <summary>Catalog summary.</summary>
     public required AgentDescriptor Descriptor { get; init; }
 
-    /// <summary>Kalici tanim. Agent yalnizca kodda tanimliysa <see langword="null"/>.</summary>
+    /// <summary>Persistent definition. <see langword="null"/> if the agent is defined only in code.</summary>
     public AgentDefinition? Definition { get; init; }
 
-    /// <summary>Bu agent yonetim API'sinden degistirilebilir mi.</summary>
+    /// <summary>Whether this agent can be modified through the management API.</summary>
     public required bool IsEditable { get; init; }
 }
 
-/// <summary>Bir tanimi onceki bir surume dondurme istegi.</summary>
+/// <summary>Request to roll back a definition to a previous version.</summary>
 public sealed record AgentRollbackRequest
 {
-    /// <summary>Donulecek surum numarasi.</summary>
+    /// <summary>Version number to roll back to.</summary>
     public required int Version { get; init; }
 }
 
 /// <summary>
-/// Iki tanim surumunun ham JSON yaniti (Faz 19.1). Diff hesabi sunucuda yapilmaz;
-/// istemci iki ham tanimi alan alan karsilastirir.
+/// Raw JSON response for comparing two definition versions (Phase 19.1). The
+/// diff is not computed on the server; the client compares the two raw
+/// definitions field by field.
 /// </summary>
 public sealed record AgentVersionDiffResponse
 {
-    /// <summary>Karsilastirmanin sol (genelde eski) tarafi.</summary>
+    /// <summary>Left (usually older) side of the comparison.</summary>
     public required AgentDefinition Left { get; init; }
 
-    /// <summary>Karsilastirmanin sag (genelde yeni) tarafi.</summary>
+    /// <summary>Right (usually newer) side of the comparison.</summary>
     public required AgentDefinition Right { get; init; }
 }
 
-/// <summary>Arayuzden yapilan deneme calistirmasinin istegi.</summary>
+/// <summary>Request for a trial run made from the UI.</summary>
 public sealed record AgentRunRequest
 {
     /// <summary>
-    /// Kullanici mesaji. Yalnizca <see cref="Approvals"/> gonderiliyorsa bos birakilabilir.
+    /// User message. May be left empty only if <see cref="Approvals"/> is sent.
     /// </summary>
     public string? Message { get; init; }
 
     /// <summary>
-    /// Oturum kimligi. Verilmezse calistirma oturumsuzdur ve gecmis tasinmaz.
+    /// Session identifier. If not given, the run is sessionless and no history
+    /// is carried.
     /// </summary>
     public string? SessionId { get; init; }
 
     /// <summary>
-    /// Bekleyen tool cagrilarina verilen onay kararlari.
+    /// Approval decisions for pending tool calls.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Onay <strong>bir sonraki turun girdisidir</strong>: Microsoft Agent Framework
-    /// bekleyen bir cagriyi yanitta <c>ToolApprovalRequestContent</c> olarak dondurur
-    /// ve karari sonraki calistirmanin mesajlarinda bekler. Ayri bir "devam et"
-    /// ucu bu yuzden yoktur.
+    /// Approval is <strong>the input to the next turn</strong>: Microsoft
+    /// Agent Framework returns a pending call as
+    /// <c>ToolApprovalRequestContent</c> in the response, and the decision is
+    /// expected in the messages of the next run. There is therefore no
+    /// separate "continue" endpoint.
     /// </para>
     /// <para>
-    /// Kararlar yalnizca <see cref="SessionId"/> verildiginde islenir: bekleyen
-    /// istek oturum gecmisinde yasar ve oturumsuz bir calistirmada bulunamaz.
+    /// Decisions are processed only when <see cref="SessionId"/> is given: the
+    /// pending request lives in the session history and cannot be found in a
+    /// sessionless run.
     /// </para>
     /// </remarks>
     public IReadOnlyList<ToolApprovalDecision> Approvals { get; init; } = [];
 
     /// <summary>
-    /// Onceden <c>POST /api/attachments</c> ile yuklenmis eklerin kimlikleri.
+    /// Identifiers of attachments previously uploaded via <c>POST /api/attachments</c>.
     /// </summary>
     /// <remarks>
-    /// Her kimlik cagiran kiraciya ait olmalidir; aksi halde istek <c>400</c> ile
-    /// reddedilir. Ikili icerik mesajda tasinmaz, yalniz kucuk bir referans
-    /// (<see cref="Microsoft.Extensions.AI.UriContent"/>) eklenir.
-    /// Gerekce: <c>docs/14-COK-MODLULUK.md</c>, bolum 14.1 ve 14.4.
+    /// Each identifier must belong to the calling tenant; otherwise the
+    /// request is rejected with <c>400</c>. Binary content is not carried in
+    /// the message, only a small reference
+    /// (<see cref="Microsoft.Extensions.AI.UriContent"/>) is added.
+    /// Rationale: <c>docs/14-COK-MODLULUK.md</c>, sections 14.1 and 14.4.
     /// </remarks>
     public IReadOnlyList<Guid> AttachmentIds { get; init; } = [];
 }
 
 /// <summary>
-/// Kuyruga alinmis bir calistirmanin <c>202 Accepted</c> yaniti (Faz 46).
+/// <c>202 Accepted</c> response for a queued run (Phase 46).
 /// </summary>
 /// <remarks>
-/// <c>Prefer: respond-async</c> basligiyla baslatilan bir calistirmada
-/// donulur. Ayni bilgiler <c>Location</c> basliginda da tasinir; govde
-/// istemcinin ayrica bir olay akisi adresi (<see cref="EventsLocation"/>)
-/// kurmasina gerek birakmaz.
+/// Returned for a run started with the <c>Prefer: respond-async</c> header.
+/// The same information is also carried in the <c>Location</c> header; the
+/// body spares the client from having to also construct an event stream
+/// address (<see cref="EventsLocation"/>).
 /// </remarks>
 public sealed record AcceptedRunResponse
 {
-    /// <summary>Calistirma kimligi.</summary>
+    /// <summary>Run identifier.</summary>
     public required Guid RunId { get; init; }
 
-    /// <summary>Isi tasiyan kuyruk kaydinin kimligi.</summary>
+    /// <summary>Identifier of the queue record carrying the work.</summary>
     public required Guid JobId { get; init; }
 
-    /// <summary>Calistirma kaydinin adresi. <c>Location</c> basligiyla aynidir.</summary>
+    /// <summary>Address of the run record. Same as the <c>Location</c> header.</summary>
     public required string Location { get; init; }
 
-    /// <summary>Olay akisinin adresi.</summary>
+    /// <summary>Address of the event stream.</summary>
     public required string EventsLocation { get; init; }
 }

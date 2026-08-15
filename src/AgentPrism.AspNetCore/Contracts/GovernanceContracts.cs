@@ -2,146 +2,149 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>Gecerli istegin kiracisi.</summary>
+/// <summary>Tenant of the current request.</summary>
 public sealed record CurrentTenantResponse
 {
-    /// <summary>Kiraci kimligi.</summary>
+    /// <summary>Tenant identifier.</summary>
     public required string TenantId { get; init; }
 }
 
-/// <summary>Kiraci kaydi olusturma ve guncelleme istegi.</summary>
+/// <summary>Request to create/update a tenant record.</summary>
 public sealed record TenantRequest
 {
-    /// <summary>Arayuzde gosterilecek ad. Bos birakilirsa anahtar kullanilir.</summary>
+    /// <summary>Name shown in the UI. If left empty, the key is used.</summary>
     public string? DisplayName { get; init; }
 }
 
 /// <summary>
-/// MCP sunucusu olusturma ve guncelleme istegi.
+/// Request to create/update an MCP server.
 /// </summary>
 /// <remarks>
-/// <strong>Sir alani yoktur.</strong> Kimlik dogrulama basliginin degeri
-/// gonderilmez; yalnizca degerin okunacagi yapilandirma anahtarinin adi
-/// (<see cref="AuthorizationConfigurationKey"/>) gonderilir. Deger calisma
-/// aninda <c>IConfiguration</c> uzerinden cozulur ve veritabanina hicbir zaman
-/// yazilmaz. Gerekce: <c>docs/KARARLAR.md</c>, karar K-059.
+/// <strong>There is no secret field.</strong> The authentication header's
+/// value is not sent; only the name of the configuration key
+/// (<see cref="AuthorizationConfigurationKey"/>) the value is to be read from
+/// is sent. The value is resolved through <c>IConfiguration</c> at runtime and
+/// is never written to the database. Rationale: <c>docs/KARARLAR.md</c>,
+/// decision K-059.
 /// </remarks>
 public sealed record McpServerRequest
 {
-    /// <summary>Aciklama.</summary>
+    /// <summary>Description.</summary>
     public string? Description { get; init; }
 
-    /// <summary>Sunucu adresi. Yalnizca <c>http</c> ve <c>https</c> kabul edilir.</summary>
+    /// <summary>Server address. Only <c>http</c> and <c>https</c> are accepted.</summary>
     public required string Endpoint { get; init; }
 
-    /// <summary>Aktarim bicimi.</summary>
+    /// <summary>Transport mode.</summary>
     public McpTransportMode Transport { get; init; }
 
     /// <summary>
-    /// <c>Authorization</c> basliginin degerinin okunacagi yapilandirma anahtari.
-    /// Ornek: <c>AgentPrism:Mcp:GithubToken</c>.
+    /// Configuration key the <c>Authorization</c> header's value is read from.
+    /// Example: <c>AgentPrism:Mcp:GithubToken</c>.
     /// </summary>
     public string? AuthorizationConfigurationKey { get; init; }
 
     /// <summary>
-    /// Ek istek basliklari. <strong>Sir tasimamalidir</strong> — bu degerler
-    /// oldugu gibi saklanir ve listeleme ucunda gorunur.
+    /// Extra request headers. <strong>Must not carry secrets</strong> — these
+    /// values are stored as-is and appear in the listing endpoint.
     /// </summary>
     public IReadOnlyDictionary<string, string>? Headers { get; init; }
 
-    /// <summary>Sunucu etkin mi.</summary>
+    /// <summary>Whether the server is enabled.</summary>
     public bool Enabled { get; init; } = true;
 
-    /// <summary>Bu sunucunun tool'lari onay ister mi. Varsayilan <see langword="true"/>.</summary>
+    /// <summary>Whether this server's tools require approval. Default <see langword="true"/>.</summary>
     public bool RequiresApproval { get; init; } = true;
 
     /// <summary>
-    /// OAuth ile kimlik dogrulama acik mi. Acikken <see cref="AuthorizationConfigurationKey"/>
-    /// bos olmalidir.
+    /// Whether OAuth authentication is enabled. While on,
+    /// <see cref="AuthorizationConfigurationKey"/> must be empty.
     /// </summary>
     /// <remarks>
-    /// 🚨 <c>[JsonPropertyName]</c> BILEREK verilir — gerekce <see cref="McpServerDefinition.OAuthEnabled"/>
-    /// ile aynidir: camelCase politikasi "OAuth" gibi iki buyuk harfle baslayan
-    /// adlarda beklenmeyen bir sonuc uretir.
+    /// 🚨 <c>[JsonPropertyName]</c> is given DELIBERATELY — same rationale as
+    /// <see cref="McpServerDefinition.OAuthEnabled"/>: the camelCase policy
+    /// produces an unexpected result for a name like "OAuth" that starts with
+    /// two capital letters.
     /// </remarks>
     [JsonPropertyName("oauthEnabled")]
     public bool OAuthEnabled { get; init; }
 
-    /// <summary>OAuth istemci kimligi.</summary>
+    /// <summary>OAuth client identifier.</summary>
     [JsonPropertyName("oauthClientId")]
     public string? OAuthClientId { get; init; }
 
     /// <summary>
-    /// OAuth istemci gizli anahtarinin degerinin okunacagi yapilandirma anahtari.
-    /// Deger gonderilmez; yalniz anahtarin adi.
+    /// Configuration key the OAuth client secret's value is read from. The
+    /// value itself is not sent; only the key's name is.
     /// </summary>
     [JsonPropertyName("oauthClientSecretConfigurationKey")]
     public string? OAuthClientSecretConfigurationKey { get; init; }
 
-    /// <summary>Bosluk ile ayrilmis OAuth scope listesi.</summary>
+    /// <summary>Space-separated list of OAuth scopes.</summary>
     [JsonPropertyName("oauthScopes")]
     public string? OAuthScopes { get; init; }
 
-    /// <summary>OAuth yetkilendirme akisi.</summary>
+    /// <summary>OAuth authorization flow.</summary>
     [JsonPropertyName("oauthAuthorizationMode")]
     public McpOAuthAuthorizationMode OAuthAuthorizationMode { get; init; } = McpOAuthAuthorizationMode.AuthorizationCode;
 }
 
-/// <summary>MCP tool tazeleme sonucu.</summary>
+/// <summary>Result of an MCP tool refresh.</summary>
 public sealed record McpRefreshResponse
 {
-    /// <summary>Tazeleme sonrasi kullanilabilir toplam tool sayisi.</summary>
+    /// <summary>Total number of tools available after the refresh.</summary>
     public required int ToolCount { get; init; }
 }
 
-/// <summary>Bir MCP prompt'unu argumanlarla cozme istegi.</summary>
+/// <summary>Request to resolve an MCP prompt with arguments.</summary>
 public sealed record McpPromptArgumentsRequest
 {
-    /// <summary>Prompt argumanlari.</summary>
+    /// <summary>Prompt arguments.</summary>
     public IReadOnlyDictionary<string, string>? Arguments { get; init; }
 }
 
-/// <summary>OAuth Mod 1 baslatma yaniti.</summary>
+/// <summary>Response for starting OAuth Mode 1.</summary>
 public sealed record McpOAuthStartResponse
 {
-    /// <summary>Yoneticinin yonlendirilecegi yetkilendirme adresi.</summary>
+    /// <summary>Authorization address the admin is redirected to.</summary>
     public required string AuthorizationUri { get; init; }
 
-    /// <summary>CSRF korumasi icin uretilen tek kullanimlik durum degeri.</summary>
+    /// <summary>Single-use state value generated for CSRF protection.</summary>
     public required string State { get; init; }
 }
 
 /// <summary>
-/// Arayuzden gonderilen tool onay karari.
+/// Tool approval decision sent from the UI.
 /// </summary>
 /// <remarks>
-/// Karar, bir sonraki calistirma isteginin govdesinde tasinir. Microsoft Agent
-/// Framework onay yanitini bir <c>ChatMessage</c> icerigi olarak bekler; ayri
-/// bir "devam et" ucu yoktur, cunku onay bir sonraki turun girdisidir.
+/// The decision is carried in the body of the next run request. Microsoft
+/// Agent Framework expects the approval response as a <c>ChatMessage</c>
+/// content item; there is no separate "continue" endpoint, because approval
+/// is the input to the next turn.
 /// </remarks>
 public sealed record ToolApprovalDecision
 {
     /// <summary>
-    /// Onaylanan istegin kimligi. Akista gelen
-    /// <c>ToolApprovalRequestContent.RequestId</c> degeridir.
+    /// Identifier of the approved request. This is the
+    /// <c>ToolApprovalRequestContent.RequestId</c> value received in the stream.
     /// </summary>
     public required string RequestId { get; init; }
 
-    /// <summary>Cagri onaylandi mi.</summary>
+    /// <summary>Whether the call is approved.</summary>
     public required bool Approved { get; init; }
 
-    /// <summary>Karar gerekcesi. Modele iletilir.</summary>
+    /// <summary>Reason for the decision. Passed on to the model.</summary>
     public string? Reason { get; init; }
 
     /// <summary>
-    /// Karar kalici bir kural olarak kaydedilsin mi ("bir daha sorma").
-    /// Yalnizca <see cref="Approved"/> <see langword="true"/> iken anlamlidir.
+    /// Whether the decision should be saved as a permanent rule ("don't ask
+    /// again"). Meaningful only while <see cref="Approved"/> is <see langword="true"/>.
     /// </summary>
     public bool Remember { get; init; }
 
     /// <summary>
-    /// Kalici kural yalnizca ayni argumanlarla yapilan cagriyi mi kapsasin.
-    /// <see langword="false"/> ise tool'un her cagrisini kapsar.
+    /// Whether the permanent rule covers only a call with the same arguments.
+    /// If <see langword="false"/>, it covers every call to the tool.
     /// </summary>
     public bool RememberArgumentsOnly { get; init; }
 }

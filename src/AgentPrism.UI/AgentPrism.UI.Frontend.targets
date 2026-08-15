@@ -1,16 +1,17 @@
 <Project>
 
   <!--
-    Frontend derleme zinciri.
+    Frontend build chain.
 
-    Vite ciktisi wwwroot/ icine yazilir ve EmbeddedResource olarak assembly'ye
-    gomulur. Kaynak agacinda wwwroot/ tutulmaz (.gitignore); tek gercek kaynak
-    frontend/ klasorudur.
+    The Vite output is written into wwwroot/ and embedded in the assembly as an
+    EmbeddedResource. wwwroot/ is not kept in the source tree (.gitignore); the
+    only source of truth is the frontend/ folder.
 
-    Adimlar artimsaldir. package-lock.json degismediyse `npm ci` calismaz;
-    frontend kaynaklari degismediyse `npm run build` calismaz. Damga dosyalari
-    BaseIntermediateOutputPath altindadir - orasi hedef cerceveden bagimsizdir,
-    dolayisiyla uc hedef icin derlenen bu paket npm'i yalnizca bir kez calistirir.
+    The steps are incremental. `npm ci` does not run if package-lock.json has
+    not changed; `npm run build` does not run if the frontend sources have not
+    changed. The stamp files live under BaseIntermediateOutputPath - that is
+    independent of the target framework, so this package, which builds for
+    three target frameworks, runs npm only once.
   -->
 
   <PropertyGroup>
@@ -21,9 +22,9 @@
 
   <ItemGroup Condition=" '$(AgentPrismFrontendEnabled)' == 'true' ">
     <!--
-      Derlemeyi tetikleyen girdiler. node_modules BILEREK YOK: icerigi
-      package-lock.json ile belirlenir ve on binlerce dosyayi her derlemede
-      taramak artimsal kontrolun kendisini pahali hale getirirdi.
+      Inputs that trigger the build. node_modules is DELIBERATELY excluded: its
+      content is determined by package-lock.json, and scanning tens of thousands
+      of files on every build would make the incremental check itself expensive.
     -->
     <AgentPrismFrontendInput Include="$(AgentPrismFrontendRoot)/src/**/*" />
     <AgentPrismFrontendInput Include="$(AgentPrismFrontendRoot)/scripts/**/*" />
@@ -35,9 +36,10 @@
   </ItemGroup>
 
   <!--
-    Node.js var mi. Yoksa derleme durmaz: onceden uretilmis wwwroot/ varsa
-    paket eksiksizdir. Yoksa uyari verilir ve `pack` asamasinda hataya donusur -
-    ici bos bir arayuz paketi yayinlanamaz.
+    Whether Node.js is present. If not, the build does not stop: if a
+    previously produced wwwroot/ exists, the package is still complete. If not,
+    a warning is issued and it turns into an error at the `pack` stage - a
+    package with an empty UI cannot be published.
   -->
   <Target Name="AgentPrismDetectNode" Condition=" '$(AgentPrismFrontendEnabled)' == 'true' ">
     <Exec Command="npm --version"
@@ -59,12 +61,12 @@
           Condition=" '$(AgentPrismFrontendEnabled)' == 'true' AND '$(AgentPrismNodeAvailable)' == 'true' "
           Inputs="$(AgentPrismFrontendRoot)/package-lock.json"
           Outputs="$(AgentPrismNpmInstallStamp)">
-    <Message Importance="high" Text="AgentPrism.UI: bagimliliklar kuruluyor (npm ci)" />
+    <Message Importance="high" Text="AgentPrism.UI: installing dependencies (npm ci)" />
 
     <!--
-      `npm ci` kullanilir, `npm install` degil: kilit dosyasina birebir uyar ve
-      onu degistirmez. Derleme sirasinda kilit dosyasinin sessizce guncellenmesi
-      deterministik derleme vaadini bozardi.
+      `npm ci` is used, not `npm install`: it matches the lock file exactly and
+      does not modify it. A silent lock file update during the build would
+      break the deterministic build promise.
     -->
     <Exec Command="npm ci --no-audit --no-fund" WorkingDirectory="$(AgentPrismFrontendRoot)" />
 
@@ -75,12 +77,12 @@
           Condition=" '$(AgentPrismFrontendEnabled)' == 'true' AND '$(AgentPrismNodeAvailable)' == 'true' "
           Inputs="@(AgentPrismFrontendInput)"
           Outputs="$(AgentPrismFrontendStamp)">
-    <Message Importance="high" Text="AgentPrism.UI: arayuz derleniyor (npm run build)" />
+    <Message Importance="high" Text="AgentPrism.UI: building the UI (npm run build)" />
 
     <!--
-      Bu komut tip denetimi, Vite derlemesi, Brotli sikistirmasi ve bundle
-      butcesi kapisini birlikte calistirir. Butce asilirsa komut hata verir ve
-      .NET derlemesi de kirilir - kapi CI'a ozgu degildir.
+      This command runs type checking, the Vite build, Brotli compression, and
+      the bundle budget gate together. If the budget is exceeded, the command
+      fails and the .NET build breaks too - the gate is not CI-specific.
     -->
     <Exec Command="npm run build" WorkingDirectory="$(AgentPrismFrontendRoot)" />
 
@@ -88,22 +90,23 @@
   </Target>
 
   <!--
-    Uretilen varliklari gomulu kaynak olarak ekler.
+    Adds the produced assets as embedded resources.
 
-    AssignTargetPaths'ten once calisir; kaynak adlari o noktadan sonra sabitlenir.
-    Mantiksal ad "AgentPrism.UI.wwwroot/" oneki ile verilir, boylece calisma
-    aninda dizin yapisi geri kurulabilir.
+    Runs before AssignTargetPaths; resource names are fixed after that point.
+    The logical name is given the "AgentPrism.UI.wwwroot/" prefix, so the
+    directory structure can be restored at runtime.
   -->
   <!--
-    Cok hedefli bir projede ic derlemeler (net8.0 / net9.0 / net10.0) PARALEL
-    calisir. Frontend derlemesi tek bir wwwroot/ dizinine yazar ve Vite o dizini
-    once bosaltir; uc ic derleme ayni anda baslarsa birbirinin dosyalarini siler.
-    Olculdu: "ENOENT: no such file or directory, unlink .../index-*.js".
+    In a multi-targeted project, the inner builds (net8.0 / net9.0 / net10.0)
+    run in PARALLEL. The frontend build writes into a single wwwroot/
+    directory, and Vite clears that directory first; if the three inner builds
+    start at the same time, they delete each other's files. Measured:
+    "ENOENT: no such file or directory, unlink .../index-*.js".
 
-    Bu yuzden zincir DIS derlemede, ic derlemeler dagitilmadan ONCE calisir.
-    Ic derlemeler damgayi guncel bulur ve adimi atlar. Tek hedefle derlerken
-    (ornek: -f net10.0) dis derleme yoktur; o durumda asagidaki toplama hedefi
-    zinciri kendisi calistirir.
+    That is why the chain runs in the OUTER build, BEFORE the inner builds are
+    dispatched. The inner builds find the stamp up to date and skip the step.
+    When building with a single target (e.g., -f net10.0) there is no outer
+    build; in that case, the aggregate target below runs the chain itself.
   -->
   <Target Name="AgentPrismFrontendOuterBuild"
           BeforeTargets="DispatchToInnerBuilds"
@@ -111,12 +114,12 @@
           Condition=" '$(AgentPrismFrontendEnabled)' == 'true' " />
 
   <!--
-    DIKKAT: Zincir DependsOnTargets ile burada kurulur, hedeflerin kendi
-    arasinda degil. MSBuild bir hedefin Condition'ini DependsOnTargets'tan ONCE
-    degerlendirir; bagimlilik zinciri hedefin uzerinde kurulsaydi
-    AgentPrismNpmInstall'in kosulu (henuz bos olan AgentPrismNodeAvailable)
-    false cikar ve AgentPrismDetectNode hic calismazdi. Olculdu: arayuz sessizce
-    derlenmiyordu.
+    WARNING: The chain is set up here with DependsOnTargets, not between the
+    targets themselves. MSBuild evaluates a target's Condition BEFORE
+    DependsOnTargets; if the dependency chain were set up on that target
+    instead, AgentPrismNpmInstall's condition (on the as-yet-empty
+    AgentPrismNodeAvailable) would evaluate false, and AgentPrismDetectNode
+    would never run. Measured: the UI was silently not being built.
   -->
   <Target Name="AgentPrismCollectFrontendAssets"
           DependsOnTargets="AgentPrismDetectNode;AgentPrismNpmInstall;AgentPrismBuildFrontend"
@@ -131,19 +134,20 @@
 
     <Warning Condition=" '@(AgentPrismFrontendAsset)' == '' AND '$(AgentPrismNodeAvailable)' != 'true' "
              Code="AGENTPRISM0002"
-             Text="AgentPrism.UI: Node.js bulunamadi ve onceden derlenmis arayuz varligi yok. Paket arayuzsuz derlenecek; MapAgentPrism arayuz rotalarini baglamayacak. Node.js 20.19+ kurun veya bu projeyi -p:AgentPrismFrontendEnabled=false ile atlayin." />
+             Text="AgentPrism.UI: Node.js was not found and there are no previously built UI assets. The package will be built without a UI; MapAgentPrism will not bind the UI routes. Install Node.js 20.19+ or skip this project with -p:AgentPrismFrontendEnabled=false." />
   </Target>
 
   <!--
-    Ici bos bir arayuz paketi yayinlanamaz. Derlemede uyari yeterlidir; pack
-    asamasinda ayni durum hatadir, cunku o nokta artik yayin yoludur.
+    A package with an empty UI cannot be published. A warning is enough at
+    build time; the same condition is an error at the pack stage, because
+    that point is already the publish path.
   -->
   <Target Name="AgentPrismValidateFrontendAssets"
           BeforeTargets="GenerateNuspec"
           Condition=" '$(AgentPrismFrontendEnabled)' == 'true' ">
     <Error Condition="!Exists('$(AgentPrismShellFile)')"
            Code="AGENTPRISM0003"
-           Text="AgentPrism.UI: arayuz varligi uretilmemis ($(AgentPrismShellFile) yok). Ici bos bir arayuz paketi yayinlanamaz. Node.js 20.19+ kurun ve derlemeyi tekrarlayin." />
+           Text="AgentPrism.UI: UI assets were not produced ($(AgentPrismShellFile) does not exist). A package with an empty UI cannot be published. Install Node.js 20.19+ and rebuild." />
   </Target>
 
 </Project>

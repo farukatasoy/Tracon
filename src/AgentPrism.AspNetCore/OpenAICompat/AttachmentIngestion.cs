@@ -3,22 +3,23 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// OpenAI uyumlu uclarda govdeye gomulu <c>data:</c> URI'lerini ek tablosuna
-/// alir ve yerine kucuk bir referans (<see cref="UriContent"/>) koyar.
+/// Takes <c>data:</c> URIs embedded in the body of OpenAI-compatible endpoints
+/// into the attachment table and replaces them with a small reference
+/// (<see cref="UriContent"/>).
 /// </summary>
 /// <remarks>
-/// MAF'in kendi govde cozumleyicisi (<c>OpenAIResponses.ToAgentRunRequest</c>)
-/// bir <c>data:</c> URI'sini dogrudan <see cref="DataContent"/>'e cevirir. Bu
-/// haliyle saklansa mesaj buyur ve sohbet gecmisine base64 gomulur (bkz.
-/// <c>docs/14-COK-MODLULUK.md</c>, bolum 14.1). Bu yuzden agent'a
-/// gonderilmeden once her <see cref="DataContent"/> bir ege cevrilir.
+/// MAF's own body parser (<c>OpenAIResponses.ToAgentRunRequest</c>) converts a
+/// <c>data:</c> URI directly into a <see cref="DataContent"/>. If stored as
+/// is, the message grows and gets embedded as base64 in the chat history (see
+/// <c>docs/14-COK-MODLULUK.md</c>, section 14.1). Each <see cref="DataContent"/>
+/// is therefore converted into an attachment before being sent to the agent.
 /// </remarks>
 internal static class AttachmentIngestion
 {
     /// <summary>
-    /// Verilen mesajlardaki her <see cref="DataContent"/>'i bir ege cevirir.
+    /// Converts every <see cref="DataContent"/> in the given messages into an attachment.
     /// </summary>
-    /// <returns>Basarisizsa kullaniciya gosterilecek gerekce; basarili ise <see langword="null"/>.</returns>
+    /// <returns>The reason to show the user if it failed; <see langword="null"/> if successful.</returns>
     public static async ValueTask<string?> ReplaceEmbeddedDataAsync(
         IList<ChatMessage> messages,
         string prefix,

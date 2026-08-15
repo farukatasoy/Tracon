@@ -7,17 +7,17 @@ using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
 
-/// <summary>Kiraci bazli API anahtari uclari (Faz 53).</summary>
+/// <summary>Tenant-scoped API key endpoints (Phase 53).</summary>
 /// <remarks>
-/// 🚨 <see cref="ApiKeyCreationResult.PlaintextKey"/> yalnizca
-/// <see cref="CreateAsync"/>'in yanitinda doner. Listeleme ucu hicbir zaman ham
-/// deger veya ozet dondurmez (bolum 53.2).
+/// 🚨 <see cref="ApiKeyCreationResult.PlaintextKey"/> is returned only in the
+/// response of <see cref="CreateAsync"/>. The listing endpoint never returns
+/// the raw value or a hash (section 53.2).
 /// </remarks>
 internal static class ApiKeyEndpoints
 {
-    /// <summary>API anahtari uclarini baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Maps the API key endpoints.</summary>
+    /// <param name="builder">The endpoint group.</param>
+    /// <param name="roles">The resolved role policies.</param>
     public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/api-keys", ListAsync)
@@ -25,29 +25,30 @@ internal static class ApiKeyEndpoints
             .RequireApiKeyScope(ApiKeyScope.SecurityAdmin)
             .WithName("AgentPrismListApiKeys")
             .WithTags("AgentPrism", "ApiKeys")
-            .WithSummary("Bir kiracinin API anahtarlarini listeler.")
-            .WithDescription("Yanit ne ham degeri ne de ozeti tasir.");
+            .WithSummary("Lists a tenant's API keys.")
+            .WithDescription("The response carries neither the raw value nor a hash.");
 
         builder.MapPost("/api/api-keys", CreateAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.SecurityAdmin)
             .WithName("AgentPrismCreateApiKey")
             .WithTags("AgentPrism", "ApiKeys")
-            .WithSummary("Yeni bir API anahtari uretir.")
+            .WithSummary("Generates a new API key.")
             .Accepts<ApiKeyCreateRequest>("application/json")
             .WithDescription(
-                "Ham deger yanitta YALNIZCA BU CAGRIDA doner ve bir daha " +
-                "uretilemez. Kapsam listesi kapalidir; bilinmeyen bir kapsam reddedilir. " +
-                "Istek bir API anahtariyla dogrulandiysa, o anahtarin KENDI TASIMADIGI " +
-                "bir kapsam istenemez (yetki uzatma/attenuation, bolum 53.3).");
+                "The raw value is returned in the response ONLY ON THIS CALL and " +
+                "cannot be produced again. The scope list is closed; an unknown scope " +
+                "is rejected. If the request was authenticated with an API key, a scope " +
+                "that key does NOT ITSELF CARRY cannot be requested (privilege " +
+                "extension/attenuation, section 53.3).");
 
         builder.MapDelete("/api/api-keys/{id:guid}", RevokeAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.SecurityAdmin)
             .WithName("AgentPrismRevokeApiKey")
             .WithTags("AgentPrism", "ApiKeys")
-            .WithSummary("Bir anahtari iptal eder.")
-            .WithDescription("Satir SILINMEZ; iptal damgasi yazilir ve denetim izinde kalir.");
+            .WithSummary("Revokes a key.")
+            .WithDescription("The row is NOT deleted; a revocation timestamp is written and stays in the audit trail.");
     }
 
     private static async Task<Ok<IReadOnlyList<ApiKeyRecord>>> ListAsync(
@@ -90,10 +91,11 @@ internal static class ApiKeyEndpoints
             return Invalid("At least one scope ('scopes') must be selected.");
         }
 
-        // Yetki uzatma (attenuation): istegi dogrulayan bir API anahtariysa,
-        // o anahtarin KENDI TASIMADIGI bir kapsam icin yeni anahtar uretemez.
-        // Statik token veya kullanici kimligiyle gelen istekler (Get() null
-        // doner) bu sinirdan etkilenmez — rol politikasi zaten yeterlidir.
+        // Privilege attenuation: if an API key authenticated the request, it
+        // cannot generate a new key for a scope it does NOT ITSELF CARRY.
+        // Requests arriving with a static token or a user identity (Get()
+        // returns null) are not affected by this limit — the role policy
+        // is already sufficient.
         if (ApiKeyRequestContext.Get(httpContext) is { } caller)
         {
             var ungranted = request.Scopes.Where(scope => !caller.Scopes.Contains(scope)).ToList();
@@ -115,8 +117,8 @@ internal static class ApiKeyEndpoints
             },
             cancellationToken).ConfigureAwait(false);
 
-        // 🚨 Ham deger denetim izine YAZILMAZ; yalnizca anahtarin ADI ve
-        // kapsamlari (K-059'un ayni yonu).
+        // 🚨 The raw value is NOT WRITTEN to the audit trail; only the key's
+        // NAME and scopes are (the same direction as K-059).
         await AuditRecorder.WriteAsync(
             auditLog,
             actorResolver,
@@ -161,8 +163,8 @@ internal static class ApiKeyEndpoints
         return TypedResults.NoContent();
     }
 
-    /// <summary>Bir anahtar kaydini denetim izi icin ozetler.</summary>
-    /// <remarks>Ozette ham deger veya ozet YOKTUR (K-059'un ayni yonu).</remarks>
+    /// <summary>Summarizes a key record for the audit trail.</summary>
+    /// <remarks>The summary has NO raw value or hash (the same direction as K-059).</remarks>
     private static string Describe(ApiKeyRecord record)
     {
         using var buffer = new MemoryStream();
@@ -198,15 +200,15 @@ internal static class ApiKeyEndpoints
             statusCode: StatusCodes.Status400BadRequest);
 }
 
-/// <summary>Bir API anahtari olusturmak icin istek govdesi.</summary>
+/// <summary>The request body for creating an API key.</summary>
 public sealed record ApiKeyCreateRequest
 {
-    /// <summary>Operatorun anahtari tanimasi icin ad.</summary>
+    /// <summary>Gets the name that lets the operator identify the key.</summary>
     public string? Name { get; init; }
 
-    /// <summary>Kapsam kumesi. Bos olamaz; bilinmeyen bir deger reddedilir.</summary>
+    /// <summary>Gets the set of scopes. Cannot be empty; an unknown value is rejected.</summary>
     public IReadOnlyList<ApiKeyScope>? Scopes { get; init; }
 
-    /// <summary>Sure sonu. Verilmezse anahtar suresizdir.</summary>
+    /// <summary>Gets the expiration time. If not given, the key never expires.</summary>
     public DateTimeOffset? ExpiresAt { get; init; }
 }

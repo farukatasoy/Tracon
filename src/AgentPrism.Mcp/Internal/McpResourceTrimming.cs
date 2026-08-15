@@ -3,23 +3,24 @@ using System.Text;
 namespace AgentPrism;
 
 /// <summary>
-/// MCP kaynak icerigini bir bayt sinirina gore kirpar.
+/// Trims MCP resource content to a byte limit.
 /// </summary>
 /// <remarks>
-/// Saf ve durumsuzdur; agi veya <c>McpClient</c>'i gerektirmez, bu yuzden
-/// dogrudan birim testiyle dogrulanir (docs/22-MCP-DERINLESMESI.md, Testler tablosu).
+/// Pure and stateless; requires neither the network nor <c>McpClient</c>, so
+/// it is verified directly with a unit test (docs/22-MCP-DERINLESMESI.md,
+/// Tests table).
 /// </remarks>
 internal static class McpResourceTrimming
 {
     private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
     /// <summary>
-    /// Metni UTF-8 bayt sinirina gore kirpar. Cok baytli bir karakterin
-    /// ortasindan kesmez; boyle bir durumda karakterin tamami atilir.
+    /// Trims text to a UTF-8 byte limit. Never cuts in the middle of a
+    /// multi-byte character; in that case, the whole character is dropped.
     /// </summary>
-    /// <param name="text">Kirpilacak metin.</param>
-    /// <param name="maxBytes">Ust bayt siniri.</param>
-    /// <returns>Kirpilmis metin ve kirpma yapilip yapilmadigi.</returns>
+    /// <param name="text">The text to trim.</param>
+    /// <param name="maxBytes">The maximum byte limit.</param>
+    /// <returns>The trimmed text and whether trimming occurred.</returns>
     public static (string Text, bool Truncated) Trim(string text, int maxBytes)
     {
         ArgumentNullException.ThrowIfNull(text);
@@ -38,9 +39,9 @@ internal static class McpResourceTrimming
 
         var bytes = Encoding.UTF8.GetBytes(text);
 
-        // UTF-8'de bir karakter en fazla 4 bayttir; kesim noktasi geçersiz bir
-        // dizinin ortasina denk gelirse en fazla 3 bayt geri cekilerek gecerli
-        // bir sinir bulunur.
+        // A character is at most 4 bytes in UTF-8; if the cut point lands in
+        // the middle of an invalid sequence, a valid boundary is found by
+        // backing off at most 3 bytes.
         for (var length = maxBytes; length > 0 && length > maxBytes - 4; length--)
         {
             try

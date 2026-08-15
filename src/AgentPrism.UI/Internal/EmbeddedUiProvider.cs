@@ -10,18 +10,18 @@ using Microsoft.AspNetCore.Http;
 namespace AgentPrism;
 
 /// <summary>
-/// Assembly'ye gomulu tek sayfa uygulamayi sunan arayuz kaynagi.
+/// A UI provider that serves the single-page application embedded in the assembly.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Metin varliklar derleme sirasinda Brotli ile sikistirilip gomulur. Istemci
-/// <c>br</c> kabul ediyorsa icerik oldugu gibi gonderilir ve calisma aninda hicbir
-/// sikistirma maliyeti olusmaz. Kabul etmiyorsa icerik bir kez acilir ve bellekte
-/// tutulur.
+/// Text assets are Brotli-compressed and embedded at build time. If the client
+/// accepts <c>br</c>, the content is sent as-is and no compression cost is
+/// incurred at runtime. If not, the content is decompressed once and kept in
+/// memory.
 /// </para>
 /// <para>
-/// Tum durum, tekil ornekte ve degismez yapilar icinde tutulur. Varliklar derleme
-/// aninda uretildigi icin gecersiz kilma (invalidation) sorunu yoktur.
+/// All state is held in the singleton instance, in immutable structures. Because
+/// assets are produced at build time, there is no cache invalidation problem.
 /// </para>
 /// </remarks>
 internal sealed class EmbeddedUiProvider : IAgentPrismUiProvider
@@ -30,20 +30,20 @@ internal sealed class EmbeddedUiProvider : IAgentPrismUiProvider
     private const string RevalidateCacheControl = "no-cache";
 
     /// <summary>
-    /// Kabuk icin gonderilen icerik guvenlik politikasi.
+    /// The Content Security Policy sent for the shell.
     /// </summary>
     /// <remarks>
-    /// Arayuz yalnizca kendi kaynagina baglanir; disaridan betik, yazi tipi veya
-    /// veri cekmez. <c>style-src</c> icinde <c>'unsafe-inline'</c> vardir cunku
-    /// React bilesenlerinin <c>style</c> nitelikleri satir ici stil sayilir.
-    /// <c>img-src</c> ve <c>media-src</c> <c>blob:</c> taşır: ek onizlemesi ve
-    /// seslendirme oynatimi, bearer token tasiyamayan dogrudan <c>&lt;img
-    /// src="api/attachments/{id}"&gt;</c>/<c>&lt;audio src="..."&gt;</c> yerine
-    /// <c>fetch</c> ile cekilen baytlari <c>URL.createObjectURL</c> ile sarar
-    /// (<c>useAttachmentPreview</c>, <c>SpeakButton</c>) - kaynak her zaman bir
-    /// <c>blob:</c> URL'idir. <c>frame-ancestors 'none'</c> arayuzun baska bir
-    /// sayfaya cerceve icinde gomulmesini engeller - tiklama hirsizligina
-    /// (clickjacking) karsi.
+    /// The UI connects only to its own origin; it fetches no external script, font,
+    /// or data. <c>style-src</c> includes <c>'unsafe-inline'</c> because React
+    /// components' <c>style</c> attributes count as inline styles. <c>img-src</c>
+    /// and <c>media-src</c> carry <c>blob:</c> because attachment preview and voice
+    /// playback wrap bytes fetched via <c>fetch</c> with
+    /// <c>URL.createObjectURL</c> - instead of a direct <c>&lt;img
+    /// src="api/attachments/{id}"&gt;</c>/<c>&lt;audio src="..."&gt;</c>, which
+    /// cannot carry a bearer token (<c>useAttachmentPreview</c>,
+    /// <c>SpeakButton</c>) - so the source is always a <c>blob:</c> URL.
+    /// <c>frame-ancestors 'none'</c> keeps the UI from being embedded in another
+    /// page inside a frame - against clickjacking.
     /// </remarks>
     private const string ContentSecurityPolicy =
         "default-src 'none'; " +
@@ -57,7 +57,7 @@ internal sealed class EmbeddedUiProvider : IAgentPrismUiProvider
         "form-action 'none'; " +
         "frame-ancestors 'none'";
 
-    /// <summary>Derleme sirasinda kabuga yazilan, calisma aninda degistirilen yer tutucu.</summary>
+    /// <summary>The placeholder written into the shell at build time and replaced at runtime.</summary>
     private const string BasePathPlaceholder = "__AGENTPRISM_BASE__";
 
     private readonly FrozenDictionary<string, UiAsset> _assets;
@@ -66,7 +66,7 @@ internal sealed class EmbeddedUiProvider : IAgentPrismUiProvider
     private readonly ConcurrentDictionary<string, byte[]> _expanded = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, ShellDocument> _shells = new(StringComparer.Ordinal);
 
-    /// <summary>Gomulu varliklari okuyan bir kaynak olusturur.</summary>
+    /// <summary>Creates a provider that reads the embedded assets.</summary>
     public EmbeddedUiProvider()
     {
         _assembly = typeof(EmbeddedUiProvider).Assembly;
@@ -95,13 +95,13 @@ internal sealed class EmbeddedUiProvider : IAgentPrismUiProvider
             return true;
         }
 
-        // Bilinen bir varlik degil. Derinlemesine bir arayuz rotasi olabilir
-        // (ornek: runs/019fc0.../events). Tek sayfa uygulamada bu yollar sunucuda
-        // yoktur; kabuk dondurulur ve yonlendirmeyi istemci yapar.
+        // Not a known asset. This could be a deep UI route (e.g.,
+        // runs/019fc0.../events). In a single-page app these paths do not exist
+        // on the server; the shell is returned and the client handles routing.
         //
-        // Uzantisi olan bir yol ise gercekten eksik bir varliktir. Kabugu dondurmek
-        // eksik bir betik istegine HTML ile yanit vermek olurdu; tarayici bunu
-        // cozumlemeye calisir ve hata mesaji nedeni gizler.
+        // A path with a file extension is genuinely a missing asset. Returning
+        // the shell would answer a missing script request with HTML; the browser
+        // tries to parse it and the real error is hidden.
         if (HasFileExtension(relativePath))
         {
             return false;
@@ -134,8 +134,9 @@ internal sealed class EmbeddedUiProvider : IAgentPrismUiProvider
     {
         if (string.Equals(asset.Path, EmbeddedUiAssetCatalog.ShellPath, StringComparison.Ordinal))
         {
-            // Kabuk her zaman taban yolu yazilmis haliyle sunulur; ham hali
-            // yer tutucu tasir ve tarayicida calismaz.
+            // The shell is always served with the base path already written in;
+            // the raw version carries the placeholder and does not work in the
+            // browser.
             await WriteShellAsync(context, ResolveBasePath(context)).ConfigureAwait(false);
 
             return;
@@ -145,9 +146,9 @@ internal sealed class EmbeddedUiProvider : IAgentPrismUiProvider
         var acceptsBrotli = asset.IsBrotli && AcceptsBrotli(context.Request);
         var body = asset.IsBrotli && !acceptsBrotli ? Expand(asset, stored) : stored;
 
-        // ETag bir temsili tanimlar. Ayni varligin sikistirilmis ve acilmis halleri
-        // farkli temsillerdir; ayni etiketi tasirlarsa bir ara onbellek yanlis
-        // kodlamayi servis edebilir.
+        // An ETag identifies one representation. The compressed and decompressed
+        // forms of the same asset are different representations; if they carried
+        // the same tag, an intermediate cache could serve the wrong encoding.
         var etag = acceptsBrotli ? ComputeETag(stored, "br") : ComputeETag(body, null);
 
         await WriteBodyAsync(
@@ -219,7 +220,7 @@ internal sealed class EmbeddedUiProvider : IAgentPrismUiProvider
         {
             using var stream = _assembly.GetManifestResourceStream(asset.ResourceName)
                 ?? throw new InvalidOperationException(
-                    $"Gomulu arayuz varligi '{asset.ResourceName}' okunamadi.");
+                    $"Embedded UI asset '{asset.ResourceName}' could not be read.");
 
             using var buffer = new MemoryStream();
             stream.CopyTo(buffer);
@@ -240,12 +241,12 @@ internal sealed class EmbeddedUiProvider : IAgentPrismUiProvider
         });
 
     /// <summary>
-    /// Istegin yolundan arayuzun taban yolunu cikarir.
+    /// Extracts the UI's base path from the request path.
     /// </summary>
     /// <remarks>
-    /// <c>index.html</c> dogrudan istenmisse taban yol, istegin taban yolu ile
-    /// dosya adinin cikarilmis halidir. Uc grubu <c>PathBase</c> kullanmaz;
-    /// onek yol dizesinin kendisindedir.
+    /// If <c>index.html</c> is requested directly, the base path is the request's
+    /// base path with the file name removed. The endpoint group does not use
+    /// <c>PathBase</c>; the prefix lives in the path string itself.
     /// </remarks>
     private static string ResolveBasePath(HttpContext context)
     {
@@ -301,7 +302,7 @@ internal sealed class EmbeddedUiProvider : IAgentPrismUiProvider
                     continue;
                 }
 
-                // "br;q=0" kodlamanin acikca reddedildigi anlamina gelir.
+                // "br;q=0" means the encoding is explicitly rejected.
                 return !quality.Equals("q=0", StringComparison.OrdinalIgnoreCase);
             }
         }

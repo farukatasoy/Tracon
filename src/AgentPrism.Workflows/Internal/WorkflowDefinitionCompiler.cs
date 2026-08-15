@@ -5,22 +5,22 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir <see cref="WorkflowDefinition"/>'i calistirilabilir bir
-/// <see cref="Workflow"/> grafina cevirir.
+/// Turns a <see cref="WorkflowDefinition"/> into a runnable
+/// <see cref="Workflow"/> graph.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Derleyici <strong>katalogdaki agent'lari</strong> baglar. Her agent
-/// <see cref="ChildAgentInvoker"/> ile sarilir; boylece workflow icinde
-/// calisan her agent, Faz 12'nin agac mekanizmasiyla workflow calistirmasinin
-/// altina baglanir ve derinlik, butce, kiraci sinirlari kendiliginden uygulanir.
-/// Bu sarmalayici Faz 12'de yazildi ve burada <em>yeniden kullaniliyor</em>:
-/// alt calistirma kurallarini ikinci kez yazmak, ikisinin zamanla ayrismasi
-/// demekti.
+/// The compiler binds <strong>agents from the catalog</strong>. Every agent is
+/// wrapped with <see cref="ChildAgentInvoker"/>; this way every agent that
+/// runs inside a workflow attaches under the workflow run through phase 12's
+/// tree mechanism, and depth, budget, and tenant limits are applied
+/// automatically. This wrapper was written in phase 12 and is <em>reused</em>
+/// here: rewriting the sub-execution rules a second time would let the two
+/// copies drift apart over time.
 /// </para>
 /// <para>
-/// Sarmalayici agent'i <em>gec</em> cozer: bir agent tanimi degistiginde
-/// derlenmis workflow bayatlamaz.
+/// The wrapper resolves the agent <em>lazily</em>: when an agent definition
+/// changes, the compiled workflow does not go stale.
 /// </para>
 /// </remarks>
 internal sealed class WorkflowDefinitionCompiler
@@ -28,10 +28,10 @@ internal sealed class WorkflowDefinitionCompiler
     private readonly CallableAgentResolver _resolver;
     private readonly WorkflowAgentCache _agents;
 
-    /// <summary>Yeni bir derleyici olusturur.</summary>
-    /// <param name="resolver">Agent'lari katalogdan cozen cozucu.</param>
-    /// <param name="agents">Kimligi kararli agent sarmalayicilarinin onbellegi.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new compiler.</summary>
+    /// <param name="resolver">The resolver that resolves agents from the catalog.</param>
+    /// <param name="agents">The cache of agent wrappers with a stable identity.</param>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public WorkflowDefinitionCompiler(CallableAgentResolver resolver, WorkflowAgentCache agents)
     {
         ArgumentNullException.ThrowIfNull(resolver);
@@ -41,12 +41,12 @@ internal sealed class WorkflowDefinitionCompiler
         _agents = agents;
     }
 
-    /// <summary>Tanimi calistirilabilir bir grafa cevirir.</summary>
-    /// <param name="definition">Derlenecek tanim.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kurulmus graf.</returns>
+    /// <summary>Turns a definition into a runnable graph.</summary>
+    /// <param name="definition">The definition to compile.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The built graph.</returns>
     /// <exception cref="AgentPrismException">
-    /// Tanim gecersizse veya bir agent adi katalogda bulunamiyorsa.
+    /// The definition is invalid, or an agent name cannot be found in the catalog.
     /// </exception>
     public async ValueTask<Workflow> CompileAsync(
         WorkflowDefinition definition,
@@ -54,8 +54,9 @@ internal sealed class WorkflowDefinitionCompiler
     {
         ArgumentNullException.ThrowIfNull(definition);
 
-        // Yapisal denetim AgentPrism.Core'dadir: HTTP katmani da ayni kurallari
-        // kayit aninda uygular ve iki yerde ayri ayri yazilsaydi ayrisirlardi.
+        // Structural validation lives in AgentPrism.Core: the HTTP layer
+        // applies the same rules at registration time, and writing them twice
+        // in two places would let them drift apart.
         WorkflowDefinitionValidator.Require(definition);
 
         var participants = await BindAsync(definition.Name, definition.AgentNames, cancellationToken)
@@ -87,10 +88,10 @@ internal sealed class WorkflowDefinitionCompiler
             .AddParticipants(participants.Skip(1))
             .WithName(definition.Name);
 
-        // Ilk agent digerlerinin HEPSINE devredebilir. Daha dar bir graf
-        // (kimden kime) tanimlanabilir olsaydi tanim modeli de kenar listesi
-        // tasimak zorunda kalirdi; Faz 15 bunu bilerek yapmiyor ve serbest
-        // grafi kod tarafinda birakiyor.
+        // The first agent may hand off to ALL of the others. If a narrower
+        // graph (who may hand off to whom) were definable, the definition
+        // model would also have to carry an edge list; phase 15 deliberately
+        // does not do this and leaves the free-form graph to code.
         builder = builder.WithHandoffs(participants[0], participants.Skip(1));
 
         if (definition.Description is { Length: > 0 } description)
@@ -103,9 +104,9 @@ internal sealed class WorkflowDefinitionCompiler
             builder = builder.WithHandoffInstructions(instructions);
         }
 
-        // Faz 15'te insan araya girmez; devretme zinciri kendiliginden ilerler.
-        // Tur siniri verilmezse MAF ilk devretmeden sonra durur ve kullanici
-        // "workflow yarim kaldi" gorur.
+        // In phase 15 no human intervenes; the handoff chain advances on its
+        // own. Without a turn limit, MAF would stop after the first handoff
+        // and the user would see the workflow as "stuck halfway".
         builder = builder.WithAutonomousMode(definition.MaxIterations ?? DefaultAutonomousTurns);
 
         return builder.Build();
@@ -144,12 +145,13 @@ internal sealed class WorkflowDefinitionCompiler
             .AddParticipants(participants)
             .WithName(definition.Name)
 
-            // Plan onayi acikken MAF ilk super-step'in sonunda bir
-            // RequestInfoEvent yayinlar ve yurutme PendingRequests durumunda
-            // kalir (Faz 15'te olculdu). Faz 16 bu istegi karsilar: calistirma
-            // AwaitingInput olarak kapanir, durumu kontrol noktasina yazilir ve
-            // /respond ucu onu sürdürur. Varsayilan yine KAPALI - bir tanim
-            // acikca istemeden calistirma insan beklemez.
+            // While plan approval is on, MAF publishes a RequestInfoEvent at the
+            // end of the first super-step and execution stays in the
+            // PendingRequests state (measured in phase 15). Phase 16 satisfies
+            // this request: the run closes as AwaitingInput, its state is
+            // written to a checkpoint, and the /respond endpoint resumes it
+            // from there. The default remains OFF - a run does not wait for a
+            // human unless a definition explicitly asks for it.
             .RequirePlanSignoff(definition.RequirePlanApproval);
 
         if (definition.MaxIterations is { } rounds)
@@ -165,10 +167,10 @@ internal sealed class WorkflowDefinitionCompiler
         return builder.Build();
     }
 
-    /// <summary>Devretme zincirinin kendiliginden ilerledigi varsayilan tur sayisi.</summary>
+    /// <summary>The default number of turns the handoff chain advances on its own.</summary>
     private const int DefaultAutonomousTurns = 8;
 
-    /// <summary>Grup sohbetinin varsayilan tur siniri.</summary>
+    /// <summary>The default turn limit for a group chat.</summary>
     private const int DefaultGroupChatIterations = 8;
 
     private async ValueTask<IReadOnlyList<AIAgent>> BindAsync(
@@ -207,8 +209,8 @@ internal sealed class WorkflowDefinitionCompiler
     }
 
     /// <summary>
-    /// Agent'i onbellekten alir; boylece ayni workflow her derlendiginde ayni
-    /// executor kimligi uretilir ve kontrol noktalari uyumlu kalir.
+    /// Gets the agent from the cache, so the same workflow always produces the
+    /// same executor id every time it is compiled, keeping checkpoints compatible.
     /// </summary>
     private ChildAgentInvoker Wrap(string workflowName, CallableAgentInfo info)
         => _agents.Get(workflowName, info.Name, info.Description);

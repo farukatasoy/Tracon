@@ -1,60 +1,61 @@
 namespace AgentPrism;
 
-/// <summary>Workflow yurutmesini yoneten ayarlar.</summary>
+/// <summary>Settings that control workflow execution.</summary>
 public sealed class AgentPrismWorkflowOptions
 {
-    /// <summary>Yapilandirma bolumunun adi.</summary>
+    /// <summary>The name of the configuration section.</summary>
     public const string SectionName = "AgentPrism:Workflows";
 
-    /// <summary>Workflow calistirma acik mi.</summary>
+    /// <summary>Gets or sets whether workflow execution is enabled.</summary>
     /// <remarks>
-    /// Kapatildiginda katalog yine listelenir; yalnizca calistirma reddedilir.
-    /// Boylece bir sorun aninda tanimlar silinmeden yurutme durdurulabilir.
+    /// When disabled, the catalog is still listed; only execution is refused.
+    /// This lets execution be stopped during an incident without deleting the
+    /// definitions.
     /// </remarks>
     public bool Enabled { get; set; } = true;
 
     /// <summary>
-    /// Kontrol noktasi yazma acik mi.
+    /// Gets or sets whether checkpoint writing is enabled.
     /// </summary>
     /// <remarks>
-    /// Varsayilan <see langword="true"/>'dur: sürdürme kutudan ciktigi gibi
-    /// calisir. Bedeli her super-step'te bir yazmadir; <see cref="MaxSuperSteps"/>
-    /// ve bellek ici depodaki saklama siniri bunu dizginler.
+    /// The default is <see langword="true"/>: resuming works out of the box.
+    /// The cost is one write per super-step; <see cref="MaxSuperSteps"/> and
+    /// the retention limit of the in-memory store keep this in check.
     /// </remarks>
     public bool EnableCheckpointing { get; set; } = true;
 
     /// <summary>
-    /// Ayni anda calisabilecek en fazla workflow sayisi.
+    /// Gets or sets the maximum number of workflows that may run at the same time.
     /// </summary>
     /// <remarks>
-    /// Sinir <em>tum kiracilar icin ortaktir</em>. Tek bir workflow onlarca
-    /// model cagrisi yapar; sinirsiz birakmak, bir kullanicinin tum saglayici
-    /// kotasini tuketmesine izin verirdi.
+    /// The limit is <em>shared across all tenants</em>. A single workflow makes
+    /// dozens of model calls; leaving it unbounded would let one user consume
+    /// an entire provider quota.
     /// </remarks>
     public int MaxConcurrentRuns { get; set; } = 4;
 
-    /// <summary>Tek bir workflow calistirmasinin en fazla suresi.</summary>
+    /// <summary>Gets or sets the maximum duration of a single workflow run.</summary>
     public TimeSpan RunTimeout { get; set; } = TimeSpan.FromMinutes(10);
 
     /// <summary>
-    /// Tek bir calistirmada islenebilecek en fazla super-step sayisi.
+    /// Gets or sets the maximum number of super-steps a single run may process.
     /// </summary>
     /// <remarks>
-    /// Sonsuz donguye karsi tek yapisal korumadir. Handoff ve GroupChat
-    /// desenlerinde devretme kararini model verir; kotu yazilmis bir talimat
-    /// iki agent'i sonsuza kadar birbirine devrettirebilir.
+    /// This is the only structural guard against an infinite loop. In the
+    /// Handoff and GroupChat patterns the model decides when to hand off; a
+    /// poorly written instruction can make two agents hand off to each other
+    /// forever.
     /// </remarks>
     public int MaxSuperSteps { get; set; } = 100;
 
     /// <summary>
-    /// Sonuclanmis bir calistirmanin kontrol noktalarinin saklanip
-    /// saklanmayacagi.
+    /// Gets or sets whether the checkpoints of a completed run are kept.
     /// </summary>
     /// <remarks>
-    /// Varsayilan <see langword="true"/>'dur: bir workflow bittikten sonra da
-    /// ortadan devam ettirilebilmesi bu ozelligin varlik sebebidir. Depolama
-    /// maliyetinden kacinan kurulumlar bunu kapatabilir; o zaman noktalar
-    /// yalnizca calistirma surerken yasar.
+    /// The default is <see langword="true"/>: being resumable even after a
+    /// workflow has finished is the whole point of this feature. Setups that
+    /// want to avoid the storage cost can disable it; checkpoints then live
+    /// only while the run is in progress.
     /// </remarks>
     public bool KeepCheckpointsAfterCompletion { get; set; } = true;
 }
