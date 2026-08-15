@@ -1,54 +1,54 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Bir skill script'ini calistirma iznini tasiyan kayit.
+/// The record carrying permission to execute a skill script.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Script calistirma, AgentPrism'in "tool'lar yalniz kodda tanimlanir" kuralinin
-/// bilincli istisnasidir. Izin kaydi bu istisnanin kapisidir: kaydi olmayan bir
-/// script, beyaz listedeki bir yorumlayici ile bile calismaz.
+/// Script execution is a deliberate exception to AgentPrism's "tools are
+/// defined only in code" rule. The grant record is this exception's gate: a
+/// script with no grant record does not run, even with a whitelisted interpreter.
 /// </para>
 /// <para>
-/// <see cref="ScriptName"/> <see langword="null"/> ise izin skill'in
-/// <em>tum</em> script'lerini kapsar.
+/// If <see cref="ScriptName"/> is <see langword="null"/>, the grant covers
+/// <em>all</em> of the skill's scripts.
 /// </para>
 /// </remarks>
 public sealed record SkillScriptGrant
 {
-    /// <summary>Izin kaydinin kimligi. Zaman sirali UUID (v7).</summary>
+    /// <summary>The grant record identifier. A time-ordered UUID (v7).</summary>
     public Guid Id { get; init; }
 
-    /// <summary>Iznin ait oldugu kiraci.</summary>
+    /// <summary>The tenant the grant belongs to.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Izin verilen skill'in adi.</summary>
+    /// <summary>The name of the skill granted.</summary>
     public required string SkillName { get; init; }
 
     /// <summary>
-    /// Izin verilen script'in adi. <see langword="null"/> ise skill'in tum
-    /// script'leri kapsanir.
+    /// The name of the script granted. If <see langword="null"/>, all of the
+    /// skill's scripts are covered.
     /// </summary>
     public string? ScriptName { get; init; }
 
-    /// <summary>Izni veren aktor.</summary>
+    /// <summary>The actor who gave the grant.</summary>
     public string? GrantedBy { get; init; }
 
-    /// <summary>Iznin verildigi an (UTC).</summary>
+    /// <summary>The moment the grant was given (UTC).</summary>
     public DateTimeOffset GrantedAt { get; init; }
 
-    /// <summary>Iznin sona erecegi an. <see langword="null"/> ise suresizdir.</summary>
+    /// <summary>The moment the grant expires. Never expires if <see langword="null"/>.</summary>
     public DateTimeOffset? ExpiresAt { get; init; }
 
-    /// <summary>Iznin geri alindigi an. <see langword="null"/> ise yururluktedir.</summary>
+    /// <summary>The moment the grant was revoked. Active if <see langword="null"/>.</summary>
     public DateTimeOffset? RevokedAt { get; init; }
 
-    /// <summary>Iznin verilen anda yururlukte olup olmadigini bildirir.</summary>
-    /// <param name="instant">Degerlendirme ani.</param>
-    /// <returns>Izin yururlukteyse <see langword="true"/>.</returns>
+    /// <summary>Reports whether the grant is active at the given moment.</summary>
+    /// <param name="instant">The evaluation moment.</param>
+    /// <returns><see langword="true"/> if the grant is active.</returns>
     /// <remarks>
-    /// Suresi dolmus izin <strong>otomatik olarak</strong> gecersizdir; kaydin
-    /// silinmesi beklenmez. Temizleme isi veri saklama fazinin konusudur.
+    /// An expired grant is <strong>automatically</strong> invalid; the record
+    /// is not expected to be deleted. Cleanup is the retention phase's concern.
     /// </remarks>
     public bool IsActiveAt(DateTimeOffset instant)
         => RevokedAt is null && (ExpiresAt is null || ExpiresAt > instant);
