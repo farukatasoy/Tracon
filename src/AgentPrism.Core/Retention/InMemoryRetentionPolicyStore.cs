@@ -3,12 +3,12 @@ using System.Collections.Concurrent;
 namespace AgentPrism;
 
 /// <summary>
-/// Saklama politikalarini ve kosu gecmisini surec belleginde tutan varsayilan
-/// uygulama.
+/// The default implementation that keeps retention policies and run history in
+/// process memory.
 /// </summary>
 /// <remarks>
-/// Tek surecli kurulumlar ve testler icindir. <c>UsePostgreSql()</c>/
-/// <c>UseSqlServer()</c>/<c>UseSqlite()</c> bunu SQL tabanli uygulamayla degistirir.
+/// For single-process deployments and tests. <c>UsePostgreSql()</c>,
+/// <c>UseSqlServer()</c>, or <c>UseSqlite()</c> replaces it with a SQL implementation.
 /// </remarks>
 public sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
 {

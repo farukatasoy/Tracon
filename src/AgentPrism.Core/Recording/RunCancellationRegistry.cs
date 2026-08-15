@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 
 namespace AgentPrism;
 
-/// <summary>Bellek ici <see cref="IRunCancellationRegistry"/> uygulamasi.</summary>
+/// <summary>An in-memory implementation of <see cref="IRunCancellationRegistry"/>.</summary>
 public sealed class RunCancellationRegistry : IRunCancellationRegistry
 {
     private readonly ConcurrentDictionary<Guid, Entry> _entries = new();
@@ -33,9 +33,9 @@ public sealed class RunCancellationRegistry : IRunCancellationRegistry
 
         entry.Source.Cancel();
 
-        // Yalniz KOK calistirmanin iptali agaca yayilir. Bir alt calistirmanin
-        // tek basina iptali (RunId != RootRunId) kardes dallari veya koku
-        // etkilemez — kok o dali `Failed` gorur, kendisi durmaz.
+        // Only cancellation of the root run propagates through the tree. Cancelling
+        // a child run alone (RunId != RootRunId) does not affect sibling branches or
+        // the root. The root sees that branch as Failed and continues.
         if (entry.RunId == entry.RootRunId)
         {
             foreach (var candidate in _entries.Values)

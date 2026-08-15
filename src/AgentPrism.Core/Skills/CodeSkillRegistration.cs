@@ -1,6 +1,6 @@
 namespace AgentPrism;
 
-/// <summary>Kodda tanimlanmis bir skill kaydi.</summary>
+/// <summary>A skill registration defined in code.</summary>
 internal sealed class CodeSkillRegistration
 {
     public CodeSkillRegistration(AgentSkillDefinition definition)

@@ -2,10 +2,10 @@ using System.Collections.Concurrent;
 
 namespace AgentPrism;
 
-/// <summary>Eval takimlarini, vakalarini ve kosularini surec belleginde tutan depo.</summary>
+/// <summary>A store that keeps eval suites, cases, and runs in process memory.</summary>
 /// <remarks>
-/// <strong>Sinirlari:</strong> surec omru ve tek dugum. Uretimde
-/// <c>AgentPrism.PostgreSql</c> kullanin.
+/// <strong>Limits:</strong> process lifetime and a single node. Use
+/// <c>AgentPrism.PostgreSql</c> in production.
 /// </remarks>
 public sealed class InMemoryEvalStore : IEvalStore
 {

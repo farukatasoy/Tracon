@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
 
-/// <summary><see cref="IToolApprovalRuleStore"/>'u denetim izi yazan bir dekorator ile sarar.</summary>
+/// <summary>Wraps <see cref="IToolApprovalRuleStore"/> in a decorator that writes an audit trail.</summary>
 public sealed class AuditingToolApprovalRuleStore : IToolApprovalRuleStore, IAuditDecorated
 {
     private readonly IToolApprovalRuleStore _inner;
@@ -11,7 +11,7 @@ public sealed class AuditingToolApprovalRuleStore : IToolApprovalRuleStore, IAud
     private readonly IAuditActorResolver _actorResolver;
     private readonly ILogger<AuditingToolApprovalRuleStore> _logger;
 
-    /// <summary>Yeni bir denetimli onay kurali deposu olusturur.</summary>
+    /// <summary>Initializes a new audited approval rule store.</summary>
     public AuditingToolApprovalRuleStore(
         IToolApprovalRuleStore inner,
         IAuditLog auditLog,
