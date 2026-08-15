@@ -4,30 +4,29 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Katalogdan cozulen her agent'i Microsoft Agent Framework'un
-/// <see cref="OpenTelemetryAgent"/> sarmalayicisiyla sarar.
+/// Wraps every agent resolved from the catalog with Microsoft Agent Framework's
+/// <see cref="OpenTelemetryAgent"/> decorator.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="Order"/> degeri 10'dur: <see cref="RunRecordingAgentDecorator"/>
-/// (0) disinda, tool onayi (20) icinde kalir. Boylece uretilen
-/// <c>invoke_agent</c> span'i <c>agentprism.run</c> span'inin cocugu olur ve
-/// waterfall gorunumu dogru hiyerarsiyi gosterir.
+/// <see cref="Order"/> is 10. It is outside <see cref="RunRecordingAgentDecorator"/>
+/// at 0 and inside tool approval at 20. The generated <c>invoke_agent</c> span is
+/// therefore a child of <c>agentprism.run</c>, and the waterfall view shows the right hierarchy.
 /// </para>
 /// <para>
-/// <c>autoWireChatClient: false</c> geciliyor. Sohbet istemcisi boru hattinda
-/// zaten <c>UseOpenTelemetry(AgentPrismDiagnostics.ActivitySourceName)</c> var
-/// (bkz. <c>OpenAIChatClientFactory</c>); otomatik baglama ayni istemciyi ikinci
-/// kez sarar ve her model cagrisi icin cift span uretirdi.
+/// Passes <c>autoWireChatClient: false</c>. The chat client pipeline already uses
+/// <c>UseOpenTelemetry(AgentPrismDiagnostics.ActivitySourceName)</c>. See
+/// <c>OpenAIChatClientFactory</c>. Automatic wiring would wrap the same client twice
+/// and produce duplicate spans for each model call.
 /// </para>
 /// </remarks>
 public sealed class OpenTelemetryAgentDecorator : IAgentDecorator
 {
     private readonly IOptions<AgentPrismOptions> _options;
 
-    /// <summary>Yeni bir telemetri dekoratoru olusturur.</summary>
-    /// <param name="options">AgentPrism ayarlari.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> <see langword="null"/> ise.</exception>
+    /// <summary>Initializes a new telemetry decorator.</summary>
+    /// <param name="options">The AgentPrism options.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     public OpenTelemetryAgentDecorator(IOptions<AgentPrismOptions> options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -49,10 +48,9 @@ public sealed class OpenTelemetryAgentDecorator : IAgentDecorator
             return agent;
         }
 
-        // MAAI001: OpenTelemetryAgent "evaluation purposes only" isaretli.
-        // Bastirma bilincli: kullanim tek bir dosyada toplandi, MAF bu API'yi
-        // degistirirse yalnizca burasi guncellenir.
-        // Gerekce: docs/KARARLAR.md, karar K-055.
+        // MAAI001: OpenTelemetryAgent is marked "evaluation purposes only".
+        // The suppression is deliberate. This is the only use, so a MAF API change
+        // only requires an update here. Rationale: docs/KARARLAR.md, decision K-055.
 #pragma warning disable MAAI001
         return new OpenTelemetryAgent(
             agent,

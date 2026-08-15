@@ -3,12 +3,12 @@ using System.Collections.Concurrent;
 namespace AgentPrism;
 
 /// <summary>
-/// Calistirma ve mesaj puanlarini surec bellegi icinde tutan depo.
+/// A store that keeps run and message scores in process memory.
 /// </summary>
 /// <remarks>
-/// Davranis sozlesmesi kalici uygulamalarla (<c>SqlRunScoreStore</c>) birebir
-/// aynidir ve ortak sozlesme testleriyle korunur. Uretimde
-/// <c>AgentPrism.PostgreSql</c> (veya SQL Server/SQLite) kullanin.
+/// Its behavior contract exactly matches persistent implementations such as
+/// <c>SqlRunScoreStore</c>, and shared contract tests protect it. Use
+/// <c>AgentPrism.PostgreSql</c>, SQL Server, or SQLite in production.
 /// </remarks>
 public sealed class InMemoryRunScoreStore : IRunScoreStore
 {
@@ -19,11 +19,10 @@ public sealed class InMemoryRunScoreStore : IRunScoreStore
     {
         ArgumentNullException.ThrowIfNull(score);
 
-        // Ayni yazar ayni hedefi (calistirma veya mesaj) ikinci kez
-        // puanladiginda mevcut satir GUNCELLENIR. Yazar bos ise (kimliksiz
-        // kurulum) bu kural uygulanmaz -- her cagri yeni bir satir acar.
-        // SQL saglayicilarindaki benzersizlik indeksiyle ayni davranistir
-        // (bkz. run_scores migration'i).
+        // When the same author scores the same target, run or message, a second time,
+        // update the existing row. If the author is empty in an anonymous deployment,
+        // this rule does not apply and each call creates a new row. This matches the
+        // unique index in SQL providers. See the run_scores migration.
         if (score.Author is { Length: > 0 })
         {
             var existing = _scores.Values.FirstOrDefault(candidate => IsSameTarget(candidate, score));

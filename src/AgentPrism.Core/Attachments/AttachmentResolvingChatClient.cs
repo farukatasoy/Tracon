@@ -4,20 +4,20 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Model cagrisindan hemen once ek referanslarini (<see cref="UriContent"/>)
-/// gercek icerige (<see cref="DataContent"/>) cozen sarmalayici.
+/// A wrapper that resolves attachment references, <see cref="UriContent"/>, to
+/// actual content, <see cref="DataContent"/>, immediately before the model call.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Sohbet gecmisinde bir ek yalnizca kucuk bir <see cref="UriContent"/>
-/// referansi olarak yasar (bkz. <c>docs/14-COK-MODLULUK.md</c>, bolum 14.1).
-/// Saglayicilarin cogu kendi erisemedikleri bir URL'yi okuyamaz; bu yuzden
-/// referans, saglayiciya gonderilmeden HEMEN once ve yalnizca bu cagri icin
-/// bellekte gercek baytlara cozulur. Sonuc kalici hicbir yere yazilmaz.
+/// In chat history, an attachment exists only as a small <see cref="UriContent"/>
+/// reference. See <c>docs/14-COK-MODLULUK.md</c>, section 14.1. Most providers cannot
+/// read a URL they cannot access. The reference therefore resolves to the actual bytes
+/// in memory immediately before it is sent to the provider, and only for that call.
+/// The result is not persisted.
 /// </para>
 /// <para>
-/// Referans olmayan icerikler (metin, harici bir URL'ye isaret eden
-/// <see cref="UriContent"/>) degistirilmeden gecer.
+/// Content that is not a reference, such as text or <see cref="UriContent"/> that
+/// points to an external URL, passes through unchanged.
 /// </para>
 /// </remarks>
 internal sealed class AttachmentResolvingChatClient(IChatClient inner, IAttachmentStore store, ITenantContext tenantContext)
@@ -104,7 +104,7 @@ internal sealed class AttachmentResolvingChatClient(IChatClient inner, IAttachme
             is not { } stream)
         {
             throw new AgentPrismException(
-                $"'{attachmentId}' kimlikli ek bulunamadi veya bu kiraciya ait degil.");
+                $"Attachment '{attachmentId}' was not found or does not belong to this tenant.");
         }
 
         await using (stream.ConfigureAwait(false))

@@ -5,19 +5,19 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Ayarli ise model saglayicilarinin saglik durumunu duzenli araliklarla tazeler.
+/// Refreshes model provider health status at regular intervals when configured.
 /// </summary>
 /// <remarks>
 /// <para>
 /// <see cref="AgentPrismHealthOptions.BackgroundInterval"/> <see langword="null"/>
-/// ise (varsayilan) bu servis hicbir zamanlayici kurmadan hemen doner: bosta duran
-/// bir kurulum saglayiciya duzenli istek atmaz. Gerekce:
-/// <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>, acik soru 3.
+/// is <see langword="null"/> by default. The service immediately returns without
+/// setting a timer, so an idle deployment does not send regular requests to a provider.
+/// Rationale: <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>, open question 3.
 /// </para>
 /// <para>
-/// Bir denetim hatasi bu servisi <strong>durdurmaz</strong> — gozlemlenebilirlik
-/// islevselligi bozmaz kurali (bkz. <c>CLAUDE.md</c>). Hata loglanir, bir sonraki
-/// tur normal sekilde calisir.
+/// A check error does <strong>not</strong> stop this service. This follows the rule
+/// that observability does not break functionality. See <c>CLAUDE.md</c>. The error
+/// is logged and the next cycle runs normally.
 /// </para>
 /// </remarks>
 internal sealed class ModelProviderHealthBackgroundService(
@@ -35,8 +35,8 @@ internal sealed class ModelProviderHealthBackgroundService(
             return;
         }
 
-        // Tek yurutucu secimi (Faz 42): kapaliysa (varsayilan) guard.IsHeld
-        // daima true'dur ve RunAsync depoya hicbir sorgu atmadan hemen doner.
+        // Singleton execution selection (Phase 42): when disabled by default,
+        // guard.IsHeld is always true and RunAsync returns without querying the store.
         var guard = new SingletonGuard(leaseStore, singletonOptionsMonitor, "model-provider-health", logger);
         var guardTask = guard.RunAsync(stoppingToken);
 
@@ -54,7 +54,7 @@ internal sealed class ModelProviderHealthBackgroundService(
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
-            // Normal kapanma.
+            // Normal shutdown.
         }
         finally
         {
@@ -72,7 +72,7 @@ internal sealed class ModelProviderHealthBackgroundService(
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
-                logger.LogWarning(exception, "Arka plan model saglayici saglik denetimi basarisiz oldu.");
+                logger.LogWarning(exception, "The background model provider health check failed.");
             }
         }
     }

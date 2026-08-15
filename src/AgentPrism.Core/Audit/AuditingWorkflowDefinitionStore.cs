@@ -3,11 +3,11 @@ using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
 
-/// <summary><see cref="IWorkflowDefinitionStore"/>'u denetim izi yazan bir dekorator ile sarar.</summary>
+/// <summary>Wraps <see cref="IWorkflowDefinitionStore"/> in a decorator that writes an audit trail.</summary>
 /// <remarks>
-/// Bir workflow tanimi, katalogdaki agent'lari birbirine zincirler ve tek bir
-/// istekle onlarca model cagrisi baslatabilir. <c>workflow.save</c> ve
-/// <c>workflow.delete</c> eylemleri bu yuzden her zaman denetim izine yazilir.
+/// A workflow definition chains catalog agents and can start dozens of model calls
+/// from one request. The <c>workflow.save</c> and <c>workflow.delete</c> actions
+/// therefore always enter the audit trail.
 /// </remarks>
 public sealed class AuditingWorkflowDefinitionStore : IWorkflowDefinitionStore, IAuditDecorated
 {
@@ -16,12 +16,12 @@ public sealed class AuditingWorkflowDefinitionStore : IWorkflowDefinitionStore, 
     private readonly IAuditActorResolver _actorResolver;
     private readonly ILogger<AuditingWorkflowDefinitionStore> _logger;
 
-    /// <summary>Yeni bir denetimli workflow tanim deposu olusturur.</summary>
-    /// <param name="inner">Sarilan depo.</param>
-    /// <param name="auditLog">Denetim izi.</param>
-    /// <param name="actorResolver">Aktor cozumleyici.</param>
-    /// <param name="logger">Gunlukleyici.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Initializes a new audited workflow definition store.</summary>
+    /// <param name="inner">The wrapped store.</param>
+    /// <param name="auditLog">The audit log.</param>
+    /// <param name="actorResolver">The actor resolver.</param>
+    /// <param name="logger">The logger.</param>
+    /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
     public AuditingWorkflowDefinitionStore(
         IWorkflowDefinitionStore inner,
         IAuditLog auditLog,
@@ -63,8 +63,8 @@ public sealed class AuditingWorkflowDefinitionStore : IWorkflowDefinitionStore, 
     {
         ArgumentNullException.ThrowIfNull(definition);
 
-        // Onceki hal kayittan ONCE okunur: yazdiktan sonra okumak yeni degeri
-        // "eski" diye yazardi.
+        // Read the previous value before saving. Reading after saving would write the
+        // new value as the old value.
         var before = await _inner.GetAsync(tenantId, definition.Name, cancellationToken).ConfigureAwait(false);
         var saved = await _inner.SaveAsync(tenantId, definition, cancellationToken).ConfigureAwait(false);
 
