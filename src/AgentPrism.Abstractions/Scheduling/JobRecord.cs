@@ -2,73 +2,74 @@ using System.Text.Json;
 
 namespace AgentPrism;
 
-/// <summary>Kuyruktaki bir isin ozeti. Ogelerin (<see cref="JobItemRecord"/>) basligidir.</summary>
+/// <summary>The summary of a queued job. The header of its items (<see cref="JobItemRecord"/>).</summary>
 public sealed record JobRecord
 {
-    /// <summary>Is kimligi.</summary>
+    /// <summary>The job identifier.</summary>
     public required Guid Id { get; init; }
 
-    /// <summary>Isin ait oldugu kiraci.</summary>
+    /// <summary>The tenant the job belongs to.</summary>
     public required string TenantId { get; init; }
 
     /// <summary>
-    /// Bu isi ureten zamanlamanin kimligi. Elle olusturulan (tek seferlik)
-    /// islerde <see langword="null"/>.
+    /// The identifier of the schedule that produced this job.
+    /// <see langword="null"/> for manually created (one-off) jobs.
     /// </summary>
     public Guid? ScheduleId { get; init; }
 
-    /// <summary>Isin turu.</summary>
+    /// <summary>The job's kind.</summary>
     public required JobKind Kind { get; init; }
 
-    /// <summary>Calistirilacak agent veya workflow adi.</summary>
+    /// <summary>The agent or workflow name to run.</summary>
     public required string TargetName { get; init; }
 
-    /// <summary>Isin guncel durumu.</summary>
+    /// <summary>The job's current status.</summary>
     public required JobStatus Status { get; init; }
 
-    /// <summary>Girdi kumesi veya parametreler.</summary>
+    /// <summary>The input set or parameters.</summary>
     public JsonElement Payload { get; init; }
 
-    /// <summary>Toplam oge sayisi.</summary>
+    /// <summary>The total number of items.</summary>
     public int TotalItems { get; init; }
 
-    /// <summary>Basariyla tamamlanan oge sayisi.</summary>
+    /// <summary>The number of items that completed successfully.</summary>
     public int DoneItems { get; init; }
 
-    /// <summary>Basarisiz olan oge sayisi.</summary>
+    /// <summary>The number of items that failed.</summary>
     public int FailedItems { get; init; }
 
-    /// <summary>Kiralama denemesi sayisi. Her <see cref="IJobStore.LeaseAsync"/> cagrisinda artar.</summary>
+    /// <summary>The number of lease attempts. Increments on every <see cref="IJobStore.LeaseAsync"/> call.</summary>
     public int Attempt { get; init; }
 
     /// <summary>
-    /// Bu ise ozgu en fazla deneme sayisi. <see langword="null"/> ise
-    /// <see cref="AgentPrismSchedulingOptions.MaxAttempts"/> gecerlidir.
+    /// The maximum number of attempts specific to this job. If
+    /// <see langword="null"/>, <see cref="AgentPrismSchedulingOptions.MaxAttempts"/> applies.
     /// </summary>
     /// <remarks>
-    /// Webhook teslimi (Faz 21) genel ayardan farkli bir merdiven kullanir; bu
-    /// alan, tek bir genel sayinin tum is turlerine dayatilmasini onler.
+    /// Webhook delivery (Phase 21) uses a ladder different from the global
+    /// setting; this field prevents a single global number from being forced
+    /// onto every job kind.
     /// </remarks>
     public int? MaxAttempts { get; init; }
 
-    /// <summary>Isi su anda kiralayan iscinin kimligi. Kiralanmadiysa <see langword="null"/>.</summary>
+    /// <summary>The identifier of the worker currently leasing the job. <see langword="null"/> if not leased.</summary>
     public string? LeaseOwner { get; init; }
 
-    /// <summary>Mevcut kiranin sona erecegi zaman (UTC). Suresi dolarsa is yeniden kiralanabilir.</summary>
+    /// <summary>The time the current lease expires (UTC). The job may be re-leased once it expires.</summary>
     public DateTimeOffset? LeaseUntil { get; init; }
 
-    /// <summary>Isin calismaya uygun oldugu en erken zaman (UTC).</summary>
+    /// <summary>The earliest time the job is eligible to run (UTC).</summary>
     public required DateTimeOffset ScheduledFor { get; init; }
 
-    /// <summary>Ilk kiralamanin gerceklestigi zaman (UTC).</summary>
+    /// <summary>The time the first lease happened (UTC).</summary>
     public DateTimeOffset? StartedAt { get; init; }
 
-    /// <summary>Bitis zamani (UTC). Is surerken <see langword="null"/>.</summary>
+    /// <summary>The completion time (UTC). <see langword="null"/> while the job is in progress.</summary>
     public DateTimeOffset? CompletedAt { get; init; }
 
-    /// <summary>Basarisizlik mesaji. Yalnizca <see cref="JobStatus.Failed"/> durumunda dolu.</summary>
+    /// <summary>The failure message. Populated only for <see cref="JobStatus.Failed"/>.</summary>
     public string? ErrorMessage { get; init; }
 
-    /// <summary>Olusturulma zamani (UTC).</summary>
+    /// <summary>The creation time (UTC).</summary>
     public required DateTimeOffset CreatedAt { get; init; }
 }

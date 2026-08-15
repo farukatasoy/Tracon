@@ -3,57 +3,56 @@ using System.Text.Json;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir isin ne zaman ve nasil calisacagini tanimlayan zamanlama kaydi.
+/// The schedule record defining when and how a job runs.
 /// </summary>
 /// <remarks>
-/// <see cref="Cron"/> bos birakilirsa zamanlama yalnizca elle
-/// (<c>POST .../trigger</c>) tetiklenir; otomatik bir sonraki calisma zamani
-/// hesaplanmaz.
+/// If <see cref="Cron"/> is left empty, the schedule is triggered only
+/// manually (<c>POST .../trigger</c>); no automatic next-run time is computed.
 /// </remarks>
 public sealed record JobSchedule
 {
-    /// <summary>Zamanlama kimligi.</summary>
+    /// <summary>The schedule identifier.</summary>
     public Guid Id { get; init; }
 
-    /// <summary>Zamanlamanin ait oldugu kiraci.</summary>
+    /// <summary>The tenant the schedule belongs to.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Kiraci icinde benzersiz zamanlama adi.</summary>
+    /// <summary>The schedule name, unique within the tenant.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Bu zamanlamanin urettigi isin turu.</summary>
+    /// <summary>The kind of job this schedule produces.</summary>
     public required JobKind Kind { get; init; }
 
-    /// <summary>Calistirilacak agent veya workflow adi.</summary>
+    /// <summary>The agent or workflow name to run.</summary>
     public required string TargetName { get; init; }
 
     /// <summary>
-    /// Bes alanli cron ifadesi (<c>dakika saat ayin-gunu ay haftanin-gunu</c>).
-    /// <see langword="null"/> ise zamanlama yalnizca elle tetiklenir.
+    /// The five-field cron expression (<c>minute hour day-of-month month
+    /// day-of-week</c>). If <see langword="null"/>, the schedule is triggered only manually.
     /// </summary>
     public string? Cron { get; init; }
 
-    /// <summary><see cref="Cron"/> ifadesinin yorumlandigi saat dilimi.</summary>
+    /// <summary>The time zone the <see cref="Cron"/> expression is interpreted in.</summary>
     public string TimeZone { get; init; } = "UTC";
 
-    /// <summary>Girdi kumesi veya parametreler. Is turune gore yorumlanir.</summary>
+    /// <summary>The input set or parameters. Interpreted according to the job kind.</summary>
     public JsonElement Payload { get; init; }
 
-    /// <summary>Zamanlama etkin mi. Kapatilirsa otomatik tetiklenmez.</summary>
+    /// <summary>Whether the schedule is enabled. If disabled, it is not triggered automatically.</summary>
     public bool Enabled { get; init; } = true;
 
-    /// <summary>Bir sonraki otomatik calisma zamani (UTC). Cron yoksa <see langword="null"/>.</summary>
+    /// <summary>The next automatic run time (UTC). <see langword="null"/> if there is no cron.</summary>
     public DateTimeOffset? NextRunAt { get; init; }
 
-    /// <summary>Son calisma zamani (UTC). Hic calismadiysa <see langword="null"/>.</summary>
+    /// <summary>The last run time (UTC). <see langword="null"/> if it never ran.</summary>
     public DateTimeOffset? LastRunAt { get; init; }
 
-    /// <summary>Zamanlamayi olusturan kullanici/servis kimligi.</summary>
+    /// <summary>The identifier of the user/service that created the schedule.</summary>
     public string? CreatedBy { get; init; }
 
-    /// <summary>Olusturulma zamani (UTC).</summary>
+    /// <summary>The creation time (UTC).</summary>
     public required DateTimeOffset CreatedAt { get; init; }
 
-    /// <summary>Son guncelleme zamani (UTC).</summary>
+    /// <summary>The last-updated time (UTC).</summary>
     public required DateTimeOffset UpdatedAt { get; init; }
 }

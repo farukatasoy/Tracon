@@ -1,51 +1,51 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Bir <see cref="IJobHandler"/>'in isi belirli bir sure sonra yeniden denemek
-/// istedigini bildiren istisna.
+/// The exception an <see cref="IJobHandler"/> throws to signal that it wants
+/// the job retried after a specific delay.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Siradan bir istisna isi hemen yeniden kiralanabilir hale getirir. Bir isleyici
-/// geri adimli bekleme istiyorsa bunu firlatir; arka plan iscisi
-/// <see cref="RetryAfter"/> degerini <see cref="IJobStore.ReleaseForRetryAsync"/>
-/// cagrisina gecirir.
+/// An ordinary exception makes the job re-leasable immediately. A handler
+/// that wants backoff throws this instead; the background worker passes the
+/// <see cref="RetryAfter"/> value into the
+/// <see cref="IJobStore.ReleaseForRetryAsync"/> call.
 /// </para>
 /// <para>
-/// Deneme sayisi yine <see cref="JobRecord.Attempt"/> ile sinirlanir: bu istisna
-/// isi sonsuza kadar canli tutmaz.
+/// The attempt count is still capped by <see cref="JobRecord.Attempt"/>: this
+/// exception does not keep the job alive forever.
 /// </para>
 /// </remarks>
 public sealed class JobRetryException : AgentPrismException
 {
     /// <summary>
-    /// <see cref="AgentPrismException.ErrorType"/> icin yazilan kararli deger.
+    /// The stable value written for <see cref="AgentPrismException.ErrorType"/>.
     /// </summary>
     public const string JobRetryErrorType = "job_retry";
 
-    /// <summary>Yeni bir yeniden deneme talebi olusturur.</summary>
+    /// <summary>Creates a new retry request.</summary>
     public JobRetryException()
     {
     }
 
-    /// <summary>Yeni bir yeniden deneme talebi olusturur.</summary>
-    /// <param name="message">Hata mesaji.</param>
+    /// <summary>Creates a new retry request.</summary>
+    /// <param name="message">The error message.</param>
     public JobRetryException(string message)
         : base(message)
     {
     }
 
-    /// <summary>Yeni bir yeniden deneme talebi olusturur.</summary>
-    /// <param name="message">Hata mesaji.</param>
-    /// <param name="innerException">Asil hata.</param>
+    /// <summary>Creates a new retry request.</summary>
+    /// <param name="message">The error message.</param>
+    /// <param name="innerException">The underlying error.</param>
     public JobRetryException(string message, Exception innerException)
         : base(message, innerException)
     {
     }
 
     /// <summary>
-    /// Bir sonraki denemeden once beklenecek sure. <see langword="null"/> ise
-    /// is hemen yeniden kiralanabilir.
+    /// The time to wait before the next attempt. If <see langword="null"/>,
+    /// the job may be re-leased immediately.
     /// </summary>
     public TimeSpan? RetryAfter { get; init; }
 
