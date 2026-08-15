@@ -2,126 +2,126 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>Bir gercek zamanli konusma baglantisinin ozet kaydi.</summary>
+/// <summary>The summary record of a real-time voice connection.</summary>
 /// <remarks>
 /// <para>
-/// 🚨 Ses <strong>icerigi</strong> bu kayitta durmaz. Kayit yalnizca olcum ve
-/// gozlemlenebilirlik icindir: kim, ne zaman, kac tur, ne kadar ses. Ses
-/// saklaniyorsa (varsayilan <em>hayir</em>) baytlar <c>attachments</c>
-/// tablosundadir.
+/// The audio <strong>content</strong> does not sit in this record. The
+/// record is only for measurement and observability: who, when, how many
+/// turns, how much audio. If audio is stored (default <em>no</em>), the bytes
+/// are in the <c>attachments</c> table.
 /// </para>
 /// <para>
-/// Her konusma turu ayrica normal bir <c>runs</c> satiri uretir. Ses,
-/// calistirma yolunu degistirmez; yalnizca girdi ve cikti bicimini degistirir.
+/// Each conversation turn also produces a normal <c>runs</c> row. Voice does
+/// not change the run path; it only changes the input and output format.
 /// </para>
 /// </remarks>
 public sealed record VoiceSessionRecord
 {
-    /// <summary>Baglantinin kimligi.</summary>
+    /// <summary>The connection's identifier.</summary>
     public required Guid Id { get; init; }
 
     /// <summary>
-    /// Kiraci. 🚨 Baglanti kurulurken cozulur ve baglanti boyunca
-    /// <strong>sabittir</strong>.
+    /// The tenant. 🚨 Resolved when the connection is established and
+    /// <strong>fixed</strong> for the connection's lifetime.
     /// </summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Konusmanin yurudugu agent oturumunun kimligi.</summary>
+    /// <summary>The identifier of the agent session the conversation runs in.</summary>
     public required string SessionId { get; init; }
 
-    /// <summary>Konusulan agent'in adi.</summary>
+    /// <summary>The name of the agent being talked to.</summary>
     public required string AgentName { get; init; }
 
-    /// <summary>Baglantinin acildigi an.</summary>
+    /// <summary>The moment the connection opened.</summary>
     public required DateTimeOffset StartedAt { get; init; }
 
-    /// <summary>Baglantinin kapandigi an; hala acikken <see langword="null"/>.</summary>
+    /// <summary>The moment the connection closed; <see langword="null"/> while still open.</summary>
     public DateTimeOffset? EndedAt { get; init; }
 
-    /// <summary>Tamamlanan konusma turu sayisi.</summary>
+    /// <summary>The number of completed conversation turns.</summary>
     public int Turns { get; init; }
 
     /// <summary>
-    /// Cozulen toplam ses suresi (saniye). Saglayici sure bildirmediyse
-    /// <see langword="null"/> kalir — AgentPrism sure uydurmaz (K-032).
+    /// The total resolved audio duration (seconds). Stays
+    /// <see langword="null"/> if the provider does not report duration —
+    /// AgentPrism does not fabricate a duration (K-032).
     /// </summary>
     public decimal? InputSeconds { get; init; }
 
-    /// <summary>Seslendirilen toplam karakter sayisi.</summary>
+    /// <summary>The total characters synthesized to speech.</summary>
     public long? OutputChars { get; init; }
 
-    /// <summary>Baglantinin nicin kapandigi.</summary>
+    /// <summary>Why the connection closed.</summary>
     public VoiceSessionEndReason? EndReason { get; init; }
 
-    /// <summary>Baglantiyi acan aktor.</summary>
+    /// <summary>The actor who opened the connection.</summary>
     public string? CreatedBy { get; init; }
 }
 
-/// <summary>Bir konusma baglantisinin kapanma nedeni.</summary>
+/// <summary>The reason a voice connection closed.</summary>
 /// <remarks>
-/// JSON'da <strong>ad olarak</strong> yazilir; veritabaninda <c>smallint</c>
-/// olarak saklanir. Sayisal degerler <strong>kararlidir</strong> ve
-/// degistirilemez.
+/// Written <strong>as a name</strong> in JSON; stored as <c>smallint</c> in
+/// the database. The numeric values are <strong>stable</strong> and must not change.
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<VoiceSessionEndReason>))]
 public enum VoiceSessionEndReason
 {
-    /// <summary>Istemci <c>stop</c> gonderdi veya soketi duzgun kapatti.</summary>
+    /// <summary>The client sent <c>stop</c> or closed the socket cleanly.</summary>
     Client = 0,
 
-    /// <summary>Baglanti boste kaldi ve zaman asimina ugradi.</summary>
+    /// <summary>The connection sat idle and timed out.</summary>
     IdleTimeout = 1,
 
-    /// <summary>Baglanti izin verilen en uzun sureye ulasti.</summary>
+    /// <summary>The connection reached the maximum allowed duration.</summary>
     DurationLimit = 2,
 
-    /// <summary>Bir hata baglantiyi kapatti.</summary>
+    /// <summary>An error closed the connection.</summary>
     Error = 3,
 
-    /// <summary>Sunucu kapaniyor.</summary>
+    /// <summary>The server is shutting down.</summary>
     ServerShutdown = 4,
 }
 
-/// <summary>Konusma kayitlarini listeleme suzgeci.</summary>
+/// <summary>The filter for listing voice session records.</summary>
 public sealed record VoiceSessionQuery
 {
-    /// <summary>Agent adi suzgeci; bos ise tum agent'lar.</summary>
+    /// <summary>The agent name filter; all agents if empty.</summary>
     public string? AgentName { get; init; }
 
-    /// <summary>Oturum kimligi suzgeci; bos ise tum oturumlar.</summary>
+    /// <summary>The session identifier filter; all sessions if empty.</summary>
     public string? SessionId { get; init; }
 
-    /// <summary>Atlanacak kayit sayisi.</summary>
+    /// <summary>The number of records to skip.</summary>
     public int Skip { get; init; }
 
-    /// <summary>Dondurulecek en fazla kayit sayisi.</summary>
+    /// <summary>The maximum number of records to return.</summary>
     public int Take { get; init; } = 50;
 }
 
-/// <summary>Gercek zamanli konusma baglantilarinin ozet kaydini saklar.</summary>
+/// <summary>Stores the summary record of real-time voice connections.</summary>
 /// <remarks>
 /// <para>
-/// Depo <strong>gozlemlenebilirlik icindir</strong> ve islevselligi bozmaz: bir
-/// yazma hatasi konusmayi kesmez, yalnizca gunluge yazilir.
+/// The store is <strong>for observability</strong> and does not break
+/// functionality: a write error does not interrupt the conversation, it is only logged.
 /// </para>
 /// <para>
-/// Sozlesme <c>AgentPrism.Abstractions</c>'ta yasar cunku HTTP katmani
-/// konusma uclarini sunarken bu tipleri gorur (K-174 deseni).
+/// The contract lives in <c>AgentPrism.Abstractions</c> because the HTTP
+/// layer sees these types while serving the voice endpoints (the K-174 pattern).
 /// </para>
 /// </remarks>
 public interface IVoiceSessionStore
 {
-    /// <summary>Bir konusma kaydini ekler veya gunceller.</summary>
-    /// <param name="record">Kayit.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Adds or updates a voice session record.</summary>
+    /// <param name="record">The record.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
     ValueTask SaveAsync(VoiceSessionRecord record, CancellationToken cancellationToken = default);
 
-    /// <summary>Bir kiracinin konusma kayitlarini en yeniden eskiye listeler.</summary>
-    /// <param name="tenantId">Kiraci.</param>
-    /// <param name="query">Suzgec.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kayitlar.</returns>
+    /// <summary>Lists a tenant's voice session records, newest first.</summary>
+    /// <param name="tenantId">The tenant.</param>
+    /// <param name="query">The filter.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The records.</returns>
     ValueTask<IReadOnlyList<VoiceSessionRecord>> QueryAsync(
         string tenantId,
         VoiceSessionQuery query,
