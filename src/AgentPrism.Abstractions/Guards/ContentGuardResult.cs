@@ -1,57 +1,58 @@
 namespace AgentPrism;
 
-/// <summary>Bir guard'in verebilecegi karar.</summary>
+/// <summary>The decision a guard can make.</summary>
 /// <remarks>
-/// Siralama <strong>anlamlidir</strong>: birden cok guard calistiginda en buyuk
-/// deger kazanir. Yeni bir karar eklenirse sertlik sirasina gore yerlestirilmelidir.
+/// The ordering is <strong>meaningful</strong>: when multiple guards run, the
+/// largest value wins. A new decision must be placed in order of severity.
 /// </remarks>
 public enum ContentGuardAction
 {
-    /// <summary>Icerik degismeden gecer.</summary>
+    /// <summary>The content passes unchanged.</summary>
     Allow = 0,
 
-    /// <summary>Icerik degistirilerek gecer. Calistirma devam eder.</summary>
+    /// <summary>The content passes after being modified. The run continues.</summary>
     Mask = 1,
 
-    /// <summary>Icerik engellenir. Calistirma <c>Failed</c> olur.</summary>
+    /// <summary>The content is blocked. The run becomes <c>Failed</c>.</summary>
     Block = 2,
 }
 
-/// <summary>Bir <see cref="IContentGuard"/> denetiminin sonucu.</summary>
+/// <summary>The result of an <see cref="IContentGuard"/> check.</summary>
 /// <remarks>
-/// 🚨 Sonuc <strong>engellenen icerigi tasimaz</strong>. Yalnizca eslesen kuralin
-/// adi ve engelleme sebebi tasinir; ikisi de denetim izine ve calistirma olayina
-/// yazilir. Engellenen icerik tanimi geregi hassastir ve onu bir izin icine yazmak
-/// sorunu <em>kalici</em> hale getirir (K-059'un ruhu).
+/// 🚨 The result <strong>does not carry the blocked content</strong>. It only
+/// carries the matched rule's name and the block reason; both are written to
+/// the audit trail and the run event. Blocked content is sensitive by
+/// definition, and writing it into an audit trail makes the problem
+/// <em>permanent</em> (the spirit of K-059).
 /// </remarks>
 public sealed record ContentGuardResult
 {
-    /// <summary>Icerik degismeden gecer.</summary>
+    /// <summary>The content passes unchanged.</summary>
     /// <remarks>
-    /// Tek bir ornek paylasilir: bu, guard'larin en sik dondurdugu degerdir ve
-    /// sicak yolda tahsis uretmemelidir.
+    /// A single instance is shared: this is the value guards return most
+    /// often, and it must not allocate on the hot path.
     /// </remarks>
     public static ContentGuardResult Allow { get; } = new() { Action = ContentGuardAction.Allow };
 
-    /// <summary>Verilen karar.</summary>
+    /// <summary>The decision made.</summary>
     public required ContentGuardAction Action { get; init; }
 
     /// <summary>
-    /// Modele gonderilecek (veya istemciye donecek) yeni metin. Yalnizca
-    /// <see cref="ContentGuardAction.Mask"/> icin dolar.
+    /// The new text to send to the model (or return to the client). Populated
+    /// only for <see cref="ContentGuardAction.Mask"/>.
     /// </summary>
     public string? MaskedText { get; init; }
 
-    /// <summary>Eslesen kuralin adi. 🚨 Eslesen ICERIGI tasimaz.</summary>
+    /// <summary>The matched rule's name. 🚨 Does not carry the matched CONTENT.</summary>
     public string? RuleName { get; init; }
 
-    /// <summary>Engelleme sebebi. 🚨 Engellenen METNI tasimaz.</summary>
+    /// <summary>The block reason. 🚨 Does not carry the blocked TEXT.</summary>
     public string? Reason { get; init; }
 
-    /// <summary>Icerik degistirilerek gecer.</summary>
-    /// <param name="maskedText">Iceriğin yeni hali.</param>
-    /// <param name="ruleName">Eslesen kuralin adi.</param>
-    /// <returns>Maskeleme karari.</returns>
+    /// <summary>The content passes after being modified.</summary>
+    /// <param name="maskedText">The new form of the content.</param>
+    /// <param name="ruleName">The matched rule's name.</param>
+    /// <returns>A mask decision.</returns>
     public static ContentGuardResult Mask(string maskedText, string ruleName) => new()
     {
         Action = ContentGuardAction.Mask,
@@ -59,10 +60,10 @@ public sealed record ContentGuardResult
         RuleName = ruleName,
     };
 
-    /// <summary>Icerik engellenir; calistirma <c>Failed</c> olur.</summary>
-    /// <param name="ruleName">Eslesen kuralin adi.</param>
-    /// <param name="reason">Engelleme sebebi. Engellenen metni TASIMAMALIDIR.</param>
-    /// <returns>Engelleme karari.</returns>
+    /// <summary>The content is blocked; the run becomes <c>Failed</c>.</summary>
+    /// <param name="ruleName">The matched rule's name.</param>
+    /// <param name="reason">The block reason. MUST NOT carry the blocked text.</param>
+    /// <returns>A block decision.</returns>
     public static ContentGuardResult Block(string ruleName, string reason) => new()
     {
         Action = ContentGuardAction.Block,

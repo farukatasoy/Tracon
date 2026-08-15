@@ -1,23 +1,23 @@
 namespace AgentPrism;
 
-/// <summary>Tek bir <see cref="EvalCase"/> eklemek icin tasiyici.</summary>
+/// <summary>Carrier for adding a single <see cref="EvalCase"/>.</summary>
 public sealed record EvalCaseDraft
 {
-    /// <summary>Agent'a gonderilecek sorgu metni.</summary>
+    /// <summary>The query text sent to the agent.</summary>
     public required string Query { get; init; }
 
-    /// <summary>Beklenen cikti.</summary>
+    /// <summary>The expected output.</summary>
     public string? ExpectedOutput { get; init; }
 
-    /// <summary>Beklenen tool adlari.</summary>
+    /// <summary>The expected tool names.</summary>
     public IReadOnlyList<string> ExpectedTools { get; init; } = [];
 
-    /// <summary>Modele ek baglam olarak verilecek metin.</summary>
+    /// <summary>Text given to the model as extra context.</summary>
     public string? Context { get; init; }
 
-    /// <summary>Vakanin uretildigi calistirma. Elle eklenen vakalarda <see langword="null"/>.</summary>
+    /// <summary>The run the case was generated from. <see langword="null"/> for hand-added cases.</summary>
     public Guid? SourceRunId { get; init; }
 
-    /// <summary>Terfi sebebi. Elle eklenen vakalarda <see langword="null"/>.</summary>
+    /// <summary>The reason for promotion. <see langword="null"/> for hand-added cases.</summary>
     public EvalCaseSource? SourceKind { get; init; }
 }

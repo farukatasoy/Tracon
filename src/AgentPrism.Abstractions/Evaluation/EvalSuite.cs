@@ -3,40 +3,40 @@ using System.Text.Json;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir agent icin tanimlanmis degerlendirme (eval) takimi: hangi agent'in,
-/// hangi denetimlerle olculecegini tasir.
+/// An evaluation (eval) suite defined for an agent: carries which agent is
+/// measured, with which checks.
 /// </summary>
 /// <remarks>
-/// <see cref="Checks"/> bildirimseldir (K2): serbest kod calistirmaz, yalnizca
-/// <c>EvalCheckFactory</c>'nin taninan tur adlarina esledigi bir JSON dizisidir.
-/// Ozel bir denetim gerekiyorsa kod tarafinda <c>AddEvalCheck</c> ile kaydedilir.
+/// <see cref="Checks"/> is declarative (K2): it runs no free-form code, it is
+/// only a JSON array that <c>EvalCheckFactory</c> maps to recognized kind
+/// names. A custom check is registered on the code side with <c>AddEvalCheck</c>.
 /// </remarks>
 public sealed record EvalSuite
 {
-    /// <summary>Takim kimligi.</summary>
+    /// <summary>The suite identifier.</summary>
     public Guid Id { get; init; }
 
-    /// <summary>Takimin ait oldugu kiraci.</summary>
+    /// <summary>The tenant the suite belongs to.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Takim adi. Kiraci icinde benzersizdir.</summary>
+    /// <summary>The suite name. Unique within the tenant.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Kisa aciklama.</summary>
+    /// <summary>A short description.</summary>
     public string? Description { get; init; }
 
-    /// <summary>Bu takimin olctugu agent'in adi.</summary>
+    /// <summary>The name of the agent this suite measures.</summary>
     public required string AgentName { get; init; }
 
     /// <summary>
-    /// Denetim tanimlari. Ornek: <c>[{"kind":"nonEmpty","minLength":10}]</c>.
-    /// Bicim icin bkz. <c>docs/18-DEGERLENDIRME.md</c>, bolum 18.2.
+    /// The check definitions. Example: <c>[{"kind":"nonEmpty","minLength":10}]</c>.
+    /// See <c>docs/18-DEGERLENDIRME.md</c>, section 18.2, for the format.
     /// </summary>
     public JsonElement Checks { get; init; }
 
-    /// <summary>Olusturulma zamani (UTC).</summary>
+    /// <summary>The creation time (UTC).</summary>
     public DateTimeOffset CreatedAt { get; init; }
 
-    /// <summary>Son guncellenme zamani (UTC).</summary>
+    /// <summary>The last-updated time (UTC).</summary>
     public DateTimeOffset UpdatedAt { get; init; }
 }

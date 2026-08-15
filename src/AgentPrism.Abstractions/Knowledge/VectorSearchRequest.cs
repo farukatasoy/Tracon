@@ -1,23 +1,23 @@
 namespace AgentPrism;
 
-/// <summary>Anlamsal arama istegi.</summary>
+/// <summary>A semantic search request.</summary>
 public sealed record VectorSearchRequest
 {
-    /// <summary>Kiraci kimligi.</summary>
+    /// <summary>The tenant identifier.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Koleksiyon adi.</summary>
+    /// <summary>The collection name.</summary>
     public required string Collection { get; init; }
 
-    /// <summary>Sorgu metninin gomusu.</summary>
+    /// <summary>The embedding of the query text.</summary>
     public required ReadOnlyMemory<float> QueryEmbedding { get; init; }
 
-    /// <summary>Kac sonuc dondurulur.</summary>
+    /// <summary>The number of results to return.</summary>
     public int Top { get; init; } = 5;
 
     /// <summary>
-    /// En buyuk kabul edilen kosinus mesafesi (0 = ayni, 2 = zit).
-    /// <see langword="null"/> ise mesafe suzgeci uygulanmaz.
+    /// The largest cosine distance accepted (0 = identical, 2 = opposite).
+    /// No distance filter is applied when <see langword="null"/>.
     /// </summary>
     public double? MaxDistance { get; init; }
 }

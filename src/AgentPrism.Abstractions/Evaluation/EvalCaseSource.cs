@@ -2,20 +2,20 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>Bir <see cref="EvalCase"/>'in uretim calistirmasindan terfi sebebi.</summary>
+/// <summary>The reason an <see cref="EvalCase"/> was promoted from a production run.</summary>
 /// <remarks>
-/// JSON'da ad olarak yazilir, veritabaninda <c>smallint</c> olarak saklanir.
-/// Deger sirasi <strong>degistirilemez</strong> — yalnizca sona eklenir.
+/// Written as a name in JSON, stored as <c>smallint</c> in the database. The
+/// value order <strong>must not change</strong> — only append.
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<EvalCaseSource>))]
 public enum EvalCaseSource
 {
-    /// <summary>Basarisiz (<see cref="RunStatus.Failed"/>) bir calistirmadan terfi edildi.</summary>
+    /// <summary>Promoted from a failed (<see cref="RunStatus.Failed"/>) run.</summary>
     FailedRun = 0,
 
-    /// <summary>Olumsuz puanlanmis bir calistirmadan terfi edildi.</summary>
+    /// <summary>Promoted from a negatively scored run.</summary>
     NegativeScore = 1,
 
-    /// <summary>Basarili bir calistirmadan, referans olarak terfi edildi.</summary>
+    /// <summary>Promoted from a successful run, as a reference.</summary>
     ReferenceRun = 2,
 }

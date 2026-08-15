@@ -1,20 +1,20 @@
 namespace AgentPrism;
 
-/// <summary>Bir arama sonucu.</summary>
+/// <summary>A single search result.</summary>
 public sealed record VectorSearchHit
 {
-    /// <summary>Parcanin ait oldugu kaynak kimligi.</summary>
+    /// <summary>The identifier of the source the chunk belongs to.</summary>
     public required string SourceId { get; init; }
 
-    /// <summary>Kaynak icindeki sira numarasi.</summary>
+    /// <summary>The sequence number within the source.</summary>
     public required int ChunkIndex { get; init; }
 
-    /// <summary>Parcanin metni.</summary>
+    /// <summary>The chunk's text.</summary>
     public required string Content { get; init; }
 
-    /// <summary>Kosinus mesafesi. Kucuk deger daha yakin demektir.</summary>
+    /// <summary>The cosine distance. A smaller value means closer.</summary>
     public required double Distance { get; init; }
 
-    /// <summary>Yazilirken verilen istege bagli ustveri.</summary>
+    /// <summary>The optional metadata given at write time.</summary>
     public IReadOnlyDictionary<string, string>? Metadata { get; init; }
 }

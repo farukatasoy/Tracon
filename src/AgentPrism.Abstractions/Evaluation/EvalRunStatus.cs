@@ -2,26 +2,26 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>Bir eval kosusunun durumu.</summary>
+/// <summary>The status of an eval run.</summary>
 /// <remarks>
-/// JSON'da ad olarak yazilir, veritabaninda <c>smallint</c> olarak saklanir.
-/// Deger sirasi <strong>degistirilemez</strong> — yalnizca sona eklenir.
+/// Written as a name in JSON, stored as <c>smallint</c> in the database. The
+/// value order <strong>must not change</strong> — only append.
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<EvalRunStatus>))]
 public enum EvalRunStatus
 {
-    /// <summary>Kosu kuyruga alindi, henuz yurutmeye baslamadi.</summary>
+    /// <summary>The run is queued, execution has not started yet.</summary>
     Pending = 0,
 
-    /// <summary>Kosu su anda yurutuluyor.</summary>
+    /// <summary>The run is currently executing.</summary>
     Running = 1,
 
-    /// <summary>Kosu tamamlandi.</summary>
+    /// <summary>The run completed.</summary>
     Completed = 2,
 
-    /// <summary>Kosu basarisiz oldu (ornegin agent veya takim bulunamadi).</summary>
+    /// <summary>The run failed (for example, the agent or suite was not found).</summary>
     Failed = 3,
 
-    /// <summary>Kosu iptal edildi.</summary>
+    /// <summary>The run was cancelled.</summary>
     Cancelled = 4,
 }

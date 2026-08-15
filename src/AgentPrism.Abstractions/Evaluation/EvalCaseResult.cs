@@ -2,38 +2,38 @@ using System.Text.Json;
 
 namespace AgentPrism;
 
-/// <summary>Bir <see cref="EvalRun"/> icinde tek bir <see cref="EvalCase"/>'in sonucu.</summary>
+/// <summary>The result of a single <see cref="EvalCase"/> within an <see cref="EvalRun"/>.</summary>
 /// <remarks>
-/// <see cref="CaseId"/> kasitli olarak bir yabanci anahtar tasimaz: bir vaka
-/// sonradan degistirilse veya silinse bile gecmis sonuc kaydi anlasilir kalir
-/// (append-only ruh, K-014 ile ayni gerekce).
+/// <see cref="CaseId"/> deliberately carries no foreign key: even if a case is
+/// later changed or deleted, the past result record stays intelligible
+/// (append-only spirit, same rationale as K-014).
 /// </remarks>
 public sealed record EvalCaseResult
 {
-    /// <summary>Sonuc kaydinin kimligi.</summary>
+    /// <summary>The result record identifier.</summary>
     public Guid Id { get; init; }
 
-    /// <summary>Ait oldugu kosunun kimligi.</summary>
+    /// <summary>The identifier of the run this result belongs to.</summary>
     public required Guid EvalRunId { get; init; }
 
-    /// <summary>Olculen vakanin kimligi.</summary>
+    /// <summary>The identifier of the case being measured.</summary>
     public required Guid CaseId { get; init; }
 
     /// <summary>
-    /// Bu vakayi islerken olusan calistirma kaydinin kimligi. Boylece bir eval
-    /// hatasi tek tikla transkripte ve span agacina gider.
+    /// The identifier of the run record created while processing this case.
+    /// This lets an eval failure jump straight to its transcript and span tree.
     /// </summary>
     public Guid? RunId { get; init; }
 
-    /// <summary>Vakanin tum denetimleri gectigini bildirir.</summary>
+    /// <summary>Reports whether the case passed all of its checks.</summary>
     public required bool Passed { get; init; }
 
-    /// <summary>Agent'in urettigi metin cikti.</summary>
+    /// <summary>The text output produced by the agent.</summary>
     public string? Output { get; init; }
 
-    /// <summary>Denetim bazinda skor listesi (serbest JSON).</summary>
+    /// <summary>Per-check score list (free-form JSON).</summary>
     public JsonElement Scores { get; init; }
 
-    /// <summary>Basarisizlik nedeni. Yalnizca <see cref="Passed"/> <see langword="false"/> ise dolu.</summary>
+    /// <summary>The failure reason. Populated only when <see cref="Passed"/> is <see langword="false"/>.</summary>
     public string? FailureReason { get; init; }
 }

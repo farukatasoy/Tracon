@@ -1,50 +1,54 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Modele giden ve modelden gelen icerigi denetleyen genisleme noktasi.
+/// The extension point that inspects content going to and coming from the model.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Guard <strong>opt-in</strong>'dir: <c>AddAgentPrism()</c> tek basina hicbir
-/// <see cref="IContentGuard"/> kaydetmez. Hic guard kayitli degilse denetim
-/// sarmalayicisi model boru hattina <strong>eklenmez</strong> ve maliyet tam
-/// olarak sifirdir — bir bayrak denetimi bile calismaz.
+/// A guard is <strong>opt-in</strong>: <c>AddAgentPrism()</c> alone registers no
+/// <see cref="IContentGuard"/>. If no guard is registered, the inspection
+/// wrapper is <strong>not added</strong> to the model pipeline, and the cost
+/// is exactly zero — not even a single flag check runs.
 /// </para>
 /// <para>
-/// Kayit <c>TryAddEnumerable</c> ile yapilir; birden cok guard sirayla calisir ve
-/// <strong>en sert karar kazanir</strong> (<see cref="ContentGuardAction.Block"/> &gt;
+/// Registration uses <c>TryAddEnumerable</c>; multiple guards run in sequence
+/// and <strong>the strictest decision wins</strong>
+/// (<see cref="ContentGuardAction.Block"/> &gt;
 /// <see cref="ContentGuardAction.Mask"/> &gt; <see cref="ContentGuardAction.Allow"/>).
-/// Kayit sirasina bagli bir "ilk karar kazanir" kurali secilmedi: <c>TryAddEnumerable</c>
-/// sirasi garanti edilmez ve guvenlik karari sirayla degismemelidir.
+/// A "first decision wins" rule tied to registration order was not chosen:
+/// <c>TryAddEnumerable</c> order is not guaranteed, and a security decision
+/// must not change based on order.
 /// </para>
 /// <para>
-/// 🚨 Guard model boru hattinin <strong>EN DISINDA</strong> calisir: engellenen bir
-/// istek aga hic cikmaz (para harcanmaz) ve engelleme devre kesiciyi tetiklemez
-/// (arka arkaya engellenen istekler saglayiciyi kapatmaz).
+/// 🚨 A guard runs at the <strong>OUTERMOST</strong> edge of the model
+/// pipeline: a blocked request never reaches the network (no money is spent),
+/// and blocking does not trip the circuit breaker (repeatedly blocked
+/// requests do not shut down the provider).
 /// </para>
 /// <para>
-/// 🚨 Guard bir <em>gozlem araci degil, bir kontroldur.</em> "Gozlemlenebilirlik
-/// islevselligi bozmaz" kurali burada gecerli DEGILDIR: bu metot istisna
-/// atarsa calistirma basarisiz olur. Denetlenemeyen icerik gecirilmez.
+/// 🚨 A guard is <em>a control, not an observability tool.</em> The
+/// "observability must not break functionality" rule does NOT apply here:
+/// if this method throws, the run fails. Content that cannot be inspected is
+/// never let through.
 /// </para>
 /// <para>
-/// Uygulama <strong>sicak yoldadir</strong> ve her model cagrisinda calisir.
-/// Eslesme yokken yeni bir dize tahsis etmemesi beklenir.
+/// The implementation is on the <strong>hot path</strong> and runs on every
+/// model call. It is expected not to allocate a new string when there is no match.
 /// </para>
 /// </remarks>
 public interface IContentGuard
 {
     /// <summary>
-    /// Guard'in adi. Denetim izine ve calistirma olayina bu ad yazilir.
+    /// The guard's name. This name is written to the audit trail and the run event.
     /// </summary>
     string Name { get; }
 
-    /// <summary>Icerigi denetler.</summary>
-    /// <param name="context">Denetim baglami.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <summary>Inspects the content.</summary>
+    /// <param name="context">The inspection context.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
-    /// Karar. Icerik degismeden gececekse <see cref="ContentGuardResult.Allow"/>
-    /// dondurulur; bu yol tahsis uretmez.
+    /// The decision. Returns <see cref="ContentGuardResult.Allow"/> when the
+    /// content passes unchanged; this path allocates nothing.
     /// </returns>
     ValueTask<ContentGuardResult> InspectAsync(
         ContentGuardContext context,
