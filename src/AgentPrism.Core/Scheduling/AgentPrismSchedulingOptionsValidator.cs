@@ -22,35 +22,35 @@ public sealed class AgentPrismSchedulingOptionsValidator : IValidateOptions<Agen
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismSchedulingOptions)}.{nameof(AgentPrismSchedulingOptions.MaxConcurrentJobs)} " +
-                $"en az 1 olmalidir. Gelen deger: {options.MaxConcurrentJobs}.");
+                $"must be at least 1. Actual value: {options.MaxConcurrentJobs}.");
         }
 
         if (options.PollInterval <= TimeSpan.Zero)
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismSchedulingOptions)}.{nameof(AgentPrismSchedulingOptions.PollInterval)} " +
-                $"sifirdan buyuk olmalidir. Gelen deger: {options.PollInterval}.");
+                $"must be greater than zero. Actual value: {options.PollInterval}.");
         }
 
         if (options.LeaseDuration <= TimeSpan.Zero)
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismSchedulingOptions)}.{nameof(AgentPrismSchedulingOptions.LeaseDuration)} " +
-                $"sifirdan buyuk olmalidir. Gelen deger: {options.LeaseDuration}.");
+                $"must be greater than zero. Actual value: {options.LeaseDuration}.");
         }
 
         if (options.MaxAttempts < 1)
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismSchedulingOptions)}.{nameof(AgentPrismSchedulingOptions.MaxAttempts)} " +
-                $"en az 1 olmalidir. Gelen deger: {options.MaxAttempts}.");
+                $"must be at least 1. Actual value: {options.MaxAttempts}.");
         }
 
         if (options.MaxItemsPerJob < 1)
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismSchedulingOptions)}.{nameof(AgentPrismSchedulingOptions.MaxItemsPerJob)} " +
-                $"en az 1 olmalidir. Gelen deger: {options.MaxItemsPerJob}.");
+                $"must be at least 1. Actual value: {options.MaxItemsPerJob}.");
         }
 
         return failures is null

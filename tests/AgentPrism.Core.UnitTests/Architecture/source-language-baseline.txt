@@ -17,14 +17,14 @@ src/AgentPrism.Abstractions/Workflows/WorkflowDescriptor.cs|11
 src/AgentPrism.Abstractions/Workflows/WorkflowGraph.cs|30
 src/AgentPrism.Abstractions/Workflows/WorkflowKind.cs|13
 src/AgentPrism.Anthropic/AgentPrism.Anthropic.csproj|5
-src/AgentPrism.Anthropic/AnthropicChatClientFactory.cs|36
+src/AgentPrism.Anthropic/AnthropicChatClientFactory.cs|34
 src/AgentPrism.Anthropic/AnthropicModelCatalog.cs|12
 src/AgentPrism.Anthropic/AnthropicModelProvider.cs|18
 src/AgentPrism.Anthropic/AnthropicProviderExtensions.cs|21
 src/AgentPrism.Anthropic/AnthropicProviderHealthCheck.cs|20
 src/AgentPrism.Anthropic/AnthropicProviderNames.cs|17
 src/AgentPrism.Anthropic/AnthropicProviderOptions.cs|29
-src/AgentPrism.Anthropic/AnthropicProviderOptionsValidator.cs|17
+src/AgentPrism.Anthropic/AnthropicProviderOptionsValidator.cs|11
 src/AgentPrism.Anthropic/AnthropicProviderSettingsChatClient.cs|19
 src/AgentPrism.Anthropic/README.md|33
 src/AgentPrism.AspNetCore/A2A/A2AApprovalGuardFilter.cs|10
@@ -81,7 +81,7 @@ src/AgentPrism.AspNetCore/Internal/ToolApprovalResolver.cs|28
 src/AgentPrism.AspNetCore/McpServer/AgentPrismMcpServerBuilderExtensions.cs|10
 src/AgentPrism.AspNetCore/McpServer/AgentPrismMcpServerExtensions.cs|18
 src/AgentPrism.AspNetCore/McpServer/AgentPrismMcpServerOptions.cs|12
-src/AgentPrism.AspNetCore/McpServer/CatalogToolCallHandler.cs|18
+src/AgentPrism.AspNetCore/McpServer/CatalogToolCallHandler.cs|17
 src/AgentPrism.AspNetCore/McpServer/CatalogToolListHandler.cs|11
 src/AgentPrism.AspNetCore/McpServer/ExternalAgentToolNaming.cs|11
 src/AgentPrism.AspNetCore/McpServer/McpApprovalGuardFilter.cs|28
@@ -108,7 +108,7 @@ src/AgentPrism.Azure/AzureOpenAIProviderExtensions.cs|25
 src/AgentPrism.Azure/AzureOpenAIProviderHealthCheck.cs|32
 src/AgentPrism.Azure/AzureOpenAIProviderNames.cs|14
 src/AgentPrism.Azure/AzureOpenAIProviderOptions.cs|37
-src/AgentPrism.Azure/AzureOpenAIProviderOptionsValidator.cs|16
+src/AgentPrism.Azure/AzureOpenAIProviderOptionsValidator.cs|13
 src/AgentPrism.Azure/README.md|51
 src/AgentPrism.Core/AgentPrism.Core.csproj|20
 src/AgentPrism.Core/AgentPrismBuilder.cs|1
@@ -144,7 +144,7 @@ src/AgentPrism.Core/Compilation/CompactionUsageTrackingChatClient.cs|7
 src/AgentPrism.Core/Compilation/CompiledAgentCache.cs|33
 src/AgentPrism.Core/Compilation/TenantPrefixingAgentFileStore.cs|17
 src/AgentPrism.Core/Coordination/InMemorySingletonLeaseStore.cs|7
-src/AgentPrism.Core/Coordination/SingletonExecutionOptionsValidator.cs|3
+src/AgentPrism.Core/Coordination/SingletonExecutionOptionsValidator.cs|2
 src/AgentPrism.Core/Coordination/SingletonGuard.cs|26
 src/AgentPrism.Core/Diagnostics/AgentPrismMetrics.cs|49
 src/AgentPrism.Core/Diagnostics/OpenTelemetryAgentDecorator.cs|9
@@ -158,7 +158,7 @@ src/AgentPrism.Core/Evaluation/InMemoryEvalStore.cs|2
 src/AgentPrism.Core/Evaluation/ModelRunJudgeOptions.cs|7
 src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs|32
 src/AgentPrism.Core/Evaluation/OnlineEvaluationOptions.cs|22
-src/AgentPrism.Core/Evaluation/OnlineEvaluationOptionsValidator.cs|7
+src/AgentPrism.Core/Evaluation/OnlineEvaluationOptionsValidator.cs|5
 src/AgentPrism.Core/Experiments/CanaryEvaluationService.cs|23
 src/AgentPrism.Core/Experiments/CanaryEvaluator.cs|9
 src/AgentPrism.Core/Experiments/CanaryOptions.cs|5
@@ -190,7 +190,7 @@ src/AgentPrism.Core/Models/ModelProviderCircuitBreaker.cs|37
 src/AgentPrism.Core/Models/ModelProviderHealthBackgroundService.cs|8
 src/AgentPrism.Core/Models/ModelProviderHealthCache.cs|29
 src/AgentPrism.Core/Models/ModelProviderRegistry.cs|44
-src/AgentPrism.Core/Quotas/AgentPrismQuotaOptionsValidator.cs|7
+src/AgentPrism.Core/Quotas/AgentPrismQuotaOptionsValidator.cs|6
 src/AgentPrism.Core/Quotas/AgentPrismRateLimitOptions.cs|15
 src/AgentPrism.Core/Quotas/InMemoryQuotaStore.cs|12
 src/AgentPrism.Core/Quotas/QuotaEnforcer.cs|33
@@ -203,7 +203,7 @@ src/AgentPrism.Core/Recording/RunCancellationRegistry.cs|2
 src/AgentPrism.Core/Recording/RunCostRecalculationService.cs|16
 src/AgentPrism.Core/Recording/RunEventWriter.cs|66
 src/AgentPrism.Core/Recording/RunHeartbeatWriter.cs|13
-src/AgentPrism.Core/Recording/RunReconciliationOptionsValidator.cs|7
+src/AgentPrism.Core/Recording/RunReconciliationOptionsValidator.cs|3
 src/AgentPrism.Core/Recording/RunReconciliationService.cs|16
 src/AgentPrism.Core/Recording/RunRecordingAgentDecorator.cs|19
 src/AgentPrism.Core/Recording/ToolInvocationTracker.cs|31
@@ -211,7 +211,7 @@ src/AgentPrism.Core/Recording/ToolUsageAccumulator.cs|16
 src/AgentPrism.Core/Replay/RecordedToolPlayback.cs|42
 src/AgentPrism.Core/Replay/ReplayMismatchGuard.cs|11
 src/AgentPrism.Core/Replay/RunReplayService.cs|57
-src/AgentPrism.Core/Retention/AgentPrismRetentionOptionsValidator.cs|5
+src/AgentPrism.Core/Retention/AgentPrismRetentionOptionsValidator.cs|3
 src/AgentPrism.Core/Retention/InMemoryRetentionPolicyStore.cs|1
 src/AgentPrism.Core/Retention/NullRetentionStore.cs|8
 src/AgentPrism.Core/Retention/RetentionJobHandler.cs|4
@@ -219,7 +219,7 @@ src/AgentPrism.Core/Retention/RetentionPolicyResolver.cs|16
 src/AgentPrism.Core/Runs/DefaultRunErrorClassifier.cs|15
 src/AgentPrism.Core/Runs/ErrorFingerprint.cs|14
 src/AgentPrism.Core/Scheduling/AgentBatchJobHandler.cs|11
-src/AgentPrism.Core/Scheduling/AgentPrismSchedulingOptionsValidator.cs|7
+src/AgentPrism.Core/Scheduling/AgentPrismSchedulingOptionsValidator.cs|2
 src/AgentPrism.Core/Scheduling/AgentRunJobHandler.cs|38
 src/AgentPrism.Core/Scheduling/CronExpression.cs|30
 src/AgentPrism.Core/Scheduling/InMemoryJobScheduleStore.cs|2
@@ -263,7 +263,7 @@ src/AgentPrism.Core/Voice/VoiceConversationStateMachine.cs|33
 src/AgentPrism.Core/Voice/VoiceSpeechSegmenter.cs|22
 src/AgentPrism.Core/Voice/VoiceUtteranceBuffer.cs|30
 src/AgentPrism.Core/Webhooks/AgentPrismWebhookOptions.cs|25
-src/AgentPrism.Core/Webhooks/AgentPrismWebhookOptionsValidator.cs|8
+src/AgentPrism.Core/Webhooks/AgentPrismWebhookOptionsValidator.cs|4
 src/AgentPrism.Core/Webhooks/InMemoryWebhookStore.cs|3
 src/AgentPrism.Core/Webhooks/WebhookDeliveryJobHandler.cs|21
 src/AgentPrism.Core/Webhooks/WebhookPublisher.cs|11
@@ -290,7 +290,7 @@ src/AgentPrism.Google/GoogleProviderExtensions.cs|21
 src/AgentPrism.Google/GoogleProviderHealthCheck.cs|17
 src/AgentPrism.Google/GoogleProviderNames.cs|14
 src/AgentPrism.Google/GoogleProviderOptions.cs|19
-src/AgentPrism.Google/GoogleProviderOptionsValidator.cs|12
+src/AgentPrism.Google/GoogleProviderOptionsValidator.cs|8
 src/AgentPrism.Google/GoogleProviderSettingsChatClient.cs|9
 src/AgentPrism.Google/GoogleSafetySettings.cs|6
 src/AgentPrism.Google/README.md|36
@@ -319,7 +319,7 @@ src/AgentPrism.OpenAI/README.md|51
 src/AgentPrism.PostgreSql/AgentPrism.PostgreSql.csproj|7
 src/AgentPrism.PostgreSql/AgentPrismPostgreSqlBuilderExtensions.cs|93
 src/AgentPrism.PostgreSql/AgentPrismPostgreSqlOptions.cs|13
-src/AgentPrism.PostgreSql/AgentPrismPostgreSqlOptionsValidator.cs|12
+src/AgentPrism.PostgreSql/AgentPrismPostgreSqlOptionsValidator.cs|11
 src/AgentPrism.PostgreSql/Internal/NpgsqlDataSourceFactory.cs|10
 src/AgentPrism.PostgreSql/Internal/PostgresDialect.cs|16
 src/AgentPrism.PostgreSql/Internal/PostgresQueries.cs|183
@@ -361,7 +361,7 @@ src/AgentPrism.Sql.Shared/Stores/SqlWorkflowDefinitionStore.cs|15
 src/AgentPrism.SqlServer/AgentPrism.SqlServer.csproj|13
 src/AgentPrism.SqlServer/AgentPrismSqlServerBuilderExtensions.cs|83
 src/AgentPrism.SqlServer/AgentPrismSqlServerOptions.cs|15
-src/AgentPrism.SqlServer/AgentPrismSqlServerOptionsValidator.cs|11
+src/AgentPrism.SqlServer/AgentPrismSqlServerOptionsValidator.cs|10
 src/AgentPrism.SqlServer/Internal/SqlServerDataSource.cs|10
 src/AgentPrism.SqlServer/Internal/SqlServerDataSourceFactory.cs|7
 src/AgentPrism.SqlServer/Internal/SqlServerDialect.cs|43
@@ -370,7 +370,7 @@ src/AgentPrism.SqlServer/README.md|15
 src/AgentPrism.Sqlite/AgentPrism.Sqlite.csproj|10
 src/AgentPrism.Sqlite/AgentPrismSqliteBuilderExtensions.cs|41
 src/AgentPrism.Sqlite/AgentPrismSqliteOptions.cs|19
-src/AgentPrism.Sqlite/AgentPrismSqliteOptionsValidator.cs|16
+src/AgentPrism.Sqlite/AgentPrismSqliteOptionsValidator.cs|15
 src/AgentPrism.Sqlite/Internal/SqliteDataSource.cs|14
 src/AgentPrism.Sqlite/Internal/SqliteDataSourceFactory.cs|5
 src/AgentPrism.Sqlite/Internal/SqliteDialect.cs|59
@@ -419,10 +419,10 @@ src/AgentPrism.Voice/README.md|24
 src/AgentPrism.Voice/Tools/ListVoicesTool.cs|6
 src/AgentPrism.Voice/Tools/SpeakTool.cs|19
 src/AgentPrism.Voice/Tools/TranscribeTool.cs|9
-src/AgentPrism.Voice/Tools/VoiceToolBase.cs|26
+src/AgentPrism.Voice/Tools/VoiceToolBase.cs|25
 src/AgentPrism.Voice/VoiceBuilderExtensions.cs|20
 src/AgentPrism.Voice/VoiceOptions.cs|25
-src/AgentPrism.Voice/VoiceOptionsValidator.cs|22
+src/AgentPrism.Voice/VoiceOptionsValidator.cs|20
 src/AgentPrism.Workflows/AgentPrism.Workflows.csproj|2
 src/AgentPrism.Workflows/AgentPrismWorkflowOptions.cs|19
 src/AgentPrism.Workflows/AgentPrismWorkflowsBuilderExtensions.cs|24

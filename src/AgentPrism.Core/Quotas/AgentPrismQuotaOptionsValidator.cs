@@ -25,7 +25,7 @@ public sealed class AgentPrismQuotaOptionsValidator : IValidateOptions<AgentPris
         if (string.IsNullOrWhiteSpace(options.TimeZone))
         {
             (failures ??= []).Add(
-                $"{nameof(AgentPrismQuotaOptions)}.{nameof(AgentPrismQuotaOptions.TimeZone)} bos olamaz.");
+                $"{nameof(AgentPrismQuotaOptions)}.{nameof(AgentPrismQuotaOptions.TimeZone)} cannot be empty.");
         }
         else
         {
@@ -48,7 +48,7 @@ public sealed class AgentPrismQuotaOptionsValidator : IValidateOptions<AgentPris
             {
                 (failures ??= []).Add(
                     $"{nameof(AgentPrismQuotaOptions)}.{nameof(AgentPrismQuotaOptions.ThresholdPercents)} " +
-                    $"degerleri 1-100 araliginda olmalidir. Gelen deger: {percent}.");
+                    $"degerleri 1-100 araliginda olmalidir. Actual value: {percent}.");
             }
         }
 

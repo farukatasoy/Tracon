@@ -22,35 +22,35 @@ public sealed class OnlineEvaluationOptionsValidator : IValidateOptions<OnlineEv
         {
             (failures ??= []).Add(
                 $"{nameof(OnlineEvaluationOptions)}.{nameof(OnlineEvaluationOptions.SampleRate)} " +
-                $"0.0 ile 1.0 arasinda olmalidir. Gelen deger: {options.SampleRate}.");
+                $"0.0 ile 1.0 arasinda olmalidir. Actual value: {options.SampleRate}.");
         }
 
         if (options.MaxScoresPerHour < 0)
         {
             (failures ??= []).Add(
                 $"{nameof(OnlineEvaluationOptions)}.{nameof(OnlineEvaluationOptions.MaxScoresPerHour)} " +
-                $"negatif olamaz. Gelen deger: {options.MaxScoresPerHour}.");
+                $"negatif olamaz. Actual value: {options.MaxScoresPerHour}.");
         }
 
         if (options.LowScoreThreshold is < 0 or > 100)
         {
             (failures ??= []).Add(
                 $"{nameof(OnlineEvaluationOptions)}.{nameof(OnlineEvaluationOptions.LowScoreThreshold)} " +
-                $"0 ile 100 arasinda olmalidir. Gelen deger: {options.LowScoreThreshold}.");
+                $"0 ile 100 arasinda olmalidir. Actual value: {options.LowScoreThreshold}.");
         }
 
         if (options.MinSampleSize < 1)
         {
             (failures ??= []).Add(
                 $"{nameof(OnlineEvaluationOptions)}.{nameof(OnlineEvaluationOptions.MinSampleSize)} " +
-                $"en az 1 olmalidir. Gelen deger: {options.MinSampleSize}.");
+                $"must be at least 1. Actual value: {options.MinSampleSize}.");
         }
 
         if (options.EvaluationWindow <= TimeSpan.Zero)
         {
             (failures ??= []).Add(
                 $"{nameof(OnlineEvaluationOptions)}.{nameof(OnlineEvaluationOptions.EvaluationWindow)} " +
-                $"sifirdan buyuk olmalidir. Gelen deger: {options.EvaluationWindow}.");
+                $"must be greater than zero. Actual value: {options.EvaluationWindow}.");
         }
 
         return failures is null

@@ -22,14 +22,14 @@ public sealed class AgentPrismRetentionOptionsValidator : IValidateOptions<Agent
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismRetentionOptions)}.{nameof(AgentPrismRetentionOptions.BatchSize)} " +
-                $"en az 1 olmalidir. Gelen deger: {options.BatchSize}.");
+                $"must be at least 1. Actual value: {options.BatchSize}.");
         }
 
         if (options.BatchDelay < TimeSpan.Zero)
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismRetentionOptions)}.{nameof(AgentPrismRetentionOptions.BatchDelay)} " +
-                $"negatif olamaz. Gelen deger: {options.BatchDelay}.");
+                $"negatif olamaz. Actual value: {options.BatchDelay}.");
         }
 
         foreach (var target in RetentionTargets.All)
@@ -38,7 +38,7 @@ public sealed class AgentPrismRetentionOptionsValidator : IValidateOptions<Agent
             {
                 (failures ??= []).Add(
                     $"{nameof(AgentPrismRetentionOptions)}.{target}.{nameof(RetentionTargetOptions.MaxAgeDays)} " +
-                    $"belirtiliyorsa en az 1 olmalidir. Gelen deger: {invalid.MaxAgeDays}.");
+                    $"belirtiliyorsa must be at least 1. Actual value: {invalid.MaxAgeDays}.");
             }
         }
 

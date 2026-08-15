@@ -63,7 +63,7 @@ internal abstract class VoiceToolBase : AIFunction
     /// <exception cref="AgentPrismException">Arguman yoksa veya bos ise.</exception>
     protected static string RequireText(AIFunctionArguments arguments, string name)
         => OptionalText(arguments, name)
-           ?? throw new AgentPrismException($"'{name}' argumani zorunludur ve bos olamaz.");
+           ?? throw new AgentPrismException($"'{name}' argumani zorunludur ve cannot be empty.");
 
     /// <summary>Istege bagli bir metin argumanini okur.</summary>
     /// <param name="arguments">Cagri argumanlari.</param>

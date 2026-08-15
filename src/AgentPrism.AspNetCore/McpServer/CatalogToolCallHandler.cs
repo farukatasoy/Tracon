@@ -51,7 +51,7 @@ internal static class CatalogToolCallHandler
 
         if (string.IsNullOrWhiteSpace(message))
         {
-            return Error("'message' argumani bos olamaz.");
+            return Error("'message' argumani cannot be empty.");
         }
 
         var catalog = services.GetRequiredService<IAgentCatalog>();

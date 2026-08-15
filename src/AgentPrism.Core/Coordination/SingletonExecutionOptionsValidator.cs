@@ -20,7 +20,7 @@ public sealed class SingletonExecutionOptionsValidator : IValidateOptions<Single
         {
             return ValidateOptionsResult.Fail(
                 $"{nameof(SingletonExecutionOptions)}.{nameof(SingletonExecutionOptions.LeaseDuration)} " +
-                $"sifirdan buyuk olmalidir. Gelen deger: {options.LeaseDuration}.");
+                $"must be greater than zero. Actual value: {options.LeaseDuration}.");
         }
 
         return ValidateOptionsResult.Success;

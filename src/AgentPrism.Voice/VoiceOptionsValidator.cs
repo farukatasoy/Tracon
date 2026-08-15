@@ -24,7 +24,7 @@ public sealed class VoiceOptionsValidator : IValidateOptions<VoiceOptions>
 
         if (string.IsNullOrWhiteSpace(options.Provider))
         {
-            (failures ??= []).Add($"{nameof(VoiceOptions)}: saglayici adi bos olamaz.");
+            (failures ??= []).Add($"{nameof(VoiceOptions)}: saglayici adi cannot be empty.");
         }
         else if (!string.Equals(options.Provider, VoiceProviderNames.ElevenLabs, StringComparison.OrdinalIgnoreCase))
         {
@@ -49,17 +49,17 @@ public sealed class VoiceOptionsValidator : IValidateOptions<VoiceOptions>
 
         if (options.MaxCharactersPerRequest <= 0)
         {
-            (failures ??= []).Add($"{nameof(VoiceOptions)}: karakter siniri sifirdan buyuk olmalidir.");
+            (failures ??= []).Add($"{nameof(VoiceOptions)}: karakter siniri must be greater than zero.");
         }
 
         if (options.MaxConcurrentRequests <= 0)
         {
-            (failures ??= []).Add($"{nameof(VoiceOptions)}: eszamanli istek siniri sifirdan buyuk olmalidir.");
+            (failures ??= []).Add($"{nameof(VoiceOptions)}: eszamanli istek siniri must be greater than zero.");
         }
 
         if (string.IsNullOrWhiteSpace(options.OutputFormat))
         {
-            (failures ??= []).Add($"{nameof(VoiceOptions)}: cikti bicimi bos olamaz.");
+            (failures ??= []).Add($"{nameof(VoiceOptions)}: cikti bicimi cannot be empty.");
         }
         else if (!IsStorableFormat(options.OutputFormat))
         {
@@ -72,7 +72,7 @@ public sealed class VoiceOptionsValidator : IValidateOptions<VoiceOptions>
 
         if (options.Timeout is { } timeout && timeout <= TimeSpan.Zero)
         {
-            (failures ??= []).Add($"{nameof(VoiceOptions)}: zaman asimi sifirdan buyuk olmalidir.");
+            (failures ??= []).Add($"{nameof(VoiceOptions)}: zaman asimi must be greater than zero.");
         }
 
         return failures is null

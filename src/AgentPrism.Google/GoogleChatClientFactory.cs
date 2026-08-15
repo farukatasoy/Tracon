@@ -106,7 +106,7 @@ public sealed class GoogleChatClientFactory : IDisposable
         {
             throw new AgentPrismException(
                 $"'{GoogleProviderNames.ThinkingBudgetTokensSetting}' degeri [-1, 65535] araliginda olmalidir " +
-                $"(-1 modele birakir, 0 dusunmeyi kapatir). Gelen deger: {budget}.");
+                $"(-1 modele birakir, 0 dusunmeyi kapatir). Actual value: {budget}.");
         }
 
         IChatClient inner = _client.AsIChatClient(model);

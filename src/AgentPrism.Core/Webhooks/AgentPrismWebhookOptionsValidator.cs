@@ -22,21 +22,21 @@ public sealed class AgentPrismWebhookOptionsValidator : IValidateOptions<AgentPr
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismWebhookOptions)}.{nameof(AgentPrismWebhookOptions.Timeout)} " +
-                $"sifirdan buyuk olmalidir. Gelen deger: {options.Timeout}.");
+                $"must be greater than zero. Actual value: {options.Timeout}.");
         }
 
         if (options.MaxResponseBytes < 1)
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismWebhookOptions)}.{nameof(AgentPrismWebhookOptions.MaxResponseBytes)} " +
-                $"en az 1 olmalidir. Gelen deger: {options.MaxResponseBytes}.");
+                $"must be at least 1. Actual value: {options.MaxResponseBytes}.");
         }
 
         if (options.DisableAfterConsecutiveFailures < 1)
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismWebhookOptions)}.{nameof(AgentPrismWebhookOptions.DisableAfterConsecutiveFailures)} " +
-                $"en az 1 olmalidir. Gelen deger: {options.DisableAfterConsecutiveFailures}.");
+                $"must be at least 1. Actual value: {options.DisableAfterConsecutiveFailures}.");
         }
 
         // Merdivenin uzunlugu ayni zamanda en fazla deneme sayisidir; bos bir
@@ -54,7 +54,7 @@ public sealed class AgentPrismWebhookOptionsValidator : IValidateOptions<AgentPr
             {
                 (failures ??= []).Add(
                     $"{nameof(AgentPrismWebhookOptions)}.{nameof(AgentPrismWebhookOptions.RetryDelays)} " +
-                    $"degerleri sifirdan buyuk olmalidir. Gelen deger: {delay}.");
+                    $"degerleri must be greater than zero. Actual value: {delay}.");
             }
         }
 
