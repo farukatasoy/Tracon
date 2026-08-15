@@ -2,40 +2,43 @@ using System.Text.Json;
 
 namespace AgentPrism;
 
-/// <summary>Serilestirilmis agent oturumlarinin deposu.</summary>
+/// <summary>The store for serialized agent sessions.</summary>
 /// <remarks>
-/// Oturum durumu, Microsoft Agent Framework'un <c>AgentSession</c> nesnesinin
-/// serilestirilmis halidir ve <strong>opak</strong> kabul edilir. Icerigi
-/// yorumlanmaz; yalnizca saklanir ve geri yuklenir.
+/// Session state is the serialized form of Microsoft Agent Framework's
+/// <c>AgentSession</c> object and is treated as <strong>opaque</strong>. Its
+/// content is not interpreted; it is only stored and restored.
 /// </remarks>
 public interface ISessionStore
 {
-    /// <summary>Oturumu kaydeder. Ayni kimlikle kayit varsa uzerine yazar.</summary>
-    /// <param name="record">Kaydedilecek oturum.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Saves the session. Overwrites an existing record with the same identifier.</summary>
+    /// <param name="record">The session to save.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
     ValueTask SaveAsync(SessionRecord record, CancellationToken cancellationToken = default);
 
-    /// <summary>Yeni bir oturum kaydini yalnizca YOKSA olusturur.</summary>
+    /// <summary>Creates a new session record only if it does NOT already exist.</summary>
     /// <remarks>
     /// <para>
-    /// Ayni <see cref="SessionRecord.Id"/> ile eszamanli iki cagri geldiginde
-    /// YALNIZ biri <see langword="true"/> donmelidir; kaybeden <see langword="false"/>
-    /// alip <see cref="GetAsync"/> ile kazananin kaydini okumalidir.
+    /// When two concurrent calls arrive with the same
+    /// <see cref="SessionRecord.Id"/>, ONLY one must return
+    /// <see langword="true"/>; the loser must get <see langword="false"/> and
+    /// read the winner's record with <see cref="GetAsync"/>.
     /// </para>
     /// <para>
-    /// 🚨 Varsayilan uygulama ATOMIK DEGILDIR (check-then-create) — yalnizca
-    /// bu yontemi henuz gecersiz kilmamis eski depolarin derlenmeye devam
-    /// etmesi icindir. Gercek depolar (<c>SqlSessionStore</c>, <c>InMemorySessionStore</c>)
-    /// bu yontemi GERCEKTEN atomik olarak gecersiz kilar. HATA-004: atomiklik
-    /// olmadan, ayni YENI oturuma gelen eszamanli iki ilk istek birbirinden
-    /// habersiz iki farkli konusma kimligi uretir; ikinci <see cref="SaveAsync"/>
-    /// birinciyi kosulsuzca ezer ve kaybedenin mesajlari sessizce erisilmez kalir.
+    /// 🚨 The default implementation is NOT ATOMIC (check-then-create) — it
+    /// exists only so old stores that have not yet overridden this method
+    /// keep compiling. The real stores (<c>SqlSessionStore</c>,
+    /// <c>InMemorySessionStore</c>) override this method with a GENUINELY
+    /// atomic implementation. HATA-004: without atomicity, two concurrent
+    /// first requests to the same NEW session, unaware of each other,
+    /// generate two different conversation identifiers; the second
+    /// <see cref="SaveAsync"/> unconditionally overwrites the first, and the
+    /// loser's messages become silently unreachable.
     /// </para>
     /// </remarks>
-    /// <param name="record">Olusturulacak oturum.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Olusturulduysa <see langword="true"/>; ayni kimlikle kayit zaten varsa <see langword="false"/>.</returns>
+    /// <param name="record">The session to create.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> if created; <see langword="false"/> if a record with the same identifier already exists.</returns>
     async ValueTask<bool> TryCreateAsync(SessionRecord record, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(record);
@@ -49,93 +52,95 @@ public interface ISessionStore
         return true;
     }
 
-    /// <summary>Oturumu getirir.</summary>
-    /// <param name="sessionId">Oturum kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Oturum; yoksa <see langword="null"/>.</returns>
+    /// <summary>Fetches the session.</summary>
+    /// <param name="sessionId">The session identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The session; <see langword="null"/> if it does not exist.</returns>
     ValueTask<SessionRecord?> GetAsync(string sessionId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Bir oturum kimliginin sahibi olan kiraciyi, <see cref="ITenantContext"/>'ten
-    /// okunan ambient kiraci filtresine BAKMAKSIZIN dondurur.
+    /// Returns the tenant that owns a session identifier, WITHOUT applying
+    /// the ambient tenant filter read from <see cref="ITenantContext"/>.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 🚨 <see cref="GetAsync"/> ambient kiraciyle filtrelenir; bu yuzden "bu kimlik
-    /// BASKA bir kiraciya mi ait" sorusunu asla cevaplayamaz — cagiran zaten kendi
-    /// kiracisinin baglamindadir ve baska kiracinin kaydi o baglamdan hicbir zaman
-    /// GORULMEZ, sonuc daima <see langword="null"/> olur. HATA-S2-005: OpenAI uyumlu
-    /// uclarin capraz kiraci sahiplik denetimi tam olarak bu yuzden olu koddu — reddetme
-    /// dali hicbir zaman tetiklenmiyordu, kimlik sessizce "hic kullanilmamis" sayilip
-    /// yeni bir oturum aciliyordu.
+    /// 🚨 <see cref="GetAsync"/> is filtered by the ambient tenant; because of
+    /// this, it can never answer "does this identifier belong to ANOTHER
+    /// tenant" — the caller is already inside their own tenant's context, and
+    /// another tenant's record is NEVER VISIBLE from that context, so the
+    /// result is always <see langword="null"/>. HATA-S2-005: this is exactly
+    /// why the OpenAI-compatible endpoints' cross-tenant ownership check was
+    /// dead code — the rejection branch never fired, the identifier was
+    /// silently treated as "never used" and a new session was opened.
     /// </para>
     /// <para>
-    /// 🚨 Varsayilan uygulama <see cref="GetAsync"/>'i cagirir — dolayisiyla YUKARIDAKI
-    /// KUSURU TASIR ve capraz kiraci sorusuna asla dogru cevap veremez. Bu, yalnizca
-    /// bu yontemi henuz gecersiz kilmamis eski/ozel depolarin derlenmeye devam etmesi
-    /// icindir. Gercek depolar (<c>SqlSessionStore</c>, <c>InMemorySessionStore</c>)
-    /// bu yontemi kiraciden BAGIMSIZ, gercekten dogru bir uygulamayla gecersiz kilar.
+    /// 🚨 The default implementation calls <see cref="GetAsync"/> — so it
+    /// CARRIES THE BUG ABOVE and can never correctly answer the cross-tenant
+    /// question. This exists only so old/custom stores that have not yet
+    /// overridden this method keep compiling. The real stores
+    /// (<c>SqlSessionStore</c>, <c>InMemorySessionStore</c>) override this
+    /// method with a genuinely correct implementation that is INDEPENDENT of the tenant.
     /// </para>
     /// </remarks>
-    /// <param name="sessionId">Oturum kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <param name="sessionId">The session identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
-    /// Kimlik kullanilmissa sahibi kiracinin kimligi; kimlik hic kullanilmamissa
-    /// <see langword="null"/>.
+    /// The identifier of the owning tenant if the identifier has been used;
+    /// <see langword="null"/> if the identifier has never been used.
     /// </returns>
     async ValueTask<string?> GetOwnerTenantIdAsync(string sessionId, CancellationToken cancellationToken = default)
         => (await GetAsync(sessionId, cancellationToken).ConfigureAwait(false))?.TenantId;
 
-    /// <summary>Oturumu siler.</summary>
-    /// <param name="sessionId">Oturum kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Silme gerceklestiyse <see langword="true"/>.</returns>
+    /// <summary>Deletes the session.</summary>
+    /// <param name="sessionId">The session identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> if the delete happened.</returns>
     ValueTask<bool> DeleteAsync(string sessionId, CancellationToken cancellationToken = default);
 
-    /// <summary>Oturumlari filtreleyerek listeler. En son guncellenen basta doner.</summary>
-    /// <param name="query">Filtre.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Oturumlar.</returns>
+    /// <summary>Lists sessions by filter. The most recently updated is returned first.</summary>
+    /// <param name="query">The filter.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The sessions.</returns>
     ValueTask<IReadOnlyList<SessionRecord>> QueryAsync(SessionQuery query, CancellationToken cancellationToken = default);
 }
 
-/// <summary>Saklanan bir oturum.</summary>
+/// <summary>A stored session.</summary>
 public sealed record SessionRecord
 {
-    /// <summary>Oturum kimligi.</summary>
+    /// <summary>The session identifier.</summary>
     public required string Id { get; init; }
 
-    /// <summary>Oturumun ait oldugu agent.</summary>
+    /// <summary>The agent the session belongs to.</summary>
     public required string AgentName { get; init; }
 
     /// <summary>
-    /// Serilestirilmis oturum durumu. Microsoft Agent Framework'un
-    /// <c>SerializeSessionAsync</c> ciktisidir ve opak kabul edilir.
+    /// The serialized session state. Microsoft Agent Framework's
+    /// <c>SerializeSessionAsync</c> output, treated as opaque.
     /// </summary>
     public required JsonElement State { get; init; }
 
-    /// <summary>Olusturulma zamani (UTC).</summary>
+    /// <summary>The creation time (UTC).</summary>
     public required DateTimeOffset CreatedAt { get; init; }
 
-    /// <summary>Son guncellenme zamani (UTC).</summary>
+    /// <summary>The last-updated time (UTC).</summary>
     public required DateTimeOffset UpdatedAt { get; init; }
 
-    /// <summary>Kiraci kimligi.</summary>
+    /// <summary>The tenant identifier.</summary>
     public string? TenantId { get; init; }
 }
 
-/// <summary>Oturum listesini filtrelemek icin sorgu.</summary>
+/// <summary>A filter for querying the session list.</summary>
 public sealed record SessionQuery
 {
-    /// <summary>Yalnizca bu agent'in oturumlarini getirir.</summary>
+    /// <summary>Fetches only this agent's sessions.</summary>
     public string? AgentName { get; init; }
 
-    /// <summary>Yalnizca bu kiracinin oturumlarini getirir.</summary>
+    /// <summary>Fetches only this tenant's sessions.</summary>
     public string? TenantId { get; init; }
 
-    /// <summary>Atlanacak kayit sayisi.</summary>
+    /// <summary>The number of records to skip.</summary>
     public int Skip { get; init; }
 
-    /// <summary>Getirilecek ust kayit sayisi.</summary>
+    /// <summary>The maximum number of records to fetch.</summary>
     public int Take { get; init; } = 50;
 }

@@ -10,9 +10,6 @@ samples/AgentPrism.Api/Program.cs|248
 samples/AgentPrism.Api/appsettings.json|29
 samples/Directory.Build.props|1
 src/AgentPrism.Abstractions/README.md|4
-src/AgentPrism.Abstractions/Sessions/ChatHistorySessionState.cs|9
-src/AgentPrism.Abstractions/Sessions/ISessionStore.cs|53
-src/AgentPrism.Abstractions/Sessions/SessionBranch.cs|31
 src/AgentPrism.Abstractions/Skills/AgentSkillDefinition.cs|26
 src/AgentPrism.Abstractions/Skills/IAgentSkillStore.cs|15
 src/AgentPrism.Abstractions/Skills/ISkillScriptGrantStore.cs|22

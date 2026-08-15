@@ -1,36 +1,36 @@
 namespace AgentPrism;
 
 /// <summary>
-/// AgentPrism'in bir <c>AgentSession</c> durum cantasinda kullandigi kararli
-/// anahtarlar.
+/// The stable keys AgentPrism uses in an <c>AgentSession</c> state bag.
 /// </summary>
 /// <remarks>
-/// Bu degerler <strong>kararlidir</strong>; degistirmek mevcut oturumlarin
-/// gecmisini koparir.
+/// These values are <strong>stable</strong>; changing them breaks existing
+/// sessions' history.
 /// </remarks>
 public static class AgentPrismSessionStateKeys
 {
     /// <summary>
-    /// Sohbet gecmisi saglayicisinin konusma kimligini sakladigi anahtar.
+    /// The key the chat history provider stores the conversation identifier under.
     /// </summary>
     /// <remarks>
-    /// Saglayici ornegi <em>tum oturumlarda paylasilir</em> (Microsoft Agent
-    /// Framework'un acik uyarisi), bu yuzden konusma kimligi saglayicinin
-    /// alaninda degil oturumun kendi durumunda tasinir.
+    /// The provider instance is <em>shared across all sessions</em> (Microsoft
+    /// Agent Framework's explicit warning), so the conversation identifier is
+    /// carried in the session's own state, not in the provider's field.
     /// </remarks>
     public const string ChatHistory = "AgentPrism.ChatHistory";
 }
 
 /// <summary>
-/// Sohbet gecmisi saglayicisinin oturum icinde sakladigi durum.
+/// The state the chat history provider stores within a session.
 /// </summary>
 /// <remarks>
-/// Tip <strong>public</strong>tir cunku iki ayri katman okur: SQL saglayicisi
-/// (yazan taraf) ve konusma dallandirmasi (<see cref="IConversationBranchStore"/>
-/// ile acilan yeni konusmayi yeni bir oturuma baglayan taraf).
+/// The type is <strong>public</strong> because two separate layers read it:
+/// the SQL provider (the writer) and conversation branching (the side that
+/// links the new conversation opened by <see cref="IConversationBranchStore"/>
+/// to a new session).
 /// </remarks>
 public sealed class ChatHistoryState
 {
-    /// <summary>Bu oturumun mesajlarini tutan konusma kaydinin kimligi.</summary>
+    /// <summary>The identifier of the conversation record holding this session's messages.</summary>
     public Guid ConversationId { get; set; }
 }
