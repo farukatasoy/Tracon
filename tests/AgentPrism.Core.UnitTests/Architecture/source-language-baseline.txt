@@ -208,7 +208,6 @@ src/AgentPrism.Mcp/Internal/McpConnection.cs|47
 src/AgentPrism.Mcp/Internal/McpDiscoveryService.cs|13
 src/AgentPrism.Mcp/Internal/McpOAuthTokenCacheRegistry.cs|5
 src/AgentPrism.Mcp/Internal/McpResourceContextProvider.cs|10
-src/AgentPrism.Mcp/Internal/McpResourceReference.cs|4
 src/AgentPrism.Mcp/Internal/McpResourceTrimming.cs|10
 src/AgentPrism.Mcp/Internal/McpTenantTools.cs|12
 src/AgentPrism.Mcp/Internal/McpToolCatalog.cs|32
@@ -216,7 +215,6 @@ src/AgentPrism.Mcp/Internal/McpToolNaming.cs|11
 src/AgentPrism.Mcp/Internal/McpTransportFactory.cs|31
 src/AgentPrism.Mcp/McpOAuthAuthorizationCoordinator.cs|23
 src/AgentPrism.Mcp/McpPromptClient.cs|6
-src/AgentPrism.Mcp/McpResourceClient.cs|4
 src/AgentPrism.Mcp/McpToolRegistry.cs|6
 src/AgentPrism.Mcp/README.md|34
 src/AgentPrism.OpenAI/README.md|51
