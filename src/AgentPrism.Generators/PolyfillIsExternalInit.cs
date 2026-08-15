@@ -1,6 +1,6 @@
-// netstandard2.0'da record/init erisimcisi derleyicinin aradigi bu isaretci
-// tipini bulamaz (net5.0+'ta BCL'nin kendisi tasir). Kaynak ureteci projeleri
-// icin standart cozum: derleyicinin yalniz VARLIGINA baktigi bos bir tip.
+// In netstandard2.0, record/init accessors cannot find this marker type that the
+// compiler expects. In net5.0+, the BCL carries it. Source-generator projects use
+// this standard solution: an empty type whose presence is all the compiler checks.
 namespace System.Runtime.CompilerServices;
 
 internal static class IsExternalInit;

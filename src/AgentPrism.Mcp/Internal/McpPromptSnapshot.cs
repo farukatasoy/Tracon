@@ -5,16 +5,16 @@ using ModelContextProtocol.Protocol;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir <see cref="GetPromptResult"/>'tan anlik goruntu (metin + ozet) kurar.
+/// Builds a snapshot, text and digest, from <see cref="GetPromptResult"/>.
 /// </summary>
 /// <remarks>
-/// Saf ve durumsuzdur; agi gerektirmez, dogrudan birim testiyle dogrulanir.
-/// Hash, arayuzun <c>mcp.prompt.hash</c> metadata'siyla karsilastirip sunucudaki
-/// degisikligi rozet olarak gostermesi icindir (bolum 22.1).
+/// It is pure and stateless, needs no network, and is verified by direct unit tests.
+/// The UI compares the hash with <c>mcp.prompt.hash</c> metadata and shows a badge
+/// for a server-side change. See section 22.1.
 /// </remarks>
 internal static class McpPromptSnapshot
 {
-    /// <summary>Prompt mesajlarini birlestirir ve SHA-256 ozetini hesaplar.</summary>
+    /// <summary>Combines prompt messages and calculates their SHA-256 digest.</summary>
     public static McpPromptContent Build(GetPromptResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
