@@ -1,59 +1,59 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Bir <see cref="EvalSuite"/>'in tek bir calistirilma kaydi ve ozeti.
+/// A single execution record and summary of an <see cref="EvalSuite"/>.
 /// </summary>
 /// <remarks>
-/// <see cref="AgentVersion"/> ve <see cref="ModelId"/> kritiktir: regresyon
-/// takibi, ayni suite'in farkli surumlerdeki sonucunu karsilastirmaktir. Ikisi
-/// de kosu fiilen baslarken (<see cref="EvalRunStatus.Running"/> gecisinde)
-/// doldurulur — tetikleme aninda degil, cunku is kuyrukta beklerken agent
-/// tanimi degisebilir.
+/// <see cref="AgentVersion"/> and <see cref="ModelId"/> are critical: regression
+/// tracking compares the same suite's result across different versions. Both
+/// are filled in when the run actually starts (on the transition to
+/// <see cref="EvalRunStatus.Running"/>) — not at trigger time, because the
+/// agent definition can change while the job waits in the queue.
 /// </remarks>
 public sealed record EvalRun
 {
-    /// <summary>Kosu kimligi.</summary>
+    /// <summary>The run identifier.</summary>
     public required Guid Id { get; init; }
 
-    /// <summary>Kosunun ait oldugu kiraci.</summary>
+    /// <summary>The tenant the run belongs to.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Olculen takimin kimligi.</summary>
+    /// <summary>The identifier of the suite being measured.</summary>
     public required Guid SuiteId { get; init; }
 
     /// <summary>
-    /// Bu kosuyu yurutmekten sorumlu is kaydinin kimligi. Kosu, is kuyrugu
-    /// (<see cref="IJobStore"/>) uzerinden yurutulur.
+    /// The identifier of the job record responsible for executing this run. The
+    /// run is executed through the job queue (<see cref="IJobStore"/>).
     /// </summary>
     public Guid? JobId { get; init; }
 
-    /// <summary>Olculen agent tanim surumu. Kosu baslamadan <see langword="null"/>.</summary>
+    /// <summary>The agent definition version being measured. <see langword="null"/> before the run starts.</summary>
     public int? AgentVersion { get; init; }
 
-    /// <summary>Olculen model kimligi. Kosu baslamadan <see langword="null"/>.</summary>
+    /// <summary>The model identifier being measured. <see langword="null"/> before the run starts.</summary>
     public string? ModelId { get; init; }
 
-    /// <summary>Kosunun guncel durumu.</summary>
+    /// <summary>The current status of the run.</summary>
     public required EvalRunStatus Status { get; init; }
 
-    /// <summary>Toplam vaka sayisi.</summary>
+    /// <summary>The total number of cases.</summary>
     public int Total { get; init; }
 
-    /// <summary>Gecen vaka sayisi.</summary>
+    /// <summary>The number of cases that passed.</summary>
     public int Passed { get; init; }
 
-    /// <summary>Kalan (basarisiz) vaka sayisi.</summary>
+    /// <summary>The number of remaining (failed) cases.</summary>
     public int Failed { get; init; }
 
-    /// <summary>Toplam girdi token sayisi.</summary>
+    /// <summary>The total input token count.</summary>
     public long? InputTokens { get; init; }
 
-    /// <summary>Toplam cikti token sayisi.</summary>
+    /// <summary>The total output token count.</summary>
     public long? OutputTokens { get; init; }
 
-    /// <summary>Baslangic zamani (UTC).</summary>
+    /// <summary>The start time (UTC).</summary>
     public required DateTimeOffset StartedAt { get; init; }
 
-    /// <summary>Bitis zamani (UTC). Kosu surerken <see langword="null"/>.</summary>
+    /// <summary>The completion time (UTC). <see langword="null"/> while the run is in progress.</summary>
     public DateTimeOffset? CompletedAt { get; init; }
 }

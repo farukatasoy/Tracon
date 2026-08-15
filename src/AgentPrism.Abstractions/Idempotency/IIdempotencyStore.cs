@@ -1,46 +1,48 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Idempotency kayitlarinin deposu.
+/// The store for idempotency records.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bir <c>Idempotency-Key</c> basligi tasiyan istek, aynen HTTP <c>Idempotency-Key</c>
-/// standardinin (Stripe'in izledigi desen) ongordugu gibi <strong>en fazla bir kez</strong>
-/// islenir: ilk istek calisirken ayni anahtarla gelen ikinci istek ya saklanan yaniti
-/// alir ya da (hala isleniyorsa) <c>409</c> alir. Gerekce ve durum tablosu:
-/// <c>docs/43-IDEMPOTENCY-KEY.md</c>, bolum 43.2.
+/// A request that carries an <c>Idempotency-Key</c> header is processed
+/// <strong>at most once</strong>, exactly as the HTTP <c>Idempotency-Key</c>
+/// standard (the pattern Stripe follows) prescribes: while the first request
+/// is running, a second request with the same key either gets the stored
+/// response, or (if still processing) gets <c>409</c>. See
+/// <c>docs/43-IDEMPOTENCY-KEY.md</c>, section 43.2, for the rationale and state table.
 /// </para>
 /// <para>
-/// Varsayilan (bellek ici) kurulumda birinci sinif <c>InMemoryIdempotencyStore</c>
-/// kayitlidir (K-018); tek ornekli dagitimda yeterlidir. Cok ornekli bir dagitimda
-/// bir SQL saglayicisi gerekir — aksi halde her ornek kendi anahtar kumesini tutar
-/// ve tekillestirme ornekten ornege kaybolur.
+/// The default (in-memory) setup registers the first-class
+/// <c>InMemoryIdempotencyStore</c> (K-018); it is sufficient for a single-instance
+/// deployment. A multi-instance deployment requires a SQL provider — otherwise
+/// each instance keeps its own key set and deduplication is lost across instances.
 /// </para>
 /// </remarks>
 public interface IIdempotencyStore
 {
     /// <summary>
-    /// Anahtari <c>Reserved</c> olarak ayirmayi dener. Anahtar zaten varsa
-    /// mevcut kaydin durumu dondurulur ve yeni kayit ACILMAZ.
+    /// Tries to reserve the key as <c>Reserved</c>. If the key already exists,
+    /// the existing record's state is returned and no new record is OPENED.
     /// </summary>
-    /// <param name="request">Ayirma istegi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Ayirma sonucu.</returns>
+    /// <param name="request">The reservation request.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The reservation result.</returns>
     /// <remarks>
-    /// Ayirma <strong>atomik</strong> olmalidir: iki eszamanli istek ayni anahtarla
-    /// gelirse yalnizca biri <see cref="IdempotencyState.Reserved"/> almalidir, digeri
+    /// The reservation must be <strong>atomic</strong>: if two concurrent
+    /// requests arrive with the same key, only one must get
+    /// <see cref="IdempotencyState.Reserved"/>, the other
     /// <see cref="IdempotencyState.InProgress"/>.
     /// </remarks>
     ValueTask<IdempotencyReservation> ReserveAsync(
         IdempotencyRequest request,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Tamamlanan yaniti kaydeder ve anahtarin durumunu <c>Completed</c> yapar.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="key">Anahtar.</param>
-    /// <param name="response">Saklanacak yanit.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <summary>Records the completed response and sets the key's state to <c>Completed</c>.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="key">The key.</param>
+    /// <param name="response">The response to store.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     ValueTask CompleteAsync(
         string tenantId,
         string key,
@@ -48,15 +50,16 @@ public interface IIdempotencyStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Basarisiz istek sonrasi kaydi siler; ayni anahtarla yeniden deneme serbest kalir.
+    /// Deletes the record after a failed request; a retry with the same key
+    /// becomes free again.
     /// </summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="key">Anahtar.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="key">The key.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <remarks>
-    /// 🚨 Basarisiz bir calistirmanin kaydi SAKLANMAZ. Idempotency'nin amaci
-    /// yeniden denemeyi guvenli kilmaktir; bir hatayi saklamak istemcinin gecici
-    /// bir hatadan sonra hic yeniden deneyememesi demektir.
+    /// 🚨 A failed run's record is NOT kept. The purpose of idempotency is to
+    /// make retries safe; keeping a failure would mean the client can never
+    /// retry after a transient error.
     /// </remarks>
     ValueTask ReleaseAsync(
         string tenantId,

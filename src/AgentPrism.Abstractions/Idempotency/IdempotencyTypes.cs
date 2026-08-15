@@ -1,65 +1,66 @@
 namespace AgentPrism;
 
-/// <summary>Bir idempotency ayirma istegi.</summary>
+/// <summary>An idempotency reservation request.</summary>
 public sealed record IdempotencyRequest
 {
-    /// <summary>Kiraci kimligi.</summary>
+    /// <summary>The tenant identifier.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Istemcinin <c>Idempotency-Key</c> basliginda gonderdigi anahtar.</summary>
+    /// <summary>The key the client sent in the <c>Idempotency-Key</c> header.</summary>
     public required string Key { get; init; }
 
-    /// <summary>HTTP metodu + yol + ham govde ozeti (SHA-256).</summary>
+    /// <summary>The HTTP method + path + raw body digest (SHA-256).</summary>
     public required string Fingerprint { get; init; }
 
-    /// <summary>Ayirmanin yapildigi zaman (UTC).</summary>
+    /// <summary>The time the reservation was made (UTC).</summary>
     public required DateTimeOffset CreatedAt { get; init; }
 }
 
-/// <summary>Bir <see cref="IIdempotencyStore.ReserveAsync"/> cagrisinin sonucu.</summary>
+/// <summary>The result of an <see cref="IIdempotencyStore.ReserveAsync"/> call.</summary>
 public sealed record IdempotencyReservation
 {
-    /// <summary>Anahtarin bulundugu durum.</summary>
+    /// <summary>The state the key was found in.</summary>
     public required IdempotencyState State { get; init; }
 
-    /// <summary>Yalnizca <see cref="IdempotencyState.Completed"/> icin dolar.</summary>
+    /// <summary>Populated only for <see cref="IdempotencyState.Completed"/>.</summary>
     public IdempotencyResponse? Response { get; init; }
 }
 
-/// <summary>Bir idempotency anahtarinin dort olasi durumu.</summary>
+/// <summary>The four possible states of an idempotency key.</summary>
 public enum IdempotencyState
 {
-    /// <summary>Anahtar yeni ayrildi; istek normal islenir.</summary>
+    /// <summary>The key was just reserved; the request is processed normally.</summary>
     Reserved = 0,
 
-    /// <summary>Ayni anahtar hala isleniyor. Yanit: <c>409 Conflict</c>.</summary>
+    /// <summary>The same key is still being processed. Response: <c>409 Conflict</c>.</summary>
     InProgress = 1,
 
-    /// <summary>Tamamlanmis ve govde parmak izi ayni. Saklanan yanit dondurulur.</summary>
+    /// <summary>Completed, and the body fingerprint matches. The stored response is returned.</summary>
     Completed = 2,
 
-    /// <summary>Tamamlanmis ama govde parmak izi FARKLI. Yanit: <c>422 Unprocessable Content</c>.</summary>
+    /// <summary>Completed, but the body fingerprint DIFFERS. Response: <c>422 Unprocessable Content</c>.</summary>
     FingerprintMismatch = 3,
 }
 
-/// <summary>Saklanan HTTP yaniti.</summary>
+/// <summary>The stored HTTP response.</summary>
 public sealed record IdempotencyResponse
 {
-    /// <summary>Orijinal yanitin durum kodu.</summary>
+    /// <summary>The original response's status code.</summary>
     public required int StatusCode { get; init; }
 
-    /// <summary>Orijinal yanitin icerik tipi.</summary>
+    /// <summary>The original response's content type.</summary>
     public required string ContentType { get; init; }
 
-    /// <summary>Orijinal yanitin ham govdesi.</summary>
+    /// <summary>The original response's raw body.</summary>
     public required string Body { get; init; }
 
-    /// <summary>Yanit bir calistirma urettiyse kimligi; aksi halde <see langword="null"/>.</summary>
+    /// <summary>The identifier of the run, if the response produced one; otherwise <see langword="null"/>.</summary>
     public Guid? RunId { get; init; }
 
     /// <summary>
-    /// Orijinal yanitin, govde/durum kodu/icerik tipi disinda saklanmasi
-    /// gereken HTTP baslikları (orn. <c>Location</c>, <c>Preference-Applied</c>).
+    /// The HTTP headers of the original response that must be preserved
+    /// beyond the body/status code/content type (for example, <c>Location</c>,
+    /// <c>Preference-Applied</c>).
     /// </summary>
     public IReadOnlyDictionary<string, string> Headers { get; init; } =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
