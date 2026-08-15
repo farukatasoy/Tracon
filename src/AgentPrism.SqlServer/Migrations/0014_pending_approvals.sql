@@ -1,6 +1,6 @@
--- Faz 55 -- asenkron onay kutusu.
+-- Phase 55 -- asynchronous approval inbox.
 --
--- Gerekce ve sutun anlamlari icin PostgreSQL 0027_pending_approvals.sql'e bakin.
+-- For the rationale and the column meanings see PostgreSQL 0027_pending_approvals.sql.
 
 IF OBJECT_ID(N'{schema}.pending_approvals', N'U') IS NULL
 CREATE TABLE {schema}.pending_approvals (

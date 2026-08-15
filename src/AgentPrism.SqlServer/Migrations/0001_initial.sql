@@ -1,47 +1,47 @@
--- AgentPrism SQL Server semasi (Faz 23).
+-- AgentPrism SQL Server schema (phase 23).
 --
--- Bu dosya PostgreSQL'in 0001-0013 migration'larinin BIRIKMIS sonucudur, adim
--- adim tekrari degil. SQL Server destegi Faz 23'te aciliyor; yukseltilecek bir
--- kurulum yoktur, bu yuzden gecmisi oynatmak yalnizca okunmasi zor bir dosya
--- uretirdi. Bundan sonraki degisiklikler 0002, 0003 ... olarak eklenir.
+-- This file is the ACCUMULATED result of the PostgreSQL 0001-0013 migrations, not
+-- a step by step repeat of them. SQL Server support opens in phase 23; there is
+-- no installation to upgrade, so replaying the history would only produce a file
+-- that is hard to read. Later changes are added as 0002, 0003 ...
 --
--- 🚨 Numaralandirma PostgreSQL ile ESLESMEZ ve eslesmesi gerekmez. Eslestirmeye
--- calismak, ileride bir saglayiciya ozel duzeltme gerektiginde kilitlenme
--- uretirdi. Gerekce: docs/KARARLAR.md, karar K-178.
+-- 🚨 The numbering DOES NOT MATCH PostgreSQL and it does not need to. Trying to
+-- match it would create a deadlock later, when a provider specific fix is needed.
+-- Rationale: docs/KARARLAR.md, decision K-178.
 --
--- Kurallar:
---   * Tuketicinin `dbo` semasina DOKUNULMAZ (karar K-013).
---   * `{schema}` yer tutucusu calisma aninda AgentPrismSqlServerOptions.SchemaName
---     ile degistirilir. Ad, SqlIdentifier.RequireSchemaName ile dogrulanir.
---   * Zaman alanlari `datetimeoffset(7)`, her zaman UTC yazilir.
---   * Birincil anahtarlar `uniqueidentifier` (uuid v7); uygulama uretir.
---   * Enum degerleri `smallint` olarak saklanir ve PostgreSQL ile AYNI sayilardir.
+-- Rules:
+--   * The consumer `dbo` schema is NOT TOUCHED (decision K-013).
+--   * The `{schema}` placeholder is replaced at run time with
+--     AgentPrismSqlServerOptions.SchemaName. SqlIdentifier.RequireSchemaName validates it.
+--   * Time fields are `datetimeoffset(7)`, always written as UTC.
+--   * Primary keys are `uniqueidentifier` (uuid v7); the application generates them.
+--   * Enum values are stored as `smallint` and are the SAME numbers as PostgreSQL.
 --
--- Tip esleme (PostgreSQL -> SQL Server):
+-- Type mapping (PostgreSQL -> SQL Server):
 --   uuid           -> uniqueidentifier
---   text (anahtar) -> nvarchar(200)      -- nvarchar(max) indekslenemez
---   text (serbest) -> nvarchar(max)
---   jsonb / json   -> nvarchar(max)      -- ISJSON kisiti ile
+--   text (key)     -> nvarchar(200)      -- nvarchar(max) cannot be indexed
+--   text (free)    -> nvarchar(max)
+--   jsonb / json   -> nvarchar(max)      -- with an ISJSON constraint
 --   timestamptz    -> datetimeoffset(7)
 --   boolean        -> bit
 --   bytea          -> varbinary(max)
 --   numeric(20,10) -> decimal(20,10)
---   text[]         -> nvarchar(max)      -- JSON dizi, OPENJSON ile acilir
+--   text[]         -> nvarchar(max)      -- JSON array, opened with OPENJSON
 --
--- 🚨 KUMELENMIS INDEKS STRATEJISI. SQL Server'in `uniqueidentifier` siralamasi
--- bayt sirasina gore DEGILDIR (son alti bayt once karsilastirilir); bu yuzden
--- zaman sirali uuid v7 anahtarlar SQL Server'da zaman sirali GORUNMEZ ve
--- kumelenmis bir birincil anahtar sayfa bolunmesi uretir. Yogun yazilan
--- tablolarda birincil anahtar NONCLUSTERED yapilir ve kumelenmis indeks zaman
--- sutununa kurulur. Dusuk hacimli yapilandirma tablolarinda varsayilan
--- (kumelenmis PK) korunur. Gerekce: docs/KARARLAR.md, karar K-180.
+-- 🚨 CLUSTERED INDEX STRATEGY. The `uniqueidentifier` ordering of SQL Server IS
+-- NOT by byte order (the last six bytes are compared first); therefore time
+-- ordered uuid v7 keys DO NOT LOOK time ordered on SQL Server and a clustered
+-- primary key produces page splits. On heavily written tables the primary key is
+-- made NONCLUSTERED and the clustered index is put on the time column. On low
+-- volume configuration tables the default (clustered PK) is kept.
+-- Rationale: docs/KARARLAR.md, decision K-180.
 
 -- ---------------------------------------------------------------------------
--- Kiracilar
+-- Tenants
 -- ---------------------------------------------------------------------------
--- Diger tablolardaki `tenant_id`, bu tablonun `slug` degeriyle ayni metindir
--- ancak YABANCI ANAHTAR ile baglanmaz; kaydi olmayan bir kiraci icin calisma
--- aninda beklenmedik hata uretirdi.
+-- `tenant_id` in the other tables is the same text as the `slug` value of this
+-- table but it is NOT linked with a FOREIGN KEY; it would produce an unexpected
+-- run time error for a tenant that has no record.
 
 IF OBJECT_ID(N'{schema}.tenants', N'U') IS NULL
 CREATE TABLE {schema}.tenants (
@@ -52,14 +52,14 @@ CREATE TABLE {schema}.tenants (
 );
 
 -- ---------------------------------------------------------------------------
--- Agent tanimlari
+-- Agent definitions
 -- ---------------------------------------------------------------------------
--- `definition` yalnizca tanimin ICERIGINI tasir. Ad, surum, kiraci ve guncelleme
--- zamani sutunlardadir ve tek dogru kaynak orasidir (bkz. AgentDefinitionPayload).
+-- `definition` carries ONLY THE CONTENT of the definition. Name, version, tenant
+-- and update time live in columns; that is the source of truth (AgentDefinitionPayload).
 --
--- PostgreSQL'de bu sutunda bir GIN indeksi vardir. SQL Server'in JSON yollarina
--- karsiligi hesaplanmis sutun + indekstir; su an hicbir sorgu tanimin ICINDE
--- arama yapmadigi icin indeks acilmaz. Ihtiyac dogarsa yeni bir migration ekler.
+-- In PostgreSQL there is a GIN index on this column. The SQL Server counterpart
+-- for JSON paths is a computed column + index; no query searches INSIDE the
+-- definition today, so no index is created. A new migration adds it if needed.
 
 IF OBJECT_ID(N'{schema}.agent_definitions', N'U') IS NULL
 CREATE TABLE {schema}.agent_definitions (
@@ -73,7 +73,7 @@ CREATE TABLE {schema}.agent_definitions (
     CONSTRAINT agent_definitions_tenant_name_uq UNIQUE (tenant_id, name)
 );
 
--- Degismez surum gecmisi. Geri alma eski surumu SILMEZ; icerigini yeni surum olarak yazar.
+-- Immutable version history. Rollback DOES NOT DELETE the old version; writes it as a new version.
 IF OBJECT_ID(N'{schema}.agent_definition_versions', N'U') IS NULL
 CREATE TABLE {schema}.agent_definition_versions (
     id         uniqueidentifier  NOT NULL CONSTRAINT agent_definition_versions_pk PRIMARY KEY,
@@ -87,16 +87,16 @@ CREATE TABLE {schema}.agent_definition_versions (
 );
 
 -- ---------------------------------------------------------------------------
--- Oturumlar
+-- Sessions
 -- ---------------------------------------------------------------------------
--- `state`, Microsoft Agent Framework'un SerializeSessionAsync ciktisidir ve OPAKTIR.
+-- `state` is the SerializeSessionAsync output of Microsoft Agent Framework and it is OPAQUE.
 --
--- K-027 BURADA GECERLI DEGILDIR: PostgreSQL'de bu sutunun `json` (jsonb degil)
--- olmasinin sebebi jsonb'nin nesne anahtarlarini yeniden siralamasi ve
--- System.Text.Json'un polimorfik `$type` ayracini ilk ozellik olmaktan
--- cikarmasidir. SQL Server'da JSON metin olarak saklanir ve sira zaten korunur;
--- sorun kendiliginden yoktur. Bu, kararin yanlis oldugu anlamina GELMEZ --
--- PostgreSQL'de hala gecerlidir.
+-- K-027 DOES NOT HOLD HERE: in PostgreSQL this column is `json` (not jsonb)
+-- because jsonb reorders the object keys and moves the polymorphic `$type`
+-- discriminator of System.Text.Json away from being the first property. On SQL
+-- Server JSON is stored as text and the order is already kept; the problem does
+-- not exist. That DOES NOT MEAN the decision is wrong -- it still holds in
+-- PostgreSQL.
 
 IF OBJECT_ID(N'{schema}.sessions', N'U') IS NULL
 CREATE TABLE {schema}.sessions (
@@ -116,7 +116,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'sessions_tenant_agent_up
 CREATE INDEX sessions_tenant_agent_updated_idx ON {schema}.sessions (tenant_id, agent_name, updated_at DESC);
 
 -- ---------------------------------------------------------------------------
--- Konusmalar
+-- Conversations
 -- ---------------------------------------------------------------------------
 
 IF OBJECT_ID(N'{schema}.conversations', N'U') IS NULL
@@ -133,8 +133,8 @@ CREATE TABLE {schema}.conversations (
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'conversations_tenant_updated_idx' AND object_id = OBJECT_ID(N'{schema}.conversations'))
 CREATE INDEX conversations_tenant_updated_idx ON {schema}.conversations (tenant_id, updated_at DESC);
 
--- Kumelenmis indeks (conversation_id, seq) uzerindedir: bir konusmanin
--- mesajlari her zaman birlikte okunur ve ekleme o konusma icinde sirali gider.
+-- The clustered index is on (conversation_id, seq): the messages of a
+-- conversation are always read together and inserts go in order inside it.
 IF OBJECT_ID(N'{schema}.conversation_items', N'U') IS NULL
 CREATE TABLE {schema}.conversation_items (
     id              uniqueidentifier  NOT NULL CONSTRAINT conversation_items_pk PRIMARY KEY NONCLUSTERED,
@@ -160,12 +160,12 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'responses_conversation_i
 CREATE INDEX responses_conversation_idx ON {schema}.responses (conversation_id, created_at DESC);
 
 -- ---------------------------------------------------------------------------
--- Calistirmalar
+-- Runs
 -- ---------------------------------------------------------------------------
--- Sutunlar PostgreSQL'in 0001 + 0002 + 0005 + 0007 + 0010 + 0011 birikimidir.
+-- The columns are the accumulation of PostgreSQL 0001 + 0002 + 0005 + 0007 + 0010 + 0011.
 --
--- `error_message`, `variant` disindaki metin sutunlari indeksli oldugu icin
--- boyutludur. `pricing_source`: 0=Catalog 1=Configuration 2=Unknown.
+-- Apart from `error_message` and `variant` the text columns are sized because
+-- they are indexed. `pricing_source`: 0=Catalog 1=Configuration 2=Unknown.
 
 IF OBJECT_ID(N'{schema}.runs', N'U') IS NULL
 CREATE TABLE {schema}.runs (
@@ -198,8 +198,8 @@ CREATE TABLE {schema}.runs (
     pricing_source smallint          NULL
 );
 
--- Kumelenmis anahtar dar ve zaman siralidir; boylece ekleme her zaman sonuna
--- gider ve sayfa bolunmesi olusmaz. `id` yalnizca benzersizligi saglar.
+-- The clustered key is narrow and time ordered; so an insert always goes to the
+-- end and no page split happens. `id` only makes it unique.
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'runs_cx' AND object_id = OBJECT_ID(N'{schema}.runs'))
 CREATE UNIQUE CLUSTERED INDEX runs_cx ON {schema}.runs (started_at, id);
 
@@ -212,7 +212,7 @@ CREATE INDEX runs_tenant_agent_started_idx ON {schema}.runs (tenant_id, agent_na
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'runs_tenant_status_started_idx' AND object_id = OBJECT_ID(N'{schema}.runs'))
 CREATE INDEX runs_tenant_status_started_idx ON {schema}.runs (tenant_id, status, started_at DESC);
 
--- Filtrelenmis indeks PostgreSQL'in kismi indeksinin birebir karsiligidir.
+-- A filtered index is the exact counterpart of the PostgreSQL partial index.
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'runs_session_idx' AND object_id = OBJECT_ID(N'{schema}.runs'))
 CREATE INDEX runs_session_idx ON {schema}.runs (tenant_id, session_id, started_at DESC) WHERE session_id IS NOT NULL;
 
@@ -240,11 +240,11 @@ CREATE INDEX runs_experiment_idx ON {schema}.runs (experiment_id, variant) WHERE
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'runs_tenant_cost_idx' AND object_id = OBJECT_ID(N'{schema}.runs'))
 CREATE INDEX runs_tenant_cost_idx ON {schema}.runs (tenant_id, started_at DESC) WHERE input_cost IS NOT NULL;
 
--- Append-only olay akisi (karar K-014). Olaylar GUNCELLENMEZ, yalnizca eklenir.
+-- Append-only event stream (decision K-014). Events are NOT UPDATED, only appended.
 --
--- `payload` bilerek serbest metindir ve ISJSON kisiti TASIMAZ: RunEventWriter
--- tool argumanlarini AOT uyumlu kalmak icin elle bicimlendirir ve cikti gecerli
--- JSON olmayabilir. Kisit bu durumda calistirmayi kesen bir hata uretirdi.
+-- `payload` is deliberately free text and CARRIES NO ISJSON constraint:
+-- RunEventWriter formats tool arguments by hand to stay AOT compatible and the
+-- output can be invalid JSON. The constraint would then stop the run with an error.
 IF OBJECT_ID(N'{schema}.run_events', N'U') IS NULL
 CREATE TABLE {schema}.run_events (
     run_id       uniqueidentifier  NOT NULL
@@ -259,7 +259,7 @@ CREATE TABLE {schema}.run_events (
     CONSTRAINT run_events_pk PRIMARY KEY CLUSTERED (run_id, seq)
 );
 
--- `arguments` ve `result` serbest metindir (PostgreSQL 0002 ile ayni gerekce).
+-- `arguments` and `result` are free text (the same reason as PostgreSQL 0002).
 IF OBJECT_ID(N'{schema}.tool_invocations', N'U') IS NULL
 CREATE TABLE {schema}.tool_invocations (
     id           uniqueidentifier  NOT NULL CONSTRAINT tool_invocations_pk PRIMARY KEY NONCLUSTERED,
@@ -285,7 +285,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'tool_invocations_tool_cr
 CREATE INDEX tool_invocations_tool_created_idx ON {schema}.tool_invocations (tool_name, created_at DESC);
 
 -- ---------------------------------------------------------------------------
--- Gozlemlenebilirlik ve denetim
+-- Observability and audit
 -- ---------------------------------------------------------------------------
 
 IF OBJECT_ID(N'{schema}.traces', N'U') IS NULL
@@ -324,9 +324,9 @@ CREATE UNIQUE CLUSTERED INDEX spans_cx ON {schema}.spans (started_at, id);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'spans_trace_started_idx' AND object_id = OBJECT_ID(N'{schema}.spans'))
 CREATE INDEX spans_trace_started_idx ON {schema}.spans (trace_id, started_at);
 
--- `before` / `after` ISJSON kisiti TASIMAZ. Gozlemlenebilirlik islevselligi
--- bozmaz: denetim izi yazimi bir kisit ihlaliyle basarisiz olursa asil islem de
--- basarisiz olurdu. Kisitin degeri, tasidigi riski karsilamiyor.
+-- `before` / `after` CARRY NO ISJSON constraint. Observability must not break
+-- functionality: if the audit trail write failed with a constraint violation the
+-- real operation would fail too. The value of the constraint is below its risk.
 IF OBJECT_ID(N'{schema}.audit_log', N'U') IS NULL
 CREATE TABLE {schema}.audit_log (
     id         uniqueidentifier  NOT NULL CONSTRAINT audit_log_pk PRIMARY KEY NONCLUSTERED,
@@ -346,13 +346,13 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'audit_log_tenant_created
 CREATE INDEX audit_log_tenant_created_idx ON {schema}.audit_log (tenant_id, created_at DESC);
 
 -- ---------------------------------------------------------------------------
--- Tool onay kurallari
+-- Tool approval rules
 -- ---------------------------------------------------------------------------
--- 🚨 PostgreSQL burada COALESCE'li bir ifade indeksi kullanir cunku PostgreSQL'de
--- NULL hicbir NULL'a esit degildir ve duz bir UNIQUE ayni kuralin sinirsiz kez
--- eklenmesine izin verirdi. SQL SERVER'DA BU GEREKMEZ: benzersiz indeks NULL'lari
--- birbirine ESIT sayar ve tek bir NULL satirina izin verir -- istenen davranis
--- zaten budur. Gerekce: docs/KARARLAR.md, karar K-184.
+-- 🚨 PostgreSQL uses a COALESCE expression index here because in PostgreSQL no
+-- NULL is equal to any NULL and a plain UNIQUE would let the same rule be added
+-- endlessly. THIS IS NOT NEEDED ON SQL SERVER: a unique index treats NULLs as
+-- EQUAL and allows a single NULL row -- which is exactly the wanted behaviour.
+-- Rationale: docs/KARARLAR.md, decision K-184.
 
 IF OBJECT_ID(N'{schema}.tool_approval_rules', N'U') IS NULL
 CREATE TABLE {schema}.tool_approval_rules (
@@ -370,14 +370,14 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'tool_approval_rules_tena
 CREATE INDEX tool_approval_rules_tenant_created_idx ON {schema}.tool_approval_rules (tenant_id, created_at DESC);
 
 -- ---------------------------------------------------------------------------
--- MCP sunuculari
+-- MCP servers
 -- ---------------------------------------------------------------------------
--- 🚨 SIR TASIMAZ. Kimlik dogrulama basliginin ve OAuth istemci sirrinin DEGERI
--- burada saklanmaz; yalnizca degerin okunacagi yapilandirma anahtarinin ADI
--- saklanir. Deger calisma aninda IConfiguration uzerinden cozulur.
--- Gerekce: docs/KARARLAR.md, karar K-059.
+-- 🚨 CARRIES NO SECRET. The VALUE of the authentication header and of the OAuth
+-- client secret is not stored here; only the NAME of the configuration key that
+-- the value is read from is stored. The value is resolved at run time through
+-- IConfiguration. Rationale: docs/KARARLAR.md, decision K-059.
 --
--- `transport` smallint: 0 = StreamableHttp, 1 = SSE. Stdio BILEREK YOKTUR (K-058).
+-- `transport` smallint: 0 = StreamableHttp, 1 = SSE. Stdio IS DELIBERATELY ABSENT (K-058).
 
 IF OBJECT_ID(N'{schema}.mcp_servers', N'U') IS NULL
 CREATE TABLE {schema}.mcp_servers (
@@ -404,7 +404,7 @@ CREATE TABLE {schema}.mcp_servers (
 );
 
 -- ---------------------------------------------------------------------------
--- Agent skill'leri
+-- Agent skills
 -- ---------------------------------------------------------------------------
 
 IF OBJECT_ID(N'{schema}.agent_skills', N'U') IS NULL
@@ -458,8 +458,8 @@ CREATE TABLE {schema}.agent_skill_scripts (
     CONSTRAINT agent_skill_scripts_skill_name_uq UNIQUE (skill_id, name)
 );
 
--- SQL Server benzersiz indekste NULL'lari esit sayar; COALESCE'li ifade indeksi
--- gerekmez (K-184).
+-- SQL Server treats NULLs as equal in a unique index; a COALESCE expression
+-- index is not needed (K-184).
 IF OBJECT_ID(N'{schema}.skill_script_grants', N'U') IS NULL
 CREATE TABLE {schema}.skill_script_grants (
     id          uniqueidentifier  NOT NULL CONSTRAINT skill_script_grants_pk PRIMARY KEY,
@@ -477,10 +477,10 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'skill_script_grants_look
 CREATE INDEX skill_script_grants_lookup_idx ON {schema}.skill_script_grants (tenant_id, skill_name) WHERE revoked_at IS NULL;
 
 -- ---------------------------------------------------------------------------
--- Ekler ve kalici agent dosya bellegi
+-- Attachments and persistent agent file memory
 -- ---------------------------------------------------------------------------
--- `session_id` KASITLI OLARAK yabanci anahtar DEGILDIR: bir ek, kendi oturumu
--- hic acilmadan once yuklenebilir (K-112).
+-- `session_id` is DELIBERATELY NOT a foreign key: an attachment can be uploaded
+-- before its own session is ever opened (K-112).
 
 IF OBJECT_ID(N'{schema}.attachments', N'U') IS NULL
 CREATE TABLE {schema}.attachments (
@@ -520,7 +520,7 @@ CREATE TABLE {schema}.agent_files (
 );
 
 -- ---------------------------------------------------------------------------
--- Workflow'lar
+-- Workflows
 -- ---------------------------------------------------------------------------
 
 IF OBJECT_ID(N'{schema}.workflows', N'U') IS NULL
@@ -535,8 +535,8 @@ CREATE TABLE {schema}.workflows (
     CONSTRAINT workflows_tenant_name_uq UNIQUE (tenant_id, name)
 );
 
--- K-027 burada gecerli degildir (bkz. sessions.state notu): SQL Server JSON'u
--- metin olarak saklar ve `$type` ayraci ilk ozellik olmaya devam eder.
+-- K-027 does not hold here (see the sessions.state note): SQL Server stores JSON
+-- as text and the `$type` discriminator stays the first property.
 IF OBJECT_ID(N'{schema}.workflow_checkpoints', N'U') IS NULL
 CREATE TABLE {schema}.workflow_checkpoints (
     id            uniqueidentifier  NOT NULL CONSTRAINT workflow_checkpoints_pk PRIMARY KEY,
@@ -557,7 +557,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'workflow_checkpoints_run
 CREATE INDEX workflow_checkpoints_run_idx ON {schema}.workflow_checkpoints (tenant_id, run_id, created_at) WHERE run_id IS NOT NULL;
 
 -- ---------------------------------------------------------------------------
--- Is kuyrugu ve zamanlama
+-- Job queue and scheduling
 -- ---------------------------------------------------------------------------
 
 IF OBJECT_ID(N'{schema}.job_schedules', N'U') IS NULL
@@ -579,8 +579,8 @@ CREATE TABLE {schema}.job_schedules (
     CONSTRAINT job_schedules_tenant_name_uq UNIQUE (tenant_id, name)
 );
 
--- `schedule_id` uzerinde ON DELETE SET NULL kullanilir; jobs -> job_items zinciri
--- CASCADE tasidigi icin cok yollu bir kaskad olusmaz (SQL Server hata 1785).
+-- ON DELETE SET NULL is used on `schedule_id`; because the jobs -> job_items
+-- chain carries CASCADE, no multiple cascade path is created (SQL Server error 1785).
 IF OBJECT_ID(N'{schema}.jobs', N'U') IS NULL
 CREATE TABLE {schema}.jobs (
     id            uniqueidentifier  NOT NULL CONSTRAINT jobs_pk PRIMARY KEY,
@@ -605,12 +605,12 @@ CREATE TABLE {schema}.jobs (
     max_attempts  smallint          NULL
 );
 
--- 🚨 PostgreSQL'de NULL schedule_id'ler birbirinden ayirt edilir ve elle
--- olusturulan (zamanlamasiz) isler UNIQUE (schedule_id, scheduled_for) kisitiyla
--- cakismaz. SQL Server NULL'lari ESIT sayar; duz bir benzersiz kisit ikinci bir
--- zamanlamasiz isin eklenmesini engellerdi. Bu yuzden kisit FILTRELENMIS bir
--- benzersiz indekstir ve yalnizca zamanlamaya bagli isleri kapsar.
--- Gerekce: docs/KARARLAR.md, karar K-184.
+-- 🚨 In PostgreSQL NULL schedule_id values are told apart and jobs created by
+-- hand (with no schedule) do not clash with a UNIQUE (schedule_id, scheduled_for)
+-- constraint. SQL Server treats NULLs as EQUAL; a plain unique constraint would
+-- stop a second job without a schedule. The constraint is therefore a FILTERED
+-- unique index and it covers only jobs bound to a schedule.
+-- Rationale: docs/KARARLAR.md, decision K-184.
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'jobs_schedule_scheduled_uq' AND object_id = OBJECT_ID(N'{schema}.jobs'))
 CREATE UNIQUE INDEX jobs_schedule_scheduled_uq ON {schema}.jobs (schedule_id, scheduled_for) WHERE schedule_id IS NOT NULL;
@@ -635,7 +635,7 @@ CREATE TABLE {schema}.job_items (
 );
 
 -- ---------------------------------------------------------------------------
--- Degerlendirme (eval)
+-- Evaluation (eval)
 -- ---------------------------------------------------------------------------
 
 IF OBJECT_ID(N'{schema}.eval_suites', N'U') IS NULL
@@ -691,8 +691,8 @@ CREATE INDEX eval_runs_suite_started_idx ON {schema}.eval_runs (tenant_id, suite
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'eval_runs_job_idx' AND object_id = OBJECT_ID(N'{schema}.eval_runs'))
 CREATE INDEX eval_runs_job_idx ON {schema}.eval_runs (tenant_id, job_id);
 
--- `case_id` KASITLI OLARAK yabanci anahtar tasimaz: bir vaka sonradan
--- degistirilse veya silinse bile gecmis sonuc kaydi anlasilir kalir.
+-- `case_id` DELIBERATELY carries no foreign key: even if a case is later changed
+-- or deleted, the past result record stays understandable.
 IF OBJECT_ID(N'{schema}.eval_case_results', N'U') IS NULL
 CREATE TABLE {schema}.eval_case_results (
     id             uniqueidentifier NOT NULL CONSTRAINT eval_case_results_pk PRIMARY KEY NONCLUSTERED,
@@ -712,7 +712,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'eval_case_results_cx' AN
 CREATE UNIQUE CLUSTERED INDEX eval_case_results_cx ON {schema}.eval_case_results (eval_run_id, id);
 
 -- ---------------------------------------------------------------------------
--- A/B deneyleri
+-- A/B experiments
 -- ---------------------------------------------------------------------------
 
 IF OBJECT_ID(N'{schema}.experiments', N'U') IS NULL
@@ -730,8 +730,8 @@ CREATE TABLE {schema}.experiments (
     CONSTRAINT experiments_tenant_name_uq UNIQUE (tenant_id, name)
 );
 
--- Ayni agent icin ayni anda TEK Running deney olabilir. Filtrelenmis benzersiz
--- indeks bu kurali uygulama kodu race'ine birakmadan veritabaninda zorlar.
+-- Only ONE Running experiment can exist for the same agent at a time. A filtered
+-- unique index enforces the rule in the database, not in an application code race.
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'experiments_running_agent_uq' AND object_id = OBJECT_ID(N'{schema}.experiments'))
 CREATE UNIQUE INDEX experiments_running_agent_uq ON {schema}.experiments (tenant_id, agent_name) WHERE status = 1;
 
@@ -739,10 +739,10 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'experiments_tenant_agent
 CREATE INDEX experiments_tenant_agent_idx ON {schema}.experiments (tenant_id, agent_name);
 
 -- ---------------------------------------------------------------------------
--- Kota ve olay yayini
+-- Quota and event publishing
 -- ---------------------------------------------------------------------------
--- SQL Server benzersiz indekste NULL'lari esit sayar; `agent_name` NULL olan
--- kural yalnizca bir kez eklenebilir (K-184).
+-- SQL Server treats NULLs as equal in a unique index; a rule with a NULL
+-- `agent_name` can be added only once (K-184).
 
 IF OBJECT_ID(N'{schema}.quotas', N'U') IS NULL
 CREATE TABLE {schema}.quotas (
@@ -772,9 +772,9 @@ CREATE TABLE {schema}.quota_usage (
     CONSTRAINT quota_usage_pk PRIMARY KEY (tenant_id, agent_name, period, period_start)
 );
 
--- 🚨 `events` bir JSON DIZISIDIR. SQL Server'da dizi tipi yoktur; PostgreSQL'in
--- `text[]` sutunu burada JSON metnine donusur ve sorgularda OPENJSON ile acilir.
--- Gerekce: docs/KARARLAR.md, karar K-182.
+-- 🚨 `events` IS A JSON ARRAY. SQL Server has no array type; the PostgreSQL
+-- `text[]` column becomes JSON text here and queries open it with OPENJSON.
+-- Rationale: docs/KARARLAR.md, decision K-182.
 IF OBJECT_ID(N'{schema}.webhook_subscriptions', N'U') IS NULL
 CREATE TABLE {schema}.webhook_subscriptions (
     id                       uniqueidentifier  NOT NULL CONSTRAINT webhook_subscriptions_pk PRIMARY KEY,

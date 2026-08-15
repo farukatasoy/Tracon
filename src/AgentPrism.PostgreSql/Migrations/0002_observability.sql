@@ -1,21 +1,21 @@
--- Faz 6 — gozlemlenebilirlik, tool onayi, MCP ve kiraci yonetimi.
+-- Phase 6 — observability, tool approval, MCP and tenant management.
 --
--- 0001'de sema kurulmus ancak DOLDURULMAMIS tablolar bu migration ile
--- kullanilabilir hale gelir: tool_invocations, traces, spans.
+-- Tables whose schema was created in 0001 but were NOT FILLED become usable
+-- with this migration: tool_invocations, traces, spans.
 --
--- Kurallar 0001 ile ayni:
---   * `{schema}` yer tutucusu calisma aninda degistirilir.
---   * Zaman alanlari `timestamptz`, her zaman UTC.
---   * Birincil anahtarlar `uuid`; uygulama uretir.
+-- The rules are the same as 0001:
+--   * The `{schema}` placeholder is replaced at run time.
+--   * Time fields are `timestamptz`, always UTC.
+--   * Primary keys are `uuid`; the application generates them.
 
 -- ---------------------------------------------------------------------------
--- Calistirmalar: model adi
+-- Runs: model name
 -- ---------------------------------------------------------------------------
--- Maliyet ve model kirilimi raporlari model adini gerektirir. 0001'de bu sutun
--- yoktu ve /api/stats maliyeti bilerek gostermiyordu.
+-- Cost and model breakdown reports need the model name. This column did not
+-- exist in 0001 and /api/stats deliberately did not show the cost.
 --
--- Sutun NULL kabul eder: kodda tanimli agent'larin model baglantisi katalog
--- ozetinde bilinmeyebilir. Bilinmeyen model kirilima girmez, toplamlarda sayilir.
+-- The column accepts NULL: the model binding of code defined agents can be
+-- unknown in the catalog summary. An unknown model is not broken out but counts in totals.
 
 ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS model_id text;
 
@@ -24,35 +24,35 @@ CREATE INDEX IF NOT EXISTS runs_tenant_model_started_idx
     WHERE model_id IS NOT NULL;
 
 -- ---------------------------------------------------------------------------
--- Tool cagrilari
+-- Tool calls
 -- ---------------------------------------------------------------------------
--- `arguments` ve `result` sutunlari `jsonb` idi; `text` yapiliyor.
+-- The `arguments` and `result` columns were `jsonb`; they become `text`.
 --
--- Sebep run_events.payload ile ayni: RunRecordingAgent tool argumanlarini AOT
--- uyumlu kalmak icin ELLE bicimlendirir (`ad=deger, ad=deger`) ve cikti gecerli
--- JSON degildir. `jsonb` sutunu bu durumda calistirmayi kesen bir hata uretirdi.
--- Tablo bu migration'a kadar hic doldurulmadigi icin donusum veri kaybetmez.
+-- The reason is the same as run_events.payload: RunRecordingAgent formats tool
+-- arguments BY HAND to stay AOT compatible (`name=value, name=value`) and the
+-- output is not valid JSON. A `jsonb` column would then stop the run with an error.
+-- The table was never filled up to this migration, so the conversion loses no data.
 
 ALTER TABLE {schema}.tool_invocations
     ALTER COLUMN arguments TYPE text USING arguments::text,
     ALTER COLUMN result    TYPE text USING result::text;
 
--- Tool'un kaynagi. Kodda tanimli tool'larda NULL; MCP tool'larinda sunucu adi.
+-- Source of the tool. NULL for code defined tools; the server name for MCP tools.
 ALTER TABLE {schema}.tool_invocations ADD COLUMN IF NOT EXISTS source text;
 
--- Tool kullanim ozeti (ToolUsageQuery) tool adina gore gruplar.
+-- The tool usage summary (ToolUsageQuery) groups by tool name.
 CREATE INDEX IF NOT EXISTS tool_invocations_tool_created_idx
     ON {schema}.tool_invocations (tool_name, created_at DESC);
 
 -- ---------------------------------------------------------------------------
--- Span'ler
+-- Spans
 -- ---------------------------------------------------------------------------
--- W3C span kimligi ayrica saklanir: kullanici ayni span'i kendi APM sisteminde
--- (Jaeger, Application Insights) bulabilmelidir. `spans.id` ise bu kimlikten
--- TURETILIR (SHA-256), boylece ust span'in kimligi haritasiz hesaplanabilir ve
--- ayni span iki kez yazilirsa cakisma tekrar uretmez.
+-- The W3C span id is stored separately: the user must be able to find the same
+-- span in their own APM system (Jaeger, Application Insights). `spans.id` is
+-- DERIVED from that id (SHA-256), so the parent span id can be computed without
+-- a map and a span written twice does not create a duplicate.
 --
--- NOT NULL degil: 0001 doneminden kalan (bos) satirlar icin varsayilan yok.
+-- Not NOT NULL: there is no default for the (empty) rows left from the 0001 era.
 
 ALTER TABLE {schema}.spans ADD COLUMN IF NOT EXISTS span_id text;
 
@@ -61,17 +61,17 @@ CREATE INDEX IF NOT EXISTS traces_run_idx
     WHERE run_id IS NOT NULL;
 
 -- ---------------------------------------------------------------------------
--- Tool onay kurallari
+-- Tool approval rules
 -- ---------------------------------------------------------------------------
--- Kullanicinin "bir daha sorma" dedigi kalici onaylar.
+-- Persistent approvals where the user said "do not ask again".
 --
--- Kural kiraci + agent + tool ucglusune baglidir. `agent_name` NULL ise kural
--- kiracinin tum agent'larini kapsar. `arguments_hash` NULL ise tool'un her
--- cagrisini; dolu ise yalnizca ayni argumanlarla yapilan cagriyi kapsar.
+-- A rule is bound to the tenant + agent + tool triple. If `agent_name` is NULL
+-- the rule covers all agents of the tenant. If `arguments_hash` is NULL it covers
+-- every call of the tool; if filled, only the call with the same arguments.
 --
--- Benzersizlik kisiti NULL tasiyan sutunlar iceriyor ve PostgreSQL'de NULL'lar
--- birbirine esit sayilmaz; bu yuzden kisit yerine COALESCE'li bir ifade indeksi
--- kullaniliyor. Aksi halde ayni kural sinirsiz kez eklenebilirdi.
+-- The uniqueness constraint contains columns that carry NULL and in PostgreSQL
+-- NULLs are not equal to each other; therefore an expression index with COALESCE
+-- is used instead of a constraint. Otherwise the same rule could be added endlessly.
 
 CREATE TABLE IF NOT EXISTS {schema}.tool_approval_rules (
     id             uuid        NOT NULL PRIMARY KEY,
@@ -95,19 +95,19 @@ CREATE INDEX IF NOT EXISTS tool_approval_rules_tenant_created_idx
     ON {schema}.tool_approval_rules (tenant_id, created_at DESC);
 
 -- ---------------------------------------------------------------------------
--- MCP sunuculari
+-- MCP servers
 -- ---------------------------------------------------------------------------
--- Uzak MCP sunuculari. Tool'lari baglanti aninda kesfedilir.
+-- Remote MCP servers. Their tools are discovered at connection time.
 --
--- 🚨 SIR TASIMAZ. Kimlik dogrulama basliginin DEGERI burada saklanmaz; yalnizca
--- degerin okunacagi yapilandirma anahtarinin ADI saklanir
--- (`authorization_configuration_key`). Deger calisma aninda IConfiguration
--- uzerinden cozulur ve `dotnet user-secrets` veya ortam degiskeninde kalir.
--- Boylece veritabani yedegi, denetim izi veya arayuz yaniti hicbir zaman sir
--- tasimaz. Gerekce: docs/KARARLAR.md, karar K-059.
+-- 🚨 CARRIES NO SECRET. The VALUE of the authentication header is not stored
+-- here; only the NAME of the configuration key that the value is read from is
+-- stored (`authorization_configuration_key`). The value is resolved at run time
+-- through IConfiguration and stays in `dotnet user-secrets` or an environment
+-- variable. So a database backup, an audit trail or a UI response never carries
+-- a secret. Rationale: docs/KARARLAR.md, decision K-059.
 --
--- `transport` smallint: 0 = StreamableHttp, 1 = SSE. Stdio BILEREK YOKTUR —
--- sunucuda surec baslatmak tasarim kurali K2'yi bozar (karar K-058).
+-- `transport` smallint: 0 = StreamableHttp, 1 = SSE. Stdio IS DELIBERATELY ABSENT —
+-- starting a process on the server breaks design rule K2 (decision K-058).
 
 CREATE TABLE IF NOT EXISTS {schema}.mcp_servers (
     id                              uuid        NOT NULL PRIMARY KEY,

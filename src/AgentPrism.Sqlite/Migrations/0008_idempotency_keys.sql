@@ -1,9 +1,9 @@
--- Faz 43 -- Idempotency-Key destegi.
+-- Phase 43 -- Idempotency-Key support.
 --
--- Gerekce ve sutun anlamlari icin PostgreSQL 0020_idempotency_keys.sql'e bakin.
+-- For the rationale and the column meanings see PostgreSQL 0020_idempotency_keys.sql.
 --
--- 🚨 Tablo ve indeks adlari ONEK tasir (K-193). `key` SQLite'ta AYRILMIS bir
--- sozcuktur; her yerde "key" ile cift tirnaklanir.
+-- 🚨 Table and index names carry the PREFIX (K-193). `key` is a RESERVED word in
+-- SQLite; it is put in double quotes as "key" everywhere.
 
 CREATE TABLE IF NOT EXISTS {schema}idempotency_keys (
     tenant_id    TEXT    NOT NULL,

@@ -1,16 +1,16 @@
--- Faz 17 -- toplu ve zamanlanmis calistirma: is kuyrugu ve zamanlama tanimlari.
+-- Phase 17 -- batch and scheduled runs: the job queue and schedule definitions.
 
--- Zamanlama TANIMLARI. Kuyruktaki fiili isler `jobs` tablosundadir; bu ayrim
--- `workflows` / `workflow_checkpoints` ayrimiyla aynidir (Faz 15).
+-- Schedule DEFINITIONS. The actual jobs in the queue are in the `jobs` table;
+-- this split is the same as the `workflows` / `workflow_checkpoints` split (phase 15).
 CREATE TABLE IF NOT EXISTS {schema}.job_schedules (
     id            uuid        NOT NULL PRIMARY KEY,
     tenant_id     text        NOT NULL,
     name          text        NOT NULL,
     kind          smallint    NOT NULL,        -- 0=AgentBatch, 1=Workflow, 2=Eval
-    target_name   text        NOT NULL,        -- agent veya workflow adi
-    cron          text,                        -- NULL = yalniz elle tetiklenir
+    target_name   text        NOT NULL,        -- agent or workflow name
+    cron          text,                        -- NULL = triggered only by hand
     time_zone     text        NOT NULL DEFAULT 'UTC',
-    payload       jsonb       NOT NULL,        -- girdi kumesi veya parametreler
+    payload       jsonb       NOT NULL,        -- input set or parameters
     enabled       boolean     NOT NULL DEFAULT true,
     next_run_at   timestamptz,
     last_run_at   timestamptz,
@@ -39,10 +39,10 @@ CREATE TABLE IF NOT EXISTS {schema}.jobs (
     completed_at  timestamptz,
     error_message text,
     created_at    timestamptz NOT NULL,
-    -- Yaz saati gecisinde ayni zamanlamanin iki kez tetiklenmesine karsi ikinci
-    -- savunma hatti (birincisi TryClaimNextRunAsync'in atomik CAS'i): NULL
-    -- schedule_id PostgreSQL'de birbirinden ayirt edilir, bu yuzden elle
-    -- olusturulan (zamanlamasiz) isler bu kisitla cakismaz.
+    -- Second line of defence against the same schedule firing twice over a
+    -- daylight saving change (the first is the atomic CAS of
+    -- TryClaimNextRunAsync): PostgreSQL tells NULL schedule_id values apart, so
+    -- jobs created by hand (with no schedule) do not clash with this constraint.
     CONSTRAINT jobs_schedule_scheduled_uq UNIQUE (schedule_id, scheduled_for)
 );
 
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS {schema}.job_items (
     job_id      uuid        NOT NULL REFERENCES {schema}.jobs (id) ON DELETE CASCADE,
     seq         integer     NOT NULL,
     input       text        NOT NULL,
-    run_id      uuid,                          -- olusan calistirma
+    run_id      uuid,                          -- the run that was created
     status      smallint    NOT NULL,
     error       text,
     CONSTRAINT job_items_job_seq_uq UNIQUE (job_id, seq)

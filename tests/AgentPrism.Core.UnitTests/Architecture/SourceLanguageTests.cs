@@ -42,6 +42,16 @@ public sealed class SourceLanguageTests
         ".cs", ".sql", ".csproj", ".props", ".targets", ".json", ".ts", ".tsx",
     };
 
+    /// <summary>
+    /// A package README ships inside the <c>.nupkg</c> and is what nuget.org
+    /// renders — <c>src/Directory.Build.props</c> sets <c>PackageReadmeFile</c>.
+    /// Markdown is otherwise out of scope, so only these are matched.
+    /// </summary>
+    private static readonly Regex PackagedReadmePattern = new(
+        @"^src/[^/]+/README\.md$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(5));
+
     private static readonly string[] SkippedDirectorySegments =
         ["obj", "bin", "node_modules", "artifacts", "dist", "wwwroot"];
 
@@ -59,6 +69,20 @@ public sealed class SourceLanguageTests
     /// <summary>The language picker labels its own entry in its own language.</summary>
     private static readonly Regex AllowedLinePattern = new(
         @"shell\.language\.tr",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(5));
+
+    /// <summary>
+    /// Turkish-named identifiers that are not prose and must survive translation:
+    /// defect ids (<c>HATA-S3-008</c>), manual test case ids (<c>MT-MCP-023</c>),
+    /// and paths into the development tooling, which stays Turkish by design
+    /// (<c>docs/21-KOTA-VE-OLAY-YAYINI.md</c>, <c>scripts/dokuman-bakim.py</c>).
+    /// They are removed from a line before it is inspected — otherwise
+    /// <c>HATA-</c> would forever match the word <c>hata</c> and the baseline
+    /// could never reach zero.
+    /// </summary>
+    private static readonly Regex IdentifierMaskPattern = new(
+        @"HATA-[A-Za-z0-9-]+|MT-[A-Za-z0-9-]+|[A-Za-z0-9_./-]+\.(?:md|py|sh)\b|\.agents/skills/[A-Za-z0-9_/-]+",
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(5));
 
@@ -178,12 +202,13 @@ public sealed class SourceLanguageTests
 
             foreach (var file in Directory.EnumerateFiles(absoluteRoot, "*", SearchOption.AllDirectories))
             {
-                if (!ScannedExtensions.Contains(Path.GetExtension(file)))
+                var relative = Path.GetRelativePath(RepositoryRoot, file).Replace('\\', '/');
+
+                if (!ScannedExtensions.Contains(Path.GetExtension(file)) &&
+                    !PackagedReadmePattern.IsMatch(relative))
                 {
                     continue;
                 }
-
-                var relative = Path.GetRelativePath(RepositoryRoot, file).Replace('\\', '/');
 
                 if (IsSkipped(relative))
                 {
@@ -231,7 +256,9 @@ public sealed class SourceLanguageTests
                 continue;
             }
 
-            if (TurkishLetterPattern.IsMatch(line) || TurkishWordPattern.IsMatch(line))
+            var inspected = IdentifierMaskPattern.Replace(line, string.Empty);
+
+            if (TurkishLetterPattern.IsMatch(inspected) || TurkishWordPattern.IsMatch(inspected))
             {
                 count++;
             }

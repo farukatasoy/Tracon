@@ -1,14 +1,14 @@
--- Faz 31 -- calistirma ve mesaj basina insan (veya yargic) puani.
+-- Phase 31 -- human (or judge) score per run and per message.
 --
--- Gerekce ve sutun anlamlari icin PostgreSQL 0017_run_scores.sql'e bakin.
+-- For the rationale and the column meanings see PostgreSQL 0017_run_scores.sql.
 --
--- 🚨 Tablo ve indeks adlari ONEK tasir (K-193): SQLite'ta nesne adlari
--- veritabani genelinde tek ad alanini paylasir.
+-- 🚨 Table and index names carry the PREFIX (K-193): in SQLite object names
+-- share a single database wide namespace.
 --
--- Upsert PostgreSQL ile birebir aynidir (K-194): message_id COALESCE(…, '')
--- ile esitlenir, author BILEREK COALESCE EDILMEZ -- SQLite de PostgreSQL
--- gibi NULL'lari birbirine esit SAYMAZ, bu yuzden author bos oldugunda
--- (kimliksiz kurulum) her cagri yeni bir satir acar.
+-- The upsert is exactly the same as PostgreSQL (K-194): message_id is levelled
+-- with COALESCE(…, ''), author IS DELIBERATELY NOT COALESCED -- like PostgreSQL,
+-- SQLite DOES NOT treat NULLs as equal, so when author is empty (an
+-- installation without identity) every call opens a new row.
 
 CREATE TABLE IF NOT EXISTS {schema}run_scores (
     id          TEXT    NOT NULL PRIMARY KEY,

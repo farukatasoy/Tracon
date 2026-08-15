@@ -1,38 +1,38 @@
--- Faz 28 -- tool cagrisi basina token DISI olcum ve maliyet.
+-- Phase 28 -- NON token usage and cost per tool call.
 --
--- Faz 20'nin maliyet modeli token varsayar ve `runs` tablosuna yazar. Ses
--- tool'lari token harcamaz ama ucret uretir: metinden ses KARAKTER, sesten
--- metin SANIYE ile faturalanir. `tool_invocations` bugune kadar hicbir olcum
--- sutunu tasimiyordu.
+-- The cost model of phase 20 assumes tokens and writes to the `runs` table. Voice
+-- tools spend no tokens but do create a charge: text to speech is billed by
+-- CHARACTER, speech to text by SECOND. Until now `tool_invocations` carried no
+-- usage column at all.
 --
--- Iki olcum toplanmaz: farkli birimler toplanamaz. Raporlar ses maliyetini
--- token maliyetinden AYRI kalem olarak gosterir.
--- Gerekce: docs/28-SES-TOOLLARI.md, bolum 28.5.
+-- The two usage kinds are not summed: different units cannot be added. Reports
+-- show the voice cost as a SEPARATE item from the token cost.
+-- Rationale: docs/28-SES-TOOLLARI.md, section 28.5.
 
--- Birim adi serbest metindir; AgentPrism'in kendi tool'lari `characters` ve
--- `seconds` kullanir (ToolUsageUnits). NULL = cagri olcum bildirmedi, ki bu
--- cagrilarin buyuk cogunlugu icin dogrudur.
+-- The unit name is free text; the own tools of AgentPrism use `characters` and
+-- `seconds` (ToolUsageUnits). NULL = the call reported no usage, which is true
+-- for the great majority of the calls.
 ALTER TABLE {schema}.tool_invocations ADD COLUMN IF NOT EXISTS usage_unit     text;
 
--- Faturalanan miktar. `numeric(20,10)` -- para ve olcum hesabinda ikili kayan
--- nokta kullanilmaz (0011'deki maliyet sutunlariyla ayni gerekce).
+-- The billed quantity. `numeric(20,10)` -- binary floating point is not used in
+-- money and usage arithmetic (the same reason as the cost columns in 0011).
 ALTER TABLE {schema}.tool_invocations ADD COLUMN IF NOT EXISTS usage_quantity numeric(20,10);
 
--- Miktarin saglayicidan mi geldigi yoksa tahmin mi oldugu. Tahmini olcum gibi
--- gostermek fiyat uydurmaktir (K-032); arayuz ikisini ayirt eder.
+-- Whether the quantity came from the provider or is an estimate. Showing an
+-- estimate as a measurement is inventing a price (K-032); the UI separates them.
 ALTER TABLE {schema}.tool_invocations ADD COLUMN IF NOT EXISTS usage_estimated boolean;
 
--- Hesaplanan tutar. Fiyat tanimsizsa NULL kalir, SIFIR degil.
+-- The computed amount. If the price is undefined it stays NULL, not ZERO.
 ALTER TABLE {schema}.tool_invocations ADD COLUMN IF NOT EXISTS cost           numeric(20,10);
 ALTER TABLE {schema}.tool_invocations ADD COLUMN IF NOT EXISTS cost_currency  text;
 
--- `pricing_source` sutunu BILEREK YOK: ses fiyatinin tek kaynagi yapilandirmadir
--- (model katalogu ses fiyati tasimaz), dolayisiyla ayirt edilecek bir kaynak
--- yoktur. Olcumun tahmin mi oldugu ayri bir bilgidir ve `usage_estimated`
--- sutununda durur.
+-- The `pricing_source` column is DELIBERATELY ABSENT: the only source of a voice
+-- price is configuration (the model catalog carries no voice price), so there is
+-- no source to tell apart. Whether the usage is an estimate is separate
+-- information and it stays in the `usage_estimated` column.
 
--- Olcum tasiyan cagrilari hizlica bulmak icin kismi indeks: olcumu olmayan
--- satirlar (cogunluk) indekste yer kaplamaz.
+-- Partial index to find calls that carry usage quickly: rows without usage
+-- (the majority) take no space in the index.
 CREATE INDEX IF NOT EXISTS tool_invocations_usage_idx
     ON {schema}.tool_invocations (usage_unit, created_at DESC)
     WHERE usage_unit IS NOT NULL;

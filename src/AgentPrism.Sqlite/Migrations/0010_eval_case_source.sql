@@ -1,11 +1,11 @@
--- Faz 45 -- uretimden eval vakasi terfisi (F-53).
+-- Phase 45 -- promotion of a production run to an eval case (F-53).
 --
--- Gerekce ve sutun anlamlari icin PostgreSQL 0022_eval_case_source.sql'e bakin.
--- SQLite'ta `ALTER TABLE ... ADD COLUMN` icin `IF NOT EXISTS` YOKTUR; guvenlik
--- migration kosucusundan gelir (ayni dosya ikinci kez calismaz).
+-- For the rationale and the column meanings see PostgreSQL 0022_eval_case_source.sql.
+-- SQLite has no `IF NOT EXISTS` for `ALTER TABLE ... ADD COLUMN`; safety comes
+-- from the migration runner (the same file does not run a second time).
 --
--- 🚨 Indeks adi TABLO ONEKINI tasir (K-193): SQLite'ta indeks adlari veritabani
--- genelinde tek ad alanini paylasir.
+-- 🚨 The index name carries the TABLE PREFIX (K-193): in SQLite index names
+-- share a single database wide namespace.
 
 ALTER TABLE {schema}eval_cases ADD COLUMN source_run_id TEXT;
 ALTER TABLE {schema}eval_cases ADD COLUMN source_kind   INTEGER;

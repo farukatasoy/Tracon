@@ -1,13 +1,13 @@
--- Faz 47 -- yeniden oynatma ve konusma dallandirma.
+-- Phase 47 -- replay and conversation branching.
 --
--- Gerekce ve sutun anlamlari icin PostgreSQL 0023_replay_and_branching.sql'e
--- bakin.
+-- For the rationale and the column meanings see PostgreSQL
+-- 0023_replay_and_branching.sql.
 --
--- 🚨 Tablo ve indeks adlari ONEK tasir (K-193): SQLite'ta sema yoktur ve indeks
--- adlari veritabani genelinde tek ad alanini paylasir.
+-- 🚨 Table and index names carry the PREFIX (K-193): SQLite has no schema and
+-- index names share a single database wide namespace.
 --
--- 🚨 `ALTER TABLE ... ADD COLUMN` icin `IF NOT EXISTS` YOKTUR; guvenlik
--- migration kosucusundan gelir (ayni dosya ikinci kez calismaz).
+-- 🚨 There is no `IF NOT EXISTS` for `ALTER TABLE ... ADD COLUMN`; safety comes
+-- from the migration runner (the same file does not run a second time).
 
 CREATE TABLE IF NOT EXISTS {schema}run_inputs (
     run_id     TEXT NOT NULL PRIMARY KEY
@@ -20,15 +20,15 @@ CREATE TABLE IF NOT EXISTS {schema}run_inputs (
 CREATE INDEX IF NOT EXISTS {schema}run_inputs_tenant_created_idx
     ON {schema}run_inputs (tenant_id, created_at DESC);
 
--- Yeniden oynatma soy bagi. Sutun SONA eklenir; okuyucu sabit sutun indeksi
--- kullanir.
+-- Replay lineage. The column is added AT THE END; the reader uses fixed column
+-- indexes.
 ALTER TABLE {schema}runs ADD COLUMN replay_of_run_id TEXT NULL;
 
 CREATE INDEX IF NOT EXISTS {schema}runs_replay_of_idx
     ON {schema}runs (tenant_id, replay_of_run_id)
     WHERE replay_of_run_id IS NOT NULL;
 
--- Konusma dal isaretcisi. Yabanci anahtar YOKTUR; gerekce PostgreSQL 0023'te.
+-- Conversation branch pointer. There is NO foreign key; rationale in PostgreSQL 0023.
 ALTER TABLE {schema}conversations ADD COLUMN parent_conversation_id TEXT NULL;
 ALTER TABLE {schema}conversations ADD COLUMN branch_from_seq INTEGER NULL;
 

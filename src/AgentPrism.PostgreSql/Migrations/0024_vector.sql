@@ -1,16 +1,16 @@
 -- ---------------------------------------------------------------------------
--- 0024 — Vektor tabanli anlamsal arama (Faz 51, Is B)
+-- 0024 — Vector based semantic search (phase 51, work item B)
 --
--- Yalniz PostgreSQL: gerekce docs/51-VEKTOR-BELLEK-VE-RAG.md, 51.3.
--- Uzanti + tek tablo + HNSW indeksi.
+-- PostgreSQL only: rationale docs/51-VEKTOR-BELLEK-VE-RAG.md, 51.3.
+-- Extension + one table + an HNSW index.
 --
--- 🚨 {dimension} bir SABIT SEMA YER TUTUCUSU DEGILDIR (schema gibi degil):
--- kurulum aninda AgentPrismKnowledgeOptions.Dimensions'tan gelir ve MigrationRunner
--- tarafindan SqlStoreContext.MigrationTemplateValues ile degistirilir. Bu
--- migration UYGULANDIKTAN SONRA boyutu degistirmek yeni bir migration ister;
--- checksum ham (degistirilmemis) metin uzerinden hesaplandigi icin farkli bir
--- Dimensions degeriyle yeniden calistirmak checksum uyusmazligi vermez ama
--- var olan sutunun boyutunu da DEGISTIRMEZ — operator bunu bilinçli yapmalidir.
+-- 🚨 {dimension} IS NOT A FIXED SCHEMA PLACEHOLDER (not like schema): it comes
+-- from AgentPrismKnowledgeOptions.Dimensions at setup time and MigrationRunner
+-- replaces it with SqlStoreContext.MigrationTemplateValues. Changing the
+-- dimension AFTER this migration IS APPLIED needs a new migration; because the
+-- checksum is computed over the raw (unreplaced) text, running it again with a
+-- different Dimensions value gives no checksum mismatch but ALSO DOES NOT CHANGE
+-- the size of the existing column — the operator must do this deliberately.
 -- ---------------------------------------------------------------------------
 
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -22,27 +22,27 @@ CREATE TABLE IF NOT EXISTS {schema}.document_embeddings (
     source_id   text          NOT NULL,
     chunk_index integer       NOT NULL,
     content     text          NOT NULL,
-    -- 🚨 jsonb, json DEGIL: duz string->string sozluk, polimorfik ChatMessage
-    -- TASIMAZ (K-027'nin sarti burada gecerli degil); indekslenebilirlik kazanc.
+    -- 🚨 jsonb, NOT json: a plain string->string dictionary, it CARRIES no
+    -- polymorphic ChatMessage (K-027 does not hold here); indexability is the gain.
     metadata    jsonb         NOT NULL DEFAULT '{}'::jsonb,
     embedding   vector({dimension}) NOT NULL,
     created_at  timestamptz   NOT NULL,
     CONSTRAINT document_embeddings_uq UNIQUE (tenant_id, collection, source_id, chunk_index)
 );
 
--- Kaynak yeniden yazilirken/silinirken kullanilir (DeleteSourceAsync, upsert).
+-- Used when a source is rewritten or deleted (DeleteSourceAsync, upsert).
 CREATE INDEX IF NOT EXISTS document_embeddings_tenant_collection_source_idx
     ON {schema}.document_embeddings (tenant_id, collection, source_id);
 
--- Koleksiyon listeleme (ListSourcesAsync).
+-- Collection listing (ListSourcesAsync).
 CREATE INDEX IF NOT EXISTS document_embeddings_tenant_collection_idx
     ON {schema}.document_embeddings (tenant_id, collection);
 
--- Kosinus mesafesi icin HNSW. Egitim gerektirmez, kucuk veride de calisir
--- (IVFFlat'in aksine) — bkz. 51, Acik Soru 3.
+-- HNSW for cosine distance. It needs no training and works on small data too
+-- (unlike IVFFlat) — see doc 51, open question 3.
 CREATE INDEX IF NOT EXISTS document_embeddings_hnsw_idx
     ON {schema}.document_embeddings USING hnsw (embedding vector_cosine_ops);
 
--- Saklama politikasi (RetentionTargets.DocumentEmbeddings) kiraci + zaman ile tarar.
+-- The retention policy (RetentionTargets.DocumentEmbeddings) scans by tenant + time.
 CREATE INDEX IF NOT EXISTS document_embeddings_tenant_created_idx
     ON {schema}.document_embeddings (tenant_id, created_at DESC);

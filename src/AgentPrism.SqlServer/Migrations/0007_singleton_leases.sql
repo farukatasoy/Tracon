@@ -1,7 +1,7 @@
--- Faz 42 -- tek yurutucu secimi kira tablosu.
+-- Phase 42 -- single executor election lease table.
 --
--- Gerekce icin PostgreSQL 0019_singleton_leases.sql'e bakin. Kiraci sutunu
--- YOKTUR: tek yurutucu secimi kurulum genelinde bir isletim kavramidir.
+-- For the rationale see PostgreSQL 0019_singleton_leases.sql. There is NO tenant
+-- column: single executor election is an operations concept for the installation.
 
 IF OBJECT_ID(N'{schema}.singleton_leases', N'U') IS NULL
 CREATE TABLE {schema}.singleton_leases (

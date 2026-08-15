@@ -1,6 +1,6 @@
--- Faz 45 -- uretimden eval vakasi terfisi (F-53).
+-- Phase 45 -- promotion of a production run to an eval case (F-53).
 --
--- Gerekce ve sutun anlamlari icin PostgreSQL 0022_eval_case_source.sql'e bakin.
+-- For the rationale and the column meanings see PostgreSQL 0022_eval_case_source.sql.
 
 IF COL_LENGTH(N'{schema}.eval_cases', N'source_run_id') IS NULL
 ALTER TABLE {schema}.eval_cases ADD source_run_id uniqueidentifier NULL;
@@ -11,11 +11,11 @@ ALTER TABLE {schema}.eval_cases ADD source_kind smallint NULL;
 IF COL_LENGTH(N'{schema}.eval_cases', N'promoted_at') IS NULL
 ALTER TABLE {schema}.eval_cases ADD promoted_at datetimeoffset NULL;
 
--- Kismi (filtreli) benzersiz indeks: source_run_id NULL olan (elle yazilmis)
--- satirlar kisitin disindadir. Sozdizimi PostgreSQL ile aynidir (K-178 devir notu).
+-- Partial (filtered) unique index: rows where source_run_id is NULL (written by
+-- hand) stay outside the constraint. The syntax is the same as PostgreSQL (K-178).
 --
--- 🚨 EXEC ile sarilir: source_run_id yukarida AYNI toplu islemde ALTER TABLE
--- ile eklenir; EXEC olmadan "Invalid column name" verir (bkz. 0003_tool_usage.sql).
+-- 🚨 Wrapped in EXEC: source_run_id is added above with ALTER TABLE in the SAME
+-- batch; without EXEC it gives "Invalid column name" (see 0003_tool_usage.sql).
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'eval_cases_source_run_uq' AND object_id = OBJECT_ID(N'{schema}.eval_cases'))
 EXEC(N'CREATE UNIQUE INDEX eval_cases_source_run_uq
     ON {schema}.eval_cases (suite_id, source_run_id)

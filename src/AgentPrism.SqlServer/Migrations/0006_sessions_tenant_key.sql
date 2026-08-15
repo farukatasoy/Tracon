@@ -1,12 +1,12 @@
 -- ---------------------------------------------------------------------------
--- 0006 — Oturum birincil anahtari kiraciyi da kapsar (Faz 41)
+-- 0006 — The session primary key also covers the tenant (phase 41)
 --
--- 🚨 GUVENLIK DUZELTMESI. Gerekce PostgreSQL 0018 ile aynidir: `sessions.id`
--- cagiran tarafindan verilir ve tek basina birincil anahtar oldugunda bir
--- kiraci baska bir kiracinin oturumunu uzerine yazabiliyordu.
+-- 🚨 SECURITY FIX. The rationale is the same as PostgreSQL 0018: `sessions.id`
+-- is given by the caller and while it was the primary key on its own, one tenant
+-- could overwrite the session of another tenant.
 --
--- Anahtar uzunlugu: nvarchar(200) + nvarchar(200) = 400 bayt; kumelenmis
--- indeks anahtari icin 900 bayt sinirinin altindadir.
+-- Key length: nvarchar(200) + nvarchar(200) = 400 bytes; below the 900 byte
+-- limit for a clustered index key.
 -- ---------------------------------------------------------------------------
 
 ALTER TABLE {schema}.sessions DROP CONSTRAINT sessions_pk;

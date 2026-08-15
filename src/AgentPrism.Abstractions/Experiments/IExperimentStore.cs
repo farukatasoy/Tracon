@@ -1,89 +1,92 @@
 namespace AgentPrism;
 
-/// <summary>A/B deneylerinin deposu.</summary>
+/// <summary>Defines the store for A/B experiments.</summary>
 public interface IExperimentStore
 {
-    /// <summary>Kiracinin tum deneylerini adina gore listeler.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Deneyler.</returns>
+    /// <summary>Lists all experiments for a tenant by name.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The experiments.</returns>
     ValueTask<IReadOnlyList<Experiment>> ListAsync(string tenantId, CancellationToken cancellationToken = default);
 
-    /// <summary>Adi verilen deneyi getirir.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="name">Deney adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Deney; yoksa <see langword="null"/>.</returns>
+    /// <summary>Gets the experiment with the specified name.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="name">The experiment name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The experiment, or <see langword="null"/> when it does not exist.</returns>
     ValueTask<Experiment?> GetAsync(string tenantId, string name, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Bu agent icin <see cref="ExperimentStatus.Running"/> durumunda olan deneyi getirir.
-    /// Yoksa <see langword="null"/>. Bir agent icin ayni anda en fazla bir calisan deney olabilir.
+    /// Gets the <see cref="ExperimentStatus.Running"/> experiment for an agent.
+    /// Returns <see langword="null"/> when none exists. An agent can have at most
+    /// one running experiment at a time.
     /// </summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="agentName">Agent adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Calisan deney; yoksa <see langword="null"/>.</returns>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="agentName">The agent name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The running experiment, or <see langword="null"/> when none exists.</returns>
     ValueTask<Experiment?> GetRunningAsync(string tenantId, string agentName, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Deneyi olusturur veya gunceller. Yalnizca <see cref="ExperimentStatus.Draft"/>
-    /// durumundaki bir deney guncellenebilir; baslatilmis bir deneyi guncellemeye
-    /// calismak <see cref="AgentPrismException"/> firlatir.
+    /// Creates or updates an experiment. Only an <see cref="ExperimentStatus.Draft"/>
+    /// experiment can be updated. Updating a started experiment throws an
+    /// <see cref="AgentPrismException"/>.
     /// </summary>
-    /// <param name="experiment">Kaydedilecek deney.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kaydedilen deney.</returns>
+    /// <param name="experiment">The experiment to save.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The saved experiment.</returns>
     ValueTask<Experiment> SaveAsync(Experiment experiment, CancellationToken cancellationToken = default);
 
-    /// <summary>Deneyi siler. Calisan bir deney silinemez; once durdurulmalidir.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="name">Deney adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Silme gerceklestiyse <see langword="true"/>.</returns>
+    /// <summary>Deletes an experiment. A running experiment must be stopped before deletion.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="name">The experiment name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> when deletion occurs.</returns>
     ValueTask<bool> DeleteAsync(string tenantId, string name, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Deneyi <see cref="ExperimentStatus.Running"/>'e gecirir. Ayni agent icin baska bir
-    /// calisan deney varsa <see cref="AgentPrismException"/> firlatir.
+    /// Moves the experiment to <see cref="ExperimentStatus.Running"/>. Throws an
+    /// <see cref="AgentPrismException"/> when another experiment runs for the same agent.
     /// </summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="name">Deney adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Guncellenmis deney.</returns>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="name">The experiment name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The updated experiment.</returns>
     ValueTask<Experiment> StartAsync(string tenantId, string name, CancellationToken cancellationToken = default);
 
-    /// <summary>Deneyi <see cref="ExperimentStatus.Stopped"/>'a gecirir.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="name">Deney adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Guncellenmis deney.</returns>
+    /// <summary>Moves the experiment to <see cref="ExperimentStatus.Stopped"/>.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="name">The experiment name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The updated experiment.</returns>
     ValueTask<Experiment> StopAsync(string tenantId, string name, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Butun kiracilardaki, <see cref="ExperimentStatus.Running"/> durumunda VE
-    /// <see cref="Experiment.Canary"/> tanimli deneyleri listeler.
+    /// Lists experiments across all tenants that are
+    /// <see cref="ExperimentStatus.Running"/> and define <see cref="Experiment.Canary"/>.
     /// </summary>
     /// <remarks>
-    /// Bir bakim islemidir (kanarya degerlendiricisi) ve <c>IPendingApprovalStore.ExpireAsync</c>
-    /// ile AYNI gerekceyle butun kiracilari tarar.
+    /// This is a maintenance operation for the canary evaluator. It scans all
+    /// tenants for the same reason as <c>IPendingApprovalStore.ExpireAsync</c>.
     /// </remarks>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kanarya kurali tanimli, calisan deneyler.</returns>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The running experiments that define a canary policy.</returns>
     ValueTask<IReadOnlyList<Experiment>> ListRunningWithCanaryAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Deneyin kanarya kuralini tanimlar veya kaldirir (<paramref name="policy"/> <see langword="null"/>).
+    /// Defines or removes an experiment canary policy. Pass
+    /// <see langword="null"/> for <paramref name="policy"/> to remove it.
     /// </summary>
     /// <remarks>
-    /// <see cref="SaveAsync"/>'in aksine deneyin durumundan BAGIMSIZ calisir (Draft
-    /// veya Running) — bir kanarya kurali, deney zaten trafik alirken de tanimlanabilir.
+    /// Unlike <see cref="SaveAsync"/>, this method works regardless of experiment
+    /// status, Draft or Running. A canary policy can be defined while an experiment
+    /// already receives traffic.
     /// </remarks>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="name">Deney adi.</param>
-    /// <param name="policy">Yeni kural; kaldirmak icin <see langword="null"/>.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Guncellenmis deney.</returns>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="name">The experiment name.</param>
+    /// <param name="policy">The new policy, or <see langword="null"/> to remove it.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The updated experiment.</returns>
     ValueTask<Experiment> SetCanaryPolicyAsync(
         string tenantId,
         string name,
@@ -91,15 +94,15 @@ public interface IExperimentStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Kanarya degerlendiricisinin kademeli artirma kararini uygular: deney
-    /// <see cref="ExperimentStatus.Running"/>'de kalir, yalnizca kol agirliklari
-    /// degisir. Yalnizca kanarya degerlendirme servisi tarafindan cagrilir.
+    /// Applies a gradual-increase decision from the canary evaluator. The
+    /// experiment remains <see cref="ExperimentStatus.Running"/> and only variant
+    /// weights change. Only the canary evaluation service calls this method.
     /// </summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="name">Deney adi.</param>
-    /// <param name="variants">Yeni kol agirliklari. Toplam 100 olmalidir.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Guncellenmis deney.</returns>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="name">The experiment name.</param>
+    /// <param name="variants">The new variant weights. They must total 100.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The updated experiment.</returns>
     ValueTask<Experiment> AdvanceCanaryRampAsync(
         string tenantId,
         string name,
@@ -107,22 +110,21 @@ public interface IExperimentStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Kanarya degerlendiricisinin otomatik geri alma kararini uygular: deneyi
-    /// <see cref="ExperimentStatus.Stopped"/>'a gecirir, agirliklari kontrol koluna
-    /// dondurur ve <see cref="Experiment.RollbackReason"/> yazar.
+    /// Applies an automatic rollback decision from the canary evaluator. It moves
+    /// the experiment to <see cref="ExperimentStatus.Stopped"/>, restores weights
+    /// to the control variant, and writes <see cref="Experiment.RollbackReason"/>.
     /// </summary>
     /// <remarks>
-    /// 🚨 K-089 emsali: caginan taraf (kanarya degerlendirme servisi) bu metodu
-    /// cagirmadan ONCE denetim izine yazmis olmalidir; yazma basarisiz olursa bu
-    /// metot hic cagrilmamalidir — "denetim izine yazilamayan bir geri alma
-    /// uygulanmaz".
+    /// 🚨 Following K-089, the caller, the canary evaluation service, must write
+    /// the audit trail before calling this method. If that write fails, it must
+    /// not call this method: a rollback that cannot be audited is not applied.
     /// </remarks>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="name">Deney adi.</param>
-    /// <param name="variants">Kontrol koluna dondurulmus agirliklar. Toplam 100 olmalidir.</param>
-    /// <param name="reason">Geri alma nedeni.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Guncellenmis deney.</returns>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="name">The experiment name.</param>
+    /// <param name="variants">The weights restored to the control variant. They must total 100.</param>
+    /// <param name="reason">The rollback reason.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The updated experiment.</returns>
     ValueTask<Experiment> RollbackCanaryAsync(
         string tenantId,
         string name,

@@ -37,7 +37,7 @@ public sealed class OpenAICompatibleProviderExtensionsTests
         var exception = Should.Throw<ArgumentException>(
             () => builder.UseOpenAICompatible(name, o => o.Endpoint = OpenRouterEndpoint));
 
-        exception.Message.ShouldContain("rezerve");
+        exception.Message.ShouldContain("reserved");
     }
 
     [Theory]

@@ -1,10 +1,10 @@
--- Faz 42 -- tek yurutucu secimi kira tablosu.
+-- Phase 42 -- single executor election lease table.
 --
--- Gerekce icin PostgreSQL 0019_singleton_leases.sql'e bakin. Kiraci sutunu
--- YOKTUR: tek yurutucu secimi kurulum genelinde bir isletim kavramidir.
+-- For the rationale see PostgreSQL 0019_singleton_leases.sql. There is NO tenant
+-- column: single executor election is an operations concept for the installation.
 --
--- 🚨 Tablo adi ONEK tasir (K-193): SQLite'ta nesne adlari veritabani
--- genelinde tek ad alanini paylasir. Bu tabloda indeks yoktur.
+-- 🚨 The table name carries the PREFIX (K-193): in SQLite object names share a
+-- single database wide namespace. This table has no index.
 
 CREATE TABLE IF NOT EXISTS {schema}singleton_leases (
     name       TEXT NOT NULL PRIMARY KEY,

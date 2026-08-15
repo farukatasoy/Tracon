@@ -1,15 +1,15 @@
--- Faz 31 -- calistirma ve mesaj basina insan (veya yargic) puani.
+-- Phase 31 -- human (or judge) score per run and per message.
 --
--- Gerekce ve sutun anlamlari icin PostgreSQL 0017_run_scores.sql'e bakin.
+-- For the rationale and the column meanings see PostgreSQL 0017_run_scores.sql.
 --
--- 🚨 NULL benzersizligi SQL Server'da TERS calisir (K-184): bir UNIQUE
--- indeks NULL'lari BIRBIRINE ESIT sayar (PostgreSQL'in aksine). Bu, message_id
--- icin TAM istedigimiz davranistir (COALESCE gerekmez) ama author icin
--- TERSIDIR: author NULL oldugunda (kimliksiz kurulum) her cagrinin YENI bir
--- satir acmasi istenir, iki NULL'un CATISMASI degil. Cozum: indeks
--- `WHERE author IS NOT NULL` ile FILTRELENIR -- author NULL oldugunda indeks
--- hic devreye girmez ve UPDATE dalinin `author = @author` karsilastirmasi
--- (NULL ile hicbir zaman eslesmeyen bir UNKNOWN) zaten INSERT'e duser.
+-- 🚨 NULL uniqueness works the OTHER WAY on SQL Server (K-184): a UNIQUE index
+-- treats NULLs as EQUAL TO EACH OTHER (unlike PostgreSQL). That is EXACTLY the
+-- behaviour we want for message_id (no COALESCE needed) but it is the OPPOSITE
+-- for author: when author is NULL (an installation without identity) every call
+-- should open a NEW row, not CLASH with the other NULL. The fix: the index is
+-- FILTERED with `WHERE author IS NOT NULL` -- when author is NULL the index never
+-- takes effect and the `author = @author` comparison of the UPDATE branch (an
+-- UNKNOWN that never matches NULL) falls to INSERT anyway.
 
 IF OBJECT_ID(N'{schema}.run_scores', N'U') IS NULL
 CREATE TABLE {schema}.run_scores (

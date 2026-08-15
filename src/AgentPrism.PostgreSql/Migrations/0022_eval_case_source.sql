@@ -1,16 +1,16 @@
 -- ---------------------------------------------------------------------------
--- 0022 — Uretimden eval vakasi terfisi (Faz 45, F-53)
+-- 0022 — Promotion of a production run to an eval case (phase 45, F-53)
 --
--- Bir uretim calistirmasini (basarisiz, olumsuz puanlanmis veya referans
--- olarak basarili) tek istekle bir eval vakasina terfi ettirmenin kokeni.
+-- The origin of promoting a production run (failed, scored negatively, or
+-- successful as a reference) to an eval case with a single request.
 --
--- source_run_id yabanci anahtar TASIMAZ: kaynak calistirma saklama suresiyle
--- silinse bile vaka anlasilir kalmalidir (0009_eval.sql'deki eval_case_results
--- ile ayni append-only gerekce, docs/45-URETIMDEN-EVAL-KUMESI.md bolum 45.5).
+-- source_run_id CARRIES NO foreign key: even if the source run is deleted by the
+-- retention period the case must stay understandable (the same append-only
+-- reason as eval_case_results in 0009_eval.sql, docs/45-URETIMDEN-EVAL-KUMESI.md 45.5).
 --
--- Kismi benzersiz indeks ayni calistirmanin ayni takima iki kez terfi
--- edilmesini engeller; elle yazilmis vakalar source_run_id = NULL tasir ve
--- kisittan etkilenmez.
+-- The partial unique index stops the same run from being promoted to the same
+-- suite twice; cases written by hand carry source_run_id = NULL and the
+-- constraint does not affect them.
 -- ---------------------------------------------------------------------------
 
 ALTER TABLE {schema}.eval_cases ADD COLUMN IF NOT EXISTS source_run_id uuid;

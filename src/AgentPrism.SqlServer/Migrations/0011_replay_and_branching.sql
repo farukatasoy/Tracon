@@ -1,11 +1,11 @@
--- Faz 47 -- yeniden oynatma ve konusma dallandirma.
+-- Phase 47 -- replay and conversation branching.
 --
--- Gerekce ve sutun anlamlari icin PostgreSQL 0023_replay_and_branching.sql'e
--- bakin.
+-- For the rationale and the column meanings see PostgreSQL
+-- 0023_replay_and_branching.sql.
 --
--- 🚨 `messages` sutunu nvarchar(max)'tir ve ISJSON kisiti TASIMAZ: polimorfik
--- yuk PostgreSQL'de de `json` (jsonb DEGIL) olarak saklanir ve anahtar sirasi
--- korunmalidir. Davranis esitligi icin burada da dogrulama yapilmaz.
+-- 🚨 The `messages` column is nvarchar(max) and CARRIES NO ISJSON constraint: the
+-- polymorphic payload is stored as `json` (NOT jsonb) in PostgreSQL too and the
+-- key order must be kept. For behaviour equality no validation is done here either.
 
 IF OBJECT_ID(N'{schema}.run_inputs', N'U') IS NULL
 CREATE TABLE {schema}.run_inputs (
@@ -22,31 +22,31 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'run_inputs_tenant_create
 CREATE INDEX run_inputs_tenant_created_idx
     ON {schema}.run_inputs (tenant_id, created_at DESC);
 
--- Yeniden oynatma soy bagi. Sutun SONA eklenir; okuyucu sabit sutun indeksi
--- kullanir.
+-- Replay lineage. The column is added AT THE END; the reader uses fixed column
+-- indexes.
 IF COL_LENGTH(N'{schema}.runs', N'replay_of_run_id') IS NULL
 ALTER TABLE {schema}.runs ADD replay_of_run_id uniqueidentifier NULL;
 
--- 🚨 EXEC ile sarilir: replay_of_run_id yukarida AYNI toplu islemde ALTER
--- TABLE ile eklenir; EXEC olmadan "Invalid column name" verir (bkz. 0003_tool_usage.sql).
+-- 🚨 Wrapped in EXEC: replay_of_run_id is added above with ALTER TABLE in the
+-- SAME batch; without EXEC it gives "Invalid column name" (see 0003_tool_usage.sql).
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'runs_replay_of_idx' AND object_id = OBJECT_ID(N'{schema}.runs'))
 EXEC(N'CREATE INDEX runs_replay_of_idx
     ON {schema}.runs (tenant_id, replay_of_run_id)
     WHERE replay_of_run_id IS NOT NULL;');
 
--- Konusma dal isaretcisi.
+-- Conversation branch pointer.
 --
--- 🚨 Yabanci anahtar YOKTUR; gerekce ve olculen SQL Server kisiti (hata 1785)
--- PostgreSQL 0023'te yazilidir. Isaretci yalnizca koken bilgisidir ve hicbir
--- okuma yolunda JOIN'lenmez.
+-- 🚨 THERE IS NO foreign key; the rationale and the measured SQL Server limit
+-- (error 1785) are written in PostgreSQL 0023. The pointer is only origin
+-- information and is never JOINed on any read path.
 IF COL_LENGTH(N'{schema}.conversations', N'parent_conversation_id') IS NULL
 ALTER TABLE {schema}.conversations ADD parent_conversation_id uniqueidentifier NULL;
 
 IF COL_LENGTH(N'{schema}.conversations', N'branch_from_seq') IS NULL
 ALTER TABLE {schema}.conversations ADD branch_from_seq bigint NULL;
 
--- 🚨 EXEC ile sarilir: parent_conversation_id yukarida AYNI toplu islemde
--- ALTER TABLE ile eklenir; EXEC olmadan "Invalid column name" verir (bkz. 0003_tool_usage.sql).
+-- 🚨 Wrapped in EXEC: parent_conversation_id is added above with ALTER TABLE in
+-- the SAME batch; without EXEC it gives "Invalid column name" (see 0003_tool_usage.sql).
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'conversations_parent_idx' AND object_id = OBJECT_ID(N'{schema}.conversations'))
 EXEC(N'CREATE INDEX conversations_parent_idx
     ON {schema}.conversations (parent_conversation_id)

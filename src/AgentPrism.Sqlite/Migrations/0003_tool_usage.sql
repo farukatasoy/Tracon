@@ -1,18 +1,18 @@
--- Faz 28 -- tool cagrisi basina token DISI olcum ve maliyet.
+-- Phase 28 -- NON token usage and cost per tool call.
 --
--- Gerekce ve sutun anlamlari icin PostgreSQL 0015_tool_usage.sql'e bakin.
+-- For the rationale and the column meanings see PostgreSQL 0015_tool_usage.sql.
 --
--- SQLite'ta `ALTER TABLE ... ADD COLUMN` icin `IF NOT EXISTS` YOKTUR. Guvenlik
--- migration kosucusundan gelir: uygulanmis migration'lar kaydedilir ve ayni
--- dosya ikinci kez calistirilmaz.
+-- SQLite has no `IF NOT EXISTS` for `ALTER TABLE ... ADD COLUMN`. Safety comes
+-- from the migration runner: applied migrations are recorded and the same file
+-- is not run a second time.
 --
--- `decimal` icin ozel islem gerekmez: surucu her zaman TEXT yazar ve kulturden
--- bagimsizdir (SQL Server'in Precision/Scale zorunlulugu burada YOKTUR).
+-- `decimal` needs no special handling: the driver always writes TEXT and is
+-- culture independent (the Precision/Scale duty of SQL Server IS ABSENT here).
 --
--- 🚨 Indeks adi TABLO ONEKINI tasir (K-193): SQLite'ta indeks adlari veritabani
--- genelinde tek ad alanini paylasir. Onek yazilmazsa ayni `.db` dosyasini
--- paylasan iki farkli TablePrefix degeri catisir ve ikinci indeks SESSIZCE
--- atlanir.
+-- 🚨 The index name carries the TABLE PREFIX (K-193): in SQLite index names
+-- share a single database wide namespace. Without the prefix two different
+-- TablePrefix values that share the same `.db` file clash and the second index
+-- is SILENTLY skipped.
 
 ALTER TABLE {schema}tool_invocations ADD COLUMN usage_unit      TEXT    NULL;
 ALTER TABLE {schema}tool_invocations ADD COLUMN usage_quantity  TEXT    NULL;
