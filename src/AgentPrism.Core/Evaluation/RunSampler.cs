@@ -6,22 +6,19 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Tamamlanan bir calistirmayi cevrimici degerlendirme icin orneklemeye karar
-/// verir ve orneklenirse <see cref="JobKind.OnlineEval"/> isini kuyruga yazar —
-/// Faz 49.
+/// Decides whether to sample a completed run for online evaluation and, when
+/// sampled, queues a <see cref="JobKind.OnlineEval"/> job — phase 49.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 Sadece kuyruga <strong>yazma</strong> burada olur; gercek yargic cagrisi
-/// (para harcayan islem) <see cref="OnlineEvalJobHandler"/>'da, arka planda
-/// yapilir. Bu tasarim <see cref="WebhookPublisher"/> ile aynidir: ana
-/// calistirma yolu yalniz hizli bir kuyruk yazimi kadar yavaslar, yavas veya
-/// erisilemeyen bir yargicin etkisi hic hissedilmez.
+/// 🚨 This class only <strong>writes to the queue</strong>. The actual judge call,
+/// which spends money, runs in the background through <see cref="OnlineEvalJobHandler"/>.
+/// Like <see cref="WebhookPublisher"/>, it slows the main run path only by a fast
+/// queue write, so a slow or unreachable judge has no impact.
 /// </para>
 /// <para>
-/// <see cref="RunRecordingAgent"/> bu cagriyi <c>try/catch</c> ile sarar:
-/// orneklemenin hatasi calistirmayi ETKILEMEZ (gozlemlenebilirlik islevselligi
-/// bozmaz kurali).
+/// <see cref="RunRecordingAgent"/> wraps this call in <c>try/catch</c>. A sampling
+/// failure does not affect the run, as required by the observability rule.
 /// </para>
 /// </remarks>
 public sealed class RunSampler(
@@ -33,10 +30,10 @@ public sealed class RunSampler(
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
     private readonly ConcurrentDictionary<string, HourlyWindow> _windows = new(StringComparer.Ordinal);
 
-    /// <summary>Bir calistirmayi orneklemeyi degerlendirir ve gerekiyorsa kuyruga yazar.</summary>
-    /// <param name="request">Orneklenecek calistirmanin ozeti.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Is kuyruga yazildiysa <see langword="true"/>.</returns>
+    /// <summary>Evaluates a run for sampling and queues it when required.</summary>
+    /// <param name="request">The summary of the run to sample.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> when a job was queued.</returns>
     public async ValueTask<bool> SampleAsync(RunSampleRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -48,11 +45,10 @@ public sealed class RunSampler(
             return false;
         }
 
-        // Eval calistirmalari (yargicin KENDI cagrilari dahil) sentetik trafiktir
-        // ve sonsuz donguyu burada keser. Basarisiz calistirmalar hata
-        // siniflandirmanin isidir; yargic bir hatayi puanlayamaz. Alt calistirma
-        // zaten cagirandan (RunRecordingAgent, Depth == 0 kontrolu) buraya hic
-        // ulasmaz.
+        // Evaluation runs, including the judge's own calls, are synthetic traffic
+        // and stop the infinite loop here. Failed runs belong to error classification;
+        // a judge cannot score an error. Child runs do not reach here because the
+        // caller, RunRecordingAgent, checks Depth == 0.
         if (request.Kind == RunKind.Eval || request.Status != RunStatus.Completed)
         {
             return false;
@@ -79,10 +75,9 @@ public sealed class RunSampler(
             var now = _clock.GetUtcNow();
             var runIdText = request.RunId.ToString();
 
-            // 🚨 Payload ATANMALIDIR (K-166): atanmazsa JsonElement `default`
-            // kalir ve /api/jobs listesinin tamami 500 ile doner. Webhook
-            // teslim isinin ayni sekli (string[]) paylasilir; ikinci bir
-            // JsonSerializerContext acmaya gerek yoktur.
+            // 🚨 Payload must be assigned (K-166). Otherwise JsonElement remains
+            // `default` and the complete /api/jobs list returns 500. It shares the
+            // webhook-delivery job shape, string[], so a second JsonSerializerContext is unnecessary.
             var payload = JsonSerializer.SerializeToElement(
                 new[] { runIdText },
                 WebhookJobPayloadJsonContext.Default.StringArray);
@@ -110,7 +105,7 @@ public sealed class RunSampler(
             {
                 logger.LogWarning(
                     exception,
-                    "Cevrimici degerlendirme isi kuyruga yazilamadi: calistirma={RunId} kiraci={TenantId}.",
+                    "The online evaluation job could not be queued: run={RunId} tenant={TenantId}.",
                     request.RunId,
                     request.TenantId);
             }
@@ -120,13 +115,12 @@ public sealed class RunSampler(
     }
 
     /// <summary>
-    /// Bir calistirmanin orneklenip orneklenmeyecegine calistirma kimliginden
-    /// deterministik olarak karar verir.
+    /// Deterministically decides whether to sample a run from its identifier.
     /// </summary>
     /// <remarks>
-    /// <see cref="HashCode"/> KASITLI OLARAK kullanilmaz: her surec baslatiminda
-    /// farkli bir tuzla sonuc uretir ve "ayni calistirma hep ayni karari alir"
-    /// garantisini bozar. FNV-1a surec/tuz BAGIMSIZDIR.
+    /// <see cref="HashCode"/> is deliberately not used because it produces a
+    /// differently salted result for each process start and breaks the guarantee
+    /// that the same run always receives the same decision. FNV-1a is process- and salt-independent.
     /// </remarks>
     private static bool IsSampled(Guid runId, double sampleRate)
     {
@@ -146,21 +140,21 @@ public sealed class RunSampler(
             hash *= 1099511628211UL;
         }
 
-        // Ust 53 bit, bir double'in kayipsiz tasiyabildigi tamsayi araligidir;
-        // [0, 1) araliginda esit dagilimli bir kesir uretir.
+        // The upper 53 bits are the integer range a double can represent exactly.
+        // They produce a uniformly distributed fraction in [0, 1).
         var fraction = (hash >> 11) * (1.0 / (1UL << 53));
 
         return fraction < sampleRate;
     }
 
     /// <summary>
-    /// Bir kiracinin bu saatteki orneklem butcesinden bir birim duser.
+    /// Consumes one unit from a tenant's sampling budget for the current hour.
     /// </summary>
     /// <remarks>
-    /// Bellek ici, sabit (kaydirmali degil) saatlik penceredir — orneklemenin
-    /// oranin hesap hatasina karsi IKINCI savunmasidir, kesin bir hiz sinirlayici
-    /// degildir. Surec yeniden baslatilinca butce sifirlanir; bu kabul edilen
-    /// bir davranistir (K1: sadelik, sürekli bir sayaç deposu gerekmez).
+    /// This is an in-memory, fixed rather than sliding hourly window. It is a
+    /// second defense against sampling-rate calculation errors, not a precise rate
+    /// limiter. The budget resets after a process restart, which is accepted by K1:
+    /// simplicity does not require a durable counter store.
     /// </remarks>
     private bool TryConsumeHourlyBudget(string tenantId, int maxPerHour)
     {
@@ -198,21 +192,21 @@ public sealed class RunSampler(
     }
 }
 
-/// <summary>Ornekleme karari icin gereken calistirma ozeti.</summary>
+/// <summary>Represents the run summary required for a sampling decision.</summary>
 public sealed record RunSampleRequest
 {
-    /// <summary>Calistirma kimligi.</summary>
+    /// <summary>Gets the run identifier.</summary>
     public required Guid RunId { get; init; }
 
-    /// <summary>Kiraci kimligi.</summary>
+    /// <summary>Gets the tenant identifier.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Calistirilan agent'in adi.</summary>
+    /// <summary>Gets the executed agent name.</summary>
     public required string AgentName { get; init; }
 
-    /// <summary>Calistirma turu. <see cref="RunKind.Eval"/> hic orneklenmez.</summary>
+    /// <summary>Gets the run kind. <see cref="RunKind.Eval"/> is never sampled.</summary>
     public required RunKind Kind { get; init; }
 
-    /// <summary>Son durum. Yalnizca <see cref="RunStatus.Completed"/> orneklenir.</summary>
+    /// <summary>Gets the final status. Only <see cref="RunStatus.Completed"/> is sampled.</summary>
     public required RunStatus Status { get; init; }
 }

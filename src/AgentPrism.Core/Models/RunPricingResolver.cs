@@ -3,28 +3,26 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="IRunPricingResolver"/>'in varsayilan uygulamasi. Fiyat sirasi:
-/// model kataloğu, sonra <c>AgentPrism:Pricing</c> yapilandirmasi (karar K-032).
+/// Provides the default <see cref="IRunPricingResolver"/> implementation. It
+/// resolves prices from the model catalog, then <c>AgentPrism:Pricing</c> configuration (K-032).
 /// </summary>
 /// <remarks>
-/// Saglayici verilmediginde (gecmis bir satirin yeniden hesaplanmasi — <c>runs</c>
-/// tablosu saglayici tasimaz) her iki kaynakta da modelin adiyla eslesen
-/// <strong>ilk</strong> saglayici kullanilir;
-/// <see cref="IModelProviderRegistry.List"/> zaten saglayici adina gore
-/// alfabetik siralar. Ayni model adi birden fazla saglayicida farkli fiyatla
-/// tanimliysa bu, bilinen ve kabul edilmis bir sinirlamadir (bkz.
-/// <c>docs/KARARLAR.md</c> K-154) — <c>runs</c> tablosuna bir saglayici sutunu
-/// eklenmedigi surece cozulemez.
+/// When no provider is supplied, such as during historical recalculation, the
+/// first provider that has the model name is used from either source. The
+/// <c>runs</c> table has no provider column and <see cref="IModelProviderRegistry.List"/>
+/// already orders providers alphabetically. Different prices for a same-named
+/// model across providers are a known, accepted limitation (see K-154); it
+/// cannot be resolved without adding a provider column to <c>runs</c>.
 /// </remarks>
 public sealed class RunPricingResolver : IRunPricingResolver
 {
     private readonly IModelProviderRegistry _registry;
     private readonly IOptions<AgentPrismOptions> _options;
 
-    /// <summary>Yeni bir fiyat cozumleyici olusturur.</summary>
-    /// <param name="registry">Model kataloğu.</param>
-    /// <param name="options">AgentPrism ayarlari (<c>Pricing</c> bolumu).</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Initializes a price resolver.</summary>
+    /// <param name="registry">The model catalog.</param>
+    /// <param name="options">The AgentPrism options and <c>Pricing</c> section.</param>
+    /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
     public RunPricingResolver(IModelProviderRegistry registry, IOptions<AgentPrismOptions> options)
     {
         ArgumentNullException.ThrowIfNull(registry);
@@ -105,8 +103,8 @@ public sealed class RunPricingResolver : IRunPricingResolver
                 : null;
         }
 
-        // Saglayici bilinmiyor (yeniden hesaplama): saglayici adlarini
-        // alfabetik sirayla dolasip modelin adiyla eslesen ilkini kullan.
+        // The provider is unknown during recalculation. Visit provider names in
+        // alphabetical order and use the first one that contains the model name.
         foreach (var providerName in pricing.Providers.Keys.OrderBy(static name => name, StringComparer.OrdinalIgnoreCase))
         {
             if (pricing.Providers[providerName].TryGetValue(model, out var configured))

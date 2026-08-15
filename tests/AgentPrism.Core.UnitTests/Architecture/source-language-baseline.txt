@@ -148,7 +148,6 @@ src/AgentPrism.Core/Coordination/InMemorySingletonLeaseStore.cs|7
 src/AgentPrism.Core/Coordination/SingletonExecutionOptionsValidator.cs|3
 src/AgentPrism.Core/Coordination/SingletonGuard.cs|26
 src/AgentPrism.Core/Diagnostics/AgentPrismDiagnostics.cs|37
-src/AgentPrism.Core/Diagnostics/AgentPrismDiagnosticsCollector.cs|25
 src/AgentPrism.Core/Diagnostics/AgentPrismMetrics.cs|49
 src/AgentPrism.Core/Diagnostics/OpenTelemetryAgentDecorator.cs|9
 src/AgentPrism.Core/Diagnostics/RunTraceCollector.cs|39
@@ -161,10 +160,8 @@ src/AgentPrism.Core/Evaluation/InMemoryEvalStore.cs|2
 src/AgentPrism.Core/Evaluation/ModelRunJudge.cs|28
 src/AgentPrism.Core/Evaluation/ModelRunJudgeOptions.cs|7
 src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs|32
-src/AgentPrism.Core/Evaluation/OnlineEvalSummaryService.cs|24
 src/AgentPrism.Core/Evaluation/OnlineEvaluationOptions.cs|22
 src/AgentPrism.Core/Evaluation/OnlineEvaluationOptionsValidator.cs|7
-src/AgentPrism.Core/Evaluation/RunSampler.cs|38
 src/AgentPrism.Core/Evaluation/RunToCasePromoter.cs|34
 src/AgentPrism.Core/Experiments/CanaryEvaluationService.cs|23
 src/AgentPrism.Core/Experiments/CanaryEvaluator.cs|9
@@ -197,8 +194,6 @@ src/AgentPrism.Core/Models/ModelProviderCircuitBreaker.cs|37
 src/AgentPrism.Core/Models/ModelProviderHealthBackgroundService.cs|8
 src/AgentPrism.Core/Models/ModelProviderHealthCache.cs|29
 src/AgentPrism.Core/Models/ModelProviderRegistry.cs|44
-src/AgentPrism.Core/Models/RunPricingResolver.cs|13
-src/AgentPrism.Core/Quotas/AgentPrismQuotaOptions.cs|21
 src/AgentPrism.Core/Quotas/AgentPrismQuotaOptionsValidator.cs|7
 src/AgentPrism.Core/Quotas/AgentPrismRateLimitOptions.cs|15
 src/AgentPrism.Core/Quotas/InMemoryQuotaStore.cs|12
