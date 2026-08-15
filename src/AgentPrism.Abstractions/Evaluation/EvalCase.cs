@@ -1,41 +1,41 @@
 namespace AgentPrism;
 
-/// <summary>Bir <see cref="EvalSuite"/> icindeki tek bir test vakasi.</summary>
+/// <summary>A single test case inside an <see cref="EvalSuite"/>.</summary>
 public sealed record EvalCase
 {
-    /// <summary>Vaka kimligi.</summary>
+    /// <summary>The case identifier.</summary>
     public Guid Id { get; init; }
 
-    /// <summary>Ait oldugu takimin kimligi.</summary>
+    /// <summary>The identifier of the suite this case belongs to.</summary>
     public required Guid SuiteId { get; init; }
 
-    /// <summary>Takim icindeki sira numarasi (0'dan baslar).</summary>
+    /// <summary>The sequence number within the suite (starts at 0).</summary>
     public required int Seq { get; init; }
 
-    /// <summary>Agent'a gonderilecek sorgu metni.</summary>
+    /// <summary>The query text sent to the agent.</summary>
     public required string Query { get; init; }
 
     /// <summary>
-    /// Beklenen cikti. <c>containsExpected</c> denetiminde referans alinir.
+    /// The expected output. Referenced by the <c>containsExpected</c> check.
     /// </summary>
     public string? ExpectedOutput { get; init; }
 
     /// <summary>
-    /// <c>toolCalled</c> denetiminde aranan tool adlari. Bos liste, denetimin
-    /// tum tool cagrilarini kabul edecegi anlamina gelmez — denetim yine de
-    /// suite'in <c>checks</c> alaninda ayri ayri tanimlanir.
+    /// The tool names looked up by the <c>toolCalled</c> check. An empty list
+    /// does not mean the check accepts any tool call — the check is still
+    /// defined separately in the suite's <c>checks</c> field.
     /// </summary>
     public IReadOnlyList<string> ExpectedTools { get; init; } = [];
 
-    /// <summary>Modele ek baglam olarak verilecek metin.</summary>
+    /// <summary>Text given to the model as extra context.</summary>
     public string? Context { get; init; }
 
-    /// <summary>Vakanin uretildigi calistirma. Elle yazildiysa <see langword="null"/>.</summary>
+    /// <summary>The run the case was generated from. <see langword="null"/> when hand-written.</summary>
     public Guid? SourceRunId { get; init; }
 
-    /// <summary>Terfi sebebi. Elle yazildiysa <see langword="null"/>.</summary>
+    /// <summary>The reason for promotion. <see langword="null"/> when hand-written.</summary>
     public EvalCaseSource? SourceKind { get; init; }
 
-    /// <summary>Terfi zamani. Elle yazildiysa <see langword="null"/>.</summary>
+    /// <summary>The promotion time. <see langword="null"/> when hand-written.</summary>
     public DateTimeOffset? PromotedAt { get; init; }
 }

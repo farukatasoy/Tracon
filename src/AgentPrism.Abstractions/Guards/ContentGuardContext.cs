@@ -1,45 +1,46 @@
 namespace AgentPrism;
 
-/// <summary>Bir icerik denetiminin yonu.</summary>
+/// <summary>The direction of a content guard check.</summary>
 /// <remarks>
-/// Deger JSON'a yazilmaz ve veritabaninda saklanmaz; yalnizca calistirma olayinin
-/// metninde ve denetim izinde ad olarak gorunur.
+/// The value is not written to JSON and not stored in the database; it only
+/// appears as a name in the run event's text and in the audit trail.
 /// </remarks>
 public enum ContentGuardDirection
 {
-    /// <summary>Modele giden icerik. Tool sonuclari da bu yondedir.</summary>
+    /// <summary>Content going to the model. Tool results are also this direction.</summary>
     Input = 0,
 
-    /// <summary>Modelden gelen icerik.</summary>
+    /// <summary>Content coming from the model.</summary>
     Output = 1,
 }
 
-/// <summary>Bir <see cref="IContentGuard"/> cagrisinin baglami.</summary>
+/// <summary>The context of an <see cref="IContentGuard"/> call.</summary>
 /// <remarks>
-/// Baglam <strong>tek bir metin parcasini</strong> tasir, bir mesaj listesini degil.
-/// Mesajlar birlestirilip tek metin olarak verilseydi iki mesajin sinirinda olusan
-/// sahte bir desen eslesirdi (ornek: bir mesaj <c>4539</c> ile bitip sonraki
-/// <c>5787…</c> ile baslarsa gecerli olmayan bir kart numarasi "bulunurdu").
+/// The context carries <strong>a single piece of text</strong>, not a message
+/// list. If messages were concatenated into one text, a false pattern could
+/// match at the boundary between two messages (example: if one message ends
+/// with <c>4539</c> and the next starts with <c>5787…</c>, an invalid card
+/// number would "be found").
 /// </remarks>
 public sealed record ContentGuardContext
 {
-    /// <summary>Denetimin yonu.</summary>
+    /// <summary>The direction of the check.</summary>
     public required ContentGuardDirection Direction { get; init; }
 
-    /// <summary>Denetlenecek metin.</summary>
+    /// <summary>The text to check.</summary>
     public required string Text { get; init; }
 
     /// <summary>
-    /// Calistirma kimligi. Calistirma kapsami disindan cagrilirsa <see langword="null"/>.
+    /// The run identifier. <see langword="null"/> if called outside a run's scope.
     /// </summary>
     public Guid? RunId { get; init; }
 
-    /// <summary>Calistirmanin kiracisi. Bilinmiyorsa <see langword="null"/>.</summary>
+    /// <summary>The run's tenant. <see langword="null"/> if unknown.</summary>
     public string? TenantId { get; init; }
 
-    /// <summary>Calistirmayi yuruten agent'in adi. Bilinmiyorsa <see langword="null"/>.</summary>
+    /// <summary>The name of the agent executing the run. <see langword="null"/> if unknown.</summary>
     public string? AgentName { get; init; }
 
-    /// <summary>Cagrilan modelin kimligi. Bilinmiyorsa <see langword="null"/>.</summary>
+    /// <summary>The identifier of the model being called. <see langword="null"/> if unknown.</summary>
     public string? ModelId { get; init; }
 }
