@@ -16,7 +16,6 @@ src/AgentPrism.Abstractions/Workflows/WorkflowDefinition.cs|29
 src/AgentPrism.Abstractions/Workflows/WorkflowDescriptor.cs|11
 src/AgentPrism.Abstractions/Workflows/WorkflowGraph.cs|30
 src/AgentPrism.Abstractions/Workflows/WorkflowKind.cs|13
-src/AgentPrism.Abstractions/Workflows/WorkflowPendingRequest.cs|35
 src/AgentPrism.Anthropic/AgentPrism.Anthropic.csproj|5
 src/AgentPrism.Anthropic/AnthropicChatClientFactory.cs|36
 src/AgentPrism.Anthropic/AnthropicModelCatalog.cs|12
@@ -124,12 +123,10 @@ src/AgentPrism.Core/Approvals/InMemoryPendingApprovalStore.cs|5
 src/AgentPrism.Core/Approvals/ToolApprovalAgentDecorator.cs|9
 src/AgentPrism.Core/Approvals/ToolApprovalRuleEvaluator.cs|25
 src/AgentPrism.Core/Attachments/AttachmentResolvingChatClient.cs|9
-src/AgentPrism.Core/Attachments/AttachmentTypeGuard.cs|32
 src/AgentPrism.Core/Attachments/AttachmentUriReference.cs|12
 src/AgentPrism.Core/Audit/AmbientAuditActorResolver.cs|3
 src/AgentPrism.Core/Audit/AuditActorContext.cs|10
 src/AgentPrism.Core/Audit/AuditRecorder.cs|12
-src/AgentPrism.Core/Audit/AuditSecretFilter.cs|14
 src/AgentPrism.Core/Audit/AuditingAgentDefinitionStore.cs|5
 src/AgentPrism.Core/Audit/AuditingExperimentStore.cs|12
 src/AgentPrism.Core/Audit/AuditingMcpServerStore.cs|5
@@ -146,7 +143,6 @@ src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs|179
 src/AgentPrism.Core/Compilation/AgentDefinitionValidator.cs|42
 src/AgentPrism.Core/Compilation/CompactionUsageTrackingChatClient.cs|7
 src/AgentPrism.Core/Compilation/CompiledAgentCache.cs|33
-src/AgentPrism.Core/Compilation/ObservedCompactionStrategy.cs|21
 src/AgentPrism.Core/Compilation/TenantPrefixingAgentFileStore.cs|17
 src/AgentPrism.Core/Coordination/InMemorySingletonLeaseStore.cs|7
 src/AgentPrism.Core/Coordination/SingletonExecutionOptionsValidator.cs|3
@@ -276,7 +272,6 @@ src/AgentPrism.Core/Tools/AgentPrismToolUsage.cs|10
 src/AgentPrism.Core/Tools/ToolMethodScanner.cs|25
 src/AgentPrism.Core/Tools/ToolRegistry.cs|11
 src/AgentPrism.Core/Voice/InMemoryVoiceSessionStore.cs|6
-src/AgentPrism.Core/Voice/VoiceConnectionLimiter.cs|21
 src/AgentPrism.Core/Voice/VoiceConversationBuilderExtensions.cs|18
 src/AgentPrism.Core/Voice/VoiceConversationStateMachine.cs|33
 src/AgentPrism.Core/Voice/VoiceSpeechSegmenter.cs|22
@@ -285,7 +280,6 @@ src/AgentPrism.Core/Webhooks/AgentPrismWebhookOptions.cs|25
 src/AgentPrism.Core/Webhooks/AgentPrismWebhookOptionsValidator.cs|8
 src/AgentPrism.Core/Webhooks/InMemoryWebhookStore.cs|3
 src/AgentPrism.Core/Webhooks/WebhookDeliveryJobHandler.cs|21
-src/AgentPrism.Core/Webhooks/WebhookHttpClient.cs|19
 src/AgentPrism.Core/Webhooks/WebhookPublisher.cs|11
 src/AgentPrism.Core/Webhooks/WebhookSigner.cs|15
 src/AgentPrism.Core/Webhooks/WebhookSocketGuard.cs|17
