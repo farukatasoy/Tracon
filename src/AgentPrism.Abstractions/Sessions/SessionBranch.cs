@@ -1,87 +1,89 @@
 namespace AgentPrism;
 
-/// <summary>Bir konusmayi belirli bir noktadan dallandirma istegi.</summary>
+/// <summary>A request to branch a conversation from a specific point.</summary>
 public sealed record SessionBranchRequest
 {
     /// <summary>
-    /// Dahil edilecek son ogenin sira numarasi (dahil). Verilmezse konusmanin
-    /// tamami kopyalanir.
+    /// The sequence number of the last item to include (inclusive). If not
+    /// given, the whole conversation is copied.
     /// </summary>
     /// <remarks>
-    /// <c>0</c> gecerli bir degerdir ve yalnizca ilk ogeyi tasiyan bir dal acar.
-    /// Negatif bir deger reddedilir.
+    /// <c>0</c> is a valid value and opens a branch carrying only the first
+    /// item. A negative value is rejected.
     /// </remarks>
     public long? UpToSequence { get; init; }
 
     /// <summary>
-    /// Acilacak yeni oturumun kimligi. Verilmezse uretilir.
+    /// The identifier of the new session to open. Generated if not given.
     /// </summary>
     /// <remarks>
-    /// Kimlik cagirandan gelirse ayni kimlikle var olan bir oturum <strong>uzerine
-    /// yazilmaz</strong>; istek reddedilir.
+    /// If the identifier comes from the caller, an existing session with the
+    /// same identifier is <strong>not overwritten</strong>; the request is rejected.
     /// </remarks>
     public string? NewSessionId { get; init; }
 }
 
-/// <summary>Dallandirma sonucu.</summary>
+/// <summary>The result of branching.</summary>
 public sealed record SessionBranchResult
 {
-    /// <summary>Yeni oturumun kimligi.</summary>
+    /// <summary>The new session's identifier.</summary>
     public required string SessionId { get; init; }
 
-    /// <summary>Yeni konusmanin kimligi.</summary>
+    /// <summary>The new conversation's identifier.</summary>
     public required Guid ConversationId { get; init; }
 
-    /// <summary>Kaynak oturumun kimligi.</summary>
+    /// <summary>The source session's identifier.</summary>
     public required string ParentSessionId { get; init; }
 
-    /// <summary>Kaynak konusmanin kimligi.</summary>
+    /// <summary>The source conversation's identifier.</summary>
     public required Guid ParentConversationId { get; init; }
 
     /// <summary>
-    /// Dal noktasi: yeni konusmaya kopyalanan son ogenin sira numarasi.
-    /// Hicbir oge kopyalanmadiysa <c>-1</c>.
+    /// The branch point: the sequence number of the last item copied to the
+    /// new conversation. <c>-1</c> if no item was copied.
     /// </summary>
     public required long BranchFromSequence { get; init; }
 
-    /// <summary>Kopyalanan oge sayisi.</summary>
+    /// <summary>The number of items copied.</summary>
     public required int CopiedItemCount { get; init; }
 }
 
 /// <summary>
-/// Bir konusmayi kopyalayarak dallandiran depo.
+/// The store that branches a conversation by copying it.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 <strong>Kopyalama secildi, isaretci zinciri degil.</strong> Yeni konusma
-/// yalnizca <c>parent_conversation_id</c> tutsaydi her gecmis okumasi
-/// ozyinelemeli olurdu; <c>SqlChatHistoryProvider</c> her agent turunda calisan
-/// en sicak okuma yoludur ve dallanma kullanmayan tuketiciye de bedel odetirdi.
-/// Kopyalamayla okuma yolu <strong>hic degismez</strong>. Isaretci yalnizca
-/// koken bilgisidir.
+/// 🚨 <strong>Copying was chosen, not a pointer chain.</strong> If the new
+/// conversation only kept <c>parent_conversation_id</c>, every history read
+/// would be recursive; <c>SqlChatHistoryProvider</c> is the hottest read path,
+/// running on every agent turn, and this would charge a cost even to a
+/// consumer who never uses branching. With copying, the read path
+/// <strong>never changes</strong>. The pointer is only lineage information.
 /// </para>
 /// <para>
-/// 🚨 Bu arayuz yalnizca bir SQL saglayicisi kayitliyken (<c>UsePostgreSql()</c>,
-/// <c>UseSqlServer()</c>, <c>UseSqlite()</c>) kaydedilir. Bellek ici kurulumda
-/// sohbet gecmisi Microsoft Agent Framework'un <c>InMemoryChatHistoryProvider</c>
-/// nesnesinde, oturum durumunun <strong>opak</strong> blogunda yasar ve belirli
-/// bir sira numarasina kadar kopyalanamaz. Uc bu durumda <c>501</c> doner —
-/// sessizce tamamini kopyalamaz.
+/// 🚨 This interface is registered only when a SQL provider is enabled
+/// (<c>UsePostgreSql()</c>, <c>UseSqlServer()</c>, <c>UseSqlite()</c>). In an
+/// in-memory setup, chat history lives inside Microsoft Agent Framework's
+/// <c>InMemoryChatHistoryProvider</c> object, in the session state's
+/// <strong>opaque</strong> block, and cannot be copied up to a specific
+/// sequence number. The endpoint returns <c>501</c> in this case — it does
+/// not silently copy the whole thing.
 /// </para>
 /// </remarks>
 public interface IConversationBranchStore
 {
-    /// <summary>Bir konusmayi kopyalayarak yeni bir konusma acar.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="parentConversationId">Kaynak konusma.</param>
+    /// <summary>Opens a new conversation by copying an existing one.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="parentConversationId">The source conversation.</param>
     /// <param name="upToSequence">
-    /// Dahil edilecek son ogenin sira numarasi. <see langword="null"/> ise
-    /// konusmanin tamami kopyalanir.
+    /// The sequence number of the last item to include. If
+    /// <see langword="null"/>, the whole conversation is copied.
     /// </param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
-    /// Yeni konusmanin kimligi, dal noktasi ve kopyalanan oge sayisi; kaynak
-    /// konusma yoksa veya baska bir kiraciya aitse <see langword="null"/>.
+    /// The new conversation's identifier, the branch point, and the number of
+    /// items copied; <see langword="null"/> if the source conversation does
+    /// not exist or belongs to another tenant.
     /// </returns>
     ValueTask<ConversationBranch?> BranchAsync(
         string tenantId,
@@ -90,12 +92,12 @@ public interface IConversationBranchStore
         CancellationToken cancellationToken = default);
 }
 
-/// <summary>Bir konusma dalinin depo duzeyindeki sonucu.</summary>
-/// <param name="ConversationId">Yeni konusmanin kimligi.</param>
+/// <summary>A conversation branch's store-level result.</summary>
+/// <param name="ConversationId">The new conversation's identifier.</param>
 /// <param name="BranchFromSequence">
-/// Kopyalanan son ogenin sira numarasi; hicbir oge kopyalanmadiysa <c>-1</c>.
+/// The sequence number of the last item copied; <c>-1</c> if no item was copied.
 /// </param>
-/// <param name="CopiedItemCount">Kopyalanan oge sayisi.</param>
+/// <param name="CopiedItemCount">The number of items copied.</param>
 [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Auto)]
 public readonly record struct ConversationBranch(
     Guid ConversationId,
