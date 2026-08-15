@@ -1,93 +1,94 @@
 namespace AgentPrism;
 
-/// <summary>Bir OAuth yetkilendirme istegin sonuc durumu.</summary>
+/// <summary>The result status of an OAuth authorization request.</summary>
 public enum McpOAuthOperationStatus
 {
-    /// <summary>Istek basarili.</summary>
+    /// <summary>The request succeeded.</summary>
     Ok = 0,
 
-    /// <summary>Bu adda kayitli bir sunucu yok.</summary>
+    /// <summary>No server is registered with this name.</summary>
     ServerNotFound = 1,
 
     /// <summary>
-    /// Sunucu OAuth icin ayarli degil, akis <see cref="McpOAuthAuthorizationMode.AuthorizationCode"/>
-    /// degil, veya <c>AgentPrism:Mcp:OAuthCallbackBaseUri</c> yapilandirilmamis.
+    /// The server is not set up for OAuth, the flow is not
+    /// <see cref="McpOAuthAuthorizationMode.AuthorizationCode"/>, or
+    /// <c>AgentPrism:Mcp:OAuthCallbackBaseUri</c> is not configured.
     /// </summary>
     NotConfigured = 2,
 
-    /// <summary>Sunucuya baglanip yetkilendirme adresi alinamadi (zaman asimi dahil).</summary>
+    /// <summary>Could not connect to the server to get the authorization address (including timeout).</summary>
     ConnectionFailed = 3,
 
-    /// <summary><c>state</c> bilinmiyor veya suresi dolmus (CSRF korumasi).</summary>
+    /// <summary>The <c>state</c> is unknown or has expired (CSRF protection).</summary>
     InvalidState = 4,
 
-    /// <summary>Saglayici kod degisimini reddetti veya kullanici yetkilendirmeyi iptal etti.</summary>
+    /// <summary>The provider rejected the code exchange, or the user cancelled authorization.</summary>
     AuthorizationFailed = 5,
 }
 
-/// <summary>OAuth baslatma isteminin sonucu.</summary>
+/// <summary>The result of an OAuth start request.</summary>
 public sealed record McpOAuthStartResult
 {
-    /// <summary>Sonuc durumu.</summary>
+    /// <summary>The result status.</summary>
     public required McpOAuthOperationStatus Status { get; init; }
 
-    /// <summary>Yoneticinin yonlendirilecegi yetkilendirme adresi. Yalniz <see cref="McpOAuthOperationStatus.Ok"/> iken dolu.</summary>
+    /// <summary>The authorization address the administrator is redirected to. Populated only for <see cref="McpOAuthOperationStatus.Ok"/>.</summary>
     public Uri? AuthorizationUri { get; init; }
 
-    /// <summary>CSRF korumasi icin uretilen tek kullanimlik durum degeri.</summary>
+    /// <summary>The single-use state value generated for CSRF protection.</summary>
     public string? State { get; init; }
 }
 
-/// <summary>OAuth geri donusunun (callback) sonucu.</summary>
+/// <summary>The result of the OAuth callback.</summary>
 public sealed record McpOAuthCompleteResult
 {
-    /// <summary>Sonuc durumu.</summary>
+    /// <summary>The result status.</summary>
     public required McpOAuthOperationStatus Status { get; init; }
 
-    /// <summary>Yetkilendirilen sunucunun adi. <see cref="McpOAuthOperationStatus.InvalidState"/> iken <see langword="null"/>.</summary>
+    /// <summary>The name of the authorized server. <see langword="null"/> for <see cref="McpOAuthOperationStatus.InvalidState"/>.</summary>
     public string? ServerName { get; init; }
 
-    /// <summary>Basarisizlik gerekcesi (kullaniciya gosterilebilir, sir icermez).</summary>
+    /// <summary>The failure reason (safe to show to the user, carries no secret).</summary>
     public string? Error { get; init; }
 }
 
 /// <summary>
-/// MCP sunuculari icin OAuth Mod 1 (yetkilendirme kodu) akisini yoneten koordinator.
+/// The coordinator that manages the OAuth Mode 1 (authorization code) flow for MCP servers.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Soyutlama <c>AgentPrism.Abstractions</c> icindedir cunku <c>AgentPrism.AspNetCore</c>
-/// (uçlar) <c>AgentPrism.Mcp</c> paketine bagli degildir — gerekce <see cref="IMcpToolRefresher"/>
-/// ile aynidir.
+/// The abstraction lives in <c>AgentPrism.Abstractions</c> because
+/// <c>AgentPrism.AspNetCore</c> (the endpoints) does not depend on the
+/// <c>AgentPrism.Mcp</c> package — the same rationale as <see cref="IMcpToolRefresher"/>.
 /// </para>
 /// <para>
-/// <strong>Token'lar hicbir zaman veritabanina yazilmaz.</strong> Basarili bir akis
-/// sonunda erisim ve yenileme token'lari yalniz bellekte, surec omruyle sinirli
-/// tutulur (docs/22-MCP-DERINLESMESI.md, bolum 22.3).
+/// <strong>Tokens are never written to the database.</strong> At the end of a
+/// successful flow, the access and refresh tokens are kept only in memory,
+/// bounded by the process lifetime (docs/22-MCP-DERINLESMESI.md, section 22.3).
 /// </para>
 /// </remarks>
 public interface IMcpOAuthCoordinator
 {
     /// <summary>
-    /// Bir sunucu icin yetkilendirme akisini baslatir ve saglayicinin
-    /// yetkilendirme adresini dondurur.
+    /// Starts the authorization flow for a server and returns the provider's
+    /// authorization address.
     /// </summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="serverName">Sunucu adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="serverName">The server name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     ValueTask<McpOAuthStartResult> StartAsync(
         string tenantId,
         string serverName,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Saglayicinin geri donus istegini isler: kodu <c>state</c> ile eslesen
-    /// bekleyen akisa iletir ve token degisiminin sonucunu bekler.
+    /// Handles the provider's callback request: forwards the code to the
+    /// pending flow matched by <c>state</c> and waits for the token exchange result.
     /// </summary>
-    /// <param name="state"><see cref="McpOAuthStartResult.State"/> ile uretilen deger.</param>
-    /// <param name="code">Saglayicinin dondurdugu yetkilendirme kodu.</param>
-    /// <param name="iss">RFC 9207 <c>iss</c> parametresi (varsa).</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <param name="state">The value generated by <see cref="McpOAuthStartResult.State"/>.</param>
+    /// <param name="code">The authorization code returned by the provider.</param>
+    /// <param name="iss">The RFC 9207 <c>iss</c> parameter (if present).</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     ValueTask<McpOAuthCompleteResult> CompleteAsync(
         string state,
         string? code,

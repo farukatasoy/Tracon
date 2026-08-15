@@ -3,26 +3,27 @@ using Microsoft.Agents.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="AgentDefinition.McpResourceUris"/> (Mod A) icin bir
-/// <see cref="AIContextProvider"/> kuran fabrika.
+/// The factory that builds an <see cref="AIContextProvider"/> for
+/// <see cref="AgentDefinition.McpResourceUris"/> (Mode A).
 /// </summary>
 /// <remarks>
 /// <para>
-/// Soyutlama <c>AgentPrism.Abstractions</c> icindedir cunku <c>AgentDefinitionCompiler</c>
-/// (<c>AgentPrism.Core</c>) MCP kaynaklarini baglama eklemek ister ancak
-/// <c>AgentPrism.Mcp</c> paketine bagli degildir: MCP istege bagli bir paket
-/// olarak kalir. Gerekce <see cref="IMcpToolRefresher"/> ile aynidir.
+/// The abstraction lives in <c>AgentPrism.Abstractions</c> because
+/// <c>AgentDefinitionCompiler</c> (<c>AgentPrism.Core</c>) wants to add MCP
+/// resources to the context but does not depend on the <c>AgentPrism.Mcp</c>
+/// package: MCP stays an optional package. Same rationale as
+/// <see cref="IMcpToolRefresher"/>.
 /// </para>
 /// </remarks>
 public interface IMcpResourceContextProviderFactory
 {
     /// <summary>
-    /// Verilen kaynak referanslariyla bir baglam saglayicisi kurar.
+    /// Builds a context provider from the given resource references.
     /// </summary>
     /// <param name="resourceReferences">
-    /// <c>"{sunucu}:{uri}"</c> bicimli referanslar (<see cref="AgentDefinition.McpResourceUris"/>).
+    /// References in <c>"{server}:{uri}"</c> form (<see cref="AgentDefinition.McpResourceUris"/>).
     /// </param>
-    /// <param name="tenantId">Kiraci kimligi. Kaynaklar yalnizca bu kiracinin sunucularindan okunur.</param>
-    /// <returns>Baglam saglayicisi.</returns>
+    /// <param name="tenantId">The tenant identifier. Resources are read only from this tenant's servers.</param>
+    /// <returns>The context provider.</returns>
     AIContextProvider Create(IReadOnlyList<string> resourceReferences, string tenantId);
 }

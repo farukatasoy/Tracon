@@ -2,179 +2,183 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>MCP OAuth yetkilendirme akisi.</summary>
+/// <summary>The MCP OAuth authorization flow.</summary>
 /// <remarks>
-/// <strong>Tek deger:</strong> <c>ModelContextProtocol.Core</c> 2.0.0 yalnizca
-/// Authorization Code (+PKCE) akisini destekler; <c>ClientOAuthOptions.RedirectUri</c>
-/// zorunlu bir alandir ve kutuphane etkilesimsiz bir istemci-kimlik-bilgileri
-/// akisi sunmaz. Deger yine de bir enum olarak tutulur — SDK ileride baska bir
-/// akis eklerse (ornegin client_credentials) genisleme noktasi hazir olur.
-/// Gerekce: docs/22-MCP-DERINLESMESI.md, bolum 22.3.
+/// <strong>A single value:</strong> <c>ModelContextProtocol.Core</c> 2.0.0
+/// supports only the Authorization Code (+PKCE) flow;
+/// <c>ClientOAuthOptions.RedirectUri</c> is a required field, and the library
+/// offers no non-interactive client-credentials flow. The value is still kept
+/// as an enum — if the SDK adds another flow later (for example,
+/// client_credentials), the extension point is ready. See
+/// docs/22-MCP-DERINLESMESI.md, section 22.3, for the rationale.
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<McpOAuthAuthorizationMode>))]
 public enum McpOAuthAuthorizationMode
 {
     /// <summary>
-    /// Yetkilendirme kodu akisi (Authorization Code + PKCE). Yonetici arayuzden
-    /// <c>/oauth/start</c> ile baslatilir, saglayiciya yonlendirilir ve
-    /// <c>/oauth/callback</c>'e doner.
+    /// The authorization code flow (Authorization Code + PKCE). Started from
+    /// the admin UI with <c>/oauth/start</c>, redirected to the provider, and
+    /// returns to <c>/oauth/callback</c>.
     /// </summary>
     AuthorizationCode = 0,
 }
 
-/// <summary>Bir MCP sunucusuna baglanma bicimi.</summary>
+/// <summary>The way a connection to an MCP server is made.</summary>
 /// <remarks>
-/// <strong>Stdio bilerek yoktur.</strong> Stdio aktarimi sunucuda bir surec
-/// baslatir; bu, arayuze erisen birinin sunucuda program calistirmasi demektir
-/// ve tasarim kurali K2'yi temelden bozar. AgentPrism yalnizca <em>uzak</em>
-/// MCP sunucularina baglanir. Gerekce: <c>docs/KARARLAR.md</c>, karar K-058.
+/// <strong>Stdio is deliberately absent.</strong> The stdio transport starts a
+/// process on the server; this means anyone with access to the admin UI runs a
+/// program on the server, which fundamentally breaks design rule K2.
+/// AgentPrism connects only to <em>remote</em> MCP servers. See
+/// <c>docs/KARARLAR.md</c>, decision K-058, for the rationale.
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<McpTransportMode>))]
 public enum McpTransportMode
 {
-    /// <summary>Streamable HTTP. MCP'nin guncel uzak aktarimi.</summary>
+    /// <summary>Streamable HTTP. MCP's current remote transport.</summary>
     StreamableHttp = 0,
 
-    /// <summary>Sunucu tarafli olaylar (SSE). Eski sunucular icin.</summary>
+    /// <summary>Server-sent events (SSE). For legacy servers.</summary>
     Sse = 1,
 }
 
 /// <summary>
-/// Kayitli bir uzak MCP sunucusu. Tool'lari baglanti aninda kesfedilir ve
-/// kodda kayitli tool'larin yaninda listelenir.
+/// A registered remote MCP server. Its tools are discovered at connection
+/// time and listed alongside the tools registered in code.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Sir tasimaz.</strong> Kimlik dogrulama basliginin <em>degeri</em>
-/// bu kayitta saklanmaz; yalnizca degerin okunacagi yapilandirma anahtarinin
-/// adi (<see cref="AuthorizationConfigurationKey"/>) saklanir. Deger calisma
-/// aninda <c>IConfiguration</c> uzerinden cozulur ve boylece
-/// <c>dotnet user-secrets</c> veya ortam degiskeninde kalir. Veritabani yedegine,
-/// denetim izine veya arayuz yanitina hicbir zaman girmez.
-/// Gerekce: <c>docs/KARARLAR.md</c>, karar K-059.
+/// <strong>Carries no secret.</strong> The <em>value</em> of the
+/// authentication header is not stored in this record; only the name of the
+/// configuration key the value is read from (<see cref="AuthorizationConfigurationKey"/>)
+/// is stored. The value is resolved at run time through <c>IConfiguration</c>,
+/// so it stays in <c>dotnet user-secrets</c> or an environment variable. It
+/// never enters a database backup, an audit trail, or a UI response. See
+/// <c>docs/KARARLAR.md</c>, decision K-059, for the rationale.
 /// </para>
 /// </remarks>
 public sealed record McpServerDefinition
 {
-    /// <summary>Sunucu kimligi. Zaman sirali UUID (v7).</summary>
+    /// <summary>The server identifier. A time-ordered UUID (v7).</summary>
     public required Guid Id { get; init; }
 
-    /// <summary>Sunucunun ait oldugu kiraci.</summary>
+    /// <summary>The tenant the server belongs to.</summary>
     public required string TenantId { get; init; }
 
     /// <summary>
-    /// Sunucu adi. Kesfedilen tool'lar <c>{ad}.{tool}</c> bicimiyle adlandirilir;
-    /// boylece iki sunucudaki ayni adli tool cakismaz.
+    /// The server name. Discovered tools are named as <c>{name}.{tool}</c>, so
+    /// tools with the same name on two servers never collide.
     /// </summary>
     public required string Name { get; init; }
 
-    /// <summary>Aciklama.</summary>
+    /// <summary>The description.</summary>
     public string? Description { get; init; }
 
-    /// <summary>Sunucu adresi. Yalnizca <c>http</c> ve <c>https</c> kabul edilir.</summary>
+    /// <summary>The server address. Only <c>http</c> and <c>https</c> are accepted.</summary>
     public required Uri Endpoint { get; init; }
 
-    /// <summary>Aktarim bicimi.</summary>
+    /// <summary>The transport format.</summary>
     public McpTransportMode Transport { get; init; }
 
     /// <summary>
-    /// <c>Authorization</c> basliginin degerinin okunacagi yapilandirma anahtari.
-    /// Ornek: <c>AgentPrism:Mcp:GithubToken</c>. Bos birakilirsa baslik gonderilmez.
+    /// The configuration key the <c>Authorization</c> header's value is read
+    /// from. Example: <c>AgentPrism:Mcp:GithubToken</c>. If left empty, the
+    /// header is not sent.
     /// </summary>
     public string? AuthorizationConfigurationKey { get; init; }
 
     /// <summary>
-    /// Ek istek basliklari. <strong>Sir tasimamalidir</strong> — bu degerler
-    /// oldugu gibi saklanir ve arayuzde gorunur.
+    /// Extra request headers. <strong>Must not carry a secret</strong> — these
+    /// values are stored as-is and shown in the UI.
     /// </summary>
     public IReadOnlyDictionary<string, string> Headers { get; init; } =
         new Dictionary<string, string>(StringComparer.Ordinal);
 
-    /// <summary>Sunucu etkin mi. Kapaliyken tool'lari kesfedilmez.</summary>
+    /// <summary>Whether the server is enabled. Its tools are not discovered while disabled.</summary>
     public bool Enabled { get; init; } = true;
 
     /// <summary>
-    /// OAuth ile kimlik dogrulama acik mi. Acikken <see cref="AuthorizationConfigurationKey"/>
-    /// ile ayni anda kullanilamaz — ikisi de <c>Authorization</c> basligini
-    /// yonetmeye calisirdi.
+    /// Whether OAuth authentication is on. When on, it cannot be used at the
+    /// same time as <see cref="AuthorizationConfigurationKey"/> — both would
+    /// try to manage the <c>Authorization</c> header.
     /// </summary>
     /// <remarks>
-    /// 🚨 <c>[JsonPropertyName]</c> BILEREK verilir: System.Text.Json'in camelCase
-    /// politikasi yalniz ILK harfi kucultur, "OAuth" iki buyuk harfle basladigi
-    /// icin varsayilan cikti <c>oAuthEnabled</c> olurdu (beklenen <c>oauthEnabled</c>
-    /// degil). Ayni kisit asagidaki dort OAuth alaninin hepsinde gecerlidir.
+    /// 🚨 <c>[JsonPropertyName]</c> is given DELIBERATELY: System.Text.Json's
+    /// camelCase policy lowercases only the FIRST letter, and since "OAuth"
+    /// starts with two uppercase letters, the default output would be
+    /// <c>oAuthEnabled</c> (not the expected <c>oauthEnabled</c>). The same
+    /// constraint applies to all four OAuth fields below.
     /// </remarks>
     [JsonPropertyName("oauthEnabled")]
     public bool OAuthEnabled { get; init; }
 
-    /// <summary>OAuth istemci kimligi. Sir degildir, oldugu gibi saklanir.</summary>
+    /// <summary>The OAuth client identifier. Not a secret, stored as-is.</summary>
     [JsonPropertyName("oauthClientId")]
     public string? OAuthClientId { get; init; }
 
     /// <summary>
-    /// OAuth istemci gizli anahtarinin degerinin okunacagi yapilandirma anahtari.
-    /// Deger, <see cref="AuthorizationConfigurationKey"/> ile ayni kuralla
-    /// (K-059) veritabanina hicbir zaman yazilmaz.
+    /// The configuration key the OAuth client secret's value is read from.
+    /// The value is never written to the database, under the same rule
+    /// (K-059) as <see cref="AuthorizationConfigurationKey"/>.
     /// </summary>
     [JsonPropertyName("oauthClientSecretConfigurationKey")]
     public string? OAuthClientSecretConfigurationKey { get; init; }
 
-    /// <summary>Bosluk ile ayrilmis OAuth scope listesi. Ornek: <c>"repo read:user"</c>.</summary>
+    /// <summary>The space-separated OAuth scope list. Example: <c>"repo read:user"</c>.</summary>
     [JsonPropertyName("oauthScopes")]
     public string? OAuthScopes { get; init; }
 
-    /// <summary>OAuth yetkilendirme akisi.</summary>
+    /// <summary>The OAuth authorization flow.</summary>
     [JsonPropertyName("oauthAuthorizationMode")]
     public McpOAuthAuthorizationMode OAuthAuthorizationMode { get; init; } = McpOAuthAuthorizationMode.AuthorizationCode;
 
     /// <summary>
-    /// Bu sunucunun tool'lari cagri oncesi acik onay ister mi.
-    /// <strong>Varsayilani <see langword="true"/></strong>: tool tanimi disaridan
-    /// gelir ve guvenilmez sayilir.
+    /// Whether this server's tools require explicit approval before each call.
+    /// <strong>Defaults to <see langword="true"/></strong>: the tool definition
+    /// comes from outside and is treated as untrusted.
     /// </summary>
     public bool RequiresApproval { get; init; } = true;
 
-    /// <summary>Olusturulma zamani (UTC).</summary>
+    /// <summary>The creation time (UTC).</summary>
     public DateTimeOffset CreatedAt { get; init; }
 
-    /// <summary>Son guncelleme zamani (UTC).</summary>
+    /// <summary>The last-updated time (UTC).</summary>
     public DateTimeOffset UpdatedAt { get; init; }
 }
 
-/// <summary>Kayitli MCP sunucularinin deposu.</summary>
+/// <summary>The store for registered MCP servers.</summary>
 public interface IMcpServerStore
 {
-    /// <summary>Bir kiracinin sunucularini ada gore sirali listeler.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Sunucular.</returns>
+    /// <summary>Lists a tenant's servers, ordered by name.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The servers.</returns>
     ValueTask<IReadOnlyList<McpServerDefinition>> ListAsync(
         string tenantId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Bir sunucuyu ada gore getirir.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="name">Sunucu adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Sunucu; yoksa <see langword="null"/>.</returns>
+    /// <summary>Fetches a server by name.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="name">The server name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The server; <see langword="null"/> if none exists.</returns>
     ValueTask<McpServerDefinition?> GetAsync(
         string tenantId,
         string name,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Bir sunucuyu ekler veya gunceller. Anahtar <c>(kiraci, ad)</c> ciftidir.</summary>
-    /// <param name="server">Yazilacak sunucu.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kalici kayit.</returns>
+    /// <summary>Adds or updates a server. The key is the <c>(tenant, name)</c> pair.</summary>
+    /// <param name="server">The server to write.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The persisted record.</returns>
     ValueTask<McpServerDefinition> SaveAsync(
         McpServerDefinition server,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Bir sunucuyu siler.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="name">Sunucu adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kayit silindiyse <see langword="true"/>.</returns>
+    /// <summary>Deletes a server.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="name">The server name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> if the record was deleted.</returns>
     ValueTask<bool> DeleteAsync(
         string tenantId,
         string name,

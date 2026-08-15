@@ -1,41 +1,41 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Uzak MCP sunucularinin tool listesini istege bagli olarak tazeler.
+/// Refreshes the tool list of remote MCP servers on demand.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Tazeleme normalde arka planda, belirli araliklarla yapilir. Bu arayuz, bir
-/// sunucu <em>yeni eklendiginde</em> kullanicinin bir sonraki tazelemeyi
-/// beklemek zorunda kalmamasi icindir.
+/// Refreshing normally happens in the background, at fixed intervals. This
+/// interface exists so that when a server is <em>newly added</em>, the user
+/// does not have to wait for the next scheduled refresh.
 /// </para>
 /// <para>
-/// Soyutlama <c>AgentPrism.Abstractions</c> icindedir cunku HTTP katmani
-/// tazelemeyi tetikler ancak <c>AgentPrism.Mcp</c> paketine bagli degildir:
-/// MCP istegde bagli bir paket olarak kalir.
+/// The abstraction lives in <c>AgentPrism.Abstractions</c> because the HTTP
+/// layer triggers the refresh but does not depend on the <c>AgentPrism.Mcp</c>
+/// package: MCP stays an optional package.
 /// </para>
 /// </remarks>
 public interface IMcpToolRefresher
 {
-    /// <summary>Tool listesini simdi tazeler.</summary>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Bu tazelemenin sonucu.</returns>
+    /// <summary>Refreshes the tool list now.</summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The result of this refresh.</returns>
     ValueTask<McpRefreshOutcome> RefreshAsync(CancellationToken cancellationToken = default);
 }
 
-/// <summary>Bir <see cref="IMcpToolRefresher.RefreshAsync"/> cagrisinin sonucu.</summary>
+/// <summary>The result of an <see cref="IMcpToolRefresher.RefreshAsync"/> call.</summary>
 public readonly record struct McpRefreshOutcome
 {
-    /// <summary>Bu tazelemede kesfedilen toplam tool sayisi.</summary>
+    /// <summary>The total number of tools discovered in this refresh.</summary>
     public required int ToolCount { get; init; }
 
     /// <summary>
-    /// Bu tazelemede en az bir MCP sunucusuna GERCEKTEN baglanma girisiminde
-    /// bulunulup basarisiz olundu mu (zaman asimi veya aktif baglanti reddi
-    /// gibi bir aglayici hatasi). Sunucunun kasitli olarak atlanmasi (gecersiz
-    /// ad/adres, eksik OAuth geri donus yapilandirmasi gibi kalici bir
-    /// yapilandirma sorunu) bu kapsamda DEGILDIR — o hicbir zaman "yeniden
-    /// denenince duzelir" turunden bir durum degildir (HATA-006).
+    /// Whether this refresh ACTUALLY attempted to connect to at least one MCP
+    /// server and failed (a network error such as a timeout or an active
+    /// connection refusal). Deliberately skipping a server (a persistent
+    /// configuration problem such as an invalid name/address or a missing
+    /// OAuth callback configuration) is NOT included here — that is never the
+    /// kind of situation that "fixes itself on retry" (HATA-006).
     /// </summary>
     public required bool HadUnreachableServers { get; init; }
 }
