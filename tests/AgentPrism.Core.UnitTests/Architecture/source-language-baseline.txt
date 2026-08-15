@@ -11,9 +11,6 @@ samples/AgentPrism.Api/appsettings.json|29
 samples/Directory.Build.props|1
 src/AgentPrism.Abstractions/Evaluation/IEvalStore.cs|72
 src/AgentPrism.Abstractions/Evaluation/IRunJudge.cs|25
-src/AgentPrism.Abstractions/Quotas/IQuotaStore.cs|33
-src/AgentPrism.Abstractions/Quotas/QuotaPeriod.cs|5
-src/AgentPrism.Abstractions/Quotas/QuotaTypes.cs|47
 src/AgentPrism.Abstractions/README.md|4
 src/AgentPrism.Abstractions/Retention/IRetentionPolicyStore.cs|35
 src/AgentPrism.Abstractions/Retention/IRetentionStore.cs|48
