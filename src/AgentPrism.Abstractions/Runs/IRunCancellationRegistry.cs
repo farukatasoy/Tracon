@@ -1,50 +1,52 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Bu ornekte suren calistirmalarin bellek ici defteri; disaridan gelen bir
-/// iptal istegini suren calistirmanin <see cref="System.Threading.CancellationTokenSource"/>'una baglar.
+/// The in-memory registry of runs in progress on this instance; binds an
+/// incoming cancellation request to the running run's
+/// <see cref="System.Threading.CancellationTokenSource"/>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Defter <strong>sureç içidir</strong>. Cok ornekli bir dagitimda bir istek
-/// yanlis ornege dusebilir; bu durumda iptal ucu <c>409 Conflict</c> doner
-/// (bkz. <c>docs/32-CALISTIRMA-IPTALI.md</c>, "Kapsam siniri"). Dagitik bir
-/// defter isteyen bir kurulum bu arayuzu kendi uygulamasiyla degistirebilir
-/// (<c>TryAddSingleton</c>, K4).
+/// The registry is <strong>in-process</strong>. In a multi-instance
+/// deployment, a request may land on the wrong instance; in that case the
+/// cancellation endpoint returns <c>409 Conflict</c> (see
+/// <c>docs/32-CALISTIRMA-IPTALI.md</c>, "Scope limit"). A setup that needs a
+/// distributed registry can replace this interface with its own
+/// implementation (<c>TryAddSingleton</c>, K4).
 /// </para>
 /// <para>
-/// Kok calistirmanin (<c>RunId == RootRunId</c>) iptali, ayni <c>RootRunId</c>
-/// altindaki tum kayitlari da iptal eder. Bir alt calistirmanin tek basina
-/// iptali ne kardes dallari ne de koku etkiler.
+/// Cancelling the root run (<c>RunId == RootRunId</c>) also cancels every
+/// record under the same <c>RootRunId</c>. Cancelling a single child run
+/// affects neither sibling branches nor the root.
 /// </para>
 /// </remarks>
 public interface IRunCancellationRegistry
 {
-    /// <summary>Suren bir calistirmayi deftere yazar.</summary>
-    /// <param name="runId">Calistirmanin kimligi.</param>
-    /// <param name="rootRunId">Agacin kokundeki calistirmanin kimligi. Kokte <paramref name="runId"/> ile aynidir.</param>
-    /// <param name="tenantId">Calistirmanin kiracisi.</param>
-    /// <param name="source">Calistirmanin iptalini tetikleyecek kaynak. Sahipligi cagirandadir; bu metot onu bertaraf etmez.</param>
-    /// <returns>Kaydi deftereden kaldirmak icin bertaraf edilecek nesne.</returns>
+    /// <summary>Writes a running run into the registry.</summary>
+    /// <param name="runId">The run's identifier.</param>
+    /// <param name="rootRunId">The identifier of the run at the root of the tree. Equals <paramref name="runId"/> for the root.</param>
+    /// <param name="tenantId">The run's tenant.</param>
+    /// <param name="source">The source that triggers the run's cancellation. Ownership stays with the caller; this method does not dispose it.</param>
+    /// <returns>The object to dispose to remove the record from the registry.</returns>
     IDisposable Register(Guid runId, Guid rootRunId, string? tenantId, CancellationTokenSource source);
 
-    /// <summary>Bir calistirmanin iptalini ister. Agac koku ise alt calistirmalar da iptal edilir.</summary>
-    /// <param name="runId">Iptali istenen calistirmanin kimligi.</param>
-    /// <param name="tenantId">Isteyen kiraci. Kayittaki kiraciyla eslesmezse istek yok sayilir.</param>
-    /// <returns>Iptal istegi bir kayda ulastiysa <see langword="true"/>.</returns>
+    /// <summary>Requests a run's cancellation. If it is the tree root, child runs are also cancelled.</summary>
+    /// <param name="runId">The identifier of the run whose cancellation is requested.</param>
+    /// <param name="tenantId">The requesting tenant. If it does not match the record's tenant, the request is ignored.</param>
+    /// <returns><see langword="true"/> if the cancellation request reached a record.</returns>
     bool TryCancel(Guid runId, string? tenantId);
 
-    /// <summary>Bu ornekte suren calistirma sayisi. Teshis ve test icindir.</summary>
+    /// <summary>The number of runs in progress on this instance. For diagnostics and tests.</summary>
     int ActiveCount { get; }
 
     /// <summary>
-    /// Bu ornekte SU AN suren calistirmalarin kimlikleri.
+    /// The identifiers of the runs currently in progress on this instance.
     /// </summary>
     /// <remarks>
-    /// Faz 54: <c>RunHeartbeatWriter</c> bu listeyi kullanarak yalnizca BU
-    /// surecin gercekten yurutuğu calistirmalarin heartbeat'ini yazar. Bir
-    /// baska ornegin Running satirini yanlislikla "canli" isaretlemek
-    /// uzlastirmanin butun amacini gecersiz kilardi -- bkz.
+    /// Phase 54: <c>RunHeartbeatWriter</c> uses this list to write heartbeats
+    /// only for runs THIS process is actually executing. Another instance
+    /// marking a Running row as "alive" by mistake would defeat the entire
+    /// purpose of reconciliation — see
     /// <c>docs/54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md</c>.
     /// </remarks>
     IReadOnlyCollection<Guid> ActiveRunIds { get; }

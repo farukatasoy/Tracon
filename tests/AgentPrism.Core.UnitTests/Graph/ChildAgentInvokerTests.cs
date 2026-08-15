@@ -55,7 +55,7 @@ public sealed class ChildAgentInvokerTests
         SetScope(depth: 0, budget: budget);
         var second = await invoker.RunAsync("ikinci");
 
-        second.Text.ShouldContain("alt calistirma siniri doldu", Case.Sensitive);
+        second.Text.ShouldContain("child-run limit is reached", Case.Sensitive);
         (await store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).Count.ShouldBe(1);
     }
 
