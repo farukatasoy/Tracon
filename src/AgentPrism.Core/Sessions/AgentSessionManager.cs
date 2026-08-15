@@ -5,24 +5,25 @@ using Microsoft.Agents.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Adlandirilmis oturumlarin yasam dongusunu yonetir: <see cref="ISessionStore"/>
-/// icinden yukler, geri yukler ve kaydeder.
+/// Manages the lifecycle of named sessions: loads, restores, and saves them
+/// through <see cref="ISessionStore"/>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bu sinif saglayicidan bagimsizdir. Bellek ici depoyla da, PostgreSQL deposuyla
-/// da ayni sekilde calisir; hangi deponun kayitli oldugunu bilmez.
+/// This class is provider-agnostic. It works the same way with the in-memory
+/// store and the PostgreSQL store; it does not know which store is registered.
 /// </para>
 /// <para>
-/// Oturum durumu Microsoft Agent Framework'un <c>SerializeSessionAsync</c> ciktisidir
-/// ve <strong>opak</strong> kabul edilir. AgentPrism icerigini yorumlamaz.
-/// Kimlik, <see cref="AgentSessionIdentity"/> ile oturumun durum cantasina damgalanir;
-/// boylece <c>RunRecordingAgent</c> calistirma kaydina gercek oturum kimligini yazabilir.
+/// The session state is Microsoft Agent Framework's <c>SerializeSessionAsync</c>
+/// output and is treated as <strong>opaque</strong>. AgentPrism does not
+/// interpret its content. The identity is stamped onto the session's state
+/// bag with <see cref="AgentSessionIdentity"/>, so that <c>RunRecordingAgent</c>
+/// can write the real session identity to the run record.
 /// </para>
 /// <para>
-/// Microsoft Agent Framework'un on surum <c>AgentSessionStore</c> soyutlamasi
-/// (<c>Microsoft.Agents.AI.Hosting</c>) bu sinifa delege edilerek Faz 4'te baglanir.
-/// Gerekce: <c>docs/KARARLAR.md</c>, karar K-008 ve K-026.
+/// Microsoft Agent Framework's pre-release <c>AgentSessionStore</c> abstraction
+/// (<c>Microsoft.Agents.AI.Hosting</c>) is wired to this class by delegation in
+/// Phase 4. Rationale: <c>docs/KARARLAR.md</c>, decisions K-008 and K-026.
 /// </para>
 /// </remarks>
 public sealed class AgentSessionManager
@@ -32,31 +33,33 @@ public sealed class AgentSessionManager
     private readonly TimeProvider _timeProvider;
 
     /// <summary>
-    /// <see cref="GetOrCreateSessionAsync"/> ile depoda kaydi bulunamayip TAZE
-    /// acilan (henuz hicbir yere yazilmamis) oturumlari isaretler.
+    /// Marks sessions that <see cref="GetOrCreateSessionAsync"/> found no record
+    /// for in the store and opened FRESH (not yet written anywhere).
     /// </summary>
     /// <remarks>
     /// <para>
-    /// HATA-004: bu isaret, <see cref="SaveSessionAsync"/>'e "bu oturumun ILK
-    /// kaydi mi" sorusunu depoya hic gitmeden yanitlatir. Oturum nesnesinin
-    /// KENDISI anahtardir; <see cref="ConditionalWeakTable{TKey, TValue}"/>
-    /// ek bir yasam donguson tesisati gerektirmeden (oturum GC'lendiginde
-    /// kayit da duser) tek bir istek suresince guvenle tasinir.
+    /// HATA-004: this marker lets <see cref="SaveSessionAsync"/> answer "is
+    /// this the FIRST save of this session" without ever going to the store.
+    /// The session object ITSELF is the key; <see cref="ConditionalWeakTable{TKey, TValue}"/>
+    /// carries it safely for the duration of a single request without
+    /// requiring extra lifecycle plumbing (the entry also drops when the
+    /// session is GC'd).
     /// </para>
     /// <para>
-    /// Isaret oturumun SERILESTIRILMIS durumuna KARISMAZ — yalniz bu surecin
-    /// bellegindeki nesne kimligine bagli, geciçi bir isarettir.
+    /// The marker does NOT become part of the session's SERIALIZED state — it
+    /// is a transient marker tied only to this process's in-memory object
+    /// identity.
     /// </para>
     /// </remarks>
     private readonly ConditionalWeakTable<AgentSession, object> _newlyOpenedSessions = new();
 
     private static readonly object NewSessionMarker = new();
 
-    /// <summary>Yeni bir oturum yoneticisi olusturur.</summary>
-    /// <param name="store">Oturum deposu.</param>
-    /// <param name="tenantContext">Kiraci baglami.</param>
-    /// <param name="timeProvider">Zaman kaynagi. Verilmezse sistem saati kullanilir.</param>
-    /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new session manager.</summary>
+    /// <param name="store">The session store.</param>
+    /// <param name="tenantContext">The tenant context.</param>
+    /// <param name="timeProvider">The time source. The system clock is used if not given.</param>
+    /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public AgentSessionManager(ISessionStore store, ITenantContext tenantContext, TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(store);
@@ -68,16 +71,17 @@ public sealed class AgentSessionManager
     }
 
     /// <summary>
-    /// Kimligi verilen oturumu geri yukler; kayit yoksa yeni bir oturum acar.
-    /// Her iki durumda da donen oturum kendi kimligiyle damgalanmistir.
+    /// Restores the session with the given identity; opens a new session if
+    /// no record exists. In both cases, the returned session is stamped with
+    /// its own identity.
     /// </summary>
-    /// <param name="agent">Oturumun ait oldugu agent.</param>
-    /// <param name="sessionId">Oturum kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kullanima hazir oturum.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="agent"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="ArgumentException"><paramref name="sessionId"/> bos ise.</exception>
-    /// <exception cref="AgentPrismException">Saklanan durum bu agent tarafindan geri yuklenemezse.</exception>
+    /// <param name="agent">The agent the session belongs to.</param>
+    /// <param name="sessionId">The session identity.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A session ready for use.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="agent"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="sessionId"/> is empty.</exception>
+    /// <exception cref="AgentPrismException">The stored state cannot be restored by this agent.</exception>
     public async ValueTask<AgentSession> GetOrCreateSessionAsync(
         AIAgent agent,
         string sessionId,
@@ -92,12 +96,13 @@ public sealed class AgentSessionManager
 
         if (record is null)
         {
-            // 🚨 Depoya HENUZ HICBIR SEY YAZILMAZ. Konusma gecmisi
-            // saglayicisinin (ChatHistoryProvider) konusma kimligi yalniz
-            // agent GERCEKTEN calisirken uretilir — burada degil. Eszamanli
-            // baska bir "ilk istek" de ayni sekilde bos bir oturumla baslar;
-            // atomik iddia SaveSessionAsync'de, ilk kaydetme aninda yapilir
-            // (bkz. o metodun aciklamasi, HATA-004).
+            // 🚨 NOTHING is written to the store YET. The chat history
+            // provider's (ChatHistoryProvider) conversation identity is only
+            // produced once the agent ACTUALLY runs — not here. A concurrent
+            // "first request" also starts the same way, with an empty
+            // session; the atomic claim happens in SaveSessionAsync, at the
+            // moment of the first save (see that method's description,
+            // HATA-004).
             session = await agent.CreateSessionAsync(cancellationToken).ConfigureAwait(false);
             _newlyOpenedSessions.Add(session, NewSessionMarker);
         }
@@ -112,9 +117,9 @@ public sealed class AgentSessionManager
             catch (Exception ex) when (ex is JsonException or InvalidOperationException or NotSupportedException or ArgumentException)
             {
                 throw new AgentPrismException(
-                    $"'{sessionId}' oturumu geri yuklenemedi. Saklanan durum '{record.AgentName}' agent'ina aittir " +
-                    $"ve '{agent.Name ?? agent.Id}' agent'i tarafindan okunamiyor. " +
-                    "Microsoft Agent Framework surumu degistiyse eski oturumlar okunamaz hale gelmis olabilir.",
+                    $"Session '{sessionId}' could not be restored. The stored state belongs to agent " +
+                    $"'{record.AgentName}' and cannot be read by agent '{agent.Name ?? agent.Id}'. " +
+                    "If the Microsoft Agent Framework version changed, older sessions may have become unreadable.",
                     ex);
             }
         }
@@ -123,35 +128,37 @@ public sealed class AgentSessionManager
         return session;
     }
 
-    /// <summary>Oturumu serilestirir ve depoya yazar.</summary>
-    /// <param name="agent">Oturumun ait oldugu agent.</param>
-    /// <param name="session">Kaydedilecek oturum.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kaydedilen oturumun kimligi.</returns>
-    /// <exception cref="ArgumentNullException">Parametrelerden biri <see langword="null"/> ise.</exception>
+    /// <summary>Serializes the session and writes it to the store.</summary>
+    /// <param name="agent">The agent the session belongs to.</param>
+    /// <param name="session">The session to save.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The identity of the saved session.</returns>
+    /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
     /// <exception cref="AgentPrismException">
-    /// Oturum <see cref="GetOrCreateSessionAsync"/> ile acilmadigi icin kimligi yoksa.
+    /// The session has no identity because it was not opened with <see cref="GetOrCreateSessionAsync"/>.
     /// </exception>
     /// <exception cref="AgentPrismSessionConflictException">
-    /// Bu, <see cref="GetOrCreateSessionAsync"/>'in TAZE actigi bir oturumun ILK
-    /// kaydiydi ve ayni YENI oturum kimligini eszamanli baska bir istek bizden
-    /// once kaydetti.
+    /// This was the FIRST save of a session that <see cref="GetOrCreateSessionAsync"/>
+    /// opened FRESH, and a concurrent request saved the same NEW session
+    /// identity before we did.
     /// </exception>
     /// <remarks>
     /// <para>
-    /// HATA-004 (MT-CORE-054): ayni YENI oturum kimligine eszamanli iki ilk
-    /// istek gelirse, ikisi de <see cref="GetOrCreateSessionAsync"/>'te BOS bir
-    /// oturumla baslar ve KENDI turunu calistirir — her biri kendi konusma
-    /// kimligini uretir, bu kacinilmazdir (konusma kimligi yalniz tur
-    /// calisirken belli olur). Asil kusur, ikinci <see cref="ISessionStore.SaveAsync"/>'in
-    /// birinciyi <strong>kosulsuzca</strong> ezip kaybedenin konusmasini
-    /// sessizce erisilmez birakmasiydi. Bu yuzden bir oturumun ILK kaydi
-    /// (bkz. <see cref="GetOrCreateSessionAsync"/>'in isaretledigi taze
-    /// oturumlar) her zaman <see cref="ISessionStore.TryCreateAsync"/> ile
-    /// atomik olarak dener; kaybederse SESSIZCE UZERINE YAZMAZ, acik bir
-    /// <see cref="AgentPrismSessionConflictException"/> firlatir. Sonraki
-    /// kayitlar (ve baştan bulunan mevcut oturumlarin HER kaydi) degismeden
-    /// kosulsuz <see cref="ISessionStore.SaveAsync"/> kullanir.
+    /// HATA-004 (MT-CORE-054): if two concurrent first requests arrive for the
+    /// same NEW session identity, both start with an EMPTY session in
+    /// <see cref="GetOrCreateSessionAsync"/> and run THEIR OWN turn — each
+    /// produces its own conversation identity, which is unavoidable (the
+    /// conversation identity is only known once the turn runs). The actual
+    /// defect was that the second <see cref="ISessionStore.SaveAsync"/> would
+    /// <strong>unconditionally</strong> overwrite the first, silently leaving
+    /// the loser's conversation unreachable. For this reason, the FIRST save
+    /// of a session (see the fresh sessions marked by
+    /// <see cref="GetOrCreateSessionAsync"/>) always attempts an atomic write
+    /// with <see cref="ISessionStore.TryCreateAsync"/>; if it loses, it does
+    /// NOT SILENTLY OVERWRITE, and instead throws an explicit
+    /// <see cref="AgentPrismSessionConflictException"/>. Subsequent saves (and
+    /// EVERY save of a session that was already found existing) continue,
+    /// unchanged, to use the unconditional <see cref="ISessionStore.SaveAsync"/>.
     /// </para>
     /// </remarks>
     public async ValueTask<string> SaveSessionAsync(
@@ -164,8 +171,8 @@ public sealed class AgentSessionManager
 
         var sessionId = AgentSessionIdentity.GetId(session)
             ?? throw new AgentPrismException(
-                "Oturumun AgentPrism kimligi yok. Kaydedilecek oturumlar " +
-                $"{nameof(GetOrCreateSessionAsync)} ile acilmalidir.");
+                "The session has no AgentPrism identity. Sessions to be saved must be opened with " +
+                $"{nameof(GetOrCreateSessionAsync)}.");
 
         var state = await agent
             .SerializeSessionAsync(session, jsonSerializerOptions: null, cancellationToken)
@@ -188,8 +195,8 @@ public sealed class AgentSessionManager
             if (!await _store.TryCreateAsync(record, cancellationToken).ConfigureAwait(false))
             {
                 throw new AgentPrismSessionConflictException(
-                    $"'{sessionId}' oturumunu ayni anda baska bir istek de acti ve bizden once kaydetti. " +
-                    "Kisa bir sure sonra yeniden deneyin.")
+                    $"Another request also opened session '{sessionId}' at the same time and saved it before us. " +
+                    "Retry again shortly.")
                 {
                     SessionId = sessionId,
                 };
@@ -205,22 +212,22 @@ public sealed class AgentSessionManager
         return sessionId;
     }
 
-    /// <summary>Oturumu siler.</summary>
-    /// <param name="sessionId">Oturum kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Silme gerceklestiyse <see langword="true"/>.</returns>
-    /// <exception cref="ArgumentException"><paramref name="sessionId"/> bos ise.</exception>
+    /// <summary>Deletes the session.</summary>
+    /// <param name="sessionId">The session identity.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> if a deletion occurred.</returns>
+    /// <exception cref="ArgumentException"><paramref name="sessionId"/> is empty.</exception>
     public ValueTask<bool> DeleteSessionAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         return _store.DeleteAsync(sessionId, cancellationToken);
     }
 
-    /// <summary>Oturumlari filtreleyerek listeler.</summary>
-    /// <param name="query">Filtre. Kiraci belirtilmemisse gecerli kiraci kullanilir.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Oturumlar.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="query"/> <see langword="null"/> ise.</exception>
+    /// <summary>Lists sessions matching a filter.</summary>
+    /// <param name="query">The filter. The current tenant is used if none is specified.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The sessions.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="query"/> is <see langword="null"/>.</exception>
     public ValueTask<IReadOnlyList<SessionRecord>> QuerySessionsAsync(
         SessionQuery query,
         CancellationToken cancellationToken = default)

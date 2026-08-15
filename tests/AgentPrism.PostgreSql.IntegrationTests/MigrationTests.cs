@@ -192,7 +192,7 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
                 },
                 NullLogger<MigrationRunner>.Instance));
 
-        exception.Message.ShouldContain("sema adi");
+        exception.Message.ShouldContain("schema name");
     }
 
     [Fact]

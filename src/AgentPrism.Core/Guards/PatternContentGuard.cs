@@ -4,43 +4,43 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// AgentPrism'in yerlesik desen tabanli icerik guard'i.
+/// AgentPrism's built-in pattern-based content guard.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Genisleme noktasi tek basina yeterli degildir: K-018 "bellek ici uygulama
-/// birinci siniftir" der ve yerlesik bir uygulama olmadan <see cref="IContentGuard"/>
-/// bos bir vaat olurdu. Uc desen ailesi tasir: yasak sozcuk listesi
-/// (<see cref="ContentGuardAction.Block"/>), PII desenleri ve <c>secret</c>
-/// desenleri (<see cref="ContentGuardAction.Mask"/>).
+/// The extension point alone is not enough: K-018 says "an in-memory
+/// implementation is first-class," and without a built-in implementation
+/// <see cref="IContentGuard"/> would be an empty promise. It carries three
+/// pattern families: a denied-term list (<see cref="ContentGuardAction.Block"/>),
+/// PII patterns, and <c>secret</c> patterns (<see cref="ContentGuardAction.Mask"/>).
 /// </para>
 /// <para>
-/// 🚨 <strong>Her desen kaynak ureteciyle yazilir</strong>
-/// (<see cref="GeneratedRegexAttribute"/>). <c>AgentPrism.Core</c> AOT uyumludur;
-/// calisma aninda derlenen bir <see cref="Regex"/> bunu bozar.
+/// 🚨 <strong>Every pattern is written with the source generator</strong>
+/// (<see cref="GeneratedRegexAttribute"/>). <c>AgentPrism.Core</c> is
+/// AOT-compatible; a <see cref="Regex"/> compiled at runtime would break that.
 /// </para>
 /// <para>
-/// 🚨 <strong>Her desen zaman asimi tasir</strong> (1000 ms). ReDoS'a karsi tek
-/// savunma budur ve sicak yolda zorunludur.
+/// 🚨 <strong>Every pattern carries a timeout</strong> (1000 ms). This is the
+/// only defense against ReDoS and is mandatory on the hot path.
 /// </para>
 /// <para>
-/// 🚨 Kart ve TC kimlik desenleri <see cref="CheckDigits"/> ile dogrulanir. Bu
-/// olmadan her siparis numarasi maskelenir ve guard kapatilir.
+/// 🚨 Card and Turkish national ID patterns are validated with <see cref="CheckDigits"/>.
+/// Without it, every order number would be masked and the guard would get turned off.
 /// </para>
 /// <para>
-/// Tahsis duzeni: once <c>IsMatch</c> / <c>EnumerateMatches</c> ile eslesme
-/// aranir, yeni dize <strong>yalnizca eslesme varsa</strong> uretilir. Hicbir
-/// kural tanimli degilse ilk satirda <see cref="ContentGuardResult.Allow"/>
-/// donulur.
+/// Allocation order: a match is looked for first with <c>IsMatch</c> /
+/// <c>EnumerateMatches</c>, and a new string is produced <strong>only if there
+/// is a match</strong>. If no rule is defined, <see cref="ContentGuardResult.Allow"/>
+/// is returned on the first line.
 /// </para>
 /// </remarks>
 public sealed partial class PatternContentGuard : IContentGuard
 {
     private readonly IOptionsMonitor<PatternContentGuardOptions> _options;
 
-    /// <summary>Yeni bir yerlesik guard olusturur.</summary>
-    /// <param name="options">Desen ve yasak sozcuk ayarlari.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new built-in guard.</summary>
+    /// <param name="options">Pattern and denied-term settings.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     public PatternContentGuard(IOptionsMonitor<PatternContentGuardOptions> options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -60,8 +60,8 @@ public sealed partial class PatternContentGuard : IContentGuard
 
         var options = _options.CurrentValue;
 
-        // Hicbir kural tanimli degilse hicbir desen calismaz. Guard'i kayitli
-        // birakip gecici olarak etkisizlestirmenin yolu budur.
+        // If no rule is defined, no pattern runs. This is how you leave the
+        // guard registered while temporarily disabling it.
         if (options.DeniedTerms.Count == 0 && options.MaskedPii == PiiPatterns.None)
         {
             return ValueTask.FromResult(ContentGuardResult.Allow);
@@ -74,12 +74,12 @@ public sealed partial class PatternContentGuard : IContentGuard
             if (!string.IsNullOrEmpty(term) &&
                 text.Contains(term, StringComparison.OrdinalIgnoreCase))
             {
-                // 🚨 Sebep metni ne engellenen icerigi ne de yasak sozcugun
-                // kendisini tasir: sozcuk listesi de kurumsal bir sirdir
-                // ("gizli-proje" bir kod adi olabilir).
+                // 🚨 The reason text carries neither the blocked content nor the
+                // denied term itself: the term list is a corporate secret too
+                // ("secret-project" could be a code name).
                 return ValueTask.FromResult(ContentGuardResult.Block(
                     "denied-term",
-                    "Icerik yapilandirilmis yasak sozcuk listesiyle eslesti."));
+                    "Content matched the configured denied-term list."));
             }
         }
 
@@ -101,9 +101,9 @@ public sealed partial class PatternContentGuard : IContentGuard
             Apply(CreditCardPattern(), "credit-card", CheckDigitKind.Luhn, options, ref masked, ref rules);
         }
 
-        // TC kimlik denetimi karttan SONRA calisir: 16 haneli bir kart numarasinin
-        // icinde 11 haneli gecerli bir kimlik dizisi bulunmasi mumkundur ve kart
-        // once maskelenirse o sahte eslesme hic olusmaz.
+        // The Turkish national ID check runs AFTER the card check: a 16-digit
+        // card number can contain a valid 11-digit ID sequence inside it, and
+        // if the card is masked first, that false match never occurs.
         if (options.MaskedPii.HasFlag(PiiPatterns.TurkishNationalId))
         {
             Apply(TurkishNationalIdPattern(), "turkish-national-id", CheckDigitKind.TurkishNationalId, options, ref masked, ref rules);
@@ -125,13 +125,13 @@ public sealed partial class PatternContentGuard : IContentGuard
     }
 
     /// <summary>
-    /// Bir deseni uygular. Eslesme yoksa <strong>hicbir dize uretilmez</strong>.
+    /// Applies a pattern. If there is no match, <strong>no string is produced</strong>.
     /// </summary>
     /// <remarks>
-    /// <paramref name="check"/> <see cref="CheckDigitKind.None"/> degilse eslesme
-    /// bir kontrol basamagi denetiminden gecmek zorundadir; gecmeyen eslesme oldugu
-    /// gibi birakilir. Bu yuzden once "gecerli bir eslesme var mi" sorusu tahsissiz
-    /// olarak yanitlanir, <c>Replace</c> ancak ondan sonra cagrilir.
+    /// If <paramref name="check"/> is not <see cref="CheckDigitKind.None"/>, a
+    /// match must pass a check-digit validation; a match that does not pass is
+    /// left as is. This is why "is there a valid match" is answered
+    /// allocation-free first, and <c>Replace</c> is only called afterward.
     /// </remarks>
     private static void Apply(
         Regex pattern,
@@ -162,7 +162,7 @@ public sealed partial class PatternContentGuard : IContentGuard
             return pattern.IsMatch(text);
         }
 
-        // EnumerateMatches tahsis yapmaz: yalnizca konum ve uzunluk doner.
+        // EnumerateMatches allocates nothing: it returns only position and length.
         foreach (var match in pattern.EnumerateMatches(text))
         {
             if (IsValid(check, text.AsSpan(match.Index, match.Length)))
@@ -191,8 +191,8 @@ public sealed partial class PatternContentGuard : IContentGuard
         matchTimeoutMilliseconds: 1000)]
     private static partial Regex IbanPattern();
 
-    // Iki bicim: kesintisiz 13-19 hane, veya dortlu gruplar. Ikisi de Luhn
-    // denetiminden gecmek zorundadir; desen tek basina karar vermez.
+    // Two forms: 13-19 unbroken digits, or groups of four. Both must pass the
+    // Luhn check; the pattern alone does not decide.
     [GeneratedRegex(
         @"\b[0-9]{4}(?:[ \-][0-9]{4}){2,4}\b|\b[0-9]{13,19}\b",
         RegexOptions.CultureInvariant,

@@ -3,26 +3,26 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="ChatMessage"/> listelerini <see cref="ContentGuardPipeline"/> uzerinden
-/// gecirip maskelenmis bir kopyasini kuran paylasilan yardimci.
+/// Shared helper that runs <see cref="ChatMessage"/> lists through
+/// <see cref="ContentGuardPipeline"/> and builds a masked copy.
 /// </summary>
 /// <remarks>
-/// <see cref="ContentGuardingChatClient"/> (modele giden istek, <see cref="MaskAsync"/>
-/// ile <see cref="ContentGuardPipeline.InspectAsync"/> kullanir) ve
-/// <see cref="RunRecordingAgent"/> (calistirma kaydi — <c>RunStarted</c> olayi ve
-/// <see cref="IRunInputStore"/>, <see cref="PreviewAsync"/> ile
-/// <see cref="ContentGuardPipeline.PreviewAsync"/> kullanir) AYNI mesaj-tarama
-/// mantigini paylasir: ikisi de kayitli girdiyi modelin gordugu haliyle
-/// esitlemek zorundadir. Guard sonucu ikisinde ayrilirsa maskelenen/engellenen
-/// icerik kalici depoda ham kalir (HATA-S3-006).
+/// <see cref="ContentGuardingChatClient"/> (the request going to the model, using
+/// <see cref="MaskAsync"/> with <see cref="ContentGuardPipeline.InspectAsync"/>)
+/// and <see cref="RunRecordingAgent"/> (the run record — the <c>RunStarted</c>
+/// event and <see cref="IRunInputStore"/>, using <see cref="PreviewAsync"/> with
+/// <see cref="ContentGuardPipeline.PreviewAsync"/>) share the SAME
+/// message-scanning logic: both must keep the recorded input equal to what the
+/// model actually saw. If the guard result diverges between the two, masked or
+/// blocked content is left raw in permanent storage (HATA-S3-006).
 /// </remarks>
 internal static class ContentGuardMessageMasker
 {
     /// <summary>
-    /// Sistem talimati HARIC her mesaji verilen yonde denetler ve KARAR KAYDI
-    /// YAPAR (<see cref="ContentGuardPipeline.InspectAsync"/>).
+    /// Inspects every message EXCEPT the system instruction in the given
+    /// direction and RECORDS A DECISION (<see cref="ContentGuardPipeline.InspectAsync"/>).
     /// </summary>
-    /// <returns>Degisiklik yoksa cagiranin KENDI listesi doner (tahsissiz yol).</returns>
+    /// <returns>The caller's OWN list if nothing changed (allocation-free path).</returns>
     public static ValueTask<IReadOnlyList<ChatMessage>> MaskAsync(
         ContentGuardPipeline pipeline,
         ContentGuardDirection direction,
@@ -34,12 +34,13 @@ internal static class ContentGuardMessageMasker
             message => MaskMessageAsync(pipeline, direction, message, modelId, cancellationToken));
 
     /// <summary>
-    /// Sistem talimati HARIC her mesaji verilen yonde denetler ama KARAR KAYDI
-    /// YAPMAZ (<see cref="ContentGuardPipeline.PreviewAsync"/>) — bkz. o metodun
-    /// belgesi: <c>RunRecordingAgent.BeginRunAsync</c>'in calistirma satiri henuz
-    /// yokken guvenle cagirabildigi tek yol budur.
+    /// Inspects every message EXCEPT the system instruction in the given
+    /// direction but does NOT RECORD A DECISION
+    /// (<see cref="ContentGuardPipeline.PreviewAsync"/>) — see that method's
+    /// docs: this is the only way <c>RunRecordingAgent.BeginRunAsync</c> can call
+    /// it safely before the run row exists yet.
     /// </summary>
-    /// <returns>Degisiklik yoksa cagiranin KENDI listesi doner (tahsissiz yol).</returns>
+    /// <returns>The caller's OWN list if nothing changed (allocation-free path).</returns>
     public static ValueTask<IReadOnlyList<ChatMessage>> PreviewAsync(
         ContentGuardPipeline pipeline,
         ContentGuardDirection direction,
@@ -60,7 +61,7 @@ internal static class ContentGuardMessageMasker
         {
             var message = messages[index];
 
-            // Sistem talimati bilerek atlanir (bkz. ContentGuardingChatClient).
+            // The system instruction is deliberately skipped (see ContentGuardingChatClient).
             var replacement = message.Role == ChatRole.System
                 ? null
                 : await rewriteAsync(message).ConfigureAwait(false);
@@ -141,20 +142,20 @@ internal static class ContentGuardMessageMasker
         var clone = message.Clone();
         clone.Contents = contents;
 
-        // 🚨 Ham gosterim BILEREK dusurulur — bkz. ContentGuardingChatClient
-        // ayni gerekce (Faz 26).
+        // 🚨 The raw representation is DELIBERATELY dropped — see
+        // ContentGuardingChatClient for the same rationale (Phase 26).
         clone.RawRepresentation = null;
 
         return clone;
     }
 
     /// <summary>
-    /// Denetlenebilir metni okur; denetlenemeyen icerik icin <see langword="null"/>.
+    /// Reads inspectable text; <see langword="null"/> for content that cannot be inspected.
     /// </summary>
     /// <remarks>
-    /// 🚨 <see cref="FunctionResultContent"/> bilerek kapsanir: bir tool sonucu
-    /// modelin gordugu icerigin parcasidir ve uzak bir MCP tool'unun dondurdugu
-    /// zararli metin tam olarak buradan girer.
+    /// 🚨 <see cref="FunctionResultContent"/> is deliberately covered: a tool
+    /// result is part of the content the model sees, and malicious text returned
+    /// by a remote MCP tool enters exactly through here.
     /// </remarks>
     public static string? ReadText(AIContent content) => content switch
     {

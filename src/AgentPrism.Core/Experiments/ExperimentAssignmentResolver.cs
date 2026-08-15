@@ -4,21 +4,22 @@ using System.Text;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir agent icin calisan bir deney varsa, calistirma istegini deterministik
-/// olarak bir kola atar.
+/// Deterministically assigns a run request to a bucket, when a running
+/// experiment exists for an agent.
 /// </summary>
 /// <remarks>
-/// Atama <strong>deterministiktir</strong>: ayni anahtar her zaman ayni kolu uretir.
-/// Rastgele atama bir konusmanin ortasinda talimati degistirirdi. Gerekce:
-/// docs/19-SURUM-KARSILASTIRMA-VE-AB.md, bolum 19.3.
+/// The assignment is <strong>deterministic</strong>: the same key always
+/// produces the same bucket. A random assignment would change the
+/// instructions mid-conversation. Rationale:
+/// docs/19-SURUM-KARSILASTIRMA-VE-AB.md, section 19.3.
 /// </remarks>
 public sealed class ExperimentAssignmentResolver
 {
     private readonly IExperimentStore _store;
 
-    /// <summary>Yeni bir atama cozumleyici olusturur.</summary>
-    /// <param name="store">Deney deposu.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="store"/> <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new assignment resolver.</summary>
+    /// <param name="store">Experiment store.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="store"/> is <see langword="null"/>.</exception>
     public ExperimentAssignmentResolver(IExperimentStore store)
     {
         ArgumentNullException.ThrowIfNull(store);
@@ -26,13 +27,14 @@ public sealed class ExperimentAssignmentResolver
     }
 
     /// <summary>
-    /// Bu agent icin calisan bir deney varsa, verilen anahtar icin bir atama uretir.
+    /// Produces an assignment for the given key, when a running experiment
+    /// exists for this agent.
     /// </summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="agentName">Agent adi.</param>
-    /// <param name="assignmentKey">Atama anahtari (oturum kimligi veya calistirma kimligi).</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Atama; calisan bir deney yoksa <see langword="null"/>.</returns>
+    /// <param name="tenantId">Tenant identifier.</param>
+    /// <param name="agentName">Agent name.</param>
+    /// <param name="assignmentKey">Assignment key (session id or run id).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The assignment; <see langword="null"/> when there is no running experiment.</returns>
     public async ValueTask<ExperimentAssignment?> ResolveAsync(
         string tenantId,
         string agentName,
@@ -61,16 +63,17 @@ public sealed class ExperimentAssignmentResolver
     }
 
     /// <summary>
-    /// SHA-256(deneyId + ":" + anahtar) ilk 4 baytindan 0-99 araliginda bir kova
-    /// uretir ve agirlik araligina dusen varyanti dondurur.
+    /// Produces a bucket in the 0-99 range from the first 4 bytes of
+    /// SHA-256(experimentId + ":" + key), and returns the variant that falls
+    /// within that weight range.
     /// </summary>
-    /// <remarks>Birim testlerin dogrudan cagirabilmesi icin <c>internal</c>.</remarks>
+    /// <remarks><c>internal</c> so unit tests can call it directly.</remarks>
     internal static ExperimentVariant SelectVariant(Experiment experiment, string assignmentKey)
     {
         var input = $"{experiment.Id:D}:{assignmentKey}";
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(input));
 
-        // Ilk 4 bayt, buyuk-endian olarak yorumlanip 0-99 araligina indirilir.
+        // The first 4 bytes, interpreted as big-endian and reduced to the 0-99 range.
         var bucket = (uint)((hash[0] << 24) | (hash[1] << 16) | (hash[2] << 8) | hash[3]) % 100;
 
         var cumulative = 0;
@@ -85,22 +88,24 @@ public sealed class ExperimentAssignmentResolver
             }
         }
 
-        // Agirlik toplami 100'e ulasmazsa (kayit aninda dogrulandigi icin normalde
-        // olmaz) son varyant geri donus olarak kullanilir.
+        // If the weights do not sum to 100 (normally impossible since this is
+        // validated at registration time), the last variant is used as a fallback.
         return experiment.Variants[^1];
     }
 
     /// <summary>
-    /// Kova araligi hesaplamasinda kullanilacak varyant sirasi.
+    /// Variant order used for the bucket range computation.
     /// </summary>
     /// <remarks>
-    /// 🚨 Faz 56: <see cref="Experiment.Canary"/> tanimliyse kanarya kolu HER ZAMAN
-    /// ILK sirada islenir ve boylece <c>[0, kanaryaAgirligi)</c> araligini alir —
-    /// bu aralik <see cref="Experiment.Variants"/>'taki fiziksel sirdan BAGIMSIZDIR.
-    /// Kademeli artirma yalniz kanarya agirligini yukselttigi icin bu aralik
-    /// yalniz BUYUR; daha once kanaryaya dusen bir anahtar hicbir zaman kontrole
-    /// KAYMAZ (docs/56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md, bolum 56.4).
-    /// Kanarya kurali YOKSA (adi gecen Faz 19 A/B deneyleri) sira degismez.
+    /// 🚨 Phase 56: when <see cref="Experiment.Canary"/> is defined, the canary
+    /// bucket is ALWAYS processed FIRST and thus takes the
+    /// <c>[0, canaryWeight)</c> range - this range is INDEPENDENT of the
+    /// physical order in <see cref="Experiment.Variants"/>. Since ramping up
+    /// only raises the canary weight, this range only GROWS; a key once
+    /// assigned to the canary never SHIFTS to control
+    /// (docs/56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md, section 56.4).
+    /// When there is NO canary policy (i.e. the Phase 19 A/B experiments
+    /// referenced above), the order is unchanged.
     /// </remarks>
     private static IReadOnlyList<ExperimentVariant> OrderForAssignment(Experiment experiment)
     {

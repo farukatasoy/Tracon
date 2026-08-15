@@ -5,17 +5,18 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Belge yukleme, anlamsal arama ve kaynak yonetimi icin yonetim (operator) yuzeyi.
+/// Management (operator) surface for document ingestion, semantic search, and source management.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Agent'in kendi isi degildir — bkz. <c>docs/51-VEKTOR-BELLEK-VE-RAG.md</c>, 51.6.
-/// Agent tarafi <see cref="VectorSearchToolFactory"/>'nin urettigi <c>search_knowledge</c>
-/// tool'udur.
+/// Not the agent's own job — see <c>docs/51-VEKTOR-BELLEK-VE-RAG.md</c>, 51.6.
+/// The agent side is the <c>search_knowledge</c> tool produced by
+/// <see cref="VectorSearchToolFactory"/>.
 /// </para>
 /// <para>
-/// <see cref="IsSupported"/> <see langword="false"/> iken her metot
-/// <see cref="AgentPrismException"/> firlatir; sessizce bos sonuc donmez (K1).
+/// While <see cref="IsSupported"/> is <see langword="false"/>, every method
+/// throws <see cref="AgentPrismException"/>; it does not silently return an
+/// empty result (K1).
 /// </para>
 /// </remarks>
 public sealed partial class KnowledgeIngestionService
@@ -25,18 +26,18 @@ public sealed partial class KnowledgeIngestionService
     private readonly IVectorSearchStore? _store;
     private readonly IEmbeddingGenerator<string, Embedding<float>>? _embeddings;
 
-    /// <summary>Yeni bir bilgi tabani servisi olusturur.</summary>
-    /// <param name="tenantContext">Kiraci baglami.</param>
-    /// <param name="options">Bilgi tabani ayarlari.</param>
+    /// <summary>Creates a new knowledge base service.</summary>
+    /// <param name="tenantContext">The tenant context.</param>
+    /// <param name="options">Knowledge base settings.</param>
     /// <param name="store">
-    /// Vektor deposu. <see langword="null"/> ise <see cref="IsSupported"/>
-    /// <see langword="false"/> olur (K4: varsayilan uygulama yok).
+    /// The vector store. If <see langword="null"/>, <see cref="IsSupported"/> is
+    /// <see langword="false"/> (K4: no default implementation).
     /// </param>
     /// <param name="embeddings">
-    /// Gomu ureticisi. <see langword="null"/> ise <see cref="IsSupported"/>
-    /// <see langword="false"/> olur; tuketici kendi saglayicisini kaydetmelidir.
+    /// The embedding generator. If <see langword="null"/>, <see cref="IsSupported"/>
+    /// is <see langword="false"/>; the consumer must register its own provider.
     /// </param>
-    /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException">A required dependency is <see langword="null"/>.</exception>
     public KnowledgeIngestionService(
         ITenantContext tenantContext,
         IOptions<AgentPrismKnowledgeOptions> options,
@@ -53,36 +54,38 @@ public sealed partial class KnowledgeIngestionService
     }
 
     /// <summary>
-    /// Bu kurulumda bilgi tabani destekleniyor mu.
+    /// Whether the knowledge base is supported in this setup.
     /// </summary>
     /// <remarks>
-    /// Yalniz <see cref="IVectorSearchStore"/> (bugun: yalniz PostgreSQL) VE bir
-    /// <c>IEmbeddingGenerator&lt;string, Embedding&lt;float&gt;&gt;</c> birlikte
-    /// kayitliyken <see langword="true"/>.
+    /// <see langword="true"/> only while both an <see cref="IVectorSearchStore"/>
+    /// (today: PostgreSQL only) AND an
+    /// <c>IEmbeddingGenerator&lt;string, Embedding&lt;float&gt;&gt;</c> are registered.
     /// </remarks>
     public bool IsSupported => _store is not null && _embeddings is not null;
 
     /// <summary>
-    /// Bir belgeyi yukler: parcalar (verilmemisse), gomuler (verilmemisse) ve yazar.
+    /// Ingests a document: chunks it (if not given), embeds it (if not given), and writes it.
     /// </summary>
-    /// <param name="collection">Koleksiyon adi.</param>
-    /// <param name="sourceId">Kaynak kimligi. Ayni kimlikle yeniden yukleme eskiyi degistirir.</param>
+    /// <param name="collection">The collection name.</param>
+    /// <param name="sourceId">The source identity. Re-ingesting with the same identity replaces the old one.</param>
     /// <param name="text">
-    /// Ham metin. Verilirse <see cref="AgentPrismKnowledgeOptions.ChunkSize"/> ve
-    /// <see cref="AgentPrismKnowledgeOptions.ChunkOverlap"/> ile parcalanir ve her
-    /// parca gomulur. <paramref name="chunks"/> ile birlikte verilemez.
+    /// Raw text. If given, it is chunked with
+    /// <see cref="AgentPrismKnowledgeOptions.ChunkSize"/> and
+    /// <see cref="AgentPrismKnowledgeOptions.ChunkOverlap"/>, and each chunk is
+    /// embedded. Cannot be given together with <paramref name="chunks"/>.
     /// </param>
     /// <param name="chunks">
-    /// Hazir parcalar. <see cref="VectorChunk.Embedding"/> bos birakilan parcalar
-    /// burada gomulur; doldurulmus olanlar OLDUGU GIBI yazilir (tuketici kendi
-    /// gomusunu getirebilir). <paramref name="text"/> ile birlikte verilemez.
+    /// Ready-made chunks. Chunks with an empty <see cref="VectorChunk.Embedding"/>
+    /// are embedded here; chunks that already have one are written AS IS (the
+    /// consumer may bring its own embedding). Cannot be given together with
+    /// <paramref name="text"/>.
     /// </param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Yazilan parca sayisi.</returns>
-    /// <exception cref="AgentPrismException"><see cref="IsSupported"/> <see langword="false"/> ise.</exception>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The number of chunks written.</returns>
+    /// <exception cref="AgentPrismException"><see cref="IsSupported"/> is <see langword="false"/>.</exception>
     /// <exception cref="ArgumentException">
-    /// Ne <paramref name="text"/> ne <paramref name="chunks"/> verilmisse, ikisi birden
-    /// verilmisse, veya bir parcanin gomu uzunlugu depo boyutuyla eslesmiyorsa.
+    /// Neither <paramref name="text"/> nor <paramref name="chunks"/> is given,
+    /// both are given, or a chunk's embedding length does not match the store's dimension.
     /// </exception>
     public async ValueTask<int> IngestAsync(
         string collection,
@@ -124,13 +127,13 @@ public sealed partial class KnowledgeIngestionService
         return prepared.Count;
     }
 
-    /// <summary>Bir sorgu metnini gomup en yakin parcalari dondurur.</summary>
-    /// <param name="collection">Koleksiyon adi.</param>
-    /// <param name="query">Sorgu metni.</param>
-    /// <param name="top">Kac sonuc dondurulecegi. Verilmezse <see cref="AgentPrismKnowledgeOptions.MaxResults"/>.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Mesafeye gore artan sirali sonuclar.</returns>
-    /// <exception cref="AgentPrismException"><see cref="IsSupported"/> <see langword="false"/> ise.</exception>
+    /// <summary>Embeds a query text and returns the nearest chunks.</summary>
+    /// <param name="collection">The collection name.</param>
+    /// <param name="query">The query text.</param>
+    /// <param name="top">How many results to return. If not given, <see cref="AgentPrismKnowledgeOptions.MaxResults"/>.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>Results sorted by ascending distance.</returns>
+    /// <exception cref="AgentPrismException"><see cref="IsSupported"/> is <see langword="false"/>.</exception>
     public async ValueTask<IReadOnlyList<VectorSearchHit>> SearchAsync(
         string collection,
         string query,
@@ -155,12 +158,12 @@ public sealed partial class KnowledgeIngestionService
             cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Bir kaynagin tum parcalarini siler.</summary>
-    /// <param name="collection">Koleksiyon adi.</param>
-    /// <param name="sourceId">Silinecek kaynak kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Silinen parca sayisi.</returns>
-    /// <exception cref="AgentPrismException"><see cref="IsSupported"/> <see langword="false"/> ise.</exception>
+    /// <summary>Deletes all chunks of a source.</summary>
+    /// <param name="collection">The collection name.</param>
+    /// <param name="sourceId">The source identity to delete.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The number of chunks deleted.</returns>
+    /// <exception cref="AgentPrismException"><see cref="IsSupported"/> is <see langword="false"/>.</exception>
     public ValueTask<int> DeleteSourceAsync(string collection, string sourceId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(collection);
@@ -171,11 +174,11 @@ public sealed partial class KnowledgeIngestionService
         return _store!.DeleteSourceAsync(_tenantContext.TenantId, collection, sourceId, cancellationToken);
     }
 
-    /// <summary>Bir koleksiyondaki tum kaynaklari listeler.</summary>
-    /// <param name="collection">Koleksiyon adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kaynak kimlikleri.</returns>
-    /// <exception cref="AgentPrismException"><see cref="IsSupported"/> <see langword="false"/> ise.</exception>
+    /// <summary>Lists all sources in a collection.</summary>
+    /// <param name="collection">The collection name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The source identities.</returns>
+    /// <exception cref="AgentPrismException"><see cref="IsSupported"/> is <see langword="false"/>.</exception>
     public ValueTask<IReadOnlyList<string>> ListSourcesAsync(string collection, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(collection);
@@ -262,11 +265,11 @@ public sealed partial class KnowledgeIngestionService
     }
 
     /// <summary>
-    /// Koleksiyon adinin guvenli bir tanimlayici oldugunu dogrular. Ad sorguya
-    /// PARAMETRE olarak gecer (SQL enjeksiyonu yolu degildir) ama arayuzden
-    /// gelebilecegi icin serbest metin olarak KABUL EDILMEZ.
+    /// Confirms that the collection name is a safe identifier. The name is
+    /// passed to the query as a PARAMETER (not a SQL injection path), but since
+    /// it may come from the interface it is NOT ACCEPTED as free-form text.
     /// </summary>
-    /// <exception cref="ArgumentException">Ad desene uymuyorsa.</exception>
+    /// <exception cref="ArgumentException">The name does not match the pattern.</exception>
     private static void RequireValidCollectionName(string collection)
     {
         if (!ValidCollectionName().IsMatch(collection))

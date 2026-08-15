@@ -5,28 +5,30 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir model saglayicisi ardisik hata verdiginde istekleri gecici olarak kesen devre
-/// kesici. Saglayici adina gore durum tutar.
+/// Circuit breaker that temporarily cuts off requests when a model provider
+/// fails consecutively. Holds state per provider name.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Uc durumlu klasik devre kesici deseni: <c>Closed</c> (istekler gecer),
-/// <c>Open</c> (istekler aninda <see cref="AgentPrismProviderUnavailableException"/>
-/// ile reddedilir, saglayiciya hicbir cagri gitmez) ve <c>HalfOpen</c>
-/// (<c>BreakDuration</c> dolunca acilan tek deneme penceresi).
+/// The classic three-state circuit breaker pattern: <c>Closed</c> (requests
+/// pass through), <c>Open</c> (requests are rejected immediately with
+/// <see cref="AgentPrismProviderUnavailableException"/>, no call reaches the
+/// provider), and <c>HalfOpen</c> (a single trial window opened once
+/// <c>BreakDuration</c> has elapsed).
 /// </para>
 /// <para>
-/// Durum bir <see cref="ConcurrentDictionary{TKey,TValue}"/> uzerinde degismez
-/// (<see langword="record"/>) anlik goruntulerle, karsilastir-ve-degistir (CAS)
-/// donguleriyle tutulur — kilit (lock) kullanilmaz. <c>Wrap</c> ile donen
-/// <see cref="IChatClient"/> her cagridan once <see cref="EnsureRequestAllowed"/>,
-/// basaridan sonra <see cref="RecordSuccess"/>, hatadan sonra
-/// <see cref="RecordFailure"/> cagirir.
+/// State is held on a <see cref="ConcurrentDictionary{TKey,TValue}"/> using
+/// immutable (<see langword="record"/>) snapshots and compare-and-swap (CAS)
+/// loops — no lock is used. The <see cref="IChatClient"/> returned by
+/// <c>Wrap</c> calls <see cref="EnsureRequestAllowed"/> before every call,
+/// <see cref="RecordSuccess"/> after a success, and <see cref="RecordFailure"/>
+/// after a failure.
 /// </para>
 /// <para>
-/// <see cref="AgentPrismCircuitBreakerOptions.Enabled"/> her cagride
-/// <see cref="IOptionsMonitor{TOptions}.CurrentValue"/> uzerinden okunur; calisma
-/// aninda kapatilirsa devre kesici o andan itibaren devre disi kalir.
+/// <see cref="AgentPrismCircuitBreakerOptions.Enabled"/> is read via
+/// <see cref="IOptionsMonitor{TOptions}.CurrentValue"/> on every call; if it is
+/// turned off at runtime, the circuit breaker becomes inactive from that
+/// moment on.
 /// </para>
 /// </remarks>
 public sealed class ModelProviderCircuitBreaker
@@ -35,10 +37,10 @@ public sealed class ModelProviderCircuitBreaker
     private readonly IOptionsMonitor<AgentPrismOptions> _optionsMonitor;
     private readonly TimeProvider _timeProvider;
 
-    /// <summary>Yeni bir devre kesici olusturur.</summary>
-    /// <param name="optionsMonitor">Calisma zamani ayarlari.</param>
-    /// <param name="timeProvider">Zaman kaynagi. <see langword="null"/> ise sistem saati kullanilir.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="optionsMonitor"/> <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new circuit breaker.</summary>
+    /// <param name="optionsMonitor">The runtime settings.</param>
+    /// <param name="timeProvider">The time source. If <see langword="null"/>, the system clock is used.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="optionsMonitor"/> is <see langword="null"/>.</exception>
     public ModelProviderCircuitBreaker(IOptionsMonitor<AgentPrismOptions> optionsMonitor, TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(optionsMonitor);
@@ -47,15 +49,15 @@ public sealed class ModelProviderCircuitBreaker
         _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
-    /// <summary>Devre kesici su an acik mi.</summary>
+    /// <summary>Whether the circuit breaker is currently enabled.</summary>
     public bool IsEnabled => _optionsMonitor.CurrentValue.CircuitBreaker.Enabled;
 
-    /// <summary>Verilen sohbet istemcisini bu saglayici icin devre kesiciyle sarar.</summary>
-    /// <param name="providerName">Saglayici adi. Devre durumu bu ada gore tutulur.</param>
-    /// <param name="inner">Sarmalanacak istemci.</param>
-    /// <returns>Devre kesici ile sarilmis istemci.</returns>
-    /// <exception cref="ArgumentException"><paramref name="providerName"/> bos ise.</exception>
-    /// <exception cref="ArgumentNullException"><paramref name="inner"/> <see langword="null"/> ise.</exception>
+    /// <summary>Wraps the given chat client with the circuit breaker for this provider.</summary>
+    /// <param name="providerName">The provider name. Circuit state is held keyed by this name.</param>
+    /// <param name="inner">The client to wrap.</param>
+    /// <returns>The client wrapped with the circuit breaker.</returns>
+    /// <exception cref="ArgumentException"><paramref name="providerName"/> is empty.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="inner"/> is <see langword="null"/>.</exception>
     public IChatClient Wrap(string providerName, IChatClient inner)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(providerName);
@@ -65,12 +67,13 @@ public sealed class ModelProviderCircuitBreaker
     }
 
     /// <summary>
-    /// Devre <c>Open</c> durumdaysa ve mola suresi dolmadiysa
-    /// <see cref="AgentPrismProviderUnavailableException"/> atar. Mola suresi
-    /// dolduysa devreyi <c>HalfOpen</c>'a gecirir ve cagirana tek denemeyi birakir.
+    /// Throws <see cref="AgentPrismProviderUnavailableException"/> if the circuit
+    /// is <c>Open</c> and the break duration has not elapsed. If the break
+    /// duration has elapsed, moves the circuit to <c>HalfOpen</c> and lets the
+    /// caller have the single trial.
     /// </summary>
-    /// <param name="providerName">Saglayici adi.</param>
-    /// <exception cref="AgentPrismProviderUnavailableException">Devre acik ise.</exception>
+    /// <param name="providerName">The provider name.</param>
+    /// <exception cref="AgentPrismProviderUnavailableException">The circuit is open.</exception>
     public void EnsureRequestAllowed(string providerName)
     {
         if (!IsEnabled)
@@ -94,20 +97,21 @@ public sealed class ModelProviderCircuitBreaker
             if (elapsed < breakDuration)
             {
                 throw new AgentPrismProviderUnavailableException(
-                    $"'{providerName}' saglayicisi devre kesici tarafindan gecici olarak durduruldu " +
-                    $"({current.ConsecutiveFailures} ardisik hata). " +
-                    $"{(breakDuration - elapsed).TotalSeconds:F0} sn sonra yeniden denenecek.")
+                    $"The '{providerName}' provider was temporarily stopped by the circuit breaker " +
+                    $"({current.ConsecutiveFailures} consecutive failures). " +
+                    $"Will retry in {(breakDuration - elapsed).TotalSeconds:F0}s.")
                 {
                     ProviderName = providerName,
                     RetryAfter = current.OpenedAt + breakDuration,
                 };
             }
 
-            // Mola suresi doldu: tek bir denemeye izin ver. Baska bir istek ayni anda
-            // buraya gelirse CAS basarisiz olur ve dongu yeniden okur; ikinci istek
-            // artik HalfOpen gorur ve normal Closed-gibi davranista gecer (bilerek —
-            // tek deneme garantisi kesin degil, ama devrenin surekli acik kalmasindan
-            // iyidir).
+            // The break duration has elapsed: allow a single trial. If another
+            // request arrives here at the same time, the CAS fails and the loop
+            // reads again; the second request then sees HalfOpen and passes
+            // through with Closed-like behavior (deliberately — the single-trial
+            // guarantee is not exact, but it is better than the circuit staying
+            // open forever).
             if (_states.TryUpdate(providerName, current with { Phase = CircuitPhase.HalfOpen }, current))
             {
                 return;
@@ -115,8 +119,8 @@ public sealed class ModelProviderCircuitBreaker
         }
     }
 
-    /// <summary>Basarili bir cagridan sonra ardisik hata sayacini sifirlar.</summary>
-    /// <param name="providerName">Saglayici adi.</param>
+    /// <summary>Resets the consecutive-failure counter after a successful call.</summary>
+    /// <param name="providerName">The provider name.</param>
     public void RecordSuccess(string providerName)
     {
         if (!IsEnabled)
@@ -128,10 +132,10 @@ public sealed class ModelProviderCircuitBreaker
     }
 
     /// <summary>
-    /// Basarisiz bir cagridan sonra ardisik hata sayacini artirir; esik asilirsa
-    /// (veya yari-acik denemesi basarisiz olursa) devreyi acar.
+    /// Increments the consecutive-failure counter after a failed call; opens the
+    /// circuit if the threshold is exceeded (or if the half-open trial fails).
     /// </summary>
-    /// <param name="providerName">Saglayici adi.</param>
+    /// <param name="providerName">The provider name.</param>
     public void RecordFailure(string providerName)
     {
         if (!IsEnabled)
@@ -145,7 +149,7 @@ public sealed class ModelProviderCircuitBreaker
         {
             var current = _states.GetOrAdd(providerName, static _ => CircuitBreakerState.Initial);
 
-            // Yari-acik durumdaki tek deneme basarisiz oldu: hemen yeniden ac.
+            // The single trial in the half-open state failed: reopen immediately.
             if (current.Phase == CircuitPhase.HalfOpen)
             {
                 var reopened = new CircuitBreakerState(
@@ -175,13 +179,14 @@ public sealed class ModelProviderCircuitBreaker
     }
 
     /// <summary>
-    /// Devre su an acik mi (mola suresi dolmamis <c>Open</c>). Saglik ucunun devre
-    /// durumunu raporlamasi icindir; <see cref="EnsureRequestAllowed"/>'in aksine
-    /// durumu <strong>degistirmez</strong>.
+    /// Whether the circuit is currently open (<c>Open</c> with the break
+    /// duration not yet elapsed). Intended for the health endpoint to report
+    /// circuit state; unlike <see cref="EnsureRequestAllowed"/> it
+    /// <strong>does not change</strong> the state.
     /// </summary>
-    /// <param name="providerName">Saglayici adi.</param>
-    /// <param name="retryAfter">Acik ise kalan mola suresi.</param>
-    /// <returns>Devre acik ve mola suresi surmekteyse <see langword="true"/>.</returns>
+    /// <param name="providerName">The provider name.</param>
+    /// <param name="retryAfter">The remaining break duration, if open.</param>
+    /// <returns><see langword="true"/> if the circuit is open and the break duration is still in effect.</returns>
     public bool IsOpen(string providerName, out TimeSpan? retryAfter)
     {
         retryAfter = null;

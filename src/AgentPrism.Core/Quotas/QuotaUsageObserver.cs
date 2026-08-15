@@ -6,31 +6,31 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// <c>agentprism.quota.usage</c>/<c>agentprism.quota.limit</c> gozlemlenen
-/// olcerlerinin onbellekli veri kaynagi (Faz 35).
+/// Cached data source for the <c>agentprism.quota.usage</c>/<c>agentprism.quota.limit</c>
+/// observable gauges (Phase 35).
 /// </summary>
 /// <remarks>
 /// <para>
-/// <c>ObservableGauge</c> geri cagirmasi es zamanlidir; veritabani okumasi
-/// icinde dogrudan YAPILAMAZ. Bu sinif her geri cagirmada onbellegin yasini
-/// <see cref="AgentPrismObservabilityOptions.QuotaUsageRefreshInterval"/> ile
-/// karsilastirir: onbellek tazeyse dogrudan doner, bayatladiysa BIR kez
-/// (blok olarak) tazeler. Ardisik yoklamalar bu araligin icindeyse ikinci bir
-/// veritabani sorgusu olusmaz.
+/// The <c>ObservableGauge</c> callback is synchronous; a database read CANNOT
+/// be done directly inside it. This class compares the cache's age against
+/// <see cref="AgentPrismObservabilityOptions.QuotaUsageRefreshInterval"/> on
+/// every callback: if the cache is fresh it returns directly, if it is stale it
+/// refreshes ONCE (blocking). If consecutive polls fall within this interval,
+/// no second database query happens.
 /// </para>
 /// <para>
-/// <see cref="AgentPrismObservabilityOptions.EnableQuotaUsageGauge"/>
-/// <see langword="false"/> oldugu surece onbellek HIC dokunulmaz — enstruman
-/// adi yine de mevcuttur (tuketicinin OTel yapilandirmasi degismeden
-/// acilabilir), ama olcum yayilmaz ve veritabanina gidilmez.
+/// As long as <see cref="AgentPrismObservabilityOptions.EnableQuotaUsageGauge"/>
+/// is <see langword="false"/>, the cache is NEVER touched — the instrument name
+/// still exists (so it can be turned on without changing the consumer's OTel
+/// configuration), but no measurement is published and the database is never queried.
 /// </para>
 /// <para>
-/// 🚨 <strong>Bilinen sinirlama:</strong> kiraci kaydi (<see cref="ITenantStore"/>)
-/// zorunlu degildir; bu olcer yalniz KAYITLI kiracilari tarar. Kaydi olmayan bir
-/// kiracinin kota kurali <see cref="QuotaEnforcer"/> tarafindan yine dogru
-/// uygulanir, yalniz bu gosterge panosunda GORUNMEZ. Bu, fazin "yeni tablo/uc
-/// yok" hedefiyle kabul edilen bir sinirlamadir
-/// (bkz. <c>docs/35-MALIYET-VE-KOTA-METRIKLERI.md</c>).
+/// 🚨 <strong>Known limitation:</strong> tenant registration (<see cref="ITenantStore"/>)
+/// is not mandatory; this gauge only scans REGISTERED tenants. A quota rule for
+/// an unregistered tenant is still enforced correctly by
+/// <see cref="QuotaEnforcer"/>, it simply does NOT APPEAR on this dashboard.
+/// This is an accepted limitation given the phase's "no new table/endpoint"
+/// goal (see <c>docs/35-MALIYET-VE-KOTA-METRIKLERI.md</c>).
 /// </para>
 /// </remarks>
 public sealed class QuotaUsageObserver : IHostedService, IDisposable
@@ -43,31 +43,32 @@ public sealed class QuotaUsageObserver : IHostedService, IDisposable
     private readonly ILogger<QuotaUsageObserver>? _logger;
     private readonly Meter _meter;
     private readonly bool _ownsMeter;
-    // SemaphoreSlim: net8.0 de hedeflendigi icin System.Threading.Lock
-    // kullanilamaz (MA0158 ayri bir object alanini da yasaklar); es zamanli
-    // (senkron) kod yolunda Wait()/Release() ile kullanilir.
+    // SemaphoreSlim: System.Threading.Lock cannot be used because net8.0 is
+    // also a target (MA0158 also forbids a separate object field); used with
+    // Wait()/Release() on the synchronous code path.
     private readonly SemaphoreSlim _gate = new(1, 1);
 
     private IReadOnlyList<QuotaGaugeSample> _snapshot = [];
     private DateTimeOffset? _lastRefreshedAt;
 
-    /// <summary>Yeni bir kota olcer olusturur.</summary>
-    /// <param name="quotaStore">Kota kural ve sayac deposu.</param>
-    /// <param name="tenantStore">Kayitli kiracilarin deposu.</param>
+    /// <summary>Creates a new quota gauge.</summary>
+    /// <param name="quotaStore">The quota rule and counter store.</param>
+    /// <param name="tenantStore">The store of registered tenants.</param>
     /// <param name="options">
-    /// Olcer acik/kapali ve onbellek araligi ayarlarini tasiyan <see cref="AgentPrismOptions.Observability"/>'in
-    /// bagli oldugu kok tip. <see cref="AgentPrismObservabilityOptions"/> kendi basina (standalone)
-    /// hicbir yerde <c>services.Configure&lt;AgentPrismObservabilityOptions&gt;</c> ile kayitli DEGILDIR —
-    /// yalnizca <see cref="AgentPrismOptions.Observability"/> uzerinden baglanir (HATA-S4-020).
+    /// The root type that <see cref="AgentPrismOptions.Observability"/>, which
+    /// carries the gauge on/off and cache interval settings, hangs off.
+    /// <see cref="AgentPrismObservabilityOptions"/> is NOT registered standalone
+    /// anywhere with <c>services.Configure&lt;AgentPrismObservabilityOptions&gt;</c>
+    /// — it is only reached through <see cref="AgentPrismOptions.Observability"/> (HATA-S4-020).
     /// </param>
-    /// <param name="quotaOptions">Kota donem hesabinin saat dilimi ayari.</param>
+    /// <param name="quotaOptions">The time-zone setting for the quota period calculation.</param>
     /// <param name="meterFactory">
-    /// Olcum fabrikasi. <see langword="null"/> ise kendi <see cref="Meter"/> ornegi
-    /// olusturulur ve sahipligi bu nesneye ait olur.
+    /// The meter factory. If <see langword="null"/>, a private <see cref="Meter"/>
+    /// instance is created and owned by this object.
     /// </param>
-    /// <param name="timeProvider">Zaman kaynagi. <see langword="null"/> ise <see cref="TimeProvider.System"/>.</param>
-    /// <param name="logger">Onbellek tazeleme hatalarinin loglandigi gunlukleyici.</param>
-    /// <exception cref="ArgumentNullException">Zorunlu bir bagimlilik <see langword="null"/> ise.</exception>
+    /// <param name="timeProvider">The time source. If <see langword="null"/>, <see cref="TimeProvider.System"/>.</param>
+    /// <param name="logger">The logger that cache-refresh errors are logged to.</param>
+    /// <exception cref="ArgumentNullException">A required dependency is <see langword="null"/>.</exception>
     public QuotaUsageObserver(
         IQuotaStore quotaStore,
         ITenantStore tenantStore,
@@ -102,23 +103,23 @@ public sealed class QuotaUsageObserver : IHostedService, IDisposable
         _meter.CreateObservableGauge(
             AgentPrismDiagnostics.QuotaUsageGaugeName,
             ObserveUsage,
-            description: "Kota kapsaminin gecerli donemdeki tuketimi.");
+            description: "The quota scope's consumption in the current period.");
 
         _meter.CreateObservableGauge(
             AgentPrismDiagnostics.QuotaLimitGaugeName,
             ObserveLimit,
-            description: "Kota kapsaminin tanimli sinirlari.");
+            description: "The quota scope's defined limits.");
     }
 
     /// <summary>
-    /// Ayrica bir is yapmaz — kurucu, olcum aletlerini KAYIT sirasinda zaten
-    /// olusturur. Bu tipin <see cref="IHostedService"/> olarak eklenmesinin
-    /// tek amaci, konteynerin bu nesneyi ERKEN (barindirici baslarken) cozup
-    /// olusturmasidir; aksi halde hicbir tuketici cozmedigi surece olcum
-    /// aletleri hic olusmaz.
+    /// Does nothing extra — the constructor already creates the instruments at
+    /// REGISTRATION time. The only purpose of adding this type as an
+    /// <see cref="IHostedService"/> is to make the container resolve and
+    /// construct this object EARLY (while the host is starting); otherwise the
+    /// instruments would never be created unless some consumer happens to resolve it.
     /// </summary>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanmis bir gorev.</returns>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A completed task.</returns>
     public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
     /// <inheritdoc cref="IHostedService.StopAsync(CancellationToken)" />
@@ -157,11 +158,11 @@ public sealed class QuotaUsageObserver : IHostedService, IDisposable
 
             if (_lastRefreshedAt is null || now - _lastRefreshedAt.Value >= interval)
             {
-                // 🚨 Es zamanli geri cagirmadan veritabanina BLOK olarak gidilir.
-                // Bu, siniflandirmanin kendi belgesinde acikca kabul edilen bir
-                // bedeldir: cagri sikligi en kotu ihtimalle
-                // QuotaUsageRefreshInterval kadardir ve gauge toplama tipik
-                // olarak ayri, dusuk frekansli bir arka plan gorevinde calisir.
+                // 🚨 The database is reached in a BLOCKING way from a
+                // synchronous callback. This is a cost explicitly accepted in
+                // this class's own docs: call frequency is at worst
+                // QuotaUsageRefreshInterval, and gauge collection typically
+                // runs in a separate, low-frequency background task.
                 _snapshot = RefreshAsync().GetAwaiter().GetResult();
                 _lastRefreshedAt = now;
             }
@@ -203,9 +204,9 @@ public sealed class QuotaUsageObserver : IHostedService, IDisposable
                         continue;
                     }
 
-                    // Kiraci geneli kural bos ad'li sayaci okur; agent'a bagli
-                    // kural kendi agent sayacini okur (QuotaEnforcer.Evaluate ile
-                    // ayni sozlesme).
+                    // A tenant-wide rule reads the counter with an empty name;
+                    // a rule scoped to an agent reads its own agent's counter
+                    // (same contract as QuotaEnforcer.Evaluate).
                     var scope = definition.AgentName ?? string.Empty;
                     var periodStart = QuotaPeriodCalculator.GetPeriodStart(now, definition.Period, timeZone);
 
@@ -232,11 +233,11 @@ public sealed class QuotaUsageObserver : IHostedService, IDisposable
         {
             if (_logger is not null && _logger.IsEnabled(LogLevel.Warning))
             {
-                _logger.LogWarning(exception, "Kota olcer onbellegi tazelenemedi; onceki deger korunuyor.");
+                _logger.LogWarning(exception, "Could not refresh the quota gauge cache; keeping the previous value.");
             }
 
-            // Onceki gecerli onbellegi koru: kismi bir hata gostergeyi sifira
-            // dusurmemelidir.
+            // Keep the previous valid cache: a partial failure should not
+            // drop the gauge to zero.
             return _snapshot;
         }
     }

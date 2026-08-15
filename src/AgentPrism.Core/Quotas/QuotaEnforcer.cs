@@ -6,21 +6,21 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Kota kurallarini denetler ve tamamlanan calistirmalarin tuketimini yazar.
+/// Enforces quota rules and records the consumption of completed runs.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 <strong>Kota yaklasiktir</strong> (K-159). Denetim calistirma
-/// <em>baslamadan once</em> yapilir, tuketim <em>bittikten sonra</em> yazilir.
-/// Ayni anda baslayan calistirmalar kotayi bir miktar asabilir. Siki garanti,
-/// her calistirma oncesinde kilit almayi gerektirir ve her istege gecikme
-/// ekler. "Yaklasik kota" durust bir ifadedir; "kesin kota" olmayan bir seyi
-/// vaat etmek olurdu.
+/// 🚨 <strong>The quota is approximate</strong> (K-159). The check happens
+/// <em>before</em> a run starts; consumption is written <em>after</em> it
+/// finishes. Runs that start at the same time can exceed the quota by a small
+/// margin. A strict guarantee would require taking a lock before every run and
+/// adds latency to every request. "Approximate quota" is an honest statement;
+/// "exact quota" would promise something that is not delivered.
 /// </para>
 /// <para>
-/// Devam eden bir calistirma kota asilinca <strong>kesilmez</strong> (K-162):
-/// yarim bir yanit ve harcanmis token, tutarli bir sonuctan kotudur. Yalnizca
-/// yeni calistirma <c>429</c> alir.
+/// An in-progress run is <strong>not cut off</strong> when the quota is
+/// exceeded (K-162): a half-finished response with tokens already spent is
+/// worse than a consistent result. Only a new run gets <c>429</c>.
 /// </para>
 /// </remarks>
 public sealed class QuotaEnforcer(
@@ -32,19 +32,19 @@ public sealed class QuotaEnforcer(
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
 
-    // Bir esik her donemde yalnizca BIR KEZ yayilir. Sayac her calistirmada
-    // arttigi icin aksi halde esigin ustundeki her calistirma yeni bir olay
-    // uretirdi. Anahtar donem baslangicini icerir; donem donunce kendiliginden
-    // yeni bir anahtar olusur ve eski girdiler temizlenir.
+    // A threshold is published only ONCE per period. Since the counter
+    // increases on every run, every run above the threshold would otherwise
+    // produce a new event. The key includes the period start; once the period
+    // rolls over, a new key forms automatically and the old entries become stale.
     private readonly ConcurrentDictionary<ThresholdKey, byte> _firedThresholds = new();
 
     /// <summary>
-    /// Yeni bir calistirmaya izin verilip verilmedigini denetler.
+    /// Checks whether a new run is allowed.
     /// </summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="agentName">Calistirilacak agent'in adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Karar. Izin veriliyorsa <see cref="QuotaDecision.IsAllowed"/> <see langword="true"/>.</returns>
+    /// <param name="tenantId">The tenant identity.</param>
+    /// <param name="agentName">The name of the agent to run.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The decision. If allowed, <see cref="QuotaDecision.IsAllowed"/> is <see langword="true"/>.</returns>
     public async ValueTask<QuotaDecision> CheckAsync(
         string tenantId,
         string agentName,
@@ -68,8 +68,8 @@ public sealed class QuotaEnforcer(
 
             if (definitions.Count == 0)
             {
-                // Varsayilan kota YOKTUR: kural tanimlanmadikca hicbir sey
-                // reddedilmez ve ikinci bir sorgu yapilmaz.
+                // There is NO default quota: nothing is rejected until a rule
+                // is defined, and no second query is made.
                 return QuotaDecision.Allowed;
             }
 
@@ -81,7 +81,7 @@ public sealed class QuotaEnforcer(
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
-                logger.LogWarning(exception, "Kota denetimi basarisiz oldu; AllowOnStoreFailure={Allow}.", options.AllowOnStoreFailure);
+                logger.LogWarning(exception, "Quota check failed; AllowOnStoreFailure={Allow}.", options.AllowOnStoreFailure);
             }
 
             return options.AllowOnStoreFailure
@@ -115,16 +115,14 @@ public sealed class QuotaEnforcer(
     }
 
     /// <summary>
-    /// Tamamlanmis bir calistirmanin tuketimini sayaclara ekler ve gerekirse
-    /// esik olayi yayar.
+    /// Adds a completed run's consumption to the counters and, if needed, publishes a threshold event.
     /// </summary>
-    /// <param name="consumption">Tuketim.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <param name="consumption">The consumption.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
     /// <remarks>
-    /// Bu cagri <strong>hicbir zaman istisna firlatmaz</strong>: kota
-    /// muhasebesi bir gozlemlenebilirlik islevidir ve tamamlanmis bir
-    /// calistirmayi geriye donuk bozmamalidir.
+    /// This call <strong>never throws</strong>: quota accounting is an
+    /// observability function and must not retroactively break a completed run.
     /// </remarks>
     public async ValueTask RecordAsync(
         QuotaConsumption consumption,
@@ -149,19 +147,19 @@ public sealed class QuotaEnforcer(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            // Gozlemlenebilirlik islevselligi bozmaz: sayac yazilamazsa
-            // calistirma yine de tamamlanmis sayilir.
+            // Observability does not break functionality: if the counter
+            // cannot be written, the run is still considered complete.
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
-                logger.LogWarning(exception, "Kota tuketimi yazilamadi: {TenantId}/{AgentName}.", consumption.TenantId, consumption.AgentName);
+                logger.LogWarning(exception, "Could not write quota consumption: {TenantId}/{AgentName}.", consumption.TenantId, consumption.AgentName);
             }
         }
     }
 
-    /// <summary>Bir kuralin belirli bir agent'a uygulanip uygulanmadigini bildirir.</summary>
-    /// <param name="definition">Kural.</param>
-    /// <param name="agentName">Agent adi.</param>
-    /// <returns>Kural uygulaniyorsa <see langword="true"/>.</returns>
+    /// <summary>Reports whether a rule applies to a specific agent.</summary>
+    /// <param name="definition">The rule.</param>
+    /// <param name="agentName">The agent name.</param>
+    /// <returns><see langword="true"/> if the rule applies.</returns>
     internal static bool AppliesTo(QuotaDefinition definition, string agentName)
         => definition.AgentName is null
            || string.Equals(definition.AgentName, agentName, StringComparison.Ordinal);
@@ -173,8 +171,8 @@ public sealed class QuotaEnforcer(
         DateTimeOffset now,
         TimeZoneInfo timeZone)
     {
-        // Kiraci geneli kural bos ad'li sayaci okur; agent'a bagli kural kendi
-        // agent sayacini okur.
+        // A tenant-wide rule reads the counter with an empty name; a rule
+        // scoped to an agent reads its own agent's counter.
         var scope = definition.AgentName is null ? string.Empty : agentName;
         var periodStart = QuotaPeriodCalculator.GetPeriodStart(now, definition.Period, timeZone);
         var resetsAt = QuotaPeriodCalculator.GetPeriodEnd(now, definition.Period, timeZone);
@@ -306,7 +304,7 @@ public sealed class QuotaEnforcer(
 
                     if (!_firedThresholds.TryAdd(key, 0))
                     {
-                        // Bu esik bu donemde zaten yayildi.
+                        // This threshold was already published in this period.
                         break;
                     }
 
@@ -319,11 +317,11 @@ public sealed class QuotaEnforcer(
         }
     }
 
-    /// <summary>Bir kuralda tanimli sinirlari (olcut, sinir, tuketim) sirayla dondurur.</summary>
-    /// <param name="definition">Kural.</param>
-    /// <param name="usage">Kapsamin gecerli donemdeki sayaci.</param>
-    /// <returns><see langword="null"/> olmayan her sinir icin bir eleman.</returns>
-    /// <remarks><see cref="QuotaUsageObserver"/> ayni numaralandirmayi olcer icin kullanir.</remarks>
+    /// <summary>Returns, in order, the limits (metric, limit, consumption) defined on a rule.</summary>
+    /// <param name="definition">The rule.</param>
+    /// <param name="usage">The scope's counter for the current period.</param>
+    /// <returns>One element for every limit that is not <see langword="null"/>.</returns>
+    /// <remarks><see cref="QuotaUsageObserver"/> uses the same enumeration for the gauge.</remarks>
     internal static IEnumerable<(QuotaMetric Metric, decimal Limit, decimal Used)> EnumerateLimits(
         QuotaDefinition definition,
         QuotaUsageRecord usage)

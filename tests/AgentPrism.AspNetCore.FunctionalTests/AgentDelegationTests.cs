@@ -89,7 +89,7 @@ public sealed class AgentDelegationTests
         var agent = await ResolveRouterAsync(host);
         var response = await agent.RunAsync("baslat");
 
-        response.Text.ShouldContain("cagri derinligi siniri asildi", Case.Sensitive);
+        response.Text.ShouldContain("call depth limit was exceeded", Case.Sensitive);
 
         var runs = host.Services.GetRequiredService<IRunStore>();
 

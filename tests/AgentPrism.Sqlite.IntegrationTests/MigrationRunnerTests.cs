@@ -206,6 +206,6 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
                 },
                 NullLogger<MigrationRunner>.Instance));
 
-        exception.Message.ShouldContain("sema adi");
+        exception.Message.ShouldContain("schema name");
     }
 }

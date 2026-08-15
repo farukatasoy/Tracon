@@ -4,38 +4,39 @@ using System.Text;
 namespace AgentPrism;
 
 /// <summary>
-/// Akan metni seslendirilebilir parcalara boler.
+/// Splits streaming text into speakable segments.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Gecikmenin kaynagi burasidir. Yanitin tamami beklenip tek seferde
-/// seslendirilseydi kullanici uzun bir sessizlik duyardi; her token ayri
-/// seslendirilseydi ses bolunur ve saglayici cagrisi sayisi patlar.
-/// Cumle siniri ikisinin arasindaki dogru noktadir.
+/// This is the source of latency. If the whole response were awaited and
+/// spoken all at once, the user would hear a long silence; if every token
+/// were spoken separately, the audio would sound choppy and the provider
+/// call count would explode. The sentence boundary is the right point between the two.
 /// </para>
 /// <para>
-/// Bolucu <strong>safdir</strong>: ag, ses ve zaman yoktur. Birim testi bu
-/// yuzden ucuzdur ve gecikme davranisi kodun geri kalanindan bagimsiz
-/// dogrulanir.
+/// The splitter is <strong>pure</strong>: there is no network, audio, or
+/// time. Unit testing is therefore cheap, and latency behavior is verified
+/// independently of the rest of the code.
 /// </para>
 /// </remarks>
 internal sealed class VoiceSpeechSegmenter
 {
     /// <summary>
-    /// Bir parcanin seslendirilmesi icin gereken en az karakter.
+    /// The minimum characters required for a segment to be spoken.
     /// </summary>
     /// <remarks>
-    /// "Evet." gibi tek kelimelik bir parca kendi basina seslendirilirse ses
-    /// kopuk cikar; boyle bir parca bir sonrakiyle birlestirilir.
+    /// A single-word segment like "Yes." would sound choppy if spoken on its
+    /// own; such a segment is merged with the next one.
     /// </remarks>
     private const int MinSegmentLength = 12;
 
     /// <summary>
-    /// Cumle siniri gelmese bile bolunecek uzunluk.
+    /// The length at which a split happens even if no sentence boundary arrived.
     /// </summary>
     /// <remarks>
-    /// Noktalama kullanmayan bir model (veya liste ureten bir yanit) aksi halde
-    /// hic bolunmez ve ilk ses yanitin sonunu beklerdi.
+    /// A model that does not use punctuation (or a response producing a
+    /// list) would otherwise never split, and would wait for the end of the
+    /// entire response before the first audio.
     /// </remarks>
     private const int MaxSegmentLength = 240;
 
@@ -43,9 +44,9 @@ internal sealed class VoiceSpeechSegmenter
 
     private readonly StringBuilder _pending = new();
 
-    /// <summary>Yeni bir metin parcasi ekler ve hazir olan parcalari dondurur.</summary>
-    /// <param name="delta">Modelden gelen metin parcasi.</param>
-    /// <returns>Seslendirmeye hazir parcalar; yoksa bos.</returns>
+    /// <summary>Appends a new text chunk and returns any segments that are ready.</summary>
+    /// <param name="delta">A text chunk from the model.</param>
+    /// <returns>Segments ready to be spoken; empty if none.</returns>
     public IReadOnlyList<string> Append(string? delta)
     {
         if (string.IsNullOrEmpty(delta))
@@ -65,8 +66,8 @@ internal sealed class VoiceSpeechSegmenter
         return (IReadOnlyList<string>?)ready ?? [];
     }
 
-    /// <summary>Kalan metni parca olarak dondurur ve tamponu bosaltir.</summary>
-    /// <returns>Kalan parca; yoksa <see langword="null"/>.</returns>
+    /// <summary>Returns the remaining text as a segment and clears the buffer.</summary>
+    /// <returns>The remaining segment; <see langword="null"/> if none.</returns>
     public string? Flush()
     {
         var text = _pending.ToString().Trim();
@@ -95,14 +96,14 @@ internal sealed class VoiceSpeechSegmenter
             return true;
         }
 
-        // Yalnizca bosluk kesildi; kesme gerceklesti ama seslendirilecek bir sey
-        // yok. Dongunun ilerlemesi icin true donmek yanlis olurdu.
+        // Only whitespace was cut; a cut occurred, but there is nothing to
+        // speak. Returning true just to advance the loop would be wrong.
         return TryCut(out segment);
     }
 
-    /// <summary>Kesme noktasini bulur.</summary>
-    /// <param name="text">Bekleyen metin.</param>
-    /// <returns>Kesilecek karakter sayisi; kesilmeyecekse <c>0</c>.</returns>
+    /// <summary>Finds the cut point.</summary>
+    /// <param name="text">The pending text.</param>
+    /// <returns>The number of characters to cut; <c>0</c> if no cut should occur.</returns>
     private static int FindCut(string text)
     {
         var span = text.AsSpan();
@@ -114,8 +115,9 @@ internal sealed class VoiceSpeechSegmenter
                 continue;
             }
 
-            // Sonu belirsiz bir noktalama (ornegin "3." veya kisaltma) bir sonraki
-            // karakter gelene kadar cumle sonu SAYILMAZ; bekleyerek karar veririz.
+            // Ambiguous-ending punctuation (e.g. "3." or an abbreviation) is
+            // NOT COUNTED as a sentence end until the next character arrives;
+            // we decide by waiting.
             if (i + 1 >= span.Length)
             {
                 break;
@@ -132,7 +134,7 @@ internal sealed class VoiceSpeechSegmenter
             return 0;
         }
 
-        // Noktalama gelmedi: son bosluktan kes, kelimeyi ortadan bolme.
+        // No punctuation arrived: cut at the last space, do not split a word in the middle.
         var window = span[..MaxSegmentLength];
         var lastSpace = window.LastIndexOf(' ');
 

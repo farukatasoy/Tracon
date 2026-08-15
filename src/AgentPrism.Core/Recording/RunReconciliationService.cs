@@ -5,22 +5,22 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Uzun sure heartbeat vermemis <c>Running</c> calistirmalari araliklarla
-/// <c>Failed</c> olarak kapatan arka plan servisi (Faz 54, F-36).
+/// Background service that periodically closes <c>Running</c> runs that have
+/// not sent a heartbeat for a long time, marking them <c>Failed</c> (Phase 54, F-36).
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bir surec <c>agent.RunAsync</c> ortasinda cokerse (varsayilan
-/// <c>MaxAttempts = 1</c> yolunda) satir <c>Running</c>'de sonsuza dek kalir
-/// ve <c>RunStatistics.ErrorRate</c>'in paydasini (K-014,
-/// <c>settled = CompletedRuns + FailedRuns + CanceledRuns</c>) sessizce
-/// seyreltir. Bu servis o satiri bulup kapatir ve nedenini yazar.
+/// If a process crashes in the middle of <c>agent.RunAsync</c> (on the default
+/// <c>MaxAttempts = 1</c> path), the row stays <c>Running</c> forever and
+/// silently dilutes the denominator of <c>RunStatistics.ErrorRate</c> (K-014,
+/// <c>settled = CompletedRuns + FailedRuns + CanceledRuns</c>). This service
+/// finds that row, closes it, and records the reason.
 /// </para>
 /// <para>
-/// <see cref="RunReconciliationOptions.Enabled"/> <see langword="false"/>
-/// (varsayilan) iken hicbir SQL sorgusu atilmaz (K1). Acikken bile kume
-/// genelinde yalniz BIR ornek tarama yapar -- <see cref="SingletonGuard"/>
-/// <c>McpDiscoveryService</c>'in kullandigi AYNI desendir (Faz 42).
+/// While <see cref="RunReconciliationOptions.Enabled"/> is <see langword="false"/>
+/// (the default), no SQL query is issued at all (K1). Even when enabled, it
+/// runs only ONE scan across the cluster -- <see cref="SingletonGuard"/> is
+/// the SAME pattern <c>McpDiscoveryService</c> uses (Phase 42).
 /// </para>
 /// </remarks>
 internal sealed class RunReconciliationService(
@@ -42,7 +42,7 @@ internal sealed class RunReconciliationService(
             return;
         }
 
-        // 🚨 Ilk SQL denemesinden ONCE semanin hazir olmasini bekle (K-354).
+        // 🚨 Wait for the schema to be ready BEFORE the first SQL attempt (K-354).
         try
         {
             await schemaReadyGate.WaitAsync(stoppingToken).ConfigureAwait(false);
@@ -52,8 +52,9 @@ internal sealed class RunReconciliationService(
             return;
         }
 
-        // Tek yurutucu secimi (Faz 42): kapaliysa (varsayilan) guard.IsHeld
-        // daima true'dur ve RunAsync depoya hicbir sorgu atmadan hemen doner.
+        // Single-executor selection (Phase 42): when disabled (the default),
+        // guard.IsHeld is always true and RunAsync returns immediately without
+        // issuing any query to the store.
         var guard = new SingletonGuard(leaseStore, singletonOptionsMonitor, "run-reconciliation", logger);
         var guardTask = guard.RunAsync(stoppingToken);
 
@@ -71,7 +72,7 @@ internal sealed class RunReconciliationService(
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
-            // Normal kapanma.
+            // Normal shutdown.
         }
         finally
         {
@@ -93,18 +94,18 @@ internal sealed class RunReconciliationService(
             if (claimed.Count > 0 && logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
                 logger.LogWarning(
-                    "{Count} oksuz calistirma kapatildi (esik: {StaleBefore:O}).",
+                    "{Count} orphaned run(s) closed (threshold: {StaleBefore:O}).",
                     claimed.Count,
                     staleBefore);
             }
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            // Uzlastirma turu asla oldurmemeli: bir hata sonraki turda
-            // yeniden denenir.
+            // A reconciliation pass must never crash the process: a failure
+            // is retried on the next tick.
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
-                logger.LogWarning(exception, "Oksuz calistirma uzlastirma turu basarisiz oldu.");
+                logger.LogWarning(exception, "Orphaned run reconciliation pass failed.");
             }
         }
     }

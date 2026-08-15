@@ -6,24 +6,25 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="JobKind.Eval"/> islerini yurutur: bir eval takimindaki her vakayi
-/// olculen agent uzerinde calistirir ve sonuclari <see cref="IEvalStore"/>'a yazar.
+/// Executes <see cref="JobKind.Eval"/> jobs: runs every case in an eval suite
+/// against the agent being measured and writes the results to <see cref="IEvalStore"/>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Agent'i cozmek ve calistirmak icin HTTP katmaninin ve <see cref="AgentBatchJobHandler"/>'in
-/// kullandigi ayni HTTP-bagimsiz yol izlenir: her vaka <see cref="IAgentCatalog.ResolveAsync(string, CancellationToken)"/>
-/// ile cozulen agent uzerinde <strong>yeni bir oturumda</strong> (session: null)
-/// calistirilir. Boylece agent zaten calistirma kaydi dekoratoru ile sarili
-/// oldugundan her vaka kendiliginden kendi <c>runs</c> satirini uretir
-/// (docs/18-DEGERLENDIRME.md, bolum 18.3).
+/// The same HTTP-independent path used by the HTTP layer and
+/// <see cref="AgentBatchJobHandler"/> to resolve and run an agent is followed
+/// here: each case is run in a <strong>new session</strong> (session: null) on
+/// the agent resolved via <see cref="IAgentCatalog.ResolveAsync(string, CancellationToken)"/>.
+/// Since the agent is already wrapped by the run-recording decorator, each
+/// case naturally produces its own <c>runs</c> row
+/// (docs/18-DEGERLENDIRME.md, section 18.3).
 /// </para>
 /// <para>
-/// Genel is kuyrugu (<see cref="IJobStore"/>) yalnizca ilerlemeyi (kac vaka
-/// bitti/basarisiz) ve kiralama/yeniden deneme durum makinesini tasir; zengin
-/// sonuc (sorgu, cikti, skorlar) <see cref="IEvalStore"/>'da, is ogesinden
-/// bagimsiz olarak saklanir. Is ogesinin <see cref="JobItemRecord.Input"/> alani
-/// bir <see cref="EvalCase.Id"/> tasir.
+/// The general job queue (<see cref="IJobStore"/>) carries only progress
+/// (how many cases done/failed) and the lease/retry state machine; the rich
+/// result (query, output, scores) is stored in <see cref="IEvalStore"/>,
+/// independent of the job item. The job item's <see cref="JobItemRecord.Input"/>
+/// field carries an <see cref="EvalCase.Id"/>.
 /// </para>
 /// </remarks>
 internal sealed class EvalJobHandler(
@@ -43,12 +44,12 @@ internal sealed class EvalJobHandler(
         var (suiteName, modelOverride, numRepetitions, agentVersion) = ParsePayload(context.Job.Payload);
 
         var suite = await evalStore.GetSuiteAsync(context.Job.TenantId, suiteName, cancellationToken).ConfigureAwait(false)
-            ?? throw new AgentPrismException($"'{suiteName}' adinda bir eval takimi bulunamadi.");
+            ?? throw new AgentPrismException($"No eval suite named '{suiteName}' was found.");
 
         var evalRun = await evalStore
             .GetRunByJobIdAsync(context.Job.TenantId, context.Job.Id, cancellationToken)
             .ConfigureAwait(false)
-            ?? throw new AgentPrismException($"'{context.Job.Id}' is kimligi icin bir eval kosu kaydi bulunamadi.");
+            ?? throw new AgentPrismException($"No eval run record was found for job id '{context.Job.Id}'.");
 
         try
         {
@@ -61,7 +62,7 @@ internal sealed class EvalJobHandler(
             {
                 logger.LogWarning(
                     exception,
-                    "Eval kosusu basarisiz oldu: kosu={EvalRunId} takim={SuiteName}",
+                    "Eval run failed: run={EvalRunId} suite={SuiteName}",
                     evalRun.Id,
                     suiteName);
             }
@@ -95,21 +96,22 @@ internal sealed class EvalJobHandler(
         var descriptor = descriptors.FirstOrDefault(
             candidate => string.Equals(candidate.Name, suite.AgentName, StringComparison.Ordinal));
 
-        // Sabit surum pinlenir: eval kosusu "su surum ne kadar iyi" sorusuna
-        // cevap vermelidir, kosu sirasinda tanim guncellenirse bile.
+        // The version is pinned: an eval run must answer "how good is this
+        // version", even if the definition is updated while the run is in
+        // progress.
         await evalStore
             .MarkRunRunningAsync(evalRun.Id, agentVersion ?? descriptor?.Version, modelOverride ?? descriptor?.Model?.Model, cancellationToken)
             .ConfigureAwait(false);
 
-        // Eval, deney (Experiment) kavramindan bagimsizdir: bir varyanta degil,
-        // sabit bir surume karsi calisir. Gerekce: docs/19-SURUM-KARSILASTIRMA-VE-AB.md,
-        // acik soru 2.
+        // Eval is independent of the concept of an experiment: it runs against
+        // a fixed version, not a variant. Rationale: docs/19-SURUM-KARSILASTIRMA-VE-AB.md,
+        // open question 2.
         var agent = agentVersion is { } version
             ? await catalog.ResolveAsync(suite.AgentName, version, cancellationToken).ConfigureAwait(false)
-                ?? throw new AgentPrismException($"'{suite.AgentName}' agent'inin {version} numarali surumu bulunamadi.")
+                ?? throw new AgentPrismException($"Version {version} of agent '{suite.AgentName}' was not found.")
             : await catalog.ResolveAsync(suite.AgentName, cancellationToken).ConfigureAwait(false)
                 ?? throw new AgentPrismException(
-                    $"'{suite.AgentName}' adinda bir agent katalogda yok. Eval takiminin agent'i silinmis olabilir.");
+                    $"No agent named '{suite.AgentName}' exists in the catalog. The eval suite's agent may have been deleted.");
 
         var cases = await evalStore.ListCasesAsync(suite.Id, cancellationToken).ConfigureAwait(false);
         var casesById = cases.ToDictionary(static evalCase => evalCase.Id);
@@ -119,7 +121,7 @@ internal sealed class EvalJobHandler(
         if (checks.Count == 0)
         {
             throw new AgentPrismException(
-                $"'{suite.Name}' takiminin hic denetimi yok; en az bir denetim gereklidir.");
+                $"Suite '{suite.Name}' has no checks; at least one check is required.");
         }
 
         var evaluator = new LocalEvaluator([.. checks]);
@@ -134,8 +136,8 @@ internal sealed class EvalJobHandler(
         {
             if (item.Status != JobItemStatus.Pending)
             {
-                // Yeniden deneme senaryosu: kira suresi dolup is yeniden alindiginda
-                // daha once islenmis ogeler tekrar calistirilmaz.
+                // Retry scenario: previously processed items are not re-run
+                // when the lease expires and the job is picked up again.
                 if (item.Status == JobItemStatus.Completed)
                 {
                     passedCases++;
@@ -163,7 +165,7 @@ internal sealed class EvalJobHandler(
                         JobId = context.Job.Id,
                         Seq = item.Seq,
                         Status = JobItemStatus.Failed,
-                        Error = "Vaka artik mevcut degil; takimdan silinmis olabilir.",
+                        Error = "The case no longer exists; it may have been deleted from the suite.",
                     },
                     cancellationToken).ConfigureAwait(false);
                 continue;
@@ -196,7 +198,7 @@ internal sealed class EvalJobHandler(
                     JobId = context.Job.Id,
                     Seq = item.Seq,
                     Status = casePassed ? JobItemStatus.Completed : JobItemStatus.Failed,
-                    Error = casePassed ? null : "Bir veya daha fazla denetim basarisiz oldu.",
+                    Error = casePassed ? null : "One or more checks failed.",
                 },
                 cancellationToken).ConfigureAwait(false);
         }
@@ -273,13 +275,13 @@ internal sealed class EvalJobHandler(
 
             var results = await evaluator.EvaluateAsync([evalItem], evalName, cancellationToken).ConfigureAwait(false);
 
-            // 🚨 LocalEvaluator.DetailedItems bos kalir (yalnizca raporlama
-            // arka uclariyla doldurulur, olculdu); tek gercek kaynak
-            // Items[0].Metrics'tir — batch boyutu 1 oldugu icin bu, iceriginde
-            // bu vakanin tum kontrol sonuclarini tasir.
+            // 🚨 LocalEvaluator.DetailedItems stays empty (populated only by
+            // reporting backends, measured); the single source of truth is
+            // Items[0].Metrics - since the batch size is 1, it carries all of
+            // this case's check results.
             var metrics = results.Items is [var evaluationResult, ..]
                 ? evaluationResult.Metrics
-                : throw new AgentPrismException("Degerlendirici hicbir sonuc uretmedi.");
+                : throw new AgentPrismException("The evaluator produced no result.");
 
             var passed = results.AllPassed;
 
@@ -311,7 +313,7 @@ internal sealed class EvalJobHandler(
             !payload.TryGetProperty("suiteName", out var suiteNameElement) ||
             suiteNameElement.ValueKind != JsonValueKind.String)
         {
-            throw new AgentPrismException("Eval isi yuku bir 'suiteName' (metin) alani tasimalidir.");
+            throw new AgentPrismException("The eval job payload must carry a 'suiteName' (string) field.");
         }
 
         var modelId = payload.TryGetProperty("modelId", out var modelElement) &&
@@ -345,17 +347,18 @@ internal sealed class EvalJobHandler(
                 .Where(static metric => metric.Interpretation?.Failed == true)
                 .Select(static metric => metric.Reason is { Length: > 0 } reason ? $"{metric.Name}: {reason}" : metric.Name));
 
-        return failing.Length > 0 ? failing : "Denetim basarisiz oldu.";
+        return failing.Length > 0 ? failing : "A check failed.";
     }
 
     /// <summary>
-    /// Denetim metriklerini jsonb sutununa yazilacak bir <see cref="JsonElement"/>'e cevirir.
+    /// Converts check metrics into a <see cref="JsonElement"/> to be written
+    /// to the jsonb column.
     /// </summary>
     /// <remarks>
-    /// <c>Utf8JsonWriter</c> ile elle yazilir; reflection tabanli
-    /// <c>JsonSerializer.Serialize</c> kullanilmaz — <c>EvaluationMetric</c> icin
-    /// kaynak uretilmis bir baglam olmadigindan IL2026/IL3050 uretirdi. Kutuphane
-    /// kodu AOT uyumlu kalmalidir.
+    /// Written by hand with <c>Utf8JsonWriter</c>; the reflection-based
+    /// <c>JsonSerializer.Serialize</c> is not used - since there is no
+    /// source-generated context for <c>EvaluationMetric</c>, it would produce
+    /// IL2026/IL3050. Library code must stay AOT-compatible.
     /// </remarks>
     private static JsonElement SerializeScores(IDictionary<string, EvaluationMetric> metrics)
     {

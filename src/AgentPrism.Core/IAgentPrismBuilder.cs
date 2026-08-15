@@ -6,143 +6,146 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism;
 
 /// <summary>
-/// AgentPrism'i yapilandiran akici zincir. <c>AddAgentPrism()</c> cagrisindan doner.
+/// The fluent chain that configures AgentPrism. Returned from the
+/// <c>AddAgentPrism()</c> call.
 /// </summary>
 /// <remarks>
-/// Saglayici ve depolama paketleri bu zincire kendi uzantilarini ekler:
-/// <c>UsePostgreSql()</c>, <c>UseOpenAI()</c> gibi.
+/// Provider and storage packages add their own extensions to this chain:
+/// <c>UsePostgreSql()</c>, <c>UseOpenAI()</c>, and so on.
 /// </remarks>
 public interface IAgentPrismBuilder
 {
-    /// <summary>Alttaki servis koleksiyonu.</summary>
+    /// <summary>The underlying service collection.</summary>
     IServiceCollection Services { get; }
 
-    /// <summary>Calisma zamani ayarlarini degistirir.</summary>
-    /// <param name="configure">Ayar degistirici.</param>
-    /// <returns>Zincirin devami.</returns>
+    /// <summary>Modifies the runtime settings.</summary>
+    /// <param name="configure">The settings modifier.</param>
+    /// <returns>The chain, for further configuration.</returns>
     IAgentPrismBuilder Configure(Action<AgentPrismOptions> configure);
 
-    /// <summary>Bir tool kaydeder.</summary>
-    /// <param name="tool">Kaydedilecek tool.</param>
-    /// <param name="requiresApproval">Cagri oncesi acik onay gerekip gerekmedigi.</param>
-    /// <returns>Zincirin devami.</returns>
+    /// <summary>Registers a tool.</summary>
+    /// <param name="tool">The tool to register.</param>
+    /// <param name="requiresApproval">Whether explicit approval is required before the call.</param>
+    /// <returns>The chain, for further configuration.</returns>
     IAgentPrismBuilder AddTool(AIFunction tool, bool requiresApproval = false);
 
     /// <summary>
-    /// Bir metottan tool uretir ve kaydeder.
+    /// Builds a tool from a method and registers it.
     /// </summary>
-    /// <param name="method">Tool olarak sunulacak metot.</param>
-    /// <param name="name">Tool adi. Bos birakilirsa metot adi kullanilir.</param>
-    /// <param name="description">Modelin tool'u ne zaman cagiracagini anlatan aciklama.</param>
-    /// <param name="requiresApproval">Cagri oncesi acik onay gerekip gerekmedigi.</param>
-    /// <returns>Zincirin devami.</returns>
+    /// <param name="method">The method to expose as a tool.</param>
+    /// <param name="name">The tool name. If left empty, the method name is used.</param>
+    /// <param name="description">A description that tells the model when to call the tool.</param>
+    /// <param name="requiresApproval">Whether explicit approval is required before the call.</param>
+    /// <returns>The chain, for further configuration.</returns>
     /// <remarks>
-    /// Bu asiri yukleme <c>AIFunctionFactory</c> uzerinden yansima kullanir ve
-    /// bu yuzden kirpma (trimming) ile native AOT senaryolarinda guvenli degildir.
-    /// AOT hedefleyen uygulamalar <see cref="AddTool(AIFunction, bool)"/> asiri
-    /// yuklemesini kullanmalidir.
+    /// This overload uses reflection through <c>AIFunctionFactory</c> and is
+    /// therefore not safe under trimming or native AOT scenarios. Applications
+    /// targeting AOT should use the <see cref="AddTool(AIFunction, bool)"/>
+    /// overload instead.
     /// </remarks>
-    [RequiresUnreferencedCode("Metottan tool uretmek yansima kullanir; kirpilmis uygulamalarda tip bilgisi kaybolabilir.")]
-    [RequiresDynamicCode("Metottan tool uretmek calisma aninda kod uretimi gerektirebilir.")]
+    [RequiresUnreferencedCode("Building a tool from a method uses reflection; type information may be lost in trimmed applications.")]
+    [RequiresDynamicCode("Building a tool from a method may require code generation at runtime.")]
     IAgentPrismBuilder AddTool(Delegate method, string? name = null, string? description = null, bool requiresApproval = false);
 
     /// <summary>
-    /// Bir tipteki <see cref="AgentPrismToolAttribute"/> ile isaretlenmis metotlari
-    /// tool olarak kaydeder.
+    /// Registers, as tools, the methods on a type that are marked with
+    /// <see cref="AgentPrismToolAttribute"/>.
     /// </summary>
-    /// <typeparam name="T">Taranacak tip.</typeparam>
-    /// <returns>Zincirin devami.</returns>
+    /// <typeparam name="T">The type to scan.</typeparam>
+    /// <returns>The chain, for further configuration.</returns>
     /// <exception cref="AgentPrismException">
-    /// <typeparamref name="T"/> icinde isaretli metot yoksa veya isaretli bir metot
-    /// tool'a donusturulemiyorsa.
+    /// <typeparamref name="T"/> has no marked method, or a marked method cannot
+    /// be converted to a tool.
     /// </exception>
     /// <remarks>
     /// <para>
-    /// Isaretleme acik tercihtir: sinifa eklenen her yeni metot kendiliginden
-    /// agent'lara acilmaz. Statik metotlar dogrudan baglanir; ornek metotlarinda
-    /// tasiyici nesne cagri aninda servis saglayicidan cozulur.
+    /// Marking is an explicit choice: every new method added to the class is
+    /// not automatically exposed to agents. Static methods bind directly; for
+    /// instance methods, the owning object is resolved from the service
+    /// provider at call time.
     /// </para>
     /// <para>
-    /// <strong>Statik siniflar tur argumani olamaz</strong> (C# kurali). Tool'lariniz
-    /// <c>static class</c> icindeyse <see cref="AddToolsFrom(Type)"/> asiri yuklemesini
-    /// kullanin.
+    /// <strong>A static class cannot be a type argument</strong> (a C# rule).
+    /// If your tools live in a <c>static class</c>, use the
+    /// <see cref="AddToolsFrom(Type)"/> overload instead.
     /// </para>
     /// <para>
-    /// Bu metot yansima kullanir ve kirpma (trimming) ile native AOT senaryolarinda
-    /// guvenli degildir. AOT hedefleyen uygulamalar
-    /// <see cref="AddTool(AIFunction, bool)"/> asiri yuklemesini kullanmalidir.
+    /// This method uses reflection and is not safe under trimming or native AOT
+    /// scenarios. Applications targeting AOT should use the
+    /// <see cref="AddTool(AIFunction, bool)"/> overload instead.
     /// </para>
     /// </remarks>
-    [RequiresUnreferencedCode("Tool taramasi yansima kullanir; kirpilmis uygulamalarda metot bilgisi kaybolabilir.")]
-    [RequiresDynamicCode("Tool taramasi calisma aninda kod uretimi gerektirebilir.")]
+    [RequiresUnreferencedCode("Tool scanning uses reflection; method information may be lost in trimmed applications.")]
+    [RequiresDynamicCode("Tool scanning may require code generation at runtime.")]
     IAgentPrismBuilder AddToolsFrom<T>();
 
     /// <summary>
-    /// Bir tipteki <see cref="AgentPrismToolAttribute"/> ile isaretlenmis metotlari
-    /// tool olarak kaydeder.
+    /// Registers, as tools, the methods on a type that are marked with
+    /// <see cref="AgentPrismToolAttribute"/>.
     /// </summary>
-    /// <param name="type">Taranacak tip. <c>static class</c> olabilir.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="type"/> <see langword="null"/> ise.</exception>
+    /// <param name="type">The type to scan. May be a <c>static class</c>.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> is <see langword="null"/>.</exception>
     /// <exception cref="AgentPrismException">
-    /// <paramref name="type"/> icinde isaretli metot yoksa veya isaretli bir metot
-    /// tool'a donusturulemiyorsa.
+    /// <paramref name="type"/> has no marked method, or a marked method cannot
+    /// be converted to a tool.
     /// </exception>
     /// <remarks>
-    /// Statik siniflar C# kurallari geregi tur argumani olamaz; bu asiri yukleme
-    /// <c>AddToolsFrom(typeof(OrderTools))</c> yazimini mumkun kilar.
+    /// A static class cannot be a type argument under C# rules; this overload
+    /// makes the <c>AddToolsFrom(typeof(OrderTools))</c> form possible.
     /// </remarks>
-    [RequiresUnreferencedCode("Tool taramasi yansima kullanir; kirpilmis uygulamalarda metot bilgisi kaybolabilir.")]
-    [RequiresDynamicCode("Tool taramasi calisma aninda kod uretimi gerektirebilir.")]
+    [RequiresUnreferencedCode("Tool scanning uses reflection; method information may be lost in trimmed applications.")]
+    [RequiresDynamicCode("Tool scanning may require code generation at runtime.")]
     IAgentPrismBuilder AddToolsFrom(Type type);
 
     /// <summary>
-    /// Kodda bildirimsel bir agent tanimlar. Tanim AgentPrism derleyicisinden gecer;
-    /// model ve tool dogrulamasi uygulanir.
+    /// Defines a declarative agent in code. The definition passes through the
+    /// AgentPrism compiler; model and tool validation is applied.
     /// </summary>
-    /// <param name="definition">Agent tanimi.</param>
-    /// <returns>Zincirin devami.</returns>
+    /// <param name="definition">The agent definition.</param>
+    /// <returns>The chain, for further configuration.</returns>
     IAgentPrismBuilder AddAgent(AgentDefinition definition);
 
     /// <summary>
-    /// Kodda bir skill tanimlar. Kodda tanimli skill, ayni ada sahip calisma ani
-    /// skill'inin onune gecer.
+    /// Defines a skill in code. A skill defined in code takes precedence over a
+    /// runtime skill with the same name.
     /// </summary>
-    /// <param name="skill">Kaydedilecek skill.</param>
-    /// <returns>Zincirin devami.</returns>
+    /// <param name="skill">The skill to register.</param>
+    /// <returns>The chain, for further configuration.</returns>
     IAgentPrismBuilder AddSkill(AgentSkillDefinition skill);
 
     /// <summary>
-    /// Kodda fabrika tabanli bir agent tanimlar. Agent'in nasil kuruldugu tamamen
-    /// cagirana aittir.
+    /// Defines a factory-based agent in code. How the agent is built is
+    /// entirely up to the caller.
     /// </summary>
-    /// <param name="name">Agent adi.</param>
-    /// <param name="factory">Agent'i ureten fabrika.</param>
-    /// <param name="description">Kisa aciklama.</param>
-    /// <returns>Zincirin devami.</returns>
+    /// <param name="name">The agent name.</param>
+    /// <param name="factory">The factory that produces the agent.</param>
+    /// <param name="description">A short description.</param>
+    /// <returns>The chain, for further configuration.</returns>
     IAgentPrismBuilder AddAgent(string name, Func<IServiceProvider, AIAgent> factory, string? description = null);
 
-    /// <summary>Bir model saglayicisi kaydeder.</summary>
-    /// <param name="provider">Saglayici.</param>
-    /// <returns>Zincirin devami.</returns>
+    /// <summary>Registers a model provider.</summary>
+    /// <param name="provider">The provider.</param>
+    /// <returns>The chain, for further configuration.</returns>
     IAgentPrismBuilder AddModelProvider(IModelProvider provider);
 
-    /// <summary>Bir model saglayicisini fabrika ile kaydeder.</summary>
-    /// <param name="factory">Saglayiciyi ureten fabrika.</param>
-    /// <returns>Zincirin devami.</returns>
+    /// <summary>Registers a model provider through a factory.</summary>
+    /// <param name="factory">The factory that produces the provider.</param>
+    /// <returns>The chain, for further configuration.</returns>
     IAgentPrismBuilder AddModelProvider(Func<IServiceProvider, IModelProvider> factory);
 
     /// <summary>
-    /// Ozel bir eval denetimi kaydeder (Faz 18). Eval takimlarinin <c>checks</c>
-    /// alaninda bu <paramref name="kind"/> adiyla referans verilebilir.
+    /// Registers a custom eval check (Phase 18). Eval suites can reference it by
+    /// this <paramref name="kind"/> name in their <c>checks</c> field.
     /// </summary>
-    /// <param name="kind">Denetim tur adi. Yerlesik turlerle (ornegin <c>nonEmpty</c>) cakismamalidir.</param>
-    /// <param name="check">Model cagirmayan, kod ile yazilmis denetim.</param>
-    /// <returns>Zincirin devami.</returns>
+    /// <param name="kind">The check type name. Must not collide with a built-in type (for example <c>nonEmpty</c>).</param>
+    /// <param name="check">A code-written check that does not call the model.</param>
+    /// <returns>The chain, for further configuration.</returns>
     /// <remarks>
-    /// <c>Microsoft.Agents.AI.FunctionEvaluator.Create(...)</c> ile uretilen bir
-    /// <c>EvalCheck</c> beklenir. Tool'larla ayni gerekce: ozel mantik yalnizca
-    /// kodda tanimlanir, arayuzden serbest ifade yazilamaz.
+    /// An <c>EvalCheck</c> produced with
+    /// <c>Microsoft.Agents.AI.FunctionEvaluator.Create(...)</c> is expected.
+    /// Same rationale as tools: custom logic is only defined in code, and a
+    /// free-form expression cannot be written from the interface.
     /// </remarks>
     IAgentPrismBuilder AddEvalCheck(string kind, Microsoft.Agents.AI.EvalCheck check);
 }

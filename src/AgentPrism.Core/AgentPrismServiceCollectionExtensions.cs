@@ -9,16 +9,16 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
-/// <summary>AgentPrism'i bagimlilik enjeksiyonuna kaydeden uzantilar.</summary>
+/// <summary>Extensions that register AgentPrism with dependency injection.</summary>
 public static class AgentPrismServiceCollectionExtensions
 {
     /// <summary>
-    /// AgentPrism'i barindirici olusturucusuna ekler ve yapilandirmayi
-    /// <c>AgentPrism</c> bolumunden okur.
+    /// Adds AgentPrism to the host application builder and reads settings from
+    /// the <c>AgentPrism</c> section.
     /// </summary>
-    /// <param name="builder">Barindirici olusturucusu.</param>
-    /// <returns>Yapilandirma zinciri.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> <see langword="null"/> ise.</exception>
+    /// <param name="builder">The host application builder.</param>
+    /// <returns>The configuration chain.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     public static IAgentPrismBuilder AddAgentPrism(this IHostApplicationBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -26,19 +26,19 @@ public static class AgentPrismServiceCollectionExtensions
         return builder.Services.AddAgentPrism(builder.Configuration.GetSection(AgentPrismOptions.SectionName));
     }
 
-    /// <summary>AgentPrism'i servis koleksiyonuna ekler.</summary>
-    /// <param name="services">Servis koleksiyonu.</param>
-    /// <param name="configurationSection">Ayarlarin okunacagi yapilandirma bolumu.</param>
-    /// <returns>Yapilandirma zinciri.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="services"/> <see langword="null"/> ise.</exception>
+    /// <summary>Adds AgentPrism to the service collection.</summary>
+    /// <param name="services">Service collection.</param>
+    /// <param name="configurationSection">Configuration section settings are read from.</param>
+    /// <returns>The configuration chain.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/>.</exception>
     /// <remarks>
     /// <para>
-    /// Tum servisler <c>TryAdd</c> ile kaydedilir. Kendi uygulamanizi bu cagridan
-    /// <em>once</em> kaydederseniz sizinki kazanir; AgentPrism uzerine yazmaz.
+    /// All services are registered with <c>TryAdd</c>. If you register your own
+    /// implementation <em>before</em> this call, yours wins; AgentPrism does not overwrite it.
     /// </para>
     /// <para>
-    /// Hicbir ek yapilandirma yapilmazsa AgentPrism bellek ici depolarla calisir
-    /// ve veritabani gerektirmez.
+    /// When no additional configuration is done, AgentPrism runs with
+    /// in-memory stores and requires no database.
     /// </para>
     /// </remarks>
     public static IAgentPrismBuilder AddAgentPrism(
@@ -51,19 +51,20 @@ public static class AgentPrismServiceCollectionExtensions
 
         if (configurationSection is not null)
         {
-            // Yapilandirma ELLE baglanir. `optionsBuilder.Bind(section)` yansimaya
-            // dayanir ve IL2026 + IL3050 uretir; kaynak ureteci bunu build sirasinda
-            // gizler ama `dotnet format` analyzer gecisinde tanilar yeniden ortaya
-            // cikar. Elle baglama her iki kapida da temizdir ve bir paket
-            // bagimliligini (Options.ConfigurationExtensions) ortadan kaldirir.
-            // Gerekce: docs/KARARLAR.md, karar K-021.
+            // Configuration is bound BY HAND. `optionsBuilder.Bind(section)` relies
+            // on reflection and produces IL2026 + IL3050; the source generator
+            // hides this during the build, but the diagnostics resurface in
+            // `dotnet format`'s analyzer pass. Manual binding is clean on both
+            // gates and removes a package dependency (Options.ConfigurationExtensions).
+            // Rationale: docs/KARARLAR.md, decision K-021.
             services.Configure<AgentPrismOptions>(options => Bind(configurationSection, options));
         }
 
-        // Toplu ve zamanlanmis calistirma (Faz 17). Ayri bir bolum: PostgreSql
-        // paketinin AgentPrismPostgreSqlOptions'i gibi kendi SectionName'ini
-        // tasir, ama AgentPrismOptions'in aksine ayri bir Use...() cagrisi
-        // olmadan da her zaman kayitlidir (K-018 — depolar birinci sinif).
+        // Batch and scheduled run (Phase 17). A separate section: it carries
+        // its own SectionName like the PostgreSql package's
+        // AgentPrismPostgreSqlOptions, but unlike AgentPrismOptions it is
+        // always registered even without a separate Use...() call (K-018 -
+        // stores are first-class).
         services.AddOptions<AgentPrismSchedulingOptions>().ValidateOnStart();
 
         if (configurationSection is not null)
@@ -75,9 +76,9 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<AgentPrismSchedulingOptions>, AgentPrismSchedulingOptionsValidator>());
 
-        // Tek yurutucu secimi (Faz 42). Ayni gerekce: kendi SectionName'ini
-        // tasir, ayri bir Use...() cagrisi gerektirmez. Varsayilan Enabled=false;
-        // kapaliyken InMemorySingletonLeaseStore'a hicbir cagri gitmez (K1).
+        // Single-executor selection (Phase 42). Same rationale: carries its own
+        // SectionName, requires no separate Use...() call. Default
+        // Enabled=false; while disabled, no call reaches InMemorySingletonLeaseStore (K1).
         services.AddOptions<SingletonExecutionOptions>().ValidateOnStart();
 
         if (configurationSection is not null)
@@ -90,56 +91,59 @@ public static class AgentPrismServiceCollectionExtensions
             ServiceDescriptor.Singleton<IValidateOptions<SingletonExecutionOptions>, SingletonExecutionOptionsValidator>());
         services.TryAddSingleton<ISingletonLeaseStore, InMemorySingletonLeaseStore>();
 
-        // Kota ve olay yayini (Faz 21). Zamanlama ile ayni gerekce: kendi
-        // SectionName'ini tasir ve ayri bir Use...() cagrisi gerektirmez.
+        // Quotas and event publishing (Phase 21). Same rationale as
+        // scheduling: carries its own SectionName and requires no separate
+        // Use...() call.
         services.AddOptions<AgentPrismQuotaOptions>().ValidateOnStart();
         services.AddOptions<AgentPrismWebhookOptions>().ValidateOnStart();
         services.AddOptions<AgentPrismRateLimitOptions>().ValidateOnStart();
 
-        // Veri saklama ve arsivleme (Faz 25). Ayni gerekce: kendi SectionName'ini
-        // tasir, ayri bir Use...() cagrisi gerektirmez.
+        // Data retention and archiving (Phase 25). Same rationale: carries its
+        // own SectionName, requires no separate Use...() call.
         services.AddOptions<AgentPrismRetentionOptions>().ValidateOnStart();
 
-        // Idempotency-Key destegi (Faz 43). Ayni gerekce: kendi SectionName'ini
-        // tasir, ayri bir Use...() cagrisi gerektirmez.
+        // Idempotency-Key support (Phase 43). Same rationale: carries its own
+        // SectionName, requires no separate Use...() call.
         services.AddOptions<AgentPrismIdempotencyOptions>().ValidateOnStart();
 
-        // Kuyruga alinan (dayanikli) calistirma (Faz 46). Ayni gerekce: kendi
-        // SectionName'ini tasir, ayri bir Use...() cagrisi gerektirmez.
+        // Queued (durable) run (Phase 46). Same rationale: carries its own
+        // SectionName, requires no separate Use...() call.
         services.AddOptions<AgentPrismAsyncRunOptions>().ValidateOnStart();
 
-        // Oksuz calistirma uzlastirmasi (Faz 54). Ayni gerekce: kendi
-        // SectionName'ini tasir, ayri bir Use...() cagrisi gerektirmez.
-        // Varsayilan Enabled=false; kapaliyken heartbeat/uzlastirma
-        // sorgularinin hicbiri atilmaz (K1).
+        // Orphaned run reconciliation (Phase 54). Same rationale: carries its
+        // own SectionName, requires no separate Use...() call. Default
+        // Enabled=false; while disabled, none of the heartbeat/reconciliation
+        // queries are issued (K1).
         services.AddOptions<RunReconciliationOptions>().ValidateOnStart();
 
-        // Asenkron onay kutusu (Faz 55). Ayni gerekce: kendi SectionName'ini
-        // tasir, ayri bir Use...() cagrisi gerektirmez.
+        // Async approval inbox (Phase 55). Same rationale: carries its own
+        // SectionName, requires no separate Use...() call.
         services.AddOptions<AgentPrismApprovalOptions>().ValidateOnStart();
 
-        // Bilgi tabani / anlamsal arama (Faz 51). Ayni gerekce: kendi SectionName'ini
-        // tasir, ayri bir Use...() cagrisi gerektirmez. Yalniz bir IVectorSearchStore
-        // (bugun yalniz PostgreSQL) VE bir IEmbeddingGenerator birlikte kayitliyken
-        // islevsel hale gelir (KnowledgeIngestionService.IsSupported).
+        // Knowledge base / semantic search (Phase 51). Same rationale: carries
+        // its own SectionName, requires no separate Use...() call. Becomes
+        // functional only when an IVectorSearchStore (today only PostgreSQL)
+        // AND an IEmbeddingGenerator are both registered together
+        // (KnowledgeIngestionService.IsSupported).
         services.AddOptions<AgentPrismKnowledgeOptions>().ValidateOnStart();
 
-        // Icerik denetimi (Faz 48). Ayarlar her zaman kayitlidir ama hicbir
-        // IContentGuard kayitli DEGILSE hic okunmazlar: denetim sarmalayicisi boru
-        // hattina eklenmez. K1'in kapisi bir bayrak degil, kaydin kendisidir.
+        // Content moderation (Phase 48). Settings are always registered, but
+        // when no IContentGuard is registered they are never read at all: the
+        // moderation wrapper is not added to the pipeline. K1's gate is the
+        // registration itself, not a flag.
         services.AddOptions<AgentPrismContentGuardOptions>().ValidateOnStart();
         services.AddOptions<PatternContentGuardOptions>().ValidateOnStart();
 
-        // Cevrimici degerlendirme (Faz 49). Ayni gerekce: kendi SectionName'ini
-        // tasir, ayri bir Use...() cagrisi gerektirmez. Iki kapili varsayilan
-        // (Enabled=false VE SampleRate=0) yargic modelinin HIC cagrilmamasini
-        // saglar — bkz. OnlineEvaluationOptions sinif belgesi.
+        // Online evaluation (Phase 49). Same rationale: carries its own
+        // SectionName, requires no separate Use...() call. The two-gate
+        // default (Enabled=false AND SampleRate=0) ensures the judge model is
+        // NEVER called - see the OnlineEvaluationOptions class documentation.
         services.AddOptions<OnlineEvaluationOptions>().ValidateOnStart();
 
-        // Kanarya yayini ve otomatik geri alma (Faz 56). Ayni gerekce: kendi
-        // SectionName'ini tasir, ayri bir Use...() cagrisi gerektirmez.
-        // AutoRollbackEnabled varsayilan false'tur (K1) — acilmadan hicbir deney
-        // kendiliginden durmaz.
+        // Canary rollout and automatic rollback (Phase 56). Same rationale:
+        // carries its own SectionName, requires no separate Use...() call.
+        // AutoRollbackEnabled defaults to false (K1) - no experiment stops on
+        // its own unless turned on.
         services.AddOptions<CanaryOptions>().ValidateOnStart();
 
         if (configurationSection is not null)
@@ -175,10 +179,10 @@ public static class AgentPrismServiceCollectionExtensions
             services.Configure<PatternContentGuardOptions>(
                 options => BindPatternContentGuard(patternSection, options));
 
-            // 🚨 Yerlesik guard yalnizca bolum GERCEKTEN varsa kaydedilir. Kayit
-            // K1'in kapisidir: kayit yoksa denetim sarmalayicisi boru hattina hic
-            // eklenmez ve maliyet tam olarak sifir kalir. Kod tarafindan acmanin
-            // yolu AddPatternContentGuard() cagrisidir.
+            // 🚨 The built-in guard is registered only when the section REALLY
+            // exists. The registration is K1's gate: without it, the moderation
+            // wrapper is never added to the pipeline and the cost stays exactly
+            // zero. The way to turn it on from code is the AddPatternContentGuard() call.
             if (patternSection.Exists())
             {
                 services.TryAddEnumerable(ServiceDescriptor.Singleton<IContentGuard, PatternContentGuard>());
@@ -200,25 +204,26 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<AgentPrismOptions>, AgentPrismOptionsValidator>());
 
-        // Kiraci baglami. Cok kiracili kurulumda tuketici kendi uygulamasini
-        // bu cagridan once kaydeder.
+        // Tenant context. In a multi-tenant setup, the consumer registers
+        // their own implementation before this call.
         services.TryAddSingleton<ITenantContext, SingleTenantContext>();
 
-        // Defterler.
+        // Registries.
         services.TryAddSingleton<IToolRegistry, ToolRegistry>();
 
-        // Devre kesici IModelProviderRegistry'den ONCE kaydedilir: ModelProviderRegistry
-        // onu kurucusunda cozer ve ureteceği her IChatClient'i onunla sarar.
-        // Acik fabrika kullaniliyor: yerlesik DI kabi varsayilan deger tasiyan kurucu
-        // parametrelerini doldurmaz, TimeProvider kayitli olmayabilir.
+        // The circuit breaker is registered BEFORE IModelProviderRegistry:
+        // ModelProviderRegistry resolves it in its constructor and wraps every
+        // IChatClient it produces with it. An explicit factory is used: the
+        // built-in DI container does not fill in constructor parameters that
+        // carry a default value, and TimeProvider may not be registered.
         services.TryAddSingleton(static provider => new ModelProviderCircuitBreaker(
             provider.GetRequiredService<IOptionsMonitor<AgentPrismOptions>>(),
             provider.GetService<TimeProvider>()));
 
-        // Icerik denetimi boru hatti (Faz 48). Her zaman kayitlidir ama HasGuards
-        // false ise defter denetim sarmalayicisini hic eklemez. Acik fabrika: kayit
-        // sirasi onemsizdir, IContentGuard'lar bu cagridan sonra da eklenebilir
-        // (GetServices lazy cozer).
+        // Content moderation pipeline (Phase 48). Always registered, but when
+        // HasGuards is false, the registry never adds the moderation wrapper.
+        // Explicit factory: registration order does not matter, IContentGuard
+        // instances can also be added after this call (GetServices resolves lazily).
         services.TryAddSingleton(static provider => new ContentGuardPipeline(
             provider.GetServices<IContentGuard>(),
             provider.GetRequiredService<IOptionsMonitor<AgentPrismContentGuardOptions>>(),
@@ -227,9 +232,10 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<ITenantContext>(),
             provider.GetRequiredService<ILoggerFactory>()));
 
-        // Defter boru hattinin TAMAMINI kurar (Faz 48'de saglayici paketlerinden
-        // tasindi). Acik fabrika zorunludur: yerlesik DI kabi varsayilan deger
-        // tasiyan kurucu parametrelerini doldurmaz.
+        // Sets up the WHOLE registry pipeline (moved out of the provider
+        // packages in Phase 48). An explicit factory is required: the built-in
+        // DI container does not fill in constructor parameters that carry a
+        // default value.
         services.TryAddSingleton<IModelProviderRegistry>(static provider => new ModelProviderRegistry(
             provider.GetServices<IModelProvider>(),
             provider.GetService<ModelProviderCircuitBreaker>(),
@@ -238,22 +244,22 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetService<ContentGuardPipeline>(),
             provider.GetService<ILoggerFactory>()));
 
-        // Maliyet cozumleyici (Faz 20): model kataloğu, sonra AgentPrism:Pricing.
+        // Cost resolver (Phase 20): model catalog, then AgentPrism:Pricing.
         services.TryAddSingleton<IRunPricingResolver, RunPricingResolver>();
         services.TryAddSingleton<RunCostRecalculationService>();
 
-        // Hata siniflandirici (Faz 44). Taksonomi AgentPrism'in gorusudur;
-        // TryAddSingleton sayesinde tuketicinin kendi siniflandiricisi kazanir (K4).
+        // Error classifier (Phase 44). The taxonomy is AgentPrism's opinion;
+        // thanks to TryAddSingleton, the consumer's own classifier wins (K4).
         services.TryAddSingleton<IRunErrorClassifier, DefaultRunErrorClassifier>();
 
-        // Calistirma iptali defteri (Faz 32). Her zaman kayitlidir: bellek ici
-        // bir sozluk tutmaktan baska bir yan etkisi yoktur (K-165'in "yeni
-        // davranis varsayilan kapali gelir" karari acik bir yan etki
-        // ureten ozellikler icindir, bu defter degildir).
+        // Run cancellation registry (Phase 32). Always registered: it has no
+        // side effect beyond holding an in-memory dictionary (K-165's "new
+        // behavior ships disabled by default" decision is for features that
+        // produce an overt side effect, this registry is not one of them).
         services.TryAddSingleton<IRunCancellationRegistry, RunCancellationRegistry>();
 
-        // Saglik onbellegi ve isteğe bagli arka plan tazeleyici. Acik fabrika: ayni
-        // gerekce, TimeProvider kayitli olmayabilir.
+        // Health cache and optional background refresher. Explicit factory:
+        // same rationale, TimeProvider may not be registered.
         services.TryAddSingleton(static provider => new ModelProviderHealthCache(
             provider.GetServices<IModelProvider>(),
             provider.GetRequiredService<IOptionsMonitor<AgentPrismOptions>>(),
@@ -262,14 +268,16 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, ModelProviderHealthBackgroundService>());
 
-        // Sema hazir kapisi. SQL'e dokunan arka plan servisleri ilk sorgudan ONCE
-        // bunu bekler; boylece kayit sirasi (.UseMcp() once mi .UseSqlite() once mi)
-        // "no such table" uretmez. Hicbir SQL saglayicisi kayitli degilse kapi
-        // kendiliginden aciktir. Gerekce: K-354.
+        // Schema-ready gate. Background services that touch SQL wait for this
+        // BEFORE their first query; this way, registration order (.UseMcp()
+        // first or .UseSqlite() first) does not produce "no such table". When
+        // no SQL provider is registered, the gate is open by itself.
+        // Rationale: K-354.
         services.TryAddSingleton<SchemaReadyGate>();
 
-        // Teshis toplayicisi (Faz 33). IAgentCatalog ve IToolRegistry bu noktadan
-        // sonra kayit edilir ama acik fabrika lazy cozer; kayit sirasi onemli degildir.
+        // Diagnostics collector (Phase 33). IAgentCatalog and IToolRegistry are
+        // registered after this point, but the explicit factory resolves
+        // lazily; registration order does not matter.
         services.TryAddSingleton(static provider => new AgentPrismDiagnosticsCollector(
             provider.GetServices<IModelProvider>(),
             provider.GetRequiredService<ModelProviderHealthCache>(),
@@ -279,76 +287,79 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<IToolRegistry>(),
             provider.GetService<ModelProviderCircuitBreaker>()));
 
-        // Sohbet gecmisi saglayicisi. Kayitli olmasaydi MAF her agent icin kendi
-        // bellek ici saglayicisini kurardi ve o ornege disaridan erisilemezdi;
-        // /api/sessions/{id} gecmisi yalnizca PostgreSQL acikken okunabilirdi.
-        // Acik kayit iki modda da ayni okuma yolunu verir. Durum oturumun
-        // StateBag'inde yasar, saglayicinin alanlarinda degil; bu yuzden tek
-        // ornegin tum oturumlarca paylasilmasi MAF'in ongordugu kullanimdir.
-        // AgentPrism.PostgreSql bunu PostgresChatHistoryProvider ile degistirir.
+        // Chat history provider. Without registration, MAF would set up its own
+        // in-memory provider for each agent and that instance would not be
+        // reachable from outside; /api/sessions/{id} history could only be
+        // read while PostgreSQL was on. Explicit registration gives the same
+        // read path in both modes. State lives in the session's StateBag, not
+        // the provider's fields; that is why a single instance being shared
+        // across all sessions is the usage MAF anticipates.
+        // AgentPrism.PostgreSql replaces this with PostgresChatHistoryProvider.
         services.TryAddSingleton<Microsoft.Agents.AI.ChatHistoryProvider>(
             static _ => new Microsoft.Agents.AI.InMemoryChatHistoryProvider(
                 new Microsoft.Agents.AI.InMemoryChatHistoryProviderOptions()));
 
-        // Bellek destekli AIContextProvider'lar (FileMemoryProvider,
-        // TextSearchProvider) icin dosya deposu. MAF'in kendi soyutlamasi
-        // (dosya sistemi degil); bu fazda kalici surumu yok, bellek icinde
-        // yasar. Kalici surum Faz 14+'in depolama tablosuna baglanacak.
-        // MAAI001: AgentFileStore "evaluation purposes only" — gerekce
-        // AgentDefinitionCompiler'daki ile aynidir.
+        // File store for memory-backed AIContextProviders (FileMemoryProvider,
+        // TextSearchProvider). MAF's own abstraction (not a file system); this
+        // phase has no persistent version, it lives in memory. The persistent
+        // version will connect to Phase 14+'s storage table.
+        // MAAI001: AgentFileStore is marked "evaluation purposes only" - the
+        // rationale is the same as in AgentDefinitionCompiler.
 #pragma warning disable MAAI001
         services.TryAddSingleton<Microsoft.Agents.AI.AgentFileStore>(
             static _ => new Microsoft.Agents.AI.InMemoryAgentFileStore());
 #pragma warning restore MAAI001
 
-        // Derleyici ve onbellek.
+        // Compiler and cache.
         services.TryAddSingleton<CompiledAgentCache>();
 
-        // Alt agent cozucusu. Katalogu KURUCUSUNDA degil ilk kullanimda ister;
-        // aksi halde IAgentCatalog -> IAgentSource -> AgentDefinitionCompiler ->
-        // cozucu -> IAgentCatalog dairesi kurulamazdi.
+        // Sub-agent resolver. Requests the catalog on FIRST USE, not in its
+        // CONSTRUCTOR; otherwise the IAgentCatalog -> IAgentSource ->
+        // AgentDefinitionCompiler -> resolver -> IAgentCatalog cycle could not be built.
         services.TryAddSingleton<CallableAgentResolver>();
 
-#pragma warning disable MAAI001 // AgentFileStore — gerekce AgentDefinitionCompiler'daki ile aynidir.
+#pragma warning disable MAAI001 // AgentFileStore — the rationale is the same as in AgentDefinitionCompiler.
         services.TryAddSingleton(static provider => new AgentDefinitionCompiler(
             provider.GetRequiredService<IModelProviderRegistry>(),
             provider.GetRequiredService<IToolRegistry>(),
             provider.GetService<Microsoft.Extensions.Logging.ILoggerFactory>(),
             provider,
-            // Kayitli degilse MAF'in bellek ici varsayilani kullanilir.
-            // AgentPrism.PostgreSql bunu PostgresChatHistoryProvider ile doldurur.
+            // When not registered, MAF's in-memory default is used.
+            // AgentPrism.PostgreSql fills this in with PostgresChatHistoryProvider.
             provider.GetService<Microsoft.Agents.AI.ChatHistoryProvider>(),
             provider.GetRequiredService<AgentSkillCatalog>(),
-            // Kayitli degilse script destegi yoktur: hicbir script calistirilamaz.
+            // When not registered, there is no script support: no script can run.
             provider.GetService<SkillScriptSupport>(),
             provider.GetRequiredService<CallableAgentResolver>(),
             provider.GetRequiredService<ITenantContext>(),
             provider.GetRequiredService<IOptions<AgentPrismOptions>>().Value.UtilityModel,
             provider.GetRequiredService<Microsoft.Agents.AI.AgentFileStore>(),
-            // Kayitli degilse McpResourceUris kullanan bir tanim derleme hatasi alir.
-            // AgentPrism.Mcp'nin UseMcp() cagrisi bunu kaydeder.
+            // When not registered, a definition using McpResourceUris gets a
+            // compilation error. AgentPrism.Mcp's UseMcp() call registers this.
             provider.GetService<IMcpResourceContextProviderFactory>(),
-            // Faz 51: kayitli degilse EnableVectorSearch isteyen bir tanim derleme
-            // hatasi alir. AgentPrism.PostgreSql'in UsePostgreSql() cagrisi kaydeder.
+            // Phase 51: when not registered, a definition requesting
+            // EnableVectorSearch gets a compilation error.
+            // AgentPrism.PostgreSql's UsePostgreSql() call registers this.
             provider.GetService<IVectorSearchStore>(),
-            // Tuketici kendi IEmbeddingGenerator'ini kaydeder (K-032'nin deseni).
+            // The consumer registers their own IEmbeddingGenerator (the K-032 pattern).
             provider.GetService<Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>>(),
             provider.GetRequiredService<IOptions<AgentPrismKnowledgeOptions>>().Value.MaxResults));
 #pragma warning restore MAAI001
 
-        // Bilgi tabani yonetim yuzeyi (Faz 51): belge yukleme, arama, silme, listeleme.
-        // IsSupported == false iken her metot acik bir AgentPrismException firlatir.
+        // Knowledge base management surface (Phase 51): document upload,
+        // search, delete, list. While IsSupported == false, every method
+        // throws an overt AgentPrismException.
         services.TryAddSingleton(static provider => new KnowledgeIngestionService(
             provider.GetRequiredService<ITenantContext>(),
             provider.GetRequiredService<IOptions<AgentPrismKnowledgeOptions>>(),
             provider.GetService<IVectorSearchStore>(),
             provider.GetService<Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>>()));
 
-        // Tanim dogrulama ucu (Faz 34, F-60). Gercek derleme yolunu kendi
-        // sirasiyla tekrar eder; IAgentCatalog burada dogrudan alinabilir
-        // cunku dogrulayici (CallableAgentResolver'in aksine) IAgentCatalog'un
-        // KENDI kurulumunun bir parcasi degil, ona sonradan eklenen bir
-        // tuketicidir — dairesel bagimlilik riski yoktur.
+        // Definition validation endpoint (Phase 34, F-60). Repeats the real
+        // compilation path in its own order; IAgentCatalog can be taken directly
+        // here because, unlike CallableAgentResolver, the validator is not part
+        // of IAgentCatalog's OWN setup - it is a consumer added afterward, so
+        // there is no risk of a circular dependency.
         services.TryAddSingleton(static provider => new AgentDefinitionValidator(
             provider.GetRequiredService<IModelProviderRegistry>(),
             provider.GetRequiredService<IToolRegistry>(),
@@ -356,21 +367,22 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<IAgentCatalog>(),
             provider.GetRequiredService<AgentDefinitionCompiler>(),
             provider.GetRequiredService<IOptions<AgentPrismOptions>>(),
-            // Kayitli degilse AgentPrism.Mcp kullanilmiyordur; eksik tool adlari
-            // taze bir MCP taramasi denenmeden dogrudan hata olarak raporlanir.
+            // When not registered, AgentPrism.Mcp is not in use; missing tool
+            // names are reported directly as an error without attempting a fresh MCP scan.
             provider.GetService<IMcpToolRefresher>()));
 
-        // Denetim izi. Aktor AuditActorContext'ten (AsyncLocal) okunur;
-        // AgentPrism.AspNetCore her korumali istegin basinda oraya HttpContext.User'i
-        // yazar. Boylece Core, ASP.NET Core'a bagimlilik eklemeden aktoru okuyabilir.
+        // Audit trail. The actor is read from AuditActorContext (AsyncLocal);
+        // AgentPrism.AspNetCore writes HttpContext.User there at the start of
+        // every protected request. This way Core can read the actor without
+        // adding a dependency on ASP.NET Core.
         services.TryAddSingleton<IAuditLog, InMemoryAuditLog>();
         services.TryAddSingleton<IAuditActorResolver, AmbientAuditActorResolver>();
 
-        // Bellek ici depolar, denetim izi yazan dekoratorlerle sarilmis olarak
-        // kaydedilir. Kalicilik paketi (AgentPrism.PostgreSql) ayni dekoratorlerle
-        // kendi uygulamalarini sarar (bkz. UsePostgreSql); boylece denetim izi
-        // hangi depo kayitli olursa olsun ayni sekilde calisir.
-        // Gerekce: docs/09-YONETISIM-VE-DENETIM-IZI.md, bolum 9.2.
+        // In-memory stores are registered wrapped with the audit-writing
+        // decorators. The persistence package (AgentPrism.PostgreSql) wraps its
+        // own implementations with the same decorators (see UsePostgreSql);
+        // this way the audit trail works identically no matter which store is
+        // registered. Rationale: docs/09-YONETISIM-VE-DENETIM-IZI.md, section 9.2.
         services.TryAddSingleton<IAgentDefinitionStore>(static provider => new AuditingAgentDefinitionStore(
             new InMemoryAgentDefinitionStore(provider.GetRequiredService<ITenantContext>()),
             provider.GetRequiredService<IAuditLog>(),
@@ -383,29 +395,29 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<IAgentSkillStore>(),
             provider.GetRequiredService<ITenantContext>(),
             provider.GetRequiredService<IOptions<AgentPrismOptions>>()));
-        // Calistirma/mesaj puanlari (Faz 31). IRunStore'dan ONCE kaydedilir:
-        // InMemoryRunStore.GetStatisticsAsync ozet hesabinda bu paylasilan
-        // tekil orneği DI uzerinden alir (bkz. InMemoryRunStore kurucusu).
+        // Run/message scores (Phase 31). Registered BEFORE IRunStore:
+        // InMemoryRunStore.GetStatisticsAsync's summary calculation obtains
+        // this shared single instance via DI (see the InMemoryRunStore constructor).
         services.TryAddSingleton<IRunScoreStore, InMemoryRunScoreStore>();
         services.TryAddSingleton<IRunStore>(static provider => new InMemoryRunStore(
             provider.GetRequiredService<IRunScoreStore>(),
             provider.GetRequiredService<ITenantContext>()));
 
-        // Calistirma girdileri (Faz 47). Depo her zaman kayitlidir (K-018:
-        // birinci sinif) — yeniden oynatma bir SQL saglayicisi olmadan da
-        // calisir. Kalici saglayicilar bunu kendi uygulamalariyla degistirir.
+        // Run inputs (Phase 47). The store is always registered (K-018:
+        // first-class) - replay works even without a SQL provider. Persistent
+        // providers replace this with their own implementations.
         services.TryAddSingleton<IRunInputStore, InMemoryRunInputStore>();
 
-        // Asenkron onay kutusu (Faz 55). Depo her zaman kayitlidir (K-018 ile
-        // AYNI gerekce): kuyruga alinan bir calistirma onay isterse depo
-        // kalici saglayici olmadan da calisir. Kalici saglayicilar bunu kendi
-        // uygulamalariyla degistirir.
+        // Async approval inbox (Phase 55). The store is always registered (the
+        // SAME rationale as K-018): if a queued run requests approval, the
+        // store works even without a persistent provider. Persistent providers
+        // replace this with their own implementations.
         services.TryAddSingleton<IPendingApprovalStore>(static provider => new InMemoryPendingApprovalStore(
             provider.GetRequiredService<ITenantContext>()));
 
-        // Script calistirma izinleri. Depo her zaman kayitlidir; calistirma
-        // ozelligi ise UseSkillScripts cagrilana kadar KAPALIDIR. Izin kaydinin
-        // varligi tek basina bir sey calistirmaz.
+        // Script run permissions. The store is always registered; the run
+        // feature itself is DISABLED until UseSkillScripts is called. The mere
+        // existence of a permission record runs nothing by itself.
         services.TryAddSingleton<ISkillScriptGrantStore>(static provider => new AuditingSkillScriptGrantStore(
             new InMemorySkillScriptGrantStore(),
             provider.GetRequiredService<IAuditLog>(),
@@ -430,16 +442,17 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<IAuditActorResolver>(),
             provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingMcpServerStore>>()));
-        // Ek deposu ve tur denetleyicisi. IAttachmentStorage kayitli degilse icerik
-        // dogrudan bellekte (uretimde: veritabaninda) yasar.
+        // Attachment store and type guard. When IAttachmentStorage is not
+        // registered, content lives directly in memory (in production: the database).
         services.TryAddSingleton<AttachmentTypeGuard>();
         services.TryAddSingleton<IAttachmentStore>(
             static provider => new InMemoryAttachmentStore(provider.GetService<IAttachmentStorage>()));
 
-        // Workflow tanimlari ve kontrol noktalari. Depolar HER ZAMAN kayitlidir;
-        // yurutme motoru ise UseWorkflows() cagrilana kadar KAPALIDIR. Bu ayrim
-        // bilinclidir: HTTP katmani tanimlari motor olmadan da listeleyip
-        // yonetebilmelidir, yalnizca "calistir" ucu 501 doner.
+        // Workflow definitions and checkpoints. The stores are ALWAYS
+        // registered; the execution engine, however, is DISABLED until
+        // UseWorkflows() is called. This split is deliberate: the HTTP layer
+        // must be able to list and manage definitions even without the
+        // engine, only the "run" endpoint returns 501.
         services.TryAddSingleton<IWorkflowDefinitionStore>(static provider => new AuditingWorkflowDefinitionStore(
             new InMemoryWorkflowDefinitionStore(),
             provider.GetRequiredService<IAuditLog>(),
@@ -447,77 +460,80 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingWorkflowDefinitionStore>>()));
         services.TryAddSingleton<IWorkflowCheckpointStore, InMemoryWorkflowCheckpointStore>();
 
-        // Is kuyrugu ve zamanlama depolari (Faz 17). Workflow depolariyla ayni
-        // ayrim: depolar HER ZAMAN kayitlidir; arka plan iscisi ise
-        // AgentPrismSchedulingOptions.RunWorker ile acilir/kapanir. Bu ikisi
-        // dekoratorle sarilmaz — is kuyrugu kendi durum makinesini tasir ve
-        // denetim izi buraya Faz 18'de eklenebilir.
+        // Job queue and scheduling stores (Phase 17). Same split as the
+        // workflow stores: the stores are ALWAYS registered; the background
+        // worker is turned on/off with AgentPrismSchedulingOptions.RunWorker.
+        // Neither of these two is wrapped with a decorator - the job queue
+        // carries its own state machine, and an audit trail can be added here in Phase 18.
         services.TryAddSingleton<IJobStore, InMemoryJobStore>();
         services.TryAddSingleton<IJobScheduleStore, InMemoryJobScheduleStore>();
 
-        // Uc varsayilan isleyici: agent toplu calistirma, kuyruga alinan tekil
-        // calistirma (Faz 46) ve workflow. Ucu de TryAddEnumerable ile eklenir;
-        // Faz 18 (eval) kendi isleyicisini AddJobHandler<T>() ile ayni sekilde
-        // ekler.
+        // Three built-in handlers: agent batch run, queued single run (Phase
+        // 46), and workflow. All three are added with TryAddEnumerable; Phase
+        // 18 (eval) adds its own handler the same way with AddJobHandler<T>().
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, AgentBatchJobHandler>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, AgentRunJobHandler>());
 
-        // Onay sonrasi surdurme (Faz 55). AgentRunJobHandler'dan AYRIDIR: YENI
-        // bir RunId ile calisir, eskisine dokunmaz (K-014).
+        // Post-approval resume (Phase 55). SEPARATE from AgentRunJobHandler:
+        // runs with a NEW RunId, does not touch the old one (K-014).
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, ApprovalResumeJobHandler>());
 
-        // Acik fabrika kullaniliyor: yerlesik DI kabi varsayilan deger tasiyan
-        // kurucu parametrelerini doldurmaz ve IWorkflowRunner cogu kurulumda
-        // kayitli degildir (UseWorkflows() cagrilmadikca) — ayni gerekce
-        // RunRecordingAgentDecorator kaydinda da gecerlidir.
+        // An explicit factory is used: the built-in DI container does not fill
+        // in constructor parameters that carry a default value, and
+        // IWorkflowRunner is not registered in most setups (unless
+        // UseWorkflows() is called) - the same rationale applies to the
+        // RunRecordingAgentDecorator registration too.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, WorkflowJobHandler>(
             static provider => new WorkflowJobHandler(
                 provider.GetService<IWorkflowRunner>(),
                 provider.GetService<Microsoft.Extensions.Logging.ILogger<WorkflowJobHandler>>())));
 
-        // Degerlendirme (eval) altyapisi (Faz 18). Takim/vaka/kosu deposu her
-        // zaman kayitlidir; kosular ayni is kuyrugu uzerinden (JobKind.Eval)
-        // yurutulur. Denetim defteri ozel (AddEvalCheck ile eklenen) kayitlardan
-        // kurulur; yerlesik alti tur EvalCheckRegistry icinde sabittir.
+        // Evaluation (eval) infrastructure (Phase 18). The suite/case/run store
+        // is always registered; runs execute through the same job queue
+        // (JobKind.Eval). The check registry is built from custom records
+        // (added via AddEvalCheck); the six built-in kinds are fixed inside EvalCheckRegistry.
         services.TryAddSingleton<IEvalStore, InMemoryEvalStore>();
         services.TryAddSingleton<EvalCheckRegistry>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, EvalJobHandler>());
 
-        // Uretimden vaka terfisi (Faz 45, F-53). Sorgu metnini calistirmanin
-        // oturumundan okur; bagimliliklarin tumu yukarida zaten kayitlidir.
+        // Promoting production cases (Phase 45, F-53). Reads the query text
+        // from the run's session; all of its dependencies are already registered above.
         services.TryAddSingleton<RunToCasePromoter>();
 
-        // Cevrimici degerlendirme (Faz 49). Ornekleyici ve is isleyicisi her
-        // zaman kayitlidir (K-018: birinci sinif); hicbir sey PUANLAMAZ cunku
-        // OnlineEvaluationOptions varsayilani iki kapiyi de kapali tutar
-        // (Enabled=false, SampleRate=0) ve kayitli hicbir IRunJudge yoktur —
-        // yerlesik yargici acmanin yolu AddModelRunJudge() cagrisidir.
+        // Online evaluation (Phase 49). The sampler and job handler are always
+        // registered (K-018: first-class); nothing SCORES anything because the
+        // OnlineEvaluationOptions default keeps both gates closed
+        // (Enabled=false, SampleRate=0) and no IRunJudge is registered - the
+        // way to turn on the built-in judge is the AddModelRunJudge() call.
         services.TryAddSingleton<RunSampler>();
         services.TryAddSingleton<OnlineEvalSummaryService>();
 
-        // 🚨 Concrete tip AYRICA kaydedilir: POST /api/runs/{id}/judge ucu
-        // JudgeRunAsync'i dogrudan cagirmak icin OnlineEvalJobHandler'i KENDI
-        // tipiyle ister. TryAddEnumerable(Singleton<IJobHandler, T>) yalnizca
-        // arayuz uzerinden cozulebilen bir kayit uretir; concrete tipi AYRI
-        // kaydetmezsek uc DI'da bulamaz. Ayni factory AYNI ornegi doner, boylece
-        // iki kayit (concrete + arayuz) tek bir singleton'i paylasir.
+        // 🚨 The concrete type is ALSO registered: the POST
+        // /api/runs/{id}/judge endpoint requests OnlineEvalJobHandler by its
+        // OWN type to call JudgeRunAsync directly. TryAddEnumerable(Singleton<IJobHandler, T>)
+        // only produces a registration resolvable via the interface; without
+        // registering the concrete type SEPARATELY, the endpoint could not
+        // find it in DI. The same factory returns the SAME instance, so the
+        // two registrations (concrete + interface) share a single singleton.
         services.TryAddSingleton<OnlineEvalJobHandler>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, OnlineEvalJobHandler>(
             static provider => provider.GetRequiredService<OnlineEvalJobHandler>()));
 
-        // Kota ve olay yayini (Faz 21). Depolar her zaman kayitlidir; kural
-        // tanimlanmadikca hicbir sey reddedilmez, abone yoksa hicbir olay
-        // yayilmaz. Bu yuzden ayri bir Use...() cagrisi gerekmez.
+        // Quotas and event publishing (Phase 21). The stores are always
+        // registered; nothing is rejected unless a rule is defined, and no
+        // event is published when there is no subscriber. This is why no
+        // separate Use...() call is needed.
         services.TryAddSingleton<IQuotaStore, InMemoryQuotaStore>();
         services.TryAddSingleton<IWebhookStore, InMemoryWebhookStore>();
 
-        // Kiraci bazli API anahtarlari (Faz 53). Depo her zaman kayitlidir
-        // (K-018: birinci sinif); hicbir anahtar olusturulmadikca statik
-        // bearer token'in davranisi degismez (K1 -- sifir surpriz).
+        // Tenant-scoped API keys (Phase 53). The store is always registered
+        // (K-018: first-class); the static bearer token's behavior does not
+        // change unless a key is created (K1 - zero surprise).
         services.TryAddSingleton<IApiKeyStore, InMemoryApiKeyStore>();
 
-        // 🚨 SSRF korumasi bu istemcinin icine gomulüdur; tuketici degistiremez
-        // (K-164). Acik fabrika: TimeProvider kayitli olmayabilir.
+        // 🚨 SSRF protection is embedded inside this client; the consumer
+        // cannot change it (K-164). Explicit factory: TimeProvider may not be
+        // registered.
         services.TryAddSingleton(static provider => new WebhookHttpClient(
             provider.GetRequiredService<IOptionsMonitor<AgentPrismWebhookOptions>>()));
 
@@ -535,11 +551,12 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetService<TimeProvider>(),
             provider.GetService<Microsoft.Extensions.Logging.ILogger<QuotaEnforcer>>()));
 
-        // Kota olceri (Faz 35). IHostedService olarak eklenmesinin tek amaci
-        // konteynerin bu nesneyi barindirici baslarken ERKEN cozmesidir; aksi
-        // halde hicbir tuketici cozmedigi surece ObservableGauge'lar hic
-        // olusmaz. EnableQuotaUsageGauge kapaliyken (varsayilan) olcer yine de
-        // olusur ama onbellege hic dokunmaz — bkz. sinif belgesi.
+        // Quota gauge (Phase 35). The sole purpose of adding it as an
+        // IHostedService is to have the container resolve this object EARLY
+        // while the host starts; otherwise the ObservableGauges would never be
+        // created unless some consumer resolved it. While
+        // EnableQuotaUsageGauge is off (the default) the gauge is still
+        // created but never touches the cache - see the class documentation.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, QuotaUsageObserver>(
             static provider => new QuotaUsageObserver(
                 provider.GetRequiredService<IQuotaStore>(),
@@ -550,7 +567,7 @@ public static class AgentPrismServiceCollectionExtensions
                 provider.GetService<TimeProvider>(),
                 provider.GetService<Microsoft.Extensions.Logging.ILogger<QuotaUsageObserver>>())));
 
-        // Teslim isleyicisi Faz 17'nin AYNI kuyrugunu kullanir (K-160).
+        // The delivery handler uses the SAME queue as Phase 17 (K-160).
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobHandler, WebhookDeliveryJobHandler>(
             static provider => new WebhookDeliveryJobHandler(
                 provider.GetRequiredService<IWebhookStore>(),
@@ -560,23 +577,24 @@ public static class AgentPrismServiceCollectionExtensions
                 provider.GetService<TimeProvider>(),
                 provider.GetService<Microsoft.Extensions.Logging.ILogger<WebhookDeliveryJobHandler>>())));
 
-        // Idempotency-Key destegi (Faz 43). Depo her zaman kayitlidir (K-018:
-        // birinci sinif); tek ornekli dagitimda InMemoryIdempotencyStore
-        // yeterlidir. Ayri bir Use...() cagrisi gerekmez.
+        // Idempotency-Key support (Phase 43). The store is always registered
+        // (K-018: first-class); InMemoryIdempotencyStore is sufficient for a
+        // single-instance deployment. No separate Use...() call is needed.
         services.TryAddSingleton<IIdempotencyStore, InMemoryIdempotencyStore>();
 
-        // Veri saklama ve arsivleme (Faz 25). Politika/kosu deposu her zaman
-        // kayitlidir (kontrol duzlemi); veri duzlemi (IRetentionStore) ise bellek
-        // ici kurulumda islevsizdir (NullRetentionStore) — saklama yalniz kalici
-        // bir SQL saglayicisi acikken anlamlidir. IArchiveSink kayitli DEGILSE
-        // arsivleme isteyen bir politika hicbir satir silmez (Faz 25 karari).
+        // Data retention and archiving (Phase 25). The policy/run store is
+        // always registered (control plane); the data plane
+        // (IRetentionStore), however, is non-functional in an in-memory setup
+        // (NullRetentionStore) - retention is meaningful only with a
+        // persistent SQL provider on. When IArchiveSink is NOT registered, a
+        // policy requesting archiving deletes no rows (the Phase 25 decision).
         services.TryAddSingleton<IRetentionPolicyStore, InMemoryRetentionPolicyStore>();
         services.TryAddSingleton<IRetentionStore, NullRetentionStore>();
         services.TryAddSingleton<RetentionPolicyResolver>();
 
-        // Acik fabrika kullaniliyor: yerlesik DI kabi varsayilan deger tasiyan
-        // kurucu parametrelerini doldurmaz (IArchiveSink, TimeProvider, ILogger
-        // kayitli olmayabilir).
+        // An explicit factory is used: the built-in DI container does not fill
+        // in constructor parameters that carry a default value (IArchiveSink,
+        // TimeProvider, ILogger may not be registered).
         services.TryAddSingleton(static provider => new RetentionExecutor(
             provider.GetRequiredService<IRetentionPolicyStore>(),
             provider.GetRequiredService<IRetentionStore>(),
@@ -592,30 +610,31 @@ public static class AgentPrismServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, JobWorkerBackgroundService>());
 
-        // Oksuz calistirma uzlastirmasi (Faz 54). Ikisi de RunReconciliationOptions.Enabled
-        // kapaliyken (varsayilan) hemen doner ve depoya hicbir sorgu atmaz (K1).
+        // Orphaned run reconciliation (Phase 54). Both return immediately and
+        // issue no query to the store while RunReconciliationOptions.Enabled is
+        // off (the default) (K1).
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, RunHeartbeatWriter>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, RunReconciliationService>());
 
-        // Onay sure sonu taramasi (Faz 55). AgentPrismApprovalOptions.ExpirationEnabled
-        // varsayilan ACIKTIR (RunReconciliationOptions'in aksine bir guvenlik
-        // geregi) ama SQL kayitli degilse SchemaReadyGate hemen acilir ve
-        // ilk turdan sonra hicbir yeni sorgu atilmaz.
+        // Approval expiration scan (Phase 55). AgentPrismApprovalOptions.ExpirationEnabled
+        // defaults to ON (a safety requirement unlike RunReconciliationOptions),
+        // but when SQL is not registered, SchemaReadyGate opens immediately and
+        // no new query is issued after the first tick.
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, ApprovalExpirationService>());
 
-        // Kanarya degerlendirmesi ve otomatik geri alma (Faz 56).
-        // CanaryOptions.AutoRollbackEnabled varsayilan KAPALIDIR (K1); acilmadan
-        // hicbir deney taranmaz.
+        // Canary evaluation and automatic rollback (Phase 56).
+        // CanaryOptions.AutoRollbackEnabled defaults to DISABLED (K1); no
+        // experiment is scanned unless turned on.
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, CanaryEvaluationService>());
 
-        // A/B deneyleri (Faz 19). Admin'in olusturdugu/baslattigi/durdurdugu bir
-        // varlik oldugu icin IAgentDefinitionStore ile ayni gerekceyle denetim
-        // izi dekoratoruyle sarilir (IEvalStore/IJobStore'un aksine, onlar
-        // yurutmenin yan urunudur).
+        // A/B experiments (Phase 19). Since it is an entity the admin
+        // creates/starts/stops, it is wrapped with the audit trail decorator
+        // for the same rationale as IAgentDefinitionStore (unlike
+        // IEvalStore/IJobStore, which are a byproduct of execution).
         services.TryAddSingleton<IExperimentStore>(static provider => new AuditingExperimentStore(
             new InMemoryExperimentStore(),
             provider.GetRequiredService<IAuditLog>(),
@@ -631,30 +650,32 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetRequiredService<IAuditActorResolver>(),
             provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingTenantStore>>()));
 
-        // Telemetri. Metrikler IMeterFactory kayitliysa onun uzerinden kurulur;
-        // degilse kendi Meter'ini olusturur — tuketici AddMetrics() cagirmaya
-        // zorlanmaz.
+        // Telemetry. Metrics are set up through IMeterFactory when it is
+        // registered; otherwise it creates its own Meter - the consumer is not
+        // forced to call AddMetrics().
         services.TryAddSingleton(static provider => new AgentPrismMetrics(
             provider.GetService<System.Diagnostics.Metrics.IMeterFactory>()));
 
-        // Span toplayici ActivityListener'i kurucusunda kaydeder; bu yuzden
-        // ilk cozulmesi yeterlidir. RunRecordingAgentDecorator onu cozer.
+        // The span collector registers the ActivityListener in its
+        // constructor; this is why resolving it once at the start is enough.
+        // RunRecordingAgentDecorator resolves it.
         services.TryAddSingleton<RunTraceCollector>();
 
-        // Onay kurallarini degerlendiren servis.
+        // Service that evaluates approval rules.
         services.TryAddSingleton<ToolApprovalRuleEvaluator>();
 
-        // Oturum yasam dongusu. Depodan bagimsizdir.
-        // Acik fabrika kullaniliyor: yerlesik DI kabi varsayilan deger tasiyan
-        // kurucu parametrelerini doldurmaz, TimeProvider kayitli olmayabilir.
+        // Session lifecycle. Independent of the store.
+        // An explicit factory is used: the built-in DI container does not fill
+        // in constructor parameters that carry a default value, TimeProvider
+        // may not be registered.
         services.TryAddSingleton(static provider => new AgentSessionManager(
             provider.GetRequiredService<ISessionStore>(),
             provider.GetRequiredService<ITenantContext>(),
             provider.GetService<TimeProvider>()));
 
-        // Konusma dallandirma (Faz 47). IConversationBranchStore yalnizca bir SQL
-        // saglayicisi acikken kayitlidir; kayitsizken servis "desteklenmiyor"
-        // der ve uc 501 doner (bkz. ConversationBranchService.IsSupported).
+        // Conversation branching (Phase 47). IConversationBranchStore is
+        // registered only while a SQL provider is on; without it, the service
+        // says "not supported" and the endpoint returns 501 (see ConversationBranchService.IsSupported).
         services.TryAddSingleton(static provider => new ConversationBranchService(
             provider.GetRequiredService<ISessionStore>(),
             provider.GetRequiredService<IAgentCatalog>(),
@@ -662,9 +683,9 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetService<IConversationBranchStore>(),
             provider.GetService<TimeProvider>()));
 
-        // Yeniden oynatma (Faz 47). Katalogu DEGIL, tanim deposunu ve derleyiciyi
-        // kullanir: model bindirmesi ve tool modlari tanimi yeniden derlemeyi
-        // gerektirir ve sonuc onbellege GIRMEZ.
+        // Replay (Phase 47). Uses NOT the catalog but the definition store and
+        // the compiler: model binding and tool modes require recompiling the
+        // definition, and the result does NOT ENTER the cache.
         services.TryAddSingleton(static provider => new RunReplayService(
             provider.GetRequiredService<IRunStore>(),
             provider.GetRequiredService<IRunInputStore>(),
@@ -675,20 +696,21 @@ public static class AgentPrismServiceCollectionExtensions
             provider.GetServices<IAgentDecorator>(),
             provider.GetRequiredService<ITenantContext>()));
 
-        // Katalog kaynaklari. TryAddEnumerable ayni tipin iki kez eklenmesini engeller.
+        // Catalog sources. TryAddEnumerable prevents the same type from being added twice.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentSource, CodeAgentSource>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentSource, DefinitionStoreAgentSource>());
 
-        // Sarmalayicilar. Uygulama sirasi Order ile belirlenir:
-        // calistirma kaydi (0) → telemetri (10) → tool onayi (20) → agent.
+        // Wrappers. Application order is determined by Order:
+        // run recording (0) → telemetry (10) → tool approval (20) → agent.
         //
-        // Kayit dekoratoru acik fabrika ile kuruluyor: yerlesik DI kabi varsayilan
-        // deger tasiyan kurucu parametrelerini doldurmaz ve TimeProvider kayitli
-        // olmayabilir.
+        // The recording decorator is set up with an explicit factory: the
+        // built-in DI container does not fill in constructor parameters that
+        // carry a default value, and TimeProvider may not be registered.
         //
-        // Iki tur argumanli asiri yukleme SART: tek argumanli bicimde fabrikanin
-        // donus tipi IAgentDecorator olur ve TryAddEnumerable uygulamayi ayirt
-        // edemeyip "indistinguishable from other services" hatasi verir.
+        // The two-type-argument overload is REQUIRED: with the single-argument
+        // form, the factory's return type becomes IAgentDecorator and
+        // TryAddEnumerable cannot tell the implementations apart, producing
+        // an "indistinguishable from other services" error.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, RunRecordingAgentDecorator>(
             static provider => new RunRecordingAgentDecorator(
                 provider.GetRequiredService<IRunStore>(),
@@ -699,19 +721,20 @@ public static class AgentPrismServiceCollectionExtensions
                 provider.GetRequiredService<RunTraceCollector>(),
                 provider.GetService<TimeProvider>(),
                 provider.GetRequiredService<IRunPricingResolver>(),
-                // 🚨 Bu iki satir olmadan kurucu parametreleri null kalir ve kota
-                // sayaci hic artmaz, hicbir run.* olayi yayilmaz — derleme ve
-                // testler yesil gorunurdu (K-157'nin dersi).
+                // 🚨 Without these two lines, the constructor parameters stay
+                // null and the quota counter never increases, no run.* event is
+                // published - the build and tests would look green
+                // (the lesson of K-157).
                 provider.GetRequiredService<QuotaEnforcer>(),
                 provider.GetRequiredService<IWebhookPublisher>(),
                 provider.GetRequiredService<IRunCancellationRegistry>(),
                 provider.GetRequiredService<IRunErrorClassifier>(),
                 provider.GetRequiredService<IRunInputStore>(),
-                // Faz 49: kayitli olmasi tek basina hicbir sey orneklemez, bkz.
-                // RunSampler/OnlineEvaluationOptions sinif belgeleri.
+                // Phase 49: being registered alone samples nothing, see the
+                // RunSampler/OnlineEvaluationOptions class documentation.
                 provider.GetRequiredService<RunSampler>(),
-                // HATA-S3-006: bu satir olmadan RunStarted olayina ve
-                // IRunInputStore'a yazilan girdi guard'lardan hic gecmez.
+                // HATA-S3-006: without this line, the input written to the
+                // RunStarted event and IRunInputStore never passes through the guards.
                 provider.GetRequiredService<ContentGuardPipeline>())));
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentDecorator, OpenTelemetryAgentDecorator>());
@@ -723,16 +746,17 @@ public static class AgentPrismServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Bir <see cref="IJobHandler"/> genisleme noktasi ekler.
+    /// Adds an <see cref="IJobHandler"/> extension point.
     /// </summary>
-    /// <typeparam name="THandler">Eklenecek isleyici tipi.</typeparam>
-    /// <param name="services">Servis koleksiyonu.</param>
-    /// <returns>Zincirleme icin ayni koleksiyon.</returns>
+    /// <typeparam name="THandler">The handler type to add.</typeparam>
+    /// <param name="services">Service collection.</param>
+    /// <returns>The same collection, for chaining.</returns>
     /// <remarks>
-    /// Faz 18 (eval) kendi isleyicisini bu metotla ekler. <c>TryAddEnumerable</c>
-    /// kullanilir: ayni tip iki kez eklenirse yalnizca ilki sayilir.
+    /// Phase 18 (eval) adds its own handler with this method.
+    /// <c>TryAddEnumerable</c> is used: if the same type is added twice, only
+    /// the first counts.
     /// </remarks>
-    /// <exception cref="ArgumentNullException"><paramref name="services"/> <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/>.</exception>
     public static IServiceCollection AddJobHandler<
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] THandler>(
         this IServiceCollection services)
@@ -746,19 +770,19 @@ public static class AgentPrismServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Toplu ve zamanlanmis calistirma (Faz 17) ayarlarini kod ile ayarlar.
+    /// Sets batch and scheduled run (Phase 17) settings from code.
     /// </summary>
-    /// <param name="services">Servis koleksiyonu.</param>
-    /// <param name="configure">Ayar degistirici. Verilmezse yalnizca varsayilanlar/yapilandirma gecerli olur.</param>
-    /// <returns>Zincirleme icin ayni koleksiyon.</returns>
+    /// <param name="services">Service collection.</param>
+    /// <param name="configure">Settings modifier. When not given, only the defaults/configuration apply.</param>
+    /// <returns>The same collection, for chaining.</returns>
     /// <remarks>
-    /// Is kuyrugu ve zamanlama depolari <c>AddAgentPrism()</c> ile zaten
-    /// kayitlidir; bu metot yalnizca ayarlari degistirir (ornegin
-    /// <c>o.RunWorker = false</c> ile bu surecteki arka plan iscisini
-    /// kapatmak). <c>PostConfigure</c> kullanilir, boylece kod ile verilen
-    /// deger yapilandirma dosyasindan gelen degerden her zaman kazanir.
+    /// The job queue and scheduling stores are already registered by
+    /// <c>AddAgentPrism()</c>; this method only changes the settings (e.g.
+    /// turning off this process's background worker with
+    /// <c>o.RunWorker = false</c>). <c>PostConfigure</c> is used, so the value
+    /// given from code always wins over the value coming from the configuration file.
     /// </remarks>
-    /// <exception cref="ArgumentNullException"><paramref name="services"/> <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="services"/> is <see langword="null"/>.</exception>
     public static IServiceCollection UseScheduling(
         this IServiceCollection services,
         Action<AgentPrismSchedulingOptions>? configure = null)
@@ -774,11 +798,11 @@ public static class AgentPrismServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Yapilandirma bolumunu ayar nesnesine elle baglar.
+    /// Manually binds a configuration section to the settings object.
     /// </summary>
     /// <remarks>
-    /// Yeni bir ayar eklendiginde bu metoda da eklenmelidir. Karsiliginda
-    /// AgentPrism.Core yansimasiz ve AOT uyumlu kalir.
+    /// This method must also be extended when a new setting is added. In
+    /// exchange, AgentPrism.Core stays reflection-free and AOT-compatible.
     /// </remarks>
     private static void Bind(IConfiguration section, AgentPrismOptions options)
     {
@@ -787,10 +811,10 @@ public static class AgentPrismServiceCollectionExtensions
             options.DefaultTenantId = tenantId;
         }
 
-        // Her alt bolum KENDI varliginidan sorumludur. Erken donus, ilk bolum
-        // tanimli degilse sonrakilerin hic okunmamasina yol acar; olculdu:
-        // RunRecording yazilmamis bir yapilandirmada Observability sessizce
-        // yok sayiliyordu.
+        // Every sub-section is responsible for ITS OWN existence check. An
+        // early return causes later sections to never be read at all when the
+        // first one is undefined; measured: Observability was being silently
+        // ignored in a configuration where RunRecording was not written.
         BindRunRecording(section.GetSection(nameof(AgentPrismOptions.RunRecording)), options.RunRecording);
         BindObservability(section.GetSection(nameof(AgentPrismOptions.Observability)), options.Observability);
         BindCircuitBreaker(section.GetSection(nameof(AgentPrismOptions.CircuitBreaker)), options.CircuitBreaker);
@@ -804,7 +828,7 @@ public static class AgentPrismServiceCollectionExtensions
         BindValidation(section.GetSection(nameof(AgentPrismOptions.Validation)), options.Validation);
     }
 
-    /// <summary><c>AgentPrism:Validation</c> bolumunu baglar (K-253).</summary>
+    /// <summary>Binds the <c>AgentPrism:Validation</c> section (K-253).</summary>
     private static void BindValidation(IConfigurationSection section, AgentPrismValidationOptions options)
     {
         if (!section.Exists())
@@ -822,8 +846,8 @@ public static class AgentPrismServiceCollectionExtensions
     }
 
     /// <summary>
-    /// <c>AgentPrism:Pricing</c> bolumunu baglar. <c>Currency</c> ve <c>Voice</c>
-    /// anahtarlari rezervedir; diger her cocuk bir saglayici adi olarak okunur.
+    /// Binds the <c>AgentPrism:Pricing</c> section. The <c>Currency</c> and
+    /// <c>Voice</c> keys are reserved; every other child is read as a provider name.
     /// </summary>
     private static void BindPricing(IConfigurationSection section, AgentPrismPricingOptions options)
     {
@@ -841,8 +865,8 @@ public static class AgentPrismServiceCollectionExtensions
 
         foreach (var providerSection in section.GetChildren())
         {
-            // Rezerve anahtarlar. Bolum elle baglandigi icin bu liste TEK
-            // dogruluk noktasidir; unutulan bir anahtar saglayici adi sanilir.
+            // Reserved keys. Since the section is bound by hand, this list is
+            // the SINGLE source of truth; a forgotten key is mistaken for a provider name.
             if (string.Equals(
                     providerSection.Key,
                     nameof(AgentPrismPricingOptions.Currency),
@@ -862,12 +886,14 @@ public static class AgentPrismServiceCollectionExtensions
                 var input = ReadDecimal(modelSection, "Input");
                 var output = ReadDecimal(modelSection, "Output");
 
-                // 🚨 Ikisi de null olsa dahi kayit EKLENIR (K-034): "Input"/"Output"
-                // disinda bir anahtar adiyla yazilan (or. C# ozellik adi
-                // "InputCostPerMillionTokens") bir fiyat girdisi bu yuzden TAMAMEN
-                // SESSIZCE dusmez, ikisi de bos bir ModelPriceOverride olarak
-                // Providers'a girer ve AgentPrismOptionsValidator.ValidatePricing
-                // bunu acilista reddeder (MT-CORE-065).
+                // 🚨 The record is ADDED even when both are null (K-034): a
+                // price entry written with a key name other than
+                // "Input"/"Output" (e.g. the C# property name
+                // "InputCostPerMillionTokens") therefore does NOT get dropped
+                // COMPLETELY SILENTLY - it still enters Providers as an empty
+                // ModelPriceOverride with both fields null, and
+                // AgentPrismOptionsValidator.ValidatePricing rejects it at
+                // startup (MT-CORE-065).
                 models[modelSection.Key] = new ModelPriceOverride
                 {
                     InputCostPerMillionTokens = input,
@@ -883,12 +909,12 @@ public static class AgentPrismServiceCollectionExtensions
     }
 
     /// <summary>
-    /// <c>AgentPrism:Pricing:Voice</c> bolumunu baglar.
+    /// Binds the <c>AgentPrism:Pricing:Voice</c> section.
     /// </summary>
     /// <remarks>
-    /// Ses ucretlendirmesi token degil karakter (uretim) veya sure (cozum)
-    /// bazlidir; bu yuzden ayri bir sozluge yazilir ve token fiyatlariyla
-    /// toplanmaz.
+    /// Voice pricing is based on characters (generation) or duration
+    /// (resolution), not tokens; this is why it is written to a separate
+    /// dictionary and not summed together with token prices.
     /// </remarks>
     private static void BindVoicePricing(IConfigurationSection section, AgentPrismPricingOptions options)
     {
@@ -909,7 +935,7 @@ public static class AgentPrismServiceCollectionExtensions
 
                 var perMinute = ReadDecimal(modelSection, nameof(VoicePriceOverride.PerMinute));
 
-                // 🚨 Ayni gerekce: bkz. BindPricing icindeki yorum (MT-CORE-065).
+                // 🚨 Same rationale: see the comment inside BindPricing (MT-CORE-065).
                 models[modelSection.Key] = new VoicePriceOverride
                 {
                     PerMillionCharacters = perMillionCharacters,
@@ -930,13 +956,13 @@ public static class AgentPrismServiceCollectionExtensions
             : null;
 
     /// <summary>
-    /// Yardimci model baglantisini yapilandirmadan okur.
+    /// Reads the utility model binding from configuration.
     /// </summary>
     /// <remarks>
-    /// <see cref="ModelBinding.Provider"/> ve <see cref="ModelBinding.Model"/>
-    /// zorunludur; ikisi de dolu degilse hicbir baglanti kurulmaz. Kismen
-    /// doldurulmus bir baglanti, yanlislikla eksik yazilmis bir yapilandirmayi
-    /// sessizce kabul etmis olur.
+    /// <see cref="ModelBinding.Provider"/> and <see cref="ModelBinding.Model"/>
+    /// are required; when both are not set, no binding is built. A partially
+    /// filled binding would silently accept a configuration that was
+    /// mistakenly written incomplete.
     /// </remarks>
     private static ModelBinding? BindUtilityModel(IConfigurationSection section)
     {
@@ -1079,12 +1105,12 @@ public static class AgentPrismServiceCollectionExtensions
         BindSkillScripts(section.GetSection(nameof(AgentPrismSkillOptions.Scripts)), options.Scripts);
     }
 
-    /// <summary>Script calistirma ayarlarini yapilandirmadan baglar.</summary>
+    /// <summary>Binds script run settings from configuration.</summary>
     /// <remarks>
-    /// <c>Enabled</c> ve <c>PlatformIsolationAcknowledged</c> bilerek buradan da
-    /// okunabilir: bir kurulum, ayni imaji farkli ortamlarda script destegi acik
-    /// veya kapali calistirabilmelidir. Dogrulama yine de her ikisini birlikte
-    /// arar; yalnizca <c>Enabled</c> acmak acilista hata verir.
+    /// <c>Enabled</c> and <c>PlatformIsolationAcknowledged</c> can deliberately
+    /// also be read from here: a single deployment must be able to run script
+    /// support on or off in different environments from the same image.
+    /// Validation still requires both together; turning on only <c>Enabled</c> fails at startup.
     /// </remarks>
     private static void BindSkillScripts(IConfigurationSection section, AgentPrismSkillScriptOptions options)
     {
@@ -1160,11 +1186,11 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
-    /// <summary>Yapilandirma dizisini var olan bir listeye yazar.</summary>
+    /// <summary>Writes a configuration array into an existing list.</summary>
     /// <remarks>
-    /// Liste yapilandirmada tanimliysa varsayilan icerik <strong>tamamen</strong>
-    /// degistirilir. Birlestirme yapilsaydi, ortam degiskeni beyaz listesini
-    /// daraltmak imkansiz olurdu.
+    /// When the list is defined in configuration, the default content is
+    /// <strong>fully</strong> replaced. If a merge were done instead, it would
+    /// be impossible to narrow the environment variable allow-list.
     /// </remarks>
     private static void BindList(IConfigurationSection section, IList<string> target)
     {
@@ -1221,7 +1247,7 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
-    /// <summary>Zamanlama ayarlarini yapilandirmadan baglar (Faz 17).</summary>
+    /// <summary>Binds scheduling settings from configuration (Phase 17).</summary>
     private static void BindScheduling(IConfigurationSection section, AgentPrismSchedulingOptions options)
     {
         if (!section.Exists())
@@ -1283,7 +1309,7 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
-    /// <summary>Tek yurutucu secimi ayarlarini yapilandirmadan baglar (Faz 42).</summary>
+    /// <summary>Binds single-executor selection settings from configuration (Phase 42).</summary>
     private static void BindSingletonExecution(IConfigurationSection section, SingletonExecutionOptions options)
     {
         if (!section.Exists())
@@ -1310,11 +1336,11 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
-    /// <summary><c>AgentPrism:Quotas</c> bolumunu baglar.</summary>
+    /// <summary>Binds the <c>AgentPrism:Quotas</c> section.</summary>
     private static void BindQuotas(IConfigurationSection section, AgentPrismQuotaOptions options)
     {
-        // Her alt bolum KENDI varliğindan sorumludur: erken donus sonraki
-        // bolumleri sessizce yutar (bkz. docs/hafiza/cekirdek-calistirma.md).
+        // Every sub-section is responsible for ITS OWN existence check: an
+        // early return silently swallows later sections (see docs/hafiza/cekirdek-calistirma.md).
         if (!section.Exists())
         {
             return;
@@ -1356,7 +1382,7 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
-    /// <summary><c>AgentPrism:RateLimit</c> bolumunu baglar.</summary>
+    /// <summary>Binds the <c>AgentPrism:RateLimit</c> section.</summary>
     private static void BindRateLimit(IConfigurationSection section, AgentPrismRateLimitOptions options)
     {
         if (!section.Exists())
@@ -1404,7 +1430,7 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
-    /// <summary><c>AgentPrism:Idempotency</c> bolumunu baglar.</summary>
+    /// <summary>Binds the <c>AgentPrism:Idempotency</c> section.</summary>
     private static void BindIdempotency(IConfigurationSection section, AgentPrismIdempotencyOptions options)
     {
         if (!section.Exists())
@@ -1427,7 +1453,7 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
-    /// <summary><c>AgentPrism:AsyncRun</c> bolumunu baglar.</summary>
+    /// <summary>Binds the <c>AgentPrism:AsyncRun</c> section.</summary>
     private static void BindAsyncRun(IConfigurationSection section, AgentPrismAsyncRunOptions options)
     {
         if (!section.Exists())
@@ -1450,7 +1476,7 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
-    /// <summary><c>AgentPrism:RunReconciliation</c> bolumunu baglar (Faz 54).</summary>
+    /// <summary>Binds the <c>AgentPrism:RunReconciliation</c> section (Phase 54).</summary>
     private static void BindRunReconciliation(IConfigurationSection section, RunReconciliationOptions options)
     {
         if (!section.Exists())
@@ -1497,7 +1523,7 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
-    /// <summary><c>AgentPrism:Approvals</c> bolumunu baglar (Faz 55).</summary>
+    /// <summary>Binds the <c>AgentPrism:Approvals</c> section (Phase 55).</summary>
     private static void BindApproval(IConfigurationSection section, AgentPrismApprovalOptions options)
     {
         if (!section.Exists())
@@ -1536,7 +1562,7 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
-    /// <summary><c>AgentPrism:Canary</c> bolumunu baglar (Faz 56).</summary>
+    /// <summary>Binds the <c>AgentPrism:Canary</c> section (Phase 56).</summary>
     private static void BindCanary(IConfigurationSection section, CanaryOptions options)
     {
         if (!section.Exists())
@@ -1558,7 +1584,7 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
-    /// <summary><c>AgentPrism:ContentGuard</c> bolumunu baglar.</summary>
+    /// <summary>Binds the <c>AgentPrism:ContentGuard</c> section.</summary>
     private static void BindContentGuard(IConfigurationSection section, AgentPrismContentGuardOptions options)
     {
         if (!section.Exists())
@@ -1582,11 +1608,11 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
-    /// <summary><c>AgentPrism:ContentGuard:Pattern</c> bolumunu baglar.</summary>
+    /// <summary>Binds the <c>AgentPrism:ContentGuard:Pattern</c> section.</summary>
     /// <remarks>
-    /// <see cref="PiiPatterns"/> bir <c>[Flags]</c> enum'udur ve yapilandirmada
-    /// virgulle ayrilmis ad listesi olarak yazilir (ornek:
-    /// <c>"Email,CreditCard"</c>). <c>Enum.TryParse</c> AOT temizdir (olculdu,
+    /// <see cref="PiiPatterns"/> is a <c>[Flags]</c> enum, written in
+    /// configuration as a comma-separated name list (example:
+    /// <c>"Email,CreditCard"</c>). <c>Enum.TryParse</c> is AOT-clean (measured,
     /// <c>docs/hafiza/build-ve-analyzer.md</c>).
     /// </remarks>
     private static void BindPatternContentGuard(IConfigurationSection section, PatternContentGuardOptions options)
@@ -1609,7 +1635,7 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
-    /// <summary><c>AgentPrism:Webhooks</c> bolumunu baglar.</summary>
+    /// <summary>Binds the <c>AgentPrism:Webhooks</c> section.</summary>
     private static void BindWebhooks(IConfigurationSection section, AgentPrismWebhookOptions options)
     {
         if (!section.Exists())
@@ -1687,7 +1713,7 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
-    /// <summary><c>AgentPrism:Retention</c> bolumunu baglar.</summary>
+    /// <summary>Binds the <c>AgentPrism:Retention</c> section.</summary>
     private static void BindRetention(IConfigurationSection section, AgentPrismRetentionOptions options)
     {
         if (!section.Exists())
@@ -1729,9 +1755,9 @@ public static class AgentPrismServiceCollectionExtensions
         BindRetentionTarget(section.GetSection(nameof(AgentPrismRetentionOptions.Sessions)), options.Sessions);
         BindRetentionTarget(section.GetSection(nameof(AgentPrismRetentionOptions.Conversations)), options.Conversations);
 
-        // HATA-S1-005: bu dord hedef ForTarget'a eklendiydi ama BURAYA
-        // eklenmemisti — imza degisikligi govdenin HER cagrildigi yerde
-        // uygulanmadan tamamlanmis sayilmaz (bkz. AGENTS.md, Faz 20 notu).
+        // HATA-S1-005: these four targets were added to ForTarget but were NOT
+        // added HERE - a signature change is not considered complete until
+        // applied at EVERY call site of the body (see AGENTS.md, the Phase 20 note).
         BindRetentionTarget(section.GetSection(nameof(AgentPrismRetentionOptions.RunInputs)), options.RunInputs);
         BindRetentionTarget(section.GetSection(nameof(AgentPrismRetentionOptions.VoiceSessions)), options.VoiceSessions);
         BindRetentionTarget(section.GetSection(nameof(AgentPrismRetentionOptions.RunScores)), options.RunScores);
@@ -1897,7 +1923,7 @@ public static class AgentPrismServiceCollectionExtensions
         }
     }
 
-    /// <summary><c>AgentPrism:OnlineEvaluation</c> bolumunu baglar.</summary>
+    /// <summary>Binds the <c>AgentPrism:OnlineEvaluation</c> section.</summary>
     private static void BindOnlineEvaluation(IConfigurationSection section, OnlineEvaluationOptions options)
     {
         if (!section.Exists())

@@ -5,11 +5,11 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Katalogdan cozulen her agent'i <see cref="RunRecordingAgent"/> ile sarar.
+/// Wraps every agent resolved from the catalog with <see cref="RunRecordingAgent"/>.
 /// </summary>
 /// <remarks>
-/// <see cref="Order"/> degeri 0'dir; boylece calistirma kaydi en distaki
-/// sarmalayici olur ve ic sarmalayicilarin harcadigi sureyi de olcer.
+/// <see cref="Order"/> is 0, so run recording is the outermost wrapper and
+/// also measures the time spent by inner wrappers.
 /// </remarks>
 public sealed class RunRecordingAgentDecorator : IAgentDecorator
 {
@@ -29,26 +29,26 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
     private readonly RunSampler? _runSampler;
     private readonly ContentGuardPipeline? _contentGuardPipeline;
 
-    /// <summary>Yeni bir kayit dekoratoru olusturur.</summary>
-    /// <param name="runStore">Olaylarin yazilacagi depo.</param>
-    /// <param name="tenantContext">Kiraci baglami.</param>
-    /// <param name="options">AgentPrism ayarlari.</param>
-    /// <param name="logger">Gunlukleyici.</param>
-    /// <param name="metrics">Metrik aletleri.</param>
-    /// <param name="traceCollector">Span toplayici.</param>
-    /// <param name="timeProvider">Zaman kaynagi.</param>
-    /// <param name="pricingResolver">Maliyet cozumleyici. <see langword="null"/> ise maliyet hesaplanmaz.</param>
-    /// <param name="quotaEnforcer">Kota muhasebecisi. <see langword="null"/> ise tuketim sayilmaz.</param>
-    /// <param name="webhookPublisher">Olay yayincisi. <see langword="null"/> ise olay yayilmaz.</param>
-    /// <param name="cancellationRegistry">Iptal defteri. <see langword="null"/> ise calistirma disaridan iptal edilemez.</param>
-    /// <param name="errorClassifier">Hata siniflandirici. <see langword="null"/> ise hata sinifi/parmak izi hesaplanmaz.</param>
-    /// <param name="runInputStore">Girdi deposu. <see langword="null"/> ise girdi kaydedilmez ve yeniden oynatma calismaz.</param>
-    /// <param name="runSampler">Cevrimici degerlendirme orneklemeleyicisi (Faz 49). <see langword="null"/> ise hicbir calistirma orneklenmez.</param>
+    /// <summary>Creates a new recording decorator.</summary>
+    /// <param name="runStore">The store the events are written to.</param>
+    /// <param name="tenantContext">The tenant context.</param>
+    /// <param name="options">The AgentPrism settings.</param>
+    /// <param name="logger">The logger.</param>
+    /// <param name="metrics">The metric instruments.</param>
+    /// <param name="traceCollector">The span collector.</param>
+    /// <param name="timeProvider">The time source.</param>
+    /// <param name="pricingResolver">The cost resolver. If <see langword="null"/>, cost is not computed.</param>
+    /// <param name="quotaEnforcer">The quota accountant. If <see langword="null"/>, consumption is not counted.</param>
+    /// <param name="webhookPublisher">The event publisher. If <see langword="null"/>, no events are published.</param>
+    /// <param name="cancellationRegistry">The cancellation registry. If <see langword="null"/>, the run cannot be canceled from outside.</param>
+    /// <param name="errorClassifier">The error classifier. If <see langword="null"/>, no error class/fingerprint is computed.</param>
+    /// <param name="runInputStore">The input store. If <see langword="null"/>, input is not recorded and replay does not work.</param>
+    /// <param name="runSampler">The online evaluation sampler (Phase 49). If <see langword="null"/>, no run is sampled.</param>
     /// <param name="contentGuardPipeline">
-    /// Icerik denetimi boru hatti (Faz 48). <see langword="null"/> ise kayitli
-    /// girdi denetlenmeden yazilir. Bkz. <see cref="RunRecordingAgent"/> kurucusundaki not (HATA-S3-006).
+    /// The content guard pipeline (Phase 48). If <see langword="null"/>, recorded
+    /// input is written without inspection. See the note in the <see cref="RunRecordingAgent"/> constructor (HATA-S3-006).
     /// </param>
-    /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public RunRecordingAgentDecorator(
         IRunStore runStore,
         ITenantContext tenantContext,
@@ -104,11 +104,12 @@ public sealed class RunRecordingAgentDecorator : IAgentDecorator
             _logger,
             _metrics,
             _traceCollector,
-            // Model adi katalog ozetinden gelir. Kod agent'larinda bilinmeyebilir;
-            // o durumda calistirma kaydi model tasimaz ve model kirilimina girmez.
+            // The model name comes from the catalog descriptor. It may be
+            // unknown for code-defined agents; in that case the run record
+            // carries no model and is excluded from the model breakdown.
             descriptor?.Model?.Model,
-            // Saglayici yalniz maliyet cozumlemesinde kullanilir, kalicilastirilmaz
-            // (bkz. docs/KARARLAR.md K-154).
+            // The provider is used only for cost resolution and is not
+            // persisted (see docs/KARARLAR.md K-154).
             descriptor?.Model?.Provider,
             _timeProvider,
             _options.Value.AgentGraph,

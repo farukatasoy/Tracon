@@ -3,23 +3,24 @@ using Microsoft.Agents.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir oturumun konusmasini belirli bir noktadan dallandirir ve dali tasiyan
-/// yeni bir oturum acar.
+/// Branches a session's conversation from a given point, and opens a new
+/// session that carries the branch.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Dallandirma <strong>kopyalar</strong>: ogeler yeni konusmaya
-/// <c>INSERT … SELECT</c> ile tasinir, isaretci yalnizca koken bilgisidir.
-/// Isaretci zinciri secilseydi her gecmis okumasi ozyinelemeli olurdu ve
-/// <c>SqlChatHistoryProvider</c> — her agent turunda calisan en sicak okuma
-/// yolu — dallanma kullanmayan tuketiciye de bedel odetirdi. Bu tasarimda okuma
-/// yolu <strong>tek satir bile degismez</strong>.
+/// Branching <strong>copies</strong>: items are moved into the new
+/// conversation with <c>INSERT … SELECT</c>; the pointer is only lineage
+/// information. If a pointer chain had been chosen instead, every history
+/// read would become recursive, and <c>SqlChatHistoryProvider</c> — the
+/// hottest read path, run on every agent turn — would charge a cost to
+/// consumers who never use branching. With this design, the read path
+/// <strong>does not change by even a single line</strong>.
 /// </para>
 /// <para>
-/// Konusma kimligi oturumun durum cantasinda yasar
-/// (<see cref="AgentPrismSessionStateKeys.ChatHistory"/>); dallanan konusmayi
-/// kullanmanin tek yolu o kimligi tasiyan yeni bir oturumdur. Uc bu yuzden
-/// oturum uzerindedir, konusma uzerinde degil.
+/// The conversation identity lives in the session's state bag
+/// (<see cref="AgentPrismSessionStateKeys.ChatHistory"/>); the only way to
+/// use a branched conversation is through a new session that carries that
+/// identity. This is why the endpoint is the session, not the conversation.
 /// </para>
 /// </remarks>
 public sealed class ConversationBranchService
@@ -30,18 +31,19 @@ public sealed class ConversationBranchService
     private readonly TimeProvider _timeProvider;
     private readonly IConversationBranchStore? _branchStore;
 
-    /// <summary>Yeni bir dallandirma servisi olusturur.</summary>
-    /// <param name="sessions">Oturum deposu.</param>
-    /// <param name="catalog">Agent katalogu. Oturumu geri yuklemek icin gerekir.</param>
-    /// <param name="tenantContext">Kiraci baglami.</param>
+    /// <summary>Creates a new branching service.</summary>
+    /// <param name="sessions">The session store.</param>
+    /// <param name="catalog">The agent catalog. Required to restore the session.</param>
+    /// <param name="tenantContext">The tenant context.</param>
     /// <param name="branchStore">
-    /// Konusma kopyalayici. <see langword="null"/> ise dallandirma desteklenmez —
-    /// bellek ici kurulumda sohbet gecmisi Microsoft Agent Framework'un
-    /// <c>InMemoryChatHistoryProvider</c> nesnesinde, oturum durumunun opak
-    /// blogunda yasar ve belirli bir sira numarasina kadar kopyalanamaz.
+    /// The conversation copier. Branching is not supported if this is
+    /// <see langword="null"/> — in an in-memory setup, chat history lives in
+    /// Microsoft Agent Framework's <c>InMemoryChatHistoryProvider</c> object,
+    /// inside the session state's opaque block, and cannot be copied up to a
+    /// given sequence number.
     /// </param>
-    /// <param name="timeProvider">Zaman kaynagi. Verilmezse sistem saati kullanilir.</param>
-    /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <param name="timeProvider">The time source. The system clock is used if not given.</param>
+    /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public ConversationBranchService(
         ISessionStore sessions,
         IAgentCatalog catalog,
@@ -61,21 +63,21 @@ public sealed class ConversationBranchService
     }
 
     /// <summary>
-    /// Bu kurulumda dallandirma destekleniyor mu.
+    /// Whether branching is supported in this setup.
     /// </summary>
     /// <remarks>
-    /// Yalnizca kalici bir SQL saglayicisi (<c>UsePostgreSql()</c>,
-    /// <c>UseSqlServer()</c>, <c>UseSqlite()</c>) acikken <see langword="true"/>.
+    /// <see langword="true"/> only when a persistent SQL provider
+    /// (<c>UsePostgreSql()</c>, <c>UseSqlServer()</c>, <c>UseSqlite()</c>) is enabled.
     /// </remarks>
     public bool IsSupported => _branchStore is not null;
 
-    /// <summary>Bir oturumun konusmasini dallandirir.</summary>
-    /// <param name="sessionId">Kaynak oturum.</param>
-    /// <param name="request">Dallandirma istegi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Dallandirma sonucu.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="request"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="ArgumentException"><paramref name="sessionId"/> bos ise.</exception>
+    /// <summary>Branches a session's conversation.</summary>
+    /// <param name="sessionId">The source session.</param>
+    /// <param name="request">The branching request.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The branching result.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="sessionId"/> is empty.</exception>
     public async ValueTask<SessionBranchOutcome> BranchAsync(
         string sessionId,
         SessionBranchRequest request,
@@ -103,7 +105,7 @@ public sealed class ConversationBranchService
 
         var record = await _sessions.GetAsync(sessionId, cancellationToken).ConfigureAwait(false);
 
-        // "Yok" ile "baska kiraciya ait" AYNI sonucu verir; varlik sizdirmaz.
+        // "Does not exist" and "belongs to another tenant" produce the SAME result; existence is not leaked.
         if (record is null || !string.Equals(record.TenantId, _tenantContext.TenantId, StringComparison.Ordinal))
         {
             return SessionBranchOutcome.Failed(
@@ -173,9 +175,10 @@ public sealed class ConversationBranchService
                 "conversation, but the record may have been deleted.");
         }
 
-        // Yeni oturum, kaynagin durumunu aynen tasir; yalniz konusma kimligi ve
-        // AgentPrism kimlik damgasi degisir. Bu, dallanan konusmayi okuma yolunu
-        // hic degistirmeden kullanmanin tek yoludur.
+        // The new session carries the source's state verbatim; only the
+        // conversation identity and the AgentPrism identity stamp change.
+        // This is the only way to use the branched conversation without
+        // changing the read path at all.
         session.StateBag.SetValue(
             AgentPrismSessionStateKeys.ChatHistory,
             new ChatHistoryState { ConversationId = created.ConversationId },
@@ -211,57 +214,57 @@ public sealed class ConversationBranchService
     }
 }
 
-/// <summary>Dallandirma denemesinin sonucu.</summary>
+/// <summary>The outcome of a branching attempt.</summary>
 public enum SessionBranchStatus
 {
-    /// <summary>Dal acildi.</summary>
+    /// <summary>The branch was opened.</summary>
     Branched = 0,
 
-    /// <summary>Kaynak oturum yok veya baska bir kiraciya ait.</summary>
+    /// <summary>The source session does not exist, or belongs to another tenant.</summary>
     SessionNotFound = 1,
 
-    /// <summary>Oturumun henuz bir konusmasi yok.</summary>
+    /// <summary>The session has no conversation yet.</summary>
     NoConversation = 2,
 
-    /// <summary>Istenen yeni oturum kimligi zaten kullanimda.</summary>
+    /// <summary>The requested new session identity is already in use.</summary>
     SessionExists = 3,
 
-    /// <summary>Oturumun agent'i cozulemiyor.</summary>
+    /// <summary>The session's agent cannot be resolved.</summary>
     AgentNotFound = 4,
 
-    /// <summary>Istek gecersiz.</summary>
+    /// <summary>The request is invalid.</summary>
     InvalidRequest = 5,
 
-    /// <summary>Bu kurulumda dallandirma desteklenmiyor.</summary>
+    /// <summary>Branching is not supported in this setup.</summary>
     NotSupported = 6,
 }
 
-/// <summary>Bir dallandirma denemesinin sonucu.</summary>
+/// <summary>The result of a branching attempt.</summary>
 public sealed record SessionBranchOutcome
 {
     private SessionBranchOutcome()
     {
     }
 
-    /// <summary>Sonuc.</summary>
+    /// <summary>The result.</summary>
     public required SessionBranchStatus Status { get; init; }
 
-    /// <summary>Basarisizligin insan okunur gerekcesi.</summary>
+    /// <summary>The human-readable reason for a failure.</summary>
     public string? Detail { get; init; }
 
-    /// <summary>Acilan dal. Yalnizca <see cref="SessionBranchStatus.Branched"/> iken dolu.</summary>
+    /// <summary>The branch that was opened. Populated only when <see cref="SessionBranchStatus.Branched"/>.</summary>
     public SessionBranchResult? Result { get; init; }
 
-    /// <summary>Basarisiz bir sonuc uretir.</summary>
-    /// <param name="status">Sonuc.</param>
-    /// <param name="detail">Gerekce.</param>
-    /// <returns>Sonuc.</returns>
+    /// <summary>Produces a failed result.</summary>
+    /// <param name="status">The result.</param>
+    /// <param name="detail">The reason.</param>
+    /// <returns>The result.</returns>
     public static SessionBranchOutcome Failed(SessionBranchStatus status, string detail)
         => new() { Status = status, Detail = detail };
 
-    /// <summary>Basarili bir sonuc uretir.</summary>
-    /// <param name="result">Acilan dal.</param>
-    /// <returns>Sonuc.</returns>
+    /// <summary>Produces a successful result.</summary>
+    /// <param name="result">The branch that was opened.</param>
+    /// <returns>The result.</returns>
     public static SessionBranchOutcome Succeeded(SessionBranchResult result)
         => new() { Status = SessionBranchStatus.Branched, Result = result };
 }

@@ -6,24 +6,28 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Kanarya kurali tanimli, calisan deneyleri araliklarla degerlendirip otomatik
-/// geri alma veya kademeli trafik artirma uygulayan arka plan servisi (Faz 56).
+/// Background service that, for experiments with a canary policy defined,
+/// periodically evaluates the running experiment and applies an automatic
+/// rollback or a gradual traffic ramp-up (Phase 56).
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="ApprovalExpirationService"/> ile AYNI desen: kume genelinde yalniz BIR
-/// ornek tarama yapar (<see cref="SingletonGuard"/>, Faz 42), ilk SQL denemesinden
-/// once <see cref="SchemaReadyGate"/>'i bekler (K-354).
+/// The SAME pattern as <see cref="ApprovalExpirationService"/>: only ONE
+/// instance cluster-wide performs the scan (<see cref="SingletonGuard"/>,
+/// Phase 42), waiting for <see cref="SchemaReadyGate"/> before the first SQL
+/// attempt (K-354).
 /// </para>
 /// <para>
-/// 🚨 <see cref="CanaryOptions.AutoRollbackEnabled"/> varsayilan KAPALIDIR (K1).
-/// Kapaliyken <see cref="ExecuteAsync"/> hemen doner; hicbir deney taranmaz.
+/// 🚨 <see cref="CanaryOptions.AutoRollbackEnabled"/> defaults to DISABLED
+/// (K1). While disabled, <see cref="ExecuteAsync"/> returns immediately; no
+/// experiment is scanned.
 /// </para>
 /// <para>
-/// 🚨 K-089 emsali: otomatik geri alma karari <see cref="IAuditLog.WriteAsync"/> ile
-/// dogrudan (dekoratorun en iyi cabayla yazan <see cref="AuditRecorder"/>'i DEGIL)
-/// mutasyondan ONCE yazilir; yazma basarisiz olursa geri alma hic uygulanmaz —
-/// <c>ApprovalEndpoints.DecideAsync</c> ile ayni desen.
+/// 🚨 Precedent K-089: the automatic rollback decision is written directly
+/// with <see cref="IAuditLog.WriteAsync"/> (NOT the best-effort-writing
+/// <see cref="AuditRecorder"/> decorator) BEFORE the mutation; if the write
+/// fails, the rollback is never applied - the same pattern as
+/// <c>ApprovalEndpoints.DecideAsync</c>.
 /// </para>
 /// </remarks>
 internal sealed class CanaryEvaluationService(
@@ -47,7 +51,7 @@ internal sealed class CanaryEvaluationService(
             return;
         }
 
-        // 🚨 Ilk SQL denemesinden ONCE semanin hazir olmasini bekle (K-354).
+        // 🚨 Wait for the schema to be ready BEFORE the first SQL attempt (K-354).
         try
         {
             await schemaReadyGate.WaitAsync(stoppingToken).ConfigureAwait(false);
@@ -74,7 +78,7 @@ internal sealed class CanaryEvaluationService(
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
-            // Normal kapanma.
+            // Normal shutdown.
         }
         finally
         {
@@ -94,7 +98,7 @@ internal sealed class CanaryEvaluationService(
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
-                logger.LogWarning(exception, "Kanarya kurali tanimli calisan deneyler listelenemedi.");
+                logger.LogWarning(exception, "Could not list running experiments with a canary policy defined.");
             }
 
             return;
@@ -108,11 +112,11 @@ internal sealed class CanaryEvaluationService(
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
-                // Tarama asla oldurmemeli: bir deneydeki hata digerlerini engellemez,
-                // sonraki turda yeniden denenir.
+                // A scan must never die: an error in one experiment does not
+                // block the others, it is retried on the next tick.
                 if (logger is not null && logger.IsEnabled(LogLevel.Warning))
                 {
-                    logger.LogWarning(exception, "'{Name}' deneyinin kanarya degerlendirmesi basarisiz oldu.", experiment.Name);
+                    logger.LogWarning(exception, "Canary evaluation failed for experiment '{Name}'.", experiment.Name);
                 }
             }
         }
@@ -124,7 +128,7 @@ internal sealed class CanaryEvaluationService(
 
         if (policy is null)
         {
-            // Yaris: tarama basladiktan sonra kural kaldirilmis olabilir.
+            // Race: the policy may have been removed after the scan started.
             return;
         }
 
@@ -173,9 +177,9 @@ internal sealed class CanaryEvaluationService(
 
         var now = _clock.GetUtcNow();
 
-        // 🚨 K-089: audit ONCE yazilir, mutasyondan SONRA degil. Yazma basarisiz
-        // olursa geri alma hic uygulanmaz ("denetim izine yazilamayan bir geri
-        // alma uygulanmaz").
+        // 🚨 K-089: the audit entry is written BEFORE the mutation, not after.
+        // If the write fails, the rollback is never applied ("a rollback that
+        // cannot be written to the audit log is not applied").
         try
         {
             await auditLog.WriteAsync(
@@ -207,7 +211,7 @@ internal sealed class CanaryEvaluationService(
             {
                 logger.LogWarning(
                     exception,
-                    "'{Name}' deneyinin otomatik geri alma denetim izi yazilamadi; geri alma UYGULANMADI.",
+                    "Could not write the automatic rollback audit entry for experiment '{Name}'; the rollback was NOT applied.",
                     experiment.Name);
             }
 
@@ -220,9 +224,10 @@ internal sealed class CanaryEvaluationService(
     }
 
     /// <summary>
-    /// Kanarya agirligini bir sonraki <see cref="CanaryPolicy.RampSteps"/> degerine
-    /// tasir. Bu, geri almanin AKSINE denetim izine YAZILMAZ — yalniz trafik
-    /// paylasimini artiran, geri alinabilir bir islemdir (bkz. 56.2 akis semasi).
+    /// Advances the canary weight to the next <see cref="CanaryPolicy.RampSteps"/>
+    /// value. UNLIKE a rollback, this is NOT written to the audit log - it is
+    /// only a reversible operation that increases the traffic share (see the
+    /// 56.2 flow diagram).
     /// </summary>
     private async Task TryAdvanceRampAsync(
         Experiment experiment,
@@ -245,13 +250,14 @@ internal sealed class CanaryEvaluationService(
 
         if (nextStep == 0)
         {
-            // Zaten son adimda (veya adim listesi mevcut agirligi asmiyor).
+            // Already at the last step (or the step list does not exceed the current weight).
             return;
         }
 
-        // 🚨 Bir sonraki adima gecmeden once bu adimda MinSampleSize'a ulasilmis
-        // olmali VE RampInterval kadar zaman gecmis olmali. Ikinci bir esik alani
-        // ACILMAZ: MinSampleSize policy'nin kendisinden AYNEN alinir.
+        // 🚨 Before advancing to the next step, this step must have reached
+        // MinSampleSize AND RampInterval time must have passed. A second
+        // threshold field is NOT opened: MinSampleSize is taken AS-IS from the
+        // policy itself.
         var canarySettled = evaluation.Canary is null
             ? 0
             : evaluation.Canary.CompletedRuns + evaluation.Canary.FailedRuns + evaluation.Canary.CanceledRuns;

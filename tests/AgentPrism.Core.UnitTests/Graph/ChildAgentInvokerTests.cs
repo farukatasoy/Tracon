@@ -25,7 +25,7 @@ public sealed class ChildAgentInvokerTests
 
         var response = await invoker.RunAsync("calis");
 
-        response.Text.ShouldContain("calistirma kaydi kapali", Case.Sensitive);
+        response.Text.ShouldContain("run recording is off", Case.Sensitive);
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public sealed class ChildAgentInvokerTests
 
         var response = await invoker.RunAsync("calis");
 
-        response.Text.ShouldContain("cagri derinligi siniri asildi", Case.Sensitive);
+        response.Text.ShouldContain("call depth limit was exceeded", Case.Sensitive);
 
         // Ret bir istisna degildir ve alt calistirma HIC baslamaz.
         (await store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).ShouldBeEmpty();
@@ -71,7 +71,7 @@ public sealed class ChildAgentInvokerTests
 
         var response = await invoker.RunAsync("calis");
 
-        response.Text.ShouldContain("kiracisindan cikamaz", Case.Sensitive);
+        response.Text.ShouldContain("cannot leave the caller's tenant", Case.Sensitive);
         (await store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).ShouldBeEmpty();
     }
 
@@ -142,8 +142,8 @@ public sealed class ChildAgentInvokerTests
 
         var response = await invoker.RunAsync("calis");
 
-        response.Text.ShouldContain("kullanici onayi istiyor", Case.Sensitive);
-        response.Text.ShouldContain("otomatik onay kurali", Case.Sensitive);
+        response.Text.ShouldContain("requires user approval", Case.Sensitive);
+        response.Text.ShouldContain("auto-approval rule", Case.Sensitive);
 
         // Alt calistirma basarili sayilmaz: model bir sonucu degil,
         // cevaplanamayacak bir soruyu geri dondu.

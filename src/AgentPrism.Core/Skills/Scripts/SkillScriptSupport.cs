@@ -6,28 +6,28 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Skill script calistirmasinin derleme yolundaki tutamagi: MAF'in dosya
-/// tabanli skill kaynagini kurar ve saklanan script'lerin calistirma
-/// delegesini uretir.
+/// The compile-path handle for skill script execution: sets up MAF's
+/// file-based skill source and produces the execution delegate for stored
+/// scripts.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bu tip yalnizca <c>UseSkillScripts</c> cagrildiginda kaydedilir. Kayitli
-/// degilse derleyici script destegi olmadan calisir; bu, ozelligin
-/// <strong>varsayilan olarak kapali</strong> olmasinin somut karsiligidir.
+/// This type is registered only when <c>UseSkillScripts</c> is called. If not
+/// registered, the compiler runs without script support; this is the concrete
+/// expression of the feature being <strong>disabled by default</strong>.
 /// </para>
 /// <para>
-/// Iki kaynak ayri tutulur:
+/// Two sources are kept separate:
 /// </para>
 /// <list type="bullet">
 ///   <item><description>
-///     <strong>Diskteki skill'ler</strong> — MAF'in <c>AgentFileSkillsSource</c>
-///     tipi tarar. Icerigi yazan kisi uygulamayi dagitan kisidir.
+///     <strong>Skills on disk</strong> — scanned by MAF's <c>AgentFileSkillsSource</c>
+///     type. Whoever deploys the application writes the content.
 ///   </description></item>
 ///   <item><description>
-///     <strong>Veritabanindaki skill'ler</strong> — AgentPrism'in kendi
-///     kaynagindan gecer. MAF'in dosya kaynagini veritabani verisi icin
-///     kullanmak kiraci yalitimini ve cache parmak izini atlardi.
+///     <strong>Skills in the database</strong> — go through AgentPrism's own
+///     source. Using MAF's file source for database data would bypass tenant
+///     isolation and cache fingerprinting.
 ///   </description></item>
 /// </list>
 /// </remarks>
@@ -37,11 +37,11 @@ public sealed class SkillScriptSupport
     private readonly IOptions<AgentPrismOptions> _options;
     private readonly ILoggerFactory? _loggerFactory;
 
-    /// <summary>Yeni bir script destegi olusturur.</summary>
-    /// <param name="runner">Yalitilmis calistirici.</param>
-    /// <param name="options">AgentPrism ayarlari.</param>
-    /// <param name="loggerFactory">Gunlukleyici fabrikasi.</param>
-    /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new script support instance.</summary>
+    /// <param name="runner">The isolated runner.</param>
+    /// <param name="options">The AgentPrism settings.</param>
+    /// <param name="loggerFactory">The logger factory.</param>
+    /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public SkillScriptSupport(
         SandboxedSkillScriptRunner runner,
         IOptions<AgentPrismOptions> options,
@@ -57,11 +57,11 @@ public sealed class SkillScriptSupport
 
     private AgentPrismSkillScriptOptions Options => _options.Value.Skills.Scripts;
 
-    /// <summary>Saklanan script'ler modele gorunur mu.</summary>
+    /// <summary>Whether stored scripts are visible to the model.</summary>
     internal bool StoredScriptsEnabled => Options.Enabled && Options.AllowStoredScripts;
 
-    /// <summary>Diskteki skill koklerini tarayan MAF kaynagini uretir.</summary>
-    /// <returns>Kok tanimlanmadiysa <see langword="null"/>.</returns>
+    /// <summary>Produces the MAF source that scans skill roots on disk.</summary>
+    /// <returns><see langword="null"/> if no root is defined.</returns>
     internal AgentFileSkillsSource? CreateFileSource()
     {
         var options = Options;
@@ -75,10 +75,10 @@ public sealed class SkillScriptSupport
         {
             SearchDepth = options.SearchDepth,
 
-            // Uzanti beyaz listesi MAF tarafinda da uygulanir. Yorumlayici
-            // sozlugunde karsiligi olmayan bir uzanti zaten calistirilamaz;
-            // burada da elenmesi, calistirilamayacak bir script'in modele hic
-            // gorunmemesini saglar.
+            // The extension allow-list is also enforced on MAF's side. An
+            // extension with no counterpart in the interpreter dictionary
+            // cannot be run anyway; filtering it here too ensures a script
+            // that could never run is never even shown to the model.
             AllowedScriptExtensions = options.Interpreters.Keys
                 .Select(static extension => "." + extension.TrimStart('.'))
                 .ToArray(),
@@ -91,19 +91,18 @@ public sealed class SkillScriptSupport
             _loggerFactory);
     }
 
-    /// <summary>Saklanan bir script'i calistiran delegeyi uretir.</summary>
-    /// <param name="skillName">Skill adi.</param>
-    /// <param name="script">Script tanimi.</param>
-    /// <returns>MAF'in cagiracagi delege.</returns>
+    /// <summary>Produces the delegate that runs a stored script.</summary>
+    /// <param name="skillName">The skill's name.</param>
+    /// <param name="script">The script definition.</param>
+    /// <returns>The delegate MAF will call.</returns>
     /// <remarks>
-    /// Parametrenin varsayilan degeri (K-400) kasitlidir: MAF'in ureteci
-    /// arguman semasinda bu alani "required" isaretliyor (nullable olsa
-    /// bile) ve modelin JSON `null` gondermesini "deger eksik" olarak
-    /// reddediyor (<c>Microsoft.Agents.AI.AgentSkillsProvider</c>,
-    /// <c>Throw.ArgumentException</c>) — argumansiz bir script icin bu,
-    /// gercek calistirmayi TAMAMEN engeller. Varsayilan bos dize, MAF'in
-    /// alani "required degil" olarak yayinlamasini saglar; govde zaten
-    /// bos/null'i ayni bicimde ele alir.
+    /// The parameter's default value (K-400) is deliberate: MAF's generator
+    /// marks this field "required" in the argument schema (even though it is
+    /// nullable) and rejects the model sending JSON `null` as "value missing"
+    /// (<c>Microsoft.Agents.AI.AgentSkillsProvider</c>, <c>Throw.ArgumentException</c>)
+    /// — for a script with no arguments, this would COMPLETELY block real
+    /// execution. The default empty string lets MAF publish the field as
+    /// "not required"; the body already handles empty/null the same way.
     /// </remarks>
     internal Func<string, CancellationToken, Task<object?>> CreateStoredScriptDelegate(
         string skillName,
@@ -125,7 +124,7 @@ public sealed class SkillScriptSupport
                 catch (JsonException ex)
                 {
                     throw new AgentPrismException(
-                        $"'{skillName}/{script.Name}' script'ine gecerli olmayan JSON argumani verildi.",
+                        $"Script '{skillName}/{script.Name}' was given an invalid JSON argument.",
                         ex);
                 }
             }

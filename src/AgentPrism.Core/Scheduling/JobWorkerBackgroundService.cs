@@ -5,21 +5,21 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Sirasi gelen zamanlamalari kuyruga isler dusurur ve kiralanabilir isleri
-/// alip kayitli <see cref="IJobHandler"/> uygulamalarina dagitir.
+/// Drops due schedules into the job queue, and picks up leasable jobs to
+/// dispatch to registered <see cref="IJobHandler"/> implementations.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="AgentPrismSchedulingOptions.RunWorker"/> <see langword="false"/>
-/// ise <see cref="ExecuteAsync"/> hemen doner ve hicbir zamanlayici kurmaz —
-/// <c>ModelProviderHealthBackgroundService</c> ile ayni "bosta duran kurulum
-/// arka plan cagrisi yapmaz" kurali. Kuyruk ve zamanlama depolari bu durumda
-/// da calismaya devam eder; yalnizca bu surecte is kiralanmaz.
+/// If <see cref="AgentPrismSchedulingOptions.RunWorker"/> is <see langword="false"/>,
+/// <see cref="ExecuteAsync"/> returns immediately and sets up no timer — the
+/// same "an idle setup makes no background calls" rule as
+/// <c>ModelProviderHealthBackgroundService</c>. The job and schedule stores
+/// keep working regardless; only this process leases no jobs.
 /// </para>
 /// <para>
-/// Bir tur (tick) basarisiz olursa hata loglanir ve bir sonraki tur normal
-/// sekilde calisir — gozlemlenebilirlik/arka plan hatasi islevselligi
-/// bozmamalidir kurali burada da gecerlidir.
+/// If a tick fails, the error is logged and the next tick runs normally —
+/// the "observability must not break functionality / background errors must
+/// not break functionality" rule applies here too.
 /// </para>
 /// </remarks>
 internal sealed class JobWorkerBackgroundService(
@@ -44,9 +44,10 @@ internal sealed class JobWorkerBackgroundService(
             return;
         }
 
-        // 🚨 Ilk SQL denemesinden ONCE semanin hazir olmasini bekle. PeriodicTimer
-        // bir tur gecikme verir ama GARANTI degildir: kisa bir PollInterval ile
-        // migration henuz bitmemis olabilir. Gerekce: K-354.
+        // 🚨 Wait for the schema to be ready BEFORE the first SQL attempt.
+        // PeriodicTimer gives one tick of delay, but that is NOT a guarantee:
+        // with a short PollInterval, the migration may not have finished yet.
+        // Rationale: K-354.
         try
         {
             await schemaReadyGate.WaitAsync(stoppingToken).ConfigureAwait(false);
@@ -68,7 +69,7 @@ internal sealed class JobWorkerBackgroundService(
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
-            // Normal kapanma.
+            // Normal shutdown.
         }
     }
 
@@ -82,7 +83,7 @@ internal sealed class JobWorkerBackgroundService(
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
-                logger.LogWarning(exception, "Zamanlama tetikleme turu basarisiz oldu.");
+                logger.LogWarning(exception, "The schedule-dispatch tick failed.");
             }
         }
 
@@ -102,7 +103,7 @@ internal sealed class JobWorkerBackgroundService(
 
                 if (logger is not null && logger.IsEnabled(LogLevel.Warning))
                 {
-                    logger.LogWarning(exception, "Is kiralama basarisiz oldu.");
+                    logger.LogWarning(exception, "Job leasing failed.");
                 }
 
                 break;
@@ -128,7 +129,7 @@ internal sealed class JobWorkerBackgroundService(
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
-                logger.LogWarning(exception, "Is yurutmesi beklenmedik sekilde basarisiz oldu: {JobId}.", job.Id);
+                logger.LogWarning(exception, "Job execution failed unexpectedly: {JobId}.", job.Id);
             }
         }
         finally
@@ -151,7 +152,7 @@ internal sealed class JobWorkerBackgroundService(
                     JobId = job.Id,
                     Status = JobStatus.Failed,
                     CompletedAt = now,
-                    ErrorMessage = $"'{job.Kind}' turu icin kayitli bir IJobHandler yok.",
+                    ErrorMessage = $"No IJobHandler is registered for kind '{job.Kind}'.",
                 },
                 stoppingToken).ConfigureAwait(false);
 
@@ -185,8 +186,8 @@ internal sealed class JobWorkerBackgroundService(
 
             if (current?.Status == JobStatus.Cancelled)
             {
-                // Isleyici ogeler arasinda IsCancelledAsync uzerinden bunu zaten
-                // gormustur ve erken cikmistir; CompleteAsync ile uzerine yazma.
+                // The handler already saw this through IsCancelledAsync between
+                // items and exited early; do not overwrite with CompleteAsync.
                 return;
             }
 
@@ -199,14 +200,14 @@ internal sealed class JobWorkerBackgroundService(
                     JobId = job.Id,
                     Status = allFailed ? JobStatus.Failed : JobStatus.Completed,
                     CompletedAt = _clock.GetUtcNow(),
-                    ErrorMessage = allFailed ? "Isin tum ogeleri basarisiz oldu." : null,
+                    ErrorMessage = allFailed ? "All of the job's items failed." : null,
                 },
                 stoppingToken).ConfigureAwait(false);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            // Is kendi deneme sinirini tasiyabilir (webhook teslimi genel
-            // ayardan farkli bir merdiven kullanir); tasimiyorsa genel ayar.
+            // The job may carry its own attempt limit (webhook delivery uses a
+            // different ladder than the global setting); if not, the global setting.
             var maxAttempts = job.MaxAttempts ?? options.MaxAttempts;
 
             if (job.Attempt >= maxAttempts)
@@ -223,8 +224,8 @@ internal sealed class JobWorkerBackgroundService(
             }
             else
             {
-                // Isleyici bir bekleme talep edebilir; etmezse eski davranis
-                // (hemen yeniden kiralanabilir) korunur.
+                // The handler may request a delay; if not, the old behavior
+                // (immediately re-leasable) is preserved.
                 var retryAfter = (exception as JobRetryException)?.RetryAfter;
 
                 await jobStore
@@ -258,14 +259,14 @@ internal sealed class JobWorkerBackgroundService(
             {
                 if (logger is not null && logger.IsEnabled(LogLevel.Warning))
                 {
-                    logger.LogWarning(exception, "Zamanlama '{Name}' cozumlenemedi, bu turda atlaniyor.", schedule.Name);
+                    logger.LogWarning(exception, "Schedule '{Name}' could not be resolved; skipping this tick.", schedule.Name);
                 }
 
                 continue;
             }
 
-            // Baska bir ornek ayni anda ayni zamanlamayi iddia etmis olabilir;
-            // yalnizca bu ornegin iddiasi kazanirsa is olusturulur.
+            // Another instance may have claimed the same schedule at the same
+            // time; the job is only created if this instance's claim wins.
             var claimed = await scheduleStore
                 .TryClaimNextRunAsync(schedule.Id, nextRunAt, newNextRunAt, now, stoppingToken)
                 .ConfigureAwait(false);
@@ -321,18 +322,18 @@ internal sealed class JobWorkerBackgroundService(
         }
         catch (OperationCanceledException)
         {
-            // Is bitti veya isci kapaniyor.
+            // The job finished, or the worker is shutting down.
         }
         catch (Exception exception)
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
-                logger.LogWarning(exception, "Kira yenileme basarisiz oldu: {JobId}.", jobId);
+                logger.LogWarning(exception, "Lease renewal failed: {JobId}.", jobId);
             }
         }
     }
 
-    /// <summary>Bir <see cref="CancellationTokenSource"/>'u once iptal edip sonra bertaraf eden yardimci.</summary>
+    /// <summary>A helper that cancels, then disposes, a <see cref="CancellationTokenSource"/>.</summary>
     private sealed class CancelOnDispose(CancellationTokenSource cts) : IDisposable
     {
         public void Dispose()

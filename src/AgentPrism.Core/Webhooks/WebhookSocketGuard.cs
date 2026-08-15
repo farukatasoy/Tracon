@@ -4,29 +4,29 @@ using System.Net.Sockets;
 namespace AgentPrism;
 
 /// <summary>
-/// Webhook <see cref="HttpClient"/>'inin baglanti geri cagrisi: baglanilacak
-/// adresi cozer, SSRF kurallarina gore denetler ve yalnizca gecerli bir adrese
-/// soket acar.
+/// The connection callback for the webhook <see cref="HttpClient"/>: resolves
+/// the address to connect to, validates it against the SSRF rules, and opens
+/// a socket only to an allowed address.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 Denetimin <strong>burada</strong> olmasi kasitlidir. Once dogrulayip
-/// sonra <c>HttpClient.SendAsync(url)</c> cagirmak bir TOCTOU acigi birakir:
-/// <c>HttpClient</c> adi yeniden cozer ve saldirgan iki cozumleme arasinda
-/// yaniti degistirebilir (DNS yeniden baglama). Baglanti geri cagrisinda
-/// dogrulanan adres, <em>soketin baglandigi adresin ta kendisidir</em>; arada
-/// bir cozumleme daha yoktur.
+/// 🚨 Having the check happen <strong>here</strong> is deliberate. Validating
+/// first and then calling <c>HttpClient.SendAsync(url)</c> leaves a TOCTOU
+/// gap: <c>HttpClient</c> resolves the name again, and an attacker could
+/// change the answer between the two resolutions (DNS rebinding). The
+/// address validated in the connection callback <em>is the very address the
+/// socket connects to</em>; there is no further resolution in between.
 /// </para>
 /// <para>
-/// <c>Host</c> basligi <c>HttpClient</c> tarafindan ozgun adtan kurulur ve
-/// korunur; TLS dogrulamasi da ozgun ada gore yapilir.
+/// The <c>Host</c> header is set from, and preserved as, the original name by
+/// <c>HttpClient</c>; TLS validation is also performed against the original name.
 /// </para>
 /// </remarks>
 internal static class WebhookSocketGuard
 {
-    /// <summary>Denetimli bir baglanti geri cagrisi uretir.</summary>
-    /// <param name="optionsAccessor">Gecerli webhook ayarlarini dondiren erisimci.</param>
-    /// <returns><see cref="SocketsHttpHandler.ConnectCallback"/> icin uygun temsilci.</returns>
+    /// <summary>Produces a validating connection callback.</summary>
+    /// <param name="optionsAccessor">The accessor that returns the current webhook settings.</param>
+    /// <returns>A delegate suitable for <see cref="SocketsHttpHandler.ConnectCallback"/>.</returns>
     public static Func<SocketsHttpConnectionContext, CancellationToken, ValueTask<Stream>> Create(
         Func<AgentPrismWebhookOptions> optionsAccessor)
     {
@@ -44,18 +44,18 @@ internal static class WebhookSocketGuard
 
             if (addresses.Length == 0)
             {
-                throw new AgentPrismException($"Webhook hedefi cozumlenemedi: {host}.");
+                throw new AgentPrismException($"The webhook target could not be resolved: {host}.");
             }
 
-            // 🚨 Adreslerin HERHANGI biri reddedilirse baglanti kurulmaz.
-            // "Gecerli olani sec" demek, bir genel ve bir ozel adres donduren
-            // bir adin denetimi atlatmasina izin verirdi.
+            // 🚨 If ANY of the addresses is rejected, the connection is not established.
+            // "Pick the valid one" would let a name that resolves to one
+            // public and one private address bypass the check.
             foreach (var address in addresses)
             {
                 if (!WebhookUrlValidator.IsAllowedTarget(address, options))
                 {
                     throw new AgentPrismException(
-                        $"Webhook hedefi ozel bir ag adresine ({address}) cozumleniyor; baglanti reddedildi.");
+                        $"The webhook target resolves to a private network address ({address}); the connection was rejected.");
                 }
             }
 
@@ -63,7 +63,7 @@ internal static class WebhookSocketGuard
 
             try
             {
-                // Dogrulanan adreslere baglanilir; ad yeniden cozulmez.
+                // Connects to the validated addresses; the name is not resolved again.
                 await socket.ConnectAsync(addresses, port, cancellationToken).ConfigureAwait(false);
 
                 return new NetworkStream(socket, ownsSocket: true);

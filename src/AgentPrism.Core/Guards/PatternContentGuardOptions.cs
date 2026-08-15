@@ -1,48 +1,49 @@
 namespace AgentPrism;
 
-/// <summary>Yerlesik desen tabanli guard'in ayarlari — Faz 48.</summary>
+/// <summary>Settings for the built-in pattern-based guard — Phase 48.</summary>
 /// <remarks>
 /// <para>
-/// <c>AgentPrism:ContentGuard:Pattern</c> yapilandirma bolumunden okunur.
+/// Read from the <c>AgentPrism:ContentGuard:Pattern</c> configuration section.
 /// </para>
 /// <para>
-/// 🚨 Bu sinifta <c>Enabled</c> bayragi <strong>yoktur</strong> ve bu bilinclidir.
-/// K1'in kapisi kaydin kendisidir: <c>AddAgentPrism()</c> yerlesik guard'i
-/// kaydetmez, bu yuzden varsayilan kurulumda denetim sarmalayicisi boru hattina
-/// hic eklenmez ve maliyet <em>tam olarak</em> sifirdir. Bir <c>Enabled</c>
-/// bayragi eklemek guard'in kayitli ama kapali olmasini gerektirirdi; o zaman
-/// "hic guard kayitli degilse maliyet sifirdir" iddiasi olculemez hale gelirdi.
+/// 🚨 This class deliberately <strong>has no</strong> <c>Enabled</c> flag. K1's
+/// gate is the registration itself: <c>AddAgentPrism()</c> does not register the
+/// built-in guard, so in a default setup the inspection wrapper is never added
+/// to the pipeline and the cost is <em>exactly</em> zero. Adding an
+/// <c>Enabled</c> flag would require the guard to be registered but turned off;
+/// then the claim "if no guard is registered the cost is zero" would become
+/// unmeasurable.
 /// </para>
 /// <para>
-/// Guard'i calisir durumda tutup gecici olarak etkisizlestirmek gerekirse
-/// <see cref="DeniedTerms"/> bosaltilir ve <see cref="MaskedPii"/>
-/// <see cref="PiiPatterns.None"/> yapilir: guard hicbir kural gormez ve ilk
-/// denetimde <see cref="ContentGuardResult.Allow"/> doner.
+/// If you need to keep the guard running but temporarily disable it, empty
+/// <see cref="DeniedTerms"/> and set <see cref="MaskedPii"/> to
+/// <see cref="PiiPatterns.None"/>: the guard then sees no rule and returns
+/// <see cref="ContentGuardResult.Allow"/> on the first inspection.
 /// </para>
 /// </remarks>
 public sealed class PatternContentGuardOptions
 {
-    /// <summary>Yapilandirma bolumu adi.</summary>
+    /// <summary>The configuration section name.</summary>
     public const string SectionName = "AgentPrism:ContentGuard:Pattern";
 
     /// <summary>
-    /// Yasak sozcukler. Eslesme <see cref="ContentGuardAction.Block"/> uretir.
+    /// Denied terms. A match produces <see cref="ContentGuardAction.Block"/>.
     /// </summary>
     /// <remarks>
-    /// Karsilastirma buyuk/kucuk harf duyarsizdir ve sozcuk parcasi olarak arar
-    /// (<c>IndexOf</c>); regex degildir, bu yuzden tuketicinin yazdigi bir deger
-    /// ReDoS riski tasimaz.
+    /// The comparison is case-insensitive and searches for a word fragment
+    /// (<c>IndexOf</c>); it is not a regex, so a value the consumer writes
+    /// carries no ReDoS risk.
     /// </remarks>
     public IList<string> DeniedTerms { get; } = [];
 
     /// <summary>
-    /// Acilacak yerlesik PII desenleri. Eslesme <see cref="ContentGuardAction.Mask"/>
-    /// uretir. Varsayilan <see cref="PiiPatterns.None"/>.
+    /// The built-in PII patterns to turn on. A match produces
+    /// <see cref="ContentGuardAction.Mask"/>. Default <see cref="PiiPatterns.None"/>.
     /// </summary>
     public PiiPatterns MaskedPii { get; set; } = PiiPatterns.None;
 
     /// <summary>
-    /// Maskelenen eslesmenin yerine yazilacak metin. Varsayilan <c>[redacted]</c>.
+    /// The text written in place of a masked match. Default <c>[redacted]</c>.
     /// </summary>
     public string MaskReplacement { get; set; } = "[redacted]";
 }

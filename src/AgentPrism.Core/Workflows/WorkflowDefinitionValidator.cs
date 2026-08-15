@@ -1,30 +1,31 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Bir workflow tanimin yapisal gecerliligini denetler.
+/// Validates the structural validity of a workflow definition.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Denetim <c>AgentPrism.Core</c> icindedir cunku <strong>iki tuketicisi</strong>
-/// vardir: HTTP katmani kayit aninda <c>400</c> uretir, workflow derleyicisi
-/// calistirma aninda istisna atar. Iki yerde ayri ayri yazilsaydi biri
-/// degisip digeri kalirdi.
+/// The check lives inside <c>AgentPrism.Core</c> because it has <strong>two
+/// consumers</strong>: the HTTP layer produces a <c>400</c> at registration
+/// time, and the workflow compiler throws an exception at run time. If
+/// written separately in two places, one could change while the other stayed behind.
 /// </para>
 /// <para>
-/// Burada yalnizca <em>yapisal</em> kurallar denetlenir: ad, sayi, tekrar,
-/// desen-alan uyumu. Agent'larin katalogda gercekten var olup olmadigi
-/// derleme aninda denetlenir; katalog kayit ile calistirma arasinda degisebilir
-/// ve o denetimi kayit anina tasimak yanlis bir guvence verirdi.
+/// Only <em>structural</em> rules are checked here: name, count, duplicates,
+/// pattern-field compatibility. Whether the agents actually exist in the
+/// catalog is checked at compile time; the catalog can change between
+/// registration and execution, and moving that check to registration time
+/// would give a false guarantee.
 /// </para>
 /// </remarks>
 public static class WorkflowDefinitionValidator
 {
-    /// <summary>Tanimi denetler.</summary>
-    /// <param name="definition">Denetlenecek tanim.</param>
+    /// <summary>Validates the definition.</summary>
+    /// <param name="definition">The definition to validate.</param>
     /// <returns>
-    /// Kullaniciya gosterilebilir hata metni; tanim gecerliyse <see langword="null"/>.
+    /// User-facing error text; <see langword="null"/> if the definition is valid.
     /// </returns>
-    /// <exception cref="ArgumentNullException"><paramref name="definition"/> <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
     public static string? Validate(WorkflowDefinition definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
@@ -54,10 +55,11 @@ public static class WorkflowDefinitionValidator
                 return $"Workflow '{definition.Name}' has an empty name in its agent list.";
             }
 
-            // Tekrar eden ad bilerek reddedilir. Microsoft Agent Framework
-            // executor kimliklerini agent ORNEGINDEN turetir; ayni adin iki kez
-            // gecmesi, arayuzde ve olay akisinda ayirt edilemeyen iki dugum
-            // uretirdi. Bir rol tekrarlaniyorsa ikinci bir agent tanimlanmalidir.
+            // A duplicate name is deliberately rejected. Microsoft Agent
+            // Framework derives executor identities FROM the agent INSTANCE;
+            // the same name appearing twice would produce two nodes that
+            // cannot be distinguished in the UI or the event stream. If a
+            // role repeats, a second agent must be defined.
             if (!seen.Add(agentName))
             {
                 return $"Agent '{agentName}' appears more than once in workflow '{definition.Name}'. " +
@@ -88,9 +90,10 @@ public static class WorkflowDefinitionValidator
             }
         }
 
-        // GroupChat'in yoneticisi bir AGENT DEGILDIR: sirayi dagitan kod
-        // tarafindaki round-robin yoneticisidir. Alan verilmisse kullanici bir
-        // sey bekliyor demektir ve sessizce yok saymak yaniltir.
+        // GroupChat's manager is NOT an AGENT: it is the round-robin manager
+        // on the code side that distributes turn order. If the field is
+        // given, the user expects something from it, and silently ignoring
+        // it would mislead them.
         else if (!string.IsNullOrWhiteSpace(definition.ManagerAgentName))
         {
             return $"Workflow '{definition.Name}' does not use 'managerAgentName' in the " +
@@ -104,10 +107,11 @@ public static class WorkflowDefinitionValidator
                    $"'{definition.Kind}' pattern. This field belongs only to the 'Handoff' pattern.";
         }
 
-        // Plan onayi yalnizca Magentic'in kavramidir: yonetici agent'in kurdugu
-        // plani insana gosterir. Diger desenlerde plan diye bir sey yoktur ve
-        // alani sessizce yok saymak, kullanicinin bekledigi onay adiminin hic
-        // olusmadigini gizlerdi - managerAgentName ile ayni kural.
+        // Plan approval is a Magentic-only concept: it shows the human the
+        // plan built by the manager agent. Other patterns have no such thing
+        // as a plan, and silently ignoring the field would hide the fact
+        // that the approval step the user expected never occurred - the same
+        // rule as managerAgentName.
         if (definition.RequirePlanApproval && definition.Kind != WorkflowKind.Magentic)
         {
             return $"Workflow '{definition.Name}' does not use 'requirePlanApproval' in the " +
@@ -123,9 +127,9 @@ public static class WorkflowDefinitionValidator
         return null;
     }
 
-    /// <summary>Tanimi denetler ve gecersizse istisna atar.</summary>
-    /// <param name="definition">Denetlenecek tanim.</param>
-    /// <exception cref="AgentPrismException">Tanim gecersizse.</exception>
+    /// <summary>Validates the definition and throws if it is invalid.</summary>
+    /// <param name="definition">The definition to validate.</param>
+    /// <exception cref="AgentPrismException">The definition is invalid.</exception>
     public static void Require(WorkflowDefinition definition)
     {
         if (Validate(definition) is { } message)

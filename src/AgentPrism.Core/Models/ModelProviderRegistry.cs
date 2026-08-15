@@ -4,23 +4,24 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Kayitli <see cref="IModelProvider"/> uygulamalarini ada gore tutan defter ve
-/// model cagri boru hattini kuran tek nokta.
+/// Registry that holds the registered <see cref="IModelProvider"/>
+/// implementations by name, and the single place that assembles the model-call pipeline.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Faz 1'de hicbir saglayici kayitli degildir; <c>AgentPrism.OpenAI</c> paketi
-/// (Faz 3) <c>UseOpenAI()</c> ile ilk saglayiciyi ekler. Saglayici yokken
-/// derleme yapilmaya calisilirsa anlasilir bir hata uretilir.
+/// In Phase 1 no provider is registered; the <c>AgentPrism.OpenAI</c> package
+/// (Phase 3) adds the first provider with <c>UseOpenAI()</c>. Trying to compile
+/// while no provider is registered produces a clear error.
 /// </para>
 /// <para>
-/// 🚨 <strong>Boru hattinin tamami burada kurulur</strong> (Faz 48'de tasindi).
-/// Once dort saglayici paketi <c>UseFunctionInvocation()</c> +
-/// <c>UseOpenTelemetry()</c> zincirini <em>kendi icinde</em> kuruyordu; defterin
-/// sardigi her halka o zincirin DISINDA kaliyordu ve bu, tool cagri turlarini
-/// goren bir halka yazmayi imkansiz kiliyordu. Artik <see cref="IModelProvider"/>
-/// <strong>ham</strong> istemciyi doner ve boru hatti tek yerden kurulur; ucuncu
-/// taraf bir saglayici da butun halkalari bedava devralir.
+/// 🚨 <strong>The entire pipeline is assembled here</strong> (moved in Phase 48).
+/// Previously the four provider packages each assembled the
+/// <c>UseFunctionInvocation()</c> + <c>UseOpenTelemetry()</c> chain
+/// <em>inside themselves</em>; every ring the registry wrapped stayed OUTSIDE
+/// that chain, making it impossible to write a ring that sees the tool-call
+/// turns. Now <see cref="IModelProvider"/> returns the <strong>raw</strong>
+/// client and the pipeline is assembled in a single place; a third-party
+/// provider inherits every ring for free too.
 /// </para>
 /// </remarks>
 public sealed class ModelProviderRegistry : IModelProviderRegistry
@@ -32,28 +33,28 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
     private readonly ContentGuardPipeline? _contentGuards;
     private readonly ILoggerFactory? _loggerFactory;
 
-    /// <summary>Kayitli saglayicilardan yeni bir defter olusturur.</summary>
-    /// <param name="providers">Model saglayicilari.</param>
+    /// <summary>Creates a new registry from the registered providers.</summary>
+    /// <param name="providers">The model providers.</param>
     /// <param name="circuitBreaker">
-    /// Uretilen istemcileri saracak devre kesici. <see langword="null"/> ise hicbir
-    /// sarmalama yapilmaz (ornegin dogrudan kurulan testlerde).
+    /// The circuit breaker that wraps the produced clients. If <see langword="null"/>,
+    /// no wrapping is done (for example, in directly constructed tests).
     /// </param>
     /// <param name="attachmentStore">
-    /// Ek referanslarini cozmek icin kullanilacak depo. <paramref name="tenantContext"/>
-    /// ile birlikte verilmezse hicbir ek cozme sarmalamasi eklenmez.
+    /// The store used to resolve attachment references. If not given together
+    /// with <paramref name="tenantContext"/>, no attachment-resolving wrapper is added.
     /// </param>
-    /// <param name="tenantContext">Ek cozmede kullanilacak kiraci baglami.</param>
+    /// <param name="tenantContext">The tenant context used for attachment resolution.</param>
     /// <param name="contentGuards">
-    /// Icerik denetimi boru hatti. <see langword="null"/> ise veya hicbir
-    /// <see cref="IContentGuard"/> kayitli degilse denetim sarmalayicisi
-    /// <strong>hic eklenmez</strong>.
+    /// The content inspection pipeline. If <see langword="null"/> or no
+    /// <see cref="IContentGuard"/> is registered, the inspection wrapper is
+    /// <strong>never added</strong>.
     /// </param>
     /// <param name="loggerFactory">
-    /// <c>UseFunctionInvocation()</c> ve <c>UseOpenTelemetry()</c> icin gunlukleyici
-    /// fabrikasi. <see langword="null"/> ise MAF kendi varsayilanini kullanir.
+    /// The logger factory for <c>UseFunctionInvocation()</c> and
+    /// <c>UseOpenTelemetry()</c>. If <see langword="null"/>, MAF uses its own default.
     /// </param>
-    /// <exception cref="ArgumentNullException"><paramref name="providers"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="AgentPrismException">Ayni saglayici adi birden cok kez kaydedilmisse.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="providers"/> is <see langword="null"/>.</exception>
+    /// <exception cref="AgentPrismException">The same provider name has been registered more than once.</exception>
     public ModelProviderRegistry(
         IEnumerable<IModelProvider> providers,
         ModelProviderCircuitBreaker? circuitBreaker = null,
@@ -76,7 +77,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
             if (!_providers.TryAdd(provider.Name, provider))
             {
                 throw new AgentPrismException(
-                    $"'{provider.Name}' adinda birden cok model saglayicisi kaydedilmis.");
+                    $"More than one model provider named '{provider.Name}' has been registered.");
             }
         }
     }
@@ -107,41 +108,42 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         if (!_providers.TryGetValue(binding.Provider, out var provider))
         {
             var known = _providers.Count == 0
-                ? "hic saglayici kayitli degil"
+                ? "no provider is registered"
                 : string.Join(", ", _providers.Keys);
 
             throw new AgentPrismException(
-                $"'{binding.Provider}' adinda bir model saglayicisi kayitli degil. Kayitli saglayicilar: {known}. " +
-                "OpenAI icin `builder.AddAgentPrism().UseOpenAI(apiKey)` cagirin.");
+                $"No model provider named '{binding.Provider}' is registered. Registered providers: {known}. " +
+                "For OpenAI, call `builder.AddAgentPrism().UseOpenAI(apiKey)`.");
         }
 
-        // Saglayici HAM istemciyi doner; boru hattinin tamami burada kurulur.
+        // The provider returns the RAW client; the entire pipeline is assembled here.
         IChatClient chatClient = provider.CreateChatClient(binding);
 
-        // 🚨 Icerik guard'i gercek istemcinin hemen ustunde, tool cagri dongusunun
-        // ICINDE durur. Engellenen bir istek boylece aga hic cikmaz ve — bundan
-        // daha onemlisi — dongunun her turu denetlenir: bir tool sonucu modele
-        // ikinci cagride girer ve prompt injection'in en yaygin yolu odur.
-        // Hicbir guard kayitli degilse bu satir hicbir sey yapmaz: sarmalayici
-        // eklenmez ve model yolunda tek bir 'if' bile calismaz.
+        // 🚨 The content guard sits right above the real client, INSIDE the
+        // tool-call loop. This way a blocked request never reaches the network
+        // and — more importantly — every turn of the loop is inspected: a tool
+        // result enters the model on the second call, and that is the most
+        // common path for prompt injection. If no guard is registered this line
+        // does nothing: no wrapper is added and not even a single 'if' runs on
+        // the model path.
         if (_contentGuards is { HasGuards: true })
         {
             chatClient = new ContentGuardingChatClient(_contentGuards, binding.Model, chatClient);
         }
 
-        // Tool cagri dongusu ve telemetri. Ikisi de Faz 48'e kadar saglayici
-        // paketlerinin icindeydi; oradan tasindilar ki dongunun ICINE bir halka
-        // konabilsin. Sira: dongu en distadir, telemetri onun icinde, boylece her
-        // gercek model cagrisi kendi 'chat' span'ini alir.
+        // The tool-call loop and telemetry. Both used to live inside the
+        // provider packages until Phase 48; they were moved out so a ring could
+        // be placed INSIDE the loop. Order: the loop is outermost, telemetry is
+        // inside it, so every real model call gets its own 'chat' span.
         chatClient = chatClient
             .AsBuilder()
             .UseFunctionInvocation(_loggerFactory)
             .UseOpenTelemetry(_loggerFactory, AgentPrismDiagnostics.ActivitySourceName)
             .Build();
 
-        // Ek cozme sarmalayicisi dongunun DISINDA durur: ekler yalnizca turun ilk
-        // kullanici mesajinda bulunur ve her tool turunda yeniden cozmek deponun
-        // ayni bayti tekrar tekrar okumasi olurdu.
+        // The attachment-resolving wrapper sits OUTSIDE the loop: attachments
+        // are only found on the turn's first user message, and re-resolving on
+        // every tool turn would mean reading the same bytes from the store over and over.
         if (_attachmentStore is not null && _tenantContext is not null)
         {
             chatClient = new AttachmentResolvingChatClient(chatClient, _attachmentStore, _tenantContext);
@@ -152,10 +154,11 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
             chatClient = _circuitBreaker.Wrap(binding.Provider, chatClient);
         }
 
-        // Icerik filtresi tespiti EN DISTA durur — devre kesicinin disinda. Bir
-        // guvenlik filtresi saglayicinin saglikli oldugunu gosterir; icerde olsaydi
-        // attigi istisna ardisik hata sayacini artirir ve arka arkaya filtrelenen
-        // birkac istek saglayiciyi kapatirdi.
+        // Content-filter detection sits OUTERMOST — outside the circuit breaker.
+        // A safety filter means the provider is healthy; if it were inside, the
+        // exception it throws would increase the consecutive-failure counter
+        // and a handful of content-filtered requests in a row would close the
+        // circuit on the provider.
         return new ContentFilterDetectingChatClient(binding.Provider, chatClient);
     }
 }

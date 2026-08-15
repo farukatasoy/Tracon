@@ -1,36 +1,37 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Agent cagri grafigini kaydetme aninda denetler.
+/// Validates an agent call graph at save time.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Denetim derinlik oncelikli arama ile yapilir ve uc hatayi ayirir: bilinmeyen
-/// ad, kendi kendini cagirma, dolayli dongu. Ucu de kaydetme anini kirar
-/// (<c>400 Bad Request</c>); calisma anina birakilirsa kullanici hatayi ancak
-/// agent'i calistirdiginda ve okunmasi zor bir mesajla gorur.
+/// Validation is done with a depth-first search and separates three errors:
+/// unknown name, self-call, indirect cycle. All three break the save
+/// operation (<c>400 Bad Request</c>); if left to run time, the user only
+/// sees the error when they run the agent, in a message that is hard to
+/// diagnose.
 /// </para>
 /// <para>
-/// <strong>Statik denetim tek basina yeterli degildir.</strong> Kod tarafinda
-/// fabrika ile kaydedilmis bir agent bildirimsel bir tanim tasimaz ve grafikte
-/// yaprak gorunur; gercekte ise baska agent'lari cagiriyor olabilir. Ikinci
-/// savunma hatti calisma anindaki derinlik sayacidir
+/// <strong>Static validation alone is not enough.</strong> An agent registered
+/// via a code-side factory does not carry a declarative definition and
+/// appears as a leaf in the graph; in reality it may still be calling other
+/// agents. The second line of defense is the run-time depth counter
 /// (<see cref="AgentRunBudget.MaxDepth"/>).
 /// </para>
 /// </remarks>
 public static class AgentCallGraph
 {
     /// <summary>
-    /// Bir tanimin cagri grafigini denetler.
+    /// Validates a definition's call graph.
     /// </summary>
-    /// <param name="agentName">Denetlenen agent'in adi.</param>
-    /// <param name="callableAgentNames">Bu agent'in cagirmak istedigi agent adlari.</param>
-    /// <param name="descriptors">Katalogdaki tum agent ozetleri.</param>
+    /// <param name="agentName">Name of the agent being validated.</param>
+    /// <param name="callableAgentNames">Names of the agents this agent wants to call.</param>
+    /// <param name="descriptors">All agent summaries in the catalog.</param>
     /// <returns>
-    /// Sorun varsa kullaniciya gosterilebilir aciklama; grafik gecerliyse
-    /// <see langword="null"/>.
+    /// A user-displayable description when there is a problem; <see langword="null"/>
+    /// when the graph is valid.
     /// </returns>
-    /// <exception cref="ArgumentNullException">Parametrelerden biri <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
     public static string? Validate(
         string agentName,
         IReadOnlyList<string> callableAgentNames,
@@ -38,20 +39,22 @@ public static class AgentCallGraph
         => ValidateDetailed(agentName, callableAgentNames, descriptors)?.Message;
 
     /// <summary>
-    /// Bir tanimin cagri grafigini denetler ve makine tarafindan okunabilir bir
-    /// kod tasiyan sonuc dondurur.
+    /// Validates a definition's call graph and returns a result carrying a
+    /// machine-readable code.
     /// </summary>
-    /// <param name="agentName">Denetlenen agent'in adi.</param>
-    /// <param name="callableAgentNames">Bu agent'in cagirmak istedigi agent adlari.</param>
-    /// <param name="descriptors">Katalogdaki tum agent ozetleri.</param>
+    /// <param name="agentName">Name of the agent being validated.</param>
+    /// <param name="callableAgentNames">Names of the agents this agent wants to call.</param>
+    /// <param name="descriptors">All agent summaries in the catalog.</param>
     /// <returns>
-    /// Sorun varsa kod ve aciklama; grafik gecerliyse <see langword="null"/>.
+    /// The code and description when there is a problem; <see langword="null"/>
+    /// when the graph is valid.
     /// </returns>
-    /// <exception cref="ArgumentNullException">Parametrelerden biri <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
     /// <remarks>
-    /// <see cref="Validate"/> ile <strong>ayni denetimi</strong> yapar; F-60'in
-    /// dogrulama ucu kodu (<c>unknown_agent</c>/<c>cycle</c>) buradan alir,
-    /// kaydetme anindaki <c>400</c> yaniti ise yalnizca <see cref="AgentCallGraphProblem.Message"/>'i kullanir.
+    /// Performs <strong>the same validation</strong> as <see cref="Validate"/>;
+    /// F-60's validation endpoint takes its code (<c>unknown_agent</c>/<c>cycle</c>)
+    /// from here, while the save-time <c>400</c> response only uses
+    /// <see cref="AgentCallGraphProblem.Message"/>.
     /// </remarks>
     public static AgentCallGraphProblem? ValidateDetailed(
         string agentName,
@@ -67,9 +70,10 @@ public static class AgentCallGraph
             return null;
         }
 
-        // Denetlenen tanim henuz kaydedilmedigi icin katalogdaki hali eski
-        // olabilir. Grafik, tanimin YENI hali ile kurulur; aksi halde yeni
-        // eklenen bir kenarin dongu yaratip yaratmadigi hic gorulmezdi.
+        // The definition being validated has not been saved yet, so its
+        // catalog entry may be stale. The graph is built with the NEW version
+        // of the definition; otherwise, whether a newly added edge creates a
+        // cycle would never be seen.
         var edges = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
         var known = new HashSet<string>(StringComparer.Ordinal);
 
@@ -88,35 +92,35 @@ public static class AgentCallGraph
             {
                 return new AgentCallGraphProblem(
                     "cycle",
-                    $"'{agentName}' kendisini cagiramaz. Bir agent'in kendisini cagirmasi " +
-                    "sonsuz ozyinelemedir ve derinlik sayaci dolana kadar maliyet uretir.");
+                    $"'{agentName}' cannot call itself. An agent calling itself is infinite " +
+                    "recursion and generates cost until the depth counter runs out.");
             }
 
             if (!known.Contains(target))
             {
                 return new AgentCallGraphProblem(
                     "unknown_agent",
-                    $"'{agentName}' agent'i '{target}' adli bir agent'i cagirmak istiyor ancak " +
-                    "boyle bir agent katalogda yok. Once o agent'i olusturun.");
+                    $"Agent '{agentName}' wants to call an agent named '{target}', but " +
+                    "no such agent exists in the catalog. Create that agent first.");
             }
         }
 
         return FindCycle(agentName, edges) is { } cycle
             ? new AgentCallGraphProblem(
                 "cycle",
-                $"Cagri grafiginde dongu var: {string.Join(" -> ", cycle)}. " +
-                "Dongulu bir grafik, calistirmanin derinlik sinirina carpana kadar surmesine yol acar.")
+                $"There is a cycle in the call graph: {string.Join(" -> ", cycle)}. " +
+                "A cyclic graph causes the run to continue until it hits the depth limit.")
             : null;
     }
 
     /// <summary>
-    /// Verilen dugumden baslayarak grafikte bir dongu arar.
+    /// Searches the graph for a cycle starting from the given node.
     /// </summary>
-    /// <returns>Bulunan dongunun dugum sirasi; dongu yoksa <see langword="null"/>.</returns>
+    /// <returns>The node sequence of the cycle found; <see langword="null"/> when there is no cycle.</returns>
     /// <remarks>
-    /// Ozyineleme yerine acik yigin kullanilir: cagri grafigi kullanici verisidir
-    /// ve derinligi sinirsizdir; ozyinelemeli bir gezinti yeterince uzun bir
-    /// zincirde <c>StackOverflowException</c> ile sureci oldururdu.
+    /// An explicit stack is used instead of recursion: the call graph is user
+    /// data with unbounded depth; a recursive traversal would kill the
+    /// process with a <c>StackOverflowException</c> on a sufficiently long chain.
     /// </remarks>
     private static List<string>? FindCycle(string start, Dictionary<string, IReadOnlyList<string>> edges)
     {
@@ -176,7 +180,7 @@ public static class AgentCallGraph
     private readonly record struct Frame(string Node, int Index);
 }
 
-/// <summary>Bir cagri grafigi denetiminin makine tarafindan okunabilir sonucu.</summary>
-/// <param name="Code">Kararli kod: <c>unknown_agent</c> veya <c>cycle</c>.</param>
-/// <param name="Message">Insan tarafindan okunabilir aciklama.</param>
+/// <summary>The machine-readable result of a call graph validation.</summary>
+/// <param name="Code">Stable code: <c>unknown_agent</c> or <c>cycle</c>.</param>
+/// <param name="Message">Human-readable description.</param>
 public readonly record struct AgentCallGraphProblem(string Code, string Message);

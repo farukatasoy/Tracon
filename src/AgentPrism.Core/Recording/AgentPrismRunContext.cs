@@ -1,118 +1,122 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Suren calistirmanin kimligini, agactaki yerini ve butcesini calistirma
-/// yolunun icindeki yardimci bilesenlere tasir.
+/// Carries the identity, tree position, and budget of the running run to the
+/// helper components inside the run path.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Iki tuketicisi vardir. Skill script calistirmasi MAF'in icinden, kayit
-/// sarmalayicisinin <em>altinda</em> tetiklenir; alt agent cagrisi ise MAF'in
-/// arka plan gorev tool'undan tetiklenir. Ikisinde de calistirma kimligini
-/// parametre olarak gecirmenin yolu yoktur: cagri zinciri MAF'a aittir.
+/// It has two consumers. Skill script execution is triggered from inside MAF,
+/// <em>below</em> the recording wrapper; sub-agent invocation is triggered
+/// from MAF's background task tool. Neither has a way to pass the run
+/// identity as a parameter: the call chain belongs to MAF.
 /// </para>
 /// <para>
-/// 🚨 Deger bir <see cref="AsyncLocal{T}"/> icinde tutulur. Bu, atamanin
-/// <strong>cagirana geri akmadigi</strong> anlamina gelir: <c>Set</c> cagrisi
-/// calistirmayi baslatan metodun <em>kendi govdesinde</em> yapilmalidir.
-/// Ayni tuzak <see cref="System.Diagnostics.Activity.Current"/> ile Faz 6'da
-/// yasandi.
+/// 🚨 The value is held in an <see cref="AsyncLocal{T}"/>. This means the
+/// assignment <strong>does not flow back to the caller</strong>: the
+/// <c>Set</c> call must happen in the <em>own body</em> of the method that
+/// starts the run. The same trap happened with
+/// <see cref="System.Diagnostics.Activity.Current"/> in Phase 6.
 /// </para>
 /// <para>
-/// Deger asagi dogru <strong>akar</strong>: Microsoft Agent Framework'un arka
-/// plan agent gorevi <c>ExecutionContext</c>'i yakaladigi icin baska bir is
-/// parcaciginda calisan alt agent de ayni kapsami gorur. Faz 12'de olculdu.
+/// The value <strong>flows downward</strong>: because Microsoft Agent
+/// Framework's background agent task captures <c>ExecutionContext</c>, a
+/// sub-agent running on a different thread also sees the same scope.
+/// Measured in Phase 12.
 /// </para>
 /// </remarks>
 public static class AgentPrismRunContext
 {
     private static readonly AsyncLocal<AgentRunScope?> ScopeHolder = new();
 
-    /// <summary>Suren calistirmanin kapsami. Calistirma disinda <see langword="null"/>.</summary>
+    /// <summary>Gets the scope of the running run. <see langword="null"/> outside a run.</summary>
     public static AgentRunScope? Current => ScopeHolder.Value;
 
-    /// <summary>Suren calistirmanin kimligi. Calistirma disinda <see langword="null"/>.</summary>
+    /// <summary>Gets the identity of the running run. <see langword="null"/> outside a run.</summary>
     public static Guid? CurrentRunId => ScopeHolder.Value?.RunId;
 
-    /// <summary>Suren calistirmanin kapsamini ayarlar.</summary>
-    /// <param name="scope">Kapsam. <see langword="null"/> ise kapsam temizlenir.</param>
+    /// <summary>Sets the scope of the running run.</summary>
+    /// <param name="scope">The scope. If <see langword="null"/>, the scope is cleared.</param>
     public static void SetCurrent(AgentRunScope? scope) => ScopeHolder.Value = scope;
 }
 
 /// <summary>
-/// Suren bir calistirmanin, calistirma yolundaki yardimci bilesenlere acilan
-/// gorunumu.
+/// Represents the view of a running run that is exposed to the helper
+/// components in the run path.
 /// </summary>
 /// <remarks>
-/// Kapsam <see cref="RunRecordingAgent"/> tarafindan acilir. Alt agent cagrisi
-/// buradan okudugu degerlerle kendi <see cref="AgentPrismRunOptions"/> nesnesini
-/// kurar; boylece agac baglantisi, derinlik ve butce cagri zinciri boyunca
-/// tasinir.
+/// The scope is opened by <see cref="RunRecordingAgent"/>. A sub-agent
+/// invocation builds its own <see cref="AgentPrismRunOptions"/> object from
+/// the values it reads here; this is how tree linkage, depth, and budget are
+/// carried through the call chain.
 /// </remarks>
 public sealed record AgentRunScope
 {
-    /// <summary>Suren calistirmanin kimligi.</summary>
+    /// <summary>Gets the identity of the running run.</summary>
     public required Guid RunId { get; init; }
 
-    /// <summary>Agacin kokundeki calistirmanin kimligi. Kokte <see cref="RunId"/> ile aynidir.</summary>
+    /// <summary>Gets the identity of the run at the root of the tree. Equal to <see cref="RunId"/> at the root.</summary>
     public required Guid RootRunId { get; init; }
 
-    /// <summary>Agactaki derinlik. Kok calistirma 0'dir.</summary>
+    /// <summary>Gets the depth in the tree. The root run is 0.</summary>
     public int Depth { get; init; }
 
-    /// <summary>Bu calistirmayi yuruten agent'in adi.</summary>
+    /// <summary>Gets the name of the agent running this run.</summary>
     public string? AgentName { get; init; }
 
-    /// <summary>Calistirmanin kiracisi. Alt calistirma bu kiracidan cikamaz.</summary>
+    /// <summary>Gets the tenant of the run. A sub-run cannot leave this tenant.</summary>
     public string? TenantId { get; init; }
 
     /// <summary>
-    /// Calistirmanin bagli oldugu oturum. Oturumsuz calistirmada <see langword="null"/>.
+    /// Gets the session the run belongs to. <see langword="null"/> for a sessionless run.
     /// </summary>
     /// <remarks>
-    /// 🚨 Bir tool'un uretip <c>attachments</c> tablosuna yazdigi icerik bu alani
-    /// TASIMAK ZORUNDADIR. Saklama politikasi (Faz 25) <c>session_id</c> alani bos
-    /// olan bir eki <strong>sahipsiz</strong> sayar ve kesim tarihinden sonra siler;
-    /// oturum hala yasarken transcript'teki icerik kaybolur. Tool
-    /// <c>AgentSession</c>'a erisemedigi icin oturum kimligini yalniz buradan
-    /// okuyabilir. Gerekce: <c>docs/28-SES-TOOLLARI.md</c>, bolum 28.0/G1.
+    /// 🚨 Content that a tool produces and writes to the <c>attachments</c>
+    /// table MUST CARRY this field. The retention policy (Phase 25) treats an
+    /// attachment with an empty <c>session_id</c> field as <strong>orphaned</strong>
+    /// and deletes it after the cutoff date; the content in the transcript is
+    /// then lost while the session is still alive. A tool cannot access
+    /// <c>AgentSession</c>, so this is the only place it can read the session
+    /// identity from. Rationale: <c>docs/28-SES-TOOLLARI.md</c>, section 28.0/G1.
     /// </remarks>
     public string? SessionId { get; init; }
 
-    /// <summary>Agac boyunca paylasilan butce.</summary>
+    /// <summary>Gets the budget shared across the tree.</summary>
     public AgentRunBudget? Budget { get; init; }
 
-    /// <summary>Bu calistirmanin olctugu tanim surumu. Bilinmiyorsa <see langword="null"/>.</summary>
+    /// <summary>Gets the definition version this run measures. <see langword="null"/> if unknown.</summary>
     public int? AgentVersion { get; init; }
 
-    /// <summary>Bu calistirmanin bagli oldugu deneyin kimligi. Deney disi calistirmada <see langword="null"/>.</summary>
+    /// <summary>Gets the identity of the experiment this run belongs to. <see langword="null"/> for a run outside an experiment.</summary>
     public Guid? ExperimentId { get; init; }
 
-    /// <summary>Bu calistirmanin atandigi deney kolunun adi. Deney disi calistirmada <see langword="null"/>.</summary>
+    /// <summary>Gets the name of the experiment arm this run is assigned to. <see langword="null"/> for a run outside an experiment.</summary>
     public string? Variant { get; init; }
 
     /// <summary>
-    /// Bu calistirmanin olay yazicisi. Alt calistirma ozet olaylari buraya yazilir.
+    /// Gets the event writer for this run. A sub-run writes its summary events here.
     /// </summary>
     /// <remarks>
-    /// Sira numarasi <strong>tek bir yazicidan</strong> uretilir (karar K-014).
-    /// Alt cagri kendi yazicisini kursaydi ayni calistirmada iki bagimsiz sayac
-    /// olur ve sira numaralari cakisirdi.
+    /// The sequence number is produced by <strong>a single writer</strong>
+    /// (decision K-014). If a sub-call set up its own writer, the same run
+    /// would end up with two independent counters and the sequence numbers
+    /// would collide.
     /// </remarks>
     public RunEventWriter? Writer { get; init; }
 
     /// <summary>
-    /// Baglam sikistirmasinin (ozetleme) urettigi ek token kullanimini
-    /// toplayan sayac. Calistirma sonunda nihai kullanima katilir.
+    /// Gets the accumulator that collects the extra token usage produced by
+    /// context compaction (summarization). It is folded into the final usage
+    /// at the end of the run.
     /// </summary>
     internal CompactionUsageAccumulator? ExtraUsage { get; init; }
 
     /// <summary>
-    /// Tool'larin bildirdigi token disi olcumleri cagri kimligine gore tutar.
+    /// Gets the non-token metrics reported by tools, keyed by call identity.
     /// </summary>
     /// <remarks>
-    /// Yazma yuzeyi <see cref="AgentPrismToolUsage.Report"/>'tur; okuma
-    /// <c>ToolInvocationTracker</c> icindedir.
+    /// The write surface is <see cref="AgentPrismToolUsage.Report"/>; the read
+    /// side is in <c>ToolInvocationTracker</c>.
     /// </remarks>
     internal ToolUsageAccumulator? ToolUsage { get; init; }
 }

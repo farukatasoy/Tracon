@@ -116,7 +116,7 @@ public sealed class A2AEndpointTests
         var exception = await Should.ThrowAsync<InvalidOperationException>(() => host.Client.GetAsync(
             new Uri("/agentprism/a2a/kod-agent/.well-known/agent-card.json", UriKind.Relative)));
 
-        exception.Message.ShouldContain("onay", Case.Sensitive);
+        exception.Message.ShouldContain("approval", Case.Sensitive);
     }
 
     [Fact]
