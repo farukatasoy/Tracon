@@ -10,12 +10,6 @@ samples/AgentPrism.Api/Program.cs|248
 samples/AgentPrism.Api/appsettings.json|29
 samples/Directory.Build.props|1
 src/AgentPrism.Abstractions/README.md|4
-src/AgentPrism.Abstractions/Tools/AgentPrismGeneratedToolArguments.cs|28
-src/AgentPrism.Abstractions/Tools/AgentPrismToolAttribute.cs|20
-src/AgentPrism.Abstractions/Tools/AgentPrismToolRegistration.cs|7
-src/AgentPrism.Abstractions/Tools/IToolRegistry.cs|8
-src/AgentPrism.Abstractions/Tools/ToolCallUsage.cs|18
-src/AgentPrism.Abstractions/Tools/ToolDescriptor.cs|12
 src/AgentPrism.Abstractions/Voice/ConversationContracts.cs|34
 src/AgentPrism.Abstractions/Voice/SpeechContracts.cs|42
 src/AgentPrism.Abstractions/Voice/SpeechModels.cs|36
