@@ -1,15 +1,15 @@
--- Faz 53 -- kiraci bazli API anahtarlari ve kapsamlar.
+-- Phase 53 -- per tenant API keys and scopes.
 --
--- Gerekce ve sutun anlamlari icin PostgreSQL 0025_api_keys.sql'e bakin.
--- scopes bir JSON dizisidir (K-182): OPENJSON ile acilir.
+-- For the rationale and the column meanings see PostgreSQL 0025_api_keys.sql.
+-- scopes is a JSON array (K-182): it is opened with OPENJSON.
 
 IF OBJECT_ID(N'{schema}.api_keys', N'U') IS NULL
 CREATE TABLE {schema}.api_keys (
     id           uniqueidentifier NOT NULL CONSTRAINT api_keys_pk PRIMARY KEY,
     tenant_id    nvarchar(200)    NOT NULL,
     name         nvarchar(200)    NOT NULL,
-    -- SHA-256 sabit 32 bayttir; varbinary(32) indekslenebilir (nvarchar(max)
-    -- veya varbinary(max) INDEKSLENEMEZ).
+    -- SHA-256 is a fixed 32 bytes; varbinary(32) can be indexed (nvarchar(max)
+    -- or varbinary(max) CANNOT BE INDEXED).
     key_hash     varbinary(32)    NOT NULL,
     key_prefix   nvarchar(32)     NOT NULL,
     scopes       nvarchar(max)    NOT NULL,

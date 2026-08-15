@@ -1,15 +1,15 @@
 -- ---------------------------------------------------------------------------
--- 0018 — Oturum birincil anahtari kiraciyi da kapsar (Faz 41)
+-- 0018 — The session primary key also covers the tenant (phase 41)
 --
--- 🚨 GUVENLIK DUZELTMESI. `sessions.id` cagiran tarafindan verilen bir metindir
--- (AgentSession kimligi, /v1/responses konusma kimligi). Tek basina birincil
--- anahtar oldugu icin kimlik BUTUN KIRACILAR arasinda benzersizdi ve
--- `ON CONFLICT (id) DO UPDATE SET tenant_id = EXCLUDED.tenant_id` bir kiracinin
--- baska bir kiracinin oturumunu UZERINE YAZMASINA izin veriyordu: durum
--- kayboluyor ve satirin sahipligi el degistiriyordu.
+-- 🚨 SECURITY FIX. `sessions.id` is a text given by the caller (the AgentSession
+-- id, the /v1/responses conversation id). Because it was the primary key on its
+-- own, the id was unique ACROSS ALL TENANTS and
+-- `ON CONFLICT (id) DO UPDATE SET tenant_id = EXCLUDED.tenant_id` let one tenant
+-- OVERWRITE the session of another tenant: the state was lost and the ownership
+-- of the row changed hands.
 --
--- Anahtar (tenant_id, id) olur. Ayni kimlik iki kiracida bagimsiz yasar.
--- Yabanci anahtar referansi yoktur; degisiklik bu tabloyla sinirlidir.
+-- The key becomes (tenant_id, id). The same id lives independently in two tenants.
+-- There is no foreign key reference; the change is limited to this table.
 -- ---------------------------------------------------------------------------
 
 ALTER TABLE {schema}.sessions DROP CONSTRAINT sessions_pkey;

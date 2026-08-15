@@ -1,8 +1,8 @@
--- Faz 53 -- kiraci bazli API anahtarlari ve kapsamlar.
+-- Phase 53 -- per tenant API keys and scopes.
 --
--- 🚨 key_hash HAM DEGER DEGILDIR -- geri donduruleyemez bir SHA-256 ozetidir
--- (docs/53-KIRACI-API-ANAHTARLARI.md, bolum 53.2). Ham deger yalnizca
--- olusturma yanitinda bir kez doner ve hicbir yere yazilmaz.
+-- 🚨 key_hash IS NOT THE RAW VALUE -- it is an irreversible SHA-256 digest
+-- (docs/53-KIRACI-API-ANAHTARLARI.md, section 53.2). The raw value is returned
+-- once in the creation response only and is written nowhere.
 
 CREATE TABLE IF NOT EXISTS {schema}.api_keys (
     id           uuid        NOT NULL PRIMARY KEY,
@@ -17,8 +17,8 @@ CREATE TABLE IF NOT EXISTS {schema}.api_keys (
     created_at   timestamptz NOT NULL
 );
 
--- Ozet uzerinde ARAMA yapilir (FindByHashAsync); benzersizlik ayrica bir
--- carpisma (pratikte imkansiz ama ucuz) korumasidir.
+-- The SEARCH runs on the digest (FindByHashAsync); uniqueness is also a guard
+-- against a collision (impossible in practice but cheap).
 CREATE UNIQUE INDEX IF NOT EXISTS api_keys_hash_uq ON {schema}.api_keys (key_hash);
 
 CREATE INDEX IF NOT EXISTS api_keys_tenant_idx ON {schema}.api_keys (tenant_id, created_at DESC);

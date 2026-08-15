@@ -1,11 +1,11 @@
--- Faz 44 -- hata siniflandirmasi ve ariza kumeleme.
+-- Phase 44 -- error classification and failure clustering.
 --
--- Gerekce ve sutun anlamlari icin PostgreSQL 0021_error_classification.sql'e
--- bakin. SQLite'ta `ALTER TABLE ... ADD COLUMN` icin `IF NOT EXISTS` YOKTUR;
--- guvenlik migration kosucusundan gelir (ayni dosya ikinci kez calismaz).
+-- For the rationale and the column meanings see PostgreSQL
+-- 0021_error_classification.sql. SQLite has no `IF NOT EXISTS` for `ALTER TABLE
+-- ... ADD COLUMN`; safety comes from the migration runner (same file runs once).
 --
--- 🚨 Indeks adi TABLO ONEKINI tasir (K-193): SQLite'ta indeks adlari veritabani
--- genelinde tek ad alanini paylasir.
+-- 🚨 The index name carries the TABLE PREFIX (K-193): in SQLite index names
+-- share a single database wide namespace.
 
 ALTER TABLE {schema}runs ADD COLUMN error_class       INTEGER NULL;
 ALTER TABLE {schema}runs ADD COLUMN error_fingerprint TEXT    NULL;

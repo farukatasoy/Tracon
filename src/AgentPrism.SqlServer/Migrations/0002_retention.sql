@@ -1,11 +1,11 @@
--- Faz 25 -- veri saklama politikasi ve arsivleme.
+-- Phase 25 -- data retention policy and archiving.
 --
--- Varsayilan politika EKLENMEZ: bos politika tablosu = hicbir sey silinmez.
+-- NO default policy IS ADDED: an empty policy table = nothing is deleted.
 
 IF OBJECT_ID(N'{schema}.retention_policies', N'U') IS NULL
 CREATE TABLE {schema}.retention_policies (
     id           uniqueidentifier  NOT NULL CONSTRAINT retention_policies_pk PRIMARY KEY,
-    tenant_id    nvarchar(200)     NOT NULL,          -- N'*' = tum kiracilar
+    tenant_id    nvarchar(200)     NOT NULL,          -- N'*' = all tenants
     target       nvarchar(200)     NOT NULL,          -- N'run_events', N'spans', ...
     max_age_days int               NULL,
     max_rows     bigint            NULL,
@@ -16,10 +16,10 @@ CREATE TABLE {schema}.retention_policies (
     CONSTRAINT retention_policies_uq UNIQUE (tenant_id, target)
 );
 
--- tenant_id doc'un ilk taslaginda YOKTU; kiraci bazli politika (K-198)
--- kosularin da kiraciya gore filtrelenebilmesini gerektirir. Yuksek hacimli
--- olabilecegi icin birincil anahtar NONCLUSTERED, kumelenmis indeks zaman
--- sutununa kurulur (K-180 ile ayni gerekce).
+-- tenant_id WAS NOT in the first draft of the doc; the tenant based policy
+-- (K-198) needs the runs to be filterable by tenant as well. Because it can be
+-- high volume the primary key is NONCLUSTERED and the clustered index is put on
+-- the time column (the same reason as K-180).
 IF OBJECT_ID(N'{schema}.retention_runs', N'U') IS NULL
 CREATE TABLE {schema}.retention_runs (
     id            uniqueidentifier  NOT NULL CONSTRAINT retention_runs_pk PRIMARY KEY NONCLUSTERED,

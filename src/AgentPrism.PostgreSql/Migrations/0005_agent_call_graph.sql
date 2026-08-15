@@ -1,30 +1,30 @@
--- Faz 12 -- agent'in agent'i cagirmasi: calistirma agaci.
+-- Phase 12 -- an agent calls an agent: the run tree.
 
 ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS parent_run_id uuid;
 ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS root_run_id   uuid;
 ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS depth         smallint NOT NULL DEFAULT 0;
 
--- 🚨 YABANCI ANAHTAR KONMAZ. parent_run_id ayni tabloya isaret eder ve bir silme
--- sirasi kisiti uretirdi: bir agacin kokunu silmek once tum yapraklarini silmeyi
--- gerektirirdi. Faz 25'in saklama politikasi (eski calistirmalari toplu silme)
--- bundan zarar gorurdu. Yetim bir parent_run_id, arayuzde "ust calistirma
--- bulunamadi" olarak gorunur; veri butunlugu sorunu degildir.
+-- 🚨 NO FOREIGN KEY IS ADDED. parent_run_id points at the same table and would
+-- create a delete order constraint: deleting the root of a tree would first
+-- need all of its leaves deleted. The retention policy of phase 25 (bulk delete
+-- of old runs) would suffer from that. An orphan parent_run_id shows in the UI
+-- as "parent run not found"; it is not a data integrity problem.
 
--- Alt calistirmalari ust kimlige gore cekmek icin. Kismi indeks: kayitlarin
--- ezici cogunlugu koktur ve NULL satirlari indekste yer kaplamamalidir.
+-- To fetch child runs by parent id. Partial index: the overwhelming majority of
+-- the records are roots and NULL rows must not take space in the index.
 CREATE INDEX IF NOT EXISTS runs_parent_idx
     ON {schema}.runs (parent_run_id)
     WHERE parent_run_id IS NOT NULL;
 
--- Bir agacin tamamini TEK sorguda cekmek icin. root_run_id denormalize edilmistir;
--- parent_run_id uzerinden gezmek ozyinelemeli CTE gerektirirdi ve arayuzun agac
--- gorunumu her acilista onu calistirirdi. Ek maliyet bir uuid sutundur.
+-- To fetch a whole tree in a SINGLE query. root_run_id is denormalized; walking
+-- over parent_run_id would need a recursive CTE and the tree view of the UI
+-- would run it on every open. The extra cost is one uuid column.
 CREATE INDEX IF NOT EXISTS runs_root_idx
     ON {schema}.runs (tenant_id, root_run_id, started_at)
     WHERE root_run_id IS NOT NULL;
 
--- Runs listesi varsayilan olarak YALNIZ kok calistirmalari gosterir; bu, en sik
--- calisan sorgudur ve kendi kismi indeksini hak eder.
+-- The runs list shows ONLY root runs by default; this is the most frequently
+-- executed query and it deserves its own partial index.
 CREATE INDEX IF NOT EXISTS runs_roots_only_idx
     ON {schema}.runs (tenant_id, started_at DESC)
     WHERE parent_run_id IS NULL;

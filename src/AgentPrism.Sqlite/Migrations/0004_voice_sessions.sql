@@ -1,13 +1,13 @@
--- Faz 29 -- gercek zamanli konusma baglantilarinin ozet kaydi.
+-- Phase 29 -- summary record of real time speech connections.
 --
--- Gerekce ve sutun anlamlari icin PostgreSQL 0016_voice_sessions.sql'e bakin.
+-- For the rationale and the column meanings see PostgreSQL 0016_voice_sessions.sql.
 --
--- 🚨 Tablo ve indeks adlari ONEK tasir (K-193): SQLite'ta nesne adlari
--- veritabani genelinde tek ad alanini paylasir. Onek yazilmazsa ayni `.db`
--- dosyasini paylasan iki farkli TablePrefix degeri catisir.
+-- 🚨 Table and index names carry the PREFIX (K-193): in SQLite object names
+-- share a single database wide namespace. Without the prefix two different
+-- TablePrefix values that share the same `.db` file clash.
 --
--- `numeric` icin ozel islem gerekmez: surucu TEXT yazar ve kulturden
--- bagimsizdir (SQL Server'in Precision/Scale zorunlulugu burada YOKTUR).
+-- `numeric` needs no special handling: the driver writes TEXT and is culture
+-- independent (the Precision/Scale duty of SQL Server IS ABSENT here).
 
 CREATE TABLE IF NOT EXISTS {schema}voice_sessions (
     id            TEXT    NOT NULL PRIMARY KEY,

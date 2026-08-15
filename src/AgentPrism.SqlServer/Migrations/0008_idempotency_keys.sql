@@ -1,9 +1,9 @@
--- Faz 43 -- Idempotency-Key destegi.
+-- Phase 43 -- Idempotency-Key support.
 --
--- Gerekce ve sutun anlamlari icin PostgreSQL 0020_idempotency_keys.sql'e bakin.
+-- For the rationale and the column meanings see PostgreSQL 0020_idempotency_keys.sql.
 --
--- 🚨 `key` T-SQL'de AYRILMIS bir sozcuktur; her yerde [key] ile koseli
--- parantezlenir.
+-- 🚨 `key` is a RESERVED word in T-SQL; it is put in square brackets as [key]
+-- everywhere.
 
 IF OBJECT_ID(N'{schema}.idempotency_keys', N'U') IS NULL
 CREATE TABLE {schema}.idempotency_keys (

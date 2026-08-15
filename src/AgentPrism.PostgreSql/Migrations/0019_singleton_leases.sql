@@ -1,13 +1,13 @@
 -- ---------------------------------------------------------------------------
--- 0019 — Tek yurutucu secimi kira tablosu (Faz 42)
+-- 0019 — Single executor election lease table (phase 42)
 --
--- Kume genelinde adlandirilmis bir isin (MCP kesfi, model saglik yoklamasi)
--- yalnizca bir replikada kosmasini saglar. Oturum kilidi (pg_try_advisory_lock)
--- yerine bir tablo secildi: SQLite'in oturum kilidi karsiligi yoktur ve bir
--- tablo baglanti havuzuna bagimli degildir. Gerekce: docs/42-TEK-YURUTUCU-SECIMI.md.
+-- Makes sure a named job across the cluster (MCP discovery, model health probe)
+-- runs on only one replica. A table was chosen instead of a session lock
+-- (pg_try_advisory_lock): SQLite has no session lock counterpart and a table does
+-- not depend on the connection pool. Rationale: docs/42-TEK-YURUTUCU-SECIMI.md.
 --
--- Kiraci sutunu YOKTUR ve bu bilinclidir: tek yurutucu secimi kurulum
--- genelinde bir isletim kavramidir, kiraci basina degil.
+-- There is NO tenant column and that is deliberate: single executor election is
+-- an operations concept for the whole installation, not per tenant.
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS {schema}.singleton_leases (
