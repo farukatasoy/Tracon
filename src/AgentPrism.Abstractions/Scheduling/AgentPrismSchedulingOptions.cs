@@ -1,38 +1,38 @@
 namespace AgentPrism;
 
-/// <summary>Toplu ve zamanlanmis calistirma (Faz 17) ayarlari.</summary>
+/// <summary>Batch and scheduled run (Phase 17) settings.</summary>
 /// <remarks>
-/// <c>AgentPrism:Scheduling</c> yapilandirma bolumunden okunur. Bkz.
+/// Read from the <c>AgentPrism:Scheduling</c> configuration section. See
 /// <c>AgentPrismServiceCollectionExtensions.UseScheduling</c>.
 /// </remarks>
 public sealed class AgentPrismSchedulingOptions
 {
-    /// <summary>Yapilandirma bolumu adi.</summary>
+    /// <summary>The configuration section name.</summary>
     public const string SectionName = "AgentPrism:Scheduling";
 
-    /// <summary>Zamanlama alt sistemi etkin mi.</summary>
+    /// <summary>Whether the scheduling subsystem is enabled.</summary>
     public bool Enabled { get; set; } = true;
 
     /// <summary>
-    /// Arka plan iscisi bu surecte calissin mi. <see langword="false"/>
-    /// yapilirsa kuyruk ve zamanlama depolari calismaya devam eder, ancak
-    /// hicbir is bu surecte kiralanmaz veya yurutulmez — dagitim baska bir
-    /// surece birakilir.
+    /// Whether the background worker runs in this process. If set to
+    /// <see langword="false"/>, the queue and schedule stores keep working,
+    /// but no job is leased or executed in this process — distribution is
+    /// left to another process.
     /// </summary>
     public bool RunWorker { get; set; } = true;
 
-    /// <summary>Bu surecte ayni anda yurutulebilecek en fazla is sayisi.</summary>
+    /// <summary>The maximum number of jobs that may run concurrently in this process.</summary>
     public int MaxConcurrentJobs { get; set; } = 2;
 
-    /// <summary>Yeni is ve sirasi gelen zamanlama aranma sikligi.</summary>
+    /// <summary>How often new jobs and due schedules are looked for.</summary>
     public TimeSpan PollInterval { get; set; } = TimeSpan.FromSeconds(10);
 
-    /// <summary>Bir isin kira suresi. Isci bu sure icinde bitirmezse is yeniden kiralanabilir.</summary>
+    /// <summary>A job's lease duration. If the worker does not finish within this time, the job may be re-leased.</summary>
     public TimeSpan LeaseDuration { get; set; } = TimeSpan.FromMinutes(5);
 
-    /// <summary>Bir isin <see cref="JobStatus.Failed"/> olmadan once yapabilecegi en fazla deneme sayisi.</summary>
+    /// <summary>The maximum number of attempts a job may make before becoming <see cref="JobStatus.Failed"/>.</summary>
     public int MaxAttempts { get; set; } = 3;
 
-    /// <summary>Tek bir iste izin verilen en fazla oge sayisi.</summary>
+    /// <summary>The maximum number of items allowed in a single job.</summary>
     public int MaxItemsPerJob { get; set; } = 1000;
 }
