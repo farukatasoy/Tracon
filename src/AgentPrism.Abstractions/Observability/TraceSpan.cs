@@ -3,127 +3,126 @@ using System.Text.Json.Serialization;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir span'in OpenTelemetry tipi. Degerler veritabaninda <c>smallint</c>
-/// olarak saklanir; sayilar kararlidir.
+/// A span's OpenTelemetry kind. Values are stored in the database as
+/// <c>smallint</c>; the numbers are stable.
 /// </summary>
 /// <remarks>
-/// <see cref="System.Diagnostics.ActivityKind"/> ile birebir ayni sirayi izler.
-/// Kendi enum'umuzu tasimamizin sebebi <c>AgentPrism.Abstractions</c>'in
-/// <c>System.Diagnostics.DiagnosticSource</c> tipini public yuzeyine
-/// sizdirmamasidir.
+/// Follows <see cref="System.Diagnostics.ActivityKind"/>'s order exactly. We
+/// carry our own enum because <c>AgentPrism.Abstractions</c> must not leak the
+/// <c>System.Diagnostics.DiagnosticSource</c> type into its public surface.
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<TraceSpanKind>))]
 public enum TraceSpanKind
 {
-    /// <summary>Ic islem. Varsayilan.</summary>
+    /// <summary>An internal operation. The default.</summary>
     Internal = 0,
 
-    /// <summary>Gelen istegi karsilayan span.</summary>
+    /// <summary>The span handling an incoming request.</summary>
     Server = 1,
 
-    /// <summary>Disa giden cagriyi yapan span.</summary>
+    /// <summary>The span making an outgoing call.</summary>
     Client = 2,
 
-    /// <summary>Mesaj ureten span.</summary>
+    /// <summary>The span producing a message.</summary>
     Producer = 3,
 
-    /// <summary>Mesaj tuketen span.</summary>
+    /// <summary>The span consuming a message.</summary>
     Consumer = 4,
 }
 
-/// <summary>Bir span'in sonuc durumu. Veritabaninda <c>smallint</c>.</summary>
+/// <summary>A span's result status. <c>smallint</c> in the database.</summary>
 [JsonConverter(typeof(JsonStringEnumConverter<TraceSpanStatus>))]
 public enum TraceSpanStatus
 {
-    /// <summary>Durum bildirilmedi.</summary>
+    /// <summary>No status was reported.</summary>
     Unset = 0,
 
-    /// <summary>Islem basarili bitti.</summary>
+    /// <summary>The operation completed successfully.</summary>
     Ok = 1,
 
-    /// <summary>Islem hata verdi.</summary>
+    /// <summary>The operation failed.</summary>
     Error = 2,
 }
 
 /// <summary>
-/// Kalicilastirilmis tek bir OpenTelemetry span'i.
+/// A single persisted OpenTelemetry span.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="Id"/> ve <see cref="ParentId"/> degerleri W3C kimliklerinden
-/// <strong>turetilir</strong>, rastgele uretilmez. Sebep: bir span tamamlandiginda
-/// ebeveyni henuz tamamlanmamis olabilir ve ebeveynin veritabani kimligi
-/// bilinmez. Turetme (<c>trace_id</c> + <c>span_id</c> → SHA-256 → ilk 16 bayt)
-/// eslestirmeyi haritasiz ve sirasiz calisir hale getirir; ayni span iki kez
-/// yazilirsa da ayni kimlik uretilir.
+/// <see cref="Id"/> and <see cref="ParentId"/> are <strong>derived</strong>
+/// from the W3C identifiers, not randomly generated. Reason: when a span
+/// completes, its parent may not have completed yet, and the parent's
+/// database identifier is unknown. Deriving it (<c>trace_id</c> + <c>span_id</c>
+/// → SHA-256 → first 16 bytes) makes matching work without a map and without
+/// ordering; writing the same span twice also produces the same identifier.
 /// </para>
 /// <para>
-/// W3C kimlikleri <see cref="SpanId"/> alaninda ayrica saklanir: kullanicinin
-/// kendi APM sisteminde (Jaeger, Application Insights) ayni span'i bulabilmesi
-/// icin gereklidir.
+/// The W3C identifiers are stored separately in the <see cref="SpanId"/>
+/// field: this is needed so the user can find the same span in their own APM
+/// system (Jaeger, Application Insights).
 /// </para>
 /// </remarks>
 public sealed record TraceSpan
 {
-    /// <summary>Veritabani kimligi. W3C kimliklerinden turetilir.</summary>
+    /// <summary>The database identifier. Derived from the W3C identifiers.</summary>
     public required Guid Id { get; init; }
 
-    /// <summary>Ust span'in veritabani kimligi. Kok span'de <see langword="null"/>.</summary>
+    /// <summary>The parent span's database identifier. <see langword="null"/> for the root span.</summary>
     public Guid? ParentId { get; init; }
 
-    /// <summary>W3C span kimligi (16 karakterlik onaltilik).</summary>
+    /// <summary>The W3C span identifier (16-character hex).</summary>
     public required string SpanId { get; init; }
 
-    /// <summary>Span adi. Ornek: <c>chat gpt-5.4-mini</c>, <c>invoke_agent destek</c>.</summary>
+    /// <summary>The span name. Example: <c>chat gpt-5.4-mini</c>, <c>invoke_agent support</c>.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Span tipi.</summary>
+    /// <summary>The span kind.</summary>
     public TraceSpanKind Kind { get; init; }
 
-    /// <summary>Baslangic zamani (UTC).</summary>
+    /// <summary>The start time (UTC).</summary>
     public required DateTimeOffset StartedAt { get; init; }
 
-    /// <summary>Bitis zamani (UTC).</summary>
+    /// <summary>The end time (UTC).</summary>
     public DateTimeOffset? EndedAt { get; init; }
 
-    /// <summary>Sonuc durumu.</summary>
+    /// <summary>The result status.</summary>
     public TraceSpanStatus Status { get; init; }
 
     /// <summary>
-    /// Span oznitelikleri. GenAI semantic convention anahtarlari
-    /// (<c>gen_ai.request.model</c>, <c>gen_ai.usage.input_tokens</c>) burada gelir.
+    /// The span attributes. GenAI semantic convention keys
+    /// (<c>gen_ai.request.model</c>, <c>gen_ai.usage.input_tokens</c>) go here.
     /// </summary>
     public IReadOnlyDictionary<string, string> Attributes { get; init; } =
         new Dictionary<string, string>(StringComparer.Ordinal);
 
-    /// <summary>Span suresi. Span bitmemisse <see langword="null"/>.</summary>
+    /// <summary>The span's duration. <see langword="null"/> if the span has not ended.</summary>
     [JsonIgnore]
     public TimeSpan? Duration => EndedAt is { } ended ? ended - StartedAt : null;
 }
 
 /// <summary>
-/// Bir calistirmanin span agaci. Waterfall gorunumu bunun uzerine kurulur.
+/// A run's span tree. The waterfall view is built on top of this.
 /// </summary>
 public sealed record RunTrace
 {
-    /// <summary>Veritabani kimligi.</summary>
+    /// <summary>The database identifier.</summary>
     public required Guid Id { get; init; }
 
-    /// <summary>W3C trace kimligi (32 karakterlik onaltilik).</summary>
+    /// <summary>The W3C trace identifier (32-character hex).</summary>
     public required string TraceId { get; init; }
 
-    /// <summary>Iliskili calistirma. Calistirmasiz span'lerde <see langword="null"/>.</summary>
+    /// <summary>The associated run. <see langword="null"/> for spans without a run.</summary>
     public Guid? RunId { get; init; }
 
-    /// <summary>Kiraci kimligi.</summary>
+    /// <summary>The tenant identifier.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Ilk span'in baslangici (UTC).</summary>
+    /// <summary>The first span's start (UTC).</summary>
     public required DateTimeOffset StartedAt { get; init; }
 
-    /// <summary>Son span'in bitisi (UTC).</summary>
+    /// <summary>The last span's end (UTC).</summary>
     public DateTimeOffset? EndedAt { get; init; }
 
-    /// <summary>Span'ler; baslangic zamanina gore sirali.</summary>
+    /// <summary>The spans, ordered by start time.</summary>
     public IReadOnlyList<TraceSpan> Spans { get; init; } = [];
 }
