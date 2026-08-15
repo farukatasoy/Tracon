@@ -8,17 +8,17 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Yonetisim uclari: kiracilar, MCP sunuculari ve kalici tool onay kurallari.
+/// Governance endpoints: tenants, MCP servers, and persistent tool approval rules.
 /// </summary>
 /// <remarks>
-/// Uclarin tamami korumali gruptadir. Ozellikle MCP sunucusu eklemek, disaridan
-/// gelen tool tanimlarini kabul etmek demektir; bu uc bir guvenlik sinirdir.
+/// All endpoints are in the protected group. In particular, adding an MCP server
+/// means accepting tool definitions from an external source; this endpoint is a security boundary.
 /// </remarks>
 internal static class GovernanceEndpoints
 {
-    /// <summary>Yonetisim uclarini baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Maps the governance endpoints.</summary>
+    /// <param name="builder">The endpoint group.</param>
+    /// <param name="roles">The resolved role policies.</param>
     public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         MapTenants(builder, roles);
@@ -30,12 +30,12 @@ internal static class GovernanceEndpoints
     }
 
     /// <summary>
-    /// OAuth geri donus (callback) ucunu baglar. Diger yonetisim uclarindan
-    /// AYRI bir gruba baglanmalidir: saglayicinin yonlendirdigi tarayici
-    /// isteginde bizim bearer token'imiz olamaz — <c>state</c> parametresi
-    /// tek gecerli kimlik kanitidir (bolum 22.3).
+    /// Maps the OAuth callback endpoint. It must be mapped to a group SEPARATE
+    /// from the other governance endpoints: the browser request redirected by the
+    /// provider cannot carry our bearer token — the <c>state</c> parameter is the
+    /// only valid proof of identity (section 22.3).
     /// </summary>
-    /// <param name="builder">Bearer token denetiminden MUAF, loopback+policy'den GECEN uc grubu.</param>
+    /// <param name="builder">The endpoint group EXEMPT from bearer token checks, but subject to loopback+policy.</param>
     public static void MapMcpOAuthCallback(IEndpointRouteBuilder builder)
     {
         builder.MapGet("/api/mcp-servers/{name}/oauth/callback", async Task<ContentHttpResult> (
@@ -69,10 +69,10 @@ internal static class GovernanceEndpoints
             })
             .WithName("AgentPrismMcpOAuthCallback")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("OAuth saglayicisinin geri donus istegini isler.")
+            .WithSummary("Processes the OAuth provider's callback request.")
             .WithDescription(
-                "Bu uc erisim katmanlarinin disindadir: saglayicinin yonlendirdigi tarayici bizim " +
-                "bearer token'imizi tasiyamaz. Guvenlik, tek kullanimlik 'state' degerine dayanir.");
+                "This endpoint is outside the access layers: the browser redirected by the " +
+                "provider cannot carry our bearer token. Security relies on the single-use 'state' value.");
     }
 
     private static string DescribeOAuthFailure(McpOAuthCompleteResult result)
@@ -105,10 +105,10 @@ internal static class GovernanceEndpoints
             .RequireRole(roles.Reader)
             .WithName("AgentPrismCurrentTenant")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Gecerli istegin kiracisini dondurur.")
+            .WithSummary("Returns the current request's tenant.")
             .WithDescription(
-                "Kiraci istekten cozulur. Tek kiracili kurulumda her zaman varsayilan " +
-                "kiraci doner. Bu uc korumali gruptadir; /api/meta kiraci bilgisi tasimaz.");
+                "The tenant is resolved from the request. In a single-tenant setup, it always " +
+                "returns the default tenant. This endpoint is in the protected group; /api/meta does not carry tenant information.");
 
         builder.MapGet("/api/tenants", async Task<Ok<IReadOnlyList<TenantDescriptor>>> (
                 ITenantStore tenants,
@@ -118,11 +118,11 @@ internal static class GovernanceEndpoints
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismListTenants")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Kayitli kiracilari listeler.")
+            .WithSummary("Lists registered tenants.")
             .WithDescription(
-                "Kiraci kaydi ZORUNLU DEGILDIR. Diger tablolardaki tenant_id bu kaydin " +
-                "slug degeriyle ayni metindir ancak yabanci anahtarla baglanmaz; kaydi " +
-                "olmayan bir kiraci calisma aninda hata uretmez.");
+                "A tenant record is NOT REQUIRED. The tenant_id in other tables is the same " +
+                "text as this record's slug value, but it is not connected by a foreign key; " +
+                "a tenant with no record does not produce an error at runtime.");
 
         builder.MapPut("/api/tenants/{slug}", async Task<Results<Ok<TenantDescriptor>, ProblemHttpResult>> (
                 string slug,
@@ -165,7 +165,7 @@ internal static class GovernanceEndpoints
             .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismSaveTenant")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Bir kiraci kaydini ekler veya gunceller.")
+            .WithSummary("Adds or updates a tenant record.")
             .Accepts<TenantRequest>("application/json");
 
         builder.MapDelete("/api/tenants/{slug}", async Task<Results<NoContent, ProblemHttpResult>> (
@@ -182,8 +182,8 @@ internal static class GovernanceEndpoints
             .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
             .WithName("AgentPrismDeleteTenant")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Bir kiraci kaydini siler.")
-            .WithDescription("Yalnizca kayit silinir; kiracinin agent'lari, oturumlari ve calistirmalari kalir.");
+            .WithSummary("Deletes a tenant record.")
+            .WithDescription("Only the record is deleted; the tenant's agents, sessions, and runs remain.");
     }
 
     private static void MapMcpServers(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
@@ -198,10 +198,10 @@ internal static class GovernanceEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismListMcpServers")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Kayitli uzak MCP sunucularini listeler.")
+            .WithSummary("Lists registered remote MCP servers.")
             .WithDescription(
-                "Yanit SIR TASIMAZ: kimlik dogrulama degeri saklanmaz, yalnizca degerin " +
-                "okunacagi yapilandirma anahtarinin adi doner.");
+                "The response CARRIES NO SECRETS: the authentication value is not stored; " +
+                "only the name of the configuration key from which the value will be read is returned.");
 
         builder.MapPut("/api/mcp-servers/{name}", async Task<Results<Ok<McpServerDefinition>, ProblemHttpResult>> (
                 string name,
@@ -253,12 +253,12 @@ internal static class GovernanceEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismSaveMcpServer")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Bir uzak MCP sunucusu ekler veya gunceller.")
+            .WithSummary("Adds or updates a remote MCP server.")
             .Accepts<McpServerRequest>("application/json")
             .WithDescription(
-                "GUVENLIK SINIRI. MCP sunucusu eklemek, tool tanimlarini disaridan kabul " +
-                "etmek demektir. Yalnizca http/https adresleri kabul edilir; yerel surec " +
-                "(stdio) aktarimi desteklenmez. Tool'lar varsayilan olarak onay ister.");
+                "SECURITY BOUNDARY. Adding an MCP server means accepting tool definitions " +
+                "from an external source. Only http/https addresses are accepted; local process " +
+                "(stdio) transport is not supported. Tools require approval by default.");
 
         builder.MapDelete("/api/mcp-servers/{name}", async Task<Results<NoContent, ProblemHttpResult>> (
                 string name,
@@ -275,7 +275,7 @@ internal static class GovernanceEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismDeleteMcpServer")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Bir uzak MCP sunucusunu siler.");
+            .WithSummary("Deletes a remote MCP server.");
 
         builder.MapPost("/api/mcp-servers/refresh", async Task<Results<Ok<McpRefreshResponse>, ProblemHttpResult>> (
                 IMcpToolRefresher? refresher,
@@ -295,8 +295,8 @@ internal static class GovernanceEndpoints
 
                 var outcome = await refresher.RefreshAsync(cancellationToken).ConfigureAwait(false);
 
-                // Elle tazeleme, kayitli bir sunucuya yapilan yazma degildir; bu yuzden
-                // denetim izi burada, uc katmaninda yazilir.
+                // A manual refresh is not a write to a registered server; that is why
+                // the audit trail is written here, in the endpoint layer.
                 await AuditRecorder.WriteAsync(
                     auditLog,
                     actorResolver,
@@ -314,11 +314,11 @@ internal static class GovernanceEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
             .WithName("AgentPrismRefreshMcpTools")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Uzak MCP sunucularinin tool listesini simdi tazeler.")
+            .WithSummary("Refreshes the tool list of remote MCP servers now.")
             .WithDescription(
-                "Tazeleme normalde arka planda belirli araliklarla yapilir. Bu uc, yeni " +
-                "eklenen bir sunucunun tool'larinin bir sonraki tazelemeyi beklemeden " +
-                "gorunmesi icindir.");
+                "The refresh normally happens in the background at fixed intervals. This endpoint " +
+                "lets the tools of a newly added server appear without waiting for the next " +
+                "scheduled refresh.");
     }
 
     private static void MapMcpPrompts(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
@@ -348,8 +348,8 @@ internal static class GovernanceEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismListMcpPrompts")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Bir MCP sunucusunun prompt listesini getirir.")
-            .WithDescription("Sunucu 'prompts' yetenegini bildirmiyorsa istek hic gonderilmez.");
+            .WithSummary("Gets an MCP server's prompt list.")
+            .WithDescription("If the server does not advertise the 'prompts' capability, the request is never sent.");
 
         builder.MapPost("/api/mcp-servers/{name}/prompts/{prompt}", async Task<Results<Ok<McpPromptContent>, ProblemHttpResult>> (
                 string name,
@@ -390,11 +390,11 @@ internal static class GovernanceEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismGetMcpPrompt")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Bir MCP prompt'unun icerigini argumanlarla cozer.")
+            .WithSummary("Resolves an MCP prompt's content with arguments.")
             .Accepts<McpPromptArgumentsRequest>(true, "application/json")
             .WithDescription(
-                "Donen icerik ANLIK GORUNTUDUR: agent talimatina kopyalanmasi gerekir, calisma " +
-                "aninda yeniden cekilmez (bolum 22.1). 'hash' alani sunucudaki degisimi izlemek icindir.");
+                "The returned content is a SNAPSHOT: it must be copied into the agent's instructions; " +
+                "it is not re-fetched at runtime (section 22.1). The 'hash' field is for tracking changes on the server.");
     }
 
     private static void MapMcpResources(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
@@ -424,8 +424,8 @@ internal static class GovernanceEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismListMcpResources")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Bir MCP sunucusunun kaynak listesini getirir.")
-            .WithDescription("Sunucu 'resources' yetenegini bildirmiyorsa istek hic gonderilmez.");
+            .WithSummary("Gets an MCP server's resource list.")
+            .WithDescription("If the server does not advertise the 'resources' capability, the request is never sent.");
 
         builder.MapGet("/api/mcp-servers/{name}/resources/read", async Task<Results<Ok<McpResourceContent>, ProblemHttpResult>> (
                 string name,
@@ -457,10 +457,10 @@ internal static class GovernanceEndpoints
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismReadMcpResource")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Bir MCP kaynagini okur.")
+            .WithSummary("Reads an MCP resource.")
             .WithDescription(
-                "Yalniz sunucunun ListResourcesAsync ile bildirdigi URI'ler kabul edilir; " +
-                "serbest URI SSRF riski tasidigi icin reddedilir (bolum 22.2).");
+                "Only URIs advertised by the server's ListResourcesAsync are accepted; " +
+                "an arbitrary URI is rejected because it carries an SSRF risk (section 22.2).");
     }
 
     private static void MapMcpOAuthStart(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
@@ -498,10 +498,10 @@ internal static class GovernanceEndpoints
             .RequireApiKeyScope(ApiKeyScope.SecurityAdmin)
             .WithName("AgentPrismStartMcpOAuth")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Bir MCP sunucusu icin OAuth yetkilendirme akisini baslatir.")
+            .WithSummary("Starts the OAuth authorization flow for an MCP server.")
             .WithDescription(
-                "Donen 'authorizationUri' adresine yonetici yonlendirilir. Saglayici onaydan sonra " +
-                "'/oauth/callback' ucuna doner; bu uc CSRF korumasi icin 'state' degerini kullanir.");
+                "The administrator is redirected to the returned 'authorizationUri'. After approval, " +
+                "the provider redirects back to the '/oauth/callback' endpoint; that endpoint uses the 'state' value for CSRF protection.");
     }
 
     private static ProblemHttpResult McpNotRegisteredProblem()
@@ -551,7 +551,7 @@ internal static class GovernanceEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListApprovalRules")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Kalici 'bir daha sorma' onay kurallarini listeler.");
+            .WithSummary("Lists persistent 'don't ask again' approval rules.");
 
         builder.MapDelete("/api/approvals/rules/{ruleId:guid}", async Task<Results<NoContent, ProblemHttpResult>> (
                 Guid ruleId,
@@ -568,8 +568,8 @@ internal static class GovernanceEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismDeleteApprovalRule")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Bir kalici onay kuralini geri alir.")
-            .WithDescription("Kural silindikten sonra o tool icin onay yeniden sorulur.");
+            .WithSummary("Revokes a persistent approval rule.")
+            .WithDescription("After the rule is deleted, approval is asked again for that tool.");
     }
 
     private static ProblemHttpResult? Validate(string name, McpServerRequest request)
@@ -590,8 +590,8 @@ internal static class GovernanceEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        // Yerel surec (stdio) aktarimi bilerek desteklenmez: sunucuda surec
-        // baslatmak, arayuze erisen birinin sunucuda program calistirmasi demektir.
+        // Local process (stdio) transport is deliberately unsupported: starting a
+        // process on the server would mean anyone with UI access could run programs on the server.
         if (!string.Equals(endpoint.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
             && !string.Equals(endpoint.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase))
         {

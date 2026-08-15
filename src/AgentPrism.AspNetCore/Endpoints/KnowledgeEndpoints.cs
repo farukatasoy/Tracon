@@ -6,18 +6,18 @@ using Microsoft.AspNetCore.Routing;
 namespace AgentPrism;
 
 /// <summary>
-/// Bilgi tabani yonetimi: belge yukleme, listeleme, silme ve anlamsal arama (Faz 51).
+/// Knowledge base management: document upload, listing, deletion, and semantic search (Phase 51).
 /// </summary>
 /// <remarks>
-/// Belge yonetimi bir <strong>yonetim</strong> islemidir, agent'in kendi isi degildir
-/// (bkz. <c>docs/51-VEKTOR-BELLEK-VE-RAG.md</c>, 51.6). <see cref="KnowledgeIngestionService.IsSupported"/>
-/// <see langword="false"/> iken her uc <c>501</c> doner; sessizce bos sonuc DONMEZ.
+/// Document management is an <strong>administrative</strong> operation, not the agent's own job
+/// (see <c>docs/51-VEKTOR-BELLEK-VE-RAG.md</c>, 51.6). While <see cref="KnowledgeIngestionService.IsSupported"/>
+/// is <see langword="false"/>, every endpoint returns <c>501</c>; it does NOT silently return an empty result.
 /// </remarks>
 internal static class KnowledgeEndpoints
 {
-    /// <summary>Bilgi tabani uclarini baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Maps the knowledge base endpoints.</summary>
+    /// <param name="builder">The endpoint group.</param>
+    /// <param name="roles">The resolved role policies.</param>
     public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapPost("/api/knowledge/{collection}/documents", UploadAsync)
@@ -25,11 +25,11 @@ internal static class KnowledgeEndpoints
             .RequireApiKeyScope(ApiKeyScope.KnowledgeAdmin)
             .WithName("AgentPrismUploadKnowledgeDocument")
             .WithTags("AgentPrism", "Knowledge")
-            .WithSummary("Bir belgeyi bilgi tabanina yukler.")
+            .WithSummary("Uploads a document to the knowledge base.")
             .Accepts<UploadDocumentRequest>("application/json")
             .WithDescription(
-                "Govde ya 'text' (sunucu parcalar ve gomuler) ya 'chunks' (hazir parcalar) tasir. " +
-                "Yalniz PostgreSQL: UsePostgreSql() ve bir IEmbeddingGenerator kayitli olmalidir.")
+                "The body carries either 'text' (the server chunks and embeds it) or 'chunks' " +
+                "(pre-chunked). PostgreSQL only: UsePostgreSql() and an IEmbeddingGenerator must be registered.")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status501NotImplemented);
 
@@ -38,7 +38,7 @@ internal static class KnowledgeEndpoints
             .RequireApiKeyScope(ApiKeyScope.KnowledgeRead)
             .WithName("AgentPrismListKnowledgeDocuments")
             .WithTags("AgentPrism", "Knowledge")
-            .WithSummary("Bir koleksiyondaki kaynaklari listeler.")
+            .WithSummary("Lists the sources in a collection.")
             .ProducesProblem(StatusCodes.Status501NotImplemented);
 
         builder.MapDelete("/api/knowledge/{collection}/documents/{sourceId}", DeleteAsync)
@@ -46,7 +46,7 @@ internal static class KnowledgeEndpoints
             .RequireApiKeyScope(ApiKeyScope.KnowledgeAdmin)
             .WithName("AgentPrismDeleteKnowledgeDocument")
             .WithTags("AgentPrism", "Knowledge")
-            .WithSummary("Bir kaynagin tum parcalarini siler.")
+            .WithSummary("Deletes all chunks of a source.")
             .ProducesProblem(StatusCodes.Status501NotImplemented);
 
         builder.MapPost("/api/knowledge/{collection}/search", SearchAsync)
@@ -54,7 +54,7 @@ internal static class KnowledgeEndpoints
             .RequireApiKeyScope(ApiKeyScope.KnowledgeRead)
             .WithName("AgentPrismSearchKnowledge")
             .WithTags("AgentPrism", "Knowledge")
-            .WithSummary("Bir koleksiyonda anlamsal arama yapar (teshis ve kalibrasyon icin).")
+            .WithSummary("Performs a semantic search in a collection (for diagnostics and calibration).")
             .Accepts<SearchKnowledgeRequest>("application/json")
             .ProducesProblem(StatusCodes.Status501NotImplemented);
     }
@@ -185,9 +185,9 @@ internal static class KnowledgeEndpoints
         => TypedResults.Problem(title: "Invalid request", detail: detail, statusCode: StatusCodes.Status400BadRequest);
 
     /// <summary>
-    /// <see cref="ArgumentException.Message"/>'in <see cref="ArgumentException.ParamName"/>
-    /// doluyken otomatik ekledigi <c>" (Parameter 'x')"</c> sonekini atar — ic
-    /// .NET parametre adi dis API sozlesmesine sizmasin diye.
+    /// Strips the <c>" (Parameter 'x')"</c> suffix that <see cref="ArgumentException.Message"/>
+    /// automatically appends when <see cref="ArgumentException.ParamName"/> is set — so the
+    /// internal .NET parameter name does not leak into the external API contract.
     /// </summary>
     private static string CleanMessage(ArgumentException ex)
     {

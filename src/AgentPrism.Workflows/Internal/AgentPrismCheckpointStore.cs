@@ -5,26 +5,25 @@ using Microsoft.Agents.AI.Workflows.Checkpointing;
 namespace AgentPrism;
 
 /// <summary>
-/// Microsoft Agent Framework'un kontrol noktasi deposunu AgentPrism'in
-/// <see cref="IWorkflowCheckpointStore"/> sozlesmesine baglar.
+/// Adapts the Microsoft Agent Framework checkpoint store to AgentPrism's
+/// <see cref="IWorkflowCheckpointStore"/> contract.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Uyarlama <strong>bu pakette</strong> yasar. Sebep: kontrol noktasi deposu
-/// <c>AgentPrism.PostgreSql</c> icindedir ve o paket workflow motorunun
-/// tiplerini gormemelidir. Sozlesme <see cref="JsonElement"/> ile ifade edilir,
-/// MAF tipine cevrim yalnizca burada yapilir.
+/// The adapter lives <strong>in this package</strong>. Reason: the checkpoint
+/// store is in <c>AgentPrism.PostgreSql</c>, and that package must not see the
+/// workflow engine's types. The contract is expressed with
+/// <see cref="JsonElement"/>; the conversion to the MAF type happens only here.
 /// </para>
 /// <para>
-/// 🚨 <strong>Kontrol noktasi kimligini AgentPrism uretir.</strong> MAF bir
-/// <see cref="CheckpointInfo"/> bekler ve icerigi bizim kararimizdir; zaman
-/// sirali bir UUID kullanmak, listenin dogal siralamasini kimligin kendisine
-/// tasir.
+/// 🚨 <strong>AgentPrism generates the checkpoint id.</strong> MAF expects a
+/// <see cref="CheckpointInfo"/> and its content is our own decision; using a
+/// time-ordered UUID moves the list's natural ordering into the id itself.
 /// </para>
 /// <para>
-/// Kiraci ve calistirma kimligi <em>ortam kapsamindan</em> okunur: MAF'in
-/// yazma cagrisi hicbir baglam parametresi tasimaz. Ayni cozum Faz 14'te
-/// <c>PostgresAgentFileStore</c> icin yapilmisti (K-114).
+/// The tenant and run id are read from the <em>ambient scope</em>: MAF's write
+/// call carries no context parameter. The same solution was used for
+/// <c>PostgresAgentFileStore</c> in phase 14 (K-114).
 /// </para>
 /// </remarks>
 internal sealed class AgentPrismCheckpointStore : ICheckpointStore<JsonElement>
@@ -32,10 +31,10 @@ internal sealed class AgentPrismCheckpointStore : ICheckpointStore<JsonElement>
     private readonly IWorkflowCheckpointStore _store;
     private readonly ITenantContext _tenantContext;
 
-    /// <summary>Yeni bir uyarlama olusturur.</summary>
-    /// <param name="store">AgentPrism kontrol noktasi deposu.</param>
-    /// <param name="tenantContext">Kiraci baglami.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new adapter.</summary>
+    /// <param name="store">The AgentPrism checkpoint store.</param>
+    /// <param name="tenantContext">The tenant context.</param>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public AgentPrismCheckpointStore(IWorkflowCheckpointStore store, ITenantContext tenantContext)
     {
         ArgumentNullException.ThrowIfNull(store);
@@ -82,9 +81,10 @@ internal sealed class AgentPrismCheckpointStore : ICheckpointStore<JsonElement>
             .ReadAsync(tenantId, sessionId, key.CheckpointId, CancellationToken.None)
             .ConfigureAwait(false);
 
-        // Kiraci eslesmezse depo null doner ve buraya "bulunamadi" olarak gelir.
-        // Mesajda kiracidan soz EDILMEZ: baska bir kiracinin kontrol noktasinin
-        // var oldugu bilgisi de sizdirilmamalidir.
+        // When the tenant does not match, the store returns null and this
+        // surfaces as "not found". The message does NOT mention the tenant:
+        // even the knowledge that another tenant's checkpoint exists must not
+        // leak.
         return state ?? throw new AgentPrismException(
             $"Checkpoint '{key.CheckpointId}' was not found.");
     }
@@ -98,9 +98,9 @@ internal sealed class AgentPrismCheckpointStore : ICheckpointStore<JsonElement>
 
         var records = await _store.ListAsync(tenantId, sessionId, CancellationToken.None).ConfigureAwait(false);
 
-        // Ebeveyn filtresi bellekte uygulanir: bir oturumun kontrol noktalari
-        // MaxSuperSteps ile sinirlidir ve ayri bir sorgu yolu acmak, iki depo
-        // uygulamasinda da tekrarlanacak bir sutun filtresi demekti.
+        // The parent filter is applied in memory: a session's checkpoints are
+        // bounded by MaxSuperSteps, and opening a separate query path would
+        // mean repeating the same column filter in both store implementations.
         var filtered = withParent is null
             ? records
             : [.. records.Where(record =>

@@ -5,19 +5,20 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Microsoft Agent Framework workflow olaylarini AgentPrism olay taslaklarina cevirir.
+/// Converts Microsoft Agent Framework workflow events into AgentPrism event drafts.
 /// </summary>
 /// <remarks>
-/// 🚨 <strong>Dal sirasi onemlidir.</strong> <c>AgentResponseEvent</c> ve
-/// <c>AgentResponseUpdateEvent</c>, <c>WorkflowOutputEvent</c>'ten
-/// <em>turer</em> (Faz 15'te olculdu). Genel dal once yazilirsa agent yanitlari
-/// "workflow cikti uretti" diye siniflanir ve gercek cikti kaybolur.
+/// 🚨 <strong>Branch order matters.</strong> <c>AgentResponseEvent</c> and
+/// <c>AgentResponseUpdateEvent</c> <em>derive from</em> <c>WorkflowOutputEvent</c>
+/// (measured in phase 15). If the general branch is matched first, agent
+/// responses are classified as "the workflow produced output" and the real
+/// output is lost.
 /// </remarks>
 internal static class WorkflowEventMapper
 {
-    /// <summary>Bir MAF olayini AgentPrism olay taslagina cevirir.</summary>
-    /// <param name="workflowEvent">Cevrilecek olay.</param>
-    /// <returns>Cevrim sonucu.</returns>
+    /// <summary>Converts a single MAF event into an AgentPrism event draft.</summary>
+    /// <param name="workflowEvent">The event to convert.</param>
+    /// <returns>The conversion result.</returns>
     public static WorkflowEventMapping Map(WorkflowEvent workflowEvent)
     {
         ArgumentNullException.ThrowIfNull(workflowEvent);
@@ -26,15 +27,15 @@ internal static class WorkflowEventMapper
         {
             WorkflowStartedEvent => new RunEventDraft(RunEventType.WorkflowStarted),
 
-            // Agent yanitlari WorkflowOutputEvent'ten TUREDIGI icin once eslenir.
+            // Agent responses are matched FIRST because they DERIVE FROM WorkflowOutputEvent.
             AgentResponseUpdateEvent update => new RunEventDraft(RunEventType.MessageDelta)
             {
                 Text = update.Update?.Text,
                 ToolName = update.ExecutorId,
             },
 
-            // Akisli calistirmada guncelleme olaylari zaten metni tasir; tam
-            // yanit olayi ayrica yazilirsa ayni metin akista iki kez gorunur.
+            // In a streaming run the update events already carry the text; writing
+            // the full response event too would show the same text twice in the stream.
             AgentResponseEvent => WorkflowEventMapping.Skipped,
 
             SuperStepStartedEvent started => new RunEventDraft(RunEventType.SuperStepStarted)
@@ -65,9 +66,9 @@ internal static class WorkflowEventMapper
                 Text = completed.ExecutorId,
             },
 
-            // Yuk, istegi arayuzde gostermeye yeter: port, tipler, metin ve
-            // hangi girdi alaninin sorulacagi. Bekleyen istekler bu olaydan
-            // okunur; ayri bir tablo yoktur (Faz 16).
+            // The payload is enough to show the request in the UI: port, types,
+            // text, and which input field is being asked for. Pending requests
+            // are read from this event; there is no separate table (phase 16).
             RequestInfoEvent request => new RunEventDraft(RunEventType.WorkflowRequest)
             {
                 Text = request.Request.RequestId,
@@ -95,14 +96,15 @@ internal static class WorkflowEventMapper
         };
     }
 
-    /// <summary>Bir cikti olayindaki metni cikarir.</summary>
-    /// <param name="output">Cikti olayi.</param>
-    /// <returns>Okunabilir metin; cikarilamiyorsa tip adi.</returns>
+    /// <summary>Extracts the text carried by an output event.</summary>
+    /// <param name="output">The output event.</param>
+    /// <returns>Readable text; the type name if none can be extracted.</returns>
     /// <remarks>
-    /// Hazir desenlerin tamami <c>List&lt;ChatMessage&gt;</c> uretir (Faz 15'te
-    /// olculdu). Kodda tanimli serbest bir graf baska bir tip dondurebilir; o
-    /// durumda yalnizca tip adi yazilir - bilinmeyen bir yuku <c>ToString()</c>
-    /// ile olay tablosuna dokmek, tabloyu sisirirdi.
+    /// Every ready-made pattern produces a <c>List&lt;ChatMessage&gt;</c>
+    /// (measured in phase 15). A free-form graph defined in code may return a
+    /// different type; in that case only the type name is written - dumping an
+    /// unknown payload into the event table with <c>ToString()</c> would bloat
+    /// the table.
     /// </remarks>
     public static string? DescribeOutput(WorkflowOutputEvent output)
     {
@@ -138,23 +140,23 @@ internal static class WorkflowEventMapper
             : string.Join(", ", values.OrderBy(static value => value, StringComparer.Ordinal));
 }
 
-/// <summary>Bir workflow olayinin cevrim sonucu.</summary>
-/// <param name="Draft">Yazilacak olay taslagi. Olay atlandiysa <see langword="null"/>.</param>
+/// <summary>The conversion result of a workflow event.</summary>
+/// <param name="Draft">The event draft to write. <see langword="null"/> if the event was skipped.</param>
 /// <param name="IsKnown">
-/// Olay tipi taniniyor mu. <see langword="false"/> olan bir olay <strong>sessizce
-/// dusurulmez</strong>, cagiran tarafindan loglanir: Microsoft Agent Framework
-/// yeni bir olay tipi ekledigi gun bunun fark edilmemesi, hata ayiklamayi
-/// imkansizlastirirdi.
+/// Whether the event type is recognized. An event where this is
+/// <see langword="false"/> is <strong>not dropped silently</strong>; the
+/// caller logs it: if Microsoft Agent Framework adds a new event type one day,
+/// missing that would make debugging impossible.
 /// </param>
 internal readonly record struct WorkflowEventMapping(RunEventDraft? Draft, bool IsKnown)
 {
-    /// <summary>Taninan ama olay akisina yazilmayan bir olay.</summary>
+    /// <summary>A recognized event that is not written to the event stream.</summary>
     public static WorkflowEventMapping Skipped { get; } = new(null, IsKnown: true);
 
-    /// <summary>Taninmayan bir olay.</summary>
+    /// <summary>An unrecognized event.</summary>
     public static WorkflowEventMapping Unknown { get; } = new(null, IsKnown: false);
 
-    /// <summary>Bir taslagi taninan bir cevrim sonucuna donusturur.</summary>
-    /// <param name="draft">Olay taslagi.</param>
+    /// <summary>Converts a draft into a recognized conversion result.</summary>
+    /// <param name="draft">The event draft.</param>
     public static implicit operator WorkflowEventMapping(RunEventDraft draft) => new(draft, IsKnown: true);
 }

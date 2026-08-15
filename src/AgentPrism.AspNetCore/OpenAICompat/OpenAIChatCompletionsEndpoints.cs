@@ -10,25 +10,28 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// OpenAI Chat Completions API ile uyumlu calistirma ucu.
+/// Run endpoint compatible with the OpenAI Chat Completions API.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Bu uc durumsuzdur.</strong> Chat Completions sozlesmesinde konusma
-/// gecmisini istemci tasir: her istek tum mesaj listesini gonderir. Bu yuzden
-/// oturum acilmaz ve sohbet gecmisi saglayicisi devreye girmez; aksi halde gecmis
-/// iki kez yonetilir ve mesajlar cift gorunurdu.
+/// <strong>This endpoint is stateless.</strong> In the Chat Completions
+/// contract the client carries the conversation history: every request sends
+/// the full message list. No session is therefore opened and the chat history
+/// provider does not get involved; otherwise history would be managed twice
+/// and messages would appear duplicated.
 /// </para>
 /// <para>
-/// <c>Microsoft.Agents.AI.Hosting.OpenAI</c> paketi Responses API'si icin public
-/// bir yazici yardimcisi (<c>OpenAIResponses</c>) sunar, Chat Completions icin
-/// sunmaz — o yoldaki tum model tipleri internal'dir. Bu yuzden kablo bicimi
-/// burada elle uretilir. Bicim OpenAI tarafindan belgelenmis ve kararlidir.
+/// The <c>Microsoft.Agents.AI.Hosting.OpenAI</c> package offers a public
+/// writer helper (<c>OpenAIResponses</c>) for the Responses API, but not for
+/// Chat Completions — every model type on that path is internal. The wire
+/// format is therefore hand-produced here. The format is documented by OpenAI
+/// and stable.
 /// </para>
 /// <para>
-/// Tool cagrilari yanitta <strong>gorunmez</strong>: tool dongusu sunucu tarafinda
-/// Microsoft Agent Framework icinde tamamlanir, istemciye yalnizca sonuc metni doner.
-/// Tool ayrintilarini gormek icin yonetim API'sindeki calistirma olaylari kullanilir.
+/// Tool calls are <strong>invisible</strong> in the response: the tool loop
+/// completes server-side inside Microsoft Agent Framework, and only the
+/// resulting text is returned to the client. Use the management API's run
+/// events to see tool details.
 /// </para>
 /// </remarks>
 internal static class OpenAIChatCompletionsEndpoints
@@ -36,10 +39,10 @@ internal static class OpenAIChatCompletionsEndpoints
     private const string ObjectCompletion = "chat.completion";
     private const string ObjectChunk = "chat.completion.chunk";
 
-    /// <summary>Chat Completions ucunu baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
-    /// <param name="idempotencyFilter">Faz 43 — <c>Idempotency-Key</c> destegi.</param>
+    /// <summary>Connects the Chat Completions endpoint.</summary>
+    /// <param name="builder">Endpoint group.</param>
+    /// <param name="roles">Resolved role policies.</param>
+    /// <param name="idempotencyFilter">Phase 43 — <c>Idempotency-Key</c> support.</param>
     public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles, IdempotencyFilter idempotencyFilter)
     {
         builder.MapPost("/v1/chat/completions", HandleAsync)
@@ -48,16 +51,17 @@ internal static class OpenAIChatCompletionsEndpoints
             .AddEndpointFilter(idempotencyFilter)
             .WithName("AgentPrismOpenAIChatCompletions")
             .WithTags("AgentPrism", "OpenAI")
-            .WithSummary("OpenAI Chat Completions API ile uyumlu calistirma ucu.")
+            .WithSummary("Run endpoint compatible with the OpenAI Chat Completions API.")
             .WithDescription(
-                "Durumsuzdur: gecmisi istemci tasir. Agent, 'model' alanindan secilir; " +
-                "bulunamazsa 'metadata.entity_id' denenir.")
-            // Govdedeki 'stream' bayragina gore ikisinden biri. Ayni statu kodu
-            // icin IKINCI bir .Produces cagrisi BIRINCIYI EZER (olculdu); ikisi
-            // tek cagriya additionalContentTypes ile yazilmalidir. Akisli yolda
-            // gercek govde ChatCompletionChunk'tir; sema burada ChatCompletion'a
-            // yaklastirilir (ASP.NET Core'un metadata modeli ayni statu icin iki
-            // farkli tipi ifade edemez).
+                "Stateless: the client carries history. The agent is selected from the " +
+                "'model' field; if not found, 'metadata.entity_id' is tried.")
+            // One of two shapes, depending on the 'stream' flag in the body.
+            // For the same status code, a SECOND .Produces call OVERWRITES the
+            // FIRST (measured); the two must be written in a single call using
+            // additionalContentTypes. On the streaming path the real body is a
+            // ChatCompletionChunk; the schema here is approximated to
+            // ChatCompletion (ASP.NET Core's metadata model cannot express two
+            // different types for the same status).
             .Produces<ChatCompletion>(
                 StatusCodes.Status200OK,
                 contentType: "application/json",
@@ -127,7 +131,7 @@ internal static class OpenAIChatCompletionsEndpoints
 
         try
         {
-            // Oturum bilerek verilmiyor: Chat Completions durumsuzdur.
+            // The session is deliberately not passed: Chat Completions is stateless.
             var response = await agent
                 .RunAsync(messages, session: null, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
@@ -149,22 +153,23 @@ internal static class OpenAIChatCompletionsEndpoints
         }
         catch (Exception ex)
         {
-            // 🚨 HATA-S2-003/HATA-S3-005: K-296'nin duzeltmesi yalniz akisli varyanti
-            // (ChatCompletionsStream asagida) kapsamis, bu akissiz kardes yolu
-            // KACIRMIS. Dar bir 'when' filtresi (yalniz AgentPrismException/
-            // InvalidOperationException/HttpRequestException) gercek saglayici SDK
-            // istisnalarini yakalamadan kacirir ve ASP.NET Core'un genel isleyicisine
-            // sizip ciplak 500 uretirdi. Burada yakalanmayan HICBIR sey yoktur.
+            // 🚨 HATA-S2-003/HATA-S3-005: K-296's fix covered only the streaming
+            // variant (ChatCompletionsStream below); it MISSED this non-streaming
+            // sibling path. A narrow 'when' filter (only AgentPrismException/
+            // InvalidOperationException/HttpRequestException) would let real
+            // provider SDK exceptions slip through uncaught and leak into
+            // ASP.NET Core's generic handler, producing a bare 500. Nothing goes
+            // uncaught here.
             return OpenAICompatSupport.Error(StatusCodes.Status502BadGateway, ex.Message, type: "upstream_error");
         }
     }
 
     /// <summary>
-    /// <c>messages</c> dizisini <see cref="ChatMessage"/> listesine cevirir.
+    /// Converts the <c>messages</c> array into a <see cref="ChatMessage"/> list.
     /// </summary>
     /// <remarks>
-    /// Icerik hem duz metin hem de <c>{"type":"text","text":"..."}</c> parcalari
-    /// bicimindeki dizi olabilir; OpenAI SDK'lari ikisini de uretir.
+    /// Content can be either plain text or an array of
+    /// <c>{"type":"text","text":"..."}</c> parts; OpenAI SDKs produce both.
     /// </remarks>
     private static bool TryReadMessages(
         JsonElement body,
@@ -247,7 +252,7 @@ internal static class OpenAIChatCompletionsEndpoints
     private static ChatRole ToChatRole(string role) => role switch
     {
         "system" => ChatRole.System,
-        // OpenAI "developer" rolunu "system" yerine gecen yeni ad olarak kullaniyor.
+        // OpenAI uses the "developer" role as the new name replacing "system".
         "developer" => ChatRole.System,
         "assistant" => ChatRole.Assistant,
         "tool" => ChatRole.Tool,
@@ -262,7 +267,7 @@ internal static class OpenAIChatCompletionsEndpoints
                 usage.OutputTokenCount ?? 0,
                 usage.TotalTokenCount ?? 0);
 
-    /// <summary>Akisli Chat Completions yanitini yazar.</summary>
+    /// <summary>Writes the streaming Chat Completions response.</summary>
     private sealed class ChatCompletionsStream(
         AIAgent agent,
         List<ChatMessage> messages,
@@ -296,18 +301,19 @@ internal static class OpenAIChatCompletionsEndpoints
                 await WriteChunkAsync(writer, new ChatDelta(null, null), "stop", created, cancellationToken)
                     .ConfigureAwait(false);
 
-                // OpenAI akisi bu sabit isaretle biter; SDK'lar bunu bekler.
+                // The OpenAI stream ends with this fixed marker; SDKs expect it.
                 await writer.WriteRawAsync("data: [DONE]\n\n", cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
-                // Istemci baglantiyi kesti.
+                // The client disconnected.
             }
             catch (Exception ex)
             {
-                // 🚨 K-296 (bkz. AgentEndpoints.ExecuteStreamingAsync): dar bir istisna
-                // filtresi gercek saglayici SDK istisnalarini kacirip baglantiyi 'error'
-                // cercevesi UretMEDEN kapatirdi. Burada HER istisna bir cerceveye donusur.
+                // 🚨 K-296 (see AgentEndpoints.ExecuteStreamingAsync): a narrow
+                // exception filter would let real provider SDK exceptions slip
+                // through and close the connection WITHOUT producing an 'error'
+                // frame. Here EVERY exception turns into a frame.
                 var payload = JsonSerializer.Serialize(
                     new ChatStreamError(new ChatStreamErrorBody(ex.Message, "upstream_error")),
                     OpenAICompatSupport.JsonOptions);

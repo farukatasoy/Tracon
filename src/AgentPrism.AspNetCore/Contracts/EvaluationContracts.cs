@@ -2,73 +2,75 @@ using System.Text.Json;
 
 namespace AgentPrism;
 
-/// <summary>Bir eval takimi olusturma/guncelleme istegi.</summary>
-/// <remarks>Ad <em>yoldan</em> gelir, govdeden degil — <see cref="JobScheduleSaveRequest"/> ile ayni gerekce.</remarks>
+/// <summary>Request to create/update an eval suite.</summary>
+/// <remarks>The name comes from the <em>path</em>, not the body — same rationale as <see cref="JobScheduleSaveRequest"/>.</remarks>
 public sealed record EvalSuiteSaveRequest
 {
-    /// <summary>Kisa aciklama.</summary>
+    /// <summary>Short description.</summary>
     public string? Description { get; init; }
 
-    /// <summary>Bu takimin olctugu agent'in adi.</summary>
+    /// <summary>Name of the agent this suite measures.</summary>
     public required string AgentName { get; init; }
 
-    /// <summary>Denetim tanimlari. Bkz. <see cref="EvalSuite.Checks"/>.</summary>
+    /// <summary>Check definitions. See <see cref="EvalSuite.Checks"/>.</summary>
     public JsonElement Checks { get; init; }
 }
 
-/// <summary>Bir eval vakasinin girdi bicimi (istekte).</summary>
+/// <summary>Input shape of an eval case (in a request).</summary>
 public sealed record EvalCaseInput
 {
-    /// <summary>Agent'a gonderilecek sorgu metni.</summary>
+    /// <summary>Query text to send to the agent.</summary>
     public required string Query { get; init; }
 
-    /// <summary>Beklenen cikti.</summary>
+    /// <summary>Expected output.</summary>
     public string? ExpectedOutput { get; init; }
 
-    /// <summary><c>toolCalled</c> denetiminde aranan tool adlari.</summary>
+    /// <summary>Tool names looked for by the <c>toolCalled</c> check.</summary>
     public IReadOnlyList<string> ExpectedTools { get; init; } = [];
 
-    /// <summary>Modele ek baglam olarak verilecek metin.</summary>
+    /// <summary>Text to give the model as extra context.</summary>
     public string? Context { get; init; }
 }
 
-/// <summary>Bir eval kosusunu hemen tetikleme istegi.</summary>
+/// <summary>Request to trigger an eval run immediately.</summary>
 public sealed record EvalRunTriggerRequest
 {
     /// <summary>
-    /// Bu kosu icin kaydedilecek model kimligi. Verilmezse agent'in guncel
-    /// tanimindaki model kullanilir.
+    /// Model identifier to record for this run. If not given, the model in
+    /// the agent's current definition is used.
     /// </summary>
     public string? ModelId { get; init; }
 
     /// <summary>
-    /// Her vakanin kararliligini olcmek icin kac kez tekrarlanacagi. Verilmezse 1.
+    /// Number of times to repeat each case to measure its stability. If not
+    /// given, 1.
     /// </summary>
     public int? NumRepetitions { get; init; }
 
     /// <summary>
-    /// Bu kosu icin olculecek tanim surumu. Verilmezse agent'in guncel surumu
-    /// kullanilir. Kod kaynakli agent'larda (surum gecmisi yok) 400 ile reddedilir.
+    /// Definition version to measure for this run. If not given, the agent's
+    /// current version is used. Rejected with 400 for code-sourced agents (no
+    /// version history).
     /// </summary>
     public int? AgentVersion { get; init; }
 }
 
-/// <summary>Bir calistirmayi vakaya terfi etme istegi (Faz 45, F-53).</summary>
+/// <summary>Request to promote a run to a case (Phase 45, F-53).</summary>
 public sealed record EvalCasePromotionRequest
 {
     /// <summary>
-    /// Terfi sebebini ezer. Verilmezse calistirmanin durumundan ve puanindan
-    /// kendiliginden turetilir.
+    /// Overrides the promotion reason. If not given, it is derived
+    /// automatically from the run's status and score.
     /// </summary>
     public EvalCaseSource? SourceKind { get; init; }
 }
 
-/// <summary>Tek bir eval kosusunun ayrintili gorunumu: ozet ve vaka sonuclari birlikte.</summary>
+/// <summary>Detailed view of a single eval run: summary and case results together.</summary>
 public sealed record EvalRunDetailResponse
 {
-    /// <summary>Kosu ozeti.</summary>
+    /// <summary>Run summary.</summary>
     public required EvalRun Run { get; init; }
 
-    /// <summary>Vaka bazinda sonuclar.</summary>
+    /// <summary>Per-case results.</summary>
     public required IReadOnlyList<EvalCaseResult> Results { get; init; }
 }

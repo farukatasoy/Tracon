@@ -5,39 +5,40 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
-/// <summary>Workflow yurutmesini kaydeden uzantilar.</summary>
+/// <summary>Extensions that register workflow execution.</summary>
 public static class AgentPrismWorkflowsBuilderExtensions
 {
     /// <summary>
-    /// Workflow yurutme motorunu kaydeder. Katalogdaki agent'lar hazir
-    /// desenlerle birbirine baglanabilir ve her yurutme bir <c>runs</c> satiri
-    /// uretir.
+    /// Registers the workflow execution engine. Agents from the catalog can be
+    /// chained together with ready-made patterns, and every execution produces
+    /// a <c>runs</c> row.
     /// </summary>
-    /// <param name="builder">AgentPrism yapilandirma zinciri.</param>
-    /// <param name="configure">Ayar degistirici.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> <see langword="null"/> ise.</exception>
+    /// <param name="builder">The AgentPrism configuration chain.</param>
+    /// <param name="configure">The option customizer.</param>
+    /// <returns>The chain, for continued configuration.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     /// <remarks>
     /// <para>
-    /// <strong>Guvenlik siniri.</strong> Arayuzden tanimlanan bir workflow yeni
-    /// davranis uretmez: yalnizca katalogdaki agent'lari sirasi belli hazir
-    /// desenlerle diziler. Serbest graf - ozel <c>Executor</c> tipleri, kosullu
-    /// kenarlar, alt workflow'lar - yalnizca kodda,
-    /// <see cref="AddWorkflow"/> ile tanimlanir. Tasarim kurali K2 boylece
-    /// korunur.
+    /// <strong>Security boundary.</strong> A workflow defined from the UI does
+    /// not produce new behavior: it only sequences catalog agents with
+    /// ready-made patterns whose order is fixed. A free-form graph - custom
+    /// <c>Executor</c> types, conditional edges, sub-workflows - is only
+    /// defined in code, with <see cref="AddWorkflow"/>. Design rule K2 is
+    /// preserved this way.
     /// </para>
     /// <para>
-    /// Tanim ve kontrol noktasi depolari <c>AddAgentPrism()</c> tarafindan zaten
-    /// kaydedilmistir; bu cagri yalnizca <em>yurutmeyi</em> acar. Motor kayitli
-    /// degilken HTTP katmani tanimlari listeleyip yonetebilir, yalnizca
-    /// calistirma ucu <c>501</c> doner.
+    /// The definition and checkpoint stores are already registered by
+    /// <c>AddAgentPrism()</c>; this call only turns <em>execution</em> on.
+    /// While the engine is not registered, the HTTP layer can still list and
+    /// manage definitions - only the execution endpoint returns <c>501</c>.
     /// </para>
     /// <para>
     /// <see cref="AgentPrismWorkflowOptions.SectionName"/> (<c>AgentPrism:Workflows</c>)
-    /// <c>IConfiguration</c>'dan BAGLANIR (K-402) — diger tum <c>Use*()</c>
-    /// uzantilariyla (<c>UseOpenAI</c>, <c>UsePostgreSql</c>, <c>UseSkillScripts</c>
-    /// vb.) ayni sozlesme. <paramref name="configure"/> bu baglamadan SONRA
-    /// calisir, boylece kod hala config'in uzerine yazabilir.
+    /// is BOUND from <c>IConfiguration</c> (K-402) - the same contract as
+    /// every other <c>Use*()</c> extension (<c>UseOpenAI</c>,
+    /// <c>UsePostgreSql</c>, <c>UseSkillScripts</c>, and so on).
+    /// <paramref name="configure"/> runs AFTER this binding, so code can still
+    /// override the config.
     /// </para>
     /// <example>
     /// <code>
@@ -66,8 +67,8 @@ public static class AgentPrismWorkflowsBuilderExtensions
             services.Configure(configure);
         }
 
-        // Onbellek SINGLETON olmalidir: executor kimliklerinin kararliligi -
-        // dolayisiyla kontrol noktalarindan sürdürme - buna baglidir.
+        // The cache MUST be SINGLETON: executor identity stability - and
+        // therefore resuming from checkpoints - depends on it.
         services.TryAddSingleton<WorkflowAgentCache>();
         services.TryAddSingleton<WorkflowDefinitionCompiler>();
         services.TryAddSingleton<WorkflowCatalog>();
@@ -77,21 +78,21 @@ public static class AgentPrismWorkflowsBuilderExtensions
     }
 
     /// <summary>
-    /// Kodda fabrika tabanli bir workflow tanimlar. Grafin nasil kuruldugu
-    /// tamamen cagirana aittir.
+    /// Defines a factory-based workflow in code. How the graph is built is
+    /// entirely up to the caller.
     /// </summary>
-    /// <param name="builder">AgentPrism yapilandirma zinciri.</param>
-    /// <param name="name">Workflow adi.</param>
-    /// <param name="factory">Grafi kuran fabrika.</param>
-    /// <param name="description">Kisa aciklama.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException">Parametrelerden biri <see langword="null"/> ise.</exception>
-    /// <exception cref="ArgumentException"><paramref name="name"/> bos ise.</exception>
+    /// <param name="builder">The AgentPrism configuration chain.</param>
+    /// <param name="name">The workflow name.</param>
+    /// <param name="factory">The factory that builds the graph.</param>
+    /// <param name="description">A short description.</param>
+    /// <returns>The chain, for continued configuration.</returns>
+    /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
     /// <remarks>
-    /// Kodda tanimli bir workflow, ayni ada sahip veritabani tanimin
-    /// <strong>onune gecer</strong>. Ayni kural agent katalogunda da gecerlidir
-    /// (K-019): veritabanina yazma yetkisi olan biri, kodda kayitli bir
-    /// davranisi ele geciremez.
+    /// A workflow defined in code <strong>takes precedence over</strong> a
+    /// database definition with the same name. The same rule applies to the
+    /// agent catalog (K-019): someone with write access to the database cannot
+    /// take over a behavior registered in code.
     /// </remarks>
     public static IAgentPrismBuilder AddWorkflow(
         this IAgentPrismBuilder builder,

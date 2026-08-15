@@ -9,28 +9,28 @@ using ModelContextProtocol.Server;
 namespace AgentPrism;
 
 /// <summary>
-/// <c>tools/call</c> istegini katalogdaki bir agent'in gercek calistirmasina cevirir.
+/// Turns a <c>tools/call</c> request into an actual run of an agent in the catalog.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Agent, <see cref="IAgentCatalog.ResolveAsync(string, CancellationToken)"/> ile
-/// cozulur; donen agent zaten <c>RunRecordingAgent</c> ile sarilmistir, dolayisiyla
-/// bu cagri normal bir <c>runs</c> satiri ve normal bir kota tuketimi uretir — ikinci
-/// bir kayit yolu YAZILMAZ.
+/// The agent is resolved with <see cref="IAgentCatalog.ResolveAsync(string, CancellationToken)"/>;
+/// the returned agent is already wrapped with <c>RunRecordingAgent</c>, so this
+/// call produces a normal <c>runs</c> row and normal quota consumption — a
+/// second recording path is NOT written.
 /// </para>
 /// <para>
-/// Cagri her zaman <see cref="AgentPrismRunOptions.Depth"/> 0 ile, YENI bir kok
-/// calistirma olarak baslar. <c>ChildAgentInvoker</c> BURADA kullanilmaz: o, bir
-/// agent'in BASKA bir agent'i cagirmasini modeller ve ambient bir ust kapsam ister;
-/// dis cagiranin boyle bir kapsami yoktur.
+/// The call always starts as a NEW root run, with <see cref="AgentPrismRunOptions.Depth"/>
+/// 0. <c>ChildAgentInvoker</c> is NOT used here: it models one agent calling
+/// ANOTHER agent and expects an ambient parent scope; an external caller has
+/// no such scope.
 /// </para>
 /// </remarks>
 internal static class CatalogToolCallHandler
 {
-    /// <summary><c>tools/call</c> isteğini isler.</summary>
-    /// <param name="request">Istek baglami.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Agent yaniti veya anlasilir bir hata sonucu.</returns>
+    /// <summary>Handles a <c>tools/call</c> request.</summary>
+    /// <param name="request">Request context.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The agent's response, or a legible error result.</returns>
     public static async ValueTask<CallToolResult> HandleAsync(
         RequestContext<CallToolRequestParams> request,
         CancellationToken cancellationToken)
@@ -44,14 +44,14 @@ internal static class CatalogToolCallHandler
             !ExternalAgentToolNaming.TryParseAgentName(options.ToolNamePrefix, toolName, out var agentName) ||
             !ExternalSurfaceGuard.IsExposed(agentName, options.ExposedAgents, options.ExposeAllAgents))
         {
-            return Error($"'{toolName}' bilinen bir AgentPrism agent tool'u degil.");
+            return Error($"'{toolName}' is not a known AgentPrism agent tool.");
         }
 
         var message = ExtractMessage(request.Params);
 
         if (string.IsNullOrWhiteSpace(message))
         {
-            return Error("'message' argumani cannot be empty.");
+            return Error("'message' argument cannot be empty.");
         }
 
         var catalog = services.GetRequiredService<IAgentCatalog>();
@@ -59,7 +59,7 @@ internal static class CatalogToolCallHandler
 
         if (agent is null)
         {
-            return Error($"'{agentName}' adinda bir agent katalogda yok.");
+            return Error($"There is no agent named '{agentName}' in the catalog.");
         }
 
         var runOptions = new AgentPrismRunOptions
@@ -86,10 +86,11 @@ internal static class CatalogToolCallHandler
             return Error($"'{agentName}' could not be run: {ex.Message}");
         }
 
-        // Defans katmani: acilis denetimi (ExternalSurfaceGuard) onayli tool tasiyan
-        // bir agent'in disa acilmasini zaten engeller, ama tanim SONRADAN
-        // guncellenip onayli bir tool eklenebilir (dinamik katalog). K-103'un ayni
-        // sinirinin calisma anindaki ikinci uygulamasi.
+        // Defense layer: the startup check (ExternalSurfaceGuard) already
+        // prevents exposing an agent carrying a tool that requires approval,
+        // but the definition can be updated AFTERWARD to add an approval-
+        // requiring tool (dynamic catalog). This is the runtime enforcement of
+        // the same K-103 boundary.
         if (ChildRunApproval.Describe(response.Messages) is { } pending)
         {
             return Error(

@@ -1,62 +1,63 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Istekten kiracinin nasil cozulecegini belirleyen ayarlar.
+/// Settings that determine how the tenant is resolved from the request.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Varsayilan kapalidir.</strong> Tek kiracili kurulumda hicbir ek
-/// yapilandirma gerekmez ve her istek
-/// <see cref="AgentPrismOptions.DefaultTenantId"/> kiracisina duser.
+/// <strong>Off by default.</strong> A single-tenant setup needs no extra
+/// configuration, and every request falls to the
+/// <see cref="AgentPrismOptions.DefaultTenantId"/> tenant.
 /// </para>
 /// <para>
-/// 🚨 <strong>Baslik sahtelenebilir.</strong> Bir HTTP basligi kimlik kaniti
-/// degildir; istemci istedigi degeri yazabilir. Bu yuzden:
+/// 🚨 <strong>A header can be spoofed.</strong> An HTTP header is not proof of
+/// identity; the client can write any value it wants. Therefore:
 /// </para>
 /// <list type="bullet">
 ///   <item><description>
-///   <see cref="ClaimType"/> ayarliysa ve istek kimlik dogrulamasindan gectiyse
-///   <strong>yalnizca claim</strong> kullanilir; baslik yok sayilir.
+///   If <see cref="ClaimType"/> is set and the request passed authentication,
+///   <strong>only the claim</strong> is used; the header is ignored.
 ///   </description></item>
 ///   <item><description>
-///   Baslik yolu <see cref="AllowHeaderResolution"/> ile acikca acilmalidir ve
-///   yalnizca guvenilen bir ag icinde (ya da yalnizca gelistirme sirasinda)
-///   kullanilmalidir.
+///   The header path must be explicitly opened via <see cref="AllowHeaderResolution"/>
+///   and used only inside a trusted network (or only during development).
 ///   </description></item>
 ///   <item><description>
-///   <see cref="AllowedTenants"/> doluysa cozulmeyen bir kiraci reddedilir;
-///   listede olmayan bir deger varsayilan kiraciya <em>dusmez</em>.
+///   If <see cref="AllowedTenants"/> is non-empty, an unresolved tenant is
+///   rejected; a value not in the list does <em>not</em> fall back to the default
+///   tenant.
 ///   </description></item>
 /// </list>
 /// <para>
-/// Bu tip bilerek <c>record</c> degildir; ayar siniflarinin uretilmis
-/// <c>ToString</c> metodu deger ifsa edebilir (karar K-035).
+/// This type is deliberately not a <c>record</c>; settings classes' generated
+/// <c>ToString</c> method could leak values (decision K-035).
 /// </para>
 /// </remarks>
 public sealed class AgentPrismTenancyOptions
 {
     /// <summary>
-    /// Cok kiracililik acik mi. Kapaliyken her istek varsayilan kiraciya duser.
+    /// Whether multi-tenancy is enabled. When disabled, every request falls to the
+    /// default tenant.
     /// </summary>
     public bool Enabled { get; set; }
 
     /// <summary>
-    /// Kiracinin okunacagi claim tipi. Ornek: <c>tenant_id</c>.
-    /// Ayarliysa ve istek kimlik dogrulamasindan gectiyse basliktan once gelir.
+    /// The claim type the tenant is read from. Example: <c>tenant_id</c>.
+    /// If set and the request passed authentication, it takes precedence over the header.
     /// </summary>
     public string? ClaimType { get; set; }
 
-    /// <summary>Kiracinin okunacagi HTTP basligi.</summary>
+    /// <summary>The HTTP header the tenant is read from.</summary>
     public string HeaderName { get; set; } = "X-AgentPrism-Tenant";
 
     /// <summary>
-    /// Kiraci basliktan cozulebilir mi. <strong>Varsayilan kapali</strong> —
-    /// baslik sahtelenebilir.
+    /// Whether the tenant can be resolved from the header. <strong>Off by default</strong>
+    /// — a header can be spoofed.
     /// </summary>
     public bool AllowHeaderResolution { get; set; }
 
     /// <summary>
-    /// Kabul edilen kiraci kimlikleri. Bos birakilirsa bicime uyan her deger kabul edilir.
+    /// The accepted tenant ids. If left empty, any value matching the format is accepted.
     /// </summary>
     public IList<string> AllowedTenants { get; } = [];
 }

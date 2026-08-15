@@ -11,7 +11,7 @@ namespace AgentPrism.Mcp.UnitTests;
 /// paylastigi uctan uca senaryo (Faz 42, DoD: "Iki ornek kurulur; MCP kesfi
 /// yalniz birinde kosar"). MCP sunucusu kayitli degildir; amac kesfin
 /// KENDISINI degil, YALNIZ BIR orneginin calistigini gozlemektir — bu yuzden
-/// tamamlanma logu (<c>"MCP kesfi tamamlandi"</c>) sinyal olarak kullanilir.
+/// tamamlanma logu (<c>"MCP discovery completed"</c>) sinyal olarak kullanilir.
 /// </summary>
 public sealed class McpDiscoverySingletonTests
 {
@@ -41,8 +41,8 @@ public sealed class McpDiscoverySingletonTests
         await serviceA.StopAsync(CancellationToken.None);
         await serviceB.StopAsync(CancellationToken.None);
 
-        var completedA = loggerA.Messages.Count(m => m.Contains("MCP kesfi tamamlandi", StringComparison.Ordinal));
-        var completedB = loggerB.Messages.Count(m => m.Contains("MCP kesfi tamamlandi", StringComparison.Ordinal));
+        var completedA = loggerA.Messages.Count(m => m.Contains("MCP discovery completed", StringComparison.Ordinal));
+        var completedB = loggerB.Messages.Count(m => m.Contains("MCP discovery completed", StringComparison.Ordinal));
 
         (completedA > 0 ^ completedB > 0).ShouldBeTrue($"completedA={completedA}, completedB={completedB}");
     }

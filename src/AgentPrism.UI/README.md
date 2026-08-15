@@ -1,12 +1,12 @@
 # AgentPrism.UI
 
-Gomulu yonetim arayuzu.
+Embedded management UI.
 
-React 19 + TypeScript ile yazilmis tek sayfa uygulama. Vite ile derlenir ve assembly
-icine **Brotli sikistirilmis** gomulur. Tuketici projede hicbir JavaScript bagimliligi
-olusmaz; `node_modules` klasoru gerekmez.
+Single-page application written with React 19 + TypeScript. Built with Vite and
+embedded in the assembly **Brotli-compressed**. No JavaScript dependency is created
+in the consumer's project; no `node_modules` folder is required.
 
-## Kurulum
+## Installation
 
 ```bash
 dotnet add package AgentPrism.UI --prerelease
@@ -20,37 +20,37 @@ builder.AddAgentPrism()
 app.MapAgentPrism("/agentprism");
 ```
 
-Ayri bir esleme cagrisi yoktur. `MapAgentPrism` kaydi bulur ve arayuzu ayni onek
-altina baglar; onek tek yerde yazilir.
+There is no separate mapping call. `MapAgentPrism` finds the registration and binds
+the UI under the same prefix; the prefix is written in one place.
 
-## Ekranlar
+## Screens
 
-| Ekran | Icerik |
+| Screen | Content |
 |-------|--------|
-| Agents | Katalog (kod / veritabani), tanim editoru, surum gecmisi, geri alma |
-| Playground | Akisli sohbet; tool cagrilari argumanlari ve sonuclariyla kart halinde |
-| Sessions | Oturum listesi, sohbet gecmisi, ham durum, silme |
-| Runs | Calistirma listesi, ozet, olay olay zaman cizelgesi |
-| Tools | Kayitli tool'lar ve JSON semalari |
-| Models | Saglayicilar, modeller, yetenek bayraklari |
-| Settings | Surum, onek, kimlik yontemi, aktif depolar, tema |
+| Agents | Catalog (code / database), definition editor, version history, rollback |
+| Playground | Streaming chat; tool calls as cards with arguments and results |
+| Sessions | Session list, chat history, raw state, deletion |
+| Runs | Run list, summary, event-by-event timeline |
+| Tools | Registered tools and their JSON schemas |
+| Models | Providers, models, capability flags |
+| Settings | Version, prefix, auth method, active stores, theme |
 
-## Notlar
+## Notes
 
-- Arayuz herhangi bir onek altinda calisir (`/agentprism`, `/panel`, ...) ve onegi
-  calisma aninda ogrenir
-- Acik ve koyu tema; varsayilan isletim sistemi tercihidir
-- Tool'lar yalnizca kodda tanimlanir. Arayuzden agent olusturulabilir, tool **kodu**
-  yazilamaz — bu bir guvenlik sinirdir
-- Arayuz kabugu bearer token katmanindan muaftir; loopback kisiti ve authorization
-  policy uygulanir. Gerekce: tarayici bir betik istegine `Authorization` basligi
-  ekleyemez
-- JavaScript butcesi: 250 KB gzip (derleme kapisi). Su anki boyut ~88 KB
+- The UI works under any prefix (`/agentprism`, `/panel`, ...) and learns the prefix
+  at runtime
+- Light and dark theme; the default is the operating system preference
+- Tools are defined only in code. An agent can be created from the UI, but tool
+  **code** cannot be written — this is a security boundary
+- The UI shell is exempt from the bearer token layer; the loopback restriction and
+  authorization policy apply instead. Rationale: a browser cannot add an
+  `Authorization` header to a script request
+- JavaScript budget: 250 KB gzip (build gate). Current size ~88 KB
 
-## Baglanti
+## Links
 
-- Depo ve tam dokumantasyon: <https://github.com/farukatasoy/AgentPrism>
-- Mimari: [docs/MIMARI.md](https://github.com/farukatasoy/AgentPrism/blob/main/docs/MIMARI.md)
-- Arayuz fazi: [docs/05-AGENTPRISM-UI.md](https://github.com/farukatasoy/AgentPrism/blob/main/docs/05-AGENTPRISM-UI.md)
+- Repository and full documentation: <https://github.com/farukatasoy/AgentPrism>
+- Architecture: [docs/MIMARI.md](https://github.com/farukatasoy/AgentPrism/blob/main/docs/MIMARI.md)
+- UI phase: [docs/05-AGENTPRISM-UI.md](https://github.com/farukatasoy/AgentPrism/blob/main/docs/05-AGENTPRISM-UI.md)
 
-Lisans: MIT
+License: MIT

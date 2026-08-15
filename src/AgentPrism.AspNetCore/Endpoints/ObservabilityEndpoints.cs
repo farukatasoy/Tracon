@@ -6,13 +6,13 @@ using Microsoft.AspNetCore.Routing;
 namespace AgentPrism;
 
 /// <summary>
-/// Telemetri uclari: bir calistirmanin span agaci ve tool cagrilari.
+/// Telemetry endpoints: a run's span tree and tool calls.
 /// </summary>
 internal static class ObservabilityEndpoints
 {
-    /// <summary>Telemetri uclarini baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Maps the telemetry endpoints.</summary>
+    /// <param name="builder">The endpoint group.</param>
+    /// <param name="roles">The resolved role policies.</param>
     public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/runs/{runId:guid}/trace", async Task<Results<Ok<RunTrace>, ProblemHttpResult>> (
@@ -31,10 +31,10 @@ internal static class ObservabilityEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismGetRunTrace")
             .WithTags("AgentPrism", "Runs")
-            .WithSummary("Bir calistirmanin span agacini dondurur.")
+            .WithSummary("Returns a run's span tree.")
             .WithDescription(
-                "Span'ler ornekleme ile yazilir. Hatali calistirmalarin span'leri varsayilan " +
-                "olarak her zaman kaydedilir; basarililar yapilandirilabilir bir orandadir.");
+                "Spans are written with sampling. Spans for failed runs are always recorded " +
+                "by default; successes are recorded at a configurable rate.");
 
         builder.MapGet("/api/runs/{runId:guid}/tools", async Task<Ok<IReadOnlyList<ToolInvocationRecord>>> (
                 Guid runId,
@@ -46,10 +46,10 @@ internal static class ObservabilityEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListRunToolInvocations")
             .WithTags("AgentPrism", "Runs")
-            .WithSummary("Bir calistirmanin tool cagrilarini zaman sirasina gore listeler.")
+            .WithSummary("Lists a run's tool calls in chronological order.")
             .WithDescription(
-                "Sure yalnizca akisli calistirmalarda olculur: akissiz calistirmada butun " +
-                "mesajlar tek seferde gorulur ve cagri ile sonuc arasindaki gercek sure okunamaz.");
+                "Duration is measured only for streaming runs: in a non-streaming run all " +
+                "messages arrive at once, so the true duration between call and result cannot be read.");
 
         builder.MapGet("/api/tools/usage", async Task<Ok<IReadOnlyList<ToolUsage>>> (
                 IRunStore runs,
@@ -67,7 +67,7 @@ internal static class ObservabilityEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismToolUsage")
             .WithTags("AgentPrism", "Runs")
-            .WithSummary("Tool bazinda cagri sayisi, hata orani ve ortalama sureyi dondurur.")
-            .WithDescription("Ozet deponun kendisinde hesaplanir; sayfalanmis bir alt kume degildir.");
+            .WithSummary("Returns call count, error rate, and average duration per tool.")
+            .WithDescription("The summary is computed by the store itself; it is not a paginated subset.");
     }
 }

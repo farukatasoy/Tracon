@@ -4,23 +4,23 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace AgentPrism;
 
 /// <summary>
-/// Cok kiracililigi HTTP istegine baglayan uzantilar.
+/// Extensions that connect multi-tenancy to the HTTP request.
 /// </summary>
 public static class AgentPrismTenancyBuilderExtensions
 {
     /// <summary>
-    /// Kiraciyi gecerli HTTP isteginden cozer. Cagrilmazsa AgentPrism tek
-    /// kiracili calisir ve hicbir ek yapilandirma gerekmez.
+    /// Resolves the tenant from the current HTTP request. If not called, AgentPrism
+    /// runs single-tenant and no extra configuration is needed.
     /// </summary>
-    /// <param name="builder">AgentPrism yapilandirma zinciri.</param>
-    /// <param name="configure">Cozumleme ayarlari.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <param name="builder">The AgentPrism configuration chain.</param>
+    /// <param name="configure">The resolution settings.</param>
+    /// <returns>The builder, for chaining.</returns>
+    /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
     /// <remarks>
     /// <para>
-    /// Kiraci kaynagi olarak <strong>claim tercih edilir</strong>; baslik yolu
-    /// acikca acilmalidir ve sahtelenebilir oldugu icin yalnizca guvenilen bir
-    /// ag icinde kullanilmalidir. Ayrinti:
+    /// The <strong>claim is preferred</strong> as the tenant source; the header
+    /// path must be opened explicitly and, because it can be spoofed, should only
+    /// be used inside a trusted network. Details:
     /// <see cref="AgentPrismTenancyOptions"/>.
     /// </para>
     /// <example>
@@ -49,8 +49,8 @@ public static class AgentPrismTenancyBuilderExtensions
         services.Configure(configure);
         services.AddHttpContextAccessor();
 
-        // TryAdd DEGIL Replace: AddAgentPrism() zincirde once calisir ve
-        // SingleTenantContext'i zaten kaydetmis olur.
+        // Replace, NOT TryAdd: AddAgentPrism() runs earlier in the chain and has
+        // already registered SingleTenantContext.
         services.Replace(ServiceDescriptor.Singleton<ITenantContext, HttpTenantContext>());
 
         return builder;

@@ -3,23 +3,23 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 namespace AgentPrism;
 
 /// <summary>
-/// AgentPrism kurulumunu standart .NET saglik denetim sistemine baglayan denetim (Faz 33).
+/// Check that connects the AgentPrism setup to the standard .NET health check system (Phase 33).
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="AgentPrismDiagnosticsCollector"/>'un topladigi raporu okur — hicbir
-/// model cagrisi veya ek veritabani sorgusu <strong>uretmez</strong> disinda etkin SQL
-/// saglayicisinin hafif baglanti sinamasi (bkz. <c>ISqlPersistenceDiagnostics</c>).
+/// Reads the report collected by <see cref="AgentPrismDiagnosticsCollector"/> — it
+/// <strong>produces</strong> no model call or extra database query, other than the
+/// active SQL provider's lightweight connection probe (see <c>ISqlPersistenceDiagnostics</c>).
 /// </para>
-/// <para>Uc durum. Gerekce: <c>docs/33-SAGLIK-DENETIMI-VE-TESHIS.md</c>, bolum 33.3.</para>
+/// <para>Three states. Rationale: <c>docs/33-SAGLIK-DENETIMI-VE-TESHIS.md</c>, section 33.3.</para>
 /// <list type="bullet">
-/// <item><description><see cref="HealthStatus.Unhealthy"/>: veritabanina erisilemiyor veya bekleyen migration var.</description></item>
+/// <item><description><see cref="HealthStatus.Unhealthy"/>: the database is unreachable, or a migration is pending.</description></item>
 /// <item><description>
-/// <see cref="HealthStatus.Degraded"/>: veritabani erisilebilir ama bir model saglayicisinin
-/// devresi acik, birden fazla kalicilik saglayicisi kayitli (K-183) veya hicbir model
-/// saglayicisi henuz saglikli olarak dogrulanmadi.
+/// <see cref="HealthStatus.Degraded"/>: the database is reachable, but a model provider's
+/// circuit is open, more than one persistence provider is registered (K-183), or no model
+/// provider has yet been confirmed healthy.
 /// </description></item>
-/// <item><description><see cref="HealthStatus.Healthy"/>: veritabani erisilebilir, bekleyen migration yok, en az bir model saglayicisi saglikli.</description></item>
+/// <item><description><see cref="HealthStatus.Healthy"/>: the database is reachable, no migration is pending, and at least one model provider is healthy.</description></item>
 /// </list>
 /// </remarks>
 internal sealed class AgentPrismHealthCheck(AgentPrismDiagnosticsCollector collector) : IHealthCheck
@@ -40,21 +40,21 @@ internal sealed class AgentPrismHealthCheck(AgentPrismDiagnosticsCollector colle
 
         if (!report.CanConnect)
         {
-            return HealthCheckResult.Unhealthy("Kalicilik veritabanina erisilemiyor.", data: data);
+            return HealthCheckResult.Unhealthy("The persistence database is unreachable.", data: data);
         }
 
         if (!report.MigrationsUpToDate)
         {
             return HealthCheckResult.Unhealthy(
-                $"{report.PendingMigrations.Count} bekleyen migration var.",
+                $"{report.PendingMigrations.Count} migration(s) are pending.",
                 data: data);
         }
 
         if (report.RegisteredPersistenceProviders > 1)
         {
             return HealthCheckResult.Degraded(
-                $"Birden fazla kalicilik saglayicisi kayitli ({report.RegisteredPersistenceProviders}); " +
-                $"su an '{report.PersistenceProvider}' kazaniyor. Yalniz bir Use*() cagirin.",
+                $"More than one persistence provider is registered ({report.RegisteredPersistenceProviders}); " +
+                $"'{report.PersistenceProvider}' currently wins. Call only one Use*().",
                 data: data);
         }
 
@@ -63,7 +63,7 @@ internal sealed class AgentPrismHealthCheck(AgentPrismDiagnosticsCollector colle
         if (openCircuits.Length > 0)
         {
             return HealthCheckResult.Degraded(
-                $"Devre kesici acik: {string.Join(", ", openCircuits.Select(static provider => provider.Name))}.",
+                $"Circuit breaker open: {string.Join(", ", openCircuits.Select(static provider => provider.Name))}.",
                 data: data);
         }
 
@@ -71,9 +71,9 @@ internal sealed class AgentPrismHealthCheck(AgentPrismDiagnosticsCollector colle
             static provider => string.Equals(provider.Status, nameof(ModelProviderHealthStatus.Healthy), StringComparison.Ordinal));
 
         return hasHealthyProvider
-            ? HealthCheckResult.Healthy("Kurulum saglikli.", data: data)
+            ? HealthCheckResult.Healthy("The setup is healthy.", data: data)
             : HealthCheckResult.Degraded(
-                "Henuz saglikli oldugu dogrulanmis bir model saglayicisi yok.",
+                "No model provider has been confirmed healthy yet.",
                 data: data);
     }
 }

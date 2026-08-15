@@ -8,98 +8,100 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir workflow'a baglanan agent sarmalayicisina <strong>kalici</strong> bir
-/// kimlik verir; boylece kontrol noktalari surec yeniden baslasa da gecerli kalir.
+/// Gives the agent wrapper bound to a workflow a <strong>permanent</strong>
+/// identity, so checkpoints remain valid even after the process restarts.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 <strong>Neden gerekli.</strong> Microsoft Agent Framework executor
-/// kimliklerini agent <em>orneginden</em> turetir: kimlik
-/// <c>{Name}_{AIAgent.Id}</c> bicimindedir ve <c>AIAgent.Id</c> her ornek icin
-/// rastgele uretilir. Faz 15 bunu bir surec ici onbellekle
-/// (<see cref="WorkflowAgentCache"/>) sabitledi, ama onbellek surec belleginde
-/// yasar: uygulama yeniden baslatildiginda kimlikler degisir ve MAF eski
-/// kontrol noktasini <c>InvalidDataException</c> ile reddeder. Bir insan
-/// yanitini bekleyen calistirma bu yuzden her dagitimda kaybolurdu.
+/// 🚨 <strong>Why this is needed.</strong> Microsoft Agent Framework derives
+/// executor ids from the agent <em>instance</em>: the id has the form
+/// <c>{Name}_{AIAgent.Id}</c>, and <c>AIAgent.Id</c> is generated randomly for
+/// each instance. Phase 15 pinned this with an in-process cache
+/// (<see cref="WorkflowAgentCache"/>), but the cache lives in process memory:
+/// when the application restarts, the ids change and MAF rejects the old
+/// checkpoint with <c>InvalidDataException</c>. A run awaiting human input was
+/// therefore lost on every deployment.
 /// </para>
 /// <para>
-/// <strong>Grafta kimligi degisken olan tek sey agent executor'udur.</strong>
-/// Faz 16'da olculdu: hazir desenlerin urettigi diger butun executor kimlikleri
-/// (<c>OutputMessages</c>, <c>Start</c>, <c>Batcher/*</c>, <c>ConcurrentEnd</c>,
-/// <c>HandoffStart</c>, <c>HandoffEnd</c>, <c>GroupChatHost</c>,
-/// <c>MagenticOrchestrator</c>) zaten sabittir. Dolayisiyla yalnizca
-/// <c>AIAgent.Id</c> sabitlenirse <strong>bes desenin tamami</strong> kalici
-/// kimlik kazanir ve grafi elle kurmak gerekmez.
+/// <strong>The agent executor is the only thing in the graph whose identity
+/// varies.</strong> Measured in phase 16: every other executor id produced by
+/// the ready-made patterns (<c>OutputMessages</c>, <c>Start</c>,
+/// <c>Batcher/*</c>, <c>ConcurrentEnd</c>, <c>HandoffStart</c>,
+/// <c>HandoffEnd</c>, <c>GroupChatHost</c>, <c>MagenticOrchestrator</c>) is
+/// already fixed. So pinning only <c>AIAgent.Id</c> gives
+/// <strong>all five patterns</strong> a permanent identity, with no need to
+/// build the graph by hand.
 /// </para>
 /// <para>
-/// 🚨 <strong>Kimlik ozel bir alana yazilir.</strong> <c>AIAgent.Id</c> sanal
-/// degildir ve yazilabilir degildir; turetilmis bir sinif onu degistiremez
-/// (reflection ile dogrulandi). Tek yol, taban sinifin otomatik ozellik alanini
-/// (<c>&lt;Id&gt;k__BackingField</c>) yazmaktir. Yazma <strong>yalnizca
-/// AgentPrism'in kendi sarmalayici ornegi uzerinde</strong> yapilir; MAF'in
-/// kendi nesnelerine dokunulmaz. MAF bu alani kaldirirsa kimlik rastgele kalir
-/// ve davranis Faz 15'e doner: hata mesaji zaten ne yapilmasi gerektigini
-/// soyler. Sessiz bozulmayi <c>WorkflowAgentIdentityTests</c> engeller - kimlik
-/// beklenen degeri tasimazsa test kirilir.
+/// 🚨 <strong>The identity is written to a private field.</strong>
+/// <c>AIAgent.Id</c> is not virtual and not writable; a derived class cannot
+/// override it (verified via reflection). The only way is to write the base
+/// class's auto-property backing field (<c>&lt;Id&gt;k__BackingField</c>). The
+/// write happens <strong>only on AgentPrism's own wrapper instance</strong>;
+/// MAF's own objects are never touched. If MAF removes this field, the
+/// identity stays random and behavior reverts to phase 15: the warning message
+/// already says what to do. Silent breakage is caught by
+/// <c>WorkflowAgentIdentityTests</c> - the test fails if the identity does not
+/// carry the expected value.
 /// </para>
 /// </remarks>
 internal static class WorkflowAgentIdentity
 {
-    /// <summary>Derleyicinin <c>AIAgent.Id</c> otomatik ozelligi icin urettigi alan adi.</summary>
+    /// <summary>The field name the compiler generates for the <c>AIAgent.Id</c> auto-property.</summary>
     private const string BackingFieldName = "<Id>k__BackingField";
 
     private static readonly FieldInfo? IdField = typeof(AIAgent)
         .GetField(BackingFieldName, BindingFlags.Instance | BindingFlags.NonPublic);
 
-    /// <summary>Kalici kimlik verilebiliyor mu.</summary>
+    /// <summary>Gets whether a permanent identity can be assigned.</summary>
     /// <remarks>
-    /// <see langword="false"/> ise Microsoft Agent Framework <c>AIAgent.Id</c>
-    /// uygulamasini degistirmis demektir. Calistirma yine calisir; yalnizca
-    /// surec yeniden baslatildiginda eski kontrol noktalari kullanilamaz.
+    /// When <see langword="false"/>, Microsoft Agent Framework has changed its
+    /// <c>AIAgent.Id</c> implementation. Execution still works; only old
+    /// checkpoints become unusable once the process restarts.
     /// </remarks>
     public static bool IsSupported => IdField is not null;
 
     /// <summary>
-    /// Bir <c>(workflow, agent)</c> cifti icin kalici kimlik uretir.
+    /// Computes a permanent identity for a <c>(workflow, agent)</c> pair.
     /// </summary>
-    /// <param name="workflowName">Sarmalayan workflow'un adi.</param>
-    /// <param name="agentName">Baglanan agent'in adi.</param>
-    /// <returns>32 karakterlik onaltilik kimlik.</returns>
+    /// <param name="workflowName">The name of the enclosing workflow.</param>
+    /// <param name="agentName">The name of the bound agent.</param>
+    /// <returns>A 32-character hexadecimal identity.</returns>
     /// <remarks>
-    /// Bicim <c>Guid.ToString("n")</c> ile aynidir. Bilerek: MAF'in urettigi
-    /// kimlik de bu bicimdedir ve executor kimligi <c>{ad}_{kimlik}</c> olarak
-    /// birlestirilir. Ad veya kimlik icinde ayirici karakter (<c>:</c>,
-    /// <c>/</c>) tasimak, Mermaid dugum adlarini ve kontrol noktasi
-    /// anahtarlarini gereksizce riske atardi.
+    /// The format matches <c>Guid.ToString("n")</c>. This is deliberate: the id
+    /// MAF generates has the same format, and the executor id is composed as
+    /// <c>{name}_{id}</c>. Carrying a separator character (<c>:</c>,
+    /// <c>/</c>) inside the name or id would needlessly put Mermaid node names
+    /// and checkpoint keys at risk.
     /// </remarks>
     public static string Compute(string workflowName, string agentName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(workflowName);
         ArgumentException.ThrowIfNullOrWhiteSpace(agentName);
 
-        // Ayirici olarak '\n' kullanilir: workflow ve agent adlarinda gecemez,
-        // dolayisiyla ("a-b", "c") ile ("a", "b-c") ayni kimligi uretemez.
+        // '\n' is used as the separator: it cannot appear in workflow or agent
+        // names, so ("a-b", "c") and ("a", "b-c") cannot produce the same identity.
         var seed = $"agentprism/workflow\n{workflowName}\n{agentName}";
         var digest = SHA256.HashData(Encoding.UTF8.GetBytes(seed));
 
-        // 16 bayt bir GUID kadar genistir; carpisma olasiligi anlamsiz kucukluktedir.
+        // 16 bytes is as wide as a GUID; the collision probability is negligible.
         return Convert.ToHexString(digest.AsSpan(0, 16)).ToLower(CultureInfo.InvariantCulture);
     }
 
     /// <summary>
-    /// Sarmalayiciya kalici kimligi yazar. Yazilamazsa bir kez uyarir ve
-    /// rastgele kimlikle devam eder.
+    /// Writes the permanent identity onto the wrapper. If it cannot be
+    /// written, warns once and continues with a random identity.
     /// </summary>
-    /// <param name="agent">Kimligi sabitlenecek sarmalayici.</param>
-    /// <param name="workflowName">Sarmalayan workflow'un adi.</param>
-    /// <param name="agentName">Baglanan agent'in adi.</param>
-    /// <param name="logger">Gunlukleyici.</param>
-    /// <returns>Kimlik yazildiysa <see langword="true"/>.</returns>
+    /// <param name="agent">The wrapper whose identity should be pinned.</param>
+    /// <param name="workflowName">The name of the enclosing workflow.</param>
+    /// <param name="agentName">The name of the bound agent.</param>
+    /// <param name="logger">The logger.</param>
+    /// <returns><see langword="true"/> if the identity was written.</returns>
     /// <remarks>
-    /// Basarisizlik <strong>istisna atmaz</strong>. Kalici kimlik bir iyilestirmedir;
-    /// olmadiginda workflow'lar Faz 15'teki gibi calisir ve yalnizca yeniden
-    /// baslatma sonrasi sürdürme kaybolur. Butun workflow yurutmesini bir
-    /// MAF ic degisikligi yuzunden durdurmak, orantisiz bir cezadir.
+    /// Failure <strong>does not throw</strong>. A permanent identity is an
+    /// enhancement; without it, workflows run just as in phase 15 and only
+    /// resuming after a restart is lost. Stopping all workflow execution over
+    /// an internal MAF change would be a disproportionate penalty.
     /// </remarks>
     public static bool TryApply(AIAgent agent, string workflowName, string agentName, ILogger logger)
     {
@@ -109,10 +111,10 @@ internal static class WorkflowAgentIdentity
         if (IdField is null)
         {
             logger.LogWarning(
-                "Workflow agent'i '{Agent}' icin kalici executor kimligi yazilamadi: " +
-                "Microsoft Agent Framework '{Field}' alanini artik tasimiyor. " +
-                "Calistirma normal calisir; ancak uygulama yeniden baslatildiginda " +
-                "eski kontrol noktalari kullanilamaz.",
+                "Could not write a permanent executor identity for workflow agent '{Agent}': " +
+                "Microsoft Agent Framework no longer has the '{Field}' field. " +
+                "Execution runs normally; but old checkpoints become unusable " +
+                "once the application restarts.",
                 agentName,
                 BackingFieldName);
 

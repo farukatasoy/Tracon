@@ -5,37 +5,38 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Kullanicinin verdigi yaniti, portun bekledigi tipte bir
-/// <see cref="ExternalResponse"/> nesnesine cevirir.
+/// Converts the answer a user gave into an <see cref="ExternalResponse"/>
+/// object of the type the port expects.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Cevrim <strong>yanit tipine gore</strong> yapilir ve cevrilemeyen bir yanit
-/// <see cref="AgentPrismException"/> ile reddedilir. Yanlis tipte bir yaniti
-/// sessizce kabul etmek, yurutmeyi kullanicinin anlayamayacagi bir noktada -
-/// bir executor'un icinde, bir cevrim hatasi olarak - bozardi.
+/// The conversion is done <strong>based on the response type</strong>, and an
+/// answer that cannot be converted is rejected with
+/// <see cref="AgentPrismException"/>. Silently accepting a wrongly typed
+/// answer would break execution at a point the user cannot understand - as a
+/// conversion error inside an executor.
 /// </para>
 /// <para>
-/// Yanit nesnesi <em>istegin kendisinden</em> uretilir
-/// (<c>ExternalRequest.CreateResponse</c>). Boylece port bilgisi ve istek
-/// kimligi elle tasinmaz; ikisinin kaymasi mumkun olmaz.
+/// The response object is built <em>from the request itself</em>
+/// (<c>ExternalRequest.CreateResponse</c>). This way the port info and request
+/// id are not carried by hand, and the two cannot drift apart.
 /// </para>
 /// </remarks>
 internal static class WorkflowResponseFactory
 {
-    /// <summary>Yaniti kurar.</summary>
-    /// <param name="request">Kontrol noktasindan yeniden yayinlanan istek.</param>
-    /// <param name="answer">Kullanicinin verdigi yanit.</param>
-    /// <returns>Yurutmeye gonderilecek yanit.</returns>
-    /// <exception cref="AgentPrismException">Yanit, portun bekledigi tipe cevrilemiyorsa.</exception>
+    /// <summary>Builds the response.</summary>
+    /// <param name="request">The request republished from the checkpoint.</param>
+    /// <param name="answer">The answer given by the user.</param>
+    /// <returns>The response to send to execution.</returns>
+    /// <exception cref="AgentPrismException">The answer cannot be converted to the type the port expects.</exception>
     public static ExternalResponse Create(ExternalRequest request, WorkflowAnswer answer)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(answer);
 
-        // Plan onayi kendi yanit tipini kendisi uretir: MagenticPlanReviewResponse
-        // yalnizca ChatMessage listesi tasir ve elle kurmak MAF'in ic bicimini
-        // tekrarlamak olurdu.
+        // Plan approval produces its own response type: MagenticPlanReviewResponse
+        // only carries a ChatMessage list, and building it by hand would mean
+        // repeating MAF's internal format.
         if (request.TryGetDataAs<MagenticPlanReviewRequest>(out var review))
         {
             if (answer.Approved is not false)
@@ -53,11 +54,11 @@ internal static class WorkflowResponseFactory
             return request.CreateResponse(review.Revise(revision));
         }
 
-        // Mesajla cevaplanan istekler (bildirimsel workflow'larin kullanici
-        // girdisi dahil) kendi zarflarini tasir.
+        // Requests answered with a message (including a declarative workflow's
+        // user input) carry their own envelope.
         if (request.TryGetDataAs<IExternalRequestEnvelope>(out var envelope))
         {
-            var text = Require(answer.Text, request, "metin");
+            var text = Require(answer.Text, request, "text");
 
             return request.CreateResponse(envelope.CreateResponse([new ChatMessage(ChatRole.User, text)]));
         }
@@ -67,12 +68,12 @@ internal static class WorkflowResponseFactory
         if (responseType.IsMatch<bool>())
         {
             return request.CreateResponse(
-                answer.Approved ?? throw Missing(request, "'approved' alani (evet/hayir)"));
+                answer.Approved ?? throw Missing(request, "an 'approved' field (yes/no)"));
         }
 
         if (responseType.IsMatch<string>())
         {
-            return request.CreateResponse(Require(answer.Text, request, "metin"));
+            return request.CreateResponse(Require(answer.Text, request, "text"));
         }
 
         return request.CreateResponse(Deserialize(request, answer));
@@ -82,11 +83,11 @@ internal static class WorkflowResponseFactory
     {
         if (answer.Json is not { Length: > 0 } json)
         {
-            throw Missing(request, $"'{request.PortInfo.ResponseType.TypeName}' tipinde bir 'json' govdesi");
+            throw Missing(request, $"a 'json' body of type '{request.PortInfo.ResponseType.TypeName}'");
         }
 
-        // TypeId.ToString() "Ad, DerlemeAdi, Version=..." uretir; Type.GetType
-        // tam olarak bu bicimi bekler.
+        // TypeId.ToString() produces "Name, AssemblyName, Version=..."; Type.GetType
+        // expects exactly this format.
         var target = Type.GetType(request.PortInfo.ResponseType.ToString(), throwOnError: false)
                      ?? throw new AgentPrismException(
                          $"Response type '{request.PortInfo.ResponseType.TypeName}' could not be resolved " +
@@ -111,12 +112,12 @@ internal static class WorkflowResponseFactory
         => value is { Length: > 0 } text ? text : throw Missing(request, what);
 
     private static AgentPrismException Missing(ExternalRequest request, string what)
-        => new($"'{request.PortInfo.PortId}' portu {what} bekliyor ancak yanitta bu deger yok.");
+        => new($"Port '{request.PortInfo.PortId}' expects {what}, but the response does not have this value.");
 }
 
-/// <summary>Kullanicinin bekleyen bir istege verdigi ham yanit.</summary>
-/// <param name="RequestId">Yanitlanan istegin kimligi.</param>
-/// <param name="Approved">Evet/hayir yaniti.</param>
-/// <param name="Text">Metin yaniti.</param>
-/// <param name="Json">Serbest JSON yanit.</param>
+/// <summary>The raw answer a user gives to a pending request.</summary>
+/// <param name="RequestId">The id of the request being answered.</param>
+/// <param name="Approved">The yes/no answer.</param>
+/// <param name="Text">The text answer.</param>
+/// <param name="Json">The free-form JSON answer.</param>
 internal sealed record WorkflowAnswer(string RequestId, bool? Approved, string? Text, string? Json);

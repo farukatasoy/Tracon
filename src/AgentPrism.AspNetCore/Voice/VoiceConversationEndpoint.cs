@@ -6,35 +6,35 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism;
 
 /// <summary>
-/// Gercek zamanli konusmanin WebSocket ucu.
+/// The WebSocket endpoint for real-time conversation.
 /// </summary>
 /// <remarks>
 /// <para>
-/// ⚠️ Bu uc barindirma modelini degistirir: baglanti dakikalarca acik kalir ve
-/// <em>bir</em> sunucu ornegine baglidir. Yetenek istege baglidir —
-/// <c>UseVoiceConversation()</c> cagrilmadikca <see cref="VoiceConversationDriver"/>
-/// kayitli olmaz ve uc <c>501</c> doner.
+/// ⚠️ This endpoint changes the hosting model: the connection stays open for
+/// minutes and is tied to <em>one</em> server instance. The capability is opt-in —
+/// unless <c>UseVoiceConversation()</c> is called, <see cref="VoiceConversationDriver"/>
+/// is not registered and the endpoint returns <c>501</c>.
 /// </para>
 /// <para>
-/// 🚨 Uc <strong>ucuncu bir uc grubuna</strong> baglanir
-/// (<c>requireBearerToken: false</c>): tarayici bir WebSocket el sikismasina
-/// <c>Authorization</c> basligi <strong>ekleyemez</strong>. Token bunun yerine
-/// <c>Sec-WebSocket-Protocol</c> alt protokolunde tasinir ve burada
-/// <em>elle</em> dogrulanir. Loopback kisiti ve authorization policy yine
-/// uygulanir; hicbir katman atlanmaz. Ayni desen arayuz kabugunda (K-046) ve
-/// MCP OAuth geri donusunde de kullanildi.
+/// 🚨 The endpoint is mounted on a <strong>third endpoint group</strong>
+/// (<c>requireBearerToken: false</c>): a browser <strong>cannot add</strong> an
+/// <c>Authorization</c> header to a WebSocket handshake. Instead, the token is
+/// carried in the <c>Sec-WebSocket-Protocol</c> subprotocol and validated
+/// <em>by hand</em> here. The loopback restriction and the authorization policy
+/// still apply; no layer is skipped. The same pattern is used in the UI shell
+/// (K-046) and the MCP OAuth callback.
 /// </para>
 /// <para>
-/// Token'in sorgu dizesine konmamasi bilinclidir: adres sunucu gunluklerine,
-/// ters vekil gunluklerine ve tarayici gecmisine yazilir.
+/// Not putting the token in the query string is deliberate: the address is
+/// written to server logs, reverse proxy logs, and the browser history.
 /// </para>
 /// </remarks>
 internal static class VoiceConversationEndpoint
 {
-    /// <summary>Konusma ucunu baglar.</summary>
-    /// <param name="builder">Uc grubu (bearer token katmanindan muaf).</param>
-    /// <param name="options">Erisim ayarlari.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Maps the conversation endpoint.</summary>
+    /// <param name="builder">The endpoint group (exempt from the bearer token layer).</param>
+    /// <param name="options">The access settings.</param>
+    /// <param name="roles">The resolved role policies.</param>
     public static void Map(
         IEndpointRouteBuilder builder,
         AgentPrismEndpointOptions options,
@@ -46,21 +46,22 @@ internal static class VoiceConversationEndpoint
             .RequireRole(roles.Operator)
             .WithName("AgentPrismVoiceStream")
             .WithTags("AgentPrism", "Voice")
-            .WithSummary("Gercek zamanli konusma icin WebSocket baglantisi acar.")
+            .WithSummary("Opens a WebSocket connection for real-time conversation.")
             .WithDescription(
-                "Istemci -> sunucu: ham ses (ikili) ve denetim mesajlari (JSON metin). " +
-                "Sunucu -> istemci: ses parcalari (ikili) ve olay cerceveleri (JSON metin). " +
-                "Token 'Sec-WebSocket-Protocol' alt protokolunde tasinir; sorgu dizesinde KABUL EDILMEZ.");
+                "Client -> server: raw audio (binary) and control messages (JSON text). " +
+                "Server -> client: audio chunks (binary) and event frames (JSON text). " +
+                "The token is carried in the 'Sec-WebSocket-Protocol' subprotocol; it is NOT accepted in the query string.");
     }
 
     private static async Task HandleAsync(HttpContext context, string sessionId, AgentPrismEndpointOptions options)
     {
         var services = context.RequestServices;
 
-        // Uc yalnizca surucu kayitliyken BAGLANIR (bkz. MapAgentPrism); bu
-        // yuzden cozumleme burada zorunludur. `UseVoiceConversation()`
-        // cagrilmadiysa bu adres hic yoktur ve istek 404 alir — barindirma
-        // modelini degistiren bir yetenek 501 ile "var ama kapali" gorunmez.
+        // The endpoint is WIRED UP only while the driver is registered (see
+        // MapAgentPrism); this is why resolution here is mandatory. If
+        // `UseVoiceConversation()` was not called, this address does not exist at
+        // all and the request gets a 404 — a capability that changes the hosting
+        // model does not show up as "present but off" via 501.
         var driver = services.GetRequiredService<VoiceConversationDriver>();
 
         if (!driver.IsReady)
@@ -89,7 +90,7 @@ internal static class VoiceConversationEndpoint
 
         if (!IsTokenValid(context, options))
         {
-            // 🚨 Beklenen token hakkinda hicbir bilgi verilmez.
+            // 🚨 No information about the expected token is given.
             await WriteProblemAsync(
                 context,
                 StatusCodes.Status401Unauthorized,
@@ -105,8 +106,8 @@ internal static class VoiceConversationEndpoint
 
         if (!await OwnsSessionAsync(services, sessionId, tenantId, context.RequestAborted).ConfigureAwait(false))
         {
-            // 🚨 sessionId guvenilmez girdidir. Baska bir kiracinin oturumu
-            // "yok" gibi yanitlanir; varligini bildirmek bilgi sizdirirdi.
+            // 🚨 sessionId is untrusted input. Another tenant's session is
+            // answered as if it "does not exist"; reporting its existence would leak information.
             await WriteProblemAsync(
                 context,
                 StatusCodes.Status404NotFound,
@@ -116,9 +117,9 @@ internal static class VoiceConversationEndpoint
             return;
         }
 
-        // Yer soket YUKSELTILMEDEN once ayrilir: sinir dolduysa istemci duzgun
-        // bir HTTP hatasi gorur. Yukselttikten sonra kapatmak nedeni cok daha
-        // kotu anlatirdi.
+        // The slot is reserved BEFORE the socket is UPGRADED: if the limit is
+        // full, the client sees a proper HTTP error. Closing after the upgrade
+        // would explain the reason far worse.
         using var lease = driver.Limiter.TryAcquire(tenantId);
 
         if (lease is null)
@@ -150,11 +151,12 @@ internal static class VoiceConversationEndpoint
     }
 
     /// <summary>
-    /// Token katmanini alt protokol basligindan uygular.
+    /// Enforces the token layer from the subprotocol header.
     /// </summary>
     /// <remarks>
-    /// Token yapilandirilmamissa katman kapalidir ve istek gecer — uc grubu
-    /// yine loopback kisitindan ve authorization policy'den gecmistir.
+    /// If no token is configured, the layer is off and the request passes through
+    /// — the endpoint group has still passed the loopback restriction and the
+    /// authorization policy.
     /// </remarks>
     private static bool IsTokenValid(HttpContext context, AgentPrismEndpointOptions options)
     {
@@ -181,13 +183,13 @@ internal static class VoiceConversationEndpoint
         return false;
     }
 
-    /// <summary>Oturumun bu kiraciya ait olup olmadigini denetler.</summary>
+    /// <summary>Checks whether the session belongs to this tenant.</summary>
     /// <returns>
-    /// Oturum bu kiraciya aitse veya henuz yoksa <see langword="true"/>.
+    /// <see langword="true"/> if the session belongs to this tenant or does not exist yet.
     /// </returns>
     /// <remarks>
-    /// Var olmayan bir oturum kabul edilir: ilk konusma turu onu acar. Var olan
-    /// ama baska bir kiraciya ait olan oturum reddedilir.
+    /// A session that does not yet exist is accepted: the first conversation turn
+    /// opens it. A session that exists but belongs to another tenant is rejected.
     /// </remarks>
     private static async ValueTask<bool> OwnsSessionAsync(
         IServiceProvider services,
