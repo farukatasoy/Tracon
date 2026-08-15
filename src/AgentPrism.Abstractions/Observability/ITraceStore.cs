@@ -1,50 +1,50 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Kalicilastirilmis span'lerin deposu.
+/// The store for persisted spans.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Bu deponun hatalari calistirmayi kesmez.</strong> Gozlemlenebilirlik
-/// islevselligi bozmamalidir; cagiran taraf (<c>RunTraceCollector</c>) hatalari
-/// yakalar ve loglar.
+/// <strong>An error from this store does not stop the run.</strong>
+/// Observability must not break functionality; the caller
+/// (<c>RunTraceCollector</c>) catches and logs errors.
 /// </para>
 /// <para>
-/// Yazma yolu <em>orneklenir</em>. Her span'i yazmak yuksek hacimde veritabanini
-/// darbogaza sokar; ornekleme karari depoya degil, cagirana aittir
-/// (<c>AgentPrismObservabilityOptions</c>).
+/// The write path is <em>sampled</em>. Writing every span would bottleneck the
+/// database at high volume; the sampling decision belongs to the caller
+/// (<c>AgentPrismObservabilityOptions</c>), not the store.
 /// </para>
 /// </remarks>
 public interface ITraceStore
 {
     /// <summary>
-    /// Bir trace'in span'lerini yazar. Ayni trace icin birden cok kez
-    /// cagrilabilir; span'ler kimliklerine gore birlestirilir.
+    /// Writes a trace's spans. Can be called multiple times for the same
+    /// trace; spans are merged by identifier.
     /// </summary>
-    /// <param name="batch">Yazilacak span kumesi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <param name="batch">The span set to write.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
     ValueTask WriteSpansAsync(TraceSpanBatch batch, CancellationToken cancellationToken = default);
 
-    /// <summary>Bir calistirmanin span agacini getirir.</summary>
-    /// <param name="runId">Calistirma kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Trace; kayit yoksa <see langword="null"/>.</returns>
+    /// <summary>Fetches a run's span tree.</summary>
+    /// <param name="runId">The run identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The trace; <see langword="null"/> if no record exists.</returns>
     ValueTask<RunTrace?> GetTraceByRunAsync(Guid runId, CancellationToken cancellationToken = default);
 }
 
-/// <summary>Tek bir trace'e ait span kumesi.</summary>
+/// <summary>A span set belonging to a single trace.</summary>
 public sealed record TraceSpanBatch
 {
-    /// <summary>W3C trace kimligi.</summary>
+    /// <summary>The W3C trace identifier.</summary>
     public required string TraceId { get; init; }
 
-    /// <summary>Kiraci kimligi.</summary>
+    /// <summary>The tenant identifier.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Iliskili calistirma.</summary>
+    /// <summary>The associated run.</summary>
     public Guid? RunId { get; init; }
 
-    /// <summary>Yazilacak span'ler.</summary>
+    /// <summary>The spans to write.</summary>
     public required IReadOnlyList<TraceSpan> Spans { get; init; }
 }

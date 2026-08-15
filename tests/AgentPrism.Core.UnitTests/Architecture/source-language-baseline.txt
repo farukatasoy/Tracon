@@ -11,12 +11,6 @@ samples/AgentPrism.Api/appsettings.json|29
 samples/Directory.Build.props|1
 src/AgentPrism.Abstractions/Evaluation/IEvalStore.cs|72
 src/AgentPrism.Abstractions/Evaluation/IRunJudge.cs|25
-src/AgentPrism.Abstractions/Models/IModelProvider.cs|17
-src/AgentPrism.Abstractions/Models/IModelProviderHealthCheck.cs|26
-src/AgentPrism.Abstractions/Models/IModelProviderRegistry.cs|5
-src/AgentPrism.Abstractions/Models/ModelDescriptor.cs|11
-src/AgentPrism.Abstractions/Observability/ITraceStore.cs|13
-src/AgentPrism.Abstractions/Observability/TraceSpan.cs|28
 src/AgentPrism.Abstractions/Quotas/IQuotaStore.cs|33
 src/AgentPrism.Abstractions/Quotas/QuotaPeriod.cs|5
 src/AgentPrism.Abstractions/Quotas/QuotaTypes.cs|47

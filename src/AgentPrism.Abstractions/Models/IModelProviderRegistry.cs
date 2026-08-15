@@ -2,18 +2,18 @@ using Microsoft.Extensions.AI;
 
 namespace AgentPrism;
 
-/// <summary>Kayitli model saglayicilarini ada gore tutan defter.</summary>
+/// <summary>The registry that keeps registered model providers by name.</summary>
 public interface IModelProviderRegistry
 {
-    /// <summary>Kayitli saglayicilarin tanimlarini dondurur.</summary>
-    /// <returns>Saglayici tanimlari.</returns>
+    /// <summary>Returns the definitions of the registered providers.</summary>
+    /// <returns>The provider definitions.</returns>
     IReadOnlyList<ModelProviderDescriptor> List();
 
-    /// <summary>Verilen baglanti icin bir sohbet istemcisi uretir.</summary>
-    /// <param name="binding">Model baglantisi.</param>
-    /// <returns>Sohbet istemcisi.</returns>
+    /// <summary>Produces a chat client for the given binding.</summary>
+    /// <param name="binding">The model binding.</param>
+    /// <returns>The chat client.</returns>
     /// <exception cref="AgentPrismException">
-    /// <see cref="ModelBinding.Provider"/> adinda kayitli bir saglayici yoksa.
+    /// No provider is registered with the name in <see cref="ModelBinding.Provider"/>.
     /// </exception>
     IChatClient CreateChatClient(ModelBinding binding);
 }

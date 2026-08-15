@@ -3,45 +3,47 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir model saglayicisi. Her saglayici kendi paketinde uygulanir
-/// (ornegin <c>AgentPrism.OpenAI</c>) ve DI'ya kaydedilir.
+/// A model provider. Each provider is implemented in its own package (for
+/// example, <c>AgentPrism.OpenAI</c>) and registered with DI.
 /// </summary>
 /// <remarks>
-/// Bu soyutlama, yeni bir saglayici eklemenin <em>kirici degisiklik olmamasini</em>
-/// saglar. Modiler paketleme kararinin ana gerekcesi budur.
+/// This abstraction ensures that adding a new provider is <em>not a breaking
+/// change</em>. This is the main rationale for the modular packaging decision.
 /// </remarks>
 public interface IModelProvider
 {
     /// <summary>
-    /// Saglayici adi. <see cref="ModelBinding.Provider"/> bu degerle eslesir.
-    /// Karsilastirma buyuk/kucuk harfe duyarli degildir.
+    /// The provider name. <see cref="ModelBinding.Provider"/> matches this
+    /// value. Comparison is case-insensitive.
     /// </summary>
     string Name { get; }
 
-    /// <summary>Bu saglayicinin sundugu modeller.</summary>
+    /// <summary>The models this provider offers.</summary>
     IReadOnlyList<ModelDescriptor> Models { get; }
 
     /// <summary>
-    /// Verilen baglanti icin <strong>ham</strong> bir sohbet istemcisi uretir.
+    /// Produces a <strong>raw</strong> chat client for the given binding.
     /// </summary>
-    /// <param name="binding">Model baglantisi.</param>
+    /// <param name="binding">The model binding.</param>
     /// <returns>
-    /// Saglayiciya ozgu istemci. Saglayiciya <em>ozgu</em> dekoratorler (ornek:
-    /// Anthropic'in ayar dekoratoru) burada eklenebilir.
+    /// The provider-specific client. Decorators <em>specific</em> to the
+    /// provider (example: Anthropic's settings decorator) may be added here.
     /// </returns>
     /// <remarks>
     /// <para>
-    /// 🚨 <strong>Ortak boru hattini kurma.</strong> <c>UseFunctionInvocation()</c>,
-    /// <c>UseOpenTelemetry()</c>, icerik guard'i, devre kesici ve ek cozme
-    /// <c>ModelProviderRegistry.CreateChatClient</c> tarafindan eklenir. Faz 48'e
-    /// kadar tool cagri dongusunu her saglayici paketi kendi icinde kuruyordu;
-    /// bunun sonucu, defterin sardigi hicbir halkanin dongunun turlarini
-    /// gorememesiydi — bir tool sonucu modele denetlenmeden giriyordu.
+    /// 🚨 <strong>Do not build the common pipeline here.</strong>
+    /// <c>UseFunctionInvocation()</c>, <c>UseOpenTelemetry()</c>, the content
+    /// guard, the circuit breaker, and extra resolution are added by
+    /// <c>ModelProviderRegistry.CreateChatClient</c>. Until Phase 48, every
+    /// provider package built the tool-call loop inside itself; the result
+    /// was that no ring the registry wraps around could see the loop's turns
+    /// — a tool result entered the model uninspected.
     /// </para>
     /// <para>
-    /// Dongu burada da kurulursa ic ice iki <c>FunctionInvokingChatClient</c>
-    /// olusur: ictekisi tool'lari cozer, distakisi hicbir cagri gormez. Zarari
-    /// islevsel degil, olculebilirdir (iki kat sarmalama, yaniltici span agaci).
+    /// If the loop is also built here, two nested <c>FunctionInvokingChatClient</c>
+    /// instances form: the inner one resolves tools, the outer one never sees
+    /// any call. The damage is not functional but measurable (double
+    /// wrapping, a misleading span tree).
     /// </para>
     /// </remarks>
     IChatClient CreateChatClient(ModelBinding binding);
