@@ -1,63 +1,66 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Ayni agent'in iki veya daha fazla tanim surumu arasinda trafigi bolen bir A/B deneyi.
+/// Represents an A/B experiment that splits traffic between two or more definition versions of the same agent.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Deney yalnizca <strong>ayni agent'in surumleri</strong> arasinda olabilir; farkli
-/// agent'lar arasi deney bu fazin kapsami disindadir (ad cozumlemesini karmasiklastirir).
+/// An experiment can only compare <strong>versions of the same agent</strong>.
+/// An experiment across different agents is out of scope because it complicates
+/// name resolution.
 /// </para>
 /// <para>
-/// Kod kaynakli agent'larda (<see cref="AgentDefinitionOrigin.Code"/>) deney kurulamaz:
-/// surum gecmisi yoktur (karar K-003). Uc bunu 400 ile acikca soyler.
+/// Code-based agents (<see cref="AgentDefinitionOrigin.Code"/>) cannot have an
+/// experiment because they have no version history (decision K-003). The endpoint
+/// states this clearly with HTTP 400.
 /// </para>
 /// </remarks>
 public sealed record Experiment
 {
-    /// <summary>Deney kimligi.</summary>
+    /// <summary>Gets the experiment identifier.</summary>
     public required Guid Id { get; init; }
 
-    /// <summary>Deneyin ait oldugu kiraci.</summary>
+    /// <summary>Gets the tenant that owns the experiment.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Deney adi. Kiraci icinde benzersizdir ve API yollarinda anahtar olarak kullanilir.</summary>
+    /// <summary>Gets the experiment name. It is unique within the tenant and is used as an API route key.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Trafigi bolunen agent'in adi.</summary>
+    /// <summary>Gets the name of the agent whose traffic is split.</summary>
     public required string AgentName { get; init; }
 
-    /// <summary>Deneyin kollari. Agirlik toplami 100 olmalidir.</summary>
+    /// <summary>Gets the experiment variants. Their weights must total 100.</summary>
     public required IReadOnlyList<ExperimentVariant> Variants { get; init; }
 
-    /// <summary>Deneyin guncel durumu.</summary>
+    /// <summary>Gets the current experiment status.</summary>
     public ExperimentStatus Status { get; init; } = ExperimentStatus.Draft;
 
     /// <summary>
-    /// Rezerve alan. Bu fazda calisma zamani atamasi tarafindan <strong>okunmaz</strong>;
-    /// atama anahtari her zaman oturum kimligidir (yoksa calistirma kimligi). Gelecekte
-    /// oturum disi atama stratejileri icin ayrilmistir.
+    /// Gets a reserved value. Runtime assignment does <strong>not read</strong> it
+    /// in this phase. The assignment key is always the session identifier, or the
+    /// run identifier when no session exists. This property is reserved for future
+    /// strategies that assign outside a session.
     /// </summary>
     public string? AssignmentKey { get; init; }
 
-    /// <summary>Deneyin <see cref="ExperimentStatus.Running"/>'e gectigi an. Draft'ta <see langword="null"/>.</summary>
+    /// <summary>Gets the time when the experiment entered <see cref="ExperimentStatus.Running"/>. Returns <see langword="null"/> while it is a draft.</summary>
     public DateTimeOffset? StartedAt { get; init; }
 
-    /// <summary>Deneyin durduruldugu an. Calisiyorsa veya hic baslamadiysa <see langword="null"/>.</summary>
+    /// <summary>Gets the time when the experiment stopped. Returns <see langword="null"/> when it runs or never started.</summary>
     public DateTimeOffset? EndedAt { get; init; }
 
-    /// <summary>Son degistirilme zamani (UTC).</summary>
+    /// <summary>Gets the UTC time of the last update.</summary>
     public DateTimeOffset? UpdatedAt { get; init; }
 
     /// <summary>
-    /// Kanarya kurallari. <see langword="null"/> ise otomatik karar YOKTUR (K1) —
-    /// hicbir arka plan servisi bu deneyi degerlendirmez.
+    /// Gets the canary policy. <see langword="null"/> disables automatic decisions
+    /// (K1), so no background service evaluates this experiment.
     /// </summary>
     public CanaryPolicy? Canary { get; init; }
 
     /// <summary>
-    /// Otomatik geri almanin nedeni. Deney elle durdurulmus veya hic durdurulmamissa
-    /// <see langword="null"/>.
+    /// Gets the reason for an automatic rollback. Returns <see langword="null"/>
+    /// when the experiment was stopped manually or was never stopped.
     /// </summary>
     public string? RollbackReason { get; init; }
 }

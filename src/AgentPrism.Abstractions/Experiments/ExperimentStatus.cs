@@ -2,20 +2,20 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>Bir A/B deneyinin yasam dongusu durumu.</summary>
+/// <summary>Defines the lifecycle status of an A/B experiment.</summary>
 /// <remarks>
-/// JSON'da <strong>ad olarak</strong> yazilir; veritabaninda <c>smallint</c> olarak
-/// saklanir. Deger sirasi degistirilemez.
+/// This value is written <strong>by name</strong> in JSON and stored as
+/// <c>smallint</c> in the database. The value order cannot change.
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<ExperimentStatus>))]
 public enum ExperimentStatus
 {
-    /// <summary>Olusturuldu, henuz trafik almiyor. Duzenlenebilir.</summary>
+    /// <summary>Created but not receiving traffic. It can be edited.</summary>
     Draft = 0,
 
-    /// <summary>Trafik agirliklara gore bolunuyor. Duzenlenemez; sadece durdurulabilir.</summary>
+    /// <summary>Traffic is split by weight. It cannot be edited and can only be stopped.</summary>
     Running = 1,
 
-    /// <summary>Durduruldu. Yeni oturumlar guncel surume gider; gecmis degismez.</summary>
+    /// <summary>Stopped. New sessions use the current version and history does not change.</summary>
     Stopped = 2,
 }

@@ -1,14 +1,14 @@
 namespace AgentPrism;
 
-/// <summary>Bir calistirma istegin deterministik olarak baglandigi deney kolu.</summary>
+/// <summary>Represents the experiment variant to which a run request is deterministically assigned.</summary>
 public sealed record ExperimentAssignment
 {
-    /// <summary>Deney kimligi.</summary>
+    /// <summary>Gets the experiment identifier.</summary>
     public required Guid ExperimentId { get; init; }
 
-    /// <summary>Atanan kolun adi.</summary>
+    /// <summary>Gets the assigned variant name.</summary>
     public required string Variant { get; init; }
 
-    /// <summary>Atanan kolun sunacagi tanim surumu.</summary>
+    /// <summary>Gets the definition version served by the assigned variant.</summary>
     public required int Version { get; init; }
 }

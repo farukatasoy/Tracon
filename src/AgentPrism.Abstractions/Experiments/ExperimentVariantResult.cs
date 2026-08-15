@@ -1,60 +1,60 @@
 namespace AgentPrism;
 
-/// <summary>Bir deneyin sonuc sorgusu.</summary>
+/// <summary>Defines a query for experiment results.</summary>
 public sealed record ExperimentResultsQuery
 {
-    /// <summary>Sonuclari istenen deneyin kimligi.</summary>
+    /// <summary>Gets the identifier of the experiment whose results are requested.</summary>
     public required Guid ExperimentId { get; init; }
 
-    /// <summary>Kiraci filtresi. Bos birakilirsa gecerli kiraci kullanilir.</summary>
+    /// <summary>Gets the tenant filter. The current tenant is used when it is empty.</summary>
     public string? TenantId { get; init; }
 }
 
-/// <summary>Bir deney kolunun calistirma sonuclarinin ozeti (K-041: depoda hesaplanir).</summary>
+/// <summary>Summarizes run results for an experiment variant (K-041: calculated in the store).</summary>
 public sealed record ExperimentVariantResult
 {
-    /// <summary>Kolun adi.</summary>
+    /// <summary>Gets the variant name.</summary>
     public required string Variant { get; init; }
 
-    /// <summary>Kolun sundugu tanim surumu.</summary>
+    /// <summary>Gets the definition version served by the variant.</summary>
     public required int Version { get; init; }
 
-    /// <summary>Bu kola atanmis toplam calistirma sayisi.</summary>
+    /// <summary>Gets the total number of runs assigned to this variant.</summary>
     public required long TotalRuns { get; init; }
 
-    /// <summary>Basariyla tamamlanan calistirma sayisi.</summary>
+    /// <summary>Gets the number of successfully completed runs.</summary>
     public required long CompletedRuns { get; init; }
 
-    /// <summary>Hata ile biten calistirma sayisi.</summary>
+    /// <summary>Gets the number of runs that ended with an error.</summary>
     public required long FailedRuns { get; init; }
 
-    /// <summary>Iptal edilen calistirma sayisi.</summary>
+    /// <summary>Gets the number of cancelled runs.</summary>
     public required long CanceledRuns { get; init; }
 
-    /// <summary>Girdi token toplami.</summary>
+    /// <summary>Gets the total input tokens.</summary>
     public long InputTokens { get; init; }
 
-    /// <summary>Cikti token toplami.</summary>
+    /// <summary>Gets the total output tokens.</summary>
     public long OutputTokens { get; init; }
 
-    /// <summary>Toplam token.</summary>
+    /// <summary>Gets the total tokens.</summary>
     public long TotalTokens { get; init; }
 
-    /// <summary>Bu kolun toplam maliyeti. Fiyat tanimsizsa <see langword="null"/>.</summary>
+    /// <summary>Gets the total cost for this variant. Returns <see langword="null"/> when pricing is undefined.</summary>
     public decimal? TotalCost { get; init; }
 
-    /// <summary>Para birimi. <see cref="TotalCost"/> doluysa doludur.</summary>
+    /// <summary>Gets the currency. It is populated when <see cref="TotalCost"/> is populated.</summary>
     public string? Currency { get; init; }
 
     /// <summary>
-    /// Sonuclanmis calistirmalarin ortalama suresi (milisaniye). Hic sonuclanmamissa
-    /// <see langword="null"/>.
+    /// Gets the average duration of settled runs in milliseconds. Returns
+    /// <see langword="null"/> when no run is settled.
     /// </summary>
     public double? AverageDurationMs { get; init; }
 
     /// <summary>
-    /// Sonuclanmis calistirmalar icindeki hata orani (0-1). <see cref="RunStatistics.ErrorRate"/>
-    /// ile ayni gerekce.
+    /// Gets the error rate among settled runs, from 0 through 1. This follows the
+    /// same rationale as <see cref="RunStatistics.ErrorRate"/>.
     /// </summary>
     public double? ErrorRate
     {
@@ -66,10 +66,11 @@ public sealed record ExperimentVariantResult
     }
 
     /// <summary>
-    /// Bu kola atanmis calistirmalarin ortalama sayisal puani (0-100), Faz 49'un
-    /// <c>RunScoreKind.Numeric</c> puanlarindan. Hic puanlanmis calistirma yoksa
-    /// <see langword="null"/> — <c>0</c> DEGIL, "bilinmiyor" (mevcut <c>RunCost</c>
-    /// sozlesmesiyle tutarli).
+    /// Gets the average numeric score from 0 through 100 for runs assigned to this
+    /// variant. It uses the <c>RunScoreKind.Numeric</c> scores from Phase 49.
+    /// Returns <see langword="null"/> when no run is scored. This is not
+    /// <c>0</c>; it means unknown, consistent with the existing <c>RunCost</c>
+    /// contract.
     /// </summary>
     public double? AverageScore { get; init; }
 }
