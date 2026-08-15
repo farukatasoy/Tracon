@@ -1,63 +1,63 @@
 namespace AgentPrism;
 
-/// <summary>Zamanlama tanimlarinin deposu.</summary>
+/// <summary>The store for schedule definitions.</summary>
 /// <remarks>
-/// <see cref="IJobStore"/>'dan ayridir: bu depo yalnizca <em>tanimlari</em>
-/// (ne zaman, ne calisir) tutar; kuyruktaki fiili isler <see cref="IJobStore"/>
-/// icindedir. Ayrim, <see cref="IWorkflowDefinitionStore"/> ile
-/// <see cref="IWorkflowCheckpointStore"/> arasindakiyle aynidir.
+/// Separate from <see cref="IJobStore"/>: this store holds only the
+/// <em>definitions</em> (when, what runs); the actual queued jobs are in
+/// <see cref="IJobStore"/>. The split is the same as between
+/// <see cref="IWorkflowDefinitionStore"/> and <see cref="IWorkflowCheckpointStore"/>.
 /// </remarks>
 public interface IJobScheduleStore
 {
-    /// <summary>Adi verilen zamanlamayi getirir.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="name">Zamanlama adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Zamanlama; yoksa <see langword="null"/>.</returns>
+    /// <summary>Fetches the schedule with the given name.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="name">The schedule name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The schedule; <see langword="null"/> if it does not exist.</returns>
     ValueTask<JobSchedule?> GetAsync(string tenantId, string name, CancellationToken cancellationToken = default);
 
-    /// <summary>Bir kiracinin tum zamanlamalarini ada gore listeler.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Zamanlamalar.</returns>
+    /// <summary>Lists all of a tenant's schedules, by name.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The schedules.</returns>
     ValueTask<IReadOnlyList<JobSchedule>> ListAsync(string tenantId, CancellationToken cancellationToken = default);
 
-    /// <summary>Zamanlamayi olusturur veya gunceller (ad + kiraci benzersizdir).</summary>
-    /// <param name="schedule">Kaydedilecek zamanlama.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kaydedilmis zamanlama.</returns>
+    /// <summary>Creates or updates the schedule (name + tenant is unique).</summary>
+    /// <param name="schedule">The schedule to save.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The saved schedule.</returns>
     ValueTask<JobSchedule> SaveAsync(JobSchedule schedule, CancellationToken cancellationToken = default);
 
-    /// <summary>Zamanlamayi siler.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="name">Zamanlama adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Silme gerceklestiyse <see langword="true"/>.</returns>
+    /// <summary>Deletes the schedule.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="name">The schedule name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> if the delete happened.</returns>
     ValueTask<bool> DeleteAsync(string tenantId, string name, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Calisma zamani gelmis (<c>NextRunAt &lt;= asOfUtc</c>), etkin ve cron
-    /// tasiyan tum kiracilarin zamanlamalarini listeler.
+    /// Lists the schedules of every tenant that are due to run
+    /// (<c>NextRunAt &lt;= asOfUtc</c>), enabled, and carry a cron expression.
     /// </summary>
-    /// <param name="asOfUtc">Karsilastirma ani (UTC).</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Sirasi gelen zamanlamalar.</returns>
+    /// <param name="asOfUtc">The comparison moment (UTC).</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The due schedules.</returns>
     ValueTask<IReadOnlyList<JobSchedule>> ListDueAsync(DateTimeOffset asOfUtc, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Bir zamanlamanin <see cref="JobSchedule.NextRunAt"/> alanini atomik
-    /// olarak ilerletmeye calisir (compare-and-swap).
+    /// Tries to atomically advance a schedule's <see cref="JobSchedule.NextRunAt"/>
+    /// field (compare-and-swap).
     /// </summary>
-    /// <param name="scheduleId">Zamanlama kimligi.</param>
+    /// <param name="scheduleId">The schedule identifier.</param>
     /// <param name="expectedNextRunAt">
-    /// Beklenen mevcut deger. Baska bir ornegin zaten ilerlettigi durumda
-    /// deger uyusmaz ve islem basarisiz olur — cakisan iki cizelgeleme
-    /// tetiklemesi boyle onlenir.
+    /// The expected current value. If another instance has already advanced
+    /// it, the value does not match and the operation fails — this is how two
+    /// overlapping scheduling triggers are prevented.
     /// </param>
-    /// <param name="newNextRunAt">Yeni bir sonraki calisma zamani.</param>
-    /// <param name="ranAt">Bu tetiklemenin gerceklestigi zaman (UTC).</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Iddia basarili oldugunda <see langword="true"/>.</returns>
+    /// <param name="newNextRunAt">The new next-run time.</param>
+    /// <param name="ranAt">The time this trigger happened (UTC).</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> if the claim succeeded.</returns>
     ValueTask<bool> TryClaimNextRunAsync(
         Guid scheduleId,
         DateTimeOffset expectedNextRunAt,

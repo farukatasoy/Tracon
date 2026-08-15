@@ -1,57 +1,57 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Kuyruktaki islerin ve ogelerinin deposu.
+/// The store for queued jobs and their items.
 /// </summary>
 /// <remarks>
 /// <para>
-/// PostgreSql uygulamasi <c>FOR UPDATE SKIP LOCKED</c> ile kiralar: birden
-/// fazla isci ayni veritabanina baglansa bile bir is yalnizca bir isci
-/// tarafindan alinir. Bellek ici uygulama ayni sozlesmeyi bir kilit ve zaman
-/// damgasiyla saglar.
+/// The PostgreSql implementation leases with <c>FOR UPDATE SKIP LOCKED</c>:
+/// even if multiple workers connect to the same database, a job is picked up
+/// by only one worker. The in-memory implementation provides the same
+/// contract with a lock and a timestamp.
 /// </para>
 /// <para>
-/// <strong>Onemli:</strong> <see cref="ReportItemAsync"/> ve durum
-/// gecisleri idempotent olmalidir — kira suresi dolup is yeniden
-/// alindiginda ayni oge iki kez raporlanabilir.
+/// <strong>Important:</strong> <see cref="ReportItemAsync"/> and state
+/// transitions must be idempotent — the same item may be reported twice if
+/// the lease expires and the job is re-leased.
 /// </para>
 /// </remarks>
 public interface IJobStore
 {
     /// <summary>
-    /// Yeni bir is kuyruga ekler ve ogelerini olusturur.
+    /// Enqueues a new job and creates its items.
     /// </summary>
     /// <param name="job">
-    /// Is kaydi. <see cref="JobRecord.Status"/> yok sayilir; depo daima
-    /// <see cref="JobStatus.Pending"/> ile baslatir.
+    /// The job record. <see cref="JobRecord.Status"/> is ignored; the store
+    /// always starts it with <see cref="JobStatus.Pending"/>.
     /// </param>
-    /// <param name="items">Isin girdi listesi. Sira numaralari liste sirasina gore atanir.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Olusturulan is kaydi.</returns>
+    /// <param name="items">The job's input list. Sequence numbers are assigned by list order.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The created job record.</returns>
     ValueTask<JobRecord> EnqueueAsync(
         JobRecord job,
         IReadOnlyList<string> items,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Calismaya hazir en eski isi kiralar. Boyle bir is yoksa
-    /// <see langword="null"/> doner.
+    /// Leases the oldest job ready to run. Returns <see langword="null"/> if
+    /// no such job exists.
     /// </summary>
-    /// <param name="owner">Kiralayan iscinin kimligi.</param>
-    /// <param name="leaseDuration">Kiranin gecerlilik suresi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kiralanan is; yoksa <see langword="null"/>.</returns>
+    /// <param name="owner">The leasing worker's identifier.</param>
+    /// <param name="leaseDuration">The lease's validity duration.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The leased job; <see langword="null"/> if none exists.</returns>
     ValueTask<JobRecord?> LeaseAsync(
         string owner,
         TimeSpan leaseDuration,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Devam eden bir isin kirasini uzatir. Isin durumunu degistirmez.</summary>
-    /// <param name="jobId">Is kimligi.</param>
-    /// <param name="owner">Kirayi tutan iscinin kimligi. Uyusmuyorsa islem yok sayilir.</param>
-    /// <param name="leaseDuration">Yeni kira suresi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Extends an in-progress job's lease. Does not change the job's status.</summary>
+    /// <param name="jobId">The job identifier.</param>
+    /// <param name="owner">The identifier of the worker holding the lease. The operation is ignored if it does not match.</param>
+    /// <param name="leaseDuration">The new lease duration.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
     ValueTask RenewLeaseAsync(
         Guid jobId,
         string owner,
@@ -59,45 +59,45 @@ public interface IJobStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Kiralanmis (<see cref="JobStatus.Leased"/>) bir isi <see cref="JobStatus.Running"/>
-    /// durumuna gecirir. Isci, kirayi aldiktan hemen sonra yururtmeye
-    /// baslamadan once bunu cagirir.
+    /// Transitions a leased (<see cref="JobStatus.Leased"/>) job to
+    /// <see cref="JobStatus.Running"/>. The worker calls this right after
+    /// obtaining the lease, before starting execution.
     /// </summary>
-    /// <param name="jobId">Is kimligi.</param>
-    /// <param name="owner">Kirayi tutan iscinin kimligi. Uyusmuyorsa islem yok sayilir.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Gecis gerceklestiyse <see langword="true"/>.</returns>
+    /// <param name="jobId">The job identifier.</param>
+    /// <param name="owner">The identifier of the worker holding the lease. The operation is ignored if it does not match.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> if the transition happened.</returns>
     ValueTask<bool> MarkRunningAsync(Guid jobId, string owner, CancellationToken cancellationToken = default);
 
-    /// <summary>Bir isi sonlandirir.</summary>
-    /// <param name="completion">Sonlandirma bilgileri.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Finalizes a job.</summary>
+    /// <param name="completion">The finalization information.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
     ValueTask CompleteAsync(JobCompletion completion, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Bir isi <see cref="JobStatus.Pending"/> durumuna geri dondurur; kirasini
-    /// birakir. Yeniden deneme sayisi <see cref="JobRecord.Attempt"/> zaten
-    /// kiralama anda arttigi icin burada degismez.
+    /// Returns a job to the <see cref="JobStatus.Pending"/> state; releases
+    /// its lease. <see cref="JobRecord.Attempt"/> does not change here since
+    /// it is already incremented at lease time.
     /// </summary>
-    /// <param name="jobId">Is kimligi.</param>
-    /// <param name="errorMessage">Son deneme hatasi.</param>
+    /// <param name="jobId">The job identifier.</param>
+    /// <param name="errorMessage">The most recent attempt's error.</param>
     /// <param name="retryAfter">
-    /// Bir sonraki denemeden once beklenecek sure. <see langword="null"/> veya
-    /// sifir ise is hemen yeniden kiralanabilir (eski davranis).
+    /// The time to wait before the next attempt. If <see langword="null"/> or
+    /// zero, the job may be re-leased immediately (the old behavior).
     /// </param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
     /// <remarks>
     /// <para>
-    /// <paramref name="retryAfter"/> <see cref="JobRecord.ScheduledFor"/> alanini
-    /// ileri tasir; kiralama sorgusu zaten <c>scheduled_for &lt;= now</c> kosulunu
-    /// uyguladigi icin geri adimli bekleme ek bir mekanizma gerektirmez.
+    /// <paramref name="retryAfter"/> pushes the <see cref="JobRecord.ScheduledFor"/>
+    /// field forward; since the lease query already applies
+    /// <c>scheduled_for &lt;= now</c>, backoff needs no additional mechanism.
     /// </para>
     /// <para>
-    /// Webhook teslimi (Faz 21) bu parametreyle 1 dk / 5 dk / 30 dk / 2 sa / 6 sa
-    /// merdivenini kurar. Ikinci bir kuyruk veya ikinci bir kiralama yazilmaz
-    /// (K-160).
+    /// Webhook delivery (Phase 21) builds its 1 min / 5 min / 30 min / 2 hr /
+    /// 6 hr ladder with this parameter. No second queue or second lease
+    /// mechanism is written (K-160).
     /// </para>
     /// </remarks>
     ValueTask ReleaseForRetryAsync(
@@ -107,41 +107,41 @@ public interface IJobStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Bir isi iptal etmeye calisir. Yalnizca <see cref="JobStatus.Pending"/>,
-    /// <see cref="JobStatus.Leased"/> veya <see cref="JobStatus.Running"/>
-    /// durumundaki bir is iptal edilebilir.
+    /// Tries to cancel a job. Only a job in the <see cref="JobStatus.Pending"/>,
+    /// <see cref="JobStatus.Leased"/>, or <see cref="JobStatus.Running"/>
+    /// state can be cancelled.
     /// </summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="jobId">Is kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Iptal gerceklestiyse <see langword="true"/>.</returns>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="jobId">The job identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> if the cancellation happened.</returns>
     ValueTask<bool> CancelAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default);
 
-    /// <summary>Tek bir is kaydini getirir.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="jobId">Is kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kayit; yoksa veya baska bir kiraciya aitse <see langword="null"/>.</returns>
+    /// <summary>Fetches a single job record.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="jobId">The job identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The record; <see langword="null"/> if it does not exist or belongs to another tenant.</returns>
     ValueTask<JobRecord?> GetAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default);
 
-    /// <summary>Isleri filtreleyerek listeler. En yeni kayit basta doner.</summary>
-    /// <param name="query">Filtre.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kayitlar.</returns>
+    /// <summary>Lists jobs by filter. The newest record is returned first.</summary>
+    /// <param name="query">The filter.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The records.</returns>
     ValueTask<IReadOnlyList<JobRecord>> QueryAsync(JobQuery query, CancellationToken cancellationToken = default);
 
-    /// <summary>Bir isin ogelerini sira numarasina gore listeler.</summary>
-    /// <param name="jobId">Is kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Ogeler.</returns>
+    /// <summary>Lists a job's items, by sequence number.</summary>
+    /// <param name="jobId">The job identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The items.</returns>
     ValueTask<IReadOnlyList<JobItemRecord>> ListItemsAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Bir ogenin isleme sonucunu bildirir ve isin <see cref="JobRecord.DoneItems"/>/
-    /// <see cref="JobRecord.FailedItems"/> sayaclarini gunceller.
+    /// Reports an item's processing result and updates the job's
+    /// <see cref="JobRecord.DoneItems"/>/<see cref="JobRecord.FailedItems"/> counters.
     /// </summary>
-    /// <param name="item">Oge sonucu.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <param name="item">The item result.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
     ValueTask ReportItemAsync(JobItemResult item, CancellationToken cancellationToken = default);
 }
