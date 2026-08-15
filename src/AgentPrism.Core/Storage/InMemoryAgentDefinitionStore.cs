@@ -3,22 +3,22 @@ using System.Collections.Concurrent;
 namespace AgentPrism;
 
 /// <summary>
-/// Agent tanimlarini surec bellegi icinde tutan depo.
+/// A store that keeps agent definitions in process memory.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bu bir test yardimcisi <em>degildir</em>. AgentPrism'in veritabani olmadan
-/// calisabilmesini saglayan birinci sinif bir uygulamadir; boylece paketi kuran
-/// bir gelistirici hicbir altyapi kurmadan calisan bir kontrol duzlemi gorur.
+/// This is <em>not</em> a test helper. It is a first-class implementation that lets
+/// AgentPrism run without a database, so a developer who installs the package gets a
+/// working control plane without setting up infrastructure.
 /// </para>
 /// <para>
-/// 🚨 Kayitlar <strong>kiraci basina</strong> ayrilir. Kiraci
-/// <see cref="ITenantContext"/>'ten okunur ve SQL uygulamalariyla ayni
-/// yalitim sozlesmesi gecerlidir (Faz 41).
+/// Records are isolated <strong>per tenant</strong>. The tenant comes from
+/// <see cref="ITenantContext"/>, and the same isolation contract as SQL
+/// implementations applies (Phase 41).
 /// </para>
 /// <para>
-/// <strong>Sinirlari:</strong> veriler surec omruyle sinirlidir ve birden cok
-/// dugum arasinda paylasilmaz. Uretimde <c>AgentPrism.PostgreSql</c> kullanin.
+/// <strong>Limits:</strong> data is limited to the process lifetime and is not shared
+/// across nodes. Use <c>AgentPrism.PostgreSql</c> in production.
 /// </para>
 /// </remarks>
 public sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
@@ -26,9 +26,9 @@ public sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
     private readonly ConcurrentDictionary<(string TenantId, string Name), List<AgentDefinition>> _versions = new();
     private readonly ITenantContext _tenantContext;
 
-    /// <summary>Yeni bir bellek ici tanim deposu olusturur.</summary>
+    /// <summary>Initializes a new in-memory definition store.</summary>
     /// <param name="tenantContext">
-    /// Gecerli kiracinin baglami. Verilmezse depo tek kiracili davranir.
+    /// The current tenant context. If omitted, the store behaves as single tenant.
     /// </param>
     public InMemoryAgentDefinitionStore(ITenantContext? tenantContext = null)
         => _tenantContext = tenantContext ?? FixedTenantContext.Default;
@@ -154,7 +154,7 @@ public sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
 
         if (!_versions.TryGetValue(Key(name), out var history))
         {
-            throw new AgentPrismException($"'{name}' adinda bir agent tanimi bulunamadi.");
+            throw new AgentPrismException($"Agent definition named '{name}' was not found.");
         }
 
         lock (history)
@@ -172,10 +172,10 @@ public sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
 
             if (target is null)
             {
-                throw new AgentPrismException($"'{name}' agent'inin {version} numarali surumu bulunamadi.");
+                throw new AgentPrismException($"Version {version} of agent '{name}' was not found.");
             }
 
-            // Geri alma eski surumu silmez; icerigini yeni bir surum olarak kaydeder.
+            // Rollback does not remove the old version. It saves its content as a new version.
             var restored = target with
             {
                 Version = history[^1].Version + 1,

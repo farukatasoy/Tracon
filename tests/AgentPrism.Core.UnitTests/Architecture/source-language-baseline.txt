@@ -112,9 +112,6 @@ src/AgentPrism.Azure/AzureOpenAIProviderOptionsValidator.cs|13
 src/AgentPrism.Azure/README.md|51
 src/AgentPrism.Core/AgentPrism.Core.csproj|20
 src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs|252
-src/AgentPrism.Core/Attachments/AttachmentUriReference.cs|12
-src/AgentPrism.Core/Audit/AuditRecorder.cs|12
-src/AgentPrism.Core/Audit/AuditingExperimentStore.cs|12
 src/AgentPrism.Core/Audit/AuditingSessionStore.cs|14
 src/AgentPrism.Core/Catalog/CodeAgentRegistration.cs|13
 src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs|179
@@ -141,9 +138,7 @@ src/AgentPrism.Core/Guards/ContentGuardPipeline.cs|50
 src/AgentPrism.Core/Guards/ContentGuardingChatClient.cs|45
 src/AgentPrism.Core/Guards/PatternContentGuard.cs|24
 src/AgentPrism.Core/Guards/PatternContentGuardOptions.cs|17
-src/AgentPrism.Core/Guards/PiiPatterns.cs|12
 src/AgentPrism.Core/IAgentPrismBuilder.cs|37
-src/AgentPrism.Core/Idempotency/AgentPrismIdempotencyOptions.cs|12
 src/AgentPrism.Core/Knowledge/KnowledgeIngestionService.cs|38
 src/AgentPrism.Core/Knowledge/VectorSearchToolFactory.cs|16
 src/AgentPrism.Core/Models/CircuitBreakingChatClient.cs|13
@@ -152,7 +147,6 @@ src/AgentPrism.Core/Models/ModelProviderCircuitBreaker.cs|37
 src/AgentPrism.Core/Models/ModelProviderHealthCache.cs|29
 src/AgentPrism.Core/Models/ModelProviderRegistry.cs|44
 src/AgentPrism.Core/Quotas/AgentPrismRateLimitOptions.cs|15
-src/AgentPrism.Core/Quotas/InMemoryQuotaStore.cs|12
 src/AgentPrism.Core/Quotas/QuotaEnforcer.cs|33
 src/AgentPrism.Core/Quotas/QuotaPeriodCalculator.cs|27
 src/AgentPrism.Core/Quotas/QuotaUsageObserver.cs|41
@@ -183,7 +177,6 @@ src/AgentPrism.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs|56
 src/AgentPrism.Core/Skills/Scripts/SkillScriptArgumentValidator.cs|13
 src/AgentPrism.Core/Skills/Scripts/SkillScriptProcessRunner.cs|16
 src/AgentPrism.Core/Skills/Scripts/SkillScriptSupport.cs|25
-src/AgentPrism.Core/Storage/InMemoryAgentDefinitionStore.cs|12
 src/AgentPrism.Core/Storage/InMemoryRunStore.cs|98
 src/AgentPrism.Core/Storage/InMemorySessionStore.cs|14
 src/AgentPrism.Core/Voice/VoiceConversationBuilderExtensions.cs|18
