@@ -2,69 +2,69 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>Bir webhook teslim denemesinin durumu.</summary>
+/// <summary>The status of a webhook delivery attempt.</summary>
 /// <remarks>
-/// JSON'da ad olarak yazilir, veritabaninda <c>smallint</c> olarak saklanir.
-/// Deger sirasi <strong>degistirilemez</strong> — yalnizca sona eklenir.
+/// Written as a name in JSON, stored as <c>smallint</c> in the database. The
+/// value order <strong>must not change</strong> — only append.
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<WebhookDeliveryStatus>))]
 public enum WebhookDeliveryStatus
 {
-    /// <summary>Teslim kuyruga alindi, henuz denenmedi veya yeniden denenecek.</summary>
+    /// <summary>The delivery is queued, not yet attempted or to be retried.</summary>
     Pending = 0,
 
-    /// <summary>Alici <c>2xx</c> dondu.</summary>
+    /// <summary>The recipient returned <c>2xx</c>.</summary>
     Delivered = 1,
 
-    /// <summary>Tum denemeler tukendi.</summary>
+    /// <summary>All attempts were exhausted.</summary>
     Failed = 2,
 
-    /// <summary>Teslim hic denenmedi: abonelik kapali veya hedef adres reddedildi.</summary>
+    /// <summary>The delivery was never attempted: the subscription is disabled or the target address was rejected.</summary>
     Dropped = 3,
 }
 
-/// <summary>AgentPrism'in yayabilecegi olay turleri.</summary>
+/// <summary>The event types AgentPrism can publish.</summary>
 /// <remarks>
-/// Olay adlari sozlesmenin parcasidir ve <strong>degistirilemez</strong>:
-/// aboneler bu dizeleri kaydeder.
+/// Event names are part of the contract and <strong>must not change</strong>:
+/// subscribers save these strings.
 /// </remarks>
 public static class WebhookEvents
 {
-    /// <summary>Bir calistirma basariyla bitti.</summary>
+    /// <summary>A run completed successfully.</summary>
     public const string RunCompleted = "run.completed";
 
-    /// <summary>Bir calistirma hatayla bitti.</summary>
+    /// <summary>A run ended in an error.</summary>
     public const string RunFailed = "run.failed";
 
-    /// <summary>Bir tool cagrisi onay bekliyor (Faz 6).</summary>
+    /// <summary>A tool call is awaiting approval (Phase 6).</summary>
     public const string ApprovalPending = "approval.pending";
 
-    /// <summary>Bir workflow insan girdisi bekliyor (Faz 16).</summary>
+    /// <summary>A workflow is awaiting human input (Phase 16).</summary>
     public const string WorkflowRequestPending = "workflow.request.pending";
 
-    /// <summary>Bir kuyruk isi basariyla bitti (Faz 17).</summary>
+    /// <summary>A queued job completed successfully (Phase 17).</summary>
     public const string JobCompleted = "job.completed";
 
-    /// <summary>Bir kuyruk isi hatayla bitti (Faz 17).</summary>
+    /// <summary>A queued job ended in an error (Phase 17).</summary>
     public const string JobFailed = "job.failed";
 
-    /// <summary>Bir degerlendirme kosusu bitti (Faz 18).</summary>
+    /// <summary>An evaluation run completed (Phase 18).</summary>
     public const string EvalCompleted = "eval.completed";
 
-    /// <summary>Bir kota esigi asildi (%80 veya %100).</summary>
+    /// <summary>A quota threshold was exceeded (80% or 100%).</summary>
     public const string QuotaThreshold = "quota.threshold";
 
     /// <summary>
-    /// Cevrimici degerlendirme penceresinin ortalama puani esigin altina dustu
-    /// (Faz 49). Tek bir dusuk puan bu olayi TETIKLEMEZ — asgari ornek sayisi
-    /// asilmis olmalidir.
+    /// The online evaluation window's average score dropped below the
+    /// threshold (Phase 49). A single low score does NOT TRIGGER this event —
+    /// the minimum sample count must be exceeded.
     /// </summary>
     public const string RunScoreLow = "run.score.low";
 
-    /// <summary>Abonelik ucunun dogrulanmasi icin gonderilen sinama olayi.</summary>
+    /// <summary>The test event sent to verify a subscription endpoint.</summary>
     public const string Test = "test.ping";
 
-    /// <summary>Taninan tum olay adlari.</summary>
+    /// <summary>All recognized event names.</summary>
     public static IReadOnlyList<string> All { get; } =
     [
         RunCompleted,
@@ -79,160 +79,161 @@ public static class WebhookEvents
         Test,
     ];
 
-    /// <summary>Bir olay adinin taninip taninmadigini bildirir.</summary>
-    /// <param name="eventType">Olay adi.</param>
-    /// <returns>Ad taniniyorsa <see langword="true"/>.</returns>
+    /// <summary>Reports whether an event name is recognized.</summary>
+    /// <param name="eventType">The event name.</param>
+    /// <returns><see langword="true"/> if the name is recognized.</returns>
     public static bool IsKnown(string? eventType)
         => eventType is not null && All.Contains(eventType, StringComparer.Ordinal);
 }
 
-/// <summary>Bir dis sistemin olay aboneligi.</summary>
+/// <summary>An external system's event subscription.</summary>
 /// <remarks>
-/// 🚨 Bu kayitta <strong>sir alani yoktur</strong>. Imzalama sirri
-/// veritabaninda durmaz; yalnizca degerin okunacagi yapilandirma anahtarinin
-/// adi (<see cref="SecretConfigurationKey"/>) durur ve deger calisma aninda
-/// <c>IConfiguration</c> uzerinden cozulur (K-059).
+/// 🚨 This record <strong>has no secret field</strong>. The signing secret
+/// does not sit in the database; only the name of the configuration key the
+/// value is read from (<see cref="SecretConfigurationKey"/>) sits here, and
+/// the value is resolved at run time through <c>IConfiguration</c> (K-059).
 /// </remarks>
 public sealed record WebhookSubscription
 {
-    /// <summary>Abonelik kimligi.</summary>
+    /// <summary>The subscription identifier.</summary>
     public required Guid Id { get; init; }
 
-    /// <summary>Aboneligin ait oldugu kiraci.</summary>
+    /// <summary>The tenant the subscription belongs to.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Kiraci icinde benzersiz ad.</summary>
+    /// <summary>The name, unique within the tenant.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Olaylarin gonderilecegi adres.</summary>
+    /// <summary>The address events are sent to.</summary>
     /// <remarks>
-    /// Adres SSRF denetiminden gecer: yalnizca <c>https</c> (veya loopback
-    /// icin <c>http</c>), ozel ag araliklari reddedilir, yonlendirme izlenmez.
+    /// The address goes through an SSRF check: only <c>https</c> (or
+    /// <c>http</c> for loopback), private network ranges are rejected,
+    /// redirects are not followed.
     /// </remarks>
     public required string Url { get; init; }
 
-    /// <summary>Abone olunan olay adlari. Bkz. <see cref="WebhookEvents"/>.</summary>
+    /// <summary>The subscribed event names. See <see cref="WebhookEvents"/>.</summary>
     public required IReadOnlyList<string> Events { get; init; }
 
     /// <summary>
-    /// Imzalama sirrinin okunacagi yapilandirma anahtarinin <strong>adi</strong>.
-    /// Sirrin kendisi degildir.
+    /// The <strong>name</strong> of the configuration key the signing secret
+    /// is read from. Not the secret itself.
     /// </summary>
     /// <remarks>
-    /// Ornek: <c>"AgentPrism:Webhooks:Secrets:siparis-servisi"</c>. Deger
-    /// <c>dotnet user-secrets</c> veya ortam degiskeninde yasar. Bos ise
-    /// istekler imzalanmaz.
+    /// Example: <c>"AgentPrism:Webhooks:Secrets:order-service"</c>. The value
+    /// lives in <c>dotnet user-secrets</c> or an environment variable. If
+    /// empty, requests are not signed.
     /// </remarks>
     public string? SecretConfigurationKey { get; init; }
 
-    /// <summary>Her istege eklenecek ek basliklar.</summary>
+    /// <summary>Extra headers added to every request.</summary>
     /// <remarks>
-    /// Kimlik dogrulama basligi <strong>buraya yazilmaz</strong>: deger
-    /// veritabaninda saklanirdi. Imzalama icin
-    /// <see cref="SecretConfigurationKey"/> kullanin.
+    /// An authentication header is <strong>not written here</strong>: the
+    /// value would be stored in the database. Use
+    /// <see cref="SecretConfigurationKey"/> for signing instead.
     /// </remarks>
     public IReadOnlyDictionary<string, string> Headers { get; init; } =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Abonelik etkin mi.</summary>
+    /// <summary>Whether the subscription is enabled.</summary>
     public bool Enabled { get; init; } = true;
 
     /// <summary>
-    /// Ust uste basarisiz teslim sayisi. Esik asilinca abonelik kendiliginden
-    /// kapanir ve denetim izine yazilir.
+    /// The consecutive-failure count. Once the threshold is exceeded, the
+    /// subscription disables itself and is written to the audit trail.
     /// </summary>
     public int ConsecutiveFailures { get; init; }
 
-    /// <summary>Olusturulma zamani (UTC).</summary>
+    /// <summary>The creation time (UTC).</summary>
     public required DateTimeOffset CreatedAt { get; init; }
 
-    /// <summary>Son guncelleme zamani (UTC).</summary>
+    /// <summary>The last-updated time (UTC).</summary>
     public required DateTimeOffset UpdatedAt { get; init; }
 }
 
-/// <summary>Tek bir teslim kaydi.</summary>
+/// <summary>A single delivery record.</summary>
 /// <remarks>
-/// Bu kayit bir <strong>kuyruk satiri degildir</strong>: zamanlama, kiralama ve
-/// yeniden deneme Faz 17'nin <c>jobs</c> tablosunda yasar (K-160). Buradaki
-/// <see cref="Attempt"/> yalnizca gecmisi raporlar.
+/// This record is <strong>not a queue row</strong>: scheduling, leasing, and
+/// retry live in Phase 17's <c>jobs</c> table (K-160). The <see cref="Attempt"/>
+/// field here only reports history.
 /// </remarks>
 public sealed record WebhookDelivery
 {
-    /// <summary>Teslim kimligi. Istekte <c>X-AgentPrism-Delivery</c> basligi olarak gider.</summary>
+    /// <summary>The delivery identifier. Sent in the request as the <c>X-AgentPrism-Delivery</c> header.</summary>
     public required Guid Id { get; init; }
 
-    /// <summary>Aboneligin kimligi.</summary>
+    /// <summary>The subscription identifier.</summary>
     public required Guid SubscriptionId { get; init; }
 
-    /// <summary>Kiraci kimligi.</summary>
+    /// <summary>The tenant identifier.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Olay adi.</summary>
+    /// <summary>The event name.</summary>
     public required string EventType { get; init; }
 
-    /// <summary>Gonderilen JSON govde.</summary>
+    /// <summary>The JSON body sent.</summary>
     /// <remarks>
-    /// Yalnizca <strong>ozet</strong> tasir: kimlik, durum, agent, token,
-    /// maliyet. Mesaj icerikleri hicbir zaman burada durmaz (K-161).
+    /// Carries only a <strong>summary</strong>: identifier, status, agent,
+    /// tokens, cost. Message content never sits here (K-161).
     /// </remarks>
     public required string Payload { get; init; }
 
-    /// <summary>Teslimin durumu.</summary>
+    /// <summary>The delivery's status.</summary>
     public required WebhookDeliveryStatus Status { get; init; }
 
-    /// <summary>Yapilan deneme sayisi.</summary>
+    /// <summary>The number of attempts made.</summary>
     public int Attempt { get; init; }
 
-    /// <summary>Alicinin dondugu HTTP durum kodu. Baglanti kurulamadiysa <see langword="null"/>.</summary>
+    /// <summary>The HTTP status code the recipient returned. <see langword="null"/> if a connection could not be established.</summary>
     public int? ResponseCode { get; init; }
 
-    /// <summary>Son hata mesaji.</summary>
+    /// <summary>The most recent error message.</summary>
     public string? Error { get; init; }
 
-    /// <summary>Olusturulma zamani (UTC).</summary>
+    /// <summary>The creation time (UTC).</summary>
     public required DateTimeOffset CreatedAt { get; init; }
 
-    /// <summary>Basarili teslim zamani (UTC).</summary>
+    /// <summary>The successful delivery time (UTC).</summary>
     public DateTimeOffset? DeliveredAt { get; init; }
 }
 
-/// <summary>Bir teslim denemesinin sonucu.</summary>
+/// <summary>The result of a delivery attempt.</summary>
 public sealed record WebhookDeliveryResult
 {
-    /// <summary>Teslim kimligi.</summary>
+    /// <summary>The delivery identifier.</summary>
     public required Guid DeliveryId { get; init; }
 
-    /// <summary>Son durum.</summary>
+    /// <summary>The final status.</summary>
     public required WebhookDeliveryStatus Status { get; init; }
 
-    /// <summary>Deneme sirasi.</summary>
+    /// <summary>The attempt number.</summary>
     public required int Attempt { get; init; }
 
-    /// <summary>Alicinin dondugu HTTP durum kodu.</summary>
+    /// <summary>The HTTP status code the recipient returned.</summary>
     public int? ResponseCode { get; init; }
 
-    /// <summary>Hata mesaji.</summary>
+    /// <summary>The error message.</summary>
     public string? Error { get; init; }
 
-    /// <summary>Sonucun kaydedildigi an (UTC).</summary>
+    /// <summary>The moment the result was recorded (UTC).</summary>
     public required DateTimeOffset RecordedAt { get; init; }
 }
 
-/// <summary>Teslim gecmisini filtrelemek icin sorgu.</summary>
+/// <summary>A filter for querying delivery history.</summary>
 public sealed record WebhookDeliveryQuery
 {
-    /// <summary>Kiraci kimligi.</summary>
+    /// <summary>The tenant identifier.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Yalnizca bu aboneligin teslimlerini getirir.</summary>
+    /// <summary>Fetches only this subscription's deliveries.</summary>
     public Guid? SubscriptionId { get; init; }
 
-    /// <summary>Yalnizca bu durumdaki teslimleri getirir.</summary>
+    /// <summary>Fetches only deliveries in this status.</summary>
     public WebhookDeliveryStatus? Status { get; init; }
 
-    /// <summary>Atlanacak kayit sayisi.</summary>
+    /// <summary>The number of records to skip.</summary>
     public int Skip { get; init; }
 
-    /// <summary>Getirilecek ust kayit sayisi.</summary>
+    /// <summary>The maximum number of records to fetch.</summary>
     public int Take { get; init; } = 50;
 }

@@ -10,9 +10,6 @@ samples/AgentPrism.Api/Program.cs|248
 samples/AgentPrism.Api/appsettings.json|29
 samples/Directory.Build.props|1
 src/AgentPrism.Abstractions/README.md|4
-src/AgentPrism.Abstractions/Webhooks/IWebhookStore.cs|47
-src/AgentPrism.Abstractions/Webhooks/WebhookEventPayload.cs|41
-src/AgentPrism.Abstractions/Webhooks/WebhookTypes.cs|65
 src/AgentPrism.Abstractions/Workflows/IWorkflowCheckpointStore.cs|33
 src/AgentPrism.Abstractions/Workflows/IWorkflowDefinitionStore.cs|22
 src/AgentPrism.Abstractions/Workflows/IWorkflowRunner.cs|58
