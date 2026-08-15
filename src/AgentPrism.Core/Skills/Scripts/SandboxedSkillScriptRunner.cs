@@ -436,7 +436,11 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
                 "script.denied",
                 $"{skillName}/{scriptName}",
                 before: null,
-                after: reason,
+                // 'after' bir jsonb sutununa yazilir; ham metin gecirmek HER
+                // reddi 22P02 ("invalid input syntax for type json") ile
+                // sessizce dusuruyordu (HATA-K-skill-audit-json, 2026-08-15) -
+                // denetim izi hicbir zaman olusmuyordu.
+                after: JsonSerializer.Serialize(reason, AgentPrismCoreJsonContext.Default.String),
                 cancellationToken)
             .ConfigureAwait(false);
 
