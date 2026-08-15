@@ -45,7 +45,7 @@ public sealed class AgentRunBudgetTests
 
         budget.IsTokenBudgetExhausted.ShouldBeTrue();
         budget.TryReserveRun().ShouldBeFalse();
-        budget.DescribeExhaustion().ShouldContain("token butcesi doldu", Case.Sensitive);
+        budget.DescribeExhaustion().ShouldContain("token budget is exhausted", Case.Sensitive);
     }
 
     [Fact]
