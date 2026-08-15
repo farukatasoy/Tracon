@@ -107,8 +107,8 @@ public sealed class AnthropicChatClientFactory
         if (thinkingBudget is { } budget && budget <= 0)
         {
             throw new AgentPrismException(
-                $"'{AnthropicProviderNames.ThinkingBudgetTokensSetting}' sifirdan buyuk olmalidir. " +
-                $"Gelen deger: {budget}.");
+                $"'{AnthropicProviderNames.ThinkingBudgetTokensSetting}' must be greater than zero. " +
+                $"Actual value: {budget}.");
         }
 
         IChatClient inner = _client.AsIChatClient(model, _defaultMaxOutputTokens);

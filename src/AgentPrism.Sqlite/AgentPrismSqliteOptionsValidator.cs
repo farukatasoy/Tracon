@@ -22,7 +22,7 @@ public sealed class AgentPrismSqliteOptionsValidator : IValidateOptions<AgentPri
         if (string.IsNullOrWhiteSpace(options.ConnectionString))
         {
             (failures ??= []).Add(
-                $"{nameof(AgentPrismSqliteOptions)}.{nameof(AgentPrismSqliteOptions.ConnectionString)} bos olamaz. " +
+                $"{nameof(AgentPrismSqliteOptions)}.{nameof(AgentPrismSqliteOptions.ConnectionString)} cannot be empty. " +
                 $"Baglanti dizesini `UseSqlite(...)` cagrisinda verin veya " +
                 $"'{AgentPrismSqliteOptions.SectionName}:{nameof(AgentPrismSqliteOptions.ConnectionString)}' " +
                 "ayarini yapilandirmada tanimlayin.");
@@ -43,14 +43,14 @@ public sealed class AgentPrismSqliteOptionsValidator : IValidateOptions<AgentPri
             (failures ??= []).Add(
                 $"{nameof(AgentPrismSqliteOptions)}.{nameof(AgentPrismSqliteOptions.TablePrefix)} gecerli bir " +
                 "AgentPrism tablo oneki degil. Kucuk harf veya alt cizgi ile baslamali; kucuk harf, " +
-                $"rakam ve alt cizgi icermeli; en cok 63 karakter olmalidir. Gelen deger: '{options.TablePrefix}'.");
+                $"rakam ve alt cizgi icermeli; en cok 63 karakter olmalidir. Actual value: '{options.TablePrefix}'.");
         }
 
         if (options.CommandTimeoutSeconds is < 0 or > 3600)
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismSqliteOptions)}.{nameof(AgentPrismSqliteOptions.CommandTimeoutSeconds)} " +
-                $"0 ile 3600 arasinda olmalidir. Gelen deger: {options.CommandTimeoutSeconds}.");
+                $"0 ile 3600 arasinda olmalidir. Actual value: {options.CommandTimeoutSeconds}.");
         }
 
         return failures is null

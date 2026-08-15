@@ -22,7 +22,7 @@ public sealed class AgentPrismPostgreSqlOptionsValidator : IValidateOptions<Agen
         if (string.IsNullOrWhiteSpace(options.ConnectionString))
         {
             (failures ??= []).Add(
-                $"{nameof(AgentPrismPostgreSqlOptions)}.{nameof(AgentPrismPostgreSqlOptions.ConnectionString)} bos olamaz. " +
+                $"{nameof(AgentPrismPostgreSqlOptions)}.{nameof(AgentPrismPostgreSqlOptions.ConnectionString)} cannot be empty. " +
                 $"Baglanti dizesini `UsePostgreSql(...)` cagrisinda verin veya " +
                 $"'{AgentPrismPostgreSqlOptions.SectionName}:{nameof(AgentPrismPostgreSqlOptions.ConnectionString)}' " +
                 "ayarini `dotnet user-secrets` icinde tanimlayin.");
@@ -33,7 +33,7 @@ public sealed class AgentPrismPostgreSqlOptionsValidator : IValidateOptions<Agen
             (failures ??= []).Add(
                 $"{nameof(AgentPrismPostgreSqlOptions)}.{nameof(AgentPrismPostgreSqlOptions.SchemaName)} gecerli bir " +
                 "tirnaksiz PostgreSQL tanimlayicisi degil. Kucuk harf veya alt cizgi ile baslamali; kucuk harf, " +
-                $"rakam ve alt cizgi icermeli; en cok 63 karakter olmalidir. Gelen deger: '{options.SchemaName}'.");
+                $"rakam ve alt cizgi icermeli; en cok 63 karakter olmalidir. Actual value: '{options.SchemaName}'.");
         }
         else if (string.Equals(options.SchemaName, "public", StringComparison.Ordinal))
         {
@@ -46,7 +46,7 @@ public sealed class AgentPrismPostgreSqlOptionsValidator : IValidateOptions<Agen
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismPostgreSqlOptions)}.{nameof(AgentPrismPostgreSqlOptions.CommandTimeoutSeconds)} " +
-                $"0 ile 3600 arasinda olmalidir. Gelen deger: {options.CommandTimeoutSeconds}.");
+                $"0 ile 3600 arasinda olmalidir. Actual value: {options.CommandTimeoutSeconds}.");
         }
 
         return failures is null
