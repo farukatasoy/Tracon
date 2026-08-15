@@ -1,117 +1,115 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Bir workflow calistirmasinin bekledigi insan girdisi.
+/// Represents human input awaited by a workflow run.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bekleyen istekler <strong>ayri bir tabloda tutulmaz</strong>; calistirmanin
-/// <see cref="RunEventType.WorkflowRequest"/> olaylarindan okunur. Gerekce:
-/// olay akisi zaten append-only ve kiraci filtrelidir (K-014), ikinci bir kayit
-/// hatti ayni bilgiyi iki yerde tutup ayrisma riski uretirdi.
+/// Pending requests are <strong>not stored in a separate table</strong>; they
+/// are read from the run's <see cref="RunEventType.WorkflowRequest"/> events.
+/// The event stream is already append-only and tenant-filtered (K-014), so a
+/// second record path would duplicate data and risk divergence.
 /// </para>
 /// <para>
-/// 🚨 <strong>Yanit yeni bir calistirma acar.</strong> Bekleyen bir istegi
-/// yanitlamak, calistirmayi kontrol noktasindan sürdürur ve yeni bir
-/// <c>runs</c> satiri uretir. Ayni satiri yeniden acmak olay akisinin
-/// append-only kuralini bozardi.
+/// 🚨 <strong>A response starts a new run.</strong> Responding to a pending
+/// request resumes the run from its checkpoint and creates a new <c>runs</c>
+/// row. Reopening the same row would violate the event stream's append-only rule.
 /// </para>
 /// </remarks>
 public sealed record WorkflowPendingRequest
 {
-    /// <summary>Istegi ureten calistirmanin kimligi.</summary>
+    /// <summary>Gets the identifier of the run that produced the request.</summary>
     public required Guid RunId { get; init; }
 
     /// <summary>
-    /// Istegin kimligi. Yanit verirken bu deger gonderilir ve kontrol
-    /// noktasindan sürdürulen yurutmede ayni kimlikle yeniden yayinlanan
-    /// istekle eslestirilir.
+    /// Gets the request identifier. Send this value when responding; the
+    /// resumed execution matches it to the request published with the same id.
     /// </summary>
     public required string RequestId { get; init; }
 
-    /// <summary>Istegi yayinlayan portun kimligi. Grafta bir dugume karsilik gelir.</summary>
+    /// <summary>Gets the identifier of the port that published the request. It maps to a graph node.</summary>
     public required string PortId { get; init; }
 
-    /// <summary>Istegin veri tipinin adi.</summary>
+    /// <summary>Gets the request data type name.</summary>
     public string? RequestType { get; init; }
 
-    /// <summary>Beklenen yanit tipinin adi.</summary>
+    /// <summary>Gets the expected response type name.</summary>
     public string? ResponseType { get; init; }
 
     /// <summary>
-    /// Kullaniciya gosterilecek istek metni. Plan onayinda planin kendisidir.
+    /// Gets the request text shown to the user. For plan approval, this is the plan itself.
     /// </summary>
     public string? Prompt { get; init; }
 
     /// <summary>
-    /// Arayuzun hangi girdi alanini gosterecegini belirler.
+    /// Gets the input field the UI should display.
     /// </summary>
     public required WorkflowRequestForm Form { get; init; }
 
-    /// <summary>Istegin yayinlandigi an (UTC).</summary>
+    /// <summary>Gets the UTC time when the request was published.</summary>
     public DateTimeOffset RequestedAt { get; init; }
 }
 
 /// <summary>
-/// Bekleyen bir istegin arayuzde nasil sorulacagi.
+/// Defines how the UI presents a pending request.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bicim, portun <em>yanit tipinden</em> turetilir. Sunucu bunu bilerek
-/// hesaplar: yanit tipini istemcinin cozmesi, .NET tip adlarini kablo
-/// sozlesmesine sokmak olurdu.
+/// The server derives the form from the port's <em>response type</em>. It does
+/// this deliberately so clients do not need to resolve .NET type names in the
+/// wire contract.
 /// </para>
-/// <para>JSON'da ad olarak yazilir (K-040).</para>
+/// <para>Serialized as a JSON string name (K-040).</para>
 /// </remarks>
 [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<WorkflowRequestForm>))]
 public enum WorkflowRequestForm
 {
-    /// <summary>Serbest JSON. Arayuz bir metin kutusu gosterir ve icerigi oldugu gibi gonderir.</summary>
+    /// <summary>Free-form JSON. The UI displays a text box and sends its content unchanged.</summary>
     Json = 0,
 
-    /// <summary>Duz metin yanit.</summary>
+    /// <summary>Plain-text response.</summary>
     Text = 1,
 
-    /// <summary>Evet / hayir.</summary>
+    /// <summary>Yes or no response.</summary>
     Boolean = 2,
 
     /// <summary>
-    /// Plan onayi: onayla ya da bir duzeltme metniyle geri gonder.
-    /// <c>Magentic</c> deseninin plan gozden gecirme akisidir.
+    /// Plan approval: approve the plan or return it with revision text.
+    /// This is the plan-review flow of the <c>Magentic</c> pattern.
     /// </summary>
     PlanReview = 3,
 }
 
-/// <summary>Bekleyen bir istege verilen yanit.</summary>
+/// <summary>Represents a response to a pending request.</summary>
 /// <remarks>
-/// Alanlar birbirini disliyor degildir: hangisinin kullanilacagini portun yanit
-/// tipi belirler. Hicbiri portun bekledigi tipe cevrilemezse istek
-/// <strong>reddedilir</strong> - yanlis tipte bir yaniti sessizce kabul etmek,
-/// yurutmeyi anlasilmaz bir noktada bozardi.
+/// The fields are not mutually exclusive. The port response type determines
+/// which one is used. The request is <strong>rejected</strong> when no field
+/// converts to the expected type; silently accepting a response of the wrong
+/// type would fail execution at an opaque point.
 /// </remarks>
 public sealed record WorkflowRespondRequest
 {
-    /// <summary>Yanitlanan calistirmanin kimligi.</summary>
+    /// <summary>Gets the identifier of the run being responded to.</summary>
     public required Guid RunId { get; init; }
 
-    /// <summary>Yanitlanan istegin kimligi.</summary>
+    /// <summary>Gets the identifier of the request being responded to.</summary>
     public required string RequestId { get; init; }
 
-    /// <summary>Evet/hayir yaniti; plan onayinda "planı onayla" anlamina gelir.</summary>
+    /// <summary>Gets the yes/no response; for plan approval, it means "approve the plan".</summary>
     public bool? Approved { get; init; }
 
-    /// <summary>Metin yaniti; plan onayinda duzeltme talimatidir.</summary>
+    /// <summary>Gets the text response; for plan approval, it is revision guidance.</summary>
     public string? Text { get; init; }
 
-    /// <summary>Serbest JSON yanit. Portun yanit tipine cozulur.</summary>
+    /// <summary>Gets the free-form JSON response. It is deserialized to the port response type.</summary>
     public string? Json { get; init; }
 
     /// <summary>
-    /// Sürdürulecek kontrol noktasinin kimligi. Bos birakilirsa calistirmanin
-    /// en son kontrol noktasi kullanilir.
+    /// Gets the identifier of the checkpoint to resume. If null, the run's most
+    /// recent checkpoint is used.
     /// </summary>
     public string? CheckpointId { get; init; }
 
-    /// <summary>Yeni calistirmanin kimligi. Verilirse kayit bu kimlikle acilir.</summary>
+    /// <summary>Gets the identifier of the new run. When supplied, recording starts with this id.</summary>
     public Guid? NewRunId { get; init; }
 }

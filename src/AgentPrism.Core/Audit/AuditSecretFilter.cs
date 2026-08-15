@@ -4,20 +4,20 @@ using System.Text.Json;
 namespace AgentPrism;
 
 /// <summary>
-/// Denetim izine yazilmadan once <c>before</c>/<c>after</c> yuklerinden olasi
-/// sirlari temizler.
+/// Redacts potential secrets from <c>before</c> and <c>after</c> payloads before
+/// they are written to the audit trail.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Suzgec anahtar <em>adina</em> gore calisir: <c>apiKey</c>, <c>authorization</c>,
-/// <c>token</c>, <c>password</c>, <c>secret</c> iceren (buyuk/kucuk harfe duyarsiz)
-/// bir anahtarin degeri, tipi ne olursa olsun <c>"***"</c> ile degistirilir.
+/// The filter operates on property <em>names</em>. A case-insensitive property
+/// containing <c>apiKey</c>, <c>authorization</c>, <c>token</c>, <c>password</c>,
+/// or <c>secret</c> has its value replaced with <c>"***"</c>, regardless of type.
 /// </para>
 /// <para>
-/// Bugun denetlenen tipler (<c>McpServerDefinition</c> gibi) zaten sir tasimaz
-/// (karar K-059), ama suzgec yine de uygulanir — sonraki bir tip taşıyabilir.
+/// The types audited today, such as <c>McpServerDefinition</c>, do not contain
+/// secrets (K-059), but the filter still applies because a future type might.
 /// </para>
-/// <para>Yansima kullanmaz; <c>Utf8JsonWriter</c>/<c>JsonDocument</c> ile elle calisir.</para>
+/// <para>Does not use reflection; it operates manually with <c>Utf8JsonWriter</c> and <c>JsonDocument</c>.</para>
 /// </remarks>
 public static class AuditSecretFilter
 {
@@ -30,9 +30,9 @@ public static class AuditSecretFilter
         "secret",
     ];
 
-    /// <summary>Verilen JSON metnindeki sir alanlarini temizler.</summary>
-    /// <param name="json">Ham JSON metni. <see langword="null"/> ise oldugu gibi doner.</param>
-    /// <returns>Temizlenmis JSON metni.</returns>
+    /// <summary>Redacts secret fields in the supplied JSON text.</summary>
+    /// <param name="json">The raw JSON text. Returns it unchanged when <see langword="null"/>.</param>
+    /// <returns>The redacted JSON text.</returns>
     public static string? Redact(string? json)
     {
         if (string.IsNullOrEmpty(json))
@@ -48,8 +48,8 @@ public static class AuditSecretFilter
         }
         catch (JsonException)
         {
-            // Gecerli JSON degilse (ornek: run_events.payload gibi elle bicimlendirilmis
-            // metin) oldugu gibi birakilir; suzgec yalnizca JSON nesnelerini gezebilir.
+            // Invalid JSON, such as manually formatted run_events.payload text, is
+            // left unchanged because the filter can only traverse JSON objects.
             return json;
         }
 
@@ -116,12 +116,11 @@ public static class AuditSecretFilter
                 continue;
             }
 
-            // "token" tek basina bir kimlik dogrulama degeridir (authToken,
-            // accessToken), ama COGULU bir sayimdir (maxOutputTokens,
-            // maxContextWindowTokens, totalTokens). Ikincisini sir sanip
-            // gereksiz yere gizlemek, her agent denetim kaydini anlamsizca
-            // bosaltirdi. Olculdu: /agentprism ornek uygulamasinda gercek bir
-            // agent.create kaydinda "maxOutputTokens":"***" gorundu.
+            // A singular "token" is an authentication value, such as authToken
+            // or accessToken, while the plural is a count, such as
+            // maxOutputTokens, maxContextWindowTokens, or totalTokens. Redacting
+            // the latter would make every agent audit record needlessly empty.
+            // This was observed in a real agent.create record from the /agentprism sample.
             if (string.Equals(fragment, "token", StringComparison.Ordinal) &&
                 propertyName.Contains("tokens", StringComparison.OrdinalIgnoreCase))
             {

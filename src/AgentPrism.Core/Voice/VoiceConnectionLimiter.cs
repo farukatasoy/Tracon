@@ -3,38 +3,38 @@ using System.Collections.Concurrent;
 namespace AgentPrism;
 
 /// <summary>
-/// Kiraci basina es zamanli konusma baglantisi sayisini sinirlar.
+/// Limits concurrent voice connections per tenant.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Sayac <strong>bellek icidir</strong> ve sureç basinadir. Cok ornekli bir
-/// dagitimda her ornek kendi sinirini uygular; toplam sinir ornek sayisiyla
-/// carpilir. Bu bilinclidir: konusma baglantisi zaten tek bir ornege baglidir
-/// (yapiskan oturum) ve dagitik bir sayac, korumadan cok daha pahali bir
-/// koordinasyon gerektirirdi.
+/// The counter is <strong>in memory</strong> and per process. In a multi-instance
+/// deployment, each instance applies its own limit, so the aggregate limit scales
+/// by the instance count. This is deliberate: voice connections already bind to
+/// one instance through sticky sessions, and a distributed counter would require
+/// coordination that costs more than the protection provides.
 /// </para>
 /// <para>
-/// Ayni gerekce hiz siniri icin de gecerlidir (K-158).
+/// The same rationale applies to rate limiting (K-158).
 /// </para>
 /// </remarks>
 public sealed class VoiceConnectionLimiter
 {
     private readonly ConcurrentDictionary<string, int> _counts = new(StringComparer.Ordinal);
 
-    /// <summary>Yeni bir sinirlayici kurar.</summary>
-    /// <param name="limit">Kiraci basina en fazla es zamanli baglanti.</param>
+    /// <summary>Initializes a new limiter.</summary>
+    /// <param name="limit">The maximum concurrent connections per tenant.</param>
     public VoiceConnectionLimiter(int limit) => Limit = Math.Max(1, limit);
 
-    /// <summary>Kiraci basina izin verilen en fazla baglanti.</summary>
+    /// <summary>Gets the maximum connections allowed per tenant.</summary>
     public int Limit { get; }
 
-    /// <summary>Bir baglanti yeri ayirmayi dener.</summary>
-    /// <param name="tenantId">Kiraci.</param>
+    /// <summary>Attempts to reserve a connection slot.</summary>
+    /// <param name="tenantId">The tenant.</param>
     /// <returns>
-    /// Ayrilan yer; sinir doluysa <see langword="null"/>. Donen nesne
-    /// bertaraf edildiginde yer serbest kalir.
+    /// The reserved slot, or <see langword="null"/> when the limit is reached.
+    /// Disposing the returned object releases the slot.
     /// </returns>
-    /// <exception cref="ArgumentException"><paramref name="tenantId"/> bos ise.</exception>
+    /// <exception cref="ArgumentException"><paramref name="tenantId"/> is empty.</exception>
     public VoiceConnectionLease? TryAcquire(string tenantId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
@@ -48,8 +48,8 @@ public sealed class VoiceConnectionLimiter
                 return null;
             }
 
-            // 🚨 Karsilastir-ve-degistir sart: iki istek ayni anda okursa
-            // ikisi de siniri asmayan bir deger gorur ve sinir bir fazla acilir.
+            // 🚨 Compare-and-swap is required. If two requests read together,
+            // both see a value under the limit and the limit is exceeded by one.
             if (_counts.TryUpdate(tenantId, current + 1, current))
             {
                 return new VoiceConnectionLease(this, tenantId);
@@ -57,9 +57,9 @@ public sealed class VoiceConnectionLimiter
         }
     }
 
-    /// <summary>Bir kiracinin acik baglanti sayisini dondurur.</summary>
-    /// <param name="tenantId">Kiraci.</param>
-    /// <returns>Acik baglanti sayisi.</returns>
+    /// <summary>Gets a tenant's active connection count.</summary>
+    /// <param name="tenantId">The tenant.</param>
+    /// <returns>The active connection count.</returns>
     public int CountFor(string tenantId)
         => tenantId is not null && _counts.TryGetValue(tenantId, out var count) ? count : 0;
 
@@ -80,10 +80,10 @@ public sealed class VoiceConnectionLimiter
     }
 }
 
-/// <summary>Ayrilmis bir konusma baglantisi yeri.</summary>
+/// <summary>Represents a reserved voice connection slot.</summary>
 /// <remarks>
-/// Bertaraf etmek yeri serbest birakir. Bertaraf edilmeyen bir yer kalici olarak
-/// tukenir; bu yuzden baglanti kodu <c>using</c> kullanir.
+/// Disposing it releases the slot. A slot that is not disposed remains consumed,
+/// so connection code uses <c>using</c>.
 /// </remarks>
 public sealed class VoiceConnectionLease : IDisposable
 {

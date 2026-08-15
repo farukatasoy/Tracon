@@ -3,25 +3,25 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
-/// <summary>Bir ek adayini boyut ve tur beyaz listesine karsi dogrular.</summary>
+/// <summary>Validates an attachment candidate against size and media-type allow lists.</summary>
 /// <remarks>
 /// <para>
-/// Istemcinin bildirdigi <c>Content-Type</c> kanit sayilmaz. Tur, iceriğin ilk
-/// baytlarindaki imzadan (sihirli bayt) cikarilir; bildirilen deger yalnizca
-/// dosya adi uzantisi gibi bilgilendirme amaclidir ve yok sayilir.
+/// The client-provided <c>Content-Type</c> is not evidence. The type is derived
+/// from the signature in the first bytes (magic bytes); the supplied value is
+/// informational, like a file extension, and is ignored.
 /// </para>
 /// <para>
-/// Yurutulebilir icerik turleri (ornegin <c>application/x-msdownload</c>)
-/// beyaz listede BILEREK yoktur ve hicbir sihirli bayt kurali onlari uretmez;
-/// dolayisiyla boyle bir dosya her zaman reddedilir.
+/// Executable content types, such as <c>application/x-msdownload</c>, are
+/// deliberately absent from the allow list and no magic-byte rule produces
+/// them. Such a file is always rejected.
 /// </para>
 /// </remarks>
 public sealed class AttachmentTypeGuard
 {
     private readonly AgentPrismAttachmentOptions _options;
 
-    /// <summary>Yapilandirmadan yeni bir denetleyici olusturur.</summary>
-    /// <param name="options">AgentPrism ayarlari.</param>
+    /// <summary>Initializes a validator from configuration.</summary>
+    /// <param name="options">The AgentPrism options.</param>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> <see langword="null"/> ise.</exception>
     public AttachmentTypeGuard(IOptions<AgentPrismOptions> options)
     {
@@ -30,15 +30,15 @@ public sealed class AttachmentTypeGuard
         _options = options.Value.Attachments;
     }
 
-    /// <summary>Yapilandirmadaki ek boyutu sinirini dondurur.</summary>
+    /// <summary>Gets the configured attachment size limit.</summary>
     public long MaxBytes => _options.MaxBytes;
 
     /// <summary>
-    /// Icerigi dogrular: bos degil, boyut sinirinin altinda ve sihirli bayti
-    /// beyaz listedeki bir turle esleseiyor mu.
+    /// Validates that content is non-empty, within the size limit, and has a
+    /// magic byte signature matching an allowed type.
     /// </summary>
-    /// <param name="data">Denetlenecek ham icerik.</param>
-    /// <returns>Gecerliyse dogrulanmis tur, degilse gerekce.</returns>
+    /// <param name="data">The raw content to validate.</param>
+    /// <returns>The validated type when valid; otherwise, the reason.</returns>
     public AttachmentValidationResult Validate(ReadOnlySpan<byte> data)
     {
         if (data.Length == 0)
@@ -83,10 +83,10 @@ public sealed class AttachmentTypeGuard
         return false;
     }
 
-    /// <summary>Ilk baytlardan bilinen bir dosya imzasini cikarir.</summary>
+    /// <summary>Derives a known file signature from the leading bytes.</summary>
     /// <remarks>
-    /// Yeni bir ikili tur eklemek icin buraya bir imza eklemek yeterlidir; beyaz
-    /// listeye eklenmeyen bir tur yine de reddedilir.
+    /// Adding a binary type requires a signature here. A type not added to the
+    /// allow list is still rejected.
     /// </remarks>
     private static string? SniffMediaType(ReadOnlySpan<byte> data)
     {
@@ -132,29 +132,29 @@ public sealed class AttachmentTypeGuard
             return "audio/mpeg";
         }
 
-        // text/plain icin guvenilir bir sihirli bayt yoktur: gecerli UTF-8 olan ve
-        // ilk 1 KB'inda kontrol/NUL baytı tasimayan icerik metin sayilir.
+        // text/plain has no reliable magic bytes. Valid UTF-8 content without a
+        // control or NUL byte in its first 1 KB is treated as text.
         return LooksLikePlainText(data) ? "text/plain" : null;
     }
 
-    /// <summary>Bir MPEG ses cercevesi basligini tanir (ID3 etiketi olmayan MP3).</summary>
+    /// <summary>Recognizes an MPEG audio frame header for an MP3 without an ID3 tag.</summary>
     /// <remarks>
     /// <para>
-    /// Cerceve senkronu <strong>11 bit 1</strong>'dir: ilk bayt <c>0xFF</c>, ikinci
-    /// baytin ust uc biti <c>111</c>. Ikinci bayttaki kalan bitler surum ve katman
-    /// alanlaridir ve cok sayida gecerli deger uretir — <c>0xFB</c>, <c>0xF3</c>,
-    /// <c>0xF2</c>, <c>0xFA</c>, <c>0xE3</c> gibi. Bu degerleri tek tek listelemek
-    /// gercek cikti bicimine gore SESSIZ bir ret uretir; kural bit maskesiyle
-    /// yazilir.
+    /// Frame synchronization is <strong>eleven one bits</strong>: the first byte
+    /// is <c>0xFF</c>, and the top three bits of the second byte are <c>111</c>.
+    /// The remaining bits encode version and layer, with many valid values such
+    /// as <c>0xFB</c>, <c>0xF3</c>, <c>0xF2</c>, <c>0xFA</c>, and <c>0xE3</c>.
+    /// Listing them individually would silently reject valid output, so the rule
+    /// uses a bit mask.
     /// </para>
     /// <para>
-    /// Yanlis eslesmeyi onlemek icin surum ve katman alanlari da denetlenir:
-    /// ikisinin de <c>reserved</c> degeri (sirasiyla <c>01</c> ve <c>00</c>) gecerli
-    /// bir cerceve degildir. Bu denetim olmadan <c>FF E0</c> ile baslayan her ikili
-    /// icerik ses sayilirdi.
+    /// The version and layer fields are also checked to prevent false matches.
+    /// Their respective <c>reserved</c> values, <c>01</c> and <c>00</c>, do not
+    /// represent a valid frame. Without this check, every binary value beginning
+    /// with <c>FF E0</c> would be treated as audio.
     /// </para>
     /// <para>
-    /// Gerekce: <c>docs/28-SES-TOOLLARI.md</c>, bolum 28.0/G3.
+    /// Rationale: <c>docs/28-SES-TOOLLARI.md</c>, section 28.0/G3.
     /// </para>
     /// </remarks>
     private static bool IsMpegFrameSync(ReadOnlySpan<byte> data)
@@ -174,8 +174,8 @@ public sealed class AttachmentTypeGuard
     {
         var sample = data.Length > 1024 ? data[..1024] : data;
 
-        // Yatay sekme, satir sonu ve satirbasi disindaki her kontrol baytı
-        // ikili icerige isaret eder.
+        // Any control byte other than horizontal tab, line feed, and carriage
+        // return indicates binary content.
         foreach (var b in sample)
         {
             if (b < 0x20 && b is not (0x09 or 0x0A or 0x0D))
@@ -209,18 +209,18 @@ public readonly struct AttachmentValidationResult
         Error = error;
     }
 
-    /// <summary>Icerik gecerli mi.</summary>
+    /// <summary>Gets whether the content is valid.</summary>
     public bool IsValid { get; }
 
     /// <summary>Gecerliyse sihirli bayttan cikarilan MIME turu.</summary>
     public string? MediaType { get; }
 
-    /// <summary>Gecersizse kullaniciya gosterilecek gerekce.</summary>
+    /// <summary>Gets the reason shown to the user when invalid.</summary>
     public string? Error { get; }
 
-    /// <summary>Basarili bir dogrulama sonucu olusturur.</summary>
+    /// <summary>Creates a successful validation result.</summary>
     public static AttachmentValidationResult Valid(string mediaType) => new(true, mediaType, null);
 
-    /// <summary>Basarisiz bir dogrulama sonucu olusturur.</summary>
+    /// <summary>Creates a failed validation result.</summary>
     public static AttachmentValidationResult Invalid(string error) => new(false, null, error);
 }
