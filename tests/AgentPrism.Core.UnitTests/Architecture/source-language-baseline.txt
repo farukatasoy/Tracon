@@ -111,13 +111,9 @@ src/AgentPrism.Azure/AzureOpenAIProviderOptions.cs|37
 src/AgentPrism.Azure/AzureOpenAIProviderOptionsValidator.cs|13
 src/AgentPrism.Azure/README.md|51
 src/AgentPrism.Core/AgentPrism.Core.csproj|20
-src/AgentPrism.Core/AgentPrismBuilder.cs|1
-src/AgentPrism.Core/AgentPrismCoreJsonContext.cs|6
 src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs|252
-src/AgentPrism.Core/Approvals/AgentPrismApprovalOptions.cs|11
 src/AgentPrism.Core/Approvals/ApprovalExpirationService.cs|17
 src/AgentPrism.Core/Approvals/ApprovalResumeJobHandler.cs|29
-src/AgentPrism.Core/Approvals/InMemoryPendingApprovalStore.cs|5
 src/AgentPrism.Core/Approvals/ToolApprovalAgentDecorator.cs|9
 src/AgentPrism.Core/Approvals/ToolApprovalRuleEvaluator.cs|25
 src/AgentPrism.Core/Attachments/AttachmentResolvingChatClient.cs|9
@@ -177,7 +173,6 @@ src/AgentPrism.Core/Guards/PatternContentGuardOptions.cs|17
 src/AgentPrism.Core/Guards/PiiPatterns.cs|12
 src/AgentPrism.Core/IAgentPrismBuilder.cs|37
 src/AgentPrism.Core/Idempotency/AgentPrismIdempotencyOptions.cs|12
-src/AgentPrism.Core/Idempotency/InMemoryIdempotencyStore.cs|6
 src/AgentPrism.Core/Knowledge/AgentPrismKnowledgeOptions.cs|7
 src/AgentPrism.Core/Knowledge/KnowledgeIngestionService.cs|38
 src/AgentPrism.Core/Knowledge/TextChunker.cs|8
