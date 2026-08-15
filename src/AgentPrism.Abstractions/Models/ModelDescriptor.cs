@@ -1,59 +1,59 @@
 namespace AgentPrism;
 
-/// <summary>Bir modelin yetenekleri ve sinirlari.</summary>
+/// <summary>A model's capabilities and limits.</summary>
 public sealed record ModelDescriptor
 {
-    /// <summary>Model adi. <see cref="ModelBinding.Model"/> bu degerle eslesir.</summary>
+    /// <summary>The model name. <see cref="ModelBinding.Model"/> matches this value.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Arayuzde gosterilecek ad.</summary>
+    /// <summary>The name shown in the UI.</summary>
     public string? DisplayName { get; init; }
 
-    /// <summary>Baglam penceresinin token kapasitesi.</summary>
+    /// <summary>The context window's token capacity.</summary>
     public int? ContextWindowTokens { get; init; }
 
-    /// <summary>Tek yanitta uretilebilecek ust token sayisi.</summary>
+    /// <summary>The maximum number of tokens producible in a single response.</summary>
     public int? MaxOutputTokens { get; init; }
 
-    /// <summary>Akisli yaniti destekliyor mu.</summary>
+    /// <summary>Whether streaming responses are supported.</summary>
     public bool SupportsStreaming { get; init; } = true;
 
-    /// <summary>Tool cagrisini destekliyor mu.</summary>
+    /// <summary>Whether tool calling is supported.</summary>
     public bool SupportsTools { get; init; } = true;
 
-    /// <summary>Akil yurutme cabasi ayarini destekliyor mu.</summary>
+    /// <summary>Whether the reasoning-effort setting is supported.</summary>
     public bool SupportsReasoning { get; init; }
 
-    /// <summary>Model JSON semasina uyan cikti uretebiliyor mu.</summary>
+    /// <summary>Whether output conforming to a JSON schema can be produced.</summary>
     public bool SupportsStructuredOutput { get; init; }
 
-    /// <summary>Milyon girdi token'i basina maliyet. Yalnizca raporlama icindir.</summary>
+    /// <summary>The cost per million input tokens. For reporting only.</summary>
     public decimal? InputCostPerMillionTokens { get; init; }
 
-    /// <summary>Milyon cikti token'i basina maliyet. Yalnizca raporlama icindir.</summary>
+    /// <summary>The cost per million output tokens. For reporting only.</summary>
     public decimal? OutputCostPerMillionTokens { get; init; }
 }
 
-/// <summary>Bir saglayicinin arayuze gosterilen tanimi.</summary>
+/// <summary>A provider's definition as shown in the UI.</summary>
 public sealed record ModelProviderDescriptor
 {
-    /// <summary>Saglayici adi.</summary>
+    /// <summary>The provider name.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Arayuzde gosterilecek ad.</summary>
+    /// <summary>The name shown in the UI.</summary>
     public string? DisplayName { get; init; }
 
-    /// <summary>Bu saglayicinin sundugu modeller.</summary>
+    /// <summary>The models this provider offers.</summary>
     public IReadOnlyList<ModelDescriptor> Models { get; init; } = [];
 
     /// <summary>
-    /// Saglayicinin son bilinen saglik durumu.
+    /// The provider's last known health status.
     /// </summary>
     /// <remarks>
-    /// Bu alan <strong>onbellekten</strong> doldurulur; <c>/api/models</c> ucu bu
-    /// alan icin sagliyaciya ag cagrisi yapmaz (varsayilan durum
-    /// <see cref="ModelProviderHealthStatus.Unknown"/>'dir). Guncel bir denetim icin
-    /// <c>/api/models/health</c> kullanin.
+    /// This field is filled from a <strong>cache</strong>; the <c>/api/models</c>
+    /// endpoint makes no network call to the provider for this field (the
+    /// default status is <see cref="ModelProviderHealthStatus.Unknown"/>). Use
+    /// <c>/api/models/health</c> for a live check.
     /// </remarks>
     public ModelProviderHealthStatus Status { get; init; }
 }

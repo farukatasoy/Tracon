@@ -3,74 +3,75 @@ using System.Text.Json.Serialization;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir model saglayicisinin isteğe bagli saglik denetimi sozlesmesi.
+/// The optional health-check contract for a model provider.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="IModelProvider"/> arayuzune uye <strong>eklenmez</strong> — bu, tuketicinin
-/// kendi <see cref="IModelProvider"/> uygulamasini kirar. Bu ayri arayuz isteğe
-/// bagli bir genisleme noktasidir: bir saglayici bunu uygulamiyorsa durumu
-/// <see cref="ModelProviderHealthStatus.Unknown"/>'dir ve bu bir hata degildir.
-/// Gerekce: <c>docs/KARARLAR.md</c>, karar K4 (var olan bir arayuze uye eklemek
-/// tuketicinin uygulamasini kirar).
+/// A member is <strong>not added</strong> to the <see cref="IModelProvider"/>
+/// interface — that would break the consumer's own <see cref="IModelProvider"/>
+/// implementation. This separate interface is an optional extension point: if
+/// a provider does not implement it, its status is
+/// <see cref="ModelProviderHealthStatus.Unknown"/>, and that is not an error.
+/// See <c>docs/KARARLAR.md</c>, decision K4 (adding a member to an existing
+/// interface breaks the consumer's implementation), for the rationale.
 /// </para>
 /// <para>
-/// Denetim <strong>ucretli bir model cagrisi yapmamalidir</strong>. OpenAI ve uyumlu
-/// sunucular <c>GET {endpoint}/models</c> ucunu sunar; bu uc model adlarini doner ve
-/// ucret uretmez.
+/// The check <strong>must not make a billed model call</strong>. OpenAI and
+/// compatible servers offer the <c>GET {endpoint}/models</c> endpoint; this
+/// endpoint returns model names and produces no charge.
 /// </para>
 /// </remarks>
 public interface IModelProviderHealthCheck
 {
-    /// <summary>Saglayicinin erisilebilirligini denetler.</summary>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Denetim sonucu.</returns>
+    /// <summary>Checks the provider's reachability.</summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The check result.</returns>
     ValueTask<ModelProviderHealth> CheckHealthAsync(CancellationToken cancellationToken = default);
 }
 
-/// <summary>Bir model saglayicisinin son denetimdeki durumu.</summary>
+/// <summary>A model provider's status at the last check.</summary>
 public sealed record ModelProviderHealth
 {
-    /// <summary>Saglayici adi.</summary>
+    /// <summary>The provider name.</summary>
     public required string ProviderName { get; init; }
 
-    /// <summary>Denetim sonucu.</summary>
+    /// <summary>The check result.</summary>
     public required ModelProviderHealthStatus Status { get; init; }
 
     /// <summary>
-    /// Kisa hata nedeni. <strong>Sir tasimaz</strong>: yanit govdesi, basliklar veya
-    /// API anahtari hicbir kosulda buraya yazilmaz; yalnizca HTTP durum kodu ve kisa
-    /// bir aciklama.
+    /// A short failure reason. <strong>Carries no secret</strong>: the
+    /// response body, headers, or API key are never written here under any
+    /// condition — only the HTTP status code and a short description.
     /// </summary>
     public string? Detail { get; init; }
 
-    /// <summary>Denetim istegi ne kadar surdu.</summary>
+    /// <summary>How long the check request took.</summary>
     public TimeSpan? Latency { get; init; }
 
-    /// <summary>Denetimin yapildigi zaman.</summary>
+    /// <summary>The time the check was performed.</summary>
     public DateTimeOffset CheckedAt { get; init; }
 
-    /// <summary>Sunucunun bildirdigi model adlari. Denetim basarisizsa bostur.</summary>
+    /// <summary>The model names the server reported. Empty if the check failed.</summary>
     public IReadOnlyList<string> Models { get; init; } = [];
 }
 
-/// <summary>Bir saglayicinin denetlenen erisilebilirlik durumu.</summary>
+/// <summary>A provider's checked reachability status.</summary>
 /// <remarks>
-/// JSON'da ad olarak yazilir (karar K-040): sayisal deger kablo sozlesmesi olarak
-/// okunaksiz olurdu ve enum sirasi degisirse sessizce kirilirdi.
+/// Written as a name in JSON (decision K-040): a numeric value would be
+/// unreadable as a wire contract, and would silently break if the enum order changed.
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<ModelProviderHealthStatus>))]
 public enum ModelProviderHealthStatus
 {
-    /// <summary>Saglayici <see cref="IModelProviderHealthCheck"/> uygulamiyor.</summary>
+    /// <summary>The provider does not implement <see cref="IModelProviderHealthCheck"/>.</summary>
     Unknown,
 
-    /// <summary>Saglayici erisilebilir.</summary>
+    /// <summary>The provider is reachable.</summary>
     Healthy,
 
-    /// <summary>Saglayici erisilebilir ama beklenmedik bir yanit verdi.</summary>
+    /// <summary>The provider is reachable but returned an unexpected response.</summary>
     Degraded,
 
-    /// <summary>Saglayici erisilemiyor.</summary>
+    /// <summary>The provider is unreachable.</summary>
     Unhealthy,
 }
