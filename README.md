@@ -72,12 +72,12 @@ r2 = client.responses.create(model="support", input="Peki ya ORD-9?", previous_r
 Tool döngüsü sunucuda tamamlanır; her çalıştırma olay olay kaydedilir ve SSE ile geri
 oynatılabilir.
 
-**Bugün çalışan** (Faz 6):
+**Kodda agent ve tool tanımı:**
 
 ```csharp
 builder.AddAgentPrism()
        .AddToolsFrom(typeof(OrderTools))      // [AgentPrismTool] ile işaretli metotlar
-       .UseOpenAI(apiKey)                     // ← Faz 3
+       .UseOpenAI(apiKey)
        .AddAgent(new AgentDefinition
        {
            Name = "support",
@@ -85,25 +85,16 @@ builder.AddAgentPrism()
            Model = new ModelBinding { Provider = OpenAIProviderNames.ChatCompletions, Model = "gpt-5.4-mini" },
            ToolNames = ["get_order_status", "cancel_order"],
        })
-       .UsePostgreSql(connectionString)       // ← Faz 2; isteğe bağlı
-       .UseMcp()                              // ← Faz 6; uzak MCP tool'ları, isteğe bağlı
-       .UseUI();                              // ← Faz 5; gömülü arayüz
+       .UsePostgreSql(connectionString)       // isteğe bağlı
+       .UseMcp()                              // uzak MCP tool'ları, isteğe bağlı
+       .UseUI();                              // gömülü arayüz
 
 // Kalıcı oturumla çalıştır
 var agent = await catalog.ResolveAsync("support");
 var session = await sessions.GetOrCreateSessionAsync(agent!, "musteri-42");
-
 var response = await agent!.RunAsync("Siparişim nerede?", session);
 await sessions.SaveSessionAsync(agent, session);
-
-// Çalıştırmayı olay olay oku
-await foreach (var e in runStore.ReadEventsAsync(runId))
-{
-    Console.WriteLine($"#{e.Sequence} {e.Type} {e.Text}");
-}
 ```
-
-Tool sınıfı:
 
 ```csharp
 internal static class OrderTools
@@ -115,11 +106,16 @@ internal static class OrderTools
 }
 ```
 
-`UseOpenAI()` **iki** sağlayıcı kaydeder: `openai` (Chat Completions) ve `openai-responses` (Responses API). Seçim `ModelBinding.Provider` ile yapılır. Her iki yolda da konuşma geçmişi AgentPrism'in veritabanında kalır.
+`UseOpenAI()` **iki** sağlayıcı kaydeder: `openai` (Chat Completions) ve
+`openai-responses`; seçim `ModelBinding.Provider` ile yapılır.
+`UseOpenAICompatible(ad, ...)` aynı paketle **herhangi bir** OpenAI uyumlu uca
+bağlanır — OpenRouter, Groq, vLLM, yerel Ollama/LM Studio (yerel sunucular
+`ApiKey` istemez). Her sağlayıcı `GET {endpoint}/models` ile ücretsiz denetlenir
+ve ardışık hata veren bir sağlayıcıyı devre kesici geçici olarak durdurur.
 
-`UseOpenAICompatible(ad, ...)` aynı paketle **herhangi bir** OpenAI uyumlu uca bağlanır — OpenRouter, Groq, vLLM, yerel Ollama/LM Studio (← Faz 8). Yerel sunucular `ApiKey` istemez. Her sağlayıcı `GET {endpoint}/models` ile ücretsiz denetlenir (`/agentprism/api/models/health`) ve ardışık hata veren bir sağlayıcı devre kesici tarafından geçici olarak durdurulur.
-
-`UsePostgreSql()` çağrılmazsa depolama bellek içine düşer ve hiçbir şey kırılmaz. Şema, gömülü SQL migration'ları ile ayrı bir `agentprism` şemasında oluşur; uygulamanızın `public` şemasına dokunulmaz.
+`UsePostgreSql()` çağrılmazsa depolama bellek içine düşer ve hiçbir şey kırılmaz.
+Şema, gömülü SQL migration'ları ile ayrı bir `agentprism` şemasında oluşur;
+uygulamanızın `public` şemasına dokunulmaz.
 
 Çalışan örnek: [`samples/AgentPrism.Api`](samples/AgentPrism.Api).
 
@@ -256,7 +252,7 @@ Bunlar dört değişmez kuraldır. Ayrıntı: [docs/MIMARI.md](docs/MIMARI.md).
 | [—](docs/IKINCI-FAZ-YOL-HARITASI.md) | İkinci faz yol haritası (Faz 21–30) | ✅ Tamamı bitti |
 | [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Üçüncü faz yol haritası (Faz 31–52): puanlamadan RAG'a on dokuz yetenek | **31–52 bitti** |
 | [—](docs/UCUNCU-FAZ-YOL-HARITASI.md) | Dördüncü dalga (53–56): API anahtarı, öksüz çalıştırma, asenkron onay kutusu, [kanarya yayını](docs/56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md) | **53–56 bitti** |
-| [—](docs/BEYIN-FIRTINASI.md) | İkinci faz hammaddesi — 29 aday yetenek | Tamamı planlandı |
+| [57–59](docs/57-KOD-DILI-BIRLESTIRME.md) | Kod dili, doküman düzeni, ürün dokümantasyonu | 📋 Planlandı |
 
 
 ### ⚠️ Skill script çalıştırma ve izolasyon sınırı
@@ -274,19 +270,15 @@ builder.Services.AddAgentPrism()
 ```
 
 **AgentPrism işletim sistemi seviyesinde yalıtım sağlamaz.** Script, AgentPrism
-sürecinin kullanıcı hakları ve ağ erişimiyle çalışır.
-
-| Sağlanan | Sağlanmayan |
-|----------|-------------|
-| Yorumlayıcı ve ortam değişkeni beyaz listesi | Dosya sistemi hapsi, ağ kısıtı |
-| Zaman aşımı + süreç ağacı öldürme | Bellek ve CPU kotası |
-| Çıktı kırpma, eşzamanlılık sınırı | Hak düşürme |
-| Kiracı bazlı izin kaydı + denetim izi | |
-
-Sağlanmayanlar barındırma ortamında kurulmalıdır: **container** içinde,
-**ayrıcalıksız bir kullanıcı** ile ve **kısıtlı ağ** ile çalıştırın.
-`PlatformIsolationAcknowledged` bayrağı bu tabloyu görmeden özelliğin
-açılmasını engeller; eksikse uygulama **açılışta** hata verir.
+sürecinin kullanıcı hakları ve ağ erişimiyle çalışır. AgentPrism yorumlayıcı ve
+ortam değişkeni beyaz listesi, zaman aşımı + süreç ağacı öldürme, çıktı kırpma,
+eşzamanlılık sınırı ve kiracı bazlı izin kaydı + denetim izi sağlar; **dosya
+sistemi hapsi, ağ kısıtı, bellek/CPU kotası ve hak düşürme sağlamaz.** Bunlar
+barındırma ortamında kurulmalıdır: **container** içinde, **ayrıcalıksız bir
+kullanıcı** ile ve **kısıtlı ağ** ile çalıştırın.
+`PlatformIsolationAcknowledged` bayrağı bu sınırı görmeden özelliğin açılmasını
+engeller; eksikse uygulama **açılışta** hata verir. Ayrıntı:
+[`docs/11-SKILL-SCRIPT-CALISTIRMA.md`](docs/11-SKILL-SCRIPT-CALISTIRMA.md).
 
 ### İçerik denetimi (guardrails)
 
@@ -317,25 +309,18 @@ dotnet format AgentPrism.slnx --verify-no-changes
 `TreatWarningsAsErrors` açıktır — uyarı yoktur, hata vardır.
 
 Gereksinimler: .NET SDK 10.0.100+, **Node.js 20.19+** (arayüz derlemesi), **Docker**
-(entegrasyon testleri Testcontainers ile gerçek PostgreSQL kaldırır). Arayüz E2E
+(entegrasyon testleri Testcontainers ile gerçek veritabanı kaldırır). Arayüz E2E
 testleri Chromium'u ilk çalıştırmada kendisi indirir.
 
-`dotnet build` arayüzü de derler: `npm ci` → tip denetimi → 42 Vitest testi →
-Vite → Brotli sıkıştırma → bundle bütçesi kapısı. Adımlar artımsaldır; kaynak
+`dotnet build` arayüzü de derler: `npm ci` → tip denetimi → Vitest → Vite →
+Brotli sıkıştırma → bundle bütçesi kapısı. Adımlar artımsaldır; kaynak
 değişmediyse atlanır. Hızlı bir iç döngü için `-p:AgentPrismFrontendEnabled=false`.
 
-Örnek uygulamayı çalıştırma:
-
 ```bash
-cd samples/AgentPrism.Api
-dotnet run           # http://localhost:5080/agentprism
-```
+cd samples/AgentPrism.Api && dotnet run     # http://localhost:5080/agentprism
 
-Yalnız arayüz üzerinde çalışıyorsanız Vite geliştirme sunucusu daha hızlıdır:
-
-```bash
-cd src/AgentPrism.UI/frontend
-npm run dev          # http://localhost:5173 — /agentprism/* istekleri 5080'e vekillenir
+# Yalnız arayüz: Vite geliştirme sunucusu daha hızlıdır (5173 → 5080'e vekil)
+cd src/AgentPrism.UI/frontend && npm run dev
 ```
 
 ---
@@ -346,14 +331,10 @@ npm run dev          # http://localhost:5173 — /agentprism/* istekleri 5080'e 
 |--------|--------|
 | [docs/MIMARI.md](docs/MIMARI.md) | Mimari — katmanlar, veri modeli, çalıştırma yolu, güvenlik modeli |
 | [docs/MAF-GENISLEME-NOKTALARI.md](docs/MAF-GENISLEME-NOKTALARI.md) | Kullandığımız ve bilerek kullanmadığımız MAF genişleme noktaları |
-| [docs/KARARLAR-INDEKS.md](docs/KARARLAR-INDEKS.md) · [-REDDEDILEN](docs/KARARLAR-INDEKS-REDDEDILEN.md) | Karar/red indeksleri (üretilen) |
-| [docs/KARARLAR.md](docs/KARARLAR.md) | Karar defteri — reddedilen yaklaşımlar ve kalıcı tercihler, gerekçeleriyle |
-| [docs/](docs/) | Faz dokümanları (00–32) — kapsam, tasarım kararları, DoD |
-| [docs/hafiza/](docs/hafiza/) | Alan bazlı kurumsal bilgi — codepath'ler, desenler, tuzaklar |
-| [docs/arsiv/](docs/arsiv/) | Faz anlatısı ve paket×faz birikimi (tarihsel kayıt) |
-| [.agents/skills/](.agents/skills/) | Tekrarlanan iş akışları — faz başlangıç/tamamlama protokolü, MAF API keşfi |
-| [AGENTS.md](AGENTS.md) | Merkezi agent talimatları — okuma protokolü, proje kuralları, doğrulama kapıları (`CLAUDE.md` buna symlink) |
-| [MEMORY.md](MEMORY.md) | Hafıza yönlendirmesi + her oturumda geçerli tuzaklar |
+| [docs/KARARLAR.md](docs/KARARLAR.md) · [indeks](docs/KARARLAR-INDEKS.md) · [reddedilen](docs/KARARLAR-INDEKS-REDDEDILEN.md) | Karar defteri — kalıcı tercihler ve reddedilen yaklaşımlar, gerekçeleriyle |
+| [docs/](docs/) | Faz dokümanları (00–59) — kapsam, tasarım kararları, DoD |
+| [docs/hafiza/](docs/hafiza/) · [docs/arsiv/](docs/arsiv/) | Alan bazlı tuzaklar · faz anlatısı (tarihsel kayıt) |
+| [AGENTS.md](AGENTS.md) · [MEMORY.md](MEMORY.md) · [.agents/skills/](.agents/skills/) | Agent talimatları, hafıza yönlendirmesi, iş akışı skill'leri (`CLAUDE.md` → `AGENTS.md` symlink) |
 | [scripts/dokuman-bakim.py](scripts/dokuman-bakim.py) | Karar indeksini üretir, doküman bütçelerini denetler |
 
 ---

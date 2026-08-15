@@ -220,10 +220,10 @@ bırakılırsa iç ağdaki servislere erişim aracı olur (bulut metadata uçlar
 | Koruma | Kural |
 |--------|-------|
 | Şema | Yalnız `https`. `http` yalnız `AllowInsecureHttp = true` ile ve loopback'e |
-| Adres | DNS çözümlenir; **özel ağ** aralıkları reddedilir: `127.0.0.0/8`, `10/8`, `172.16/12`, `192.168/16`, `169.254/16` (metadata!), `::1`, `fc00::/7` |
-| DNS yeniden bağlama | Çözülen IP'ye **doğrudan** bağlanılır; `Host` başlığı korunur. Çözümleme ile bağlantı arasında adres değiştirilemez |
+| Adres | DNS çözümlenir; **özel ağ** aralıkları reddedilir: `10/8`, `127.0.0.0/8`, `169.254/16` (metadata!), `172.16/12`, `192.168/16`, `100.64/10`, `::1`, `fc00::/7`, `fe80::/10`, multicast — ve bunların IPv4'e eşlenmiş IPv6 karşılıkları |
+| DNS yeniden bağlama | Çözülen IP'ye **doğrudan** bağlanılır; `Host` başlığı korunur. Çözümleme ile bağlantı arasında adres değiştirilemez. Denetim `SocketsHttpHandler.ConnectCallback` **içindedir** — doğrulanan adres, soketin bağlandığı adresin ta kendisidir (K-164) |
 | Yönlendirme | `HttpClientHandler.AllowAutoRedirect = false` — yönlendirme özel ağa kaçış yoludur |
-| Zaman aşımı | 10 saniye |
+| Zaman aşımı | İstek başına `CancellationTokenSource`, varsayılan 10 sn; paylaşılan istemcide `Timeout` alanı **değiştirilmez** |
 | Yanıt | En çok 8 KB okunur; gerisi atılır |
 | Varsayılan | `AllowPrivateNetworkTargets = false` |
 

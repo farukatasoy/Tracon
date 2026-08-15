@@ -51,9 +51,13 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 # ile ayni desen); sicak `KARARLAR-INDEKS.md` yalniz en YENI kararlari tasir.
 # Esik sayimla (K-numarasiyla degil) yapilir: K-numaralari birkac yeniden
 # acilan/silinen kalemde bosluklu olabilir, sayim her zaman kararlar
-# tablosundaki gercek satir sayisini yansitir. Esik ~150 kalici karara
-# (~15 KB) sabitlendi -- gelecek birkac faz icin rahat bosluk birakir.
-ARSIV_ESIK = 150
+# tablosundaki gercek satir sayisini yansitir.
+# Faz 58.0 (2026-08-15): esik 150 -> 115. Dosya 24_774 B'ye ulasmisti (226 B
+# bosluk) ve bir sonraki faz kapanisi onu kesin asacakti. K-214'un sozu yine
+# tutuldu -- butce BUYUTULMEDI, bolunme derinlestirildi. Yeni kural: butcenin
+# EN AZ %15'i bos kalmali (58.0'in tum sicak yol dosyalarina koydugu hedef);
+# esik bu orani saglayacak sekilde secilir, dosya butceye DAYANDIGINDA degil.
+ARSIV_ESIK = 115
 
 BUTCE = {
     "AGENTS.md": 12_000,
