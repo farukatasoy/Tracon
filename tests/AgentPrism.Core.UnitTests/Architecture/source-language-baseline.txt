@@ -113,7 +113,6 @@ src/AgentPrism.Azure/README.md|51
 src/AgentPrism.Core/AgentPrism.Core.csproj|20
 src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs|252
 src/AgentPrism.Core/Audit/AuditingSessionStore.cs|14
-src/AgentPrism.Core/Catalog/CodeAgentRegistration.cs|13
 src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs|179
 src/AgentPrism.Core/Compilation/CompiledAgentCache.cs|33
 src/AgentPrism.Core/Compilation/TenantPrefixingAgentFileStore.cs|17
@@ -141,7 +140,6 @@ src/AgentPrism.Core/Guards/PatternContentGuardOptions.cs|17
 src/AgentPrism.Core/IAgentPrismBuilder.cs|37
 src/AgentPrism.Core/Knowledge/KnowledgeIngestionService.cs|38
 src/AgentPrism.Core/Knowledge/VectorSearchToolFactory.cs|16
-src/AgentPrism.Core/Models/CircuitBreakingChatClient.cs|13
 src/AgentPrism.Core/Models/ContentFilterDetectingChatClient.cs|23
 src/AgentPrism.Core/Models/ModelProviderCircuitBreaker.cs|37
 src/AgentPrism.Core/Models/ModelProviderHealthCache.cs|29

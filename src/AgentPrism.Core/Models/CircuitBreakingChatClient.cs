@@ -4,23 +4,22 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir <see cref="IChatClient"/>'i <see cref="ModelProviderCircuitBreaker"/> ile sarar.
+/// Wraps an <see cref="IChatClient"/> with <see cref="ModelProviderCircuitBreaker"/>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Saglayici uygulamasinin (ornegin <c>AgentPrism.OpenAI</c>) icine gomulmez;
-/// <see cref="ModelProviderRegistry.CreateChatClient"/> her istemciyi bu tipe sarar.
-/// Boylece her saglayici (bugunku OpenAI, gelecekteki Anthropic/Gemini) ayni korumayi
-/// bedava alir. Gerekce: <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>, bolum 8.3.
+/// It is not embedded in a provider implementation such as <c>AgentPrism.OpenAI</c>.
+/// <see cref="ModelProviderRegistry.CreateChatClient"/> wraps every client in this type.
+/// Every provider, including current OpenAI and future Anthropic or Gemini, gets the
+/// same protection. Rationale: <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>, section 8.3.
 /// </para>
 /// <para>
-/// 🚨 <strong>Icerik engellemesi hata SAYILMAZ</strong> (Faz 48). Bir
-/// <see cref="AgentPrismContentBlockedException"/> saglayicinin saglikli oldugunu
-/// gosterir: istek bize takildi, aga hic cikmadi. Sayilsaydi arka arkaya
-/// engellenen birkac istek saglayiciyi kapatirdi ve bir politika karari bir
-/// kesintiye donusurdu. Ayni gerekce <c>ContentFilterDetectingChatClient</c>'i
-/// devre kesicinin disinda tutar; guard ise dongunun ICINDE oldugu icin ayiklama
-/// burada yapilir.
+/// <strong>Content blocking is not a failure</strong> (Phase 48). An
+/// <see cref="AgentPrismContentBlockedException"/> shows that the provider is healthy:
+/// the request was blocked locally and never reached the network. Counting it would
+/// open the provider circuit after several blocked requests and turn a policy decision
+/// into an outage. The same rationale keeps <c>ContentFilterDetectingChatClient</c>
+/// outside the circuit breaker. The guard is inside the loop, so it is handled here.
 /// </para>
 /// </remarks>
 internal sealed class CircuitBreakingChatClient(string providerName, IChatClient inner, ModelProviderCircuitBreaker breaker)
@@ -42,12 +41,12 @@ internal sealed class CircuitBreakingChatClient(string providerName, IChatClient
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // Cagiranin iptali saglayici sagligi hakkinda bir sey soylemez.
+            // Caller cancellation says nothing about provider health.
             throw;
         }
         catch (AgentPrismContentBlockedException)
         {
-            // Icerik guard'inin karari da soylemez: istek aga hic cikmadi.
+            // The content guard decision says nothing either. The request did not reach the network.
             throw;
         }
         catch (Exception)

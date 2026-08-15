@@ -3,8 +3,8 @@ using Microsoft.Agents.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Kodda tanimlanmis bir agent kaydi. Iki bicimden biri kullanilir:
-/// bildirimsel <see cref="Definition"/> veya tam denetim veren <see cref="Factory"/>.
+/// A code-defined agent registration. Use one of two forms: declarative
+/// <see cref="Definition"/> or <see cref="Factory"/>, which gives full control.
 /// </summary>
 public sealed class CodeAgentRegistration
 {
@@ -13,28 +13,28 @@ public sealed class CodeAgentRegistration
         Name = name;
     }
 
-    /// <summary>Agent adi.</summary>
+    /// <summary>The agent name.</summary>
     public string Name { get; }
 
-    /// <summary>Bildirimsel tanim. <see cref="Factory"/> kullanildiysa <see langword="null"/>.</summary>
+    /// <summary>The declarative definition, or <see langword="null"/> when <see cref="Factory"/> is used.</summary>
     public AgentDefinition? Definition { get; private init; }
 
-    /// <summary>Agent'i ureten fabrika. <see cref="Definition"/> kullanildiysa <see langword="null"/>.</summary>
+    /// <summary>The factory that creates the agent, or <see langword="null"/> when <see cref="Definition"/> is used.</summary>
     public Func<IServiceProvider, AIAgent>? Factory { get; private init; }
 
-    /// <summary>Arayuzde gosterilecek ad.</summary>
+    /// <summary>The name displayed in the UI.</summary>
     public string? DisplayName { get; private init; }
 
-    /// <summary>Kisa aciklama.</summary>
+    /// <summary>A short description.</summary>
     public string? Description { get; private init; }
 
     /// <summary>
-    /// Bildirimsel bir kayit olusturur. Tanim, AgentPrism derleyicisinden gecer;
-    /// tool ve model dogrulamasi uygulanir.
+    /// Creates a declarative registration. The definition passes through the
+    /// AgentPrism compiler, which validates tools and the model.
     /// </summary>
-    /// <param name="definition">Agent tanimi.</param>
-    /// <returns>Kayit.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="definition"/> <see langword="null"/> ise.</exception>
+    /// <param name="definition">The agent definition.</param>
+    /// <returns>The registration.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
     public static CodeAgentRegistration FromDefinition(AgentDefinition definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
@@ -48,17 +48,16 @@ public sealed class CodeAgentRegistration
     }
 
     /// <summary>
-    /// Fabrika tabanli bir kayit olusturur. Agent'in nasil kuruldugu tamamen
-    /// cagirana aittir; AgentPrism yalnizca katalogda gosterir ve calistirma
-    /// kaydi ile sarar.
+    /// Creates a factory-based registration. The caller fully controls how the agent
+    /// is built. AgentPrism only exposes it in the catalog and wraps it with run recording.
     /// </summary>
-    /// <param name="name">Agent adi.</param>
-    /// <param name="factory">Agent'i ureten fabrika.</param>
-    /// <param name="description">Kisa aciklama.</param>
-    /// <param name="displayName">Arayuzde gosterilecek ad.</param>
-    /// <returns>Kayit.</returns>
-    /// <exception cref="ArgumentException"><paramref name="name"/> bos ise.</exception>
-    /// <exception cref="ArgumentNullException"><paramref name="factory"/> <see langword="null"/> ise.</exception>
+    /// <param name="name">The agent name.</param>
+    /// <param name="factory">The factory that creates the agent.</param>
+    /// <param name="description">A short description.</param>
+    /// <param name="displayName">The name displayed in the UI.</param>
+    /// <returns>The registration.</returns>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="factory"/> is <see langword="null"/>.</exception>
     public static CodeAgentRegistration FromFactory(
         string name,
         Func<IServiceProvider, AIAgent> factory,
