@@ -1,59 +1,59 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Fiili saklama verisi uzerinde sayma, parti parti silme ve arsiv icin okuma
-/// yapan veri duzlemi.
+/// The data plane that counts, batch-deletes, and reads-for-archive over the
+/// actual retention data.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Hedef adi parametresi her zaman <see cref="RetentionTargets"/> beyaz
-/// listesinden gelir; uygulamalar bilinmeyen bir hedef icin
-/// <see cref="ArgumentException"/> firlatmalidir.
+/// The target name parameter always comes from the <see cref="RetentionTargets"/>
+/// allowlist; implementations must throw <see cref="ArgumentException"/> for
+/// an unknown target.
 /// </para>
 /// <para>
-/// Hangi sutunun "yas" sayilacagi ve hangi ek kosulun (ornegin yalniz
-/// tamamlanmis isler) uygulanacagi HER hedef icin sabittir ve uygulamanin
-/// icinde gomulu kalir; cagiran taraf yalniz hedef adini ve kesim tarihini bilir.
+/// Which column counts as "age" and which extra condition (for example, only
+/// completed jobs) applies is fixed for EACH target and stays embedded inside
+/// the implementation; the caller knows only the target name and the cutoff date.
 /// </para>
 /// <para>
-/// 🚨 <strong>Kiraci sinirlamasi zorunludur (Faz 41).</strong> Saklama
-/// politikasi kiraci basina tanimlanir; <c>tenantId</c> verilmezse islem
-/// <em>butun</em> kiracilarin satirlarina dokunur. Yalnizca kurulum geneli
-/// (<c>'*'</c>) politika <see langword="null"/> gecmelidir.
+/// 🚨 <strong>Tenant scoping is mandatory (Phase 41).</strong> A retention
+/// policy is defined per tenant; if <c>tenantId</c> is not given, the
+/// operation touches <em>every</em> tenant's rows. Only the installation-wide
+/// (<c>'*'</c>) policy should pass <see langword="null"/>.
 /// </para>
 /// <para>
-/// Varsayilan (bellek ici) kurulumda <c>NullRetentionStore</c> kayitlidir ve
-/// her zaman bos/sifir doner: saklama, yalniz bir SQL saglayicisi acikken
-/// anlamlidir.
+/// The default (in-memory) setup registers <c>NullRetentionStore</c>, which
+/// always returns empty/zero: retention is meaningful only when a SQL
+/// provider is enabled.
 /// </para>
 /// </remarks>
 public interface IRetentionStore
 {
-    /// <summary>Kesim tarihinden eski, hedefte su an eslesen satir sayisini dondurur.</summary>
-    /// <param name="target">Hedef adi.</param>
+    /// <summary>Returns the number of rows in the target currently older than the cutoff date.</summary>
+    /// <param name="target">The target name.</param>
     /// <param name="tenantId">
-    /// Yalniz bu kiracinin satirlari; <see langword="null"/> ise kurulum
-    /// genelinde (<c>'*'</c> politikasi) calisir.
+    /// Only this tenant's rows; if <see langword="null"/>, runs installation-wide
+    /// (the <c>'*'</c> policy).
     /// </param>
-    /// <param name="cutoff">Kesim tarihi (UTC). Bu tarihten eski satirlar eslesir.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Eslesen satir sayisi.</returns>
+    /// <param name="cutoff">The cutoff date (UTC). Rows older than this match.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The number of matching rows.</returns>
     ValueTask<long> CountOlderThanAsync(
         string target,
         string? tenantId,
         DateTimeOffset cutoff,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Kesim tarihinden eski satirlardan bir parti okur (silmez).</summary>
-    /// <param name="target">Hedef adi.</param>
+    /// <summary>Reads a batch of rows older than the cutoff date (does not delete).</summary>
+    /// <param name="target">The target name.</param>
     /// <param name="tenantId">
-    /// Yalniz bu kiracinin satirlari; <see langword="null"/> ise kurulum
-    /// genelinde (<c>'*'</c> politikasi) calisir.
+    /// Only this tenant's rows; if <see langword="null"/>, runs installation-wide
+    /// (the <c>'*'</c> policy).
     /// </param>
-    /// <param name="cutoff">Kesim tarihi (UTC).</param>
-    /// <param name="batchSize">En fazla kac satir okunacagi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Okunan satirlar; eslesen kalmadiysa bos liste.</returns>
+    /// <param name="cutoff">The cutoff date (UTC).</param>
+    /// <param name="batchSize">The maximum number of rows to read.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The rows read; an empty list once no matching rows remain.</returns>
     ValueTask<IReadOnlyList<ArchiveRow>> ReadForArchiveAsync(
         string target,
         string? tenantId,
@@ -62,18 +62,18 @@ public interface IRetentionStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Kesim tarihinden eski satirlardan bir partiyi siler. Toplu tek bir
-    /// <c>DELETE</c> DEGILDIR; saglayiciya gore parti bazli calisir.
+    /// Deletes a batch of rows older than the cutoff date. This is NOT a
+    /// single bulk <c>DELETE</c>; it runs batch by batch, depending on the provider.
     /// </summary>
-    /// <param name="target">Hedef adi.</param>
+    /// <param name="target">The target name.</param>
     /// <param name="tenantId">
-    /// Yalniz bu kiracinin satirlari; <see langword="null"/> ise kurulum
-    /// genelinde (<c>'*'</c> politikasi) calisir.
+    /// Only this tenant's rows; if <see langword="null"/>, runs installation-wide
+    /// (the <c>'*'</c> policy).
     /// </param>
-    /// <param name="cutoff">Kesim tarihi (UTC).</param>
-    /// <param name="batchSize">En fazla kac satirin silinecegi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Silinen satir sayisi. Sifir donerse eslesen satir kalmamis demektir.</returns>
+    /// <param name="cutoff">The cutoff date (UTC).</param>
+    /// <param name="batchSize">The maximum number of rows to delete.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The number of rows deleted. Zero means no matching rows remain.</returns>
     ValueTask<int> DeleteBatchAsync(
         string target,
         string? tenantId,
@@ -82,24 +82,25 @@ public interface IRetentionStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// En yeniden sayarak <paramref name="maxRows"/>. satirin siralama
-    /// sutunundaki degerini kesim tarihi olarak dondurur.
+    /// Counting from newest, returns the ordering column's value at row
+    /// <paramref name="maxRows"/> as the cutoff date.
     /// </summary>
-    /// <param name="target">Hedef adi.</param>
+    /// <param name="target">The target name.</param>
     /// <param name="tenantId">
-    /// Yalniz bu kiracinin satirlari; <see langword="null"/> ise kurulum
-    /// genelinde (<c>'*'</c> politikasi) calisir.
+    /// Only this tenant's rows; if <see langword="null"/>, runs installation-wide
+    /// (the <c>'*'</c> policy).
     /// </param>
-    /// <param name="maxRows">Tutulacak en fazla satir sayisi (en az 1).</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <param name="maxRows">The maximum number of rows to keep (at least 1).</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
-    /// Kesim tarihi; hedef <paramref name="maxRows"/> satirdan AZ tasiyorsa
-    /// (hacim siniri asilmamis) <see langword="null"/>.
+    /// The cutoff date; <see langword="null"/> if the target holds FEWER than
+    /// <paramref name="maxRows"/> rows (the volume limit is not exceeded).
     /// </returns>
     /// <remarks>
-    /// Donen deger, bu arayuzun diger uc metoduna (<c>@cutoff</c> alan)
-    /// dogrudan gecilebilir: hacim bazli kirpma, yas bazli silmeyle AYNI
-    /// parti mekanizmasini kullanir. Gerekce: <c>docs/KARARLAR.md</c>, karar K-200.
+    /// The returned value can be passed directly into this interface's other
+    /// three methods (the <c>@cutoff</c> parameter): volume-based trimming
+    /// uses the SAME batch mechanism as age-based deletion. See
+    /// <c>docs/KARARLAR.md</c>, decision K-200, for the rationale.
     /// </remarks>
     ValueTask<DateTimeOffset?> FindRowLimitCutoffAsync(
         string target,
@@ -109,30 +110,31 @@ public interface IRetentionStore
 }
 
 /// <summary>
-/// Silinmeden once satirlarin yazildigi soguk depolama genisleme noktasi.
+/// The cold-storage extension point rows are written to before deletion.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Varsayilan uygulama YOKTUR (karar K-007 — bulut SDK bagimliligi alinmaz).
-/// Tuketici kendi sink'ini <c>samples/</c> altindaki dosya sistemi ornegini
-/// temel alarak yazar ve <c>IArchiveSink</c> olarak kaydeder.
+/// There is NO default implementation (decision K-007 — no cloud SDK
+/// dependency is taken). The consumer writes their own sink, based on the
+/// file-system example under <c>samples/</c>, and registers it as <c>IArchiveSink</c>.
 /// </para>
 /// <para>
-/// 🚨 Kayitli degilse <c>archive = true</c> olan bir politika hicbir satir
-/// SILMEZ — arsivlenemeyen veri dusurulmez. Bu, sessiz veri kaybini engeller.
+/// 🚨 If none is registered, a policy with <c>archive = true</c> deletes NO
+/// row — data that cannot be archived is never dropped. This prevents silent data loss.
 /// </para>
 /// </remarks>
 public interface IArchiveSink
 {
-    /// <summary>Bir parti satiri arsive yazar.</summary>
-    /// <param name="target">Hedef adi.</param>
+    /// <summary>Writes a batch of rows to the archive.</summary>
+    /// <param name="target">The target name.</param>
     /// <param name="partitionDate">
-    /// Partinin ait oldugu tarih (UTC, gun hassasiyetinde). Sink bunu dosya/nesne
-    /// yolunu bolumlemek icin kullanabilir (ornegin <c>run_events/2026-08-05.jsonl.gz</c>).
+    /// The date the batch belongs to (UTC, day precision). The sink may use
+    /// this to partition the file/object path (for example,
+    /// <c>run_events/2026-08-05.jsonl.gz</c>).
     /// </param>
-    /// <param name="rows">Yazilacak satirlar.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <param name="rows">The rows to write.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
     ValueTask WriteAsync(
         string target,
         DateTimeOffset partitionDate,
