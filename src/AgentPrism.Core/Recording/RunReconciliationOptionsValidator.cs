@@ -3,11 +3,11 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="RunReconciliationOptions"/> ayarlarini uygulama baslarken dogrular.
+/// Validates <see cref="RunReconciliationOptions"/> when the application starts.
 /// </summary>
 /// <remarks>
-/// Dogrulama elle yazilmistir; <c>ValidateDataAnnotations()</c> yansimaya dayanir ve
-/// <c>IL2026</c> uretir. Gerekce: <c>docs/KARARLAR.md</c>, karar K-006.
+/// This validation is handwritten. <c>ValidateDataAnnotations()</c> uses reflection
+/// and produces <c>IL2026</c>. Rationale: <c>docs/KARARLAR.md</c>, decision K-006.
 /// </remarks>
 public sealed class RunReconciliationOptionsValidator : IValidateOptions<RunReconciliationOptions>
 {
@@ -34,8 +34,8 @@ public sealed class RunReconciliationOptionsValidator : IValidateOptions<RunReco
         {
             return ValidateOptionsResult.Fail(
                 $"{nameof(RunReconciliationOptions)}.{nameof(RunReconciliationOptions.OrphanThreshold)} " +
-                $"{nameof(RunReconciliationOptions.HeartbeatInterval)}'dan kucuk olamaz -- calisan bir is " +
-                "olu ilan edilir. Gelen degerler: " +
+                $"must not be less than {nameof(RunReconciliationOptions.HeartbeatInterval)}. A running job " +
+                "would be declared orphaned. Actual values: " +
                 $"{nameof(RunReconciliationOptions.OrphanThreshold)}={options.OrphanThreshold}, " +
                 $"{nameof(RunReconciliationOptions.HeartbeatInterval)}={options.HeartbeatInterval}.");
         }

@@ -3,12 +3,12 @@ using System.Collections.Concurrent;
 namespace AgentPrism;
 
 /// <summary>
-/// Webhook aboneliklerini ve teslim gecmisini surec belleginde tutan varsayilan
-/// uygulama.
+/// The default implementation that keeps webhook subscriptions and delivery history
+/// in process memory.
 /// </summary>
 /// <remarks>
-/// Tek surecli kurulumlar ve testler icindir. <c>UsePostgreSql()</c> bunu
-/// <c>PostgresWebhookStore</c> ile degistirir.
+/// For single-process deployments and tests. <c>UsePostgreSql()</c> replaces it
+/// with <c>PostgresWebhookStore</c>.
 /// </remarks>
 public sealed class InMemoryWebhookStore : IWebhookStore
 {
@@ -106,7 +106,7 @@ public sealed class InMemoryWebhookStore : IWebhookStore
             return new ValueTask<bool>(false);
         }
 
-        // Kalicilikta bunu ON DELETE CASCADE yapar; bellek icinde elle.
+        // Persistence uses ON DELETE CASCADE. The in-memory store does this manually.
         foreach (var delivery in _deliveries.Values.Where(item => item.SubscriptionId == existing.Id))
         {
             _deliveries.TryRemove(delivery.Id, out _);

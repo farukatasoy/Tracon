@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
 
-/// <summary><see cref="ITenantStore"/>'u denetim izi yazan bir dekorator ile sarar.</summary>
+/// <summary>Wraps <see cref="ITenantStore"/> in a decorator that writes an audit trail.</summary>
 public sealed class AuditingTenantStore : ITenantStore, IAuditDecorated
 {
     private readonly ITenantStore _inner;
@@ -12,7 +12,7 @@ public sealed class AuditingTenantStore : ITenantStore, IAuditDecorated
     private readonly IAuditActorResolver _actorResolver;
     private readonly ILogger<AuditingTenantStore> _logger;
 
-    /// <summary>Yeni bir denetimli kiraci deposu olusturur.</summary>
+    /// <summary>Initializes a new audited tenant store.</summary>
     public AuditingTenantStore(
         ITenantStore inner,
         IAuditLog auditLog,
@@ -53,8 +53,8 @@ public sealed class AuditingTenantStore : ITenantStore, IAuditDecorated
             _auditLog,
             _actorResolver,
             _logger,
-            // Kiraci kaydinin kendisi cok kiracili olmayabilir; kiracinin kendi
-            // etkinlestirdigi baglam yerine, olusturulan slug'i kiraci olarak kullaniyoruz.
+            // The tenant record itself might not be multi-tenant. Use the created slug
+            // as the tenant instead of the context activated by that tenant.
             tenant.Slug,
             action: "tenant.create",
             entity: $"tenant:{tenant.Slug}",

@@ -4,20 +4,20 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Aktoru <see cref="AuditActorContext"/> icindeki kullanicidan okuyan varsayilan uygulama.
+/// The default implementation that reads the actor from the user in <see cref="AuditActorContext"/>.
 /// </summary>
 /// <remarks>
-/// Okuma sirasi: <see cref="AgentPrismAuditOptions.ActorClaimType"/> ayarliysa o claim;
-/// aksi halde <see cref="ClaimTypes.NameIdentifier"/> → <see cref="ClaimTypes.Name"/> →
+/// Read order: the configured <see cref="AgentPrismAuditOptions.ActorClaimType"/> claim;
+/// otherwise <see cref="ClaimTypes.NameIdentifier"/> → <see cref="ClaimTypes.Name"/> →
 /// <c>sub</c> → <see langword="null"/>.
 /// </remarks>
 public sealed class AmbientAuditActorResolver : IAuditActorResolver
 {
     private readonly IOptions<AgentPrismOptions> _options;
 
-    /// <summary>Yeni bir cozumleyici olusturur.</summary>
-    /// <param name="options">AgentPrism ayarlari.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> <see langword="null"/> ise.</exception>
+    /// <summary>Initializes a new resolver.</summary>
+    /// <param name="options">The AgentPrism options.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     public AmbientAuditActorResolver(IOptions<AgentPrismOptions> options)
     {
         ArgumentNullException.ThrowIfNull(options);
