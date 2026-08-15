@@ -2,7 +2,7 @@ using Microsoft.CodeAnalysis;
 
 namespace AgentPrism.Generators;
 
-/// <summary>Ureteçin urettigi tum tanilarin (APG0001-APG0007) tanimlari.</summary>
+/// <summary>Definitions for all diagnostics produced by the generator (APG0001-APG0007).</summary>
 internal static class ToolDiagnostics
 {
     private const string Category = "AgentPrism.Tools";

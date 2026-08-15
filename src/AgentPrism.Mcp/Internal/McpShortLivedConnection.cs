@@ -5,14 +5,14 @@ using ModelContextProtocol.Client;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="McpPromptClient"/> ve <see cref="McpResourceClient"/>'in
-/// paylastigi kisa omurlu baglanti kurulumu.
+/// The short-lived connection setup shared by <see cref="McpPromptClient"/> and
+/// <see cref="McpResourceClient"/>.
 /// </summary>
 internal static class McpShortLivedConnection
 {
     /// <summary>
-    /// Bir sunucuya tek seferlik baglanir. Cagiran, isini bitirince
-    /// dondurulen istemciyi kapatmakla yukumludur.
+    /// Connects to a server once. The caller must dispose the returned client when
+    /// it finishes its work.
     /// </summary>
     public static async ValueTask<(McpOperationStatus Status, McpClient? Client)> ConnectAsync(
         string tenantId,
@@ -59,7 +59,7 @@ internal static class McpShortLivedConnection
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            logger.LogWarning(ex, "MCP sunucusu '{ServerName}' baglanamadi.", server.Name);
+            logger.LogWarning(ex, "Could not connect to MCP server '{ServerName}'.", server.Name);
 
             return (McpOperationStatus.ConnectionFailed, null);
         }
