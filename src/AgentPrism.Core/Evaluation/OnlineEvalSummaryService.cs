@@ -5,23 +5,21 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Cevrimici degerlendirme puanlarinin kayan pencere ozetini tutar ve esik
-/// asildiginda <see cref="WebhookEvents.RunScoreLow"/> olayini yayar — Faz 49.
+/// Maintains a sliding-window summary of online evaluation scores and publishes
+/// <see cref="WebhookEvents.RunScoreLow"/> when its threshold is crossed — phase 49.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 Puan penceresi <strong>bellek icidir</strong> (kiraci basina bir kuyruk).
-/// Kaynak gercek (source of truth) her zaman <c>run_scores</c> tablosudur —
-/// bir operator <c>SELECT source, avg(value) FROM run_scores GROUP BY source</c>
-/// ile her an tam sonuca ulasir. Bu servis yalnizca canli bir gosterge ve alarm
-/// icin ucuz bir yaklastirmadir; sureç yeniden baslatilinca sifirlanir. Ayni
-/// tasarim tercihi <see cref="RunSampler"/>'in saatlik butcesinde de kullanildi
-/// (K1: surekli bir sayac deposu gerekmez).
+/// 🚨 The score window is <strong>in memory</strong>, with one queue per tenant.
+/// The <c>run_scores</c> table is always the source of truth; an operator can
+/// query its exact result at any time. This service is only an inexpensive live
+/// indicator and alarm, and resets when the process restarts. The same design is
+/// used for <see cref="RunSampler"/>'s hourly budget (K1: no durable counter store).
 /// </para>
 /// <para>
-/// 🚨 Tek bir dusuk puan alarm uretmez: <see cref="OnlineEvaluationOptions.MinSampleSize"/>
-/// asilmadan esik denetimi hic yapilmaz. Model gurultuludur; aksi halde
-/// bildirimler hizla yok sayilmaya baslar.
+/// 🚨 One low score does not produce an alarm. Threshold evaluation does not run
+/// before <see cref="OnlineEvaluationOptions.MinSampleSize"/> is met. Models are
+/// noisy, and otherwise notifications quickly become ignored.
 /// </para>
 /// </remarks>
 public sealed class OnlineEvalSummaryService(
@@ -33,12 +31,12 @@ public sealed class OnlineEvalSummaryService(
     private readonly ConcurrentDictionary<string, TenantWindow> _windows = new(StringComparer.Ordinal);
 
     /// <summary>
-    /// Yeni yazilan bir yargic puanini pencereye ekler ve gerekiyorsa
-    /// <see cref="WebhookEvents.RunScoreLow"/> olayini yayar.
+    /// Adds a newly written judge score to the window and publishes
+    /// <see cref="WebhookEvents.RunScoreLow"/> when needed.
     /// </summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="score">Yazilan puan, 0-100.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="score">The written score, from 0 to 100.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     public async ValueTask RecordScoreAsync(string tenantId, int score, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
@@ -81,9 +79,9 @@ public sealed class OnlineEvalSummaryService(
             cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Bir kiracinin guncel pencere ozetini ve yargic maliyetini dondurur.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <summary>Returns a tenant's current window summary and judge cost.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     public async ValueTask<OnlineEvaluationSummary> GetSummaryAsync(
         string tenantId,
         CancellationToken cancellationToken = default)
@@ -104,10 +102,10 @@ public sealed class OnlineEvalSummaryService(
             }
         }
 
-        // 🚨 Yargic calistirmalari `AgentName = "judge:{ad}"` ile kaydedilir
-        // (bkz. ModelRunJudge); ayni Kind.Eval degerini paylasan eval takim
-        // vaka calistirmalarindan bu onekle ayirt edilir. Ikinci bir SQL sorgu
-        // yuzeyi acmadan mevcut RunQuery.Kind suzgeciyle (Faz 49) yeterli.
+        // 🚨 Judge runs are recorded as `AgentName = "judge:{name}"` (see
+        // ModelRunJudge). This prefix distinguishes them from evaluation-suite
+        // case runs that share the Kind.Eval value. The existing RunQuery.Kind
+        // filter is sufficient and does not require a second SQL query surface.
         var evalRuns = await runStore.QueryRunsAsync(
             new RunQuery
             {
@@ -183,36 +181,36 @@ public sealed class OnlineEvalSummaryService(
     }
 }
 
-/// <summary>Cevrimici degerlendirme penceresinin ozeti (<c>GET /api/evaluation/online</c>).</summary>
+/// <summary>Summarizes the online evaluation window (<c>GET /api/evaluation/online</c>).</summary>
 public sealed record OnlineEvaluationSummary
 {
-    /// <summary>Pencerenin baslangici (UTC).</summary>
+    /// <summary>Gets the window start in UTC.</summary>
     public required DateTimeOffset WindowStart { get; init; }
 
-    /// <summary>Pencerenin bitisi (UTC).</summary>
+    /// <summary>Gets the window end in UTC.</summary>
     public required DateTimeOffset WindowEnd { get; init; }
 
-    /// <summary>Pencere icindeki ornek (puanlanmis calistirma) sayisi.</summary>
+    /// <summary>Gets the sample count, which is the number of scored runs in the window.</summary>
     public required long SampleCount { get; init; }
 
-    /// <summary>Pencere icindeki ortalama puan, 0-100. Ornek yoksa <see langword="null"/>.</summary>
+    /// <summary>Gets the average score in the window, from 0 to 100, or <see langword="null"/> with no samples.</summary>
     public double? AverageScore { get; init; }
 
-    /// <summary>Yapilandirilmis dusuk puan esigi.</summary>
+    /// <summary>Gets the configured low-score threshold.</summary>
     public required int LowScoreThreshold { get; init; }
 
-    /// <summary>Alarm icin gereken asgari ornek sayisi.</summary>
+    /// <summary>Gets the minimum sample count required for an alarm.</summary>
     public required int MinSampleSize { get; init; }
 
     /// <summary>
-    /// Ortalama esigin altinda VE ornek sayisi asgariyi astiysa
-    /// <see langword="true"/>.
+    /// Gets <see langword="true"/> when the average is below the threshold and
+    /// the sample count meets the minimum.
     /// </summary>
     public required bool BelowThreshold { get; init; }
 
-    /// <summary>Pencere icindeki toplam yargic maliyeti. Bilinmiyorsa <see langword="null"/>.</summary>
+    /// <summary>Gets the total judge cost in the window, or <see langword="null"/> when unknown.</summary>
     public decimal? JudgeCost { get; init; }
 
-    /// <summary>Yargic maliyetinin para birimi.</summary>
+    /// <summary>Gets the judge-cost currency.</summary>
     public string? JudgeCostCurrency { get; init; }
 }
