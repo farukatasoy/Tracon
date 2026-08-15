@@ -112,7 +112,6 @@ src/AgentPrism.Azure/AzureOpenAIProviderOptionsValidator.cs|13
 src/AgentPrism.Azure/README.md|51
 src/AgentPrism.Core/AgentPrism.Core.csproj|20
 src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs|252
-src/AgentPrism.Core/Audit/AuditingSessionStore.cs|14
 src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs|179
 src/AgentPrism.Core/Compilation/CompiledAgentCache.cs|33
 src/AgentPrism.Core/Compilation/TenantPrefixingAgentFileStore.cs|17
@@ -162,7 +161,6 @@ src/AgentPrism.Core/Runs/DefaultRunErrorClassifier.cs|15
 src/AgentPrism.Core/Runs/ErrorFingerprint.cs|14
 src/AgentPrism.Core/Scheduling/AgentRunJobHandler.cs|38
 src/AgentPrism.Core/Scheduling/CronExpression.cs|30
-src/AgentPrism.Core/Scheduling/InMemoryJobStore.cs|13
 src/AgentPrism.Core/Scheduling/JobWorkerBackgroundService.cs|24
 src/AgentPrism.Core/Security/ApiKeyGenerator.cs|18
 src/AgentPrism.Core/Sessions/AgentSessionIdentity.cs|14
