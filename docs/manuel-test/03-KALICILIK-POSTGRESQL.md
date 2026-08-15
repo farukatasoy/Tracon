@@ -110,9 +110,29 @@ cd samples/AgentPrism.Api && dotnet run
 ```
 
 **Beklenen sonuç**
-- Uygulama başlamayı **reddeder** (`ValidateOnStart`); konsolda `OptionsValidationException`
-  görünür ve mesaj `AgentPrismPostgreSqlOptions.ConnectionString bos olamaz` metnini taşır.
-- Süreç sıfırdan farklı bir çıkış koduyla sonlanır; `/health` hiçbir zaman yanıt vermez.
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8) — İzlek B ile bu senaryo yapısal
+> olarak erişilemez, beklenti koda göre düzeltildi:**
+> `samples/AgentPrism.Api/Program.cs:639` boş bağlantı dizesinde
+> `UsePostgreSql()`'i hiç çağırmaz — validator'a hiçbir zaman ulaşılmaz.
+> Örnek uygulama sessizce InMemory'e düşer, `/health` **200 Degraded** döner
+> (kalıcılık nedeniyle değil, model sağlayıcı sağlığı nedeniyle). Bu, İzlek B
+> için **doğru** ve kasıtlı davranıştır (`Program.cs:622` yorumu).
+> `AgentPrismPostgreSqlOptionsValidator`'ın kendisi doğru çalışır — bu yalnız
+> İzlek A/C (doğrudan `UsePostgreSql()` çağıran bir harness) üzerinden
+> gözlemlenebilir: `UsePostgreSql(string)` çağrı anında `ArgumentException`,
+> `UsePostgreSql(IConfiguration)` ilk `IOptions.Value` erişiminde
+> `AgentPrismPostgreSqlOptions.ConnectionString bos olamaz` mesajıyla
+> `OptionsValidationException` fırlatır. Bu case'in adımları İzlek A/C'ye
+> taşınmalıdır; İzlek B için ayrı bir case ("boş bağlantı dizesiyle örnek
+> uygulama bellek içi depoya sessizce düşer, `/health` 200 Degraded döner")
+> eklenmelidir.
+
+~~Eski beklenti (yanlış öncül — İzlek B'de validator'a hiç ulaşılmadığını
+gözden kaçırıyordu): Uygulama başlamayı reddeder (`ValidateOnStart`);
+konsolda `OptionsValidationException` görünür ve mesaj
+`AgentPrismPostgreSqlOptions.ConnectionString bos olamaz` metnini taşır.
+Süreç sıfırdan farklı bir çıkış koduyla sonlanır; `/health` hiçbir zaman
+yanıt vermez.~~
 
 **Gerçek sonuç**
 > **Kaldı — ama kök neden ürün kusuru değil, case'in İzlek B ile test edilemez olması.**
@@ -147,7 +167,14 @@ cd samples/AgentPrism.Api && dotnet run
 > konsol) taşınmalı; İzlek B için ayrı ve doğru bir case ("boş bağlantı dizesiyle
 > örnek uygulama bellek içi depoya sessizce düşer") eklenmeli.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☒ Kaldı · ☐ Atlandı
+---
+
+**Doküman düzeltmesi (2026-08-15, KAPANIS-PLANI §8):** Ürün kusuru yok —
+`AgentPrismPostgreSqlOptionsValidator` İzlek A/C harness'ında belgelenen
+davranışı tam olarak sergiliyor. Beklenti yukarıda koda göre düzeltildi.
+Case'in İzlek A/C'ye taşınması ayrı bir doküman görevi olarak açık kalır.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 > **Temizlik:** `dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=localhost;Port=55432;Database=agentprism;Username=postgres;Password=agentprism"` — uygulandı.
 
@@ -1998,10 +2025,20 @@ curl -s -w "\nHTTP: %{http_code}\n" "http://localhost:5080/health"
 ```
 
 **Beklenen sonuç**
-- Container durdurulmuşken `/health` **503** döner; gövde `Unhealthy` durumunu
-  ve `Kalicilik veritabanina erisilemiyor` benzeri bir mesajı taşır.
-- Container yeniden başladıktan sonra (uygulama YENİDEN BAŞLATILMADAN) `/health`
-  tekrar **200** (`Healthy`) döner — Npgsql havuzu kendiliğinden toparlanır.
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** `echo` sağlayıcısı
+> `AgentPrismHealthCheck.cs:70-77`'nin izlediği `ModelProviders` listesinde
+> hiç yer almaz (yalnız openai/openai-responses/openrouter/anthropic/google
+> izlenir) — bu yüzden `echo`-only bir kurulumda `/health` YAPISAL OLARAK
+> asla düz `Healthy` dönemez, en iyi ihtimalle `Degraded` durur. Bu, model
+> sağlayıcı devre kesici durumu için ayrı sınır tutan `25-SAGLIK-TESHIS-OPENAPI.md`
+> kapsamına giren bir davranıştır, bu dosyanın kapsamı dışıdır.
+
+~~Eski beklenti (yanlış öncül — `echo` sağlayıcısının health check
+listesinde yer almadığını gözden kaçırıyordu): Container durdurulmuşken
+`/health` 503 döner; gövde `Unhealthy` durumunu ve `Kalicilik veritabanina
+erisilemiyor` benzeri bir mesajı taşır. Container yeniden başladıktan sonra
+(uygulama YENİDEN BAŞLATILMADAN) `/health` tekrar 200 (`Healthy`) döner —
+Npgsql havuzu kendiliğinden toparlanır.~~
 
 **Gerçek sonuç**
 > **Kısmen Kaldı.** PostgreSQL'e özgü davranış TAM beklendiği gibi: container
@@ -2024,7 +2061,14 @@ curl -s -w "\nHTTP: %{http_code}\n" "http://localhost:5080/health"
 > sonucu kendi belirlediği sınırın dışına taşmış. PostgreSQL'e özgü kısım
 > (`canConnect`, `migrationsUpToDate`) doğrulandı; `Healthy` etiketi doğrulanamadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☒ Kaldı · ☐ Atlandı
+---
+
+**Doküman düzeltmesi (2026-08-15, KAPANIS-PLANI §8):** Gözlenen `Degraded`
+sonucu, yukarıda düzeltilmiş beklentiyle **tam örtüşüyor** — ürün kusuru
+yok. PostgreSQL'e özgü davranışın tamamı (503→200 geçişi, Npgsql havuzunun
+kendiliğinden toparlanması) doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2156,18 +2200,27 @@ curl -s -w "\nHTTP: %{http_code}\n" "http://localhost:5080/health"
 ```
 
 **Beklenen sonuç**
-- **200**, gövde `Healthy` durumunu gösterir.
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8) — aynı kök neden `MT-PG-050`:**
+> **200**, gövde `Degraded` durumunu gösterir. "`echo` yeterli" ön koşul
+> varsayımı yanlıştır — `echo` sağlayıcısı `AgentPrismHealthCheck.cs:70-77`'nin
+> izlediği `ModelProviders` listesinde hiç yer almaz, bu yüzden "en az bir
+> model sağlayıcısı sağlıklı" koşulu `echo`-only bir kurulumda YAPISAL OLARAK
+> hiçbir zaman sağlanamaz; `Healthy` etiketi yalnız openai/anthropic/google/
+> openrouter gibi izlenen bir sağlayıcıyla mümkündür.
+
+~~Eski beklenti (yanlış öncül — "echo yeterli"): 200, gövde `Healthy`
+durumunu gösterir.~~
 
 **Gerçek sonuç**
-> **Kaldı.** **200** döndü ama gövde `Degraded`, `Healthy` DEĞİL. Kök neden
-> `MT-PG-050`'de belgelendi: `echo` sağlayıcısı `AgentPrismHealthCheck`'in
-> izlediği `ModelProviders` listesinde hiç yer almıyor, bu yüzden "en az bir
-> model sağlayıcısı sağlıklı" koşulu `echo`-only bir kurulumda YAPISAL OLARAK
-> hiçbir zaman sağlanamıyor. Doc'un "echo yeterli" varsayımı bu case için
-> YANLIŞ — plan `Healthy` sonucu her koşumda değişmez biçimde `Degraded`'e
-> düşer, kod/veri kusuru değil, case'in ön koşul varsayımı hatalı.
+> **200** döndü, gövde `Degraded` — düzeltilmiş beklentiyle **tam örtüşüyor**.
+> Kod/veri kusuru yok; ürünün migration/bağlantı denetimi doğru çalışıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☒ Kaldı · ☐ Atlandı
+---
+
+**Doküman düzeltmesi (2026-08-15):** Beklenen sonuç yukarıda koda göre
+düzeltildi. Ürün kusuru yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

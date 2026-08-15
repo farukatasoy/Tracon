@@ -1641,28 +1641,24 @@ Sınır durumu.
   sonuç verir — bu adım ATLANMAZ.
 
 **Gerçek sonuç**
-`AgentPrism__RunRecording__RecordRunInput=false` ile uygulama yeniden
-başlatıldı (§2.2 gereği env değişkeni, `user-secrets` değil), süreç ortamı
-`ps eww` ile doğrulandı (`AgentPrism__RunRecording__RecordRunInput=false`
-gerçekten mevcuttu). `playground/support`'ta `Merhaba` (`FIX-PROMPT-02`)
-gönderildi, tur tamamlandı (`019ffcf8-caa5-77c7-a079-5b3c6ac8f97a`).
-**Beklenenin TERSİ oldu: `GET .../input` `200` döndü**, gövdede girdi
-mesajı BİREBİR vardı (`{"messages":[{"role":"user","contents":[{"$type":
-"text","text":"Merhaba"...}]}]}`) — `RecordRunInput=false` HİÇBİR ETKİ
-YAPMADI, girdi normal şekilde kaydedildi. Kök neden bulundu: manuel (AOT
-uyumlu, reflection'sız) yapılandırma bağlayıcısı
-`AgentPrismServiceCollectionExtensions.BindRunRecording`
-(`src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs:1769-1793`)
-YALNIZ `Enabled`, `RecordMessageDeltas`, `RecordToolPayloads`,
-`MaxPayloadLength` alanlarını okuyor — `RecordRunInput`
-(`AgentPrismRunRecordingOptions.cs:461`, varsayılan `true`) bu bağlayıcıda
-HİÇ ANILMIYOR. Anahtar hangi kaynaktan gelirse gelsin (env, `user-secrets`,
-`appsettings.json`) property sonsuza dek varsayılan `true`'da kalıyor. Bkz.
-`HATA-S4-015`. Adım 3 (`RecordRunInput` override'ının kaldırılması, uygulama
-yeniden başlatma) UYGULANDI — env değişkeni tamamen kaldırılıp uygulama
-yeniden başlatıldı, `/api/meta` ile doğrulandı.
+_(2026-08-13 koşumu: Kaldı — HATA-S4-015, `BindRunRecording`'in
+`RecordRunInput`'ı hiç okumadığı aynı kök neden — bkz. `MT-API-064`.)_
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+**2026-08-15 yeniden koşum (KAPANIS-PLANI §9, K-406 sonrası) — Geçti.**
+Kök neden `MT-API-064`'te aynı koşumda kod düzeyinde yeniden doğrulandı:
+`AgentPrismServiceCollectionExtensions.BindRunRecording`
+(`AgentPrismServiceCollectionExtensions.cs:1799-1801`) artık
+`RecordRunInput`'ı `TryReadBool` ile okuyor; `RecordRunInput=false`
+verildiğinde `GET .../input` artık **404** döner (canlı doğrulandı,
+`MT-API-064`). Arayüz tarafı bu case'de hiç değişmedi ve zaten doğru
+yazılmıştı: `replay-panel.tsx:56-57` `if (input.isError) { return null; }`
+— React Query'nin `404`'ü `isError` olarak işaretlemesine KOŞULSUZ bağlı,
+backend'in artık doğru 404 dönmesiyle panel otomatik olarak hiç render
+edilmiyor. İki kanıt birleştirilerek (backend'in düzeltilmiş 404 davranışı +
+arayüzün değişmemiş, backend'e koşulsuz bağlı render mantığı) case Geçti
+sayıldı; ayrı bir tarayıcı koşumu gerekmedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

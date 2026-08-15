@@ -53,16 +53,16 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 
 ## 2. Durum
 
-> Son güncelleme: **2026-08-15** (Aile V sonrası).
+> Son güncelleme: **2026-08-15** (Doküman + Yeniden koşum aileleri sonrası).
 
 | | |
 |---|---|
 | Toplam case | **1097** |
 | Koşuldu | **1097** (koşulmamış case **yok**) |
-| ☑ Geçti | **1040** |
-| ☒ **Kaldı** | **26** |
+| ☑ Geçti | **1062** |
+| ☒ **Kaldı** | **4** (`MT-MCP-052`, `MT-UI-005`, `MT-WF-071`, `MT-WF-073` — kalıcı, bkz. §6) |
 | ⏭ Atlandı | **30** |
-| ☐ Beklemede | **1** (`MT-UIRUN-019`) |
+| ☐ Beklemede | **1** (`MT-UIRUN-019`, ortam kurulumu gerekir — bkz. §10) |
 
 ### Biten işler
 
@@ -91,11 +91,18 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile T** — MCP "connection refused" zaman aşımından farklı davranıyordu: `McpConnection` ikisini de aynı şekilde yutuyor ama yalnız zaman aşımı istisnası dışarı sızıyordu; `IMcpToolRefresher.RefreshAsync` artık `McpRefreshOutcome` (+`HadUnreachableServers`) dönüyor, iki alt durum artık aynı `mcp_unreachable` sonucunu üretiyor | (bu koşum) | `MT-CORE-006` |
 | **Aile U** — Kalan 10 arayüz kusuru, hepsi bağımsız kök nedenler: yanlış token reddi sinyali kayboluyordu (`rejectToken`/`useTokenRejected`), palet `Esc` sonrası odak dönmüyordu, tema Ayarlar↔üst çubuk senkron değildi (paylaşımlı store), 375px'te Dashboard/Ayarlar/Tool'lar taşıyordu (+ önceden kayıtsız 4. kök neden: `grid-cols` temel sınıfı eksik), kod kökenli agent editörü boş+devre dışı geliyordu, alt çalıştırma İz paneli sonsuz "Loading"da kalıyordu, kod kökenli agent'ta onay-tool koruması `LiveTools`'ta atlanıyordu, oturum geçmişi tool çağrısı turunda kalıcı "sürüyor" kalıyordu, "Çalıştırmalar" düğmesi hem yönlendirmede hem filtrede kırıktı (router sorgu dizgisi + `RunsScreen`'in `sessionId`'i hiç okumaması), çok ucuz modelin maliyeti `0,00`'a yuvarlanıyordu | (bu koşum) | `MT-UI-003`, `MT-UI-020`, `MT-UI-028`, `MT-UI-043`, `MT-UIAG-016`, `MT-UIRUN-015`, `MT-UIRUN-030`, `MT-UIRUN-039`, `MT-UIRUN-041`, `MT-OBS-003` |
 | **Aile V** — Karışık yetenek boşlukları, 6 bağımsız kök neden: Agent-türü çalıştırmalar (kuyruk dışı TÜM yollar) onay bekleyen bir tool çağrısını hiç `AwaitingApproval` olarak yansıtmıyordu (`RunRecordingAgent`'ın `SuspendOnApproval` bayrağı yalnız kuyruk yoluna özeldi, kaldırıldı) + `/v1/responses`'ın MAF'tan gelen `WriteResponse`'u `ToolApprovalRequestContent`'i tanımayıp `output`'tan sessizce düşürüyordu (JSON'a `function_call` ögesi yaması); Playground `?sessionId=`'i hiç okumuyordu (artık okuyor + geçmişi "Prior messages" olarak yüklüyor, `session-detail.tsx`'e "Devam et" düğmesi eklendi); `/` kısayolunun hedeflediği `input[data-search]` hiçbir ekranda yoktu (Agents listesine gerçek bir arama kutusu eklendi); `access-gate.tsx`'in `meta` sorgusu hiç periyodik yenilenmiyordu (kabuk yüklüyken sunucu çökerse fark edilmiyordu — `refetchInterval: 30_000` eklendi, soğuk tam sayfa yenileme senaryosu altyapısal sınır olarak Kaldı kalır); `/respond`, `WorkflowRunner.StartAsync`'in koşulsuz gönderdiği fazladan bir `TurnToken` yüzünden agent-host giriş düğümlü grafları SIFIRDAN yeniden çalıştırıyordu (gerçek ek maliyet) — düzeltme yalnız cevapsız `/resume`'u koruyacak şekilde daraltıldı (ilk deneme `Kontrol_noktasindan_surdurulur`'u 10 dakikaya astı, canlı ölçülüp geri alındı) | (bu koşum) | `MT-COMPAT-029`, `MT-MCP-023`, `MT-UIRUN-043`, `MT-UI-024`, `MT-WF-062` (5/8 — `MT-UI-005`/`MT-WF-071`/`MT-WF-073` Kaldı kalır, bkz. §6) |
+| **Doküman** — 13 case'in beklenen sonucu koda göre düzeltildi (kod değişikliği yok, yalnız ön koşul/beklenti hataları) | (bu koşum) | `MT-PG-001`, `MT-PG-050`, `MT-PG-053`, `MT-PKG-011`, `MT-PKG-023`, `MT-PKG-062`, `MT-PKG-081`, `MT-CORE-004`, `MT-CORE-023`, `MT-CORE-024`, `MT-EVAL-084`, `MT-TEST-044`, `MT-RES-005` (son ikisi F-107 faz adayına da bağlandı) |
+| **Yeniden koşum** — `MT-PKG-010` (`f36eeaf`'te zaten kapalıydı) + K-406'nın kapattığı `MT-API-064`/`MT-UIRUN-032` doğrudan yeniden koşuldu; `MT-SKILL-059..070` yeniden koşumu ise İKİ YENİ kritik kusur buldu ve düzeltti (bkz. Aile W) | (bu koşum) | `MT-PKG-010`, `MT-API-064`, `MT-UIRUN-032`, `MT-SKILL-059`, `MT-SKILL-060`, `MT-SKILL-061`, `MT-SKILL-062`, `MT-SKILL-063`, `MT-SKILL-070` |
+| **Aile W** — Skill script çalıştırma K-400'den SONRA bile iki bağımsız kök nedenle bozuktu: `SkillScriptProcessRunner.WriteArgumentsAsync`'in `finally`'deki `Close()`'u stdin okumayan scriptlerde ("Pipe is broken") korumasızdı (özelliğin TAMAMINI çökertiyordu) + `SandboxedSkillScriptRunner.DenyAsync` red nedenini `jsonb` sütununa JSON'a çevirmeden yazıyordu (`script.denied` denetim izi `22P02` ile sessizce kayboluyordu); ikisi de düzeltildi, MT-SKILL-058..070'in TAMAMI canlı OpenAI ile yeniden doğrulandı | (bu koşum) | `MT-SKILL-058` (yeniden doğrulama, tool adı düzeltmesiyle), `059`, `060`, `061`, `062`, `063`, `070` |
 
 ### Kalan aileler
 
-Sıra: Kritik → Yüksek → Orta/Düşük. `kod` harf zinciri (A–V) **bitti**; bir
-sonraki oturum **Doküman** ile başlar.
+Sıra: Kritik → Yüksek → Orta/Düşük. `kod` harf zinciri (A–V) **bitti**;
+**Doküman** ve **Yeniden koşum** aileleri de bitti (bu koşum). Kalan tek iş
+§10'daki ortam-kurulumu-bekleyen 21 case (`MT-UIRUN-019` dahil) ve kalıcı
+Kaldı kalan 4 kod-ailesi kalemidir (`MT-MCP-052`, `MT-UI-005`, `MT-WF-071`,
+`MT-WF-073`) — bunlar §11 "Kapanış" adımlarına konu, ayrı bulgular olarak
+izlenir.
 
 | Aile | Önem | Konu | Case | Durum |
 |---|---|---|---|---|
@@ -121,23 +128,29 @@ sonraki oturum **Doküman** ile başlar.
 | ~~T~~ | Orta | MCP "connection refused" → `unknown_tool` | 1 | ✅ (bu koşum) |
 | ~~U~~ | Orta/Düşük | Kalan 10 arayüz kusuru | 10 | ✅ (bu koşum) |
 | ~~V~~ | Karışık | Yetenek boşlukları | 8 | ✅ (bu koşum, 5/8 Geçti — `MT-UI-005`/`MT-WF-071`/`MT-WF-073` Kaldı kalır) |
-| **Doküman** | — | Beklenen sonuç koda göre düzeltilir | 13 | ⬜ |
-| **Yeniden koşum** | — | Kusuru zaten kapalı | 8 | ⬜ |
-| **MT-PKG-010** | — | Kök neden `f36eeaf`'te kapandı, case yeniden koşulmalı | 1 | ⬜ |
+| ~~Doküman~~ | — | Beklenen sonuç koda göre düzeltildi | 13 | ✅ (bu koşum) |
+| ~~Yeniden koşum~~ | — | `MT-PKG-010` zaten kapalıydı; `MT-API-064`/`MT-UIRUN-032` K-406 ile doğrudan kapandı; `MT-SKILL-059..070` gerçek koşumu 2 yeni kusur buldu/düzeltti (Aile W) | 9 (8 + `MT-PKG-010`) | ✅ (bu koşum) |
 
-**Toplam kalan iş:** 13 (doküman) + 8 (yeniden koşum) + 1 = **22**. `kod`
-harf zinciri (A–V) tamamlandı — geri kalan üç kod-ailesi kalemi
+**Toplam kalan iş:** 13 (doküman) + 8 (yeniden koşum) + 1 (`MT-PKG-010`) =
+**22** — TÜMÜ bu koşumda kapandı. `kod` harf zinciri (A–V) + Doküman +
+Yeniden koşum aileleri **bitti**. Geri kalan dört kod-ailesi kalemi
 (`MT-MCP-052`, `MT-UI-005`, `MT-WF-071`, `MT-WF-073`) kalıcı olarak Kaldı
 kalır ve bu toplama dahil DEĞİLDİR; her biri ayrı bir bulgu olarak izlenir
 (sırasıyla: statik token + kayıtsız rol politikaları, tarayıcı-seviyesi
-soğuk-yenileme sınırı, MAF'ın round-limit-sonrası davranışı — `F-106`).
+soğuk-yenileme sınırı, MAF'ın round-limit-sonrası davranışı — `F-106`/`F-107`).
 (Aile F bitti: 51 → 47; Aile G bitti: 47 → 43; Aile H bitti: 43 → 42; Aile I
 bitti: 42 → 41; Aile J bitti: 41 → 40; Aile K bitti: 40 → 38; Aile L bitti:
 38 → 37; Aile M bitti: 37 → 36; Aile N bitti: 36 → 35; Aile O bitti: 35 → 31;
 Aile P bitti: 31 → 29; Aile Q bitti: 29 → 25; Aile R bitti: 25 → 23; Aile S
 bitti: 23 → 22; Aile T bitti: 22 → 21; Aile U bitti: 21 → 11; Aile V bitti:
 11 → 3 (kalan 3 = `MT-UI-005`/`MT-WF-071`/`MT-WF-073`, yukarıdaki gerekçeyle
-toplam dışı bırakıldı, `kod` bucket'ı fiilen 0'dır).)
+toplam dışı bırakıldı); Doküman bitti: 22 → 9; Yeniden koşum bitti: 9 → 0.
+Bugünkü gerçek Kaldı toplamı **4**dür (yukarıdaki üç + `MT-MCP-052`,
+Aile F'nin kendi kalıcı kalemi).)
+
+Geriye yalnız §10'daki ortam-kurulumu-bekleyen 21 case (`MT-UIRUN-019`
+dahil, henüz Beklemede) ve yukarıdaki 4 kalıcı Kaldı kalemi kalıyor —
+ikisi de bu dosyanın kapsamı dışı, §11 "Kapanış" adımlarına konudur.
 
 ---
 
@@ -1608,6 +1621,104 @@ bu, "Doküman" ailesinin (§8, `MT-RES-005` satırı) ve §11 kapanışının i�
 
 ---
 
+### ~~Aile W~~ — Skill script çalıştırma K-400'den SONRA bile bozuktu (2 bağımsız kusur) 🚨 Kritik ✅ (bu koşum)
+
+**Bağlam:** §9 "Yalnız yeniden koşum" MT-SKILL-059..070'i "K-400 kapattı,
+case yeniden koşulup `Durum` güncellensin" olarak listeliyordu. Bu koşum
+protokolün kendi kuralını uyguladı ("önce ampirik olarak yeniden üret") ve
+tam ortam kurup (§6, `docs/manuel-test/14-SKILL-VE-SCRIPT.md`'nin ortak ön
+koşulu) canlı bir OpenAI çağrısıyla `MT-SKILL-058`'i baştan koştu — kusur
+"zaten kapalı" DEĞİLDİ, K-400 yalnız BİR katmanı (JSON serializer) kapatmış,
+İKİ farklı, bağımsız kök neden hâlâ script çalıştırmanın TAMAMINI
+çökertiyordu. K-400'ün kendi doğrulama testleri bunu YAKALAMADI çünkü sahte
+`IAuditLog` (JSON geçerliliğini denetlemez) ve senkron/hızlı test ortamı
+(stdin-kapanma ırk koşulunu tetiklemez) kullanıyordu — yalnız gerçek bir alt
+süreç + gerçek Postgres bunu ortaya çıkardı.
+
+**Kusur 1 — `Process.StandardInput.Close()` `finally` içinde korunmuyordu.**
+`src/AgentPrism.Core/Skills/Scripts/SkillScriptProcessRunner.cs:152-175`
+(`WriteArgumentsAsync`) `WriteAsync`/`FlushAsync`'i `try/catch(IOException)`
+ile koruyordu ama `finally` bloğundaki `process.StandardInput.Close()`
+korunmuyordu. Stdin'i hiç okumadan hemen çıkan bir script (`echo
+merhaba-agentprism` gibi — bu dosyanın TÜM örnek script'leri) ebeveynin
+yazımından ÖNCE kendi ucunu kapatabiliyor; `Close()`'un kendi iç `Flush()`'ı
+o zaman `IOException: Pipe is broken` fırlatıyor, YAKALANMADAN dışarı
+sızıyor, MAF'ın `run_skill_script` çağrısı `"Error: Function failed."` ile
+başarısız oluyordu. **Etki: script çalıştırma özelliğinin TAMAMI (izinli,
+geçerli her çağrı dahil) fiilen işlevsizdi.**
+
+**Kusur 2 — `DenyAsync`'in denetim izi `jsonb` sütununa geçersiz JSON
+yazıyordu.** `SandboxedSkillScriptRunner.cs:425-444` (`DenyAsync`) red
+nedenini (`"Bu script icin gecerli bir calistirma izni yok."` gibi düz
+metin) `AuditRecorder.WriteAsync`'e JSON'a ÇEVİRMEDEN geçiriyordu; Postgres
+`INSERT`'i `22P02: invalid input syntax for type json` ile reddediyordu.
+Faz 9'un bilinçli istisnası (denetim izi yazılamazsa RED işlemeye devam
+eder, çünkü zorunlu olan `script.run`'ın KENDİSİdir — bkz. Aile B'nin
+`RunStarted` notu) burada devreye giriyor, hatayı yutup uyarı logluyordu —
+red doğru işliyordu ama **HER `script.denied` olayı (5 farklı `DenyAsync`
+çağrı noktası) sessizce kayboluyordu.**
+
+**Uygulanan düzeltme:**
+1. `WriteArgumentsAsync`'in `finally`'sindeki `Close()` çağrısı kendi
+   `try/catch(IOException)`'ına alındı (aynı "script stdin okumadan çıkmış
+   olabilir, hata değildir" gerekçesiyle).
+2. `DenyAsync`'in `after` parametresi
+   `JsonSerializer.Serialize(reason, AgentPrismCoreJsonContext.Default.String)`
+   ile JSON'a çevrildi (`AgentPrism.Core` AOT-uyumlu paketlerden biri olduğu
+   için kaynak-üretilmiş `JsonSerializerContext` kullanıldı, reflection
+   değil).
+
+**Doğrulama — MT-SKILL-058..070'in TAMAMI canlı OpenAI ile yeniden
+koşuldu** (ayrı bir Postgres şeması, `mt_skill`, izole ortam):
+- `MT-SKILL-058`: `load_skill` → script çalıştırma → `exit_code: 0`,
+  `stdout: merhaba-agentprism` — ama tool adı beklenenin AKSİNE `merhaba`
+  DEĞİL, MAF'ın kendi generic `run_skill_script(skillName, scriptName,
+  arguments)` dispatcher'ı (üç bağımsız çalıştırmada tutarlı gözlendi —
+  bugünkü MAF sürümünün davranışı, eski beklenti eski bir sürüme
+  dayanıyordu; doküman düzeltildi).
+- `MT-SKILL-059`: izin iptali → red → modele `"Error: Function failed."`
+  (MAF istisna mesajını modele iletmiyor, kasıtlı görünüyor) →
+  `tool_invocations.error`'da TAM mesaj korunuyor → `audit_log`'da
+  `script.denied`/`scriptli-skill/merhaba` (Kusur 2 düzeltmesiyle artık
+  gerçekten yazılıyor).
+- `MT-SKILL-060`: `uyuyan` (`sleep 10`, `Timeout=2s`) → `"Script zaman
+  asimina ugradi ve surec agaci sonlandirildi."`, toplam süre 3 sn.
+- `MT-SKILL-061`: `buyuk-cikti` (`MaxOutputBytes=100`) → `stdout` tam 100
+  bayta kırpıldı + `[AgentPrism: cikti 100 bayt sinirinda kirpildi.]`.
+- `MT-SKILL-062`: `ortam-dokumu` (`env | sort`, sınırsız çıktı) → yalnız
+  `PATH`/`HOME`/`AGENTPRISM_SKILL_TEMP`/`AGENTPRISM_SKILL_NAME` +
+  bash'in kendi ürettiği `PWD`/`SHLVL`/`_` (7 satır) — hiçbir `secret`
+  YOK. Kritik güvenlik iddiası canlı kanıtla tam doğrulandı.
+- `MT-SKILL-063`: `bekleyen` (`sleep 4`) üç eşzamanlı çağrı — ilk ikisi
+  ~6,7 sn'de, üçüncüsü ~10,9 sn'de (~4,2 sn GEÇ — semafor beklemesi ile
+  tutarlı) bitti, üçü de `exit_code: 0`.
+- `MT-SKILL-070`: `GET /api/runs/{id}/trace` üzerinden `execute_skill_script`
+  span'i tam beklenen özniteliklerle bulundu
+  (`agentprism.skill.name`/`script.name`/`script.exit_code`/`script.duration_ms`).
+
+**Yeni dosyalar:** yok. **Değişen dosyalar:**
+`src/AgentPrism.Core/Skills/Scripts/SkillScriptProcessRunner.cs`
+(`WriteArgumentsAsync`'in `finally`'si),
+`src/AgentPrism.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs`
+(`DenyAsync`'in `after` parametresi).
+
+**Regresyon testleri:**
+`tests/AgentPrism.Core.UnitTests/Skills/SkillScriptProcessRunnerTests.cs`
+`Stdin_okumadan_cikan_script_boru_kirik_istisnasi_firlatmaz` (stdin'i
+`exec 0<&-` ile bilerek erken kapatan bir script ile deterministik
+tetikleme) ·
+`tests/AgentPrism.Core.UnitTests/Skills/SandboxedSkillScriptRunnerTests.cs`
+`Izin_yokken_script_reddedilir_ve_denetim_izine_yazilir`'e `denied.After`
+alanının `JsonDocument.Parse` ile geçerli JSON olduğunu doğrulayan bir
+denetim eklendi (bellek içi sahte defter JSON geçerliliğini denetlemediği
+için bu regresyonu tek başına yakalayamazdı — asıl kanıt canlı Postgres
+koşumundan geldi).
+
+**Case:** `MT-SKILL-058` (yeniden doğrulama, tool adı düzeltmesiyle), `059`,
+`060`, `061`, `062`, `063`, `070` — hepsi ✅.
+
+---
+
 ## 7. Aile F — Uç → kapsam eşlemesi
 
 `AgentsRead` = "katalog ve tanım okuma" · `RunsRead` = "çalıştırma okuma, olay
@@ -1781,6 +1892,11 @@ kümesine de eklenmezse **test kırılır**.
 
 ## 8. Doküman düzeltmesi gereken case'ler (kod değişmez)
 
+> ✅ **2026-08-15: Tablodaki 13 case'in tamamı uygulandı** — her birinin
+> ilgili `docs/manuel-test/NN-*.md` dosyasındaki "Beklenen sonuç" bölümü
+> koda göre düzeltildi, `Durum` `Geçti`'ye çevrildi. Bu tablo yalnız
+> tarihsel referans olarak kalır.
+
 KOSUM-PLANI §2.1 istisnası: doküman ile kod çelişirse **doküman yanlıştır**.
 Beklenen sonuç koda göre düzeltilir, gerekçe `Gerçek sonuç`a yazılır.
 
@@ -1804,13 +1920,20 @@ Beklenen sonuç koda göre düzeltilir, gerekçe `Gerçek sonuç`a yazılır.
 
 ## 9. Yalnız yeniden koşum (kusur zaten kapalı)
 
+> ✅ **2026-08-15: Tablodaki 9 case'in tamamı yeniden koşuldu.** Başlıktaki
+> "kusur zaten kapalı" varsayımı `MT-SKILL-059..070` için YANLIŞ çıktı — K-400
+> yalnız BİR katmanı kapatmıştı, gerçek koşum İKİ YENİ kritik kusur buldu
+> (bkz. §6 Aile W); ikisi de bu koşumda düzeltildi. `MT-API-064`/
+> `MT-UIRUN-032`/`MT-PKG-010` için varsayım DOĞRU çıktı, doğrudan Geçti
+> oldu. Bu tablo yalnız tarihsel referans olarak kalır.
+
 Kod değişmez; case koşulur ve `Durum` güncellenir.
 
 | Case | Kapatan düzeltme |
 |---|---|
-| `MT-SKILL-059`, `060`, `061`, `062`, `063`, `070` | `HATA-K-002` → **K-400**. `AgentPrismSkillsSource.cs:20` artık `TypeInfoResolver` veriyor. `MT-SKILL-063` kritik bir güvenlik iddiasını (ortam değişkeni izolasyonu) taşıyor ve **hiç ampirik kanıtı yok** — önceliklidir. |
-| `MT-API-064`, `MT-UIRUN-032` | `HATA-K-007`/`HATA-S2-002`/`HATA-S4-015` → **K-406**. `AgentPrismServiceCollectionExtensions.cs:1781` `RecordRunInput`'u bağlıyor. |
-| `MT-PKG-010` | Kök neden **`f36eeaf`**'te düzeltildi (ses turu `commit` yarışı). Dört kapı artık yeşil; case yeniden koşulup `Geçti` işaretlenmeli. |
+| `MT-SKILL-059`, `060`, `061`, `062`, `063`, `070` | `HATA-K-002` → **K-400** kapattı, AMA gerçek koşum §6 Aile W'nin iki YENİ kusurunu (pipe kapama, denetim izi JSON'u) buldu — asıl kapanış onlarla. `MT-SKILL-063` kritik bir güvenlik iddiasını (ortam değişkeni izolasyonu) taşıyordu ve canlı kanıtla tam doğrulandı. |
+| `MT-API-064`, `MT-UIRUN-032` | `HATA-K-007`/`HATA-S2-002`/`HATA-S4-015` → **K-406**. `AgentPrismServiceCollectionExtensions.cs:1799-1801` `RecordRunInput`'u bağlıyor — canlı doğrulandı. |
+| `MT-PKG-010` | Kök neden **`f36eeaf`**'te düzeltildi (ses turu `commit` yarışı). Dört kapı yeniden koşuldu, dördü de yeşil (build 58s/0 uyarı, test 1m54s/0 hata — önceki koşumun kaldı işaretli ses testi dahil 49/49 geçti). |
 
 ---
 

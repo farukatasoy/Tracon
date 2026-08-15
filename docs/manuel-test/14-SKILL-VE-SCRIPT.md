@@ -1619,14 +1619,31 @@ Bu case §6'nın TAM ön koşulunu (1-5. adımlar) gerektirir.
 4. Akış tamamlanana kadar bekle.
 
 **Beklenen sonuç**
-- İkinci onay kartının tool adı `merhaba`'dır (skill kaydındaki script adı
-  aynen tool adı olur, MAF'ın generic `run_skill_script`'i DEĞİL —
-  `AgentPrismSkillsSource.CreateSkill`'in `skill.AddScript(script.Name, ...)`
-  çağrısı, `AgentPrismSkillsSource.cs:76-81`).
-- Script sonucu modele `exit_code: 0\nstdout:\nmerhaba-agentprism\n`
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §6 Aile W):** Bugünkü MAF sürümünde
+> ikinci onay kartının tool adı `merhaba` DEĞİL, MAF'ın kendi generic
+> `run_skill_script(skillName, scriptName, arguments)` dispatcher'ıdır.
+> `AgentPrismSkillsSource.CreateSkill`'in `skill.AddScript(script.Name, ...)`
+> çağrısı (`AgentPrismSkillsSource.cs:76-81`) hâlâ AYNI şekilde script başına
+> çağrılıyor — ama `Microsoft.Agents.AI.AgentSkillsProvider` (paket içi,
+> `AgentInlineSkillScript.RunAsync`/`RunSkillScriptAsync`) modele TEK bir
+> generic tool şeması sunuyor ve `scriptName` argümanıyla kayıtlı delegeye
+> dispatch ediyor — bu, eski beklentinin dayandığı MAF davranışından
+> FARKLI. Üç ayrı bağımsız çalıştırmada (canlı OpenAI çağrısı) tutarlı
+> şekilde gözlendi. Kanıt: `load_skill` sonrası modele sunulan
+> `gen_ai.tool.definitions` izleme özniteliği (`MT-SKILL-070`) yalnız
+> `["load_skill","read_skill_resource","run_skill_script"]` listeler —
+> `merhaba` diye ayrı bir tool ADI hiçbir zaman modele sunulmuyor.
+- İkinci onay kartının tool adı `run_skill_script`'tir, argümanları
+  `{"skillName":"scriptli-skill","scriptName":"merhaba","arguments":""}`
+  taşır.
+- Script sonucu modele `exit_code: 0\nstdout:\nmerhaba-agentprism\n\n`
   biçiminde döner (`SandboxedSkillScriptRunner.Format`,
   `SandboxedSkillScriptRunner.cs:355-379`).
 - Model nihai yanıtında `merhaba-agentprism` dizgisini içerir.
+
+~~Eski beklenti (eski bir MAF sürümüne dayanıyordu): İkinci onay kartının
+tool adı `merhaba`'dır (skill kaydındaki script adı aynen tool adı olur,
+MAF'ın generic `run_skill_script`'i DEĞİL).~~
 
 **Doğrulama sorgusu** *(PostgreSQL izleğinde)*
 ```sql
@@ -1648,7 +1665,18 @@ WHERE source = 'skill:scriptli-skill' ORDER BY created_at DESC LIMIT 1;
 
 **🔧 Kapanış güncellemesi (2026-08-14):** Kök neden HATA-K-002 olarak kodlandı ve düzeltildi (K-400, `SONUCLAR-K-2026-08-13.md`) — bu case'in kendisi yeniden koşulup uçtan uca doğrulandı (yukarıdaki Durum satırına bakınız). MT-SKILL-059..063 ve 070 henüz TEK TEK yeniden koşulmadı (bu düzeltme oturumunun kapsamı "çöküşü gider + doğrula", "her bloklu case'i tekrar koş" değildi) — engel artık kalkmış durumda, bu case'ler gelecek bir koşumda normal şekilde tekrar denenebilir.
 
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — Ortak kuyruk kapanışında HATA-K-002 düzeltmesiyle (K-400) yeniden koşuldu: `load_skill` onayı → `merhaba` script onayı → gerçek çalıştırma → `exit_code: 0\nstdout:\nmerhaba-agentprism\n` → model nihai yanıtında `merhaba-agentprism`. Bkz. `SONUCLAR-K-2026-08-13.md`.
+**🚨 Kapanış güncellemesi (2026-08-15, KAPANIS-PLANI §9/§6 Aile W) — MT-SKILL-059..070'in gerçek yeniden koşumu İKİ YENİ ve BAĞIMSIZ kritik kusur buldu.** K-400 kök nedeni gerçekten kapalı (bu case'in kendi "geçti" iddiası yukarıdaki 2026-08-14 notuyla tutarlı — `load_skill` onayı sorunsuz geçiyor), ama script'in GERÇEKTEN çalıştırılması hâlâ iki farklı yerde çöküyordu; bu case'in 2026-08-14 koşumu bunları YAKALAMADI çünkü `echo merhaba-agentprism` gibi stdin okumayan bir script'in zamanlamasına şans eseri denk gelmedi (ırk koşulu — deterministik değil, aşağıya bakınız). 2026-08-15'te tam ortam kurulup (§6 ortak ön koşulu) MT-SKILL-059..070'in HEPSİ canlı OpenAI çağrısıyla gerçekten koşulunca:
+
+1. **`SkillScriptProcessRunner.WriteArgumentsAsync`'in `finally` bloğu** (`process.StandardInput.Close()`) `try/catch`'in DIŞINDAydı; stdin'i hiç okumadan çıkan (`echo` gibi) bir script'te `Close()`'un kendi iç flush'ı `IOException: Pipe is broken` fırlatıyor ve bu YAKALANMADAN dışarı sızıyordu — MAF'ın `run_skill_script` çağrısı `"Error: Function failed."` ile başarısız oluyordu. **Script çalıştırma özelliğinin TAMAMI (K-400 kapandıktan SONRA bile) fiilen işlevsizdi.**
+2. **`SandboxedSkillScriptRunner.DenyAsync`** red nedenini (düz metin) `jsonb` sütununa JSON'a çevirmeden yazıyordu; her `script.denied` denetim izi `22P02 invalid input syntax for type json` ile sessizce kayboluyordu (Faz 9'un "gözlemlenebilirlik hatası çalıştırmayı bozmaz" bilinçli istisnası devreye giriyordu — kayıt kaybolsa da red işliyordu, ama denetim izi HİÇ oluşmuyordu).
+
+İkisi de bu koşumda düzeltildi (bkz. `docs/hafiza/cekirdek-calistirma.md`, HATA-K-skill-pipe / HATA-K-skill-audit-json), regresyon testleriyle kilitlendi
+(`SkillScriptProcessRunnerTests.Stdin_okumadan_cikan_script_boru_kirik_istisnasi_firlatmaz`,
+`SandboxedSkillScriptRunnerTests.Izin_yokken_script_reddedilir_ve_denetim_izine_yazilir`'e
+JSON geçerlilik denetimi eklendi), ardından MT-SKILL-058..070'in TAMAMI canlı
+OpenAI ile yeniden koşulup doğrulandı — ayrıntı §6 Aile W.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — 2026-08-15'te üçüncü kez uçtan uca koşuldu (iki yeni kusur düzeltildikten sonra): `load_skill` onayı → `run_skill_script(scriptName=merhaba)` onayı → gerçek çalıştırma → `exit_code: 0\nstdout:\nmerhaba-agentprism\n\n`, `tool_invocations.error IS NULL`, `audit_log`'da `script.run`/`scriptli-skill/merhaba`. Tool adı beklentisi yukarıda koda göre düzeltildi.
 
 ---
 
@@ -1676,11 +1704,27 @@ Negatif senaryo.
    istenir — izin kaydı AYRI bir kapıdır).
 
 **Beklenen sonuç**
-- Script çalışmaz; modele dönen tool sonucu bir hata metni içerir
-  (`'scriptli-skill/merhaba' script'i calistirilmadi: Bu script icin gecerli
-  bir calistirma izni yok.`, `SandboxedSkillScriptRunner.cs:254-262`).
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §6 Aile W) — modele dönen mesaj
+> genel bir hata metnidir, spesifik değil:** MAF'ın function-invoking
+> katmanı, delegenin fırlattığı istisnayı modele DOĞRUDAN İLETMEZ — sabit
+> `"Error: Function failed."` metnini döner (muhtemelen istisna
+> içeriklerinin model bağlamına sızmasını önleyen bilinçli bir MAF
+> davranışı). Spesifik red mesajı (`'scriptli-skill/merhaba' script'i
+> calistirilmadi: ...`) AgentPrism'in KENDİ gözlemlenebilirlik katmanında
+> (`tool_invocations.error`) tam olarak korunur — yalnız modele dönen metin
+> genelleşir.
+- Script çalışmaz; modele dönen tool sonucu `"Error: Function failed."`dir.
+- `tool_invocations.error` sütunu tam metni taşır: `'scriptli-skill/merhaba'
+  script'i calistirilmadi: Bu script icin gecerli bir calistirma izni yok.`
+  (`SandboxedSkillScriptRunner.cs:254-262`).
 - Denetim izine `action: "script.denied"`, `entity: "scriptli-skill/merhaba"`
-  düşer.
+  düşer — **yalnız `SandboxedSkillScriptRunner.DenyAsync`'in `after`
+  alanını JSON'a çeviren düzeltmeden (bu koşumda yapıldı) SONRA**; öncesinde
+  bu satır sessizce kayboluyordu (HATA-K-skill-audit-json, aşağıya bakınız).
+
+~~Eski beklenti (modele dönen mesajın spesifik metni taşıdığını
+varsayıyordu): modele dönen tool sonucu bir hata metni içerir
+(`'scriptli-skill/merhaba' script'i calistirilmadi: ...`).~~
 
 **Doğrulama sorgusu**
 ```sql
@@ -1689,9 +1733,38 @@ WHERE action = 'script.denied' ORDER BY created_at DESC LIMIT 1;
 ```
 
 **Gerçek sonuç**
-Ön koşulu (MT-SKILL-058 geçti) sağlanamadığı için koşulmadı — MT-SKILL-058'de kaydedilen aynı kök nedenle (`AgentPrismSkillsSource.cs:10`'daki resolver'sız `JsonSerializerOptions`) `scriptli-skill`'i taşıyan HER `run` isteği model hiç çağrılmadan çöküyor; bu case'in kendisi bir onay akışı gerektirdiği için tekrar denenmeden aynı sonucu vereceği kesindir. Kullanıcı kararıyla tekilen tekrar koşulmadı.
+_(2026-08-13/14 koşumları: Kaldı — MT-SKILL-058'in kök nedeniyle bloklu.)_
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+**2026-08-15 gerçek koşum (KAPANIS-PLANI §9, kod düzeltmeleri sonrası) —
+Geçti.** `scriptli-skill/merhaba` izni `DELETE
+/api/skill-script-grants/scriptli-skill?scriptName=merhaba` ile iptal
+edildi (`204`). Yeni bir oturumda `load_skill` onaylandı, ardından
+`run_skill_script(scriptName=merhaba)` onaylandı; sonuç
+`"Error: Function failed."` — düzeltilmiş beklentiyle tam örtüşüyor. Canlı
+Postgres'te doğrulandı: `tool_invocations.error` = `'scriptli-skill/merhaba'
+script'i calistirilmadi: Bu script icin gecerli bir calistirma izni yok.`
+(tam metin korunmuş); `audit_log` sorgusu `action='script.denied',
+entity='scriptli-skill/merhaba', after='"Bu script icin gecerli bir
+calistirma izni yok."'` döndürdü.
+
+🚨 **Bu case ampirik olarak İKİ yeni kusur ortaya çıkardı (bu koşumda
+düzeltildi, ayrıntı `docs/hafiza/cekirdek-calistirma.md` ve §6 Aile W):**
+1. İlk deneme, `SandboxedSkillScriptRunner.DenyAsync`'in `after` alanını
+   (düz metin) `jsonb` sütununa JSON'a çevirmeden yazdığını gösterdi —
+   Postgres `INSERT`'i `22P02 invalid input syntax for type json` ile
+   reddediyor, `script.denied` denetim izi HİÇ oluşmuyordu (kayıt
+   başarısızlığı Faz 9'un bilinçli istisnasınca yutuluyor, red işlemeye
+   devam ediyordu — ama iz kayboluyordu). Düzeltme:
+   `JsonSerializer.Serialize(reason, AgentPrismCoreJsonContext.Default.String)`.
+2. Aynı koşumda, İZİNLİ script'lerin (merhaba/uyuyan/vb.) gerçek
+   çalıştırılması da AYRI bir kusurla (`SkillScriptProcessRunner`'ın
+   `Process.StandardInput.Close()`'u) çöküyordu — bkz. `MT-SKILL-058`'in
+   2026-08-15 notu ve §6 Aile W.
+
+Re-grant sonrası izin yeniden verildi ve doğrulandı (aşağıdaki Temizlik
+adımı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 **Temizlik:** İzni yeniden ver (`POST /api/skill-script-grants`,
 `InMemorySkillScriptGrantStore.GrantAsync`'in upsert semantiği
@@ -1742,11 +1815,18 @@ WHERE action = 'script.denied' ORDER BY created_at DESC LIMIT 1;
   `SkillScriptProcessRunner.cs:128-136`).
 
 **Gerçek sonuç**
-MT-SKILL-058'in kök nedeniyle (bkz. o case'in notu) bloklu — koşulmadı.
+_(2026-08-13/14 koşumları: Kaldı — MT-SKILL-058'in kök nedeniyle bloklu.)_
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+**2026-08-15 gerçek koşum (KAPANIS-PLANI §9, pipe-kapama düzeltmesinden
+sonra) — Geçti.** `load_skill` → `run_skill_script(scriptName=uyuyan)`
+onaylandı; sonuç birebir beklenen: `"Script zaman asimina ugradi ve surec
+agaci sonlandirildi.\n"`, `stdout`/`stderr` yok (`bitti` hiç yazılmadı).
+Üç isteğin (ilk mesaj + iki onay) toplam süresi **3 saniye** — 10 saniyeyi
+aşmadı, süreç gerçekten öldürüldü.
 
-**Temizlik:** `dotnet user-secrets remove "AgentPrism:Skills:Scripts:Timeout"`.
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Temizlik:** `dotnet user-secrets remove "AgentPrism:Skills:Scripts:Timeout"` — uygulandı.
 
 ---
 
@@ -1781,11 +1861,20 @@ MT-SKILL-058'in kök nedeniyle (bkz. o case'in notu) bloklu — koşulmadı.
   zaman aşımı bağımsız kapılardır.
 
 **Gerçek sonuç**
-MT-SKILL-058'in kök nedeniyle (bkz. o case'in notu) bloklu — koşulmadı.
+_(2026-08-13/14 koşumları: Kaldı — MT-SKILL-058'in kök nedeniyle bloklu.)_
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+**2026-08-15 gerçek koşum (KAPANIS-PLANI §9) — Geçti.** `load_skill` →
+`run_skill_script(scriptName=buyuk-cikti)` onaylandı; sonuç birebir
+beklenen: `exit_code: 0`, `stdout` tam 100 `x` karakterine kırpıldı, ardından
+`\n[AgentPrism: cikti 100 bayt sinirinda kirpildi.]` metni. Zaman aşımına
+UĞRAMADI. (İlk denemede script içeriği bu koşumun kendi kayıt scriptindeki
+bir tırnak-kaçışı hatasıyla `print(x * 5000)` olarak kaydedilmişti — Python
+`NameError` üretti, ama kırpma mesajı yine de doğru tetiklendi; içerik
+düzeltilip temiz bir `stdout` ile tekrarlandı.)
 
-**Temizlik:** `dotnet user-secrets remove "AgentPrism:Skills:Scripts:MaxOutputBytes"`.
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Temizlik:** `dotnet user-secrets remove "AgentPrism:Skills:Scripts:MaxOutputBytes"` — uygulandı.
 
 ---
 
@@ -1811,19 +1900,51 @@ ortam değişkenleri (`OpenAI__ApiKey` gibi) script sürecine HİÇ ULAŞMAZ.
    iste, her onayı ver.
 
 **Beklenen sonuç**
-- `stdout` çıktısı yalnız `PATH`, `HOME`,
-  `AGENTPRISM_SKILL_TEMP=<gecici-dizin>`,
-  `AGENTPRISM_SKILL_NAME=scriptli-skill` satırlarını içerir
-  (`SkillScriptProcessRunner.cs:92-104`, `EnvironmentAllowList` varsayılanı
-  `["PATH","HOME"]`).
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §9) — gerçek çıktı 4 değil 7
+> satır:** `bash` kendi başlatma sürecinde `PWD`, `SHLVL`, `_` değişkenlerini
+> KENDİSİ üretir (ebeveyn ortamından miras almaz — `ProcessStartInfo
+> .Environment.Clear()`'dan bağımsız, kabuğun kendi iç muhasebesidir).
+> Bunlar `secret` TAŞIMAZ (çalışma dizini yolu, kabuk iç içelik sayacı,
+> son çalıştırılan yorumlayıcının yolu) — güvenlik iddiası (hiçbir
+> AgentPrism-özel/`secret` değişkeni sızmaz) TAM olarak doğrulandı, yalnız
+> "yalnız 4 değişken" sayımı eksikti.
+- `stdout` çıktısı `PATH`, `HOME`, `AGENTPRISM_SKILL_TEMP=<gecici-dizin>`,
+  `AGENTPRISM_SKILL_NAME=scriptli-skill` satırlarını İÇERİR (bunlar
+  AgentPrism'in açıkça geçirdiği/izin verdiği tek değişkenlerdir —
+  `SkillScriptProcessRunner.cs:92-104`, `EnvironmentAllowList` varsayılanı
+  `["PATH","HOME"]`), EK olarak bash'in kendi ürettiği `PWD`, `SHLVL`, `_`
+  satırları da görünür.
 - `OpenAI__ApiKey`, `AgentPrism__PostgreSql__ConnectionString` gibi hiçbir
   AgentPrism-özel ortam değişkeni ÇIKTIDA GÖRÜNMEZ — `ProcessStartInfo.Environment.Clear()`
   çağıran süreci komple boşaltır.
 
-**Gerçek sonuç**
-MT-SKILL-058'in kök nedeniyle (bkz. o case'in notu) bloklu — koşulmadı. Bu case Kritik önemde bir güvenlik iddiası taşıdığı için ayrıca not: iddianın kendisi kod okumasıyla (`SkillScriptProcessRunner.cs:92-104`, `ProcessStartInfo.Environment.Clear()` + `EnvironmentAllowList`) makul görünüyor ama gerçek çalıştırma kanıtı bu koşumda alınamadı.
+~~Eski beklenti (eksik — bash'in kendi otomatik değişkenlerini
+saymıyordu): stdout çıktısı YALNIZ PATH, HOME, AGENTPRISM_SKILL_TEMP,
+AGENTPRISM_SKILL_NAME satırlarını içerir.~~
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+**Gerçek sonuç**
+_(2026-08-13/14 koşumları: Kaldı — MT-SKILL-058'in kök nedeniyle bloklu,
+iddia yalnız kod okumasıyla makul görülmüştü, gerçek çalıştırma kanıtı
+yoktu.)_
+
+**2026-08-15 gerçek koşum (KAPANIS-PLANI §9, canlı OpenAI ile, `MaxOutputBytes`
+sınırı OLMADAN tam çıktı) — Geçti, güvenlik iddiası TAM doğrulandı.**
+`load_skill` → `run_skill_script(scriptName=ortam-dokumu)` onaylandı.
+Gözlenen tam `stdout` (7 satır, alfabetik sıralı):
+```
+AGENTPRISM_SKILL_NAME=scriptli-skill
+AGENTPRISM_SKILL_TEMP=/var/folders/.../agentprism-skill-X0z3EK
+HOME=/Users/farukatasoy
+PATH=/Users/farukatasoy/...(sistem PATH'i)
+PWD=/private/var/folders/.../agentprism-script-GWwSjW
+SHLVL=1
+_=/usr/bin/env
+```
+`grep -i "secret\|ApiKey\|ConnectionString\|sk-\|sk_"` çıktıda **0 eşleşme**
+— kritik güvenlik iddiası (hiçbir AgentPrism `secret`'ı script sürecine
+sızmaz) canlı bir çalıştırmayla tam olarak kanıtlandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1857,9 +1978,28 @@ BEKLETİR (`SkillScriptConcurrencyLimiter.cs:25-42`).
   ALMAZ, yalnız GEÇ tamamlanır.
 
 **Gerçek sonuç**
-MT-SKILL-058'in kök nedeniyle (bkz. o case'in notu) bloklu — koşulmadı.
+_(2026-08-13/14 koşumları: Kaldı — MT-SKILL-058'in kök nedeniyle bloklu.)_
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+**2026-08-15 gerçek koşum (KAPANIS-PLANI §9) — Geçti.** Playground yerine
+üç bağımsız oturum kimliğiyle (aynı kiracı `default`) üç `manuel-script-test`
+çalıştırması eşzamanlı (Python `threading`) başlatıldı — her biri kendi
+`load_skill`/`run_skill_script(scriptName=bekleyen)` onay zincirini
+yürüttü. Gözlenen toplam süreler (mesaj + iki onay dahil, LLM gecikmesi
+dahil):
+```
+[1] sure=6.8sn
+[2] sure=6.6sn
+[3] sure=10.9sn
+```
+Üçüncü çağrı diğer ikisinden **~4,2 saniye** daha geç bitti — tam olarak
+`bekleyen` script'inin (`sleep 4`) süresi kadar bir gecikme, ilk ikisinden
+biri semaforu bırakana kadar üçüncünün beklediğini doğruluyor. Üçünün de
+sonucu `exit_code: 0` — hiçbiri hata almadı, yalnız üçüncüsü geç tamamlandı.
+Mutlak süreler dokümanın `~4sn`/`~8sn` tahminini aşıyor (gerçek OpenAI
+round-trip gecikmesi dahil olduğu için) ama İLİŞKİSEL fark (üçüncü ↔
+ilk ikisi) beklenen davranışla birebir örtüşüyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1877,6 +2017,13 @@ MT-SKILL-058'in kök nedeniyle (bkz. o case'in notu) bloklu — koşulmadı.
 **Ön koşul**
 - MT-SKILL-058 geçti, OpenTelemetry konsol/dosya exporter'ı ile izleniyor
   (bkz. `12-GOZLEMLENEBILIRLIK-MALIYET.md`'nin genel OTel kurulum notu).
+  > **2026-08-15 sapma (izin verilen, daha güçlü kanıt):** ayrı bir OTel
+  > exporter kurmak yerine `AgentPrism:Observability:SuccessSampleRatio=1`
+  > ile başarılı run'ların da iz tuttuğu garanti edildi, span'ler
+  > AgentPrism'in KENDİ kalıcı iz deposundan `GET /api/runs/{id}/trace`
+  > ile okundu (`12-GOZLEMLENEBILIRLIK-MALIYET.md` §7'nin MT-OBS-015/016'da
+  > zaten kullandığı yöntem) — konsol/dosya exporter'ından ayrıştırmaktan
+  > daha güvenilir.
 
 **Beklenen sonuç**
 - Span adı `execute_skill_script`.
@@ -1886,9 +2033,26 @@ MT-SKILL-058'in kök nedeniyle (bkz. o case'in notu) bloklu — koşulmadı.
   (`AgentPrismDiagnostics.cs:31,106,109,112,115`).
 
 **Gerçek sonuç**
-MT-SKILL-058'in kök nedeniyle (bkz. o case'in notu) bloklu — koşulmadı.
+_(2026-08-13/14 koşumları: Kaldı — MT-SKILL-058'in kök nedeniyle bloklu.)_
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+**2026-08-15 gerçek koşum (KAPANIS-PLANI §9) — Geçti.** `merhaba` script'i
+başarıyla çalıştırıldıktan sonra o çağrının `runId`'siyle
+`GET /api/runs/{id}/trace` sorgulandı. Bulunan span, beklenenle **birebir**
+örtüşüyor:
+```
+execute_skill_script {
+  'agentprism.skill.name': 'scriptli-skill',
+  'agentprism.script.name': 'merhaba',
+  'agentprism.script.exit_code': '0',
+  'agentprism.script.duration_ms': '66.4933'
+}
+```
+Aynı iz, model tarafına sunulan tool listesini de doğruladı —
+`gen_ai.tool.definitions` yalnız `load_skill`/`read_skill_resource`/
+`run_skill_script` içeriyor (`merhaba` diye ayrı bir tool adı YOK) — bu,
+`MT-SKILL-058`'in tool-adı düzeltmesinin bağımsız bir doğrulamasıdır.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

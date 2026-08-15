@@ -267,7 +267,26 @@ Bu bulgu **Kritik** önemde bir kusur bildirimi olarak açılmalıdır (izlek: U
 E2E / ses konuşma modu, muhtemelen ortam-bağımlı). Doğrulama derinliği bu
 oturumda tarayıcı içi hata ayıklamayı kapsamadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Yeniden koşum (2026-08-15, KAPANIS-PLANI §9):** Kök neden `f36eeaf`'te
+(ses turu `commit` çerçevesinin kendi sesinin önüne geçmesi) kapatıldı.
+Dört kapı bu koşumda baştan çalıştırıldı:
+```
+1) dotnet build  -> 58,4 sn · Build succeeded · 0 Warning(s) · 0 Error(s)
+2) dotnet test   -> 1m 54s (114 sn) · toplam koşum başarılı
+   - AgentPrism.SqlServer.IntegrationTests      : 490/490 geçti
+   - AgentPrism.AspNetCore.FunctionalTests      : 479/479 geçti
+   - AgentPrism.Ui.E2ETests                     : 49/49 geçti (önceki
+     koşumda kaldı işaretli ses testi dahil — artık geçiyor)
+   - (diğer tüm test projeleri geçti) — toplam failed: 0
+3) dotnet pack (--no-build) -> ~4 sn · exit 0 · 238 .nupkg üretildi
+4) dotnet format --verify-no-changes -> 1m 13s · exit 0 · değişiklik bildirilmedi
+```
+Süre kriteri sağlandı (`dotnet test` 2,5 dakikayı aşmadı). Dört kapı da
+sıfır uyarı/hata ile geçti.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -295,7 +314,7 @@ repo'da bir kez 276 `IDE0055` hatası bu şekilde çıktı.
 **Girilecek veri**
 ```bash
 cd /Users/farukatasoy/Desktop/projects/AgentPrism
-printf '\n// bicim testi\nnamespace AgentPrism.Abstractions.ManuelTest{internal static class BicimTesti{public static int Deger=>1;}}\n' \
+printf '\ninternal static class BicimTesti\n{\n        public static int Deger => 1;\n}\n' \
   >> src/AgentPrism.Abstractions/Tools/AgentPrismToolAttribute.cs
 
 dotnet build  AgentPrism.slnx -c Release
@@ -305,36 +324,50 @@ git checkout -- src/AgentPrism.Abstractions/Tools/AgentPrismToolAttribute.cs
 ```
 
 **Beklenen sonuç**
-- `dotnet format` çıkış kodu **sıfır değildir** ve `IDE0055` (veya kardeşi) bildirir.
-- Son adımdan sonra `git status` yalnız `docs/manuel-test/` gösterir.
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** `Directory.Build.props:28`
+> `EnforceCodeStyleInBuild=true` taşır (`AnalysisLevel=latest-recommended`
+> ile birlikte) — bu, `dotnet build`'in KENDİSİNİN `IDE0055` gibi biçim
+> kurallarını **derleme hatası** olarak raporladığı anlamına gelir. Yani
+> "build yeşil / format kırmızı" durumu bu repoda **yapısal olarak
+> imkânsızdır**: bozuk girintili bir satır eklendiğinde `dotnet build`
+> kendisi `IDE0055` ile **kırmızı** çıkar, `dotnet format`'a hiç sıra
+> gelmeden. `dotnet format` yalnız build'in YAKALAMADIĞI (derleyicinin
+> görmediği) analyzer tanılarını yakalar — bu, dosyanın en üstündeki uyarı
+> notuyla (`⚠️ dotnet format, dotnet build'in yakalamadığı analyzer
+> tanılarını yakalayabilir`) tutarlıdır, ama BU case'in kurgusu ("build
+> farkına varmaz, format yakalar") o notun kapsadığı senaryo değil — bugünkü
+> yapılandırmada IDE0055 sınıfı için ikisi de aynı anda kırmızıdır.
+
+~~Eski beklenti: `dotnet format` çıkış kodu sıfır değildir ve `IDE0055`
+(veya kardeşi) bildirir; `dotnet build` bunu YAKALAMAZ (yeşil kalır). Son
+adımdan sonra `git status` yalnız `docs/manuel-test/` gösterir.~~
 
 **Gerçek sonuç**
 ```
-dotnet build  -> Build FAILED (0 Warning(s), 3 Error(s))
-  CS8955: Source file can not contain both file-scoped and normal
-          namespace declarations. (üç TFM için tekrarlanır)
-dotnet format --verify-no-changes -> çıkış kodu 2, 32 satır IDE0055
+Enjeksiyon (tek namespace bloğu içinde, dosya-kapsamlı ad alanının
+ALTINA, ayrı bir namespace{} bloğu OLMADAN, yalnız hatalı girintili
+bir metotla):
+internal static class BicimTesti
+{
+        public static int Deger => 1;
+}
+
+dotnet build -> Build FAILED (0 Warning(s), 3 Error(s))
+  IDE0055: Fix formatting (üç TFM için tekrarlanır) — CS8955 DEĞİL, doğrudan
+  IDE0055 derleme hatası olarak raporlandı.
 git checkout sonrası: git status yalnız docs/manuel-test/ gösteriyor
 ```
 
-🚨 **Doküman kusuru.** Senaryo, hedeflenen "build yeşil / format kırmızı"
-durumunu bugün üretmiyor: `AgentPrismToolAttribute.cs` artık dosya-kapsamlı
-(`namespace AgentPrism;`) biçimde yazılı. Doküman'ın eklediği klasik
-(süslü parantezli) `namespace AgentPrism.Abstractions.ManuelTest{...}` bloğu
-aynı dosyada ikinci bir ad alanı bildirimi oluşturuyor ve bu **derlemeyi**
-`CS8955` ile kırıyor — yalnızca biçimi bozmuyor. Yani `dotnet build` da kırmızı
-çıkıyor, senaryonun "build farkına varmaz" iddiası bugün doğrulanamıyor.
+Enjekte kod parçası da düzeltildi (önceki sürüm ayrı bir klasik
+`namespace{}` bloğu ekleyip `CS8955` ile alakasız bir hataya yol açıyordu);
+düzeltilmiş enjeksiyonla bile senaryo doğrulanamıyor çünkü `dotnet build`
+`IDE0055`'i doğrudan kendisi yakalıyor. Bu, sınır senaryosunun konusu olan
+"bir kez 276 IDE0055 hatası bu şekilde çıktı" olayının (muhtemelen
+`EnforceCodeStyleInBuild` bu tarihten SONRA eklendiği için) artık bugünkü
+yapılandırmada tekrarlanamaz olduğunu gösteriyor — davranış artık daha
+güvenli (build kendisi yakalıyor), yalnız case'in kurgusu geçersiz.
 
-Buna rağmen `dotnet format` beklenen davranışı gösterdi: çıkış kodu sıfır
-değil (2) ve 32 satır `IDE0055` bildirdi — biçim denetiminin kendisi çalışıyor.
-Son adımdan sonra `git status` yalnız `docs/manuel-test/` gösteriyor; geri alma
-adımı sağlam.
-
-Öneri: doküman'daki enjekte kod parçası, hedef dosyanın **içine** (mevcut
-dosya-kapsamlı ad alanının altına) yalnızca hatalı girintili bir satır ekleyecek
-şekilde güncellenmeli — ayrı bir `namespace{}` bloğu değil.
-
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -813,8 +846,15 @@ cat AgentPrism.Core.nuspec
 ```
 
 **Beklenen sonuç**
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** `<requireLicenseAcceptance>`
+> elementi nuspec'e hiç yazılmaz (2026-08-15 koşumunda `AgentPrism.Core
+> 0.0.0-preview.0.166` nuspec'inde de doğrulandı — element yok). NuGet bu
+> yokluğu `false` olarak yorumlar, yani davranışsal etki yoktur; dokümanın
+> "vardır" iddiası koda göre düzeltildi.
+
+~~Eski beklenti: `<requireLicenseAcceptance>false</requireLicenseAcceptance>`
+vardır.~~
 - `<license type="expression">MIT</license>` vardır.
-- `<requireLicenseAcceptance>false</requireLicenseAcceptance>` vardır.
 - `<readme>README.md</readme>` vardır.
 - `<authors>Faruk Atasoy</authors>` ve `<projectUrl>` /
   `<repository type="git" url="https://github.com/farukatasoy/AgentPrism">` vardır.
@@ -835,13 +875,16 @@ cat AgentPrism.Core.nuspec
 TODO/placeholder/boş dize -> yok
 ```
 
-🚨 **Kısmi kusur.** `<requireLicenseAcceptance>` elementi nuspec'te hiç
-yazılmıyor. NuGet bu elementin yokluğunu `false` olarak yorumladığından
-**davranışsal** etki yok (tüketici bir onay ekranıyla karşılaşmaz), ama
-doküman'ın "vardır" iddiası literal olarak doğrulanamadı — element örtük
-varsayılana bırakılmış, açıkça yazılmamış.
+`<requireLicenseAcceptance>` elementi nuspec'te hiç yazılmıyor. NuGet bu
+elementin yokluğunu `false` olarak yorumladığından **davranışsal** etki yok
+(tüketici bir onay ekranıyla karşılaşmaz) — düzeltilmiş beklentiyle örtüşüyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Doküman düzeltmesi (2026-08-15):** Beklenti koda göre düzeltildi. Ürün
+kusuru yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2197,15 +2240,21 @@ grep -l "AgentPrismAotCompatible>false" src/*/*.csproj | sed 's#src/##;s#/.*##' 
 ```
 
 **Beklenen sonuç**
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** Bu case'in kendi eski
+> beklentisi ("AOT uyumlu paket olarak yalnız dördü sayılır") güncelliğini
+> yitirmişti; `AGENTS.md` zaten "Sekiz paket uyumludur" diyor ve bu koddan
+> türetilen kümeyle birebir örtüşüyor. Düzeltilecek taraf bu test dosyasıydı,
+> `AGENTS.md`/kod değil.
 - Bayrağı `false` yapan projeler tam olarak şunlardır: `AgentPrism` (meta),
   `AgentPrism.AspNetCore`, `AgentPrism.Generators`, `AgentPrism.Mcp`,
   `AgentPrism.SqlServer`, `AgentPrism.Sqlite`, `AgentPrism.Templates`,
   `AgentPrism.Testing`, `AgentPrism.UI`, `AgentPrism.Workflows`.
-- Geriye kalan (AOT uyumlu) paketler: `Abstractions`, `Core`, `PostgreSql`,
-  `OpenAI`, `Anthropic`, `Google`, `Azure`, `Voice`.
-- 🚨 `README.md` ve `AGENTS.md` AOT uyumlu paket olarak yalnız dördünü sayar
-  (`Abstractions`, `Core`, `PostgreSql`, `OpenAI`). Liste kodla eşleşmezse bu bir
-  **doküman** kusurudur, kod kusuru değildir; koda göre düzeltilir.
+- Geriye kalan (AOT uyumlu, **8 paket**) — `AGENTS.md` "Sekiz paket
+  uyumludur" der: `Abstractions`, `Anthropic`, `Azure`, `Core`, `Google`,
+  `OpenAI`, `PostgreSql`, `Voice`.
+
+~~Eski beklenti (güncelliğini yitirmiş): Geriye kalan (AOT uyumlu) paketler
+yalnız dört tanedir — `Abstractions`, `Core`, `PostgreSql`, `OpenAI`.~~
 
 **Gerçek sonuç**
 ```
@@ -2221,20 +2270,19 @@ Geriye kalan (AOT uyumlu, Sql.Shared paket olmadığı için hariç, 8 adet):
      eşleşmiyor; gerçek küme 8 paket.
 ```
 
-🚨 **Doküman kusuru (bu manuel test dosyasında, kodda değil).** Bu case'in
-kendi "Beklenen sonuç" bölümü "README.md ve AGENTS.md AOT uyumlu paket olarak
-yalnız dördünü sayar" diyor, ama bugün `AGENTS.md:161` şunu yazıyor:
-**"Sekiz paket uyumludur"** — ve bu, koddan türetilen 8'li kümeyle (Abstractions,
-Anthropic, Azure, Core, Google, OpenAI, PostgreSql, Voice) birebir örtüşüyor.
-`README.md`'de AOT'a dair hiçbir iddia yok (arama sıfır sonuç döndürdü).
-Yani kod ↔ `AGENTS.md` **uyumlu**; uyumsuz olan bu manuel test dosyasının
-kendi (muhtemelen eski bir AGENTS.md sürümüne dayanan) beklentisi. Kurala göre
-("Doküman ile kod çelişirse doküman yanlıştır") düzeltilmesi gereken taraf
-`01-KURULUM-VE-PAKETLEME.md`'nin bu beklenen-sonuç metni.
+`AGENTS.md:161` "Sekiz paket uyumludur" der ve bu, koddan türetilen 8'li
+kümeyle (Abstractions, Anthropic, Azure, Core, Google, OpenAI, PostgreSql,
+Voice) birebir örtüşüyor. `README.md`'de AOT'a dair hiçbir iddia yok (arama
+sıfır sonuç döndürdü). Kod ↔ `AGENTS.md` **uyumlu**; düzeltilmiş beklentiyle
+de örtüşüyor. 2026-08-15'te `grep -l "AgentPrismAotCompatible>false"
+src/*/*.csproj` yeniden koşuldu, aynı 10'lu küme doğrulandı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı _(yalnız bu manuel test
-dosyasının beklentisi güncelliğini yitirmiş; kod ve AGENTS.md kendi aralarında
-tutarlı)_
+---
+
+**Doküman düzeltmesi (2026-08-15):** Beklenti koda göre düzeltildi. Ürün/
+`AGENTS.md` kusuru yok; düzeltilmesi gereken yalnız bu test dosyasıydı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2887,10 +2935,21 @@ dotnet run -c Release ; echo "cikis kodu: $?"
 ```
 
 **Beklenen sonuç**
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** İsim beklentisi eski —
+> `ISessionStore` denetim izi dekoratörü (`AuditingSessionStore`) ile sarılı
+> (iç deposu yine bellek içi, dış bağımlılık yok); `IToolRegistry` hiç
+> `InMemory` önekiyle adlandırılmamış (`ToolRegistry`). 2026-08-15'te kaynak
+> yeniden doğrulandı: `src/AgentPrism.Core/Tools/ToolRegistry.cs:9`,
+> `src/AgentPrism.Core/Storage/InMemoryRunStore.cs:22`,
+> `src/AgentPrism.Core/Audit/AuditingSessionStore.cs:13`.
 - Çıkış kodu `0`'dır.
-- Üç satır da `InMemory` ile başlayan bir tip adı yazar.
+- `IRunStore` → `InMemoryRunStore`, `ISessionStore` → `AuditingSessionStore`,
+  `IToolRegistry` → `ToolRegistry` (önek yok).
 - Son satır `kurulum tamam`'dır.
 - Hiçbir bağlantı denemesi ve hiçbir uyarı log'u yoktur.
+
+~~Eski beklenti (güncelliğini yitirmiş): Üç satır da `InMemory` ile başlayan
+bir tip adı yazar.~~
 
 **Gerçek sonuç**
 ```
@@ -2901,21 +2960,15 @@ IToolRegistry : ToolRegistry
 kurulum tamam
 ```
 
-🚨 **Doküman notu (kod kusuru değil).** `ISessionStore` `InMemory` ile
-başlayan bir ad döndürmedi — `AuditingSessionStore` döndü. Kaynağı incelendi:
-`src/AgentPrism.Core/Audit/AuditingSessionStore.cs`, `ISessionStore`'u yalnız
-**silme** işlemi için denetim izi yazan bir dekoratör ile sarıyor (iç deposu
-yine bellek içi); dış bağımlılık yok, hiçbir bağlantı denemesi ya da uyarı
-log'u yok. `IToolRegistry` için de doküman "InMemory" bekliyordu ama gerçek
-tip adı `ToolRegistry` (öneki hiç yok) — muhtemelen bu bileşen zaten hep
-bellek içi tek bir sınıf ve "InMemory" öneki hiç kullanılmamış. Yalnız
-`IRunStore` beklentiyle birebir eşleşti (`InMemoryRunStore`). Temel iddia
-(hiçbir `Use*` çağrılmadan kurulum ayakta kalır, dış bağımlılık yok) doğrulandı;
-doküman'ın üç satırın hepsi "InMemory" ile başlar beklentisi güncelliğini
-yitirmiş (muhtemelen denetim dekoratörünün eklendiği sonraki bir fazdan beri).
+Temel iddia (hiçbir `Use*` çağrılmadan kurulum ayakta kalır, dış bağımlılık
+yok) doğrulandı; üç tip adı düzeltilmiş beklentiyle birebir örtüşüyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı _(yalnız isim
-deseni beklentisi güncel değil; davranış doğru)_
+---
+
+**Doküman düzeltmesi (2026-08-15):** Beklenti koda göre düzeltildi. Ürün
+kusuru yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

@@ -1477,6 +1477,12 @@ hattını kurduğu için bu hata izole bir problamda değil, burada da aynen gö
 2. Aynı bağımlılığı kurucuda alan (doğru desen) bir tool ile karşılaştır.
 
 **Girilecek veri**
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** MAF `AIFunctionArguments.Services`'i
+> asla gerçek `null` göndermez — daima `Microsoft.Extensions.AI
+> .EmptyServiceProvider`ın (boş ama `null` OLMAYAN) bir örneğini gönderir.
+> `args.Services is null` denetimi bu yüzden HER ZAMAN `false` — yanlış
+> koşulu sınıyordu. Doğru denetim, gerçekten kayıtlı bir servisi
+> `GetService(...)` ile çözmeye çalışmaktır.
 ```csharp
 using AgentPrism;
 using AgentPrism.Testing;
@@ -1484,7 +1490,9 @@ using Microsoft.Extensions.AI;
 
 // YANLIS desen: DI'dan cozmeye calisir.
 var yanlisTool = AIFunctionFactory.Create(
-    (AIFunctionArguments args) => args.Services is null ? "SERVICES NULL" : "SERVICES DOLU",
+    (AIFunctionArguments args) => args.Services?.GetService(typeof(MyRegisteredService)) is null
+        ? "SERVICE COZULEMEDI"
+        : "SERVICE COZULDU",
     "yanlis_desen_tool");
 
 var provider = new FakeModelProvider().CallsTool("yanlis_desen_tool");
@@ -1492,6 +1500,7 @@ var provider = new FakeModelProvider().CallsTool("yanlis_desen_tool");
 await using var host = await AgentPrismTestHost.StartAsync(options =>
 {
     options.ModelProvider = provider;
+    options.ConfigureServices = services => services.AddSingleton(new MyRegisteredService());
     options.ConfigureAgentPrism = builder => builder
         .AddTool(yanlisTool)
         .AddAgent(new AgentDefinition
@@ -1506,41 +1515,51 @@ await using var host = await AgentPrismTestHost.StartAsync(options =>
 var run = await host.RunAsync("k218-testi", "merhaba");
 var toolResult = run.Events.FirstOrDefault(e => e.Type == RunEventType.ToolInvoked);
 Console.WriteLine("Tool sonucu: " + toolResult?.Payload);
+
+internal sealed class MyRegisteredService;
 ```
 
+~~Eski script (yanlış öncül — `args.Services is null` denetimi MAF'ta HER
+ZAMAN `false` döner, `EmptyServiceProvider` `null` DEĞİLDİR): `args.Services
+is null ? "SERVICES NULL" : "SERVICES DOLU"`.~~
+
 **Beklenen sonuç**
-- `Tool sonucu: SERVICES NULL` — `args.Services`, MAF boru hattında
-  `EmptyServiceProvider`dır; `GetService`/`GetRequiredService` `null`
-  döner veya istisna fırlatır. Tool bir DI kaydına bel bağlarsa **sessizce**
-  ya da açıkça bozulur.
+- `Tool sonucu: SERVICE COZULEMEDI` — `args.Services`, MAF boru hattında
+  `EmptyServiceProvider`dır (boş ama `null` OLMAYAN); gerçek DI kayıtları
+  `GetService(...)` ile çözülemez, `null` döner. Tool bir DI kaydına bel
+  bağlarsa **sessizce** ya da açıkça bozulur.
 - (Karşılaştırma için not: doğru desen bağımlılığı kurucuda alır — `README.md`daki
   `OrderTools(IOrderRepository repository)` + `services.AddSingleton(provider
   => new AgentPrismToolRegistration(new OrderTools(...), ...))` deseni; bu case
   yalnız YANLIŞ deseni ampirik olarak göstermeyi amaçlar.)
 
 **Gerçek sonuç**
-- Verilen kod BİREBİR çalıştırıldı: `Tool sonucu: SERVICES DOLU` —
-  beklenenin TAM TERSİ. **Doküman düzeltmesi (kod kusuru değil).** Kod
-  okumasıyla doğrulandı: MAF, `AIFunctionArguments.Services`'i asla
-  gerçek `null` göndermez — daima `Microsoft.Extensions.AI
-  .EmptyServiceProvider`ın (boş ama `null` OLMAYAN) bir örneğini
-  gönderir (bkz. `ToolMethodScanner.cs:22,93`, `VoiceToolBase.cs:22`,
-  `ToolRegistrationTests.cs:102-105`'teki tutarlı yorumlar). Doküman
-  case'inin `args.Services is null` denetimi bu yüzden HER ZAMAN `false`
-  — yanlış koşulu sınıyor. Düzeltilmiş sınama ile (`services.AddSingleton
-  (new MyRegisteredService())` + tool içinde `args.Services?.GetService
-  (typeof(MyRegisteredService))`) K-218'in ASIL iddiası (gerçek DI
-  kayıtları `Services` üzerinden ÇÖZÜLEMEZ) doğrulandı: `Services is
-  null: False; GetService(MyRegisteredService): NULL`. `Directory
+- Düzeltilmiş script çalıştırıldı: `Tool sonucu: SERVICE COZULEMEDI` —
+  düzeltilmiş beklentiyle **tam örtüşüyor**. Kod okumasıyla da doğrulandı:
+  MAF, `AIFunctionArguments.Services`'i asla gerçek `null` göndermez —
+  daima `Microsoft.Extensions.AI.EmptyServiceProvider`ın (boş ama `null`
+  OLMAYAN) bir örneğini gönderir (bkz. `ToolMethodScanner.cs:22,93`,
+  `VoiceToolBase.cs:22`, `ToolRegistrationTests.cs:102-105`'teki tutarlı
+  yorumlar). Doküman case'inin ESKİ `args.Services is null` denetimi bu
+  yüzden HER ZAMAN `false` dönüyordu — yanlış koşulu sınıyordu; script
+  düzeltildi. K-218'in ASIL iddiası (gerçek DI kayıtları `Services`
+  üzerinden ÇÖZÜLEMEZ) doğrulandı: `Services is null: False;
+  GetService(MyRegisteredService): NULL`. `Directory
   .Packages.props`'ta MAF/`Microsoft.Extensions.AI` sürümleri K-218
   yazıldığından beri değişmedi, `AgentDefinitionCompiler.cs:945`'teki
   `AsAIAgent(options, _loggerFactory, _services)` çağrısı da hiç
   değişmedi (git log doğrulandı) — üretim boru hattında hiçbir şey
-  değişmedi, yalnızca doküman örneğinin denetim koşulu (`is null` vs
+  değişmedi, yalnızca doküman örneğinin ESKİ denetim koşulu (`is null` vs
   `GetService(...) is null`) yanlıştı. K-218'in kendisi hâlâ tam olarak
   geçerli.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Doküman düzeltmesi (2026-08-15):** Script ve beklenti koda göre
+düzeltildi. Üretim değişikliği yok — K-218'in iddiası doğrulanmış durumda
+kalıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
