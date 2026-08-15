@@ -1,153 +1,154 @@
 namespace AgentPrism;
 
-/// <summary>Metinden ses uretimi istegi.</summary>
+/// <summary>A text-to-speech generation request.</summary>
 public sealed record SpeechRequest
 {
-    /// <summary>Seslendirilecek metin.</summary>
+    /// <summary>The text to speak.</summary>
     public required string Text { get; init; }
 
     /// <summary>
-    /// Kullanilacak sesin kimligi. Bos ise <c>VoiceOptions.DefaultVoiceId</c>.
+    /// The identifier of the voice to use. <c>VoiceOptions.DefaultVoiceId</c> if empty.
     /// </summary>
     public string? VoiceId { get; init; }
 
     /// <summary>
-    /// Kullanilacak sentez modeli. Bos ise <c>VoiceOptions.SynthesisModelId</c>.
+    /// The synthesis model to use. <c>VoiceOptions.SynthesisModelId</c> if empty.
     /// </summary>
     public string? ModelId { get; init; }
 
     /// <summary>
-    /// Saglayicinin cikti bicimi adi (ornegin <c>mp3_44100_128</c>).
+    /// The provider's output format name (for example, <c>mp3_44100_128</c>).
     /// </summary>
     /// <remarks>
-    /// 🚨 Bu bir MIME turu <strong>degildir</strong>. Ayrica her bicim ek olarak
-    /// saklanamaz: <c>pcm_*</c> ve <c>ulaw_*</c> ciktilari basliksizdir, hicbir
-    /// sihirli bayta uymaz ve <c>AttachmentTypeGuard</c> tarafindan reddedilir.
-    /// Gerekce: <c>docs/28-SES-TOOLLARI.md</c>, bolum 28.0/G3.
+    /// 🚨 This is <strong>not</strong> a MIME type. Also, not every format can
+    /// be stored as an attachment: <c>pcm_*</c> and <c>ulaw_*</c> outputs are
+    /// headerless, match no magic byte, and are rejected by
+    /// <c>AttachmentTypeGuard</c>. See <c>docs/28-SES-TOOLLARI.md</c>, section
+    /// 28.0/G3, for the rationale.
     /// </remarks>
     public string? OutputFormat { get; init; }
 
-    /// <summary>Dilin ISO 639-1 kodu. Bos ise saglayici kendisi sezer.</summary>
+    /// <summary>The language's ISO 639-1 code. The provider detects it itself if empty.</summary>
     public string? LanguageCode { get; init; }
 }
 
-/// <summary>Uretilmis ses.</summary>
+/// <summary>Generated audio.</summary>
 /// <remarks>
-/// Tur bir <c>record</c> <strong>degildir</strong>: <see cref="Data"/> alani buyuk
-/// olabilecegi icin uretilen <c>ToString</c>/esitlik karsilastirmasinin yanlislikla
-/// tum icerigi kopyalamasi istenmez. Ayni gerekce <c>AttachmentContent</c> icin de
-/// gecerlidir.
+/// The type is <strong>not</strong> a <c>record</c>: since the
+/// <see cref="Data"/> field can be large, the generated <c>ToString</c>/equality
+/// comparison must not accidentally copy the entire content. The same
+/// rationale applies to <c>AttachmentContent</c>.
 /// </remarks>
 public sealed class SpeechAudio
 {
-    /// <summary>Ham ses baytlari.</summary>
+    /// <summary>The raw audio bytes.</summary>
     public required ReadOnlyMemory<byte> Data { get; init; }
 
-    /// <summary>Dogrulanmis MIME turu (ornegin <c>audio/mpeg</c>).</summary>
+    /// <summary>The verified MIME type (for example, <c>audio/mpeg</c>).</summary>
     public required string MediaType { get; init; }
 
-    /// <summary>Sesin suresi. Saglayici bildirmiyorsa <see langword="null"/>.</summary>
+    /// <summary>The audio's duration. <see langword="null"/> if the provider does not report it.</summary>
     public TimeSpan? Duration { get; init; }
 
-    /// <summary>Faturalanan karakter sayisi.</summary>
+    /// <summary>The billed character count.</summary>
     public int? CharactersBilled { get; init; }
 
     /// <summary>
-    /// <see cref="CharactersBilled"/> degerinin nereden geldigi.
+    /// Where the <see cref="CharactersBilled"/> value came from.
     /// </summary>
     /// <remarks>
-    /// Saglayici sayiyi bildirmezse metnin uzunlugu kullanilir ve deger
-    /// <see cref="SpeechUsageSource.Estimated"/> olur. Tahmini olcum gibi
-    /// gostermek fiyat uydurmaktir (K-032).
+    /// If the provider does not report the count, the text's length is used
+    /// and the value becomes <see cref="SpeechUsageSource.Estimated"/>.
+    /// Showing an estimate as a measurement fabricates a price (K-032).
     /// </remarks>
     public SpeechUsageSource UsageSource { get; init; }
 }
 
-/// <summary>Bir ses olcumunun kaynagi.</summary>
+/// <summary>The source of a speech measurement.</summary>
 public enum SpeechUsageSource
 {
-    /// <summary>Olcum yok.</summary>
+    /// <summary>No measurement.</summary>
     Unknown = 0,
 
-    /// <summary>Saglayici bildirdi.</summary>
+    /// <summary>Reported by the provider.</summary>
     Provider = 1,
 
-    /// <summary>Istekten tahmin edildi.</summary>
+    /// <summary>Estimated from the request.</summary>
     Estimated = 2,
 }
 
-/// <summary>Sesten metin cevriminin sonucu.</summary>
+/// <summary>The result of speech-to-text conversion.</summary>
 public sealed record SpeechTranscript
 {
-    /// <summary>Cozulen metin.</summary>
+    /// <summary>The transcribed text.</summary>
     public required string Text { get; init; }
 
-    /// <summary>Algilanan dilin kodu.</summary>
+    /// <summary>The detected language's code.</summary>
     public string? LanguageCode { get; init; }
 
-    /// <summary>Dil algilamasinin guveni (0-1).</summary>
+    /// <summary>The confidence of language detection (0-1).</summary>
     public double? LanguageProbability { get; init; }
 
     /// <summary>
-    /// Cozulen sesin suresi. Maliyet bundan hesaplanir.
+    /// The duration of the transcribed audio. Cost is computed from this.
     /// </summary>
     public TimeSpan? AudioDuration { get; init; }
 }
 
-/// <summary>Sesten metin cevrimi ayarlari.</summary>
+/// <summary>Speech-to-text conversion settings.</summary>
 public sealed record SpeechTranscriptionOptions
 {
-    /// <summary>Kullanilacak model. Bos ise <c>VoiceOptions.TranscriptionModelId</c>.</summary>
+    /// <summary>The model to use. <c>VoiceOptions.TranscriptionModelId</c> if empty.</summary>
     public string? ModelId { get; init; }
 
-    /// <summary>Beklenen dilin ISO 639-1 kodu. Bos ise saglayici sezer.</summary>
+    /// <summary>The expected language's ISO 639-1 code. The provider detects it if empty.</summary>
     public string? LanguageCode { get; init; }
 }
 
-/// <summary>Kullanilabilir bir sesin tanimi.</summary>
+/// <summary>The definition of an available voice.</summary>
 /// <remarks>
-/// Saglayicinin dondurdugu <c>preview_url</c> alani BILEREK tasinmaz: arayuzde
-/// calmak tarayiciyi saglayicinin adresine baglardi. Sonradan eklemek kirici
-/// degildir, cikarmak kiricidir.
+/// The provider's <c>preview_url</c> field is DELIBERATELY not carried:
+/// playing it in the UI would connect the browser to the provider's address.
+/// Adding it later is not a breaking change; removing it would be.
 /// </remarks>
 public sealed record VoiceDescriptor
 {
-    /// <summary>Ses kimligi. Agent tanimlarinda ve isteklerde bu deger kullanilir.</summary>
+    /// <summary>The voice identifier. Used in agent definitions and requests.</summary>
     public required string VoiceId { get; init; }
 
-    /// <summary>Insan tarafindan okunabilir ad.</summary>
+    /// <summary>The human-readable name.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Saglayicinin verdigi kategori (ornegin <c>premade</c>).</summary>
+    /// <summary>The category given by the provider (for example, <c>premade</c>).</summary>
     public string? Category { get; init; }
 }
 
-/// <summary>Ses saglayicisinin erisilebilirlik durumu.</summary>
+/// <summary>The voice provider's reachability status.</summary>
 /// <remarks>
-/// <c>ModelProviderHealth</c> BILEREK yeniden kullanilmaz: ses saglayicisi bir
-/// <c>IModelProvider</c> degildir ve <c>/api/models/health</c> ciktisinda
-/// gorunmemelidir. Iki kaynak tek listede toplanirsa devre kesici ve model
-/// katalogu yanlis davranir.
+/// <c>ModelProviderHealth</c> is DELIBERATELY not reused: a voice provider is
+/// not an <c>IModelProvider</c> and must not appear in the
+/// <c>/api/models/health</c> output. If the two sources were combined into
+/// one list, the circuit breaker and model catalog would behave incorrectly.
 /// </remarks>
 public sealed record VoiceHealth
 {
-    /// <summary>Saglayici adi.</summary>
+    /// <summary>The provider name.</summary>
     public required string ProviderName { get; init; }
 
-    /// <summary>Saglayici erisilebilir mi.</summary>
+    /// <summary>Whether the provider is reachable.</summary>
     public required bool IsHealthy { get; init; }
 
-    /// <summary>Denetimin suresi.</summary>
+    /// <summary>The check's duration.</summary>
     public required TimeSpan Latency { get; init; }
 
-    /// <summary>Denetimin yapildigi an (UTC).</summary>
+    /// <summary>The moment the check was performed (UTC).</summary>
     public required DateTimeOffset CheckedAt { get; init; }
 
     /// <summary>
-    /// Basarisizsa gerekce. 🚨 Metin ne API anahtari ne de adres tasir.
+    /// The reason, if failed. 🚨 The text carries neither an API key nor an address.
     /// </summary>
     public string? Detail { get; init; }
 
-    /// <summary>Denetim sirasinda gorulen ses sayisi.</summary>
+    /// <summary>The number of voices seen during the check.</summary>
     public int? VoiceCount { get; init; }
 }
