@@ -3,25 +3,25 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Bagimlilik enjeksiyonuna kaydedilen tek bir tool. AgentPrism tool defterini
-/// bu kayitlardan olusturur.
+/// A single tool registered with dependency injection. AgentPrism builds the
+/// tool registry from these registrations.
 /// </summary>
 /// <remarks>
-/// Tuketici, tool'lari kendi DI modullerinden de kaydedebilir:
+/// The consumer can also register tools from their own DI modules:
 /// <code>
 /// services.AddSingleton(new AgentPrismToolRegistration(myFunction));
 /// </code>
 /// </remarks>
 public sealed class AgentPrismToolRegistration
 {
-    /// <summary>Yeni bir tool kaydi olusturur.</summary>
-    /// <param name="function">Kaydedilecek tool.</param>
-    /// <param name="requiresApproval">Cagri oncesi acik onay gerekip gerekmedigi.</param>
+    /// <summary>Creates a new tool registration.</summary>
+    /// <param name="function">The tool to register.</param>
+    /// <param name="requiresApproval">Whether explicit approval is required before the call.</param>
     /// <param name="source">
-    /// Tool'un kaynagi. Kodda tanimli tool'larda <see langword="null"/>;
-    /// uzak bir MCP sunucusundan gelen tool'larda sunucu adi.
+    /// The tool's source. <see langword="null"/> for tools defined in code;
+    /// the server name for tools coming from a remote MCP server.
     /// </param>
-    /// <exception cref="ArgumentNullException"><paramref name="function"/> <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="function"/> is <see langword="null"/>.</exception>
     public AgentPrismToolRegistration(AIFunction function, bool requiresApproval = false, string? source = null)
     {
         ArgumentNullException.ThrowIfNull(function);
@@ -31,12 +31,12 @@ public sealed class AgentPrismToolRegistration
         Source = source;
     }
 
-    /// <summary>Kaydedilen tool.</summary>
+    /// <summary>The registered tool.</summary>
     public AIFunction Function { get; }
 
-    /// <summary>Cagri oncesi acik onay gerekip gerekmedigi.</summary>
+    /// <summary>Whether explicit approval is required before the call.</summary>
     public bool RequiresApproval { get; }
 
-    /// <summary>Tool'un kaynagi. Kodda tanimli tool'larda <see langword="null"/>.</summary>
+    /// <summary>The tool's source. <see langword="null"/> for tools defined in code.</summary>
     public string? Source { get; }
 }
