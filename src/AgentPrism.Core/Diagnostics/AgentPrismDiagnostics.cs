@@ -1,14 +1,14 @@
 namespace AgentPrism;
 
-/// <summary>AgentPrism'in telemetri kaynak ve olcum adlari.</summary>
+/// <summary>Defines AgentPrism telemetry source and measurement names.</summary>
 /// <remarks>
 /// <para>
-/// Bu adlar <strong>kararlidir</strong>. Tuketiciler OpenTelemetry
-/// yapilandirmalarinda bu adlari kullanir; degistirmek kirici degisikliktir.
+/// These names are <strong>stable</strong>. Consumers use them in OpenTelemetry
+/// configuration, so changing them is a breaking change.
 /// </para>
 /// <para>
-/// Tuketici kendi OTLP exporter'ini kurmaya devam eder; AgentPrism akisi ele
-/// gecirmez. Ornek kurulum:
+/// Consumers continue to configure their own OTLP exporter. AgentPrism does not
+/// take over the pipeline. Example setup:
 /// </para>
 /// <code>
 /// builder.Services.AddOpenTelemetry()
@@ -18,124 +18,124 @@ namespace AgentPrism;
 /// </remarks>
 public static class AgentPrismDiagnostics
 {
-    /// <summary>AgentPrism'in <c>ActivitySource</c> adi.</summary>
+    /// <summary>Gets the AgentPrism <c>ActivitySource</c> name.</summary>
     public const string ActivitySourceName = "AgentPrism";
 
-    /// <summary>AgentPrism'in <c>Meter</c> adi.</summary>
+    /// <summary>Gets the AgentPrism <c>Meter</c> name.</summary>
     public const string MeterName = "AgentPrism";
 
-    /// <summary>Bir calistirmayi temsil eden kok span'in adi.</summary>
+    /// <summary>Gets the root span name that represents a run.</summary>
     public const string RunActivityName = "agentprism.run";
 
-    /// <summary>Bir skill script calistirmasini temsil eden span'in adi.</summary>
+    /// <summary>Gets the span name that represents a skill script execution.</summary>
     public const string SkillScriptActivityName = "execute_skill_script";
 
-    /// <summary>Baglam sikistirmasindaki ozetleme cagrisini temsil eden span'in adi.</summary>
+    /// <summary>Gets the span name that represents a context-compaction summarization call.</summary>
     public const string CompactHistoryActivityName = "compact_history";
 
-    /// <summary>Skill script cagrilarinin metrikteki tool adi.</summary>
+    /// <summary>Gets the tool name for skill script calls in metrics.</summary>
     public const string SkillScriptToolName = "skill_script";
 
-    /// <summary>Tamamlanan calistirma sayaci.</summary>
+    /// <summary>Gets the completed-run counter name.</summary>
     public const string RunCounterName = "agentprism.runs";
 
-    /// <summary>Calistirma suresi histogrami (saniye).</summary>
+    /// <summary>Gets the run-duration histogram name in seconds.</summary>
     public const string RunDurationName = "agentprism.run.duration";
 
-    /// <summary>Token sayaci.</summary>
+    /// <summary>Gets the token counter name.</summary>
     public const string TokenCounterName = "agentprism.tokens";
 
-    /// <summary>Tool cagrisi sayaci.</summary>
+    /// <summary>Gets the tool-invocation counter name.</summary>
     public const string ToolCounterName = "agentprism.tool.invocations";
 
-    /// <summary>Tool cagri suresi histogrami (saniye).</summary>
+    /// <summary>Gets the tool-call duration histogram name in seconds.</summary>
     public const string ToolDurationName = "agentprism.tool.duration";
 
-    /// <summary>Calistirma basina para cinsinden maliyet sayaci.</summary>
+    /// <summary>Gets the monetary cost counter name per run.</summary>
     public const string RunCostCounterName = "agentprism.run.cost";
 
-    /// <summary>Kota kapsaminin gecerli donemdeki tuketimini gosteren gozlemlenen olcer.</summary>
+    /// <summary>Gets the observable gauge that shows quota-scope consumption in the current period.</summary>
     public const string QuotaUsageGaugeName = "agentprism.quota.usage";
 
-    /// <summary>Kota kapsaminin tanimli sinirini gosteren gozlemlenen olcer.</summary>
+    /// <summary>Gets the observable gauge that shows the configured quota-scope limit.</summary>
     public const string QuotaLimitGaugeName = "agentprism.quota.limit";
 
-    /// <summary>Yargicin kendi maliyeti icin sayac (Faz 49).</summary>
+    /// <summary>Gets the counter name for the judge's own cost, introduced in phase 49.</summary>
     public const string JudgeCostCounterName = "agentprism.judge.cost";
 
-    /// <summary>Yargicin verdigi puanlarin histogrami, 0-100 (Faz 49).</summary>
+    /// <summary>Gets the histogram name for judge scores from 0 to 100, introduced in phase 49.</summary>
     public const string JudgeScoreHistogramName = "agentprism.judge.score";
 
-    /// <summary>Span ve metrik etiket adlari. Degistirmek gosterge panolarini kirar.</summary>
+    /// <summary>Defines span and metric tag names. Changing them breaks dashboards.</summary>
     public static class Tags
     {
-        /// <summary>Calistirma kimligi.</summary>
+        /// <summary>Gets the run identifier tag name.</summary>
         public const string RunId = "agentprism.run.id";
 
-        /// <summary>Agent adi.</summary>
+        /// <summary>Gets the agent name tag name.</summary>
         public const string AgentName = "agentprism.agent.name";
 
-        /// <summary>Kiraci kimligi.</summary>
+        /// <summary>Gets the tenant identifier tag name.</summary>
         public const string TenantId = "agentprism.tenant.id";
 
-        /// <summary>Oturum kimligi.</summary>
+        /// <summary>Gets the session identifier tag name.</summary>
         public const string SessionId = "agentprism.session.id";
 
-        /// <summary>Calistirma durumu.</summary>
+        /// <summary>Gets the run-status tag name.</summary>
         public const string Status = "agentprism.run.status";
 
-        /// <summary>Bu calistirmayi baslatan calistirmanin kimligi. Yalnizca alt calistirmalarda yazilir.</summary>
+        /// <summary>Gets the parent run identifier tag name. It is written only for child runs.</summary>
         public const string ParentRunId = "agentprism.run.parent_id";
 
-        /// <summary>Cagri agacindaki derinlik. Yalnizca alt calistirmalarda yazilir.</summary>
+        /// <summary>Gets the call-tree depth tag name. It is written only for child runs.</summary>
         public const string Depth = "agentprism.run.depth";
 
-        /// <summary>Akisli calistirma mi.</summary>
+        /// <summary>Gets the tag name that indicates streaming runs.</summary>
         public const string Streaming = "agentprism.run.streaming";
 
-        /// <summary>Model adi.</summary>
+        /// <summary>Gets the model name tag name.</summary>
         public const string ModelId = "agentprism.model.id";
 
-        /// <summary>Tool adi.</summary>
+        /// <summary>Gets the tool name tag name.</summary>
         public const string ToolName = "agentprism.tool.name";
 
-        /// <summary>Token yonu: <c>input</c> veya <c>output</c>.</summary>
+        /// <summary>Gets the token direction tag name: <c>input</c> or <c>output</c>.</summary>
         public const string Direction = "agentprism.token.direction";
 
-        /// <summary>Skill adi.</summary>
+        /// <summary>Gets the skill name tag name.</summary>
         public const string SkillName = "agentprism.skill.name";
 
-        /// <summary>Script adi.</summary>
+        /// <summary>Gets the script name tag name.</summary>
         public const string ScriptName = "agentprism.script.name";
 
-        /// <summary>Script surecinin cikis kodu.</summary>
+        /// <summary>Gets the script process exit-code tag name.</summary>
         public const string ExitCode = "agentprism.script.exit_code";
 
-        /// <summary>Script calistirma suresi (milisaniye).</summary>
+        /// <summary>Gets the script execution duration tag name in milliseconds.</summary>
         public const string DurationMs = "agentprism.script.duration_ms";
 
-        /// <summary>Ozetleme cagrisinin girdi token sayisi.</summary>
+        /// <summary>Gets the summarization-call input-token tag name.</summary>
         public const string CompactionInputTokens = "agentprism.compaction.input_tokens";
 
-        /// <summary>Ozetleme cagrisinin cikti token sayisi.</summary>
+        /// <summary>Gets the summarization-call output-token tag name.</summary>
         public const string CompactionOutputTokens = "agentprism.compaction.output_tokens";
 
-        /// <summary>Olculen tanim surumu.</summary>
+        /// <summary>Gets the evaluated definition version tag name.</summary>
         public const string AgentVersion = "agentprism.agent.version";
 
-        /// <summary>Maliyetin para birimi.</summary>
+        /// <summary>Gets the cost currency tag name.</summary>
         public const string Currency = "agentprism.cost.currency";
 
-        /// <summary>Kota kapsami: agent adi veya kiraci geneli icin bos dize.</summary>
+        /// <summary>Gets the quota scope tag name: agent name or an empty string for tenant-wide scope.</summary>
         public const string QuotaScope = "agentprism.quota.scope";
 
-        /// <summary>Kota sayacinin sifirlanma araligi.</summary>
+        /// <summary>Gets the quota counter reset-period tag name.</summary>
         public const string QuotaPeriod = "agentprism.quota.period";
 
-        /// <summary>Kotanin uygulandigi olcut: <c>Runs</c>, <c>Tokens</c> veya <c>Cost</c>.</summary>
+        /// <summary>Gets the applied quota metric tag name: <c>Runs</c>, <c>Tokens</c>, or <c>Cost</c>.</summary>
         public const string QuotaMetric = "agentprism.quota.metric";
 
-        /// <summary>Yargicin adi (<see cref="IRunJudge.Name"/>). Faz 49.</summary>
+        /// <summary>Gets the judge name tag name from <see cref="IRunJudge.Name"/>, introduced in phase 49.</summary>
         public const string JudgeName = "agentprism.judge.name";
     }
 }
