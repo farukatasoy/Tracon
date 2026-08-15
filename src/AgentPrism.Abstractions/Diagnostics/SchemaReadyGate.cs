@@ -1,27 +1,28 @@
 namespace AgentPrism;
 
 /// <summary>
-/// SQL semasi hazir olana kadar arka plan servislerini bekleten kapi.
+/// Delays background services until the SQL schema is ready.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 <strong>Neden var:</strong> migration'lari uygulayan baslangic servisi bir
-/// <c>IHostedService</c>'tir ve <c>StartAsync</c>'inde migration'lari TAM bekler.
-/// Ama <c>BackgroundService</c> taban sinifinin <c>StartAsync</c>'i
-/// <c>ExecuteAsync</c>'i beklemeden doner. <c>IHostedService</c>'ler
-/// <em>kayit sirasinda</em> baslatildigi icin, zincirde <c>.UseMcp()</c>
-/// <c>.UseSqlite()</c>'tan once cagrilirsa arka plan servisinin ilk SQL denemesi
-/// migration bitmeden calisir ve "no such table" verir. Olculdu (Faz 42).
+/// 🚨 <strong>Reason:</strong> the startup service that applies migrations is an
+/// <c>IHostedService</c> and waits for them in <c>StartAsync</c>. However,
+/// <c>BackgroundService.StartAsync</c> returns without waiting for
+/// <c>ExecuteAsync</c>. <c>IHostedService</c> instances start in registration
+/// order. If the chain calls <c>.UseMcp()</c> before <c>.UseSqlite()</c>, the
+/// background service can make its first SQL attempt before migrations complete
+/// and receive "no such table". Measured in Phase 42.
 /// </para>
 /// <para>
-/// Kapi <strong>kayit sirasindan bagimsizdir</strong>: bekleyen taraf sirayi
-/// bilmez, yalnizca hazir sinyalini bekler. Sirayi zorlamak kirilgan olurdu —
-/// zinciri tuketici yazar ve her siralamayi dayatamayiz.
+/// The gate is <strong>independent of registration order</strong>. The waiting
+/// side does not know the order and waits only for the ready signal. Enforcing an
+/// order would be fragile because the consumer writes the chain and no ordering
+/// can cover every configuration.
 /// </para>
 /// <para>
-/// Hicbir SQL kalicilik saglayicisi kayitli degilse (bellek ici depolar) kapi
-/// <em>kendiliginden</em> aciktir; aksi hâlde bellek ici kurulumda arka plan
-/// servisleri sonsuza dek beklerdi.
+/// The gate <em>opens automatically</em> when no SQL persistence provider is
+/// registered, such as for in-memory stores. Otherwise, background services
+/// would wait forever in an in-memory installation.
 /// </para>
 /// </remarks>
 public sealed class SchemaReadyGate
@@ -31,12 +32,12 @@ public sealed class SchemaReadyGate
 
     private readonly IEnumerable<SqlPersistenceRegistrationMarker> _registrations;
 
-    /// <summary>Yeni bir kapi olusturur.</summary>
+    /// <summary>Initializes a new instance of the <see cref="SchemaReadyGate"/> class.</summary>
     /// <param name="registrations">
-    /// Kayitli SQL kalicilik saglayicilari. Bos ise kapi hicbir zaman kapanmaz.
+    /// The registered SQL persistence providers. If empty, the gate never closes.
     /// </param>
     /// <exception cref="ArgumentNullException">
-    /// <paramref name="registrations"/> <see langword="null"/> ise.
+    /// <paramref name="registrations"/> is <see langword="null"/>.
     /// </exception>
     public SchemaReadyGate(IEnumerable<SqlPersistenceRegistrationMarker> registrations)
     {
@@ -45,33 +46,33 @@ public sealed class SchemaReadyGate
         _registrations = registrations;
     }
 
-    /// <summary>Sema hazir mi.</summary>
+    /// <summary>Gets whether the schema is ready.</summary>
     public bool IsReady => _ready.Task.IsCompleted;
 
     /// <summary>
-    /// Semayi hazir isaretler. Migration baslangic servisi cagirir.
+    /// Marks the schema as ready. The migration startup service calls this method.
     /// </summary>
     /// <remarks>
-    /// Birden fazla cagri zararsizdir. <c>AutoApplyMigrations</c> kapaliyken de
-    /// cagrilir: o durumda semanin hazir olmasi tuketicinin sorumlulugundadir ve
-    /// arka plan servislerini beklemekte tutmanin bir faydasi yoktur.
+    /// Repeated calls are harmless. This method also runs when
+    /// <c>AutoApplyMigrations</c> is disabled. In that case the consumer is
+    /// responsible for the schema, and delaying background services has no value.
     /// </remarks>
     public void MarkReady() => _ready.TrySetResult();
 
     /// <summary>
-    /// Sema hazir olana kadar bekler.
+    /// Waits until the schema is ready.
     /// </summary>
-    /// <param name="cancellationToken">Bekleme iptali.</param>
-    /// <returns>Sema hazir oldugunda tamamlanan gorev.</returns>
+    /// <param name="cancellationToken">The cancellation token for the wait.</param>
+    /// <returns>A task that completes when the schema is ready.</returns>
     /// <exception cref="OperationCanceledException">
-    /// <paramref name="cancellationToken"/> iptal edilirse. Migration basarisiz
-    /// olursa barindirici zaten kapanir ve bekleyen servis bu yoldan cikar.
+    /// <paramref name="cancellationToken"/> is cancelled. If migration fails,
+    /// the host already stops and the waiting service exits through that path.
     /// </exception>
     public Task WaitAsync(CancellationToken cancellationToken)
     {
-        // Kayitlar servis saglayici kurulduktan SONRA okunur; zincirin tamami
-        // o ana kadar calismis olur. Kapi acilana kadar her cagride denetlenir,
-        // sonrasinda tamamlanmis gorev dogrudan doner.
+        // Read registrations after the service provider is built. The complete
+        // chain has run by then. Check each call until the gate opens; then the
+        // completed task returns directly.
         if (!_ready.Task.IsCompleted && !_registrations.Any())
         {
             _ready.TrySetResult();

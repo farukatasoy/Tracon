@@ -1,59 +1,59 @@
 namespace AgentPrism;
 
-/// <summary>Kurulumun kendi kendini denetleyen ozet raporu (Faz 33).</summary>
+/// <summary>Reports the self-diagnostics of the installation (Phase 33).</summary>
 /// <remarks>
 /// <para>
-/// 🚨 Bu tip hicbir <c>secret</c> tasimaz: bağlanti dizesi, API anahtari veya kimlik
-/// bilgisi alanlarindan hicbiri yoktur. Yalniz "cozuldu mu" bilgisi tasinir.
-/// Gerekce: <c>docs/KARARLAR.md</c>, karar K-059.
+/// 🚨 This type does not carry a <c>secret</c>. It has no connection string, API
+/// key, or credential fields. It only carries whether configuration resolved.
+/// Rationale: <c>docs/KARARLAR.md</c>, decision K-059.
 /// </para>
 /// <para>
-/// <c>AgentPrismDiagnosticsCollector</c> (AgentPrism.Core) tarafindan uretilir;
-/// hicbir model cagrisi veya migration uygulamasi yapmaz, yalniz mevcut durumu okur.
+/// <c>AgentPrismDiagnosticsCollector</c> in AgentPrism.Core creates this report.
+/// It makes no model call and applies no migration. It only reads the current state.
 /// </para>
 /// </remarks>
 public sealed record AgentPrismDiagnosticsReport
 {
-    /// <summary>Etkin kalicilik saglayicisinin adi. Ornek: <c>PostgreSQL</c>, <c>InMemory</c>.</summary>
+    /// <summary>Gets the name of the active persistence provider, for example <c>PostgreSQL</c> or <c>InMemory</c>.</summary>
     public required string PersistenceProvider { get; init; }
 
     /// <summary>
-    /// Kayitli SQL kalicilik saglayicisi sayisi. <c>1</c>'den fazlaysa K-183 durumu
-    /// olusmustur: son cagri kazanir ve digerleri sessizce devre disi kalir.
+    /// Gets the number of registered SQL persistence providers. More than <c>1</c>
+    /// indicates K-183: the last call wins and silently disables the others.
     /// </summary>
     public required int RegisteredPersistenceProviders { get; init; }
 
-    /// <summary>Etkin SQL saglayicisina baglanilabiliyor mu. SQL saglayicisi yoksa <see langword="true"/>.</summary>
+    /// <summary>Gets whether the active SQL provider can connect. Returns <see langword="true"/> without an SQL provider.</summary>
     public required bool CanConnect { get; init; }
 
-    /// <summary>Bekleyen migration yok mu. SQL saglayicisi yoksa <see langword="true"/>.</summary>
+    /// <summary>Gets whether no migrations are pending. Returns <see langword="true"/> without an SQL provider.</summary>
     public required bool MigrationsUpToDate { get; init; }
 
-    /// <summary>Bekleyen migration adlari. Bostur: SQL saglayicisi yoksa veya hepsi uygulanmissa.</summary>
+    /// <summary>Gets the pending migration names. The list is empty when there is no SQL provider or all migrations are applied.</summary>
     public required IReadOnlyList<string> PendingMigrations { get; init; }
 
-    /// <summary>Kayitli her model saglayicisinin son bilinen durumu.</summary>
+    /// <summary>Gets the last known status of each registered model provider.</summary>
     public required IReadOnlyList<ProviderDiagnostic> ModelProviders { get; init; }
 
-    /// <summary>Kayitli saglayicilarin bekledigi yapilandirma anahtarlarinin cozulme durumu.</summary>
+    /// <summary>Gets the resolution status of configuration keys required by registered providers.</summary>
     public required IReadOnlyList<ConfigurationDiagnostic> Configuration { get; init; }
 
-    /// <summary>Yonetim arayuzunun gomulu varliklari var mi.</summary>
+    /// <summary>Gets whether the management UI has embedded assets.</summary>
     public required bool UiEmbedded { get; init; }
 
-    /// <summary>Kayitli tool sayisi.</summary>
+    /// <summary>Gets the number of registered tools.</summary>
     public required int ToolCount { get; init; }
 
     /// <summary>
-    /// Kayitli agent sayisi. Katalog okunamadiysa <see langword="null"/>.
+    /// Gets the number of registered agents. Returns <see langword="null"/> when the catalog cannot be read.
     /// </summary>
     /// <remarks>
-    /// 🚨 <see langword="null"/> ve <c>0</c> AYNI SEY DEGILDIR. Bu rapor tam da
-    /// bozuk bir kurulumu tarif etmek icin vardir: <c>AutoApplyMigrations=false</c>
-    /// ile sema henuz uygulanmamisken katalog sorgusu hata verir. O durumda
-    /// <c>0</c> dondurmek "hic agent yok" yalanini soylerdi ve operatoru yanlis
-    /// yone gonderirdi; <see langword="null"/> "sayilamadi" der. Raporun geri
-    /// kalani (ozellikle <see cref="PendingMigrations"/>) yine de doldurulur.
+    /// 🚨 <see langword="null"/> and <c>0</c> are different. This report must
+    /// describe a broken installation. A catalog query fails when
+    /// <c>AutoApplyMigrations=false</c> and the schema is not applied yet.
+    /// Returning <c>0</c> would incorrectly state that no agents exist;
+    /// <see langword="null"/> states that counting failed. The remaining report,
+    /// especially <see cref="PendingMigrations"/>, is still populated.
     /// </remarks>
     public required int? AgentCount { get; init; }
 }

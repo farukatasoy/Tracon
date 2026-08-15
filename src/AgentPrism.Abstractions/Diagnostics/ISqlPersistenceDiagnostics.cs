@@ -1,48 +1,48 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Etkin SQL kalicilik saglayicisinin isteğe bagli teshis sozlesmesi.
+/// Defines optional diagnostics for the active SQL persistence provider.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Her <c>Use*()</c> uzantisi (<c>UsePostgreSql</c>, <c>UseSqlServer</c>,
-/// <c>UseSqlite</c>) bu arayuzu <c>Replace</c> ile kaydeder — kazanan hangisiyse
-/// (K-025) teshis de onu yansitir. Kayitli degilse kalicilik bellek icidir.
+/// Each <c>Use*()</c> extension (<c>UsePostgreSql</c>, <c>UseSqlServer</c>, and
+/// <c>UseSqlite</c>) registers this interface with <c>Replace</c>. Diagnostics
+/// reflect the winner (K-025). Persistence is in memory when no provider registers it.
 /// </para>
 /// <para>
-/// Denetim <strong>hafif bir baglanti sinamasidir</strong> (<c>SELECT 1</c>
-/// benzeri); migration uygulamaz, veri degistirmez.
+/// The check is a <strong>lightweight connection probe</strong>, similar to
+/// <c>SELECT 1</c>. It applies no migration and changes no data.
 /// </para>
 /// </remarks>
 public interface ISqlPersistenceDiagnostics
 {
-    /// <summary>Saglayici adi. Ornek: <c>PostgreSQL</c>.</summary>
+    /// <summary>Gets the provider name, for example <c>PostgreSQL</c>.</summary>
     string ProviderName { get; }
 
-    /// <summary>Baglanti ve migration durumunu okur.</summary>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Anlik durum.</returns>
+    /// <summary>Reads the connection and migration status.</summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The current status.</returns>
     ValueTask<SqlPersistenceDiagnosticsSnapshot> GetSnapshotAsync(CancellationToken cancellationToken = default);
 }
 
-/// <summary>Bir SQL kalicilik saglayicisinin anlik baglanti ve migration durumu.</summary>
+/// <summary>Represents the current connection and migration status of an SQL persistence provider.</summary>
 public sealed record SqlPersistenceDiagnosticsSnapshot
 {
-    /// <summary>Veritabanina baglanilabildi mi.</summary>
+    /// <summary>Gets whether the database can be reached.</summary>
     public required bool CanConnect { get; init; }
 
-    /// <summary>Bekleyen migration adlari. Baglanti kurulamadiysa bilinmez ve bostur.</summary>
+    /// <summary>Gets the pending migration names. The list is unknown and empty if the database cannot be reached.</summary>
     public required IReadOnlyList<string> PendingMigrations { get; init; }
 }
 
 /// <summary>
-/// Kayitli bir SQL kalicilik saglayicisinin isareti.
+/// Marks a registered SQL persistence provider.
 /// </summary>
-/// <param name="ProviderName">Saglayici adi. Ornek: <c>PostgreSQL</c>.</param>
+/// <param name="ProviderName">The provider name, for example <c>PostgreSQL</c>.</param>
 /// <remarks>
-/// Her <c>Use*</c> uzantisi bir isaret ekler. Isaretler <em>birikir</em>
-/// (<c>AddSingleton</c>, <c>TryAdd</c> degil); birden fazlaysa acilista uyari
-/// loglanir ve <see cref="AgentPrismDiagnosticsReport.RegisteredPersistenceProviders"/>
-/// birden buyuk doner (K-183).
+/// Each <c>Use*</c> extension adds a marker. Markers <em>accumulate</em> through
+/// <c>AddSingleton</c>, not <c>TryAdd</c>. If more than one exists, startup logs
+/// a warning and <see cref="AgentPrismDiagnosticsReport.RegisteredPersistenceProviders"/>
+/// returns more than one (K-183).
 /// </remarks>
 public sealed record SqlPersistenceRegistrationMarker(string ProviderName);
