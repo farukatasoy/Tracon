@@ -3,48 +3,50 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>Agent yanitinin istenen bicimi.</summary>
+/// <summary>The requested format of an agent response.</summary>
 [JsonConverter(typeof(JsonStringEnumConverter<AgentResponseFormatKind>))]
 public enum AgentResponseFormatKind
 {
-    /// <summary>Duz metin. Acikca istenir.</summary>
+    /// <summary>Plain text, asked for explicitly.</summary>
     Text = 0,
 
-    /// <summary>Gecerli bir JSON belgesi; sema dayatilmaz.</summary>
+    /// <summary>A valid JSON document; no schema is enforced.</summary>
     Json = 1,
 
-    /// <summary>Verilen JSON semasina uyan bir belge.</summary>
+    /// <summary>A document that matches the given JSON schema.</summary>
     JsonSchema = 2,
 }
 
-/// <summary>Yapilandirilmis cikti tanimi.</summary>
+/// <summary>The definition of a structured output.</summary>
 /// <remarks>
 /// <para>
-/// <see cref="ModelBinding.ResponseFormat"/> <see langword="null"/> ise bugunku
-/// davranis degismez ve saglayiciya hicbir bicim kisiti gonderilmez. Bu tip
-/// yalnizca kullanici acikca bir bicim istediginde devreye girer.
+/// When <see cref="ModelBinding.ResponseFormat"/> is <see langword="null"/> today's
+/// behaviour does not change and no format constraint is sent to the provider. This
+/// type takes effect only when the user asks for a format explicitly.
 /// </para>
 /// <para>
-/// Doğrulama derleme aninda yapilir (<c>AgentDefinitionCompiler</c>): <see cref="Kind"/>
-/// <see cref="AgentResponseFormatKind.JsonSchema"/> iken <see cref="Schema"/> bos
-/// olamaz; diger kiplerde <see cref="Schema"/> dolu olamaz. <see cref="Schema"/>
-/// bir JSON <strong>nesnesi</strong> olmalidir, icerigi doğrulanmaz.
+/// Validation happens while the agent is built (<c>AgentDefinitionCompiler</c>):
+/// <see cref="Schema"/> cannot be empty while <see cref="Kind"/> is
+/// <see cref="AgentResponseFormatKind.JsonSchema"/>, and it cannot be populated in the
+/// other modes. <see cref="Schema"/> must be a JSON <strong>object</strong>; its content
+/// is not validated.
 /// </para>
 /// </remarks>
 public sealed record AgentResponseFormat
 {
-    /// <summary>Istenen bicim.</summary>
+    /// <summary>Gets the requested format.</summary>
     public required AgentResponseFormatKind Kind { get; init; }
 
     /// <summary>
-    /// JSON semasi. Yalnizca <see cref="AgentResponseFormatKind.JsonSchema"/>
-    /// icin doldurulur ve bir JSON <strong>nesnesi</strong> olmalidir.
+    /// Gets the JSON schema. It is populated only for
+    /// <see cref="AgentResponseFormatKind.JsonSchema"/> and must be a JSON
+    /// <strong>object</strong>.
     /// </summary>
     public JsonElement? Schema { get; init; }
 
-    /// <summary>Semanin adi. Saglayici bunu modele iletebilir.</summary>
+    /// <summary>Gets the name of the schema. The provider can pass it on to the model.</summary>
     public string? SchemaName { get; init; }
 
-    /// <summary>Semanin aciklamasi.</summary>
+    /// <summary>Gets the description of the schema.</summary>
     public string? SchemaDescription { get; init; }
 }

@@ -3,29 +3,31 @@ using System.Data.Common;
 namespace AgentPrism;
 
 /// <summary>
-/// Komut calistirma kaliplarini tek yerde toplayan, saglayicidan bagimsiz yardimcilar.
+/// Provider-independent helpers that collect the command execution patterns in one place.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Kutuphane kodunda her <c>await</c> ve her <c>await using</c> icin
-/// <c>ConfigureAwait(false)</c> gerekir (kural MA0004). Bunu her cagri yerinde
-/// tekrarlamak depolari okunmaz hale getirirdi; kalip burada bir kez yazilir.
+/// Library code needs <c>ConfigureAwait(false)</c> on every <c>await</c> and every
+/// <c>await using</c> (rule MA0004). Repeating that at every call site would make
+/// the stores unreadable; the pattern is written once here.
 /// </para>
 /// <para>
-/// Her yardimci verilen komutun sahipligini alir ve isi bitince onu birakir.
+/// Every helper takes ownership of the command it is given and disposes it when it
+/// is done.
 /// </para>
 /// <para>
-/// Tipler ADO.NET tabanidir (<see cref="DbCommand"/>, <see cref="DbDataReader"/>);
-/// boylece ayni depo kodu PostgreSQL ve SQL Server uzerinde calisir. Saglayiciya
-/// ozgu her sey <see cref="SqlDialect"/> uzerinden gecer.
+/// The types are the ADO.NET base types (<see cref="DbCommand"/>,
+/// <see cref="DbDataReader"/>); the same store code therefore runs over PostgreSQL
+/// and SQL Server. Everything provider-specific goes through
+/// <see cref="SqlDialect"/>.
 /// </para>
 /// </remarks>
 internal static class DbHelpers
 {
-    /// <summary>Komutu calistirir ve etkilenen satir sayisini dondurur.</summary>
-    /// <param name="command">Calistirilacak komut. Cagri sonunda birakilir.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Etkilenen satir sayisi.</returns>
+    /// <summary>Runs the command and returns the number of affected rows.</summary>
+    /// <param name="command">The command to run. It is disposed when the call ends.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The number of affected rows.</returns>
     public static async ValueTask<int> ExecuteAsync(DbCommand command, CancellationToken cancellationToken)
     {
         await using (command.ConfigureAwait(false))
@@ -34,17 +36,17 @@ internal static class DbHelpers
         }
     }
 
-    /// <summary>Komutu calistirir ve ilk satirin ilk sutununu dondurur.</summary>
-    /// <param name="command">Calistirilacak komut. Cagri sonunda birakilir.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tek deger; sonuc yoksa <see langword="null"/>.</returns>
+    /// <summary>Runs the command and returns the first column of the first row.</summary>
+    /// <param name="command">The command to run. It is disposed when the call ends.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The single value; <see langword="null"/> when there is no result.</returns>
     /// <remarks>
-    /// 🚨 <see cref="DbCommand.ExecuteScalarAsync(CancellationToken)"/> yalnizca
-    /// ILK sonuc kumesine bakar. SQL Server'in <c>UPDATE ... OUTPUT</c> +
-    /// <c>IF @@ROWCOUNT = 0 INSERT ... OUTPUT</c> upsert deseninde (K-177) UPDATE
-    /// 0 satir etkilerse ilk kume BOSTUR ve gercek deger ikinci kumededir; bu
-    /// yuzden burada <see cref="ReadSingleAsync{T}"/> ile ayni sonuc-kumesi
-    /// dolasimi elle yapilir.
+    /// 🚨 <see cref="DbCommand.ExecuteScalarAsync(CancellationToken)"/> looks at the
+    /// FIRST result set only. In the SQL Server <c>UPDATE ... OUTPUT</c> +
+    /// <c>IF @@ROWCOUNT = 0 INSERT ... OUTPUT</c> upsert pattern (K-177), when the
+    /// UPDATE affects 0 rows the first set is EMPTY and the real value is in the
+    /// second set; the same result-set walk as in <see cref="ReadSingleAsync{T}"/>
+    /// is therefore done by hand here.
     /// </remarks>
     public static async ValueTask<object?> ExecuteScalarAsync(
         DbCommand command,
@@ -70,20 +72,21 @@ internal static class DbHelpers
         }
     }
 
-    /// <summary>Komutu calistirir ve ilk satiri esler.</summary>
-    /// <typeparam name="T">Eslenen tip.</typeparam>
-    /// <param name="command">Calistirilacak komut. Cagri sonunda birakilir.</param>
-    /// <param name="map">Satiri nesneye ceviren esleyici.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Ilk satir; sonuc bos ise <see langword="null"/>.</returns>
+    /// <summary>Runs the command and maps the first row.</summary>
+    /// <typeparam name="T">The mapped type.</typeparam>
+    /// <param name="command">The command to run. It is disposed when the call ends.</param>
+    /// <param name="map">The mapper that turns a row into an object.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The first row; <see langword="null"/> when the result is empty.</returns>
     /// <remarks>
-    /// 🚨 SQL Server'in <c>UPDATE ... OUTPUT</c> + <c>IF @@ROWCOUNT = 0 INSERT
-    /// ... OUTPUT</c> upsert deseni (K-177) HANGI dalin calistigina gore satiri
-    /// FARKLI bir sonuc kumesine yazar: UPDATE 0 satir etkilerse ilk sonuc kumesi
-    /// BOSTUR ve gercek satir ikinci kumededir. Bu yuzden ilk kume bossa
-    /// <see cref="DbDataReader.NextResultAsync(CancellationToken)"/> ile sonraki
-    /// kumeler denenir. PostgreSQL'in tek ifadelik <c>ON CONFLICT ... RETURNING</c>
-    /// deseni zaten tek kume urettigi icin bu dongu orada zararsizdir.
+    /// 🚨 The SQL Server <c>UPDATE ... OUTPUT</c> + <c>IF @@ROWCOUNT = 0 INSERT
+    /// ... OUTPUT</c> upsert pattern (K-177) writes the row to a DIFFERENT result
+    /// set depending on WHICH branch ran: when the UPDATE affects 0 rows the first
+    /// result set is EMPTY and the real row is in the second set. When the first
+    /// set is empty the following sets are therefore tried with
+    /// <see cref="DbDataReader.NextResultAsync(CancellationToken)"/>. The
+    /// single-statement PostgreSQL <c>ON CONFLICT ... RETURNING</c> pattern already
+    /// produces one set, so the loop is harmless there.
     /// </remarks>
     public static async ValueTask<T?> ReadSingleAsync<T>(
         DbCommand command,
@@ -111,12 +114,12 @@ internal static class DbHelpers
         }
     }
 
-    /// <summary>Komutu calistirir ve tum satirlari esler.</summary>
-    /// <typeparam name="T">Eslenen tip.</typeparam>
-    /// <param name="command">Calistirilacak komut. Cagri sonunda birakilir.</param>
-    /// <param name="map">Satiri nesneye ceviren esleyici.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Sirali sonuc listesi.</returns>
+    /// <summary>Runs the command and maps every row.</summary>
+    /// <typeparam name="T">The mapped type.</typeparam>
+    /// <param name="command">The command to run. It is disposed when the call ends.</param>
+    /// <param name="map">The mapper that turns a row into an object.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The ordered result list.</returns>
     public static async ValueTask<List<T>> ReadListAsync<T>(
         DbCommand command,
         Func<DbDataReader, T> map,
@@ -141,25 +144,25 @@ internal static class DbHelpers
     }
 
     /// <summary>
-    /// Tipi degerden cikarilan bir parametre ekler.
+    /// Adds a parameter whose type is inferred from the value.
     /// </summary>
-    /// <param name="command">Komut.</param>
-    /// <param name="name">Parametre adi.</param>
-    /// <param name="value">Deger. <see langword="null"/> <strong>olamaz</strong>.</param>
+    /// <param name="command">The command.</param>
+    /// <param name="name">The parameter name.</param>
+    /// <param name="value">The value. It <strong>cannot</strong> be <see langword="null"/>.</param>
     /// <remarks>
     /// <para>
-    /// Yalnizca tipi degerden guvenle cikarilabilen, <em>bos olmayan</em> skaler
-    /// degerler icindir: <see cref="Guid"/>, <see cref="string"/>,
+    /// It is only for <em>non-null</em> scalar values whose type can be inferred
+    /// safely from the value: <see cref="Guid"/>, <see cref="string"/>,
     /// <see cref="short"/>, <see cref="int"/>, <see cref="long"/>,
     /// <see cref="bool"/>.
     /// </para>
     /// <para>
-    /// 🚨 Zaman damgasi, ondalik ve <c>NULL</c> olabilen degerler icin
-    /// <strong>kullanilmaz</strong>; onlar <see cref="SqlDialect"/> uzerinden
-    /// acikca tiplenir. Sebep iki tuzaktir: SQL Server bir <see cref="decimal"/>
-    /// parametresini tip verilmediginde <c>decimal(18,0)</c> sayar ve ondalik
-    /// kismi <em>sessizce keser</em>; tipsiz bir <c>NULL</c> ise PostgreSQL'de
-    /// <c>42P08</c> verir. Ikisi de yalnizca calisma aninda gorunur.
+    /// 🚨 It is <strong>not used</strong> for timestamps, decimals and values that
+    /// can be <c>NULL</c>; those are typed explicitly through
+    /// <see cref="SqlDialect"/>. The reason is two traps: when no type is given,
+    /// SQL Server treats a <see cref="decimal"/> parameter as <c>decimal(18,0)</c>
+    /// and <em>silently truncates</em> the fractional part; and an untyped
+    /// <c>NULL</c> gives <c>42P08</c> on PostgreSQL. Both appear at run time only.
     /// </para>
     /// </remarks>
     public static void Add(DbCommand command, string name, object value)
@@ -174,94 +177,94 @@ internal static class DbHelpers
     }
 
     /// <summary>
-    /// Zaman damgasi sutununu UTC damgali olarak okur.
+    /// Reads a timestamp column as a UTC-stamped value.
     /// </summary>
-    /// <param name="reader">Okuyucu.</param>
-    /// <param name="ordinal">Sutun sirasi.</param>
-    /// <returns>Zaman damgasi.</returns>
+    /// <param name="reader">The reader.</param>
+    /// <param name="ordinal">The column ordinal.</param>
+    /// <returns>The timestamp.</returns>
     /// <remarks>
-    /// PostgreSQL <c>timestamptz</c> ve SQL Server <c>datetimeoffset</c> sutunlarinin
-    /// ikisi de <see cref="DateTimeOffset"/> olarak okunur. Yazma her zaman UTC
-    /// yaptigi icin okunan degerin ofseti sifirdir.
+    /// The PostgreSQL <c>timestamptz</c> and the SQL Server <c>datetimeoffset</c>
+    /// columns are both read as <see cref="DateTimeOffset"/>. Because writing is
+    /// always in UTC, the offset of the value read back is zero.
     /// </remarks>
     public static DateTimeOffset GetTimestamp(DbDataReader reader, int ordinal)
         => reader.GetFieldValue<DateTimeOffset>(ordinal);
 
-    /// <summary>Bos olabilen bir metin sutununu okur.</summary>
-    /// <param name="reader">Okuyucu.</param>
-    /// <param name="ordinal">Sutun sirasi.</param>
-    /// <returns>Deger; <c>NULL</c> ise <see langword="null"/>.</returns>
+    /// <summary>Reads a nullable text column.</summary>
+    /// <param name="reader">The reader.</param>
+    /// <param name="ordinal">The column ordinal.</param>
+    /// <returns>The value; <see langword="null"/> when it is <c>NULL</c>.</returns>
     public static string? GetNullableString(DbDataReader reader, int ordinal)
         => reader.IsDBNull(ordinal) ? null : reader.GetString(ordinal);
 
-    /// <summary>Bos olabilen bir zaman damgasi sutununu okur.</summary>
-    /// <param name="reader">Okuyucu.</param>
-    /// <param name="ordinal">Sutun sirasi.</param>
-    /// <returns>Zaman damgasi; <c>NULL</c> ise <see langword="null"/>.</returns>
+    /// <summary>Reads a nullable timestamp column.</summary>
+    /// <param name="reader">The reader.</param>
+    /// <param name="ordinal">The column ordinal.</param>
+    /// <returns>The timestamp; <see langword="null"/> when it is <c>NULL</c>.</returns>
     public static DateTimeOffset? GetNullableTimestamp(DbDataReader reader, int ordinal)
         => reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<DateTimeOffset>(ordinal);
 
-    /// <summary>Bos olabilen bir ondalik sutunu okur.</summary>
-    /// <param name="reader">Okuyucu.</param>
-    /// <param name="ordinal">Sutun sirasi.</param>
-    /// <returns>Deger; <c>NULL</c> ise <see langword="null"/>.</returns>
+    /// <summary>Reads a nullable decimal column.</summary>
+    /// <param name="reader">The reader.</param>
+    /// <param name="ordinal">The column ordinal.</param>
+    /// <returns>The value; <see langword="null"/> when it is <c>NULL</c>.</returns>
     public static decimal? GetNullableDecimal(DbDataReader reader, int ordinal)
         => reader.IsDBNull(ordinal) ? null : reader.GetDecimal(ordinal);
 
-    /// <summary>Bos olabilen bir kimlik sutununu okur.</summary>
-    /// <param name="reader">Okuyucu.</param>
-    /// <param name="ordinal">Sutun sirasi.</param>
-    /// <returns>Deger; <c>NULL</c> ise <see langword="null"/>.</returns>
+    /// <summary>Reads a nullable identifier column.</summary>
+    /// <param name="reader">The reader.</param>
+    /// <param name="ordinal">The column ordinal.</param>
+    /// <returns>The value; <see langword="null"/> when it is <c>NULL</c>.</returns>
     public static Guid? GetNullableGuid(DbDataReader reader, int ordinal)
         => reader.IsDBNull(ordinal) ? null : reader.GetGuid(ordinal);
 
-    /// <summary>Bos olabilen bir <c>integer</c> sutununu okur.</summary>
-    /// <param name="reader">Okuyucu.</param>
-    /// <param name="ordinal">Sutun sirasi.</param>
-    /// <returns>Deger; <c>NULL</c> ise <see langword="null"/>.</returns>
+    /// <summary>Reads a nullable <c>integer</c> column.</summary>
+    /// <param name="reader">The reader.</param>
+    /// <param name="ordinal">The column ordinal.</param>
+    /// <returns>The value; <see langword="null"/> when it is <c>NULL</c>.</returns>
     public static int? GetNullableInt32(DbDataReader reader, int ordinal)
         => reader.IsDBNull(ordinal) ? null : reader.GetInt32(ordinal);
 
-    /// <summary>Bos olabilen bir <c>bigint</c> sutununu okur.</summary>
-    /// <param name="reader">Okuyucu.</param>
-    /// <param name="ordinal">Sutun sirasi.</param>
-    /// <returns>Deger; <c>NULL</c> ise <see langword="null"/>.</returns>
+    /// <summary>Reads a nullable <c>bigint</c> column.</summary>
+    /// <param name="reader">The reader.</param>
+    /// <param name="ordinal">The column ordinal.</param>
+    /// <returns>The value; <see langword="null"/> when it is <c>NULL</c>.</returns>
     public static long? GetNullableInt64(DbDataReader reader, int ordinal)
         => reader.IsDBNull(ordinal) ? null : reader.GetInt64(ordinal);
 
     /// <summary>
-    /// <see cref="ExecuteScalarAsync"/>'in dondurdugu ham degeri <see cref="Guid"/>'e cevirir.
+    /// Converts the raw value returned by <see cref="ExecuteScalarAsync"/> into a <see cref="Guid"/>.
     /// </summary>
-    /// <param name="value">Ham skaler deger.</param>
-    /// <returns>Deger.</returns>
+    /// <param name="value">The raw scalar value.</param>
+    /// <returns>The value.</returns>
     /// <remarks>
-    /// 🚨 PostgreSQL (<c>uuid</c>) ve SQL Server (<c>uniqueidentifier</c>) skaler
-    /// sonucu zaten kutulanmis bir <see cref="Guid"/> olarak dondurur; SQLite
-    /// (<c>TEXT</c>) bir <see cref="string"/> dondurur. Cagri yerinde dogrudan
-    /// <c>(Guid)result</c> cevrimi SQLite'ta <see cref="InvalidCastException"/>
-    /// firlatirdi. Bu yardimci ikisini de kabul eder.
+    /// 🚨 PostgreSQL (<c>uuid</c>) and SQL Server (<c>uniqueidentifier</c>) already
+    /// return the scalar result as a boxed <see cref="Guid"/>; SQLite (<c>TEXT</c>)
+    /// returns a <see cref="string"/>. A direct <c>(Guid)result</c> cast at the call
+    /// site would throw <see cref="InvalidCastException"/> on SQLite. This helper
+    /// accepts both.
     /// </remarks>
     public static Guid ToGuid(object value)
         => value is Guid guid ? guid : Guid.Parse((string)value);
 
     /// <summary>
-    /// <see cref="ExecuteScalarAsync"/>'in dondurdugu ham degeri mantiksal
-    /// degere cevirir.
+    /// Converts the raw value returned by <see cref="ExecuteScalarAsync"/> into a
+    /// boolean value.
     /// </summary>
-    /// <param name="value">Ham skaler deger.</param>
-    /// <returns>Deger.</returns>
+    /// <param name="value">The raw scalar value.</param>
+    /// <returns>The value.</returns>
     /// <remarks>
-    /// 🚨 PostgreSQL (<c>boolean</c>) ve SQL Server (<c>CAST(... AS bit)</c>)
-    /// skaler sonucu kutulanmis bir <see cref="bool"/> olarak dondurur; SQLite'ta
-    /// mantiksal tip yoktur ve <c>RETURNING</c> ifadesindeki bir karsilastirma
-    /// kutulanmis bir <see cref="long"/> (0/1) dondurur. <c>result is bool b &amp;&amp; b</c>
-    /// deseni SQLite'ta HER ZAMAN <see langword="false"/> verirdi (tip hic eslesmez).
+    /// 🚨 PostgreSQL (<c>boolean</c>) and SQL Server (<c>CAST(... AS bit)</c>)
+    /// return the scalar result as a boxed <see cref="bool"/>; SQLite has no boolean
+    /// type and a comparison in a <c>RETURNING</c> clause returns a boxed
+    /// <see cref="long"/> (0/1). The <c>result is bool b &amp;&amp; b</c> pattern
+    /// would ALWAYS give <see langword="false"/> on SQLite (the type never matches).
     /// </remarks>
     public static bool ToBoolean(object value)
         => value switch
         {
             bool boolean => boolean,
             long integer => integer != 0,
-            _ => throw new ArgumentException($"'{value.GetType()}' mantiksal degere cevrilemez.", nameof(value)),
+            _ => throw new ArgumentException($"'{value.GetType()}' cannot be converted to a boolean value.", nameof(value)),
         };
 }

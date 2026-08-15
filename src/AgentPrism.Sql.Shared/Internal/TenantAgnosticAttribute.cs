@@ -1,29 +1,29 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Kiraci kavrami tasimayan bir depo metodunu kiraci yalitimi kapsam
-/// denetiminden muaf tutar.
+/// Exempts a store method that carries no tenant concept from the tenant
+/// isolation coverage check.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Faz 41'de eklendi. <c>TenantCoverageTests</c>, paylasilan depo katmanindaki
-/// her public metodun ya kiraci yalitimi sozlesmesinde sinandigini ya da bu
-/// oznitelikle <strong>gerekcesi yazilarak</strong> muaf tutuldugunu dogrular.
-/// Boylece yarin eklenen bir metot sessizce testsiz kalamaz.
+/// Added in phase 41. <c>TenantCoverageTests</c> verifies that every public
+/// method in the shared store layer is either exercised by the tenant isolation
+/// contract or exempted by this attribute <strong>with a written reason</strong>.
+/// A method added tomorrow therefore cannot stay untested silently.
 /// </para>
 /// <para>
-/// 🚨 Oznitelik <c>internal</c>'dir ve public sozlesmeyi buyutmez. Yansimayi
-/// yalnizca test projesi kullanir; urun kodu bu tipi hicbir zaman okumaz ve
-/// AOT durusu etkilenmez.
+/// 🚨 The attribute is <c>internal</c> and does not grow the public contract.
+/// Only the test project uses reflection over it; product code never reads this
+/// type and the AOT posture is unaffected.
 /// </para>
 /// </remarks>
 /// <param name="reason">
-/// Metodun neden kiraci filtrelemedigi. Bos birakilamaz; kod incelemesinde
-/// gorunur olmasi bu oznitelik ile liste dosyasi arasindaki farktir.
+/// Why the method does not filter by tenant. Cannot be left empty; being visible
+/// in code review is what separates this attribute from a list file.
 /// </param>
 [AttributeUsage(AttributeTargets.Method)]
 internal sealed class TenantAgnosticAttribute(string reason) : Attribute
 {
-    /// <summary>Muafiyetin gerekcesi.</summary>
+    /// <summary>Gets the reason for the exemption.</summary>
     public string Reason { get; } = reason;
 }

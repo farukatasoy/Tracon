@@ -143,8 +143,8 @@ public sealed class AzureOpenAIChatClientFactoryTests
         var exception = Should.Throw<AgentPrismException>(() => Factory().CreateChatClient(
             TestData.Binding(providerSettings: TestData.Settings(("azure-openai.yokBoyleAyar", true)))));
 
-        exception.Message.ShouldContain("taninmiyor");
-        exception.Message.ShouldContain("hicbir ek ayar desteklemiyor");
+        exception.Message.ShouldContain("are not recognized");
+        exception.Message.ShouldContain("supports no extra settings");
     }
 
     [Fact]
@@ -155,7 +155,7 @@ public sealed class AzureOpenAIChatClientFactoryTests
 
         // Yanlis onek "ayari baska bir saglayiciya yazdin" demektir; duzeltmesi
         // taninmayan anahtardan farklidir.
-        exception.Message.ShouldContain("ait degil");
+        exception.Message.ShouldContain("do not belong");
         exception.Message.ShouldContain("anthropic.promptCaching");
     }
 

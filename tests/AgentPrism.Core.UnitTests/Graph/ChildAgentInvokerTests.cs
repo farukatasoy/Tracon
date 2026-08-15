@@ -149,7 +149,7 @@ public sealed class ChildAgentInvokerTests
         // cevaplanamayacak bir soruyu geri dondu.
         var child = (await store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).ShouldHaveSingleItem();
         child.Status.ShouldBe(RunStatus.Failed);
-        child.Error!.Message.ShouldContain("Alt agent onay isteyemez", Case.Sensitive);
+        child.Error!.Message.ShouldContain("A child agent cannot request approval", Case.Sensitive);
     }
 
     /// <summary>Kapsami mevcut akisa yazar.</summary>

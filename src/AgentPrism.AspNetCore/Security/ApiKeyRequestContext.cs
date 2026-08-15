@@ -3,29 +3,29 @@ using Microsoft.AspNetCore.Http;
 namespace AgentPrism;
 
 /// <summary>
-/// Bu istegi dogrulayan API anahtarini <see cref="HttpContext.Items"/> uzerinden
-/// tasir.
+/// Carries the API key that authenticated this request through
+/// <see cref="HttpContext.Items"/>.
 /// </summary>
 /// <remarks>
-/// <see cref="AsyncLocal{T}"/> BILEREK kullanilmaz: bu tamamen istek kapsamli
-/// bir degerdir ve <c>HttpContext.Items</c> zaten istek basina temizlenir.
-/// <c>AsyncLocal</c> yazimi cagirana geri akmaz (docs/hafiza/cekirdek-calistirma.md)
-/// — burada boyle bir sorun yoktur cunku deger, aynı `HttpContext` uzerinde
-/// calisan sonraki katmanlarca okunur.
+/// <see cref="AsyncLocal{T}"/> is DELIBERATELY not used: this is a fully request-scoped
+/// value and <c>HttpContext.Items</c> is already cleared per request. A write to an
+/// <c>AsyncLocal</c> does not flow back to the caller
+/// (docs/hafiza/cekirdek-calistirma.md) — there is no such problem here, because the value
+/// is read by the later layers that run on the same <c>HttpContext</c>.
 /// </remarks>
 internal static class ApiKeyRequestContext
 {
     private const string ItemsKey = "AgentPrism.ApiKeyRecord";
 
-    /// <summary>Bu istegi dogrulayan anahtar kaydini saklar.</summary>
-    /// <param name="httpContext">Gecerli istek.</param>
-    /// <param name="record">Dogrulanan kayit.</param>
+    /// <summary>Stores the key record that authenticated this request.</summary>
+    /// <param name="httpContext">The current request.</param>
+    /// <param name="record">The authenticated record.</param>
     public static void Set(HttpContext httpContext, ApiKeyRecord record)
         => httpContext.Items[ItemsKey] = record;
 
-    /// <summary>Bu istegi dogrulayan anahtar kaydini okur.</summary>
-    /// <param name="httpContext">Gecerli istek.</param>
-    /// <returns>Kayit; istek bir API anahtariyla dogrulanmadiysa <see langword="null"/>.</returns>
+    /// <summary>Reads the key record that authenticated this request.</summary>
+    /// <param name="httpContext">The current request.</param>
+    /// <returns>The record; <see langword="null"/> when the request was not authenticated with an API key.</returns>
     public static ApiKeyRecord? Get(HttpContext httpContext)
         => httpContext.Items.TryGetValue(ItemsKey, out var value) ? value as ApiKeyRecord : null;
 }

@@ -1,32 +1,33 @@
 namespace AgentPrism;
 
-/// <summary>Bir saklama hedefinin tablosunu ve "eski" sayilma kosulunu tanimlar.</summary>
-/// <param name="Table">Nitelendirilmis (sema/onekli) tablo adi.</param>
+/// <summary>Defines the table of a retention target and the condition that makes a row "old".</summary>
+/// <param name="Table">The qualified (schema-prefixed) table name.</param>
 /// <param name="WherePredicate">
-/// <c>@cutoff</c> parametresine atifta bulunan SQL kosulu. Bagimsiz bir sutun
-/// karsilastirmasi olabilecegi gibi (<c>created_at &lt; @cutoff</c>), iliskili
-/// bir tabloya bakan bir <c>EXISTS</c> ifadesi de olabilir (ornegin bir
-/// calistirmanin tamamlanma zamanina bakan <c>workflow_checkpoints</c>).
+/// The SQL condition that refers to the <c>@cutoff</c> parameter. It can be a
+/// standalone column comparison (<c>created_at &lt; @cutoff</c>) or an
+/// <c>EXISTS</c> clause that looks at a related table (for example
+/// <c>workflow_checkpoints</c>, which looks at the completion time of a run).
 /// </param>
 /// <param name="OrderColumn">
-/// Arsiv okumasinda determinizm icin kullanilan siralama sutunu. Hedefin kendi
-/// zaman sutunu yoksa (<c>eval_case_results</c>) UUID v7 kimligi zaman sirali
-/// oldugu icin (K-015) <c>id</c> kullanilir.
+/// The ordering column used for determinism in the archive read. When the target
+/// has no time column of its own (<c>eval_case_results</c>), <c>id</c> is used,
+/// because a UUID v7 identifier is time-ordered (K-015).
 /// </param>
 /// <param name="TenantPredicate">
-/// Satiri bir kiraciya baglayan SQL kosulu; <c>@tenant_id</c> parametresine
-/// atifta bulunur. Tablonun kendi <c>tenant_id</c> sutunu varsa dogrudan bir
-/// karsilastirmadir; yoksa (<c>run_events</c>, <c>tool_invocations</c>,
-/// <c>eval_case_results</c>) sahibine bakan bir <c>EXISTS</c> ifadesidir.
-/// 🚨 Faz 41: bu alan olmadan kiraci basina tanimlanmis bir politika BUTUN
-/// kiracilarin satirlarini siliyordu.
+/// The SQL condition that binds the row to a tenant; it refers to the
+/// <c>@tenant_id</c> parameter. When the table has a <c>tenant_id</c> column of its
+/// own, it is a direct comparison; otherwise (<c>run_events</c>,
+/// <c>tool_invocations</c>, <c>eval_case_results</c>) it is an <c>EXISTS</c> clause
+/// that looks at the owner.
+/// 🚨 Phase 41: without this field, a policy defined for one tenant deleted the
+/// rows of ALL tenants.
 /// </param>
 /// <param name="RowLimitOrderExpression">
-/// <c>MaxRows</c> (Faz 36) icin: en yeniden N. satiri bulmakta kullanilan SQL
-/// ifadesi. Coğu hedefte <see cref="WherePredicate"/>'in <c>@cutoff</c> ile
-/// karsilastirdigi SUTUNLA AYNIDIR (esik dogrudan ayni kosula beslenebilir).
-/// Iliskili bir tabloya bakan hedeflerde (<c>eval_case_results</c>) korele bir
-/// alt sorgudur. Bkz. 36.1.
+/// For <c>MaxRows</c> (phase 36): the SQL expression used to find the Nth row from
+/// the newest. On most targets it is THE SAME COLUMN that
+/// <see cref="WherePredicate"/> compares with <c>@cutoff</c> (the threshold can be
+/// fed straight into the same condition). On targets that look at a related table
+/// (<c>eval_case_results</c>) it is a correlated subquery. See 36.1.
 /// </param>
 internal readonly record struct RetentionTargetDefinition(
     string Table,
@@ -36,34 +37,35 @@ internal readonly record struct RetentionTargetDefinition(
     string RowLimitOrderExpression);
 
 /// <summary>
-/// <see cref="RetentionTargets"/> beyaz listesindeki her hedefin tablo/kosul
-/// eslemesini tutan sabit defter.
+/// The constant registry that holds the table/condition mapping of every target in
+/// the <see cref="RetentionTargets"/> allow list.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bu defter, 25.1'deki saklama tablosunun SQL karsiligidir. Yeni bir hedef
-/// eklemek icin once <c>RetentionTargets</c>'a sabit eklenir, sonra buraya
-/// tablosu/kosulu yazilir — SQL metni <strong>saglayici basina</strong>
-/// COPYALANMAZ; <see cref="SqlDialect"/> yalniz 3 sablon yontemi (say/sil/oku)
-/// ve tablo nitelendirmesini (<see cref="SqlDialect.QualifyTable"/>) saglar,
-/// tablo/kosul burada TEK yerde tanimlanir. Gerekce: 30 elle yazilmis sorgu
-/// yerine tek bir veri tablosu (docs/KARARLAR.md, karar K-198).
+/// This registry is the SQL counterpart of the retention table in 25.1. To add a
+/// new target, a constant is first added to <c>RetentionTargets</c> and then its
+/// table/condition is written here — the SQL text is NOT copied
+/// <strong>per provider</strong>; <see cref="SqlDialect"/> supplies only 3 template
+/// methods (count/delete/read) and the table qualification
+/// (<see cref="SqlDialect.QualifyTable"/>), while the table and condition are
+/// defined in ONE place here. Rationale: a single data table instead of 30
+/// hand-written queries (docs/KARARLAR.md, decision K-198).
 /// </para>
 /// <para>
-/// 🚨 <c>audit_log</c> burada KASITLI OLARAK yoktur ve asla eklenmemelidir.
+/// 🚨 <c>audit_log</c> is DELIBERATELY absent here and must never be added.
 /// </para>
 /// </remarks>
 internal static class RetentionTargetRegistry
 {
-    /// <summary>Bir hedefin tablo/kosul tanimini cozer.</summary>
+    /// <summary>Resolves the table/condition definition of a target.</summary>
     /// <param name="dialect">
-    /// Tablo adlarini nitelendirmek icin kullanilan saglayici diyalekti
-    /// (bkz. <see cref="SqlDialect.QualifyTable"/> — PostgreSQL/SQL Server
-    /// nokta ile, SQLite onek bitistirerek nitelendirir).
+    /// The provider dialect used to qualify the table names
+    /// (see <see cref="SqlDialect.QualifyTable"/> — PostgreSQL/SQL Server qualify
+    /// with a dot, SQLite by concatenating a prefix).
     /// </param>
-    /// <param name="target">Bkz. <see cref="RetentionTargets"/>.</param>
-    /// <returns>Tanim.</returns>
-    /// <exception cref="ArgumentException">Hedef beyaz listede yoksa.</exception>
+    /// <param name="target">See <see cref="RetentionTargets"/>.</param>
+    /// <returns>The definition.</returns>
+    /// <exception cref="ArgumentException">The target is not in the allow list.</exception>
     public static RetentionTargetDefinition Resolve(SqlDialect dialect, string target)
     {
         ArgumentNullException.ThrowIfNull(dialect);
@@ -88,7 +90,7 @@ internal static class RetentionTargetRegistry
                 "created_at",
                 "created_at"),
 
-            // traces siliniyor; spans ON DELETE CASCADE ile birlikte gider.
+            // traces is deleted; spans go with it through ON DELETE CASCADE.
             RetentionTargets.Traces => new RetentionTargetDefinition(
                 Table("traces"),
                 "started_at < @cutoff",
@@ -96,10 +98,10 @@ internal static class RetentionTargetRegistry
                 "started_at",
                 "started_at"),
 
-            // Yalniz sonlanmis isler (Completed=3, Failed=4, Cancelled=5);
-            // job_items ON DELETE CASCADE ile birlikte gider. Aktif islerin
-            // completed_at'i NULL'dur; satir siniri sorgusu NULL'lari eler
-            // (bkz. SqlDialect.BuildRetentionFindNthRowCutoffSql).
+            // Finished jobs only (Completed=3, Failed=4, Cancelled=5); job_items go
+            // with them through ON DELETE CASCADE. The completed_at of an active job
+            // is NULL; the row limit query filters the NULLs out
+            // (see SqlDialect.BuildRetentionFindNthRowCutoffSql).
             RetentionTargets.Jobs => new RetentionTargetDefinition(
                 Table("jobs"),
                 "status IN (3, 4, 5) AND completed_at < @cutoff",
@@ -107,7 +109,7 @@ internal static class RetentionTargetRegistry
                 "completed_at",
                 "completed_at"),
 
-            // Yalniz teslim edilmis (Delivered=1) kayitlar.
+            // Delivered records only (Delivered=1).
             RetentionTargets.WebhookDeliveries => new RetentionTargetDefinition(
                 Table("webhook_deliveries"),
                 "status = 1 AND delivered_at < @cutoff",
@@ -115,22 +117,22 @@ internal static class RetentionTargetRegistry
                 "delivered_at",
                 "delivered_at"),
 
-            // eval_case_results'in kendi zaman sutunu yok; kosunun tamamlanma
-            // zamanina EXISTS ile bakilir. Arsiv siralamasi icin uuid v7 kimligi
-            // kullanilir (OrderColumn), ama MaxRows esigi WherePredicate'in
-            // GERCEKTEN karsilastirdigi sutunla (er.completed_at) AYNI olmalidir
-            // — bu yuzden RowLimitOrderExpression bagimsiz bir korele alt sorgudur.
-            // Acik Soru 2 (Faz 36 plani) bu sekilde cozuldu: id bir zaman damgasi
-            // DEGILDIR, dogrudan esik olamaz.
+            // eval_case_results has no time column of its own; the completion time
+            // of the run is looked at with EXISTS. The uuid v7 identifier is used for
+            // the archive ordering (OrderColumn), but the MaxRows threshold must be
+            // THE SAME as the column the WherePredicate REALLY compares
+            // (er.completed_at) — RowLimitOrderExpression is therefore a standalone
+            // correlated subquery. Open Question 2 (phase 36 plan) was resolved this
+            // way: id is NOT a timestamp and cannot be a threshold directly.
             //
-            // 🚨 Korelasyon FULL NITELENDIRILMIS ada gore yazilir (Table(...)),
-            // BARE hedef adina gore DEGIL: SQLite'ta QualifyTable onek + ad
-            // BITISTIRIR (nokta yok, K-193) — bare "eval_case_results" FROM
-            // yan tumcesindeki gercek nesneyle (ornegin "t_ab12cd34eval_case_results")
-            // EsLESMEZ ve "no such column" ile calisma aninda patlar. Faz 36'da
-            // MaxRows testleri bu tuzagi SQLite'a karsi kosarken YAKALADI; Faz
-            // 25'in orijinal WherePredicate'i de AYNI hatayi tasiyordu, burada
-            // birlikte duzeltildi.
+            // 🚨 The correlation is written against the FULLY QUALIFIED name
+            // (Table(...)), NOT against the BARE target name: on SQLite QualifyTable
+            // CONCATENATES the prefix and the name (no dot, K-193) — a bare
+            // "eval_case_results" does NOT MATCH the real object in the FROM clause
+            // (for example "t_ab12cd34eval_case_results") and blows up at run time
+            // with "no such column". In phase 36 the MaxRows tests CAUGHT this trap
+            // while running against SQLite; the original WherePredicate of phase 25
+            // carried the SAME defect and was fixed here at the same time.
             RetentionTargets.EvalCaseResults => new RetentionTargetDefinition(
                 Table("eval_case_results"),
                 $"EXISTS (SELECT 1 FROM {Table("eval_runs")} er " +
@@ -140,12 +142,12 @@ internal static class RetentionTargetRegistry
                 "id",
                 $"(SELECT er.completed_at FROM {Table("eval_runs")} er WHERE er.id = {Table("eval_case_results")}.eval_run_id)"),
 
-            // Kontrol noktasinin kendi created_at'i degil, BAGLI CALISTIRMANIN
-            // tamamlanma zamani esas alinir (25.1: "Tamamlanan calistirmadan
-            // 7 gun sonra"). MaxRows esigi de AYNI GEREKCEYLE runs.completed_at
-            // uzerinden korele alt sorguyla hesaplanir (eval_case_results ile
-            // ayni desen). Korelasyon burada da FULL NITELENDIRILMIS addir —
-            // yukaridaki 🚨 notu gecerlidir.
+            // The basis is not the created_at of the checkpoint itself but the
+            // completion time of the ASSOCIATED RUN (25.1: "7 days after the run
+            // completes"). For THE SAME REASON the MaxRows threshold is computed with
+            // a correlated subquery over runs.completed_at (the same pattern as
+            // eval_case_results). The correlation is the FULLY QUALIFIED name here as
+            // well — the 🚨 note above applies.
             RetentionTargets.WorkflowCheckpoints => new RetentionTargetDefinition(
                 Table("workflow_checkpoints"),
                 $"EXISTS (SELECT 1 FROM {Table("runs")} r " +
@@ -154,9 +156,9 @@ internal static class RetentionTargetRegistry
                 "created_at",
                 $"(SELECT r.completed_at FROM {Table("runs")} r WHERE r.id = {Table("workflow_checkpoints")}.run_id)"),
 
-            // Suresi dolmus VEYA iptal edilmis izinler. Iki sutundan hangisi
-            // doluysa (COALESCE) esik odur; ikisi de NULL ise satir siniri
-            // sorgusu bu satiri eler (henuz uygun aday degil).
+            // Expired OR revoked grants. The threshold is whichever of the two
+            // columns is filled (COALESCE); when both are NULL the row limit query
+            // filters the row out (it is not yet a candidate).
             RetentionTargets.SkillScriptGrants => new RetentionTargetDefinition(
                 Table("skill_script_grants"),
                 "(expires_at IS NOT NULL AND expires_at < @cutoff) " +
@@ -165,9 +167,9 @@ internal static class RetentionTargetRegistry
                 "granted_at",
                 "COALESCE(expires_at, revoked_at)"),
 
-            // Sahipsiz: hic oturumu olmayan VEYA oturumu artik var olmayan ekler.
-            // Korelasyon burada da FULL NITELENDIRILMIS addir — yukaridaki 🚨 notu
-            // gecerlidir.
+            // Orphaned: attachments that have no session at all OR whose session no
+            // longer exists. The correlation is the FULLY QUALIFIED name here as well
+            // — the 🚨 note above applies.
             RetentionTargets.Attachments => new RetentionTargetDefinition(
                 Table("attachments"),
                 "created_at < @cutoff AND (session_id IS NULL " +
@@ -176,7 +178,7 @@ internal static class RetentionTargetRegistry
                 "created_at",
                 "created_at"),
 
-            // Kullanici verisi; varsayilan KAPALI (bkz. AgentPrismRetentionOptions).
+            // User data; OFF by default (see AgentPrismRetentionOptions).
             RetentionTargets.Sessions => new RetentionTargetDefinition(
                 Table("sessions"),
                 "updated_at < @cutoff",
@@ -184,8 +186,8 @@ internal static class RetentionTargetRegistry
                 "updated_at",
                 "updated_at"),
 
-            // conversations siliniyor; conversation_items ve responses ON DELETE
-            // CASCADE ile birlikte gider. Kullanici verisi; varsayilan KAPALI.
+            // conversations is deleted; conversation_items and responses go with it
+            // through ON DELETE CASCADE. User data; OFF by default.
             RetentionTargets.Conversations => new RetentionTargetDefinition(
                 Table("conversations"),
                 "updated_at < @cutoff",
@@ -193,10 +195,11 @@ internal static class RetentionTargetRegistry
                 "updated_at",
                 "updated_at"),
 
-            // Yalniz KAPANMIS baglantilar. Acik bir baglanti (ended_at IS NULL)
-            // silinemez; sunucu cokerse kalan NULL, kapanmamis bir baglantinin
-            // izidir ve saklama politikasi onu sessizce yok etmemelidir. Satir
-            // siniri sorgusu NULL ended_at'i eler (acik baglanti aday olamaz).
+            // CLOSED connections only. An open connection (ended_at IS NULL) cannot
+            // be deleted; when the server crashes the remaining NULL is the trace of
+            // a connection that never closed, and the retention policy must not
+            // destroy it silently. The row limit query filters out a NULL ended_at
+            // (an open connection cannot be a candidate).
             RetentionTargets.VoiceSessions => new RetentionTargetDefinition(
                 Table("voice_sessions"),
                 "ended_at IS NOT NULL AND ended_at < @cutoff",
@@ -204,8 +207,9 @@ internal static class RetentionTargetRegistry
                 "started_at",
                 "ended_at"),
 
-            // Puanin kendi olusturulma zamani esas alinir; runs'a FK olmadigi
-            // icin (diger olay/ozet tablolariyla ayni gerekce) EXISTS gerekmez.
+            // The basis is the creation time of the score itself; because there is no
+            // FK to runs (the same reason as the other event/summary tables) no
+            // EXISTS is needed.
             RetentionTargets.RunScores => new RetentionTargetDefinition(
                 Table("run_scores"),
                 "created_at < @cutoff",
@@ -213,8 +217,8 @@ internal static class RetentionTargetRegistry
                 "created_at",
                 "created_at"),
 
-            // Saklanan idempotency yanitlari (Faz 43). Kendi olusturulma zamani
-            // esas alinir; runs'a FK olmadigi icin EXISTS gerekmez.
+            // Stored idempotency responses (phase 43). The basis is their own
+            // creation time; because there is no FK to runs no EXISTS is needed.
             RetentionTargets.IdempotencyKeys => new RetentionTargetDefinition(
                 Table("idempotency_keys"),
                 "created_at < @cutoff",
@@ -222,9 +226,9 @@ internal static class RetentionTargetRegistry
                 "created_at",
                 "created_at"),
 
-            // Calistirma girdileri (Faz 47). Kendi tenant_id ve created_at
-            // sutunlarini tasir; runs'a FK'si CASCADE oldugu icin calistirma
-            // silinince zaten gider, ama kendi omru de sinirlanabilmelidir.
+            // Run inputs (phase 47). They carry their own tenant_id and created_at
+            // columns; because their FK to runs is CASCADE they already go when the
+            // run is deleted, but their own lifetime must also be limitable.
             RetentionTargets.RunInputs => new RetentionTargetDefinition(
                 Table("run_inputs"),
                 "created_at < @cutoff",
@@ -232,10 +236,10 @@ internal static class RetentionTargetRegistry
                 "created_at",
                 "created_at"),
 
-            // Bilgi tabani parcalari (Faz 51). 🚨 Tablo YALNIZ PostgreSQL
-            // migration setinde vardir; bu hedefi SQL Server/SQLite'ta bir
-            // politikaya baglamak calisma aninda "tablo yok" hatasi verir —
-            // bu bilinclidir (bkz. docs/51-VEKTOR-BELLEK-VE-RAG.md, 51.3).
+            // Knowledge base chunks (phase 51). 🚨 The table exists ONLY in the
+            // PostgreSQL migration set; binding this target to a policy on SQL
+            // Server/SQLite gives a "table does not exist" error at run time — that
+            // is deliberate (see docs/51-VEKTOR-BELLEK-VE-RAG.md, 51.3).
             RetentionTargets.DocumentEmbeddings => new RetentionTargetDefinition(
                 Table("document_embeddings"),
                 "created_at < @cutoff",
@@ -243,7 +247,7 @@ internal static class RetentionTargetRegistry
                 "created_at",
                 "created_at"),
 
-            _ => throw new ArgumentException($"Bilinmeyen saklama hedefi: '{target}'.", nameof(target)),
+            _ => throw new ArgumentException($"Unknown retention target: '{target}'.", nameof(target)),
         };
     }
 }

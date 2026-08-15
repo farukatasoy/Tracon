@@ -1,68 +1,68 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Bir agent'in konusma gecmisini nasil sikistiracagini belirler.
+/// Determines how an agent compacts its conversation history.
 /// </summary>
 /// <remarks>
-/// <see langword="null"/> birakilirsa hicbir sikistirma uygulanmaz; konusma
-/// gecmisi model baglam penceresine sigmadiginda hata verir. Gecersiz bir
-/// alan birlesimi (ornegin <see cref="CompactionStrategyKind.Summarization"/>
-/// secilip hicbir tetikleyici verilmemesi) derleme aninda
-/// <see cref="AgentPrismCompilationException"/> ile reddedilir, sessizce yok
-/// sayilmaz.
+/// When left <see langword="null"/> no compaction is applied, and the run fails once
+/// the conversation history no longer fits the model context window. An invalid
+/// combination of fields (for example choosing
+/// <see cref="CompactionStrategyKind.Summarization"/> without any trigger) is rejected
+/// while the agent is built, with <see cref="AgentPrismCompilationException"/>; it is
+/// not ignored silently.
 /// </remarks>
 public sealed record CompactionSettings
 {
-    /// <summary>Uygulanacak strateji turu.</summary>
+    /// <summary>Gets the strategy to apply.</summary>
     public CompactionStrategyKind Strategy { get; init; } = CompactionStrategyKind.None;
 
-    /// <summary>Bu token sayisi asilinca sikistirma tetiklenir.</summary>
+    /// <summary>Gets the token count above which compaction is triggered.</summary>
     public int? TriggerTokens { get; init; }
 
-    /// <summary>Bu mesaj sayisi asilinca sikistirma tetiklenir.</summary>
+    /// <summary>Gets the message count above which compaction is triggered.</summary>
     public int? TriggerMessages { get; init; }
 
-    /// <summary>Bu tur sayisi asilinca sikistirma tetiklenir.</summary>
+    /// <summary>Gets the turn count above which compaction is triggered.</summary>
     public int? TriggerTurns { get; init; }
 
     /// <summary>
-    /// <see cref="CompactionStrategyKind.SlidingWindow"/> icin korunacak en az
-    /// tur sayisi. Belirtilmezse 2 kullanilir.
+    /// Gets the minimum number of turns kept for
+    /// <see cref="CompactionStrategyKind.SlidingWindow"/>. 2 is used when it is not given.
     /// </summary>
     public int? MinimumPreservedTurns { get; init; }
 
     /// <summary>
-    /// <see cref="CompactionStrategyKind.Truncation"/>, <see cref="CompactionStrategyKind.ToolResult"/>
-    /// ve <see cref="CompactionStrategyKind.Summarization"/> icin korunacak en
-    /// az grup sayisi. Belirtilmezse 4 kullanilir.
+    /// Gets the minimum number of groups kept for <see cref="CompactionStrategyKind.Truncation"/>,
+    /// <see cref="CompactionStrategyKind.ToolResult"/> and
+    /// <see cref="CompactionStrategyKind.Summarization"/>. 4 is used when it is not given.
     /// </summary>
     public int? MinimumPreservedGroups { get; init; }
 
     /// <summary>
-    /// <see cref="CompactionStrategyKind.ContextWindow"/> icin zorunludur;
-    /// diger stratejilerde yok sayilir.
+    /// Gets the context window size. It is required for
+    /// <see cref="CompactionStrategyKind.ContextWindow"/> and ignored by the other strategies.
     /// </summary>
     public int? MaxContextWindowTokens { get; init; }
 
     /// <summary>
-    /// <see cref="CompactionStrategyKind.ContextWindow"/> icin ust uretim
-    /// token siniri. Belirtilmezse agent'in kendi model baglantisindaki
-    /// <see cref="ModelBinding.MaxOutputTokens"/>, o da yoksa 4096 kullanilir.
+    /// Gets the upper output token limit for <see cref="CompactionStrategyKind.ContextWindow"/>.
+    /// When it is not given, <see cref="ModelBinding.MaxOutputTokens"/> from the agent's own
+    /// model binding is used, and 4096 when that is missing too.
     /// </summary>
     public int? MaxOutputTokens { get; init; }
 
     /// <summary>
-    /// <see cref="CompactionStrategyKind.Summarization"/> ve
-    /// <see cref="CompactionStrategyKind.Pipeline"/> icin ozetleme istemine
-    /// eklenecek ek talimat. <see langword="null"/> ise MAF'in varsayilan
-    /// istemi kullanilir.
+    /// Gets the extra instruction added to the summarization prompt for
+    /// <see cref="CompactionStrategyKind.Summarization"/> and
+    /// <see cref="CompactionStrategyKind.Pipeline"/>. When <see langword="null"/> the
+    /// default prompt of MAF is used.
     /// </summary>
     public string? SummarizationPrompt { get; init; }
 
     /// <summary>
-    /// Ozetleme cagrisinda kullanilacak model. Bos birakilirsa sira izlenir:
-    /// uygulama genelindeki yardimci model ayari, o da yoksa agent'in kendi
-    /// modeli.
+    /// Gets the model used for the summarization call. When it is empty the order is
+    /// followed: the application-wide helper model setting, and the agent's own model
+    /// when that is missing.
     /// </summary>
     public ModelBinding? SummarizationModel { get; init; }
 }

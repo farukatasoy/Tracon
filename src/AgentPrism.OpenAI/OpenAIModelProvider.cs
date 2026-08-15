@@ -4,22 +4,22 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// OpenAI icin <see cref="IModelProvider"/> uygulamasi.
+/// The <see cref="IModelProvider"/> implementation for OpenAI.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <c>UseOpenAI()</c> bu tipten <strong>iki</strong> ornek kaydeder:
-/// <see cref="OpenAIProviderNames.ChatCompletions"/> ve
-/// <see cref="OpenAIProviderNames.Responses"/>. Ikisi ayni
-/// <see cref="OpenAIChatClientFactory"/> ornegini, dolayisiyla ayni HTTP baglanti
-/// havuzunu paylasir; yalnizca <see cref="ApiSurface"/> degerleri farklidir.
+/// <c>UseOpenAI()</c> registers <strong>two</strong> instances of this type:
+/// <see cref="OpenAIProviderNames.ChatCompletions"/> and
+/// <see cref="OpenAIProviderNames.Responses"/>. Both share the same
+/// <see cref="OpenAIChatClientFactory"/> instance, and therefore the same HTTP
+/// connection pool; only their <see cref="ApiSurface"/> values differ.
 /// </para>
 /// <para>
-/// Saglayici, katalogda bulunmayan bir model adini <strong>reddetmez</strong>.
-/// OpenAI yeni bir model yayinladiginda AgentPrism'in yeni bir surumu beklenmez;
-/// katalog doluysa yalnizca bilgilendirme amacli bir gunluk kaydi birakilir.
-/// AgentPrism yerlesik model listesi tasimadigi icin (karar K-032) katalogun bos
-/// olmasi normaldir; o durumda gunluk yazilmaz.
+/// The provider does <strong>not reject</strong> a model name that is absent from the
+/// catalog. When OpenAI publishes a new model, no new AgentPrism release is needed; if
+/// the catalog is not empty, only an informational log entry is written. Because
+/// AgentPrism carries no built-in model list (decision K-032), an empty catalog is
+/// normal; in that case nothing is logged.
 /// </para>
 /// </remarks>
 public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
@@ -30,26 +30,26 @@ public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCh
     private readonly OpenAIProviderHealthCheck? _healthCheck;
     private readonly ConfigurationDiagnostic? _configurationDiagnostic;
 
-    /// <summary>Yeni bir saglayici olusturur.</summary>
-    /// <param name="name">Saglayici adi. Agent tanimlarindaki <see cref="ModelBinding.Provider"/> bu degerle eslesir.</param>
-    /// <param name="apiSurface">Kullanilacak OpenAI API yuzeyi.</param>
-    /// <param name="chatClientFactory">Sohbet istemcisi fabrikasi.</param>
-    /// <param name="models">Bu saglayicinin sundugu modeller.</param>
-    /// <param name="logger">Gunlukleyici.</param>
+    /// <summary>Initializes a new provider.</summary>
+    /// <param name="name">The provider name. The <see cref="ModelBinding.Provider"/> of agent definitions matches this value.</param>
+    /// <param name="apiSurface">The OpenAI API surface to use.</param>
+    /// <param name="chatClientFactory">The chat client factory.</param>
+    /// <param name="models">The models this provider offers.</param>
+    /// <param name="logger">The logger.</param>
     /// <param name="healthCheckOptions">
-    /// Verilirse <see cref="CheckHealthAsync"/> bu ayarlardaki adres ve anahtarla
-    /// <c>GET {endpoint}/models</c> ucuna gider. <see langword="null"/> ise saglik
-    /// durumu her zaman <see cref="ModelProviderHealthStatus.Unknown"/> doner.
+    /// When given, <see cref="CheckHealthAsync"/> calls the <c>GET {endpoint}/models</c>
+    /// endpoint with the address and key from these options. When <see langword="null"/>,
+    /// the health status is always <see cref="ModelProviderHealthStatus.Unknown"/>.
     /// </param>
     /// <param name="configurationSectionKey">
-    /// <see cref="GetConfigurationDiagnostic"/>'in bildirecegi sabit yapilandirma
-    /// bolumu. Varsayilan <see cref="OpenAIProviderOptions.SectionName"/> —
-    /// <c>UseOpenAI()</c> icindir. <c>UseOpenAICompatible()</c> anahtari kod icinde
-    /// serbestce verdigi (sabit bir bolum yolu olmadigi) icin <see langword="null"/>
-    /// gecer; bu durumda hicbir <see cref="ConfigurationDiagnostic"/> bildirilmez.
+    /// The fixed configuration section that <see cref="GetConfigurationDiagnostic"/>
+    /// reports. The default is <see cref="OpenAIProviderOptions.SectionName"/> — it is
+    /// meant for <c>UseOpenAI()</c>. <c>UseOpenAICompatible()</c> passes
+    /// <see langword="null"/> because it takes the key freely in code (there is no fixed
+    /// section path); in that case no <see cref="ConfigurationDiagnostic"/> is reported.
     /// </param>
-    /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
-    /// <exception cref="ArgumentException"><paramref name="name"/> bos ise.</exception>
+    /// <exception cref="ArgumentNullException">A required dependency is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
     public OpenAIModelProvider(
         string name,
         OpenAIApiSurface apiSurface,
@@ -77,7 +77,7 @@ public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCh
     /// <inheritdoc />
     public string Name { get; }
 
-    /// <summary>Bu saglayicinin kullandigi OpenAI API yuzeyi.</summary>
+    /// <summary>Gets the OpenAI API surface this provider uses.</summary>
     public OpenAIApiSurface ApiSurface { get; }
 
     /// <inheritdoc />
@@ -88,9 +88,9 @@ public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCh
     {
         ArgumentNullException.ThrowIfNull(binding);
 
-        // Katalog bossa karsilastirilacak bir sey yoktur; her cagride gunluk yazmak
-        // gurultu olurdu. AgentPrism yerlesik model listesi tasimaz (karar K-032),
-        // bu yuzden bos katalog normal durumdur.
+        // When the catalog is empty there is nothing to compare against, and logging on
+        // every call would be noise. AgentPrism carries no built-in model list
+        // (decision K-032), so an empty catalog is the normal case.
         if (_knownModels.Count > 0
             && !string.IsNullOrWhiteSpace(binding.Model)
             && !_knownModels.Contains(binding.Model))
@@ -103,8 +103,8 @@ public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCh
 
     /// <inheritdoc />
     /// <remarks>
-    /// Saglik denetimi <see cref="_chatClientFactory"/>'yi kullanmaz — ayri, hafif bir
-    /// HTTP GET yapar. Bkz. <see cref="OpenAIProviderHealthCheck"/>.
+    /// The health check does not use <see cref="_chatClientFactory"/> — it makes a
+    /// separate, lightweight HTTP GET. See <see cref="OpenAIProviderHealthCheck"/>.
     /// </remarks>
     public ValueTask<ModelProviderHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
         => _healthCheck?.CheckHealthAsync(cancellationToken)
@@ -132,7 +132,7 @@ public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCh
         {
             Key = key,
             Resolved = resolved,
-            Hint = resolved ? null : $"dotnet user-secrets set \"{key}\" \"<anahtar>\"",
+            Hint = resolved ? null : $"dotnet user-secrets set \"{key}\" \"<key>\"",
         };
     }
 
@@ -141,8 +141,8 @@ public sealed class OpenAIModelProvider : IModelProvider, IModelProviderHealthCh
         if (_logger is not null && _logger.IsEnabled(LogLevel.Information))
         {
             _logger.LogInformation(
-                "'{Model}' modeli '{Provider}' katalogunda yok; istek yine de gonderiliyor. " +
-                "Model bilgisini kataloga eklemek icin AgentPrism:Providers:OpenAI:Models ayarini kullanin.",
+                "Model '{Model}' is not in the '{Provider}' catalog; the request is sent anyway. " +
+                "Use the AgentPrism:Providers:OpenAI:Models option to add the model to the catalog.",
                 model,
                 Name);
         }

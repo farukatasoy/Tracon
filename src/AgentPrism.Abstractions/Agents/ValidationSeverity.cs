@@ -2,13 +2,13 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>Bir <see cref="ValidationMessage"/>'in onem derecesi.</summary>
+/// <summary>The severity of a <see cref="ValidationMessage"/>.</summary>
 [JsonConverter(typeof(JsonStringEnumConverter<ValidationSeverity>))]
 public enum ValidationSeverity
 {
-    /// <summary>Tanim derlenemez. <see cref="AgentValidationReport.Valid"/> bu yuzden <see langword="false"/> olur.</summary>
+    /// <summary>The definition cannot be built. <see cref="AgentValidationReport.Valid"/> is therefore <see langword="false"/>.</summary>
     Error = 1,
 
-    /// <summary>Tanim derlenebilir ama denetim tam sonuclanamadi veya dikkat gerektiren bir durum var.</summary>
+    /// <summary>The definition can be built, but a check could not finish or something needs attention.</summary>
     Warning = 2,
 }

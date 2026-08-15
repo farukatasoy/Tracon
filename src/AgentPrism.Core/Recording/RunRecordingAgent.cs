@@ -7,25 +7,25 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Sardigi agent'in her calistirmasini <see cref="IRunStore"/> icine olay olarak
-/// yazar, metriklerini yayar ve span'lerini toplar.
+/// Writes every run of the wrapped agent into <see cref="IRunStore"/> as events,
+/// emits its metrics and collects its spans.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bu bir Microsoft Agent Framework middleware'i <em>degil</em>, bir
-/// <see cref="DelegatingAIAgent"/> sarmalayicisidir. Sebep: MAF middleware zinciri
-/// agent'a ozgudur ve <c>HarnessAgent</c> kendi ic dekoratorlerini ekler.
-/// Dis sarmalayici, harness dahil <strong>her</strong> agent tipinde ayni sekilde calisir.
+/// This is <em>not</em> a Microsoft Agent Framework middleware but a
+/// <see cref="DelegatingAIAgent"/> wrapper. The reason: the MAF middleware chain is
+/// specific to one agent, and <c>HarnessAgent</c> adds its own inner decorators.
+/// The outer wrapper works the same way on <strong>every</strong> agent type, the harness included.
 /// </para>
 /// <para>
-/// Tool cagrilari, MAF'in urettigi <see cref="FunctionCallContent"/> ve
-/// <see cref="FunctionResultContent"/> iceriklerinden okunur; ayri bir kanca gerekmez.
+/// Tool calls are read from the <see cref="FunctionCallContent"/> and
+/// <see cref="FunctionResultContent"/> contents that MAF produces; no separate hook is necessary.
 /// </para>
 /// <para>
-/// <strong>Kok span burada baslar.</strong> Sarmalayici en distaki dekoratordur
-/// (<c>Order = 0</c>), bu yuzden acilan <c>agentprism.run</c> span'i ic
-/// sarmalayicilarin ve model cagrilarinin span'lerini cocuk olarak toplar.
-/// Calistirma kimligi ile trace kimligi ancak boyle birbirine baglanabilir.
+/// <strong>The root span starts here.</strong> The wrapper is the outermost decorator
+/// (<c>Order = 0</c>), therefore the <c>agentprism.run</c> span that it opens collects the
+/// spans of the inner wrappers and of the model calls as children. This is the only way
+/// to link the run identifier and the trace identifier to each other.
 /// </para>
 /// </remarks>
 public sealed class RunRecordingAgent : DelegatingAIAgent
@@ -53,70 +53,70 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     private readonly RunSampler? _runSampler;
     private readonly ContentGuardPipeline? _contentGuardPipeline;
 
-    /// <summary>Yeni bir kayit sarmalayicisi olusturur.</summary>
-    /// <param name="innerAgent">Sarmalanan agent.</param>
-    /// <param name="runStore">Olaylarin yazilacagi depo.</param>
-    /// <param name="tenantContext">Kiraci baglami.</param>
-    /// <param name="options">Kayit ayrinti ayarlari.</param>
-    /// <param name="logger">Gunlukleyici.</param>
-    /// <param name="metrics">Metrik aletleri. <see langword="null"/> ise metrik yayilmaz.</param>
-    /// <param name="traceCollector">Span toplayici. <see langword="null"/> ise span yazilmaz.</param>
-    /// <param name="modelId">Agent'in bagli oldugu model. Bilinmiyorsa <see langword="null"/>.</param>
+    /// <summary>Creates a new recording wrapper.</summary>
+    /// <param name="innerAgent">The wrapped agent.</param>
+    /// <param name="runStore">The store that the events are written to.</param>
+    /// <param name="tenantContext">The tenant context.</param>
+    /// <param name="options">The recording detail settings.</param>
+    /// <param name="logger">The logger.</param>
+    /// <param name="metrics">The metric instruments. When <see langword="null"/>, no metric is emitted.</param>
+    /// <param name="traceCollector">The span collector. When <see langword="null"/>, no span is written.</param>
+    /// <param name="modelId">The model that the agent is bound to. <see langword="null"/> when unknown.</param>
     /// <param name="modelProvider">
-    /// Agent'in bagli oldugu model saglayicisi. Yalniz maliyet cozumlemesinde
-    /// kullanilir, kalicilastirilmaz (bkz. <c>docs/KARARLAR.md</c> K-154).
+    /// The model provider that the agent is bound to. It is used only for cost
+    /// resolution and is not persisted (see <c>docs/KARARLAR.md</c> K-154).
     /// </param>
-    /// <param name="timeProvider">Zaman kaynagi. <see langword="null"/> ise sistem saati kullanilir.</param>
+    /// <param name="timeProvider">The time source. When <see langword="null"/>, the system clock is used.</param>
     /// <param name="graphOptions">
-    /// Cagri agaci sinirlari. <see langword="null"/> ise varsayilanlar kullanilir.
+    /// The call tree limits. When <see langword="null"/>, the defaults are used.
     /// </param>
     /// <param name="agentVersion">
-    /// Agent'in katalog ozetinden gelen guncel tanim surumu. Bilinmiyorsa (ornegin
-    /// kod agent'i) <see langword="null"/>. Bir A/B deneyi tarafindan cozulen bir
-    /// calistirmada <see cref="AgentPrismRunOptions.AgentVersion"/> bunun uzerine yazar.
+    /// The current definition version that comes from the catalog summary of the agent.
+    /// <see langword="null"/> when it is unknown (for example a code agent). On a run that
+    /// an A/B experiment resolves, <see cref="AgentPrismRunOptions.AgentVersion"/> overrides it.
     /// </param>
     /// <param name="includeAgentVersionTag">
-    /// <see cref="AgentPrismDiagnostics.Tags.AgentVersion"/> etiketi span'e ve metriklere
-    /// eklensin mi. Bkz. <see cref="AgentPrismObservabilityOptions.IncludeAgentVersionTag"/>.
+    /// Whether the <see cref="AgentPrismDiagnostics.Tags.AgentVersion"/> tag is added to the
+    /// span and to the metrics. See <see cref="AgentPrismObservabilityOptions.IncludeAgentVersionTag"/>.
     /// </param>
     /// <param name="pricingResolver">
-    /// Maliyet cozumleyici. <see langword="null"/> ise hicbir maliyet hesaplanmaz.
+    /// The cost resolver. When <see langword="null"/>, no cost is calculated.
     /// </param>
     /// <param name="quotaEnforcer">
-    /// Kota muhasebecisi. <see langword="null"/> ise tuketim sayilmaz. Yalnizca
-    /// <strong>kok</strong> calistirmalar sayilir; alt calistirmalar ayni
-    /// istegin parcasidir ve iki kez sayilmamalidir.
+    /// The quota accountant. When <see langword="null"/>, consumption is not counted. Only
+    /// <strong>root</strong> runs are counted; child runs are part of the same
+    /// request and must not be counted twice.
     /// </param>
     /// <param name="webhookPublisher">
-    /// Olay yayincisi. <see langword="null"/> ise <c>run.*</c> olaylari yayilmaz.
+    /// The event publisher. When <see langword="null"/>, no <c>run.*</c> event is emitted.
     /// </param>
     /// <param name="cancellationRegistry">
-    /// Iptal defteri. <see langword="null"/> ise calistirma disaridan
-    /// (<c>POST /api/runs/{id}/cancel</c>) iptal edilemez.
+    /// The cancellation registry. When <see langword="null"/>, the run cannot be canceled
+    /// from outside (<c>POST /api/runs/{id}/cancel</c>).
     /// </param>
     /// <param name="errorClassifier">
-    /// Hata siniflandirici. <see langword="null"/> ise hata sinifi ve kumeleme
-    /// parmak izi hesaplanmaz (<see cref="RunError.Class"/>/<see cref="RunError.Fingerprint"/>
-    /// bos kalir).
+    /// The error classifier. When <see langword="null"/>, the error class and the grouping
+    /// fingerprint are not calculated (<see cref="RunError.Class"/>/<see cref="RunError.Fingerprint"/>
+    /// stay empty).
     /// </param>
     /// <param name="runInputStore">
-    /// Girdi deposu (Faz 47). <see langword="null"/> ise veya
-    /// <see cref="AgentPrismRunRecordingOptions.RecordRunInput"/> kapaliysa girdi
-    /// yazilmaz ve calistirma yeniden oynatilamaz.
+    /// The input store (phase 47). When <see langword="null"/>, or when
+    /// <see cref="AgentPrismRunRecordingOptions.RecordRunInput"/> is off, the input is
+    /// not written and the run cannot be replayed.
     /// </param>
     /// <param name="runSampler">
-    /// Cevrimici degerlendirme orneklemeleyicisi (Faz 49). <see langword="null"/>
-    /// ise hicbir calistirma orneklenmez.
+    /// The online evaluation sampler (phase 49). When <see langword="null"/>,
+    /// no run is sampled.
     /// </param>
     /// <param name="contentGuardPipeline">
-    /// Icerik denetimi boru hatti (Faz 48). <see langword="null"/> veya
-    /// <see cref="ContentGuardPipeline.HasGuards"/> <see langword="false"/> ise
-    /// girdi ham kaydedilir. Verilmisse <c>RunStarted</c> olayina ve
-    /// <see cref="IRunInputStore"/>'a yazilan girdi, <see cref="ContentGuardingChatClient"/>'in
-    /// modele gonderdigi ile AYNI denetimden gecer — ikisi ayrilirsa maskelenen/engellenen
-    /// icerik kalici depoda ham kalir (HATA-S3-006).
+    /// The content guard pipeline (phase 48). When <see langword="null"/>, or when
+    /// <see cref="ContentGuardPipeline.HasGuards"/> is <see langword="false"/>, the input is
+    /// recorded raw. When it is supplied, the input written to the <c>RunStarted</c> event and
+    /// to <see cref="IRunInputStore"/> passes through the SAME inspection as the text that
+    /// <see cref="ContentGuardingChatClient"/> sends to the model — if the two diverge, masked
+    /// or blocked content stays raw in the durable store (HATA-S3-006).
     /// </param>
-    /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException">When one of the required dependencies is <see langword="null"/>.</exception>
     public RunRecordingAgent(
         AIAgent innerAgent,
         IRunStore runStore,
@@ -180,20 +180,20 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             return await base.RunCoreAsync(messages, session, options, cancellationToken).ConfigureAwait(false);
         }
 
-        // 🚨 Kok span BU METODUN GOVDESINDE baslatilmalidir. Activity.Current bir
-        // AsyncLocal'dir; bir async yardimci metodun icinde yapilan atama cagirana
-        // GERI AKMAZ. Olculdu: span yardimci metotta acildiginda ic span'ler
-        // (invoke_agent, chat) kok span'in cocugu degil, kardesi oluyordu.
+        // 🚨 The root span MUST be started IN THE BODY OF THIS METHOD. Activity.Current is
+        // an AsyncLocal; an assignment made inside an async helper method DOES NOT FLOW
+        // BACK to the caller. Measured: when the span was opened in a helper method, the
+        // inner spans (invoke_agent, chat) became siblings of the root span, not children.
         var start = PrepareRun(session, options, isStreaming: false);
 
-        // Ayni AsyncLocal kurali calistirma kapsami icin de gecerlidir: skill
-        // script calistiricisi ve alt agent sarmalayicisi kapsami buradan okur.
+        // The same AsyncLocal rule applies to the run scope as well: the skill script
+        // runner and the child agent wrapper read the scope from here.
         AgentPrismRunContext.SetCurrent(start.Scope);
 
-        // Disaridan gelen bir iptal istegi (POST /api/runs/{id}/cancel) bu
-        // kaynagi tetikler. Cagiranin kendi belirteci (ornegin istemcinin HTTP
-        // baglantisi) ayri kalir: ikisinden biri dusse de calistirma iptal
-        // olur, ama defter yalniz KENDI kaynagini tasir.
+        // A cancellation request that arrives from outside (POST /api/runs/{id}/cancel)
+        // triggers this source. The token of the caller (for example the HTTP connection
+        // of the client) stays separate: the run is canceled if either one drops, but the
+        // registry holds ONLY ITS OWN source.
         using var cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         using var cancellationRegistration = _cancellationRegistry?.Register(
             start.Scope.RunId,
@@ -220,8 +220,8 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
 
             var usage = ToRunUsage(response.Usage);
 
-            // Alt calistirma onay isteyerek bittiyse kayit basarili gorunmemelidir:
-            // model bir sonucu degil, cevaplanamayacak bir soruyu geri dondu.
+            // When a child run ends by requesting approval, the record must not look
+            // successful: the model returned a question that cannot be answered, not a result.
             if (start.Scope.Depth > 0 && ChildRunApproval.Describe(response.Messages) is { } pending)
             {
                 await CompleteAsync(scope, RunStatus.Failed, usage, ApprovalError(pending), cancellationToken)
@@ -230,19 +230,18 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                 return response;
             }
 
-            // Bir kok calistirma (Depth == 0) onay isteyerek bittiyse Completed
-            // yerine AwaitingApproval ile kapanir — yolundan (yonetim API'si,
-            // OpenAI-uyumlu uc, MCP, A2A) veya kuyruktan kosup kosmadigindan
-            // BAGIMSIZDIR (HATA-S2-004/MT-MCP-023: onceki hal yalniz kuyruk
-            // yolunu isaretliyordu, senkron yollar hep Completed diyordu -
-            // onay bayragi TAMAMEN gizleniyordu). Karar nasil ULASTIRILIRSA
-            // ulastirilsin (POST /api/approvals/{id}/decide kuyruk icin, ya da
-            // senkron cagiranin kendi bir sonraki turu) durum etiketi ayni
-            // ilkeyi izler: yanitlanmis bir calistirma bu durumda KALIR (K-014,
-            // RunStatus.AwaitingInput ile ayni ilke). `pending_approvals`
-            // deposuna satir yazmak ayri bir karardir ve DEGISMEDI (K-372) -
-            // yalniz kuyruk yolu (AgentRunJobHandler) yazar; cift karar yarisi
-            // riski bu degisiklikle yeniden acilmaz.
+            // When a root run (Depth == 0) ends by requesting approval, it closes with
+            // AwaitingApproval instead of Completed — this is INDEPENDENT of the path
+            // (management API, OpenAI-compatible endpoint, MCP, A2A) and of whether the run
+            // came from the queue (HATA-S2-004/MT-MCP-023: the earlier behavior marked only
+            // the queue path, the synchronous paths always said Completed - the approval
+            // flag was HIDDEN COMPLETELY). However the decision is DELIVERED
+            // (POST /api/approvals/{id}/decide for the queue, or the next turn of the
+            // synchronous caller), the status label follows the same principle: an answered
+            // run STAYS in this state (K-014, the same principle as RunStatus.AwaitingInput).
+            // Writing a row into the `pending_approvals` store is a separate decision and
+            // DID NOT CHANGE (K-372) - only the queue path (AgentRunJobHandler) writes it;
+            // this change does not reopen the risk of a double decision race.
             if (start.Scope.Depth == 0 &&
                 ChildRunApproval.Describe(response.Messages) is not null)
             {
@@ -287,13 +286,13 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             yield break;
         }
 
-        // Kok span burada baslar; gerekcesi RunCoreAsync icindeki nota bakiniz.
+        // The root span starts here; for the reason see the note inside RunCoreAsync.
         var start = PrepareRun(session, options, isStreaming: true);
 
         AgentPrismRunContext.SetCurrent(start.Scope);
 
-        // Gerekce RunCoreAsync icindeki nota bakiniz: bu kaynak defterin
-        // TryCancel'inin tetikledigi kaynaktir, cagiranin kendi belirtecinden ayridir.
+        // For the reason see the note inside RunCoreAsync: this is the source that the
+        // TryCancel of the registry triggers, and it is separate from the token of the caller.
         using var cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         using var cancellationRegistration = _cancellationRegistry?.Register(
             start.Scope.RunId,
@@ -305,36 +304,35 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         UsageDetails? usage = null;
         string? pendingApproval = null;
 
-        // Bir kok calistirmada onay isteyen bir tool cagrisi Completed yerine
-        // AwaitingApproval'a esler; gerekce RunCoreAsync icindeki AYNI notta
-        // (HATA-S2-004/MT-MCP-023 - yol/kuyruk ayrimi kaldirildi).
+        // On a root run, a tool call that requests approval maps to AwaitingApproval
+        // instead of Completed; the reason is in the SAME note inside RunCoreAsync
+        // (HATA-S2-004/MT-MCP-023 - the path/queue distinction was removed).
         var isTopLevelRun = start.Scope.Depth == 0;
         var topLevelPendingApproval = false;
 
         var enumerator = base.RunCoreStreamingAsync(messages, session, options, cancellationSource.Token)
             .GetAsyncEnumerator(cancellationSource.Token);
 
-        // 🚨 HATA-S1-015: bu iki bayrak, DisposeAsync()'in tuketici tarafindan
-        // ERKEN cagrildigi (dongu ne dogal bitmis ne de bir istisnayla cikmis)
-        // durumu ayirt eder. C#'in async-iterator kurali geregi, tuketici bir
-        // `yield return`'den SONRA (bir sonraki MoveNextAsync'ten ONCE)
-        // DisposeAsync() cagirirsa, yalniz asagidaki `finally` blogu calisir —
-        // onun ALTINDAKI kod (dogal bitisin CompleteAsync cagrisi) HICBIR ZAMAN
-        // calismaz; disposal metodun geri kalanini normal akisla SURDURMEZ,
-        // yalniz askidaki `finally` bloklarini calistirir. Gercek zamanli ses
-        // turunda kullanici `cancel` gonderdiginde tam bu ariza olusuyordu: TTS
-        // ag cagrisi surerken (`yield return`'den sonra, tuketici -
-        // VoiceConversationDriver.RespondAsync - kontrolu devralmisken) gelen
-        // iptal, tuketicinin `await foreach`'ini erken DisposeAsync()'e
-        // zorluyor, ne `Completed` ne `Canceled` hic yazilmiyordu — run kalici
-        // olarak Running'de asili kaliyordu (gercek maliyet sessizce kaybolur).
+        // 🚨 HATA-S1-015: these two flags separate the case where the consumer calls
+        // DisposeAsync() EARLY (the loop neither ended naturally nor exited with an
+        // exception). By the async-iterator rule of C#, when the consumer calls
+        // DisposeAsync() AFTER a `yield return` (and BEFORE the next MoveNextAsync), only
+        // the `finally` block below runs — the code BELOW it (the CompleteAsync call of
+        // the natural end) NEVER runs; disposal does not CONTINUE the rest of the method
+        // with normal flow, it only runs the pending `finally` blocks. This exact failure
+        // occurred in the real-time voice turn when the user sent `cancel`: a cancellation
+        // that arrived while the TTS network call was still running (after a
+        // `yield return`, while the consumer - VoiceConversationDriver.RespondAsync - held
+        // control) forced the `await foreach` of the consumer into an early DisposeAsync(),
+        // and neither `Completed` nor `Canceled` was ever written — the run stayed hanging
+        // in Running permanently (the real cost is lost silently).
         var naturalEnd = false;
         var completedByCatch = false;
 
         try
         {
-            // 🚨 HATA-S4-012: bu adim BILEREK try/finally'nin ICINDEDIR — gerekce
-            // WriteRunStartAsync'in kendi belgesinde ve CreateScope'un notunda.
+            // 🚨 HATA-S4-012: this step is DELIBERATELY INSIDE the try/finally — the reason
+            // is in the documentation of WriteRunStartAsync and in the note of CreateScope.
             await WriteRunStartAsync(start, messages, cancellationToken).ConfigureAwait(false);
 
             while (true)
@@ -343,14 +341,14 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
 
                 try
                 {
-                    // 🚨 Kapsam HER adimda yeniden yazilir. Bir async iterator
-                    // govdesinde yapilan AsyncLocal atamasi `yield return`
-                    // sinirini asmaz: cagri driver'a dondugunde ExecutionContext
-                    // geri alinir ve sonraki MoveNextAsync temiz bir baglamla
-                    // baslar. Olculdu (Faz 12): akisli calistirmada alt agent
-                    // cagrisi "calistirma kaydi kapali" diyerek reddediliyordu.
-                    // Atama MoveNextAsync'ten HEMEN once yapilmalidir; yalnizca
-                    // dongunun disinda yapmak yetmez.
+                    // 🚨 The scope is rewritten on EVERY step. An AsyncLocal assignment
+                    // made in the body of an async iterator does not cross the
+                    // `yield return` boundary: when the call returns to the driver, the
+                    // ExecutionContext is restored and the next MoveNextAsync starts with
+                    // a clean context. Measured (phase 12): on a streaming run the child
+                    // agent call was rejected with "run recording is off".
+                    // The assignment must be made IMMEDIATELY before MoveNextAsync; doing
+                    // it only outside the loop is not enough.
                     AgentPrismRunContext.SetCurrent(start.Scope);
 
                     if (!await enumerator.MoveNextAsync().ConfigureAwait(false))
@@ -399,10 +397,10 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         {
             await enumerator.DisposeAsync().ConfigureAwait(false);
 
-            // Ne dogal bitis (asagidaki kod tamamlar) ne bir istisna (yukaridaki
-            // catch zaten tamamladi) — tuketicinin erken DisposeAsync()'i. Bu,
-            // terminal durumu yazacak SON sans: asagidaki kod bu noktadan sonra
-            // ASLA calismayacak.
+            // Neither a natural end (the code below completes it) nor an exception (the
+            // catch above already completed it) — this is an early DisposeAsync() by the
+            // consumer. It is the LAST chance to write the terminal status: the code below
+            // will NEVER run after this point.
             if (!naturalEnd && !completedByCatch)
             {
                 await CompleteAsync(scope, RunStatus.Canceled, ToRunUsage(usage), null, CancellationToken.None)
@@ -425,21 +423,21 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     }
 
     /// <summary>
-    /// Calistirmanin kimligini cozer ve kok span'i acar.
+    /// Resolves the identifier of the run and opens the root span.
     /// </summary>
     /// <remarks>
-    /// <strong>Bu metot es zamanlidir ve oyle kalmalidir.</strong>
-    /// <see cref="Activity.Current"/> bir <c>AsyncLocal</c>'dir: bir async metodun
-    /// icinde yapilan atama, o metot dondugunde cagirana geri akmaz. Span burada
-    /// acilip cagiran metodun kendi govdesinde tutulmazsa, ic sarmalayicilarin
-    /// ve model cagrilarinin span'leri kok span'in <em>cocugu</em> degil
-    /// <em>kardesi</em> olur ve waterfall gorunumu yanlis bir hiyerarsi cizer.
+    /// <strong>This method is synchronous and must stay synchronous.</strong>
+    /// <see cref="Activity.Current"/> is an <c>AsyncLocal</c>: an assignment made inside
+    /// an async method does not flow back to the caller when that method returns. If the
+    /// span is opened here but is not held in the body of the calling method, the spans of
+    /// the inner wrappers and of the model calls become <em>siblings</em> of the root span
+    /// instead of <em>children</em>, and the waterfall view draws a wrong hierarchy.
     /// </remarks>
     private RunStart PrepareRun(AgentSession? session, AgentRunOptions? options, bool isStreaming)
     {
-        // Cagiran kimligi verdiyse o kullanilir. Akisli bir uc, ilk cerceveyi
-        // yazmadan once kimligi bilmek zorundadir; kendi urettigi kimligi buraya
-        // gecerek istemciye dogru kimligi bildirebilir.
+        // When the caller supplies the identifier, that one is used. A streaming endpoint
+        // must know the identifier before it writes the first frame; by passing the
+        // identifier that it produced itself, it can report the correct identifier to the client.
         var prismOptions = options as AgentPrismRunOptions;
         var runId = prismOptions?.RunId ?? AgentPrismId.NewId();
         var agentName = Name ?? InnerAgent.Id;
@@ -478,19 +476,20 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                 activity.SetTag(AgentPrismDiagnostics.Tags.Depth, depth);
             }
 
-            // Kok calistirmada yeni bir trace baslar. Alt calistirma ayni trace'i
-            // surdurur: Activity.Current cagri zinciriyle asagi aktigi icin span
-            // dogal olarak kok span'in altina yerlesir.
+            // A root run starts a new trace. A child run continues the same trace: because
+            // Activity.Current flows down with the call chain, the span settles under the
+            // root span naturally.
             if (depth == 0)
             {
                 _traceCollector?.BeginRun(activity.TraceId.ToString());
             }
         }
 
-        // 🚨 Yazici BU METOTTA kurulur, BeginRunAsync icinde degil. Kapsam bir
-        // AsyncLocal'e yazilir ve async bir metot icinden yapilan atama cagirana
-        // geri akmaz; yazici orada kurulsaydi alt cagri kapsamda yazici goremez
-        // ve ozet olaylari kok akisa yazamazdi.
+        // 🚨 The writer is created IN THIS METHOD, not inside BeginRunAsync. The scope is
+        // written into an AsyncLocal, and an assignment made from inside an async method
+        // does not flow back to the caller; if the writer were created there, a child call
+        // could not see the writer in the scope and could not write its summary events into
+        // the root stream.
         var writer = new RunEventWriter(_runStore, _options, _logger, runId);
 
         var scope = new AgentRunScope
@@ -501,10 +500,11 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             AgentName = agentName,
             TenantId = tenantId,
 
-            // Kapsamdaki oturum kimligi calistirma kaydindakinden GENIS tanimlidir:
-            // alt calistirmaya MAF bir oturum gecirmez, ama orada uretilen icerik
-            // yine kok oturuma aittir. `RunStartInfo.SessionId` (yani runs.session_id)
-            // bu geri dusustu KULLANMAZ ve anlamini korur.
+            // The session identifier in the scope is defined more BROADLY than the one in
+            // the run record: MAF does not pass a session to a child run, but the content
+            // that is produced there still belongs to the root session.
+            // `RunStartInfo.SessionId` (that is, runs.session_id) DOES NOT USE this fallback
+            // and keeps its meaning.
             SessionId = sessionId ?? prismOptions?.SessionId,
             Budget = prismOptions?.Budget ?? (depth == 0 ? _graphOptions.CreateBudget() : null),
             Writer = writer,
@@ -527,30 +527,30 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             prismOptions?.ExperimentId,
             prismOptions?.Variant,
 
-            // Soy bagi yalniz KOK calistirmada anlamlidir: bir yeniden oynatmanin
-            // alt cagrilari kaynak agacin alt cagrilarina karsilik gelmez.
+            // The lineage link is meaningful only on a ROOT run: the child calls of a replay
+            // do not correspond to the child calls of the source tree.
             depth == 0 ? prismOptions?.ReplayOfRunId : null);
     }
 
     /// <summary>
-    /// Calistirma kapsamini kurar. Yalniz bellek icinde nesne olusturur, hicbir
-    /// G/C yapmaz — bu yuzden ne istisna atar ne iptal edilir.
+    /// Creates the run scope. It only builds objects in memory and performs no I/O —
+    /// therefore it neither throws an exception nor gets canceled.
     /// </summary>
     /// <remarks>
-    /// 🚨 HATA-S4-012: kapsam kurma <see cref="WriteRunStartAsync"/>'ten
-    /// (G/C yapan, iptal edilebilen adim) BILEREK ayrildi. Eski tek-parca
-    /// <c>BeginRunAsync</c>'te kapsam ancak <see cref="SaveInputAsync"/>
-    /// BASARIYLA donunce kuruluyordu; <c>SaveInputAsync</c> ise
-    /// <see cref="OperationCanceledException"/>'i BILEREK yutmaz (K-034 —
-    /// gercek bir iptali sessizce bogmamak icin). Sonuc: RunStarted olayi
-    /// depoya ZATEN yazilmisken (ayri, ONCEKI bir yazma) istemci baglantiyi
-    /// bu dar pencerede keserse istisna cagiranin try/finally guvenlik agina
-    /// hic GIRMEDEN metodun disina firliyordu — calistirma sonsuza dek
-    /// Running'de asili kaliyordu (bkz. RunReconciliationOptions varsayilani
-    /// da kapali, kendiliginden iyilesme yok). Kapsam artik G/C'den ONCE,
-    /// cagiranin kendi try/finally'sinin ICINDE kurulur; boylece
-    /// <see cref="WriteRunStartAsync"/> iptal edilse bile guvenlik agi tam
-    /// bir <see cref="RunScope"/> ile <see cref="CompleteAsync"/> cagirabilir.
+    /// 🚨 HATA-S4-012: creating the scope was DELIBERATELY separated from
+    /// <see cref="WriteRunStartAsync"/> (the step that performs I/O and can be canceled).
+    /// In the old single-piece <c>BeginRunAsync</c>, the scope was created only after
+    /// <see cref="SaveInputAsync"/> returned SUCCESSFULLY; and <c>SaveInputAsync</c>
+    /// DELIBERATELY does not swallow <see cref="OperationCanceledException"/> (K-034 — so
+    /// that a real cancellation is not silenced). The result: while the RunStarted event
+    /// was ALREADY written to the store (a separate, EARLIER write), if the client dropped
+    /// the connection in this narrow window, the exception escaped the method WITHOUT ever
+    /// ENTERING the try/finally safety net of the caller — the run stayed hanging in
+    /// Running forever (note that the RunReconciliationOptions default is off as well, so
+    /// there is no self-healing). The scope is now created BEFORE the I/O, INSIDE the
+    /// try/finally of the caller; this way the safety net can call
+    /// <see cref="CompleteAsync"/> with a complete <see cref="RunScope"/> even when
+    /// <see cref="WriteRunStartAsync"/> is canceled.
     /// </remarks>
     private RunScope CreateScope(RunStart start)
         => new(
@@ -576,32 +576,32 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             Kind: start.Kind);
 
     /// <summary>
-    /// Calistirma kaydini acar: <c>runs</c> satirini ve ilk <c>RunStarted</c>
-    /// olayini yazar, girdiyi <see cref="IRunInputStore"/>'a kaydeder.
+    /// Opens the run record: writes the <c>runs</c> row and the first <c>RunStarted</c>
+    /// event, and saves the input into <see cref="IRunInputStore"/>.
     /// </summary>
     /// <remarks>
-    /// Cagiran bu metodu KENDI try/finally guvenlik aginin ICINDE cagirmalidir
-    /// (bkz. <see cref="CreateScope"/>'un notu) — aksi halde bu adimda olusan
-    /// bir <see cref="OperationCanceledException"/> calistirmayi terminal bir
-    /// duruma hic tasimadan kaybolur.
+    /// The caller must call this method INSIDE ITS OWN try/finally safety net (see the note
+    /// of <see cref="CreateScope"/>) — otherwise an <see cref="OperationCanceledException"/>
+    /// that occurs in this step disappears without ever moving the run to a terminal status.
     /// </remarks>
     private async ValueTask WriteRunStartAsync(
         RunStart start,
         IEnumerable<ChatMessage> messages,
         CancellationToken cancellationToken)
     {
-        // Girdi listesi BIR kez maddelestirilir: hem sorgu metni hem girdi kaydi
-        // ayni koleksiyonu okur.
+        // The input list is materialized ONCE: both the query text and the input record
+        // read the same collection.
         var input = messages as IReadOnlyList<ChatMessage> ?? [.. messages];
 
-        // 🚨 Kayda giden girdi, guard boru hattindan ayrica gecirilir: aksi halde
-        // maskelenen/engellenen icerik RunStarted olayinda ve IRunInputStore'da
-        // HAM kalir — modele giden ContentGuardingChatClient icinde zaten
-        // maskelenir, ama bu kayit HIC o istemciye ugramaz (HATA-S3-006).
-        // ContentGuardPipeline.PreviewAsync kullanilir: InspectAsync degil, cunku
-        // bu noktada calistirma satiri (runs) henuz yok — bkz. o metodun belgesi.
-        // Cagirana geciren `messages` degiskeni BILEREK degistirilmez, modele
-        // giden metin bu maskelemeden etkilenmemelidir.
+        // 🚨 The input that goes into the record passes through the guard pipeline
+        // separately: otherwise masked or blocked content stays RAW in the RunStarted event
+        // and in IRunInputStore — the text that goes to the model is already masked inside
+        // ContentGuardingChatClient, but this record NEVER passes through that client
+        // (HATA-S3-006). ContentGuardPipeline.PreviewAsync is used, not InspectAsync,
+        // because the run row (runs) does not exist yet at this point — see the
+        // documentation of that method. The `messages` variable that is passed on to the
+        // caller is DELIBERATELY left unchanged; the text that goes to the model must not
+        // be affected by this masking.
         if (_contentGuardPipeline is { HasGuards: true } guardPipeline && guardPipeline.Options.InspectInput)
         {
             input = await ContentGuardMessageMasker
@@ -622,9 +622,9 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                 IsStreaming = start.IsStreaming,
                 ParentRunId = start.ParentRunId,
 
-                // Kok calistirmada alan bos kalir: kokun kendisine isaret eden bir
-                // deger yazmak, "kok mu, alt mi" sorusunu sorguda ikinci bir kosula
-                // dondururdu.
+                // On a root run the field stays empty: writing a value that points to the
+                // root itself would turn the question "root or child?" into a second
+                // condition in the query.
                 RootRunId = start.Scope.Depth == 0 ? null : start.Scope.RootRunId,
                 Depth = start.Scope.Depth,
                 AgentVersion = start.AgentVersion,
@@ -639,19 +639,18 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     }
 
     /// <summary>
-    /// Calistirmanin girdi mesajlarini <see cref="IRunInputStore"/> icine yazar.
+    /// Writes the input messages of the run into <see cref="IRunInputStore"/>.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Kayit <strong>her</strong> calistirma icin yapilir — kok, alt calistirma,
-    /// eval ve workflow dahil. Bir alt agent cagrisi da tek basina yeniden
-    /// oynatilabilir olmalidir; kok ile sinirlamak agac derinligi kadar satiri
-    /// kaybettirirdi.
+    /// The record is written for <strong>every</strong> run — root, child run, eval and
+    /// workflow included. A child agent call must also be replayable on its own; limiting
+    /// this to the root would lose as many rows as the depth of the tree.
     /// </para>
     /// <para>
-    /// 🚨 Hata <strong>yutulur</strong>: gozlemlenebilirlik islevselligi bozmaz
-    /// (<see cref="IRunStore"/> ile ayni sozlesme). Girdi yazilamamis bir
-    /// calistirma calisir, yalnizca yeniden oynatilamaz.
+    /// 🚨 The error is <strong>swallowed</strong>: observability does not break
+    /// functionality (the same contract as <see cref="IRunStore"/>). A run whose input
+    /// could not be written still works; it only cannot be replayed.
     /// </para>
     /// </remarks>
     private async ValueTask SaveInputAsync(
@@ -680,18 +679,18 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         {
             _logger.LogWarning(
                 ex,
-                "AgentPrism calistirma girdisi kaydedilemedi. Calistirma {RunId} normal sekilde devam ediyor " +
-                "ancak yeniden oynatilamayacak.",
+                "Failed to save the AgentPrism run input. Run {RunId} continues normally " +
+                "but will not be replayable.",
                 start.Scope.RunId);
         }
     }
 
-    /// <summary>Tamamlanmis bir kok calistirmanin tuketimini kota sayaclarina yazar.</summary>
+    /// <summary>Writes the consumption of a completed root run into the quota counters.</summary>
     /// <remarks>
-    /// Fiyat tanimsizsa <see cref="QuotaConsumption.Cost"/> <see langword="null"/>
-    /// kalir — sifir <strong>degil</strong> (Faz 20 kurali). Boyle bir
-    /// calistirma para cinsi kotaya katilmaz, ama token kotasina katilir: kota
-    /// para cinsinden uygulanamadiginda token'a duser.
+    /// When the price is undefined, <see cref="QuotaConsumption.Cost"/> stays
+    /// <see langword="null"/> — <strong>not</strong> zero (the phase 20 rule). Such a run
+    /// does not count toward the monetary quota, but it does count toward the token quota:
+    /// when the quota cannot be applied in money, it falls back to tokens.
     /// </remarks>
     private async ValueTask RecordQuotaAsync(
         RunScope scope,
@@ -720,14 +719,12 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
     }
 
     /// <summary>
-    /// Kok calistirma bittiginde cevrimici degerlendirme icin ornekleme kararini
-    /// verir (Faz 49).
+    /// Makes the sampling decision for online evaluation when a root run ends (phase 49).
     /// </summary>
     /// <remarks>
-    /// 🚨 <see cref="RunSampler.SampleAsync"/> zaten kendi hatasini yutar
-    /// (bkz. sinif belgesi); buradaki <c>try/catch</c> ikinci bir savunma
-    /// katmanidir — ornekleme hicbir sekilde calistirmayi ETKILEMEMELIDIR
-    /// (gozlemlenebilirlik islevselligi bozmaz kurali).
+    /// 🚨 <see cref="RunSampler.SampleAsync"/> already swallows its own error (see the class
+    /// documentation); the <c>try/catch</c> here is a second layer of defense — sampling
+    /// must NEVER AFFECT the run (the rule that observability does not break functionality).
     /// </remarks>
     private async ValueTask SampleForOnlineEvalAsync(RunScope scope, RunStatus status, CancellationToken cancellationToken)
     {
@@ -753,15 +750,16 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         {
             if (_logger.IsEnabled(LogLevel.Warning))
             {
-                _logger.LogWarning(exception, "Cevrimici degerlendirme ornekleme karari basarisiz oldu: calistirma={RunId}.", scope.RunId);
+                _logger.LogWarning(exception, "The online evaluation sampling decision failed: run={RunId}.", scope.RunId);
             }
         }
     }
 
-    /// <summary>Kok calistirma bittiginde <c>run.completed</c>/<c>run.failed</c> yayar.</summary>
+    /// <summary>Emits <c>run.completed</c>/<c>run.failed</c> when a root run ends.</summary>
     /// <remarks>
-    /// Yuk yalnizca <strong>ozet</strong> tasir (K-161): mesaj icerigi ve model
-    /// yaniti buraya girmez. Icerik isteyen alici <c>/api/runs/{id}</c> cagirir.
+    /// The payload carries only a <strong>summary</strong> (K-161): the message content and
+    /// the model response do not go in here. A receiver that wants the content calls
+    /// <c>/api/runs/{id}</c>.
     /// </remarks>
     private async ValueTask PublishRunEventAsync(
         RunScope scope,
@@ -777,7 +775,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             return;
         }
 
-        // Iptal edilen calistirma ne basari ne hatadir; abone icin gurultudur.
+        // A canceled run is neither a success nor a failure; for a subscriber it is noise.
         var eventType = status switch
         {
             RunStatus.Completed => WebhookEvents.RunCompleted,
@@ -821,10 +819,11 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         => new()
         {
             Type = nameof(AgentPrismException),
-            Message = $"Alt calistirma '{toolNames}' tool'u icin kullanici onayi istedi. " +
-                      "Alt agent onay isteyemez: onay bir sonraki turun girdisidir ve cagri " +
-                      "agacinin ortasinda beklenemez. Bu tool icin otomatik onay kurali " +
-                      "tanimlayin veya alt agent'i onay gerektirmeyen tool'larla sinirlayin.",
+            Message = $"The child run requested user approval for the '{toolNames}' tool. " +
+                      "A child agent cannot request approval: approval is the input of the next " +
+                      "turn and cannot be awaited in the middle of the call tree. Define an " +
+                      "automatic approval rule for this tool, or limit the child agent to tools " +
+                      "that need no approval.",
         };
 
     private async ValueTask CompleteAsync(
@@ -834,45 +833,46 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         RunError? error,
         CancellationToken cancellationToken)
     {
-        // 🚨 Siniflandirici YALNIZ hata varken cagrilir: basarili bir
-        // calistirmada (error is null) sicak yolda hic tetiklenmez.
+        // 🚨 The classifier is called ONLY when there is an error: on a successful run
+        // (error is null) it never fires on the hot path.
         if (error is not null && _errorClassifier is not null)
         {
             var classification = _errorClassifier.Classify(error);
             error = error with { Class = classification.Class, Fingerprint = classification.Fingerprint };
         }
 
-        // Sonuc gelmeden biten cagrilar acikca kapatilir; aksi halde arayuzde
-        // "basladi ama bitmedi" gorunen bir tool karti kalirdi.
-        foreach (var unfinished in scope.Tools.DrainUnfinished("Calistirma tool sonucu gelmeden sonlandi."))
+        // Calls that end before a result arrives are closed explicitly; otherwise a tool
+        // card that looks "started but not finished" would stay in the user interface.
+        foreach (var unfinished in scope.Tools.DrainUnfinished("The run ended before the tool result arrived."))
         {
             await scope.Writer.RecordToolInvocationAsync(unfinished, cancellationToken).ConfigureAwait(false);
             _metrics?.RecordToolInvocation(unfinished.ToolName, succeeded: false, unfinished.Duration);
         }
 
-        // Baglam sikistirmasinin (ozetleme) urettigi token'lar agent'in kendi
-        // AgentResponse'undan tamamen ayri bir yan-kanal cagrisidir; burada
-        // nihai kullanima katilmazsa maliyet raporu ve agac butcesi eksik kalir.
+        // The tokens that context compaction (summarization) produces come from a
+        // side-channel call that is completely separate from the AgentResponse of the agent;
+        // if they are not added to the final usage here, the cost report and the tree budget
+        // stay incomplete.
         usage = MergeUsage(usage, scope.ExtraUsage?.ToRunUsage());
 
-        // Maliyet BURADA, nihai (birlestirilmis) kullanimdan hesaplanir — fiyat
-        // anlik goruntusudur (bkz. docs/20-MALIYET-VE-GOSTERGE-PANELI.md bolum 20.2):
-        // fiyat listesi sonradan degisirse bu calistirmanin maliyeti degismez.
+        // The cost is calculated HERE, from the final (merged) usage — the price is a
+        // snapshot (see docs/20-MALIYET-VE-GOSTERGE-PANELI.md section 20.2): if the price
+        // list changes later, the cost of this run does not change.
         var cost = _pricingResolver?.Resolve(_modelProvider, _modelId, usage);
 
         await scope.Writer.CompleteAsync(status, usage, error, cost, cancellationToken).ConfigureAwait(false);
 
-        // Butce agac boyunca paylasilan tek nesnedir; kok de alt calistirmalar da
-        // ayni sayaci besler. Aksi halde "agac ne harcadi" sorusunun cevabi yalnizca
-        // alt cagrilari kapsardi.
+        // The budget is a single object that is shared across the tree; both the root and
+        // the child runs feed the same counter. Otherwise the answer to the question "what
+        // did the tree spend?" would cover only the child calls.
         scope.Budget?.RecordUsage(usage?.TotalTokens ?? 0);
 
         var elapsed = _timeProvider.GetElapsedTime(scope.StartedAt);
 
-        // 🚨 Kota ve olay yayini YALNIZCA kok calistirmada isler. Alt calistirma
-        // ayni kullanici isteginin parcasidir; ayrica sayilsaydi bir agent agaci
-        // kotayi derinligi kadar hizli tuketirdi ve her dugum icin ayri bir
-        // run.completed olayi yayilirdi.
+        // 🚨 Quota accounting and event publication run ONLY on a root run. A child run is
+        // part of the same user request; if it were counted separately, an agent tree would
+        // consume the quota as fast as its depth, and a separate run.completed event would
+        // be emitted for every node.
         if (scope.Depth == 0)
         {
             await RecordQuotaAsync(scope, usage, cost, cancellationToken).ConfigureAwait(false);
@@ -889,10 +889,10 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             usage,
             agentVersion: _includeAgentVersionTag ? scope.AgentVersion : null);
 
-        // Fiyat tanimsizsa (Source == Unknown) hicbir sey yayilmaz: bilinmeyen
-        // maliyeti sifir olarak yaymak gercek harcamayi kucuk gosterirdi.
-        // Iptal/hata durumunda da yayilir (Acik Soru 4): harcanan token icin
-        // para zaten harcanmistir.
+        // When the price is undefined (Source == Unknown), nothing is emitted: emitting an
+        // unknown cost as zero would make the real spend look smaller. The cost is emitted
+        // on cancellation and on failure as well (Open Question 4): the money for the
+        // consumed tokens is already spent.
         if (cost is { Source: not PricingSource.Unknown } knownCost)
         {
             _metrics?.RecordCost(
@@ -915,16 +915,16 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             scope.Activity.SetStatus(ActivityStatusCode.Error, error.Message);
         }
 
-        // Span toplayiciya gecmeden ONCE durdurulur: durdurma ActivityStopped
-        // olayini tetikler ve kok span'in kendisi de tampona girer.
+        // The span is stopped BEFORE it is handed to the collector: stopping triggers the
+        // ActivityStopped event, and the root span itself also enters the buffer.
         scope.Activity.Stop();
 
-        // 🚨 Trace tamponunun sahibi YALNIZ kok calistirmadir. Agactaki her
-        // calistirma ayni W3C trace kimligini paylasir (alt span'ler kok span'in
-        // altina yerlesir) ve tampon o kimlikle anahtarlanir. Alt calistirma da
-        // tamponu kapatsaydi -- ki once O biter -- tum agacin span'leri alt
-        // calistirmaya baglanir, kok calistirma bos kalirdi. Olculdu (Faz 12):
-        // gercek bir cagrida kokun /trace ucu 404, alt calistirmanınki dolu geldi.
+        // 🚨 ONLY the root run owns the trace buffer. Every run in the tree shares the same
+        // W3C trace identifier (child spans settle under the root span) and the buffer is
+        // keyed by that identifier. If a child run closed the buffer too -- and it finishes
+        // FIRST -- the spans of the whole tree would attach to the child run and the root
+        // run would stay empty. Measured (phase 12): on a real call the /trace endpoint of
+        // the root returned 404 while the one of the child run was full.
         if (_traceCollector is not null && scope.OwnsTrace)
         {
             await _traceCollector.CompleteRunAsync(
@@ -1015,21 +1015,21 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             return null;
         }
 
-        // Argumanlari AOT uyumlu kalmak icin elle bicimlendiriyoruz;
-        // yansimaya dayanan JSON serilestirme kullanilmiyor.
+        // The arguments are formatted by hand to stay AOT compatible; JSON serialization
+        // that relies on reflection is not used.
         return string.Join(", ", call.Arguments.Select(static pair => $"{pair.Key}={pair.Value}"));
     }
 
-    // Oturum kimligi AgentSessionManager tarafindan oturuma damgalanir. Damga yoksa
-    // oturum AgentPrism disinda acilmis demektir; kayda yer tutucu bir deger yazmak
-    // yerine bos birakilir.
+    // AgentSessionManager stamps the session identifier onto the session. When the stamp is
+    // absent, the session was opened outside AgentPrism; instead of writing a placeholder
+    // value into the record, the field is left empty.
     private static string? GetSessionId(AgentSession session) => AgentSessionIdentity.GetId(session);
 
-    // Faz 45 (F-53): bu calistirmayi tetikleyen ilk kullanici mesaji
-    // RunEventType.RunStarted olayina yazilir. run_events, girdi metninin
-    // KALICILASTIGI TEK yerdir — oturum yalniz calistirma BASARIYLA
-    // tamamlandiginda kaydedilir (AgentEndpoints.AgentRunStream), bu yuzden
-    // basarisiz bir calistirmanin sorgusu baska hicbir yoldan okunamaz.
+    // Phase 45 (F-53): the first user message that triggered this run is written into the
+    // RunEventType.RunStarted event. run_events is the ONLY place where the input text is
+    // PERSISTED — the session is saved only when the run completes SUCCESSFULLY
+    // (AgentEndpoints.AgentRunStream), therefore the query of a failed run cannot be read
+    // through any other path.
     private static string? ExtractQuery(IReadOnlyList<ChatMessage> messages)
         => messages.FirstOrDefault(static message => message.Role == ChatRole.User)?.Text;
 
@@ -1063,9 +1063,9 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                 TotalTokens = usage.TotalTokenCount,
             };
 
-    // AgentPrism istisnalari kendi kararli hata tipi adini tasiyabilir (ornegin
-    // content_filtered). Varsayilan deger yine tipin tam adidir, bu yuzden mevcut
-    // kayitlarin bicimi degismez.
+    // AgentPrism exceptions can carry their own stable error type name (for example
+    // content_filtered). The default value is still the full name of the type, so the shape
+    // of the existing records does not change.
     private static RunError ToRunError(Exception exception)
         => new()
         {
@@ -1075,7 +1075,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
             Message = exception.Message,
         };
 
-    /// <summary>Kok span acildiktan sonra, depo yazimindan once bilinenler.</summary>
+    /// <summary>What is known after the root span opens and before the store is written.</summary>
     private sealed record RunStart(
         AgentRunScope Scope,
         RunEventWriter Writer,
@@ -1089,7 +1089,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         string? Variant,
         Guid? ReplayOfRunId);
 
-    /// <summary>Tek bir calistirmanin kayit durumu.</summary>
+    /// <summary>The recording state of a single run.</summary>
     private sealed record RunScope(
         RunEventWriter Writer,
         Activity? Activity,
