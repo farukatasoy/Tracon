@@ -4,17 +4,17 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="AgentPrismToolRegistration"/> kayitlarindan olusturulan tool defteri.
+/// The tool registry created from <see cref="AgentPrismToolRegistration"/> entries.
 /// </summary>
 public sealed class ToolRegistry : IToolRegistry
 {
     private readonly Dictionary<string, AIFunction> _tools;
     private readonly List<ToolDescriptor> _descriptors;
 
-    /// <summary>Kayitlardan yeni bir defter olusturur.</summary>
-    /// <param name="registrations">Tool kayitlari.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="registrations"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="AgentPrismException">Ayni ad birden cok kez kaydedilmisse.</exception>
+    /// <summary>Initializes a new registry from registrations.</summary>
+    /// <param name="registrations">The tool registrations.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="registrations"/> is <see langword="null"/>.</exception>
+    /// <exception cref="AgentPrismException">The same name is registered more than once.</exception>
     public ToolRegistry(IEnumerable<AgentPrismToolRegistration> registrations)
     {
         ArgumentNullException.ThrowIfNull(registrations);
@@ -26,15 +26,13 @@ public sealed class ToolRegistry : IToolRegistry
         {
             var name = registration.Function.Name;
 
-            // Onay sarmalamasi BURADA yapilir, derleyicide degil. Defter,
-            // "bir agent yalnizca kayitli bir tool'a isaret edebilir" kuralinin
-            // zorlandigi tek yerdir; onay zorunlulugunu da ayni yerde zorlamak
-            // baska bir kod yolunun sarmalamayi atlamasini imkansiz kilar.
+            // Apply the approval wrapper here, not in the compiler. The registry is
+            // the only place that enforces the "an agent can only refer to a registered
+            // tool" rule. Enforcing approval here prevents another code path from bypassing it.
             //
-            // ApprovalRequiredAIFunction bir DelegatingAIFunction'dir: ad,
-            // aciklama ve JSON semasi degismez. Microsoft Agent Framework
-            // sarmalanmis bir tool'u calistirmak yerine
-            // ToolApprovalRequestContent uretir.
+            // ApprovalRequiredAIFunction is a DelegatingAIFunction. Its name,
+            // description, and JSON schema do not change. Instead of running the
+            // wrapped tool, Microsoft Agent Framework produces ToolApprovalRequestContent.
             var function = registration.RequiresApproval
                 ? new ApprovalRequiredAIFunction(registration.Function)
                 : registration.Function;
@@ -42,7 +40,7 @@ public sealed class ToolRegistry : IToolRegistry
             if (!_tools.TryAdd(name, function))
             {
                 throw new AgentPrismException(
-                    $"'{name}' adinda birden cok tool kaydedilmis. Tool adlari benzersiz olmalidir.");
+                    $"More than one tool is registered with name '{name}'. Tool names must be unique.");
             }
 
             _descriptors.Add(new ToolDescriptor

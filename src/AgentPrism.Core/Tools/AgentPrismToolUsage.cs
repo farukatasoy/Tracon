@@ -3,20 +3,19 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir tool'un kendi govdesinden token DISI olcumunu bildirmesini saglar.
+/// Lets a tool report non-token usage from its own body.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Ses uretimi karakterle, ses cozumu saniyeyle faturalanir; ikisi de token
-/// degildir ve <c>runs</c> tablosunun maliyet sutunlarina yazilamaz. Olcum
-/// suren cagrinin <see cref="ToolInvocationRecord"/> kaydina baglanir.
+/// Speech synthesis is billed by character and speech recognition by second. Neither
+/// is a token and cannot be written to the cost columns of the <c>runs</c> table.
+/// The measurement attaches to the current call's <see cref="ToolInvocationRecord"/>.
 /// </para>
 /// <para>
-/// Cagri kimligi <see cref="FunctionInvokingChatClient.CurrentContext"/>'ten
-/// okunur. Bu, olculerek dogrulandi (2026-08-05): <c>AIFunctionArguments.Context</c>
-/// sozlugu <see langword="null"/> gelir ve cagri kimligini TASIMAZ; statik
-/// baglam ise tool govdesinde doludur. Bagimliliklar ise
-/// <c>AIFunctionArguments.Services</c> uzerinden cozulur.
+/// It reads the call identifier from <see cref="FunctionInvokingChatClient.CurrentContext"/>.
+/// This was verified by measurement on 2026-08-05. The <c>AIFunctionArguments.Context</c>
+/// dictionary is <see langword="null"/> and does not carry the call identifier, while the
+/// static context is populated in the tool body. Dependencies resolve through <c>AIFunctionArguments.Services</c>.
 /// </para>
 /// </remarks>
 /// <example>
@@ -33,19 +32,17 @@ namespace AgentPrism;
 /// </example>
 public static class AgentPrismToolUsage
 {
-    /// <summary>Suren tool cagrisinin olcumunu bildirir.</summary>
-    /// <param name="usage">Olcum.</param>
+    /// <summary>Reports usage for the current tool call.</summary>
+    /// <param name="usage">The usage measurement.</param>
     /// <returns>
-    /// Olcum bir cagriya baglanabildiyse <see langword="true"/>. Calistirma
-    /// kaydi kapaliysa veya cagri bir tool baglaminda degilse
-    /// <see langword="false"/>.
+    /// <see langword="true"/> when the measurement is attached to a call. Returns
+    /// <see langword="false"/> when run recording is disabled or the call is not in a tool context.
     /// </returns>
-    /// <exception cref="ArgumentNullException"><paramref name="usage"/> <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="usage"/> is <see langword="null"/>.</exception>
     /// <remarks>
-    /// Metot <strong>hicbir kosulda istisna firlatmaz</strong> (bos arguman
-    /// disinda) ve <see langword="false"/> donmesi tool'un isini bozmaz.
-    /// Gozlemlenebilirlik islevselligi bozmaz — bu, depo hatasinin calistirmayi
-    /// kesmemesiyle ayni kuraldir.
+    /// This method <strong>never throws</strong>, except for an empty argument. A
+    /// <see langword="false"/> result does not interrupt the tool. Observability does
+    /// not break functionality. This is the same rule that prevents a store error from stopping a run.
     /// </remarks>
     public static bool Report(ToolCallUsage usage)
     {

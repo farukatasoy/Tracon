@@ -3,17 +3,18 @@ using System.Collections.Concurrent;
 namespace AgentPrism;
 
 /// <summary>
-/// Span'leri surec bellegi icinde tutan depo.
+/// A store that keeps spans in process memory.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Sinirlari:</strong> surec omru, tek dugum ve sinirli kapasite.
-/// <see cref="MaxTraces"/> asilinca en eski trace dusurulur.
-/// Uretimde <c>AgentPrism.PostgreSql</c> kullanin.
+/// <strong>Limits:</strong> process lifetime, one node, and limited capacity.
+/// When <see cref="MaxTraces"/> is exceeded, it removes the oldest trace.
+/// Use <c>AgentPrism.PostgreSql</c> in production.
 /// </para>
 /// <para>
-/// 🚨 Okuma gecerli kiraciyla sinirlidir. Yazma kiraciyi partiden alir; okuma
-/// <see cref="ITenantContext"/>'ten (Faz 41) -- SQL uygulamasiyla ayni kural.
+/// Reads are limited to the current tenant. Writes take the tenant from the batch,
+/// while reads take it from <see cref="ITenantContext"/> (Phase 41). This is the
+/// same rule as the SQL implementation.
 /// </para>
 /// </remarks>
 public sealed class InMemoryTraceStore : ITraceStore
@@ -23,14 +24,14 @@ public sealed class InMemoryTraceStore : ITraceStore
     private readonly ConcurrentQueue<string> _insertionOrder = new();
     private readonly ITenantContext _tenantContext;
 
-    /// <summary>Yeni bir bellek ici span deposu olusturur.</summary>
+    /// <summary>Initializes a new in-memory span store.</summary>
     /// <param name="tenantContext">
-    /// Gecerli kiracinin baglami. Verilmezse depo tek kiracili davranir.
+    /// The current tenant context. If omitted, the store behaves as single tenant.
     /// </param>
     public InMemoryTraceStore(ITenantContext? tenantContext = null)
         => _tenantContext = tenantContext ?? FixedTenantContext.Default;
 
-    /// <summary>Bellekte tutulacak ust trace sayisi.</summary>
+    /// <summary>The maximum number of traces to keep in memory.</summary>
     public int MaxTraces { get; init; } = 500;
 
     /// <inheritdoc />
@@ -91,8 +92,8 @@ public sealed class InMemoryTraceStore : ITraceStore
 
     private static RunTrace Merge(RunTrace existing, TraceSpanBatch batch)
     {
-        // Ayni span iki kez yazilabilir (kimlikler turetilmistir); kimlige gore
-        // birlestirmek tekrari yok eder.
+        // The same span can be written twice because identifiers are derived. Merge
+        // by identifier to remove the duplicate.
         var byId = existing.Spans.ToDictionary(static span => span.Id);
 
         foreach (var span in batch.Spans)

@@ -3,28 +3,26 @@ using System.Security.Claims;
 namespace AgentPrism;
 
 /// <summary>
-/// Gecerli caginin kullanicisini tasiyan ortam (ambient) baglam.
+/// An ambient context that carries the user of the current call.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <c>AgentPrism.AspNetCore</c>, her korumali istegin basinda (guvenlik denetimleri
-/// gectikten sonra) <see cref="Current"/> alanina <c>HttpContext.User</c>'i yazar.
-/// Deger bir <see cref="AsyncLocal{T}"/> icinde tutuldugu icin ayni istegin async
-/// cagri zincirinde ilerideki her noktadan (ornegin bir depo dekoratorunden)
-/// okunabilir — <c>Activity.Current</c> ile ayni mekanizma.
+/// <c>AgentPrism.AspNetCore</c> writes <c>HttpContext.User</c> to <see cref="Current"/>
+/// at the start of every protected request, after security checks pass. The value is
+/// held in <see cref="AsyncLocal{T}"/>, so code later in the same request's async call
+/// chain, such as a store decorator, can read it. This is the same mechanism as <c>Activity.Current</c>.
 /// </para>
 /// <para>
-/// Bu tasarim, <c>AgentPrism.Core</c>'un <c>IHttpContextAccessor</c> veya ASP.NET
-/// Core'a hicbir bagimlilik eklemeden aktoru okuyabilmesini saglar:
-/// <see cref="ClaimsPrincipal"/> temel .NET kutuphanesindedir, ASP.NET Core'a
-/// ozgu degildir.
+/// This design lets <c>AgentPrism.Core</c> read the actor without adding a dependency
+/// on <c>IHttpContextAccessor</c> or ASP.NET Core. <see cref="ClaimsPrincipal"/> is in
+/// the base .NET library, not specific to ASP.NET Core.
 /// </para>
 /// </remarks>
 public static class AuditActorContext
 {
     private static readonly AsyncLocal<ClaimsPrincipal?> CurrentHolder = new();
 
-    /// <summary>Gecerli caginin kullanicisi. Ayarlanmamissa <see langword="null"/>.</summary>
+    /// <summary>The user of the current call, or <see langword="null"/> when it is not set.</summary>
     public static ClaimsPrincipal? Current
     {
         get => CurrentHolder.Value;

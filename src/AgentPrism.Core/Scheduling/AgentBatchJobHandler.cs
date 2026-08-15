@@ -3,18 +3,16 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="JobKind.AgentBatch"/> islerini yurutur: kayitli bir agent'i
-/// isin ogelerindeki her girdi uzerinde sirayla calistirir.
+/// Handles <see cref="JobKind.AgentBatch"/> jobs. It runs a registered agent in
+/// sequence for each input in the job items.
 /// </summary>
 /// <remarks>
-/// Agent'i cozmek ve calistirmak icin HTTP katmaninin kullandigi ayni
-/// HTTP-bagimsiz yol izlenir: <see cref="IAgentCatalog.ResolveAsync(string, CancellationToken)"/> ile
-/// cozulen agent zaten calistirma kaydi dekoratoru ile sarilidir; her
-/// calistirma normal bir <c>runs</c> satiri olarak <see cref="IRunStore"/>'a
-/// yazilir. Ogeler <strong>sirayla</strong> islenir (Faz 17 acik sorusu 1,
-/// oneri kabul edildi): paralellik saglayici hiz sinirina takilirdi; isler
-/// arasi paralellik <see cref="AgentPrismSchedulingOptions.MaxConcurrentJobs"/>
-/// ile zaten saglanir.
+/// It follows the same HTTP-independent path as the HTTP layer to resolve and run
+/// agents. An agent resolved by <see cref="IAgentCatalog.ResolveAsync(string, CancellationToken)"/>
+/// is already wrapped in the run-recording decorator, so every run writes a normal
+/// <c>runs</c> row through <see cref="IRunStore"/>. It processes items <strong>in sequence</strong>
+/// because provider rate limits would constrain parallelism. Parallelism between jobs
+/// is already provided by <see cref="AgentPrismSchedulingOptions.MaxConcurrentJobs"/>.
 /// </remarks>
 internal sealed class AgentBatchJobHandler(
     IAgentCatalog catalog,
@@ -30,12 +28,12 @@ internal sealed class AgentBatchJobHandler(
 
         var agent = await catalog.ResolveAsync(context.Job.TargetName, cancellationToken).ConfigureAwait(false)
             ?? throw new AgentPrismException(
-                $"'{context.Job.TargetName}' adinda bir agent bulunamadi. Is basarisiz olarak isaretlenecek.");
+                $"The agent named '{context.Job.TargetName}' was not found. The job will be marked as failed.");
 
         foreach (var item in context.Items)
         {
-            // Yeniden deneme senaryosu: kira suresi dolup is yeniden alindiginda
-            // daha once basariyla islenmis ogeler tekrar calistirilmaz.
+            // Retry scenario: when the lease expires and the job is claimed again,
+            // items already processed successfully do not run again.
             if (item.Status != JobItemStatus.Pending)
             {
                 continue;
@@ -70,7 +68,7 @@ internal sealed class AgentBatchJobHandler(
                 {
                     logger.LogWarning(
                         exception,
-                        "Toplu is ogesi basarisiz oldu: is={JobId} sira={Seq} agent={AgentName}",
+                        "Batch job item failed: job={JobId} sequence={Seq} agent={AgentName}",
                         context.Job.Id,
                         item.Seq,
                         context.Job.TargetName);
