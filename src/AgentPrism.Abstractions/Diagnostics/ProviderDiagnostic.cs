@@ -1,18 +1,18 @@
 namespace AgentPrism;
 
-/// <summary>Bir model saglayicisinin teshis ozeti.</summary>
+/// <summary>Summarizes diagnostics for a model provider.</summary>
 public sealed record ProviderDiagnostic
 {
-    /// <summary>Saglayici adi.</summary>
+    /// <summary>Gets the provider name.</summary>
     public required string Name { get; init; }
 
     /// <summary>
-    /// Model saglayicisi saglik onbelleginin son bilinen durumu
-    /// (<see cref="ModelProviderHealthStatus"/> degeri, metin olarak). Onbellek
-    /// bosysa <c>"Unknown"</c>.
+    /// Gets the last known model provider health cache status as a
+    /// <see cref="ModelProviderHealthStatus"/> value in text form. Returns
+    /// <c>"Unknown"</c> when the cache is empty.
     /// </summary>
     public required string Status { get; init; }
 
-    /// <summary>Devre kesici bu saglayici icin acik mi.</summary>
+    /// <summary>Gets whether the circuit breaker is open for this provider.</summary>
     public required bool CircuitOpen { get; init; }
 }

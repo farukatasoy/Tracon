@@ -10,12 +10,6 @@ samples/AgentPrism.Api/Program.cs|249
 samples/AgentPrism.Api/appsettings.json|29
 samples/Directory.Build.props|1
 src/AgentPrism.Abstractions/AgentPrismException.cs|2
-src/AgentPrism.Abstractions/Diagnostics/AgentPrismDiagnosticsReport.cs|20
-src/AgentPrism.Abstractions/Diagnostics/ConfigurationDiagnostic.cs|4
-src/AgentPrism.Abstractions/Diagnostics/IModelProviderConfigurationDiagnostics.cs|6
-src/AgentPrism.Abstractions/Diagnostics/ISqlPersistenceDiagnostics.cs|14
-src/AgentPrism.Abstractions/Diagnostics/ProviderDiagnostic.cs|4
-src/AgentPrism.Abstractions/Diagnostics/SchemaReadyGate.cs|23
 src/AgentPrism.Abstractions/Evaluation/EvalCase.cs|9
 src/AgentPrism.Abstractions/Evaluation/EvalCaseDraft.cs|4
 src/AgentPrism.Abstractions/Evaluation/EvalCaseResult.cs|13
