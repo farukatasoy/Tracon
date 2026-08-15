@@ -1,23 +1,24 @@
 # AgentPrism.Core
 
-AgentPrism cekirdek calisma zamani.
+The AgentPrism core run time.
 
-Agent katalogu, tanim derleyicisi, tool kayit defteri ve calistirma kaydi. Veritabani gerektirmez: yapilandirma yapilmazsa tum depolama bellek icinde calisir.
+It contains the agent catalog, definition compiler, tool registry, and run recording.
+It does not require a database. Without configuration, all storage runs in memory.
 
 ```csharp
 builder.AddAgentPrism()
        .AddTool(GetOrderStatus);
 ```
 
-## Kurulum
+## Installation
 
 ```bash
 dotnet add package AgentPrism.Core
 ```
 
-## Baglanti
+## Links
 
-- Depo ve tam dokumantasyon: <https://github.com/farukatasoy/AgentPrism>
-- Mimari: [docs/MIMARI.md](https://github.com/farukatasoy/AgentPrism/blob/main/docs/MIMARI.md)
+- Repository and full documentation: <https://github.com/farukatasoy/AgentPrism>
+- Architecture: [docs/MIMARI.md](https://github.com/farukatasoy/AgentPrism/blob/main/docs/MIMARI.md)
 
-Lisans: MIT
+License: MIT

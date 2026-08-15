@@ -4,13 +4,13 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Tum <see cref="IAgentSource"/> kaynaklarini tek bir katalogda birlestirir ve
-/// cozulen agent'lari kayitli <see cref="IAgentDecorator"/> sarmalayicilariyla sarar.
+/// Combines all <see cref="IAgentSource"/> sources in one catalog and wraps resolved
+/// agents with registered <see cref="IAgentDecorator"/> decorators.
 /// </summary>
 /// <remarks>
-/// Kaynaklar <see cref="IAgentSource.Priority"/> sirasina gore denenir.
-/// Ad cakismasinda onceligi yuksek (sayisi kucuk) kaynak kazanir; kaybeden
-/// kaynak listeye eklenmez ve bir uyari loglanir.
+/// Sources are tried in <see cref="IAgentSource.Priority"/> order. When names collide,
+/// the higher-priority source with the lower number wins. The losing source is omitted
+/// from the list and the catalog logs a warning.
 /// </remarks>
 public sealed class CompositeAgentCatalog : IAgentCatalog
 {
@@ -18,11 +18,11 @@ public sealed class CompositeAgentCatalog : IAgentCatalog
     private readonly IAgentDecorator[] _decorators;
     private readonly ILogger<CompositeAgentCatalog> _logger;
 
-    /// <summary>Yeni bir birlesik katalog olusturur.</summary>
-    /// <param name="sources">Agent kaynaklari.</param>
-    /// <param name="decorators">Cozulen agent'lara uygulanacak sarmalayicilar.</param>
-    /// <param name="logger">Gunlukleyici.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Initializes a new composite catalog.</summary>
+    /// <param name="sources">The agent sources.</param>
+    /// <param name="decorators">The decorators applied to resolved agents.</param>
+    /// <param name="logger">The logger.</param>
+    /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
     public CompositeAgentCatalog(
         IEnumerable<IAgentSource> sources,
         IEnumerable<IAgentDecorator> decorators,
@@ -51,8 +51,8 @@ public sealed class CompositeAgentCatalog : IAgentCatalog
                 if (byName.TryGetValue(descriptor.Name, out var winner))
                 {
                     _logger.LogWarning(
-                        "'{AgentName}' agent'i hem '{Winner}' hem '{Loser}' kaynaginda tanimli. " +
-                        "Oncelik sirasina gore '{Winner}' kullanilacak.",
+                        "Agent '{AgentName}' is defined in both source '{Winner}' and source '{Loser}'. " +
+                        "Source '{Winner}' will be used based on priority.",
                         descriptor.Name,
                         winner.SourceName,
                         source.Name,
@@ -110,8 +110,8 @@ public sealed class CompositeAgentCatalog : IAgentCatalog
 
         foreach (var source in _sources)
         {
-            // Bu kaynak agent'i hic tanimiyorsa siradaki kaynaga gec (oncelik sirasi
-            // ListAsync/ResolveAsync ile aynidir: kucuk Priority once denenir).
+            // If this source does not define the agent, continue with the next source.
+            // Priority order matches ListAsync and ResolveAsync: lower Priority runs first.
             var descriptor = await FindDescriptorOrNullAsync(source, agentName, cancellationToken).ConfigureAwait(false);
 
             if (descriptor is null)
@@ -122,12 +122,12 @@ public sealed class CompositeAgentCatalog : IAgentCatalog
             if (source is not IVersionedAgentSource versioned)
             {
                 throw new AgentPrismException(
-                    $"'{agentName}' agent'i '{source.Name}' kaynagindan geliyor ve surum gecmisi tutmuyor " +
-                    "(kod kaynagi). Belirli bir surume karsi calistirma veya deney bu agent icin desteklenmez.");
+                    $"Agent '{agentName}' comes from source '{source.Name}' and does not keep version history " +
+                    "(code source). Runs or experiments against a specific version are not supported for this agent.");
             }
 
             var agent = await versioned.ResolveVersionAsync(agentName, version.Value, cancellationToken).ConfigureAwait(false)
-                ?? throw new AgentPrismException($"'{agentName}' agent'inin {version.Value} numarali surumu bulunamadi.");
+                ?? throw new AgentPrismException($"Version {version.Value} of agent '{agentName}' was not found.");
 
             foreach (var decorator in _decorators)
             {
@@ -147,8 +147,8 @@ public sealed class CompositeAgentCatalog : IAgentCatalog
     {
         var descriptor = await FindDescriptorOrNullAsync(source, agentName, cancellationToken).ConfigureAwait(false);
 
-        // Kaynak agent'i cozdu ancak listesinde gostermiyor. Sarmalayicilarin
-        // calisabilmesi icin en az bilgiyi tasiyan bir ozet uretiyoruz.
+        // The source resolved the agent but does not list it. Build a summary with
+        // the minimum information needed for decorators to run.
         return descriptor ?? new AgentDescriptor
         {
             Name = agentName,
