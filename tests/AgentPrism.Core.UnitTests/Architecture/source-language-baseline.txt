@@ -116,16 +116,13 @@ src/AgentPrism.Core/Attachments/AttachmentResolvingChatClient.cs|9
 src/AgentPrism.Core/Attachments/AttachmentUriReference.cs|12
 src/AgentPrism.Core/Audit/AuditActorContext.cs|10
 src/AgentPrism.Core/Audit/AuditRecorder.cs|12
-src/AgentPrism.Core/Audit/AuditingAgentDefinitionStore.cs|5
 src/AgentPrism.Core/Audit/AuditingExperimentStore.cs|12
-src/AgentPrism.Core/Audit/AuditingMcpServerStore.cs|5
 src/AgentPrism.Core/Audit/AuditingSessionStore.cs|14
 src/AgentPrism.Core/Audit/AuditingSkillScriptGrantStore.cs|7
 src/AgentPrism.Core/Audit/AuditingWorkflowDefinitionStore.cs|9
 src/AgentPrism.Core/Catalog/CodeAgentRegistration.cs|13
 src/AgentPrism.Core/Catalog/CodeAgentSource.cs|11
 src/AgentPrism.Core/Catalog/CompositeAgentCatalog.cs|11
-src/AgentPrism.Core/Catalog/DefinitionStoreAgentSource.cs|6
 src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs|179
 src/AgentPrism.Core/Compilation/CompactionUsageTrackingChatClient.cs|7
 src/AgentPrism.Core/Compilation/CompiledAgentCache.cs|33
@@ -142,11 +139,8 @@ src/AgentPrism.Core/Evaluation/EvalJobHandler.cs|33
 src/AgentPrism.Core/Evaluation/ModelRunJudgeOptions.cs|7
 src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs|32
 src/AgentPrism.Core/Evaluation/OnlineEvaluationOptions.cs|22
-src/AgentPrism.Core/Evaluation/OnlineEvaluationOptionsValidator.cs|5
 src/AgentPrism.Core/Experiments/CanaryEvaluationService.cs|23
 src/AgentPrism.Core/Experiments/CanaryEvaluator.cs|9
-src/AgentPrism.Core/Experiments/CanaryOptions.cs|5
-src/AgentPrism.Core/Experiments/CanaryRollbackAuditPayload.cs|5
 src/AgentPrism.Core/Experiments/ExperimentAssignmentResolver.cs|24
 src/AgentPrism.Core/Experiments/InMemoryExperimentStore.cs|8
 src/AgentPrism.Core/Graph/AgentCallGraph.cs|32
@@ -173,7 +167,6 @@ src/AgentPrism.Core/Models/ModelProviderCircuitBreaker.cs|37
 src/AgentPrism.Core/Models/ModelProviderHealthBackgroundService.cs|8
 src/AgentPrism.Core/Models/ModelProviderHealthCache.cs|29
 src/AgentPrism.Core/Models/ModelProviderRegistry.cs|44
-src/AgentPrism.Core/Quotas/AgentPrismQuotaOptionsValidator.cs|6
 src/AgentPrism.Core/Quotas/AgentPrismRateLimitOptions.cs|15
 src/AgentPrism.Core/Quotas/InMemoryQuotaStore.cs|12
 src/AgentPrism.Core/Quotas/QuotaEnforcer.cs|33
@@ -203,12 +196,10 @@ src/AgentPrism.Core/Scheduling/InMemoryJobStore.cs|13
 src/AgentPrism.Core/Scheduling/JobWorkerBackgroundService.cs|24
 src/AgentPrism.Core/Scheduling/WorkflowJobHandler.cs|7
 src/AgentPrism.Core/Security/ApiKeyGenerator.cs|18
-src/AgentPrism.Core/Security/InMemoryApiKeyStore.cs|5
 src/AgentPrism.Core/Sessions/AgentSessionIdentity.cs|14
 src/AgentPrism.Core/Sessions/AgentSessionManager.cs|62
 src/AgentPrism.Core/Sessions/ConversationBranchService.cs|34
 src/AgentPrism.Core/Skills/AgentPrismSkillScriptBuilderExtensions.cs|14
-src/AgentPrism.Core/Skills/AgentPrismSkillsJsonContext.cs|5
 src/AgentPrism.Core/Skills/AgentPrismSkillsSource.cs|13
 src/AgentPrism.Core/Skills/AgentSkillCatalog.cs|7
 src/AgentPrism.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs|56
@@ -218,7 +209,6 @@ src/AgentPrism.Core/Skills/Scripts/SkillScriptProcessRunner.cs|16
 src/AgentPrism.Core/Skills/Scripts/SkillScriptSupport.cs|25
 src/AgentPrism.Core/Storage/InMemoryAgentDefinitionStore.cs|12
 src/AgentPrism.Core/Storage/InMemoryApprovalAndMcpStores.cs|7
-src/AgentPrism.Core/Storage/InMemoryAttachmentStore.cs|5
 src/AgentPrism.Core/Storage/InMemoryRunInputStore.cs|11
 src/AgentPrism.Core/Storage/InMemoryRunScoreStore.cs|8
 src/AgentPrism.Core/Storage/InMemoryRunStore.cs|98

@@ -1,19 +1,19 @@
 namespace AgentPrism;
 
 /// <summary>
-/// <c>experiment.auto_rollback</c> denetim kaydinin <c>After</c> govdesi.
+/// The <c>After</c> payload for an <c>experiment.auto_rollback</c> audit entry.
 /// </summary>
 internal sealed record CanaryRollbackAuditPayload
 {
-    /// <summary>Geri almanin insan tarafindan okunabilir gerekcesi.</summary>
+    /// <summary>The human-readable reason for the rollback.</summary>
     public required string Reason { get; init; }
 
-    /// <summary>Kanarya kolunun geri alma anindaki hata orani.</summary>
+    /// <summary>The canary arm error rate at rollback time.</summary>
     public double? CanaryErrorRate { get; init; }
 
-    /// <summary>Kontrol kolunun geri alma anindaki hata orani.</summary>
+    /// <summary>The control arm error rate at rollback time.</summary>
     public double? ControlErrorRate { get; init; }
 
-    /// <summary>Kanarya kolunun geri alma anindaki ortalama puani.</summary>
+    /// <summary>The canary arm average score at rollback time.</summary>
     public double? CanaryAverageScore { get; init; }
 }

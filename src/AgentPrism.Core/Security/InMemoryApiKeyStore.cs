@@ -2,18 +2,18 @@ using System.Collections.Concurrent;
 
 namespace AgentPrism;
 
-/// <summary>API anahtarlarini surec belleginde tutan varsayilan uygulama.</summary>
+/// <summary>The default implementation that keeps API keys in process memory.</summary>
 /// <remarks>
-/// Tek surecli kurulumlar ve testler icindir. <c>UsePostgreSql()</c> (veya
-/// SQL Server/SQLite karsiligi) bunu <c>SqlApiKeyStore</c> ile degistirir.
+/// For single-process deployments and tests. <c>UsePostgreSql()</c>, or the
+/// SQL Server or SQLite equivalent, replaces it with <c>SqlApiKeyStore</c>.
 /// </remarks>
 public sealed class InMemoryApiKeyStore : IApiKeyStore
 {
     private readonly ConcurrentDictionary<Guid, StoredApiKey> _keys = new();
     private readonly TimeProvider _timeProvider;
 
-    /// <summary>Yeni bir bellek ici API anahtari deposu olusturur.</summary>
-    /// <param name="timeProvider">Zaman kaynagi. Verilmezse <see cref="TimeProvider.System"/> kullanilir.</param>
+    /// <summary>Initializes a new in-memory API key store.</summary>
+    /// <param name="timeProvider">The time provider. Uses <see cref="TimeProvider.System"/> when omitted.</param>
     public InMemoryApiKeyStore(TimeProvider? timeProvider = null)
     {
         _timeProvider = timeProvider ?? TimeProvider.System;
