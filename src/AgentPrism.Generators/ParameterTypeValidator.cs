@@ -5,8 +5,8 @@ using Microsoft.CodeAnalysis;
 namespace AgentPrism.Generators;
 
 /// <summary>
-/// Bir metot parametresini <see cref="ParameterModel"/>'e cevirir. Beyaz liste
-/// disindaki bir tip icin <see langword="null"/> doner (APG0003).
+/// Converts a method parameter to <see cref="ParameterModel"/>. Returns
+/// <see langword="null"/> for a type outside the allow list (APG0003).
 /// </summary>
 internal static class ParameterTypeValidator
 {
@@ -16,9 +16,9 @@ internal static class ParameterTypeValidator
     private const string DateTimeOffsetMetadataName = "System.DateTimeOffset";
 
     /// <summary>
-    /// Parametreyi siniflandirir. <paramref name="parameter"/>
-    /// <c>System.Threading.CancellationToken</c> ise <see cref="ParameterShape.CancellationToken"/>
-    /// doner ve JSON semasina girmez.
+    /// Classifies a parameter. When <paramref name="parameter"/> is
+    /// <c>System.Threading.CancellationToken</c>, returns
+    /// <see cref="ParameterShape.CancellationToken"/> and excludes it from the JSON schema.
     /// </summary>
     public static ParameterModel? TryCreate(IParameterSymbol parameter)
     {
@@ -123,11 +123,11 @@ internal static class ParameterTypeValidator
         => type is INamedTypeSymbol named ? $"{named.ContainingNamespace}.{named.Name}" : null;
 
     /// <summary>
-    /// <see cref="SymbolDisplayFormat.FullyQualifiedFormat"/>, <c>UseSpecialTypes</c>
-    /// yuzunden ilkel tipleri C# anahtar kelimesiyle ("int") yazar, "global::System.Int32"
-    /// ile DEGIL. <see cref="SourceWriter"/>'daki tip-adi anahtarlamasi (numerik
-    /// donusturucu secimi) tutarli CLR adlarina bagimlidir; bu format anahtar
-    /// kelimeleri BASTIRIR.
+    /// <see cref="SymbolDisplayFormat.FullyQualifiedFormat"/> writes primitive types
+    /// as C# keywords such as "int" because of <c>UseSpecialTypes</c>, not as
+    /// "global::System.Int32". Type-name switching in <see cref="SourceWriter"/>,
+    /// which selects the numeric converter, depends on consistent CLR names. This
+    /// format suppresses keywords.
     /// </summary>
     private static readonly SymbolDisplayFormat FullyQualifiedClrFormat = SymbolDisplayFormat.FullyQualifiedFormat
         .WithMiscellaneousOptions(SymbolDisplayFormat.FullyQualifiedFormat.MiscellaneousOptions & ~SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
@@ -136,8 +136,7 @@ internal static class ParameterTypeValidator
         => type.ToDisplayString(FullyQualifiedClrFormat);
 
     /// <summary>
-    /// C# parametre varsayilan degerini uretilen kodda kullanilabilecek bir
-    /// kaynak metin literaline cevirir.
+    /// Converts a C# parameter default value to a source-text literal that generated code can use.
     /// </summary>
     private static string RenderDefaultValueLiteral(object? value, ITypeSymbol type)
     {
