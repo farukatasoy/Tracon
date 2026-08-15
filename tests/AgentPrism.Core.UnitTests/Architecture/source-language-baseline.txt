@@ -117,14 +117,12 @@ src/AgentPrism.Core/Audit/AuditRecorder.cs|12
 src/AgentPrism.Core/Audit/AuditingExperimentStore.cs|12
 src/AgentPrism.Core/Audit/AuditingSessionStore.cs|14
 src/AgentPrism.Core/Catalog/CodeAgentRegistration.cs|13
-src/AgentPrism.Core/Catalog/CompositeAgentCatalog.cs|11
 src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs|179
 src/AgentPrism.Core/Compilation/CompiledAgentCache.cs|33
 src/AgentPrism.Core/Compilation/TenantPrefixingAgentFileStore.cs|17
 src/AgentPrism.Core/Coordination/SingletonGuard.cs|26
 src/AgentPrism.Core/Diagnostics/AgentPrismMetrics.cs|49
 src/AgentPrism.Core/Diagnostics/RunTraceCollector.cs|39
-src/AgentPrism.Core/Diagnostics/TraceSpanIdentity.cs|11
 src/AgentPrism.Core/Evaluation/AgentPrismOnlineEvaluationBuilderExtensions.cs|14
 src/AgentPrism.Core/Evaluation/EvalCheckRegistry.cs|23
 src/AgentPrism.Core/Evaluation/EvalJobHandler.cs|33
@@ -158,7 +156,6 @@ src/AgentPrism.Core/Quotas/InMemoryQuotaStore.cs|12
 src/AgentPrism.Core/Quotas/QuotaEnforcer.cs|33
 src/AgentPrism.Core/Quotas/QuotaPeriodCalculator.cs|27
 src/AgentPrism.Core/Quotas/QuotaUsageObserver.cs|41
-src/AgentPrism.Core/README.md|3
 src/AgentPrism.Core/Recording/AgentPrismRunContext.cs|41
 src/AgentPrism.Core/Recording/RunCostRecalculationService.cs|16
 src/AgentPrism.Core/Recording/RunEventWriter.cs|66
@@ -168,7 +165,6 @@ src/AgentPrism.Core/Recording/RunRecordingAgentDecorator.cs|19
 src/AgentPrism.Core/Recording/ToolInvocationTracker.cs|31
 src/AgentPrism.Core/Recording/ToolUsageAccumulator.cs|16
 src/AgentPrism.Core/Replay/RecordedToolPlayback.cs|42
-src/AgentPrism.Core/Replay/ReplayMismatchGuard.cs|11
 src/AgentPrism.Core/Replay/RunReplayService.cs|57
 src/AgentPrism.Core/Retention/RetentionPolicyResolver.cs|16
 src/AgentPrism.Core/Runs/DefaultRunErrorClassifier.cs|15

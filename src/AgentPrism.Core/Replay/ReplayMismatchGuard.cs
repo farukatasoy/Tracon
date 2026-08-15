@@ -5,24 +5,21 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Eslesmeyen bir tool cagrisini calistirma bittikten sonra gercek bir hataya
-/// cevirir (Faz 47).
+/// Converts an unmatched tool call to a real error after the run completes (Phase 47).
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 Bu sarmalayici, <c>FunctionInvokingChatClient</c>'in tool govdesinden
-/// cikan istisnalari <strong>yutmasi</strong> yuzunden vardir (olculdu):
-/// oynatici icinden firlatilan hata uca hic ulasmaz ve istek <c>200</c> doner.
-/// Eslesmeme oynaticida kaydedilir, dongu kesilir ve hata BURADA — model
-/// cagrisinin disinda — firlatilir.
+/// This wrapper exists because <c>FunctionInvokingChatClient</c> <strong>swallows</strong>
+/// exceptions from a tool body. This was measured. An error thrown from the playback
+/// does not reach the endpoint and the request returns <c>200</c>. Playback records
+/// the mismatch, ends the loop, and this wrapper throws the error outside the model call.
 /// </para>
 /// <para>
-/// Sarmalayici <see cref="RunRecordingAgent"/>'in <strong>icinde</strong>
-/// durur: boylece istisna kayit sarmalayicisinin <c>catch</c> blokina duser,
-/// <c>runs</c> satiri <c>Failed</c> olarak kapanir ve hata tipi kararli
-/// <see cref="ReplayToolMismatchException.ReplayToolMismatchErrorType"/>
-/// degerini tasir. Tersi sirada calistirma <c>Completed</c> gorunur ve kayit
-/// sessizce yanlis olurdu.
+/// The wrapper is <strong>inside</strong> <see cref="RunRecordingAgent"/>, so the
+/// exception reaches the recording wrapper's <c>catch</c> block, the <c>runs</c> row
+/// ends as <c>Failed</c>, and the error has deterministic
+/// <see cref="ReplayToolMismatchException.ReplayToolMismatchErrorType"/>. In the
+/// reverse order, the run would appear Completed and its record would be silently wrong.
 /// </para>
 /// </remarks>
 internal sealed class ReplayMismatchGuard(AIAgent innerAgent, RecordedToolPlayback playback)
