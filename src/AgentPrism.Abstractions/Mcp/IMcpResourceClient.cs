@@ -1,84 +1,86 @@
 namespace AgentPrism;
 
-/// <summary>Bir MCP kaynaginin ozeti.</summary>
+/// <summary>The summary of an MCP resource.</summary>
 public sealed record McpResourceSummary
 {
-    /// <summary>Kaynak URI'si.</summary>
+    /// <summary>The resource URI.</summary>
     public required string Uri { get; init; }
 
-    /// <summary>Kaynak adi.</summary>
+    /// <summary>The resource name.</summary>
     public required string Name { get; init; }
 
-    /// <summary>MIME turu.</summary>
+    /// <summary>The MIME type.</summary>
     public string? MimeType { get; init; }
 
-    /// <summary>Aciklama.</summary>
+    /// <summary>The description.</summary>
     public string? Description { get; init; }
 }
 
-/// <summary>Kaynak listeleme sonucu.</summary>
+/// <summary>The result of listing resources.</summary>
 public sealed record McpResourceListResult
 {
-    /// <summary>Sonuc durumu.</summary>
+    /// <summary>The result status.</summary>
     public required McpOperationStatus Status { get; init; }
 
-    /// <summary>Kaynak listesi. <see cref="Status"/> <see cref="McpOperationStatus.Ok"/> degilse bos.</summary>
+    /// <summary>The resource list. Empty when <see cref="Status"/> is not <see cref="McpOperationStatus.Ok"/>.</summary>
     public IReadOnlyList<McpResourceSummary> Resources { get; init; } = [];
 }
 
-/// <summary>Okunmus bir kaynagin icerigi.</summary>
+/// <summary>The content of a resource that was read.</summary>
 public sealed record McpResourceContent
 {
-    /// <summary>Kaynak URI'si.</summary>
+    /// <summary>The resource URI.</summary>
     public required string Uri { get; init; }
 
-    /// <summary>MIME turu.</summary>
+    /// <summary>The MIME type.</summary>
     public string? MimeType { get; init; }
 
-    /// <summary>Metin icerigi. Ikili kaynaklarda <see langword="null"/>.</summary>
+    /// <summary>The text content. <see langword="null"/> for binary resources.</summary>
     public string? Text { get; init; }
 
-    /// <summary>Kaynak ikili mi (blob).</summary>
+    /// <summary>Whether the resource is binary (a blob).</summary>
     public bool IsBinary { get; init; }
 
-    /// <summary>Ham icerigin bayt boyutu (kirpmadan once).</summary>
+    /// <summary>The byte size of the raw content (before truncation).</summary>
     public int ByteSize { get; init; }
 
     /// <summary>
-    /// Icerik boyut siniri asildigi icin kirpildi mi (docs/22-MCP-DERINLESMESI.md, bolum 22.2).
+    /// Whether the content was truncated because it exceeded the size limit
+    /// (docs/22-MCP-DERINLESMESI.md, section 22.2).
     /// </summary>
     public bool Truncated { get; init; }
 }
 
-/// <summary>Bir MCP sunucusunun kaynaklarini listeleyen ve okuyan istemci.</summary>
+/// <summary>The client that lists and reads an MCP server's resources.</summary>
 /// <remarks>
 /// <para>
-/// Yetenek denetimi zorunludur: sunucu <c>ServerCapabilities.Resources</c>
-/// bildirmiyorsa istek hic gonderilmez.
+/// Capability checking is mandatory: if the server does not report
+/// <c>ServerCapabilities.Resources</c>, the request is never sent.
 /// </para>
 /// <para>
-/// <strong>Yalniz bildirilen URI'ler okunabilir.</strong> <see cref="ReadResourceAsync"/>
-/// oncelikle sunucunun <c>ListResourcesAsync</c> ile bildirdigi kume ile
-/// karsilastirir; kumede olmayan bir URI <see cref="McpOperationStatus.UriNotDeclared"/>
-/// ile reddedilir. Aksi hâlde bu bir SSRF araci olurdu (docs/22-MCP-DERINLESMESI.md, bolum 22.2).
+/// <strong>Only declared URIs can be read.</strong> <see cref="ReadResourceAsync"/>
+/// first compares against the set the server reported via
+/// <c>ListResourcesAsync</c>; a URI not in that set is rejected with
+/// <see cref="McpOperationStatus.UriNotDeclared"/>. Otherwise this would be an
+/// SSRF tool (docs/22-MCP-DERINLESMESI.md, section 22.2).
 /// </para>
 /// </remarks>
 public interface IMcpResourceClient
 {
-    /// <summary>Bir sunucunun kaynak listesini getirir.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="serverName">Sunucu adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <summary>Fetches a server's resource list.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="serverName">The server name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     ValueTask<McpResourceListResult> ListResourcesAsync(
         string tenantId,
         string serverName,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Bir kaynagi okur.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="serverName">Sunucu adi.</param>
-    /// <param name="uri">Okunacak kaynagin URI'si; sunucunun bildirdigi kumede olmalidir.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <summary>Reads a resource.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="serverName">The server name.</param>
+    /// <param name="uri">The URI of the resource to read; must be in the server's declared set.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     ValueTask<(McpOperationStatus Status, McpResourceContent? Content)> ReadResourceAsync(
         string tenantId,
         string serverName,
