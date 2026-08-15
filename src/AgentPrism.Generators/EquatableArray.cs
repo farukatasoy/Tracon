@@ -4,14 +4,14 @@ using System.Collections.Immutable;
 namespace AgentPrism.Generators;
 
 /// <summary>
-/// <see cref="ImmutableArray{T}"/>'i eleman bazli (yapisal) esitlikle saran deger tipi.
+/// A value type that wraps <see cref="ImmutableArray{T}"/> with element-based structural equality.
 /// </summary>
 /// <remarks>
-/// <see cref="IIncrementalGenerator"/> onbelleklemesi model tiplerinin dogru
-/// <see cref="object.Equals(object)"/>/<see cref="object.GetHashCode"/> uygulamasina
-/// bagimlidir. <see cref="ImmutableArray{T}"/>'in kendisi bunu SAGLAMAZ (varsayilan
-/// esitlik referans/varsayilandir); bu saglayici olmadan uretec ilgisiz bir dosya
-/// degistiginde bile HER SEYI yeniden uretir.
+/// <see cref="IIncrementalGenerator"/> caching depends on model types implementing
+/// <see cref="object.Equals(object)"/> and <see cref="object.GetHashCode"/> correctly.
+/// <see cref="ImmutableArray{T}"/> does not provide this itself because its default
+/// equality is reference/default equality. Without this provider, the generator
+/// regenerates everything even when an unrelated file changes.
 /// </remarks>
 internal readonly struct EquatableArray<T> : IEquatable<EquatableArray<T>>, IReadOnlyList<T>
     where T : IEquatable<T>
@@ -56,7 +56,7 @@ internal readonly struct EquatableArray<T> : IEquatable<EquatableArray<T>>, IRea
             return 0;
         }
 
-        // netstandard2.0'da System.HashCode yok; elle birlestirme (FNV benzeri).
+        // netstandard2.0 has no System.HashCode, so combine values manually in an FNV-like way.
         unchecked
         {
             var hash = 17;
