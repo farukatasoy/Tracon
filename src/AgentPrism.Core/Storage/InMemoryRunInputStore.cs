@@ -3,18 +3,17 @@ using System.Collections.Concurrent;
 namespace AgentPrism;
 
 /// <summary>
-/// Calistirma girdilerini bellekte tutan varsayilan depo.
+/// The default store that keeps run inputs in memory.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bellek ici uygulama <strong>birinci sinif</strong>tir (K-018): SQL saglayicisi
-/// olmayan bir kurulumda da yeniden oynatma calisir. Kayitlar surec omrunce
-/// yasar; <see cref="MaxRuns"/> asildiginda en eski kayit dusurulur.
+/// The in-memory implementation is <strong>first class</strong> (K-018). Replay
+/// works in a deployment without a SQL provider. Records live for the process lifetime,
+/// and the oldest record is removed when <see cref="MaxRuns"/> is exceeded.
 /// </para>
 /// <para>
-/// Mesajlar burada <em>nesne olarak</em> tutulur; serilestirme yalnizca SQL
-/// uygulamasinda devreye girer. Bu, polimorfik icerigin bellek ici yolda hicbir
-/// zaman kaybolmamasini saglar.
+/// Messages are stored as <em>objects</em> here. Serialization occurs only in the SQL
+/// implementation, so polymorphic content is never lost on the in-memory path.
 /// </para>
 /// </remarks>
 public sealed class InMemoryRunInputStore : IRunInputStore
@@ -23,7 +22,8 @@ public sealed class InMemoryRunInputStore : IRunInputStore
     private readonly ConcurrentQueue<Guid> _insertionOrder = new();
 
     /// <summary>
-    /// Bellekte tutulacak ust girdi sayisi. Asilinca en eski girdi dusurulur.
+    /// The maximum number of inputs to keep in memory. The oldest input is removed
+    /// when this limit is exceeded.
     /// </summary>
     public int MaxRuns { get; init; } = 1_000;
 
@@ -32,8 +32,8 @@ public sealed class InMemoryRunInputStore : IRunInputStore
     {
         ArgumentNullException.ThrowIfNull(record);
 
-        // Ikinci yazim yok sayilir: kuyruga alinan bir calistirma (Faz 46) ayni
-        // kimlikle iki kez baslar ve girdi degismemelidir.
+        // Ignore a second write. A queued run can start twice with the same identifier
+        // in Phase 46, and the input must not change.
         if (_inputs.TryAdd(record.RunId, record))
         {
             _insertionOrder.Enqueue(record.RunId);
@@ -56,8 +56,8 @@ public sealed class InMemoryRunInputStore : IRunInputStore
             return new ValueTask<RunInputRecord?>((RunInputRecord?)null);
         }
 
-        // Kiraci sinirini depo da zorlar: "yok" ile "baskasinin" cagiran icin
-        // ayni sonuctur ve varlik sizdirmaz.
+        // The store also enforces the tenant boundary. "Missing" and "belongs to
+        // another tenant" have the same result for the caller and do not leak existence.
         return new ValueTask<RunInputRecord?>(
             string.Equals(record.TenantId, tenantId, StringComparison.Ordinal) ? record : null);
     }
