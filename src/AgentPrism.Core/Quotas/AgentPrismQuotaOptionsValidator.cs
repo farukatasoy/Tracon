@@ -3,11 +3,11 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="AgentPrismQuotaOptions"/> ayarlarini uygulama baslarken dogrular.
+/// Validates <see cref="AgentPrismQuotaOptions"/> when the application starts.
 /// </summary>
 /// <remarks>
-/// Dogrulama elle yazilmistir; <c>ValidateDataAnnotations()</c> yansimaya dayanir ve
-/// <c>IL2026</c> uretir. Gerekce: <c>docs/KARARLAR.md</c>, karar K-006.
+/// This validation is handwritten. <c>ValidateDataAnnotations()</c> uses reflection
+/// and produces <c>IL2026</c>. Rationale: <c>docs/KARARLAR.md</c>, decision K-006.
 /// </remarks>
 public sealed class AgentPrismQuotaOptionsValidator : IValidateOptions<AgentPrismQuotaOptions>
 {
@@ -18,10 +18,9 @@ public sealed class AgentPrismQuotaOptionsValidator : IValidateOptions<AgentPris
 
         List<string>? failures = null;
 
-        // Saat dilimi BASLANGICTA dogrulanir. Calisma aninda ResolveTimeZone()
-        // UTC'ye duser: yanlis bir ad yuzunden tum trafigin kesilmesi kabul
-        // edilemez. Ama hatanin sessiz kalmasi da kabul edilemez — burada
-        // uygulamayi baslatmadan soyleriz.
+        // Validate the time zone at startup. ResolveTimeZone() falls back to UTC at
+        // run time. An invalid name must not stop all traffic, but the error must not
+        // be silent either, so report it before the application starts.
         if (string.IsNullOrWhiteSpace(options.TimeZone))
         {
             (failures ??= []).Add(
@@ -38,7 +37,7 @@ public sealed class AgentPrismQuotaOptionsValidator : IValidateOptions<AgentPris
             {
                 (failures ??= []).Add(
                     $"{nameof(AgentPrismQuotaOptions)}.{nameof(AgentPrismQuotaOptions.TimeZone)} " +
-                    $"gecerli bir saat dilimi degil: '{options.TimeZone}'.");
+                    $"is not a valid time zone: '{options.TimeZone}'.");
             }
         }
 
@@ -48,7 +47,7 @@ public sealed class AgentPrismQuotaOptionsValidator : IValidateOptions<AgentPris
             {
                 (failures ??= []).Add(
                     $"{nameof(AgentPrismQuotaOptions)}.{nameof(AgentPrismQuotaOptions.ThresholdPercents)} " +
-                    $"degerleri 1-100 araliginda olmalidir. Actual value: {percent}.");
+                $"values must be between 1 and 100. Actual value: {percent}.");
             }
         }
 

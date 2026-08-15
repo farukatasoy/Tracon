@@ -4,13 +4,12 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="IAgentDefinitionStore"/>'u denetim izi yazan bir dekorator ile sarar.
+/// Wraps <see cref="IAgentDefinitionStore"/> in a decorator that writes an audit trail.
 /// </summary>
 /// <remarks>
-/// Yazma uc katmaninda degil burada yapilir: bu, "bir agent yalnizca kayitli bir
-/// tool'a isaret edebilir" kuralinin <c>ToolRegistry</c> icinde zorlanmasiyla ayni
-/// gerekcedir — depo, agent tanimina yapilan <strong>her</strong> yazma yolunun
-/// gectigi tek kapidir.
+/// Writes occur here, not at the endpoint layer. This follows the same rationale as
+/// enforcing the "an agent can only refer to a registered tool" rule in <c>ToolRegistry</c>:
+/// the store is the one gateway for <strong>every</strong> write path to an agent definition.
 /// </remarks>
 public sealed class AuditingAgentDefinitionStore : IAgentDefinitionStore, IAuditDecorated
 {
@@ -20,7 +19,7 @@ public sealed class AuditingAgentDefinitionStore : IAgentDefinitionStore, IAudit
     private readonly IAuditActorResolver _actorResolver;
     private readonly ILogger<AuditingAgentDefinitionStore> _logger;
 
-    /// <summary>Yeni bir denetimli tanim deposu olusturur.</summary>
+    /// <summary>Initializes a new audited definition store.</summary>
     public AuditingAgentDefinitionStore(
         IAgentDefinitionStore inner,
         IAuditLog auditLog,

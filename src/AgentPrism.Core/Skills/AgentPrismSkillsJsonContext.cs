@@ -4,13 +4,12 @@ using System.Text.Json.Serialization;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="AgentPrismSkillsSource"/>'un skill/script kaydi icin MAF'a verdigi
-/// <see cref="System.Text.Json.JsonSerializerOptions"/>'un kaynak-uretilen tip
-/// cozucusu — yansima kullanilmaz. <c>SkillScriptSupport.CreateStoredScriptDelegate</c>
-/// <c>Func&lt;string?, CancellationToken, Task&lt;object?&gt;&gt;</c> dondurur ve
-/// <c>AgentInlineSkill.AddScript</c>'in arguman semasi uretimi bu imzayi kullanir;
-/// <see cref="AgentPrismSkillsSource.MarshalArguments"/> ayrica <see cref="JsonElement"/>
-/// tasir.
+/// The source-generated type resolver for <see cref="System.Text.Json.JsonSerializerOptions"/>
+/// that <see cref="AgentPrismSkillsSource"/> supplies to MAF for skill and script registration.
+/// It does not use reflection. <c>SkillScriptSupport.CreateStoredScriptDelegate</c> returns
+/// <c>Func&lt;string?, CancellationToken, Task&lt;object?&gt;&gt;</c>, and argument schema generation
+/// in <c>AgentInlineSkill.AddScript</c> uses that signature. <see cref="AgentPrismSkillsSource.MarshalArguments"/>
+/// also carries <see cref="JsonElement"/>.
 /// </summary>
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(JsonElement))]

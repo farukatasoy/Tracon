@@ -3,8 +3,8 @@ using Microsoft.Agents.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="IAgentDefinitionStore"/> icindeki tanimlari katalogda gosteren kaynak.
-/// Arayuzden olusturulan agent'lar bu kaynaktan gelir.
+/// A source that exposes definitions from <see cref="IAgentDefinitionStore"/> in the catalog.
+/// Agents created through the UI come from this source.
 /// </summary>
 public sealed class DefinitionStoreAgentSource : IVersionedAgentSource
 {
@@ -13,15 +13,15 @@ public sealed class DefinitionStoreAgentSource : IVersionedAgentSource
     private readonly CompiledAgentCache _cache;
     private readonly ITenantContext _tenantContext;
 
-    /// <summary>Yeni bir veritabani kaynagi olusturur.</summary>
-    /// <param name="store">Tanim deposu.</param>
-    /// <param name="compiler">Tanimlari derleyen derleyici.</param>
-    /// <param name="cache">Derlenmis agent onbellegi.</param>
+    /// <summary>Initializes a new database source.</summary>
+    /// <param name="store">The definition store.</param>
+    /// <param name="compiler">The compiler that compiles definitions.</param>
+    /// <param name="cache">The compiled agent cache.</param>
     /// <param name="tenantContext">
-    /// Kiraci baglami. Onbellek anahtarina kiraciyi eklemek icin gerekir — bkz.
-    /// <see cref="CompiledAgentCache"/>'in kiraci notu.
+    /// The tenant context. It is required to add the tenant to the cache key. See
+    /// the tenant note in <see cref="CompiledAgentCache"/>.
     /// </param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
     public DefinitionStoreAgentSource(
         IAgentDefinitionStore store,
         AgentDefinitionCompiler compiler,
