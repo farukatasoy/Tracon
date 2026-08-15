@@ -56,63 +56,40 @@
 > Faz 37'de `AgentPrism.Templates` (dotnet new sablonu) paketlenirken kesfedildi.
 > Meta paket (`AgentPrism.csproj`) de `IncludeBuildOutput=false` oldugu icin
 > ayni sinifta risk tasir. K-262/K-263/K-264.
+>
+> Bu bolumun uzun tanilama anlatilari (nasil izole edildi, hangi olcum yapildi)
+> [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md)'ye tasindi
+> (2026-08-15, Faz 58.0). Asagida yalnizca **kural** durur.
 
 - **🚨 Bos sembol paketi `NU5017` ile ANA paketi de basarisiz gosterir**
-  (2026-08-06, Faz 37): `src/Directory.Build.props` her pakete `IncludeSymbols=true`
-  atar. `IncludeBuildOutput=false` olan bir projede derlenen `.pdb` yoktur;
-  eslik eden `.snupkg` BOS kalir ve `NuGet.Build.Tasks.Pack` onu
-  `NU5017: Cannot create a package that has no dependencies nor content` ile
-  reddeder. Hata mesaji HANGI paketten (ana mi sembol mu) geldigini SOYLEMEZ —
-  ana paketin `nuspec`'indeki `<files>` listesi dogru dolu olsa bile build
-  basarisiz olur. `dotnet pack <proje> -c Release -v:diag` ile `_PackageFiles`
-  item grubunu (`-t:GenerateNuspec -getItem:_PackageFiles`) karsilastirarak
-  izole edildi. Cozum: `<IncludeSymbols>false</IncludeSymbols>`.
+  (Faz 37): `IncludeBuildOutput=false` olan projede `.pdb` yoktur, `.snupkg`
+  bos kalir ve pack reddeder. Hata mesaji hangi paketten geldigini SOYLEMEZ.
+  Cozum: `<IncludeSymbols>false</IncludeSymbols>`.
 - **🚨 `TargetFrameworks` (cogul) miras kalirsa `dotnet pack` sessizce
-  capraz-hedefler** (2026-08-06, Faz 37): `src/Directory.Build.props`
-  `TargetFrameworks=net8.0;net9.0;net10.0` atar. Projede yalniz `TargetFramework`
-  (tekil) yazmak `dotnet build`i tek TFM'e indirger (`dotnet build` ile
-  dogrulanir), ANCAK `dotnet pack`in capraz-hedefleme orkestrasyonu
-  (`_GetFrameworksWithSuppressedDependencies`) COGUL degeri okumaya devam eder
-  ve uc ayri ic derleme baslatir — cikti klasoru `_net10.0` soneki alir.
-  Derlenmeyen bir paket icin TFM anlamsizdir; `<TargetFrameworks></TargetFrameworks>`
-  ile bosaltmak orkestrasyonu tek TFM'e sabitler. Not: bu, NU5017'yi TEK BASINA
-  duzeltmez (izole test edildi) — yalniz verimlilik/basitlik kazandirir.
+  capraz-hedefler** (Faz 37): tekil `TargetFramework` yazmak `dotnet build`i
+  tek TFM'e indirger ama pack orkestrasyonu COGUL degeri okumaya devam eder.
+  Cozum: `<TargetFrameworks></TargetFrameworks>` ile bosalt (derlenmeyen paket)
+  veya `<TargetFrameworks>net10.0</TargetFrameworks>` ile tek degere sabitle —
+  **tekil ozelligi kullanma**. `AgentPrism.Testing` bu ikinci hali kullanir:
+  `Microsoft.AspNetCore.TestHost` surumu barindirma framework'uyle BIREBIR
+  eslenir, tek surum coklu TFM'i desteklemez (`NU1202`, Faz 39).
 - **`<None Include Pack="true" PackagePath="...">` ile keyfi dosya paketleme**
-  (2026-08-06, Faz 37): resmi desen budur (yukaridaki iki tuzak duzeltildikten
-  sonra `<Content>` de ayni sekilde calisir — `<None>` semantik olarak dogrusu,
-  cunku dosyalar derleme ciktisina kopyalanmaz). `ContentTargetFolders` +
-  item'in kendi "content/" kok yolu BIRLIKTE kullanilirsa "content/content/..."
-  cift onegi uretir; `PackagePath`'i acikca `content/%(RecursiveDir)%(Filename)%(Extension)`
-  ile yazip `ContentTargetFolders`'i HIC kullanmamak tek katmanli dogru sonucu
-  verir.
-- **🚨 `dotnet pack <cozum>` TUM cozumdeki her projeyi (test projeleri dahil)
-  restore+build eder, yalniz paketlenebilir olanlari degil** (2026-08-06,
-  Faz 39): `TemplateFixture` (Faz 37) sablon testleri icin yerel NuGet
-  besleme uretmek amaciyla `dotnet pack AgentPrism.slnx -c Release`
-  cagiriyordu. Cozum 16 `src/` paketinin yaninda 13 test projesi
-  (Postgres/SqlServer/Sqlite container'li entegrasyon testleri, Playwright
-  E2E dahil) barindirir; `dotnet pack` bir cozum dosyasi aldiginda HER proje
-  icin Pack hedefini calistirir — paketlenemeyen projelerde Pack hedefi
-  no-op'tur ama Build ONA BAGIMLI oldugu icin YINE DE calisir. Olculdu:
-  Templates.Tests'in tek basina calismasi ~1 saat surdu, bunun buyuk kismi
-  bu gereksiz 13 test projesi derlemesiydi (`artifacts/package/release`
-  zaman damgalari bir `dotnet pack` cagrisinin 20-35 dakika surdugunu
-  gosterdi). Cozum: repo koku `AgentPrism.src.slnf` (yalniz 16 `src/`
-  projesini listeleyen bir cozum FILTRESI) eklendi; `dotnet sln <filtre>.slnf`
-  `.slnx` formatini da destekler (.NET 10 SDK ile dogrulandi).
-  `TemplateFixture` artik `AgentPrism.slnx` yerine bu filtreyi paketler —
-  warm pack ~30 saniyeye dustu, toplam sure ~15 dakikaya (kalan sure gercek
-  is: npm/frontend derlemesi + uretilen 3 projenin gercek NuGet restore'u).
-- **`Microsoft.AspNetCore.TestHost` paket surumu barindirma framework'uyle
-  BIREBIR eslenir — tek bir surum coklu TFM'i desteklemez** (2026-08-06,
-  Faz 39): `AgentPrism.Testing` bellek ici host fixture'i icin bu paketi
-  aldi; merkezi surum 10.0.10 yalniz `net10.0` destekler (`NU1202`,
-  net8.0/net9.0'da basarisiz). `src/Directory.Build.props`'tan miras kalan
-  `TargetFrameworks=net8.0;net9.0;net10.0` COĞUL ozelligi projede
-  `<TargetFrameworks>net10.0</TargetFrameworks>` (yine coğul, tekil
-  `TargetFramework` DEGIL — K-263'un `dotnet pack` capraz-hedefleme
-  tuzagiyla ayni gerekce) ile ezilerek tek TFM'e sabitlendi.
-- **🚨 `wwwroot` + damga birlikte silinip SOLUTION derlenirse arayüz derlemesi YİNE yarışır** (2026-08-07, Faz 48; K-050'nin kapatmadığı boşluk): iki kez yaşandı, belirti `ENOENT: ... unlink '.../wwwroot/assets/index-*.js'` ve `npm run build exited with code 1`. K-050'nin çözümü zinciri `BeforeTargets="DispatchToInnerBuilds"` ile **dış** derlemeye aldı, ama `AgentPrismCollectFrontendAssets` hedefi "tek hedefle derlerken dış derleme yoktur" durumunu da karşılamak için zinciri **kendisi** çalıştırır. Solution derlemesinde `AgentPrism.UI`'a farklı TFM'lerden referans veren projeler (meta paket, örnek, E2E) paralel olarak tek hedefli derlemeler tetikler ve o yol yarışır. **Çözüm (geçici): damga silindikten sonra ÖNCE tek başına `dotnet build src/AgentPrism.UI/AgentPrism.UI.csproj -c Release` çalıştır, sonra solution'ı derle.** Damga güncel olduğunda yarış hiç oluşmaz — bu yüzden normal artımlı derlemede görülmez, yalnız kopya dosya temizliğinden sonra görülür.
+  (Faz 37): resmi desen budur. `PackagePath`'i acikca
+  `content/%(RecursiveDir)%(Filename)%(Extension)` ile yaz ve
+  `ContentTargetFolders`'i HIC kullanma — ikisi birlikte `content/content/...`
+  cift onegi uretir.
+- **🚨 `dotnet pack <cozum>` cozumdeki HER projeyi (test projeleri dahil)
+  restore+build eder** (Faz 39): paketlenemeyen projede Pack no-op'tur ama Build
+  ONA BAGIMLI oldugu icin yine calisir. Olculdu: `TemplateFixture` bu yuzden
+  ~1 saat suruyordu. Cozum: `AgentPrism.src.slnf` cozum filtresi (yalniz `src/`);
+  warm pack ~30 sn.
+- **🚨 `wwwroot` + damga birlikte silinip SOLUTION derlenirse arayuz derlemesi
+  YINE yarisir** (Faz 48; K-050'nin kapatmadigi bosluk). Belirti:
+  `ENOENT: ... unlink '.../wwwroot/assets/index-*.js'`. **Cozum: damga
+  silindikten sonra ONCE tek basina
+  `dotnet build src/AgentPrism.UI/AgentPrism.UI.csproj -c Release` calistir,
+  sonra solution'i derle.** Damga guncelken yaris hic olusmaz — normal artimli
+  derlemede gorulmez, yalniz kopya dosya temizliginden sonra gorulur.
 
 ## Roslyn kaynak üreteci projesi (Faz 52)
 

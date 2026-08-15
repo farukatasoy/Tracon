@@ -1,64 +1,42 @@
 # AgentPrism — Mimari
 
-> Bu doküman AgentPrism'in kalıcı mimari resmidir. Faz dokümanları (`docs/NN-*.md`) uygulama sırasını anlatır; bu doküman **ne** inşa ettiğimizi anlatır. Sıra: [`UCUNCU-FAZ-YOL-HARITASI.md`](UCUNCU-FAZ-YOL-HARITASI.md).
+> AgentPrism'in **bugünkü** mimari resmi. Faz dokümanları (`docs/NN-*.md`) sırayı
+> anlatır; bu doküman **ne** inşa ettiğimizi. Kod ile çelişirse **doküman yanlıştır**.
 >
-> **Bu dosya her fazın sonunda güncellenir.** Gerçekleşen tasarım ile bu doküman arasında fark varsa doküman yanlıştır — koda göre düzeltilir.
->
-> **Büyüme kuralı — bu dosya 42 KB'yi aşamaz.** Her oturumda okunur; büyümesi her
-> oturumu pahalılaştırır. Bu yüzden burada **yalnız bugünkü mimari** yaşar:
-> - "Faz N sonunda …" anlatısı → [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md)
-> - Paket × faz birikimi → [`arsiv/PAKET-FAZ-GECMISI.md`](arsiv/PAKET-FAZ-GECMISI.md)
-> - MAF genişleme noktaları → [`MAF-GENISLEME-NOKTALARI.md`](MAF-GENISLEME-NOKTALARI.md)
->
-> Bir bölüm bir fazda büyüdüyse, **eski hâlini** arşive taşı; üst üste yığma.
-> Denetim: `python3 scripts/dokuman-bakim.py --denetle`
+> **Bütçelidir** — denetim `python3 scripts/dokuman-bakim.py --denetle`. Anlatı
+> burada yaşamaz: faz geçmişi → [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md) ·
+> paket × faz → [`arsiv/PAKET-FAZ-GECMISI.md`](arsiv/PAKET-FAZ-GECMISI.md) ·
+> MAF noktaları → [`MAF-GENISLEME-NOKTALARI.md`](MAF-GENISLEME-NOKTALARI.md).
+> Bir bölüm büyüdüyse **eski hâlini** arşive taşı; üst üste yığma.
 
-## Güncel Durum (2026-08-09)
+## 1. Güncel Durum
 
-| Paket | Rolü | Durum |
-|-------|------|-------|
-| `AgentPrism.Abstractions` | Sözleşmeler: kayıt, `store`, katalog, iş, eval, deney, kota, webhook, saklama. Bağımlılığı yok. | ✅ |
-| `AgentPrism.Core` | Çalıştırma yolu: derleyici, dekoratörler, kayıt, denetim, skill, workflow doğrulama, fiyat, kota, olay yayını, saklama, konuşma boru hattı (K-222). | ✅ |
-| `AgentPrism.PostgreSql` | Kalıcılık: `PostgresQueries` + `PostgresDialect` + gömülü SQL (`0001`–`0027`). `Store` mantığı `Sql.Shared` ile paylaşılır. `PgVectorSearchStore` (Faz 51) TEK istisnadır — `Sql.Shared`'den geçmez, doğrudan `Npgsql` kullanır (K4, K-344). | ✅ |
-| `AgentPrism.SqlServer` | SQL Server 2019+ / Azure SQL. Aynı `store`'lar, kendi T-SQL metni ve migration seti (`0001`–`0014`). Meta pakete dâhil değil (K-185). | ✅ (gerçek `mssql/server`, K-386) |
-| `AgentPrism.Sqlite` | Tek dosya/gömülü kalıcılık. Aynı `store`'lar, kendi SQL metni ve migration seti (`0001`–`0014`, K-190). Meta pakete dâhil değil | ✅ |
-| `AgentPrism.Sql.Shared` | **Paket değil** — paylaşılan kaynak: 24 `store`, `SqlQueriesBase`, `SqlDialect` (K-198), migration runner (K-176). | ✅ |
-| `AgentPrism.OpenAI` | OpenAI ve OpenAI uyumlu her sağlayıcı + sağlık denetimi | ✅ |
-| `AgentPrism.Anthropic` | Anthropic (Claude) — resmî SDK, prompt caching, düşünme. Meta pakete dâhil değil (K-209). | ✅ |
-| `AgentPrism.Google` | Google Gemini — resmî SDK, güvenlik eşikleri, düşünme bütçesi. Meta pakete dâhil değil (K-205). | ✅ |
-| `AgentPrism.Azure` | Azure OpenAI — deployment tabanlı model çözümü, API anahtarı **veya** Entra kimliği (K-210). Ayar **sunmaz** (K-211); Responses desteklenmez (K-213). Meta pakete dâhil değil. | ✅ |
-| `AgentPrism.Voice` | Ses tool'ları: `speak`, `transcribe`, `list_voices`. Sıfır NuGet bağımlılığı (K-216); sözleşme `Abstractions`'ta (K-215), gerçek zamanlı katman `Core`'da (K-222). Meta pakete dâhil değil. | ✅ |
-| `AgentPrism.Mcp` | Uzak MCP tool keşfi | ✅ |
-| `AgentPrism.Workflows` | MAF Workflows yürütmesi, kontrol noktası, human-in-the-loop | ✅ |
-| `AgentPrism.AspNetCore` | `MapAgentPrism()` — yönetim API'si, OpenAI uyumlu uçlar, roller, hız sınırı | ✅ |
-| `AgentPrism.UI` | Gömülü React arayüzü (`UseUI()`), İngilizce + Türkçe | ✅ |
-| `AgentPrism` (meta) | Hepsini toplayan meta paket | ✅ |
+**Paket listesi tek yerdedir: [`README.md`](../README.md) → "Paketler".** Burada
+tekrarlanmaz. Mimari açıdan anlamı olan kalemler:
 
-Hangi fazın hangi pakete ne eklediği: [`arsiv/PAKET-FAZ-GECMISI.md`](arsiv/PAKET-FAZ-GECMISI.md).
-
-Testler: birim + fonksiyonel + entegrasyon (Testcontainers: PostgreSQL +
-SQLite) + arayüz E2E; paket başına dökümü `arsiv/PAKET-FAZ-GECMISI.md`.
-Dört kapı sıfır uyarı; `dotnet pack` **17 paket** üretir.
-⚠️ `AgentPrism.SqlServer`'ın testleri bu makinede koşmadı — bkz.
-`23-SQL-SERVER.md`, `docs/hafiza/sql-saglayicilari.md`.
+- `AgentPrism.Sql.Shared` **paket değildir** — üç SQL sağlayıcısına bağlanan
+  paylaşılan kaynak: 24 `store`, `SqlQueriesBase`, `SqlDialect` (K-198),
+  migration runner (K-176).
+- Migration setleri sağlayıcı başına bağımsızdır (K-178): PostgreSql `0001`–`0027`,
+  SqlServer ve Sqlite `0001`–`0014` (K-190).
+- `PgVectorSearchStore` (Faz 51) `Sql.Shared`'den geçmeyen **tek** `store`'dur —
+  doğrudan `Npgsql` kullanır (K4, K-344).
+- Meta pakete **dâhil olmayanlar**: `SqlServer` (K-185), `Sqlite`, `Anthropic`
+  (K-209), `Google` (K-205), `Azure` (K-210; ayar sunmaz K-211, Responses yok
+  K-213), `Voice` (K-216; sözleşme `Abstractions`'ta K-215, gerçek zamanlı
+  katman `Core`'da K-222), `Templates`, `Testing`.
+- `dotnet pack` **17 paket** üretir. Hangi fazın hangi pakete ne eklediği:
+  [`arsiv/PAKET-FAZ-GECMISI.md`](arsiv/PAKET-FAZ-GECMISI.md).
 
 Ne veritabanı ne de belirli bir model satıcısı **zorunludur**: `storage`
 yapılandırılmazsa bellek içine düşer; OpenAI · uyumlu `endpoint`'ler ·
-Anthropic · Google · Azure OpenAI birlikte çalışır. Yeteneklerin özeti
-[`README.md`](../README.md) içinde.
+Anthropic · Google · Azure OpenAI birlikte çalışır.
 
+**Neden AgentPrism?** MAF GA'dir ama resmî arayüzü DevUI preview'dur ve dokümanı
+"not intended for production use" der. AgentPrism onun yerine geçmez, bıraktığı
+yerden devam eder — gerekçe ve karşılaştırma:
+[`arsiv/DEVUI-KARSILASTIRMASI.md`](arsiv/DEVUI-KARSILASTIRMASI.md).
 Faz faz nasıl buraya gelindiği: [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md).
-
----
-
-## 1. Neden AgentPrism?
-
-MAF 1.16.0 GA'dir ama resmî arayüzü **DevUI** preview'dur ve dokümani "not
-intended for production use" der: kalicilik yok, erisim loopback + sabit
-token, agent yonetimi salt okunur, PostgreSQL destegi yok.
-
-**AgentPrism bu boslugu doldurur** — DevUI'nin yerine gecmez, biraktigi yerden
-devam eder. Karsilastirma: [`arsiv/DEVUI-KARSILASTIRMASI.md`](arsiv/DEVUI-KARSILASTIRMASI.md).
 
 ---
 
@@ -112,19 +90,12 @@ flowchart TD
 Kural `DependencyDirectionTests.AllowedReferences` ile zorlanır. AOT uyumluluk
 tablosu 9. bölümdedir (K-006).
 
-> `AgentPrism.SqlServer` meta pakete **dâhil değildir** (K-185): PostgreSQL
-> kullanan tüketici `Microsoft.Data.SqlClient` çekmemelidir.
->
-> `AgentPrism.Mcp`, `AspNetCore`'a **referans vermez**: HTTP katmanı tazelemeyi
-> `IMcpToolRefresher` soyutlaması üzerinden tetikler (kesikli ok). Böylece MCP
-> isteğe bağlı bir paket olarak kalır ve bağımlılık grafiği tek yönlü kalır.
->
-> `AgentPrism.Workflows` aynı deseni izler: HTTP katmanı workflow'ları
-> `IWorkflowRunner` üzerinden çalıştırır. Motor kayıtlı değilse yalnızca
-> çalıştırma uçları `501` döner; tanım yönetimi çalışmaya devam eder (K-118).
+> `Mcp` ve `Workflows`, `AspNetCore`'a **referans vermez** (kesikli oklar): HTTP
+> katmanı onları `IMcpToolRefresher` ve `IWorkflowRunner` soyutlamaları üzerinden
+> tetikler. Böylece ikisi de isteğe bağlı paket kalır. Workflow motoru kayıtlı
+> değilse yalnız çalıştırma uçları `501` döner; tanım yönetimi çalışır (K-118).
 
-Bu grafiği bozan bir referans eklemek yasaktır. `AgentPrism.Core.UnitTests` içindeki
-mimari testi bunu Faz 1'den itibaren zorlar.
+Bu grafiği bozan bir referans eklemek yasaktır; mimari testi bunu zorlar.
 
 ---
 
@@ -140,16 +111,11 @@ Arayüzden agent oluşturulabilir, ancak tool **kodu** yazılamaz. Arayüz sadec
 
 > **Gerekçe:** Arayüzden çalıştırılabilir kod tanımlanabilseydi, AgentPrism arayüzüne erişen herkes sunucuda kod çalıştırabilirdi.
 
-**Kuralın bilinçli istisnaları.** Kural gevşetilmez; istisnalar tek tek
-gerekçelendirilir, sayılıdır ve her biri kendi korumalarını taşır:
-
-| İstisna | Durum | Neden kabul edildi | Korumalar |
-|---------|-------|--------------------|-----------|
-| **MCP tool'ları** (K-058) | ✅ Uygulandı (Faz 6) | Süreç **uzakta** çalışır; AgentPrism yalnız istemcidir | Yalnız `http`/`https` (stdio yok), zorunlu onay, ad ele geçirme engeli, denetim izi, `secret`siz kayıt |
-| **Skill script'leri** (K-066) | ✅ Uygulandı ([Faz 11](11-SKILL-SCRIPT-CALISTIRMA.md)) | Kullanıcı kararı. Süreç **bu makinede** çalışır — en sıkı istisna | Yorumlayıcı beyaz listesi (varsayılan boş), skill başına izin, zorunlu onay, ayrı OS süreci, zaman aşımı, temiz ortam, **yazılamazsa reddeden** denetim izi |
-
-Her iki durumda da arayüz kullanıcısı **yeni kod yazmaz**; var olan bir yeteneği
-etkinleştirir. Bu ayrım kuralın özüdür.
+**Kuralın bilinçli istisnaları — iki tanedir**, ikisi de §7'de korumalarıyla
+birlikte anlatılır: **MCP tool'ları** (K-058; süreç *uzakta* çalışır, AgentPrism
+yalnız istemcidir) ve **skill script'leri** (K-066; süreç *bu makinede* çalışır —
+en sıkı istisna). Her ikisinde de arayüz kullanıcısı **yeni kod yazmaz**, var
+olan bir yeteneği etkinleştirir. Bu ayrım kuralın özüdür.
 
 ### K3 — MAF nesneleri sızdırılır, sarmalanmaz
 `AIAgent`, `AgentSession`, `ChatMessage`, `AIFunction` doğrudan kullanılır. AgentPrism bunların üzerine kendi paralel tip hiyerarşisini koymaz.
@@ -175,14 +141,7 @@ Ayrı şema kullanılır. Tüketici uygulamanın `public` şemasına **hiç doku
 
 ```mermaid
 erDiagram
-    tenants ||..o{ agent_definitions : "tenant_id (FK YOK)"
-    tenants ||..o{ sessions : "tenant_id (FK YOK)"
-    tenants ||..o{ runs : "tenant_id (FK YOK)"
-    tenants ||..o{ conversations : "tenant_id (FK YOK)"
-    tenants ||..o{ audit_log : "tenant_id (FK YOK)"
-    tenants ||..o{ attachments : "tenant_id (FK YOK)"
-    tenants ||..o{ agent_files : "tenant_id (FK YOK)"
-
+    tenants ||..o{ runs : "tenant_id — HER tabloda, FK YOK"
     agent_definitions ||--o{ agent_definition_versions : "agent_id"
     conversations ||--o{ conversation_items : "conversation_id"
     conversations ||--o{ responses : "conversation_id"
@@ -195,15 +154,11 @@ erDiagram
 
 ```
 
-> Diyagram **ilişkileri** gösterir; sütun ayrıntısı için şemanın kaynağına bakın:
-> `src/AgentPrism.PostgreSql/Migrations/*.sql`. Kesikli çizgiler (`..`) **yabancı
-> anahtar olmayan** mantıksal bağı gösterir — `tenant_id` sütunlarına FK konmadı,
-> gerekçe karar defterinde.
-
-Hangi migration'ın hangi tabloyu eklediği (0001–0014) birikimli bir anlatıdır ve
-sıcak yolda tutulmaz: [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md) → "Migration
-geçmişi". Bugünkü tablo listesi aşağıdadır; şemanın kaynağı her zaman
-`src/AgentPrism.PostgreSql/Migrations/*.sql` dosyalarıdır.
+> Diyagram **ilişkileri** gösterir; kesikli çizgi (`..`) yabancı anahtarı olmayan
+> mantıksal bağdır. Şemanın kaynağı her zaman
+> `src/AgentPrism.PostgreSql/Migrations/*.sql`'dir; hangi migration'ın hangi
+> tabloyu eklediği [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md) → "Migration
+> geçmişi" altındadır.
 
 **Span kimliği türetilir, üretilmez.** `spans.id = SHA-256(trace_id + ":" + span_id)`
 ilk 16 baytıdır. Sebep: bir span, ebeveyninden **önce** tamamlanabilir; türetilmiş
@@ -225,29 +180,29 @@ yazılırsa aynı satır güncellenir, tekrar kaydı oluşmaz.
 | `runs` | Çalıştırma özeti: agent, oturum, durum, token, süre, maliyet |
 | `run_events` | Append-only olay akışı, `(run_id, seq)` birincil anahtar |
 | `tool_invocations` | Tool çağrıları: ad, argüman, sonuç, süre, hata |
-| `traces` / `spans` | OpenTelemetry span'leri (Faz 6) |
+| `traces` / `spans` | OpenTelemetry span'leri |
 | `audit_log` | Kim, ne zaman, hangi tanımı değiştirdi |
 | `attachments` | Yüklenen ek ustverisi + ikili içerik (`bytea`); `session_id` FK **değil** (K-112) |
-| `agent_files` | Kalıcı `AgentFileStore`: agent başına yol→metin çifti (Faz 14, 14.5) |
+| `agent_files` | Kalıcı `AgentFileStore`: agent başına yol→metin çifti |
 | `workflows` | Arayüzden tanımlanan workflow grafı (`jsonb`); sürüm **geçmişi yok** (K-126) |
 | `workflow_checkpoints` | Yürütme kontrol noktaları — durum **`json`**, `jsonb` değil (K-121) |
-| `job_schedules` | Zamanlama tanımı: cron, saat dilimi, yük, etkin/pasif (Faz 17) |
-| `jobs` | Kuyruktaki iş: durum, kira, deneme sayısı, ilerleme sayaçları (Faz 17) |
-| `job_items` | Toplu işin tek girdisi ve ürettiği `run_id` (Faz 17) |
-| `eval_suites` | Bir agent'ı ölçen takım: hedef agent, bildirimsel `checks` (`jsonb`) (Faz 18) |
-| `eval_cases` | Takımın vakaları: sorgu, beklenen çıktı/tool'lar, terfi kökeni (Faz 18, 45) |
-| `eval_runs` | Bir takımın tek koşusu: agent sürümü, model, geçme/kalma sayısı (Faz 18) |
-| `eval_case_results` | Vaka bazında sonuç; `case_id` **yabancı anahtar değil** (K-14) (Faz 18) |
-| `experiments` | A/B deneyi: hedef agent, kollar (`variants jsonb`), durum, başlangıç/bitiş, kanarya kuralı (Faz 19, 56) |
-| `quotas` | Kota kuralı: kapsam (kiracı+agent+dönem), üç sınır (`max_runs`/`max_tokens`/`max_cost`) (Faz 21) |
-| `quota_usage` | Dönem sayacı; `agent_name = ''` kiracı geneli. `ON CONFLICT DO UPDATE` ile **atomik** artar (Faz 21) |
-| `webhook_subscriptions` | Olay aboneliği: adres, olay listesi, **`secret` değil** anahtar adı (K-059) (Faz 21) |
-| `webhook_deliveries` | Teslim **geçmişi** — kuyruk değil; zamanlama `jobs`'tadır (K-160) (Faz 21) |
-| `retention_policies` | Hedef başına saklama kuralı: yaş/hacim sınırı, arşiv bayrağı (K-198) (Faz 25) |
-| `retention_runs` | Temizleme koşusu geçmişi (Faz 25) |
-| `voice_sessions` | Konuşma bağlantısı özeti: tur, süre, karakter, kapanış nedeni. **Ses içermez**; `session_id` FK **değil** (Faz 29) |
-| `run_scores` | Çalıştırma/mesaj puanı: ikili/yıldız, yorum. `runs` FK yok (Faz 31) |
-| `pending_approvals` | Kuyruktan koşan bir çalıştırmanın bekleyen tool onayı — MAF oturum durumunun **izdüşümü**, sahibi değil. `run_id` FK **CASCADE** (Faz 55) |
+| `job_schedules` | Zamanlama tanımı: cron, saat dilimi, yük, etkin/pasif |
+| `jobs` | Kuyruktaki iş: durum, kira, deneme sayısı, ilerleme sayaçları |
+| `job_items` | Toplu işin tek girdisi ve ürettiği `run_id` |
+| `eval_suites` | Bir agent'ı ölçen takım: hedef agent, bildirimsel `checks` (`jsonb`) |
+| `eval_cases` | Takımın vakaları: sorgu, beklenen çıktı/tool'lar, terfi kökeni |
+| `eval_runs` | Bir takımın tek koşusu: agent sürümü, model, geçme/kalma sayısı |
+| `eval_case_results` | Vaka bazında sonuç; `case_id` **yabancı anahtar değil** (K-14) |
+| `experiments` | A/B deneyi: hedef agent, kollar (`variants jsonb`), durum, başlangıç/bitiş, kanarya kuralı |
+| `quotas` | Kota kuralı: kapsam (kiracı+agent+dönem), üç sınır (`max_runs`/`max_tokens`/`max_cost`) |
+| `quota_usage` | Dönem sayacı; `agent_name = ''` kiracı geneli. `ON CONFLICT DO UPDATE` ile **atomik** artar |
+| `webhook_subscriptions` | Olay aboneliği: adres, olay listesi, **`secret` değil** anahtar adı (K-059) |
+| `webhook_deliveries` | Teslim **geçmişi** — kuyruk değil; zamanlama `jobs`'tadır (K-160) |
+| `retention_policies` | Hedef başına saklama kuralı: yaş/hacim sınırı, arşiv bayrağı (K-198) |
+| `retention_runs` | Temizleme koşusu geçmişi |
+| `voice_sessions` | Konuşma bağlantısı özeti: tur, süre, karakter, kapanış nedeni. **Ses içermez**; `session_id` FK **değil** |
+| `run_scores` | Çalıştırma/mesaj puanı: ikili/yıldız, yorum. `runs` FK yok |
+| `pending_approvals` | Kuyruktan koşan bir çalıştırmanın bekleyen tool onayı — MAF oturum durumunun **izdüşümü**, sahibi değil. `run_id` FK **CASCADE** |
 
 Kurallar:
 
@@ -316,16 +271,13 @@ flowchart TD
 > sınırını aşmaz. `AgentPrismRunContext.SetCurrent(...)` bu yüzden her
 > `MoveNextAsync`'ten hemen önce tekrarlanır (Faz 12'de ölçüldü).
 
-**Faz 19 istisnası:** yalnızca `POST /api/agents/{name}/run` için
-`R["IAgentCatalog.ResolveAsync(name)"]`'dan **önce** bir
-`ExperimentAssignmentResolver.ResolveAsync(...)` çağrısı girer. `Running` bir
-deney varsa `ResolveAsync(name, version)` çağrılır — sürüm deneyden gelir.
-`/v1/*` ve alt-agent çağrıları bu adımı görmez (K-131).
-
-**Faz 46:** `Prefer: respond-async` → `Queued` satır + iş kuyruğu, `202`;
-işçi alınca diyagram normal işler (K-304). Kök çalıştırma onay isteyerek
-biterse `AwaitingApproval` ile kapanır ve bir daha DEĞİŞMEZ (K-014); karar
-YENİ bir çalıştırma açar (Faz 55, K-368) — bkz. §7 "Tool onayı".
+İki sapma vardır. **Deney ataması:** yalnız `POST /api/agents/{name}/run`
+`ResolveAsync`'ten **önce** `ExperimentAssignmentResolver`'a uğrar; `Running` bir
+deney varsa sürüm deneyden gelir. `/v1/*` ve alt-agent çağrıları bu adımı görmez
+(K-131). **Asenkron çalıştırma:** `Prefer: respond-async` → `Queued` satır + iş
+kuyruğu + `202`; işçi alınca diyagram normal işler (K-304). Kök çalıştırma onay
+isteyerek biterse `AwaitingApproval` ile kapanır ve bir daha DEĞİŞMEZ (K-014);
+karar YENİ bir çalıştırma açar (K-368) — bkz. §7.
 
 ### Çalıştırma ağacı
 
@@ -398,7 +350,7 @@ stateDiagram-v2
     RunFailed --> [*]
 ```
 
-**Oturum yolu** (Faz 2 ✅) — çalıştırmadan bağımsız, çağıran tarafından yönetilir:
+**Oturum yolu** — çalıştırmadan bağımsızdır, çağıran yönetir:
 
 ```mermaid
 sequenceDiagram
@@ -472,7 +424,7 @@ flowchart TD
 Üç katman, sırayla uygulanır:
 
 1. **Loopback kısıtı** — `AllowRemoteAccess = false` (varsayılan). Loopback dışı istek `403` alır. Kaza ile açılmaya karşı koruma.
-2. **Bearer token** — statik `AuthToken` sabit zamanlı karşılaştırma ile denetlenir (değişmedi). Eşleşmezse **kiracı bazlı API anahtarı** (Faz 53, `IApiKeyStore`, hash `key_hash`, K-356) denenir: iptal/süre denetiminden geçer, kapsamı (uç istiyorsa) uyuşur. `ApiKeyScope` rolü DARALTIR, yerine geçmez — `rol ∩ kapsam` (K-360). Kiracı anahtarın `tenant_id`'sinden çözülür, claim/başlıktan ÖNCE (bkz. altta); başlık çelişirse `403`. `AllowRemoteAccess` ile MCP/A2A'yı birlikte açmanın koşulu artık geçerli bir `external:invoke` anahtarıdır (`ExternalSurfaceGuard`). `Authorization` başlığı YOKSA ve `AuthToken` tanımsızsa katman atlanır (K1); başlık VARSA her zaman doğrulanır (K-359).
+2. **Bearer token** — statik `AuthToken` sabit zamanlı karşılaştırmayla denetlenir; eşleşmezse **kiracı bazlı API anahtarı** (`IApiKeyStore`, hash `key_hash`, K-356) denenir: iptal/süre denetiminden geçer, kapsamı (uç istiyorsa) uyuşur. `ApiKeyScope` rolü DARALTIR, yerine geçmez — `rol ∩ kapsam` (K-360). Dışa açılan MCP/A2A yüzeyi geçerli bir `external:invoke` anahtarı ister (`ExternalSurfaceGuard`). `Authorization` başlığı YOKSA ve `AuthToken` tanımsızsa katman atlanır (K1); başlık VARSA her zaman doğrulanır (K-359).
 3. **Authorization policy** — `RequireAuthorization("policy")` ile ASP.NET Core kimlik doğrulama boru hattına bağlanır. Üretimde kullanılan yol budur.
 
 `{prefix}/api/meta` kimlik doğrulaması olmadan erişilebilir. Arayüzün hangi kimlik yöntemini kullanacağını öğrenmesi için gereklidir; hiçbir hassas veri döndürmez.
@@ -518,15 +470,12 @@ yazılır (K-089/K-370). Senkron/MCP/A2A yolu bu tabloya HİÇ yazmaz; oradaki
 onay bugünkü gibi bir sonraki turun `approvals` alanıyla çözülür (K-372).
 
 **MCP sınırı.** MCP sunucusu eklemek, dışarıdan gelen tool tanımlarını kabul etmek
-demektir ve tasarım kuralı K2'nin bilinçli istisnasıdır:
-
-| Koruma | Nasıl |
-|--------|-------|
-| Yalnız uzak sunucu | Yalnız `http`/`https`. **Stdio yoktur** (K-058) — süreç başlatmak K2'yi bozar |
-| Onay zorunluluğu | MCP tool'ları varsayılan olarak `RequiresApproval = true` |
-| Ad ele geçirme yok | Kodda kayıtlı bir tool'un adını taşıyan MCP tool'u **yok sayılır** (K-060) |
-| `secret` sızmaz | Kayıt kimlik doğrulama **değerini** değil, değerin okunacağı yapılandırma anahtarının **adını** taşır (K-059) |
-| Denetim izi | Her çağrı kaynak sunucu adıyla `tool_invocations`'a yazılır |
+demektir ve tasarım kuralı K2'nin bilinçli istisnasıdır. Beş koruma: yalnız
+`http`/`https` — **stdio yoktur** (K-058), çünkü süreç başlatmak K2'yi bozar ·
+varsayılan `RequiresApproval = true` · kodda kayıtlı bir tool'un adını taşıyan
+MCP tool'u **yok sayılır** (K-060) · kayıt kimlik doğrulama **değerini** değil,
+değerin okunacağı yapılandırma anahtarının **adını** taşır (K-059) · her çağrı
+kaynak sunucu adıyla `tool_invocations`'a yazılır.
 
 **Kiracı çözümleme.** Varsayılan **kapalıdır**; açıldığında sıra:
 
@@ -598,10 +547,10 @@ ASP.NET Core bağımlılığı eklemeden "kim yaptı" sorusunu yanıtlamanın yo
 `null`'dur ve bu gizlenmez.
 
 `before`/`after` yazılmadan önce `AuditSecretFilter` içinden geçer: anahtar adında
-`apiKey`, `authorization`, `password`, `secret` veya tekil `token` (çoğulu
-`tokens` — `maxOutputTokens` gibi sayım alanları — hariç) geçen her alanın değeri
-`"***"` ile değiştirilir. Denetim izi yazma hatası **çalıştırmayı kesmez**;
-Faz 6'nın "gözlemlenebilirlik işlevi bozmaz" kuralının aynısı.
+`apiKey`, `authorization`, `password`, `secret` veya **tekil** `token` geçen her
+alanın değeri `"***"` olur (çoğul `tokens` — `maxOutputTokens` gibi sayım
+alanları — hariç). Denetim izi yazma hatası **çalıştırmayı kesmez**;
+"gözlemlenebilirlik işlevi bozmaz" kuralı burada da geçerlidir.
 
 ### Skill script çalıştırma
 
@@ -611,62 +560,43 @@ süreç **AgentPrism'in makinesinde** çalışır.
 
 Özellik **varsayılan olarak kapalıdır** ve yalnız kodda açılır
 (`UseSkillScripts(...)`: zorunlu onay bayrağı + boş başlayan yorumlayıcı beyaz
-listesi + kodda verilen skill kökleri). Kullanım örneği:
-[`11-SKILL-SCRIPT-CALISTIRMA.md`](11-SKILL-SCRIPT-CALISTIRMA.md).
+listesi + kodda verilen skill kökleri).
 
 Her çalıştırma **altı kapıdan sırayla** geçer; biri kapalıysa süreç hiç başlamaz
 ve `AgentPrismException` atılır: (1) `Enabled` · (2) kiracı için geçerli izin ·
-(3) uzantı yorumlayıcı beyaz listesinde · (4) argüman boyutu ve şeması ·
-(5) denetim izine yazılabildi · (6) eşzamanlılık kotası. Ancak sonra ayrı süreç
-temiz ortamla ve zaman aşımıyla başlar. Akış şeması:
-[`11-SKILL-SCRIPT-CALISTIRMA.md`](11-SKILL-SCRIPT-CALISTIRMA.md).
+(3) uzantı yorumlayıcı beyaz listesinde (boş varsayılan, K-088) · (4) argüman
+boyutu ve şeması · (5) denetim izine yazılabildi · (6) eşzamanlılık kotası.
+Ancak sonra ayrı süreç temiz ortamla, stdin'den argümanla (K-091), zaman aşımı
+ve çıktı sınırıyla başlar.
 
 🚨 Beşinci kapı Faz 9 kuralının **istisnasıdır**: denetim izine yazılamayan bir
 script çalıştırması, hiçbir kaydı olmayan bir uzaktan kod çalıştırma olurdu
 (K-089). Diğer tüm yazmalarda denetim hatası yutulur; burada yutulmaz.
 
-**AgentPrism'in sağladığı korumalar:**
-
-| Koruma | Nasıl |
-|--------|-------|
-| Yorumlayıcı beyaz listesi | Boş varsayılan; kayıtsız uzantı çalışmaz (K-088) |
-| Ortam temizliği | `ProcessStartInfo.Environment.Clear()`; yalnız beyaz listedeki değişkenler eklenir |
-| Argüman güvenliği | Argümanlar komut satırına değil **stdin'e** yazılır (K-091) |
-| Zaman aşımı | Varsayılan 30 sn; `Kill(entireProcessTree: true)` |
-| Çıktı sınırı | Varsayılan 256 KB; aşan çıktı kırpılır, boru hattı boşaltılmaya devam eder |
-| Eşzamanlılık | Kiracı başına 2, toplam 8 |
-| İzin kaydı | Kiracı bazlı `SkillScriptGrant`; iptal edilir, silinmez (K-092) |
-| Onay | MAF'ın `run_skill_script` onayı devrede kalır |
-| Denetim izi | `script.run`, `script.denied`, `script.grant`, `script.revoke` |
-
 🚨 **AgentPrism dosya sistemi hapsi, ağ kısıtı, bellek/CPU kotası ve hak düşürme
 SAĞLAMAZ**; dördü de barındırma ortamında (container + cgroup + ayrıcalıksız
-kullanıcı) kurulur. Nasıl kurulacağı:
-[`11-SKILL-SCRIPT-CALISTIRMA.md`](11-SKILL-SCRIPT-CALISTIRMA.md).
+kullanıcı) kurulur. `PlatformIsolationAcknowledged` bayrağı bu sınırı görmeden
+özellik açılmasını engeller: `Enabled = true` iken bayrak `false` ise
+**açılışta** hata verilir (K-086).
 
-`PlatformIsolationAcknowledged` bayrağı bu tabloyu görmeden özellik açılmasını
-engeller: `Enabled = true` iken bayrak `false` ise **açılışta** hata verilir
-(K-086).
+Kapı akış şeması, koruma tablosunun tamamı (ortam temizliği, zaman aşımı, çıktı
+sınırı, eşzamanlılık, `SkillScriptGrant`, denetim olayları) ve barındırma
+kurulumu: [`11-SKILL-SCRIPT-CALISTIRMA.md`](11-SKILL-SCRIPT-CALISTIRMA.md).
 
 ### Kota ve webhook imzası
 
 **🚨 SSRF — giden istek sınırı.** Webhook adresini *kullanıcı* verir ve sunucu o
 adrese istek atar; kontrolsüz bırakılırsa iç ağa erişim aracı olur — bulut
-metadata uçları (`169.254.169.254`) dâhil.
+metadata uçları (`169.254.169.254`) dâhil. Varsayılan
+`AllowPrivateNetworkTargets = false`; yalnız `https`; `AllowAutoRedirect = false`.
 
-| Koruma | Nasıl |
-|--------|-------|
-| Şema | Yalnız `https`. `http` yalnız `AllowInsecureHttp = true` **ve** loopback hedefi |
-| Adres | Özel aralıklar reddedilir (`10/8`, `127/8`, `169.254/16`, `172.16/12`, `192.168/16`, `100.64/10`, `::1`, `fc00::/7`, `fe80::/10`, multicast) ve IPv4'e eşlenmiş IPv6 karşılıkları |
-| DNS yeniden bağlama | 🚨 Denetim `SocketsHttpHandler.ConnectCallback` **içindedir**: doğrulanan adres, soketin bağlandığı adresin ta kendisidir. Önce doğrulayıp sonra `SendAsync(url)` çağırmak TOCTOU açığı bırakırdı (K-164) |
-| Yönlendirme | `AllowAutoRedirect = false` — yönlendirme, denetimden geçmiş bir adresten özel ağa kaçış yoludur |
-| Zaman aşımı | İstek başına `CancellationTokenSource` (varsayılan 10 sn); paylaşılan istemcide `Timeout` alanı değiştirilmez |
-| Yanıt | En çok 8 KB okunur; gerisi atılır |
-| Varsayılan | `AllowPrivateNetworkTargets = false` |
-
-Koruma `WebhookHttpClient`'ın **içine gömülüdür**; tüketici değiştiremez
-(`IHttpClientFactory` bilinçli kullanılmadı, K-164). Tek doğruluk noktası
-`WebhookUrlValidator.IsAllowedTarget`'tır.
+🚨 **Adres denetimi `SocketsHttpHandler.ConnectCallback`'in içindedir**:
+doğrulanan adres, soketin bağlandığı adresin ta kendisidir. Önce doğrulayıp
+sonra `SendAsync(url)` çağırmak TOCTOU açığı bırakırdı (K-164). Koruma
+`WebhookHttpClient`'ın **içine gömülüdür**; tüketici değiştiremez
+(`IHttpClientFactory` bilinçli kullanılmadı). Tek doğruluk noktası
+`WebhookUrlValidator.IsAllowedTarget`'tır; reddedilen aralıkların tam listesi
+ve diğer sınırlar [`21-KOTA-VE-OLAY-YAYINI.md`](21-KOTA-VE-OLAY-YAYINI.md)'dedir.
 
 **Webhook `secret`'i veritabanında durmaz** — kayıt yalnız yapılandırma
 anahtarının **adını** taşır; sözleşmede `secret` alanı hiç yoktur (K-059).
@@ -682,29 +612,27 @@ tanımlanmadıkça boştur (K-165). Kota **yaklaşıktır** — denetim çalış
 
 ### MCP OAuth ve kaynak erişimi
 
-| Koruma | Nasıl |
-|--------|-------|
-| Prompt = anlık görüntü | Yönetici **panoya kopyalar**; agent canlı çekmez |
-| Kaynak = yalnız bildirilen URI | Kümesi dışı URI reddedilir — serbest URI SSRF aracı olurdu |
-| Kaynak boyutu (Mod A) | Kaynak başına 64 KB, toplam 256 KB; UTF-8 sınırına saygılı kırpma |
-| OAuth token | `(kiracı, sunucu)` başına bellek içi önbellek; DB'ye yazılmaz. SDK yalnız Authorization Code destekler (K-168) |
-| `/oauth/callback` | Arayüz kabuğuyla aynı grup: loopback+policy geçerli, yalnız bearer muaf. Güvenlik tek kullanımlık `state`'e dayanır |
-
-Ayrıntı: `docs/22-MCP-DERINLESMESI.md`.
+Prompt bir **anlık görüntüdür** — yönetici panoya kopyalar, agent canlı çekmez.
+Kaynak erişimi yalnız sunucunun **bildirdiği** URI kümesiyle sınırlıdır; serbest
+URI bir SSRF aracı olurdu. OAuth token'ı `(kiracı, sunucu)` başına bellek içinde
+tutulur, **veritabanına yazılmaz**; SDK yalnız Authorization Code destekler
+(K-168). `/oauth/callback` arayüz kabuğuyla aynı gruptadır: loopback + policy
+geçerli, yalnız bearer muaf — güvenlik tek kullanımlık `state`'e dayanır.
+Boyut sınırları ve akış: [`22-MCP-DERINLESMESI.md`](22-MCP-DERINLESMESI.md).
 
 ### İçerik denetimi (Faz 48)
 
 `IContentGuard` modele giden ve modelden gelen içeriği denetler; kararlar
-`Allow` / `Mask` / `Block`'tur ve **en sert karar kazanır**.
+`Allow` / `Mask` / `Block`'tur ve **en sert karar kazanır**. Varsayılan
+**kapalıdır** — guard kayıtlı değilse sarmalayıcı hiç eklenmez, ölçülen maliyet
+sıfırdır (K-323).
 
-| Kural | Nasıl |
-|--------|-------|
-| Varsayılan **kapalı** | `AddAgentPrism()` hiç guard kaydetmez → sarmalayıcı eklenmez → ölçülen maliyet 0. Açma: `AddPatternContentGuard()` veya `AgentPrism:ContentGuard:Pattern` (K-323) |
-| Konum | Tool çağrı döngüsünün **içinde**, ham istemcinin üstünde (K-321): tool sonucu modele ikinci çağrıda girer, döngü dışı halka onu görmez |
-| Engelleme | Ağa **hiç çıkmaz**, devre kesiciyi **tetiklemez** (K-322). Akışsız dalda `422` + `content_blocked`, akışlı dalda SSE `error` (K-324) |
-| Engellenen içerik | **Hiçbir yere yazılmaz**; iz yalnız guard/kural/yön taşır (K-325). 🚨 Maskeleme model sınırındadır — `run_events`/`run_inputs` ham metni saklar |
-
-Ayrıntı: `docs/48-GUARDRAILS.md`.
+🚨 Konum: tool çağrı döngüsünün **içinde**, ham istemcinin üstünde (K-321) — tool
+sonucu modele ikinci çağrıda girer ve döngü dışı bir halka onu göremez.
+Engellenen içerik ağa **hiç çıkmaz**, devre kesiciyi **tetiklemez** (K-322) ve
+**hiçbir yere yazılmaz**; iz yalnız guard/kural/yön taşır (K-325). 🚨 Maskeleme
+model sınırındadır — `run_events`/`run_inputs` ham metni saklar.
+Ayrıntı: [`48-GUARDRAILS.md`](48-GUARDRAILS.md).
 
 ---
 
@@ -719,19 +647,19 @@ yayınlanır — sonra tek pakette sürüm güncellemesi yeterlidir.
 
 ## 9. Trim ve AOT
 
-| Paket | AOT uyumlu | Neden |
-|-------|-----------|-------|
-| `AgentPrism.Abstractions` | Evet | Saf sözleşmeler |
-| `AgentPrism.Core` | Evet | Yansıma yalnız `AddToolsFrom` / `AddTool(Delegate)` yolunda (ikisi de işaretli, K-350). **Önerilen yol** `AddGeneratedTools()` (Faz 52) — derleme anında üretilir, sıfır yansıma |
-| `AgentPrism.PostgreSql` | Evet | Npgsql AOT uyumlu |
-| `AgentPrism.SqlServer` | Hayır *(vaat ertelendi)* | Sıfır IL2/IL3 ölçüldü; canlı sorgu doğrulanmadı (K-181) |
-| `AgentPrism.Sqlite` | Hayır *(ölçülmedi)* | `SQLitePCLRaw` yerel kütüphane taşır (K-196) |
-| `AgentPrism.OpenAI` | Evet | Ölçüldü (Faz 3): sıfır uyarı |
-| `AgentPrism.AspNetCore` | Hayır | Minimal API delege yönlendirmesi reflection kullanır |
-| `AgentPrism.UI` | Hayır | Gömülü varlık tarama + ASP.NET Core bağlantısı |
+Bayrak paket başına `AgentPrismAotCompatible` ile uygulanır (K-006); güncel liste
+`grep -l "AotCompatible>false" src/*/*.csproj` ile doğrulanır — burada
+tekrarlanmaz.
 
-Bayrak `AgentPrismAotCompatible` ile uygulanır (K-006). Gerekçeler ve ölçüm
-notları: [`hafiza/build-ve-analyzer.md`](hafiza/build-ve-analyzer.md).
+**Uyumlu olmayanlar ve nedenleri:** `AspNetCore` (minimal API delege
+yönlendirmesi reflection kullanır) · `UI` (gömülü varlık tarama) · `SqlServer`
+(sıfır IL2/IL3 ölçüldü ama canlı sorgu doğrulanmadı — vaat ertelendi, K-181) ·
+`Sqlite` (`SQLitePCLRaw` yerel kütüphane taşır, K-196).
+
+`Core` uyumludur: yansıma yalnız `AddToolsFrom` / `AddTool(Delegate)` yolundadır
+ve ikisi de işaretlidir (K-350). **Önerilen yol** `AddGeneratedTools()`
+(Faz 52) — derleme anında üretilir, sıfır yansıma. Ölçüm notları:
+[`hafiza/build-ve-analyzer.md`](hafiza/build-ve-analyzer.md).
 
 ---
 
@@ -742,10 +670,8 @@ haritası tablosu ile tur yol haritaları ([ikinci](IKINCI-FAZ-YOL-HARITASI.md) 
 [üçüncü](UCUNCU-FAZ-YOL-HARITASI.md)). Burada tekrarlanmaz — iki yerde tutmak
 kayma üretir.
 
-| Doküman | Ne zaman |
-|---------|----------|
-| [KARARLAR-INDEKS.md](KARARLAR-INDEKS.md) → `KARARLAR.md` | Bir karar alınmış mı? İndeksten satırı bul, **grep'le** |
-| [MAF-GENISLEME-NOKTALARI.md](MAF-GENISLEME-NOKTALARI.md) | MAF'a dokunurken |
-| [`hafiza/`](hafiza/) | O alana dokunurken — tuzaklar ve codepath notları |
-| [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md) | "Neden böyle olmuş?" — yalnız grep ile |
-| [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) | Tarihsel kayıt; faz dokümanı geçerlidir |
+Karar arıyorsan [`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md)'ten satırı bul ve
+`KARARLAR.md`'yi **grep'le**. MAF'a dokunurken
+[`MAF-GENISLEME-NOKTALARI.md`](MAF-GENISLEME-NOKTALARI.md); bir alana dokunurken
+[`hafiza/`](hafiza/); "neden böyle olmuş?" için yalnız grep ile
+[`arsiv/`](arsiv/).

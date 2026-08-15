@@ -5,6 +5,29 @@
 > Bu dosya `MEMORY.md`'nin alan dosyasidir. Yalnizca bu alana
 > dokunurken okunur. Yeni not buraya eklenir, `MEMORY.md`'ye degil.
 
+## Nerede yasiyor
+
+> `docs/hafiza/kod-haritasi.md`'den tasindi (2026-08-15, Faz 58.0): sicak yol
+> butcesi. Icerik degismedi.
+
+- **Workflow yurutmesi `AgentPrism.Workflows/Internal/` altinda sekiz dosyada**
+  (2026-08-03, Faz 15): `WorkflowRunner` (olay pompasi, `scope`, sinirlar),
+  `WorkflowCatalog` (kod + veritabani; kod kazanir), `WorkflowDefinitionCompiler`
+  (tanim → graf, bes desen), `WorkflowAgentCache` (🚨 executor kimlik
+  kararliligi), `WorkflowEventMapper`, `AgentPrismCheckpointStore`,
+  `WorkflowSessionId`, `CodeWorkflowRegistration`. Yapisal dogrulama
+  **Core'dadir** (`Workflows/WorkflowDefinitionValidator.cs`) — HTTP katmani da
+  ayni kurali kullanir.
+- **Graf ve human-in-the-loop dort dosyada** (2026-08-03, Faz 16):
+  `WorkflowAgentIdentity` (🚨 kalici executor kimligi, MAF'in
+  `<Id>k__BackingField`'ina yazar), `WorkflowGraphReader` (graf →
+  `WorkflowGraph`; `Batcher/` tuzagi burada), `WorkflowRequestDescriptor`
+  (`ExternalRequest` ↔ olay yuku), `WorkflowResponseFactory` (yanit →
+  `ExternalResponse`). Yanit yolu icin once `WorkflowResponseFactory.Create`'e
+  bakin.
+
+## Tuzaklar
+
 - **🚨 MAF workflow'u `TurnToken` gonderilmeden calismaz** (2026-08-03, Faz 15): `InProcessExecution.RunStreamingAsync` sonrasi `run.TrySendMessageAsync(new TurnToken(emitEvents: true))` cagrilmazsa graf gelen mesaji yalnizca YUTAR: ilk super-step'ten sonra `Idle` olur, hicbir agent konusur, hicbir hata verilmez. Olculdu: token'siz 6 olay, token'li 40+ olay. MAF dokumaninda yazili degil.
 - **🚨 `AgentResponseEvent` ve `AgentResponseUpdateEvent`, `WorkflowOutputEvent`'ten TUREER** (2026-08-03, Faz 15): bir `switch` icinde genel dal once yazilirsa agent yanitlari "workflow cikti uretti" diye siniflanir ve gercek cikti kaybolur. `WorkflowEventMapper` sirayi korur.
 - **🚨 `InProcessExecution.RunStreamingAsync` yurutmeyi HEMEN baslatir** (2026-08-03, Faz 15): executor'lar `WatchStreamAsync` pompasinda degil, o cagrida baslatilan arka plan gorevinde calisir ve gorev `ExecutionContext`'i TAM O ANDA yakalar. `AgentPrismRunContext` `scope`'u yalnizca `MoveNextAsync` oncesinde yazilirsa alt agent cagrilari reddedilir ve workflow SESSIZCE BOS calisir — sifir agent satiri, sifir kontrol noktasi. `Scope` `StartAsync`'ten ONCE de yazilmalidir. Faz 6/11/12 `AsyncLocal` tuzaginin dorduncu hali; birim testleri yakaladi.
