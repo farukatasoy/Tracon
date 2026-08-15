@@ -5,7 +5,7 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>false</IsPackable>
-    <!-- Cozum uzerinde `dotnet pack` calistirildiginda paketlenmeyen projeler icin uyari uretilmesin. -->
+    <!-- Do not emit a warning for non-packable projects when `dotnet pack` runs on the solution. -->
     <WarnOnPackingNonPackableProject>false</WarnOnPackingNonPackableProject>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
