@@ -1,48 +1,48 @@
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="PatternContentGuard"/>'in yerlesik desen aileleri.
+/// The built-in pattern families for <see cref="PatternContentGuard"/>.
 /// </summary>
 /// <remarks>
-/// Her aile <strong>ayri ayri</strong> acilir. Hepsini birlikte acmak yanlis pozitif
-/// riskini toplar ve guard'in pratikte kapatilmasina yol acar.
+/// Each family is enabled <strong>independently</strong>. Enabling them all together
+/// compounds false-positive risk and can make the guard impractical to use.
 /// </remarks>
 [Flags]
 public enum PiiPatterns
 {
-    /// <summary>Hicbir desen acik degil. Varsayilan.</summary>
+    /// <summary>No pattern is enabled. This is the default.</summary>
     None = 0,
 
-    /// <summary>E-posta adresi.</summary>
+    /// <summary>An email address.</summary>
     Email = 1,
 
-    /// <summary>IBAN. Iki harf ulke kodu + iki kontrol basamagi + 11-30 alfanumerik.</summary>
+    /// <summary>An IBAN: two-letter country code, two check digits, and 11 to 30 alphanumeric characters.</summary>
     Iban = 2,
 
     /// <summary>
-    /// Kredi karti numarasi. 🚨 <strong>Luhn dogrulamasi yapar</strong>.
+    /// A credit card number. It <strong>uses Luhn validation</strong>.
     /// </summary>
     /// <remarks>
-    /// Yalniz <c>\d{16}</c> eslesmesi her siparis numarasini maskeler ve guard'i
-    /// kullanilamaz hale getirir.
+    /// A plain <c>\d{16}</c> match would mask every order number and make the guard
+    /// impractical to use.
     /// </remarks>
     CreditCard = 4,
 
     /// <summary>
-    /// TC kimlik numarasi. 🚨 <strong>Kontrol basamagi dogrulamasi yapar</strong>.
+    /// A Turkish national identification number. It <strong>validates check digits</strong>.
     /// </summary>
     /// <remarks>
-    /// Rastgele 11 hane maskelenmez; yalnizca 10. ve 11. basamak kurallarina uyan
-    /// bir numara maskelenir.
+    /// A random 11-digit value is not masked. Only a number that satisfies the tenth
+    /// and eleventh digit rules is masked.
     /// </remarks>
     TurkishNationalId = 8,
 
     /// <summary>
-    /// Saglayici API anahtari deseni: <c>sk-…</c>, <c>ghp_…</c>, <c>AKIA…</c>.
+    /// A provider API key pattern: <c>sk-…</c>, <c>ghp_…</c>, or <c>AKIA…</c>.
     /// </summary>
     /// <remarks>
-    /// Bir kullanicinin yanlislikla anahtarini isteme yazmasi gorulen bir olaydir;
-    /// o istem saglayiciya gider ve saglayicinin gunlugune dusebilir.
+    /// A user can accidentally put a key in a prompt. That prompt goes to the provider
+    /// and can enter the provider log.
     /// </remarks>
     ProviderApiKey = 16,
 }

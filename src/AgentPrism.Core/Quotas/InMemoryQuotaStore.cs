@@ -3,18 +3,18 @@ using System.Collections.Concurrent;
 namespace AgentPrism;
 
 /// <summary>
-/// Kota kurallarini ve sayaclarini surec belleginde tutan varsayilan uygulama.
+/// The default implementation that keeps quota rules and counters in process memory.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Tek surecli kurulumlar ve testler icindir. Cok ornekli bir dagitimda
-/// <c>UsePostgreSql()</c> bunu <c>PostgresQuotaStore</c> ile degistirir; aksi
-/// halde her ornek kendi sayacini tutar ve kota ornege bolunur.
+/// For single-process deployments and tests. In a multi-instance deployment,
+/// <c>UsePostgreSql()</c> replaces this with <c>PostgresQuotaStore</c>. Otherwise,
+/// each instance keeps its own counter and the quota is split between instances.
 /// </para>
 /// <para>
 /// Sayac artirma <see cref="ConcurrentDictionary{TKey, TValue}.AddOrUpdate(TKey, Func{TKey, TValue}, Func{TKey, TValue, TValue})"/>
-/// ile atomiktir; PostgreSQL uygulamasindaki <c>ON CONFLICT DO UPDATE</c> ile
-/// ayni sozlesmeyi saglar ve hicbir artis kaybolmaz.
+/// is atomic. It provides the same contract as <c>ON CONFLICT DO UPDATE</c> in the
+/// PostgreSQL implementation, so no increment is lost.
 /// </para>
 /// </remarks>
 public sealed class InMemoryQuotaStore : IQuotaStore
@@ -61,9 +61,9 @@ public sealed class InMemoryQuotaStore : IQuotaStore
     {
         ArgumentNullException.ThrowIfNull(definition);
 
-        // Kapsam benzersizligi: ayni (kiraci, agent, donem) ucusu icin var olan
-        // kural varsa kimligi korunur ve uzerine yazilir. PostgreSQL tarafinda
-        // ayni kural COALESCE'li benzersiz indeksle zorlanir.
+        // Scope uniqueness: if a rule exists for the same tenant, agent, and period,
+        // preserve its identifier and overwrite it. PostgreSQL enforces the same rule
+        // with a unique index that uses COALESCE.
         var existing = _definitions.Values.FirstOrDefault(candidate =>
             string.Equals(candidate.TenantId, definition.TenantId, StringComparison.Ordinal)
             && string.Equals(candidate.AgentName ?? string.Empty, definition.AgentName ?? string.Empty, StringComparison.Ordinal)
@@ -138,8 +138,8 @@ public sealed class InMemoryQuotaStore : IQuotaStore
 
         foreach (var (period, periodStart) in periodStarts)
         {
-            // Bir calistirma HEM agent sayacini HEM kiraci geneli sayacini
-            // artirir; kiraci geneli kural agent adini bilmeden sorgulanabilsin.
+            // A run increments both the agent counter and tenant-wide counter, so a
+            // tenant-wide rule can be queried without knowing the agent name.
             Increment(consumption, period, periodStart, consumption.AgentName);
             Increment(consumption, period, periodStart, string.Empty);
         }
@@ -161,7 +161,7 @@ public sealed class InMemoryQuotaStore : IQuotaStore
                 PeriodStart = periodStart,
                 Runs = consumption.Runs,
                 Tokens = consumption.Tokens,
-                // Fiyat tanimsizsa toplama katilmaz; sifir olarak da eklenmez.
+                // When the price is undefined, it is not included in the sum or added as zero.
                 Cost = consumption.Cost ?? 0m,
                 UpdatedAt = consumption.OccurredAt,
             },

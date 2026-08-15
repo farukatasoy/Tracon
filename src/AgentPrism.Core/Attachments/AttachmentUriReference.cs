@@ -1,24 +1,23 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Bir eki <see cref="Microsoft.Extensions.AI.UriContent"/> referansina cevirir
-/// ve bu referansi geri cozer.
+/// Converts an attachment to a <see cref="Microsoft.Extensions.AI.UriContent"/>
+/// reference and resolves that reference back.
 /// </summary>
 /// <remarks>
-/// Tanima yalnizca <c>/api/attachments/{id}</c> izine bakar; yol onekini
-/// (<c>{prefix}</c>) bilmeye ihtiyac duymaz ve goreli veya mutlak her iki Uri
-/// bicimini de tanir. Bu sayede <c>AgentPrism.Core</c>, uc noktalarin
-/// yapilandirmasindan (onek, host) tamamen bagimsiz kalir.
-/// Gerekce: <c>docs/14-COK-MODLULUK.md</c>, bolum 14.1.
+/// Recognition only checks the <c>/api/attachments/{id}</c> route. It does not need
+/// to know the path prefix, <c>{prefix}</c>, and recognizes relative and absolute URIs.
+/// This keeps <c>AgentPrism.Core</c> fully independent from endpoint configuration.
+/// Rationale: <c>docs/14-COK-MODLULUK.md</c>, section 14.1.
 /// </remarks>
 public static class AttachmentUriReference
 {
     private const string Marker = "/api/attachments/";
 
-    /// <summary>Bir ek kimligini referans Uri'sine cevirir.</summary>
-    /// <param name="prefix">AgentPrism uc noktalarinin yol oneki (ornek: <c>/agentprism</c>).</param>
-    /// <param name="attachmentId">Ek kimligi.</param>
-    /// <returns>Goreli bir Uri.</returns>
+    /// <summary>Converts an attachment identifier to its reference URI.</summary>
+    /// <param name="prefix">The path prefix for AgentPrism endpoints, for example <c>/agentprism</c>.</param>
+    /// <param name="attachmentId">The attachment identifier.</param>
+    /// <returns>A relative URI.</returns>
     public static Uri Create(string prefix, Guid attachmentId)
     {
         ArgumentNullException.ThrowIfNull(prefix);
@@ -26,10 +25,10 @@ public static class AttachmentUriReference
         return new Uri($"{prefix.TrimEnd('/')}{Marker}{attachmentId}", UriKind.Relative);
     }
 
-    /// <summary>Bir Uri'nin ek referansi olup olmadigini denetler ve kimligi cikarir.</summary>
-    /// <param name="uri">Denetlenecek Uri.</param>
-    /// <param name="attachmentId">Bulunursa ek kimligi.</param>
-    /// <returns>Uri bir ek referansiysa <see langword="true"/>.</returns>
+    /// <summary>Determines whether a URI is an attachment reference and extracts its identifier.</summary>
+    /// <param name="uri">The URI to inspect.</param>
+    /// <param name="attachmentId">The attachment identifier when found.</param>
+    /// <returns><see langword="true"/> if the URI is an attachment reference.</returns>
     public static bool TryParse(Uri uri, out Guid attachmentId)
     {
         ArgumentNullException.ThrowIfNull(uri);

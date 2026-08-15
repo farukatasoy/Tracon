@@ -4,13 +4,12 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="IExperimentStore"/>'u denetim izi yazan bir dekorator ile sarar.
+/// Wraps <see cref="IExperimentStore"/> in a decorator that writes an audit trail.
 /// </summary>
 /// <remarks>
-/// Bir deney olusturmak/baslatmak/durdurmak Admin'in bilincli bir karari ve
-/// gercek trafigi etkileyen bir eylemdir — <see cref="AuditingAgentDefinitionStore"/>
-/// ile ayni gerekce, yurutmenin yan urunu (<c>IJobStore</c>, <c>IEvalStore</c>
-/// gibi) degildir.
+/// Creating, starting, or stopping an experiment is a deliberate Admin decision that
+/// affects live traffic. It has the same rationale as <see cref="AuditingAgentDefinitionStore"/>
+/// and is not an execution byproduct such as <c>IJobStore</c> or <c>IEvalStore</c>.
 /// </remarks>
 public sealed class AuditingExperimentStore : IExperimentStore, IAuditDecorated
 {
@@ -20,7 +19,7 @@ public sealed class AuditingExperimentStore : IExperimentStore, IAuditDecorated
     private readonly IAuditActorResolver _actorResolver;
     private readonly ILogger<AuditingExperimentStore> _logger;
 
-    /// <summary>Yeni bir denetimli deney deposu olusturur.</summary>
+    /// <summary>Initializes a new audited experiment store.</summary>
     public AuditingExperimentStore(
         IExperimentStore inner,
         IAuditLog auditLog,
@@ -181,9 +180,9 @@ public sealed class AuditingExperimentStore : IExperimentStore, IAuditDecorated
 
     /// <inheritdoc />
     /// <remarks>
-    /// Denetlenmez: yalnizca <c>CanaryEvaluationService</c> tarafindan cagrilir ve
-    /// kademeli artirma 56.2 akis semasina gore denetim izine yazilmaz (yalniz geri
-    /// alma yazilir, bkz. <see cref="RollbackCanaryAsync"/>).
+    /// This method is not audited. Only <c>CanaryEvaluationService</c> calls it, and
+    /// gradual increases do not enter the audit trail according to the 56.2 flow.
+    /// Only rollback is written. See <see cref="RollbackCanaryAsync"/>.
     /// </remarks>
     public ValueTask<Experiment> AdvanceCanaryRampAsync(
         string tenantId,
@@ -194,10 +193,10 @@ public sealed class AuditingExperimentStore : IExperimentStore, IAuditDecorated
 
     /// <inheritdoc />
     /// <remarks>
-    /// Denetlenmez: caginan <c>CanaryEvaluationService</c>, K-089 emsaline uyarak bu
-    /// metodu cagirmadan ONCE kendi denetim kaydini <see cref="IAuditLog.WriteAsync"/>
-    /// ile dogrudan yazar. Burada AYRICA en-iyi-caba bir kayit yazmak, yazma
-    /// basarisiz oldugunda geri almanin yine de uygulanmis olmasi riskini tasirdi.
+    /// This method is not audited. Following K-089, <c>CanaryEvaluationService</c>
+    /// writes its audit record directly through <see cref="IAuditLog.WriteAsync"/>
+    /// before it calls this method. An additional best-effort write here could leave
+    /// a rollback applied after its write failed.
     /// </remarks>
     public ValueTask<Experiment> RollbackCanaryAsync(
         string tenantId,

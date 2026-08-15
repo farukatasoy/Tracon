@@ -3,26 +3,26 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Denetim izi yazan tum kod yollarinin (depo dekoratorleri, uc katmani istisnalari)
-/// ortak yazma yolunu tasiyan yardimci.
+/// A helper that supplies the common write path for all code that writes audit entries,
+/// including store decorators and endpoint-layer exceptions.
 /// </summary>
 /// <remarks>
-/// Sir suzgecini uygular ve yazma hatasini yutar: denetim izi hatasi islemi
-/// <strong>kesmez</strong>, yalnizca loglanir. Faz 6'nin "gozlemlenebilirlik
-/// islevi bozmaz" kuralinin aynisi.
+/// Applies the secret filter and swallows write errors. An audit trail error does
+/// <strong>not</strong> interrupt the operation; it is only logged. This is the
+/// Phase 6 rule that observability does not break functionality.
 /// </remarks>
 public static class AuditRecorder
 {
-    /// <summary>Sir suzgecinden gecirilmis bir denetim kaydi yazar; hata loglanir, islem kesilmez.</summary>
-    /// <param name="auditLog">Yazilacak defter.</param>
-    /// <param name="actorResolver">Aktor cozumleyici.</param>
-    /// <param name="logger">Yazma hatasinin loglanacagi gunlukleyici.</param>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="action">Eylem adi.</param>
-    /// <param name="entity">Etkilenen varlik.</param>
-    /// <param name="before">Onceki durum, JSON metni.</param>
-    /// <param name="after">Sonraki durum, JSON metni.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <summary>Writes a secret-filtered audit entry. It logs an error without interrupting the operation.</summary>
+    /// <param name="auditLog">The log to write.</param>
+    /// <param name="actorResolver">The actor resolver.</param>
+    /// <param name="logger">The logger for a write error.</param>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="action">The action name.</param>
+    /// <param name="entity">The affected entity.</param>
+    /// <param name="before">The previous state as JSON text.</param>
+    /// <param name="after">The next state as JSON text.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     public static async ValueTask WriteAsync(
         IAuditLog auditLog,
         IAuditActorResolver actorResolver,
@@ -54,7 +54,7 @@ public static class AuditRecorder
         {
             logger.LogWarning(
                 ex,
-                "'{Action}' eylemi '{Entity}' varligi icin denetim izine yazilamadi.",
+                "Could not write action '{Action}' for entity '{Entity}' to the audit trail.",
                 action,
                 entity);
         }
