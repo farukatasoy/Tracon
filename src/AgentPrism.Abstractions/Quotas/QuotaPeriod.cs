@@ -2,18 +2,18 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>Bir kotanin sayacinin hangi araliklarla sifirlandigi.</summary>
+/// <summary>The interval at which a quota's counter resets.</summary>
 /// <remarks>
-/// JSON'da ad olarak yazilir, veritabaninda <c>smallint</c> olarak saklanir.
-/// Deger sirasi <strong>degistirilemez</strong> — yalnizca sona eklenir; mevcut
-/// satirlar sayisal degeri referans alir.
+/// Written as a name in JSON, stored as <c>smallint</c> in the database. The
+/// value order <strong>must not change</strong> — only append; existing rows
+/// reference the numeric value.
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<QuotaPeriod>))]
 public enum QuotaPeriod
 {
-    /// <summary>Sayac her gun yerel gece yarisinda sifirlanir.</summary>
+    /// <summary>The counter resets every day at local midnight.</summary>
     Daily = 0,
 
-    /// <summary>Sayac her ayin ilk gunu yerel gece yarisinda sifirlanir.</summary>
+    /// <summary>The counter resets on the first day of every month at local midnight.</summary>
     Monthly = 1,
 }
