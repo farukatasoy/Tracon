@@ -1,10 +1,12 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Hosting;
 using Microsoft.Agents.AI.Hosting.OpenAI;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.AI;
 
 namespace AgentPrism;
 
@@ -207,8 +209,10 @@ internal static class OpenAIResponsesEndpoints
 
             await sessionStore.SaveSessionAsync(agent, saveId, session, cancellationToken).ConfigureAwait(false);
 
+            var responseJson = OpenAIResponses.WriteResponse(response, responseId, runRequest.ConversationId);
+
             return Results.Json(
-                OpenAIResponses.WriteResponse(response, responseId, runRequest.ConversationId),
+                AppendPendingApprovalOutputItems(responseJson, response.Messages),
                 statusCode: StatusCodes.Status200OK);
         }
         catch (OperationCanceledException)
@@ -239,6 +243,78 @@ internal static class OpenAIResponsesEndpoints
         return descriptors.Count == 0
             ? "The catalog has no agents."
             : $"Registered agents: {string.Join(", ", descriptors.Select(static descriptor => descriptor.Name))}.";
+    }
+
+    /// <summary>
+    /// Onay bekleyen tool cagrilarini <c>output</c> dizisine <c>function_call</c>
+    /// ogeleri olarak ekler.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 🚨 HATA-S2-004/MT-COMPAT-029: <c>OpenAIResponses.WriteResponse</c> (MAF,
+    /// alpha paket) bir <c>ToolApprovalRequestContent</c>'i taniMAZ — donusum
+    /// tablosu yalniz <c>FunctionCallContent</c>/<c>FunctionResultContent</c>/
+    /// bilinen metin-benzeri icerikleri isler (decompile ile dogrulandi,
+    /// <c>AgentResponseExtensions.ToItemContent</c>). Onay bekleyen bir cagri bu
+    /// yuzden <c>output</c>'tan SESSIZCE dusuyordu; caller'in gordugu tek sey
+    /// bos bir dizi ve <c>status: "completed"</c> — cagrinin var oldugunu HIC
+    /// bilmiyordu. <c>Response</c>/<c>FunctionToolCallItemResource</c> MAF
+    /// icinde <c>internal</c>'dir, guclu tipli bir cozum yazilamaz; bu yuzden
+    /// zaten uretilmis JSON, gercek OpenAI Responses API'nin belgelenmis
+    /// <c>function_call</c> oge semasiyla (id/type/status/call_id/name/arguments)
+    /// BIREBIR ayni sekilde yama uygulanir. Bu, MAF'in NORMAL (onay istemeyen)
+    /// bir tool cagrisi icin urettigi ogeyle de ayni bicimdir — SDK acisindan
+    /// sIradan bir bekleyen fonksiyon cagrisindan ayirt edilemez, ki dogru
+    /// olan da budur: caller standart OpenAI akisini izleyip bir sonraki turda
+    /// <c>function_call_output</c> saglayabilir (ya da yonetim API'sine gidip
+    /// resmi onay akisini kullanabilir).
+    /// </para>
+    /// <para>
+    /// <c>status</c> alani <em>degistirilmez</em> (hala <c>"completed"</c>) —
+    /// bu, MAF'in HER function_call ogesi icin kullandigi degerle tutarlidir
+    /// (tool GERCEKTEN calismis olsun ya da olmasin) ve gercek OpenAI Responses
+    /// API'sinde de fonksiyon cagirma "requires_action" degil boyle temsil
+    /// edilir. Yalniz <c>output</c> dizisi eksiksiz hale gelir.
+    /// </para>
+    /// </remarks>
+    private static JsonElement AppendPendingApprovalOutputItems(JsonElement responseJson, IEnumerable<ChatMessage> messages)
+    {
+        List<FunctionCallContent>? pending = null;
+
+        foreach (var message in messages)
+        {
+            foreach (var content in message.Contents)
+            {
+                if (content is ToolApprovalRequestContent { ToolCall: FunctionCallContent call })
+                {
+                    (pending ??= []).Add(call);
+                }
+            }
+        }
+
+        if (pending is null)
+        {
+            return responseJson;
+        }
+
+        var root = JsonNode.Parse(responseJson.GetRawText())!.AsObject();
+        var output = root["output"]?.AsArray() ?? [];
+        root["output"] = output;
+
+        foreach (var call in pending)
+        {
+            output.Add(new JsonObject
+            {
+                ["id"] = $"fc_{Guid.NewGuid():N}",
+                ["type"] = "function_call",
+                ["status"] = "completed",
+                ["call_id"] = call.CallId,
+                ["name"] = call.Name,
+                ["arguments"] = JsonSerializer.Serialize(call.Arguments, OpenAICompatSupport.JsonOptions),
+            });
+        }
+
+        return JsonSerializer.SerializeToElement(root);
     }
 
     /// <summary>

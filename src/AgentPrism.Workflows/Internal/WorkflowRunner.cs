@@ -868,7 +868,29 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                     cancellationToken).ConfigureAwait(false);
         }
 
-        await run.TrySendMessageAsync(new TurnToken(emitEvents: true)).ConfigureAwait(false);
+        // 🚨 MT-WF-062: bir /respond cagrisinda (Answers dolu) EKSTRA bir
+        // TurnToken gonderilmemelidir: kontrol noktasi bekleyen istegi zaten
+        // KENDISI yeniden yayinlar (docs/16-WORKFLOWS-ARAYUZ.md #3) - fazladan
+        // token'in graf GIRIS dugumu bir AIAgentBinding (turn-token'a ABONE bir
+        // agent-host) oldugunda GORUNUR bir yan etkisi vardir: agent "yeni bir
+        // tur" sanip SIFIRDAN yeniden calisir, ikinci (karsiliksiz) bir
+        // WorkflowRequest uretir ve akis yeniden AwaitingInput'a duser - onceden
+        // OLCULDU, HER respond cagrisinda %100 tekrarlanan bir desendi. Duz
+        // executor'lardan kurulu bir grafta (TurnToken'a abone degiller) bu
+        // fazladan token'in gorunur etkisi yoktu, bu yuzden mevcut coverage
+        // (ApprovalWorkflow, WorkflowRunnerTests) kusuru hic yakalamamisti.
+        // 🚨 Bu, DUZ bir /resume'dan (Answers BOS) BILEREK ayirt edilir: ilk
+        // denemede TUM surdurmelerde (Answers bos olsa bile) token atlanmisti
+        // ve ampirik olarak KontrolNoktasindanSurdurulur testini 10 dakikaya
+        // kadar asili birakti (bekleyen hicbir istegi olmayan, TAMAMEN Idle bir
+        // kontrol noktasinda TurnToken'siz akis hicbir zaman dogal olarak
+        // bitmiyor, yalniz RunTimeout'ta duruyor). Bir bekleyen istegi CEVAPLAMA
+        // disindaki surdurmeler bu yuzden ESKI (her zaman token gonderen)
+        // davranisi KORUR.
+        if (execution.Answers.Count == 0)
+        {
+            await run.TrySendMessageAsync(new TurnToken(emitEvents: true)).ConfigureAwait(false);
+        }
 
         return run;
     }

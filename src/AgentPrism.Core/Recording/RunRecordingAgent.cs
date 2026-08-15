@@ -230,14 +230,20 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                 return response;
             }
 
-            // Kuyruktan kosan bir kok calistirma (Faz 55) onay isteyerek bittiyse
-            // Completed yerine AwaitingApproval ile kapanir: canli bir istemci
-            // yoktur, karar POST /api/approvals/{id}/decide ile YENI bir
-            // calistirmada gelir (K-014, RunStatus.AwaitingInput ile ayni ilke).
-            // Senkron/MCP/A2A yolu SuspendOnApproval'i HIC ayarlamaz; davranisi
-            // degismez.
+            // Bir kok calistirma (Depth == 0) onay isteyerek bittiyse Completed
+            // yerine AwaitingApproval ile kapanir — yolundan (yonetim API'si,
+            // OpenAI-uyumlu uc, MCP, A2A) veya kuyruktan kosup kosmadigindan
+            // BAGIMSIZDIR (HATA-S2-004/MT-MCP-023: onceki hal yalniz kuyruk
+            // yolunu isaretliyordu, senkron yollar hep Completed diyordu -
+            // onay bayragi TAMAMEN gizleniyordu). Karar nasil ULASTIRILIRSA
+            // ulastirilsin (POST /api/approvals/{id}/decide kuyruk icin, ya da
+            // senkron cagiranin kendi bir sonraki turu) durum etiketi ayni
+            // ilkeyi izler: yanitlanmis bir calistirma bu durumda KALIR (K-014,
+            // RunStatus.AwaitingInput ile ayni ilke). `pending_approvals`
+            // deposuna satir yazmak ayri bir karardir ve DEGISMEDI (K-372) -
+            // yalniz kuyruk yolu (AgentRunJobHandler) yazar; cift karar yarisi
+            // riski bu degisiklikle yeniden acilmaz.
             if (start.Scope.Depth == 0 &&
-                options is AgentPrismRunOptions { SuspendOnApproval: true } &&
                 ChildRunApproval.Describe(response.Messages) is not null)
             {
                 await CompleteAsync(scope, RunStatus.AwaitingApproval, usage, null, cancellationToken)
@@ -299,10 +305,10 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
         UsageDetails? usage = null;
         string? pendingApproval = null;
 
-        // Faz 55: kuyruktan kosan bir kok calistirmada onay isteyen bir tool
-        // cagrisi Completed yerine AwaitingApproval'a esler. Gerekce RunCoreAsync
-        // icindeki AYNI notta.
-        var suspendOnApproval = start.Scope.Depth == 0 && options is AgentPrismRunOptions { SuspendOnApproval: true };
+        // Bir kok calistirmada onay isteyen bir tool cagrisi Completed yerine
+        // AwaitingApproval'a esler; gerekce RunCoreAsync icindeki AYNI notta
+        // (HATA-S2-004/MT-MCP-023 - yol/kuyruk ayrimi kaldirildi).
+        var isTopLevelRun = start.Scope.Depth == 0;
         var topLevelPendingApproval = false;
 
         var enumerator = base.RunCoreStreamingAsync(messages, session, options, cancellationSource.Token)
@@ -382,7 +388,7 @@ public sealed class RunRecordingAgent : DelegatingAIAgent
                     : null;
 
                 topLevelPendingApproval = topLevelPendingApproval ||
-                    (suspendOnApproval && ChildRunApproval.Describe(update.Contents) is not null);
+                    (isTopLevelRun && ChildRunApproval.Describe(update.Contents) is not null);
 
                 await WriteContentsAsync(scope, update.Contents, cancellationToken).ConfigureAwait(false);
 

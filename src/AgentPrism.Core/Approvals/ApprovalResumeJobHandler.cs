@@ -20,10 +20,10 @@ namespace AgentPrism;
 /// <para>
 /// 🚨 <c>AgentRunJobHandler</c>'in AKSINE, bu is <strong>yeni</strong> bir
 /// <c>RunId</c> ile calisir: eski calistirma <see cref="RunStatus.AwaitingApproval"/>
-/// ile kapanmis ve BIR DAHA DEGISMEMISTIR (K-014). Yeni calistirma da
-/// <c>SuspendOnApproval = true</c> verir: model onaylanmis tool'u kullandiktan
-/// SONRA baska bir tool icin onay isterse (ardisik onay), zincir aynen devam
-/// eder.
+/// ile kapanmis ve BIR DAHA DEGISMEMISTIR (K-014). Model onaylanmis tool'u
+/// kullandiktan SONRA baska bir tool icin onay isterse (ardisik onay), yeni
+/// calistirma da (kok oldugu icin) ayni sekilde <c>AwaitingApproval</c>'a
+/// kapanir — zincir aynen devam eder.
 /// </para>
 /// </remarks>
 internal sealed class ApprovalResumeJobHandler(
@@ -102,7 +102,6 @@ internal sealed class ApprovalResumeJobHandler(
             {
                 RunId = newRunId,
                 SessionId = approval.SessionId,
-                SuspendOnApproval = true,
             },
             cancellationToken).ConfigureAwait(false);
 

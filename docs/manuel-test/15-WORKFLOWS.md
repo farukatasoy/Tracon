@@ -1481,7 +1481,52 @@ curl -N -s -X POST "$APU/api/workflows/runs/<runId>/respond" -H "$APB" -H "conte
 2. **`ozetleyici` agent'ı SIFIRDAN yeniden çalıştı** — akışta 40+ `MessageDelta` olayı yeniden göründü (gerçek model tekrar çağrıldı, gerçek ek maliyet oluştu), hâlbuki beklenti yalnız kontrol noktasından ilerlemekti (ozetleyicinin ÖNCEDEN üretilmiş çıktısını yeniden kullanmak).
 Doğrulama için AYNI deneyi ikinci kez tekrarladım (yeni bir çalıştırma + respond): birebir aynı desen — yeniden tam özetleme + yeni bir `WorkflowRequest` + `AwaitingInput` ile bitiş. Tam belirlenimli. Grafın kendisi "dashed edge loops back" notuyla döngüsel olarak tasarlanmış olabilir (`onay-sorusu`/`yayin-onayi` arasında), bu yüzden "bir kez onayla → Completed" beklentisinin kendisi YANLIŞ olabilir — ama gözlenen davranış (her `respond` çağrısının modeli SIFIRDAN yeniden çağırması) `resume`'un checkpoint'ten ÇALIŞMA KALDIĞI YERDEN devam etmesi gereken temel sözleşmesiyle çelişiyor ve gerçek para maliyeti doğuruyor. Kod değiştirilmedi; kök neden netleştirme (döngüsel graf tasarımı mı, yoksa `PrepareResponseAsync`/checkpoint geri yükleme mekanizmasının hatası mı) ayrı bir kod incelemesi gerektirir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**🔧 Kapanış güncellemesi (2026-08-15, Aile V — kök neden bulundu ve
+düzeltildi).** Graf döngüsel DEĞİL (`Program.cs`'teki `ozetle-ve-onayla`
+tanımı doğrudan okundu: `summarizeBinding → ask → portBinding → publish`,
+doğrusal) — "dashed edge loops back" ihtimali dışlandı. Gerçek kök neden:
+`WorkflowRunner.StartAsync` (`Internal/WorkflowRunner.cs`), `resume` DAHİL
+HER yürütme başlangıcında koşulsuz olarak `run.TrySendMessageAsync(new
+TurnToken(...))` çağırıyordu. Faz 15'in kendi ölçtüğü gerekçe
+(`docs/15-WORKFLOWS-YURUTME.md` §1: "Yürütme bir TurnToken ister") yalnız
+TAZE bir çalıştırma için geçerlidir; Faz 16'nın kendi ölçtüğü DAVRANIŞ
+(`docs/16-WORKFLOWS-ARAYUZ.md` §3: "kontrol noktası bekleyen isteği TAŞIR
+ve istek yeniden yayınlanır") zaten bir `respond`'un checkpoint'ten devam
+etmesi için gereken sinyali kendiliğinden veriyor. Graf giriş düğümü bir
+`AIAgentBinding` (agent-host, `TurnToken` yayınına ABONE) olduğunda bu
+FAZLADAN token "yeni bir tur" gibi yorumlanıyor ve `ozetleyici`'yi SIFIRDAN
+yeniden tetikliyordu — düz `BindAsExecutor` düğümlerinden kurulu bir grafta
+(`TurnToken`'a abone değiller) bu fazladan sinyalin gözlenir bir etkisi
+olmadığı için mevcut kapsam (`ApprovalWorkflow`/`WorkflowHumanInTheLoopTests`)
+kusuru hiç yakalayamamıştı. Düzeltme `execution.Answers.Count == 0`
+(yalnız gerçek bir `/respond`, yani bir bekleyen isteğe cevap taşıyan
+sürdürme, TurnToken'ı ATLAR) ile daraltıldı — düz bir `/resume` (cevapsız,
+`PrepareResumeAsync`) davranışını KORUR: ilk deneme (TÜM sürdürmelerde
+atlama) `WorkflowRunnerTests.Kontrol_noktasindan_surdurulur`'u ampirik
+olarak 10 dakikaya kadar asılı bıraktı (bekleyen hiçbir isteği olmayan,
+tamamen `Idle` bir kontrol noktasında `TurnToken`'sız akış hiç doğal
+bitmiyor, yalnız `RunTimeout`'ta durur) — bu regresyon canlı ölçülüp
+düzeltmenin kapsamı daraltılarak giderildi.
+
+Ampirik doğrulama (canlı sunucuya karşı, gerçek model, birebir bu case'in
+senaryosu): ilk çalıştırma normal özetleme + `RunAwaitingInput` ile bitti.
+`respond` (`approved:true`) çağrısı SONRASI: **0** yeni `MessageDelta`
+olayı (özetleyici YENİDEN ÇAĞRILMADI — gerçek ek maliyet önlendi),
+`WorkflowOutput.text` birebir `"Ozet yayinlandi."`, akış `RunCompleted` ile
+bitti (`GET /api/runs/{yeni-runId}` → `status: "Completed"`) —
+`RunAwaitingInput` YOK, ikinci bir `WorkflowRequest` YOK. Üç "Beklenen
+sonuç" maddesinin TAMAMI artık gerçekleşiyor.
+
+Regresyon testi: `WorkflowAgentEntryRespondTests.Giris_dugumu_agent_ise_respond_onu_yeniden_calistirmaz`
+(`tests/AgentPrism.Workflows.UnitTests`) — `AgentApprovalWorkflow` yeni
+fixture'ı (production `ozetle-ve-onayla` ile aynı şekilde bir
+`AIAgentBinding` giriş düğümü taşır, `ApprovalWorkflow`'un düz executor'ünün
+AKSİNE) kusuru önce yeniden üretti (2 `ozetleyici` çalıştırması), düzeltme
+sonrası tek çalıştırmayı doğruluyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

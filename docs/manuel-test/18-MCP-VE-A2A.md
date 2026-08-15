@@ -753,7 +753,24 @@ Gerçek entegrasyon — mutlu yol.
 **Gerçek sonuç**
 **KALDI - HATA-S2-004 kapsam genislemesi (onemli).** test-sunucu requiresApproval:true yapildi, test-sunucu_echo tool'unu tasiyan bir agent olusturuldu ve tetiklendi. Oturum gecmisinde bir toolApprovalRequest kaydi olustu (tool GERCEKTEN onay bekliyor, dogrulandi) - ama /api/runs?agentName=...&take=1 (YONETIM API'si, compat DEGIL) run kaydi status: Completed, completedAt dolu, error: null gosterdi - AwaitingInput/AwaitingApproval DEGIL. Kok neden bulundu: RunStatus.AwaitingInput (RunStatus.cs:29-48) kendi XML belgesinde ACIKCA 'Yalnizca RunKind.Workflow satirlarinda gorulur' diyor - yani bu durum kod-tanimli (Workflow olmayan, Kind:'Agent') calistirmalar icin YAPISAL OLARAK HIC KULLANILMIYOR. Bu, HATA-S2-004'un (dosya 08, MT-COMPAT-029) 'yalniz compat uclarini etkiliyor' seklindeki onceki cerceevelemesini YANLISLIYOR: sorun compat'a ozgu degil, TUM Agent-turu calistirmalarin genel bir mimari sinirlamasidir - onay bekleyen bir kod VEYA MCP tool'u calistiran herhangi bir Agent-turu run, HANGI ucten (yonetim API'si veya compat) tetiklenirse tetiklensin, status alaninda bunu hic yansitamiyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**🔧 Kapanış güncellemesi (2026-08-15, Aile V — HATA-S2-004 düzeltildi, bkz.
+dosya 08 `MT-COMPAT-029`).** `RunRecordingAgent`'ta kök (`Depth == 0`) bir
+çalıştırmanın `AwaitingApproval`'a kapanması artık yola (yönetim API'si,
+compat, MCP, A2A, kuyruk) bakmaksızın uygulanıyor —
+`AgentPrismRunOptions.SuspendOnApproval` (yalnız kuyruk yolunun ayarladığı,
+tek başına anlamı kalmayan bayrak) kaldırıldı. Ampirik doğrulama (bu case'in
+KENDİ senaryosu, canlı sunucuya karşı — `test-sunucu`'nun `requiresApproval`
+tool'unu taşıyan agent, YÖNETİM API'si üzerinden tetiklendi): `GET
+/api/agents/{name}/run` (Idempotency-Key ile akışsız) artık `status:
+"AwaitingApproval"` döndürüyor — `Completed` DEĞİL. Case'in kendi tespiti
+("sorun compat'a özgü değil, TÜM Agent-türü çalıştırmaların mimari
+sınırlaması") doğrulanmış oldu; düzeltme de aynı genel kapsamda yapıldı
+(tek bir kod yolu, `RunRecordingAgent`, hem yönetim API'si hem compat hem
+MCP/A2A tarafından paylaşılıyor).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
