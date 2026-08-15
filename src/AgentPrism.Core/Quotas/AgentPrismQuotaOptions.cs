@@ -1,62 +1,61 @@
 namespace AgentPrism;
 
-/// <summary>Kota alt sisteminin (Faz 21) ayarlari.</summary>
+/// <summary>Defines options for the quota subsystem (phase 21).</summary>
 /// <remarks>
-/// <c>AgentPrism:Quotas</c> yapilandirma bolumunden okunur.
+/// Read from the <c>AgentPrism:Quotas</c> configuration section.
 /// </remarks>
 public sealed class AgentPrismQuotaOptions
 {
-    /// <summary>Yapilandirma bolumu adi.</summary>
+    /// <summary>Gets the configuration section name.</summary>
     public const string SectionName = "AgentPrism:Quotas";
 
     /// <summary>
-    /// Kota denetimi etkin mi. Kapaliyken kural kaydedilebilir ama hicbir
-    /// calistirma reddedilmez ve sayac artmaz.
+    /// Gets or sets whether quota enforcement is enabled. When disabled, rules
+    /// can be stored but no run is rejected and no counter increments.
     /// </summary>
     /// <remarks>
-    /// Varsayilan <see langword="true"/> olmasi guvenlidir: kural tanimlanmadigi
-    /// surece hicbir sey reddedilmez. "Varsayilan kota yok" kurali
-    /// <em>kurallarin bos olmasiyla</em> saglanir, alt sistemi kapatarak degil.
+    /// Defaulting to <see langword="true"/> is safe: nothing is rejected while
+    /// no rule exists. The "no default quota" rule comes from an <em>empty rule
+    /// set</em>, not from disabling the subsystem.
     /// </remarks>
     public bool Enabled { get; set; } = true;
 
     /// <summary>
-    /// Donem sinirlarinin hesaplandigi saat dilimi. Windows ve IANA adlari
-    /// kabul edilir.
+    /// Gets or sets the time zone used to calculate period boundaries. Windows
+    /// and IANA names are accepted.
     /// </summary>
     /// <remarks>
-    /// "Gunluk kota" diyen bir yonetici kendi is gununu kasteder; bu yuzden
-    /// varsayilan UTC olsa da tuketicinin degistirmesi beklenir.
+    /// An administrator who says "daily quota" means their business day. The
+    /// consumer is therefore expected to change the default UTC time zone.
     /// </remarks>
     public string TimeZone { get; set; } = "UTC";
 
     /// <summary>
-    /// Kota sayaci bu yuzdeleri asinca <c>quota.threshold</c> olayi yayilir.
+    /// Gets percentages that publish a <c>quota.threshold</c> event when the
+    /// quota counter reaches them.
     /// </summary>
     /// <remarks>
-    /// Her esik, her donemde <strong>bir kez</strong> yayilir; sayac her
-    /// calistirmada arttigi icin aksi halde esigin ustundeki her calistirma
-    /// yeni bir olay uretirdi.
+    /// Each threshold is published <strong>once</strong> per period. Otherwise,
+    /// every run above the threshold would produce a new event as the counter increments.
     /// </remarks>
     public IList<int> ThresholdPercents { get; } = [80, 100];
 
     /// <summary>
-    /// Kota denetimi bir hatayla karsilasirsa calistirmaya izin verilsin mi.
+    /// Gets or sets whether to allow a run when quota enforcement fails.
     /// </summary>
     /// <remarks>
-    /// Varsayilan <see langword="true"/>: veritabani gecici olarak
-    /// erisilemezse hizmet durmaz. Sikı bir kurulum bunu
-    /// <see langword="false"/> yaparak "kotayi dogrulayamiyorsam calistirma"
-    /// davranisini secebilir.
+    /// Defaults to <see langword="true"/> so a temporary database outage does
+    /// not stop the service. A strict deployment can set this to
+    /// <see langword="false"/> and choose "do not run when quota cannot be verified".
     /// </remarks>
     public bool AllowOnStoreFailure { get; set; } = true;
 
-    /// <summary>Cozulmus saat dilimini dondurur; ad taninmazsa UTC'ye duser.</summary>
-    /// <returns>Saat dilimi.</returns>
+    /// <summary>Returns the resolved time zone, falling back to UTC when its name is unknown.</summary>
+    /// <returns>The time zone.</returns>
     /// <remarks>
-    /// Taninmayan bir ad hata vermez: kota, yanlis bir ad yuzunden tum trafigi
-    /// kesmemelidir. Dogrulama <c>AgentPrismQuotaOptionsValidator</c> icinde
-    /// baslangicta yapilir ve orada hata verir.
+    /// An unrecognized name does not throw because quota enforcement must not
+    /// stop all traffic for a bad name. <c>AgentPrismQuotaOptionsValidator</c>
+    /// validates it during startup and reports the error there.
     /// </remarks>
     public TimeZoneInfo ResolveTimeZone()
     {

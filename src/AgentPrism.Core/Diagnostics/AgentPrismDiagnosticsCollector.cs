@@ -3,19 +3,19 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Kurulumun kendi kendini denetleyen ozet raporunu toplar (Faz 33).
+/// Collects the installation's self-diagnostic summary report (phase 33).
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Yan etkisizdir.</strong> Hicbir model cagrisi yapmaz — model saglayicisi
-/// durumu <see cref="ModelProviderHealthCache"/>'in onbelleginden OKUNUR, yeni bir
-/// denetim tetiklenmez. SQL saglayicisi kayitliysa hafif bir baglanti sinamasi
-/// yapilir (<see cref="ISqlPersistenceDiagnostics.GetSnapshotAsync"/>); migration
-/// UYGULANMAZ.
+/// <strong>Has no side effects.</strong> It makes no model calls: model provider
+/// status is read from <see cref="ModelProviderHealthCache"/> without triggering
+/// a new health check. When SQL persistence is registered, it performs a light
+/// connectivity probe through <see cref="ISqlPersistenceDiagnostics.GetSnapshotAsync"/>;
+/// it does not apply migrations.
 /// </para>
 /// <para>
-/// 🚨 Uretilen <see cref="AgentPrismDiagnosticsReport"/> hicbir <c>secret</c> tasimaz.
-/// Gerekce: <c>docs/KARARLAR.md</c>, karar K-059.
+/// 🚨 The generated <see cref="AgentPrismDiagnosticsReport"/> contains no <c>secret</c>.
+/// Rationale: <c>docs/KARARLAR.md</c>, K-059.
 /// </para>
 /// </remarks>
 public sealed class AgentPrismDiagnosticsCollector
@@ -29,19 +29,19 @@ public sealed class AgentPrismDiagnosticsCollector
     private readonly IToolRegistry _toolRegistry;
     private readonly ILogger<AgentPrismDiagnosticsCollector>? _logger;
 
-    /// <summary>Yeni bir teshis toplayicisi olusturur.</summary>
-    /// <param name="providers">Kayitli model saglayicilari.</param>
-    /// <param name="healthCache">Model saglayicisi saglik onbellegi.</param>
-    /// <param name="sqlDiagnostics">Etkin SQL saglayicisinin teshis sozlesmesi (0 veya 1 ornek).</param>
-    /// <param name="sqlMarkers">Kayitli SQL saglayici isaretleri (K-183 sayaci).</param>
-    /// <param name="agentCatalog">Agent kataloğu.</param>
-    /// <param name="toolRegistry">Tool defteri.</param>
-    /// <param name="circuitBreaker">Devre kesici. Kayitli degilse hicbir devre acik sayilmaz.</param>
+    /// <summary>Initializes a diagnostics collector.</summary>
+    /// <param name="providers">The registered model providers.</param>
+    /// <param name="healthCache">The model provider health cache.</param>
+    /// <param name="sqlDiagnostics">The active SQL provider diagnostics contract, with zero or one instance.</param>
+    /// <param name="sqlMarkers">The registered SQL provider markers for the K-183 counter.</param>
+    /// <param name="agentCatalog">The agent catalog.</param>
+    /// <param name="toolRegistry">The tool registry.</param>
+    /// <param name="circuitBreaker">The circuit breaker. No circuit is open when it is not registered.</param>
     /// <param name="logger">
-    /// Gunlukcu. Verilmezse katalog okuma hatasi sessizce yutulur; rapor yine de
-    /// <see cref="AgentPrismDiagnosticsReport.AgentCount"/> alanini bos birakir.
+    /// The logger. When absent, a catalog read failure is ignored and the report
+    /// leaves <see cref="AgentPrismDiagnosticsReport.AgentCount"/> empty.
     /// </param>
-    /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException">A required dependency is <see langword="null"/>.</exception>
     public AgentPrismDiagnosticsCollector(
         IEnumerable<IModelProvider> providers,
         ModelProviderHealthCache healthCache,
@@ -69,13 +69,13 @@ public sealed class AgentPrismDiagnosticsCollector
         _logger = logger;
     }
 
-    /// <summary>Kurulumun teshis raporunu toplar.</summary>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <summary>Collects the installation diagnostics report.</summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
-    /// Rapor. <see cref="AgentPrismDiagnosticsReport.UiEmbedded"/> her zaman
-    /// <see langword="false"/> doner — bu alan <c>AgentPrism.Core</c>'un bilmedigi
-    /// <c>AgentPrism.AspNetCore</c> katmanina aittir; cagiran <c>with</c> ifadesiyle
-    /// doldurmalidir.
+    /// The report. <see cref="AgentPrismDiagnosticsReport.UiEmbedded"/> always
+    /// returns <see langword="false"/> because the field belongs to the
+    /// <c>AgentPrism.AspNetCore</c> layer, which <c>AgentPrism.Core</c> does not
+    /// know. The caller must set it with a <c>with</c> expression.
     /// </returns>
     public async ValueTask<AgentPrismDiagnosticsReport> CollectAsync(CancellationToken cancellationToken = default)
     {
@@ -116,9 +116,9 @@ public sealed class AgentPrismDiagnosticsCollector
                 CircuitOpen = circuitOpen,
             });
 
-            // Ayni saglayici (ornek: UseOpenAI() ChatCompletions VE Responses icin iki
-            // ornek kaydeder) ayni yapilandirma anahtarini birden fazla bildirebilir;
-            // rapor anahtar basina tek satir tasir.
+            // The same provider, for example UseOpenAI() registering two instances
+            // for ChatCompletions and Responses, can report one configuration key
+            // more than once. The report has one row per key.
             if (provider is IModelProviderConfigurationDiagnostics configProvider
                 && configProvider.GetConfigurationDiagnostic() is { } diagnostic
                 && seenConfigurationKeys.Add(diagnostic.Key))
@@ -127,11 +127,11 @@ public sealed class AgentPrismDiagnosticsCollector
             }
         }
 
-        // 🚨 Katalog sorgusu bu raporu COKERTMEZ. Tesihs ucunun birincil kullanim
-        // ani, semanin HENUZ hazir olmadigi andir (AutoApplyMigrations=false ile
-        // operator bekleyen migration'lari gormek ister). Sorguyu yukarida
-        // toplanan migration bilgisinin onune gecirmek, ucu tam da ihtiyac
-        // duyuldugu anda 500 yapardi. Olculdu: MT-PG-051.
+        // 🚨 A catalog query must not crash this report. The diagnostics endpoint
+        // is primarily used while the schema is not yet ready, for example when an
+        // operator wants to inspect pending migrations with AutoApplyMigrations=false.
+        // Querying before returning the collected migration information would make
+        // the endpoint return 500 exactly when it is needed. Observed: MT-PG-051.
         int? agentCount;
 
         try
@@ -144,8 +144,8 @@ public sealed class AgentPrismDiagnosticsCollector
         {
             _logger?.LogWarning(
                 ex,
-                "Teshis raporu icin agent katalogu okunamadi; rapor AgentCount alani bos " +
-                "birakilarak dondurulur. Sema henuz uygulanmamis olabilir.");
+                "The agent catalog could not be read for the diagnostics report; the report returns with an empty " +
+                "AgentCount field. The schema might not be applied yet.");
 
             agentCount = null;
         }
