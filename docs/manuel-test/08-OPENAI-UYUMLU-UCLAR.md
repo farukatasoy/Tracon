@@ -1347,7 +1347,46 @@ curl -s "$APU/api/runs?agentName=support&sessionId=manuel-conv-029&take=1" -H "$
 **Gerçek sonuç**
 **KALDI - HATA-S2-004 (Yuksek).** HTTP yaniti: status: completed, output: [] (BOS). Run kaydi da status: Completed (eventCount:3: run.started, message.completed BOS metinle, run.completed - hicbir run.awaiting_input yok). Ancak GET /api/sessions/manuel-conv-029 gercek durumu gosteriyor: mesaj gecmisinde bir toolApprovalRequest var (cancel_order, requiresConfirmation:true) VE state.stateBag._pendingApprovalRequests dizisinde bekleyen bir kayit var - tool GERCEKTEN onay bekliyor. Compat ucu (hem HTTP yaniti hem run kaydi) bu bekleyen onayi TAMAMEN gizliyor; ikisi de tutarli sekilde completed diyor ama gercek durum AwaitingInput'tur. cancel_order hicbir zaman calismadi (dogru - onay verilmedi) ama caller'in bunu /v1/responses uzerinden gormesinin hicbir yolu yok; yonetim API'sine (dosya 21) gitmeden sessizce takili kalir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**🔧 Kapanış güncellemesi (2026-08-15, Aile V — HATA-S2-004 düzeltildi).** İki
+bağımsız kök neden bulundu ve ikisi de düzeltildi:
+
+1. **Durum etiketi.** `RunRecordingAgent`'ta kök (`Depth == 0`) bir
+   çalıştırmanın `AwaitingApproval` olarak kapanması eskiden yalnız kuyruktan
+   koşan çalıştırmalarda (`AgentPrismRunOptions.SuspendOnApproval == true`)
+   uygulanıyordu; senkron/compat/MCP/A2A yolu bu bayrağı hiç ayarlamıyordu ve
+   onay bekleyen bir tool çağrısı taşıyan bir çalıştırma her zaman `Completed`
+   olarak kapanıyordu. `SuspendOnApproval` kaldırıldı (artık `Depth == 0` ve
+   bekleyen onay varsa yol fark etmeksizin `AwaitingApproval`); `pending_approvals`
+   deposuna yazma davranışı (K-372) DEĞİŞMEDİ — yalnız kuyruk yolu yazar, çift
+   karar yarışı riski yeniden açılmadı.
+2. **Wire-seviyesi gizleme.** `Microsoft.Agents.AI.Hosting.OpenAI`'ın (alpha
+   paket) `OpenAIResponses.WriteResponse`'u decompile ile doğrulandı:
+   `Response.Status` HER ZAMAN `ResponseStatus.Completed` olarak sabit
+   yazılıyor ve `ToolApprovalRequestContent`'i tanımayan içerik dönüştürücüsü
+   onu `output`'tan sessizce düşürüyor — bu, MAF'ın kendi alpha paketinin bir
+   sınırlaması. `OpenAIResponsesEndpoints.HandleAsync` artık üretilen JSON'a
+   (`AppendPendingApprovalOutputItems`) yama uyguluyor: bekleyen her onay
+   isteği, gerçek OpenAI Responses API'sinin `function_call` öge şemasıyla
+   (id/type/status/call_id/name/arguments) birebir aynı biçimde `output`'a
+   eklenir — MAF'ın normal (onay istemeyen) bir tool çağrısı için ürettiği
+   ögeyle SDK açısından ayırt edilemez.
+
+Ampirik doğrulama (canlı sunucuya karşı, birebir bu case'in `curl`'ü):
+`status: "completed"` (OpenAI Responses API'de fonksiyon çağrısı zaten
+`requires_action` değil böyle temsil edilir), `output` artık BOŞ DEĞİL —
+`{"type":"function_call","name":"cancel_order","arguments":"{\"orderId\":\"ORD-1001\"}",...}`
+içeriyor. `GET /api/runs?...` artık `status: "AwaitingApproval"` döndürüyor
+(`Completed` DEĞİL) — ilk gözlemin ("iki gözlem de tutarlı ama ikisi de
+yanlış") tersine artık HTTP yanıtı ve run kaydı TUTARLI ve DOĞRU: ikisi de
+bekleyen bir tool çağrısı olduğunu açıkça gösteriyor.
+
+Regresyon testleri: `OpenAICompatTests.Responses_onay_bekleyen_tool_cagrisini_output_ta_gosterir`,
+`ApprovalEndpointTests.Senkron_akissiz_calistirma_onay_isteyince_AwaitingApproval_ile_kapanir`,
+`ApprovalEndpointTests.Senkron_akisli_calistirma_onay_isteyince_AwaitingApproval_ile_kapanir`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

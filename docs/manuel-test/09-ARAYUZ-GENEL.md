@@ -238,7 +238,39 @@ Negatif senaryo / sınır durumu.
 **Gerçek sonuç**
 `HATA-S4-002`: Ne "önceden yüklenmiş sekmeden yeniden yükle" ne de "kapalıyken doğrudan aç" adımı belgelenen özel "Sunucuya ulaşılamıyor" kartını üretti. Kestrel tamamen durunca **aynı origin** hem statik kabuğu (`index.html`/JS) hem API'yi sunduğu için tam sayfa yenilemesi ağ seviyesinde `net::ERR_CONNECTION_REFUSED` ile başarısız olur — tarayıcının KENDİ çevrimdışı hata sayfası görünür, React hiç çalışmaz. `GET /agentprism/` yanıtı `Cache-Control: no-cache` taşıdığından disk önbelleğinden de sunulamaz. Kabuk zaten yüklüyken (React çalışırken) sunucuyu durdurup senkronize `focus`/`visibilitychange` olayı tetiklemeyi denedim — TanStack Query'nin `meta` sorgusu yeniden getirilmedi (arka planda gerçek bir odak kaybı/kazanımı olmadığı için tetiklenmedi), dolayısıyla `meta.isError` dalı (`access-gate.tsx:36-49`) bu koşumda hiç gözlemlenemedi. **Kapsam:** Bu, kod aynı origin'den statik+API sunduğu ve service worker/offline kabuk olmadığı sürece HER tarayıcıda böyledir — düzeltmesi (ayrı statik host veya service worker) altyapısal bir karardır, basit bir kod düzeltmesi değildir.
 
+---
+
+**🔧 Kapanış güncellemesi (2026-08-15, Aile V — kısmi düzeltme).** Case'in
+kendi ayırdığı İKİ senaryodan yalnız BİRİ kod ile kapatılabilir durumdaydı:
+
+1. **Soğuk tam sayfa yenileme / kapalıyken doğrudan açma** — tarayıcı ağ
+   seviyesinde `net::ERR_CONNECTION_REFUSED` alıyor, React hiç çalışmıyor.
+   Case'in kendi metninin de açıkça yazdığı gibi bu "altyapısal bir karar"
+   (ayrı statik host veya service worker) gerektirir — kapsam DIŞI kalır,
+   kod ile çözülemez.
+2. **Kabuk zaten yüklüyken sunucu çöker** — bu senaryoda `access-gate.tsx`'in
+   `meta.isError` dalı zaten VARDI ama tetiklenmek için TanStack Query'nin
+   `refetchOnWindowFocus`'una bağımlıydı; sentetik bir `focus` olayı bunu
+   tetiklemedi (gerçek bir pencere odak kaybı/kazanımı olmadığı için) ve
+   periyodik bir kontrol de yoktu — açık bir sekme sunucunun öldüğünü hiçbir
+   zaman fark etmeyebilirdi. `meta` sorgusuna `refetchInterval: 30_000`
+   eklendi; TanStack Query v5'in kendi sözleşmesi gereği (decompile/tip
+   incelemesiyle doğrulandı: `QueryObserverRefetchErrorResult`) başarılı bir
+   sorgunun ARKA PLAN yenilemesi başarısız olduğunda `data` önbellekten
+   korunsa bile `isError`/`status: "error"` DOĞRU şekilde `true` olur —
+   yalnız TETİKLEYİCİ eksikti, periyodik `refetchInterval` bunu kapatır.
+
+Bu, MADDE 2'yi (aktif bir sekmenin sınırlı sürede kopukluğu fark etmesi)
+kapsamlı olarak kapatır; MADDE 1 (soğuk yenileme) `HATA-S4-002` olarak
+Kaldı'da kalmaya devam eder — gerekçe koddan değil tarayıcı mimarisinden
+kaynaklanıyor.
+
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
+Case'in kendi ön koşulu ("Örnek uygulama durdurulmuş") madde 1'i (soğuk
+yenileme) test ediyor — bu yüzden case bütünüyle Kaldı kalır; madde 2'nin
+düzeltmesi ayrı bir gelecek koşumda (kabuk yüklüyken sunucu çökmesi
+senaryosu) doğrulanabilir.
 
 ---
 
@@ -904,7 +936,27 @@ basıldığında `document.activeElement` `BODY`'de kaldı, hata fırlamadı (ik
 kısım — "hata vermez" — teknik olarak doğru, ama ilk kısım hiçbir ekranda hiç
 gerçekleşemiyor). `HATA-S4-005`.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**🔧 Kapanış güncellemesi (2026-08-15, Aile V — HATA-S4-005 düzeltildi).**
+`/` kısayolunun kendi mekanizması (`components/layout.tsx:202`,
+`input[data-search]` sorgusu) zaten doğruydu — yalnız hiçbir ekran böyle bir
+kutu render ETMİYORDU. Case'in kendi ön koşulunun adlandırdığı ekrana
+(Agents listesi) gerçek bir arama kutusu eklendi: `TextInput
+data-search` ile agent adı/görünen adına göre istemci-tarafı filtreleme
+(`agents.tsx`).
+
+Ampirik doğrulama (canlı sunucuya karşı, gerçek Playwright tarayıcısı):
+Agents ekranında odak arama kutusunun DIŞINDAYKEN `/` basıldı —
+`document.activeElement` artık `aria-label="Search"` taşıyan `<input>`,
+ve içeriği `.select()` ile seçili geldi (`selectionStart === 0 &&
+selectionEnd === value.length`). Dashboard'da (arama kutusu YOK) aynı
+tuşa basıldığında konsolda sıfır hata/istisna — "böyle bir kutu taşımayan
+bir ekranda `/` hiçbir şey yapmaz, hata vermez" beklentisi de doğrulandı.
+Kutunun kendisi de test edildi: "claude" yazılınca liste 12 satırdan 2'ye
+düştü (`claude-destek`, `claude-dusunen`).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

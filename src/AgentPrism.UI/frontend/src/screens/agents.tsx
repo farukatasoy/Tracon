@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { useT } from '../lib/i18n';
@@ -15,6 +15,7 @@ import {
   Panel,
   Table,
   Td,
+  TextInput,
   Th,
 } from '../components/ui';
 import { PlusIcon } from '../components/icons';
@@ -45,6 +46,21 @@ export function OriginBadge({ agent }: { agent: AgentDescriptor }): ReactNode {
 export function AgentsScreen({ meta }: { meta: Meta }): ReactNode {
   const t = useT();
   const agents = useQuery({ queryKey: ['agents'], queryFn: api.agents });
+  const [query, setQuery] = useState('');
+
+  // HATA-S4-005: the '/' shortcut (components/layout.tsx) has always focused
+  // whatever `input[data-search]` is on the page, and `?` help has always
+  // advertised it — but no screen ever rendered such an input, so `/` never
+  // did anything anywhere. This is the search box that closes that gap.
+  const normalizedQuery = query.trim().toLowerCase();
+  const filtered =
+    agents.data === undefined || normalizedQuery.length === 0
+      ? agents.data
+      : agents.data.filter(
+          (agent) =>
+            agent.name.toLowerCase().includes(normalizedQuery) ||
+            (agent.displayName?.toLowerCase().includes(normalizedQuery) ?? false),
+        );
 
   return (
     <>
@@ -63,6 +79,18 @@ export function AgentsScreen({ meta }: { meta: Meta }): ReactNode {
         }
       />
 
+      {agents.isSuccess && agents.data.length > 0 && (
+        <div className="mb-3 max-w-xs">
+          <TextInput
+            data-search
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t('common.search')}
+            aria-label={t('common.search')}
+          />
+        </div>
+      )}
+
       <Panel>
         {agents.isPending && <Loading />}
         {agents.isError && <div className="p-4"><ErrorNote error={agents.error} /></div>}
@@ -73,7 +101,11 @@ export function AgentsScreen({ meta }: { meta: Meta }): ReactNode {
           </Empty>
         )}
 
-        {agents.isSuccess && agents.data.length > 0 && (
+        {agents.isSuccess && agents.data.length > 0 && filtered?.length === 0 && (
+          <Empty title={t('common.noResults')} />
+        )}
+
+        {agents.isSuccess && filtered !== undefined && filtered.length > 0 && (
           <Table>
             <thead>
               <tr>
@@ -86,7 +118,7 @@ export function AgentsScreen({ meta }: { meta: Meta }): ReactNode {
               </tr>
             </thead>
             <tbody>
-              {agents.data.map((agent) => (
+              {filtered.map((agent) => (
                 <tr key={agent.name} className="hover:bg-raised">
                   <Td>
                     <Link to={`agents/${encodeURIComponent(agent.name)}`} className="block">

@@ -2234,7 +2234,29 @@ yok (aynı `MT-UIRUN-044`'ün kendi başlığında tarif ettiği "API'de var, UI
 yok" kalıbı, ama burada `branch`'in kendisi için değil onu TAKİP EDEN
 "devam et" adımı için).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**🔧 Kapanış güncellemesi (2026-08-15, Aile V — HATA-S4-018 düzeltildi).**
+`playground.tsx` artık `useSearchParams()` (`lib/router.tsx`) ile
+`?sessionId=` okuyor: eşleşen bir değer varsa `api.session(id)` çağrılıp
+`sessionId` durumu o kimliğe ayarlanıyor (böylece sonraki `run()` çağrıları
+YENİ değil AYNI oturuma yazıyor) ve geçmiş mesajlar `foldMessages`
+(`lib/transcript.ts` — `session-detail.tsx`'in zaten kullandığı aynı
+katlama) ile salt-okunur bir "Prior messages" bloğu olarak gösteriliyor.
+"Yeni sohbet" düğmesi artık URL'deki `?sessionId=`'i de temizliyor (aksi
+halde hemen aynı oturumu yeniden yüklerdi). Ayrıca `session-detail.tsx`'e
+`Playground'da devam et` düğmesi eklendi (`playground/{agentName}?sessionId={id}`).
+
+Ampirik doğrulama (canlı sunucuya karşı, gerçek model): Playground'dan bir
+oturum açılıp (`conv_01a0037c…`, 2 mesaj) `playground/support?sessionId=…`
+adresine DOĞRUDAN gidildi — geçmiş doğru yüklendi ("Prior messages" iki
+mesajı da gösterdi), sonra yeni bir mesaj gönderildi. `GET /api/sessions`
+toplam **1** oturum döndürdü (yeni bir `conv_…` oluşmadı) ve o oturum
+**6** mesaja çıktı (2 eski + 4 yeni tur) — dallanan/var olan oturuma UI'dan
+devam etmenin artık bir yolu var ve mekanizma (zaten doğru olduğu API
+seviyesinde kanıtlanmıştı) UI'dan da doğru çalışıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

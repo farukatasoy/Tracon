@@ -229,4 +229,52 @@ public sealed class ApprovalEndpointTests
 
         decideResponse.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
+
+    /// <summary>
+    /// HATA-S2-004/MT-MCP-023: onceden yalniz kuyruktan kosan (<c>Prefer:
+    /// respond-async</c>) calistirmalar bu durumu yansitiyordu; senkron/akissiz
+    /// yol ayni onay bekleyen tool cagrisini sessizce <c>Completed</c> olarak
+    /// kapatiyordu (bkz. RunRecordingAgent.RunCoreAsync).
+    /// </summary>
+    [Fact]
+    public async Task Senkron_akissiz_calistirma_onay_isteyince_AwaitingApproval_ile_kapanir()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync(ConfigureApprovalAgent);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, Run)
+        {
+            Content = JsonContent.Create(new AgentRunRequest { Message = "siparisi iptal et", SessionId = "oturum-senkron-akissiz" }),
+        };
+        request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString("N"));
+
+        using var response = await host.Client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var runId = (await AgentPrismTestHost.ReadJsonAsync(response)).GetProperty("runId").GetGuid();
+
+        using var runResponse = await host.Client.GetAsync(new Uri($"/agentprism/api/runs/{runId}", UriKind.Relative));
+        (await AgentPrismTestHost.ReadJsonAsync(runResponse)).GetProperty("status").GetString()
+            .ShouldBe("AwaitingApproval");
+    }
+
+    /// <summary>Ayni kusurun akisli (SSE) varyanti — RunRecordingAgent.RunCoreStreamingAsync.</summary>
+    [Fact]
+    public async Task Senkron_akisli_calistirma_onay_isteyince_AwaitingApproval_ile_kapanir()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync(ConfigureApprovalAgent);
+
+        using var response = await host.Client.PostAsJsonAsync(
+            Run,
+            new AgentRunRequest { Message = "siparisi iptal et", SessionId = "oturum-senkron-akisli" });
+
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("text/event-stream");
+        await response.Content.ReadAsStringAsync();
+
+        using var runningJobs = await host.Client.GetAsync(
+            new Uri("/agentprism/api/runs?sessionId=oturum-senkron-akisli", UriKind.Relative));
+        var run = (await AgentPrismTestHost.ReadJsonAsync(runningJobs)).EnumerateArray().ShouldHaveSingleItem();
+
+        run.GetProperty("status").GetString().ShouldBe("AwaitingApproval");
+    }
 }

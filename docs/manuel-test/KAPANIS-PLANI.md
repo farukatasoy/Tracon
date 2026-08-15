@@ -53,14 +53,14 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 
 ## 2. Durum
 
-> Son güncelleme: **2026-08-15** (Aile U sonrası).
+> Son güncelleme: **2026-08-15** (Aile V sonrası).
 
 | | |
 |---|---|
 | Toplam case | **1097** |
 | Koşuldu | **1097** (koşulmamış case **yok**) |
-| ☑ Geçti | **1035** |
-| ☒ **Kaldı** | **31** |
+| ☑ Geçti | **1040** |
+| ☒ **Kaldı** | **26** |
 | ⏭ Atlandı | **30** |
 | ☐ Beklemede | **1** (`MT-UIRUN-019`) |
 
@@ -90,10 +90,12 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 | **Aile S** — Idempotency replay yalnız gövdeyi koruyordu, `Location`/`Preference-Applied` HTTP başlıkları hiç saklanmıyordu; `IdempotencyResponse.Headers` (genel yakalama — yalnız bu ikisine özel değil) eklendi, üç SQL sağlayıcısına yeni `headers` sütunu (migration 0029/0016/0016) | (bu koşum) | `MT-JOB-083` |
 | **Aile T** — MCP "connection refused" zaman aşımından farklı davranıyordu: `McpConnection` ikisini de aynı şekilde yutuyor ama yalnız zaman aşımı istisnası dışarı sızıyordu; `IMcpToolRefresher.RefreshAsync` artık `McpRefreshOutcome` (+`HadUnreachableServers`) dönüyor, iki alt durum artık aynı `mcp_unreachable` sonucunu üretiyor | (bu koşum) | `MT-CORE-006` |
 | **Aile U** — Kalan 10 arayüz kusuru, hepsi bağımsız kök nedenler: yanlış token reddi sinyali kayboluyordu (`rejectToken`/`useTokenRejected`), palet `Esc` sonrası odak dönmüyordu, tema Ayarlar↔üst çubuk senkron değildi (paylaşımlı store), 375px'te Dashboard/Ayarlar/Tool'lar taşıyordu (+ önceden kayıtsız 4. kök neden: `grid-cols` temel sınıfı eksik), kod kökenli agent editörü boş+devre dışı geliyordu, alt çalıştırma İz paneli sonsuz "Loading"da kalıyordu, kod kökenli agent'ta onay-tool koruması `LiveTools`'ta atlanıyordu, oturum geçmişi tool çağrısı turunda kalıcı "sürüyor" kalıyordu, "Çalıştırmalar" düğmesi hem yönlendirmede hem filtrede kırıktı (router sorgu dizgisi + `RunsScreen`'in `sessionId`'i hiç okumaması), çok ucuz modelin maliyeti `0,00`'a yuvarlanıyordu | (bu koşum) | `MT-UI-003`, `MT-UI-020`, `MT-UI-028`, `MT-UI-043`, `MT-UIAG-016`, `MT-UIRUN-015`, `MT-UIRUN-030`, `MT-UIRUN-039`, `MT-UIRUN-041`, `MT-OBS-003` |
+| **Aile V** — Karışık yetenek boşlukları, 6 bağımsız kök neden: Agent-türü çalıştırmalar (kuyruk dışı TÜM yollar) onay bekleyen bir tool çağrısını hiç `AwaitingApproval` olarak yansıtmıyordu (`RunRecordingAgent`'ın `SuspendOnApproval` bayrağı yalnız kuyruk yoluna özeldi, kaldırıldı) + `/v1/responses`'ın MAF'tan gelen `WriteResponse`'u `ToolApprovalRequestContent`'i tanımayıp `output`'tan sessizce düşürüyordu (JSON'a `function_call` ögesi yaması); Playground `?sessionId=`'i hiç okumuyordu (artık okuyor + geçmişi "Prior messages" olarak yüklüyor, `session-detail.tsx`'e "Devam et" düğmesi eklendi); `/` kısayolunun hedeflediği `input[data-search]` hiçbir ekranda yoktu (Agents listesine gerçek bir arama kutusu eklendi); `access-gate.tsx`'in `meta` sorgusu hiç periyodik yenilenmiyordu (kabuk yüklüyken sunucu çökerse fark edilmiyordu — `refetchInterval: 30_000` eklendi, soğuk tam sayfa yenileme senaryosu altyapısal sınır olarak Kaldı kalır); `/respond`, `WorkflowRunner.StartAsync`'in koşulsuz gönderdiği fazladan bir `TurnToken` yüzünden agent-host giriş düğümlü grafları SIFIRDAN yeniden çalıştırıyordu (gerçek ek maliyet) — düzeltme yalnız cevapsız `/resume`'u koruyacak şekilde daraltıldı (ilk deneme `Kontrol_noktasindan_surdurulur`'u 10 dakikaya astı, canlı ölçülüp geri alındı) | (bu koşum) | `MT-COMPAT-029`, `MT-MCP-023`, `MT-UIRUN-043`, `MT-UI-024`, `MT-WF-062` (5/8 — `MT-UI-005`/`MT-WF-071`/`MT-WF-073` Kaldı kalır, bkz. §6) |
 
 ### Kalan aileler
 
-Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **V** ile başlar.
+Sıra: Kritik → Yüksek → Orta/Düşük. `kod` harf zinciri (A–V) **bitti**; bir
+sonraki oturum **Doküman** ile başlar.
 
 | Aile | Önem | Konu | Case | Durum |
 |---|---|---|---|---|
@@ -118,19 +120,24 @@ Sıra: Kritik → Yüksek → Orta/Düşük. Bir sonraki oturum **V** ile başla
 | ~~S~~ | Orta | Idempotency replay başlık kaybı | 1 | ✅ (bu koşum) |
 | ~~T~~ | Orta | MCP "connection refused" → `unknown_tool` | 1 | ✅ (bu koşum) |
 | ~~U~~ | Orta/Düşük | Kalan 10 arayüz kusuru | 10 | ✅ (bu koşum) |
-| **V** | Karışık | Yetenek boşlukları | 8 | ⬜ |
+| ~~V~~ | Karışık | Yetenek boşlukları | 8 | ✅ (bu koşum, 5/8 Geçti — `MT-UI-005`/`MT-WF-071`/`MT-WF-073` Kaldı kalır) |
 | **Doküman** | — | Beklenen sonuç koda göre düzeltilir | 13 | ⬜ |
 | **Yeniden koşum** | — | Kusuru zaten kapalı | 8 | ⬜ |
 | **MT-PKG-010** | — | Kök neden `f36eeaf`'te kapandı, case yeniden koşulmalı | 1 | ⬜ |
 
-**Toplam:** 21 (kod) + 13 (doküman) + 8 (yeniden koşum) + 1 = **43**. (Aile F
-bitti: 51 → 47; Aile G bitti: 47 → 43; Aile H bitti: 43 → 42; Aile I bitti:
-42 → 41; Aile J bitti: 41 → 40; Aile K bitti: 40 → 38; Aile L bitti: 38 → 37;
-Aile M bitti: 37 → 36; Aile N bitti: 36 → 35; Aile O bitti: 35 → 31; Aile P
-bitti: 31 → 29; Aile Q bitti: 29 → 25; Aile R bitti: 25 → 23; Aile S bitti:
-23 → 22; Aile T bitti: 22 → 21; Aile U bitti: 21 → 11.
-`MT-MCP-052` bu sayıma dahil değildir — Kaldı kalır, ayrı bir bulgu olarak
-izlenir, gelecekte kendi ailesini gerektirebilir.)
+**Toplam kalan iş:** 13 (doküman) + 8 (yeniden koşum) + 1 = **22**. `kod`
+harf zinciri (A–V) tamamlandı — geri kalan üç kod-ailesi kalemi
+(`MT-MCP-052`, `MT-UI-005`, `MT-WF-071`, `MT-WF-073`) kalıcı olarak Kaldı
+kalır ve bu toplama dahil DEĞİLDİR; her biri ayrı bir bulgu olarak izlenir
+(sırasıyla: statik token + kayıtsız rol politikaları, tarayıcı-seviyesi
+soğuk-yenileme sınırı, MAF'ın round-limit-sonrası davranışı — `F-106`).
+(Aile F bitti: 51 → 47; Aile G bitti: 47 → 43; Aile H bitti: 43 → 42; Aile I
+bitti: 42 → 41; Aile J bitti: 41 → 40; Aile K bitti: 40 → 38; Aile L bitti:
+38 → 37; Aile M bitti: 37 → 36; Aile N bitti: 36 → 35; Aile O bitti: 35 → 31;
+Aile P bitti: 31 → 29; Aile Q bitti: 29 → 25; Aile R bitti: 25 → 23; Aile S
+bitti: 23 → 22; Aile T bitti: 22 → 21; Aile U bitti: 21 → 11; Aile V bitti:
+11 → 3 (kalan 3 = `MT-UI-005`/`MT-WF-071`/`MT-WF-073`, yukarıdaki gerekçeyle
+toplam dışı bırakıldı, `kod` bucket'ı fiilen 0'dır).)
 
 ---
 
@@ -1498,25 +1505,106 @@ dosya:** `src/AgentPrism.UI/frontend/src/lib/auth.test.ts`.
 `MT-UIRUN-015`, `MT-UIRUN-030`, `MT-UIRUN-039`, `MT-UIRUN-041`, `MT-OBS-003`
 ✅ (10/10).
 
-### Aile V — Yetenek boşlukları · Karışık
+### ~~Aile V~~ — Yetenek boşlukları · Karışık ✅ (bu koşum, 5/8 Geçti)
 
-Kullanıcı kararı 4: **MAF sınırı hariç hepsi kodlanır.**
+Kullanıcı kararı 4: **MAF sınırı hariç hepsi kodlanır.** Altı bağımsız kök
+neden, hepsi ampirik olarak yeniden üretildi, beşi düzeltildi.
 
-| Kusur | Konu | Case |
-|---|---|---|
-| `HATA-S2-004` | `RunStatus.AwaitingInput` agent-türü run'larda yapısal olarak kullanılmıyor; onay bekleyen tool `/v1/responses`'ta `completed` görünüyor | `MT-COMPAT-029`, `MT-MCP-023` |
-| `HATA-S4-018` | Playground `?sessionId=` okumuyor; var olan oturuma UI'dan devam etmenin **hiçbir** yolu yok (`playground.tsx:58`, `:147-150`; `session-detail.tsx`'te devam linki de yok) | `MT-UIRUN-043` |
-| `HATA-S4-005` | `/` kısayolunun hedefi `input[data-search]` hiçbir ekranda yok — ölü özellik, `?` yardımında reklamı var (`layout.tsx:202`; `command-palette.tsx:394`, `locales/en.ts:135`, `tr.ts:134`) | `MT-UI-024` |
-| `HATA-S4-002` | Sunucu kapalıyken "ulaşılamıyor" kartı hiç görünmüyor; same-origin statik+API mimarisinin sonucu | `MT-UI-005` |
-| — | `MT-WF-062`: `respond` onayı `ozetleyici`'yi **sıfırdan** yeniden koşuyor (gerçek maliyet) ve `AwaitingInput`'ta bitiyor. **Hiç `HATA-K` numarası açılmamış**, K-400..407'ye dahil değil | `MT-WF-062` |
-| `HATA-K-003` | K-401 **kısmi**: mesaj anlamlı ama run hâlâ `RunFailed`; zarif durdurma F-106'ya yazıldı | `MT-WF-071`, `MT-WF-073` |
+| Kusur | Konu | Case | Sonuç |
+|---|---|---|---|
+| `HATA-S2-004` | `RunStatus.AwaitingInput`/`AwaitingApproval` agent-türü run'larda yalnız kuyruk yolunda kullanılıyordu | `MT-COMPAT-029`, `MT-MCP-023` | ✅ Geçti |
+| `HATA-S4-018` | Playground `?sessionId=` okumuyor | `MT-UIRUN-043` | ✅ Geçti |
+| `HATA-S4-005` | `/` kısayolunun hedefi hiçbir ekranda yok | `MT-UI-024` | ✅ Geçti |
+| `HATA-S4-002` | "Ulaşılamıyor" kartı görünmüyor | `MT-UI-005` | ⚠️ Kısmi (madde 2 düzeltildi, madde 1 altyapısal sınır — Kaldı kalır) |
+| — | `MT-WF-062`: `respond` `ozetleyici`'yi sıfırdan yeniden koşuyordu | `MT-WF-062` | ✅ Geçti |
+| `HATA-K-003` | K-401 (önceki dalga) zaten kısmi düzeltmiş; zarif durdurma F-106'ya devredilmiş durumda kalıyor | `MT-WF-071`, `MT-WF-073` | Değişiklik yok — zaten doğru dokümante (Kaldı, F-106) |
 
-**Faz adayına gidecek (kodlanmaz):** `HATA-S2-010` — workflow iptali gerçekten
-çalışmıyor (`202` alınsa da `Canceled` değil `Completed` oluyor). AgentPrism
-teli **doğru** (`WorkflowRunner.cs:356-368`, `:362`, `:589`, `:612`); şüpheli
-kaynak MAF `AgentWorkflowBuilder.BuildSequential` / `StreamingRun.WatchStreamAsync`.
-`docs/UCUNCU-FAZ-ADAYLARI.md`'ye **F-107** olarak yazılır ve `MT-RES-005`'in
-**beklenen sonucu** gerçek davranışa göre düzeltilir.
+**1. `HATA-S2-004` — durum etiketi + wire-seviyesi gizleme (iki kök neden).**
+`RunRecordingAgent.RunCoreAsync`/`RunCoreStreamingAsync`'te kök (`Depth==0`)
+bir çalıştırmanın `AwaitingApproval`'a kapanması yalnız kuyruk yolunun
+(`AgentRunJobHandler`) ayarladığı `AgentPrismRunOptions.SuspendOnApproval`
+bayrağına bağlıydı; senkron/compat/MCP/A2A yolu bu bayrağı hiç
+ayarlamıyordu. Bayrak tamamen kaldırıldı (artık kök + bekleyen onay yeterli
+koşul) — `pending_approvals` deposuna yazma (K-372, çift karar yarışı
+koruması) DEĞİŞMEDİ, yalnız kuyruk yolu yazmaya devam ediyor. AYRICA:
+`Microsoft.Agents.AI.Hosting.OpenAI` (alpha paket) `WriteResponse`'u
+decompile ile doğrulandı — `Response.Status` HER ZAMAN `Completed` sabit
+yazıyor ve `ToolApprovalRequestContent`'i `output`'tan sessizce düşürüyor.
+`OpenAIResponsesEndpoints` artık üretilen JSON'a bir `function_call` ögesi
+yaması uyguluyor (gerçek OpenAI Responses API şemasıyla birebir). Canlı
+doğrulama: `/v1/responses` artık `output`'ta `function_call` döndürüyor,
+`GET /api/runs` artık `AwaitingApproval` döndürüyor.
+
+**2. `HATA-S4-018` — Playground `?sessionId=` okumuyordu.** `useSearchParams()`
+ile URL okunuyor, `api.session(id)` ile geçmiş yükleniyor ve `foldMessages`
+(session-detail.tsx'in zaten kullandığı) ile salt-okunur "Prior messages"
+bloğu render ediliyor; `session-detail.tsx`'e "Continue in Playground"
+düğmesi eklendi. Canlı doğrulama: aynı oturuma devam edilince `GET
+/api/sessions` toplam **1** oturum (yeni dal AÇILMADI), mesaj sayısı 2→6.
+
+**3. `HATA-S4-005` — ölü `/` kısayolu.** Mekanizmanın kendisi
+(`layout.tsx:202`) zaten doğruydu; hiçbir ekran `input[data-search]`
+render etmiyordu. Agents listesine gerçek bir arama kutusu eklendi
+(istemci-tarafı ad filtresi). Canlı doğrulama (gerçek Playwright
+tarayıcısı): `/` artık kutuyu odaklayıp seçili hâle getiriyor;
+arama-kutusuz bir ekranda (Dashboard) sessizce hiçbir şey yapmıyor.
+
+**4. `HATA-S4-002` — "ulaşılamıyor" kartı (kısmi).** İki alt senaryo ayrıldı:
+soğuk tam sayfa yenileme (sunucu kapalıyken) tarayıcının KENDİ ağ hatası
+sayfasını gösteriyor — React hiç çalışmıyor, düzeltmesi ayrı statik host ya
+da service worker gerektiren **altyapısal bir karar**, kod ile kapatılamaz.
+Kabuk zaten yüklüyken sunucu çökme senaryosu ise gerçekten koddan
+kaynaklanıyordu: `access-gate.tsx`'in `meta` sorgusu yalnız
+`refetchOnWindowFocus`'a güveniyordu ve periyodik bir tetikleyici yoktu —
+`refetchInterval: 30_000` eklendi (TanStack Query v5'in
+`QueryObserverRefetchErrorResult` sözleşmesi decompile ile doğrulandı: arka
+plan yenilemesi başarısız olursa `isError` DOĞRU tetiklenir, yalnız
+tetikleyici eksikti). Case'in kendi ön koşulu madde 1'i test ettiği için
+`Durum` **Kaldı** kalır.
+
+**5. `MT-WF-062` — `/respond` `ozetleyici`'yi sıfırdan yeniden koşuyordu.**
+`ozetle-ve-onayla` grafı DÖNGÜSEL DEĞİL (doğrudan okundu, doğrusal).
+Gerçek kök neden: `WorkflowRunner.StartAsync` `resume` DAHİL her yürütme
+başlangıcında koşulsuz bir `TurnToken` gönderiyordu. Faz 15'in "TurnToken
+zorunlu" ölçümü yalnız TAZE bir çalıştırma içindir; Faz 16'nın "kontrol
+noktası bekleyen isteği kendisi yeniden yayınlar" ölçümü zaten resume'un
+ihtiyacı olan sinyali veriyor. Graf giriş düğümü bir `AIAgentBinding`
+(turn-token'a ABONE agent-host) olduğunda fazladan token "yeni bir tur"
+sanılıp `ozetleyici`'yi yeniden tetikliyordu; düz executor'lı graflar
+(`ApprovalWorkflow` test fixture'ı) bunu hiç yakalayamamıştı. Düzeltme
+`execution.Answers.Count == 0` ile daraltıldı — yalnız gerçek `/respond`
+TurnToken'ı atlar, cevapsız `/resume` ESKİ davranışını korur (ilk, daha
+geniş deneme `WorkflowRunnerTests.Kontrol_noktasindan_surdurulur`'u canlı
+ölçümde 10 dakikaya astı, kapsam daraltılarak giderildi). Canlı doğrulama:
+`respond` sonrası **0** yeni `MessageDelta`, `WorkflowOutput.text` birebir
+`"Ozet yayinlandi."`, `RunCompleted`.
+
+**6. `HATA-K-003` (`MT-WF-071`/`073`) — yeni kod gerekmedi.** K-401
+(`WorkflowRunner.ToRunError`'ın `TargetInvocationException`/tek-elemanlı
+`AggregateException` soyması) önceki bir dalgada zaten yazılmış ve
+`MT-WF-071` için canlı doğrulanmıştı; kod incelemesiyle bu koşumda da
+mevcut olduğu teyit edildi. `F-106` (zarif durdurma, `docs/UCUNCU-FAZ-ADAYLARI.md`)
+zaten yazılı. İkisi de doğru şekilde **Kaldı** kalmaya devam ediyor —
+"temiz `Completed`" beklentisi hâlâ karşılanmıyor, bu bilinçli bir kapsam
+sınırı (F-106'ya devredildi), case dosyalarında değişiklik gerekmedi.
+
+**Yeni/değişen dosyalar:** `RunRecordingAgent.cs`, `AgentPrismRunOptions.cs`
+(`SuspendOnApproval` kaldırıldı), `AgentRunJobHandler.cs`,
+`ApprovalResumeJobHandler.cs`, `RunStatus.cs` (XML doc),
+`OpenAIResponsesEndpoints.cs` (+`AppendPendingApprovalOutputItems`),
+`playground.tsx`, `session-detail.tsx`, `agents.tsx`, `access-gate.tsx`,
+`locales/en.ts`/`tr.ts`, `WorkflowRunner.cs`. **Yeni test dosyaları:**
+`tests/AgentPrism.Workflows.UnitTests/Fakes/AgentApprovalWorkflow.cs`,
+`tests/AgentPrism.Workflows.UnitTests/WorkflowAgentEntryRespondTests.cs`.
+
+**Faz adayına gidecek (kodlanmaz, bu koşumun kapsamı DIŞINDA — §11'de
+yapılacak):** `HATA-S2-010` — workflow iptali gerçekten çalışmıyor (`202`
+alınsa da `Canceled` değil `Completed` oluyor). AgentPrism teli **doğru**
+(`WorkflowRunner.cs:356-368`, `:362`, `:589`, `:612`); şüpheli kaynak MAF
+`AgentWorkflowBuilder.BuildSequential` / `StreamingRun.WatchStreamAsync`.
+`docs/UCUNCU-FAZ-ADAYLARI.md`'ye **F-107** olarak yazılacak ve
+`MT-RES-005`'in **beklenen sonucu** gerçek davranışa göre düzeltilecek —
+bu, "Doküman" ailesinin (§8, `MT-RES-005` satırı) ve §11 kapanışının işi.
 
 ---
 

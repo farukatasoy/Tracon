@@ -65,16 +65,20 @@ public enum RunStatus
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Yalnizca kuyruktan kosan (<c>Prefer: respond-async</c>, Faz 46) bir agent
-    /// calistirmasinda gorulur: senkron HTTP/MCP/A2A yolunda bekleyen bir onay
-    /// istegi calistirmayi yine <see cref="Completed"/> kapatir (istemci canlidir
-    /// ve isteği bir sonraki turda kendisi yanitlar) — <see cref="AgentPrismRunOptions.SuspendOnApproval"/>
-    /// yalniz kuyruk yolunda acilir (Faz 55).
+    /// Herhangi bir <em>kok</em> (<c>Depth == 0</c>) agent calistirmasinda gorulur
+    /// — yonetim API'si, OpenAI-uyumlu uc, MCP, A2A veya kuyruktan kosan
+    /// (<c>Prefer: respond-async</c>, Faz 46) fark etmeksizin (HATA-S2-004/
+    /// MT-MCP-023, Faz 55'in yalniz kuyruk yoluna ozgu ilk halini genisletti:
+    /// senkron yollar oncesinde bu durumu hic yansitmiyor, onay bekleyen bir
+    /// tool cagrisi sessizce <see cref="Completed"/> gorunuyordu). Karar nasil
+    /// ulastirilirsa ulastirilsin (kuyruk icin <c>POST /api/approvals/{id}/decide</c>,
+    /// senkron cagiran icin kendi bir sonraki turu) durum etiketi ayni ilkeyi
+    /// izler.
     /// </para>
     /// <para>
     /// <see cref="AwaitingInput"/> ile AYNI ilkeyi izler: yanitlanmis bir
     /// calistirma bu durumda <em>kalir</em>, gecmisi geriye donuk degistirmek
-    /// olay akisinin append-only kuralini (K-014) bozardi. Karar
+    /// olay akisinin append-only kuralini (K-014) bozardi. Kuyruk yolunda karar
     /// <c>POST /api/approvals/{id}/decide</c> ile verilir; bu, <strong>yeni</strong>
     /// bir calistirma kuyruga dusurur (ayni <c>sessionId</c>, yeni <c>RunId</c>).
     /// </para>

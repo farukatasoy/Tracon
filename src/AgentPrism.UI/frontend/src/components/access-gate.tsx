@@ -19,7 +19,19 @@ export function AccessGate({ children }: { children: (meta: Meta) => ReactNode }
   const token = useToken();
   const rejected = useTokenRejected();
 
-  const meta = useQuery({ queryKey: ['meta'], queryFn: api.meta, retry: false });
+  // HATA-S4-002: without a periodic refetch, an already-open tab had no way
+  // to notice the server died short of a REAL window blur/focus cycle (a
+  // synthetic focus event does not trigger TanStack Query's default
+  // `refetchOnWindowFocus`, and Kestrel going down does not flip
+  // `navigator.onLine`, so `refetchOnReconnect` never fires either) — the
+  // 'unreachable' card below was reachable in principle but never actually
+  // shown once the shell had already loaded successfully once. A failed
+  // background refetch still flips `isError` even though `data` is kept from
+  // the last success (TanStack Query's `QueryObserverRefetchErrorResult`), so
+  // polling alone is enough to close this gap. The FIRST paint of a fully
+  // cold load (server down before any JS runs) is a separate, browser-level
+  // failure this cannot reach — see `docs/UCUNCU-FAZ-ADAYLARI.md`.
+  const meta = useQuery({ queryKey: ['meta'], queryFn: api.meta, retry: false, refetchInterval: 30_000 });
 
   // The shell is served without the bearer-token check, so reaching this code
   // says nothing about whether data endpoints will answer. One cheap probe does.

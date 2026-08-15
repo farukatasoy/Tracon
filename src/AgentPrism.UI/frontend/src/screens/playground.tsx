@@ -2,11 +2,11 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEv
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, openStream } from '../lib/api';
 import { readSse } from '../lib/sse';
-import { emptyTranscript, foldUpdate, type TranscriptState } from '../lib/transcript';
-import { Link, useNavigate } from '../lib/router';
+import { emptyTranscript, foldMessages, foldUpdate, type TranscriptState } from '../lib/transcript';
+import { Link, useNavigate, useSearchParams } from '../lib/router';
 import { count, shortId } from '../lib/format';
 import { useT } from '../lib/i18n';
-import type { AttachmentDescriptor } from '../lib/types';
+import type { AttachmentDescriptor, ChatMessage } from '../lib/types';
 import {
   Badge,
   Button,
@@ -54,9 +54,11 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
   const queryClient = useQueryClient();
 
   const agents = useQuery({ queryKey: ['agents'], queryFn: api.agents });
+  const urlSessionId = useSearchParams().get('sessionId');
 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
+  const [history, setHistory] = useState<{ message: ChatMessage; folded: TranscriptState }[] | null>(null);
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -77,16 +79,68 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
 
   useEffect(() => () => abort.current?.abort(), []);
 
+  /**
+   * Loads an existing session named by `?sessionId=` in the address bar.
+   *
+   * HATA-S4-018: the screen used to ignore this parameter entirely and always
+   * reserved a brand-new conversation on the first send, so there was no way
+   * to resume a session from the UI (not from a link, not by pasting the URL
+   * back). `sessionId` is set to the SAME identity the server already knows —
+   * the next `run()` call appends to it instead of branching a new one. Prior
+   * turns are not replayable as live `Turn`s (no `runId` per historical turn,
+   * no clean way to regroup messages into turns without guessing) — they are
+   * rendered as a read-only preface instead, the same fold `session-detail.tsx`
+   * already uses for the same messages.
+   */
+  useEffect(() => {
+    if (urlSessionId === null || urlSessionId === sessionId) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void api
+      .session(urlSessionId)
+      .then((detail) => {
+        if (cancelled) {
+          return;
+        }
+
+        setSessionId(detail.id);
+
+        const messages = detail.messages ?? [];
+        const folds = foldMessages(messages);
+
+        setHistory(messages.map((message, index) => ({ message, folded: folds[index] ?? emptyTranscript })));
+      })
+      .catch((caught) => {
+        if (!cancelled) {
+          setError(caught);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [urlSessionId, sessionId]);
+
   const reset = useCallback(() => {
     abort.current?.abort();
     setSessionId(null);
     setTurns([]);
+    setHistory(null);
     setError(null);
     setBusy(false);
     setPendingAttachments([]);
     setUploadError(null);
     setConversation(false);
-  }, []);
+
+    // Otherwise a stale '?sessionId=' still in the address bar would re-hydrate
+    // the very session 'new chat' just left, right back through the effect above.
+    if (urlSessionId !== null) {
+      navigate(`playground/${encodeURIComponent(selected)}`, { replace: true });
+    }
+  }, [urlSessionId, navigate, selected]);
 
   /**
    * Uploads one or more files ahead of the next message.
@@ -376,8 +430,37 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
 
       <Panel className="flex min-h-[26rem] flex-col">
         <div className="flex-1 overflow-y-auto p-4">
+          {history !== null && history.length > 0 && (
+            <div className="mb-6 flex flex-col divide-y divide-line border-b border-line pb-4">
+              <p className="pb-2 text-[11px] font-medium text-subtle uppercase">{t('playground.priorMessages')}</p>
+              {history.map(({ message, folded }, index) => {
+                const role = (message.role ?? 'unknown').toLowerCase();
+
+                return (
+                  <div key={message.messageId ?? index} className="pt-3">
+                    <div className="mb-1.5 flex items-center gap-2">
+                      <Badge tone={role === 'user' ? 'accent' : role === 'system' ? 'warn' : 'neutral'}>
+                        {role}
+                      </Badge>
+                      {message.authorName != null && (
+                        <span className="text-[11px] text-subtle">{message.authorName}</span>
+                      )}
+                    </div>
+                    {folded.items.length === 0 ? (
+                      <p className="text-[12px] text-subtle">{t('sessionDetail.noContent')}</p>
+                    ) : (
+                      <TranscriptView items={folded.items} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {turns.length === 0 ? (
-            <Empty title={t('playground.empty.title')}>{t('playground.empty.body')}</Empty>
+            (history === null || history.length === 0) && (
+              <Empty title={t('playground.empty.title')}>{t('playground.empty.body')}</Empty>
+            )
           ) : (
             <div className="flex flex-col gap-6">
               {turns.map((turn) => (
