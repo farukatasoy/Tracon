@@ -8,7 +8,6 @@ samples/AgentPrism.Api/FileSystemArchiveSink.cs|9
 samples/AgentPrism.Api/OrderTools.cs|15
 samples/AgentPrism.Api/Program.cs|248
 samples/AgentPrism.Api/appsettings.json|29
-src/AgentPrism.Abstractions/README.md|4
 src/AgentPrism.Abstractions/Workflows/WorkflowCheckpointRecord.cs|17
 src/AgentPrism.Abstractions/Workflows/WorkflowCheckpointState.cs|9
 src/AgentPrism.Abstractions/Workflows/WorkflowDefinition.cs|29
@@ -332,7 +331,6 @@ src/AgentPrism.Workflows/AgentPrism.Workflows.csproj|2
 src/AgentPrism.Workflows/AgentPrismWorkflowOptions.cs|19
 src/AgentPrism.Workflows/AgentPrismWorkflowsBuilderExtensions.cs|24
 src/AgentPrism.Workflows/Internal/AgentPrismCheckpointStore.cs|18
-src/AgentPrism.Workflows/Internal/CodeWorkflowRegistration.cs|4
 src/AgentPrism.Workflows/Internal/WorkflowAgentCache.cs|30
 src/AgentPrism.Workflows/Internal/WorkflowAgentIdentity.cs|50
 src/AgentPrism.Workflows/Internal/WorkflowCatalog.cs|25

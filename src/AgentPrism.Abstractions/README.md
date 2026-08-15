@@ -1,20 +1,20 @@
 # AgentPrism.Abstractions
 
-AgentPrism sozlesmeleri ve soyutlamalari.
+AgentPrism contracts and abstractions.
 
-Agent tanimi, katalog, calistirma kaydi ve depolama arayuzlerini icerir. Somut bir saglayiciya, web cercevesine veya veritabanina bagli degildir.
+It contains agent definition, catalog, run recording, and storage interfaces. It has no dependency on a concrete provider, web framework, or database.
 
-Bu paketi dogrudan kurmaniz gerekmez; `AgentPrism.Core` onu zaten getirir. Kendi depolama veya saglayici implementasyonunuzu yazacaksaniz yalnizca bu pakete referans verin.
+You do not need to install this package directly because `AgentPrism.Core` already brings it. Reference only this package when you write your own storage or provider implementation.
 
-## Kurulum
+## Installation
 
 ```bash
 dotnet add package AgentPrism.Abstractions
 ```
 
-## Baglanti
+## Links
 
-- Depo ve tam dokumantasyon: <https://github.com/farukatasoy/AgentPrism>
-- Mimari: [docs/MIMARI.md](https://github.com/farukatasoy/AgentPrism/blob/main/docs/MIMARI.md)
+- Repository and full documentation: <https://github.com/farukatasoy/AgentPrism>
+- Architecture: [docs/MIMARI.md](https://github.com/farukatasoy/AgentPrism/blob/main/docs/MIMARI.md)
 
-Lisans: MIT
+License: MIT
