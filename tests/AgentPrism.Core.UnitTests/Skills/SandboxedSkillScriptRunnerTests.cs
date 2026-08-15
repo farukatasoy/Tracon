@@ -37,7 +37,15 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
             async () => await runner.RunStoredScriptAsync("demo", EchoScript(), null, CancellationToken.None));
 
         var entries = await log.QueryAsync(new AuditQuery { TenantId = "default" });
-        entries.ShouldContain(entry => entry.Action == "script.denied");
+        var denied = entries.Single(entry => string.Equals(entry.Action, "script.denied", StringComparison.Ordinal));
+
+        // HATA-K-skill-audit-json (2026-08-15): 'After' gercek bir jsonb
+        // sutununa yazilir; DenyAsync ham (JSON olmayan) metni gecirdiginde
+        // Postgres INSERT'i "22P02 invalid input syntax for type json" ile
+        // reddediyordu ve denetim izi HICBIR ZAMAN olusmuyordu. Bellek ici
+        // sahte defter bunu yakalayamaz (JSON gecerliligini denetlemez) - bu
+        // yuzden burada acikca parse ediliyor.
+        Should.NotThrow(() => JsonDocument.Parse(denied.After!));
     }
 
     [Fact]

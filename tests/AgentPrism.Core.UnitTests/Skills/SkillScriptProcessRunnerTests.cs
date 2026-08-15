@@ -76,6 +76,24 @@ public sealed class SkillScriptProcessRunnerTests : IDisposable
         Directory.Exists(result.StandardOutput.Trim()).ShouldBeFalse();
     }
 
+    [Fact]
+    public async Task Stdin_okumadan_cikan_script_boru_kirik_istisnasi_firlatmaz()
+    {
+        // HATA-K-skill-pipe (2026-08-15): script stdin'i hic okumadan cikarsa
+        // (ornegin salt 'echo'), argumanlari yazmaya calisirken degil ama
+        // StandardInput.Close()'un KENDI ic flush'inda "Pipe is broken"
+        // firlar; finally bloğu bunu yakalamiyordu ve calistirma tumuyle
+        // cokuyordu (istisna cagirana sizardi). Burada stdin'i BILEREK
+        // erkenden kapatan bir script ile deterministik olarak tetikleniyor.
+        Assert.SkipWhen(BashPath is null, "bash bulunamadi.");
+        var script = WriteScript("closestdin.sh", "exec 0<&-\necho tamamlandi");
+
+        var result = await RunAsync(script, argumentsJson: "{\"arguments\":\"\"}");
+
+        result.Succeeded.ShouldBeTrue();
+        result.StandardOutput.ShouldContain("tamamlandi");
+    }
+
     public void Dispose()
     {
         try
@@ -110,7 +128,8 @@ public sealed class SkillScriptProcessRunnerTests : IDisposable
 
     private Task<SkillScriptExecutionResult> RunAsync(
         string scriptPath,
-        Action<AgentPrismSkillScriptOptions>? configure = null)
+        Action<AgentPrismSkillScriptOptions>? configure = null,
+        string? argumentsJson = null)
     {
         var options = new AgentPrismOptions().Skills.Scripts;
         options.Enabled = true;
@@ -122,7 +141,7 @@ public sealed class SkillScriptProcessRunnerTests : IDisposable
             BashPath!,
             scriptPath,
             _root,
-            argumentsJson: null,
+            argumentsJson,
             options,
             skillName: "test",
             TimeProvider.System,

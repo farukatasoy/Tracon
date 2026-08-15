@@ -218,16 +218,27 @@ reddedilir.
 2. Anahtar adını farklı harf büyüklüğüyle tekrarla.
 
 **Girilecek veri**
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** `provider:"echo"` yanlış
+> seçim — `EchoModelProvider.CreateChatClient`
+> (`samples/AgentPrism.Api/EchoModelProvider.cs`) ağa çıkmayan yerel örnek
+> sağlayıcı olduğu için `ModelBinding.ProviderSettings`'i hiç okumaz/
+> doğrulamaz. Doğrulama gerçek mekanizması (`ModelProviderSettings.Validate`,
+> `src/AgentPrism.Abstractions/Agents/ModelProviderSettings.cs`) yalnız ağa
+> çıkan sağlayıcılarda (`anthropic`/`google`/`azure`) çalışır.
 ```bash
 curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: application/json" -d '{
   "name": "manuel-kotu-ayar",
   "model": {
-    "provider": "echo",
-    "model": "echo-1",
-    "providerSettings": { "echo.boyle.bir.ayar.yok": true }
+    "provider": "anthropic",
+    "model": "claude-3-5-haiku-latest",
+    "providerSettings": { "anthropic.boyle.bir.ayar.yok": true }
   }
 }'
 ```
+
+~~Eski girdi (yanlış öncül — `echo` sağlayıcısı `ProviderSettings`'i hiç
+okumaz): `provider: "echo"`, `providerSettings: { "echo.boyle.bir.ayar.yok":
+true }`.~~
 
 **Beklenen sonuç**
 - `valid` `false`'tur ve `code` değeri `invalid_setting` olan bir mesaj vardır.
@@ -235,9 +246,19 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 - Ayar sessizce yok sayılmaz.
 
 **Gerçek sonuç**
-Senaryo `provider:"echo"` ile koşuldu ve `valid:true` döndü — `invalid_setting` beklenirken. Kök neden koda AİT DEĞİL: `samples/AgentPrism.Api/EchoModelProvider.cs`'deki `EchoModelProvider.CreateChatClient`, ağa çıkmayan yerel örnek sağlayıcı olduğu için `ModelBinding.ProviderSettings`'i hiç okumuyor/doğrulamıyor. Gerçek mekanizma (`ModelProviderSettings.Validate`, `src/AgentPrism.Abstractions/Agents/ModelProviderSettings.cs`) ayrıca `provider:"anthropic"` ile doğrulandı ve TAM beklenen sonucu verdi: `invalid_setting`, mesaj "su anahtarlar taninmiyor: anthropic.boyle.bir.ayar.yok. Desteklenen anahtarlar: anthropic.promptCaching, anthropic.thinking.budgetTokens." SONUÇ: Ürün kusuru yok; doküman senaryosu yanlış sağlayıcı seçmiş (echo yerine anthropic/google/azure kullanılmalı). Doküman düzeltme adayı, kod değil.
+`provider:"anthropic"` ile koşuldu: `valid:false`, `code:invalid_setting`,
+mesaj "su anahtarlar taninmiyor: anthropic.boyle.bir.ayar.yok. Desteklenen
+anahtarlar: anthropic.promptCaching, anthropic.thinking.budgetTokens." —
+düzeltilmiş beklentiyle **tam örtüşüyor**. Ürün kusuru yok; eski `echo`
+senaryosu yanlış sağlayıcı seçmişti (echo ağa çıkmadığı için ayar okumasını
+hiç tetiklemez).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Doküman düzeltmesi (2026-08-15):** Girilecek veri koda göre düzeltildi
+(`echo` → `anthropic`). Ürün kusuru yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -735,15 +756,39 @@ dotnet run -c Release
 ```
 
 **Beklenen sonuç**
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** `AddAgentPrism()`
+> (`src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs:381`)
+> `AgentSkillCatalog`'u `TryAddSingleton` ile KOŞULSUZ kaydeder (doküman'ın
+> `IAgentSkillCatalog` adı hatalı — arayüz yok, somut sınıf kaydediliyor) —
+> bir tüketicinin `AddAgentPrism()` çağırdığı hiçbir standart senaryoda
+> katalog "kayıtlı değil" olamaz. Doğru ve tek erişilebilir dal, tanımın
+> **var olmayan bir skill'e** işaret ettiği dalıdır. 2026-08-15'te kod
+> yeniden doğrulandı: `AgentDefinitionCompiler.cs:307`/`:1174`'teki "skill
+> katalogu kayitli degil" hata dalı bugün de erişilemez durumda (ölü kod,
+> yalnız bir tüketici `AgentSkillCatalog` kaydını elle kaldırırsa tetiklenir).
 - Çıktı `beklenen istisna:` ile başlar.
-- Mesaj "skill katalogu kayitli degil" ifadesini taşır.
+- Mesaj "'skill-isteyen' agent'i 'olmayan-skill' skill'ine isaret ediyor
+  ancak skill bulunamadi." ifadesini taşır.
 - `AgentName` alanı `skill-isteyen`'dir.
 - `🚨 istisna ATILMADI` satırı **görünmez**.
 
-**Gerçek sonuç**
-İstisna GERÇEKTEN atıldı (`AgentPrismCompilationException`, `AgentName="skill-isteyen"` doğru), ama mesaj metni beklenenden FARKLI: `"'skill-isteyen' agent'i 'olmayan-skill' skill'ine isaret ediyor ancak skill bulunamadi."` — `"skill katalogu kayitli degil"` DEĞİL. Kök neden (kod doğrulandı): `AddAgentPrism()` (`src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs:381`) `IAgentSkillCatalog`'u `TryAddSingleton` ile KOŞULSUZ kaydediyor — bir tüketicinin `AddAgentPrism()` çağırdığı hiçbir standart senaryoda katalog "kayıtlı değil" olamaz. `AgentDefinitionCompiler.cs:306` ve `:1137`'deki "skill katalogu kayitli degil" hata dalı bu yüzden normal yollardan erişilemez (muhtemelen ölü kod, yalnız bir tüketici `IAgentSkillCatalog` kaydını elle kaldırırsa tetiklenir). Doküman'ın "minimum kurulumda katalog kayıtlı değildir" öncülü bu sürüm için yanlış. Ürün kusuru değil — davranış tutarlı (eksik skill'e işaret eden tanım her koşulda reddediliyor) ama iki farklı hata mesajından biri pratikte hiç görülmüyor. Doküman düzeltme + olası ölü kod temizliği adayı.
+~~Eski beklenti (yanlış öncül — "minimum kurulumda katalog kayıtlı
+değildir"): Mesaj "skill katalogu kayitli degil" ifadesini taşır.~~
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+**Gerçek sonuç**
+İstisna atıldı (`AgentPrismCompilationException`, `AgentName="skill-isteyen"`
+doğru), mesaj metni düzeltilmiş beklentiyle **tam örtüşüyor**: `"'skill-isteyen'
+agent'i 'olmayan-skill' skill'ine isaret ediyor ancak skill bulunamadi."`
+Davranış tutarlı (eksik skill'e işaret eden tanım her koşulda reddediliyor);
+`AgentDefinitionCompiler.cs:307`/`:1174`'teki ikinci hata dalı pratikte hiç
+görülmüyor (ölü kod, ayrı bir temizlik adayı — bu case'in kapsamı dışı).
+
+---
+
+**Doküman düzeltmesi (2026-08-15):** Beklenti koda göre düzeltildi. Ürün
+kusuru yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -800,15 +845,40 @@ dotnet run -c Release
 ```
 
 **Beklenen sonuç**
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** Script'in kendisi iki farklı
+> tool kayıt deyimini karıştırmış: `[AgentPrismTool("var_olan_tool", ...)]`
+> özniteliğini koyuyor ama `.AddTool(delegate)` ile kaydediyor.
+> `src/AgentPrism.Core/IAgentPrismBuilder.cs:47` `AddTool(Delegate method,
+> string? name = null, ...)` — "name boş bırakılırsa METOT ADI kullanılır"
+> diye açıkça belgeler, kasıtlı davranış. `[AgentPrismTool]` özniteliği
+> yalnız `AddToolsFrom<T>()` tarafından okunur, `.AddTool(delegate)` onu hiç
+> görmez. Doğru kayıtlı ad bu yüzden metot adı `"Var"`dır, öznitelikteki
+> `"var_olan_tool"` DEĞİL.
 - İstisna mesajı `tool-eksik` agent adını taşır.
 - Mesaj eksik tool adını (`hayali_tool`) taşır.
-- Mesaj **kayıtlı tool'ları listeler** (`var_olan_tool` görünür).
+- Mesaj **kayıtlı tool'ları listeler** (`Var` görünür — `.AddTool(delegate)`
+  metot adını kullanır, `[AgentPrismTool]` özniteliğini değil).
 - Mesaj `builder.AddAgentPrism().AddTool(...)` yönlendirmesini içerir.
 
-**Gerçek sonuç**
-Doküman'ın kendi scripti `provider:"echo"` kullanıyor — bu paket İÇİNDE HİÇ YOK (echo yalnız örnek uygulamaya özel, bkz. MT-CORE-023 notu). Bare consumer projesinde kendi basit `IModelProvider` uygulamamla telafi edilip tekrar koşuldu. SONUÇ (mekanizma KANITLANDI çalışıyor): istisna doğru atıldı, `tool-eksik` agent adı mesajda var, eksik tool adı (`hayali_tool`) mesajda var, `builder.AddAgentPrism().AddTool(...)` yönlendirmesi mesajda var. TEK SAPMA: mesaj kayıtlı tool'u `"Var"` olarak listeledi, doküman'ın beklediği `"var_olan_tool"` DEĞİL. Kök neden (XML doküman doğrulandı, `src/AgentPrism.Core/IAgentPrismBuilder.cs:47`): `AddTool(Delegate method, string? name = null, ...)` — "name boş bırakılırsa METOT ADI kullanılır" diye açıkça belgelenmiş, KASITLI davranış. `[AgentPrismTool("var_olan_tool", ...)]` özniteliği yalnız `AddToolsFrom<T>()` tarafından okunur, `.AddTool(delegate)` onu hiç görmez. Doküman'ın kendi scripti bu iki idiomu KARIŞTIRMIŞ: özniteliği koyup ama delegate-tabanlı kaydı kullanmış. Ürün kusuru yok — API tasarımı belgelenmiş şekilde çalışıyor. Doküman düzeltmesi gerekir.
+~~Eski beklenti (yanlış öncül — script iki tool-kayıt idiomunu
+karıştırmıştı): Mesaj kayıtlı tool'ları listeler (`var_olan_tool` görünür).~~
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+**Gerçek sonuç**
+Doküman'ın kendi scripti `provider:"echo"` kullanıyor — bu paket İÇİNDE HİÇ
+YOK (echo yalnız örnek uygulamaya özel, bkz. `MT-CORE-023`). Bare consumer
+projesinde basit bir yerel `IModelProvider` uygulamasıyla telafi edilip
+koşuldu. Mekanizma KANITLANDI çalışıyor: istisna doğru atıldı, `tool-eksik`
+agent adı mesajda var, eksik tool adı (`hayali_tool`) mesajda var, kayıtlı
+tool `"Var"` olarak listelendi (düzeltilmiş beklentiyle örtüşüyor),
+`builder.AddAgentPrism().AddTool(...)` yönlendirmesi mesajda var. Ürün
+kusuru yok — API tasarımı belgelenmiş şekilde çalışıyor.
+
+---
+
+**Doküman düzeltmesi (2026-08-15):** Beklenti koda göre düzeltildi. Ürün
+kusuru yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

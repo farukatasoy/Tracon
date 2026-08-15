@@ -370,19 +370,32 @@ sleep 3
 curl -s "$APU/api/runs/$WFRUN" -H "$APB" | python3 -c "import json,sys;print(json.load(sys.stdin)['status'])"
 ```
 
-**Beklenen sonuç (şüphe — Faz 32 kendisi bunu kanıtlayamadı)**
-- İstenen: `Canceled`.
-- Kod incelemesinin bıraktığı açık soru: `WorkflowRunner.ExecuteAsync`'in
-  kaydettiği birleşik `CancellationTokenSource` (K-245) MAF'ın sıralı grafiğini
-  gerçekten kesiyor mu, yoksa Faz 32'nin kendi denemesinde olduğu gibi grafik
-  iptali yutup `Completed` mi yazıyor? Bu HENÜZ kimse tarafından gerçek bir
-  workflow'la doğrulanmadı. Gerçek sonuç ne olursa olsun (Canceled/Completed)
-  buraya birebir yazılmalı — bu, repo'nun bilinen açık bir sorusunu kapatır.
+**Beklenen sonuç**
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §5 Karar 4 ve §8):** Açık soru bu
+> koşumda kapatıldı — `Completed` yazılıyor, `Canceled` DEĞİL. Kök neden
+> AgentPrism dışı bir sınırda (MAF'ın `AgentWorkflowBuilder.BuildSequential`
+> grafiğinin dışarıdan gelen iptal token'ını çalışan bir adım ortasında
+> honor etmemesi); kullanıcı kararıyla (Karar 4) yetenek gerektiren bir
+> bulgu olarak **`docs/UCUNCU-FAZ-ADAYLARI.md` F-107**'ye faz adayı
+> yazıldı, doğrudan kodlanmadı.
+- `POST /api/runs/{runId}/cancel` **202** döner.
+- 3 saniye sonra `GET /api/runs/{runId}`'in durumu `Completed`'dır (MAF'ın
+  grafik-içi iptal sınırı nedeniyle `Canceled` DEĞİL), `error: null`.
+
+~~Eski beklenti (şüphe — Faz 32 kendisi bunu kanıtlayamadı): İstenen
+`Canceled`; MAF'ın gerçekten kesip kesmediği HENÜZ bilinmiyordu.~~
 
 **Gerçek sonuç**
-**KALDI - HATA-S2-010 (Yuksek, dogrulanmis supheydi - Faz 32'nin kendi kapatamadigi acik soruyu kapatti).** ozetle-ve-cevir workflow'u FIX-PROMPT-04 boyutunda bir metinle baslatildi. Cancel ONCESI ayri bir GET ile durum acikca 'Running' olarak DOGRULANDI (yaris kosulu degil). POST /api/runs/{id}/cancel -> HTTP 202. 3 saniye sonra: status: Completed (Canceled DEGIL), error: null. Istenen sonuc Canceled'di, gerceklesen Completed - Faz 32'nin kendi denemesinde yasadigi ayni sorun (grafik iptali yutuluyor) TEKRARLANDI ve DOGRULANDI. Kod okumasi: WorkflowRunner.cs:356-368 AgentPrism seviyesinde DOGRU gorunuyor - tek bir 'linked' CancellationTokenSource hem IRunCancellationRegistry.Register'a (satir 362) hem run.WatchStreamAsync'e (satir 589, linked.Token) besleniyor; OperationCanceledException dogru sekilde yakalaniyor (satir 612). Sorun muhtemelen MAF'in kendi AgentWorkflowBuilder.BuildSequential grafiginin (StreamingRun.WatchStreamAsync ic uygulamasi) disaridan gelen iptal tokenini calisan bir adim ortasinda GERCEKTEN honor etmemesi - AgentPrism disi (bagimlilik) bir sinir, ama kullaniciya gore SONUC AYNI: bir workflow calistirmasi iptal edilemiyor, sessizce tamamlaniyor (maliyet/zaman israfi + kullanici yaniltilmasi).
+**HATA-S2-010 (Yüksek, doğrulanmış şüpheydi — Faz 32'nin kendi kapatamadığı açık soruyu kapattı).** `ozetle-ve-cevir` workflow'u `FIX-PROMPT-04` boyutunda bir metinle başlatıldı. Cancel ÖNCESİ ayrı bir `GET` ile durum açıkça `Running` olarak DOĞRULANDI (yarış koşulu değil). `POST /api/runs/{id}/cancel` → `HTTP 202`. 3 saniye sonra: `status: Completed` (`Canceled` DEĞİL), `error: null` — düzeltilmiş beklentiyle **tam örtüşüyor**. Faz 32'nin kendi denemesinde yaşadığı aynı sorun (grafik iptali yutuluyor) TEKRARLANDI ve DOĞRULANDI. Kod okuması: `WorkflowRunner.cs:356-368` AgentPrism seviyesinde DOĞRU görünüyor — tek bir `linked` `CancellationTokenSource` hem `IRunCancellationRegistry.Register`'a (satır 362) hem `run.WatchStreamAsync`'e (satır 589, `linked.Token`) besleniyor; `OperationCanceledException` doğru şekilde yakalanıyor (satır 612). Sorun muhtemelen MAF'ın kendi `AgentWorkflowBuilder.BuildSequential` grafiğinin (`StreamingRun.WatchStreamAsync` iç uygulaması) dışarıdan gelen iptal token'ını çalışan bir adım ortasında GERÇEKTEN honor etmemesi — AgentPrism dışı (bağımlılık) bir sınır, ama kullanıcıya göre SONUÇ AYNI: bir workflow çalıştırması iptal edilemiyor, sessizce tamamlanıyor (maliyet/zaman israfı + kullanıcı yanıltılması).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Doküman düzeltmesi (2026-08-15, KAPANIS-PLANI §5 Karar 4):** Beklenti
+gerçek (kabul edilmiş) davranışa göre düzeltildi. Kullanıcı kararıyla bu
+bulgu **kodlanmadı** — MAF sınırındaki bir yetenek boşluğu olarak
+`docs/UCUNCU-FAZ-ADAYLARI.md` **F-107**'ye faz adayı yazıldı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

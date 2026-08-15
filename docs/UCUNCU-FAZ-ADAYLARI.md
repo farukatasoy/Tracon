@@ -29,6 +29,13 @@
 > kapalı-kutu orkestrasyon durumuna bağımlı bir yetenek adayıdır. Aynı
 > koşumda bulunan diğer sekiz kusur (`HATA-K-001`..`008`) doğrudan kodlandı.
 >
+> 🚨 **2026-08-15: Manuel kabul testi kapanışı (KAPANIS-PLANI §5 Karar 4)
+> F-107'yi ekledi** (`HATA-S2-010`/`MT-RES-005`) — bir `WorkflowRunner`
+> çalıştırmasının gerçekten iptal edilip edilemediği MAF'ın kendi
+> `AgentWorkflowBuilder.BuildSequential` grafiğinin iç iptal davranışına
+> bağımlı bir yetenek adayıdır. Kullanıcı kararıyla, yetenek isteyen diğer
+> tüm bulgular doğrudan kodlandı; yalnız bu istisna faza döndü.
+>
 > Bu belge 2026-08-05 tarihli ilk aday listesinin **yerini alır**. Ayrı bir
 > aday listesi dosyası açılmaz; iki yerde tutmak kayma üretir. Eski sürümün
 > tarihsel değeri "hangi iddia yanlış çıktı" bilgisidir ve o bilgi aşağıdaki
@@ -607,6 +614,52 @@ olması gereken bir çalıştırmayı sessizce `Completed` gösterebilir —
 round-limit metninin TAM eşleşmesi yerine MAF'ın kendi tip/durum
 bilgisine dayanmalı, metin eşleştirme kırılgandır.
 **Bağımlılık:** K-401 (mesaj netleştirmesi) zaten main'de.
+**Ekosistem:** —
+
+---
+
+### F-107 · `WorkflowRunner` iptali MAF'ın sıralı grafiğini gerçekten kesmiyor — çalıştırma sessizce `Completed` ile bitiyor
+
+**Sorun:** `MT-RES-005` (manuel kabul testi, `HATA-S2-010`), Faz 32'nin
+kendi kapanışında KANITLANAMAMIŞ bıraktığı açık soruyu (`docs/32-CALISTIRMA-IPTALI.md`
+"Plandan Sapmalar") gerçek bir kayıtlı workflow'la (`ozetle-ve-cevir`)
+kapattı: uzun bir mesajla başlatılan çalıştırma akış sürerken
+`POST /api/runs/{id}/cancel` ile iptal edildi (`202` döndü, iptal öncesi
+durumun gerçekten `Running` olduğu ayrı bir `GET` ile doğrulandı — yarış
+koşulu değil), ama 3 saniye sonra durum `Canceled` DEĞİL `Completed` oldu,
+`error: null`. Kod okuması `WorkflowRunner.cs:356-368`'in AgentPrism
+seviyesinde DOĞRU çalıştığını gösterdi: tek bir `linked`
+`CancellationTokenSource` hem `IRunCancellationRegistry.Register`'a
+(satır 362) hem `run.WatchStreamAsync`'e (satır 589, `linked.Token`)
+besleniyor, `OperationCanceledException` doğru yakalanıyor (satır 612).
+**Kök neden AgentPrism dışı bir sınırda:** MAF'ın `AgentWorkflowBuilder
+.BuildSequential` grafiğinin (`StreamingRun.WatchStreamAsync` iç
+uygulaması) dışarıdan gelen iptal token'ını çalışan bir adım ortasında
+GERÇEKTEN honor etmiyor gibi görünüyor — ama kullanıcıya göre sonuç aynı:
+bir workflow çalıştırması iptal edilemiyor, sessizce tamamlanıyor
+(maliyet/zaman israfı + kullanıcı yanıltılması).
+**Kapsam:** MAF'ın `BuildSequential` (ve muhtemelen diğer orkestrasyon
+tipleri) grafiğinin, kendisine geçirilen `CancellationToken`'ı çalışan bir
+adımın ORTASINDA da honor ettiğini doğrulamak; honor etmiyorsa AgentPrism
+tarafında bir üst düzey zorlama (her süper-adım sınırında token'ı elle
+denetleyip akışı kesme) eklemek gerekebilir — bu, MAF'ın kapalı-kutu
+yürütme modeline bağımlı, `maf-api-kesfi` ile araştırılmadan kapsam
+netleşmez.
+**Değer:** Uzun süren herhangi bir workflow çalıştırmasını iptal etmeye
+çalışan her tüketici sessizce yanıltılıyor — çalıştırma görünürde
+`Canceled` olması beklenirken gerçekte tam maliyetle `Completed` oluyor.
+**Mercek:** 16 (Workflow yürütme), 32 (Çalıştırma iptali).
+**Hazırlık:** MAF'ın `AgentWorkflowBuilder`/`StreamingRun` iç yürütme
+modelinin bir adım ortasında iptali nasıl (ve honor edip etmediğini)
+işlediği `maf-api-kesfi` skill'iyle doğrulanmalı.
+**Maliyet:** Belirsiz — MAF kaynağına bakılmadan tahmin edilemez; MAF
+gerçekten honor etmiyorsa çözüm MAF'a bağımlı olabilir (üstündeki bir
+sarmalama yetmeyebilir).
+**Risk:** Üst düzey bir zorlama eklenirse, adım ortasında kesilen bir
+workflow'un kısmi durumunun (bellek/araç yan etkileri) tutarsız kalması
+riski taşır — MAF'ın kendi iptal semantiğini atlamak yeni bir sınıf hata
+üretebilir.
+**Bağımlılık:** K-245 (birleşik `CancellationTokenSource`) zaten main'de.
 **Ekosistem:** —
 
 ---

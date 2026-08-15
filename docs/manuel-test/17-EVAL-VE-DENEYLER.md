@@ -2209,9 +2209,20 @@ SELECT count(*), value, comment FROM agentprism.run_scores WHERE run_id = '<RUN_
 ```
 
 **Beklenen sonuç**
-- Tek satır kalır, `value=0`, `comment='Fikrim degisti.'` — ilk puan
-  ÜZERİNE yazılmıştır (bu ortamda `author` alanı statik bearer token'a
-  bağlı sabit bir değere karşılık gelir, `NULL` değildir).
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8) — ön koşul yanlış:** Statik
+> bearer token akışında `author` alanı `NULL`'a bağlanır (sabit bir değere
+> DEĞİL). `run_scores_target_author_idx` tekil indeksi `(tenant_id, run_id,
+> COALESCE(message_id,''), author)` üzerine kuruludur — `author`'ın kendisi
+> `COALESCE` edilmez, PostgreSQL'de `NULL ≠ NULL` olduğu için tekillik hiç
+> devreye girmez. Bu, `MT-EVAL-085`'in kabul ettiği davranışın aynısıdır
+> (kasıtlı, kod kusuru değil).
+- İki satır kalır: `value=1, comment="Dogru cevap.", author=NULL` VE
+  `value=0, comment="Fikrim degisti.", author=NULL` — ikinci puan ilk puanın
+  ÜZERİNE yazmaz, ayrı bir satır olarak eklenir (upsert gerçekleşmez).
+
+~~Eski beklenti (yanlış ön koşul — "bu ortamda `author` alanı sabit bir
+değere karşılık gelir, `NULL` değildir"): Tek satır kalır, `value=0`,
+`comment='Fikrim degisti.'` — ilk puan ÜZERİNE yazılmıştır.~~
 
 **Gerçek sonuç**
 - İkinci `POST .../feedback` `{"kind":"Binary","value":0,"comment":
@@ -2228,15 +2239,16 @@ SELECT count(*), value, comment FROM agentprism.run_scores WHERE run_id = '<RUN_
   `COALESCE` edilmiyor, PostgreSQL'de `NULL ≠ NULL` olduğu için tekillik
   hiç devreye girmiyor (doğrulandı, `\d run_scores` ile indeks tanımı
   okundu). Bu, MT-EVAL-085'in "açık soru 4" olarak zaten belgelediği,
-  KASITLI KABUL EDİLMİŞ davranışın AYNISI — ama MT-EVAL-084'ün kendi ön
-  koşulu bu ortamda doğru değil, dolayısıyla case'in TANIMLADIĞI senaryo
-  (author-tabanlı upsert) bu ortamda hiç gerçekleşmiyor. **Doküman
-  düzeltmesi, kod kusuru değil**: case'in ön koşulu güncellenmeli
-  ("`author` bu ortamda `NULL`'dur, upsert gerçekleşmez" şeklinde) —
-  ancak koşum kuralı gereği bu düzeltme yalnız kaydedilir, dosyaya
-  uygulanmaz.
+  KASITLI KABUL EDİLMİŞ davranışın AYNISI — gözlenen iki satır düzeltilmiş
+  beklentiyle **tam örtüşüyor**.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+---
+
+**Doküman düzeltmesi (2026-08-15):** Ön koşul ve beklenti koda göre
+düzeltildi. Kod/veri kusuru yok — kasıtlı kabul edilmiş davranış
+(`MT-EVAL-085` ile aynı kök neden).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

@@ -426,6 +426,11 @@ Workflow'a özgü bir uçtan uca iptal testi hâlâ AÇIK — bkz.
 
 - **🚨 `Microsoft.Agents.AI.Workflows.Declarative` +19 gecisli paket getirir** (2026-08-03, Faz 16): olculdu, 23 → 42. Tum Power Fx yorumlayici yigini, `Microsoft.Agents.ObjectModel.*` (ayri surum semasi `2026.2.4.1`) ve `System.CodeDom`. Ayrica `ResponseAgentProvider` sozlesmesi OpenAI Responses API sekline baglidir ve MAF'in kendi dokumani `ChatClientAgent` tabanli agent'lari "currently not supported" der. Alinmadi (K-129).
 
+## Faz 13/19 — Compaction ve agent kaynak sürümleme (hafızadan taşındı, 2026-08-15)
+
+- **`CompactionStrategy.CompactCoreAsync` korumalı, kardeş türetilmiş tip üzerinden çağrılamaz** (2026-08-02, Faz 13): Bir sarmalayıcı (`ObservedCompactionStrategy`) iç stratejiyi ancak public+sanal-olmayan `CompactAsync` ile çağırabilir; bu da iç stratejinin **kendi** tetikleyicisini tekrar kontrol eder — dış ve iç strateji aynı tetikleyiciyle kurulmalı (`ContextWindow`/`Pipeline` hariç, onlar kendi iç tetikleyicilerini taşır, dışa `_ => true` verilir).
+- **Yeni bir `IAgentSource` sürüm yetkisi eklerken `IAgentSource`'a metot ekleme, marker arayüz kullan** (2026-08-03, Faz 19): `IVersionedAgentSource : IAgentSource` deseni — `CodeAgentSource` gibi sürüm kavramı olmayan kaynakları zorlamadan yalnız `DefinitionStoreAgentSource`'un uygulamasını sağlar. `CompositeAgentCatalog` çalışma anında `is IVersionedAgentSource` denetler.
+
 ## Faz 48 — Guardrails ve model boru hattının taşınması (2026-08-07)
 
 Fazın hedefi bir genişleme noktasıydı (`IContentGuard`), ama teslim edilen işin

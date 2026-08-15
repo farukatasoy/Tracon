@@ -1533,9 +1533,23 @@ dotnet user-secrets remove "AgentPrism:RunRecording:RecordRunInput" --project sa
   döner) ama girdisi yoktur.
 
 **Gerçek sonuç**
-**KALDI — HATA-S2-002 (Yüksek).** `AgentPrism:RunRecording:RecordRunInput=false` env değişkeniyle uygulama yeniden başlatıldı, bir çalıştırma yapıldı. `GET /api/runs/{id}` → `200` (çalıştırma var, doğru). `GET /api/runs/{id}/input` → beklenen `404` yerine **`200`** döndü, gövdede kullanıcının gerçek mesajı (`"Merhaba, sadece \"tamam\" yaz."`) aynen kayıtlı. Kök neden: `AgentPrismServiceCollectionExtensions.BindRunRecording` (`src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs:1769-1797`) `Enabled`, `RecordMessageDeltas`, `RecordToolPayloads`, `MaxPayloadLength` alanlarını okuyor ama **`RecordRunInput`'ı hiç okumuyor** — `AgentPrismRunRecordingOptions.RecordRunInput` (`AgentPrismOptions.cs:445`, varsayılan `true`) hiçbir konfigürasyon kaynağından (env değişkeni, `user-secrets`, `appsettings.json`) değiştirilemiyor; her zaman varsayılan `true` kalıyor. `RunEndpoints.cs:196` ve `RunReplayService.cs:113` bu anahtarı açıkça dokümante ediyor ("AgentPrism:RunRecording:RecordRunInput = false") ama devre dışı bırakma sessizce hiçbir etki yapmıyor — bir operatör kişisel veri saklama politikası gereği bu bayrağı kapattığını sanırken veri kaydı kesintisiz sürüyor. Temizlik: env değişkeni kaldırıldı, uygulama varsayılan ayarla yeniden başlatıldı; bu geçici değişiklik kalıcı bir iz bırakmadı.
+_(2026-08-13 koşumu: Kaldı — HATA-S2-002. `AgentPrismServiceCollectionExtensions
+.BindRunRecording` `RecordRunInput`'ı hiç okumuyordu, `GET .../input` her zaman
+`200` dönüyordu.)_
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+**2026-08-15 yeniden koşum (KAPANIS-PLANI §9, K-406 sonrası) — Geçti.**
+Kök neden `K-406` ile kapatıldı: `BindRunRecording`
+(`src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs:1799-1801`)
+artık `RecordRunInput`'ı `TryReadBool` ile config'ten okuyor. Canlı
+doğrulama: `AgentPrism:RunRecording:RecordRunInput=false` ile yeniden
+başlatıldı, `support` agent'ına bir tur çalıştırıldı. `GET /api/runs/{id}`
+→ **200** (çalıştırma var). `GET /api/runs/{id}/input` → **404**, gövde
+`"No recorded input"` + `"Run '...' has no recorded input. It may have
+started while input recording was disabled, or been deleted by a
+retention policy."` — düzeltilmiş, tam beklenen davranış. Temizlik: env
+değişkeni kaldırıldı, geçici şema (`mt_apirun`) düşürüldü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

@@ -170,7 +170,19 @@ internal static class SkillScriptProcessRunner
         }
         finally
         {
-            process.StandardInput.Close();
+            // Close() da StreamWriter'in ic tamponunu bosaltmaya calisir. Script
+            // stdin'i hic okumadan (ornegin salt 'echo') cikmissa boru bu noktada
+            // ZATEN kapanmis olabilir; Close()'un kendi flush'i de ayni
+            // IOException'i firlatir ve try/catch'in disinda oldugu icin
+            // yakalanmazdi (HATA-K-skill-pipe, 2026-08-15).
+            try
+            {
+                process.StandardInput.Close();
+            }
+            catch (IOException)
+            {
+                // Script stdin okumadan cikmis olabilir; bu bir hata degildir.
+            }
         }
     }
 
