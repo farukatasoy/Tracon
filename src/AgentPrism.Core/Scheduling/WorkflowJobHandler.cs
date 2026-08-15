@@ -3,22 +3,21 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="JobKind.Workflow"/> islerini yurutur: kayitli bir workflow'u
-/// isin ogelerindeki her girdi ile sirayla calistirir.
+/// Handles <see cref="JobKind.Workflow"/> jobs. It runs a registered workflow in
+/// sequence with each input in the job items.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="IWorkflowRunner"/> <strong>opsiyoneldir</strong> — tipki
-/// <c>WorkflowEndpoints</c>'in <c>501</c> deseninde oldugu gibi
-/// (bkz. <c>AgentPrism.AspNetCore/Endpoints/WorkflowEndpoints.cs</c>).
-/// Tuketici <c>AgentPrism.Workflows</c> paketini eklemediyse veya
-/// <c>UseWorkflows()</c> cagirmadiysa bu isleyici kayitlidir ama motor
-/// bulunamaz; is HTTP 501 yerine <see cref="JobStatus.Failed"/> ile
-/// sonuclanir ve <c>ErrorMessage</c> nedeni acikca soyler.
+/// <see cref="IWorkflowRunner"/> is <strong>optional</strong>, like the <c>501</c>
+/// pattern in <c>WorkflowEndpoints</c>. See
+/// <c>AgentPrism.AspNetCore/Endpoints/WorkflowEndpoints.cs</c>. If the consumer
+/// does not add the <c>AgentPrism.Workflows</c> package or call <c>UseWorkflows()</c>,
+/// this handler is registered but no engine exists. The job ends with
+/// <see cref="JobStatus.Failed"/> instead of HTTP 501 and <c>ErrorMessage</c> states why.
 /// </para>
 /// <para>
-/// Akisi tuketmek yurutmenin kendisidir: MAF workflow motoru olaylari
-/// urettikce grafi ilerletir; akis tuketilmezse workflow calismaz.
+/// Consuming the stream performs execution. The MAF workflow engine advances the
+/// graph as it produces events. The workflow does not run if the stream is not consumed.
 /// </para>
 /// </remarks>
 internal sealed class WorkflowJobHandler(
@@ -36,7 +35,7 @@ internal sealed class WorkflowJobHandler(
         if (runner is null)
         {
             throw new AgentPrismException(
-                "Workflow motoru kayitli degil. 'AgentPrism.Workflows' paketini ekleyip UseWorkflows() cagirin.");
+                "The workflow engine is not registered. Add the 'AgentPrism.Workflows' package and call UseWorkflows().");
         }
 
         foreach (var item in context.Items)
@@ -78,7 +77,7 @@ internal sealed class WorkflowJobHandler(
                 {
                     logger.LogWarning(
                         exception,
-                        "Toplu is ogesi basarisiz oldu: is={JobId} sira={Seq} workflow={WorkflowName}",
+                        "Batch job item failed: job={JobId} sequence={Seq} workflow={WorkflowName}",
                         context.Job.Id,
                         item.Seq,
                         context.Job.TargetName);

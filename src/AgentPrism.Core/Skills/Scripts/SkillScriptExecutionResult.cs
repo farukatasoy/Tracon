@@ -1,26 +1,26 @@
 namespace AgentPrism;
 
-/// <summary>Tek bir skill script calistirmasinin sonucu.</summary>
+/// <summary>The result of one skill script execution.</summary>
 public sealed record SkillScriptExecutionResult
 {
-    /// <summary>Surecin cikis kodu. Zaman asiminda <see langword="null"/>.</summary>
+    /// <summary>The process exit code, or <see langword="null"/> on timeout.</summary>
     public int? ExitCode { get; init; }
 
-    /// <summary>Standart cikti. Sinir asildiysa kirpilmistir.</summary>
+    /// <summary>Standard output. It is truncated when it exceeds its limit.</summary>
     public string StandardOutput { get; init; } = string.Empty;
 
-    /// <summary>Standart hata akisi. Sinir asildiysa kirpilmistir.</summary>
+    /// <summary>Standard error. It is truncated when it exceeds its limit.</summary>
     public string StandardError { get; init; } = string.Empty;
 
-    /// <summary>Cikti sinira takildi mi.</summary>
+    /// <summary>Gets a value that indicates whether output reached its limit.</summary>
     public bool Truncated { get; init; }
 
-    /// <summary>Sure asildi mi. Asildiysa surec agaci oldurulmustur.</summary>
+    /// <summary>Gets a value that indicates whether the timeout elapsed. The process tree is killed then.</summary>
     public bool TimedOut { get; init; }
 
-    /// <summary>Calistirmanin suresi.</summary>
+    /// <summary>The execution duration.</summary>
     public TimeSpan Duration { get; init; }
 
-    /// <summary>Calistirma basariyla bitti mi.</summary>
+    /// <summary>Gets a value that indicates whether execution completed successfully.</summary>
     public bool Succeeded => !TimedOut && ExitCode == 0;
 }
