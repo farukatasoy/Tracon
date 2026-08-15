@@ -2,12 +2,12 @@ using System.Collections.Concurrent;
 
 namespace AgentPrism;
 
-/// <summary>Idempotency kayitlarini islem bellegimde tutan depo (K-018: birinci sinif).</summary>
+/// <summary>A store that keeps idempotency records in process memory (K-018: first class).</summary>
 /// <remarks>
-/// Davranis sozlesmesi <c>SqlIdempotencyStore</c> ile birebir aynidir ve ortak
-/// sozlesme testleriyle korunur. Tek ornekli bir dagitimda yeterlidir; cok
-/// ornekli bir dagitimda bir SQL saglayicisi gerekir (her ornek kendi kumesini
-/// tutar).
+/// Its behavior contract matches <c>SqlIdempotencyStore</c> exactly and shared
+/// contract tests protect it. It is sufficient for a single-instance deployment.
+/// A multi-instance deployment needs a SQL provider because each instance keeps
+/// its own set of entries.
 /// </remarks>
 public sealed class InMemoryIdempotencyStore : IIdempotencyStore
 {
@@ -23,8 +23,8 @@ public sealed class InMemoryIdempotencyStore : IIdempotencyStore
         var dictionaryKey = (request.TenantId, request.Key);
         var entry = new Entry(request.Fingerprint);
 
-        // 🚨 TryAdd atomiktir: iki eszamanli istek ayni anahtarla gelirse yalniz
-        // biri yeni kaydi acar, digeri asagidaki mevcut kayit dalina duser.
+        // TryAdd is atomic. If two concurrent requests use the same key, only one
+        // creates the new entry and the other follows the existing-entry path below.
         if (_entries.TryAdd(dictionaryKey, entry))
         {
             return ValueTask.FromResult(new IdempotencyReservation { State = IdempotencyState.Reserved });

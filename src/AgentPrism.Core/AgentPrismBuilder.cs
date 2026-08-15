@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPrism;
 
-/// <summary><see cref="IAgentPrismBuilder"/> arayuzunun varsayilan uygulamasi.</summary>
+/// <summary>The default implementation of <see cref="IAgentPrismBuilder"/>.</summary>
 internal sealed class AgentPrismBuilder : IAgentPrismBuilder
 {
     public AgentPrismBuilder(IServiceCollection services)
@@ -32,8 +32,8 @@ internal sealed class AgentPrismBuilder : IAgentPrismBuilder
         return this;
     }
 
-    [RequiresUnreferencedCode("Metottan tool uretmek yansima kullanir; kirpilmis uygulamalarda tip bilgisi kaybolabilir.")]
-    [RequiresDynamicCode("Metottan tool uretmek calisma aninda kod uretimi gerektirebilir.")]
+    [RequiresUnreferencedCode("Creating a tool from a method uses reflection; method metadata can be removed from trimmed applications.")]
+    [RequiresDynamicCode("Creating a tool from a method can require run-time code generation.")]
     public IAgentPrismBuilder AddTool(
         Delegate method,
         string? name = null,
@@ -46,12 +46,12 @@ internal sealed class AgentPrismBuilder : IAgentPrismBuilder
         return AddTool(tool, requiresApproval);
     }
 
-    [RequiresUnreferencedCode("Tool taramasi yansima kullanir; kirpilmis uygulamalarda metot bilgisi kaybolabilir.")]
-    [RequiresDynamicCode("Tool taramasi calisma aninda kod uretimi gerektirebilir.")]
+    [RequiresUnreferencedCode("Tool scanning uses reflection; method metadata can be removed from trimmed applications.")]
+    [RequiresDynamicCode("Tool scanning can require run-time code generation.")]
     public IAgentPrismBuilder AddToolsFrom<T>() => AddToolsFrom(typeof(T));
 
-    [RequiresUnreferencedCode("Tool taramasi yansima kullanir; kirpilmis uygulamalarda metot bilgisi kaybolabilir.")]
-    [RequiresDynamicCode("Tool taramasi calisma aninda kod uretimi gerektirebilir.")]
+    [RequiresUnreferencedCode("Tool scanning uses reflection; method metadata can be removed from trimmed applications.")]
+    [RequiresDynamicCode("Tool scanning can require run-time code generation.")]
     public IAgentPrismBuilder AddToolsFrom(Type type)
     {
         ArgumentNullException.ThrowIfNull(type);

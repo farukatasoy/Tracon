@@ -4,13 +4,13 @@ using System.Text.Json.Serialization;
 namespace AgentPrism;
 
 /// <summary>
-/// <c>AgentPrism.Core</c> icinde serilestirilen tiplerin kaynak ureteci baglami.
+/// The source-generated context for types serialized in <c>AgentPrism.Core</c>.
 /// </summary>
 /// <remarks>
-/// Yansimaya dayanan <c>JsonSerializer</c> asiri yuklemeleri <c>IL2026</c> ve
-/// <c>IL3050</c> uretir; <c>AgentPrism.Core</c> AOT uyumlu isaretlidir ve bu
-/// tanilar build'i kirar. Serilestirilen her tip burada bildirilir.
-/// Gerekce: <c>docs/KARARLAR.md</c>, karar K-006.
+/// Reflection-based <c>JsonSerializer</c> overloads produce <c>IL2026</c> and
+/// <c>IL3050</c>. <c>AgentPrism.Core</c> is marked as AOT-compatible, and these
+/// diagnostics fail the build. Declare every serialized type here.
+/// Rationale: <c>docs/KARARLAR.md</c>, decision K-006.
 /// </remarks>
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
 [JsonSerializable(typeof(string))]
@@ -24,7 +24,7 @@ namespace AgentPrism;
 [JsonSerializable(typeof(Experiment))]
 [JsonSerializable(typeof(CanaryRollbackAuditPayload))]
 
-// Konusma dallandirmasi (Faz 47): oturumun durum cantasindaki konusma kimligi
-// okunur ve yeni oturuma yazilir.
+// Conversation branching (Phase 47): reads the conversation identifier from the
+// session state bag and writes it to the new session.
 [JsonSerializable(typeof(ChatHistoryState))]
 internal sealed partial class AgentPrismCoreJsonContext : JsonSerializerContext;

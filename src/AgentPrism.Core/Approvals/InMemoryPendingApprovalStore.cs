@@ -2,19 +2,19 @@ using System.Collections.Concurrent;
 
 namespace AgentPrism;
 
-/// <summary>Bekleyen onay isteklerini surec bellegi icinde tutan depo.</summary>
+/// <summary>A store that keeps pending approval requests in process memory.</summary>
 /// <remarks>
-/// <strong>Sinirlari:</strong> surec omru ve tek dugum. Uretimde <c>AgentPrism.PostgreSql</c>
-/// (veya <c>AgentPrism.SqlServer</c>/<c>AgentPrism.Sqlite</c>) kullanin.
+/// <strong>Limits:</strong> process lifetime and a single node. In production, use
+/// <c>AgentPrism.PostgreSql</c> or <c>AgentPrism.SqlServer</c>/<c>AgentPrism.Sqlite</c>.
 /// </remarks>
 public sealed class InMemoryPendingApprovalStore : IPendingApprovalStore
 {
     private readonly ConcurrentDictionary<Guid, PendingApproval> _approvals = new();
     private readonly ITenantContext _tenantContext;
 
-    /// <summary>Yeni bir bellek ici onay deposu olusturur.</summary>
+    /// <summary>Initializes a new in-memory approval store.</summary>
     /// <param name="tenantContext">
-    /// Gecerli kiracinin baglami. Verilmezse depo tek kiracili davranir.
+    /// The current tenant context. If this is not supplied, the store behaves as single tenant.
     /// </param>
     public InMemoryPendingApprovalStore(ITenantContext? tenantContext = null)
     {
