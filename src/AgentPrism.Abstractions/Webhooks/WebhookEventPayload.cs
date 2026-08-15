@@ -2,187 +2,188 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>Bir webhook isteginin JSON govdesi.</summary>
+/// <summary>The JSON body of a webhook request.</summary>
 /// <remarks>
 /// <para>
-/// 🚨 Bu yuk yalnizca <strong>ozet</strong> tasir (K-161): kimlik, durum, agent,
-/// token, maliyet. Mesaj icerikleri ve model yanitlari <strong>hicbir zaman</strong>
-/// burada durmaz. Icerik isteyen alici <c>GET {prefix}/api/runs/{id}</c> cagirir.
+/// 🚨 This payload carries only a <strong>summary</strong> (K-161):
+/// identifier, status, agent, tokens, cost. Message content and model
+/// responses <strong>never</strong> sit here. A recipient that needs content
+/// calls <c>GET {prefix}/api/runs/{id}</c>.
 /// </para>
 /// <para>
-/// Sebep iki katmanlidir: (1) yuk dis bir sisteme gider ve hassas veri
-/// tasiyamaz; (2) ayni metin <c>webhook_deliveries.payload</c> sutununda da
-/// saklanir — icerik tasisaydi veritabani yedegi de hassas veri tasirdi.
+/// The reason has two layers: (1) the payload goes to an external system and
+/// must not carry sensitive data; (2) the same text is also stored in the
+/// <c>webhook_deliveries.payload</c> column — if it carried content, the
+/// database backup would carry sensitive data too.
 /// </para>
 /// </remarks>
 public sealed record WebhookEventPayload
 {
-    /// <summary>Olay adi. Yayinci doldurur.</summary>
+    /// <summary>The event name. Filled in by the publisher.</summary>
     public string? Event { get; init; }
 
-    /// <summary>Teslim kimligi. Yayinci doldurur.</summary>
+    /// <summary>The delivery identifier. Filled in by the publisher.</summary>
     public string? DeliveryId { get; init; }
 
-    /// <summary>Kiraci kimligi. Yayinci doldurur.</summary>
+    /// <summary>The tenant identifier. Filled in by the publisher.</summary>
     public string? TenantId { get; init; }
 
-    /// <summary>Olayin gerceklestigi an (UTC). Yayinci doldurur.</summary>
+    /// <summary>The moment the event occurred (UTC). Filled in by the publisher.</summary>
     public DateTimeOffset? OccurredAt { get; init; }
 
-    /// <summary>Calistirma ozeti. <c>run.*</c> olaylarinda dolu.</summary>
+    /// <summary>The run summary. Populated on <c>run.*</c> events.</summary>
     public WebhookRunSummary? Run { get; init; }
 
-    /// <summary>Kuyruk isi ozeti. <c>job.*</c> olaylarinda dolu.</summary>
+    /// <summary>The job summary. Populated on <c>job.*</c> events.</summary>
     public WebhookJobSummary? Job { get; init; }
 
-    /// <summary>Onay ozeti. <c>approval.pending</c> ve <c>workflow.request.pending</c> olaylarinda dolu.</summary>
+    /// <summary>The approval summary. Populated on <c>approval.pending</c> and <c>workflow.request.pending</c> events.</summary>
     public WebhookApprovalSummary? Approval { get; init; }
 
-    /// <summary>Kota ozeti. <c>quota.threshold</c> olayinda dolu.</summary>
+    /// <summary>The quota summary. Populated on the <c>quota.threshold</c> event.</summary>
     public WebhookQuotaSummary? Quota { get; init; }
 
-    /// <summary>Puan penceresi ozeti. <c>run.score.low</c> olayinda dolu.</summary>
+    /// <summary>The score window summary. Populated on the <c>run.score.low</c> event.</summary>
     public WebhookScoreSummary? Score { get; init; }
 }
 
-/// <summary>Bir calistirmanin webhook ozeti.</summary>
+/// <summary>A run's webhook summary.</summary>
 public sealed record WebhookRunSummary
 {
-    /// <summary>Calistirma kimligi.</summary>
+    /// <summary>The run identifier.</summary>
     public required string RunId { get; init; }
 
-    /// <summary>Agac kokunun kimligi. Kok calistirmada kendisiyle aynidir.</summary>
+    /// <summary>The tree root's identifier. Equal to itself for the root run.</summary>
     public string? RootRunId { get; init; }
 
-    /// <summary>Oturum kimligi.</summary>
+    /// <summary>The session identifier.</summary>
     public string? SessionId { get; init; }
 
-    /// <summary>Calistirmayi yapan agent'in adi.</summary>
+    /// <summary>The name of the agent that ran.</summary>
     public string? AgentName { get; init; }
 
-    /// <summary>Kullanilan modelin kimligi.</summary>
+    /// <summary>The identifier of the model used.</summary>
     public string? ModelId { get; init; }
 
-    /// <summary>Son durum.</summary>
+    /// <summary>The final status.</summary>
     public string? Status { get; init; }
 
-    /// <summary>Sure (milisaniye).</summary>
+    /// <summary>The duration (milliseconds).</summary>
     public long? DurationMs { get; init; }
 
-    /// <summary>Girdi token'i.</summary>
+    /// <summary>The input tokens.</summary>
     public long? InputTokens { get; init; }
 
-    /// <summary>Cikti token'i.</summary>
+    /// <summary>The output tokens.</summary>
     public long? OutputTokens { get; init; }
 
-    /// <summary>Toplam tutar. Fiyat tanimsizsa <see langword="null"/> — sifir degil.</summary>
+    /// <summary>The total amount. <see langword="null"/> if pricing is undefined — not zero.</summary>
     public decimal? Cost { get; init; }
 
-    /// <summary>Tutarin para birimi.</summary>
+    /// <summary>The amount's currency.</summary>
     public string? Currency { get; init; }
 
-    /// <summary>Hata mesaji. <c>run.failed</c> olayinda dolu.</summary>
+    /// <summary>The error message. Populated on the <c>run.failed</c> event.</summary>
     public string? Error { get; init; }
 }
 
-/// <summary>Bir kuyruk isinin webhook ozeti.</summary>
+/// <summary>A job's webhook summary.</summary>
 public sealed record WebhookJobSummary
 {
-    /// <summary>Is kimligi.</summary>
+    /// <summary>The job identifier.</summary>
     public required string JobId { get; init; }
 
-    /// <summary>Isin turu.</summary>
+    /// <summary>The job's kind.</summary>
     public string? Kind { get; init; }
 
-    /// <summary>Calistirilan agent veya workflow adi.</summary>
+    /// <summary>The agent or workflow name to run.</summary>
     public string? TargetName { get; init; }
 
-    /// <summary>Son durum.</summary>
+    /// <summary>The final status.</summary>
     public string? Status { get; init; }
 
-    /// <summary>Toplam oge sayisi.</summary>
+    /// <summary>The total number of items.</summary>
     public int TotalItems { get; init; }
 
-    /// <summary>Tamamlanan oge sayisi.</summary>
+    /// <summary>The number of completed items.</summary>
     public int DoneItems { get; init; }
 
-    /// <summary>Basarisiz oge sayisi.</summary>
+    /// <summary>The number of failed items.</summary>
     public int FailedItems { get; init; }
 
-    /// <summary>Hata mesaji.</summary>
+    /// <summary>The error message.</summary>
     public string? Error { get; init; }
 }
 
-/// <summary>Bekleyen bir onayin veya insan girdisi isteginin webhook ozeti.</summary>
+/// <summary>A pending approval or human-input request's webhook summary.</summary>
 public sealed record WebhookApprovalSummary
 {
-    /// <summary>Onay veya istek kimligi.</summary>
+    /// <summary>The approval or request identifier.</summary>
     public required string RequestId { get; init; }
 
-    /// <summary>Ilgili calistirma kimligi.</summary>
+    /// <summary>The associated run identifier.</summary>
     public string? RunId { get; init; }
 
-    /// <summary>Onay bekleyen tool'un adi. Tool onayinda dolu.</summary>
+    /// <summary>The name of the tool awaiting approval. Populated for tool approval.</summary>
     public string? ToolName { get; init; }
 
-    /// <summary>Ilgili workflow'un adi. Insan girdisi isteginde dolu.</summary>
+    /// <summary>The name of the associated workflow. Populated for a human-input request.</summary>
     public string? WorkflowName { get; init; }
 
-    /// <summary>Istegin kullaniciya gosterilecek metni.</summary>
+    /// <summary>The request's user-facing text.</summary>
     public string? Prompt { get; init; }
 }
 
-/// <summary>Asilan bir kota esiginin webhook ozeti.</summary>
+/// <summary>An exceeded quota threshold's webhook summary.</summary>
 public sealed record WebhookQuotaSummary
 {
-    /// <summary>Asilan olcut.</summary>
+    /// <summary>The exceeded metric.</summary>
     public required QuotaMetric Metric { get; init; }
 
-    /// <summary>Kuralin baglandigi agent. Kiraci genelinde <see langword="null"/>.</summary>
+    /// <summary>The agent the rule is bound to. <see langword="null"/> for tenant-wide.</summary>
     public string? AgentName { get; init; }
 
-    /// <summary>Sayacin araligi.</summary>
+    /// <summary>The counter's interval.</summary>
     public required QuotaPeriod Period { get; init; }
 
-    /// <summary>Asilan esik yuzdesi: 80 veya 100.</summary>
+    /// <summary>The exceeded threshold percentage: 80 or 100.</summary>
     public required int ThresholdPercent { get; init; }
 
-    /// <summary>Tanimli sinir.</summary>
+    /// <summary>The defined limit.</summary>
     public required decimal Limit { get; init; }
 
-    /// <summary>Guncel tuketim.</summary>
+    /// <summary>The current consumption.</summary>
     public required decimal Used { get; init; }
 
-    /// <summary>Sayacin sifirlanacagi zaman (UTC).</summary>
+    /// <summary>The time the counter resets (UTC).</summary>
     public DateTimeOffset? ResetsAt { get; init; }
 }
 
-/// <summary>Bir puan penceresi esiginin webhook ozeti (Faz 49).</summary>
+/// <summary>A score window threshold's webhook summary (Phase 49).</summary>
 public sealed record WebhookScoreSummary
 {
-    /// <summary>Pencere icindeki ortalama puan (0-100).</summary>
+    /// <summary>The window's average score (0-100).</summary>
     public required double AverageScore { get; init; }
 
-    /// <summary>Pencere icindeki ornek (puanlanmis calistirma) sayisi.</summary>
+    /// <summary>The number of samples (scored runs) in the window.</summary>
     public required long SampleCount { get; init; }
 
-    /// <summary>Asilan dusuk puan esigi.</summary>
+    /// <summary>The exceeded low-score threshold.</summary>
     public required int Threshold { get; init; }
 
-    /// <summary>Pencerenin baslangici (UTC).</summary>
+    /// <summary>The window's start (UTC).</summary>
     public DateTimeOffset? WindowStart { get; init; }
 
-    /// <summary>Pencerenin bitisi (UTC).</summary>
+    /// <summary>The window's end (UTC).</summary>
     public DateTimeOffset? WindowEnd { get; init; }
 }
 
 /// <summary>
-/// <see cref="WebhookEventPayload"/> ve alt tipleri icin kaynak uretilmis JSON
-/// baglami.
+/// The source-generated JSON context for <see cref="WebhookEventPayload"/> and its subtypes.
 /// </summary>
 /// <remarks>
-/// AOT uyumlulugu icin gereklidir: webhook govdesi yansimaya dayanan
-/// serilestirme kullanmaz.
+/// Required for AOT compatibility: the webhook body does not use
+/// reflection-based serialization.
 /// </remarks>
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
