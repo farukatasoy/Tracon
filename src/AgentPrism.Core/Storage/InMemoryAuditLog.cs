@@ -2,8 +2,8 @@ using System.Collections.Concurrent;
 
 namespace AgentPrism;
 
-/// <summary>Denetim izi kayitlarini surec bellegi icinde tutan defter.</summary>
-/// <remarks>Uretimde <c>AgentPrism.PostgreSql</c> kullanin.</remarks>
+/// <summary>An audit log that keeps entries in process memory.</summary>
+/// <remarks>Use <c>AgentPrism.PostgreSql</c> in production.</remarks>
 public sealed class InMemoryAuditLog : IAuditLog
 {
     private readonly ConcurrentQueue<AuditEntry> _entries = new();

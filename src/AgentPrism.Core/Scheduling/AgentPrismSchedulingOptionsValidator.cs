@@ -3,11 +3,11 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="AgentPrismSchedulingOptions"/> ayarlarini uygulama baslarken dogrular.
+/// Validates <see cref="AgentPrismSchedulingOptions"/> when the application starts.
 /// </summary>
 /// <remarks>
-/// Dogrulama elle yazilmistir; <c>ValidateDataAnnotations()</c> yansimaya dayanir ve
-/// <c>IL2026</c> uretir. Gerekce: <c>docs/KARARLAR.md</c>, karar K-006.
+/// This validation is handwritten. <c>ValidateDataAnnotations()</c> uses reflection
+/// and produces <c>IL2026</c>. Rationale: <c>docs/KARARLAR.md</c>, decision K-006.
 /// </remarks>
 public sealed class AgentPrismSchedulingOptionsValidator : IValidateOptions<AgentPrismSchedulingOptions>
 {

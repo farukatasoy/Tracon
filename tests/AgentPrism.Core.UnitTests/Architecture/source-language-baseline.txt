@@ -123,7 +123,6 @@ src/AgentPrism.Core/Audit/AuditingMcpServerStore.cs|5
 src/AgentPrism.Core/Audit/AuditingSessionStore.cs|14
 src/AgentPrism.Core/Audit/AuditingSkillScriptGrantStore.cs|7
 src/AgentPrism.Core/Audit/AuditingTenantStore.cs|4
-src/AgentPrism.Core/Audit/AuditingToolApprovalRuleStore.cs|2
 src/AgentPrism.Core/Audit/AuditingWorkflowDefinitionStore.cs|9
 src/AgentPrism.Core/Catalog/CodeAgentRegistration.cs|13
 src/AgentPrism.Core/Catalog/CodeAgentSource.cs|11
@@ -134,7 +133,6 @@ src/AgentPrism.Core/Compilation/CompactionUsageTrackingChatClient.cs|7
 src/AgentPrism.Core/Compilation/CompiledAgentCache.cs|33
 src/AgentPrism.Core/Compilation/TenantPrefixingAgentFileStore.cs|17
 src/AgentPrism.Core/Coordination/InMemorySingletonLeaseStore.cs|7
-src/AgentPrism.Core/Coordination/SingletonExecutionOptionsValidator.cs|2
 src/AgentPrism.Core/Coordination/SingletonGuard.cs|26
 src/AgentPrism.Core/Diagnostics/AgentPrismMetrics.cs|49
 src/AgentPrism.Core/Diagnostics/OpenTelemetryAgentDecorator.cs|9
@@ -144,7 +142,6 @@ src/AgentPrism.Core/Evaluation/AgentPrismEvalCheckRegistration.cs|3
 src/AgentPrism.Core/Evaluation/AgentPrismOnlineEvaluationBuilderExtensions.cs|14
 src/AgentPrism.Core/Evaluation/EvalCheckRegistry.cs|23
 src/AgentPrism.Core/Evaluation/EvalJobHandler.cs|33
-src/AgentPrism.Core/Evaluation/InMemoryEvalStore.cs|2
 src/AgentPrism.Core/Evaluation/ModelRunJudgeOptions.cs|7
 src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs|32
 src/AgentPrism.Core/Evaluation/OnlineEvaluationOptions.cs|22
@@ -188,7 +185,6 @@ src/AgentPrism.Core/Quotas/QuotaUsageObserver.cs|41
 src/AgentPrism.Core/README.md|3
 src/AgentPrism.Core/Recording/AgentPrismRunContext.cs|41
 src/AgentPrism.Core/Recording/CompactionUsageAccumulator.cs|8
-src/AgentPrism.Core/Recording/RunCancellationRegistry.cs|2
 src/AgentPrism.Core/Recording/RunCostRecalculationService.cs|16
 src/AgentPrism.Core/Recording/RunEventWriter.cs|66
 src/AgentPrism.Core/Recording/RunHeartbeatWriter.cs|13
@@ -201,17 +197,14 @@ src/AgentPrism.Core/Replay/RecordedToolPlayback.cs|42
 src/AgentPrism.Core/Replay/ReplayMismatchGuard.cs|11
 src/AgentPrism.Core/Replay/RunReplayService.cs|57
 src/AgentPrism.Core/Retention/AgentPrismRetentionOptionsValidator.cs|3
-src/AgentPrism.Core/Retention/InMemoryRetentionPolicyStore.cs|1
 src/AgentPrism.Core/Retention/NullRetentionStore.cs|8
 src/AgentPrism.Core/Retention/RetentionJobHandler.cs|4
 src/AgentPrism.Core/Retention/RetentionPolicyResolver.cs|16
 src/AgentPrism.Core/Runs/DefaultRunErrorClassifier.cs|15
 src/AgentPrism.Core/Runs/ErrorFingerprint.cs|14
 src/AgentPrism.Core/Scheduling/AgentBatchJobHandler.cs|11
-src/AgentPrism.Core/Scheduling/AgentPrismSchedulingOptionsValidator.cs|2
 src/AgentPrism.Core/Scheduling/AgentRunJobHandler.cs|38
 src/AgentPrism.Core/Scheduling/CronExpression.cs|30
-src/AgentPrism.Core/Scheduling/InMemoryJobScheduleStore.cs|2
 src/AgentPrism.Core/Scheduling/InMemoryJobStore.cs|13
 src/AgentPrism.Core/Scheduling/JobWorkerBackgroundService.cs|24
 src/AgentPrism.Core/Scheduling/WorkflowJobHandler.cs|7
@@ -224,7 +217,6 @@ src/AgentPrism.Core/Skills/AgentPrismSkillScriptBuilderExtensions.cs|14
 src/AgentPrism.Core/Skills/AgentPrismSkillsJsonContext.cs|5
 src/AgentPrism.Core/Skills/AgentPrismSkillsSource.cs|13
 src/AgentPrism.Core/Skills/AgentSkillCatalog.cs|7
-src/AgentPrism.Core/Skills/CodeSkillRegistration.cs|1
 src/AgentPrism.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs|56
 src/AgentPrism.Core/Skills/Scripts/SkillScriptArgumentValidator.cs|13
 src/AgentPrism.Core/Skills/Scripts/SkillScriptConcurrencyLimiter.cs|4
@@ -232,10 +224,8 @@ src/AgentPrism.Core/Skills/Scripts/SkillScriptExecutionResult.cs|6
 src/AgentPrism.Core/Skills/Scripts/SkillScriptProcessRunner.cs|16
 src/AgentPrism.Core/Skills/Scripts/SkillScriptSupport.cs|25
 src/AgentPrism.Core/Storage/InMemoryAgentDefinitionStore.cs|12
-src/AgentPrism.Core/Storage/InMemoryAgentSkillStore.cs|1
 src/AgentPrism.Core/Storage/InMemoryApprovalAndMcpStores.cs|7
 src/AgentPrism.Core/Storage/InMemoryAttachmentStore.cs|5
-src/AgentPrism.Core/Storage/InMemoryAuditLog.cs|1
 src/AgentPrism.Core/Storage/InMemoryRunInputStore.cs|11
 src/AgentPrism.Core/Storage/InMemoryRunScoreStore.cs|8
 src/AgentPrism.Core/Storage/InMemoryRunStore.cs|98
