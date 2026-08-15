@@ -1,105 +1,109 @@
 namespace AgentPrism;
 
-/// <summary>Bir hedef icin yas ve hacim bazli saklama kurali.</summary>
+/// <summary>An age- and volume-based retention rule for a target.</summary>
 /// <remarks>
-/// Kayit yoksa hedef icin hicbir sey silinmez (bkz. <c>AgentPrismRetentionOptions</c>
-/// yapilandirma tabanli varsayilanlari — yalniz veritabaninda kayit YOKSA devreye girer).
+/// If no record exists, nothing is deleted for the target (see
+/// <c>AgentPrismRetentionOptions</c>' configuration-based defaults — they
+/// take effect only when the database has NO record).
 /// </remarks>
 public sealed record RetentionPolicy
 {
-    /// <summary>Politika kimligi.</summary>
+    /// <summary>The policy identifier.</summary>
     public required Guid Id { get; init; }
 
-    /// <summary>Kiraci kimligi. <c>"*"</c> tum kiracilar icin varsayilan anlamina gelir.</summary>
+    /// <summary>The tenant identifier. <c>"*"</c> means the default for all tenants.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Hedef tablo adi. Bkz. <see cref="RetentionTargets"/>.</summary>
+    /// <summary>The target table name. See <see cref="RetentionTargets"/>.</summary>
     public required string Target { get; init; }
 
     /// <summary>
-    /// Bu yastan eski satirlar silinmeye adaydir. <see langword="null"/> ise
-    /// yas bazli silme uygulanmaz (yalniz <see cref="MaxRows"/> varsa o gecerlidir).
+    /// Rows older than this age are candidates for deletion. If
+    /// <see langword="null"/>, age-based deletion does not apply (only
+    /// <see cref="MaxRows"/>, if set, applies).
     /// </summary>
     public int? MaxAgeDays { get; init; }
 
     /// <summary>
-    /// Hedef tabloda tutulacak en fazla satir sayisi. Sinirin uzerindeki en
-    /// ESKI satirlar silinir. <see langword="null"/> ise hacim bazli silme
-    /// uygulanmaz (yalniz <see cref="MaxAgeDays"/> varsa o gecerlidir).
+    /// The maximum number of rows to keep in the target table. The OLDEST
+    /// rows over the limit are deleted. If <see langword="null"/>,
+    /// volume-based deletion does not apply (only <see cref="MaxAgeDays"/>,
+    /// if set, applies).
     /// </summary>
     public long? MaxRows { get; init; }
 
     /// <summary>
-    /// Silmeden once <c>IArchiveSink</c> ile arsivlensin mi. Sink kayitli
-    /// degilse bu alan <see langword="true"/> olsa bile hicbir satir silinmez.
+    /// Whether to archive with <c>IArchiveSink</c> before deleting. If no
+    /// sink is registered, no row is deleted even if this field is
+    /// <see langword="true"/>.
     /// </summary>
     public bool Archive { get; init; }
 
-    /// <summary>Politika etkin mi.</summary>
+    /// <summary>Whether the policy is enabled.</summary>
     public bool Enabled { get; init; } = true;
 
-    /// <summary>Olusturulma zamani (UTC).</summary>
+    /// <summary>The creation time (UTC).</summary>
     public required DateTimeOffset CreatedAt { get; init; }
 
-    /// <summary>Son guncelleme zamani (UTC).</summary>
+    /// <summary>The last-updated time (UTC).</summary>
     public required DateTimeOffset UpdatedAt { get; init; }
 }
 
-/// <summary>Bir temizleme kosusunun gecmis kaydi.</summary>
+/// <summary>The history record of a cleanup run.</summary>
 public sealed record RetentionRun
 {
-    /// <summary>Kosu kimligi.</summary>
+    /// <summary>The run identifier.</summary>
     public required Guid Id { get; init; }
 
-    /// <summary>Kiraci kimligi.</summary>
+    /// <summary>The tenant identifier.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Islenen hedef.</summary>
+    /// <summary>The target processed.</summary>
     public required string Target { get; init; }
 
-    /// <summary>Su ana kadar silinen satir sayisi.</summary>
+    /// <summary>The number of rows deleted so far.</summary>
     public long DeletedRows { get; init; }
 
-    /// <summary>Su ana kadar arsivlenen satir sayisi.</summary>
+    /// <summary>The number of rows archived so far.</summary>
     public long ArchivedRows { get; init; }
 
-    /// <summary>Baslama zamani (UTC).</summary>
+    /// <summary>The start time (UTC).</summary>
     public required DateTimeOffset StartedAt { get; init; }
 
-    /// <summary>Bitis zamani (UTC). Kosu surerken <see langword="null"/>.</summary>
+    /// <summary>The completion time (UTC). <see langword="null"/> while the run is in progress.</summary>
     public DateTimeOffset? CompletedAt { get; init; }
 
-    /// <summary>Hata mesaji. Yalniz basarisiz kosularda dolu.</summary>
+    /// <summary>The error message. Populated only for failed runs.</summary>
     public string? Error { get; init; }
 }
 
-/// <summary>Bir hedef icin "su an calistirilirsa kac satir silinir" onizlemesi.</summary>
+/// <summary>A preview of "how many rows would be deleted if run now" for a target.</summary>
 public sealed record RetentionPreview
 {
-    /// <summary>Onizlenen hedef.</summary>
+    /// <summary>The previewed target.</summary>
     public required string Target { get; init; }
 
-    /// <summary>Politika bulunamadiysa (hicbir sey silinmeyecek) <see langword="null"/>.</summary>
+    /// <summary><see langword="null"/> if no policy was found (nothing would be deleted).</summary>
     public int? MaxAgeDays { get; init; }
 
-    /// <summary>Politika etkin mi.</summary>
+    /// <summary>Whether the policy is enabled.</summary>
     public bool Enabled { get; init; }
 
-    /// <summary>Hesaplanan kesim tarihi (UTC). Politika yoksa <see langword="null"/>.</summary>
+    /// <summary>The computed cutoff date (UTC). <see langword="null"/> if there is no policy.</summary>
     public DateTimeOffset? Cutoff { get; init; }
 
-    /// <summary>Kesim tarihinden eski, su an eslesen satir sayisi.</summary>
+    /// <summary>The number of rows currently older than the cutoff date.</summary>
     public long MatchingRows { get; init; }
 }
 
-/// <summary>Arsive yazilacak tek bir satirin JSON temsili.</summary>
+/// <summary>The JSON representation of a single row to write to the archive.</summary>
 /// <remarks>
-/// Satirin sema bilgisi tasinmaz: sutun adlari ve degerleri JSON nesnesi
-/// icinde dogrudan durur (JSONL'in bir satiri). Boylece arsivleme, hedefin
-/// sutun kumesini onceden bilmeye ihtiyac duymaz.
+/// The row carries no schema information: column names and values sit
+/// directly inside a JSON object (one line of JSONL). This way, archiving
+/// does not need to know the target's column set ahead of time.
 /// </remarks>
 public sealed record ArchiveRow
 {
-    /// <summary>Satirin tek satirlik JSON gosterimi (sonunda satir sonu YOKTUR).</summary>
+    /// <summary>The row's single-line JSON representation (has NO trailing newline).</summary>
     public required string Json { get; init; }
 }

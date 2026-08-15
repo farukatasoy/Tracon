@@ -12,10 +12,6 @@ samples/Directory.Build.props|1
 src/AgentPrism.Abstractions/Evaluation/IEvalStore.cs|72
 src/AgentPrism.Abstractions/Evaluation/IRunJudge.cs|25
 src/AgentPrism.Abstractions/README.md|4
-src/AgentPrism.Abstractions/Retention/IRetentionPolicyStore.cs|35
-src/AgentPrism.Abstractions/Retention/IRetentionStore.cs|48
-src/AgentPrism.Abstractions/Retention/RetentionTargets.cs|35
-src/AgentPrism.Abstractions/Retention/RetentionTypes.cs|28
 src/AgentPrism.Abstractions/Runs/AgentPrismRunOptions.cs|57
 src/AgentPrism.Abstractions/Runs/AgentRunBudget.cs|31
 src/AgentPrism.Abstractions/Runs/IRunCancellationRegistry.cs|23
