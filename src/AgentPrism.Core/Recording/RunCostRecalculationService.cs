@@ -1,16 +1,16 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Tum calistirmalarin maliyetini guncel fiyat kaynagina (katalog/yapilandirma)
-/// gore yeniden hesaplayan bakim servisi.
+/// Maintenance service that recalculates the cost of all runs against the
+/// current pricing source (catalog/configuration).
 /// </summary>
 /// <remarks>
-/// Yalniz <c>POST /api/stats/recalculate-costs</c> ucu tarafindan kullanilir.
-/// Her cagri <strong>tam</strong> bir yeniden hesaplamadir — "yalniz tanimsiz
-/// olanlar" gibi bir filtre yoktur, cunku ucun amaci guncel fiyati gecmise
-/// aynen uygulamaktir. Saglayici gecmis satirlarda tutulmadigi icin cozumleme
-/// yalniz model adiyla yapilir (bkz. <see cref="IRunPricingResolver.Resolve"/>
-/// ve <c>docs/KARARLAR.md</c> K-154).
+/// Used only by the <c>POST /api/stats/recalculate-costs</c> endpoint. Every
+/// call is a <strong>full</strong> recalculation — there is no "only unknown
+/// ones" filter, because the endpoint's purpose is to apply the current
+/// pricing to history as-is. Since the provider is not stored on historical
+/// rows, resolution is done by model name alone (see
+/// <see cref="IRunPricingResolver.Resolve"/> and <c>docs/KARARLAR.md</c> K-154).
 /// </remarks>
 public sealed class RunCostRecalculationService
 {
@@ -19,10 +19,10 @@ public sealed class RunCostRecalculationService
     private readonly IRunStore _store;
     private readonly IRunPricingResolver _resolver;
 
-    /// <summary>Yeni bir yeniden hesaplama servisi olusturur.</summary>
-    /// <param name="store">Calistirma deposu.</param>
-    /// <param name="resolver">Maliyet cozumleyici.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new recalculation service.</summary>
+    /// <param name="store">The run store.</param>
+    /// <param name="resolver">The cost resolver.</param>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public RunCostRecalculationService(IRunStore store, IRunPricingResolver resolver)
     {
         ArgumentNullException.ThrowIfNull(store);
@@ -32,10 +32,10 @@ public sealed class RunCostRecalculationService
         _resolver = resolver;
     }
 
-    /// <summary>Bir kiracinin tum calistirmalarinin maliyetini yeniden hesaplar.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Islenen, guncellenen ve hala tanimsiz kalan calistirma sayilari.</returns>
+    /// <summary>Recalculates the cost of all runs for a tenant.</summary>
+    /// <param name="tenantId">The tenant identity.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The counts of runs considered, updated, and still unknown.</returns>
     public async ValueTask<RunCostRecalculationResult> RecalculateAsync(
         string tenantId,
         CancellationToken cancellationToken = default)
@@ -76,9 +76,9 @@ public sealed class RunCostRecalculationService
                     continue;
                 }
 
-                // Kimlikler kiraciya gore SUZULMUS bir sorgudan geldi; ayni kiraciyi
-                // yazmaya da tasiyoruz (K-355). Iki asamali yolda kayit arada baska
-                // bir kiraciya gecemez.
+                // The identities came from a query already FILTERED by tenant; we
+                // carry the same tenant into the write as well (K-355). On this
+                // two-step path, a record cannot switch to a different tenant in between.
                 await _store.UpdateRunCostAsync(run.Id, cost, run.TenantId, cancellationToken)
                     .ConfigureAwait(false);
 

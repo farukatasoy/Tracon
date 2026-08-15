@@ -202,6 +202,6 @@ public sealed class ModelHealthEndpointsTests
         body.GetProperty("status").GetString().ShouldBe("Unhealthy");
         var circuitDetail = body.GetProperty("detail").GetString();
         circuitDetail.ShouldNotBeNull();
-        circuitDetail.ShouldContain("Devre kesici");
+        circuitDetail.ShouldContain("Circuit breaker");
     }
 }

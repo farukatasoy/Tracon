@@ -8,30 +8,31 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
-/// <summary>Gercek zamanli konusma katmanini acan uzantilar.</summary>
+/// <summary>Extensions that enable the real-time voice conversation layer.</summary>
 /// <remarks>
 /// <para>
-/// ⚠️ <strong>Bu cagri barindirma modelini degistirir.</strong> Konusma
-/// baglantisi dakikalarca acik kalir ve <em>bir</em> sunucu ornegine baglanir;
-/// cok ornekli bir dagitimda yapiskan oturum (sticky session) gerekir ve ters
-/// vekil WebSocket gecisine izin vermelidir. Bu yuzden yetenek istege baglidir:
-/// cagri yapilmazsa hicbir WebSocket ucu acilmaz ve davranis degismez.
+/// ⚠️ <strong>This call changes the hosting model.</strong> A voice
+/// connection stays open for minutes and binds to <em>one</em> server
+/// instance; a multi-instance deployment requires sticky sessions, and the
+/// reverse proxy must allow WebSocket passthrough. For this reason the
+/// feature is opt-in: if the call is not made, no WebSocket endpoint is
+/// opened and behavior does not change.
 /// </para>
 /// <para>
-/// Katman <strong>saglayicidan bagimsizdir</strong>: yalnizca
-/// <see cref="ISpeechTranscriber"/> ve <see cref="ISpeechSynthesizer"/>
-/// soyutlamalarini kullanir. Bu cagri onlari <em>kaydetmez</em> — bir ses
-/// saglayicisi ayrica acilmalidir (ornegin <c>UseVoice(...)</c>).
+/// The layer is <strong>provider-agnostic</strong>: it uses only the
+/// <see cref="ISpeechTranscriber"/> and <see cref="ISpeechSynthesizer"/>
+/// abstractions. This call does <em>not</em> register them — a voice
+/// provider must be enabled separately (e.g. <c>UseVoice(...)</c>).
 /// </para>
 /// </remarks>
 public static class VoiceConversationBuilderExtensions
 {
-    /// <summary>Konusma katmanini yapilandirmadan okuyarak acar.</summary>
-    /// <param name="builder">AgentPrism zinciri.</param>
-    /// <param name="configurationSection"><c>AgentPrism:Voice:Conversation</c> bolumu.</param>
-    /// <param name="configure">Yapilandirmadan sonra uygulanacak degisiklikler.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Enables the conversation layer, reading its settings from configuration.</summary>
+    /// <param name="builder">The AgentPrism chain.</param>
+    /// <param name="configurationSection">The <c>AgentPrism:Voice:Conversation</c> section.</param>
+    /// <param name="configure">Changes applied after configuration binding.</param>
+    /// <returns>The continuation of the chain.</returns>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public static IAgentPrismBuilder UseVoiceConversation(
         this IAgentPrismBuilder builder,
         IConfiguration configurationSection,
@@ -47,23 +48,24 @@ public static class VoiceConversationBuilderExtensions
         });
     }
 
-    /// <summary>Konusma katmanini acar.</summary>
-    /// <param name="builder">AgentPrism zinciri.</param>
-    /// <param name="configure">Ayarlar.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> <see langword="null"/> ise.</exception>
+    /// <summary>Enables the conversation layer.</summary>
+    /// <param name="builder">The AgentPrism chain.</param>
+    /// <param name="configure">The settings.</param>
+    /// <returns>The continuation of the chain.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     /// <remarks>
     /// <para>
-    /// Kayitlar <c>TryAdd*</c> ile yapilir: tuketici kendi
-    /// <see cref="IVoiceSessionStore"/> uygulamasini bu cagridan once
-    /// kaydettiyse onunki korunur.
+    /// Registrations are made with <c>TryAdd*</c>: if the consumer registered
+    /// its own <see cref="IVoiceSessionStore"/> implementation before this
+    /// call, theirs is preserved.
     /// </para>
     /// <para>
-    /// 🚨 Cozum ve sentez saglayicilari <see cref="ServiceProviderServiceExtensions.GetService{T}(IServiceProvider)"/>
-    /// ile <em>istege bagli</em> cozulur. Kurucu enjeksiyonuyla nullable bir
-    /// bagimlilik istemek yetmez: yerlesik DI kabi, C# varsayilan degeri olsa
-    /// bile kayitli olmayan bir tipi zorunlu sayabilir
-    /// (<c>docs/hafiza/aspnetcore-di.md</c>). Bu yuzden fabrika kullanilir.
+    /// 🚨 The transcription and synthesis providers are resolved <em>optionally</em>
+    /// with <see cref="ServiceProviderServiceExtensions.GetService{T}(IServiceProvider)"/>.
+    /// Requesting a nullable dependency through constructor injection is not
+    /// enough: the built-in DI container can treat an unregistered type as
+    /// required even when a C# default value exists
+    /// (<c>docs/hafiza/aspnetcore-di.md</c>). This is why a factory is used.
     /// </para>
     /// </remarks>
     public static IAgentPrismBuilder UseVoiceConversation(
@@ -98,11 +100,11 @@ public static class VoiceConversationBuilderExtensions
     }
 
     /// <summary>
-    /// <c>AgentPrism:Voice:Conversation</c> bolumunu elle baglar.
+    /// Manually binds the <c>AgentPrism:Voice:Conversation</c> section.
     /// </summary>
     /// <remarks>
-    /// Elle baglama AOT gereksinimidir: <c>Bind()</c> yansima kullanir ve
-    /// kirpilmis uygulamalarda ayarlar sessizce bos kalir
+    /// Manual binding is an AOT requirement: <c>Bind()</c> uses reflection,
+    /// and in trimmed applications the settings would silently stay empty
     /// (<c>docs/hafiza/build-ve-analyzer.md</c>).
     /// </remarks>
     private static void BindOptions(IConfiguration section, VoiceConversationOptions options)

@@ -7,29 +7,30 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// AgentPrism span'lerini dinler, calistirma basina toplar ve calistirma
-/// bittiginde ornekleme kararina gore <see cref="ITraceStore"/> icine yazar.
+/// Listens to AgentPrism spans, buffers them per run, and writes them to
+/// <see cref="ITraceStore"/> when the run completes, based on the sampling
+/// decision.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Neden calistirma omruyle sinirli?</strong> Span'ler zaman icinde
-/// dagilir ve bir trace'in bittigini anlamanin genel bir yolu yoktur; zaman
-/// asimina dayali bir tampon hem sizinti hem de gec yazma uretir. Burada
-/// tamponun sahibi <see cref="RunRecordingAgent"/>'tir: calistirmayi acar,
-/// kapatir ve her iki durumda da (basari veya hata) tamponu bosaltir.
-/// Sizinti bu yuzden yapisal olarak mumkun degildir.
+/// <strong>Why scoped to a run's lifetime?</strong> Spans are spread out over
+/// time and there is no general way to know a trace has ended; a
+/// timeout-based buffer produces both leaks and late writes. Here, the owner
+/// of the buffer is <see cref="RunRecordingAgent"/>: it opens the run, closes
+/// it, and drains the buffer in both cases (success or failure). A leak is
+/// therefore structurally impossible.
 /// </para>
 /// <para>
-/// <strong>Ornekleme neden sonda?</strong> Hatali calistirmalarin span'leri
-/// hata ayiklamanin en degerli girdisidir, ancak bir calistirmanin hata verip
-/// vermeyecegi baslangicta bilinmez. Karar sonda verilir; bunun bedeli
-/// span'lerin o ana kadar bellekte tutulmasidir ve
-/// <see cref="AgentPrismObservabilityOptions.MaxSpansPerRun"/> ile sinirlidir.
+/// <strong>Why sample at the end?</strong> The spans of failed runs are the
+/// most valuable input for debugging, but whether a run will fail is not
+/// known at the start. The decision is made at the end; the cost of this is
+/// that spans are held in memory until then, bounded by
+/// <see cref="AgentPrismObservabilityOptions.MaxSpansPerRun"/>.
 /// </para>
 /// <para>
-/// <strong>Akisi ele gecirmez.</strong> <see cref="ActivityListener"/> pasif bir
-/// dinleyicidir; tuketicinin OpenTelemetry SDK'si ayni span'leri kendi
-/// exporter'ina gondermeye devam eder.
+/// <strong>Does not take over the stream.</strong> <see cref="ActivityListener"/>
+/// is a passive listener; the consumer's own OpenTelemetry SDK keeps sending
+/// the same spans to its own exporter.
 /// </para>
 /// </remarks>
 public sealed class RunTraceCollector : IDisposable
@@ -40,11 +41,11 @@ public sealed class RunTraceCollector : IDisposable
     private readonly ConcurrentDictionary<string, RunSpanBuffer> _buffers = new(StringComparer.Ordinal);
     private readonly ActivityListener? _listener;
 
-    /// <summary>Yeni bir toplayici olusturur ve dinlemeye baslar.</summary>
-    /// <param name="store">Span deposu.</param>
-    /// <param name="options">AgentPrism ayarlari.</param>
-    /// <param name="logger">Gunlukleyici.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new collector and starts listening.</summary>
+    /// <param name="store">Span store.</param>
+    /// <param name="options">AgentPrism settings.</param>
+    /// <param name="logger">Logger.</param>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public RunTraceCollector(
         ITraceStore store,
         IOptions<AgentPrismOptions> options,
@@ -62,9 +63,9 @@ public sealed class RunTraceCollector : IDisposable
 
         if (!settings.Enabled || !settings.PersistSpans)
         {
-            // Dinleyici hic kurulmaz. Kurulmus bir dinleyici, tuketicinin
-            // OpenTelemetry SDK'si olmasa bile her Activity'nin olusturulmasina
-            // sebep olur; kapaliyken bu maliyeti odememeliyiz.
+            // The listener is never set up. A set-up listener would cause every
+            // Activity to be created even if the consumer has no OpenTelemetry
+            // SDK; we must not pay that cost while disabled.
             return;
         }
 
@@ -79,15 +80,16 @@ public sealed class RunTraceCollector : IDisposable
         ActivitySource.AddActivityListener(_listener);
     }
 
-    /// <summary>Toplayici span kalicilastiriyor mu.</summary>
+    /// <summary>Whether the collector is persisting spans.</summary>
     public bool IsCollecting => _listener is not null;
 
     /// <summary>
-    /// Bir calistirma icin span toplamayi baslatir.
+    /// Starts collecting spans for a run.
     /// </summary>
-    /// <param name="traceId">Calistirmanin kok span'inin W3C trace kimligi.</param>
+    /// <param name="traceId">The W3C trace id of the run's root span.</param>
     /// <returns>
-    /// Toplama kapaliysa veya bu trace zaten izleniyorsa <see langword="false"/>.
+    /// <see langword="false"/> when collection is disabled or this trace is
+    /// already being tracked.
     /// </returns>
     public bool BeginRun(string traceId)
     {
@@ -100,15 +102,15 @@ public sealed class RunTraceCollector : IDisposable
     }
 
     /// <summary>
-    /// Toplamayi bitirir ve ornekleme karari olumluysa span'leri yazar.
-    /// Her durumda tampon serbest birakilir.
+    /// Ends collection and writes the spans if the sampling decision is
+    /// positive. The buffer is released in every case.
     /// </summary>
-    /// <param name="traceId">Kok span'in W3C trace kimligi.</param>
-    /// <param name="runId">Calistirma kimligi.</param>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="status">Calistirmanin son durumu.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Span'ler yazildiysa <see langword="true"/>.</returns>
+    /// <param name="traceId">The W3C trace id of the root span.</param>
+    /// <param name="runId">Run identifier.</param>
+    /// <param name="tenantId">Tenant identifier.</param>
+    /// <param name="status">The run's final status.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns><see langword="true"/> when spans were written.</returns>
     public async ValueTask<bool> CompleteRunAsync(
         string traceId,
         Guid runId,
@@ -144,11 +146,11 @@ public sealed class RunTraceCollector : IDisposable
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // Gozlemlenebilirlik islevselligi bozmaz: calistirma zaten bitti,
-            // span yazilamamasi kullaniciya yansimaz.
+            // Observability does not break functionality: the run has already
+            // completed, a failure to write spans does not surface to the user.
             _logger.LogWarning(
                 ex,
-                "AgentPrism span'leri yazilamadi. Calistirma {RunId} etkilenmedi.",
+                "Could not write AgentPrism spans. Run {RunId} was not affected.",
                 runId);
 
             return false;
@@ -190,8 +192,9 @@ public sealed class RunTraceCollector : IDisposable
 
         if (!_buffers.TryGetValue(traceId, out var buffer))
         {
-            // Bu trace izlenmiyor: ya calistirma disinda uretilmis bir span'dir
-            // ya da calistirma zaten kapanmistir. Iki durumda da yok sayilir.
+            // This trace is not being tracked: either it is a span produced
+            // outside a run, or the run has already closed. Either way it is
+            // ignored.
             return;
         }
 
@@ -202,8 +205,8 @@ public sealed class RunTraceCollector : IDisposable
             if (buffer.ReportOverflowOnce())
             {
                 _logger.LogWarning(
-                    "Bir calistirmanin span sayisi {Limit} sinirini asti; fazlasi atiliyor. " +
-                    "Sinir AgentPrism:Observability:MaxSpansPerRun ile degistirilir.",
+                    "A run's span count exceeded the {Limit} limit; the excess is being dropped. " +
+                    "The limit is changed via AgentPrism:Observability:MaxSpansPerRun.",
                     limit);
             }
 
@@ -217,7 +220,7 @@ public sealed class RunTraceCollector : IDisposable
     {
         var parentSpanId = activity.ParentSpanId.ToString();
 
-        // Kok span'in ebeveyni tumu sifir olan span kimligidir.
+        // The root span's parent is a span id whose bytes are all zero.
         var hasParent = !string.IsNullOrEmpty(parentSpanId)
             && !parentSpanId.AsSpan().TrimStart('0').IsEmpty;
 
@@ -228,8 +231,9 @@ public sealed class RunTraceCollector : IDisposable
             SpanId = activity.SpanId.ToString(),
             Name = activity.DisplayName,
             Kind = ToKind(activity.Kind),
-            // MA0132: DateTime -> DateTimeOffset ortuk cevrimi yasak; Activity
-            // her zaman UTC tasir, ofset acikca sifir verilir.
+            // MA0132: implicit DateTime -> DateTimeOffset conversion is
+            // forbidden; Activity always carries UTC, the offset is given as
+            // zero explicitly.
             StartedAt = new DateTimeOffset(activity.StartTimeUtc, TimeSpan.Zero),
             EndedAt = new DateTimeOffset(activity.StartTimeUtc + activity.Duration, TimeSpan.Zero),
             Status = ToStatus(activity.Status),
@@ -248,9 +252,9 @@ public sealed class RunTraceCollector : IDisposable
                 continue;
             }
 
-            // Istem ve yanit icerikleri kisisel veri tasiyabilir. GenAI semantic
-            // convention bunlari `gen_ai.*.message` altinda tasir; varsayilan
-            // olarak span'e yazilmazlar.
+            // Prompt and response content may carry personal data. The GenAI
+            // semantic convention carries these under `gen_ai.*.message`; they
+            // are not written to the span by default.
             if (!includeSensitiveData && IsSensitive(tag.Key))
             {
                 continue;
@@ -289,14 +293,14 @@ public sealed class RunTraceCollector : IDisposable
     };
 
     /// <summary>
-    /// Tek bir calistirmanin span tamponu. Span'ler birden cok is parcacigindan
-    /// gelebilir (akis, tool cagrilari), bu yuzden erisim kilitlidir.
+    /// Span buffer for a single run. Spans can arrive from multiple threads
+    /// (streaming, tool calls), so access is locked.
     /// </summary>
     private sealed class RunSpanBuffer
     {
-        // Kilit listenin kendisi uzerinde: net8.0 da hedefleniyor ve
-        // System.Threading.Lock .NET 9 ile geldi. Ayri bir `object` alani
-        // MA0158'i tetiklerdi.
+        // Locking on the list itself: net8.0 is also targeted, and
+        // System.Threading.Lock arrived with .NET 9. A separate `object` field
+        // would trigger MA0158.
         private readonly List<TraceSpan> _spans = [];
         private int _reserved;
         private int _overflowReported;

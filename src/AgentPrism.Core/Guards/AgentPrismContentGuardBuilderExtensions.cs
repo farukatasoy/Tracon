@@ -4,40 +4,41 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace AgentPrism;
 
-/// <summary>Icerik denetimini acan zincir uzantilari — Faz 48.</summary>
+/// <summary>Chain extensions that turn on content inspection — Phase 48.</summary>
 /// <remarks>
-/// Uzanti metodudur, <see cref="IAgentPrismBuilder"/>'in bir uyesi degildir:
-/// arayuze uye eklemek yayindan sonra kiricidir, uzanti metodu eklemek degildir.
+/// This is an extension method, not a member of <see cref="IAgentPrismBuilder"/>:
+/// adding a member to the interface is a breaking change after release; adding
+/// an extension method is not.
 /// </remarks>
 public static class AgentPrismContentGuardBuilderExtensions
 {
     /// <summary>
-    /// AgentPrism'in yerlesik desen tabanli icerik guard'ini kaydeder.
+    /// Registers AgentPrism's built-in pattern-based content guard.
     /// </summary>
-    /// <param name="builder">Yapilandirma zinciri.</param>
-    /// <param name="configure">Desen ve yasak sozcuk ayarlari.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> <see langword="null"/> ise.</exception>
+    /// <param name="builder">The configuration chain.</param>
+    /// <param name="configure">Pattern and denied-term settings.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     /// <remarks>
     /// <para>
-    /// 🚨 <strong>Bu cagri K1'in kapisidir.</strong> <c>AddAgentPrism()</c> tek
-    /// basina hicbir guard kaydetmez ve denetim sarmalayicisi model boru hattina
-    /// <em>hic eklenmez</em>. Cagri yapilmadan hicbir istem suzulmez, hicbir yanit
-    /// denetlenmez ve hicbir maliyet odenmez.
+    /// 🚨 <strong>This call is K1's gate.</strong> <c>AddAgentPrism()</c> alone
+    /// registers no guard, and the inspection wrapper is <em>never added</em> to
+    /// the model pipeline. Without this call no prompt is inspected, no response
+    /// is inspected, and no cost is paid.
     /// </para>
     /// <para>
-    /// Yerlesik guard varsayilan olarak <strong>hicbir kural tasimaz</strong>:
-    /// <see cref="PatternContentGuardOptions.MaskedPii"/>
-    /// <see cref="PiiPatterns.None"/>'dir ve
-    /// <see cref="PatternContentGuardOptions.DeniedTerms"/> bostur. Hangi desen
-    /// ailesinin acilacagi acik bir tercihtir; hepsini birlikte acmak yanlis
-    /// pozitif riskini toplar.
+    /// The built-in guard carries <strong>no rules by default</strong>:
+    /// <see cref="PatternContentGuardOptions.MaskedPii"/> is
+    /// <see cref="PiiPatterns.None"/> and
+    /// <see cref="PatternContentGuardOptions.DeniedTerms"/> is empty. Which
+    /// pattern family to turn on is an explicit choice; turning them all on at
+    /// once compounds the false-positive risk.
     /// </para>
     /// <para>
-    /// Ayni ayarlar <c>AgentPrism:ContentGuard:Pattern</c> yapilandirma
-    /// bolumunden de okunur; bolum varsa guard <c>AddAgentPrism()</c> tarafindan
-    /// zaten kaydedilir ve bu cagri gereksizdir (kayit <c>TryAddEnumerable</c>
-    /// oldugu icin iki kez eklenmez).
+    /// The same settings are also read from the <c>AgentPrism:ContentGuard:Pattern</c>
+    /// configuration section; if that section is present the guard is already
+    /// registered by <c>AddAgentPrism()</c> and this call is redundant (the
+    /// registration uses <c>TryAddEnumerable</c>, so it is never added twice).
     /// </para>
     /// <example>
     /// <code>
@@ -45,7 +46,7 @@ public static class AgentPrismContentGuardBuilderExtensions
     ///        .AddPatternContentGuard(options =>
     ///        {
     ///            options.MaskedPii = PiiPatterns.CreditCard | PiiPatterns.Email;
-    ///            options.DeniedTerms.Add("gizli-proje");
+    ///            options.DeniedTerms.Add("secret-project");
     ///        });
     /// </code>
     /// </example>
@@ -60,9 +61,9 @@ public static class AgentPrismContentGuardBuilderExtensions
 
         if (configure is not null)
         {
-            // Yapilandirma baglamasindan SONRA calisir: kodda yazilan deger
-            // AgentPrism:ContentGuard:Pattern bolumunu gecersiz kilar. Diger
-            // ayarlarla ayni sira (K4 — cagiranin kaydi kazanir).
+            // Runs AFTER configuration binding: the value written in code
+            // overrides the AgentPrism:ContentGuard:Pattern section. Same order
+            // as other settings (K4 — the caller's registration wins).
             builder.Services.Configure(configure);
         }
 
@@ -70,15 +71,15 @@ public static class AgentPrismContentGuardBuilderExtensions
     }
 
     /// <summary>
-    /// Kendi <see cref="IContentGuard"/> uygulamanizi kaydeder.
+    /// Registers your own <see cref="IContentGuard"/> implementation.
     /// </summary>
-    /// <typeparam name="TGuard">Guard tipi.</typeparam>
-    /// <param name="builder">Yapilandirma zinciri.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> <see langword="null"/> ise.</exception>
+    /// <typeparam name="TGuard">The guard type.</typeparam>
+    /// <param name="builder">The configuration chain.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
     /// <remarks>
-    /// Birden cok guard kaydedilebilir; hepsi sirayla calisir ve
-    /// <strong>en sert karar kazanir</strong>.
+    /// Multiple guards can be registered; all of them run in sequence and
+    /// <strong>the strictest decision wins</strong>.
     /// </remarks>
     public static IAgentPrismBuilder AddContentGuard<
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TGuard>(

@@ -3,36 +3,37 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace AgentPrism;
 
-/// <summary>Skill script calistirmayi acan yapilandirma uzantilari.</summary>
+/// <summary>Configuration extensions that enable skill script execution.</summary>
 public static class AgentPrismSkillScriptBuilderExtensions
 {
     /// <summary>
-    /// Skill script calistirmayi acar.
+    /// Enables skill script execution.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// ⚠️ <strong>Bu cagri bir guvenlik sinirini degistirir.</strong> Acildiktan
-    /// sonra AgentPrism, izin verilmis skill'lerin script'lerini <em>kendi
-    /// makinesinde</em> calistirabilir.
+    /// ⚠️ <strong>This call changes a security boundary.</strong> Once
+    /// enabled, AgentPrism can run scripts from permitted skills <em>on its
+    /// own machine</em>.
     /// </para>
     /// <para>
-    /// AgentPrism isletim sistemi duzeyinde yalitim saglamaz: ag erisimini
-    /// kesmek, dosya sistemini kisitlamak, CPU/bellek kotasi uygulamak ve
-    /// ayricalik dusurmek barindirma ortaminin isidir. Bu yuzden
+    /// AgentPrism does not provide operating-system-level isolation: cutting
+    /// off network access, restricting the file system, applying CPU/memory
+    /// quotas, and dropping privileges are the hosting environment's job. For
+    /// this reason, the application <strong>fails at startup</strong> if
     /// <see cref="AgentPrismSkillScriptOptions.PlatformIsolationAcknowledged"/>
-    /// ayarlanmadan uygulama <strong>acilista hata verir</strong>.
+    /// is not set.
     /// </para>
     /// <para>
-    /// Ozellik acik olsa bile bir script'in calisabilmesi icin ayrica bir
-    /// <see cref="SkillScriptGrant"/> kaydi ve MAF'in onay akisindan gecmis bir
-    /// kullanici onayi gerekir.
+    /// Even with the feature enabled, a script also requires a
+    /// <see cref="SkillScriptGrant"/> record and a user approval that has gone
+    /// through MAF's approval flow before it can run.
     /// </para>
     /// <example>
     /// <code>
     /// builder.AddAgentPrism()
     ///        .UseSkillScripts(o =>
     ///        {
-    ///            o.PlatformIsolationAcknowledged = true;   // container icinde calisiyoruz
+    ///            o.PlatformIsolationAcknowledged = true;   // running inside a container
     ///            o.SkillRoots.Add("/opt/agentprism/skills");
     ///            o.Interpreters["py"] = "/usr/bin/python3";
     ///            o.Timeout = TimeSpan.FromSeconds(30);
@@ -40,10 +41,10 @@ public static class AgentPrismSkillScriptBuilderExtensions
     /// </code>
     /// </example>
     /// </remarks>
-    /// <param name="builder">Yapilandirma zinciri.</param>
-    /// <param name="configure">Script ayarlarini degistirir.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <param name="builder">The configuration chain.</param>
+    /// <param name="configure">Modifies the script settings.</param>
+    /// <returns>The continuation of the chain.</returns>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public static IAgentPrismBuilder UseSkillScripts(
         this IAgentPrismBuilder builder,
         Action<AgentPrismSkillScriptOptions> configure)
@@ -57,8 +58,9 @@ public static class AgentPrismSkillScriptBuilderExtensions
             configure(options.Skills.Scripts);
         });
 
-        // Acik fabrika sart: yerlesik DI kabi varsayilan deger tasiyan kurucu
-        // parametrelerini doldurmaz ve TimeProvider kayitli olmayabilir.
+        // An explicit factory is required: the built-in DI container does not
+        // fill in constructor parameters that carry a default value, and
+        // TimeProvider may not be registered.
         builder.Services.TryAddSingleton(static provider => new SandboxedSkillScriptRunner(
             provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<AgentPrismOptions>>(),
             provider.GetRequiredService<ITenantContext>(),

@@ -1,52 +1,56 @@
 namespace AgentPrism;
 
-/// <summary>Icerik denetimi boru hattinin ayarlari — Faz 48.</summary>
+/// <summary>Settings for the content inspection pipeline — Phase 48.</summary>
 /// <remarks>
 /// <para>
-/// <c>AgentPrism:ContentGuard</c> yapilandirma bolumunden okunur.
+/// Read from the <c>AgentPrism:ContentGuard</c> configuration section.
 /// </para>
 /// <para>
-/// 🚨 Bu siniftaki hicbir ayarin <strong>hic guard kayitli degilken etkisi yoktur</strong>:
-/// denetim sarmalayicisi boru hattina eklenmez ve bu nesne hic okunmaz. K1 (sifir
-/// surpriz) kapisi bir bayrak degil, <em>kaydin kendisidir</em> — yerlesik guard
-/// <c>AddPatternContentGuard()</c> ile veya <c>AgentPrism:ContentGuard:Pattern</c>
-/// bolumu doldurularak acik bir tercihle eklenir.
+/// 🚨 None of the settings in this class <strong>have any effect while no guard
+/// is registered</strong>: the inspection wrapper is not added to the pipeline and
+/// this object is never read. The K1 (no surprises) gate is not a flag, it
+/// <em>is</em> the registration itself — the built-in guard is added by an
+/// explicit choice, either via <c>AddPatternContentGuard()</c> or by populating
+/// the <c>AgentPrism:ContentGuard:Pattern</c> section.
 /// </para>
 /// </remarks>
 public sealed class AgentPrismContentGuardOptions
 {
-    /// <summary>Yapilandirma bolumu adi.</summary>
+    /// <summary>The configuration section name.</summary>
     public const string SectionName = "AgentPrism:ContentGuard";
 
     /// <summary>
-    /// Modele giden icerigi denetle. Varsayilan <see langword="true"/>.
+    /// Inspects content sent to the model. Default <see langword="true"/>.
     /// </summary>
     /// <remarks>
-    /// Tool sonuclari da bu yondedir: bir tool sonucu modele <em>ikinci</em> cagride
-    /// girer ve denetim <c>IChatClient</c> katmaninda oldugu icin gorulur.
+    /// Tool results are covered too: a tool result enters the model on the
+    /// <em>second</em> call and is seen because inspection sits at the
+    /// <c>IChatClient</c> layer.
     /// </remarks>
     public bool InspectInput { get; set; } = true;
 
     /// <summary>
-    /// Modelden gelen icerigi denetle. Varsayilan <see langword="true"/>.
+    /// Inspects content coming from the model. Default <see langword="true"/>.
     /// </summary>
     public bool InspectOutput { get; set; } = true;
 
     /// <summary>
-    /// 🚨 Cikis denetimi acikken akisli yanit <strong>tamponlanir</strong>.
-    /// Varsayilan <see langword="true"/>.
+    /// 🚨 While output inspection is on, the streaming response is
+    /// <strong>buffered</strong>. Default <see langword="true"/>.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Bir cerceve istemciye gonderildikten sonra geri alinamaz. Kismi bir metin
-    /// uzerinde desen eslesmez: <c>4539-</c> gorulur ve kart numarasi tamamlanmadan
-    /// gecer. Tamponlama akisin canliligini kaybettirir ama denetimi dogru yapar.
+    /// A frame cannot be recalled once it has been sent to the client. A pattern
+    /// does not match on a partial piece of text: <c>4539-</c> is seen and passes
+    /// through before the card number is complete. Buffering costs the
+    /// liveliness of the stream but inspects correctly.
     /// </para>
     /// <para>
-    /// Bu ayari <see langword="false"/> yapmak cikis denetimini <em>yarim</em>
-    /// birakir: guard yalnizca her cerceveyi tek basina gorur. Sessizce yarim
-    /// denetim yapmak, denetim yapmamaktan kotudur — kullanici korundugunu sanir.
-    /// Bu yuzden secim acik bir ayardir, gizli bir davranis degildir.
+    /// Setting this to <see langword="false"/> leaves output inspection
+    /// <em>half done</em>: the guard only ever sees each frame on its own.
+    /// Silently doing half an inspection is worse than doing none — the user
+    /// believes they are protected. That is why the choice is an explicit
+    /// setting, not a hidden behavior.
     /// </para>
     /// </remarks>
     public bool BufferStreamingOutput { get; set; } = true;

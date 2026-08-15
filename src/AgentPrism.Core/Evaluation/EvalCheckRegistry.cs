@@ -4,33 +4,34 @@ using Microsoft.Agents.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="EvalSuite.Checks"/> icindeki bildirimsel denetim tanimlarini
-/// <see cref="EvalCheck"/> temsillerine cevirir.
+/// Converts the declarative check definitions in <see cref="EvalSuite.Checks"/>
+/// into <see cref="EvalCheck"/> instances.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Yerlesik alti denetim turu dogrudan <c>Microsoft.Agents.AI.EvalChecks</c>
-/// fabrikalarina eslenir: <c>nonEmpty</c>, <c>containsExpected</c>,
-/// <c>keywords</c>, <c>toolCalled</c>, <c>toolCallsPresent</c>,
-/// <c>hasImageContent</c>. Bunlarin disindaki bir tur adi
-/// <c>IAgentPrismBuilder.AddEvalCheck(...)</c> ile kaydedilmis ozel bir
-/// denetimde aranir; orada da yoksa <see cref="AgentPrismException"/> firlatilir
-/// (K2 — denetimler bildirimseldir, sessizce yok sayilmaz).
+/// The six built-in check kinds map directly to
+/// <c>Microsoft.Agents.AI.EvalChecks</c> factories: <c>nonEmpty</c>,
+/// <c>containsExpected</c>, <c>keywords</c>, <c>toolCalled</c>,
+/// <c>toolCallsPresent</c>, <c>hasImageContent</c>. Any other kind name is
+/// looked up among the custom checks registered with
+/// <c>IAgentPrismBuilder.AddEvalCheck(...)</c>; if not found there either, an
+/// <see cref="AgentPrismException"/> is thrown (K2 - checks are declarative,
+/// never silently ignored).
 /// </para>
 /// <para>
-/// <c>toolCallArgsMatch</c> kasitli olarak desteklenmez: <see cref="EvalCase"/>
-/// yalnizca beklenen tool <em>adlarini</em> tasir, tam arguman eslesmesi icin
-/// gereken beklenen argumanlari tasimaz.
+/// <c>toolCallArgsMatch</c> is intentionally not supported: <see cref="EvalCase"/>
+/// only carries the expected tool <em>names</em>, not the expected arguments
+/// needed for a full argument match.
 /// </para>
 /// </remarks>
 public sealed class EvalCheckRegistry
 {
     private readonly Dictionary<string, EvalCheck> _custom;
 
-    /// <summary>Kayitlardan yeni bir defter olusturur.</summary>
-    /// <param name="registrations">Ozel denetim kayitlari.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="registrations"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="AgentPrismException">Ayni tur adi birden cok kez kaydedilmisse.</exception>
+    /// <summary>Creates a new registry from a set of registrations.</summary>
+    /// <param name="registrations">Custom check registrations.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="registrations"/> is <see langword="null"/>.</exception>
+    /// <exception cref="AgentPrismException">The same kind name is registered more than once.</exception>
     public EvalCheckRegistry(IEnumerable<AgentPrismEvalCheckRegistration> registrations)
     {
         ArgumentNullException.ThrowIfNull(registrations);
@@ -42,20 +43,20 @@ public sealed class EvalCheckRegistry
             if (!_custom.TryAdd(registration.Kind, registration.Check))
             {
                 throw new AgentPrismException(
-                    $"'{registration.Kind}' adinda birden cok ozel eval denetimi kaydedilmis. " +
-                    "Denetim tur adlari benzersiz olmalidir.");
+                    $"Multiple custom eval checks named '{registration.Kind}' have been registered. " +
+                    "Check kind names must be unique.");
             }
         }
     }
 
     /// <summary>
-    /// Bir takimin <see cref="EvalSuite.Checks"/> alanini <see cref="EvalCheck"/>
-    /// dizisine cevirir.
+    /// Converts a suite's <see cref="EvalSuite.Checks"/> field into an array of
+    /// <see cref="EvalCheck"/> instances.
     /// </summary>
-    /// <param name="checks">Denetim tanimlarini tasiyan JSON dizisi.</param>
-    /// <returns>Sirali denetim listesi. Yuk tanimsizsa veya bossa bos liste doner.</returns>
+    /// <param name="checks">JSON array carrying the check definitions.</param>
+    /// <returns>The ordered list of checks. Returns an empty list when the payload is undefined or empty.</returns>
     /// <exception cref="AgentPrismException">
-    /// Bir tanim <c>kind</c> alani tasimiyorsa veya bilinmeyen bir tur adina isaret ediyorsa.
+    /// A definition does not carry a <c>kind</c> field, or points to an unknown kind name.
     /// </exception>
     public IReadOnlyList<EvalCheck> BuildChecks(JsonElement checks)
     {
@@ -66,7 +67,7 @@ public sealed class EvalCheckRegistry
 
         if (checks.ValueKind != JsonValueKind.Array)
         {
-            throw new AgentPrismException("'checks' alani bir JSON dizisi olmalidir.");
+            throw new AgentPrismException("The 'checks' field must be a JSON array.");
         }
 
         var result = new List<EvalCheck>();
@@ -83,7 +84,7 @@ public sealed class EvalCheckRegistry
     {
         if (!spec.TryGetProperty("kind", out var kindElement) || kindElement.ValueKind != JsonValueKind.String)
         {
-            throw new AgentPrismException("Her denetim tanimi bir 'kind' (metin) alani tasimalidir.");
+            throw new AgentPrismException("Every check definition must carry a 'kind' (string) field.");
         }
 
         var kind = kindElement.GetString()!;
@@ -109,7 +110,7 @@ public sealed class EvalCheckRegistry
                     "any" => ToolCalledMode.Any,
                     "all" => ToolCalledMode.All,
                     var other => throw new AgentPrismException(
-                        $"'{other}' gecerli bir 'toolCalled' modu degil. Gecerli degerler: 'all', 'any'."),
+                        $"'{other}' is not a valid 'toolCalled' mode. Valid values: 'all', 'any'."),
                 };
                 return EvalChecks.ToolCalledCheck(mode, tools);
 
@@ -126,8 +127,8 @@ public sealed class EvalCheckRegistry
                 }
 
                 throw new AgentPrismException(
-                    $"Bilinmeyen denetim turu: '{kind}'. Ozel bir denetimse " +
-                    "'IAgentPrismBuilder.AddEvalCheck(\"{kind}\", ...)' ile kaydedilmelidir.");
+                    $"Unknown check kind: '{kind}'. If this is a custom check, it must be registered " +
+                    "with 'IAgentPrismBuilder.AddEvalCheck(\"{kind}\", ...)'.");
         }
     }
 
@@ -150,7 +151,7 @@ public sealed class EvalCheckRegistry
     {
         if (!spec.TryGetProperty(property, out var value) || value.ValueKind != JsonValueKind.Array)
         {
-            throw new AgentPrismException($"Denetim tanimi bir '{property}' dizisi tasimalidir.");
+            throw new AgentPrismException($"Check definition must carry a '{property}' array.");
         }
 
         return [.. value.EnumerateArray().Select(static element => element.GetString()!)];

@@ -3,25 +3,27 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir calistirma icindeki <c>ToolInvoking</c> / <c>ToolInvoked</c> olay
-/// ciftlerini eslestirir ve <see cref="ToolInvocationRecord"/> uretir.
+/// Matches <c>ToolInvoking</c> / <c>ToolInvoked</c> event pairs within a run
+/// and produces a <see cref="ToolInvocationRecord"/>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Microsoft Agent Framework tool cagrisi icin ayri bir kanca sunmaz; cagri ve
-/// sonuc <see cref="FunctionCallContent"/> ve <see cref="FunctionResultContent"/>
-/// icerikleri olarak gelir. Ikisini birlestiren tek anahtar
-/// <c>CallId</c> degeridir (ikisinin de tabani <see cref="ToolCallContent"/>).
+/// Microsoft Agent Framework does not offer a separate hook for tool calls;
+/// the call and its result arrive as <see cref="FunctionCallContent"/> and
+/// <see cref="FunctionResultContent"/> content. The single key that joins the
+/// two is the <c>CallId</c> value (both share <see cref="ToolCallContent"/> as
+/// their base).
 /// </para>
 /// <para>
-/// <strong>Sure yalnizca akisli calistirmada olculur.</strong> Akissiz
-/// calistirmada butun mesajlar tek seferde, cagri bittikten sonra gorulur;
-/// iki icerik arasindaki gercek sure oradan okunamaz. Sifira yakin bir sure
-/// yazmak yanlis veri uretirdi, bu yuzden alan bos birakilir.
+/// <strong>Duration is measured only in a streaming run.</strong> In a
+/// non-streaming run, all messages are seen at once, after the call has
+/// finished; the actual duration between the two content pieces cannot be
+/// read from there. Writing a near-zero duration would produce incorrect
+/// data, so the field is left empty.
 /// </para>
 /// <para>
-/// Bu sinif <strong>is parcacigi guvenli degildir</strong>; her calistirmanin
-/// kendi ornegi vardir ve tek bir okuma dongusunden kullanilir.
+/// This class is <strong>not thread-safe</strong>; each run has its own
+/// instance and it is used from a single read loop.
 /// </para>
 /// </remarks>
 internal sealed class ToolInvocationTracker
@@ -33,17 +35,18 @@ internal sealed class ToolInvocationTracker
     private readonly ToolUsageAccumulator? _usage;
     private readonly string? _tenantId;
 
-    /// <summary>Yeni bir izleyici olusturur.</summary>
-    /// <param name="runId">Calistirma kimligi.</param>
-    /// <param name="measureDuration">Sure olculsun mu. Yalnizca akisli calistirmada anlamlidir.</param>
-    /// <param name="timeProvider">Zaman kaynagi.</param>
+    /// <summary>Creates a new tracker.</summary>
+    /// <param name="runId">The run identity.</param>
+    /// <param name="measureDuration">Whether to measure duration. Only meaningful in a streaming run.</param>
+    /// <param name="timeProvider">The time source.</param>
     /// <param name="usage">
-    /// Tool'larin bildirdigi token disi olcumler. <see langword="null"/> ise
-    /// olcum toplanmaz.
+    /// The non-token metrics reported by tools. If <see langword="null"/>,
+    /// no metrics are collected.
     /// </param>
     /// <param name="tenantId">
-    /// Calistirmanin BEKLENEN kiracisi. Uretilen her kayda damgalanir;
-    /// <see langword="null"/> ise depo kiraci denetimi yapmaz. Gerekce: K-355.
+    /// The EXPECTED tenant of the run. Stamped onto every produced record;
+    /// if <see langword="null"/>, the store performs no tenant check.
+    /// Rationale: K-355.
     /// </param>
     public ToolInvocationTracker(
         Guid runId,
@@ -61,16 +64,16 @@ internal sealed class ToolInvocationTracker
         _tenantId = tenantId;
     }
 
-    /// <summary>Bir tool cagrisinin basladigini kaydeder.</summary>
-    /// <param name="call">Cagri icerigi.</param>
-    /// <param name="source">Tool'un kaynagi; kodda tanimliysa <see langword="null"/>.</param>
-    /// <param name="arguments">Bicimlendirilmis argumanlar.</param>
+    /// <summary>Records that a tool call started.</summary>
+    /// <param name="call">The call content.</param>
+    /// <param name="source">The tool's source; <see langword="null"/> if defined in code.</param>
+    /// <param name="arguments">The formatted arguments.</param>
     public void OnCall(FunctionCallContent call, string? source, string? arguments)
     {
         ArgumentNullException.ThrowIfNull(call);
 
-        // Ayni CallId ikinci kez gelirse (yeniden deneme) ilk kaydin uzerine
-        // yazilir: sonuc her zaman son cagriyla eslesir.
+        // If the same CallId arrives a second time (retry), it overwrites
+        // the first record: the result always matches the latest call.
         _pending[call.CallId] = new PendingCall(
             call.Name,
             source,
@@ -79,12 +82,12 @@ internal sealed class ToolInvocationTracker
     }
 
     /// <summary>
-    /// Bir tool cagrisinin sonuclandigini kaydeder ve kalici kaydi uretir.
+    /// Records that a tool call finished and produces the persistent record.
     /// </summary>
-    /// <param name="result">Sonuc icerigi.</param>
+    /// <param name="result">The result content.</param>
     /// <returns>
-    /// Kalici kayit. Eslesen bir cagri bulunamazsa yine bir kayit uretilir;
-    /// tool adi bilinmiyorsa <c>unknown</c> yazilir.
+    /// The persistent record. A record is produced even if no matching call
+    /// is found; in that case the tool name is written as <c>unknown</c>.
     /// </returns>
     public ToolInvocationRecord OnResult(FunctionResultContent result)
     {
@@ -120,25 +123,27 @@ internal sealed class ToolInvocationTracker
             Error = result.Exception?.Message,
             CreatedAt = _timeProvider.GetUtcNow(),
 
-            // Tool kendi olcumunu cagri kimligiyle bildirmis olabilir. Cagrilarin
-            // buyuk cogunlugu olcum tasimaz ve alan bos kalir.
+            // The tool may have reported its own metric under the call
+            // identity. The vast majority of calls carry no metric and the
+            // field stays empty.
             Usage = _usage?.Take(result.CallId),
 
-            // Beklenen kiraci damgasi (K-355).
+            // Expected tenant stamp (K-355).
             TenantId = _tenantId,
         };
     }
 
     /// <summary>
-    /// Sonuclanmamis cagrilar icin kayit uretir ve izleyiciyi bosaltir.
+    /// Produces records for unfinished calls and drains the tracker.
     /// </summary>
     /// <remarks>
-    /// Calistirma tool sonucu gelmeden biterse (iptal, hata, onay bekleme)
-    /// cagri kaydi hic yazilmazdi. Bu, arayuzde "cagri basladi ama ne oldugu
-    /// belli degil" durumu uretir; onun yerine acik bir hata mesajiyla kapatilir.
+    /// If the run ends before a tool result arrives (cancellation, error,
+    /// awaiting approval), the call record would never be written. This
+    /// produces the UI state "the call started but its outcome is unknown";
+    /// instead, it is closed with an explicit error message.
     /// </remarks>
-    /// <param name="reason">Kaydin neden yarim kaldigi.</param>
-    /// <returns>Yarim kalan cagrilarin kayitlari.</returns>
+    /// <param name="reason">Why the record was left unfinished.</param>
+    /// <returns>The records for the unfinished calls.</returns>
     public IReadOnlyList<ToolInvocationRecord> DrainUnfinished(string reason)
     {
         if (_pending.Count == 0)
@@ -161,7 +166,7 @@ internal sealed class ToolInvocationTracker
                 Error = reason,
                 CreatedAt = now,
 
-                // Beklenen kiraci damgasi (K-355).
+                // Expected tenant stamp (K-355).
                 TenantId = _tenantId,
             })
             .ToList();

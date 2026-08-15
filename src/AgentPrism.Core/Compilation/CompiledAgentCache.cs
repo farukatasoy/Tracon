@@ -4,59 +4,61 @@ using Microsoft.Agents.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Derlenmis agent'lari <c>(kiraci, ad, surum, skill parmak izi)</c> anahtariyla onbellege alir.
+/// Caches compiled agents keyed by <c>(tenant, name, version, skill fingerprint)</c>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Tanim guncellenince surum artar ve onbellek <em>dogal olarak</em> gecersizlesir.
-/// Bu yuzden acik bir gecersiz kilma mantigi yoktur; eski surumun girdisi
-/// <see cref="Evict"/> ile temizlenir.
+/// When a definition is updated, its version increases and the cache
+/// <em>naturally</em> becomes stale. There is therefore no explicit
+/// invalidation logic; the old version's entry is cleared with <see cref="Evict"/>.
 /// </para>
 /// <para>
-/// 🚨 Anahtarin <c>kiraci</c> bileseni ZORUNLUDUR. Agent adlari yalniz kiraci
-/// icinde benzersizdir (bkz. <c>SqlAgentDefinitionStore</c>) — iki farkli
-/// kiracinin ayni adda (orn. <c>"support"</c>), ayni surumda (ilk kayit her
-/// zaman <c>1</c>) ve ayni bagimlilik parmak izinde (skill/cagrilabilir agent
-/// kullanmiyorlarsa ikisi de bos dize) bir tanimi olmasi sik rastlanan bir
-/// durumdur. Kiraci anahtara dahil edilmezse ikinci kiracinin cozumlemesi
-/// BIRINCI kiracinin derlenmis agent'ini (talimatlari, tool baglamalari —
-/// orn. <c>search_knowledge</c>'in bindirdigi kiraci kimligi dahil) dondurur:
-/// kiraci yalitiminin tam anlamiyla kirilmasi.
+/// 🚨 The <c>tenant</c> component of the key is REQUIRED. Agent names are unique
+/// only within a tenant (see <c>SqlAgentDefinitionStore</c>) - it is common for
+/// two different tenants to have a definition with the same name (e.g.
+/// <c>"support"</c>), the same version (the first record is always <c>1</c>),
+/// and the same dependency fingerprint (an empty string for both if they use
+/// no skills/callable agents). If the tenant is not included in the key,
+/// resolution for the second tenant returns the FIRST tenant's compiled agent
+/// (instructions, tool bindings - including the tenant identity bound into
+/// e.g. <c>search_knowledge</c>): tenant isolation broken outright.
 /// </para>
 /// </remarks>
 public sealed class CompiledAgentCache
 {
     private readonly ConcurrentDictionary<CacheKey, AIAgent> _entries = new();
 
-    /// <summary>Onbellekteki girdi sayisi.</summary>
+    /// <summary>Number of entries in the cache.</summary>
     public int Count => _entries.Count;
 
     /// <summary>
-    /// Agent'i onbellekten getirir; yoksa <paramref name="factory"/> ile uretip ekler.
+    /// Retrieves the agent from the cache; if absent, produces it with
+    /// <paramref name="factory"/> and adds it.
     /// </summary>
-    /// <param name="tenantId">Cozumlemeyi isteyen kiracinin kimligi.</param>
-    /// <param name="name">Agent adi.</param>
-    /// <param name="version">Tanim surumu.</param>
-    /// <param name="factory">Onbellekte yoksa cagrilan uretici.</param>
-    /// <returns>Derlenmis agent.</returns>
-    /// <exception cref="ArgumentNullException">Parametrelerden biri <see langword="null"/> ise.</exception>
+    /// <param name="tenantId">Identifier of the tenant requesting resolution.</param>
+    /// <param name="name">Agent name.</param>
+    /// <param name="version">Definition version.</param>
+    /// <param name="factory">Producer called when absent from the cache.</param>
+    /// <returns>The compiled agent.</returns>
+    /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
     public AIAgent GetOrAdd(string tenantId, string name, int version, Func<AIAgent> factory)
         => GetOrAdd(tenantId, name, version, string.Empty, factory);
 
     /// <summary>
-    /// Agent'i bagimlilik parmak iziyle birlikte onbellekten getirir; yoksa
-    /// <paramref name="factory"/> ile uretip ekler.
+    /// Retrieves the agent from the cache together with its dependency
+    /// fingerprint; if absent, produces it with <paramref name="factory"/>
+    /// and adds it.
     /// </summary>
-    /// <param name="tenantId">Cozumlemeyi isteyen kiracinin kimligi.</param>
-    /// <param name="name">Agent adi.</param>
-    /// <param name="version">Tanim surumu.</param>
+    /// <param name="tenantId">Identifier of the tenant requesting resolution.</param>
+    /// <param name="name">Agent name.</param>
+    /// <param name="version">Definition version.</param>
     /// <param name="dependencyFingerprint">
-    /// Tanimin <em>disindaki</em> bagimliliklarin guncel parmak izi: skill'ler ve
-    /// cagrilabilir alt agent'lar. Bunlar tanimin kendi surumunu artirmadan
-    /// degisebildigi icin ayri bir anahtar bileseni gerekir.
+    /// Current fingerprint of the definition's <em>external</em> dependencies:
+    /// skills and callable sub-agents. These can change without incrementing
+    /// the definition's own version, so they need a separate key component.
     /// </param>
-    /// <param name="factory">Onbellekte yoksa cagrilan uretici.</param>
-    /// <returns>Derlenmis agent.</returns>
+    /// <param name="factory">Producer called when absent from the cache.</param>
+    /// <returns>The compiled agent.</returns>
     public AIAgent GetOrAdd(string tenantId, string name, int version, string dependencyFingerprint, Func<AIAgent> factory)
     {
         ArgumentNullException.ThrowIfNull(tenantId);
@@ -64,19 +66,19 @@ public sealed class CompiledAgentCache
         ArgumentNullException.ThrowIfNull(dependencyFingerprint);
         ArgumentNullException.ThrowIfNull(factory);
 
-        // GetOrAdd(key, valueFactory) ayni anahtar icin fabrikayi birden cok kez
-        // calistirabilir. Agent uretimi yan etkisizdir, bu yuzden sorun degil;
-        // fazla uretilen ornek atilir.
+        // GetOrAdd(key, valueFactory) can run the factory more than once for the
+        // same key. Agent production is side-effect free, so this is not a
+        // problem; any extra-produced instance is discarded.
         return _entries.GetOrAdd(new CacheKey(tenantId, name, version, dependencyFingerprint), _ => factory());
     }
 
-    /// <summary>Birden cok bagimlilik parmak izini tek bir anahtar bileseninde birlestirir.</summary>
-    /// <param name="first">Ilk parmak izi.</param>
-    /// <param name="second">Ikinci parmak izi.</param>
-    /// <returns>Birlesik parmak izi.</returns>
+    /// <summary>Combines multiple dependency fingerprints into a single key component.</summary>
+    /// <param name="first">First fingerprint.</param>
+    /// <param name="second">Second fingerprint.</param>
+    /// <returns>The combined fingerprint.</returns>
     /// <remarks>
-    /// Ayrac zorunludur: parmak izleri sabit uzunlukta olmayabilir ve dogrudan
-    /// birlestirme iki farkli ciftin ayni dizeyi uretmesine izin verirdi.
+    /// A separator is required: fingerprints may not have a fixed length, and a
+    /// direct concatenation would let two different pairs produce the same string.
     /// </remarks>
     public static string CombineFingerprints(string first, string second)
     {
@@ -86,8 +88,8 @@ public sealed class CompiledAgentCache
         return second.Length == 0 ? first : string.Concat(first, "|", second);
     }
 
-    /// <summary>Bir agent'in tum surumlerini onbellekten cikarir.</summary>
-    /// <param name="name">Agent adi.</param>
+    /// <summary>Removes all versions of an agent from the cache.</summary>
+    /// <param name="name">Agent name.</param>
     public void Evict(string name)
     {
         ArgumentNullException.ThrowIfNull(name);
@@ -101,7 +103,7 @@ public sealed class CompiledAgentCache
         }
     }
 
-    /// <summary>Onbellegi tamamen bosaltir.</summary>
+    /// <summary>Empties the cache entirely.</summary>
     public void Clear() => _entries.Clear();
 
     private readonly record struct CacheKey(string TenantId, string Name, int Version, string DependencyFingerprint);

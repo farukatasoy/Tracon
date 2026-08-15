@@ -3,34 +3,37 @@ using Microsoft.Agents.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir <see cref="AgentSession"/> nesnesine AgentPrism oturum kimligini damgalar
-/// ve geri okur.
+/// Stamps an <see cref="AgentSession"/> with, and reads back, its AgentPrism
+/// session identity.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Kimlik, oturumun <see cref="AgentSession.StateBag"/> alaninda saklanir. Bu alan
-/// <c>SerializeSessionAsync</c> ciktisina dahildir; boylece kimlik oturumla birlikte
-/// kalicilasir ve geri yuklenen bir oturum kendi kimligini bilir.
+/// The identity is stored in the session's <see cref="AgentSession.StateBag"/>
+/// field. This field is included in the <c>SerializeSessionAsync</c> output,
+/// so the identity persists together with the session, and a restored session
+/// knows its own identity.
 /// </para>
 /// <para>
-/// Durumun oturumda saklanmasinin sebebi Microsoft Agent Framework'un acik uyarisidir:
-/// saglayici ve sarmalayici nesneleri tum oturumlar arasinda paylasilir, bu yuzden
-/// oturuma ozgu hicbir bilgi alan olarak tutulamaz.
+/// The reason the state is stored on the session is Microsoft Agent
+/// Framework's explicit warning: the provider and wrapper objects are shared
+/// across all sessions, so no session-specific information can be kept as a
+/// field.
 /// </para>
 /// </remarks>
 public static class AgentSessionIdentity
 {
     /// <summary>
-    /// Oturum kimliginin saklandigi durum anahtari. Bu deger <strong>kararlidir</strong>;
-    /// degistirmek onceden kaydedilmis oturumlari okunamaz hale getirir.
+    /// The state key under which the session identity is stored. This value
+    /// is <strong>stable</strong>; changing it makes previously saved sessions
+    /// unreadable.
     /// </summary>
     public const string StateKey = "AgentPrism.SessionId";
 
-    /// <summary>Oturuma AgentPrism kimligini yazar.</summary>
-    /// <param name="session">Damgalanacak oturum.</param>
-    /// <param name="sessionId">Oturum kimligi.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="session"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="ArgumentException"><paramref name="sessionId"/> bos ise.</exception>
+    /// <summary>Writes the AgentPrism identity to the session.</summary>
+    /// <param name="session">The session to stamp.</param>
+    /// <param name="sessionId">The session identity.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="session"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="sessionId"/> is empty.</exception>
     public static void SetId(AgentSession session, string sessionId)
     {
         ArgumentNullException.ThrowIfNull(session);
@@ -39,10 +42,10 @@ public static class AgentSessionIdentity
         session.StateBag.SetValue(StateKey, sessionId, AgentPrismCoreJsonContext.Default.Options);
     }
 
-    /// <summary>Oturumun AgentPrism kimligini okur.</summary>
-    /// <param name="session">Okunacak oturum.</param>
-    /// <returns>Kimlik; damgalanmamissa <see langword="null"/>.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="session"/> <see langword="null"/> ise.</exception>
+    /// <summary>Reads the session's AgentPrism identity.</summary>
+    /// <param name="session">The session to read.</param>
+    /// <returns>The identity; <see langword="null"/> if not stamped.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="session"/> is <see langword="null"/>.</exception>
     public static string? GetId(AgentSession session)
     {
         ArgumentNullException.ThrowIfNull(session);

@@ -4,27 +4,29 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Kayitli model saglayicilarinin saglik denetimi sonuclarini onbellekler.
+/// Caches the health-check results of the registered model providers.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <c>/api/models/health</c> ucu her acilista saglayiciya gitmez; sonuc
-/// <see cref="AgentPrismHealthOptions.CacheTtl"/> suresince onbellekten dondurulur.
-/// <c>refresh: true</c> onbellegi atlar ve saglayiciya yeniden gider.
+/// The <c>/api/models/health</c> endpoint does not go to the provider on every
+/// call; the result is returned from the cache for
+/// <see cref="AgentPrismHealthOptions.CacheTtl"/>. <c>refresh: true</c> bypasses
+/// the cache and goes to the provider again.
 /// </para>
 /// <para>
-/// Bu sinif <see cref="IModelProviderRegistry"/>'ye bagli DEGILDIR — dogrudan
-/// <see cref="IModelProvider"/> singleton'larini <c>IEnumerable&lt;IModelProvider&gt;</c>
-/// uzerinden okur. Boylece <see cref="IModelProvider"/> arayuzune uye eklemeden
-/// (K4) her saglayicinin <see cref="IModelProviderHealthCheck"/> uygulayip
-/// uygulamadigini denetleyebilir; uygulamayan saglayicilarin durumu
-/// <see cref="ModelProviderHealthStatus.Unknown"/>'dir.
+/// This class is NOT tied to <see cref="IModelProviderRegistry"/> — it reads
+/// <see cref="IModelProvider"/> singletons directly through
+/// <c>IEnumerable&lt;IModelProvider&gt;</c>. This lets it check whether each
+/// provider implements <see cref="IModelProviderHealthCheck"/> without adding a
+/// member to the <see cref="IModelProvider"/> interface (K4); a provider that
+/// does not implement it has a status of <see cref="ModelProviderHealthStatus.Unknown"/>.
 /// </para>
 /// <para>
-/// Devre kesici acik olan bir saglayici, onbellekteki ham denetim sonucu ne olursa
-/// olsun <see cref="ModelProviderHealthStatus.Unhealthy"/> olarak raporlanir — gercek
-/// sohbet cagrilari basarisiz oluyorsa bu, ham baglanti yoklamasindan daha guvenilir
-/// bir sinyaldir. Bu katman her cagrida TAZE okunur, onbellege yazilmaz.
+/// A provider whose circuit breaker is open is reported as
+/// <see cref="ModelProviderHealthStatus.Unhealthy"/> regardless of the raw
+/// cached check result — if real chat calls are failing, that is a more
+/// reliable signal than a raw connectivity probe. This layer is read FRESH on
+/// every call and is not written to the cache.
 /// </para>
 /// </remarks>
 public sealed class ModelProviderHealthCache
@@ -35,12 +37,12 @@ public sealed class ModelProviderHealthCache
     private readonly TimeProvider _timeProvider;
     private readonly ConcurrentDictionary<string, CacheEntry> _cache = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Yeni bir saglik onbellegi olusturur.</summary>
-    /// <param name="providers">Kayitli model saglayicilari.</param>
-    /// <param name="optionsMonitor">Onbellek TTL'sini okumak icin ayarlar.</param>
-    /// <param name="circuitBreaker">Devre durumunu sonuca yansitmak icin devre kesici.</param>
-    /// <param name="timeProvider">Zaman kaynagi. <see langword="null"/> ise sistem saati kullanilir.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="providers"/> veya <paramref name="optionsMonitor"/> <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new health cache.</summary>
+    /// <param name="providers">The registered model providers.</param>
+    /// <param name="optionsMonitor">Settings used to read the cache TTL.</param>
+    /// <param name="circuitBreaker">The circuit breaker used to reflect circuit state into the result.</param>
+    /// <param name="timeProvider">The time source. If <see langword="null"/>, the system clock is used.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="providers"/> or <paramref name="optionsMonitor"/> is <see langword="null"/>.</exception>
     public ModelProviderHealthCache(
         IEnumerable<IModelProvider> providers,
         IOptionsMonitor<AgentPrismOptions> optionsMonitor,
@@ -56,10 +58,10 @@ public sealed class ModelProviderHealthCache
         _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
-    /// <summary>Tum kayitli saglayicilarin saglik durumunu dondurur (ada gore sirali).</summary>
-    /// <param name="refresh">Onbellegi atlayip saglayiciya yeniden gidilsin mi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Her saglayici icin bir kayit.</returns>
+    /// <summary>Returns the health status of every registered provider (sorted by name).</summary>
+    /// <param name="refresh">Whether to bypass the cache and go to the provider again.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>One record per provider.</returns>
     public async ValueTask<IReadOnlyList<ModelProviderHealth>> GetAllAsync(
         bool refresh,
         CancellationToken cancellationToken = default)
@@ -75,11 +77,11 @@ public sealed class ModelProviderHealthCache
         return results;
     }
 
-    /// <summary>Tek bir saglayicinin saglik durumunu dondurur.</summary>
-    /// <param name="providerName">Saglayici adi.</param>
-    /// <param name="refresh">Onbellegi atlayip saglayiciya yeniden gidilsin mi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Saglayici kayitliysa durumu; degilse <see langword="null"/>.</returns>
+    /// <summary>Returns the health status of a single provider.</summary>
+    /// <param name="providerName">The provider name.</param>
+    /// <param name="refresh">Whether to bypass the cache and go to the provider again.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The status if the provider is registered; otherwise <see langword="null"/>.</returns>
     public async ValueTask<ModelProviderHealth?> GetAsync(
         string providerName,
         bool refresh,
@@ -96,12 +98,12 @@ public sealed class ModelProviderHealthCache
     }
 
     /// <summary>
-    /// Onbellekteki son bilinen durumu, ag cagrisi yapmadan dondurur. <c>/api/models</c>
-    /// gibi hizli uclarin durum alanini doldurmasi icindir.
+    /// Returns the last known status from the cache without making a network
+    /// call. Intended for fast endpoints such as <c>/api/models</c> to fill in a status field.
     /// </summary>
-    /// <param name="providerName">Saglayici adi.</param>
-    /// <param name="health">Bulunursa saglik kaydi.</param>
-    /// <returns>Onbellekte bir kayit varsa <see langword="true"/>.</returns>
+    /// <param name="providerName">The provider name.</param>
+    /// <param name="health">The health record, if found.</param>
+    /// <returns><see langword="true"/> if a record exists in the cache.</returns>
     public bool TryPeek(string providerName, out ModelProviderHealth health)
     {
         if (_cache.TryGetValue(providerName, out var entry))
@@ -157,7 +159,7 @@ public sealed class ModelProviderHealthCache
             return health;
         }
 
-        var circuitDetail = $"Devre kesici acik. {retryAfter?.TotalSeconds ?? 0:F0} sn sonra yeniden denenecek.";
+        var circuitDetail = $"Circuit breaker is open. Will retry in {retryAfter?.TotalSeconds ?? 0:F0}s.";
 
         return health with
         {

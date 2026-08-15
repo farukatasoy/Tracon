@@ -4,26 +4,26 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// <c>search_knowledge</c> tool'unu uretir (Faz 51).
+/// Produces the <c>search_knowledge</c> tool (Phase 51).
 /// </summary>
 /// <remarks>
-/// K2 korunur: tool burada, kodda tanimlidir; <see cref="AgentDefinitionCompiler"/>
-/// yalnizca <see cref="MemorySettings.EnableVectorSearch"/> acikken bu tool'u
-/// baglar, arayuzden yazilamaz.
+/// K2 is preserved: the tool is defined here, in code; <see cref="AgentDefinitionCompiler"/>
+/// binds this tool only while <see cref="MemorySettings.EnableVectorSearch"/> is
+/// on, and it cannot be written from the interface.
 /// </remarks>
 internal static class VectorSearchToolFactory
 {
-    /// <summary>Belirli bir koleksiyona bakan bir <c>search_knowledge</c> tool'u kurar.</summary>
-    /// <param name="store">Vektor deposu.</param>
-    /// <param name="embeddings">Gomu ureticisi.</param>
+    /// <summary>Builds a <c>search_knowledge</c> tool that looks at a specific collection.</summary>
+    /// <param name="store">The vector store.</param>
+    /// <param name="embeddings">The embedding generator.</param>
     /// <param name="tenantId">
-    /// Sorgunun calisacagi kiraci. Derleme aninda cozulur (bkz.
-    /// <see cref="AgentDefinitionCompiler"/>); tool cagri aninda ambient bir
-    /// baglami YENIDEN OKUMAZ — derlenen agent tek bir tanima baglidir.
+    /// The tenant the query runs for. Resolved at compile time (see
+    /// <see cref="AgentDefinitionCompiler"/>); it does NOT RE-READ an ambient
+    /// context at tool-call time — a compiled agent is bound to a single definition.
     /// </param>
-    /// <param name="collection">Aranacak koleksiyon adi.</param>
-    /// <param name="maxResults">Dondurulecek en fazla sonuc sayisi.</param>
-    /// <returns>Modelin cagirabilecegi tool.</returns>
+    /// <param name="collection">The collection name to search.</param>
+    /// <param name="maxResults">The maximum number of results to return.</param>
+    /// <returns>The tool the model can call.</returns>
     public static AIFunction Create(
         IVectorSearchStore store,
         IEmbeddingGenerator<string, Embedding<float>> embeddings,
@@ -36,8 +36,8 @@ internal static class VectorSearchToolFactory
         return AIFunctionFactory.Create(
             body.SearchKnowledgeAsync,
             name: "search_knowledge",
-            description: "Bilgi tabaninda anlamsal arama yapar. Kelime eslesmesi olmasa bile " +
-                         "anlamca yakin parcalari dondurur.");
+            description: "Performs a semantic search over the knowledge base. Returns " +
+                         "semantically close chunks even without a keyword match.");
     }
 
     private sealed class VectorSearchToolBody(
@@ -47,9 +47,9 @@ internal static class VectorSearchToolFactory
         string collection,
         int maxResults)
     {
-        [Description("Bilgi tabaninda anlamsal arama yapar.")]
+        [Description("Performs a semantic search over the knowledge base.")]
         public async Task<IReadOnlyList<VectorSearchToolResult>> SearchKnowledgeAsync(
-            [Description("Aranacak dogal dil sorgusu.")] string query,
+            [Description("The natural-language query to search for.")] string query,
             CancellationToken cancellationToken)
         {
             var generated = await embeddings.GenerateAsync([query], options: null, cancellationToken)
@@ -72,9 +72,9 @@ internal static class VectorSearchToolFactory
     }
 }
 
-/// <summary>Bir <c>search_knowledge</c> tool cagrisinin tek bir sonucu.</summary>
-/// <param name="SourceId">Parcanin ait oldugu kaynak kimligi.</param>
-/// <param name="ChunkIndex">Kaynak icindeki sira numarasi.</param>
-/// <param name="Content">Parcanin metni.</param>
-/// <param name="Distance">Kosinus mesafesi. Kucuk deger daha yakin demektir.</param>
+/// <summary>A single result of a <c>search_knowledge</c> tool call.</summary>
+/// <param name="SourceId">The identity of the source the chunk belongs to.</param>
+/// <param name="ChunkIndex">The sequence number within the source.</param>
+/// <param name="Content">The chunk's text.</param>
+/// <param name="Distance">The cosine distance. A smaller value means closer.</param>
 internal sealed record VectorSearchToolResult(string SourceId, int ChunkIndex, string Content, double Distance);

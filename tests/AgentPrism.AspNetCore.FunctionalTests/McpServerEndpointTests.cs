@@ -111,7 +111,7 @@ public sealed class McpServerEndpointTests
         var exception = await Should.ThrowAsync<InvalidOperationException>(
             () => McpTestClient.SendAsync(host.Client, "/agentprism/mcp", "tools/list"));
 
-        exception.Message.ShouldContain("onay", Case.Sensitive);
+        exception.Message.ShouldContain("approval", Case.Sensitive);
     }
 
     [Fact]
@@ -207,7 +207,7 @@ public sealed class McpServerEndpointTests
             new { name = "agentprism_yonlendirici", arguments = new { message = "baslat" } });
 
         var text = body!.Value.GetProperty("result").GetProperty("content")[0].GetProperty("text").GetString().ShouldNotBeNull();
-        text.ShouldContain("cagri derinligi siniri asildi", Case.Sensitive);
+        text.ShouldContain("call depth limit was exceeded", Case.Sensitive);
 
         var runs = host.Services.GetRequiredService<IRunStore>();
         (await runs.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).ShouldHaveSingleItem();

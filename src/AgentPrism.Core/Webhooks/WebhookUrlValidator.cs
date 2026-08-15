@@ -3,44 +3,46 @@ using System.Net.Sockets;
 
 namespace AgentPrism;
 
-/// <summary>Bir webhook hedefinin guvenli olup olmadigini bildiren sonuc.</summary>
-/// <param name="IsAllowed">Hedefe istek atilabilir mi.</param>
-/// <param name="Reason">Reddedilme sebebi. Izin verildiyse <see langword="null"/>.</param>
+/// <summary>The result reporting whether a webhook target is safe.</summary>
+/// <param name="IsAllowed">Whether a request can be sent to the target.</param>
+/// <param name="Reason">The reason for rejection. <see langword="null"/> if allowed.</param>
 /// <param name="ResolvedAddress">
-/// Cozulmus IP adresi. Baglanti <strong>bu adrese</strong> kurulur; cozumleme ile
-/// baglanti arasinda adres degistirilemez (DNS yeniden baglama savunmasi).
+/// The resolved IP address. The connection is established <strong>to this
+/// address</strong>; the address cannot change between resolution and
+/// connection (a DNS rebinding defense).
 /// </param>
 public readonly record struct WebhookUrlVerdict(bool IsAllowed, string? Reason, IPAddress? ResolvedAddress);
 
 /// <summary>
-/// Webhook hedef adreslerini SSRF'e karsi denetler.
+/// Validates webhook target addresses against SSRF.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 <strong>Bu fazin en buyuk guvenlik riski.</strong> Webhook adresini
-/// <em>kullanici</em> verir ve sunucu o adrese istek atar. Kontrolsuz
-/// birakilirsa ic agdaki servislere erisim araci olur — bulut metadata uclari
-/// (<c>169.254.169.254</c>) dahil, ki bunlar cogu zaman kimlik dogrulamasiz
-/// gecici kimlik bilgisi dagitir.
+/// 🚨 <strong>This phase's biggest security risk.</strong> The webhook
+/// address is given by the <em>user</em>, and the server sends a request to
+/// that address. If left uncontrolled, it becomes a means of reaching
+/// internal-network services — including cloud metadata endpoints
+/// (<c>169.254.169.254</c>), which often hand out unauthenticated temporary
+/// credentials.
 /// </para>
-/// <para>Savunma katmanlari:</para>
+/// <para>Defense layers:</para>
 /// <list type="number">
-///   <item><description>Sema: yalnizca <c>https</c>; <c>http</c> yalnizca loopback ve acik izinle.</description></item>
-///   <item><description>Adres: DNS cozulur, ozel ag araliklari reddedilir.</description></item>
-///   <item><description>Yeniden baglama: cozulen IP'ye dogrudan baglanilir, <c>Host</c> basligi korunur.</description></item>
-///   <item><description>Yonlendirme: izlenmez — yonlendirme ozel aga kacis yoludur.</description></item>
+///   <item><description>Scheme: <c>https</c> only; <c>http</c> only for loopback and with explicit permission.</description></item>
+///   <item><description>Address: DNS is resolved, private network ranges are rejected.</description></item>
+///   <item><description>Rebinding: connects directly to the resolved IP, with the <c>Host</c> header preserved.</description></item>
+///   <item><description>Redirects: not followed — a redirect is an escape route into a private network.</description></item>
 /// </list>
 /// </remarks>
 public static class WebhookUrlValidator
 {
-    /// <summary>Bir adresi semasina gore, DNS cozmeden denetler.</summary>
-    /// <param name="url">Denetlenecek adres.</param>
-    /// <param name="settings">Webhook ayarlari.</param>
-    /// <returns>Sonuc. Adres bicimi veya semasi gecersizse reddeder.</returns>
+    /// <summary>Validates an address by its scheme, without resolving DNS.</summary>
+    /// <param name="url">The address to validate.</param>
+    /// <param name="settings">The webhook settings.</param>
+    /// <returns>The result. Rejects if the address format or scheme is invalid.</returns>
     /// <remarks>
-    /// Kaydetme aninda (HTTP ucunda) bu kullanilir: DNS cozumlemesi kaydi
-    /// yavaslatir ve hedef o an erisilemez olabilir. Gercek koruma teslim
-    /// aninda <see cref="ValidateResolvedAsync"/> ile uygulanir.
+    /// Used at save time (in the HTTP endpoint): DNS resolution would slow
+    /// down the save, and the target may be unreachable at that moment. Real
+    /// protection is applied at delivery time, with <see cref="ValidateResolvedAsync"/>.
     /// </remarks>
     public static WebhookUrlVerdict ValidateFormat(string? url, AgentPrismWebhookOptions settings)
     {
@@ -66,9 +68,9 @@ public static class WebhookUrlValidator
             return new WebhookUrlVerdict(false, $"Scheme '{uri.Scheme}' is not supported; use https only.", null);
         }
 
-        // http YALNIZCA loopback hedefleri icin ve acik izinle. Yerel
-        // gelistirmede gerekir; disari acik bir adrese sifrelenmemis olay
-        // gondermek olay icerigini aga acar.
+        // http is ONLY for loopback targets and requires explicit permission.
+        // Needed in local development; sending an unencrypted event to a
+        // publicly reachable address would expose the event's content to the network.
         if (!settings.AllowInsecureHttp)
         {
             return new WebhookUrlVerdict(false, "http is not supported; use https or enable the AllowInsecureHttp setting.", null);
@@ -82,15 +84,15 @@ public static class WebhookUrlValidator
         return new WebhookUrlVerdict(true, null, null);
     }
 
-    /// <summary>Bir adresi DNS cozerek ve IP araligina bakarak denetler.</summary>
-    /// <param name="url">Denetlenecek adres.</param>
-    /// <param name="settings">Webhook ayarlari.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Sonuc. Izin verilirse cozulen adresi tasir.</returns>
+    /// <summary>Validates an address by resolving DNS and checking the IP range.</summary>
+    /// <param name="url">The address to validate.</param>
+    /// <param name="settings">The webhook settings.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The result. Carries the resolved address if allowed.</returns>
     /// <remarks>
-    /// Teslim aninda cagrilir. Donen <see cref="WebhookUrlVerdict.ResolvedAddress"/>
-    /// baglanti kurulurken <strong>kullanilmalidir</strong>; adresi yeniden
-    /// cozmek DNS yeniden baglama saldirisina kapi acar.
+    /// Called at delivery time. The returned <see cref="WebhookUrlVerdict.ResolvedAddress"/>
+    /// <strong>must be used</strong> when establishing the connection;
+    /// resolving the address again opens the door to a DNS rebinding attack.
     /// </remarks>
     public static async ValueTask<WebhookUrlVerdict> ValidateResolvedAsync(
         string? url,
@@ -131,9 +133,9 @@ public static class WebhookUrlValidator
             return new WebhookUrlVerdict(false, "Address did not resolve to any IP.", null);
         }
 
-        // 🚨 Cozulen adreslerin HERHANGI biri reddedilirse hedef reddedilir.
-        // "Ilk uygun adresi sec" demek, saldirganin bir genel ve bir ozel adres
-        // donduren bir ad yayimlamasina izin verirdi.
+        // 🚨 If ANY of the resolved addresses is rejected, the target is rejected.
+        // "Pick the first suitable address" would let an attacker publish a
+        // name that resolves to one public and one private address.
         foreach (var address in addresses)
         {
             if (!IsAllowedTarget(address, settings))
@@ -148,23 +150,23 @@ public static class WebhookUrlValidator
         return new WebhookUrlVerdict(true, null, addresses[0]);
     }
 
-    /// <summary>Bir adrese teslim yapilip yapilamayacagini bildirir.</summary>
-    /// <param name="address">Cozulmus adres.</param>
-    /// <param name="settings">Webhook ayarlari.</param>
-    /// <returns>Adrese baglanilabiliyorsa <see langword="true"/>.</returns>
+    /// <summary>Reports whether delivery to an address is allowed.</summary>
+    /// <param name="address">The resolved address.</param>
+    /// <param name="settings">The webhook settings.</param>
+    /// <returns><see langword="true"/> if a connection to the address can be made.</returns>
     /// <remarks>
     /// <para>
-    /// 🚨 Loopback, <see cref="AgentPrismWebhookOptions.AllowInsecureHttp"/>
-    /// acikken kabul edilir. Sebep: o ayar zaten "bu bir yerel gelistirme
-    /// kurulumudur" demektir ve yalnizca loopback hedefleri icin gecerlidir.
-    /// Aksi halde yerel bir dinleyiciyi sinamak, <c>10/8</c> ve
-    /// <c>169.254.169.254</c> dahil <strong>tum</strong> ozel agi acan
-    /// <see cref="AgentPrismWebhookOptions.AllowPrivateNetworkTargets"/>
-    /// ayarini gerektirirdi — gelistirme kolayligi ugruna uretim guvenligini
-    /// feda etmek olurdu (K-167).
+    /// 🚨 Loopback is accepted while <see cref="AgentPrismWebhookOptions.AllowInsecureHttp"/>
+    /// is enabled. Reason: that setting already means "this is a local
+    /// development setup" and applies only to loopback targets. Otherwise,
+    /// testing a local listener would require
+    /// <see cref="AgentPrismWebhookOptions.AllowPrivateNetworkTargets"/>,
+    /// which opens the <strong>entire</strong> private network, including
+    /// <c>10/8</c> and <c>169.254.169.254</c> — this would trade production
+    /// security for development convenience (K-167).
     /// </para>
     /// <para>
-    /// Loopback disindaki hicbir ozel aralik bu ayarla acilmaz.
+    /// No private range other than loopback is opened by this setting.
     /// </para>
     /// </remarks>
     public static bool IsAllowedTarget(IPAddress address, AgentPrismWebhookOptions settings)
@@ -185,15 +187,14 @@ public static class WebhookUrlValidator
         return !IsPrivate(address);
     }
 
-    /// <summary>Bir IP adresinin ozel/yerel bir aralikta olup olmadigini bildirir.</summary>
-    /// <param name="address">Adres.</param>
-    /// <returns>Adres ozel bir aralikta ise <see langword="true"/>.</returns>
+    /// <summary>Reports whether an IP address falls within a private/local range.</summary>
+    /// <param name="address">The address.</param>
+    /// <returns><see langword="true"/> if the address falls within a private range.</returns>
     /// <remarks>
-    /// Kapsanan araliklar: <c>127.0.0.0/8</c>, <c>10.0.0.0/8</c>,
+    /// Ranges covered: <c>127.0.0.0/8</c>, <c>10.0.0.0/8</c>,
     /// <c>172.16.0.0/12</c>, <c>192.168.0.0/16</c>, <c>169.254.0.0/16</c>
-    /// (bulut metadata!), <c>100.64.0.0/10</c> (CGNAT), <c>0.0.0.0/8</c>,
-    /// <c>::1</c>, <c>fc00::/7</c>, <c>fe80::/10</c> ve IPv4'e eslenmis IPv6
-    /// adresleri.
+    /// (cloud metadata!), <c>100.64.0.0/10</c> (CGNAT), <c>0.0.0.0/8</c>,
+    /// <c>::1</c>, <c>fc00::/7</c>, <c>fe80::/10</c>, and IPv4-mapped IPv6 addresses.
     /// </remarks>
     public static bool IsPrivate(IPAddress address)
     {
@@ -204,8 +205,8 @@ public static class WebhookUrlValidator
             return true;
         }
 
-        // 🚨 IPv4'e eslenmis IPv6 (::ffff:169.254.169.254) denetimi atlatmanin
-        // klasik yoludur; once duz IPv4'e indirgenir.
+        // 🚨 IPv4-mapped IPv6 (::ffff:169.254.169.254) is a classic way to
+        // bypass the check; it is reduced to plain IPv4 first.
         if (address.IsIPv4MappedToIPv6)
         {
             address = address.MapToIPv4();
@@ -238,13 +239,13 @@ public static class WebhookUrlValidator
 
             var bytes = address.GetAddressBytes();
 
-            // fc00::/7 -- benzersiz yerel adresler.
+            // fc00::/7 -- unique local addresses.
             if ((bytes[0] & 0xFE) == 0xFC)
             {
                 return true;
             }
 
-            // :: (belirtilmemis)
+            // :: (unspecified)
             if (address.Equals(IPAddress.IPv6Any))
             {
                 return true;

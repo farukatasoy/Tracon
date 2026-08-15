@@ -1,30 +1,29 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Bir anin hangi kota donemine dustugunu ve o donemin ne zaman sifirlanacagini
-/// hesaplar.
+/// Calculates which quota period an instant falls into, and when that period resets.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Saf mantiktir: durum tutmaz, saat okumaz. Boylece birim testi gercek zamana
-/// bagli olmadan gun ve ay sinirlarini, yaz saati gecisini ve ay sonlarini
-/// sinayabilir.
+/// Pure logic: it holds no state and reads no clock. This lets a unit test
+/// exercise day and month boundaries, daylight-saving transitions, and month
+/// ends without depending on real time.
 /// </para>
 /// <para>
-/// 🚨 Donem siniri <strong>yerel</strong> saat diliminde hesaplanir, UTC'de
-/// degil. "Gunluk kota" diyen bir yonetici kendi is gununu kasteder; UTC'ye
-/// gore sifirlamak <c>UTC+03</c> bir kiracinin sayacini ogleden once uc saat
-/// erken sifirlardi.
+/// 🚨 The period boundary is calculated in the <strong>local</strong> time
+/// zone, not UTC. An admin who says "daily quota" means their own business day;
+/// resetting by UTC would reset a <c>UTC+03</c> tenant's counter three hours
+/// early, before noon.
 /// </para>
 /// </remarks>
 public static class QuotaPeriodCalculator
 {
-    /// <summary>Bir anin dustugu donemin ilk gununu bulur.</summary>
-    /// <param name="instant">An (UTC veya baska bir ofset).</param>
-    /// <param name="period">Donem araligi.</param>
-    /// <param name="timeZone">Donem sinirinin hesaplanacagi saat dilimi.</param>
-    /// <returns>Donemin ilk gunu, yerel takvimde.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="timeZone"/> <see langword="null"/> ise.</exception>
+    /// <summary>Finds the first day of the period an instant falls into.</summary>
+    /// <param name="instant">The instant (UTC or another offset).</param>
+    /// <param name="period">The period interval.</param>
+    /// <param name="timeZone">The time zone the period boundary is calculated in.</param>
+    /// <returns>The first day of the period, in the local calendar.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="timeZone"/> is <see langword="null"/>.</exception>
     public static DateOnly GetPeriodStart(DateTimeOffset instant, QuotaPeriod period, TimeZoneInfo timeZone)
     {
         ArgumentNullException.ThrowIfNull(timeZone);
@@ -39,15 +38,15 @@ public static class QuotaPeriodCalculator
         };
     }
 
-    /// <summary>Bir anin dustugu donemin ne zaman sifirlanacagini bulur.</summary>
-    /// <param name="instant">An.</param>
-    /// <param name="period">Donem araligi.</param>
-    /// <param name="timeZone">Donem sinirinin hesaplanacagi saat dilimi.</param>
-    /// <returns>Bir sonraki donemin basladigi an (UTC).</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="timeZone"/> <see langword="null"/> ise.</exception>
+    /// <summary>Finds when the period an instant falls into will reset.</summary>
+    /// <param name="instant">The instant.</param>
+    /// <param name="period">The period interval.</param>
+    /// <param name="timeZone">The time zone the period boundary is calculated in.</param>
+    /// <returns>The instant the next period starts (UTC).</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="timeZone"/> is <see langword="null"/>.</exception>
     /// <remarks>
-    /// Donen deger istemciye <c>Retry-After</c> ve <c>ProblemDetails</c> icinde
-    /// "ne zaman sifirlanir" olarak yansir.
+    /// The returned value is reflected to the client as "when it resets" in
+    /// <c>Retry-After</c> and in <c>ProblemDetails</c>.
     /// </remarks>
     public static DateTimeOffset GetPeriodEnd(DateTimeOffset instant, QuotaPeriod period, TimeZoneInfo timeZone)
     {
@@ -64,17 +63,17 @@ public static class QuotaPeriodCalculator
         return ToUtcInstant(nextStart, timeZone);
     }
 
-    /// <summary>Bir donem baslangicini o saat diliminde gece yarisina cevirir.</summary>
-    /// <param name="date">Donemin ilk gunu (yerel takvim).</param>
-    /// <param name="timeZone">Saat dilimi.</param>
-    /// <returns>Yerel gece yarisinin UTC karsiligi.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="timeZone"/> <see langword="null"/> ise.</exception>
+    /// <summary>Converts a period start into midnight in that time zone.</summary>
+    /// <param name="date">The first day of the period (local calendar).</param>
+    /// <param name="timeZone">The time zone.</param>
+    /// <returns>The UTC equivalent of local midnight.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="timeZone"/> is <see langword="null"/>.</exception>
     /// <remarks>
-    /// 🚨 Yaz saati gecisinde yerel gece yarisi <em>var olmayabilir</em> (ileri
-    /// atlama) veya <em>iki kez</em> gecerli olabilir (geri alma). Var olmayan
-    /// bir saat, gecisin hemen sonrasina tasinir; belirsiz bir saatte
-    /// <strong>daha erken</strong> olan ofset secilir. Ikisi de sessizce
-    /// yanlis sonuc uretmek yerine tanimli davranistir.
+    /// 🚨 During a daylight-saving transition, local midnight may <em>not
+    /// exist</em> (spring forward) or may be <em>valid twice</em> (fall back).
+    /// A time that does not exist is moved to right after the transition; for
+    /// an ambiguous time, the <strong>earlier</strong> offset is chosen. Both
+    /// are defined behavior instead of silently producing a wrong result.
     /// </remarks>
     public static DateTimeOffset ToUtcInstant(DateOnly date, TimeZoneInfo timeZone)
     {
@@ -84,9 +83,9 @@ public static class QuotaPeriodCalculator
 
         if (timeZone.IsInvalidTime(midnight))
         {
-            // Gece yarisi ileri atlamayla yutuldu: gecerli ilk ani bul.
-            // Gecis en fazla birkac saat surer; dakika dakika ilerlemek
-            // butun saat dilimi kurallarinda guvenlidir.
+            // Midnight was swallowed by a spring-forward transition: find the
+            // first valid instant. A transition lasts at most a few hours;
+            // stepping minute by minute is safe under every time zone rule.
             for (var minutes = 1; minutes <= 24 * 60; minutes++)
             {
                 var candidate = midnight.AddMinutes(minutes);
@@ -99,23 +98,23 @@ public static class QuotaPeriodCalculator
             }
         }
 
-        // Belirsiz (iki kez yasanan) bir saatte GetUtcOffset daha erken olan
-        // standart-disi ofseti dondurur; donem sinirinin erken baslamasi gec
-        // baslamasina yeglenir — kota bir dakika erken sifirlanabilir, ama
-        // hicbir tuketim yanlis doneme yazilmaz.
+        // At an ambiguous (twice-occurring) time, GetUtcOffset returns the
+        // earlier, non-standard offset; the period boundary starting early is
+        // preferred over starting late — the quota may reset a minute early,
+        // but no consumption is ever written to the wrong period.
         var offset = timeZone.GetUtcOffset(midnight);
 
         return new DateTimeOffset(midnight, offset).ToUniversalTime();
     }
 
-    /// <summary>Bir kural kumesinin dokundugu tum donemlerin baslangicini hesaplar.</summary>
-    /// <param name="instant">An.</param>
-    /// <param name="timeZone">Saat dilimi.</param>
-    /// <returns>Her donem araligi icin o donemin ilk gunu.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="timeZone"/> <see langword="null"/> ise.</exception>
+    /// <summary>Calculates the start of every period a rule set touches.</summary>
+    /// <param name="instant">The instant.</param>
+    /// <param name="timeZone">The time zone.</param>
+    /// <returns>The first day of the period, for each period interval.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="timeZone"/> is <see langword="null"/>.</exception>
     /// <remarks>
-    /// Tuketim her iki donem sayacina da yazilir: bir kiraci ayni anda hem
-    /// gunluk hem aylik kota tanimlayabilir ve ikisi bagimsiz sayilir.
+    /// Consumption is written to both period counters: a tenant can define both
+    /// a daily and a monthly quota at the same time, and the two are counted independently.
     /// </remarks>
     public static IReadOnlyDictionary<QuotaPeriod, DateOnly> GetAllPeriodStarts(
         DateTimeOffset instant,

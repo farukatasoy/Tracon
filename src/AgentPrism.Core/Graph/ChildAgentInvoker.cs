@@ -7,25 +7,25 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir agent'in cagirabilecegi alt agent'i sarar; derinlik, butce ve kiraci
-/// sinirlarini uygular ve alt calistirmayi agaca baglar.
+/// Wraps a sub-agent an agent may call; enforces depth, budget, and tenant
+/// limits and links the sub-run into the tree.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bu bir <see cref="IAgentDecorator"/> <strong>degildir</strong>. Dekoratorler
-/// katalogdan cozulen <em>her</em> agent'a uygulanir; bu sarmalayici ise yalnizca
-/// bir agent baska bir agent'in gozunde gorundugunde araya girer. Dekorator
-/// sirasina (kayit 0 → telemetri 10 → onay 20) dokunulmaz.
+/// This is <strong>not</strong> an <see cref="IAgentDecorator"/>. Decorators
+/// apply to <em>every</em> agent resolved from the catalog; this wrapper only
+/// intervenes when one agent appears in another agent's view. It does not
+/// touch the decorator order (recording 0 → telemetry 10 → approval 20).
 /// </para>
 /// <para>
-/// <strong>Alt agent gec cozulur.</strong> Boylece cagiran agent'in derlenmis
-/// kopyasi, alt agent'in tanimi degistiginde bayatlamaz.
+/// <strong>The sub-agent is resolved late.</strong> This way, the calling
+/// agent's compiled copy does not go stale when the sub-agent's definition changes.
 /// </para>
 /// <para>
-/// 🚨 Microsoft Agent Framework alt agent'i <c>options = null</c> ile cagirir
-/// (Faz 12'de olculdu). Agac bilgisi bu yuzden gelen ayarlardan okunamaz;
-/// sarmalayici onu <see cref="AgentPrismRunContext"/> kapsamindan okur ve
-/// <see cref="AgentPrismRunOptions"/> nesnesini kendisi kurar.
+/// 🚨 Microsoft Agent Framework calls the sub-agent with <c>options = null</c>
+/// (measured in Phase 12). Tree information therefore cannot be read from the
+/// incoming options; the wrapper reads it from the <see cref="AgentPrismRunContext"/>
+/// scope and builds the <see cref="AgentPrismRunOptions"/> object itself.
 /// </para>
 /// </remarks>
 public sealed class ChildAgentInvoker : AIAgent
@@ -37,13 +37,13 @@ public sealed class ChildAgentInvoker : AIAgent
     private readonly string _childName;
     private readonly string? _childDescription;
 
-    /// <summary>Yeni bir alt agent sarmalayicisi olusturur.</summary>
-    /// <param name="resolver">Alt agent'i katalogdan cozen cozucu.</param>
-    /// <param name="tenantContext">Kiraci baglami.</param>
-    /// <param name="logger">Gunlukleyici.</param>
-    /// <param name="callerName">Cagiran agent'in adi.</param>
-    /// <param name="child">Cagrilacak alt agent'in ozeti.</param>
-    /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new sub-agent wrapper.</summary>
+    /// <param name="resolver">Resolver that resolves the sub-agent from the catalog.</param>
+    /// <param name="tenantContext">Tenant context.</param>
+    /// <param name="logger">Logger.</param>
+    /// <param name="callerName">Name of the calling agent.</param>
+    /// <param name="child">Summary of the sub-agent being called.</param>
+    /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public ChildAgentInvoker(
         CallableAgentResolver resolver,
         ITenantContext tenantContext,
@@ -178,56 +178,58 @@ public sealed class ChildAgentInvoker : AIAgent
     }
 
     /// <summary>
-    /// Cagrinin reddedilme sebebini uretir; cagri yapilabiliyorsa <see langword="null"/> doner.
+    /// Produces the reason the call is refused; returns <see langword="null"/>
+    /// when the call is allowed.
     /// </summary>
     /// <remarks>
-    /// Ret bir istisna degil, <em>tool sonucu</em> olarak doner. Istisna atmak
-    /// cagiran agent'in calistirmasini basarisiz yapardi; oysa "bu alt cagriyi
-    /// yapamadim" bilgisi modelin degerlendirip baska bir yol denemesi gereken
-    /// normal bir sonuctur.
+    /// The refusal is returned as a <em>tool result</em>, not an exception.
+    /// Throwing an exception would fail the calling agent's run; whereas
+    /// "I could not make this sub-call" is a normal result the model can
+    /// evaluate and try another approach for.
     /// </remarks>
     private string? Refuse(AgentRunScope? scope)
     {
         if (scope is null)
         {
             _logger.LogWarning(
-                "'{Caller}' agent'i '{Child}' agent'ini cagirmak istedi ancak calistirma kapsami yok. " +
-                "Alt cagri yalnizca AgentPrism'in calistirma kaydi acikken yapilabilir.",
+                "Agent '{Caller}' wanted to call agent '{Child}' but there is no run scope. " +
+                "Sub-calls can only be made while AgentPrism's run recording is on.",
                 _callerName,
                 _childName);
 
-            return $"'{_childName}' agent'i cagirilamadi: calistirma kaydi kapali oldugu icin " +
-                   "alt agent cagrilari devre disi.";
+            return $"Could not call agent '{_childName}': sub-agent calls are disabled " +
+                   "because run recording is off.";
         }
 
         var maxDepth = scope.Budget?.MaxDepth ?? 0;
 
         if (scope.Depth + 1 > maxDepth)
         {
-            return $"'{_childName}' agent'i cagirilamadi: cagri derinligi siniri asildi " +
-                   $"(izin verilen en fazla derinlik {maxDepth}). Isi kendin tamamla veya " +
-                   "daha az katmanli bir cagri zinciri kur.";
+            return $"Could not call agent '{_childName}': the call depth limit was exceeded " +
+                   $"(the maximum allowed depth is {maxDepth}). Finish the work yourself, or " +
+                   "build a call chain with fewer layers.";
         }
 
-        // Kiraci sizintisi tam burada olusur. Alt cagri baska bir is parcaciginda
-        // calisir; kiraci baglami bir sekilde kaybolduysa varsayilan kiraciya
-        // duserdi ve bir kiracinin agent'i baska bir kiracinin verisiyle calisirdi.
+        // Tenant leakage happens exactly here. The sub-call runs on another
+        // thread; if the tenant context somehow got lost, it would fall back
+        // to the default tenant and one tenant's agent would work with
+        // another tenant's data.
         if (!string.Equals(scope.TenantId, _tenantContext.TenantId, StringComparison.Ordinal))
         {
             _logger.LogError(
-                "'{Caller}' agent'inin '{Child}' cagrisi reddedildi: kiraci degisti " +
+                "Agent '{Caller}''s call to '{Child}' was refused: the tenant changed " +
                 "('{Expected}' -> '{Actual}').",
                 _callerName,
                 _childName,
                 scope.TenantId,
                 _tenantContext.TenantId);
 
-            return $"'{_childName}' agent'i cagirilamadi: alt calistirma cagiranin kiracisindan cikamaz.";
+            return $"Could not call agent '{_childName}': a sub-run cannot leave the caller's tenant.";
         }
 
         if (scope.Budget is { } budget && !budget.TryReserveRun())
         {
-            return $"'{_childName}' agent'i cagirilamadi: {budget.DescribeExhaustion()}";
+            return $"Could not call agent '{_childName}': {budget.DescribeExhaustion()}";
         }
 
         return null;
@@ -241,12 +243,14 @@ public sealed class ChildAgentInvoker : AIAgent
             RootRunId = scope.RootRunId,
             Depth = scope.Depth + 1,
 
-            // Ayni ORNEK tasinir. Kopyalanirsa her dal kendi butcesini alir.
+            // The SAME instance is carried over. If copied, each branch would
+            // get its own budget.
             Budget = scope.Budget,
 
-            // MAF alt agent'a bir oturum gecirmez. Oturum kimligi yine de tasinir:
-            // alt calistirmada calisan bir tool'un urettigi ek kok oturuma aittir
-            // ve oturumsuz yazilirsa saklama politikasi onu sahipsiz sayip siler.
+            // MAF does not pass a session to the sub-agent. The session id is
+            // still carried: a tool running in the sub-run may produce an
+            // additional root session, and if written without a session, the
+            // retention policy would treat it as orphaned and delete it.
             SessionId = scope.SessionId,
         };
 
@@ -287,37 +291,39 @@ public sealed class ChildAgentInvoker : AIAgent
         var agent = await _resolver.ResolveAsync(_childName, cancellationToken).ConfigureAwait(false);
 
         return agent ?? throw new AgentPrismException(
-            $"'{_callerName}' agent'i '{_childName}' agent'ini cagirmak istiyor ancak boyle bir " +
-            "agent katalogda yok. Cagri grafigi kaydetme aninda dogrulanir; alt agent " +
-            "sonradan silinmis olabilir.");
+            $"Agent '{_callerName}' wants to call agent '{_childName}', but no such agent " +
+            "exists in the catalog. The call graph is validated at save time; the sub-agent " +
+            "may have since been deleted.");
     }
 
     private string ApprovalRefusal(string toolNames)
-        => $"'{_childName}' agent'i tamamlanamadi: '{toolNames}' tool'u kullanici onayi istiyor. " +
-           "Alt agent onay isteyemez; onay bir sonraki turun girdisidir ve agacin ortasinda " +
-           "beklenemez. Bu tool icin otomatik onay kurali tanimlayin veya alt agent'i " +
-           "onay gerektirmeyen tool'larla sinirlayin.";
+        => $"Agent '{_childName}' could not complete: tool '{toolNames}' requires user approval. " +
+           "A sub-agent cannot request approval; approval is the input of the next turn and " +
+           "cannot be awaited in the middle of the tree. Define an auto-approval rule for this " +
+           "tool, or restrict the sub-agent to tools that do not require approval.";
 }
 
-/// <summary>Bir yanitin onay bekleyen tool cagrisi tasiyip tasimadigini belirler.</summary>
+/// <summary>Determines whether a response carries a tool call pending approval.</summary>
 /// <remarks>
 /// <para>
-/// Tespit tek bir yerde tutulur cunku birden fazla tuketicisi vardir:
-/// <see cref="ChildAgentInvoker"/> cagirana anlasilir bir hata metni dondurur,
-/// <see cref="RunRecordingAgent"/> alt calistirmayi <c>Failed</c> olarak kapatir.
-/// Iki yerde ayri ayri yazilsaydi biri degisip digeri kalirdi.
+/// The detection is kept in one place because it has more than one consumer:
+/// <see cref="ChildAgentInvoker"/> returns an understandable error message to
+/// the caller, <see cref="RunRecordingAgent"/> closes the sub-run as
+/// <c>Failed</c>. If written separately in two places, one would change and
+/// the other would fall behind.
 /// </para>
 /// <para>
-/// Faz 50'den itibaren <c>AgentPrism.AspNetCore</c>'daki MCP/A2A dis cagri
-/// isleyicileri de ayni tespiti kullanir (K-103'un ikinci uygulamasi: dis
-/// cagiran bir agent degildir, onay veremez). Bu yuzden tip <strong>public</strong>tir.
+/// Starting in Phase 50, the MCP/A2A external call handlers in
+/// <c>AgentPrism.AspNetCore</c> use the same detection too (the second
+/// application of K-103: it is not an external caller, it cannot give
+/// approval). This is why the type is <strong>public</strong>.
 /// </para>
 /// </remarks>
 public static class ChildRunApproval
 {
-    /// <summary>Mesajlarda onay bekleyen tool cagrisi arar.</summary>
-    /// <param name="messages">Yanit mesajlari.</param>
-    /// <returns>Onay bekleyen tool adlari; yoksa <see langword="null"/>.</returns>
+    /// <summary>Searches the messages for a tool call pending approval.</summary>
+    /// <param name="messages">Response messages.</param>
+    /// <returns>Names of tools pending approval; <see langword="null"/> when there are none.</returns>
     public static string? Describe(IEnumerable<ChatMessage> messages)
     {
         List<string>? names = null;
@@ -330,9 +336,9 @@ public static class ChildRunApproval
         return names is null ? null : string.Join(", ", names);
     }
 
-    /// <summary>Iceriklerde onay bekleyen tool cagrisi arar.</summary>
-    /// <param name="contents">Yanit icerikleri.</param>
-    /// <returns>Onay bekleyen tool adlari; yoksa <see langword="null"/>.</returns>
+    /// <summary>Searches the contents for a tool call pending approval.</summary>
+    /// <param name="contents">Response contents.</param>
+    /// <returns>Names of tools pending approval; <see langword="null"/> when there are none.</returns>
     public static string? Describe(IEnumerable<AIContent> contents)
     {
         List<string>? names = null;
@@ -351,9 +357,10 @@ public static class ChildRunApproval
                 continue;
             }
 
-            // Onay istegi her zaman bir fonksiyon cagrisi tasimayabilir; tool adi
-            // yoksa cagri kimligi yazilir. Mesajin bos kalmasi, kullanicinin hangi
-            // tool'un onay istedigini hic ogrenememesi demektir.
+            // An approval request may not always carry a function call; when
+            // there is no tool name, the call id is written instead. Leaving
+            // the message empty would mean the user never learns which tool
+            // is requesting approval.
             (names ??= []).Add(request.ToolCall is FunctionCallContent call
                 ? call.Name
                 : request.ToolCall.CallId);

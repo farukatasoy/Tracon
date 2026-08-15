@@ -3,19 +3,18 @@ using System.Text;
 
 namespace AgentPrism;
 
-/// <summary>Ham API anahtari degeri ve ozetini ureten yardimci.</summary>
+/// <summary>A helper that produces a raw API key value and its hash.</summary>
 /// <remarks>
 /// <para>
-/// Bicim: <c>ap_{kiraci-onek}_{32-bayt-base64url}</c>
-/// (docs/53-KIRACI-API-ANAHTARLARI.md, bolum 53.2). Onek yalnizca
-/// OKUNABILIRLIK icindir; kimlik dogrulamada kullanilmaz — arama her zaman
-/// <see cref="ComputeHash"/>'in urettigi ozet uzerinden yapilir.
+/// Format: <c>ap_{tenant-prefix}_{32-byte-base64url}</c>
+/// (docs/53-KIRACI-API-ANAHTARLARI.md, section 53.2). The prefix exists only
+/// for READABILITY; it is not used for authentication — lookup always goes
+/// through the hash produced by <see cref="ComputeHash"/>.
 /// </para>
 /// <para>
-/// 🚨 Hash algoritmasi SHA-256'dir, Argon2 DEGIL (Acik Soru 2). Anahtar
-/// 32 baytlik RASTGELE bir degerdir, kullanici parolasi degildir; sozluk
-/// saldirisi soz konusu degildir ve yavas bir hash yalnizca her istege
-/// gecikme ekler.
+/// 🚨 The hash algorithm is SHA-256, NOT Argon2 (Open Question 2). The key is
+/// a RANDOM 32-byte value, not a user password; a dictionary attack does not
+/// apply, and a slow hash would only add latency to every request.
 /// </para>
 /// </remarks>
 public static class ApiKeyGenerator
@@ -25,10 +24,10 @@ public static class ApiKeyGenerator
     private const int DisplayPrefixLength = 12;
     private const int MaxTenantSegmentLength = 12;
 
-    /// <summary>Yeni bir ham anahtar uretir.</summary>
-    /// <param name="tenantId">Anahtarin baglanacagi kiraci (yalnizca onek icin okunur).</param>
-    /// <returns>Ham deger, ozeti ve goruntuleme oneki.</returns>
-    /// <exception cref="ArgumentException"><paramref name="tenantId"/> bos ise.</exception>
+    /// <summary>Generates a new raw key.</summary>
+    /// <param name="tenantId">The tenant the key attaches to (read only for the prefix).</param>
+    /// <returns>The raw value, its hash, and a display prefix.</returns>
+    /// <exception cref="ArgumentException"><paramref name="tenantId"/> is empty.</exception>
     public static GeneratedApiKey Generate(string tenantId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
@@ -46,10 +45,10 @@ public static class ApiKeyGenerator
         };
     }
 
-    /// <summary>Bir ham anahtar degerinin SHA-256 ozetini hesaplar.</summary>
-    /// <param name="plaintextKey">Ham deger.</param>
-    /// <returns>32 baytlik ozet.</returns>
-    /// <exception cref="ArgumentException"><paramref name="plaintextKey"/> bos ise.</exception>
+    /// <summary>Computes the SHA-256 hash of a raw key value.</summary>
+    /// <param name="plaintextKey">The raw value.</param>
+    /// <returns>The 32-byte hash.</returns>
+    /// <exception cref="ArgumentException"><paramref name="plaintextKey"/> is empty.</exception>
     public static byte[] ComputeHash(string plaintextKey)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(plaintextKey);
@@ -82,15 +81,15 @@ public static class ApiKeyGenerator
         => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 }
 
-/// <summary>Uretilen ham API anahtari degeri ve turevleri.</summary>
+/// <summary>The generated raw API key value and its derived forms.</summary>
 public sealed record GeneratedApiKey
 {
-    /// <summary>Ham deger. Yalnizca olusturma aninda gorunur.</summary>
+    /// <summary>The raw value. Visible only at creation time.</summary>
     public required string PlaintextKey { get; init; }
 
-    /// <summary>Ham degerin SHA-256 ozeti. Depoya yazilan tek sekildir.</summary>
+    /// <summary>The SHA-256 hash of the raw value. The only form written to the store.</summary>
     public required byte[] KeyHash { get; init; }
 
-    /// <summary>Ham degerin ilk karakterleri; listede ayirt etmek icindir.</summary>
+    /// <summary>The first characters of the raw value; used to distinguish it in a list.</summary>
     public required string KeyPrefix { get; init; }
 }

@@ -4,24 +4,24 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Kayitli bir calistirmayi ayni girdiyle, degistirilmis kosullarla yeniden
-/// calistirilabilir hale getirir.
+/// Makes a recorded run re-runnable with the same input under modified
+/// conditions.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Servis calistirmayi <strong>baslatmaz</strong>; yalnizca hazirlar. Boylece
-/// cagiran taraf ayni plani hem akisli hem akissiz hem de kuyruga alinmis
-/// (Faz 46) bir yolda kullanabilir ve butun hata durumlari yanit basmadan
-/// once bilinir.
+/// The service does <strong>not start</strong> the run; it only prepares it.
+/// This lets the caller use the same plan on a streaming, non-streaming, or
+/// queued (Phase 46) path, and every failure condition is known before the
+/// response starts.
 /// </para>
 /// <para>
-/// 🚨 <strong>Yeniden oynatma oturumsuzdur.</strong> Kaynak calistirma bir
-/// oturuma bagliysa girdisi yalnizca <em>o turun</em> mesajlaridir; gecmis
-/// <c>ChatHistoryProvider</c> tarafindan enjekte edilir ve kayitli girdinin
-/// parcasi degildir. Oynatmayi ayni oturumda calistirmak kaynagin konusmasina
-/// yazardi (append-only, K-014); bu yuzden oynatma her zaman yeni ve oturumsuz
-/// bir calistirmadir. Cok turlu bir konusmayi bastan almak icin dallandirma
-/// (<see cref="IConversationBranchStore"/>) kullanilir.
+/// 🚨 <strong>Replay is sessionless.</strong> If the source run belongs to a
+/// session, its input is only the messages from <em>that turn</em>; history
+/// is injected by <c>ChatHistoryProvider</c> and is not part of the recorded
+/// input. Running the replay in the same session would write into the
+/// source's conversation (append-only, K-014); that is why a replay is
+/// always a new, sessionless run. To restart a multi-turn conversation from
+/// the beginning, use branching (<see cref="IConversationBranchStore"/>).
 /// </para>
 /// </remarks>
 public sealed class RunReplayService
@@ -35,16 +35,16 @@ public sealed class RunReplayService
     private readonly IAgentDecorator[] _decorators;
     private readonly ITenantContext _tenantContext;
 
-    /// <summary>Yeni bir yeniden oynatma servisi olusturur.</summary>
-    /// <param name="runs">Calistirma deposu.</param>
-    /// <param name="inputs">Girdi deposu.</param>
-    /// <param name="definitions">Agent tanim deposu.</param>
-    /// <param name="catalog">Agent katalogu.</param>
-    /// <param name="compiler">Tanim derleyicisi.</param>
-    /// <param name="tools">Tool defteri. Onay gerektiren tool denetimi buradan okunur.</param>
-    /// <param name="decorators">Cozulen agent'a uygulanacak sarmalayicilar.</param>
-    /// <param name="tenantContext">Kiraci baglami.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new replay service.</summary>
+    /// <param name="runs">The run store.</param>
+    /// <param name="inputs">The input store.</param>
+    /// <param name="definitions">The agent definition store.</param>
+    /// <param name="catalog">The agent catalog.</param>
+    /// <param name="compiler">The definition compiler.</param>
+    /// <param name="tools">The tool registry. The approval-required tool check is read from here.</param>
+    /// <param name="decorators">The wrappers to apply to the resolved agent.</param>
+    /// <param name="tenantContext">The tenant context.</param>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public RunReplayService(
         IRunStore runs,
         IRunInputStore inputs,
@@ -71,18 +71,19 @@ public sealed class RunReplayService
         _compiler = compiler;
         _tools = tools;
 
-        // Sira CompositeAgentCatalog ile AYNIDIR: Order'i buyuk olan once
-        // uygulanir, boylece kayit sarmalayicisi (Order = 0) en distaki olur.
+        // The order is the SAME as CompositeAgentCatalog: the decorator with
+        // the larger Order is applied first, so the recording wrapper
+        // (Order = 0) ends up outermost.
         _decorators = [.. decorators.OrderByDescending(static decorator => decorator.Order)];
         _tenantContext = tenantContext;
     }
 
-    /// <summary>Bir yeniden oynatmayi hazirlar.</summary>
-    /// <param name="runId">Kaynak calistirmanin kimligi.</param>
-    /// <param name="request">Degistirilecek kosullar.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Hazirlik sonucu.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="request"/> <see langword="null"/> ise.</exception>
+    /// <summary>Prepares a replay.</summary>
+    /// <param name="runId">The identity of the source run.</param>
+    /// <param name="request">The conditions to modify.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The preparation result.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <see langword="null"/>.</exception>
     public async ValueTask<RunReplayPreparation> PrepareAsync(
         Guid runId,
         RunReplayRequest request,
@@ -92,8 +93,8 @@ public sealed class RunReplayService
 
         var source = await _runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
 
-        // "Yok" ile "baska kiraciya ait" AYNI sonucu verir; ayri bir cevap
-        // varligi sizdirirdi.
+        // "Not found" and "belongs to a different tenant" give the SAME
+        // result; a distinct response would leak existence.
         if (source is null || !string.Equals(source.TenantId, _tenantContext.TenantId, StringComparison.Ordinal))
         {
             return RunReplayPreparation.Failed(
@@ -142,13 +143,14 @@ public sealed class RunReplayService
             .ResolveCallableAgentsAsync(effective, cancellationToken)
             .ConfigureAwait(false);
 
-        // 🚨 Onbellek (CompiledAgentCache) BILEREK atlanir: bindirilmis model ve
-        // oynatilan tool'lar cagriya ozgudur; onbellege girmeleri sonraki normal
-        // calistirmalari da bozardi.
+        // 🚨 The cache (CompiledAgentCache) is DELIBERATELY skipped: the
+        // overridden model and played-back tools are specific to this call;
+        // letting them enter the cache would also corrupt later normal runs.
         var agent = _compiler.Compile(effective, callable, playback is null ? null : playback.Wrap);
 
-        // 🚨 Kalkan dekoratorlerin ICINDE durur; gerekce ReplayMismatchGuard'in
-        // notundadir (istisna kayit sarmalayicisinin catch blokina dusmelidir).
+        // 🚨 The guard sits INSIDE the decorators; the rationale is in the
+        // note on ReplayMismatchGuard (the exception must land in the
+        // recording wrapper's catch block).
         if (playback is not null)
         {
             agent = new ReplayMismatchGuard(agent, playback);
@@ -163,13 +165,16 @@ public sealed class RunReplayService
     }
 
     /// <summary>
-    /// Tanim deposunda karsiligi olmayan (kod kaynakli) bir agent icin plan kurar.
+    /// Builds a plan for an agent (code-defined) that has no counterpart in
+    /// the definition store.
     /// </summary>
     /// <remarks>
-    /// 🚨 Kod agent'inin <see cref="AgentDefinition"/> karsiligi yoktur; model
-    /// bindirmesi ve tool degistirme icin yeniden derlenecek bir tanim da yoktur.
-    /// Sessizce <see cref="ReplayToolMode.LiveTools"/>'a dusmek K1'e aykiridir —
-    /// kullanici yan etki uretmedigini sanirdi. Bu yuzden istek acikca reddedilir.
+    /// 🚨 A code-defined agent has no <see cref="AgentDefinition"/>
+    /// counterpart; there is also no definition to recompile for model
+    /// override or tool substitution. Silently falling back to
+    /// <see cref="ReplayToolMode.LiveTools"/> would violate K1 — the user
+    /// would believe no side effect was produced. So the request is
+    /// explicitly rejected instead.
     /// </remarks>
     private async ValueTask<RunReplayPreparation> PrepareFromCatalogAsync(
         RunRecord source,
@@ -204,13 +209,14 @@ public sealed class RunReplayService
                 $"There is no longer an agent named '{source.AgentName}'; the run cannot be replayed.");
         }
 
-        // Code-defined agent kendi AgentDefinition'ini tasimaz (yukaridaki kontrol
-        // zaten LiveTools disindaki her modu reddetmisti), ama ayni onay-tool
-        // korumasi burada da gerekli: aksi halde onay gerektiren bir tool'u
-        // tasiyan kod kaynakli bir agent, DB kaynaklinin aksine, hicbir 409
-        // almadan sessizce "hicbir sey olmadi" ile biterdi (HATA-S4-014).
-        // Tool adlari AgentDefinition'dan degil katalog aciklayicisindan (ayni
-        // veri, arayuzun agent listesini de besler) okunur.
+        // A code-defined agent carries no AgentDefinition (the check above
+        // already rejected every mode except LiveTools), but the same
+        // approval-tool protection is still needed here: otherwise a
+        // code-defined agent carrying a tool that requires approval would,
+        // unlike a DB-defined one, silently end in "nothing happened" with
+        // no 409 (HATA-S4-014). Tool names are read from the catalog
+        // descriptor (the same data that also feeds the UI's agent list),
+        // not from AgentDefinition.
         var descriptors = await _catalog.ListAsync(cancellationToken).ConfigureAwait(false);
         var descriptor = descriptors.FirstOrDefault(
             candidate => string.Equals(candidate.Name, source.AgentName, StringComparison.Ordinal));
@@ -226,8 +232,8 @@ public sealed class RunReplayService
                 "'ReplayTools'/'NoTools' are not available either — this run cannot be replayed.");
         }
 
-        // Katalog sarmalayicilari kendisi uygular; ikinci kez sarmalamak
-        // calistirmayi iki kez kaydederdi.
+        // The catalog applies its own wrappers; wrapping a second time would
+        // record the run twice.
         return RunReplayPreparation.Ready(agent, input.Messages, source, agentVersion: null, modelId: source.ModelId);
     }
 
@@ -240,15 +246,16 @@ public sealed class RunReplayService
             : await _definitions.GetAsync(agentName, cancellationToken).ConfigureAwait(false);
 
     /// <summary>
-    /// Istegin bindirmelerini tanima uygular.
+    /// Applies the request's overrides to a definition.
     /// </summary>
     /// <remarks>
-    /// 🚨 <see cref="ReplayToolMode.NoTools"/> ve <see cref="ReplayToolMode.ReplayTools"/>
-    /// modlarinda skill ve cagrilabilir alt agent yuzeyleri de <strong>kapatilir</strong>.
-    /// Ikisi de tool'larini bir <c>AIContextProvider</c> uzerinden acar ve tool
-    /// donusumunden gecmez; acik birakilsalardi skill script'i calisir ve alt
-    /// agent gercek bir model cagrisi (ve gercek para) harcardi — "hicbir tool
-    /// gercekten kosmaz" sozu bozulurdu.
+    /// 🚨 In <see cref="ReplayToolMode.NoTools"/> and
+    /// <see cref="ReplayToolMode.ReplayTools"/> modes, the skill and
+    /// callable-sub-agent surfaces are also <strong>disabled</strong>. Both
+    /// expose their tools through an <c>AIContextProvider</c> and do not go
+    /// through the tool wrapping; if left open, a skill script would run and
+    /// a sub-agent would spend a real model call (and real money) — breaking
+    /// the "no tool actually runs" promise.
     /// </remarks>
     private static AgentDefinition ApplyOverrides(AgentDefinition definition, RunReplayRequest request)
     {
@@ -319,67 +326,67 @@ public sealed class RunReplayService
         };
 }
 
-/// <summary>Bir yeniden oynatma hazirliginin sonucu.</summary>
+/// <summary>Represents the outcome of a replay preparation.</summary>
 public enum RunReplayOutcome
 {
-    /// <summary>Plan hazir.</summary>
+    /// <summary>The plan is ready.</summary>
     Ready = 0,
 
-    /// <summary>Kaynak calistirma yok veya baska bir kiraciya ait.</summary>
+    /// <summary>The source run does not exist or belongs to a different tenant.</summary>
     RunNotFound = 1,
 
-    /// <summary>Kaynak calistirmanin kayitli girdisi yok.</summary>
+    /// <summary>The source run has no recorded input.</summary>
     InputNotFound = 2,
 
-    /// <summary>Istenen kosullar bu agent icin uygulanamaz.</summary>
+    /// <summary>The requested conditions cannot be applied to this agent.</summary>
     NotSupported = 3,
 
-    /// <summary>Onay gerektiren bir tool <see cref="ReplayToolMode.LiveTools"/> ile calistirilamaz.</summary>
+    /// <summary>A tool that requires approval cannot run with <see cref="ReplayToolMode.LiveTools"/>.</summary>
     ApprovalRequired = 4,
 }
 
-/// <summary>Hazirlanmis bir yeniden oynatma plani.</summary>
+/// <summary>Represents a prepared replay plan.</summary>
 public sealed record RunReplayPreparation
 {
     private RunReplayPreparation()
     {
     }
 
-    /// <summary>Hazirligin sonucu.</summary>
+    /// <summary>Gets the outcome of the preparation.</summary>
     public required RunReplayOutcome Outcome { get; init; }
 
-    /// <summary>Basarisizligin insan okunur gerekcesi. <see cref="RunReplayOutcome.Ready"/> iken bos.</summary>
+    /// <summary>Gets the human-readable reason for a failure. Empty when <see cref="RunReplayOutcome.Ready"/>.</summary>
     public string? Detail { get; init; }
 
-    /// <summary>Calistirilacak agent.</summary>
+    /// <summary>Gets the agent to run.</summary>
     public AIAgent? Agent { get; init; }
 
-    /// <summary>Kaynak calistirmanin kayitli girdisi.</summary>
+    /// <summary>Gets the recorded input of the source run.</summary>
     public IReadOnlyList<ChatMessage> Messages { get; init; } = [];
 
-    /// <summary>Kaynak calistirma.</summary>
+    /// <summary>Gets the source run.</summary>
     public RunRecord? SourceRun { get; init; }
 
-    /// <summary>Oynatmada kullanilacak tanim surumu. Kod agent'inda <see langword="null"/>.</summary>
+    /// <summary>Gets the definition version to use in the replay. <see langword="null"/> for a code-defined agent.</summary>
     public int? AgentVersion { get; init; }
 
-    /// <summary>Oynatmada kullanilacak model. Bilinmiyorsa <see langword="null"/>.</summary>
+    /// <summary>Gets the model to use in the replay. <see langword="null"/> if unknown.</summary>
     public string? ModelId { get; init; }
 
-    /// <summary>Basarisiz bir hazirlik uretir.</summary>
-    /// <param name="outcome">Sonuc.</param>
-    /// <param name="detail">Gerekce.</param>
-    /// <returns>Hazirlik.</returns>
+    /// <summary>Produces a failed preparation.</summary>
+    /// <param name="outcome">The outcome.</param>
+    /// <param name="detail">The reason.</param>
+    /// <returns>The preparation.</returns>
     public static RunReplayPreparation Failed(RunReplayOutcome outcome, string detail)
         => new() { Outcome = outcome, Detail = detail };
 
-    /// <summary>Hazir bir plan uretir.</summary>
-    /// <param name="agent">Calistirilacak agent.</param>
-    /// <param name="messages">Kayitli girdi.</param>
-    /// <param name="sourceRun">Kaynak calistirma.</param>
-    /// <param name="agentVersion">Kullanilacak tanim surumu.</param>
-    /// <param name="modelId">Kullanilacak model.</param>
-    /// <returns>Hazirlik.</returns>
+    /// <summary>Produces a ready plan.</summary>
+    /// <param name="agent">The agent to run.</param>
+    /// <param name="messages">The recorded input.</param>
+    /// <param name="sourceRun">The source run.</param>
+    /// <param name="agentVersion">The definition version to use.</param>
+    /// <param name="modelId">The model to use.</param>
+    /// <returns>The preparation.</returns>
     public static RunReplayPreparation Ready(
         AIAgent agent,
         IReadOnlyList<ChatMessage> messages,

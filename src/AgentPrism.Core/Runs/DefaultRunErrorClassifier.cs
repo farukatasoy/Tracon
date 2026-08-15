@@ -3,26 +3,26 @@ using System.Text.RegularExpressions;
 namespace AgentPrism;
 
 /// <summary>
-/// AgentPrism'in yerlesik hata siniflandiricisi.
+/// AgentPrism's built-in error classifier.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Once hatanin <strong>kararli kimligini</strong> (<see cref="RunError.Type"/>)
-/// tam eslesmeyle dener; bu, <see cref="AgentPrismException"/> alt tiplerinin
-/// yazdigi degeri (ornek: <c>content_filtered</c>) hem de bu deger eklenmeden
-/// once yazilmis eski tam tip adini (ornek:
-/// <c>AgentPrism.AgentPrismCompilationException</c>) AYNI sinifa esler —
-/// gecmis kayitlar bozulmadan yeni taksonomiye katilir.
+/// First tries an exact match on the error's <strong>stable identity</strong>
+/// (<see cref="RunError.Type"/>); this maps both the value written by
+/// <see cref="AgentPrismException"/> subtypes (for example: <c>content_filtered</c>)
+/// and the old fully-qualified type name written before that value was added
+/// (for example: <c>AgentPrism.AgentPrismCompilationException</c>) to the SAME
+/// class — past records join the new taxonomy without breaking.
 /// </para>
 /// <para>
-/// Tam eslesme yoksa mesaj ve tip adi uzerinde desen aramasina duser. Hicbir
-/// kurala uymayan hata <see cref="RunErrorClass.Unknown"/> olur —
-/// <strong>tahmin edilmez</strong>.
+/// If there is no exact match, it falls back to pattern matching on the
+/// message and the type name. An error that matches no rule becomes
+/// <see cref="RunErrorClass.Unknown"/> — it is <strong>never guessed</strong>.
 /// </para>
 /// <para>
-/// Yalniz hata yolunda cagrilir (bkz. <see cref="IRunErrorClassifier"/>); sicak
-/// yolda tahsis uretmemek icin desenler kaynak ureteciyle (<c>GeneratedRegex</c>)
-/// yazilmistir.
+/// Called only on the error path (see <see cref="IRunErrorClassifier"/>); the
+/// patterns are written with the source generator (<c>GeneratedRegex</c>) so
+/// as not to allocate on the hot path.
 /// </para>
 /// </remarks>
 public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
@@ -113,21 +113,21 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
     [GeneratedRegex(@"\btool\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex ToolErrorPattern();
 
-    // 🚨 Olculdu (samples/AgentPrism.Api, gercek bir OpenAI 404 yaniti):
-    // resmi saglayici SDK'lari HttpRequestException FIRLATMAZ. OpenAI'in
-    // System.ClientModel tabanli istemcisi ClientResultException, Azure
-    // SDK'lari RequestFailedException firlatir. Tip deseni bu yuzden SDK
-    // sarmalayicilarini da kapsar; System.Net tipleri (soket/IO) yalniz
-    // dogrudan HTTP istemcisi kullanan saglayicilar icindir.
+    // 🚨 Measured (samples/AgentPrism.Api, a real OpenAI 404 response): the
+    // official provider SDKs do NOT THROW HttpRequestException. OpenAI's
+    // System.ClientModel-based client throws ClientResultException, and the
+    // Azure SDKs throw RequestFailedException. The type pattern therefore also
+    // covers SDK wrappers; the System.Net types (socket/IO) are only for
+    // providers that use an HTTP client directly.
     [GeneratedRegex(
         @"httprequestexception|socketexception|ioexception|clientresultexception|requestfailedexception|apiexception",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
         matchTimeoutMilliseconds: 1000)]
     private static partial Regex ProviderErrorTypePattern();
 
-    // Yedek imza: tip taninmasa bile mesajda "HTTP 4xx"/"HTTP 5xx" gorulmesi
-    // saglayici tarafinda bir HTTP hatasi oldugunu gosterir (ornek: "HTTP 404
-    // (invalid_request_error: model_not_found)").
+    // Fallback signature: even if the type is not recognized, seeing "HTTP
+    // 4xx"/"HTTP 5xx" in the message shows an HTTP error occurred on the
+    // provider side (example: "HTTP 404 (invalid_request_error: model_not_found)").
     [GeneratedRegex(@"\bHTTP\s+[45]\d{2}\b", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex ProviderErrorMessagePattern();
 }

@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace AgentPrism;
 
 /// <summary>
@@ -56,7 +58,7 @@ public static class CanaryEvaluator
             {
                 return Build(
                     CanaryDecisionKind.RollBack,
-                    $"The canary error rate ({canaryRate:P1}) exceeds the control rate ({controlRate:P1}) by more than the {maxDelta:P1} threshold.",
+                    $"The canary error rate ({canaryRate.ToString("P1", CultureInfo.InvariantCulture)}) exceeds the control rate ({controlRate.ToString("P1", CultureInfo.InvariantCulture)}) by more than the {maxDelta.ToString("P1", CultureInfo.InvariantCulture)} threshold.",
                     canary,
                     control,
                     now);
@@ -67,7 +69,7 @@ public static class CanaryEvaluator
         {
             return Build(
                 CanaryDecisionKind.RollBack,
-                $"The canary average score ({averageScore:F1}) is below the {minScore} threshold.",
+                $"The canary average score ({averageScore.ToString("F1", CultureInfo.InvariantCulture)}) is below the {minScore} threshold.",
                 canary,
                 control,
                 now);

@@ -5,37 +5,39 @@ using System.Text.RegularExpressions;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir hata mesajini kumeleme parmak izine cevirir.
+/// Turns an error message into a clustering fingerprint.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Ham mesaj kimlik, sayi ve zaman damgasi gibi degisken parcalar tasir; her
-/// satiri ayri bir kume yapardi. Normallestirme sirasi (kimlik → sayi → zaman
-/// damgasi) bilinclidir: zaman damgasi, sayi degistirmesinden SONRA sayilarin
-/// yerini alan <c>{n}</c> belirteclerinin ISO 8601 seklindeki dizisini yakalar
-/// — ayri bir tarih dogrulama deseni yazmayi gerektirmez.
+/// A raw message carries variable parts such as an identity, a number, or a
+/// timestamp; each one would otherwise form its own cluster. The
+/// normalization order (identity → number → timestamp) is deliberate: the
+/// timestamp pattern runs AFTER the number replacement and captures the
+/// ISO-8601-shaped sequence of <c>{n}</c> tokens that replaced the numbers —
+/// it does not need a separate date-validation pattern of its own.
 /// </para>
 /// <para>
-/// Tirnak ici metin BILEREK silinmez (Acik Soru 3 → C): bir tool adi ayirt
-/// edicidir, silinmesi iki farkli tool hatasini tek kumede birlestirirdi.
-/// Kimlik/sayi/tarih temizligi zaten mesajlarin cogunluk gurultusunu kaldirir.
+/// Quoted text is DELIBERATELY not stripped (Open Question 3 → C): a tool name
+/// is distinguishing, and stripping it would merge two different tool errors
+/// into a single cluster. Identity/number/date cleanup already removes most of
+/// the noise from messages.
 /// </para>
 /// </remarks>
 internal static partial class ErrorFingerprint
 {
     /// <summary>
-    /// Hashlemeden once normallestirilmis metnin en fazla uzunlugu. Cok uzun
-    /// mesajlarin (yigin izi gibi) tamami hashlenmez; kumeleme mesajin
-    /// basindaki anlamli kisma dayanir.
+    /// The maximum length of the normalized text before hashing. Very long
+    /// messages (such as a stack trace) are not hashed in full; clustering
+    /// relies on the meaningful part at the start of the message.
     /// </summary>
     private const int MaxNormalizedLength = 500;
 
     /// <summary>
-    /// Bir hata mesajini normallestirir ve SHA-256 ozetini kucuk harf onaltilik
-    /// dizge olarak dondurur.
+    /// Normalizes an error message and returns its SHA-256 digest as a
+    /// lowercase hexadecimal string.
     /// </summary>
-    /// <param name="message">Ham hata mesaji.</param>
-    /// <returns>Kucuk harf onaltilik SHA-256 ozeti.</returns>
+    /// <param name="message">The raw error message.</param>
+    /// <returns>The lowercase hexadecimal SHA-256 digest.</returns>
     public static string Compute(string message)
     {
         ArgumentNullException.ThrowIfNull(message);
@@ -52,7 +54,7 @@ internal static partial class ErrorFingerprint
 
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(normalized));
 
-        // Convert.ToHexStringLower net9.0'da eklendi; repo net8.0'i da hedefler.
+        // Convert.ToHexStringLower was added in net9.0; the repo also targets net8.0.
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
@@ -65,8 +67,9 @@ internal static partial class ErrorFingerprint
     [GeneratedRegex(@"\d+", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex NumberPattern();
 
-    // Sayi degistirmesinden SONRA calisir: "2026-08-06T10:15:30.123Z" onceki
-    // adimda "{n}-{n}-{n}T{n}:{n}:{n}.{n}Z" olur, bu desen onu tek {ts}'e coker.
+    // Runs AFTER the number replacement: "2026-08-06T10:15:30.123Z" becomes
+    // "{n}-{n}-{n}T{n}:{n}:{n}.{n}Z" in the previous step, and this pattern
+    // collapses it into a single {ts}.
     [GeneratedRegex(
         @"\{n\}-\{n\}-\{n\}T\{n\}:\{n\}:\{n\}(?:\.\{n\})?Z?",
         RegexOptions.CultureInvariant,

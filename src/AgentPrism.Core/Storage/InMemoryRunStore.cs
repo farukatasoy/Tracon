@@ -6,17 +6,17 @@ using System.Runtime.InteropServices;
 namespace AgentPrism;
 
 /// <summary>
-/// Calistirma kayitlarini ve olaylarini surec bellegi icinde tutan depo.
+/// A store that keeps run records and their events in process memory.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Olaylar append-only'dir ve sira numarasina gore saklanir. Yeniden oynatma
-/// (<see cref="ReadEventsAsync"/>) kalici depolarla ayni davranisi gosterir.
+/// Events are append-only and stored by sequence number. Replay
+/// (<see cref="ReadEventsAsync"/>) behaves the same as with persistent stores.
 /// </para>
 /// <para>
-/// <strong>Sinirlari:</strong> surec omru, tek dugum ve sinirsiz bellek buyumesi.
-/// <see cref="MaxRuns"/> ile en eski calistirmalar otomatik dusurulur.
-/// Uretimde <c>AgentPrism.PostgreSql</c> kullanin.
+/// <strong>Limits:</strong> process lifetime, single node, and unbounded
+/// memory growth. <see cref="MaxRuns"/> automatically drops the oldest runs.
+/// Use <c>AgentPrism.PostgreSql</c> in production.
 /// </para>
 /// </remarks>
 public sealed class InMemoryRunStore : IRunStore
@@ -29,17 +29,18 @@ public sealed class InMemoryRunStore : IRunStore
     private readonly IRunScoreStore _scores;
     private readonly ITenantContext _tenantContext;
 
-    /// <summary>Yeni bir bellek ici calistirma deposu olusturur.</summary>
+    /// <summary>Creates a new in-memory run store.</summary>
     /// <param name="scores">
-    /// Ozet hesabinda kullanilan puan deposu (<see cref="GetStatisticsAsync"/>).
-    /// Verilmezse ozel bir orneği kendisi olusturur -- bu, parametresiz
-    /// <c>new InMemoryRunStore()</c> kullanan testleri bozmamak icindir. DI
-    /// uzerinden cozumlendiğinde <c>AddAgentPrism()</c>'in kaydettigi paylasilan
-    /// tekil orneği alir, boylece HTTP katmaninin yazdigi puanlar ozette gorunur.
+    /// The score store used in summary computation (<see cref="GetStatisticsAsync"/>).
+    /// If not given, creates a private instance of its own -- this is to
+    /// avoid breaking tests that use the parameterless <c>new InMemoryRunStore()</c>.
+    /// When resolved through DI, it gets the shared singleton instance
+    /// registered by <c>AddAgentPrism()</c>, so scores written by the HTTP
+    /// layer appear in the summary.
     /// </param>
     /// <param name="tenantContext">
-    /// Gecerli kiracinin baglami. Verilmezse depo tek kiracili davranir
-    /// (Faz 41).
+    /// The current tenant's context. If not given, the store behaves as
+    /// single-tenant (Phase 41).
     /// </param>
     public InMemoryRunStore(IRunScoreStore? scores = null, ITenantContext? tenantContext = null)
     {
@@ -48,8 +49,8 @@ public sealed class InMemoryRunStore : IRunStore
     }
 
     /// <summary>
-    /// Bellekte tutulacak ust calistirma sayisi. Asilinca en eski calistirma
-    /// ve olaylari dusurulur.
+    /// The upper bound on the number of runs kept in memory. When exceeded,
+    /// the oldest run and its events are dropped.
     /// </summary>
     public int MaxRuns { get; init; } = 1_000;
 
@@ -79,10 +80,11 @@ public sealed class InMemoryRunStore : IRunStore
             ReplayOfRunId = info.ReplayOfRunId,
         };
 
-        // 🚨 Faz 46: kuyruga alinan bir calistirma icin bu metot AYNI kimlikle
-        // IKI kez cagrilir (once Queued, sonra isci Running'e gecirirken). Bu bir
-        // UPSERT'tir: satir zaten varsa olay/tool-cagri gunluklerini SIFIRLAMA
-        // (araya hicbir olay yazilmamis olsa da) ve siraya IKINCI kez ekleme.
+        // 🚨 Phase 46: for a queued run, this method is called TWICE with the
+        // SAME identity (first Queued, then again when the worker moves it to
+        // Running). This is an UPSERT: if the row already exists, do NOT
+        // RESET the event/tool-invocation logs (even if no event has been
+        // written yet), and do not enqueue it a SECOND time.
         var isNew = !_runs.ContainsKey(record.Id);
 
         _runs[record.Id] = record;
@@ -107,12 +109,12 @@ public sealed class InMemoryRunStore : IRunStore
         if (!_events.TryGetValue(runEvent.RunId, out var log))
         {
             throw new AgentPrismException(
-                $"'{runEvent.RunId}' kimlikli calistirma bulunamadi. Olay eklemeden once StartRunAsync cagrilmalidir.");
+                $"No run with id '{runEvent.RunId}' was found. StartRunAsync must be called before adding an event.");
         }
 
-        // BEKLENEN kiraci denetimi (K-355). SQL deposuyla AYNI davranis; sozlesme
-        // testleri iki uygulamayi da ayni iddiayla sinar.
-        EnsureExpectedTenant(runEvent.RunId, runEvent.TenantId, "Olay yazilmadi.");
+        // EXPECTED tenant check (K-355). SAME behavior as the SQL store;
+        // contract tests exercise both implementations against the same assertion.
+        EnsureExpectedTenant(runEvent.RunId, runEvent.TenantId, "The event was not written.");
 
         lock (log)
         {
@@ -123,12 +125,12 @@ public sealed class InMemoryRunStore : IRunStore
     }
 
     /// <summary>
-    /// Yazmanin hedef calistirmasi beklenen kiraciya ait mi.
+    /// Whether the write's target run belongs to the expected tenant.
     /// </summary>
-    /// <param name="runId">Calistirma kimligi.</param>
-    /// <param name="expectedTenantId">Beklenen kiraci. <see langword="null"/> ise denetim yapilmaz.</param>
-    /// <param name="suffix">Hata mesajinin sonuna eklenecek aciklama.</param>
-    /// <exception cref="AgentPrismException">Kiraci uyusmuyorsa.</exception>
+    /// <param name="runId">The run's identity.</param>
+    /// <param name="expectedTenantId">The expected tenant. No check is performed if <see langword="null"/>.</param>
+    /// <param name="suffix">Text appended to the end of the error message.</param>
+    /// <exception cref="AgentPrismException">The tenant does not match.</exception>
     private void EnsureExpectedTenant(Guid runId, string? expectedTenantId, string suffix)
     {
         if (expectedTenantId is null)
@@ -140,7 +142,7 @@ public sealed class InMemoryRunStore : IRunStore
             && !string.Equals(run.TenantId, expectedTenantId, StringComparison.Ordinal))
         {
             throw new AgentPrismException(
-                $"'{runId}' kimlikli calistirma beklenen kiraciya ('{expectedTenantId}') ait degil. {suffix}");
+                $"Run '{runId}' does not belong to the expected tenant ('{expectedTenantId}'). {suffix}");
         }
     }
 
@@ -151,11 +153,11 @@ public sealed class InMemoryRunStore : IRunStore
 
         if (!_runs.TryGetValue(completion.RunId, out var existing))
         {
-            throw new AgentPrismException($"'{completion.RunId}' kimlikli calistirma bulunamadi.");
+            throw new AgentPrismException($"No run with id '{completion.RunId}' was found.");
         }
 
-        // BEKLENEN kiraci denetimi (K-355).
-        EnsureExpectedTenant(completion.RunId, completion.TenantId, "Calistirma sonlandirilmadi.");
+        // EXPECTED tenant check (K-355).
+        EnsureExpectedTenant(completion.RunId, completion.TenantId, "The run was not completed.");
 
         _runs[completion.RunId] = existing with
         {
@@ -177,12 +179,13 @@ public sealed class InMemoryRunStore : IRunStore
         string? tenantId = null,
         CancellationToken cancellationToken = default)
     {
-        // Calistirma dusurulmusse (MaxRuns) cagri sessizce atilir: bu bir bakim
-        // ucudur ve calistirmayi kesmemelidir.
+        // If the run was dropped (MaxRuns), the call is silently discarded:
+        // this is a maintenance cost and must not interrupt the run.
         if (_runs.TryGetValue(runId, out var existing))
         {
-            // BEKLENEN kiraci uyusmuyorsa yazma SESSIZCE atlanir — SQL tarafinda
-            // da WHERE kosulu sifir satir gunceller ve hata firlatilmaz (K-355).
+            // If the EXPECTED tenant does not match, the write is SILENTLY
+            // skipped — on the SQL side too, the WHERE condition updates zero
+            // rows and no error is thrown (K-355).
             if (tenantId is not null
                 && !string.Equals(existing.TenantId, tenantId, StringComparison.Ordinal))
             {
@@ -205,8 +208,8 @@ public sealed class InMemoryRunStore : IRunStore
 
         foreach (var runId in runIds)
         {
-            // Yalniz Running satirlari icin anlamlidir; var olmayan veya
-            // baska durumdaki bir kimlik sessizce atlanir (bakim sinyali).
+            // Meaningful only for Running rows; an identity that does not
+            // exist or is in another status is silently skipped (a maintenance signal).
             if (_runs.TryGetValue(runId, out var run) && run.Status == RunStatus.Running)
             {
                 _heartbeats[runId] = at;
@@ -217,8 +220,8 @@ public sealed class InMemoryRunStore : IRunStore
     }
 
     /// <summary>
-    /// Oksuz calistirma hatalarinin kumeleme parmak izi. Bkz. kullanim yerindeki
-    /// gerekce.
+    /// The clustering fingerprint for orphaned-run errors. See the rationale
+    /// at the usage site.
     /// </summary>
     private const string OrphanedFingerprint = "orphaned";
 
@@ -242,20 +245,20 @@ public sealed class InMemoryRunStore : IRunStore
 
         foreach (var (record, lastSeen) in candidates)
         {
-            var message = $"Calistirma yuruten surec yanit vermiyor; son isaret: {lastSeen:O}.";
+            var message = $"The process running the run is not responding; last heartbeat: {lastSeen:O}.";
             var error = new RunError
             {
                 Type = "orphaned",
                 Message = message,
                 Class = RunErrorClass.Infrastructure,
 
-                // Sabit bir dize -- bir SHA-256 hash DEGIL. Butun oksuz
-                // calistirmalar AYNI arizadir (surec yanit vermiyor); mesaj
-                // metnindeki degisken zaman damgasini normallestirmek icin
-                // ErrorFingerprint.Compute'a ihtiyac yoktur ve SQL depolari
-                // (ayri bir derleme, ErrorFingerprint'e erisemez) bu sabiti
-                // birebir aynen kullanir -- iki uygulama arasinda davranis
-                // esitligi boylece SADE bir sekilde saglanir.
+                // A fixed string -- NOT a SHA-256 hash. Every orphaned run is
+                // the SAME failure (the process is not responding); there is
+                // no need for ErrorFingerprint.Compute to normalize the
+                // variable timestamp in the message text, and the SQL stores
+                // (a separate assembly, which cannot reach ErrorFingerprint)
+                // use this constant verbatim -- behavioral equality between
+                // the two implementations is achieved SIMPLY this way.
                 Fingerprint = OrphanedFingerprint,
             };
 
@@ -267,10 +270,10 @@ public sealed class InMemoryRunStore : IRunStore
                 EventCount = record.EventCount + 1,
             };
 
-            // Baska bir yol ayni anda kaydi degistirmis olabilir (ornek:
-            // calistirma tam bu sirada normal sekilde tamamlandi); byle bir
-            // yaris cok dusuk ihtimalli olsa da TryUpdate atomik korumayi
-            // saglar -- kacirilirsa satir bir sonraki turda tekrar denenir.
+            // Another path may have modified the record at the same time (for
+            // example, the run completed normally right at this moment);
+            // even though such a race is very unlikely, TryUpdate provides
+            // atomic protection -- if missed, the row is retried on the next pass.
             if (!_runs.TryUpdate(record.Id, updated, record))
             {
                 continue;
@@ -314,12 +317,12 @@ public sealed class InMemoryRunStore : IRunStore
 
         var effectiveTenantId = query.TenantId ?? _tenantContext.TenantId;
 
-        // HATA-S2-001: SessionId yalniz KOK calistirmada set edilir (K-217);
-        // alt calistirmalarin kendi SessionId'si her zaman null'dur. Dogrudan
-        // esitlik denetimi bu yuzden "includeChildren=true" ile birlikte
-        // verildiginde hicbir alt calistirmayi asla eslestirmezdi. Once bu
-        // oturuma ait KOK calistirmalarin kimligini topla, sonra her kaydi
-        // kendi agacinin KOKUNE (RootRunId ?? Id) gore esle.
+        // HATA-S2-001: SessionId is set only on the ROOT run (K-217); a child
+        // run's own SessionId is always null. A direct equality check would
+        // therefore never match any child run when given together with
+        // "includeChildren=true". First collect the identities of the ROOT
+        // runs belonging to this session, then match each record against its
+        // own tree's ROOT (RootRunId ?? Id).
         HashSet<Guid>? sessionRootIds = null;
 
         if (query.SessionId is { } sessionId)
@@ -382,9 +385,9 @@ public sealed class InMemoryRunStore : IRunStore
                 continue;
             }
 
-            // Ebeveyn filtresi kok filtresini bilerek gecersiz kilar: ikisi
-            // mantiksal olarak celisir ve sessizce bos liste donmek hata
-            // ayiklanmasi zor bir davranistir.
+            // The parent filter deliberately overrides the root filter: the
+            // two are logically contradictory, and silently returning an
+            // empty list is a hard-to-debug behavior.
             if (query.ParentRunId is { } parentRunId)
             {
                 if (record.ParentRunId != parentRunId)
@@ -415,22 +418,22 @@ public sealed class InMemoryRunStore : IRunStore
     }
 
     /// <summary>
-    /// Kayda alt calistirma sayisini ve agac toplamini ekler.
+    /// Adds the child run count and tree total to the record.
     /// </summary>
     /// <remarks>
-    /// Degerler saklanmaz, okumada hesaplanir. Saklansaydi her alt calistirmanin
-    /// tamamlanmasi ustteki her kaydi guncellemek zorunda kalir ve kayit yolu
-    /// derinlikle birlikte pahalilasirdi.
+    /// Values are not stored; they are computed at read time. If stored,
+    /// every child run's completion would have to update every record above
+    /// it, and the write path would grow more expensive with depth.
     /// </remarks>
-    /// <summary>Calistirma gecerli kiraciya ait mi.</summary>
-    /// <param name="runId">Calistirma kimligi.</param>
-    /// <returns>Kayit var ve kiraci esliyorsa <see langword="true"/>.</returns>
+    /// <summary>Whether the run belongs to the current tenant.</summary>
+    /// <param name="runId">The run's identity.</param>
+    /// <returns><see langword="true"/> if the record exists and the tenant matches.</returns>
     private bool IsOwnedByCurrentTenant(Guid runId) => TryGetOwnedRun(runId, out _);
 
-    /// <summary>Calistirmayi yalnizca gecerli kiraciya aitse dondurur.</summary>
-    /// <param name="runId">Calistirma kimligi.</param>
-    /// <param name="record">Bulunan kayit; sahiplik yoksa <see langword="null"/>.</param>
-    /// <returns>Kayit bulunduysa <see langword="true"/>.</returns>
+    /// <summary>Returns the run only if it belongs to the current tenant.</summary>
+    /// <param name="runId">The run's identity.</param>
+    /// <param name="record">The record found; <see langword="null"/> if not owned.</param>
+    /// <returns><see langword="true"/> if the record was found.</returns>
     private bool TryGetOwnedRun(Guid runId, [NotNullWhen(true)] out RunRecord? record)
     {
         if (_runs.TryGetValue(runId, out var found)
@@ -565,9 +568,9 @@ public sealed class InMemoryRunStore : IRunStore
                 continue;
             }
 
-            // Eval vaka calistirmalari sentetik test cagrilaridir, gercek
-            // trafik degildir; ozeti kirletmemesi icin haric tutulur
-            // (docs/18-DEGERLENDIRME.md, acik soru 4).
+            // Eval case runs are synthetic test calls, not real traffic; they
+            // are excluded to avoid polluting the summary
+            // (docs/18-DEGERLENDIRME.md, open question 4).
             if (record.Kind == RunKind.Eval)
             {
                 continue;
@@ -575,11 +578,11 @@ public sealed class InMemoryRunStore : IRunStore
 
             total++;
 
-            // Bir calistirmanin puanlarini tek tek cekmek (N+1) bellek ici
-            // depoda kabul edilebilir; uretim yolu SQL saglayicilarindaki
-            // tek sorguluk JOIN'dir. Bkz. docs/31-GERI-BILDIRIM-VE-PUANLAMA.md.
-            // TenantId nadiren bos olabilir (RunRecord.TenantId nullable'dir);
-            // bos ise bu calistirma icin hicbir puan yazilamamis demektir.
+            // Fetching a run's scores one by one (N+1) is acceptable in the
+            // in-memory store; the production path is the single-query JOIN
+            // in the SQL providers. See docs/31-GERI-BILDIRIM-VE-PUANLAMA.md.
+            // TenantId can rarely be empty (RunRecord.TenantId is nullable);
+            // if empty, no score could have been written for this run.
             var runScores = record.TenantId is { Length: > 0 } scoreTenantId
                 ? await _scores.ListAsync(scoreTenantId, record.Id, cancellationToken).ConfigureAwait(false)
                 : [];
@@ -614,9 +617,9 @@ public sealed class InMemoryRunStore : IRunStore
                 default: break;
             }
 
-            // Hata kirilimi: hata sinifi eklenmeden once yazilmis satirlar
-            // (Class == null) Unknown kovasina duser (K-014 -- geriye donuk
-            // doldurma yapilmaz).
+            // Error breakdown: rows written before the error class field was
+            // added (Class == null) fall into the Unknown bucket (K-014 --
+            // no retroactive backfill is done).
             if (record.Status == RunStatus.Failed && record.Error is { } runError)
             {
                 var errorClass = runError.Class ?? RunErrorClass.Unknown;
@@ -660,8 +663,8 @@ public sealed class InMemoryRunStore : IRunStore
                 tally.FailedRuns + (record.Status == RunStatus.Failed ? 1 : 0),
                 tally.TotalTokens + (record.Usage?.TotalTokens ?? 0));
 
-            // Surumu bilinmeyen calistirmalar kirilima girmez ancak toplamlarda
-            // sayilir; aksi halde iki rakam birbirini tutmazdi.
+            // Runs with an unknown version do not enter the breakdown but are
+            // still counted in the totals; otherwise the two figures would not agree.
             if (record.AgentVersion is { } agentVersion)
             {
                 var key = (record.AgentName, agentVersion);
@@ -672,8 +675,8 @@ public sealed class InMemoryRunStore : IRunStore
                     versionTally.TotalTokens + (record.Usage?.TotalTokens ?? 0));
             }
 
-            // Model adi bilinmeyen calistirmalar kirilima girmez ancak
-            // toplamlarda sayilir; aksi halde iki rakam birbirini tutmazdi.
+            // Runs with an unknown model name do not enter the breakdown but
+            // are still counted in the totals; otherwise the two figures would not agree.
             if (record.ModelId is { Length: > 0 } modelId)
             {
                 perModel.TryGetValue(modelId, out var modelTally);
@@ -769,7 +772,7 @@ public sealed class InMemoryRunStore : IRunStore
         };
     }
 
-    /// <summary>Bir hata sinifinin en sik uc kumesini secerken kesilen ust sinir.</summary>
+    /// <summary>The upper bound applied when selecting an error class's most frequent clusters.</summary>
     private const int TopErrorClusterCount = 3;
 
     /// <inheritdoc />
@@ -804,8 +807,8 @@ public sealed class InMemoryRunStore : IRunStore
     }
 
     /// <summary>
-    /// Bir calistirmanin numerik (Faz 49, <c>RunScoreKind.Numeric</c>) puanlarinin
-    /// ortalamasi. Calistirma duzeyi puan yoksa <see langword="null"/>.
+    /// The average of a run's numeric (Phase 49, <c>RunScoreKind.Numeric</c>)
+    /// scores. <see langword="null"/> if there is no run-level score.
     /// </summary>
     private async ValueTask<double?> GetRunAverageScoreAsync(RunRecord record, string tenantId, CancellationToken cancellationToken)
     {
@@ -838,9 +841,9 @@ public sealed class InMemoryRunStore : IRunStore
         var step = RunTimeSeriesBucketing.StepFor(query.Bucket);
         var buckets = new SortedDictionary<DateTimeOffset, BucketTally>();
 
-        // Bos kovalar da donmelidir (K-152 — zaman serisi grafiginde kesinti,
-        // "veri yok" degil "sifir" gibi gorunmeli). PostgreSql'in generate_series'i
-        // burada onceden tohumlamayla karsilanir.
+        // Empty buckets must be returned too (K-152 — a gap in the time
+        // series chart should look like "zero", not "no data"). PostgreSql's
+        // generate_series is matched here by pre-seeding.
         for (var cursor = RunTimeSeriesBucketing.Truncate(query.From, query.Bucket);
              cursor < query.To;
              cursor += step)
@@ -870,8 +873,8 @@ public sealed class InMemoryRunStore : IRunStore
                 continue;
             }
 
-            // Bilerek Eval/Workflow calistirmalarini haric TUTMAZ —
-            // GetStatisticsAsync'in aksine (bkz. docs/KARARLAR.md K-152).
+            // Deliberately does NOT exclude Eval/Workflow runs — unlike
+            // GetStatisticsAsync (see docs/KARARLAR.md K-152).
             if (query.Kind is { } kind && record.Kind != kind)
             {
                 continue;
@@ -896,11 +899,11 @@ public sealed class InMemoryRunStore : IRunStore
     {
         ArgumentNullException.ThrowIfNull(invocation);
 
-        // BEKLENEN kiraci denetimi (K-355).
-        EnsureExpectedTenant(invocation.RunId, invocation.TenantId, "Tool cagrisi yazilmadi.");
+        // EXPECTED tenant check (K-355).
+        EnsureExpectedTenant(invocation.RunId, invocation.TenantId, "The tool invocation was not written.");
 
-        // Calistirma dusurulmusse (MaxRuns) cagri sessizce atilir: kayit
-        // gozlemlenebilirlik icindir ve calistirmayi kesmemelidir.
+        // If the run was dropped (MaxRuns), the call is silently discarded:
+        // the record is for observability and must not interrupt the run.
         if (_toolInvocations.TryGetValue(invocation.RunId, out var log))
         {
             lock (log)
@@ -1016,11 +1019,11 @@ public sealed class InMemoryRunStore : IRunStore
         await Task.CompletedTask.ConfigureAwait(false);
     }
 
-    /// <summary>Bir agent icin biriken sayaclar. Yalnizca ozet hesabinda kullanilir.</summary>
+    /// <summary>Accumulated counters for an agent. Used only in summary computation.</summary>
     [StructLayout(LayoutKind.Auto)]
     private readonly record struct AgentTally(long TotalRuns, long FailedRuns, long TotalTokens);
 
-    /// <summary>Bir model icin biriken sayaclar.</summary>
+    /// <summary>Accumulated counters for a model.</summary>
     [StructLayout(LayoutKind.Auto)]
     private readonly record struct ModelTally(
         long TotalRuns,
@@ -1029,14 +1032,14 @@ public sealed class InMemoryRunStore : IRunStore
         long TotalTokens,
         decimal? CostSum);
 
-    /// <summary>Bir hata parmak izi kumesi icin biriken sayaclar.</summary>
+    /// <summary>Accumulated counters for an error fingerprint cluster.</summary>
     [StructLayout(LayoutKind.Auto)]
     private readonly record struct ErrorClusterTally(long Count, string SampleMessage, Guid SampleRunId, DateTimeOffset LastSeenAt)
     {
         /// <summary>
-        /// En son goruntuyu gunceller. "Son" burada calistirmanin baslangic
-        /// zamanidir (<see cref="RunRecord.StartedAt"/>) -- kayitta hatanin
-        /// kendisine ozgu ayri bir "olustu" zaman damgasi yoktur.
+        /// Updates the most recent sample. "Most recent" here is the run's
+        /// start time (<see cref="RunRecord.StartedAt"/>) -- the record has
+        /// no separate "occurred at" timestamp specific to the error itself.
         /// </summary>
         public ErrorClusterTally Add(RunRecord record, RunError error)
         {
@@ -1050,7 +1053,7 @@ public sealed class InMemoryRunStore : IRunStore
         }
     }
 
-    /// <summary>Bir deney kolu icin biriken sayaclar.</summary>
+    /// <summary>Accumulated counters for an experiment variant.</summary>
     [StructLayout(LayoutKind.Auto)]
     private readonly record struct VariantTally(
         int Version,
@@ -1114,7 +1117,7 @@ public sealed class InMemoryRunStore : IRunStore
             };
     }
 
-    /// <summary>Bir zaman kovasi icin biriken sayaclar.</summary>
+    /// <summary>Accumulated counters for a time bucket.</summary>
     [StructLayout(LayoutKind.Auto)]
     private readonly record struct BucketTally(
         long Runs,
@@ -1158,7 +1161,7 @@ public sealed class InMemoryRunStore : IRunStore
             };
     }
 
-    /// <summary>Bir tool icin biriken sayaclar.</summary>
+    /// <summary>Accumulated counters for a tool.</summary>
     [StructLayout(LayoutKind.Auto)]
     private readonly record struct ToolTally(
         long TotalCalls,
@@ -1181,8 +1184,8 @@ public sealed class InMemoryRunStore : IRunStore
                 ToolName = toolName,
                 TotalCalls = TotalCalls,
                 FailedCalls = FailedCalls,
-                // Payda sureli cagrilardir: sure bildirmeyen cagrilari paydaya
-                // katmak ortalamayi yapay olarak dusururdu.
+                // The denominator is timed calls: including calls that report
+                // no duration in the denominator would artificially lower the average.
                 AverageDurationMs = TimedCalls == 0 ? null : TotalDurationMs / TimedCalls,
                 LastCalledAt = LastCalledAt,
             };

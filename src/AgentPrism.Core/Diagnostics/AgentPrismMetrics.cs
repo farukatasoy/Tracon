@@ -4,20 +4,20 @@ using System.Diagnostics.Metrics;
 namespace AgentPrism;
 
 /// <summary>
-/// AgentPrism'in yaydigi metrikler. Tuketici <c>AddMeter(AgentPrismDiagnostics.MeterName)</c>
-/// ile toplar.
+/// Metrics emitted by AgentPrism. Consumers collect them with
+/// <c>AddMeter(AgentPrismDiagnostics.MeterName)</c>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Olcum aletleri <see cref="IMeterFactory"/> uzerinden kurulur; boylece test
-/// icinde yalitilabilirler. Fabrika kayitli degilse dogrudan bir
-/// <see cref="Meter"/> olusturulur — kutuphane, tuketiciyi
-/// <c>AddMetrics()</c> cagirmaya zorlamaz.
+/// Instruments are set up via <see cref="IMeterFactory"/>, which allows them
+/// to be isolated in tests. When the factory is not registered, a
+/// <see cref="Meter"/> is created directly - the library does not force the
+/// consumer to call <c>AddMetrics()</c>.
 /// </para>
 /// <para>
-/// Sureler <strong>saniye</strong> cinsindendir. OpenTelemetry semantic
-/// convention'i histogram sureleri icin saniyeyi zorunlu kilar; milisaniye
-/// yazmak hazir gosterge panolarini bozar.
+/// Durations are in <strong>seconds</strong>. The OpenTelemetry semantic
+/// convention mandates seconds for histogram durations; writing milliseconds
+/// would break ready-made dashboards.
 /// </para>
 /// </remarks>
 public sealed class AgentPrismMetrics : IDisposable
@@ -25,10 +25,10 @@ public sealed class AgentPrismMetrics : IDisposable
     private readonly Meter _meter;
     private readonly bool _ownsMeter;
 
-    /// <summary>Yeni bir metrik kumesi olusturur.</summary>
+    /// <summary>Creates a new metric set.</summary>
     /// <param name="meterFactory">
-    /// Olcum fabrikasi. <see langword="null"/> ise kendi <see cref="Meter"/>
-    /// ornegi olusturulur ve sahipligi bu nesneye ait olur.
+    /// Meter factory. When <see langword="null"/>, a new <see cref="Meter"/>
+    /// instance is created and owned by this object.
     /// </param>
     public AgentPrismMetrics(IMeterFactory? meterFactory = null)
     {
@@ -45,79 +45,80 @@ public sealed class AgentPrismMetrics : IDisposable
         Runs = _meter.CreateCounter<long>(
             AgentPrismDiagnostics.RunCounterName,
             unit: "{run}",
-            description: "Sonuclanmis calistirma sayisi.");
+            description: "Number of completed runs.");
 
         RunDuration = _meter.CreateHistogram<double>(
             AgentPrismDiagnostics.RunDurationName,
             unit: "s",
-            description: "Calistirma suresi.");
+            description: "Run duration.");
 
         Tokens = _meter.CreateCounter<long>(
             AgentPrismDiagnostics.TokenCounterName,
             unit: "{token}",
-            description: "Saglayicinin bildirdigi token sayisi.");
+            description: "Token count reported by the provider.");
 
         ToolInvocations = _meter.CreateCounter<long>(
             AgentPrismDiagnostics.ToolCounterName,
             unit: "{call}",
-            description: "Sonuclanmis tool cagrisi sayisi.");
+            description: "Number of completed tool calls.");
 
         ToolDuration = _meter.CreateHistogram<double>(
             AgentPrismDiagnostics.ToolDurationName,
             unit: "s",
-            description: "Tool cagri suresi.");
+            description: "Tool call duration.");
 
         RunCost = _meter.CreateCounter<double>(
             AgentPrismDiagnostics.RunCostCounterName,
             unit: "{cost}",
-            description: "Calistirma basina para cinsinden maliyet. Agac toplamini icermez (K-151).");
+            description: "Cost per run, in currency units. Does not include the tree total (K-151).");
 
         JudgeCost = _meter.CreateCounter<double>(
             AgentPrismDiagnostics.JudgeCostCounterName,
             unit: "{cost}",
-            description: "Bir IRunJudge cagrisinin KENDI maliyeti (Faz 49). Puanlanan agent'in maliyetine dahil degildir.");
+            description: "The OWN cost of a single IRunJudge call (Phase 49). Not included in the scored agent's cost.");
 
         JudgeScore = _meter.CreateHistogram<double>(
             AgentPrismDiagnostics.JudgeScoreHistogramName,
             unit: "{score}",
-            description: "Bir IRunJudge'in verdigi puan, 0-100 (Faz 49).");
+            description: "Score given by an IRunJudge, 0-100 (Phase 49).");
     }
 
-    /// <summary>Calistirma sayaci. Etiketler: agent, status, tenant.</summary>
+    /// <summary>Run counter. Tags: agent, status, tenant.</summary>
     public Counter<long> Runs { get; }
 
-    /// <summary>Calistirma suresi. Etiketler: agent, status.</summary>
+    /// <summary>Run duration. Tags: agent, status.</summary>
     public Histogram<double> RunDuration { get; }
 
-    /// <summary>Token sayaci. Etiketler: agent, model, direction.</summary>
+    /// <summary>Token counter. Tags: agent, model, direction.</summary>
     public Counter<long> Tokens { get; }
 
-    /// <summary>Tool cagri sayaci. Etiketler: tool, status.</summary>
+    /// <summary>Tool call counter. Tags: tool, status.</summary>
     public Counter<long> ToolInvocations { get; }
 
-    /// <summary>Tool cagri suresi. Etiketler: tool.</summary>
+    /// <summary>Tool call duration. Tags: tool.</summary>
     public Histogram<double> ToolDuration { get; }
 
-    /// <summary>Maliyet sayaci. Etiketler: agent, model, tenant, currency.</summary>
+    /// <summary>Cost counter. Tags: agent, model, tenant, currency.</summary>
     public Counter<double> RunCost { get; }
 
-    /// <summary>Yargic maliyeti sayaci (Faz 49). Etiketler: yargic, model, tenant, currency.</summary>
+    /// <summary>Judge cost counter (Phase 49). Tags: judge, model, tenant, currency.</summary>
     public Counter<double> JudgeCost { get; }
 
-    /// <summary>Yargic puani histogrami (Faz 49). Etiketler: yargic, agent, tenant.</summary>
+    /// <summary>Judge score histogram (Phase 49). Tags: judge, agent, tenant.</summary>
     public Histogram<double> JudgeScore { get; }
 
-    /// <summary>Bir calistirmanin sonucunu kaydeder.</summary>
-    /// <param name="agentName">Agent adi.</param>
-    /// <param name="status">Son durum.</param>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="modelId">Kullanilan model.</param>
-    /// <param name="duration">Calistirma suresi.</param>
-    /// <param name="usage">Token kullanimi.</param>
+    /// <summary>Records the result of a run.</summary>
+    /// <param name="agentName">Agent name.</param>
+    /// <param name="status">Final status.</param>
+    /// <param name="tenantId">Tenant identifier.</param>
+    /// <param name="modelId">Model used.</param>
+    /// <param name="duration">Run duration.</param>
+    /// <param name="usage">Token usage.</param>
     /// <param name="agentVersion">
-    /// Olculen tanim surumu. <see langword="null"/> ise etiket eklenmez — bilinmedigi
-    /// veya <see cref="AgentPrismObservabilityOptions.IncludeAgentVersionTag"/> kapali
-    /// oldugu icin cagiran taraf zaten <see langword="null"/> geciyordur.
+    /// The measured definition version. When <see langword="null"/>, no tag is
+    /// added - either it is unknown, or the caller is already passing
+    /// <see langword="null"/> because <see cref="AgentPrismObservabilityOptions.IncludeAgentVersionTag"/>
+    /// is disabled.
     /// </param>
     public void RecordRun(
         string agentName,
@@ -158,8 +159,8 @@ public sealed class AgentPrismMetrics : IDisposable
             return;
         }
 
-        // Model etiketi bos gecilmez: OpenTelemetry'de eksik etiket ayri bir
-        // zaman serisi uretir ve toplamalar sessizce ikiye bolunur.
+        // The model tag is never left empty: in OpenTelemetry a missing tag
+        // produces a separate time series and aggregations get silently split.
         var model = modelId ?? "unknown";
 
         if (usage.InputTokens is { } input)
@@ -173,12 +174,12 @@ public sealed class AgentPrismMetrics : IDisposable
         }
     }
 
-    /// <summary>Bir calistirmanin kendi maliyetini kaydeder (fiyat tanimliyken).</summary>
-    /// <param name="agentName">Agent adi.</param>
-    /// <param name="modelId">Kullanilan model. <see langword="null"/> ise <c>"unknown"</c> yazilir.</param>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="cost">Calistirmanin KENDI maliyeti (girdi + cikti). Agac toplami DEGILDIR (K-151).</param>
-    /// <param name="currency">Para birimi.</param>
+    /// <summary>Records a run's own cost (when a price is defined).</summary>
+    /// <param name="agentName">Agent name.</param>
+    /// <param name="modelId">Model used. When <see langword="null"/>, <c>"unknown"</c> is written.</param>
+    /// <param name="tenantId">Tenant identifier.</param>
+    /// <param name="cost">The run's OWN cost (input + output). NOT the tree total (K-151).</param>
+    /// <param name="currency">Currency.</param>
     public void RecordCost(string agentName, string? modelId, string tenantId, decimal cost, string currency)
         => RunCost.Add(
             (double)cost,
@@ -190,12 +191,12 @@ public sealed class AgentPrismMetrics : IDisposable
                 { AgentPrismDiagnostics.Tags.Currency, currency },
             });
 
-    /// <summary>Bir yargic cagrisinin KENDI maliyetini kaydeder (Faz 49).</summary>
-    /// <param name="judgeName">Yargicin adi (<see cref="IRunJudge.Name"/>).</param>
-    /// <param name="modelId">Yargicin modeli. <see langword="null"/> ise <c>"unknown"</c> yazilir.</param>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="cost">Yargicin KENDI maliyeti (girdi + cikti).</param>
-    /// <param name="currency">Para birimi.</param>
+    /// <summary>Records a judge call's OWN cost (Phase 49).</summary>
+    /// <param name="judgeName">The judge's name (<see cref="IRunJudge.Name"/>).</param>
+    /// <param name="modelId">The judge's model. When <see langword="null"/>, <c>"unknown"</c> is written.</param>
+    /// <param name="tenantId">Tenant identifier.</param>
+    /// <param name="cost">The judge's OWN cost (input + output).</param>
+    /// <param name="currency">Currency.</param>
     public void RecordJudgeCost(string judgeName, string? modelId, string tenantId, decimal cost, string currency)
         => JudgeCost.Add(
             (double)cost,
@@ -207,11 +208,11 @@ public sealed class AgentPrismMetrics : IDisposable
                 { AgentPrismDiagnostics.Tags.Currency, currency },
             });
 
-    /// <summary>Bir yargicin verdigi puani kaydeder (Faz 49).</summary>
-    /// <param name="judgeName">Yargicin adi (<see cref="IRunJudge.Name"/>).</param>
-    /// <param name="agentName">Puanlanan agent'in adi.</param>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="score">Puan, 0-100.</param>
+    /// <summary>Records the score given by a judge (Phase 49).</summary>
+    /// <param name="judgeName">The judge's name (<see cref="IRunJudge.Name"/>).</param>
+    /// <param name="agentName">Name of the scored agent.</param>
+    /// <param name="tenantId">Tenant identifier.</param>
+    /// <param name="score">Score, 0-100.</param>
     public void RecordJudgeScore(string judgeName, string agentName, string tenantId, int score)
         => JudgeScore.Record(
             score,
@@ -222,10 +223,10 @@ public sealed class AgentPrismMetrics : IDisposable
                 { AgentPrismDiagnostics.Tags.TenantId, tenantId },
             });
 
-    /// <summary>Bir tool cagrisinin sonucunu kaydeder.</summary>
-    /// <param name="toolName">Tool adi.</param>
-    /// <param name="succeeded">Cagri basarili mi bitti.</param>
-    /// <param name="duration">Cagri suresi. Bilinmiyorsa <see langword="null"/>.</param>
+    /// <summary>Records the result of a tool call.</summary>
+    /// <param name="toolName">Tool name.</param>
+    /// <param name="succeeded">Whether the call completed successfully.</param>
+    /// <param name="duration">Call duration. <see langword="null"/> when unknown.</param>
     public void RecordToolInvocation(string toolName, bool succeeded, TimeSpan? duration)
     {
         var statusTag = succeeded ? "ok" : "error";

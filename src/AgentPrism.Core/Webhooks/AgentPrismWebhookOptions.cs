@@ -1,64 +1,66 @@
 namespace AgentPrism;
 
-/// <summary>Olay yayini (webhook) ayarlari — Faz 21.</summary>
+/// <summary>Event publishing (webhook) settings — Phase 21.</summary>
 /// <remarks>
-/// <c>AgentPrism:Webhooks</c> yapilandirma bolumunden okunur.
+/// Read from the <c>AgentPrism:Webhooks</c> configuration section.
 /// </remarks>
 public sealed class AgentPrismWebhookOptions
 {
-    /// <summary>Yapilandirma bolumu adi.</summary>
+    /// <summary>The configuration section name.</summary>
     public const string SectionName = "AgentPrism:Webhooks";
 
     /// <summary>
-    /// Olay yayini etkin mi. Kapaliyken abonelik kaydedilebilir ama hicbir olay
-    /// kuyruga yazilmaz.
+    /// Whether event publishing is enabled. While disabled, a subscription
+    /// can be registered, but no event is written to the queue.
     /// </summary>
     public bool Enabled { get; set; } = true;
 
     /// <summary>
-    /// 🚨 Ozel ag adreslerine teslim yapilabilir mi. <strong>Varsayilan kapali.</strong>
+    /// 🚨 Whether delivery to private network addresses is allowed.
+    /// <strong>Disabled by default.</strong>
     /// </summary>
     /// <remarks>
-    /// Acmak SSRF yuzeyini acar: sunucu, ic agdaki herhangi bir servise ve
-    /// bulut metadata ucuna (<c>169.254.169.254</c>) istek atabilir hale gelir.
-    /// Yalnizca kapali bir agda, bilincli olarak acilmalidir.
+    /// Enabling this opens up an SSRF surface: the server becomes able to
+    /// send requests to any service on the internal network, and to the
+    /// cloud metadata endpoint (<c>169.254.169.254</c>). It should only be
+    /// enabled deliberately, on a closed network.
     /// </remarks>
     public bool AllowPrivateNetworkTargets { get; set; }
 
     /// <summary>
-    /// Sifrelenmemis <c>http</c> hedeflerine izin verilir mi. Izin verilse bile
-    /// yalnizca <strong>loopback</strong> adresleri kabul edilir.
+    /// Whether unencrypted <c>http</c> targets are allowed. Even when
+    /// allowed, only <strong>loopback</strong> addresses are accepted.
     /// </summary>
     /// <remarks>
-    /// Yerel gelistirmede bir dinleyiciyi sinamak icin gerekir. Loopback
-    /// kisiti kaldirilmaz: disari acik bir adrese sifrelenmemis olay gondermek
-    /// olay ozetini aga acar.
+    /// Needed to test a listener in local development. The loopback
+    /// restriction is not lifted: sending an unencrypted event to a
+    /// publicly reachable address would expose the event's content to the network.
     /// </remarks>
     public bool AllowInsecureHttp { get; set; }
 
-    /// <summary>Tek bir teslim denemesinin zaman asimi.</summary>
+    /// <summary>The timeout for a single delivery attempt.</summary>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(10);
 
-    /// <summary>Alicinin yanit govdesinden okunacak en fazla bayt.</summary>
+    /// <summary>The maximum bytes read from the recipient's response body.</summary>
     /// <remarks>
-    /// Yanit govdesi yalnizca tanilama icin saklanir. Sinirsiz okumak, kotu
-    /// niyetli bir alicinin bellegi tuketmesine izin verirdi.
+    /// The response body is kept only for diagnostics. Reading it without a
+    /// limit would let a malicious recipient exhaust memory.
     /// </remarks>
     public int MaxResponseBytes { get; set; } = 8 * 1024;
 
     /// <summary>
-    /// Bir abonelik bu sayida ust uste basarisiz olursa kendiliginden devre disi
-    /// kalir ve denetim izine yazilir.
+    /// If a subscription fails this many times in a row, it is automatically
+    /// disabled and the event is written to the audit trail.
     /// </summary>
     public int DisableAfterConsecutiveFailures { get; set; } = 20;
 
     /// <summary>
-    /// Yeniden deneme merdiveni. Liste uzunlugu ayni zamanda en fazla deneme
-    /// sayisidir.
+    /// The retry ladder. The list's length is also the maximum number of attempts.
     /// </summary>
     /// <remarks>
-    /// Bu merdiven Faz 17'nin kuyruguna <c>ReleaseForRetryAsync(retryAfter)</c>
-    /// ile verilir; ikinci bir kuyruk veya zamanlayici yazilmaz (K-160).
+    /// This ladder is handed to Phase 17's queue through
+    /// <c>ReleaseForRetryAsync(retryAfter)</c>; a second queue or scheduler
+    /// is not written (K-160).
     /// </remarks>
     public IList<TimeSpan> RetryDelays { get; } =
     [
@@ -70,8 +72,8 @@ public sealed class AgentPrismWebhookOptions
     ];
 
     /// <summary>
-    /// Alicinin kabul edecegi imza zaman damgasi toleransi. README'de
-    /// aliciya onerilen degerdir; AgentPrism bunu yalnizca belgeler.
+    /// The signature timestamp tolerance the recipient should accept. This is
+    /// the value recommended to the recipient in the README; AgentPrism only documents it.
     /// </summary>
     public TimeSpan SignatureTolerance { get; set; } = TimeSpan.FromMinutes(5);
 }

@@ -2,22 +2,22 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
-/// <summary>Bir hedef icin veritabani politikasi ile yapilandirma varsayilanini birlestirir.</summary>
+/// <summary>Combines the database policy with the configuration default for a target.</summary>
 /// <remarks>
-/// Sira: once <see cref="IRetentionPolicyStore"/>'daki acik kayit (kiraci, sonra
-/// <c>"*"</c>) aranir; bulunursa yapilandirma HIC bakilmaz. Kayit yoksa
-/// <see cref="AgentPrismRetentionOptions"/> devreye girer, ama yalniz
-/// <see cref="AgentPrismRetentionOptions.Enabled"/> acikken.
+/// Order: first the explicit record in <see cref="IRetentionPolicyStore"/>
+/// (tenant, then <c>"*"</c>) is looked up; if found, configuration is NOT
+/// consulted at all. If there is no record, <see cref="AgentPrismRetentionOptions"/>
+/// takes over, but only while <see cref="AgentPrismRetentionOptions.Enabled"/> is on.
 /// </remarks>
 public sealed class RetentionPolicyResolver(
     IRetentionPolicyStore policyStore,
     IOptionsMonitor<AgentPrismRetentionOptions> optionsMonitor)
 {
-    /// <summary>Bir hedef icin etkin saklama kuralini cozer.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="target">Hedef adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Etkin kural; hicbir sey silinmeyecekse <see langword="null"/>.</returns>
+    /// <summary>Resolves the effective retention rule for a target.</summary>
+    /// <param name="tenantId">The tenant identity.</param>
+    /// <param name="target">The target name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The effective rule; <see langword="null"/> if nothing is to be deleted.</returns>
     public async ValueTask<ResolvedRetentionPolicy?> ResolveAsync(
         string tenantId,
         string target,
@@ -30,8 +30,9 @@ public sealed class RetentionPolicyResolver(
 
         if (dbPolicy is not null)
         {
-            // Acik bir kayit varsa yapilandirmaya HIC bakilmaz — kayit "kapali"
-            // olsa bile bu, tuketicinin bilincli tercihidir.
+            // If an explicit record exists, configuration is NOT consulted at
+            // all — even if the record is "disabled", that is the consumer's
+            // deliberate choice.
             return dbPolicy.Enabled && (dbPolicy.MaxAgeDays is not null || dbPolicy.MaxRows is not null)
                 ? new ResolvedRetentionPolicy(target, dbPolicy.MaxAgeDays, dbPolicy.MaxRows, dbPolicy.Archive)
                 : null;
@@ -46,17 +47,18 @@ public sealed class RetentionPolicyResolver(
 
         var fallback = options.ForTarget(target);
 
-        // Yapilandirma tabanli varsayilanlar yalniz MaxAgeDays tasir (K1:
-        // MaxRows yapilandirma yuzeyine buyumez, yalniz acik politika uzerinden gelir).
+        // Configuration-based defaults carry only MaxAgeDays (K1: MaxRows does
+        // not grow into the configuration surface, it only comes through an
+        // explicit policy).
         return fallback?.MaxAgeDays is { } fallbackDays
             ? new ResolvedRetentionPolicy(target, fallbackDays, null, fallback.Archive)
             : null;
     }
 }
 
-/// <summary>Bir hedef icin cozulmus, uygulanabilir saklama kurali.</summary>
-/// <param name="Target">Hedef adi.</param>
-/// <param name="MaxAgeDays">Bu yastan eski satirlar silinir. <see langword="null"/> ise yas bazli esik yoktur.</param>
-/// <param name="MaxRows">Tutulacak en fazla satir sayisi. <see langword="null"/> ise hacim bazli esik yoktur.</param>
-/// <param name="Archive">Silmeden once arsivlensin mi.</param>
+/// <summary>Represents a resolved, applicable retention rule for a target.</summary>
+/// <param name="Target">The target name.</param>
+/// <param name="MaxAgeDays">Rows older than this age are deleted. <see langword="null"/> if there is no age-based threshold.</param>
+/// <param name="MaxRows">The maximum number of rows to keep. <see langword="null"/> if there is no volume-based threshold.</param>
+/// <param name="Archive">Whether to archive rows before deleting them.</param>
 public sealed record ResolvedRetentionPolicy(string Target, int? MaxAgeDays, long? MaxRows, bool Archive);

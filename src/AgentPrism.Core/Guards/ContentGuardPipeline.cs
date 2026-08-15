@@ -5,26 +5,28 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Kayitli <see cref="IContentGuard"/> uygulamalarini sirayla calistiran ve
-/// kararlarini kaydeden boru hatti.
+/// Pipeline that runs the registered <see cref="IContentGuard"/> implementations
+/// in sequence and records their decisions.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Guard'lar kayit sirasinda calisir ve <strong>en sert karar kazanir</strong>:
-/// bir guard <see cref="ContentGuardAction.Mask"/> dondururse metin degistirilir
-/// ve <em>degistirilmis hali</em> sonraki guard'a verilir; bir guard
-/// <see cref="ContentGuardAction.Block"/> dondururse zincir hemen kesilir. Block
-/// taksonominin en buyuk degeri oldugu icin sonuc kayit sirasindan bagimsizdir.
+/// Guards run in registration order and <strong>the strictest decision wins</strong>:
+/// if a guard returns <see cref="ContentGuardAction.Mask"/> the text is replaced
+/// and the <em>replaced version</em> is handed to the next guard; if a guard
+/// returns <see cref="ContentGuardAction.Block"/> the chain stops immediately.
+/// Because Block is the taxonomy's highest value, the outcome does not depend on
+/// registration order.
 /// </para>
 /// <para>
-/// 🚨 <strong>Bir guard istisna atarsa calistirma basarisiz olur.</strong>
-/// "Gozlemlenebilirlik islevselligi bozmaz" kurali burada gecerli degildir: guard
-/// bir gozlem araci degil bir kontroldur ve denetlenemeyen icerik gecirilmez
-/// (K-089'un ayni gerekcesi).
+/// 🚨 <strong>If a guard throws, the run fails.</strong> The "observability does
+/// not break functionality" rule does not apply here: a guard is a control, not
+/// an observation tool, and content that cannot be inspected is not let through
+/// (same rationale as K-089).
 /// </para>
 /// <para>
-/// Karar <em>kaydi</em> ise o kurala tabidir: olay yazicisi veya denetim izi hata
-/// verirse hata loglanir ve karar yine uygulanir. Kararin kendisi kaybolmaz.
+/// The <em>recording</em> of the decision, however, is subject to that rule: if
+/// the event writer or the audit log fails, the failure is logged and the
+/// decision is still applied. The decision itself is never lost.
 /// </para>
 /// </remarks>
 public sealed class ContentGuardPipeline
@@ -36,14 +38,14 @@ public sealed class ContentGuardPipeline
     private readonly ITenantContext _tenantContext;
     private readonly ILogger _logger;
 
-    /// <summary>Yeni bir boru hatti olusturur.</summary>
-    /// <param name="guards">Kayitli guard'lar. Bos olabilir.</param>
-    /// <param name="options">Boru hatti ayarlari.</param>
-    /// <param name="auditLog">Engelleme kararlarinin yazilacagi denetim izi.</param>
-    /// <param name="actorResolver">Denetim izi aktor cozumleyici.</param>
-    /// <param name="tenantContext">Calistirma kapsami yoksa kullanilacak kiraci baglami.</param>
-    /// <param name="loggerFactory">Gunlukleyici fabrikasi.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new pipeline.</summary>
+    /// <param name="guards">The registered guards. May be empty.</param>
+    /// <param name="options">Pipeline settings.</param>
+    /// <param name="auditLog">The audit log to write blocking decisions to.</param>
+    /// <param name="actorResolver">The audit log actor resolver.</param>
+    /// <param name="tenantContext">The tenant context to use when no run scope is available.</param>
+    /// <param name="loggerFactory">The logger factory.</param>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public ContentGuardPipeline(
         IEnumerable<IContentGuard> guards,
         IOptionsMonitor<AgentPrismContentGuardOptions> options,
@@ -68,30 +70,30 @@ public sealed class ContentGuardPipeline
     }
 
     /// <summary>
-    /// En az bir guard kayitli mi.
+    /// Whether at least one guard is registered.
     /// </summary>
     /// <remarks>
-    /// 🚨 <see langword="false"/> ise <c>ModelProviderRegistry</c> denetim
-    /// sarmalayicisini boru hattina <strong>hic eklemez</strong>: model cagrisi
-    /// yolunda tek bir <c>if</c> bile calismaz.
+    /// 🚨 If <see langword="false"/>, <c>ModelProviderRegistry</c>
+    /// <strong>never adds</strong> the inspection wrapper to the pipeline: not
+    /// even a single <c>if</c> runs on the model-call path.
     /// </remarks>
     public bool HasGuards => _guards.Length > 0;
 
-    /// <summary>Boru hattinin guncel ayarlari.</summary>
+    /// <summary>The pipeline's current settings.</summary>
     public AgentPrismContentGuardOptions Options => _options.CurrentValue;
 
-    /// <summary>Bir metin parcasini butun guard'lardan gecirir.</summary>
-    /// <param name="direction">Denetimin yonu.</param>
-    /// <param name="text">Denetlenecek metin.</param>
-    /// <param name="modelId">Cagrilan modelin kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <summary>Runs a piece of text through every guard.</summary>
+    /// <param name="direction">The direction of the inspection.</param>
+    /// <param name="text">The text to inspect.</param>
+    /// <param name="modelId">The identity of the model being called.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
-    /// Maskelenmis metin; hicbir guard degisiklik istemediyse <see langword="null"/>.
-    /// <see langword="null"/> donmesi cagiranin hicbir sey yeniden kurmamasi
-    /// gerektigini soyler ve tahsissiz yoldur.
+    /// The masked text; <see langword="null"/> if no guard requested a change.
+    /// A <see langword="null"/> return tells the caller it needs to rebuild
+    /// nothing, and is the allocation-free path.
     /// </returns>
     /// <exception cref="AgentPrismContentBlockedException">
-    /// Bir guard <see cref="ContentGuardAction.Block"/> dondurduyse.
+    /// A guard returned <see cref="ContentGuardAction.Block"/>.
     /// </exception>
     public async ValueTask<string?> InspectAsync(
         ContentGuardDirection direction,
@@ -128,10 +130,10 @@ public sealed class ContentGuardPipeline
                     await RecordAsync(guard, result, direction, scope, cancellationToken).ConfigureAwait(false);
 
                     throw new AgentPrismContentBlockedException(
-                        $"Icerik '{guard.Name}' guard'i tarafindan engellendi " +
-                        $"(kural: {result.RuleName ?? "bilinmiyor"}, yon: {direction}). " +
-                        (result.Reason ?? "Sebep bildirilmedi.") +
-                        " Engellenen metin bilerek kaydedilmiyor.")
+                        $"Content was blocked by the '{guard.Name}' guard " +
+                        $"(rule: {result.RuleName ?? "unknown"}, direction: {direction}). " +
+                        (result.Reason ?? "No reason was reported.") +
+                        " The blocked text is deliberately not recorded.")
                     {
                         GuardName = guard.Name,
                         RuleName = result.RuleName,
@@ -153,31 +155,32 @@ public sealed class ContentGuardPipeline
     }
 
     /// <summary>
-    /// <paramref name="text"/>'i tum guard'lardan gecirir ama <strong>hicbir karar
-    /// kaydi yapmaz</strong> — olay yazicisina veya denetim izine yazmaz.
+    /// Runs <paramref name="text"/> through every guard but <strong>records no
+    /// decision</strong> — it writes to neither the event writer nor the audit log.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 🚨 <see cref="RunRecordingAgent"/>'in <c>BeginRunAsync</c>'i icin vardir:
-    /// <c>RunStarted</c> olayina ve <see cref="IRunInputStore"/>'a yazilacak
-    /// metnin guard karariyla AYNI olmasi gerekir (HATA-S3-006), ama bu asamada
-    /// calistirma satiri (<c>runs</c>) HENUZ olusturulmamistir. <see cref="InspectAsync"/>
-    /// bir karar bulunca <c>scope.Writer.AppendAsync</c> cagirir; <c>runs</c> satiri
-    /// yoksa depo bunu reddeder ve yazici tum calistirma icin KALICI olarak devre
-    /// disi kalir (<see cref="RunEventWriter.IsDisabled"/>). Bu metot o riski
-    /// tasimadan AYNI guard sirasini ve maskeleme zincirini uygular; gercek karar
-    /// kaydi <see cref="ContentGuardingChatClient"/> modele giderken
-    /// <see cref="InspectAsync"/>'i normal sekilde cagirdiginda olusur.
+    /// 🚨 This exists for <see cref="RunRecordingAgent"/>'s <c>BeginRunAsync</c>:
+    /// the text written to the <c>RunStarted</c> event and to
+    /// <see cref="IRunInputStore"/> must be THE SAME as the guard's decision
+    /// (HATA-S3-006), but at this stage the run row (<c>runs</c>) does NOT exist
+    /// yet. When <see cref="InspectAsync"/> finds a decision it calls
+    /// <c>scope.Writer.AppendAsync</c>; without a <c>runs</c> row the store
+    /// rejects it and the writer is PERMANENTLY disabled for the whole run
+    /// (<see cref="RunEventWriter.IsDisabled"/>). This method applies THE SAME
+    /// guard order and masking chain without carrying that risk; the actual
+    /// decision recording happens when <see cref="ContentGuardingChatClient"/>
+    /// calls <see cref="InspectAsync"/> normally on the way to the model.
     /// </para>
     /// <para>
-    /// Engelleme durumunda <strong>istisna atilmaz</strong> — cagiran calistirmayi
-    /// baslatmaya devam etmelidir; gercek engelleme modele giderken olusur ve
-    /// calistirma o zaman <c>Failed</c>/<c>content_blocked</c> ile kapanir.
+    /// On a block, <strong>no exception is thrown</strong> — the caller should
+    /// continue starting the run; the real block happens on the way to the
+    /// model, and the run then closes with <c>Failed</c>/<c>content_blocked</c>.
     /// </para>
     /// </remarks>
     /// <returns>
-    /// Kaydedilecek metin; hicbir guard degisiklik istemediyse <see langword="null"/>
-    /// (cagiran orijinal metni kullanmalidir).
+    /// The text to record; <see langword="null"/> if no guard requested a change
+    /// (the caller should use the original text).
     /// </returns>
     public async ValueTask<string?> PreviewAsync(
         ContentGuardDirection direction,
@@ -211,8 +214,9 @@ public sealed class ContentGuardPipeline
             switch (result.Action)
             {
                 case ContentGuardAction.Block:
-                    // Engellenen metin bilerek kaydedilmiyor (K-059'un ruhu, ayni
-                    // gerekce InspectAsync'in istisna mesajinda).
+                    // The blocked text is deliberately not recorded (in the
+                    // spirit of K-059, same rationale as InspectAsync's
+                    // exception message).
                     return "[content_blocked]";
 
                 case ContentGuardAction.Mask when result.MaskedText is { } replacement:
@@ -229,12 +233,13 @@ public sealed class ContentGuardPipeline
     }
 
     /// <summary>
-    /// Karari calistirma olayina, engellemeyi ayrica denetim izine yazar.
+    /// Writes the decision to the run event, and a block additionally to the audit log.
     /// </summary>
     /// <remarks>
-    /// 🚨 Yazilan sey <strong>icerik degildir</strong>: guard adi, kural adi ve yon.
-    /// Engellenen icerik tanimi geregi hassastir; onu bir ize yazmak sorunu kalici
-    /// hale getirir (K-059'un ruhu, <c>AuditSecretFilter</c> ile ayni yon).
+    /// 🚨 What is written is <strong>not the content</strong>: the guard name, the
+    /// rule name, and the direction. Blocked content is by definition sensitive;
+    /// writing it to a log would make the problem permanent (in the spirit of
+    /// K-059, the same direction as <c>AuditSecretFilter</c>).
     /// </remarks>
     private async ValueTask RecordAsync(
         IContentGuard guard,
@@ -278,11 +283,11 @@ public sealed class ContentGuardPipeline
             cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Karari JSON olarak anlatir. 🚨 Icerik tasimaz.</summary>
+    /// <summary>Describes the decision as JSON. 🚨 Carries no content.</summary>
     /// <remarks>
-    /// Elle bicimlendirilir: <c>AgentPrism.Core</c> AOT uyumludur ve bu kadar kucuk
-    /// bir nesne icin bir <c>JsonSerializerContext</c> girisi acmak gereksizdir
-    /// (ayni gerekce tool argumani bicimlendirmesinde de kullanildi).
+    /// Formatted by hand: <c>AgentPrism.Core</c> is AOT-compatible, and opening a
+    /// <c>JsonSerializerContext</c> entry for an object this small is unnecessary
+    /// (the same rationale was used for tool argument formatting).
     /// </remarks>
     private static string Describe(IContentGuard guard, ContentGuardResult result, ContentGuardDirection direction)
         => string.Create(

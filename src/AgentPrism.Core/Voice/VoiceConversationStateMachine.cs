@@ -1,92 +1,94 @@
 namespace AgentPrism;
 
-/// <summary>Bir konusma baglantisinin durumu.</summary>
+/// <summary>The state of a voice connection.</summary>
 internal enum VoiceConversationState
 {
-    /// <summary><c>start</c> henuz gelmedi.</summary>
+    /// <summary><c>start</c> has not arrived yet.</summary>
     New,
 
-    /// <summary>Mikrofon acik; ses parcalari birikiyor.</summary>
+    /// <summary>The microphone is open; audio chunks are accumulating.</summary>
     Listening,
 
-    /// <summary>Biriken ses metne cevriliyor.</summary>
+    /// <summary>The accumulated audio is being transcribed to text.</summary>
     Transcribing,
 
-    /// <summary>Agent calisiyor ve/veya yanit seslendiriliyor.</summary>
+    /// <summary>The agent is running and/or the response is being spoken.</summary>
     Responding,
 
-    /// <summary>Baglanti kapandi.</summary>
+    /// <summary>The connection is closed.</summary>
     Closed,
 }
 
-/// <summary>Bir protokol olayinin sonucu.</summary>
+/// <summary>The outcome of a protocol event.</summary>
 internal enum VoiceTransitionOutcome
 {
-    /// <summary>Olay kabul edildi ve durum degisti.</summary>
+    /// <summary>The event was accepted and the state changed.</summary>
     Accepted,
 
     /// <summary>
-    /// Olay bu durumda anlamsizdi ve sessizce atildi.
+    /// The event was meaningless in this state and was silently discarded.
     /// </summary>
     /// <remarks>
-    /// Yok sayma <strong>hata degildir</strong>: bir yaris kosulunda gec kalan
-    /// cerceve (ornegin tur bittikten sonra gelen <c>cancel</c>) normaldir ve
-    /// istemciye hata gostermek gurultu uretirdi.
+    /// Ignoring is <strong>not an error</strong>: a late frame in a race
+    /// condition (for example, a <c>cancel</c> that arrives after the turn
+    /// has ended) is normal, and showing the client an error would only produce noise.
     /// </remarks>
     Ignored,
 
-    /// <summary>Olay protokolu ihlal etti; istemciye hata bildirilir.</summary>
+    /// <summary>The event violated the protocol; an error is reported to the client.</summary>
     Rejected,
 }
 
 /// <summary>
-/// Konusma protokolunun saf durum makinesi.
+/// The pure state machine of the conversation protocol.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Burada ag, ses veya agent yoktur — yalnizca "hangi olay hangi durumda
-/// gecerlidir" sorusu. Boylece protokol, bir WebSocket kurmadan birim testiyle
-/// dogrulanabilir.
+/// There is no network, audio, or agent here — only the question "which
+/// event is valid in which state." This lets the protocol be verified with a
+/// unit test, without setting up a WebSocket.
 /// </para>
 /// <para>
-/// 🚨 Sinif <strong>es zamanlidir</strong> ve kendi kilidini tasimaz. Olaylar
-/// iki kaynaktan gelir (alma dongusu ve tur gorevi), bu yuzden erisimi
-/// serilestirmek <see cref="VoiceConversationDriver"/>'in sorumlulugudur.
+/// 🚨 The class is <strong>concurrent</strong> and carries no lock of its
+/// own. Events come from two sources (the receive loop and the turn task),
+/// so serializing access is <see cref="VoiceConversationDriver"/>'s responsibility.
 /// </para>
 /// </remarks>
 internal sealed class VoiceConversationStateMachine
 {
-    /// <summary>Simdiki durum.</summary>
+    /// <summary>The current state.</summary>
     public VoiceConversationState State { get; private set; } = VoiceConversationState.New;
 
-    /// <summary>Tamamlanan tur sayisi.</summary>
+    /// <summary>The number of completed turns.</summary>
     public int Turns { get; private set; }
 
-    /// <summary>Baglanti kapandi mi.</summary>
+    /// <summary>Whether the connection is closed.</summary>
     public bool IsClosed => State == VoiceConversationState.Closed;
 
-    /// <summary>Ses parcasi kabul edilir mi.</summary>
+    /// <summary>Whether an audio chunk is accepted.</summary>
     public bool IsListening => State == VoiceConversationState.Listening;
 
-    /// <summary>Bir turu isleyen gorev calisiyor mu.</summary>
+    /// <summary>Whether a task processing a turn is running.</summary>
     public bool IsBusy => State is VoiceConversationState.Transcribing or VoiceConversationState.Responding;
 
-    /// <summary><c>start</c> olayini isler.</summary>
-    /// <returns>Sonuc.</returns>
+    /// <summary>Processes the <c>start</c> event.</summary>
+    /// <returns>The outcome.</returns>
     /// <remarks>
-    /// Ikinci bir <c>start</c> agent'i degistirmek anlamina gelirdi; agent,
-    /// oturum ve kiraci baglanti boyunca <strong>sabittir</strong> (29.3).
+    /// A second <c>start</c> would mean changing the agent; the agent,
+    /// session, and tenant are <strong>fixed</strong> for the life of the
+    /// connection (29.3).
     /// </remarks>
     public VoiceTransitionOutcome Start() => State == VoiceConversationState.New
         ? Move(VoiceConversationState.Listening)
         : VoiceTransitionOutcome.Rejected;
 
-    /// <summary>Bir ikili ses cercevesini isler.</summary>
-    /// <returns>Sonuc.</returns>
+    /// <summary>Processes a binary audio frame.</summary>
+    /// <returns>The outcome.</returns>
     /// <remarks>
-    /// Agent konusurken gelen ses <strong>yok sayilir</strong>. Kesinti acik bir
-    /// <c>cancel</c> mesajiyla istenir; sesin kendisini kesinti sayan bir sunucu,
-    /// hoparlorden gelen kendi sesini kullanicinin sesi sanabilirdi.
+    /// Audio arriving while the agent is speaking is <strong>ignored</strong>.
+    /// An interruption is requested with an explicit <c>cancel</c> message;
+    /// a server that treats audio itself as an interruption could mistake
+    /// its own speaker output for the user's voice.
     /// </remarks>
     public VoiceTransitionOutcome Audio() => State switch
     {
@@ -95,30 +97,30 @@ internal sealed class VoiceConversationStateMachine
         _ => VoiceTransitionOutcome.Rejected,
     };
 
-    /// <summary><c>commit</c> olayini isler.</summary>
-    /// <returns>Sonuc.</returns>
+    /// <summary>Processes the <c>commit</c> event.</summary>
+    /// <returns>The outcome.</returns>
     public VoiceTransitionOutcome Commit() => State == VoiceConversationState.Listening
         ? Move(VoiceConversationState.Transcribing)
         : VoiceTransitionOutcome.Rejected;
 
-    /// <summary>Cozum bitti ve agent calismaya basliyor.</summary>
-    /// <returns>Sonuc.</returns>
+    /// <summary>Transcription finished and the agent is starting to run.</summary>
+    /// <returns>The outcome.</returns>
     public VoiceTransitionOutcome BeginResponse() => State == VoiceConversationState.Transcribing
         ? Move(VoiceConversationState.Responding)
         : VoiceTransitionOutcome.Rejected;
 
-    /// <summary><c>cancel</c> olayini isler.</summary>
-    /// <returns>Sonuc.</returns>
+    /// <summary>Processes the <c>cancel</c> event.</summary>
+    /// <returns>The outcome.</returns>
     /// <remarks>
     /// <para>
-    /// Dinlerken gelen <c>cancel</c> biriken sesi atar ve dinlemeye devam eder;
-    /// bu, kullanicinin "yanlis konustum" demesidir. Mesgulken gelen
-    /// <c>cancel</c> turu keser.
+    /// A <c>cancel</c> that arrives while listening discards the accumulated
+    /// audio and continues listening; this is the user saying "I misspoke."
+    /// A <c>cancel</c> that arrives while busy interrupts the turn.
     /// </para>
     /// <para>
-    /// 🚨 Kesinti durumu <strong>degistirmez</strong>. Dinlemeye donusu yalnizca
-    /// <see cref="FinishTurn"/> yapar; aksi halde istemci hemen yeni bir
-    /// <c>commit</c> gonderebilir ve iki tur ayni anda calisirdi.
+    /// 🚨 An interruption <strong>does not change</strong> the state. Only
+    /// <see cref="FinishTurn"/> returns it to listening; otherwise the client
+    /// could immediately send a new <c>commit</c>, and two turns would run at once.
     /// </para>
     /// </remarks>
     public VoiceTransitionOutcome Cancel() => State switch
@@ -129,12 +131,12 @@ internal sealed class VoiceConversationStateMachine
         _ => VoiceTransitionOutcome.Ignored,
     };
 
-    /// <summary>Bir tur tamamlandi (kesilmis olsa bile).</summary>
-    /// <param name="counted">Tur sayaci artsin mi.</param>
-    /// <returns>Sonuc.</returns>
+    /// <summary>A turn completed (even if it was interrupted).</summary>
+    /// <param name="counted">Whether the turn counter should increment.</param>
+    /// <returns>The outcome.</returns>
     /// <remarks>
-    /// Kesilen bir tur de bir turdur ve sayilir: model bir yanit uretmeye
-    /// baslamis, kullanici da onu duymustur.
+    /// An interrupted turn is still a turn and is counted: the model started
+    /// producing a response, and the user heard it.
     /// </remarks>
     public VoiceTransitionOutcome FinishTurn(bool counted)
     {
@@ -151,8 +153,8 @@ internal sealed class VoiceConversationStateMachine
         return Move(VoiceConversationState.Listening);
     }
 
-    /// <summary><c>stop</c> olayini veya soketin kapanmasini isler.</summary>
-    /// <returns>Sonuc.</returns>
+    /// <summary>Processes the <c>stop</c> event, or the socket closing.</summary>
+    /// <returns>The outcome.</returns>
     public VoiceTransitionOutcome Stop()
         => State == VoiceConversationState.Closed
             ? VoiceTransitionOutcome.Ignored

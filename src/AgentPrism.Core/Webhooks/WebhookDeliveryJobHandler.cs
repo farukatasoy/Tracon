@@ -8,19 +8,19 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Tek bir webhook teslim denemesini yurutur (<see cref="JobKind.WebhookDelivery"/>).
+/// Executes a single webhook delivery attempt (<see cref="JobKind.WebhookDelivery"/>).
 /// </summary>
 /// <remarks>
 /// <para>
-/// Yeniden deneme Faz 17'nin kuyruguna birakilir: basarisiz bir deneme
-/// <see cref="JobRetryException"/> firlatir ve arka plan iscisi merdivendeki
-/// gecikmeyle isi geri koyar. Ikinci bir kuyruk, ikinci bir kiralama veya
-/// ikinci bir zamanlayici yazilmaz (K-160).
+/// Retrying is left to Phase 17's queue: a failed attempt throws
+/// <see cref="JobRetryException"/>, and the background worker puts the job
+/// back with the ladder's delay. A second queue, a second lease, or a second
+/// scheduler is not written (K-160).
 /// </para>
 /// <para>
-/// 🚨 Hedef adres <strong>her denemede yeniden</strong> dogrulanir. Kaydetme
-/// aninda gecerli olan bir ad, teslim aninda ozel bir adrese cozumlenebilir
-/// (DNS yeniden baglama).
+/// 🚨 The target address is validated <strong>again on every attempt</strong>.
+/// A name that was valid at save time may resolve to a private address by
+/// delivery time (DNS rebinding).
 /// </para>
 /// </remarks>
 public sealed class WebhookDeliveryJobHandler(
@@ -45,34 +45,34 @@ public sealed class WebhookDeliveryJobHandler(
 
         if (context.Items.Count == 0 || !Guid.TryParse(context.Items[0].Input, out var deliveryId))
         {
-            // Yuk bozuksa yeniden denemek anlamsizdir; is basarisiz biter.
-            throw new AgentPrismException("Webhook teslim isi gecerli bir teslim kimligi tasimiyor.");
+            // If the payload is malformed, retrying is pointless; the job ends as failed.
+            throw new AgentPrismException("The webhook delivery job does not carry a valid delivery id.");
         }
 
         var delivery = await store.GetDeliveryAsync(deliveryId, cancellationToken).ConfigureAwait(false)
-            ?? throw new AgentPrismException($"Webhook teslim kaydi bulunamadi: {deliveryId}.");
+            ?? throw new AgentPrismException($"No webhook delivery record was found: {deliveryId}.");
 
         var subscription = await FindSubscriptionAsync(delivery, cancellationToken).ConfigureAwait(false);
         var attempt = context.Job.Attempt;
 
         if (subscription is null || !subscription.Enabled)
         {
-            await DropAsync(delivery, attempt, "Abonelik bulunamadi veya devre disi.", context, cancellationToken)
+            await DropAsync(delivery, attempt, "The subscription was not found or is disabled.", context, cancellationToken)
                 .ConfigureAwait(false);
 
             return;
         }
 
-        // 🚨 SSRF: her denemede yeniden cozumlenir ve denetlenir.
+        // 🚨 SSRF: resolved and validated again on every attempt.
         var verdict = await WebhookUrlValidator
             .ValidateResolvedAsync(subscription.Url, options, cancellationToken)
             .ConfigureAwait(false);
 
         if (!verdict.IsAllowed)
         {
-            // Reddedilen bir hedef yeniden denenmez: adres degismedikce sonuc
-            // degismez ve her deneme yeni bir DNS sorgusu demektir.
-            await DropAsync(delivery, attempt, verdict.Reason ?? "Hedef adres reddedildi.", context, cancellationToken)
+            // A rejected target is not retried: the result does not change
+            // unless the address changes, and every attempt would mean a new DNS query.
+            await DropAsync(delivery, attempt, verdict.Reason ?? "The target address was rejected.", context, cancellationToken)
                 .ConfigureAwait(false);
 
             return;
@@ -134,7 +134,7 @@ public sealed class WebhookDeliveryJobHandler(
             if (disabled && logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
                 logger.LogWarning(
-                    "Webhook aboneligi '{Name}' ust uste {Threshold} basarisiz teslimden sonra devre disi birakildi.",
+                    "Webhook subscription '{Name}' was disabled after {Threshold} consecutive failed deliveries.",
                     subscription.Name,
                     options.DisableAfterConsecutiveFailures);
             }
@@ -149,13 +149,13 @@ public sealed class WebhookDeliveryJobHandler(
                 },
                 cancellationToken).ConfigureAwait(false);
 
-            throw new AgentPrismException($"Webhook teslimi {attempt} denemede basarisiz oldu: {outcome.Error}");
+            throw new AgentPrismException($"Webhook delivery failed after {attempt} attempts: {outcome.Error}");
         }
 
-        // Merdiven 1 tabanlidir: ilk denemeden (Attempt == 1) sonra ilk gecikme.
+        // The ladder is 1-based: the first delay comes after the first attempt (Attempt == 1).
         var delay = options.RetryDelays[Math.Min(attempt, options.RetryDelays.Count) - 1];
 
-        throw new JobRetryException($"Webhook teslimi basarisiz oldu: {outcome.Error}")
+        throw new JobRetryException($"Webhook delivery failed: {outcome.Error}")
         {
             RetryAfter = delay,
         };
@@ -202,7 +202,7 @@ public sealed class WebhookDeliveryJobHandler(
 
         if (logger is not null && logger.IsEnabled(LogLevel.Warning))
         {
-            logger.LogWarning("Webhook teslimi dusuruldu ({DeliveryId}): {Reason}", delivery.Id, reason);
+            logger.LogWarning("Webhook delivery dropped ({DeliveryId}): {Reason}", delivery.Id, reason);
         }
     }
 
@@ -229,7 +229,7 @@ public sealed class WebhookDeliveryJobHandler(
                 WebhookSigner.TimestampHeader,
                 timestamp.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture));
 
-            // 🚨 Sir veritabanindan DEGIL, yapilandirmadan okunur (K-059).
+            // 🚨 The secret is read from configuration, NOT from the database (K-059).
             if (ResolveSecret(subscription) is { Length: > 0 } secret)
             {
                 request.Headers.TryAddWithoutValidation(
@@ -259,7 +259,7 @@ public sealed class WebhookDeliveryJobHandler(
         }
         catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return new DeliveryOutcome(false, null, $"Zaman asimi ({options.Timeout.TotalSeconds:0} sn).");
+            return new DeliveryOutcome(false, null, $"Timed out ({options.Timeout.TotalSeconds:0}s).");
         }
         catch (HttpRequestException exception)
         {
@@ -279,9 +279,9 @@ public sealed class WebhookDeliveryJobHandler(
         if (string.IsNullOrWhiteSpace(secret) && logger is not null && logger.IsEnabled(LogLevel.Warning))
         {
             logger.LogWarning(
-                "Webhook aboneligi '{Name}' icin '{Key}' yapilandirma anahtari bos; istek imzalanmadan gonderiliyor.",
-                subscription.Name,
-                key);
+                "Configuration key '{Key}' for webhook subscription '{Name}' is empty; the request is being sent unsigned.",
+                key,
+                subscription.Name);
         }
 
         return secret;
@@ -316,7 +316,7 @@ public sealed class WebhookDeliveryJobHandler(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            // Yanit govdesi yalnizca tanilamadir; okunamamasi teslimi etkilemez.
+            // The response body is only for diagnostics; failing to read it does not affect delivery.
             return string.Empty;
         }
     }

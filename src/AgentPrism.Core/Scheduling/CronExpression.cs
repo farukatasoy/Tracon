@@ -3,27 +3,27 @@ using System.Globalization;
 namespace AgentPrism;
 
 /// <summary>
-/// Bes alanli standart cron alt kumesinin (<c>dakika saat ayin-gunu ay
-/// haftanin-gunu</c>) elle yazilmis ayristiricisi.
+/// A hand-written parser for the standard five-field cron subset
+/// (<c>minute hour day-of-month month day-of-week</c>).
 /// </summary>
 /// <remarks>
 /// <para>
-/// Paket alinmadi: <c>Cronos</c> veya <c>NCrontab</c> kucuk paketlerdir ama
-/// K-007 geregi her yeni bagimlilik tuketiciye gecer. Bes alanli ayristirici
-/// ~150 satirdir ve testi kolaydir. Gerekce: docs/17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md,
-/// bolum 17.5.
+/// No package is taken on: <c>Cronos</c> or <c>NCrontab</c> are small
+/// packages, but per K-007 every new dependency passes through to the
+/// consumer. The five-field parser is ~150 lines and easy to test. Rationale:
+/// docs/17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md, section 17.5.
 /// </para>
 /// <para>
-/// Desteklenen sozdizimi: <c>*</c>, sabit deger, <c>N-M</c> araligi,
-/// <c>deger1,deger2,...</c> listesi ve <c>/adim</c> (herhangi birinin
-/// sonuna eklenebilir). Saniye alani, <c>L</c>, <c>W</c>, <c>#</c> gibi
-/// vixie-cron uzantilari <strong>desteklenmez</strong> ve ayristirmada
-/// <see cref="FormatException"/> ile reddedilir.
+/// Supported syntax: <c>*</c>, a fixed value, an <c>N-M</c> range, a
+/// <c>value1,value2,...</c> list, and <c>/step</c> (may be appended to any
+/// of the above). Vixie-cron extensions such as a seconds field, <c>L</c>,
+/// <c>W</c>, and <c>#</c> are <strong>not supported</strong> and are rejected
+/// during parsing with a <see cref="FormatException"/>.
 /// </para>
 /// <para>
-/// Haftanin gunu <em>ve</em> ayin gunu ikisi de kisitlanmissa (ikisi de
-/// <c>*</c> degilse) standart cron kurali uygulanir: eslesme <strong>ya
-/// biri ya digeri</strong> tuttugunda olusur (OR), her ikisi birden degil.
+/// If day-of-week <em>and</em> day-of-month are both restricted (neither is
+/// <c>*</c>), the standard cron rule applies: a match occurs when
+/// <strong>either one</strong> holds (OR), not both at once.
 /// </para>
 /// </remarks>
 public sealed class CronExpression
@@ -54,11 +54,11 @@ public sealed class CronExpression
         _dayOfWeekRestricted = dayOfWeekRestricted;
     }
 
-    /// <summary>Bir cron ifadesini ayristirir.</summary>
-    /// <param name="expression">Bes alanli cron ifadesi.</param>
-    /// <returns>Ayristirilmis ifade.</returns>
-    /// <exception cref="ArgumentException"><paramref name="expression"/> bos veya bosluktan ibaretse.</exception>
-    /// <exception cref="FormatException">Ifade bes alandan olusmuyorsa veya desteklenmeyen bir sozdizimi iceriyorsa.</exception>
+    /// <summary>Parses a cron expression.</summary>
+    /// <param name="expression">A five-field cron expression.</param>
+    /// <returns>The parsed expression.</returns>
+    /// <exception cref="ArgumentException"><paramref name="expression"/> is empty or whitespace only.</exception>
+    /// <exception cref="FormatException">The expression does not have five fields, or contains unsupported syntax.</exception>
     public static CronExpression Parse(string expression)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(expression);
@@ -68,23 +68,23 @@ public sealed class CronExpression
         if (fields.Length != 5)
         {
             throw new FormatException(
-                $"Cron ifadesi tam olarak 5 alan icermelidir (dakika saat ayin-gunu ay haftanin-gunu). " +
-                $"Gelen alan sayisi: {fields.Length}. Saniye alani desteklenmez.");
+                $"A cron expression must have exactly 5 fields (minute hour day-of-month month day-of-week). " +
+                $"Field count found: {fields.Length}. A seconds field is not supported.");
         }
 
-        var minute = ParseField(fields[0], 0, 59, "dakika", out _);
-        var hour = ParseField(fields[1], 0, 23, "saat", out _);
-        var dayOfMonth = ParseField(fields[2], 1, 31, "ayin-gunu", out var dayOfMonthRestricted);
-        var month = ParseField(fields[3], 1, 12, "ay", out _);
-        var dayOfWeek = ParseField(fields[4], 0, 6, "haftanin-gunu", out var dayOfWeekRestricted);
+        var minute = ParseField(fields[0], 0, 59, "minute", out _);
+        var hour = ParseField(fields[1], 0, 23, "hour", out _);
+        var dayOfMonth = ParseField(fields[2], 1, 31, "day-of-month", out var dayOfMonthRestricted);
+        var month = ParseField(fields[3], 1, 12, "month", out _);
+        var dayOfWeek = ParseField(fields[4], 0, 6, "day-of-week", out var dayOfWeekRestricted);
 
         return new CronExpression(minute, hour, dayOfMonth, month, dayOfWeek, dayOfMonthRestricted, dayOfWeekRestricted);
     }
 
-    /// <summary>Bir cron ifadesini ayristirmayi dener.</summary>
-    /// <param name="expression">Bes alanli cron ifadesi.</param>
-    /// <param name="result">Basarili olursa ayristirilmis ifade.</param>
-    /// <returns>Ayristirma basariliysa <see langword="true"/>.</returns>
+    /// <summary>Attempts to parse a cron expression.</summary>
+    /// <param name="expression">A five-field cron expression.</param>
+    /// <param name="result">The parsed expression, if successful.</param>
+    /// <returns><see langword="true"/> if parsing succeeded.</returns>
     public static bool TryParse(string expression, out CronExpression? result)
     {
         try
@@ -100,18 +100,19 @@ public sealed class CronExpression
     }
 
     /// <summary>
-    /// Verilen andan sonraki, ifadeyle eslesen ilk zamani hesaplar.
+    /// Computes the first time after the given instant that matches the
+    /// expression.
     /// </summary>
-    /// <param name="afterUtc">Aramanin baslayacagi an (UTC, haric).</param>
-    /// <param name="timeZone">Ifadenin yorumlanacagi saat dilimi.</param>
-    /// <returns>Bir sonraki calisma zamani (UTC).</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="timeZone"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="InvalidOperationException">4 yil icinde eslesen bir zaman bulunamazsa.</exception>
+    /// <param name="afterUtc">The instant the search starts from (UTC, exclusive).</param>
+    /// <param name="timeZone">The time zone the expression is interpreted in.</param>
+    /// <returns>The next run time (UTC).</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="timeZone"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">No matching time was found within 4 years.</exception>
     /// <remarks>
-    /// Yaz saati ileri atladiginda bazi yerel dakikalar hic yasanmaz; bu
-    /// dakikalar sessizce atlanir. Saat geri alindiginda bir dakika iki kez
-    /// yasanir; <see cref="TimeZoneInfo.ConvertTimeToUtc(DateTime, TimeZoneInfo)"/>
-    /// varsayilan olarak ilk (erken) gerceklesmeyi secer.
+    /// When daylight saving time skips forward, some local minutes never
+    /// occur; these minutes are silently skipped. When the clock is set back,
+    /// one minute occurs twice; <see cref="TimeZoneInfo.ConvertTimeToUtc(DateTime, TimeZoneInfo)"/>
+    /// picks the first (earlier) occurrence by default.
     /// </remarks>
     public DateTimeOffset GetNextOccurrence(DateTimeOffset afterUtc, TimeZoneInfo timeZone)
     {
@@ -141,7 +142,7 @@ public sealed class CronExpression
                 }
                 catch (ArgumentException)
                 {
-                    // Yaz saati ileri atlamasi: bu yerel dakika hic yasanmadi.
+                    // Daylight saving time skipped forward: this local minute never occurred.
                     candidate = candidate.AddMinutes(1);
                     continue;
                 }
@@ -153,7 +154,7 @@ public sealed class CronExpression
         }
 
         throw new InvalidOperationException(
-            "Cron ifadesi icin 4 yil icinde eslesen bir sonraki calisma zamani bulunamadi.");
+            "No next run time matching the cron expression was found within 4 years.");
     }
 
     private bool Matches(DateTime local)
@@ -176,9 +177,9 @@ public sealed class CronExpression
         var domMatch = _dayOfMonth[local.Day - 1];
         var dowMatch = _dayOfWeek[(int)local.DayOfWeek];
 
-        // Standart cron kurali: her ikisi de kisitlanmissa OR, aksi halde AND
-        // (kisitlanmamis alan zaten her zaman "true" doner, bu yuzden AND ile
-        // ayni sonucu verir; kural yalnizca ikisi birden kisitliyken farklilasir).
+        // Standard cron rule: OR if both are restricted, AND otherwise (an
+        // unrestricted field always returns "true" anyway, so it produces the
+        // same result as AND; the rule only differs when both are restricted).
         return _dayOfMonthRestricted && _dayOfWeekRestricted
             ? domMatch || dowMatch
             : domMatch && dowMatch;
@@ -202,7 +203,7 @@ public sealed class CronExpression
 
                 if (!int.TryParse(stepText, NumberStyles.Integer, CultureInfo.InvariantCulture, out step) || step <= 0)
                 {
-                    throw new FormatException($"'{part}' gecersiz bir adim degeri tasiyor ({fieldName} alani).");
+                    throw new FormatException($"'{part}' carries an invalid step value (field: {fieldName}).");
                 }
 
                 segment = segment[..slashIndex];
@@ -224,7 +225,7 @@ public sealed class CronExpression
                     if (!int.TryParse(segment[..dashIndex], NumberStyles.Integer, CultureInfo.InvariantCulture, out rangeStart)
                         || !int.TryParse(segment[(dashIndex + 1)..], NumberStyles.Integer, CultureInfo.InvariantCulture, out rangeEnd))
                     {
-                        throw new FormatException($"'{part}' gecerli bir araligi degil ({fieldName} alani).");
+                        throw new FormatException($"'{part}' is not a valid range (field: {fieldName}).");
                     }
                 }
                 else
@@ -232,8 +233,8 @@ public sealed class CronExpression
                     if (!int.TryParse(segment, NumberStyles.Integer, CultureInfo.InvariantCulture, out rangeStart))
                     {
                         throw new FormatException(
-                            $"'{part}' gecerli bir sayi degil ({fieldName} alani). " +
-                            "Saniye alani ve L/W/# uzantilari desteklenmez.");
+                            $"'{part}' is not a valid number (field: {fieldName}). " +
+                            "A seconds field and the L/W/# extensions are not supported.");
                     }
 
                     rangeEnd = rangeStart;
@@ -243,7 +244,7 @@ public sealed class CronExpression
             if (rangeStart < min || rangeEnd > max || rangeStart > rangeEnd)
             {
                 throw new FormatException(
-                    $"'{part}' degeri {fieldName} alaninin gecerli araliginin ({min}-{max}) disinda.");
+                    $"'{part}' is outside the valid range ({min}-{max}) for field {fieldName}.");
             }
 
             for (var value = rangeStart; value <= rangeEnd; value += step)

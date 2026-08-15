@@ -1,47 +1,47 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Desen eslesmelerini dogrulayan kontrol basamagi algoritmalari.
+/// Check-digit algorithms that validate pattern matches.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 Bu sinif <see cref="PatternContentGuard"/>'in kullanilabilir olmasinin
-/// sartidir. Yalniz <c>\d{16}</c> eslesmesi her siparis numarasini, yalniz
-/// <c>\d{11}</c> eslesmesi her takip numarasini maskeler; boyle bir guard ilk
-/// gunde kapatilir.
+/// 🚨 This class is what makes <see cref="PatternContentGuard"/> usable. A bare
+/// <c>\d{16}</c> match would mask every order number, and a bare <c>\d{11}</c>
+/// match would mask every tracking number; a guard like that gets turned off on
+/// day one.
 /// </para>
 /// <para>
-/// Metotlar <see cref="ReadOnlySpan{T}"/> alir ve hicbir tahsis yapmaz: sicak
-/// yolda her eslesme icin cagrilirlar.
+/// The methods take a <see cref="ReadOnlySpan{T}"/> and allocate nothing: they
+/// are called for every match on the hot path.
 /// </para>
 /// </remarks>
 internal enum CheckDigitKind
 {
-    /// <summary>Dogrulama yapilmaz; desen eslesmesi tek basina yeterlidir.</summary>
+    /// <summary>No validation is done; a pattern match alone is sufficient.</summary>
     None = 0,
 
-    /// <summary>Luhn kontrol basamagi (kredi karti).</summary>
+    /// <summary>Luhn check digit (credit card).</summary>
     Luhn = 1,
 
-    /// <summary>TC kimlik numarasi kontrol basamaklari.</summary>
+    /// <summary>Turkish national ID number check digits.</summary>
     TurkishNationalId = 2,
 }
 
 internal static class CheckDigits
 {
     /// <summary>
-    /// Luhn kontrol basamagi dogrulamasi (kredi karti, IMEI).
+    /// Luhn check-digit validation (credit card, IMEI).
     /// </summary>
     /// <param name="digits">
-    /// Yalnizca rakam ve ayirici (bosluk, tire) icerebilen aday dizi.
+    /// A candidate sequence that may contain only digits and separators (space, hyphen).
     /// </param>
-    /// <returns>Kontrol basamagi tutuyorsa <see langword="true"/>.</returns>
+    /// <returns><see langword="true"/> if the check digit holds.</returns>
     public static bool IsValidLuhn(ReadOnlySpan<char> digits)
     {
         var sum = 0;
         var count = 0;
 
-        // Sagdan sola yurunur: ciftleme sirasi son basamaktan belirlenir.
+        // Walked right to left: the doubling order is determined from the last digit.
         for (var index = digits.Length - 1; index >= 0; index--)
         {
             var character = digits[index];
@@ -71,14 +71,14 @@ internal static class CheckDigits
     }
 
     /// <summary>
-    /// TC kimlik numarasi kontrol basamagi dogrulamasi.
+    /// Turkish national ID number check-digit validation.
     /// </summary>
-    /// <param name="digits">On bir haneli aday dizi.</param>
-    /// <returns>Iki kontrol basamagi da tutuyorsa <see langword="true"/>.</returns>
+    /// <param name="digits">An eleven-digit candidate sequence.</param>
+    /// <returns><see langword="true"/> if both check digits hold.</returns>
     /// <remarks>
-    /// Kural: 10. basamak = ((1., 3., 5., 7., 9. toplami) × 7 − (2., 4., 6., 8.
-    /// toplami)) mod 10; 11. basamak = ilk on basamagin toplami mod 10. Ilk
-    /// basamak sifir olamaz.
+    /// Rule: 10th digit = ((sum of 1st, 3rd, 5th, 7th, 9th) × 7 − (sum of 2nd,
+    /// 4th, 6th, 8th)) mod 10; 11th digit = (sum of the first ten digits) mod 10.
+    /// The first digit cannot be zero.
     /// </remarks>
     public static bool IsValidTurkishNationalId(ReadOnlySpan<char> digits)
     {
@@ -101,9 +101,10 @@ internal static class CheckDigits
             var value = digits[index] - '0';
             firstTenSum += value;
 
-            // 🚨 Yalnizca ILK DOKUZ basamak tek/cift toplamlarina girer. Onuncu
-            // basamak (index 9) kontrol basamagidir ve kendi formulunun girdisi
-            // olamaz; toplamlara katmak her gecerli numarayi gecersiz gosterir.
+            // 🚨 Only the FIRST NINE digits go into the odd/even sums. The tenth
+            // digit (index 9) is a check digit and cannot be its own formula's
+            // input; including it in the sums would make every valid number
+            // look invalid.
             if (index >= 9)
             {
                 continue;
@@ -124,8 +125,8 @@ internal static class CheckDigits
             return false;
         }
 
-        // Cikarma negatif olabilir; C#'ta negatif mod negatif doner, bu yuzden
-        // 10 eklenip yeniden mod alinir.
+        // The subtraction can be negative; in C# a negative mod returns
+        // negative, so 10 is added and the mod is taken again.
         var tenth = (((oddSum * 7) - evenSum) % 10 + 10) % 10;
 
         if (tenth != digits[9] - '0')

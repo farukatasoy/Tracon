@@ -6,34 +6,35 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="JobKind.AgentRun"/> islerini yurutur: kuyruga alinmis
-/// (<c>Prefer: respond-async</c>, Faz 46) tek bir agent calistirmasini
-/// kuyruktan kosar.
+/// Executes <see cref="JobKind.AgentRun"/> jobs: runs a single, queued
+/// (<c>Prefer: respond-async</c>, Phase 46) agent run from the queue.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="AgentBatchJobHandler"/> ile ayni desen izlenir: agent
-/// <see cref="IAgentCatalog.ResolveAsync(string, CancellationToken)"/> ile
-/// cozulur, cozulen agent zaten kayit dekoratoruyle sarilidir, calistirma
-/// normal bir <c>runs</c> satiri olarak <see cref="IRunStore"/>'a yazilir.
+/// Follows the same pattern as <see cref="AgentBatchJobHandler"/>: the agent is
+/// resolved through <see cref="IAgentCatalog.ResolveAsync(string, CancellationToken)"/>,
+/// the resolved agent is already wrapped by the recording decorator, and the
+/// run is written to <see cref="IRunStore"/> as a normal <c>runs</c> row.
 /// </para>
 /// <para>
-/// 🚨 Kimlik, HTTP katmaninin istemciye <c>Location</c> ile bildirdigi kimlikle
-/// AYNI verilir (<see cref="AgentPrismRunOptions.RunId"/>): boylece <c>202</c>
-/// yanitinin sozu, is kuyruktan gercekten kosulduktan sonra da GECERLI kalir.
-/// Kira dolup is yeniden kiralanirsa (yeniden deneme) bu metot AYNI kimlikle
-/// ikinci kez cagrilir; depo <c>StartRunAsync</c>'i bir UPSERT olarak ele alir
-/// (bkz. <c>RunStartInfo.Status</c>) — yeni bir <c>runs</c> satiri ACILMAZ.
+/// 🚨 The identity handed out here is the SAME identity the HTTP layer
+/// promised the client through <c>Location</c> (<see cref="AgentPrismRunOptions.RunId"/>):
+/// this keeps the promise of the <c>202</c> response VALID even after the job
+/// actually runs from the queue. If the lease expires and the job is re-leased
+/// (retry), this method is called a second time with the SAME identity; the
+/// store treats <c>StartRunAsync</c> as an UPSERT (see <c>RunStartInfo.Status</c>)
+/// — no new <c>runs</c> row is OPENED.
 /// </para>
 /// <para>
-/// Yanit onay bekleyen bir tool cagrisi tasirsa <see cref="RunRecordingAgent"/>
-/// calistirmayi <see cref="RunStatus.AwaitingApproval"/> ile kapatir (HATA-S2-004
-/// sonrasi TUM kok calistirmalarda gecerli bir davranis, yalniz kuyruk yoluna
-/// ozgu degil — bkz. <c>RunRecordingAgent</c>). Bu isleyici ayrica, yalniz
-/// KENDISI, o durumda her istek icin bir <see cref="PendingApproval"/> satiri
-/// yazar (K-372: bu depoya yazmak yalniz kuyruk yoluna ozgu KALIR, cift karar
-/// yarisi riskini onlemek icin); karar <c>POST /api/approvals/{id}/decide</c>
-/// ile verilir ve YENI bir calistirma kuyruga dusurur (bkz. <c>ApprovalResumeJobHandler</c>).
+/// If the response carries a tool call awaiting approval, <see cref="RunRecordingAgent"/>
+/// closes the run with <see cref="RunStatus.AwaitingApproval"/> (valid behavior
+/// for ALL root runs since HATA-S2-004, not specific to the queue path alone —
+/// see <c>RunRecordingAgent</c>). This handler additionally, and ONLY this
+/// handler, writes a <see cref="PendingApproval"/> row for each request in that
+/// case (K-372: writing to this store REMAINS specific to the queue path, to
+/// avoid the risk of a double-decision race); the decision is made through
+/// <c>POST /api/approvals/{id}/decide</c> and queues a NEW run (see
+/// <c>ApprovalResumeJobHandler</c>).
 /// </para>
 /// </remarks>
 internal sealed class AgentRunJobHandler(
@@ -66,7 +67,7 @@ internal sealed class AgentRunJobHandler(
         {
             agent = await catalog.ResolveAsync(context.Job.TargetName, cancellationToken).ConfigureAwait(false)
                 ?? throw new AgentPrismException(
-                    $"'{context.Job.TargetName}' adinda bir agent bulunamadi. Is basarisiz olarak isaretlenecek.");
+                    $"No agent named '{context.Job.TargetName}' was found. The job will be marked as failed.");
 
             session = string.IsNullOrWhiteSpace(sessionId)
                 ? null
@@ -74,12 +75,12 @@ internal sealed class AgentRunJobHandler(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            // 🚨 Agent hic cozulemedi: RunRecordingAgent hic devreye girmedi, bu
-            // yuzden 202'nin sozunu verdigi 'runs' satirini (Queued) BURADA
-            // Failed'e biz kapatmaliyiz -- aksi halde istemci GET /api/runs/{id}
-            // ile sonsuza dek 'Queued' gorur. Gercek calistirma hatalari (agent
-            // cozuldukten SONRA) bu bloga girmez; RunRecordingAgent onlari
-            // zaten Failed olarak kapatir (bkz. RunRecordingAgent.CompleteAsync).
+            // 🚨 The agent never resolved: RunRecordingAgent never engaged, so
+            // we must close the 'runs' row (Queued) that the 202 promised HERE,
+            // to Failed -- otherwise the client sees 'Queued' forever through
+            // GET /api/runs/{id}. Real run failures (AFTER the agent resolves)
+            // do not enter this block; RunRecordingAgent already closes those
+            // as Failed (see RunRecordingAgent.CompleteAsync).
             await FailQueuedRunAsync(runId, context.Job.TenantId, exception, cancellationToken)
                 .ConfigureAwait(false);
 
@@ -108,17 +109,18 @@ internal sealed class AgentRunJobHandler(
 
         if (session is null)
         {
-            // Onay bir sonraki turun girdisidir ve YALNIZ oturum gecmisinden
-            // cozulebilir; oturumsuz bir calistirmada bekleyen istek asla
-            // yanitlanamaz. Senkron yolun ayni kisiti icin bkz. AgentEndpoints.RunAsync
-            // ("Onay icin oturum gerekli"). RunRecordingAgent bu calistirmayi
-            // zaten AwaitingApproval ile kapatmisti; burada Failed'e DUZELTILIR.
+            // Approval is the input to the next turn and can ONLY be resolved
+            // from session history; a run without a session can never have its
+            // pending request answered. See AgentEndpoints.RunAsync for the
+            // same constraint on the synchronous path ("session required for
+            // approval"). RunRecordingAgent already closed this run with
+            // AwaitingApproval; it is CORRECTED to Failed here.
             await FailQueuedRunAsync(
                 runId,
                 context.Job.TenantId,
                 new AgentPrismException(
-                    "Kuyruga alinan calistirma onay istedi ama 'sessionId' verilmemisti; " +
-                    "onay bir sonraki turun girdisidir ve oturumsuz cozulemez."),
+                    "The queued run requested approval, but no 'sessionId' was given; " +
+                    "approval is the input to the next turn and cannot be resolved without a session."),
                 cancellationToken).ConfigureAwait(false);
 
             return;
@@ -193,9 +195,9 @@ internal sealed class AgentRunJobHandler(
             return null;
         }
 
-        // RunRecordingAgent.FormatArguments ile AYNI gerekce: AOT uyumlu
-        // kalmak icin elle bicimlendirilir, yansimaya dayanan JSON
-        // serilestirme kullanilmaz.
+        // SAME rationale as RunRecordingAgent.FormatArguments: formatted by
+        // hand to stay AOT compatible; reflection-based JSON serialization is
+        // not used.
         return string.Join(", ", call.Arguments.Select(static pair => $"{pair.Key}={pair.Value}"));
     }
 
@@ -219,7 +221,7 @@ internal sealed class AgentRunJobHandler(
                         Message = exception.Message,
                     },
 
-                    // Is'in kendi kiracisi; kuyruga dusuren taraf yazmisti (K-355).
+                    // The job's own tenant; the party that enqueued it wrote it (K-355).
                     TenantId = tenantId,
                 },
                 cancellationToken).ConfigureAwait(false);
@@ -230,7 +232,7 @@ internal sealed class AgentRunJobHandler(
             {
                 logger.LogWarning(
                     storeException,
-                    "Kuyruktaki calistirma Failed durumuna kapatilamadi: {RunId}.",
+                    "Could not close the queued run to Failed status: {RunId}.",
                     runId);
             }
         }
@@ -243,14 +245,14 @@ internal sealed class AgentRunJobHandler(
             runIdElement.ValueKind != JsonValueKind.String ||
             !Guid.TryParse(runIdElement.GetString(), out var runId))
         {
-            throw new AgentPrismException("AgentRun isi yuku gecerli bir 'runId' alani tasimalidir.");
+            throw new AgentPrismException("The AgentRun job payload must carry a valid 'runId' field.");
         }
 
         if (!payload.TryGetProperty("message", out var messageElement) ||
             messageElement.ValueKind != JsonValueKind.String ||
             messageElement.GetString() is not { Length: > 0 } message)
         {
-            throw new AgentPrismException("AgentRun isi yuku gecerli bir 'message' alani tasimalidir.");
+            throw new AgentPrismException("The AgentRun job payload must carry a valid 'message' field.");
         }
 
         var sessionId = payload.TryGetProperty("sessionId", out var sessionElement) &&

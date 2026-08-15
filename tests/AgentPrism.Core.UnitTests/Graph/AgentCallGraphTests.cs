@@ -19,7 +19,7 @@ public sealed class AgentCallGraphTests
         var problem = AgentCallGraph.Validate("a", ["a"], Descriptors(("a", [])));
 
         problem.ShouldNotBeNull();
-        problem.ShouldContain("kendisini cagiramaz", Case.Sensitive);
+        problem.ShouldContain("cannot call itself", Case.Sensitive);
     }
 
     [Fact]
@@ -28,7 +28,7 @@ public sealed class AgentCallGraphTests
         var problem = AgentCallGraph.Validate("a", ["yok"], Descriptors(("a", [])));
 
         problem.ShouldNotBeNull();
-        problem.ShouldContain("katalogda yok", Case.Sensitive);
+        problem.ShouldContain("no such agent exists in the catalog", Case.Sensitive);
     }
 
     [Fact]
@@ -40,7 +40,7 @@ public sealed class AgentCallGraphTests
         var problem = AgentCallGraph.Validate("a", ["b"], descriptors);
 
         problem.ShouldNotBeNull();
-        problem.ShouldContain("dongu", Case.Sensitive);
+        problem.ShouldContain("cycle", Case.Sensitive);
         problem.ShouldContain("a -> b -> c -> a", Case.Sensitive);
     }
 

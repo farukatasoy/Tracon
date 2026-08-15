@@ -50,7 +50,7 @@ public sealed class ModelProviderRegistryTests
         var exception = Should.Throw<AgentPrismException>(
             () => registry.CreateChatClient(TestData.Binding()));
 
-        exception.Message.ShouldContain("hic saglayici kayitli degil");
+        exception.Message.ShouldContain("no provider is registered");
     }
 
     [Fact]

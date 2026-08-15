@@ -4,28 +4,31 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Icerik/guvenlik filtresiyle kesilmis <strong>bos</strong> bir yaniti
-/// <see cref="AgentPrismContentFilteredException"/> ile hataya cevirir.
+/// Turns an <strong>empty</strong> response that was cut off by a content/safety
+/// filter into an error via <see cref="AgentPrismContentFilteredException"/>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Saglayici uygulamasinin icine gomulmez; <see cref="ModelProviderRegistry.CreateChatClient"/>
-/// her istemciyi bu tipe sarar — devre kesici ile ayni desen (Faz 8). Boylece OpenAI,
-/// Anthropic ve Gemini ayni davranisi tek bir yerden alir ve Faz 27 (Azure) kural
-/// yazmadan devralir.
+/// Not embedded inside a provider implementation;
+/// <see cref="ModelProviderRegistry.CreateChatClient"/> wraps every client with
+/// this type — the same pattern as the circuit breaker (Phase 8). This way
+/// OpenAI, Anthropic, and Gemini get the same behavior from a single place, and
+/// Phase 27 (Azure) inherits it without writing a rule.
 /// </para>
 /// <para>
-/// <strong>Sarmalama sirasi onemlidir:</strong> bu dekorator devre kesicinin
-/// <em>disinda</em> durur. Filtrelenmis bir yanit saglayicinin saglikli oldugu
-/// anlamina gelir; devre kesicinin icinde olsaydi attigi istisna ardisik hata
-/// sayacini artirir ve icerigi filtrelenen birkac istek saglayiciyi kapatirdi.
+/// <strong>Wrapping order matters:</strong> this decorator sits <em>outside</em>
+/// the circuit breaker. A filtered response means the provider is healthy; if it
+/// sat inside the circuit breaker, the exception it throws would increase the
+/// consecutive-failure counter and a handful of content-filtered requests would
+/// close the circuit on the provider.
 /// </para>
 /// <para>
-/// <strong>Yalnizca bos yanit hataya cevrilir.</strong> Model metin uretip sonra
-/// kesildiyse (Gemini'nin sik davranisi degil, ama mumkun) kullanicinin elinde
-/// kismi bir cevap vardir; onu silmek bilgi kaybidir. Bos yanit ise sessiz
-/// birakildiginda hata ayiklamasi en zor durumu uretir: kullanici bos bir cevap
-/// gorur ve kayitta hicbir iz yoktur.
+/// <strong>Only an empty response is turned into an error.</strong> If the model
+/// produced text and was then cut off (not Gemini's common behavior, but
+/// possible), the user has a partial answer in hand; discarding it is a loss of
+/// information. An empty response left silent, on the other hand, produces the
+/// hardest case to debug: the user sees an empty answer and there is no trace
+/// in the record.
 /// </para>
 /// </remarks>
 internal sealed class ContentFilterDetectingChatClient(string providerName, IChatClient inner)
@@ -65,8 +68,9 @@ internal sealed class ContentFilterDetectingChatClient(string providerName, ICha
             yield return update;
         }
 
-        // Karar akisin SONUNDA verilir: bitis sebebi cogu saglayicida son cercevede
-        // gelir ve ondan once metin uretilmis olabilir.
+        // The decision is made at the END of the stream: the finish reason
+        // arrives in the last frame for most providers, and text may have been
+        // produced before it.
         if (IsContentFilter(finishReason) && !sawContent)
         {
             throw Filtered(finishReason);
@@ -94,10 +98,9 @@ internal sealed class ContentFilterDetectingChatClient(string providerName, ICha
         return false;
     }
 
-    // Metin disindaki icerikler de "bos degil" sayilir: bir tool cagrisi veya
-    // uretilmis bir goruntu, yanitin kullanilabilir oldugunu gosterir. Yalniz
-    // kullanim sayaclari (UsageContent) icerik degildir; filtrelenen bir yanit
-    // da token harcar.
+    // Content other than text also counts as "not empty": a tool call or a
+    // generated image shows the response is usable. Usage counters
+    // (UsageContent) alone are not content; a filtered response still spends tokens.
     private static bool HasContent(IEnumerable<AIContent> contents)
     {
         foreach (var content in contents)
@@ -119,10 +122,10 @@ internal sealed class ContentFilterDetectingChatClient(string providerName, ICha
     }
 
     private AgentPrismContentFilteredException Filtered(ChatFinishReason? finishReason)
-        => new($"'{providerName}' saglayicisi yaniti icerik filtresiyle kesti ve hicbir icerik dondurmedi. " +
-               "Bu bir basarisiz calistirmadir; istek yeniden denenmeden once girdi gozden gecirilmelidir. " +
-               "Gemini'de guvenlik esikleri ModelBinding.ProviderSettings ile gevsetilebilir " +
-               "(ornek: google.safety.harassment = \"BLOCK_ONLY_HIGH\").")
+        => new($"The '{providerName}' provider cut off the response with a content filter and returned no content. " +
+               "This is a failed run; the input should be reviewed before the request is retried. " +
+               "On Gemini, safety thresholds can be relaxed with ModelBinding.ProviderSettings " +
+               "(example: google.safety.harassment = \"BLOCK_ONLY_HIGH\").")
         {
             ProviderName = providerName,
             FinishReason = finishReason?.Value,

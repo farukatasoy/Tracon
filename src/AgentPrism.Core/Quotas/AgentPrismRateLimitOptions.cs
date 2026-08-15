@@ -1,55 +1,54 @@
 namespace AgentPrism;
 
-/// <summary>AgentPrism uclarina uygulanan hiz siniri ayarlari — Faz 21.</summary>
+/// <summary>Rate-limit settings applied to AgentPrism endpoints — Phase 21.</summary>
 /// <remarks>
 /// <para>
-/// <c>AgentPrism:RateLimit</c> yapilandirma bolumunden okunur.
+/// Read from the <c>AgentPrism:RateLimit</c> configuration section.
 /// </para>
 /// <para>
-/// 🚨 <strong>Varsayilan kapalidir</strong> (K-165). Bir kutuphane tuketicisinin
-/// trafigini bilmez; acik gelen bir varsayilan, yukseltme yapan bir kurulumun
-/// canli trafigini sessizce <c>429</c> ile karsilardi. Onerilen degerler
-/// README'de yazar.
+/// 🚨 <strong>Off by default</strong> (K-165). It has no way of knowing a
+/// library consumer's traffic; a default that comes on would silently answer an
+/// upgrading setup's live traffic with <c>429</c>. Recommended values are documented in the README.
 /// </para>
 /// <para>
-/// Hiz siniri <strong>kota degildir</strong>: saniye/dakika olceginde ani yuku
-/// duzlestirir ve bellekte yasar. Gun/ay olcegindeki toplam tuketim sinirlamasi
-/// <see cref="AgentPrismQuotaOptions"/> ile yapilir ve veritabaninda sayilir
-/// (K-158).
+/// Rate limiting <strong>is not a quota</strong>: it smooths out sudden load at
+/// the second/minute scale and lives in memory. Total-consumption limiting at
+/// the day/month scale is done with <see cref="AgentPrismQuotaOptions"/> and
+/// counted in the database (K-158).
 /// </para>
 /// </remarks>
 public sealed class AgentPrismRateLimitOptions
 {
-    /// <summary>Yapilandirma bolumu adi.</summary>
+    /// <summary>The configuration section name.</summary>
     public const string SectionName = "AgentPrism:RateLimit";
 
-    /// <summary>Hiz siniri etkin mi. Varsayilan <see langword="false"/>.</summary>
+    /// <summary>Whether rate limiting is enabled. Default <see langword="false"/>.</summary>
     public bool Enabled { get; set; }
 
-    /// <summary>Bir pencerede izin verilen istek sayisi.</summary>
+    /// <summary>The number of requests allowed within a window.</summary>
     public int PermitLimit { get; set; } = 60;
 
-    /// <summary>Pencerenin uzunlugu.</summary>
+    /// <summary>The length of the window.</summary>
     public TimeSpan Window { get; set; } = TimeSpan.FromMinutes(1);
 
     /// <summary>
-    /// Sinir asilinca kuyruga alinacak istek sayisi. <c>0</c> ise istek hemen
-    /// <c>429</c> alir.
+    /// The number of requests to queue once the limit is exceeded. If <c>0</c>,
+    /// a request gets <c>429</c> immediately.
     /// </summary>
     public int QueueLimit { get; set; }
 
     /// <summary>
-    /// Sinirin hangi anahtara gore bolundugu. Varsayilan kiraci bazlidir.
+    /// Which key the limit is partitioned by. Default is per tenant.
     /// </summary>
     public RateLimitPartitionKind Partition { get; set; } = RateLimitPartitionKind.Tenant;
 }
 
-/// <summary>Hiz sinirinin hangi anahtara gore bolundugu.</summary>
+/// <summary>Which key the rate limit is partitioned by.</summary>
 public enum RateLimitPartitionKind
 {
-    /// <summary>Her kiraci kendi kotasini alir.</summary>
+    /// <summary>Each tenant gets its own quota.</summary>
     Tenant = 0,
 
-    /// <summary>Sinir tum kurulum icin ortaktir.</summary>
+    /// <summary>The limit is shared across the whole deployment.</summary>
     Global = 1,
 }

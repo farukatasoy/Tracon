@@ -1,122 +1,125 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Bir workflow'un derlenmis grafi: dugumler, kenarlar ve dis istek portlari.
+/// Represents a workflow's compiled graph: nodes, edges, and external
+/// request ports.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Graf <strong>tanimdan degil, derlenmis workflow'dan</strong> cikarilir.
-/// Sebep olculdur: hazir desenler kullanicinin yazmadigi executor'lar ekler
-/// (<c>OutputMessages</c>, <c>Batcher/*</c>, <c>ConcurrentEnd</c>,
-/// <c>HandoffStart</c>, <c>GroupChatHost</c>, <c>MagenticOrchestrator</c>).
-/// Tanimdan cizilen bir graf bu dugumleri gostermez ve calistirma sirasinda
-/// gelen <c>ExecutorInvoked</c> olaylari hicbir dugumle eslesmezdi.
+/// The graph is extracted from the <strong>compiled workflow, not the
+/// definition</strong>. The reason was measured: built-in patterns add
+/// executors the user did not write (<c>OutputMessages</c>,
+/// <c>Batcher/*</c>, <c>ConcurrentEnd</c>, <c>HandoffStart</c>,
+/// <c>GroupChatHost</c>, <c>MagenticOrchestrator</c>). A graph drawn from
+/// the definition would not show these nodes, and the <c>ExecutorInvoked</c>
+/// events arriving during a run would not match any node.
 /// </para>
 /// <para>
-/// Tip Microsoft Agent Framework tipi tasimaz: HTTP katmani
-/// <c>AgentPrism.Workflows</c> paketine bagli degildir (K-118).
+/// The type carries no Microsoft Agent Framework type: the HTTP layer does
+/// not depend on the <c>AgentPrism.Workflows</c> package (K-118).
 /// </para>
 /// </remarks>
 public sealed record WorkflowGraph
 {
-    /// <summary>Grafin ait oldugu workflow'un adi.</summary>
+    /// <summary>Gets the name of the workflow the graph belongs to.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Girdi mesajini ilk alan dugumun kimligi.</summary>
+    /// <summary>Gets the identifier of the node that receives the input message first.</summary>
     public required string StartExecutorId { get; init; }
 
-    /// <summary>Graftaki dugumler.</summary>
+    /// <summary>Gets the nodes in the graph.</summary>
     public IReadOnlyList<WorkflowGraphNode> Nodes { get; init; } = [];
 
-    /// <summary>Dugumler arasindaki kenarlar.</summary>
+    /// <summary>Gets the edges between nodes.</summary>
     public IReadOnlyList<WorkflowGraphEdge> Edges { get; init; } = [];
 
     /// <summary>
-    /// Microsoft Agent Framework'un urettigi Mermaid metni.
+    /// Gets the Mermaid text produced by Microsoft Agent Framework.
     /// </summary>
     /// <remarks>
-    /// Arayuz grafi kendi cizer (bundle butcesi, K-002); bu metin
-    /// <em>disari aktarma</em> icindir. Kullanici panoya kopyalayip bir
-    /// dokumana yapistirabilir - proje kurali diyagramlari Mermaid ile ister.
+    /// The UI draws the graph itself (bundle budget, K-002); this text is
+    /// for <em>export</em>. Users can copy it to the clipboard and paste it
+    /// into a document - project convention requires diagrams to be written
+    /// in Mermaid.
     /// </remarks>
     public required string Mermaid { get; init; }
 }
 
-/// <summary>Graftaki bir dugum.</summary>
+/// <summary>Represents a node in the graph.</summary>
 /// <remarks>
-/// Kimlik, calistirma sirasinda gelen <c>ExecutorInvoked</c> /
-/// <c>ExecutorCompleted</c> / <c>ExecutorFailed</c> olaylarinin <c>Text</c>
-/// alaniyla <strong>birebir</strong> eslesir; arayuz dugumleri bu sayede canli
-/// renklendirir.
+/// The identifier matches the <c>Text</c> field of the <c>ExecutorInvoked</c>
+/// / <c>ExecutorCompleted</c> / <c>ExecutorFailed</c> events arriving during a
+/// run <strong>exactly</strong>; this lets the UI highlight nodes live.
 /// </remarks>
 public sealed record WorkflowGraphNode
 {
-    /// <summary>Executor kimligi.</summary>
+    /// <summary>Gets the executor identifier.</summary>
     public required string Id { get; init; }
 
-    /// <summary>Arayuzde gosterilecek kisa etiket.</summary>
+    /// <summary>Gets the short label shown in the UI.</summary>
     public required string Label { get; init; }
 
-    /// <summary>Dugumun rolu.</summary>
+    /// <summary>Gets the node's role.</summary>
     public required WorkflowNodeKind Kind { get; init; }
 
     /// <summary>
-    /// Dugum bir agent'i temsil ediyorsa agent'in adi; aksi hâlde
+    /// Gets the agent's name if the node represents an agent; otherwise
     /// <see langword="null"/>.
     /// </summary>
     public string? AgentName { get; init; }
 
-    /// <summary>Microsoft Agent Framework'un executor tipi. Hata ayiklama icin.</summary>
+    /// <summary>Gets the Microsoft Agent Framework executor type. For debugging.</summary>
     public string? ExecutorType { get; init; }
 }
 
-/// <summary>Iki dugum arasindaki baglanti.</summary>
+/// <summary>Represents the connection between two nodes.</summary>
 public sealed record WorkflowGraphEdge
 {
-    /// <summary>Kaynak dugumun kimligi.</summary>
+    /// <summary>Gets the source node's identifier.</summary>
     public required string From { get; init; }
 
-    /// <summary>Hedef dugumun kimligi.</summary>
+    /// <summary>Gets the target node's identifier.</summary>
     public required string To { get; init; }
 
-    /// <summary>Kenarin turu.</summary>
+    /// <summary>Gets the edge's kind.</summary>
     public required WorkflowEdgeKind Kind { get; init; }
 }
 
-/// <summary>Bir graf dugumunun rolu.</summary>
+/// <summary>Represents the role of a graph node.</summary>
 /// <remarks>
-/// JSON'da ad olarak yazilir (K-040). Arayuz dugum bicimini buna gore secer.
+/// Written as a name in JSON (K-040). The UI picks the node shape based on
+/// it.
 /// </remarks>
 [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<WorkflowNodeKind>))]
 public enum WorkflowNodeKind
 {
-    /// <summary>Rolu belirlenemeyen dugum.</summary>
+    /// <summary>A node whose role could not be determined.</summary>
     Unknown = 0,
 
-    /// <summary>Katalogdaki bir agent'i calistiran dugum.</summary>
+    /// <summary>A node that runs an agent from the catalog.</summary>
     Agent = 1,
 
-    /// <summary>Hazir desenin ekledigi yardimci dugum (dagitici, birlestirici, yonetici).</summary>
+    /// <summary>A helper node added by a built-in pattern (distributor, aggregator, manager).</summary>
     Orchestration = 2,
 
-    /// <summary>Disaridan yanit bekleyen port. Human-in-the-loop buradan girer.</summary>
+    /// <summary>A port awaiting an external response. Human-in-the-loop enters here.</summary>
     RequestPort = 3,
 
-    /// <summary>Grafin ciktisini toplayan dugum.</summary>
+    /// <summary>A node that collects the graph's output.</summary>
     Output = 4,
 }
 
-/// <summary>Bir kenarin turu.</summary>
-/// <remarks>JSON'da ad olarak yazilir (K-040).</remarks>
+/// <summary>Represents the kind of an edge.</summary>
+/// <remarks>Written as a name in JSON (K-040).</remarks>
 [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<WorkflowEdgeKind>))]
 public enum WorkflowEdgeKind
 {
-    /// <summary>Tek kaynaktan tek hedefe.</summary>
+    /// <summary>Single source to single target.</summary>
     Direct = 0,
 
-    /// <summary>Tek kaynaktan birden cok hedefe.</summary>
+    /// <summary>Single source to multiple targets.</summary>
     FanOut = 1,
 
-    /// <summary>Birden cok kaynaktan tek hedefe.</summary>
+    /// <summary>Multiple sources to single target.</summary>
     FanIn = 2,
 }

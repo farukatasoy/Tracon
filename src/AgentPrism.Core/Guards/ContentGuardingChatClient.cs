@@ -5,35 +5,35 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Modele giden mesajlari ve modelden gelen yaniti kayitli
-/// <see cref="IContentGuard"/> uygulamalarindan geciren dekorator.
+/// Decorator that runs the messages going to the model and the response coming
+/// from the model through the registered <see cref="IContentGuard"/> implementations.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 <strong>Katman secimi olculdu ve plandan saptirildi.</strong> Bir
-/// <c>IAgentDecorator</c> agent'in yalniz ilk girdisini ve son ciktisini gorur;
-/// aradaki turlari gormez. Bir tool sonucu modele <em>ikinci</em> cagride girer ve
-/// prompt injection'in en yaygin yolu budur. Bu yuzden guard <c>IChatClient</c>
-/// katmanindadir.
+/// 🚨 <strong>The layer choice was measured and deviated from the plan.</strong>
+/// An <c>IAgentDecorator</c> sees only the agent's first input and final output;
+/// it does not see the turns in between. A tool result enters the model on the
+/// <em>second</em> call, and that is the most common path for prompt injection.
+/// This is why the guard sits at the <c>IChatClient</c> layer.
 /// </para>
 /// <para>
-/// 🚨 Ayrica <c>UseFunctionInvocation()</c>'in <strong>ICINDE</strong> durur.
-/// Olculdu (Faz 48): tool cagri dongusu MAF'in <c>FunctionInvokingChatClient</c>'i
-/// tarafindan surulur ve o dongunun her turu ayni ic istemciye gider. Dekorator
-/// dongunun disinda olsaydi agent turu basina yalniz BIR cagri gorurdu ve tool
-/// sonuclari hic denetlenmezdi. Boru hattinin tamami
-/// <c>ModelProviderRegistry.CreateChatClient</c> icinde kurulur.
+/// 🚨 It also sits <strong>INSIDE</strong> <c>UseFunctionInvocation()</c>.
+/// Measured (Phase 48): the tool-call loop is driven by MAF's
+/// <c>FunctionInvokingChatClient</c>, and every turn of that loop goes to the
+/// same inner client. If the decorator sat outside the loop it would see only
+/// ONE call per agent turn and tool results would never be inspected. The entire
+/// pipeline is assembled inside <c>ModelProviderRegistry.CreateChatClient</c>.
 /// </para>
 /// <para>
-/// Devre kesici bu dekoratorun <em>disindadir</em>; engelleme kararinin devreyi
-/// acmamasi <c>CircuitBreakingChatClient</c> icindeki acik bir ayiklamayla
-/// saglanir (engelleme saglayici arizasi degildir — filtrelenmis yanitla ayni
-/// gerekce).
+/// The circuit breaker sits <em>outside</em> this decorator; an explicit carve-out
+/// inside <c>CircuitBreakingChatClient</c> ensures a block decision does not open
+/// the circuit (a block is not a provider failure — the same rationale as a
+/// filtered response).
 /// </para>
 /// <para>
-/// <strong>Sistem talimati denetlenmez.</strong> Kodda veya yonetim API'sinde
-/// yazilir, denetim izine zaten girer ve her cagride yeniden denetlemek sabit bir
-/// maliyettir; hicbir sey yakalamaz.
+/// <strong>The system instruction is not inspected.</strong> It is written in
+/// code or through the management API, already enters the audit log, and
+/// re-inspecting it on every call is a fixed cost that catches nothing.
 /// </para>
 /// </remarks>
 internal sealed class ContentGuardingChatClient(
@@ -88,9 +88,10 @@ internal sealed class ContentGuardingChatClient(
 
         if (!settings.BufferStreamingOutput)
         {
-            // Cerceve cerceve denetim: kismi bir metin uzerinde desen eslesmeyebilir
-            // ve bir desen iki cercevenin sinirinda KACAR. Bu yol acik bir tercihtir
-            // (BufferStreamingOutput = false), gizli bir davranis degildir.
+            // Frame-by-frame inspection: a pattern may not match on a partial
+            // piece of text, and a pattern that straddles a frame boundary
+            // ESCAPES detection. This path is an explicit choice
+            // (BufferStreamingOutput = false), not a hidden behavior.
             await foreach (var update in base.GetStreamingResponseAsync(outbound, options, cancellationToken)
                 .ConfigureAwait(false))
             {
@@ -100,9 +101,9 @@ internal sealed class ContentGuardingChatClient(
             yield break;
         }
 
-        // 🚨 Tamponlanmis yol: hicbir cerceve denetim bitmeden istemciye gitmez.
-        // Bir cerceve gonderildikten sonra geri alinamaz; engelleme karari ancak
-        // metnin tamami gorulduginde dogru verilebilir.
+        // 🚨 Buffered path: no frame reaches the client before inspection is
+        // done. A frame cannot be recalled once sent; a block decision can only
+        // be made correctly once the whole text has been seen.
         var buffered = new List<ChatResponseUpdate>();
 
         await foreach (var update in base.GetStreamingResponseAsync(outbound, options, cancellationToken)
@@ -120,28 +121,28 @@ internal sealed class ContentGuardingChatClient(
     }
 
     /// <summary>
-    /// Gonderilecek mesajlari denetler ve gerekiyorsa maskelenmis bir kopya kurar.
+    /// Inspects the messages to be sent and, if needed, builds a masked copy.
     /// </summary>
     /// <remarks>
-    /// 🚨 Cagiranin listesi <strong>degistirilmez</strong>. Maskeleme modele giden
-    /// istemi degistirir, konusma gecmisini degistirmez: gecmise yazilsaydi maske
-    /// kalicilasir ve kullanicinin kendi yazdigi metin geri alinamaz sekilde
-    /// kaybolurdu.
+    /// 🚨 The caller's list is <strong>not modified</strong>. Masking changes the
+    /// prompt going to the model, not the conversation history: if it were
+    /// written to the history the mask would become permanent and the user's own
+    /// text would be lost irrecoverably.
     /// </remarks>
     private ValueTask<IEnumerable<ChatMessage>> InspectInputAsync(
         IEnumerable<ChatMessage> messages,
         CancellationToken cancellationToken)
     {
-        // Liste zaten bir IReadOnlyList ise kopyalanmaz: MAF mesajlari liste olarak
-        // gecirir ve eslesme yoksa hicbir tahsis olmaz.
+        // Not copied if the list is already an IReadOnlyList: MAF passes
+        // messages as a list, and if there is no match, no allocation happens.
         var buffer = messages as IReadOnlyList<ChatMessage> ?? [.. messages];
 
         return MaskAsync(buffer, cancellationToken);
     }
 
-    // RunRecordingAgent ile PAYLASILAN mantik: kayit yolu (RunStarted olayi,
-    // IRunInputStore) ayni denetimi ayni sirada uygular ki modele giden ile
-    // kaydedilen HIC ayrilmasin (HATA-S3-006).
+    // Logic SHARED with RunRecordingAgent: the recording path (RunStarted
+    // event, IRunInputStore) applies the same inspection in the same order so
+    // that what goes to the model and what is recorded NEVER diverge (HATA-S3-006).
     private async ValueTask<IEnumerable<ChatMessage>> MaskAsync(
         IReadOnlyList<ChatMessage> buffer,
         CancellationToken cancellationToken)
@@ -150,14 +151,15 @@ internal sealed class ContentGuardingChatClient(
             .ConfigureAwait(false);
 
     /// <summary>
-    /// Yaniti denetler ve gerekiyorsa maskelenmis mesajlarla degistirir.
+    /// Inspects the response and replaces it with masked messages if needed.
     /// </summary>
     /// <remarks>
-    /// 🚨 <see cref="ChatMessage"/> nesneleri <strong>yerinde degistirilmez</strong>.
-    /// Ic istemci ayni ornegi yeniden kullanabilir (onbellekleyen bir istemci veya
-    /// onceden kurulmus bir sahte istemci); yerinde degistirme o ornegi kalici
-    /// olarak bozar ve ikinci cagri maskelenmis metni "modelin yaniti" sanir.
-    /// Yalniz <see cref="ChatResponse.Messages"/> listesinin kendisi bizimdir.
+    /// 🚨 <see cref="ChatMessage"/> objects are <strong>not modified in place</strong>.
+    /// The inner client may reuse the same instance (a caching client, or a
+    /// pre-built fake client); modifying in place would permanently corrupt that
+    /// instance, and a second call would mistake the masked text for "the
+    /// model's response". Only the <see cref="ChatResponse.Messages"/> list
+    /// itself is ours.
     /// </remarks>
     private async ValueTask InspectOutputAsync(ChatResponse response, CancellationToken cancellationToken)
     {
@@ -175,7 +177,7 @@ internal sealed class ContentGuardingChatClient(
 
         if (changed)
         {
-            // Ayni gerekce: ham yanit maskelenmemis metni tasir.
+            // Same rationale: the raw response carries the unmasked text.
             response.RawRepresentation = null;
         }
     }
@@ -219,9 +221,9 @@ internal sealed class ContentGuardingChatClient(
     }
 
     /// <summary>
-    /// Tek bir cerceveyi denetler; maskeleme gerekiyorsa yeni bir cerceve doner.
+    /// Inspects a single frame; returns a new frame if masking is needed.
     /// </summary>
-    /// <returns>Degisiklik yoksa <see langword="null"/>.</returns>
+    /// <returns><see langword="null"/> if nothing changed.</returns>
     private async ValueTask<ChatResponseUpdate?> MaskUpdateAsync(
         ChatResponseUpdate update,
         CancellationToken cancellationToken)
@@ -263,10 +265,10 @@ internal sealed class ContentGuardingChatClient(
     }
 
     /// <summary>
-    /// Tamponlanmis cercevelerin BIRLESIK metnini denetler.
+    /// Inspects the COMBINED text of the buffered frames.
     /// </summary>
     /// <returns>
-    /// Maskelenmis birlesik metin; degisiklik yoksa <see langword="null"/>.
+    /// The masked combined text; <see langword="null"/> if nothing changed.
     /// </returns>
     private async ValueTask<string?> InspectBufferAsync(
         List<ChatResponseUpdate> buffered,
@@ -293,19 +295,19 @@ internal sealed class ContentGuardingChatClient(
     }
 
     /// <summary>
-    /// Maskelenmis birlesik metni cerceve dizisine geri yazar.
+    /// Writes the masked combined text back into the frame sequence.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Maskeleme karakter sayisini degistirebildigi icin eslesmeler tek tek
-    /// cercevelere geri haritalanamaz. Butun metin <strong>ilk</strong> metin
-    /// cercevesine yazilir, kalan metin cerceveleri bosaltilir; metin disi
-    /// icerikler (tool cagrisi, kullanim sayaci) yerinde kalir. Toplam metin
-    /// korunur, kayit ve olculer bozulmaz.
+    /// Because masking can change the character count, matches cannot be mapped
+    /// back to individual frames one by one. The whole text is written to the
+    /// <strong>first</strong> text frame, the remaining text frames are emptied;
+    /// non-text content (tool calls, usage counters) stays in place. The total
+    /// text is preserved, and neither recording nor metrics are broken.
     /// </para>
     /// <para>
-    /// 🚨 Cerceveler <strong>kopyalanir</strong>, yerinde degistirilmez: ic
-    /// istemci ayni ornekleri yeniden kullanabilir.
+    /// 🚨 Frames are <strong>copied</strong>, not modified in place: the inner
+    /// client may reuse the same instances.
     /// </para>
     /// </remarks>
     private static void ApplyMask(List<ChatResponseUpdate> buffered, string? masked)

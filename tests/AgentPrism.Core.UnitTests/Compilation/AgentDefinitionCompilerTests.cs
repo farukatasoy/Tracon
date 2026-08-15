@@ -488,7 +488,7 @@ public sealed class AgentDefinitionCompilerTests
 
         var exception = Should.Throw<AgentPrismCompilationException>(() => compiler.Compile(definition));
 
-        exception.Message.ShouldContain("kiraci");
+        exception.Message.ShouldContain("tenant");
     }
 
     private static AgentDefinitionCompiler CreateCompiler()

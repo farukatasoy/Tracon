@@ -24,7 +24,7 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
         var exception = await Should.ThrowAsync<AgentPrismException>(
             async () => await runner.RunStoredScriptAsync("demo", EchoScript(), null, CancellationToken.None));
 
-        exception.Message.ShouldContain("kapali");
+        exception.Message.ShouldContain("disabled");
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
         var exception = await Should.ThrowAsync<AgentPrismException>(
             async () => await runner.RunStoredScriptAsync("demo", EchoScript(), null, CancellationToken.None));
 
-        exception.Message.ShouldContain("yorumlayici");
+        exception.Message.ShouldContain("interpreter");
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
         var exception = await Should.ThrowAsync<AgentPrismException>(
             async () => await runner.RunStoredScriptAsync("demo", EchoScript(), null, CancellationToken.None));
 
-        exception.Message.ShouldContain("denetim");
+        exception.Message.ShouldContain("audit trail");
     }
 
     [Fact]

@@ -3,16 +3,16 @@ using System.Collections.Concurrent;
 namespace AgentPrism;
 
 /// <summary>
-/// Oturumlari surec bellegi icinde tutan depo.
+/// A store that keeps sessions in process memory.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Sinirlari <see cref="InMemoryAgentDefinitionStore"/> ile aynidir: surec omru
-/// ve tek dugum. Uretimde <c>AgentPrism.PostgreSql</c> kullanin.
+/// The limits are the same as <see cref="InMemoryAgentDefinitionStore"/>:
+/// process lifetime and a single node. Use <c>AgentPrism.PostgreSql</c> in production.
 /// </para>
 /// <para>
-/// 🚨 Oturumlar <strong>kiraci basina</strong> ayrilir; kiraci
-/// <see cref="ITenantContext"/>'ten okunur (Faz 41).
+/// 🚨 Sessions are separated <strong>per tenant</strong>; the tenant is read
+/// from <see cref="ITenantContext"/> (Phase 41).
 /// </para>
 /// </remarks>
 public sealed class InMemorySessionStore : ISessionStore
@@ -20,24 +20,26 @@ public sealed class InMemorySessionStore : ISessionStore
     private readonly ConcurrentDictionary<(string TenantId, string Id), SessionRecord> _sessions = new();
     private readonly ITenantContext _tenantContext;
 
-    /// <summary>Yeni bir bellek ici oturum deposu olusturur.</summary>
+    /// <summary>Creates a new in-memory session store.</summary>
     /// <param name="tenantContext">
-    /// Gecerli kiracinin baglami. Verilmezse depo tek kiracili davranir.
+    /// The current tenant's context. If not given, the store behaves as single-tenant.
     /// </param>
     public InMemorySessionStore(ITenantContext? tenantContext = null)
         => _tenantContext = tenantContext ?? FixedTenantContext.Default;
 
     /// <inheritdoc />
     /// <remarks>
-    /// Ayni kimlikle kayit varsa <see cref="SessionRecord.CreatedAt"/> korunur.
-    /// "Olusturulma zamani" ilk yazmaya aittir; kalici depo da ayni davranisi gosterir.
+    /// If a record with the same identity exists, <see cref="SessionRecord.CreatedAt"/>
+    /// is preserved. The "creation time" belongs to the first write; the
+    /// persistent store shows the same behavior.
     /// </remarks>
     public ValueTask SaveAsync(SessionRecord record, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(record);
 
-        // SQL uygulamasiyla ayni kural: kayit kendi kiracisini tasiyorsa o
-        // kazanir (zamanlanmis isler baska bir kiraci adina yazabilir).
+        // SAME rule as the SQL implementation: if a record carries its own
+        // tenant, that one wins (scheduled jobs may write on behalf of
+        // another tenant).
         var tenantId = record.TenantId ?? _tenantContext.TenantId;
 
         _sessions.AddOrUpdate(
@@ -51,9 +53,9 @@ public sealed class InMemorySessionStore : ISessionStore
 
     /// <inheritdoc />
     /// <remarks>
-    /// <see cref="ConcurrentDictionary{TKey, TValue}.TryAdd(TKey, TValue)"/> atomiktir:
-    /// ayni kimlikle eszamanli iki cagridan yalniz biri <see langword="true"/> doner
-    /// (HATA-004).
+    /// <see cref="ConcurrentDictionary{TKey, TValue}.TryAdd(TKey, TValue)"/> is atomic:
+    /// of two concurrent calls with the same identity, only one returns
+    /// <see langword="true"/> (HATA-004).
     /// </remarks>
     public ValueTask<bool> TryCreateAsync(SessionRecord record, CancellationToken cancellationToken = default)
     {
@@ -75,8 +77,9 @@ public sealed class InMemorySessionStore : ISessionStore
 
     /// <inheritdoc />
     /// <remarks>
-    /// Anahtar <c>(TenantId, Id)</c> bilesigi oldugundan ambient kiraciyle
-    /// filtrelenemez; kimligi tasiyan kaydi butun kiracilar arasinda tarar.
+    /// Because the key is a <c>(TenantId, Id)</c> composite, this cannot be
+    /// filtered by the ambient tenant; it scans across all tenants for the
+    /// record carrying this identity.
     /// </remarks>
     public ValueTask<string?> GetOwnerTenantIdAsync(string sessionId, CancellationToken cancellationToken = default)
     {

@@ -3,33 +3,34 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace AgentPrism;
 
-/// <summary>Yerlesik model tabanli yargici acan zincir uzantilari — Faz 49.</summary>
+/// <summary>Chain extensions that turn on the built-in model-based judge - Phase 49.</summary>
 /// <remarks>
-/// Uzanti metodudur, <see cref="IAgentPrismBuilder"/>'in bir uyesi degildir:
-/// arayuze uye eklemek yayindan sonra kiricidir, uzanti metodu eklemek degildir.
+/// This is an extension method, not a member of <see cref="IAgentPrismBuilder"/>:
+/// adding a member to the interface is a breaking change after release, adding
+/// an extension method is not.
 /// </remarks>
 public static class AgentPrismOnlineEvaluationBuilderExtensions
 {
     /// <summary>
-    /// AgentPrism'in yerlesik model tabanli <see cref="IRunJudge"/> uygulamasini
-    /// (<see cref="ModelRunJudge"/>) kaydeder.
+    /// Registers AgentPrism's built-in model-based <see cref="IRunJudge"/>
+    /// implementation (<see cref="ModelRunJudge"/>).
     /// </summary>
-    /// <param name="builder">Yapilandirma zinciri.</param>
-    /// <param name="configure">Yargicin modeli, olcutleri ve talimati.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> veya <paramref name="configure"/> <see langword="null"/> ise.</exception>
+    /// <param name="builder">Configuration chain.</param>
+    /// <param name="configure">The judge's model, criteria, and instructions.</param>
+    /// <returns>The continuation of the chain.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> or <paramref name="configure"/> is <see langword="null"/>.</exception>
     /// <remarks>
     /// <para>
-    /// 🚨 Bu cagri TEK BASINA hicbir sey puanlamaz. Cevrimici degerlendirmenin
-    /// asil kapisi <c>AgentPrism:OnlineEvaluation:Enabled</c> VE
-    /// <c>AgentPrism:OnlineEvaluation:SampleRate</c>'dir (K1: ikisi de acik
-    /// olmadikca hicbir calistirma orneklenmez). Bu uzanti yalnizca hangi
-    /// modelin yargic olarak KULLANILACAGINI kaydeder.
+    /// 🚨 This call ALONE scores nothing. The actual gate for online evaluation
+    /// is <c>AgentPrism:OnlineEvaluation:Enabled</c> AND
+    /// <c>AgentPrism:OnlineEvaluation:SampleRate</c> (K1: no run is sampled
+    /// unless both are on). This extension only registers which model is USED
+    /// as the judge.
     /// </para>
     /// <para>
-    /// <see cref="ModelBinding"/> ic ice bir tip oldugu icin yapilandirma
-    /// bolumunden degil, kod tarafinda kurulur — diger sagayici bindirmeleri
-    /// (ornek: <c>AgentDefinition.Model</c>) ile ayni desen.
+    /// Because <see cref="ModelBinding"/> is a nested type, it is set up in
+    /// code rather than from a configuration section - the same pattern as
+    /// other provider bindings (e.g. <c>AgentDefinition.Model</c>).
     /// </para>
     /// <example>
     /// <code>
@@ -37,7 +38,7 @@ public static class AgentPrismOnlineEvaluationBuilderExtensions
     ///        .AddModelRunJudge(options =>
     ///        {
     ///            options.Model = new ModelBinding { Provider = "openai", Model = "gpt-5.4-mini" };
-    ///            options.Criteria.Add("Yanit soruyu dogrudan cevapliyor mu?");
+    ///            options.Criteria.Add("Does the response directly answer the question?");
     ///        });
     /// </code>
     /// </example>

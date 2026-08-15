@@ -1,28 +1,30 @@
 namespace AgentPrism;
 
-// MAAI001: Microsoft.Agents.AI.AgentFileStore "evaluation purposes only"
-// olarak isaretli. Bastirma gerekcesi AgentDefinitionCompiler'daki ile aynidir.
+// MAAI001: Microsoft.Agents.AI.AgentFileStore is marked "evaluation purposes
+// only". The rationale for suppressing is the same as in AgentDefinitionCompiler.
 #pragma warning disable MAAI001
 
 /// <summary>
-/// Paylasilan bir <see cref="Microsoft.Agents.AI.AgentFileStore"/> uzerinde,
-/// bir kiraciya ozel yalitilmis bir alt agac gibi davranan sarmalayici.
+/// A wrapper that behaves like a tenant-isolated subtree over a shared
+/// <see cref="Microsoft.Agents.AI.AgentFileStore"/>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="Microsoft.Agents.AI.AgentFileStore"/> varsayilan olarak surec genelinde
-/// paylasilan TEK bir depodur (<c>InMemoryAgentFileStore</c>, <c>TryAddSingleton</c>).
-/// Bu sarmalayici olmadan, bir kiracinin <c>EnableTextSearch</c> acik bir agent'i kok
-/// <c>"/"</c> dizininden yaptigi recursive aramada BASKA bir kiracinin
-/// <c>EnableFileMemory</c> ile yazdigi dosyalari gorebilirdi — kiraci yalitiminin
-/// kirilmasi demektir.
+/// <see cref="Microsoft.Agents.AI.AgentFileStore"/> is, by default, a SINGLE
+/// store shared process-wide (<c>InMemoryAgentFileStore</c>, <c>TryAddSingleton</c>).
+/// Without this wrapper, a recursive search performed from the root
+/// <c>"/"</c> directory by one tenant's agent with <c>EnableTextSearch</c> on
+/// could see files another tenant wrote via <c>EnableFileMemory</c> - a
+/// breach of tenant isolation.
 /// </para>
 /// <para>
-/// Her yol cagrida <c>/{tenantId}/...</c> onekiyle ic depoya yonlendirilir; disariya
-/// donen yol/ad alanlarindan da ayni onek soyulur. Sonuc: sarmalanan tarafta hem
-/// <see cref="AgentDefinitionCompiler"/>'in yazma (<c>FileMemoryProvider</c>) hem de
-/// okuma (<c>TextSearchProvider</c>) tarafi, sanki kendi ozel kok dizinleriymis gibi
-/// <c>"/"</c> ile calisir; ic depodaki gercek onek kod cagiran tarafa hic sizmaz.
+/// Every incoming path is routed to the inner store with a <c>/{tenantId}/...</c>
+/// prefix; the same prefix is also stripped from outgoing path/name fields.
+/// The result: on the wrapped side, both the write path
+/// (<c>FileMemoryProvider</c>) and the read path (<c>TextSearchProvider</c>) of
+/// <see cref="AgentDefinitionCompiler"/> operate with <c>"/"</c> as if it were
+/// their own private root directory; the real prefix in the inner store never
+/// leaks to the calling side.
 /// </para>
 /// </remarks>
 internal sealed class TenantPrefixingAgentFileStore : Microsoft.Agents.AI.AgentFileStore
@@ -30,9 +32,9 @@ internal sealed class TenantPrefixingAgentFileStore : Microsoft.Agents.AI.AgentF
     private readonly Microsoft.Agents.AI.AgentFileStore _inner;
     private readonly string _prefix;
 
-    /// <summary>Yeni bir kiraci-yalitimli sarmalayici olusturur.</summary>
-    /// <param name="inner">Sarmalanan paylasilan depo.</param>
-    /// <param name="tenantId">Yalitilacak kiracinin kimligi.</param>
+    /// <summary>Creates a new tenant-isolated wrapper.</summary>
+    /// <param name="inner">The shared store being wrapped.</param>
+    /// <param name="tenantId">Identifier of the tenant being isolated.</param>
     public TenantPrefixingAgentFileStore(Microsoft.Agents.AI.AgentFileStore inner, string tenantId)
     {
         ArgumentNullException.ThrowIfNull(inner);
@@ -96,9 +98,9 @@ internal sealed class TenantPrefixingAgentFileStore : Microsoft.Agents.AI.AgentF
     {
         ArgumentNullException.ThrowIfNull(path);
 
-        // Ic depo (orn. InMemoryAgentFileStore) yolun GORECELI olmasini ve
-        // '/' ile BASLAMAMASINI sart kosar (NormalizeRelativePath). "" ve "/"
-        // cagiranin kendi kok dizinini ("ben") temsil eder.
+        // The inner store (e.g. InMemoryAgentFileStore) requires the path to be
+        // RELATIVE and NOT START with '/' (NormalizeRelativePath). "" and "/"
+        // represent the caller's own root directory ("me").
         if (path.Length == 0 || string.Equals(path, "/", StringComparison.Ordinal))
         {
             return _prefix;

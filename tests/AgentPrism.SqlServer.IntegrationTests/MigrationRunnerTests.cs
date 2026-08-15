@@ -204,6 +204,6 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
                 },
                 NullLogger<MigrationRunner>.Instance));
 
-        exception.Message.ShouldContain("sema adi");
+        exception.Message.ShouldContain("schema name");
     }
 }

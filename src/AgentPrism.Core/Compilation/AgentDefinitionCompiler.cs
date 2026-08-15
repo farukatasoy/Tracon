@@ -10,20 +10,20 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir <see cref="AgentDefinition"/> tanimini calistirilabilir bir
-/// <see cref="AIAgent"/> nesnesine donusturur.
+/// Converts an <see cref="AgentDefinition"/> definition into an executable
+/// <see cref="AIAgent"/> instance.
 /// </summary>
 /// <remarks>
-/// <para>Donusum su adimlardan gecer:</para>
+/// <para>The conversion goes through these steps:</para>
 /// <list type="number">
 ///   <item><description><see cref="ModelBinding"/> → <see cref="IModelProviderRegistry"/> → <see cref="IChatClient"/></description></item>
-///   <item><description><see cref="AgentDefinition.ToolNames"/> → <see cref="IToolRegistry"/> → <see cref="AIFunction"/> listesi</description></item>
-///   <item><description><see cref="AgentDefinition.Harness"/> dolu ise <c>AsHarnessAgent</c>, degilse <c>AsAIAgent</c></description></item>
+///   <item><description><see cref="AgentDefinition.ToolNames"/> → <see cref="IToolRegistry"/> → list of <see cref="AIFunction"/></description></item>
+///   <item><description><c>AsHarnessAgent</c> when <see cref="AgentDefinition.Harness"/> is set, otherwise <c>AsAIAgent</c></description></item>
 /// </list>
 /// <para>
-/// Bilinmeyen bir tool adi <see cref="AgentPrismCompilationException"/> ile
-/// sonuclanir. Sessizce atlanmaz: eksik tool ile calisan bir agent, kullanicinin
-/// bekledigi isi yapmayan agent demektir.
+/// An unknown tool name results in an <see cref="AgentPrismCompilationException"/>.
+/// It is not silently skipped: an agent running with a missing tool is an
+/// agent that does not do the work the user expects.
 /// </para>
 /// </remarks>
 public sealed class AgentDefinitionCompiler
@@ -43,63 +43,65 @@ public sealed class AgentDefinitionCompiler
     private readonly IEmbeddingGenerator<string, Embedding<float>>? _embeddingGenerator;
     private readonly int _knowledgeMaxResults;
 
-    // MAAI001: Microsoft.Agents.AI.AgentFileStore "evaluation purposes only"
-    // olarak isaretli. Bastirma tek bir dosyada toplanmistir (bu dosya, K-020
-    // deseninin devami); MAF bu API'yi degistirirse yalniz burasi guncellenir.
+    // MAAI001: Microsoft.Agents.AI.AgentFileStore is marked "evaluation
+    // purposes only". The suppression is kept in a single file (this file,
+    // continuing the K-020 pattern); only this file is updated if MAF changes this API.
 #pragma warning disable MAAI001
     private readonly AgentFileStore? _fileStore;
 #pragma warning restore MAAI001
 
-    /// <summary>Yeni bir derleyici olusturur.</summary>
-    /// <param name="models">Model saglayici defteri.</param>
-    /// <param name="tools">Tool defteri.</param>
-    /// <param name="loggerFactory">Uretilen agent'lara verilecek gunlukleyici fabrikasi.</param>
-    /// <param name="services">Uretilen agent'lara verilecek servis saglayici.</param>
+    /// <summary>Creates a new compiler.</summary>
+    /// <param name="models">Model provider registry.</param>
+    /// <param name="tools">Tool registry.</param>
+    /// <param name="loggerFactory">Logger factory passed to the produced agents.</param>
+    /// <param name="services">Service provider passed to the produced agents.</param>
     /// <param name="chatHistoryProvider">
-    /// Uretilen agent'lara baglanacak sohbet gecmisi saglayicisi. <see langword="null"/> ise
-    /// Microsoft Agent Framework'un bellek ici varsayilani kullanilir ve gecmis oturum
-    /// durumunun icinde tasinir.
+    /// Chat history provider attached to the produced agents. When <see langword="null"/>,
+    /// Microsoft Agent Framework's in-memory default is used and history is
+    /// carried inside the session state.
     /// </param>
-    /// <param name="skills">Skill kaynaklarini cozen katalog.</param>
+    /// <param name="skills">Catalog that resolves skill sources.</param>
     /// <param name="scripts">
-    /// Skill script destegi. <see langword="null"/> ise hicbir script calistirilamaz;
-    /// ozellik <c>UseSkillScripts</c> ile acilir.
+    /// Skill script support. When <see langword="null"/>, no script can run;
+    /// the feature is turned on with <c>UseSkillScripts</c>.
     /// </param>
     /// <param name="callableAgents">
-    /// Cagrilabilir alt agent'lari cozen cozucu. <see langword="null"/> ise hicbir
-    /// agent baska bir agent'i cagiramaz.
+    /// Resolver for callable sub-agents. When <see langword="null"/>, no agent
+    /// can call another agent.
     /// </param>
     /// <param name="tenantContext">
-    /// Kiraci baglami. Alt cagrilarin kiraci degistirmedigi bununla dogrulanir.
+    /// Tenant context. Used to verify that sub-calls do not change tenant.
     /// </param>
     /// <param name="utilityModel">
-    /// Baglam sikistirmasindaki ozetleme icin varsayilan model. Bir agent
-    /// kendi <c>CompactionSettings.SummarizationModel</c>'ini vermezse bu
-    /// kullanilir; <see langword="null"/> ise agent'in kendi modeline duser.
+    /// Default model for summarization in context compaction. Used when an
+    /// agent does not supply its own <c>CompactionSettings.SummarizationModel</c>;
+    /// when <see langword="null"/>, falls back to the agent's own model.
     /// </param>
     /// <param name="fileStore">
-    /// Bellek saglayicilarinin kullandigi dosya deposu. <see langword="null"/>
-    /// ise <c>MemorySettings.EnableFileMemory</c>/<c>EnableTextSearch</c>
-    /// isteyen bir tanim derleme hatasi alir.
+    /// File store used by memory providers. When <see langword="null"/>, a
+    /// definition requesting <c>MemorySettings.EnableFileMemory</c>/<c>EnableTextSearch</c>
+    /// gets a compilation error.
     /// </param>
     /// <param name="mcpResources">
-    /// <see cref="AgentDefinition.McpResourceUris"/> (Mod A) icin baglam
-    /// saglayicisi kuran fabrika. <see langword="null"/> ise MCP kaynagi
-    /// isteyen bir tanim derleme hatasi alir.
+    /// Factory that builds the context provider for
+    /// <see cref="AgentDefinition.McpResourceUris"/> (Mode A). When <see langword="null"/>,
+    /// a definition requesting an MCP resource gets a compilation error.
     /// </param>
     /// <param name="vectorSearchStore">
-    /// Anlamsal arama deposu (Faz 51). <see langword="null"/> ise
-    /// <c>MemorySettings.EnableVectorSearch</c> isteyen bir tanim derleme hatasi alir.
+    /// Semantic search store (Phase 51). When <see langword="null"/>, a
+    /// definition requesting <c>MemorySettings.EnableVectorSearch</c> gets a
+    /// compilation error.
     /// </param>
     /// <param name="embeddingGenerator">
-    /// Gomu ureticisi (Faz 51). <see langword="null"/> ise
-    /// <c>MemorySettings.EnableVectorSearch</c> isteyen bir tanim derleme hatasi alir.
+    /// Embedding generator (Phase 51). When <see langword="null"/>, a
+    /// definition requesting <c>MemorySettings.EnableVectorSearch</c> gets a
+    /// compilation error.
     /// </param>
     /// <param name="knowledgeMaxResults">
-    /// <c>search_knowledge</c> tool'unun dondurecegi en fazla sonuc sayisi (Faz 51).
+    /// Maximum number of results the <c>search_knowledge</c> tool returns (Phase 51).
     /// </param>
-    /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
-#pragma warning disable MAAI001 // AgentFileStore — bkz. _fileStore alanindaki gerekce.
+    /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
+#pragma warning disable MAAI001 // AgentFileStore — see the rationale on the _fileStore field.
     public AgentDefinitionCompiler(
         IModelProviderRegistry models,
         IToolRegistry tools,
@@ -138,62 +140,63 @@ public sealed class AgentDefinitionCompiler
         _knowledgeMaxResults = knowledgeMaxResults;
     }
 
-    /// <summary>Tanimi calistirilabilir bir agent'a donusturur.</summary>
-    /// <param name="definition">Derlenecek tanim.</param>
-    /// <returns>Calistirilabilir agent.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="definition"/> <see langword="null"/> ise.</exception>
+    /// <summary>Converts a definition into an executable agent.</summary>
+    /// <param name="definition">The definition to compile.</param>
+    /// <returns>The executable agent.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
     /// <exception cref="AgentPrismCompilationException">
-    /// Model saglayicisi bulunamazsa veya tanimda kayitli olmayan bir tool adi varsa.
+    /// The model provider cannot be found, or the definition references a tool name that is not registered.
     /// </exception>
     public AIAgent Compile(AgentDefinition definition) => Compile(definition, ResolvedCallableAgents.Empty);
 
-    /// <summary>Tanimi, cozulmus alt agent'lariyla birlikte calistirilabilir bir agent'a donusturur.</summary>
-    /// <param name="definition">Derlenecek tanim.</param>
+    /// <summary>Converts a definition, together with its resolved sub-agents, into an executable agent.</summary>
+    /// <param name="definition">The definition to compile.</param>
     /// <param name="callableAgents">
-    /// <see cref="ResolveCallableAgentsAsync"/> ile onceden cozulmus alt agent ozetleri.
+    /// Sub-agent summaries resolved beforehand via <see cref="ResolveCallableAgentsAsync"/>.
     /// </param>
-    /// <returns>Calistirilabilir agent.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="definition"/> <see langword="null"/> ise.</exception>
+    /// <returns>The executable agent.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
     /// <exception cref="AgentPrismCompilationException">
-    /// Model saglayicisi bulunamazsa veya tanimda kayitli olmayan bir tool adi varsa.
+    /// The model provider cannot be found, or the definition references a tool name that is not registered.
     /// </exception>
     public AIAgent Compile(AgentDefinition definition, ResolvedCallableAgents callableAgents)
         => Compile(definition, callableAgents, toolTransform: null);
 
     /// <summary>
-    /// Tanimi, cozulmus alt agent'lariyla ve tool'lari donusturerek derler.
+    /// Compiles a definition together with its resolved sub-agents, transforming its tools.
     /// </summary>
-    /// <param name="definition">Derlenecek tanim.</param>
+    /// <param name="definition">The definition to compile.</param>
     /// <param name="callableAgents">
-    /// <see cref="ResolveCallableAgentsAsync"/> ile onceden cozulmus alt agent ozetleri.
+    /// Sub-agent summaries resolved beforehand via <see cref="ResolveCallableAgentsAsync"/>.
     /// </param>
     /// <param name="toolTransform">
-    /// Defterden cozulen her tool'a uygulanacak donusum. <see langword="null"/> ise
-    /// tool'lar oldugu gibi baglanir.
+    /// Transform applied to every tool resolved from the registry. When <see langword="null"/>,
+    /// tools are bound as-is.
     /// </param>
-    /// <returns>Calistirilabilir agent.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="definition"/> <see langword="null"/> ise.</exception>
+    /// <returns>The executable agent.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
     /// <exception cref="AgentPrismCompilationException">
-    /// Model saglayicisi bulunamazsa veya tanimda kayitli olmayan bir tool adi varsa.
+    /// The model provider cannot be found, or the definition references a tool name that is not registered.
     /// </exception>
     /// <remarks>
     /// <para>
-    /// Donusum yeniden oynatma icin vardir (Faz 47,
-    /// <see cref="ReplayToolMode.ReplayTools"/>): kayitli tool sonuclarini geri
-    /// oynatan bir <c>DelegatingAIFunction</c>, sarilanin adini, aciklamasini ve
-    /// JSON semasini korur — model tool'lari <em>aynen</em> gorur ama hicbir
-    /// govde calismaz.
+    /// The transform exists for replay (Phase 47,
+    /// <see cref="ReplayToolMode.ReplayTools"/>): a <c>DelegatingAIFunction</c>
+    /// that replays recorded tool results preserves the wrapped tool's name,
+    /// description, and JSON schema - the model sees the tools
+    /// <em>exactly as before</em> but no body actually runs.
     /// </para>
     /// <para>
-    /// 🚨 Donusum yalnizca <see cref="IToolRegistry"/> defterinden cozulen
-    /// tool'lara uygulanir. Skill'lerin ve cagrilabilir alt agent'larin actigi
-    /// tool'lar bir <c>AIContextProvider</c> uzerinden gelir ve buradan gecmez;
-    /// cagiran taraf onlari <em>tanim duzeyinde</em> kapatmalidir.
+    /// 🚨 The transform applies only to tools resolved from the
+    /// <see cref="IToolRegistry"/> registry. Tools opened by skills and
+    /// callable sub-agents come through an <c>AIContextProvider</c> and do not
+    /// pass through here; the caller must disable them <em>at the definition
+    /// level</em> instead.
     /// </para>
     /// <para>
-    /// Derlenmis agent onbellegi (<see cref="CompiledAgentCache"/>) bu yol icin
-    /// <strong>kullanilmaz</strong>: donusum cagri basina degisir ve onbellege
-    /// giren bir oynatma agent'i normal calistirmalari da bozardi.
+    /// The compiled agent cache (<see cref="CompiledAgentCache"/>) is
+    /// <strong>not used</strong> for this path: the transform changes per
+    /// call, and caching a replay agent would also break normal runs.
     /// </para>
     /// </remarks>
     public AIAgent Compile(
@@ -211,8 +214,8 @@ public sealed class AgentDefinitionCompiler
         {
             for (var index = 0; index < tools.Count; index++)
             {
-                // Defter yalnizca AIFunction dondurur (IToolRegistry.TryGet imzasi);
-                // baska bir AITool turu buraya hicbir zaman girmez.
+                // The registry only ever returns AIFunction (IToolRegistry.TryGet
+                // signature); another AITool kind never enters here.
                 if (tools[index] is AIFunction function)
                 {
                     tools[index] = toolTransform(function);
@@ -228,14 +231,14 @@ public sealed class AgentDefinitionCompiler
     }
 
     /// <summary>
-    /// Tanimin cagirabilecegi alt agent'lari cozer ve onbellek parmak izini uretir.
+    /// Resolves the sub-agents a definition may call and produces the cache fingerprint.
     /// </summary>
-    /// <param name="definition">Cozulecek agent tanimi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Alt agent ozetleri ve parmak izi.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="definition"/> <see langword="null"/> ise.</exception>
+    /// <param name="definition">The agent definition being resolved.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Sub-agent summaries and the fingerprint.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
     /// <exception cref="AgentPrismCompilationException">
-    /// Tanim alt agent cagirmak istiyor ancak ozellik kayitli degilse.
+    /// The definition wants to call a sub-agent but the feature is not registered.
     /// </exception>
     internal async ValueTask<ResolvedCallableAgents> ResolveCallableAgentsAsync(
         AgentDefinition definition,
@@ -251,8 +254,8 @@ public sealed class AgentDefinitionCompiler
         if (_callableAgents is null)
         {
             throw new AgentPrismCompilationException(
-                $"'{definition.Name}' agent'i baska agent'lari cagirmak istiyor ancak alt agent " +
-                "cozucusu kayitli degil.")
+                $"Agent '{definition.Name}' wants to call other agents, but the sub-agent " +
+                "resolver is not registered.")
             {
                 AgentName = definition.Name,
             };
@@ -266,13 +269,13 @@ public sealed class AgentDefinitionCompiler
     }
 
     /// <summary>
-    /// Alt agent listesinden onbellek parmak izi uretir.
+    /// Produces a cache fingerprint from the sub-agent list.
     /// </summary>
     /// <remarks>
-    /// Alt agent'in <em>aciklamasi</em> modele gonderilen talimat metnine gomulur.
-    /// Parmak izi surumu tasimasaydi, bir alt agent'in aciklamasi guncellendiginde
-    /// cagiran agent onbellekte eski metinle kalirdi ve degisiklik hicbir zaman
-    /// etkili olmazdi.
+    /// A sub-agent's <em>description</em> is embedded in the instruction text
+    /// sent to the model. If the fingerprint did not carry the version, the
+    /// calling agent would stay in the cache with the old text when a
+    /// sub-agent's description was updated, and the change would never take effect.
     /// </remarks>
     private static string CreateCallableFingerprint(IReadOnlyList<CallableAgentInfo> infos)
     {
@@ -286,10 +289,10 @@ public sealed class AgentDefinitionCompiler
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content.ToString())));
     }
 
-    /// <summary>Tanimin skill'lerini dogrular ve cache anahtarini uretir.</summary>
-    /// <param name="definition">Dogrulanacak agent tanimi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Skill parmak izi.</returns>
+    /// <summary>Validates a definition's skills and produces the cache key.</summary>
+    /// <param name="definition">The agent definition being validated.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Skill fingerprint.</returns>
     internal ValueTask<ResolvedAgentSkills> ResolveSkillsAsync(
         AgentDefinition definition,
         CancellationToken cancellationToken)
@@ -304,7 +307,7 @@ public sealed class AgentDefinitionCompiler
         if (_skills is null)
         {
             throw new AgentPrismCompilationException(
-                $"'{definition.Name}' agent'i skill kullaniyor ancak skill katalogu kayitli degil.")
+                $"Agent '{definition.Name}' uses skills, but the skill catalog is not registered.")
             {
                 AgentName = definition.Name,
             };
@@ -324,7 +327,7 @@ public sealed class AgentDefinitionCompiler
         catch (AgentPrismException ex)
         {
             throw new AgentPrismCompilationException(
-                $"'{definition.Name}' agent'i derlenemedi: {ex.Message}",
+                $"Agent '{definition.Name}' could not be compiled: {ex.Message}",
                 ex)
             {
                 AgentName = definition.Name,
@@ -353,13 +356,13 @@ public sealed class AgentDefinitionCompiler
         {
             var registered = _tools.List();
             var available = registered.Count == 0
-                ? "hic tool kayitli degil"
+                ? "no tools are registered"
                 : string.Join(", ", registered.Select(static descriptor => descriptor.Name));
 
             throw new AgentPrismCompilationException(
-                $"'{definition.Name}' agent'i su tool'lara isaret ediyor ancak bunlar kodda kayitli degil: " +
-                $"{string.Join(", ", missing)}. Kayitli tool'lar: {available}. " +
-                "Tool'lar yalnizca kodda tanimlanir; `builder.AddAgentPrism().AddTool(...)` ile kaydedin.")
+                $"Agent '{definition.Name}' references the following tools, but they are not registered in code: " +
+                $"{string.Join(", ", missing)}. Registered tools: {available}. " +
+                "Tools are defined only in code; register them with `builder.AddAgentPrism().AddTool(...)`.")
             {
                 AgentName = definition.Name,
             };
@@ -395,15 +398,16 @@ public sealed class AgentDefinitionCompiler
     }
 
     /// <summary>
-    /// <see cref="ModelBinding.ResponseFormat"/>'i <see cref="ChatResponseFormat"/>'a cevirir.
+    /// Converts <see cref="ModelBinding.ResponseFormat"/> into a <see cref="ChatResponseFormat"/>.
     /// </summary>
     /// <remarks>
-    /// Gecersiz bir kombinasyon sessizce yok sayilmaz (K-034'un deseni): kip
-    /// <see cref="AgentResponseFormatKind.JsonSchema"/> iken sema eksikse, digger
-    /// kiplerde sema doluysa veya sema bir JSON nesnesi degilse derleme durur.
-    /// Yalniz <c>ForJsonSchema(JsonElement, ...)</c> asiri yuklemesi kullanilir —
-    /// <c>Type</c> veya <c>JsonSerializerOptions</c> alan asiri yuklemeler
-    /// yansimaya dayanir ve AOT duruşunu bozar (bkz. docs/38-YAPILANDIRILMIS-CIKTI.md, 38.4).
+    /// An invalid combination is not silently ignored (the K-034 pattern):
+    /// compilation stops when the mode is <see cref="AgentResponseFormatKind.JsonSchema"/>
+    /// and the schema is missing, when the schema is set for other modes, or
+    /// when the schema is not a JSON object. Only the
+    /// <c>ForJsonSchema(JsonElement, ...)</c> overload is used - the overloads
+    /// taking <c>Type</c> or <c>JsonSerializerOptions</c> rely on reflection
+    /// and break the AOT stance (see docs/38-YAPILANDIRILMIS-CIKTI.md, 38.4).
     /// </remarks>
     private ChatResponseFormat? BuildResponseFormat(AgentDefinition definition)
     {
@@ -419,8 +423,8 @@ public sealed class AgentDefinitionCompiler
             if (format.Schema is not { } schema)
             {
                 throw new AgentPrismCompilationException(
-                    $"'{definition.Name}' agent'i JsonSchema cikti kipini secti ancak " +
-                    $"{nameof(AgentResponseFormat.Schema)} vermedi.")
+                    $"Agent '{definition.Name}' selected the JsonSchema output mode but did not " +
+                    $"supply {nameof(AgentResponseFormat.Schema)}.")
                 {
                     AgentName = definition.Name,
                 };
@@ -429,8 +433,8 @@ public sealed class AgentDefinitionCompiler
             if (schema.ValueKind != JsonValueKind.Object)
             {
                 throw new AgentPrismCompilationException(
-                    $"'{definition.Name}' agent'inin {nameof(AgentResponseFormat.Schema)} alani bir JSON " +
-                    "nesnesi olmalidir.")
+                    $"Agent '{definition.Name}''s {nameof(AgentResponseFormat.Schema)} field must be a JSON " +
+                    "object.")
                 {
                     AgentName = definition.Name,
                 };
@@ -444,8 +448,8 @@ public sealed class AgentDefinitionCompiler
         if (format.Schema is not null)
         {
             throw new AgentPrismCompilationException(
-                $"'{definition.Name}' agent'i '{format.Kind}' cikti kipini secti ancak " +
-                $"{nameof(AgentResponseFormat.Schema)} da verdi. Sema yalnizca JsonSchema kipinde kullanilir.")
+                $"Agent '{definition.Name}' selected the '{format.Kind}' output mode but also supplied " +
+                $"{nameof(AgentResponseFormat.Schema)}. The schema is only used in JsonSchema mode.")
             {
                 AgentName = definition.Name,
             };
@@ -462,13 +466,14 @@ public sealed class AgentDefinitionCompiler
     }
 
     /// <summary>
-    /// Secili modelin yapilandirilmis cikti destekleyip desteklemedigini denetler.
+    /// Checks whether the selected model supports structured output.
     /// </summary>
     /// <remarks>
-    /// Model kataloğunda bulunamayan bir model icin denetim ATLANIR (K-032): model
-    /// adlari yapilandirmadan gelebilir ve katalog bir doğrulama listesi degildir.
-    /// Yalniz katalogda BULUNAN ve <see cref="ModelDescriptor.SupportsStructuredOutput"/>
-    /// degeri acikca <see langword="false"/> olan bir model derlemeyi durdurur.
+    /// The check is SKIPPED for a model not found in the model catalog
+    /// (K-032): model names may come from configuration and the catalog is
+    /// not a validation list. Compilation stops only for a model that IS
+    /// FOUND in the catalog and whose <see cref="ModelDescriptor.SupportsStructuredOutput"/>
+    /// value is explicitly <see langword="false"/>.
     /// </remarks>
     private void CheckStructuredOutputCapability(AgentDefinition definition)
     {
@@ -477,8 +482,8 @@ public sealed class AgentDefinitionCompiler
         if (descriptor is { SupportsStructuredOutput: false })
         {
             throw new AgentPrismCompilationException(
-                $"'{definition.Name}' agent'inin modeli ('{definition.Model.Provider}/{definition.Model.Model}') " +
-                "yapilandirilmis cikti desteklemiyor.")
+                $"Agent '{definition.Name}''s model ('{definition.Model.Provider}/{definition.Model.Model}') " +
+                "does not support structured output.")
             {
                 AgentName = definition.Name,
             };
@@ -507,14 +512,14 @@ public sealed class AgentDefinitionCompiler
     }
 
     /// <summary>
-    /// <see cref="ModelBinding.ReasoningEffort"/> degerini
-    /// <see cref="Microsoft.Extensions.AI.ReasoningEffort"/> degerine cevirir.
+    /// Converts a <see cref="ModelBinding.ReasoningEffort"/> value into a
+    /// <see cref="Microsoft.Extensions.AI.ReasoningEffort"/> value.
     /// </summary>
     /// <remarks>
-    /// Gecersiz deger sessizce yok sayilmaz. Akil yurutme cabasi hem maliyeti hem
-    /// gecikmeyi degistirir; yanlis yazilmis bir deger fark edilmeden calisirsa
-    /// kullanici bekledigi davranisi alamaz ve sebebini goremez.
-    /// Modelin bu ayari destekleyip desteklemedigine saglayici karar verir.
+    /// An invalid value is not silently ignored. Reasoning effort changes both
+    /// cost and latency; if a mistyped value ran unnoticed, the user would not
+    /// get the behavior they expect and would not see why. The provider
+    /// decides whether the model supports this setting.
     /// </remarks>
     private static ReasoningEffort? ParseReasoningEffort(AgentDefinition definition)
     {
@@ -532,52 +537,51 @@ public sealed class AgentDefinitionCompiler
         }
 
         throw new AgentPrismCompilationException(
-            $"'{definition.Name}' agent'inin akil yurutme cabasi degeri taninmiyor: '{value}'. " +
-            $"Gecerli degerler: {string.Join(", ", Enum.GetNames<ReasoningEffort>())}.")
+            $"Agent '{definition.Name}''s reasoning effort value is not recognized: '{value}'. " +
+            $"Valid values: {string.Join(", ", Enum.GetNames<ReasoningEffort>())}.")
         {
             AgentName = definition.Name,
         };
     }
 
-    // MAAI001: Microsoft.Agents.AI.Compaction.* ve AgentFileStore "evaluation
-    // purposes only" olarak isaretli. Baglam sikistirma/bellek kurulumu tek
-    // bir blokta toplanmistir; MAF bu API'leri degistirirse yalniz burasi
-    // guncellenir. Gerekce: docs/KARARLAR.md (K-020 ile ayni desen).
+    // MAAI001: Microsoft.Agents.AI.Compaction.* and AgentFileStore are marked
+    // "evaluation purposes only". Context compaction/memory setup is kept in
+    // a single block; only this file is updated if MAF changes these APIs.
+    // Rationale: docs/KARARLAR.md (same pattern as K-020).
 #pragma warning disable MAAI001
     private const int DefaultMinimumPreservedTurns = 2;
     private const int DefaultMinimumPreservedGroups = 4;
     private const int DefaultContextWindowMaxOutputTokens = 4096;
 
     /// <summary>
-    /// <see cref="BuildKeywordPattern"/>'in bir tokeni "anlamli" saymak icin
-    /// gerektirdigi en az uzunluk — kisa doldurucu kelimeleri ("bir", "ile", "mi")
-    /// desenden dislar.
+    /// The minimum length a token must have for <see cref="BuildKeywordPattern"/>
+    /// to count it as "meaningful" - excludes short filler words from the pattern.
     /// </summary>
     private const int MinKeywordLength = 3;
 
-    // ContextWindow ve Pipeline stratejileri disariya bir CompactionTrigger
-    // parametresi actmaz (kendi ic tetikleyicilerini kendileri kurar/tasir).
-    // Bu durumlarda ObservedCompactionStrategy'nin kendi tetikleyicisi olarak
-    // kullanilir: gercek gating tamamen ic stratejiye/stratejilere birakilir.
+    // The ContextWindow and Pipeline strategies do not expose a
+    // CompactionTrigger parameter (they set up/carry their own internal
+    // triggers). In these cases, ObservedCompactionStrategy's own trigger is
+    // used as a stand-in: the actual gating is left entirely to the internal strategy/strategies.
     private static readonly CompactionTrigger AlwaysTrigger = static _ => true;
 
     /// <summary>
-    /// Tanimin sikistirma ayarlarindan calistirilabilir bir
-    /// <see cref="CompactionStrategy"/> kurar.
+    /// Builds an executable <see cref="CompactionStrategy"/> from a
+    /// definition's compaction settings.
     /// </summary>
     /// <returns>
-    /// <see langword="null"/> — tanim sikistirma istemiyor
-    /// (<see cref="AgentDefinition.Compaction"/> bos veya
+    /// <see langword="null"/> - the definition does not want compaction
+    /// (<see cref="AgentDefinition.Compaction"/> is empty or
     /// <see cref="CompactionStrategyKind.None"/>).
     /// </returns>
     /// <exception cref="AgentPrismCompilationException">
-    /// Secilen strateji bir tetikleyici gerektirir ama hicbiri verilmemisse,
-    /// veya <see cref="CompactionStrategyKind.ContextWindow"/> icin
-    /// <see cref="CompactionSettings.MaxContextWindowTokens"/> eksikse.
+    /// The selected strategy requires a trigger but none was given, or
+    /// <see cref="CompactionSettings.MaxContextWindowTokens"/> is missing for
+    /// <see cref="CompactionStrategyKind.ContextWindow"/>.
     /// </exception>
-    // internal (private degil): Pipeline'in sabit sirasi gibi yapisal kararlar
-    // dogrudan test edilebilsin diye. CompactionProvider bu stratejiyi disariya
-    // sizdirmaz, dolayisiyla testler baska bir yoldan erisemez.
+    // internal (not private): so structural decisions such as the Pipeline's
+    // fixed order can be tested directly. CompactionProvider does not leak
+    // this strategy outward, so tests cannot reach it another way.
     internal ObservedCompactionStrategy? BuildCompactionStrategy(AgentDefinition definition)
     {
         var settings = definition.Compaction;
@@ -593,8 +597,8 @@ public sealed class AgentDefinitionCompiler
         if (requiresTrigger && trigger is null)
         {
             throw new AgentPrismCompilationException(
-                $"'{definition.Name}' agent'i '{settings.Strategy}' sikistirma stratejisini secti " +
-                "ancak hicbir tetikleyici vermedi (TriggerTokens/TriggerMessages/TriggerTurns'ten en az biri gerekir).")
+                $"Agent '{definition.Name}' selected the '{settings.Strategy}' compaction strategy " +
+                "but gave no trigger (at least one of TriggerTokens/TriggerMessages/TriggerTurns is required).")
             {
                 AgentName = definition.Name,
             };
@@ -620,8 +624,9 @@ public sealed class AgentDefinitionCompiler
 
             CompactionStrategyKind.ContextWindow => BuildContextWindowStrategy(definition, settings),
 
-            // Sira sabittir ve dokumante edilmistir: ToolResult -> SlidingWindow -> Summarization.
-            // Serbest sira, arayuzde anlasilmasi zor bir yapilandirma yuzeyi uretir.
+            // The order is fixed and documented: ToolResult -> SlidingWindow -> Summarization.
+            // A free order produces a configuration surface that is hard to
+            // understand in the UI.
             CompactionStrategyKind.Pipeline => new PipelineCompactionStrategy(
             [
                 new ToolResultCompactionStrategy(
@@ -637,7 +642,7 @@ public sealed class AgentDefinitionCompiler
             ]),
 
             _ => throw new AgentPrismCompilationException(
-                $"'{definition.Name}' agent'i bilinmeyen bir sikistirma stratejisi secti: '{settings.Strategy}'.")
+                $"Agent '{definition.Name}' selected an unknown compaction strategy: '{settings.Strategy}'.")
             {
                 AgentName = definition.Name,
             },
@@ -647,10 +652,11 @@ public sealed class AgentDefinitionCompiler
     }
 
     /// <summary>
-    /// Ayarlanmis tetikleyici alanlarindan tek bir <see cref="CompactionTrigger"/> kurar.
-    /// Birden fazlasi doluysa herhangi biri gerceklestiginde tetiklenecek sekilde birlestirir.
+    /// Builds a single <see cref="CompactionTrigger"/> from the configured
+    /// trigger fields. When more than one is set, they are combined so that
+    /// any one of them firing triggers compaction.
     /// </summary>
-    /// <returns>Hicbir tetikleyici alani dolu degilse <see langword="null"/>.</returns>
+    /// <returns><see langword="null"/> when no trigger field is set.</returns>
     private static CompactionTrigger? BuildTrigger(CompactionSettings settings)
     {
         List<CompactionTrigger>? triggers = null;
@@ -683,8 +689,8 @@ public sealed class AgentDefinitionCompiler
         if (settings.MaxContextWindowTokens is not { } maxContextWindowTokens)
         {
             throw new AgentPrismCompilationException(
-                $"'{definition.Name}' agent'i ContextWindow sikistirma stratejisini secti ancak " +
-                $"{nameof(CompactionSettings.MaxContextWindowTokens)} vermedi.")
+                $"Agent '{definition.Name}' selected the ContextWindow compaction strategy but did not " +
+                $"supply {nameof(CompactionSettings.MaxContextWindowTokens)}.")
             {
                 AgentName = definition.Name,
             };
@@ -694,9 +700,10 @@ public sealed class AgentDefinitionCompiler
             ?? definition.Model.MaxOutputTokens
             ?? DefaultContextWindowMaxOutputTokens;
 
-        // toolEvictionThreshold/truncationThreshold bu fazda CompactionSettings'te
-        // acilmiyor (dokumanin §13.1 sekli bunlari icermiyor) — makul sabit
-        // degerler kullanilir. Ihtiyac cikarsa ayri bir alan olarak eklenir.
+        // toolEvictionThreshold/truncationThreshold are not exposed in
+        // CompactionSettings in this phase (the doc's §13.1 shape does not
+        // include them) - reasonable constant values are used. If needed, add
+        // them as a separate field later.
         return new ContextWindowCompactionStrategy(
             maxContextWindowTokens,
             maxOutputTokens,
@@ -705,11 +712,11 @@ public sealed class AgentDefinitionCompiler
     }
 
     /// <summary>
-    /// Ozetleme cagrisinda kullanilacak modeli cozer ve token izleyicisiyle sarar.
+    /// Resolves the model used for the summarization call and wraps it with a token tracker.
     /// </summary>
     /// <remarks>
-    /// Sira: agent'in kendi <see cref="CompactionSettings.SummarizationModel"/>'i
-    /// → uygulama genelindeki yardimci model → agent'in kendi modeli.
+    /// Order: the agent's own <see cref="CompactionSettings.SummarizationModel"/>
+    /// → the application-wide utility model → the agent's own model.
     /// </remarks>
     private CompactionUsageTrackingChatClient ResolveSummarizationChatClient(AgentDefinition definition)
     {
@@ -718,7 +725,7 @@ public sealed class AgentDefinitionCompiler
         return new CompactionUsageTrackingChatClient(CreateChatClient(definition, binding));
     }
 
-    /// <summary>Tanimin bellek ayarlarindan <see cref="AIContextProvider"/> listesi kurar.</summary>
+    /// <summary>Builds a list of <see cref="AIContextProvider"/> from a definition's memory settings.</summary>
     private List<AIContextProvider> CreateMemoryProviders(AgentDefinition definition)
     {
         var memory = definition.Memory;
@@ -764,12 +771,12 @@ public sealed class AgentDefinitionCompiler
     }
 
     /// <summary>
-    /// <see cref="MemorySettings.EnableVectorSearch"/> aciksa <c>search_knowledge</c>
-    /// tool'unu <paramref name="tools"/>'a ekler (Faz 51).
+    /// Adds the <c>search_knowledge</c> tool to <paramref name="tools"/> when
+    /// <see cref="MemorySettings.EnableVectorSearch"/> is set (Phase 51).
     /// </summary>
     /// <exception cref="AgentPrismCompilationException">
-    /// Anlamsal arama isteniyor ancak <see cref="IVectorSearchStore"/>,
-    /// gomu ureticisi veya kiraci cozulemiyorsa.
+    /// Semantic search is requested but <see cref="IVectorSearchStore"/>, the
+    /// embedding generator, or the tenant cannot be resolved.
     /// </exception>
     private void AddVectorSearchTool(AgentDefinition definition, List<AITool> tools)
     {
@@ -781,8 +788,8 @@ public sealed class AgentDefinitionCompiler
         if (_vectorSearchStore is null)
         {
             throw new AgentPrismCompilationException(
-                $"'{definition.Name}' agent'i anlamsal arama istiyor ancak IVectorSearchStore kayitli " +
-                "degil (bugun yalniz PostgreSQL: UsePostgreSql()).")
+                $"Agent '{definition.Name}' wants semantic search, but IVectorSearchStore is not " +
+                "registered (today only PostgreSQL: UsePostgreSql()).")
             {
                 AgentName = definition.Name,
             };
@@ -791,8 +798,8 @@ public sealed class AgentDefinitionCompiler
         if (_embeddingGenerator is null)
         {
             throw new AgentPrismCompilationException(
-                $"'{definition.Name}' agent'i anlamsal arama istiyor ancak " +
-                "IEmbeddingGenerator<string, Embedding<float>> kayitli degil.")
+                $"Agent '{definition.Name}' wants semantic search, but " +
+                "IEmbeddingGenerator<string, Embedding<float>> is not registered.")
             {
                 AgentName = definition.Name,
             };
@@ -800,7 +807,7 @@ public sealed class AgentDefinitionCompiler
 
         var tenantId = _tenantContext?.TenantId ?? definition.TenantId
             ?? throw new AgentPrismCompilationException(
-                $"'{definition.Name}' agent'i anlamsal arama istiyor ancak kiraci cozulemedi.")
+                $"Agent '{definition.Name}' wants semantic search, but the tenant could not be resolved.")
             {
                 AgentName = definition.Name,
             };
@@ -812,17 +819,17 @@ public sealed class AgentDefinitionCompiler
     }
 
     /// <remarks>
-    /// 🚨 <see cref="TenantPrefixingAgentFileStore"/> ile sarmalar: <see cref="_fileStore"/>
-    /// varsayilan olarak surec genelinde TEK bir paylasilan depodur. Sarmalama
-    /// olmadan farkli kiracilarin dosya bellegi/metin aramasi kok "/" dizininde
-    /// karisirdi — kiraci yalitiminin kirilmasi demektir.
+    /// 🚨 Wraps with <see cref="TenantPrefixingAgentFileStore"/>: <see cref="_fileStore"/>
+    /// is, by default, a SINGLE store shared process-wide. Without the wrapper,
+    /// different tenants' file memory/text search would mix at the root "/"
+    /// directory - a breach of tenant isolation.
     /// </remarks>
     private TenantPrefixingAgentFileStore RequireFileStore(AgentDefinition definition)
     {
         if (_fileStore is null)
         {
             throw new AgentPrismCompilationException(
-                $"'{definition.Name}' agent'i bir bellek saglayicisi istiyor ancak dosya deposu kayitli degil.")
+                $"Agent '{definition.Name}' wants a memory provider, but the file store is not registered.")
             {
                 AgentName = definition.Name,
             };
@@ -830,7 +837,7 @@ public sealed class AgentDefinitionCompiler
 
         var tenantId = _tenantContext?.TenantId ?? definition.TenantId
             ?? throw new AgentPrismCompilationException(
-                $"'{definition.Name}' agent'i bir bellek saglayicisi istiyor ancak kiraci cozulemedi.")
+                $"Agent '{definition.Name}' wants a memory provider, but the tenant could not be resolved.")
             {
                 AgentName = definition.Name,
             };
@@ -839,13 +846,13 @@ public sealed class AgentDefinitionCompiler
     }
 
     /// <summary>
-    /// <see cref="AgentFileStore.SearchAsync"/> sonuclarini
-    /// <see cref="TextSearchProvider.TextSearchResult"/>'a esler.
+    /// Maps <see cref="AgentFileStore.SearchAsync"/> results to
+    /// <see cref="TextSearchProvider.TextSearchResult"/>.
     /// </summary>
     /// <remarks>
-    /// Hangi somut <see cref="AgentFileStore"/> kayitliysa (bu faz: bellek ici)
-    /// onun uzerinde arar; kalici bir depo kayit edilirse kod degismeden
-    /// kalici aramaya doner.
+    /// Searches over whichever concrete <see cref="AgentFileStore"/> is
+    /// registered (this phase: in-memory); if a persistent store is
+    /// registered, this falls through to persistent search without code changes.
     /// </remarks>
     private static async Task<IEnumerable<TextSearchProvider.TextSearchResult>> SearchFileStoreAsync(
         AgentFileStore fileStore,
@@ -865,21 +872,22 @@ public sealed class AgentDefinitionCompiler
     }
 
     /// <summary>
-    /// <see cref="TextSearchProvider"/>'in modele yazdirdigi dogal dil sorgusunu
-    /// <see cref="AgentFileStore.SearchAsync"/>'in bekledigi bir regex desenine cevirir.
+    /// Converts the natural-language query <see cref="TextSearchProvider"/>
+    /// has the model write into a regex pattern as expected by
+    /// <see cref="AgentFileStore.SearchAsync"/>.
     /// </summary>
     /// <remarks>
-    /// HATA-S1-009: <c>SearchAsync</c> bir REGEX bekler (PostgreSQL'de <c>~</c>
-    /// ile, digerlerinde <see cref="Regex"/> ile) ama <see cref="TextSearchProvider"/>
-    /// modele dogal dil sorgusu yazdirir (ornegin "FILE-7841 ile ilgili bir kayit
-    /// var mi?"). Bu ham metni oldugu gibi regex olarak calistirmak neredeyse
-    /// hicbir zaman eslesmez (bosluklar ve noktalama regex anlaminda dar kisitlar
-    /// getirir) — sorgu bunun yerine bosluga gore ayrilmis, kisa doldurucu
-    /// kelimeler haric anlamli tokenlere bolunup her biri kacislanip "VEYA" ile
-    /// birlestirilir; dosyada bu tokenlerden HERHANGI biri (ornegin "FILE-7841")
-    /// gecen bir satir eslesir. Sifir token kalirsa (tum sorgu kisa kelimelerden
-    /// olusuyorsa) ham sorgu kacislanip aynen kullanilir — davranisi hicbir zaman
-    /// bugunkunden daha kotu yapmaz.
+    /// HATA-S1-009: <c>SearchAsync</c> expects a REGEX (via <c>~</c> in
+    /// PostgreSQL, via <see cref="Regex"/> elsewhere), but
+    /// <see cref="TextSearchProvider"/> has the model write a natural-language
+    /// query (e.g. "is there a record about FILE-7841?"). Running this raw
+    /// text as-is as a regex almost never matches (spaces and punctuation
+    /// impose narrow constraints in regex terms) - instead, the query is split
+    /// on whitespace into meaningful tokens (excluding short filler words),
+    /// each is escaped and joined with "OR"; a line matches if it contains ANY
+    /// of these tokens (e.g. "FILE-7841"). If zero tokens remain (the whole
+    /// query consists of short words), the raw query is escaped and used
+    /// as-is - this never makes the behavior worse than it is today.
     /// </remarks>
     private static string BuildKeywordPattern(string query)
     {
@@ -923,8 +931,8 @@ public sealed class AgentDefinitionCompiler
 
         if (BuildCompactionStrategy(definition) is { } compactionStrategy)
         {
-            // MAAI001: CompactionProvider "evaluation purposes only" — gerekce
-            // BuildCompactionStrategy'nin ustundeki bloktakiyle aynidir.
+            // MAAI001: CompactionProvider is marked "evaluation purposes only" -
+            // the rationale is the same as the block above BuildCompactionStrategy.
 #pragma warning disable MAAI001
             providers.Add(new CompactionProvider(compactionStrategy, stateKey: null, _loggerFactory));
 #pragma warning restore MAAI001
@@ -946,11 +954,10 @@ public sealed class AgentDefinitionCompiler
     }
 
     /// <summary>
-    /// <see cref="AgentDefinition.McpResourceUris"/> (Mod A) icin baglam
-    /// saglayicisi kurar.
+    /// Builds the context provider for <see cref="AgentDefinition.McpResourceUris"/> (Mode A).
     /// </summary>
     /// <exception cref="AgentPrismCompilationException">
-    /// Tanim MCP kaynagi istiyor ancak <c>AgentPrism.Mcp</c> paketi kayitli degilse.
+    /// The definition wants an MCP resource, but the <c>AgentPrism.Mcp</c> package is not registered.
     /// </exception>
     private AIContextProvider? CreateMcpResourceProvider(AgentDefinition definition)
     {
@@ -962,8 +969,8 @@ public sealed class AgentDefinitionCompiler
         if (_mcpResources is null)
         {
             throw new AgentPrismCompilationException(
-                $"'{definition.Name}' agent'i MCP kaynagi kullaniyor ancak AgentPrism.Mcp paketi " +
-                "kayitli degil (UseMcp() cagrilmadi).")
+                $"Agent '{definition.Name}' uses an MCP resource, but the AgentPrism.Mcp package " +
+                "is not registered (UseMcp() was not called).")
             {
                 AgentName = definition.Name,
             };
@@ -971,7 +978,7 @@ public sealed class AgentDefinitionCompiler
 
         var tenantId = _tenantContext?.TenantId ?? definition.TenantId
             ?? throw new AgentPrismCompilationException(
-                $"'{definition.Name}' agent'i MCP kaynagi kullaniyor ancak kiraci cozulemedi.")
+                $"Agent '{definition.Name}' uses an MCP resource, but the tenant could not be resolved.")
             {
                 AgentName = definition.Name,
             };
@@ -980,25 +987,25 @@ public sealed class AgentDefinitionCompiler
     }
 
     /// <summary>
-    /// Alt agent cagrisini saglayan baglam saglayicisini kurar.
+    /// Builds the context provider that enables sub-agent calls.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Microsoft Agent Framework'un <see cref="BackgroundAgentsProvider"/> tipi bir
-    /// <see cref="AIContextProvider"/>'dir; harness gerektirmez. Duz agent yolu bu
-    /// yuzden birinci sinif destege sahiptir - K-053'te belgelenen harness kusuru
-    /// bu ozelligi de vuracakti.
+    /// Microsoft Agent Framework's <see cref="BackgroundAgentsProvider"/> type
+    /// is an <see cref="AIContextProvider"/>; it does not require a harness.
+    /// The plain agent path therefore has first-class support for this - the
+    /// harness defect documented in K-053 would have hit this feature too.
     /// </para>
     /// <para>
-    /// Her alt agent <see cref="ChildAgentInvoker"/> ile sarilir. Saglayici alt
-    /// agent'i <c>options = null</c> ile cagirir (Faz 12'de olculdu); agac bilgisi
-    /// yalnizca sarmalayici tarafindan eklenebilir.
+    /// Every sub-agent is wrapped with <see cref="ChildAgentInvoker"/>. The
+    /// provider calls the sub-agent with <c>options = null</c> (measured in
+    /// Phase 12); tree information can only be added by the wrapper.
     /// </para>
     /// </remarks>
-    // MAAI001: BackgroundAgentsProvider "evaluation purposes only" olarak isaretli.
-    // Bastirma bilincli bir karardir ve K-020 ile ayni gerekceye dayanir: alt agent
-    // kurulumu tek bir metotta toplanmistir, MAF bu API'yi degistirirse yalnizca
-    // burasi guncellenir. Gerekce: docs/KARARLAR.md, karar K-097.
+    // MAAI001: BackgroundAgentsProvider is marked "evaluation purposes only".
+    // The suppression is a deliberate decision resting on the same rationale
+    // as K-020: sub-agent setup is kept in a single method, only this file is
+    // updated if MAF changes this API. Rationale: docs/KARARLAR.md, decision K-097.
 #pragma warning disable MAAI001
     private BackgroundAgentsProvider? CreateBackgroundAgentsProvider(
         AgentDefinition definition,
@@ -1008,8 +1015,8 @@ public sealed class AgentDefinitionCompiler
             : null;
 #pragma warning restore MAAI001
 
-    /// <summary>Cagrilabilir alt agent'lari sarmalayicilariyla birlikte kurar.</summary>
-    /// <returns>Sarilmis alt agent'lar; tanim alt agent cagirmiyorsa <see langword="null"/>.</returns>
+    /// <summary>Builds callable sub-agents together with their wrappers.</summary>
+    /// <returns>The wrapped sub-agents; <see langword="null"/> when the definition calls no sub-agent.</returns>
     private List<AIAgent>? CreateChildAgents(AgentDefinition definition, ResolvedCallableAgents callableAgents)
     {
         if (callableAgents.Agents.Count == 0)
@@ -1020,8 +1027,8 @@ public sealed class AgentDefinitionCompiler
         if (_callableAgents is null || _tenantContext is null)
         {
             throw new AgentPrismCompilationException(
-                $"'{definition.Name}' agent'i baska agent'lari cagirmak istiyor ancak alt agent " +
-                "cozucusu kayitli degil.")
+                $"Agent '{definition.Name}' wants to call other agents, but the sub-agent " +
+                "resolver is not registered.")
             {
                 AgentName = definition.Name,
             };
@@ -1048,11 +1055,11 @@ public sealed class AgentDefinitionCompiler
     {
         var harness = definition.Harness!;
 
-        // MAAI001: Microsoft Agent Framework'un harness secenekleri "evaluation purposes only"
-        // olarak isaretli ve ileride degisebilir. Bastirma bilincli bir karardir:
-        // harness kullanimi tek bir dosyada toplanmistir, boylece MAF bu API'yi
-        // degistirirse yalnizca burasi guncellenir.
-        // Gerekce: docs/KARARLAR.md, karar K-020.
+        // MAAI001: Microsoft Agent Framework's harness options are marked
+        // "evaluation purposes only" and may change in the future. The
+        // suppression is a deliberate decision: harness usage is kept in a
+        // single file, so only this file is updated if MAF changes this API.
+        // Rationale: docs/KARARLAR.md, decision K-020.
 #pragma warning disable MAAI001
         var options = new HarnessAgentOptions
         {
@@ -1073,17 +1080,19 @@ public sealed class AgentDefinitionCompiler
             DisableAgentSkillsProvider = harness.DisableAgentSkillsProvider,
             DisableAgentModeProvider = harness.DisableAgentModeProvider,
 
-            // Harness kendi ic span'lerini uretir. Kaynak adi verilmezse bunlar
-            // MAF'in kendi kaynagina gider ve AgentPrism'in span deposu onlari
-            // hic gormez; waterfall gorunumunde harness adimlari eksik kalirdi.
+            // The harness produces its own internal spans. Without a source
+            // name, these go to MAF's own source and AgentPrism's span store
+            // never sees them; harness steps would be missing from the
+            // waterfall view.
             OpenTelemetrySourceName = AgentPrismDiagnostics.ActivitySourceName,
 
-            // FileAccessStore BILEREK atanmiyor: yalnizca deger atandiginda
-            // etkinlesir, atanmamis olmasi dosya erisiminin kapali olmasi demektir.
-            // Gerekce: docs/KARARLAR.md, karar K-062.
+            // FileAccessStore is INTENTIONALLY left unassigned: it activates
+            // only when a value is assigned; leaving it unassigned means file
+            // access is disabled. Rationale: docs/KARARLAR.md, decision K-062.
             //
-            // BackgroundAgents ise Faz 12'de acildi ve ayni kurala uyar: tanim
-            // hicbir agent adi tasimiyorsa deger atanmaz ve ozellik kapalidir.
+            // BackgroundAgents was opened in Phase 12 and follows the same
+            // rule: no value is assigned when the definition carries no agent
+            // name, and the feature is off.
         };
 
         if (definition.SkillNames.Count > 0)
@@ -1096,16 +1105,16 @@ public sealed class AgentDefinitionCompiler
             options.BackgroundAgents = children;
         }
 
-        // Cakisma denetimi: kullanici hem sikistirma/bellek istemis hem
-        // harness'ta ayni yetenegi kapatmissa hangisinin kazandigi sessizce
-        // belirsiz kalmamali (K1 sifir surpriz).
+        // Conflict check: if the user has both requested compaction/memory and
+        // disabled the same capability in the harness, which one wins must not
+        // silently stay ambiguous (K1 zero surprise).
         if (definition.Compaction is { Strategy: not CompactionStrategyKind.None })
         {
             if (harness.DisableCompaction)
             {
                 throw new AgentPrismCompilationException(
-                    $"'{definition.Name}' agent'i sikistirma istiyor ancak " +
-                    $"{nameof(HarnessSettings)}.{nameof(HarnessSettings.DisableCompaction)} kapatilmis.")
+                    $"Agent '{definition.Name}' wants compaction, but " +
+                    $"{nameof(HarnessSettings)}.{nameof(HarnessSettings.DisableCompaction)} is turned off.")
                 {
                     AgentName = definition.Name,
                 };
@@ -1119,8 +1128,8 @@ public sealed class AgentDefinitionCompiler
             if (harness.DisableFileMemory)
             {
                 throw new AgentPrismCompilationException(
-                    $"'{definition.Name}' agent'i dosya bellegi istiyor ancak " +
-                    $"{nameof(HarnessSettings)}.{nameof(HarnessSettings.DisableFileMemory)} kapatilmis.")
+                    $"Agent '{definition.Name}' wants file memory, but " +
+                    $"{nameof(HarnessSettings)}.{nameof(HarnessSettings.DisableFileMemory)} is turned off.")
                 {
                     AgentName = definition.Name,
                 };
@@ -1132,15 +1141,15 @@ public sealed class AgentDefinitionCompiler
         if (definition.Memory is { EnableTodo: true } && harness.DisableTodoProvider)
         {
             throw new AgentPrismCompilationException(
-                $"'{definition.Name}' agent'i todo takibi istiyor ancak " +
-                $"{nameof(HarnessSettings)}.{nameof(HarnessSettings.DisableTodoProvider)} kapatilmis.")
+                $"Agent '{definition.Name}' wants todo tracking, but " +
+                $"{nameof(HarnessSettings)}.{nameof(HarnessSettings.DisableTodoProvider)} is turned off.")
             {
                 AgentName = definition.Name,
             };
         }
 
-        // EnableTodo == true ve DisableTodoProvider == false ise ek bir sey
-        // YAPILMAZ: harness todo takibini varsayilan olarak zaten acik tutar.
+        // When EnableTodo == true and DisableTodoProvider == false, nothing
+        // extra is DONE: the harness already keeps todo tracking on by default.
 
         var harnessProviders = new List<AIContextProvider>(2);
 
@@ -1171,7 +1180,7 @@ public sealed class AgentDefinitionCompiler
         if (_skills is null)
         {
             throw new AgentPrismCompilationException(
-                $"'{definition.Name}' agent'i skill kullaniyor ancak skill katalogu kayitli degil.")
+                $"Agent '{definition.Name}' uses skills, but the skill catalog is not registered.")
             {
                 AgentName = definition.Name,
             };
@@ -1191,12 +1200,13 @@ public sealed class AgentDefinitionCompiler
         return new DeduplicatingAgentSkillsSource(source, _loggerFactory);
     }
 
-    /// <summary>Veritabani ve disk kaynaklarini birlestirir.</summary>
+    /// <summary>Combines the database and disk sources.</summary>
     /// <remarks>
-    /// Disk kaynagi ancak <c>UseSkillScripts</c> ile bir kok tanimlandiginda
-    /// eklenir. Sirasi onemlidir: veritabani kaynagi once gelir, boylece ayni
-    /// adda bir skill varsa <c>DeduplicatingAgentSkillsSource</c> veritabani
-    /// kaydini korur ve kiraci yalitimi bozulmaz.
+    /// The disk source is added only when a root is defined via
+    /// <c>UseSkillScripts</c>. Order matters: the database source comes
+    /// first, so if a skill with the same name exists,
+    /// <c>DeduplicatingAgentSkillsSource</c> keeps the database record and
+    /// tenant isolation is not broken.
     /// </remarks>
     private List<AgentSkillsSource> CreateInnerSources(AgentDefinition definition)
     {
@@ -1215,17 +1225,17 @@ public sealed class AgentDefinitionCompiler
 }
 
 /// <summary>
-/// Bir tanimin cagirabilecegi alt agent'larin cozulmus hali ve onbellek parmak izi.
+/// The resolved set of sub-agents a definition may call, and its cache fingerprint.
 /// </summary>
-/// <param name="Agents">Alt agent ozetleri.</param>
+/// <param name="Agents">Sub-agent summaries.</param>
 /// <param name="Fingerprint">
-/// Alt agent adlarindan ve surumlerinden turetilmis parmak izi. Derlenmis agent
-/// onbelleginin anahtarina girer.
+/// Fingerprint derived from the sub-agent names and versions. Enters the
+/// compiled agent cache's key.
 /// </param>
 public readonly record struct ResolvedCallableAgents(
     IReadOnlyList<CallableAgentInfo> Agents,
     string Fingerprint)
 {
-    /// <summary>Alt agent cagirmayan bir tanimin sonucu.</summary>
+    /// <summary>The result for a definition that calls no sub-agent.</summary>
     public static ResolvedCallableAgents Empty { get; } = new([], string.Empty);
 }

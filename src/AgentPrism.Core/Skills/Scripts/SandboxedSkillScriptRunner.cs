@@ -9,34 +9,35 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Skill script'lerini yalitilmis bir isletim sistemi surecinde calistiran,
-/// AgentPrism'in tek script calistirma yoludur.
+/// AgentPrism's single script execution path, which runs skill scripts in an
+/// isolated operating-system process.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Microsoft Agent Framework hicbir script'i kendi basina calistirmaz.</strong>
-/// <c>AgentFileSkillScriptRunner</c> bir cagri noktasidir; sandbox, zaman asimi,
-/// kaynak siniri ve denetim izi tamamen AgentPrism'in sorumlulugundadir.
+/// <strong>Microsoft Agent Framework never runs a script on its own.</strong>
+/// <c>AgentFileSkillScriptRunner</c> is a call point; the sandbox, timeout,
+/// resource limits, and audit trail are entirely AgentPrism's responsibility.
 /// </para>
 /// <para>
-/// Her calistirma su kapilardan sirayla gecer. Biri kapaliysa script
-/// <em>hic baslamaz</em>:
+/// Every run passes through these gates in order. If one is closed, the
+/// script <em>never starts at all</em>:
 /// </para>
 /// <list type="number">
-///   <item><description>Ozellik acik mi (<see cref="AgentPrismSkillScriptOptions.Enabled"/>)</description></item>
-///   <item><description>Kiraci icin gecerli bir <see cref="SkillScriptGrant"/> var mi</description></item>
-///   <item><description>Uzanti yorumlayici beyaz listesinde mi</description></item>
-///   <item><description>Argumanlar boyut ve sema denetiminden gecti mi</description></item>
-///   <item><description>Denetim izi yazilabildi mi</description></item>
+///   <item><description>Is the feature enabled (<see cref="AgentPrismSkillScriptOptions.Enabled"/>)</description></item>
+///   <item><description>Is there a valid <see cref="SkillScriptGrant"/> for the tenant</description></item>
+///   <item><description>Is the extension on the interpreter allow-list</description></item>
+///   <item><description>Did the arguments pass size and schema validation</description></item>
+///   <item><description>Was the audit trail entry written</description></item>
 /// </list>
 /// <para>
-/// 🚨 Son madde Faz 9'un "gozlemlenebilirlik islevi bozmaz" kuralinin
-/// <strong>bilincli istisnasidir</strong>: denetim izine yazilamayan bir script
-/// calistirmasi, hicbir kaydi olmayan bir uzaktan kod calistirma olurdu.
+/// 🚨 The last item is a <strong>deliberate exception</strong> to Phase 9's
+/// "observability does not break functionality" rule: a script run that
+/// cannot be written to the audit trail would be a remote code execution
+/// with no record at all.
 /// </para>
 /// <para>
-/// MAF'in onay akisi devrede kalir: <c>DisableRunSkillScriptApproval</c>
-/// ayarlanmaz, yani her script cagrisi once kullanicinin onayini bekler.
+/// MAF's approval flow stays active: <c>DisableRunSkillScriptApproval</c> is
+/// not set, meaning every script call waits for user approval first.
 /// </para>
 /// </remarks>
 public sealed class SandboxedSkillScriptRunner : IDisposable
@@ -54,17 +55,17 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
     private readonly TimeProvider _timeProvider;
     private readonly SkillScriptConcurrencyLimiter _limiter;
 
-    /// <summary>Yeni bir calistirici olusturur.</summary>
-    /// <param name="options">AgentPrism ayarlari.</param>
-    /// <param name="tenantContext">Kiraci baglami.</param>
-    /// <param name="grantStore">Izin kayitlari deposu.</param>
-    /// <param name="auditLog">Denetim izi.</param>
-    /// <param name="actorResolver">Aktor cozumleyici.</param>
-    /// <param name="logger">Gunlukleyici.</param>
-    /// <param name="runStore">Tool cagri kaydinin yazilacagi depo. <see langword="null"/> ise yazilmaz.</param>
-    /// <param name="metrics">Metrik aletleri. <see langword="null"/> ise metrik yayilmaz.</param>
-    /// <param name="timeProvider">Zaman kaynagi. <see langword="null"/> ise sistem saati.</param>
-    /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new runner.</summary>
+    /// <param name="options">The AgentPrism settings.</param>
+    /// <param name="tenantContext">The tenant context.</param>
+    /// <param name="grantStore">The grant record store.</param>
+    /// <param name="auditLog">The audit trail.</param>
+    /// <param name="actorResolver">The actor resolver.</param>
+    /// <param name="logger">The logger.</param>
+    /// <param name="runStore">The store the tool call record is written to. Not written if <see langword="null"/>.</param>
+    /// <param name="metrics">The metrics instruments. No metrics are emitted if <see langword="null"/>.</param>
+    /// <param name="timeProvider">The time source. The system clock is used if <see langword="null"/>.</param>
+    /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public SandboxedSkillScriptRunner(
         IOptions<AgentPrismOptions> options,
         ITenantContext tenantContext,
@@ -98,16 +99,16 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
     private AgentPrismSkillScriptOptions Options => _options.Value.Skills.Scripts;
 
     /// <summary>
-    /// Diskteki bir skill script'ini calistirir. MAF'in
-    /// <c>AgentFileSkillScriptRunner</c> delegesine baglanir.
+    /// Runs a skill script from disk. Wired to MAF's
+    /// <c>AgentFileSkillScriptRunner</c> delegate.
     /// </summary>
-    /// <param name="skill">Script'i tasiyan skill.</param>
-    /// <param name="script">Calistirilacak script.</param>
-    /// <param name="arguments">Modelin urettigi argumanlar.</param>
-    /// <param name="serviceProvider">MAF'in verdigi servis saglayici. Kullanilmaz.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Modele donecek metin sonuc.</returns>
-    /// <exception cref="AgentPrismException">Kapilardan biri kapaliysa.</exception>
+    /// <param name="skill">The skill that carries the script.</param>
+    /// <param name="script">The script to run.</param>
+    /// <param name="arguments">The arguments produced by the model.</param>
+    /// <param name="serviceProvider">The service provider given by MAF. Not used.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The text result to return to the model.</returns>
+    /// <exception cref="AgentPrismException">One of the gates is closed.</exception>
     public async Task<object?> RunFileScriptAsync(
         AgentFileSkill skill,
         AgentFileSkillScript script,
@@ -122,8 +123,9 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
 
         var skillName = skill.Frontmatter.Name;
 
-        // Span bu metodun govdesinde acilir: Activity.Current bir AsyncLocal'dir
-        // ve yardimci metotta acilan span cagirana geri akmaz.
+        // The span is opened in this method's own body: Activity.Current is
+        // an AsyncLocal, and a span opened in a helper method does not flow
+        // back to the caller.
         using var activity = ActivitySource.StartActivity(
             AgentPrismDiagnostics.SkillScriptActivityName,
             ActivityKind.Internal);
@@ -151,19 +153,20 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
     }
 
     /// <summary>
-    /// Veritabaninda saklanan bir skill script'ini calistirir.
+    /// Runs a skill script stored in the database.
     /// </summary>
     /// <remarks>
-    /// Bu yol yalnizca <see cref="AgentPrismSkillScriptOptions.AllowStoredScripts"/>
-    /// acikken kullanilir. Icerik yalnizca calistirma suresince, yalniz sahibinin
-    /// erisebildigi gecici bir dizine yazilir ve sonunda silinir.
+    /// This path is used only when <see cref="AgentPrismSkillScriptOptions.AllowStoredScripts"/>
+    /// is enabled. The content is written to a temporary directory accessible
+    /// only to its owner, only for the duration of the run, and deleted
+    /// afterward.
     /// </remarks>
-    /// <param name="skillName">Skill adi.</param>
-    /// <param name="script">Script tanimi.</param>
-    /// <param name="arguments">Modelin urettigi argumanlar.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Modele donecek metin sonuc.</returns>
-    /// <exception cref="AgentPrismException">Kapilardan biri kapaliysa.</exception>
+    /// <param name="skillName">The skill's name.</param>
+    /// <param name="script">The script definition.</param>
+    /// <param name="arguments">The arguments produced by the model.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The text result to return to the model.</returns>
+    /// <exception cref="AgentPrismException">One of the gates is closed.</exception>
     public async Task<object?> RunStoredScriptAsync(
         string skillName,
         AgentSkillScriptDefinition script,
@@ -178,7 +181,7 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
             await DenyAsync(
                     skillName,
                     script.Name,
-                    "Saklanan script'lerin calistirilmasi kapali. AllowStoredScripts acilmalidir.",
+                    "Running stored scripts is disabled. AllowStoredScripts must be enabled.",
                     cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -204,7 +207,7 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
                 await DenyAsync(
                         skillName,
                         script.Name,
-                        "Script'in arguman semasi gecerli JSON degil.",
+                        "The script's argument schema is not valid JSON.",
                         cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -242,7 +245,7 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
             await DenyAsync(
                     request.SkillName,
                     request.ScriptName,
-                    "Skill script calistirma kapali. UseSkillScripts ile acilmalidir.",
+                    "Skill script execution is disabled. It must be enabled with UseSkillScripts.",
                     cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -256,7 +259,7 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
             await DenyAsync(
                     request.SkillName,
                     request.ScriptName,
-                    "Bu script icin gecerli bir calistirma izni yok.",
+                    "There is no valid execution grant for this script.",
                     cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -266,7 +269,7 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
             await DenyAsync(
                     request.SkillName,
                     request.ScriptName,
-                    $"'{request.Extension}' uzantisi yorumlayici beyaz listesinde degil.",
+                    $"Extension '{request.Extension}' is not on the interpreter allow-list.",
                     cancellationToken)
                 .ConfigureAwait(false);
             interpreter = string.Empty;
@@ -279,7 +282,7 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
             await DenyAsync(
                     request.SkillName,
                     request.ScriptName,
-                    $"Argumanlar {options.MaxArgumentBytes} bayt sinirini asiyor.",
+                    $"The arguments exceed the {options.MaxArgumentBytes}-byte limit.",
                     cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -290,8 +293,9 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
                 .ConfigureAwait(false);
         }
 
-        // 🚨 Denetim izi calistirmadan ONCE ve zorunlu olarak yazilir. Yazilamazsa
-        // calistirma reddedilir; kaydi olmayan bir kod calistirma kabul edilemez.
+        // 🚨 The audit trail entry is written BEFORE execution, and is mandatory.
+        // If it cannot be written, the run is denied; a code execution with
+        // no record is unacceptable.
         await WriteAuditOrThrowAsync(
                 tenantId,
                 "script.run",
@@ -358,7 +362,7 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
 
         if (result.TimedOut)
         {
-            builder.AppendLine("Script zaman asimina ugradi ve surec agaci sonlandirildi.");
+            builder.AppendLine("The script timed out and the process tree was terminated.");
         }
         else
         {
@@ -404,24 +408,25 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
                     Duration = result.Duration,
                     Error = result.Succeeded
                         ? null
-                        : result.TimedOut ? "Zaman asimi." : $"Cikis kodu {result.ExitCode}.",
+                        : result.TimedOut ? "Timed out." : $"Exit code {result.ExitCode}.",
                     CreatedAt = _timeProvider.GetUtcNow(),
 
-                    // Suren calistirmanin kendi kiracisi; ambient kiraci DEGIL (K-355).
+                    // The running run's own tenant; NOT the ambient tenant (K-355).
                     TenantId = AgentPrismRunContext.Current?.TenantId,
                 },
                 cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // Calistirma kaydi gozlemlenebilirliktir; hatasi calistirmayi bozmaz.
-            // Zorunlu olan denetim izidir ve o zaten yazilmistir.
-            _logger.LogWarning(ex, "Skill script calistirmasi tool_invocations tablosuna yazilamadi.");
+            // The invocation record is observability; a failure here does not
+            // break the run. The mandatory part is the audit trail, and that
+            // has already been written.
+            _logger.LogWarning(ex, "The skill script invocation could not be written to the tool_invocations table.");
         }
     }
 
-    /// <summary>Reddi denetim izine yazar ve calistirmayi durdurur.</summary>
-    /// <remarks>Bu metot her zaman firlatir; donus tipi yalnizca cagri yerini kisaltir.</remarks>
+    /// <summary>Writes the denial to the audit trail and stops the run.</summary>
+    /// <remarks>This method always throws; the return type only shortens the call site.</remarks>
     private async ValueTask DenyAsync(
         string skillName,
         string scriptName,
@@ -436,15 +441,15 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
                 "script.denied",
                 $"{skillName}/{scriptName}",
                 before: null,
-                // 'after' bir jsonb sutununa yazilir; ham metin gecirmek HER
-                // reddi 22P02 ("invalid input syntax for type json") ile
-                // sessizce dusuruyordu (HATA-K-skill-audit-json, 2026-08-15) -
-                // denetim izi hicbir zaman olusmuyordu.
+                // 'after' is written to a jsonb column; passing raw text was
+                // silently dropping EVERY denial with 22P02 ("invalid input
+                // syntax for type json") (HATA-K-skill-audit-json, 2026-08-15)
+                // - the audit trail entry was never created.
                 after: JsonSerializer.Serialize(reason, AgentPrismCoreJsonContext.Default.String),
                 cancellationToken)
             .ConfigureAwait(false);
 
-        throw new AgentPrismException($"'{skillName}/{scriptName}' script'i calistirilmadi: {reason}");
+        throw new AgentPrismException($"Script '{skillName}/{scriptName}' was not run: {reason}");
     }
 
     private async ValueTask WriteAuditOrThrowAsync(
@@ -471,10 +476,10 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogError(ex, "'{Entity}' script'i denetim izine yazilamadi; calistirma reddedildi.", entity);
+            _logger.LogError(ex, "Script '{Entity}' could not be written to the audit trail; execution was denied.", entity);
 
             throw new AgentPrismException(
-                $"'{entity}' script'i denetim izine yazilamadigi icin calistirilmadi.",
+                $"Script '{entity}' was not run because it could not be written to the audit trail.",
                 ex);
         }
     }
@@ -492,7 +497,7 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Silinemeyen gecici dizin calistirmayi gecersiz kilmaz.
+            // A temporary directory that cannot be deleted does not invalidate the run.
         }
     }
 
