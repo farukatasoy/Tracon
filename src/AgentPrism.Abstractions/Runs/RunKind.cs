@@ -2,35 +2,36 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>Bir <c>runs</c> satirinin neyi kaydettigini bildirir.</summary>
+/// <summary>Reports what a <c>runs</c> row records.</summary>
 /// <remarks>
 /// <para>
-/// Workflow calistirmalari icin ayri bir tablo <strong>acilmaz</strong>. Runs
-/// ekrani, SSE akisi, kiraci filtreleri, istatistikler ve waterfall zaten
-/// <c>runs</c> uzerine kuruludur; ikinci bir kayit hatti hepsini ikiye
-/// katlardi. Ayrim bu sutunla yapilir.
+/// A separate table is <strong>not opened</strong> for workflow runs. The
+/// runs screen, the SSE stream, tenant filters, statistics, and the waterfall
+/// are already built on top of <c>runs</c>; a second recording path would
+/// double all of them. The distinction is made through this column instead.
 /// </para>
 /// <para>
-/// JSON'da <strong>ad olarak</strong> yazilir; veritabaninda <c>smallint</c>
-/// olarak saklanir. Deger sirasi degistirilemez.
+/// Written <strong>as a name</strong> in JSON; stored as <c>smallint</c> in
+/// the database. The value order must not change.
 /// </para>
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<RunKind>))]
 public enum RunKind
 {
-    /// <summary>Tek bir agent'in calistirmasi.</summary>
+    /// <summary>The run of a single agent.</summary>
     Agent = 0,
 
     /// <summary>
-    /// Bir workflow'un calistirmasi. Icinde cagrilan her agent, Faz 12'nin
-    /// <c>parent_run_id</c> mekanizmasiyla bu satirin altina baglanir.
+    /// The run of a workflow. Every agent called inside it is linked under
+    /// this row through Phase 12's <c>parent_run_id</c> mechanism.
     /// </summary>
     Workflow = 1,
 
     /// <summary>
-    /// Bir eval vakasinin calistirmasi (Faz 18). Transkript ve span agacina
-    /// erisim icin normal bir <c>runs</c> satiridir, ama <see cref="IRunStore.GetStatisticsAsync"/>
-    /// bu turu ozetten haric tutar — sentetik bir test cagrisi, gercek trafik degildir.
+    /// The run of an eval case (Phase 18). A normal <c>runs</c> row for
+    /// transcript and span-tree access, but
+    /// <see cref="IRunStore.GetStatisticsAsync"/> excludes this kind from the
+    /// summary — it is a synthetic test call, not real traffic.
     /// </summary>
     Eval = 2,
 }

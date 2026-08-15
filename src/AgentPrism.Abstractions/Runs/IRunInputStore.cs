@@ -3,72 +3,73 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir calistirmanin girdi mesajlarini saklar. Yeniden oynatmanin kaynagidir.
+/// Stores a run's input messages. The source of replay.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 Ayri bir arayuzdur; <see cref="IRunStore"/>'a metot <strong>eklenmez</strong>.
-/// Var olan bir arayuze metot eklemek yayindan sonra kiricidir (ayni gerekce
-/// <c>IRetentionStore</c> ve <c>IEvalStore</c> icin de gecerlidir).
+/// 🚨 A separate interface; a member is <strong>not added</strong> to
+/// <see cref="IRunStore"/>. Adding a member to an existing interface is a
+/// breaking change after release (the same rationale applies to
+/// <c>IRetentionStore</c> and <c>IEvalStore</c>).
 /// </para>
 /// <para>
-/// Girdi bugune kadar hicbir yerde kalicilasmiyordu: <see cref="RunRecord"/>
-/// girdi tasimaz, <see cref="RunEventType.RunStarted"/> olayi yalnizca ilk
-/// kullanici mesajinin <em>metnini</em> tasir (Faz 45) ve o metin kirpilabilir.
-/// Yeniden oynatma sadik olmak zorundadir; bu yuzden mesajlar polimorfik
-/// icerikleriyle birlikte ayri bir tabloda saklanir.
+/// The input was never persisted anywhere until now: <see cref="RunRecord"/>
+/// carries no input, and the <see cref="RunEventType.RunStarted"/> event only
+/// carries the <em>text</em> of the first user message (Phase 45), and that
+/// text can be truncated. Replay must be faithful; this is why messages are
+/// stored in a separate table together with their polymorphic content.
 /// </para>
 /// <para>
-/// <strong>Deponun hatalari calistirmayi kesmez.</strong> Yazma yolu
-/// (<c>RunRecordingAgent</c>) hatayi yakalar ve loglar; gozlemlenebilirlik
-/// islevselligi bozmaz.
+/// <strong>An error from this store does not stop the run.</strong> The write
+/// path (<c>RunRecordingAgent</c>) catches and logs the error; observability
+/// must not break functionality.
 /// </para>
 /// </remarks>
 public interface IRunInputStore
 {
-    /// <summary>Girdi mesajlarini kaydeder.</summary>
-    /// <param name="record">Kaydedilecek girdi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Saves the input messages.</summary>
+    /// <param name="record">The input to save.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
     /// <remarks>
-    /// Ayni calistirma icin ikinci yazim <strong>yok sayilir</strong>: kuyruga
-    /// alinan bir calistirma (Faz 46) ayni kimlikle iki kez baslayabilir ve
-    /// girdinin degismemesi gerekir.
+    /// A second write for the same run is <strong>ignored</strong>: a queued
+    /// run (Phase 46) can start twice with the same identifier, and the input
+    /// must not change.
     /// </remarks>
     ValueTask SaveAsync(RunInputRecord record, CancellationToken cancellationToken = default);
 
-    /// <summary>Kayitli girdiyi okur.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="runId">Calistirma kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kayit; yoksa veya baska bir kiraciya aitse <see langword="null"/>.</returns>
+    /// <summary>Reads the stored input.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="runId">The run identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The record; <see langword="null"/> if it does not exist or belongs to another tenant.</returns>
     ValueTask<RunInputRecord?> GetAsync(
         string tenantId,
         Guid runId,
         CancellationToken cancellationToken = default);
 }
 
-/// <summary>Bir calistirmanin kayitli girdisi.</summary>
+/// <summary>A run's stored input.</summary>
 public sealed record RunInputRecord
 {
-    /// <summary>Calistirma kimligi.</summary>
+    /// <summary>The run identifier.</summary>
     public required Guid RunId { get; init; }
 
-    /// <summary>Calistirmanin ait oldugu kiraci.</summary>
+    /// <summary>The tenant the run belongs to.</summary>
     public required string TenantId { get; init; }
 
     /// <summary>
-    /// Girdi mesajlari.
+    /// The input messages.
     /// </summary>
     /// <remarks>
-    /// 🚨 Polimorfik icerik tasir (<c>TextContent</c>, <c>UriContent</c>,
-    /// <c>FunctionResultContent</c> ...). Depoda <c>json</c> sutununda saklanir,
-    /// <c>jsonb</c>'de <strong>degil</strong>: <c>jsonb</c> nesne anahtarlarini
-    /// yeniden siralar ve System.Text.Json'un <c>$type</c> ayraci nesnenin ilk
-    /// ozelligi olmak zorundadir. Gerekce: <c>docs/KARARLAR.md</c>, karar K-027.
+    /// 🚨 Carries polymorphic content (<c>TextContent</c>, <c>UriContent</c>,
+    /// <c>FunctionResultContent</c> ...). Stored in the <c>json</c> column,
+    /// <strong>not</strong> <c>jsonb</c>: <c>jsonb</c> reorders object keys,
+    /// and System.Text.Json's <c>$type</c> discriminator must be the object's
+    /// first property. See <c>docs/KARARLAR.md</c>, decision K-027, for the rationale.
     /// </remarks>
     public required IReadOnlyList<ChatMessage> Messages { get; init; }
 
-    /// <summary>Kaydin olusturulma zamani (UTC).</summary>
+    /// <summary>The record's creation time (UTC).</summary>
     public required DateTimeOffset CreatedAt { get; init; }
 }
