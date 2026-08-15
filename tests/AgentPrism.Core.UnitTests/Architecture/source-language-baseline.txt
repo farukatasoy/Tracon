@@ -10,10 +10,6 @@ samples/AgentPrism.Api/Program.cs|248
 samples/AgentPrism.Api/appsettings.json|29
 samples/Directory.Build.props|1
 src/AgentPrism.Abstractions/README.md|4
-src/AgentPrism.Abstractions/Security/ApiKeyDraft.cs|6
-src/AgentPrism.Abstractions/Security/ApiKeyRecord.cs|22
-src/AgentPrism.Abstractions/Security/ApiKeyScope.cs|19
-src/AgentPrism.Abstractions/Security/IApiKeyStore.cs|36
 src/AgentPrism.Abstractions/Sessions/ChatHistorySessionState.cs|9
 src/AgentPrism.Abstractions/Sessions/ISessionStore.cs|53
 src/AgentPrism.Abstractions/Sessions/SessionBranch.cs|31
