@@ -112,10 +112,6 @@ src/AgentPrism.Azure/AzureOpenAIProviderOptionsValidator.cs|13
 src/AgentPrism.Azure/README.md|51
 src/AgentPrism.Core/AgentPrism.Core.csproj|20
 src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs|252
-src/AgentPrism.Core/Approvals/ApprovalExpirationService.cs|17
-src/AgentPrism.Core/Approvals/ApprovalResumeJobHandler.cs|29
-src/AgentPrism.Core/Approvals/ToolApprovalAgentDecorator.cs|9
-src/AgentPrism.Core/Approvals/ToolApprovalRuleEvaluator.cs|25
 src/AgentPrism.Core/Attachments/AttachmentResolvingChatClient.cs|9
 src/AgentPrism.Core/Attachments/AttachmentUriReference.cs|12
 src/AgentPrism.Core/Audit/AmbientAuditActorResolver.cs|3

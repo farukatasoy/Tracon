@@ -3,31 +3,31 @@ using Microsoft.Agents.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Katalogdan cozulen her agent'i Microsoft Agent Framework'un
-/// <see cref="ToolApprovalAgent"/> sarmalayicisiyla sarar ve kalici
-/// "bir daha sorma" kurallarini otomatik onay kurali olarak baglar.
+/// Wraps every agent resolved from the catalog with Microsoft Agent Framework's
+/// <see cref="ToolApprovalAgent"/> decorator and supplies persistent "do not ask again"
+/// rules as automatic approval rules.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="Order"/> degeri 20'dir: uc dekoratorun en <em>icteki</em>si.
-/// Onay, model cagrisina en yakin katmanda verilmelidir; disina alinsaydi
-/// telemetri ve calistirma kaydi onay beklemesini kendi suresi icine katardi.
+/// <see cref="Order"/> is 20, which makes this the <em>innermost</em> of three decorators.
+/// Approval must occur at the layer closest to the model call. If it occurred outside,
+/// telemetry and run recording would include approval waiting time in their duration.
 /// </para>
 /// <para>
-/// Hangi tool'un onay istedigine bu sinif karar <strong>vermez</strong>. Karar
-/// <see cref="ToolRegistry"/> icinde verilir: onay isteyen tool
-/// <c>ApprovalRequiredAIFunction</c> ile sarilir ve MAF cagriyi calistirmak
-/// yerine <c>ToolApprovalRequestContent</c> uretir. Bu sinif yalnizca
-/// <em>otomatik onay</em> kurallarini uygular.
+/// This class does <strong>not</strong> decide which tool needs approval.
+/// <see cref="ToolRegistry"/> makes that decision. It wraps an approval-required tool
+/// in <c>ApprovalRequiredAIFunction</c>, causing MAF to produce
+/// <c>ToolApprovalRequestContent</c> instead of running the call. This class only
+/// applies <em>automatic approval</em> rules.
 /// </para>
 /// </remarks>
 public sealed class ToolApprovalAgentDecorator : IAgentDecorator
 {
     private readonly ToolApprovalRuleEvaluator _evaluator;
 
-    /// <summary>Yeni bir onay dekoratoru olusturur.</summary>
-    /// <param name="evaluator">Kalici kurallari uygulayan degerlendirici.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="evaluator"/> <see langword="null"/> ise.</exception>
+    /// <summary>Initializes a new approval decorator.</summary>
+    /// <param name="evaluator">The evaluator that applies persistent rules.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="evaluator"/> is <see langword="null"/>.</exception>
     public ToolApprovalAgentDecorator(ToolApprovalRuleEvaluator evaluator)
     {
         ArgumentNullException.ThrowIfNull(evaluator);

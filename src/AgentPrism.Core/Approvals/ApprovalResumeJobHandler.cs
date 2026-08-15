@@ -5,25 +5,22 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="JobKind.ApprovalResume"/> islerini yurutur: kararlanmis bir
-/// <see cref="PendingApproval"/> icin oturum gecmisindeki bekleyen tool
-/// onay istegini yanitlar ve calistirmayi devam ettirir (Faz 55).
+/// Handles <see cref="JobKind.ApprovalResume"/> jobs. It answers the pending tool
+/// approval request in the session history for a decided <see cref="PendingApproval"/>
+/// and resumes the run (Phase 55).
 /// </summary>
 /// <remarks>
 /// <para>
-/// Karar (onaylandi/reddedildi, kim, ne zaman) BU isleyiciden ONCE, HTTP
-/// katmaninin <c>decide</c> ucunda <see cref="IPendingApprovalStore.DecideAsync"/>
-/// ile yazilmis ve denetim izine islenmistir (K-089). Bu isleyici yalniz o
-/// KARARI oturuma <c>ToolApprovalResponseContent</c> olarak besler; kendisi
-/// hicbir karar VERMEZ ve denetim izine hicbir sey YAZMAZ.
+/// The HTTP layer has already persisted the decision, who made it, and when through
+/// <see cref="IPendingApprovalStore.DecideAsync"/> at the <c>decide</c> endpoint, and has
+/// written it to the audit trail (K-089). This handler only feeds that decision into the
+/// session as <c>ToolApprovalResponseContent</c>. It does not make a decision or write an audit entry.
 /// </para>
 /// <para>
-/// 🚨 <c>AgentRunJobHandler</c>'in AKSINE, bu is <strong>yeni</strong> bir
-/// <c>RunId</c> ile calisir: eski calistirma <see cref="RunStatus.AwaitingApproval"/>
-/// ile kapanmis ve BIR DAHA DEGISMEMISTIR (K-014). Model onaylanmis tool'u
-/// kullandiktan SONRA baska bir tool icin onay isterse (ardisik onay), yeni
-/// calistirma da (kok oldugu icin) ayni sekilde <c>AwaitingApproval</c>'a
-/// kapanir — zincir aynen devam eder.
+/// Unlike <c>AgentRunJobHandler</c>, this job uses a <strong>new</strong> <c>RunId</c>.
+/// The previous run ended with <see cref="RunStatus.AwaitingApproval"/> and never changes again
+/// (K-014). If the model asks approval for another tool after it uses the approved tool, the new
+/// root run also ends with <c>AwaitingApproval</c>. The chain continues in the same way.
 /// </para>
 /// </remarks>
 internal sealed class ApprovalResumeJobHandler(
@@ -55,7 +52,7 @@ internal sealed class ApprovalResumeJobHandler(
                 newRunId,
                 context.Job.TenantId,
                 new AgentPrismException(
-                    $"'{approvalId}' kimlikli onay istegi bulunamadi veya henuz karara baglanmamis."),
+                    $"The approval request with identifier '{approvalId}' was not found or is not decided yet."),
                 cancellationToken).ConfigureAwait(false);
 
             return;
@@ -69,7 +66,7 @@ internal sealed class ApprovalResumeJobHandler(
         {
             agent = await catalog.ResolveAsync(agentName, cancellationToken).ConfigureAwait(false)
                 ?? throw new AgentPrismException(
-                    $"'{agentName}' adinda bir agent bulunamadi. Is basarisiz olarak isaretlenecek.");
+                    $"The agent named '{agentName}' was not found. The job will be marked as failed.");
 
             session = await sessions
                 .GetOrCreateSessionAsync(agent, approval.SessionId, cancellationToken)
@@ -78,8 +75,8 @@ internal sealed class ApprovalResumeJobHandler(
             var request = await FindPendingRequestAsync(agent, session, chatHistory, approval.RequestId, cancellationToken)
                     .ConfigureAwait(false)
                 ?? throw new AgentPrismException(
-                    $"'{approval.RequestId}' kimlikli tool onay istegi oturum gecmisinde bulunamadi " +
-                    "(muhtemelen oturum bu istekten sonra sifirlandi). Karar uygulanamaz.");
+                    $"The tool approval request with identifier '{approval.RequestId}' was not found in the session history " +
+                    "(the session might have been reset after this request). The decision cannot be applied.");
 
             approvalMessage = new ChatMessage(
                 ChatRole.User,
@@ -87,8 +84,8 @@ internal sealed class ApprovalResumeJobHandler(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            // Gerekce AgentRunJobHandler ile aynidir: RunRecordingAgent hic
-            // devreye girmedi, 'runs' satirini BURADA Failed'e kapatmaliyiz.
+            // Same rationale as AgentRunJobHandler: RunRecordingAgent did not run,
+            // so this handler must change the 'runs' row to Failed.
             await FailQueuedRunAsync(newRunId, context.Job.TenantId, exception, cancellationToken)
                 .ConfigureAwait(false);
 
@@ -108,11 +105,11 @@ internal sealed class ApprovalResumeJobHandler(
         await sessions.SaveSessionAsync(agent, session, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Oturum gecmisinde henuz yanitlanmamis, verilen kimlige sahip onay istegini arar.</summary>
+    /// <summary>Finds the unanswered approval request with the supplied identifier in the session history.</summary>
     /// <remarks>
-    /// <c>ToolApprovalResolver.CollectPendingRequests</c> (AgentPrism.AspNetCore)
-    /// ile AYNI mantik, tek bir istek icin daraltilmis. Onay bir sonraki turun
-    /// girdisidir ve istegin KENDISI yalnizca oturum gecmisinde yasar
+    /// Uses the same logic as <c>ToolApprovalResolver.CollectPendingRequests</c>
+    /// in AgentPrism.AspNetCore, narrowed to one request. Approval is input for the
+    /// next turn, and the request itself only exists in the session history
     /// (<c>ToolApprovalRequestContent.CreateResponse</c>).
     /// </remarks>
     private static async ValueTask<ToolApprovalRequestContent?> FindPendingRequestAsync(
@@ -122,10 +119,9 @@ internal sealed class ApprovalResumeJobHandler(
         string requestId,
         CancellationToken cancellationToken)
     {
-        // MAAI001: InvokingContext kurucusu "for evaluation purposes only"
-        // isaretlidir. Gerekce ChatHistoryReader ile aynidir: gecmisi okumanin
-        // baska public yolu yoktur ve bu cagri yalnizca okur. Kullanim bu TEK
-        // dosyada toplanir.
+        // MAAI001: InvokingContext constructor is marked "for evaluation purposes only".
+        // The rationale is the same as ChatHistoryReader: there is no other public
+        // way to read the history, and this call only reads it. This is the only use.
 #pragma warning disable MAAI001
         var context = new Microsoft.Agents.AI.ChatHistoryProvider.InvokingContext(agent, session, []);
 #pragma warning restore MAAI001
@@ -147,8 +143,8 @@ internal sealed class ApprovalResumeJobHandler(
 
                     case ToolApprovalResponseContent response
                         when string.Equals(response.RequestId, requestId, StringComparison.Ordinal):
-                        // Bu istek zaten yanitlanmis (ornegin ikinci bir
-                        // surdurme denemesi); tekrar yanitlanmaz.
+                        // This request is already answered, for example by a second
+                        // resume attempt, so it must not receive another response.
                         found = null;
                         break;
                 }
@@ -187,7 +183,7 @@ internal sealed class ApprovalResumeJobHandler(
             {
                 logger.LogWarning(
                     storeException,
-                    "Surdurulen calistirma Failed durumuna kapatilamadi: {RunId}.",
+                    "Could not change the resumed run to Failed: {RunId}.",
                     runId);
             }
         }
@@ -200,21 +196,21 @@ internal sealed class ApprovalResumeJobHandler(
             runIdElement.ValueKind != JsonValueKind.String ||
             !Guid.TryParse(runIdElement.GetString(), out var runId))
         {
-            throw new AgentPrismException("ApprovalResume isi yuku gecerli bir 'runId' alani tasimalidir.");
+            throw new AgentPrismException("The ApprovalResume job payload must contain a valid 'runId' field.");
         }
 
         if (!payload.TryGetProperty("approvalId", out var approvalIdElement) ||
             approvalIdElement.ValueKind != JsonValueKind.String ||
             !Guid.TryParse(approvalIdElement.GetString(), out var approvalId))
         {
-            throw new AgentPrismException("ApprovalResume isi yuku gecerli bir 'approvalId' alani tasimalidir.");
+            throw new AgentPrismException("The ApprovalResume job payload must contain a valid 'approvalId' field.");
         }
 
         if (!payload.TryGetProperty("agentName", out var agentNameElement) ||
             agentNameElement.ValueKind != JsonValueKind.String ||
             agentNameElement.GetString() is not { Length: > 0 } agentName)
         {
-            throw new AgentPrismException("ApprovalResume isi yuku gecerli bir 'agentName' alani tasimalidir.");
+            throw new AgentPrismException("The ApprovalResume job payload must contain a valid 'agentName' field.");
         }
 
         return (runId, approvalId, agentName);
