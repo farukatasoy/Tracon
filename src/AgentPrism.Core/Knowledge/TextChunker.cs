@@ -1,26 +1,26 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Metni sabit uzunlukta, ortusmeli parcalara boler.
+/// Splits text into fixed-length chunks with overlap.
 /// </summary>
 /// <remarks>
-/// Bilerek basittir: baslik/anlam tabanli akilli parcalama kutuphane sinirinin
-/// disindadir (bkz. <c>docs/51-VEKTOR-BELLEK-VE-RAG.md</c>, Acik Soru 4).
-/// Tuketici kendi parcalarini dogrudan gonderebilir.
+/// It is intentionally simple. Intelligent chunking based on headings or semantics
+/// is outside the library boundary. See <c>docs/51-VEKTOR-BELLEK-VE-RAG.md</c>, Open Question 4.
+/// Consumers can send their own chunks directly.
 /// </remarks>
 public static class TextChunker
 {
-    /// <summary>Metni ortusmeli parcalara boler.</summary>
-    /// <param name="text">Parcalanacak metin.</param>
-    /// <param name="chunkSize">Parca uzunlugu (karakter). Pozitif olmalidir.</param>
+    /// <summary>Splits text into chunks with overlap.</summary>
+    /// <param name="text">The text to split.</param>
+    /// <param name="chunkSize">The chunk length in characters. It must be positive.</param>
     /// <param name="chunkOverlap">
-    /// Ardisik parcalarin ortusme uzunlugu (karakter). <paramref name="chunkSize"/>'dan
-    /// kucuk olmalidir; aksi halde ilerleme durur.
+    /// The overlap length between consecutive chunks, in characters. It must be less
+    /// than <paramref name="chunkSize"/>; otherwise, the method cannot progress.
     /// </param>
-    /// <returns>Sirali parca metinleri. Bos metin icin bos liste.</returns>
+    /// <returns>The chunk text in order, or an empty list for empty text.</returns>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// <paramref name="chunkSize"/> sifir veya negatifse, ya da <paramref name="chunkOverlap"/>
-    /// negatifse veya <paramref name="chunkSize"/>'a esit/buyukse.
+    /// <paramref name="chunkSize"/> is zero or negative, or <paramref name="chunkOverlap"/>
+    /// is negative or greater than or equal to <paramref name="chunkSize"/>.
     /// </exception>
     public static IReadOnlyList<string> Split(string text, int chunkSize, int chunkOverlap)
     {

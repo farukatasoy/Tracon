@@ -1,32 +1,31 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Bir <see cref="CanaryPolicy"/>'yi kanarya ve kontrol kolunun guncel sonuclarina
-/// karsi degerlendiren SAF karar mantigi.
+/// Pure decision logic that evaluates a <see cref="CanaryPolicy"/> against the current
+/// results of the canary and control arms.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Veritabani veya model cagirmaz — <see cref="Evaluate"/> yalnizca zaten toplanmis
-/// <see cref="ExperimentVariantResult"/> verisi uzerinde calisir. Veri toplama
-/// <c>CanaryEvaluationService</c>'in isidir; bu ayrim <c>ExperimentAssignmentResolver.SelectVariant</c>
-/// ile ayni gerekcedir — testler DB olmadan calisir.
+/// It does not call a database or model. <see cref="Evaluate"/> operates only on
+/// already collected <see cref="ExperimentVariantResult"/> data. Data collection is
+/// the responsibility of <c>CanaryEvaluationService</c>. This separation has the same
+/// rationale as <c>ExperimentAssignmentResolver.SelectVariant</c>: tests run without a database.
 /// </para>
 /// <para>
-/// <c>public</c>'tir: <c>GET /api/experiments/{name}/canary</c>
-/// (<c>AgentPrism.AspNetCore</c>) "son degerlendirme"yi bu metotla CANLI hesaplar —
-/// <see cref="ExperimentAssignmentResolver"/>'in <c>public</c> olmasiyla AYNI gerekce.
+/// This class is <c>public</c> because <c>GET /api/experiments/{name}/canary</c> in
+/// <c>AgentPrism.AspNetCore</c> calculates the "latest evaluation" live with this
+/// method. This has the same rationale as public <see cref="ExperimentAssignmentResolver"/>.
 /// </para>
 /// </remarks>
 public static class CanaryEvaluator
 {
     /// <summary>
-    /// Kanarya politikasini kanarya ve kontrol kolunun guncel sonuclarina karsi
-    /// degerlendirir.
+    /// Evaluates the canary policy against the current results of the canary and control arms.
     /// </summary>
-    /// <param name="policy">Kanarya politikasi.</param>
-    /// <param name="results">Deneyin TUM kollarinin guncel sonuclari.</param>
-    /// <param name="now">Degerlendirme ani (UTC).</param>
-    /// <returns>Degerlendirme sonucu.</returns>
+    /// <param name="policy">The canary policy.</param>
+    /// <param name="results">The current results for all experiment arms.</param>
+    /// <param name="now">The evaluation time in UTC.</param>
+    /// <returns>The evaluation result.</returns>
     public static CanaryEvaluation Evaluate(CanaryPolicy policy, IReadOnlyList<ExperimentVariantResult> results, DateTimeOffset now)
     {
         ArgumentNullException.ThrowIfNull(policy);
@@ -42,8 +41,8 @@ public static class CanaryEvaluator
         {
             return Build(
                 CanaryDecisionKind.InsufficientData,
-                $"Asgari sonuclanmis calistirma sayisina ({policy.MinSampleSize}) ulasilmadi: " +
-                $"kanarya {canarySettled}, kontrol {controlSettled}.",
+                $"The minimum settled run count ({policy.MinSampleSize}) was not reached: " +
+                $"canary {canarySettled}, control {controlSettled}.",
                 canary,
                 control,
                 now);
@@ -57,7 +56,7 @@ public static class CanaryEvaluator
             {
                 return Build(
                     CanaryDecisionKind.RollBack,
-                    $"Kanarya hata orani ({canaryRate:P1}) kontrolden ({controlRate:P1}) {maxDelta:P1} esiginden fazla yuksek.",
+                    $"The canary error rate ({canaryRate:P1}) exceeds the control rate ({controlRate:P1}) by more than the {maxDelta:P1} threshold.",
                     canary,
                     control,
                     now);
@@ -68,13 +67,13 @@ public static class CanaryEvaluator
         {
             return Build(
                 CanaryDecisionKind.RollBack,
-                $"Kanarya ortalama puani ({averageScore:F1}) {minScore} esiginin altinda.",
+                $"The canary average score ({averageScore:F1}) is below the {minScore} threshold.",
                 canary,
                 control,
                 now);
         }
 
-        return Build(CanaryDecisionKind.Healthy, "Kanarya kontrolden esik kadar kotu degil.", canary, control, now);
+        return Build(CanaryDecisionKind.Healthy, "The canary is not worse than control by the threshold.", canary, control, now);
     }
 
     private static long SettledRuns(ExperimentVariantResult? result)

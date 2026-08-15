@@ -3,11 +3,11 @@ using System.Collections.Concurrent;
 namespace AgentPrism;
 
 /// <summary>
-/// A/B deneylerini surec bellegi icinde tutan depo.
+/// A store that keeps A/B experiments in process memory.
 /// </summary>
 /// <remarks>
-/// <see cref="InMemoryAgentDefinitionStore"/> ile ayni sinirlar gecerlidir: veriler
-/// surec omruyle sinirlidir. Uretimde <c>AgentPrism.PostgreSql</c> kullanin.
+/// The same limits as <see cref="InMemoryAgentDefinitionStore"/> apply. Data is
+/// limited to the process lifetime. Use <c>AgentPrism.PostgreSql</c> in production.
 /// </remarks>
 public sealed class InMemoryExperimentStore : IExperimentStore
 {
@@ -60,7 +60,7 @@ public sealed class InMemoryExperimentStore : IExperimentStore
         if (_experiments.TryGetValue(key, out var existing) && existing.Status != ExperimentStatus.Draft)
         {
             throw new AgentPrismException(
-                $"'{experiment.Name}' deneyi '{existing.Status}' durumunda; yalnizca Draft durumundaki deneyler duzenlenebilir.");
+                $"Experiment '{experiment.Name}' has status '{existing.Status}'; only Draft experiments can be edited.");
         }
 
         var saved = experiment with
@@ -85,7 +85,7 @@ public sealed class InMemoryExperimentStore : IExperimentStore
 
         if (_experiments.TryGetValue(key, out var existing) && existing.Status == ExperimentStatus.Running)
         {
-            throw new AgentPrismException($"'{name}' deneyi calisirken silinemez; once durdurulmalidir.");
+            throw new AgentPrismException($"Experiment '{name}' cannot be deleted while it is running; stop it first.");
         }
 
         return new ValueTask<bool>(_experiments.TryRemove(key, out _));
@@ -101,12 +101,12 @@ public sealed class InMemoryExperimentStore : IExperimentStore
 
         if (!_experiments.TryGetValue(key, out var experiment))
         {
-            throw new AgentPrismException($"'{name}' adinda bir deney bulunamadi.");
+            throw new AgentPrismException($"Experiment named '{name}' was not found.");
         }
 
         if (experiment.Status != ExperimentStatus.Draft)
         {
-            throw new AgentPrismException($"'{name}' deneyi '{experiment.Status}' durumunda; yalnizca Draft durumundan baslatilabilir.");
+            throw new AgentPrismException($"Experiment '{name}' has status '{experiment.Status}'; it can only start from Draft.");
         }
 
         var conflict = _experiments.Values.FirstOrDefault(other =>
@@ -117,7 +117,7 @@ public sealed class InMemoryExperimentStore : IExperimentStore
         if (conflict is not null)
         {
             throw new AgentPrismException(
-                $"'{experiment.AgentName}' agent'i icin '{conflict.Name}' deneyi zaten calisiyor. Ayni agent icin ayni anda tek deney calisabilir.");
+                $"Experiment '{conflict.Name}' is already running for agent '{experiment.AgentName}'. Only one experiment can run for an agent at a time.");
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -143,12 +143,12 @@ public sealed class InMemoryExperimentStore : IExperimentStore
 
         if (!_experiments.TryGetValue(key, out var experiment))
         {
-            throw new AgentPrismException($"'{name}' adinda bir deney bulunamadi.");
+            throw new AgentPrismException($"Experiment named '{name}' was not found.");
         }
 
         if (experiment.Status != ExperimentStatus.Running)
         {
-            throw new AgentPrismException($"'{name}' deneyi calismiyor.");
+            throw new AgentPrismException($"Experiment '{name}' is not running.");
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -188,7 +188,7 @@ public sealed class InMemoryExperimentStore : IExperimentStore
 
         if (!_experiments.TryGetValue(key, out var experiment))
         {
-            throw new AgentPrismException($"'{name}' adinda bir deney bulunamadi.");
+            throw new AgentPrismException($"Experiment named '{name}' was not found.");
         }
 
         var updated = experiment with
@@ -237,7 +237,7 @@ public sealed class InMemoryExperimentStore : IExperimentStore
 
         if (!_experiments.TryGetValue(key, out var experiment) || experiment.Status != ExperimentStatus.Running)
         {
-            throw new AgentPrismException($"'{name}' deneyi calismiyor.");
+            throw new AgentPrismException($"Experiment '{name}' is not running.");
         }
 
         var now = DateTimeOffset.UtcNow;
