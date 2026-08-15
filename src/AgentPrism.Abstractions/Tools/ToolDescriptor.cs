@@ -1,38 +1,39 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Kodda kayitli bir tool'un arayuze gosterilen tanimi. Arayuz agent editorunde
-/// bu listeden secim yaptirir; serbest metin girisi kabul etmez.
+/// The UI-facing definition of a tool registered in code. The agent editor
+/// shows a selection from this list; it does not accept free-text input.
 /// </summary>
 public sealed record ToolDescriptor
 {
-    /// <summary>Tool adi. Agent tanimlarinda bu ad kullanilir.</summary>
+    /// <summary>The tool name. Used in agent definitions.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Modelin tool'u ne zaman cagiracagini anlamasini saglayan aciklama.</summary>
+    /// <summary>The description that lets the model understand when to call the tool.</summary>
     public string? Description { get; init; }
 
-    /// <summary>Argumanlarin JSON semasi.</summary>
+    /// <summary>The arguments' JSON schema.</summary>
     public string? JsonSchema { get; init; }
 
     /// <summary>
-    /// Cagri oncesi acik onay gerekip gerekmedigi.
+    /// Whether explicit approval is required before the call.
     /// </summary>
     /// <remarks>
-    /// <see langword="true"/> ise derleyici tool'u
-    /// <c>ApprovalRequiredAIFunction</c> ile sarar; Microsoft Agent Framework
-    /// tool'u calistirmak yerine <c>ToolApprovalRequestContent</c> uretir ve
-    /// cagri kullanicinin onayini bekler.
+    /// If <see langword="true"/>, the compiler wraps the tool with
+    /// <c>ApprovalRequiredAIFunction</c>; Microsoft Agent Framework produces a
+    /// <c>ToolApprovalRequestContent</c> instead of running the tool, and the
+    /// call waits for the user's approval.
     /// </remarks>
     public bool RequiresApproval { get; init; }
 
     /// <summary>
-    /// Tool'un kaynagi. Kodda tanimli tool'larda <see langword="null"/>;
-    /// uzak bir MCP sunucusundan gelen tool'larda sunucu adi.
+    /// The tool's source. <see langword="null"/> for tools defined in code;
+    /// the server name for tools coming from a remote MCP server.
     /// </summary>
     /// <remarks>
-    /// Arayuz bu alani <em>ayri bir rozet</em> olarak gosterir: tool tanimi
-    /// kodda degil, uzak bir sunucuda yasar ve o sunucu tanimi degistirebilir.
+    /// The UI shows this field as a <em>separate badge</em>: the tool
+    /// definition lives not in code but on a remote server, and that server
+    /// may change the definition.
     /// </remarks>
     public string? Source { get; init; }
 }

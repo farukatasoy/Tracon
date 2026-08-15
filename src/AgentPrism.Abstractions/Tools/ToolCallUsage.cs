@@ -1,62 +1,63 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Tek bir tool cagrisinin token DISI olcumu ve maliyeti.
+/// A single tool call's non-token measurement and cost.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Faz 20'nin maliyet modeli token varsayar ve <c>runs</c> tablosuna yazar. Bir
-/// tool token harcamayabilir ama yine de ucret uretebilir: metinden ses uretimi
-/// <em>karakter</em>, sesten metin cevrimi <em>saniye</em> ile faturalanir.
-/// Bu olcumler token maliyetiyle <strong>toplanmaz</strong> — iki farkli birim
-/// toplanamaz. Raporlarda ayri kalem olarak gosterilir.
+/// Phase 20's cost model assumes tokens and writes to the <c>runs</c> table. A
+/// tool may spend no tokens but still incur a charge: text-to-speech is
+/// billed by <em>character</em>, speech-to-text by <em>second</em>. These
+/// measurements are <strong>not summed</strong> with token cost — two
+/// different units cannot be added. They are shown as a separate line item in reports.
 /// </para>
 /// <para>
-/// Olcumu tool'un kendisi bildirir: <c>AgentPrismToolUsage.Report(...)</c>.
-/// Gerekce: <c>docs/28-SES-TOOLLARI.md</c>, bolum 28.5.
+/// The measurement is reported by the tool itself:
+/// <c>AgentPrismToolUsage.Report(...)</c>. See
+/// <c>docs/28-SES-TOOLLARI.md</c>, section 28.5, for the rationale.
 /// </para>
 /// </remarks>
 public sealed record ToolCallUsage
 {
-    /// <summary>Olcum birimi. Bilinen degerler icin <see cref="ToolUsageUnits"/>.</summary>
+    /// <summary>The measurement unit. See <see cref="ToolUsageUnits"/> for known values.</summary>
     public required string Unit { get; init; }
 
-    /// <summary>Faturalanan miktar.</summary>
+    /// <summary>The billed quantity.</summary>
     public required decimal Quantity { get; init; }
 
     /// <summary>
-    /// Hesaplanan tutar. Yapilandirmada bu tool icin fiyat yoksa
-    /// <see langword="null"/> kalir — sifir <strong>degil</strong> (K-032).
+    /// The computed amount. Stays <see langword="null"/> if the
+    /// configuration has no price for this tool — <strong>not</strong> zero (K-032).
     /// </summary>
     public decimal? Cost { get; init; }
 
-    /// <summary>Para birimi. <c>AgentPrism:Pricing:Currency</c>'den gelir.</summary>
+    /// <summary>The currency. Comes from <c>AgentPrism:Pricing:Currency</c>.</summary>
     public string? Currency { get; init; }
 
     /// <summary>
-    /// Miktarin olculmus mu yoksa tahmin mi oldugu.
+    /// Whether the quantity was measured or estimated.
     /// </summary>
     /// <remarks>
-    /// Saglayici faturalanan miktari bildirmezse tool bir tahmin uretir
-    /// (ornegin metnin karakter sayisi). Tahmini olcum gibi gostermek fiyat
-    /// uydurmaktir; arayuz iki durumu ayirt ederek gosterir.
+    /// If the provider does not report the billed quantity, the tool produces
+    /// an estimate (for example, the text's character count). Showing an
+    /// estimate as a measurement fabricates a price; the UI distinguishes the two cases.
     /// </remarks>
     public bool IsEstimated { get; init; }
 }
 
 /// <summary>
-/// <see cref="ToolCallUsage.Unit"/> icin bilinen birim adlari.
+/// The known unit names for <see cref="ToolCallUsage.Unit"/>.
 /// </summary>
 /// <remarks>
-/// Liste kapali <strong>degildir</strong>: alan serbest metindir ve bir tool
-/// kendi birimini bildirebilir. Bu sabitler yalnizca AgentPrism'in kendi
-/// tool'larinin kullandigi adlari tek yerde tutar.
+/// The list is <strong>not</strong> closed: the field is free text, and a
+/// tool may report its own unit. These constants only keep the names
+/// AgentPrism's own tools use in one place.
 /// </remarks>
 public static class ToolUsageUnits
 {
-    /// <summary>Karakter. Metinden ses uretiminde kullanilir.</summary>
+    /// <summary>Characters. Used in text-to-speech generation.</summary>
     public const string Characters = "characters";
 
-    /// <summary>Saniye. Sesten metin cevriminde kullanilir.</summary>
+    /// <summary>Seconds. Used in speech-to-text conversion.</summary>
     public const string Seconds = "seconds";
 }

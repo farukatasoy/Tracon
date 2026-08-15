@@ -1,27 +1,27 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Bir metodu tool olarak isaretler. <c>AddToolsFrom&lt;T&gt;()</c> yalnizca bu
-/// oznitelige sahip metotlari kaydeder.
+/// Marks a method as a tool. <c>AddToolsFrom&lt;T&gt;()</c> registers only
+/// methods carrying this attribute.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Isaretleme <strong>acik tercihtir</strong>. Bir sinifa yeni bir public metot
-/// eklemek onu kendiliginden agent'lara acmaz. Bu, tasarim kurali K2'nin
-/// (tool'lar yalnizca kodda tanimlanir) dogal devamidir.
+/// Marking is an <strong>explicit choice</strong>. Adding a new public method
+/// to a class does not automatically expose it to agents. This is the
+/// natural continuation of design rule K2 (tools are defined only in code).
 /// </para>
 /// <para>
-/// Aciklama alani modelin tool'u <em>ne zaman</em> cagiracagini anlatir; bos
-/// birakilirsa model yalnizca ada ve parametre semasina bakar.
+/// The description field tells the model <em>when</em> to call the tool; if
+/// left empty, the model looks only at the name and parameter schema.
 /// </para>
 /// <example>
 /// <code>
 /// internal static class OrderTools
 /// {
-///     [AgentPrismTool("get_order_status", "Bir siparisin kargo durumunu dondurur.")]
+///     [AgentPrismTool("get_order_status", "Returns an order's shipping status.")]
 ///     public static string GetOrderStatus(string orderId) =&gt; ...;
 ///
-///     public static void Helper() { }   // tool olmaz
+///     public static void Helper() { }   // not a tool
 /// }
 /// </code>
 /// </example>
@@ -29,18 +29,18 @@ namespace AgentPrism;
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
 public sealed class AgentPrismToolAttribute : Attribute
 {
-    /// <summary>Metot adini tool adi olarak kullanan bir isaret olusturur.</summary>
+    /// <summary>Creates a mark that uses the method name as the tool name.</summary>
     public AgentPrismToolAttribute()
     {
     }
 
-    /// <summary>Tool adini acikca veren bir isaret olusturur.</summary>
-    /// <param name="name">Tool adi. Agent tanimlarinda bu ad kullanilir.</param>
+    /// <summary>Creates a mark with an explicit tool name.</summary>
+    /// <param name="name">The tool name. Used in agent definitions.</param>
     public AgentPrismToolAttribute(string name) => Name = name;
 
-    /// <summary>Ad ve aciklama veren bir isaret olusturur.</summary>
-    /// <param name="name">Tool adi. Agent tanimlarinda bu ad kullanilir.</param>
-    /// <param name="description">Modelin tool'u ne zaman cagiracagini anlatan aciklama.</param>
+    /// <summary>Creates a mark with a name and a description.</summary>
+    /// <param name="name">The tool name. Used in agent definitions.</param>
+    /// <param name="description">The description telling the model when to call the tool.</param>
     public AgentPrismToolAttribute(string name, string description)
     {
         Name = name;
@@ -48,23 +48,24 @@ public sealed class AgentPrismToolAttribute : Attribute
     }
 
     /// <summary>
-    /// Tool adi. <see langword="null"/> ise metot adi kullanilir.
+    /// The tool name. The method name is used if <see langword="null"/>.
     /// </summary>
     public string? Name { get; }
 
     /// <summary>
-    /// Modelin tool'u ne zaman cagiracagini anlatan aciklama.
+    /// The description telling the model when to call the tool.
     /// </summary>
     public string? Description { get; init; }
 
     /// <summary>
-    /// Cagri oncesi acik onay gerekip gerekmedigi.
+    /// Whether explicit approval is required before the call.
     /// </summary>
     /// <remarks>
-    /// Isaretli tool, defterde <c>ApprovalRequiredAIFunction</c> ile sarilir.
-    /// Microsoft Agent Framework tool'u calistirmak yerine bir onay istegi
-    /// uretir; cagri kullanicinin karari gelene kadar bekler. Geri alinamaz is
-    /// yapan tool'lari (iptal, silme, odeme) isaretleyin.
+    /// A marked tool is wrapped with <c>ApprovalRequiredAIFunction</c> in the
+    /// registry. Microsoft Agent Framework produces an approval request
+    /// instead of running the tool; the call waits until the user's decision
+    /// arrives. Mark tools that perform irreversible actions (cancellation,
+    /// deletion, payment) this way.
     /// </remarks>
     public bool RequiresApproval { get; init; }
 }
