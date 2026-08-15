@@ -5,23 +5,22 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Suresi dolmus bekleyen onay isteklerini araliklarla <see cref="ApprovalStatus.Expired"/>
-/// olarak kapatan ve karsilik gelen calistirmalari <see cref="RunStatus.Failed"/>'e
-/// dusuren arka plan servisi (Faz 55).
+/// A background service that periodically closes expired pending approval requests with
+/// <see cref="ApprovalStatus.Expired"/> status and changes their runs to <see cref="RunStatus.Failed"/>
+/// (Phase 55).
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="RunReconciliationService"/> ile AYNI desen: <see cref="AgentPrismApprovalOptions.ExpirationEnabled"/>
-/// acikken kume genelinde yalniz BIR ornek tarama yapar (<see cref="SingletonGuard"/>,
-/// Faz 42'nin ayni deseni).
+/// Uses the same pattern as <see cref="RunReconciliationService"/>. When
+/// <see cref="AgentPrismApprovalOptions.ExpirationEnabled"/> is enabled, only one instance
+/// scans across the cluster. It uses <see cref="SingletonGuard"/>, the Phase 42 pattern.
 /// </para>
 /// <para>
-/// 🚨 Kapatilan her istek icin karsilik gelen <c>runs</c> satiri da
-/// <see cref="RunStatus.Failed"/>'e kapatilir: aksi halde istemci
-/// <c>GET /api/runs/{id}</c> ile sonsuza dek <see cref="RunStatus.AwaitingApproval"/>
-/// gorurdu. <c>IRunStore.CompleteRunAsync</c>'in onceki durumu denetlemeyen
-/// UPSERT olmayan davranisi buna izin verir (K-355 yalniz BEKLENEN kiraciyi
-/// dogrular, onceki durumu degil).
+/// For every closed request, this service also changes its <c>runs</c> row to
+/// <see cref="RunStatus.Failed"/>. Otherwise, a client could see
+/// <see cref="RunStatus.AwaitingApproval"/> forever through <c>GET /api/runs/{id}</c>.
+/// The non-UPsert behavior of <c>IRunStore.CompleteRunAsync</c>, which does not check the
+/// previous status, permits this. K-355 only validates the expected tenant, not the previous status.
 /// </para>
 /// </remarks>
 internal sealed class ApprovalExpirationService(
@@ -44,7 +43,7 @@ internal sealed class ApprovalExpirationService(
             return;
         }
 
-        // 🚨 Ilk SQL denemesinden ONCE semanin hazir olmasini bekle (K-354).
+        // Wait for the schema to become ready before the first SQL attempt (K-354).
         try
         {
             await schemaReadyGate.WaitAsync(stoppingToken).ConfigureAwait(false);
@@ -71,7 +70,7 @@ internal sealed class ApprovalExpirationService(
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
-            // Normal kapanma.
+            // Normal shutdown.
         }
         finally
         {
@@ -95,15 +94,15 @@ internal sealed class ApprovalExpirationService(
 
             if (expired.Count > 0 && logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
-                logger.LogWarning("{Count} onay istegi suresi dolarak kapatildi.", expired.Count);
+                logger.LogWarning("{Count} approval requests expired and were closed.", expired.Count);
             }
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            // Tarama asla oldurmemeli: bir hata sonraki turda yeniden denenir.
+            // A scan must not terminate the service. The next cycle retries after an error.
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
-                logger.LogWarning(exception, "Onay sure sonu taramasi basarisiz oldu.");
+                logger.LogWarning(exception, "The approval expiration scan failed.");
             }
         }
     }
@@ -121,8 +120,8 @@ internal sealed class ApprovalExpirationService(
                     Error = new RunError
                     {
                         Type = "ApprovalExpired",
-                        Message = $"'{approval.ToolName}' tool'u icin onay istegi " +
-                                  $"{approval.ExpiresAt:O} tarihinde suresi dolarak kapatildi.",
+                        Message = $"The approval request for tool '{approval.ToolName}' expired at " +
+                                  $"{approval.ExpiresAt:O}.",
                     },
                     TenantId = approval.TenantId,
                 },
@@ -134,7 +133,7 @@ internal sealed class ApprovalExpirationService(
             {
                 logger.LogWarning(
                     exception,
-                    "Suresi dolan onay istegine ait calistirma Failed'e kapatilamadi: {RunId}.",
+                    "Could not change the run for an expired approval request to Failed: {RunId}.",
                     approval.RunId);
             }
         }

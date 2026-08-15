@@ -7,21 +7,21 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Kalici onay kurallarini bir tool cagrisina uygular.
+/// Applies persistent approval rules to a tool call.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Microsoft Agent Framework'un <c>ToolApprovalAgentOptions.AutoApprovalRules</c>
-/// yapisina baglanir. Kural eslesirse cagri kullaniciya sorulmadan calisir.
+/// Integrates with Microsoft Agent Framework's <c>ToolApprovalAgentOptions.AutoApprovalRules</c>
+/// API. When a rule matches, the call runs without asking the user.
 /// </para>
 /// <para>
-/// <strong>Kiraci sinirini bu sinif korur.</strong> Kurallar her zaman
-/// <see cref="ITenantContext.TenantId"/> ile okunur; bir kiracinin verdigi
-/// onay baska bir kiracinin cagrisini calistiramaz.
+/// <strong>This class protects the tenant boundary.</strong> It always reads rules
+/// with <see cref="ITenantContext.TenantId"/>. An approval from one tenant cannot
+/// run a call for another tenant.
 /// </para>
 /// <para>
-/// <strong>Depo hatasi onay vermez.</strong> Kural okunamazsa cagri
-/// otomatik onay almaz ve kullaniciya sorulur. Guvenli taraf budur.
+/// <strong>A store error does not grant approval.</strong> If a rule cannot be read,
+/// the call is not automatically approved and the system asks the user. This is the safe default.
 /// </para>
 /// </remarks>
 public sealed class ToolApprovalRuleEvaluator
@@ -30,11 +30,11 @@ public sealed class ToolApprovalRuleEvaluator
     private readonly ITenantContext _tenantContext;
     private readonly ILogger<ToolApprovalRuleEvaluator> _logger;
 
-    /// <summary>Yeni bir degerlendirici olusturur.</summary>
-    /// <param name="rules">Kural deposu.</param>
-    /// <param name="tenantContext">Kiraci baglami.</param>
-    /// <param name="logger">Gunlukleyici.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Initializes a new evaluator.</summary>
+    /// <param name="rules">The rule store.</param>
+    /// <param name="tenantContext">The tenant context.</param>
+    /// <param name="logger">The logger.</param>
+    /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
     public ToolApprovalRuleEvaluator(
         IToolApprovalRuleStore rules,
         ITenantContext tenantContext,
@@ -50,13 +50,12 @@ public sealed class ToolApprovalRuleEvaluator
     }
 
     /// <summary>
-    /// Bir tool cagrisinin kalici bir kuralla otomatik onaylanip
-    /// onaylanmadigini soyler.
+    /// Determines whether a persistent rule automatically approves a tool call.
     /// </summary>
-    /// <param name="agentName">Cagriyi yapan agent.</param>
-    /// <param name="call">Tool cagrisi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Cagri otomatik onayliysa <see langword="true"/>.</returns>
+    /// <param name="agentName">The agent that makes the call.</param>
+    /// <param name="call">The tool call.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> if the call is automatically approved.</returns>
     public async ValueTask<bool> IsAutoApprovedAsync(
         string agentName,
         FunctionCallContent call,
@@ -76,7 +75,7 @@ public sealed class ToolApprovalRuleEvaluator
         {
             _logger.LogWarning(
                 ex,
-                "Onay kurallari okunamadi; '{ToolName}' cagrisi icin onay sorulacak.",
+                "Could not read approval rules; the call to '{ToolName}' will require approval.",
                 call.Name);
 
             return false;
@@ -96,7 +95,7 @@ public sealed class ToolApprovalRuleEvaluator
                 continue;
             }
 
-            // AgentName bos ise kural kiracinin tum agent'larini kapsar.
+            // If AgentName is empty, the rule applies to every agent in the tenant.
             if (rule.AgentName is { } scoped && !string.Equals(scoped, agentName, StringComparison.Ordinal))
             {
                 continue;
@@ -119,19 +118,18 @@ public sealed class ToolApprovalRuleEvaluator
     }
 
     /// <summary>
-    /// Tool argumanlarindan kararli bir parmak izi uretir.
+    /// Produces a deterministic fingerprint from tool arguments.
     /// </summary>
-    /// <param name="arguments">Cagri argumanlari.</param>
-    /// <returns>Onaltilik parmak izi. Arguman yoksa bos dize.</returns>
+    /// <param name="arguments">The call arguments.</param>
+    /// <returns>The hexadecimal fingerprint, or an empty string when there are no arguments.</returns>
     /// <remarks>
     /// <para>
-    /// Anahtarlar siralanir: sozluk sirasi calistirmalar arasinda degisebilir ve
-    /// ayni cagri farkli parmak izi uretirse "bir daha sorma" kurali hicbir zaman
-    /// eslesmezdi.
+    /// Keys are sorted. Dictionary order can change between runs, and a different
+    /// fingerprint for the same call would prevent a "do not ask again" rule from matching.
     /// </para>
     /// <para>
-    /// JSON serilestirme <em>kullanilmaz</em>: yansimaya dayanan serilestirme
-    /// <c>IL2026</c> uretir ve <c>AgentPrism.Core</c> AOT uyumlu isaretlidir.
+    /// This method does <em>not</em> use JSON serialization. Reflection-based serialization
+    /// produces <c>IL2026</c>, and <c>AgentPrism.Core</c> is marked as AOT-compatible.
     /// </para>
     /// </remarks>
     public static string ComputeArgumentsHash(IDictionary<string, object?>? arguments)
@@ -148,8 +146,8 @@ public sealed class ToolApprovalRuleEvaluator
             builder.Append(pair.Key)
                 .Append('=')
                 .Append(Convert.ToString(pair.Value, CultureInfo.InvariantCulture))
-                // Ayrac birim ayirici (U+001F): metin degerlerde gecmez, boylece
-                // farkli sozlukler ayni parmak izini uretemez.
+                // The separator is the unit separator (U+001F). It is not present in text
+                // values, so different dictionaries cannot produce the same fingerprint.
                 .Append('\u001F');
         }
 
