@@ -1,23 +1,23 @@
 namespace AgentPrism.Generators;
 
-/// <summary>Bir parametrenin baglama sekli.</summary>
+/// <summary>The binding shape of a parameter.</summary>
 internal enum ParameterShape
 {
-    /// <summary>Tek bir deger (JSON argumanindan cevrilir).</summary>
+    /// <summary>One value converted from a JSON argument.</summary>
     Scalar,
 
-    /// <summary>Bir dizi/liste (her eleman ayni yaprak tipe cevrilir).</summary>
+    /// <summary>An array or list whose elements convert to the same leaf type.</summary>
     Array,
 
-    /// <summary><see cref="System.Threading.CancellationToken"/> - semadan haric tutulur.</summary>
+    /// <summary><see cref="System.Threading.CancellationToken"/>, omitted from the schema.</summary>
     CancellationToken,
 }
 
 /// <summary>
-/// Bir parametrenin (veya dizi parametrenin elemaninin) yaprak CLR tipi.
-/// JSON semasi ve donusturucu ifade bu bilgiden turetilir (52.5 - uretilen kod
-/// yalnizca bu alanlarin bir fonksiyonu olmalidir; ayri bir "donusturucu metin"
-/// alani TUTULMAZ, cunku iki temsil birbirinden sapabilir).
+/// The leaf CLR type of a parameter or an array parameter element. JSON schema and
+/// converter expression derive from this information. Under 52.5, generated code
+/// must only be a function of these fields. It does not retain a separate converter
+/// text field because the two representations could diverge.
 /// </summary>
 internal sealed record LeafType(LeafTypeKind Kind, string ClrTypeDisplay, bool IsNullable, EquatableArray<string> EnumMemberNames)
 {
@@ -28,7 +28,7 @@ internal sealed record LeafType(LeafTypeKind Kind, string ClrTypeDisplay, bool I
         => new(LeafTypeKind.Enum, clrTypeDisplay, isNullable, memberNames);
 }
 
-/// <summary>Desteklenen yaprak tip ailesi.</summary>
+/// <summary>A supported leaf type family.</summary>
 internal enum LeafTypeKind
 {
     Boolean,
@@ -41,14 +41,13 @@ internal enum LeafTypeKind
     Enum,
 }
 
-/// <summary>Tek bir metot parametresinin uretec modeli.</summary>
+/// <summary>The generator model for one method parameter.</summary>
 /// <param name="IsConcreteArray">
-/// <see cref="ParameterShape.Array"/> icin: parametrenin C# tipi cıplak bir dizi
-/// (<c>T[]</c>) mi, yoksa <c>IReadOnlyList&lt;T&gt;</c> gibi bir arayuz mu.
-/// Calisma zamani yardimcisi (<c>AgentPrismGeneratedToolArguments.GetArray</c>)
-/// her zaman <c>IReadOnlyList&lt;T&gt;</c> doner; hedef <c>T[]</c> ise
-/// <c>SourceWriter</c> bu alana bakarak bir <c>.ToArray()</c> donusumu ekler
-/// (aksi halde CS1503).
+/// For <see cref="ParameterShape.Array"/>, identifies whether the C# parameter type
+/// is a bare array, <c>T[]</c>, or an interface such as <c>IReadOnlyList&lt;T&gt;</c>.
+/// The run-time helper, <c>AgentPrismGeneratedToolArguments.GetArray</c>, always
+/// returns <c>IReadOnlyList&lt;T&gt;</c>. When the target is <c>T[]</c>, <c>SourceWriter</c>
+/// uses this field to add <c>.ToArray()</c>; otherwise, compilation fails with CS1503.
 /// </param>
 internal sealed record ParameterModel(
     string Name,

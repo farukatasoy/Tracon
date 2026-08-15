@@ -1,14 +1,13 @@
 namespace AgentPrism.Generators;
 
-/// <summary>Tool adi kurallarini dogrular (APG0002).</summary>
+/// <summary>Validates tool name rules (APG0002).</summary>
 internal static class ToolNameValidator
 {
     private const int MaxLength = 64;
 
     /// <summary>
-    /// Bir tool adinin gecerli olup olmadigini denetler. Kural OpenAI fonksiyon
-    /// cagrisi semasiyla ayni: 1-64 karakter, yalnizca harf, rakam, alt cizgi
-    /// veya tire.
+    /// Determines whether a tool name is valid. The rule matches the OpenAI function
+    /// call schema: one to 64 characters, with only letters, digits, underscore, or hyphen.
     /// </summary>
     public static bool IsValid(string name)
     {

@@ -181,13 +181,9 @@ src/AgentPrism.Core/Webhooks/WebhookSocketGuard.cs|17
 src/AgentPrism.Core/Webhooks/WebhookUrlValidator.cs|39
 src/AgentPrism.Core/Workflows/WorkflowDefinitionValidator.cs|19
 src/AgentPrism.Generators/AgentPrism.Generators.csproj|5
-src/AgentPrism.Generators/EquatableArray.cs|5
-src/AgentPrism.Generators/ParameterModel.cs|11
-src/AgentPrism.Generators/ParameterTypeValidator.cs|8
 src/AgentPrism.Generators/SourceLocation.cs|5
 src/AgentPrism.Generators/SourceWriter.cs|16
 src/AgentPrism.Generators/ToolCandidate.cs|9
-src/AgentPrism.Generators/ToolNameValidator.cs|4
 src/AgentPrism.Generators/ToolRegistrationGenerator.cs|6
 src/AgentPrism.Google/AgentPrism.Google.csproj|7
 src/AgentPrism.Google/GoogleChatClientFactory.cs|34
