@@ -5,22 +5,21 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Bu surecte suren calistirmalarin "hala buradayim" isaretini araliklarla
-/// topluca yazan arka plan servisi (Faz 54).
+/// A background service that periodically writes a "still here" marker in bulk
+/// for runs that are active in this process (Phase 54).
 /// </summary>
 /// <remarks>
 /// <para>
-/// Calistirma basina degil, TUR basina bir sorgu atar:
-/// <see cref="IRunCancellationRegistry.ActiveRunIds"/>'in o anki goruntusunu
-/// alir ve <see cref="IRunStore.TouchHeartbeatAsync"/>'i BIR kez cagirir. Bu,
-/// N suren calistirma icin N ayri yazma yerine sicak yola hicbir sey
-/// eklemeyen tek bir toplu isaretlemedir (bkz.
-/// <c>docs/54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md</c>, Acik Soru 1).
+/// It sends one query per cycle, not per run. It takes the current snapshot of
+/// <see cref="IRunCancellationRegistry.ActiveRunIds"/> and calls
+/// <see cref="IRunStore.TouchHeartbeatAsync"/> once. For N active runs, this is a
+/// single bulk marker that adds nothing to the hot path instead of N writes. See
+/// <c>docs/54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md</c>, Open Question 1.
 /// </para>
 /// <para>
-/// <see cref="RunReconciliationOptions.Enabled"/> <see langword="false"/>
-/// (varsayilan) iken hicbir isaret yazilmaz -- uzlastirici zaten calismiyorsa
-/// isaret tutmanin bir anlami yoktur (K1).
+/// When <see cref="RunReconciliationOptions.Enabled"/> is <see langword="false"/>
+/// by default, no marker is written. There is no value
+/// in maintaining a marker when the reconciler is not running (K1).
 /// </para>
 /// </remarks>
 internal sealed class RunHeartbeatWriter(
@@ -43,7 +42,7 @@ internal sealed class RunHeartbeatWriter(
             return;
         }
 
-        // 🚨 Ilk SQL denemesinden ONCE semanin hazir olmasini bekle (K-354).
+        // Wait for the schema to become ready before the first SQL attempt (K-354).
         try
         {
             await schemaReadyGate.WaitAsync(stoppingToken).ConfigureAwait(false);
@@ -64,7 +63,7 @@ internal sealed class RunHeartbeatWriter(
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
-            // Normal kapanma.
+            // Normal shutdown.
         }
     }
 
@@ -83,12 +82,11 @@ internal sealed class RunHeartbeatWriter(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            // Gozlemlenebilirlik islevselligi bozmaz: bir turun basarisiz
-            // olmasi suren calistirmalari etkilemez, bir sonraki turda
-            // yeniden denenir.
+            // Observability does not break functionality. A failed cycle does not
+            // affect active runs and the next cycle retries.
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
-                logger.LogWarning(exception, "Calistirma heartbeat turu basarisiz oldu.");
+                logger.LogWarning(exception, "The run heartbeat cycle failed.");
             }
         }
     }

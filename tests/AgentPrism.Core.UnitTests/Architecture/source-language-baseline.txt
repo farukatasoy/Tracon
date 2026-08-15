@@ -151,7 +151,6 @@ src/AgentPrism.Core/Quotas/QuotaUsageObserver.cs|41
 src/AgentPrism.Core/Recording/AgentPrismRunContext.cs|41
 src/AgentPrism.Core/Recording/RunCostRecalculationService.cs|16
 src/AgentPrism.Core/Recording/RunEventWriter.cs|66
-src/AgentPrism.Core/Recording/RunHeartbeatWriter.cs|13
 src/AgentPrism.Core/Recording/RunReconciliationService.cs|16
 src/AgentPrism.Core/Recording/RunRecordingAgentDecorator.cs|19
 src/AgentPrism.Core/Recording/ToolInvocationTracker.cs|31
@@ -170,9 +169,7 @@ src/AgentPrism.Core/Sessions/AgentSessionIdentity.cs|14
 src/AgentPrism.Core/Sessions/AgentSessionManager.cs|62
 src/AgentPrism.Core/Sessions/ConversationBranchService.cs|34
 src/AgentPrism.Core/Skills/AgentPrismSkillScriptBuilderExtensions.cs|14
-src/AgentPrism.Core/Skills/AgentPrismSkillsSource.cs|13
 src/AgentPrism.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs|56
-src/AgentPrism.Core/Skills/Scripts/SkillScriptArgumentValidator.cs|13
 src/AgentPrism.Core/Skills/Scripts/SkillScriptProcessRunner.cs|16
 src/AgentPrism.Core/Skills/Scripts/SkillScriptSupport.cs|25
 src/AgentPrism.Core/Storage/InMemoryRunStore.cs|98
