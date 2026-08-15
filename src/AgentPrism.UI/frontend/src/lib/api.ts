@@ -309,13 +309,13 @@ export const api = {
       { method: 'DELETE' },
     ),
   /**
-   * Manually judges a run, bypassing sampling (Faz 49). Meant for calibration
+   * Manually judges a run, bypassing sampling (Phase 49). Meant for calibration
    * and debugging — the response is the score(s) written, one per registered
    * `IRunJudge`; an empty array means no judge is configured.
    */
   judgeRun: (id: string) =>
     request<RunScore[]>(`api/runs/${encodeURIComponent(id)}/judge`, { method: 'POST' }),
-  /** Rolling-window summary of judge scores (Faz 49). */
+  /** Rolling-window summary of judge scores (Phase 49). */
   onlineEvaluationSummary: () => request<OnlineEvaluationSummary>('api/evaluation/online'),
 
   /**
