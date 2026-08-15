@@ -10,10 +10,6 @@ samples/AgentPrism.Api/Program.cs|248
 samples/AgentPrism.Api/appsettings.json|29
 samples/Directory.Build.props|1
 src/AgentPrism.Abstractions/README.md|4
-src/AgentPrism.Abstractions/Scheduling/AgentPrismSchedulingOptions.cs|10
-src/AgentPrism.Abstractions/Scheduling/IJobHandler.cs|16
-src/AgentPrism.Abstractions/Scheduling/IJobScheduleStore.cs|29
-src/AgentPrism.Abstractions/Scheduling/IJobStore.cs|62
 src/AgentPrism.Abstractions/Scheduling/JobItemRecord.cs|5
 src/AgentPrism.Abstractions/Scheduling/JobItemStatus.cs|4
 src/AgentPrism.Abstractions/Scheduling/JobKind.cs|26
