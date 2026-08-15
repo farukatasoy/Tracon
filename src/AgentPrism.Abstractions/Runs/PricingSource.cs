@@ -2,24 +2,24 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>Bir calistirma maliyetinin fiyati nereden aldigini bildirir.</summary>
+/// <summary>Reports where a run's cost pricing came from.</summary>
 /// <remarks>
-/// JSON'da <strong>ad olarak</strong> yazilir; veritabaninda <c>smallint</c>
-/// olarak saklanir. Deger sirasi degistirilemez (bkz. <c>runs.pricing_source</c>).
+/// Written <strong>as a name</strong> in JSON; stored as <c>smallint</c> in
+/// the database. The value order must not change (see <c>runs.pricing_source</c>).
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<PricingSource>))]
 public enum PricingSource
 {
-    /// <summary>Fiyat model kataloğundan (<see cref="ModelDescriptor"/>) geldi.</summary>
+    /// <summary>The price came from the model catalog (<see cref="ModelDescriptor"/>).</summary>
     Catalog = 0,
 
-    /// <summary>Fiyat <c>AgentPrism:Pricing</c> yapilandirmasindan geldi.</summary>
+    /// <summary>The price came from the <c>AgentPrism:Pricing</c> configuration.</summary>
     Configuration = 1,
 
     /// <summary>
-    /// Fiyat hicbir kaynakta tanimli degil. Maliyet alanlari bu durumda
-    /// <see langword="null"/>'dur — <strong>sifir degil</strong>: sifir, modelin
-    /// bedava oldugu anlamina gelirdi.
+    /// The price is not defined in any source. The cost fields are
+    /// <see langword="null"/> in this case — <strong>not zero</strong>: zero
+    /// would mean the model is free.
     /// </summary>
     Unknown = 2,
 }

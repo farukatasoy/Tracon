@@ -1,25 +1,27 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Bir model+kullanim ciftinden maliyet hesaplar. Fiyat sirasi: model
-/// katalogu, sonra <c>AgentPrism:Pricing</c> yapilandirmasi (K-032).
+/// Computes the cost from a model+usage pair. Pricing order: the model
+/// catalog, then the <c>AgentPrism:Pricing</c> configuration (K-032).
 /// </summary>
 public interface IRunPricingResolver
 {
-    /// <summary>Maliyeti coz.</summary>
+    /// <summary>Resolves the cost.</summary>
     /// <param name="provider">
-    /// Saglayici adi. <see langword="null"/> ise (ornek: gecmis bir satirin
-    /// yeniden hesaplanmasi) fiyat yalniz model adiyla, saglayicilar arasinda
-    /// ilk eslesen ile cozulur.
+    /// The provider name. If <see langword="null"/> (example: recomputing a
+    /// historical row), the price is resolved by model name alone, using the
+    /// first match across providers.
     /// </param>
-    /// <param name="model">Model adi. <see langword="null"/> veya bossa maliyet uygulanmaz.</param>
-    /// <param name="usage">Token kullanimi. <see langword="null"/> ise maliyet uygulanmaz.</param>
+    /// <param name="model">The model name. Cost does not apply if <see langword="null"/> or empty.</param>
+    /// <param name="usage">The token usage. Cost does not apply if <see langword="null"/>.</param>
     /// <returns>
-    /// <see langword="null"/> yalniz <paramref name="model"/> veya <paramref name="usage"/>
-    /// yoksa (fiyatin hic uygulanamayacagi durum — ornegin model baglanmamis bir kod agent'i).
-    /// Model biliniyorsa fiyat tanimsiz da olsa <see cref="RunCost"/> her zaman doner;
-    /// bu durumda <see cref="RunCost.Source"/> <see cref="PricingSource.Unknown"/>'dir ve
-    /// maliyet alanlari <see langword="null"/>'dur — <strong>sifir degil</strong>.
+    /// <see langword="null"/> only if <paramref name="model"/> or
+    /// <paramref name="usage"/> is missing (a case where cost can never apply
+    /// — for example, a code agent with no bound model). When the model is
+    /// known, a <see cref="RunCost"/> is always returned even if pricing is
+    /// undefined; in that case <see cref="RunCost.Source"/> is
+    /// <see cref="PricingSource.Unknown"/> and the cost fields are
+    /// <see langword="null"/> — <strong>not zero</strong>.
     /// </returns>
     RunCost? Resolve(string? provider, string? model, RunUsage? usage);
 }

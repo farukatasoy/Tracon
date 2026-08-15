@@ -1,43 +1,44 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Calistirma ve mesaj puanlarinin (<see cref="RunScore"/>) deposu.
+/// The store for run and message scores (<see cref="RunScore"/>).
 /// </summary>
 /// <remarks>
-/// <see cref="IRunStore"/>'a metot olarak eklenmez: bir puan farkli bir yasam
-/// dongusu izler (seyrek yazilir, <see cref="IRunStore"/> her calistirmada
-/// yazilan sicak yoldadir) ve ayri bir arayuz her genisleme noktasinin
-/// degistirilebilir olmasi kuraliyla (K4) daha iyi ortusur.
+/// Not added as a member to <see cref="IRunStore"/>: a score follows a
+/// different lifecycle (written rarely, whereas <see cref="IRunStore"/> is on
+/// the hot path written on every run), and a separate interface fits better
+/// with the rule that every extension point must be replaceable (K4).
 /// </remarks>
 public interface IRunScoreStore
 {
-    /// <summary>Bir puani ekler veya gunceller.</summary>
-    /// <param name="score">Puan. <see cref="RunScore.Id"/> bos ise (<see cref="Guid.Empty"/>) yeni bir kimlik uretilir.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Yazilan puan.</returns>
+    /// <summary>Adds or updates a score.</summary>
+    /// <param name="score">The score. If <see cref="RunScore.Id"/> is empty (<see cref="Guid.Empty"/>), a new identifier is generated.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The score written.</returns>
     /// <remarks>
-    /// Ayni yazar (<see cref="RunScore.Author"/>) ayni hedefi (calistirma veya
-    /// mesaj) ikinci kez puanladiginda satir <strong>guncellenir</strong>, yeni
-    /// satir acilmaz. <see cref="RunScore.Author"/> bos ise bu kural
-    /// uygulanmaz; her cagri yeni bir satir yazar.
+    /// When the same author (<see cref="RunScore.Author"/>) scores the same
+    /// target (a run or a message) a second time, the row is
+    /// <strong>updated</strong>, not opened as a new row. If
+    /// <see cref="RunScore.Author"/> is empty, this rule does not apply; every
+    /// call writes a new row.
     /// </remarks>
     ValueTask<RunScore> UpsertAsync(RunScore score, CancellationToken cancellationToken = default);
 
-    /// <summary>Bir calistirmanin tum puanlarini listeler.</summary>
-    /// <param name="tenantId">Kiraci.</param>
-    /// <param name="runId">Calistirma kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Puanlar. Sira garantisi yoktur.</returns>
+    /// <summary>Lists all of a run's scores.</summary>
+    /// <param name="tenantId">The tenant.</param>
+    /// <param name="runId">The run identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The scores. No order is guaranteed.</returns>
     ValueTask<IReadOnlyList<RunScore>> ListAsync(
         string tenantId,
         Guid runId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Bir puani siler.</summary>
-    /// <param name="tenantId">Kiraci.</param>
-    /// <param name="scoreId">Puan kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Silindiyse <see langword="true"/>; boyle bir puan yoksa <see langword="false"/>.</returns>
+    /// <summary>Deletes a score.</summary>
+    /// <param name="tenantId">The tenant.</param>
+    /// <param name="scoreId">The score identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> if deleted; <see langword="false"/> if no such score exists.</returns>
     ValueTask<bool> DeleteAsync(
         string tenantId,
         Guid scoreId,
