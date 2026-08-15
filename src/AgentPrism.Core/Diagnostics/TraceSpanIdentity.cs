@@ -4,32 +4,32 @@ using System.Text;
 namespace AgentPrism;
 
 /// <summary>
-/// W3C trace/span kimliklerinden kararli veritabani kimlikleri turetir.
+/// Derives deterministic database identifiers from W3C trace and span identifiers.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Neden turetiyoruz?</strong> Bir span tamamlandiginda ebeveyni henuz
-/// tamamlanmamis olabilir; sirasiz gelen span'leri bir haritayla eslestirmek
-/// hem durum tasimayi hem de ebeveyni bekleme mantigini gerektirirdi. Turetilmis
-/// kimlikte ebeveynin kimligi <em>hesaplanabilir</em>: haritaya gerek yoktur.
+/// <strong>Why derive identifiers?</strong> A parent can still be incomplete when a
+/// span completes. Matching unordered spans with a map would need state and parent
+/// waiting logic. With a derived identifier, the parent identifier is <em>computable</em>,
+/// so no map is needed.
 /// </para>
 /// <para>
-/// Ek fayda: ayni span iki kez yazilirsa ayni kimlik uretilir, boylece yazma
-/// islemi fikirsel olarak idempotent kalir.
+/// An additional benefit is that writing the same span twice produces the same identifier,
+/// making the write operation conceptually idempotent.
 /// </para>
 /// <para>
-/// SHA-256 kriptografik amacla degil, <em>carpismasiz dagitim</em> icin
-/// kullanilir. Girdi zaten rastgele 24 bayttir; kisaltma pratikte carpismaz.
+/// SHA-256 is used for <em>collision-free distribution</em>, not cryptography. The
+/// input is already 24 random bytes, so truncation does not collide in practice.
 /// </para>
 /// </remarks>
 internal static class TraceSpanIdentity
 {
     /// <summary>
-    /// Bir span'in veritabani kimligini uretir.
+    /// Produces the database identifier for a span.
     /// </summary>
-    /// <param name="traceId">W3C trace kimligi (32 karakterlik onaltilik).</param>
-    /// <param name="spanId">W3C span kimligi (16 karakterlik onaltilik).</param>
-    /// <returns>Kararli kimlik.</returns>
+    /// <param name="traceId">The W3C trace identifier, with 32 hexadecimal characters.</param>
+    /// <param name="spanId">The W3C span identifier, with 16 hexadecimal characters.</param>
+    /// <returns>The deterministic identifier.</returns>
     public static Guid ForSpan(string traceId, string spanId)
     {
         var length = Encoding.UTF8.GetByteCount(traceId) + 1 + Encoding.UTF8.GetByteCount(spanId);
