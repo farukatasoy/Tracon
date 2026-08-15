@@ -1,120 +1,121 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Calistirma istatistigi sorgusunun filtresi.
+/// The filter for a run statistics query.
 /// </summary>
 /// <remarks>
-/// Sayfalama yoktur: sonuc her zaman tek bir ozet satiridir. Hacmi sinirlamak
-/// icin <see cref="StartedAfter"/> kullanilir.
+/// There is no pagination: the result is always a single summary row. Use
+/// <see cref="StartedAfter"/> to limit the volume.
 /// </remarks>
 public sealed record RunStatisticsQuery
 {
-    /// <summary>Yalnizca bu agent'in calistirmalari sayilsin.</summary>
+    /// <summary>Count only this agent's runs.</summary>
     public string? AgentName { get; init; }
 
-    /// <summary>Kiraci filtresi. Bos birakilirsa gecerli kiraci kullanilir.</summary>
+    /// <summary>The tenant filter. The current tenant is used if left empty.</summary>
     public string? TenantId { get; init; }
 
-    /// <summary>Yalnizca bu andan sonra baslayan calistirmalar sayilsin.</summary>
+    /// <summary>Count only runs that started after this moment.</summary>
     public DateTimeOffset? StartedAfter { get; init; }
 
     /// <summary>
-    /// Agent kirilimida en cok kac satir dondurulecegi. Calistirma sayisi en
-    /// yuksek olan agent'lar oncelikli doner.
+    /// The maximum number of rows to return in the agent breakdown. Agents
+    /// with the highest run count are returned first.
     /// </summary>
     public int MaxAgents { get; init; } = 20;
 }
 
 /// <summary>
-/// Bir zaman araligindaki calistirmalarin ozeti.
+/// A summary of the runs in a time range.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Token toplamlari yalnizca kullanim bilgisi bildiren calistirmalari kapsar.
-/// Bir saglayici kullanim dondurmezse o calistirma sayilara girer ancak
-/// token toplamina katki vermez.
+/// Token totals cover only runs that reported usage information. If a
+/// provider does not return usage, that run is counted but contributes
+/// nothing to the token total.
 /// </para>
 /// <para>
-/// Maliyet (Faz 20) yalniz fiyat yapilandirildiginda doludur — bkz.
-/// <see cref="TotalCost"/>. Fiyat AgentPrism'e gomulu degildir (karar K-032):
-/// model kataloğu veya <c>AgentPrism:Pricing</c> yapilandirmasindan gelir.
+/// Cost (Phase 20) is populated only when pricing is configured — see
+/// <see cref="TotalCost"/>. Pricing is not embedded in AgentPrism (decision
+/// K-032): it comes from the model catalog or the <c>AgentPrism:Pricing</c> configuration.
 /// </para>
 /// </remarks>
 public sealed record RunStatistics
 {
-    /// <summary>Filtreye uyan toplam calistirma sayisi.</summary>
+    /// <summary>The total number of runs matching the filter.</summary>
     public required long TotalRuns { get; init; }
 
-    /// <summary>Basariyla tamamlanan calistirma sayisi.</summary>
+    /// <summary>The number of runs that completed successfully.</summary>
     public required long CompletedRuns { get; init; }
 
-    /// <summary>Hata ile biten calistirma sayisi.</summary>
+    /// <summary>The number of runs that ended in an error.</summary>
     public required long FailedRuns { get; init; }
 
-    /// <summary>Iptal edilen calistirma sayisi.</summary>
+    /// <summary>The number of cancelled runs.</summary>
     public required long CanceledRuns { get; init; }
 
-    /// <summary>Hala calisan calistirma sayisi.</summary>
+    /// <summary>The number of runs still running.</summary>
     public required long RunningRuns { get; init; }
 
-    /// <summary>Insan girdisi bekleyen calistirma sayisi.</summary>
+    /// <summary>The number of runs awaiting human input.</summary>
     /// <remarks>
-    /// Yalnizca workflow calistirmalarinda olusur. Ayri sayilir cunku boyle bir
-    /// calistirma ne calisiyor ne de sonuclanmistir; bir kovaya zorla yazilsaydi
-    /// alt toplamlar <see cref="TotalRuns"/> ile tutmazdi.
+    /// Occurs only in workflow runs. Counted separately because such a run is
+    /// neither running nor settled; forcing it into one bucket would make the
+    /// subtotals not add up to <see cref="TotalRuns"/>.
     /// </remarks>
     public long AwaitingInputRuns { get; init; }
 
-    /// <summary>Girdi token toplami.</summary>
+    /// <summary>The total input tokens.</summary>
     public long InputTokens { get; init; }
 
-    /// <summary>Cikti token toplami.</summary>
+    /// <summary>The total output tokens.</summary>
     public long OutputTokens { get; init; }
 
-    /// <summary>Toplam token.</summary>
+    /// <summary>The total tokens.</summary>
     public long TotalTokens { get; init; }
 
-    /// <summary>Agent bazinda kirilim.</summary>
+    /// <summary>The breakdown by agent.</summary>
     public IReadOnlyList<RunAgentStatistics> ByAgent { get; init; } = [];
 
     /// <summary>
-    /// Model bazinda kirilim. Model adi bilinmeyen calistirmalar bu listede
-    /// yer almaz; toplamlarda ise sayilirlar.
+    /// The breakdown by model. Runs with an unknown model name do not appear
+    /// in this list; they are still counted in the totals.
     /// </summary>
     public IReadOnlyList<RunModelStatistics> ByModel { get; init; } = [];
 
-    /// <summary>Tanim surumu bazinda kirilim. Surumu bilinmeyen calistirmalar bu listede yer almaz.</summary>
+    /// <summary>The breakdown by definition version. Runs with an unknown version do not appear in this list.</summary>
     public IReadOnlyList<RunVersionStatistics> ByVersion { get; init; } = [];
 
     /// <summary>
-    /// Hata sinifina gore kirilim. Yalnizca hata ile biten calistirmalar
-    /// sayilir. Hata sinifi eklenmeden once yazilmis satirlar <c>Unknown</c>
-    /// kovasinda gorunur (K-014 -- gecmis satirlar geriye donuk doldurulmaz).
+    /// The breakdown by error class. Only runs that ended in an error are
+    /// counted. Rows written before the error class was added appear in the
+    /// <c>Unknown</c> bucket (K-014 — past rows are not backfilled).
     /// </summary>
     public IReadOnlyList<RunErrorStatistics> ByErrorClass { get; init; } = [];
 
     /// <summary>
-    /// Toplam maliyet. Fiyati tanimsiz bir model varsa o calistirmalarin
-    /// maliyeti bu toplama <strong>katilmaz</strong> (yalniz fiyati bilinenler
-    /// toplanir); kac calistirmanin dislandigi <see cref="RunsWithUnknownPricing"/>'de
-    /// gorunur. Hic fiyatlandirilmis calistirma yoksa <see langword="null"/>.
+    /// The total cost. If a model has undefined pricing, that model's run
+    /// costs are <strong>not included</strong> in this total (only runs with
+    /// known pricing are summed); the number of runs excluded appears in
+    /// <see cref="RunsWithUnknownPricing"/>. <see langword="null"/> if no run
+    /// was ever priced.
     /// </summary>
     public decimal? TotalCost { get; init; }
 
-    /// <summary>Para birimi. <see cref="TotalCost"/> doluysa doludur.</summary>
+    /// <summary>The currency. Populated when <see cref="TotalCost"/> is populated.</summary>
     public string? Currency { get; init; }
 
-    /// <summary>Modeli bilinen ama fiyati tanimsiz olan calistirma sayisi.</summary>
+    /// <summary>The number of runs whose model is known but whose pricing is undefined.</summary>
     public long RunsWithUnknownPricing { get; init; }
 
     /// <summary>
-    /// Sonuclanmis calistirmalar icindeki hata orani (0–1). Hic sonuclanmis
-    /// calistirma yoksa <see langword="null"/>.
+    /// The error rate among settled runs (0–1). <see langword="null"/> if no
+    /// run has settled.
     /// </summary>
     /// <remarks>
-    /// Payda <see cref="TotalRuns"/> degil, <em>sonuclanmis</em> calistirmalardir.
-    /// Devam eden bir calistirmanin basarili mi basarisiz mi olacagi henuz
-    /// bilinmez; paydaya katmak orani yapay olarak dusururdu.
+    /// The denominator is <em>settled</em> runs, not <see cref="TotalRuns"/>.
+    /// Whether a run in progress will succeed or fail is not yet known;
+    /// including it in the denominator would artificially lower the rate.
     /// </remarks>
     public double? ErrorRate
     {
@@ -126,133 +127,133 @@ public sealed record RunStatistics
     }
 
     /// <summary>
-    /// En az bir <see cref="RunScore"/> alan (calistirma veya mesaj duzeyinde)
-    /// calistirma sayisi. Eval calistirmalari (<see cref="RunKind.Eval"/>)
-    /// <see cref="TotalRuns"/> ile ayni gerekceyle haric tutulur (K-141).
+    /// The number of runs that received at least one <see cref="RunScore"/>
+    /// (at the run or message level). Eval runs (<see cref="RunKind.Eval"/>)
+    /// are excluded for the same reason as <see cref="TotalRuns"/> (K-141).
     /// </summary>
     public long ScoredRuns { get; init; }
 
     /// <summary>
-    /// <see cref="RunScoreKind.Binary"/> turundeki puanlarin olumlu orani (0–1).
-    /// Yildiz puanlari bu orana katilmaz — iki turun ortalamasi anlamsiz olurdu.
-    /// Hic ikili puan yoksa <see langword="null"/>.
+    /// The positive rate among <see cref="RunScoreKind.Binary"/> scores (0–1).
+    /// Star ratings are not included in this rate — averaging the two kinds
+    /// would be meaningless. <see langword="null"/> if there is no binary score.
     /// </summary>
     public double? PositiveRate { get; init; }
 }
 
-/// <summary>Bir modelin calistirma ozeti. Maliyet hesabinin girdisidir.</summary>
+/// <summary>A model's run summary. The input to cost computation.</summary>
 public sealed record RunModelStatistics
 {
-    /// <summary>Model adi.</summary>
+    /// <summary>The model name.</summary>
     public required string ModelId { get; init; }
 
-    /// <summary>Bu modelle yapilan toplam calistirma sayisi.</summary>
+    /// <summary>The total number of runs made with this model.</summary>
     public required long TotalRuns { get; init; }
 
-    /// <summary>Girdi token toplami.</summary>
+    /// <summary>The total input tokens.</summary>
     public long InputTokens { get; init; }
 
-    /// <summary>Cikti token toplami.</summary>
+    /// <summary>The total output tokens.</summary>
     public long OutputTokens { get; init; }
 
-    /// <summary>Toplam token.</summary>
+    /// <summary>The total tokens.</summary>
     public long TotalTokens { get; init; }
 
-    /// <summary>Bu modelle yapilan calistirmalarin toplam maliyeti. Fiyat tanimsizsa <see langword="null"/>.</summary>
+    /// <summary>The total cost of runs made with this model. <see langword="null"/> if pricing is undefined.</summary>
     public decimal? TotalCost { get; init; }
 }
 
 /// <summary>
-/// Bir zaman kovasindaki calistirma ozeti. <c>/api/stats/timeseries</c>'in
-/// sonuc birimidir; bos kovalar da doner (sifir olay ile).
+/// A summary of the runs in a time bucket. The result unit of
+/// <c>/api/stats/timeseries</c>; empty buckets are also returned (with zero events).
 /// </summary>
 public sealed record TimeSeriesPoint
 {
-    /// <summary>Kovanin baslangic zamani (UTC).</summary>
+    /// <summary>The bucket's start time (UTC).</summary>
     public required DateTimeOffset Bucket { get; init; }
 
-    /// <summary>Bu kovada baslayan calistirma sayisi.</summary>
+    /// <summary>The number of runs that started in this bucket.</summary>
     public long Runs { get; init; }
 
-    /// <summary>Bu kovada hata ile biten calistirma sayisi.</summary>
+    /// <summary>The number of runs that ended in an error in this bucket.</summary>
     public long FailedRuns { get; init; }
 
-    /// <summary>Girdi token toplami.</summary>
+    /// <summary>The total input tokens.</summary>
     public long InputTokens { get; init; }
 
-    /// <summary>Cikti token toplami.</summary>
+    /// <summary>The total output tokens.</summary>
     public long OutputTokens { get; init; }
 
-    /// <summary>Toplam maliyet. Hic fiyatlandirilmis calistirma yoksa <see langword="null"/>.</summary>
+    /// <summary>The total cost. <see langword="null"/> if no run was ever priced.</summary>
     public decimal? Cost { get; init; }
 
-    /// <summary>Sonuclanmis calistirmalarin ortalama suresi (milisaniye).</summary>
+    /// <summary>The average duration of settled runs (milliseconds).</summary>
     public double? AverageDurationMs { get; init; }
 }
 
-/// <summary>Bir tanim surumunun calistirma ozeti.</summary>
+/// <summary>A definition version's run summary.</summary>
 public sealed record RunVersionStatistics
 {
-    /// <summary>Bu kirilimin ait oldugu agent adi.</summary>
+    /// <summary>The agent name this breakdown belongs to.</summary>
     public required string AgentName { get; init; }
 
-    /// <summary>Tanim surumu.</summary>
+    /// <summary>The definition version.</summary>
     public required int Version { get; init; }
 
-    /// <summary>Bu surumle yapilan toplam calistirma sayisi.</summary>
+    /// <summary>The total number of runs made with this version.</summary>
     public required long TotalRuns { get; init; }
 
-    /// <summary>Bu surumun hata ile biten calistirma sayisi.</summary>
+    /// <summary>This version's number of runs that ended in an error.</summary>
     public required long FailedRuns { get; init; }
 
-    /// <summary>Bu surumun toplam token kullanimi.</summary>
+    /// <summary>This version's total token usage.</summary>
     public long TotalTokens { get; init; }
 }
 
-/// <summary>Bir agent'in calistirma ozeti.</summary>
+/// <summary>An agent's run summary.</summary>
 public sealed record RunAgentStatistics
 {
-    /// <summary>Agent adi.</summary>
+    /// <summary>The agent name.</summary>
     public required string AgentName { get; init; }
 
-    /// <summary>Bu agent'in toplam calistirma sayisi.</summary>
+    /// <summary>This agent's total number of runs.</summary>
     public required long TotalRuns { get; init; }
 
-    /// <summary>Bu agent'in hata ile biten calistirma sayisi.</summary>
+    /// <summary>This agent's number of runs that ended in an error.</summary>
     public required long FailedRuns { get; init; }
 
-    /// <summary>Bu agent'in toplam token kullanimi.</summary>
+    /// <summary>This agent's total token usage.</summary>
     public long TotalTokens { get; init; }
 }
 
-/// <summary>Bir hata sinifinin ozeti.</summary>
+/// <summary>An error class's summary.</summary>
 public sealed record RunErrorStatistics
 {
-    /// <summary>Hata sinifi.</summary>
+    /// <summary>The error class.</summary>
     public required RunErrorClass Class { get; init; }
 
-    /// <summary>Bu sinifa dusen toplam calistirma sayisi.</summary>
+    /// <summary>The total number of runs falling into this class.</summary>
     public required long TotalRuns { get; init; }
 
-    /// <summary>Bu sinifin en sik uc kumesi, sayiya gore azalan sirada.</summary>
+    /// <summary>This class's most frequent clusters, in descending order of count.</summary>
     public IReadOnlyList<RunErrorCluster> TopClusters { get; init; } = [];
 }
 
-/// <summary>Ayni parmak izini paylasan calistirmalarin ozeti.</summary>
+/// <summary>The summary of runs sharing the same fingerprint.</summary>
 public sealed record RunErrorCluster
 {
-    /// <summary>Normallestirilmis mesajin ozeti.</summary>
+    /// <summary>The digest of the normalized message.</summary>
     public required string Fingerprint { get; init; }
 
-    /// <summary>Bu kumedeki calistirma sayisi.</summary>
+    /// <summary>The number of runs in this cluster.</summary>
     public required long Count { get; init; }
 
-    /// <summary>Kumedeki en son goruntuye ait ham hata mesaji.</summary>
+    /// <summary>The raw error message of the most recent occurrence in the cluster.</summary>
     public required string SampleMessage { get; init; }
 
-    /// <summary>Kumedeki en son goruntunun calistirma kimligi.</summary>
+    /// <summary>The run identifier of the most recent occurrence in the cluster.</summary>
     public required Guid SampleRunId { get; init; }
 
-    /// <summary>Bu kumenin en son goruldugu an (UTC).</summary>
+    /// <summary>The moment this cluster was last seen (UTC).</summary>
     public required DateTimeOffset LastSeenAt { get; init; }
 }

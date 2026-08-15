@@ -2,13 +2,13 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>Zaman serisi sorgusunun kova genisligi.</summary>
+/// <summary>The bucket width for a time-series query.</summary>
 [JsonConverter(typeof(JsonStringEnumConverter<TimeSeriesBucket>))]
 public enum TimeSeriesBucket
 {
-    /// <summary>Saatlik kova.</summary>
+    /// <summary>Hourly bucket.</summary>
     Hour = 0,
 
-    /// <summary>Gunluk kova.</summary>
+    /// <summary>Daily bucket.</summary>
     Day = 1,
 }
