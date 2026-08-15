@@ -1,36 +1,35 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Arka planda (bir HTTP istegi disinda) yurutulen bir islemi belirli bir
-/// kiraci olarak calistirmak icin ortam (ambient) gecis mekanizmasi.
+/// The ambient passing mechanism for running an operation executed in the
+/// background (outside an HTTP request) as a specific tenant.
 /// </summary>
 /// <remarks>
-/// <see cref="ITenantContext"/> uygulamalari (tek kiracili varsayilan,
-/// HTTP tabanli cok kiracili cozumleyici) teklidir (singleton) ve kiraciyi ya
-/// sabit bir varsayilandan ya da <c>HttpContext</c>'ten okur. Zamanlanmis bir
-/// isin hangi kiraci icin calistigi ise ne sabittir ne de HTTP baglaminda
-/// yasar — <c>JobRecord.TenantId</c> icinde tasinir. Bu sinif,
-/// <c>IHttpContextAccessor</c>'in kullandigi ayni <see cref="AsyncLocal{T}"/>
-/// deseniyle bir gecis saglar: deger ayarliyken her iki
-/// <see cref="ITenantContext"/> uygulamasi da kendi varsayilan cozumlemesinden
-/// once bunu kontrol eder.
+/// The <see cref="ITenantContext"/> implementations (the single-tenant
+/// default, the HTTP-based multi-tenant resolver) are singletons and read the
+/// tenant either from a fixed default or from <c>HttpContext</c>. Which
+/// tenant a scheduled job runs for is neither fixed nor lives in an HTTP
+/// context — it is carried inside <c>JobRecord.TenantId</c>. This class
+/// provides a pass-through using the same <see cref="AsyncLocal{T}"/> pattern
+/// <c>IHttpContextAccessor</c> uses: while the value is set, both
+/// <see cref="ITenantContext"/> implementations check it before their own default resolution.
 /// </remarks>
 public static class AmbientTenantScope
 {
     private static readonly AsyncLocal<string?> Ambient = new();
 
-    /// <summary>Su an ayarliysa gecerli ortam kiracisi; degilse <see langword="null"/>.</summary>
+    /// <summary>The current ambient tenant if set right now; <see langword="null"/> otherwise.</summary>
     public static string? Current => Ambient.Value;
 
     /// <summary>
-    /// Kapsam suresince ortam kiracisini ayarlar.
+    /// Sets the ambient tenant for the duration of the scope.
     /// </summary>
-    /// <param name="tenantId">Kapsam suresince kullanilacak kiraci kimligi.</param>
+    /// <param name="tenantId">The tenant identifier to use for the duration of the scope.</param>
     /// <returns>
-    /// <see cref="IDisposable.Dispose"/> cagrildiginda onceki degeri geri
-    /// yukleyen bir nesne. Ic ice kullanim guvenlidir.
+    /// An object that restores the previous value when
+    /// <see cref="IDisposable.Dispose"/> is called. Nested use is safe.
     /// </returns>
-    /// <exception cref="ArgumentException"><paramref name="tenantId"/> bos veya bosluktan ibaretse.</exception>
+    /// <exception cref="ArgumentException"><paramref name="tenantId"/> is empty or whitespace only.</exception>
     public static IDisposable Begin(string tenantId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);

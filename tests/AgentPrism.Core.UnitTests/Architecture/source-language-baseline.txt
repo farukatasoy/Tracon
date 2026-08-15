@@ -10,9 +10,6 @@ samples/AgentPrism.Api/Program.cs|248
 samples/AgentPrism.Api/appsettings.json|29
 samples/Directory.Build.props|1
 src/AgentPrism.Abstractions/README.md|4
-src/AgentPrism.Abstractions/Tenancy/AmbientTenantScope.cs|15
-src/AgentPrism.Abstractions/Tenancy/ITenantContext.cs|5
-src/AgentPrism.Abstractions/Tenancy/TenantDescriptor.cs|18
 src/AgentPrism.Abstractions/Tools/AgentPrismGeneratedToolArguments.cs|28
 src/AgentPrism.Abstractions/Tools/AgentPrismToolAttribute.cs|20
 src/AgentPrism.Abstractions/Tools/AgentPrismToolRegistration.cs|7

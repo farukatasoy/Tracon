@@ -1,15 +1,15 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Gecerli istegin kiracisini cozer. Tek kiracili kurulumda sabit bir deger doner
-/// ve hicbir ek yapilandirma gerekmez.
+/// Resolves the current request's tenant. In a single-tenant setup, returns a
+/// fixed value and requires no additional configuration.
 /// </summary>
 /// <remarks>
-/// Cok kiracili senaryolarda (Faz 6) uygulama bu arayuzu kendi kimlik
-/// altyapisina baglar: HTTP basligi, claim veya alt alan adi.
+/// In multi-tenant scenarios (Phase 6), the application binds this interface
+/// to its own identity infrastructure: an HTTP header, a claim, or a subdomain.
 /// </remarks>
 public interface ITenantContext
 {
-    /// <summary>Gecerli kiracinin kimligi. Hicbir zaman bos donmez.</summary>
+    /// <summary>The current tenant's identifier. Never returns empty.</summary>
     string TenantId { get; }
 }
