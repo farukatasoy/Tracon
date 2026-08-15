@@ -10,13 +10,6 @@ samples/AgentPrism.Api/Program.cs|248
 samples/AgentPrism.Api/appsettings.json|29
 samples/Directory.Build.props|1
 src/AgentPrism.Abstractions/README.md|4
-src/AgentPrism.Abstractions/Runs/IRunInputStore.cs|25
-src/AgentPrism.Abstractions/Runs/IRunPricingResolver.cs|10
-src/AgentPrism.Abstractions/Runs/IRunScoreStore.cs|21
-src/AgentPrism.Abstractions/Runs/PricingSource.cs|6
-src/AgentPrism.Abstractions/Runs/RunErrorClass.cs|27
-src/AgentPrism.Abstractions/Runs/RunErrorClassification.cs|4
-src/AgentPrism.Abstractions/Runs/RunKind.cs|11
 src/AgentPrism.Abstractions/Runs/RunReconciliationOptions.cs|11
 src/AgentPrism.Abstractions/Runs/RunReplay.cs|40
 src/AgentPrism.Abstractions/Runs/RunScore.cs|18

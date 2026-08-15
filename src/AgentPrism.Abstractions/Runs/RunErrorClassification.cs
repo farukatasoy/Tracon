@@ -1,15 +1,15 @@
 namespace AgentPrism;
 
-/// <summary>Bir <see cref="IRunErrorClassifier"/> siniflandirmasinin sonucu.</summary>
+/// <summary>The result of an <see cref="IRunErrorClassifier"/> classification.</summary>
 public sealed record RunErrorClassification
 {
-    /// <summary>Hatanin dustugu sinif.</summary>
+    /// <summary>The class the error falls into.</summary>
     public required RunErrorClass Class { get; init; }
 
     /// <summary>
-    /// Normallestirilmis hata mesajinin ozeti. Ayni arizanin tekrarlarini
-    /// kumelemek icin kullanilir; kimlik, sayi, tarih ve tirnak ici metin
-    /// gibi degisken parcalar kaldirildiktan sonra hesaplanir.
+    /// A digest of the normalized error message. Used to cluster repeats of
+    /// the same failure; computed after variable parts such as identifiers,
+    /// numbers, dates, and quoted text are removed.
     /// </summary>
     public required string Fingerprint { get; init; }
 }

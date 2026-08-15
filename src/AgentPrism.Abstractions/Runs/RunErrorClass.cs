@@ -3,85 +3,88 @@ using System.Text.Json.Serialization;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir calistirma hatasinin sinifi.
+/// A run error's class.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Taksonomi kucuk ve kararli tutulur. <see cref="Unknown"/> bir basarisizlik
-/// degil bir olcum aracidir: bir sinifcandirici hicbir kurala uymayan bir
-/// hatayi TAHMIN ETMEZ, bu kovaya yazar. Oraninin yuksek olmasi taksonominin
-/// eksik oldugunu gosterir.
+/// The taxonomy is kept small and stable. <see cref="Unknown"/> is not a
+/// failure but a measurement tool: a classifier that finds no matching rule
+/// does NOT GUESS an error's class, it writes into this bucket. A high
+/// proportion here shows the taxonomy is incomplete.
 /// </para>
 /// <para>
-/// JSON'da <strong>ad olarak</strong> yazilir; veritabaninda <c>smallint</c>
-/// olarak saklanir (diger tum <c>runs</c> enum'lariyla ayni desen, ornek
-/// <see cref="RunKind"/>). Sayisal degerler bir kez atandiktan sonra
-/// <strong>asla yeniden numaralanmaz</strong>: gecmis satirlarda kalici olarak
-/// saklanirlar. Yeni bir sinif eklerken siraya degil, listenin sonuna eklenir.
+/// Written <strong>as a name</strong> in JSON; stored as <c>smallint</c> in
+/// the database (the same pattern as every other <c>runs</c> enum, for
+/// example <see cref="RunKind"/>). Once assigned, numeric values are
+/// <strong>never renumbered</strong>: they are stored permanently in past
+/// rows. A new class is added to the end of the list, not inserted in order.
 /// </para>
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<RunErrorClass>))]
 public enum RunErrorClass
 {
-    /// <summary>Hicbir kurala uymadi. Bir basarisizlik degil, bir olcum aracidir.</summary>
+    /// <summary>Matched no rule. Not a failure, a measurement tool.</summary>
     Unknown = 0,
 
-    /// <summary>Model saglayicisi hata dondurdu (5xx, baglanti, zaman asimi disi).</summary>
+    /// <summary>The model provider returned an error (5xx, connection, non-timeout).</summary>
     ProviderError = 1,
 
-    /// <summary>Devre kesici acik (<see cref="AgentPrismProviderUnavailableException"/>).</summary>
+    /// <summary>The circuit breaker is open (<see cref="AgentPrismProviderUnavailableException"/>).</summary>
     ProviderUnavailable = 2,
 
-    /// <summary>Saglayici 429 dondurdu.</summary>
+    /// <summary>The provider returned 429.</summary>
     RateLimited = 3,
 
-    /// <summary>AgentPrism kotasi doldu.</summary>
+    /// <summary>An AgentPrism quota was exhausted.</summary>
     QuotaExceeded = 4,
 
     /// <summary>
-    /// Model yaniti <strong>saglayicinin</strong> guvenlik/icerik filtresiyle kesildi.
+    /// The model response was cut off by the <strong>provider's</strong>
+    /// safety/content filter.
     /// </summary>
     /// <remarks>
-    /// AgentPrism'in kendi guard'inin verdigi karar bu sinif DEGILDIR; bkz.
-    /// <see cref="ContentBlocked"/>. Ikisini birlestirmek operatorun "model
-    /// reddetti" ile "bizim politikamiz reddetti" ayrimini kaybetmesine yol acardi.
+    /// This is NOT the class for a decision made by AgentPrism's own guard;
+    /// see <see cref="ContentBlocked"/>. Merging the two would make the
+    /// operator lose the distinction between "the model refused" and "our
+    /// policy refused."
     /// </remarks>
     ContentFiltered = 5,
 
-    /// <summary>Bir tool istisna firlatti.</summary>
+    /// <summary>A tool threw an exception.</summary>
     ToolError = 6,
 
-    /// <summary>Calistirma sure sinirini asti.</summary>
+    /// <summary>The run exceeded its time limit.</summary>
     Timeout = 7,
 
-    /// <summary>Agent tanimi derlenemedi.</summary>
+    /// <summary>The agent definition failed to compile.</summary>
     CompilationFailed = 8,
 
-    /// <summary>Agac veya baglam butcesi asildi.</summary>
+    /// <summary>The tree or context budget was exceeded.</summary>
     BudgetExceeded = 9,
 
-    /// <summary>Iptal edildi.</summary>
+    /// <summary>Cancelled.</summary>
     Canceled = 10,
 
     /// <summary>
-    /// Icerik AgentPrism'in kendi <see cref="IContentGuard"/> politikasi tarafindan
-    /// engellendi (<see cref="AgentPrismContentBlockedException"/>).
+    /// The content was blocked by AgentPrism's own <see cref="IContentGuard"/>
+    /// policy (<see cref="AgentPrismContentBlockedException"/>).
     /// </summary>
     /// <remarks>
-    /// <see cref="ContentFiltered"/>'dan ayridir: sebep saglayici degil, kurulumun
-    /// kendi kural kumesidir. Karsilik gelen eylem de farklidir — biri saglayici
-    /// ayarlarini gevsetmeyi, digeri politikayi gozden gecirmeyi gerektirir.
+    /// Separate from <see cref="ContentFiltered"/>: the cause is not the
+    /// provider but the installation's own rule set. The corresponding action
+    /// is also different — one calls for loosening provider settings, the
+    /// other for reviewing the policy.
     /// </remarks>
     ContentBlocked = 11,
 
     /// <summary>
-    /// Calistirmayi yuruten surec, saglayiciyla hic konusmadan kayboldu
-    /// (ornek: yeniden denemesiz bir <c>agent.RunAsync</c> cokusu).
+    /// The process running the run disappeared without ever talking to the
+    /// provider (example: an <c>agent.RunAsync</c> crash with no retry).
     /// </summary>
     /// <remarks>
-    /// Bu sinifa yalnizca oksuz calistirma uzlastirmasi (Faz 54) duser. Diger
-    /// tum siniflar saglayicidan/toola/kotadan gelen bir yanita dayanir; bu ise
-    /// hicbir yanit ALINAMADIGI icin ayri bir sinif gerektirir.
+    /// Only orphaned-run reconciliation (Phase 54) falls into this class.
+    /// Every other class relies on a response from the provider/tool/quota;
+    /// this one requires a separate class because NO response was ever received.
     /// </remarks>
     Infrastructure = 12,
 }
