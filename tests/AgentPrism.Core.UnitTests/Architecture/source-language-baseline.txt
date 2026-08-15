@@ -10,10 +10,6 @@ samples/AgentPrism.Api/Program.cs|248
 samples/AgentPrism.Api/appsettings.json|29
 samples/Directory.Build.props|1
 src/AgentPrism.Abstractions/README.md|4
-src/AgentPrism.Abstractions/Runs/AgentPrismRunOptions.cs|57
-src/AgentPrism.Abstractions/Runs/AgentRunBudget.cs|31
-src/AgentPrism.Abstractions/Runs/IRunCancellationRegistry.cs|23
-src/AgentPrism.Abstractions/Runs/IRunErrorClassifier.cs|8
 src/AgentPrism.Abstractions/Runs/IRunInputStore.cs|25
 src/AgentPrism.Abstractions/Runs/IRunPricingResolver.cs|10
 src/AgentPrism.Abstractions/Runs/IRunScoreStore.cs|21
@@ -668,7 +664,7 @@ tests/AgentPrism.Core.UnitTests/Fakes/TestData.cs|6
 tests/AgentPrism.Core.UnitTests/Graph/AgentCallGraphTests.cs|9
 tests/AgentPrism.Core.UnitTests/Graph/AgentPrismRunOptionsTests.cs|6
 tests/AgentPrism.Core.UnitTests/Graph/AgentRunBudgetTests.cs|4
-tests/AgentPrism.Core.UnitTests/Graph/ChildAgentInvokerTests.cs|24
+tests/AgentPrism.Core.UnitTests/Graph/ChildAgentInvokerTests.cs|23
 tests/AgentPrism.Core.UnitTests/Guards/ContentGuardMaskTests.cs|11
 tests/AgentPrism.Core.UnitTests/Guards/ContentGuardPipelineTests.cs|33
 tests/AgentPrism.Core.UnitTests/Guards/ContentGuardRecordingTests.cs|25

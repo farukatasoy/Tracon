@@ -1,25 +1,24 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Bir cagri agacinin tamami boyunca paylasilan calistirma butcesi.
+/// A run budget shared across an entire call tree.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Bu tip bilerek bir <c>class</c>'tir, <c>record</c> degil.</strong>
-/// Butce paylasilan degisken durumdur: agactaki her calistirma <em>ayni</em>
-/// ornegi kullanir. Bir <c>record</c> kopyalanmaya davet eder; kopyalanan
-/// butce her dala kendi sinirini verir ve sinir anlamini yitirir.
+/// <strong>This type is deliberately a <c>class</c>, not a <c>record</c>.</strong>
+/// The budget is shared mutable state: every run in the tree uses the
+/// <em>same</em> instance. A <c>record</c> invites copying; a copied budget
+/// would give each branch its own limit, and the limit would lose its meaning.
 /// </para>
 /// <para>
-/// Sayaclar kilitsiz artar (<see cref="Interlocked"/>). Alt calistirmalar
-/// es zamanli baslar: Microsoft Agent Framework'un arka plan agent'lari
-/// bloke etmeden calisir, dolayisiyla ayni butce birden cok is parcaciginda
-/// okunup yazilir.
+/// Counters increment lock-free (<see cref="Interlocked"/>). Child runs start
+/// concurrently: Microsoft Agent Framework's background agents run without
+/// blocking, so the same budget is read and written from multiple threads.
 /// </para>
 /// <para>
-/// Butce <strong>yeni</strong> alt calistirmalari engeller; suren bir
-/// calistirmayi kesmez. Yarim kesilen bir alt calistirma modele eksik bir
-/// baglam birakir ve kok calistirmayi da bozardi.
+/// The budget blocks <strong>new</strong> child runs; it does not interrupt a
+/// run in progress. A child run cut off midway would leave the model with an
+/// incomplete context and would also corrupt the root run.
 /// </para>
 /// </remarks>
 public sealed class AgentRunBudget
@@ -28,44 +27,46 @@ public sealed class AgentRunBudget
     private int _startedRuns;
 
     /// <summary>
-    /// Agac boyunca harcanabilecek en fazla token. <see langword="null"/> ise
-    /// token sinirlamasi yoktur.
+    /// The maximum tokens spendable across the tree. If <see langword="null"/>,
+    /// there is no token limit.
     /// </summary>
     public long? MaxTotalTokens { get; init; }
 
     /// <summary>
-    /// Baslatilabilecek en fazla <em>alt</em> calistirma sayisi. Kok calistirma
-    /// bu sayiya dahil degildir. <see langword="null"/> ise sayi sinirlamasi yoktur.
+    /// The maximum number of <em>child</em> runs that may start. The root run
+    /// is not counted toward this number. If <see langword="null"/>, there is
+    /// no count limit.
     /// </summary>
     public int? MaxTotalRuns { get; init; }
 
     /// <summary>
-    /// Izin verilen en buyuk cagri derinligi. Kok calistirma 0'dir, dolayisiyla
-    /// varsayilan deger uc katmanli bir agaca izin verir.
+    /// The maximum allowed call depth. The root run is 0, so the default
+    /// value allows a three-layer tree.
     /// </summary>
     public int MaxDepth { get; init; } = 3;
 
-    /// <summary>Agac boyunca simdiye kadar harcanan token sayisi.</summary>
+    /// <summary>The tokens spent across the tree so far.</summary>
     public long ConsumedTokens => Interlocked.Read(ref _consumedTokens);
 
-    /// <summary>Simdiye kadar baslatilmis alt calistirma sayisi.</summary>
+    /// <summary>The number of child runs started so far.</summary>
     public int StartedRuns => Volatile.Read(ref _startedRuns);
 
-    /// <summary>Token siniri asilmis mi.</summary>
+    /// <summary>Whether the token limit has been exceeded.</summary>
     public bool IsTokenBudgetExhausted
         => MaxTotalTokens is { } max && ConsumedTokens >= max;
 
     /// <summary>
-    /// Yeni bir alt calistirma icin butcede yer ayirir.
+    /// Reserves budget room for a new child run.
     /// </summary>
     /// <returns>
-    /// Yer ayrilabildiyse <see langword="true"/>; token veya sayi siniri
-    /// asildiysa <see langword="false"/>.
+    /// <see langword="true"/> if room was reserved; <see langword="false"/> if
+    /// the token or count limit has been exceeded.
     /// </returns>
     /// <remarks>
-    /// Sayac yalnizca yer ayrildiginda artar. Basarisiz bir deneme sayaci
-    /// artirsaydi, sinira ulasmis bir agacta her yeni deneme sayiyi buyutur ve
-    /// arayuzde gercekte baslamamis calistirmalar gorunurdu.
+    /// The counter increments only when room is reserved. If a failed attempt
+    /// incremented the counter, every new attempt in a tree that has hit its
+    /// limit would keep growing the count, and the UI would show runs that
+    /// never actually started.
     /// </remarks>
     public bool TryReserveRun()
     {
@@ -80,8 +81,8 @@ public sealed class AgentRunBudget
             return true;
         }
 
-        // CAS dongusu: es zamanli iki alt cagri sinirin son yerini ayni anda
-        // istediginde yalnizca biri kazanmalidir.
+        // CAS loop: when two concurrent child calls request the last slot of
+        // the limit at the same time, only one must win.
         var current = Volatile.Read(ref _startedRuns);
 
         while (current < maxRuns)
@@ -99,8 +100,8 @@ public sealed class AgentRunBudget
         return false;
     }
 
-    /// <summary>Harcanan token sayisini butceye isler.</summary>
-    /// <param name="tokens">Eklenecek token sayisi. Negatif deger yok sayilir.</param>
+    /// <summary>Records the number of tokens spent into the budget.</summary>
+    /// <param name="tokens">The number of tokens to add. A negative value is ignored.</param>
     public void RecordUsage(long tokens)
     {
         if (tokens <= 0)
@@ -111,17 +112,17 @@ public sealed class AgentRunBudget
         Interlocked.Add(ref _consumedTokens, tokens);
     }
 
-    /// <summary>Sinir asimini anlatan, kullaniciya gosterilebilir bir metin uretir.</summary>
-    /// <returns>Hangi sinirin asildigini soyleyen metin.</returns>
+    /// <summary>Produces a user-facing text describing the limit that was exceeded.</summary>
+    /// <returns>Text stating which limit was exceeded.</returns>
     /// <remarks>
-    /// Metin modele tool sonucu olarak doner. "Butce bitti" demek yetmez;
-    /// hangi sinirin asildigi yazilmazsa kullanici hangi ayari yukseltmesi
-    /// gerektigini goremez.
+    /// The text is returned to the model as a tool result. Saying "budget
+    /// exhausted" is not enough; unless the exceeded limit is named, the user
+    /// cannot see which setting to raise.
     /// </remarks>
     public string DescribeExhaustion()
         => IsTokenBudgetExhausted
-            ? $"Calistirma agacinin token butcesi doldu ({ConsumedTokens}/{MaxTotalTokens}). " +
-              "Yeni alt calistirma baslatilamaz."
-            : $"Calistirma agacinin alt calistirma siniri doldu ({StartedRuns}/{MaxTotalRuns}). " +
-              "Yeni alt calistirma baslatilamaz.";
+            ? $"The run tree's token budget is exhausted ({ConsumedTokens}/{MaxTotalTokens}). " +
+              "A new child run cannot be started."
+            : $"The run tree's child-run limit is reached ({StartedRuns}/{MaxTotalRuns}). " +
+              "A new child run cannot be started.";
 }

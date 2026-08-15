@@ -1,26 +1,26 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Ham bir calistirma hatasini bir sinifa ve kumeleme parmak izine cevirir.
+/// Converts a raw run error into a class and a clustering fingerprint.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Yalnizca <strong>hata</strong> yolunda cagrilir; basarili bir calistirmada
-/// hic tetiklenmez ve sicak yolda tahsis uretmemelidir.
+/// Called only on the <strong>error</strong> path; it never triggers on a
+/// successful run and must not allocate on the hot path.
 /// </para>
 /// <para>
-/// AgentPrism'in taksonomisi kendi gorusudur; bir tuketici kendi sinifini veya
-/// kumeleme kuralini isteyebilir. <c>TryAddSingleton</c> ile kaydedilir,
-/// tuketicinin kaydi kazanir (K4).
+/// AgentPrism's taxonomy is its own opinion; a consumer may want their own
+/// class or clustering rule. Registered with <c>TryAddSingleton</c>, so the
+/// consumer's registration wins (K4).
 /// </para>
 /// </remarks>
 public interface IRunErrorClassifier
 {
     /// <summary>
-    /// Hatayi siniflandirir. Hicbir kurala uymuyorsa
-    /// <see cref="RunErrorClass.Unknown"/> doner — <strong>tahmin etmez</strong>.
+    /// Classifies the error. Returns <see cref="RunErrorClass.Unknown"/> if no
+    /// rule matches — it <strong>does not guess</strong>.
     /// </summary>
-    /// <param name="runError">Siniflandirilacak ham hata.</param>
-    /// <returns>Sinif ve kumeleme parmak izi.</returns>
+    /// <param name="runError">The raw error to classify.</param>
+    /// <returns>The class and clustering fingerprint.</returns>
     RunErrorClassification Classify(RunError runError);
 }
