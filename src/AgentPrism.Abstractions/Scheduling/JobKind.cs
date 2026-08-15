@@ -2,71 +2,71 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>Bir isin hangi hedefi calistirdigi.</summary>
+/// <summary>What target a job runs.</summary>
 /// <remarks>
-/// JSON'da ad olarak yazilir, veritabaninda <c>smallint</c> olarak saklanir.
-/// Deger sirasi <strong>degistirilemez</strong> — yalnizca sona eklenir; mevcut
-/// satirlar sayisal degeri referans alir.
+/// Written as a name in JSON, stored as <c>smallint</c> in the database. The
+/// value order <strong>must not change</strong> — only append; existing rows
+/// reference the numeric value.
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<JobKind>))]
 public enum JobKind
 {
-    /// <summary>Bir agent'i bir girdi kumesi uzerinde toplu calistirir.</summary>
+    /// <summary>Runs an agent as a batch over a set of inputs.</summary>
     AgentBatch = 0,
 
-    /// <summary>Bir workflow'u calistirir veya bekleyen bir workflow'u yanitlar.</summary>
+    /// <summary>Runs a workflow, or responds to a pending workflow.</summary>
     Workflow = 1,
 
     /// <summary>
-    /// Bir degerlendirme (eval) kosusu. Faz 18 kendi <c>IJobHandler</c>
-    /// uygulamasini bu deger icin ekler.
+    /// An evaluation (eval) run. Phase 18 adds its own <c>IJobHandler</c>
+    /// implementation for this value.
     /// </summary>
     Eval = 2,
 
     /// <summary>
-    /// Tek bir webhook teslim denemesi (Faz 21). Yuk, teslim kaydinin
-    /// kimligini tasir; govde <c>webhook_deliveries</c> tablosundan okunur.
+    /// A single webhook delivery attempt (Phase 21). The payload carries the
+    /// delivery record's identifier; the body is read from the
+    /// <c>webhook_deliveries</c> table.
     /// </summary>
     WebhookDelivery = 3,
 
     /// <summary>
-    /// Bir saklama suprusu (Faz 25). <c>TargetName</c> ya belirli bir
-    /// <see cref="RetentionTargets"/> degeri ya da tum etkin politikalari
-    /// isleyen <c>"*"</c>'tir.
+    /// A retention sweep (Phase 25). <c>TargetName</c> is either a specific
+    /// <see cref="RetentionTargets"/> value or <c>"*"</c>, which processes all
+    /// enabled policies.
     /// </summary>
     Retention = 4,
 
     /// <summary>
-    /// Kuyruga alinmis (dayanikli) tek bir agent calistirmasi (Faz 46).
+    /// A single queued (durable) agent run (Phase 46).
     /// </summary>
     /// <remarks>
-    /// <c>Prefer: respond-async</c> ile baslatilan calistirmalar bu tur altinda
-    /// kosar. <see cref="AgentBatch"/>'ten farkli olarak oge kumesi ISTEMEZ ve
-    /// calistirma kimligi cagiran tarafindan (HTTP katmani) ONCEDEN uretilir —
-    /// <c>JobRecord.Id</c> calistirma kimligiyle ayni deger tasir.
+    /// Runs started with <c>Prefer: respond-async</c> run under this kind.
+    /// Unlike <see cref="AgentBatch"/>, it does NOT require an item set, and
+    /// the run identifier is generated IN ADVANCE by the caller (the HTTP
+    /// layer) — <c>JobRecord.Id</c> carries the same value as the run identifier.
     /// </remarks>
     AgentRun = 5,
 
     /// <summary>
-    /// Orneklenmis bir uretim calistirmasini puanlar (Faz 49).
+    /// Scores a sampled production run (Phase 49).
     /// </summary>
     /// <remarks>
-    /// Yuk bos veya tanilama amaclidir; puanlanacak calistirmanin kimligi is
-    /// ogesinin (<see cref="JobItemRecord.Input"/>) kendisidir — <see cref="Eval"/>
-    /// isinin vaka kimligini tasima deseniyle aynidir.
+    /// The payload is empty or for diagnostics; the identifier of the run to
+    /// score is the job item itself (<see cref="JobItemRecord.Input"/>) — the
+    /// same pattern as how the <see cref="Eval"/> job carries a case identifier.
     /// </remarks>
     OnlineEval = 6,
 
     /// <summary>
-    /// Bir onay kararindan sonra kuyruga alinmis calistirmayi surduren
-    /// (Faz 55) YENI bir calistirma.
+    /// A NEW run that resumes a queued run after an approval decision (Phase 55).
     /// </summary>
     /// <remarks>
-    /// <see cref="AgentRun"/>'dan AYRIDIR: <c>AwaitingApproval</c> ile kapanmis
-    /// eski calistirma satiri BIR DAHA DEGISMEZ (K-014, <see cref="RunStatus.AwaitingInput"/>
-    /// ile ayni ilke); bu is YENI bir <c>RunId</c> ile YENI bir <c>runs</c>
-    /// satiri acar. Yuk, karari verilmis bir <see cref="PendingApproval"/>
-    /// kaydinin kimligini tasir.
+    /// SEPARATE from <see cref="AgentRun"/>: the old run row closed with
+    /// <c>AwaitingApproval</c> NEVER CHANGES AGAIN (K-014, the same principle
+    /// as <see cref="RunStatus.AwaitingInput"/>); this job opens a NEW
+    /// <c>runs</c> row with a NEW <c>RunId</c>. The payload carries the
+    /// identifier of the <see cref="PendingApproval"/> record whose decision was made.
     /// </remarks>
     ApprovalResume = 7,
 }

@@ -1,58 +1,58 @@
 namespace AgentPrism;
 
-/// <summary>Is listesini filtrelemek icin sorgu.</summary>
+/// <summary>A filter for querying the job list.</summary>
 public sealed record JobQuery
 {
-    /// <summary>Yalnizca bu kiracinin islerini getirir.</summary>
+    /// <summary>Fetches only this tenant's jobs.</summary>
     public string? TenantId { get; init; }
 
-    /// <summary>Yalnizca bu turdeki isleri getirir.</summary>
+    /// <summary>Fetches only jobs of this kind.</summary>
     public JobKind? Kind { get; init; }
 
-    /// <summary>Yalnizca bu durumdaki isleri getirir.</summary>
+    /// <summary>Fetches only jobs in this status.</summary>
     public JobStatus? Status { get; init; }
 
-    /// <summary>Yalnizca bu zamanlamanin urettigi isleri getirir.</summary>
+    /// <summary>Fetches only jobs produced by this schedule.</summary>
     public Guid? ScheduleId { get; init; }
 
-    /// <summary>Atlanacak kayit sayisi.</summary>
+    /// <summary>The number of records to skip.</summary>
     public int Skip { get; init; }
 
-    /// <summary>Getirilecek ust kayit sayisi.</summary>
+    /// <summary>The maximum number of records to fetch.</summary>
     public int Take { get; init; } = 50;
 }
 
-/// <summary>Bir isi sonlandirmak icin gereken bilgiler.</summary>
+/// <summary>The information needed to finalize a job.</summary>
 public sealed record JobCompletion
 {
-    /// <summary>Is kimligi.</summary>
+    /// <summary>The job identifier.</summary>
     public required Guid JobId { get; init; }
 
-    /// <summary>Son durum.</summary>
+    /// <summary>The final status.</summary>
     public required JobStatus Status { get; init; }
 
-    /// <summary>Bitis zamani (UTC).</summary>
+    /// <summary>The completion time (UTC).</summary>
     public required DateTimeOffset CompletedAt { get; init; }
 
-    /// <summary>Basarisizlik mesaji. Yalnizca <see cref="JobStatus.Failed"/> durumunda dolu.</summary>
+    /// <summary>The failure message. Populated only for <see cref="JobStatus.Failed"/>.</summary>
     public string? ErrorMessage { get; init; }
 }
 
-/// <summary>Islenmis bir is ogesinin sonucu. <see cref="IJobStore.ReportItemAsync"/> ile bildirilir.</summary>
+/// <summary>The result of a processed job item. Reported with <see cref="IJobStore.ReportItemAsync"/>.</summary>
 public sealed record JobItemResult
 {
-    /// <summary>Ait oldugu is kimligi.</summary>
+    /// <summary>The identifier of the job it belongs to.</summary>
     public required Guid JobId { get; init; }
 
-    /// <summary>Ogenin sira numarasi.</summary>
+    /// <summary>The item's sequence number.</summary>
     public required int Seq { get; init; }
 
-    /// <summary>Isleme sonucu.</summary>
+    /// <summary>The processing result.</summary>
     public required JobItemStatus Status { get; init; }
 
-    /// <summary>Olusan calistirma kaydinin kimligi. Uygun degilse <see langword="null"/>.</summary>
+    /// <summary>The identifier of the run record created. <see langword="null"/> if not applicable.</summary>
     public Guid? RunId { get; init; }
 
-    /// <summary>Basarisizlik mesaji. Yalnizca <see cref="JobItemStatus.Failed"/> durumunda dolu.</summary>
+    /// <summary>The failure message. Populated only for <see cref="JobItemStatus.Failed"/>.</summary>
     public string? Error { get; init; }
 }

@@ -3,24 +3,24 @@ using System.Text.Json;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="JobRecord.Payload"/>/<see cref="JobSchedule.Payload"/> icindeki
-/// serbest JSON'dan is ogesi girdi listesini cikarir.
+/// Extracts the job item input list from the free-form JSON in
+/// <see cref="JobRecord.Payload"/>/<see cref="JobSchedule.Payload"/>.
 /// </summary>
 /// <remarks>
-/// Hem arka plan iscisi (zamanlamadan is uretirken) hem de HTTP katmani
-/// (elle tetiklemede) ayni yorumlamayi kullanmalidir; bu yuzden tek bir yerde
-/// tanimlidir.
+/// Both the background worker (when producing a job from a schedule) and the
+/// HTTP layer (on manual trigger) must use the same interpretation; this is
+/// why it is defined in a single place.
 /// </remarks>
 public static class JobPayload
 {
     /// <summary>
-    /// Yuku is ogesi girdi listesine cevirir.
+    /// Converts the payload into a job item input list.
     /// </summary>
-    /// <param name="payload">Serbest JSON yuku.</param>
+    /// <param name="payload">The free-form JSON payload.</param>
     /// <returns>
-    /// Yuk bir JSON dizisiyse her ogenin metni (dize ise dogrudan, degilse
-    /// ham JSON metni); degilse yukun kendisini tek ogeli bir liste olarak
-    /// dondurur. Yuk tanimsizsa bos liste doner.
+    /// If the payload is a JSON array, each element's text (directly if a
+    /// string, otherwise its raw JSON text); otherwise the payload itself
+    /// returned as a single-item list. An empty list if the payload is undefined.
     /// </returns>
     public static IReadOnlyList<string> ExtractItems(JsonElement payload)
     {
