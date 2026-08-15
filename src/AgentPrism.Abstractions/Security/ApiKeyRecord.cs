@@ -1,64 +1,64 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Bir API anahtarinin veritabaninda saklanan, HAM DEGER TASIMAYAN gorunumu.
+/// An API key's database-stored view, WHICH CARRIES NO RAW VALUE.
 /// </summary>
 /// <remarks>
-/// 🚨 Bu kayitta ham anahtar <strong>yoktur</strong>. Yalnizca geri
-/// donduruleyemez bir SHA-256 ozeti (<see cref="KeyPrefix"/> disinda hicbir
-/// yerde) veritabaninda durur; ham deger yalnizca olusturma aninda
-/// <see cref="ApiKeyCreationResult.PlaintextKey"/> ile <strong>bir kez</strong>
-/// doner (docs/53-KIRACI-API-ANAHTARLARI.md, bolum 53.2).
+/// 🚨 This record <strong>has no</strong> raw key. Only an irreversible
+/// SHA-256 digest sits in the database (nowhere but <see cref="KeyPrefix"/>);
+/// the raw value is returned <strong>once</strong>, only at creation time,
+/// via <see cref="ApiKeyCreationResult.PlaintextKey"/> (docs/53-KIRACI-API-ANAHTARLARI.md, section 53.2).
 /// </remarks>
 public sealed record ApiKeyRecord
 {
-    /// <summary>Anahtar kimligi.</summary>
+    /// <summary>The key identifier.</summary>
     public required Guid Id { get; init; }
 
-    /// <summary>Anahtarin bagli oldugu kiraci. Dogrulandiginda kiraci BURADAN cozulur.</summary>
+    /// <summary>The tenant the key is bound to. On authentication, the tenant is resolved FROM HERE.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Operatorun anahtari tanimasi icin ad.</summary>
+    /// <summary>The name for the operator to recognize the key by.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Ham degerin ilk karakterleri; listede anahtari ayirt etmek icindir.</summary>
+    /// <summary>The raw value's first characters; used to distinguish the key in a list.</summary>
     public required string KeyPrefix { get; init; }
 
-    /// <summary>Kapsam kumesi. Etkili yetki <c>rol ∩ kapsam</c>'dir.</summary>
+    /// <summary>The scope set. The effective authority is <c>role ∩ scope</c>.</summary>
     public required IReadOnlyList<ApiKeyScope> Scopes { get; init; }
 
-    /// <summary>Sure sonu. <see langword="null"/> ise suresizdir.</summary>
+    /// <summary>The expiration. Never expires if <see langword="null"/>.</summary>
     public DateTimeOffset? ExpiresAt { get; init; }
 
-    /// <summary>Iptal damgasi. Satir SILINMEZ; denetim izi bu alanla korunur.</summary>
+    /// <summary>The revocation timestamp. The row is NOT DELETED; the audit trail is preserved through this field.</summary>
     public DateTimeOffset? RevokedAt { get; init; }
 
-    /// <summary>Son kullanim zamani. Kullanilmayan anahtari gormek icindir.</summary>
+    /// <summary>The last-used time. Used to spot an unused key.</summary>
     public DateTimeOffset? LastUsedAt { get; init; }
 
-    /// <summary>Olusturulma zamani (UTC).</summary>
+    /// <summary>The creation time (UTC).</summary>
     public required DateTimeOffset CreatedAt { get; init; }
 
-    /// <summary>Anahtar iptal edilmemis ve suresi gecmemisse <see langword="true"/>.</summary>
+    /// <summary><see langword="true"/> if the key is not revoked and has not expired.</summary>
     /// <remarks>
-    /// Yalnizca GORUNTULEME icindir (arayuz listesi, <c>GET /api/api-keys</c>).
-    /// Gercek dogrulama karari <c>ApiKeyAuthenticator</c>'da enjekte edilmis bir
-    /// <see cref="TimeProvider"/> ile verilir; burada <see cref="DateTimeOffset.UtcNow"/>
-    /// kullanilmasi bir guvenlik karari degildir ve test edilebilirligi etkilemez.
+    /// For DISPLAY ONLY (the UI list, <c>GET /api/api-keys</c>). The actual
+    /// authentication decision is made in <c>ApiKeyAuthenticator</c> with an
+    /// injected <see cref="TimeProvider"/>; using
+    /// <see cref="DateTimeOffset.UtcNow"/> here is not a security decision
+    /// and does not affect testability.
     /// </remarks>
     public bool IsActive => RevokedAt is null && (ExpiresAt is null || ExpiresAt > DateTimeOffset.UtcNow);
 }
 
-/// <summary>Bir anahtar olusturma isleminin sonucu.</summary>
-/// <remarks>Ham anahtar YALNIZCA burada, olusturma aninda doner (bolum 53.2).</remarks>
+/// <summary>The result of a key creation operation.</summary>
+/// <remarks>The raw key is returned ONLY here, at creation time (section 53.2).</remarks>
 public sealed record ApiKeyCreationResult
 {
-    /// <summary>Kaydedilen, ham deger tasimayan gorunum.</summary>
+    /// <summary>The saved view, which carries no raw value.</summary>
     public required ApiKeyRecord Record { get; init; }
 
     /// <summary>
-    /// Ham anahtar degeri. Bu cagridan sonra bir daha uretilemez; tuketici
-    /// bunu hemen gostermeli ve saklamamalidir.
+    /// The raw key value. Cannot be produced again after this call; the
+    /// consumer must show it immediately and not store it.
     /// </summary>
     public required string PlaintextKey { get; init; }
 }

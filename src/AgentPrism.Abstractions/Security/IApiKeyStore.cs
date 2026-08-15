@@ -1,72 +1,73 @@
 namespace AgentPrism;
 
-/// <summary>Kiraci bazli API anahtarlarinin deposu.</summary>
+/// <summary>The store for per-tenant API keys.</summary>
 /// <remarks>
-/// Faz 53. Statik bearer token'in ikinci, kiraciya baglanan ve kapsam
-/// tasiyan bir kimlik kaynagidir; statik token'in yerini ALMAZ. Ayrintili
-/// gerekce: docs/53-KIRACI-API-ANAHTARLARI.md.
+/// Phase 53. A second identity source alongside the static bearer token,
+/// bound to a tenant and carrying a scope; it does NOT replace the static
+/// token. See docs/53-KIRACI-API-ANAHTARLARI.md for the detailed rationale.
 /// </remarks>
 public interface IApiKeyStore
 {
-    /// <summary>Yeni bir anahtar uretir ve saklar.</summary>
-    /// <param name="draft">Anahtarin taslagi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <summary>Generates and stores a new key.</summary>
+    /// <param name="draft">The key's draft.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
-    /// Kaydedilen kayit ve ham anahtar deger. Ham deger bu cagridan sonra bir
-    /// daha uretilemez (bolum 53.2).
+    /// The saved record and the raw key value. The raw value cannot be
+    /// produced again after this call (section 53.2).
     /// </returns>
     ValueTask<ApiKeyCreationResult> CreateAsync(ApiKeyDraft draft, CancellationToken cancellationToken = default);
 
-    /// <summary>Bir kiracinin anahtarlarini listeler. Ham deger ve ozet DONMEZ.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Anahtarlar, olusturulma zamanina gore.</returns>
+    /// <summary>Lists a tenant's keys. The raw value and digest are NOT returned.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The keys, by creation time.</returns>
     ValueTask<IReadOnlyList<ApiKeyRecord>> ListAsync(string tenantId, CancellationToken cancellationToken = default);
 
-    /// <summary>Bir anahtari SHA-256 ozetiyle arar.</summary>
-    /// <param name="keyHash">Sunulan ham degerin ozeti.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kayit; yoksa <see langword="null"/>.</returns>
+    /// <summary>Looks up a key by its SHA-256 digest.</summary>
+    /// <param name="keyHash">The digest of the presented raw value.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The record; <see langword="null"/> if it does not exist.</returns>
     /// <remarks>
-    /// 🚨 Kiraci suzgeci <strong>uygulanmaz</strong>: kiraci bu cagrinin
-    /// GIRDISI degil, CIKTISIDIR — bir istegi dogrularken hangi kiraciya ait
-    /// oldugunu henuz bilmeyiz (bolum 53.5). Arama her zaman ozet uzerinden
-    /// yapilir; ham deger hicbir sorguya dogrudan girmez.
+    /// 🚨 No tenant filter <strong>is applied</strong>: the tenant is the
+    /// OUTPUT of this call, not its INPUT — while authenticating a request,
+    /// which tenant it belongs to is not yet known (section 53.5). The lookup
+    /// always goes through the digest; the raw value never enters any query directly.
     /// </remarks>
     ValueTask<ApiKeyRecord?> FindByHashAsync(ReadOnlyMemory<byte> keyHash, CancellationToken cancellationToken = default);
 
-    /// <summary>Bir anahtari iptal eder. Satir SILINMEZ; <c>revoked_at</c> yazilir.</summary>
-    /// <param name="tenantId">Anahtarin bagli oldugu kiraci.</param>
-    /// <param name="id">Anahtar kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Anahtar bu kiracida bulunup iptal edildiyse <see langword="true"/>.</returns>
+    /// <summary>Revokes a key. The row is NOT DELETED; <c>revoked_at</c> is written.</summary>
+    /// <param name="tenantId">The tenant the key is bound to.</param>
+    /// <param name="id">The key identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> if the key was found in this tenant and revoked.</returns>
     ValueTask<bool> RevokeAsync(string tenantId, Guid id, CancellationToken cancellationToken = default);
 
-    /// <summary>Son kullanim damgasini gunceller.</summary>
-    /// <param name="id">Anahtar kimligi.</param>
-    /// <param name="usedAt">Kullanim zamani.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Updates the last-used timestamp.</summary>
+    /// <param name="id">The key identifier.</param>
+    /// <param name="usedAt">The usage time.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
     /// <remarks>
-    /// 🚨 Kiraci suzgeci yoktur: cagiran (<c>ApiKeyAuthenticator</c>) anahtari
-    /// zaten ozet uzerinden bulmus ve kiraciyi COZMUSTUR; burada ikinci bir
-    /// dogrulama gereksizdir — <see cref="FindByHashAsync"/> ile ayni gerekce.
+    /// 🚨 There is no tenant filter: the caller (<c>ApiKeyAuthenticator</c>)
+    /// has already found the key through its digest and RESOLVED the tenant;
+    /// a second check here is unnecessary — the same rationale as
+    /// <see cref="FindByHashAsync"/>.
     /// </remarks>
     ValueTask TouchLastUsedAsync(Guid id, DateTimeOffset usedAt, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Sistemde (herhangi bir kiracida) verilen kapsami tasiyan, iptal
-    /// edilmemis ve suresi gecmemis en az bir anahtar olup olmadigini soyler.
+    /// Reports whether at least one key exists in the system (in any tenant)
+    /// that carries the given scope, is not revoked, and has not expired.
     /// </summary>
-    /// <param name="scope">Aranan kapsam.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Bulunursa <see langword="true"/>.</returns>
+    /// <param name="scope">The scope to look for.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> if found.</returns>
     /// <remarks>
-    /// 🚨 Kiraci suzgeci BILEREK yoktur: bu bir kurulum saglik denetimidir
-    /// (<c>ExternalSurfaceGuard</c>, bolum 53.4), belirli bir kiraciya ozgu
-    /// degildir — <c>AllowRemoteAccess</c> ile dis yuzeyin BIRLIKTE
-    /// acilabilmesi icin sistemde en az bir gecerli <c>external:invoke</c>
-    /// anahtari olup olmadigi sorulur.
+    /// 🚨 There is DELIBERATELY no tenant filter: this is an installation
+    /// health check (<c>ExternalSurfaceGuard</c>, section 53.4), not specific
+    /// to any tenant — it asks whether the system has at least one valid
+    /// <c>external:invoke</c> key, so the external surface can be opened
+    /// TOGETHER with <c>AllowRemoteAccess</c>.
     /// </remarks>
     ValueTask<bool> HasActiveScopeAsync(ApiKeyScope scope, CancellationToken cancellationToken = default);
 }

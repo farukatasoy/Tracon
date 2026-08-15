@@ -2,81 +2,83 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>Bir API anahtarinin acabilecegi yetki kapsami.</summary>
+/// <summary>An authority scope an API key may open.</summary>
 /// <remarks>
 /// <para>
-/// Kapsam <strong>rol politikalarinin yerine gecmez</strong>, onlari daraltir.
-/// Bir anahtarin etkili yetkisi <c>rol ∩ kapsam</c> kumesidir
-/// (docs/53-KIRACI-API-ANAHTARLARI.md, bolum 53.3).
+/// A scope <strong>does not replace role policies</strong>, it narrows them.
+/// A key's effective authority is the <c>role ∩ scope</c> set
+/// (docs/53-KIRACI-API-ANAHTARLARI.md, section 53.3).
 /// </para>
 /// <para>
-/// Kapsam listesi <strong>kapalidir</strong>: serbest metin kapsam kabul
-/// edilmez, bilinmeyen bir deger olusturma aninda reddedilir. Bu tipe yeni
-/// bir uye eklemek kirici DEGILDIR; listeyi arayuzden genisletilebilir hale
-/// getirmek ayri, bilincli bir karar gerektirir (bir yetki dili bir guvenlik
-/// yuzeyidir).
+/// The scope list is <strong>closed</strong>: free-text scopes are not
+/// accepted, an unknown value is rejected at creation time. Adding a new
+/// member to this type is NOT a breaking change; making the list extensible
+/// from the UI requires a separate, deliberate decision (an authority
+/// language is a security surface).
 /// </para>
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<ApiKeyScope>))]
 public enum ApiKeyScope
 {
-    /// <summary>Calistirma okuma, olay akisi, istatistik.</summary>
+    /// <summary>Run reads, event stream, statistics.</summary>
     RunsRead = 0,
 
-    /// <summary>Calistirma baslatma, iptal, onay verme.</summary>
+    /// <summary>Starting a run, cancelling, giving approval.</summary>
     RunsWrite = 1,
 
-    /// <summary>Katalog ve tanim okuma.</summary>
+    /// <summary>Catalog and definition reads.</summary>
     AgentsRead = 2,
 
-    /// <summary>Tanim yazma, surum geri alma.</summary>
+    /// <summary>Definition writes, version rollback.</summary>
     AgentsAdmin = 3,
 
     /// <summary>
-    /// Dis yuzey (MCP sunucusu, A2A). Ayri tutulur: bir ic otomasyon anahtari
-    /// disa acik yuzeyi kendiliginden acmamalidir.
+    /// The external surface (MCP server, A2A). Kept separate: an internal
+    /// automation key must not open the externally exposed surface on its own.
     /// </summary>
     ExternalInvoke = 4,
 
-    /// <summary>Bilgi tabani okuma: koleksiyon listeleme, anlamsal arama.</summary>
+    /// <summary>Knowledge-base reads: collection listing, semantic search.</summary>
     KnowledgeRead = 5,
 
-    /// <summary>Bilgi tabani yazma: belge yukleme, silme.</summary>
+    /// <summary>Knowledge-base writes: document upload, deletion.</summary>
     KnowledgeAdmin = 6,
 
-    /// <summary>Workflow tanimi okuma: katalog listeleme, grafik, kontrol noktasi/istek listeleme.</summary>
+    /// <summary>Workflow definition reads: catalog listing, graph, checkpoint/request listing.</summary>
     WorkflowsRead = 7,
 
-    /// <summary>Workflow tanimi yazma: kaydetme, silme. Calistirma bu kapsama dahil DEGILDIR — bkz. <see cref="RunsWrite"/>.</summary>
+    /// <summary>Workflow definition writes: saving, deleting. Running is NOT included in this scope — see <see cref="RunsWrite"/>.</summary>
     WorkflowsAdmin = 8,
 
-    /// <summary>Eval takimi/vaka/kosu okuma: listeleme, tekil getirme, cevrimici degerlendirme ozeti.</summary>
+    /// <summary>Eval suite/case/run reads: listing, single fetch, online evaluation summary.</summary>
     EvalsRead = 9,
 
-    /// <summary>Eval takimi/vaka yazma: kaydetme, silme, run'dan vaka terfisi. Kosu tetikleme bu kapsama dahil DEGILDIR — bkz. <see cref="RunsWrite"/>.</summary>
+    /// <summary>Eval suite/case writes: saving, deleting, promoting a case from a run. Triggering a run is NOT included in this scope — see <see cref="RunsWrite"/>.</summary>
     EvalsAdmin = 10,
 
-    /// <summary>Deney okuma: listeleme, tekil getirme, sonuclar, kanarya durumu.</summary>
+    /// <summary>Experiment reads: listing, single fetch, results, canary status.</summary>
     ExperimentsRead = 11,
 
-    /// <summary>Deney yazma: kaydetme, silme, baslatma/durdurma, kanarya politikasi.</summary>
+    /// <summary>Experiment writes: saving, deleting, starting/stopping, canary policy.</summary>
     ExperimentsAdmin = 12,
 
     /// <summary>
-    /// Platform isletim yapilandirmasi ve saglik okuma: kiraci kaydi, kota,
-    /// saklama, zamanlama, webhook, teshis, saglayici sagligi.
+    /// Platform operations configuration and health reads: tenant
+    /// registration, quotas, retention, scheduling, webhooks, diagnostics,
+    /// provider health.
     /// </summary>
     PlatformRead = 13,
 
-    /// <summary>Platform isletim yapilandirmasi yazma ve saklama temizligini calistirma.</summary>
+    /// <summary>Platform operations configuration writes and running retention cleanup.</summary>
     PlatformAdmin = 14,
 
     /// <summary>
-    /// Yetki ureten/uzatan yuzeyler: API anahtari, skill script izni, MCP
-    /// OAuth baslatma. Kendini yukseltebilen tek kapsam — nadir verilmelidir.
+    /// Surfaces that generate/extend authority: API keys, skill script
+    /// grants, MCP OAuth start. The only self-elevating scope — should be
+    /// granted rarely.
     /// </summary>
     SecurityAdmin = 15,
 
-    /// <summary>Denetim izi okuma.</summary>
+    /// <summary>Audit trail reads.</summary>
     AuditRead = 16,
 }
