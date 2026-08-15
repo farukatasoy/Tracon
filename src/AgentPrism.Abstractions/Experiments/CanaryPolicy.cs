@@ -1,60 +1,65 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Bir deneyin kanarya kolu icin otomatik geri alma ve kademeli trafik artirma kurallari.
+/// Defines automatic rollback and gradual traffic-increase rules for an experiment canary variant.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 Yalnizca <strong>iki kollu</strong> deneylerde tanimlanabilir:
-/// <see cref="CanaryVariant"/> kanarya, kalan TEK kol kontrol sayilir. Ucten fazla
-/// kolda kontrol agirliginin orantili geri dagitimi oturum kararliligini
-/// (bkz. <c>docs/56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md</c>, bolum 56.4) garanti
-/// edemezdi; bu kisitla kanarya arailigi her zaman <c>[0, kanaryaAgirligi)</c>'da
-/// sabit kalir ve kontrol araligi tek parcadir.
+/// 🚨 This policy can only be defined for <strong>two-variant</strong> experiments.
+/// <see cref="CanaryVariant"/> is the canary and the one remaining variant is the
+/// control. With more than two variants, proportional control-weight redistribution
+/// could not guarantee session stability (see
+/// <c>docs/56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md</c>, section 56.4). This
+/// constraint keeps the canary range fixed at <c>[0, canaryWeight)</c> and makes
+/// the control range contiguous.
 /// </para>
 /// <para>
-/// Karsilastirma <strong>gorecelidir</strong>: kanaryanin hata orani kontrolun
-/// KENDISINDEN <see cref="MaxErrorRateDelta"/> kadar yuksekse geri alinir. Mutlak
-/// bir esik (ornegin "hata orani %5'i gecerse dur"), kontrolun de kotu oldugu bir
-/// agent'ta kanaryayi haksiz yere oldururdu.
+/// Comparison is <strong>relative</strong>. The canary rolls back when its error
+/// rate is <see cref="MaxErrorRateDelta"/> higher than the control rate. An
+/// absolute threshold, such as "stop at a 5% error rate", would unfairly stop a
+/// canary for an agent whose control is also unhealthy.
 /// </para>
 /// </remarks>
 public sealed record CanaryPolicy
 {
-    /// <summary>Kanarya kolunun adi. Deneyin <c>Variants</c> listesinde bulunmalidir.</summary>
+    /// <summary>Gets the canary variant name. It must exist in the experiment <c>Variants</c> list.</summary>
     public required string CanaryVariant { get; init; }
 
     /// <summary>
-    /// Kanaryanin hata orani kontrolden bu kadar YUKSEKSE geri alinir (mutlak fark,
-    /// 0.0-1.0). <see langword="null"/> ise hata orani denetlenmez.
+    /// Gets the maximum absolute error-rate difference from the control, from 0.0
+    /// through 1.0. The canary rolls back when its rate is higher. No error-rate
+    /// check runs when this value is <see langword="null"/>.
     /// </summary>
     public double? MaxErrorRateDelta { get; init; }
 
     /// <summary>
-    /// Kanaryanin ortalama puani (0-100) bu esigin ALTINDAYSA geri alinir.
-    /// <see langword="null"/> ise puan denetlenmez.
+    /// Gets the minimum average canary score from 0 through 100. The canary rolls
+    /// back below this threshold. No score check runs when this value is
+    /// <see langword="null"/>.
     /// </summary>
     public int? MinScore { get; init; }
 
     /// <summary>
-    /// Bir karar verilmeden once hem kanarya hem kontrol kolunun ulasmasi gereken
-    /// asgari sonuclanmis calistirma sayisi.
+    /// Gets the minimum completed run count that both the canary and control
+    /// variants must reach before a decision is made.
     /// </summary>
     /// <remarks>
-    /// 🚨 Faz 49'un <c>OnlineEvaluationOptions.MinSampleSize</c> kuralinin
-    /// AYNISIDIR — ayni varsayilan (<c>20</c>), ayni gerekce (az orneklemde esik
-    /// gurultuye tepki verir). Ayni deger kademeli artirmada bir sonraki adima
-    /// gecis icin de kullanilir; ikinci bir esik alani ACILMAZ.
+    /// 🚨 This is the same rule as
+    /// <c>OnlineEvaluationOptions.MinSampleSize</c> in Phase 49. It has the same
+    /// default of <c>20</c> and the same rationale: a threshold reacts to noise
+    /// with a small sample. Gradual increases use the same value to advance to
+    /// the next step; a second threshold property is not added.
     /// </remarks>
     public int MinSampleSize { get; init; } = 20;
 
     /// <summary>
-    /// Kanarya agirliginin zamanla artacagi adimlar (ornek: <c>[5, 25, 50, 100]</c>).
-    /// Bos ise kademeli artirma calismaz; kanarya agirligi <c>SaveAsync</c>'te
-    /// tanimlanan degerde sabit kalir ve yalniz geri alma denetlenir.
+    /// Gets the canary-weight steps that increase over time, for example
+    /// <c>[5, 25, 50, 100]</c>. An empty list disables gradual increases. The
+    /// canary weight stays at the value set through <c>SaveAsync</c> and only
+    /// rollback is evaluated.
     /// </summary>
     public IReadOnlyList<int> RampSteps { get; init; } = [];
 
-    /// <summary>Adimlar arasindaki asgari sure.</summary>
+    /// <summary>Gets the minimum time between steps.</summary>
     public TimeSpan RampInterval { get; init; } = TimeSpan.FromHours(1);
 }
