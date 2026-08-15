@@ -1,55 +1,54 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Bir calistirmaya veya calistirma icindeki tek bir mesaja iliskin insan
-/// (veya yargic) puani.
+/// A human (or judge) score for a run or for a single message within a run.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="MessageId"/> bos ise puan <strong>tum calistirmaya</strong>
-/// aittir; doluysa tek bir mesaja aittir.
+/// If <see cref="MessageId"/> is empty, the score belongs to
+/// <strong>the whole run</strong>; if set, it belongs to a single message.
 /// </para>
 /// <para>
-/// Bir yazar (<see cref="Author"/>) ayni hedefi (calistirma veya mesaj) bir
-/// kez puanlar — ikinci yazim mevcut satiri gunceller,
-/// <see cref="IRunScoreStore.UpsertAsync"/>. <see cref="Author"/> bos
-/// oldugunda (kimliksiz kurulum) bu kural uygulanmaz; her cagri yeni bir
-/// satir acar.
+/// An author (<see cref="Author"/>) scores the same target (a run or a
+/// message) once — a second write updates the existing row,
+/// <see cref="IRunScoreStore.UpsertAsync"/>. When <see cref="Author"/> is
+/// empty (an identity-less setup), this rule does not apply; every call
+/// opens a new row.
 /// </para>
 /// </remarks>
 public sealed record RunScore
 {
-    /// <summary>Puanin kimligi.</summary>
+    /// <summary>The score's identifier.</summary>
     public Guid Id { get; init; }
 
-    /// <summary>Kiraci.</summary>
+    /// <summary>The tenant.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Puanlanan calistirmanin kimligi.</summary>
+    /// <summary>The identifier of the run being scored.</summary>
     public required Guid RunId { get; init; }
 
-    /// <summary>Puanlanan mesajin kimligi. Bos ise puan tum calistirmaya aittir.</summary>
+    /// <summary>The identifier of the message being scored. If empty, the score belongs to the whole run.</summary>
     public string? MessageId { get; init; }
 
-    /// <summary><see cref="Value"/>'nun bicimi.</summary>
+    /// <summary>The shape of <see cref="Value"/>.</summary>
     public required RunScoreKind Kind { get; init; }
 
-    /// <summary>Puan degeri. <see cref="RunScoreKind.Binary"/> icin 0/1, <see cref="RunScoreKind.Stars"/> icin 1..5.</summary>
+    /// <summary>The score value. 0/1 for <see cref="RunScoreKind.Binary"/>, 1..5 for <see cref="RunScoreKind.Stars"/>.</summary>
     public required int Value { get; init; }
 
-    /// <summary>Serbest metin yorum.</summary>
+    /// <summary>A free-text comment.</summary>
     public string? Comment { get; init; }
 
     /// <summary>
-    /// Puanin kaynagi: <c>human</c>, <c>api</c> veya <c>judge</c>. Bugun tek
-    /// deger <c>human</c>'dir; sutun cevrimici degerlendirmenin (F-71) yargic
-    /// puanini aynen bu tabloya yazabilmesi icin bastan konur.
+    /// The score's source: <c>human</c>, <c>api</c>, or <c>judge</c>. Today
+    /// only <c>human</c> is used; the column is set up from the start so
+    /// online evaluation (F-71) can write a judge score into the same table as-is.
     /// </summary>
     public required string Source { get; init; }
 
-    /// <summary>Puani veren aktor. Kimliksiz kurulumda <see langword="null"/>.</summary>
+    /// <summary>The actor who gave the score. <see langword="null"/> in an identity-less setup.</summary>
     public string? Author { get; init; }
 
-    /// <summary>Olusturulma/son guncellenme zamani.</summary>
+    /// <summary>The creation/last-updated time.</summary>
     public DateTimeOffset CreatedAt { get; init; }
 }

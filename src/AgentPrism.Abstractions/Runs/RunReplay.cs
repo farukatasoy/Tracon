@@ -2,122 +2,124 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>Yeniden oynatmada tool'larin nasil ele alinacagi.</summary>
+/// <summary>How tools are handled during replay.</summary>
 /// <remarks>
-/// 🚨 JSON'da <strong>ad olarak</strong> yazilir ve okunur. Donusturucu
-/// olmadan minimal API govdeyi cozemez ve istek <em>bos govdeli</em> bir
-/// <c>400</c> ile duser — hata mesaji sebebi soylemez. Ayni isaret
-/// <see cref="RunScoreKind"/> uzerinde de vardir.
+/// 🚨 Written and read <strong>as a name</strong> in JSON. Without the
+/// converter, the minimal API cannot resolve the body, and the request fails
+/// with an <em>empty-bodied</em> <c>400</c> — the error message does not say
+/// why. The same note applies to <see cref="RunScoreKind"/>.
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<ReplayToolMode>))]
 public enum ReplayToolMode
 {
     /// <summary>
-    /// Tool'lar hic baglanmaz; yalnizca model yaniti uretilir. Skill'ler ve
-    /// cagrilabilir alt agent'lar da devre disidir — ucu de modele bir tool
-    /// olarak gorunur.
+    /// Tools are never bound; only the model response is produced. Skills and
+    /// callable child agents are also disabled — both appear to the model as
+    /// a tool.
     /// </summary>
     NoTools = 0,
 
     /// <summary>
-    /// Kayitli tool sonuclari geri oynatilir; hicbir tool govdesi calismaz.
-    /// Eslesmeyen bir cagri yeniden oynatmayi <strong>durdurur</strong>.
+    /// Recorded tool results are played back; no tool body runs. A call with
+    /// no match <strong>stops</strong> the replay.
     /// </summary>
     ReplayTools = 1,
 
     /// <summary>
-    /// 🚨 Tool'lar gercekten kosar ve yan etki uretir. Onay gerektiren bir tool
-    /// varsa istek reddedilir; uc ayrica <c>Admin</c> rolu ister.
+    /// 🚨 Tools actually run and produce side effects. If any tool requires
+    /// approval, the request is rejected; the endpoint also requires the
+    /// <c>Admin</c> role.
     /// </summary>
     LiveTools = 2,
 }
 
-/// <summary>Bir yeniden oynatma istegi.</summary>
+/// <summary>A replay request.</summary>
 /// <remarks>
-/// Yeniden oynatma <strong>girdiyi korur, kosullari degistirir</strong>. Girdi
-/// mesajlari ve kiraci degistirilemez: farkli bir girdi yeni bir calistirmadir,
-/// kiraci sinirini gecmek ise bir guvenlik ihlalidir.
+/// Replay <strong>keeps the input, changes the conditions</strong>. The input
+/// messages and tenant cannot be changed: a different input is a new run, and
+/// crossing the tenant boundary is a security violation.
 /// </remarks>
 public sealed record RunReplayRequest
 {
     /// <summary>
-    /// Kullanilacak agent tanim surumu. Verilmezse bugunku etkin surum.
+    /// The agent definition version to use. The currently active version if not given.
     /// </summary>
     /// <remarks>
-    /// Kod kaynakli agent'larda surum gecmisi yoktur; deger verilirse istek
-    /// reddedilir.
+    /// Code-sourced agents have no version history; the request is rejected
+    /// if a value is given.
     /// </remarks>
     public int? AgentVersion { get; init; }
 
     /// <summary>
-    /// Bindirilecek model adi. Verilmezse tanimin kendi modeli kullanilir.
+    /// The model name to override with. The definition's own model is used if not given.
     /// </summary>
     /// <remarks>
-    /// Yalnizca model <em>adi</em> bindirilir; saglayici ve kimlik bilgileri
-    /// tanimdan gelir. Saglayiciyi degistirmek yeni bir tanimdir.
+    /// Only the model <em>name</em> is overridden; the provider and
+    /// credentials come from the definition. Changing the provider is a new definition.
     /// </remarks>
     public string? ModelId { get; init; }
 
-    /// <summary>Tool davranisi. Varsayilan <see cref="ReplayToolMode.ReplayTools"/>.</summary>
+    /// <summary>The tool behavior. Defaults to <see cref="ReplayToolMode.ReplayTools"/>.</summary>
     public ReplayToolMode ToolMode { get; init; } = ReplayToolMode.ReplayTools;
 }
 
 /// <summary>
-/// Yeniden oynatmanin, kayitli bir tool sonucunu bulamamasi.
+/// Replay could not find a recorded tool result.
 /// </summary>
 /// <remarks>
-/// 🚨 Sessizce atlamak veya canli calistirmak <strong>reddedildi</strong>:
-/// birincisi modelin goremedigi bir bosluk uretir ve sonucu sessizce yanlis
-/// yapar, ikincisi kullanicinin istemedigi bir yan etki uretir. Uc bu istisnayi
-/// <c>422</c>'ye cevirir ve hangi tool'un hangi argumanla eslesmedigini yazar.
+/// 🚨 Silently skipping or running live is <strong>rejected</strong>: the
+/// first produces a gap the model cannot see and silently corrupts the
+/// result; the second produces a side effect the user did not ask for. The
+/// endpoint turns this exception into a <c>422</c> and writes which tool
+/// failed to match with which arguments.
 /// </remarks>
 public sealed class ReplayToolMismatchException : AgentPrismException
 {
     /// <summary>
-    /// <see cref="AgentPrismException.ErrorType"/> icin yazilan kararli deger.
+    /// The stable value written for <see cref="AgentPrismException.ErrorType"/>.
     /// </summary>
     public const string ReplayToolMismatchErrorType = "replay_tool_mismatch";
 
-    /// <summary>Yeni bir eslesmeme hatasi olusturur.</summary>
+    /// <summary>Creates a new mismatch error.</summary>
     public ReplayToolMismatchException()
     {
     }
 
-    /// <summary>Yeni bir eslesmeme hatasi olusturur.</summary>
-    /// <param name="message">Hata mesaji.</param>
+    /// <summary>Creates a new mismatch error.</summary>
+    /// <param name="message">The error message.</param>
     public ReplayToolMismatchException(string message)
         : base(message)
     {
     }
 
-    /// <summary>Yeni bir eslesmeme hatasi olusturur.</summary>
-    /// <param name="message">Hata mesaji.</param>
-    /// <param name="innerException">Asil hata.</param>
+    /// <summary>Creates a new mismatch error.</summary>
+    /// <param name="message">The error message.</param>
+    /// <param name="innerException">The underlying error.</param>
     public ReplayToolMismatchException(string message, Exception innerException)
         : base(message, innerException)
     {
     }
 
-    /// <summary>Eslesmeyen tool'un adi.</summary>
+    /// <summary>The name of the unmatched tool.</summary>
     public string? ToolName { get; init; }
 
-    /// <summary>Eslesmeyen cagrinin argumanlari.</summary>
+    /// <summary>The unmatched call's arguments.</summary>
     public string? Arguments { get; init; }
 
     /// <inheritdoc />
     public override string ErrorType => ReplayToolMismatchErrorType;
 
-    /// <summary>Eslesmeyen bir cagri icin standart mesajli hata uretir.</summary>
-    /// <param name="toolName">Model tarafindan cagrilan tool.</param>
-    /// <param name="arguments">Cagrinin argumanlari.</param>
-    /// <returns>Hata.</returns>
+    /// <summary>Produces an error with a standard message for an unmatched call.</summary>
+    /// <param name="toolName">The tool called by the model.</param>
+    /// <param name="arguments">The call's arguments.</param>
+    /// <returns>The error.</returns>
     public static ReplayToolMismatchException For(string toolName, string? arguments)
         => new(
-            $"Yeniden oynatma durdu: '{toolName}' tool'u '{arguments ?? "(argumansiz)"}' argumaniyla " +
-            "cagrildi ama kaynak calistirmada bu cagrinin kayitli bir sonucu yok. " +
-            "Yeni surum farkli bir tool cagiriyor demektir; bu beklenen bir sonuctur ve " +
-            "davranisin gercekten degistigini gosterir. Tool'u gercekten calistirmak icin " +
-            "'toolMode' degerini 'LiveTools' yapin.")
+            $"Replay stopped: tool '{toolName}' was called with arguments '{arguments ?? "(no arguments)"}' " +
+            "but the source run has no recorded result for this call. " +
+            "This means the new version calls a different tool; this is an expected " +
+            "outcome and shows that the behavior genuinely changed. To actually run the tool, " +
+            "set 'toolMode' to 'LiveTools'.")
         {
             ToolName = toolName,
             Arguments = arguments,

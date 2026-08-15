@@ -1,40 +1,40 @@
 namespace AgentPrism;
 
-/// <summary>Oksuz calistirma uzlastirmasi (Faz 54) ayarlari.</summary>
+/// <summary>Orphaned-run reconciliation (Phase 54) settings.</summary>
 /// <remarks>
-/// <c>AgentPrism:RunReconciliation</c> yapilandirma bolumunden okunur. Bkz.
-/// <c>AgentPrismServiceCollectionExtensions.AddAgentPrism</c>.
+/// Read from the <c>AgentPrism:RunReconciliation</c> configuration section.
+/// See <c>AgentPrismServiceCollectionExtensions.AddAgentPrism</c>.
 /// </remarks>
 public sealed class RunReconciliationOptions
 {
-    /// <summary>Yapilandirma bolumu adi.</summary>
+    /// <summary>The configuration section name.</summary>
     public const string SectionName = "AgentPrism:RunReconciliation";
 
     /// <summary>
-    /// Uzlastirma acik mi. Varsayilan <see langword="false"/>: tek ornekli bir
-    /// gelistirme kurulumunda kimse bir arka plan yazicisi beklemez ve kira
-    /// tablosuna hicbir sorgu gitmez.
+    /// Whether reconciliation is on. Defaults to <see langword="false"/>: in a
+    /// single-instance development setup, no one expects a background writer,
+    /// and no query goes to the lease table.
     /// </summary>
     public bool Enabled { get; set; }
 
     /// <summary>
-    /// Suren bir calistirmanin "hala buradayim" isaretini yazma araligi.
+    /// The interval at which a running run writes its "I'm still here" signal.
     /// </summary>
     public TimeSpan HeartbeatInterval { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// Bu sureden uzun sure isaret vermeyen <c>Running</c> satir oksuz sayilir.
+    /// A <c>Running</c> row that has not signalled for longer than this is
+    /// considered orphaned.
     /// </summary>
     /// <remarks>
-    /// Varsayilan <see cref="HeartbeatInterval"/>'in on kati: tek bir GC
-    /// duraklamasi veya kisa bir veritabani kesintisi calisan bir isi
-    /// oldu ilan ETMEMELIDIR.
+    /// Defaults to ten times <see cref="HeartbeatInterval"/>: a single GC
+    /// pause or a brief database interruption must NOT declare a job running dead.
     /// </remarks>
     public TimeSpan OrphanThreshold { get; set; } = TimeSpan.FromMinutes(5);
 
-    /// <summary>Uzlastirma turlari arasindaki bekleme.</summary>
+    /// <summary>The wait between reconciliation passes.</summary>
     public TimeSpan ScanInterval { get; set; } = TimeSpan.FromMinutes(1);
 
-    /// <summary>Bir turda kapatilacak ust satir sayisi.</summary>
+    /// <summary>The maximum number of rows to close in one pass.</summary>
     public int MaxRunsPerScan { get; set; } = 100;
 }
