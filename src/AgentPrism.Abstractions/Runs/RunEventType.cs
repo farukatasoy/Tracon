@@ -3,148 +3,153 @@ using System.Text.Json.Serialization;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir calistirma sirasinda uretilen olay tipleri. Arayuz bu tipleri dogrudan
-/// gorsel ogelere esler, bu yuzden degerler kararli tutulmalidir.
+/// Event types produced during a run. The user interface maps these directly onto
+/// visual elements, so the values must stay stable.
 /// </summary>
 /// <remarks>
-/// JSON'da <strong>ad olarak</strong> yazilir (<c>"Code"</c>), sayi olarak degil.
-/// Kablo sozlesmesi boylece kendini anlatir ve deger sirasi degisirse bile kirilmaz.
-/// Donusturucu tip duzeyindedir: tuketicinin uygulama genelindeki JSON ayarlarina
-/// dokunmadan her yerde ayni bicimi verir. Hicbir enum JSON olarak KALICI degildir
-/// (RunStatus ve RunEventType veritabaninda smallint, AgentDefinitionOrigin okumada
-/// yeniden kurulur), bu yuzden bicim degisikligi saklanan veriyi etkilemez.
+/// Written to JSON <strong>by name</strong> (<c>"Code"</c>), not by number. The
+/// wire contract explains itself that way and survives a change in value order.
+/// The converter sits on the type, so the format is the same everywhere without
+/// touching the consumer's application-wide JSON options. No enum is PERSISTED as
+/// JSON (RunStatus and RunEventType are smallint in the database,
+/// AgentDefinitionOrigin is rebuilt on read), so a format change does not affect
+/// stored data.
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<RunEventType>))]
 public enum RunEventType
 {
-    /// <summary>Calistirma basladi.</summary>
+    /// <summary>The run started.</summary>
     RunStarted = 0,
 
-    /// <summary>Modelden metin parcasi geldi. Yalnizca akisli calistirmalarda uretilir.</summary>
+    /// <summary>A text fragment arrived from the model. Produced only for streaming runs.</summary>
     MessageDelta = 1,
 
-    /// <summary>Bir mesaj tamamlandi.</summary>
+    /// <summary>A message completed.</summary>
     MessageCompleted = 2,
 
-    /// <summary>Bir tool cagrilmak uzere. Argumanlar olay yukunde bulunur.</summary>
+    /// <summary>A tool is about to be called. The arguments are in the event payload.</summary>
     ToolInvoking = 3,
 
-    /// <summary>Bir tool basariyla tamamlandi. Sonuc olay yukunde bulunur.</summary>
+    /// <summary>A tool completed successfully. The result is in the event payload.</summary>
     ToolInvoked = 4,
 
-    /// <summary>Bir tool hata verdi.</summary>
+    /// <summary>A tool failed.</summary>
     ToolFailed = 5,
 
-    /// <summary>Calistirma basariyla tamamlandi.</summary>
+    /// <summary>The run finished successfully.</summary>
     RunCompleted = 6,
 
-    /// <summary>Calistirma hata ile sonlandi.</summary>
+    /// <summary>The run ended with an error.</summary>
     RunFailed = 7,
 
     /// <summary>
-    /// Bu calistirma bir alt agent calistirmasi baslatti.
-    /// <c>Text</c> alt agent'in adini, <c>Payload</c> alt calistirmanin kimligini tasir.
+    /// This run started a child agent run. <c>Text</c> carries the child agent's
+    /// name and <c>Payload</c> the child run id.
     /// </summary>
     /// <remarks>
-    /// Alt calistirmanin kendi olaylari kok akisa aynalanmaz; yalnizca basladigi
-    /// ve bittigi bildirilir. Tam aynalama olay hacmini agac boyunca katlar ve
-    /// istemciye ayni metni iki kez gonderir.
+    /// The child run's own events are not mirrored into the root stream; only its
+    /// start and end are reported. Full mirroring would multiply the event volume
+    /// along the tree and send the same text to the client twice.
     /// </remarks>
     ChildRunStarted = 8,
 
     /// <summary>
-    /// Baslatilan bir alt agent calistirmasi sonuclandi. <c>Text</c> alt agent'in
-    /// adini, <c>Payload</c> alt calistirmanin kimligini tasir.
+    /// A child agent run finished. <c>Text</c> carries the child agent's name and
+    /// <c>Payload</c> the child run id.
     /// </summary>
     ChildRunCompleted = 9,
 
     /// <summary>
-    /// Konusma gecmisi sikistirildi. <c>Text</c> kisa bir ozet cumleyi,
-    /// <c>Payload</c> once/sonra mesaj ve token sayilarini tasir.
+    /// The chat history was compacted. <c>Text</c> carries a short summary sentence
+    /// and <c>Payload</c> the before/after message and token counts.
     /// </summary>
     HistoryCompacted = 10,
 
     /// <summary>
-    /// Bir workflow yurutmesi basladi. <c>Text</c> workflow adini tasir.
+    /// A workflow execution started. <c>Text</c> carries the workflow name.
     /// </summary>
     /// <remarks>
-    /// <see cref="RunStarted"/>'dan ayridir: o, <c>runs</c> satirinin acildigini
-    /// bildirir; bu ise Microsoft Agent Framework yurutme motorunun grafi
-    /// gercekten devraldigini bildirir. Ikisi arasinda derleme ve dogrulama yer
-    /// alir ve orada olusan bir hata graf hic baslamadan calistirmayi bitirir.
+    /// This is separate from <see cref="RunStarted"/>: that one reports that the
+    /// <c>runs</c> row was opened, this one reports that the Microsoft Agent
+    /// Framework execution engine actually took over the graph. Compilation and
+    /// validation happen in between, and an error there ends the run before the
+    /// graph ever starts.
     /// </remarks>
     WorkflowStarted = 11,
 
     /// <summary>
-    /// Bir super-step basladi. <c>Text</c> adim numarasini, <c>Payload</c> mesaj
-    /// gonderen executor adlarini tasir.
+    /// A super-step started. <c>Text</c> carries the step number and <c>Payload</c>
+    /// the names of the executors that sent messages.
     /// </summary>
     SuperStepStarted = 12,
 
     /// <summary>
-    /// Bir super-step tamamlandi. <c>Text</c> adim numarasini, <c>Payload</c>
-    /// etkinlesen executor adlarini ve varsa kontrol noktasi kimligini tasir.
+    /// A super-step completed. <c>Text</c> carries the step number and
+    /// <c>Payload</c> the activated executor names plus the checkpoint id, if any.
     /// </summary>
     SuperStepCompleted = 13,
 
-    /// <summary>Bir executor cagrildi. <c>Text</c> executor kimligini tasir.</summary>
+    /// <summary>An executor was invoked. <c>Text</c> carries the executor id.</summary>
     ExecutorInvoked = 14,
 
-    /// <summary>Bir executor tamamlandi. <c>Text</c> executor kimligini tasir.</summary>
+    /// <summary>An executor completed. <c>Text</c> carries the executor id.</summary>
     ExecutorCompleted = 15,
 
     /// <summary>
-    /// Bir executor hata verdi. <c>Text</c> executor kimligini, <c>Payload</c>
-    /// hata mesajini tasir.
+    /// An executor failed. <c>Text</c> carries the executor id and <c>Payload</c>
+    /// the error message.
     /// </summary>
     ExecutorFailed = 16,
 
     /// <summary>
-    /// Workflow bir cikti uretti. <c>Text</c> ciktinin metin ozetini tasir.
+    /// The workflow produced an output. <c>Text</c> carries a text summary of it.
     /// </summary>
     WorkflowOutput = 17,
 
     /// <summary>
-    /// Workflow disaridan bir yanit bekliyor (human-in-the-loop).
-    /// <c>Text</c> istek kimligini, <c>Payload</c> istegin JSON ozetini tasir.
+    /// The workflow waits for an external answer (human in the loop). <c>Text</c>
+    /// carries the request id and <c>Payload</c> a JSON summary of the request.
     /// </summary>
     /// <remarks>
-    /// Yuk, bekleyen istegi <em>yeniden kurmaya yetecek</em> kadar bilgi tasir:
-    /// port kimligi, istek kimligi, istek/yanit tip adlari ve gosterilecek veri.
-    /// Bekleyen istekler bu olaylardan okunur; ayri bir tablo acilmadi (Faz 16).
+    /// The payload carries <em>enough to rebuild</em> the pending request: port id,
+    /// request id, request and response type names, and the data to display.
+    /// Pending requests are read from these events; no separate table was added
+    /// (phase 16).
     /// </remarks>
     WorkflowRequest = 18,
 
     /// <summary>
-    /// Calistirma bir insan yaniti bekledigi icin durdu. Akisin son olayidir.
+    /// The run stopped because it waits for a human answer. It is the last event of
+    /// the stream.
     /// </summary>
     /// <remarks>
-    /// <see cref="RunCompleted"/> ve <see cref="RunFailed"/>'dan ayridir: is ne
-    /// bitmistir ne de basarisiz olmustur. Arayuz bu olayi gorunce bekleyen
-    /// istek kartini gosterir. Faz 16'da eklendi.
+    /// Separate from <see cref="RunCompleted"/> and <see cref="RunFailed"/>: the
+    /// work neither finished nor failed. On this event the user interface shows the
+    /// pending request card. Added in phase 16.
     /// </remarks>
     RunAwaitingInput = 19,
 
     /// <summary>
-    /// Bir <see cref="IContentGuard"/> icerigi maskeledi. <c>Text</c> guard adini,
-    /// kural adini ve yonu tasir; <c>Payload</c> eslesme sayisini tasir.
+    /// An <see cref="IContentGuard"/> masked content. <c>Text</c> carries the guard
+    /// name, the rule name and the direction; <c>Payload</c> carries the match count.
     /// </summary>
     /// <remarks>
-    /// 🚨 Ne <c>Text</c> ne <c>Payload</c> <strong>maskelenen icerigi</strong> tasir —
-    /// yalnizca maskelemenin YAPILDIGINI bildirir. Modelin gordugu metin
-    /// kullanicinin yazdigindan farkliysa bu bir olaydir ve sessiz kalamaz
-    /// (K-089'un kurali: kaydedilemeyen bir karar, alinmamis bir karardir).
+    /// 🚨 Neither <c>Text</c> nor <c>Payload</c> carries the <strong>masked
+    /// content</strong> — they only report THAT masking happened. When the text the
+    /// model sees differs from what the user wrote, that is an event and it cannot
+    /// stay silent (the K-089 rule: a decision that cannot be recorded is a decision
+    /// that was not taken).
     /// </remarks>
     ContentMasked = 20,
 
     /// <summary>
-    /// Bir <see cref="IContentGuard"/> icerigi engelledi. <c>Text</c> guard adini,
-    /// kural adini ve yonu tasir.
+    /// An <see cref="IContentGuard"/> blocked content. <c>Text</c> carries the guard
+    /// name, the rule name and the direction.
     /// </summary>
     /// <remarks>
-    /// 🚨 Yuk <strong>engellenen icerigi tasimaz</strong>. Olayin ardindan
-    /// calistirma <c>Failed</c> olur ve <c>runs.error_type</c> <c>content_blocked</c>
-    /// yazilir.
+    /// 🚨 The payload <strong>does not carry the blocked content</strong>. After the
+    /// event the run becomes <c>Failed</c> and <c>runs.error_type</c> is written as
+    /// <c>content_blocked</c>.
     /// </remarks>
     ContentBlocked = 21,
 }

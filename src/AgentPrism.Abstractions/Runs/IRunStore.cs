@@ -1,149 +1,149 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Calistirma kayitlarinin ve olay akisinin deposu.
+/// Store for run records and the event stream.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Olaylar <em>append-only</em>'dir. Uygulamalar bir olayi hicbir zaman
-/// guncellememeli veya silmemelidir; yalnizca <see cref="AppendEventAsync"/>
-/// ile eklemelidir.
+/// Events are <em>append-only</em>. An implementation must never update or delete
+/// an event; it only adds them through <see cref="AppendEventAsync"/>.
 /// </para>
 /// <para>
-/// <strong>Onemli:</strong> Bu deponun hatalari calistirmayi kesmez.
-/// Gozlemlenebilirlik, islevselligi bozmamalidir. Cagiran taraf
-/// (<c>RunEventWriter</c>) hatalari yakalar ve loglar.
+/// <strong>Important:</strong> a failure in this store never interrupts the run.
+/// Observability must not break functionality. The caller
+/// (<c>RunEventWriter</c>) catches and logs the failure.
 /// </para>
 /// </remarks>
 public interface IRunStore
 {
-    /// <summary>Yeni bir calistirma kaydi acar.</summary>
-    /// <param name="info">Baslangic bilgileri.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Olusturulan kayit.</returns>
+    /// <summary>Opens a new run record.</summary>
+    /// <param name="info">The start information.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The created record.</returns>
     ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken cancellationToken = default);
 
-    /// <summary>Calistirma akisina bir olay ekler.</summary>
-    /// <param name="runEvent">Eklenecek olay. Sira numarasi cagiran tarafindan atanir.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Appends an event to the run stream.</summary>
+    /// <param name="runEvent">The event to append. The caller assigns its sequence number.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task that completes when the event is written.</returns>
     ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default);
 
-    /// <summary>Calistirmayi sonlandirir ve ozetini gunceller.</summary>
-    /// <param name="completion">Sonlandirma bilgileri.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Closes the run and updates its summary.</summary>
+    /// <param name="completion">The completion information.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task that completes when the record is updated.</returns>
     ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken cancellationToken = default);
 
-    /// <summary>Bir calistirma kaydini getirir.</summary>
-    /// <param name="runId">Calistirma kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kayit; yoksa <see langword="null"/>.</returns>
+    /// <summary>Gets a run record.</summary>
+    /// <param name="runId">The run id.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The record, or <see langword="null"/> when it does not exist.</returns>
     ValueTask<RunRecord?> GetRunAsync(Guid runId, CancellationToken cancellationToken = default);
 
-    /// <summary>Calistirmalari filtreleyerek listeler. En yeni kayit basta doner.</summary>
-    /// <param name="query">Filtre.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kayitlar.</returns>
+    /// <summary>Lists runs that match a filter, newest first.</summary>
+    /// <param name="query">The filter.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The matching records.</returns>
     ValueTask<IReadOnlyList<RunRecord>> QueryRunsAsync(RunQuery query, CancellationToken cancellationToken = default);
 
-    /// <summary>Calistirmalarin ozetini cikarir.</summary>
-    /// <param name="query">Filtre.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Sayilar, token toplamlari ve agent kirilimi.</returns>
+    /// <summary>Summarizes runs.</summary>
+    /// <param name="query">The filter.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>Counts, token totals and the per-agent breakdown.</returns>
     /// <remarks>
-    /// Ozet <strong>deponun kendisinde</strong> hesaplanir. Kayitlari cekip bellekte
-    /// toplamak yalnizca sayfalanmis bir alt kumeyi kapsar ve yanlis sonuc verir.
+    /// The summary is computed <strong>inside the store</strong>. Fetching records
+    /// and aggregating them in memory would cover only a paged subset and give the
+    /// wrong answer.
     /// </remarks>
     ValueTask<RunStatistics> GetStatisticsAsync(
         RunStatisticsQuery query,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Bir calistirmanin olaylarini sira numarasina gore okur.
-    /// Canli akis ve gecmise donuk yeniden oynatma ayni yoldan gecer.
+    /// Reads the events of a run in sequence order. Live streaming and historical
+    /// replay take the same path.
     /// </summary>
-    /// <param name="runId">Calistirma kimligi.</param>
-    /// <param name="fromSequence">Bu sira numarasindan itibaren okunur (dahil).</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Sirali olay akisi.</returns>
+    /// <param name="runId">The run id.</param>
+    /// <param name="fromSequence">Reading starts at this sequence number, inclusive.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The ordered event stream.</returns>
     IAsyncEnumerable<RunEvent> ReadEventsAsync(
         Guid runId,
         long fromSequence = 0,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Sonuclanmis bir tool cagrisini kaydeder.</summary>
-    /// <param name="invocation">Cagri ozeti.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Records a settled tool call.</summary>
+    /// <param name="invocation">The call summary.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task that completes when the record is written.</returns>
     /// <remarks>
-    /// Olay akisindan ayri tutulur cunku sure ve tool bazli toplamlar olay
-    /// akisini bastan sona taramadan sorgulanabilmelidir.
+    /// Kept apart from the event stream because durations and per-tool totals must
+    /// be queryable without scanning the whole event stream.
     /// </remarks>
     ValueTask RecordToolInvocationAsync(
         ToolInvocationRecord invocation,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Bir calistirmanin tool cagrilarini zaman sirasina gore listeler.</summary>
-    /// <param name="runId">Calistirma kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Cagri kayitlari.</returns>
+    /// <summary>Lists the tool calls of a run in chronological order.</summary>
+    /// <param name="runId">The run id.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The call records.</returns>
     ValueTask<IReadOnlyList<ToolInvocationRecord>> ListToolInvocationsAsync(
         Guid runId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Tool bazinda kullanim ozetini cikarir.</summary>
-    /// <param name="query">Filtre.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Cagri sayilari, hata oranlari ve ortalama sureler.</returns>
+    /// <summary>Summarizes usage per tool.</summary>
+    /// <param name="query">The filter.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>Call counts, failure rates and average durations.</returns>
     /// <remarks>
-    /// <see cref="GetStatisticsAsync"/> ile ayni gerekce: ozet
-    /// <strong>deponun kendisinde</strong> hesaplanir.
+    /// Same reason as <see cref="GetStatisticsAsync"/>: the summary is computed
+    /// <strong>inside the store</strong>.
     /// </remarks>
     ValueTask<IReadOnlyList<ToolUsage>> GetToolUsageAsync(
         ToolUsageQuery query,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Bir deneyin kol bazinda calistirma ozetini cikarir: sayi, hata orani, token, sure.
+    /// Summarizes an experiment per variant: count, failure rate, tokens, duration.
     /// </summary>
-    /// <param name="query">Filtre.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kol bazinda sonuclar. Hic trafik almamis bir kol listede yer almaz.</returns>
+    /// <param name="query">The filter.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>Per-variant results. A variant that took no traffic is absent.</returns>
     /// <remarks>
-    /// Bu fazda deney kirilimi yalniz bu sorgu ile yapilir; <c>experiment_id</c> bir
-    /// metrik etiketi olarak yayilmaz (kardinalite gerekcesi).
+    /// The experiment breakdown is available only through this query;
+    /// <c>experiment_id</c> is not emitted as a metric tag, for cardinality reasons.
     /// </remarks>
     ValueTask<IReadOnlyList<ExperimentVariantResult>> GetExperimentResultsAsync(
         ExperimentResultsQuery query,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Kova basina calistirma, hata, token ve maliyet zaman serisini cikarir.
+    /// Produces the per-bucket time series of runs, failures, tokens and cost.
     /// </summary>
-    /// <param name="query">Filtre.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Sirali kova listesi. Bos kovalar da doner (sifir olayla).</returns>
+    /// <param name="query">The filter.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The ordered bucket list. Empty buckets are returned too, with zero counts.</returns>
     /// <exception cref="AgentPrismException">
-    /// Istenen aralik <see cref="RunTimeSeriesBucketing.MaxBuckets"/>'i asiyor.
+    /// The requested range exceeds <see cref="RunTimeSeriesBucketing.MaxBuckets"/>.
     /// </exception>
     ValueTask<IReadOnlyList<TimeSeriesPoint>> GetTimeSeriesAsync(
         RunTimeSeriesQuery query,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Bir calistirmanin maliyetini gunceller. Yalniz bakim ucu
-    /// (<c>POST /api/stats/recalculate-costs</c>) tarafindan kullanilir;
-    /// normal akista maliyet <see cref="CompleteRunAsync"/> ile bir kez yazilir.
+    /// Updates the cost of a run. Used only by the maintenance endpoint
+    /// (<c>POST /api/stats/recalculate-costs</c>); on the normal path the cost is
+    /// written once by <see cref="CompleteRunAsync"/>.
     /// </summary>
-    /// <param name="runId">Calistirma kimligi.</param>
-    /// <param name="cost">Yeni maliyet. <see langword="null"/> olabilir.</param>
+    /// <param name="runId">The run id.</param>
+    /// <param name="cost">The new cost. May be <see langword="null"/>.</param>
     /// <param name="tenantId">
-    /// Calistirmanin BEKLENEN kiracisi. Derinlemesine savunma; <see langword="null"/>
-    /// ise kiraci denetimi yapilmaz. Gerekce: <see cref="RunEvent.TenantId"/>, K-355.
+    /// The EXPECTED tenant of the run. Defence in depth; when <see langword="null"/>
+    /// no tenant check is made. Rationale: <see cref="RunEvent.TenantId"/>, K-355.
     /// </param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task that completes when the record is updated.</returns>
     ValueTask UpdateRunCostAsync(
         Guid runId,
         RunCost? cost,
@@ -151,24 +151,24 @@ public interface IRunStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Suren calistirmalarin "hala buradayim" isaretini toplu gunceller (Faz 54).
+    /// Updates the "still here" mark of in-flight runs in one batch (phase 54).
     /// </summary>
-    /// <param name="runIds">Isaretlenecek calistirmalarin kimlikleri.</param>
-    /// <param name="at">Isaret zamani (UTC).</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <param name="runIds">The ids of the runs to mark.</param>
+    /// <param name="at">The mark time (UTC).</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task that completes when the marks are written.</returns>
     /// <remarks>
     /// <para>
-    /// Yalniz <c>Running</c> satirlari etkiler; var olmayan veya baska bir
-    /// durumdaki bir kimlik sessizce atlanir -- bu bir bakim sinyalidir ve
-    /// calistirmayi kesmemelidir.
+    /// Only <c>Running</c> rows are affected; an id that does not exist or is in
+    /// another status is skipped silently — this is a maintenance signal and must
+    /// not interrupt a run.
     /// </para>
     /// <para>
-    /// 🚨 <c>[TenantAgnostic]</c>: kimlikler cagiran surecin KENDI
-    /// <c>IRunCancellationRegistry</c> defterinden gelir ve zaten o surecin
-    /// gercekten yuruttugu calistirmalarla sinirlidir; ayrica bir kiraci
-    /// suzgeci kiraci basina ayri sorgu gerektirir ve heartbeat'in amacina
-    /// (dusuk maliyetli, sicak yola eklenmeyen bir sinyal) aykiridir.
+    /// 🚨 <c>[TenantAgnostic]</c>: the ids come from the calling process's OWN
+    /// <c>IRunCancellationRegistry</c> and are therefore already limited to the runs
+    /// that process actually executes. A tenant filter would also need one query per
+    /// tenant, which defeats the point of a heartbeat: a cheap signal that stays off
+    /// the hot path.
     /// </para>
     /// </remarks>
     ValueTask TouchHeartbeatAsync(
@@ -177,30 +177,30 @@ public interface IRunStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Uzun sure heartbeat vermemis <c>Running</c> satirlari <c>Failed</c>
-    /// olarak kapatir ve nedenini yazar (Faz 54).
+    /// Closes <c>Running</c> rows that have not sent a heartbeat for a long time as
+    /// <c>Failed</c> and records the reason (phase 54).
     /// </summary>
     /// <param name="staleBefore">
-    /// Bu zamandan once heartbeat vermis (veya hic vermemis) <c>Running</c>
-    /// satirlar oksuz sayilir (UTC).
+    /// <c>Running</c> rows whose last heartbeat is older than this — or that never
+    /// sent one — count as orphaned (UTC).
     /// </param>
-    /// <param name="max">Bu turda kapatilacak ust satir sayisi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kapatilan calistirmalarin kayitlari.</returns>
+    /// <param name="max">The maximum number of rows to close in this round.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The records of the closed runs.</returns>
     /// <remarks>
     /// <para>
-    /// Kapatma ile birlikte olay akisina bir <see cref="RunEventType.RunFailed"/>
-    /// olayi yazilir -- calistirmayi yazan surec artik yoktur, bu yuzden olayi
-    /// bu metot cagirir. Sira numarasi mevcut en buyuk degerin bir fazlasidir.
+    /// Closing also writes a <see cref="RunEventType.RunFailed"/> event to the
+    /// stream — the process that was writing the run is gone, so this method emits
+    /// the event itself. The sequence number is one past the current maximum.
     /// </para>
     /// <para>
-    /// Yalniz <c>Running</c> satirlari etkiler; <c>Queued</c> satirlarin
-    /// sahibi is kuyrugudur ve bu metot ONLARA DOKUNMAZ.
+    /// Only <c>Running</c> rows are affected; <c>Queued</c> rows are owned by the
+    /// job queue and this method DOES NOT TOUCH them.
     /// </para>
     /// <para>
-    /// 🚨 <c>[TenantAgnostic]</c>: bu bir bakim isidir ve butun kiracilarin
-    /// oksuz satirlarini tarar; ambient kiraciyla suzmek diger kiracilarin
-    /// satirlarini sonsuza dek <c>Running</c> birakirdi.
+    /// 🚨 <c>[TenantAgnostic]</c>: this is maintenance work and scans the orphaned
+    /// rows of every tenant. Filtering by the ambient tenant would leave the rows of
+    /// other tenants <c>Running</c> forever.
     /// </para>
     /// </remarks>
     ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
