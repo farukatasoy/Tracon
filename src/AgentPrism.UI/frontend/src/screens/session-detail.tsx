@@ -56,11 +56,16 @@ export function SessionDetailScreen({ id }: { id: string }): ReactNode {
           </>
         }
         actions={
-          <Link to={`runs?sessionId=${encodeURIComponent(detail.id)}`}>
-            <Button>
-              {runs.data === undefined ? t('nav.runs') : plural('sessionDetail.runs', runs.data.length)}
-            </Button>
-          </Link>
+          <>
+            <Link to={`playground/${encodeURIComponent(detail.agentName)}?sessionId=${encodeURIComponent(detail.id)}`}>
+              <Button>{t('sessionDetail.continueInPlayground')}</Button>
+            </Link>
+            <Link to={`runs?sessionId=${encodeURIComponent(detail.id)}`}>
+              <Button>
+                {runs.data === undefined ? t('nav.runs') : plural('sessionDetail.runs', runs.data.length)}
+              </Button>
+            </Link>
+          </>
         }
       />
 

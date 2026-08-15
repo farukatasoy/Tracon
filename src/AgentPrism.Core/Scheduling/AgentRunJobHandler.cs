@@ -26,14 +26,14 @@ namespace AgentPrism;
 /// (bkz. <c>RunStartInfo.Status</c>) — yeni bir <c>runs</c> satiri ACILMAZ.
 /// </para>
 /// <para>
-/// 🚨 Cagri <c>SuspendOnApproval = true</c> verir (Faz 55): yanit onay bekleyen
-/// bir tool cagrisi tasirsa <see cref="RunRecordingAgent"/> calistirmayi
-/// <see cref="RunStatus.AwaitingApproval"/> ile kapatir (senkron yoldaki
-/// <see cref="RunStatus.Completed"/> davranisindan BILEREK farklidir — burada
-/// canli bir istemci yoktur). Bu isleyici o durumda her istek icin bir
-/// <see cref="PendingApproval"/> satiri yazar; karar
-/// <c>POST /api/approvals/{id}/decide</c> ile verilir ve YENI bir calistirma
-/// kuyruga dusurur (bkz. <c>ApprovalResumeJobHandler</c>).
+/// Yanit onay bekleyen bir tool cagrisi tasirsa <see cref="RunRecordingAgent"/>
+/// calistirmayi <see cref="RunStatus.AwaitingApproval"/> ile kapatir (HATA-S2-004
+/// sonrasi TUM kok calistirmalarda gecerli bir davranis, yalniz kuyruk yoluna
+/// ozgu degil — bkz. <c>RunRecordingAgent</c>). Bu isleyici ayrica, yalniz
+/// KENDISI, o durumda her istek icin bir <see cref="PendingApproval"/> satiri
+/// yazar (K-372: bu depoya yazmak yalniz kuyruk yoluna ozgu KALIR, cift karar
+/// yarisi riskini onlemek icin); karar <c>POST /api/approvals/{id}/decide</c>
+/// ile verilir ve YENI bir calistirma kuyruga dusurur (bkz. <c>ApprovalResumeJobHandler</c>).
 /// </para>
 /// </remarks>
 internal sealed class AgentRunJobHandler(
@@ -91,7 +91,7 @@ internal sealed class AgentRunJobHandler(
         var response = await agent.RunAsync(
             messages,
             session,
-            new AgentPrismRunOptions { RunId = runId, SuspendOnApproval = true },
+            new AgentPrismRunOptions { RunId = runId },
             cancellationToken).ConfigureAwait(false);
 
         if (session is not null)

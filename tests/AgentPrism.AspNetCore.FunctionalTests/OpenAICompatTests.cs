@@ -165,6 +165,46 @@ public sealed class OpenAICompatTests
             .ShouldBe(1);
     }
 
+    /// <summary>
+    /// HATA-S2-004/MT-COMPAT-029: <c>OpenAIResponses.WriteResponse</c> (MAF)
+    /// bir <c>ToolApprovalRequestContent</c>'i tanimaz ve onu 'output'tan
+    /// SESSIZCE dusurur; caller'in gordugu tek sey bos bir dizi ve
+    /// <c>status: "completed"</c> — onay bekleyen cagri hic gorunmuyordu.
+    /// </summary>
+    [Fact]
+    public async Task Responses_onay_bekleyen_tool_cagrisini_output_ta_gosterir()
+    {
+        await using var host = await AgentPrismTestHost.StartAsync(static builder => builder
+            .AddModelProvider(new FakeModelProvider("onay-model")
+                .CallsTool("cancel_order", new { orderId = "ORD-1" })
+                .EchoesLastToolResult())
+            .AddTool(
+                (Func<string, string>)(orderId => $"{orderId} iptal edildi."),
+                name: "cancel_order",
+                description: "Bir siparisi iptal eder.",
+                requiresApproval: true)
+            .AddAgent(new AgentDefinition
+            {
+                Name = "onay-agent",
+                Instructions = "Kisa yanit ver.",
+                Model = new ModelBinding { Provider = "onay-model", Model = "onay-1" },
+                ToolNames = ["cancel_order"],
+            }));
+
+        using var response = await host.Client.PostAsJsonAsync(
+            Responses,
+            new { model = "onay-agent", input = "ORD-1 siparisimi iptal et" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var output = (await AgentPrismTestHost.ReadJsonAsync(response))
+            .GetProperty("output").EnumerateArray().ToList();
+
+        var call = output.ShouldHaveSingleItem();
+        call.GetProperty("type").GetString().ShouldBe("function_call");
+        call.GetProperty("name").GetString().ShouldBe("cancel_order");
+    }
+
     [Fact]
     public async Task Responses_govdeye_gomulu_data_uri_ege_cevrilir_ve_modele_cozulmus_ulasir()
     {
