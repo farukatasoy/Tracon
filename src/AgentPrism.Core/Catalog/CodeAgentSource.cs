@@ -3,12 +3,11 @@ using Microsoft.Agents.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Kodda tanimlanmis agent'lari katalogda gosteren kaynak.
+/// A source that exposes code-defined agents in the catalog.
 /// </summary>
 /// <remarks>
-/// Onceligi 0'dir, yani en yuksektir. Ayni ada sahip bir veritabani tanimi varsa
-/// kod kazanir; sebep: kod derleme zamaninda dogrulanmistir, veritabani tanimi
-/// ise calisma zamani verisidir.
+/// Its priority is 0, the highest. If a database definition has the same name,
+/// code wins because it is validated at build time while the database definition is run-time data.
 /// </remarks>
 public sealed class CodeAgentSource : IAgentSource
 {
@@ -18,21 +17,19 @@ public sealed class CodeAgentSource : IAgentSource
     private readonly IServiceProvider _services;
     private readonly ITenantContext _tenantContext;
 
-    /// <summary>Yeni bir kod kaynagi olusturur.</summary>
-    /// <param name="registrations">Kod agent kayitlari.</param>
-    /// <param name="compiler">Bildirimsel tanimlari derleyen derleyici.</param>
-    /// <param name="cache">Derlenmis agent onbellegi.</param>
-    /// <param name="services">Fabrika tabanli kayitlara verilecek servis saglayici.</param>
+    /// <summary>Initializes a new code source.</summary>
+    /// <param name="registrations">The code agent registrations.</param>
+    /// <param name="compiler">The compiler for declarative definitions.</param>
+    /// <param name="cache">The compiled agent cache.</param>
+    /// <param name="services">The service provider supplied to factory registrations.</param>
     /// <param name="tenantContext">
-    /// Kiraci baglami. Kod agent tanimlari kiraciya baglanmamis olsa da (tum
-    /// kiracilar arasinda paylasilir), <see cref="AgentDefinitionCompiler"/>
-    /// anlamsal arama gibi kiraciya bagli araclari DERLEME ANINDAKI ambiyans
-    /// kiracisina bindirebilir (bkz. <c>AddVectorSearchTool</c>) — onbellek
-    /// anahtarina kiraciyi eklemek bu bindirmenin baska bir kiraciya sizmasini
-    /// engeller.
+    /// The tenant context. Code agent definitions are shared across tenants, but
+    /// <see cref="AgentDefinitionCompiler"/> can bind tenant-dependent tools, such as
+    /// semantic search, to the ambient tenant at compilation time. See <c>AddVectorSearchTool</c>.
+    /// Adding the tenant to the cache key prevents that binding from leaking to another tenant.
     /// </param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
-    /// <exception cref="AgentPrismException">Ayni agent adi birden cok kez kaydedilmisse.</exception>
+    /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
+    /// <exception cref="AgentPrismException">The same agent name is registered more than once.</exception>
     public CodeAgentSource(
         IEnumerable<CodeAgentRegistration> registrations,
         AgentDefinitionCompiler compiler,
@@ -57,7 +54,7 @@ public sealed class CodeAgentSource : IAgentSource
             if (!_registrations.TryAdd(registration.Name, registration))
             {
                 throw new AgentPrismException(
-                    $"'{registration.Name}' adinda birden cok kod agent'i kaydedilmis. Agent adlari benzersiz olmalidir.");
+                    $"More than one code agent is registered with name '{registration.Name}'. Agent names must be unique.");
             }
         }
     }

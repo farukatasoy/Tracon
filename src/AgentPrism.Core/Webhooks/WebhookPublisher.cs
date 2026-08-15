@@ -5,27 +5,27 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
-/// <summary>Webhook teslim isinin yuku icin kaynak uretilmis JSON baglami.</summary>
+/// <summary>The source-generated JSON context for a webhook delivery job payload.</summary>
 /// <remarks>
-/// AOT uyumlulugu icin gereklidir: <c>AgentPrism.Core</c> yansimaya dayanan
-/// serilestirme kullanmaz.
+/// It is required for AOT compatibility. <c>AgentPrism.Core</c> does not use
+/// reflection-based serialization.
 /// </remarks>
 [JsonSerializable(typeof(string[]))]
 internal sealed partial class WebhookJobPayloadJsonContext : JsonSerializerContext;
 
 /// <summary>
-/// Bir olayi ilgili aboneliklere yayar: teslim kaydini olusturur ve teslimi
-/// Faz 17'nin is kuyruguna yazar.
+/// Publishes an event to its matching subscriptions. It creates the delivery record
+/// and writes the delivery to the Phase 17 job queue.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 Teslim <strong>istek icinde yapilmaz</strong>. Yavas veya erisilemeyen
-/// bir alici ana calistirma yolunu yavaslatmamalidir; bu yuzden yayin yalnizca
-/// iki satir yazar (teslim kaydi + kuyruk isi) ve doner.
+/// Delivery does <strong>not occur inside the request</strong>. A slow or unavailable
+/// recipient must not slow the main run path, so publishing writes only two rows,
+/// the delivery record and queue job, then returns.
 /// </para>
 /// <para>
-/// Gozlemlenebilirlik kurali gecerlidir: yayin basarisiz olursa cagiran
-/// etkilenmez, hata loglanir ve <c>0</c> doner.
+/// The observability rule applies. If publishing fails, the caller is unaffected,
+/// the error is logged, and the method returns <c>0</c>.
 /// </para>
 /// </remarks>
 public sealed class WebhookPublisher(
@@ -96,14 +96,13 @@ public sealed class WebhookPublisher(
                     },
                     cancellationToken).ConfigureAwait(false);
 
-                // Teslim, ayri bir kuyruk degil, Faz 17'nin AYNI kuyrugudur
-                // (K-160). Deneme siniri merdivenin uzunlugudur.
+                // Delivery uses the same Phase 17 queue, not a separate one (K-160).
+                // The retry limit is the ladder length.
                 //
-                // 🚨 Payload ATANMALIDIR. Atanmazsa alan `default(JsonElement)`
-                // olur (ValueKind = Undefined) ve `JsonElementConverter.Write`
-                // onu serilestiremeyip `InvalidOperationException` firlatir —
-                // GET /api/jobs tum is listesini 500 ile dondururdu. Ornek
-                // uygulama calistirilinca yakalandi (K-166).
+                // Assign the payload. Otherwise, the field becomes `default(JsonElement)`
+                // with ValueKind Undefined. `JsonElementConverter.Write` cannot serialize it
+                // and throws InvalidOperationException, causing GET /api/jobs to return 500
+                // for the full job list. This was detected by running the sample application (K-166).
                 var jobPayload = JsonSerializer.SerializeToElement(
                     new[] { deliveryId.ToString() },
                     WebhookJobPayloadJsonContext.Default.StringArray);
@@ -133,7 +132,7 @@ public sealed class WebhookPublisher(
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
-                logger.LogWarning(exception, "Webhook olayi yayilamadi: {EventType}/{TenantId}.", eventType, tenantId);
+                logger.LogWarning(exception, "Could not publish webhook event: {EventType}/{TenantId}.", eventType, tenantId);
             }
 
             return 0;
