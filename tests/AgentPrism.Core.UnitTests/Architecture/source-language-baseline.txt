@@ -124,16 +124,9 @@ src/AgentPrism.Testing/Internal/FakeModelScript.cs|18
 src/AgentPrism.Testing/Internal/SseReader.cs|5
 src/AgentPrism.Testing/README.md|34
 src/AgentPrism.Testing/RunAssertions.cs|29
-src/AgentPrism.UI/frontend/src/components/cancel-run-button.tsx|1
 src/AgentPrism.UI/frontend/src/components/command-palette.tsx|1
-src/AgentPrism.UI/frontend/src/components/feedback-control.tsx|2
-src/AgentPrism.UI/frontend/src/components/mcp-server-detail.tsx|1
-src/AgentPrism.UI/frontend/src/components/promote-to-eval-case.tsx|1
-src/AgentPrism.UI/frontend/src/lib/api.ts|2
 src/AgentPrism.UI/frontend/src/lib/i18n.tsx|1
 src/AgentPrism.UI/frontend/src/lib/palette.test.ts|1
-src/AgentPrism.UI/frontend/src/lib/types.ts|3
-src/AgentPrism.UI/frontend/src/screens/dashboard.tsx|2
 src/AgentPrism.Voice/AgentPrism.Voice.csproj|5
 src/AgentPrism.Voice/Internal/ElevenLabsJson.cs|5
 src/AgentPrism.Voice/Internal/ElevenLabsSpeechClient.cs|45

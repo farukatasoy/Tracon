@@ -8,7 +8,7 @@ import type { RunScore } from '../lib/types';
 
 /**
  * Run-level "was this helpful" control: thumbs up/down plus an optional
- * comment (F-52, Faz 31).
+ * comment (F-52, Phase 31).
  *
  * Message-level scoring and star ratings are part of the store contract
  * (`IRunScoreStore`, `RunScoreKind.Stars`) but are not exposed in this
@@ -88,7 +88,7 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
     onSettled: () => void client.invalidateQueries({ queryKey }),
   });
 
-  // Judge scores (Faz 49) share the same table and query as human feedback;
+  // Judge scores (Phase 49) share the same table and query as human feedback;
   // they are told apart by their `source` prefix (`judge:{name}`).
   const judgeScores = feedback.data?.filter((score) => score.source.startsWith('judge:')) ?? [];
 

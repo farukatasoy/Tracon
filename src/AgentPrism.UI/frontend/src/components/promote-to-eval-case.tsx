@@ -7,7 +7,7 @@ import { Button, ErrorNote, Panel, Select } from './ui';
 
 /**
  * Promotes a finished run into an eval suite's case set with one click
- * (F-53, Faz 45). The promotion reason (failed / negative score / reference)
+ * (F-53, Phase 45). The promotion reason (failed / negative score / reference)
  * is auto-detected server-side from the run's own status and feedback.
  *
  * On success the operator is sent to the suite's case editor to fill in

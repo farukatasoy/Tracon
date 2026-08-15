@@ -511,7 +511,7 @@ export interface RunRecord {
   depth: number;
   /** Number of *direct* child runs. */
   childRunCount: number;
-  /** Definition version this run measured. Null when unknown (pre-Faz-19 rows, code agents without history). */
+  /** Definition version this run measured. Null when unknown (pre-Phase-19 rows, code agents without history). */
   agentVersion?: number | null;
   /** Experiment this run was assigned to, if any. */
   experimentId?: string | null;
@@ -642,14 +642,14 @@ export interface RunScore {
   /** 0/1 for `Binary`, 1..5 for `Stars`, 0..100 for `Numeric`. */
   value: number;
   comment?: string | null;
-  /** `human` for people; `judge:{name}` for a model-based judge (Faz 49). */
+  /** `human` for people; `judge:{name}` for a model-based judge (Phase 49). */
   source: string;
   /** Null in an unauthenticated setup — every call then writes a new row. */
   author?: string | null;
   createdAt: string;
 }
 
-/** Response of `GET /api/evaluation/online` (Faz 49). */
+/** Response of `GET /api/evaluation/online` (Phase 49). */
 export interface OnlineEvaluationSummary {
   windowStart: string;
   windowEnd: string;

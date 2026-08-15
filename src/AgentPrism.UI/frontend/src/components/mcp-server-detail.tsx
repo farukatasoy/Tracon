@@ -6,7 +6,7 @@ import { Badge, Button, Empty, ErrorNote, Loading, Mono, Panel } from './ui';
 import type { RoleMeta } from '../lib/types';
 
 /**
- * A registered MCP server's prompts and resources (Faz 22.1 / 22.2).
+ * A registered MCP server's prompts and resources (Phase 22.1 / 22.2).
  *
  * Prompt content is a SNAPSHOT: the button copies it to the clipboard for
  * pasting into an agent's instructions, it never wires the agent to fetch it
