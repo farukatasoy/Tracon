@@ -1,26 +1,23 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Bir uretim calistirmasini bir eval vakasina terfi ettirir (F-53,
-/// docs/45-URETIMDEN-EVAL-KUMESI.md).
+/// Promotes a production run to an evaluation case (F-53,
+/// <c>docs/45-URETIMDEN-EVAL-KUMESI.md</c>).
 /// </summary>
 /// <remarks>
 /// <para>
-/// Sorgu metni <c>run_events</c>'teki <see cref="RunEventType.RunStarted"/>
-/// olayindan okunur (bkz. <c>RunRecordingAgent.ExtractQuery</c>). Bu, girdi
-/// metninin kalicilastigi TEK yerdir: oturum yalniz calistirma BASARIYLA
-/// tamamlandiginda kaydedilir (<c>AgentEndpoints.AgentRunStream</c>, hem
-/// akisli hem akissiz dalda <c>SaveSessionAsync</c> yalniz basari yolunda
-/// cagrilir) — bu yuzden BASARISIZ bir calistirmanin sorgusu oturumdan asla
-/// okunamaz. Olculdu (Faz 45): oturum tabanli bir ilk tasarim, basarisiz
-/// calistirma terfisinde her zaman 422 dondu.
+/// The query text is read from the <see cref="RunEventType.RunStarted"/> event
+/// in <c>run_events</c>; see <c>RunRecordingAgent.ExtractQuery</c>. It is the
+/// only durable input location because a session is saved only after successful
+/// completion. Therefore, the query of a failed run can never be read from a
+/// session. The original session-based design always returned 422 for failed-run
+/// promotion, as observed in phase 45.
 /// </para>
 /// <para>
-/// Cok turluluk, bu calistirmanin oturumunda DAHA ONCE baslamis baska bir
-/// calistirma olup olmadigina bakilarak belirlenir: varsa, bu calistirmanin
-/// <c>query</c>'si TEK BASINA orijinal davranisi yeniden uretmeye yetmez
-/// (onceki turlarin baglami eksik kalir) — bkz. 45.4, K-034 (sessiz baglam
-/// kaybi yasagi).
+/// Multi-turn behavior is detected by checking for an earlier run in this run's
+/// session. When present, this run's <c>query</c> alone cannot reproduce the
+/// original behavior because prior-turn context is missing. See 45.4 and K-034,
+/// which forbids silent context loss.
 /// </para>
 /// </remarks>
 public sealed class RunToCasePromoter
@@ -29,7 +26,7 @@ public sealed class RunToCasePromoter
     private readonly IRunScoreStore _scores;
     private readonly IEvalStore _evalStore;
 
-    /// <summary>Yeni bir terfi hizmeti olusturur.</summary>
+    /// <summary>Initializes a promotion service.</summary>
     public RunToCasePromoter(IRunStore runs, IRunScoreStore scores, IEvalStore evalStore)
     {
         ArgumentNullException.ThrowIfNull(runs);
@@ -41,16 +38,16 @@ public sealed class RunToCasePromoter
         _evalStore = evalStore;
     }
 
-    /// <summary>Bir calistirmayi verilen takima terfi ettirmeyi dener.</summary>
-    /// <param name="tenantId">Isteği yapan kiracı.</param>
-    /// <param name="suite">Hedef eval takimi.</param>
-    /// <param name="runId">Terfi edilecek calistirma.</param>
+    /// <summary>Attempts to promote a run to the supplied suite.</summary>
+    /// <param name="tenantId">The requesting tenant.</param>
+    /// <param name="suite">The target evaluation suite.</param>
+    /// <param name="runId">The run to promote.</param>
     /// <param name="sourceKindOverride">
-    /// Terfi sebebini ezer. <see langword="null"/> ise calistirmanin durumundan
-    /// ve puanindan kendiliginden turetilir.
+    /// Overrides the promotion reason. When <see langword="null"/>, it is
+    /// inferred from the run's status and score.
     /// </param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Terfi sonucu.</returns>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The promotion outcome.</returns>
     public async ValueTask<RunPromotionOutcome> PromoteAsync(
         string tenantId,
         EvalSuite suite,
@@ -63,8 +60,8 @@ public sealed class RunToCasePromoter
 
         var run = await _runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
 
-        // "Yok" ile "baska kiraciya ait" AYNI sonucu doner; ayri bir sonuc
-        // varlik sizdirirdi (RunEndpoints.SaveFeedbackAsync ile ayni gerekce).
+        // "Not found" and "belongs to another tenant" return the same outcome.
+        // A distinct outcome would leak existence, as with RunEndpoints.SaveFeedbackAsync.
         if (run is null || !string.Equals(run.TenantId, tenantId, StringComparison.Ordinal))
         {
             return new RunPromotionOutcome(RunPromotionStatus.RunNotFound, null);
@@ -136,9 +133,9 @@ public sealed class RunToCasePromoter
             return EvalCaseSource.FailedRun;
         }
 
-        // Yalnizca tamamlanmis calistirmalar icin kendiliginden turetilir;
-        // Running/AwaitingInput/Canceled durumlari acik bir sourceKind ister
-        // (bu durumlarin "basarili" mi "basarisiz" mi sayilacagi belirsizdir).
+        // Only completed runs infer the source automatically. Running,
+        // AwaitingInput, and Canceled require an explicit sourceKind because it
+        // is ambiguous whether they are successful or failed.
         if (run.Status != RunStatus.Completed)
         {
             return null;
@@ -187,14 +184,14 @@ public sealed class RunToCasePromoter
     }
 
     /// <summary>
-    /// Model ciktisini olay akisindan cikarir.
+    /// Extracts model output from the event stream.
     /// </summary>
     /// <remarks>
-    /// <see cref="RunEventType.MessageCompleted"/> varsa (akissiz calistirma) o
-    /// kullanilir; yoksa (akisli calistirma) <see cref="RunEventType.MessageDelta"/>
-    /// parcalari birlestirilir. Ayni desen <c>AgentPrism.Testing.RunAssertions.ShouldHaveOutputContaining</c>'de
-    /// kullanilir (K-296'nin komsu tuzagi, Faz 39): ikisi birden TOPLANMAZ,
-    /// akissiz yolda metni mukerrer sayardi.
+    /// When <see cref="RunEventType.MessageCompleted"/> exists, it is used for a
+    /// non-streaming run. Otherwise, <see cref="RunEventType.MessageDelta"/>
+    /// fragments are joined for a streaming run. The same pattern appears in
+    /// <c>AgentPrism.Testing.RunAssertions.ShouldHaveOutputContaining</c>. Do not
+    /// combine both, because that duplicates text for a non-streaming run.
     /// </remarks>
     private static string? ExtractOutputText(IReadOnlyList<RunEvent> events)
     {
@@ -213,33 +210,33 @@ public sealed class RunToCasePromoter
     }
 }
 
-/// <summary><see cref="RunToCasePromoter.PromoteAsync"/>'in sonucu.</summary>
+/// <summary>Defines the outcome of <see cref="RunToCasePromoter.PromoteAsync"/>.</summary>
 public enum RunPromotionStatus
 {
-    /// <summary>Calistirma yok veya baska bir kiraciya ait.</summary>
+    /// <summary>The run does not exist or belongs to another tenant.</summary>
     RunNotFound,
 
     /// <summary>
-    /// Calistirma ne <see cref="RunStatus.Failed"/> ne <see cref="RunStatus.Completed"/>;
-    /// terfi sebebi acikca verilmelidir.
+    /// The run is neither <see cref="RunStatus.Failed"/> nor
+    /// <see cref="RunStatus.Completed"/>, so the promotion reason must be explicit.
     /// </summary>
     AmbiguousSource,
 
     /// <summary>
-    /// Calistirmanin sorgusu okunamadi: <c>RunStarted</c> olayi yok veya
-    /// bos metin tasiyor (cok eski bir kayit ya da bos girdi).
+    /// The run query could not be read: no <c>RunStarted</c> event exists, or it
+    /// has empty text, such as for an old record or an empty input.
     /// </summary>
     NoQuery,
 
-    /// <summary>Bu calistirmanin oturumunda ONCEKI bir calistirma var.</summary>
+    /// <summary>An earlier run exists in this run's session.</summary>
     MultiTurn,
 
-    /// <summary>Vaka bu cagriyla yeni olusturuldu.</summary>
+    /// <summary>The case was created by this call.</summary>
     Created,
 
-    /// <summary>Ayni calistirma daha once terfi edilmis; mevcut vaka dondu.</summary>
+    /// <summary>The same run was already promoted, so the existing case was returned.</summary>
     AlreadyExists,
 }
 
-/// <summary><see cref="RunToCasePromoter.PromoteAsync"/>'in sonucu ve (varsa) urettigi vaka.</summary>
+/// <summary>Represents the <see cref="RunToCasePromoter.PromoteAsync"/> outcome and its case, when present.</summary>
 public sealed record RunPromotionOutcome(RunPromotionStatus Status, EvalCase? Case);
