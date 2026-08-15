@@ -3,21 +3,21 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Tek kiracili kurulumlar icin varsayilan kiraci baglami. Her zaman
-/// <see cref="AgentPrismOptions.DefaultTenantId"/> degerini dondurur.
+/// The default tenant context for single-tenant deployments. It always returns
+/// <see cref="AgentPrismOptions.DefaultTenantId"/>.
 /// </summary>
 /// <remarks>
-/// Cok kiracili senaryolarda tuketici kendi <see cref="ITenantContext"/>
-/// uygulamasini <c>AddAgentPrism()</c> cagrisindan <em>once</em> kaydeder;
-/// AgentPrism <c>TryAdd</c> kullandigi icin tuketicinin kaydi kazanir.
+/// In multi-tenant scenarios, the consumer registers its <see cref="ITenantContext"/>
+/// implementation <em>before</em> calling <c>AddAgentPrism()</c>. AgentPrism uses
+/// <c>TryAdd</c>, so the consumer registration wins.
 /// </remarks>
 public sealed class SingleTenantContext : ITenantContext
 {
     private readonly IOptions<AgentPrismOptions> _options;
 
-    /// <summary>Yeni bir tek kiraci baglami olusturur.</summary>
-    /// <param name="options">AgentPrism ayarlari.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> <see langword="null"/> ise.</exception>
+    /// <summary>Initializes a new single-tenant context.</summary>
+    /// <param name="options">The AgentPrism options.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     public SingleTenantContext(IOptions<AgentPrismOptions> options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -26,8 +26,8 @@ public sealed class SingleTenantContext : ITenantContext
 
     /// <inheritdoc />
     /// <remarks>
-    /// <see cref="AmbientTenantScope.Current"/> ayarliysa (zamanlanmis bir is
-    /// yurutuluyorsa) o deger varsayilana tercih edilir.
+    /// When <see cref="AmbientTenantScope.Current"/> is set, for example while a
+    /// scheduled job runs, its value takes precedence over the default.
     /// </remarks>
     public string TenantId => AmbientTenantScope.Current ?? _options.Value.DefaultTenantId;
 }

@@ -2,22 +2,22 @@ using System.Collections.Concurrent;
 
 namespace AgentPrism;
 
-/// <summary>Tek yurutucu secimi kiralarini surec bellegi icinde tutan depo.</summary>
+/// <summary>A store that keeps singleton execution leases in process memory.</summary>
 /// <remarks>
 /// <para>
-/// Tek surecli bir kurulumda kira her zaman alinir (K-018): rakip yoktur.
-/// Cok surecli bir kurulumda gercek koordinasyon icin bir SQL saglayicisi
-/// (<c>SqlSingletonLeaseStore</c>) gerekir.
+/// In a single-process deployment, it always acquires the lease (K-018) because
+/// there is no competitor. A multi-process deployment needs a SQL provider,
+/// <c>SqlSingletonLeaseStore</c>, for real coordination.
 /// </para>
-/// <para><strong>Sinirlari:</strong> surec omru ve tek dugum.</para>
+/// <para><strong>Limits:</strong> process lifetime and a single node.</para>
 /// </remarks>
 public sealed class InMemorySingletonLeaseStore : ISingletonLeaseStore
 {
     private readonly ConcurrentDictionary<string, Lease> _leases = new(StringComparer.Ordinal);
     private readonly TimeProvider _clock;
 
-    /// <summary>Yeni bir bellek ici kira deposu olusturur.</summary>
-    /// <param name="timeProvider">Zaman kaynagi. Verilmezse <see cref="TimeProvider.System"/> kullanilir.</param>
+    /// <summary>Initializes a new in-memory lease store.</summary>
+    /// <param name="timeProvider">The time provider. Uses <see cref="TimeProvider.System"/> when omitted.</param>
     public InMemorySingletonLeaseStore(TimeProvider? timeProvider = null)
     {
         _clock = timeProvider ?? TimeProvider.System;

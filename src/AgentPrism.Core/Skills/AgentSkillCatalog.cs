@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
-/// <summary>Kod ve calisma ani skill kaynaklarini oncelik kurali ile birlestirir.</summary>
+/// <summary>Combines code and run-time skill sources with a precedence rule.</summary>
 public sealed class AgentSkillCatalog
 {
     private readonly Dictionary<string, AgentSkillDefinition> _codeSkills;
@@ -29,7 +29,7 @@ public sealed class AgentSkillCatalog
             if (!_codeSkills.TryAdd(registration.Definition.Name, registration.Definition))
             {
                 throw new AgentPrismException(
-                    $"'{registration.Definition.Name}' adinda birden cok kod skill'i kaydedilmis.");
+                    $"More than one code skill is registered with name '{registration.Definition.Name}'.");
             }
         }
 
@@ -47,7 +47,7 @@ public sealed class AgentSkillCatalog
         if (definition.SkillNames.Count > _options.Value.Skills.MaxSkillsPerAgent)
         {
             throw new AgentPrismCompilationException(
-                $"'{definition.Name}' agent'i en fazla {_options.Value.Skills.MaxSkillsPerAgent} skill tasiyabilir.")
+                $"Agent '{definition.Name}' can have at most {_options.Value.Skills.MaxSkillsPerAgent} skills.")
             {
                 AgentName = definition.Name,
             };
@@ -60,7 +60,7 @@ public sealed class AgentSkillCatalog
             if (skill is not { })
             {
                 throw new AgentPrismCompilationException(
-                    $"'{definition.Name}' agent'i '{name}' skill'ine isaret ediyor ancak skill bulunamadi.")
+                    $"Agent '{definition.Name}' refers to skill '{name}', but the skill was not found.")
                 {
                     AgentName = definition.Name,
                 };
@@ -75,10 +75,10 @@ public sealed class AgentSkillCatalog
         return new ResolvedAgentSkills(CreateFingerprint(definition.SkillNames, skills));
     }
 
-    /// <summary>Bir skill'in kod veya depoda kayitli olup olmadigini denetler.</summary>
+    /// <summary>Determines whether a skill is registered in code or in the store.</summary>
     /// <remarks>
-    /// Devre disi birakilmis bir skill de <see langword="true"/> doner: yokluk ile
-    /// devre disilik farkli sorunlardir, dogrulayici bunlari ayri kodlarla raporlar.
+    /// Returns <see langword="true"/> for a disabled skill too. Absence and disabled
+    /// status are separate conditions, and the validator reports them with different codes.
     /// </remarks>
     internal async ValueTask<bool> ExistsAsync(string name, CancellationToken cancellationToken)
         => await FindAsync(name, cancellationToken).ConfigureAwait(false) is not null;

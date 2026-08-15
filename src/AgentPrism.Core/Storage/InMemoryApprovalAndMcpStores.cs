@@ -3,12 +3,12 @@ using System.Collections.Concurrent;
 namespace AgentPrism;
 
 /// <summary>
-/// Kalici onay kurallarini surec bellegi icinde tutan depo.
+/// A store that keeps persistent approval rules in process memory.
 /// </summary>
 /// <remarks>
-/// <strong>Sinirlari:</strong> surec omru ve tek dugum. Uygulama yeniden
-/// baslatildiginda "bir daha sorma" kurallari kaybolur ve onay yeniden sorulur.
-/// Bu, guvenli taraftaki davranistir. Uretimde <c>AgentPrism.PostgreSql</c> kullanin.
+/// <strong>Limits:</strong> process lifetime and a single node. When the application
+/// restarts, "do not ask again" rules are lost and approval is requested again.
+/// This is the safe behavior. Use <c>AgentPrism.PostgreSql</c> in production.
 /// </remarks>
 public sealed class InMemoryToolApprovalRuleStore : IToolApprovalRuleStore
 {
@@ -57,8 +57,8 @@ public sealed class InMemoryToolApprovalRuleStore : IToolApprovalRuleStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        // Kiraci denetimi kaldirma islemine de uygulanir: baska bir kiracinin
-        // kurali kimlik tahminiyle silinememelidir.
+        // Apply tenant validation to deletion too. An identifier guess must not let
+        // a tenant delete another tenant's rule.
         if (_rules.TryGetValue(ruleId, out var rule)
             && string.Equals(rule.TenantId, tenantId, StringComparison.Ordinal))
         {
@@ -76,9 +76,9 @@ public sealed class InMemoryToolApprovalRuleStore : IToolApprovalRuleStore
 }
 
 /// <summary>
-/// MCP sunucu tanimlarini surec bellegi icinde tutan depo.
+/// A store that keeps MCP server definitions in process memory.
 /// </summary>
-/// <remarks>Uretimde <c>AgentPrism.PostgreSql</c> kullanin.</remarks>
+/// <remarks>Use <c>AgentPrism.PostgreSql</c> in production.</remarks>
 public sealed class InMemoryMcpServerStore : IMcpServerStore
 {
     private readonly ConcurrentDictionary<string, McpServerDefinition> _servers = new(StringComparer.Ordinal);
@@ -152,7 +152,7 @@ public sealed class InMemoryMcpServerStore : IMcpServerStore
 }
 
 /// <summary>
-/// Kiraci kayitlarini surec bellegi icinde tutan depo.
+/// A store that keeps tenant records in process memory.
 /// </summary>
 /// <remarks>Uretimde <c>AgentPrism.PostgreSql</c> kullanin.</remarks>
 public sealed class InMemoryTenantStore : ITenantStore

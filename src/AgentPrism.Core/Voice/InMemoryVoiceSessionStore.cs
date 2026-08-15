@@ -3,22 +3,22 @@ using System.Collections.Concurrent;
 namespace AgentPrism;
 
 /// <summary>
-/// Konusma kayitlarini surec belleginde tutan varsayilan uygulama.
+/// The default implementation that keeps voice records in process memory.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Tek surecli kurulumlar ve testler icindir. Bir SQL saglayicisi acildiginda
-/// (<c>UsePostgreSql()</c>, <c>UseSqlServer()</c>, <c>UseSqlite()</c>) bunun
-/// yerini kalici depo alir.
+/// For single-process deployments and tests. When a SQL provider is enabled
+/// with <c>UsePostgreSql()</c>, <c>UseSqlServer()</c>, or <c>UseSqlite()</c>,
+/// a persistent store replaces this one.
 /// </para>
 /// <para>
-/// Kayit sayisi ust sinirlidir: konusma baglantisi acilip kapandikca liste
-/// sinirsiz buyurdu ve bellek ici bir kurulumu sessizce sisirirdi.
+/// The record count has an upper limit. As voice connections open and close, an
+/// unbounded list would silently grow an in-memory deployment.
 /// </para>
 /// </remarks>
 public sealed class InMemoryVoiceSessionStore : IVoiceSessionStore
 {
-    /// <summary>Bellekte tutulacak en fazla kayit.</summary>
+    /// <summary>The maximum number of records kept in memory.</summary>
     private const int Capacity = 2_000;
 
     private readonly ConcurrentDictionary<Guid, VoiceSessionRecord> _records = new();
