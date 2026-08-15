@@ -1,17 +1,17 @@
 namespace AgentPrism;
 
 /// <summary>
-/// <c>UseOpenAICompatible()</c> ile kaydedilen saglayicilarin yapilandirma yolu icin
-/// sabitler.
+/// Constants for the configuration path of the providers that
+/// <c>UseOpenAICompatible()</c> registers.
 /// </summary>
 /// <remarks>
-/// Ayar sekli <see cref="OpenAIProviderOptions"/> ile aynidir; bu tip yalnizca alt
-/// bolum yolunu tasir. Her adlandirilmis saglayici kendi alt bolumunde yasar:
-/// <c>AgentPrism:Providers:OpenAICompatible:{ad}:*</c>. Gerekce:
-/// <c>docs/KARARLAR.md</c>, karar K-028 (saglayici ayarlari kendi alt bolumunde).
+/// The options shape is the same as <see cref="OpenAIProviderOptions"/>; this type only
+/// carries the sub section path. Every named provider lives in its own sub section:
+/// <c>AgentPrism:Providers:OpenAICompatible:{name}:*</c>. Reason:
+/// <c>docs/KARARLAR.md</c>, decision K-028 (provider options live in their own sub section).
 /// </remarks>
 public static class OpenAICompatibleProviderOptions
 {
-    /// <summary>Adlandirilmis saglayicilarin yapilandirma bolumunun taban yolu.</summary>
+    /// <summary>Gets the base configuration section path of the named providers.</summary>
     public const string SectionName = "AgentPrism:Providers:OpenAICompatible";
 }

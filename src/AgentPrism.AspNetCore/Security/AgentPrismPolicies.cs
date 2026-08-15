@@ -1,13 +1,13 @@
 namespace AgentPrism;
 
 /// <summary>
-/// AgentPrism'in tanimladigi rol tabanli yetkilendirme policy adlari.
+/// Role-based authorization policy names that AgentPrism defines.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>AgentPrism kullanici veya rol saklamaz.</strong> Roller tuketicinin
-/// kimlik sisteminden gelir; AgentPrism yalnizca policy <em>adini</em> tanimlar,
-/// tuketici bunlari kendi claim'lerine baglar:
+/// <strong>AgentPrism stores no user and no role.</strong> Roles come from the
+/// consumer identity system; AgentPrism defines only the policy <em>name</em>, and
+/// the consumer binds those names to its own claims:
 /// </para>
 /// <code>
 /// builder.Services.AddAuthorization(options =>
@@ -21,21 +21,21 @@ namespace AgentPrism;
 /// });
 /// </code>
 /// <para>
-/// <strong>Bir policy kayitli degilse o uc eski davranisina doner</strong> (yalniz
-/// mevcut uc katmanli koruma: loopback, bearer token, genel authorization policy).
-/// Aksi halde bu rol modeli, guncelleyen herkesin kurulumunu <c>403</c> ile
-/// kirardi. Uretim kurulumu <see cref="AgentPrismEndpointOptions.RequireRolePolicies"/>
-/// ile eksik bir policy'yi acilista hataya cevirebilir.
+/// <strong>When a policy is not registered, that endpoint falls back to its earlier
+/// behavior</strong> (only the existing three-layer protection: loopback, bearer token,
+/// general authorization policy). Otherwise this role model would break the setup of
+/// everyone who updates, with a <c>403</c>. A production setup can turn a missing policy
+/// into a startup failure with <see cref="AgentPrismEndpointOptions.RequireRolePolicies"/>.
 /// </para>
 /// </remarks>
 public static class AgentPrismPolicies
 {
-    /// <summary>Okuma erisimi: agent, calistirma, oturum, trace, istatistik.</summary>
+    /// <summary>Read access: agents, runs, sessions, traces, statistics.</summary>
     public const string Reader = "AgentPrism.Reader";
 
-    /// <summary>Reader + calistirma baslatma, onay verme, oturum silme.</summary>
+    /// <summary>Reader plus starting a run, granting an approval, deleting a session.</summary>
     public const string Operator = "AgentPrism.Operator";
 
-    /// <summary>Hepsi: agent tanimi yazma, MCP sunucusu ekleme, onay kurali silme, kiraci yonetimi.</summary>
+    /// <summary>Everything: writing an agent definition, adding an MCP server, deleting an approval rule, tenant management.</summary>
     public const string Admin = "AgentPrism.Admin";
 }

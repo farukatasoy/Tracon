@@ -4,43 +4,43 @@ using System.Text.Json;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="ModelBinding.ProviderSettings"/> sozlugunu okuyan ve dogrulayan
-/// yardimcilar.
+/// Helpers that read and validate the <see cref="ModelBinding.ProviderSettings"/>
+/// dictionary.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Her saglayici paketi kendi anahtar onekini bilir (<c>anthropic</c>, <c>google</c>)
-/// ve destekledigi anahtarlarin listesini tasir. Bu tip o listeyi uygular; boylece
-/// dogrulama mantigi her yeni saglayici paketinde bastan yazilmaz.
+/// Each provider package knows its own key prefix (<c>anthropic</c>, <c>google</c>) and
+/// carries the list of keys it supports. This type applies that list, so the validation
+/// logic is not written again in every new provider package.
 /// </para>
 /// <para>
-/// <strong>Bilinmeyen anahtar sessizce yok sayilmaz.</strong> Yok sayilan bir ayar,
-/// kullanicinin bekledigi davranisi almamasina ve sebebini gorememesine yol acar —
-/// <see cref="ModelBinding.ReasoningEffort"/> icin verilen kararin (K-034) aynisi.
+/// <strong>An unknown key is not ignored silently.</strong> A setting that is ignored
+/// makes the user miss the behaviour they expect without seeing why — the same decision
+/// as the one taken for <see cref="ModelBinding.ReasoningEffort"/> (K-034).
 /// </para>
 /// <para>
-/// Anahtar karsilastirmasi buyuk/kucuk harfe duyarli degildir. Sozluk bir
-/// <c>jsonb</c> sutunundan cozuldugunde varsayilan (sirali) karsilastirici ile
-/// gelir; bu yuzden arama sozlugun kendi karsilastiricisina birakilmaz.
+/// Keys are compared case insensitively. When the dictionary is read back from a
+/// <c>jsonb</c> column it arrives with the default (ordinal) comparer; the lookup is
+/// therefore not left to the comparer of the dictionary itself.
 /// </para>
 /// </remarks>
 public static class ModelProviderSettings
 {
     /// <summary>
-    /// Baglantidaki tum saglayici ayarlarinin verilen onege ait ve destekleniyor
-    /// oldugunu dogrular.
+    /// Validates that every provider setting in the binding belongs to the given prefix
+    /// and is supported.
     /// </summary>
-    /// <param name="binding">Denetlenecek model baglantisi.</param>
-    /// <param name="providerPrefix">Saglayicinin anahtar oneki. Ornek: <c>anthropic</c>.</param>
+    /// <param name="binding">The model binding to check.</param>
+    /// <param name="providerPrefix">The key prefix of the provider, for example <c>anthropic</c>.</param>
     /// <param name="supportedKeys">
-    /// Saglayicinin destekledigi tam anahtarlar (onek dahil). Ornek:
+    /// The full keys the provider supports, prefix included, for example
     /// <c>anthropic.promptCaching</c>.
     /// </param>
-    /// <exception cref="ArgumentNullException">Parametrelerden biri <see langword="null"/> ise.</exception>
-    /// <exception cref="ArgumentException"><paramref name="providerPrefix"/> bos ise.</exception>
+    /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="providerPrefix"/> is empty.</exception>
     /// <exception cref="AgentPrismException">
-    /// Sozlukte baska bir saglayiciya ait veya taninmayan bir anahtar varsa. Mesaj
-    /// desteklenen anahtarlari listeler.
+    /// The dictionary holds a key that belongs to another provider or that is not
+    /// recognized. The message lists the supported keys.
     /// </exception>
     public static void Validate(
         ModelBinding binding,
@@ -79,40 +79,40 @@ public static class ModelProviderSettings
         }
 
         var supported = supportedKeys.Count == 0
-            ? $"'{providerPrefix}' saglayicisi hicbir ek ayar desteklemiyor"
-            : $"Desteklenen anahtarlar: {string.Join(", ", supportedKeys.Order(StringComparer.Ordinal))}";
+            ? $"the '{providerPrefix}' provider supports no extra settings"
+            : $"Supported keys: {string.Join(", ", supportedKeys.Order(StringComparer.Ordinal))}";
 
-        // Iki hata sinifi ayri ayri anlatilir: yanlis onek "ayari baska bir
-        // saglayiciya yazdin" demektir, taninmayan anahtar ise yazim hatasi veya
-        // desteklenmeyen bir ozelliktir. Ikisini tek mesajda birlestirmek
-        // kullaniciyi yanlis yone yollar.
+        // The two error classes are told apart: a wrong prefix means "you wrote the
+        // setting on another provider", while an unrecognized key is a typo or an
+        // unsupported feature. Joining the two in one message sends the user the
+        // wrong way.
         var problems = new List<string>(2);
 
         if (foreignKeys is not null)
         {
             problems.Add(
-                $"su anahtarlar '{providerPrefix}' saglayicisina ait degil: {string.Join(", ", foreignKeys)}. " +
-                $"{nameof(ModelBinding)}.{nameof(ModelBinding.ProviderSettings)} yalnizca " +
-                $"{nameof(ModelBinding)}.{nameof(ModelBinding.Provider)} alanindaki saglayicinin " +
-                "anahtarlarini tasiyabilir; saglayici degistirildiginde eski ayarlar temizlenmelidir");
+                $"these keys do not belong to the '{providerPrefix}' provider: {string.Join(", ", foreignKeys)}. " +
+                $"{nameof(ModelBinding)}.{nameof(ModelBinding.ProviderSettings)} can carry only the keys of the " +
+                $"provider named in {nameof(ModelBinding)}.{nameof(ModelBinding.Provider)}; " +
+                "the old settings must be cleared when the provider changes");
         }
 
         if (unknownKeys is not null)
         {
-            problems.Add($"su anahtarlar taninmiyor: {string.Join(", ", unknownKeys)}");
+            problems.Add($"these keys are not recognized: {string.Join(", ", unknownKeys)}");
         }
 
         throw new AgentPrismException(
-            $"{nameof(ModelBinding)}.{nameof(ModelBinding.ProviderSettings)} icinde " +
-            $"{string.Join("; ayrica ", problems)}. {supported}.");
+            $"{nameof(ModelBinding)}.{nameof(ModelBinding.ProviderSettings)} is invalid: " +
+            $"{string.Join("; and ", problems)}. {supported}.");
     }
 
-    /// <summary>Bir ayari mantiksal deger olarak okur.</summary>
-    /// <param name="binding">Model baglantisi.</param>
-    /// <param name="key">Tam anahtar. Ornek: <c>anthropic.promptCaching</c>.</param>
-    /// <returns>Ayar tanimli degilse <see langword="null"/>.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="binding"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="AgentPrismException">Deger mantiksal bir deger degilse.</exception>
+    /// <summary>Reads a setting as a boolean value.</summary>
+    /// <param name="binding">The model binding.</param>
+    /// <param name="key">The full key, for example <c>anthropic.promptCaching</c>.</param>
+    /// <returns><see langword="null"/> when the setting is not defined.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="binding"/> is <see langword="null"/>.</exception>
+    /// <exception cref="AgentPrismException">The value is not a boolean value.</exception>
     public static bool? ReadBoolean(ModelBinding binding, string key)
     {
         if (!TryGetValue(binding, key, out var value))
@@ -125,20 +125,20 @@ public static class ModelProviderSettings
             JsonValueKind.True => true,
             JsonValueKind.False => false,
 
-            // Yapilandirma saglayicilari (appsettings.json disindaki ortam degiskeni
-            // ve komut satiri) her degeri metin olarak tasir; "true" metnini
-            // reddetmek kullaniciya sebebi anlasilmaz bir hata verirdi.
+            // Configuration providers other than appsettings.json (environment
+            // variables and the command line) carry every value as text; rejecting
+            // the text "true" would give the user an error they cannot explain.
             JsonValueKind.String when bool.TryParse(value.GetString(), out var parsed) => parsed,
-            _ => throw TypeMismatch(key, "mantiksal (true/false)", value),
+            _ => throw TypeMismatch(key, "a boolean (true/false)", value),
         };
     }
 
-    /// <summary>Bir ayari tam sayi olarak okur.</summary>
-    /// <param name="binding">Model baglantisi.</param>
-    /// <param name="key">Tam anahtar. Ornek: <c>anthropic.thinking.budgetTokens</c>.</param>
-    /// <returns>Ayar tanimli degilse <see langword="null"/>.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="binding"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="AgentPrismException">Deger tam sayi degilse.</exception>
+    /// <summary>Reads a setting as an integer.</summary>
+    /// <param name="binding">The model binding.</param>
+    /// <param name="key">The full key, for example <c>anthropic.thinking.budgetTokens</c>.</param>
+    /// <returns><see langword="null"/> when the setting is not defined.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="binding"/> is <see langword="null"/>.</exception>
+    /// <exception cref="AgentPrismException">The value is not an integer.</exception>
     public static int? ReadInt32(ModelBinding binding, string key)
     {
         if (!TryGetValue(binding, key, out var value))
@@ -154,16 +154,16 @@ public static class ModelProviderSettings
                 NumberStyles.Integer,
                 CultureInfo.InvariantCulture,
                 out var parsed) => parsed,
-            _ => throw TypeMismatch(key, "tam sayi", value),
+            _ => throw TypeMismatch(key, "an integer", value),
         };
     }
 
-    /// <summary>Bir ayari metin olarak okur.</summary>
-    /// <param name="binding">Model baglantisi.</param>
-    /// <param name="key">Tam anahtar. Ornek: <c>google.safety.harassment</c>.</param>
-    /// <returns>Ayar tanimli degilse veya bos ise <see langword="null"/>.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="binding"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="AgentPrismException">Deger metin degilse.</exception>
+    /// <summary>Reads a setting as text.</summary>
+    /// <param name="binding">The model binding.</param>
+    /// <param name="key">The full key, for example <c>google.safety.harassment</c>.</param>
+    /// <returns><see langword="null"/> when the setting is not defined or is empty.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="binding"/> is <see langword="null"/>.</exception>
+    /// <exception cref="AgentPrismException">The value is not text.</exception>
     public static string? ReadString(ModelBinding binding, string key)
     {
         if (!TryGetValue(binding, key, out var value))
@@ -173,7 +173,7 @@ public static class ModelProviderSettings
 
         if (value.ValueKind is not JsonValueKind.String)
         {
-            throw TypeMismatch(key, "metin", value);
+            throw TypeMismatch(key, "text", value);
         }
 
         var text = value.GetString();
@@ -203,11 +203,11 @@ public static class ModelProviderSettings
         return false;
     }
 
-    // Atanmamis bir JsonElement'in ValueKind degeri Undefined'dir; "yok" ile ayni
-    // anlama gelir ve okuma yolunda istisnaya donusmemelidir.
+    // The ValueKind of an unassigned JsonElement is Undefined; it means the same as
+    // "absent" and must not turn into an exception on the read path.
     private static bool IsPresent(JsonElement value)
         => value.ValueKind is not (JsonValueKind.Undefined or JsonValueKind.Null);
 
     private static AgentPrismException TypeMismatch(string key, string expected, JsonElement value)
-        => new($"'{key}' saglayici ayari {expected} bir deger bekliyor; gelen deger {value.ValueKind}.");
+        => new($"The '{key}' provider setting expects {expected}; the value given is {value.ValueKind}.");
 }

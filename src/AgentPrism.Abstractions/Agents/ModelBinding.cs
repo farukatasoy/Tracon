@@ -3,59 +3,57 @@ using System.Text.Json;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir agent'in hangi saglayici ve model ile calisacagini belirler.
-/// Kimlik bilgisi <em>icermez</em>; API anahtari yapilandirmadan cozulur.
+/// Determines the provider and the model an agent runs with. It carries
+/// <em>no</em> credentials; the API key is resolved from configuration.
 /// </summary>
 public sealed record ModelBinding
 {
-    /// <summary>Saglayici adi. Ornek: <c>openai</c>.</summary>
+    /// <summary>Gets the provider name, for example <c>openai</c>.</summary>
     public required string Provider { get; init; }
 
-    /// <summary>Model adi. Ornek: <c>gpt-5.4-mini</c>.</summary>
+    /// <summary>Gets the model name, for example <c>gpt-5.4-mini</c>.</summary>
     public required string Model { get; init; }
 
-    /// <summary>Ornekleme sicakligi. <see langword="null"/> ise saglayici varsayilani kullanilir.</summary>
+    /// <summary>Gets the sampling temperature. The provider default is used when it is <see langword="null"/>.</summary>
     public float? Temperature { get; init; }
 
-    /// <summary>Ureteceklerin ust token siniri. <see langword="null"/> ise saglayici varsayilani kullanilir.</summary>
+    /// <summary>Gets the upper output token limit. The provider default is used when it is <see langword="null"/>.</summary>
     public int? MaxOutputTokens { get; init; }
 
-    /// <summary>Nucleus ornekleme esigi. <see langword="null"/> ise saglayici varsayilani kullanilir.</summary>
+    /// <summary>Gets the nucleus sampling threshold. The provider default is used when it is <see langword="null"/>.</summary>
     public float? TopP { get; init; }
 
     /// <summary>
-    /// Akil yurutme cabasi seviyesi. Destekleyen modellerde kullanilir; digerlerinde
-    /// saglayici tarafindan yok sayilir.
+    /// Gets the reasoning effort level. Models that support it use the value; the other
+    /// providers ignore it.
     /// </summary>
     /// <remarks>
-    /// Gecerli degerler <c>Microsoft.Extensions.AI.ReasoningEffort</c> adlaridir:
-    /// <c>None</c>, <c>Low</c>, <c>Medium</c>, <c>High</c>, <c>ExtraHigh</c>.
-    /// Karsilastirma buyuk/kucuk harfe duyarli degildir. Taninmayan bir deger
-    /// derleme sirasinda <c>AgentPrismCompilationException</c> ile reddedilir;
-    /// sessizce yok sayilmaz.
+    /// The valid values are the <c>Microsoft.Extensions.AI.ReasoningEffort</c> names:
+    /// <c>None</c>, <c>Low</c>, <c>Medium</c>, <c>High</c>, <c>ExtraHigh</c>. The
+    /// comparison is case insensitive. An unrecognized value is rejected while the agent
+    /// is built, with <c>AgentPrismCompilationException</c>; it is not ignored silently.
     /// </remarks>
     public string? ReasoningEffort { get; init; }
 
     /// <summary>
-    /// Saglayiciya ozgu ek ayarlar. Anahtar <c>{saglayici}.{ayar}</c> bicimindedir.
+    /// Gets the provider-specific extra settings. A key has the form <c>{provider}.{setting}</c>.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Anthropic'in prompt caching'i veya Gemini'nin guvenlik esikleri bu sozlesmenin
-    /// sabit alanlarina sigmaz. Onlari <see cref="ModelBinding"/> govdesine eklemek
-    /// <c>AgentPrism.Abstractions</c>'a bir saticinin kavramini sizdirirdi. Bu sozluk
-    /// sozlesmeyi temiz tutar: her saglayici yalnizca kendi onekini okur.
+    /// The prompt caching of Anthropic or the safety thresholds of Gemini do not fit the
+    /// fixed fields of this contract. Adding them to the body of <see cref="ModelBinding"/>
+    /// would leak one vendor's concept into <c>AgentPrism.Abstractions</c>. This dictionary
+    /// keeps the contract clean: each provider reads only its own prefix.
     /// </para>
     /// <para>
-    /// <strong>Bilinmeyen bir anahtar sessizce yok sayilmaz.</strong> Saglayici
-    /// tanimadigi bir anahtar gorurse derleme hatasi verir ve destekledigi anahtarlari
-    /// listeler. Gerekce <see cref="ReasoningEffort"/> ile aynidir (karar K-034):
-    /// sessizce yok sayilan bir ayar, kullanicinin bekledigi davranisi almamasina ve
-    /// sebebini gorememesine yol acar.
+    /// <strong>An unknown key is not ignored silently.</strong> When a provider sees a key
+    /// it does not recognize, the build fails and lists the keys it supports. The rationale
+    /// is the same as for <see cref="ReasoningEffort"/> (decision K-034): a setting that is
+    /// ignored silently makes the user miss the behaviour they expect without seeing why.
     /// </para>
     /// <para>
-    /// Anahtar karsilastirmasi <see cref="StringComparer.OrdinalIgnoreCase"/> ile
-    /// yapilir. Okuma icin <see cref="ModelProviderSettings"/> yardimcilarini kullanin.
+    /// Keys are compared with <see cref="StringComparer.OrdinalIgnoreCase"/>. Use the
+    /// <see cref="ModelProviderSettings"/> helpers to read them.
     /// </para>
     /// <example>
     /// <code language="json">
@@ -71,15 +69,15 @@ public sealed record ModelBinding
         = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Istenen cikti bicimi. <see langword="null"/> ise bugunku davranis degismez:
-    /// saglayiciya hicbir bicim kisiti gonderilmez.
+    /// Gets the requested output format. When it is <see langword="null"/> today's
+    /// behaviour does not change: no format constraint is sent to the provider.
     /// </summary>
     /// <remarks>
-    /// <see cref="AgentResponseFormatKind.Text"/>, <see langword="null"/>'dan
-    /// farklidir: <see langword="null"/> "hicbir sey soyleme", <c>Text</c> "acikca
-    /// duz metin iste" demektir. Gecersiz bir kombinasyon (ornegin sema olmadan
-    /// <see cref="AgentResponseFormatKind.JsonSchema"/>) derleme aninda
-    /// <c>AgentPrismCompilationException</c> ile reddedilir.
+    /// <see cref="AgentResponseFormatKind.Text"/> differs from <see langword="null"/>:
+    /// <see langword="null"/> means "say nothing", <c>Text</c> means "ask for plain text
+    /// explicitly". An invalid combination (for example
+    /// <see cref="AgentResponseFormatKind.JsonSchema"/> without a schema) is rejected
+    /// while the agent is built, with <c>AgentPrismCompilationException</c>.
     /// </remarks>
     public AgentResponseFormat? ResponseFormat { get; init; }
 }

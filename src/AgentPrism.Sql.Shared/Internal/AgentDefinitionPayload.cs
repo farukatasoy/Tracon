@@ -3,58 +3,59 @@ using System.Text.Json;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir agent tanimin <c>jsonb</c> sutununa yazilan bolumu.
+/// The part of an agent definition that is written to the <c>jsonb</c> column.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Ad, surum, kiraci, kaynak ve guncelleme zamani <em>sutunlarda</em> tutulur ve
-/// tek dogru kaynak orasidir. Bu alanlarin ayrica <c>jsonb</c> icinde tekrarlanmasi
-/// iki kayit noktasi olustururdu; surum artisi sonrasi jsonb'nin yeniden yazilmasi
-/// gerekir ve tutarsizlik riski dogardi.
+/// The name, version, tenant, origin and update time live in <em>columns</em> and
+/// that is the single source of truth. Repeating those fields inside the
+/// <c>jsonb</c> as well would create two records of the same fact; the jsonb would
+/// have to be rewritten after every version increment and inconsistency would
+/// become possible.
 /// </para>
 /// <para>
-/// Bu yuzden yalnizca tanimin <em>icerigi</em> serilestirilir; geri okurken
-/// sutunlarla birlestirilir.
+/// Only the <em>content</em> of the definition is therefore serialized; it is
+/// merged with the columns when it is read back.
 /// </para>
 /// </remarks>
 internal sealed record AgentDefinitionPayload
 {
-    /// <summary>Arayuzde gosterilecek ad.</summary>
+    /// <summary>Gets the name shown in the user interface.</summary>
     public string? DisplayName { get; init; }
 
-    /// <summary>Agent aciklamasi.</summary>
+    /// <summary>Gets the agent description.</summary>
     public string? Description { get; init; }
 
-    /// <summary>Sistem talimatlari.</summary>
+    /// <summary>Gets the system instructions.</summary>
     public string? Instructions { get; init; }
 
-    /// <summary>Saglayici ve model baglantisi.</summary>
+    /// <summary>Gets the provider and model binding.</summary>
     public required ModelBinding Model { get; init; }
 
-    /// <summary>Kullanilabilecek tool adlari.</summary>
+    /// <summary>Gets the names of the tools that can be used.</summary>
     public IReadOnlyList<string> ToolNames { get; init; } = [];
 
-    /// <summary>Calisma aninda yuklenebilecek skill adlari.</summary>
+    /// <summary>Gets the names of the skills that can be loaded at run time.</summary>
     public IReadOnlyList<string> SkillNames { get; init; } = [];
 
-    /// <summary>Bu agent'in cagirabilecegi diger agent adlari.</summary>
+    /// <summary>Gets the names of the other agents this agent can call.</summary>
     public IReadOnlyList<string> CallableAgentNames { get; init; } = [];
 
-    /// <summary>Harness ayarlari.</summary>
+    /// <summary>Gets the harness settings.</summary>
     public HarnessSettings? Harness { get; init; }
 
-    /// <summary>Baglam sikistirma ayarlari.</summary>
+    /// <summary>Gets the context compaction settings.</summary>
     public CompactionSettings? Compaction { get; init; }
 
-    /// <summary>Bellek saglayicisi ayarlari.</summary>
+    /// <summary>Gets the memory provider settings.</summary>
     public MemorySettings? Memory { get; init; }
 
-    /// <summary>Uygulamaya ozgu serbest metadata.</summary>
+    /// <summary>Gets the free-form application-specific metadata.</summary>
     public Dictionary<string, JsonElement>? Metadata { get; init; }
 
-    /// <summary>Tanimin icerigini yuke donusturur.</summary>
-    /// <param name="definition">Kaynak tanim.</param>
-    /// <returns>Serilestirilecek yuk.</returns>
+    /// <summary>Converts the content of a definition into a payload.</summary>
+    /// <param name="definition">The source definition.</param>
+    /// <returns>The payload to serialize.</returns>
     public static AgentDefinitionPayload FromDefinition(AgentDefinition definition)
         => new()
         {
@@ -73,12 +74,12 @@ internal sealed record AgentDefinitionPayload
                 : new Dictionary<string, JsonElement>(definition.Metadata, StringComparer.Ordinal),
         };
 
-    /// <summary>Yuku sutun degerleriyle birlestirerek tam tanimi kurar.</summary>
-    /// <param name="name">Agent adi.</param>
-    /// <param name="version">Surum numarasi.</param>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="updatedAt">Son guncelleme zamani.</param>
-    /// <returns>Tam tanim.</returns>
+    /// <summary>Builds the full definition by merging the payload with the column values.</summary>
+    /// <param name="name">The agent name.</param>
+    /// <param name="version">The version number.</param>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="updatedAt">The last update time.</param>
+    /// <returns>The full definition.</returns>
     public AgentDefinition ToDefinition(string name, int version, string tenantId, DateTimeOffset updatedAt)
         => new()
         {

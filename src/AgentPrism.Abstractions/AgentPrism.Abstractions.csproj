@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>AgentPrism sozlesmeleri ve soyutlamalari. Agent tanimi, katalog, calistirma kaydi ve depolama arayuzleri. Somut bir saglayiciya veya veritabanina bagli degildir.</Description>
+    <Description>AgentPrism contracts and abstractions. Agent definition, catalog, run record and storage interfaces. Not bound to a concrete provider or database.</Description>
     <PackageTags>$(CommonPackageTags);abstractions;contracts</PackageTags>
   </PropertyGroup>
 

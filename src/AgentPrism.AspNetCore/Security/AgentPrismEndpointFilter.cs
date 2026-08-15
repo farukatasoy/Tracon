@@ -6,29 +6,30 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Loopback kisitini ve bearer token denetimini uygulayan uc filtresi.
+/// Endpoint filter that applies the loopback restriction and the bearer token check.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Ucuncu katman olan authorization policy bu filtreye ait degildir; ASP.NET Core'un
-/// kendi yetkilendirme boru hattina <c>RequireAuthorization</c> ile baglanir ve bu
-/// filtreden <em>once</em> calisir.
+/// The third layer, the authorization policy, does not belong to this filter; it binds
+/// to the ASP.NET Core authorization pipeline with <c>RequireAuthorization</c> and runs
+/// <em>before</em> this filter.
 /// </para>
 /// <para>
-/// Reddetme yanitlari nedeni acikca yazar ancak beklenen token hakkinda hicbir
-/// bilgi vermez.
+/// Rejection responses state the reason clearly but give no information about the
+/// expected token.
 /// </para>
 /// <para>
-/// 🚨 Faz 53: bearer token katmani artik IKI kimlik kaynagi taniyabilir.
-/// Once <see cref="AgentPrismEndpointOptions.AuthToken"/> ile sabit karsilastirma
-/// denenir (degismedi). Eslesmezse ve bir <c>IApiKeyStore</c> kayitliysa, sunulan
-/// deger o depoda aranir; gecerli, iptal edilmemis ve suresi gecmemis bir anahtar
-/// bulunursa istek o anahtarin kiracisi ve kapsamiyla devam eder (bolum 53.5).
+/// 🚨 Phase 53: the bearer token layer can now recognize TWO identity sources. First it
+/// tries the fixed comparison against <see cref="AgentPrismEndpointOptions.AuthToken"/>
+/// (unchanged). If that does not match and an <c>IApiKeyStore</c> is registered, the
+/// presented value is looked up in that store; when a valid, non-revoked and non-expired
+/// key is found, the request continues with the tenant and the scopes of that key
+/// (section 53.5).
 /// </para>
 /// </remarks>
 internal sealed class AgentPrismEndpointFilter : IEndpointFilter
 {
-    /// <summary>Son kullanim damgasinin en az bu araliktan sonra yeniden yazilmasi (Acik Soru 4).</summary>
+    /// <summary>The last-used stamp is rewritten only after at least this interval (Open Question 4).</summary>
     private static readonly TimeSpan LastUsedTouchInterval = TimeSpan.FromMinutes(1);
 
     private readonly bool _allowRemoteAccess;
@@ -37,34 +38,34 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
     private readonly string? _authToken;
     private readonly string? _staticAuthToken;
 
-    /// <summary>Ayarlardan bir filtre kurar.</summary>
-    /// <param name="options">Erisim ayarlari.</param>
+    /// <summary>Creates a filter from the settings.</summary>
+    /// <param name="options">The access settings.</param>
     /// <param name="requireBearerToken">
-    /// Bearer token katmani uygulansin mi. Arayuzun statik varliklari icin
-    /// <see langword="false"/> gecilir: bir tarayici <c>&lt;script src&gt;</c>
-    /// istegine <c>Authorization</c> basligi ekleyemez, dolayisiyla bu katman
-    /// kabugu kilitlerse arayuz hicbir zaman acilamaz ve kullanici token'i
-    /// girebilecegi bir ekran goremezdi. Kabuk veri tasimaz; authorization
-    /// policy katmani yine uygulanir ve her veri ucu tam korumada kalir.
+    /// Whether the bearer token layer applies. <see langword="false"/> is passed for the
+    /// static assets of the user interface: a browser cannot add an <c>Authorization</c>
+    /// header to a <c>&lt;script src&gt;</c> request, so if this layer locked the shell,
+    /// the user interface could never open and the user could not see a screen to enter
+    /// the token in. The shell carries no data; the authorization policy layer still
+    /// applies and every data endpoint stays fully protected.
     /// </param>
     /// <param name="requireLoopback">
-    /// Loopback kisiti uygulansin mi. Arayuzun statik varliklari icin
-    /// <see langword="false"/> gecilir: kisit kabuga uygulanirsa loopback disi
-    /// bir istemci JS paketini hic indiremez, <c>AccessGate</c>'in kendisi
-    /// (HATA-S4-003) hicbir zaman calisamaz ve kullanici "Erisim reddedildi"
-    /// kartini goremeden ham sunucu JSON'iyla kalir. Kabuk veri tasimaz;
-    /// gercek koruma veri uclarindaki (bu bayrak varsayilan <see langword="true"/>
-    /// olan) filtre orneklerinden gelir — kabuk yalnizca oraya yapilan bir
-    /// probe istegi 403 dondugunde kullaniciya dogru mesaji gosterebilir.
+    /// Whether the loopback restriction applies. <see langword="false"/> is passed for the
+    /// static assets of the user interface: if the restriction applied to the shell, a
+    /// non-loopback client could never download the JS bundle, <c>AccessGate</c> itself
+    /// (HATA-S4-003) could never run, and the user would be left with raw server JSON
+    /// instead of the "Access denied" card. The shell carries no data; the real protection
+    /// comes from the filter instances on the data endpoints, where this flag defaults to
+    /// <see langword="true"/> — the shell only lets the user see the correct message when
+    /// a probe request to those endpoints returns 403.
     /// </param>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException">When <paramref name="options"/> is <see langword="null"/>.</exception>
     public AgentPrismEndpointFilter(AgentPrismEndpointOptions options, bool requireBearerToken = true, bool requireLoopback = true)
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        // Ayarlar kurulum aninda okunur. MapAgentPrism'den sonra yapilan bir
-        // degisiklik calisan uclari etkilememelidir; erisim kurallarinin calisma
-        // aninda sessizce gevsemesi guvenlik acisindan kabul edilemez.
+        // The settings are read at setup time. A change made after MapAgentPrism must not
+        // affect the running endpoints; access rules that loosen silently at run time are
+        // unacceptable from a security standpoint.
         _allowRemoteAccess = options.AllowRemoteAccess;
         _requireLoopback = requireLoopback;
         _requireBearerToken = requireBearerToken;
@@ -99,7 +100,7 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
                 return Unauthorized(httpContext);
             }
 
-            // Ne statik token ne baslik var: bugunku davranis degismez (K1).
+            // Neither a static token nor a header: today's behavior does not change (K1).
             return CheckTenancyWhitelist(httpContext) is { } rejectedNoAuth
                 ? rejectedNoAuth
                 : await Proceed(httpContext, next, context).ConfigureAwait(false);
@@ -116,13 +117,14 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
             && _staticAuthToken is { Length: > 0 } configured
             && BearerTokenValidator.IsValid(header, configured))
         {
-            // Bu uc grubu bearer token katmanini UYGULAMAZ (K1) ama sunulan
-            // deger AgentPrism'in kendi statik AuthToken'iyla eslesiyor — bu bir
-            // API anahtari degildir, IApiKeyStore aramasi hicbir zaman bulamaz ve
-            // asagidaki genel Unauthorized()'a duserdi (HATA-S1-014): dogru token
-            // ile hic token verilmemis gibi ayni yanit donerdi. Baslik YOKMUS gibi
-            // notr davranilir — reddetmez, ek yetki de vermez; ucun kendi mantigina
-            // (varsa, ornegin bir 404/400) ulasilir.
+            // This endpoint group does NOT apply the bearer token layer (K1), but the
+            // presented value matches the static AuthToken of AgentPrism itself. That is
+            // not an API key, the IApiKeyStore lookup would never find it, and it would
+            // fall through to the general Unauthorized() below (HATA-S1-014): a correct
+            // token would return the same response as no token at all. The header is
+            // treated neutrally, as if it were ABSENT — it neither rejects nor grants
+            // extra rights; the endpoint's own logic is reached (for example a 404/400,
+            // where one applies).
             return CheckTenancyWhitelist(httpContext) is { } rejectedGroupToken
                 ? rejectedGroupToken
                 : await Proceed(httpContext, next, context).ConfigureAwait(false);
@@ -169,34 +171,35 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
         EndpointFilterDelegate next,
         EndpointFilterInvocationContext context)
     {
-        // Denetim izi aktorunu ortam (ambient) baglamina tasir. AgentPrism.Core'daki
-        // AmbientAuditActorResolver bunu bir AsyncLocal uzerinden okur; boylece Core,
-        // ASP.NET Core'a bagimlilik eklemeden "kim yapti" sorusunu yanitlayabilir.
-        // Gerekce: docs/09-YONETISIM-VE-DENETIM-IZI.md, bolum 9.2.
+        // Carries the audit trail actor into the ambient context. AmbientAuditActorResolver
+        // in AgentPrism.Core reads it through an AsyncLocal, so Core can answer the
+        // "who did it" question without taking a dependency on ASP.NET Core.
+        // Rationale: docs/09-YONETISIM-VE-DENETIM-IZI.md, section 9.2.
         AuditActorContext.Current = httpContext.User;
 
         return next(context);
     }
 
     /// <summary>
-    /// <see cref="AgentPrismTenancyOptions.AllowedTenants"/> doluyken, beyaz listede
-    /// OLMAYAN bicimce gecerli bir aday kiraciyi reddeder.
+    /// Rejects a formally valid candidate tenant that is NOT on the allow list, while
+    /// <see cref="AgentPrismTenancyOptions.AllowedTenants"/> is populated.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 🚨 Bu denetim olmadan <see cref="HttpTenantContext.TenantId"/>'nin <c>??</c>
-    /// zinciri (<c>Resolve() ?? DefaultTenantId</c>) beyaz listenin reddettigi bir
-    /// adayi SESSIZCE varsayilan kiraciya dusururdu — tam olarak
-    /// <see cref="AgentPrismTenancyOptions.AllowedTenants"/>'in kendi XML belgesinin
-    /// yasakladigi durum ("listede olmayan bir deger varsayilan kiraciya dusmez").
-    /// Bu yuzden aday burada, istek endpoint'e ulasmadan ONCE, ayni kaynaktan
-    /// (claim veya baslik — <see cref="HttpTenantContext.Resolve"/> ile birebir
-    /// ayni oncelik) okunup denetlenir.
+    /// 🚨 Without this check the <c>??</c> chain of <see cref="HttpTenantContext.TenantId"/>
+    /// (<c>Resolve() ?? DefaultTenantId</c>) would SILENTLY drop a candidate that the allow
+    /// list rejects down to the default tenant — exactly the case that the XML documentation
+    /// of <see cref="AgentPrismTenancyOptions.AllowedTenants"/> forbids ("a value that is not
+    /// on the list does not fall back to the default tenant"). The candidate is therefore
+    /// read and checked here, BEFORE the request reaches the endpoint, from the same source
+    /// (claim or header — exactly the same precedence as
+    /// <see cref="HttpTenantContext.Resolve"/>).
     /// </para>
     /// <para>
-    /// Aday HIC saglanmamissa (ne claim ne baslik) ya da bicimce gecersizse bu
-    /// denetim devreye girmez — varsayilan kiraciya dusmek o durumda kasitli
-    /// davranistir (K1: coklu kiracilik acilmadan hicbir sey degismez).
+    /// When NO candidate is supplied at all (neither claim nor header), or when it is
+    /// formally invalid, this check does not engage — falling back to the default tenant is
+    /// the intended behavior in that case (K1: nothing changes until multi-tenancy is turned
+    /// on).
     /// </para>
     /// </remarks>
     private static ProblemHttpResult? CheckTenancyWhitelist(HttpContext httpContext)
@@ -249,12 +252,12 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
     }
 
     /// <summary>
-    /// <c>X-AgentPrism-Tenant</c> basligi API anahtarinin kiracisindan farkli bir
-    /// kiraci soyluyorsa reddeder.
+    /// Rejects the request when the <c>X-AgentPrism-Tenant</c> header names a tenant that
+    /// differs from the tenant of the API key.
     /// </summary>
     /// <remarks>
-    /// 🚨 Baslik anahtari EZEMEZ (bolum 53.5). Ezebilseydi anahtarin kiraci bagi
-    /// hicbir sey ifade etmezdi.
+    /// 🚨 The header CANNOT override the key (section 53.5). If it could, the tenant binding
+    /// of the key would mean nothing.
     /// </remarks>
     private static ProblemHttpResult? CheckTenantHeaderConflict(HttpContext httpContext, ApiKeyRecord record)
     {
@@ -280,7 +283,8 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
     }
 
     /// <summary>
-    /// Cagrilan uc bir kapsam gerektiriyorsa ve anahtar onu tasimiyorsa reddeder.
+    /// Rejects the request when the called endpoint requires a scope that the key does not
+    /// carry.
     /// </summary>
     private static ProblemHttpResult? CheckScope(HttpContext httpContext, ApiKeyRecord record)
     {
@@ -298,10 +302,10 @@ internal sealed class AgentPrismEndpointFilter : IEndpointFilter
     }
 
     /// <summary>
-    /// Son kullanim damgasini yalnizca yeterince eskiyse gunceller (Acik Soru 4).
+    /// Updates the last-used stamp only when it is old enough (Open Question 4).
     /// </summary>
     /// <remarks>
-    /// Her istekte yazmak sicak okuma yoluna gereksiz bir <c>UPDATE</c> eklerdi.
+    /// Writing on every request would add an unnecessary <c>UPDATE</c> to the hot read path.
     /// </remarks>
     private static ValueTask TouchLastUsedIfStale(
         IApiKeyStore store,

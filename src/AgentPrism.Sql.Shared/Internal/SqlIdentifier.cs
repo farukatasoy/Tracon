@@ -1,40 +1,41 @@
 namespace AgentPrism;
 
 /// <summary>
-/// SQL tanimlayicilarini dogrular.
+/// Validates SQL identifiers.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Sema adi yapilandirmadan gelir ve SQL metnine <em>dogrudan</em> yerlestirilir —
-/// tanimlayicilar parametre olarak gonderilemez. Bu yuzden ad, SQL metnine
-/// girmeden once burada kati bicimde dogrulanir: yalnizca kucuk harf, rakam ve
-/// alt cizgi kabul edilir. Bu, sema adi uzerinden SQL enjeksiyonunu imkansiz kilar.
+/// The schema name comes from configuration and is placed <em>directly</em> into
+/// the SQL text — identifiers cannot be sent as parameters. The name is therefore
+/// validated strictly here before it enters the SQL text: only lowercase letters,
+/// digits and underscores are accepted. That makes SQL injection through the
+/// schema name impossible.
 /// </para>
 /// <para>
-/// Kural her saglayicida <strong>aynidir</strong>, SQL Server daha genis bir
-/// tanimlayici kumesine izin verse bile. Sebep tasinabilirliktir: ayni sema adi
-/// PostgreSQL ve SQL Server arasinda degistirilmeden kullanilabilmelidir.
-/// Kucuk harf sarti PostgreSQL'in tirnaksiz tanimlayicilari kucuk harfe
-/// cevirmesinden gelir; buyuk harf iceren bir ad yazildigi gibi geri okunamaz.
+/// The rule is <strong>the same</strong> on every provider, even though SQL Server
+/// allows a wider identifier set. The reason is portability: the same schema name
+/// must be usable between PostgreSQL and SQL Server without change. The lowercase
+/// requirement comes from PostgreSQL folding unquoted identifiers to lowercase; a
+/// name that contains uppercase letters cannot be read back as it was written.
 /// </para>
 /// <para>
-/// Gerekce: <c>docs/KARARLAR.md</c>, kararlar K-029 ve K-179.
+/// Rationale: <c>docs/KARARLAR.md</c>, decisions K-029 and K-179.
 /// </para>
 /// </remarks>
 internal static class SqlIdentifier
 {
     /// <summary>
-    /// Tanimlayici uzunluk siniri.
+    /// The identifier length limit.
     /// </summary>
     /// <remarks>
-    /// PostgreSQL siniri <c>NAMEDATALEN - 1</c> = 63'tur; SQL Server 128'e izin
-    /// verir. Iki saglayici arasinda tasinabilirlik icin daha dar olan secilir.
+    /// The PostgreSQL limit is <c>NAMEDATALEN - 1</c> = 63; SQL Server allows 128.
+    /// The narrower one is chosen for portability between the two providers.
     /// </remarks>
     private const int MaxLength = 63;
 
-    /// <summary>Deger tirnaksiz kullanilabilecek gecerli bir tanimlayici mi.</summary>
-    /// <param name="value">Denetlenecek ad.</param>
-    /// <returns>Gecerliyse <see langword="true"/>.</returns>
+    /// <summary>Determines whether the value is a valid identifier usable without quoting.</summary>
+    /// <param name="value">The name to check.</param>
+    /// <returns><see langword="true"/> when the value is valid.</returns>
     public static bool IsValidUnquoted(string? value)
     {
         if (string.IsNullOrEmpty(value) || value.Length > MaxLength)
@@ -60,17 +61,17 @@ internal static class SqlIdentifier
         return true;
     }
 
-    /// <summary>Gecerli bir sema adi dondurur; degilse hata verir.</summary>
-    /// <param name="value">Denetlenecek sema adi.</param>
-    /// <returns>Dogrulanmis sema adi.</returns>
-    /// <exception cref="AgentPrismException">Ad gecerli bir tanimlayici degilse.</exception>
+    /// <summary>Returns a valid schema name; throws when it is not valid.</summary>
+    /// <param name="value">The schema name to check.</param>
+    /// <returns>The validated schema name.</returns>
+    /// <exception cref="AgentPrismException">The name is not a valid identifier.</exception>
     public static string RequireSchemaName(string? value)
     {
         if (!IsValidUnquoted(value))
         {
             throw new AgentPrismException(
-                $"'{value}' gecerli bir sema adi degil. Kucuk harf veya alt cizgi ile baslamali; " +
-                $"kucuk harf, rakam ve alt cizgi icermeli; en cok {MaxLength} karakter olmalidir.");
+                $"'{value}' is not a valid schema name. It must start with a lowercase letter or an underscore; " +
+                $"it must contain only lowercase letters, digits and underscores; it must be at most {MaxLength} characters.");
         }
 
         return value!;

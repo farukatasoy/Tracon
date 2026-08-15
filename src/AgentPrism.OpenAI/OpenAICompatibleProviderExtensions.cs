@@ -7,36 +7,38 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// AgentPrism zincirine adlandirilmis, OpenAI uyumlu sohbet API'leri sunan
-/// saglayicilar ekleyen uzantilar (OpenRouter, Groq, vLLM, Ollama, LM Studio, ...).
+/// Extensions that add named providers with an OpenAI compatible chat API to the
+/// AgentPrism chain (OpenRouter, Groq, vLLM, Ollama, LM Studio, ...).
 /// </summary>
 /// <remarks>
 /// <para>
-/// <c>UseOpenAI()</c>'den farki: bu cagri <strong>ad</strong> alir ve o adla bir veya
-/// iki (bkz. <see cref="OpenAIProviderOptions.EnableResponsesSurface"/>) saglayici
-/// kaydeder. Ayni <c>OpenAIProviderOptions</c> sekli kullanilir; taban adres
-/// (<see cref="OpenAIProviderOptions.Endpoint"/>) uyumlu sunucuya isaret eder.
+/// The difference from <c>UseOpenAI()</c>: this call takes a <strong>name</strong> and
+/// registers one or two providers (see
+/// <see cref="OpenAIProviderOptions.EnableResponsesSurface"/>) under that name. It uses
+/// the same <c>OpenAIProviderOptions</c> shape; the base address
+/// (<see cref="OpenAIProviderOptions.Endpoint"/>) points at the compatible server.
 /// </para>
 /// <para>
-/// Sadece Chat Completions yuzeyi kaydedilir; Responses yuzeyi varsayilan olarak
-/// <strong>kapalidir</strong> (cogu uyumlu sunucu <c>/v1/responses</c> uygulamaz).
+/// Only the Chat Completions surface is registered; the Responses surface is
+/// <strong>off</strong> by default (most compatible servers do not implement
+/// <c>/v1/responses</c>).
 /// </para>
 /// </remarks>
 public static class OpenAICompatibleProviderExtensions
 {
     private const int MaxNameLength = 32;
 
-    /// <summary>Ayarlari kodda vererek adlandirilmis bir OpenAI uyumlu saglayici ekler.</summary>
-    /// <param name="builder">AgentPrism zinciri.</param>
+    /// <summary>Adds a named OpenAI compatible provider whose options are set in code.</summary>
+    /// <param name="builder">The AgentPrism chain.</param>
     /// <param name="name">
-    /// Saglayici adi. <c>[a-z0-9][a-z0-9-]{0,31}</c> ile sinirlidir.
-    /// <see cref="OpenAIProviderNames.ChatCompletions"/> ve
-    /// <see cref="OpenAIProviderNames.Responses"/> rezervedir.
+    /// The provider name. It is limited to <c>[a-z0-9][a-z0-9-]{0,31}</c>.
+    /// <see cref="OpenAIProviderNames.ChatCompletions"/> and
+    /// <see cref="OpenAIProviderNames.Responses"/> are reserved.
     /// </param>
-    /// <param name="configure">Ayar degistirici. En az <see cref="OpenAIProviderOptions.Endpoint"/> verilmelidir.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> veya <paramref name="configure"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="ArgumentException"><paramref name="name"/> bos, rezerve veya desene uymuyorsa.</exception>
+    /// <param name="configure">The options callback. It must set at least <see cref="OpenAIProviderOptions.Endpoint"/>.</param>
+    /// <returns>The same chain, for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> or <paramref name="configure"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is empty, reserved, or does not match the pattern.</exception>
     /// <example>
     /// <code>
     /// builder.AddAgentPrism()
@@ -48,7 +50,7 @@ public static class OpenAICompatibleProviderExtensions
     ///        .UseOpenAICompatible("ollama", o =>
     ///        {
     ///            o.Endpoint = new Uri("http://localhost:11434/v1");
-    ///            // ApiKey YOK — yerel sunucu istemiyor
+    ///            // No ApiKey — the local server does not ask for one
     ///        });
     /// </code>
     /// </example>
@@ -70,8 +72,8 @@ public static class OpenAICompatibleProviderExtensions
             OpenAIProviderOptionsValidator>());
         services.TryAddSingleton<OpenAINamedChatClientFactoryCache>();
 
-        // Ikinci cagri ayarlari birlestirir ama saglayicilari tekrar kaydetmez;
-        // UseOpenAI() ile ayni gerekce (K-025'in "AddModelProvider yeterlidir" notu).
+        // A second call merges the options but does not register the providers again;
+        // the same reason as UseOpenAI() (the "AddModelProvider is enough" note of K-025).
         if (services.Any(descriptor =>
                 descriptor.ServiceType == typeof(NamedProviderMarker)
                 && descriptor.ImplementationInstance is NamedProviderMarker marker
@@ -82,11 +84,11 @@ public static class OpenAICompatibleProviderExtensions
 
         services.AddSingleton(new NamedProviderMarker(name));
 
-        // Responses yuzeyinin acik olup olmadigini kayit ANINDA bilmemiz gerekir:
-        // IModelProviderRegistry'nin hangi saglayicilari icerecegi DI kurulurken
-        // belirlenir, ayarlar cozulurken degil. configure yan etkisiz bir Action
-        // oldugu icin (standart Options kalibi) burada bir kez daha, atilacak bir
-        // nesne uzerinde calistirmak guvenlidir.
+        // We must know whether the Responses surface is on at REGISTRATION time: which
+        // providers IModelProviderRegistry contains is decided while DI is built, not
+        // while the options are resolved. Because configure is a side effect free Action
+        // (the standard Options pattern), running it once more here against a throwaway
+        // instance is safe.
         var probe = new OpenAIProviderOptions();
         configure(probe);
 
@@ -102,17 +104,17 @@ public static class OpenAICompatibleProviderExtensions
     }
 
     /// <summary>
-    /// Ayarlari <c>AgentPrism:Providers:OpenAICompatible:{ad}</c> bolumunden okuyarak
-    /// adlandirilmis bir OpenAI uyumlu saglayici ekler.
+    /// Adds a named OpenAI compatible provider whose options are read from the
+    /// <c>AgentPrism:Providers:OpenAICompatible:{name}</c> section.
     /// </summary>
-    /// <param name="builder">AgentPrism zinciri.</param>
-    /// <param name="name">Saglayici adi. Bkz. <see cref="UseOpenAICompatible(IAgentPrismBuilder, string, Action{OpenAIProviderOptions})"/>.</param>
+    /// <param name="builder">The AgentPrism chain.</param>
+    /// <param name="name">The provider name. See <see cref="UseOpenAICompatible(IAgentPrismBuilder, string, Action{OpenAIProviderOptions})"/>.</param>
     /// <param name="configurationSection">
-    /// Ayarlarin okunacagi bolum. Genellikle
+    /// The section the options are read from. Usually
     /// <c>configuration.GetSection($"{OpenAICompatibleProviderOptions.SectionName}:{name}")</c>.
     /// </param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException">Parametrelerden biri <see langword="null"/> ise.</exception>
+    /// <returns>The same chain, for chaining.</returns>
+    /// <exception cref="ArgumentNullException">Any parameter is <see langword="null"/>.</exception>
     public static IAgentPrismBuilder UseOpenAICompatible(
         this IAgentPrismBuilder builder,
         string name,
@@ -141,11 +143,11 @@ public static class OpenAICompatibleProviderExtensions
             OpenAIModelCatalog.Build(options),
             provider.GetService<ILogger<OpenAIModelProvider>>(),
             healthCheckOptions: options,
-            // UseOpenAICompatible() sabit bir yapilandirma bolumune baglamaz — anahtar
-            // cagiranin kod icinde secip verdigi rastgele bir kaynaktan gelebilir
-            // (ornek: configuration["OpenRouter:ApiKey"]). Bildirilecek sabit bir yol
-            // olmadigi icin teshis raporunda bu saglayici icin hicbir ConfigurationDiagnostic
-            // GORUNMEZ.
+            // UseOpenAICompatible() does not bind to a fixed configuration section — the
+            // key can come from any source the caller picks in code (for example
+            // configuration["OpenRouter:ApiKey"]). Because there is no fixed path to
+            // report, the diagnostics report shows NO ConfigurationDiagnostic at all for
+            // this provider.
             configurationSectionKey: null);
     }
 
@@ -157,29 +159,29 @@ public static class OpenAICompatibleProviderExtensions
             || string.Equals(name, OpenAIProviderNames.Responses, StringComparison.OrdinalIgnoreCase))
         {
             throw new ArgumentException(
-                $"'{name}' saglayici adi rezervedir. '{OpenAIProviderNames.ChatCompletions}' ve " +
-                $"'{OpenAIProviderNames.Responses}' yalnizca UseOpenAI() tarafindan kullanilir; " +
-                "agent tanimlarindaki ModelBinding.Provider bu adlara guvenir.",
+                $"The provider name '{name}' is reserved. '{OpenAIProviderNames.ChatCompletions}' and " +
+                $"'{OpenAIProviderNames.Responses}' are used by UseOpenAI() only; the " +
+                "ModelBinding.Provider values of agent definitions rely on those names.",
                 nameof(name));
         }
 
         if (!IsValidNamePattern(name))
         {
             throw new ArgumentException(
-                $"'{name}' gecerli bir saglayici adi degil. Ad kucuk harf, rakam ve tire " +
-                "icermeli, kucuk harf veya rakamla baslamali ve en fazla 32 karakter olmalidir " +
-                "(ornek: 'openrouter', 'local-vllm').",
+                $"'{name}' is not a valid provider name. The name must contain lower case " +
+                "letters, digits and hyphens, must start with a lower case letter or a digit, " +
+                "and must be at most 32 characters long (for example 'openrouter', 'local-vllm').",
                 nameof(name));
         }
     }
 
     /// <summary>
-    /// Ad deseni <c>^[a-z0-9][a-z0-9-]{0,31}$</c> ile ayni kurali dogrular.
+    /// Validates the same rule as the name pattern <c>^[a-z0-9][a-z0-9-]{0,31}$</c>.
     /// </summary>
     /// <remarks>
-    /// Duzenli ifade yerine elle karakter denetimi kullanilir: MA0009 (regex DoS
-    /// analizi) kaynak-uretilmis duzenli ifadeleri de isaretliyor ve bu kadar basit
-    /// bir desen icin bastirmaya gerek yok.
+    /// It checks the characters by hand instead of using a regular expression: MA0009
+    /// (regex DoS analysis) also flags source generated regular expressions, and a
+    /// pattern this simple does not justify a suppression.
     /// </remarks>
     private static bool IsValidNamePattern(string name)
     {

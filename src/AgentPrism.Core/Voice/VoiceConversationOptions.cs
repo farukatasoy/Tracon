@@ -1,114 +1,122 @@
 namespace AgentPrism;
 
-/// <summary>Gercek zamanli konusma katmaninin ayarlari.</summary>
+/// <summary>Options of the real-time voice conversation layer.</summary>
 /// <remarks>
 /// <para>
-/// ⚠️ Bu yetenek <strong>barindirma modelini degistirir</strong>. Konusma
-/// baglantisi dakikalarca acik kalir ve bir sunucu ornegine baglanir (yapiskan
-/// oturum). Bu yuzden yetenek istege baglidir: <c>UseVoiceConversation()</c>
-/// cagrilmadikca hicbir WebSocket ucu acilmaz ve davranis degismez.
+/// ⚠️ This capability <strong>changes the hosting model</strong>. A conversation
+/// connection stays open for minutes and binds to one server instance (a sticky
+/// session). The capability is therefore optional: no WebSocket endpoint opens and
+/// no behaviour changes until <c>UseVoiceConversation()</c> is called.
 /// </para>
 /// <para>
-/// 🚨 Tur bir <c>record</c> <strong>degildir</strong> (K-035): ayar siniflari
-/// gunluge yazilabilecek bir <c>ToString</c> uretmemelidir.
+/// 🚨 The type is <strong>not</strong> a <c>record</c> (K-035): option classes must
+/// not produce a <c>ToString</c> that can be written to a log.
 /// </para>
 /// </remarks>
 public sealed class VoiceConversationOptions
 {
-    /// <summary>Yapilandirma bolumunun varsayilan adi.</summary>
+    /// <summary>The default name of the configuration section.</summary>
     public const string SectionName = "AgentPrism:Voice:Conversation";
 
     /// <summary>
-    /// Bir kiracinin ayni anda acabilecegi en fazla konusma baglantisi.
-    /// Varsayilan 5.
+    /// Gets or sets the maximum number of conversation connections that one tenant
+    /// can hold open at the same time. The default is 5.
     /// </summary>
     /// <remarks>
-    /// Acik baglanti bir sunucu is parcacigi degil ama bir soket, bir arabellek
-    /// ve bir agent oturumu tutar. Sinirsiz baglanti, tek bir kiracinin sunucuyu
-    /// doldurmasina izin verirdi.
+    /// An open connection is not a server thread, but it holds a socket, a buffer and
+    /// an agent session. An unlimited number of connections would let a single tenant
+    /// fill the server.
     /// </remarks>
     public int MaxConcurrentConnectionsPerTenant { get; set; } = 5;
 
     /// <summary>
-    /// Bir baglantinin acik kalabilecegi en uzun sure. Varsayilan 30 dakika.
+    /// Gets or sets the longest time that a connection can stay open. The default is
+    /// 30 minutes.
     /// </summary>
     /// <remarks>
-    /// Sure dolunca baglanti duzgun kapatilir ve istemci yeniden baglanir.
-    /// Sonsuz baglanti, sizan bir kaynagin hicbir zaman fark edilmemesi demektir.
+    /// When the time expires the connection closes cleanly and the client reconnects.
+    /// An endless connection means that a leaking resource is never noticed.
     /// </remarks>
     public TimeSpan MaxConnectionDuration { get; set; } = TimeSpan.FromMinutes(30);
 
     /// <summary>
-    /// Hicbir cerceve gelmeden gecebilecek en uzun sure. Varsayilan 2 dakika.
+    /// Gets or sets the longest time that can pass without a frame. The default is
+    /// 2 minutes.
     /// </summary>
     public TimeSpan IdleTimeout { get; set; } = TimeSpan.FromMinutes(2);
 
     /// <summary>
-    /// Tek bir konusma parcasinin (utterance) en uzun suresi. Varsayilan 60 saniye.
+    /// Gets or sets the longest duration of a single utterance. The default is
+    /// 60 seconds.
     /// </summary>
     /// <remarks>
-    /// 🚨 Konusma sonu tespiti (VAD) <strong>istemcidedir</strong>; sunucu
-    /// sinyal islemez. Bu sinir bir <em>guvenlik agidir</em>: istemcinin VAD'i
-    /// hic tetiklenmezse parca kendiliginden kapanir ve cozume gonderilir.
+    /// 🚨 End-of-speech detection (VAD) is <strong>on the client</strong>; the server
+    /// does no signal processing. This limit is a <em>safety net</em>: when the VAD of
+    /// the client never fires the utterance closes on its own and goes to
+    /// transcription.
     /// </remarks>
     public TimeSpan MaxUtteranceDuration { get; set; } = TimeSpan.FromSeconds(60);
 
     /// <summary>
-    /// Tek bir konusma parcasinin en fazla kac bayt tutabilecegi. Varsayilan 8 MB.
+    /// Gets or sets how many bytes a single utterance can hold. The default is 8 MB.
     /// </summary>
     /// <remarks>
-    /// Sure sinirinin yaninda bir de bayt siniri vardir: istemci sesi degil
-    /// rastgele veri gonderirse sure hicbir zaman dolmayabilir.
+    /// Next to the duration limit there is also a byte limit: when the client sends
+    /// arbitrary data instead of audio the duration may never expire.
     /// </remarks>
     public int MaxUtteranceBytes { get; set; } = 8 * 1024 * 1024;
 
     /// <summary>
-    /// Konusmanin sesi <c>attachments</c> tablosuna yazilsin mi.
-    /// Varsayilan <see langword="false"/>.
+    /// Gets or sets a value that indicates whether the conversation audio is written
+    /// to the <c>attachments</c> table. The default is <see langword="false"/>.
     /// </summary>
     /// <remarks>
-    /// 🚨 <strong>Ses kisisel veridir.</strong> Varsayilan olarak saklanmamasi
-    /// bilinclidir. Acildiginda Faz 25'in saklama politikasi uygulanir ve arayuz
-    /// kullaniciya kaydin yapildigini <strong>gosterir</strong> — sessizce kayit
-    /// yapilmaz.
+    /// 🚨 <strong>Voice is personal data.</strong> That it is not stored by default is
+    /// deliberate. When it is enabled the retention policy of phase 25 applies and the
+    /// user interface <strong>shows</strong> the user that the audio is recorded — no
+    /// recording happens silently.
     /// </remarks>
     public bool PersistAudio { get; set; }
 
     /// <summary>
-    /// Yanitlari seslendirirken kullanilacak ses kimligi. Bos ise
-    /// saglayicinin varsayilan sesi (<c>AgentPrism:Voice:DefaultVoiceId</c>).
+    /// Gets or sets the identifier of the voice that speaks the responses. When it is
+    /// empty the default voice of the provider is used
+    /// (<c>AgentPrism:Voice:DefaultVoiceId</c>).
     /// </summary>
     public string? VoiceId { get; set; }
 
     /// <summary>
-    /// Sentezlenen sesin MIME turu. Varsayilan <c>audio/mpeg</c>.
+    /// Gets or sets the MIME type of the synthesized audio. The default is
+    /// <c>audio/mpeg</c>.
     /// </summary>
     /// <remarks>
-    /// 🚨 Deger, ses saglayicisinin <em>yapilandirilmis cikti bicimiyle</em>
-    /// ayni olmalidir (<c>AgentPrism:Voice:OutputFormat</c>). Akisli sentez
-    /// yalnizca ham baytlar dondurur ve turu bildirmez; istemci sesi cozebilmek
-    /// icin turu bilmek zorundadir. Yanlis deger, tarayicida sessiz bir cozum
-    /// hatasi uretir.
+    /// 🚨 The value must be the same as the <em>configured output format</em> of the
+    /// speech provider (<c>AgentPrism:Voice:OutputFormat</c>). Streaming synthesis
+    /// returns raw bytes only and does not report the type; the client has to know the
+    /// type to decode the audio. A wrong value produces a silent decode failure in the
+    /// browser.
     /// </remarks>
     public string OutputMediaType { get; set; } = "audio/mpeg";
 
     /// <summary>
-    /// Ham PCM gonderen istemcilerin ornekleme hizi (Hz). Varsayilan 16.000.
+    /// Gets or sets the sample rate (Hz) of clients that send raw PCM. The default is
+    /// 16,000.
     /// </summary>
     /// <remarks>
-    /// Ham PCM basliksizdir; cozum saglayicisina gonderilmeden once sunucu bir
-    /// WAV basligi yazar ve o baslik bu degeri tasir. Yanlis deger, sesin yanlis
-    /// hizda cozulmesine yol acar.
+    /// Raw PCM has no header; before the audio goes to the transcription provider the
+    /// server writes a WAV header, and that header carries this value. A wrong value
+    /// makes the audio decode at the wrong rate.
     /// </remarks>
     public int InputSampleRate { get; set; } = 16_000;
 
     /// <summary>
-    /// Bir yanitin en fazla kac karakteri seslendirilsin. Varsayilan 5.000.
+    /// Gets or sets how many characters of one response are spoken. The default is
+    /// 5,000.
     /// </summary>
     /// <remarks>
-    /// Sinir asilirsa kalan metin <strong>seslendirilmez</strong> ama altyazi
-    /// olarak yine akar: kullanici cevabin tamamini gorur, sessizce kirpilmis
-    /// bir cevap almaz.
+    /// When the limit is exceeded the remaining text is <strong>not spoken</strong>,
+    /// but it still streams as captions: the user sees the whole answer and does not
+    /// get an answer that was silently truncated.
     /// </remarks>
     public int MaxSpokenCharactersPerTurn { get; set; } = 5_000;
 }

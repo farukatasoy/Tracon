@@ -4,182 +4,183 @@ using System.Text.Json.Serialization;
 namespace AgentPrism;
 
 /// <summary>
-/// Konusma WebSocket'inin cerceve adlari ve ses bicimleri.
+/// The frame names and the audio formats of the conversation WebSocket.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Adlar mevcut SSE sozlesmesiyle <strong>uyumlu</strong> tutulur; arayuz iki
-/// farkli zihinsel model tasimaz. Bunlar <strong>kararli</strong> sozlesmedir:
-/// degistirmek istemcileri kirar.
+/// The names stay <strong>aligned</strong> with the existing SSE contract; the user
+/// interface does not carry two different mental models. These are a
+/// <strong>stable</strong> contract: to change them breaks clients.
 /// </para>
 /// <para>
-/// Metin cerceveleri JSON'dur, ikili cerceveler ham sestir. Yon, cercevenin
-/// tipinden degil <em>adindan</em> anlasilir.
+/// Text frames are JSON and binary frames are raw audio. The direction follows from
+/// the <em>name</em> of the frame, not from its type.
 /// </para>
 /// </remarks>
 public static class VoiceConversationProtocol
 {
-    /// <summary>WebSocket alt protokolunun adi. El sikismada bu ad geri yankilanir.</summary>
+    /// <summary>The name of the WebSocket sub-protocol. The handshake echoes it back.</summary>
     public const string SubProtocol = "agentprism.voice.v1";
 
     /// <summary>
-    /// Bearer token'i tasiyan alt protokol oneki.
+    /// The sub-protocol prefix that carries the bearer token.
     /// </summary>
     /// <remarks>
-    /// 🚨 Token <strong>sorgu dizesine konmaz</strong>: adres sunucu gunluklerine,
-    /// ters vekil gunluklerine ve tarayici gecmisine yazilir. Tarayici bir
-    /// WebSocket el sikismasina ozel baslik ekleyemez; standart kacis yolu
-    /// <c>Sec-WebSocket-Protocol</c> basligidir.
+    /// 🚨 The token <strong>is not put in the query string</strong>: the address is
+    /// written to server logs, to reverse proxy logs and to the browser history. A
+    /// browser cannot add a custom header to a WebSocket handshake; the standard way
+    /// out is the <c>Sec-WebSocket-Protocol</c> header.
     /// </remarks>
     public const string TokenSubProtocolPrefix = "agentprism.token.";
 
-    // --- istemci -> sunucu ---
+    // --- client -> server ---
 
-    /// <summary>Konusmayi baslatir.</summary>
+    /// <summary>Starts the conversation.</summary>
     public const string ClientStart = "start";
 
-    /// <summary>Konusma bitti; simdi cevapla.</summary>
+    /// <summary>Speech ended; answer now.</summary>
     public const string ClientCommit = "commit";
 
-    /// <summary>Kesinti (barge-in): uretimi kes.</summary>
+    /// <summary>Interruption (barge-in): stop the generation.</summary>
     public const string ClientCancel = "cancel";
 
-    /// <summary>Baglantiyi kapat.</summary>
+    /// <summary>Closes the connection.</summary>
     public const string ClientStop = "stop";
 
-    // --- sunucu -> istemci ---
+    // --- server -> client ---
 
-    /// <summary>Sunucu konusmaya hazir.</summary>
+    /// <summary>The server is ready for the conversation.</summary>
     public const string ServerReady = "ready";
 
-    /// <summary>Cozulen konusma metni.</summary>
+    /// <summary>The transcribed speech text.</summary>
     public const string ServerTranscript = "transcript";
 
-    /// <summary>Calistirma basladi; kimligi tasir.</summary>
+    /// <summary>The run started; the frame carries its identifier.</summary>
     public const string ServerRunStarted = "runStarted";
 
-    /// <summary>Metin yaniti (altyazi).</summary>
+    /// <summary>A text response (caption).</summary>
     public const string ServerText = "text";
 
-    /// <summary>Bundan sonraki ikili cerceveler ses parcasidir.</summary>
+    /// <summary>The binary frames that follow are audio chunks.</summary>
     public const string ServerAudioStart = "audioStart";
 
-    /// <summary>Ses parcasi bitti.</summary>
+    /// <summary>The audio chunks ended.</summary>
     public const string ServerAudioEnd = "audioEnd";
 
-    /// <summary>Hata.</summary>
+    /// <summary>An error.</summary>
     public const string ServerError = "error";
 
-    /// <summary>Tur bitti.</summary>
+    /// <summary>The turn ended.</summary>
     public const string ServerDone = "done";
 }
 
-/// <summary>Istemcinin gonderebilecegi ses bicimleri.</summary>
+/// <summary>The audio formats that the client can send.</summary>
 /// <remarks>
-/// Ikisi de desteklenir. Varsayilan <see cref="WebmOpus"/>'tur: her tarayicida
-/// <c>MediaRecorder</c> ile uretilebilir, bant genisligi dusuktur ve parcalar
-/// birlestirildiginde gecerli bir dosya olusur.
+/// Both are supported. The default is <see cref="WebmOpus"/>: every browser can
+/// produce it with <c>MediaRecorder</c>, its bandwidth is low, and the concatenated
+/// chunks form a valid file.
 /// </remarks>
 public static class VoiceAudioFormats
 {
-    /// <summary><c>MediaRecorder</c> ciktisi: WebM kabinde Opus.</summary>
+    /// <summary>The <c>MediaRecorder</c> output: Opus in a WebM container.</summary>
     public const string WebmOpus = "webm-opus";
 
     /// <summary>
-    /// <c>AudioWorklet</c> ciktisi: ham 16-bit little-endian PCM, mono.
+    /// The <c>AudioWorklet</c> output: raw 16-bit little-endian PCM, mono.
     /// </summary>
     /// <remarks>
-    /// 🚨 Ham PCM <strong>basliksizdir</strong> ve tek basina gecerli bir dosya
-    /// degildir. Cozum saglayicisina gonderilmeden once sunucu bir WAV basligi
-    /// yazar.
+    /// 🚨 Raw PCM <strong>has no header</strong> and is not a valid file on its own.
+    /// Before the audio goes to the transcription provider the server writes a WAV
+    /// header.
     /// </remarks>
     public const string Pcm16 = "pcm16";
 
-    /// <summary>Bicimin taninip taninmadigini bildirir.</summary>
-    /// <param name="format">Bicim adi; bos ise varsayilan kabul edilir.</param>
-    /// <returns>Biçim taniniyorsa <see langword="true"/>.</returns>
+    /// <summary>Determines whether the format is known.</summary>
+    /// <param name="format">The format name; an empty value means the default.</param>
+    /// <returns><see langword="true"/> when the format is known.</returns>
     public static bool IsKnown(string? format)
         => string.IsNullOrWhiteSpace(format)
            || string.Equals(format, WebmOpus, StringComparison.OrdinalIgnoreCase)
            || string.Equals(format, Pcm16, StringComparison.OrdinalIgnoreCase);
 }
 
-/// <summary>Istemciden gelen bir denetim mesaji.</summary>
+/// <summary>A control message that comes from the client.</summary>
 /// <remarks>
-/// Tek bir tip tum mesajlari karsilar: alanlarin cogu istege baglidir ve yalniz
-/// <c>start</c> mesajinda doludur. Mesaj basina ayri tipler, ayristirma oncesi
-/// tip secimi gerektirirdi.
+/// One type covers every message: most of the fields are optional and only the
+/// <c>start</c> message fills them. A separate type per message would require the
+/// type to be chosen before the message is parsed.
 /// </remarks>
 internal sealed record VoiceClientMessage
 {
-    /// <summary>Mesaj adi.</summary>
+    /// <summary>Gets the message name.</summary>
     public string? Type { get; init; }
 
-    /// <summary>Konusulacak agent'in adi (<c>start</c>).</summary>
+    /// <summary>Gets the name of the agent to talk to (<c>start</c>).</summary>
     public string? Agent { get; init; }
 
-    /// <summary>Kullanilacak sesin kimligi (<c>start</c>).</summary>
+    /// <summary>Gets the identifier of the voice to use (<c>start</c>).</summary>
     public string? VoiceId { get; init; }
 
-    /// <summary>Gonderilecek sesin bicimi (<c>start</c>).</summary>
+    /// <summary>Gets the format of the audio that the client sends (<c>start</c>).</summary>
     public string? InputFormat { get; init; }
 }
 
-/// <summary>Sunucudan istemciye giden bir olay cercevesi.</summary>
+/// <summary>An event frame that goes from the server to the client.</summary>
 /// <remarks>
-/// <see cref="VoiceClientMessage"/> ile ayni gerekce: tek tip, istege bagli
-/// alanlar. <see langword="null"/> alanlar JSON'a yazilmaz.
+/// The rationale is the same as for <see cref="VoiceClientMessage"/>: one type with
+/// optional fields. <see langword="null"/> fields are not written to the JSON.
 /// </remarks>
 internal sealed record VoiceServerMessage
 {
-    /// <summary>Olay adi.</summary>
+    /// <summary>Gets the event name.</summary>
     public required string Type { get; init; }
 
-    /// <summary>Konusulan agent (<c>ready</c>).</summary>
+    /// <summary>Gets the agent that is spoken to (<c>ready</c>).</summary>
     public string? Agent { get; init; }
 
-    /// <summary>Agent oturumunun kimligi (<c>ready</c>).</summary>
+    /// <summary>Gets the identifier of the agent session (<c>ready</c>).</summary>
     public string? SessionId { get; init; }
 
     /// <summary>
-    /// Sesin saklanip saklanmadigi (<c>ready</c>). 🚨 Arayuz bunu kullaniciya
-    /// <strong>gosterir</strong>; kayit sessizce yapilmaz.
+    /// Gets a value that indicates whether the audio is stored (<c>ready</c>). 🚨 The
+    /// user interface <strong>shows</strong> this to the user; no recording happens
+    /// silently.
     /// </summary>
     public bool? PersistAudio { get; init; }
 
-    /// <summary>Cozulen metin (<c>transcript</c>).</summary>
+    /// <summary>Gets the transcribed text (<c>transcript</c>).</summary>
     public string? Text { get; init; }
 
-    /// <summary>Cozumun kesin olup olmadigi (<c>transcript</c>).</summary>
+    /// <summary>Gets a value that indicates whether the transcript is final (<c>transcript</c>).</summary>
     public bool? Final { get; init; }
 
-    /// <summary>Calistirma kimligi (<c>runStarted</c>).</summary>
+    /// <summary>Gets the run identifier (<c>runStarted</c>).</summary>
     public string? RunId { get; init; }
 
-    /// <summary>Metin parcasi (<c>text</c>).</summary>
+    /// <summary>Gets the text chunk (<c>text</c>).</summary>
     public string? Delta { get; init; }
 
-    /// <summary>Ses parcasinin MIME turu (<c>audioStart</c>).</summary>
+    /// <summary>Gets the MIME type of the audio chunks (<c>audioStart</c>).</summary>
     public string? MediaType { get; init; }
 
-    /// <summary>Saklanan ses ekinin kimligi (<c>audioEnd</c>); saklanmadiysa yok.</summary>
+    /// <summary>Gets the identifier of the stored audio attachment (<c>audioEnd</c>); absent when nothing was stored.</summary>
     public string? AttachmentId { get; init; }
 
-    /// <summary>Turun kesilip kesilmedigi (<c>done</c>).</summary>
+    /// <summary>Gets a value that indicates whether the turn was interrupted (<c>done</c>).</summary>
     public bool? Cancelled { get; init; }
 
-    /// <summary>Tamamlanan tur sayisi (<c>done</c>).</summary>
+    /// <summary>Gets the number of completed turns (<c>done</c>).</summary>
     public int? Turn { get; init; }
 
-    /// <summary>Hata aciklamasi (<c>error</c>).</summary>
+    /// <summary>Gets the error description (<c>error</c>).</summary>
     public string? Message { get; init; }
 }
 
-/// <summary>Konusma protokolunun kaynak ureteci baglami.</summary>
+/// <summary>The source generator context of the conversation protocol.</summary>
 /// <remarks>
-/// <c>AgentPrism.Core</c> AOT uyumlu isaretlidir; yansimaya dayanan
-/// <c>JsonSerializer</c> asiri yuklemeleri <c>IL2026</c>/<c>IL3050</c> uretir ve
-/// build'i kirar. Gerekce: <c>docs/KARARLAR.md</c>, karar K-006.
+/// <c>AgentPrism.Core</c> is marked AOT compatible; the reflection-based
+/// <c>JsonSerializer</c> overloads produce <c>IL2026</c>/<c>IL3050</c> and break the
+/// build. Rationale: <c>docs/KARARLAR.md</c>, decision K-006.
 /// </remarks>
 [JsonSourceGenerationOptions(
     JsonSerializerDefaults.Web,

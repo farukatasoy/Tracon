@@ -3,27 +3,27 @@ using Microsoft.AspNetCore.Http;
 
 namespace AgentPrism;
 
-/// <summary>Bir ucun API anahtariyla cagrildiginda tasimasi gereken kapsam.</summary>
-/// <param name="Scope">Gereken kapsam.</param>
+/// <summary>The scope an endpoint requires when it is called with an API key.</summary>
+/// <param name="Scope">The required scope.</param>
 /// <remarks>
-/// Rol politikalarinin yerine GECMEZ; API anahtariyla dogrulanmis istekleri
-/// EK olarak daraltir (bolum 53.3). Statik bearer token veya kullanici
-/// kimligiyle gelen istekler bu denetimden etkilenmez — yalnizca
-/// <see cref="ApiKeyRequestContext"/>'te bir kayit varsa uygulanir.
+/// This does NOT replace the role policies; it narrows API-key-authenticated requests IN
+/// ADDITION to them (section 53.3). Requests that arrive with a static bearer token or with
+/// a user identity are unaffected by this check — it applies only when a record exists in
+/// <see cref="ApiKeyRequestContext"/>.
 /// </remarks>
 internal sealed record ApiKeyScopeRequirement(ApiKeyScope Scope);
 
-/// <summary>Uc sozlesmesine bir kapsam gereksinimi ekleyen uzanti.</summary>
+/// <summary>Extension that adds a scope requirement to an endpoint convention.</summary>
 internal static class ApiKeyScopeEndpointConventionBuilderExtensions
 {
     /// <summary>
-    /// Ucun bir API anahtariyla cagrilabilmesi icin <paramref name="scope"/>'u
-    /// tasimasi gerektigini isaretler.
+    /// Marks that the endpoint requires <paramref name="scope"/> before it can be called
+    /// with an API key.
     /// </summary>
-    /// <typeparam name="TBuilder">Sozlesme olusturucu tipi.</typeparam>
-    /// <param name="builder">Uc sozlesme olusturucusu.</param>
-    /// <param name="scope">Gereken kapsam.</param>
-    /// <returns>Ayni olusturucu (zincirlenebilir).</returns>
+    /// <typeparam name="TBuilder">The convention builder type.</typeparam>
+    /// <param name="builder">The endpoint convention builder.</param>
+    /// <param name="scope">The required scope.</param>
+    /// <returns>The same builder, so calls can be chained.</returns>
     public static TBuilder RequireApiKeyScope<TBuilder>(this TBuilder builder, ApiKeyScope scope)
         where TBuilder : IEndpointConventionBuilder
     {

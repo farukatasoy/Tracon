@@ -181,7 +181,7 @@ public sealed class MultiProviderTests
         }));
 
         exception.Message.ShouldContain("azure-openai.yokBoyleAyar");
-        exception.Message.ShouldContain("hicbir ek ayar desteklemiyor");
+        exception.Message.ShouldContain("supports no extra settings");
     }
 
     private static IEnumerable<string?> Models(IEnumerable<JsonElement> providers, string name)

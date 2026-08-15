@@ -1,77 +1,78 @@
 namespace AgentPrism;
 
-/// <summary>Ek ustverisinin ve varsayilan (veritabani) icerik depolamasinin sozlesmesi.</summary>
+/// <summary>The contract for attachment metadata and for the default (database) content storage.</summary>
 /// <remarks>
-/// <see cref="IAttachmentStorage"/> kayitliysa icerik orada yasar ve bu depo
-/// yalnizca ustveriyi tutar; kayitli degilse icerik dogrudan veritabaninda
-/// (<c>bytea</c>) saklanir. Gerekce: <c>docs/14-COK-MODLULUK.md</c>, bolum 14.3.
+/// When <see cref="IAttachmentStorage"/> is registered the content lives there and this
+/// store keeps the metadata only; when it is not registered the content is stored
+/// directly in the database (<c>bytea</c>). Rationale:
+/// <c>docs/14-COK-MODLULUK.md</c>, section 14.3.
 /// </remarks>
 public interface IAttachmentStore
 {
-    /// <summary>Yeni bir ek kaydeder.</summary>
-    /// <param name="content">Kaydedilecek icerik ve ustveri.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kimlik ve ozet atanmis ek kaydi.</returns>
+    /// <summary>Saves a new attachment.</summary>
+    /// <param name="content">The content and metadata to save.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The attachment record with its id and digest assigned.</returns>
     ValueTask<AttachmentDescriptor> SaveAsync(AttachmentContent content, CancellationToken cancellationToken = default);
 
-    /// <summary>Tek bir ekin ustverisini okur.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="id">Ek kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kayit; yoksa veya baska bir kiraciya aitse <see langword="null"/>.</returns>
+    /// <summary>Reads the metadata of a single attachment.</summary>
+    /// <param name="tenantId">The tenant id.</param>
+    /// <param name="id">The attachment id.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The record, or <see langword="null"/> when it does not exist or belongs to another tenant.</returns>
     ValueTask<AttachmentDescriptor?> GetAsync(string tenantId, Guid id, CancellationToken cancellationToken = default);
 
-    /// <summary>Bir ekin ham icerigini akis olarak acar.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="id">Ek kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Okunabilir akis; kayit yoksa veya baska bir kiraciya aitse <see langword="null"/>.</returns>
+    /// <summary>Opens the raw content of an attachment as a stream.</summary>
+    /// <param name="tenantId">The tenant id.</param>
+    /// <param name="id">The attachment id.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A readable stream, or <see langword="null"/> when the record does not exist or belongs to another tenant.</returns>
     ValueTask<Stream?> OpenReadAsync(string tenantId, Guid id, CancellationToken cancellationToken = default);
 
-    /// <summary>Ekleri filtreleyerek listeler.</summary>
-    /// <param name="query">Filtre.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>En yeniden eskiye sirali kayitlar.</returns>
+    /// <summary>Lists the attachments through a filter.</summary>
+    /// <param name="query">The filter.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The records ordered from newest to oldest.</returns>
     ValueTask<IReadOnlyList<AttachmentDescriptor>> ListAsync(AttachmentQuery query, CancellationToken cancellationToken = default);
 
-    /// <summary>Bir eki siler.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="id">Ek kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Bir kayit silindiyse <see langword="true"/>.</returns>
+    /// <summary>Deletes an attachment.</summary>
+    /// <param name="tenantId">The tenant id.</param>
+    /// <param name="id">The attachment id.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> when a record was deleted.</returns>
     ValueTask<bool> DeleteAsync(string tenantId, Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Bir oturuma ait tum ekleri siler.
+    /// Deletes every attachment of a session.
     /// </summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="sessionId">Oturum kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Silinen kayit sayisi.</returns>
+    /// <param name="tenantId">The tenant id.</param>
+    /// <param name="sessionId">The session id.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The number of records deleted.</returns>
     /// <remarks>
-    /// Bir oturum silindiginde cagrilir; sahipsiz ek birikmesini engeller.
-    /// Gerekce: <c>docs/14-COK-MODLULUK.md</c>, acik soru 2.
+    /// It is called when a session is deleted; it keeps orphaned attachments from piling
+    /// up. Rationale: <c>docs/14-COK-MODLULUK.md</c>, open question 2.
     /// </remarks>
     ValueTask<int> DeleteBySessionAsync(string tenantId, string sessionId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
-/// Ek iceriginin harici bir depoda (S3, Blob) saklanmasi icin genisleme noktasi.
+/// The extension point that stores attachment content in an external store (S3, Blob).
 /// </summary>
 /// <remarks>
-/// Kayitli degilse icerik veritabaninda yasar (K1 — sifir surpriz). AgentPrism
-/// hicbir bulut SDK'sina bagimlilik almaz; uygulamayi tuketici yazar.
-/// Gerekce: <c>docs/KARARLAR.md</c>, K-007.
+/// When it is not registered the content lives in the database (K1 — no surprises).
+/// AgentPrism takes no dependency on any cloud SDK; the consumer writes the
+/// implementation. Rationale: <c>docs/KARARLAR.md</c>, K-007.
 /// </remarks>
 public interface IAttachmentStorage
 {
-    /// <summary>Icerigi harici depoya yazar.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="id">Ek kimligi.</param>
-    /// <param name="content">Yazilacak icerik.</param>
-    /// <param name="mediaType">Icerigin MIME turu.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Icerigin harici depodaki konumu.</returns>
+    /// <summary>Writes the content to the external store.</summary>
+    /// <param name="tenantId">The tenant id.</param>
+    /// <param name="id">The attachment id.</param>
+    /// <param name="content">The content to write.</param>
+    /// <param name="mediaType">The MIME type of the content.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The location of the content in the external store.</returns>
     ValueTask<Uri> WriteAsync(
         string tenantId,
         Guid id,
@@ -79,14 +80,14 @@ public interface IAttachmentStorage
         string mediaType,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Harici depodan icerigi okur.</summary>
-    /// <param name="uri"><see cref="WriteAsync"/> tarafindan dondurulen konum.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Okunabilir akis; konum artik yoksa <see langword="null"/>.</returns>
+    /// <summary>Reads the content from the external store.</summary>
+    /// <param name="uri">The location returned by <see cref="WriteAsync"/>.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A readable stream, or <see langword="null"/> when the location no longer exists.</returns>
     ValueTask<Stream?> ReadAsync(Uri uri, CancellationToken cancellationToken = default);
 
-    /// <summary>Harici depodaki icerigi siler.</summary>
-    /// <param name="uri"><see cref="WriteAsync"/> tarafindan dondurulen konum.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <summary>Deletes the content in the external store.</summary>
+    /// <param name="uri">The location returned by <see cref="WriteAsync"/>.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     ValueTask DeleteAsync(Uri uri, CancellationToken cancellationToken = default);
 }

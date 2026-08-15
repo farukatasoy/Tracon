@@ -4,22 +4,23 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// MCP ve A2A dis cagrilarinin ortak denetim izi yazma yolu (Faz 50).
+/// The shared audit trail write path for MCP and A2A external calls (phase 50).
 /// </summary>
 /// <remarks>
-/// Normal calistirmalar denetim izine yazilmaz (bkz. <see cref="AuditEntry"/>
-/// XML belgesi) — bu BILEREK bir istisnadir: dis yuzeyden gelen cagri ayri bir
-/// guven sinirindan gelir ve <c>external.call</c> eylemi denetcinin ilk soracagi
-/// seydir (Acik Soru 5). K-079'un uc katmani yazma istisnasiyla ayni gerekce.
+/// Ordinary runs are not written to the audit trail (see the XML documentation of
+/// <see cref="AuditEntry"/>) — this is a DELIBERATE exception: a call from an external
+/// surface crosses a separate trust boundary, and the <c>external.call</c> action is the
+/// first thing an auditor asks about (Open Question 5). The same rationale as the
+/// three-layer write exception of K-079.
 /// </remarks>
 internal static class ExternalCallAudit
 {
-    /// <summary>Bir dis cagriyi denetim izine yazar.</summary>
-    /// <param name="services">Servis saglayici.</param>
-    /// <param name="protocol">Cagrinin geldigi protokol: <c>mcp</c> veya <c>a2a</c>.</param>
-    /// <param name="agentName">Cagrilan agent.</param>
-    /// <param name="runId">Uretilen calistirma kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <summary>Writes an external call to the audit trail.</summary>
+    /// <param name="services">The service provider.</param>
+    /// <param name="protocol">The protocol the call arrived on: <c>mcp</c> or <c>a2a</c>.</param>
+    /// <param name="agentName">The called agent.</param>
+    /// <param name="runId">The generated run identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     public static async ValueTask WriteAsync(
         IServiceProvider services,
         string protocol,

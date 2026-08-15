@@ -8,48 +8,49 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
-/// <summary>Bir konusma baglantisinin degismeyen bilgileri.</summary>
+/// <summary>The immutable facts of a conversation connection.</summary>
 /// <remarks>
-/// 🚨 Kiraci ve oturum baglanti kurulurken cozulur ve baglanti boyunca
-/// <strong>sabittir</strong> (29.3). Cerceve icinde gelen bir kiraci/oturum
-/// degeri kabul edilmez: uzun omurlu bir baglantida kiraci degistirmek,
-/// yetkilendirmeyi el sikismadan sonraya tasimak demektir.
+/// 🚨 The tenant and the session resolve while the connection is established and
+/// stay <strong>constant</strong> for the whole connection (29.3). A tenant or
+/// session value that arrives inside a frame is not accepted: to change the tenant
+/// on a long-lived connection is to move authorization after the handshake.
 /// </remarks>
 public sealed record VoiceConversationRequest
 {
-    /// <summary>Baglanti kurulurken cozulen kiraci.</summary>
+    /// <summary>Gets the tenant that was resolved while the connection was established.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Konusmanin yurudugu agent oturumunun kimligi.</summary>
+    /// <summary>Gets the identifier of the agent session that the conversation runs on.</summary>
     public required string SessionId { get; init; }
 
-    /// <summary>Baglantiyi acan aktor (denetim izi icin).</summary>
+    /// <summary>Gets the actor that opened the connection, for the audit trail.</summary>
     public string? CreatedBy { get; init; }
 }
 
 /// <summary>
-/// Gercek zamanli konusmayi yuruten boru hatti: ses girer, metin cozulur,
-/// <strong>mevcut calistirma yolu</strong> isler, ses cikar.
+/// Runs the real-time conversation pipeline: audio comes in, text is transcribed,
+/// the <strong>existing run path</strong> processes it, and audio goes out.
 /// </summary>
 /// <remarks>
 /// <para>
-/// ⚠️ <strong>Secenek A.</strong> Ses, saglayicinin gercek zamanli API'sine
-/// vekillenmez; agent'in kendi akisli calistirma yolu cagrilir. Bunun bedeli
-/// gecikmedir, karsiligi ise <em>her sey</em>dir: calistirma kaydi, span,
-/// maliyet, tool onayi, kiraci ve kota ses turunda da aynen isler. AgentPrism
-/// bir kontrol duzlemidir; bu vaatleri ses icin askiya alamaz. Gerekce:
-/// <c>docs/29-KONUSMA-KATMANI.md</c>, bolum 29.1.
+/// ⚠️ <strong>Option A.</strong> Audio is not proxied to the real-time API of the
+/// provider; the streaming run path of the agent itself is called. The price is
+/// latency, and the return is <em>everything</em>: the run record, spans, cost,
+/// tool approval, tenancy and quota all work in a voice turn exactly as they do
+/// elsewhere. AgentPrism is a control plane; it cannot suspend those promises for
+/// voice. Rationale: <c>docs/29-KONUSMA-KATMANI.md</c>, section 29.1.
 /// </para>
 /// <para>
-/// Surucu <c>AgentPrism.Core</c>'dadir ve <strong>saglayicidan bagimsizdir</strong>:
-/// yalnizca <see cref="ISpeechTranscriber"/> ve <see cref="ISpeechSynthesizer"/>
-/// soyutlamalarini bilir. ElevenLabs bir uygulamadir (K-215).
+/// The driver lives in <c>AgentPrism.Core</c> and is <strong>provider
+/// independent</strong>: it knows only the <see cref="ISpeechTranscriber"/> and
+/// <see cref="ISpeechSynthesizer"/> abstractions. ElevenLabs is one implementation
+/// (K-215).
 /// </para>
 /// <para>
-/// Es zamanlilik modeli uc kuraldan ibarettir: <em>tek</em> bir alma dongusu
-/// cerceveleri okur; tur isleme ayri bir gorevde yurur (aksi halde <c>cancel</c>
-/// tur bitene kadar okunamazdi); gonderme tek bir kilitten gecer — bir
-/// <see cref="WebSocket"/> ayni anda yalniz bir gonderme kaldirir.
+/// The concurrency model is three rules: a <em>single</em> receive loop reads the
+/// frames; turn processing runs on a separate task (otherwise <c>cancel</c> could
+/// not be read until the turn ended); and every send passes through one gate,
+/// because a <see cref="WebSocket"/> supports only one send at a time.
 /// </para>
 /// </remarks>
 public sealed class VoiceConversationDriver
@@ -68,22 +69,22 @@ public sealed class VoiceConversationDriver
     private readonly ILogger<VoiceConversationDriver> _logger;
     private readonly TimeProvider _timeProvider;
 
-    /// <summary>Yeni bir surucu kurar.</summary>
-    /// <param name="catalog">Agent katalogu.</param>
-    /// <param name="sessions">Oturum yoneticisi.</param>
-    /// <param name="chatHistory">Sohbet gecmisi saglayicisi.</param>
-    /// <param name="store">Konusma kaydi deposu.</param>
-    /// <param name="attachments">Ek deposu.</param>
-    /// <param name="guard">Ek tur denetleyicisi.</param>
-    /// <param name="options">Konusma ayarlari.</param>
-    /// <param name="logger">Gunlukleyici.</param>
+    /// <summary>Initializes a new instance of the <see cref="VoiceConversationDriver"/> class.</summary>
+    /// <param name="catalog">The agent catalog.</param>
+    /// <param name="sessions">The session manager.</param>
+    /// <param name="chatHistory">The chat history provider.</param>
+    /// <param name="store">The conversation record store.</param>
+    /// <param name="attachments">The attachment store.</param>
+    /// <param name="guard">The attachment type guard.</param>
+    /// <param name="options">The conversation options.</param>
+    /// <param name="logger">The logger.</param>
     /// <param name="transcriber">
-    /// Cozum saglayicisi. <see langword="null"/> ise konusma acilamaz
-    /// (bkz. <see cref="IsReady"/>).
+    /// The transcription provider. When it is <see langword="null"/> a conversation
+    /// cannot open (see <see cref="IsReady"/>).
     /// </param>
-    /// <param name="synthesizer">Sentez saglayicisi.</param>
-    /// <param name="timeProvider">Zaman kaynagi.</param>
-    /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <param name="synthesizer">The synthesis provider.</param>
+    /// <param name="timeProvider">The time source.</param>
+    /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public VoiceConversationDriver(
         IAgentCatalog catalog,
         AgentSessionManager sessions,
@@ -121,37 +122,37 @@ public sealed class VoiceConversationDriver
         Limiter = new VoiceConnectionLimiter(_options.MaxConcurrentConnectionsPerTenant);
     }
 
-    /// <summary>Kiraci basina es zamanli baglanti sinirlayicisi.</summary>
+    /// <summary>Gets the per-tenant concurrent connection limiter.</summary>
     /// <remarks>
-    /// Uc, soketi <strong>yukseltmeden once</strong> yer ayirir: sinir dolduysa
-    /// istemci bir HTTP hatasi gorur. Yukselttikten sonra kapatmak, istemciye
-    /// nedeni anlatmanin cok daha kotu bir yoludur.
+    /// The endpoint reserves a slot <strong>before it upgrades</strong> the socket:
+    /// when the limit is full the client sees an HTTP error. To close the socket
+    /// after the upgrade is a far worse way to tell the client the reason.
     /// </remarks>
     public VoiceConnectionLimiter Limiter { get; }
 
     /// <summary>
-    /// Konusma icin gereken iki saglayici da kayitli mi.
+    /// Gets a value that indicates whether both providers that a conversation needs are registered.
     /// </summary>
     /// <remarks>
-    /// Cozum <em>ve</em> sentez ikisi de gerekir: yalniz biriyle konusma tek
-    /// yonlu olurdu ve bu bir konusma degildir.
+    /// Transcription <em>and</em> synthesis are both necessary: with only one of them
+    /// the conversation would be one way, and that is not a conversation.
     /// </remarks>
     public bool IsReady => _transcriber is not null && _synthesizer is not null;
 
-    /// <summary>Ses saklaniyor mu.</summary>
+    /// <summary>Gets a value that indicates whether the audio is stored.</summary>
     /// <remarks>
-    /// Arayuz bu degeri kullaniciya <strong>gosterir</strong>; kayit sessizce
-    /// yapilmaz.
+    /// The user interface <strong>shows</strong> this value to the user; the audio is
+    /// never recorded silently.
     /// </remarks>
     public bool PersistAudio => _options.PersistAudio;
 
-    /// <summary>Bir konusma baglantisini bastan sona yurutur.</summary>
-    /// <param name="socket">Yukseltilmis soket.</param>
-    /// <param name="request">Baglantinin degismeyen bilgileri.</param>
-    /// <param name="cancellationToken">Sunucu kapanisi belirteci.</param>
-    /// <returns>Baglanti kapandiginda tamamlanir.</returns>
-    /// <exception cref="ArgumentNullException">Parametrelerden biri <see langword="null"/> ise.</exception>
-    /// <exception cref="InvalidOperationException"><see cref="IsReady"/> yanlissa.</exception>
+    /// <summary>Runs one conversation connection from start to end.</summary>
+    /// <param name="socket">The upgraded socket.</param>
+    /// <param name="request">The immutable facts of the connection.</param>
+    /// <param name="cancellationToken">The server shutdown token.</param>
+    /// <returns>A task that completes when the connection closes.</returns>
+    /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException"><see cref="IsReady"/> is <see langword="false"/>.</exception>
     public async Task RunAsync(
         WebSocket socket,
         VoiceConversationRequest request,
@@ -163,7 +164,7 @@ public sealed class VoiceConversationDriver
         if (_transcriber is null || _synthesizer is null)
         {
             throw new InvalidOperationException(
-                "Konusma katmani acik degil: bir ISpeechTranscriber ve bir ISpeechSynthesizer kayitli olmalidir.");
+                "The voice layer is not enabled: an ISpeechTranscriber and an ISpeechSynthesizer must be registered.");
         }
 
         using var connection = new VoiceConnection(this, socket, request, _transcriber, _synthesizer);
@@ -171,7 +172,7 @@ public sealed class VoiceConversationDriver
         await connection.RunAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Alinmis bir WebSocket cercevesi.</summary>
+    /// <summary>A received WebSocket frame.</summary>
     private readonly record struct VoiceFrame(WebSocketMessageType Type, ReadOnlyMemory<byte> Payload)
     {
         public static VoiceFrame Close => new(WebSocketMessageType.Close, ReadOnlyMemory<byte>.Empty);
@@ -181,11 +182,11 @@ public sealed class VoiceConversationDriver
         public bool IsBinary => Type == WebSocketMessageType.Binary;
     }
 
-    /// <summary>Tek bir baglantinin durumu ve dongusu.</summary>
+    /// <summary>The state and the loop of a single connection.</summary>
     /// <remarks>
-    /// Ayri bir sinif olmasinin sebebi: baglanti basina durum (tampon, oturum,
-    /// sayaclar) surucunun alanlarina yazilamaz — surucu singleton'dir ve tum
-    /// baglantilar onu paylasir.
+    /// It is a separate class for one reason: per-connection state (the buffer, the
+    /// session, the counters) cannot live in the fields of the driver — the driver is
+    /// a singleton and every connection shares it.
     /// </remarks>
     private sealed class VoiceConnection(
         VoiceConversationDriver driver,
@@ -197,9 +198,10 @@ public sealed class VoiceConversationDriver
         private readonly SemaphoreSlim _sendGate = new(1, 1);
 
         /// <summary>
-        /// Durum makinesinin kilidi. Kilit <em>nesnenin kendisidir</em>: ayri bir
-        /// <c>object</c> alani, net8.0 da hedeflendigi icin kullanamadigimiz
-        /// <c>System.Threading.Lock</c>'u oneren MA0158'i tetiklerdi.
+        /// The lock of the state machine. The lock <em>is the object itself</em>: a
+        /// separate <c>object</c> field would trigger MA0158, which recommends
+        /// <c>System.Threading.Lock</c> — a type we cannot use because net8.0 is also
+        /// a target.
         /// </summary>
         private readonly VoiceConversationStateMachine _state = new();
         private readonly VoiceConversationOptions _options = driver._options;
@@ -235,15 +237,15 @@ public sealed class VoiceConversationDriver
             }
             catch (WebSocketException exception)
             {
-                // Istemci baglantiyi kaba bicimde kesti. Bu bir sunucu hatasi
-                // degildir; kayit yine yazilir.
+                // The client cut the connection abruptly. This is not a server error;
+                // the record is still written.
                 reason = VoiceSessionEndReason.Client;
-                driver._logger.LogDebug(exception, "Konusma soketi beklenmedik bicimde kapandi.");
+                driver._logger.LogDebug(exception, "The voice socket closed unexpectedly.");
             }
             catch (Exception exception) when (exception is AgentPrismException or InvalidOperationException or JsonException)
             {
                 reason = VoiceSessionEndReason.Error;
-                driver._logger.LogError(exception, "Konusma baglantisi hata ile kapandi.");
+                driver._logger.LogError(exception, "The voice connection closed with an error.");
             }
             finally
             {
@@ -251,7 +253,7 @@ public sealed class VoiceConversationDriver
             }
         }
 
-        /// <summary>Cerceveleri okuyan tek dongu.</summary>
+        /// <summary>The single loop that reads the frames.</summary>
         private async Task<VoiceSessionEndReason> PumpAsync(
             DateTimeOffset started,
             CancellationTokenSource connectionCancellation,
@@ -283,8 +285,8 @@ public sealed class VoiceConversationDriver
                 }
                 catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
                 {
-                    // Hangi sinirin doldugu bekledigimiz sureden anlasilir; iki
-                    // sinir farkli bir kapanis nedeni uretir.
+                    // The wait we used tells which limit was reached; the two limits
+                    // produce a different close reason.
                     return wait == untilDeadline
                         ? VoiceSessionEndReason.DurationLimit
                         : VoiceSessionEndReason.IdleTimeout;
@@ -311,7 +313,7 @@ public sealed class VoiceConversationDriver
             return VoiceSessionEndReason.Client;
         }
 
-        /// <summary>Bir ikili cerceveyi konusma parcasina ekler.</summary>
+        /// <summary>Appends a binary frame to the current utterance.</summary>
         private void HandleAudio(ReadOnlySpan<byte> payload)
         {
             bool listening;
@@ -333,18 +335,18 @@ public sealed class VoiceConversationDriver
                 return;
             }
 
-            // 🚨 Guvenlik agi: istemcinin VAD'i hic tetiklenmedi. Parca
-            // kendiliginden kapatilir; yoksa tampon dolar, sonraki ses sessizce
-            // atilir ve konusma hic yanitlanmazdi.
+            // 🚨 Safety net: the VAD of the client never fired. The utterance closes
+            // on its own; without this the buffer fills, the audio that follows is
+            // dropped silently and the conversation is never answered.
             driver._logger.LogInformation(
-                "Konusma parcasi sinira ulasti ve kendiliginden kapatildi ({Bytes} bayt).",
+                "The voice utterance reached the limit and closed on its own ({Bytes} bytes).",
                 _buffer.Length);
 
             Commit();
         }
 
-        /// <summary>Bir metin cercevesini isler.</summary>
-        /// <returns>Baglanti kapanacaksa <see langword="true"/>.</returns>
+        /// <summary>Handles a text frame.</summary>
+        /// <returns><see langword="true"/> when the connection is about to close.</returns>
         private async Task<bool> HandleControlAsync(ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
         {
             VoiceClientMessage? message;
@@ -357,7 +359,7 @@ public sealed class VoiceConversationDriver
             }
             catch (JsonException)
             {
-                await SendAsync(Error("Denetim mesaji gecerli JSON degil.")).ConfigureAwait(false);
+                await SendAsync(Error("The control message is not valid JSON.")).ConfigureAwait(false);
                 return false;
             }
 
@@ -380,7 +382,7 @@ public sealed class VoiceConversationDriver
                     return true;
 
                 default:
-                    await SendAsync(Error($"Bilinmeyen mesaj: '{message?.Type}'.")).ConfigureAwait(false);
+                    await SendAsync(Error($"Unknown message: '{message?.Type}'.")).ConfigureAwait(false);
                     return false;
             }
         }
@@ -396,20 +398,20 @@ public sealed class VoiceConversationDriver
 
             if (!accepted)
             {
-                // Ikinci bir `start` agent'i degistirmek anlamina gelirdi.
-                await FailAsync("Konusma zaten baslatildi; agent baglanti boyunca degismez.").ConfigureAwait(false);
+                // A second `start` would mean a change of agent.
+                await FailAsync("The conversation is already started; the agent does not change during the connection.").ConfigureAwait(false);
                 return;
             }
 
             if (!VoiceAudioFormats.IsKnown(message.InputFormat))
             {
-                await FailAsync($"Bilinmeyen ses bicimi: '{message.InputFormat}'.").ConfigureAwait(false);
+                await FailAsync($"Unknown audio format: '{message.InputFormat}'.").ConfigureAwait(false);
                 return;
             }
 
             if (message.Agent is not { Length: > 0 } agentName)
             {
-                await FailAsync("'agent' alani zorunludur.").ConfigureAwait(false);
+                await FailAsync("The 'agent' field is required.").ConfigureAwait(false);
                 return;
             }
 
@@ -419,13 +421,13 @@ public sealed class VoiceConversationDriver
             }
             catch (AgentPrismException exception)
             {
-                await FailAsync($"Agent derlenemedi: {exception.Message}").ConfigureAwait(false);
+                await FailAsync($"The agent could not be compiled: {exception.Message}").ConfigureAwait(false);
                 return;
             }
 
             if (_agent is null)
             {
-                await FailAsync($"'{agentName}' adinda bir agent yok.").ConfigureAwait(false);
+                await FailAsync($"There is no agent named '{agentName}'.").ConfigureAwait(false);
                 return;
             }
 
@@ -459,7 +461,7 @@ public sealed class VoiceConversationDriver
             }).ConfigureAwait(false);
         }
 
-        /// <summary>Konusma parcasini kapatir ve turu baslatir.</summary>
+        /// <summary>Closes the current utterance and starts the turn.</summary>
         private void Commit()
         {
             lock (_state)
@@ -472,27 +474,27 @@ public sealed class VoiceConversationDriver
 
             if (_buffer?.Take() is not { } utterance)
             {
-                // Ses gelmeden `commit` geldi. Bu bir hata degildir (kisa bir
-                // oksuruk de istemcinin VAD'ini tetikleyebilir); dinlemeye donulur.
+                // `commit` arrived before any audio. This is not an error (a short
+                // cough can also trigger the VAD of the client); go back to listening.
                 FinishTurn(counted: false);
                 return;
             }
 
-            // 🚨 Onceki turun belirteci BURADA bertaraf edilir, tur gorevinin
-            // kendi icinde degil: gorev `done` cercevesini FinishTurn'den SONRA
-            // yazar ve o sirada bertaraf edilmis bir belirteci iptal etmek
-            // ObjectDisposedException uretirdi. Commit, Cancel ve kapanis ayni
-            // alma dongusunden calisir; bu yuzden yaris yoktur.
+            // 🚨 The token of the previous turn is disposed HERE, not inside the turn
+            // task: the task writes the `done` frame AFTER FinishTurn, and to cancel a
+            // token that was already disposed at that moment produced an
+            // ObjectDisposedException. Commit, Cancel and shutdown all run from the
+            // same receive loop, so there is no race.
             _turnCancellation?.Dispose();
             _turnCancellation = new CancellationTokenSource();
             _turn = ProcessTurnAsync(utterance, _turnCancellation.Token);
         }
 
-        /// <summary>Kesinti (barge-in).</summary>
+        /// <summary>Handles an interruption (barge-in).</summary>
         /// <remarks>
-        /// 🚨 Durum burada <strong>degismez</strong>. Dinlemeye donusu yalnizca
-        /// tur gorevi yapar (<see cref="FinishTurn"/>); aksi halde istemci hemen
-        /// yeni bir <c>commit</c> gonderebilir ve iki tur ayni anda calisirdi.
+        /// 🚨 The state <strong>does not change</strong> here. Only the turn task
+        /// returns to listening (<see cref="FinishTurn"/>); otherwise the client could
+        /// send a new <c>commit</c> at once and two turns would run at the same time.
         /// </remarks>
         private void Cancel()
         {
@@ -508,7 +510,7 @@ public sealed class VoiceConversationDriver
             _turnCancellation?.Cancel();
         }
 
-        /// <summary>Bir konusma turunu bastan sona isler.</summary>
+        /// <summary>Processes one conversation turn from start to end.</summary>
         private async Task ProcessTurnAsync(VoiceUtterance utterance, CancellationToken cancellationToken)
         {
             var spoken = new StringBuilder();
@@ -549,7 +551,7 @@ public sealed class VoiceConversationDriver
             }
             catch (Exception exception) when (exception is AgentPrismException or HttpRequestException or InvalidOperationException)
             {
-                driver._logger.LogError(exception, "Konusma turu basarisiz oldu.");
+                driver._logger.LogError(exception, "The voice turn failed.");
                 await SendAsync(Error(exception.Message)).ConfigureAwait(false);
             }
 
@@ -581,10 +583,10 @@ public sealed class VoiceConversationDriver
         }
 
         /// <summary>
-        /// Agent'i calistirir, metni altyazi olarak akitir ve cumle cumle
-        /// seslendirir.
+        /// Runs the agent, streams the text as captions and speaks it sentence by
+        /// sentence.
         /// </summary>
-        /// <returns>Ses saklandiysa ekin kimligi.</returns>
+        /// <returns>The attachment identifier when the audio was stored.</returns>
         private async Task<string?> RespondAsync(
             string prompt,
             StringBuilder spoken,
@@ -648,8 +650,8 @@ public sealed class VoiceConversationDriver
                 : await PersistAudioAsync(audio, cancellationToken).ConfigureAwait(false);
         }
 
-        /// <summary>Bir cumleyi seslendirir ve parcalarini akitir.</summary>
-        /// <returns>Guncellenen seslendirilmis karakter sayaci.</returns>
+        /// <summary>Speaks one sentence and streams its chunks.</summary>
+        /// <returns>The updated count of spoken characters.</returns>
         private async Task<int> SpeakAsync(
             string segment,
             int spokenCharacters,
@@ -658,8 +660,8 @@ public sealed class VoiceConversationDriver
         {
             if (spokenCharacters >= _options.MaxSpokenCharactersPerTurn)
             {
-                // Sinir doldu: kalan metin SESLENDIRILMEZ ama altyazi olarak
-                // akmaya devam eder. Kullanici cevabin tamamini gorur.
+                // The limit is reached: the remaining text is NOT SPOKEN, but it keeps
+                // streaming as captions. The user still sees the whole answer.
                 return spokenCharacters;
             }
 
@@ -692,13 +694,14 @@ public sealed class VoiceConversationDriver
         }
 
         /// <summary>
-        /// Kesilen turun yarim yanitini oturum gecmisine yazar.
+        /// Writes the partial answer of an interrupted turn to the session history.
         /// </summary>
         /// <remarks>
-        /// 🚨 Bu adim atlanamaz. Akisli calistirma iptal edildiginde Microsoft
-        /// Agent Framework gecmisi yazmaz; model bir sonraki turda kendi yarim
-        /// cumlesini GORMEZ ve kullanici "az once soyledigin" dedigi anda konusma
-        /// kopar. Kayit, kesildigini <strong>acikca</strong> belirtir.
+        /// 🚨 This step cannot be skipped. When a streaming run is cancelled the
+        /// Microsoft Agent Framework does not write the history; on the next turn the
+        /// model DOES NOT SEE its own half sentence, and the conversation breaks the
+        /// moment the user says "what you said a moment ago". The record states
+        /// <strong>explicitly</strong> that the answer was interrupted.
         /// </remarks>
         private async Task RecordInterruptionAsync(string partial)
         {
@@ -710,13 +713,14 @@ public sealed class VoiceConversationDriver
             var trimmed = partial.Trim();
 
             var text = trimmed.Length > 0
-                ? trimmed + "\n\n[Yanit kullanici tarafindan kesildi.]"
-                : "[Yanit baslamadan kullanici tarafindan kesildi.]";
+                ? trimmed + "\n\n[The response was interrupted by the user.]"
+                : "[The response was interrupted by the user before it started.]";
 
             try
             {
-                // MAAI001 gerekcesi ChatHistoryReader ile aynidir: gecmise yazmanin
-                // baska public yolu yoktur (StoreChatHistoryAsync protected'tir).
+                // The MAAI001 rationale is the same as in ChatHistoryReader: there is
+                // no other public way to write to the history (StoreChatHistoryAsync
+                // is protected).
 #pragma warning disable MAAI001
                 var context = new ChatHistoryProvider.InvokedContext(
                     _agent,
@@ -733,20 +737,20 @@ public sealed class VoiceConversationDriver
             }
             catch (Exception exception) when (exception is AgentPrismException or InvalidOperationException or NotSupportedException or JsonException)
             {
-                // Gozlemlenebilirlik islevselligi bozmaz: gecmis yazilamadiysa
-                // konusma yine surer.
-                driver._logger.LogWarning(exception, "Kesilen yanit oturum gecmisine yazilamadi.");
+                // Observability does not break functionality: when the history cannot
+                // be written the conversation still continues.
+                driver._logger.LogWarning(exception, "The interrupted response could not be written to the session history.");
             }
         }
 
-        /// <summary>Seslendirilen yaniti ek olarak saklar.</summary>
+        /// <summary>Stores the spoken response as an attachment.</summary>
         /// <remarks>
-        /// 🚨 Yalnizca <strong>agent'in urettigi ses</strong> saklanir.
-        /// Kullanicinin sesi hicbir zaman yazilmaz: ses biyometrik veridir ve
-        /// soylenenin kaydi zaten oturum gecmisindeki transkripttir. Gerekce:
-        /// <c>docs/29-KONUSMA-KATMANI.md</c>, bolum 29.3.
+        /// 🚨 Only the <strong>audio that the agent produced</strong> is stored. The
+        /// audio of the user is never written: voice is biometric data, and the record
+        /// of what was said is already the transcript in the session history.
+        /// Rationale: <c>docs/29-KONUSMA-KATMANI.md</c>, section 29.3.
         /// </remarks>
-        /// <returns>Ekin kimligi; saklanamadiysa <see langword="null"/>.</returns>
+        /// <returns>The attachment identifier, or <see langword="null"/> when it could not be stored.</returns>
         private async Task<string?> PersistAudioAsync(MemoryStream audio, CancellationToken cancellationToken)
         {
             var data = audio.ToArray();
@@ -756,13 +760,13 @@ public sealed class VoiceConversationDriver
                 return null;
             }
 
-            // Ek deposu dogrulama YAPMAZ (Faz 28/G2); denetleyici burada acikca
-            // cagrilir.
+            // The attachment store DOES NOT validate (phase 28/G2); the guard is
+            // called explicitly here.
             var validation = driver._guard.Validate(data);
 
             if (!validation.IsValid)
             {
-                driver._logger.LogWarning("Konusma sesi ek olarak saklanamadi: {Error}", validation.Error);
+                driver._logger.LogWarning("The voice audio could not be stored as an attachment: {Error}", validation.Error);
                 return null;
             }
 
@@ -773,8 +777,9 @@ public sealed class VoiceConversationDriver
                     {
                         TenantId = request.TenantId,
 
-                        // Oturum kimligi ZORUNLUDUR: bos birakilirsa saklama
-                        // politikasi eki sahipsiz sayar ve siler (Faz 28/G1).
+                        // The session identifier is REQUIRED: when it is left empty the
+                        // retention policy treats the attachment as orphaned and
+                        // deletes it (phase 28/G1).
                         SessionId = request.SessionId,
                         FileName = $"voice-{driver._timeProvider.GetUtcNow():yyyyMMdd-HHmmss-fff}.bin",
                         MediaType = validation.MediaType!,
@@ -787,12 +792,12 @@ public sealed class VoiceConversationDriver
             }
             catch (Exception exception) when (exception is AgentPrismException or InvalidOperationException)
             {
-                driver._logger.LogWarning(exception, "Konusma sesi ek olarak saklanamadi.");
+                driver._logger.LogWarning(exception, "The voice audio could not be stored as an attachment.");
                 return null;
             }
         }
 
-        // --- durum makinesi kapilari ---
+        // --- state machine gates ---
 
         private bool IsClosed()
         {
@@ -827,7 +832,7 @@ public sealed class VoiceConversationDriver
         private static VoiceServerMessage Error(string message)
             => new() { Type = VoiceConversationProtocol.ServerError, Message = message };
 
-        /// <summary>Baglanti kapanisi: bekleyen turu bitirir ve kaydi yazar.</summary>
+        /// <summary>Closes the connection: it ends the pending turn and writes the record.</summary>
         private async Task ShutdownAsync(Guid recordId, DateTimeOffset started, VoiceSessionEndReason reason)
         {
             _turnCancellation?.Cancel();
@@ -838,8 +843,8 @@ public sealed class VoiceConversationDriver
             }
             catch (Exception exception) when (exception is OperationCanceledException or AgentPrismException or InvalidOperationException)
             {
-                // Kapanista bekleyen turun hatasi kaydi engellememelidir.
-                driver._logger.LogDebug(exception, "Bekleyen konusma turu kapanista sonlandi.");
+                // At shutdown a failure of the pending turn must not block the record.
+                driver._logger.LogDebug(exception, "The pending voice turn ended during shutdown.");
             }
 
             await WriteRecordAsync(recordId, started, reason).ConfigureAwait(false);
@@ -883,8 +888,8 @@ public sealed class VoiceConversationDriver
             }
             catch (Exception exception) when (exception is AgentPrismException or InvalidOperationException)
             {
-                // Gozlemlenebilirlik islevselligi bozmaz.
-                driver._logger.LogWarning(exception, "Konusma kaydi yazilamadi.");
+                // Observability does not break functionality.
+                driver._logger.LogWarning(exception, "The voice record could not be written.");
             }
         }
 
@@ -897,11 +902,11 @@ public sealed class VoiceConversationDriver
 
             var description = reason switch
             {
-                VoiceSessionEndReason.DurationLimit => "Baglanti sure sinirina ulasti.",
-                VoiceSessionEndReason.IdleTimeout => "Baglanti boste kaldi.",
-                VoiceSessionEndReason.ServerShutdown => "Sunucu kapaniyor.",
-                VoiceSessionEndReason.Error => "Konusma hata ile kapandi.",
-                _ => "Konusma kapandi.",
+                VoiceSessionEndReason.DurationLimit => "The connection reached the duration limit.",
+                VoiceSessionEndReason.IdleTimeout => "The connection stayed idle.",
+                VoiceSessionEndReason.ServerShutdown => "The server is shutting down.",
+                VoiceSessionEndReason.Error => "The conversation closed with an error.",
+                _ => "The conversation closed.",
             };
 
             try
@@ -912,12 +917,12 @@ public sealed class VoiceConversationDriver
             }
             catch (Exception exception) when (exception is WebSocketException or OperationCanceledException or ObjectDisposedException)
             {
-                // Karsi taraf gitmis olabilir; kapanis en iyi cabadir.
-                driver._logger.LogDebug(exception, "Konusma soketi duzgun kapatilamadi.");
+                // The other side may be gone; the close is best effort.
+                driver._logger.LogDebug(exception, "The voice socket could not be closed cleanly.");
             }
         }
 
-        // --- tasima ---
+        // --- transport ---
 
         private async Task<VoiceFrame> ReceiveAsync(CancellationToken cancellationToken)
         {
@@ -945,7 +950,7 @@ public sealed class VoiceConversationDriver
 
                 if (payload.Length > _options.MaxUtteranceBytes)
                 {
-                    throw new AgentPrismException("Konusma cercevesi izin verilen boyutu asti.");
+                    throw new AgentPrismException("The voice frame exceeded the allowed size.");
                 }
             }
 
@@ -958,9 +963,9 @@ public sealed class VoiceConversationDriver
                 message,
                 VoiceConversationJsonContext.Default.VoiceServerMessage);
 
-            // 🚨 Iptal belirteci GECILMEZ: hata ve `done` cerceveleri, turu kesen
-            // iptalden SONRA yazilir. Iptal edilebilir bir gonderme, istemciyi
-            // turun neden bittigini hic ogrenemeden birakirdi.
+            // 🚨 The cancellation token is NOT PASSED: the error and `done` frames are
+            // written AFTER the cancellation that interrupted the turn. A cancellable
+            // send would leave the client without ever learning why the turn ended.
             return SendFrameAsync(json, WebSocketMessageType.Text, CancellationToken.None);
         }
 
@@ -968,12 +973,12 @@ public sealed class VoiceConversationDriver
             => SendFrameAsync(data, WebSocketMessageType.Binary, cancellationToken);
 
         /// <summary>
-        /// Tek bir gonderme kilidi: bir <see cref="WebSocket"/> ayni anda yalniz
-        /// bir gonderme kaldirir.
+        /// Sends one frame through a single gate, because a <see cref="WebSocket"/>
+        /// supports only one send at a time.
         /// </summary>
         /// <remarks>
-        /// Alma dongusu ve tur gorevi ikisi de yazar; kilit olmadan cerceveler
-        /// birbirine girer ve istemci bozuk JSON okur.
+        /// The receive loop and the turn task both write; without the gate the frames
+        /// interleave and the client reads broken JSON.
         /// </remarks>
         private async Task SendFrameAsync(
             ReadOnlyMemory<byte> payload,
@@ -1002,7 +1007,7 @@ public sealed class VoiceConversationDriver
             }
             catch (Exception exception) when (exception is WebSocketException or ObjectDisposedException or OperationCanceledException)
             {
-                driver._logger.LogDebug(exception, "Konusma cercevesi gonderilemedi.");
+                driver._logger.LogDebug(exception, "The voice frame could not be sent.");
             }
             finally
             {

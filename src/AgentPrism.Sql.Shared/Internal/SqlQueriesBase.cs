@@ -1,653 +1,660 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Sema adina gore olusturulmus SQL metinlerinin saglayicidan bagimsiz yuzeyi.
+/// The provider-independent surface of the SQL texts built for a schema name.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bu sinif yalnizca <em>hangi</em> sorgularin var oldugunu bildirir; metinleri
-/// saglayici alt siniflari yazar (<c>PostgresQueries</c>, <c>SqlServerQueries</c>).
-/// Boylece paylasilan depo kodu tek bir yuzeye bagimli kalir ve diyalekt farki
-/// SQL metninin icinde kapali kalir.
+/// This class declares only <em>which</em> queries exist; the provider subclasses
+/// write the texts (<c>PostgresQueries</c>, <c>SqlServerQueries</c>). The shared
+/// store code therefore depends on a single surface and the dialect difference
+/// stays enclosed inside the SQL text.
 /// </para>
 /// <para>
-/// 🚨 <strong>Buraya yeni bir sorgu eklendiginde her alt sinifta karsiligi
-/// yazilmalidir.</strong> Yazilmazsa alan <c>string.Empty</c> kalir ve hata
-/// yalnizca calisma aninda gorunur. Yeni sorgu ekleyen faz, sozlesme testinin
-/// her saglayicida kostugunu dogrulamalidir.
+/// 🚨 <strong>When a new query is added here, its counterpart must be written in
+/// every subclass.</strong> If it is not, the field stays <c>string.Empty</c> and
+/// the error appears at run time only. The phase that adds a new query must verify
+/// that the contract test runs on every provider.
 /// </para>
 /// <para>
-/// Sema adi bir tanimlayicidir ve parametre olarak gonderilemez; SQL metnine
-/// dogrudan yerlestirilir. Ad, <see cref="SqlIdentifier.RequireSchemaName"/> ile
-/// kati bicimde dogrulandiktan sonra kullanilir.
+/// The schema name is an identifier and cannot be sent as a parameter; it is placed
+/// into the SQL text directly. The name is used only after
+/// <see cref="SqlIdentifier.RequireSchemaName"/> validates it strictly.
 /// </para>
 /// <para>
-/// Tum sorgu metinleri kurucuda bir kez kurulur ve alan olarak saklanir; her
-/// cagrida yeniden birlestirme yapilmaz.
+/// Every query text is built once in the constructor and kept in a field; nothing
+/// is concatenated again on each call.
 /// </para>
 /// </remarks>
 internal abstract class SqlQueriesBase
 {
-    /// <summary>Bir tool cagrisi kaydi ekler.</summary>
+    /// <summary>Gets the query that inserts a tool invocation record.</summary>
     public string InsertToolInvocation { get; protected set; } = string.Empty;
 
-    /// <summary>Bir calistirmanin tool cagrilarini listeler.</summary>
+    /// <summary>Gets the query that lists the tool invocations of a run.</summary>
     public string SelectToolInvocations { get; protected set; } = string.Empty;
 
-    /// <summary>Tool bazinda kullanim ozetini cikarir.</summary>
+    /// <summary>Gets the query that produces the usage summary per tool.</summary>
     public string SelectToolUsage { get; protected set; } = string.Empty;
 
-    /// <summary>Kiracinin tum deneylerini listeler.</summary>
+    /// <summary>Gets the query that lists every experiment of the tenant.</summary>
     public string SelectExperiments { get; protected set; } = string.Empty;
 
-    /// <summary>Adi verilen deneyi getirir.</summary>
+    /// <summary>Gets the query that reads the named experiment.</summary>
     public string SelectExperiment { get; protected set; } = string.Empty;
 
-    /// <summary>Bir agent icin Running durumundaki deneyi getirir.</summary>
+    /// <summary>Gets the query that reads the Running experiment of an agent.</summary>
     public string SelectRunningExperiment { get; protected set; } = string.Empty;
 
-    /// <summary>Bir deneyi olusturur veya (yalniz Draft ise) gunceller.</summary>
+    /// <summary>Gets the query that creates an experiment or updates it (only while it is Draft).</summary>
     public string UpsertExperiment { get; protected set; } = string.Empty;
 
-    /// <summary>Bir deneyi siler (yalniz Running degilse).</summary>
+    /// <summary>Gets the query that deletes an experiment (only when it is not Running).</summary>
     public string DeleteExperiment { get; protected set; } = string.Empty;
 
-    /// <summary>Bir deneyi Running durumuna gecirir.</summary>
+    /// <summary>Gets the query that moves an experiment into the Running state.</summary>
     public string StartExperiment { get; protected set; } = string.Empty;
 
-    /// <summary>Bir deneyi Stopped durumuna gecirir.</summary>
+    /// <summary>Gets the query that moves an experiment into the Stopped state.</summary>
     public string StopExperiment { get; protected set; } = string.Empty;
 
-    /// <summary>Bir deneyin kol bazinda calistirma sonuclarini cikarir.</summary>
+    /// <summary>Gets the query that produces the per-arm run results of an experiment.</summary>
     public string SelectExperimentResults { get; protected set; } = string.Empty;
 
-    /// <summary>Butun kiracilardaki, Running VE kanarya kurali tanimli deneyleri listeler.</summary>
+    /// <summary>Gets the query that lists the experiments across all tenants that are Running AND have a canary policy.</summary>
     public string SelectRunningExperimentsWithCanary { get; protected set; } = string.Empty;
 
-    /// <summary>Bir deneyin kanarya kuralini tanimlar veya kaldirir.</summary>
+    /// <summary>Gets the query that sets or clears the canary policy of an experiment.</summary>
     public string SetExperimentCanaryPolicy { get; protected set; } = string.Empty;
 
-    /// <summary>Kanarya kademeli artirma adimini uygular (yalniz agirlik, Running kalir).</summary>
+    /// <summary>Gets the query that applies a canary ramp step (weight only, the experiment stays Running).</summary>
     public string AdvanceExperimentCanaryRamp { get; protected set; } = string.Empty;
 
-    /// <summary>Kanarya otomatik geri almasini uygular (agirlik + Stopped + neden).</summary>
+    /// <summary>Gets the query that applies an automatic canary rollback (weight + Stopped + reason).</summary>
     public string RollbackExperimentCanary { get; protected set; } = string.Empty;
 
-    /// <summary>Trace basligini ekler veya gunceller ve kimligini dondurur.</summary>
+    /// <summary>Gets the query that inserts or updates the trace header and returns its identifier.</summary>
     public string UpsertTrace { get; protected set; } = string.Empty;
 
-    /// <summary>Bir span'i ekler veya gunceller.</summary>
+    /// <summary>Gets the query that inserts or updates a span.</summary>
     public string UpsertSpan { get; protected set; } = string.Empty;
 
-    /// <summary>Bir calistirmanin trace basligini getirir.</summary>
+    /// <summary>Gets the query that reads the trace header of a run.</summary>
     public string SelectTraceByRun { get; protected set; } = string.Empty;
 
-    /// <summary>Bir trace'in span'lerini getirir.</summary>
+    /// <summary>Gets the query that reads the spans of a trace.</summary>
     public string SelectSpans { get; protected set; } = string.Empty;
 
-    /// <summary>Bir kiracinin onay kurallarini listeler.</summary>
+    /// <summary>Gets the query that lists the approval rules of a tenant.</summary>
     public string SelectToolApprovalRules { get; protected set; } = string.Empty;
 
-    /// <summary>Bir onay kurali ekler; ayni kapsam varsa mevcut kaydi dondurur.</summary>
+    /// <summary>Gets the query that inserts an approval rule; it returns the existing record when the same scope is present.</summary>
     public string InsertToolApprovalRule { get; protected set; } = string.Empty;
 
-    /// <summary>Bir onay kuralini siler.</summary>
+    /// <summary>Gets the query that deletes an approval rule.</summary>
     public string DeleteToolApprovalRule { get; protected set; } = string.Empty;
 
-    /// <summary>Bir kiracinin MCP sunucularini listeler.</summary>
+    /// <summary>Gets the query that lists the MCP servers of a tenant.</summary>
     public string SelectMcpServers { get; protected set; } = string.Empty;
 
-    /// <summary>Tek bir MCP sunucusunu getirir.</summary>
+    /// <summary>Gets the query that reads a single MCP server.</summary>
     public string SelectMcpServer { get; protected set; } = string.Empty;
 
-    /// <summary>Bir MCP sunucusunu ekler veya gunceller.</summary>
+    /// <summary>Gets the query that inserts or updates an MCP server.</summary>
     public string UpsertMcpServer { get; protected set; } = string.Empty;
 
-    /// <summary>Bir MCP sunucusunu siler.</summary>
+    /// <summary>Gets the query that deletes an MCP server.</summary>
     public string DeleteMcpServer { get; protected set; } = string.Empty;
 
-    /// <summary>Kayitli kiracilari listeler.</summary>
+    /// <summary>Gets the query that lists the registered tenants.</summary>
     public string SelectTenants { get; protected set; } = string.Empty;
 
-    /// <summary>Bir kiraci kaydini ekler veya gunceller.</summary>
+    /// <summary>Gets the query that inserts or updates a tenant record.</summary>
     public string UpsertTenantDescriptor { get; protected set; } = string.Empty;
 
-    /// <summary>Bir kiraci kaydini siler.</summary>
+    /// <summary>Gets the query that deletes a tenant record.</summary>
     public string DeleteTenant { get; protected set; } = string.Empty;
 
-    /// <summary>Yeni bir ek ekler.</summary>
+    /// <summary>Gets the query that inserts a new attachment.</summary>
     public string InsertAttachment { get; protected set; } = string.Empty;
 
-    /// <summary>Bir ekin ustverisini okur.</summary>
+    /// <summary>Gets the query that reads the metadata of an attachment.</summary>
     public string SelectAttachment { get; protected set; } = string.Empty;
 
-    /// <summary>Bir ekin ham icerigini okur.</summary>
+    /// <summary>Gets the query that reads the raw content of an attachment.</summary>
     public string SelectAttachmentContent { get; protected set; } = string.Empty;
 
-    /// <summary>Ekleri filtreleyerek listeler.</summary>
+    /// <summary>Gets the query that lists the attachments with a filter.</summary>
     public string SelectAttachments { get; protected set; } = string.Empty;
 
-    /// <summary>Bir eki siler ve harici depo konumunu dondurur.</summary>
+    /// <summary>Gets the query that deletes an attachment and returns its external store location.</summary>
     public string DeleteAttachment { get; protected set; } = string.Empty;
 
-    /// <summary>Bir oturuma ait tum ekleri siler.</summary>
+    /// <summary>Gets the query that deletes every attachment of a session.</summary>
     public string DeleteAttachmentsBySession { get; protected set; } = string.Empty;
 
-    /// <summary>Kalici agent dosyasinin icerigini okur.</summary>
+    /// <summary>Gets the query that reads the content of a persistent agent file.</summary>
     public string SelectAgentFile { get; protected set; } = string.Empty;
 
-    /// <summary>Kalici agent dosyasini ekler veya gunceller.</summary>
+    /// <summary>Gets the query that inserts or updates a persistent agent file.</summary>
     public string UpsertAgentFile { get; protected set; } = string.Empty;
 
-    /// <summary>Kalici agent dosyasini siler.</summary>
+    /// <summary>Gets the query that deletes a persistent agent file.</summary>
     public string DeleteAgentFile { get; protected set; } = string.Empty;
 
     /// <summary>
-    /// Bir agent'in dosyalarini yol oneki, istege bagli derinlik siniri, istege
-    /// bagli glob suzgeci ve (yalniz PostgreSQL) istege bagli regex on suzgeci ile
-    /// SQL'de daraltarak okur (Faz 51, Is A). Onceki <c>SelectAgentFiles</c>'in
-    /// (tum dosyalari belleğe alan) yerini alir; onek her zaman verilir (kok
-    /// dizin icin <c>"/"</c>), bu yuzden ayri bir "hepsini getir" sorgusuna
-    /// gerek kalmadi.
+    /// Gets the query that reads the files of an agent, narrowed down in SQL by a
+    /// path prefix, an optional depth limit, an optional glob filter and (on
+    /// PostgreSQL only) an optional regex prefilter (phase 51, item A). It replaces
+    /// the earlier <c>SelectAgentFiles</c> (which loaded every file into memory);
+    /// the prefix is always supplied (<c>"/"</c> for the root directory), so no
+    /// separate "fetch everything" query was needed.
     /// </summary>
     public string SelectAgentFilesFiltered { get; protected set; } = string.Empty;
 
-    /// <summary>Bir workflow tanimini kaydeder ve surumunu artirir.</summary>
+    /// <summary>Gets the query that saves a workflow definition and increments its version.</summary>
     public string UpsertWorkflow { get; protected set; } = string.Empty;
 
-    /// <summary>Tek bir workflow tanimini getirir.</summary>
+    /// <summary>Gets the query that reads a single workflow definition.</summary>
     public string SelectWorkflow { get; protected set; } = string.Empty;
 
-    /// <summary>Bir kiracinin workflow tanimlarini listeler.</summary>
+    /// <summary>Gets the query that lists the workflow definitions of a tenant.</summary>
     public string SelectWorkflows { get; protected set; } = string.Empty;
 
-    /// <summary>Bir workflow tanimini siler.</summary>
+    /// <summary>Gets the query that deletes a workflow definition.</summary>
     public string DeleteWorkflow { get; protected set; } = string.Empty;
 
-    /// <summary>Bir kontrol noktasi yazar.</summary>
+    /// <summary>Gets the query that writes a checkpoint.</summary>
     public string InsertWorkflowCheckpoint { get; protected set; } = string.Empty;
 
-    /// <summary>Tek bir kontrol noktasinin durumunu okur.</summary>
+    /// <summary>Gets the query that reads the state of a single checkpoint.</summary>
     public string SelectWorkflowCheckpoint { get; protected set; } = string.Empty;
 
-    /// <summary>Bir oturumun kontrol noktalarinin ustverisini listeler.</summary>
+    /// <summary>Gets the query that lists the checkpoint metadata of a session.</summary>
     public string SelectWorkflowCheckpoints { get; protected set; } = string.Empty;
 
-    /// <summary>Bir calistirmanin kontrol noktalarinin ustverisini listeler.</summary>
+    /// <summary>Gets the query that lists the checkpoint metadata of a run.</summary>
     public string SelectWorkflowCheckpointsByRun { get; protected set; } = string.Empty;
 
-    /// <summary>Bir oturumun tum kontrol noktalarini siler.</summary>
+    /// <summary>Gets the query that deletes every checkpoint of a session.</summary>
     public string DeleteWorkflowCheckpoints { get; protected set; } = string.Empty;
 
-    /// <summary>Bir denetim izi kaydi ekler.</summary>
+    /// <summary>Gets the query that inserts an audit log record.</summary>
     public string InsertAuditEntry { get; protected set; } = string.Empty;
 
-    /// <summary>Denetim izi kayitlarini filtreleyerek okur.</summary>
+    /// <summary>Gets the query that reads the audit log records with a filter.</summary>
     public string SelectAuditLog { get; protected set; } = string.Empty;
 
-    /// <summary>Bir zamanlamayi ekler veya gunceller.</summary>
+    /// <summary>Gets the query that inserts or updates a schedule.</summary>
     public string UpsertJobSchedule { get; protected set; } = string.Empty;
 
-    /// <summary>Tek bir zamanlamayi getirir.</summary>
+    /// <summary>Gets the query that reads a single schedule.</summary>
     public string SelectJobSchedule { get; protected set; } = string.Empty;
 
-    /// <summary>Bir kiracinin zamanlamalarini listeler.</summary>
+    /// <summary>Gets the query that lists the schedules of a tenant.</summary>
     public string SelectJobSchedules { get; protected set; } = string.Empty;
 
-    /// <summary>Sirasi gelmis tum kiracilarin zamanlamalarini listeler.</summary>
+    /// <summary>Gets the query that lists the due schedules of every tenant.</summary>
     public string SelectDueJobSchedules { get; protected set; } = string.Empty;
 
-    /// <summary>Bir zamanlamayi siler.</summary>
+    /// <summary>Gets the query that deletes a schedule.</summary>
     public string DeleteJobSchedule { get; protected set; } = string.Empty;
 
-    /// <summary>Bir zamanlamanin bir sonraki calisma zamanini atomik olarak ilerletmeye calisir.</summary>
+    /// <summary>Gets the query that tries to advance the next run time of a schedule atomically.</summary>
     public string TryClaimJobScheduleNextRun { get; protected set; } = string.Empty;
 
-    /// <summary>Yeni bir is ekler.</summary>
+    /// <summary>Gets the query that inserts a new job.</summary>
     public string InsertJob { get; protected set; } = string.Empty;
 
-    /// <summary>Bir isin ogelerini toplu ekler.</summary>
+    /// <summary>Gets the query that inserts the items of a job in bulk.</summary>
     public string InsertJobItems { get; protected set; } = string.Empty;
 
-    /// <summary><c>FOR UPDATE SKIP LOCKED</c> ile calismaya hazir en eski isi kiralar.</summary>
+    /// <summary>Gets the query that leases the oldest job ready to run, with <c>FOR UPDATE SKIP LOCKED</c>.</summary>
     public string LeaseJob { get; protected set; } = string.Empty;
 
-    /// <summary>Devam eden bir isin kirasini uzatir.</summary>
+    /// <summary>Gets the query that extends the lease of a running job.</summary>
     public string RenewJobLease { get; protected set; } = string.Empty;
 
-    /// <summary>Kiralanmis bir isi yurutuluyor durumuna gecirir.</summary>
+    /// <summary>Gets the query that moves a leased job into the running state.</summary>
     public string MarkJobRunning { get; protected set; } = string.Empty;
 
-    /// <summary>Bir isi sonlandirir.</summary>
+    /// <summary>Gets the query that finishes a job.</summary>
     public string CompleteJob { get; protected set; } = string.Empty;
 
-    /// <summary>Bir isi yeniden deneme icin beklemeye alir.</summary>
+    /// <summary>Gets the query that puts a job back into the queue for a retry.</summary>
     public string ReleaseJobForRetry { get; protected set; } = string.Empty;
 
-    /// <summary>Bir isi iptal etmeye calisir.</summary>
+    /// <summary>Gets the query that tries to cancel a job.</summary>
     public string CancelJob { get; protected set; } = string.Empty;
 
-    /// <summary>Tek bir is kaydini getirir.</summary>
+    /// <summary>Gets the query that reads a single job record.</summary>
     public string SelectJob { get; protected set; } = string.Empty;
 
-    /// <summary>Isleri filtreleyerek listeler.</summary>
+    /// <summary>Gets the query that lists the jobs with a filter.</summary>
     public string SelectJobs { get; protected set; } = string.Empty;
 
-    /// <summary>Bir isin ogelerini listeler.</summary>
+    /// <summary>Gets the query that lists the items of a job.</summary>
     public string SelectJobItems { get; protected set; } = string.Empty;
 
-    /// <summary>Bir is ogesinin sonucunu bildirir ve is sayaclarini gunceller.</summary>
+    /// <summary>Gets the query that reports the outcome of a job item and updates the job counters.</summary>
     public string ReportJobItem { get; protected set; } = string.Empty;
 
-    /// <summary>Dogrulanmis sema adi.</summary>
+    /// <summary>Gets the validated schema name.</summary>
     public string Schema { get; protected set; } = string.Empty;
 
-    /// <summary>Semayi olusturur.</summary>
+    /// <summary>Gets the statement that creates the schema.</summary>
     public string CreateSchema { get; protected set; } = string.Empty;
 
-    /// <summary>Migration defterini olusturur.</summary>
+    /// <summary>Gets the statement that creates the migration ledger.</summary>
     public string CreateMigrationsTable { get; protected set; } = string.Empty;
 
-    /// <summary>Uygulanmis migration'lari okur.</summary>
+    /// <summary>Gets the query that reads the applied migrations.</summary>
     public string SelectAppliedMigrations { get; protected set; } = string.Empty;
 
-    /// <summary>Uygulanan bir migration'i deftere yazar.</summary>
+    /// <summary>Gets the query that writes an applied migration into the ledger.</summary>
     public string InsertMigration { get; protected set; } = string.Empty;
 
-    /// <summary>Kiraci kaydini yoksa ekler.</summary>
+    /// <summary>Gets the query that inserts the tenant record when it is absent.</summary>
     public string UpsertTenant { get; protected set; } = string.Empty;
 
-    /// <summary>Agent tanimini ekler veya surumunu artirir.</summary>
+    /// <summary>Gets the query that inserts an agent definition or increments its version.</summary>
     public string UpsertAgentDefinition { get; protected set; } = string.Empty;
 
-    /// <summary>Tanimin degismez surum kaydini ekler.</summary>
+    /// <summary>Gets the query that inserts the immutable version record of a definition.</summary>
     public string InsertAgentDefinitionVersion { get; protected set; } = string.Empty;
 
-    /// <summary>Bir tanimin guncel surumunu okur.</summary>
+    /// <summary>Gets the query that reads the current version of a definition.</summary>
     public string SelectAgentDefinition { get; protected set; } = string.Empty;
 
-    /// <summary>Kiracinin tum tanimlarini okur.</summary>
+    /// <summary>Gets the query that reads every definition of the tenant.</summary>
     public string SelectAgentDefinitions { get; protected set; } = string.Empty;
 
-    /// <summary>Tanimi ve gecmisini siler.</summary>
+    /// <summary>Gets the query that deletes a definition and its history.</summary>
     public string DeleteAgentDefinition { get; protected set; } = string.Empty;
 
-    /// <summary>Bir tanimin tum surumlerini okur.</summary>
+    /// <summary>Gets the query that reads every version of a definition.</summary>
     public string SelectAgentDefinitionVersions { get; protected set; } = string.Empty;
 
-    /// <summary>Bir tanimin belirli bir surumunu okur.</summary>
+    /// <summary>Gets the query that reads a specific version of a definition.</summary>
     public string SelectAgentDefinitionVersion { get; protected set; } = string.Empty;
 
-    /// <summary>Kiracinin skill'lerini listeler.</summary>
+    /// <summary>Gets the query that lists the skills of the tenant.</summary>
     public string SelectAgentSkills { get; protected set; } = string.Empty;
 
-    /// <summary>Tek bir skill'i okur.</summary>
+    /// <summary>Gets the query that reads a single skill.</summary>
     public string SelectAgentSkill { get; protected set; } = string.Empty;
 
-    /// <summary>Skill'i ekler veya gunceller.</summary>
+    /// <summary>Gets the query that inserts or updates a skill.</summary>
     public string UpsertAgentSkill { get; protected set; } = string.Empty;
 
-    /// <summary>Skill'i siler.</summary>
+    /// <summary>Gets the query that deletes a skill.</summary>
     public string DeleteAgentSkill { get; protected set; } = string.Empty;
 
-    /// <summary>Skill'in kaynaklarini siler.</summary>
+    /// <summary>Gets the query that deletes the resources of a skill.</summary>
     public string DeleteAgentSkillResources { get; protected set; } = string.Empty;
 
-    /// <summary>Skill kaynagini ekler.</summary>
+    /// <summary>Gets the query that inserts a skill resource.</summary>
     public string InsertAgentSkillResource { get; protected set; } = string.Empty;
 
-    /// <summary>Skill kaynaklarini listeler.</summary>
+    /// <summary>Gets the query that lists the skill resources.</summary>
     public string SelectAgentSkillResources { get; protected set; } = string.Empty;
 
-    /// <summary>Bir skill'in tum script'lerini siler.</summary>
+    /// <summary>Gets the query that deletes every script of a skill.</summary>
     public string DeleteAgentSkillScripts { get; protected set; } = string.Empty;
 
-    /// <summary>Bir skill script'i ekler.</summary>
+    /// <summary>Gets the query that inserts a skill script.</summary>
     public string InsertAgentSkillScript { get; protected set; } = string.Empty;
 
-    /// <summary>Bir skill'in script'lerini okur.</summary>
+    /// <summary>Gets the query that reads the scripts of a skill.</summary>
     public string SelectAgentSkillScripts { get; protected set; } = string.Empty;
 
-    /// <summary>Bir kiracinin tum script calistirma izinlerini okur.</summary>
+    /// <summary>Gets the query that reads every script execution grant of a tenant.</summary>
     public string SelectSkillScriptGrants { get; protected set; } = string.Empty;
 
-    /// <summary>Belirli bir script icin gecerli izni okur.</summary>
+    /// <summary>Gets the query that reads the active grant for a specific script.</summary>
     public string SelectActiveSkillScriptGrant { get; protected set; } = string.Empty;
 
-    /// <summary>Bir script calistirma izni ekler veya yeniler.</summary>
+    /// <summary>Gets the query that inserts or renews a script execution grant.</summary>
     public string UpsertSkillScriptGrant { get; protected set; } = string.Empty;
 
-    /// <summary>Bir script calistirma iznini iptal eder.</summary>
+    /// <summary>Gets the query that revokes a script execution grant.</summary>
     public string RevokeSkillScriptGrant { get; protected set; } = string.Empty;
 
-    /// <summary>Oturumu ekler veya gunceller.</summary>
+    /// <summary>Gets the query that inserts or updates a session.</summary>
     public string UpsertSession { get; protected set; } = string.Empty;
 
     /// <summary>
-    /// Yeni bir oturumu yalnizca YOKSA ekler. Duz bir <c>INSERT</c>'tir;
-    /// ayni (tenant_id, id) ile eszamanli ikinci bir cagri benzersizlik
-    /// ihlaline duser ve <see cref="SqlDialect.IsUniqueViolation"/> ile
-    /// yakalanir — <see cref="InsertIdempotencyKey"/> ile ayni desen.
-    /// HATA-004: <see cref="UpsertSession"/>'in kosulsuz uzerine yazmasi,
-    /// ayni YENI oturuma gelen eszamanli iki ilk istegin farkli birer
-    /// konusma kimligi uretmesine ve kaybedenin mesajlarinin sessizce
-    /// erisilmez kalmasina yol aciyordu.
+    /// Gets the query that inserts a new session ONLY when it is absent. It is a
+    /// plain <c>INSERT</c>; a concurrent second call with the same (tenant_id, id)
+    /// hits a unique violation and is caught with
+    /// <see cref="SqlDialect.IsUniqueViolation"/> — the same pattern as
+    /// <see cref="InsertIdempotencyKey"/>.
+    /// HATA-004: the unconditional overwrite of <see cref="UpsertSession"/> made two
+    /// concurrent first requests to the same NEW session produce a different
+    /// conversation identifier each, and the messages of the loser stayed silently
+    /// unreachable.
     /// </summary>
     public string InsertSession { get; protected set; } = string.Empty;
 
-    /// <summary>Oturumu okur.</summary>
+    /// <summary>Gets the query that reads a session.</summary>
     public string SelectSession { get; protected set; } = string.Empty;
 
     /// <summary>
-    /// Bir oturum kimliginin sahibi olan kiraciyi, kiraci filtresi UYGULAMADAN okur.
-    /// HATA-S2-005: capraz kiraci sahiplik denetimi <see cref="SelectSession"/>'i
-    /// kullanamaz — o zaten kiraciya gore filtrelenir ve baska kiracinin kaydini
-    /// hicbir zaman gormez.
+    /// Gets the query that reads the tenant owning a session identifier, WITHOUT
+    /// applying the tenant filter.
+    /// HATA-S2-005: the cross-tenant ownership check cannot use
+    /// <see cref="SelectSession"/> — that one is already filtered by tenant and never
+    /// sees the record of another tenant.
     /// </summary>
     public string SelectSessionOwner { get; protected set; } = string.Empty;
 
-    /// <summary>Oturumu siler.</summary>
+    /// <summary>Gets the query that deletes a session.</summary>
     public string DeleteSession { get; protected set; } = string.Empty;
 
-    /// <summary>Oturumlari filtreleyerek okur.</summary>
+    /// <summary>Gets the query that reads the sessions with a filter.</summary>
     public string SelectSessions { get; protected set; } = string.Empty;
 
-    /// <summary>Yeni calistirma kaydi acar.</summary>
+    /// <summary>Gets the query that opens a new run record.</summary>
     public string InsertRun { get; protected set; } = string.Empty;
 
-    /// <summary>Calistirmayi sonlandirir.</summary>
+    /// <summary>Gets the query that finishes a run.</summary>
     public string UpdateRunCompletion { get; protected set; } = string.Empty;
 
-    /// <summary>Bir calistirmanin maliyetini gunceller (yalniz bakim ucu).</summary>
+    /// <summary>Gets the query that updates the cost of a run (the maintenance path only).</summary>
     public string UpdateRunCost { get; protected set; } = string.Empty;
 
     /// <summary>
-    /// Suren bir calistirmanin heartbeat isaretini yazar (Faz 54). Yalniz
-    /// <c>Running</c> satirlari etkiler.
+    /// Gets the query that writes the heartbeat mark of a running run (phase 54). It
+    /// affects <c>Running</c> rows only.
     /// </summary>
     public string TouchRunHeartbeat { get; protected set; } = string.Empty;
 
     /// <summary>
-    /// Heartbeat esigini asan ust N <c>Running</c> satiri <c>Failed</c> olarak
-    /// kapatir ve kapatilan satirlari dondurur (Faz 54).
+    /// Gets the query that closes the top N <c>Running</c> rows past the heartbeat
+    /// threshold as <c>Failed</c> and returns the closed rows (phase 54).
     /// </summary>
     public string ClaimOrphanedRuns { get; protected set; } = string.Empty;
 
     /// <summary>
-    /// Bir oksuz calistirmanin kapanisini bildiren <c>RunFailed</c> olayini
-    /// ekler; sira numarasi mevcut en buyuk degerin bir fazlasidir (Faz 54).
+    /// Gets the query that inserts the <c>RunFailed</c> event reporting the closure
+    /// of an orphaned run; the sequence number is one more than the current maximum
+    /// (phase 54).
     /// </summary>
     public string InsertOrphanRunEvent { get; protected set; } = string.Empty;
 
-    /// <summary>Bir calistirmayi okur.</summary>
+    /// <summary>Gets the query that reads a run.</summary>
     public string SelectRun { get; protected set; } = string.Empty;
 
-    /// <summary>Calistirmalari filtreleyerek okur.</summary>
+    /// <summary>Gets the query that reads the runs with a filter.</summary>
     public string SelectRuns { get; protected set; } = string.Empty;
 
-    /// <summary>Calistirma ozetini ve agent kirilimini iki sonuc kumesi olarak dondurur.</summary>
+    /// <summary>Gets the query that returns the run summary and the per-agent breakdown as two result sets.</summary>
     public string SelectRunStatistics { get; protected set; } = string.Empty;
 
-    /// <summary>Kova basina calistirma, hata, token ve maliyet zaman serisi. Bos kovalar da doner.</summary>
+    /// <summary>Gets the query for the per-bucket run, error, token and cost time series. Empty buckets are returned as well.</summary>
     public string SelectRunTimeSeries { get; protected set; } = string.Empty;
 
-    /// <summary>Calistirma olayi ekler.</summary>
+    /// <summary>Gets the query that inserts a run event.</summary>
     public string InsertRunEvent { get; protected set; } = string.Empty;
 
-    /// <summary>Calistirma olaylarini sira numarasina gore okur.</summary>
+    /// <summary>Gets the query that reads the run events by sequence number.</summary>
     public string SelectRunEvents { get; protected set; } = string.Empty;
 
-    /// <summary>Konusmayi ekler veya gunceller.</summary>
+    /// <summary>Gets the query that inserts or updates a conversation.</summary>
     public string UpsertConversation { get; protected set; } = string.Empty;
 
-    /// <summary>Konusmadaki siradaki sira numarasini dondurur.</summary>
+    /// <summary>Gets the query that returns the next sequence number in a conversation.</summary>
     public string SelectNextConversationSequence { get; protected set; } = string.Empty;
 
-    /// <summary>Konusmaya mesaj ekler.</summary>
+    /// <summary>Gets the query that adds a message to a conversation.</summary>
     public string InsertConversationItem { get; protected set; } = string.Empty;
 
-    /// <summary>Konusmanin mesajlarini sirali okur.</summary>
+    /// <summary>Gets the query that reads the messages of a conversation in order.</summary>
     public string SelectConversationItems { get; protected set; } = string.Empty;
 
     /// <summary>
-    /// Dal noktasini olcer: kopyalanacak son sira numarasi ve oge sayisi
-    /// (Faz 47). Hic oge yoksa sira numarasi <c>-1</c> doner.
+    /// Gets the query that measures the branch point: the last sequence number to
+    /// copy and the item count (phase 47). When there is no item at all the sequence
+    /// number is <c>-1</c>.
     /// </summary>
     public string SelectConversationBranchPoint { get; protected set; } = string.Empty;
 
     /// <summary>
-    /// Kaynak konusmanin ustverisini kopyalayarak yeni bir dal konusmasi acar
-    /// (Faz 47). Kaynak yoksa veya baska bir kiraciya aitse hicbir satir yazilmaz.
+    /// Gets the query that opens a new branch conversation by copying the metadata of
+    /// the source conversation (phase 47). When the source is absent or belongs to
+    /// another tenant, no row is written.
     /// </summary>
     public string InsertBranchConversation { get; protected set; } = string.Empty;
 
     /// <summary>
-    /// Dallandirmada kopyalanacak ogeleri sirali okur (Faz 47).
+    /// Gets the query that reads the items to copy while branching, in order (phase 47).
     /// </summary>
     public string SelectConversationItemsForBranch { get; protected set; } = string.Empty;
 
     /// <summary>
-    /// Bir calistirmanin girdi mesajlarini yazar (Faz 47). Ayni calistirma icin
-    /// ikinci yazim <strong>yok sayilir</strong>.
+    /// Gets the query that writes the input messages of a run (phase 47). A second
+    /// write for the same run is <strong>ignored</strong>.
     /// </summary>
     public string InsertRunInput { get; protected set; } = string.Empty;
 
-    /// <summary>Bir calistirmanin kayitli girdisini okur (Faz 47).</summary>
+    /// <summary>Gets the query that reads the stored input of a run (phase 47).</summary>
     public string SelectRunInput { get; protected set; } = string.Empty;
 
-    /// <summary>Bir kiracinin eval takimlarini listeler.</summary>
+    /// <summary>Gets the query that lists the eval suites of a tenant.</summary>
     public string SelectEvalSuites { get; protected set; } = string.Empty;
 
-    /// <summary>Tek bir eval takimini getirir.</summary>
+    /// <summary>Gets the query that reads a single eval suite.</summary>
     public string SelectEvalSuite { get; protected set; } = string.Empty;
 
-    /// <summary>Eval takimini olusturur veya gunceller.</summary>
+    /// <summary>Gets the query that creates or updates an eval suite.</summary>
     public string UpsertEvalSuite { get; protected set; } = string.Empty;
 
-    /// <summary>Eval takimini siler (vakalar ve kosular cascade silinir).</summary>
+    /// <summary>Gets the query that deletes an eval suite (the cases and runs are deleted by cascade).</summary>
     public string DeleteEvalSuite { get; protected set; } = string.Empty;
 
-    /// <summary>Bir takimin vakalarini sira numarasina gore getirir.</summary>
+    /// <summary>Gets the query that reads the cases of a suite by sequence number.</summary>
     public string SelectEvalCases { get; protected set; } = string.Empty;
 
-    /// <summary>Bir takimin tum vakalarini siler (yerine yenileri yazilmadan once).</summary>
+    /// <summary>Gets the query that deletes every case of a suite (before the replacements are written).</summary>
     public string DeleteEvalCases { get; protected set; } = string.Empty;
 
-    /// <summary>Bir eval vakasi ekler.</summary>
+    /// <summary>Gets the query that inserts an eval case.</summary>
     public string InsertEvalCase { get; protected set; } = string.Empty;
 
     /// <summary>
-    /// Takima <c>seq</c>'i atomik olarak hesaplayarak TEK bir eval vakasi ekler
-    /// (uretimden terfi, Faz 45).
+    /// Gets the query that inserts a SINGLE eval case into a suite, computing
+    /// <c>seq</c> atomically (promotion from production, phase 45).
     /// </summary>
     public string InsertEvalCaseWithComputedSeq { get; protected set; } = string.Empty;
 
-    /// <summary>Bir takimda verilen kaynak calistirmadan terfi edilmis vakayi getirir.</summary>
+    /// <summary>Gets the query that reads the case promoted from a given source run in a suite.</summary>
     public string SelectEvalCaseBySourceRun { get; protected set; } = string.Empty;
 
-    /// <summary>Yeni bir eval kosu kaydi acar.</summary>
+    /// <summary>Gets the query that opens a new eval run record.</summary>
     public string InsertEvalRun { get; protected set; } = string.Empty;
 
-    /// <summary>Kosuyu calisiyor durumuna gecirir ve olculen surum/modeli yazar.</summary>
+    /// <summary>Gets the query that moves the run into the running state and writes the measured version and model.</summary>
     public string MarkEvalRunRunning { get; protected set; } = string.Empty;
 
-    /// <summary>Kosuyu sonlandirir ve ozet sayaclarini yazar.</summary>
+    /// <summary>Gets the query that finishes the run and writes the summary counters.</summary>
     public string CompleteEvalRun { get; protected set; } = string.Empty;
 
-    /// <summary>Bir eval kosusunu okur.</summary>
+    /// <summary>Gets the query that reads an eval run.</summary>
     public string SelectEvalRun { get; protected set; } = string.Empty;
 
-    /// <summary>Bir is kaydinin urettigi eval kosusunu okur.</summary>
+    /// <summary>Gets the query that reads the eval run produced by a job record.</summary>
     public string SelectEvalRunByJobId { get; protected set; } = string.Empty;
 
-    /// <summary>Eval kosularini filtreleyerek okur.</summary>
+    /// <summary>Gets the query that reads the eval runs with a filter.</summary>
     public string SelectEvalRuns { get; protected set; } = string.Empty;
 
-    /// <summary>Bir eval vaka sonucu ekler.</summary>
+    /// <summary>Gets the query that inserts an eval case result.</summary>
     public string InsertEvalCaseResult { get; protected set; } = string.Empty;
 
-    /// <summary>Bir kosunun vaka sonuclarini okur.</summary>
+    /// <summary>Gets the query that reads the case results of a run.</summary>
     public string SelectEvalCaseResults { get; protected set; } = string.Empty;
 
-    /// <summary>Bir kota kuralini ekler veya gunceller (kapsam catismasinda).</summary>
+    /// <summary>Gets the query that inserts or updates a quota rule (on a scope conflict).</summary>
     public string UpsertQuota { get; protected set; } = string.Empty;
 
-    /// <summary>Bir kiracinin kota kurallarini listeler.</summary>
+    /// <summary>Gets the query that lists the quota rules of a tenant.</summary>
     public string SelectQuotas { get; protected set; } = string.Empty;
 
-    /// <summary>Tek bir kota kuralini getirir.</summary>
+    /// <summary>Gets the query that reads a single quota rule.</summary>
     public string SelectQuota { get; protected set; } = string.Empty;
 
-    /// <summary>Bir kota kuralini siler.</summary>
+    /// <summary>Gets the query that deletes a quota rule.</summary>
     public string DeleteQuota { get; protected set; } = string.Empty;
 
-    /// <summary>Kota tuketimini atomik olarak artirir.</summary>
+    /// <summary>Gets the query that increments the quota consumption atomically.</summary>
     public string AddQuotaUsage { get; protected set; } = string.Empty;
 
-    /// <summary>Kota tuketim sayaclarini okur.</summary>
+    /// <summary>Gets the query that reads the quota consumption counters.</summary>
     public string SelectQuotaUsage { get; protected set; } = string.Empty;
 
-    /// <summary>Bir webhook aboneligini ekler veya gunceller.</summary>
+    /// <summary>Gets the query that inserts or updates a webhook subscription.</summary>
     public string UpsertWebhookSubscription { get; protected set; } = string.Empty;
 
-    /// <summary>Bir kiracinin webhook aboneliklerini listeler.</summary>
+    /// <summary>Gets the query that lists the webhook subscriptions of a tenant.</summary>
     public string SelectWebhookSubscriptions { get; protected set; } = string.Empty;
 
-    /// <summary>Tek bir webhook aboneligini adiyla getirir.</summary>
+    /// <summary>Gets the query that reads a single webhook subscription by name.</summary>
     public string SelectWebhookSubscription { get; protected set; } = string.Empty;
 
-    /// <summary>Belirli bir olaya abone olan etkin abonelikleri getirir.</summary>
+    /// <summary>Gets the query that reads the enabled subscriptions of a specific event.</summary>
     public string SelectWebhookSubscriptionsForEvent { get; protected set; } = string.Empty;
 
-    /// <summary>Bir webhook aboneligini siler.</summary>
+    /// <summary>Gets the query that deletes a webhook subscription.</summary>
     public string DeleteWebhookSubscription { get; protected set; } = string.Empty;
 
-    /// <summary>Bir aboneligin basarisizlik sayacini gunceller ve esikte kapatir.</summary>
+    /// <summary>Gets the query that updates the failure counter of a subscription and disables it at the threshold.</summary>
     public string UpdateWebhookSubscriptionOutcome { get; protected set; } = string.Empty;
 
-    /// <summary>Bir webhook teslim kaydi ekler.</summary>
+    /// <summary>Gets the query that inserts a webhook delivery record.</summary>
     public string InsertWebhookDelivery { get; protected set; } = string.Empty;
 
-    /// <summary>Tek bir teslim kaydini getirir.</summary>
+    /// <summary>Gets the query that reads a single delivery record.</summary>
     public string SelectWebhookDelivery { get; protected set; } = string.Empty;
 
-    /// <summary>Bir teslim denemesinin sonucunu yazar.</summary>
+    /// <summary>Gets the query that writes the outcome of a delivery attempt.</summary>
     public string UpdateWebhookDeliveryResult { get; protected set; } = string.Empty;
 
-    /// <summary>Teslim gecmisini filtreleyerek listeler.</summary>
+    /// <summary>Gets the query that lists the delivery history with a filter.</summary>
     public string SelectWebhookDeliveries { get; protected set; } = string.Empty;
 
-    /// <summary>Yeni bir API anahtari ekler.</summary>
+    /// <summary>Gets the query that inserts a new API key.</summary>
     public string InsertApiKey { get; protected set; } = string.Empty;
 
-    /// <summary>Bir kiracinin API anahtarlarini listeler.</summary>
+    /// <summary>Gets the query that lists the API keys of a tenant.</summary>
     public string SelectApiKeys { get; protected set; } = string.Empty;
 
-    /// <summary>Bir API anahtarini ozetiyle arar. Kiraci suzgeci YOKTUR (bolum 53.5).</summary>
+    /// <summary>Gets the query that looks an API key up by its hash. There is NO tenant filter (section 53.5).</summary>
     public string SelectApiKeyByHash { get; protected set; } = string.Empty;
 
-    /// <summary>Bir API anahtarini kiraci sinirinda iptal eder.</summary>
+    /// <summary>Gets the query that revokes an API key within the tenant boundary.</summary>
     public string RevokeApiKey { get; protected set; } = string.Empty;
 
-    /// <summary>Bir API anahtarinin son kullanim damgasini gunceller.</summary>
+    /// <summary>Gets the query that updates the last-used stamp of an API key.</summary>
     public string TouchApiKeyLastUsed { get; protected set; } = string.Empty;
 
-    /// <summary>Sistemde verilen kapsami tasiyan gecerli bir anahtar var mi.</summary>
+    /// <summary>Gets the query that determines whether the system holds a valid key carrying the given scope.</summary>
     public string HasApiKeyWithScope { get; protected set; } = string.Empty;
 
-    /// <summary>Bir saklama politikasini ekler veya gunceller (kapsam catismasinda).</summary>
+    /// <summary>Gets the query that inserts or updates a retention policy (on a scope conflict).</summary>
     public string UpsertRetentionPolicy { get; protected set; } = string.Empty;
 
-    /// <summary>Bir kiracinin saklama politikalarini listeler.</summary>
+    /// <summary>Gets the query that lists the retention policies of a tenant.</summary>
     public string SelectRetentionPolicies { get; protected set; } = string.Empty;
 
-    /// <summary>Tek bir hedefin politikasini kiraci icinde getirir.</summary>
+    /// <summary>Gets the query that reads the policy of a single target inside the tenant.</summary>
     public string SelectRetentionPolicy { get; protected set; } = string.Empty;
 
-    /// <summary>Bir saklama politikasini siler.</summary>
+    /// <summary>Gets the query that deletes a retention policy.</summary>
     public string DeleteRetentionPolicy { get; protected set; } = string.Empty;
 
-    /// <summary>Yeni bir temizleme kosusu acar.</summary>
+    /// <summary>Gets the query that opens a new cleanup run.</summary>
     public string InsertRetentionRun { get; protected set; } = string.Empty;
 
-    /// <summary>Devam eden bir kosunun sayaclarini atomik olarak artirir.</summary>
+    /// <summary>Gets the query that increments the counters of a running cleanup run atomically.</summary>
     public string UpdateRetentionRunProgress { get; protected set; } = string.Empty;
 
-    /// <summary>Bir kosuyu sonlandirir.</summary>
+    /// <summary>Gets the query that finishes a cleanup run.</summary>
     public string CompleteRetentionRun { get; protected set; } = string.Empty;
 
-    /// <summary>Kosu gecmisini filtreleyerek listeler.</summary>
+    /// <summary>Gets the query that lists the cleanup run history with a filter.</summary>
     public string SelectRetentionRuns { get; protected set; } = string.Empty;
 
-    /// <summary>Bir konusma baglantisinin ozet kaydini ekler veya gunceller.</summary>
+    /// <summary>Gets the query that inserts or updates the summary record of a voice connection.</summary>
     public string UpsertVoiceSession { get; protected set; } = string.Empty;
 
-    /// <summary>Konusma kayitlarini en yeniden eskiye listeler.</summary>
+    /// <summary>Gets the query that lists the voice records from newest to oldest.</summary>
     public string SelectVoiceSessions { get; protected set; } = string.Empty;
 
-    /// <summary>Bir calistirma/mesaj puanini ekler veya (ayni yazar/hedefse) gunceller.</summary>
+    /// <summary>Gets the query that inserts a run/message score or updates it (when the author and target are the same).</summary>
     public string UpsertRunScore { get; protected set; } = string.Empty;
 
-    /// <summary>Bir calistirmanin tum puanlarini listeler.</summary>
+    /// <summary>Gets the query that lists every score of a run.</summary>
     public string SelectRunScores { get; protected set; } = string.Empty;
 
-    /// <summary>Bir puani siler.</summary>
+    /// <summary>Gets the query that deletes a score.</summary>
     public string DeleteRunScore { get; protected set; } = string.Empty;
 
-    /// <summary>Tek yurutucu kirasini alir (bos ise ekler, sahibi/suresi uygunsa gunceller).</summary>
+    /// <summary>Gets the query that acquires the singleton lease (it inserts when the row is absent, and updates when the owner or the expiry allows it).</summary>
     public string AcquireSingletonLease { get; protected set; } = string.Empty;
 
-    /// <summary>Elde tutulan tek yurutucu kirasini uzatir.</summary>
+    /// <summary>Gets the query that extends a held singleton lease.</summary>
     public string RenewSingletonLease { get; protected set; } = string.Empty;
 
-    /// <summary>Tek yurutucu kirasini birakir.</summary>
+    /// <summary>Gets the query that releases the singleton lease.</summary>
     public string ReleaseSingletonLease { get; protected set; } = string.Empty;
 
     /// <summary>
-    /// Bir idempotency anahtarini <c>Reserved</c> olarak eklemeyi dener. Anahtar
-    /// zaten varsa <see cref="SqlDialect.IsUniqueViolation"/> ile yakalanan bir
-    /// ihlal firlatir; cagiran taraf o zaman <see cref="SelectIdempotencyKey"/>
-    /// ile mevcut kaydi okur.
+    /// Gets the query that tries to insert an idempotency key as <c>Reserved</c>.
+    /// When the key already exists it throws a violation that is caught with
+    /// <see cref="SqlDialect.IsUniqueViolation"/>; the caller then reads the existing
+    /// record with <see cref="SelectIdempotencyKey"/>.
     /// </summary>
     public string InsertIdempotencyKey { get; protected set; } = string.Empty;
 
-    /// <summary>Bir idempotency anahtarini kiraci+anahtar ile getirir.</summary>
+    /// <summary>Gets the query that reads an idempotency key by tenant and key.</summary>
     public string SelectIdempotencyKey { get; protected set; } = string.Empty;
 
-    /// <summary>Ayrilmis bir idempotency anahtarini <c>Completed</c> yapar ve yaniti yazar.</summary>
+    /// <summary>Gets the query that turns a reserved idempotency key into <c>Completed</c> and writes the response.</summary>
     public string CompleteIdempotencyKey { get; protected set; } = string.Empty;
 
-    /// <summary>Bir idempotency anahtarini siler (basarisiz istekten sonra serbest birakma).</summary>
+    /// <summary>Gets the query that deletes an idempotency key (releasing it after a failed request).</summary>
     public string DeleteIdempotencyKey { get; protected set; } = string.Empty;
 
-    /// <summary>Yeni bir bekleyen onay istegi ekler (Faz 55).</summary>
+    /// <summary>Gets the query that inserts a new pending approval request (phase 55).</summary>
     public string InsertPendingApproval { get; protected set; } = string.Empty;
 
-    /// <summary>Cagiranin kiracisindaki bekleyen istekleri en eskiden en yeniye listeler.</summary>
+    /// <summary>Gets the query that lists the pending requests of the caller tenant from oldest to newest.</summary>
     public string SelectPendingApprovals { get; protected set; } = string.Empty;
 
-    /// <summary>Tek bir bekleyen onay istegini kiraciyla sinirli getirir.</summary>
+    /// <summary>Gets the query that reads a single pending approval request, restricted to the tenant.</summary>
     public string SelectPendingApproval { get; protected set; } = string.Empty;
 
     /// <summary>
-    /// Bekleyen bir istege karar yazar. <c>WHERE</c> yalnizca hala <c>Pending</c>
-    /// durumundaki satiri hedefler; ikinci bir karar 0 satir etkiler.
+    /// Gets the query that writes a decision on a pending request. The <c>WHERE</c>
+    /// targets only the row that is still <c>Pending</c>; a second decision affects 0
+    /// rows.
     /// </summary>
     public string DecidePendingApproval { get; protected set; } = string.Empty;
 
     /// <summary>
-    /// Suresi dolmus, hala <c>Pending</c> durumundaki istekleri <c>Expired</c>
-    /// olarak kapatir ve kapatilan satirlari dondurur (<c>ClaimOrphanedRuns</c>
-    /// ile AYNI desen). Kiraci suzgeci TASIMAZ — bir bakim islemidir.
+    /// Gets the query that closes the expired requests that are still <c>Pending</c>
+    /// as <c>Expired</c> and returns the closed rows (THE SAME pattern as
+    /// <c>ClaimOrphanedRuns</c>). It carries NO tenant filter — it is a maintenance
+    /// operation.
     /// </summary>
     public string ExpirePendingApprovals { get; protected set; } = string.Empty;
 
-    /// <summary>Gomulu migration metnindeki sema yer tutucusunu gercek adla degistirir.</summary>
-    /// <param name="sql">Ham migration metni.</param>
-    /// <returns>Calistirilabilir SQL.</returns>
+    /// <summary>Replaces the schema placeholder in the embedded migration text with the real name.</summary>
+    /// <param name="sql">The raw migration text.</param>
+    /// <returns>Runnable SQL.</returns>
     public string ApplySchema(string sql)
         => sql.Replace(SchemaPlaceholder, Schema, StringComparison.Ordinal);
 
-    /// <summary>Gomulu SQL dosyalarinda sema adinin yerine gecen isaret.</summary>
+    /// <summary>The marker that stands in for the schema name in the embedded SQL files.</summary>
     public const string SchemaPlaceholder = "{schema}";
 }

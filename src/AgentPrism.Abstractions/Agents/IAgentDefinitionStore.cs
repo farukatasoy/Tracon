@@ -1,58 +1,59 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Veritabaninda saklanan agent tanimlarinin deposu. Surumleme ve geri alma
-/// destegi zorunludur: her kayit yeni bir surum uretir, eski surumler silinmez.
+/// The store for agent definitions kept in the database. Versioning and rollback
+/// support are required: every save produces a new version, and old versions are
+/// not deleted.
 /// </summary>
 public interface IAgentDefinitionStore
 {
-    /// <summary>Adi verilen tanimin guncel surumunu getirir.</summary>
-    /// <param name="name">Agent adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tanim; yoksa <see langword="null"/>.</returns>
+    /// <summary>Returns the current version of the definition with the given name.</summary>
+    /// <param name="name">The agent name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The definition, or <see langword="null"/> when it does not exist.</returns>
     ValueTask<AgentDefinition?> GetAsync(string name, CancellationToken cancellationToken = default);
 
-    /// <summary>Adi verilen tanimin belirtilen surumunu getirir.</summary>
-    /// <param name="name">Agent adi.</param>
-    /// <param name="version">Istenen surum numarasi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tanim; o surum yoksa <see langword="null"/>.</returns>
+    /// <summary>Returns the given version of the definition with the given name.</summary>
+    /// <param name="name">The agent name.</param>
+    /// <param name="version">The requested version number.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The definition, or <see langword="null"/> when that version does not exist.</returns>
     ValueTask<AgentDefinition?> GetVersionAsync(string name, int version, CancellationToken cancellationToken = default);
 
-    /// <summary>Tum tanimlarin guncel surumlerini listeler.</summary>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tanimlar.</returns>
+    /// <summary>Lists the current version of every definition.</summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The definitions.</returns>
     ValueTask<IReadOnlyList<AgentDefinition>> ListAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Tanimi kaydeder ve yeni bir surum uretir. Gelen tanimdaki
-    /// <see cref="AgentDefinition.Version"/> degeri yok sayilir; surum numarasini
-    /// depo belirler.
+    /// Saves the definition and produces a new version. The
+    /// <see cref="AgentDefinition.Version"/> value of the incoming definition is ignored;
+    /// the store decides the version number.
     /// </summary>
-    /// <param name="definition">Kaydedilecek tanim.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Yeni surum numarasi atanmis tanim.</returns>
+    /// <param name="definition">The definition to save.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The definition with the new version number assigned.</returns>
     ValueTask<AgentDefinition> SaveAsync(AgentDefinition definition, CancellationToken cancellationToken = default);
 
-    /// <summary>Tanimi ve tum surumlerini siler.</summary>
-    /// <param name="name">Agent adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Silme gerceklestiyse <see langword="true"/>.</returns>
+    /// <summary>Deletes the definition and every one of its versions.</summary>
+    /// <param name="name">The agent name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> when the delete happened.</returns>
     ValueTask<bool> DeleteAsync(string name, CancellationToken cancellationToken = default);
 
-    /// <summary>Bir tanimin tum surumlerini, yeniden eskiye dogru listeler.</summary>
-    /// <param name="name">Agent adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Surum gecmisi.</returns>
+    /// <summary>Lists every version of a definition, from newest to oldest.</summary>
+    /// <param name="name">The agent name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The version history.</returns>
     ValueTask<IReadOnlyList<AgentDefinition>> ListVersionsAsync(string name, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Belirtilen surumu guncel hale getirir. Geri alma islemi eski surumu
-    /// silmez; icerigini yeni bir surum olarak kaydeder.
+    /// Makes the given version current. A rollback does not delete the old version; it
+    /// saves its content as a new version.
     /// </summary>
-    /// <param name="name">Agent adi.</param>
-    /// <param name="version">Geri donulecek surum numarasi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Yeni surum olarak kaydedilmis tanim.</returns>
+    /// <param name="name">The agent name.</param>
+    /// <param name="version">The version number to roll back to.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The definition saved as the new version.</returns>
     ValueTask<AgentDefinition> RollbackAsync(string name, int version, CancellationToken cancellationToken = default);
 }

@@ -49,7 +49,7 @@ public sealed class ModelProviderSettingsTests
         // Yanlis onek "ayari baska bir saglayiciya yazdin" demektir; taninmayan
         // anahtardan farkli bir duzeltme ister.
         exception.Message.ShouldContain("baska.ayar");
-        exception.Message.ShouldContain("ait degil");
+        exception.Message.ShouldContain("do not belong");
     }
 
     [Fact]
@@ -65,7 +65,7 @@ public sealed class ModelProviderSettingsTests
                 Binding(("demo.acik", true)),
                 "demo",
                 []))
-            .Message.ShouldContain("hicbir ek ayar desteklemiyor");
+            .Message.ShouldContain("supports no extra settings");
 
     [Fact]
     public void Tanimsiz_ayar_null_dondurur()
@@ -107,13 +107,13 @@ public sealed class ModelProviderSettingsTests
     public void Yanlis_tip_beklenen_tipi_yazan_bir_hata_verir()
     {
         Should.Throw<AgentPrismException>(() => ModelProviderSettings.ReadBoolean(Binding(("demo.acik", 3)), "demo.acik"))
-            .Message.ShouldContain("mantiksal");
+            .Message.ShouldContain("boolean");
 
         Should.Throw<AgentPrismException>(() => ModelProviderSettings.ReadInt32(Binding(("demo.butce", true)), "demo.butce"))
-            .Message.ShouldContain("tam sayi");
+            .Message.ShouldContain("integer");
 
         Should.Throw<AgentPrismException>(() => ModelProviderSettings.ReadString(Binding(("demo.esik", 3)), "demo.esik"))
-            .Message.ShouldContain("metin");
+            .Message.ShouldContain("text");
     }
 
     [Fact]

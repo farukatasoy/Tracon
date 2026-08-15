@@ -1,26 +1,26 @@
 namespace AgentPrism;
 
-/// <summary>Denetim izi sorgusunu filtreleyen kriterler.</summary>
+/// <summary>The criteria that filter an audit trail query.</summary>
 public sealed record AuditQuery
 {
-    /// <summary>Kiraci kimligi. <see langword="null"/> ise cagiranin kiracisi kullanilir.</summary>
+    /// <summary>Gets the tenant id. The tenant of the caller is used when it is <see langword="null"/>.</summary>
     public string? TenantId { get; init; }
 
-    /// <summary>Aktore gore filtre. <see langword="null"/> ise tumu.</summary>
+    /// <summary>Gets the actor filter. <see langword="null"/> includes every actor.</summary>
     public string? Actor { get; init; }
 
-    /// <summary>Eyleme gore filtre. Ornek: <c>agent.update</c>.</summary>
+    /// <summary>Gets the action filter, for example <c>agent.update</c>.</summary>
     public string? Action { get; init; }
 
-    /// <summary>Varliga gore filtre. Ornek: <c>agent:support</c>.</summary>
+    /// <summary>Gets the entity filter, for example <c>agent:support</c>.</summary>
     public string? Entity { get; init; }
 
-    /// <summary>Bu zamandan sonraki kayitlar.</summary>
+    /// <summary>Gets the lower bound: the records written after this time.</summary>
     public DateTimeOffset? After { get; init; }
 
-    /// <summary>Bu zamandan onceki kayitlar.</summary>
+    /// <summary>Gets the upper bound: the records written before this time.</summary>
     public DateTimeOffset? Before { get; init; }
 
-    /// <summary>Donecek ust kayit sayisi.</summary>
+    /// <summary>Gets the upper number of records to return.</summary>
     public int Limit { get; init; } = 100;
 }

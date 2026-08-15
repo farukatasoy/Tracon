@@ -1,31 +1,31 @@
 namespace AgentPrism;
 
-/// <summary>Tek yurutucu secimi (Faz 42) ayarlari.</summary>
+/// <summary>The settings of single-executor election (phase 42).</summary>
 /// <remarks>
-/// <c>AgentPrism:SingletonExecution</c> yapilandirma bolumunden okunur. Bkz.
+/// They are read from the <c>AgentPrism:SingletonExecution</c> configuration section. See
 /// <c>AgentPrismServiceCollectionExtensions.AddAgentPrism</c>.
 /// </remarks>
 public sealed class SingletonExecutionOptions
 {
-    /// <summary>Yapilandirma bolumu adi.</summary>
+    /// <summary>The name of the configuration section.</summary>
     public const string SectionName = "AgentPrism:SingletonExecution";
 
     /// <summary>
-    /// Tek yurutucu secimi acik mi. Varsayilan <see langword="false"/>:
-    /// tek ornekli kurulumda davranis degismez ve kira tablosuna hicbir
-    /// sorgu gitmez.
+    /// Gets or sets a value that turns on single-executor election. The default is
+    /// <see langword="false"/>: behaviour does not change in a single-instance setup, and
+    /// no query reaches the lease table.
     /// </summary>
     public bool Enabled { get; set; }
 
     /// <summary>
-    /// Kira suresi. Yenileme bu surenin UCTE BIRI araliginda yapilir; yarisi
-    /// secilirse tek bir kacirilmis yenileme kirayi dusurur.
+    /// Gets or sets the lease duration. Renewal happens at ONE THIRD of this duration; at
+    /// half of it, a single missed renewal would drop the lease.
     /// </summary>
     public TimeSpan LeaseDuration { get; set; } = TimeSpan.FromSeconds(60);
 
     /// <summary>
-    /// Bu ornegin kimligi. <see langword="null"/> veya bos ise kendiliginden
-    /// (makine adi + surec kimligi + benzersiz bir uzanti ile) uretilir.
+    /// Gets or sets the id of this instance. When it is <see langword="null"/> or empty it
+    /// is generated automatically (machine name plus process id plus a unique suffix).
     /// </summary>
     public string? OwnerId { get; set; }
 }

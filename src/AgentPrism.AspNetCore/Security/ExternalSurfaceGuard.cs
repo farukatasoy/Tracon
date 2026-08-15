@@ -4,53 +4,52 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// MCP ve A2A dis yuzeylerinin paylastigi acilis denetimleri (Faz 50).
+/// Startup checks that the MCP and A2A external surfaces share (phase 50).
 /// </summary>
 /// <remarks>
-/// Amac K1'in ayni uygulamasi: sessizce yarim calisan bir dis yuzey yerine
-/// acik bir hata. <see cref="EnsureRemoteAccessNotCombined"/>
-/// <c>MapAgentPrismMcpServer</c>/<c>MapAgentPrismA2A</c> cagrisi aninda (uc
-/// baglama, <c>app.Run()</c>'dan ONCE) calisir; DB'ye dokunmaz. Onay guard'i
-/// (<see cref="EnsureNoApprovalRequiredTools"/>) ise DB'ye dokunur ve bu yuzden
-/// <c>McpApprovalGuardFilter</c>/<c>A2AApprovalGuardFilter</c> icinden, uc
-/// baglama aninda BASLAYAN ama sema hazir olana kadar arka planda bekleyen bir
-/// Task icinde calisir — bos bir veritabaninda "no such table" ile cokmemek
-/// icin (K-354'un ayni deseni). Bu Task her istekten ONCE beklenir; hicbir
-/// istek denetimin onune gecemez.
+/// The goal is the same application of K1: an explicit failure instead of an external
+/// surface that silently half works. <see cref="EnsureRemoteAccessNotCombined"/> runs at
+/// the moment of the <c>MapAgentPrismMcpServer</c>/<c>MapAgentPrismA2A</c> call (endpoint
+/// mapping, BEFORE <c>app.Run()</c>) and does not touch the database. The approval guard
+/// (<see cref="EnsureNoApprovalRequiredTools"/>) does touch the database, so it runs from
+/// <c>McpApprovalGuardFilter</c>/<c>A2AApprovalGuardFilter</c> inside a Task that STARTS at
+/// endpoint mapping time but waits in the background until the schema is ready — this
+/// prevents a crash with "no such table" on an empty database (the same pattern as K-354).
+/// This Task is awaited BEFORE every request; no request can get ahead of the check.
 /// </remarks>
 internal static class ExternalSurfaceGuard
 {
     private static readonly TimeSpan MaxCatalogListDelay = TimeSpan.FromSeconds(5);
 
     /// <summary>
-    /// Katalogu, sema henuz sorgulanabilir olmayabilecegi icin uygulama kapanana
-    /// kadar yeniden deneyerek okur.
+    /// Reads the catalog, retrying until the application shuts down, because the schema may
+    /// not be queryable yet.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 🚨 HATA-S1-002: <c>AutoApplyMigrations=false</c> iken
-    /// <see cref="SchemaReadyGate.MarkReady"/> semanin GERCEKTEN sorgulanabilir
-    /// oldugunu dogrulamadan cagrilir (semanin hazirlanmasi tuketicinin
-    /// sorumlulugudur — bkz. <see cref="SchemaReadyGate.MarkReady"/>'nin kendi
-    /// notu). Semayi kuran harici bir gecis adimi uygulama baslarken henuz
-    /// tamamlanmamis olabilir, hatta uygulama omru boyunca hic calismayabilir
-    /// (operator migration'i elle, sonra calistirmayi secebilir). Boyle bir depo
-    /// hatasi calistirmayi HEMEN KESMEMELIDIR (K1, "depo hatasi calistirmayi
-    /// kesmez") — <c>MT-SQL-004</c>'un kendi sozlesmesi de aynisini ister:
-    /// uygulama ACIK kalir, <c>/health</c> <c>Unhealthy</c> bildirir. Bu yuzden
-    /// deneme SAYISI degil, yalnizca <paramref name="lifetime"/>'in
-    /// <see cref="IHostApplicationLifetime.ApplicationStopping"/>'i sinirlar —
-    /// sema hic hazirlanmazsa yalniz A2A/MCP disa acik yuzeyine gelen istekler
-    /// (uygulama kapanana kadar) bu Task'i bekler; uygulamanin geri kalani
-    /// (agent CRUD, saglik ucu, vb.) hemen kullanilabilir kalir ve HICBIR ZAMAN
-    /// <see cref="IHostApplicationLifetime.StopApplication"/> ile durdurulmaz.
+    /// 🚨 HATA-S1-002: with <c>AutoApplyMigrations=false</c>,
+    /// <see cref="SchemaReadyGate.MarkReady"/> is called without proving that the schema is
+    /// REALLY queryable (preparing the schema is the responsibility of the consumer — see
+    /// the note on <see cref="SchemaReadyGate.MarkReady"/> itself). An external migration
+    /// step that creates the schema may not have finished when the application starts, and
+    /// it may never run during the lifetime of the application (the operator can choose to
+    /// apply the migration by hand, later). Such a store failure must NOT stop the run
+    /// IMMEDIATELY (K1, "a store failure does not interrupt the run") — the contract of
+    /// <c>MT-SQL-004</c> asks for the same: the application stays UP and <c>/health</c>
+    /// reports <c>Unhealthy</c>. The bound is therefore not a retry COUNT, only the
+    /// <see cref="IHostApplicationLifetime.ApplicationStopping"/> token of
+    /// <paramref name="lifetime"/> — if the schema is never prepared, only requests that
+    /// arrive at the externally exposed A2A/MCP surface wait on this Task (until the
+    /// application shuts down); the rest of the application (agent CRUD, the health
+    /// endpoint, and so on) stays usable right away and is NEVER stopped with
+    /// <see cref="IHostApplicationLifetime.StopApplication"/>.
     /// </para>
     /// </remarks>
-    /// <param name="catalog">Sorgulanacak katalog.</param>
-    /// <param name="lifetime">Uygulama omru — deneme araligi ve iptali bundan okunur.</param>
-    /// <param name="logger">Ara denemelerin uyari olarak yazildigi logger.</param>
-    /// <param name="protocol">Log mesajinda gorunen dis yuzey adi (<c>"A2A"</c>/<c>"MCP"</c>).</param>
-    /// <returns>Katalog ozetleri.</returns>
+    /// <param name="catalog">The catalog to query.</param>
+    /// <param name="lifetime">The application lifetime — the retry interval and the cancellation are read from it.</param>
+    /// <param name="logger">The logger that records intermediate attempts as warnings.</param>
+    /// <param name="protocol">The external surface name that appears in the log message (<c>"A2A"</c>/<c>"MCP"</c>).</param>
+    /// <returns>The catalog descriptors.</returns>
     public static async Task<IReadOnlyList<AgentDescriptor>> ListCatalogWithRetryAsync(
         IAgentCatalog catalog,
         IHostApplicationLifetime lifetime,
@@ -73,10 +72,10 @@ internal static class ExternalSurfaceGuard
             {
                 logger.LogWarning(
                     ex,
-                    "{Protocol} disa acik yuzey denetimi icin katalog sorgusu {Attempt}. denemede " +
-                    "basarisiz oldu; sema henuz sorgulanabilir olmayabilir (AutoApplyMigrations=false " +
-                    "ile harici bir gecis adimi bekleniyor olabilir). {DelayMilliseconds} ms sonra " +
-                    "yeniden denenecek; bu arada uygulamanin geri kalani calisir durumda kalir.",
+                    "The catalog query for the {Protocol} external surface check failed on attempt " +
+                    "{Attempt}; the schema may not be queryable yet (with AutoApplyMigrations=false " +
+                    "an external migration step may still be pending). Retrying in " +
+                    "{DelayMilliseconds} ms; the rest of the application stays operational.",
                     protocol,
                     attempt,
                     delay.TotalMilliseconds);
@@ -89,36 +88,35 @@ internal static class ExternalSurfaceGuard
         }
     }
 
-    /// <summary>Bir agentin beyaz listede olup olmadigini soyler.</summary>
-    /// <param name="agentName">Denetlenecek agent adi.</param>
-    /// <param name="exposedAgents">Beyaz liste.</param>
-    /// <param name="exposeAll">Tum agent'lar acik mi.</param>
-    /// <returns>Agent disa aciksa <see langword="true"/>.</returns>
+    /// <summary>Determines whether an agent is on the allow list.</summary>
+    /// <param name="agentName">The agent name to check.</param>
+    /// <param name="exposedAgents">The allow list.</param>
+    /// <param name="exposeAll">Whether every agent is exposed.</param>
+    /// <returns><see langword="true"/> when the agent is exposed.</returns>
     public static bool IsExposed(string agentName, ICollection<string> exposedAgents, bool exposeAll)
         => exposeAll || exposedAgents.Contains(agentName, StringComparer.Ordinal);
 
     /// <summary>
-    /// <c>AllowRemoteAccess</c> acikken, sistemde en az bir gecerli
-    /// <see cref="ApiKeyScope.ExternalInvoke"/> kapsamli anahtar yoksa bir dis
-    /// yuzeyin acilmasini engeller.
+    /// Prevents an external surface from being exposed while <c>AllowRemoteAccess</c> is on
+    /// and the system holds no valid key with the
+    /// <see cref="ApiKeyScope.ExternalInvoke"/> scope.
     /// </summary>
-    /// <param name="allowRemoteAccess"><see cref="AgentPrismEndpointOptions.AllowRemoteAccess"/> degeri.</param>
-    /// <param name="protocol">Acilan dis yuzeyin adi.</param>
-    /// <param name="apiKeyStore">Anahtar deposu.</param>
+    /// <param name="allowRemoteAccess">The <see cref="AgentPrismEndpointOptions.AllowRemoteAccess"/> value.</param>
+    /// <param name="protocol">The name of the external surface being exposed.</param>
+    /// <param name="apiKeyStore">The key store.</param>
     /// <exception cref="InvalidOperationException">
-    /// Uzak erisim acikken ve gecerli bir <c>external:invoke</c> anahtari yokken cagrilmissa.
+    /// When it is called while remote access is on and no valid <c>external:invoke</c> key exists.
     /// </exception>
     /// <remarks>
     /// <para>
-    /// Faz 53 (bolum 53.4) Faz 50'nin kilidini KOSULLANDIRIR, KALDIRMAZ: tek
-    /// statik bearer token loopback disina acilmis bir agent yuzeyini
-    /// korumaya yetmez, ama kiraci bazli, <c>external:invoke</c> kapsamli bir
-    /// API anahtari yeterlidir.
+    /// Phase 53 (section 53.4) makes the lock of phase 50 CONDITIONAL, it does not REMOVE it:
+    /// a single static bearer token is not enough to protect an agent surface exposed beyond
+    /// loopback, but a per-tenant API key with the <c>external:invoke</c> scope is.
     /// </para>
     /// <para>
-    /// 🚨 Senkron cagri BILEREK yapilir: bu denetim acilista, istek isleme
-    /// disinda bir kez calisir (<see cref="AgentPrismMcpServerExtensions.MapAgentPrismMcpServer"/>
-    /// ile ayni gerekce).
+    /// 🚨 The synchronous call is DELIBERATE: this check runs once at startup, outside
+    /// request processing (the same rationale as
+    /// <see cref="AgentPrismMcpServerExtensions.MapAgentPrismMcpServer"/>).
     /// </para>
     /// </remarks>
     public static void EnsureRemoteAccessNotCombined(bool allowRemoteAccess, string protocol, IApiKeyStore apiKeyStore)
@@ -142,27 +140,27 @@ internal static class ExternalSurfaceGuard
         }
 
         throw new InvalidOperationException(
-            $"AllowRemoteAccess acikken {protocol} disa acilamaz: sistemde 'external:invoke' " +
-            "kapsamli, suresi gecmemis ve iptal edilmemis bir API anahtari yok. Tek statik bearer " +
-            "token, loopback disina acilmis bir agent yuzeyini korumaya yetmez. " +
-            "'POST /api/api-keys' ile 'external:invoke' kapsamli bir anahtar uretin.");
+            $"{protocol} cannot be exposed while AllowRemoteAccess is on: the system holds no " +
+            "API key with the 'external:invoke' scope that is neither expired nor revoked. A " +
+            "single static bearer token is not enough to protect an agent surface exposed " +
+            "beyond loopback. Create a key with the 'external:invoke' scope through " +
+            "'POST /api/api-keys'.");
     }
 
     /// <summary>
-    /// Disa acilacak agent'lardan hicbirinin onay gerektiren bir tool tasimadigini
-    /// dogrular.
+    /// Verifies that none of the agents to be exposed carries a tool that requires approval.
     /// </summary>
-    /// <param name="descriptors">Katalogdaki agent ozetleri.</param>
-    /// <param name="exposedAgents">Beyaz liste.</param>
-    /// <param name="exposeAll">Tum agent'lar acik mi.</param>
-    /// <param name="toolRegistry">Onay bayragini tasiyan tool defteri.</param>
-    /// <param name="protocol">Acilan dis yuzeyin adi.</param>
+    /// <param name="descriptors">The agent descriptors in the catalog.</param>
+    /// <param name="exposedAgents">The allow list.</param>
+    /// <param name="exposeAll">Whether every agent is exposed.</param>
+    /// <param name="toolRegistry">The tool registry that carries the approval flag.</param>
+    /// <param name="protocol">The name of the external surface being exposed.</param>
     /// <exception cref="InvalidOperationException">
-    /// Disa acik bir agent onay gerektiren bir tool tasiyorsa.
+    /// When an exposed agent carries a tool that requires approval.
     /// </exception>
     /// <remarks>
-    /// K-103'un ayni sinirini acilista zorlar: dis cagiran bir insan degildir ve
-    /// onay isteğine cevap veremez. Sessizce onaysiz calistirmak kabul edilemez.
+    /// Enforces the same boundary as K-103 at startup: an external caller is not a human and
+    /// cannot answer an approval request. Running silently without approval is unacceptable.
     /// </remarks>
     public static void EnsureNoApprovalRequiredTools(
         IReadOnlyList<AgentDescriptor> descriptors,
@@ -196,10 +194,10 @@ internal static class ExternalSurfaceGuard
             }
 
             throw new InvalidOperationException(
-                $"'{descriptor.Name}' agent'i {protocol} uzerinden disa acilamaz: " +
-                $"'{string.Join(", ", offending)}' tool'lari kullanici onayi istiyor. " +
-                "Dis cagiran bir agent degildir ve onay isteğine cevap veremez. Bu agent'i " +
-                "beyaz listeden cikarin veya onay gerektirmeyen tool'larla sinirlayin.");
+                $"The '{descriptor.Name}' agent cannot be exposed over {protocol}: the " +
+                $"'{string.Join(", ", offending)}' tools ask for user approval. An external " +
+                "caller is not a human and cannot answer an approval request. Remove this " +
+                "agent from the allow list, or limit it to tools that need no approval.");
         }
     }
 }

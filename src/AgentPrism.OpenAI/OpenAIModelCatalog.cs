@@ -1,25 +1,26 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Saglayici ayarlarindaki model tanimlarindan arayuze gosterilecek katalogu kurar.
+/// Builds the catalog shown in the user interface from the model definitions in the
+/// provider options.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>AgentPrism yerlesik bir model listesi tasimaz.</strong> Bu bilincli bir
-/// karardir: OpenAI model adlari ve fiyatlari, bir NuGet paketinin yayin sikligindan
-/// cok daha hizli degisir. Koda gomulu bir liste kisa surede yaniltici olur.
+/// <strong>AgentPrism carries no built-in model list.</strong> This is a deliberate
+/// decision: OpenAI model names and prices change much faster than a NuGet package is
+/// released. A list embedded in code becomes misleading in a short time.
 /// </para>
 /// <para>
-/// Olculdu (2026-08-02): Faz 3 sirasinda yazilan yerlesik liste, gercek bir hesabin
-/// erisebildigi modellerin hicbirini icermiyordu; listedeki <c>gpt-4.1-mini</c>
-/// cagrisi <c>HTTP 403 model_not_found</c> dondu. Gerekce:
-/// <c>docs/KARARLAR.md</c>, karar K-032.
+/// Measured (2026-08-02): the built-in list written during phase 3 contained none of the
+/// models a real account could reach; a call to <c>gpt-4.1-mini</c> from that list
+/// returned <c>HTTP 403 model_not_found</c>. Reason:
+/// <c>docs/KARARLAR.md</c>, decision K-032.
 /// </para>
 /// <para>
-/// Katalog <see cref="OpenAIProviderOptions.Models"/> ayarindan gelir. Katalog
-/// <em>bir dogrulama listesi degildir</em>: burada bulunmayan bir model adi da
-/// kullanilabilir, saglayici istegi oldugu gibi OpenAI'a gonderir. Katalog yalnizca
-/// arayuzun model secim ekranini ve maliyet hesabini besler.
+/// The catalog comes from the <see cref="OpenAIProviderOptions.Models"/> option. The
+/// catalog is <em>not a validation list</em>: a model name that is absent here can still
+/// be used, and the provider sends the request to OpenAI as it is. The catalog only
+/// feeds the model picker screen and the cost calculation of the user interface.
 /// </para>
 /// <example>
 /// <code language="json">
@@ -33,13 +34,13 @@ namespace AgentPrism;
 /// </remarks>
 public static class OpenAIModelCatalog
 {
-    /// <summary>Ayarlardaki model tanimlarindan katalogu kurar.</summary>
-    /// <param name="options">Saglayici ayarlari.</param>
-    /// <returns>Ada gore siralanmis model listesi. Tanim yoksa bos liste.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> <see langword="null"/> ise.</exception>
+    /// <summary>Builds the catalog from the model definitions in the options.</summary>
+    /// <param name="options">Provider options.</param>
+    /// <returns>The models ordered by name. An empty list when there is no definition.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     /// <remarks>
-    /// Ayni ad birden cok kez tanimlanmissa son tanim kazanir. Karsilastirma
-    /// buyuk/kucuk harfe duyarli degildir. Adsiz girdiler yok sayilir.
+    /// When the same name is defined more than once, the last definition wins. The
+    /// comparison is case insensitive. Entries without a name are ignored.
     /// </remarks>
     public static IReadOnlyList<ModelDescriptor> Build(OpenAIProviderOptions options)
     {

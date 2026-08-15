@@ -1,46 +1,46 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Kim, ne zaman, hangi varligi degistirdigini kaydeden bir denetim izi satiri.
+/// A row in the audit trail that records who changed which entity and when.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="Before"/> ve <see cref="After"/> yazilmadan once sir suzgecinden
-/// gecer: <c>apiKey</c>, <c>authorization</c>, <c>token</c>, <c>password</c>,
-/// <c>secret</c> anahtarlarinin degerleri <c>"***"</c> ile degistirilir.
+/// <see cref="Before"/> and <see cref="After"/> pass through a secret filter before they
+/// are written: the values of the <c>apiKey</c>, <c>authorization</c>, <c>token</c>,
+/// <c>password</c> and <c>secret</c> keys are replaced with <c>"***"</c>.
 /// </para>
 /// <para>
-/// Calistirmalar (agent'in bir mesaji islemesi) bu deftere <strong>yazilmaz</strong>.
-/// <c>runs</c> tablosu zaten tam kaydi tutar; ikinci kez yazmak denetim izini
-/// en hacimli tabloya cevirir ve okunmaz hale getirir.
+/// Runs (an agent processing a message) are <strong>not written</strong> to this trail.
+/// The <c>runs</c> table already holds the full record; writing it a second time would
+/// turn the audit trail into the largest table and make it unreadable.
 /// </para>
 /// </remarks>
 public sealed record AuditEntry
 {
-    /// <summary>Kayit kimligi. Zaman sirali UUID (v7).</summary>
+    /// <summary>Gets the record id. A time-ordered UUID (v7).</summary>
     public required Guid Id { get; init; }
 
-    /// <summary>Degisikligin ait oldugu kiraci.</summary>
+    /// <summary>Gets the tenant the change belongs to.</summary>
     public required string TenantId { get; init; }
 
     /// <summary>
-    /// Degisikligi yapan aktor. Kimlik dogrulamasi yoksa veya aktor
-    /// cozulemiyorsa <see langword="null"/>'dur; bu durum gizlenmez.
+    /// Gets the actor that made the change. It is <see langword="null"/> when there is no
+    /// authentication or the actor cannot be resolved; that state is not hidden.
     /// </summary>
     public string? Actor { get; init; }
 
-    /// <summary>Eylem adi. Ornek: <c>agent.update</c>.</summary>
+    /// <summary>Gets the action name, for example <c>agent.update</c>.</summary>
     public required string Action { get; init; }
 
-    /// <summary>Etkilenen varlik. Ornek: <c>agent:support</c>.</summary>
+    /// <summary>Gets the affected entity, for example <c>agent:support</c>.</summary>
     public required string Entity { get; init; }
 
-    /// <summary>Degisiklikten onceki durum, JSON metni. Sir suzgecinden gecmistir.</summary>
+    /// <summary>Gets the state before the change, as JSON text. It has passed the secret filter.</summary>
     public string? Before { get; init; }
 
-    /// <summary>Degisiklikten sonraki durum, JSON metni. Sir suzgecinden gecmistir.</summary>
+    /// <summary>Gets the state after the change, as JSON text. It has passed the secret filter.</summary>
     public string? After { get; init; }
 
-    /// <summary>Kayit zamani (UTC).</summary>
+    /// <summary>Gets the time the record was written (UTC).</summary>
     public required DateTimeOffset CreatedAt { get; init; }
 }

@@ -3,27 +3,27 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="OpenAIProviderOptions"/> ayarlarini uygulama baslarken dogrular.
+/// Validates <see cref="OpenAIProviderOptions"/> while the application starts.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Dogrulama elle yazilmistir; <c>ValidateDataAnnotations()</c> yansimaya dayanir ve
-/// <c>IL2026</c> uretir. <c>AgentPrism.OpenAI</c> AOT uyumlu kalmalidir.
-/// Gerekce: <c>docs/KARARLAR.md</c>, karar K-006.
+/// The validation is written by hand; <c>ValidateDataAnnotations()</c> relies on
+/// reflection and produces <c>IL2026</c>. <c>AgentPrism.OpenAI</c> must stay AOT
+/// compatible. Reason: <c>docs/KARARLAR.md</c>, decision K-006.
 /// </para>
 /// <para>
-/// <strong>Hata mesajlari API anahtarini icermez.</strong> Dogrulama mesajlari
-/// gunluge ve baslangic istisnasina gider; anahtarin oraya sizmasi anahtari ifsa eder.
+/// <strong>The failure messages never contain the API key.</strong> Validation messages
+/// go to the log and to the startup exception; leaking the key there exposes it.
 /// </para>
 /// <para>
-/// Bu dogrulayici hem <c>UseOpenAI()</c>'nin adsiz (varsayilan) ayar ornegini hem
-/// <c>UseOpenAICompatible()</c>'in adlandirilmis ornklerini denetler.
-/// <see cref="Validate(string?, OpenAIProviderOptions)"/>'un <c>name</c> parametresi
-/// ikisini ayirt eder: adsiz ornekte (<c>name</c> bos) API anahtari zorunludur; resmi
-/// OpenAI anahtarsiz calismaz. Adlandirilmis bir ornekte (uyumlu saglayici) API
-/// anahtari <strong>isteğe baglidir</strong> (yerel sunucular istemez) ama
-/// <see cref="OpenAIProviderOptions.Endpoint"/> zorunludur — boş birakilirsa istek
-/// sessizce resmi OpenAI adresine giderdi.
+/// This validator checks both the unnamed (default) options instance of
+/// <c>UseOpenAI()</c> and the named instances of <c>UseOpenAICompatible()</c>. The
+/// <c>name</c> parameter of <see cref="Validate(string?, OpenAIProviderOptions)"/> tells
+/// the two apart: on the unnamed instance (<c>name</c> is empty) the API key is required,
+/// because the official OpenAI service does not work without a key. On a named instance
+/// (a compatible provider) the API key is <strong>optional</strong> (local servers do not
+/// ask for one) but <see cref="OpenAIProviderOptions.Endpoint"/> is required — if it were
+/// left empty, the request would silently go to the official OpenAI address.
 /// </para>
 /// </remarks>
 public sealed class OpenAIProviderOptionsValidator : IValidateOptions<OpenAIProviderOptions>
@@ -39,32 +39,32 @@ public sealed class OpenAIProviderOptionsValidator : IValidateOptions<OpenAIProv
         if (isDefaultInstance && string.IsNullOrWhiteSpace(options.ApiKey))
         {
             (failures ??= []).Add(
-                $"{nameof(OpenAIProviderOptions)}.{nameof(OpenAIProviderOptions.ApiKey)} bos olamaz. " +
-                "Anahtari `UseOpenAI(apiKey)` cagrisinda verin veya " +
+                $"{nameof(OpenAIProviderOptions)}.{nameof(OpenAIProviderOptions.ApiKey)} cannot be empty. " +
+                "Pass the key to the `UseOpenAI(apiKey)` call, or define " +
                 $"'{OpenAIProviderOptions.SectionName}:{nameof(OpenAIProviderOptions.ApiKey)}' " +
-                "ayarini `dotnet user-secrets` icinde tanimlayin.");
+                "in `dotnet user-secrets`.");
         }
 
         if (!isDefaultInstance && options.Endpoint is null)
         {
             (failures ??= []).Add(
-                $"{nameof(OpenAIProviderOptions)}.{nameof(OpenAIProviderOptions.Endpoint)} uyumlu " +
-                "saglayicilar icin zorunludur. Bos birakilirsa istek sessizce resmi OpenAI adresine " +
-                "giderdi. `UseOpenAICompatible(ad, o => o.Endpoint = new Uri(\"https://...\"))` ile verin.");
+                $"{nameof(OpenAIProviderOptions)}.{nameof(OpenAIProviderOptions.Endpoint)} is required for " +
+                "compatible providers. If it were left empty, the request would silently go to the " +
+                "official OpenAI address. Set it with `UseOpenAICompatible(name, o => o.Endpoint = new Uri(\"https://...\"))`.");
         }
 
         if (options.Endpoint is { IsAbsoluteUri: false })
         {
             (failures ??= []).Add(
-                $"{nameof(OpenAIProviderOptions)}.{nameof(OpenAIProviderOptions.Endpoint)} mutlak bir adres olmalidir. " +
-                $"Gelen deger: '{options.Endpoint}'.");
+                $"{nameof(OpenAIProviderOptions)}.{nameof(OpenAIProviderOptions.Endpoint)} must be an absolute address. " +
+                $"Received value: '{options.Endpoint}'.");
         }
 
         if (options.Timeout is { } timeout && timeout <= TimeSpan.Zero)
         {
             (failures ??= []).Add(
-                $"{nameof(OpenAIProviderOptions)}.{nameof(OpenAIProviderOptions.Timeout)} sifirdan buyuk olmalidir. " +
-                $"Gelen deger: {timeout}.");
+                $"{nameof(OpenAIProviderOptions)}.{nameof(OpenAIProviderOptions.Timeout)} must be greater than zero. " +
+                $"Received value: {timeout}.");
         }
 
         for (var index = 0; index < options.Models.Count; index++)
@@ -72,8 +72,8 @@ public sealed class OpenAIProviderOptionsValidator : IValidateOptions<OpenAIProv
             if (string.IsNullOrWhiteSpace(options.Models[index]?.Name))
             {
                 (failures ??= []).Add(
-                    $"{nameof(OpenAIProviderOptions)}.{nameof(OpenAIProviderOptions.Models)}[{index}] " +
-                    "icin model adi bos olamaz.");
+                    $"The model name for {nameof(OpenAIProviderOptions)}.{nameof(OpenAIProviderOptions.Models)}[{index}] " +
+                    "cannot be empty.");
             }
         }
 

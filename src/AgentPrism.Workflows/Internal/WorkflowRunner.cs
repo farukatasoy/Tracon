@@ -9,29 +9,30 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Workflow'lari calistirir ve her yurutmeyi bir <c>runs</c> satirina yazar.
+/// Runs workflows and writes every execution to a <c>runs</c> row.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Workflow calistirmasi bir calistirmadir.</strong> Kendi
-/// <c>runs</c> satirini acar (<see cref="RunKind.Workflow"/>) ve icinde cagrilan
-/// her agent, Faz 12'nin <c>parent_run_id</c> mekanizmasiyla o satirin altina
-/// baglanir. Waterfall gorunumu bu sayede ek bir kod olmadan dogru cizilir.
+/// <strong>A workflow execution is a run.</strong> It opens its own <c>runs</c>
+/// row (<see cref="RunKind.Workflow"/>), and every agent called inside it
+/// attaches below that row through the <c>parent_run_id</c> mechanism from
+/// phase 12. The waterfall view is therefore drawn correctly with no extra code.
 /// </para>
 /// <para>
-/// 🚨 <strong>Calistirma kapsami her <c>MoveNextAsync</c> oncesinde yeniden
-/// yazilir.</strong> Kapsam bir <c>AsyncLocal</c>'de yasar ve bir async iterator
-/// govdesindeki atama <c>yield return</c> sinirini asmaz: cagri driver'a
-/// dondugunde <c>ExecutionContext</c> geri alinir. Faz 12'de olculdu; workflow
-/// yurutmesinde de gecerlidir cunku executor'lar tam olarak o pompanin icinde
-/// calisir. Kapsam kaybolursa alt agent cagrilari "calistirma kaydi kapali"
-/// diyerek reddedilir ve kontrol noktalari kiracisiz yazilir.
+/// 🚨 <strong>The run scope is written again before every
+/// <c>MoveNextAsync</c>.</strong> The scope lives in an <c>AsyncLocal</c>, and an
+/// assignment inside an async iterator body does not cross the
+/// <c>yield return</c> boundary: the <c>ExecutionContext</c> is restored when the
+/// call returns to the driver. Measured in phase 12; it also holds for workflow
+/// execution, because executors run exactly inside that pump. When the scope is
+/// lost, nested agent calls are rejected with "run recording is closed" and
+/// checkpoints are written with no tenant.
 /// </para>
 /// <para>
-/// 🚨 <strong>Yurutme bir <c>TurnToken</c> ister.</strong> Olculdu (Faz 15):
-/// token gonderilmezse graf gelen mesajlari yalnizca <em>yutar</em>, ilk
-/// super-step'ten sonra <c>Idle</c> olur ve hicbir agent konusmaz. Bu davranis
-/// MAF dokumaninda yazili degildir.
+/// 🚨 <strong>Execution needs a <c>TurnToken</c>.</strong> Measured (phase 15):
+/// when the token is not sent, the graph only <em>swallows</em> the incoming
+/// messages, turns <c>Idle</c> after the first super-step, and no agent speaks.
+/// This behaviour is not written in the MAF documentation.
 /// </para>
 /// </remarks>
 internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
@@ -52,25 +53,25 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     private readonly IRunCancellationRegistry? _cancellationRegistry;
     private readonly QuotaEnforcer? _quotaEnforcer;
 
-    /// <summary>Yeni bir kosucu olusturur.</summary>
-    /// <param name="catalog">Workflow katalogu.</param>
-    /// <param name="runStore">Calistirma kaydi deposu.</param>
-    /// <param name="checkpointStore">Kontrol noktasi deposu.</param>
-    /// <param name="tenantContext">Kiraci baglami.</param>
-    /// <param name="options">Workflow ayarlari.</param>
-    /// <param name="prismOptions">Genel AgentPrism ayarlari.</param>
-    /// <param name="logger">Gunlukleyici.</param>
-    /// <param name="metrics">Metrik aletleri.</param>
-    /// <param name="traceCollector">Span toplayici.</param>
-    /// <param name="timeProvider">Zaman kaynagi.</param>
+    /// <summary>Creates a new runner.</summary>
+    /// <param name="catalog">The workflow catalog.</param>
+    /// <param name="runStore">The run record store.</param>
+    /// <param name="checkpointStore">The checkpoint store.</param>
+    /// <param name="tenantContext">The tenant context.</param>
+    /// <param name="options">The workflow settings.</param>
+    /// <param name="prismOptions">The general AgentPrism settings.</param>
+    /// <param name="logger">The logger.</param>
+    /// <param name="metrics">The metric instruments.</param>
+    /// <param name="traceCollector">The span collector.</param>
+    /// <param name="timeProvider">The time source.</param>
     /// <param name="cancellationRegistry">
-    /// Iptal defteri. <see langword="null"/> ise workflow calistirmasi disaridan iptal edilemez.
+    /// The cancellation registry. When <see langword="null"/>, a workflow run cannot be canceled from outside.
     /// </param>
     /// <param name="quotaEnforcer">
-    /// Kota denetleyici. <see langword="null"/> ise workflow tuketimi kota sayaclarina yazilmaz
-    /// (agent calistirma yoluyla AYNI davranis, bkz. <c>RunRecordingAgent</c>).
+    /// The quota enforcer. When <see langword="null"/>, workflow consumption is not written to the quota
+    /// counters (the SAME behaviour as the agent run path, see <c>RunRecordingAgent</c>).
     /// </param>
-    /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public WorkflowRunner(
         WorkflowCatalog catalog,
         IRunStore runStore,
@@ -133,10 +134,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     {
         var record = await RequireWorkflowRunAsync(runId, cancellationToken).ConfigureAwait(false);
 
-        // Yanit verilmis bir calistirma AwaitingInput'ta KALIR (durum gecmisi
-        // geriye donuk degistirilmez, K-014) ama artik bekleyen istegi yoktur;
-        // devam eden is yeni calistirma satirindadir. Kart yalnizca gercekten
-        // bekleyen bir calistirmada gosterilir.
+        // A run that was answered STAYS in AwaitingInput (status history is not
+        // rewritten afterwards, K-014) but it no longer has a pending request;
+        // the continuing work lives on a new run row. The card is shown only for
+        // a run that really waits.
         if (record.Status != RunStatus.AwaitingInput)
         {
             return [];
@@ -179,17 +180,18 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
     /// <inheritdoc />
     /// <remarks>
-    /// Bir <c>async IAsyncEnumerable</c> yineleyicisi OLMALIDIR (K-403) —
-    /// <see cref="WorkflowSessionId.Require"/> gecersiz bir <c>sessionId</c>
-    /// icin <see cref="AgentPrismException"/> firlatir. Bu cagri yineleyici
-    /// GOVDESININ disinda (senkron bir yardimci metotta) kalirsa istisna
-    /// <c>WorkflowEventStream</c>'in (SSE yazicisi, `AgentPrism.AspNetCore`)
-    /// <c>await foreach</c> icindeki <c>catch</c> blogundan HIC gecmeden
-    /// dogrudan ASP.NET'in genel
-    /// <c>ExceptionHandlerMiddleware</c>'ine duser — istemci SSE `event: error`
-    /// yerine teshis bilgisi tasimayan duz bir `HTTP 500` alir (HATA-K-005).
-    /// Cagiran katmanin kendi async yardimci metodunda ayni sinifin
-    /// dorduncu tekrari icin bkz. <c>docs/hafiza/cekirdek-calistirma.md</c>.
+    /// This MUST be an <c>async IAsyncEnumerable</c> iterator (K-403) —
+    /// <see cref="WorkflowSessionId.Require"/> throws
+    /// <see cref="AgentPrismException"/> for an invalid <c>sessionId</c>. When
+    /// that call stays outside the iterator BODY (in a synchronous helper
+    /// method), the exception NEVER passes through the <c>catch</c> block in the
+    /// <c>await foreach</c> of <c>WorkflowEventStream</c> (the SSE writer in
+    /// <c>AgentPrism.AspNetCore</c>) and falls straight into the global
+    /// <c>ExceptionHandlerMiddleware</c> of ASP.NET — instead of an SSE
+    /// <c>event: error</c> the client gets a bare <c>HTTP 500</c> that carries no
+    /// diagnostic information (BUG-K-005). For the fourth repetition of the same
+    /// class, in the async helper method of the calling layer, see the
+    /// core-execution note under <c>docs/hafiza/</c>.
     /// </remarks>
     public async IAsyncEnumerable<RunEvent> RunStreamingAsync(
         WorkflowRunRequest request,
@@ -231,11 +233,11 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     public void Dispose() => _concurrency.Dispose();
 
     /// <summary>
-    /// Sürdürme istegini, calistirilabilir bir yurutme tarifine cevirir.
+    /// Turns a resume request into a runnable execution recipe.
     /// </summary>
     /// <exception cref="AgentPrismException">
-    /// Calistirma yoksa, workflow calistirmasi degilse, baska bir kiraciya aitse
-    /// veya istenen kontrol noktasi bulunamiyorsa.
+    /// The run does not exist, is not a workflow run, belongs to another tenant,
+    /// or the requested checkpoint cannot be found.
     /// </exception>
     private async ValueTask<WorkflowExecution> PrepareResumeAsync(
         WorkflowResumeRequest request,
@@ -255,11 +257,11 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     }
 
     /// <summary>
-    /// Yanit istegini, kontrol noktasindan sürdüren bir yurutme tarifine cevirir.
+    /// Turns a response request into an execution recipe that resumes from a checkpoint.
     /// </summary>
     /// <exception cref="AgentPrismException">
-    /// Calistirma bulunamiyorsa, insan girdisi beklemiyorsa veya verilen istek
-    /// kimligi o calistirmada yoksa.
+    /// The run cannot be found, does not wait for human input, or the given
+    /// request id does not exist on that run.
     /// </exception>
     private async ValueTask<WorkflowExecution> PrepareResponseAsync(
         WorkflowRespondRequest request,
@@ -277,9 +279,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 "can be responded to.");
         }
 
-        // Istek kimligi DOGRULANIR. Bilinmeyen bir kimlikle sürdürme, kullaniciya
-        // "yanit verildi" der ama yurutme yine bekleyerek biterdi - hata
-        // ayiklanmasi zor bir sessizlik.
+        // The request id IS VALIDATED. A resume with an unknown id would tell the
+        // user "answered" while the execution ended still waiting - a silence
+        // that is hard to debug.
         var pending = await ListPendingRequestsAsync(request.RunId, cancellationToken).ConfigureAwait(false);
 
         if (!pending.Any(candidate => string.Equals(candidate.RequestId, request.RequestId, StringComparison.Ordinal)))
@@ -301,17 +303,17 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         };
     }
 
-    /// <summary>Calistirmayi bulur ve sürdürulebilir bir workflow satiri oldugunu dogrular.</summary>
+    /// <summary>Finds the run and validates that it is a resumable workflow row.</summary>
     /// <exception cref="AgentPrismException">
-    /// Calistirma yoksa, baska bir kiraciya aitse, workflow satiri degilse veya
-    /// yurutme oturumu tasimiyorsa.
+    /// The run does not exist, belongs to another tenant, is not a workflow row,
+    /// or carries no execution session.
     /// </exception>
     private async ValueTask<RunRecord> RequireWorkflowRunAsync(Guid runId, CancellationToken cancellationToken)
     {
         var record = await _runStore.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
 
-        // Kiraci eslesmezse "bulunamadi" denir. Baska bir kiracinin
-        // calistirmasinin var oldugu bilgisi bile sizdirilmaz.
+        // When the tenant does not match, the answer is "not found". Not even the
+        // knowledge that another tenant's run exists is leaked.
         if (record is null ||
             !string.Equals(record.TenantId, _tenantContext.TenantId, StringComparison.Ordinal))
         {
@@ -333,8 +335,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         return record;
     }
 
-    /// <summary>Sürdürulecek kontrol noktasini secer.</summary>
-    /// <exception cref="AgentPrismException">Calistirmanin hic kontrol noktasi yoksa.</exception>
+    /// <summary>Selects the checkpoint to resume from.</summary>
+    /// <exception cref="AgentPrismException">The run has no checkpoint at all.</exception>
     private async ValueTask<string> RequireCheckpointAsync(
         Guid runId,
         string? checkpointId,
@@ -368,14 +370,14 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
         var settings = _options.Value;
 
-        // Zaman asimi ve iptal tek bir belirtecte birlesir: istemci baglantiyi
-        // kesse de sunucu tarafindaki yurutme sonsuza kadar surmemelidir.
+        // Timeout and cancellation merge into a single token: even when the client
+        // drops the connection, the server-side execution must not run forever.
         using var timeout = new CancellationTokenSource(settings.RunTimeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
 
-        // Workflow satiri kendi agacinin kokudur (RunId == RootRunId): disaridan
-        // gelen bir iptal (POST /api/runs/{id}/cancel) bu kaynagi tetikler ve
-        // ayni RootRunId altindaki agent calistirmalari da iptal olur.
+        // The workflow row is the root of its own tree (RunId == RootRunId): an
+        // external cancellation (POST /api/runs/{id}/cancel) triggers this source,
+        // and the agent runs below the same RootRunId are canceled too.
         using var cancellationRegistration = _cancellationRegistry?.Register(
             execution.RunId,
             execution.RunId,
@@ -406,10 +408,11 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         var recording = _prismOptions.Value.RunRecording;
         var writer = new RunEventWriter(_runStore, recording, _logger, execution.RunId);
 
-        // 🚨 Kok span BU METODUN GOVDESINDE acilir. Activity.Current bir
-        // AsyncLocal'dir ve bir yardimci metodun icinde yapilan atama cagirana
-        // geri akmaz; span orada acilsaydi agent'larin span'leri kok span'in
-        // cocugu degil kardesi olurdu (Faz 6'da olculdu).
+        // 🚨 The root span is started IN THE BODY OF THIS METHOD. Activity.Current
+        // is an AsyncLocal, and an assignment made inside a helper method does not
+        // flow back to the caller; if the span were started there, the spans of the
+        // agents would be siblings of the root span instead of its children
+        // (measured in phase 6).
         var activity = ActivitySource.StartActivity(AgentPrismDiagnostics.RunActivityName, ActivityKind.Internal);
 
         var scope = new AgentRunScope

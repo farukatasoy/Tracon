@@ -155,7 +155,7 @@ public sealed class VoiceConversationTests
         history.EnsureSuccessStatusCode();
 
         var text = await history.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        text.Contains("kesildi", StringComparison.OrdinalIgnoreCase).ShouldBeTrue();
+        text.Contains("interrupted", StringComparison.OrdinalIgnoreCase).ShouldBeTrue();
     }
 
     [Fact]

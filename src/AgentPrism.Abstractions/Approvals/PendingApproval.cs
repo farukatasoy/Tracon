@@ -1,67 +1,67 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Kuyruktan kosan bir calistirmanin bekleyen tool onay istegi.
+/// The pending tool approval request of a run that executes from the queue.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 Bu kayit bir <strong>izdusumdur</strong>, sahibi degildir: tek gercek
-/// kaynak MAF'in oturum durumudur (<c>ToolApprovalRequestContent</c>, oturum
-/// gecmisinde yasar). Karar uygulanirken oturum okunur, bu tablo degil.
+/// 🚨 This record is a <strong>projection</strong>, not the owner: the single source of
+/// truth is the session state of MAF (<c>ToolApprovalRequestContent</c>, which lives in
+/// the session history). While the decision is applied the session is read, not this table.
 /// </para>
 /// <para>
-/// Bekleyen istegin ait oldugu calistirma <see cref="RunStatus.AwaitingApproval"/>
-/// ile kapanir ve bir daha degismez (K-014). Karar verildiginde AYNI
-/// calistirma surmez; <strong>yeni</strong> bir calistirma kuyruga dusurulur
-/// (ayni <see cref="SessionId"/>, yeni bir <c>RunId</c>).
+/// The run that owns the pending request closes with
+/// <see cref="RunStatus.AwaitingApproval"/> and never changes again (K-014). Once the
+/// decision is made the SAME run does not continue; a <strong>new</strong> run is put on
+/// the queue (the same <see cref="SessionId"/>, a new <c>RunId</c>).
 /// </para>
 /// </remarks>
 public sealed record PendingApproval
 {
-    /// <summary>Kayit kimligi.</summary>
+    /// <summary>Gets the record id.</summary>
     public required Guid Id { get; init; }
 
-    /// <summary>Kiraci kimligi.</summary>
+    /// <summary>Gets the tenant id.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Bu istegi ureten, <see cref="RunStatus.AwaitingApproval"/> ile kapanmis calistirma.</summary>
+    /// <summary>Gets the run that produced this request and closed with <see cref="RunStatus.AwaitingApproval"/>.</summary>
     public required Guid RunId { get; init; }
 
     /// <summary>
-    /// Calistirmanin oturumu. Karar uygulanirken devam eden calistirma bu
-    /// oturumla kuyruga dusurulur.
+    /// Gets the session of the run. While the decision is applied, the continuing run is
+    /// put on the queue with this session.
     /// </summary>
     public required string SessionId { get; init; }
 
-    /// <summary>MAF'in urettigi <c>ToolApprovalRequestContent.RequestId</c> degeri.</summary>
+    /// <summary>Gets the <c>ToolApprovalRequestContent.RequestId</c> value produced by MAF.</summary>
     public required string RequestId { get; init; }
 
-    /// <summary>Onay isteyen tool'un adi.</summary>
+    /// <summary>Gets the name of the tool that asks for approval.</summary>
     public required string ToolName { get; init; }
 
     /// <summary>
-    /// Tool cagrisinin argumanlari, <c>anahtar=deger</c> cifleri olarak
-    /// (AOT uyumlu kalmak icin yansimaya dayanan JSON serilestirme
-    /// KULLANILMAZ). Kayit ayarlarindaki <c>RecordToolPayloads</c> kapaliysa
-    /// <see langword="null"/> kalir.
+    /// Gets the arguments of the tool call as <c>key=value</c> pairs (reflection-based
+    /// JSON serialization is NOT USED, to stay AOT compatible). It stays
+    /// <see langword="null"/> when <c>RecordToolPayloads</c> is turned off in the
+    /// recording settings.
     /// </summary>
     public string? Arguments { get; init; }
 
-    /// <summary>Istegin durumu.</summary>
+    /// <summary>Gets the status of the request.</summary>
     public required ApprovalStatus Status { get; init; }
 
-    /// <summary>Karari veren aktor. Karar verilmediyse <see langword="null"/>.</summary>
+    /// <summary>Gets the actor that made the decision, or <see langword="null"/> when no decision was made.</summary>
     public string? DecidedBy { get; init; }
 
-    /// <summary>Karar ani. Karar verilmediyse <see langword="null"/>.</summary>
+    /// <summary>Gets the time of the decision, or <see langword="null"/> when no decision was made.</summary>
     public DateTimeOffset? DecidedAt { get; init; }
 
     /// <summary>
-    /// Bu andan sonra istek <see cref="ApprovalStatus.Expired"/> sayilir.
+    /// Gets the time after which the request counts as <see cref="ApprovalStatus.Expired"/>.
     /// </summary>
-    /// <remarks>Zorunludur: suresiz bekleyen bir onay istegi bir sizintidir.</remarks>
+    /// <remarks>It is required: an approval request that waits forever is a leak.</remarks>
     public required DateTimeOffset ExpiresAt { get; init; }
 
-    /// <summary>Olusturulma ani.</summary>
+    /// <summary>Gets the creation time.</summary>
     public required DateTimeOffset CreatedAt { get; init; }
 }

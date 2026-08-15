@@ -1,17 +1,17 @@
 namespace AgentPrism;
 
 /// <summary>
-/// <c>UseOpenAI()</c> cagrisinin kaydettigi saglayici adlari.
+/// The provider names that the <c>UseOpenAI()</c> call registers.
 /// </summary>
 /// <remarks>
-/// Bu adlar <strong>kararlidir</strong>. Agent tanimlari veritabaninda bu adlarla
-/// saklanir; degistirmek kayitli tanimlari bozar.
+/// These names are <strong>stable</strong>. Agent definitions are stored in the database
+/// with these names; changing them breaks the stored definitions.
 /// </remarks>
 public static class OpenAIProviderNames
 {
-    /// <summary>Chat Completions API kullanan saglayici: <c>openai</c>.</summary>
+    /// <summary>Gets the provider that uses the Chat Completions API: <c>openai</c>.</summary>
     public const string ChatCompletions = "openai";
 
-    /// <summary>Responses API kullanan saglayici: <c>openai-responses</c>.</summary>
+    /// <summary>Gets the provider that uses the Responses API: <c>openai-responses</c>.</summary>
     public const string Responses = "openai-responses";
 }

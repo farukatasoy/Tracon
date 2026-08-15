@@ -7,20 +7,21 @@ using OpenAI.Responses;
 namespace AgentPrism;
 
 /// <summary>
-/// Ayarlardan bir <see cref="OpenAIClient"/> kurar ve model baglantilarindan
-/// <see cref="IChatClient"/> uretir.
+/// Builds an <see cref="OpenAIClient"/> from options and produces
+/// <see cref="IChatClient"/> instances from model bindings.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 Fabrika <strong>HAM</strong> bir istemci doner. Ortak boru hatti
-/// (<c>UseFunctionInvocation()</c>, <c>UseOpenTelemetry()</c>, icerik guard'i,
-/// devre kesici, ek cozme) <c>ModelProviderRegistry.CreateChatClient</c> icinde
-/// kurulur — Faz 48'de oraya tasindi. Gerekce: dongu burada kurulunca defterin
-/// sardigi hicbir halka tool cagri turlarini goremiyordu.
+/// 🚨 The factory returns a <strong>RAW</strong> client. The shared pipeline
+/// (<c>UseFunctionInvocation()</c>, <c>UseOpenTelemetry()</c>, the content guard,
+/// the circuit breaker and attachment resolution) is built inside
+/// <c>ModelProviderRegistry.CreateChatClient</c> — it moved there in phase 48. Reason:
+/// when the loop was built here, no decorator wrapped by the recorder could observe
+/// the tool call turns.
 /// </para>
 /// <para>
-/// <see cref="OpenAIClient"/> bir kez kurulur ve paylasilir; HTTP baglanti havuzunu
-/// kendi yonetir. Her derlemede yeni bir istemci kurmak havuzu parcalar.
+/// The <see cref="OpenAIClient"/> is built once and shared; it manages the HTTP
+/// connection pool itself. Building a new client per chat client fragments that pool.
 /// </para>
 /// </remarks>
 public sealed class OpenAIChatClientFactory
@@ -29,24 +30,24 @@ public sealed class OpenAIChatClientFactory
     private readonly string? _defaultModel;
     private readonly ILoggerFactory? _loggerFactory;
 
-    /// <summary>Ayarlardan yeni bir fabrika kurar.</summary>
-    /// <param name="options">Saglayici ayarlari.</param>
-    /// <param name="loggerFactory">Uretilen istemcilere verilecek gunlukleyici fabrikasi.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="AgentPrismException"><see cref="OpenAIProviderOptions.ApiKey"/> bos ise.</exception>
+    /// <summary>Initializes a new factory from options.</summary>
+    /// <param name="options">Provider options.</param>
+    /// <param name="loggerFactory">Logger factory handed to the produced clients.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
+    /// <exception cref="AgentPrismException"><see cref="OpenAIProviderOptions.ApiKey"/> is empty.</exception>
     public OpenAIChatClientFactory(OpenAIProviderOptions options, ILoggerFactory? loggerFactory = null)
         : this(CreateClient(options), options.DefaultModel, loggerFactory)
     {
     }
 
-    /// <summary>Hazir bir istemciden yeni bir fabrika kurar.</summary>
-    /// <param name="client">Kullanilacak OpenAI istemcisi.</param>
-    /// <param name="defaultModel">Model adi verilmediginde kullanilacak model.</param>
-    /// <param name="loggerFactory">Uretilen istemcilere verilecek gunlukleyici fabrikasi.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="client"/> <see langword="null"/> ise.</exception>
+    /// <summary>Initializes a new factory from an existing client.</summary>
+    /// <param name="client">The OpenAI client to use.</param>
+    /// <param name="defaultModel">The model to use when no model name is given.</param>
+    /// <param name="loggerFactory">Logger factory handed to the produced clients.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="client"/> is <see langword="null"/>.</exception>
     /// <remarks>
-    /// Kimlik dogrulamasini kendi yoneten kurulumlar (ornegin token yenileyen bir
-    /// kimlik saglayici) bu kurucuyu kullanir.
+    /// Setups that manage authentication themselves (for example an identity provider
+    /// that refreshes tokens) use this constructor.
     /// </remarks>
     public OpenAIChatClientFactory(OpenAIClient client, string? defaultModel = null, ILoggerFactory? loggerFactory = null)
     {
@@ -57,30 +58,30 @@ public sealed class OpenAIChatClientFactory
         _loggerFactory = loggerFactory;
     }
 
-    /// <summary>Verilen baglanti icin bir sohbet istemcisi uretir.</summary>
-    /// <param name="binding">Model baglantisi.</param>
-    /// <param name="apiSurface">Kullanilacak OpenAI API yuzeyi.</param>
-    /// <returns>Boru hattindan gecirilmis sohbet istemcisi.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="binding"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="AgentPrismException">Model adi cozulemezse.</exception>
+    /// <summary>Creates a chat client for the given binding.</summary>
+    /// <param name="binding">The model binding.</param>
+    /// <param name="apiSurface">The OpenAI API surface to use.</param>
+    /// <returns>A chat client that the pipeline wraps.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="binding"/> is <see langword="null"/>.</exception>
+    /// <exception cref="AgentPrismException">The model name cannot be resolved.</exception>
     public IChatClient CreateChatClient(ModelBinding binding, OpenAIApiSurface apiSurface)
     {
         ArgumentNullException.ThrowIfNull(binding);
 
         var model = Trim(binding.Model) ?? _defaultModel
             ?? throw new AgentPrismException(
-                "Model adi bos ve varsayilan model tanimli degil. Agent tanimindaki " +
-                $"{nameof(ModelBinding)}.{nameof(ModelBinding.Model)} alanini doldurun veya " +
-                $"'{OpenAIProviderOptions.SectionName}:{nameof(OpenAIProviderOptions.DefaultModel)}' ayarini verin.");
+                "The model name is empty and no default model is configured. Set the " +
+                $"{nameof(ModelBinding)}.{nameof(ModelBinding.Model)} field of the agent definition, or " +
+                $"configure '{OpenAIProviderOptions.SectionName}:{nameof(OpenAIProviderOptions.DefaultModel)}'.");
 
         return CreateInnerChatClient(model, apiSurface);
     }
 
-    /// <summary>Ayarlardan bir OpenAI istemcisi kurar.</summary>
-    /// <param name="options">Saglayici ayarlari.</param>
-    /// <returns>Kurulmus istemci.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="AgentPrismException"><see cref="OpenAIProviderOptions.ApiKey"/> bos ise.</exception>
+    /// <summary>Builds an OpenAI client from options.</summary>
+    /// <param name="options">Provider options.</param>
+    /// <returns>The client that was built.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
+    /// <exception cref="AgentPrismException"><see cref="OpenAIProviderOptions.ApiKey"/> is empty.</exception>
     public static OpenAIClient CreateClient(OpenAIProviderOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -88,9 +89,9 @@ public sealed class OpenAIChatClientFactory
         if (string.IsNullOrWhiteSpace(options.ApiKey))
         {
             throw new AgentPrismException(
-                $"{nameof(OpenAIProviderOptions)}.{nameof(OpenAIProviderOptions.ApiKey)} bos. " +
-                $"Anahtari `UseOpenAI(apiKey)` cagrisinda verin veya " +
-                $"'{OpenAIProviderOptions.SectionName}:{nameof(OpenAIProviderOptions.ApiKey)}' ayarini tanimlayin.");
+                $"{nameof(OpenAIProviderOptions)}.{nameof(OpenAIProviderOptions.ApiKey)} is empty. " +
+                $"Pass the key to the `UseOpenAI(apiKey)` call, or define " +
+                $"'{OpenAIProviderOptions.SectionName}:{nameof(OpenAIProviderOptions.ApiKey)}'.");
         }
 
         var clientOptions = new OpenAIClientOptions();
@@ -120,17 +121,17 @@ public sealed class OpenAIChatClientFactory
             return _client.GetChatClient(model).AsIChatClient();
         }
 
-        // Sunucu tarafi depolama BILEREK kapali. Acik birakilirsa OpenAI bir konusma
-        // kimligi dondurur ve MAF hata verir: "Only ConversationId or ChatHistoryProvider
-        // may be used, but not both." AgentPrism'in kalicilik katmani her agent'a bir
-        // ChatHistoryProvider baglar, dolayisiyla iki yol ayni anda calisamaz.
-        // Olculdu: acikken UsePostgreSql() ile birlikte calisma aninda InvalidOperationException.
+        // Server side storage is DELIBERATELY off. When it stays on, OpenAI returns a
+        // conversation id and MAF fails with: "Only ConversationId or ChatHistoryProvider
+        // may be used, but not both." The AgentPrism persistence layer attaches a
+        // ChatHistoryProvider to every agent, so the two paths cannot run together.
+        // Measured: with storage on, UsePostgreSql() throws InvalidOperationException at run time.
         //
-        // OPENAI001 / MAAI001: hem OpenAI kitapligi hem Microsoft Agent Framework bu
-        // yolu "evaluation purposes only" olarak isaretliyor ve TreatWarningsAsErrors
-        // ile build'i kiriyor. Bastirma bilincli bir karardir: Responses kullanimi
-        // yalnizca bu iki satirdadir, boylece API degisirse tek nokta guncellenir.
-        // Gerekce: docs/KARARLAR.md, kararlar K-030 ve K-031.
+        // OPENAI001 / MAAI001: both the OpenAI library and the Microsoft Agent Framework
+        // mark this path as "evaluation purposes only", which breaks the build under
+        // TreatWarningsAsErrors. The suppression is a deliberate decision: the Responses
+        // usage lives on these two lines only, so a single place changes if the API moves.
+        // Reason: docs/KARARLAR.md, decisions K-030 and K-031.
 #pragma warning disable OPENAI001, MAAI001
         return _client.GetResponsesClient().AsIChatClientWithStoredOutputDisabled(model);
 #pragma warning restore OPENAI001, MAAI001

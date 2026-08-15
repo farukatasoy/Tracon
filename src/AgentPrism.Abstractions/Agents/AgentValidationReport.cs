@@ -1,25 +1,25 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Bir agent tanimini kaydetmeden ve hicbir model cagirmadan derleyen
-/// dogrulamanin sonucu.
+/// The result of a validation that builds an agent definition without saving it and
+/// without calling any model.
 /// </summary>
 /// <remarks>
-/// Dogrulama basarisizligi bir HTTP hatasi degildir: istek gecerlidir, cevap
-/// "bu tanim gecersiz"dir. Bu yuzden <see cref="Valid"/> <see langword="false"/>
-/// olsa bile HTTP yaniti <c>200</c>'dur.
+/// A failed validation is not an HTTP error: the request is valid and the answer is
+/// "this definition is invalid". The HTTP response is therefore <c>200</c> even when
+/// <see cref="Valid"/> is <see langword="false"/>.
 /// </remarks>
 public sealed record AgentValidationReport
 {
-    /// <summary>Tanim hicbir <see cref="ValidationSeverity.Error"/> tasimiyorsa <see langword="true"/>.</summary>
+    /// <summary>Gets a value that is <see langword="true"/> when the definition carries no <see cref="ValidationSeverity.Error"/>.</summary>
     public required bool Valid { get; init; }
 
     /// <summary>
-    /// Bir denetim, ulasilamayan bir kaynak (ornek: MCP sunucusu) yuzunden tam
-    /// sonuclanamadi. <see cref="Valid"/> deger bundan etkilenmez.
+    /// Gets a value that tells whether a check could not finish because a resource was
+    /// unreachable, an MCP server for example. It does not affect <see cref="Valid"/>.
     /// </summary>
     public required bool Inconclusive { get; init; }
 
-    /// <summary>Bulunan tum mesajlar. Ilk hatada durulmaz.</summary>
+    /// <summary>Gets every message found. Validation does not stop at the first error.</summary>
     public required IReadOnlyList<ValidationMessage> Messages { get; init; }
 }

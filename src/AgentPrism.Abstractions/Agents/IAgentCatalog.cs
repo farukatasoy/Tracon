@@ -3,42 +3,44 @@ using Microsoft.Agents.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Tum agent kaynaklarini tek bir gorunumde birlestiren katalog.
-/// Arayuz ve HTTP katmani agent'lara yalnizca bu arayuz uzerinden erisir.
+/// The catalog that joins every agent source into a single view. The user interface
+/// and the HTTP layer reach agents only through this interface.
 /// </summary>
 public interface IAgentCatalog
 {
     /// <summary>
-    /// Tum kaynaklardaki agent'lari listeler. Ad cakismasinda onceligi yuksek
-    /// kaynak kazanir ve dusuk oncelikli olan listeye eklenmez.
+    /// Lists the agents from every source. On a name clash the source with the higher
+    /// priority wins, and the lower-priority one is not added to the list.
     /// </summary>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Ada gore siralanmis agent ozetleri.</returns>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>Agent summaries ordered by name.</returns>
     ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Adi verilen agent'i cozer. Donen agent, calistirma kaydi sarmalayicisi
-    /// ile sarilmistir; her calistirma <see cref="IRunStore"/> icine yazilir.
+    /// Resolves the agent with the given name. The returned agent is wrapped by the run
+    /// recording decorator; every run is written into <see cref="IRunStore"/>.
     /// </summary>
-    /// <param name="agentName">Agent adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Agent; hicbir kaynakta bulunamazsa <see langword="null"/>.</returns>
+    /// <param name="agentName">The agent name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The agent, or <see langword="null"/> when no source holds it.</returns>
     ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Adi ve <strong>belirli bir tanim surumunu</strong> cozer. Kod kaynakli agent'larda
-    /// (<see cref="AgentDefinitionOrigin.Code"/>) surum gecmisi yoktur; <paramref name="version"/>
-    /// verilirse ve agent kod kaynakliysa <see cref="AgentPrismException"/> firlatilir.
+    /// Resolves an agent by name and by <strong>a specific definition version</strong>.
+    /// Code agents (<see cref="AgentDefinitionOrigin.Code"/>) have no version history;
+    /// <see cref="AgentPrismException"/> is thrown when <paramref name="version"/> is
+    /// given for a code agent.
     /// </summary>
-    /// <param name="agentName">Agent adi.</param>
+    /// <param name="agentName">The agent name.</param>
     /// <param name="version">
-    /// Istenen tanim surumu. <see langword="null"/> ise <see cref="ResolveAsync(string, CancellationToken)"/>
-    /// ile ayni davranir (guncel surum).
+    /// The requested definition version. When <see langword="null"/> it behaves like
+    /// <see cref="ResolveAsync(string, CancellationToken)"/> (the current version).
     /// </param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Agent; bulunamazsa <see langword="null"/>.</returns>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The agent, or <see langword="null"/> when it is not found.</returns>
     /// <exception cref="AgentPrismException">
-    /// <paramref name="version"/> verilmis ve agent kod kaynakliysa, veya o surum mevcut degilse.
+    /// <paramref name="version"/> is given and the agent comes from code, or that version
+    /// does not exist.
     /// </exception>
     ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, CancellationToken cancellationToken = default);
 }

@@ -7,16 +7,16 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
-/// <summary>AgentPrism zincirine OpenAI saglayicisini ekleyen uzantilar.</summary>
+/// <summary>Extensions that add the OpenAI provider to the AgentPrism chain.</summary>
 public static class OpenAIProviderExtensions
 {
-    /// <summary>API anahtari vererek OpenAI saglayicisini ekler.</summary>
-    /// <param name="builder">AgentPrism zinciri.</param>
-    /// <param name="apiKey">OpenAI API anahtari.</param>
-    /// <param name="configure">Ek ayar degistirici.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="builder"/> <see langword="null"/> ise.</exception>
-    /// <exception cref="ArgumentException"><paramref name="apiKey"/> bos ise.</exception>
+    /// <summary>Adds the OpenAI provider with the given API key.</summary>
+    /// <param name="builder">The AgentPrism chain.</param>
+    /// <param name="apiKey">The OpenAI API key.</param>
+    /// <param name="configure">An extra options callback.</param>
+    /// <returns>The same chain, for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="apiKey"/> is empty.</exception>
     public static IAgentPrismBuilder UseOpenAI(
         this IAgentPrismBuilder builder,
         string apiKey,
@@ -33,16 +33,16 @@ public static class OpenAIProviderExtensions
     }
 
     /// <summary>
-    /// Ayarlari <c>AgentPrism:Providers:OpenAI</c> bolumunden okuyarak OpenAI
-    /// saglayicisini ekler.
+    /// Adds the OpenAI provider with options read from the
+    /// <c>AgentPrism:Providers:OpenAI</c> section.
     /// </summary>
-    /// <param name="builder">AgentPrism zinciri.</param>
+    /// <param name="builder">The AgentPrism chain.</param>
     /// <param name="configurationSection">
-    /// Ayarlarin okunacagi bolum. Genellikle
+    /// The section the options are read from. Usually
     /// <c>configuration.GetSection(OpenAIProviderOptions.SectionName)</c>.
     /// </param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException">Parametrelerden biri <see langword="null"/> ise.</exception>
+    /// <returns>The same chain, for chaining.</returns>
+    /// <exception cref="ArgumentNullException">Any parameter is <see langword="null"/>.</exception>
     public static IAgentPrismBuilder UseOpenAI(
         this IAgentPrismBuilder builder,
         IConfiguration configurationSection)
@@ -53,26 +53,26 @@ public static class OpenAIProviderExtensions
         return builder.UseOpenAI(options => Bind(configurationSection, options));
     }
 
-    /// <summary>Ayarlari kodda vererek OpenAI saglayicisini ekler.</summary>
-    /// <param name="builder">AgentPrism zinciri.</param>
-    /// <param name="configure">Ayar degistirici.</param>
-    /// <returns>Zincirin devami.</returns>
-    /// <exception cref="ArgumentNullException">Parametrelerden biri <see langword="null"/> ise.</exception>
+    /// <summary>Adds the OpenAI provider with options set in code.</summary>
+    /// <param name="builder">The AgentPrism chain.</param>
+    /// <param name="configure">The options callback.</param>
+    /// <returns>The same chain, for chaining.</returns>
+    /// <exception cref="ArgumentNullException">Any parameter is <see langword="null"/>.</exception>
     /// <remarks>
     /// <para>
-    /// Bu cagri iki saglayici kaydeder: <see cref="OpenAIProviderNames.ChatCompletions"/>
-    /// ve <see cref="OpenAIProviderNames.Responses"/>. Agent tanimi
-    /// <see cref="ModelBinding.Provider"/> ile hangisini kullanacagini secer.
+    /// This call registers two providers: <see cref="OpenAIProviderNames.ChatCompletions"/>
+    /// and <see cref="OpenAIProviderNames.Responses"/>. The agent definition picks the one
+    /// it uses through <see cref="ModelBinding.Provider"/>.
     /// </para>
     /// <para>
-    /// Kayit <c>AddModelProvider(...)</c> ile yapilir; mevcut hicbir servis
-    /// <em>degistirilmez</em>. <c>UsePostgreSql()</c> mevcut depolarin yerine gectigi
-    /// icin <c>Replace</c> kullanir; bu cagri yeni bir saglayici <em>ekler</em>, bu
-    /// yuzden ayni ihtiyac yoktur. Gerekce: <c>docs/KARARLAR.md</c>, karar K-025.
+    /// Registration goes through <c>AddModelProvider(...)</c>; no existing service is
+    /// <em>replaced</em>. <c>UsePostgreSql()</c> uses <c>Replace</c> because it takes the
+    /// place of the existing stores; this call <em>adds</em> a new provider, so it has no
+    /// such need. Reason: <c>docs/KARARLAR.md</c>, decision K-025.
     /// </para>
     /// <para>
-    /// Birden cok kez cagrilirsa ayarlar birlestirilir; saglayicilar yalnizca bir kez
-    /// kaydedilir.
+    /// When it is called more than once, the options are merged; the providers are
+    /// registered only once.
     /// </para>
     /// </remarks>
     public static IAgentPrismBuilder UseOpenAI(
@@ -90,13 +90,13 @@ public static class OpenAIProviderExtensions
             IValidateOptions<OpenAIProviderOptions>,
             OpenAIProviderOptionsValidator>());
 
-        // Ikinci cagri ayarlari birlestirir ama saglayicilari tekrar kaydetmez;
-        // aksi halde ModelProviderRegistry "ayni ad birden cok kez kaydedilmis"
-        // hatasi verirdi ve sebebi kullaniciya kapali kalirdi.
+        // A second call merges the options but does not register the providers again;
+        // otherwise ModelProviderRegistry would fail with "the same name is registered
+        // more than once" and the reason would stay hidden from the user.
         var alreadyRegistered = services.Any(
             static descriptor => descriptor.ServiceType == typeof(OpenAIChatClientFactory));
 
-        // Tek istemci, tek HTTP baglanti havuzu. Iki saglayici da bunu paylasir.
+        // One client, one HTTP connection pool. Both providers share it.
         services.TryAddSingleton(static provider => new OpenAIChatClientFactory(
             provider.GetRequiredService<IOptions<OpenAIProviderOptions>>().Value,
             provider.GetService<ILoggerFactory>()));
@@ -136,17 +136,17 @@ public static class OpenAIProviderExtensions
     }
 
     /// <summary>
-    /// Yapilandirma bolumunu ayar nesnesine elle baglar.
+    /// Binds the configuration section to the options object by hand.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <c>Bind()</c> yansimaya dayanir ve <c>IL2026</c> + <c>IL3050</c> uretir.
-    /// Yeni bir ayar eklendiginde bu metoda da eklenmelidir.
-    /// Gerekce: <c>docs/KARARLAR.md</c>, karar K-021.
+    /// <c>Bind()</c> relies on reflection and produces <c>IL2026</c> + <c>IL3050</c>.
+    /// When a new option is added, it must be added to this method too.
+    /// Reason: <c>docs/KARARLAR.md</c>, decision K-021.
     /// </para>
     /// <para>
-    /// <c>internal</c>: <c>OpenAICompatibleProviderExtensions</c> ayni baglama
-    /// mantigini adlandirilmis ornekler icin de kullanir; kopyalanmaz.
+    /// <c>internal</c>: <c>OpenAICompatibleProviderExtensions</c> uses the same binding
+    /// logic for named instances too; it is not copied.
     /// </para>
     /// </remarks>
     internal static void Bind(IConfiguration section, OpenAIProviderOptions options)
@@ -164,9 +164,9 @@ public static class OpenAIProviderExtensions
         if (section[nameof(OpenAIProviderOptions.Endpoint)] is { Length: > 0 } endpoint
             && Uri.TryCreate(endpoint, UriKind.RelativeOrAbsolute, out var endpointUri))
         {
-            // Goreli adresler de atanir: validator IsAbsoluteUri denetimiyle
-            // reddeder. Yalnizca UriKind.Absolute ile parse edip goreliyi
-            // sessizce atlamak validator'in bu dalini erisilemez birakirdi.
+            // Relative addresses are assigned too: the validator rejects them with its
+            // IsAbsoluteUri check. Parsing with UriKind.Absolute only, and silently
+            // skipping a relative address, would leave that validator branch unreachable.
             options.Endpoint = endpointUri;
         }
 
@@ -195,8 +195,8 @@ public static class OpenAIProviderExtensions
     {
         foreach (var child in section.GetChildren())
         {
-            // Bos/eksik ad da eklenir: validator Models[i] dongusuyle reddeder.
-            // Burada atlamak validator'in bu dalini erisilemez birakirdi.
+            // An empty or missing name is added too: the validator rejects it in its
+            // Models[i] loop. Skipping it here would leave that validator branch unreachable.
             options.Models.Add(new ModelDescriptor
             {
                 Name = child[nameof(ModelDescriptor.Name)] ?? string.Empty,

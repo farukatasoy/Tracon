@@ -1,14 +1,14 @@
 namespace AgentPrism;
 
-/// <summary>Gecerli caginin aktorunu (kim) cozer.</summary>
+/// <summary>Resolves the actor (the who) of the current call.</summary>
 /// <remarks>
-/// Varsayilan uygulama HTTP istegindeki kullaniciyi okur. Kimlik dogrulamasi
-/// yoksa veya aktor cozulemiyorsa <see langword="null"/> doner; bu durum
-/// gizlenmez, arayuz "bilinmiyor" gosterir.
+/// The default implementation reads the user of the HTTP request. It returns
+/// <see langword="null"/> when there is no authentication or the actor cannot be
+/// resolved; that state is not hidden, and the user interface shows "unknown".
 /// </remarks>
 public interface IAuditActorResolver
 {
-    /// <summary>Gecerli aktoru cozer.</summary>
-    /// <returns>Aktor kimligi; cozulemiyorsa <see langword="null"/>.</returns>
+    /// <summary>Resolves the current actor.</summary>
+    /// <returns>The actor id, or <see langword="null"/> when it cannot be resolved.</returns>
     string? Resolve();
 }

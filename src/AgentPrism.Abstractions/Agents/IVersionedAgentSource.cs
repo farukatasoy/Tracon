@@ -3,16 +3,17 @@ using Microsoft.Agents.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Belirli bir tanim surumunu cozebilen bir <see cref="IAgentSource"/>. Yalnizca
-/// surum gecmisi tutan kaynaklar (veritabani kaynagi) uygular; kod kaynaginin
-/// surum kavrami olmadigi icin bu arayuzu uygulamasina gerek yoktur (karar K-003).
+/// An <see cref="IAgentSource"/> that can resolve a specific definition version. Only
+/// sources that keep a version history implement it (the database source); the code
+/// source has no notion of a version and need not implement this interface (decision
+/// K-003).
 /// </summary>
 public interface IVersionedAgentSource : IAgentSource
 {
-    /// <summary>Adi ve belirli bir surumu cozer.</summary>
-    /// <param name="agentName">Agent adi.</param>
-    /// <param name="version">Istenen tanim surumu.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Agent; bu kaynakta yoksa veya o surum mevcut degilse <see langword="null"/>.</returns>
+    /// <summary>Resolves an agent by name and by a specific version.</summary>
+    /// <param name="agentName">The agent name.</param>
+    /// <param name="version">The requested definition version.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The agent, or <see langword="null"/> when this source does not hold it or that version does not exist.</returns>
     ValueTask<AIAgent?> ResolveVersionAsync(string agentName, int version, CancellationToken cancellationToken = default);
 }

@@ -3,34 +3,35 @@ using System.Security.Cryptography;
 namespace AgentPrism;
 
 /// <summary>
-/// AgentPrism kimlikleri icin UUID surum 7 ureteci (RFC 9562).
+/// UUID version 7 generator for AgentPrism identifiers (RFC 9562).
 /// </summary>
 /// <remarks>
 /// <para>
-/// UUIDv7 zaman siralidir: ilk 48 bit Unix milisaniye damgasidir. Bu sayede
-/// B-tree index parcalanmasi olusmaz ve <c>ORDER BY id</c> zaman sirasi verir.
-/// <c>bigserial</c>'in merkezi sira darbogazi da olusmaz.
+/// A UUIDv7 is time ordered: the first 48 bits are a Unix millisecond stamp.
+/// This keeps B-tree indexes from fragmenting and makes <c>ORDER BY id</c>
+/// return time order. It also avoids the central sequence bottleneck of
+/// <c>bigserial</c>.
 /// </para>
 /// <para>
-/// .NET 9 ile gelen <c>Guid.CreateVersion7()</c> yerine kendi uygulamamizi
-/// kullaniyoruz. Sebep: paket <c>net8.0</c> hedefini de destekler ve depolama
-/// anahtarlarinin tum hedeflerde ayni sekilde uretilmesi gerekir.
+/// We use our own implementation instead of <c>Guid.CreateVersion7()</c> from
+/// .NET 9. The reason: the package also targets <c>net8.0</c>, and storage keys
+/// must be produced the same way on every target.
 /// </para>
 /// </remarks>
 public static class AgentPrismId
 {
-    /// <summary>Su ana damgali yeni bir UUIDv7 uretir.</summary>
-    /// <returns>Zaman sirali kimlik.</returns>
+    /// <summary>Creates a new UUIDv7 stamped with the current time.</summary>
+    /// <returns>A time-ordered identifier.</returns>
     public static Guid NewId() => NewId(DateTimeOffset.UtcNow);
 
-    /// <summary>Belirtilen ana damgali bir UUIDv7 uretir.</summary>
-    /// <param name="timestamp">Kimlige gomulecek zaman damgasi.</param>
-    /// <returns>Zaman sirali kimlik.</returns>
+    /// <summary>Creates a UUIDv7 stamped with the given time.</summary>
+    /// <param name="timestamp">The time stamp to embed in the identifier.</param>
+    /// <returns>A time-ordered identifier.</returns>
     public static Guid NewId(DateTimeOffset timestamp)
     {
         Span<byte> bytes = stackalloc byte[16];
 
-        // 0-5: 48 bit Unix milisaniye, big-endian.
+        // 0-5: 48-bit Unix milliseconds, big-endian.
         var milliseconds = timestamp.ToUnixTimeMilliseconds();
         bytes[0] = (byte)(milliseconds >> 40);
         bytes[1] = (byte)(milliseconds >> 32);
@@ -39,33 +40,33 @@ public static class AgentPrismId
         bytes[4] = (byte)(milliseconds >> 8);
         bytes[5] = (byte)milliseconds;
 
-        // 6-15: rastgele.
+        // 6-15: random.
         RandomNumberGenerator.Fill(bytes[6..]);
 
-        // 6. baytin ust 4 biti surum numarasi (7).
+        // The high 4 bits of byte 6 are the version number (7).
         bytes[6] = (byte)((bytes[6] & 0x0F) | 0x70);
 
-        // 8. baytin ust 2 biti RFC 9562 varyanti (10).
+        // The high 2 bits of byte 8 are the RFC 9562 variant (10).
         bytes[8] = (byte)((bytes[8] & 0x3F) | 0x80);
 
         return new Guid(bytes, bigEndian: true);
     }
 
-    /// <summary>Bir UUIDv7 icindeki zaman damgasini geri okur.</summary>
-    /// <param name="id">UUIDv7 degeri.</param>
-    /// <returns>Kimlige gomulu zaman damgasi.</returns>
-    /// <exception cref="ArgumentException"><paramref name="id"/> surum 7 degilse.</exception>
+    /// <summary>Reads the time stamp back out of a UUIDv7.</summary>
+    /// <param name="id">The UUIDv7 value.</param>
+    /// <returns>The time stamp embedded in the identifier.</returns>
+    /// <exception cref="ArgumentException"><paramref name="id"/> is not a version 7 value.</exception>
     public static DateTimeOffset GetTimestamp(Guid id)
     {
         Span<byte> bytes = stackalloc byte[16];
         if (!id.TryWriteBytes(bytes, bigEndian: true, out _))
         {
-            throw new ArgumentException("Kimlik baytlari okunamadi.", nameof(id));
+            throw new ArgumentException("The identifier bytes could not be read.", nameof(id));
         }
 
         if ((bytes[6] & 0xF0) != 0x70)
         {
-            throw new ArgumentException("Kimlik bir UUID surum 7 degeri degil.", nameof(id));
+            throw new ArgumentException("The identifier is not a UUID version 7 value.", nameof(id));
         }
 
         long milliseconds = ((long)bytes[0] << 40)
