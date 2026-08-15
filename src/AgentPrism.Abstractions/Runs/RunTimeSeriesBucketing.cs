@@ -1,16 +1,16 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Zaman serisi kova hesabinin paylasilan saf mantigi. Hem <c>InMemoryRunStore</c>
-/// hem <c>PostgresRunStore</c> bu turu kullanir; boylece kova sinirlamasi ve
-/// yuvarlama kurallari iki depoda asla birbirinden sapmaz.
+/// The shared pure logic for time-series bucket computation. Both
+/// <c>InMemoryRunStore</c> and <c>PostgresRunStore</c> use this type, so the
+/// bucket limit and rounding rules never diverge between the two stores.
 /// </summary>
 public static class RunTimeSeriesBucketing
 {
-    /// <summary>Bir sorgunun uretebilecegi en fazla kova sayisi.</summary>
+    /// <summary>The maximum number of buckets a query may produce.</summary>
     public const int MaxBuckets = 500;
 
-    /// <summary>Bir kovanin genisligini dondurur.</summary>
+    /// <summary>Returns a bucket's width.</summary>
     public static TimeSpan StepFor(TimeSeriesBucket bucket) => bucket switch
     {
         TimeSeriesBucket.Hour => TimeSpan.FromHours(1),
@@ -18,7 +18,7 @@ public static class RunTimeSeriesBucketing
         _ => throw new ArgumentOutOfRangeException(nameof(bucket), bucket, message: null),
     };
 
-    /// <summary>Bir zaman damgasini kova sinirina yuvarlar (UTC).</summary>
+    /// <summary>Rounds a timestamp down to the bucket boundary (UTC).</summary>
     public static DateTimeOffset Truncate(DateTimeOffset value, TimeSeriesBucket bucket)
     {
         var utc = value.ToUniversalTime();
@@ -28,10 +28,9 @@ public static class RunTimeSeriesBucketing
     }
 
     /// <summary>
-    /// Istenen aralik ve kova genisliginin <see cref="MaxBuckets"/>'i asmadigini
-    /// dogrular.
+    /// Validates that the requested range and bucket width does not exceed <see cref="MaxBuckets"/>.
     /// </summary>
-    /// <exception cref="AgentPrismException">Aralik en fazla kova sayisini asiyor.</exception>
+    /// <exception cref="AgentPrismException">The range exceeds the maximum number of buckets.</exception>
     public static void Validate(DateTimeOffset from, DateTimeOffset to, TimeSeriesBucket bucket)
     {
         var span = to - from;
