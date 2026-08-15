@@ -113,7 +113,6 @@ src/AgentPrism.Azure/README.md|51
 src/AgentPrism.Core/AgentPrism.Core.csproj|20
 src/AgentPrism.Core/AgentPrismBuilder.cs|1
 src/AgentPrism.Core/AgentPrismCoreJsonContext.cs|6
-src/AgentPrism.Core/AgentPrismOptions.cs|154
 src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs|252
 src/AgentPrism.Core/Approvals/AgentPrismApprovalOptions.cs|11
 src/AgentPrism.Core/Approvals/ApprovalExpirationService.cs|17

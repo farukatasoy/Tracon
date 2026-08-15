@@ -2,117 +2,115 @@ using Microsoft.Extensions.AI;
 
 namespace AgentPrism;
 
-/// <summary>AgentPrism'in calisma zamani ayarlari.</summary>
-/// <remarks>Dogrulama <see cref="AgentPrismOptionsValidator"/> icinde elle yapilir.</remarks>
+/// <summary>Defines AgentPrism run-time options.</summary>
+/// <remarks><see cref="AgentPrismOptionsValidator"/> performs validation manually.</remarks>
 public sealed class AgentPrismOptions
 {
-    /// <summary>Yapilandirma bolumunun varsayilan adi.</summary>
+    /// <summary>Gets the default configuration section name.</summary>
     public const string SectionName = "AgentPrism";
 
     /// <summary>
-    /// Istekten kiraci cozulemedigi durumda kullanilacak kiraci kimligi.
-    /// Tek kiracili kurulumda her zaman bu deger kullanilir.
+    /// Gets or sets the tenant identifier used when a request cannot resolve one.
+    /// A single-tenant installation always uses this value.
     /// </summary>
     public string DefaultTenantId { get; set; } = "default";
 
-    /// <summary>Calistirma kaydi ayarlari.</summary>
+    /// <summary>Gets or sets run-recording options.</summary>
     public AgentPrismRunRecordingOptions RunRecording { get; set; } = new();
 
-    /// <summary>Telemetri ayarlari.</summary>
+    /// <summary>Gets or sets telemetry options.</summary>
     public AgentPrismObservabilityOptions Observability { get; set; } = new();
 
-    /// <summary>Model saglayicisi devre kesici ayarlari.</summary>
+    /// <summary>Gets or sets model-provider circuit-breaker options.</summary>
     public AgentPrismCircuitBreakerOptions CircuitBreaker { get; set; } = new();
 
-    /// <summary>Model saglayicisi saglik denetimi ayarlari.</summary>
+    /// <summary>Gets or sets model-provider health-check options.</summary>
     public AgentPrismHealthOptions Health { get; set; } = new();
 
-    /// <summary>Denetim izi ayarlari.</summary>
+    /// <summary>Gets or sets audit-trail options.</summary>
     public AgentPrismAuditOptions Audit { get; set; } = new();
 
-    /// <summary>Skill yukleme sinirlari.</summary>
+    /// <summary>Gets or sets skill-loading limits.</summary>
     public AgentPrismSkillOptions Skills { get; set; } = new();
 
-    /// <summary>Agent'in agent cagirmasi icin gecerli sinirlar.</summary>
+    /// <summary>Gets or sets limits for agent-to-agent calls.</summary>
     public AgentPrismAgentGraphOptions AgentGraph { get; set; } = new();
 
-    /// <summary>Ek (goruntu, ses, belge) yukleme sinirlari.</summary>
+    /// <summary>Gets or sets attachment upload limits for images, audio, and documents.</summary>
     public AgentPrismAttachmentOptions Attachments { get; set; } = new();
 
-    /// <summary>Calistirma maliyetinin fiyat kaynagi (Faz 20).</summary>
+    /// <summary>Gets or sets the run-cost price source, introduced in phase 20.</summary>
     public AgentPrismPricingOptions Pricing { get; set; } = new();
 
     /// <summary>
-    /// Baglam sikistirmasinda ozetleme icin kullanilacak varsayilan model.
+    /// Gets or sets the default model for context-compaction summarization.
     /// </summary>
     /// <remarks>
-    /// Bir agent tanimi kendi <c>CompactionSettings.SummarizationModel</c>'ini
-    /// vermezse bu deger kullanilir; o da bos ise agent'in kendi modeli
-    /// ozetleme icin de kullanilir. Amac: ozetleme gibi ucuz bir is icin
-    /// pahali bir modelle maliyet uretmemek.
+    /// This value applies when an agent definition does not provide its own
+    /// <c>CompactionSettings.SummarizationModel</c>. When this is also empty,
+    /// the agent's own model performs summarization. This avoids using an
+    /// expensive model for a low-cost task such as summarization.
     /// </remarks>
     public ModelBinding? UtilityModel { get; set; }
 
-    /// <summary>Tanim dogrulama ucunun (Faz 34, F-60) ayarlari.</summary>
+    /// <summary>Gets or sets definition-validation endpoint options for phase 34, F-60.</summary>
     public AgentPrismValidationOptions Validation { get; set; } = new();
 }
 
-/// <summary><c>POST /api/agents/validate</c> ucunun ayarlari.</summary>
+/// <summary>Defines options for the <c>POST /api/agents/validate</c> endpoint.</summary>
 public sealed class AgentPrismValidationOptions
 {
     /// <summary>
-    /// Bir MCP sunucusundan taze tool listesi cekmenin en fazla suresi.
+    /// Gets or sets the maximum duration for fetching a fresh tool list from an MCP server.
     /// </summary>
     /// <remarks>
-    /// Yalniz eksik bir tool adi varken ve <c>AgentPrism.Mcp</c> kayitliyken
-    /// tetiklenir. Yavas bir MCP sunucusu dogrulama ucunu asmamalidir; zaman
-    /// asimi dolarsa sonuc <c>Inconclusive</c> olur, <c>Valid</c> dusmez.
+    /// This is triggered only for a missing tool name when <c>AgentPrism.Mcp</c>
+    /// is registered. A slow MCP server must not overrun the validation endpoint.
+    /// On timeout, the result is <c>Inconclusive</c>, not <c>Valid</c>.
     /// </remarks>
     public TimeSpan McpTimeout { get; set; } = TimeSpan.FromSeconds(5);
 }
 
 /// <summary>
-/// Bir agent baska bir agent'i cagirdiginda gecerli olan sinirlar.
+/// Defines limits that apply when an agent calls another agent.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Alt agent cagrisi maliyeti <strong>carpar</strong>: her katman kendi model
-/// cagrilarini yapar. Sinirsiz birakilirsa yanlis yazilmis tek bir tanim, tek bir
-/// istekte onlarca calistirma baslatabilir. Bu yuzden hem derinlik hem token hem
-/// de sayi sinirinin varsayilan bir degeri vardir.
+/// Child-agent calls <strong>multiply</strong> cost because every layer makes its
+/// own model calls. Without limits, one incorrectly written definition can start
+/// dozens of runs for one request. Depth, token, and count limits therefore have defaults.
 /// </para>
 /// <para>
-/// Sinirlar <em>agac basina</em> uygulanir: kok calistirma bir
-/// <see cref="AgentRunBudget"/> uretir, agactaki her calistirma ayni ornegi
-/// paylasir.
+/// Limits apply <em>per tree</em>: the root run creates an
+/// <see cref="AgentRunBudget"/>, and every run in the tree shares it.
 /// </para>
 /// </remarks>
 public sealed class AgentPrismAgentGraphOptions
 {
     /// <summary>
-    /// Izin verilen en buyuk cagri derinligi. Kok calistirma 0'dir, dolayisiyla
-    /// varsayilan deger uc katmanli bir agaca izin verir.
+    /// Gets or sets the largest allowed call depth. The root run has depth zero,
+    /// so the default allows a three-layer tree.
     /// </summary>
     public int MaxDepth { get; set; } = 3;
 
     /// <summary>
-    /// Bir agac boyunca harcanabilecek en fazla token. 0 veya negatif deger
-    /// sinirlamayi kaldirir.
+    /// Gets or sets the largest token count that a tree can spend. Zero or a
+    /// negative value removes the limit.
     /// </summary>
     /// <remarks>
-    /// Varsayilan deger bilerek <em>vardir</em>. Sinirsiz birakilan bir kurulumda
-    /// ilk yanlis tanim faturayla ogrenilir.
+    /// The default intentionally <em>exists</em>. An unlimited installation learns
+    /// about its first invalid definition from the bill.
     /// </remarks>
     public long MaxTotalTokens { get; set; } = 200_000;
 
     /// <summary>
-    /// Bir agac boyunca baslatilabilecek en fazla <em>alt</em> calistirma sayisi.
-    /// Kok calistirma sayilmaz. 0 veya negatif deger sinirlamayi kaldirir.
+    /// Gets or sets the largest number of <em>child</em> runs a tree can start.
+    /// The root run does not count. Zero or a negative value removes the limit.
     /// </summary>
     public int MaxTotalRuns { get; set; } = 25;
 
-    /// <summary>Bu ayarlardan yeni bir agac butcesi uretir.</summary>
-    /// <returns>Kok calistirmanin agac boyunca paylasacagi butce.</returns>
+    /// <summary>Creates a tree budget from these options.</summary>
+    /// <returns>The budget that the root run shares through its tree.</returns>
     public AgentRunBudget CreateBudget()
         => new()
         {
@@ -122,134 +120,134 @@ public sealed class AgentPrismAgentGraphOptions
         };
 }
 
-/// <summary>Skill icerigi ve agent baglantisi icin sinirlar.</summary>
+/// <summary>Defines limits for skill content and agent attachment.</summary>
 public sealed class AgentPrismSkillOptions
 {
-    /// <summary>Tek bir agent'a baglanabilecek en fazla skill sayisi.</summary>
+    /// <summary>Gets or sets the largest skill count that can attach to one agent.</summary>
     public int MaxSkillsPerAgent { get; set; } = 10;
 
-    /// <summary>Markdown talimatlarinin en fazla bayt sayisi.</summary>
+    /// <summary>Gets or sets the largest byte count for Markdown instructions.</summary>
     public int MaxInstructionsLength { get; set; } = 64 * 1024;
 
-    /// <summary>Tek bir kaynak iceriginin en fazla bayt sayisi.</summary>
+    /// <summary>Gets or sets the largest byte count for one resource's content.</summary>
     public int MaxResourceContentLength { get; set; } = 256 * 1024;
 
-    /// <summary>Bir skill'in tasiyabilecegi en fazla kaynak sayisi.</summary>
+    /// <summary>Gets or sets the largest resource count that a skill can carry.</summary>
     public int MaxResourcesPerSkill { get; set; } = 20;
 
-    /// <summary>Script calistirma ayarlari. Varsayilan olarak kapalidir.</summary>
+    /// <summary>Gets or sets script-execution options. They are disabled by default.</summary>
     public AgentPrismSkillScriptOptions Scripts { get; set; } = new();
 }
 
 /// <summary>
-/// Skill script'lerinin sunucuda calistirilmasini yoneten ayarlar.
+/// Defines options that control server-side skill script execution.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>AgentPrism isletim sistemi duzeyinde yalitim saglamaz.</strong> Ag
-/// erisimini kesmek, dosya sistemini gercek anlamda kisitlamak, CPU ve bellek
-/// kotasi uygulamak ve ayricalik dusurmek .NET ile tasinabilir bicimde
-/// yapilamaz. Bunlar barindirma ortaminin isidir: script calistirma acikken
-/// AgentPrism <em>container icinde, ayricaliksiz bir kullaniciyla ve kisitli ag
-/// ile</em> calistirilmalidir.
+/// <strong>AgentPrism does not provide operating-system isolation.</strong>
+/// .NET cannot portably disable network access, isolate the file system, apply
+/// CPU or memory quotas, or drop privileges. The host environment must provide
+/// this. Run AgentPrism with script execution enabled <em>in a container, under
+/// an unprivileged user, and with restricted network access</em>.
 /// </para>
 /// <para>
-/// <see cref="PlatformIsolationAcknowledged"/> bu sinirin okundugunu bildiren
-/// bilincli onay adimidir; ayarlanmadan <see cref="Enabled"/> acilamaz ve
-/// uygulama acilista hata verir.
+/// <see cref="PlatformIsolationAcknowledged"/> is the explicit acknowledgment
+/// that this limit was read. <see cref="Enabled"/> cannot be enabled without it,
+/// and the application fails during startup.
 /// </para>
 /// </remarks>
 public sealed class AgentPrismSkillScriptOptions
 {
-    /// <summary>Script calistirma acik mi. Varsayilan <see langword="false"/>.</summary>
+    /// <summary>Gets or sets whether script execution is enabled. Defaults to <see langword="false"/>.</summary>
     public bool Enabled { get; set; }
 
     /// <summary>
-    /// Tuketicinin isletim sistemi yalitiminin AgentPrism tarafindan
-    /// saglanmadigini kabul ettigini bildirir.
+    /// Gets or sets whether the consumer acknowledges that AgentPrism does not
+    /// provide operating-system isolation.
     /// </summary>
     public bool PlatformIsolationAcknowledged { get; set; }
 
     /// <summary>
-    /// Veritabaninda saklanan script'ler calistirilabilir mi.
-    /// Varsayilan <see langword="false"/>.
+    /// Gets or sets whether scripts stored in the database can run. Defaults to
+    /// <see langword="false"/>.
     /// </summary>
     /// <remarks>
-    /// Acilirsa aray uze erisen bir Admin sunucuda calisacak kodu yazabilir.
-    /// Uc kapi birden gereklidir: bu bayrak, Admin rolu ve izin kaydi.
+    /// When enabled, an Admin with UI access can write code that runs on the
+    /// server. Three gates are required: this flag, the Admin role, and a grant record.
     /// </remarks>
     public bool AllowStoredScripts { get; set; }
 
     /// <summary>
-    /// Diskteki skill dizinlerinin arandigi kokler.
+    /// Gets the roots used to search skill directories on disk.
     /// </summary>
     /// <remarks>
-    /// Kokler <strong>kodda veya yapilandirmada</strong> verilir; arayuzden
-    /// degistirilemez. Script icerigini yazan kisi, uygulamayi dagitan kisidir.
+    /// Roots are supplied <strong>in code or configuration</strong> and cannot be
+    /// changed through the UI. The person who writes script content deploys the application.
     /// </remarks>
     public IList<string> SkillRoots { get; } = [];
 
     /// <summary>
-    /// Uzantidan yorumlayici yoluna beyaz liste. Ornek: <c>["py"] = "/usr/bin/python3"</c>.
+    /// Gets the extension-to-interpreter-path allow list. Example:
+    /// <c>["py"] = "/usr/bin/python3"</c>.
     /// </summary>
     /// <remarks>
-    /// Liste bos oldugu surece <strong>hicbir script calismaz</strong>. Uzanti
-    /// noktasiz ve kucuk harfle yazilir.
+    /// No script runs while the list is empty. Extensions are written without a
+    /// leading dot and in lowercase.
     /// </remarks>
     public IDictionary<string, string> Interpreters { get; }
         = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Script surecine aktarilacak ortam degiskenlerinin beyaz listesi.
+    /// Gets the allow list of environment variables passed to the script process.
     /// </summary>
     /// <remarks>
-    /// Listede olmayan hicbir degisken aktarilmaz. Baglanti dizesi ve API
-    /// anahtari bu sayede surece hic ulasmaz.
+    /// Variables outside the list are not passed. A connection string and API key
+    /// therefore never reach the process.
     /// </remarks>
     public IList<string> EnvironmentAllowList { get; } = ["PATH", "HOME"];
 
-    /// <summary>Tek bir script'in calisabilecegi en uzun sure.</summary>
+    /// <summary>Gets or sets the longest duration for one script to run.</summary>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(30);
 
-    /// <summary>stdout ve stderr toplaminin en fazla bayt sayisi. Asan kisim kirpilir.</summary>
+    /// <summary>Gets or sets the largest combined stdout and stderr byte count. Excess output is truncated.</summary>
     public int MaxOutputBytes { get; set; } = 256 * 1024;
 
-    /// <summary>Script'e verilecek JSON argumanlarinin en fazla bayt sayisi.</summary>
+    /// <summary>Gets or sets the largest byte count for JSON arguments supplied to a script.</summary>
     public int MaxArgumentBytes { get; set; } = 16 * 1024;
 
-    /// <summary>Veritabaninda saklanan bir script icerigi icin en fazla bayt sayisi.</summary>
+    /// <summary>Gets or sets the largest byte count for script content stored in the database.</summary>
     public int MaxScriptContentLength { get; set; } = 64 * 1024;
 
-    /// <summary>Bir skill'in tasiyabilecegi en fazla script sayisi.</summary>
+    /// <summary>Gets or sets the largest script count that a skill can carry.</summary>
     public int MaxScriptsPerSkill { get; set; } = 10;
 
-    /// <summary>Ayni anda calisabilecek script sayisi, kiraci basina.</summary>
+    /// <summary>Gets or sets the largest concurrent script count per tenant.</summary>
     public int MaxConcurrentPerTenant { get; set; } = 2;
 
-    /// <summary>Ayni anda calisabilecek toplam script sayisi.</summary>
+    /// <summary>Gets or sets the largest total concurrent script count.</summary>
     public int MaxConcurrentTotal { get; set; } = 8;
 
-    /// <summary>Skill koklerinde inilecek en fazla dizin derinligi.</summary>
+    /// <summary>Gets or sets the largest directory depth traversed under skill roots.</summary>
     public int SearchDepth { get; set; } = 2;
 }
 
 /// <summary>
-/// Ek yukleme sinirlari: boyut ve tur beyaz listesi.
+/// Defines attachment upload limits for size and media-type allow lists.
 /// </summary>
 /// <remarks>
-/// Ikili icerik <c>attachments</c> tablosunda, mesajda yalnizca referans olarak
-/// yasar; bu ayarlar YALNIZ yukleme aninda uygulanir. Tur denetimi istemcinin
-/// bildirdigi <c>Content-Type</c>'a degil sihirli bayta dayanir — bkz.
-/// <see cref="AttachmentTypeGuard"/>. Gerekce: <c>docs/14-COK-MODLULUK.md</c>.
+/// Binary content lives in <c>attachments</c> and messages carry only a reference.
+/// These options apply only during upload. Type validation uses magic bytes, not
+/// the client-supplied <c>Content-Type</c>; see <see cref="AttachmentTypeGuard"/>.
+/// Rationale: <c>docs/14-COK-MODLULUK.md</c>.
 /// </remarks>
 public sealed class AgentPrismAttachmentOptions
 {
-    /// <summary>Tek bir ekin en fazla bayt sayisi. Varsayilan 20 MB.</summary>
+    /// <summary>Gets or sets the largest byte count for one attachment. Defaults to 20 MB.</summary>
     public long MaxBytes { get; set; } = 20 * 1024 * 1024;
 
     /// <summary>
-    /// Izin verilen MIME turleri. <c>"audio/*"</c> gibi bir alt tur joker
-    /// karakteri kabul eder. Yurutulebilir icerik turleri BILEREK yoktur.
+    /// Gets allowed MIME types. A subtype wildcard such as <c>"audio/*"</c> is
+    /// accepted. Executable content types are deliberately excluded.
     /// </summary>
     public ISet<string> AllowedMediaTypes { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
@@ -263,268 +261,268 @@ public sealed class AgentPrismAttachmentOptions
     };
 }
 
-/// <summary>Denetim izi aktor cozumlemesinin ayarlari.</summary>
+/// <summary>Defines options for audit-trail actor resolution.</summary>
 public sealed class AgentPrismAuditOptions
 {
     /// <summary>
-    /// Aktorun okunacagi claim tipi. <see langword="null"/> ise varsayilan sira
-    /// izlenir: <c>ClaimTypes.NameIdentifier</c> → <c>ClaimTypes.Name</c> → <c>sub</c>.
+    /// Gets or sets the claim type used to read the actor. When <see langword="null"/>,
+    /// the default order is used: <c>ClaimTypes.NameIdentifier</c> →
+    /// <c>ClaimTypes.Name</c> → <c>sub</c>.
     /// </summary>
     public string? ActorClaimType { get; set; }
 }
 
 /// <summary>
-/// Bir model saglayicisi ardisik hata verdiginde istekleri gecici olarak kesen devre
-/// kesicinin ayarlari.
+/// Defines circuit-breaker options that temporarily stop requests after a model
+/// provider returns consecutive failures.
 /// </summary>
 /// <remarks>
-/// Devre kesici <see cref="IChatClient"/> boru hattina bir dekoratordur, saglayici
-/// uygulamasinin icine gomulmez — bu yuzden her saglayici (OpenAI, uyumlu sunucular,
-/// gelecekteki Anthropic/Gemini) ayni korumayi bedava alir.
-/// Gerekce: <c>docs/KARARLAR.md</c>, K-007 (yeni paket alinmadi) ve
-/// <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>, bolum 8.3.
+/// The circuit breaker decorates the <see cref="IChatClient"/> pipeline instead
+/// of being embedded in a provider implementation. Every provider, including
+/// OpenAI, compatible servers, and future Anthropic or Gemini providers, gets
+/// the same protection. Rationale: K-007 and section 8.3 of
+/// <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>.
 /// </remarks>
 public sealed class AgentPrismCircuitBreakerOptions
 {
     /// <summary>
-    /// Devre kesici acik mi. Kapatilirsa istekler her zaman saglayiciya gider ve
-    /// hicbir ardisik hata sayaci tutulmaz.
+    /// Gets or sets whether the circuit breaker is enabled. When disabled,
+    /// requests always reach the provider and no consecutive-failure counter is kept.
     /// </summary>
     public bool Enabled { get; set; } = true;
 
     /// <summary>
-    /// Devrenin acilmasi icin gereken ardisik hata sayisi.
+    /// Gets or sets the consecutive failure count required to open the circuit.
     /// </summary>
     public int FailureThreshold { get; set; } = 5;
 
     /// <summary>
-    /// Devre actiktan sonra tekrar tek bir deneme (yari-acik) icin beklenecek sure.
+    /// Gets or sets the duration to wait after opening the circuit before one
+    /// half-open retry.
     /// </summary>
     public TimeSpan BreakDuration { get; set; } = TimeSpan.FromSeconds(30);
 }
 
-/// <summary>Model saglayicisi saglik denetiminin ayarlari.</summary>
+/// <summary>Defines model-provider health-check options.</summary>
 /// <remarks>
-/// Denetim <c>GET {endpoint}/models</c> ucuna gider ve ucret uretmez. Sonuc
-/// onbelleklenir; <c>/api/models/health</c> ucu her acilista saglayiciya gitmez.
+/// The check calls <c>GET {endpoint}/models</c> and does not incur cost. Results
+/// are cached, so <c>/api/models/health</c> does not call a provider on every request.
 /// </remarks>
 public sealed class AgentPrismHealthOptions
 {
-    /// <summary>Bir denetim sonucunun onbellekte tazeliğini koruyacagi sure.</summary>
+    /// <summary>Gets or sets how long a health-check result remains fresh in cache.</summary>
     public TimeSpan CacheTtl { get; set; } = TimeSpan.FromSeconds(60);
 
     /// <summary>
-    /// Arka planda otomatik denetim araligi. <see langword="null"/> ise (varsayilan)
-    /// arka plan zamanlayicisi hic calismaz; denetim yalnizca aray uzden "simdi
-    /// denetle" ile veya <c>/api/models/health</c> ucu cagrildiginda tetiklenir.
+    /// Gets or sets the automatic background health-check interval. When
+    /// <see langword="null"/>, the default, no background timer runs. The check
+    /// is triggered only from the UI's "check now" action or <c>/api/models/health</c>.
     /// </summary>
     /// <remarks>
-    /// Bos birakildi: bosta duran bir kurulumun saglayiciya duzenli istek atmasi
-    /// istenmeyen bir varsayilandir. Gerekce: <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>,
-    /// acik soru 3.
+    /// This is intentionally empty because regular requests from an idle
+    /// installation are an undesirable default. Rationale: open question 3 in
+    /// <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>.
     /// </remarks>
     public TimeSpan? BackgroundInterval { get; set; }
 }
 
 /// <summary>
-/// Telemetri toplama ve kalicilastirma ayarlari.
+/// Defines telemetry collection and persistence options.
 /// </summary>
 /// <remarks>
-/// AgentPrism <strong>akisi ele gecirmez</strong>: tuketicinin kendi OTLP
-/// exporter'i calismaya devam eder. Buradaki ayarlar yalnizca AgentPrism'in
-/// <em>kendi</em> span deposuna ne yazacagini belirler.
+/// AgentPrism <strong>does not take over the pipeline</strong>: the consumer's
+/// OTLP exporter continues to run. These options only control what AgentPrism
+/// writes to its <em>own</em> span store.
 /// </remarks>
 public sealed class AgentPrismObservabilityOptions
 {
     /// <summary>
-    /// Span ve metrik uretimi acik mi. Kapatilirsa hicbir <c>Activity</c>
-    /// baslatilmaz ve hicbir olcum kaydedilmez.
+    /// Gets or sets whether span and metric creation is enabled. When disabled,
+    /// no <c>Activity</c> starts and no measurement is recorded.
     /// </summary>
     public bool Enabled { get; set; } = true;
 
     /// <summary>
-    /// Span'ler <see cref="ITraceStore"/> icine yazilsin mi. Kapatildiginda
-    /// span'ler yine uretilir ve tuketicinin exporter'ina gider; yalnizca
-    /// AgentPrism'in kendi deposuna yazilmaz.
+    /// Gets or sets whether spans are written to <see cref="ITraceStore"/>. When
+    /// disabled, spans are still created and sent to the consumer exporter, but
+    /// are not written to AgentPrism's own store.
     /// </summary>
     public bool PersistSpans { get; set; } = true;
 
     /// <summary>
-    /// Basarili calistirmalarin ne kadarinin span'lerinin yazilacagi (0–1).
-    /// Varsayilan 0,1 yani onda biri.
+    /// Gets or sets the fraction from 0 to 1 of successful run spans to persist.
+    /// Defaults to 0.1, or one tenth.
     /// </summary>
     /// <remarks>
-    /// Her span'i yazmak yuksek hacimde veritabanini darbogaza sokar. Hata
-    /// ayiklama icin degerli olan hatali calistirmalardir; onlar
-    /// <see cref="AlwaysPersistFailures"/> ile ayrica korunur.
+    /// Persisting every span bottlenecks the database at high volume. Failed runs
+    /// are valuable for debugging and are separately protected by
+    /// <see cref="AlwaysPersistFailures"/>.
     /// </remarks>
     public double SuccessSampleRatio { get; set; } = 0.1;
 
     /// <summary>
-    /// Hata ile biten calistirmalarin span'leri ornekleme oranina bakilmaksizin
-    /// yazilsin mi.
+    /// Gets or sets whether failed run spans are persisted regardless of sampling ratio.
     /// </summary>
     public bool AlwaysPersistFailures { get; set; } = true;
 
     /// <summary>
-    /// Tek bir calistirma icin bellekte tutulacak ust span sayisi. Asan span'ler
-    /// atilir ve bir uyari loglanir.
+    /// Gets or sets the largest span count held in memory for one run. Excess
+    /// spans are dropped and a warning is logged.
     /// </summary>
     /// <remarks>
-    /// Ornekleme karari calistirma <em>bittiginde</em> verilir (basarili mi
-    /// hatali mi bilinmelidir), bu yuzden span'ler o ana kadar bellekte tutulur.
-    /// Bu sinir, bellek kullanimini es zamanli calistirma sayisiyla carpimla
-    /// sinirlandirir.
+    /// The sampling decision is made when a run <em>finishes</em>, when success
+    /// or failure is known. Spans remain in memory until then. This limit bounds
+    /// memory use by the concurrent run count.
     /// </remarks>
     public int MaxSpansPerRun { get; set; } = 200;
 
     /// <summary>
-    /// Istem ve yanit metinleri span'lere yazilsin mi.
-    /// <strong>Varsayilan kapali</strong> — bu icerikler kisisel veri tasiyabilir.
+    /// Gets or sets whether request and response text is written to spans.
+    /// <strong>Disabled by default</strong> because this content can contain personal data.
     /// </summary>
     public bool RecordSensitiveData { get; set; }
 
     /// <summary>
-    /// <c>agentprism.agent.version</c> etiketi span'lere ve <c>agentprism.runs</c>/
-    /// <c>agentprism.run.duration</c> metriklerine eklensin mi.
+    /// Gets or sets whether the <c>agentprism.agent.version</c> tag is added to
+    /// spans and the <c>agentprism.runs</c> and <c>agentprism.run.duration</c> metrics.
     /// </summary>
     /// <remarks>
-    /// Varsayilan <see langword="true"/>'dur: surum numarasi zamanla artar ve agent
-    /// basina onlarca zaman serisi uretir — kabul edilebilir bir kardinalite. Cok
-    /// sik surum degistiren kurulumlarda kapatilabilir.
+    /// Defaults to <see langword="true"/>. A version number creates dozens of time
+    /// series per agent over time, which is acceptable cardinality. Deployments
+    /// that change versions very frequently can disable it.
     /// </remarks>
     public bool IncludeAgentVersionTag { get; set; } = true;
 
     /// <summary>
-    /// <c>agentprism.quota.usage</c>/<c>agentprism.quota.limit</c> gozlemlenen
-    /// olcerleri acik mi.
+    /// Gets or sets whether the <c>agentprism.quota.usage</c> and
+    /// <c>agentprism.quota.limit</c> observable gauges are enabled.
     /// </summary>
     /// <remarks>
-    /// <strong>Varsayilan kapalidir</strong> (K1): olcer veritabanini okur. Maliyet
-    /// sayacinin aksine (bkz. <see cref="AgentPrismMetrics.RunCost"/>) bu, ek bir
-    /// kaynak tuketimidir ve acikca istenmelidir.
+    /// <strong>Disabled by default</strong> under K1 because the gauge reads the
+    /// database. Unlike the cost counter, this consumes additional resources and
+    /// must be explicitly requested.
     /// </remarks>
     public bool EnableQuotaUsageGauge { get; set; }
 
     /// <summary>
-    /// Kota olcerinin onbellegini tazeleme araligi. Ardisik yoklamalar bu
-    /// aralik dolmadan veritabanina gitmez.
+    /// Gets or sets the quota-gauge cache refresh interval. Consecutive polls do
+    /// not reach the database before this interval elapses.
     /// </summary>
     public TimeSpan QuotaUsageRefreshInterval { get; set; } = TimeSpan.FromSeconds(30);
 }
 
-/// <summary>Calistirma kaydinin ne kadar ayrinti tutacagini belirler.</summary>
+/// <summary>Defines how much detail run recording retains.</summary>
 public sealed class AgentPrismRunRecordingOptions
 {
-    /// <summary>Calistirma kaydi acik mi. Kapatilirsa hicbir olay yazilmaz.</summary>
+    /// <summary>Gets or sets whether run recording is enabled. When disabled, no event is written.</summary>
     public bool Enabled { get; set; } = true;
 
     /// <summary>
-    /// Akisli calistirmalarda her metin parcasi ayri bir olay olarak yazilsin mi.
-    /// Kapatilirsa yalnizca tamamlanan mesajlar kaydedilir; olay hacmi ciddi olcude duser.
+    /// Gets or sets whether every text chunk in streaming runs is written as a
+    /// separate event. When disabled, only completed messages are recorded and
+    /// event volume decreases substantially.
     /// </summary>
     public bool RecordMessageDeltas { get; set; } = true;
 
-    /// <summary>Tool argumanlari ve sonuclari kaydedilsin mi.</summary>
+    /// <summary>Gets or sets whether tool arguments and results are recorded.</summary>
     /// <remarks>
-    /// Tool argumanlari kisisel veri tasiyabilir. Bu bayrak, veri saklama
-    /// politikasi geregi kapatilabilir.
+    /// Tool arguments can contain personal data. A data-retention policy can
+    /// disable this flag.
     /// </remarks>
     public bool RecordToolPayloads { get; set; } = true;
 
     /// <summary>
-    /// Tek bir olay yukunun ust karakter siniri. Asan yukler kirpilir ve
-    /// sonuna kirpildigini belirten bir isaret eklenir.
+    /// Gets or sets the upper character limit for one event payload. Excess
+    /// payloads are truncated and receive a trailing marker.
     /// </summary>
     public int MaxPayloadLength { get; set; } = 8 * 1024;
 
     /// <summary>
-    /// Calistirma girdisi <c>run_inputs</c> tablosuna yazilsin mi (Faz 47).
-    /// Kapatilirsa yeniden oynatma calismaz.
+    /// Gets or sets whether run input is written to <c>run_inputs</c> (phase 47).
+    /// Replay does not work when disabled.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 🚨 Varsayilan <strong>acik</strong>tir ve bu bir K1 ("sifir surpriz")
-    /// istisnasi <em>degildir</em>: girdi yeni bir bilgi sinifi acmaz. Oturumlu
-    /// bir calistirmada ayni mesajlar zaten <c>conversation_items</c>'ta duruyor
-    /// (K-107 depoyu tam sohbet gecmisini biriktirmeye bilerek bagladi) ve
-    /// <see cref="RecordToolPayloads"/> bugun <see langword="true"/> geliyor.
-    /// Kapali gelseydi ozellik olu dogardi: yeniden oynatma <em>hicbir</em>
-    /// mevcut calistirma icin calismazdi.
+    /// 🚨 This defaults to <strong>enabled</strong> and is not a K1 "zero
+    /// surprise" exception. Input does not introduce a new data class: the same
+    /// messages already exist in <c>conversation_items</c> for a session run,
+    /// and <see cref="RecordToolPayloads"/> currently defaults to
+    /// <see langword="true"/>. If disabled, replay would be dead for every
+    /// existing run.
     /// </para>
     /// <para>
-    /// Girdi kirpilmaz. <see cref="MaxPayloadLength"/> olay yukleri icindir;
-    /// kirpilmis bir girdi sessizce yanlis bir yeniden oynatma uretirdi.
-    /// Buyume <c>run_inputs</c> saklama hedefiyle sinirlanir.
+    /// Input is not truncated. <see cref="MaxPayloadLength"/> applies to event
+    /// payloads; a truncated input would silently produce incorrect replay.
+    /// Growth is bounded by the <c>run_inputs</c> retention target.
     /// </para>
     /// </remarks>
     public bool RecordRunInput { get; set; } = true;
 }
 
 /// <summary>
-/// Calistirma maliyeti icin fiyat kaynagi. Model kataloguna (<see cref="ModelDescriptor"/>)
-/// gore fiyati olmayan bir model icin ikincil bir kaynaktir.
+/// Defines a run-cost price source. It is a secondary source for a model that
+/// has no price in the <see cref="ModelDescriptor"/> catalog.
 /// </summary>
 /// <remarks>
-/// AgentPrism fiyat <strong>uydurmaz</strong> (karar K-032): burada yalnizca
-/// tuketicinin yapilandirmadan verdigi degerler tutulur. Yapilandirma yollari:
+/// AgentPrism does <strong>not invent prices</strong> (K-032). This stores only
+/// values supplied by the consumer in configuration. Configuration paths:
 /// <list type="bullet">
 ///   <item><c>AgentPrism:Pricing:Currency</c></item>
-///   <item><c>AgentPrism:Pricing:{saglayici}:{model}:Input|Output</c></item>
-///   <item><c>AgentPrism:Pricing:Voice:{saglayici}:{model}:PerMillionCharacters|PerMinute</c></item>
+///   <item><c>AgentPrism:Pricing:{provider}:{model}:Input|Output</c></item>
+///   <item><c>AgentPrism:Pricing:Voice:{provider}:{model}:PerMillionCharacters|PerMinute</c></item>
 /// </list>
-/// Joker karakter desteklenmez.
+/// Wildcards are not supported.
 /// <para>
-/// 🚨 Bolum elle baglanir (AOT). <c>Pricing</c>'in her cocugu bir SAGLAYICI adi
-/// sayilir; <c>Currency</c> ve <c>Voice</c> anahtarlari bu yuzden REZERVEDIR ve
-/// saglayici adi olarak kullanilamaz. Yeni bir rezerve anahtar eklerken
-/// <c>BindPricing</c> icindeki atlama listesini de guncelleyin.
+/// 🚨 The section is bound manually for AOT. Every child of <c>Pricing</c> is
+/// treated as a provider name, so the <c>Currency</c> and <c>Voice</c> keys are
+/// reserved and cannot be provider names. When adding a reserved key, also update
+/// the skip list in <c>BindPricing</c>.
 /// </para>
 /// </remarks>
 public sealed class AgentPrismPricingOptions
 {
-    /// <summary>Raporlarda gosterilecek para birimi etiketi. Donusum yapilmaz.</summary>
+    /// <summary>Gets or sets the currency label displayed in reports. No conversion occurs.</summary>
     public string? Currency { get; set; }
 
     /// <summary>
-    /// Saglayici adindan, o saglayicinin model basina fiyat gecersiz kilmalarina
-    /// eslenir.
+    /// Gets price overrides per model, keyed by provider name.
     /// </summary>
     public IDictionary<string, IDictionary<string, ModelPriceOverride>> Providers { get; }
         = new Dictionary<string, IDictionary<string, ModelPriceOverride>>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Ses saglayicisi adindan, model basina ses fiyatlarina eslenir.
+    /// Gets voice prices per model, keyed by voice provider name.
     /// </summary>
     /// <remarks>
-    /// Ses ucretlendirmesi token degil karakter veya sure bazlidir; bu yuzden
-    /// <see cref="Providers"/> ile ayni sozlukte YASAYAMAZ. Iki bolumun toplami
-    /// da alinmaz — farkli birimler toplanamaz (bkz. <c>docs/28-SES-TOOLLARI.md</c>).
+    /// Voice pricing uses characters or duration rather than tokens, so it cannot
+    /// share a dictionary with <see cref="Providers"/>. The two sections are not
+    /// combined because their units differ; see <c>docs/28-SES-TOOLLARI.md</c>.
     /// </remarks>
     public IDictionary<string, IDictionary<string, VoicePriceOverride>> Voice { get; }
         = new Dictionary<string, IDictionary<string, VoicePriceOverride>>(StringComparer.OrdinalIgnoreCase);
 }
 
-/// <summary>Yapilandirmadan verilen tek bir ses modelinin fiyati.</summary>
+/// <summary>Defines the configured price for one voice model.</summary>
 /// <remarks>
-/// Iki alan birbirini dislar: bir model ya metinden ses uretir (karakter) ya da
-/// sesten metin cozer (sure). Ikisi de doluysa tool kendi birimine uyani secer.
+/// The fields are mutually exclusive. A model either produces speech from text,
+/// billed by character, or transcribes speech to text, billed by duration. When
+/// both are set, a tool selects the field matching its own unit.
 /// </remarks>
 public sealed class VoicePriceOverride
 {
-    /// <summary>Milyon karakter basina maliyet. Metinden ses uretimi icin.</summary>
+    /// <summary>Gets or sets cost per million characters for text-to-speech.</summary>
     public decimal? PerMillionCharacters { get; set; }
 
-    /// <summary>Dakika basina maliyet. Sesten metin cevrimi icin.</summary>
+    /// <summary>Gets or sets cost per minute for speech-to-text.</summary>
     public decimal? PerMinute { get; set; }
 }
 
-/// <summary>Yapilandirmadan verilen tek bir modelin fiyat gecersiz kilmasi.</summary>
+/// <summary>Defines a configured price override for one model.</summary>
 public sealed class ModelPriceOverride
 {
-    /// <summary>Milyon girdi token'i basina maliyet.</summary>
+    /// <summary>Gets or sets cost per million input tokens.</summary>
     public decimal? InputCostPerMillionTokens { get; set; }
 
-    /// <summary>Milyon cikti token'i basina maliyet.</summary>
+    /// <summary>Gets or sets cost per million output tokens.</summary>
     public decimal? OutputCostPerMillionTokens { get; set; }
 }
