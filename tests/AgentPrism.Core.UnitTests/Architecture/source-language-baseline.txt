@@ -114,7 +114,6 @@ src/AgentPrism.Core/AgentPrism.Core.csproj|20
 src/AgentPrism.Core/AgentPrismServiceCollectionExtensions.cs|252
 src/AgentPrism.Core/Attachments/AttachmentResolvingChatClient.cs|9
 src/AgentPrism.Core/Attachments/AttachmentUriReference.cs|12
-src/AgentPrism.Core/Audit/AmbientAuditActorResolver.cs|3
 src/AgentPrism.Core/Audit/AuditActorContext.cs|10
 src/AgentPrism.Core/Audit/AuditRecorder.cs|12
 src/AgentPrism.Core/Audit/AuditingAgentDefinitionStore.cs|5
@@ -122,7 +121,6 @@ src/AgentPrism.Core/Audit/AuditingExperimentStore.cs|12
 src/AgentPrism.Core/Audit/AuditingMcpServerStore.cs|5
 src/AgentPrism.Core/Audit/AuditingSessionStore.cs|14
 src/AgentPrism.Core/Audit/AuditingSkillScriptGrantStore.cs|7
-src/AgentPrism.Core/Audit/AuditingTenantStore.cs|4
 src/AgentPrism.Core/Audit/AuditingWorkflowDefinitionStore.cs|9
 src/AgentPrism.Core/Catalog/CodeAgentRegistration.cs|13
 src/AgentPrism.Core/Catalog/CodeAgentSource.cs|11
@@ -138,7 +136,6 @@ src/AgentPrism.Core/Diagnostics/AgentPrismMetrics.cs|49
 src/AgentPrism.Core/Diagnostics/OpenTelemetryAgentDecorator.cs|9
 src/AgentPrism.Core/Diagnostics/RunTraceCollector.cs|39
 src/AgentPrism.Core/Diagnostics/TraceSpanIdentity.cs|11
-src/AgentPrism.Core/Evaluation/AgentPrismEvalCheckRegistration.cs|3
 src/AgentPrism.Core/Evaluation/AgentPrismOnlineEvaluationBuilderExtensions.cs|14
 src/AgentPrism.Core/Evaluation/EvalCheckRegistry.cs|23
 src/AgentPrism.Core/Evaluation/EvalJobHandler.cs|33
@@ -188,7 +185,6 @@ src/AgentPrism.Core/Recording/CompactionUsageAccumulator.cs|8
 src/AgentPrism.Core/Recording/RunCostRecalculationService.cs|16
 src/AgentPrism.Core/Recording/RunEventWriter.cs|66
 src/AgentPrism.Core/Recording/RunHeartbeatWriter.cs|13
-src/AgentPrism.Core/Recording/RunReconciliationOptionsValidator.cs|3
 src/AgentPrism.Core/Recording/RunReconciliationService.cs|16
 src/AgentPrism.Core/Recording/RunRecordingAgentDecorator.cs|19
 src/AgentPrism.Core/Recording/ToolInvocationTracker.cs|31
@@ -196,9 +192,7 @@ src/AgentPrism.Core/Recording/ToolUsageAccumulator.cs|16
 src/AgentPrism.Core/Replay/RecordedToolPlayback.cs|42
 src/AgentPrism.Core/Replay/ReplayMismatchGuard.cs|11
 src/AgentPrism.Core/Replay/RunReplayService.cs|57
-src/AgentPrism.Core/Retention/AgentPrismRetentionOptionsValidator.cs|3
 src/AgentPrism.Core/Retention/NullRetentionStore.cs|8
-src/AgentPrism.Core/Retention/RetentionJobHandler.cs|4
 src/AgentPrism.Core/Retention/RetentionPolicyResolver.cs|16
 src/AgentPrism.Core/Runs/DefaultRunErrorClassifier.cs|15
 src/AgentPrism.Core/Runs/ErrorFingerprint.cs|14
@@ -219,7 +213,6 @@ src/AgentPrism.Core/Skills/AgentPrismSkillsSource.cs|13
 src/AgentPrism.Core/Skills/AgentSkillCatalog.cs|7
 src/AgentPrism.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs|56
 src/AgentPrism.Core/Skills/Scripts/SkillScriptArgumentValidator.cs|13
-src/AgentPrism.Core/Skills/Scripts/SkillScriptConcurrencyLimiter.cs|4
 src/AgentPrism.Core/Skills/Scripts/SkillScriptExecutionResult.cs|6
 src/AgentPrism.Core/Skills/Scripts/SkillScriptProcessRunner.cs|16
 src/AgentPrism.Core/Skills/Scripts/SkillScriptSupport.cs|25
@@ -242,8 +235,6 @@ src/AgentPrism.Core/Voice/VoiceConversationStateMachine.cs|33
 src/AgentPrism.Core/Voice/VoiceSpeechSegmenter.cs|22
 src/AgentPrism.Core/Voice/VoiceUtteranceBuffer.cs|30
 src/AgentPrism.Core/Webhooks/AgentPrismWebhookOptions.cs|25
-src/AgentPrism.Core/Webhooks/AgentPrismWebhookOptionsValidator.cs|4
-src/AgentPrism.Core/Webhooks/InMemoryWebhookStore.cs|3
 src/AgentPrism.Core/Webhooks/WebhookDeliveryJobHandler.cs|21
 src/AgentPrism.Core/Webhooks/WebhookPublisher.cs|11
 src/AgentPrism.Core/Webhooks/WebhookSigner.cs|15

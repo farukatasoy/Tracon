@@ -1,10 +1,10 @@
 namespace AgentPrism;
 
-/// <summary>Bir saklama suprusunu yurutur (<see cref="JobKind.Retention"/>).</summary>
+/// <summary>Runs a retention sweep (<see cref="JobKind.Retention"/>).</summary>
 /// <remarks>
-/// <see cref="JobRecord.TargetName"/> ya belirli bir <see cref="RetentionTargets"/>
-/// degeri ya da tum etkin politikalari isleyen <c>"*"</c>'tir. Isin tek bir
-/// ogesi vardir; oge, kosunun tamami basarili/basarisiz oldugunda raporlanir.
+/// <see cref="JobRecord.TargetName"/> is either a specific <see cref="RetentionTargets"/>
+/// value or <c>"*"</c>, which processes all active policies. The job has one item.
+/// It reports the item when the entire run succeeds or fails.
 /// </remarks>
 public sealed class RetentionJobHandler(RetentionExecutor executor) : IJobHandler
 {
