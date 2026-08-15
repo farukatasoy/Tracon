@@ -1,49 +1,49 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Harness yetenekleri icin ayarlar. Microsoft Agent Framework'un
-/// <c>HarnessAgentOptions</c> yapisinin guvenli bir alt kumesini yansitir.
+/// Settings for the harness capabilities. It mirrors a safe subset of the
+/// <c>HarnessAgentOptions</c> structure of Microsoft Agent Framework.
 /// </summary>
 /// <remarks>
-/// Shell erisimi ve arka plan agent'lari bu ayarlarda <em>bilerek yoktur</em>.
-/// Bu iki yetenek sunucuda kod calistirma yuzeyi acar ve ayri bir guvenlik
-/// degerlendirmesi gerektirir; Faz 6'da ele alinir.
+/// Shell access and background agents are <em>deliberately absent</em> from these
+/// settings. Those two capabilities open a code execution surface on the server and
+/// need a separate security review; phase 6 covers them.
 /// </remarks>
 public sealed record HarnessSettings
 {
-    /// <summary>Baglam penceresinin token siniri. Asilinca sikistirma devreye girer.</summary>
+    /// <summary>Gets the token limit of the context window. Compaction starts once it is exceeded.</summary>
     public int? MaxContextWindowTokens { get; init; }
 
-    /// <summary>Tek yanitta uretilecek ust token siniri.</summary>
+    /// <summary>Gets the upper token limit produced in a single response.</summary>
     public int? MaxOutputTokens { get; init; }
 
-    /// <summary>Tek bir istek icinde yapilabilecek ust yineleme sayisi.</summary>
+    /// <summary>Gets the upper number of iterations allowed within a single request.</summary>
     public int? MaximumIterationsPerRequest { get; init; }
 
-    /// <summary>Harness'a verilecek ek talimatlar.</summary>
+    /// <summary>Gets the extra instructions passed to the harness.</summary>
     public string? HarnessInstructions { get; init; }
 
-    /// <summary>Baglam sikistirmayi kapatir.</summary>
+    /// <summary>Gets a value that turns off context compaction.</summary>
     public bool DisableCompaction { get; init; }
 
-    /// <summary>Todo takibini kapatir.</summary>
+    /// <summary>Gets a value that turns off todo tracking.</summary>
     public bool DisableTodoProvider { get; init; }
 
-    /// <summary>Dosya bellegini kapatir.</summary>
+    /// <summary>Gets a value that turns off file memory.</summary>
     public bool DisableFileMemory { get; init; }
 
-    /// <summary>Web aramasini kapatir.</summary>
+    /// <summary>Gets a value that turns off web search.</summary>
     public bool DisableWebSearch { get; init; }
 
     /// <summary>
-    /// Tool otomatik onayini kapatir. Kapatildiginda her tool cagrisi
-    /// acik onay bekler.
+    /// Gets a value that turns off automatic tool approval. Once turned off, every tool
+    /// call waits for an explicit approval.
     /// </summary>
     public bool DisableToolAutoApproval { get; init; }
 
-    /// <summary>Agent skill saglayicisini kapatir.</summary>
+    /// <summary>Gets a value that turns off the agent skills provider.</summary>
     public bool DisableAgentSkillsProvider { get; init; }
 
-    /// <summary>Agent mode saglayicisini kapatir.</summary>
+    /// <summary>Gets a value that turns off the agent mode provider.</summary>
     public bool DisableAgentModeProvider { get; init; }
 }

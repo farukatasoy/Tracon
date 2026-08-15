@@ -4,22 +4,22 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism;
 
 /// <summary>
-/// <c>MapAgentPrism()</c> caginda hangi rol policy'lerinin (<see cref="AgentPrismPolicies"/>)
-/// tuketicinin authorization yapilandirmasinda kayitli oldugunu bir kez cozer.
+/// Resolves once, during the <c>MapAgentPrism()</c> call, which role policies
+/// (<see cref="AgentPrismPolicies"/>) are registered in the authorization configuration of
+/// the consumer.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bir policy kayitli degilse ilgili alan <see langword="null"/> doner ve
-/// <see cref="RoleEndpointConventionBuilderExtensions.RequireRole"/> hicbir
-/// yetkilendirme eklemez — uc yalnizca mevcut uc katmanli korumadan gecer
-/// (eski davranis).
+/// When a policy is not registered, the matching property returns <see langword="null"/> and
+/// <see cref="RoleEndpointConventionBuilderExtensions.RequireRole"/> adds no authorization —
+/// the endpoint passes only the existing three-layer protection (the earlier behavior).
 /// </para>
 /// <para>
-/// Cozumleme <see cref="IAuthorizationPolicyProvider.GetPolicyAsync(string)"/> ile
-/// yapilir. Varsayilan saglayici bu sorguyu <c>AuthorizationOptions</c> icindeki
-/// bir sozlukten senkron olarak yanitlar (<c>Task.FromResult</c>); <c>MapAgentPrism()</c>
-/// da <c>app.Build()</c> sonrasi, istek isleme disinda cagrildigi icin
-/// <c>GetAwaiter().GetResult()</c> burada guvenlidir.
+/// The resolution uses <see cref="IAuthorizationPolicyProvider.GetPolicyAsync(string)"/>.
+/// The default provider answers this query synchronously from a dictionary inside
+/// <c>AuthorizationOptions</c> (<c>Task.FromResult</c>); because <c>MapAgentPrism()</c> is
+/// itself called after <c>app.Build()</c> and outside request processing,
+/// <c>GetAwaiter().GetResult()</c> is safe here.
 /// </para>
 /// </remarks>
 internal sealed class AgentPrismRolePolicies
@@ -31,24 +31,25 @@ internal sealed class AgentPrismRolePolicies
         Admin = admin;
     }
 
-    /// <summary>Kayitliysa <see cref="AgentPrismPolicies.Reader"/>, degilse <see langword="null"/>.</summary>
+    /// <summary>Gets <see cref="AgentPrismPolicies.Reader"/> when it is registered, otherwise <see langword="null"/>.</summary>
     public string? Reader { get; }
 
-    /// <summary>Kayitliysa <see cref="AgentPrismPolicies.Operator"/>, degilse <see langword="null"/>.</summary>
+    /// <summary>Gets <see cref="AgentPrismPolicies.Operator"/> when it is registered, otherwise <see langword="null"/>.</summary>
     public string? Operator { get; }
 
-    /// <summary>Kayitliysa <see cref="AgentPrismPolicies.Admin"/>, degilse <see langword="null"/>.</summary>
+    /// <summary>Gets <see cref="AgentPrismPolicies.Admin"/> when it is registered, otherwise <see langword="null"/>.</summary>
     public string? Admin { get; }
 
     /// <summary>
-    /// Rol policy'lerinin kayit durumunu cozer. <see cref="AgentPrismEndpointOptions.RequireRolePolicies"/>
-    /// aciksa ve bir policy eksikse acilista hata verir.
+    /// Resolves the registration state of the role policies. When
+    /// <see cref="AgentPrismEndpointOptions.RequireRolePolicies"/> is on and a policy is
+    /// missing, it fails at startup.
     /// </summary>
-    /// <param name="services">Kurulu servis saglayici.</param>
-    /// <param name="options">Uc ayarlari.</param>
+    /// <param name="services">The built service provider.</param>
+    /// <param name="options">The endpoint settings.</param>
     /// <exception cref="InvalidOperationException">
-    /// <see cref="AgentPrismEndpointOptions.RequireRolePolicies"/> acik ama bir veya
-    /// daha fazla rol policy'si kayitli degilse.
+    /// When <see cref="AgentPrismEndpointOptions.RequireRolePolicies"/> is on but one or more
+    /// role policies are not registered.
     /// </exception>
     public static AgentPrismRolePolicies Resolve(IServiceProvider services, AgentPrismEndpointOptions options)
     {
@@ -80,10 +81,10 @@ internal sealed class AgentPrismRolePolicies
             if (missing.Count > 0)
             {
                 throw new InvalidOperationException(
-                    $"AgentPrismEndpointOptions.RequireRolePolicies acik ama su policy'ler " +
-                    $"kayitli degil: {string.Join(", ", missing)}. builder.Services.AddAuthorization(...) " +
-                    "icinde AgentPrismPolicies.Reader/Operator/Admin adlarini tanimlayin veya " +
-                    "RequireRolePolicies'i kapatin.");
+                    "AgentPrismEndpointOptions.RequireRolePolicies is on but these policies are " +
+                    $"not registered: {string.Join(", ", missing)}. Define the " +
+                    "AgentPrismPolicies.Reader/Operator/Admin names inside " +
+                    "builder.Services.AddAuthorization(...), or turn RequireRolePolicies off.");
             }
         }
 

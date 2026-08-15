@@ -5,29 +5,29 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Adlandirilmis <see cref="OpenAIProviderOptions"/> ornekleri icin
-/// <see cref="OpenAIChatClientFactory"/> orneklerini ada gore kurar ve onbellekler.
+/// Builds and caches <see cref="OpenAIChatClientFactory"/> instances by name for named
+/// <see cref="OpenAIProviderOptions"/> instances.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Her ad icin <em>bir kez</em> bir <see cref="OpenAIChatClientFactory"/> (dolayisiyla
-/// bir <c>OpenAIClient</c>, bir HTTP baglanti havuzu) kurulur. Ayni adin birden cok
-/// kez istenmesi ayni ornegi dondurur.
+/// One <see cref="OpenAIChatClientFactory"/> (and therefore one <c>OpenAIClient</c> and
+/// one HTTP connection pool) is built <em>once</em> per name. Asking for the same name
+/// more than once returns the same instance.
 /// </para>
 /// <para>
-/// <see cref="OpenAIProviderOptions.ApiKey"/> bos ise (yerel sunucular, F-05) OpenAI
-/// istemcisi yine de bir kimlik bekler; sabit bir yer tutucu ile kurulur. Bu davranis
-/// <strong>yalnizca</strong> bu onbellek uzerinden — yani <c>UseOpenAICompatible()</c>
-/// ile kaydedilen saglayicilar icin — gecerlidir. <c>UseOpenAI()</c> hala anahtarsiz
-/// calismaz (<see cref="OpenAIChatClientFactory.CreateClient(OpenAIProviderOptions)"/>
-/// degismedi).
+/// When <see cref="OpenAIProviderOptions.ApiKey"/> is empty (local servers, F-05) the
+/// OpenAI client still expects a credential; it is built with a fixed placeholder. This
+/// behaviour applies <strong>only</strong> through this cache — that is, only to the
+/// providers registered with <c>UseOpenAICompatible()</c>. <c>UseOpenAI()</c> still does
+/// not run without a key
+/// (<see cref="OpenAIChatClientFactory.CreateClient(OpenAIProviderOptions)"/> is unchanged).
 /// </para>
 /// </remarks>
 internal sealed class OpenAINamedChatClientFactoryCache
 {
     /// <summary>
-    /// Anahtarsiz uyumlu saglayicilar icin sabit yer tutucu. Gercek bir sir degildir;
-    /// yalnizca <c>OpenAIClient</c>'in bos kimlik kabul etmemesi yuzunden gereklidir.
+    /// The fixed placeholder for compatible providers without a key. It is not a real
+    /// secret; it is needed only because <c>OpenAIClient</c> rejects an empty credential.
     /// </summary>
     private const string PlaceholderApiKey = "no-key-required";
 
@@ -45,9 +45,9 @@ internal sealed class OpenAINamedChatClientFactoryCache
         _loggerFactory = loggerFactory;
     }
 
-    /// <summary>Verilen ad icin bir fabrika dondurur; yoksa kurar ve onbellekler.</summary>
-    /// <param name="name">Adlandirilmis ayar orneginin adi.</param>
-    /// <returns>Onbelleklenmis fabrika.</returns>
+    /// <summary>Returns the factory for the given name, building and caching it when absent.</summary>
+    /// <param name="name">The name of the named options instance.</param>
+    /// <returns>The cached factory.</returns>
     public OpenAIChatClientFactory Get(string name)
         => _factories.GetOrAdd(name, CreateFactory);
 

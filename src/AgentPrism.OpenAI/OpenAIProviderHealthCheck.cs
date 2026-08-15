@@ -5,19 +5,19 @@ using System.Text.Json;
 namespace AgentPrism;
 
 /// <summary>
-/// <c>GET {endpoint}/models</c> ucuna giderek bir OpenAI veya OpenAI uyumlu
-/// saglayicinin erisilebilirligini denetler.
+/// Checks whether an OpenAI or OpenAI compatible provider is reachable by calling the
+/// <c>GET {endpoint}/models</c> endpoint.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bu uc model adlarini doner ve <strong>ucret uretmez</strong> — model cagrisi
-/// yapilmaz. Gerekce: <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>, bolum 8.3.
+/// This endpoint returns model names and <strong>costs nothing</strong> — it makes no
+/// model call. Reason: <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>, section 8.3.
 /// </para>
 /// <para>
-/// Paylasilan bir statik <see cref="HttpClient"/> kullanilir. Yeni bir paket
-/// (<c>Microsoft.Extensions.Http</c>) eklenmedi — K-007 gerekcesiyle ayni: kutuphane
-/// tuketicinin bagimlilik grafigini kirletmemeli. Tek bir uzun omurlu istemci, dusuk
-/// hacimli saglik denetimleri icin bilinen ve kabul edilebilir bir kaliptir.
+/// It uses a shared static <see cref="HttpClient"/>. No new package
+/// (<c>Microsoft.Extensions.Http</c>) was added — the same reason as K-007: a library
+/// must not pollute the dependency graph of its consumer. A single long lived client is
+/// a known and acceptable pattern for low volume health checks.
 /// </para>
 /// </remarks>
 internal sealed class OpenAIProviderHealthCheck(string providerName, OpenAIProviderOptions options)
@@ -75,17 +75,18 @@ internal sealed class OpenAIProviderHealthCheck(string providerName, OpenAIProvi
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             stopwatch.Stop();
-            return Unhealthy(checkedAt, stopwatch.Elapsed, "Zaman asimi.");
+            return Unhealthy(checkedAt, stopwatch.Elapsed, "Timed out.");
         }
         catch (HttpRequestException exception)
         {
             stopwatch.Stop();
 
-            // exception.Message baglanti reddi gibi durumlarda hedef adresi (host:port)
-            // govdeye gomer — bu bir sir degildir ama uc adresi sizdirmama kuralini
-            // (bkz. docs/08-SAGLAYICI-GENISLEMESI.md, DoD) ihlal eder. HttpRequestError
-            // adres tasimayan bir kategori adidir (.NET 8+).
-            return Unhealthy(checkedAt, stopwatch.Elapsed, $"Baglanti hatasi ({exception.HttpRequestError}).");
+            // On failures such as a refused connection, exception.Message embeds the
+            // target address (host:port) in its text — that is not a secret, but it
+            // breaks the rule that the endpoint address must not leak (see
+            // docs/08-SAGLAYICI-GENISLEMESI.md, DoD). HttpRequestError is a category
+            // name that carries no address (.NET 8+).
+            return Unhealthy(checkedAt, stopwatch.Elapsed, $"Connection error ({exception.HttpRequestError}).");
         }
         catch (JsonException)
         {
@@ -94,7 +95,7 @@ internal sealed class OpenAIProviderHealthCheck(string providerName, OpenAIProvi
             {
                 ProviderName = providerName,
                 Status = ModelProviderHealthStatus.Degraded,
-                Detail = "Yanit gecerli JSON degil.",
+                Detail = "The response is not valid JSON.",
                 Latency = stopwatch.Elapsed,
                 CheckedAt = checkedAt,
             };
@@ -112,11 +113,11 @@ internal sealed class OpenAIProviderHealthCheck(string providerName, OpenAIProvi
         };
 
     /// <summary>
-    /// Taban adresi <c>/models</c> ile birlestirir. Taban adres eğik cizgi ile
-    /// bitmiyorsa <see cref="Uri"/> son parcayi DEGISTIRIR (dosya gibi davranir);
-    /// bu yuzden birlestirmeden once normalize edilir.
+    /// Joins the base address with <c>/models</c>. When the base address does not end
+    /// with a slash, <see cref="Uri"/> REPLACES the last segment (it treats it like a
+    /// file); the address is therefore normalized before the join.
     /// </summary>
-    /// <remarks><c>internal</c>: birim testleri ag cagrisi yapmadan bu birlestirmeyi dogrular.</remarks>
+    /// <remarks><c>internal</c>: unit tests verify this join without a network call.</remarks>
     internal static Uri BuildModelsEndpoint(Uri? baseEndpoint)
     {
         var effective = baseEndpoint ?? DefaultOpenAiEndpoint;
@@ -130,7 +131,7 @@ internal sealed class OpenAIProviderHealthCheck(string providerName, OpenAIProvi
         return new Uri(new Uri(text, UriKind.Absolute), "models");
     }
 
-    /// <remarks><c>internal</c>: birim testleri hazir bir yanit govdesiyle ayristirmayi dogrular.</remarks>
+    /// <remarks><c>internal</c>: unit tests verify the parsing against a canned response body.</remarks>
     internal static async ValueTask<IReadOnlyList<string>> ReadModelIdsAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)

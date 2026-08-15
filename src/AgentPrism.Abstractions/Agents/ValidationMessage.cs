@@ -1,26 +1,26 @@
 namespace AgentPrism;
 
-/// <summary>Bir agent tanimi dogrulamasinin urettigi tek bir bulgu.</summary>
+/// <summary>A single finding produced by the validation of an agent definition.</summary>
 /// <remarks>
-/// <see cref="Message"/> sunucudan gelir ve cevrilmez (K-232); arayuz yalnizca
-/// <see cref="Code"/> alanina gore kendi baslıgini gosterir.
+/// <see cref="Message"/> comes from the server and is not translated (K-232); the user
+/// interface shows its own heading based on <see cref="Code"/> alone.
 /// </remarks>
 public sealed record ValidationMessage
 {
-    /// <summary>Bulgunun onem derecesi.</summary>
+    /// <summary>Gets the severity of the finding.</summary>
     public required ValidationSeverity Severity { get; init; }
 
     /// <summary>
-    /// Makine tarafindan okunabilir kararli kod. Ornek: <c>unknown_tool</c>, <c>cycle</c>.
+    /// Gets the stable machine-readable code, for example <c>unknown_tool</c> or <c>cycle</c>.
     /// </summary>
     public required string Code { get; init; }
 
-    /// <summary>Insan tarafindan okunabilir aciklama. Cevrilmez.</summary>
+    /// <summary>Gets the human-readable description. It is not translated.</summary>
     public required string Message { get; init; }
 
     /// <summary>
-    /// Sorunlu alanin tanim icindeki yolu. Ornek: <c>toolNames[2]</c>.
-    /// Bir alana isaret etmiyorsa <see langword="null"/>.
+    /// Gets the path of the offending field inside the definition, for example
+    /// <c>toolNames[2]</c>. It is <see langword="null"/> when the finding points at no field.
     /// </summary>
     public string? Path { get; init; }
 }

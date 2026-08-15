@@ -1,40 +1,40 @@
 namespace AgentPrism;
 
-/// <summary>Bekleyen onay isteklerinin deposu.</summary>
+/// <summary>The store for pending approval requests.</summary>
 /// <remarks>
-/// <see cref="ListPendingAsync"/>, <see cref="GetAsync"/> ve <see cref="DecideAsync"/>
-/// cagiranin kiracisiyla (<c>ITenantContext</c>) sinirlidir: bir kiracinin
-/// operatoru baska kiracinin onayini goremez ve veremez. <see cref="ExpireAsync"/>
-/// bir bakim islemidir ve butun kiracilari tarar — <c>IRunStore.ClaimOrphanedRunsAsync</c>
-/// ile ayni gerekce.
+/// <see cref="ListPendingAsync"/>, <see cref="GetAsync"/> and <see cref="DecideAsync"/>
+/// are limited to the tenant of the caller (<c>ITenantContext</c>): the operator of one
+/// tenant can neither see nor decide the approvals of another tenant.
+/// <see cref="ExpireAsync"/> is a maintenance operation and scans every tenant — the
+/// same rationale as <c>IRunStore.ClaimOrphanedRunsAsync</c>.
 /// </remarks>
 public interface IPendingApprovalStore
 {
-    /// <summary>Yeni bir bekleyen onay istegi olusturur.</summary>
-    /// <param name="approval">Kaydedilecek istek. <see cref="PendingApproval.Status"/> <see cref="ApprovalStatus.Pending"/> olmalidir.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <summary>Creates a new pending approval request.</summary>
+    /// <param name="approval">The request to save. <see cref="PendingApproval.Status"/> must be <see cref="ApprovalStatus.Pending"/>.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     ValueTask CreateAsync(PendingApproval approval, CancellationToken cancellationToken = default);
 
-    /// <summary>Cagiranin kiracisindaki bekleyen istekleri, en eskiden en yeniye siralanmis olarak listeler.</summary>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <summary>Lists the pending requests of the caller's tenant, ordered from oldest to newest.</summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
     ValueTask<IReadOnlyList<PendingApproval>> ListPendingAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Tek bir bekleyen onay istegini getirir.</summary>
-    /// <param name="id">Istek kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Istek; cagiranin kiracisinda bulunamazsa <see langword="null"/>.</returns>
+    /// <summary>Returns a single pending approval request.</summary>
+    /// <param name="id">The request id.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The request, or <see langword="null"/> when it is not found in the caller's tenant.</returns>
     ValueTask<PendingApproval?> GetAsync(Guid id, CancellationToken cancellationToken = default);
 
-    /// <summary>Bekleyen bir istege karar yazar.</summary>
-    /// <param name="id">Istek kimligi.</param>
-    /// <param name="approved">Onaylandi mi.</param>
-    /// <param name="decidedBy">Karari veren aktor.</param>
-    /// <param name="decidedAt">Karar ani.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <summary>Writes a decision on a pending request.</summary>
+    /// <param name="id">The request id.</param>
+    /// <param name="approved">Whether the request is approved.</param>
+    /// <param name="decidedBy">The actor that made the decision.</param>
+    /// <param name="decidedAt">The time of the decision.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
-    /// Karar yazildiysa <see langword="true"/>; istek cagiranin kiracisinda
-    /// bulunamazsa veya zaten <see cref="ApprovalStatus.Pending"/> durumunda
-    /// degilse <see langword="false"/> (ikinci karar sessizce reddedilir).
+    /// <see langword="true"/> when the decision is written; <see langword="false"/> when
+    /// the request is not found in the caller's tenant or is no longer in the
+    /// <see cref="ApprovalStatus.Pending"/> state (a second decision is rejected silently).
     /// </returns>
     ValueTask<bool> DecideAsync(
         Guid id,
@@ -44,18 +44,18 @@ public interface IPendingApprovalStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Suresi <paramref name="olderThan"/>'dan once dolmus, hala <see cref="ApprovalStatus.Pending"/>
-    /// durumundaki istekleri <see cref="ApprovalStatus.Expired"/> olarak kapatir.
+    /// Closes the requests that expired before <paramref name="olderThan"/> and are still
+    /// in the <see cref="ApprovalStatus.Pending"/> state, marking them
+    /// <see cref="ApprovalStatus.Expired"/>.
     /// </summary>
-    /// <param name="olderThan">Bu zamandan once suresi dolmus istekler kapatilir (UTC).</param>
-    /// <param name="max">Bu turda kapatilacak ust istek sayisi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kapatilan isteklerin kayitlari.</returns>
+    /// <param name="olderThan">Requests that expired before this time are closed (UTC).</param>
+    /// <param name="max">The upper number of requests closed in this round.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The records of the closed requests.</returns>
     /// <remarks>
-    /// 🚨 <c>[TenantAgnostic]</c>: bu bir bakim isidir ve butun kiracilarin
-    /// suresi dolmus isteklerini tarar; ambient kiraciyla suzmek diger
-    /// kiracilarin isteklerini sonsuza dek <see cref="ApprovalStatus.Pending"/>
-    /// birakirdi.
+    /// 🚨 <c>[TenantAgnostic]</c>: this is maintenance work and scans the expired requests
+    /// of every tenant; filtering by the ambient tenant would leave the requests of the
+    /// other tenants <see cref="ApprovalStatus.Pending"/> forever.
     /// </remarks>
     ValueTask<IReadOnlyList<PendingApproval>> ExpireAsync(
         DateTimeOffset olderThan,

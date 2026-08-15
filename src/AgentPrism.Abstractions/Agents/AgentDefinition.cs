@@ -3,116 +3,117 @@ using System.Text.Json;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir agent'in tam tanimi. Kodda tanimlanmis veya veritabaninda saklanmis olmasindan
-/// bagimsiz olarak ayni tip kullanilir; kaynak <see cref="Origin"/> ile ayirt edilir.
+/// The full definition of an agent. The same type is used whether the agent is
+/// declared in code or stored in the database; <see cref="Origin"/> tells the two apart.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="ToolNames"/> yalnizca <em>ad</em> listesidir, kod degildir. Bir tanim,
-/// ancak kodda <c>IToolRegistry</c> icine kayitli bir tool'a isaret edebilir. Bu,
-/// AgentPrism'in guvenlik sinirlarindan biridir: arayuzden agent olusturulabilir,
-/// ancak calistirilabilir kod tanimlanamaz.
+/// <see cref="ToolNames"/> is a list of <em>names</em> only, never code. A definition
+/// can point only at a tool registered in <c>IToolRegistry</c> in code. This is one of
+/// the security boundaries of AgentPrism: the user interface can create an agent, but
+/// it cannot define executable code.
 /// </para>
 /// <para>
-/// Tanim hicbir zaman kimlik bilgisi (API anahtari vb.) tasimaz. Saglayici kimlik
-/// bilgileri yapilandirmadan gelir ve veritabanina yazilmaz.
+/// A definition never carries credentials such as an API key. Provider credentials come
+/// from configuration and are not written to the database.
 /// </para>
 /// </remarks>
 public sealed record AgentDefinition
 {
-    /// <summary>Agent'in benzersiz adi. Katalogda ve API yollarinda anahtar olarak kullanilir.</summary>
+    /// <summary>Gets the unique name of the agent, used as the key in the catalog and in API routes.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Arayuzde gosterilecek ad. Bos birakilirsa <see cref="Name"/> kullanilir.</summary>
+    /// <summary>Gets the name shown in the user interface. <see cref="Name"/> is used when it is empty.</summary>
     public string? DisplayName { get; init; }
 
-    /// <summary>Agent'in ne yaptigini anlatan kisa aciklama.</summary>
+    /// <summary>Gets a short description of what the agent does.</summary>
     public string? Description { get; init; }
 
-    /// <summary>Modele verilecek sistem talimatlari.</summary>
+    /// <summary>Gets the system instructions passed to the model.</summary>
     public string? Instructions { get; init; }
 
-    /// <summary>Kullanilacak saglayici ve model baglantisi.</summary>
+    /// <summary>Gets the provider and model binding to use.</summary>
     public required ModelBinding Model { get; init; }
 
     /// <summary>
-    /// Bu agent'in kullanabilecegi tool adlari. Her ad kodda kayitli bir tool'a
-    /// karsilik gelmelidir; gelmezse derleme hata verir.
+    /// Gets the names of the tools this agent may use. Every name must match a tool
+    /// registered in code; otherwise building the agent fails.
     /// </summary>
     public IReadOnlyList<string> ToolNames { get; init; } = [];
 
     /// <summary>
-    /// Bu agent'in calisma aninda yukleyebilecegi skill adlari. Her ad, kodda
-    /// veya skill deposunda bulunan etkin bir skill'e karsilik gelmelidir.
+    /// Gets the names of the skills this agent may load at run time. Every name must
+    /// match an enabled skill found in code or in the skill store.
     /// </summary>
     public IReadOnlyList<string> SkillNames { get; init; } = [];
 
     /// <summary>
-    /// Bu agent'in cagirabilecegi diger agent'larin adlari.
+    /// Gets the names of the other agents this agent may call.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Her ad katalogda cozulebilen bir agent'a karsilik gelmelidir. Cagri grafigi
-    /// <strong>kaydetme aninda</strong> denetlenir: kendi kendini cagirma ve dolayli
-    /// dongu reddedilir.
+    /// Every name must resolve to an agent in the catalog. The call graph is checked
+    /// <strong>when the definition is saved</strong>: self calls and indirect cycles
+    /// are rejected.
     /// </para>
     /// <para>
-    /// Statik denetim tek basina yeterli degildir - kod tarafindaki bir fabrika
-    /// agent'i grafigi tasimaz. Bu yuzden calisma aninda ayrica bir derinlik sayaci
-    /// isler (<see cref="AgentRunBudget.MaxDepth"/>).
+    /// The static check alone is not enough - a factory agent on the code side carries
+    /// no graph. A depth counter therefore also runs at run time
+    /// (<see cref="AgentRunBudget.MaxDepth"/>).
     /// </para>
     /// <para>
-    /// Alt agent <strong>ayni kiracida</strong> calisir ve kiraci degistiremez.
+    /// A child agent runs in the <strong>same tenant</strong> and cannot change the tenant.
     /// </para>
     /// </remarks>
     public IReadOnlyList<string> CallableAgentNames { get; init; } = [];
 
     /// <summary>
-    /// Calistirma baglamina eklenecek MCP kaynaklarinin listesi (Mod A). Her
-    /// ogenin bicimi <c>"{sunucu}:{uri}"</c>. Calistirma basinda okunur ve
-    /// ongorulebilirdir; her calistirmada ayni kaynaklar girer.
+    /// Gets the MCP resources added to the run context (mode A). Each item has the
+    /// form <c>"{server}:{uri}"</c>. They are read at the start of the run and are
+    /// predictable; every run receives the same resources.
     /// </summary>
     /// <remarks>
-    /// Kaynak okuma icin <c>AgentPrism.Mcp</c> paketinin kayitli olmasi (<c>UseMcp()</c>)
-    /// gerekir; aksi halde derleme hata verir. Boyut siniri uygulanir
-    /// (docs/22-MCP-DERINLESMESI.md, bolum 22.2): kaynak basina 64 KB, toplam 256 KB.
+    /// Reading resources requires the <c>AgentPrism.Mcp</c> package to be registered
+    /// (<c>UseMcp()</c>); otherwise building the agent fails. A size limit applies
+    /// (docs/22-MCP-DERINLESMESI.md, section 22.2): 64 KB per resource, 256 KB in total.
     /// </remarks>
     public IReadOnlyList<string> McpResourceUris { get; init; } = [];
 
     /// <summary>
-    /// Harness ayarlari. <see langword="null"/> ise sade bir sohbet agent'i uretilir;
-    /// dolu ise baglam sikistirma, todo takibi gibi harness yetenekleri devreye girer.
+    /// Gets the harness settings. When <see langword="null"/> a plain chat agent is
+    /// produced; when populated, harness capabilities such as context compaction and
+    /// todo tracking are enabled.
     /// </summary>
     public HarnessSettings? Harness { get; init; }
 
     /// <summary>
-    /// Baglam sikistirma ayarlari. <see langword="null"/> ise hicbir
-    /// sikistirma uygulanmaz.
+    /// Gets the context compaction settings. When <see langword="null"/> no compaction
+    /// is applied.
     /// </summary>
     public CompactionSettings? Compaction { get; init; }
 
     /// <summary>
-    /// Bellek saglayicisi ayarlari. <see langword="null"/> ise hicbir bellek
-    /// saglayicisi eklenmez.
+    /// Gets the memory provider settings. When <see langword="null"/> no memory provider
+    /// is added.
     /// </summary>
     public MemorySettings? Memory { get; init; }
 
-    /// <summary>Tanimin kaynagi: kod mu, veritabani mi.</summary>
+    /// <summary>Gets the origin of the definition: code or database.</summary>
     public AgentDefinitionOrigin Origin { get; init; } = AgentDefinitionOrigin.Database;
 
     /// <summary>
-    /// Tanim surumu. Her kayit islemi bu degeri artirir ve derlenmis agent
-    /// onbellegini dogal olarak gecersiz kilar.
+    /// Gets the definition version. Every save increments this value and so naturally
+    /// invalidates the compiled agent cache.
     /// </summary>
     public int Version { get; init; } = 1;
 
-    /// <summary>Bu tanimin ait oldugu kiraci. Tek kiracili kurulumda varsayilan deger kullanilir.</summary>
+    /// <summary>Gets the tenant this definition belongs to. A single-tenant setup uses the default value.</summary>
     public string? TenantId { get; init; }
 
-    /// <summary>Tanimin son degistirilme zamani (UTC).</summary>
+    /// <summary>Gets the time the definition last changed (UTC).</summary>
     public DateTimeOffset? UpdatedAt { get; init; }
 
-    /// <summary>Uygulamaya ozgu serbest metadata.</summary>
+    /// <summary>Gets free-form, application-specific metadata.</summary>
     public IReadOnlyDictionary<string, JsonElement> Metadata { get; init; }
         = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
 }

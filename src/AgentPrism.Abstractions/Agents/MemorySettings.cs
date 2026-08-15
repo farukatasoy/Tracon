@@ -1,43 +1,45 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Bir agent'a baglanacak bellek saglayicilarini belirler.
+/// Determines the memory providers bound to an agent.
 /// </summary>
 /// <remarks>
-/// MAF'in <c>ChatHistoryMemoryProvider</c>'i (vektor tabanli oturum ici bellek)
-/// bilerek burada yoktur; <see cref="EnableVectorSearch"/> ile karistirilmamalidir
-/// — o, kalici bir bilgi tabaninda anlamsal arama tool'unu acar, MAF'in o
-/// belirli sozlesmesini baglamaz. Gerekce ve sinir: <c>docs/KARARLAR.md</c>.
+/// The <c>ChatHistoryMemoryProvider</c> of MAF (vector-based in-session memory) is
+/// deliberately absent here, and must not be confused with
+/// <see cref="EnableVectorSearch"/> — that one opens a semantic search tool over a
+/// persistent knowledge base and does not bind that particular MAF contract. Rationale
+/// and boundary: <c>docs/KARARLAR.md</c>.
 /// </remarks>
 public sealed record MemorySettings
 {
     /// <summary>
-    /// Dosya tabanli bellegi acar. Bu fazda yalnizca bellek ici depo ile
-    /// calisir; kalici surum ileri bir faza birakildi.
+    /// Gets a value that turns on file-based memory. In this phase it works only with
+    /// the in-memory store; the persistent version is left to a later phase.
     /// </summary>
     public bool EnableFileMemory { get; init; }
 
-    /// <summary>Todo takibini acar.</summary>
+    /// <summary>Gets a value that turns on todo tracking.</summary>
     public bool EnableTodo { get; init; }
 
     /// <summary>
-    /// Dosya deposu uzerinde metin aramasini acar. Arama, kayitli
-    /// <c>AgentFileStore</c> uzerinde calisir; bu fazda varsayilan olarak
-    /// bellek ici depodur.
+    /// Gets a value that turns on text search over the file store. The search runs over
+    /// the registered <c>AgentFileStore</c>, which in this phase is the in-memory store
+    /// by default.
     /// </summary>
     public bool EnableTextSearch { get; init; }
 
     /// <summary>
-    /// <c>search_knowledge</c> tool'unu acar (Faz 51). 🚨 Yalniz PostgreSQL:
-    /// <see cref="IVectorSearchStore"/>'un tek somut uygulamasi
-    /// <c>AgentPrism.PostgreSql</c> icindedir. Baska bir saglayici kayitliyken
-    /// bu bayrak acilirsa derleme <see cref="AgentPrismCompilationException"/>
-    /// ile durur; sessizce bos sonuc donmez.
+    /// Gets a value that turns on the <c>search_knowledge</c> tool (phase 51). 🚨
+    /// PostgreSQL only: the single concrete implementation of
+    /// <see cref="IVectorSearchStore"/> lives in <c>AgentPrism.PostgreSql</c>. When this
+    /// flag is turned on while another provider is registered, the build stops with
+    /// <see cref="AgentPrismCompilationException"/>; it does not silently return an
+    /// empty result.
     /// </summary>
     public bool EnableVectorSearch { get; init; }
 
     /// <summary>
-    /// Aranacak koleksiyon adi. Bos ise agent adi kullanilir.
+    /// Gets the name of the collection to search. The agent name is used when it is empty.
     /// </summary>
     public string? VectorCollection { get; init; }
 }

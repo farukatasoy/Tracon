@@ -2,28 +2,28 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>Bir agent tanimina baglanabilecek baglam sikistirma stratejisi turu.</summary>
+/// <summary>The kind of context compaction strategy that can be bound to an agent definition.</summary>
 [JsonConverter(typeof(JsonStringEnumConverter<CompactionStrategyKind>))]
 public enum CompactionStrategyKind
 {
-    /// <summary>Sikistirma yok. Varsayilan.</summary>
+    /// <summary>No compaction. The default.</summary>
     None,
 
-    /// <summary>En eski turleri, bir alt sinirin ustunde tutarak atar.</summary>
+    /// <summary>Drops the oldest turns while keeping their count above a lower bound.</summary>
     SlidingWindow,
 
-    /// <summary>Disarida birakilan gruplari sabit bir alt sinira kadar keser.</summary>
+    /// <summary>Truncates the excluded groups down to a fixed lower bound.</summary>
     Truncation,
 
-    /// <summary>Yalnizca tool cagri/sonuc gruplarini kisaltir.</summary>
+    /// <summary>Shortens only the tool call and tool result groups.</summary>
     ToolResult,
 
-    /// <summary>Disarida birakilan gruplari bir modelle ozetler.</summary>
+    /// <summary>Summarizes the excluded groups with a model.</summary>
     Summarization,
 
-    /// <summary>Model baglam penceresi sinirina gore otomatik tahliye/kesme uygular.</summary>
+    /// <summary>Evicts or truncates automatically against the model context window limit.</summary>
     ContextWindow,
 
-    /// <summary>Sabit sirali bir zincir uygular: ToolResult, ardindan SlidingWindow, ardindan Summarization.</summary>
+    /// <summary>Applies a fixed chain: ToolResult, then SlidingWindow, then Summarization.</summary>
     Pipeline,
 }

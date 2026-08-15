@@ -1,20 +1,19 @@
 namespace AgentPrism;
 
-/// <summary>Sunulan bir ham token degerini bir API anahtarina cozer.</summary>
+/// <summary>Resolves a presented raw token value to an API key.</summary>
 /// <remarks>
-/// Hash &gt; arama &gt; sure sonu/iptal denetimi zincirini tek yerde toplar; hem
-/// <see cref="AgentPrismEndpointFilter"/> hem de ileride eklenebilecek ikinci
-/// bir giris noktasi (ornegin WebSocket el sikismasi) ayni mantigi tekrar
-/// yazmaz.
+/// Collects the hash &gt; lookup &gt; expiry/revocation chain in one place, so that both
+/// <see cref="AgentPrismEndpointFilter"/> and a second entry point that may be added later
+/// (a WebSocket handshake, for example) do not write the same logic twice.
 /// </remarks>
 internal static class ApiKeyAuthenticator
 {
-    /// <summary>Ham bir token degerini dogrular ve kaydini doner.</summary>
-    /// <param name="store">Anahtar deposu.</param>
-    /// <param name="presentedToken">Sunulan ham deger.</param>
-    /// <param name="timeProvider">Sure sonu denetimi icin zaman kaynagi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Gecerli bir anahtarsa kaydi; degilse <see langword="null"/>.</returns>
+    /// <summary>Validates a raw token value and returns its record.</summary>
+    /// <param name="store">The key store.</param>
+    /// <param name="presentedToken">The presented raw value.</param>
+    /// <param name="timeProvider">The time source used for the expiry check.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The record when the key is valid; otherwise <see langword="null"/>.</returns>
     public static async ValueTask<ApiKeyRecord?> AuthenticateAsync(
         IApiKeyStore store,
         string presentedToken,

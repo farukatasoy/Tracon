@@ -6,17 +6,18 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// <c>jsonb</c> alanlarina yazilan tiplerin kaynak ureteci baglami.
+/// The source generator context for the types written to <c>jsonb</c> columns.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <c>JsonSerializer.Serialize(object)</c> gibi yansimaya dayanan asiri yuklemeler
-/// <c>IL2026</c> ve <c>IL3050</c> uretir. <c>AgentPrism.PostgreSql</c> AOT uyumlu
-/// isaretlidir ve bu tanilar build'i kirar; bu yuzden serilestirilen her tip
-/// burada bildirilir ve cagrilar <c>JsonTypeInfo</c> alan asiri yuklemeleri kullanir.
+/// Reflection-based overloads such as <c>JsonSerializer.Serialize(object)</c>
+/// produce <c>IL2026</c> and <c>IL3050</c>. <c>AgentPrism.PostgreSql</c> is marked
+/// AOT compatible and those diagnostics break the build; every serialized type is
+/// therefore declared here and the calls use the overloads that take a
+/// <c>JsonTypeInfo</c>.
 /// </para>
 /// <para>
-/// Gerekce: <c>docs/KARARLAR.md</c>, karar K-006.
+/// Rationale: <c>docs/KARARLAR.md</c>, decision K-006.
 /// </para>
 /// </remarks>
 [JsonSourceGenerationOptions(
@@ -27,27 +28,30 @@ namespace AgentPrism;
 [JsonSerializable(typeof(ChatHistoryState))]
 [JsonSerializable(typeof(ChatMessage))]
 
-// MAF'in bellek saglayicilarinin (FileMemoryProvider okuma yolu, TodoProvider)
-// ChatMessage.AdditionalProperties'e ekledigi kaynak/provenance bilgisi
-// (HATA-S1-008). Bildirilmezse polimorfik AdditionalProperties sozlugu bu tiple
-// karsilastiginda NotSupportedException firlatir ve hicbir yerde yakalanmaz —
-// bellek sagayicisini KULLANAN her tur sessizce coker (yanit hic donmez).
+// The source/provenance information that the MAF memory providers
+// (FileMemoryProvider read path, TodoProvider) add to
+// ChatMessage.AdditionalProperties (HATA-S1-008). If it is not declared, the
+// polymorphic AdditionalProperties dictionary throws NotSupportedException when it
+// meets this type, and nothing catches it — every run that USES the memory
+// provider fails silently (no response is ever returned).
 [JsonSerializable(typeof(AgentRequestMessageSourceAttribution))]
 
-// Calistirma girdisi (Faz 47). Liste TEK bir `json` sutununa yazilir; polimorfik
-// icerigin `$type` ayraci nesnenin ilk ozelligi olarak korunur (K-027).
+// The run input (phase 47). The list is written to a SINGLE `json` column; the
+// `$type` discriminator of the polymorphic content is preserved as the first
+// property of the object (K-027).
 [JsonSerializable(typeof(IReadOnlyList<ChatMessage>))]
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
 [JsonSerializable(typeof(IReadOnlyList<ExperimentVariant>))]
 
-// Kanarya kurali (Faz 56). Ayri bir `canary_policy` sutununda, `variants`'tan
-// BAGIMSIZ yazilir: SetCanaryPolicyAsync deneyin durumundan bagimsiz calisir.
+// The canary policy (phase 56). It lives in a separate `canary_policy` column and
+// is written INDEPENDENTLY of `variants`: SetCanaryPolicyAsync works regardless of
+// the state of the experiment.
 [JsonSerializable(typeof(CanaryPolicy))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 
-// Dizi tasima (Faz 23). PostgreSQL yerel dizi gonderir; SQL Server'da dizi
-// parametresi yoktur ve diziler JSON metni olarak tasinir (OPENJSON ile acilir).
-// Gerekce: docs/KARARLAR.md, karar K-182.
+// Array transport (phase 23). PostgreSQL sends a native array; SQL Server has no
+// array parameter and arrays travel as JSON text (unpacked with OPENJSON).
+// Rationale: docs/KARARLAR.md, decision K-182.
 [JsonSerializable(typeof(string[]))]
 [JsonSerializable(typeof(Guid[]))]
 internal sealed partial class AgentPrismJsonContext : JsonSerializerContext;

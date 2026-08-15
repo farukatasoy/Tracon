@@ -1,72 +1,73 @@
 namespace AgentPrism;
 
-/// <summary>AgentPrism'in OpenAI saglayici ayarlari.</summary>
+/// <summary>The OpenAI provider options of AgentPrism.</summary>
 /// <remarks>
-/// Dogrulama <see cref="OpenAIProviderOptionsValidator"/> icinde elle yapilir;
-/// <c>DataAnnotations</c> kullanilmaz. Gerekce: <c>docs/KARARLAR.md</c>, karar K-006.
+/// Validation is written by hand inside <see cref="OpenAIProviderOptionsValidator"/>;
+/// <c>DataAnnotations</c> is not used. Reason: <c>docs/KARARLAR.md</c>, decision K-006.
 /// </remarks>
 public sealed class OpenAIProviderOptions
 {
-    /// <summary>Ayarlarin okundugu yapilandirma bolumunun tam yolu.</summary>
+    /// <summary>Gets the full path of the configuration section the options are read from.</summary>
     public const string SectionName = "AgentPrism:Providers:OpenAI";
 
-    /// <summary>OpenAI API anahtari.</summary>
+    /// <summary>Gets or sets the OpenAI API key.</summary>
     /// <remarks>
-    /// <strong>Bu deger bir sirdir ve dosyaya yazilmaz.</strong> <c>dotnet user-secrets</c>,
-    /// ortam degiskeni veya bir sir yoneticisi kullanin. Anahtar hicbir kosulda
-    /// veritabanina yazilmaz, API'den donmez ve arayuzde gosterilmez.
+    /// <strong>This value is a secret and is never written to a file.</strong> Use
+    /// <c>dotnet user-secrets</c>, an environment variable or a secret manager. The key is
+    /// never written to the database, never returned from the API and never shown in the
+    /// user interface.
     /// </remarks>
     public string? ApiKey { get; set; }
 
     /// <summary>
-    /// <see cref="ModelBinding.Model"/> bos birakildiginda kullanilacak model adi.
+    /// Gets or sets the model name to use when <see cref="ModelBinding.Model"/> is left empty.
     /// </summary>
     public string? DefaultModel { get; set; }
 
     /// <summary>
-    /// Istek adresi. <see langword="null"/> ise OpenAI'in kendi adresi kullanilir.
-    /// OpenAI uyumlu ara sunucular icin doldurulur.
+    /// Gets or sets the request address. When <see langword="null"/>, the OpenAI address
+    /// is used. Set it for OpenAI compatible proxies.
     /// </summary>
     public Uri? Endpoint { get; set; }
 
-    /// <summary>Kurulus (organization) kimligi. Cok kuruluslu hesaplarda kullanilir.</summary>
+    /// <summary>Gets or sets the organization id. It is used by multi organization accounts.</summary>
     public string? Organization { get; set; }
 
-    /// <summary>Tek bir istegin ust sure siniri. <see langword="null"/> ise kitaplik varsayilani kullanilir.</summary>
+    /// <summary>Gets or sets the upper time limit of a single request. When <see langword="null"/>, the library default is used.</summary>
     public TimeSpan? Timeout { get; set; }
 
     /// <summary>
-    /// Arayuze gosterilecek model katalogu.
+    /// Gets the model catalog shown in the user interface.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// AgentPrism yerlesik bir model listesi tasimaz; katalog tamamen buradan gelir.
-    /// Model adlari ve fiyatlari, paketin yayin sikligindan cok daha hizli degisir.
-    /// Gerekce: <c>docs/KARARLAR.md</c>, karar K-032.
+    /// AgentPrism carries no built-in model list; the catalog comes entirely from here.
+    /// Model names and prices change much faster than the package is released.
+    /// Reason: <c>docs/KARARLAR.md</c>, decision K-032.
     /// </para>
     /// <para>
-    /// Bu liste bir <em>dogrulama listesi degildir</em>. Burada bulunmayan bir model
-    /// adi da kullanilabilir; katalog yalnizca arayuzun model secim ekranini ve
-    /// maliyet hesabini besler.
+    /// This list is <em>not a validation list</em>. A model name that is absent here can
+    /// still be used; the catalog only feeds the model picker screen and the cost
+    /// calculation of the user interface.
     /// </para>
     /// </remarks>
     public IList<ModelDescriptor> Models { get; } = [];
 
     /// <summary>
-    /// <c>UseOpenAICompatible()</c> ile kaydedilen bir saglayici icin Responses API
-    /// yuzeyini de acar mi.
+    /// Gets or sets a value indicating whether the Responses API surface is also enabled
+    /// for a provider registered with <c>UseOpenAICompatible()</c>.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <strong>Yalnizca <c>UseOpenAICompatible()</c> tarafindan okunur.</strong>
-    /// <c>UseOpenAI()</c> bu alani yok sayar; resmi OpenAI saglayicisi her zaman
-    /// iki yuzeyi de kaydeder (<see cref="OpenAIProviderNames.ChatCompletions"/> ve
+    /// <strong>Only <c>UseOpenAICompatible()</c> reads it.</strong> <c>UseOpenAI()</c>
+    /// ignores this field; the official OpenAI provider always registers both surfaces
+    /// (<see cref="OpenAIProviderNames.ChatCompletions"/> and
     /// <see cref="OpenAIProviderNames.Responses"/>).
     /// </para>
     /// <para>
-    /// Varsayilan <see langword="false"/>: cogu OpenAI uyumlu sunucu
-    /// <c>/v1/responses</c> ucunu uygulamaz. Acildiginda ikinci bir saglayici
-    /// <c>{ad}-responses</c> adiyla kaydedilir.
+    /// The default is <see langword="false"/>: most OpenAI compatible servers do not
+    /// implement the <c>/v1/responses</c> endpoint. When it is on, a second provider is
+    /// registered under the name <c>{name}-responses</c>.
     /// </para>
     /// </remarks>
     public bool EnableResponsesSurface { get; set; }

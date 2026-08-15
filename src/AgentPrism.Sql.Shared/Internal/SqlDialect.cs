@@ -4,356 +4,357 @@ using System.Data.Common;
 namespace AgentPrism;
 
 /// <summary>
-/// Saglayiciya ozgu her davranisin gectigi tek kapi.
+/// The single gateway that every provider-specific behaviour passes through.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <c>AgentPrism.Sql.Shared</c> altindaki depo uygulamalari yalnizca ADO.NET taban
-/// tiplerini (<see cref="DbCommand"/>, <see cref="DbDataReader"/>,
-/// <see cref="DbDataSource"/>) tanir. <c>Npgsql</c> veya
-/// <c>Microsoft.Data.SqlClient</c> ad alanina <strong>hicbir</strong> paylasilan
-/// dosya referans veremez; farklarin tamami bu sinifin turevlerinde toplanir.
+/// The store implementations under <c>AgentPrism.Sql.Shared</c> know only the
+/// ADO.NET base types (<see cref="DbCommand"/>, <see cref="DbDataReader"/>,
+/// <see cref="DbDataSource"/>). <strong>No</strong> shared file may reference the
+/// <c>Npgsql</c> or <c>Microsoft.Data.SqlClient</c> namespace; all the differences
+/// are collected in the derived types of this class.
 /// </para>
 /// <para>
-/// Farklar uc kumede toplanir:
+/// The differences fall into three groups:
 /// </para>
 /// <list type="number">
 ///   <item><description>
-///     <strong>Parametre tiplemesi.</strong> <c>jsonb</c>, dizi ve aralik gibi
-///     tiplerin ADO.NET'te ortak bir karsiligi yoktur.
+///     <strong>Parameter typing.</strong> Types such as <c>jsonb</c>, arrays and
+///     intervals have no common counterpart in ADO.NET.
 ///   </description></item>
 ///   <item><description>
-///     <strong>Dizi tasima bicimi.</strong> PostgreSQL yerel dizi gonderir
-///     (<c>unnest</c>); SQL Server JSON metni gonderir (<c>OPENJSON</c>).
-///     Metin farki SQL'in icinde kalir, C# akisi ayni olur.
+///     <strong>Array transport format.</strong> PostgreSQL sends a native array
+///     (<c>unnest</c>); SQL Server sends JSON text (<c>OPENJSON</c>). The text
+///     difference stays inside the SQL and the C# flow is the same.
 ///   </description></item>
 ///   <item><description>
-///     <strong>Migration kilidi.</strong> <c>pg_advisory_lock</c> ve
+///     <strong>Migration lock.</strong> <c>pg_advisory_lock</c> and
 ///     <c>sp_getapplock</c>.
 ///   </description></item>
 /// </list>
 /// <para>
-/// Gerekce: <c>docs/KARARLAR.md</c>, karar K-176.
+/// Rationale: <c>docs/KARARLAR.md</c>, decision K-176.
 /// </para>
 /// </remarks>
 internal abstract class SqlDialect
 {
-    /// <summary>Bu saglayicinin SQL metinleri.</summary>
+    /// <summary>Gets the SQL texts of this provider.</summary>
     public abstract SqlQueriesBase Queries { get; }
 
     /// <summary>
-    /// Gomulu migration kaynaklarinin ad oneki.
+    /// Gets the name prefix of the embedded migration resources.
     /// </summary>
     /// <remarks>
-    /// Her saglayicinin kendi migration seti vardir ve numaralandirma
-    /// <c>0001</c>'den baslar. Iki setin numaralarinin eslesmesi
-    /// <strong>gerekmez</strong>. Gerekce: <c>docs/KARARLAR.md</c>, karar K-178.
+    /// Every provider has its own migration set and the numbering starts at
+    /// <c>0001</c>. The numbers of two sets do <strong>not</strong> have to match.
+    /// Rationale: <c>docs/KARARLAR.md</c>, decision K-178.
     /// </remarks>
     public abstract string MigrationResourcePrefix { get; }
 
-    // --- Migration kilidi ---
+    // --- Migration lock ---
 
-    /// <summary>Migration kilidini alir.</summary>
-    /// <param name="connection">Kilidin uzerinde tutulacagi baglanti.</param>
-    /// <param name="commandTimeout">Komut ust suresi (saniye).</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Acquires the migration lock.</summary>
+    /// <param name="connection">The connection the lock is held on.</param>
+    /// <param name="commandTimeout">The command timeout, in seconds.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task that completes when the lock is acquired.</returns>
     /// <remarks>
-    /// Kilit <em>oturum kapsamlidir</em>; bu yuzden tum migration adimlari ayni
-    /// baglanti uzerinde yurutulur.
+    /// The lock is <em>session scoped</em>; every migration step therefore runs over
+    /// the same connection.
     /// </remarks>
     public abstract ValueTask AcquireMigrationLockAsync(
         DbConnection connection,
         int commandTimeout,
         CancellationToken cancellationToken);
 
-    /// <summary>Migration kilidini birakir.</summary>
-    /// <param name="connection">Kilidin tutuldugu baglanti.</param>
-    /// <param name="commandTimeout">Komut ust suresi (saniye).</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Releases the migration lock.</summary>
+    /// <param name="connection">The connection the lock is held on.</param>
+    /// <param name="commandTimeout">The command timeout, in seconds.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task that completes when the lock is released.</returns>
     public abstract ValueTask ReleaseMigrationLockAsync(
         DbConnection connection,
         int commandTimeout,
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Migration uygulanirken olusan saglayiciya ozgu hatayi anlasilir bir
-    /// <see cref="AgentPrismException"/> mesajina cevirir.
+    /// Converts a provider-specific error raised while a migration is applied into
+    /// an understandable <see cref="AgentPrismException"/> message.
     /// </summary>
-    /// <param name="exception">Yakalanan istisna.</param>
+    /// <param name="exception">The caught exception.</param>
     /// <returns>
-    /// Bu saglayicinin veritabani hatasiysa aciklama metni; degilse
-    /// <see langword="null"/> (istisna yeniden firlatilir).
+    /// The description text when it is a database error of this provider; otherwise
+    /// <see langword="null"/> (the exception is rethrown).
     /// </returns>
     public abstract string? DescribeDatabaseError(Exception exception);
 
-    /// <summary>Istisna bir benzersizlik kisiti ihlali mi.</summary>
-    /// <param name="exception">Yakalanan istisna.</param>
-    /// <returns>Oyleyse <see langword="true"/>.</returns>
+    /// <summary>Determines whether the exception is a unique constraint violation.</summary>
+    /// <param name="exception">The caught exception.</param>
+    /// <returns><see langword="true"/> when it is.</returns>
     /// <remarks>
-    /// PostgreSQL SQLSTATE <c>23505</c> verir; SQL Server 2601/2627 numarali
-    /// hatalari kullanir. Depolar bu farki gormez.
+    /// PostgreSQL gives SQLSTATE <c>23505</c>; SQL Server uses error numbers 2601
+    /// and 2627. The stores do not see this difference.
     /// </remarks>
     public abstract bool IsUniqueViolation(Exception exception);
 
-    /// <summary>Istisna bir yabanci anahtar kisiti ihlali mi.</summary>
-    /// <param name="exception">Yakalanan istisna.</param>
-    /// <returns>Oyleyse <see langword="true"/>.</returns>
+    /// <summary>Determines whether the exception is a foreign key constraint violation.</summary>
+    /// <param name="exception">The caught exception.</param>
+    /// <returns><see langword="true"/> when it is.</returns>
     /// <remarks>
-    /// PostgreSQL SQLSTATE <c>23503</c> verir; SQL Server 547 numarali hatayi
-    /// kullanir.
+    /// PostgreSQL gives SQLSTATE <c>23503</c>; SQL Server uses error number 547.
     /// </remarks>
     public abstract bool IsForeignKeyViolation(Exception exception);
 
     /// <summary>
-    /// Istisna, sunucu tarafina indirilen bir duzenli ifadenin bu saglayici
-    /// tarafindan gecersiz sayilmasindan mi kaynaklaniyor.
+    /// Determines whether the exception comes from this provider treating a regular
+    /// expression pushed down to the server as invalid.
     /// </summary>
-    /// <param name="exception">Yakalanan istisna.</param>
-    /// <returns>Oyleyse <see langword="true"/>.</returns>
+    /// <param name="exception">The caught exception.</param>
+    /// <returns><see langword="true"/> when it does.</returns>
     /// <remarks>
-    /// Yalnizca PostgreSQL <c>~</c> operatorunu on suzgec olarak kullanir (Faz 51,
-    /// Is A); .NET'in <see cref="System.Text.RegularExpressions.Regex"/> sozdizimi
-    /// PostgreSQL'in ARE sozdiziminden zengindir (ornegin adlandirilmis gruplar).
-    /// Boyle bir desen sunucuya gonderildiginde <see cref="SqlAgentFileStore"/>
-    /// bu metotla algilar ve on suzgec OLMADAN yeniden dener; nihai eslesme her
-    /// zaman .NET <c>Regex</c> ile istemcide yapilir, davranis degismez.
-    /// SQL Server ve SQLite bu yola hic girmez ve daima <see langword="false"/> doner.
+    /// Only PostgreSQL uses the <c>~</c> operator as a prefilter (phase 51, item A);
+    /// the <see cref="System.Text.RegularExpressions.Regex"/> syntax of .NET is
+    /// richer than the ARE syntax of PostgreSQL (named groups, for example). When
+    /// such a pattern is sent to the server, <see cref="SqlAgentFileStore"/> detects
+    /// it with this method and retries WITHOUT the prefilter; the final match is
+    /// always done on the client with the .NET <c>Regex</c>, so the behaviour does
+    /// not change. SQL Server and SQLite never take this path and always return
+    /// <see langword="false"/>.
     /// </remarks>
     public abstract bool IsInvalidRegexError(Exception exception);
 
-    // --- Saglayiciya ozgu parametre tiplemesi ---
+    // --- Provider-specific parameter typing ---
 
-    /// <summary>Bir JSON metnini <c>json</c> sutunu icin parametreye baglar.</summary>
-    /// <param name="command">Komut.</param>
-    /// <param name="name">Parametre adi.</param>
-    /// <param name="value">JSON metni; <see langword="null"/> olabilir.</param>
+    /// <summary>Binds a JSON text to a parameter for a <c>json</c> column.</summary>
+    /// <param name="command">The command.</param>
+    /// <param name="name">The parameter name.</param>
+    /// <param name="value">The JSON text; it can be <see langword="null"/>.</param>
     /// <remarks>
-    /// PostgreSQL'de <c>json</c> ile <c>jsonb</c> ayrimi anlamlidir: <c>jsonb</c>
-    /// nesne anahtarlarini yeniden siralar ve polimorfik <c>$type</c> ayracini
-    /// bozar (karar K-027). SQL Server'da ikisi de <c>nvarchar(max)</c>'tir ve
-    /// sira zaten korunur; ayrim orada islevsizdir ama <em>zararsizdir</em> —
-    /// paylasilan kod tek bir sozlesme kullanir.
+    /// On PostgreSQL the distinction between <c>json</c> and <c>jsonb</c> matters:
+    /// <c>jsonb</c> reorders the object keys and breaks the polymorphic <c>$type</c>
+    /// discriminator (decision K-027). On SQL Server both are <c>nvarchar(max)</c>
+    /// and the order is preserved anyway; the distinction is inert there but
+    /// <em>harmless</em> — the shared code uses a single contract.
     /// </remarks>
     public abstract void AddJson(DbCommand command, string name, string? value);
 
-    /// <summary>Bir JSON metnini <c>jsonb</c> sutunu icin parametreye baglar.</summary>
-    /// <param name="command">Komut.</param>
-    /// <param name="name">Parametre adi.</param>
-    /// <param name="value">JSON metni; <see langword="null"/> olabilir.</param>
+    /// <summary>Binds a JSON text to a parameter for a <c>jsonb</c> column.</summary>
+    /// <param name="command">The command.</param>
+    /// <param name="name">The parameter name.</param>
+    /// <param name="value">The JSON text; it can be <see langword="null"/>.</param>
     public abstract void AddJsonb(DbCommand command, string name, string? value);
 
-    /// <summary>Bir metin dizisini parametreye baglar.</summary>
-    /// <param name="command">Komut.</param>
-    /// <param name="name">Parametre adi.</param>
-    /// <param name="values">Dizi; <see langword="null"/> olabilir.</param>
+    /// <summary>Binds a text array to a parameter.</summary>
+    /// <param name="command">The command.</param>
+    /// <param name="name">The parameter name.</param>
+    /// <param name="values">The array; it can be <see langword="null"/>.</param>
     public abstract void AddTextArray(DbCommand command, string name, IReadOnlyList<string>? values);
 
-    /// <summary>Bir kimlik dizisini parametreye baglar.</summary>
-    /// <param name="command">Komut.</param>
-    /// <param name="name">Parametre adi.</param>
-    /// <param name="values">Dizi; <see langword="null"/> olabilir.</param>
+    /// <summary>Binds an identifier array to a parameter.</summary>
+    /// <param name="command">The command.</param>
+    /// <param name="name">The parameter name.</param>
+    /// <param name="values">The array; it can be <see langword="null"/>.</param>
     public abstract void AddUuidArray(DbCommand command, string name, IReadOnlyList<Guid>? values);
 
-    /// <summary>Bir zaman araligini parametreye baglar.</summary>
-    /// <param name="command">Komut.</param>
-    /// <param name="name">Parametre adi.</param>
-    /// <param name="value">Aralik.</param>
+    /// <summary>Binds a time interval to a parameter.</summary>
+    /// <param name="command">The command.</param>
+    /// <param name="name">The parameter name.</param>
+    /// <param name="value">The interval.</param>
     public abstract void AddInterval(DbCommand command, string name, TimeSpan value);
 
-    /// <summary>Bir metin dizisi sutununu okur.</summary>
-    /// <param name="reader">Okuyucu.</param>
-    /// <param name="ordinal">Sutun sirasi.</param>
-    /// <returns>Dizi; sutun <c>NULL</c> ise bos dizi.</returns>
+    /// <summary>Reads a text array column.</summary>
+    /// <param name="reader">The reader.</param>
+    /// <param name="ordinal">The column ordinal.</param>
+    /// <returns>The array; an empty array when the column is <c>NULL</c>.</returns>
     public abstract IReadOnlyList<string> ReadTextArray(DbDataReader reader, int ordinal);
 
-    /// <summary>Yalin bir tablo adini bu saglayicinin sema/onek kuraliyla nitelendirir.</summary>
-    /// <param name="tableName">Sema/onek olmadan tablo adi (ornegin <c>"sessions"</c>).</param>
-    /// <returns>Calistirilabilir SQL'e gomulmeye hazir, nitelendirilmis ad.</returns>
+    /// <summary>Qualifies a bare table name with the schema/prefix rule of this provider.</summary>
+    /// <param name="tableName">The table name without schema or prefix (for example <c>"sessions"</c>).</param>
+    /// <returns>The qualified name, ready to embed into runnable SQL.</returns>
     /// <remarks>
-    /// PostgreSQL ve SQL Server <c>{sema}.{tablo}</c> (nokta ile) kullanir;
-    /// SQLite'ta nesne adlari veritabani genelinde tek ad alanini paylastigi
-    /// icin onek dogrudan bitistirilir, nokta YOKTUR (K-193). Varsayilan
-    /// uygulama nokta ile nitelendirir; <see cref="RetentionTargetRegistry"/>
-    /// gibi saglayicidan bagimsiz SQL uretimi bunu kullanir.
+    /// PostgreSQL and SQL Server use <c>{schema}.{table}</c> (with a dot); on SQLite
+    /// the object names share a single namespace across the database, so the prefix
+    /// is concatenated directly and there is NO dot (K-193). The default
+    /// implementation qualifies with a dot; provider-independent SQL generation such
+    /// as <see cref="RetentionTargetRegistry"/> uses it.
     /// </remarks>
     public virtual string QualifyTable(string tableName) => $"{Queries.Schema}.{tableName}";
 
-    // --- Saklama (Faz 25): veri duzlemi parti sorgulari ---
+    // --- Retention (phase 25): data plane batch queries ---
 
     /// <summary>
-    /// Bir hedefte <paramref name="wherePredicate"/>'e uyan satir sayisini
-    /// donduren SQL metnini kurar.
+    /// Builds the SQL text that returns the number of rows in a target matching
+    /// <paramref name="wherePredicate"/>.
     /// </summary>
-    /// <param name="table">Sema onekli tablo adi.</param>
-    /// <param name="wherePredicate"><c>@cutoff</c>'a atifta bulunan SQL kosulu.</param>
-    /// <returns>Calistirilabilir SQL. Tek parametre: <c>@cutoff</c>.</returns>
+    /// <param name="table">The schema-prefixed table name.</param>
+    /// <param name="wherePredicate">The SQL condition that refers to <c>@cutoff</c>.</param>
+    /// <returns>Runnable SQL. Single parameter: <c>@cutoff</c>.</returns>
     /// <remarks>
-    /// Bu ucu saglayicilar arasinda ozdestir (yalniz <c>COUNT(*)</c>); yine de
-    /// diyalekt uzerinden gecer cunku <see cref="RetentionTargetRegistry"/>'nin
-    /// urettigi metin saglayiciya BAGIMSIZDIR ve K1/K-176 geregi tum SQL
-    /// metninin tek gecidi diyalekttir.
+    /// This one is identical across the providers (just <c>COUNT(*)</c>); it still
+    /// goes through the dialect, because the text produced by
+    /// <see cref="RetentionTargetRegistry"/> is provider-INDEPENDENT and under
+    /// K1/K-176 the dialect is the single gateway for all SQL text.
     /// </remarks>
     public abstract string BuildRetentionCountSql(string table, string wherePredicate);
 
     /// <summary>
-    /// <paramref name="wherePredicate"/>'e uyan bir parti satiri (arsivlemek
-    /// icin) okuyan SQL metnini kurar. Silmez.
+    /// Builds the SQL text that reads one batch of rows matching
+    /// <paramref name="wherePredicate"/> (in order to archive them). It does not
+    /// delete.
     /// </summary>
-    /// <param name="table">Sema onekli tablo adi.</param>
-    /// <param name="wherePredicate"><c>@cutoff</c>'a atifta bulunan SQL kosulu.</param>
-    /// <param name="orderColumn">Determinizm icin siralama sutunu.</param>
-    /// <returns>Calistirilabilir SQL. Parametreler: <c>@cutoff</c>, <c>@batchSize</c>.</returns>
+    /// <param name="table">The schema-prefixed table name.</param>
+    /// <param name="wherePredicate">The SQL condition that refers to <c>@cutoff</c>.</param>
+    /// <param name="orderColumn">The ordering column used for determinism.</param>
+    /// <returns>Runnable SQL. Parameters: <c>@cutoff</c>, <c>@batchSize</c>.</returns>
     public abstract string BuildRetentionArchiveSelectSql(string table, string wherePredicate, string orderColumn);
 
     /// <summary>
-    /// <paramref name="wherePredicate"/>'e uyan bir parti satiri silen SQL
-    /// metnini kurar. Toplu tek bir <c>DELETE</c> DEGILDIR.
+    /// Builds the SQL text that deletes one batch of rows matching
+    /// <paramref name="wherePredicate"/>. It is NOT a single bulk <c>DELETE</c>.
     /// </summary>
-    /// <param name="table">Sema onekli tablo adi.</param>
-    /// <param name="wherePredicate"><c>@cutoff</c>'a atifta bulunan SQL kosulu.</param>
-    /// <returns>Calistirilabilir SQL. Parametreler: <c>@cutoff</c>, <c>@batchSize</c>.</returns>
+    /// <param name="table">The schema-prefixed table name.</param>
+    /// <param name="wherePredicate">The SQL condition that refers to <c>@cutoff</c>.</param>
+    /// <returns>Runnable SQL. Parameters: <c>@cutoff</c>, <c>@batchSize</c>.</returns>
     /// <remarks>
-    /// Uc saglayici uc farkli teknik kullanir: PostgreSQL <c>ctid</c> alt
-    /// sorgusu, SQL Server <c>DELETE TOP (n)</c>, SQLite <c>rowid</c> alt
-    /// sorgusu. Hicbiri satirlarin belirli bir sirada silinecegini garanti
-    /// etmez — parti sirasi onemli degildir, yalniz boyutu onemlidir.
+    /// The three providers use three different techniques: PostgreSQL a <c>ctid</c>
+    /// subquery, SQL Server <c>DELETE TOP (n)</c>, SQLite a <c>rowid</c> subquery.
+    /// None of them guarantees that the rows are deleted in a particular order — the
+    /// order of the batch does not matter, only its size does.
     /// </remarks>
     public abstract string BuildRetentionDeleteBatchSql(string table, string wherePredicate);
 
     /// <summary>
-    /// En yeniden sayarak N. satirin siralama ifadesindeki degerini donduren
-    /// SQL metnini kurar (Faz 36, <c>MaxRows</c>).
+    /// Builds the SQL text that returns the value of the ordering expression for the
+    /// Nth row counted from the newest (phase 36, <c>MaxRows</c>).
     /// </summary>
-    /// <param name="table">Sema onekli tablo adi.</param>
+    /// <param name="table">The schema-prefixed table name.</param>
     /// <param name="orderExpression">
-    /// Sayma/siralama icin kullanilan SQL ifadesi (bkz.
-    /// <see cref="RetentionTargetRegistry.Resolve"/>'in urettigi
-    /// <c>RowLimitOrderExpression</c>). NULL degerler elenir.
+    /// The SQL expression used for counting and ordering (see the
+    /// <c>RowLimitOrderExpression</c> produced by
+    /// <see cref="RetentionTargetRegistry.Resolve"/>). NULL values are filtered out.
     /// </param>
     /// <param name="extraPredicate">
-    /// Kiraci suzgeci gibi ek bir kosul; <see langword="null"/> ise sorgu tum
-    /// satirlar uzerinden calisir (Faz 41).
+    /// An additional condition such as the tenant filter; when it is
+    /// <see langword="null"/> the query runs over all rows (phase 41).
     /// </param>
-    /// <returns>Calistirilabilir SQL. Parametreler: <c>@n</c> (bigint) ve varsa <c>@tenant_id</c>.</returns>
+    /// <returns>Runnable SQL. Parameters: <c>@n</c> (bigint) and, when present, <c>@tenant_id</c>.</returns>
     /// <remarks>
-    /// Donen tek deger, cagiran tarafca dogrudan <c>@cutoff</c> olarak diger uc
-    /// sablona (say/oku/sil) beslenir — hacim bazli kirpma yas bazli silmeyle
-    /// AYNI parti mekanizmasini kullanir (karar K-200, 36.1).
+    /// The caller feeds the single returned value straight into the other three
+    /// templates (count/read/delete) as <c>@cutoff</c> — volume-based trimming uses
+    /// THE SAME batch mechanism as age-based deletion (decision K-200, 36.1).
     /// </remarks>
     public abstract string BuildRetentionFindNthRowCutoffSql(string table, string orderExpression, string? extraPredicate);
 
     /// <summary>
-    /// Verilen kosulu <c>AND</c> ile eklenebilir bir parcaya cevirir.
+    /// Converts the given condition into a fragment that can be appended with <c>AND</c>.
     /// </summary>
-    /// <param name="predicate">Ek kosul; bos ise hicbir sey eklenmez.</param>
-    /// <returns>Bos dize veya <c>" AND (kosul)"</c>.</returns>
+    /// <param name="predicate">The additional condition; when it is empty nothing is appended.</param>
+    /// <returns>An empty string or <c>" AND (condition)"</c>.</returns>
     protected static string AndAlso(string? predicate)
         => string.IsNullOrWhiteSpace(predicate) ? string.Empty : $" AND ({predicate})";
 
     /// <summary>
-    /// Iki kosulu <c>AND</c> ile birlestirir.
+    /// Combines two conditions with <c>AND</c>.
     /// </summary>
-    /// <param name="predicate">Zorunlu kosul.</param>
-    /// <param name="extraPredicate">Ek kosul; bos olabilir.</param>
-    /// <returns>Birlesik kosul.</returns>
+    /// <param name="predicate">The required condition.</param>
+    /// <param name="extraPredicate">The additional condition; it can be empty.</param>
+    /// <returns>The combined condition.</returns>
     public static string Combine(string predicate, string? extraPredicate)
         => string.IsNullOrWhiteSpace(extraPredicate) ? predicate : $"({predicate}) AND ({extraPredicate})";
 
-    // --- Ortak tiplemeler (gerekirse turevde degistirilir) ---
+    // --- Common typings (overridden in a derived type when needed) ---
 
-    /// <summary>Zaman damgasini parametreye baglar.</summary>
-    /// <param name="command">Komut.</param>
-    /// <param name="name">Parametre adi.</param>
-    /// <param name="value">Zaman damgasi; <see langword="null"/> olabilir.</param>
+    /// <summary>Binds a timestamp to a parameter.</summary>
+    /// <param name="command">The command.</param>
+    /// <param name="name">The parameter name.</param>
+    /// <param name="value">The timestamp; it can be <see langword="null"/>.</param>
     /// <remarks>
-    /// Deger her zaman UTC'ye cevrilerek yazilir. PostgreSQL <c>timestamptz</c>
-    /// icin <see cref="DateTime"/> (<c>Kind = Utc</c>) bekler; SQL Server
-    /// <c>datetimeoffset</c> icin <see cref="DateTimeOffset"/> alir. Cevirim
-    /// turevlerdedir.
+    /// The value is always converted to UTC before it is written. PostgreSQL expects
+    /// a <see cref="DateTime"/> (<c>Kind = Utc</c>) for <c>timestamptz</c>; SQL
+    /// Server takes a <see cref="DateTimeOffset"/> for <c>datetimeoffset</c>. The
+    /// conversion lives in the derived types.
     /// </remarks>
     public abstract void AddTimestamp(DbCommand command, string name, DateTimeOffset? value);
 
-    /// <summary>Bos olabilen bir metni parametreye baglar.</summary>
-    /// <param name="command">Komut.</param>
-    /// <param name="name">Parametre adi.</param>
-    /// <param name="value">Deger; <see langword="null"/> olabilir.</param>
+    /// <summary>Binds a nullable text to a parameter.</summary>
+    /// <param name="command">The command.</param>
+    /// <param name="name">The parameter name.</param>
+    /// <param name="value">The value; it can be <see langword="null"/>.</param>
     public virtual void AddText(DbCommand command, string name, string? value)
         => AddTyped(command, name, DbType.String, value);
 
-    /// <summary>Bos olabilen bir kimligi parametreye baglar.</summary>
-    /// <param name="command">Komut.</param>
-    /// <param name="name">Parametre adi.</param>
-    /// <param name="value">Deger; <see langword="null"/> olabilir.</param>
+    /// <summary>Binds a nullable identifier to a parameter.</summary>
+    /// <param name="command">The command.</param>
+    /// <param name="name">The parameter name.</param>
+    /// <param name="value">The value; it can be <see langword="null"/>.</param>
     public virtual void AddUuid(DbCommand command, string name, Guid? value)
         => AddTyped(command, name, DbType.Guid, value);
 
-    /// <summary>Bos olabilen bir <c>smallint</c> degerini parametreye baglar.</summary>
-    /// <param name="command">Komut.</param>
-    /// <param name="name">Parametre adi.</param>
-    /// <param name="value">Deger; <see langword="null"/> olabilir.</param>
+    /// <summary>Binds a nullable <c>smallint</c> value to a parameter.</summary>
+    /// <param name="command">The command.</param>
+    /// <param name="name">The parameter name.</param>
+    /// <param name="value">The value; it can be <see langword="null"/>.</param>
     public virtual void AddInt16(DbCommand command, string name, short? value)
         => AddTyped(command, name, DbType.Int16, value);
 
-    /// <summary>Bos olabilen bir <c>integer</c> degerini parametreye baglar.</summary>
-    /// <param name="command">Komut.</param>
-    /// <param name="name">Parametre adi.</param>
-    /// <param name="value">Deger; <see langword="null"/> olabilir.</param>
+    /// <summary>Binds a nullable <c>integer</c> value to a parameter.</summary>
+    /// <param name="command">The command.</param>
+    /// <param name="name">The parameter name.</param>
+    /// <param name="value">The value; it can be <see langword="null"/>.</param>
     public virtual void AddInt32(DbCommand command, string name, int? value)
         => AddTyped(command, name, DbType.Int32, value);
 
-    /// <summary>Bos olabilen bir <c>bigint</c> degerini parametreye baglar.</summary>
-    /// <param name="command">Komut.</param>
-    /// <param name="name">Parametre adi.</param>
-    /// <param name="value">Deger; <see langword="null"/> olabilir.</param>
+    /// <summary>Binds a nullable <c>bigint</c> value to a parameter.</summary>
+    /// <param name="command">The command.</param>
+    /// <param name="name">The parameter name.</param>
+    /// <param name="value">The value; it can be <see langword="null"/>.</param>
     public virtual void AddInt64(DbCommand command, string name, long? value)
         => AddTyped(command, name, DbType.Int64, value);
 
-    /// <summary>Bos olabilen bir ondalik degeri parametreye baglar.</summary>
-    /// <param name="command">Komut.</param>
-    /// <param name="name">Parametre adi.</param>
-    /// <param name="value">Deger; <see langword="null"/> olabilir.</param>
+    /// <summary>Binds a nullable decimal value to a parameter.</summary>
+    /// <param name="command">The command.</param>
+    /// <param name="name">The parameter name.</param>
+    /// <param name="value">The value; it can be <see langword="null"/>.</param>
     public virtual void AddDecimal(DbCommand command, string name, decimal? value)
         => AddTyped(command, name, DbType.Decimal, value);
 
-    /// <summary>Bos olabilen ikili veriyi parametreye baglar.</summary>
-    /// <param name="command">Komut.</param>
-    /// <param name="name">Parametre adi.</param>
-    /// <param name="value">Deger; <see langword="null"/> olabilir.</param>
+    /// <summary>Binds nullable binary data to a parameter.</summary>
+    /// <param name="command">The command.</param>
+    /// <param name="name">The parameter name.</param>
+    /// <param name="value">The value; it can be <see langword="null"/>.</param>
     public virtual void AddBinary(DbCommand command, string name, byte[]? value)
         => AddTyped(command, name, DbType.Binary, value);
 
-    /// <summary>Bir mantiksal degeri parametreye baglar.</summary>
-    /// <param name="command">Komut.</param>
-    /// <param name="name">Parametre adi.</param>
-    /// <param name="value">Deger.</param>
+    /// <summary>Binds a boolean value to a parameter.</summary>
+    /// <param name="command">The command.</param>
+    /// <param name="name">The parameter name.</param>
+    /// <param name="value">The value.</param>
     public virtual void AddBoolean(DbCommand command, string name, bool value)
         => AddTyped(command, name, DbType.Boolean, value);
 
-    /// <summary>Bos olabilen bir mantiksal degeri parametreye baglar.</summary>
-    /// <param name="command">Komut.</param>
-    /// <param name="name">Parametre adi.</param>
-    /// <param name="value">Deger; <see langword="null"/> olabilir.</param>
+    /// <summary>Binds a nullable boolean value to a parameter.</summary>
+    /// <param name="command">The command.</param>
+    /// <param name="name">The parameter name.</param>
+    /// <param name="value">The value; it can be <see langword="null"/>.</param>
     /// <remarks>
-    /// Uc durumlu bir alan icindir ("evet" / "hayir" / "bilgi yok").
-    /// <c>AddBoolean</c> ile karistirmayin: orada <see langword="null"/>
-    /// yazilamaz ve eksik bilgi sessizce <see langword="false"/> olurdu.
+    /// It is for a three-state field ("yes" / "no" / "unknown"). Do not confuse it
+    /// with <c>AddBoolean</c>: there a <see langword="null"/> cannot be written and
+    /// missing information would silently become <see langword="false"/>.
     /// </remarks>
     public virtual void AddNullableBoolean(DbCommand command, string name, bool? value)
         => AddTyped(command, name, DbType.Boolean, value);
 
-    /// <summary>Verilen tiple bir parametre ekler.</summary>
-    /// <param name="command">Komut.</param>
-    /// <param name="name">Parametre adi.</param>
-    /// <param name="type">Parametre tipi.</param>
-    /// <param name="value">Deger; <see langword="null"/> ise <see cref="DBNull"/> yazilir.</param>
-    /// <returns>Eklenen parametre.</returns>
+    /// <summary>Adds a parameter with the given type.</summary>
+    /// <param name="command">The command.</param>
+    /// <param name="name">The parameter name.</param>
+    /// <param name="type">The parameter type.</param>
+    /// <param name="value">The value; when it is <see langword="null"/>, <see cref="DBNull"/> is written.</param>
+    /// <returns>The added parameter.</returns>
     /// <remarks>
-    /// 🚨 Istege bagli suzgec parametreleri (<c>@p IS NULL OR col = @p</c> deseni)
-    /// <strong>her zaman</strong> acikca tiplenmelidir. Tipsiz bir <c>NULL</c>
-    /// gonderildiginde PostgreSQL tipi cikaramaz ve <c>42P08</c> verir; hata
-    /// yalnizca calisma aninda gorunur. Ayrinti: <c>docs/hafiza/postgresql.md</c>.
+    /// 🚨 Optional filter parameters (the <c>@p IS NULL OR col = @p</c> pattern) must
+    /// <strong>always</strong> be typed explicitly. When an untyped <c>NULL</c> is
+    /// sent, PostgreSQL cannot infer the type and gives <c>42P08</c>; the error
+    /// appears at run time only. Details: <c>docs/hafiza/postgresql.md</c>.
     /// </remarks>
     protected static DbParameter AddTyped(DbCommand command, string name, DbType type, object? value)
     {

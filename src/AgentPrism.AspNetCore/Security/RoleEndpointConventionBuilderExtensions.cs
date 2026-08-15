@@ -4,24 +4,24 @@ using Microsoft.AspNetCore.Builder;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir uca rol tabanli yetkilendirme eklemenin kosullu yolunu saglar.
+/// Provides the conditional way to add role-based authorization to an endpoint.
 /// </summary>
 internal static class RoleEndpointConventionBuilderExtensions
 {
     /// <summary>
-    /// <paramref name="policyName"/> <see langword="null"/> degilse uca
-    /// <c>RequireAuthorization(policyName)</c> ekler; <see langword="null"/> ise
-    /// hicbir sey yapmaz.
+    /// Adds <c>RequireAuthorization(policyName)</c> to the endpoint when
+    /// <paramref name="policyName"/> is not <see langword="null"/>; does nothing when it is
+    /// <see langword="null"/>.
     /// </summary>
     /// <remarks>
-    /// <paramref name="policyName"/>'in <see langword="null"/> olmasi, ilgili
-    /// <see cref="AgentPrismPolicies"/> policy'sinin tuketicinin authorization
-    /// yapilandirmasinda kayitli olmadigi anlamina gelir — bu durumda uc yalnizca
-    /// mevcut uc katmanli korumadan (loopback, bearer, genel policy) gecer.
+    /// A <see langword="null"/> <paramref name="policyName"/> means that the matching
+    /// <see cref="AgentPrismPolicies"/> policy is not registered in the authorization
+    /// configuration of the consumer — in that case the endpoint passes only the existing
+    /// three-layer protection (loopback, bearer, general policy).
     /// </remarks>
-    /// <param name="builder">Uc olusturucu.</param>
-    /// <param name="policyName">Uygulanacak policy adi; kayitli degilse <see langword="null"/>.</param>
-    /// <returns>Aynen devam eden olusturucu.</returns>
+    /// <param name="builder">The endpoint builder.</param>
+    /// <param name="policyName">The policy name to apply; <see langword="null"/> when it is not registered.</param>
+    /// <returns>The builder, unchanged.</returns>
     public static TBuilder RequireRole<TBuilder>(this TBuilder builder, string? policyName)
         where TBuilder : IEndpointConventionBuilder
     {

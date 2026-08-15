@@ -1,17 +1,17 @@
 namespace AgentPrism;
 
-/// <summary>Ek listeleme filtresi.</summary>
+/// <summary>The filter used to list attachments.</summary>
 public sealed record AttachmentQuery
 {
-    /// <summary>Sorgulanacak kiraci.</summary>
+    /// <summary>Gets the tenant to query.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Verilmisse yalniz bu oturuma ait ekler.</summary>
+    /// <summary>Gets the session whose attachments are returned, when it is given.</summary>
     public string? SessionId { get; init; }
 
-    /// <summary>Atlanacak kayit sayisi.</summary>
+    /// <summary>Gets the number of records to skip.</summary>
     public int Skip { get; init; }
 
-    /// <summary>Donulecek en fazla kayit sayisi.</summary>
+    /// <summary>Gets the maximum number of records to return.</summary>
     public int Take { get; init; } = 50;
 }
