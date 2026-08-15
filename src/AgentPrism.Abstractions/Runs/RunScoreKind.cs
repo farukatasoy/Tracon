@@ -2,23 +2,22 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>Bir <see cref="RunScore"/>'un tasidigi degerin bicimi.</summary>
+/// <summary>The shape of the value a <see cref="RunScore"/> carries.</summary>
 /// <remarks>
-/// JSON'da <strong>ad olarak</strong> yazilir; veritabaninda <c>smallint</c>
-/// olarak saklanir. Sayisal degerler <strong>kararlidir</strong> ve
-/// degistirilemez.
+/// Written as a name in JSON; stored as <c>smallint</c> in the database. The
+/// numeric values are <strong>stable</strong> and must not change.
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<RunScoreKind>))]
 public enum RunScoreKind
 {
-    /// <summary>Ikili puan: <see cref="RunScore.Value"/> 0 (olumsuz) veya 1 (olumlu).</summary>
+    /// <summary>A binary score: <see cref="RunScore.Value"/> is 0 (negative) or 1 (positive).</summary>
     Binary = 1,
 
-    /// <summary>Yildiz puani: <see cref="RunScore.Value"/> 1 ile 5 arasi.</summary>
+    /// <summary>A star rating: <see cref="RunScore.Value"/> is between 1 and 5.</summary>
     Stars = 2,
 
     /// <summary>
-    /// 0-100 arasi tamsayi yuzde puan. Model tabanli yargic (Faz 49) bunu uretir.
+    /// A 0-100 integer percentage score. Produced by the model-based judge (Phase 49).
     /// </summary>
     Numeric = 3,
 }
