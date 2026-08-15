@@ -23,7 +23,7 @@ public sealed class CanaryEvaluatorTests
         var evaluation = CanaryEvaluator.Evaluate(policy, results, Now);
 
         evaluation.Decision.ShouldBe(CanaryDecisionKind.RollBack);
-        evaluation.Reason.ShouldContain("hata orani");
+        evaluation.Reason.ShouldContain("error rate");
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public sealed class CanaryEvaluatorTests
         var evaluation = CanaryEvaluator.Evaluate(policy, results, Now);
 
         evaluation.Decision.ShouldBe(CanaryDecisionKind.RollBack);
-        evaluation.Reason.ShouldContain("puan");
+        evaluation.Reason.ShouldContain("average score");
     }
 
     [Fact]

@@ -2,33 +2,34 @@ using System.Buffers.Binary;
 
 namespace AgentPrism;
 
-/// <summary>Biriken bir konusma parcasinin cozume hazir hali.</summary>
-/// <param name="Data">Ses baytlari. PCM girdi icin WAV basligi eklenmistir.</param>
-/// <param name="MediaType">MIME turu.</param>
+/// <summary>The resolution-ready form of an accumulated speech utterance.</summary>
+/// <param name="Data">The audio bytes. A WAV header has been added for PCM input.</param>
+/// <param name="MediaType">The MIME type.</param>
 /// <param name="Duration">
-/// Sesin suresi; yalniz ham PCM'de <strong>hesaplanabilir</strong> (bayt/hiz).
-/// Sikistirilmis bir kapta sure ancak cozulerek bulunur, bu yuzden
-/// <see langword="null"/>'dur ve saglayicinin bildirdigi sure kullanilir.
+/// The audio's duration; <strong>computable</strong> only for raw PCM
+/// (bytes/rate). In a compressed container the duration can only be found by
+/// decoding, so it is <see langword="null"/> and the provider-reported
+/// duration is used.
 /// </param>
 internal readonly record struct VoiceUtterance(byte[] Data, string MediaType, TimeSpan? Duration);
 
 /// <summary>
-/// Istemciden gelen ikili ses cercevelerini bir konusma parcasinda biriktirir.
+/// Accumulates binary audio frames from the client into a speech utterance.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Iki sinir uygulanir ve ikisi de gereklidir: <em>sure</em> siniri istemcinin
-/// VAD'i hic tetiklenmediginde devreye girer, <em>bayt</em> siniri istemci ses
-/// yerine rastgele veri gonderdiginde. Yalniz biri, digerinin durumunu
-/// yakalamaz.
+/// Two limits are enforced, and both are needed: the <em>duration</em> limit
+/// engages when the client's VAD never triggers, and the <em>byte</em> limit
+/// engages when the client sends random data instead of audio. Either one
+/// alone fails to catch the other's failure mode.
 /// </para>
 /// <para>
-/// 🚨 Sinif es zamanlidir ve kilit tasimaz; tek bir alma dongusunden beslenir.
+/// 🚨 The class is concurrent and carries no lock; it is fed from a single receive loop.
 /// </para>
 /// </remarks>
 internal sealed class VoiceUtteranceBuffer
 {
-    /// <summary>PCM ornek basina bayt (16-bit mono).</summary>
+    /// <summary>Bytes per PCM sample (16-bit mono).</summary>
     private const int PcmBytesPerSample = 2;
 
     private readonly List<byte[]> _chunks = [];
@@ -37,11 +38,11 @@ internal sealed class VoiceUtteranceBuffer
     private readonly int _maxBytes;
     private readonly long _maxPcmBytes;
 
-    /// <summary>Yeni bir tampon kurar.</summary>
-    /// <param name="format">Bkz. <see cref="VoiceAudioFormats"/>.</param>
-    /// <param name="sampleRate">Ham PCM'in ornekleme hizi (Hz).</param>
-    /// <param name="maxBytes">Parca basina en fazla bayt.</param>
-    /// <param name="maxDuration">Parca basina en uzun sure.</param>
+    /// <summary>Sets up a new buffer.</summary>
+    /// <param name="format">See <see cref="VoiceAudioFormats"/>.</param>
+    /// <param name="sampleRate">The raw PCM's sample rate (Hz).</param>
+    /// <param name="maxBytes">The maximum bytes per utterance.</param>
+    /// <param name="maxDuration">The maximum duration per utterance.</param>
     public VoiceUtteranceBuffer(string format, int sampleRate, int maxBytes, TimeSpan maxDuration)
     {
         _format = string.IsNullOrWhiteSpace(format) ? VoiceAudioFormats.WebmOpus : format;
@@ -50,29 +51,30 @@ internal sealed class VoiceUtteranceBuffer
         _maxPcmBytes = (long)(maxDuration.TotalSeconds * _sampleRate * PcmBytesPerSample);
     }
 
-    /// <summary>Biriken bayt sayisi.</summary>
+    /// <summary>The number of accumulated bytes.</summary>
     public int Length { get; private set; }
 
-    /// <summary>Tamponda ses var mi.</summary>
+    /// <summary>Whether the buffer holds any audio.</summary>
     public bool HasAudio => Length > 0;
 
     /// <summary>
-    /// Sinirlardan biri asildi mi.
+    /// Whether one of the limits has been exceeded.
     /// </summary>
     /// <remarks>
-    /// Sure siniri yalniz ham PCM'de bayt sayisindan hesaplanabilir. Sikistirilmis
-    /// kaplarda sureyi <em>bilmedigimizi</em> kabul ediyoruz; orada koruma
-    /// yalnizca bayt sinirindan gelir ve bu durum belgelenmistir.
+    /// The duration limit can only be computed from the byte count for raw
+    /// PCM. In compressed containers we accept that the duration is
+    /// <em>unknown</em>; protection there comes only from the byte limit, and
+    /// this is documented.
     /// </remarks>
     public bool IsFull => Length >= _maxBytes || (IsPcm && _maxPcmBytes > 0 && Length >= _maxPcmBytes);
 
     private bool IsPcm => string.Equals(_format, VoiceAudioFormats.Pcm16, StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>Bir ses parcasi ekler.</summary>
-    /// <param name="chunk">Ham baytlar.</param>
+    /// <summary>Appends an audio chunk.</summary>
+    /// <param name="chunk">The raw bytes.</param>
     /// <returns>
-    /// Parca eklendiyse <see langword="true"/>; sinir dolduysa
-    /// <see langword="false"/> (parca <strong>atilir</strong>).
+    /// <see langword="true"/> if the chunk was appended; <see langword="false"/>
+    /// if the limit was already full (the chunk is <strong>discarded</strong>).
     /// </returns>
     public bool Append(ReadOnlySpan<byte> chunk)
     {
@@ -90,7 +92,7 @@ internal sealed class VoiceUtteranceBuffer
         return true;
     }
 
-    /// <summary>Tamponu bosaltir.</summary>
+    /// <summary>Clears the buffer.</summary>
     public void Clear()
     {
         _chunks.Clear();
@@ -98,9 +100,9 @@ internal sealed class VoiceUtteranceBuffer
     }
 
     /// <summary>
-    /// Biriken sesi cozume hazir bir dosyaya cevirir ve tamponu bosaltir.
+    /// Converts the accumulated audio into a resolution-ready file and clears the buffer.
     /// </summary>
-    /// <returns>Parca; ses yoksa <see langword="null"/>.</returns>
+    /// <returns>The utterance; <see langword="null"/> if there is no audio.</returns>
     public VoiceUtterance? Take()
     {
         if (Length == 0)
@@ -121,8 +123,8 @@ internal sealed class VoiceUtteranceBuffer
 
         if (!IsPcm)
         {
-            // WebM parcalari birlestirildiginde gecerli bir kap olusur; kabin
-            // basligi ilk parcadadir.
+            // Concatenating WebM chunks produces a valid container; the
+            // container's header is in the first chunk.
             return new VoiceUtterance(payload, "audio/webm", null);
         }
 
@@ -135,21 +137,21 @@ internal sealed class VoiceUtteranceBuffer
     }
 
     /// <summary>
-    /// Ham 16-bit mono PCM'in onune 44 baytlik bir WAV (RIFF) basligi yazar.
+    /// Writes a 44-byte WAV (RIFF) header in front of raw 16-bit mono PCM.
     /// </summary>
-    /// <param name="pcm">Ham ornekler.</param>
-    /// <param name="sampleRate">Ornekleme hizi (Hz).</param>
-    /// <returns>Gecerli bir WAV dosyasi.</returns>
+    /// <param name="pcm">The raw samples.</param>
+    /// <param name="sampleRate">The sample rate (Hz).</param>
+    /// <returns>A valid WAV file.</returns>
     /// <remarks>
     /// <para>
-    /// 🚨 Ham PCM tek basina bir dosya <strong>degildir</strong>: cozum ucu onu
-    /// <c>multipart/form-data</c> icinde bir dosya olarak alir ve turunu
-    /// baslikdan tanir. Baslik yazilmazsa saglayici sesi ya reddeder ya da
-    /// yanlis hizda cozer.
+    /// 🚨 Raw PCM alone is <strong>not</strong> a file: the resolution
+    /// endpoint receives it as a file inside <c>multipart/form-data</c> and
+    /// recognizes its type from the header. If the header is not written,
+    /// the provider either rejects the audio or decodes it at the wrong speed.
     /// </para>
     /// <para>
-    /// Baslik elle yazilir; bir ses kutuphanesi <strong>alinmaz</strong>. 44
-    /// bayt sabittir ve bicimi otuz yildir degismemistir.
+    /// The header is written by hand; no audio library is <strong>taken on</strong>.
+    /// The 44 bytes are fixed, and the format has not changed in thirty years.
     /// </para>
     /// </remarks>
     internal static byte[] WriteWaveFile(ReadOnlySpan<byte> pcm, int sampleRate)

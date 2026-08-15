@@ -1,64 +1,65 @@
 namespace AgentPrism;
 
-/// <summary>Cevrimici degerlendirme ayarlari — Faz 49.</summary>
+/// <summary>Online evaluation settings - Phase 49.</summary>
 /// <remarks>
 /// <para>
-/// <c>AgentPrism:OnlineEvaluation</c> yapilandirma bolumunden okunur.
+/// Read from the <c>AgentPrism:OnlineEvaluation</c> configuration section.
 /// </para>
 /// <para>
-/// 🚨 <strong>Iki kapili varsayilan.</strong> <see cref="Enabled"/> varsayilan
-/// <see langword="false"/>'dur (Faz 48 ile ayni duz K1 okumasi) VE
-/// <see cref="SampleRate"/> varsayilan <c>0.0</c>'dir. <see cref="Enabled"/>
-/// acilsa bile oran ayrica verilmedikce hicbir calistirma orneklenmez, yargic
-/// modeli hic cagrilmaz ve tek kurus harcanmaz. Ucuncu savunma
-/// <see cref="MaxScoresPerHour"/>: orneklem orani yanlis hesaplansa bile bir
-/// ust sinir vardir.
+/// 🚨 <strong>Two-gate default.</strong> <see cref="Enabled"/> defaults to
+/// <see langword="false"/> (the same plain K1 reading as Phase 48) AND
+/// <see cref="SampleRate"/> defaults to <c>0.0</c>. Even when <see cref="Enabled"/>
+/// is turned on, no run is sampled, the judge model is never called, and not
+/// a single cent is spent unless the rate is also given. The third defense is
+/// <see cref="MaxScoresPerHour"/>: even if the sample rate is miscalculated,
+/// there is still an upper bound.
 /// </para>
 /// </remarks>
 public sealed class OnlineEvaluationOptions
 {
-    /// <summary>Yapilandirma bolumu adi.</summary>
+    /// <summary>Configuration section name.</summary>
     public const string SectionName = "AgentPrism:OnlineEvaluation";
 
-    /// <summary>🚨 Cevrimici degerlendirme etkin mi. Varsayilan <see langword="false"/>.</summary>
+    /// <summary>🚨 Whether online evaluation is enabled. Default <see langword="false"/>.</summary>
     public bool Enabled { get; set; }
 
     /// <summary>
-    /// Orneklenecek tamamlanan calistirma orani, 0.0-1.0.
+    /// Fraction of completed runs to sample, 0.0-1.0.
     /// </summary>
     /// <remarks>
-    /// 🚨 Varsayilan <c>0.0</c>: <see cref="Enabled"/> acilsa bile oran
-    /// verilmedikce hicbir sey puanlanmaz. Orneklemenin kendisi
-    /// <strong>deterministiktir</strong> — calistirma kimliginin ozetinden
-    /// turetilir; ayni calistirma iki kez degerlendirilmez ve yeniden deneme
-    /// yeni bir zar atmaz.
+    /// 🚨 Default <c>0.0</c>: even when <see cref="Enabled"/> is turned on,
+    /// nothing is scored unless the rate is also given. Sampling itself is
+    /// <strong>deterministic</strong> - it is derived from the hash of the run
+    /// id; the same run is never evaluated twice, and a retry does not roll a
+    /// new die.
     /// </remarks>
     public double SampleRate { get; set; }
 
     /// <summary>
-    /// Bir kiracida saatte en fazla kac calistirma orneklenir.
+    /// Maximum number of runs sampled per hour per tenant.
     /// </summary>
     /// <remarks>
-    /// Orneklemenin ikinci savunmasidir: <see cref="SampleRate"/> yanlis
-    /// hesaplansa veya trafik patlasa bile mutlak maliyet bu tavanla sinirlanir.
+    /// The second line of defense for sampling: even if
+    /// <see cref="SampleRate"/> is miscalculated or traffic spikes, the
+    /// absolute cost is bounded by this cap.
     /// </remarks>
     public int MaxScoresPerHour { get; set; } = 100;
 
-    /// <summary>Yalnizca bu agent'lar puanlanir. Bos ise hepsi.</summary>
+    /// <summary>Only these agents are scored. Empty means all.</summary>
     public IList<string> AgentNames { get; } = [];
 
-    /// <summary>Dusuk puan esigi, 0-100 olceginde.</summary>
+    /// <summary>Low-score threshold, on a 0-100 scale.</summary>
     public int LowScoreThreshold { get; set; } = 60;
 
     /// <summary>
-    /// Alarm icin gereken asgari ornek sayisi. Tek bir dusuk puan alarm uretmez.
+    /// Minimum sample size required for an alert. A single low score does not produce an alert.
     /// </summary>
     /// <remarks>
-    /// Model gurultuludur; tek ornek uzerinden alarm uretmek nobetci
-    /// muhendisi egitir ve bildirimler yok sayilmaya baslar.
+    /// The model is noisy; raising an alert from a single sample trains the
+    /// on-call engineer to start ignoring notifications.
     /// </remarks>
     public int MinSampleSize { get; set; } = 20;
 
-    /// <summary>Ortalama hesabinin penceresi.</summary>
+    /// <summary>Window for the average calculation.</summary>
     public TimeSpan EvaluationWindow { get; set; } = TimeSpan.FromHours(1);
 }

@@ -3,20 +3,20 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Tek bir calistirmanin olaylarini <see cref="IRunStore"/> icine yazar ve
-/// sira numarasini uretir.
+/// Writes the events of a single run into <see cref="IRunStore"/> and
+/// produces the sequence number.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Sira numarasi tek bir yazicidan uretilir.</strong> Bu, olay sirasinin
-/// deterministik olmasini saglar ve canli akis ile yeniden oynatmanin ayni
-/// sonucu vermesini garanti eder.
+/// <strong>The sequence number is produced by a single writer.</strong> This
+/// keeps the event order deterministic and guarantees that live streaming and
+/// replay produce the same result.
 /// </para>
 /// <para>
-/// <strong>Depo hatalari calistirmayi kesmez.</strong> Gozlemlenebilirlik,
-/// islevselligi bozmamalidir. Her yazma hatasi loglanir ve yutulur; yazici
-/// bir kez hata aldiktan sonra <see cref="IsDisabled"/> durumuna gecer ve
-/// o calistirma icin daha fazla yazma denemez.
+/// <strong>Store failures do not interrupt the run.</strong> Observability
+/// must not break functionality. Every write failure is logged and
+/// swallowed; once the writer hits a failure, it moves into the
+/// <see cref="IsDisabled"/> state and attempts no further writes for that run.
 /// </para>
 /// </remarks>
 public sealed class RunEventWriter
@@ -26,12 +26,12 @@ public sealed class RunEventWriter
     private readonly ILogger _logger;
     private long _sequence;
 
-    /// <summary>Yeni bir yazici olusturur.</summary>
-    /// <param name="store">Olaylarin yazilacagi depo.</param>
-    /// <param name="options">Kayit ayrinti ayarlari.</param>
-    /// <param name="logger">Yazma hatalarinin bildirilecegi gunlukleyici.</param>
-    /// <param name="runId">Calistirma kimligi.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new writer.</summary>
+    /// <param name="store">The store the events are written to.</param>
+    /// <param name="options">The recording detail settings.</param>
+    /// <param name="logger">The logger write failures are reported to.</param>
+    /// <param name="runId">The run identity.</param>
+    /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public RunEventWriter(IRunStore store, AgentPrismRunRecordingOptions options, ILogger logger, Guid runId)
     {
         ArgumentNullException.ThrowIfNull(store);
@@ -44,48 +44,49 @@ public sealed class RunEventWriter
         RunId = runId;
     }
 
-    /// <summary>Bu yazicinin yazdigi calistirmanin kimligi.</summary>
+    /// <summary>Gets the identity of the run this writer writes to.</summary>
     public Guid RunId { get; }
 
     /// <summary>
-    /// Bu yazicinin yazdigi calistirmanin kiracisi. Derinlemesine savunma icin
-    /// her alt yazmaya damgalanir.
+    /// Gets the tenant of the run this writer writes to. Stamped onto every
+    /// sub-write as defense in depth.
     /// </summary>
     /// <remarks>
-    /// 🚨 Deger <see cref="StartAsync"/> icinde <see cref="RunStartInfo.TenantId"/>
-    /// alanindan alinir — <em>ambient</em> kiracidan DEGIL. Calistirmanin kendi
-    /// kiracisi budur; ambient kiraciyi bilerek ezebilir (workflow ve is kuyrugu
-    /// boyle calisir). <see cref="StartAsync"/> cagrilmadan kullanilan bir
-    /// yazicida <see langword="null"/> kalir ve kiraci denetimi yapilmaz.
-    /// Gerekce: K-355.
+    /// 🚨 The value is taken from the <see cref="RunStartInfo.TenantId"/> field
+    /// in <see cref="StartAsync"/> — NOT from the <em>ambient</em> tenant. This
+    /// is the run's own tenant; it can deliberately override the ambient
+    /// tenant (this is how workflows and job queues work). A writer used
+    /// without calling <see cref="StartAsync"/> stays <see langword="null"/>
+    /// and no tenant check is performed. Rationale: K-355.
     /// </remarks>
     public string? TenantId { get; private set; }
 
     /// <summary>
-    /// Yazici bir depo hatasi aldigi icin devre disi kaldi mi.
-    /// Devre disi bir yazici sessizce hicbir sey yapmaz.
+    /// Gets whether the writer was disabled because it hit a store failure.
+    /// A disabled writer silently does nothing.
     /// </summary>
     public bool IsDisabled { get; private set; }
 
-    /// <summary>Yazilmis olay sayisi.</summary>
+    /// <summary>Gets the number of events written.</summary>
     public long EventCount => Interlocked.Read(ref _sequence);
 
-    /// <summary>Calistirma kaydini acar ve ilk olayi yazar.</summary>
-    /// <param name="info">Baslangic bilgileri.</param>
+    /// <summary>Opens the run record and writes the first event.</summary>
+    /// <param name="info">The start information.</param>
     /// <param name="query">
-    /// Bu calistirmayi tetikleyen ilk kullanici mesajinin metni. Uretimden eval
-    /// vakasi terfisinin (Faz 45, F-53) tek kaynagidir: <c>run_events</c> disinda
-    /// girdi metni hicbir yerde kalicilasmaz, oturum yalniz BASARILI bir
-    /// calistirmanin sonunda kaydedilir (bkz. <c>AgentEndpoints.AgentRunStream</c>) —
-    /// bu yuzden basarisiz bir calistirmanin sorgusu SADECE buradan okunabilir.
+    /// The text of the first user message that triggered this run. It is the
+    /// only source for production-to-eval case promotion (Phase 45, F-53):
+    /// outside <c>run_events</c> the input text is not persisted anywhere,
+    /// and the session is recorded only at the end of a SUCCESSFUL run (see
+    /// <c>AgentEndpoints.AgentRunStream</c>) — so the query of a failed run
+    /// can ONLY be read from here.
     /// </param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
     public async ValueTask StartAsync(RunStartInfo info, string? query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(info);
 
-        // Calistirmanin kendi kiracisi. Sonraki her alt yazma bunu tasir (K-355).
+        // The run's own tenant. Every subsequent sub-write carries this (K-355).
         TenantId = info.TenantId;
 
         if (IsDisabled)
@@ -99,26 +100,27 @@ public sealed class RunEventWriter
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Disable(ex, "calistirma kaydi acilamadi");
+            Disable(ex, "failed to open run record");
             return;
         }
 
         await AppendAsync(new RunEventDraft(RunEventType.RunStarted) { Text = query }, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Akisa bir olay ekler ve sira numarasini atar.</summary>
-    /// <param name="draft">Olay taslagi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
+    /// <summary>Appends an event to the stream and assigns its sequence number.</summary>
+    /// <param name="draft">The event draft.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
-    /// Sira numarasi ve zaman damgasi atanmis olay. Depo hata verse veya yazici
-    /// devre disi olsa bile olay <strong>uretilir</strong>.
+    /// The event with its sequence number and timestamp assigned. The event
+    /// is <strong>produced</strong> even if the store fails or the writer is
+    /// disabled.
     /// </returns>
     /// <remarks>
-    /// Olayin geri dondurulmesi workflow calistirmasi icindir: akisli uc, ayni
-    /// olayi hem depoya yazip hem istemciye gondermek zorundadir ve ikinci bir
-    /// kez kurmak sira numarasini ikiye bolerdi. Devre disi bir yazicida da
-    /// deger donmesi bilinclidir - gozlemlenebilirligin kapanmasi, istemciye
-    /// akan yaniti kesmemelidir.
+    /// Returning the event is for workflow execution: the streaming endpoint
+    /// must both write the same event to the store and send it to the client,
+    /// and building it a second time would split the sequence number in two.
+    /// Returning a value from a disabled writer is also deliberate — closing
+    /// observability must not interrupt the response streaming to the client.
     /// </remarks>
     public async ValueTask<RunEvent> AppendAsync(RunEventDraft draft, CancellationToken cancellationToken = default)
     {
@@ -131,16 +133,18 @@ public sealed class RunEventWriter
             Text = Truncate(draft.Text),
             ToolName = draft.ToolName,
             ToolCallId = draft.ToolCallId,
-            // 🚨 Bekleyen insan istegi bu kuralin BILINCLI istisnasidir. Yuk
-            // burada bir gozlem ayrintisi degil, islevin kendisidir: arayuz
-            // bekleyen istekleri yalnizca bu olaydan okur ve yuk susturulursa
-            // kullanici cevaplayacagi soruyu hic goremez. Ayni gerekce K-089'da
-            // (denetim izine yazilamayan script calismaz) kuruldu.
+            // 🚨 A pending human request is a DELIBERATE exception to this
+            // rule. Here the payload is not an observability detail, it is
+            // the function itself: the UI reads pending requests only from
+            // this event, and if the payload were suppressed the user would
+            // never see the question they need to answer. The same
+            // rationale was established in K-089 (a script that cannot be
+            // written to the audit trail does not run).
             Payload = _options.RecordToolPayloads || draft.Type == RunEventType.WorkflowRequest
                 ? Truncate(draft.Payload)
                 : null,
 
-            // Beklenen kiraci damgasi (K-355).
+            // Expected tenant stamp (K-355).
             TenantId = TenantId,
         };
 
@@ -155,21 +159,22 @@ public sealed class RunEventWriter
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Disable(ex, "calistirma olayi yazilamadi");
+            Disable(ex, "failed to write run event");
         }
 
         return runEvent;
     }
 
     /// <summary>
-    /// Sonuclanmis bir tool cagrisini kaydeder.
+    /// Records a completed tool invocation.
     /// </summary>
-    /// <param name="invocation">Cagri ozeti.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <param name="invocation">The invocation summary.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
     /// <remarks>
-    /// Olay akisindan ayridir: olaylar cagriyi <em>anlatir</em>, bu kayit onu
-    /// <em>olcer</em>. Hatasi da olay yazimiyla ayni sekilde yutulur.
+    /// Separate from the event stream: events <em>narrate</em> the
+    /// invocation, this record <em>measures</em> it. Its failure is swallowed
+    /// the same way as an event write.
     /// </remarks>
     public async ValueTask RecordToolInvocationAsync(
         ToolInvocationRecord invocation,
@@ -186,17 +191,17 @@ public sealed class RunEventWriter
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Disable(ex, "tool cagrisi kaydedilemedi");
+            Disable(ex, "failed to record tool invocation");
         }
     }
 
-    /// <summary>Calistirmayi sonlandirir.</summary>
-    /// <param name="status">Son durum.</param>
-    /// <param name="usage">Token kullanimi.</param>
-    /// <param name="error">Hata bilgisi.</param>
-    /// <param name="cost">Hesaplanan maliyet. Model bilinmiyorsa <see langword="null"/>.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Terminates the run.</summary>
+    /// <param name="status">The final status.</param>
+    /// <param name="usage">The token usage.</param>
+    /// <param name="error">The error information.</param>
+    /// <param name="cost">The computed cost. <see langword="null"/> if the model is unknown.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
     public async ValueTask CompleteAsync(
         RunStatus status,
         RunUsage? usage = null,
@@ -214,10 +219,10 @@ public sealed class RunEventWriter
             RunStatus.Completed => new RunEventDraft(RunEventType.RunCompleted),
             RunStatus.Failed => new RunEventDraft(RunEventType.RunFailed) { Text = error?.Message },
 
-            // Insan bekleyen bir calistirma ne bitmistir ne de basarisiz
-            // olmustur; RunFailed yazmak arayuzde kirmizi bir hata gosterirdi.
+            // A run awaiting human input is neither finished nor failed;
+            // writing RunFailed would show a red error in the UI.
             RunStatus.AwaitingInput => new RunEventDraft(RunEventType.RunAwaitingInput),
-            _ => new RunEventDraft(RunEventType.RunFailed) { Text = "Calistirma iptal edildi." },
+            _ => new RunEventDraft(RunEventType.RunFailed) { Text = "The run was canceled." },
         };
 
         await AppendAsync(closingEvent, cancellationToken).ConfigureAwait(false);
@@ -240,14 +245,14 @@ public sealed class RunEventWriter
                     Error = error,
                     Cost = cost,
 
-                    // Beklenen kiraci damgasi (K-355).
+                    // Expected tenant stamp (K-355).
                     TenantId = TenantId,
                 },
                 cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Disable(ex, "calistirma kaydi kapatilamadi");
+            Disable(ex, "failed to close run record");
         }
     }
 
@@ -258,7 +263,7 @@ public sealed class RunEventWriter
             return value;
         }
 
-        return string.Concat(value.AsSpan(0, _options.MaxPayloadLength), "…[kirpildi]");
+        return string.Concat(value.AsSpan(0, _options.MaxPayloadLength), "…[truncated]");
     }
 
     private void Disable(Exception exception, string what)
@@ -267,27 +272,28 @@ public sealed class RunEventWriter
 
         _logger.LogWarning(
             exception,
-            "AgentPrism calistirma kaydi devre disi birakildi ({Reason}). Calistirma {RunId} normal sekilde devam ediyor.",
+            "AgentPrism run recording was disabled ({Reason}). Run {RunId} continues normally.",
             what,
             RunId);
     }
 }
 
 /// <summary>
-/// Sira numarasi ve zaman damgasi atanmadan once bir olayin tasidigi bilgiler.
+/// Represents the information an event carries before its sequence number and
+/// timestamp are assigned.
 /// </summary>
-/// <param name="Type">Olay tipi.</param>
+/// <param name="Type">The event type.</param>
 public readonly record struct RunEventDraft(RunEventType Type)
 {
-    /// <summary>Metin icerik.</summary>
+    /// <summary>Gets the text content.</summary>
     public string? Text { get; init; }
 
-    /// <summary>Tool adi.</summary>
+    /// <summary>Gets the tool name.</summary>
     public string? ToolName { get; init; }
 
-    /// <summary>Tool cagri kimligi.</summary>
+    /// <summary>Gets the tool call identity.</summary>
     public string? ToolCallId { get; init; }
 
-    /// <summary>Serbest JSON yuku.</summary>
+    /// <summary>Gets the free-form JSON payload.</summary>
     public string? Payload { get; init; }
 }

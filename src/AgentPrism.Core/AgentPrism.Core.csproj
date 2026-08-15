@@ -1,20 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>AgentPrism cekirdek calisma zamani. Agent katalogu, tanim derleyicisi, tool kayit defteri, calistirma kaydi ve bellek ici depolama. Veritabani gerektirmez.</Description>
+    <Description>AgentPrism core runtime. Agent catalog, definition compiler, tool registry, run recording, and in-memory storage. Requires no database.</Description>
     <PackageTags>$(CommonPackageTags);runtime;catalog;harness</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="../AgentPrism.Abstractions/AgentPrism.Abstractions.csproj" />
     <!--
-      Faz 52: tool kaynak ureteci. ReferenceOutputAssembly=false - Generators.dll
-      Core.dll'in NORMAL bir bagimliligi degildir, yalniz derleyiciye
-      OutputItemType=Analyzer olarak yuklenir. PrivateAssets=all - tuketicinin
-      bagimlilik grafigine bu ProjectReference SIZMAZ (dotnet pack .nuspec'i
-      ProjectReference'lari PackageReference'a cevirmez zaten; PrivateAssets
-      burada savunma amaclidir). DLL'in nupkg'ye tasinmasi asagidaki hedefle
-      yapilir - 52.4, docs/KARARLAR.md K-yeni.
+      Phase 52: tool source generator. ReferenceOutputAssembly=false - Generators.dll
+      is NOT a NORMAL dependency of Core.dll; it loads only into the compiler
+      as OutputItemType=Analyzer. PrivateAssets=all - this ProjectReference does
+      NOT LEAK into the consumer's dependency graph (dotnet pack's .nuspec
+      already does not convert ProjectReferences to PackageReferences;
+      PrivateAssets here is defensive). Moving the DLL into the nupkg is done
+      by the target below - 52.4, docs/KARARLAR.md K-TBD.
     -->
     <ProjectReference Include="../AgentPrism.Generators/AgentPrism.Generators.csproj"
                        PrivateAssets="all"
@@ -23,32 +23,35 @@
   </ItemGroup>
 
   <!--
-    Ureteç DLL'ini paketin analyzers/dotnet/cs/ klasorune tasir. Core UC TFM
-    hedefler (net8/9/10); @(Analyzer) yalniz INNER (TFM'e ozgu) derlemede
-    doludur, disaridaki capraz-hedefleme derlemesinde BOSTUR (olculdu). Bu
-    yuzden `BeforeTargets="_GetPackageFiles"` YETMEZ - resmi cozum
-    TargetsForTfmSpecificContentInPackage'dir; hedef HER inner build icin
-    tekrar calisir ve TfmSpecificPackageFile ile toplanir.
+    Moves the generator DLL into the package's analyzers/dotnet/cs/ folder. Core
+    targets MULTIPLE TFMs (net8/9/10); @(Analyzer) is populated only in the
+    INNER (TFM-specific) build, and is EMPTY in the outer cross-targeting
+    build (measured). This is why `BeforeTargets="_GetPackageFiles"` is NOT
+    ENOUGH - the official solution is TargetsForTfmSpecificContentInPackage;
+    the target reruns for EVERY inner build and is collected via
+    TfmSpecificPackageFile.
 
-    🚨 @(Analyzer) BILE noBuild bayragiyla paketlerken YETERSIZDIR (2026-08-10,
-    olculdu: noBuild bayragiyla paketleme sonrasi analyzers/dotnet/cs/ BOS
-    cikiyordu, preview.0.56-0.59 paketlerinin dorduncude de eksikti). Sebep:
-    @(Analyzer) ResolveReferences gecisiyle doldurulur ve bu gecis BUILD'e
-    baglidir; noBuild bayragi onu calistirmaz. Bu yuzden ureteç DLL'inin yolu
-    @(Analyzer) UZERINDEN degil, dogrudan Generators projesinin KENDI
-    GetTargetPath hedefinden istenir. Bu hedef build DEGIL, yalniz projenin
-    (zaten var olan) cikti yolunu doner ve noBuild bayragiyla da calisir cunku
-    Generators projesi dogrulama zincirinde Core'dan ONCE normal derlemeyle
-    zaten derlenmis olur.
+    🚨 Even @(Analyzer) is INSUFFICIENT when packing with the noBuild flag
+    (2026-08-10, measured: after packing with the noBuild flag,
+    analyzers/dotnet/cs/ came out EMPTY, missing from the fourth of the
+    preview.0.56-0.59 packages too). Reason: @(Analyzer) is populated by the
+    ResolveReferences pass, and that pass depends on a BUILD; the noBuild flag
+    does not run it. That is why the generator DLL's path is requested not
+    VIA @(Analyzer) but directly from the Generators project's OWN
+    GetTargetPath target. This target is NOT a build, it only returns the
+    project's (already existing) output path, and it also works with the
+    noBuild flag because the Generators project is already compiled with a
+    normal build BEFORE Core in the verification chain.
   -->
   <PropertyGroup>
     <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);AgentPrismPackGeneratorAssembly</TargetsForTfmSpecificContentInPackage>
   </PropertyGroup>
 
   <!--
-    Hedef HER inner build (net8/9/10) icin cagrilir ama ureteç DLL'i TFM'den
-    BAGIMSIZDIR; uc kez eklemek NU5118 verir ("dosya zaten var"). Tek bir TFM'e
-    (en yuksek olan net10.0) sabitleyerek tekilligi garanti ederiz.
+    The target is called for EVERY inner build (net8/9/10), but the generator
+    DLL is INDEPENDENT of TFM; adding it three times gives NU5118 ("file
+    already exists"). We guarantee uniqueness by pinning to a single TFM
+    (net10.0, the highest one).
   -->
   <Target Name="AgentPrismPackGeneratorAssembly" Condition="'$(TargetFramework)' == 'net10.0'">
     <MSBuild Projects="../AgentPrism.Generators/AgentPrism.Generators.csproj"

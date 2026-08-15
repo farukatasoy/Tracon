@@ -3,46 +3,48 @@ using System.Text.Json.Serialization;
 namespace AgentPrism;
 
 /// <summary>
-/// Arayuzden tanimlanabilen hazir workflow desenleri.
+/// Represents the built-in workflow patterns that can be defined through the
+/// UI.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bu liste bilerek <strong>kapalidir</strong>. Arayuzden tanimlanan bir workflow
-/// yalnizca katalogdaki agent'lari birbirine baglar; yeni davranis uretmez.
-/// Serbest graf (ozel <c>Executor</c> tipleri) yalnizca kodda tanimlanir.
-/// Gerekce: tasarim kurali K2 - "tool'lar yalnizca kodda tanimlanir".
+/// This list is deliberately <strong>closed</strong>. A workflow defined
+/// through the UI only wires together agents from the catalog; it produces
+/// no new behavior. A free-form graph (custom <c>Executor</c> types) can
+/// only be defined in code. Rationale: design rule K2 - "tools are only
+/// defined in code".
 /// </para>
 /// <para>
-/// JSON'da <strong>ad olarak</strong> yazilir (<c>"Sequential"</c>), sayi olarak
-/// degil. Veritabaninda da ad olarak saklanir: <c>workflows.definition</c> bir
-/// JSON belgesidir ve deger sirasi degistiginde eski satirlarin okunamaz hale
-/// gelmesi kabul edilemez.
+/// Written as a <strong>name</strong> in JSON (<c>"Sequential"</c>), not a
+/// number. Also stored as a name in the database: <c>workflows.definition</c>
+/// is a JSON document, and making old rows unreadable if the value order
+/// changes is not acceptable.
 /// </para>
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<WorkflowKind>))]
 public enum WorkflowKind
 {
-    /// <summary>Agent'lar sirayla calisir; her birinin ciktisi sonrakinin girdisidir.</summary>
+    /// <summary>Agents run in sequence; each one's output is the next one's input.</summary>
     Sequential = 0,
 
-    /// <summary>Agent'lar ayni anda calisir; sonuclar birlestirilir.</summary>
+    /// <summary>Agents run at the same time; results are merged.</summary>
     Concurrent = 1,
 
     /// <summary>
-    /// Ilk agent isi baslatir ve gerektiginde baska bir agent'a devreder.
-    /// Devretme kararini modelin kendisi verir.
+    /// The first agent starts the work and hands off to another agent when
+    /// needed. The model itself decides on the handoff.
     /// </summary>
     Handoff = 2,
 
     /// <summary>
-    /// Bir yonetici, katilimci agent'lar arasinda sirayi dagitir.
-    /// <see cref="WorkflowDefinition.MaxIterations"/> tur sayisini sinirlar.
+    /// A manager distributes turns among participating agents.
+    /// <see cref="WorkflowDefinition.MaxIterations"/> limits the turn count.
     /// </summary>
     GroupChat = 3,
 
     /// <summary>
-    /// Yonetici agent bir plan kurar, ilerlemeyi izler ve gerektiginde yeniden
-    /// planlar. <see cref="WorkflowDefinition.ManagerAgentName"/> zorunludur.
+    /// The manager agent builds a plan, tracks progress, and replans when
+    /// needed. <see cref="WorkflowDefinition.ManagerAgentName"/> is required.
     /// </summary>
     Magentic = 4,
 }

@@ -24,7 +24,7 @@ public sealed class AgentCallGraphTests
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 
         var problem = await AgentPrismTestHost.ReadJsonAsync(response);
-        Detail(problem).ShouldContain("kendisini cagiramaz", Case.Sensitive);
+        Detail(problem).ShouldContain("cannot call itself", Case.Sensitive);
     }
 
     [Fact]
@@ -39,7 +39,7 @@ public sealed class AgentCallGraphTests
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 
         var problem = await AgentPrismTestHost.ReadJsonAsync(response);
-        Detail(problem).ShouldContain("katalogda yok", Case.Sensitive);
+        Detail(problem).ShouldContain("no such agent exists in the catalog", Case.Sensitive);
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public sealed class AgentCallGraphTests
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 
         var problem = await AgentPrismTestHost.ReadJsonAsync(response);
-        Detail(problem).ShouldContain("dongu", Case.Sensitive);
+        Detail(problem).ShouldContain("cycle", Case.Sensitive);
     }
 
     [Fact]

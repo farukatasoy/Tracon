@@ -1,88 +1,93 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Arayuzden veya kodda tanimlanmis bir workflow'un tam tanimi.
+/// Represents the full definition of a workflow, whether defined through the
+/// UI or in code.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Tanim bir <strong>graftir</strong>, kod degildir: yalnizca katalogdaki
-/// agent'lari birbirine baglar. Kullanici yeni davranis yazmaz, var olani
-/// diziler. Serbest graf (ozel <c>Executor</c> tipleri) yalnizca kodda,
-/// <c>AddWorkflow(name, factory)</c> ile tanimlanir.
+/// A definition is a <strong>graph</strong>, not code: it only wires
+/// together agents from the catalog. Users do not write new behavior, they
+/// arrange existing behavior. A free-form graph (custom <c>Executor</c>
+/// types) can only be defined in code, via <c>AddWorkflow(name, factory)</c>.
 /// </para>
 /// <para>
-/// <see cref="AgentNames"/> yalnizca <em>ad</em> listesidir. Her ad katalogda
-/// cozulebilen bir agent'a karsilik gelmelidir; gelmezse derleme hata verir.
-/// Ayni kural <see cref="AgentDefinition.ToolNames"/> icin gecerlidir ve ayni
-/// guvenlik sinirini cizer.
+/// <see cref="AgentNames"/> is a list of <em>names</em> only. Each name must
+/// resolve to an agent in the catalog; if it does not, compilation fails.
+/// The same rule applies to <see cref="AgentDefinition.ToolNames"/> and draws
+/// the same security boundary.
 /// </para>
 /// </remarks>
 public sealed record WorkflowDefinition
 {
-    /// <summary>Workflow'un benzersiz adi. Katalogda ve API yollarinda anahtardir.</summary>
+    /// <summary>Gets the workflow's unique name. Serves as the key in the catalog and in API routes.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Arayuzde gosterilecek ad. Bos birakilirsa <see cref="Name"/> kullanilir.</summary>
+    /// <summary>Gets the display name shown in the UI. <see cref="Name"/> is used if left empty.</summary>
     public string? DisplayName { get; init; }
 
-    /// <summary>Workflow'un ne yaptigini anlatan kisa aciklama.</summary>
+    /// <summary>Gets the short description of what the workflow does.</summary>
     public string? Description { get; init; }
 
-    /// <summary>Kullanilacak hazir desen.</summary>
+    /// <summary>Gets the built-in pattern to use.</summary>
     public required WorkflowKind Kind { get; init; }
 
     /// <summary>
-    /// Grafa girecek agent adlari. Sira <see cref="WorkflowKind.Sequential"/>
-    /// icin anlamlidir; digerlerinde katilimci kumesini belirler.
+    /// Gets the agent names to enter the graph. Order is meaningful for
+    /// <see cref="WorkflowKind.Sequential"/>; for other kinds it defines the
+    /// participant set.
     /// </summary>
     public IReadOnlyList<string> AgentNames { get; init; } = [];
 
     /// <summary>
-    /// Yonetici agent'in adi. <see cref="WorkflowKind.Magentic"/> icin zorunlu,
-    /// diger desenlerde kullanilmaz.
+    /// Gets the manager agent's name. Required for
+    /// <see cref="WorkflowKind.Magentic"/>, unused in other patterns.
     /// </summary>
     public string? ManagerAgentName { get; init; }
 
     /// <summary>
-    /// En fazla tur sayisi. <see cref="WorkflowKind.GroupChat"/>,
-    /// <see cref="WorkflowKind.Handoff"/> ve <see cref="WorkflowKind.Magentic"/>
-    /// desenlerinde sonsuz donguye karsi tek korumadir.
+    /// Gets the maximum number of turns. The only guard against an infinite
+    /// loop in the <see cref="WorkflowKind.GroupChat"/>,
+    /// <see cref="WorkflowKind.Handoff"/>, and <see cref="WorkflowKind.Magentic"/>
+    /// patterns.
     /// </summary>
     public int? MaxIterations { get; init; }
 
     /// <summary>
-    /// Devretme kararini modele anlatan ek talimat.
-    /// Yalnizca <see cref="WorkflowKind.Handoff"/> icin kullanilir.
+    /// Gets the extra instruction that tells the model how to decide on a
+    /// handoff. Used only for <see cref="WorkflowKind.Handoff"/>.
     /// </summary>
     public string? HandoffInstructions { get; init; }
 
     /// <summary>
-    /// Yonetici agent'in kurdugu plan, yurutmeye baslamadan once bir insana
-    /// onaylatilsin mi. Yalnizca <see cref="WorkflowKind.Magentic"/> icindir.
+    /// Gets whether the plan the manager agent builds must be approved by a
+    /// human before execution starts. Applies only to
+    /// <see cref="WorkflowKind.Magentic"/>.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Acikken Microsoft Agent Framework ilk super-step sonunda bir dis istek
-    /// yayinlar; calistirma <see cref="RunStatus.AwaitingInput"/> olur ve durumu
-    /// bir kontrol noktasina yazilir. Yanit
-    /// <c>POST /api/workflows/runs/{runId}/respond</c> ile verilir: plan
-    /// onaylanir ya da bir duzeltme metniyle geri gonderilir.
+    /// When enabled, Microsoft Agent Framework publishes an external request
+    /// at the end of the first super-step; the run becomes
+    /// <see cref="RunStatus.AwaitingInput"/> and its state is written to a
+    /// checkpoint. The response is given via
+    /// <c>POST /api/workflows/runs/{runId}/respond</c>: the plan is either
+    /// approved or sent back with revision text.
     /// </para>
     /// <para>
-    /// 🚨 <strong>Maliyet.</strong> Yonetici agent her turda yeniden calisir;
-    /// duzeltme istegi plani bastan kurdurur. Varsayilan <see langword="false"/>
-    /// olmasi bilincli: bir tanim acikca istemeden calistirma yarim kalmaz
-    /// (K1 - sifir surpriz).
+    /// 🚨 <strong>Cost.</strong> The manager agent runs again on every turn;
+    /// a revision request makes it rebuild the plan from scratch. The default
+    /// of <see langword="false"/> is deliberate: a run never stalls half-way
+    /// unless a definition opts in explicitly (K1 - zero surprises).
     /// </para>
     /// </remarks>
     public bool RequirePlanApproval { get; init; }
 
-    /// <summary>Tanimin ait oldugu kiraci. Kodda tanimli workflow'larda <see langword="null"/>.</summary>
+    /// <summary>Gets the tenant the definition belongs to. <see langword="null"/> for workflows defined in code.</summary>
     public string? TenantId { get; init; }
 
-    /// <summary>Tanim surumu. Her kayitta bir artar.</summary>
+    /// <summary>Gets the definition version. Increments by one on every save.</summary>
     public int Version { get; init; } = 1;
 
-    /// <summary>Son degistirilme zamani (UTC).</summary>
+    /// <summary>Gets the last modification time (UTC).</summary>
     public DateTimeOffset? UpdatedAt { get; init; }
 }

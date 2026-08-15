@@ -5,27 +5,28 @@ using System.Text;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir skill script'ini AgentPrism surecinin <strong>disinda</strong>, ayri bir
-/// isletim sistemi surecinde calistirir.
+/// Runs a skill script in a separate operating-system process, <strong>outside</strong>
+/// AgentPrism's own process.
 /// </summary>
 /// <remarks>
 /// <para>
-/// AgentPrism script kodunu hicbir zaman kendi surecine yuklemez. Yorumlayici
-/// beyaz listeden secilir, ortam degiskenleri beyaz listeyle aktarilir, sure ve
-/// cikti sinirlanir, yazma icin verilen gecici dizin calistirma sonunda silinir.
+/// AgentPrism never loads script code into its own process. The interpreter
+/// is chosen from an allow-list, environment variables are passed through an
+/// allow-list, duration and output are limited, and the temporary directory
+/// given for writing is deleted at the end of the run.
 /// </para>
 /// <para>
-/// Argumanlar komut satirindan <em>degil</em>, <c>stdin</c> uzerinden gecer:
-/// komut satiri isletim sisteminin surec listesinde gorunur ve kacis kurallari
-/// platformlar arasinda farklidir.
+/// Arguments pass through <c>stdin</c>, <em>not</em> the command line: the
+/// command line appears in the operating system's process list, and escaping
+/// rules differ across platforms.
 /// </para>
 /// </remarks>
 internal static class SkillScriptProcessRunner
 {
-    /// <summary>Script surecine gecici yazma dizinini bildiren ortam degiskeni.</summary>
+    /// <summary>The environment variable that tells the script process its temporary write directory.</summary>
     internal const string TempDirectoryVariable = "AGENTPRISM_SKILL_TEMP";
 
-    /// <summary>Script surecine skill adini bildiren ortam degiskeni.</summary>
+    /// <summary>The environment variable that tells the script process the skill's name.</summary>
     internal const string SkillNameVariable = "AGENTPRISM_SKILL_NAME";
 
     public static async Task<SkillScriptExecutionResult> ExecuteAsync(
@@ -86,9 +87,9 @@ internal static class SkillScriptProcessRunner
 
         startInfo.ArgumentList.Add(scriptPath);
 
-        // Ortam once TAMAMEN bosaltilir. ProcessStartInfo.Environment cagiran
-        // surecin degiskenleriyle dolu gelir; baglanti dizesi ve API anahtari
-        // tam olarak buradan sizardi.
+        // The environment is FULLY cleared first. ProcessStartInfo.Environment
+        // comes filled with the calling process's variables; a connection
+        // string or API key would leak from exactly here.
         startInfo.Environment.Clear();
 
         foreach (var name in options.EnvironmentAllowList)
@@ -125,8 +126,8 @@ internal static class SkillScriptProcessRunner
         {
             timedOut = timeoutSource.IsCancellationRequested;
 
-            // Surec AGACI oldurulur: yorumlayici kendi alt sureclerini
-            // baslatmis olabilir ve yalnizca ebeveyni oldurmek zombi birakir.
+            // The process TREE is killed: the interpreter may have started
+            // its own child processes, and killing only the parent leaves zombies.
             TryKill(process);
 
             if (!timedOut)
@@ -166,22 +167,23 @@ internal static class SkillScriptProcessRunner
         }
         catch (IOException)
         {
-            // Script stdin okumadan cikmis olabilir; bu bir hata degildir.
+            // The script may have exited without reading stdin; this is not an error.
         }
         finally
         {
-            // Close() da StreamWriter'in ic tamponunu bosaltmaya calisir. Script
-            // stdin'i hic okumadan (ornegin salt 'echo') cikmissa boru bu noktada
-            // ZATEN kapanmis olabilir; Close()'un kendi flush'i de ayni
-            // IOException'i firlatir ve try/catch'in disinda oldugu icin
-            // yakalanmazdi (HATA-K-skill-pipe, 2026-08-15).
+            // Close() also tries to flush the StreamWriter's internal buffer.
+            // If the script exited without ever reading stdin (e.g. a bare
+            // 'echo'), the pipe may ALREADY be closed at this point; Close()'s
+            // own flush would then throw the same IOException, and since it
+            // was outside the try/catch, it would go uncaught
+            // (HATA-K-skill-pipe, 2026-08-15).
             try
             {
                 process.StandardInput.Close();
             }
             catch (IOException)
             {
-                // Script stdin okumadan cikmis olabilir; bu bir hata degildir.
+                // The script may have exited without reading stdin; this is not an error.
             }
         }
     }
@@ -216,7 +218,7 @@ internal static class SkillScriptProcessRunner
 
             if (truncated)
             {
-                // Akis, surec bloke olmasin diye sonuna kadar bosaltilir.
+                // The stream is drained to the end so the process does not block.
                 continue;
             }
 
@@ -242,7 +244,7 @@ internal static class SkillScriptProcessRunner
             builder.Append(span[..taken]);
             builder.Append(
                 CultureInfo.InvariantCulture,
-                $"\n[AgentPrism: cikti {maxBytes} bayt sinirinda kirpildi.]");
+                $"\n[AgentPrism: output truncated at the {maxBytes}-byte limit.]");
             truncated = true;
         }
 
@@ -272,7 +274,7 @@ internal static class SkillScriptProcessRunner
         }
         catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException or SystemException)
         {
-            // Surec zaten bitmis olabilir.
+            // The process may have already exited.
         }
     }
 
@@ -287,7 +289,7 @@ internal static class SkillScriptProcessRunner
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Gecici dizin silinemezse calistirma yine de tamamlanmistir.
+            // If the temporary directory cannot be deleted, the run has still completed.
         }
     }
 }
