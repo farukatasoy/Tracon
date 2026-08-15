@@ -3,13 +3,13 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="AgentPrismOptions"/> ayarlarini uygulama baslarken dogrular.
+/// Validates <see cref="AgentPrismOptions"/> during application startup.
 /// </summary>
 /// <remarks>
-/// Dogrulama elle yazilmistir; <c>ValidateDataAnnotations()</c> kullanilmaz.
-/// Sebep: DataAnnotations dogrulamasi yansimaya dayanir ve <c>IL2026</c> uretir.
-/// <c>AgentPrism.Core</c> AOT uyumlu kalmalidir.
-/// Gerekce: <c>docs/KARARLAR.md</c>, karar K-006.
+/// Validation is written manually; <c>ValidateDataAnnotations()</c> is not used.
+/// DataAnnotations validation uses reflection and produces <c>IL2026</c>.
+/// <c>AgentPrism.Core</c> must remain AOT-compatible. Rationale:
+/// <c>docs/KARARLAR.md</c>, K-006.
 /// </remarks>
 public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOptions>
 {
@@ -23,7 +23,7 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
         if (string.IsNullOrWhiteSpace(options.DefaultTenantId))
         {
             (failures ??= []).Add(
-                $"{nameof(AgentPrismOptions)}.{nameof(AgentPrismOptions.DefaultTenantId)} bos olamaz.");
+                $"{nameof(AgentPrismOptions)}.{nameof(AgentPrismOptions.DefaultTenantId)} cannot be empty.");
         }
 
         var recording = options.RunRecording;
@@ -31,13 +31,13 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
         if (recording is null)
         {
             (failures ??= []).Add(
-                $"{nameof(AgentPrismOptions)}.{nameof(AgentPrismOptions.RunRecording)} bos olamaz.");
+                $"{nameof(AgentPrismOptions)}.{nameof(AgentPrismOptions.RunRecording)} cannot be empty.");
         }
         else if (recording.MaxPayloadLength is < 0 or > 1_048_576)
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismRunRecordingOptions)}.{nameof(AgentPrismRunRecordingOptions.MaxPayloadLength)} " +
-                $"0 ile 1048576 arasinda olmalidir. Gelen deger: {recording.MaxPayloadLength}.");
+                $"must be between 0 and 1048576. Actual value: {recording.MaxPayloadLength}.");
         }
 
         var circuitBreaker = options.CircuitBreaker;
@@ -45,7 +45,7 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
         if (circuitBreaker is null)
         {
             (failures ??= []).Add(
-                $"{nameof(AgentPrismOptions)}.{nameof(AgentPrismOptions.CircuitBreaker)} bos olamaz.");
+                $"{nameof(AgentPrismOptions)}.{nameof(AgentPrismOptions.CircuitBreaker)} cannot be empty.");
         }
         else
         {
@@ -53,14 +53,14 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
             {
                 (failures ??= []).Add(
                     $"{nameof(AgentPrismCircuitBreakerOptions)}.{nameof(AgentPrismCircuitBreakerOptions.FailureThreshold)} " +
-                    $"en az 1 olmalidir. Gelen deger: {circuitBreaker.FailureThreshold}.");
+                    $"must be at least 1. Actual value: {circuitBreaker.FailureThreshold}.");
             }
 
             if (circuitBreaker.BreakDuration <= TimeSpan.Zero)
             {
                 (failures ??= []).Add(
                     $"{nameof(AgentPrismCircuitBreakerOptions)}.{nameof(AgentPrismCircuitBreakerOptions.BreakDuration)} " +
-                    $"sifirdan buyuk olmalidir. Gelen deger: {circuitBreaker.BreakDuration}.");
+                    $"must be greater than zero. Actual value: {circuitBreaker.BreakDuration}.");
             }
         }
 
@@ -69,7 +69,7 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
         if (health is null)
         {
             (failures ??= []).Add(
-                $"{nameof(AgentPrismOptions)}.{nameof(AgentPrismOptions.Health)} bos olamaz.");
+                $"{nameof(AgentPrismOptions)}.{nameof(AgentPrismOptions.Health)} cannot be empty.");
         }
         else
         {
@@ -77,14 +77,14 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
             {
                 (failures ??= []).Add(
                     $"{nameof(AgentPrismHealthOptions)}.{nameof(AgentPrismHealthOptions.CacheTtl)} " +
-                    $"sifirdan buyuk olmalidir. Gelen deger: {health.CacheTtl}.");
+                    $"must be greater than zero. Actual value: {health.CacheTtl}.");
             }
 
             if (health.BackgroundInterval is { } interval && interval <= TimeSpan.Zero)
             {
                 (failures ??= []).Add(
                     $"{nameof(AgentPrismHealthOptions)}.{nameof(AgentPrismHealthOptions.BackgroundInterval)} " +
-                    $"verilmisse sifirdan buyuk olmalidir. Gelen deger: {interval}.");
+                    $"must be greater than zero when supplied. Actual value: {interval}.");
             }
         }
 
@@ -93,7 +93,7 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
         if (skills is null)
         {
             (failures ??= []).Add(
-                $"{nameof(AgentPrismOptions)}.{nameof(AgentPrismOptions.Skills)} bos olamaz.");
+                $"{nameof(AgentPrismOptions)}.{nameof(AgentPrismOptions.Skills)} cannot be empty.");
         }
         else
         {
@@ -101,13 +101,13 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
             {
                 (failures ??= []).Add(
                     $"{nameof(AgentPrismSkillOptions)}.{nameof(AgentPrismSkillOptions.MaxSkillsPerAgent)} " +
-                    $"en az 1 olmalidir. Gelen deger: {skills.MaxSkillsPerAgent}.");
+                    $"must be at least 1. Actual value: {skills.MaxSkillsPerAgent}.");
             }
 
             if (skills.MaxInstructionsLength < 1 || skills.MaxResourceContentLength < 1 || skills.MaxResourcesPerSkill < 1)
             {
                 (failures ??= []).Add(
-                    $"{nameof(AgentPrismSkillOptions)} sinirlari sifirdan buyuk olmalidir.");
+                $"{nameof(AgentPrismSkillOptions)} limits must be greater than zero.");
             }
 
             ValidateScripts(skills.Scripts, ref failures);
@@ -118,13 +118,13 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
         if (validation is null)
         {
             (failures ??= []).Add(
-                $"{nameof(AgentPrismOptions)}.{nameof(AgentPrismOptions.Validation)} bos olamaz.");
+                $"{nameof(AgentPrismOptions)}.{nameof(AgentPrismOptions.Validation)} cannot be empty.");
         }
         else if (validation.McpTimeout <= TimeSpan.Zero)
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismValidationOptions)}.{nameof(AgentPrismValidationOptions.McpTimeout)} " +
-                $"sifirdan buyuk olmalidir. Gelen deger: {validation.McpTimeout}.");
+                $"must be greater than zero. Actual value: {validation.McpTimeout}.");
         }
 
         ValidatePricing(options.Pricing, ref failures);
@@ -134,18 +134,17 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
             : ValidateOptionsResult.Fail(failures);
     }
 
-    /// <summary>Script calistirma ayarlarini dogrular.</summary>
+    /// <summary>Validates script-execution options.</summary>
     /// <remarks>
-    /// Bu dogrulama bir guvenlik kapisidir: eksik yapilandirmayla acilmis bir
-    /// script calistirma ozelligi, calisma aninda degil <strong>acilista</strong>
-    /// hata vermelidir.
+    /// This validation is a security gate. Script execution enabled with
+    /// incomplete configuration must fail during <strong>startup</strong>, not at run time.
     /// </remarks>
     private static void ValidateScripts(AgentPrismSkillScriptOptions? scripts, ref List<string>? failures)
     {
         if (scripts is null)
         {
             (failures ??= []).Add(
-                $"{nameof(AgentPrismSkillOptions)}.{nameof(AgentPrismSkillOptions.Scripts)} bos olamaz.");
+                $"{nameof(AgentPrismSkillOptions)}.{nameof(AgentPrismSkillOptions.Scripts)} cannot be empty.");
             return;
         }
 
@@ -157,44 +156,44 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
         if (!scripts.PlatformIsolationAcknowledged)
         {
             (failures ??= []).Add(
-                $"{nameof(AgentPrismSkillScriptOptions)}.{nameof(AgentPrismSkillScriptOptions.Enabled)} acikken " +
-                $"{nameof(AgentPrismSkillScriptOptions.PlatformIsolationAcknowledged)} da true olmalidir. " +
-                "AgentPrism isletim sistemi duzeyinde yalitim saglamaz: ag erisimi, dosya sistemi, CPU/bellek " +
-                "kotasi ve ayricalik dusurme barindirma ortaminin sorumlulugundadir. Script calistirmayi " +
-                "yalnizca container icinde, ayricaliksiz bir kullaniciyla ve kisitli ag ile acin.");
+                $"{nameof(AgentPrismSkillScriptOptions)}.{nameof(AgentPrismSkillScriptOptions.Enabled)} requires " +
+                $"{nameof(AgentPrismSkillScriptOptions.PlatformIsolationAcknowledged)} to be true. " +
+                "AgentPrism does not provide operating-system isolation. Network access, file-system isolation, " +
+                "CPU and memory quotas, and privilege dropping are the host environment's responsibility. Enable " +
+                "script execution only in a container, under an unprivileged user, and with restricted network access.");
         }
 
         if (scripts.Timeout <= TimeSpan.Zero)
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismSkillScriptOptions)}.{nameof(AgentPrismSkillScriptOptions.Timeout)} " +
-                $"sifirdan buyuk olmalidir. Gelen deger: {scripts.Timeout}.");
+                $"must be greater than zero. Actual value: {scripts.Timeout}.");
         }
 
         if (scripts.MaxOutputBytes < 1 || scripts.MaxArgumentBytes < 1 || scripts.MaxScriptContentLength < 1)
         {
             (failures ??= []).Add(
-                $"{nameof(AgentPrismSkillScriptOptions)} boyut sinirlari sifirdan buyuk olmalidir.");
+                $"{nameof(AgentPrismSkillScriptOptions)} size limits must be greater than zero.");
         }
 
         if (scripts.MaxScriptsPerSkill < 1 || scripts.MaxConcurrentPerTenant < 1 || scripts.MaxConcurrentTotal < 1)
         {
             (failures ??= []).Add(
-                $"{nameof(AgentPrismSkillScriptOptions)} adet sinirlari en az 1 olmalidir.");
+                $"{nameof(AgentPrismSkillScriptOptions)} count limits must be at least 1.");
         }
 
         if (scripts.MaxConcurrentPerTenant > scripts.MaxConcurrentTotal)
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismSkillScriptOptions)}.{nameof(AgentPrismSkillScriptOptions.MaxConcurrentPerTenant)} " +
-                $"({scripts.MaxConcurrentPerTenant}) toplam sinirdan ({scripts.MaxConcurrentTotal}) buyuk olamaz.");
+                $"({scripts.MaxConcurrentPerTenant}) cannot exceed the total limit ({scripts.MaxConcurrentTotal}).");
         }
 
         if (scripts.SearchDepth < 1)
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismSkillScriptOptions)}.{nameof(AgentPrismSkillScriptOptions.SearchDepth)} " +
-                $"en az 1 olmalidir. Gelen deger: {scripts.SearchDepth}.");
+                $"must be at least 1. Actual value: {scripts.SearchDepth}.");
         }
 
         foreach (var pair in scripts.Interpreters)
@@ -203,15 +202,15 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
             {
                 (failures ??= []).Add(
                     $"{nameof(AgentPrismSkillScriptOptions)}.{nameof(AgentPrismSkillScriptOptions.Interpreters)} " +
-                    "icinde bos uzanti veya bos yorumlayici yolu var.");
+                    "contains an empty extension or interpreter path.");
                 break;
             }
         }
     }
 
     /// <summary>
-    /// Yapilandirmadan verilen fiyat gecersiz kilmalarinin negatif olmadigini
-    /// dogrular. Negatif bir fiyat maliyet raporunu sessizce bozardi.
+    /// Validates that configuration price overrides are not negative. A negative
+    /// price would silently corrupt cost reporting.
     /// </summary>
     private static void ValidatePricing(AgentPrismPricingOptions? pricing, ref List<string>? failures)
     {
@@ -227,19 +226,18 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
                 if (price.InputCostPerMillionTokens is < 0 || price.OutputCostPerMillionTokens is < 0)
                 {
                     (failures ??= []).Add(
-                        $"{nameof(AgentPrismPricingOptions)}: '{providerName}:{modelName}' icin fiyat negatif olamaz.");
+                        $"{nameof(AgentPrismPricingOptions)}: price for '{providerName}:{modelName}' cannot be negative.");
                 }
 
-                // 🚨 K-034 (MT-CORE-065): BindPricing artik ikisi de bos bir kaydi da
-                // ekliyor — bu, "Input"/"Output" disinda bir anahtarla (or. C#
-                // ozellik adi "InputCostPerMillionTokens") yazilan bir fiyatin
-                // TAMAMEN SESSIZCE dusmesi yerine burada acikca reddedilmesi
-                // icindir.
+                // 🚨 K-034 (MT-CORE-065): BindPricing now adds a record when both
+                // values are empty. This explicitly rejects a price written with
+                // a key other than Input or Output, such as the C# property name
+                // InputCostPerMillionTokens, rather than silently discarding it.
                 if (price.InputCostPerMillionTokens is null && price.OutputCostPerMillionTokens is null)
                 {
                     (failures ??= []).Add(
                         $"{nameof(AgentPrismPricingOptions)}: '{providerName}:{modelName}' ne 'Input' ne 'Output' " +
-                        "tasiyor — anahtar adini kontrol edin.");
+                        "contains neither value. Check the key name.");
                 }
             }
         }
@@ -251,16 +249,16 @@ public sealed class AgentPrismOptionsValidator : IValidateOptions<AgentPrismOpti
                 if (price.PerMillionCharacters is < 0 || price.PerMinute is < 0)
                 {
                     (failures ??= []).Add(
-                        $"{nameof(AgentPrismPricingOptions)}: 'Voice:{providerName}:{modelName}' icin fiyat negatif olamaz.");
+                        $"{nameof(AgentPrismPricingOptions)}: price for 'Voice:{providerName}:{modelName}' cannot be negative.");
                 }
 
-                // 🚨 Ayni gerekce: bkz. yukaridaki Providers denetimi (MT-CORE-065).
+                // 🚨 Same rationale: see the Providers validation above (MT-CORE-065).
                 if (price.PerMillionCharacters is null && price.PerMinute is null)
                 {
                     (failures ??= []).Add(
                         $"{nameof(AgentPrismPricingOptions)}: 'Voice:{providerName}:{modelName}' ne " +
                         $"'{nameof(VoicePriceOverride.PerMillionCharacters)}' ne '{nameof(VoicePriceOverride.PerMinute)}' " +
-                        "tasiyor — anahtar adini kontrol edin.");
+                        "contains neither value. Check the key name.");
                 }
             }
         }
