@@ -2,89 +2,90 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>Bir calistirmanin durumu.</summary>
+/// <summary>Status of a run.</summary>
 /// <remarks>
-/// JSON'da <strong>ad olarak</strong> yazilir (<c>"Code"</c>), sayi olarak degil.
-/// Kablo sozlesmesi boylece kendini anlatir ve deger sirasi degisirse bile kirilmaz.
-/// Donusturucu tip duzeyindedir: tuketicinin uygulama genelindeki JSON ayarlarina
-/// dokunmadan her yerde ayni bicimi verir. Hicbir enum JSON olarak KALICI degildir
-/// (RunStatus ve RunEventType veritabaninda smallint, AgentDefinitionOrigin okumada
-/// yeniden kurulur), bu yuzden bicim degisikligi saklanan veriyi etkilemez.
+/// Written to JSON <strong>by name</strong> (<c>"Code"</c>), not by number. The
+/// wire contract explains itself that way and survives a change in value order.
+/// The converter sits on the type, so the format is the same everywhere without
+/// touching the consumer's application-wide JSON options. No enum is PERSISTED as
+/// JSON (RunStatus and RunEventType are smallint in the database,
+/// AgentDefinitionOrigin is rebuilt on read), so a format change does not affect
+/// stored data.
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<RunStatus>))]
 public enum RunStatus
 {
-    /// <summary>Calistirma devam ediyor.</summary>
+    /// <summary>The run is in progress.</summary>
     Running = 0,
 
-    /// <summary>Calistirma basariyla tamamlandi.</summary>
+    /// <summary>The run finished successfully.</summary>
     Completed = 1,
 
-    /// <summary>Calistirma hata ile sonlandi.</summary>
+    /// <summary>The run ended with an error.</summary>
     Failed = 2,
 
-    /// <summary>Calistirma iptal edildi.</summary>
+    /// <summary>The run was cancelled.</summary>
     Canceled = 3,
 
     /// <summary>
-    /// Calistirma bir insandan girdi bekliyor ve bu girdi gelmeden ilerleyemez.
+    /// The run waits for human input and cannot advance without it.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Yalnizca <see cref="RunKind.Workflow"/> satirlarinda gorulur. Workflow bir
-    /// <em>dis istek portu</em>na ulastiginda (ornegin Magentic plan onayi)
-    /// yurutme durur, durumu bir kontrol noktasina yazilir ve akis kapanir.
-    /// Yanit <c>POST /api/workflows/runs/{runId}/respond</c> ile verilir; bu,
-    /// kontrol noktasindan devam eden <strong>yeni</strong> bir calistirma acar.
+    /// Seen only on <see cref="RunKind.Workflow"/> rows. When a workflow reaches an
+    /// <em>external request port</em> — Magentic plan approval, for example —
+    /// execution stops, its state is written to a checkpoint and the stream closes.
+    /// The answer arrives through <c>POST /api/workflows/runs/{runId}/respond</c>,
+    /// which opens a <strong>new</strong> run that resumes from the checkpoint.
     /// </para>
     /// <para>
-    /// Deger sona eklenmistir: durumlar veritabaninda <c>smallint</c> olarak
-    /// saklanir ve mevcut degerlerin kaymasi eski satirlari yanlis okurdu.
-    /// Yanitlanmis bir calistirma <c>AwaitingInput</c> olarak <em>kalir</em>;
-    /// gecmisi geriye donuk degistirmek olay akisinin append-only kuralini
-    /// (K-014) bozardi. Devam eden is, yeni calistirma satirinda gorulur.
+    /// The value was appended at the end: statuses are stored as <c>smallint</c> in
+    /// the database and shifting the existing values would misread old rows. An
+    /// answered run <em>stays</em> <c>AwaitingInput</c>; rewriting history would
+    /// break the append-only rule of the event stream (K-014). The continued work
+    /// shows up in the new run row.
     /// </para>
     /// </remarks>
     AwaitingInput = 4,
 
     /// <summary>
-    /// Calistirma kuyruga alindi ama isci henuz baslatmadi.
+    /// The run is queued and a worker has not started it yet.
     /// </summary>
     /// <remarks>
-    /// Yalnizca <c>Prefer: respond-async</c> ile baslatilan calistirmalarda
-    /// gorulur (Faz 46). Satir kuyruga alma aninda <c>Queued</c> olarak yazilir;
-    /// isci is'i gercekten calistirdiginda ayni kimlikle tekrar yazilir ve
-    /// <see cref="Running"/>'e gecer. Deger sona eklenmistir; gerekce
-    /// <see cref="AwaitingInput"/> aciklamasindaki ile aynidir.
+    /// Seen only for runs started with <c>Prefer: respond-async</c> (phase 46). The
+    /// row is written as <c>Queued</c> at enqueue time; when the worker actually
+    /// runs the job the same id is written again and moves to <see cref="Running"/>.
+    /// The value was appended at the end for the same reason as
+    /// <see cref="AwaitingInput"/>.
     /// </remarks>
     Queued = 5,
 
     /// <summary>
-    /// Calistirma bir tool cagrisi icin operator onayi bekliyor ve bu karar
-    /// gelmeden ilerleyemez.
+    /// The run waits for an operator to decide on a tool call and cannot advance
+    /// without that decision.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Herhangi bir <em>kok</em> (<c>Depth == 0</c>) agent calistirmasinda gorulur
-    /// — yonetim API'si, OpenAI-uyumlu uc, MCP, A2A veya kuyruktan kosan
-    /// (<c>Prefer: respond-async</c>, Faz 46) fark etmeksizin (HATA-S2-004/
-    /// MT-MCP-023, Faz 55'in yalniz kuyruk yoluna ozgu ilk halini genisletti:
-    /// senkron yollar oncesinde bu durumu hic yansitmiyor, onay bekleyen bir
-    /// tool cagrisi sessizce <see cref="Completed"/> gorunuyordu). Karar nasil
-    /// ulastirilirsa ulastirilsin (kuyruk icin <c>POST /api/approvals/{id}/decide</c>,
-    /// senkron cagiran icin kendi bir sonraki turu) durum etiketi ayni ilkeyi
-    /// izler.
+    /// Seen on any <em>root</em> (<c>Depth == 0</c>) agent run, whatever started it
+    /// — the management API, an OpenAI-compatible endpoint, MCP, A2A, or the queue
+    /// (<c>Prefer: respond-async</c>, phase 46). HATA-S2-004 / MT-MCP-023 widened
+    /// phase 55's first version, which covered only the queue path: the synchronous
+    /// paths did not reflect this status at all, and a tool call waiting for
+    /// approval silently looked <see cref="Completed"/>. However the decision
+    /// arrives — <c>POST /api/approvals/{id}/decide</c> for the queue, the caller's
+    /// own next turn for synchronous callers — the status label follows the same
+    /// principle.
     /// </para>
     /// <para>
-    /// <see cref="AwaitingInput"/> ile AYNI ilkeyi izler: yanitlanmis bir
-    /// calistirma bu durumda <em>kalir</em>, gecmisi geriye donuk degistirmek
-    /// olay akisinin append-only kuralini (K-014) bozardi. Kuyruk yolunda karar
-    /// <c>POST /api/approvals/{id}/decide</c> ile verilir; bu, <strong>yeni</strong>
-    /// bir calistirma kuyruga dusurur (ayni <c>sessionId</c>, yeni <c>RunId</c>).
+    /// It follows the SAME principle as <see cref="AwaitingInput"/>: an answered run
+    /// <em>stays</em> in this status, because rewriting history would break the
+    /// append-only rule of the event stream (K-014). On the queue path the decision
+    /// is made through <c>POST /api/approvals/{id}/decide</c>, which enqueues a
+    /// <strong>new</strong> run (same <c>sessionId</c>, new <c>RunId</c>).
     /// </para>
     /// <para>
-    /// Deger sona eklenmistir; gerekce <see cref="AwaitingInput"/> aciklamasindaki
-    /// ile aynidir.
+    /// The value was appended at the end for the same reason as
+    /// <see cref="AwaitingInput"/>.
     /// </para>
     /// </remarks>
     AwaitingApproval = 6,

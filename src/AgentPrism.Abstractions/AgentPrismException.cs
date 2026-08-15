@@ -1,95 +1,97 @@
 namespace AgentPrism;
 
-/// <summary>AgentPrism'in urettigi tum hatalarin taban sinifi.</summary>
+/// <summary>Base class for every error AgentPrism raises.</summary>
 public class AgentPrismException : Exception
 {
-    /// <summary>Yeni bir hata olusturur.</summary>
+    /// <summary>Creates a new error.</summary>
     public AgentPrismException()
     {
     }
 
-    /// <summary>Yeni bir hata olusturur.</summary>
-    /// <param name="message">Hata mesaji.</param>
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message.</param>
     public AgentPrismException(string message)
         : base(message)
     {
     }
 
-    /// <summary>Yeni bir hata olusturur.</summary>
-    /// <param name="message">Hata mesaji.</param>
-    /// <param name="innerException">Asil hata.</param>
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message.</param>
+    /// <param name="innerException">The underlying error.</param>
     public AgentPrismException(string message, Exception innerException)
         : base(message, innerException)
     {
     }
 
     /// <summary>
-    /// Calistirma kaydina yazilacak kararli hata tipi adi.
+    /// Gets the stable error type name written to the run record.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Varsayilan olarak istisna tipinin tam adidir; boylece bugunku davranis
-    /// degismez. Bir alt tip, kaydin makine tarafindan okunabilir olmasi gerektiginde
-    /// bu uyeyi gecersiz kilar — ornek: <see cref="AgentPrismContentFilteredException"/>
-    /// <c>content_filtered</c> yazar. Rapor ve uyari kurallari derleme adina degil,
-    /// bu kararli ada dayanabilir.
+    /// Defaults to the full name of the exception type, so today's behaviour does
+    /// not change. A derived type overrides this member when the record has to be
+    /// machine readable — for example <see cref="AgentPrismContentFilteredException"/>
+    /// writes <c>content_filtered</c>. Reports and alert rules can rely on this
+    /// stable name instead of an assembly name.
     /// </para>
     /// <para>
-    /// Deger <c>RunError.Type</c> alanina yazilir ve <strong>sir tasimaz</strong>.
+    /// The value is written to <c>RunError.Type</c> and <strong>carries no secret</strong>.
     /// </para>
     /// </remarks>
     public virtual string ErrorType => GetType().FullName ?? GetType().Name;
 }
 
 /// <summary>
-/// Model saglayicisi yaniti guvenlik/icerik filtresiyle kestiginde atilir.
+/// Thrown when a model provider cuts the response short with its safety or
+/// content filter.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Filtrelenmis bir yanit cogu zaman <strong>bos</strong> gelir. Bunu "basarili ama
-/// bos" saymak, hata ayiklamasi en zor durumu uretir: kullanici bos bir cevap gorur,
-/// kayitta hicbir iz yoktur. AgentPrism bunu acik bir hata olarak kaydeder —
-/// <c>RunError.Type</c> alani <c>content_filtered</c> olur.
+/// A filtered response usually arrives <strong>empty</strong>. Treating that as
+/// "succeeded but empty" produces the hardest case to debug: the user sees a blank
+/// answer and the record holds no trace. AgentPrism records it as an explicit
+/// failure instead — <c>RunError.Type</c> becomes <c>content_filtered</c>.
 /// </para>
 /// <para>
-/// Tespit <c>AgentPrism.Core</c> icindeki ortak bir <c>IChatClient</c> dekoratorunde
-/// yapilir, saglayici paketlerinin icinde degil; boylece her saglayici ayni davranisi
-/// alir. Gerekce: <c>docs/26-ANTHROPIC-VE-GEMINI.md</c>, bolum 26.4.
+/// Detection lives in a shared <c>IChatClient</c> decorator inside
+/// <c>AgentPrism.Core</c>, not inside the provider packages, so every provider
+/// gets the same behaviour. Rationale: <c>docs/26-ANTHROPIC-VE-GEMINI.md</c>,
+/// section 26.4.
 /// </para>
 /// </remarks>
 public sealed class AgentPrismContentFilteredException : AgentPrismException
 {
     /// <summary>
-    /// <see cref="AgentPrismException.ErrorType"/> icin yazilan kararli deger.
+    /// The stable value written to <see cref="AgentPrismException.ErrorType"/>.
     /// </summary>
     public const string ContentFilteredErrorType = "content_filtered";
 
-    /// <summary>Yeni bir hata olusturur.</summary>
+    /// <summary>Creates a new error.</summary>
     public AgentPrismContentFilteredException()
     {
     }
 
-    /// <summary>Yeni bir hata olusturur.</summary>
-    /// <param name="message">Hata mesaji.</param>
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message.</param>
     public AgentPrismContentFilteredException(string message)
         : base(message)
     {
     }
 
-    /// <summary>Yeni bir hata olusturur.</summary>
-    /// <param name="message">Hata mesaji.</param>
-    /// <param name="innerException">Asil hata.</param>
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message.</param>
+    /// <param name="innerException">The underlying error.</param>
     public AgentPrismContentFilteredException(string message, Exception innerException)
         : base(message, innerException)
     {
     }
 
-    /// <summary>Yaniti filtreleyen saglayicinin adi. Bilinmiyorsa <see langword="null"/>.</summary>
+    /// <summary>Gets the provider that filtered the response, or <see langword="null"/> when unknown.</summary>
     public string? ProviderName { get; init; }
 
     /// <summary>
-    /// Saglayicinin bildirdigi bitis sebebi. Ornek: Anthropic <c>refusal</c>,
-    /// Gemini <c>SAFETY</c>. <strong>Sir tasimaz.</strong>
+    /// Gets the finish reason the provider reported. For example Anthropic
+    /// <c>refusal</c> or Gemini <c>SAFETY</c>. <strong>Carries no secret.</strong>
     /// </summary>
     public string? FinishReason { get; init; }
 
@@ -98,56 +100,56 @@ public sealed class AgentPrismContentFilteredException : AgentPrismException
 }
 
 /// <summary>
-/// Icerik bir <see cref="IContentGuard"/> tarafindan engellendiginde atilir.
+/// Thrown when an <see cref="IContentGuard"/> blocks content.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="AgentPrismContentFilteredException"/>'dan ayridir ve ayri kalmalidir:
-/// o, <em>saglayicinin</em> yaniti kestigini bildirir; bu ise AgentPrism'in kendi
-/// politikasinin icerigi gecirmedigini bildirir. Ikisini ayni kararli kimlige
-/// yazmak, operatorun "model reddetti" ile "biz reddettik" arasindaki ayrimi
-/// kaybetmesine yol acardi.
+/// This is separate from <see cref="AgentPrismContentFilteredException"/> and must
+/// stay separate: that one reports that the <em>provider</em> cut the response,
+/// this one reports that AgentPrism's own policy did not let the content through.
+/// Writing both to the same stable identity would cost the operator the difference
+/// between "the model refused" and "we refused".
 /// </para>
 /// <para>
-/// 🚨 Ne mesaj ne de alanlar <strong>engellenen icerigi tasir</strong>. Mesaj
-/// istemciye <c>422</c> govdesinde donebilir; oraya hassas metin yazmak sorunu
-/// yayardi.
+/// 🚨 Neither the message nor the fields <strong>carry the blocked content</strong>.
+/// The message can reach the client in a <c>422</c> body; putting sensitive text
+/// there would spread the problem.
 /// </para>
 /// </remarks>
 public sealed class AgentPrismContentBlockedException : AgentPrismException
 {
     /// <summary>
-    /// <see cref="AgentPrismException.ErrorType"/> icin yazilan kararli deger.
+    /// The stable value written to <see cref="AgentPrismException.ErrorType"/>.
     /// </summary>
     public const string ContentBlockedErrorType = "content_blocked";
 
-    /// <summary>Yeni bir hata olusturur.</summary>
+    /// <summary>Creates a new error.</summary>
     public AgentPrismContentBlockedException()
     {
     }
 
-    /// <summary>Yeni bir hata olusturur.</summary>
-    /// <param name="message">Hata mesaji. Engellenen metni TASIMAMALIDIR.</param>
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message. MUST NOT carry the blocked text.</param>
     public AgentPrismContentBlockedException(string message)
         : base(message)
     {
     }
 
-    /// <summary>Yeni bir hata olusturur.</summary>
-    /// <param name="message">Hata mesaji. Engellenen metni TASIMAMALIDIR.</param>
-    /// <param name="innerException">Asil hata.</param>
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message. MUST NOT carry the blocked text.</param>
+    /// <param name="innerException">The underlying error.</param>
     public AgentPrismContentBlockedException(string message, Exception innerException)
         : base(message, innerException)
     {
     }
 
-    /// <summary>Karari veren guard'in adi.</summary>
+    /// <summary>Gets the name of the guard that made the decision.</summary>
     public string? GuardName { get; init; }
 
-    /// <summary>Eslesen kuralin adi. Guard kural adi bildirmediyse <see langword="null"/>.</summary>
+    /// <summary>Gets the matched rule name, or <see langword="null"/> when the guard reports none.</summary>
     public string? RuleName { get; init; }
 
-    /// <summary>Denetimin yonu.</summary>
+    /// <summary>Gets the direction that was inspected.</summary>
     public ContentGuardDirection Direction { get; init; }
 
     /// <inheritdoc />
@@ -155,41 +157,41 @@ public sealed class AgentPrismContentBlockedException : AgentPrismException
 }
 
 /// <summary>
-/// Bir agent tanimi calistirilabilir bir agent'a donusturulemedigi zaman atilir.
+/// Thrown when an agent definition cannot be turned into a runnable agent.
 /// </summary>
 /// <remarks>
-/// En sik sebep: tanimda kodda kayitli olmayan bir tool adinin bulunmasi.
-/// Bu durum sessizce atlanmaz — bilinmeyen bir tool ile calisan agent,
-/// kullanicinin bekledigini yapmayan agent demektir.
+/// The most common cause is a tool name in the definition that is not registered
+/// in code. That case is never skipped silently — an agent running with an unknown
+/// tool is an agent that does not do what the user expects.
 /// </remarks>
 public sealed class AgentPrismCompilationException : AgentPrismException
 {
     /// <summary>
-    /// <see cref="AgentPrismException.ErrorType"/> icin yazilan kararli deger.
+    /// The stable value written to <see cref="AgentPrismException.ErrorType"/>.
     /// </summary>
     public const string CompilationFailedErrorType = "compilation_failed";
 
-    /// <summary>Yeni bir derleme hatasi olusturur.</summary>
+    /// <summary>Creates a new compilation error.</summary>
     public AgentPrismCompilationException()
     {
     }
 
-    /// <summary>Yeni bir derleme hatasi olusturur.</summary>
-    /// <param name="message">Hata mesaji.</param>
+    /// <summary>Creates a new compilation error.</summary>
+    /// <param name="message">The error message.</param>
     public AgentPrismCompilationException(string message)
         : base(message)
     {
     }
 
-    /// <summary>Yeni bir derleme hatasi olusturur.</summary>
-    /// <param name="message">Hata mesaji.</param>
-    /// <param name="innerException">Asil hata.</param>
+    /// <summary>Creates a new compilation error.</summary>
+    /// <param name="message">The error message.</param>
+    /// <param name="innerException">The underlying error.</param>
     public AgentPrismCompilationException(string message, Exception innerException)
         : base(message, innerException)
     {
     }
 
-    /// <summary>Derlenemeyen agent'in adi.</summary>
+    /// <summary>Gets the name of the agent that failed to compile.</summary>
     public string? AgentName { get; init; }
 
     /// <inheritdoc />
@@ -197,45 +199,47 @@ public sealed class AgentPrismCompilationException : AgentPrismException
 }
 
 /// <summary>
-/// Bir model saglayicisi devre kesici tarafindan gecici olarak kapatildiginda atilir.
+/// Thrown when the circuit breaker has temporarily taken a model provider out of
+/// service.
 /// </summary>
 /// <remarks>
-/// Devre <c>Open</c> durumdayken atilir; saglayiciya <strong>hicbir istek gitmez</strong>.
-/// Ardisik hata sayisi <c>FailureThreshold</c>'u astiginda devre acilir ve
-/// <c>BreakDuration</c> sonunda tek bir deneme icin yari-acik duruma gecer.
-/// Gerekce: <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>, bolum 8.3.
+/// Thrown while the circuit is <c>Open</c>; <strong>no request reaches the
+/// provider</strong>. The circuit opens once consecutive failures pass
+/// <c>FailureThreshold</c>, and moves to half-open for a single trial after
+/// <c>BreakDuration</c>. Rationale: <c>docs/08-SAGLAYICI-GENISLEMESI.md</c>,
+/// section 8.3.
 /// </remarks>
 public sealed class AgentPrismProviderUnavailableException : AgentPrismException
 {
     /// <summary>
-    /// <see cref="AgentPrismException.ErrorType"/> icin yazilan kararli deger.
+    /// The stable value written to <see cref="AgentPrismException.ErrorType"/>.
     /// </summary>
     public const string ProviderUnavailableErrorType = "provider_unavailable";
 
-    /// <summary>Yeni bir hata olusturur.</summary>
+    /// <summary>Creates a new error.</summary>
     public AgentPrismProviderUnavailableException()
     {
     }
 
-    /// <summary>Yeni bir hata olusturur.</summary>
-    /// <param name="message">Hata mesaji.</param>
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message.</param>
     public AgentPrismProviderUnavailableException(string message)
         : base(message)
     {
     }
 
-    /// <summary>Yeni bir hata olusturur.</summary>
-    /// <param name="message">Hata mesaji.</param>
-    /// <param name="innerException">Asil hata.</param>
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message.</param>
+    /// <param name="innerException">The underlying error.</param>
     public AgentPrismProviderUnavailableException(string message, Exception innerException)
         : base(message, innerException)
     {
     }
 
-    /// <summary>Devresi acik olan saglayicinin adi.</summary>
+    /// <summary>Gets the name of the provider whose circuit is open.</summary>
     public string? ProviderName { get; init; }
 
-    /// <summary>Devrenin yari-acik duruma gecip yeniden denenecegi zaman.</summary>
+    /// <summary>Gets the time at which the circuit goes half-open and is retried.</summary>
     public DateTimeOffset? RetryAfter { get; init; }
 
     /// <inheritdoc />
@@ -243,51 +247,51 @@ public sealed class AgentPrismProviderUnavailableException : AgentPrismException
 }
 
 /// <summary>
-/// Ayni YENI oturum kimligine eszamanli iki ilk istek geldiginde, kaybeden
-/// istek icin atilir.
+/// Thrown for the losing request when two concurrent first requests arrive for the
+/// same NEW session id.
 /// </summary>
 /// <remarks>
 /// <para>
-/// HATA-004: <c>AgentSessionManager.GetOrCreateSessionAsync</c> yeni bir oturum
-/// olustururken <c>ISessionStore.TryCreateAsync</c> ile atomik bir kayit dener.
-/// Ayni kimlikle eszamanli ikinci bir istek bu denemede kaybederse, kazananin
-/// konusma gecmisi saglayicisinin (ChatHistoryProvider) konusma kimligini HENUZ
-/// uretmemis olabilecegini bilemez — o kimlik yalniz kazananin ILK turu
-/// calisirken uretilir. Kaybeden yine de kendi turunu calistirsaydi, KENDI
-/// konusma kimligini uretir ve sonraki kaydetme kazananin durumunu sessizce
-/// ezerdi — asil kusur buydu. Bu yuzden kaybeden acik bir catisma hatasi alir;
-/// yeniden deneme normal (yaris disi) yolu izler ve bu kez kazananin ZATEN
-/// yerlesmis kaydini bulur.
+/// HATA-004: while creating a new session,
+/// <c>AgentSessionManager.GetOrCreateSessionAsync</c> attempts an atomic insert
+/// through <c>ISessionStore.TryCreateAsync</c>. When a concurrent second request
+/// for the same id loses that attempt, it cannot know whether the winner's chat
+/// history provider has produced its conversation id yet — that id is produced
+/// only while the winner's FIRST turn runs. Had the loser run its own turn anyway,
+/// it would have produced its OWN conversation id and the following save would have
+/// silently overwritten the winner's state; that was the actual defect. So the loser
+/// gets an explicit conflict error instead; a retry takes the normal (race-free)
+/// path and finds the winner's record ALREADY in place.
 /// </para>
 /// </remarks>
 public sealed class AgentPrismSessionConflictException : AgentPrismException
 {
     /// <summary>
-    /// <see cref="AgentPrismException.ErrorType"/> icin yazilan kararli deger.
+    /// The stable value written to <see cref="AgentPrismException.ErrorType"/>.
     /// </summary>
     public const string SessionConflictErrorType = "session_conflict";
 
-    /// <summary>Yeni bir hata olusturur.</summary>
+    /// <summary>Creates a new error.</summary>
     public AgentPrismSessionConflictException()
     {
     }
 
-    /// <summary>Yeni bir hata olusturur.</summary>
-    /// <param name="message">Hata mesaji.</param>
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message.</param>
     public AgentPrismSessionConflictException(string message)
         : base(message)
     {
     }
 
-    /// <summary>Yeni bir hata olusturur.</summary>
-    /// <param name="message">Hata mesaji.</param>
-    /// <param name="innerException">Asil hata.</param>
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message.</param>
+    /// <param name="innerException">The underlying error.</param>
     public AgentPrismSessionConflictException(string message, Exception innerException)
         : base(message, innerException)
     {
     }
 
-    /// <summary>Catisan oturumun kimligi.</summary>
+    /// <summary>Gets the id of the conflicting session.</summary>
     public string? SessionId { get; init; }
 
     /// <inheritdoc />
@@ -295,45 +299,45 @@ public sealed class AgentPrismSessionConflictException : AgentPrismException
 }
 
 /// <summary>
-/// Bir dis cagiran (MCP veya A2A uzerinden) katalogdaki bir agent'i cagirmak
-/// istedi ama sinir ihlali nedeniyle reddedildi (Faz 50).
+/// Thrown when an external caller (over MCP or A2A) asked to invoke an agent from
+/// the catalog and the call was refused because it crosses a boundary (phase 50).
 /// </summary>
 /// <remarks>
-/// En sik sebep: dis cagiran onaylı bir tool taşıyan bir agent'i acmaya
-/// calisiyor. Dis cagiran bir agent degildir ve onay isteğine cevap veremez —
-/// K-103'un aynisi, ikinci bir uygulaması.
+/// The most common cause is an external caller trying to open an agent that carries
+/// a tool requiring approval. An external caller is not an agent and cannot answer
+/// an approval request — the same rule as K-103, applied a second time.
 /// </remarks>
 public sealed class AgentPrismExternalCallException : AgentPrismException
 {
     /// <summary>
-    /// <see cref="AgentPrismException.ErrorType"/> icin yazilan kararli deger.
+    /// The stable value written to <see cref="AgentPrismException.ErrorType"/>.
     /// </summary>
     public const string ExternalCallRejectedErrorType = "external_call_rejected";
 
-    /// <summary>Yeni bir hata olusturur.</summary>
+    /// <summary>Creates a new error.</summary>
     public AgentPrismExternalCallException()
     {
     }
 
-    /// <summary>Yeni bir hata olusturur.</summary>
-    /// <param name="message">Hata mesaji.</param>
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message.</param>
     public AgentPrismExternalCallException(string message)
         : base(message)
     {
     }
 
-    /// <summary>Yeni bir hata olusturur.</summary>
-    /// <param name="message">Hata mesaji.</param>
-    /// <param name="innerException">Asil hata.</param>
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message.</param>
+    /// <param name="innerException">The underlying error.</param>
     public AgentPrismExternalCallException(string message, Exception innerException)
         : base(message, innerException)
     {
     }
 
-    /// <summary>Cagrilmak istenen agent.</summary>
+    /// <summary>Gets the agent the caller asked for.</summary>
     public required string AgentName { get; init; }
 
-    /// <summary>Cagrinin geldigi protokol: <c>mcp</c> veya <c>a2a</c>.</summary>
+    /// <summary>Gets the protocol the call arrived on: <c>mcp</c> or <c>a2a</c>.</summary>
     public required string Protocol { get; init; }
 
     /// <inheritdoc />

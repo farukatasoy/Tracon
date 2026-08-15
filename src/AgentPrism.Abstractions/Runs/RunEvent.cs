@@ -3,76 +3,77 @@ using System.Text.Json.Serialization;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir calistirma sirasinda olusan tek bir olay. Olaylar <em>append-only</em>'dir:
-/// hicbir zaman guncellenmez, yalnizca eklenir.
+/// A single event produced during a run. Events are <em>append-only</em>: they are
+/// never updated, only added.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="Sequence"/> tek bir yazicidan uretilir ve calistirma icinde 0'dan
-/// baslayarak artar. Bu sayede canli akis (SSE) ve gecmise donuk yeniden oynatma
-/// ayni kod yolundan gecer; istemci kopan baglantidan kaldigi sira numarasindan
-/// devam edebilir.
+/// <see cref="Sequence"/> comes from a single writer and increases from 0 within a
+/// run. That is what lets live streaming (SSE) and historical replay share one code
+/// path; a client can resume from the sequence number it reached when a connection
+/// dropped.
 /// </para>
 /// <para>
-/// Olay tipine gore hangi alanlarin dolduruldugu:
+/// Which fields are populated for each event type:
 /// <list type="table">
 ///   <item><term><see cref="RunEventType.RunStarted"/></term><description>
-///     <see cref="Text"/> (calistirmayi tetikleyen ilk kullanici mesaji, Faz 45/F-53).
-///     Girdi metninin kalicilastigi TEK yerdir.</description></item>
+///     <see cref="Text"/>, the first user message that triggered the run (phase 45,
+///     F-53). It is the ONLY place the input text is persisted.</description></item>
 ///   <item><term><see cref="RunEventType.MessageDelta"/></term><description><see cref="Text"/></description></item>
-///   <item><term><see cref="RunEventType.ToolInvoking"/></term><description><see cref="ToolName"/>, <see cref="ToolCallId"/>, <see cref="Payload"/> (argumanlar)</description></item>
-///   <item><term><see cref="RunEventType.ToolInvoked"/></term><description><see cref="ToolName"/>, <see cref="ToolCallId"/>, <see cref="Payload"/> (sonuc)</description></item>
-///   <item><term><see cref="RunEventType.ToolFailed"/></term><description><see cref="ToolName"/>, <see cref="ToolCallId"/>, <see cref="Text"/> (hata mesaji)</description></item>
-///   <item><term><see cref="RunEventType.RunFailed"/></term><description><see cref="Text"/> (hata mesaji)</description></item>
+///   <item><term><see cref="RunEventType.ToolInvoking"/></term><description><see cref="ToolName"/>, <see cref="ToolCallId"/>, <see cref="Payload"/> (arguments)</description></item>
+///   <item><term><see cref="RunEventType.ToolInvoked"/></term><description><see cref="ToolName"/>, <see cref="ToolCallId"/>, <see cref="Payload"/> (result)</description></item>
+///   <item><term><see cref="RunEventType.ToolFailed"/></term><description><see cref="ToolName"/>, <see cref="ToolCallId"/>, <see cref="Text"/> (error message)</description></item>
+///   <item><term><see cref="RunEventType.RunFailed"/></term><description><see cref="Text"/> (error message)</description></item>
 /// </list>
 /// </para>
 /// </remarks>
 public sealed record RunEvent
 {
-    /// <summary>Olayin ait oldugu calistirma.</summary>
+    /// <summary>Gets the run the event belongs to.</summary>
     public required Guid RunId { get; init; }
 
-    /// <summary>Calistirma icindeki sira numarasi. 0'dan baslar ve bosluksuz artar.</summary>
+    /// <summary>Gets the sequence number within the run. It starts at 0 and increases without gaps.</summary>
     public required long Sequence { get; init; }
 
-    /// <summary>Olay tipi.</summary>
+    /// <summary>Gets the event type.</summary>
     public required RunEventType Type { get; init; }
 
-    /// <summary>Olayin olustugu an (UTC).</summary>
+    /// <summary>Gets the moment the event occurred (UTC).</summary>
     public required DateTimeOffset Timestamp { get; init; }
 
-    /// <summary>Metin icerik. Tipe gore anlami degisir.</summary>
+    /// <summary>Gets the text content. Its meaning depends on the event type.</summary>
     public string? Text { get; init; }
 
-    /// <summary>Tool adi. Yalnizca tool olaylarinda dolu.</summary>
+    /// <summary>Gets the tool name. Populated only on tool events.</summary>
     public string? ToolName { get; init; }
 
-    /// <summary>Tool cagri kimligi. Ayni tool'un birden cok cagrisini ayirt eder.</summary>
+    /// <summary>Gets the tool call id, which separates several calls to the same tool.</summary>
     public string? ToolCallId { get; init; }
 
-    /// <summary>Serbest JSON yuku. Tool argumanlari ve sonuclari burada tasinir.</summary>
+    /// <summary>Gets the free-form JSON payload that carries tool arguments and results.</summary>
     public string? Payload { get; init; }
 
     /// <summary>
-    /// Olayin yazilacagi calistirmanin BEKLENEN kiracisi. Derinlemesine savunma.
+    /// Gets the EXPECTED tenant of the run the event is written to. Defence in depth.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Dolu ise depo yazmayi yalnizca hedef calistirma bu kiraciya aitse uygular;
-    /// aksi hâlde yazma dusurulur ve hata verilir. <see langword="null"/> ise
-    /// kiraci denetimi yapilmaz.
+    /// When populated, the store applies the write only if the target run belongs to
+    /// that tenant; otherwise the write is dropped and an error is raised. When
+    /// <see langword="null"/> no tenant check is made.
     /// </para>
     /// <para>
-    /// 🚨 Bu alan ambient kiraciyla DOLDURULMAZ. <see cref="RunStartInfo.TenantId"/>
-    /// ambient kiraciyi bilerek ezebilir (workflow ve is kuyrugu boyle calisir);
-    /// ambient ile suzmek mesru yazmalari sessizce dusururdu. Deger, calistirmayi
-    /// acan tarafin bildigi kiracidir. Gerekce: K-355.
+    /// 🚨 This field is NOT filled from the ambient tenant.
+    /// <see cref="RunStartInfo.TenantId"/> may deliberately override the ambient
+    /// tenant — that is how workflows and the job queue work — and filtering by the
+    /// ambient value would silently drop legitimate writes. The value is the tenant
+    /// known to whoever opened the run. Rationale: K-355.
     /// </para>
     /// <para>
-    /// 🚨 Alan YALNIZ YAZMA tarafindadir: bir sutuna yazilmaz, yalnizca yazmanin
-    /// <c>WHERE</c> muhafizi olarak kullanilir. Geri okundugunda her zaman
-    /// <see langword="null"/> olurdu; bu yuzden aktarim sozlesmesinden
-    /// <see cref="JsonIgnoreAttribute"/> ile cikarilir.
+    /// 🚨 The field is WRITE-side only: it is not stored in a column, it is only the
+    /// <c>WHERE</c> guard of the write. Reading it back would always give
+    /// <see langword="null"/>, so it is removed from the transport contract with
+    /// <see cref="JsonIgnoreAttribute"/>.
     /// </para>
     /// </remarks>
     [JsonIgnore]

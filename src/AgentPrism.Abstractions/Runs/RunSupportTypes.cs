@@ -2,311 +2,311 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>Bir calistirmanin token kullanimi.</summary>
+/// <summary>Token usage of a run.</summary>
 public sealed record RunUsage
 {
-    /// <summary>Girdi token sayisi.</summary>
+    /// <summary>Gets the number of input tokens.</summary>
     public long? InputTokens { get; init; }
 
-    /// <summary>Cikti token sayisi.</summary>
+    /// <summary>Gets the number of output tokens.</summary>
     public long? OutputTokens { get; init; }
 
-    /// <summary>Toplam token sayisi.</summary>
+    /// <summary>Gets the total number of tokens.</summary>
     public long? TotalTokens { get; init; }
 }
 
-/// <summary>Basarisiz bir calistirmanin hata bilgisi.</summary>
+/// <summary>Error information for a failed run.</summary>
 public sealed record RunError
 {
-    /// <summary>Istisna tipinin adi.</summary>
+    /// <summary>Gets the name of the exception type.</summary>
     public required string Type { get; init; }
 
-    /// <summary>Hata mesaji.</summary>
+    /// <summary>Gets the error message.</summary>
     public required string Message { get; init; }
 
     /// <summary>
-    /// <see cref="IRunErrorClassifier"/>'in dustugu sinif. Hata sinifi
-    /// eklenmeden ONCE yazilmis eski satirlarda <see langword="null"/>
-    /// (arayuz <c>Unknown</c> kovasinda gosterir).
+    /// Gets the class chosen by <see cref="IRunErrorClassifier"/>. Rows written
+    /// BEFORE the error class was introduced hold <see langword="null"/>, which
+    /// the user interface shows in the <c>Unknown</c> bucket.
     /// </summary>
     public RunErrorClass? Class { get; init; }
 
     /// <summary>
-    /// Normallestirilmis mesajin ozeti. Ayni arizanin tekrarlarini kumelemek
-    /// icin kullanilir. <see cref="Class"/> gibi siniflandirici yoksa
-    /// <see langword="null"/>.
+    /// Gets the digest of the normalized message, used to cluster repetitions of
+    /// the same fault. <see langword="null"/> when no classifier ran, as for
+    /// <see cref="Class"/>.
     /// </summary>
     public string? Fingerprint { get; init; }
 }
 
 /// <summary>
-/// Bir calistirmanin maliyeti. Calistirma bittiginde bir kez hesaplanir ve
-/// yazilir (fiyat anlik goruntusu) — fiyat listesi sonradan degisirse gecmis
-/// deger degismez (bkz. <c>docs/20-MALIYET-VE-GOSTERGE-PANELI.md</c> bolum 20.2).
+/// Cost of a run. It is computed and written once when the run ends (a price
+/// snapshot) — a later change to the price list does not change past values
+/// (see <c>docs/20-MALIYET-VE-GOSTERGE-PANELI.md</c>, section 20.2).
 /// </summary>
 public sealed record RunCost
 {
-    /// <summary>Girdi token maliyeti. Fiyat tanimsizsa <see langword="null"/>.</summary>
+    /// <summary>Gets the input token cost, or <see langword="null"/> when the price is unknown.</summary>
     public decimal? InputCost { get; init; }
 
-    /// <summary>Cikti token maliyeti. Fiyat tanimsizsa <see langword="null"/>.</summary>
+    /// <summary>Gets the output token cost, or <see langword="null"/> when the price is unknown.</summary>
     public decimal? OutputCost { get; init; }
 
-    /// <summary>Para birimi. <c>AgentPrism:Pricing:Currency</c>'den gelir.</summary>
+    /// <summary>Gets the currency, taken from <c>AgentPrism:Pricing:Currency</c>.</summary>
     public string? Currency { get; init; }
 
-    /// <summary>Fiyatin nereden geldigi.</summary>
+    /// <summary>Gets where the price came from.</summary>
     public required PricingSource Source { get; init; }
 }
 
 /// <summary>
-/// Bir calistirma agacinin (kok + tum alt calistirmalar) toplam maliyeti.
+/// Total cost of a run tree (the root plus every child run).
 /// </summary>
 /// <remarks>
-/// <see cref="RunRecord.Cost"/> ile <strong>toplanmaz</strong>: bu deger zaten
-/// kendi maliyetini icerir (bkz. <see cref="RunRecord.TreeUsage"/> ile ayni
-/// gerekce). Arayuz ikisini ayri sutunda gosterir.
+/// This <strong>must not be added</strong> to <see cref="RunRecord.Cost"/>: the
+/// value already includes the root's own cost, for the same reason as
+/// <see cref="RunRecord.TreeUsage"/>. The user interface shows the two in
+/// separate columns.
 /// </remarks>
 public sealed record RunTreeCost
 {
-    /// <summary>Agactaki toplam girdi maliyeti.</summary>
+    /// <summary>Gets the total input cost across the tree.</summary>
     public decimal? InputCost { get; init; }
 
-    /// <summary>Agactaki toplam cikti maliyeti.</summary>
+    /// <summary>Gets the total output cost across the tree.</summary>
     public decimal? OutputCost { get; init; }
 
-    /// <summary>Para birimi.</summary>
+    /// <summary>Gets the currency.</summary>
     public string? Currency { get; init; }
 
-    /// <summary>Agacta fiyati tanimsiz kac calistirma oldugu.</summary>
+    /// <summary>Gets how many runs in the tree have an unknown price.</summary>
     public long RunsWithUnknownPricing { get; init; }
 }
 
-/// <summary>Yeni bir calistirma baslatmak icin gereken bilgiler.</summary>
+/// <summary>Everything needed to open a new run.</summary>
 public sealed record RunStartInfo
 {
-    /// <summary>Calistirma kimligi. Cagiran taraf uretir, boylece kimligi hemen bilir.</summary>
+    /// <summary>Gets the run id. The caller produces it, so it knows the id straight away.</summary>
     public required Guid RunId { get; init; }
 
     /// <summary>
-    /// Calistirilan agent'in adi. Workflow calistirmalarinda workflow'un adi
-    /// yazilir; gerekce <see cref="RunRecord.AgentName"/> aciklamasindadir.
+    /// Gets the name of the agent that runs. For workflow runs the workflow name
+    /// is written instead; the rationale is on <see cref="RunRecord.AgentName"/>.
     /// </summary>
     public required string AgentName { get; init; }
 
-    /// <summary>Bu satirin bir agent'i mi yoksa bir workflow'u mu kaydettigi.</summary>
+    /// <summary>Gets whether this row records an agent or a workflow.</summary>
     public RunKind Kind { get; init; }
 
-    /// <summary>Calistirilan workflow'un adi. Agent calistirmalarinda <see langword="null"/>.</summary>
+    /// <summary>Gets the name of the workflow, or <see langword="null"/> for agent runs.</summary>
     public string? WorkflowName { get; init; }
 
-    /// <summary>Baslangic zamani (UTC).</summary>
+    /// <summary>Gets the start time (UTC).</summary>
     public required DateTimeOffset StartedAt { get; init; }
 
     /// <summary>
-    /// Acilan satirin baslangic durumu. Varsayilan <see cref="RunStatus.Running"/>.
+    /// Gets the initial status of the opened row. Defaults to <see cref="RunStatus.Running"/>.
     /// </summary>
     /// <remarks>
-    /// Faz 46: kuyruga alinan bir calistirma <see cref="RunStatus.Queued"/> ile
-    /// acilir. Ayni <see cref="RunId"/> ile <c>StartRunAsync</c> IKINCI kez
-    /// cagrilirsa (isci is'i gercekten calistirdiginda) depo bunu bir UPSERT
-    /// olarak ele alir — yeni bir satir ACILMAZ, mevcut satir bu alanla
-    /// (genelde <see cref="RunStatus.Running"/>) guncellenir.
+    /// Phase 46: a queued run opens as <see cref="RunStatus.Queued"/>. When
+    /// <c>StartRunAsync</c> is called a SECOND time with the same
+    /// <see cref="RunId"/> — once the worker actually runs the job — the store
+    /// treats it as an upsert: no new row is opened, the existing row is updated
+    /// with this field, normally to <see cref="RunStatus.Running"/>.
     /// </remarks>
     public RunStatus Status { get; init; } = RunStatus.Running;
 
-    /// <summary>Kiraci kimligi.</summary>
+    /// <summary>Gets the tenant id.</summary>
     public string? TenantId { get; init; }
 
-    /// <summary>Oturum kimligi.</summary>
+    /// <summary>Gets the session id.</summary>
     public string? SessionId { get; init; }
 
     /// <summary>
-    /// Kullanilacak modelin adi. Agent tanimindan cozulur; bilinmiyorsa
-    /// <see langword="null"/>.
+    /// Gets the model to use, resolved from the agent definition, or
+    /// <see langword="null"/> when it is unknown.
     /// </summary>
     public string? ModelId { get; init; }
 
-    /// <summary>Akisli calistirma mi.</summary>
+    /// <summary>Gets whether the run streams.</summary>
     public bool IsStreaming { get; init; }
 
-    /// <summary>Bu calistirmayi baslatan calistirmanin kimligi. Kokte <see langword="null"/>.</summary>
+    /// <summary>Gets the id of the run that started this one, or <see langword="null"/> at the root.</summary>
     public Guid? ParentRunId { get; init; }
 
-    /// <summary>Agacin kokundeki calistirmanin kimligi. Kokte <see langword="null"/>.</summary>
+    /// <summary>Gets the id of the run at the root of the tree, or <see langword="null"/> at the root.</summary>
     public Guid? RootRunId { get; init; }
 
-    /// <summary>Agactaki derinlik. Kok calistirma 0'dir.</summary>
+    /// <summary>Gets the depth in the tree. The root run is 0.</summary>
     public int Depth { get; init; }
 
-    /// <summary>Bu calistirmanin olctugu tanim surumu. Bilinmiyorsa <see langword="null"/>.</summary>
+    /// <summary>Gets the definition version this run measured, or <see langword="null"/> when unknown.</summary>
     public int? AgentVersion { get; init; }
 
-    /// <summary>Bu calistirmanin bagli oldugu deneyin kimligi. Deney disi calistirmada <see langword="null"/>.</summary>
+    /// <summary>Gets the experiment this run belongs to, or <see langword="null"/> outside an experiment.</summary>
     public Guid? ExperimentId { get; init; }
 
-    /// <summary>Bu calistirmanin atandigi deney kolunun adi. Deney disi calistirmada <see langword="null"/>.</summary>
+    /// <summary>Gets the experiment variant this run was assigned to, or <see langword="null"/> outside an experiment.</summary>
     public string? Variant { get; init; }
 
     /// <summary>
-    /// Bu calistirma bir yeniden oynatma ise kaynak calistirmanin kimligi
-    /// (Faz 47). Normal calistirmada <see langword="null"/>.
+    /// Gets the source run id when this run is a replay (phase 47), or
+    /// <see langword="null"/> for a normal run.
     /// </summary>
     public Guid? ReplayOfRunId { get; init; }
 }
 
-/// <summary>Bir calistirmayi sonlandirmak icin gereken bilgiler.</summary>
+/// <summary>Everything needed to close a run.</summary>
 public sealed record RunCompletion
 {
-    /// <summary>Calistirma kimligi.</summary>
+    /// <summary>Gets the run id.</summary>
     public required Guid RunId { get; init; }
 
-    /// <summary>Son durum.</summary>
+    /// <summary>Gets the final status.</summary>
     public required RunStatus Status { get; init; }
 
-    /// <summary>Bitis zamani (UTC).</summary>
+    /// <summary>Gets the completion time (UTC).</summary>
     public required DateTimeOffset CompletedAt { get; init; }
 
-    /// <summary>Yazilmis toplam olay sayisi.</summary>
+    /// <summary>Gets the total number of events written.</summary>
     public long EventCount { get; init; }
 
-    /// <summary>Token kullanimi.</summary>
+    /// <summary>Gets the token usage.</summary>
     public RunUsage? Usage { get; init; }
 
-    /// <summary>Hata bilgisi. Yalnizca <see cref="RunStatus.Failed"/> durumunda dolu.</summary>
+    /// <summary>Gets the error information. Only populated for <see cref="RunStatus.Failed"/>.</summary>
     public RunError? Error { get; init; }
 
     /// <summary>
-    /// Hesaplanan maliyet. Model bilinmiyorsa (kod agent'i vb.) <see langword="null"/>;
-    /// model biliniyorsa fiyat tanimsiz olsa bile dolu gelir (bkz. <see cref="RunCost"/>).
+    /// Gets the computed cost. <see langword="null"/> when the model is unknown
+    /// (a code agent, for example); when the model is known the value is populated
+    /// even if the price is not (see <see cref="RunCost"/>).
     /// </summary>
     public RunCost? Cost { get; init; }
 
     /// <summary>
-    /// Sonlandirilacak calistirmanin BEKLENEN kiracisi. Derinlemesine savunma;
-    /// <see langword="null"/> ise kiraci denetimi yapilmaz.
+    /// Gets the EXPECTED tenant of the run being closed. Defence in depth; when
+    /// <see langword="null"/> no tenant check is made.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Gerekce ve ambient kiracinin neden kullanilmadigi:
-    /// <see cref="RunEvent.TenantId"/>. Karar K-355.
+    /// For the rationale, and why the ambient tenant is not used, see
+    /// <see cref="RunEvent.TenantId"/>. Decision K-355.
     /// </para>
     /// <para>
-    /// 🚨 Alan YALNIZ YAZMA tarafindadir ve aktarim sozlesmesinden
-    /// <see cref="JsonIgnoreAttribute"/> ile cikarilir.
+    /// 🚨 The field is WRITE-side only and is removed from the transport contract
+    /// with <see cref="JsonIgnoreAttribute"/>.
     /// </para>
     /// </remarks>
     [JsonIgnore]
     public string? TenantId { get; init; }
 }
 
-/// <summary>Calistirma listesini filtrelemek icin sorgu.</summary>
+/// <summary>Query used to filter the run list.</summary>
 public sealed record RunQuery
 {
-    /// <summary>Yalnizca bu agent'in calistirmalarini getirir.</summary>
+    /// <summary>Gets the agent whose runs are returned.</summary>
     public string? AgentName { get; init; }
 
-    /// <summary>Yalnizca bu durumdaki calistirmalari getirir.</summary>
+    /// <summary>Gets the status whose runs are returned.</summary>
     public RunStatus? Status { get; init; }
 
-    /// <summary>Yalnizca bu kiracinin calistirmalarini getirir.</summary>
+    /// <summary>Gets the tenant whose runs are returned.</summary>
     public string? TenantId { get; init; }
 
-    /// <summary>Yalnizca bu oturuma ait calistirmalari getirir.</summary>
+    /// <summary>Gets the session whose runs are returned.</summary>
     public string? SessionId { get; init; }
 
     /// <summary>
-    /// Yalnizca bu hata turunu (<see cref="RunError.Type"/>) tasiyan calistirmalari
-    /// getirir. <see langword="null"/> ise tum hata turleri dahildir.
+    /// Gets the error type (<see cref="RunError.Type"/>) whose runs are returned.
+    /// <see langword="null"/> includes every error type.
     /// </summary>
     public string? ErrorType { get; init; }
 
-    /// <summary>Bu andan sonra baslayan calistirmalari getirir (UTC).</summary>
+    /// <summary>Gets the lower bound on start time (UTC).</summary>
     public DateTimeOffset? StartedAfter { get; init; }
 
     /// <summary>
-    /// Yalnizca kok calistirmalari getirir. Varsayilan <see langword="true"/>.
+    /// Gets whether only root runs are returned. Defaults to <see langword="true"/>.
     /// </summary>
     /// <remarks>
-    /// Varsayilan bilerek <see langword="true"/>'dur: bir agent baska agent'lari
-    /// cagirdiginda her alt cagri ayri bir <c>runs</c> satiri uretir ve liste
-    /// kullanicinin baslatmadigi calistirmalarla dolar. Alt calistirmalar kendi
-    /// koklerinin detayinda agac olarak gorunur; tam liste gerekiyorsa deger
-    /// <see langword="false"/> yapilir.
+    /// The default is deliberately <see langword="true"/>: when an agent calls other
+    /// agents, every child call produces its own <c>runs</c> row and the list fills
+    /// with runs the user never started. Child runs appear as a tree inside their
+    /// own root's detail view; set this to <see langword="false"/> for the full list.
     /// </remarks>
     public bool OnlyRootRuns { get; init; } = true;
 
     /// <summary>
-    /// Yalnizca bu calistirmanin dogrudan alt calistirmalarini getirir.
+    /// Gets the run whose direct children are returned.
     /// </summary>
     /// <remarks>
-    /// Deger verildiginde <see cref="OnlyRootRuns"/> yok sayilir: alt calistirma
-    /// istegi ile kok filtresi mantiksal olarak celisir ve sessizce bos liste
-    /// donmek hata ayiklanmasi zor bir davranistir.
+    /// When a value is given, <see cref="OnlyRootRuns"/> is ignored: asking for
+    /// child runs and filtering to roots contradict each other, and silently
+    /// returning an empty list is hard to debug.
     /// </remarks>
     public Guid? ParentRunId { get; init; }
 
-    /// <summary>Yalnizca bu agacin calistirmalarini getirir (kok dahil).</summary>
+    /// <summary>Gets the tree whose runs are returned, including the root.</summary>
     public Guid? RootRunId { get; init; }
 
-    /// <summary>Atlanacak kayit sayisi.</summary>
+    /// <summary>Gets the number of records to skip.</summary>
     public int Skip { get; init; }
 
-    /// <summary>Getirilecek ust kayit sayisi.</summary>
+    /// <summary>Gets the maximum number of records to return.</summary>
     public int Take { get; init; } = 50;
 
     /// <summary>
-    /// Yalnizca bu turdeki calistirmalari getirir. <see langword="null"/> ise
-    /// tum turler dahildir.
+    /// Gets the kind whose runs are returned. <see langword="null"/> includes
+    /// every kind.
     /// </summary>
     /// <remarks>
-    /// Faz 49: yargic calistirmalari <see cref="RunKind.Eval"/>'dir ve
-    /// varsayilan listede (bkz. <see cref="IRunStore.GetStatisticsAsync"/>)
-    /// gorunmez; maliyetlerini gormek isteyen <c>GET /api/runs?kind=Eval</c>
-    /// cagirir.
+    /// Phase 49: judge runs are <see cref="RunKind.Eval"/> and do not appear in
+    /// the default list (see <see cref="IRunStore.GetStatisticsAsync"/>); to see
+    /// their cost, call <c>GET /api/runs?kind=Eval</c>.
     /// </remarks>
     public RunKind? Kind { get; init; }
 }
 
-/// <summary>Zaman serisi sorgusunun filtresi.</summary>
+/// <summary>Filter for a time-series query.</summary>
 public sealed record RunTimeSeriesQuery
 {
-    /// <summary>Araligin baslangici (UTC, dahil).</summary>
+    /// <summary>Gets the start of the range (UTC, inclusive).</summary>
     public required DateTimeOffset From { get; init; }
 
-    /// <summary>Araligin bitisi (UTC, haric).</summary>
+    /// <summary>Gets the end of the range (UTC, exclusive).</summary>
     public required DateTimeOffset To { get; init; }
 
-    /// <summary>Kova genisligi. Varsayilan saatlik.</summary>
+    /// <summary>Gets the bucket width. Defaults to hourly.</summary>
     public TimeSeriesBucket Bucket { get; init; } = TimeSeriesBucket.Hour;
 
-    /// <summary>Yalnizca bu agent'in calistirmalarini sayar.</summary>
+    /// <summary>Gets the agent whose runs are counted.</summary>
     public string? AgentName { get; init; }
 
-    /// <summary>Yalnizca bu modelin calistirmalarini sayar.</summary>
+    /// <summary>Gets the model whose runs are counted.</summary>
     public string? ModelId { get; init; }
 
     /// <summary>
-    /// Yalnizca bu turdeki calistirmalari sayar. <see langword="null"/> ise
-    /// tum turler dahildir — <see cref="IRunStore.GetStatisticsAsync"/>'in
-    /// aksine bu sorgu Eval/Workflow calistirmalarini varsayilan olarak
-    /// haric tutmaz (bkz. <c>docs/KARARLAR.md</c> K-152).
+    /// Gets the kind whose runs are counted. <see langword="null"/> includes every
+    /// kind — unlike <see cref="IRunStore.GetStatisticsAsync"/>, this query does
+    /// not exclude eval and workflow runs by default (see <c>docs/KARARLAR.md</c>,
+    /// K-152).
     /// </summary>
     public RunKind? Kind { get; init; }
 
-    /// <summary>Kiraci filtresi. Bos birakilirsa gecerli kiraci kullanilir.</summary>
+    /// <summary>Gets the tenant filter. When empty, the current tenant is used.</summary>
     public string? TenantId { get; init; }
 }
 
-/// <summary>Bir maliyet yeniden hesaplama isleminin sonucu.</summary>
+/// <summary>Result of a cost recalculation.</summary>
 public sealed record RunCostRecalculationResult
 {
-    /// <summary>Islenen (modeli ve kullanimi olan) calistirma sayisi.</summary>
+    /// <summary>Gets the number of runs considered, that is those with a model and usage.</summary>
     public required long RunsConsidered { get; init; }
 
-    /// <summary>Fiyati basariyla cozulup guncellenen calistirma sayisi.</summary>
+    /// <summary>Gets the number of runs whose price resolved and was updated.</summary>
     public required long RunsUpdated { get; init; }
 
-    /// <summary>Islendikten sonra hala fiyati tanimsiz kalan calistirma sayisi.</summary>
+    /// <summary>Gets the number of runs whose price is still unknown afterwards.</summary>
     public required long RunsStillUnknown { get; init; }
 }
