@@ -6,39 +6,42 @@ using Microsoft.AspNetCore.Http.Metadata;
 namespace AgentPrism;
 
 /// <summary>
-/// Minimal API'nin otomatik govde baglamasinin firlattigi <see cref="JsonException"/>'i
-/// (eksik <c>required</c> alan, taninmayan enum degeri) genel <c>500</c> yerine
-/// <c>400</c> <c>ProblemDetails</c>'e cevirir.
+/// Converts the <see cref="JsonException"/> thrown by minimal API's automatic body
+/// binding (a missing <c>required</c> field, an unrecognized enum value) into a
+/// <c>400</c> <c>ProblemDetails</c> instead of a generic <c>500</c>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// AgentPrism bir kutuphanedir; tuketicinin <c>AddProblemDetails()</c>/
-/// <c>UseExceptionHandler()</c> cagirip cagirmadigina bagli KALAMAZ (HATA-S2-006,
-/// HATA-S2-007). Bu ara yazilim <see cref="AgentPrismEndpointRouteBuilderExtensions.MapAgentPrism"/>
-/// icinden, tuketicinin ayarindan BAGIMSIZ olarak takilir ve istisnayi
-/// tuketicinin kendi genel handler'ina ulasmadan, kaynaginda yakalar.
+/// AgentPrism is a library; it CANNOT depend on whether the consumer calls
+/// <c>AddProblemDetails()</c>/<c>UseExceptionHandler()</c> (HATA-S2-006,
+/// HATA-S2-007). This middleware is attached from
+/// <see cref="AgentPrismEndpointRouteBuilderExtensions.MapAgentPrism"/>,
+/// INDEPENDENTLY of the consumer's setup, and catches the exception at its
+/// source, before it reaches the consumer's own global handler.
 /// </para>
 /// <para>
-/// Yalniz <c>AgentPrism</c> etiketli uclari etkiler (<see cref="ITagsMetadata"/>
-/// denetimi) — tuketicinin kendi uclarina karisilmaz. Bazi uclar (orn.
-/// <c>AgentEndpoints.BindAgentDefinitionRequestAsync</c>) govdeyi zaten elle
-/// okuyup kendi <c>400</c> sozlesmesini uretiyor; bu ara yazilim yalniz o
-/// denetimin OLMADIGI uclar icin devreye girer — istisna boyle uclarda hic
-/// buraya ulasmaz.
+/// It affects only endpoints tagged <c>AgentPrism</c> (checked via
+/// <see cref="ITagsMetadata"/>) — the consumer's own endpoints are not touched.
+/// Some endpoints (e.g. <c>AgentEndpoints.BindAgentDefinitionRequestAsync</c>)
+/// already read the body by hand and produce their own <c>400</c> contract; this
+/// middleware only kicks in for endpoints WITHOUT that check — the exception never
+/// reaches this point on such endpoints.
 /// </para>
 /// <para>
-/// 🚨 Bu ara yazilim TEK BASINA yeterli DEGILDIR: minimal API'nin otomatik
-/// govde baglamasi <c>JsonException</c>'i yalniz <c>RouteHandlerOptions.ThrowOnBadRequest</c>
-/// acikken (varsayilan: yalniz <c>IHostEnvironment.IsDevelopment()</c>) firlatir.
-/// Production'da (varsayilan ortam) bu bayrak KAPALIDIR — minimal API govde
-/// hatasini kendisi yakalar, istisna hic atilmaz ve govdesiz cikri bir <c>400</c>
-/// yazar (500 degil, ama <c>ProblemDetails</c> de degil). Bu ara yazilim o yolu
-/// GOREMEZ. Bu yuzden govde baglayan HER uc (eskiden <c>[FromBody]</c> veya
-/// ortuk baglama kullanan tumu — bkz. <c>docs/openapi/agentprism.json</c>'daki
-/// <c>requestBody</c> tasiyan rotalar) govdeyi KENDI elle okur
-/// (<see cref="RequestBodyBinding.ReadAsync{T}"/>) — bu, ortamdan BAGIMSIZ
-/// calisir. Bu ara yazilim yalniz savunma katmanidir: gelecekte elle okumayi
-/// unutan bir uc icin (Development'ta) 500'u onler.
+/// 🚨 This middleware is NOT sufficient BY ITSELF: minimal API's automatic body
+/// binding only throws <c>JsonException</c> when
+/// <c>RouteHandlerOptions.ThrowOnBadRequest</c> is enabled (default: only under
+/// <c>IHostEnvironment.IsDevelopment()</c>). In production (the default environment)
+/// this flag is OFF — minimal API catches the body error itself, no exception is
+/// ever thrown, and it writes a bodyless <c>400</c> (not 500, but not
+/// <c>ProblemDetails</c> either). This middleware CANNOT see that path. That is why
+/// EVERY endpoint that binds a body (all of them, whether they formerly used
+/// <c>[FromBody]</c> or implicit binding — see the routes carrying
+/// <c>requestBody</c> in <c>docs/openapi/agentprism.json</c>) reads the body BY
+/// HAND ITSELF (<see cref="RequestBodyBinding.ReadAsync{T}"/>) — this works
+/// INDEPENDENTLY of the environment. This middleware is only a defense-in-depth
+/// layer: it prevents a 500 (in Development) for an endpoint that, in the future,
+/// forgets to read the body by hand.
 /// </para>
 /// </remarks>
 internal static class JsonBindingProblemMiddleware

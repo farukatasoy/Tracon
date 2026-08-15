@@ -6,38 +6,42 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// MCP uzerinden disa acik agent'larin onay gerektiren bir tool tasimadigini
-/// dogrulayan, istek isleme icinde calisan guard.
+/// Guard, running inside request processing, that verifies no agent exposed
+/// through MCP carries a tool that requires approval.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 Bu denetim onceden <c>MapAgentPrismMcpServer</c> icinde, uc baglama
-/// aninda (migration'lar baslamadan ONCE) senkron calisiyordu ve bos bir
-/// veritabaninda katalog sorgusu "no such table" ile cokuyordu. Denetim
-/// BURAYA tasindi.
+/// 🚨 This check used to run synchronously inside <c>MapAgentPrismMcpServer</c>,
+/// at endpoint-mapping time (BEFORE migrations start), and the catalog query
+/// crashed with "no such table" against an empty database. The check was
+/// MOVED HERE.
 /// </para>
 /// <para>
-/// Kontrol, bu filtre orneklendiginde (Map* aninda) BASLAYAN, uygulama omru
-/// boyunca yasayan TEK bir arka plan <see cref="Task"/>'tir — <see cref="SchemaReadyGate"/>'i
-/// bekler, sonra katalogu okur ve dogrular. Her istek AYNI Task'i bekler: kontrol
-/// henuz bitmediyse istek onu bekler, bittiyse (basarili veya basarisiz) sonucu
-/// aninda alir. Boylece hicbir istek kontrolun ONUNE gecemez.
+/// The check is a SINGLE background <see cref="Task"/> that STARTS when this
+/// filter is instantiated (at Map* time) and lives for the application's
+/// lifetime — it waits for <see cref="SchemaReadyGate"/>, then reads the
+/// catalog and validates it. Every request awaits the SAME Task: if the check
+/// has not finished yet, the request waits for it; if it has finished
+/// (successfully or not), the request gets the result immediately. This way
+/// no request can get ahead of the check.
 /// </para>
 /// <para>
-/// 🚨 <c>IHostedService</c> DEGIL, BILEREK: bir <c>IHostedService.StartAsync</c>
-/// senkron olarak <see cref="SchemaReadyGate"/> beklerse ve tuketici
-/// <c>UseMcpServer()</c>'i <c>UseSqlite()</c>/<c>UsePostgreSql()</c>/<c>UseSqlServer()</c>'DAN
-/// ONCE cagirirsa, genel Host'un sirali <c>IHostedService</c> baslatma dongusu
-/// SESSIZCE SONSUZA DEK KILITLENIR (migration hic calismaz, guard onu hic
-/// bekleyemez). K-251'in "<c>IServiceCollection</c> kurulum aninda
-/// sira-bagimsizdir" ilkesi burada da gecerlidir; bir arka plan Task bu
-/// kisitlamayi tasimaz.
+/// 🚨 DELIBERATELY NOT an <c>IHostedService</c>: if an
+/// <c>IHostedService.StartAsync</c> synchronously awaited
+/// <see cref="SchemaReadyGate"/> and the consumer called <c>UseMcpServer()</c>
+/// BEFORE <c>UseSqlite()</c>/<c>UsePostgreSql()</c>/<c>UseSqlServer()</c>, the
+/// general Host's sequential <c>IHostedService</c> startup loop would
+/// SILENTLY DEADLOCK FOREVER (migration never runs, the guard can never wait
+/// for it). K-251's principle that "<c>IServiceCollection</c> registration is
+/// order-independent" applies here too; a background Task carries none of
+/// this restriction.
 /// </para>
 /// <para>
-/// Kontrol basarisiz olursa <see cref="IHostApplicationLifetime.StopApplication"/>
-/// cagrilir — trafik hic gelmese bile uygulama kendini durdurur, boylece
-/// bugunku "yanlis yapilandirmayla uygulama hic ayaga kalkmaz" sozlesmesi ruhen
-/// korunur (yalniz zamanlamasi degisir: acilista degil, kontrol tamamlaninca).
+/// If the check fails, <see cref="IHostApplicationLifetime.StopApplication"/>
+/// is called — the application stops itself even if no traffic ever arrives,
+/// so today's "the application never comes up with a wrong configuration"
+/// contract is preserved in spirit (only the timing changes: not at startup,
+/// but when the check completes).
 /// </para>
 /// </remarks>
 internal sealed class McpApprovalGuardFilter : IEndpointFilter
@@ -92,23 +96,24 @@ internal sealed class McpApprovalGuardFilter : IEndpointFilter
         }
         catch (OperationCanceledException) when (lifetime.ApplicationStopping.IsCancellationRequested)
         {
-            // Uygulama kapaniyor; denetimin sonucu artik onemsiz
-            // (McpDiscoveryService ile ayni desen).
+            // Application is shutting down; the check's outcome no longer
+            // matters (same pattern as McpDiscoveryService).
         }
         catch (Exception ex)
         {
-            logger.LogCritical(ex, "MCP disa acik yuzey denetimi basarisiz oldu; uygulama durduruluyor.");
+            logger.LogCritical(ex, "MCP external surface check failed; stopping the application.");
 
-            // 🚨 StopApplication() BURADA DOGRUDAN cagrilmaz: bu kontrol Host
-            // henuz kendi IHostedService baslatma dongusunu surdururken
-            // tamamlanabilir (SchemaReadyGate hemen acilirsa, ornegin SQL
-            // saglayicisi hic kayitli degilse). O anda StopApplication()
-            // cagirmak Host.StartAsync'in KENDI iptal denetimini tetikler ve
-            // onu OperationCanceledException ile PATLATIR — istekten once
-            // firlamasi gereken InvalidOperationException yerine kafa
-            // karistirici bir hata gorunur. ApplicationStarted, Host.StartAsync
-            // GERCEKTEN tamamlanana kadar isaretlenmez; kayit zaten tamamlanmissa
-            // geri cagri HEMEN calisir (CancellationToken.Register sozlesmesi).
+            // 🚨 StopApplication() is NOT called DIRECTLY here: this check can
+            // complete while the Host is still running its own IHostedService
+            // startup loop (if SchemaReadyGate opens immediately, e.g. no SQL
+            // provider is registered at all). Calling StopApplication() at
+            // that point triggers Host.StartAsync's OWN cancellation check and
+            // BLOWS IT UP with an OperationCanceledException — a confusing
+            // error appears instead of the InvalidOperationException that
+            // should surface before the first request. ApplicationStarted is
+            // not signaled until Host.StartAsync ACTUALLY completes; if
+            // registration has already completed, the callback runs
+            // IMMEDIATELY (per the CancellationToken.Register contract).
             lifetime.ApplicationStarted.Register(lifetime.StopApplication);
 
             throw;

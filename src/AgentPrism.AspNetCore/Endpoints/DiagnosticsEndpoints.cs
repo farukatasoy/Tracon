@@ -7,30 +7,32 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPrism;
 
-/// <summary>Kurulumun kendi kendini denetleyen teshis ucu (Faz 33, F-62).</summary>
+/// <summary>Self-diagnosing setup diagnostics endpoint (Phase 33, F-62).</summary>
 /// <remarks>
 /// <para>
-/// 🚨 Yanit hicbir <c>secret</c> degeri tasimaz (K-059): yalniz yapilandirma
-/// anahtarinin adi ve cozulup cozulmedigi bilgisi doner, deger hicbir kosulda yer
-/// almaz.
+/// 🚨 The response never carries any <c>secret</c> value (K-059): it returns only the
+/// configuration key name and whether it resolved, never the value under any
+/// condition.
 /// </para>
 /// <para>
-/// Varsayilan <strong>kapali</strong> — <see cref="AgentPrismEndpointOptions.EnableDiagnosticsEndpoint"/>
-/// acilmadikca bu uc hic baglanmaz. Acikken <see cref="AgentPrismPolicies.Admin"/> ister.
+/// Defaults to <strong>disabled</strong> — this endpoint is never mapped unless
+/// <see cref="AgentPrismEndpointOptions.EnableDiagnosticsEndpoint"/> is turned on. When
+/// enabled it requires <see cref="AgentPrismPolicies.Admin"/>.
 /// </para>
 /// </remarks>
 internal static class DiagnosticsEndpoints
 {
-    /// <summary>Teshis ucunu baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="services">Kurulu servis saglayici. Arayuz gomulu mu bilgisini bir kez cozmek icindir.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Maps the diagnostics endpoint.</summary>
+    /// <param name="builder">The endpoint group.</param>
+    /// <param name="services">The built service provider, used to resolve whether the UI is embedded once.</param>
+    /// <param name="roles">The resolved role policies.</param>
     public static void Map(IEndpointRouteBuilder builder, IServiceProvider services, AgentPrismRolePolicies roles)
     {
-        // IAgentPrismUiProvider kayitli olmayabilir (AgentPrism.UI paketi eklenmemis
-        // olabilir). Faz 28 dersi: nullable bir servisi endpoint parametresi olarak
-        // isaretlemek yerine, MapUi'nin izledigi desenle burada BIR KEZ cozulur ve
-        // kapanista yakalanir; kayitli olmayan servis "govde" saniIp tum uclari kirmaz.
+        // IAgentPrismUiProvider may not be registered (the AgentPrism.UI package may not
+        // be added). Phase 28 lesson: instead of marking a nullable service as an
+        // endpoint parameter, resolve it here ONCE with the pattern MapUi follows and
+        // catch it at closure; an unregistered service must not be mistaken for a "body"
+        // and break every endpoint.
         var uiProvider = services.GetService<IAgentPrismUiProvider>();
 
         builder.MapGet("/api/diagnostics", async Task<Ok<AgentPrismDiagnosticsReport>> (
@@ -45,9 +47,9 @@ internal static class DiagnosticsEndpoints
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismDiagnostics")
             .WithTags("AgentPrism", "Diagnostics")
-            .WithSummary("Kurulumun kendi kendini denetleyen ozet raporunu dondurur.")
+            .WithSummary("Returns the setup's self-diagnosing summary report.")
             .WithDescription(
-                "Hicbir secret degeri tasimaz (K-059). Model saglayicisi durumu onbellekten " +
-                "okunur; hicbir model cagrisi veya migration uygulamasi yapmaz.");
+                "Never carries any secret value (K-059). Model provider status is read " +
+                "from the cache; it makes no model call and applies no migration.");
     }
 }

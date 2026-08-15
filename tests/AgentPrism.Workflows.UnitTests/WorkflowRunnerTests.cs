@@ -228,7 +228,8 @@ public sealed class WorkflowRunnerTests
             .Single(record => record.Kind == RunKind.Workflow);
 
         run.Status.ShouldBe(RunStatus.Failed);
-        run.Error!.Message.ShouldContain("super-step sinirini asti", Case.Sensitive);
+        run.Error!.Message.ShouldContain("exceeded the", Case.Sensitive);
+        run.Error!.Message.ShouldContain("super-step limit", Case.Sensitive);
     }
 
     [Fact]

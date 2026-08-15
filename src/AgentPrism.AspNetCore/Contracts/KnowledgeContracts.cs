@@ -1,76 +1,76 @@
 namespace AgentPrism;
 
-/// <summary>Bir belge yukleme istegi.</summary>
+/// <summary>Request to upload a document.</summary>
 /// <remarks>
-/// Ya <see cref="Text"/> ya <see cref="Chunks"/> verilir; ikisi birden ya da
-/// hicbiri verilemez (bkz. <see cref="KnowledgeIngestionService.IngestAsync"/>).
+/// Either <see cref="Text"/> or <see cref="Chunks"/> is given; both or neither
+/// cannot be given (see <see cref="KnowledgeIngestionService.IngestAsync"/>).
 /// </remarks>
 public sealed record UploadDocumentRequest
 {
-    /// <summary>Kaynak kimligi. Ayni kimlikle yeniden yukleme eskiyi degistirir.</summary>
+    /// <summary>Source identifier. Uploading again with the same identifier replaces the old one.</summary>
     public required string SourceId { get; init; }
 
     /// <summary>
-    /// Ham metin. Verilirse sunucu parcalar ve gomuler.
+    /// Raw text. If given, the server chunks and embeds it.
     /// </summary>
     public string? Text { get; init; }
 
     /// <summary>
-    /// Hazir parcalar. <see cref="UploadDocumentChunk.Embedding"/> bos birakilirsa
-    /// sunucu gomuler; doldurulmussa OLDUGU GIBI yazilir.
+    /// Ready-made chunks. If <see cref="UploadDocumentChunk.Embedding"/> is
+    /// left empty, the server embeds it; if it is filled in, it is written AS IS.
     /// </summary>
     public IReadOnlyList<UploadDocumentChunk>? Chunks { get; init; }
 }
 
-/// <summary>Bir yukleme istegindeki tek bir hazir parca.</summary>
+/// <summary>A single ready-made chunk in an upload request.</summary>
 public sealed record UploadDocumentChunk
 {
-    /// <summary>Kaynak icindeki sira numarasi.</summary>
+    /// <summary>Sequence number within the source.</summary>
     public required int Index { get; init; }
 
-    /// <summary>Parcanin metni.</summary>
+    /// <summary>The chunk's text.</summary>
     public required string Content { get; init; }
 
     /// <summary>
-    /// Parcanin gomusu. Bos ise sunucu gomuler; doluysa oldugu gibi yazilir ve
-    /// depo boyutuyla eslesmiyorsa 400 doner.
+    /// The chunk's embedding. If empty, the server embeds it; if filled in, it
+    /// is written as is and returns 400 if it does not match the store's dimension.
     /// </summary>
     public float[]? Embedding { get; init; }
 
-    /// <summary>Istege bagli ustveri.</summary>
+    /// <summary>Optional metadata.</summary>
     public IReadOnlyDictionary<string, string>? Metadata { get; init; }
 }
 
-/// <summary>Bir belge yukleme isteginin sonucu.</summary>
-/// <param name="SourceId">Yuklenen kaynagin kimligi.</param>
-/// <param name="ChunkCount">Yazilan parca sayisi.</param>
+/// <summary>Result of a document upload request.</summary>
+/// <param name="SourceId">Identifier of the uploaded source.</param>
+/// <param name="ChunkCount">Number of chunks written.</param>
 public sealed record UploadDocumentResponse(string SourceId, int ChunkCount);
 
-/// <summary>Bir anlamsal arama istegi.</summary>
+/// <summary>A semantic search request.</summary>
 public sealed record SearchKnowledgeRequest
 {
-    /// <summary>Aranacak dogal dil sorgusu.</summary>
+    /// <summary>Natural language query to search.</summary>
     public required string Query { get; init; }
 
-    /// <summary>Kac sonuc dondurulecegi. Verilmezse yapilandirmadaki varsayilan kullanilir.</summary>
+    /// <summary>Number of results to return. If not given, the default in configuration is used.</summary>
     public int? Top { get; init; }
 }
 
-/// <summary>Bir anlamsal arama sonucu.</summary>
+/// <summary>A semantic search hit.</summary>
 public sealed record SearchKnowledgeHit
 {
-    /// <summary>Parcanin ait oldugu kaynak kimligi.</summary>
+    /// <summary>Identifier of the source the chunk belongs to.</summary>
     public required string SourceId { get; init; }
 
-    /// <summary>Kaynak icindeki sira numarasi.</summary>
+    /// <summary>Sequence number within the source.</summary>
     public required int ChunkIndex { get; init; }
 
-    /// <summary>Parcanin metni.</summary>
+    /// <summary>The chunk's text.</summary>
     public required string Content { get; init; }
 
-    /// <summary>Kosinus mesafesi. Kucuk deger daha yakin demektir.</summary>
+    /// <summary>Cosine distance. A smaller value means closer.</summary>
     public required double Distance { get; init; }
 
-    /// <summary>Yazilirken verilen istege bagli ustveri.</summary>
+    /// <summary>Optional metadata given at write time.</summary>
     public IReadOnlyDictionary<string, string>? Metadata { get; init; }
 }

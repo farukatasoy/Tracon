@@ -5,38 +5,38 @@ using Microsoft.AspNetCore.Http.HttpResults;
 namespace AgentPrism;
 
 /// <summary>
-/// Istek govdesini elle okur — minimal API'nin otomatik <c>[FromBody]</c>
-/// baglamasi yerine.
+/// Reads the request body by hand — instead of minimal API's automatic
+/// <c>[FromBody]</c> binding.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Minimal API'nin kendi govde baglamasi bir ayristirma hatasinda (eksik
-/// <c>required</c> alan, taninmayan enum degeri) <c>JsonException</c>'i yalniz
-/// <c>RouteHandlerOptions.ThrowOnBadRequest</c> acikken firlatir — bu bayrak
-/// VARSAYILAN olarak yalniz <c>Development</c> ortaminda actiktir. Production'da
-/// (gercek dagitimlarin cogu) govde hatasi sessizce govdesiz bir <c>400</c>
-/// ile sonuclanir; <see cref="JsonBindingProblemMiddleware"/> bu yolu HIC
-/// GOREMEZ (istisna atilmaz). Bu metot govdeyi HER ZAMAN elle okuyup
-/// <c>JsonException</c>'i dogrudan yakalar — ortamdan BAGIMSIZ olarak ayni
-/// <c>ProblemDetails</c> sozlesmesini uretir (HATA-S2-006, HATA-S2-007).
+/// Minimal API's own body binding only throws <c>JsonException</c> on a parse error
+/// (a missing <c>required</c> field, an unrecognized enum value) when
+/// <c>RouteHandlerOptions.ThrowOnBadRequest</c> is enabled — this flag is enabled
+/// BY DEFAULT only in the <c>Development</c> environment. In production (most real
+/// deployments), a body error silently results in a bodyless <c>400</c>;
+/// <see cref="JsonBindingProblemMiddleware"/> CANNOT see this path at all (no
+/// exception is thrown). This method ALWAYS reads the body by hand and catches
+/// <c>JsonException</c> directly — it produces the same <c>ProblemDetails</c>
+/// contract INDEPENDENTLY of the environment (HATA-S2-006, HATA-S2-007).
 /// </para>
 /// </remarks>
 internal static class RequestBodyBinding
 {
-    /// <summary>Diger elle-baglama uclarinin da kullandigi ortak baslik.</summary>
+    /// <summary>The common title also used by the other manual-binding endpoints.</summary>
     internal const string ProblemTitle = "Invalid request body";
 
     /// <summary>
-    /// Govdeyi <typeparamref name="T"/> olarak okur.
+    /// Reads the body as <typeparamref name="T"/>.
     /// </summary>
-    /// <typeparam name="T">Beklenen govde tipi.</typeparam>
-    /// <param name="httpContext">Istek baglami.</param>
-    /// <param name="cancellationToken">Iptal token'i.</param>
+    /// <typeparam name="T">The expected body type.</typeparam>
+    /// <param name="httpContext">The request context.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
-    /// Basariliysa <c>Value</c> dolu ve <c>Error</c> <see langword="null"/>'dur.
-    /// Govde bos veya ayristirilamazsa <c>Value</c> <see langword="null"/> ve
-    /// <c>Error</c> cagiranin dogrudan dondurebilecegi bir <c>400</c>
-    /// <see cref="ProblemHttpResult"/> tasir.
+    /// On success, <c>Value</c> is populated and <c>Error</c> is <see langword="null"/>.
+    /// If the body is empty or cannot be parsed, <c>Value</c> is <see langword="null"/>
+    /// and <c>Error</c> carries a <c>400</c> <see cref="ProblemHttpResult"/> the
+    /// caller can return directly.
     /// </returns>
     public static async Task<(T? Value, ProblemHttpResult? Error)> ReadAsync<T>(
         HttpContext httpContext,
@@ -68,30 +68,31 @@ internal static class RequestBodyBinding
     }
 
     /// <summary>
-    /// Govdeyi <typeparamref name="T"/> olarak okur; govde YOKSA hata uretmez,
-    /// <c>Value</c> <see langword="null"/> doner — orijinal <c>[FromBody] T?</c>
-    /// baglamasinin izin verdigi opsiyonel govde davranisini korur.
+    /// Reads the body as <typeparamref name="T"/>; if the body is ABSENT, this does
+    /// NOT produce an error — <c>Value</c> returns <see langword="null"/>, preserving
+    /// the optional-body behavior the original <c>[FromBody] T?</c> binding allowed.
     /// </summary>
-    /// <typeparam name="T">Beklenen govde tipi.</typeparam>
-    /// <param name="httpContext">Istek baglami.</param>
-    /// <param name="cancellationToken">Iptal token'i.</param>
-    /// <returns>Bkz. <see cref="ReadAsync{T}"/>; tek fark govde yoklugunun hata SAYILMAMASIDIR.</returns>
+    /// <typeparam name="T">The expected body type.</typeparam>
+    /// <param name="httpContext">The request context.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>See <see cref="ReadAsync{T}"/>; the only difference is that a missing body does NOT count as an error.</returns>
     /// <remarks>
     /// <para>
-    /// 🚨 Bos govdeyi <c>Content-Length</c> basligina bakarak ONCEDEN elemeye
-    /// CALISILMADI: <c>TestServer</c> altinda istemcinin gerçekten gonderdigi
-    /// <c>Content-Length</c> guvenilir DEGIL (bir regresyonla ampirik olarak
-    /// dogrulandi — dolu bir govde bos sayildi). Bunun yerine <c>Content-Type</c>
-    /// denetlenir: hic govde/tip gondermeyen bir istek icin
-    /// <c>HttpRequest.ReadFromJsonAsync&lt;T&gt;</c> <see cref="JsonException"/>
-    /// DEGIL <see cref="InvalidOperationException"/> firlatir ("bilinen bir JSON
-    /// icerik tipi degil") — bu, bos govdenin dogru ayirt edicisidir.
+    /// 🚨 We did NOT try to pre-filter an empty body by checking the
+    /// <c>Content-Length</c> header: under <c>TestServer</c>, the <c>Content-Length</c>
+    /// actually sent by the client is NOT reliable (empirically confirmed by a
+    /// regression — a populated body was treated as empty). Instead, <c>Content-Type</c>
+    /// is checked: for a request that sends no body/type at all,
+    /// <c>HttpRequest.ReadFromJsonAsync&lt;T&gt;</c> throws
+    /// <see cref="InvalidOperationException"/>, NOT <see cref="JsonException"/>
+    /// ("not a known JSON content type") — this is the correct way to distinguish an
+    /// empty body.
     /// </para>
     /// <para>
-    /// <c>Content-Type: application/json</c> ile birlikte JSON <c>null</c>
-    /// govdesi gonderen bir istek (<c>JsonContent.Create&lt;T&gt;(null)</c>)
-    /// bu denetimden GECER; <c>ReadFromJsonAsync</c> boyle bir govdede zaten
-    /// <see langword="null"/> doner, istisna atmaz.
+    /// A request that sends a JSON <c>null</c> body together with
+    /// <c>Content-Type: application/json</c> (<c>JsonContent.Create&lt;T&gt;(null)</c>)
+    /// PASSES this check; <c>ReadFromJsonAsync</c> already returns
+    /// <see langword="null"/> for such a body without throwing.
     /// </para>
     /// </remarks>
     public static async Task<(T? Value, ProblemHttpResult? Error)> ReadOptionalAsync<T>(

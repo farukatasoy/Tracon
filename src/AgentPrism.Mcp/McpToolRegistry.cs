@@ -4,19 +4,20 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Kodda kayitli tool'lari uzak MCP sunucularindan kesfedilenlerle birlestiren defter.
+/// A registry that combines tools registered in code with those discovered
+/// from remote MCP servers.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Kod her zaman kazanir.</strong> Ayni ada sahip bir MCP tool'u, kodda
-/// kayitli tool'un yerine gecemez. Aksi olsaydi uzak bir sunucu, adini degistirerek
-/// yerel bir tool'un yerini alabilir ve agent'in davranisini sessizce ele
-/// gecirebilirdi. Bu, tasarim kurali K2'nin dogal uzantisidir.
+/// <strong>Code always wins.</strong> An MCP tool with the same name can
+/// never replace a tool registered in code. Otherwise, a remote server
+/// could take over a local tool's name and silently hijack the agent's
+/// behavior. This is a natural extension of design rule K2.
 /// </para>
 /// <para>
-/// MCP tool'lari <strong>kiraciya gore</strong> cozulur: sunucular kiraci basina
-/// kayitlidir ve bir kiracinin sunucusundan gelen tool baska bir kiracida
-/// gorunmez.
+/// MCP tools are resolved <strong>per tenant</strong>: servers are
+/// registered per tenant, and a tool coming from one tenant's server is not
+/// visible to another tenant.
 /// </para>
 /// </remarks>
 public sealed class McpToolRegistry : IToolRegistry

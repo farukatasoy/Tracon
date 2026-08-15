@@ -11,15 +11,15 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Kimlik dogrulamasi gerektirmeyen tanitim ucu.
+/// Discovery endpoint that requires no authentication.
 /// </summary>
 internal static class MetaEndpoints
 {
-    /// <summary>Meta ucunu baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="options">Erisim ayarlari.</param>
-    /// <param name="prefix">Uclarin baglandigi yol oneki.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Maps the meta endpoint.</summary>
+    /// <param name="builder">The endpoint group.</param>
+    /// <param name="options">The access settings.</param>
+    /// <param name="prefix">The path prefix the endpoints are mapped under.</param>
+    /// <param name="roles">The resolved role policies.</param>
     public static void Map(IEndpointRouteBuilder builder, AgentPrismEndpointOptions options, string prefix, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/meta", async Task<Ok<AgentPrismMetaResponse>> (
@@ -31,9 +31,9 @@ internal static class MetaEndpoints
                 HttpContext httpContext,
                 [FromServices] IAuthorizationService? authorizationService) =>
             {
-                // Denetim izi dekoratorleri (Auditing*Store) burada saydamdir: hangi
-                // depolama uygulamasinin kayitli oldugu, dekoratorun degil sardigi
-                // gercek uygulamanin adiyla bildirilir.
+                // Audit trail decorators (Auditing*Store) are transparent here: which
+                // storage implementation is registered is reported using the name of the
+                // real implementation it wraps, not the decorator.
                 var definitionsInner = Unwrap(definitions);
                 var sessionsInner = Unwrap(sessions);
 
@@ -66,26 +66,27 @@ internal static class MetaEndpoints
                     Roles = await ResolveRolesAsync(authorizationService, httpContext.User, roles).ConfigureAwait(false),
                 });
             })
-            // Meta ucu her zaman aciktir. Tuketicinin genel bir fallback policy'si
-            // olsa bile arayuz hangi kimlik yontemini kullanacagini ogrenebilmelidir.
-            // AllowAnonymous kimlik dogrulama boru hattini devre disi BIRAKMAZ; istek
-            // gecerli bir kimlik tasiyorsa httpContext.User yine de doludur ve rol
-            // alanlari gercek yetkiyi yansitir.
+            // The meta endpoint is always open. Even if the consumer has a general
+            // fallback policy, the UI must be able to learn which authentication method
+            // to use. AllowAnonymous does NOT disable the authentication pipeline; if the
+            // request carries a valid identity, httpContext.User is still populated and
+            // the role fields reflect the actual authorization.
             .AllowAnonymous()
             .WithName("AgentPrismMeta")
             .WithTags("AgentPrism", "Meta")
-            .WithSummary("AgentPrism surumunu, kimlik yontemini, aktif depolari ve rol yetkilerini bildirir.")
+            .WithSummary("Reports the AgentPrism version, authentication method, active stores, and role authorizations.")
             .WithDescription(
-                "Kimlik dogrulamasi gerektirmez. Sir, kiraci verisi veya agent bilgisi icermez.");
+                "Requires no authentication. Contains no secret, tenant data, or agent information.");
     }
 
     /// <summary>
-    /// Gecerli kullanicinin uc rol policy'sini karsilayip karsilamadigini cozer.
+    /// Resolves whether the current user satisfies each role policy.
     /// </summary>
     /// <remarks>
-    /// Bir policy kayitli degilse (<paramref name="roles"/> icindeki alan
-    /// <see langword="null"/>) karsilik gelen deger <see langword="true"/> doner:
-    /// rol kisiti yoktur, ilgili uc grubu yalnizca mevcut uc katmanli korumadan gecer.
+    /// If a policy is not registered (the field inside <paramref name="roles"/> is
+    /// <see langword="null"/>), the corresponding value returns <see langword="true"/>:
+    /// there is no role restriction, and the corresponding endpoint group only goes
+    /// through the existing three-layer protection.
     /// </remarks>
     private static async Task<AgentPrismRoleMeta> ResolveRolesAsync(
         IAuthorizationService? authorizationService,
@@ -117,12 +118,12 @@ internal static class MetaEndpoints
         return result.Succeeded;
     }
 
-    /// <summary>Bir denetim izi dekoratoru ise sardigi gercek depoyu dondurur.</summary>
+    /// <summary>If the store is an audit trail decorator, returns the real store it wraps.</summary>
     private static object Unwrap(object store) => store is IAuditDecorated decorated ? decorated.AuditedInner : store;
 
     /// <summary>
-    /// Calisan derlemenin surumu. MinVer bunu <c>AssemblyInformationalVersion</c>
-    /// olarak yazar; kaynak denetimi karmasi (<c>+sha</c>) atilir.
+    /// The running assembly's version. MinVer writes this as
+    /// <c>AssemblyInformationalVersion</c>; the source control hash (<c>+sha</c>) is dropped.
     /// </summary>
     private static string Version { get; } = ReadVersion();
 

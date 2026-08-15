@@ -7,39 +7,41 @@ using Microsoft.AspNetCore.Routing;
 namespace AgentPrism;
 
 /// <summary>
-/// Ses saglayicisinin durumu ve ses listesi uclari.
+/// Voice provider health and voice list endpoints.
 /// </summary>
 /// <remarks>
 /// <para>
-/// ⚠️ <strong>Iki seslendirme yolu vardir ve olcum davranislari FARKLIDIR.</strong>
-/// Agent'in <c>speak</c> tool'u bir calistirmanin icinde calisir; olcumu
-/// <c>tool_invocations</c> satirina yazilir. Buradaki <c>POST /api/voice/speak</c>
-/// ucu ise bir <em>operator eylemidir</em> ve calistirma DISINDADIR:
-/// <c>tool_invocations.run_id</c> zorunlu bir yabanci anahtardir, dolayisiyla
-/// calistirmasiz bir olcum satiri yazilamaz.
+/// ⚠️ <strong>There are two speech paths and their metering behavior DIFFERS.</strong>
+/// The agent's <c>speak</c> tool runs inside a run; its metering is written to
+/// the <c>tool_invocations</c> row. The <c>POST /api/voice/speak</c> endpoint
+/// here, however, is an <em>operator action</em> and is OUTSIDE a run:
+/// <c>tool_invocations.run_id</c> is a required foreign key, so a metering row
+/// cannot be written without a run.
 /// </para>
 /// <para>
-/// Maliyet yine de gorunmez degildir: uc olculen karakter sayisini ve tutari
-/// <strong>yanitta dondurur</strong> ve arayuz bunu gosterir. Ayrica uc
-/// <c>Operator</c> rolu ister ve tool ile ayni karakter sinirina uyar.
-/// Kalici bir kayit isteniyorsa yol agent'in tool'udur.
+/// The cost is still not invisible: the endpoint <strong>returns the metered
+/// character count and amount in the response</strong>, and the frontend shows
+/// this. The endpoint also requires the <c>Operator</c> role and respects the
+/// same character limit as the tool. If a persistent record is required, use
+/// the agent's tool instead.
 /// </para>
 /// <para>
-/// Ses saglayicisi <c>/api/models/health</c> ciktisinda BILEREK gorunmez: bir
-/// <c>IModelProvider</c> degildir ve iki kaynak tek listede toplanirsa devre
-/// kesici ile model katalogu yanlis davranir.
+/// The voice provider is DELIBERATELY absent from the <c>/api/models/health</c>
+/// output: it is not an <c>IModelProvider</c>, and combining the two sources
+/// into one list would make the circuit breaker and model catalog behave
+/// incorrectly.
 /// </para>
 /// <para>
-/// Servisler istege bagli cozulur: <c>UseVoice()</c> cagrilmadiysa uclar
-/// <c>404</c> yerine acik bir <c>501</c> doner — yapilandirma eksikligi ile
-/// yanlis adres birbirine karismasin diye.
+/// Services are resolved optionally: if <c>UseVoice()</c> was not called, the
+/// endpoints return an explicit <c>501</c> instead of <c>404</c> — so a missing
+/// configuration is not confused with a wrong address.
 /// </para>
 /// </remarks>
 internal static class VoiceEndpoints
 {
-    /// <summary>Ses uclarini baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Maps the voice endpoints.</summary>
+    /// <param name="builder">The endpoint group.</param>
+    /// <param name="roles">The resolved role policies.</param>
     public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/voice/health", CheckHealthAsync)
@@ -47,37 +49,37 @@ internal static class VoiceEndpoints
             .RequireApiKeyScope(ApiKeyScope.PlatformRead)
             .WithName("AgentPrismVoiceHealth")
             .WithTags("AgentPrism", "Voice")
-            .WithSummary("Ses saglayicisinin erisilebilirligini denetler.")
-            .WithDescription("Denetim ucret uretmez: ses uretilmez, kullanilabilir sesler okunur.");
+            .WithSummary("Checks the voice provider's availability.")
+            .WithDescription("The check does not incur cost: no speech is generated, only the available voices are read.");
 
         builder.MapGet("/api/voice/voices", ListVoicesAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("AgentPrismVoiceList")
             .WithTags("AgentPrism", "Voice")
-            .WithSummary("Kullanilabilir sesleri listeler.");
+            .WithSummary("Lists the available voices.");
 
         builder.MapGet("/api/voice/sessions", ListSessionsAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismVoiceSessions")
             .WithTags("AgentPrism", "Voice")
-            .WithSummary("Gercek zamanli konusma baglantilarinin ozet kaydini listeler.")
+            .WithSummary("Lists the summary record of real-time speech connections.")
             .WithDescription(
-                "Kayit ses ICERMEZ: yalnizca sure, tur sayisi ve olcum tasir. Konusma katmani " +
-                "acik degilse liste bostur.");
+                "The record does NOT contain audio: it only carries duration, turn count, and " +
+                "metering. If the speech layer is not enabled, the list is empty.");
 
         builder.MapPost("/api/voice/speak", SpeakAsync)
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismVoiceSpeak")
             .WithTags("AgentPrism", "Voice")
-            .WithSummary("Bir metni seslendirir ve ek olarak kaydeder.")
+            .WithSummary("Synthesizes speech from text and saves it as an attachment.")
             .Accepts<SpeakRequest>("application/json")
             .WithDescription(
-                "Operator eylemidir ve bir calistirmaya BAGLI DEGILDIR; olcum " +
-                "tool_invocations'a yazilmaz, yanitta dondurulur. Kalici olcum " +
-                "isteniyorsa agent'in `speak` tool'unu kullanin.");
+                "This is an operator action and is NOT tied to a run; the metering is not " +
+                "written to tool_invocations, it is returned in the response. If persistent " +
+                "metering is required, use the agent's `speak` tool.");
     }
 
     private static async Task<Results<Ok<SpeakResponse>, ProblemHttpResult>> SpeakAsync(
@@ -114,9 +116,9 @@ internal static class VoiceEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        // 🚨 SpeakTool (agent tool cagrisi) bu siniri zaten uyguluyordu; bu HTTP
-        // operator ucu (agent'tan bagimsiz, dogrudan cagrilir) aymiydi ve
-        // XML dokumaninin "ayni sinira uyar" iddiasini karsilamiyordu.
+        // 🚨 SpeakTool (the agent's tool call) already enforced this limit; this HTTP
+        // operator endpoint (called directly, independent of the agent) was separate
+        // and did not honor the XML doc's claim to "respect the same limit".
         var maxCharacters = synthesizer.MaxCharactersPerRequest;
 
         if (request.Text.Length > maxCharacters)
@@ -140,8 +142,8 @@ internal static class VoiceEndpoints
         }
         catch (AgentPrismException exception)
         {
-            // Mesaj yalnizca durum kodu ve gerekce tasir; saglayicinin govdesi
-            // (istegi ve bazen anahtar parcasini yankilayan) hicbir zaman gecmez.
+            // The message only carries the status code and reason; the provider's body
+            // (which echoes the request and sometimes a fragment of the key) never passes through.
             return TypedResults.Problem(
                 title: "Speech could not be generated",
                 detail: exception.Message,
@@ -163,8 +165,8 @@ internal static class VoiceEndpoints
             {
                 TenantId = tenantContext.TenantId,
 
-                // Oturum kimligi ZORUNLUDUR: bos birakilirsa saklama politikasi
-                // eki sahipsiz sayar ve siler.
+                // The session id is REQUIRED: if left blank, the retention policy
+                // treats the attachment as orphaned and deletes it.
                 SessionId = request.SessionId,
                 FileName = $"speech-{DateTime.UtcNow:yyyyMMdd-HHmmss}.mp3",
                 MediaType = validation.MediaType!,
@@ -185,12 +187,13 @@ internal static class VoiceEndpoints
         });
     }
 
-    /// <summary>Konusma kayitlarini listeler.</summary>
+    /// <summary>Lists the speech session records.</summary>
     /// <remarks>
-    /// Depo <see cref="IVoiceSessionStore"/> istege baglidir: konusma katmani
-    /// acilmadiysa kayitli degildir ve uc <c>501</c> yerine <strong>bos liste</strong>
-    /// doner. Gerekce: liste ucu bir yetenegin varligini degil, verinin yoklugunu
-    /// bildirir; arayuz paneli hatasiz cizilir.
+    /// The <see cref="IVoiceSessionStore"/> store is resolved optionally: if the
+    /// speech layer was not enabled, it is not registered, and the endpoint
+    /// returns an <strong>empty list</strong> instead of <c>501</c>. Rationale:
+    /// the list endpoint reports the absence of data, not the presence of a
+    /// capability; the frontend panel renders without error.
     /// </remarks>
     private static async Task<Ok<IReadOnlyList<VoiceSessionRecord>>> ListSessionsAsync(
         [FromServices] IVoiceSessionStore? store,

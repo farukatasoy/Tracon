@@ -8,45 +8,45 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// <c>Idempotency-Key</c> basligini taniyan ve tekrarlanan istekleri
-/// yeniden calistirmadan yanitlayan uc filtresi (Faz 43).
+/// Endpoint filter that recognizes the <c>Idempotency-Key</c> header and answers
+/// repeated requests without re-running them (Phase 43).
 /// </summary>
 /// <remarks>
 /// <para>
-/// Yalniz <see cref="AgentPrismEndpointRouteBuilderExtensions.MapAgentPrism"/>'in
-/// Idempotency-Key destekleyen UC rotalarina eklenir — grubun tamamina degil.
-/// Baslik TASIMAYAN bir istek icin filtre hemen <c>next</c>'e devreder; hicbir
-/// sorgu atilmaz (K1: sessiz maliyet yoktur).
+/// Attached only to the Idempotency-Key-supporting endpoint routes of
+/// <see cref="AgentPrismEndpointRouteBuilderExtensions.MapAgentPrism"/> — not to the
+/// whole group. For a request that does NOT carry the header, the filter passes
+/// straight through to <c>next</c>; no query is issued (K1: no silent cost).
 /// </para>
 /// <para>
-/// 🚨 <c>QuotaGate</c>'ten ONCE calisir: uc grubunun filtre zincirinde
-/// <see cref="AgentPrismRateLimitFilter"/>'dan SONRA, handler govdesinden
-/// (dolayisiyla <c>QuotaGate</c>'ten) ONCE. Tekrarlanan bir istek bu sayede
-/// kotayi ikinci kez TUKETMEZ (docs/43-IDEMPOTENCY-KEY.md, bolum 43.1).
+/// 🚨 Runs BEFORE <c>QuotaGate</c>: in the endpoint group's filter chain, it runs
+/// AFTER <see cref="AgentPrismRateLimitFilter"/>, but BEFORE the handler body (and
+/// therefore before <c>QuotaGate</c>). This means a repeated request does NOT
+/// consume the quota a second time (docs/43-IDEMPOTENCY-KEY.md, section 43.1).
 /// </para>
 /// <para>
-/// Ham govde <see cref="AgentPrismEndpointRouteBuilderExtensions.MapAgentPrism"/>
-/// icinde kosullu olarak eklenen bir ara yazilimla ONCEDEN tamponlanir
-/// (<c>HttpRequest.EnableBuffering</c>) — yalniz baslik TASIYAN istekler icin.
-/// Bu, <c>/api/agents/{name}/run</c> gibi govdesi minimal API tarafindan
-/// OTOMATIK baglanan uclarda bile parmak izinin HAM baytlardan hesaplanmasini
-/// saglar: baglama, filtrenin InvokeAsync'inden ONCE govdeyi tuketir, ama
-/// tamponlama sayesinde akis geri sarilabilir kalir.
+/// The raw body is buffered UP FRONT (<c>HttpRequest.EnableBuffering</c>) by
+/// middleware conditionally added inside
+/// <see cref="AgentPrismEndpointRouteBuilderExtensions.MapAgentPrism"/> — only for
+/// requests that CARRY the header. This ensures the fingerprint is computed from
+/// the RAW bytes even on endpoints whose body is bound AUTOMATICALLY by minimal
+/// API (e.g. <c>/api/agents/{name}/run</c>): binding consumes the body BEFORE the
+/// filter's InvokeAsync runs, but buffering keeps the stream rewindable.
 /// </para>
 /// </remarks>
 internal sealed class IdempotencyFilter : IEndpointFilter
 {
-    /// <summary>Idempotency anahtarinin tasindigi HTTP baslik adi.</summary>
+    /// <summary>The HTTP header name that carries the idempotency key.</summary>
     public const string HeaderName = "Idempotency-Key";
 
-    /// <summary>Saklanan bir yanit tekrar dondurulurken eklenen baslik.</summary>
+    /// <summary>The header added when a stored response is replayed.</summary>
     public const string ReplayedHeaderName = "Idempotency-Replayed";
 
     private readonly IOptionsMonitor<AgentPrismIdempotencyOptions> _optionsMonitor;
 
-    /// <summary>Yeni bir idempotency filtresi olusturur.</summary>
-    /// <param name="optionsMonitor">Idempotency ayarlari.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="optionsMonitor"/> <see langword="null"/> ise.</exception>
+    /// <summary>Creates a new idempotency filter.</summary>
+    /// <param name="optionsMonitor">The idempotency settings.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="optionsMonitor"/> is <see langword="null"/>.</exception>
     public IdempotencyFilter(IOptionsMonitor<AgentPrismIdempotencyOptions> optionsMonitor)
     {
         ArgumentNullException.ThrowIfNull(optionsMonitor);
@@ -154,8 +154,8 @@ internal sealed class IdempotencyFilter : IEndpointFilter
 
             if (result is not IResult inner)
             {
-                // Beklenmez: uc her zaman IResult dondurur. Yakalayamadigimiz
-                // icin ayirmayi serbest birakiriz; bir sonraki istek yeniden dener.
+                // Not expected: the endpoint always returns IResult. Since we cannot
+                // capture it, release the reservation; the next request retries.
                 await store.ReleaseAsync(tenantId, key, CancellationToken.None).ConfigureAwait(false);
 
                 return result;
@@ -172,9 +172,8 @@ internal sealed class IdempotencyFilter : IEndpointFilter
     }
 
     /// <summary>
-    /// Ham govdeyi okuyup akis bayragini ve parmak izini cikarir; okuma sonrasi
-    /// govde bastan okunabilir birakilir (asagi akisin kendi baglamasi/okumasi
-    /// icin).
+    /// Reads the raw body and extracts the streaming flag and the fingerprint; after
+    /// reading, the body is left readable from the start (for downstream binding/reading).
     /// </summary>
     private static async ValueTask<(bool IsStreaming, string Fingerprint)> InspectBodyAsync(
         HttpContext httpContext,
@@ -214,8 +213,8 @@ internal sealed class IdempotencyFilter : IEndpointFilter
             }
             catch (JsonException)
             {
-                // Gecersiz JSON: akis bayragi yok sayilir, alt katman kendi
-                // dogrulamasini yapip uygun hatayi dondurur.
+                // Invalid JSON: the streaming flag is ignored; the lower layer runs
+                // its own validation and returns the appropriate error.
             }
         }
 

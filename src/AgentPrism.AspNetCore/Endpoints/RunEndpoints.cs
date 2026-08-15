@@ -11,27 +11,28 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// Calistirma kaydi ve olay akisi uclari.
+/// Run record and event stream endpoints.
 /// </summary>
 internal static class RunEndpoints
 {
     /// <summary>
-    /// Tek bir agacta dondurulecek en fazla calistirma sayisi.
+    /// The maximum number of runs returned in a single tree.
     /// </summary>
     /// <remarks>
-    /// Ust sinir, butcenin <c>MaxTotalRuns</c> varsayilanindan (25) belirgin sekilde
-    /// buyuktur: butce yukseltilmis bir kurulumda agac kirpilmis gorunmemelidir.
-    /// Yine de sinirsiz degildir; sayfalanmayan bir uctur.
+    /// The upper bound is deliberately much larger than the budget's
+    /// <c>MaxTotalRuns</c> default (25): the tree must not look truncated on
+    /// an installation with a raised budget. It is still not unbounded,
+    /// though; this endpoint is not paginated.
     /// </remarks>
     private const int MaxTreeSize = 200;
 
-    /// <summary>Calistirma uclarini baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="options">Erisim ve akis ayarlari.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Maps the run endpoints.</summary>
+    /// <param name="builder">The endpoint route builder.</param>
+    /// <param name="options">The access and streaming settings.</param>
+    /// <param name="roles">The resolved role policies.</param>
     /// <param name="prefix">
-    /// Normalize edilmis yol oneki. Yeniden oynatma yanitindaki karsilastirma
-    /// adresini kurmak icin gerekir.
+    /// The normalized path prefix. Needed to build the comparison location in
+    /// the replay response.
     /// </param>
     public static void Map(
         IEndpointRouteBuilder builder,
@@ -64,9 +65,8 @@ internal static class RunEndpoints
                         ErrorType = errorType,
                         StartedAfter = startedAfter,
 
-                        // Varsayilan yalniz kok calistirmalardir: bir agent baska
-                        // agent'lari cagirdiginda liste kullanicinin baslatmadigi
-                        // satirlarla dolar.
+                        // The default is root runs only: when an agent calls other
+                        // agents, the list fills with rows the user did not start.
                         OnlyRootRuns = includeChildren is not true,
                         ParentRunId = parentRunId,
                         RootRunId = rootRunId,
@@ -81,11 +81,11 @@ internal static class RunEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListRuns")
             .WithTags("AgentPrism", "Runs")
-            .WithSummary("Calistirmalari en yeniden eskiye listeler.")
+            .WithSummary("Lists runs from newest to oldest.")
             .WithDescription(
-                "Varsayilan olarak YALNIZ kok calistirmalar doner. Alt calistirmalari da gormek icin " +
-                "'includeChildren=true' kullanin; tek bir agacin tamami icin 'rootRunId', bir " +
-                "calistirmanin dogrudan cocuklari icin 'parentRunId' verin.");
+                "By default, ONLY root runs are returned. To also see child runs, use " +
+                "'includeChildren=true'; pass 'rootRunId' for an entire tree, or 'parentRunId' for " +
+                "the direct children of a run.");
 
         builder.MapGet("/api/runs/{runId:guid}/tree", async Task<Results<Ok<IReadOnlyList<RunRecord>>, ProblemHttpResult>> (
                 Guid runId,
@@ -97,9 +97,9 @@ internal static class RunEndpoints
                     return NotFound(runId);
                 }
 
-                // Agac her zaman KOKUNDEN cekilir. Bir alt calistirmanin detayindan
-                // gelen istek de tum agaci dondurur; kullanici kardes dallari
-                // gormeden agacin neresinde oldugunu anlayamaz.
+                // The tree is always fetched from the ROOT. A request from a child
+                // run's detail also returns the whole tree; without seeing sibling
+                // branches, the user cannot tell where in the tree they are.
                 var rootRunId = record.RootRunId ?? record.Id;
 
                 var tree = await runs.QueryRunsAsync(
@@ -117,7 +117,7 @@ internal static class RunEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismGetRunTree")
             .WithTags("AgentPrism", "Runs")
-            .WithSummary("Bir calistirmanin ait oldugu agacin tamamini kokunden dondurur.");
+            .WithSummary("Returns the entire tree a run belongs to, starting from the root.");
 
         builder.MapGet("/api/runs/{runId:guid}", async Task<Results<Ok<RunRecord>, ProblemHttpResult>> (
                 Guid runId,
@@ -130,7 +130,7 @@ internal static class RunEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismGetRun")
             .WithTags("AgentPrism", "Runs")
-            .WithSummary("Tek bir calistirmanin ozetini dondurur.");
+            .WithSummary("Returns the summary of a single run.");
 
         builder.MapGet("/api/runs/{runId:guid}/events", async Task<Results<ProblemHttpResult, IResult>> (
                 Guid runId,
@@ -138,8 +138,8 @@ internal static class RunEndpoints
                 HttpContext httpContext,
                 CancellationToken cancellationToken) =>
             {
-                // Varlik denetimi akis baslamadan once yapilir; yanit basladiktan
-                // sonra durum kodu degistirilemez.
+                // The existence check happens before the stream starts; the status
+                // code cannot be changed once the response has started.
                 if (await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false) is null)
                 {
                     return NotFound(runId);
@@ -151,68 +151,68 @@ internal static class RunEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismStreamRunEvents")
             .WithTags("AgentPrism", "Runs")
-            .WithSummary("Bir calistirmanin olaylarini SSE ile akitir; canli ve gecmise donuk ayni yoldur.")
+            .WithSummary("Streams a run's events over SSE; live and historical use the same path.")
             .WithDescription(
-                "Baglanti koparsa istemci 'Last-Event-ID' basligiyla kaldigi sira numarasindan devam eder. " +
-                "Calistirma hala suruyorsa akis tamamlanana kadar acik kalir.");
+                "If the connection drops, the client resumes from its last sequence number using the " +
+                "'Last-Event-ID' header. If the run is still in progress, the stream stays open until it completes.");
 
         builder.MapPost("/api/runs/{runId:guid}/cancel", CancelRunAsync)
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismCancelRun")
             .WithTags("AgentPrism", "Runs")
-            .WithSummary("Suren bir calistirmanin iptalini ister.")
+            .WithSummary("Requests cancellation of a running run.")
             .WithDescription(
-                "202 yalnizca iptal ISTENDIGINI bildirir; nihai durum 'GET /api/runs/{id}' ile okunur. " +
-                "Calistirma bu ornekte yurutulmuyorsa (baska bir ornek veya yeniden baslamis surec) 409 doner. " +
-                "Kok calistirmanin iptali agactaki tum alt calistirmalari da durdurur; bir alt calistirmanin " +
-                "tek basina iptali koku etkilemez.");
+                "202 only reports that cancellation was REQUESTED; the final status is read from " +
+                "'GET /api/runs/{id}'. Returns 409 if the run is not executing on this instance (a different " +
+                "instance, or a restarted process). Canceling a root run also stops every child run in the " +
+                "tree; canceling a child run on its own does not affect the root.");
 
         builder.MapPost("/api/runs/{runId:guid}/feedback", SaveFeedbackAsync)
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismSaveRunFeedback")
             .WithTags("AgentPrism", "Runs")
-            .WithSummary("Bir calistirmaya veya tek bir mesaja puan yazar.")
+            .WithSummary("Writes a score for a run or for a single message.")
             .Accepts<RunFeedbackRequest>("application/json")
             .WithDescription(
-                "Ayni yazar ayni hedefi (calistirma veya mesaj) ikinci kez puanladiginda satir " +
-                "GUNCELLENIR, yeni satir acilmaz. 'messageId' bos birakilirsa puan tum calistirmaya aittir.");
+                "When the same author scores the same target (run or message) a second time, the row is " +
+                "UPDATED, not a new row opened. If 'messageId' is left blank, the score applies to the whole run.");
 
         builder.MapGet("/api/runs/{runId:guid}/feedback", ListFeedbackAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListRunFeedback")
             .WithTags("AgentPrism", "Runs")
-            .WithSummary("Bir calistirmanin tum puanlarini listeler.");
+            .WithSummary("Lists all scores for a run.");
 
         builder.MapDelete("/api/runs/{runId:guid}/feedback/{scoreId:guid}", DeleteFeedbackAsync)
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismDeleteRunFeedback")
             .WithTags("AgentPrism", "Runs")
-            .WithSummary("Bir puani siler.");
+            .WithSummary("Deletes a score.");
 
         builder.MapGet("/api/runs/{runId:guid}/input", GetRunInputAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismGetRunInput")
             .WithTags("AgentPrism", "Runs")
-            .WithSummary("Bir calistirmanin kayitli girdi mesajlarini dondurur.")
+            .WithSummary("Returns the recorded input messages for a run.")
             .WithDescription(
-                "Girdi kaydi kapaliyken (AgentPrism:RunRecording:RecordRunInput = false) baslamis " +
-                "veya saklama politikasiyla silinmis bir calistirma icin 404 doner; o calistirma " +
-                "yeniden oynatilamaz.");
+                "Returns 404 for a run that started while input recording was disabled " +
+                "(AgentPrism:RunRecording:RecordRunInput = false), or that was deleted by a retention " +
+                "policy; such a run cannot be replayed.");
 
         builder.MapGet("/api/runs/{a:guid}/compare/{b:guid}", CompareRunsAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismCompareRuns")
             .WithTags("AgentPrism", "Runs")
-            .WithSummary("Iki calistirmanin ozetini yan yana dondurur.")
+            .WithSummary("Returns the summaries of two runs side by side.")
             .WithDescription(
-                "Fark SUNUCUDA hesaplanmaz; uc iki ozeti dondurur ve karsilastirmayi arayuz gosterir " +
-                "(Faz 19'un tanim surumu diff'i ile ayni desen).");
+                "The diff is NOT computed on the server; the endpoint returns the two summaries and the UI " +
+                "shows the comparison (the same pattern as the definition-version diff in Phase 19).");
 
         builder.MapPost("/api/runs/{runId:guid}/replay", async (
                 Guid runId,
@@ -239,16 +239,16 @@ internal static class RunEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismReplayRun")
             .WithTags("AgentPrism", "Runs")
-            .WithSummary("Kayitli girdiyle yeni bir calistirma acar.")
+            .WithSummary("Starts a new run with recorded input.")
             .Accepts<RunReplayRequest>("application/json")
             .WithDescription(
-                "Girdi korunur, kosullar degisir: 'agentVersion', 'modelId' ve 'toolMode'. " +
-                "Varsayilan 'toolMode' degeri 'ReplayTools'tur ve HICBIR tool gercekten kosmaz — " +
-                "kayitli sonuclar geri oynatilir. Kayitli sonucu olmayan bir cagri oynatmayi " +
-                "DURDURUR ve 422 doner. 'LiveTools' tool'lari GERCEKTEN calistirir, yan etki " +
-                "uretir, Admin rolu ister ve onay gerektiren bir tool varsa 409 alir. " +
-                "Yeniden oynatma oturumsuzdur: kaynak calistirma bir oturumdaysa yalniz O TURUN " +
-                "girdisi oynatilir, konusma gecmisi tasinmaz.")
+                "The input is preserved, the conditions change: 'agentVersion', 'modelId', and " +
+                "'toolMode'. The default 'toolMode' value is 'ReplayTools', and NO tool actually runs — " +
+                "recorded results are replayed. Replaying a call with no recorded result STOPS the " +
+                "replay and returns 422. 'LiveTools' ACTUALLY runs tools, produces side effects, " +
+                "requires the Admin role, and returns 409 if a tool requires approval. " +
+                "Replay is sessionless: if the source run belongs to a session, only that TURN's " +
+                "input is replayed; the conversation history is not carried over.")
             .Produces<RunReplayResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -304,8 +304,8 @@ internal static class RunEndpoints
         var left = await runs.GetRunAsync(a, cancellationToken).ConfigureAwait(false);
         var right = await runs.GetRunAsync(b, cancellationToken).ConfigureAwait(false);
 
-        // Kiraci siniri her iki taraf icin ayri ayri denetlenir; "yok" ile
-        // "baska kiraciya ait" ayni 404'u doner.
+        // The tenant boundary is checked separately for each side; "does not
+        // exist" and "belongs to another tenant" return the same 404.
         if (left is null || !string.Equals(left.TenantId, tenants.TenantId, StringComparison.Ordinal))
         {
             return NotFound(a);
@@ -355,14 +355,15 @@ internal static class RunEndpoints
     }
 
     /// <summary>
-    /// Bir calistirmanin urettigi metni olay akisindan okur.
+    /// Reads the text a run produced from its event stream.
     /// </summary>
     /// <remarks>
-    /// 🚨 Akissiz yol (<c>RunCoreAsync</c>) hem her <c>TextContent</c> icin bir
-    /// <c>MessageDelta</c> hem de sonda bir <c>MessageCompleted</c> yazar; akisli
-    /// yol yalnizca <c>MessageDelta</c> uretir ve esdeger bir "tamamlandi" olayi
-    /// HIC yazmaz. Ikisini toplamak akissiz yolda metni MUKERRER sayardi; bu
-    /// yuzden <c>MessageCompleted</c> varsa o kazanir.
+    /// 🚨 The non-streaming path (<c>RunCoreAsync</c>) writes both a
+    /// <c>MessageDelta</c> for every <c>TextContent</c> and a final
+    /// <c>MessageCompleted</c>; the streaming path produces only
+    /// <c>MessageDelta</c> events and NEVER writes an equivalent "completed"
+    /// event. Summing both would DOUBLE-COUNT the text on the non-streaming
+    /// path; that is why <c>MessageCompleted</c> wins when it is present.
     /// </remarks>
     private static async ValueTask<string?> ReadOutputAsync(
         IRunStore runs,
@@ -395,21 +396,22 @@ internal static class RunEndpoints
     }
 
     /// <summary>
-    /// Kayitli bir calistirmayi ayni girdiyle, degistirilmis kosullarla yeniden calistirir.
+    /// Reruns a recorded run with the same input under changed conditions.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Calistirma <strong>akissiz</strong>dir ve tek bir JSON govde doner. Akisli
-    /// bir yeniden oynatma tasarima bir sey katmaz: karsilastirmanin ilgilendigi
-    /// sey nihai ciktidir ve olay akisi zaten
-    /// <c>GET /api/runs/{id}/events</c> ile okunabilir.
+    /// The run is <strong>non-streaming</strong> and returns a single JSON body.
+    /// A streaming replay would add nothing to the design: what the comparison
+    /// cares about is the final output, and the event stream is already
+    /// readable via <c>GET /api/runs/{id}/events</c>.
     /// </para>
     /// <para>
-    /// 🚨 <see cref="ReplayToolMode.LiveTools"/> <c>Admin</c> rolu ister. Uc
-    /// <c>Operator</c> ile baglanmistir; fark BURADA, calisma aninda zorlanir
-    /// cunku rol modun kendisine baglidir. Rol policy'leri hic kayitli degilse
-    /// (yetkilendirme kapali) ek bir denetim yapilmaz — kurulum zaten acik
-    /// bir sekilde korumasizdir.
+    /// 🚨 <see cref="ReplayToolMode.LiveTools"/> requires the <c>Admin</c> role.
+    /// The endpoint is bound to <c>Operator</c>; the difference is enforced
+    /// HERE, at runtime, because the role depends on the mode itself. If role
+    /// policies are not registered at all (authorization disabled), no
+    /// additional check is performed — the deployment is already explicitly
+    /// unprotected.
     /// </para>
     /// </remarks>
     private static async Task<IResult> ReplayRunAsync(
@@ -519,10 +521,11 @@ internal static class RunEndpoints
         }
         catch (ReplayToolMismatchException ex)
         {
-            // 🚨 422: eslesmeyen bir tool cagrisi bir HATA DEGIL, bir BULGUDUR —
-            // yeni surum farkli bir tool cagiriyor demektir. Sessizce atlamak
-            // modelin goremedigi bir bosluk, canli calistirmak istenmeyen bir
-            // yan etki uretirdi (Faz 47, Acik Soru 3).
+            // 🚨 422: a mismatched tool call is not an ERROR, it is a FINDING —
+            // it means the new version calls a different tool. Silently
+            // skipping it would leave the model with a gap it cannot see, and
+            // running it live would produce an unwanted side effect (Phase 47,
+            // Open Question 3).
             return Results.Problem(
                 title: "Recorded tool result not found",
                 detail: ex.Message,
@@ -536,19 +539,21 @@ internal static class RunEndpoints
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // 🚨 Istisna tipi DAR bir listeyle yakalanmaz ve bu K-296'nin
-            // dogrudan sonucudur: resmi saglayici SDK'lari
-            // `HttpRequestException` FIRLATMAZ (OpenAI
-            // `System.ClientModel.ClientResultException`, Azure
-            // `RequestFailedException` firlatir) ve dar bir liste, gercek bir
-            // model hatasini islenmemis bir 500'e cevirir. Olculdu: bu uc ilk
-            // yazildiginda `AgentPrismException or InvalidOperationException or
-            // HttpRequestException` listesiyle yazilmisti ve ornek uygulamada
-            // bir `403 model_not_found` tam olarak boyle kacti.
+            // 🚨 The exception type is deliberately NOT caught with a narrow
+            // list, a direct consequence of K-296: official provider SDKs do
+            // NOT throw `HttpRequestException` (OpenAI throws
+            // `System.ClientModel.ClientResultException`, Azure throws
+            // `RequestFailedException`), and a narrow list would turn a real
+            // model error into an unhandled 500. Measured: this endpoint was
+            // first written with the list `AgentPrismException or
+            // InvalidOperationException or HttpRequestException`, and in the
+            // sample application a `403 model_not_found` slipped through
+            // exactly this way.
             //
-            // Calistirma kaydi zaten kapanmistir (RunRecordingAgent hatayi
-            // yakalar ve satiri Failed yazar); burada yapilacak tek is hatayi
-            // istemciye anlasilir bir durum koduyla cevirmektir.
+            // The run record is already closed at this point (RunRecordingAgent
+            // catches the error and marks the row Failed); the only remaining
+            // work here is translating the error into a status code the
+            // client can understand.
             return Results.Problem(
                 title: "Replay failed",
                 detail: ex.Message,
@@ -591,8 +596,9 @@ internal static class RunEndpoints
 
         var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
 
-        // "Yok" ile "baska kiraciya ait" AYNI 404'u doner; ayri bir mesaj
-        // varlik sizdirirdi (docs/31-GERI-BILDIRIM-VE-PUANLAMA.md, bolum 31.3).
+        // "Does not exist" and "belongs to another tenant" return the SAME
+        // 404; a separate message would leak existence
+        // (docs/31-GERI-BILDIRIM-VE-PUANLAMA.md, section 31.3).
         if (run is null || !string.Equals(run.TenantId, tenants.TenantId, StringComparison.Ordinal))
         {
             return NotFoundFeedback(runId);
@@ -630,25 +636,26 @@ internal static class RunEndpoints
     }
 
     /// <summary>
-    /// Suren bir calistirmanin iptalini ister.
+    /// Requests cancellation of a running run.
     /// </summary>
     /// <remarks>
-    /// Uc davranisi (bkz. docs/32-CALISTIRMA-IPTALI.md, bolum 32.2):
+    /// Endpoint behavior (see docs/32-CALISTIRMA-IPTALI.md, section 32.2):
     /// <list type="bullet">
-    /// <item>Calistirma yoksa veya baska bir kiraciya aitse <c>404</c> (varlik sizdirmamak icin ikisi ayni).</item>
-    /// <item>Calistirma defterde varsa kaynak iptal edilir ve <c>202</c> doner.</item>
+    /// <item>If the run does not exist or belongs to another tenant, <c>404</c> (both are the same, to avoid leaking existence).</item>
+    /// <item>If the run is registered, its source is canceled and <c>202</c> is returned.</item>
     /// <item>
-    /// Calistirma <c>runs</c>'ta <see cref="RunStatus.Running"/> ama defterde yoksa
-    /// bu ornek onu yurutmuyor demektir; <c>409</c> doner.
+    /// If the run is <see cref="RunStatus.Running"/> in <c>runs</c> but not registered,
+    /// this instance is not executing it; <c>409</c> is returned.
     /// </item>
-    /// <item>Calistirma zaten sonlanmissa <c>409</c> doner ve mevcut durum yazilir.</item>
+    /// <item>If the run has already ended, <c>409</c> is returned along with the current status.</item>
     /// <item>
-    /// 🚨 Faz 46: <see cref="RunStatus.Queued"/> durumundaki bir calistirma
-    /// HENUZ yurutulmuyordur; <see cref="IRunCancellationRegistry"/>'de kayitli
-    /// olamaz. Bu durumda iptal <c>IJobStore.CancelAsync</c> ile KUYRUKTAN
-    /// yapilir (Job.Id == RunId, Faz 46) ve <c>runs</c> satiri burada dogrudan
-    /// <see cref="RunStatus.Canceled"/>'e kapatilir — isci is'i hic almadigi
-    /// icin <c>RunRecordingAgent</c> bu satiriyi asla kapatmayacaktir.
+    /// 🚨 Phase 46: a run in the <see cref="RunStatus.Queued"/> status is NOT
+    /// executing YET; it cannot be registered in <see cref="IRunCancellationRegistry"/>.
+    /// In this case cancellation happens FROM THE QUEUE, via
+    /// <c>IJobStore.CancelAsync</c> (Job.Id == RunId, Phase 46), and the
+    /// <c>runs</c> row is closed directly to <see cref="RunStatus.Canceled"/>
+    /// right here — since the worker never picked up the job,
+    /// <c>RunRecordingAgent</c> will never close this row.
     /// </item>
     /// </list>
     /// </remarks>
@@ -666,8 +673,9 @@ internal static class RunEndpoints
     {
         var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
 
-        // "Yok" ile "baska kiraciya ait" AYNI 404'u doner; ayri bir mesaj
-        // varlik sizdirirdi (ayni gerekce SaveFeedbackAsync'te de gecerlidir).
+        // "Does not exist" and "belongs to another tenant" return the SAME
+        // 404; a separate message would leak existence (the same rationale
+        // applies in SaveFeedbackAsync).
         if (run is null || !string.Equals(run.TenantId, tenants.TenantId, StringComparison.Ordinal))
         {
             return NotFound(runId);
@@ -686,8 +694,8 @@ internal static class RunEndpoints
             var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
 
             await runs.CompleteRunAsync(
-                // `run` kiraciya gore SUZULMUS bir okumadan geldi; beklenen kiraci
-                // onun kendi kaydidir (K-355).
+                // `run` came from a read already FILTERED by tenant; the
+                // expected tenant is its own record (K-355).
                 new RunCompletion
                 {
                     RunId = runId,
@@ -736,9 +744,9 @@ internal static class RunEndpoints
             after: null,
             cancellationToken).ConfigureAwait(false);
 
-        // 202: iptal yalniz ISTENDI. cts.Cancel() bir garanti degildir; agent
-        // belirteci bir sonraki denetim noktasinda gorur. Nihai durum
-        // 'GET /api/runs/{id}' ile okunur.
+        // 202: cancellation was only REQUESTED. cts.Cancel() is not a
+        // guarantee; the agent sees the token at its next check point. The
+        // final status is read from 'GET /api/runs/{id}'.
         return TypedResults.Accepted($"/api/runs/{runId}", run);
     }
 
@@ -816,18 +824,19 @@ internal static class RunEndpoints
             statusCode: StatusCodes.Status404NotFound);
 
     /// <summary>
-    /// Olaylari SSE olarak yazar; calistirma devam ediyorsa yeni olaylari yoklar.
+    /// Writes events as SSE; polls for new events while the run is in progress.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Olay deposu bir bildirim kanali sunmaz, bu yuzden canli akis yoklamayla
-    /// saglanir. Sira: <em>once durum okunur</em>, sonra olaylar bosaltilir. Tersi
-    /// olsaydi, iki adim arasinda tamamlanan bir calistirmanin son olaylari
-    /// yazilmadan dongu bitebilirdi.
+    /// The event store does not offer a notification channel, so the live
+    /// stream is served by polling. Order: <em>the status is read first</em>,
+    /// then events are drained. The other way around, a run that completes
+    /// between the two steps could have its final events left unwritten when
+    /// the loop ends.
     /// </para>
     /// <para>
-    /// Olaylar append-only oldugu icin (karar K-014) yeniden oynatma ve canli akis
-    /// ayni kod yolundan gecer; istemci farki gormez.
+    /// Because events are append-only (decision K-014), replay and live
+    /// streaming go through the same code path; the client sees no difference.
     /// </para>
     /// </remarks>
     private sealed class RunEventStream(Guid runId, IRunStore runs, TimeSpan pollInterval) : IResult
@@ -861,12 +870,13 @@ internal static class RunEndpoints
                         wroteAny = true;
                     }
 
-                    // Calistirma silinmis veya sonlanmissa tum olaylar yazilmistir.
-                    // 🚨 Faz 46: 'Queued' de BEKLENEN bir ara durumdur — isci
-                    // is'i henuz almamis olabilir. Yalniz Running/Queued disinda
-                    // bir durum (veya kaydin kendisinin yoklugu) akisi kapatir;
-                    // aksi halde 202'den hemen sonra baglanan bir istemci is
-                    // hic baslamadan akisin kapandigini gorurdu.
+                    // If the run has been deleted or has ended, all events have
+                    // been written. 🚨 Phase 46: 'Queued' is also an EXPECTED
+                    // intermediate status — the worker may not have picked up
+                    // the job yet. Only a status other than Running/Queued (or
+                    // the record's own absence) closes the stream; otherwise a
+                    // client connecting right after the 202 would see the
+                    // stream close before the job ever started.
                     if (snapshot is null || snapshot.Status is not (RunStatus.Running or RunStatus.Queued))
                     {
                         break;
@@ -882,15 +892,15 @@ internal static class RunEndpoints
             }
             catch (OperationCanceledException)
             {
-                // Istemci baglantiyi kesti; yazacak kimse kalmadi.
+                // The client disconnected; there is no one left to write to.
             }
         }
 
         private static JsonSerializerOptions JsonOptions { get; } = new(JsonSerializerDefaults.Web);
 
         /// <summary>
-        /// Olay tipini SSE olay adina cevirir. Bu adlar <strong>kararli</strong>
-        /// sozlesmedir; degistirmek istemcileri kirar.
+        /// Translates the event type to an SSE event name. These names are a
+        /// <strong>stable</strong> contract; changing them breaks clients.
         /// </summary>
         private static string EventName(RunEventType type) => type switch
         {
@@ -909,18 +919,18 @@ internal static class RunEndpoints
     }
 }
 
-/// <summary>Bir calistirma/mesaj puani yazmak icin istek govdesi.</summary>
+/// <summary>Request body for writing a run/message score.</summary>
 public sealed record RunFeedbackRequest
 {
-    /// <summary>Puanin bicimi.</summary>
+    /// <summary>The format of the score.</summary>
     public required RunScoreKind Kind { get; init; }
 
-    /// <summary><see cref="RunScoreKind.Binary"/> icin 0/1, <see cref="RunScoreKind.Stars"/> icin 1..5.</summary>
+    /// <summary>0/1 for <see cref="RunScoreKind.Binary"/>, 1..5 for <see cref="RunScoreKind.Stars"/>.</summary>
     public required int Value { get; init; }
 
-    /// <summary>Puanlanan mesajin kimligi. Bos birakilirsa puan tum calistirmaya aittir.</summary>
+    /// <summary>The id of the scored message. If left blank, the score applies to the whole run.</summary>
     public string? MessageId { get; init; }
 
-    /// <summary>Serbest metin yorum.</summary>
+    /// <summary>Free-text comment.</summary>
     public string? Comment { get; init; }
 }

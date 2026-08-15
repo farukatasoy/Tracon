@@ -1,9 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>AgentPrism HTTP katmani. MapAgentPrism ile yonetim API'sini ve OpenAI uyumlu calistirma uclarini baglar. Katmanli erisim korumasi icerir: loopback varsayilan, bearer token, ASP.NET Core authorization policy.</Description>
+    <Description>AgentPrism HTTP layer. MapAgentPrism connects the management API and the OpenAI-compatible run endpoints. Includes layered access protection: loopback by default, bearer token, ASP.NET Core authorization policy.</Description>
     <PackageTags>$(CommonPackageTags);aspnetcore;api;openai-compatible;responses</PackageTags>
-    <!-- Minimal API delege yonlendirmesi reflection kullanir; AOT vaadi verilemez. -->
+    <!-- Minimal API delegate routing uses reflection; AOT cannot be promised. -->
     <AgentPrismAotCompatible>false</AgentPrismAotCompatible>
   </PropertyGroup>
 
@@ -16,25 +16,26 @@
   </ItemGroup>
 
   <!--
-    DIKKAT: Bu iki paket onsurumdur (preview / alpha).
-    AgentPrism'in tum onsurum MAF bagimliligi bilerek bu tek pakette toplanmistir.
-    Boylece AgentPrism.Abstractions, .Core, .PostgreSql ve .OpenAI yalnizca GA
-    paketlere bagli kalir. Gerekce: docs/KARARLAR.md, karar K-008.
+    NOTE: These two packages are pre-release (preview / alpha).
+    All of AgentPrism's pre-release MAF dependencies are deliberately
+    consolidated into this single package. This keeps AgentPrism.Abstractions,
+    .Core, .PostgreSql, and .OpenAI dependent only on GA packages. Rationale:
+    docs/KARARLAR.md, decision K-008.
   -->
-  <ItemGroup Label="Onsurum MAF bagimliliklari">
+  <ItemGroup Label="Pre-release MAF dependencies">
     <PackageReference Include="Microsoft.Agents.AI.Hosting" />
     <PackageReference Include="Microsoft.Agents.AI.Hosting.OpenAI" />
-    <!-- Faz 50: A2A disa acma sunucusu. Gerekce: Directory.Packages.props. -->
+    <!-- Phase 50: A2A exposure server. Rationale: Directory.Packages.props. -->
     <PackageReference Include="Microsoft.Agents.AI.Hosting.A2A" />
     <PackageReference Include="Microsoft.Agents.AI.Hosting.AspNetCore" />
     <PackageReference Include="A2A.AspNetCore" />
   </ItemGroup>
 
   <!--
-    MCP sunucusu (Faz 50). GA paket; onsurum grubunda DEGIL. K-057 geregi
-    yalnizca burada — AgentPrism.Mcp (istemci) `.Core`'da kalir.
+    MCP server (Phase 50). GA package; NOT in the pre-release group. Lives
+    only here per K-057 — AgentPrism.Mcp (client) stays in `.Core`.
   -->
-  <ItemGroup Label="Model Context Protocol - sunucu">
+  <ItemGroup Label="Model Context Protocol - server">
     <PackageReference Include="ModelContextProtocol.AspNetCore" />
   </ItemGroup>
 

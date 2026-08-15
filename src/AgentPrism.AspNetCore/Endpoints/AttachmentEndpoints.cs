@@ -8,17 +8,17 @@ using Microsoft.AspNetCore.Routing;
 namespace AgentPrism;
 
 /// <summary>
-/// Ek yukleme, indirme, listeleme ve silme uclari.
+/// Endpoints for uploading, downloading, listing, and deleting attachments.
 /// </summary>
 /// <remarks>
-/// Ikili icerik <c>attachments</c> tablosunda yasar; mesajlarda yalniz kucuk bir
-/// referans tasinir. Gerekce: <c>docs/14-COK-MODLULUK.md</c>, bolum 14.1 ve 14.4.
+/// Binary content lives in the <c>attachments</c> table; only a small
+/// reference travels with messages. Rationale: <c>docs/14-COK-MODLULUK.md</c>, sections 14.1 and 14.4.
 /// </remarks>
 internal static class AttachmentEndpoints
 {
-    /// <summary>Ek uclarini baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Maps the attachment endpoints.</summary>
+    /// <param name="builder">The endpoint group.</param>
+    /// <param name="roles">The resolved role policies.</param>
     public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapPost("/api/attachments", UploadAsync)
@@ -26,16 +26,17 @@ internal static class AttachmentEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismUploadAttachment")
             .WithTags("AgentPrism", "Attachments")
-            .WithSummary("Yeni bir ek yukler.")
+            .WithSummary("Uploads a new attachment.")
             .WithDescription(
-                "Govde 'multipart/form-data' olmalidir ve bir 'file' alani tasimalidir. " +
-                "Tur, istemcinin bildirdigi Content-Type'a degil sihirli bayta gore dogrulanir.")
-            // ASP.NET Core, minimal API'de IFormFile parametresi gordugunde uca
-            // OTOMATIK olarak anti-forgery gerektiren metadata ekler (CSRF
-            // korumasi, tarayici form gonderimleri icin varsayilandir). Bu API
-            // tarayici oturumu degil bearer token ile korunur ve uygulama
-            // UseAntiforgery() cagirmaz; acikca devre disi birakilmazsa her
-            // istek "middleware not found" ile 500 doner. Olculdu.
+                "The body must be 'multipart/form-data' and must carry a 'file' field. " +
+                "The type is validated by magic bytes, not by the Content-Type the client reports.")
+            // When ASP.NET Core sees an IFormFile parameter in a minimal API, it
+            // AUTOMATICALLY adds metadata that requires anti-forgery (CSRF
+            // protection, the default for browser form submissions). This API
+            // is secured by a bearer token, not a browser session, and the
+            // application does not call UseAntiforgery(); unless explicitly
+            // disabled, every request returns 500 with "middleware not found".
+            // Measured.
             .DisableAntiforgery();
 
         builder.MapGet("/api/attachments/{id:guid}", DownloadAsync)
@@ -43,9 +44,9 @@ internal static class AttachmentEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismDownloadAttachment")
             .WithTags("AgentPrism", "Attachments")
-            .WithSummary("Bir ekin ham icerigini akitir.")
-            // Ikili govde; gercek turu ekin kendi MediaType alanindan gelir ve
-            // derleme zamaninda bilinemez.
+            .WithSummary("Streams the raw content of an attachment.")
+            // Binary body; the actual type comes from the attachment's own
+            // MediaType field and cannot be known at compile time.
             .Produces<Stream>(StatusCodes.Status200OK, contentType: "application/octet-stream")
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -54,14 +55,14 @@ internal static class AttachmentEndpoints
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
             .WithName("AgentPrismListAttachments")
             .WithTags("AgentPrism", "Attachments")
-            .WithSummary("Ekleri listeler.");
+            .WithSummary("Lists attachments.");
 
         builder.MapDelete("/api/attachments/{id:guid}", DeleteAsync)
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .WithName("AgentPrismDeleteAttachment")
             .WithTags("AgentPrism", "Attachments")
-            .WithSummary("Bir eki siler.");
+            .WithSummary("Deletes an attachment.");
     }
 
     private static async Task<Results<Created<AttachmentDescriptor>, ProblemHttpResult>> UploadAsync(
@@ -180,12 +181,12 @@ internal static class AttachmentEndpoints
             statusCode: StatusCodes.Status404NotFound);
 
     /// <summary>
-    /// Ek icerigini guvenli basliklarla akitan sonuc.
+    /// Result that streams attachment content with safe headers.
     /// </summary>
     /// <remarks>
-    /// <c>X-Content-Type-Options: nosniff</c> ve <c>Content-Disposition: attachment</c>
-    /// birlikte uygulanir: tarayici icerigi asla satir ici (ornegin HTML olarak)
-    /// yorumlayip calistirmaz. Gerekce: <c>docs/14-COK-MODLULUK.md</c>, bolum 14.4.
+    /// <c>X-Content-Type-Options: nosniff</c> and <c>Content-Disposition: attachment</c>
+    /// are applied together: the browser never interprets and executes the
+    /// content inline (for example as HTML). Rationale: <c>docs/14-COK-MODLULUK.md</c>, section 14.4.
     /// </remarks>
     private sealed class AttachmentDownloadResult(AttachmentDescriptor descriptor, Stream content) : IResult
     {
@@ -208,8 +209,8 @@ internal static class AttachmentEndpoints
 
         private static string BuildContentDisposition(string fileName)
         {
-            // Tirnak ve satir sonu karakterleri baslik enjeksiyonunu onlemek icin
-            // atilir; dosya adi yalnizca goruntuleme amaclidir.
+            // Quote and line-break characters are stripped to prevent header
+            // injection; the file name is for display purposes only.
             var safe = fileName
                 .Replace("\"", string.Empty, StringComparison.Ordinal)
                 .Replace("\r", string.Empty, StringComparison.Ordinal)

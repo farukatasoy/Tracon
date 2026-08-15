@@ -5,18 +5,19 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Uzak MCP sunucularinin tool listesini arka planda tazeleyen servis.
+/// A service that refreshes the tool list of remote MCP servers in the background.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Ilk kesif arka plan gorevinde yapilir, uygulama acilisini <strong>bloklamaz</strong>.
-/// Acilisi uzak bir sunucunun cevap suresine baglamak kabul edilemez: erisilemeyen
-/// tek bir MCP sunucusu uygulamayi hic baslatmayabilirdi.
+/// The initial discovery happens in a background task and <strong>does not
+/// block</strong> application startup. Tying startup to a remote server's
+/// response time is unacceptable: a single unreachable MCP server could keep
+/// the application from starting at all.
 /// </para>
 /// <para>
-/// Tazeleme araligi <see cref="AgentPrismMcpOptions.RefreshInterval"/> ile
-/// belirlenir. Uzak sunucu tool tanimini degistirebilir; onbellek bu araliklarla
-/// gerceklikle hizalanir.
+/// The refresh interval is set by <see cref="AgentPrismMcpOptions.RefreshInterval"/>.
+/// A remote server may change its tool definitions; the cache is realigned
+/// with reality at this interval.
 /// </para>
 /// </remarks>
 internal sealed class McpDiscoveryService : BackgroundService
@@ -56,15 +57,16 @@ internal sealed class McpDiscoveryService : BackgroundService
     {
         if (!_options.Value.Enabled)
         {
-            _logger.LogInformation("MCP tool kesfi kapali (AgentPrism:Mcp:Enabled = false).");
+            _logger.LogInformation("MCP tool discovery is disabled (AgentPrism:Mcp:Enabled = false).");
             return;
         }
 
         var interval = _options.Value.RefreshInterval;
 
-        // 🚨 Ilk SQL denemesinden ONCE semanin hazir olmasini bekle. Kayit sirasi
-        // `.UseMcp()` `.UseSqlite()`'tan onceyse migration henuz bitmemis olabilir
-        // ve ilk tur "no such table" verirdi. Olculdu (Faz 42); gerekce K-354.
+        // 🚨 Wait for the schema to be ready BEFORE the first SQL attempt. If
+        // registration order puts `.UseMcp()` before `.UseSqlite()`, the
+        // migration may not have finished yet and the first pass would get
+        // "no such table". Measured (Phase 42); rationale K-354.
         try
         {
             await _schemaReadyGate.WaitAsync(stoppingToken).ConfigureAwait(false);
@@ -74,8 +76,9 @@ internal sealed class McpDiscoveryService : BackgroundService
             return;
         }
 
-        // Tek yurutucu secimi (Faz 42): kapaliysa (varsayilan) guard.IsHeld
-        // daima true'dur ve RunAsync depoya hicbir sorgu atmadan hemen doner.
+        // Single-executor selection (Phase 42): when disabled (the default),
+        // guard.IsHeld is always true and RunAsync returns immediately
+        // without issuing any query to the store.
         var guard = new SingletonGuard(_leaseStore, _singletonOptionsMonitor, "mcp-discovery", _logger);
         var guardTask = guard.RunAsync(stoppingToken);
 
@@ -89,7 +92,7 @@ internal sealed class McpDiscoveryService : BackgroundService
                     {
                         var outcome = await _catalog.RefreshAsync(stoppingToken).ConfigureAwait(false);
 
-                        _logger.LogInformation("MCP kesfi tamamlandi: {ToolCount} tool kullanilabilir.", outcome.ToolCount);
+                        _logger.LogInformation("MCP discovery completed: {ToolCount} tools available.", outcome.ToolCount);
                     }
                     catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                     {
@@ -97,10 +100,10 @@ internal sealed class McpDiscoveryService : BackgroundService
                     }
                     catch (Exception ex)
                     {
-                        // Tazeleme dongusu asla olmemeli: bir hata sonraki turda
-                        // yeniden denenir, onbellekteki son iyi liste kullanilmaya
-                        // devam eder.
-                        _logger.LogError(ex, "MCP kesfi basarisiz oldu; {Interval} sonra yeniden denenecek.", interval);
+                        // The refresh loop must never die: on error, the next
+                        // pass retries and the last good list in the cache
+                        // keeps being used.
+                        _logger.LogError(ex, "MCP discovery failed; retrying in {Interval}.", interval);
                     }
                 }
 

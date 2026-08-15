@@ -5,19 +5,20 @@ using Microsoft.AspNetCore.Routing;
 namespace AgentPrism;
 
 /// <summary>
-/// Gomulu yonetim arayuzunun statik varliklarini sunan rotalar.
+/// Routes that serve the embedded management UI's static assets.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Rotalar yakalayici (<c>{**path}</c>) desen kullanir. ASP.NET Core yonlendirmesinde
-/// harfi harfine segmentler yakalayici desenden <strong>once</strong> gelir, bu yuzden
-/// <c>/api/*</c> ve <c>/v1/*</c> uclari her zaman kazanir.
+/// The routes use a catch-all (<c>{**path}</c>) pattern. In ASP.NET Core routing,
+/// literal segments take precedence <strong>over</strong> the catch-all pattern, so the
+/// <c>/api/*</c> and <c>/v1/*</c> endpoints always win.
 /// </para>
 /// <para>
-/// Yine de bu iki onek burada acikca reddedilir. Sebebi: yanlis yazilmis bir API yolu
-/// (<c>/api/agentz</c>) yakalayiciya duser ve arayuzun <c>index.html</c> dosyasi
-/// donerdi. Bir API istemcisi icin bu, hata ayiklanmasi zor bir sessiz basarisizliktir -
-/// beklenen <c>404</c> yerine <c>200 text/html</c> alir.
+/// Even so, these two prefixes are also explicitly rejected here. Reason: a misspelled
+/// API path (<c>/api/agentz</c>) would fall through to the catch-all and the UI's
+/// <c>index.html</c> file would be returned. For an API client this is a silent
+/// failure that is hard to debug — it gets <c>200 text/html</c> instead of the expected
+/// <c>404</c>.
 /// </para>
 /// </remarks>
 internal static class UiEndpoints
@@ -26,17 +27,17 @@ internal static class UiEndpoints
 
     private static readonly string[] HttpMethods = ["GET", "HEAD"];
 
-    /// <summary>Arayuz rotalarini baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="provider">Varlik kaynagi.</param>
-    /// <param name="prefix">Normalize edilmis yol oneki. Ornek: <c>/agentprism</c>.</param>
+    /// <summary>Maps the UI routes.</summary>
+    /// <param name="builder">The endpoint group.</param>
+    /// <param name="provider">The asset source.</param>
+    /// <param name="prefix">The normalized path prefix. Example: <c>/agentprism</c>.</param>
     public static void Map(IEndpointRouteBuilder builder, IAgentPrismUiProvider provider, string prefix)
     {
         var basePath = prefix + "/";
 
-        // HEAD de eslenir. GET-only bir uc HEAD istegine 405 doner; ters vekiller
-        // ve saglik denetimleri statik varliklari HEAD ile yoklar ve bunu bir
-        // ariza olarak raporlar. Govde yazilir, Kestrel HEAD yanitinda onu atar.
+        // HEAD is also mapped. A GET-only endpoint returns 405 to a HEAD request;
+        // reverse proxies and health checks probe static assets with HEAD and report
+        // that as an outage. The body is written, Kestrel discards it in the HEAD response.
         builder.MapMethods("/", HttpMethods, (HttpContext context) => ServeAsync(context, provider, basePath, string.Empty))
             .WithName("AgentPrismUiRoot")
             .ExcludeFromDescription();
@@ -47,13 +48,13 @@ internal static class UiEndpoints
     }
 
     /// <summary>
-    /// Istegi arayuz kaynagina devreder; karsilanmazsa <c>404</c> yazar.
+    /// Hands the request off to the UI asset source; writes <c>404</c> if it is not served.
     /// </summary>
     /// <remarks>
-    /// Sonucu dondurmek yerine dogrudan yaniti yazar. Sebep teknik: tek parametresi
-    /// <see cref="HttpContext"/> olan ve <c>Task&lt;T&gt;</c> donduren bir rota
-    /// isleyicisi ASP.NET Core tarafindan <c>RequestDelegate</c> sayilir ve donen
-    /// deger sessizce atilir (<c>ASP0016</c>).
+    /// Writes the response directly instead of returning a result. The reason is
+    /// technical: a route handler whose only parameter is <see cref="HttpContext"/> and
+    /// that returns <c>Task&lt;T&gt;</c> is treated by ASP.NET Core as a
+    /// <c>RequestDelegate</c>, and the returned value is silently discarded (<c>ASP0016</c>).
     /// </remarks>
     private static async Task ServeAsync(
         HttpContext context,

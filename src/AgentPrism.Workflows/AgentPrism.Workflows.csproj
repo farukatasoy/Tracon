@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>AgentPrism icin workflow yurutme motoru. Katalogdaki agent'lar Sequential, Concurrent, Handoff, GroupChat ve Magentic desenleriyle birbirine baglanir; her yurutme runs tablosuna kaydedilir ve kontrol noktalarindan surdurulebilir.</Description>
+    <Description>Workflow execution engine for AgentPrism. Agents from the catalog are chained together with the Sequential, Concurrent, Handoff, GroupChat, and Magentic patterns; every execution is recorded in the runs table and can be resumed from checkpoints.</Description>
     <PackageTags>$(CommonPackageTags);workflow;orchestration;multi-agent</PackageTags>
     <!--
-      Microsoft.Agents.AI.Workflows yurutme motoru yansima kullanir
-      (ReflectingExecutor, TypeId, PortableValue); AOT vaadi verilemez.
+      The Microsoft.Agents.AI.Workflows execution engine uses reflection
+      (ReflectingExecutor, TypeId, PortableValue); no AOT guarantee can be made.
     -->
     <AgentPrismAotCompatible>false</AgentPrismAotCompatible>
   </PropertyGroup>
@@ -16,7 +16,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Agents.AI.Workflows" />
-    <!-- UseWorkflows()'un AgentPrismWorkflowOptions'i IConfiguration'a baglamasi icin (K-402). -->
+    <!-- So UseWorkflows() can bind AgentPrismWorkflowOptions to IConfiguration (K-402). -->
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
   </ItemGroup>
 

@@ -1,53 +1,57 @@
 namespace AgentPrism;
 
-/// <summary>Uzak MCP sunucularina baglanma ayarlari.</summary>
+/// <summary>Options for connecting to remote MCP servers.</summary>
 public sealed class AgentPrismMcpOptions
 {
-    /// <summary>Yapilandirma bolumunun varsayilan adi.</summary>
+    /// <summary>The default name of the configuration section.</summary>
     public const string SectionName = "AgentPrism:Mcp";
 
     /// <summary>
-    /// MCP tool kesfi acik mi. Kapatilirsa hicbir sunucuya baglanilmaz ve
-    /// yalnizca kodda kayitli tool'lar gorunur.
+    /// Whether MCP tool discovery is on. When turned off, no server is
+    /// connected to and only the tools registered in code are visible.
     /// </summary>
     public bool Enabled { get; set; } = true;
 
     /// <summary>
-    /// Tool listesinin yenilenme araligi. Uzak sunucu tool tanimini
-    /// degistirebilir; kesif bu araliklarla tekrarlanir.
+    /// The refresh interval of the tool list. A remote server may change its
+    /// tool definitions; discovery repeats at this interval.
     /// </summary>
     public TimeSpan RefreshInterval { get; set; } = TimeSpan.FromMinutes(5);
 
-    /// <summary>Bir sunucuya baglanma ve tool listeleme icin ust sure.</summary>
+    /// <summary>The upper time bound for connecting to a server and listing its tools.</summary>
     public TimeSpan ConnectionTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// Tek bir sunucudan kabul edilecek ust tool sayisi. Asan tool'lar atilir
-    /// ve bir uyari loglanir.
+    /// The maximum number of tools accepted from a single server. Tools
+    /// beyond this limit are dropped and a warning is logged.
     /// </summary>
     /// <remarks>
-    /// Uzak sunucu guvenilmez sayilir. Sinirsiz bir tool listesi hem model
-    /// baglaminda hem de arayuzde denetimsiz buyume uretirdi.
+    /// The remote server is treated as untrusted. An unbounded tool list
+    /// would produce uncontrolled growth both in the model context and in
+    /// the UI.
     /// </remarks>
     public int MaxToolsPerServer { get; set; } = 100;
 
     /// <summary>
-    /// Mod A'da (<see cref="AgentDefinition.McpResourceUris"/>) tek bir kaynaktan
-    /// baglama eklenecek ust bayt siniri. Asan icerik kirpilir.
+    /// In Mode A (<see cref="AgentDefinition.McpResourceUris"/>), the maximum
+    /// number of bytes added to the context from a single resource. Content
+    /// beyond this limit is trimmed.
     /// </summary>
     public int MaxResourceBytesPerResource { get; set; } = 64 * 1024;
 
     /// <summary>
-    /// Mod A'da bir agent tanimindaki tum kaynaklarin toplam bayt siniri.
-    /// Asan kaynaklar kirpilir; siniri asindan sonrakiler tamamen atlanir.
+    /// In Mode A, the total byte limit across all resources of an agent
+    /// definition. Resources beyond this limit are trimmed; resources beyond
+    /// the total limit are skipped entirely.
     /// </summary>
     public int MaxResourceBytesTotal { get; set; } = 256 * 1024;
 
     /// <summary>
-    /// OAuth Mod 1 (yetkilendirme kodu) geri donus adreslerinin taban URI'si.
-    /// Ornek: <c>https://myapp.example.com/</c>. Saglayicida onceden kayitli
-    /// olmalidir. <see langword="null"/> ise OAuth acik bir sunucuya baglanilmaz
-    /// ve <c>/oauth/start</c> <see cref="McpOAuthOperationStatus.NotConfigured"/> doner.
+    /// The base URI of the OAuth Mode 1 (authorization code) callback
+    /// addresses. Example: <c>https://myapp.example.com/</c>. Must already be
+    /// registered with the provider. When <see langword="null"/>, no
+    /// connection is made to a server with OAuth enabled, and
+    /// <c>/oauth/start</c> returns <see cref="McpOAuthOperationStatus.NotConfigured"/>.
     /// </summary>
     public Uri? OAuthCallbackBaseUri { get; set; }
 }

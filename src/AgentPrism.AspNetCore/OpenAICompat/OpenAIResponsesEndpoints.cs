@@ -11,35 +11,36 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// OpenAI Responses API ile uyumlu calistirma ucu.
+/// Run endpoint compatible with the OpenAI Responses API.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Neden MAF'in <c>MapOpenAIResponses()</c> ucu kullanilmiyor?</strong>
-/// O uc, depolamayi <c>IConversationStorage</c>, <c>IResponsesService</c> ve
-/// <c>IAgentConversationIndex</c> aracilariyla yapar; bu uc arayuz de
-/// <c>Microsoft.Agents.AI.Hosting.OpenAI</c> icinde <strong>internal</strong>'dir
-/// (olculdu, 1.16.0-alpha.260730.1). Tuketici bir derleme bu tipleri adlandiramaz,
-/// dolayisiyla kayit sirasi ne olursa olsun MAF'in bellek ici uygulamalarinin
-/// yerine gecemez. O yolu kullanmak kalicilik, kiraci yalitimi, denetim izi ve
-/// yeniden oynatma vaatlerinin tumunu sessizce kaybettirirdi.
+/// <strong>Why isn't MAF's <c>MapOpenAIResponses()</c> endpoint used?</strong>
+/// That endpoint does its storage through the <c>IConversationStorage</c>,
+/// <c>IResponsesService</c>, and <c>IAgentConversationIndex</c> abstractions;
+/// those interfaces are also <strong>internal</strong> inside
+/// <c>Microsoft.Agents.AI.Hosting.OpenAI</c> (measured, 1.16.0-alpha.260730.1).
+/// A consumer assembly cannot name these types, so no matter the registration
+/// order it cannot replace MAF's in-memory implementations. Using that path
+/// would silently lose all of the persistence, tenant isolation, audit trail,
+/// and replay guarantees.
 /// </para>
 /// <para>
-/// Bunun yerine paketin <em>public</em> yardimcisi <see cref="OpenAIResponses"/>
-/// kullanilir: govde cozumleme ve OpenAI bicimli yanit uretimi MAF'a, agent
-/// cozumleme ve kalicilik AgentPrism'e aittir. Kablo bicimi MAF'tan geldigi icin
-/// stok OpenAI SDK'lari ile uyum korunur.
-/// Gerekce: <c>docs/KARARLAR.md</c>, karar K-036.
+/// The package's <em>public</em> helper <see cref="OpenAIResponses"/> is used
+/// instead: body parsing and OpenAI-shaped response generation belong to MAF,
+/// agent resolution and persistence belong to AgentPrism. Because the wire
+/// format comes from MAF, compatibility with stock OpenAI SDKs is preserved.
+/// Rationale: <c>docs/KARARLAR.md</c>, decision K-036.
 /// </para>
 /// </remarks>
 internal static class OpenAIResponsesEndpoints
 {
-    /// <summary>Responses ucunu baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="sessionStore">Oturum kaliciligi icin kullanilacak depo.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
-    /// <param name="prefix">Ek referanslari icin kullanilacak yol oneki.</param>
-    /// <param name="idempotencyFilter">Faz 43 — <c>Idempotency-Key</c> destegi.</param>
+    /// <summary>Connects the Responses endpoint.</summary>
+    /// <param name="builder">Endpoint group.</param>
+    /// <param name="sessionStore">Store to use for session persistence.</param>
+    /// <param name="roles">Resolved role policies.</param>
+    /// <param name="prefix">Path prefix to use for attachment references.</param>
+    /// <param name="idempotencyFilter">Phase 43 — <c>Idempotency-Key</c> support.</param>
     public static void Map(
         IEndpointRouteBuilder builder,
         AgentSessionStore sessionStore,
@@ -72,16 +73,17 @@ internal static class OpenAIResponsesEndpoints
             .AddEndpointFilter(idempotencyFilter)
             .WithName("AgentPrismOpenAIResponses")
             .WithTags("AgentPrism", "OpenAI")
-            .WithSummary("OpenAI Responses API ile uyumlu calistirma ucu.")
+            .WithSummary("Run endpoint compatible with the OpenAI Responses API.")
             .WithDescription(
-                "Agent, 'model' alanindan secilir; bulunamazsa 'metadata.entity_id' denenir. " +
-                "'conversation' verilirse oturum o kimlikle, verilmezse uretilen yanit kimligiyle " +
-                "saklanir; boylece 'previous_response_id' ile zincirleme calisir.")
-            // Govdedeki 'stream' bayragina gore ikisinden biri: JSON govde (ham
-            // JsonElement, sema MAF'in OpenAIResponses.WriteResponse'undan gelir
-            // ve derleme zamaninda tipli degildir) veya SSE. Ayni statu kodu icin
-            // IKINCI bir .Produces cagrisi BIRINCIYI EZER (olculdu); ikisi tek
-            // cagriya additionalContentTypes ile yazilmalidir.
+                "The agent is selected from the 'model' field; if not found, 'metadata.entity_id' is tried. " +
+                "If 'conversation' is given the session is stored under that identifier; if not, under the " +
+                "generated response identifier, so chaining with 'previous_response_id' works.")
+            // One of two shapes, depending on the 'stream' flag in the body:
+            // a JSON body (raw JsonElement, the schema comes from MAF's
+            // OpenAIResponses.WriteResponse and is not typed at compile time)
+            // or SSE. For the same status code, a SECOND .Produces call
+            // OVERWRITES the FIRST (measured); the two must be written in a
+            // single call using additionalContentTypes.
             .Produces<JsonElement>(
                 StatusCodes.Status200OK,
                 contentType: "application/json",
@@ -159,14 +161,15 @@ internal static class OpenAIResponsesEndpoints
 
         var responseId = OpenAIResponses.CreateResponseId();
 
-        // Konusma kimligi verilmisse oturum o kimlikle saklanir ve turlar arasinda
-        // sabit kalir. Verilmemisse yeni yanit kimligiyle saklanir; istemci bir
-        // sonraki cagriyi 'previous_response_id' ile zincirler.
+        // If a conversation identifier is given, the session is stored under
+        // that identifier and stays fixed across turns. If not given, it is
+        // stored under the new response identifier; the client chains the next
+        // call with 'previous_response_id'.
         var saveId = runRequest.ConversationId ?? responseId;
         var loadId = OpenAIResponses.GetSessionStoreId(runRequest) ?? saveId;
 
-        // 'conversation' ve 'previous_response_id' guvenilmez girdidir; yuklemeden
-        // once kiraci sahipligi dogrulanir.
+        // 'conversation' and 'previous_response_id' are untrusted input;
+        // tenant ownership is verified before loading.
         if (!await OpenAICompatSupport
                 .IsOwnedByTenantAsync(sessions, tenantContext, loadId, cancellationToken)
                 .ConfigureAwait(false))
@@ -177,9 +180,10 @@ internal static class OpenAIResponsesEndpoints
                 type: "not_found_error");
         }
 
-        // Govdeye gomulu 'data:' URI'leri (image_url, input_file) MAF tarafindan
-        // zaten DataContent'e cevrilmistir; agent'a gonderilmeden once birer ege
-        // donusturulur ki sohbet gecmisi kucuk kalsin (docs/14-COK-MODLULUK.md, 14.1).
+        // 'data:' URIs embedded in the body (image_url, input_file) have
+        // already been converted to DataContent by MAF; before being sent to
+        // the agent they are each converted into an attachment so the chat
+        // history stays small (docs/14-COK-MODLULUK.md, 14.1).
         if (await AttachmentIngestion.ReplaceEmbeddedDataAsync(
                 runRequest.Messages,
                 prefix,
@@ -221,14 +225,14 @@ internal static class OpenAIResponsesEndpoints
         }
         catch (Exception ex)
         {
-            // 🚨 HATA-S2-003/HATA-S3-005: K-296'nin duzeltmesi yalniz akisli
-            // varyantlari (ResponsesStream asagida) kapsamis, bu akissiz kardes
-            // yolu KACIRMIS. Dar bir 'when' filtresi (yalniz AgentPrismException/
-            // InvalidOperationException/HttpRequestException) gercek saglayici SDK
-            // istisnalarini (orn. Anthropic'in AnthropicApiException'i
-            // Exception'dan DOGRUDAN turer, HttpRequestException'dan TUREMEZ)
-            // yakalamadan kacirir ve ASP.NET Core'un genel isleyicisine sizip ciplak
-            // 500 uretirdi. Burada yakalanmayan HICBIR sey yoktur.
+            // 🚨 HATA-S2-003/HATA-S3-005: K-296's fix covered only the streaming
+            // variant (ResponsesStream below); it MISSED this non-streaming
+            // sibling path. A narrow 'when' filter (only AgentPrismException/
+            // InvalidOperationException/HttpRequestException) would let real
+            // provider SDK exceptions (e.g. Anthropic's AnthropicApiException
+            // derives DIRECTLY from Exception, NOT from HttpRequestException)
+            // slip through uncaught and leak into ASP.NET Core's generic
+            // handler, producing a bare 500. Nothing goes uncaught here.
             return OpenAICompatSupport.Error(
                 StatusCodes.Status502BadGateway,
                 ex.Message,
@@ -246,35 +250,37 @@ internal static class OpenAIResponsesEndpoints
     }
 
     /// <summary>
-    /// Onay bekleyen tool cagrilarini <c>output</c> dizisine <c>function_call</c>
-    /// ogeleri olarak ekler.
+    /// Appends tool calls pending approval to the <c>output</c> array as
+    /// <c>function_call</c> items.
     /// </summary>
     /// <remarks>
     /// <para>
     /// 🚨 HATA-S2-004/MT-COMPAT-029: <c>OpenAIResponses.WriteResponse</c> (MAF,
-    /// alpha paket) bir <c>ToolApprovalRequestContent</c>'i taniMAZ — donusum
-    /// tablosu yalniz <c>FunctionCallContent</c>/<c>FunctionResultContent</c>/
-    /// bilinen metin-benzeri icerikleri isler (decompile ile dogrulandi,
-    /// <c>AgentResponseExtensions.ToItemContent</c>). Onay bekleyen bir cagri bu
-    /// yuzden <c>output</c>'tan SESSIZCE dusuyordu; caller'in gordugu tek sey
-    /// bos bir dizi ve <c>status: "completed"</c> — cagrinin var oldugunu HIC
-    /// bilmiyordu. <c>Response</c>/<c>FunctionToolCallItemResource</c> MAF
-    /// icinde <c>internal</c>'dir, guclu tipli bir cozum yazilamaz; bu yuzden
-    /// zaten uretilmis JSON, gercek OpenAI Responses API'nin belgelenmis
-    /// <c>function_call</c> oge semasiyla (id/type/status/call_id/name/arguments)
-    /// BIREBIR ayni sekilde yama uygulanir. Bu, MAF'in NORMAL (onay istemeyen)
-    /// bir tool cagrisi icin urettigi ogeyle de ayni bicimdir — SDK acisindan
-    /// sIradan bir bekleyen fonksiyon cagrisindan ayirt edilemez, ki dogru
-    /// olan da budur: caller standart OpenAI akisini izleyip bir sonraki turda
-    /// <c>function_call_output</c> saglayabilir (ya da yonetim API'sine gidip
-    /// resmi onay akisini kullanabilir).
+    /// alpha package) does NOT recognize a <c>ToolApprovalRequestContent</c> —
+    /// its conversion table only handles <c>FunctionCallContent</c>/
+    /// <c>FunctionResultContent</c>/known text-like content (verified by
+    /// decompiling <c>AgentResponseExtensions.ToItemContent</c>). A call
+    /// pending approval was therefore SILENTLY dropped from <c>output</c>; all
+    /// the caller saw was an empty array and <c>status: "completed"</c> — it
+    /// had NO idea the call even existed. <c>Response</c>/
+    /// <c>FunctionToolCallItemResource</c> are <c>internal</c> inside MAF, so
+    /// a strongly-typed fix cannot be written; instead the already-produced
+    /// JSON is patched to be BYTE-FOR-BYTE identical to the real OpenAI
+    /// Responses API's documented <c>function_call</c> item schema
+    /// (id/type/status/call_id/name/arguments). This is also the exact shape
+    /// MAF produces for a NORMAL (non-approval) tool call — indistinguishable
+    /// from the SDK's point of view from an ordinary pending function call,
+    /// which is the correct behavior: the caller can follow the standard
+    /// OpenAI flow and supply <c>function_call_output</c> on the next turn (or
+    /// go to the management API and use the official approval flow).
     /// </para>
     /// <para>
-    /// <c>status</c> alani <em>degistirilmez</em> (hala <c>"completed"</c>) —
-    /// bu, MAF'in HER function_call ogesi icin kullandigi degerle tutarlidir
-    /// (tool GERCEKTEN calismis olsun ya da olmasin) ve gercek OpenAI Responses
-    /// API'sinde de fonksiyon cagirma "requires_action" degil boyle temsil
-    /// edilir. Yalniz <c>output</c> dizisi eksiksiz hale gelir.
+    /// The <c>status</c> field is <em>not changed</em> (still
+    /// <c>"completed"</c>) — this is consistent with the value MAF uses for
+    /// EVERY function_call item (whether the tool ACTUALLY ran or not), and
+    /// the real OpenAI Responses API represents a pending function call this
+    /// way too, not as "requires_action". Only the <c>output</c> array becomes
+    /// complete.
     /// </para>
     /// </remarks>
     private static JsonElement AppendPendingApprovalOutputItems(JsonElement responseJson, IEnumerable<ChatMessage> messages)
@@ -318,12 +324,13 @@ internal static class OpenAIResponsesEndpoints
     }
 
     /// <summary>
-    /// Akisli yaniti yazar.
+    /// Writes the streaming response.
     /// </summary>
     /// <remarks>
-    /// Cerceveler <see cref="OpenAIResponses.WriteResponseStreamAsync"/> tarafindan
-    /// zaten tam SSE bicimiyle uretilir (<c>event:</c> + <c>data:</c> + bos satir);
-    /// yeniden cerceveleme bozulmaya yol acardi, bu yuzden oldugu gibi yazilir.
+    /// Frames are already produced in the full SSE format by
+    /// <see cref="OpenAIResponses.WriteResponseStreamAsync"/> (<c>event:</c> +
+    /// <c>data:</c> + a blank line); re-framing them would cause corruption,
+    /// so they are written as is.
     /// </remarks>
     private sealed class ResponsesStream(
         AIAgent agent,
@@ -363,13 +370,14 @@ internal static class OpenAIResponsesEndpoints
             }
             catch (OperationCanceledException)
             {
-                // Istemci baglantiyi kesti.
+                // The client disconnected.
             }
             catch (Exception ex)
             {
-                // 🚨 K-296 (bkz. AgentEndpoints.ExecuteStreamingAsync): dar bir istisna
-                // filtresi gercek saglayici SDK istisnalarini kacirip baglantiyi 'error'
-                // cercevesi UretMEDEN kapatirdi. Burada HER istisna bir cerceveye donusur.
+                // 🚨 K-296 (see AgentEndpoints.ExecuteStreamingAsync): a narrow
+                // exception filter would let real provider SDK exceptions slip
+                // through and close the connection WITHOUT producing an 'error'
+                // frame. Here EVERY exception turns into a frame.
                 var payload = JsonSerializer.Serialize(
                     new ResponsesStreamError("error", ex.Message),
                     OpenAICompatSupport.JsonOptions);

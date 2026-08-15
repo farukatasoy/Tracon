@@ -7,17 +7,17 @@ using Microsoft.Extensions.Options;
 
 namespace AgentPrism;
 
-/// <summary>Skill script calistirma izinlerinin yonetim uclari.</summary>
+/// <summary>Management endpoints for skill script run grants.</summary>
 /// <remarks>
-/// Izin vermek, sunucuda kod calistirma yetkisi vermektir. Bu yuzden okuma
-/// disindaki her uc yonetici rolune baglidir ve depo katmanindaki denetim izi
-/// dekoratoru her degisikligi kaydeder.
+/// Granting is granting authority to run code on the server. That is why every endpoint
+/// other than read requires the admin role, and the audit trail decorator in the store
+/// layer records every change.
 /// </remarks>
 internal static class SkillScriptGrantEndpoints
 {
-    /// <summary>Izin uclarini baglar.</summary>
-    /// <param name="builder">Uc grubu.</param>
-    /// <param name="roles">Cozulmus rol policy'leri.</param>
+    /// <summary>Maps the grant endpoints.</summary>
+    /// <param name="builder">The endpoint group.</param>
+    /// <param name="roles">The resolved role policies.</param>
     public static void Map(IEndpointRouteBuilder builder, AgentPrismRolePolicies roles)
     {
         builder.MapGet("/api/skill-script-grants", ListAsync)
@@ -25,14 +25,14 @@ internal static class SkillScriptGrantEndpoints
             .RequireApiKeyScope(ApiKeyScope.SecurityAdmin)
             .WithName("AgentPrismListSkillScriptGrants")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Kiracinin script calistirma izinlerini listeler.");
+            .WithSummary("Lists the tenant's script run grants.");
 
         builder.MapPost("/api/skill-script-grants", GrantAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.SecurityAdmin)
             .WithName("AgentPrismGrantSkillScript")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Bir skill script'ine calistirma izni verir.")
+            .WithSummary("Grants run permission to a skill script.")
             .Accepts<SkillScriptGrantRequest>("application/json");
 
         builder.MapDelete("/api/skill-script-grants/{skillName}", RevokeAsync)
@@ -40,7 +40,7 @@ internal static class SkillScriptGrantEndpoints
             .RequireApiKeyScope(ApiKeyScope.SecurityAdmin)
             .WithName("AgentPrismRevokeSkillScript")
             .WithTags("AgentPrism", "Governance")
-            .WithSummary("Bir script calistirma iznini iptal eder.");
+            .WithSummary("Revokes a script run grant.");
     }
 
     private static async Task<Ok<IReadOnlyList<SkillScriptGrant>>> ListAsync(
@@ -68,8 +68,8 @@ internal static class SkillScriptGrantEndpoints
 
         var request = bound!;
 
-        // Script calistirma kapali iken izin vermek yaniltici olurdu: arayuz
-        // "izin verildi" gosterir, calistirma yine reddedilirdi.
+        // Granting access while script running is disabled would be misleading: the UI
+        // would show "granted", but the run would still be rejected.
         if (!options.Value.Skills.Scripts.Enabled)
         {
             return TypedResults.Problem(

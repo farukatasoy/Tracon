@@ -7,45 +7,46 @@ using ModelContextProtocol.Client;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir <see cref="McpServerDefinition"/>'dan aktarim ayarlari kurar.
+/// Builds transport options from a <see cref="McpServerDefinition"/>.
 /// </summary>
 /// <remarks>
-/// <see cref="McpConnection"/> (uzun omurlu, onbellekli baglanti) ve kisa
-/// omurlu prompt/kaynak istemcileri ayni kurulum mantigini paylasir; bu sinif
-/// tekrari onlemek icin tek yerde toplar.
+/// <see cref="McpConnection"/> (the long-lived, cached connection) and the
+/// short-lived prompt/resource clients share the same setup logic; this
+/// class collects it in one place to avoid duplication.
 /// </remarks>
 internal static class McpTransportFactory
 {
-    /// <summary>Yalnizca uzak http/https adresleri kabul edilir; stdio yoktur (K-058).</summary>
+    /// <summary>Only remote http/https addresses are accepted; there is no stdio (K-058).</summary>
     [SuppressMessage(
         "Design",
         "MA0089:Optimize string method usage",
-        Justification = "Sema karsilastirmasi buyuk/kucuk harfe duyarsiz olmalidir.")]
+        Justification = "The scheme comparison must be case-insensitive.")]
     public static bool IsRemoteHttp(Uri endpoint)
         => endpoint.IsAbsoluteUri
             && (string.Equals(endpoint.Scheme, "https", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(endpoint.Scheme, "http", StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>Bir sunucunun OAuth geri donus (callback) adresini kurar.</summary>
+    /// <summary>Builds a server's OAuth callback address.</summary>
     /// <remarks>
-    /// Saglayicida onceden kayitli olmalidir; bu yuzden istekten degil, sabit
-    /// <see cref="AgentPrismMcpOptions.OAuthCallbackBaseUri"/> ayarindan turetilir.
+    /// Must already be registered with the provider; this is why it is
+    /// derived from the fixed <see cref="AgentPrismMcpOptions.OAuthCallbackBaseUri"/>
+    /// setting, not from the request.
     /// </remarks>
     public static Uri BuildCallbackUri(Uri baseUri, string serverName)
         => new(baseUri, $"api/mcp-servers/{Uri.EscapeDataString(serverName)}/oauth/callback");
 
     /// <summary>
-    /// Sunucu tanimindan, arka planda tekrar kullanilan (etkilesimsiz) baglanti
-    /// icin aktarim ayarlarini kurar.
+    /// Builds transport options from a server definition for the (non-interactive)
+    /// connection reused in the background.
     /// </summary>
     /// <remarks>
-    /// OAuth acikken <see cref="ClientOAuthOptions.AuthorizationCallbackHandler"/>
-    /// kasitli olarak <strong>hemen basarisiz olur</strong>: bu, arka plan
-    /// tazeleme dongusudur ve etkilesimli bir yetkilendirmeyi tamamlayacak bir
-    /// yonetici yoktur. Gecerli token'lar <paramref name="tokenCache"/> uzerinden
-    /// yeniden kullanilir; yoksa baglanti "erisilemedi" olarak loglanir ve o
-    /// sunucunun tool'lari listeden duser — <c>/oauth/start</c> ile yeniden
-    /// yetkilendirme beklenir.
+    /// While OAuth is enabled, <see cref="ClientOAuthOptions.AuthorizationCallbackHandler"/>
+    /// deliberately <strong>fails immediately</strong>: this is the background
+    /// refresh loop, and there is no administrator present to complete an
+    /// interactive authorization. Valid tokens are reused through
+    /// <paramref name="tokenCache"/>; otherwise the connection is logged as
+    /// "unreachable" and that server's tools drop out of the list —
+    /// re-authorization is expected via <c>/oauth/start</c>.
     /// </remarks>
     public static HttpClientTransportOptions BuildTransportOptions(
         McpServerDefinition server,
@@ -65,20 +66,22 @@ internal static class McpTransportFactory
         };
 
     /// <summary>
-    /// OAuth acikken ama <see cref="AgentPrismMcpOptions.OAuthCallbackBaseUri"/>
-    /// ayarlanmamisken sunucu atlanmalidir; bu, saglayicida kayitli olmayan bir
-    /// geri donus adresiyle baglanma girisimini onler.
+    /// When OAuth is enabled but <see cref="AgentPrismMcpOptions.OAuthCallbackBaseUri"/>
+    /// is not set, the server must be skipped; this prevents an attempt to
+    /// connect with a callback address that is not registered with the provider.
     /// </summary>
     public static bool RequiresUnconfiguredCallback(McpServerDefinition server, AgentPrismMcpOptions mcpOptions)
         => server.OAuthEnabled && mcpOptions.OAuthCallbackBaseUri is null;
 
     /// <summary>
-    /// Kimlik dogrulama basligini yapilandirmadan cozer ve ek basliklarla birlestirir.
+    /// Resolves the authentication header from configuration and merges it
+    /// with additional headers.
     /// </summary>
     /// <remarks>
-    /// Sunucu tanimi sirri <strong>tasimaz</strong>; yalnizca degerin okunacagi
-    /// yapilandirma anahtarinin adini tasir. Deger burada, calisma aninda cozulur
-    /// ve <c>dotnet user-secrets</c> veya ortam degiskeninde kalir.
+    /// The server definition <strong>carries no secret</strong>; it only
+    /// carries the name of the configuration key the value is read from. The
+    /// value is resolved here, at run time, and stays in <c>dotnet
+    /// user-secrets</c> or an environment variable.
     /// </remarks>
     private static Dictionary<string, string> BuildHeaders(
         McpServerDefinition server,
@@ -89,10 +92,11 @@ internal static class McpTransportFactory
 
         if (server.OAuthEnabled)
         {
-            // OAuth acikken Authorization basligini ClientOAuthOptions yonetir;
-            // ikisi ayni basligi yazmaya calisirsa hangisinin kazandigi sunucu
-            // SDK'sinin ic detayina kalirdi. GovernanceEndpoints.Validate bu
-            // kombinasyonu zaten 400 ile reddeder; burasi son bir savunmadir.
+            // While OAuth is enabled, ClientOAuthOptions manages the
+            // Authorization header; if both tried to write the same header,
+            // which one wins would be an internal detail of the server SDK.
+            // GovernanceEndpoints.Validate already rejects this combination
+            // with 400; this is a last line of defense.
             return headers;
         }
 
@@ -108,10 +112,10 @@ internal static class McpTransportFactory
         else
         {
             logger.LogWarning(
-                "MCP sunucusu '{ServerName}' icin '{ConfigurationKey}' yapilandirma anahtari bos. " +
-                "Kimlik dogrulama basligi gonderilmeyecek.",
-                server.Name,
-                key);
+                "Configuration key '{ConfigurationKey}' for MCP server '{ServerName}' is empty. " +
+                "No authentication header will be sent.",
+                key,
+                server.Name);
         }
 
         return headers;
@@ -136,19 +140,20 @@ internal static class McpTransportFactory
             Scopes = ParseScopes(server.OAuthScopes),
             RedirectUri = BuildCallbackUri(baseUri, server.Name),
             TokenCache = tokenCache,
-            // Etkilesimsiz yol: gecerli bir token yoksa hemen basarisiz olunur,
-            // McpConnection.ConnectAsync'in genel "sunucuya baglanilamadi"
-            // yakalayicisina duser ve o sunucunun tool'lari bu tazelemede
-            // listelenmez. Gercek yetkilendirme yalniz McpOAuthAuthorizationCoordinator
-            // uzerinden (yonetici arayuzu, /oauth/start) yapilir.
+            // Non-interactive path: if there is no valid token, this fails
+            // immediately, falls into McpConnection.ConnectAsync's general
+            // "could not connect to server" catch, and that server's tools
+            // are not listed in this refresh. Real authorization only happens
+            // through McpOAuthAuthorizationCoordinator (the admin UI,
+            // /oauth/start).
             AuthorizationCallbackHandler = (_, _) => Task.FromException<AuthorizationResult?>(
                 new InvalidOperationException(
-                    $"'{server.Name}' MCP sunucusu OAuth yetkilendirmesi gerektiriyor. " +
-                    "Yonetici arayuzden 'Yetkilendir' ile /oauth/start akisini baslatin.")),
+                    $"MCP server '{server.Name}' requires OAuth authorization. " +
+                    "Start the /oauth/start flow from the admin UI with 'Authorize'.")),
         };
     }
 
-    /// <summary>OAuth istemci gizli anahtarini yapilandirmadan cozer (K-059).</summary>
+    /// <summary>Resolves the OAuth client secret from configuration (K-059).</summary>
     public static string? ResolveClientSecret(McpServerDefinition server, IConfiguration configuration, ILogger logger)
     {
         if (server.OAuthClientSecretConfigurationKey is not { Length: > 0 } key)
@@ -162,14 +167,14 @@ internal static class McpTransportFactory
         }
 
         logger.LogWarning(
-            "MCP sunucusu '{ServerName}' icin OAuth '{ConfigurationKey}' yapilandirma anahtari bos.",
-            server.Name,
-            key);
+            "OAuth configuration key '{ConfigurationKey}' for MCP server '{ServerName}' is empty.",
+            key,
+            server.Name);
 
         return null;
     }
 
-    /// <summary>Bosluk ile ayrilmis scope metnini listeye cevirir.</summary>
+    /// <summary>Converts a space-separated scope string into a list.</summary>
     public static IEnumerable<string>? ParseScopes(string? scopes)
         => string.IsNullOrWhiteSpace(scopes)
             ? null

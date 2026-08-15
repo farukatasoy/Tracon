@@ -87,9 +87,9 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
   // Spans and tool rows are written when the run closes, so both are fetched
   // only after it has settled. A 404 on the trace is expected: successful runs
   // are sampled, so most of them carry no spans at all.
-  // Alt calistirmalar icin trace HIC istenmez: agactaki her calistirma ayni
-  // trace'i paylasir ve tamponun sahibi koktur, dolayisiyla cevap her zaman
-  // 404 olurdu.
+  // Child runs NEVER request a trace: every run in the tree shares the same
+  // trace, and the buffer's owner is the root run, so the response would
+  // always be 404.
   const trace = useQuery({
     queryKey: ['run-trace', id],
     queryFn: () => api.runTrace(id),
