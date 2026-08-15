@@ -1,116 +1,117 @@
 namespace AgentPrism;
 
-/// <summary>Veri saklama ve arsivleme ayarlari — Faz 25.</summary>
+/// <summary>Defines data retention and archival options — phase 25.</summary>
 /// <remarks>
 /// <para>
-/// <c>AgentPrism:Retention</c> yapilandirma bolumunden okunur. Bu sinif
-/// yalnizca <strong>yapilandirma tabanli varsayilanlari</strong> tasir; asil
-/// kaynak veritabanindaki <c>retention_policies</c> tablosudur
-/// (<see cref="IRetentionPolicyStore"/>). Bir hedef icin veritabaninda kayit
-/// varsa bu ayarlar tamamen yok sayilir.
+/// Read from the <c>AgentPrism:Retention</c> configuration section. This class
+/// carries only <strong>configuration-based defaults</strong>; the source of
+/// truth is the <c>retention_policies</c> database table through
+/// <see cref="IRetentionPolicyStore"/>. These settings are ignored when a
+/// database record exists for a target.
 /// </para>
 /// <para>
-/// 🚨 <see cref="Enabled"/> varsayilan <see langword="false"/>'dur. Bir paket
-/// yukseltmesi, tuketici hicbir yapilandirma eklemeden veri silmemelidir —
-/// yapilandirma tabanli varsayilanlarin devreye girmesi icin bu bayragin da
-/// acikca <see langword="true"/> yapilmasi gerekir.
+/// 🚨 <see cref="Enabled"/> defaults to <see langword="false"/>. A package
+/// upgrade must not delete data before a consumer adds configuration. This flag
+/// must explicitly be <see langword="true"/> before configuration defaults apply.
 /// </para>
 /// </remarks>
 public sealed class AgentPrismRetentionOptions
 {
-    /// <summary>Yapilandirma bolumu adi.</summary>
+    /// <summary>Gets the configuration section name.</summary>
     public const string SectionName = "AgentPrism:Retention";
 
     /// <summary>
-    /// Yapilandirma tabanli varsayilanlar etkin mi. Kapaliyken asagidaki hedef
-    /// ayarlari okunsa bile hicbir sey silinmez — yalniz veritabanindaki acik
-    /// politikalar gecerli olur.
+    /// Gets or sets whether configuration-based defaults are enabled. When
+    /// disabled, no data is deleted even if target settings below are read; only
+    /// explicit database policies apply.
     /// </summary>
     public bool Enabled { get; set; }
 
-    /// <summary>Bir silme partisindeki en fazla satir sayisi.</summary>
+    /// <summary>Gets or sets the maximum row count in a deletion batch.</summary>
     public int BatchSize { get; set; } = 5000;
 
-    /// <summary>Partiler arasindaki bekleme suresi (uretim yukunu bogmamak icin).</summary>
+    /// <summary>Gets or sets the delay between batches to avoid saturating production load.</summary>
     public TimeSpan BatchDelay { get; set; } = TimeSpan.FromMilliseconds(100);
 
-    /// <summary><see cref="RetentionTargets.RunEvents"/> icin varsayilan.</summary>
+    /// <summary>Gets the default for <see cref="RetentionTargets.RunEvents"/>.</summary>
     public RetentionTargetOptions RunEvents { get; } = new() { MaxAgeDays = 30 };
 
-    /// <summary><see cref="RetentionTargets.ToolInvocations"/> icin varsayilan.</summary>
+    /// <summary>Gets the default for <see cref="RetentionTargets.ToolInvocations"/>.</summary>
     public RetentionTargetOptions ToolInvocations { get; } = new() { MaxAgeDays = 90 };
 
-    /// <summary><see cref="RetentionTargets.Traces"/> icin varsayilan (trace ve span'ler).</summary>
+    /// <summary>Gets the default for <see cref="RetentionTargets.Traces"/>, including traces and spans.</summary>
     public RetentionTargetOptions Spans { get; } = new() { MaxAgeDays = 14 };
 
-    /// <summary><see cref="RetentionTargets.Jobs"/> icin varsayilan (yalniz tamamlananlar).</summary>
+    /// <summary>Gets the default for <see cref="RetentionTargets.Jobs"/>, limited to completed jobs.</summary>
     public RetentionTargetOptions Jobs { get; } = new() { MaxAgeDays = 30 };
 
-    /// <summary><see cref="RetentionTargets.WebhookDeliveries"/> icin varsayilan (yalniz teslim edilenler).</summary>
+    /// <summary>Gets the default for <see cref="RetentionTargets.WebhookDeliveries"/>, limited to delivered webhooks.</summary>
     public RetentionTargetOptions WebhookDeliveries { get; } = new() { MaxAgeDays = 7 };
 
-    /// <summary><see cref="RetentionTargets.EvalCaseResults"/> icin varsayilan.</summary>
+    /// <summary>Gets the default for <see cref="RetentionTargets.EvalCaseResults"/>.</summary>
     public RetentionTargetOptions EvalCaseResults { get; } = new() { MaxAgeDays = 180 };
 
-    /// <summary><see cref="RetentionTargets.WorkflowCheckpoints"/> icin varsayilan (tamamlanan calistirmadan sonra).</summary>
+    /// <summary>Gets the default for <see cref="RetentionTargets.WorkflowCheckpoints"/> after a run completes.</summary>
     public RetentionTargetOptions WorkflowCheckpoints { get; } = new() { MaxAgeDays = 7 };
 
-    /// <summary><see cref="RetentionTargets.SkillScriptGrants"/> icin varsayilan (suresi dolan/iptal edilenler).</summary>
+    /// <summary>Gets the default for expired or revoked <see cref="RetentionTargets.SkillScriptGrants"/>.</summary>
     public RetentionTargetOptions SkillScriptGrants { get; } = new() { MaxAgeDays = 30 };
 
-    /// <summary><see cref="RetentionTargets.Attachments"/> icin varsayilan (yalniz sahipsizler).</summary>
+    /// <summary>Gets the default for orphaned <see cref="RetentionTargets.Attachments"/>.</summary>
     public RetentionTargetOptions Attachments { get; } = new() { MaxAgeDays = 7 };
 
     /// <summary>
-    /// <see cref="RetentionTargets.Sessions"/> icin varsayilan. <see cref="RetentionTargetOptions.MaxAgeDays"/>
-    /// varsayilan <see langword="null"/>'dur: kullanici verisi, sunulur ama KAPALI.
+    /// Gets the default for <see cref="RetentionTargets.Sessions"/>. Its
+    /// <see cref="RetentionTargetOptions.MaxAgeDays"/> defaults to <see langword="null"/>:
+    /// this is user data, supported but disabled.
     /// </summary>
     public RetentionTargetOptions Sessions { get; } = new();
 
     /// <summary>
-    /// <see cref="RetentionTargets.Conversations"/> icin varsayilan. <see cref="RetentionTargetOptions.MaxAgeDays"/>
-    /// varsayilan <see langword="null"/>'dur: kullanici verisi, sunulur ama KAPALI.
+    /// Gets the default for <see cref="RetentionTargets.Conversations"/>. Its
+    /// <see cref="RetentionTargetOptions.MaxAgeDays"/> defaults to <see langword="null"/>:
+    /// this is user data, supported but disabled.
     /// </summary>
     public RetentionTargetOptions Conversations { get; } = new();
 
     /// <summary>
-    /// <see cref="RetentionTargets.IdempotencyKeys"/> icin varsayilan (Faz 43).
-    /// Saklanan yanit istemciye zaten gonderilmis oldugu icin yeni bilgi acikca
-    /// etmez; yine de omur sinirlanir (43.5).
+    /// Gets the default for <see cref="RetentionTargets.IdempotencyKeys"/> (phase 43).
+    /// The stored response was already sent to the client, so it does not expose
+    /// new data, but its lifetime is still bounded (43.5).
     /// </summary>
     public RetentionTargetOptions IdempotencyKeys { get; } = new() { MaxAgeDays = 1 };
 
     /// <summary>
-    /// <see cref="RetentionTargets.RunInputs"/> icin varsayilan (Faz 47). Kullanici
-    /// verisi degildir (bkz. <see cref="RetentionTargets.RunInputs"/> ustundeki not);
-    /// <see cref="RetentionTargets.UserDataTargets"/>'ta yer almaz ve bu yuzden
-    /// yapilandirma tabanli varsayilan devreye girer.
+    /// Gets the default for <see cref="RetentionTargets.RunInputs"/> (phase 47).
+    /// It is not user data; see the note on <see cref="RetentionTargets.RunInputs"/>.
+    /// It is absent from <see cref="RetentionTargets.UserDataTargets"/>, so the
+    /// configuration-based default applies.
     /// </summary>
     public RetentionTargetOptions RunInputs { get; } = new() { MaxAgeDays = 30 };
 
     /// <summary>
-    /// <see cref="RetentionTargets.VoiceSessions"/> icin varsayilan (Faz 29). Kayit
-    /// yalniz ozet metrik tasir, ses baytlari degil (bkz. hedefin kendi notu).
+    /// Gets the default for <see cref="RetentionTargets.VoiceSessions"/> (phase 29).
+    /// The record contains summary metrics only, not audio bytes; see the target note.
     /// </summary>
     public RetentionTargetOptions VoiceSessions { get; } = new() { MaxAgeDays = 30 };
 
     /// <summary>
-    /// <see cref="RetentionTargets.RunScores"/> icin varsayilan (Faz 31).
-    /// <see cref="EvalCaseResults"/> ile ayni omur sinifindadir (degerlendirme geçmisi).
+    /// Gets the default for <see cref="RetentionTargets.RunScores"/> (phase 31).
+    /// It has the same lifetime class as <see cref="EvalCaseResults"/>: evaluation history.
     /// </summary>
     public RetentionTargetOptions RunScores { get; } = new() { MaxAgeDays = 180 };
 
     /// <summary>
-    /// <see cref="RetentionTargets.DocumentEmbeddings"/> icin varsayilan (Faz 51).
-    /// <see cref="RetentionTargetOptions.MaxAgeDays"/> varsayilan <see langword="null"/>'dur:
-    /// bilgi tabani icerigi kullanicinin yukledigi referans veridir, log/olay
-    /// degildir — otomatik silme yalniz acikca istenirse acilmali.
+    /// Gets the default for <see cref="RetentionTargets.DocumentEmbeddings"/> (phase 51).
+    /// <see cref="RetentionTargetOptions.MaxAgeDays"/> defaults to <see langword="null"/>:
+    /// knowledge-base content is reference data uploaded by the user, not a log
+    /// or event. Automatic deletion must be explicitly enabled.
     /// </summary>
     public RetentionTargetOptions DocumentEmbeddings { get; } = new();
 
-    /// <summary>Bir hedef adina karsilik gelen ayar nesnesini dondurur.</summary>
-    /// <param name="target">Bkz. <see cref="RetentionTargets"/>.</param>
-    /// <returns>Ayar nesnesi; bilinmeyen hedef icin <see langword="null"/>.</returns>
+    /// <summary>Returns the option object that corresponds to a target name.</summary>
+    /// <param name="target">See <see cref="RetentionTargets"/>.</param>
+    /// <returns>The option object, or <see langword="null"/> for an unknown target.</returns>
     internal RetentionTargetOptions? ForTarget(string target)
         => target switch
         {
@@ -134,12 +135,12 @@ public sealed class AgentPrismRetentionOptions
         };
 }
 
-/// <summary>Tek bir hedef icin yapilandirma tabanli saklama varsayilani.</summary>
+/// <summary>Defines a configuration-based retention default for one target.</summary>
 public sealed class RetentionTargetOptions
 {
-    /// <summary>Bu yastan eski satirlar silinmeye adaydir. <see langword="null"/> = bu hedef icin varsayilan devre disi.</summary>
+    /// <summary>Gets or sets the age after which rows are eligible for deletion. <see langword="null"/> disables the default for this target.</summary>
     public int? MaxAgeDays { get; set; }
 
-    /// <summary>Silmeden once arsivlensin mi.</summary>
+    /// <summary>Gets or sets whether to archive before deletion.</summary>
     public bool Archive { get; set; }
 }
