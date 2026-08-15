@@ -21,7 +21,7 @@ public sealed class AgentPrismSqlServerOptionsValidator : IValidateOptions<Agent
         if (string.IsNullOrWhiteSpace(options.ConnectionString))
         {
             (failures ??= []).Add(
-                $"{nameof(AgentPrismSqlServerOptions)}.{nameof(AgentPrismSqlServerOptions.ConnectionString)} bos olamaz. " +
+                $"{nameof(AgentPrismSqlServerOptions)}.{nameof(AgentPrismSqlServerOptions.ConnectionString)} cannot be empty. " +
                 $"Baglanti dizesini `UseSqlServer(...)` cagrisinda verin veya " +
                 $"'{AgentPrismSqlServerOptions.SectionName}:{nameof(AgentPrismSqlServerOptions.ConnectionString)}' " +
                 "ayarini `dotnet user-secrets` icinde tanimlayin.");
@@ -32,7 +32,7 @@ public sealed class AgentPrismSqlServerOptionsValidator : IValidateOptions<Agent
             (failures ??= []).Add(
                 $"{nameof(AgentPrismSqlServerOptions)}.{nameof(AgentPrismSqlServerOptions.SchemaName)} gecerli bir " +
                 "AgentPrism sema adi degil. Kucuk harf veya alt cizgi ile baslamali; kucuk harf, " +
-                $"rakam ve alt cizgi icermeli; en cok 63 karakter olmalidir. Gelen deger: '{options.SchemaName}'.");
+                $"rakam ve alt cizgi icermeli; en cok 63 karakter olmalidir. Actual value: '{options.SchemaName}'.");
         }
         else if (string.Equals(options.SchemaName, "dbo", StringComparison.Ordinal))
         {
@@ -45,7 +45,7 @@ public sealed class AgentPrismSqlServerOptionsValidator : IValidateOptions<Agent
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismSqlServerOptions)}.{nameof(AgentPrismSqlServerOptions.CommandTimeoutSeconds)} " +
-                $"0 ile 3600 arasinda olmalidir. Gelen deger: {options.CommandTimeoutSeconds}.");
+                $"0 ile 3600 arasinda olmalidir. Actual value: {options.CommandTimeoutSeconds}.");
         }
 
         return failures is null

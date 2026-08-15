@@ -20,14 +20,14 @@ public sealed class RunReconciliationOptionsValidator : IValidateOptions<RunReco
         {
             return ValidateOptionsResult.Fail(
                 $"{nameof(RunReconciliationOptions)}.{nameof(RunReconciliationOptions.HeartbeatInterval)} " +
-                $"sifirdan buyuk olmalidir. Gelen deger: {options.HeartbeatInterval}.");
+                $"must be greater than zero. Actual value: {options.HeartbeatInterval}.");
         }
 
         if (options.OrphanThreshold <= TimeSpan.Zero)
         {
             return ValidateOptionsResult.Fail(
                 $"{nameof(RunReconciliationOptions)}.{nameof(RunReconciliationOptions.OrphanThreshold)} " +
-                $"sifirdan buyuk olmalidir. Gelen deger: {options.OrphanThreshold}.");
+                $"must be greater than zero. Actual value: {options.OrphanThreshold}.");
         }
 
         if (options.OrphanThreshold < options.HeartbeatInterval)
@@ -44,14 +44,14 @@ public sealed class RunReconciliationOptionsValidator : IValidateOptions<RunReco
         {
             return ValidateOptionsResult.Fail(
                 $"{nameof(RunReconciliationOptions)}.{nameof(RunReconciliationOptions.ScanInterval)} " +
-                $"sifirdan buyuk olmalidir. Gelen deger: {options.ScanInterval}.");
+                $"must be greater than zero. Actual value: {options.ScanInterval}.");
         }
 
         if (options.MaxRunsPerScan <= 0)
         {
             return ValidateOptionsResult.Fail(
                 $"{nameof(RunReconciliationOptions)}.{nameof(RunReconciliationOptions.MaxRunsPerScan)} " +
-                $"sifirdan buyuk olmalidir. Gelen deger: {options.MaxRunsPerScan}.");
+                $"must be greater than zero. Actual value: {options.MaxRunsPerScan}.");
         }
 
         return ValidateOptionsResult.Success;

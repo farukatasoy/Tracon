@@ -28,7 +28,7 @@ public sealed class AzureOpenAIProviderOptionsValidator : IValidateOptions<Azure
         if (options.Endpoint is null)
         {
             (failures ??= []).Add(
-                $"{nameof(AzureOpenAIProviderOptions)}.{nameof(AzureOpenAIProviderOptions.Endpoint)} bos olamaz. " +
+                $"{nameof(AzureOpenAIProviderOptions)}.{nameof(AzureOpenAIProviderOptions.Endpoint)} cannot be empty. " +
                 "Azure OpenAI'in tek bir genel adresi yoktur; her kaynagin kendi adresi vardir. " +
                 $"'{AzureOpenAIProviderOptions.SectionName}:{nameof(AzureOpenAIProviderOptions.Endpoint)}' " +
                 "ayarini 'https://<kaynak-adi>.openai.azure.com/' bicimiyle verin.");
@@ -56,8 +56,8 @@ public sealed class AzureOpenAIProviderOptionsValidator : IValidateOptions<Azure
         if (options.Timeout is { } timeout && timeout <= TimeSpan.Zero)
         {
             (failures ??= []).Add(
-                $"{nameof(AzureOpenAIProviderOptions)}.{nameof(AzureOpenAIProviderOptions.Timeout)} sifirdan buyuk olmalidir. " +
-                $"Gelen deger: {timeout}.");
+                $"{nameof(AzureOpenAIProviderOptions)}.{nameof(AzureOpenAIProviderOptions.Timeout)} must be greater than zero. " +
+                $"Actual value: {timeout}.");
         }
 
         for (var index = 0; index < options.Models.Count; index++)
@@ -66,7 +66,7 @@ public sealed class AzureOpenAIProviderOptionsValidator : IValidateOptions<Azure
             {
                 (failures ??= []).Add(
                     $"{nameof(AzureOpenAIProviderOptions)}.{nameof(AzureOpenAIProviderOptions.Models)}[{index}] " +
-                    "icin deployment adi bos olamaz.");
+                    "icin deployment adi cannot be empty.");
             }
         }
 

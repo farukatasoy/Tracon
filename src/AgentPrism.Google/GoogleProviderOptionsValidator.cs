@@ -27,7 +27,7 @@ public sealed class GoogleProviderOptionsValidator : IValidateOptions<GoogleProv
         if (string.IsNullOrWhiteSpace(options.ApiKey))
         {
             (failures ??= []).Add(
-                $"{nameof(GoogleProviderOptions)}.{nameof(GoogleProviderOptions.ApiKey)} bos olamaz. " +
+                $"{nameof(GoogleProviderOptions)}.{nameof(GoogleProviderOptions.ApiKey)} cannot be empty. " +
                 "Anahtari `UseGoogle(apiKey)` cagrisinda verin veya " +
                 $"'{GoogleProviderOptions.SectionName}:{nameof(GoogleProviderOptions.ApiKey)}' " +
                 "ayarini `dotnet user-secrets` icinde tanimlayin.");
@@ -37,14 +37,14 @@ public sealed class GoogleProviderOptionsValidator : IValidateOptions<GoogleProv
         {
             (failures ??= []).Add(
                 $"{nameof(GoogleProviderOptions)}.{nameof(GoogleProviderOptions.Endpoint)} mutlak bir adres olmalidir. " +
-                $"Gelen deger: '{options.Endpoint}'.");
+                $"Actual value: '{options.Endpoint}'.");
         }
 
         if (options.Timeout is { } timeout && timeout <= TimeSpan.Zero)
         {
             (failures ??= []).Add(
-                $"{nameof(GoogleProviderOptions)}.{nameof(GoogleProviderOptions.Timeout)} sifirdan buyuk olmalidir. " +
-                $"Gelen deger: {timeout}.");
+                $"{nameof(GoogleProviderOptions)}.{nameof(GoogleProviderOptions.Timeout)} must be greater than zero. " +
+                $"Actual value: {timeout}.");
         }
 
         for (var index = 0; index < options.Models.Count; index++)
@@ -53,7 +53,7 @@ public sealed class GoogleProviderOptionsValidator : IValidateOptions<GoogleProv
             {
                 (failures ??= []).Add(
                     $"{nameof(GoogleProviderOptions)}.{nameof(GoogleProviderOptions.Models)}[{index}] " +
-                    "icin model adi bos olamaz.");
+                    "icin model adi cannot be empty.");
             }
         }
 
