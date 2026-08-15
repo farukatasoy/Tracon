@@ -1,199 +1,200 @@
 namespace AgentPrism;
 
-/// <summary>Degerlendirme (eval) takimlarinin, vakalarinin ve kosularinin deposu.</summary>
+/// <summary>The store for evaluation (eval) suites, cases, and runs.</summary>
 public interface IEvalStore
 {
-    /// <summary>Kiracinin tum takimlarini listeler.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Adina gore siralanmis takimlar.</returns>
+    /// <summary>Lists all of a tenant's suites.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The suites, ordered by name.</returns>
     ValueTask<IReadOnlyList<EvalSuite>> ListSuitesAsync(
         string tenantId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Kiracida verilen adla eslesen takimi getirir.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="name">Takim adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Takim; yoksa <see langword="null"/>.</returns>
+    /// <summary>Fetches the suite matching the given name within the tenant.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="name">The suite name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The suite; <see langword="null"/> if it does not exist.</returns>
     ValueTask<EvalSuite?> GetSuiteAsync(
         string tenantId,
         string name,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Takimi olusturur veya gunceller.</summary>
-    /// <param name="suite">Kaydedilecek takim.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kimlik ve zaman damgalari atanmis takim.</returns>
+    /// <summary>Creates or updates the suite.</summary>
+    /// <param name="suite">The suite to save.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The suite with its identifier and timestamps assigned.</returns>
     ValueTask<EvalSuite> SaveSuiteAsync(EvalSuite suite, CancellationToken cancellationToken = default);
 
-    /// <summary>Takimi ve tum vakalarini/kosularini siler (cascade).</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="name">Takim adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Takim silindiyse <see langword="true"/>.</returns>
+    /// <summary>Deletes the suite and all of its cases/runs (cascade).</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="name">The suite name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> if the suite was deleted.</returns>
     ValueTask<bool> DeleteSuiteAsync(
         string tenantId,
         string name,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Bir takimin vakalarini sira numarasina gore listeler.</summary>
-    /// <param name="suiteId">Takim kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Vakalar.</returns>
+    /// <summary>Lists a suite's cases, ordered by sequence number.</summary>
+    /// <param name="suiteId">The suite identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The cases.</returns>
     ValueTask<IReadOnlyList<EvalCase>> ListCasesAsync(Guid suiteId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Bir takimin tum vakalarini verilen listeyle degistirir.
+    /// Replaces all of a suite's cases with the given list.
     /// </summary>
-    /// <param name="suiteId">Takim kimligi.</param>
-    /// <param name="cases">Yeni vaka listesi. Sira numaralari liste sirasina gore atanir.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kimlik atanmis vakalar.</returns>
+    /// <param name="suiteId">The suite identifier.</param>
+    /// <param name="cases">The new case list. Sequence numbers are assigned by list order.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The cases with identifiers assigned.</returns>
     ValueTask<IReadOnlyList<EvalCase>> ReplaceCasesAsync(
         Guid suiteId,
         IReadOnlyList<EvalCase> cases,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Takima TEK bir vaka ekler. <c>Seq</c> depo tarafindan atomik olarak
-    /// uretilir; cagiran hesaplamaz. Ayni <see cref="EvalCaseDraft.SourceRunId"/>
-    /// ikinci kez eklenmeye calisilirsa mevcut vaka <c>Created: false</c> ile doner.
+    /// Adds a SINGLE case to the suite. <c>Seq</c> is generated atomically by
+    /// the store; the caller does not compute it. If the same
+    /// <see cref="EvalCaseDraft.SourceRunId"/> is added a second time, the
+    /// existing case is returned with <c>Created: false</c>.
     /// </summary>
-    /// <param name="suiteId">Takim kimligi.</param>
-    /// <param name="draft">Eklenecek vakanin taslagi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Eklenen (veya zaten var olan) vaka ve olusturulup olusturulmadigi.</returns>
+    /// <param name="suiteId">The suite identifier.</param>
+    /// <param name="draft">The draft of the case to add.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The added (or already existing) case, and whether it was created.</returns>
     ValueTask<EvalCaseAddResult> AddCaseAsync(
         Guid suiteId,
         EvalCaseDraft draft,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Yeni bir kosu kaydi olusturur (durum <see cref="EvalRunStatus.Pending"/>).</summary>
-    /// <param name="run">Kosu kaydi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kimlik atanmis kosu kaydi.</returns>
+    /// <summary>Creates a new run record (state <see cref="EvalRunStatus.Pending"/>).</summary>
+    /// <param name="run">The run record.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The run record with its identifier assigned.</returns>
     ValueTask<EvalRun> CreateRunAsync(EvalRun run, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Bir kosuyu <see cref="EvalRunStatus.Running"/> durumuna gecirir ve
-    /// olculen agent surumu ile model kimligini kaydeder.
+    /// Transitions a run to <see cref="EvalRunStatus.Running"/> and records
+    /// the agent version and model identifier being measured.
     /// </summary>
-    /// <param name="evalRunId">Kosu kimligi.</param>
-    /// <param name="agentVersion">Olculen agent tanim surumu.</param>
-    /// <param name="modelId">Olculen model kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <param name="evalRunId">The run identifier.</param>
+    /// <param name="agentVersion">The agent definition version being measured.</param>
+    /// <param name="modelId">The model identifier being measured.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
     ValueTask MarkRunRunningAsync(
         Guid evalRunId,
         int? agentVersion,
         string? modelId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Bir kosuyu sonlandirir ve ozet sayaclarini yazar.</summary>
-    /// <param name="completion">Sonlandirma bilgileri.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Finalizes a run and writes its summary counters.</summary>
+    /// <param name="completion">The finalization information.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
     ValueTask CompleteRunAsync(EvalRunCompletion completion, CancellationToken cancellationToken = default);
 
-    /// <summary>Tek bir kosu kaydini getirir.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="evalRunId">Kosu kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kayit; yoksa veya baska bir kiraciya aitse <see langword="null"/>.</returns>
+    /// <summary>Fetches a single run record.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="evalRunId">The run identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The record; <see langword="null"/> if it does not exist or belongs to another tenant.</returns>
     ValueTask<EvalRun?> GetRunAsync(
         string tenantId,
         Guid evalRunId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Bir is kaydinin urettigi kosuyu getirir.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="jobId">Is kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kayit; yoksa <see langword="null"/>.</returns>
+    /// <summary>Fetches the run a job record produced.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="jobId">The job identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The record; <see langword="null"/> if it does not exist.</returns>
     ValueTask<EvalRun?> GetRunByJobIdAsync(
         string tenantId,
         Guid jobId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Kosulari filtreleyerek listeler. En yeni kayit basta doner.</summary>
-    /// <param name="query">Filtre.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kayitlar.</returns>
+    /// <summary>Lists runs by filter. The newest record is returned first.</summary>
+    /// <param name="query">The filter.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The records.</returns>
     ValueTask<IReadOnlyList<EvalRun>> QueryRunsAsync(
         EvalRunQuery query,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Bir vaka sonucunu kaydeder.</summary>
-    /// <param name="result">Vaka sonucu.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanma gorevi.</returns>
+    /// <summary>Records a case result.</summary>
+    /// <param name="result">The case result.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
     ValueTask RecordCaseResultAsync(EvalCaseResult result, CancellationToken cancellationToken = default);
 
-    /// <summary>Bir kosunun vaka sonuclarini listeler.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="evalRunId">Kosu kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Sonuclar.</returns>
+    /// <summary>Lists a run's case results.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="evalRunId">The run identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The results.</returns>
     ValueTask<IReadOnlyList<EvalCaseResult>> ListCaseResultsAsync(
         string tenantId,
         Guid evalRunId,
         CancellationToken cancellationToken = default);
 }
 
-/// <summary><see cref="IEvalStore.AddCaseAsync"/>'in sonucu.</summary>
+/// <summary>The result of <see cref="IEvalStore.AddCaseAsync"/>.</summary>
 public sealed record EvalCaseAddResult
 {
-    /// <summary>Eklenen (veya zaten var olan) vaka.</summary>
+    /// <summary>The added (or already existing) case.</summary>
     public required EvalCase Case { get; init; }
 
     /// <summary>
-    /// Bu cagriyla yeni mi olusturuldu; yoksa ayni <c>SourceRunId</c> ile
-    /// daha once terfi edilmis, mevcut vaka mi dondu.
+    /// Whether this call newly created the case, or returned an existing
+    /// case previously promoted with the same <c>SourceRunId</c>.
     /// </summary>
     public required bool Created { get; init; }
 }
 
-/// <summary>Kosu listesini filtrelemek icin sorgu.</summary>
+/// <summary>A query for filtering the run list.</summary>
 public sealed record EvalRunQuery
 {
-    /// <summary>Yalnizca bu kiracinin kosularini getirir.</summary>
+    /// <summary>Fetches only this tenant's runs.</summary>
     public string? TenantId { get; init; }
 
-    /// <summary>Yalnizca bu takimin kosularini getirir.</summary>
+    /// <summary>Fetches only this suite's runs.</summary>
     public Guid? SuiteId { get; init; }
 
-    /// <summary>Atlanacak kayit sayisi.</summary>
+    /// <summary>The number of records to skip.</summary>
     public int Skip { get; init; }
 
-    /// <summary>Getirilecek ust kayit sayisi.</summary>
+    /// <summary>The maximum number of records to fetch.</summary>
     public int Take { get; init; } = 50;
 }
 
-/// <summary>Bir kosuyu sonlandirmak icin gereken bilgiler.</summary>
+/// <summary>The information needed to finalize a run.</summary>
 public sealed record EvalRunCompletion
 {
-    /// <summary>Kosu kimligi.</summary>
+    /// <summary>The run identifier.</summary>
     public required Guid EvalRunId { get; init; }
 
-    /// <summary>Son durum.</summary>
+    /// <summary>The final status.</summary>
     public required EvalRunStatus Status { get; init; }
 
-    /// <summary>Bitis zamani (UTC).</summary>
+    /// <summary>The completion time (UTC).</summary>
     public required DateTimeOffset CompletedAt { get; init; }
 
-    /// <summary>Toplam vaka sayisi.</summary>
+    /// <summary>The total number of cases.</summary>
     public required int Total { get; init; }
 
-    /// <summary>Gecen vaka sayisi.</summary>
+    /// <summary>The number of cases that passed.</summary>
     public required int Passed { get; init; }
 
-    /// <summary>Kalan (basarisiz) vaka sayisi.</summary>
+    /// <summary>The number of remaining (failed) cases.</summary>
     public required int Failed { get; init; }
 
-    /// <summary>Toplam girdi token sayisi.</summary>
+    /// <summary>The total input token count.</summary>
     public long? InputTokens { get; init; }
 
-    /// <summary>Toplam cikti token sayisi.</summary>
+    /// <summary>The total output token count.</summary>
     public long? OutputTokens { get; init; }
 }
