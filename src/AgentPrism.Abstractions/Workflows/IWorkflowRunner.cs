@@ -1,146 +1,148 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Workflow katalogunu okur ve workflow'lari calistirir.
+/// Reads the workflow catalog and runs workflows.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Soyutlama <c>AgentPrism.Abstractions</c> icindedir cunku HTTP katmani
-/// workflow calistirir ancak <c>AgentPrism.Workflows</c> paketine bagli
-/// <strong>degildir</strong>. Bu, MCP'de <see cref="IMcpToolRefresher"/> ile
-/// kurulan desenin aynisidir: workflow motoru istege bagli bir paket olarak
-/// kalir ve kullanmayan tuketici 130 tipli bir yurutme motorunu cekmez.
+/// The abstraction lives in <c>AgentPrism.Abstractions</c> because the HTTP
+/// layer runs workflows but does <strong>not</strong> depend on the
+/// <c>AgentPrism.Workflows</c> package. This is the same pattern established
+/// with <see cref="IMcpToolRefresher"/> in MCP: the workflow engine stays an
+/// optional package, and a consumer who does not use it does not pull in a
+/// 130-type execution engine.
 /// </para>
 /// <para>
-/// Sozlesme Microsoft Agent Framework tipi tasimaz. Olaylar AgentPrism'in kendi
-/// <see cref="RunEvent"/> tipiyle akar; MAF olaylarindan cevrim
-/// <c>AgentPrism.Workflows</c> icinde yapilir.
+/// The contract carries no Microsoft Agent Framework type. Events flow
+/// through AgentPrism's own <see cref="RunEvent"/> type; the conversion from
+/// MAF events happens inside <c>AgentPrism.Workflows</c>.
 /// </para>
 /// </remarks>
 public interface IWorkflowRunner
 {
-    /// <summary>Katalogdaki workflow'lari listeler (kodda tanimli + veritabani).</summary>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Ozetler.</returns>
+    /// <summary>Lists the workflows in the catalog (defined in code + database).</summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The summaries.</returns>
     ValueTask<IReadOnlyList<WorkflowDescriptor>> ListAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Tek bir workflow'un ozetini getirir.</summary>
-    /// <param name="name">Workflow adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Ozet; yoksa <see langword="null"/>.</returns>
+    /// <summary>Fetches a single workflow's summary.</summary>
+    /// <param name="name">The workflow name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The summary; <see langword="null"/> if it does not exist.</returns>
     ValueTask<WorkflowDescriptor?> GetAsync(string name, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Bir workflow'u derler ve grafini cikarir.
+    /// Compiles a workflow and extracts its graph.
     /// </summary>
-    /// <param name="name">Workflow adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Graf; workflow katalogda yoksa <see langword="null"/>.</returns>
+    /// <param name="name">The workflow name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The graph; <see langword="null"/> if the workflow is not in the catalog.</returns>
     /// <remarks>
-    /// Graf <strong>gercekten derlenir</strong>: hazir desenlerin ekledigi
-    /// yardimci dugumler ancak derlemeden sonra gorulur ve calistirma
-    /// olaylarindaki executor kimlikleri de oradan gelir. Derleme bir agent
-    /// cagrisi yapmaz, yalnizca sarmalayicilari baglar.
+    /// The graph is <strong>actually compiled</strong>: the helper nodes added
+    /// by prebuilt patterns are visible only after compilation, and the
+    /// executor identifiers in run events come from there too. Compilation
+    /// makes no agent call, it only wires up the wrappers.
     /// </remarks>
     ValueTask<WorkflowGraph?> GetGraphAsync(string name, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Bir calistirmanin bekleyen insan girdisi isteklerini listeler.
+    /// Lists a run's pending human-input requests.
     /// </summary>
-    /// <param name="runId">Calistirma kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Bekleyen istekler; yoksa bos liste.</returns>
+    /// <param name="runId">The run identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The pending requests; an empty list if none.</returns>
     /// <exception cref="AgentPrismException">
-    /// Calistirma yoksa veya baska bir kiraciya aitse.
+    /// The run does not exist or belongs to another tenant.
     /// </exception>
     ValueTask<IReadOnlyList<WorkflowPendingRequest>> ListPendingRequestsAsync(
         Guid runId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Bekleyen bir istegi yanitlar ve calistirmayi kontrol noktasindan sürdürur.
+    /// Responds to a pending request and resumes the run from its checkpoint.
     /// </summary>
-    /// <param name="request">Yanit.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Sirali olay akisi.</returns>
+    /// <param name="request">The response.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The ordered event stream.</returns>
     /// <remarks>
-    /// Sürdürme <strong>yeni bir calistirma kaydi</strong> acar;
-    /// <see cref="ResumeStreamingAsync"/> ile ayni kuraldir. Yanit, kontrol
-    /// noktasindan yeniden yayinlanan istekle kimlik uzerinden eslestirilir.
+    /// Resuming opens a <strong>new run record</strong>; the same rule as
+    /// <see cref="ResumeStreamingAsync"/>. The response is matched to the
+    /// request republished from the checkpoint by identifier.
     /// </remarks>
     IAsyncEnumerable<RunEvent> RespondStreamingAsync(
         WorkflowRespondRequest request,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Bir workflow'u calistirir ve olaylarini akitir.
+    /// Runs a workflow and streams its events.
     /// </summary>
-    /// <param name="request">Calistirma istegi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Sirali olay akisi.</returns>
+    /// <param name="request">The run request.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The ordered event stream.</returns>
     /// <remarks>
-    /// Ilk olay her zaman <see cref="RunEventType.RunStarted"/>'dir ve
-    /// <see cref="RunEvent.RunId"/> alani calistirma kimligini tasir; cagiran
-    /// taraf akisin ilk cercevesinden kimligi ogrenir.
+    /// The first event is always <see cref="RunEventType.RunStarted"/>, and
+    /// its <see cref="RunEvent.RunId"/> field carries the run identifier; the
+    /// caller learns the identifier from the stream's first frame.
     /// </remarks>
     IAsyncEnumerable<RunEvent> RunStreamingAsync(
         WorkflowRunRequest request,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Bir kontrol noktasindan devam eder ve olaylarini akitir.
+    /// Resumes from a checkpoint and streams its events.
     /// </summary>
-    /// <param name="request">Sürdürme istegi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Sirali olay akisi.</returns>
+    /// <param name="request">The resume request.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The ordered event stream.</returns>
     /// <remarks>
-    /// Sürdürme <strong>yeni bir calistirma kaydi</strong> acar. Ayni satiri
-    /// yeniden acmak, olay akisinin append-only olma kuralini (K-014) bozardi
-    /// ve "bu calistirma ne zaman bitti" sorusunu cevapsiz birakirdi.
+    /// Resuming opens a <strong>new run record</strong>. Reopening the same
+    /// row would break the event stream's append-only rule (K-014) and would
+    /// leave "when did this run end" unanswered.
     /// </remarks>
     IAsyncEnumerable<RunEvent> ResumeStreamingAsync(
         WorkflowResumeRequest request,
         CancellationToken cancellationToken = default);
 }
 
-/// <summary>Bir workflow'u calistirmak icin gereken bilgiler.</summary>
+/// <summary>The information needed to run a workflow.</summary>
 public sealed record WorkflowRunRequest
 {
-    /// <summary>Calistirilacak workflow'un adi.</summary>
+    /// <summary>The name of the workflow to run.</summary>
     public required string WorkflowName { get; init; }
 
-    /// <summary>Grafa girecek kullanici mesaji.</summary>
+    /// <summary>The user message to feed into the graph.</summary>
     public string? Message { get; init; }
 
     /// <summary>
-    /// Yurutme oturumunun kimligi. Bos birakilirsa uretilir.
+    /// The execution session's identifier. Generated if left empty.
     /// </summary>
     /// <remarks>
-    /// 🚨 Deger <strong>istemciden gelir ve guvenilmez girdidir</strong>. Kontrol
-    /// noktalari bu deger altinda gruplandigi icin dogrulanmadan kullanilmasi,
-    /// baska bir yurutmenin durumuna erisim demektir.
+    /// 🚨 The value <strong>comes from the client and is untrusted input</strong>.
+    /// Since checkpoints are grouped under this value, using it without
+    /// validation means access to another execution's state.
     /// </remarks>
     public string? SessionId { get; init; }
 
     /// <summary>
-    /// Calistirma kimligi. Verilirse kayit bu kimlikle acilir; akisli bir uc,
-    /// ilk cerceveyi yazmadan once kimligi bilmek icin bunu kullanir.
+    /// The run identifier. If given, the record is opened with this
+    /// identifier; a streaming endpoint uses this to know the identifier
+    /// before writing the first frame.
     /// </summary>
     public Guid? RunId { get; init; }
 }
 
-/// <summary>Bir workflow'u kontrol noktasindan sürdürmek icin gereken bilgiler.</summary>
+/// <summary>The information needed to resume a workflow from a checkpoint.</summary>
 public sealed record WorkflowResumeRequest
 {
-    /// <summary>Devam edilecek calistirmanin kimligi.</summary>
+    /// <summary>The identifier of the run to resume.</summary>
     public required Guid RunId { get; init; }
 
     /// <summary>
-    /// Devam edilecek kontrol noktasinin kimligi. Bos birakilirsa o calistirmanin
-    /// <em>en son</em> kontrol noktasi kullanilir.
+    /// The identifier of the checkpoint to resume from. If left empty, that
+    /// run's <em>most recent</em> checkpoint is used.
     /// </summary>
     public string? CheckpointId { get; init; }
 
-    /// <summary>Yeni calistirmanin kimligi. Verilirse kayit bu kimlikle acilir.</summary>
+    /// <summary>The new run's identifier. If given, the record is opened with this identifier.</summary>
     public Guid? NewRunId { get; init; }
 }

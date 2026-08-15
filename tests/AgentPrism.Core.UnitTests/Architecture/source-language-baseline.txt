@@ -10,9 +10,6 @@ samples/AgentPrism.Api/Program.cs|248
 samples/AgentPrism.Api/appsettings.json|29
 samples/Directory.Build.props|1
 src/AgentPrism.Abstractions/README.md|4
-src/AgentPrism.Abstractions/Workflows/IWorkflowCheckpointStore.cs|33
-src/AgentPrism.Abstractions/Workflows/IWorkflowDefinitionStore.cs|22
-src/AgentPrism.Abstractions/Workflows/IWorkflowRunner.cs|58
 src/AgentPrism.Abstractions/Workflows/WorkflowCheckpointRecord.cs|17
 src/AgentPrism.Abstractions/Workflows/WorkflowCheckpointState.cs|9
 src/AgentPrism.Abstractions/Workflows/WorkflowDefinition.cs|29
