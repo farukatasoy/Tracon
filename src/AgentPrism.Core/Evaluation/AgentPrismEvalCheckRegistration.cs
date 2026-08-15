@@ -3,8 +3,8 @@ using Microsoft.Agents.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// <c>IAgentPrismBuilder.AddEvalCheck(...)</c> ile eklenen ozel bir denetim kaydi.
+/// A custom check registration added through <c>IAgentPrismBuilder.AddEvalCheck(...)</c>.
 /// </summary>
-/// <param name="Kind">Denetimin <see cref="EvalSuite.Checks"/> icindeki tur adi.</param>
-/// <param name="Check">Model cagirmayan, kod ile yazilmis denetim.</param>
+/// <param name="Kind">The check type name in <see cref="EvalSuite.Checks"/>.</param>
+/// <param name="Check">A code-defined check that does not call a model.</param>
 public sealed record AgentPrismEvalCheckRegistration(string Kind, EvalCheck Check);

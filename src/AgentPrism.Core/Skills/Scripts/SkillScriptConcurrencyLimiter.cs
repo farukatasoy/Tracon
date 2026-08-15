@@ -3,11 +3,11 @@ using System.Collections.Concurrent;
 namespace AgentPrism;
 
 /// <summary>
-/// Ayni anda calisan script sayisini hem toplamda hem kiraci basina sinirlar.
+/// Limits the number of concurrently running scripts both globally and per tenant.
 /// </summary>
 /// <remarks>
-/// Tek bir kiraci, tum barindirma ortamini tuketen bir script seli baslatabilir.
-/// Kiraci basina sinir bunu engeller; toplam sinir sunucuyu korur.
+/// One tenant can start a flood of scripts that consumes the hosting environment.
+/// The per-tenant limit prevents this, and the global limit protects the server.
 /// </remarks>
 internal sealed class SkillScriptConcurrencyLimiter : IDisposable
 {
@@ -21,7 +21,7 @@ internal sealed class SkillScriptConcurrencyLimiter : IDisposable
         _perTenantLimit = options.MaxConcurrentPerTenant;
     }
 
-    /// <summary>Yer acilana kadar bekler ve birakilinca kotayi geri veren bir nesne dondurur.</summary>
+    /// <summary>Waits for capacity and returns an object that releases the quota when disposed.</summary>
     public async ValueTask<IDisposable> AcquireAsync(string tenantId, CancellationToken cancellationToken)
     {
         var tenant = _perTenant.GetOrAdd(tenantId, _ => new SemaphoreSlim(_perTenantLimit, _perTenantLimit));

@@ -3,11 +3,11 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="AgentPrismRetentionOptions"/> ayarlarini uygulama baslarken dogrular.
+/// Validates <see cref="AgentPrismRetentionOptions"/> when the application starts.
 /// </summary>
 /// <remarks>
-/// Dogrulama elle yazilmistir; <c>ValidateDataAnnotations()</c> yansimaya dayanir ve
-/// <c>IL2026</c> uretir. Gerekce: <c>docs/KARARLAR.md</c>, karar K-006.
+/// This validation is handwritten. <c>ValidateDataAnnotations()</c> uses reflection
+/// and produces <c>IL2026</c>. Rationale: <c>docs/KARARLAR.md</c>, decision K-006.
 /// </remarks>
 public sealed class AgentPrismRetentionOptionsValidator : IValidateOptions<AgentPrismRetentionOptions>
 {
@@ -29,7 +29,7 @@ public sealed class AgentPrismRetentionOptionsValidator : IValidateOptions<Agent
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismRetentionOptions)}.{nameof(AgentPrismRetentionOptions.BatchDelay)} " +
-                $"negatif olamaz. Actual value: {options.BatchDelay}.");
+                $"must not be negative. Actual value: {options.BatchDelay}.");
         }
 
         foreach (var target in RetentionTargets.All)
@@ -38,7 +38,7 @@ public sealed class AgentPrismRetentionOptionsValidator : IValidateOptions<Agent
             {
                 (failures ??= []).Add(
                     $"{nameof(AgentPrismRetentionOptions)}.{target}.{nameof(RetentionTargetOptions.MaxAgeDays)} " +
-                    $"belirtiliyorsa must be at least 1. Actual value: {invalid.MaxAgeDays}.");
+                    $"must be at least 1 when specified. Actual value: {invalid.MaxAgeDays}.");
             }
         }
 

@@ -3,11 +3,11 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="AgentPrismWebhookOptions"/> ayarlarini uygulama baslarken dogrular.
+/// Validates <see cref="AgentPrismWebhookOptions"/> when the application starts.
 /// </summary>
 /// <remarks>
-/// Dogrulama elle yazilmistir; <c>ValidateDataAnnotations()</c> yansimaya dayanir ve
-/// <c>IL2026</c> uretir. Gerekce: <c>docs/KARARLAR.md</c>, karar K-006.
+/// This validation is handwritten. <c>ValidateDataAnnotations()</c> uses reflection
+/// and produces <c>IL2026</c>. Rationale: <c>docs/KARARLAR.md</c>, decision K-006.
 /// </remarks>
 public sealed class AgentPrismWebhookOptionsValidator : IValidateOptions<AgentPrismWebhookOptions>
 {
@@ -39,13 +39,13 @@ public sealed class AgentPrismWebhookOptionsValidator : IValidateOptions<AgentPr
                 $"must be at least 1. Actual value: {options.DisableAfterConsecutiveFailures}.");
         }
 
-        // Merdivenin uzunlugu ayni zamanda en fazla deneme sayisidir; bos bir
-        // liste "hic deneme yapma" anlamina gelirdi.
+        // The ladder length is also the maximum attempt count. An empty list would
+        // mean "do not make any attempt".
         if (options.RetryDelays.Count == 0)
         {
             (failures ??= []).Add(
                 $"{nameof(AgentPrismWebhookOptions)}.{nameof(AgentPrismWebhookOptions.RetryDelays)} " +
-                "en az bir gecikme icermelidir.");
+                "must contain at least one delay.");
         }
 
         foreach (var delay in options.RetryDelays)
@@ -54,7 +54,7 @@ public sealed class AgentPrismWebhookOptionsValidator : IValidateOptions<AgentPr
             {
                 (failures ??= []).Add(
                     $"{nameof(AgentPrismWebhookOptions)}.{nameof(AgentPrismWebhookOptions.RetryDelays)} " +
-                    $"degerleri must be greater than zero. Actual value: {delay}.");
+                $"values must be greater than zero. Actual value: {delay}.");
             }
         }
 
