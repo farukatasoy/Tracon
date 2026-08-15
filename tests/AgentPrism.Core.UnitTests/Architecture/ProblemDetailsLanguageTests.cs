@@ -3,21 +3,22 @@ using System.Text.RegularExpressions;
 namespace AgentPrism.Core.UnitTests.Architecture;
 
 /// <summary>
-/// K-232'yi zorlar: <c>ProblemDetails</c> <c>title</c> metinleri Ingilizce kalir.
+/// Enforces K-232: <c>ProblemDetails</c> <c>title</c> texts stay in English.
 /// </summary>
 /// <remarks>
 /// <para>
-/// HATA-S4-007 (MT-UI-032, Aile N): sunucunun ProblemDetails basliklari koda
-/// gomulu sabit Turkce'ydi — 113 farkli <c>title:</c> literali, 26 dosya.
-/// K-232 zaten bunu yasaklar ("ProblemDetails metinleri ... Ingilizce kalir");
-/// bu test o kurali kaynak taramasiyla kalici kilar.
+/// HATA-S4-007 (MT-UI-032, family N): the server hardcoded Turkish ProblemDetails
+/// titles — 113 distinct <c>title:</c> literals across 26 files. K-232 already
+/// forbids that ("ProblemDetails texts ... stay in English"); this test makes the
+/// rule permanent by scanning the sources.
 /// </para>
 /// <para>
-/// Testler proje kaynagini okur, derleme ciktisini degil — <see cref="DependencyDirectionTests"/>
-/// ile ayni desen. ASCII-Turkce sozcuk kalibi yalnizca <c>title:</c> literalinin
-/// GOVDESINDE aranir; kod yorumlari (ki proje konvansiyonu geregi Turkce kalir)
-/// bu regex'e hic girmez cunku <c>title:\s*"..."</c> kalibi yalniz gercek
-/// ProblemDetails cagrilarinda gorunur.
+/// Reads project sources from disk rather than compiled assemblies — the same
+/// pattern as <see cref="DependencyDirectionTests"/>. The ASCII-Turkish word
+/// pattern is applied only inside the body of a <c>title:</c> literal, which
+/// keeps this test narrow and exact. The broad, baseline-driven rule for the
+/// whole tree lives in <see cref="SourceLanguageTests"/>; the two do different
+/// jobs and both are kept.
 /// </para>
 /// </remarks>
 public sealed class ProblemDetailsLanguageTests
@@ -33,7 +34,7 @@ public sealed class ProblemDetailsLanguageTests
         TimeSpan.FromSeconds(5));
 
     [Fact]
-    public void Her_ProblemDetails_title_literali_Ingilizcedir()
+    public void Every_ProblemDetails_title_literal_is_English()
     {
         var root = RepositoryRoot;
         var srcRoot = Path.Combine(root, "src");
@@ -65,8 +66,8 @@ public sealed class ProblemDetailsLanguageTests
     }
 
     /// <summary>
-    /// Depo kokunu bulur. Test derleme ciktisi artifacts/ altinda oldugu icin
-    /// sabit bir goreli yol kullanilamaz; AgentPrism.slnx dosyasi aranarak yukari yurunur.
+    /// Finds the repository root. The test output lives under artifacts/, so a
+    /// fixed relative path cannot be used; walk upwards looking for AgentPrism.slnx.
     /// </summary>
     private static string RepositoryRoot { get; } = FindRepositoryRoot();
 
@@ -85,6 +86,6 @@ public sealed class ProblemDetailsLanguageTests
         }
 
         throw new InvalidOperationException(
-            $"Depo koku bulunamadi. '{AppContext.BaseDirectory}' konumundan yukari dogru AgentPrism.slnx arandi.");
+            $"Repository root not found. Searched upwards from '{AppContext.BaseDirectory}' for AgentPrism.slnx.");
     }
 }
