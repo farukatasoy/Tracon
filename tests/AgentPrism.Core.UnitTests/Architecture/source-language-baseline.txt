@@ -139,7 +139,6 @@ src/AgentPrism.Core/Catalog/CodeAgentSource.cs|11
 src/AgentPrism.Core/Catalog/CompositeAgentCatalog.cs|11
 src/AgentPrism.Core/Catalog/DefinitionStoreAgentSource.cs|6
 src/AgentPrism.Core/Compilation/AgentDefinitionCompiler.cs|179
-src/AgentPrism.Core/Compilation/AgentDefinitionValidator.cs|42
 src/AgentPrism.Core/Compilation/CompactionUsageTrackingChatClient.cs|7
 src/AgentPrism.Core/Compilation/CompiledAgentCache.cs|33
 src/AgentPrism.Core/Compilation/TenantPrefixingAgentFileStore.cs|17

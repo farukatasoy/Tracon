@@ -3,22 +3,20 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir <see cref="AgentDefinition"/>'i kaydetmeden ve hicbir model cagirmadan
-/// derler.
+/// Validates an <see cref="AgentDefinition"/> without saving it or calling a model.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Denetimin tek degeri, gercek derleme yolunun (<see cref="AgentDefinitionCompiler"/>)
-/// yapacaginin aynisini yapmasidir. Derleyici ilk hatada istisna firlattigi icin
-/// bu tip her denetimi <strong>kendi sirasiyla ve bagimsiz</strong> yurutur, tum
-/// bulgulari toplar ve gercek derlemeyi (<see cref="AgentDefinitionCompiler.Compile(AgentDefinition)"/>)
-/// yalnizca hicbir bagimsiz denetim hata bulmadiginda, kalan yapisal hatalari
-/// (akil yurutme cabasi, sikistirma/bellek ayarlari gibi) yakalamak icin en sona
-/// birakir.
+/// Validation is valuable only when it does what the real compilation path,
+/// <see cref="AgentDefinitionCompiler"/>, would do. Because the compiler throws
+/// on its first error, this type runs every check <strong>independently and in
+/// order</strong>, gathers all findings, then calls
+/// <see cref="AgentDefinitionCompiler.Compile(AgentDefinition)"/> last to find
+/// remaining structural errors, such as reasoning effort or compaction settings.
 /// </para>
 /// <para>
-/// Derlenen <see cref="Microsoft.Agents.AI.AIAgent"/> kullanilmaz ve atilir; hicbir
-/// <c>runs</c> satiri acilmaz, hicbir token harcanmaz.
+/// The compiled <see cref="Microsoft.Agents.AI.AIAgent"/> is discarded. No
+/// <c>runs</c> row is opened and no token is spent.
 /// </para>
 /// </remarks>
 public sealed class AgentDefinitionValidator
@@ -31,21 +29,21 @@ public sealed class AgentDefinitionValidator
     private readonly IOptions<AgentPrismOptions> _options;
     private readonly IMcpToolRefresher? _mcpRefresher;
 
-    /// <summary>Yeni bir dogrulayici olusturur.</summary>
-    /// <param name="models">Model saglayici defteri.</param>
-    /// <param name="tools">Tool defteri.</param>
-    /// <param name="skills">Skill katalogu.</param>
-    /// <param name="catalog">Agent katalogu — cagri grafigi denetimi icin.</param>
-    /// <param name="compiler">Bagimsiz denetimler temizken calistirilan gercek derleyici.</param>
+    /// <summary>Initializes an agent-definition validator.</summary>
+    /// <param name="models">The model provider registry.</param>
+    /// <param name="tools">The tool registry.</param>
+    /// <param name="skills">The skill catalog.</param>
+    /// <param name="catalog">The agent catalog used to validate the call graph.</param>
+    /// <param name="compiler">The actual compiler run when independent validation passes.</param>
     /// <param name="options">
-    /// <see cref="AgentPrismValidationOptions.McpTimeout"/>'un okundugu ayarlar.
+    /// The options that provide <see cref="AgentPrismValidationOptions.McpTimeout"/>.
     /// </param>
     /// <param name="mcpRefresher">
-    /// Kayitliysa, eksik bir tool adi bulundugunda MCP tool listesini taze
-    /// cekmek icin kullanilir. <see langword="null"/> ise <c>AgentPrism.Mcp</c>
-    /// kayitli degildir; eksik tool adlari dogrudan hata olarak raporlanir.
+    /// When registered, refreshes the MCP tool list after a missing tool name is
+    /// found. When <see langword="null"/>, <c>AgentPrism.Mcp</c> is not registered
+    /// and missing tool names are reported directly as errors.
     /// </param>
-    /// <exception cref="ArgumentNullException">Zorunlu bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <exception cref="ArgumentNullException">A required dependency is <see langword="null"/>.</exception>
     public AgentDefinitionValidator(
         IModelProviderRegistry models,
         IToolRegistry tools,
@@ -71,10 +69,10 @@ public sealed class AgentDefinitionValidator
         _mcpRefresher = mcpRefresher;
     }
 
-    /// <summary>Bir tanimi kaydetmeden ve model cagirmadan derler.</summary>
-    /// <param name="definition">Denetlenecek tanim.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Bulunan tum mesajlari tasiyan rapor.</returns>
+    /// <summary>Validates a definition without saving it or calling a model.</summary>
+    /// <param name="definition">The definition to validate.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The report containing all findings.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="definition"/> <see langword="null"/> ise.</exception>
     public async ValueTask<AgentValidationReport> ValidateAsync(
         AgentDefinition definition,
@@ -97,9 +95,9 @@ public sealed class AgentDefinitionValidator
         await CheckSkillsAsync(definition, messages, cancellationToken).ConfigureAwait(false);
         await CheckCallGraphAsync(definition, messages, cancellationToken).ConfigureAwait(false);
 
-        // Inconclusive iken derlemeyi de calistirmak anlamsizdir: erisilemeyen
-        // MCP sunucusunun arkasindaki tool gercek derlemede de cozulemez ve
-        // "unknown_tool"un yerine yaniltici bir "compilation_error" gecerdi.
+        // Compilation is not useful while the outcome is inconclusive. A tool
+        // behind an unreachable MCP server cannot resolve in real compilation
+        // either, which would replace unknown_tool with a misleading compilation_error.
         if (!HasError(messages) && !inconclusive)
         {
             await CheckStructureAsync(definition, messages, cancellationToken).ConfigureAwait(false);
@@ -143,15 +141,15 @@ public sealed class AgentDefinitionValidator
         if (!registered)
         {
             var known = providers.Count == 0
-                ? "hic saglayici kayitli degil"
+                ? "no provider is registered"
                 : string.Join(", ", providers.Select(static provider => provider.Name));
 
             messages.Add(new ValidationMessage
             {
                 Severity = ValidationSeverity.Error,
                 Code = "unknown_model",
-                Message = $"'{definition.Model.Provider}' adinda bir model saglayicisi kayitli degil. " +
-                          $"Kayitli saglayicilar: {known}.",
+                Message = $"No model provider named '{definition.Model.Provider}' is registered. " +
+                          $"Registered providers: {known}.",
                 Path = "model.provider",
             });
 
@@ -160,7 +158,8 @@ public sealed class AgentDefinitionValidator
 
         try
         {
-            // Gercek yolla ayni cagri: model istemcisi kurulur, hicbir istek gitmez.
+            // This is the same call as the real path. It creates the chat client
+            // but sends no request.
             _ = _models.CreateChatClient(definition.Model);
         }
         catch (AgentPrismException ex)
@@ -197,17 +196,17 @@ public sealed class AgentDefinitionValidator
             }
             else
             {
-                // MCP sunucusuna ulasilamadi ile tool adi yanlis aynı sey degildir.
-                // Eksik kalan adlarin GERCEKTEN bilinmeyen mi yoksa erisilemeyen
-                // sunucunun ARKASINDA mi oldugu bilinemez; bu yuzden onlar icin
-                // unknown_tool YAZILMAZ, yalniz sonuc Inconclusive isaretlenir.
+                // An unreachable MCP server and a wrong tool name are not the
+                // same condition. It is unknown whether remaining names are truly
+                // unknown or behind the unreachable server, so unknown_tool is not
+                // emitted and the result is marked Inconclusive instead.
                 markInconclusive();
                 messages.Add(new ValidationMessage
                 {
                     Severity = ValidationSeverity.Warning,
                     Code = "mcp_unreachable",
-                    Message = "Eksik tool adlari icin MCP sunucularindan taze liste cekilemedi " +
-                              "(zaman asimi veya baglanti hatasi). Sonuc kesin degil.",
+                    Message = "A fresh list could not be fetched from MCP servers for missing tool names " +
+                              "(timeout or connection failure). The result is inconclusive.",
                 });
 
                 return;
@@ -220,8 +219,8 @@ public sealed class AgentDefinitionValidator
             {
                 Severity = ValidationSeverity.Error,
                 Code = "unknown_tool",
-                Message = $"'{definition.Name}' agent'i '{name}' adli bir tool'a isaret ediyor ancak " +
-                          "bu kodda kayitli degil.",
+                Message = $"Agent '{definition.Name}' refers to tool '{name}', but it is not registered " +
+                          "in this code.",
                 Path = $"toolNames[{index}]",
             });
         }
@@ -253,11 +252,10 @@ public sealed class AgentDefinitionValidator
 
             var outcome = await _mcpRefresher!.RefreshAsync(cts.Token).ConfigureAwait(false);
 
-            // 🚨 HATA-006 / MT-CORE-006: bir MCP sunucusuna baglanti REDDEDILDIGINDE
-            // (aktif "connection refused") McpToolCatalog istisna FIRLATMAZ — o
-            // sunucunun tool'lari listeden duser, tazeleme "basarili" doner. Yalniz
-            // ZAMAN ASIMINDA (asagidaki catch) bir istisna yukselir. Ikisi de ayni
-            // sekilde ele alinmalidir: HadUnreachableServers bu ayrimi kapatir.
+            // 🚨 HATA-006 / MT-CORE-006: when an MCP server actively refuses a
+            // connection, McpToolCatalog does not throw. Its tools disappear from
+            // the list and refresh reports success. Only a timeout throws below.
+            // Both cases must behave the same; HadUnreachableServers closes the gap.
             return !outcome.HadUnreachableServers;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -266,9 +264,9 @@ public sealed class AgentDefinitionValidator
         }
         catch (Exception) when (!cancellationToken.IsCancellationRequested)
         {
-            // MCP tasima katmani cesitli istisna turleri (HTTP, JSON-RPC) atabilir.
-            // Buradaki tek gerekli garanti: ulasilamayan bir sunucu dogrulamayi
-            // hic bir zaman kirmaz, yalnizca Inconclusive yapar.
+            // The MCP transport can throw several exception types, including HTTP
+            // and JSON-RPC. The required guarantee is that an unreachable server
+            // never breaks validation; it only makes the result Inconclusive.
             return false;
         }
     }
@@ -288,7 +286,7 @@ public sealed class AgentDefinitionValidator
                 {
                     Severity = ValidationSeverity.Error,
                     Code = "unknown_skill",
-                    Message = $"'{definition.Name}' agent'i '{name}' skill'ine isaret ediyor ancak skill bulunamadi.",
+                    Message = $"Agent '{definition.Name}' refers to skill '{name}', but the skill was not found.",
                     Path = $"skillNames[{index}]",
                 });
             }
