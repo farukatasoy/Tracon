@@ -1,87 +1,90 @@
 namespace AgentPrism;
 
-/// <summary>Saklama politikasinin hedef alabilecegi sabit tablo listesi.</summary>
+/// <summary>The fixed table list a retention policy may target.</summary>
 /// <remarks>
 /// <para>
-/// Hedef adi serbest metin <strong>degildir</strong>: izin verilen hedefler bu
-/// sabit listedir. Aksi halde bu, tablo adi enjeksiyonu yuzeyi olurdu.
+/// The target name is <strong>not</strong> free-form text: the allowed
+/// targets are this fixed list. Otherwise this would be a table-name
+/// injection surface.
 /// </para>
 /// <para>
-/// 🚨 <c>audit_log</c> KASITLI OLARAK bu listede <strong>yoktur</strong>.
-/// Denetim izi hicbir zaman otomatik silinmez (Faz 25 karari).
+/// 🚨 <c>audit_log</c> is DELIBERATELY <strong>absent</strong> from this list.
+/// The audit trail is never automatically deleted (the Phase 25 decision).
 /// </para>
 /// </remarks>
 public static class RetentionTargets
 {
-    /// <summary>Calistirma olay akisi (append-only).</summary>
+    /// <summary>The run event stream (append-only).</summary>
     public const string RunEvents = "run_events";
 
-    /// <summary>Tool cagrisi ozetleri.</summary>
+    /// <summary>Tool call summaries.</summary>
     public const string ToolInvocations = "tool_invocations";
 
-    /// <summary>OpenTelemetry trace basliklari. Silme span'leri cascade ile birlikte goturur.</summary>
+    /// <summary>OpenTelemetry trace headers. Deletion cascades to the spans.</summary>
     public const string Traces = "traces";
 
-    /// <summary>Tamamlanmis/basarisiz/iptal edilmis kuyruk isleri. Silme ogelerini cascade ile birlikte goturur.</summary>
+    /// <summary>Completed/failed/cancelled queue jobs. Deletion cascades to their items.</summary>
     public const string Jobs = "jobs";
 
-    /// <summary>Teslim edilmis webhook teslim gecmisi kayitlari.</summary>
+    /// <summary>Delivered webhook delivery-history records.</summary>
     public const string WebhookDeliveries = "webhook_deliveries";
 
-    /// <summary>Degerlendirme (eval) vaka sonuclari.</summary>
+    /// <summary>Evaluation (eval) case results.</summary>
     public const string EvalCaseResults = "eval_case_results";
 
-    /// <summary>Tamamlanmis calistirmalarin workflow kontrol noktalari.</summary>
+    /// <summary>Workflow checkpoints of completed runs.</summary>
     public const string WorkflowCheckpoints = "workflow_checkpoints";
 
-    /// <summary>Suresi dolmus veya iptal edilmis skill script calistirma izinleri.</summary>
+    /// <summary>Expired or cancelled skill script execution grants.</summary>
     public const string SkillScriptGrants = "skill_script_grants";
 
-    /// <summary>Sahipsiz (oturumu olmayan) yuklenen ekler.</summary>
+    /// <summary>Orphaned (sessionless) uploaded attachments.</summary>
     public const string Attachments = "attachments";
 
-    /// <summary>Serilestirilmis oturum durumu. Kullanici verisidir; varsayilan KAPALI.</summary>
+    /// <summary>Serialized session state. User data; OFF by default.</summary>
     public const string Sessions = "sessions";
 
-    /// <summary>Konusma gecmisi. Silme mesajlarini cascade ile birlikte goturur. Kullanici verisidir; varsayilan KAPALI.</summary>
+    /// <summary>Conversation history. Deletion cascades to its messages. User data; OFF by default.</summary>
     public const string Conversations = "conversations";
 
     /// <summary>
-    /// Kapanmis gercek zamanli konusma baglantilarinin ozet kaydi (Faz 29).
+    /// The summary record of closed real-time voice connections (Phase 29).
     /// </summary>
     /// <remarks>
-    /// Kayit ses <strong>icermez</strong>; yalnizca sure, tur sayisi ve olcum
-    /// tasir. Konusmanin sesi saklandiysa (varsayilan hayir) baytlar
-    /// <see cref="Attachments"/> hedefinin kapsamindadir.
+    /// The record carries <strong>no audio</strong>; it only carries
+    /// duration, turn count, and measurements. If the conversation's audio
+    /// was stored (default: no), the bytes fall under the
+    /// <see cref="Attachments"/> target's scope.
     /// </remarks>
     public const string VoiceSessions = "voice_sessions";
 
-    /// <summary>Calistirma ve mesaj puanlari (Faz 31).</summary>
+    /// <summary>Run and message scores (Phase 31).</summary>
     public const string RunScores = "run_scores";
 
-    /// <summary>Saklanan idempotency yanitlari (Faz 43).</summary>
+    /// <summary>Stored idempotency responses (Phase 43).</summary>
     public const string IdempotencyKeys = "idempotency_keys";
 
     /// <summary>
-    /// Calistirmalarin kayitli girdi mesajlari (Faz 47). Yeniden oynatmanin
-    /// kaynagidir; silinen bir girdi o calistirmayi oynatilamaz yapar.
+    /// Runs' recorded input messages (Phase 47). The source of replay;
+    /// deleting an input makes that run unable to be replayed.
     /// </summary>
     /// <remarks>
-    /// Icerik <c>conversation_items</c> ile ayni bilgi sinifindadir (K-107) ama
-    /// hedef <strong>varsayilan olarak kapali degildir</strong>: <c>run_inputs</c>
-    /// kullanicinin kendi konusma gecmisi degil, calistirmanin turev bir
-    /// kaydidir ve omru saklama politikasiyla sinirlanabilir olmalidir.
+    /// The content is in the same information class as <c>conversation_items</c>
+    /// (K-107), but the target is <strong>not off by default</strong>:
+    /// <c>run_inputs</c> is not the user's own conversation history but a
+    /// derived record of the run, and its lifetime should be limitable
+    /// through the retention policy.
     /// </remarks>
     public const string RunInputs = "run_inputs";
 
     /// <summary>
-    /// Bilgi tabani parcalari ve gomuleri (Faz 51). 🚨 Tablo yalniz PostgreSQL
-    /// migration setinde vardir; bu hedefi SQL Server veya SQLite uzerinde bir
-    /// politikaya baglamak calisma aninda hata verir (tablo yok).
+    /// Knowledge-base chunks and their embeddings (Phase 51). 🚨 The table
+    /// exists only in the PostgreSQL migration set; binding this target to a
+    /// policy on SQL Server or SQLite fails at run time (no such table).
     /// </summary>
     public const string DocumentEmbeddings = "document_embeddings";
 
-    /// <summary>Taninan tum hedef adlari.</summary>
+    /// <summary>All recognized target names.</summary>
     public static IReadOnlyList<string> All { get; } =
     [
         RunEvents,
@@ -102,18 +105,19 @@ public static class RetentionTargets
         DocumentEmbeddings,
     ];
 
-    /// <summary>Kullanici verisi tasiyan, varsayilan olarak KAPALI olan hedefler.</summary>
+    /// <summary>The targets that carry user data and are OFF by default.</summary>
     /// <remarks>
-    /// Bu hedefler icin bir politika olusturulabilir ama <see cref="RetentionPolicy.Enabled"/>
-    /// acikca <see langword="true"/> yapilmadikca hicbir satir silinmez. Ayrica
-    /// yapilandirma tabanli varsayilanlar (<c>AgentPrismRetentionOptions</c>) bu
-    /// hedefler icin uygulanmaz — yalniz acik bir veritabani politikasi devreye girer.
+    /// A policy can be created for these targets, but no row is deleted
+    /// unless <see cref="RetentionPolicy.Enabled"/> is explicitly set to
+    /// <see langword="true"/>. Configuration-based defaults
+    /// (<c>AgentPrismRetentionOptions</c>) also do not apply to these
+    /// targets — only an explicit database policy takes effect.
     /// </remarks>
     public static IReadOnlyList<string> UserDataTargets { get; } = [Sessions, Conversations];
 
-    /// <summary>Bir hedef adinin taninip taninmadigini bildirir.</summary>
-    /// <param name="target">Hedef adi.</param>
-    /// <returns>Ad taniniyorsa <see langword="true"/>.</returns>
+    /// <summary>Reports whether a target name is recognized.</summary>
+    /// <param name="target">The target name.</param>
+    /// <returns><see langword="true"/> if the name is recognized.</returns>
     public static bool IsKnown(string? target)
         => target is not null && All.Contains(target, StringComparer.Ordinal);
 }
