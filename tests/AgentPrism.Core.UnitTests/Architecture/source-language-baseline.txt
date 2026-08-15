@@ -147,7 +147,6 @@ src/AgentPrism.Core/Compilation/TenantPrefixingAgentFileStore.cs|17
 src/AgentPrism.Core/Coordination/InMemorySingletonLeaseStore.cs|7
 src/AgentPrism.Core/Coordination/SingletonExecutionOptionsValidator.cs|3
 src/AgentPrism.Core/Coordination/SingletonGuard.cs|26
-src/AgentPrism.Core/Diagnostics/AgentPrismDiagnostics.cs|37
 src/AgentPrism.Core/Diagnostics/AgentPrismMetrics.cs|49
 src/AgentPrism.Core/Diagnostics/OpenTelemetryAgentDecorator.cs|9
 src/AgentPrism.Core/Diagnostics/RunTraceCollector.cs|39
