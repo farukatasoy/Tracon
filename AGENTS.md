@@ -10,9 +10,8 @@
 Bu repo büyüktür. **Hiçbir dokümanı ihtiyacın olmadan baştan sona okuma.**
 Dokümanların çoğu birikimli defterdir; tamamını okumak bütçeyi bitirir.
 
-**Oturum başında yalnız:** bu dosya · [`MEMORY.md`](MEMORY.md) (yönlendirme + her
-oturumda geçerli tuzaklar) · çalıştığın fazın dokümanı (`docs/NN-*.md`) ve onun
-"Bu Faza Başlarken" listesi.
+**Oturum başında yalnız:** bu dosya · [`MEMORY.md`](MEMORY.md) · çalıştığın fazın
+dokümanı (`docs/NN-*.md`) ve onun "Bu Faza Başlarken" listesi.
 
 **Sonra, yalnız dokunduğun alan için:**
 
@@ -38,16 +37,16 @@ okumaktan ucuzdur: `grep -rn "AsyncLocal" docs/hafiza/`.
 İngilizce. Kod ve commit mesajı hep İngilizce.
 
 **Tüm yanıtlar ASD-STE100 Simplified Technical English kurallarına uyar** — kısa
-cümle, tek fikir, aktif çatı, onaylı kelime. Türkçe yanıtta da geçerlidir;
-Türkçe'de ç/ğ/ı/ö/ş/ü kullan.
+cümle, tek fikir, aktif çatı, onaylı kelime. Türkçe yanıtta da geçerli; Türkçe'de
+ç/ğ/ı/ö/ş/ü kullan.
 
 **Teknik terimi çevirme.** Terim İngilizce kalır, Türkçe ek alır: `secret`,
 `store`, `endpoint`, `scope`, `span`, `run`, `tool`. Çeviri kavramı
 bulanıklaştırır: doğru "`secret` yazılmaz", yanlış "sır yazılmaz".
 
-**Her belirsizliği sor.** Requirement'ta açık olmayan bir durum, edge-case veya
-tasarım kararı çıktığında varsayım yapma; durumu tarif ederek kullanıcıya sor.
-Plan modundaysan aklına takılan en küçük şeyi bile sor.
+**Her belirsizliği sor.** Açık olmayan bir durum, edge-case veya tasarım kararı
+çıktığında varsayım yapma; durumu tarif ederek kullanıcıya sor. Plan modundaysan
+aklına takılan en küçük şeyi bile sor.
 
 **Uzun vadeli mimari kararlar al.** Sonra değiştirilmek üzere tasarlanmış geçici
 çözüm önerme.
@@ -72,9 +71,9 @@ Kalite eşiğini bu belirler:
 
 ## Faz Akışı ve Doküman Disiplini
 
-**Geliştirme fazlar hâlinde ve çoğu zaman ayrı sohbetlerde yapılır.** Sonraki
-oturum bu repo'yu sıfırdan okur ve yalnızca dokümanlara güvenir. Bu yüzden her
-geliştirme sonrası dokümanlar gözden geçirilir ve birbiriyle ahenkli tutulur.
+**Geliştirme fazlar hâlinde, çoğu zaman ayrı sohbetlerde yapılır.** Sonraki oturum
+repo'yu sıfırdan okur ve yalnızca dokümanlara güvenir; bu yüzden her geliştirme
+sonrası dokümanlar gözden geçirilir ve ahenkli tutulur.
 
 | Kural | Neden |
 |-------|-------|
@@ -122,10 +121,10 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 > ⚠️ `dotnet format`, `dotnet build`'in yakalamadığı analyzer tanılarını
 > yakalayabilir. Dört kapının da çalıştırılması bu yüzden zorunludur.
 
-**Hızlı iç döngü.** Geliştirirken tüm çözümü her seferinde kurma: arayüze
-dokunmuyorsan `-p:AgentPrismFrontendEnabled=false` npm/Vite/Vitest adımlarını
-atlar, tek test projesi `dotnet test tests/<Proje> -c Release --no-build` ile
-koşar. Dört kapının tamamı **faz kapanışında** ve arayüz/paket değişiminde çalışır.
+**Hızlı iç döngü.** Arayüze dokunmuyorsan `-p:AgentPrismFrontendEnabled=false`
+npm/Vite/Vitest adımlarını atlar; tek test projesi
+`dotnet test tests/<Proje> -c Release --no-build` ile koşar. Dört kapının tamamı
+**faz kapanışında** ve arayüz/paket değişiminde çalışır.
 
 `TreatWarningsAsErrors` açıktır — uyarı yoktur, hata vardır. Bir analyzer
 kuralını bastırmadan önce **neden** tetiklendiğini anla; bastırma gerekiyorsa
@@ -133,7 +132,7 @@ gerekçesini koda ve `docs/KARARLAR.md`'ye yaz.
 
 **`secret` asla dosyaya yazılmaz.** Bağlantı dizesi ve API anahtarı yalnız
 `dotnet user-secrets` içinde yaşar; `appsettings.json` boş placeholder taşır.
-Faz sonunda `secret` taraması yapılır — komut `faz-tamamlama` skill'inde.
+Faz sonunda `secret` taraması yapılır (`faz-tamamlama`).
 
 `dotnet build` **arayüzü de derler**: `npm ci` → `tsc --noEmit` → Vitest → Vite →
 Brotli → bundle bütçesi (250 KB gzip). Node.js 20.19+ gerekir.
@@ -143,19 +142,23 @@ Brotli → bundle bütçesi (250 KB gzip). Node.js 20.19+ gerekir.
 ## Skill'ler (Ortak İş Akışları)
 
 Tekrarlanan iş akışları `.agents/skills/<ad>/SKILL.md` altındadır — talimat
-burada tekrarlanmaz, ilgili skill okunup uygulanır. `faz-planlama` (aday kalem
-F-NN faza dönüşürken) · `faz-baslangic` (faza başlarken; minimum okuma kümesi) ·
-`faz-tamamlama` (kod bittiğinde; kapılar, doküman, karar defteri, hafıza) ·
-`maf-api-kesfi` (bir MAF tipini ilk kez kullanmadan önce; gerçek imzayı
-reflection ile çıkarır). Klasör konvansiyonu:
-[`.agents/skills/README.md`](.agents/skills/README.md).
+burada tekrarlanmaz, skill okunup uygulanır. `faz-planlama` (aday F-NN faza
+dönüşürken) · `faz-baslangic` (faza başlarken) · `faz-tamamlama` (kod bittiğinde)
+· `maf-api-kesfi` (bir MAF tipini ilk kez kullanmadan önce).
+Konvansiyon: [`.agents/skills/README.md`](.agents/skills/README.md).
 
 ---
 
 ## Kodlama Kuralları (Bu Repo'ya Özgü)
 
 Genel .NET kuralları `.editorconfig`'dedir. Aşağıdakiler analyzer'ın
-yakalayamadığı, projeye özgü kurallardır:
+yakalayamadığı, projeye özgü kurallardır.
+
+**🚨 Dil sınırı — pakete giren veya çalışma anında çalışan her şey İngilizce'dir.**
+Kod, yorum, XML dokümanı, `exception`/log/`ProblemDetails` metni, migration
+`.sql` yorumu, `template.json` açıklaması. Geliştirme aparatı (`docs/`,
+`.agents/skills/`, `scripts/`) Türkçe kalır; `locales/tr.ts` meşru sözlüktür
+(K-228). Kapı: `SourceLanguageTests` — taban çizgisi **yalnız küçülür**.
 
 **MAF tiplerini sarmalama.** `AIAgent`, `AgentSession`, `ChatMessage`,
 `AIFunction` doğrudan kullanılır. AgentPrism bir kontrol düzlemidir, bir
@@ -170,9 +173,9 @@ yaşandı — `docs/hafiza/cekirdek-calistirma.md`.
 **kodu** yazılamaz. Bu bir güvenlik sınırıdır ve gevşetilmez.
 
 **AOT uyumluluğu.** Listeyi `grep -l "AotCompatible>false" src/*/*.csproj` ile
-doğrula, burada tekrarlama. `reflection` kullanma; sırayla dene: (1) elle yaz;
-(2) `source generator`; (3) kaçınılmazsa `[RequiresUnreferencedCode]` +
-`[RequiresDynamicCode]` işaretle — uyarıyı **bastırma**, çağırana ilet.
+doğrula. `reflection` kullanma; sırayla dene: (1) elle yaz; (2) `source generator`;
+(3) kaçınılmazsa `[RequiresUnreferencedCode]` + `[RequiresDynamicCode]` işaretle —
+uyarıyı **bastırma**, çağırana ilet.
 
 **Ön sürüm MAF paketleri yalnızca `AgentPrism.AspNetCore` içinde** (K-008).
 
@@ -181,7 +184,7 @@ okunacağı **yapılandırma anahtarının adı** durur; değer çalışma anın
 `IConfiguration` üzerinden çözülür.
 
 **Gözlemlenebilirlik işlevselliği bozmaz.** `run` kaydı `store`'u hata verirse
-`run` devam eder; hata loglanır.
+`run` devam eder, hata loglanır.
 
 **`ValueTask` dönen arayüzlerde `ConfigureAwait(false)`.** Kütüphane kodudur.
 
@@ -204,7 +207,7 @@ ağacı → `flowchart TD|LR` · çağrı sırası → `sequenceDiagram` · veri
 `erDiagram` · durum makinesi → `stateDiagram-v2` · zaman planı → `gantt`.
 
 - Türkçe etiket serbest; teknik terim orijinal dilinde kalır (`AIAgent`)
-- Düğüm metninde `(`, `)`, `,`, `:` ayrıştırıcıyı bozar — tırnak kullan: `A["RunAsync(messages, session)"]`
+- Düğüm metninde `(`, `)`, `,`, `:` ayrıştırıcıyı bozar — tırnak kullan
 - Bir diyagram **tek bir fikri** anlatır; on beş düğümü aşıyorsa ikiye böl
 - Diyagram koddan sapmışsa **diyagram yanlıştır** — koda göre düzeltilir
 - **İstisna:** dizin ağaçları düz metin kod bloğu kalır (`├──`, `└──`)
