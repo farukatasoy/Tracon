@@ -1,19 +1,20 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Bir model saglayicisinin isteğe bagli yapilandirma teshis sozlesmesi.
+/// Defines optional configuration diagnostics for a model provider.
 /// </summary>
 /// <remarks>
-/// <see cref="IModelProvider"/> arayuzune uye <strong>eklenmez</strong> — bu, tuketicinin
-/// kendi <see cref="IModelProvider"/> uygulamasini kirar (karar K4). Bir saglayici
-/// bunu uygulamiyorsa veya <see langword="null"/> donerse teshis raporunda o saglayici
-/// icin hicbir <see cref="ConfigurationDiagnostic"/> yer almaz.
+/// This interface is <strong>not added</strong> to <see cref="IModelProvider"/>.
+/// Adding it would break consumer implementations of <see cref="IModelProvider"/>
+/// (decision K4). If a provider does not implement this interface or returns
+/// <see langword="null"/>, its diagnostics report has no
+/// <see cref="ConfigurationDiagnostic"/>.
 /// </remarks>
 public interface IModelProviderConfigurationDiagnostics
 {
     /// <summary>
-    /// Bu saglayicinin bekledigi yapilandirma anahtarinin cozulme durumunu dondurur.
+    /// Returns the resolution status of the configuration key required by this provider.
     /// </summary>
-    /// <returns>Saglayici bir ayar nesnesiyle kurulmadiysa <see langword="null"/>.</returns>
+    /// <returns><see langword="null"/> when the provider was not configured with an options object.</returns>
     ConfigurationDiagnostic? GetConfigurationDiagnostic();
 }
