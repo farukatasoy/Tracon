@@ -10,10 +10,6 @@ samples/AgentPrism.Api/Program.cs|248
 samples/AgentPrism.Api/appsettings.json|29
 samples/Directory.Build.props|1
 src/AgentPrism.Abstractions/README.md|4
-src/AgentPrism.Abstractions/Skills/AgentSkillDefinition.cs|26
-src/AgentPrism.Abstractions/Skills/IAgentSkillStore.cs|15
-src/AgentPrism.Abstractions/Skills/ISkillScriptGrantStore.cs|22
-src/AgentPrism.Abstractions/Skills/SkillScriptGrant.cs|13
 src/AgentPrism.Abstractions/Tenancy/AmbientTenantScope.cs|15
 src/AgentPrism.Abstractions/Tenancy/ITenantContext.cs|5
 src/AgentPrism.Abstractions/Tenancy/TenantDescriptor.cs|18
