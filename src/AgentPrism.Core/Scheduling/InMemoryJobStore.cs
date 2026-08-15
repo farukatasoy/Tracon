@@ -3,20 +3,18 @@ using System.Collections.Concurrent;
 namespace AgentPrism;
 
 /// <summary>
-/// Kuyruktaki isleri ve ogelerini surec bellegi icinde tutan depo.
+/// A store that keeps queued jobs and their items in process memory.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Kiralama <c>_jobs</c> sozlugunun kendisi uzerinde kilitlenerek korunur
-/// (net8.0 de hedeflendigi icin <c>System.Threading.Lock</c>
-/// kullanilmaz — ayri bir kilit alani MA0158'i tetiklerdi): yarisan iki
-/// <see cref="LeaseAsync"/> cagrisi ayni isi iki kez donduremez — tipki
-/// PostgreSQL uygulamasinin <c>FOR UPDATE SKIP LOCKED</c> ile verdigi
-/// sozlesme gibi.
+/// Leasing is protected by locking the <c>_jobs</c> dictionary itself. Since net8.0
+/// is also targeted, it does not use <c>System.Threading.Lock</c>, because a separate
+/// lock field would trigger MA0158. Two competing <see cref="LeaseAsync"/> calls cannot
+/// return the same job. This matches the contract from <c>FOR UPDATE SKIP LOCKED</c> in PostgreSQL.
 /// </para>
 /// <para>
-/// <strong>Sinirlari:</strong> surec omru ve tek dugum. Uretimde
-/// <c>AgentPrism.PostgreSql</c> kullanin.
+/// <strong>Limits:</strong> process lifetime and a single node. Use
+/// <c>AgentPrism.PostgreSql</c> in production.
 /// </para>
 /// </remarks>
 public sealed class InMemoryJobStore : IJobStore
@@ -25,8 +23,8 @@ public sealed class InMemoryJobStore : IJobStore
     private readonly ConcurrentDictionary<Guid, List<JobItemRecord>> _items = new();
     private readonly TimeProvider _clock;
 
-    /// <summary>Yeni bir bellek ici is deposu olusturur.</summary>
-    /// <param name="timeProvider">Zaman kaynagi. Verilmezse <see cref="TimeProvider.System"/> kullanilir.</param>
+    /// <summary>Initializes a new in-memory job store.</summary>
+    /// <param name="timeProvider">The time provider. Uses <see cref="TimeProvider.System"/> when omitted.</param>
     public InMemoryJobStore(TimeProvider? timeProvider = null)
     {
         _clock = timeProvider ?? TimeProvider.System;
@@ -205,8 +203,8 @@ public sealed class InMemoryJobStore : IJobStore
         {
             if (_jobs.TryGetValue(jobId, out var job))
             {
-                // Geri adimli bekleme ScheduledFor uzerinden kurulur; kiralama
-                // zaten bu alani suzer. Ayri bir "sonraki deneme" alani yoktur.
+                // Backoff is represented through ScheduledFor, which leasing already
+                // filters. There is no separate "next attempt" field.
                 var scheduledFor = retryAfter is { } delay && delay > TimeSpan.Zero
                     ? _clock.GetUtcNow() + delay
                     : job.ScheduledFor;
@@ -356,8 +354,8 @@ public sealed class InMemoryJobStore : IJobStore
                 Error = item.Error,
             };
 
-            // Idempotent: ayni oge kira suresi dolup yeniden islenirse sayaclar
-            // yalnizca ilk raporlamada artar.
+            // Idempotent: if the same item is processed again after its lease expires,
+            // counters increase only for the first report.
             if (previousStatus == JobItemStatus.Pending)
             {
                 lock (_jobs)

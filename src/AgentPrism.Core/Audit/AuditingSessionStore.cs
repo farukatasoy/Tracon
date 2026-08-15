@@ -3,12 +3,12 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="ISessionStore"/>'u yalnizca silme islemi icin denetim izi yazan bir
-/// dekorator ile sarar.
+/// Wraps <see cref="ISessionStore"/> in a decorator that writes an audit trail only
+/// for delete operations.
 /// </summary>
 /// <remarks>
-/// Oturum kaydetme her turda olur; denetlenirse denetim izi en hacimli tabloya
-/// donusurdu. Yalnizca silme (geri alinamaz islem) denetlenir.
+/// Session saves occur on every turn. Auditing them would make the audit trail the
+/// highest-volume table. Only deletion, an irreversible operation, is audited.
 /// </remarks>
 public sealed class AuditingSessionStore : ISessionStore, IAuditDecorated
 {
@@ -18,7 +18,7 @@ public sealed class AuditingSessionStore : ISessionStore, IAuditDecorated
     private readonly IAuditActorResolver _actorResolver;
     private readonly ILogger<AuditingSessionStore> _logger;
 
-    /// <summary>Yeni bir denetimli oturum deposu olusturur.</summary>
+    /// <summary>Initializes a new audited session store.</summary>
     public AuditingSessionStore(
         ISessionStore inner,
         IAuditLog auditLog,
@@ -48,10 +48,10 @@ public sealed class AuditingSessionStore : ISessionStore, IAuditDecorated
 
     /// <inheritdoc />
     /// <remarks>
-    /// 🚨 <see cref="TryCreateAsync"/>'teki ayni tuzak: bu geri cagri atlanirsa
-    /// dekorator kendi varsayilan (kiraciya gore filtrelenen, dolayisiyla capraz
-    /// kiraci sorusunu asla dogru cevaplamayan) uygulamasina duser ve ic depodaki
-    /// gercekten kiraciden bagimsiz uygulamayi sessizce devre disi birakir.
+    /// The same pitfall as <see cref="TryCreateAsync"/> applies. If this delegation is
+    /// omitted, the decorator falls back to its default implementation, which filters
+    /// by tenant and cannot correctly answer a cross-tenant query. It would silently
+    /// disable the truly tenant-independent implementation in the inner store.
     /// </remarks>
     public ValueTask<string?> GetOwnerTenantIdAsync(string sessionId, CancellationToken cancellationToken = default)
         => _inner.GetOwnerTenantIdAsync(sessionId, cancellationToken);
@@ -62,12 +62,12 @@ public sealed class AuditingSessionStore : ISessionStore, IAuditDecorated
 
     /// <inheritdoc />
     /// <remarks>
-    /// 🚨 Bu geri caginin ATLANMASI, dekoratorun kendi <c>ISessionStore.TryCreateAsync</c>
-    /// varsayilan uygulamasina (bu sinifin <see cref="GetAsync"/>/<see cref="SaveAsync"/>'i
-    /// uzerinden check-then-create) duser ve ic depodaki GERCEK atomik uygulamayi
-    /// (<c>SqlSessionStore</c>/<c>InMemorySessionStore</c>) devre disi birakirdi —
-    /// <c>AuditingSessionStore</c> DI'da HER ZAMAN kayitli tek <see cref="ISessionStore"/>
-    /// oldugu icin (K-018) bu, HATA-004 duzeltmesini sessizce etkisiz kilardi.
+    /// Omitting this delegation would use the decorator's default
+    /// <c>ISessionStore.TryCreateAsync</c> implementation, which performs check-then-create
+    /// through <see cref="GetAsync"/> and <see cref="SaveAsync"/>. It would disable the
+    /// real atomic implementation in <c>SqlSessionStore</c>/<c>InMemorySessionStore</c>.
+    /// Since <c>AuditingSessionStore</c> is always the single registered <see cref="ISessionStore"/>
+    /// in DI (K-018), this would silently undo the HATA-004 fix.
     /// </remarks>
     public ValueTask<bool> TryCreateAsync(SessionRecord record, CancellationToken cancellationToken = default)
         => _inner.TryCreateAsync(record, cancellationToken);
