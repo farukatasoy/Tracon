@@ -7,11 +7,11 @@ using ModelContextProtocol.Protocol;
 
 namespace AgentPrism;
 
-/// <summary><see cref="IMcpResourceClient"/> uygulamasi.</summary>
+/// <summary>An implementation of <see cref="IMcpResourceClient"/>.</summary>
 /// <remarks>
-/// Her cagri kisa omurlu, ayri bir baglanti kurar (bkz. <see cref="McpPromptClient"/>
-/// ile ayni gerekce). <see cref="ReadResourceAsync"/> yalniz sunucunun bildirdigi
-/// URI'leri kabul eder — serbest URI okumasi SSRF riski tasir (bolum 22.2).
+/// Each call creates a separate short-lived connection. This has the same rationale
+/// as <see cref="McpPromptClient"/>. <see cref="ReadResourceAsync"/> accepts only
+/// URIs declared by the server. Reading arbitrary URIs has SSRF risk. See section 22.2.
 /// </remarks>
 internal sealed class McpResourceClient : IMcpResourceClient
 {
@@ -73,7 +73,7 @@ internal sealed class McpResourceClient : IMcpResourceClient
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            _logger.LogWarning(ex, "MCP sunucusu '{ServerName}' kaynak listesi okunamadi.", serverName);
+            _logger.LogWarning(ex, "Could not read the resource list from MCP server '{ServerName}'.", serverName);
 
             return new McpResourceListResult { Status = McpOperationStatus.ConnectionFailed };
         }
@@ -121,7 +121,7 @@ internal sealed class McpResourceClient : IMcpResourceClient
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            _logger.LogWarning(ex, "MCP sunucusu '{ServerName}' kaynagi '{Uri}' okunamadi.", serverName, uri);
+            _logger.LogWarning(ex, "Could not read resource '{Uri}' from MCP server '{ServerName}'.", serverName, uri);
 
             return (McpOperationStatus.ConnectionFailed, null);
         }
