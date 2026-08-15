@@ -2,10 +2,10 @@ using System.Collections.Concurrent;
 
 namespace AgentPrism;
 
-/// <summary>Zamanlama tanimlarini surec bellegi icinde tutan depo.</summary>
+/// <summary>A store that keeps schedule definitions in process memory.</summary>
 /// <remarks>
-/// <strong>Sinirlari:</strong> surec omru ve tek dugum. Uretimde
-/// <c>AgentPrism.PostgreSql</c> kullanin.
+/// <strong>Limits:</strong> process lifetime and a single node. Use
+/// <c>AgentPrism.PostgreSql</c> in production.
 /// </remarks>
 public sealed class InMemoryJobScheduleStore : IJobScheduleStore
 {
