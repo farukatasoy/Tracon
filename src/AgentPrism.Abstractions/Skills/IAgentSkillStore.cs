@@ -1,39 +1,39 @@
 namespace AgentPrism;
 
-/// <summary>Kiraciya ait calisma ani skill tanimlarinin deposu.</summary>
+/// <summary>The store for a tenant's run-time skill definitions.</summary>
 public interface IAgentSkillStore
 {
-    /// <summary>Kiracinin tum skill'lerini listeler.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Adina gore siralanmis skill'ler.</returns>
+    /// <summary>Lists all of a tenant's skills.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The skills, ordered by name.</returns>
     ValueTask<IReadOnlyList<AgentSkillDefinition>> ListAsync(
         string tenantId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Kiracida verilen adla eslesen skill'i getirir.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="name">Skill adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Skill; yoksa <see langword="null"/>.</returns>
+    /// <summary>Fetches the skill matching the given name within the tenant.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="name">The skill name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The skill; <see langword="null"/> if it does not exist.</returns>
     ValueTask<AgentSkillDefinition?> GetAsync(
         string tenantId,
         string name,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Skill'i olusturur veya gunceller.</summary>
-    /// <param name="skill">Kaydedilecek skill.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Kimlik, zaman damgalari ve surumu atanmis skill.</returns>
+    /// <summary>Creates or updates the skill.</summary>
+    /// <param name="skill">The skill to save.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The skill with its identifier, timestamps, and version assigned.</returns>
     ValueTask<AgentSkillDefinition> SaveAsync(
         AgentSkillDefinition skill,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Kiracinin skill'ini siler.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="name">Skill adi.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Skill silindiyse <see langword="true"/>.</returns>
+    /// <summary>Deletes a tenant's skill.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="name">The skill name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> if the skill was deleted.</returns>
     ValueTask<bool> DeleteAsync(
         string tenantId,
         string name,

@@ -3,115 +3,115 @@ using System.Text.Json;
 namespace AgentPrism;
 
 /// <summary>
-/// Calisma aninda bir agent'a yuklenebilen markdown tabanli skill tanimi.
+/// A markdown-based skill definition that can be loaded into an agent at run time.
 /// </summary>
 /// <remarks>
-/// Skill talimat, kaynak ve <see cref="Scripts"/> tasir. Script calistirma ayri
-/// bir guvenlik siniridir: <c>AgentPrismSkillScriptOptions.AllowStoredScripts</c>
-/// acilmadikca kayitli script'ler yalniz saklanir, hicbir zaman calistirilmaz.
+/// A skill carries instructions, resources, and <see cref="Scripts"/>. Script
+/// execution is a separate security boundary: unless
+/// <c>AgentPrismSkillScriptOptions.AllowStoredScripts</c> is enabled, stored
+/// scripts are only kept in storage and never executed.
 /// </remarks>
 public sealed record AgentSkillDefinition
 {
-    /// <summary>Skill'in benzersiz kimligi.</summary>
+    /// <summary>The skill's unique identifier.</summary>
     public Guid Id { get; init; }
 
-    /// <summary>Skill'in ait oldugu kiraci.</summary>
+    /// <summary>The tenant the skill belongs to.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Skill adi. Agent tanimlari bu adla skill'e baglanir.</summary>
+    /// <summary>The skill name. Agent definitions bind to the skill with this name.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Skill'in kisa aciklamasi.</summary>
+    /// <summary>The skill's short description.</summary>
     public required string Description { get; init; }
 
-    /// <summary>Modele verilecek markdown talimatlari.</summary>
+    /// <summary>The markdown instructions given to the model.</summary>
     public required string Instructions { get; init; }
 
-    /// <summary>Skill'in uyumluluk bildirimi.</summary>
+    /// <summary>The skill's compatibility statement.</summary>
     public string? Compatibility { get; init; }
 
-    /// <summary>Skill lisansi.</summary>
+    /// <summary>The skill license.</summary>
     public string? License { get; init; }
 
-    /// <summary>MAF frontmatter'indaki izinli tool bildirimi.</summary>
+    /// <summary>The allowed-tools declaration in the MAF frontmatter.</summary>
     public string? AllowedTools { get; init; }
 
-    /// <summary>Uygulamaya ozgu serbest metadata.</summary>
+    /// <summary>Application-specific free-form metadata.</summary>
     public IReadOnlyDictionary<string, JsonElement> Metadata { get; init; }
         = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
 
-    /// <summary>Skill'in derlemeye alinip alinmayacagini belirtir.</summary>
+    /// <summary>Whether the skill is included in compilation.</summary>
     public bool Enabled { get; init; } = true;
 
-    /// <summary>Skill'in kayit surumu.</summary>
+    /// <summary>The skill record's version.</summary>
     public int Version { get; init; } = 1;
 
-    /// <summary>Skill kaynaklari.</summary>
+    /// <summary>The skill's resources.</summary>
     public IReadOnlyList<AgentSkillResourceDefinition> Resources { get; init; } = [];
 
     /// <summary>
-    /// Skill'in veritabaninda saklanan script'leri.
+    /// The skill's scripts stored in the database.
     /// </summary>
     /// <remarks>
-    /// Bu script'ler sunucuda calisir. Modele ancak
-    /// <c>AgentPrismSkillScriptOptions.AllowStoredScripts</c> acikken gorunur;
-    /// kapaliyken kayit saklanir ama calistirilamaz.
+    /// These scripts run on the server. They are visible to the model only
+    /// when <c>AgentPrismSkillScriptOptions.AllowStoredScripts</c> is on;
+    /// while off, the record is stored but cannot be executed.
     /// </remarks>
     public IReadOnlyList<AgentSkillScriptDefinition> Scripts { get; init; } = [];
 
-    /// <summary>Skill'in olusturulma zamani.</summary>
+    /// <summary>The skill's creation time.</summary>
     public DateTimeOffset CreatedAt { get; init; }
 
-    /// <summary>Skill'in son guncellenme zamani.</summary>
+    /// <summary>The skill's last-updated time.</summary>
     public DateTimeOffset UpdatedAt { get; init; }
 }
 
-/// <summary>Bir <see cref="AgentSkillDefinition"/> ile tasinan okunabilir kaynak.</summary>
+/// <summary>A readable resource carried with an <see cref="AgentSkillDefinition"/>.</summary>
 public sealed record AgentSkillResourceDefinition
 {
-    /// <summary>Skill icinde benzersiz kaynak adi.</summary>
+    /// <summary>The resource name, unique within the skill.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Kaynak aciklamasi.</summary>
+    /// <summary>The resource description.</summary>
     public string? Description { get; init; }
 
-    /// <summary>Kaynak medya tipi.</summary>
+    /// <summary>The resource media type.</summary>
     public string MediaType { get; init; } = "text/plain";
 
-    /// <summary>Kaynak metin icerigi.</summary>
+    /// <summary>The resource's text content.</summary>
     public required string Content { get; init; }
 }
 
 /// <summary>
-/// Bir <see cref="AgentSkillDefinition"/> ile birlikte saklanan, sunucuda
-/// calistirilabilen script.
+/// A server-executable script stored together with an <see cref="AgentSkillDefinition"/>.
 /// </summary>
 /// <remarks>
-/// <strong>Bu icerik sunucuda calisir.</strong> Kaydi olusturmak calistirma izni
-/// vermez: calistirma icin kod tarafinda
-/// <c>AgentPrismSkillScriptOptions.AllowStoredScripts</c> acilmis olmali ve bir
-/// <see cref="SkillScriptGrant"/> kaydi bulunmalidir.
+/// <strong>This content runs on the server.</strong> Creating the record does
+/// not grant execution permission: execution requires
+/// <c>AgentPrismSkillScriptOptions.AllowStoredScripts</c> to be enabled on
+/// the code side, and a <see cref="SkillScriptGrant"/> record to exist.
 /// </remarks>
 public sealed record AgentSkillScriptDefinition
 {
-    /// <summary>Skill icinde benzersiz script adi.</summary>
+    /// <summary>The script name, unique within the skill.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Script'in ne yaptigini modele anlatan aciklama.</summary>
+    /// <summary>A description telling the model what the script does.</summary>
     public string? Description { get; init; }
 
     /// <summary>
-    /// Dosya uzantisi (nokta olmadan, ornegin <c>py</c>). Yorumlayici bu deger
-    /// uzerinden beyaz listeden secilir.
+    /// The file extension (without the dot, for example <c>py</c>). The
+    /// interpreter is selected from the allowlist through this value.
     /// </summary>
     public required string Extension { get; init; }
 
-    /// <summary>Script'in kaynak metni.</summary>
+    /// <summary>The script's source text.</summary>
     public required string Content { get; init; }
 
     /// <summary>
-    /// Modele bildirilecek arguman semasi. Gecerli bir JSON Schema nesnesi
-    /// olmalidir; <see langword="null"/> ise script argumansiz cagrilir.
+    /// The argument schema reported to the model. Must be a valid JSON Schema
+    /// object; if <see langword="null"/>, the script is called with no arguments.
     /// </summary>
     public string? ParametersSchema { get; init; }
 }
