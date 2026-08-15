@@ -2,29 +2,29 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>Bir kuyruk isinin durumu.</summary>
+/// <summary>The status of a queued job.</summary>
 /// <remarks>
-/// JSON'da ad olarak yazilir, veritabaninda <c>smallint</c> olarak saklanir.
-/// Deger sirasi <strong>degistirilemez</strong> — yalnizca sona eklenir.
+/// Written as a name in JSON, stored as <c>smallint</c> in the database. The
+/// value order <strong>must not change</strong> — only append.
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<JobStatus>))]
 public enum JobStatus
 {
-    /// <summary>Is kuyrukta bekliyor, henuz kiralanmadi.</summary>
+    /// <summary>The job is waiting in the queue, not yet leased.</summary>
     Pending = 0,
 
-    /// <summary>Bir isci is uzerinde kira aldi ama yururtmeye henuz baslamadi.</summary>
+    /// <summary>A worker has leased the job but has not started executing it yet.</summary>
     Leased = 1,
 
-    /// <summary>Is su anda yurutuluyor.</summary>
+    /// <summary>The job is currently executing.</summary>
     Running = 2,
 
-    /// <summary>Is basariyla tamamlandi.</summary>
+    /// <summary>The job completed successfully.</summary>
     Completed = 3,
 
-    /// <summary>Is, <see cref="AgentPrismSchedulingOptions.MaxAttempts"/> asilarak basarisiz oldu.</summary>
+    /// <summary>The job failed after exceeding <see cref="AgentPrismSchedulingOptions.MaxAttempts"/>.</summary>
     Failed = 4,
 
-    /// <summary>Is iptal edildi.</summary>
+    /// <summary>The job was cancelled.</summary>
     Cancelled = 5,
 }

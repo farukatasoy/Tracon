@@ -2,20 +2,20 @@ using System.Text.Json.Serialization;
 
 namespace AgentPrism;
 
-/// <summary>Bir toplu is ogesinin durumu.</summary>
+/// <summary>The status of a batch job item.</summary>
 /// <remarks>
-/// JSON'da ad olarak yazilir, veritabaninda <c>smallint</c> olarak saklanir.
-/// Deger sirasi <strong>degistirilemez</strong> — yalnizca sona eklenir.
+/// Written as a name in JSON, stored as <c>smallint</c> in the database. The
+/// value order <strong>must not change</strong> — only append.
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<JobItemStatus>))]
 public enum JobItemStatus
 {
-    /// <summary>Oge henuz islenmedi.</summary>
+    /// <summary>The item has not been processed yet.</summary>
     Pending = 0,
 
-    /// <summary>Oge basariyla islendi.</summary>
+    /// <summary>The item was processed successfully.</summary>
     Completed = 1,
 
-    /// <summary>Oge islenirken hata olustu.</summary>
+    /// <summary>An error occurred while processing the item.</summary>
     Failed = 2,
 }

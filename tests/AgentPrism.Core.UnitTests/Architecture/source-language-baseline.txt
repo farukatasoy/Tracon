@@ -10,15 +10,6 @@ samples/AgentPrism.Api/Program.cs|248
 samples/AgentPrism.Api/appsettings.json|29
 samples/Directory.Build.props|1
 src/AgentPrism.Abstractions/README.md|4
-src/AgentPrism.Abstractions/Scheduling/JobItemRecord.cs|5
-src/AgentPrism.Abstractions/Scheduling/JobItemStatus.cs|4
-src/AgentPrism.Abstractions/Scheduling/JobKind.cs|26
-src/AgentPrism.Abstractions/Scheduling/JobPayload.cs|4
-src/AgentPrism.Abstractions/Scheduling/JobRecord.cs|18
-src/AgentPrism.Abstractions/Scheduling/JobRetryException.cs|15
-src/AgentPrism.Abstractions/Scheduling/JobSchedule.cs|12
-src/AgentPrism.Abstractions/Scheduling/JobStatus.cs|5
-src/AgentPrism.Abstractions/Scheduling/JobSupportTypes.cs|14
 src/AgentPrism.Abstractions/Security/ApiKeyDraft.cs|6
 src/AgentPrism.Abstractions/Security/ApiKeyRecord.cs|22
 src/AgentPrism.Abstractions/Security/ApiKeyScope.cs|19
