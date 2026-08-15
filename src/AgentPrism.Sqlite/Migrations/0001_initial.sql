@@ -1,48 +1,48 @@
--- AgentPrism SQLite semasi (Faz 24).
+-- AgentPrism SQLite schema (phase 24).
 --
--- Bu dosya PostgreSQL'in 0001-0013 migration'larinin BIRIKMIS sonucudur (SQL
--- Server'in 0001_initial.sql'iyle ayni desen, K-178). SQLite destegi Faz 24'te
--- aciliyor; yukseltilecek bir kurulum yoktur. Bundan sonraki degisiklikler
--- 0002, 0003 ... olarak eklenir.
+-- This file is the ACCUMULATED result of the PostgreSQL 0001-0013 migrations (the
+-- same pattern as the SQL Server 0001_initial.sql, K-178). SQLite support opens
+-- in phase 24; there is no installation to upgrade. Later changes are added as
+-- 0002, 0003 ...
 --
--- 🚨 Numaralandirma diger saglayicilarla ESLESMEZ ve eslesmesi gerekmez.
--- Gerekce: docs/KARARLAR.md, karar K-178.
+-- 🚨 The numbering DOES NOT MATCH the other providers and it does not need to.
+-- Rationale: docs/KARARLAR.md, decision K-178.
 --
--- Kurallar:
---   * SQLite'ta sema kavrami yoktur. `{schema}` yer tutucusu calisma aninda
---     AgentPrismSqliteOptions.TablePrefix ile degistirilir (varsayilan
---     `agentprism_`); tuketicinin kendi tablolarina dokunulmaz (K-013'un
---     SQLite karsiligi).
---   * Zaman alanlari TEXT, ISO-8601 UTC (`yyyy-MM-ddTHH:mm:ss.fffffffZ`),
---     SqliteDialect.AddTimestamp tarafindan yazilir.
---   * Birincil anahtarlar TEXT (uuid v7, buyuk harfli — SqliteDialect'teki
---     "uuid buyuk harfle yazilir" notuna bakin); uygulama uretir.
---   * Enum degerleri INTEGER olarak saklanir ve diger saglayicilarla AYNI
---     sayilardir.
---   * `numeric`/`decimal` sutunlari TEXT'tir; REAL KULLANILMAZ (para
---     hesabinda kayan nokta yasak, docs/24-SQLITE.md bolum 24.2).
+-- Rules:
+--   * SQLite has no schema concept. The `{schema}` placeholder is replaced at
+--     run time with AgentPrismSqliteOptions.TablePrefix (the default is
+--     `agentprism_`); the consumer own tables are not touched (the SQLite
+--     counterpart of K-013).
+--   * Time fields are TEXT, ISO-8601 UTC (`yyyy-MM-ddTHH:mm:ss.fffffffZ`),
+--     written by SqliteDialect.AddTimestamp.
+--   * Primary keys are TEXT (uuid v7, upper case — see the "uuid is written in
+--     upper case" note in SqliteDialect); the application generates them.
+--   * Enum values are stored as INTEGER and are the SAME numbers as on the
+--     other providers.
+--   * `numeric`/`decimal` columns are TEXT; REAL IS NOT USED (floating point is
+--     banned in money arithmetic, docs/24-SQLITE.md section 24.2).
 --
--- Tip esleme (PostgreSQL -> SQLite):
+-- Type mapping (PostgreSQL -> SQLite):
 --   uuid           -> TEXT
---   text           -> TEXT (SQLite'ta uzunluk siniri islevsizdir)
---   jsonb / json    -> TEXT (json_valid() kisitiyla)
+--   text           -> TEXT (a length limit has no effect in SQLite)
+--   jsonb / json    -> TEXT (with a json_valid() constraint)
 --   timestamptz    -> TEXT (ISO-8601 UTC)
 --   boolean        -> INTEGER (0/1)
 --   bytea          -> BLOB
 --   numeric(20,10) -> TEXT
---   text[]         -> TEXT (JSON dizi, json_each ile acilir)
+--   text[]         -> TEXT (JSON array, opened with json_each)
 --   date           -> TEXT (yyyy-MM-dd)
 --
--- Yabanci anahtar zorlamasi baglanti acilisinda `Foreign Keys=True` ile
--- ETKINDIR (SqliteDataSource); aksi halde SQLite REFERENCES yan tumcelerini
--- sessizce YOK SAYAR.
+-- Foreign key enforcement is ENABLED at connection open with `Foreign Keys=True`
+-- (SqliteDataSource); otherwise SQLite silently IGNORES the REFERENCES
+-- clauses.
 
 -- ---------------------------------------------------------------------------
--- Kiracilar
+-- Tenants
 -- ---------------------------------------------------------------------------
--- Diger tablolardaki `tenant_id`, bu tablonun `slug` degeriyle ayni metindir
--- ancak YABANCI ANAHTAR ile baglanmaz; kaydi olmayan bir kiraci icin calisma
--- aninda beklenmedik hata uretirdi.
+-- `tenant_id` in the other tables is the same text as the `slug` value of this
+-- table but it is NOT linked with a FOREIGN KEY; it would produce an unexpected
+-- run time error for a tenant that has no record.
 
 CREATE TABLE IF NOT EXISTS {schema}tenants (
     id           TEXT NOT NULL PRIMARY KEY,
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS {schema}tenants (
 );
 
 -- ---------------------------------------------------------------------------
--- Agent tanimlari
+-- Agent definitions
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS {schema}agent_definitions (
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS {schema}agent_definitions (
     UNIQUE (tenant_id, name)
 );
 
--- Degismez surum gecmisi. Geri alma eski surumu SILMEZ; icerigini yeni surum olarak yazar.
+-- Immutable version history. Rollback DOES NOT DELETE the old version; writes it as a new version.
 CREATE TABLE IF NOT EXISTS {schema}agent_definition_versions (
     id         TEXT    NOT NULL PRIMARY KEY,
     agent_id   TEXT    NOT NULL REFERENCES {schema}agent_definitions (id) ON DELETE CASCADE,
@@ -78,11 +78,11 @@ CREATE TABLE IF NOT EXISTS {schema}agent_definition_versions (
 );
 
 -- ---------------------------------------------------------------------------
--- Oturumlar
+-- Sessions
 -- ---------------------------------------------------------------------------
--- `state`, Microsoft Agent Framework'un SerializeSessionAsync ciktisidir ve
--- OPAKTIR. K-027 burada gecerli degildir (bkz. SQL Server DDL'deki ayni not):
--- SQLite JSON'u metin olarak saklar ve sira zaten korunur.
+-- `state` is the SerializeSessionAsync output of Microsoft Agent Framework and
+-- it is OPAQUE. K-027 does not hold here (see the same note in the SQL Server
+-- DDL): SQLite stores JSON as text and the order is already kept.
 
 CREATE TABLE IF NOT EXISTS {schema}sessions (
     id             TEXT    NOT NULL PRIMARY KEY,
@@ -98,7 +98,7 @@ CREATE INDEX IF NOT EXISTS {schema}sessions_tenant_updated_idx ON {schema}sessio
 CREATE INDEX IF NOT EXISTS {schema}sessions_tenant_agent_updated_idx ON {schema}sessions (tenant_id, agent_name, updated_at DESC);
 
 -- ---------------------------------------------------------------------------
--- Konusmalar
+-- Conversations
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS {schema}conversations (
@@ -132,7 +132,7 @@ CREATE TABLE IF NOT EXISTS {schema}responses (
 CREATE INDEX IF NOT EXISTS {schema}responses_conversation_idx ON {schema}responses (conversation_id, created_at DESC);
 
 -- ---------------------------------------------------------------------------
--- Calistirmalar
+-- Runs
 -- ---------------------------------------------------------------------------
 -- `pricing_source`: 0=Catalog 1=Configuration 2=Unknown.
 
@@ -179,9 +179,9 @@ CREATE INDEX IF NOT EXISTS {schema}runs_agent_version_idx ON {schema}runs (tenan
 CREATE INDEX IF NOT EXISTS {schema}runs_experiment_idx ON {schema}runs (experiment_id, variant) WHERE experiment_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS {schema}runs_tenant_cost_idx ON {schema}runs (tenant_id, started_at DESC) WHERE input_cost IS NOT NULL;
 
--- Append-only olay akisi (karar K-014). Olaylar GUNCELLENMEZ, yalnizca eklenir.
--- `payload` bilerek serbest metindir ve json_valid kisiti TASIMAZ: RunEventWriter
--- tool argumanlarini elle bicimlendirir ve cikti gecerli JSON olmayabilir.
+-- Append-only event stream (decision K-014). Events are NOT UPDATED, only appended.
+-- `payload` is deliberately free text and CARRIES NO json_valid constraint:
+-- RunEventWriter formats tool arguments by hand and the output can be invalid JSON.
 CREATE TABLE IF NOT EXISTS {schema}run_events (
     run_id       TEXT    NOT NULL REFERENCES {schema}runs (id) ON DELETE CASCADE,
     seq          INTEGER NOT NULL,
@@ -211,7 +211,7 @@ CREATE INDEX IF NOT EXISTS {schema}tool_invocations_run_idx ON {schema}tool_invo
 CREATE INDEX IF NOT EXISTS {schema}tool_invocations_tool_created_idx ON {schema}tool_invocations (tool_name, created_at DESC);
 
 -- ---------------------------------------------------------------------------
--- Gozlemlenebilirlik ve denetim
+-- Observability and audit
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS {schema}traces (
@@ -241,9 +241,9 @@ CREATE TABLE IF NOT EXISTS {schema}spans (
 
 CREATE INDEX IF NOT EXISTS {schema}spans_trace_started_idx ON {schema}spans (trace_id, started_at);
 
--- `before` / `after` json_valid kisiti TASIMAZ. Gozlemlenebilirlik islevselligi
--- bozmaz: denetim izi yazimi bir kisit ihlaliyle basarisiz olursa asil islem de
--- basarisiz olurdu.
+-- `before` / `after` CARRY NO json_valid constraint. Observability must not break
+-- functionality: if the audit trail write failed with a constraint violation the
+-- real operation would fail too.
 CREATE TABLE IF NOT EXISTS {schema}audit_log (
     id         TEXT NOT NULL PRIMARY KEY,
     tenant_id  TEXT NOT NULL,
@@ -258,12 +258,12 @@ CREATE TABLE IF NOT EXISTS {schema}audit_log (
 CREATE INDEX IF NOT EXISTS {schema}audit_log_tenant_created_idx ON {schema}audit_log (tenant_id, created_at DESC);
 
 -- ---------------------------------------------------------------------------
--- Tool onay kurallari
+-- Tool approval rules
 -- ---------------------------------------------------------------------------
--- SQLite benzersiz kisitta NULL'lari PostgreSQL gibi birbirinden AYIRT EDER
--- (K-184 SQL Server'a ozgudur, burada gecerli DEGILDIR); duz bir UNIQUE
--- ayni kuralin (agent_name NULL iken) sinirsiz kez eklenmesine izin verirdi.
--- Bu yuzden kisit COALESCE'li bir ifade UZERINDE kurulur.
+-- Like PostgreSQL, SQLite TELLS NULLs APART in a unique constraint (K-184 is
+-- specific to SQL Server and DOES NOT HOLD here); a plain UNIQUE would let the
+-- same rule (while agent_name is NULL) be added endlessly. The constraint is
+-- therefore built ON a COALESCE expression.
 
 CREATE TABLE IF NOT EXISTS {schema}tool_approval_rules (
     id             TEXT NOT NULL PRIMARY KEY,
@@ -280,10 +280,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS {schema}tool_approval_rules_scope_uq
 CREATE INDEX IF NOT EXISTS {schema}tool_approval_rules_tenant_created_idx ON {schema}tool_approval_rules (tenant_id, created_at DESC);
 
 -- ---------------------------------------------------------------------------
--- MCP sunuculari
+-- MCP servers
 -- ---------------------------------------------------------------------------
--- 🚨 SIR TASIMAZ. Yalnizca degerin okunacagi yapilandirma anahtarinin ADI
--- saklanir (K-059). `transport` INTEGER: 0 = StreamableHttp, 1 = SSE.
+-- 🚨 CARRIES NO SECRET. Only the NAME of the configuration key that the value is
+-- read from is stored (K-059). `transport` INTEGER: 0 = StreamableHttp, 1 = SSE.
 
 CREATE TABLE IF NOT EXISTS {schema}mcp_servers (
     id                                    TEXT    NOT NULL PRIMARY KEY,
@@ -307,7 +307,7 @@ CREATE TABLE IF NOT EXISTS {schema}mcp_servers (
 );
 
 -- ---------------------------------------------------------------------------
--- Agent skill'leri
+-- Agent skills
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS {schema}agent_skills (
@@ -352,10 +352,10 @@ CREATE TABLE IF NOT EXISTS {schema}agent_skill_scripts (
     UNIQUE (skill_id, name)
 );
 
--- SQLite benzersiz kisitta NULL'lari PostgreSQL gibi birbirinden AYIRT EDER;
--- duz UNIQUE (tenant_id, skill_name, script_name) burada dogru davranistir
--- (script_name NULL olan birden fazla kayit -- her biri farkli skill'e ait
--- olmadikca -- zaten skill_name ile ayrisir).
+-- Like PostgreSQL, SQLite TELLS NULLs APART in a unique constraint; a plain
+-- UNIQUE (tenant_id, skill_name, script_name) is the right behaviour here (more
+-- than one record with a NULL script_name -- unless each belongs to a different
+-- skill -- is already separated by skill_name).
 CREATE TABLE IF NOT EXISTS {schema}skill_script_grants (
     id          TEXT NOT NULL PRIMARY KEY,
     tenant_id   TEXT NOT NULL,
@@ -372,10 +372,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS {schema}skill_script_grants_uq
 CREATE INDEX IF NOT EXISTS {schema}skill_script_grants_lookup_idx ON {schema}skill_script_grants (tenant_id, skill_name) WHERE revoked_at IS NULL;
 
 -- ---------------------------------------------------------------------------
--- Ekler ve kalici agent dosya bellegi
+-- Attachments and persistent agent file memory
 -- ---------------------------------------------------------------------------
--- `session_id` KASITLI OLARAK yabanci anahtar DEGILDIR: bir ek, kendi oturumu
--- hic acilmadan once yuklenebilir (K-112).
+-- `session_id` is DELIBERATELY NOT a foreign key: an attachment can be uploaded
+-- before its own session is ever opened (K-112).
 
 CREATE TABLE IF NOT EXISTS {schema}attachments (
     id           TEXT    NOT NULL PRIMARY KEY,
@@ -407,7 +407,7 @@ CREATE TABLE IF NOT EXISTS {schema}agent_files (
 );
 
 -- ---------------------------------------------------------------------------
--- Workflow'lar
+-- Workflows
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS {schema}workflows (
@@ -437,7 +437,7 @@ CREATE INDEX IF NOT EXISTS {schema}workflow_checkpoints_session_idx ON {schema}w
 CREATE INDEX IF NOT EXISTS {schema}workflow_checkpoints_run_idx ON {schema}workflow_checkpoints (tenant_id, run_id, created_at) WHERE run_id IS NOT NULL;
 
 -- ---------------------------------------------------------------------------
--- Is kuyrugu ve zamanlama
+-- Job queue and scheduling
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS {schema}job_schedules (
@@ -480,9 +480,9 @@ CREATE TABLE IF NOT EXISTS {schema}jobs (
     max_attempts  INTEGER NULL
 );
 
--- SQLite benzersiz kisitta NULL'lari PostgreSQL gibi birbirinden AYIRT EDER;
--- elle olusturulan (zamanlamasiz, NULL schedule_id) isler duz bir
--- UNIQUE (schedule_id, scheduled_for) kisitiyla CAKISMAZ.
+-- Like PostgreSQL, SQLite TELLS NULLs APART in a unique constraint; jobs created
+-- by hand (with no schedule, NULL schedule_id) DO NOT CLASH with a plain
+-- UNIQUE (schedule_id, scheduled_for) constraint.
 CREATE UNIQUE INDEX IF NOT EXISTS {schema}jobs_schedule_scheduled_uq ON {schema}jobs (schedule_id, scheduled_for);
 CREATE INDEX IF NOT EXISTS {schema}jobs_claim_idx ON {schema}jobs (status, scheduled_for) WHERE status IN (0, 1);
 CREATE INDEX IF NOT EXISTS {schema}jobs_tenant_created_idx ON {schema}jobs (tenant_id, created_at DESC);
@@ -499,7 +499,7 @@ CREATE TABLE IF NOT EXISTS {schema}job_items (
 );
 
 -- ---------------------------------------------------------------------------
--- Degerlendirme (eval)
+-- Evaluation (eval)
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS {schema}eval_suites (
@@ -545,8 +545,8 @@ CREATE TABLE IF NOT EXISTS {schema}eval_runs (
 CREATE INDEX IF NOT EXISTS {schema}eval_runs_suite_started_idx ON {schema}eval_runs (tenant_id, suite_id, started_at DESC);
 CREATE INDEX IF NOT EXISTS {schema}eval_runs_job_idx ON {schema}eval_runs (tenant_id, job_id);
 
--- `case_id` KASITLI OLARAK yabanci anahtar tasimaz: bir vaka sonradan
--- degistirilse veya silinse bile gecmis sonuc kaydi anlasilir kalir.
+-- `case_id` DELIBERATELY carries no foreign key: even if a case is later changed
+-- or deleted, the past result record stays understandable.
 CREATE TABLE IF NOT EXISTS {schema}eval_case_results (
     id             TEXT    NOT NULL PRIMARY KEY,
     eval_run_id    TEXT    NOT NULL REFERENCES {schema}eval_runs (id) ON DELETE CASCADE,
@@ -561,7 +561,7 @@ CREATE TABLE IF NOT EXISTS {schema}eval_case_results (
 CREATE INDEX IF NOT EXISTS {schema}eval_case_results_run_idx ON {schema}eval_case_results (eval_run_id, id);
 
 -- ---------------------------------------------------------------------------
--- A/B deneyleri
+-- A/B experiments
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS {schema}experiments (
@@ -578,16 +578,16 @@ CREATE TABLE IF NOT EXISTS {schema}experiments (
     UNIQUE (tenant_id, name)
 );
 
--- Ayni agent icin ayni anda TEK Running deney olabilir.
+-- Only ONE Running experiment can exist for the same agent at a time.
 CREATE UNIQUE INDEX IF NOT EXISTS {schema}experiments_running_agent_uq ON {schema}experiments (tenant_id, agent_name) WHERE status = 1;
 CREATE INDEX IF NOT EXISTS {schema}experiments_tenant_agent_idx ON {schema}experiments (tenant_id, agent_name);
 
 -- ---------------------------------------------------------------------------
--- Kota ve olay yayini
+-- Quota and event publishing
 -- ---------------------------------------------------------------------------
--- SQLite benzersiz kisitta NULL'lari PostgreSQL gibi birbirinden AYIRT EDER;
--- `agent_name` NULL olan kuralin sinirsiz kez eklenmesini onlemek icin kisit
--- COALESCE'li bir ifade uzerindedir.
+-- Like PostgreSQL, SQLite TELLS NULLs APART in a unique constraint; to stop a
+-- rule with a NULL `agent_name` from being added endlessly the constraint is on
+-- a COALESCE expression.
 
 CREATE TABLE IF NOT EXISTS {schema}quotas (
     id         TEXT    NOT NULL PRIMARY KEY,
@@ -616,8 +616,8 @@ CREATE TABLE IF NOT EXISTS {schema}quota_usage (
     PRIMARY KEY (tenant_id, agent_name, period, period_start)
 );
 
--- 🚨 `events` bir JSON DIZISIDIR. SQLite'ta dizi tipi yoktur; PostgreSQL'in
--- `text[]` sutunu burada JSON metnine donusur ve sorgularda json_each ile acilir.
+-- 🚨 `events` IS A JSON ARRAY. SQLite has no array type; the PostgreSQL `text[]`
+-- column becomes JSON text here and queries open it with json_each.
 CREATE TABLE IF NOT EXISTS {schema}webhook_subscriptions (
     id                       TEXT    NOT NULL PRIMARY KEY,
     tenant_id                TEXT    NOT NULL,

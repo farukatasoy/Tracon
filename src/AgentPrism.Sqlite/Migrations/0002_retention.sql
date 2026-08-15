@@ -1,14 +1,14 @@
--- Faz 25 -- veri saklama politikasi ve arsivleme.
+-- Phase 25 -- data retention policy and archiving.
 --
--- Varsayilan politika EKLENMEZ: bos politika tablosu = hicbir sey silinmez.
+-- NO default policy IS ADDED: an empty policy table = nothing is deleted.
 --
--- 🚨 Indeks adlari da TABLO ONEKINI tasir (K-193): SQLite'ta nesne adlari
--- veritabani genelinde tek ad alanini paylasir, sema veya tabloya gore
--- kapsamli DEGILDIR.
+-- 🚨 Index names also carry the TABLE PREFIX (K-193): in SQLite object names
+-- share a single database wide namespace, they are NOT scoped by schema or
+-- table.
 
 CREATE TABLE IF NOT EXISTS {schema}retention_policies (
     id           TEXT    NOT NULL PRIMARY KEY,
-    tenant_id    TEXT    NOT NULL,          -- '*' = tum kiracilar
+    tenant_id    TEXT    NOT NULL,          -- '*' = all tenants
     target       TEXT    NOT NULL,          -- 'run_events', 'spans', ...
     max_age_days INTEGER NULL,
     max_rows     INTEGER NULL,
@@ -19,8 +19,8 @@ CREATE TABLE IF NOT EXISTS {schema}retention_policies (
     UNIQUE (tenant_id, target)
 );
 
--- tenant_id doc'un ilk taslaginda YOKTU; kiraci bazli politika (K-198)
--- kosularin da kiraciya gore filtrelenebilmesini gerektirir.
+-- tenant_id WAS NOT in the first draft of the doc; the tenant based policy
+-- (K-198) needs the runs to be filterable by tenant as well.
 CREATE TABLE IF NOT EXISTS {schema}retention_runs (
     id            TEXT    NOT NULL PRIMARY KEY,
     tenant_id     TEXT    NOT NULL,

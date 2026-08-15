@@ -1,10 +1,10 @@
--- Faz 29 -- gercek zamanli konusma baglantilarinin ozet kaydi.
+-- Phase 29 -- summary record of real time speech connections.
 --
--- Gerekce ve sutun anlamlari icin PostgreSQL 0016_voice_sessions.sql'e bakin.
+-- For the rationale and the column meanings see PostgreSQL 0016_voice_sessions.sql.
 --
--- 🚨 decimal sutununda olcek ACIKCA verilir. Tipi verilmemis bir decimal
--- parametresi SQL Server'da decimal(18,0) sayilir ve ondalik kisim SESSIZCE
--- kesilir; SqlServerDialect.AddDecimal Precision/Scale yazar.
+-- 🚨 The scale is given EXPLICITLY on the decimal column. A decimal parameter
+-- with no type counts as decimal(18,0) on SQL Server and the fraction is cut
+-- SILENTLY; SqlServerDialect.AddDecimal writes Precision/Scale.
 
 IF OBJECT_ID(N'{schema}.voice_sessions', N'U') IS NULL
 CREATE TABLE {schema}.voice_sessions (

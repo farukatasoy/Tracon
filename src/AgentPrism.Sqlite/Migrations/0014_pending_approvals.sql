@@ -1,9 +1,9 @@
--- Faz 55 -- asenkron onay kutusu.
+-- Phase 55 -- asynchronous approval inbox.
 --
--- Gerekce ve sutun anlamlari icin PostgreSQL 0027_pending_approvals.sql'e bakin.
+-- For the rationale and the column meanings see PostgreSQL 0027_pending_approvals.sql.
 --
--- 🚨 Tablo ve indeks adlari ONEK tasir (K-193): SQLite'ta sema yoktur ve
--- indeks adlari veritabani genelinde tek ad alanini paylasir.
+-- 🚨 Table and index names carry the PREFIX (K-193): SQLite has no schema and
+-- index names share a single database wide namespace.
 
 CREATE TABLE IF NOT EXISTS {schema}pending_approvals (
     id          TEXT NOT NULL PRIMARY KEY,

@@ -1,15 +1,15 @@
--- Faz 14 -- coklu modluluk: yuklenen ekler ve kalici agent dosya belleği.
+-- Phase 14 -- multimodality: uploaded attachments and persistent agent file memory.
 
--- `content` bilerek `bytea`, base64 metin degil. `external_uri` yalniz
--- IAttachmentStorage kayitliysa dolar; ikisi asla ayni anda dolu olmaz.
+-- `content` is deliberately `bytea`, not base64 text. `external_uri` is filled
+-- only if IAttachmentStorage is registered; the two are never filled together.
 --
--- `session_id` KASITLI OLARAK yabanci anahtar DEGILDIR. Bir ek, kendi oturumu
--- hic acilmadan once yuklenebilir (istemci once dosyayi yukler, sonra
--- 'sessionId' ile bir calistirma baslatir; oturum satiri ancak o calistirma
--- sirasinda olusur). Yabanci anahtar denenmisti: yuklemeyi calistirmadan once
--- yapan gercek akista INSERT aninda "violates foreign key constraint" hatasi
--- verdi. Bir oturum silindiginde eklerin gitmesi bu yuzden tamamen uygulama
--- katmaninda (SessionEndpoints.DeleteSessionAsync) yapilir.
+-- `session_id` is DELIBERATELY NOT a foreign key. An attachment can be uploaded
+-- before its own session is ever opened (the client uploads the file first, then
+-- starts a run with 'sessionId'; the session row is created only during that
+-- run). A foreign key was tried: in the real flow that uploads before running it
+-- failed at INSERT with "violates foreign key constraint". Deleting the
+-- attachments of a deleted session is therefore done fully in the application
+-- layer (SessionEndpoints.DeleteSessionAsync).
 CREATE TABLE IF NOT EXISTS {schema}.attachments (
     id           uuid        NOT NULL PRIMARY KEY,
     tenant_id    text        NOT NULL,
@@ -32,15 +32,15 @@ CREATE INDEX IF NOT EXISTS attachments_session_idx
     ON {schema}.attachments (tenant_id, session_id)
     WHERE session_id IS NOT NULL;
 
--- Kalici AgentFileStore (Faz 13'ten devir): FileMemoryProvider ve
--- TextSearchProvider'in kullandigi yol/icerik cifti. Icerik metindir
--- (Microsoft.Agents.AI.AgentFileStore.ReadAsync/WriteAsync 'String' dondurur),
--- bu yuzden `attachments.content` (bytea) yerine ayri bir tablo gerekir.
+-- Persistent AgentFileStore (handed over from phase 13): the path/content pair
+-- that FileMemoryProvider and TextSearchProvider use. The content is text
+-- (Microsoft.Agents.AI.AgentFileStore.ReadAsync/WriteAsync returns 'String'),
+-- so a separate table is needed instead of `attachments.content` (bytea).
 --
--- Dizinler ayri satir OLARAK TUTULMAZ: yol hiyerarsisi kayitli dosyalarin
--- yolundan turetilir (PostgresAgentFileStore.ListChildrenAsync). Bu, tipik bir
--- 'implicit directory' desenidir; bos bir dizin bagimsiz olarak var olamaz,
--- ancak FileMemoryProvider ve TextSearchProvider boyle bir varsayimda bulunmaz.
+-- Directories are NOT KEPT as separate rows: the path hierarchy is derived from
+-- the path of the stored files (PostgresAgentFileStore.ListChildrenAsync). This
+-- is the usual 'implicit directory' pattern; an empty directory cannot exist on
+-- its own, but FileMemoryProvider and TextSearchProvider make no such assumption.
 CREATE TABLE IF NOT EXISTS {schema}.agent_files (
     id         uuid        NOT NULL PRIMARY KEY,
     tenant_id  text        NOT NULL,

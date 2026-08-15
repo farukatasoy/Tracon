@@ -1,13 +1,13 @@
 -- ---------------------------------------------------------------------------
--- 0020 — Idempotency-Key destegi (Faz 43)
+-- 0020 — Idempotency-Key support (phase 43)
 --
--- Bir Idempotency-Key basligiyla ayrilan istekleri ve tamamlandiklarinda
--- sakladiklari yaniti tutar. Yalniz iki durum kalicidir: 0=Reserved (istek
--- hala isleniyor), 2=Completed (yanit saklandi). InProgress/FingerprintMismatch
--- okuma aninda turetilir (docs/43-IDEMPOTENCY-KEY.md, bolum 43.2).
+-- Holds the requests reserved with an Idempotency-Key header and the response
+-- they store when they complete. Only two states are persistent: 0=Reserved (the
+-- request is still being processed), 2=Completed (the response is stored).
+-- InProgress/FingerprintMismatch are derived at read (docs/43-IDEMPOTENCY-KEY.md, 43.2).
 --
--- Saklanan gövde bir SECRET tasimaz (K-059): istemciye ZATEN gonderilmis olan
--- yanitin aynisidir, yalniz omru uzar (bolum 43.5).
+-- The stored body carries NO SECRET (K-059): it is the same response that was
+-- ALREADY sent to the client, only its lifetime gets longer (section 43.5).
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS {schema}.idempotency_keys (

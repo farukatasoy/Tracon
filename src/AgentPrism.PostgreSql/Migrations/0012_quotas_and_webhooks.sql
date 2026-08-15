@@ -1,42 +1,42 @@
--- Faz 21 -- kota, hiz siniri sayaclari ve olay yayini (webhook).
+-- Phase 21 -- quota, rate limit counters and event publishing (webhook).
 
 -- ---------------------------------------------------------------------------
--- Is kuyrugu: is basina deneme siniri
+-- Job queue: attempt limit per job
 -- ---------------------------------------------------------------------------
--- Webhook teslimi genel `AgentPrism:Scheduling:MaxAttempts` ayarindan farkli bir
--- merdiven kullanir (5 deneme). NULL = genel ayar gecerli (K-160).
+-- Webhook delivery uses a different ladder (5 attempts) from the general
+-- `AgentPrism:Scheduling:MaxAttempts` setting. NULL = the general setting holds (K-160).
 ALTER TABLE {schema}.jobs ADD COLUMN IF NOT EXISTS max_attempts smallint;
 
 -- ---------------------------------------------------------------------------
--- Kota tanimlari
+-- Quota definitions
 -- ---------------------------------------------------------------------------
--- Hiz siniri (saniye/dakika) ve kota (gun/ay) AYRI kavramlardir: hiz siniri
--- bellekte yasar, kota burada. Bkz. docs/21-KOTA-VE-OLAY-YAYINI.md bolum 21.2.
+-- The rate limit (second/minute) and the quota (day/month) are SEPARATE concepts:
+-- the rate limit lives in memory, the quota here. See docs/21-KOTA-VE-OLAY-YAYINI.md, 21.2.
 CREATE TABLE IF NOT EXISTS {schema}.quotas (
     id           uuid           NOT NULL PRIMARY KEY,
     tenant_id    text           NOT NULL,
-    agent_name   text,                            -- NULL = kiracinin tumu
+    agent_name   text,                            -- NULL = the whole tenant
     period       smallint       NOT NULL,         -- 0=Daily 1=Monthly
     max_runs     bigint,
     max_tokens   bigint,
-    max_cost     numeric(20,10),                  -- para hesabinda ikili kayan nokta kullanilmaz
+    max_cost     numeric(20,10),                  -- binary floating point is not used in money arithmetic
     enabled      boolean        NOT NULL DEFAULT true,
     created_at   timestamptz    NOT NULL,
     updated_at   timestamptz    NOT NULL
 );
 
--- 🚨 PostgreSQL'de NULL'lar birbirine esit sayilmaz: duz bir UNIQUE, agent_name
--- NULL olan ayni kuralin sinirsiz kez eklenmesine izin verirdi. Faz 11'in
--- skill_scripts dersi (docs/hafiza/postgresql.md).
+-- 🚨 In PostgreSQL NULLs are not equal to each other: a plain UNIQUE would let
+-- the same rule with a NULL agent_name be added endlessly. The skill_scripts
+-- lesson of phase 11 (docs/hafiza/postgresql.md).
 CREATE UNIQUE INDEX IF NOT EXISTS quotas_scope_uq
     ON {schema}.quotas (tenant_id, COALESCE(agent_name, ''), period);
 
 -- ---------------------------------------------------------------------------
--- Kota kullanim sayaclari
+-- Quota usage counters
 -- ---------------------------------------------------------------------------
--- agent_name burada NOT NULL DEFAULT '' -- birincil anahtarin parcasi oldugu
--- icin NULL olamaz; '' kiraci geneli anlamina gelir. Bir calistirma HEM agent
--- satirini HEM kiraci geneli satirini artirir.
+-- agent_name is NOT NULL DEFAULT '' here -- it cannot be NULL because it is part
+-- of the primary key; '' means tenant wide. A run increases BOTH the agent row
+-- AND the tenant wide row.
 CREATE TABLE IF NOT EXISTS {schema}.quota_usage (
     tenant_id     text           NOT NULL,
     agent_name    text           NOT NULL DEFAULT '',
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS {schema}.quota_usage (
 );
 
 -- ---------------------------------------------------------------------------
--- Webhook abonelikleri
+-- Webhook subscriptions
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS {schema}.webhook_subscriptions (
     id                       uuid        NOT NULL PRIMARY KEY,
@@ -58,14 +58,14 @@ CREATE TABLE IF NOT EXISTS {schema}.webhook_subscriptions (
     name                     text        NOT NULL,
     url                      text        NOT NULL,
     events                   text[]      NOT NULL,
-    -- 🚨 ANAHTAR ADI -- SIR DEGIL (K-059). Imzalama sirri veritabaninda
-    -- DURMAZ; yalnizca degerin okunacagi yapilandirma anahtarinin adi durur ve
-    -- deger calisma aninda IConfiguration uzerinden cozulur.
+    -- 🚨 KEY NAME -- NOT A SECRET (K-059). The signing secret DOES NOT STAY in
+    -- the database; only the name of the configuration key that the value is read
+    -- from stays, and the value is resolved at run time through IConfiguration.
     secret_configuration_key text,
     headers                  jsonb       NOT NULL DEFAULT '{}'::jsonb,
     enabled                  boolean     NOT NULL DEFAULT true,
-    -- Ust uste basarisiz teslim sayaci; esigi asinca abonelik kendiliginden
-    -- devre disi kalir ve denetim izine yazilir.
+    -- Counter of consecutive failed deliveries; when it passes the threshold the
+    -- subscription disables itself and the fact is written to the audit trail.
     consecutive_failures     integer     NOT NULL DEFAULT 0,
     created_at               timestamptz NOT NULL,
     updated_at               timestamptz NOT NULL,
@@ -73,10 +73,10 @@ CREATE TABLE IF NOT EXISTS {schema}.webhook_subscriptions (
 );
 
 -- ---------------------------------------------------------------------------
--- Teslim gecmisi
+-- Delivery history
 -- ---------------------------------------------------------------------------
--- Bu tablo bir KUYRUK DEGILDIR: zamanlama ve kiralama Faz 17'nin `jobs`
--- tablosunda yasar (K-160). Buradaki `attempt` yalniz gecmisi raporlar.
+-- This table IS NOT A QUEUE: scheduling and leasing live in the `jobs` table of
+-- phase 17 (K-160). The `attempt` here only reports history.
 CREATE TABLE IF NOT EXISTS {schema}.webhook_deliveries (
     id              uuid        NOT NULL PRIMARY KEY,
     subscription_id uuid        NOT NULL REFERENCES {schema}.webhook_subscriptions (id) ON DELETE CASCADE,

@@ -1,4 +1,4 @@
--- Faz 18 -- degerlendirme (eval): takim, vaka, kosu ve vaka sonucu tablolari.
+-- Phase 18 -- evaluation (eval): suite, case, run and case result tables.
 
 CREATE TABLE IF NOT EXISTS {schema}.eval_suites (
     id          uuid        NOT NULL PRIMARY KEY,
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS {schema}.eval_cases (
     seq             integer NOT NULL,
     query           text    NOT NULL,
     expected_output text,
-    expected_tools  text,          -- virgulle ayrilmis tool adlari
+    expected_tools  text,          -- comma separated tool names
     context         text,
     CONSTRAINT eval_cases_suite_seq_uq UNIQUE (suite_id, seq)
 );
@@ -27,8 +27,8 @@ CREATE TABLE IF NOT EXISTS {schema}.eval_runs (
     id             uuid        NOT NULL PRIMARY KEY,
     tenant_id      text        NOT NULL,
     suite_id       uuid        NOT NULL REFERENCES {schema}.eval_suites (id) ON DELETE CASCADE,
-    job_id         uuid,                       -- kosuyu yuruten is kaydi
-    agent_version  integer,                     -- hangi surum olculdu
+    job_id         uuid,                       -- the job record that runs it
+    agent_version  integer,                     -- which version was measured
     model_id       text,
     status         smallint    NOT NULL,        -- 0=Pending 1=Running 2=Completed 3=Failed 4=Cancelled
     total          integer     NOT NULL DEFAULT 0,
@@ -49,11 +49,11 @@ CREATE INDEX IF NOT EXISTS eval_runs_job_idx
 CREATE TABLE IF NOT EXISTS {schema}.eval_case_results (
     id             uuid    NOT NULL PRIMARY KEY,
     eval_run_id    uuid    NOT NULL REFERENCES {schema}.eval_runs (id) ON DELETE CASCADE,
-    -- case_id KASITLI OLARAK yabanci anahtar tasimaz: bir vaka sonradan
-    -- degistirilse veya takimdan silinse bile gecmis sonuc kaydi anlasilir
-    -- kalir (append-only ruh, ayni gerekce run_events'in run_id'si icin gecerli).
+    -- case_id DELIBERATELY carries no foreign key: even if a case is later
+    -- changed or removed from the suite, the past result record stays
+    -- understandable (append-only spirit, the same reason holds for run_events.run_id).
     case_id        uuid    NOT NULL,
-    run_id         uuid,                       -- olusan calistirma
+    run_id         uuid,                       -- the run that was created
     passed         boolean NOT NULL,
     output         text,
     scores         jsonb   NOT NULL DEFAULT '[]',

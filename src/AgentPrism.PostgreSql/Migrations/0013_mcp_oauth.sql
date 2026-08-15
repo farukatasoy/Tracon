@@ -1,12 +1,12 @@
--- Faz 22 -- MCP derinlesmesi: OAuth kolonlari.
+-- Phase 22 -- MCP deepening: OAuth columns.
 --
--- Prompts ve resources icin sema degisikligi YOKTUR: prompt anlik goruntusu
--- AgentDefinition.Metadata (mevcut jsonb definition sutunu) icinde tasinir,
--- Mod A kaynak referanslari AgentDefinition.McpResourceUris ile ayni sekilde.
--- Yalniz OAuth baglanti bilgisi yeni kolon gerektirir.
+-- There is NO schema change for prompts and resources: the prompt snapshot is
+-- carried inside AgentDefinition.Metadata (the existing jsonb definition column),
+-- and Mode A resource references the same way with AgentDefinition.McpResourceUris.
+-- Only the OAuth connection information needs new columns.
 
--- 🚨 client_secret SAKLANMAZ (K-059). Yalniz degerin okunacagi yapilandirma
--- anahtarinin adi saklanir; deger calisma aninda IConfiguration'dan cozulur.
+-- 🚨 client_secret IS NOT STORED (K-059). Only the name of the configuration key
+-- that the value is read from is stored; the value is resolved at run time from IConfiguration.
 ALTER TABLE {schema}.mcp_servers ADD COLUMN IF NOT EXISTS oauth_enabled                    boolean     NOT NULL DEFAULT false;
 ALTER TABLE {schema}.mcp_servers ADD COLUMN IF NOT EXISTS oauth_client_id                  text;
 ALTER TABLE {schema}.mcp_servers ADD COLUMN IF NOT EXISTS oauth_client_secret_configuration_key text;

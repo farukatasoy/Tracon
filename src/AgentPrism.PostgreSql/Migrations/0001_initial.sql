@@ -1,22 +1,22 @@
--- AgentPrism ilk sema.
+-- AgentPrism initial schema.
 --
--- Kurallar:
---   * Tuketicinin `public` semasina DOKUNULMAZ (karar K-013).
---   * `{schema}` yer tutucusu calisma aninda AgentPrismPostgreSqlOptions.SchemaName ile degistirilir.
---     Ad, SqlIdentifier.RequireSchemaName ile dogrulanir.
---   * Zaman alanlari `timestamptz`, her zaman UTC.
---   * Birincil anahtarlar `uuid` v7; uygulama uretir. `gen_random_uuid()` KULLANILMAZ (v4 uretir).
---   * `RunStatus` ve `RunEventType` `smallint` olarak saklanir; enum degerleri kararlidir.
+-- Rules:
+--   * The consumer `public` schema is NOT TOUCHED (decision K-013).
+--   * The `{schema}` placeholder is replaced at run time with AgentPrismPostgreSqlOptions.SchemaName.
+--     The name is validated by SqlIdentifier.RequireSchemaName.
+--   * Time fields are `timestamptz`, always UTC.
+--   * Primary keys are `uuid` v7; the application generates them. `gen_random_uuid()` IS NOT USED (it makes v4).
+--   * `RunStatus` and `RunEventType` are stored as `smallint`; enum values are stable.
 
 CREATE SCHEMA IF NOT EXISTS {schema};
 
 -- ---------------------------------------------------------------------------
--- Kiracilar
+-- Tenants
 -- ---------------------------------------------------------------------------
--- Diger tablolardaki `tenant_id`, bu tablonun `slug` degeriyle ayni metindir
--- ancak YABANCI ANAHTAR ile baglanmaz. Sebep: kiraci kaydi Faz 6'da yonetilecek;
--- kisiti simdiden koymak, kaydi olmayan bir kiraci icin calisma aninda beklenmedik
--- hata uretirdi. Kisit, kiraci yonetimi geldiginde eklenir.
+-- `tenant_id` in other tables is the same text as this table `slug` value but
+-- it is NOT linked with a FOREIGN KEY. Reason: tenant records are managed in
+-- phase 6; adding the constraint now would give an unexpected run time error
+-- for a tenant that has no record. It is added when tenant management arrives.
 
 CREATE TABLE IF NOT EXISTS {schema}.tenants (
     id           uuid        NOT NULL PRIMARY KEY,
@@ -26,10 +26,10 @@ CREATE TABLE IF NOT EXISTS {schema}.tenants (
 );
 
 -- ---------------------------------------------------------------------------
--- Agent tanimlari
+-- Agent definitions
 -- ---------------------------------------------------------------------------
--- `definition` yalnizca tanimin ICERIGINI tasir. Ad, surum, kiraci ve guncelleme
--- zamani sutunlardadir ve tek dogru kaynak orasidir (bkz. AgentDefinitionPayload).
+-- `definition` carries ONLY THE CONTENT of the definition. Name, version, tenant
+-- and update time live in columns; that is the source of truth (AgentDefinitionPayload).
 
 CREATE TABLE IF NOT EXISTS {schema}.agent_definitions (
     id         uuid        NOT NULL PRIMARY KEY,
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS {schema}.agent_definitions (
 CREATE INDEX IF NOT EXISTS agent_definitions_definition_gin
     ON {schema}.agent_definitions USING gin (definition jsonb_path_ops);
 
--- Degismez surum gecmisi. Geri alma eski surumu SILMEZ; icerigini yeni surum olarak yazar.
+-- Immutable version history. Rollback DOES NOT DELETE the old version; writes it as a new version.
 CREATE TABLE IF NOT EXISTS {schema}.agent_definition_versions (
     id         uuid        NOT NULL PRIMARY KEY,
     agent_id   uuid        NOT NULL REFERENCES {schema}.agent_definitions (id) ON DELETE CASCADE,
@@ -57,17 +57,17 @@ CREATE TABLE IF NOT EXISTS {schema}.agent_definition_versions (
 );
 
 -- ---------------------------------------------------------------------------
--- Oturumlar
+-- Sessions
 -- ---------------------------------------------------------------------------
--- `state`, Microsoft Agent Framework'un SerializeSessionAsync ciktisidir ve OPAKTIR.
--- `schema_version` MAF serilestirme bicimi degisirse anlasilir hata verebilmek icindir.
+-- `state` is the SerializeSessionAsync output of Microsoft Agent Framework and it is OPAQUE.
+-- `schema_version` exists to give a clear error if the MAF serialization format changes.
 --
--- `state` bilerek `json`, `jsonb` DEGIL. PostgreSQL `jsonb` nesne anahtarlarini
--- yeniden siralar (once uzunluga, sonra bayt sirasina gore). System.Text.Json'un
--- polimorfik ayraci `$type` ise nesnenin ILK ozelligi olmak zorundadir; jsonb bu
--- garantiyi bozar ve geri okuma JsonException ile basarisiz olur. Opak durum ayrica
--- sorgulanmaz, bu yuzden jsonb'nin index destegine ihtiyac yoktur.
--- Gerekce: docs/KARARLAR.md, karar K-027.
+-- `state` is deliberately `json`, NOT `jsonb`. PostgreSQL `jsonb` reorders object
+-- keys (first by length, then by byte order). The polymorphic `$type` discriminator
+-- of System.Text.Json must be the FIRST property of the object; jsonb breaks that
+-- guarantee and the read back fails with JsonException. The opaque state is also
+-- not queried, so the index support of jsonb is not needed.
+-- Rationale: docs/KARARLAR.md, decision K-027.
 
 CREATE TABLE IF NOT EXISTS {schema}.sessions (
     id             text        NOT NULL PRIMARY KEY,
@@ -86,10 +86,10 @@ CREATE INDEX IF NOT EXISTS sessions_tenant_agent_updated_idx
     ON {schema}.sessions (tenant_id, agent_name, updated_at DESC);
 
 -- ---------------------------------------------------------------------------
--- Konusmalar
+-- Conversations
 -- ---------------------------------------------------------------------------
--- PostgresChatHistoryProvider sohbet gecmisini buraya yazar. Faz 4'te OpenAI
--- uyumlu Conversations API'si de ayni tablolari kullanir.
+-- PostgresChatHistoryProvider writes the chat history here. In phase 4 the OpenAI
+-- compatible Conversations API uses the same tables.
 
 CREATE TABLE IF NOT EXISTS {schema}.conversations (
     id         uuid        NOT NULL PRIMARY KEY,
@@ -103,8 +103,8 @@ CREATE TABLE IF NOT EXISTS {schema}.conversations (
 CREATE INDEX IF NOT EXISTS conversations_tenant_updated_idx
     ON {schema}.conversations (tenant_id, updated_at DESC);
 
--- `item` bilerek `json`, `jsonb` DEGIL: ChatMessage icerikleri polimorfiktir ve
--- `$type` ayraci nesnenin ilk ozelligi olmalidir. Ayrinti icin sessions.state notu.
+-- `item` is deliberately `json`, NOT `jsonb`: ChatMessage contents are polymorphic
+-- and the `$type` discriminator must be the first property. See the sessions.state note.
 CREATE TABLE IF NOT EXISTS {schema}.conversation_items (
     id              uuid        NOT NULL PRIMARY KEY,
     conversation_id uuid        NOT NULL REFERENCES {schema}.conversations (id) ON DELETE CASCADE,
@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS {schema}.conversation_items (
     CONSTRAINT conversation_items_conversation_seq_uq UNIQUE (conversation_id, seq)
 );
 
--- Responses API kayitlari. Faz 4 doldurur.
+-- Responses API records. Phase 4 fills them.
 CREATE TABLE IF NOT EXISTS {schema}.responses (
     id              uuid        NOT NULL PRIMARY KEY,
     conversation_id uuid        REFERENCES {schema}.conversations (id) ON DELETE CASCADE,
@@ -127,7 +127,7 @@ CREATE INDEX IF NOT EXISTS responses_conversation_idx
     ON {schema}.responses (conversation_id, created_at DESC);
 
 -- ---------------------------------------------------------------------------
--- Calistirmalar
+-- Runs
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS {schema}.runs (
@@ -160,14 +160,14 @@ CREATE INDEX IF NOT EXISTS runs_session_idx
     ON {schema}.runs (tenant_id, session_id, started_at DESC)
     WHERE session_id IS NOT NULL;
 
--- Append-only olay akisi (karar K-014). Olaylar GUNCELLENMEZ, yalnizca eklenir.
+-- Append-only event stream (decision K-014). Events are NOT UPDATED, only appended.
 --
--- `payload` bilerek `text`, `jsonb` degil: RunEventWriter tool argumanlarini AOT
--- uyumlu kalmak icin elle bicimlendirir ve cikti gecerli JSON olmayabilir.
--- `jsonb` sutunu bu durumda calistirmayi kesen bir hata uretirdi.
+-- `payload` is deliberately `text`, not `jsonb`: RunEventWriter formats tool
+-- arguments by hand to stay AOT compatible and the output can be invalid JSON.
+-- A `jsonb` column would then produce an error that stops the run.
 --
--- `created_at` partition anahtari olmaya adaydir; partition Faz 6'da acilir ve
--- o zaman birincil anahtarin `created_at` sutununu da icermesi gerekecektir.
+-- `created_at` is a candidate partition key; partitioning opens in phase 6 and
+-- the primary key must then also contain the `created_at` column.
 CREATE TABLE IF NOT EXISTS {schema}.run_events (
     run_id       uuid        NOT NULL REFERENCES {schema}.runs (id) ON DELETE CASCADE,
     seq          bigint      NOT NULL,
@@ -180,7 +180,7 @@ CREATE TABLE IF NOT EXISTS {schema}.run_events (
     CONSTRAINT run_events_pkey PRIMARY KEY (run_id, seq)
 );
 
--- Tool cagrilarinin ozeti. Sema burada kurulur; Faz 6 doldurur.
+-- Summary of tool calls. The schema is created here; phase 6 fills it.
 CREATE TABLE IF NOT EXISTS {schema}.tool_invocations (
     id           uuid        NOT NULL PRIMARY KEY,
     run_id       uuid        NOT NULL REFERENCES {schema}.runs (id) ON DELETE CASCADE,
@@ -197,9 +197,9 @@ CREATE INDEX IF NOT EXISTS tool_invocations_run_idx
     ON {schema}.tool_invocations (run_id, created_at);
 
 -- ---------------------------------------------------------------------------
--- Gozlemlenebilirlik ve denetim
+-- Observability and audit
 -- ---------------------------------------------------------------------------
--- Sema burada kurulur; Faz 6 doldurur.
+-- The schema is created here; phase 6 fills it.
 
 CREATE TABLE IF NOT EXISTS {schema}.traces (
     id         uuid        NOT NULL PRIMARY KEY,

@@ -1,36 +1,36 @@
--- Faz 19 -- surum karsilastirma, diff ve A/B deneyleri.
+-- Phase 19 -- version comparison, diff and A/B experiments.
 
 -- ---------------------------------------------------------------------------
--- Calistirmalarin surum ve deney bilgisi
+-- Version and experiment information of runs
 -- ---------------------------------------------------------------------------
--- agent_version: bu calistirmanin olctugu tanim surumu. Deney disi
--- calistirmalarda da doldurulur (RunRecordingAgentDecorator, descriptor.Version'i
--- varsayilan olarak verir).
--- experiment_id / variant: yalniz bir A/B deneyi tarafindan atanmis
--- calistirmalarda dolu.
+-- agent_version: the definition version that this run measured. It is also
+-- filled for runs outside an experiment (RunRecordingAgentDecorator passes
+-- descriptor.Version as the default).
+-- experiment_id / variant: filled only on runs that have been assigned by an
+-- A/B experiment.
 
 ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS agent_version integer;
 ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS experiment_id uuid;
 ALTER TABLE {schema}.runs ADD COLUMN IF NOT EXISTS variant       text;
 
--- Surum bazli kirilim (RunStatistics.ByVersion) ve "bu surum ne kadar calisti"
--- sorgusu icin. Kismi indeks: agent_version dolu olmayan satirlar (Faz 19
--- oncesi kayitlar) indekste yer kaplamaz.
+-- For the version based breakdown (RunStatistics.ByVersion) and the "how much
+-- did this version run" query. Partial index: rows where agent_version is empty
+-- (records before phase 19) take no space in the index.
 CREATE INDEX IF NOT EXISTS runs_agent_version_idx
     ON {schema}.runs (tenant_id, agent_name, agent_version, started_at DESC)
     WHERE agent_version IS NOT NULL;
 
--- Deney sonuc sorgusu (varyant bazinda GROUP BY) icin.
+-- For the experiment result query (GROUP BY per variant).
 CREATE INDEX IF NOT EXISTS runs_experiment_idx
     ON {schema}.runs (experiment_id, variant)
     WHERE experiment_id IS NOT NULL;
 
 -- ---------------------------------------------------------------------------
--- Deneyler
+-- Experiments
 -- ---------------------------------------------------------------------------
--- variants tek bir jsonb sutununda tutulur: bir deneyin kollari her zaman
--- butun olarak okunup yazilir (EvalSuite.checks ile ayni gerekce). Her eleman
--- {"name": "...", "version": N, "weight": N} bicimindedir.
+-- variants is kept in a single jsonb column: the arms of an experiment are always
+-- read and written as a whole (the same reason as EvalSuite.checks). Every element
+-- has the form {"name": "...", "version": N, "weight": N}.
 
 CREATE TABLE IF NOT EXISTS {schema}.experiments (
     id             uuid        NOT NULL PRIMARY KEY,
@@ -46,8 +46,8 @@ CREATE TABLE IF NOT EXISTS {schema}.experiments (
     CONSTRAINT experiments_tenant_name_uq UNIQUE (tenant_id, name)
 );
 
--- Ayni agent icin ayni anda TEK Running deney olabilir. Kismi benzersiz indeks
--- bu kurali uygulama kodu race'ine birakmadan veritabaninda zorlar.
+-- Only ONE Running experiment can exist for the same agent at a time. A partial
+-- unique index enforces the rule in the database, not in an application code race.
 CREATE UNIQUE INDEX IF NOT EXISTS experiments_running_agent_uq
     ON {schema}.experiments (tenant_id, agent_name)
     WHERE status = 1;

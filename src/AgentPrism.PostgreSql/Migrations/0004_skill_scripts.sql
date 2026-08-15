@@ -1,4 +1,4 @@
--- Faz 11 -- skill script'leri ve calistirma izinleri.
+-- Phase 11 -- skill scripts and execution grants.
 
 CREATE TABLE IF NOT EXISTS {schema}.agent_skill_scripts (
     id                uuid        NOT NULL PRIMARY KEY,
@@ -16,19 +16,19 @@ CREATE TABLE IF NOT EXISTS {schema}.skill_script_grants (
     id          uuid        NOT NULL PRIMARY KEY,
     tenant_id   text        NOT NULL,
     skill_name  text        NOT NULL,
-    -- NULL = skill'in TUM script'leri.
+    -- NULL = ALL scripts of the skill.
     script_name text,
     granted_by  text,
     granted_at  timestamptz NOT NULL,
-    -- NULL = suresiz.
+    -- NULL = no expiry.
     expires_at  timestamptz,
     revoked_at  timestamptz
 );
 
--- 🚨 Duz bir UNIQUE (tenant_id, skill_name, script_name) YETMEZ: PostgreSQL'de
--- NULL hicbir NULL'a esit degildir, bu yuzden ayni skill icin sinirsiz sayida
--- "tum script'ler" kaydi olusabilirdi. Ayni ders Faz 6'da tool_approval_rules
--- tablosunda ogrenildi. Cozum COALESCE'li ifade indeksidir.
+-- 🚨 A plain UNIQUE (tenant_id, skill_name, script_name) IS NOT ENOUGH: in
+-- PostgreSQL no NULL is equal to any NULL, so an endless number of "all
+-- scripts" records could exist for the same skill. The same lesson was learned
+-- in phase 6 on the tool_approval_rules table. The fix is a COALESCE expression index.
 CREATE UNIQUE INDEX IF NOT EXISTS skill_script_grants_uq
     ON {schema}.skill_script_grants (tenant_id, skill_name, COALESCE(script_name, ''));
 

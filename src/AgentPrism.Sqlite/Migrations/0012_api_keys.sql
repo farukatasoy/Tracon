@@ -1,9 +1,9 @@
--- Faz 53 -- kiraci bazli API anahtarlari ve kapsamlar.
+-- Phase 53 -- per tenant API keys and scopes.
 --
--- Gerekce ve sutun anlamlari icin PostgreSQL 0025_api_keys.sql'e bakin.
+-- For the rationale and the column meanings see PostgreSQL 0025_api_keys.sql.
 --
--- 🚨 Tablo ve indeks adlari ONEK tasir (K-193): SQLite'ta sema yoktur ve
--- indeks adlari veritabani genelinde tek ad alanini paylasir.
+-- 🚨 Table and index names carry the PREFIX (K-193): SQLite has no schema and
+-- index names share a single database wide namespace.
 
 CREATE TABLE IF NOT EXISTS {schema}api_keys (
     id           TEXT NOT NULL PRIMARY KEY,

@@ -1,10 +1,10 @@
--- Faz 54 -- oksuz calistirma uzlastirmasi.
+-- Phase 54 -- orphaned run reconciliation.
 --
--- Gerekce ve sutun anlami icin PostgreSQL 0026_run_heartbeat.sql'e bakin.
--- SQLite'ta `ALTER TABLE ... ADD COLUMN` icin `IF NOT EXISTS` YOKTUR; guvenlik
--- migration kosucusundan gelir (ayni dosya ikinci kez calismaz). Indeks adi
--- TABLO ONEKINI tasir (K-193): SQLite'ta indeks adlari veritabani genelinde
--- tek ad alanini paylasir.
+-- For the rationale and the column meaning see PostgreSQL 0026_run_heartbeat.sql.
+-- SQLite has no `IF NOT EXISTS` for `ALTER TABLE ... ADD COLUMN`; safety comes
+-- from the migration runner (the same file does not run a second time). The
+-- index name carries the TABLE PREFIX (K-193): in SQLite index names share a
+-- single database wide namespace.
 
 ALTER TABLE {schema}runs ADD COLUMN heartbeat_at TEXT NULL;
 
