@@ -4,8 +4,8 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism;
 
 /// <summary>
-/// Onizleme ve fiili temizleme kosusu icin ortak mantik. <see cref="RetentionJobHandler"/>
-/// ve <c>RetentionEndpoints</c>'in "simdi calistir"/"onizle" uclari bunu paylasir.
+/// Provides shared logic for preview and actual cleanup runs. <see cref="RetentionJobHandler"/>
+/// and the <c>RetentionEndpoints</c> "run now" and "preview" endpoints use it.
 /// </summary>
 public sealed class RetentionExecutor(
     IRetentionPolicyStore policyStore,
@@ -18,11 +18,11 @@ public sealed class RetentionExecutor(
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
 
-    /// <summary>Bir veya tum hedefler icin "su an calistirilirsa ne olur" onizlemesi cikarir.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="target">Yalniz bu hedef; <see langword="null"/> ise tum taninan hedefler.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Hedef basina onizleme.</returns>
+    /// <summary>Returns a "what would happen now" preview for one or all targets.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="target">The sole target, or <see langword="null"/> for every known target.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A preview for each target.</returns>
     public async ValueTask<IReadOnlyList<RetentionPreview>> PreviewAsync(
         string tenantId,
         string? target,
@@ -63,11 +63,11 @@ public sealed class RetentionExecutor(
         return results;
     }
 
-    /// <summary>Bir veya tum hedefler icin fiili temizlemeyi calistirir.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="target">Yalniz bu hedef; <see langword="null"/> ise tum taninan hedefler.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Tamamlanan (veya hicbir sey yapilmayan) kosu kayitlari.</returns>
+    /// <summary>Runs actual cleanup for one or all targets.</summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="target">The sole target, or <see langword="null"/> for every known target.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completed, or no-op, run records.</returns>
     public async ValueTask<IReadOnlyList<RetentionRun>> RunAsync(
         string tenantId,
         string? target,
@@ -117,8 +117,8 @@ public sealed class RetentionExecutor(
 
         if (cutoff is null)
         {
-            // 🚨 Hicbir esik hesaplanmadi: MaxAgeDays yok VE MaxRows varsa
-            // tablo zaten sinirin altinda. Silme sorgusu hic CALISTIRILMAZ.
+            // 🚨 No cutoff was computed: MaxAgeDays is absent and, if MaxRows is
+            // set, the table is already within the limit. No delete query runs.
             await policyStore.CompleteRunAsync(run.Id, _clock.GetUtcNow(), null, cancellationToken).ConfigureAwait(false);
 
             return run;
@@ -126,12 +126,12 @@ public sealed class RetentionExecutor(
 
         if (policy.Archive && archiveSink is null)
         {
-            // 🚨 Arsivlenemeyen veri dusurulmez (Faz 25 karari). Kosu "basarili"
-            // olarak kapatilir ama hicbir satir silinmez.
+            // 🚨 Data that cannot be archived is not discarded (phase 25 decision).
+            // The run completes successfully, but no row is deleted.
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
                 logger.LogWarning(
-                    "'{Target}' hedefi icin arsivleme istendi ama IArchiveSink kayitli degil; hicbir satir silinmedi.",
+                    "Archiving was requested for target '{Target}', but no IArchiveSink is registered; no rows were deleted.",
                     policy.Target);
             }
 
@@ -186,8 +186,8 @@ public sealed class RetentionExecutor(
 
                 if (deleted < options.BatchSize)
                 {
-                    // Son partiden daha azi dondu: eslesen kalmadi, tekrar
-                    // denemeye gerek yok.
+                    // The final batch returned fewer rows: none remain to match,
+                    // so there is no reason to try again.
                     break;
                 }
 
@@ -214,9 +214,9 @@ public sealed class RetentionExecutor(
     }
 
     /// <summary>
-    /// Yas ve hacim esiklerini birlikte cozer. Ikisi de doluysa DAHA YENI
-    /// (daha cok silen) esik kazanir — bu, iki kuralin da sağlandigini
-    /// garanti eden tek secenektir (36.2).
+    /// Resolves age and volume cutoffs together. When both are present, the
+    /// newer cutoff, which deletes more, wins. This is the only option that
+    /// guarantees both rules are met (36.2).
     /// </summary>
     private async ValueTask<DateTimeOffset?> ComputeCutoffAsync(
         string tenantId,
@@ -252,7 +252,7 @@ public sealed class RetentionExecutor(
 
         if (!RetentionTargets.IsKnown(target))
         {
-            throw new ArgumentException($"Bilinmeyen saklama hedefi: '{target}'.", nameof(target));
+            throw new ArgumentException($"Unknown retention target: '{target}'.", nameof(target));
         }
 
         return [target];

@@ -5,38 +5,38 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Bir tipteki <see cref="AgentPrismToolAttribute"/> ile isaretlenmis metotlari
-/// bulur ve <see cref="AIFunction"/> nesnelerine donusturur.
+/// Finds methods marked with <see cref="AgentPrismToolAttribute"/> on a type and
+/// converts them to <see cref="AIFunction"/> instances.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Tarama yansima kullanir. Bu yuzden cagiran her yol
-/// <see cref="RequiresUnreferencedCodeAttribute"/> ve
-/// <see cref="RequiresDynamicCodeAttribute"/> ile isaretlidir; uyari bastirilmaz,
-/// cagirana iletilir. AOT hedefleyen uygulamalar
-/// <see cref="IAgentPrismBuilder.AddTool(AIFunction, bool)"/> kullanmalidir.
+/// Scanning uses reflection. Every caller is therefore marked with
+/// <see cref="RequiresUnreferencedCodeAttribute"/> and
+/// <see cref="RequiresDynamicCodeAttribute"/>; warnings are propagated rather
+/// than suppressed. Applications targeting AOT should use
+/// <see cref="IAgentPrismBuilder.AddTool(AIFunction, bool)"/>.
 /// </para>
 /// <para>
-/// 🚨 Yalnizca <strong>statik</strong> metotlar desteklenir (karar K-218).
-/// MAF, tool govdesine <see cref="AIFunctionArguments.Services"/> olarak BOS bir
-/// saglayici gecirir (<c>Microsoft.Extensions.AI.EmptyServiceProvider</c>); bir
-/// ornek metodun tasiyici nesnesi bu yoldan COZULEMEZ. Bir ornek metodu
-/// isaretlemek <see cref="Scan"/> anında (calisma anininin en erken noktasinda,
-/// ilk tool cagrisini beklemeden) <see cref="AgentPrismException"/> firlatir.
-/// Ornek metot tool'lari icin tool'u kurulum aninda ornekleyip
-/// <c>AddTool(AIFunctionFactory.Create(...))</c> ile kaydedin.
+/// 🚨 Only <strong>static</strong> methods are supported (K-218). MAF supplies
+/// an empty provider as <see cref="AIFunctionArguments.Services"/>
+/// (<c>Microsoft.Extensions.AI.EmptyServiceProvider</c>), so this path cannot
+/// resolve an instance method's target object. Marking an instance method throws
+/// <see cref="AgentPrismException"/> during <see cref="Scan"/>, the earliest
+/// run-time point, rather than waiting for the first tool call. For instance
+/// method tools, create the target during registration and call
+/// <c>AddTool(AIFunctionFactory.Create(...))</c>.
 /// </para>
 /// </remarks>
 internal static class ToolMethodScanner
 {
-    /// <summary>Isaretli metotlari bulur ve tool kayitlarina donusturur.</summary>
-    /// <param name="type">Taranacak tip.</param>
-    /// <returns>Bulunan tool kayitlari.</returns>
+    /// <summary>Finds marked methods and converts them to tool registrations.</summary>
+    /// <param name="type">The type to scan.</param>
+    /// <returns>The discovered tool registrations.</returns>
     /// <exception cref="AgentPrismException">
-    /// Hicbir isaretli metot yoksa veya isaretli bir metot tool'a donusturulemiyorsa.
+    /// No marked methods exist, or a marked method cannot convert to a tool.
     /// </exception>
-    [RequiresUnreferencedCode("Tool taramasi yansima kullanir; kirpilmis uygulamalarda metot bilgisi kaybolabilir.")]
-    [RequiresDynamicCode("Tool taramasi calisma aninda kod uretimi gerektirebilir.")]
+    [RequiresUnreferencedCode("Tool scanning uses reflection; method metadata can be removed from trimmed applications.")]
+    [RequiresDynamicCode("Tool scanning can require run-time code generation.")]
     public static List<AgentPrismToolRegistration> Scan(Type type)
     {
         ArgumentNullException.ThrowIfNull(type);
@@ -63,22 +63,22 @@ internal static class ToolMethodScanner
         if (registrations.Count == 0)
         {
             throw new AgentPrismException(
-                $"'{type.FullName}' tipinde [AgentPrismTool] ile isaretlenmis metot yok. " +
-                "Tool olarak sunulacak metotlari isaretleyin veya tek tek `AddTool(...)` ile kaydedin.");
+                $"Type '{type.FullName}' has no methods marked with [AgentPrismTool]. " +
+                "Mark methods to expose as tools, or register each one with `AddTool(...)`.");
         }
 
         return registrations;
     }
 
-    [RequiresUnreferencedCode("Tool taramasi yansima kullanir; kirpilmis uygulamalarda metot bilgisi kaybolabilir.")]
-    [RequiresDynamicCode("Tool taramasi calisma aninda kod uretimi gerektirebilir.")]
+    [RequiresUnreferencedCode("Tool scanning uses reflection; method metadata can be removed from trimmed applications.")]
+    [RequiresDynamicCode("Tool scanning can require run-time code generation.")]
     private static AIFunction CreateFunction(Type type, MethodInfo method, AgentPrismToolAttribute attribute)
     {
         if (method.IsGenericMethodDefinition)
         {
             throw new AgentPrismException(
-                $"'{type.FullName}.{method.Name}' metodu [AgentPrismTool] ile isaretli ancak generic. " +
-                "Tool metotlari generic olamaz; somut bir sarmalayici metot yazin.");
+                $"Method '{type.FullName}.{method.Name}' is marked with [AgentPrismTool] but is generic. " +
+                "Tool methods cannot be generic; write a concrete wrapper method.");
         }
 
         var options = new AIFunctionFactoryOptions
@@ -89,15 +89,14 @@ internal static class ToolMethodScanner
 
         if (!method.IsStatic)
         {
-            // K-218: MAF, AIFunctionArguments.Services olarak BOS bir saglayici gecirir
-            // (EmptyServiceProvider, null DEGIL). Bu denetim eskiden cagri aninda,
-            // servis cozumu icinde yasiyordu ve hicbir zaman calismiyordu - `is { }`
-            // deseni hep dogru donuyordu. Onarim: denetim TARAMA anina alinir, burada
-            // kesin calisir.
+            // K-218: MAF supplies an empty provider as AIFunctionArguments.Services,
+            // not null. This check used to run during service resolution at invocation
+            // time and never executed because `is { }` was always true. It now runs
+            // during scanning, where it reliably executes.
             throw new AgentPrismException(
-                $"'{type.FullName}.{method.Name}' bir ornek metodudur ve tool olamaz. MAF, tool govdesine " +
-                "AIFunctionArguments.Services olarak bos bir saglayici gecirir (karar K-218). Metodu `static` " +
-                "yapin veya tool'u kurulum aninda ornekleyip `AddTool(AIFunctionFactory.Create(...))` ile kaydedin.");
+                $"Method '{type.FullName}.{method.Name}' is an instance method and cannot be a tool. MAF supplies an " +
+                "empty provider as AIFunctionArguments.Services (K-218). Make the method `static`, or create the target " +
+                "during registration and use `AddTool(AIFunctionFactory.Create(...))`.");
         }
 
         return AIFunctionFactory.Create(method, target: null, options);

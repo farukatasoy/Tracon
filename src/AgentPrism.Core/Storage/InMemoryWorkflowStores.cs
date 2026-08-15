@@ -3,10 +3,10 @@ using System.Text.Json;
 
 namespace AgentPrism;
 
-/// <summary>Workflow tanimlarini surec belleginde tutan depo.</summary>
+/// <summary>Stores workflow definitions in process memory.</summary>
 /// <remarks>
-/// Davranis sozlesmesi <c>PostgresWorkflowDefinitionStore</c> ile aynidir ve
-/// ortak sozlesme testleriyle korunur.
+/// Its behavior contract matches <c>PostgresWorkflowDefinitionStore</c> and is
+/// protected by shared contract tests.
 /// </remarks>
 public sealed class InMemoryWorkflowDefinitionStore : IWorkflowDefinitionStore
 {
@@ -83,22 +83,22 @@ public sealed class InMemoryWorkflowDefinitionStore : IWorkflowDefinitionStore
     private readonly record struct WorkflowKey(string TenantId, string Name);
 }
 
-/// <summary>Workflow kontrol noktalarini surec belleginde tutan depo.</summary>
+/// <summary>Stores workflow checkpoints in process memory.</summary>
 /// <remarks>
 /// <para>
-/// Bellek ici kurulumda kontrol noktalari surec omruyle sinirlidir. Bu bilincli
-/// bir kisittir: kalici sürdürme <c>UsePostgreSql()</c> gerektirir ve bunu
-/// gizlemek, yeniden baslatilan bir uygulamada "checkpoint kayboldu" surprizi
-/// uretirdi.
+/// In-memory checkpoints are limited to the process lifetime. This is a
+/// deliberate constraint: durable resumption requires <c>UsePostgreSql()</c>,
+/// and hiding that would cause a "checkpoint disappeared" surprise after an
+/// application restart.
 /// </para>
 /// <para>
-/// Sinirsiz buyumeyi onlemek icin oturum basina tutulan nokta sayisi
-/// <see cref="MaxCheckpointsPerSession"/> ile sinirlidir; en eski nokta dusurulur.
+/// To prevent unbounded growth, <see cref="MaxCheckpointsPerSession"/> limits
+/// checkpoints held per session and discards the oldest one.
 /// </para>
 /// </remarks>
 public sealed class InMemoryWorkflowCheckpointStore : IWorkflowCheckpointStore
 {
-    /// <summary>Bir oturum icin bellekte tutulan en fazla kontrol noktasi sayisi.</summary>
+    /// <summary>Gets the maximum checkpoints held in memory for a session.</summary>
     public const int MaxCheckpointsPerSession = 50;
 
     private readonly ConcurrentDictionary<SessionKey, List<WorkflowCheckpointRecord>> _checkpoints = new();
@@ -217,8 +217,8 @@ public sealed class InMemoryWorkflowCheckpointStore : IWorkflowCheckpointStore
     }
 
     /// <summary>
-    /// Durum yukunu listeden dusurur; PostgreSQL uygulamasi da ustveri doner ve
-    /// iki depo arasindaki fark sozlesme testinde hata olurdu.
+    /// Omits the state payload from the list. The PostgreSQL implementation also
+    /// returns metadata, and a difference between the stores would fail contract tests.
     /// </summary>
     private static List<WorkflowCheckpointRecord> ToMetadata(IEnumerable<WorkflowCheckpointRecord> records)
         => [.. records.Select(static record => record with { State = WorkflowCheckpointState.Omitted })];

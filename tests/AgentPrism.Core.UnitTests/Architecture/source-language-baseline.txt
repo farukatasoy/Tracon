@@ -224,13 +224,11 @@ src/AgentPrism.Core/Retention/AgentPrismRetentionOptions.cs|47
 src/AgentPrism.Core/Retention/AgentPrismRetentionOptionsValidator.cs|5
 src/AgentPrism.Core/Retention/InMemoryRetentionPolicyStore.cs|1
 src/AgentPrism.Core/Retention/NullRetentionStore.cs|8
-src/AgentPrism.Core/Retention/RetentionExecutor.cs|18
 src/AgentPrism.Core/Retention/RetentionJobHandler.cs|4
 src/AgentPrism.Core/Retention/RetentionPolicyResolver.cs|16
 src/AgentPrism.Core/Runs/DefaultRunErrorClassifier.cs|15
 src/AgentPrism.Core/Runs/ErrorFingerprint.cs|14
 src/AgentPrism.Core/Scheduling/AgentBatchJobHandler.cs|11
-src/AgentPrism.Core/Scheduling/AgentPrismAsyncRunOptions.cs|13
 src/AgentPrism.Core/Scheduling/AgentPrismSchedulingOptionsValidator.cs|7
 src/AgentPrism.Core/Scheduling/AgentRunJobHandler.cs|38
 src/AgentPrism.Core/Scheduling/CronExpression.cs|30
@@ -265,11 +263,9 @@ src/AgentPrism.Core/Storage/InMemoryRunStore.cs|98
 src/AgentPrism.Core/Storage/InMemorySessionStore.cs|14
 src/AgentPrism.Core/Storage/InMemorySkillScriptGrantStore.cs|6
 src/AgentPrism.Core/Storage/InMemoryTraceStore.cs|10
-src/AgentPrism.Core/Storage/InMemoryWorkflowStores.cs|11
 src/AgentPrism.Core/Tenancy/FixedTenantContext.cs|10
 src/AgentPrism.Core/Tenancy/SingleTenantContext.cs|6
 src/AgentPrism.Core/Tools/AgentPrismToolUsage.cs|10
-src/AgentPrism.Core/Tools/ToolMethodScanner.cs|25
 src/AgentPrism.Core/Tools/ToolRegistry.cs|11
 src/AgentPrism.Core/Voice/InMemoryVoiceSessionStore.cs|6
 src/AgentPrism.Core/Voice/VoiceConversationBuilderExtensions.cs|18
