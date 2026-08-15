@@ -19,9 +19,7 @@ src/AgentPrism.Abstractions/Evaluation/EvalRunStatus.cs|5
 src/AgentPrism.Abstractions/Evaluation/EvalSuite.cs|12
 src/AgentPrism.Abstractions/Evaluation/IEvalStore.cs|72
 src/AgentPrism.Abstractions/Evaluation/IRunJudge.cs|25
-src/AgentPrism.Abstractions/Experiments/CanaryDecisionKind.cs|4
-src/AgentPrism.Abstractions/Experiments/CanaryEvaluation.cs|7
-src/AgentPrism.Abstractions/Experiments/CanaryPolicy.cs|22
+src/AgentPrism.Abstractions/Experiments/CanaryPolicy.cs|1
 src/AgentPrism.Abstractions/Experiments/Experiment.cs|14
 src/AgentPrism.Abstractions/Experiments/ExperimentAssignment.cs|3
 src/AgentPrism.Abstractions/Experiments/ExperimentStatus.cs|4
