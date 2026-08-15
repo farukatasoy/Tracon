@@ -4,13 +4,12 @@ using Microsoft.Extensions.Logging;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="IMcpServerStore"/>'u denetim izi yazan bir dekorator ile sarar.
+/// Wraps <see cref="IMcpServerStore"/> in a decorator that writes an audit trail.
 /// </summary>
 /// <remarks>
-/// MCP sunucusu eklemek disaridan tool tanimi kabul etmek demektir (karar K-058);
-/// bu yuzden bu depoya yapilan her yazi denetim izine dusmelidir.
-/// <see cref="McpServerDefinition"/> hicbir zaman sir tasimaz (karar K-059), ama
-/// sir suzgeci yine de uygulanir.
+/// Adding an MCP server accepts an external tool definition (decision K-058), so every
+/// write to this store must enter the audit trail. <see cref="McpServerDefinition"/>
+/// never carries a secret (decision K-059), but the secret filter still applies.
 /// </remarks>
 public sealed class AuditingMcpServerStore : IMcpServerStore, IAuditDecorated
 {
@@ -19,7 +18,7 @@ public sealed class AuditingMcpServerStore : IMcpServerStore, IAuditDecorated
     private readonly IAuditActorResolver _actorResolver;
     private readonly ILogger<AuditingMcpServerStore> _logger;
 
-    /// <summary>Yeni bir denetimli MCP sunucu deposu olusturur.</summary>
+    /// <summary>Initializes a new audited MCP server store.</summary>
     public AuditingMcpServerStore(
         IMcpServerStore inner,
         IAuditLog auditLog,

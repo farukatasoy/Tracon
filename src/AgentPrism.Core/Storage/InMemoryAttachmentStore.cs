@@ -3,21 +3,21 @@ using System.Security.Cryptography;
 
 namespace AgentPrism;
 
-/// <summary>Ekleri surec belleginde tutan depo.</summary>
+/// <summary>A store that keeps attachments in process memory.</summary>
 /// <remarks>
-/// Uretimde <c>AgentPrism.PostgreSql</c> paketindeki kalici depo kullanilir.
-/// Bu uygulama gelistirme ve test icindir; surec yeniden basladiginda tum ekler
-/// kaybolur.
+/// Use the persistent store from <c>AgentPrism.PostgreSql</c> in production.
+/// This implementation is for development and tests. All attachments are lost
+/// when the process restarts.
 /// </remarks>
 public sealed class InMemoryAttachmentStore : IAttachmentStore
 {
     private readonly ConcurrentDictionary<Guid, Entry> _entries = new();
     private readonly IAttachmentStorage? _storage;
 
-    /// <summary>Yeni bir bellek ici ek deposu olusturur.</summary>
+    /// <summary>Initializes a new in-memory attachment store.</summary>
     /// <param name="storage">
-    /// Kayitliysa icerik burada saklanir ve bu depo yalnizca ustveriyi tutar.
-    /// <see langword="null"/> ise icerik dogrudan bellekte tutulur.
+    /// When supplied, content is stored here and this store keeps only metadata.
+    /// When <see langword="null"/>, content is kept directly in memory.
     /// </param>
     public InMemoryAttachmentStore(IAttachmentStorage? storage = null) => _storage = storage;
 
