@@ -3,79 +3,78 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Tamamlanmis bir uretim calistirmasini puanlayan genisleme noktasi (Faz 49).
+/// The extension point that scores a completed production run (Phase 49).
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 Bu arayuz MAF'in <c>AIJudgeLoopEvaluator</c>'ini SARMALAMAZ. Olculdu
-/// (MAF 1.16.0): <c>LoopEvaluation</c> bir PUAN dondurmez (yalnizca
-/// <c>ShouldReinvoke</c> ve <c>Feedback</c>) ve <c>LoopContext</c> canli bir
-/// <c>AIAgent</c> + <c>AgentSession</c> ister. Bitmis bir calistirmayi
-/// puanlamak icin uygun degildir — bkz. <c>docs/KARARLAR.md</c>, K-140'in
-/// yeniden acilma karari.
+/// 🚨 This interface does NOT wrap MAF's <c>AIJudgeLoopEvaluator</c>.
+/// Measured (MAF 1.16.0): <c>LoopEvaluation</c> does not return a SCORE (only
+/// <c>ShouldReinvoke</c> and <c>Feedback</c>), and <c>LoopContext</c> requires
+/// a live <c>AIAgent</c> + <c>AgentSession</c>. It is not suited to scoring a
+/// finished run — see <c>docs/KARARLAR.md</c>, the decision reopening K-140.
 /// </para>
-/// <para>K4: kayit <c>TryAddEnumerable</c> ile; birden fazla yargic ayni calistirmayi puanlayabilir.</para>
+/// <para>K4: registered with <c>TryAddEnumerable</c>; multiple judges may score the same run.</para>
 /// <para>
-/// Bir kurulumda birden fazla <see cref="IRunJudge"/> kayitliysa cevrimici
-/// degerlendirme isi hepsini calistirir; her biri kendi <see cref="RunScore"/>
-/// satirini <c>Source = judge:{Name}</c> ile yazar.
+/// If more than one <see cref="IRunJudge"/> is registered in a setup, the
+/// online evaluation job runs all of them; each writes its own
+/// <see cref="RunScore"/> row with <c>Source = judge:{Name}</c>.
 /// </para>
 /// </remarks>
 public interface IRunJudge
 {
-    /// <summary>Yargicin adi. <see cref="RunScore.Source"/> alanina <c>judge:{Name}</c> yazilir.</summary>
+    /// <summary>The judge's name. Written into the <see cref="RunScore.Source"/> field as <c>judge:{Name}</c>.</summary>
     string Name { get; }
 
-    /// <summary>Calistirmayi puanlar.</summary>
-    /// <param name="context">Yargicin gordugu baglam.</param>
-    /// <param name="cancellationToken">Iptal belirteci.</param>
-    /// <returns>Yargicin karari.</returns>
+    /// <summary>Scores the run.</summary>
+    /// <param name="context">The context the judge sees.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The judge's verdict.</returns>
     ValueTask<RunJudgment> JudgeAsync(
         RunJudgeContext context,
         CancellationToken cancellationToken = default);
 }
 
-/// <summary>Yargicin gordugu baglam.</summary>
+/// <summary>The context the judge sees.</summary>
 public sealed record RunJudgeContext
 {
-    /// <summary>Puanlanan calistirmanin kimligi.</summary>
+    /// <summary>The identifier of the run being scored.</summary>
     public required Guid RunId { get; init; }
 
-    /// <summary>Calistirmanin ait oldugu kiraci.</summary>
+    /// <summary>The tenant the run belongs to.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Calistirilan agent'in adi.</summary>
+    /// <summary>The name of the agent that ran.</summary>
     public required string AgentName { get; init; }
 
     /// <summary>
-    /// Calistirmanin girdisi.
+    /// The run's input.
     /// </summary>
     /// <remarks>
-    /// 🚨 <c>run_inputs</c>'tan okunur (Faz 47, <see cref="IRunInputStore"/>);
-    /// kayit yoksa calistirma orneklenmez ve bu tip hic uretilmez.
+    /// 🚨 Read from <c>run_inputs</c> (Phase 47, <see cref="IRunInputStore"/>);
+    /// if no record exists, the run is not sampled and this type is never produced.
     /// </remarks>
     public required IReadOnlyList<ChatMessage> Input { get; init; }
 
-    /// <summary>Calistirmanin cikti metni.</summary>
+    /// <summary>The run's output text.</summary>
     public required string Output { get; init; }
 
-    /// <summary>Cagrilan tool adlari. Bazi olcutler bunu ister.</summary>
+    /// <summary>The tool names called. Some metrics require this.</summary>
     public IReadOnlyList<string> ToolNames { get; init; } = [];
 }
 
-/// <summary>Yargicin karari.</summary>
+/// <summary>The judge's verdict.</summary>
 public sealed record RunJudgment
 {
-    /// <summary>Puan, 0-100. Yargic karar veremediyse <see langword="null"/>.</summary>
+    /// <summary>The score, 0-100. <see langword="null"/> if the judge could not decide.</summary>
     /// <remarks>
-    /// 🚨 Karar verilemedigi durumda <c>0</c> DEGIL <see langword="null"/>
-    /// dondurulur. Sifir bir olcumdur; olcum yoklugu degildir.
+    /// 🚨 When no decision can be made, <see langword="null"/> is returned,
+    /// NOT <c>0</c>. Zero is a measurement; the absence of a measurement is not.
     /// </remarks>
     public int? Score { get; init; }
 
-    /// <summary>Kisa gerekce. <see cref="RunScore.Comment"/> alanina yazilir.</summary>
+    /// <summary>A short rationale. Written into the <see cref="RunScore.Comment"/> field.</summary>
     public string? Reason { get; init; }
 
-    /// <summary>Yargicin kendi model kullanimi. Maliyet raporuna girer.</summary>
+    /// <summary>The judge's own model usage. Included in the cost report.</summary>
     public RunUsage? JudgeUsage { get; init; }
 }

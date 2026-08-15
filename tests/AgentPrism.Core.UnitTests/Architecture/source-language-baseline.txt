@@ -9,8 +9,6 @@ samples/AgentPrism.Api/OrderTools.cs|15
 samples/AgentPrism.Api/Program.cs|248
 samples/AgentPrism.Api/appsettings.json|29
 samples/Directory.Build.props|1
-src/AgentPrism.Abstractions/Evaluation/IEvalStore.cs|72
-src/AgentPrism.Abstractions/Evaluation/IRunJudge.cs|25
 src/AgentPrism.Abstractions/README.md|4
 src/AgentPrism.Abstractions/Runs/AgentPrismRunOptions.cs|57
 src/AgentPrism.Abstractions/Runs/AgentRunBudget.cs|31
