@@ -161,7 +161,6 @@ src/AgentPrism.Core/Evaluation/ModelRunJudgeOptions.cs|7
 src/AgentPrism.Core/Evaluation/OnlineEvalJobHandler.cs|32
 src/AgentPrism.Core/Evaluation/OnlineEvaluationOptions.cs|22
 src/AgentPrism.Core/Evaluation/OnlineEvaluationOptionsValidator.cs|7
-src/AgentPrism.Core/Evaluation/RunToCasePromoter.cs|34
 src/AgentPrism.Core/Experiments/CanaryEvaluationService.cs|23
 src/AgentPrism.Core/Experiments/CanaryEvaluator.cs|9
 src/AgentPrism.Core/Experiments/CanaryOptions.cs|5
