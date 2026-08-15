@@ -4,16 +4,15 @@ using Microsoft.Extensions.AI;
 
 namespace AgentPrism;
 
-/// <summary>AgentPrism skill tanimlarini MAF skill kaynagina cevirir.</summary>
+/// <summary>Converts AgentPrism skill definitions to an MAF skill source.</summary>
 internal sealed class AgentPrismSkillsSource : AgentSkillsSource
 {
     /// <summary>
-    /// MAF, <c>AgentInlineSkill</c>/<c>AddScript</c> icinde bu ornek uzerinde
-    /// <c>MakeReadOnly()</c> cagirir; kaynak-uretilen bir <c>TypeInfoResolver</c>
-    /// olmadan bu, "TypeInfoResolver ayarlanmadan salt-okunur isaretlenemez"
-    /// istisnasi firlatir (K-400). Script argumanlari MarshalArguments uzerinden
-    /// her zaman <see cref="JsonElement"/> olarak akar; kaynak ureteci bu yerlesik
-    /// tipi yansimasiz cozer.
+    /// MAF calls <c>MakeReadOnly()</c> on this instance in
+    /// <c>AgentInlineSkill</c>/<c>AddScript</c>. Without a source-generated
+    /// <c>TypeInfoResolver</c>, this throws an exception that a resolver is required
+    /// before it can be read-only (K-400). Script arguments always flow through
+    /// MarshalArguments as <see cref="JsonElement"/>, which the source generator resolves without reflection.
     /// </summary>
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
     {
@@ -69,16 +68,16 @@ internal sealed class AgentPrismSkillsSource : AgentSkillsSource
 
         foreach (var resource in definition.Resources)
         {
-            // MAF bu asiri yuklemede comparer sunmaz. Adlar HTTP ve store
-            // sinirinda benzersiz oldugu icin burada ek bir karsilastirma yoktur.
+            // MAF does not provide a comparer in this overload. Names are unique at
+            // the HTTP and store boundary, so no additional comparison is needed here.
 #pragma warning disable MA0002
             skill.AddResource(resource.Name, resource.Content, resource.Description ?? string.Empty);
 #pragma warning restore MA0002
         }
 
-        // Saklanan script'ler modele YALNIZCA ozellik ve AllowStoredScripts acikken
-        // gorunur. Kapaliyken kayit veritabaninda durur ama hicbir zaman
-        // calistirilamaz; gormedigi bir script'i modelin cagirmasi da mumkun degildir.
+        // Stored scripts are visible to the model only when the feature and
+        // AllowStoredScripts are enabled. When disabled, the record stays in the
+        // database but never runs, and the model cannot call a script it cannot see.
         if (_scripts is { StoredScriptsEnabled: true })
         {
             foreach (var script in definition.Scripts)
@@ -97,13 +96,12 @@ internal sealed class AgentPrismSkillsSource : AgentSkillsSource
     }
 
     /// <summary>
-    /// Modelin urettigi JSON'u, saklanan script delegesinin tek parametresine tasir.
+    /// Marshals model-generated JSON to the only parameter of a stored script delegate.
     /// </summary>
     /// <remarks>
-    /// Saklanan script'lerin arguman semasi calisma aninda, metin olarak gelir ve
-    /// bir delege imzasina cevrilemez. Bu yuzden ham JSON tek bir
-    /// <c>arguments</c> parametresi olarak gecer; sema, script'in aciklamasinda
-    /// modele bildirilir.
+    /// Stored script argument schema arrives as text at run time and cannot become a
+    /// delegate signature. Raw JSON therefore passes as one <c>arguments</c> parameter,
+    /// while the script description informs the model about the schema.
     /// </remarks>
     private static AIFunctionArguments MarshalArguments(JsonElement? arguments)
     {
@@ -119,6 +117,6 @@ internal sealed class AgentPrismSkillsSource : AgentSkillsSource
 
     private static string DescribeScript(AgentSkillScriptDefinition script)
        => script.ParametersSchema is { Length: > 0 } schema
-           ? $"{script.Description} Argumanlar tek bir JSON nesnesi olarak verilir. Sema: {schema}"
-           : $"{script.Description} Bu script arguman almaz.";
+           ? $"{script.Description} Arguments are supplied as one JSON object. Schema: {schema}"
+           : $"{script.Description} This script does not take arguments.";
 }
