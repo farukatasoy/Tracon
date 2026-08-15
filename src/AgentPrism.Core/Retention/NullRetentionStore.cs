@@ -1,16 +1,15 @@
 namespace AgentPrism;
 
 /// <summary>
-/// Veri duzleminin islevsiz varsayilan uygulamasi: bellek ici depolarla
-/// calisirken kayitlidir ve her zaman "hicbir sey eslesmedi" doner.
+/// The no-op default data-plane implementation. It is registered with in-memory
+/// stores and always returns "nothing matched".
 /// </summary>
 /// <remarks>
-/// Saklama, satirlari kalici bir SQL saglayicisinda saymaya/silmeye dayanir.
-/// Bellek ici depolar surec kapaninca zaten kaybolur; bu yuzden gercek bir
-/// saklama uygulamasi yalniz <c>UsePostgreSql()</c>/<c>UseSqlServer()</c>/
-/// <c>UseSqlite()</c> ile gelir. Bu sinif olmadan <c>RetentionExecutor</c>,
-/// <c>IRetentionStore</c> kayitli degilse hata firlatirdi; onun yerine sessizce
-/// "silinecek bir sey yok" davranisi tercih edildi.
+/// Retention counts and deletes rows in a persistent SQL provider. In-memory stores
+/// are already lost when the process ends, so a real retention implementation comes
+/// only with <c>UsePostgreSql()</c>, <c>UseSqlServer()</c>, or <c>UseSqlite()</c>.
+/// Without this class, <c>RetentionExecutor</c> would throw when <c>IRetentionStore</c>
+/// is unregistered. It instead silently uses the "nothing to delete" behavior.
 /// </remarks>
 public sealed class NullRetentionStore : IRetentionStore
 {
