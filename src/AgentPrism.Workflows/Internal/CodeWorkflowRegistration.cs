@@ -3,17 +3,16 @@ using Microsoft.Agents.AI.Workflows;
 namespace AgentPrism;
 
 /// <summary>
-/// Kodda fabrika ile tanimlanmis bir workflow kaydi.
+/// A workflow registration defined by a factory in code.
 /// </summary>
-/// <param name="Name">Workflow adi.</param>
-/// <param name="Description">Kisa aciklama.</param>
-/// <param name="Factory">Grafi kuran fabrika.</param>
+/// <param name="Name">The workflow name.</param>
+/// <param name="Description">A short description.</param>
+/// <param name="Factory">The factory that builds the graph.</param>
 /// <remarks>
-/// Kodda tanimli workflow <strong>serbest graftir</strong>: ozel
-/// <c>Executor</c> tipleri, kosullu kenarlar ve alt workflow'lar
-/// kullanabilir. Bu, tasarim kurali K2'yi bozmaz - kod derleme zamaninda
-/// yazilmistir. Arayuzden tanimlanan workflow ise yalnizca katalogdaki
-/// agent'lari hazir desenlerle diziler.
+/// A code-defined workflow has a <strong>free graph</strong>. It can use custom
+/// <c>Executor</c> types, conditional edges, and child workflows. This does not break
+/// design rule K2 because code is written at build time. A UI-defined workflow only
+/// arranges catalog agents with prepared patterns.
 /// </remarks>
 internal sealed record CodeWorkflowRegistration(
     string Name,
