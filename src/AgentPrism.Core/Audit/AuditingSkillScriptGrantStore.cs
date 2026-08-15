@@ -3,11 +3,11 @@ using Microsoft.Extensions.Logging;
 
 namespace AgentPrism;
 
-/// <summary><see cref="ISkillScriptGrantStore"/>'u denetim izi yazan bir dekorator ile sarar.</summary>
+/// <summary>Wraps <see cref="ISkillScriptGrantStore"/> in a decorator that writes an audit trail.</summary>
 /// <remarks>
-/// Script calistirma izni vermek, sunucuda kod calistirma yetkisi vermektir.
-/// <c>script.grant</c> ve <c>script.revoke</c> eylemleri bu yuzden her zaman
-/// denetim izine yazilir.
+/// Granting permission to run a script grants permission to run code on the server.
+/// The <c>script.grant</c> and <c>script.revoke</c> actions therefore always enter
+/// the audit trail.
 /// </remarks>
 public sealed class AuditingSkillScriptGrantStore : ISkillScriptGrantStore, IAuditDecorated
 {
@@ -16,12 +16,12 @@ public sealed class AuditingSkillScriptGrantStore : ISkillScriptGrantStore, IAud
     private readonly IAuditActorResolver _actorResolver;
     private readonly ILogger<AuditingSkillScriptGrantStore> _logger;
 
-    /// <summary>Yeni bir denetimli izin deposu olusturur.</summary>
-    /// <param name="inner">Sarilan depo.</param>
-    /// <param name="auditLog">Denetim izi.</param>
-    /// <param name="actorResolver">Aktor cozumleyici.</param>
-    /// <param name="logger">Gunlukleyici.</param>
-    /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
+    /// <summary>Initializes a new audited grant store.</summary>
+    /// <param name="inner">The wrapped store.</param>
+    /// <param name="auditLog">The audit log.</param>
+    /// <param name="actorResolver">The actor resolver.</param>
+    /// <param name="logger">The logger.</param>
+    /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
     public AuditingSkillScriptGrantStore(
         ISkillScriptGrantStore inner,
         IAuditLog auditLog,

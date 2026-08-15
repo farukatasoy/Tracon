@@ -2,11 +2,11 @@ using System.Collections.Concurrent;
 
 namespace AgentPrism;
 
-/// <summary>Script calistirma izinlerini surec belleginde tutan depo.</summary>
+/// <summary>A store that keeps script execution grants in process memory.</summary>
 /// <remarks>
-/// Uretimde <c>AgentPrism.PostgreSql</c> paketindeki kalici depo kullanilir.
-/// Bu uygulama gelistirme ve test icindir; surec yeniden basladiginda izinler
-/// kaybolur, yani <strong>varsayilan olarak hicbir script calismaz</strong>.
+/// Use the persistent store from <c>AgentPrism.PostgreSql</c> in production.
+/// This implementation is for development and tests. Grants are lost when the
+/// process restarts, so <strong>no script runs by default</strong>.
 /// </remarks>
 public sealed class InMemorySkillScriptGrantStore : ISkillScriptGrantStore
 {
@@ -41,8 +41,8 @@ public sealed class InMemorySkillScriptGrantStore : ISkillScriptGrantStore
         ArgumentNullException.ThrowIfNull(skillName);
         ArgumentNullException.ThrowIfNull(scriptName);
 
-        // Once script'e ozgu izin aranir; bulunamazsa skill'in tumunu kapsayan
-        // izne bakilir. Dar olan izin genis olani her zaman yener.
+        // First look for a script-specific grant. If it does not exist, look for a
+        // grant that covers the full skill. A narrow grant always wins over a broad grant.
         if (_grants.TryGetValue(new GrantKey(tenantId, skillName, scriptName), out var specific) &&
             specific.IsActiveAt(instant))
         {

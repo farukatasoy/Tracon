@@ -5,16 +5,15 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism;
 
 /// <summary>
-/// Baglam sikistirmasindaki ozetleme cagrisi icin kullanilan
-/// <see cref="IChatClient"/>'i sarar; kendi span'ini acar ve token
-/// kullanimini <see cref="AgentPrismRunContext"/> uzerinden calistirmanin
-/// nihai kullanimina ekler.
+/// Wraps the <see cref="IChatClient"/> used by the summarization call during
+/// context compaction. It opens its own span and adds token usage to the final
+/// run usage through <see cref="AgentPrismRunContext"/>.
 /// </summary>
 /// <remarks>
-/// Yalnizca <see cref="SummarizationCompactionStrategy"/>'nin kullandigi
-/// istemciye uygulanir. Bu cagri agent'in kendi <c>AgentResponse</c>'undan
-/// tamamen ayri bir yan-kanal cagrisidir; sarmalanmazsa token'lari hicbir
-/// yere kaydolmaz. Precedent: <see cref="CircuitBreakingChatClient"/>.
+/// Applies only to the client used by <see cref="SummarizationCompactionStrategy"/>.
+/// This call is a side channel that is fully separate from the agent's own
+/// <c>AgentResponse</c>. Without this wrapper, its tokens are not recorded.
+/// Precedent: <see cref="CircuitBreakingChatClient"/>.
 /// </remarks>
 internal sealed class CompactionUsageTrackingChatClient(IChatClient inner) : DelegatingChatClient(inner)
 {
