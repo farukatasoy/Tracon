@@ -1,12 +1,12 @@
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="IAgentSkillStore"/> sozlesmesinin davranis testleri.
+/// Behavior tests for the <see cref="IAgentSkillStore"/> contract.
 /// </summary>
 /// <remarks>
-/// Faz 41'de eklendi. Skill deposu bu tarihe kadar uc SQL saglayicisinda hic
-/// karsilastirilmamisti; sozlesme hem davranis esitligini hem kiraci yalitimini
-/// korur.
+/// Added in phase 41. The skill store had never been compared across the three
+/// SQL providers before this date; the contract protects both behavior parity
+/// and tenant isolation.
 /// </remarks>
 public abstract class AgentSkillStoreContract : TenantIsolationContract<IAgentSkillStore>
 {
@@ -30,59 +30,59 @@ public abstract class AgentSkillStoreContract : TenantIsolationContract<IAgentSk
         => await Store.DeleteAsync(tenantId, (string)key);
 
     [Fact]
-    public async Task Kaydedilen_skill_geri_okunur()
+    public async Task Saved_skill_is_read_back()
     {
-        var saved = await Store.SaveAsync(Skill("kiraci-a", "fatura"));
+        var saved = await Store.SaveAsync(Skill("tenant-a", "invoice"));
 
         saved.Id.ShouldNotBe(Guid.Empty);
 
-        var loaded = await Store.GetAsync("kiraci-a", "fatura");
+        var loaded = await Store.GetAsync("tenant-a", "invoice");
 
         loaded.ShouldNotBeNull();
-        loaded.Description.ShouldBe("Fatura inceleme.");
-        loaded.Instructions.ShouldBe("Her faturayi kontrol et.");
+        loaded.Description.ShouldBe("Invoice review.");
+        loaded.Instructions.ShouldBe("Check every invoice.");
         loaded.Enabled.ShouldBeTrue();
     }
 
     [Fact]
-    public async Task Ayni_ad_ikinci_kez_kaydedilince_surum_artar()
+    public async Task Saving_the_same_name_again_increments_version()
     {
-        var first = await Store.SaveAsync(Skill("kiraci-a", "fatura"));
-        var second = await Store.SaveAsync(Skill("kiraci-a", "fatura") with { Instructions = "guncellendi" });
+        var first = await Store.SaveAsync(Skill("tenant-a", "invoice"));
+        var second = await Store.SaveAsync(Skill("tenant-a", "invoice") with { Instructions = "updated" });
 
         second.Id.ShouldBe(first.Id);
         second.Version.ShouldBeGreaterThan(first.Version);
 
-        (await Store.GetAsync("kiraci-a", "fatura"))!.Instructions.ShouldBe("guncellendi");
-        (await Store.ListAsync("kiraci-a")).ShouldHaveSingleItem();
+        (await Store.GetAsync("tenant-a", "invoice"))!.Instructions.ShouldBe("updated");
+        (await Store.ListAsync("tenant-a")).ShouldHaveSingleItem();
     }
 
     [Fact]
-    public async Task Olmayan_skill_null_doner()
-        => (await Store.GetAsync("kiraci-a", "yok")).ShouldBeNull();
+    public async Task Missing_skill_returns_null()
+        => (await Store.GetAsync("tenant-a", "missing")).ShouldBeNull();
 
     [Fact]
-    public async Task Silme_olmayan_kayitta_false_doner()
-        => (await Store.DeleteAsync("kiraci-a", "yok")).ShouldBeFalse();
+    public async Task Deleting_a_missing_record_returns_false()
+        => (await Store.DeleteAsync("tenant-a", "missing")).ShouldBeFalse();
 
     [Fact]
-    public async Task Liste_ada_gore_siralanir()
+    public async Task List_is_sorted_by_name()
     {
-        await Store.SaveAsync(Skill("kiraci-a", "zeta"));
-        await Store.SaveAsync(Skill("kiraci-a", "alfa"));
+        await Store.SaveAsync(Skill("tenant-a", "zeta"));
+        await Store.SaveAsync(Skill("tenant-a", "alpha"));
 
-        var all = await Store.ListAsync("kiraci-a");
+        var all = await Store.ListAsync("tenant-a");
 
         all.Count.ShouldBe(2);
-        all[0].Name.ShouldBe("alfa");
+        all[0].Name.ShouldBe("alpha");
     }
 
     [Fact]
-    public async Task Kapatilan_skill_kapali_okunur()
+    public async Task Disabled_skill_reads_back_disabled()
     {
-        await Store.SaveAsync(Skill("kiraci-a", "fatura") with { Enabled = false });
+        await Store.SaveAsync(Skill("tenant-a", "invoice") with { Enabled = false });
 
-        (await Store.GetAsync("kiraci-a", "fatura"))!.Enabled.ShouldBeFalse();
+        (await Store.GetAsync("tenant-a", "invoice"))!.Enabled.ShouldBeFalse();
     }
 
     private static AgentSkillDefinition Skill(string tenantId, string name)
@@ -90,7 +90,7 @@ public abstract class AgentSkillStoreContract : TenantIsolationContract<IAgentSk
         {
             TenantId = tenantId,
             Name = name,
-            Description = "Fatura inceleme.",
-            Instructions = "Her faturayi kontrol et.",
+            Description = "Invoice review.",
+            Instructions = "Check every invoice.",
         };
 }

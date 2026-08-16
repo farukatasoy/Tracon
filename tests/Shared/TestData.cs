@@ -2,27 +2,27 @@ using System.Text.Json;
 
 namespace AgentPrism.StoreContracts;
 
-/// <summary>Testlerin kullandigi ornek veriler.</summary>
+/// <summary>Sample data used by the tests.</summary>
 public static class TestData
 {
-    /// <summary>Ornek bir agent tanimi uretir.</summary>
-    /// <param name="name">Agent adi.</param>
-    /// <returns>Tanim.</returns>
+    /// <summary>Produces a sample agent definition.</summary>
+    /// <param name="name">The agent name.</param>
+    /// <returns>The definition.</returns>
     public static AgentDefinition Definition(string name)
         => new()
         {
             Name = name,
-            DisplayName = $"{name} agent'i",
-            Description = "Test tanimi.",
-            Instructions = "Kisa yanit ver.",
+            DisplayName = $"{name} agent",
+            Description = "Test definition.",
+            Instructions = "Give a short answer.",
             Model = new ModelBinding { Provider = "echo", Model = "echo-1", Temperature = 0.5f },
             ToolNames = ["alpha", "beta"],
         };
 
-    /// <summary>Ornek bir calistirma baslangici uretir.</summary>
-    /// <param name="runId">Calistirma kimligi.</param>
-    /// <param name="agentName">Agent adi.</param>
-    /// <returns>Baslangic bilgileri.</returns>
+    /// <summary>Produces a sample run start.</summary>
+    /// <param name="runId">The run ID.</param>
+    /// <param name="agentName">The agent name.</param>
+    /// <returns>The start info.</returns>
     public static RunStartInfo Run(Guid runId, string agentName = "test-agent")
         => new()
         {
@@ -31,10 +31,10 @@ public static class TestData
             StartedAt = DateTimeOffset.UtcNow,
         };
 
-    /// <summary>Ornek bir calistirma olayi uretir.</summary>
-    /// <param name="runId">Calistirma kimligi.</param>
-    /// <param name="sequence">Sira numarasi.</param>
-    /// <returns>Olay.</returns>
+    /// <summary>Produces a sample run event.</summary>
+    /// <param name="runId">The run ID.</param>
+    /// <param name="sequence">The sequence number.</param>
+    /// <returns>The event.</returns>
     public static RunEvent Event(Guid runId, long sequence)
         => new()
         {
@@ -42,13 +42,13 @@ public static class TestData
             Sequence = sequence,
             Type = RunEventType.MessageDelta,
             Timestamp = DateTimeOffset.UtcNow,
-            Text = $"parca {sequence}",
+            Text = $"chunk {sequence}",
         };
 
-    /// <summary>Ornek bir oturum kaydi uretir.</summary>
-    /// <param name="sessionId">Oturum kimligi.</param>
-    /// <param name="state">Serilestirilmis durum. Verilmezse ornek bir nesne kullanilir.</param>
-    /// <returns>Oturum kaydi.</returns>
+    /// <summary>Produces a sample session record.</summary>
+    /// <param name="sessionId">The session ID.</param>
+    /// <param name="state">The serialized state. A sample object is used when omitted.</param>
+    /// <returns>The session record.</returns>
     public static SessionRecord Session(string sessionId, JsonElement? state = null)
     {
         var now = DateTimeOffset.UtcNow;
@@ -57,25 +57,25 @@ public static class TestData
         {
             Id = sessionId,
             AgentName = "test-agent",
-            State = state ?? State("""{"messages":[{"role":"user","text":"merhaba"}],"turn":3}"""),
+            State = state ?? State("""{"messages":[{"role":"user","text":"hello"}],"turn":3}"""),
             CreatedAt = now,
             UpdatedAt = now,
         };
     }
 
-    /// <summary>Ham JSON metnini <see cref="JsonElement"/> nesnesine cevirir.</summary>
-    /// <param name="json">JSON metni.</param>
-    /// <returns>Bagimsiz bir JSON ogesi.</returns>
+    /// <summary>Converts raw JSON text to a <see cref="JsonElement"/>.</summary>
+    /// <param name="json">The JSON text.</param>
+    /// <returns>A standalone JSON element.</returns>
     public static JsonElement State(string json)
     {
         using var document = JsonDocument.Parse(json);
         return document.RootElement.Clone();
     }
 
-    /// <summary>Ornek bir kuyruk isi uretir. <c>EnqueueAsync</c>'e verilmeye hazirdir.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="scheduledFor">Calismaya uygun zaman. Verilmezse su an.</param>
-    /// <returns>Is kaydi.</returns>
+    /// <summary>Produces a sample queued job. Ready to pass to <c>EnqueueAsync</c>.</summary>
+    /// <param name="tenantId">The tenant ID.</param>
+    /// <param name="scheduledFor">The time the job is due to run. Defaults to now.</param>
+    /// <returns>The job record.</returns>
     public static JobRecord Job(string tenantId = "default", DateTimeOffset? scheduledFor = null)
     {
         var now = DateTimeOffset.UtcNow;
@@ -87,17 +87,17 @@ public static class TestData
             Kind = JobKind.AgentBatch,
             TargetName = "test-agent",
             Status = JobStatus.Pending,
-            Payload = State("""["girdi"]"""),
+            Payload = State("""["input"]"""),
             ScheduledFor = scheduledFor ?? now,
             CreatedAt = now,
         };
     }
 
-    /// <summary>Ornek bir zamanlama uretir.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="name">Zamanlama adi.</param>
-    /// <returns>Zamanlama.</returns>
-    public static JobSchedule Schedule(string tenantId = "default", string name = "gece-raporu")
+    /// <summary>Produces a sample schedule.</summary>
+    /// <param name="tenantId">The tenant ID.</param>
+    /// <param name="name">The schedule name.</param>
+    /// <returns>The schedule.</returns>
+    public static JobSchedule Schedule(string tenantId = "default", string name = "night-report")
     {
         var now = DateTimeOffset.UtcNow;
 
@@ -109,18 +109,18 @@ public static class TestData
             TargetName = "test-agent",
             Cron = "0 3 * * *",
             TimeZone = "UTC",
-            Payload = State("""["girdi"]"""),
+            Payload = State("""["input"]"""),
             Enabled = true,
             CreatedAt = now,
             UpdatedAt = now,
         };
     }
 
-    /// <summary>Ornek bir eval takimi uretir.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="name">Takim adi.</param>
-    /// <returns>Takim.</returns>
-    public static EvalSuite EvalSuite(string tenantId = "default", string name = "musteri-destek-takimi")
+    /// <summary>Produces a sample eval suite.</summary>
+    /// <param name="tenantId">The tenant ID.</param>
+    /// <param name="name">The suite name.</param>
+    /// <returns>The suite.</returns>
+    public static EvalSuite EvalSuite(string tenantId = "default", string name = "customer-support-team")
         => new()
         {
             TenantId = tenantId,
@@ -129,18 +129,18 @@ public static class TestData
             Checks = State("""[{"kind":"nonEmpty","minLength":1}]"""),
         };
 
-    /// <summary>Ornek bir eval vakasi uretir.</summary>
-    /// <param name="suiteId">Ait oldugu takimin kimligi.</param>
-    /// <param name="query">Sorgu metni.</param>
-    /// <returns>Vaka.</returns>
-    public static EvalCase EvalCase(Guid suiteId, string query = "soru")
+    /// <summary>Produces a sample eval case.</summary>
+    /// <param name="suiteId">The ID of the suite it belongs to.</param>
+    /// <param name="query">The query text.</param>
+    /// <returns>The case.</returns>
+    public static EvalCase EvalCase(Guid suiteId, string query = "question")
         => new() { SuiteId = suiteId, Seq = 0, Query = query };
 
-    /// <summary>Ornek bir eval vaka taslagi uretir (uretimden terfi, Faz 45).</summary>
-    /// <param name="sourceRunId">Terfi eden calistirma kimligi.</param>
-    /// <param name="query">Sorgu metni.</param>
-    /// <returns>Taslak.</returns>
-    public static EvalCaseDraft EvalCaseDraft(Guid? sourceRunId = null, string query = "soru")
+    /// <summary>Produces a sample eval case draft (promoted from production, phase 45).</summary>
+    /// <param name="sourceRunId">The ID of the promoted run.</param>
+    /// <param name="query">The query text.</param>
+    /// <returns>The draft.</returns>
+    public static EvalCaseDraft EvalCaseDraft(Guid? sourceRunId = null, string query = "question")
         => new()
         {
             Query = query,
@@ -148,10 +148,10 @@ public static class TestData
             SourceKind = sourceRunId is null ? null : EvalCaseSource.FailedRun,
         };
 
-    /// <summary>Ornek bir eval kosusu uretir.</summary>
-    /// <param name="tenantId">Kiraci kimligi.</param>
-    /// <param name="suiteId">Olculen takimin kimligi.</param>
-    /// <returns>Kosu.</returns>
+    /// <summary>Produces a sample eval run.</summary>
+    /// <param name="tenantId">The tenant ID.</param>
+    /// <param name="suiteId">The ID of the suite being measured.</param>
+    /// <returns>The run.</returns>
     public static EvalRun EvalRun(string tenantId, Guid suiteId)
         => new()
         {

@@ -3,38 +3,39 @@ using AgentPrism.Workflows.UnitTests.Fakes;
 namespace AgentPrism.Workflows.UnitTests;
 
 /// <summary>
-/// Kosucunun ucuncu tarafa gorunen davranisi: calistirma kaydi, agac,
-/// kontrol noktalari ve sinirlar.
+/// Behavior of the runner visible to a third party: run records, the tree,
+/// checkpoints, and limits.
 /// </summary>
 public sealed class WorkflowRunnerTests
 {
     [Fact]
-    public async Task Sequential_calistirmasi_agac_uretir()
+    public async Task Sequential_run_produces_a_tree()
     {
-        var host = new WorkflowTestHost("yazar", "editor", "kontrol");
+        var host = new WorkflowTestHost("writer", "editor", "reviewer");
 
         await host.SaveAsync(new WorkflowDefinition
         {
-            Name = "zincir",
+            Name = "chain",
             Kind = WorkflowKind.Sequential,
-            AgentNames = ["yazar", "editor", "kontrol"],
+            AgentNames = ["writer", "editor", "reviewer"],
         });
 
         var runner = host.CreateRunner();
-        var events = await Collect(runner, "zincir", "merhaba");
+        var events = await Collect(runner, "chain", "hello");
 
         events.ShouldNotBeEmpty();
 
-        // Kok satir: bir workflow calistirmasi.
+        // Root row: one workflow run.
         var runs = await host.RunStore.QueryRunsAsync(new RunQuery { OnlyRootRuns = false, Take = 100 });
         var root = runs.Single(run => run.Kind == RunKind.Workflow);
 
-        root.WorkflowName.ShouldBe("zincir");
-        root.AgentName.ShouldBe("zincir");
+        root.WorkflowName.ShouldBe("chain");
+        root.AgentName.ShouldBe("chain");
         root.Status.ShouldBe(RunStatus.Completed);
         root.Depth.ShouldBe(0);
 
-        // Uc agent satiri, hepsi kokun altinda. Waterfall bu sayede dogru cizilir.
+        // Three agent rows, all under the root. This is what lets the
+        // waterfall view be drawn correctly.
         var children = runs.Where(run => run.Kind == RunKind.Agent).ToList();
 
         children.Count.ShouldBe(3);
@@ -42,46 +43,46 @@ public sealed class WorkflowRunnerTests
         children.ShouldAllBe(run => run.RootRunId == root.Id);
         children.ShouldAllBe(run => run.Depth == 1);
         children.Select(run => run.AgentName).Order(StringComparer.Ordinal)
-            .ShouldBe(["editor", "kontrol", "yazar"]);
+            .ShouldBe(["editor", "reviewer", "writer"]);
     }
 
     [Fact]
-    public async Task Zincirin_ciktisi_sonraki_agente_akar()
+    public async Task Chain_output_flows_to_the_next_agent()
     {
-        var host = new WorkflowTestHost("bir", "iki");
+        var host = new WorkflowTestHost("one", "two");
 
         await host.SaveAsync(new WorkflowDefinition
         {
-            Name = "zincir",
+            Name = "chain",
             Kind = WorkflowKind.Sequential,
-            AgentNames = ["bir", "iki"],
+            AgentNames = ["one", "two"],
         });
 
         var runner = host.CreateRunner();
-        var events = await Collect(runner, "zincir", "girdi");
+        var events = await Collect(runner, "chain", "input");
 
-        // EchoAgent gelen metni isaretler; ikinci halka birincinin ciktisini
-        // gormezse metin ic ice gecmezdi.
+        // EchoAgent tags the incoming text; if the second link did not see the
+        // first one's output, the text would not be nested.
         var output = events.Single(runEvent => runEvent.Type == RunEventType.WorkflowOutput);
 
         output.Text.ShouldNotBeNull();
-        output.Text!.ShouldContain("[iki][bir]girdi", Case.Sensitive);
+        output.Text!.ShouldContain("[two][one]input", Case.Sensitive);
     }
 
     [Fact]
-    public async Task Kontrol_noktalari_yazilir()
+    public async Task Checkpoints_are_written()
     {
-        var host = new WorkflowTestHost("yazar", "editor");
+        var host = new WorkflowTestHost("writer", "editor");
 
         await host.SaveAsync(new WorkflowDefinition
         {
-            Name = "zincir",
+            Name = "chain",
             Kind = WorkflowKind.Sequential,
-            AgentNames = ["yazar", "editor"],
+            AgentNames = ["writer", "editor"],
         });
 
         var runner = host.CreateRunner();
-        await Collect(runner, "zincir", "merhaba");
+        await Collect(runner, "chain", "hello");
 
         var runs = await host.RunStore.QueryRunsAsync(new RunQuery { OnlyRootRuns = false, Take = 100 });
         var root = runs.Single(run => run.Kind == RunKind.Workflow);
@@ -91,24 +92,24 @@ public sealed class WorkflowRunnerTests
         checkpoints.ShouldNotBeEmpty();
         checkpoints.ShouldAllBe(record => record.RunId == root.Id);
 
-        // Liste ustveridir; durum yuku bilerek okunmaz.
+        // The list is metadata; the state payload is deliberately not read.
         checkpoints.ShouldAllBe(record => WorkflowCheckpointState.IsOmitted(record.State));
     }
 
     [Fact]
-    public async Task Checkpoint_kapaliyken_nokta_yazilmaz()
+    public async Task No_checkpoint_is_written_while_checkpointing_is_disabled()
     {
-        var host = new WorkflowTestHost("yazar", "editor");
+        var host = new WorkflowTestHost("writer", "editor");
 
         await host.SaveAsync(new WorkflowDefinition
         {
-            Name = "zincir",
+            Name = "chain",
             Kind = WorkflowKind.Sequential,
-            AgentNames = ["yazar", "editor"],
+            AgentNames = ["writer", "editor"],
         });
 
         var runner = host.CreateRunner(options => options.EnableCheckpointing = false);
-        await Collect(runner, "zincir", "merhaba");
+        await Collect(runner, "chain", "hello");
 
         var runs = await host.RunStore.QueryRunsAsync(new RunQuery { OnlyRootRuns = false, Take = 100 });
         var root = runs.Single(run => run.Kind == RunKind.Workflow);
@@ -117,19 +118,19 @@ public sealed class WorkflowRunnerTests
     }
 
     [Fact]
-    public async Task Kontrol_noktasindan_surdurulur()
+    public async Task Resuming_from_a_checkpoint_works()
     {
-        var host = new WorkflowTestHost("yazar", "editor");
+        var host = new WorkflowTestHost("writer", "editor");
 
         await host.SaveAsync(new WorkflowDefinition
         {
-            Name = "zincir",
+            Name = "chain",
             Kind = WorkflowKind.Sequential,
-            AgentNames = ["yazar", "editor"],
+            AgentNames = ["writer", "editor"],
         });
 
         var runner = host.CreateRunner();
-        await Collect(runner, "zincir", "merhaba");
+        await Collect(runner, "chain", "hello");
 
         var first = (await host.RunStore.QueryRunsAsync(new RunQuery { OnlyRootRuns = false, Take = 100 }))
             .Single(run => run.Kind == RunKind.Workflow);
@@ -143,58 +144,58 @@ public sealed class WorkflowRunnerTests
 
         resumed.ShouldNotBeEmpty();
 
-        // Sürdürme YENI bir calistirma kaydi acar: ayni satiri yeniden acmak
-        // olay akisinin append-only olma kuralini bozardi.
+        // Resuming opens a NEW run record: reopening the same row would break
+        // the append-only rule of the event stream.
         var workflowRuns = (await host.RunStore.QueryRunsAsync(new RunQuery { OnlyRootRuns = false, Take = 100 }))
             .Where(run => run.Kind == RunKind.Workflow)
             .ToList();
 
         workflowRuns.Count.ShouldBe(2);
-        workflowRuns.ShouldAllBe(run => run.WorkflowName == "zincir");
+        workflowRuns.ShouldAllBe(run => run.WorkflowName == "chain");
         workflowRuns.Select(run => run.SessionId).Distinct(StringComparer.Ordinal).Count().ShouldBe(1);
     }
 
     [Fact]
-    public async Task Baska_kiracinin_calistirmasi_surdurulemez()
+    public async Task Another_tenants_run_cannot_be_resumed()
     {
-        var host = new WorkflowTestHost("yazar", "editor");
+        var host = new WorkflowTestHost("writer", "editor");
 
         await host.SaveAsync(new WorkflowDefinition
         {
-            Name = "zincir",
+            Name = "chain",
             Kind = WorkflowKind.Sequential,
-            AgentNames = ["yazar", "editor"],
+            AgentNames = ["writer", "editor"],
         });
 
         var runner = host.CreateRunner();
-        await Collect(runner, "zincir", "merhaba");
+        await Collect(runner, "chain", "hello");
 
         var run = (await host.RunStore.QueryRunsAsync(new RunQuery { OnlyRootRuns = false, Take = 100 }))
             .Single(record => record.Kind == RunKind.Workflow);
 
-        host.TenantContext.TenantId = "baska-kiraci";
+        host.TenantContext.TenantId = "other-tenant";
 
         var exception = await Should.ThrowAsync<AgentPrismException>(async () =>
         {
             await foreach (var _ in runner.ResumeStreamingAsync(new WorkflowResumeRequest { RunId = run.Id }))
             {
-                // Akis hic baslamamalidir.
+                // The stream must never start.
             }
         });
 
-        // Mesaj "yetkisiz" demez: baska bir kiracinin calistirmasinin VAR OLDUGU
-        // bilgisi bile sizdirilmaz.
+        // The message does not say "unauthorized": whether another tenant's
+        // run EXISTS at all must not be leaked either.
         exception.Message.ShouldContain("There is no run", Case.Sensitive);
         exception.Message.ShouldNotContain("permission", Case.Sensitive);
     }
 
     [Fact]
-    public async Task Bilinmeyen_workflow_calistirmayi_basarisiz_kapatir()
+    public async Task Unknown_workflow_fails_the_run()
     {
-        var host = new WorkflowTestHost("yazar");
+        var host = new WorkflowTestHost("writer");
         var runner = host.CreateRunner();
 
-        var events = await Collect(runner, "olmayan", "merhaba");
+        var events = await Collect(runner, "missing", "hello");
 
         events[^1].Type.ShouldBe(RunEventType.RunFailed);
 
@@ -202,25 +203,26 @@ public sealed class WorkflowRunnerTests
             .Single(record => record.Kind == RunKind.Workflow);
 
         run.Status.ShouldBe(RunStatus.Failed);
-        run.Error!.Message.ShouldContain("There is no workflow named 'olmayan'", Case.Sensitive);
+        run.Error!.Message.ShouldContain("There is no workflow named 'missing'", Case.Sensitive);
     }
 
     [Fact]
-    public async Task Super_step_siniri_calistirmayi_durdurur()
+    public async Task Super_step_limit_stops_the_run()
     {
-        var host = new WorkflowTestHost("yazar", "editor", "kontrol");
+        var host = new WorkflowTestHost("writer", "editor", "reviewer");
 
         await host.SaveAsync(new WorkflowDefinition
         {
-            Name = "zincir",
+            Name = "chain",
             Kind = WorkflowKind.Sequential,
-            AgentNames = ["yazar", "editor", "kontrol"],
+            AgentNames = ["writer", "editor", "reviewer"],
         });
 
-        // Sequential zincir dort super-step ister (uc agent + cikti toplayicisi);
-        // sinir bir olunca ikinci adimda kesilmelidir.
+        // A sequential chain needs four super-steps (three agents + the
+        // output collector); with the limit set to one it must be cut off on
+        // the second step.
         var runner = host.CreateRunner(options => options.MaxSuperSteps = 1);
-        var events = await Collect(runner, "zincir", "merhaba");
+        var events = await Collect(runner, "chain", "hello");
 
         events[^1].Type.ShouldBe(RunEventType.RunFailed);
 
@@ -233,65 +235,65 @@ public sealed class WorkflowRunnerTests
     }
 
     [Fact]
-    public async Task Motor_kapaliyken_calistirma_reddedilir()
+    public async Task Run_is_rejected_while_the_engine_is_disabled()
     {
-        var host = new WorkflowTestHost("yazar");
+        var host = new WorkflowTestHost("writer");
         var runner = host.CreateRunner(options => options.Enabled = false);
 
         await Should.ThrowAsync<AgentPrismException>(async () =>
         {
-            await foreach (var _ in runner.RunStreamingAsync(new WorkflowRunRequest { WorkflowName = "zincir" }))
+            await foreach (var _ in runner.RunStreamingAsync(new WorkflowRunRequest { WorkflowName = "chain" }))
             {
-                // Akis hic baslamamalidir.
+                // The stream must never start.
             }
         });
     }
 
     [Fact]
-    public async Task Gecersiz_oturum_kimligi_reddedilir()
+    public async Task Invalid_session_id_is_rejected()
     {
-        var host = new WorkflowTestHost("yazar");
+        var host = new WorkflowTestHost("writer");
         var runner = host.CreateRunner();
 
-        // Oturum kimligi kontrol noktalarini gruplar ve istemciden gelir.
-        // Dogrulanmadan kullanilmasi baska bir yurutmenin durumuna erisim demektir.
+        // The session id groups checkpoints and comes from the client.
+        // Using it without validation would mean access to another run's state.
         await Should.ThrowAsync<AgentPrismException>(async () =>
         {
             await foreach (var _ in runner.RunStreamingAsync(new WorkflowRunRequest
             {
-                WorkflowName = "zincir",
+                WorkflowName = "chain",
                 SessionId = "../../etc/passwd",
             }))
             {
-                // Akis hic baslamamalidir.
+                // The stream must never start.
             }
         });
     }
 
     [Fact]
-    public async Task Kodda_tanimli_workflow_veritabanindakinin_onune_gecer()
+    public async Task Workflow_defined_in_code_takes_priority_over_the_one_in_the_database()
     {
-        var host = new WorkflowTestHost("yazar", "editor");
+        var host = new WorkflowTestHost("writer", "editor");
 
         await host.SaveAsync(new WorkflowDefinition
         {
-            Name = "zincir",
+            Name = "chain",
             Kind = WorkflowKind.Sequential,
-            AgentNames = ["yazar", "editor"],
+            AgentNames = ["writer", "editor"],
         });
 
         var runner = host.CreateRunner(
             configure: null,
             services: null,
             new CodeWorkflowRegistration(
-                "zincir",
-                "Kodda tanimli.",
-                _ => Microsoft.Agents.AI.Workflows.AgentWorkflowBuilder.BuildSequential("zincir", [])));
+                "chain",
+                "Defined in code.",
+                _ => Microsoft.Agents.AI.Workflows.AgentWorkflowBuilder.BuildSequential("chain", [])));
 
-        var descriptor = (await runner.GetAsync("zincir"))!;
+        var descriptor = (await runner.GetAsync("chain"))!;
 
         descriptor.Origin.ShouldBe(AgentDefinitionOrigin.Code);
-        descriptor.Description.ShouldBe("Kodda tanimli.");
+        descriptor.Description.ShouldBe("Defined in code.");
     }
 
     private static async Task<List<RunEvent>> Collect(WorkflowRunner runner, string name, string message)

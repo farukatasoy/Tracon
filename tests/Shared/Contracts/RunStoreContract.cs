@@ -2,17 +2,17 @@
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="IRunStore"/> sozlesmesinin davranis testleri.
+/// Behavior tests for the <see cref="IRunStore"/> contract.
 /// </summary>
 /// <remarks>
-/// Bellek ici depo ile PostgreSQL deposu ayni senaryolari gecmelidir.
+/// The in-memory store and the PostgreSQL store must pass the same scenarios.
 /// </remarks>
 public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 {
     /// <inheritdoc />
     /// <remarks>
-    /// Kiraci arayuzde bir parametre degildir; <see cref="ITenantContext"/>'ten
-    /// okunur. Bu yuzden her kanca once gecerli kiraciyi ayarlar.
+    /// The tenant is not a parameter on the interface; it is read from
+    /// <see cref="ITenantContext"/>. Each hook therefore sets the current tenant first.
     /// </remarks>
     protected override async ValueTask<object> SeedAsync(string tenantId, string name)
     {
@@ -33,8 +33,8 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         var runId = (Guid)key;
         var record = await Store.GetRunAsync(runId);
 
-        // Olay akisi da ayni siniri tasimalidir; kayit gorulmuyorsa olaylari da
-        // gorulmemelidir.
+        // The event stream must carry the same boundary; if the record is not
+        // visible, its events must not be visible either.
         var events = 0;
 
         await foreach (var runEvent in Store.ReadEventsAsync(runId))
@@ -56,11 +56,12 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task StartRunAsync_ayni_kimlikle_ikinci_kez_cagrilinca_UPSERT_yapar()
+    public async Task StartRunAsync_upserts_when_called_twice_with_the_same_id()
     {
-        // Faz 46: kuyruga alinan bir calistirma once Queued, isci is'i
-        // gercekten alinca AYNI kimlikle tekrar (varsayilan Running) yazilir.
-        // Ikinci cagri yeni bir satir ACMAMALI, mevcut satiri GUNCELLEMELIDIR.
+        // Phase 46: a queued run is first written as Queued, then written again
+        // with the SAME id (default Running) once the worker actually picks up
+        // the job. The second call must NOT open a new row -- it must UPDATE
+        // the existing row.
         var runId = AgentPrismId.NewId();
 
         await Store.StartRunAsync(TestData.Run(runId) with { Status = RunStatus.Queued });
@@ -80,7 +81,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Olaylar_sira_numarasina_gore_okunur()
+    public async Task Events_are_read_in_sequence_order()
     {
         var runId = AgentPrismId.NewId();
         await Store.StartRunAsync(TestData.Run(runId));
@@ -101,7 +102,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Olay_alanlari_gidip_gelir()
+    public async Task Event_fields_round_trip()
     {
         var runId = AgentPrismId.NewId();
         await Store.StartRunAsync(TestData.Run(runId));
@@ -112,7 +113,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
             Sequence = 0,
             Type = RunEventType.ToolInvoking,
             Timestamp = DateTimeOffset.UtcNow,
-            Text = "metin",
+            Text = "text",
             ToolName = "get_order_status",
             ToolCallId = "call-1",
             Payload = "orderId=42",
@@ -127,19 +128,19 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 
         var single = events.ShouldHaveSingleItem();
         single.Type.ShouldBe(RunEventType.ToolInvoking);
-        single.Text.ShouldBe("metin");
+        single.Text.ShouldBe("text");
         single.ToolName.ShouldBe("get_order_status");
         single.ToolCallId.ShouldBe("call-1");
         single.Payload.ShouldBe("orderId=42");
     }
 
     [Fact]
-    public async Task Olmayan_calistirmaya_olay_eklenemez()
+    public async Task Event_cannot_be_appended_to_a_nonexistent_run()
         => await Should.ThrowAsync<AgentPrismException>(
             async () => await Store.AppendEventAsync(TestData.Event(AgentPrismId.NewId(), 0)));
 
     [Fact]
-    public async Task Olmayan_calistirma_sonlandirilamaz()
+    public async Task Nonexistent_run_cannot_be_completed()
         => await Should.ThrowAsync<AgentPrismException>(
             async () => await Store.CompleteRunAsync(new RunCompletion
             {
@@ -149,7 +150,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
             }));
 
     [Fact]
-    public async Task Olmayan_calistirmanin_olaylari_bos_doner()
+    public async Task Nonexistent_run_returns_empty_events()
     {
         var events = new List<RunEvent>();
 
@@ -162,7 +163,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Sonlandirma_ozeti_gunceller()
+    public async Task Completion_updates_the_summary()
     {
         var runId = AgentPrismId.NewId();
         await Store.StartRunAsync(TestData.Run(runId));
@@ -176,7 +177,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
             CompletedAt = completedAt,
             EventCount = 7,
             Usage = new RunUsage { InputTokens = 10, OutputTokens = 20, TotalTokens = 30 },
-            Error = new RunError { Type = "System.InvalidOperationException", Message = "patladi" },
+            Error = new RunError { Type = "System.InvalidOperationException", Message = "boom" },
         });
 
         var record = await Store.GetRunAsync(runId);
@@ -191,11 +192,11 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         record.Usage.TotalTokens.ShouldBe(30);
         record.Error.ShouldNotBeNull();
         record.Error.Type.ShouldBe("System.InvalidOperationException");
-        record.Error.Message.ShouldBe("patladi");
+        record.Error.Message.ShouldBe("boom");
     }
 
     [Fact]
-    public async Task Sonlandirma_hata_sinifi_ve_parmak_izini_saklar()
+    public async Task Completion_stores_error_class_and_fingerprint()
     {
         var runId = AgentPrismId.NewId();
         await Store.StartRunAsync(TestData.Run(runId));
@@ -208,7 +209,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
             Error = new RunError
             {
                 Type = "content_filtered",
-                Message = "yanit filtrelendi",
+                Message = "response filtered",
                 Class = RunErrorClass.ContentFiltered,
                 Fingerprint = "abc123",
             },
@@ -223,7 +224,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Token_bilgisi_yoksa_null_kalir()
+    public async Task Token_info_stays_null_when_absent()
     {
         var runId = AgentPrismId.NewId();
         await Store.StartRunAsync(TestData.Run(runId));
@@ -239,7 +240,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Sorgu_agent_adina_gore_filtreler()
+    public async Task Query_filters_by_agent_name()
     {
         await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId(), "alpha"));
         await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId(), "beta"));
@@ -252,7 +253,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Sorgu_duruma_gore_filtreler()
+    public async Task Query_filters_by_status()
     {
         var completed = AgentPrismId.NewId();
         await Store.StartRunAsync(TestData.Run(completed));
@@ -271,7 +272,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Sorgu_en_yeniden_eskiye_siralar()
+    public async Task Query_sorts_newest_first()
     {
         var now = DateTimeOffset.UtcNow;
 
@@ -287,7 +288,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Sorgu_sayfalama_uygular()
+    public async Task Query_applies_paging()
     {
         var now = DateTimeOffset.UtcNow;
 
@@ -303,7 +304,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Sorgu_baslangic_zamanina_gore_filtreler()
+    public async Task Query_filters_by_start_time()
     {
         var now = DateTimeOffset.UtcNow;
 
@@ -316,10 +317,10 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Sorgu_hata_turune_gore_filtreler()
+    public async Task Query_filters_by_error_type()
     {
-        // HATA-S3-007: RunQuery.ErrorType eklenmeden once bu filtre sessizce
-        // yok sayilir ve TUM calistirmalar dondurulurdu.
+        // HATA-S3-007: before RunQuery.ErrorType was added, this filter was
+        // silently ignored and ALL runs were returned.
         var blockedId = AgentPrismId.NewId();
         await Store.StartRunAsync(TestData.Run(blockedId));
         await Store.CompleteRunAsync(new RunCompletion
@@ -327,7 +328,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
             RunId = blockedId,
             Status = RunStatus.Failed,
             CompletedAt = DateTimeOffset.UtcNow,
-            Error = new RunError { Type = "content_blocked", Message = "engellendi" },
+            Error = new RunError { Type = "content_blocked", Message = "blocked" },
         });
 
         var otherId = AgentPrismId.NewId();
@@ -337,7 +338,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
             RunId = otherId,
             Status = RunStatus.Failed,
             CompletedAt = DateTimeOffset.UtcNow,
-            Error = new RunError { Type = "upstream_error", Message = "saglayici hatasi" },
+            Error = new RunError { Type = "upstream_error", Message = "provider error" },
         });
 
         var results = await Store.QueryRunsAsync(new RunQuery { ErrorType = "content_blocked" });
@@ -346,11 +347,11 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Olmayan_calistirma_null_doner()
+    public async Task Nonexistent_run_returns_null()
         => (await Store.GetRunAsync(AgentPrismId.NewId())).ShouldBeNull();
 
     [Fact]
-    public async Task Ozet_durumlari_ve_tokenlari_toplar()
+    public async Task Summary_aggregates_statuses_and_tokens()
     {
         await CompleteRunAsync("alpha", RunStatus.Completed, new RunUsage { InputTokens = 10, OutputTokens = 5, TotalTokens = 15 });
         await CompleteRunAsync("alpha", RunStatus.Failed, new RunUsage { InputTokens = 2, OutputTokens = 1, TotalTokens = 3 });
@@ -370,10 +371,10 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Ozet_eval_calistirmalarini_haric_tutar()
+    public async Task Summary_excludes_eval_runs()
     {
-        // Eval vaka calistirmalari sentetik test cagrilaridir; normal
-        // istatistikleri kirletmemelidir (docs/18-DEGERLENDIRME.md, acik soru 4).
+        // Eval case runs are synthetic test calls; they must not pollute
+        // normal statistics (docs/18-DEGERLENDIRME.md, open question 4).
         await CompleteRunAsync("alpha", RunStatus.Completed, usage: null);
 
         var evalRunId = AgentPrismId.NewId();
@@ -394,12 +395,12 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Ozet_hata_oranini_yalnizca_sonuclanmislar_uzerinden_hesaplar()
+    public async Task Summary_computes_error_rate_only_over_completed_runs()
     {
         await CompleteRunAsync("alpha", RunStatus.Completed, usage: null);
         await CompleteRunAsync("alpha", RunStatus.Failed, usage: null);
 
-        // Devam eden calistirma paydaya girmemelidir.
+        // A still-running run must not enter the denominator.
         await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId(), "alpha"));
 
         var stats = await Store.GetStatisticsAsync(new RunStatisticsQuery());
@@ -409,7 +410,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Ozet_hic_sonuclanmis_calistirma_yoksa_hata_orani_vermez()
+    public async Task Summary_returns_no_error_rate_when_no_run_has_completed()
     {
         await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId(), "alpha"));
 
@@ -417,13 +418,13 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Ozet_hata_sinifina_gore_kirilim_hesaplar()
+    public async Task Summary_computes_breakdown_by_error_class()
     {
-        // Ayni sinifta iki farkli kume: "fp-a" iki kez, "fp-b" bir kez gorulur.
-        await FailedRunAsync(RunErrorClass.ContentFiltered, "fp-a", "a mesaji");
-        await FailedRunAsync(RunErrorClass.ContentFiltered, "fp-a", "a mesaji");
-        await FailedRunAsync(RunErrorClass.ContentFiltered, "fp-b", "b mesaji");
-        await FailedRunAsync(RunErrorClass.Timeout, "fp-c", "c mesaji");
+        // Two different clusters in the same class: "fp-a" occurs twice, "fp-b" occurs once.
+        await FailedRunAsync(RunErrorClass.ContentFiltered, "fp-a", "message a");
+        await FailedRunAsync(RunErrorClass.ContentFiltered, "fp-a", "message a");
+        await FailedRunAsync(RunErrorClass.ContentFiltered, "fp-b", "message b");
+        await FailedRunAsync(RunErrorClass.Timeout, "fp-c", "message c");
 
         var stats = await Store.GetStatisticsAsync(new RunStatisticsQuery());
         var byClass = stats.ByErrorClass.ToDictionary(static entry => entry.Class);
@@ -431,7 +432,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         byClass[RunErrorClass.ContentFiltered].TotalRuns.ShouldBe(3);
         byClass[RunErrorClass.ContentFiltered].TopClusters.Count.ShouldBe(2);
 
-        // En sik kume (fp-a, 2 calistirma) once gelir.
+        // The most frequent cluster (fp-a, 2 runs) comes first.
         byClass[RunErrorClass.ContentFiltered].TopClusters[0].Fingerprint.ShouldBe("fp-a");
         byClass[RunErrorClass.ContentFiltered].TopClusters[0].Count.ShouldBe(2);
         byClass[RunErrorClass.ContentFiltered].TopClusters[1].Fingerprint.ShouldBe("fp-b");
@@ -441,11 +442,11 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Ozet_ariza_kumesi_sinif_basina_en_fazla_uc_dondurur()
+    public async Task Summary_returns_at_most_three_failure_clusters_per_class()
     {
         for (var i = 0; i < 5; i++)
         {
-            await FailedRunAsync(RunErrorClass.ProviderError, $"fp-{i}", $"mesaj {i}");
+            await FailedRunAsync(RunErrorClass.ProviderError, $"fp-{i}", $"message {i}");
         }
 
         var stats = await Store.GetStatisticsAsync(new RunStatisticsQuery());
@@ -456,11 +457,12 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Ozet_hata_sinifi_bos_satirlar_unknown_kovasinda_gorunur()
+    public async Task Summary_rows_with_no_error_class_appear_in_the_unknown_bucket()
     {
-        // Hata sinifi eklenmeden once yazilmis bir satiri simule eder: Class ve
-        // Fingerprint BILEREK bos (K-014 -- gecmis kayitlar geriye donuk
-        // doldurulmaz). Sorgu cokmemeli ve satir Unknown kovasinda gorunmelidir.
+        // Simulates a row written before the error class was added: Class and
+        // Fingerprint are DELIBERATELY empty (K-014 -- historical records are
+        // not backfilled). The query must not crash, and the row must appear
+        // in the Unknown bucket.
         var runId = AgentPrismId.NewId();
         await Store.StartRunAsync(TestData.Run(runId));
 
@@ -469,7 +471,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
             RunId = runId,
             Status = RunStatus.Failed,
             CompletedAt = DateTimeOffset.UtcNow,
-            Error = new RunError { Type = "AgentPrism.AgentPrismCompilationException", Message = "eski kayit" },
+            Error = new RunError { Type = "AgentPrism.AgentPrismCompilationException", Message = "legacy record" },
         });
 
         var stats = await Store.GetStatisticsAsync(new RunStatisticsQuery());
@@ -478,24 +480,24 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Ozet_agent_kirilimini_calistirma_sayisina_gore_siralar()
+    public async Task Summary_sorts_agent_breakdown_by_run_count()
     {
-        await CompleteRunAsync("az-kullanilan", RunStatus.Completed, usage: null);
-        await CompleteRunAsync("cok-kullanilan", RunStatus.Completed, new RunUsage { TotalTokens = 100 });
-        await CompleteRunAsync("cok-kullanilan", RunStatus.Failed, new RunUsage { TotalTokens = 50 });
+        await CompleteRunAsync("low-usage", RunStatus.Completed, usage: null);
+        await CompleteRunAsync("high-usage", RunStatus.Completed, new RunUsage { TotalTokens = 100 });
+        await CompleteRunAsync("high-usage", RunStatus.Failed, new RunUsage { TotalTokens = 50 });
 
         var stats = await Store.GetStatisticsAsync(new RunStatisticsQuery());
 
         stats.ByAgent.Count.ShouldBe(2);
-        stats.ByAgent[0].AgentName.ShouldBe("cok-kullanilan");
+        stats.ByAgent[0].AgentName.ShouldBe("high-usage");
         stats.ByAgent[0].TotalRuns.ShouldBe(2);
         stats.ByAgent[0].FailedRuns.ShouldBe(1);
         stats.ByAgent[0].TotalTokens.ShouldBe(150);
-        stats.ByAgent[1].AgentName.ShouldBe("az-kullanilan");
+        stats.ByAgent[1].AgentName.ShouldBe("low-usage");
     }
 
     [Fact]
-    public async Task Ozet_agent_adina_gore_filtreler()
+    public async Task Summary_filters_by_agent_name()
     {
         await CompleteRunAsync("alpha", RunStatus.Completed, usage: null);
         await CompleteRunAsync("beta", RunStatus.Completed, usage: null);
@@ -507,7 +509,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Ozet_baslangic_zamanina_gore_filtreler()
+    public async Task Summary_filters_by_start_time()
     {
         var now = DateTimeOffset.UtcNow;
 
@@ -521,7 +523,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Ozet_agent_kirilimini_sinirlar()
+    public async Task Summary_limits_agent_breakdown()
     {
         await CompleteRunAsync("alpha", RunStatus.Completed, usage: null);
         await CompleteRunAsync("beta", RunStatus.Completed, usage: null);
@@ -534,7 +536,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Bos_depo_ozeti_sifir_doner()
+    public async Task Empty_store_summary_returns_zero()
     {
         var stats = await Store.GetStatisticsAsync(new RunStatisticsQuery());
 
@@ -544,10 +546,10 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         stats.ErrorRate.ShouldBeNull();
     }
 
-    // --- Surum ve deney kirilimi (Faz 19.2-19.3) ---
+    // --- Version and experiment breakdown (Phase 19.2-19.3) ---
 
     [Fact]
-    public async Task Ozet_surum_kirilimini_hesaplar()
+    public async Task Summary_computes_version_breakdown()
     {
         var v1 = AgentPrismId.NewId();
         await Store.StartRunAsync(TestData.Run(v1, "alpha") with { AgentVersion = 1 });
@@ -573,7 +575,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
             Usage = new RunUsage { TotalTokens = 20 },
         });
 
-        // Surumu bilinmeyen bir calistirma kirilima girmemelidir.
+        // A run with an unknown version must not enter the breakdown.
         await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId(), "alpha"));
 
         var stats = await Store.GetStatisticsAsync(new RunStatisticsQuery());
@@ -593,7 +595,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Deney_sonucu_kol_bazinda_ozetlenir()
+    public async Task Experiment_results_are_summarized_per_arm()
     {
         var experimentId = Guid.NewGuid();
 
@@ -621,7 +623,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         });
         await Store.CompleteRunAsync(new RunCompletion { RunId = v2Run, Status = RunStatus.Failed, CompletedAt = DateTimeOffset.UtcNow });
 
-        // Baska bir deneyin calistirmasi bu deneyin sonucuna girmemelidir.
+        // A run from another experiment must not enter this experiment's results.
         await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId(), "alpha") with
         {
             ExperimentId = Guid.NewGuid(),
@@ -645,7 +647,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Deney_sonucu_trafik_almayan_deneyde_bos_doner()
+    public async Task Experiment_results_return_empty_for_an_experiment_with_no_traffic()
     {
         var results = await Store.GetExperimentResultsAsync(new ExperimentResultsQuery { ExperimentId = Guid.NewGuid() });
 
@@ -653,13 +655,13 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Agac_alanlari_gidip_gelir()
+    public async Task Tree_fields_round_trip()
     {
         var rootId = AgentPrismId.NewId();
         var childId = AgentPrismId.NewId();
 
         await Store.StartRunAsync(TestData.Run(rootId));
-        await Store.StartRunAsync(TestData.Run(childId, "arastirmaci") with
+        await Store.StartRunAsync(TestData.Run(childId, "researcher") with
         {
             ParentRunId = rootId,
             RootRunId = rootId,
@@ -678,30 +680,31 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         root.ShouldNotBeNull();
         root.ParentRunId.ShouldBeNull();
 
-        // Kok kaydin root_run_id alani BOS kalir. Kokun kendisine isaret eden bir
-        // deger yazmak, "kok mu, alt mi" sorusunu sorguda ikinci bir kosula
-        // dondururdu.
+        // The root record's root_run_id field stays EMPTY. Writing a value that
+        // points the root at itself would turn the "is it a root or a child"
+        // question into a second condition in every query.
         root.RootRunId.ShouldBeNull();
         root.Depth.ShouldBe(0);
         root.ChildRunCount.ShouldBe(1);
     }
 
     [Fact]
-    public async Task Workflow_calistirmasi_ayni_tabloda_yasar()
+    public async Task Workflow_run_lives_in_the_same_table()
     {
-        // Workflow calistirmalari icin AYRI BIR TABLO YOKTUR (Faz 15). Ayrim
-        // `kind` sutunuyla yapilir ve icindeki agent'lar Faz 12'nin agac
-        // mekanizmasiyla ayni satirin altina baglanir.
+        // There is NO SEPARATE TABLE for workflow runs (Phase 15). The
+        // distinction is made with the `kind` column, and the agents inside a
+        // workflow are attached under the same row using Phase 12's tree
+        // mechanism.
         var workflowRunId = AgentPrismId.NewId();
         var agentRunId = AgentPrismId.NewId();
 
-        await Store.StartRunAsync(TestData.Run(workflowRunId, "inceleme") with
+        await Store.StartRunAsync(TestData.Run(workflowRunId, "review") with
         {
             Kind = RunKind.Workflow,
-            WorkflowName = "inceleme",
+            WorkflowName = "review",
         });
 
-        await Store.StartRunAsync(TestData.Run(agentRunId, "yazar") with
+        await Store.StartRunAsync(TestData.Run(agentRunId, "writer") with
         {
             ParentRunId = workflowRunId,
             RootRunId = workflowRunId,
@@ -712,10 +715,10 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 
         workflowRun.ShouldNotBeNull();
         workflowRun.Kind.ShouldBe(RunKind.Workflow);
-        workflowRun.WorkflowName.ShouldBe("inceleme");
+        workflowRun.WorkflowName.ShouldBe("review");
         workflowRun.ChildRunCount.ShouldBe(1);
 
-        // Agent satirlari varsayilan turu korur; eski kayitlar da boyle okunur.
+        // Agent rows keep the default kind; legacy records are read the same way.
         var agentRun = await Store.GetRunAsync(agentRunId);
 
         agentRun.ShouldNotBeNull();
@@ -724,12 +727,12 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Liste_varsayilan_olarak_yalniz_kok_calistirmalari_doner()
+    public async Task List_returns_only_root_runs_by_default()
     {
         var rootId = AgentPrismId.NewId();
 
         await Store.StartRunAsync(TestData.Run(rootId));
-        await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId(), "arastirmaci") with
+        await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId(), "researcher") with
         {
             ParentRunId = rootId,
             RootRunId = rootId,
@@ -746,58 +749,57 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Sorgu_oturum_filtresi_includeChildren_ile_alt_calistirmalari_da_getirir()
+    public async Task Query_session_filter_with_includeChildren_also_returns_child_runs()
     {
-        // HATA-S2-001: SessionId yalniz KOK calistirmada set edilir (K-217);
-        // alt calistirmanin kendi SessionId'si NULL'dur. Dogrudan esitlik
-        // "includeChildren=true" ile birlikte verildiginde hicbir alt
-        // calistirmayi eslestirmezdi.
+        // HATA-S2-001: SessionId is set only on the ROOT run (K-217); a child
+        // run's own SessionId is NULL. Direct equality, when combined with
+        // "includeChildren=true", used to match no child runs at all.
         var rootId = AgentPrismId.NewId();
         var childId = AgentPrismId.NewId();
         var yabanciRootId = AgentPrismId.NewId();
 
-        await Store.StartRunAsync(TestData.Run(rootId) with { SessionId = "oturum-1" });
-        await Store.StartRunAsync(TestData.Run(childId, "arastirmaci") with
+        await Store.StartRunAsync(TestData.Run(rootId) with { SessionId = "session-1" });
+        await Store.StartRunAsync(TestData.Run(childId, "researcher") with
         {
             ParentRunId = rootId,
             RootRunId = rootId,
             Depth = 1,
         });
-        await Store.StartRunAsync(TestData.Run(yabanciRootId) with { SessionId = "oturum-2" });
+        await Store.StartRunAsync(TestData.Run(yabanciRootId) with { SessionId = "session-2" });
 
-        var rootOnly = await Store.QueryRunsAsync(new RunQuery { SessionId = "oturum-1" });
+        var rootOnly = await Store.QueryRunsAsync(new RunQuery { SessionId = "session-1" });
 
         rootOnly.ShouldHaveSingleItem().Id.ShouldBe(rootId);
 
-        var withChildren = await Store.QueryRunsAsync(new RunQuery { SessionId = "oturum-1", OnlyRootRuns = false });
+        var withChildren = await Store.QueryRunsAsync(new RunQuery { SessionId = "session-1", OnlyRootRuns = false });
 
         withChildren.Select(static run => run.Id).ShouldBe([rootId, childId], ignoreOrder: true);
     }
 
     [Fact]
-    public async Task Ebeveyn_filtresi_kok_filtresini_gecersiz_kilar()
+    public async Task Parent_filter_overrides_root_filter()
     {
         var rootId = AgentPrismId.NewId();
         var childId = AgentPrismId.NewId();
 
         await Store.StartRunAsync(TestData.Run(rootId));
-        await Store.StartRunAsync(TestData.Run(childId, "arastirmaci") with
+        await Store.StartRunAsync(TestData.Run(childId, "researcher") with
         {
             ParentRunId = rootId,
             RootRunId = rootId,
             Depth = 1,
         });
 
-        // OnlyRootRuns varsayilan olarak true'dur; ebeveyn filtresi verildiginde
-        // bilerek yok sayilir. Sessizce bos liste donmek, hata ayiklanmasi zor bir
-        // davranistir.
+        // OnlyRootRuns defaults to true; it is deliberately ignored when a
+        // parent filter is given. Silently returning an empty list would be a
+        // hard-to-debug behavior.
         var children = await Store.QueryRunsAsync(new RunQuery { ParentRunId = rootId });
 
         children.ShouldHaveSingleItem().Id.ShouldBe(childId);
     }
 
     [Fact]
-    public async Task Agac_sorgusu_koku_ve_tum_altini_doner()
+    public async Task Tree_query_returns_the_root_and_all_its_descendants()
     {
         var rootId = AgentPrismId.NewId();
         var childId = AgentPrismId.NewId();
@@ -805,19 +807,19 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         var yabanciId = AgentPrismId.NewId();
 
         await Store.StartRunAsync(TestData.Run(rootId));
-        await Store.StartRunAsync(TestData.Run(childId, "arastirmaci") with
+        await Store.StartRunAsync(TestData.Run(childId, "researcher") with
         {
             ParentRunId = rootId,
             RootRunId = rootId,
             Depth = 1,
         });
-        await Store.StartRunAsync(TestData.Run(grandChildId, "ozetleyici") with
+        await Store.StartRunAsync(TestData.Run(grandChildId, "summarizer") with
         {
             ParentRunId = childId,
             RootRunId = rootId,
             Depth = 2,
         });
-        await Store.StartRunAsync(TestData.Run(yabanciId, "baska"));
+        await Store.StartRunAsync(TestData.Run(yabanciId, "other"));
 
         var tree = await Store.QueryRunsAsync(new RunQuery { RootRunId = rootId, OnlyRootRuns = false });
 
@@ -825,13 +827,13 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Agac_toplami_kokun_ve_altinin_tokenlerini_birlestirir()
+    public async Task Tree_total_combines_tokens_of_root_and_descendants()
     {
         var rootId = AgentPrismId.NewId();
         var childId = AgentPrismId.NewId();
 
         await Store.StartRunAsync(TestData.Run(rootId));
-        await Store.StartRunAsync(TestData.Run(childId, "arastirmaci") with
+        await Store.StartRunAsync(TestData.Run(childId, "researcher") with
         {
             ParentRunId = rootId,
             RootRunId = rootId,
@@ -846,19 +848,20 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         root.ShouldNotBeNull();
         root.Usage!.TotalTokens.ShouldBe(15);
 
-        // Agac toplami kokun KENDI kullanimini da icerir; ikisi toplanmaz.
+        // The tree total already includes the root's own usage -- do not add
+        // Usage and TreeUsage together yourself.
         root.TreeUsage!.TotalTokens.ShouldBe(65);
         root.TreeUsage.InputTokens.ShouldBe(40);
         root.TreeUsage.OutputTokens.ShouldBe(25);
 
         var child = await Store.GetRunAsync(childId);
 
-        // Alti olmayan bir calistirmada agac toplami kendi kullanimina esittir.
+        // For a run with no descendants, the tree total equals its own usage.
         child!.TreeUsage!.TotalTokens.ShouldBe(50);
     }
 
     [Fact]
-    public async Task Token_bildirmeyen_agacta_toplam_bos_kalir()
+    public async Task Tree_total_stays_null_when_no_tokens_are_reported()
     {
         var rootId = AgentPrismId.NewId();
 
@@ -867,15 +870,15 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 
         var root = await Store.GetRunAsync(rootId);
 
-        // Sifir yazmak, "saglayici token bildirmedi" ile "hic token harcanmadi"
-        // durumlarini ayirt edilemez hale getirirdi.
+        // Writing zero would make "the provider did not report tokens"
+        // indistinguishable from "no tokens were spent at all".
         root!.TreeUsage.ShouldBeNull();
     }
 
-    // --- Maliyet (Faz 20) ---
+    // --- Cost (Phase 20) ---
 
     [Fact]
-    public async Task Maliyet_yaziliyor_ve_geri_okunuyor()
+    public async Task Cost_is_written_and_read_back()
     {
         var runId = AgentPrismId.NewId();
         await Store.StartRunAsync(TestData.Run(runId) with { ModelId = "gpt-x" });
@@ -901,16 +904,16 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         record.Cost.ShouldNotBeNull();
         record.Cost.Source.ShouldBe(PricingSource.Catalog);
         record.Cost.Currency.ShouldBe("USD");
-        // numeric(20,10) tam yuvarlamadan gidip gelmelidir.
+        // numeric(20,10) must round-trip without rounding.
         record.Cost.InputCost.ShouldBe(0.1234567891m);
         record.Cost.OutputCost.ShouldBe(0.9876543219m);
     }
 
     [Fact]
-    public async Task Fiyat_tanimsizsa_maliyet_alanlari_null_ama_kaynak_unknown_yazilir()
+    public async Task Cost_fields_are_null_but_source_is_written_as_unknown_when_pricing_is_undefined()
     {
         var runId = AgentPrismId.NewId();
-        await Store.StartRunAsync(TestData.Run(runId) with { ModelId = "hic-fiyatlanmamis-model" });
+        await Store.StartRunAsync(TestData.Run(runId) with { ModelId = "never-priced-model" });
 
         await Store.CompleteRunAsync(new RunCompletion
         {
@@ -924,18 +927,18 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 
         record!.Cost.ShouldNotBeNull();
         record.Cost.Source.ShouldBe(PricingSource.Unknown);
-        // Sifir DEGIL: bilinmeyen fiyat sifir maliyetle karistirilmamalidir.
+        // NOT zero: unknown pricing must not be confused with zero cost.
         record.Cost.InputCost.ShouldBeNull();
         record.Cost.OutputCost.ShouldBeNull();
     }
 
     [Fact]
-    public async Task Model_bilinmiyorsa_maliyet_hic_yoktur()
+    public async Task Cost_does_not_exist_at_all_when_model_is_unknown()
     {
         var runId = AgentPrismId.NewId();
         await Store.StartRunAsync(TestData.Run(runId));
 
-        // Cost hic gecilmez: model baglanmamis bir kod agent'i senaryosu.
+        // Cost is never passed: scenario of a code agent with no model attached.
         await Store.CompleteRunAsync(new RunCompletion
         {
             RunId = runId,
@@ -945,19 +948,20 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 
         var record = await Store.GetRunAsync(runId);
 
-        // Model hic bilinmiyorsa Cost NULL'dur; bu, "model biliniyor ama fiyat
-        // tanimsiz" (Source=Unknown, yine de dolu bir RunCost) durumundan farklidir.
+        // When the model is entirely unknown, Cost is NULL; this differs from
+        // "model is known but pricing is undefined" (Source=Unknown, still a
+        // populated RunCost).
         record!.Cost.ShouldBeNull();
     }
 
     [Fact]
-    public async Task Agac_maliyeti_kendi_maliyetiyle_toplanmiyor_ayri_alanlar()
+    public async Task Tree_cost_is_not_summed_with_its_own_cost_separate_fields()
     {
         var rootId = AgentPrismId.NewId();
         var childId = AgentPrismId.NewId();
 
         await Store.StartRunAsync(TestData.Run(rootId) with { ModelId = "gpt-x" });
-        await Store.StartRunAsync(TestData.Run(childId, "arastirmaci") with
+        await Store.StartRunAsync(TestData.Run(childId, "researcher") with
         {
             ModelId = "gpt-x",
             ParentRunId = rootId,
@@ -974,24 +978,24 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         root.Cost!.InputCost.ShouldBe(1m);
         root.Cost.OutputCost.ShouldBe(1m);
 
-        // Agac toplami kokun KENDI maliyetini de icerir; ikisi toplanip
-        // ayrica gosterilmez (RunTreeUsage ile ayni desen).
+        // The tree total also includes the root's OWN cost; the two are not
+        // summed and shown separately (same pattern as RunTreeUsage).
         root.TreeCost!.InputCost.ShouldBe(3m);
         root.TreeCost.OutputCost.ShouldBe(4m);
 
         var child = await Store.GetRunAsync(childId);
 
-        // Alti olmayan bir calistirmada agac toplami kendi maliyetine esittir.
+        // For a run with no descendants, the tree total equals its own cost.
         child!.TreeCost!.InputCost.ShouldBe(2m);
         child.TreeCost.OutputCost.ShouldBe(3m);
     }
 
     [Fact]
-    public async Task Ozet_maliyeti_toplar_ve_tanimsiz_sayisini_bildirir()
+    public async Task Summary_aggregates_cost_and_reports_the_undefined_count()
     {
         await CompleteRunWithCostAsync("alpha", "gpt-x", 1m, 1m, PricingSource.Catalog);
         await CompleteRunWithCostAsync("alpha", "gpt-x", 2m, 2m, PricingSource.Catalog);
-        await CompleteRunWithCostAsync("beta", "fiyatsiz-model", null, null, PricingSource.Unknown);
+        await CompleteRunWithCostAsync("beta", "unpriced-model", null, null, PricingSource.Unknown);
 
         var stats = await Store.GetStatisticsAsync(new RunStatisticsQuery());
 
@@ -1004,7 +1008,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Deney_sonucu_maliyet_iceriyor()
+    public async Task Experiment_results_include_cost()
     {
         var experimentId = Guid.NewGuid();
 
@@ -1031,13 +1035,13 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Zaman_serisi_bos_kovalari_doldurur()
+    public async Task Time_series_fills_empty_buckets()
     {
         var now = DateTimeOffset.UtcNow;
         var from = new DateTimeOffset(now.Year, now.Month, now.Day, now.Hour, 0, 0, TimeSpan.Zero).AddHours(-3);
         var to = from.AddHours(3);
 
-        // Kasitli olarak orta kovaya (from+1h) hicbir calistirma dusurulmez.
+        // Deliberately, no run is placed into the middle bucket (from+1h).
         await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId()) with { StartedAt = from.AddMinutes(5) });
         await Store.StartRunAsync(TestData.Run(AgentPrismId.NewId()) with { StartedAt = from.AddHours(2).AddMinutes(5) });
 
@@ -1050,10 +1054,10 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Zaman_serisi_eval_calistirmalarini_haric_tutmaz()
+    public async Task Time_series_does_not_exclude_eval_runs()
     {
-        // /api/stats'in aksine (K-141), zaman serisi Eval/Workflow calistirmalarini
-        // varsayilan olarak DISLAMAZ (bkz. docs/KARARLAR.md K-152).
+        // Unlike /api/stats (K-141), the time series does NOT exclude
+        // Eval/Workflow runs by default (see docs/KARARLAR.md K-152).
         var now = DateTimeOffset.UtcNow;
         var from = new DateTimeOffset(now.Year, now.Month, now.Day, now.Hour, 0, 0, TimeSpan.Zero).AddHours(-1);
         var to = from.AddHours(1);
@@ -1066,7 +1070,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Zaman_serisi_kova_sinirini_asinca_hata_verir()
+    public async Task Time_series_throws_when_the_bucket_limit_is_exceeded()
     {
         var from = DateTimeOffset.UtcNow.AddDays(-30);
         var to = DateTimeOffset.UtcNow;
@@ -1078,7 +1082,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Maliyet_yeniden_hesaplama_ucu_satiri_gunceller()
+    public async Task Cost_recalculation_updates_the_target_row()
     {
         var runId = AgentPrismId.NewId();
         await Store.StartRunAsync(TestData.Run(runId) with { ModelId = "gpt-x" });
@@ -1182,7 +1186,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Ozet_ve_zaman_serisi_kiracilar_arasinda_sizmaz()
+    public async Task Summary_and_time_series_do_not_leak_across_tenants()
     {
         var now = DateTimeOffset.UtcNow;
         var from = new DateTimeOffset(now.Year, now.Month, now.Day, now.Hour, 0, 0, TimeSpan.Zero).AddHours(-1);
@@ -1221,10 +1225,10 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task Calistirma_kaydi_gecerli_kiraciyla_damgalanir()
+    public async Task Run_record_is_stamped_with_the_current_tenant()
     {
-        // IsolationTests.cs'ten tasindi (Faz 41): artik dort kosumda birden
-        // calisir, yalniz PostgreSQL'de degil.
+        // Moved from IsolationTests.cs (Phase 41): now runs across all four
+        // test runs, not just PostgreSQL.
         AmbientTenant.TenantId = TenantA;
 
         var runId = AgentPrismId.NewId();
@@ -1234,21 +1238,23 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         (await Store.GetRunAsync(runId))!.TenantId.ShouldBe(TenantA);
     }
 
-    // --- Alt yazma yollarinda BEKLENEN kiraci (K-355) ---
+    // --- EXPECTED tenant on sub-write paths (K-355) ---
     //
-    // 🚨 Bu dort test bir kusuru kapatir. Faz 41'den 2026-08-08'e kadar
+    // 🚨 These four tests close a defect. From Phase 41 until 2026-08-08,
     // AppendEventAsync / CompleteRunAsync / UpdateRunCostAsync /
-    // RecordToolInvocationAsync hicbir kiraci suzgeci TASIMIYORDU. Ambient
-    // kiraciyla suzmek denenmis ve GERI ALINMISTI: RunStartInfo.TenantId ambient
-    // kiraciyi bilerek ezer (workflow ve is kuyrugu boyle calisir) ve suzgec
-    // mesru yazmalari dusuruyordu. Cozum ambient degil, cagrinin tasidigi
-    // BEKLENEN kiracidir.
+    // RecordToolInvocationAsync carried NO tenant filter at all. Filtering by
+    // the ambient tenant was tried and REVERTED: RunStartInfo.TenantId
+    // deliberately overrides the ambient tenant (this is how workflows and
+    // the job queue operate), and the filter was dropping legitimate writes.
+    // The fix is not the ambient tenant but the EXPECTED tenant carried by
+    // the call.
     //
-    // Her test iki yonludur: yanlis kiraci dusurulur, DOGRU kiraci gecer.
-    // Tek yonlu bir denetim, her yazmayi reddeden kirik bir kosulu da gecerdi.
+    // Each test is two-directional: the wrong tenant is rejected, the CORRECT
+    // tenant succeeds. A one-directional check would also pass a broken
+    // condition that rejects every write.
 
     [Fact]
-    public async Task AppendEventAsync_yanlis_beklenen_kiraciyla_yazmaz()
+    public async Task AppendEventAsync_does_not_write_with_the_wrong_expected_tenant()
     {
         AmbientTenant.TenantId = TenantA;
 
@@ -1258,7 +1264,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         await Should.ThrowAsync<AgentPrismException>(async () =>
             await Store.AppendEventAsync(TestData.Event(runId, 0) with { TenantId = TenantB }));
 
-        // Dogru kiraci gecer; kosul fazla dar degil.
+        // The correct tenant succeeds; the condition is not too narrow.
         await Store.AppendEventAsync(TestData.Event(runId, 0) with { TenantId = TenantA });
 
         var events = new List<RunEvent>();
@@ -1272,7 +1278,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task CompleteRunAsync_yanlis_beklenen_kiraciyla_kapatmaz()
+    public async Task CompleteRunAsync_does_not_close_with_the_wrong_expected_tenant()
     {
         AmbientTenant.TenantId = TenantA;
 
@@ -1301,7 +1307,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task UpdateRunCostAsync_yanlis_beklenen_kiraciyla_guncellemez()
+    public async Task UpdateRunCostAsync_does_not_update_with_the_wrong_expected_tenant()
     {
         AmbientTenant.TenantId = TenantA;
 
@@ -1316,7 +1322,8 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
             Source = PricingSource.Catalog,
         };
 
-        // Bakim ucudur: yanlis kiracida SESSIZCE atlanir, hata firlatilmaz.
+        // This is a maintenance path: it is SILENTLY skipped for the wrong
+        // tenant, no exception is thrown.
         await Store.UpdateRunCostAsync(runId, cost, TenantB);
         (await Store.GetRunAsync(runId))!.Cost.ShouldBeNull();
 
@@ -1325,7 +1332,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task RecordToolInvocationAsync_yanlis_beklenen_kiraciyla_yazmaz()
+    public async Task RecordToolInvocationAsync_does_not_write_with_the_wrong_expected_tenant()
     {
         AmbientTenant.TenantId = TenantA;
 
@@ -1350,10 +1357,10 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         (await Store.ListToolInvocationsAsync(runId)).ShouldHaveSingleItem();
     }
 
-    // --- Oksuz calistirma uzlastirmasi (Faz 54) ---
+    // --- Orphaned run reconciliation (Phase 54) ---
 
     [Fact]
-    public async Task TouchHeartbeatAsync_var_olmayan_veya_Running_disi_kimlikte_sessizce_atlanir()
+    public async Task TouchHeartbeatAsync_silently_skips_a_nonexistent_or_non_Running_id()
     {
         AmbientTenant.TenantId = TenantA;
 
@@ -1366,15 +1373,15 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
             CompletedAt = DateTimeOffset.UtcNow,
         });
 
-        // Ne var olmayan bir kimlik ne de Completed bir satir hata firlatmali --
-        // bu bir bakim sinyalidir, calistirmayi kesmemelidir.
+        // Neither a nonexistent id nor a Completed row should throw -- this is
+        // a maintenance signal, it must not interrupt the run.
         await Store.TouchHeartbeatAsync([runId, AgentPrismId.NewId()], DateTimeOffset.UtcNow);
 
         (await Store.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Completed);
     }
 
     [Fact]
-    public async Task ClaimOrphanedRunsAsync_esigi_asan_Running_satiri_Failed_yapar()
+    public async Task ClaimOrphanedRunsAsync_marks_a_stale_Running_row_as_Failed()
     {
         AmbientTenant.TenantId = TenantA;
 
@@ -1397,8 +1404,9 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         stored!.Status.ShouldBe(RunStatus.Failed);
         stored.Error!.Type.ShouldBe("orphaned");
 
-        // RunEventWriter o surecte artik yoktur; olayi uzlastirma yazmalidir --
-        // olaysiz kapanan bir calistirma "neden bitti" sorusuna cevap veremez.
+        // RunEventWriter no longer exists in that process; reconciliation must
+        // write the event itself -- a run that closes without an event cannot
+        // answer the "why did it end" question.
         var events = new List<RunEvent>();
 
         await foreach (var runEvent in Store.ReadEventsAsync(runId))
@@ -1410,7 +1418,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task ClaimOrphanedRunsAsync_esigi_asmayan_Running_satira_dokunmaz()
+    public async Task ClaimOrphanedRunsAsync_does_not_touch_a_Running_row_within_the_threshold()
     {
         AmbientTenant.TenantId = TenantA;
 
@@ -1426,7 +1434,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task ClaimOrphanedRunsAsync_Queued_satira_hicbir_kosulda_dokunmaz()
+    public async Task ClaimOrphanedRunsAsync_never_touches_a_Queued_row()
     {
         AmbientTenant.TenantId = TenantA;
 
@@ -1443,7 +1451,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task TouchHeartbeatAsync_ile_tazelenen_satir_oksuz_sayilmaz()
+    public async Task TouchHeartbeatAsync_refreshed_row_is_not_considered_orphaned()
     {
         AmbientTenant.TenantId = TenantA;
 
@@ -1451,8 +1459,8 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         var startedAt = DateTimeOffset.UtcNow.AddMinutes(-10);
         await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = startedAt });
 
-        // heartbeat_at started_at'i EZER: eski bir baslangica ragmen yakin
-        // zamanda isaret vermis bir calistirma canli sayilmalidir.
+        // heartbeat_at OVERRIDES started_at: a run that signaled recently,
+        // despite an old start time, must be considered alive.
         await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow);
 
         var claimed = await Store.ClaimOrphanedRunsAsync(

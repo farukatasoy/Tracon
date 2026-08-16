@@ -4,53 +4,53 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism.Workflows.UnitTests.Fakes;
 
 /// <summary>
-/// Insan girdisi bekleyen en kucuk workflow: bir soru sorar, evet/hayir bekler,
-/// sonuca gore cikti uretir.
+/// The smallest workflow that waits for human input: it asks a question,
+/// waits for yes/no, and produces an output based on the result.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Model cagrisi <strong>yoktur</strong>. Human-in-the-loop akisinin sinandigi
-/// yer yurutme motorunun kendisidir; araya bir model koymak testi yavaslatir ve
-/// hatanin nerede oldugunu bulaniklastirirdi.
+/// There is <strong>no</strong> model call. The place where the human-in-the-loop
+/// flow is tested is the execution engine itself; putting a model in between
+/// would slow the test down and blur where a failure comes from.
 /// </para>
 /// <para>
-/// 🚨 <c>WithOutputFrom</c> zorunludur. Cagirilmazsa graf calisir ama cikti
-/// uretmeye calisan executor <c>Cannot output object of type String. Expecting
-/// one of []</c> ile duser - olculdu (Faz 16).
+/// 🚨 <c>WithOutputFrom</c> is required. If it is not called, the graph runs but
+/// the executor that tries to produce output fails with <c>Cannot output object
+/// of type String. Expecting one of []</c> — measured (Phase 16).
 /// </para>
 /// </remarks>
 internal static class ApprovalWorkflow
 {
-    /// <summary>Dis istek portunun kimligi. Graf dugumu olarak da bu adla gorunur.</summary>
-    public const string PortId = "onay-portu";
+    /// <summary>The id of the external request port. Also appears under this name as the graph node.</summary>
+    public const string PortId = "approval-port";
 
-    /// <summary>Grafi kurar.</summary>
+    /// <summary>Builds the graph.</summary>
     public static Workflow Build()
     {
         var port = RequestPort.Create<string, bool>(PortId);
         var portBinding = port.BindAsExecutor(allowWrappedRequests: false);
 
         var start = ExecutorBindingExtensions.BindAsExecutor<List<ChatMessage>, string>(
-            static messages => $"Onay ister: {messages.LastOrDefault()?.Text ?? string.Empty}",
-            id: "baslangic");
+            static messages => $"Approval requested: {messages.LastOrDefault()?.Text ?? string.Empty}",
+            id: "start");
 
-        // 🚨 Cikti isleyicinin DONUS TIPINDEN bildirilir. Govdesinde
-        // YieldOutputAsync cagiran, donusu olmayan bir isleyici hicbir cikti tipi
-        // beyan etmez ve calisma aninda "Cannot output object of type String.
-        // Expecting one of []" ile duser - olculdu (Faz 16).
+        // 🚨 The output handler is inferred from its RETURN TYPE. A handler whose
+        // body calls YieldOutputAsync but has no return type declares no output
+        // type at all, and fails at run time with "Cannot output object of type
+        // String. Expecting one of []" — measured (Phase 16).
         var end = ExecutorBindingExtensions.BindAsExecutor<bool, string>(
-            static approved => approved ? "onaylandi" : "reddedildi",
-            id: "bitis");
+            static approved => approved ? "approved" : "rejected",
+            id: "end");
 
         return new WorkflowBuilder(start)
             .AddEdge(start, portBinding)
             .AddEdge(portBinding, end)
             .WithOutputFrom(end)
-            .WithName("onay-akisi")
+            .WithName("approval-flow")
             .Build();
     }
 
-    /// <summary>Kosucuya verilecek kod kaydi.</summary>
-    public static CodeWorkflowRegistration Registration(string name = "onay-akisi")
-        => new(name, "Insan onayi bekleyen akis.", _ => Build());
+    /// <summary>The code registration to hand to the runner.</summary>
+    public static CodeWorkflowRegistration Registration(string name = "approval-flow")
+        => new(name, "Flow that waits for human approval.", _ => Build());
 }

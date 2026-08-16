@@ -1,11 +1,11 @@
 namespace AgentPrism.StoreContracts;
 
 /// <summary>
-/// <see cref="IExperimentStore"/> sozlesmesinin davranis testleri.
+/// Behavior tests for the <see cref="IExperimentStore"/> contract.
 /// </summary>
 /// <remarks>
-/// Bu testler <strong>her uygulama icin</strong> calistirilir. Bellek ici depo ile
-/// PostgreSQL deposu arasindaki davranis farki hatadir; bu sinif o farki yakalar.
+/// These tests run for <strong>every implementation</strong>. A behavior difference between
+/// the in-memory store and the PostgreSQL store is a bug; this class catches that difference.
 /// </remarks>
 public abstract class ExperimentStoreContract : TenantIsolationContract<IExperimentStore>
 {
@@ -31,7 +31,7 @@ public abstract class ExperimentStoreContract : TenantIsolationContract<IExperim
     private const string TenantId = "default";
 
     [Fact]
-    public async Task Kayit_ve_getirme_gidip_gelir()
+    public async Task Save_and_get_round_trips()
     {
         var saved = await Store.SaveAsync(Experiment("d1"));
 
@@ -44,7 +44,7 @@ public abstract class ExperimentStoreContract : TenantIsolationContract<IExperim
     }
 
     [Fact]
-    public async Task Draft_deney_guncellenebilir()
+    public async Task Draft_experiment_can_be_updated()
     {
         await Store.SaveAsync(Experiment("d1"));
 
@@ -61,7 +61,7 @@ public abstract class ExperimentStoreContract : TenantIsolationContract<IExperim
     }
 
     [Fact]
-    public async Task Calisan_deney_guncellenemez()
+    public async Task Running_experiment_cannot_be_updated()
     {
         await Store.SaveAsync(Experiment("d1"));
         await Store.StartAsync(TenantId, "d1");
@@ -70,7 +70,7 @@ public abstract class ExperimentStoreContract : TenantIsolationContract<IExperim
     }
 
     [Fact]
-    public async Task Baslatma_calisan_deneyi_dondurur()
+    public async Task Starting_returns_the_running_experiment()
     {
         await Store.SaveAsync(Experiment("d1"));
 
@@ -85,7 +85,7 @@ public abstract class ExperimentStoreContract : TenantIsolationContract<IExperim
     }
 
     [Fact]
-    public async Task Ayni_agent_icin_ikinci_baslatma_reddedilir()
+    public async Task Second_start_for_same_agent_is_rejected()
     {
         await Store.SaveAsync(Experiment("d1"));
         await Store.StartAsync(TenantId, "d1");
@@ -96,7 +96,7 @@ public abstract class ExperimentStoreContract : TenantIsolationContract<IExperim
     }
 
     [Fact]
-    public async Task Durdurma_deneyi_durdurur_ve_calisan_slotu_bosaltir()
+    public async Task Stopping_stops_the_experiment_and_frees_the_running_slot()
     {
         await Store.SaveAsync(Experiment("d1"));
         await Store.StartAsync(TenantId, "d1");
@@ -108,14 +108,14 @@ public abstract class ExperimentStoreContract : TenantIsolationContract<IExperim
 
         (await Store.GetRunningAsync(TenantId, "agent-a")).ShouldBeNull();
 
-        // Slot bosaldigi icin baska bir deney ayni agent'ta baslatilabilir.
+        // Since the slot is free, another experiment can be started on the same agent.
         await Store.SaveAsync(Experiment("d2"));
         var secondStart = await Store.StartAsync(TenantId, "d2");
         secondStart.Status.ShouldBe(ExperimentStatus.Running);
     }
 
     [Fact]
-    public async Task Calismayan_deney_durdurulamaz()
+    public async Task Non_running_experiment_cannot_be_stopped()
     {
         await Store.SaveAsync(Experiment("d1"));
 
@@ -123,11 +123,11 @@ public abstract class ExperimentStoreContract : TenantIsolationContract<IExperim
     }
 
     [Fact]
-    public async Task Olmayan_deney_baslatilamaz()
-        => await Should.ThrowAsync<AgentPrismException>(async () => await Store.StartAsync(TenantId, "yok"));
+    public async Task Nonexistent_experiment_cannot_be_started()
+        => await Should.ThrowAsync<AgentPrismException>(async () => await Store.StartAsync(TenantId, "missing"));
 
     [Fact]
-    public async Task Calisan_deney_silinemez()
+    public async Task Running_experiment_cannot_be_deleted()
     {
         await Store.SaveAsync(Experiment("d1"));
         await Store.StartAsync(TenantId, "d1");
@@ -136,7 +136,7 @@ public abstract class ExperimentStoreContract : TenantIsolationContract<IExperim
     }
 
     [Fact]
-    public async Task Draft_deney_silinebilir()
+    public async Task Draft_experiment_can_be_deleted()
     {
         await Store.SaveAsync(Experiment("d1"));
 
@@ -145,26 +145,26 @@ public abstract class ExperimentStoreContract : TenantIsolationContract<IExperim
     }
 
     [Fact]
-    public async Task Olmayan_deney_silinirken_false_doner()
-        => (await Store.DeleteAsync(TenantId, "yok")).ShouldBeFalse();
+    public async Task Deleting_nonexistent_experiment_returns_false()
+        => (await Store.DeleteAsync(TenantId, "missing")).ShouldBeFalse();
 
     [Fact]
-    public async Task Listeleme_yalnizca_o_kiraciyi_getirir()
+    public async Task Listing_returns_only_that_tenant()
     {
-        await Store.SaveAsync(Experiment("d1", tenantId: "kiraci-a"));
-        await Store.SaveAsync(Experiment("d2", tenantId: "kiraci-b"));
+        await Store.SaveAsync(Experiment("d1", tenantId: "tenant-a"));
+        await Store.SaveAsync(Experiment("d2", tenantId: "tenant-b"));
 
-        var listA = await Store.ListAsync("kiraci-a");
+        var listA = await Store.ListAsync("tenant-a");
 
         listA.ShouldHaveSingleItem().Name.ShouldBe("d1");
     }
 
     [Fact]
-    public async Task Calisan_deney_yoksa_null_doner()
+    public async Task Returns_null_when_no_experiment_is_running()
         => (await Store.GetRunningAsync(TenantId, "agent-a")).ShouldBeNull();
 
     [Fact]
-    public async Task Kanarya_kurali_tanimlanip_okunur()
+    public async Task Canary_policy_is_set_and_read_back()
     {
         await Store.SaveAsync(Experiment("d1"));
 
@@ -180,7 +180,7 @@ public abstract class ExperimentStoreContract : TenantIsolationContract<IExperim
     }
 
     [Fact]
-    public async Task Kanarya_kurali_null_ile_kaldirilir()
+    public async Task Canary_policy_is_cleared_with_null()
     {
         await Store.SaveAsync(Experiment("d1"));
         await Store.SetCanaryPolicyAsync(TenantId, "d1", CanaryPolicy());
@@ -192,11 +192,11 @@ public abstract class ExperimentStoreContract : TenantIsolationContract<IExperim
     }
 
     [Fact]
-    public async Task Kanarya_kurali_Draft_deneyde_de_tanimlanabilir()
+    public async Task Canary_policy_can_be_set_on_a_draft_experiment_too()
     {
         await Store.SaveAsync(Experiment("d1"));
 
-        // 🚨 SetCanaryPolicyAsync SaveAsync'in aksine duruma bagli DEGILDIR.
+        // 🚨 Unlike SaveAsync, SetCanaryPolicyAsync is NOT status-dependent.
         var updated = await Store.SetCanaryPolicyAsync(TenantId, "d1", CanaryPolicy());
 
         updated.Status.ShouldBe(ExperimentStatus.Draft);
@@ -204,12 +204,12 @@ public abstract class ExperimentStoreContract : TenantIsolationContract<IExperim
     }
 
     [Fact]
-    public async Task Kanarya_kurali_deneyi_duzenleme_Draft_kisitindan_MUAF_tutulur()
+    public async Task Setting_canary_policy_is_EXEMPT_from_the_draft_only_edit_restriction()
     {
         await Store.SaveAsync(Experiment("d1"));
         await Store.StartAsync(TenantId, "d1");
 
-        // SaveAsync Running'de reddedilir ama SetCanaryPolicyAsync reddedilmez.
+        // SaveAsync is rejected while Running, but SetCanaryPolicyAsync is not.
         var updated = await Store.SetCanaryPolicyAsync(TenantId, "d1", CanaryPolicy());
 
         updated.Status.ShouldBe(ExperimentStatus.Running);
@@ -217,7 +217,7 @@ public abstract class ExperimentStoreContract : TenantIsolationContract<IExperim
     }
 
     [Fact]
-    public async Task Kanarya_rampasi_calisan_deneyde_agirligi_gunceller_ve_Running_kalir()
+    public async Task Canary_ramp_updates_weights_on_a_running_experiment_and_stays_Running()
     {
         await Store.SaveAsync(Experiment("d1"));
         await Store.StartAsync(TenantId, "d1");
@@ -235,7 +235,7 @@ public abstract class ExperimentStoreContract : TenantIsolationContract<IExperim
     }
 
     [Fact]
-    public async Task Kanarya_rampasi_calismayan_deneyde_reddedilir()
+    public async Task Canary_ramp_is_rejected_on_a_non_running_experiment()
     {
         await Store.SaveAsync(Experiment("d1"));
 
@@ -249,7 +249,7 @@ public abstract class ExperimentStoreContract : TenantIsolationContract<IExperim
     }
 
     [Fact]
-    public async Task Geri_alma_deneyi_durdurur_agirliklari_dondurur_ve_nedeni_yazar()
+    public async Task Rollback_stops_the_experiment_restores_weights_and_records_the_reason()
     {
         await Store.SaveAsync(Experiment("d1"));
         await Store.StartAsync(TenantId, "d1");
@@ -261,31 +261,31 @@ public abstract class ExperimentStoreContract : TenantIsolationContract<IExperim
                 new ExperimentVariant { Name = "control", Version = 1, Weight = 100 },
                 new ExperimentVariant { Name = "v2", Version = 2, Weight = 0 },
             ],
-            "hata orani esigin uzerinde");
+            "error rate above threshold");
 
         rolledBack.Status.ShouldBe(ExperimentStatus.Stopped);
         rolledBack.EndedAt.ShouldNotBeNull();
-        rolledBack.RollbackReason.ShouldBe("hata orani esigin uzerinde");
+        rolledBack.RollbackReason.ShouldBe("error rate above threshold");
         rolledBack.Variants.Single(static v => string.Equals(v.Name, "v2", StringComparison.Ordinal)).Weight.ShouldBe(0);
 
         (await Store.GetRunningAsync(TenantId, "agent-a")).ShouldBeNull();
     }
 
     [Fact]
-    public async Task ListRunningWithCanaryAsync_yalniz_kanarya_tanimli_calisan_deneyleri_getirir()
+    public async Task ListRunningWithCanaryAsync_returns_only_running_experiments_with_canary_defined()
     {
-        // d1: kanaryasiz Running -- listede OLMAMALI.
-        await Store.SaveAsync(Experiment("d1", tenantId: "kanarya-a"));
-        await Store.StartAsync("kanarya-a", "d1");
+        // d1: Running without canary -- must NOT be in the list.
+        await Store.SaveAsync(Experiment("d1", tenantId: "canary-a"));
+        await Store.StartAsync("canary-a", "d1");
 
-        // d2: kanaryali Draft -- listede OLMAMALI (Running degil).
-        await Store.SaveAsync(Experiment("d2", tenantId: "kanarya-a"));
-        await Store.SetCanaryPolicyAsync("kanarya-a", "d2", CanaryPolicy());
+        // d2: Draft with canary -- must NOT be in the list (not Running).
+        await Store.SaveAsync(Experiment("d2", tenantId: "canary-a"));
+        await Store.SetCanaryPolicyAsync("canary-a", "d2", CanaryPolicy());
 
-        // d3: kanaryali VE Running -- listede OLMALI, baska bir kiracida bile.
-        await Store.SaveAsync(Experiment("d3", tenantId: "kanarya-b"));
-        await Store.SetCanaryPolicyAsync("kanarya-b", "d3", CanaryPolicy());
-        await Store.StartAsync("kanarya-b", "d3");
+        // d3: canary AND Running -- must be in the list, even under a different tenant.
+        await Store.SaveAsync(Experiment("d3", tenantId: "canary-b"));
+        await Store.SetCanaryPolicyAsync("canary-b", "d3", CanaryPolicy());
+        await Store.StartAsync("canary-b", "d3");
 
         var running = await Store.ListRunningWithCanaryAsync();
 
@@ -320,21 +320,21 @@ public abstract class ExperimentStoreContract : TenantIsolationContract<IExperim
         };
 
     [Fact]
-    public async Task Deney_yasam_dongusu_kiracilar_arasinda_sizmaz()
+    public async Task Experiment_lifecycle_does_not_leak_across_tenants()
     {
-        await Store.SaveAsync(Experiment("kampanya", "tenant-a"));
+        await Store.SaveAsync(Experiment("campaign", "tenant-a"));
 
-        // Baslatma, durdurma ve "calisan deneyi bul" ayni siniri tasimalidir.
-        await Should.ThrowAsync<AgentPrismException>(async () => await Store.StartAsync("tenant-b", "kampanya"));
+        // Start, stop, and "find the running experiment" must all respect the same boundary.
+        await Should.ThrowAsync<AgentPrismException>(async () => await Store.StartAsync("tenant-b", "campaign"));
 
-        await Store.StartAsync("tenant-a", "kampanya");
+        await Store.StartAsync("tenant-a", "campaign");
 
         (await Store.GetRunningAsync("tenant-b", "agent-a")).ShouldBeNull();
         (await Store.GetRunningAsync("tenant-a", "agent-a")).ShouldNotBeNull();
 
-        await Should.ThrowAsync<AgentPrismException>(async () => await Store.StopAsync("tenant-b", "kampanya"));
+        await Should.ThrowAsync<AgentPrismException>(async () => await Store.StopAsync("tenant-b", "campaign"));
 
-        await Store.StopAsync("tenant-a", "kampanya");
+        await Store.StopAsync("tenant-a", "campaign");
 
         (await Store.GetRunningAsync("tenant-a", "agent-a")).ShouldBeNull();
     }
