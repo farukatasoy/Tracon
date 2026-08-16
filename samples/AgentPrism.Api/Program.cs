@@ -1,61 +1,77 @@
-// AgentPrism ornek barindirici — Faz 3.
+// AgentPrism sample host.
 //
-// Bu proje AgentPrism'in su anki yeteneklerini gercek bir ASP.NET Core
-// uygulamasinda gosterir: tool kaydi, kod agent'i, katalog, calistirma kaydi,
-// PostgreSQL kaliciligi ve OpenAI saglayicisi.
+// This project demonstrates AgentPrism's capabilities in a real ASP.NET Core
+// application: tool registration, code-defined agents, the catalog, run
+// recording, database persistence, and multiple model providers.
 //
-// Iki yapilandirma da desteklenir ("sifir surpriz" kurali):
-//   - API anahtari tanimliysa  -> gercek OpenAI modelleri
-//   - tanimli degilse          -> ag cagrisi yapmayan EchoModelProvider
-//   - baglanti dizesi tanimliysa -> PostgreSQL; degilse bellek ici depolar
+// Two configurations are both supported (the "zero surprises" rule):
+//   - an API key is configured  -> real OpenAI models
+//   - no API key is configured  -> EchoModelProvider, which makes no network calls
+//   - a connection string is configured -> a SQL persistence store; otherwise
+//     in-memory stores
 //
-// HTTP katmani Faz 4'te geldi: tek bir `app.MapAgentPrism("/agentprism")` cagrisi
-// yonetim API'sini ve OpenAI uyumlu calistirma uclarini baglar.
-// Arayuz Faz 5'te geldi: `.UseUI()` cagrisi arayuz varliklarini kaydeder ve
-// http://localhost:5080/agentprism adresinde calisan bir kontrol duzlemi acilir.
-// Faz 6 gozlemlenebilirlik, tool onayi ve uzak MCP tool'lari getirdi:
-//   - span'ler ve metrikler kendiliginden uretilir (AgentPrismDiagnostics)
-//   - `cancel_order` tool'u onay ister; arayuzde onay karti cikar
-//   - `.UseMcp()` uzak MCP sunucularinin tool'larini kesfeder
-// Faz 8 saglayici genislemesi ve saglik denetimi getirdi:
-//   - `.UseOpenAICompatible(ad, ...)` herhangi bir OpenAI uyumlu uca baglanir
-//     (OpenRouter, Groq, vLLM, yerel Ollama/LM Studio...)
-//   - `/agentprism/api/models/health` saglayicilarin erisilebilirligini denetler
-//     (ucret uretmez); devre kesici ardisik hatada saglayiciyi gecici durdurur
-// Faz 12 agent'in agent'i cagirmasini getirdi:
-//   - `CallableAgentNames` bir agent'a baska agent'lari cagirma yetkisi verir
-//   - her alt cagri AYRI bir `runs` satiri uretir; arayuz agaci cizer
-//   - derinlik, token ve sayi sinirlari `AgentPrism:AgentGraph` ile ayarlanir
-// Faz 15 workflow yurutmesini getirdi:
-//   - `.UseWorkflows()` motoru acar; `AddWorkflow(...)` kodda serbest graf tanimlar
-//   - arayuzden tanimlanan workflow yalnizca katalogdaki agent'lari diziler (K2)
-//   - her yurutme bir `runs` satiridir; icindeki agent'lar altina baglanir
-//   - her super-step'te kontrol noktasi yazilir; yarim kalan is surdurulebilir
-// Faz 26 Anthropic ve Google'i birinci sinif saglayici yapti:
-//   - `.UseAnthropic(...)` ve `.UseGoogle(...)` — ikisi de RESMI SDK kullanir
-//   - `ModelBinding.ProviderSettings` saglayiciya ozgu ayarlari agent basina tasir
-//     (prompt caching, dusunme butcesi, Gemini guvenlik esikleri)
-//   - guvenlik filtresiyle BOS donen yanit `content_filtered` hatasi olarak kaydedilir
-// Faz 27 Azure OpenAI'i ekledi:
-//   - `.UseAzureOpenAI(...)` — ADRES zorunludur, Azure'un tek genel adresi yoktur
-//   - 🚨 `ModelBinding.Model` bu saglayicida MODEL degil DEPLOYMENT adi tasir
-//   - kimlik API anahtari veya Microsoft Entra ile verilir; `Azure.Identity`
-//     AgentPrism'in bagimliligi DEGILDIR, kimlik fabrikasi tuketiciden gelir
-// Bkz. docs/04-HTTP-API.md, docs/05-AGENTPRISM-UI.md, docs/06-GOZLEMLENEBILIRLIK.md,
-//      docs/08-SAGLAYICI-GENISLEMESI.md, docs/12-AGENT-CAGRI-GRAFIGI.md,
-//      docs/15-WORKFLOWS-YURUTME.md, docs/26-ANTHROPIC-VE-GEMINI.md,
-//      docs/27-AZURE-FOUNDRY.md
+// HTTP layer: a single `app.MapAgentPrism("/agentprism")` call wires up the
+// management API and the OpenAI-compatible run endpoints.
 //
-// Calistirmadan once sirlari ayarlayin:
+// UI: the `.UseUI()` call registers the UI assets and opens a control plane
+// running at http://localhost:5080/agentprism.
+//
+// Observability, tool approval, and remote MCP tools:
+//   - spans and metrics are produced automatically (AgentPrismDiagnostics)
+//   - the `cancel_order` tool requires approval; the UI shows an approval card
+//   - `.UseMcp()` discovers tools from remote MCP servers
+//
+// Provider expansion and health checks:
+//   - `.UseOpenAICompatible(name, ...)` connects to any OpenAI-compatible
+//     endpoint (OpenRouter, Groq, vLLM, local Ollama/LM Studio...)
+//   - `/agentprism/api/models/health` checks provider reachability (produces
+//     no cost); a circuit breaker temporarily stops a provider after
+//     consecutive failures
+//
+// Agent-calls-agent:
+//   - `CallableAgentNames` grants an agent permission to call other agents
+//   - each sub-call produces a SEPARATE `runs` row; the UI draws it as a tree
+//   - depth, token, and count limits are configured under `AgentPrism:AgentGraph`
+//
+// Workflow execution:
+//   - `.UseWorkflows()` turns on the engine; `AddWorkflow(...)` defines a free-form
+//     graph in code
+//   - a workflow defined from the UI can only chain agents already in the
+//     catalog (decision K2)
+//   - each execution is one `runs` row; the agents inside it attach beneath it
+//   - a checkpoint is written at every super-step, so unfinished work can resume
+//
+// First-class Anthropic and Google providers:
+//   - `.UseAnthropic(...)` and `.UseGoogle(...)` — both use the OFFICIAL SDK
+//   - `ModelBinding.ProviderSettings` carries provider-specific, per-agent
+//     settings (prompt caching, thinking budget, Gemini safety thresholds)
+//   - a response that comes back EMPTY due to a safety filter is recorded as a
+//     `content_filtered` error
+//
+// Azure OpenAI:
+//   - `.UseAzureOpenAI(...)` — an ENDPOINT is required; Azure has no single
+//     global address
+//   - 🚨 `ModelBinding.Model` carries the DEPLOYMENT name, not the model name,
+//     for this provider
+//   - credentials are supplied via API key or Microsoft Entra; `Azure.Identity`
+//     is NOT a dependency of AgentPrism, the credential factory comes from the
+//     consumer
+//
+// See docs/04-HTTP-API.md, docs/05-AGENTPRISM-UI.md, docs/06-GOZLEMLENEBILIRLIK.md,
+//     docs/08-SAGLAYICI-GENISLEMESI.md, docs/12-AGENT-CAGRI-GRAFIGI.md,
+//     docs/15-WORKFLOWS-YURUTME.md, docs/26-ANTHROPIC-VE-GEMINI.md,
+//     docs/27-AZURE-FOUNDRY.md
+//
+// Set secrets before running:
 //   dotnet user-secrets set "AgentPrism:PostgreSql:ConnectionString" "Host=localhost;Database=AgentPrism;Username=...;Password=..."
 //
-// SQL Server icin (PostgreSQL yerine; ikisi birden verilmez):
+// For SQL Server (instead of PostgreSQL; not given at the same time as either):
 //   dotnet user-secrets set "AgentPrism:SqlServer:ConnectionString" "Server=localhost,1433;Database=AgentPrism;User Id=sa;Password=...;TrustServerCertificate=true"
 //   dotnet user-secrets set "AgentPrism:Providers:OpenAI:ApiKey" "sk-..."
 //   dotnet user-secrets set "AgentPrism:Providers:OpenAICompatible:openrouter:ApiKey" "sk-or-..."
 //   dotnet user-secrets set "AgentPrism:Providers:Anthropic:ApiKey" "sk-ant-..."
 //   dotnet user-secrets set "AgentPrism:Providers:Google:ApiKey" "AIza..."
-//   dotnet user-secrets set "AgentPrism:Providers:AzureOpenAI:Endpoint" "https://<kaynak>.openai.azure.com/"
+//   dotnet user-secrets set "AgentPrism:Providers:AzureOpenAI:Endpoint" "https://<resource>.openai.azure.com/"
 //   dotnet user-secrets set "AgentPrism:Providers:AzureOpenAI:ApiKey" "..."
 
 using System.Text.Json;
@@ -70,75 +86,79 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddProblemDetails();
 
-// OpenAPI belgesi TUKETICININ tercihidir. AgentPrism.AspNetCore bu pakete
-// BAGIMLI DEGILDIR; uclar paylasilan cerceveden gelen ustveriyi tasir ve
-// AddOpenApi() cagrildiginda belgede kendiliginden gorunur.
+// The OpenAPI document is the CONSUMER's choice. AgentPrism.AspNetCore does
+// NOT depend on this package; endpoints carry metadata from the shared
+// framework and appear in the document automatically once AddOpenApi() is
+// called.
 builder.Services.AddOpenApi();
 
 var agentPrism = builder.AddAgentPrism()
-    // Tool'lar YALNIZCA kodda tanimlanir. Arayuz bu listeden secim yaptirir;
-    // tool kodu yazdirmaz. Bu bir guvenlik sinirdir.
-    // [AgentPrismTool] ile isaretlenmemis metotlar taranmaz.
-    // Faz 52: derleme anı kaynak ureteci ile kaydedilir - YANSIMA YOK, AOT
-    // uyarisi yok. Bu derlemedeki [AgentPrismTool] isaretli TUM metotlari bulur
-    // (OrderTools). Baska bir derlemedeki tool'lar icin AddToolsFrom kullanilir.
+    // Tools are defined ONLY in code. The UI lets a user pick from this list;
+    // it never lets them write tool code. This is a security boundary.
+    // Methods not marked with [AgentPrismTool] are never scanned.
+    // Registered by a compile-time source generator — NO REFLECTION, no AOT
+    // warning. It finds every [AgentPrismTool]-marked method in this assembly
+    // (OrderTools). Use AddToolsFrom for tools defined in another assembly.
     .AddGeneratedTools()
-    // Uzak MCP sunuculari. Sunucu tanimi arayuzden veya /api/mcp-servers
-    // ucundan eklenir; kesif arka planda yapilir. Kayitli sunucu yoksa hicbir
-    // sey olmaz. MCP tool'lari varsayilan olarak onay ister.
-    // Ayarlar `AgentPrism:Mcp` bolumunden okunur; bolum yoksa varsayilanlar
-    // gecerlidir. 🚨 Bu asiri yukleme OLMADAN `AgentPrism:Mcp:RefreshInterval`
-    // gibi bir ortam degiskeni HICBIR HATA VERMEDEN hicbir sey yapmazdi
-    // (olculdu; karar K-353).
+    // Remote MCP servers. A server definition is added from the UI or the
+    // /api/mcp-servers endpoint; discovery runs in the background. Nothing
+    // happens if no server is registered. MCP tools require approval by
+    // default.
+    // Settings are read from the `AgentPrism:Mcp` section; defaults apply if
+    // the section is absent. 🚨 Without this overload, an environment
+    // variable such as `AgentPrism:Mcp:RefreshInterval` did NOTHING, WITH NO
+    // ERROR AT ALL (measured; decision K-353).
     .UseMcp(builder.Configuration.GetSection(AgentPrismMcpOptions.SectionName))
-    // Faz 50: aynanin diger yuzu — AgentPrism'in kendi agent'larini DISA acar.
-    // "ozetleyici" bilerek secildi: hicbir tool tasimaz, dolayisiyla onay
-    // sinirina hic dokunmaz. Varsayilan MaxDepth=1: disaridan gelen bir cagri
-    // en fazla bir seviye devredebilir (ChildAgentInvoker'in aynı sinir kontrolu).
-    .UseMcpServer(o => o.ExposedAgents.Add("ozetleyici"))
-    .UseA2A(o => o.ExposedAgents.Add("ozetleyici"))
-    // Workflow yurutme motoru (Faz 15). Katalogdaki agent'lar hazir desenlerle
-    // birbirine baglanir. Motor kayitli degilse tanimlar yine yonetilebilir,
-    // yalnizca calistirma ucu 501 doner.
+    // The other side of the mirror — exposes AgentPrism's own agents to the
+    // outside. "summarizer" is chosen deliberately: it carries no tool, so it
+    // never touches the approval boundary. Default MaxDepth=1: an inbound
+    // call can delegate at most one level further (the same depth check as
+    // ChildAgentInvoker).
+    .UseMcpServer(o => o.ExposedAgents.Add("summarizer"))
+    .UseA2A(o => o.ExposedAgents.Add("summarizer"))
+    // The workflow execution engine. Agents in the catalog are wired together
+    // with ready-made patterns. If the engine is not registered, definitions
+    // are still manageable — only the run endpoint returns 501.
     .UseWorkflows()
-    // Gomulu yonetim arayuzu. Ayri bir esleme cagrisi gerekmez:
-    // MapAgentPrism kaydi bulur ve arayuzu ayni onek altina baglar.
+    // The embedded management UI. No separate mapping call is needed:
+    // MapAgentPrism finds the registration and mounts the UI under the same
+    // prefix.
     .UseUI()
-    // Icerik denetimi (Faz 48). 🚨 Bu cagri OLMADAN hicbir istem suzulmez,
-    // hicbir yanit denetlenir ve model boru hattina hicbir halka eklenmez:
-    // kayit K1'in (sifir surpriz) kapisidir, bir Enabled bayragi degil.
+    // Content moderation. 🚨 WITHOUT this call, no prompt is filtered, no
+    // response is inspected, and no ring is added to the model pipeline: the
+    // registration is the gate for K1 (zero surprises), not an Enabled flag.
     //
-    // Ornek uygulama guard'i BILEREK aciyor — F-32'nin gosterilebilir olmasi
-    // icin. Yerlesik guard iki karar verir: yasak sozcuk -> Block, PII deseni
-    // -> Mask. Kart deseni Luhn dogrulamasi yapar, boylece bir siparis
-    // numarasi maskelenmez.
+    // The sample app DELIBERATELY turns the guard on, so that this capability
+    // is demonstrable. The built-in guard makes two decisions: a denied term
+    // -> Block, a PII pattern -> Mask. The card-number pattern runs Luhn
+    // validation, so an order number is never masked by mistake.
     //
-    // Tuketici kendi kural kumesini IContentGuard uygulayip
-    // .AddContentGuard<T>() ile takar; birden cok guard sirayla calisir ve en
-    // sert karar kazanir.
+    // A consumer plugs in their own rule set by implementing IContentGuard
+    // and calling .AddContentGuard<T>(); multiple guards run in sequence and
+    // the strictest verdict wins.
     .AddPatternContentGuard(options =>
     {
         options.MaskedPii = PiiPatterns.CreditCard | PiiPatterns.Email | PiiPatterns.ProviderApiKey;
-        options.DeniedTerms.Add("gizli-proje");
+        options.DeniedTerms.Add("confidential-project");
     });
 
-// Saglayici istege baglidir. API anahtari yoksa uygulama ag cagrisi yapmayan
-// ornek saglayici ile calisir; hicbir sey kirilmaz.
+// The provider is optional. Without an API key, the app runs with a sample
+// provider that makes no network calls; nothing breaks.
 var openAi = builder.Configuration.GetSection(OpenAIProviderOptions.SectionName);
 var openAiEnabled = !string.IsNullOrWhiteSpace(openAi["ApiKey"]);
 
 if (openAiEnabled)
 {
-    // Bu tek cagri iki saglayici kaydeder: "openai" (Chat Completions) ve
-    // "openai-responses" (Responses API). Agent tanimi hangisini kullanacagini
-    // ModelBinding.Provider ile secer.
+    // This single call registers two providers: "openai" (Chat Completions)
+    // and "openai-responses" (Responses API). An agent definition chooses
+    // between them through ModelBinding.Provider.
     agentPrism.UseOpenAI(openAi);
 
-    // Bilgi tabani / anlamsal arama (Faz 51). AgentPrism bir gomu modeli
-    // SECMEZ (K-032'nin deseni: model adlari NuGet yayin hizindan hizli
-    // degisir); tuketici kendi saglayicisini kaydeder. Boyut
-    // (AgentPrismKnowledgeOptions.Dimensions, varsayilan 1536)
-    // "text-embedding-3-small" ile eslesir.
+    // Knowledge base / semantic search. AgentPrism does NOT choose an
+    // embedding model (the pattern behind K-032: model names change faster
+    // than NuGet release cadence); the consumer registers their own provider.
+    // The dimension (AgentPrismKnowledgeOptions.Dimensions, default 1536)
+    // matches "text-embedding-3-small".
     builder.Services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(
         new OpenAIClient(openAi["ApiKey"])
             .GetEmbeddingClient("text-embedding-3-small")
@@ -149,9 +169,10 @@ else
     agentPrism.AddModelProvider(new EchoModelProvider());
 }
 
-// OpenAI UYUMLU herhangi bir uc (F-03). Ayni yapilandirma sekli, farkli alt
-// bolum: AgentPrism:Providers:OpenAICompatible:openrouter:*. ApiKey yoksa
-// saglayici hic kaydedilmez — "sifir surpriz" kurali burada da gecerli.
+// Any OpenAI-COMPATIBLE endpoint. Same configuration shape, different
+// sub-section: AgentPrism:Providers:OpenAICompatible:openrouter:*. Without an
+// ApiKey the provider is never registered — the "zero surprises" rule applies
+// here too.
 var openRouter = builder.Configuration.GetSection($"{OpenAICompatibleProviderOptions.SectionName}:openrouter");
 var openRouterEnabled = !string.IsNullOrWhiteSpace(openRouter["ApiKey"]);
 
@@ -160,9 +181,9 @@ if (openRouterEnabled)
     agentPrism.UseOpenAICompatible("openrouter", openRouter);
 }
 
-// Anthropic (Claude) — birinci sinif saglayici (Faz 26). Resmi `Anthropic` SDK'si
-// kendi IChatClient adaptorunu tasidigi icin sekil AgentPrism.OpenAI ile aynidir.
-// Anahtar yoksa saglayici hic kaydedilmez.
+// Anthropic (Claude) — a first-class provider. The official `Anthropic` SDK
+// carries its own IChatClient adapter, so the shape matches AgentPrism.OpenAI.
+// Without a key, the provider is never registered.
 var anthropic = builder.Configuration.GetSection(AnthropicProviderOptions.SectionName);
 var anthropicEnabled = !string.IsNullOrWhiteSpace(anthropic["ApiKey"]);
 
@@ -171,8 +192,8 @@ if (anthropicEnabled)
     agentPrism.UseAnthropic(anthropic);
 }
 
-// Google Gemini — birinci sinif saglayici (Faz 26). Saglayici adi "gemini" degil
-// "google": ayni paket ileride Vertex AI'yi de kapsayabilir.
+// Google Gemini — a first-class provider. The provider name is "google", not
+// "gemini": the same package may cover Vertex AI in the future.
 var google = builder.Configuration.GetSection(GoogleProviderOptions.SectionName);
 var googleEnabled = !string.IsNullOrWhiteSpace(google["ApiKey"]);
 
@@ -181,13 +202,14 @@ if (googleEnabled)
     agentPrism.UseGoogle(google);
 }
 
-// Azure OpenAI — kurumsal .NET dunyasinin varsayilan yolu (Faz 27). Saglayicinin
-// acilmasi icin ADRES gerekir; Azure'un tek bir genel adresi yoktur.
+// Azure OpenAI — the default path in the enterprise .NET world. Opening the
+// provider requires an ENDPOINT; Azure has no single global address.
 //
-// 🚨 ModelBinding.Model bu saglayicida MODEL adi degil DEPLOYMENT adi tasir.
+// 🚨 On this provider, ModelBinding.Model carries the DEPLOYMENT name, not
+// the model name.
 //
-// Yonetilen kimlik icin bu ornekte `Azure.Identity` referansi YOKTUR; anahtar
-// yolu gosterilir. Yonetilen kimlik su sekilde acilir:
+// This sample has NO reference to `Azure.Identity`; the API-key path is
+// shown instead. Managed identity is enabled like this:
 //
 //   agentPrism.UseAzureOpenAI(azureOpenAI, o => o.CredentialFactory =
 //       static () => new DefaultAzureCredential());
@@ -200,12 +222,12 @@ if (azureOpenAIEnabled)
     agentPrism.UseAzureOpenAI(azureOpenAI);
 }
 
-// Ses tool'lari (Faz 28). Anahtar yoksa hicbir tool kaydedilmez ve
-// /api/voice/* uclari 501 doner — uygulama yine calisir.
+// Voice tools. Without a key, no tool is registered and the /api/voice/*
+// endpoints return 501 — the app still runs.
 //
-// Uretilen ses `attachments` tablosuna yazilir ve tool modele yalnizca ekin
-// KIMLIGINI dondurur. Ham sesi tool sonucuna koymak baglam penceresini base64
-// ile doldururdu.
+// The generated audio is written to the `attachments` table and the tool
+// returns only the attachment's ID to the model. Putting the raw audio in
+// the tool result would fill the context window with base64.
 var voice = builder.Configuration.GetSection(VoiceOptions.SectionName);
 var voiceEnabled = !string.IsNullOrWhiteSpace(voice["ApiKey"]);
 
@@ -213,41 +235,44 @@ if (voiceEnabled)
 {
     agentPrism.UseVoice(voice);
 
-    // Gercek zamanli konusma (Faz 29). ⚠️ BARINDIRMA MODELINI DEGISTIRIR:
-    // /agentprism/api/voice/sessions/{id}/stream ucu bir WebSocket acar ve
-    // baglanti dakikalarca yasar. Baglanti BIR sunucu ornegine baglidir; cok
-    // ornekli bir dagitimda yapiskan oturum (sticky session) gerekir ve ters
-    // vekil WebSocket gecisine izin vermelidir.
+    // Real-time speech. ⚠️ CHANGES THE HOSTING MODEL:
+    // /agentprism/api/voice/sessions/{id}/stream opens a WebSocket and the
+    // connection lives for minutes. The connection is bound to ONE server
+    // instance; a multi-instance deployment needs a sticky session, and the
+    // reverse proxy must allow the WebSocket upgrade.
     //
-    // Cagri yapilmazsa hicbir WebSocket ucu acilmaz ve davranis degismez.
-    // Konusma cozum VE sentez ister; ikisi de UseVoice ile gelir.
+    // If this call is not made, no WebSocket endpoint opens and behavior does
+    // not change. Conversation needs BOTH resolution and synthesis; both come
+    // with UseVoice.
     agentPrism.UseVoiceConversation(
         builder.Configuration.GetSection(VoiceConversationOptions.SectionName));
 }
 
-// Yerel model sunucusu ornegi (F-05, Ollama/LM Studio). Kurulum F-03 ile AYNI
-// cagridir; tek fark ApiKey vermemek (yerel sunucu istemiyor) ve yerel adrese
-// isaret etmek. Bu ornek varsayilan olarak KAPALIDIR: cogu gelistirici
-// makinesinde Ollama calismiyor olabilir ve kapali bir port hicbir sey
-// bozmadan sadece o saglayiciyi listeden dusurur. Denemek icin:
+// A local model server example (Ollama/LM Studio). Setup is the SAME call as
+// any OpenAI-compatible endpoint; the only difference is omitting ApiKey (the
+// local server does not require one) and pointing at the local address. This
+// example is OFF by default: Ollama may not be running on most developer
+// machines, and a closed port only drops that provider from the list without
+// breaking anything else. To try it:
 //
 //   ollama serve
 //   ollama pull llama3.1
 //
-// ve asagidaki iki satiri etkinlestirin:
+// then enable the two lines below:
 //
 // agentPrism.UseOpenAICompatible("ollama", o =>
 // {
 //     o.Endpoint = new Uri("http://localhost:11434/v1");
 //     o.DefaultModel = "llama3.1";
-//     // ApiKey YOK — yerel sunucu istemiyor. OpenAIClient bos kimlik kabul
-//     // etmedigi icin AgentPrism sabit bir yer tutucu kullanir (OPENAI001
-//     // ile ilgisizdir, saglayici bunu hic gormez).
+//     // No ApiKey — the local server does not require one. OpenAIClient does
+//     // not accept an empty credential, so AgentPrism uses a fixed
+//     // placeholder (unrelated to OPENAI001; the provider never sees it).
 // });
 //
-// Bilinen fark: Ollama'nin tool_choice destegi modele gore degisir; akista
-// usage gondermeyen sunucularda RunRecord.TotalTokens null kalir — bu bir
-// hata degildir (bkz. docs/08-SAGLAYICI-GENISLEMESI.md, bolum 8.2).
+// A known difference: Ollama's tool_choice support varies by model; on
+// servers that do not send usage in the stream, RunRecord.TotalTokens stays
+// null — this is not a bug (see docs/08-SAGLAYICI-GENISLEMESI.md, section
+// 8.2).
 
 var model = openAiEnabled
     ? new ModelBinding
@@ -257,49 +282,49 @@ var model = openAiEnabled
     }
     : new ModelBinding { Provider = "echo", Model = "echo-1" };
 
-// Cevrimici degerlendirme (Faz 49). 🚨 Bu cagri yalniz HANGI modelin yargic
-// olarak KULLANILACAGINI kaydeder — tek basina hicbir sey PUANLAMAZ. Asil
-// kapi `AgentPrism:OnlineEvaluation:Enabled` VE `:SampleRate`'tir (K1); ikisi
-// de committed appsettings'te KAPALIDIR, yalniz calisma aninda ortam
-// degiskeniyle acilir (bkz. docs/49-CEVRIMICI-DEGERLENDIRME.md, DoD).
+// Online evaluation. 🚨 This call only registers WHICH model is USED as the
+// judge — by itself it SCORES nothing. The real gate is
+// `AgentPrism:OnlineEvaluation:Enabled` AND `:SampleRate` (K1); both are OFF
+// in the committed appsettings and are only turned on at runtime through an
+// environment variable (see docs/49-CEVRIMICI-DEGERLENDIRME.md, DoD).
 if (openAiEnabled)
 {
     agentPrism.AddModelRunJudge(options =>
     {
-        // Gercek bir kurulumda olculen agent'inkinden AYRI, ucuz bir model
-        // secilir (ayni model kendi ciktisini puanlarken yanli olur). Bu
-        // ornekte tek bir model kayitli oldugu icin ayni deger kullanilir.
+        // In a real setup, a cheap model SEPARATE from the one being measured
+        // is chosen (the same model scoring its own output is biased). This
+        // sample uses the same value because only one model is registered.
         options.Model = model;
-        options.Criteria.Add("Yanit soruyu dogrudan ve dogru cevapliyor mu?");
-        options.Criteria.Add("Siparis sorularinda uygun tool cagrildi mi?");
+        options.Criteria.Add("Does the answer address the question directly and correctly?");
+        options.Criteria.Add("Was the right tool called for order questions?");
     });
 }
 
 agentPrism
-    // Kodda bildirimsel agent. Katalogda "code" kaynagi ile gorunur ve
-    // ayni ada sahip bir veritabani tanimina karsi oncelik kazanir.
+    // A declarative agent in code. Appears in the catalog with the "code"
+    // source and takes precedence over a database definition with the same name.
     .AddAgent(new AgentDefinition
     {
         Name = "support",
-        DisplayName = "Destek Asistani",
-        Description = "Siparis ve kargo sorularini yanitlar.",
-        Instructions = "Sen bir destek asistanisin. Kisa ve net yanit ver. " +
-                       "Siparis sorularinda mutlaka tool kullan.",
+        DisplayName = "Support Assistant",
+        Description = "Answers order and shipping questions.",
+        Instructions = "You are a support assistant. Answer briefly and clearly. " +
+                       "Always use a tool for order questions.",
         Model = model,
-        // cancel_order onay ister: model cagirmaya kalktiginda calistirma
-        // durur ve arayuzde onay karti cikar.
+        // cancel_order requires approval: when the model tries to call it, the
+        // run pauses and an approval card appears in the UI.
         ToolNames = ["get_order_status", "list_recent_orders", "cancel_order"],
     })
 
-    // Harness ayarli agent: baglam sikistirma ve todo takibi devrede.
-    // Dosya erisimi HarnessSettings icinde bilerek yoktur; MAF'ta yalnizca
-    // deger atandiginda etkinlesir ve AgentPrism o degeri hic atamaz (K-062).
+    // A harness-configured agent: context compaction and todo tracking are on.
+    // File access is deliberately absent from HarnessSettings; in MAF it only
+    // activates when a value is assigned, and AgentPrism never assigns one (K-062).
     .AddAgent(new AgentDefinition
     {
-        Name = "arastirmaci",
-        DisplayName = "Arastirmaci",
-        Description = "Siparis kayitlarini inceler ve bulgularini ozetler.",
-        Instructions = "Sen bir arastirmacisin. Adim adim ilerle ve bulgularini ozetle.",
+        Name = "researcher",
+        DisplayName = "Researcher",
+        Description = "Reviews order records and summarizes findings.",
+        Instructions = "You are a researcher. Proceed step by step and summarize your findings.",
         Model = model,
         ToolNames = ["get_order_status"],
         Harness = new HarnessSettings
@@ -311,112 +336,115 @@ agentPrism
         },
     })
 
-    // Faz 12: agent'in agent'i cagirmasi. Yonlendirici kendisi tool kullanmaz;
-    // isi uzman agent'a devreder. Her devir AYRI bir `runs` satiri uretir ve
-    // arayuzun calistirma detayinda agac olarak gorunur.
+    // Agent-calls-agent. The router itself does not use a tool; it hands the
+    // work off to the specialist agent. Each hand-off produces a SEPARATE
+    // `runs` row and appears as a tree in the UI's run detail view.
     //
-    // Sinirlar AgentPrism:AgentGraph bolumunden gelir (varsayilan: derinlik 3,
-    // agac basina 200.000 token, 25 alt calistirma) ve agac boyunca TEK bir
-    // butce nesnesiyle paylasilir.
+    // Limits come from the AgentPrism:AgentGraph section (default: depth 3,
+    // 200,000 tokens per tree, 25 sub-runs) and are shared across the whole
+    // tree through a SINGLE budget object.
     //
-    // Alt agent olarak BILEREK "support" secildi, "arastirmaci" degil:
-    // arastirmaci harness kullanir ve K-053'te belgelenen harness kusuru
-    // (tool cagrisi baglanmiyor) alt calistirmayi da vururdu. Orneklerin
-    // calisir olmasi, ornegin mimariyi anlatmasindan once gelir.
+    // "support" was chosen DELIBERATELY as the sub-agent, not "researcher":
+    // the researcher uses a harness, and the harness defect documented in
+    // K-053 (tool calls do not connect) would also hit the sub-run. Working
+    // samples come before samples that explain the architecture.
     .AddAgent(new AgentDefinition
     {
-        Name = "yonlendirici",
-        DisplayName = "Yonlendirici",
-        Description = "Gelen istegi dogru uzman agent'a devreder.",
-        Instructions = "Sen bir yonlendiricisin. Siparis sorularini 'support' agent'ina " +
-                       "devret, sonucunu bekle ve kullaniciya ozetle. Kendi basina tool cagirma.",
+        Name = "router",
+        DisplayName = "Router",
+        Description = "Hands off an incoming request to the right specialist agent.",
+        Instructions = "You are a router. Hand off order questions to the 'support' agent, " +
+                       "wait for its result, and summarize it for the user. Do not call tools yourself.",
         Model = model,
         CallableAgentNames = ["support"],
     })
 
-    // Faz 15'in Sequential zinciri icin iki halka. Ikisi de tool kullanmaz:
-    // zincirin kaniti, her halkanin bir oncekinin CIKTISINI gormesidir ve
-    // tool cagrisi bu kaniti bulaniklastirirdi.
+    // Two links for the Sequential chain. Neither uses a tool: the proof of
+    // the chain is that each link sees the OUTPUT of the previous one, and a
+    // tool call would blur that proof.
     .AddAgent(new AgentDefinition
     {
-        Name = "ozetleyici",
-        DisplayName = "Ozetleyici",
-        Description = "Gelen metni uc maddede ozetler.",
-        Instructions = "Gelen metni en fazla uc kisa madde halinde ozetle. Yorum ekleme.",
+        Name = "summarizer",
+        DisplayName = "Summarizer",
+        Description = "Summarizes incoming text in three bullet points.",
+        Instructions = "Summarize the incoming text in at most three short bullet points. Do not add commentary.",
         Model = model,
     })
     .AddAgent(new AgentDefinition
     {
-        Name = "cevirmen",
-        DisplayName = "Cevirmen",
-        Description = "Gelen metni Ingilizceye cevirir.",
-        Instructions = "Gelen metni Ingilizceye cevir. Yalnizca cevirilmis metni dondur.",
+        Name = "translator",
+        DisplayName = "Translator",
+        Description = "Translates incoming text into English.",
+        Instructions = "Translate the incoming text into English. Return only the translated text.",
         Model = model,
     });
 
-// Faz 15: KODDA tanimli workflow. Serbest graf yalnizca burada kurulabilir -
-// arayuzden yalnizca hazir desenler tanimlanir (tasarim kurali K2). Bu ornek
-// hazir desen fabrikasini kullanir; `WorkflowBuilder` ile ozel `Executor`
-// tipleri baglamak da mumkundur.
+// A workflow defined in CODE. A free-form graph can only be built here -
+// the UI only defines ready-made patterns (design rule K2). This sample
+// uses the ready-made pattern factory; attaching custom `Executor` types
+// with `WorkflowBuilder` is also possible.
 agentPrism.AddWorkflow(
-    "ozetle-ve-cevir",
+    "summarize-and-translate",
     static services => AgentWorkflowBuilder.BuildSequential(
-        "ozetle-ve-cevir",
+        "summarize-and-translate",
         [
-            // 🚨 Agent'lar `GetWorkflowAgent` ile baglanir, katalogdan DOGRUDAN
-            // alinmaz. Dogrudan alinan agent kendi kok `runs` satirini acar ve
-            // workflow agaci bos gorunur. Olculdu: ornek uygulamada agac uc
-            // satir yerine bir satir dondu (bkz. docs/15-WORKFLOWS-YURUTME.md).
-            services.GetWorkflowAgent("ozetle-ve-cevir", "ozetleyici", "Gelen metni uc maddede ozetler."),
-            services.GetWorkflowAgent("ozetle-ve-cevir", "cevirmen", "Gelen metni Ingilizceye cevirir."),
+            // 🚨 Agents are attached with `GetWorkflowAgent`, never taken
+            // DIRECTLY from the catalog. An agent taken directly opens its own
+            // root `runs` row and the workflow tree appears empty. Measured:
+            // in the sample app the tree returned one row instead of three
+            // (see docs/15-WORKFLOWS-YURUTME.md).
+            services.GetWorkflowAgent("summarize-and-translate", "summarizer", "Summarizes incoming text in three bullet points."),
+            services.GetWorkflowAgent("summarize-and-translate", "translator", "Translates incoming text into English."),
         ]),
-    "Metni ozetler, sonra Ingilizceye cevirir. Kodda tanimlidir.");
+    "Summarizes text, then translates it into English. Defined in code.");
 
-// Faz 16: insan girdisi bekleyen workflow. Graf bir DIS ISTEK PORTUNA ulasinca
-// yurutme durur, durumu bir kontrol noktasina yazilir ve calistirma
-// `AwaitingInput` olarak kapanir. Yanit
-// `POST /api/workflows/runs/{runId}/respond` ile verilir ve YENI bir
-// calistirma acar - olay akisi append-only'dir (K-014).
+// A workflow that waits for human input. When the graph reaches an EXTERNAL
+// REQUEST PORT, execution pauses, the state is written to a checkpoint, and
+// the run closes as `AwaitingInput`. The response is given through
+// `POST /api/workflows/runs/{runId}/respond` and opens a NEW run - the event
+// stream is append-only (K-014).
 agentPrism.AddWorkflow(
-    "ozetle-ve-onayla",
+    "summarize-and-approve",
     static services =>
     {
-        var port = RequestPort.Create<string, bool>("yayin-onayi");
+        var port = RequestPort.Create<string, bool>("publish-approval");
 
         var summarize = services.GetWorkflowAgent(
-            "ozetle-ve-onayla",
-            "ozetleyici",
-            "Gelen metni uc maddede ozetler.");
+            "summarize-and-approve",
+            "summarizer",
+            "Summarizes incoming text in three bullet points.");
 
-        // 🚨 Agent ile port arasina bir CEVIRICI konur. Agent host'u
-        // `List<ChatMessage>` yayar, port ise `string` bekler; ikisi dogrudan
-        // baglanirsa port cagirilir ama mesaji ISLEYEMEZ ve hicbir istek
-        // uretmez - calistirma sessizce cikti uretmeden "tamamlandi" olur.
-        // Olculdu (Faz 16): port uc kez cagrildi, sifir RequestInfoEvent.
+        // 🚨 A TRANSLATOR sits between the agent and the port. The agent host
+        // emits `List<ChatMessage>`, but the port expects `string`; if the two
+        // are connected directly, the port is called but CANNOT PROCESS the
+        // message and produces no request - the run silently "completes"
+        // without producing output. Measured: the port was called three
+        // times with zero RequestInfoEvent.
         var ask = ExecutorBindingExtensions.BindAsExecutor(
             static (List<ChatMessage> messages) =>
-                "Bu ozet yayinlansin mi?" + Environment.NewLine + Environment.NewLine +
+                "Should this summary be published?" + Environment.NewLine + Environment.NewLine +
                 (messages.LastOrDefault(static message => !string.IsNullOrWhiteSpace(message.Text))?.Text
                  ?? string.Empty),
-            id: "onay-sorusu");
+            id: "approval-question");
 
-        // 🚨 Cikti tipi ISLEYICININ DONUS TIPINDEN bildirilir. Govdesinde
-        // YieldOutputAsync cagiran, donusu olmayan bir isleyici hicbir cikti
-        // tipi beyan etmez ve calisma aninda "Cannot output object of type ...
-        // Expecting one of []" ile duser (Faz 16'da olculdu).
+        // 🚨 The output type is declared from the HANDLER'S RETURN TYPE. A
+        // handler whose body calls YieldOutputAsync but has no return value
+        // declares no output type, and at runtime it fails with
+        // "Cannot output object of type ... Expecting one of []" (measured).
         var publish = ExecutorBindingExtensions.BindAsExecutor(
             static (bool approved) => approved
-                ? "Ozet yayinlandi."
-                : "Yayin iptal edildi; ozet arsivde birakildi.",
-            id: "yayin");
+                ? "Summary published."
+                : "Publication canceled; summary kept in the archive.",
+            id: "publish");
 
-        // Baglamalar birer KEZ kurulup yeniden kullanilir: her cagri yeni bir
-        // nesne uretir ve kenarlar ayni dugume degil, iki ayri dugume baglanmis
-        // gorunurdu.
-        // 🚨 `ForwardIncomingMessages` kapatilir. Acikken agent host'u hem gelen
-        // mesaji hem kendi yanitini asagi yollar; sonraki dugum IKI kez calisir
-        // ve tek bir onay yerine iki ayri bekleyen istek olusur. Olculdu
-        // (Faz 16): gercek bir calistirmada `/requests` iki kayit dondu.
+        // Bindings are set up ONCE and reused: each call would otherwise
+        // produce a new object, and the edges would appear connected to two
+        // separate nodes instead of the same one.
+        // 🚨 `ForwardIncomingMessages` is turned off. When on, the agent host
+        // forwards both the incoming message and its own response downstream;
+        // the next node then runs TWICE and produces two separate pending
+        // requests instead of one approval. Measured: in a real run,
+        // `/requests` returned two records.
         var summarizeBinding = new AIAgentBinding(
             summarize,
             new AIAgentHostOptions
@@ -432,32 +460,32 @@ agentPrism.AddWorkflow(
             .AddEdge(ask, portBinding)
             .AddEdge(portBinding, publish)
             .WithOutputFrom(publish)
-            .WithName("ozetle-ve-onayla")
+            .WithName("summarize-and-approve")
             .Build();
     },
-    "Metni ozetler, sonra yayin icin insan onayi bekler. Kodda tanimlidir.");
+    "Summarizes text, then waits for human approval to publish. Defined in code.");
 
 if (openRouterEnabled)
 {
-    // Ayni destek senaryosu, farkli saglayici. F-03'un kaniti: agent tanimi
-    // yalnizca ModelBinding.Provider degistirerek OpenAI'dan tamamen farkli
-    // (resmi OpenAI olmayan) bir uca yonlenir.
+    // Same support scenario, different provider. Proof of provider expansion:
+    // the agent definition points to a completely different (non-official
+    // OpenAI) endpoint just by changing ModelBinding.Provider.
     agentPrism.AddAgent(new AgentDefinition
     {
-        Name = "openrouter-destek",
-        DisplayName = "OpenRouter Destek",
-        Description = "Ayni destek senaryosu, OpenRouter uzerinden calisir.",
-        Instructions = "Sen bir destek asistanisin. Kisa ve net yanit ver. " +
-                       "Siparis sorularinda mutlaka tool kullan.",
+        Name = "openrouter-support",
+        DisplayName = "OpenRouter Support",
+        Description = "Same support scenario, runs through OpenRouter.",
+        Instructions = "You are a support assistant. Answer briefly and clearly. " +
+                       "Always use a tool for order questions.",
         Model = new ModelBinding
         {
             Provider = "openrouter",
-            // OpenRouter model kimlikleri saglayici onekiyle gelir; "gpt-5.4-mini"
-            // degil "openai/gpt-5.4-mini". Olculdu: docs/08-SAGLAYICI-GENISLEMESI.md.
+            // OpenRouter model identifiers carry a provider prefix; not
+            // "gpt-5.4-mini" but "openai/gpt-5.4-mini". Measured: docs/08-SAGLAYICI-GENISLEMESI.md.
             Model = openRouter["DefaultModel"] ?? "openai/gpt-5.4-mini",
-            // OpenRouter'in kredi kontrolu max_tokens'i "en kotu durum" olarak
-            // hesaba katar; varsayilan (65536) dusuk bakiyeli anahtarlarda
-            // HTTP 402 uretir. Olculdu: docs/08-SAGLAYICI-GENISLEMESI.md.
+            // OpenRouter's credit check treats max_tokens as a "worst case";
+            // the default (65536) produces HTTP 402 on low-balance keys.
+            // Measured: docs/08-SAGLAYICI-GENISLEMESI.md.
             MaxOutputTokens = 512,
         },
         ToolNames = ["get_order_status", "list_recent_orders", "cancel_order"],
@@ -466,36 +494,36 @@ if (openRouterEnabled)
 
 if (anthropicEnabled)
 {
-    // Ayni destek senaryosu, Claude uzerinde. Tool cagri esleme farki
-    // (tool_use / tool_result bloklari) burada dogrulanir.
+    // Same support scenario, on Claude. The tool-call mapping difference
+    // (tool_use / tool_result blocks) is verified here.
     agentPrism.AddAgent(new AgentDefinition
     {
-        Name = "claude-destek",
-        DisplayName = "Claude Destek",
-        Description = "Ayni destek senaryosu, Anthropic Claude uzerinden calisir.",
-        Instructions = "Sen bir destek asistanisin. Kisa ve net yanit ver. " +
-                       "Siparis sorularinda mutlaka tool kullan.",
+        Name = "claude-support",
+        DisplayName = "Claude Support",
+        Description = "Same support scenario, runs through Anthropic Claude.",
+        Instructions = "You are a support assistant. Answer briefly and clearly. " +
+                       "Always use a tool for order questions.",
         Model = new ModelBinding
         {
             Provider = AnthropicProviderNames.Anthropic,
             Model = anthropic["DefaultModel"] ?? "claude-haiku-4-5-20251001",
 
-            // 🚨 Anthropic Messages API'sinde max_tokens ZORUNLUDUR. Bos
-            // birakilirsa AnthropicProviderOptions.DefaultMaxOutputTokens kullanilir.
+            // 🚨 max_tokens is REQUIRED in the Anthropic Messages API. If left
+            // empty, AnthropicProviderOptions.DefaultMaxOutputTokens is used.
             MaxOutputTokens = 1024,
         },
         ToolNames = ["get_order_status", "list_recent_orders", "cancel_order"],
     });
 
-    // Saglayiciya ozgu ayarlarin (ProviderSettings) uctan uca kaniti: genisletilmis
-    // dusunme acik. Dusunme acikken Anthropic sicakligin yalnizca 1 olmasina izin
-    // verir, bu yuzden Temperature verilmez.
+    // An end-to-end proof of provider-specific settings (ProviderSettings):
+    // extended thinking turned on. With thinking on, Anthropic only allows a
+    // temperature of 1, so Temperature is not set.
     agentPrism.AddAgent(new AgentDefinition
     {
-        Name = "claude-dusunen",
-        DisplayName = "Claude Dusunen",
-        Description = "Genisletilmis dusunme acik; ProviderSettings ile ayarlanir.",
-        Instructions = "Adim adim dusun, sonra kisa bir sonuc ver.",
+        Name = "claude-thinking",
+        DisplayName = "Claude Thinking",
+        Description = "Extended thinking turned on; configured through ProviderSettings.",
+        Instructions = "Think step by step, then give a short conclusion.",
         Model = new ModelBinding
         {
             Provider = AnthropicProviderNames.Anthropic,
@@ -511,15 +539,15 @@ if (anthropicEnabled)
 
 if (googleEnabled)
 {
-    // Ayni destek senaryosu, Gemini uzerinde. Tool cagri esleme farki
-    // (functionCall / functionResponse parcalari) burada dogrulanir.
+    // Same support scenario, on Gemini. The tool-call mapping difference
+    // (functionCall / functionResponse parts) is verified here.
     agentPrism.AddAgent(new AgentDefinition
     {
-        Name = "gemini-destek",
-        DisplayName = "Gemini Destek",
-        Description = "Ayni destek senaryosu, Google Gemini uzerinden calisir.",
-        Instructions = "Sen bir destek asistanisin. Kisa ve net yanit ver. " +
-                       "Siparis sorularinda mutlaka tool kullan.",
+        Name = "gemini-support",
+        DisplayName = "Gemini Support",
+        Description = "Same support scenario, runs through Google Gemini.",
+        Instructions = "You are a support assistant. Answer briefly and clearly. " +
+                       "Always use a tool for order questions.",
         Model = new ModelBinding
         {
             Provider = GoogleProviderNames.Google,
@@ -529,14 +557,15 @@ if (googleEnabled)
         ToolNames = ["get_order_status", "list_recent_orders", "cancel_order"],
     });
 
-    // Guvenlik esikleri EN KATI. Bu agent, filtrelenmis bos yanitin
-    // "content_filtered" hatasi olarak kaydedildigini gostermek icindir.
+    // Safety thresholds set to the STRICTEST level. This agent demonstrates
+    // that a response filtered down to empty is recorded as a
+    // "content_filtered" error.
     agentPrism.AddAgent(new AgentDefinition
     {
-        Name = "gemini-kati-filtre",
-        DisplayName = "Gemini Kati Filtre",
-        Description = "Tum guvenlik esikleri en katiya cekilmis; filtre davranisini gosterir.",
-        Instructions = "Kullanicinin istegini yanitla.",
+        Name = "gemini-strict-filter",
+        DisplayName = "Gemini Strict Filter",
+        Description = "All safety thresholds set to the strictest level; demonstrates filter behavior.",
+        Instructions = "Answer the user's request.",
         Model = new ModelBinding
         {
             Provider = GoogleProviderNames.Google,
@@ -555,40 +584,41 @@ if (googleEnabled)
 
 if (azureOpenAIEnabled)
 {
-    // Ayni destek senaryosu, Azure OpenAI uzerinde.
+    // Same support scenario, on Azure OpenAI.
     //
-    // 🚨 Model alani DEPLOYMENT adi tasir. Asagidaki deger Azure kaynaginizda
-    // tanimli deployment adiyla ayni olmalidir; model adi (ornegin "gpt-5.4-mini")
-    // yazilirsa istek HTTP 404 doner.
+    // 🚨 The model field carries the DEPLOYMENT name. The value below must
+    // match the deployment name defined in your Azure resource; if a model
+    // name (e.g. "gpt-5.4-mini") is used instead, the request returns HTTP 404.
     agentPrism.AddAgent(new AgentDefinition
     {
-        Name = "azure-destek",
-        DisplayName = "Azure Destek",
-        Description = "Ayni destek senaryosu, Azure OpenAI deployment'i uzerinden calisir.",
-        Instructions = "Sen bir destek asistanisin. Kisa ve net yanit ver. " +
-                       "Siparis sorularinda mutlaka tool kullan.",
+        Name = "azure-support",
+        DisplayName = "Azure Support",
+        Description = "Same support scenario, runs through an Azure OpenAI deployment.",
+        Instructions = "You are a support assistant. Answer briefly and clearly. " +
+                       "Always use a tool for order questions.",
         Model = new ModelBinding
         {
             Provider = AzureOpenAIProviderNames.AzureOpenAI,
-            Model = azureOpenAI["DefaultDeployment"] ?? "uretim-gpt",
+            Model = azureOpenAI["DefaultDeployment"] ?? "production-gpt",
             MaxOutputTokens = 1024,
         },
         ToolNames = ["get_order_status", "list_recent_orders", "cancel_order"],
     });
 }
 
-// Sesli asistan (Faz 28). Agent yalnizca ses tool'lari KAYITLIYSA tanimlanir:
-// olmayan bir tool'a isaret eden tanim derlenmez ve uygulama acilista hata verir.
+// Voice assistant. The agent is only defined if voice tools are REGISTERED:
+// a definition pointing to a nonexistent tool does not compile, and the
+// application fails at startup.
 if (voiceEnabled && openAiEnabled)
 {
     agentPrism.AddAgent(new AgentDefinition
     {
-        Name = "sesli-asistan",
-        DisplayName = "Sesli Asistan",
-        Description = "Cevabini isteyince seslendirir; kayitli bir ses ekini metne cevirir.",
-        Instructions = "Sen bir destek asistanisin. Kisa yanit ver. " +
-                       "Kullanici seslendirmeni isterse `speak` tool'unu cagir. " +
-                       "Hangi seslerin oldugu sorulursa `list_voices` tool'unu cagir.",
+        Name = "voice-assistant",
+        DisplayName = "Voice Assistant",
+        Description = "Speaks its answer on request; transcribes an attached voice recording.",
+        Instructions = "You are a support assistant. Answer briefly. " +
+                       "If the user asks you to speak, call the `speak` tool. " +
+                       "If asked which voices are available, call the `list_voices` tool.",
         Model = new ModelBinding
         {
             Provider = OpenAIProviderNames.ChatCompletions,
@@ -599,39 +629,40 @@ if (voiceEnabled && openAiEnabled)
     });
 }
 
-// Bilgi tabani asistani (Faz 51). `EnableVectorSearch` yalnizca IVectorSearchStore
-// (bugun yalniz PostgreSQL: UsePostgreSql()) VE bir IEmbeddingGenerator birlikte
-// kayitliyken calisir; ikisinden biri eksikse derleme acik bir hatayla durur.
-// Belge yukleme bir YONETIM islemidir (POST /agentprism/api/knowledge/{collection}/documents),
-// agent'in kendi isi degildir — bkz. docs/51-VEKTOR-BELLEK-VE-RAG.md, 51.6.
+// Knowledge base assistant. `EnableVectorSearch` only works when an
+// IVectorSearchStore (today only PostgreSQL: UsePostgreSql()) AND an
+// IEmbeddingGenerator are both registered; if either is missing, the build
+// stops with an explicit error. Document upload is an ADMIN operation
+// (POST /agentprism/api/knowledge/{collection}/documents), not something the
+// agent does itself — see docs/51-VEKTOR-BELLEK-VE-RAG.md, 51.6.
 if (openAiEnabled)
 {
     agentPrism.AddAgent(new AgentDefinition
     {
-        Name = "bilgi-asistani",
-        DisplayName = "Bilgi Asistani",
-        Description = "Kurumsal bilgi tabaninda anlamsal arama yaparak sorulari yanitlar.",
-        Instructions = "Sen bir kurumsal bilgi asistanisin. Sorulari yanitlamadan once " +
-                       "mutlaka search_knowledge tool'unu kullan; yalnizca tool'un dondurdugu " +
-                       "bilgiye dayanarak cevap ver.",
+        Name = "knowledge-assistant",
+        DisplayName = "Knowledge Assistant",
+        Description = "Answers questions using semantic search over the company knowledge base.",
+        Instructions = "You are a company knowledge assistant. Before answering a question, " +
+                       "always use the search_knowledge tool; base your answer only on the " +
+                       "information the tool returns.",
         Model = model,
-        Memory = new MemorySettings { EnableVectorSearch = true, VectorCollection = "kurumsal" },
+        Memory = new MemorySettings { EnableVectorSearch = true, VectorCollection = "knowledge-base" },
     });
 }
 
-// Kalicilik istege baglidir. Baglanti dizesi yoksa uygulama bellek ici
-// depolarla calisir; hicbir sey kirilmaz, yalnizca veri surecle birlikte biter.
+// Persistence is optional. Without a connection string, the app runs with
+// in-memory stores; nothing breaks, data simply ends with the process.
 //
-// 🚨 IKI SAGLAYICI AYNI ANDA KAYDEDILMEZ. Ikisi de kaydedilirse son cagri
-// kazanir ve verinin hangi veritabanina gittigi cagri sirasina baglanir;
-// AgentPrism bunu acilista uyari olarak loglar (K-183). Ornek bu yuzden
-// bilerek tek bir saglayici secer.
+// 🚨 TWO PROVIDERS ARE NEVER REGISTERED AT THE SAME TIME. If both are
+// registered, the last call wins, and which database the data goes to
+// depends on call order; AgentPrism logs this as a startup warning (K-183).
+// The sample therefore deliberately chooses a single provider.
 var postgreSql = builder.Configuration.GetSection(AgentPrismPostgreSqlOptions.SectionName);
 var sqlServer = builder.Configuration.GetSection(AgentPrismSqlServerOptions.SectionName);
 var sqlite = builder.Configuration.GetSection(AgentPrismSqliteOptions.SectionName);
 
-// Etkin saglayici ve kalicilik durumu artik GET /agentprism/api/diagnostics
-// ucundan okunur (Faz 33); ornek burada ayrica bir bayrak tutmaz.
+// The active provider and persistence status are now read from
+// GET /agentprism/api/diagnostics; the sample does not keep a separate flag.
 if (!string.IsNullOrWhiteSpace(sqlServer["ConnectionString"]))
 {
     agentPrism.UseSqlServer(sqlServer);
@@ -645,11 +676,11 @@ else if (!string.IsNullOrWhiteSpace(sqlite["ConnectionString"]))
     agentPrism.UseSqlite(sqlite);
 }
 
-// Veri saklama ve arsivleme (Faz 25). IArchiveSink kayitli DEGILSE
-// archive=true olan bir politika hicbir satir silmez (K-007: bulut SDK
-// bagimliligi alinmaz). Bu ornek dosya sistemine yazan bir sablondur;
-// gercek bir kurulumda kendi S3/Blob sink'inizi buradan turetin. Yalniz
-// yapilandirmada acikca bir kok yol verildiyse kaydedilir.
+// Data retention and archiving. If IArchiveSink is NOT registered, a policy
+// with archive=true deletes no rows (K-007: no cloud SDK dependency is taken).
+// This sample is a template that writes to the file system; in a real setup,
+// derive your own S3/Blob sink from this. It is only registered if a root
+// path is explicitly given in configuration.
 var archivePath = builder.Configuration["AgentPrism:Retention:ArchivePath"];
 
 if (!string.IsNullOrWhiteSpace(archivePath))
@@ -657,10 +688,10 @@ if (!string.IsNullOrWhiteSpace(archivePath))
     builder.Services.AddSingleton<IArchiveSink>(new FileSystemArchiveSink(archivePath));
 }
 
-// Cok kiracililik istege baglidir ve VARSAYILAN OLARAK KAPALIDIR. Acildiginda
-// kiraci once claim'den, o yoksa (acikca izin verilmisse) baslikten cozulur.
-// Baslik sahtelenebilir; asagidaki kurulum yalnizca ornek icindir ve
-// yapilandirmadan acikca acilmadikca devreye girmez.
+// Multi-tenancy is optional and OFF BY DEFAULT. When turned on, the tenant is
+// resolved from a claim first, and only from a header if explicitly allowed.
+// A header can be spoofed; the setup below is for the sample only and stays
+// inactive unless explicitly turned on in configuration.
 if (builder.Configuration.GetValue<bool>("AgentPrism:Tenancy:Enabled"))
 {
     agentPrism.UseTenancy(options =>
@@ -672,9 +703,10 @@ if (builder.Configuration.GetValue<bool>("AgentPrism:Tenancy:Enabled"))
     });
 }
 
-// Saglik denetimi ve teshis (Faz 33). Standart .NET saglik sistemine baglanir;
-// eski elle yazilmis /health govdesi bunun yerini alir — ayni bilgiyi (kalicilik,
-// saglayici durumu) artik AgentPrismDiagnosticsCollector tek yerden toplar.
+// Health checks and diagnostics. Connects to the standard .NET health check
+// system; this replaces the old hand-written /health body — the same
+// information (persistence, provider status) is now collected in one place
+// by AgentPrismDiagnosticsCollector.
 builder.Services.AddHealthChecks().AddAgentPrismHealthChecks();
 
 var app = builder.Build();
@@ -682,21 +714,22 @@ var app = builder.Build();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
-// Uc durum: Healthy / Degraded / Unhealthy. Ayrintili ozet icin:
-// GET /agentprism/api/diagnostics (Admin, asagida EnableDiagnosticsEndpoint ile acilir).
+// Three states: Healthy / Degraded / Unhealthy. For a detailed summary:
+// GET /agentprism/api/diagnostics (Admin, turned on below with EnableDiagnosticsEndpoint).
 app.MapHealthChecks("/health");
 
 app.MapOpenApi();
 
-// Tek giris noktasi. Yonetim API'si (/agentprism/api/*), OpenAI uyumlu
-// calistirma uclari (/agentprism/v1/*) ve gomulu arayuz (/agentprism) bu tek
-// cagriyla baglanir.
+// The single entry point. The management API (/agentprism/api/*), the
+// OpenAI-compatible run endpoints (/agentprism/v1/*), and the embedded UI
+// (/agentprism) are all wired up by this one call.
 //
-// Erisim varsayilan olarak loopback ile sinirlidir. Uretimde bir authorization
-// policy baglanir:
+// Access is restricted to loopback by default. In production, an
+// authorization policy is attached:
 //     options.RequireAuthorization("AgentPrismAdmin");
 //
-// Bearer token yalnizca sirlardan okunur; appsettings.json'a YAZILMAZ:
+// The bearer token is read only from secrets; it is NEVER written to
+// appsettings.json:
 //     dotnet user-secrets set "AgentPrism:Ui:AuthToken" "..."
 app.MapAgentPrism("/agentprism", options =>
 {
@@ -705,24 +738,25 @@ app.MapAgentPrism("/agentprism", options =>
         options.AuthToken = token;
     }
 
-    // 🚨 appsettings.json'daki AgentPrism:Ui:AllowRemoteAccess anahtari daha
-    // once buraya HIC baglanmiyordu — deger orada dursa da hicbir etkisi
-    // olmuyordu (yalnizca dokumantasyon/sema tutarsizligi; varsayilan zaten
-    // guvenli 'false' oldugu icin bir guvenlik acigi degildi).
+    // 🚨 The AgentPrism:Ui:AllowRemoteAccess key in appsettings.json was
+    // previously NEVER wired up here — the value had no effect even though it
+    // was present (a documentation/schema inconsistency only; not a security
+    // hole, since the default was already the safe 'false').
     if (builder.Configuration.GetValue<bool?>("AgentPrism:Ui:AllowRemoteAccess") is { } allowRemoteAccess)
     {
         options.AllowRemoteAccess = allowRemoteAccess;
     }
 
-    // Teshis ucu varsayilan KAPALIDIR (K1: bilgi veren bir yuzey acikca acilir).
-    // Bu ornekte gosterim icin acilir; Admin rolu kayitli degilse yine de
-    // uc katmanli korumadan (loopback + bearer token) gecer.
+    // The diagnostics endpoint is OFF by default (K1: a surface that reveals
+    // information is turned on explicitly). It is turned on here for
+    // demonstration; even without the Admin role registered, it still goes
+    // through the three-layer guard (loopback + bearer token).
     options.EnableDiagnosticsEndpoint = true;
 });
 
-// Faz 50: MCP/A2A dis yuzeyleri. MapAgentPrism'in AYNI erisim korumasini
-// (loopback + bearer token + authorization policy) devralirlar; SONRASINDA
-// cagrilmalari zorunludur.
+// MCP/A2A external surfaces. They inherit the SAME access protection as
+// MapAgentPrism (loopback + bearer token + authorization policy); calling
+// them AFTER it is required.
 app.MapAgentPrismMcpServer();
 app.MapAgentPrismA2A();
 
