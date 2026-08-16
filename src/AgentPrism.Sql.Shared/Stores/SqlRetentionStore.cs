@@ -6,19 +6,19 @@ using System.Text.Json;
 namespace AgentPrism;
 
 /// <summary>
-/// <see cref="IRetentionStore"/>'un veri duzlemi uygulamasi: sayma, parti parti
-/// silme ve arsiv icin okuma.
+/// The data-plane implementation of <see cref="IRetentionStore"/>: counting,
+/// batch deletion, and reading for archival.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Hedef basina SQL metni ELLE COPYALANMAZ: <see cref="RetentionTargetRegistry"/>
-/// tablo/kosulu tanimlar, <see cref="SqlDialect"/> saglayiciya ozgu 3 parti
-/// sablonunu (say/oku/sil) uygular. Gerekce: karar K-198.
+/// SQL text per target is NOT hand-copied: <see cref="RetentionTargetRegistry"/>
+/// defines the table/predicate, <see cref="SqlDialect"/> applies the
+/// provider-specific 3-part template (count/read/delete). Rationale: decision K-198.
 /// </para>
 /// <para>
-/// Arsiv satirlari, sutun semasini onceden bilmeden ELLE (yansimasiz) JSON'a
-/// cevrilir — bu depo <c>AgentPrism.PostgreSql</c> icine derlenir ve o paket
-/// AOT uyumlulugunu korumak zorundadir.
+/// Archive rows are converted to JSON BY HAND (without reflection), without
+/// knowing the column schema up front — this store compiles into
+/// <c>AgentPrism.PostgreSql</c> and that package must stay AOT-compatible.
 /// </para>
 /// </remarks>
 internal sealed class SqlRetentionStore : IRetentionStore
@@ -26,8 +26,8 @@ internal sealed class SqlRetentionStore : IRetentionStore
     private readonly SqlStoreContext _context;
     private readonly SqlDialect _dialect;
 
-    /// <summary>Yeni bir saklama veri duzlemi deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
+    /// <summary>Creates a new retention data-plane store.</summary>
+    /// <param name="context">The store context.</param>
     /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
     public SqlRetentionStore(SqlStoreContext context)
     {
@@ -129,18 +129,18 @@ internal sealed class SqlRetentionStore : IRetentionStore
         return rows.Count > 0 ? rows[0] : null;
     }
 
-    /// <summary>Hedefin kosuluna kiraci suzgecini ekler.</summary>
-    /// <param name="definition">Hedef tanimi.</param>
-    /// <param name="tenantId">Kiraci; <see langword="null"/> ise suzgec yoktur.</param>
-    /// <returns>Calistirilacak <c>WHERE</c> kosulu.</returns>
+    /// <summary>Adds the tenant filter to the target's predicate.</summary>
+    /// <param name="definition">The target definition.</param>
+    /// <param name="tenantId">The tenant; no filter is added when <see langword="null"/>.</param>
+    /// <returns>The <c>WHERE</c> predicate to run.</returns>
     private static string Where(RetentionTargetDefinition definition, string? tenantId)
         => tenantId is null
             ? definition.WherePredicate
             : SqlDialect.Combine(definition.WherePredicate, definition.TenantPredicate);
 
-    /// <summary>Kiraci parametresini yalnizca gerekiyorsa baglar.</summary>
-    /// <param name="command">Komut.</param>
-    /// <param name="tenantId">Kiraci; <see langword="null"/> ise hicbir sey baglanmaz.</param>
+    /// <summary>Binds the tenant parameter only when needed.</summary>
+    /// <param name="command">The command.</param>
+    /// <param name="tenantId">The tenant; nothing is bound when <see langword="null"/>.</param>
     private static void AddTenant(DbCommand command, string? tenantId)
     {
         if (tenantId is not null)
@@ -150,8 +150,8 @@ internal sealed class SqlRetentionStore : IRetentionStore
     }
 
     /// <summary>
-    /// Bir satiri, sutun semasini onceden bilmeden tek satirlik bir JSON
-    /// nesnesine cevirir (JSONL'in bir satiri).
+    /// Converts a row to a single-line JSON object without knowing the column
+    /// schema up front (one line of JSONL).
     /// </summary>
     private static string RowToJson(DbDataReader reader)
     {
@@ -236,8 +236,8 @@ internal sealed class SqlRetentionStore : IRetentionStore
 
                 break;
             default:
-                // Saglayiciya ozgu az rastlanan bir tip (ornegin DateOnly):
-                // metin gosterimi kaybetmeden okunabilir kalir.
+                // A rare provider-specific type (e.g. DateOnly): stays readable
+                // as its string representation without loss.
                 writer.WriteString(name, Convert.ToString(value, CultureInfo.InvariantCulture));
 
                 break;

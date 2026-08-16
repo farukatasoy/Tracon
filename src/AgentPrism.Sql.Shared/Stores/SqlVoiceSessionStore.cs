@@ -2,18 +2,18 @@ using System.Data.Common;
 
 namespace AgentPrism;
 
-/// <summary>Konusma baglantilarinin ozet kaydini kalici olarak saklayan depo.</summary>
+/// <summary>Persists the summary record of voice conversations.</summary>
 /// <remarks>
-/// Davranis sozlesmesi <see cref="InMemoryVoiceSessionStore"/> ile birebir
-/// aynidir; tek fark bellek ici uygulamanin kayit sayisini sinirlamasidir.
+/// The behavior contract is identical to <see cref="InMemoryVoiceSessionStore"/>;
+/// the only difference is that the in-memory implementation caps the record count.
 /// </remarks>
 internal sealed class SqlVoiceSessionStore : IVoiceSessionStore
 {
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
 
-    /// <summary>Yeni bir konusma kaydi deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
+    /// <summary>Creates a new voice session store.</summary>
+    /// <param name="context">The store context.</param>
     /// <exception cref="ArgumentNullException"><paramref name="context"/> <see langword="null"/> ise.</exception>
     public SqlVoiceSessionStore(SqlStoreContext context)
     {
@@ -58,8 +58,8 @@ internal sealed class SqlVoiceSessionStore : IVoiceSessionStore
         var command = _context.CreateCommand(_sql.SelectVoiceSessions);
         DbHelpers.Add(command, "tenant_id", tenantId);
 
-        // 🚨 Istege bagli suzgecler ACIKCA tiplenir: tipsiz bir NULL
-        // gonderildiginde PostgreSQL tipi cikaramaz ve 42P08 verir.
+        // 🚨 Optional filters are typed EXPLICITLY: when an untyped NULL is
+        // sent, PostgreSQL cannot infer the type and returns 42P08.
         Dialect.AddText(command, "agent_name", query.AgentName);
         Dialect.AddText(command, "session_id", query.SessionId);
         DbHelpers.Add(command, "skip", Math.Max(0, query.Skip));

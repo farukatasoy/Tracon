@@ -5,17 +5,17 @@ using System.Text.Json;
 namespace AgentPrism;
 
 /// <summary>
-/// Span'leri PostgreSQL'de saklayan depo.
+/// Stores spans in the SQL database.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Bir trace'in span'leri <strong>tek islemde</strong> yazilir: yazma
-/// calistirma bittikten sonra bir kez yapilir ve kismi bir trace okumak
-/// waterfall gorunumunde bosluk olarak gorunurdu.
+/// A trace's spans are written in a <strong>single transaction</strong>: the
+/// write happens once after the run finishes, since reading a partial trace
+/// would appear as a gap in the waterfall view.
 /// </para>
 /// <para>
-/// Span kimlikleri W3C kimliklerinden turetildigi icin ekleme <c>ON CONFLICT
-/// DO UPDATE</c> ile yapilir; ayni span iki kez yazilirsa tekrar kaydi olusmaz.
+/// Span ids are derived from W3C ids, so the insert uses <c>ON CONFLICT
+/// DO UPDATE</c>; writing the same span twice does not create a duplicate.
 /// </para>
 /// </remarks>
 internal sealed class SqlTraceStore : ITraceStore
@@ -24,9 +24,9 @@ internal sealed class SqlTraceStore : ITraceStore
     private readonly SqlQueriesBase _sql;
     private readonly ITenantContext _tenantContext;
 
-    /// <summary>Yeni bir span deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
-    /// <param name="tenantContext">Kiraci baglami.</param>
+    /// <summary>Creates a new span store.</summary>
+    /// <param name="context">The store context.</param>
+    /// <param name="tenantContext">The tenant context.</param>
     /// <exception cref="ArgumentNullException">Bagimliliklardan biri <see langword="null"/> ise.</exception>
     public SqlTraceStore(
         SqlStoreContext context,
@@ -40,7 +40,7 @@ internal sealed class SqlTraceStore : ITraceStore
         _tenantContext = tenantContext;
     }
 
-    /// <summary>Saglayiciya ozgu davranislarin kapisi.</summary>
+    /// <summary>The gateway for provider-specific behavior.</summary>
     private SqlDialect Dialect => _context.Dialect;
 
     /// <inheritdoc />
@@ -147,14 +147,15 @@ internal sealed class SqlTraceStore : ITraceStore
     }
 
     /// <summary>
-    /// Oznitelik sozlugunu JSON metnine cevirir.
+    /// Converts the attribute dictionary to JSON text.
     /// </summary>
     /// <remarks>
-    /// Sozluk <c>string → string</c> oldugu icin <see cref="Utf8JsonWriter"/> ile
-    /// elle yazilir. Yansimaya dayanan serilestirme <c>IL2026</c> uretirdi ve
-    /// bu paket AOT uyumlu isaretlidir. <c>jsonb</c> kullanmak burada guvenlidir:
-    /// duz bir metin sozlugunde polimorfik <c>$type</c> ayraci yoktur, dolayisiyla
-    /// anahtar siralamasi sorun cikarmaz (karsit ornek: karar K-027).
+    /// Because the dictionary is <c>string → string</c>, it is written by hand
+    /// with <see cref="Utf8JsonWriter"/>. Reflection-based serialization would
+    /// produce <c>IL2026</c>, and this package is marked AOT-compatible. Using
+    /// <c>jsonb</c> is safe here: a plain string dictionary has no polymorphic
+    /// <c>$type</c> discriminator, so key ordering does not matter (contrast:
+    /// decision K-027).
     /// </remarks>
     private static string WriteAttributes(IReadOnlyDictionary<string, string> attributes)
     {

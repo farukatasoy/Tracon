@@ -2,18 +2,18 @@ using System.Data.Common;
 
 namespace AgentPrism;
 
-/// <summary>Calistirma ve mesaj puanlarini kalici olarak saklayan depo.</summary>
+/// <summary>Persists run and message scores.</summary>
 /// <remarks>
-/// Davranis sozlesmesi <see cref="InMemoryRunScoreStore"/> ile birebir
-/// aynidir; ortak sozlesme testleriyle korunur.
+/// The behavior contract is identical to <see cref="InMemoryRunScoreStore"/>;
+/// it is guarded by the shared contract tests.
 /// </remarks>
 internal sealed class SqlRunScoreStore : IRunScoreStore
 {
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
 
-    /// <summary>Yeni bir puan deposu olusturur.</summary>
-    /// <param name="context">Depo baglami.</param>
+    /// <summary>Creates a new score store.</summary>
+    /// <param name="context">The store context.</param>
     /// <exception cref="ArgumentNullException"><paramref name="context"/> <see langword="null"/> ise.</exception>
     public SqlRunScoreStore(SqlStoreContext context)
     {
