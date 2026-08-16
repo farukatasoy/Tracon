@@ -5,19 +5,18 @@ using Microsoft.Extensions.Options;
 namespace AgentPrism.Core.UnitTests.Recording;
 
 /// <summary>
-/// <see cref="RunReconciliationService"/> ve <see cref="RunHeartbeatWriter"/>
-/// sozlesmesi (Faz 54).
+/// <see cref="RunReconciliationService"/> and <see cref="RunHeartbeatWriter"/>
+/// contract (Phase 54).
 /// </summary>
 public sealed class RunReconciliationTests
 {
     [Fact]
-    public async Task Devre_disiyken_uzlastirma_hicbir_sorgu_atmadan_hemen_doner()
+    public async Task Reconciliation_returns_immediately_without_any_query_when_disabled()
     {
-        // 🚨 Kayitli bir SQL saglayicisi VARMIS gibi kurulan bir SchemaReadyGate
-        // kullanilir (MarkReady HIC cagrilmaz); Enabled=false erken cikis
-        // gateyi beklemeden GERCEKLESMELIDIR. Servis askida kalirsa test
-        // zaman asimina ugrar -- bu, K1'in "hicbir sorgu atilmaz" iddiasini
-        // dogrudan sinar.
+        // 🚨 Sets up a SchemaReadyGate as if a SQL provider WERE registered
+        // (MarkReady is NEVER called); Enabled=false must short-circuit
+        // WITHOUT waiting for the gate. If the service hangs, the test times
+        // out -- this directly tests K1's "no query is issued" claim.
         var store = new CountingRunStore(new InMemoryRunStore());
         var gate = new SchemaReadyGate([new SqlPersistenceRegistrationMarker("SQLite")]);
         var options = Options(new RunReconciliationOptions { Enabled = false });
@@ -37,7 +36,7 @@ public sealed class RunReconciliationTests
     }
 
     [Fact]
-    public async Task Devre_disiyken_heartbeat_yazici_hicbir_sorgu_atmadan_hemen_doner()
+    public async Task Heartbeat_writer_returns_immediately_without_any_query_when_disabled()
     {
         var store = new CountingRunStore(new InMemoryRunStore());
         var registry = new RunCancellationRegistry();
@@ -58,7 +57,7 @@ public sealed class RunReconciliationTests
     }
 
     [Fact]
-    public async Task Esigi_asan_calistirma_kapanir_ve_ErrorRate_paydasi_duzelir()
+    public async Task Run_exceeding_threshold_is_closed_and_ErrorRate_denominator_is_corrected()
     {
         var store = new InMemoryRunStore();
         var runId = AgentPrismId.NewId();
@@ -94,15 +93,15 @@ public sealed class RunReconciliationTests
         record!.Status.ShouldBe(RunStatus.Failed);
         record.Error!.Class.ShouldBe(RunErrorClass.Infrastructure);
 
-        // settled = CompletedRuns + FailedRuns + CanceledRuns; Running satir
-        // paydaya hic girmiyordu ve hata oranini yapay olarak seyreltiyordu.
+        // settled = CompletedRuns + FailedRuns + CanceledRuns; a Running row
+        // never entered the denominator and artificially diluted the error rate.
         var stats = await store.GetStatisticsAsync(new RunStatisticsQuery());
         stats.RunningRuns.ShouldBe(0);
         stats.FailedRuns.ShouldBe(1);
     }
 
     [Fact]
-    public async Task Iki_ornekte_uzlastirma_yalniz_birinde_kosar()
+    public async Task Reconciliation_runs_on_only_one_of_two_instances()
     {
         var innerStore = new InMemoryRunStore();
         var runId = AgentPrismId.NewId();
@@ -151,7 +150,7 @@ public sealed class RunReconciliationTests
     }
 
     [Fact]
-    public async Task Heartbeat_yazici_yalniz_bu_surecteki_aktif_calistirmalari_isaretler()
+    public async Task Heartbeat_writer_only_marks_runs_active_in_this_process()
     {
         var store = new InMemoryRunStore();
         var registry = new RunCancellationRegistry();
@@ -181,9 +180,9 @@ public sealed class RunReconciliationTests
         await Task.Delay(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken);
         await writer.StopAsync(TestContext.Current.CancellationToken);
 
-        // Kayitlarin registry'den cikmasindan SONRA esik gecmise ragmen
-        // uzlastirma calistirmayi oksuz saymamalidir -- heartbeat yakin
-        // zamanda yazildi.
+        // Even though the threshold has passed AFTER the record leaves the
+        // registry, reconciliation must not treat the run as orphaned -- the
+        // heartbeat was written recently.
         var claimed = await store.ClaimOrphanedRunsAsync(
             staleBefore: DateTimeOffset.UtcNow.AddMinutes(-5),
             max: 10);
@@ -193,7 +192,7 @@ public sealed class RunReconciliationTests
 
     private static StaticOptionsMonitor<T> Options<T>(T value) where T : class => new(value);
 
-    /// <summary>Sabit bir deger dondüren, degisikligi izlemeyen sahte <see cref="IOptionsMonitor{T}"/>.</summary>
+    /// <summary>Fake <see cref="IOptionsMonitor{T}"/> that returns a fixed value and never watches for changes.</summary>
     private sealed class StaticOptionsMonitor<T>(T value) : IOptionsMonitor<T>
         where T : class
     {
@@ -205,9 +204,8 @@ public sealed class RunReconciliationTests
     }
 
     /// <summary>
-    /// <see cref="IRunStore.ClaimOrphanedRunsAsync"/> ve
-    /// <see cref="IRunStore.TouchHeartbeatAsync"/> cagri sayaclarini tutan,
-    /// digerlerini ic depoya devreden sarmalayici.
+    /// Wrapper that tracks call counts for <see cref="IRunStore.ClaimOrphanedRunsAsync"/>
+    /// and <see cref="IRunStore.TouchHeartbeatAsync"/>, delegating everything else to the inner store.
     /// </summary>
     private sealed class CountingRunStore(IRunStore inner) : IRunStore
     {

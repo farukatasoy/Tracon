@@ -6,104 +6,104 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace AgentPrism.Core.UnitTests.Graph;
 
 /// <summary>
-/// Alt agent sarmalayicisinin uyguladigi sinirlar: derinlik, butce, kiraci ve onay.
+/// The limits enforced by the child agent wrapper: depth, budget, tenant, and approval.
 /// </summary>
 /// <remarks>
-/// Sarmalayici <c>options = null</c> ile cagrilir - Microsoft Agent Framework'un
-/// arka plan gorev tool'u boyle cagirir (Faz 12'de olculdu). Testler bu gercek
-/// cagri bicimini tekrarlar; ayarlari parametre olarak vermek gercek yolu
-/// atlardi ve regresyonu kacirirdi.
+/// The wrapper is called with <c>options = null</c> - this is how Microsoft Agent
+/// Framework's background task tool calls it (measured in Phase 12). The tests
+/// repeat this real call shape; passing settings as a parameter would skip the
+/// real path and miss regressions.
 /// </remarks>
 public sealed class ChildAgentInvokerTests
 {
     [Fact]
-    public async Task Kapsam_yoksa_cagri_reddedilir()
+    public async Task Call_is_rejected_when_no_scope()
     {
         var (invoker, _) = CreateInvoker();
 
         AgentPrismRunContext.SetCurrent(null);
 
-        var response = await invoker.RunAsync("calis");
+        var response = await invoker.RunAsync("run");
 
         response.Text.ShouldContain("run recording is off", Case.Sensitive);
     }
 
     [Fact]
-    public async Task Derinlik_siniri_asilirsa_cagri_reddedilir()
+    public async Task Call_is_rejected_when_depth_limit_exceeded()
     {
         var (invoker, store) = CreateInvoker();
 
         SetScope(depth: 3, budget: new AgentRunBudget { MaxDepth = 3 });
 
-        var response = await invoker.RunAsync("calis");
+        var response = await invoker.RunAsync("run");
 
         response.Text.ShouldContain("call depth limit was exceeded", Case.Sensitive);
 
-        // Ret bir istisna degildir ve alt calistirma HIC baslamaz.
+        // A rejection is not an exception and the child run NEVER starts.
         (await store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).ShouldBeEmpty();
     }
 
     [Fact]
-    public async Task Butce_bitince_yeni_alt_calistirma_baslamaz()
+    public async Task New_child_run_does_not_start_once_budget_is_exhausted()
     {
         var (invoker, store) = CreateInvoker();
         var budget = new AgentRunBudget { MaxDepth = 3, MaxTotalRuns = 1 };
 
         SetScope(depth: 0, budget: budget);
-        await invoker.RunAsync("birinci");
+        await invoker.RunAsync("first");
 
         SetScope(depth: 0, budget: budget);
-        var second = await invoker.RunAsync("ikinci");
+        var second = await invoker.RunAsync("second");
 
         second.Text.ShouldContain("child-run limit is reached", Case.Sensitive);
         (await store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).Count.ShouldBe(1);
     }
 
     [Fact]
-    public async Task Kiraci_degistiyse_cagri_reddedilir()
+    public async Task Call_is_rejected_when_tenant_changes()
     {
-        // Alt cagri baska bir is parcaciginda calisir. Kiraci baglami kaybolursa
-        // varsayilan kiraciya duser ve bir kiracinin agent'i baska bir kiracinin
-        // verisiyle calisirdi. Sizinti tam burada olusur.
+        // The child call runs on a different thread. If the tenant context is
+        // lost it falls back to the default tenant, and one tenant's agent
+        // would operate on another tenant's data. This is exactly where the leak occurs.
         var (invoker, store) = CreateInvoker();
 
-        SetScope(depth: 0, budget: new AgentRunBudget { MaxDepth = 3 }, tenantId: "baska-kiraci");
+        SetScope(depth: 0, budget: new AgentRunBudget { MaxDepth = 3 }, tenantId: "other-tenant");
 
-        var response = await invoker.RunAsync("calis");
+        var response = await invoker.RunAsync("run");
 
         response.Text.ShouldContain("cannot leave the caller's tenant", Case.Sensitive);
         (await store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).ShouldBeEmpty();
     }
 
     [Fact]
-    public async Task Alt_calistirma_agaca_baglanir()
+    public async Task Child_run_attaches_to_the_tree()
     {
         var (invoker, store) = CreateInvoker();
         var rootRunId = AgentPrismId.NewId();
 
         SetScope(depth: 0, budget: new AgentRunBudget { MaxDepth = 3 }, runId: rootRunId);
 
-        await invoker.RunAsync("calis");
+        await invoker.RunAsync("run");
 
         var child = (await store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).ShouldHaveSingleItem();
         child.ParentRunId.ShouldBe(rootRunId);
         child.RootRunId.ShouldBe(rootRunId);
         child.Depth.ShouldBe(1);
-        child.AgentName.ShouldBe("arastirmaci");
+        child.AgentName.ShouldBe("researcher");
     }
 
     [Fact]
-    public async Task Ikinci_katman_kokunu_korur()
+    public async Task Second_layer_preserves_the_root()
     {
         var (invoker, store) = CreateInvoker();
         var rootRunId = AgentPrismId.NewId();
         var middleRunId = AgentPrismId.NewId();
 
-        // Ortadaki calistirma zaten agacin icindedir: kok kimligi ondan degil,
-        // kapsamdan tasinir. Kopyalanan bir RootRunId burada bozulurdu.
+        // The middle run is already inside the tree: the root id is carried
+        // from the scope, not from it. A copied RootRunId would break here.
         SetScope(depth: 1, budget: new AgentRunBudget { MaxDepth = 3 }, runId: middleRunId, rootRunId: rootRunId);
 
-        await invoker.RunAsync("calis");
+        await invoker.RunAsync("run");
 
         var child = (await store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).ShouldHaveSingleItem();
         child.ParentRunId.ShouldBe(middleRunId);
@@ -112,51 +112,51 @@ public sealed class ChildAgentInvokerTests
     }
 
     [Fact]
-    public async Task Butce_agac_boyunca_TEK_ornektir()
+    public async Task Budget_is_a_SINGLE_instance_across_the_tree()
     {
         var (invoker, _) = CreateInvoker();
         var budget = new AgentRunBudget { MaxDepth = 3, MaxTotalTokens = 1_000_000 };
 
         SetScope(depth: 0, budget: budget);
 
-        await invoker.RunAsync("calis");
+        await invoker.RunAsync("run");
 
-        // Alt calistirmanin harcamasi cagiranin gordugu ayni sayaca islenir.
-        // Butce kopyalansaydi her dal kendi sifirindan baslar ve sinir anlamini
-        // yitirirdi.
+        // The child run's spend is recorded into the same counter the caller sees.
+        // If the budget were copied, each branch would start from its own zero
+        // and the limit would lose its meaning.
         budget.ConsumedTokens.ShouldBe(42);
         budget.StartedRuns.ShouldBe(1);
     }
 
     [Fact]
-    public async Task Onay_isteyen_alt_calistirma_anlasilir_hata_verir()
+    public async Task Child_run_requiring_approval_returns_an_understandable_error()
     {
-        var approvalTool = new ApprovalRequiredAIFunction(TestData.Tool("tehlikeli_is"));
+        var approvalTool = new ApprovalRequiredAIFunction(TestData.Tool("dangerous_task"));
 
         var client = new FakeChatClient(_ => new ChatResponse(
-            new ChatMessage(ChatRole.Assistant, [new FunctionCallContent("c1", "tehlikeli_is", null)])));
+            new ChatMessage(ChatRole.Assistant, [new FunctionCallContent("c1", "dangerous_task", null)])));
 
         var (invoker, store) = CreateInvoker(client, approvalTool);
 
         SetScope(depth: 0, budget: new AgentRunBudget { MaxDepth = 3 });
 
-        var response = await invoker.RunAsync("calis");
+        var response = await invoker.RunAsync("run");
 
         response.Text.ShouldContain("requires user approval", Case.Sensitive);
         response.Text.ShouldContain("auto-approval rule", Case.Sensitive);
 
-        // Alt calistirma basarili sayilmaz: model bir sonucu degil,
-        // cevaplanamayacak bir soruyu geri dondu.
+        // The child run is not counted as successful: the model returned a
+        // question that cannot be answered, not a result.
         var child = (await store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).ShouldHaveSingleItem();
         child.Status.ShouldBe(RunStatus.Failed);
         child.Error!.Message.ShouldContain("A child agent cannot request approval", Case.Sensitive);
     }
 
-    /// <summary>Kapsami mevcut akisa yazar.</summary>
+    /// <summary>Writes the scope to the current flow.</summary>
     /// <remarks>
-    /// <see cref="AgentPrismRunContext"/> bir <c>AsyncLocal</c> uzerine kuruludur;
-    /// atama testin kendi govdesinde yapilmalidir, bir yardimci <c>async</c>
-    /// metotta degil. Bu metot bilerek es zamanlidir.
+    /// <see cref="AgentPrismRunContext"/> is built on an <c>AsyncLocal</c>;
+    /// the assignment must happen in the test's own body, not in a helper
+    /// <c>async</c> method. This method is deliberately synchronous.
     /// </remarks>
     private static void SetScope(
         int depth,
@@ -172,7 +172,7 @@ public sealed class ChildAgentInvokerTests
             RunId = id,
             RootRunId = rootRunId ?? id,
             Depth = depth,
-            AgentName = "yonlendirici",
+            AgentName = "router",
             TenantId = tenantId,
             Budget = budget,
         });
@@ -186,7 +186,7 @@ public sealed class ChildAgentInvokerTests
         var tenantContext = new FixedTenantContext();
 
         var chatClient = client ?? new FakeChatClient(_ => new ChatResponse(
-            new ChatMessage(ChatRole.Assistant, "arastirma sonucu"))
+            new ChatMessage(ChatRole.Assistant, "research result"))
         {
             Usage = new UsageDetails { TotalTokenCount = 42 },
         });
@@ -197,7 +197,7 @@ public sealed class ChildAgentInvokerTests
 
         var inner = new RunRecordingAgent(
             compiler.Compile(TestData.Definition(
-                name: "arastirmaci",
+                name: "researcher",
                 toolNames: [.. tools.Select(static tool => tool.Name)])),
             store,
             tenantContext,
@@ -210,8 +210,8 @@ public sealed class ChildAgentInvokerTests
             resolver,
             tenantContext,
             NullLogger.Instance,
-            "yonlendirici",
-            new CallableAgentInfo("arastirmaci", "Arastirma yapar.", 1));
+            "router",
+            new CallableAgentInfo("researcher", "Performs research.", 1));
 
         return (invoker, store);
     }
@@ -232,14 +232,14 @@ public sealed class ChildAgentInvokerTests
             [
                 new AgentDescriptor
                 {
-                    Name = "arastirmaci",
+                    Name = "researcher",
                     Origin = AgentDefinitionOrigin.Database,
                     SourceName = "database",
                 },
             ]);
 
         public ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken = default)
-            => new(string.Equals(agentName, "arastirmaci", StringComparison.Ordinal) ? agent : null);
+            => new(string.Equals(agentName, "researcher", StringComparison.Ordinal) ? agent : null);
 
         public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, CancellationToken cancellationToken = default)
             => ResolveAsync(agentName, cancellationToken);
