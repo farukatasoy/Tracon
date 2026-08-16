@@ -1,6 +1,6 @@
 ---
 title: HTTP API
-description: How the AgentPrism HTTP API is shaped — prefix, authentication, streaming, paging, errors — and where to find each group.
+description: Use the AgentPrism management and OpenAI-compatible APIs with clear rules for auth, streaming, paging, errors, and schemas.
 slug: http-api
 sidebar:
   order: 1
@@ -15,8 +15,8 @@ Scalar, Swagger UI, Postman, or a client generator.
 
 ## The prefix is yours
 
-Every path below is shown with `/agentprism`, which is whatever you passed to
-`MapAgentPrism`. It appears in exactly one place in your application.
+Generated operation pages use `{prefix}`. Replace it with the value passed to
+`MapAgentPrism`; the project template uses `/agentprism`.
 
 ```csharp
 app.MapAgentPrism("/agentprism");
@@ -27,9 +27,11 @@ app.MapAgentPrism("/agentprism");
 **The management API** (`/api/*`) drives the control plane: agents, runs, sessions,
 skills, workflows, evals, experiments, jobs, and governance.
 
-**OpenAI-compatible endpoints** (`/v1/*`) let an existing OpenAI client talk to your
-agents by changing only its base address. There, `model` is the **agent** name — which
-model it calls is the agent's business.
+**OpenAI-compatible endpoints** (`/v1/*`) let an OpenAI client talk to your agents
+with the familiar request and streaming formats. Configure its base URL and
+authentication, and set `model` to the **agent** name — which provider model the
+agent calls is server-side policy. See the [OpenAI API guide](/AgentPrism/guides/openai-api/)
+for copyable clients and the compatibility boundary.
 
 ## Authentication
 
@@ -107,8 +109,10 @@ than answering `404`.
 
 ## The groups
 
-Pick one from the sidebar. Governance is the largest at 25 operations, then agents,
-runs, and evals.
+Pick one from the sidebar. Each operation shows every declared media type, parameters,
+responses, and response headers. [HTTP schemas](/AgentPrism/http-api/schemas/) expands
+all 226 request and response contracts with required fields, defaults, and validation
+constraints from the OpenAPI snapshot.
 
 ## About the published document
 

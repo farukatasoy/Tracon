@@ -1,6 +1,6 @@
 ---
 title: Persistence
-description: Choosing a database, what migrations do at startup, and what changes when you add one.
+description: Choose PostgreSQL, SQL Server, or SQLite and operate AgentPrism migrations safely from development to production.
 sidebar:
   order: 4
 ---
@@ -22,8 +22,9 @@ builder.AddAgentPrism()
 | `AgentPrism.SqlServer` | You already run SQL Server |
 | `AgentPrism.Sqlite` | One node, or a durable local development setup |
 
-All three implement the same contracts and are verified against the same shared
-contract test suite, so the choice does not change any code you write.
+All three implement the same store contracts and pass the same shared contract tests.
+Their operational limits differ: only PostgreSQL supports Knowledge, only PostgreSQL
+keeps the AOT promise, and SQLite is a single-node choice.
 
 :::caution[The connection string is a secret]
 It never belongs in `appsettings.json`. Use `dotnet user-secrets` in development and
@@ -51,18 +52,32 @@ Binding from configuration is the usual shape:
 }
 ```
 
-## It stays out of your schema
+## How each provider isolates its tables
 
-Everything lives in its own schema — `agentprism` by default. Your `public` schema is
-never touched and no table name can collide with one of yours. Rename it with
-`SchemaName` if your conventions require it.
+| Provider | Namespace | Migration coordination |
+|---|---|---|
+| PostgreSQL | Separate `agentprism` schema by default | `pg_advisory_lock`, scoped to the schema |
+| SQL Server | Separate `agentprism` schema by default; your `dbo` objects stay untouched | `sp_getapplock`, scoped to the schema |
+| SQLite | No schema support; `agentprism_` table prefix by default | A sidecar file lock next to the database |
+
+Rename `SchemaName` or `TablePrefix` when your conventions require it. A bare SQLite
+`Data Source=:memory:` connection is rejected because each opened connection would
+see a different database; use a shared in-memory URI for tests.
+
+:::caution[PostgreSQL requires pgvector]
+The PostgreSQL migration set creates the `vector` extension even when no agent uses
+Knowledge yet. Use a PostgreSQL installation that has pgvector available and grant
+the migration identity permission to create or use the extension. Embedding
+`Dimensions` become part of the column type: changing embedding models later needs a
+schema migration and a re-embed of existing documents.
+:::
 
 ## Migrations run at startup
 
 The SQL files ship embedded in the assembly and are applied when the application
 starts. Two properties make that safe with several instances starting at once:
 
-- The run holds an **advisory lock** keyed on the schema name, so instances serialize
+- The runner takes the provider-specific lock shown above, so instances serialize
   instead of racing.
 - Each applied file's SHA-256 is recorded. If the content later differs from what was
   applied, startup **fails loudly** rather than running against a schema that is not
@@ -76,8 +91,19 @@ that environment first.
 :::
 
 Set `AutoApplyMigrations = false` when schema changes are their own deployment step.
-AgentPrism then verifies but does not write, and `GET /api/diagnostics` reports
-whether the schema is up to date and what is pending.
+AgentPrism then verifies but does not write. The diagnostics endpoint can report
+whether the schema is current, but it is deliberately not mapped by default because
+it exposes setup details:
+
+```csharp
+app.MapAgentPrism("/agentprism", options =>
+{
+    options.EnableDiagnosticsEndpoint = true;
+});
+```
+
+After that opt-in, `GET /agentprism/api/diagnostics` is an Admin surface and still
+passes through the configured access layers.
 
 ## What changes once it is durable
 
@@ -93,9 +119,13 @@ A recorded run is data, and recorded runs accumulate. Retention policies set an 
 or row limit per target — run events, tool calls, traces, jobs, webhook deliveries,
 eval results, checkpoints, and more.
 
-Nothing is deleted until you configure it: a target with no policy is kept forever.
-And no endpoint deletes synchronously — preview first, then run, and the cleanup goes
-through the job queue.
+Database policies take precedence. When no database policy exists and
+`AgentPrism:Retention:Enabled` is true, configuration falls back to built-in target
+defaults, such as 30 days for run events and 14 days for spans. With retention
+disabled, nothing is deleted. An `archive: true` policy also deletes nothing when no
+`IArchiveSink` is registered; data loss is the failure mode the worker avoids.
+
+Cleanup runs through the job queue. Preview a policy before you execute it:
 
 ```bash
 curl 'http://localhost:5081/agentprism/api/retention/preview'

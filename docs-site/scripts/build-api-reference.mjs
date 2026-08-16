@@ -65,6 +65,8 @@ function main() {
 
   const pages = files.map((name) => readPage(name));
   const uids = new Set(pages.map((page) => page.uid));
+  const anchorsByUid = new Map(pages.map((page) => [page.uid, page.anchors]));
+  const uidsByDisplayName = buildDisplayNameIndex(pages);
   const externalSlugs = harvestExternalSlugs(pages);
 
   rmSync(outputDirectory, { recursive: true, force: true });
@@ -73,12 +75,25 @@ function main() {
   let unresolved = 0;
 
   for (const page of pages) {
-    const { body, unresolvedCount } = transform(page, uids, externalSlugs);
+    const { body, unresolvedCount } = transform(
+      page,
+      uids,
+      anchorsByUid,
+      uidsByDisplayName,
+      externalSlugs,
+    );
     unresolved += unresolvedCount;
     writeFileSync(join(outputDirectory, `${page.uid}.md`), body);
   }
 
   writeFileSync(join(outputDirectory, 'index.md'), buildIndex(pages));
+
+  for (const [assembly, items] of groupByAssembly(pages)) {
+    writeFileSync(
+      join(outputDirectory, `package-${slugify(assembly)}.md`),
+      buildPackageIndex(assembly, items),
+    );
+  }
 
   mkdirSync(dirname(sidebarFile), { recursive: true });
   writeFileSync(sidebarFile, `${JSON.stringify(buildSidebar(pages), null, 2)}\n`);
@@ -118,7 +133,16 @@ function readPage(fileName) {
     .map((entry) => entry.trim().replace(/\.dll$/, ''))
     .filter(Boolean);
 
-  return { uid, fileName, raw, kind, name, assemblies };
+  const anchors = new Set([...raw.matchAll(/<a id="([^"]+)"><\/a>/g)].map((match) => match[1]));
+  const fallbackSummary = kind === 'Namespace'
+    ? `Public types in the ${name} namespace.`
+    : `${kind} ${name} in the ${assemblies[0] ?? 'AgentPrism'} package.`;
+  const extractedSummary = sanitizeInternalHistory(extractSummary(raw, fallbackSummary)).trim();
+  const summary = extractedSummary && !extractedSummary.startsWith('#')
+    ? extractedSummary
+    : fallbackSummary;
+
+  return { uid, fileName, raw, kind, name, assemblies, anchors, summary };
 }
 
 /**
@@ -140,25 +164,16 @@ function harvestExternalSlugs(pages) {
   return slugs;
 }
 
-function transform(page, uids, externalSlugs) {
+function transform(page, uids, anchorsByUid, uidsByDisplayName, externalSlugs) {
   let unresolvedCount = 0;
   let body = page.raw;
 
   // 1. The heading moves into frontmatter; Starlight renders the title itself.
   body = body.replace(/^# <a id="[^"]*"><\/a> .+$/m, '');
 
-  // 2. Namespace/Assembly become one quiet line instead of two loose ones.
-  //    Written as markdown, NOT wrapped in a <p>: markdown inside a raw HTML block
-  //    is not processed, and the namespace link would render as literal brackets.
-  body = body.replace(
-    /^Namespace: (.+?)\s*\nAssembly: (.+?)\s*$/m,
-    (_match, namespaceText, assemblyText) =>
-      `*Namespace ${namespaceText} · Assembly \`${assemblyText.trim()}\`*\n`,
-  );
-
-  // 3. Prose cross-references. This is the reason the script exists.
+  // 2. Prose cross-references. This is the reason the script exists.
   body = body.replace(/<xref href="([^"]+)"[^>]*>\s*<\/xref>/g, (_match, rawUid) => {
-    const link = resolveReference(decodeUid(rawUid), uids, externalSlugs);
+    const link = resolveReference(decodeUid(rawUid), uids, anchorsByUid, externalSlugs);
 
     if (link === null) {
       unresolvedCount += 1;
@@ -168,15 +183,67 @@ function transform(page, uids, externalSlugs) {
     return link;
   });
 
-  // 4. Page-to-page links: DocFX writes `Foo.md`, Starlight serves `/api/foo/`.
+  // 3. Page-to-page links: DocFX writes `Foo.md`, Starlight serves `/api/foo/`.
   body = body.replace(/\]\((AgentPrism[^)\s#]*)\.md(#[^)\s]*)?\)/g, (_match, uid, anchor) =>
     uids.has(uid) ? `](${apiBase}/${uid.toLowerCase()}/${anchor ?? ''})` : `](${apiBase}/)`,
   );
 
+  // DocFX sometimes chooses a pinned GitHub source link for a public AgentPrism
+  // type even when that type has a page in this reference. Keep readers inside
+  // the reference; genuine "View source" links are not matched by the name index.
+  body = body.replace(
+    /\[([^\]]+)\]\(https:\/\/github\.com\/farukatasoy\/AgentPrism\/blob\/[^)]+\/src\/[^)]+\.cs\)/g,
+    (match, label) => {
+      const display = label.replaceAll('\\', '').replace(/<.*$/, '').trim();
+      const target = uidsByDisplayName.get(display);
+      if (target) {
+        return `[${label}](${apiBase}/${target.toLowerCase()}/)`;
+      }
+
+      const memberSeparator = display.lastIndexOf('.');
+      if (memberSeparator > 0) {
+        const owner = uidsByDisplayName.get(display.slice(0, memberSeparator));
+        if (owner) {
+          const memberUid = `${owner}${display.slice(memberSeparator)}`;
+          return resolveReference(memberUid, uids, anchorsByUid, new Set()) ?? match;
+        }
+      }
+
+      return resolveReference(display, uids, anchorsByUid, new Set()) ?? match;
+    },
+  );
+
+  // Shared SQL source files are compiled into more than one assembly. DocFX can
+  // repeat the same member block once per assembly; publish each member once.
+  body = dedupeMemberSections(body);
+
+  // 4. DocFX exposes the compiler-only clone member of every record. It is not a
+  // useful callable surface and makes hundreds of reference pages look unfinished.
+  body = removeCompilerGeneratedClone(body);
+
+  // 5. XML documentation uses HTML block elements. Markdown inside a raw HTML block
+  // is not parsed, so links written by step 3 used to appear as literal brackets in
+  // the published site. Convert the small, known XML-doc subset into Markdown.
+  body = normalizeDocumentationHtml(body);
+
+  // 6. Namespace/Assembly become one quiet, explicitly scoped provenance line.
+  // Do this after the XML-to-Markdown pass so its anchor and code markup stay HTML.
+  body = body.replace(
+    /^Namespace: (.+?)\s*\nAssembly: (.+?)\s*$/m,
+    (_match, namespaceText, assemblyText) =>
+      `<div class="api-provenance">Namespace ${namespaceLink(namespaceText)} · Assembly <code>${escapeHtml(assemblyText.trim())}</code></div>\n`,
+  );
+
+  // 7. The XML files also carry development-history pointers that are useful in the
+  // repository but meaningless to a NuGet consumer. Keep the reasoning, remove the
+  // phase/decision/file identifiers from the public site.
+  body = sanitizeInternalHistory(body);
+  body = normalizeSharedProviderDocumentation(page.uid, body);
+
   const frontmatter = [
     '---',
     `title: ${quote(page.name)}`,
-    `description: ${quote(`${page.kind} ${page.name} in ${page.assemblies[0] ?? 'AgentPrism'}.`)}`,
+    `description: ${quote(sanitizeInternalHistory(page.summary))}`,
     `slug: api/${page.uid.toLowerCase()}`,
     'editUrl: false',
     'lastUpdated: false',
@@ -202,7 +269,7 @@ function decodeUid(uid) {
  * Internal uids fall back through their declaring types, so a member reference lands
  * on its type's page at the member's anchor.
  */
-function resolveReference(uid, uids, externalSlugs) {
+function resolveReference(uid, uids, anchorsByUid, externalSlugs) {
   const bare = uid.replace(/\(.*$/, '');
 
   if (uids.has(bare)) {
@@ -217,8 +284,13 @@ function resolveReference(uid, uids, externalSlugs) {
     const owner = segments.slice(0, index).join('.');
 
     if (uids.has(owner)) {
-      const anchor = bare.replaceAll('.', '_').replaceAll('`', '-');
-      return `[${displayName(uid)}](${apiBase}/${owner.toLowerCase()}/#${anchor})`;
+      const desired = bare.replaceAll('.', '_').replaceAll('`', '-');
+      const anchors = anchorsByUid.get(owner) ?? new Set();
+      const exact = anchors.has(desired) ? desired : null;
+      const overloads = [...anchors].filter((anchor) => anchor.startsWith(`${desired}_`));
+      const anchor = exact ?? (overloads.length === 1 ? overloads[0] : null);
+      const fragment = anchor ? `#${anchor}` : '';
+      return `[${displayName(uid)}](${apiBase}/${owner.toLowerCase()}/${fragment})`;
     }
   }
 
@@ -237,6 +309,23 @@ function resolveReference(uid, uids, externalSlugs) {
   }
 
   return null;
+}
+
+function buildDisplayNameIndex(pages) {
+  const candidates = new Map();
+
+  for (const page of pages) {
+    const values = [page.name, shortName(page.uid)];
+    for (const value of values) {
+      candidates.set(value, [...(candidates.get(value) ?? []), page.uid]);
+    }
+  }
+
+  return new Map(
+    [...candidates.entries()]
+      .filter(([, values]) => new Set(values).size === 1)
+      .map(([name, values]) => [name, values[0]]),
+  );
 }
 
 /** The last segment: `AgentPrism.IRunStore` reads as `IRunStore`. */
@@ -261,7 +350,10 @@ function buildIndex(pages) {
 
   const rows = [...byAssembly.entries()]
     .sort((left, right) => right[1].length - left[1].length)
-    .map(([assembly, items]) => `| \`${assembly}\` | ${items.length} |`)
+    .map(
+      ([assembly, items]) =>
+        `| [\`${assembly}\`](${apiBase}/package-${slugify(assembly)}/) | ${items.length} |`,
+    )
     .join('\n');
 
   const types = pages.filter((page) => page.kind !== 'Namespace').length;
@@ -277,7 +369,8 @@ lastUpdated: false
 
 ${types} public types across ${byAssembly.size} packages. These pages are generated
 from the compiled assemblies and the XML documentation that ships inside each
-\`.nupkg\`, so what you read here is exactly what your IDE shows you.
+\`.nupkg\`. The generator removes compiler-only members and repository history,
+then verifies every internal link for a reference that reads cleanly on the web.
 
 Use the sidebar to browse by package, or the search box — the reference is indexed
 along with the rest of the site.
@@ -307,26 +400,323 @@ function groupByAssembly(pages) {
       continue;
     }
 
-    const assembly = page.assemblies[0] ?? 'AgentPrism';
-    groups.set(assembly, [...(groups.get(assembly) ?? []), page]);
+    const assemblies = page.assemblies.length > 0 ? page.assemblies : ['AgentPrism'];
+    for (const assembly of assemblies) {
+      groups.set(assembly, [...(groups.get(assembly) ?? []), page]);
+    }
   }
 
   return groups;
 }
 
-/** One collapsed group per package, then one entry per type. */
+function buildPackageIndex(assembly, items) {
+  const rows = [...items]
+    .sort((left, right) => left.name.localeCompare(right.name))
+    .map(
+      (page) =>
+        `| [\`${page.name}\`](${apiBase}/${page.uid.toLowerCase()}/) | ${page.kind} | ${escapeTable(sanitizeInternalHistory(page.summary))} |`,
+    )
+    .join('\n');
+
+  return `---
+title: ${quote(assembly)}
+description: ${quote(`Public types shipped by ${assembly}, generated from the compiled assembly and its XML documentation.`)}
+slug: api/package-${slugify(assembly)}
+tableOfContents: false
+editUrl: false
+lastUpdated: false
+---
+
+${items.length} public types. Select a type for signatures, defaults, remarks,
+exceptions, and links to related contracts.
+
+| Type | Kind | Purpose |
+|---|---|---|
+${rows}
+`;
+}
+
+/** Keep the global navigation small; each package page is the type browser. */
 function buildSidebar(pages) {
   const byAssembly = groupByAssembly(pages);
 
   return [...byAssembly.entries()]
     .sort((left, right) => right[1].length - left[1].length)
-    .map(([assembly, items]) => ({
+    .map(([assembly]) => ({
       label: assembly,
-      collapsed: true,
-      items: items
-        .sort((left, right) => left.name.localeCompare(right.name))
-        .map((page) => ({ label: page.name, link: `${sidebarBase}/${page.uid.toLowerCase()}/` })),
+      link: `${sidebarBase}/package-${slugify(assembly)}/`,
     }));
+}
+
+function removeCompilerGeneratedClone(body) {
+  const lines = body.split('\n');
+  const output = [];
+  let skipping = false;
+
+  for (const line of lines) {
+    if (/^### .*<Clone\\?>\$\\?\(\\?\)/.test(line)) {
+      skipping = true;
+      continue;
+    }
+
+    if (skipping && /^#{2,3} /.test(line)) {
+      skipping = false;
+    }
+
+    if (!skipping) {
+      output.push(line);
+    }
+  }
+
+  return output.join('\n');
+}
+
+function dedupeMemberSections(body) {
+  const lines = body.split('\n');
+  const output = [];
+  const seen = new Set();
+  let skipping = false;
+
+  for (const line of lines) {
+    const member = /^### <a id="([^"]+)"><\/a>/.exec(line);
+    if (member) {
+      skipping = seen.has(member[1]);
+      seen.add(member[1]);
+      if (skipping) {
+        continue;
+      }
+    } else if (skipping && /^#{2,3} /.test(line)) {
+      skipping = false;
+    }
+
+    if (!skipping) {
+      output.push(line);
+    }
+  }
+
+  return output.join('\n');
+}
+
+function normalizeDocumentationHtml(body) {
+  let normalized = body;
+
+  normalized = normalized.replace(
+    /<example>\s*<pre><code(?: class="lang-([^"]+)")?>([\s\S]*?)<\/code><\/pre>\s*<\/example>/g,
+    (_match, language, code) => `\n\n\`\`\`${language ?? 'text'}\n${decodeHtml(code).trim()}\n\`\`\`\n\n`,
+  );
+  normalized = normalized.replace(
+    /<pre><code(?: class="lang-([^"]+)")?>([\s\S]*?)<\/code><\/pre>/g,
+    (_match, language, code) => `\n\n\`\`\`${language ?? 'text'}\n${decodeHtml(code).trim()}\n\`\`\`\n\n`,
+  );
+
+  normalized = normalized.replace(/<table><tbody>([\s\S]*?)<\/tbody><\/table>/g, (_match, rows) => {
+    const entries = [...rows.matchAll(/<tr><td[^>]*>([\s\S]*?)<\/td><td[^>]*>([\s\S]*?)<\/td><\/tr>/g)];
+    if (entries.length === 0) {
+      return '';
+    }
+
+    const markdownRows = entries
+      .map((entry) => `| ${inlineMarkdown(entry[1])} | ${inlineMarkdown(entry[2])} |`)
+      .join('\n');
+    return `\n\n| Value | Fields and meaning |\n|---|---|\n${markdownRows}\n\n`;
+  });
+
+  normalized = normalized.replace(/<a href="([^"]+)">([\s\S]*?)<\/a>/g, '[$2]($1)');
+  normalized = normalized.replace(/<code(?: class="[^"]+")?>([\s\S]*?)<\/code>/g, (_match, code) => {
+    const text = decodeHtml(code).trim();
+    const fence = text.includes('`') ? '``' : '`';
+    return `${fence}${text}${fence}`;
+  });
+  normalized = normalized
+    .replace(/<strong>([\s\S]*?)<\/strong>/g, '**$1**')
+    .replace(/<em>([\s\S]*?)<\/em>/g, '*$1*')
+    .replace(/<li>([\s\S]*?)<\/li>/g, (_match, item) => `\n- ${inlineMarkdown(item)}`)
+    .replace(/<\/?(?:ol|ul)>/g, '\n')
+    .replace(/<br\s*\/?>/g, '\n')
+    .replace(/<\/?p>/g, '\n')
+    .replace(/<\/?example>/g, '\n')
+    .replace(/\n{3,}/g, '\n\n');
+
+  return normalized;
+}
+
+function inlineMarkdown(value) {
+  return value
+    .replace(/\s+/g, ' ')
+    .replace(/<strong>(.*?)<\/strong>/g, '**$1**')
+    .replace(/<em>(.*?)<\/em>/g, '*$1*')
+    .replace(/<code(?: class="[^"]+")?>(.*?)<\/code>/g, '`$1`')
+    .replace(/<a href="([^"]+)">(.*?)<\/a>/g, '[$2]($1)')
+    .replaceAll('|', '\\|')
+    .trim();
+}
+
+function sanitizeInternalHistory(body) {
+  return body.split(/(```[\s\S]*?```)/g).map((part, index) => {
+    if (index % 2 === 1) {
+      return part;
+    }
+
+    const publicProse = part
+      .split(/(\n{2,})/)
+      .map((block) => hasInternalHistoryMarker(block) ? '' : block)
+      .join('');
+
+    return publicProse
+    .replace(/(?:^|\n)Measured \(20\d{2}-[^\n]*[\s\S]*?(?=\n\n|$)/g, '')
+    .replace(/\s*Rationale:[\s\S]*?(?=\n\n|$)/g, '')
+    .replace(/\s*Decision:\s*[;,.]?[\s\S]*?(?=\n\n|$)/g, '')
+    .replace(/\s*For the rationale[\s\S]*?(?=\n\n|$)/gi, '')
+    .replace(/\s*See\s+[^.\n]*\brationale[^.\n]*\.?/gi, '')
+    .replace(/\s*\([^()\n]*\brationale[^()\n]*\)/gi, '')
+    .replace(/\s*[—–-]\s*(?:the\s+)?same rationale[\s\S]*?(?=\n\n|$)/gi, '')
+    .replace(/[^.\n]*\brationale (?:applies|is)[^.\n]*\.?/gi, '')
+    .replace(/[^.\n]*\bopen question \d+[^.\n]*\.?/gi, '')
+    .replace(/[^.\n]*\bdocumented in the README[^.\n]*\.?/gi, '')
+    .replace(/\b(?:design\s+)?rule\s+K1\b|\bK1\b/gi, 'the safe-default rule')
+    .replace(/\b(?:design\s+)?rule\s+K2\b|\bK2\b/gi, 'the code-only tool rule')
+    .replace(/\b(?:design\s+)?rule\s+K3\b|\bK3\b/gi, 'the MAF pass-through rule')
+    .replace(/\b(?:design\s+)?rule\s+K4\b|\bK4\b/gi, 'the replaceable-extension rule')
+    .replace(/\s*[—–-]?\s*\(?\b(?:phase|faz)\s+\d+\b\)?/gi, '')
+    .replace(/\s*\(?\bF-\d+\b\)?/g, '')
+    .replace(/\s*\(?\b(?:decision\s+)?K-\d{3}\b\)?/gi, '')
+    .replace(/\s*\(?\b(?:HATA|MT)-[A-Z0-9-]+\b\)?/g, '')
+    .replace(/(?:Reason:\s*)?`?docs\/(?:KARARLAR\.md|[^`\s),]+)`?,?/gi, '')
+    .replace(/\s*\(?\b(?:see\s+)?section\s+\d+(?:\.\d+)?(?:\/[A-Z0-9-]+)?\b\)?[,]?/gi, '')
+    .replace(/\bRationale:\s*(?:and\s+)?(?:of\s*)?\./gi, '')
+    .replace(/\bSee\s*,?\s*for the rationale\.?/gi, '')
+    .replace(/\bThe the\b/g, 'The')
+    .replace(/\bthe the\b/g, 'the')
+    .replace(/\ba deliberate the\b/g, 'a deliberate')
+    .replace(/\ba the\b/g, 'the')
+    .replace(/\b(?:decision|rationale) the (safe-default|code-only tool|MAF pass-through|replaceable-extension) rule\b/gi, 'the $1 rule')
+    .replace(/\bRationale:\s*the code-only tool rule\s*[-—]\s*/gi, 'The code-only tool rule states: ')
+    .replace(/\bthe safe-default rule\b/gi, 'a safe default')
+    .replace(/\bthe replaceable-extension rule\b/gi, 'consumer-registration precedence')
+    .replace(/\bthe code-only tool rule\b/gi, 'the code-only execution boundary')
+    .replace(/\bthe MAF pass-through rule\b/gi, 'the MAF pass-through boundary')
+    .replace(/\bby delegation in\./gi, 'by delegation.')
+    .replace(/\s*[—–-]\s*moved there in\./gi, '.')
+    .replace(/\bin\s*\./gi, '.')
+    .replace(/,\s*\./g, '.')
+    .replace(/\.\s*\./g, '.')
+    .replace(/:\s*;/g, '.')
+    .replace(/\bdecisions and\./gi, '')
+    .replace(/🚨|⚠️/gu, '**Important:**')
+    .replace(/^## Remarks's cost model/gm, "## Remarks\n\nAgentPrism's cost model")
+    .replace(/^(#{2,4} Remarks)[.:]\s*(.+)$/gm, '$1\n\n$2')
+    .replace(/\s*See\s+for[^.\n]*\.?/gi, '')
+    .replace(/\*\*RAW\*\*/g, '**unwrapped**')
+    .replace(/\*\*(?:NO|THE SAME)\*\*/g, (value) => `**${value.slice(2, -2).toLowerCase()}**`)
+    .replace(/\b(?:NOT SILENTLY OVERWRITE|NOT SUPPORTED|NEVER CHANGES AGAIN)\b/g, (value) => value.toLowerCase())
+    .replace(/\b(?:NEW|EMPTY|FIRST|EVERY|OWN|ALREADY|GENUINELY|DELIBERATELY|WHICH|THEIR|ITS|SEPARATE|SUMMED|SCORE|REGISTRATION-TIME|NOT|NO)\b/g, (value) => value.toLowerCase())
+    .replace(/\(\.\.\)/g, '(...)')
+    .replace(/\.\.\)/g, ', …)')
+    .replace(/\b(POST|GET|PUT|PATCH|DELETE)\.\.\//g, '$1 …/')
+    .replace(/\.\s*:\s*/g, '. ')
+    .replace(/\s+([,.;:])/g, '$1')
+    .replace(/\(\s*\)/g, '')
+    .replace(/:\s*\./g, '.')
+    .replace(/\brationale\b/gi, 'reason')
+    .replace(/^(#{2,4} Remarks)\n\n([a-z])/gm, (_match, heading, first) => `${heading}\n\n${first.toUpperCase()}`)
+    .replace(/^#{2,4} Remarks\n+(?=#{2,4} )/gm, '')
+    .replace(/\n{3,}/g, '\n\n');
+  }).join('');
+}
+
+function hasInternalHistoryMarker(value) {
+  return /\b(?:phase|faz)\s+\d+\b|\b(?:K|F)-\d{2,3}\b|\bK[1-4]\b|\bsection\s+\d+(?:\.\d+)?\b|\b(?:HATA|MT)-[A-Z0-9-]+\b|(?:<code>|`)?docs\/[^\s`<),]+|\bopen question \d+\b|\bdecision reopening\b|\badd the decision number\b/i.test(
+    value,
+  );
+}
+
+function normalizeSharedProviderDocumentation(uid, body) {
+  if (uid !== 'AgentPrism.MigrationRunner') {
+    return body;
+  }
+
+  const remarks = `## Remarks
+
+The runner uses one coordination scope per configured database namespace:
+
+| Provider | Namespace | Migration lock |
+|---|---|---|
+| PostgreSQL | Schema | \`pg_advisory_lock\` on one connection |
+| SQL Server | Schema | \`sp_getapplock\` on one connection |
+| SQLite | Table prefix | Sidecar file lock next to the database |
+
+It creates the namespace and \`__migrations\` ledger when needed, verifies the
+SHA-256 checksum of every applied file, and applies each pending migration in its
+own transaction. A checksum mismatch fails instead of running against an unknown
+schema state.
+
+Some migrations create database-wide objects. PostgreSQL's pgvector extension is
+one example. Concurrent first-time migration of different schemas can race on that
+shared object; the guarded operation is retried safely.
+`;
+
+  return body.replace(/## Remarks[\s\S]*?(?=\n## Properties)/, `${remarks.trimEnd()}\n`);
+}
+
+function extractSummary(raw, fallback) {
+  const withoutHeader = raw
+    .replace(/^# .*$/m, '')
+    .replace(/^Namespace:.*$/m, '')
+    .replace(/^Assembly:.*$/m, '')
+    .trimStart();
+  const paragraph = withoutHeader.split(/\n\s*\n/).find((part) => !part.startsWith('```'));
+  const text = plainText(paragraph ?? fallback);
+  if (text.length <= 165) {
+    return text || fallback;
+  }
+
+  const shortened = text.slice(0, 162).replace(/\s+\S*$/, '');
+  return `${shortened}.`;
+}
+
+function plainText(value) {
+  return decodeHtml(value)
+    .replace(/<xref href="([^"]+)"[^>]*><\/xref>/g, (_match, uid) => displayName(uid))
+    .replace(/<[^>]+>/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/[`*_\\]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function decodeHtml(value) {
+  return value
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&#39;', "'")
+    .replaceAll('&amp;', '&');
+}
+
+function slugify(value) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function escapeTable(value) {
+  return value.replaceAll('|', '\\|').replace(/\s+/g, ' ').trim();
+}
+
+function escapeHtml(value) {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
+}
+
+function namespaceLink(value) {
+  const match = /^\[([^\]]+)]\((\/AgentPrism\/api\/[^)#]+\/)\)$/.exec(value.trim());
+
+  if (!match) {
+    return escapeHtml(value.replace(/^\[([^\]]+)]\([^)]+\)$/, '$1'));
+  }
+
+  return `<a href="${escapeHtml(match[2])}">${escapeHtml(match[1])}</a>`;
 }
 
 function quote(text) {

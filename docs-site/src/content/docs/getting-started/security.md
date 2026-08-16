@@ -1,6 +1,6 @@
 ---
 title: Securing the endpoints
-description: The layers that stand between the network and your agents, and the order to turn them on.
+description: Protect AgentPrism with network boundaries, bearer tokens, scoped API keys, roles, tenancy, and outbound guards.
 sidebar:
   order: 5
 ---
@@ -15,6 +15,8 @@ Four independent layers, applied in this order. Use as many as you need.
 
 ```mermaid
 flowchart TD
+    accTitle: HTTP authorization layers
+    accDescr: A request passes authentication, role policy, optional API-key scope, and optional tenant isolation before an endpoint runs.
     REQ["Incoming request"] --> META{"path = /api/meta ?"}
     META -->|yes| OK["Endpoint runs"]
     META -->|no| POL{"Authorization policy set?"}
@@ -63,12 +65,16 @@ individually, carries no identity, and gives everyone the same rights.
 
 ### 3. API keys
 
-Issued from `/api/keys`, stored hashed, scoped per capability, revocable, and
+Issued from `/api/api-keys`, stored hashed, scoped per capability, revocable, and
 optionally expiring. Each key belongs to a tenant.
 
 Scopes **narrow** a role, they never widen it: what a caller may do is the
-intersection of its role and its key's scopes. A key with only `runs:write` cannot
+intersection of its role and its key's scopes. Scope values use the closed JSON enum;
+for example, a key with only `RunsWrite` cannot
 administer agents no matter what role the caller has.
+
+The [compatibility reference](/AgentPrism/reference/compatibility/#api-key-scopes)
+lists all 17 values and the capability each one grants.
 
 A key also proves which tenant is calling — which is why it outranks any claim or
 header for tenant resolution. A secret is proof; a header is a claim.
@@ -96,6 +102,13 @@ AgentPrism stores no users and no roles. If a policy is not registered in your
 application, that endpoint group simply falls back to the layers above — so upgrading
 never breaks a working deployment. Turn on `RequireRolePolicies` and a missing policy
 becomes a **startup** error instead of a silent gap.
+
+:::caution[Reverse proxies change the network boundary]
+The loopback rule sees the connection presented to ASP.NET Core. Configure trusted
+forwarded headers and HTTPS at the proxy before you use the apparent client address
+as a boundary. In production, require role policies even when the proxy already
+authenticates users.
+:::
 
 ## Two deliberate exemptions
 

@@ -1,12 +1,14 @@
 ---
 title: Governance
-description: Tenancy, the audit trail, approvals, quotas, retention, content guards, and webhooks.
+description: Govern agents with tenant isolation, audit, approvals, quotas, retention, content guards, API keys, and webhooks.
 sidebar:
   order: 8
 ---
 
-Everything in this page shares one property: it is **off until you configure it**, and
-what it does is visible when it is on.
+Governance is explicit and visible. Tenancy, quotas, rate limits, retention cleanup,
+and content guards need configuration. Audit decorators and their default store are
+registered by `AddAgentPrism()`; authentication only changes which actor name they
+can record.
 
 ## Multi-tenancy
 
@@ -14,6 +16,8 @@ Off by default. Turned on, the tenant is resolved in a fixed order:
 
 ```mermaid
 flowchart TD
+    accTitle: Tenant resolution order
+    accDescr: AgentPrism first uses an API key tenant, then configured claim or header tenancy, and otherwise resolves the built-in default tenant.
     K{"authenticated with an API key?"} -->|yes| KT["the key's tenant"]
     K -->|no| S{"tenancy enabled?"}
     S -->|no| D["default tenant"]
@@ -121,9 +125,14 @@ Recorded runs accumulate. A retention policy sets an age or row limit per target
 events, tool calls, traces, jobs, webhook deliveries, eval results, checkpoints,
 attachments, sessions, and more.
 
-A target with **no** policy is kept forever; absence means "keep", not "use a
-default". A policy with `enabled: false` is configured but paused, which is different
-from having none.
+A database policy takes precedence. When none exists and retention is enabled in
+configuration, AgentPrism falls back to its target defaults, including 30 days for
+run events and 14 days for spans. With retention disabled, nothing is removed. A
+policy with `enabled: false` is configured but paused.
+
+When a policy has `archive: true`, cleanup first sends its batch to the registered
+`IArchiveSink`. If no sink exists, no rows are deleted. This fail-safe trades storage
+growth for protection from silent data loss.
 
 No endpoint deletes synchronously. Preview first — it is the only way to see the size
 of a deletion before it happens — then run, which queues a job.
@@ -147,13 +156,14 @@ cost is zero.
 The guard sits **inside** the tool-call loop, above the raw client. A tool result
 re-enters the model on a second call, and a guard outside the loop would never see it.
 
-Blocked content never reaches the network, does not trip the circuit breaker, and is
-not written anywhere — the trace records the guard, the rule, and the direction, never
-the text.
+Blocked content never reaches the provider network and does not trip the circuit
+breaker. Recording stores the placeholder `[content_blocked]`, while the audit entry
+records the guard, rule, and direction without the blocked text.
 
-:::caution[Masking is at the model boundary]
-Run events and recorded inputs keep the raw text. A guard controls what the *model*
-sees, not what is stored.
+:::note[Masked content stays masked]
+Input preview runs before the recording path. When a guard returns `Mask`, the model,
+recorded input, and run events receive the masked value. AgentPrism does not retain a
+hidden raw copy for later inspection.
 :::
 
 ## Webhooks

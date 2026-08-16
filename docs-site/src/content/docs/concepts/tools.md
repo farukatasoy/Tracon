@@ -51,6 +51,8 @@ starts:
 
 ```mermaid
 flowchart LR
+    accTitle: Skill script security gates
+    accDescr: A skill script runs only after enabled, tenant grant, extension allowlist, path, budget, and runner checks all pass in order.
     G1["1. enabled"] --> G2["2. valid grant<br/>for this tenant"]
     G2 --> G3["3. extension on the<br/>interpreter allowlist"]
     G3 --> G4["4. argument size<br/>and schema"]

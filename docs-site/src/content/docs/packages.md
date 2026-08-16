@@ -10,7 +10,7 @@ when you care about what enters your dependency graph.
 ## The meta package
 
 ```bash
-dotnet add package AgentPrism
+dotnet add package AgentPrism --prerelease
 ```
 
 Brings runtime, PostgreSQL persistence, the OpenAI provider, the HTTP API, workflows,
@@ -45,11 +45,12 @@ Add these when you need them.
 ## Picking a database
 
 All three implement the same contracts and are verified against the same shared
-contract test suite, so switching is a registration change.
+contract suite. Switching the store registration is simple; provider capabilities
+and production topology are not identical.
 
 | | Vector search | Notes |
 |---|---|---|
-| `AgentPrism.PostgreSql` | **yes** | The default. Uses `Npgsql` directly; no ORM |
+| `AgentPrism.PostgreSql` | **yes** | The default. Requires pgvector even before Knowledge is enabled; no ORM |
 | `AgentPrism.SqlServer` | no | Knowledge endpoints answer `501` |
 | `AgentPrism.Sqlite` | no | Ships a native library, so not AOT-compatible |
 
@@ -97,7 +98,9 @@ not](/AgentPrism/getting-started/#what-it-deliberately-is-not).
 
 ## Trimming and native AOT
 
-Most packages are compatible. Four are not, each for a stated reason:
+Eight runtime packages make the trimming and Native AOT compatibility promise:
+`AgentPrism.Abstractions`, `Core`, `PostgreSql`, `OpenAI`, `Anthropic`, `Google`,
+`Azure`, and `Voice`. The following do not:
 
 | Package | Why not |
 |---|---|
@@ -105,6 +108,10 @@ Most packages are compatible. Four are not, each for a stated reason:
 | `AgentPrism.UI` | Embedded asset scanning |
 | `AgentPrism.Sqlite` | `SQLitePCLRaw` carries a native library |
 | `AgentPrism.SqlServer` | Measured clean, but not verified against a live query — the promise is withheld rather than guessed |
+| `AgentPrism.Mcp` | MCP schema and serialization paths use runtime reflection |
+| `AgentPrism.Workflows` | The MAF workflow engine uses runtime reflection |
+| `AgentPrism.Testing` | Test-host infrastructure does not make an AOT promise |
+| `AgentPrism` | The meta package brings non-AOT hosting packages into the graph |
 
 In `AgentPrism.Core` the only reflection is in `AddTool(Delegate)` and
 `AddToolsFrom<T>()`, both annotated so the warning reaches you. `AddGeneratedTools()`
@@ -116,7 +123,9 @@ is the recommended path — filled in at compile time, no reflection at all.
 `.Hosting.OpenAI` (alpha). Every pre-release dependency is deliberately concentrated
 there, so a consumer using only the runtime never takes one.
 
-AgentPrism publishes as `1.0.0-preview.N` until those two go GA.
+AgentPrism publishes as `1.0.0-preview.N` until those two go GA. See [Versions and
+upgrades](/AgentPrism/reference/versioning/) for pinning the whole package family and
+upgrading safely between previews.
 
 ## API stability
 
@@ -126,10 +135,9 @@ member without updating that file **fails the build** — so an accidental surfa
 change cannot ship silently, and every intentional one is visible in the commit
 that made it.
 
-Two packages are deliberately excluded: `AgentPrism.Generators` (a build-time Roslyn
-source generator; its "API" is diagnostic and generated-code output, not a consumer
-surface) and `AgentPrism.Templates` (a `dotnet new` content package; it does not
-compile).
+Two projects are deliberately excluded: `AgentPrism.Generators` is a `netstandard2.0`
+build-time analyzer carried inside the Core package, not a separate NuGet package;
+`AgentPrism.Templates` is a .NET 10 `dotnet new` content package, not runtime API.
 
 ## What does not enter your graph
 
@@ -144,4 +152,5 @@ compile).
 ## Reference
 
 [Every public type](/AgentPrism/api/), generated from the shipped assemblies and their
-XML documentation.
+XML documentation. For pinning versions and upgrading, see [Versions and
+upgrades](/AgentPrism/reference/versioning/).
