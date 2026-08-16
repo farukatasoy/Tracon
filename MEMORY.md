@@ -56,13 +56,12 @@ Alana bağlı değildir; her fazda tekrar bedel ödettiler.
   Atanmayan `JsonElement` `Undefined` olur; etki tek kayıtla kalmaz, o kaydı
   içeren **liste ucunun tamamı** çöker. Yeni kayıt üreten her kod yolunda
   zorunlu olmayan alanları da doldur (`docs/hafiza/cekirdek-calistirma.md`).
-- **🚨 Senkronizasyon kopyaları (`<ad> 2.<uzantı>`) — DÖRT kez yaşandı.** Kopya
-  gömülü varlık listesine karışır; `dotnet build` **yeşildir** ama arayüz hiç
-  yüklenmez (41 E2E testi 19 dk zaman aşımı) veya derleme kırılır
-  (`locales/tr 2.ts` → TS2741). `.cs` kopyaları CS0101 yağmuru üretir. Denetim
-  (faz kapanışında zorunlu, çıktı boş olmalı):
-  `find src -name "* 2.*" -not -path "*/node_modules/*"`. Silmek yetmez:
-  `wwwroot`'u kaldırıp `agentprism-frontend.stamp` damgasını da sil.
+- **🚨 Senkronizasyon kopyaları (`<ad> 2.<uzantı>`) — BEŞ kez.** `.cs` → CS0101,
+  `.ts` → TS2741; varlık kopyası `build`'i yeşil bırakır ama arayüz yüklenmez.
+  Faz 57 kopyaları **commit etti**, `main` derlenmedi (K-411). İki tuzak:
+  `git status` **temiz** görünür (kopya izleniyordur) ve `src` taraması
+  **yetmez** (`tests/` altındaydılar). Kapı: `faz-tamamlama` Adım 1. Silmek
+  yetmez — `wwwroot` + `agentprism-frontend.stamp` damgasını da sil.
 - **🚨 `dotnet test` dakikalarca ASILI kalıyorsa alt süreç boru hatlarına bak.**
   Öksüz MSBuild düğümleri (`nodeReuse:true`) boruyu açık tutar ve
   `WaitForExitAsync` ~15 dk bloke kalır; çözüm `MSBUILDDISABLENODEREUSE=1`

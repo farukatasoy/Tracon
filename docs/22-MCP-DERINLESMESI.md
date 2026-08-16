@@ -1,7 +1,7 @@
 # Faz 22 — MCP Derinleşmesi: Prompts, Resources ve OAuth
 
 > **Durum:** ✅ Tamamlandı (2026-08-04)
-> **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-28**, **F-29**
+> **Kaynak:** [BEYIN-FIRTINASI.md](arsiv/BEYIN-FIRTINASI.md) · **F-28**, **F-29**
 > **Önkoşul:** Yok (Faz 9 önerilir — uzak içerik almak Admin yetkisidir)
 > **Paketler:** `AgentPrism.Mcp`, `.Abstractions`, `.PostgreSql`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** `0013_mcp_oauth.sql` · **Yeni test projesi:** `AgentPrism.Mcp.UnitTests`

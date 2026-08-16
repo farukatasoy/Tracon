@@ -4,7 +4,7 @@
 > ortak fixture verisi, reset yordamı, hata bildirim şablonu ve dosya durum
 > tablosu buradadır.
 >
-> Senaryo dosyalarını **üretecek** oturum için: [`PROMPT.md`](PROMPT.md).
+> Senaryo dosyalarını **üretecek** oturum için: [`PROMPT.md`](../arsiv/manuel-test-kosum-2026-08/PROMPT.md).
 > Senaryoları **koşacak** oturum için: [`KOSUM-PLANI.md`](KOSUM-PLANI.md).
 
 ---
@@ -13,14 +13,15 @@
 
 | Aşama | Kim | Ne yapar |
 |---|---|---|
-| **Üretim** | AI oturumu | [`PROMPT.md`](PROMPT.md) protokolüyle senaryo dosyalarını yazar — **bitti** |
+| **Üretim** | AI oturumu | [`PROMPT.md`](../arsiv/manuel-test-kosum-2026-08/PROMPT.md) protokolüyle senaryo dosyalarını yazar — **bitti** |
 | **Koşum** | AI oturumu + insan | [`KOSUM-PLANI.md`](KOSUM-PLANI.md) protokolüyle dört paralel şeritte koşar; fiziksel eylem isteyen case'ler insana kalır |
 
 İki aşama karışmaz. Üretim biterken hiçbir test koşulmuş olmaz.
 
-> **Koşum sırasında bu dosyanın §2.4 (`user-secrets`) ve §4 (reset) bölümleri
-> geçerli değildir.** Paralel şeritler onları paylaşamaz; yerine geçen şerit
-> kapsamlı yordamlar [`KOSUM-PLANI.md`](KOSUM-PLANI.md) §2.2 ve §3.3'tedir.
+> **Ortam kurulumu ve reset yordamı için tek kaynak
+> [`KOSUM-PLANI.md`](KOSUM-PLANI.md) §2.2 (`secret`'lar) ve §3.3 (reset)'tür.**
+> Bu dosyanın §2 bölümü ön koşulları ve fixture verisini tarif eder; şeride
+> özgü yordamları tekrarlamaz.
 
 ---
 
@@ -212,7 +213,7 @@ cd samples/AgentPrism.Api && dotnet run
 ```
 
 Şema düşürüldükten sonra migration'lar açılışta yeniden uygulanır
-(`AutoApplyMigrations: true`). PostgreSQL için **28 migration** dosyası vardır;
+(`AutoApplyMigrations: true`). PostgreSQL için **29 migration** dosyası vardır;
 açılış logunda sayı doğrulanır.
 
 ---
@@ -274,7 +275,7 @@ Bu eşleme bir başlangıçtır; üretim oturumu grep ile doğrular ve gerekirse
 |---|---|---|---|---|---|---|---|
 | 01 | [`01-KURULUM-VE-PAKETLEME.md`](01-KURULUM-VE-PAKETLEME.md) | `PKG` | 0, 52 | `Directory.Build.props` · `Directory.Build.targets` · `src/Directory.Build.props` · `*.csproj` · `src/AgentPrism.Generators` | **48** | ✅ | ☐ |
 | 02 | [`02-CEKIRDEK-VE-KATALOG.md`](02-CEKIRDEK-VE-KATALOG.md) | `CORE` | 1, 3 | `src/AgentPrism.Core` (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/`) · `src/AgentPrism.Abstractions` | **42** | ✅ | ✅ |
-| 03 | [`03-KALICILIK-POSTGRESQL.md`](03-KALICILIK-POSTGRESQL.md) | `PG` | 2, 51 | `src/AgentPrism.PostgreSql` | **36** | ✅ | ✅ (2026-08-12: 29 geçti, 7 kaldı — bkz. [`SONUCLAR-2026-08-12.md`](SONUCLAR-2026-08-12.md)) |
+| 03 | [`03-KALICILIK-POSTGRESQL.md`](03-KALICILIK-POSTGRESQL.md) | `PG` | 2, 51 | `src/AgentPrism.PostgreSql` | **36** | ✅ | ✅ (2026-08-12: 29 geçti, 7 kaldı — bkz. [`SONUCLAR-2026-08-12.md`](../arsiv/manuel-test-kosum-2026-08/SONUCLAR-2026-08-12.md)) |
 | 04 | [`04-KALICILIK-DIGER.md`](04-KALICILIK-DIGER.md) | `SQL` | 23, 24 | `src/AgentPrism.Sqlite` · `src/AgentPrism.SqlServer` · `src/AgentPrism.Sql.Shared` | **40** | ✅ | ☐ |
 | 05 | [`05-SAGLAYICI-OPENAI.md`](05-SAGLAYICI-OPENAI.md) | `OAI` | 3, 8 | `src/AgentPrism.OpenAI` (tümü) · devre kesici/sağlık için `src/AgentPrism.Core/Models/ModelProviderCircuitBreaker.cs` · `CircuitBreakingChatClient.cs` · `ModelProviderHealthCache.cs` · `ModelProviderRegistry.cs` | **40** | ✅ | ☐ |
 | 06 | [`06-SAGLAYICI-DIGER.md`](06-SAGLAYICI-DIGER.md) | `PROV` | 8, 26, 27 | `src/AgentPrism.Anthropic` · `src/AgentPrism.Google` · `src/AgentPrism.Azure` | **39** | ✅ | ☐ |
@@ -477,7 +478,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   Ölçüm ve kapsam netleştirmesi `MT-PKG-021`; meta paket üzerinden akış
   `MT-PKG-050`. **Kod değiştirilmedi.**
 - **`EchoModelProvider` izleği yanlış yerde tarif edilmişti (2026-08-09, düzeltildi).**
-  [`PROMPT.md`](PROMPT.md) §3 onu izlek C'nin (`AgentPrism.Testing`) parçası
+  [`PROMPT.md`](../arsiv/manuel-test-kosum-2026-08/PROMPT.md) §3 onu izlek C'nin (`AgentPrism.Testing`) parçası
   sayıyordu. Ölçüm: paket böyle bir tip taşımıyor; sınıf örnek uygulamanın
   kendisindedir (`samples/AgentPrism.Api/EchoModelProvider.cs`, sağlayıcı adı
   `echo`, model `echo-1`) ve OpenAI anahtarı yokken kaydedilir. Yani `echo`
@@ -511,7 +512,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   birincil anahtar genişletmesi için `0006_sessions_tenant_key.sql`'de
   `sessions_new` oluşturup yeniden adlandırır — SQL Server aynı işi düz
   `ALTER TABLE ... DROP/ADD CONSTRAINT` ile yapar). PostgreSQL aynı özellik
-  setini 28 migration'a böler ve yalnız **`document_embeddings`** (Faz 51,
+  setini 29 migration'a böler ve yalnız **`document_embeddings`** (Faz 51,
   `pgvector`) fazlasını taşır — o da SQLite/SQL Server'ın kasıtlı olarak
   UYGULAMADIĞI tek depo (`IVectorSearchStore`, yalnız PostgreSQL). Sonuç:
   SQLite = SQL Server = 44 tablo, PostgreSQL = 45. `04-KALICILIK-DIGER.md`

@@ -1,7 +1,7 @@
 # Faz 27 — Azure OpenAI (ve ertelenen Azure AI Foundry)
 
 > **Durum:** ✅ Tamamlandı (2026-08-05) — Azure OpenAI yapıldı, **Foundry ertelendi**
-> **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-04**
+> **Kaynak:** [BEYIN-FIRTINASI.md](arsiv/BEYIN-FIRTINASI.md) · **F-04**
 > **Önkoşul:** [Faz 8](08-SAGLAYICI-GENISLEMESI.md) · [Faz 26](26-ANTHROPIC-VE-GEMINI.md)
 > **Paketler:** **`AgentPrism.Azure` (YENİ)**
 > **Migration:** Yok

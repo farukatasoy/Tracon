@@ -1,7 +1,7 @@
 # Faz 9 — Yönetişim: Rol Tabanlı Yetkilendirme ve Denetim İzi
 
 > **Durum:** ✅ Tamamlandı (2026-08-02)
-> **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-21**, **F-20**
+> **Kaynak:** [BEYIN-FIRTINASI.md](arsiv/BEYIN-FIRTINASI.md) · **F-21**, **F-20**
 > **Önkoşul:** Yok
 > **Sonrasında mümkün olan:** [Faz 11](11-SKILL-SCRIPT-CALISTIRMA.md) — script çalıştırma bu fazsız yapılamaz
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`

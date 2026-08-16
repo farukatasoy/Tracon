@@ -1,7 +1,7 @@
 # Faz 17 — Toplu ve Zamanlanmış Çalıştırma
 
 > **Durum:** ✅ Tamamlandı (2026-08-03)
-> **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-22**
+> **Kaynak:** [BEYIN-FIRTINASI.md](arsiv/BEYIN-FIRTINASI.md) · **F-22**
 > **Önkoşul:** Yok · Faz 9 önerilir (iş oluşturma Admin yetkisidir)
 > **Devreden faz:** [Faz 16](16-WORKFLOWS-ARAYUZ.md) — workflow arayüzü ve human-in-the-loop
 > **Sonraki bağımlı:** [Faz 18](18-DEGERLENDIRME.md) — eval bu kuyruğu kullanır

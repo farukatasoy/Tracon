@@ -1,7 +1,7 @@
 # Faz 21 — Hız Sınırı, Kota ve Olay Yayını
 
 > **Durum:** ✅ Tamamlandı (2026-08-03)
-> **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-18**, **F-19**
+> **Kaynak:** [BEYIN-FIRTINASI.md](arsiv/BEYIN-FIRTINASI.md) · **F-18**, **F-19**
 > **Önkoşul:** [Faz 20](20-MALIYET-VE-GOSTERGE-PANELI.md) (para cinsi kota için) · [Faz 17](17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md) (webhook teslimi kuyruğu kullanır)
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok (21.1 ölçüldü — `System.Threading.RateLimiting` paylaşılan çerçevede) · **Migration:** 0012

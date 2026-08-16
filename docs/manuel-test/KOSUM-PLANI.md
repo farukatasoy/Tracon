@@ -3,7 +3,7 @@
 > **Bu dosya bir ajan talimatıdır.** Koşum oturumunu açan ajan önce bu dosyayı
 > baştan sona okur, sonra kendi oturum satırındaki dosyayı açar. Senaryo
 > **üretimi** bitti; bu dosya **koşumu** yönetir. Üretim protokolü
-> [`PROMPT.md`](PROMPT.md)'dedir ve artık kullanılmaz.
+> [`PROMPT.md`](../arsiv/manuel-test-kosum-2026-08/PROMPT.md)'dedir ve artık kullanılmaz.
 >
 > Ortam kurulumu, fixture verisi, önem dereceleri ve hata şablonu
 > [`00-INDEKS.md`](00-INDEKS.md)'dedir. Bu dosya onu tekrarlamaz; **sapmaları**
@@ -13,83 +13,26 @@
 
 ## 1. Durum
 
-> # ⛔ BU BÖLÜM BAYATTIR — [`KAPANIS-PLANI.md`](KAPANIS-PLANI.md)'yi oku
->
-> **Koşum bitti: 1097/1097 case koşuldu, koşulmamış case YOK.** Aşağıdaki
-> tablonun üç iddiası yanlıştır ve düzeltilmesi kapanışa (§8/2) bırakılmıştır:
-> "898 koşuldu" (gerçek: **1097**), "Şerit 4 başlamadı" (gerçek: **bitti**,
-> `SONUCLAR-S4-2026-08-13.md`), "kalan 199 case" (gerçek: **0**).
->
-> Kalan iş yalnız **kusurlardır** ve §8'i yürüten
-> [`KAPANIS-PLANI.md`](KAPANIS-PLANI.md) tarafından aile aile yönetilir.
-> Kapanış oturumu açan ajan **o dosyayı** okur, bunu değil.
+**Koşum bitti (2026-08-14): 1094 case koşuldu, 2 açık kalem var.** Bulunan
+kusurların tamamı kodlandı, doğrulandı ve ayrı commit'lerle `main`'e işlendi.
+Açık kalanlar (Faz 58.3'te ölçüldü, bkz. `KAPANIS-PLANI.md` §12):
 
-> Son güncelleme: **2026-08-14**, Ortak kuyruk TÜM 9 OTURUM BİTTİ (K-1..K-9,
-> `14/15/17/24` dosyalarının tümü TAMAMLANDI — worktree/branch açılmadan
-> doğrudan `main` üzerinde, kullanıcı talimatıyla koşuldu) VE §8 kapanış
-> protokolü TAMAMLANDI: bulunan 8 kusurun (`HATA-K-001..008`) TAMAMI
-> kodlandı, doğrulandı, ayrı commit'lerle `main`'e işlendi (K-400..K-407,
-> bkz. `SONUCLAR-K-2026-08-13.md`). Şerit 3 daha önce
-> bitti (S3-1..S3-7, `02/05/06/22/16` TAMAMLANDI). Şerit 2 main'e merge edildi
-> (7 oturum, 217/217 case tam). Şerit 1 daha önce bitti (S1-1 … S1-9). Şerit 4
-> (Arayüz) henüz başlamadı. Not: Şerit 1'in tamamı ve Şerit 3'ün S3-1 oturumu,
-> plandaki §3 worktree izolasyonu **uygulanmadan** doğrudan `main` üzerinde
-> koşulmuştu — worktree `ap-s1` hiç kurulmadı, `ap-s3` `git rebase main` ile
-> hizalandı. Bu bir plan sapmasıdır, kayıt altına alınır; sonuçları etkilemedi
-> çünkü aynı case iki şeritte koşulmadı.
-
-| | |
-|---|---|
-| Toplam case | **1097** |
-| Koşuldu | **898** (`01` tam · `02` **tam (42/42)** · `03` tam · `04` **tam** · `05` **tam (40/40)** · `06` **tam (39/39)** · `07` **tam (43/43)** · `08` **tam (49/49)** · `13` **tam (54/54)** · `14` **tam (47/47)** · `15` **tam (60/60)** · `16` **tam (61/61)** · `17` **tam (69/69)** · `18` **tam (43/43)** · `19` **tam (61/61)** · `20` **tam (31/31)** · `21` **tam (28/28)** · `22` **tam (35/35)** · `23` **tam** · `24` **tam (41/41)** · `25` **tam (28/28)**) |
-| Kalan | **199** — esas olarak Şerit 4 (Arayüz: `09, 10, 11, 12`, 176 case, henüz başlamadı); kalan ~23 case Şerit 1'in S1-4/S1-5 oturumlarında bloklu/atlanmış kalemlerdir |
-| Planlanan oturum | **40** (4 paralel şerit + ortak kuyruk) |
-
-### Şerit ilerlemesi
-
-| Şerit | Durum |
-|---|---|
-| 1 — Kalıcılık ve ses | **✅ TÜM 7 OTURUM + S1-8 + S1-9 BİTTİ.** S1-1 ✅ · S1-2 ✅ · S1-3 ✅ (`23` tamam, 26/26) · S1-4 ✅ (`20`, 23/31 koşuldu) · S1-5 ✅ (`25`, 27/28 koşuldu) · S1-6 ✅ (`19` §1–§8, 37/37) · S1-7 ✅ (`19` §9–§13, 24/24; dosya `19` TAMAMLANDI 61/61) · **S1-8 ✅** (2026-08-13: 15 hatanın TAMAMI kodlandı, kalan 8 embedding-bloklu + 1 geçici-kod-gerektiren case koşuldu — bkz. aşağıdaki tablo) · **S1-9 ✅** (2026-08-13: `MT-MM-086/087/088/090` gerçek ElevenLabs anahtarı + Playwright sahte-mikrofon ile koşuldu, dördü de Geçti). Şerit 1'de kod/kusur açığı VE açık case **sıfır**. |
-| 2 — HTTP ve güvenlik | **✅ TÜM 7 OTURUM BİTTİ, main'e merge edildi (2026-08-13).** S2-1 ✅ (`07` tam, 43/43, 41 Geçti, 2 Kaldı) · S2-2+S2-3 ✅ (`08` tam, 49/49, 43 Geçti, 6 Kaldı) · S2-4+S2-5 ✅ (`13` tam, 54/54, 53 Geçti, 1 Kaldı) · S2-6 ✅ (`18` tam, 43/43, 38 Geçti, 5 Kaldı) · S2-7 ✅ (`21` tam, 28/28, 24 Geçti, 2 Kaldı, 2 Atlandı). **217/217 case, 11 hata bulundu (`HATA-S2-001`..`011`, bkz. `SONUCLAR-S2-2026-08-13.md`).** Kod **değiştirilmedi** — düzeltmeler §8 toplama oturumuna bırakıldı. Worktree `ap-s2` kaldırıldı. |
-| 3 — Çekirdek ve sağlayıcı | **✅ TÜM 7 OTURUM BİTTİ (2026-08-13).** S3-1 ✅ (`05` §1–§4, 13/13, 11 Geçti + 2 Kaldı) · S3-2 ✅ (`05` §5–§9, 27/27, 26 Geçti + 1 Atlandı — dosya `05` TAMAMLANDI 40/40) · S3-3 ✅ (`06` §1–§8, 30/30, 28 Geçti + 2 Kaldı) · S3-4 ✅ (`06` §9 + `22` §1–§4, 26/26, 17 Geçti + 9 Atlandı — dosya `06` TAMAMLANDI 39/39, Azure kimliği yok) · S3-5 ✅ (`22` §5–§8, 18/18, 15 Geçti + 3 Kaldı — dosya `22` TAMAMLANDI 35/35) · S3-6 ✅ (`16` §1–§5, 37/37, 37 Geçti) · S3-7 ✅ (`16` §6–§8, 24/24, 22 Geçti + 2 Kaldı — dosya `16` TAMAMLANDI 61/61). **9 hata bulundu (`HATA-S3-001`..`009`, bkz. `SONUCLAR-S3-2026-08-13.md`), çeşitli doküman düzeltmeleri yapıldı (jq/gövde şekli uyuşmazlıkları, PollInterval doğrulayıcı davranışı, mimari yanlış anlamalar).** Kod **değiştirilmedi** — düzeltmeler §8 toplama oturumuna bırakıldı. |
-| 4 — Arayüz | ⏳ Başlamadı |
-| Ortak kuyruk | **✅ TÜM 9 OTURUM BİTTİ + KAPANIŞ TAMAMLANDI (2026-08-14).** K-1 ✅ (`14` §1–§2, 20/20, 19 Geçti + 1 Kaldı) · K-2 ✅ (`14` §3–§5, 18/18, tam Geçti) · K-3 ✅ (`14` §6–§7 + `15` §1, 28/28, 21 Geçti + 7 Kaldı — dosya `14` TAMAMLANDI 47/47) · K-4 ✅ (`15` §2–§6, 26/26, 23 Geçti + 3 Kaldı) · K-5 ✅ (`15` §7–§9 + `17` §1–§2, 27/27, 21 Geçti + 6 Kaldı — dosya `15` TAMAMLANDI 60/60) · K-6 ✅ (`17` §3–§6, 30/30, tam Geçti) · K-7 ✅ (`17` §7–§11, 26/26, 20 Geçti + 4 Kaldı — dosya `17` TAMAMLANDI 69/69) · K-8 ✅ (`24` §1–§2, 24/24, tam Geçti) · K-9 ✅ (`24` §3–§5, 17/17, 16 Geçti + 1 Kaldı — dosya `24` TAMAMLANDI 41/41). **HATA-K-001..008 bulundu VE 8'i de kodlandı (K-400..K-407, bkz. `SONUCLAR-K-2026-08-13.md`).** Her düzeltmeden sonra dört doğrulama kapısı + canlı sunucuda ampirik doğrulama; ayrı commit. |
-
-### Şerit 1'in bulduğu hatalar
-
-**Hepsi kapandı (2026-08-13, S1-8) — kullanıcı kararıyla KOSUM-PLANI §2.1'den
-sapılıp Şerit 1 kapsamındaki kusurlar erkenden kodlandı** (Şerit 2/3/4 henüz
-başlamadığı için parallel-şerit kıyaslanabilirliği riske girmedi). Dört
-doğrulama kapısı yeşil, her satır canlı sunucuda yeniden doğrulandı. Ayrıntı
-ve karar gerekçeleri: `docs/KARARLAR.md` K-393..K-399,
-[`SONUCLAR-S1-2026-08-13.md`](SONUCLAR-S1-2026-08-13.md) (S1-8 devir notu).
-
-| Hata | Önem | Durum |
+| Case | Durum | Neden |
 |---|---|---|
-| `HATA-S1-004` — `InvariantGlobalization` SQL Server'ı kırıyor (örnek **ve** şablon) | Kritik | ✅ Düzeltildi (K-392) |
-| `HATA-S1-006` — Workflow çalıştırmaları kota muhasebesini tamamen atlıyor | Kritik | ✅ Düzeltildi (K-394) |
-| `HATA-S1-015` — Gerçek zamanlı ses turunda `cancel`, `runs` satırını kalıcı `Running`'de bırakıyor (maliyet sessizce kaybolur) | Yüksek | ✅ Düzeltildi (K-398) |
-| `HATA-S1-002` — `AutoApplyMigrations=false` + hazır olmayan şema uygulamayı kapatıyor | Yüksek | ✅ Düzeltildi (K-393) |
-| `HATA-S1-003` — `Data Source=:memory:` dokümante edildiği hâlde hiç çalışmıyor | Yüksek | ✅ Düzeltildi |
-| `HATA-S1-008` — Bellek sağlayıcıları (dosya belleği okuma, todo) mesaj serileştirmesinde `500` ile çöküyor | Yüksek | ✅ Düzeltildi |
-| `HATA-S1-011` — `KnowledgeEndpoints` API anahtarı kapsam denetimi hiç uygulamıyor | Yüksek | ✅ Düzeltildi (K-397) |
-| `HATA-S1-012` — `VoiceConversationEndpoint`'in OpenAPI etiketi eksik | Yüksek | ✅ Düzeltildi |
-| `HATA-S1-007` — `/api/agents/validate`, bilinmeyen enum string'de `400` yerine `500` veriyor | Orta | ✅ Düzeltildi |
-| `HATA-S1-009` — `EnableTextSearch` sorguyla eşleşen içeriği hiç bulamıyor | Orta | ✅ Düzeltildi (K-396) |
-| `HATA-S1-013` — İki A2A ucunun `operationId`si yok | Orta | ✅ Düzeltildi |
-| `HATA-S1-014` — `requireBearerToken:false` uçlarına (eşlenmemiş `api/` yolları **ve** gerçek zamanlı ses ucu) geçerli statik bearer token ile istek yanlış `401` döner | Orta | ✅ Düzeltildi (K-395) |
-| `HATA-S1-005` — Dört saklama hedefi config varsayılanını sessizce yok sayıyor | Düşük | ✅ Düzeltildi (K-399) |
-| `HATA-S1-001` — `user-secrets` temizliği uygulanmamış (süreç kusuru) | Düşük | ✅ Düzeltildi |
-| `HATA-S1-010` — Bilgi tabanı doğrulama hataları `.NET ArgumentException`'ın iç parametre adını sızdırıyor | Düşük | ✅ Düzeltildi |
+| `MT-UIRUN-019` | ☐ Beklemede | Playwright/CDP çevrimdışı emülasyonu açık SSE akışını kesmiyor; fiziksel ağ kesintisi ister |
+| `MT-SKILL-057` | ⬜ Hiç koşulmadı | Koşum kaydı boş bırakılmış |
 
-**Şerit 1'de açık kalem kalmadı.** S1-9'da (2026-08-13) `MT-MM-086`/`087`/
-`088`/`090` da kapatıldı — kök neden gerçek mikrofon değil, sahte bir
-`Voice:ApiKey`/`DefaultVoiceId` idi; kullanıcı gerçek bir ElevenLabs anahtarı
-sağladı, "gerçek insan konuşması" gereksinimi bağımsız bir Playwright
-betiğiyle (sahte mikrofon + önceden kaydedilmiş WAV) karşılandı. Kod/kusur
-açığı VE açık case **sıfırdır**.
+| Nereye bakmalı | Dosya |
+|---|---|
+| Kapanış protokolü ve kusur ailelerinin kapanış kaydı | [`KAPANIS-PLANI.md`](KAPANIS-PLANI.md) |
+| Şerit sonuç kayıtları (arşiv, yalnız grep'lenir) | [`../arsiv/manuel-test-kosum-2026-08/`](../arsiv/manuel-test-kosum-2026-08/) |
+| Kusurların karar gerekçeleri | `docs/KARARLAR.md` → K-392..K-407 |
 
-Ayrıntı: [`SONUCLAR-S1-2026-08-13.md`](SONUCLAR-S1-2026-08-13.md) (S1-9 devir notu).
+İkinci bir koşum bu dosyanın §2–§9 bölümlerini olduğu gibi kullanır; §1 yalnız
+son koşumun kapandığını söyler. Koşum kayıtları case dosyalarında **değil**,
+[`kosumlar/`](kosumlar/) altındadır.
+
+---
 
 ## 2. Ajanın uyacağı kurallar
 
@@ -338,7 +281,7 @@ alıntısı ve `dosya.cs:satır` referansı taşır.
 
 `docs/manuel-test/SONUCLAR-S<N>-<YYYY-AA-GG>.md`. Şerit başına ayrı dosya —
 birleştirmede çakışma olmaz. Biçim, koşulmuş
-[`SONUCLAR-2026-08-12.md`](SONUCLAR-2026-08-12.md) dosyasıyla aynıdır:
+[`SONUCLAR-2026-08-12.md`](../arsiv/manuel-test-kosum-2026-08/SONUCLAR-2026-08-12.md) dosyasıyla aynıdır:
 başlık bloğu (koşulan dosya, ortam, sayım, devir notu) + yalnız `Kaldı`
 case'lerin `HATA-NNN` kayıtları ([`00-INDEKS.md`](00-INDEKS.md) §6 şablonu).
 
@@ -469,7 +412,7 @@ yanına ajan adını yazar — iki ajan aynı oturumu almaz.
 sırayla kodla" seçildi: Kritik önce, sonra Yüksek, her düzeltmeden sonra dört
 doğrulama kapısı, her satır canlı sunucuda yeniden doğrulandı.** Ayrıntı ve
 karar gerekçeleri: `docs/KARARLAR.md` K-400..K-407,
-[`SONUCLAR-K-2026-08-13.md`](SONUCLAR-K-2026-08-13.md).
+[`SONUCLAR-K-2026-08-13.md`](../arsiv/manuel-test-kosum-2026-08/SONUCLAR-K-2026-08-13.md).
 
 | Hata | Önem | Durum |
 |---|---|---|

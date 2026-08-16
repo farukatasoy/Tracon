@@ -57,12 +57,18 @@ dotnet format AgentPrism.slnx --verify-no-changes --no-restore
 
 | | |
 |---|---|
-| Toplam case | **1097** |
-| Koşuldu | **1097** (koşulmamış case **yok**) |
-| ☑ Geçti | **1062** |
+| Toplam case | **1097** (`MT-SKILL-071` bilerek yazılmadı → koşum kaydı olan **1096**) |
+| Koşuldu | **1094** |
+| ☑ Geçti | **1061** |
 | ☒ **Kaldı** | **4** (`MT-MCP-052`, `MT-UI-005`, `MT-WF-071`, `MT-WF-073` — kalıcı, bkz. §6) |
-| ⏭ Atlandı | **30** |
-| ☐ Beklemede | **1** (`MT-UIRUN-019`, ortam kurulumu gerekir — bkz. §10) |
+| ⏭ Atlandı | **29** (9'u Azure kimliği yok; geri kalanı §10) |
+| ☐ Beklemede | **1** (`MT-UIRUN-019`, fiziksel ağ kesintisi ister — bkz. §5.3) |
+| ⬜ Hiç koşulmadı | **1** (`MT-SKILL-057` — koşum kaydı boş) |
+
+> 🚨 **Sayılar case bazındadır** (§12'nin betiği). Önceki sürüm `Durum:`
+> **satırlarını** sayıyordu; yeniden koşulan case iki satır taşıdığı için
+> `Geçti` 1062, `Atlandı` 30 görünüyordu. **Açık kalem 2'dir, 1 değil** —
+> `MT-SKILL-057` hiç koşulmadığı hâlde "koşulmamış case yok" yazıyordu.
 
 ### Biten işler
 
@@ -1981,16 +1987,42 @@ Kalan 21'i ortam kurulumuyla koşulabilir:
 
 ## 12. Bitti tanımı
 
+> 🚨 **Sayım satır değil, CASE bazında yapılır.** Yeniden koşulan bir case
+> **iki** `Durum:` satırı taşır (önce `Kaldı`, sonra `Geçti`); satır sayan bir
+> `grep` onu iki kez sayar ve yanlış sonuç verir. Aşağıdaki betik her case'in
+> **son** işaretini alır. Durum kayıtları Faz 58.3'te `kosumlar/<tarih>/`
+> altına ayrıldı; spec dosyalarında `Durum:` satırı **yoktur**.
+
 ```bash
-# 1. Hicbir dosyada Kaldi kalmamali
-cd docs/manuel-test && grep -c '[☒☑] Kaldı' [0-2]*.md | grep -v ':0'
-# (bos cikti = 0 Kaldi)
-
-# 2. Beklemede kalmamali
-grep -l '[☒☑] Beklemede' [0-2]*.md
-
-# 3. Atlandi YALNIZ 9 Azure case'i olmali
-grep -h '[☒☑] Atlandı' [0-2]*.md | wc -l   # 9
+# 1-3. Case bazinda son durum dagilimi
+python3 - <<'PY'
+import pathlib, re
+from collections import Counter
+K = pathlib.Path("docs/manuel-test/kosumlar/2026-08-13")
+CASE, DURUM = re.compile(r"^## (MT-[A-Z0-9]+-\d+)"), re.compile(r"^\s*\*\*Durum:\*\*(.*)")
+c, acik = Counter(), []
+for p in sorted(K.glob("[0-2]*.md")):
+    L = p.read_text(encoding="utf-8").split("\n")
+    b = [i for i, s in enumerate(L) if CASE.match(s)] + [len(L)]
+    for k in range(len(b) - 1):
+        ad = CASE.match(L[b[k]]).group(1)
+        d = [x for i in range(b[k], b[k+1]) if (m := DURUM.match(L[i]))
+             for x in ("Beklemede", "Geçti", "Kaldı", "Atlandı")
+             if re.search(r"[☒☑]\s*" + x, m.group(1))]
+        s = d[-1] if d else "İŞARETSİZ"
+        c[s] += 1
+        if s in ("Beklemede", "İŞARETSİZ"):
+            acik.append(f"{ad} ({p.name}) -> {s}")
+print(dict(c), "toplam:", sum(c.values()))
+print("ACIK:", *acik, sep="\n  ")
+PY
+# 2026-08-14 kapanisinda olculen taban cizgisi:
+#   Gecti 1061 · Atlandi 29 · Kaldi 4 · Beklemede 1 · ISARETSIZ 1  (toplam 1096)
+#   Kaldi 4  = MT-UI-005, MT-WF-071, MT-WF-073, MT-MCP-052 (KALICI, bkz. §6)
+#   Atlandi  = 29 case (9'u Azure kimligi yok, K-1; geri kalani §10'da)
+#   ACIK  2  = MT-UIRUN-019 (fiziksel ag kesintisi ister, §5.3)
+#              MT-SKILL-057 (hic kosulmadi — kosum kaydi bos)
+# Bu iki case KAPANMADI; "1097/1097 kosuldu" ifadesi 1094 case icin dogrudur.
 
 # 4. Dort kapi
 cd /Users/farukatasoy/Desktop/projects/AgentPrism

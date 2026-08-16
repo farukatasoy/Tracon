@@ -30,6 +30,28 @@ uyuşmalıdır. Yeni paket ayrıca şunları ister — atlanırsa build veya tes
 - Meta pakete (`src/AgentPrism/AgentPrism.csproj`) `ProjectReference`
 - `DependencyDirectionTests.AllowedReferences` içine bir satır
 
+### 🚨 Senkronizasyon kopyası taraması (kapılardan ÖNCE)
+
+**Bu adım atlanamaz — Faz 57 atladığı için `main`'i derlenmez hâlde bıraktı.**
+Bulut senkronizasyon istemcisi `<ad> 2.<uzantı>` kopyaları üretir; `.cs`
+kopyası CS0101 yağmuru, `.ts` kopyası TS2741 verir. Beş kez yaşandı.
+
+```bash
+find src tests samples -name "* 2.*" \
+  -not -path "*/node_modules/*" -not -path "*/obj/*" -not -path "*/bin/*"
+```
+
+Çıktı **boş olmalıdır**. İki tuzak:
+
+- **`git status` bu kopyaları göstermeyebilir** — bir kez `git add` edildiyse
+  izlenen dosyadır ve "temiz" görünür. Taramayı `git status`'a güvenerek atlama.
+- **`src` yetmez.** Faz 57'de kopyalar `tests/` altındaydı; yalnız `src`'ye
+  bakan eski komut onları görmedi.
+
+Kopyaları sil (`git rm` gerekebilir), sonra `wwwroot`'u ve
+`agentprism-frontend.stamp` damgasını da kaldır — damga durursa arayüz yeniden
+gömülmez.
+
 Ek olarak `secret` taraması:
 
 ```bash
@@ -132,7 +154,7 @@ Bu adım en çok atlanan ve en pahalıya mal olan adımdır. Sonraki faz ayrı b
 | MAF genişleme noktası kullanıldıysa | `docs/MAF-GENISLEME-NOKTALARI.md` |
 | Yol haritası durumu | `README.md` tablosu (tek kaynak) |
 | Kalıcı bir çalışma kuralı değiştiyse | `AGENTS.md` |
-| `BEYIN-FIRTINASI.md` kalemi yapıldı/reddedildi | üstünü çiz; gerekçe KARARLAR'a |
+| `arsiv/BEYIN-FIRTINASI.md` kalemi yapıldı/reddedildi | üstünü çiz; gerekçe KARARLAR'a |
 
 `AGENTS.md`'de faz durum tablosu **yoktur** — orada yalnız "sıradaki faz" satırı
 vardır. Tam tabloyu yalnız `README.md`'de güncelle.

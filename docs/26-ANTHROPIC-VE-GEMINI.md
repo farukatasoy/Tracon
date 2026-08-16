@@ -1,7 +1,7 @@
 # Faz 26 — Anthropic (Claude) ve Google Gemini Sağlayıcıları
 
 > **Durum:** ✅ Tamamlandı (2026-08-05)
-> **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-01**, **F-02**
+> **Kaynak:** [BEYIN-FIRTINASI.md](arsiv/BEYIN-FIRTINASI.md) · **F-01**, **F-02**
 > **Önkoşul:** [Faz 8](08-SAGLAYICI-GENISLEMESI.md) — sağlık denetimi ve devre kesici hazırdı
 > **Paketler:** **`AgentPrism.Anthropic` (YENİ)**, **`AgentPrism.Google` (YENİ)** ·
 > genişleyen: `AgentPrism.Abstractions`, `.Core`

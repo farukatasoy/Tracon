@@ -1,7 +1,7 @@
 # Faz 14 — Çok Modluluk: Görsel, Ses ve Dosya Girdisi
 
 > **Durum:** ✅ Tamamlandı (2026-08-02)
-> **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-12**
+> **Kaynak:** [BEYIN-FIRTINASI.md](arsiv/BEYIN-FIRTINASI.md) · **F-12**
 > **Önkoşul:** Yok · Faz 9 önerilir (yükleme yetkisi rol ister)
 > **Sonraki bağımlı:** [Faz 28](28-SES-TOOLLARI.md) — ses çıktısı bu fazın deposunu kullanır
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`

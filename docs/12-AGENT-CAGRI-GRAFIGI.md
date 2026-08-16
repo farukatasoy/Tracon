@@ -1,7 +1,7 @@
 # Faz 12 — Agent'ın Agent'ı Çağırması
 
 > **Durum:** ✅ Tamamlandı (2026-08-02)
-> **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-10**
+> **Kaynak:** [BEYIN-FIRTINASI.md](arsiv/BEYIN-FIRTINASI.md) · **F-10**
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** 0005
 

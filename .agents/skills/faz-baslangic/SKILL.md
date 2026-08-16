@@ -107,7 +107,7 @@ Faz açılışında **hiçbir koşulda** baştan sona okunmaz:
 - `docs/KARARLAR.md` — indeksi ve grep'i var
 - `docs/arsiv/*.md` — yalnız "neden böyle olmuş?" sorusunda grep'lenir
 - Tamamlanmış fazların dokümanları — yalnız devir notu bölümü
-- `docs/BEYIN-FIRTINASI.md` — tarihsel kayıt; faz dokümanı geçerlidir
+- `docs/arsiv/BEYIN-FIRTINASI.md` — tarihsel kayıt; faz dokümanı geçerlidir
 - `docs/MAF-GENISLEME-NOKTALARI.md` — yalnız MAF'a dokunurken
 
 Bunlardan birine gerçekten ihtiyaç duyduğunda **neden** gerektiğini bir cümleyle

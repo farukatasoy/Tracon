@@ -1,7 +1,7 @@
 # Faz 29 — Konuşma Katmanı (Gerçek Zamanlı Ses)
 
 > **Durum:** ✅ Tamamlandı (2026-08-05)
-> **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-13** (2/2) · Kullanıcı kararı **K-065**
+> **Kaynak:** [BEYIN-FIRTINASI.md](arsiv/BEYIN-FIRTINASI.md) · **F-13** (2/2) · Kullanıcı kararı **K-065**
 > **Önkoşul:** [Faz 28](28-SES-TOOLLARI.md) — sağlayıcı soyutlamaları oradan gelir
 > **Sonraki:** [Faz 30](30-ARAYUZ-CILASI.md) — arayüz cilası ve i18n
 > **Paketler:** `.Abstractions`, `.Core`, `.AspNetCore`, `.Sql.Shared` + üç SQL sağlayıcısı, `.UI`

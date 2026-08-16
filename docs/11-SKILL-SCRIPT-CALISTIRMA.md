@@ -1,7 +1,7 @@
 # Faz 11 — Skill Script Çalıştırma
 
 > **Durum:** ✅ Tamamlandı (2026-08-02)
-> **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-09** (2/2)
+> **Kaynak:** [BEYIN-FIRTINASI.md](arsiv/BEYIN-FIRTINASI.md) · **F-09** (2/2)
 > **Önkoşul:** [Faz 9](09-YONETISIM-VE-DENETIM-IZI.md) **ve** [Faz 10](10-AGENT-SKILLERI.md) — ikisi de zorunlu
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** 0004 (`0004_skill_scripts.sql`)

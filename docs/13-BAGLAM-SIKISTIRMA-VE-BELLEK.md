@@ -1,7 +1,7 @@
 # Faz 13 — Bağlam Sıkıştırma ve Bellek Sağlayıcıları
 
 > **Durum:** ✅ Tamamlandı (2026-08-02)
-> **Kaynak:** [BEYIN-FIRTINASI.md](BEYIN-FIRTINASI.md) · **F-11**
+> **Kaynak:** [BEYIN-FIRTINASI.md](arsiv/BEYIN-FIRTINASI.md) · **F-11**
 > **Önkoşul:** Yok (Faz 10 ve 12 bu fazı **gerekli** kılar — bağlam onlarla büyür)
 > **Paketler:** `AgentPrism.Abstractions`, `.Core`, `.PostgreSql`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok (ölçüldü — bkz. §13.4) · **Migration:** Yok
