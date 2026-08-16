@@ -6,16 +6,17 @@ using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Aile F'nin dort yeni kapsaminin (<c>PlatformRead</c>, <c>PlatformAdmin</c>,
-/// <c>SecurityAdmin</c>, <c>AuditRead</c>) uclara dogru baglandigini ve yetki
-/// uzatma (attenuation) sinirini nokta ornekleriyle dogrular. Kapsam listesinin
-/// TAMAMININ eslendigini <see cref="ApiKeyScopeCoverageTests"/> denetler; bu
-/// dosya "dogru kapsam gecer, yanlis kapsam gecmez" davranisina odaklanir.
+/// Verifies with point examples that Family F's four new scopes
+/// (<c>PlatformRead</c>, <c>PlatformAdmin</c>, <c>SecurityAdmin</c>,
+/// <c>AuditRead</c>) are bound to the right endpoints, and the attenuation
+/// boundary holds. <see cref="ApiKeyScopeCoverageTests"/> checks that the
+/// ENTIRE scope list is mapped; this file focuses on "the right scope passes,
+/// the wrong scope does not" behavior.
 /// </summary>
 public sealed class ApiKeyScopeEnforcementTests
 {
     [Fact]
-    public async Task PlatformRead_kapsamli_anahtar_zamanlamalari_listeler()
+    public async Task PlatformRead_scoped_key_lists_schedules()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -30,13 +31,13 @@ public sealed class ApiKeyScopeEnforcementTests
     }
 
     [Fact]
-    public async Task PlatformRead_kapsami_zamanlama_yazmaya_yetmez()
+    public async Task PlatformRead_scope_is_not_enough_to_write_a_schedule()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
         var created = await ApiKeyEndpointTests.CreateKeyAsync(host, "platform-reader", "PlatformRead");
 
-        using var request = new HttpRequestMessage(HttpMethod.Put, "/agentprism/api/schedules/gunluk")
+        using var request = new HttpRequestMessage(HttpMethod.Put, "/agentprism/api/schedules/daily")
         {
             Content = JsonContent.Create(new { kind = "AgentBatch", targetName = "kod-agent", timeZone = "UTC", enabled = true }),
         };
@@ -48,13 +49,13 @@ public sealed class ApiKeyScopeEnforcementTests
     }
 
     [Fact]
-    public async Task PlatformAdmin_kapsamli_anahtar_zamanlama_yazar()
+    public async Task PlatformAdmin_scoped_key_writes_a_schedule()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
         var created = await ApiKeyEndpointTests.CreateKeyAsync(host, "platform-admin", "PlatformAdmin");
 
-        using var request = new HttpRequestMessage(HttpMethod.Put, "/agentprism/api/schedules/gunluk")
+        using var request = new HttpRequestMessage(HttpMethod.Put, "/agentprism/api/schedules/daily")
         {
             Content = JsonContent.Create(
                 new { kind = "AgentBatch", targetName = "kod-agent", timeZone = "UTC", payload = new { }, enabled = true }),
@@ -67,7 +68,7 @@ public sealed class ApiKeyScopeEnforcementTests
     }
 
     [Fact]
-    public async Task SecurityAdmin_kapsamli_anahtar_anahtar_listesine_erisir()
+    public async Task SecurityAdmin_scoped_key_can_access_the_key_list()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -82,7 +83,7 @@ public sealed class ApiKeyScopeEnforcementTests
     }
 
     [Fact]
-    public async Task AuditRead_kapsamli_anahtar_denetim_izini_okur()
+    public async Task AuditRead_scoped_key_reads_the_audit_log()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -97,10 +98,10 @@ public sealed class ApiKeyScopeEnforcementTests
     }
 
     [Fact]
-    public async Task RunsRead_denetim_izini_okuyamaz()
+    public async Task RunsRead_cannot_read_the_audit_log()
     {
-        // Yeniden kullanim regresyonu (§7.3.3): AuditRead ayri bir kapsamdir,
-        // RunsRead'e sessizce dusmemelidir.
+        // Reuse regression (§7.3.3): AuditRead is a separate scope; it must
+        // not silently fall back to RunsRead.
         await using var host = await AgentPrismTestHost.StartAsync();
 
         var created = await ApiKeyEndpointTests.CreateKeyAsync(host, "runs-reader", "RunsRead");
@@ -114,10 +115,11 @@ public sealed class ApiKeyScopeEnforcementTests
     }
 
     [Fact]
-    public async Task RunsRead_istatistik_okur_ama_maliyeti_yeniden_hesaplayamaz()
+    public async Task RunsRead_reads_stats_but_cannot_recalculate_costs()
     {
-        // §7.3.3: /api/stats RunsRead, /api/stats/recalculate-costs RunsWrite —
-        // ayni dosyada komsu iki uc farkli kapsam gerektirir.
+        // §7.3.3: /api/stats requires RunsRead, /api/stats/recalculate-costs
+        // requires RunsWrite — two neighboring endpoints in the same file
+        // requiring different scopes.
         await using var host = await AgentPrismTestHost.StartAsync();
 
         var created = await ApiKeyEndpointTests.CreateKeyAsync(host, "runs-reader", "RunsRead");
@@ -134,17 +136,17 @@ public sealed class ApiKeyScopeEnforcementTests
     }
 
     [Fact]
-    public async Task PlatformAdmin_kapsamli_anahtar_yeni_anahtar_ureten_uca_erisemez()
+    public async Task PlatformAdmin_scoped_key_cannot_access_the_key_creation_endpoint()
     {
-        // §7.3.2: yukselme kapisi — /api/api-keys SecurityAdmin gerektirir,
-        // PlatformAdmin bunu kapsamaz.
+        // §7.3.2: escalation gate — /api/api-keys requires SecurityAdmin,
+        // which PlatformAdmin does not cover.
         await using var host = await AgentPrismTestHost.StartAsync();
 
         var created = await ApiKeyEndpointTests.CreateKeyAsync(host, "platform-admin", "PlatformAdmin");
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "/agentprism/api/api-keys")
         {
-            Content = JsonContent.Create(new { name = "ikinci", scopes = new[] { "PlatformAdmin" } }),
+            Content = JsonContent.Create(new { name = "second", scopes = new[] { "PlatformAdmin" } }),
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", created.PlaintextKey);
 
@@ -153,10 +155,10 @@ public sealed class ApiKeyScopeEnforcementTests
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // --- Yetki uzatma / attenuation (bolum 53.3) ---
+    // --- Attenuation (section 53.3) ---
 
     [Fact]
-    public async Task SecurityAdmin_anahtari_kendi_tasimadigi_kapsami_uretemez()
+    public async Task SecurityAdmin_key_cannot_produce_a_scope_it_does_not_itself_carry()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -164,8 +166,8 @@ public sealed class ApiKeyScopeEnforcementTests
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "/agentprism/api/api-keys")
         {
-            // Caller yalniz SecurityAdmin tasir; RunsWrite istemek reddedilmelidir.
-            Content = JsonContent.Create(new { name = "genisletilmis", scopes = new[] { "SecurityAdmin", "RunsWrite" } }),
+            // The caller carries only SecurityAdmin; requesting RunsWrite must be rejected.
+            Content = JsonContent.Create(new { name = "expanded", scopes = new[] { "SecurityAdmin", "RunsWrite" } }),
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", created.PlaintextKey);
 
@@ -175,7 +177,7 @@ public sealed class ApiKeyScopeEnforcementTests
     }
 
     [Fact]
-    public async Task SecurityAdmin_anahtari_kendi_tasidigi_kapsami_uretebilir()
+    public async Task SecurityAdmin_key_can_produce_a_scope_it_itself_carries()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -183,7 +185,7 @@ public sealed class ApiKeyScopeEnforcementTests
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "/agentprism/api/api-keys")
         {
-            Content = JsonContent.Create(new { name = "alt-kume", scopes = new[] { "RunsWrite" } }),
+            Content = JsonContent.Create(new { name = "subset", scopes = new[] { "RunsWrite" } }),
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", created.PlaintextKey);
 
@@ -193,16 +195,16 @@ public sealed class ApiKeyScopeEnforcementTests
     }
 
     [Fact]
-    public async Task Statik_token_ile_gelen_istek_attenuation_disidir()
+    public async Task Request_arriving_with_a_static_token_is_outside_attenuation()
     {
-        // Statik AuthToken/kullanici kimligiyle gelen istek bir ApiKeyRecord
-        // TASIMAZ (ApiKeyRequestContext.Get() null doner); attenuation
-        // yalniz istegi dogrulayan bir API anahtari varsa uygulanir (53.3).
+        // A request arriving with a static AuthToken/user identity does NOT
+        // carry an ApiKeyRecord (ApiKeyRequestContext.Get() returns null);
+        // attenuation applies only when an API key validated the request (53.3).
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var response = await host.Client.PostAsJsonAsync(
             "/agentprism/api/api-keys",
-            new { name = "kok", scopes = new[] { "SecurityAdmin", "PlatformAdmin", "AuditRead" } });
+            new { name = "root", scopes = new[] { "SecurityAdmin", "PlatformAdmin", "AuditRead" } });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }

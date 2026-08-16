@@ -5,15 +5,15 @@ using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Agent tanimi yasam dongusu: olusturma, okuma, guncelleme, surumleme,
-/// geri alma ve silme.
+/// Agent definition lifecycle: create, read, update, versioning,
+/// rollback, and delete.
 /// </summary>
 public sealed class AgentCrudTests
 {
     private static readonly Uri Agents = new("/agentprism/api/agents", UriKind.Relative);
 
     [Fact]
-    public async Task Tanim_olusturulur_ve_katalogda_gorunur()
+    public async Task Definition_is_created_and_appears_in_the_catalog()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -29,7 +29,7 @@ public sealed class AgentCrudTests
     }
 
     [Fact]
-    public async Task Guncelleme_yeni_surum_uretir()
+    public async Task Update_produces_a_new_version()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -40,7 +40,7 @@ public sealed class AgentCrudTests
 
         using var updated = await host.Client.PutAsJsonAsync(
             new Uri("/agentprism/api/agents/db-agent", UriKind.Relative),
-            TestData.Request(instructions: "Artik uzun yanit ver."));
+            TestData.Request(instructions: "Now give a long answer."));
 
         updated.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await AgentPrismTestHost.ReadJsonAsync(updated)).GetProperty("version").GetInt32().ShouldBe(2);
@@ -52,18 +52,18 @@ public sealed class AgentCrudTests
     }
 
     [Fact]
-    public async Task Geri_alma_eski_icerigi_yeni_surum_olarak_yazar()
+    public async Task Rollback_writes_the_old_content_as_a_new_version()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
-        using (var created = await host.Client.PostAsJsonAsync(Agents, TestData.Request(instructions: "ilk")))
+        using (var created = await host.Client.PostAsJsonAsync(Agents, TestData.Request(instructions: "first")))
         {
             created.EnsureSuccessStatusCode();
         }
 
         using (var updated = await host.Client.PutAsJsonAsync(
             new Uri("/agentprism/api/agents/db-agent", UriKind.Relative),
-            TestData.Request(instructions: "ikinci")))
+            TestData.Request(instructions: "second")))
         {
             updated.EnsureSuccessStatusCode();
         }
@@ -75,14 +75,14 @@ public sealed class AgentCrudTests
         rolledBack.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var json = await AgentPrismTestHost.ReadJsonAsync(rolledBack);
-        json.GetProperty("instructions").GetString().ShouldBe("ilk");
+        json.GetProperty("instructions").GetString().ShouldBe("first");
 
-        // Geri alma eski surumu SILMEZ; icerigini yeni surum olarak yazar.
+        // Rollback does NOT DELETE the old version; it writes its content as a new version.
         json.GetProperty("version").GetInt32().ShouldBe(3);
     }
 
     [Fact]
-    public async Task Silme_tanimi_kaldirir()
+    public async Task Delete_removes_the_definition()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -103,7 +103,7 @@ public sealed class AgentCrudTests
     }
 
     [Fact]
-    public async Task Detay_kod_agentini_duzenlenemez_isaretler()
+    public async Task Detail_marks_a_code_agent_as_not_editable()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
@@ -120,7 +120,7 @@ public sealed class AgentCrudTests
     }
 
     [Fact]
-    public async Task Detay_veritabani_agentini_duzenlenebilir_isaretler()
+    public async Task Detail_marks_a_database_agent_as_editable()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -138,10 +138,10 @@ public sealed class AgentCrudTests
         json.GetProperty("definition").GetProperty("name").GetString().ShouldBe("db-agent");
     }
 
-    // --- Kod agent'i korumasi: ad cakismasinda kod kazanir (K-003) ---
+    // --- Code agent protection: code wins on a name collision (K-003) ---
 
     [Fact]
-    public async Task Kod_agentiyle_ayni_ada_tanim_yazilamaz()
+    public async Task Definition_cannot_be_written_with_the_same_name_as_a_code_agent()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
@@ -153,7 +153,7 @@ public sealed class AgentCrudTests
     }
 
     [Fact]
-    public async Task Kod_agenti_guncellenemez()
+    public async Task Code_agent_cannot_be_updated()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
@@ -166,7 +166,7 @@ public sealed class AgentCrudTests
     }
 
     [Fact]
-    public async Task Kod_agenti_silinemez()
+    public async Task Code_agent_cannot_be_deleted()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
@@ -177,22 +177,22 @@ public sealed class AgentCrudTests
         response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
     }
 
-    // --- Dogrulama ---
+    // --- Validation ---
 
     [Fact]
-    public async Task Yoldaki_ad_ile_govdedeki_ad_uyusmalidir()
+    public async Task Name_in_the_path_must_match_the_name_in_the_body()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var response = await host.Client.PutAsJsonAsync(
-            new Uri("/agentprism/api/agents/bir-ad", UriKind.Relative),
-            TestData.Request(name: "baska-ad"));
+            new Uri("/agentprism/api/agents/some-name", UriKind.Relative),
+            TestData.Request(name: "other-name"));
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task Olmayan_tanim_guncellenemez()
+    public async Task Nonexistent_definition_cannot_be_updated()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -204,7 +204,7 @@ public sealed class AgentCrudTests
     }
 
     [Fact]
-    public async Task Ayni_ad_ikinci_kez_olusturulamaz()
+    public async Task Same_name_cannot_be_created_a_second_time()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -219,7 +219,7 @@ public sealed class AgentCrudTests
     }
 
     [Fact]
-    public async Task Sikistirma_ve_bellek_ayarlari_gidip_gelir()
+    public async Task Compaction_and_memory_settings_round_trip()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -252,7 +252,7 @@ public sealed class AgentCrudTests
     }
 
     [Fact]
-    public async Task Olmayan_surume_geri_alinamaz()
+    public async Task Cannot_roll_back_to_a_nonexistent_version()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -268,21 +268,21 @@ public sealed class AgentCrudTests
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
-    // --- Surum diff'i (Faz 19.1) ---
+    // --- Version diff (Phase 19.1) ---
 
     [Fact]
-    public async Task Surum_diffi_iki_ham_tanimi_dondurur()
+    public async Task Version_diff_returns_the_two_raw_definitions()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
-        using (var created = await host.Client.PostAsJsonAsync(Agents, TestData.Request(instructions: "ilk")))
+        using (var created = await host.Client.PostAsJsonAsync(Agents, TestData.Request(instructions: "first")))
         {
             created.EnsureSuccessStatusCode();
         }
 
         using (var updated = await host.Client.PutAsJsonAsync(
             new Uri("/agentprism/api/agents/db-agent", UriKind.Relative),
-            TestData.Request(instructions: "ikinci")))
+            TestData.Request(instructions: "second")))
         {
             updated.EnsureSuccessStatusCode();
         }
@@ -293,12 +293,12 @@ public sealed class AgentCrudTests
         diff.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var json = await AgentPrismTestHost.ReadJsonAsync(diff);
-        json.GetProperty("left").GetProperty("instructions").GetString().ShouldBe("ilk");
-        json.GetProperty("right").GetProperty("instructions").GetString().ShouldBe("ikinci");
+        json.GetProperty("left").GetProperty("instructions").GetString().ShouldBe("first");
+        json.GetProperty("right").GetProperty("instructions").GetString().ShouldBe("second");
     }
 
     [Fact]
-    public async Task Olmayan_surumun_diffi_404_doner()
+    public async Task Diff_of_a_nonexistent_version_returns_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 

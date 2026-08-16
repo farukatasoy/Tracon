@@ -3,15 +3,16 @@ using Microsoft.Extensions.AI;
 namespace AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 
 /// <summary>
-/// Gercek saglayici SDK istisnalarini (orn. Anthropic'in <c>AnthropicApiException</c>'i,
-/// OpenAI'nin <c>ClientResultException</c>'i) taklit eder: <see cref="Exception"/>'dan
-/// DOGRUDAN turer, <see cref="AgentPrismException"/>/<see cref="InvalidOperationException"/>/
-/// <see cref="HttpRequestException"/> DEGILDIR. Aile H (HATA-S2-003/HATA-S3-005) regresyon
-/// testleri icindir: akissiz uclarin dar 'when' filtresi tam bu sinifi kacirirdi.
+/// Fakes a real provider SDK exception (e.g. Anthropic's <c>AnthropicApiException</c>,
+/// OpenAI's <c>ClientResultException</c>): it derives DIRECTLY from <see cref="Exception"/>,
+/// NOT from <see cref="AgentPrismException"/>/<see cref="InvalidOperationException"/>/
+/// <see cref="HttpRequestException"/>. This is for the family H (HATA-S2-003/HATA-S3-005)
+/// regression tests: the non-streaming endpoints' narrow 'when' filter would have missed
+/// exactly this class.
 /// </summary>
 internal sealed class FakeUpstreamOutageException(string message) : Exception(message);
 
-/// <summary>Her cagrida <see cref="FakeUpstreamOutageException"/> firlatan model saglayicisi.</summary>
+/// <summary>A model provider that throws <see cref="FakeUpstreamOutageException"/> on every call.</summary>
 internal sealed class ThrowingModelProvider(string name = "kirik") : IModelProvider
 {
     public string Name { get; } = name;
@@ -26,19 +27,19 @@ internal sealed class ThrowingModelProvider(string name = "kirik") : IModelProvi
             IEnumerable<ChatMessage> messages,
             ChatOptions? options = null,
             CancellationToken cancellationToken = default)
-            => throw new FakeUpstreamOutageException("Saglayici DNS cozemedi.");
+            => throw new FakeUpstreamOutageException("The provider failed to resolve DNS.");
 
         public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
             IEnumerable<ChatMessage> messages,
             ChatOptions? options = null,
             CancellationToken cancellationToken = default)
-            => throw new FakeUpstreamOutageException("Saglayici DNS cozemedi.");
+            => throw new FakeUpstreamOutageException("The provider failed to resolve DNS.");
 
         public object? GetService(Type serviceType, object? serviceKey = null) => null;
 
         public void Dispose()
         {
-            // Sahte istemcinin serbest birakilacak kaynagi yok.
+            // The fake client has no resources to release.
         }
     }
 }

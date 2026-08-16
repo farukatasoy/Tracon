@@ -3,9 +3,9 @@ using System.Xml.Linq;
 namespace AgentPrism.Core.UnitTests.Architecture;
 
 /// <summary>
-/// AgentPrism'in katman mimarisini zorlayan testler.
+/// Tests that enforce AgentPrism's layer architecture.
 ///
-/// Bagimlilik grafigi TEK YONLUDUR ve dongu icermez:
+/// The dependency graph is ONE-DIRECTIONAL and contains no cycles:
 ///
 ///     Abstractions -- Core -- PostgreSql
 ///                       |  -- OpenAI
@@ -13,60 +13,61 @@ namespace AgentPrism.Core.UnitTests.Architecture;
 ///                       +----- AspNetCore -- UI
 ///                       |         |            |
 ///                       |         |     AgentPrism (meta)
-///                       +----- Testing (test yardimcisi; meta pakete BAGLANMAZ)
+///                       +----- Testing (test helper; NOT referenced by the meta package)
 ///
-/// Bu grafigi bozan bir ProjectReference eklemek yasaktir.
-/// Gerekce: docs/MIMARI.md, bolum 2.
+/// Adding a ProjectReference that breaks this graph is forbidden.
+/// Rationale: docs/MIMARI.md, section 2.
 ///
-/// Testler proje dosyalarini okur, derleme ciktisini degil. Boylece kural
-/// urun kodu yazilmadan once de gecerlidir ve derleme sirasina bagli degildir.
+/// The tests read project files, not the build output. This way the rule
+/// holds even before product code is written, and does not depend on build order.
 /// </summary>
 public sealed class DependencyDirectionTests
 {
     /// <summary>
-    /// Her paketin referans vermesine izin verilen AgentPrism paketleri.
-    /// Burada olmayan her kenar ihlaldir.
+    /// The AgentPrism packages each package is allowed to reference.
+    /// Any edge not listed here is a violation.
     /// </summary>
     private static readonly Dictionary<string, string[]> AllowedReferences = new(StringComparer.Ordinal)
     {
         ["AgentPrism.Abstractions"] = [],
-        // AgentPrism.Generators (Faz 52) BURAYA calisma-zamani bagimliligi olarak
-        // eklenmedi: ProjectReference'i ReferenceOutputAssembly=false + OutputItemType=Analyzer
-        // tasir, yani Core.dll ONU asla YUKLEMEZ - yalniz derleyiciye analyzer olarak
-        // gecirilir. Yine de .csproj'daki <ProjectReference> etiketi bu testin
-        // okudugu XML'de gorunur, bu yuzden izin verilenler listesine girmesi gerekir.
-        // AgentPrism.Generators kendisi bu sozlugun bir ANAHTARI DEGILDIR (yayimlanmaz,
-        // README zorunlulugu tasimaz - 52.4).
+        // AgentPrism.Generators (Phase 52) is NOT added here as a runtime
+        // dependency: its ProjectReference carries ReferenceOutputAssembly=false +
+        // OutputItemType=Analyzer, meaning Core.dll never LOADS it - it is only
+        // passed to the compiler as an analyzer. Even so, the <ProjectReference>
+        // tag still shows up in the .csproj XML this test reads, so it must be
+        // in the allow-list. AgentPrism.Generators itself is NOT a KEY of this
+        // dictionary (it is not published, it carries no README requirement - 52.4).
         ["AgentPrism.Core"] = ["AgentPrism.Abstractions", "AgentPrism.Generators"],
         ["AgentPrism.PostgreSql"] = ["AgentPrism.Core"],
         ["AgentPrism.OpenAI"] = ["AgentPrism.Core"],
-        // Anthropic ve Google da yalnizca Core'a baglidir; birbirlerini ve
-        // OpenAI'i gormezler. Her saglayici paketi kendi SDK'sini izole tutar.
+        // Anthropic and Google also depend only on Core; they cannot see each
+        // other or OpenAI. Each provider package keeps its own SDK isolated.
         ["AgentPrism.Anthropic"] = ["AgentPrism.Core"],
         ["AgentPrism.Google"] = ["AgentPrism.Core"],
         ["AgentPrism.Azure"] = ["AgentPrism.Core"],
-        // Voice bir MODEL saglayicisi degildir ama ayni yalitim kuralina uyar:
-        // yalnizca Core'a baglidir ve HICBIR NuGet paketi almaz (ham HttpClient).
+        // Voice is not a MODEL provider but follows the same isolation rule:
+        // it depends only on Core and takes NO NuGet package (raw HttpClient).
         ["AgentPrism.Voice"] = ["AgentPrism.Core"],
-        // Mcp yalnizca Core'a baglidir: HTTP katmani MCP tazelemesini
-        // IMcpToolRefresher soyutlamasi uzerinden tetikler, ters yonde bir
-        // referans YOKTUR. Boylece MCP istege bagli bir paket olarak kalir.
+        // Mcp depends only on Core: the HTTP layer triggers MCP refresh
+        // through the IMcpToolRefresher abstraction; there is NO reverse
+        // reference. This keeps MCP an optional package.
         ["AgentPrism.Mcp"] = ["AgentPrism.Core"],
-        // Workflows da yalnizca Core'a baglidir: HTTP katmani workflow'lari
-        // IWorkflowRunner soyutlamasi uzerinden calistirir ve bu pakete
-        // referans VERMEZ. MCP ile birebir ayni desen.
+        // Workflows likewise depends only on Core: the HTTP layer runs
+        // workflows through the IWorkflowRunner abstraction and does NOT
+        // reference this package. The exact same pattern as MCP.
         ["AgentPrism.Workflows"] = ["AgentPrism.Core"],
         ["AgentPrism.AspNetCore"] = ["AgentPrism.Core"],
         ["AgentPrism.UI"] = ["AgentPrism.AspNetCore"],
-        // Testing test-yardimci paketidir: meta pakete BAGLANMAZ (bolum 39.1).
-        // AspNetCore'a baglanir cunku tuketicinin en cok isteyecegi tip bellek
-        // ici host fixture'idir ve o, uclari kuran paketi gerektirir.
+        // Testing is a test-helper package: it is NOT referenced by the meta
+        // package (section 39.1). It references AspNetCore because the type
+        // consumers ask for most is an in-memory host fixture, which requires
+        // the package that wires up the endpoints.
         ["AgentPrism.Testing"] = ["AgentPrism.Core", "AgentPrism.AspNetCore"],
         ["AgentPrism"] = ["AgentPrism.AspNetCore", "AgentPrism.Mcp", "AgentPrism.OpenAI", "AgentPrism.PostgreSql", "AgentPrism.UI", "AgentPrism.Workflows"],
     };
 
     [Fact]
-    public void Her_paket_yalnizca_izin_verilen_paketlere_referans_verir()
+    public void Each_package_references_only_allowed_packages()
     {
         foreach (var (package, allowed) in AllowedReferences)
         {
@@ -75,20 +76,20 @@ public sealed class DependencyDirectionTests
 
             actual.ShouldBe(
                 expected,
-                customMessage: $"'{package}' paketinin AgentPrism referanslari beklenenden farkli. " +
-                               "Katman mimarisi degistiyse once docs/MIMARI.md ve bu testi guncelleyin.");
+                customMessage: $"'{package}' package's AgentPrism references differ from expected. " +
+                               "If the layer architecture changed, update docs/MIMARI.md and this test first.");
         }
     }
 
     [Fact]
-    public void Abstractions_hicbir_AgentPrism_paketine_referans_vermez()
+    public void Abstractions_references_no_AgentPrism_package()
     {
-        // Abstractions saf sozlesme katmanidir. Kendi ailesinden hicbir sey bilmez.
+        // Abstractions is a pure contract layer. It knows nothing about its own family.
         ReadAgentPrismProjectReferences("AgentPrism.Abstractions").ShouldBeEmpty();
     }
 
     [Fact]
-    public void Bagimlilik_grafigi_dongu_icermez()
+    public void Dependency_graph_contains_no_cycle()
     {
         var graph = AllowedReferences.Keys.ToDictionary(
             package => package,
@@ -101,19 +102,19 @@ public sealed class DependencyDirectionTests
         foreach (var package in graph.Keys)
         {
             var cycle = FindCycle(package, graph, visiting, visited, []);
-            cycle.ShouldBeNull($"Bagimlilik dongusu bulundu: {string.Join(" -> ", cycle ?? [])}");
+            cycle.ShouldBeNull($"Dependency cycle found: {string.Join(" -> ", cycle ?? [])}");
         }
     }
 
     [Fact]
-    public void Mcp_istemci_paketi_sunucu_paketlerine_bagli_degildir()
+    public void Mcp_client_package_does_not_depend_on_server_packages()
     {
-        // Faz 50: AgentPrism.AspNetCore MCP/A2A SUNUCUSU olarak disa acildi ve
-        // ModelContextProtocol.AspNetCore + Microsoft.Agents.AI.Hosting.A2A +
-        // Microsoft.Agents.AI.Hosting.AspNetCore + A2A.AspNetCore paketlerini aldi.
-        // K-057'nin bagimlilik yonu bozulmamalidir: bu paketler yalnizca
-        // AgentPrism.AspNetCore icindedir; AgentPrism.Mcp (istemci) `.Core`
-        // hattinda kalir ve bunlarin HICBIRINI almaz.
+        // Phase 50: AgentPrism.AspNetCore was exposed as an MCP/A2A SERVER and
+        // took on the ModelContextProtocol.AspNetCore + Microsoft.Agents.AI.Hosting.A2A +
+        // Microsoft.Agents.AI.Hosting.AspNetCore + A2A.AspNetCore packages.
+        // K-057's dependency direction must not break: these packages live
+        // only inside AgentPrism.AspNetCore; AgentPrism.Mcp (the client) stays
+        // on the `.Core` line and takes NONE of them.
         var forbidden = new[]
         {
             "ModelContextProtocol.AspNetCore",
@@ -132,22 +133,22 @@ public sealed class DependencyDirectionTests
         foreach (var name in forbidden)
         {
             references.Any(reference => string.Equals(reference, name, StringComparison.Ordinal)).ShouldBeFalse(
-                $"AgentPrism.Mcp '{name}' paketini almamali; sunucu bagimliligi " +
-                "yalnizca AgentPrism.AspNetCore icinde kalmalidir (K-057).");
+                $"AgentPrism.Mcp must not take the '{name}' package; server dependencies " +
+                "must stay inside AgentPrism.AspNetCore only (K-057).");
         }
     }
 
     [Fact]
-    public void Her_yayinlanabilir_paket_NuGet_icin_README_icerir()
+    public void Every_publishable_package_contains_a_README_for_NuGet()
     {
-        // Directory.Build.targets icindeki AgentPrismValidatePackageReadme hedefi
-        // bunu build sirasinda da zorlar. Test, kuralin sebebini belgeler.
+        // The AgentPrismValidatePackageReadme target in Directory.Build.targets
+        // also enforces this during the build. This test documents the rationale.
         foreach (var package in AllowedReferences.Keys)
         {
             var readme = Path.Combine(RepositoryRoot, "src", package, "README.md");
 
             File.Exists(readme).ShouldBeTrue(
-                $"'{package}' paketinde README.md yok. Bu dosya NuGet.org paket sayfasinda gorunur.");
+                $"Package '{package}' has no README.md. This file shows up on the NuGet.org package page.");
         }
     }
 
@@ -155,7 +156,7 @@ public sealed class DependencyDirectionTests
     {
         var projectPath = Path.Combine(RepositoryRoot, "src", package, $"{package}.csproj");
 
-        File.Exists(projectPath).ShouldBeTrue($"Proje dosyasi bulunamadi: {projectPath}");
+        File.Exists(projectPath).ShouldBeTrue($"Project file not found: {projectPath}");
 
         return XDocument.Load(projectPath)
             .Descendants("ProjectReference")
@@ -202,8 +203,9 @@ public sealed class DependencyDirectionTests
     }
 
     /// <summary>
-    /// Depo kokunu bulur. Test derleme ciktisi artifacts/ altinda oldugu icin
-    /// sabit bir goreli yol kullanilamaz; AgentPrism.slnx dosyasi aranarak yukari yurunur.
+    /// Finds the repository root. Since the test build output lives under
+    /// artifacts/, a fixed relative path cannot be used; instead the tree is
+    /// walked upward searching for the AgentPrism.slnx file.
     /// </summary>
     private static string RepositoryRoot { get; } = FindRepositoryRoot();
 
@@ -222,6 +224,6 @@ public sealed class DependencyDirectionTests
         }
 
         throw new InvalidOperationException(
-            $"Depo koku bulunamadi. '{AppContext.BaseDirectory}' konumundan yukari dogru AgentPrism.slnx arandi.");
+            $"Repository root not found. Searched upward from '{AppContext.BaseDirectory}' for AgentPrism.slnx.");
     }
 }

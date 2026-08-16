@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
-/// <summary>Veri saklama uclarinin testleri (Faz 25).</summary>
+/// <summary>Tests for the data retention endpoints (Phase 25).</summary>
 public sealed class RetentionEndpointTests
 {
     private static readonly Uri Policies = new("/agentprism/api/retention", UriKind.Relative);
@@ -15,7 +15,7 @@ public sealed class RetentionEndpointTests
     private static readonly Uri History = new("/agentprism/api/retention/history", UriKind.Relative);
 
     [Fact]
-    public async Task Politika_olusturulur_listelenir_ve_silinir()
+    public async Task Policy_is_created_listed_and_deleted()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -44,7 +44,7 @@ public sealed class RetentionEndpointTests
     }
 
     [Fact]
-    public async Task Ayni_hedef_ikinci_kez_kaydedilince_uzerine_yazilir()
+    public async Task Same_target_saved_a_second_time_overwrites()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -59,7 +59,7 @@ public sealed class RetentionEndpointTests
     }
 
     [Fact]
-    public async Task Bilinmeyen_hedef_400_doner()
+    public async Task Unknown_target_returns_400()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -80,7 +80,7 @@ public sealed class RetentionEndpointTests
     }
 
     [Fact]
-    public async Task Sifirdan_kucuk_maxAgeDays_reddedilir()
+    public async Task MaxAgeDays_below_zero_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -90,11 +90,11 @@ public sealed class RetentionEndpointTests
     }
 
     /// <summary>
-    /// 🚨 Faz 36'nin kapattigi bosluk: MaxAgeDays BOS, yalniz MaxRows dolu bir
-    /// politika bugune kadar onizlemede "kapali" gorunuyordu.
+    /// 🚨 The gap Phase 36 closed: a policy with MaxAgeDays EMPTY and only
+    /// MaxRows filled used to show as "disabled" in the preview.
     /// </summary>
     [Fact]
-    public async Task Yalniz_maxRows_dolu_politika_onizlemede_acik_gorunur()
+    public async Task Policy_with_only_maxRows_filled_shows_as_enabled_in_preview()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -116,7 +116,7 @@ public sealed class RetentionEndpointTests
     }
 
     [Fact]
-    public async Task Sifirdan_kucuk_maxRows_reddedilir()
+    public async Task MaxRows_below_zero_is_rejected()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -128,7 +128,7 @@ public sealed class RetentionEndpointTests
     }
 
     [Fact]
-    public async Task Politika_yokken_onizleme_kapali_gorunur()
+    public async Task Preview_shows_disabled_when_no_policy_exists()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -144,7 +144,7 @@ public sealed class RetentionEndpointTests
     }
 
     [Fact]
-    public async Task Onizleme_argumansiz_tum_hedefleri_dondurur()
+    public async Task Preview_without_arguments_returns_all_targets()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -157,7 +157,7 @@ public sealed class RetentionEndpointTests
     }
 
     [Fact]
-    public async Task Simdi_calistir_bir_is_kuyruga_yazar()
+    public async Task Run_now_enqueues_a_job()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -180,7 +180,7 @@ public sealed class RetentionEndpointTests
     }
 
     [Fact]
-    public async Task Bos_gecmis_bos_liste_doner()
+    public async Task Empty_history_returns_empty_list()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 

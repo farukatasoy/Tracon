@@ -6,8 +6,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// F-60 — <c>POST /api/agents/validate</c>: bir tanimi kaydetmeden ve hicbir
-/// model cagirmadan derler.
+/// F-60 — <c>POST /api/agents/validate</c>: validates a definition without
+/// saving it and without calling any model.
 /// </summary>
 public sealed class AgentValidateEndpointTests
 {
@@ -16,7 +16,7 @@ public sealed class AgentValidateEndpointTests
     private static readonly Uri Runs = new("/agentprism/api/runs", UriKind.Relative);
 
     [Fact]
-    public async Task Gecerli_tanim_200_ve_valid_true_doner()
+    public async Task Valid_definition_returns_200_and_valid_true()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -31,13 +31,13 @@ public sealed class AgentValidateEndpointTests
     }
 
     [Fact]
-    public async Task Bilinmeyen_tool_200_ve_valid_false_doner()
+    public async Task Unknown_tool_returns_200_and_valid_false()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var response = await host.Client.PostAsJsonAsync(
             Validate,
-            TestData.Request() with { ToolNames = ["olmayan_tool"] });
+            TestData.Request() with { ToolNames = ["nonexistent_tool"] });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -51,7 +51,7 @@ public sealed class AgentValidateEndpointTests
     }
 
     [Fact]
-    public async Task Kendini_cagiran_tanim_cycle_koduyla_gecersiz_doner()
+    public async Task Self_calling_definition_is_invalid_with_the_cycle_code()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -67,7 +67,7 @@ public sealed class AgentValidateEndpointTests
     }
 
     [Fact]
-    public async Task Bos_isim_400_doner()
+    public async Task Empty_name_returns_400()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -77,7 +77,7 @@ public sealed class AgentValidateEndpointTests
     }
 
     [Fact]
-    public async Task Reader_ucu_kullanamaz_operator_kullanabilir()
+    public async Task Reader_cannot_use_the_endpoint_operator_can()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureServices: static services => TestAuthenticationHandler.Add(services)
@@ -90,7 +90,7 @@ public sealed class AgentValidateEndpointTests
     }
 
     [Fact]
-    public async Task Dogrulama_sonrasi_katalog_ve_runs_degismez()
+    public async Task Catalog_and_runs_are_unchanged_after_validation()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -102,7 +102,7 @@ public sealed class AgentValidateEndpointTests
 
         using var invalid = await host.Client.PostAsJsonAsync(
             Validate,
-            TestData.Request() with { ToolNames = ["olmayan_tool"] });
+            TestData.Request() with { ToolNames = ["nonexistent_tool"] });
         invalid.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var afterAgents = (await AgentPrismTestHost.ReadJsonAsync(await host.Client.GetAsync(Agents))).GetArrayLength();

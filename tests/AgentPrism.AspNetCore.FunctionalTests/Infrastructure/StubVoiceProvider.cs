@@ -3,40 +3,40 @@ using System.Runtime.CompilerServices;
 namespace AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 
 /// <summary>
-/// Aga cikmayan sahte ses saglayicisi: cozum ve sentez.
+/// A fake voice provider that makes no network calls: transcription and synthesis.
 /// </summary>
 /// <remarks>
-/// Gercek ses saglayicisina cagri yapan test <strong>yoktur</strong> (Faz 3'ten
-/// beri gecerli karar). Konusma katmani yalnizca soyutlamalari bilir; bu sinif
-/// o soyutlamalarin sunucu tarafindan dogru kullanildigini kanitlar.
+/// No test calls a real voice provider (a decision in force since Phase 3).
+/// The voice layer only knows about the abstractions; this class proves that
+/// the server uses those abstractions correctly.
 /// </remarks>
 internal sealed class StubVoiceProvider : ISpeechTranscriber, ISpeechSynthesizer
 {
-    /// <summary>Gecerli bir MP3 ilk cercevesi (ID3 etiketi + cerceve senkronu).</summary>
+    /// <summary>A valid MP3 first frame (ID3 tag + frame sync).</summary>
     private static readonly byte[] Mp3 =
         [0x49, 0x44, 0x33, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFB, 0x90, 0x00];
 
-    /// <summary>Cozumun dondurecegi metin.</summary>
-    public string Transcript { get; set; } = "siparisim nerede";
+    /// <summary>The text the transcription returns.</summary>
+    public string Transcript { get; set; } = "where is my order";
 
-    /// <summary>Cozume gelen sesin MIME turu.</summary>
+    /// <summary>The MIME type of the audio received for transcription.</summary>
     public string? ReceivedMediaType { get; private set; }
 
-    /// <summary>Cozume gelen sesin bayt sayisi.</summary>
+    /// <summary>The byte count of the audio received for transcription.</summary>
     public int ReceivedBytes { get; private set; }
 
-    /// <summary>Seslendirilen parcalar.</summary>
+    /// <summary>The chunks that were spoken.</summary>
     public List<string> Spoken { get; } = [];
 
-    /// <summary>Sentez baslamadan once beklenecek sure.</summary>
+    /// <summary>How long to wait before starting synthesis.</summary>
     /// <remarks>
-    /// Kesinti (barge-in) testi, kesme mesajini yanit surerken gonderebilmek
-    /// icin sentezin yavaslamasina ihtiyac duyar.
+    /// The barge-in test needs synthesis to slow down so it can send the
+    /// interrupt message while the response is still in progress.
     /// </remarks>
     public TimeSpan SynthesisDelay { get; set; }
 
     /// <inheritdoc />
-    public string ProviderName => "test-ses";
+    public string ProviderName => "test-voice";
 
     public int MaxCharactersPerRequest => 5000;
 
@@ -56,7 +56,7 @@ internal sealed class StubVoiceProvider : ISpeechTranscriber, ISpeechSynthesizer
         return new SpeechTranscript
         {
             Text = Transcript,
-            LanguageCode = "tr",
+            LanguageCode = "en",
             AudioDuration = TimeSpan.FromSeconds(1.5),
         };
     }
@@ -94,5 +94,5 @@ internal sealed class StubVoiceProvider : ISpeechTranscriber, ISpeechSynthesizer
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<VoiceDescriptor>> ListVoicesAsync(CancellationToken cancellationToken = default)
         => ValueTask.FromResult<IReadOnlyList<VoiceDescriptor>>(
-            [new VoiceDescriptor { VoiceId = "ses-1", Name = "Test" }]);
+            [new VoiceDescriptor { VoiceId = "voice-1", Name = "Test" }]);
 }

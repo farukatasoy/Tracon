@@ -4,25 +4,25 @@ using AgentPrism.AspNetCore.FunctionalTests.Infrastructure;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 
-// 🚨 `using AgentPrism.Testing;` YAZILMAZ: paketteki AgentPrismTestHost ile bu
-// projenin kendi (TestServer tabanli) AgentPrismTestHost'u AYNI ada sahiptir ve
-// ikisi birden goruldugunde CS0104 verir (K-269). Tek gereken tip takma adla
-// alinir.
+// 🚨 `using AgentPrism.Testing;` is NOT WRITTEN: the package's AgentPrismTestHost
+// and this project's own (TestServer-based) AgentPrismTestHost have the SAME
+// name, and CS0104 fires when both are visible (K-269). Only the type is
+// aliased.
 using FakeModelProvider = AgentPrism.Testing.FakeModelProvider;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// Yeniden oynatma, girdi ve karsilastirma uclarinin testleri (Faz 47).
+/// Tests for the replay, input, and compare endpoints (Phase 47).
 /// </summary>
 public sealed class RunReplayEndpointTests
 {
     private const string TenantHeader = "X-AgentPrism-Tenant";
-    private const string AgentName = "oynatilabilir";
+    private const string AgentName = "replayable";
     private const string ModelId = "echo-1";
 
     [Fact]
-    public async Task Kayitli_girdi_polimorfik_icerigiyle_geri_okunur()
+    public async Task Recorded_input_is_read_back_with_its_polymorphic_content()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
         var runId = await SeedAsync(
@@ -31,8 +31,8 @@ public sealed class RunReplayEndpointTests
                 new ChatMessage(
                     ChatRole.User,
                     [
-                        new TextContent("bu goruntuyu acikla"),
-                        new UriContent("https://ornek/gorsel.png", "image/png"),
+                        new TextContent("explain this image"),
+                        new UriContent("https://example/image.png", "image/png"),
                     ]),
             ]);
 
@@ -44,19 +44,20 @@ public sealed class RunReplayEndpointTests
         var contents = body.GetProperty("messages")[0].GetProperty("contents");
 
         contents.GetArrayLength().ShouldBe(2);
-        contents[0].GetProperty("text").GetString().ShouldBe("bu goruntuyu acikla");
+        contents[0].GetProperty("text").GetString().ShouldBe("explain this image");
         contents[1].GetProperty("mediaType").GetString().ShouldBe("image/png");
     }
 
     [Fact]
-    public async Task Girdi_kaydi_olmayan_calistirma_oynatilamaz_404_doner()
+    public async Task A_run_with_no_input_record_cannot_be_replayed_returns_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
         var runs = host.Services.GetRequiredService<IRunStore>();
         var runId = AgentPrismId.NewId();
 
-        // Girdi YAZILMADAN acilan bir calistirma: RecordRunInput kapaliyken
-        // baslamis veya saklama politikasiyla silinmis bir satirin karsiligi.
+        // A run started WITHOUT writing input: the counterpart of a row that
+        // started while RecordRunInput was disabled, or that was deleted by
+        // a retention policy.
         await runs.StartRunAsync(new RunStartInfo
         {
             RunId = runId,
@@ -72,7 +73,7 @@ public sealed class RunReplayEndpointTests
     }
 
     [Fact]
-    public async Task Yeniden_oynatma_yeni_calistirma_acar_ve_soy_bagi_tasir()
+    public async Task Replay_opens_a_new_run_and_carries_lineage()
     {
         await using var host = await AgentPrismTestHost.StartAsync(ConfigureAgent);
         var runId = await SeedAsync(host, [new ChatMessage(ChatRole.User, "merhaba")]);
@@ -93,42 +94,42 @@ public sealed class RunReplayEndpointTests
         replayed.ShouldNotBeNull();
         replayed!.ReplayOfRunId.ShouldBe(runId);
 
-        // 🚨 Kaynak calistirma DEGISMEZ: soy bagi tek yonludur.
+        // 🚨 The source run DOES NOT CHANGE: lineage is one-directional.
         source!.ReplayOfRunId.ShouldBeNull();
     }
 
     [Fact]
-    public async Task ReplayTools_modunda_HICBIR_tool_gercekten_kosmaz()
+    public async Task NO_tool_actually_runs_in_ReplayTools_mode()
     {
         ReplayProbeTools.Reset();
 
         await using var host = await AgentPrismTestHost.StartAsync(ConfigureToolAgent);
-        var runId = await SeedAsync(host, [new ChatMessage(ChatRole.User, "ORD-7 nerede")]);
+        var runId = await SeedAsync(host, [new ChatMessage(ChatRole.User, "where is ORD-7")]);
 
-        await RecordToolCallAsync(host, runId, "get_order_status", "orderId=ORD-7", "kargoda");
+        await RecordToolCallAsync(host, runId, "get_order_status", "orderId=ORD-7", "in transit");
 
         using var response = await host.Client.PostAsJsonAsync(ReplayUri(runId), new { toolMode = "ReplayTools" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        // Tool govdesi CALISMADI ama model tool'u gordu ve kayitli sonucu aldi.
+        // The tool body did NOT run, but the model saw the tool and got the recorded result.
         ReplayProbeTools.Calls.ShouldBe(0);
 
         var body = await AgentPrismTestHost.ReadJsonAsync(response);
 
-        body.GetProperty("output").GetString().ShouldNotBeNull().ShouldContain("kargoda");
+        body.GetProperty("output").GetString().ShouldNotBeNull().ShouldContain("in transit");
     }
 
     [Fact]
-    public async Task Eslesmeyen_tool_cagrisinda_422_doner_ve_tool_adini_yazar()
+    public async Task A_mismatched_tool_call_returns_422_and_writes_the_tool_name()
     {
         ReplayProbeTools.Reset();
 
         await using var host = await AgentPrismTestHost.StartAsync(ConfigureToolAgent);
-        var runId = await SeedAsync(host, [new ChatMessage(ChatRole.User, "ORD-7 nerede")]);
+        var runId = await SeedAsync(host, [new ChatMessage(ChatRole.User, "where is ORD-7")]);
 
-        // Kayitli sonuc BASKA bir argumana ait; model ORD-7 ile cagiracak.
-        await RecordToolCallAsync(host, runId, "get_order_status", "orderId=ORD-9", "teslim edildi");
+        // The recorded result belongs to a DIFFERENT argument; the model will call with ORD-7.
+        await RecordToolCallAsync(host, runId, "get_order_status", "orderId=ORD-9", "delivered");
 
         using var response = await host.Client.PostAsJsonAsync(ReplayUri(runId), new { toolMode = "ReplayTools" });
 
@@ -139,42 +140,42 @@ public sealed class RunReplayEndpointTests
         body.GetProperty("toolName").GetString().ShouldBe("get_order_status");
         body.GetProperty("arguments").GetString().ShouldBe("orderId=ORD-7");
 
-        // 🚨 Sessizce atlanmadi ve canli calistirilmadi.
+        // 🚨 Not silently skipped, and not run live.
         ReplayProbeTools.Calls.ShouldBe(0);
     }
 
     [Fact]
-    public async Task Onay_gerektiren_tool_LiveTools_ile_409_doner()
+    public async Task A_tool_requiring_approval_returns_409_with_LiveTools()
     {
         await using var host = await AgentPrismTestHost.StartAsync(ConfigureApprovalAgent);
-        var runId = await SeedAsync(host, [new ChatMessage(ChatRole.User, "siparisi iptal et")]);
+        var runId = await SeedAsync(host, [new ChatMessage(ChatRole.User, "cancel the order")]);
 
         using var live = await host.Client.PostAsJsonAsync(ReplayUri(runId), new { toolMode = "LiveTools" });
         using var replayed = await host.Client.PostAsJsonAsync(ReplayUri(runId), new { toolMode = "NoTools" });
 
         live.StatusCode.ShouldBe(HttpStatusCode.Conflict);
 
-        // Ayni agent yan etkisiz bir modda oynatilabilir kalmalidir.
+        // The same agent must remain replayable in a side-effect-free mode.
         replayed.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]
-    public async Task Kod_kaynakli_agentteki_onay_gerektiren_tool_LiveTools_ile_de_409_doner()
+    public async Task A_tool_requiring_approval_on_a_code_sourced_agent_also_returns_409_with_LiveTools()
     {
-        // HATA-S4-014: onay-tool korumasi yalniz `definition is not null`
-        // dalinda (DB kaynakli agent, yukaridaki test) calisiyordu.
-        // `PrepareFromCatalogAsync` (kod kaynakli agent yolu) AYNI korumayi
-        // uygulamiyordu — istek 200 ile "basariyla" acilip modelin tool'u
-        // hic cagirmadigi sessiz bir run'a duserdi, kullaniciya NEDEN
-        // hicbir sey olmadigini acikliyan bir sinyal olmadan.
+        // HATA-S4-014: the approval-tool guard only ran on the `definition is
+        // not null` branch (DB-sourced agent, test above).
+        // `PrepareFromCatalogAsync` (the code-sourced agent path) did NOT
+        // apply the SAME guard — the request would open "successfully" with
+        // 200 and fall into a silent run where the model never called the
+        // tool, with no signal to the user about WHY nothing happened.
         await using var host = await AgentPrismTestHost.StartAsync(builder =>
         {
             builder.AddToolsFrom(typeof(ReplayProbeTools));
-            builder.AddAgent(TestData.Definition("kod-onay-agenti") with { ToolNames = ["cancel_order"] });
+            builder.AddAgent(TestData.Definition("code-approval-agent") with { ToolNames = ["cancel_order"] });
         });
 
         var runId = await SeedAsync(
-            host, [new ChatMessage(ChatRole.User, "siparisi iptal et")], agentName: "kod-onay-agenti");
+            host, [new ChatMessage(ChatRole.User, "cancel the order")], agentName: "code-approval-agent");
 
         using var live = await host.Client.PostAsJsonAsync(ReplayUri(runId), new { toolMode = "LiveTools" });
 
@@ -182,11 +183,11 @@ public sealed class RunReplayEndpointTests
     }
 
     [Fact]
-    public async Task Kalici_tanimi_olmayan_agent_bindirmeyle_oynatilamaz_400_doner()
+    public async Task An_agent_with_no_persistent_definition_cannot_be_replayed_with_overrides_returns_400()
     {
-        // Kod agent'inin AgentDefinition karsiligi yoktur; model bindirmesi ve
-        // tool modlari yeniden derlemeyi gerektirir ve sessizce LiveTools'a
-        // dusmek K1'e aykiridir.
+        // A code agent has no AgentDefinition counterpart; model overriding
+        // and tool modes require recompiling, and silently falling back to
+        // LiveTools would violate K1.
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition("kod-agent")));
 
@@ -198,7 +199,7 @@ public sealed class RunReplayEndpointTests
     }
 
     [Fact]
-    public async Task Baska_kiracinin_calistirmasi_oynatilamaz_AYNI_404_doner()
+    public async Task Another_tenants_run_cannot_be_replayed_returns_the_SAME_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync(builder =>
         {
@@ -225,7 +226,7 @@ public sealed class RunReplayEndpointTests
     }
 
     [Fact]
-    public async Task Iki_calistirma_yan_yana_karsilastirilir()
+    public async Task Two_runs_are_compared_side_by_side()
     {
         await using var host = await AgentPrismTestHost.StartAsync(ConfigureAgent);
         var runId = await SeedAsync(host, [new ChatMessage(ChatRole.User, "merhaba")]);
@@ -250,7 +251,7 @@ public sealed class RunReplayEndpointTests
         => SaveDefinition(builder, new AgentDefinition
         {
             Name = AgentName,
-            Instructions = "Kisa yanit ver.",
+            Instructions = "Give a short answer.",
             Model = TestData.Model(),
         });
 
@@ -265,7 +266,7 @@ public sealed class RunReplayEndpointTests
         SaveDefinition(builder, new AgentDefinition
         {
             Name = AgentName,
-            Instructions = "Kisa yanit ver.",
+            Instructions = "Give a short answer.",
             Model = new ModelBinding { Provider = "tool-echo", Model = ModelId },
             ToolNames = ["get_order_status"],
         });
@@ -278,19 +279,19 @@ public sealed class RunReplayEndpointTests
         SaveDefinition(builder, new AgentDefinition
         {
             Name = AgentName,
-            Instructions = "Kisa yanit ver.",
+            Instructions = "Give a short answer.",
             Model = TestData.Model(),
             ToolNames = ["cancel_order"],
         });
     }
 
     /// <summary>
-    /// Tanimi <em>veritabani</em> kaynakli olarak kaydeder.
+    /// Saves the definition as if it were <em>database</em>-sourced.
     /// </summary>
     /// <remarks>
-    /// Yeniden oynatma tanimi yeniden derler; <c>AddAgent</c> ile eklenen kod
-    /// agent'inin tanimi katalogda vardir ama <see cref="IAgentDefinitionStore"/>
-    /// icinde YOKTUR ve bindirme uygulanamaz.
+    /// Replay recompiles the definition; a code agent added with <c>AddAgent</c>
+    /// has its definition in the catalog but it does NOT exist in
+    /// <see cref="IAgentDefinitionStore"/>, so overriding cannot be applied.
     /// </remarks>
     private static void SaveDefinition(IAgentPrismBuilder builder, AgentDefinition definition)
         => builder.Services.AddSingleton<IStartupSeed>(new StartupSeed(definition));
@@ -395,38 +396,38 @@ public sealed class RunReplayEndpointTests
 }
 
 /// <summary>
-/// Yeniden oynatma testlerinin tool'lari. Govdenin GERCEKTEN calisip
-/// calismadigini sayarak olcer.
+/// The tools for the replay tests. Measures whether the body ACTUALLY ran
+/// by counting calls.
 /// </summary>
 internal static class ReplayProbeTools
 {
     private static int _calls;
 
-    /// <summary>Tool govdesinin kac kez calistigi.</summary>
+    /// <summary>How many times the tool body ran.</summary>
     public static int Calls => Volatile.Read(ref _calls);
 
-    /// <summary>Sayaci sifirlar.</summary>
+    /// <summary>Resets the counter.</summary>
     public static void Reset() => Volatile.Write(ref _calls, 0);
 
-    /// <summary>Bir siparisin durumunu dondurur.</summary>
-    /// <param name="orderId">Siparis kimligi.</param>
-    /// <returns>Durum metni.</returns>
-    [AgentPrismTool("get_order_status", "Bir siparisin kargo durumunu dondurur.")]
+    /// <summary>Returns an order's status.</summary>
+    /// <param name="orderId">The order id.</param>
+    /// <returns>The status text.</returns>
+    [AgentPrismTool("get_order_status", "Returns an order's shipping status.")]
     public static string GetOrderStatus(string orderId)
     {
         Interlocked.Increment(ref _calls);
 
-        return $"{orderId}: CANLI CALISTI";
+        return $"{orderId}: RAN LIVE";
     }
 
-    /// <summary>Bir siparisi iptal eder. Onay ister.</summary>
-    /// <param name="orderId">Siparis kimligi.</param>
-    /// <returns>Sonuc metni.</returns>
-    [AgentPrismTool("cancel_order", "Bir siparisi iptal eder.", RequiresApproval = true)]
+    /// <summary>Cancels an order. Requires approval.</summary>
+    /// <param name="orderId">The order id.</param>
+    /// <returns>The result text.</returns>
+    [AgentPrismTool("cancel_order", "Cancels an order.", RequiresApproval = true)]
     public static string CancelOrder(string orderId)
     {
         Interlocked.Increment(ref _calls);
 
-        return $"{orderId} iptal edildi.";
+        return $"{orderId} canceled.";
     }
 }

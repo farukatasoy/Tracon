@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
-/// <summary><c>Prefer: respond-async</c> destegi testleri (Faz 46).</summary>
+/// <summary>Tests for <c>Prefer: respond-async</c> support (Phase 46).</summary>
 public sealed class AsyncRunTests
 {
     private const string PreferHeaderName = "Prefer";
@@ -22,13 +22,13 @@ public sealed class AsyncRunTests
     }
 
     [Fact]
-    public async Task Kuyruga_alinir_202_Location_ve_PreferenceApplied_doner()
+    public async Task Run_is_queued_and_returns_202_Location_and_PreferenceApplied()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()),
             configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
 
-        using var response = await PostAsyncAsync(host, new AgentRunRequest { Message = "merhaba" });
+        using var response = await PostAsyncAsync(host, new AgentRunRequest { Message = "hello" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
         response.Headers.GetValues("Preference-Applied").ShouldContain("respond-async", StringComparer.Ordinal);
@@ -41,13 +41,13 @@ public sealed class AsyncRunTests
     }
 
     [Fact]
-    public async Task Kuyruga_alindiktan_hemen_sonra_GET_404_degil_Queued_doner()
+    public async Task GET_immediately_after_queuing_returns_Queued_not_404()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()),
             configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
 
-        using var accepted = await PostAsyncAsync(host, new AgentRunRequest { Message = "merhaba" });
+        using var accepted = await PostAsyncAsync(host, new AgentRunRequest { Message = "hello" });
         var runId = (await AgentPrismTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
         using var run = await host.Client.GetAsync(new Uri($"/agentprism/api/runs/{runId}", UriKind.Relative));
@@ -57,19 +57,20 @@ public sealed class AsyncRunTests
     }
 
     [Fact]
-    public async Task Is_isci_tarafindan_alinip_Completed_olur()
+    public async Task Job_is_picked_up_by_the_worker_and_becomes_Completed()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()),
             configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
 
-        using var accepted = await PostAsyncAsync(host, new AgentRunRequest { Message = "merhaba" });
+        using var accepted = await PostAsyncAsync(host, new AgentRunRequest { Message = "hello" });
         var runId = (await AgentPrismTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
         var uri = new Uri($"/agentprism/api/runs/{runId}", UriKind.Relative);
-        // Sure yuk altinda genis tutulur: 16 test projesi paralel kosarken 5 sn
-        // yetmiyordu (ApprovalEndpointTests'te ayni desen olculdu). Saglikli bir
-        // kosumda dongu yine milisaniyeler icinde cikar.
+        // The timeout is kept generous under load: 5 sec was not enough with
+        // 16 test projects running in parallel (the same pattern was measured
+        // in ApprovalEndpointTests). Under a healthy run, the loop still
+        // exits within milliseconds.
         var deadline = DateTime.UtcNow.AddSeconds(30);
         string? status = null;
 
@@ -91,12 +92,12 @@ public sealed class AsyncRunTests
     }
 
     [Fact]
-    public async Task Baslik_yokken_SSE_davranisi_degismez()
+    public async Task SSE_behavior_is_unchanged_without_the_header()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
 
-        using var response = await host.Client.PostAsJsonAsync(Run, new AgentRunRequest { Message = "merhaba" });
+        using var response = await host.Client.PostAsJsonAsync(Run, new AgentRunRequest { Message = "hello" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         response.Content.Headers.ContentType?.MediaType.ShouldBe("text/event-stream");
@@ -104,20 +105,20 @@ public sealed class AsyncRunTests
     }
 
     [Fact]
-    public async Task Kapaliyken_baslik_tasiyan_istek_501_doner()
+    public async Task Request_carrying_the_header_returns_501_when_disabled()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()),
             configureServices: static services => services.Configure<AgentPrismAsyncRunOptions>(
                 static options => options.Enabled = false));
 
-        using var response = await PostAsyncAsync(host, new AgentRunRequest { Message = "merhaba" });
+        using var response = await PostAsyncAsync(host, new AgentRunRequest { Message = "hello" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotImplemented);
     }
 
     [Fact]
-    public async Task Kota_dolu_iken_kuyruga_alma_429_doner()
+    public async Task Queuing_returns_429_when_the_quota_is_full()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()),
@@ -130,21 +131,21 @@ public sealed class AsyncRunTests
             created.StatusCode.ShouldBe(HttpStatusCode.OK);
         }
 
-        // Bos bir donemde kullanim kaydi hic YOKTUR (Allowed doner); kotanin
-        // gercekten devreye girmesi icin once BIR calistirma tuketilmelidir —
-        // sonraki istek (kuyruga alma dahil) o zaman 429 alir.
-        using (var first = await host.Client.PostAsJsonAsync(Run, new AgentRunRequest { Message = "merhaba" }))
+        // In an empty period there is NO usage record at all (Allowed is returned);
+        // for the quota to actually kick in, ONE run must first be consumed —
+        // the next request (including queuing) then gets 429.
+        using (var first = await host.Client.PostAsJsonAsync(Run, new AgentRunRequest { Message = "hello" }))
         {
             first.StatusCode.ShouldBe(HttpStatusCode.OK);
         }
 
-        using var response = await PostAsyncAsync(host, new AgentRunRequest { Message = "merhaba" });
+        using var response = await PostAsyncAsync(host, new AgentRunRequest { Message = "hello" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
     }
 
     [Fact]
-    public async Task Bos_mesaj_400_doner()
+    public async Task Empty_message_returns_400()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()),
@@ -156,7 +157,7 @@ public sealed class AsyncRunTests
     }
 
     [Fact]
-    public async Task Onay_karari_destelenmez_400_doner()
+    public async Task Approval_decision_is_not_supported_returns_400()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()),
@@ -166,21 +167,21 @@ public sealed class AsyncRunTests
             host,
             new AgentRunRequest
             {
-                SessionId = "oturum-1",
-                Approvals = [new ToolApprovalDecision { RequestId = "istek-1", Approved = true }],
+                SessionId = "session-1",
+                Approvals = [new ToolApprovalDecision { RequestId = "request-1", Approved = true }],
             });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task Kuyruktaki_calistirma_iptal_edilebilir()
+    public async Task Queued_run_can_be_canceled()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()),
             configureServices: static services => services.UseScheduling(o => o.RunWorker = false));
 
-        using var accepted = await PostAsyncAsync(host, new AgentRunRequest { Message = "merhaba" });
+        using var accepted = await PostAsyncAsync(host, new AgentRunRequest { Message = "hello" });
         var runId = (await AgentPrismTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
         using var cancelled = await host.Client.PostAsync(

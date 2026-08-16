@@ -7,21 +7,22 @@ using Microsoft.Extensions.DependencyInjection;
 namespace AgentPrism.AspNetCore.FunctionalTests;
 
 /// <summary>
-/// API anahtarinin ikinci bir kimlik kaynagi olarak dogrulanmasi, kiraci
-/// cozumlemesi ve kapsam denetimi (Faz 53).
+/// Validation of the API key as a second identity source, tenant
+/// resolution, and scope enforcement (Phase 53).
 /// </summary>
 /// <remarks>
-/// 🚨 Bu testlerin korudugu asil kural: kiraci basliktan degil anahtardan
-/// cozulur ve baslik anahtarin kiracisini EZEMEZ (bolum 53.5).
+/// 🚨 The core rule these tests guard: the tenant is resolved from the key,
+/// not from the header, and the header cannot OVERRIDE the key's tenant
+/// (section 53.5).
 /// </remarks>
 public sealed class ApiKeyAuthenticationTests
 {
     private const string TenantHeader = "X-AgentPrism-Tenant";
 
-    // --- Temel dogrulama ---
+    // --- Basic validation ---
 
     [Fact]
-    public async Task Gecerli_anahtarla_istek_baslik_olmadan_gecer()
+    public async Task Request_with_a_valid_key_passes_without_a_header()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -36,16 +37,16 @@ public sealed class ApiKeyAuthenticationTests
     }
 
     [Fact]
-    public async Task Statik_token_tanimsizken_bilinmeyen_deger_401_alir()
+    public async Task Unknown_value_gets_401_when_no_static_token_is_configured()
     {
-        // 🚨 Kasitli davranis degisikligi (K-XXX): AuthToken tanimsizken bir
-        // baslik hic gonderilmezse eski davranis (acik erisim) korunur, ama
-        // bir Authorization basligi GONDERILIRSE artik statik veya API
-        // anahtariyla dogrulanmalidir.
+        // 🚨 Deliberate behavior change (K-XXX): when AuthToken is undefined and no
+        // header is sent at all, the old behavior (open access) is preserved. But
+        // if an Authorization header IS SENT, it must now validate against either
+        // the static token or an API key.
         await using var host = await AgentPrismTestHost.StartAsync();
 
         using var request = new HttpRequestMessage(HttpMethod.Get, "/agentprism/api/agents");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "boyle-bir-anahtar-yok");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "no-such-key");
 
         using var response = await host.Client.SendAsync(request);
 
@@ -53,7 +54,7 @@ public sealed class ApiKeyAuthenticationTests
     }
 
     [Fact]
-    public async Task Baslik_yokken_ve_hicbir_token_tanimliyken_eski_davranis_korunur()
+    public async Task Old_behavior_is_preserved_when_there_is_no_header_and_no_token_is_configured()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -63,7 +64,7 @@ public sealed class ApiKeyAuthenticationTests
     }
 
     [Fact]
-    public async Task Iptal_edilen_anahtar_401_alir()
+    public async Task Revoked_key_gets_401()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -80,7 +81,7 @@ public sealed class ApiKeyAuthenticationTests
     }
 
     [Fact]
-    public async Task Suresi_gecmis_anahtar_401_alir()
+    public async Task Expired_key_gets_401()
     {
         await using var host = await AgentPrismTestHost.StartAsync();
 
@@ -101,10 +102,10 @@ public sealed class ApiKeyAuthenticationTests
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
-    // --- Kiraci cozumlemesi (bolum 53.5) ---
+    // --- Tenant resolution (section 53.5) ---
 
     [Fact]
-    public async Task Kiraci_basliktan_degil_anahtardan_cozulur()
+    public async Task Tenant_is_resolved_from_the_key_not_from_the_header()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.UseTenancy(static options =>
@@ -116,7 +117,7 @@ public sealed class ApiKeyAuthenticationTests
         var store = host.Services.GetRequiredService<IApiKeyStore>();
         var created = await store.CreateAsync(new ApiKeyDraft
         {
-            TenantId = "kiraci-a",
+            TenantId = "tenant-a",
             Name = "ci",
             Scopes = [ApiKeyScope.AgentsRead],
         });
@@ -128,11 +129,11 @@ public sealed class ApiKeyAuthenticationTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var current = await response.Content.ReadFromJsonAsync<CurrentTenantResponse>();
-        current.ShouldNotBeNull().TenantId.ShouldBe("kiraci-a");
+        current.ShouldNotBeNull().TenantId.ShouldBe("tenant-a");
     }
 
     [Fact]
-    public async Task Baslik_anahtarin_kiracisiyla_eslesirse_gecer()
+    public async Task Header_passes_when_it_matches_the_keys_tenant()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.UseTenancy(static options =>
@@ -144,14 +145,14 @@ public sealed class ApiKeyAuthenticationTests
         var store = host.Services.GetRequiredService<IApiKeyStore>();
         var created = await store.CreateAsync(new ApiKeyDraft
         {
-            TenantId = "kiraci-a",
+            TenantId = "tenant-a",
             Name = "ci",
             Scopes = [ApiKeyScope.AgentsRead],
         });
 
         using var request = new HttpRequestMessage(HttpMethod.Get, "/agentprism/api/agents");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", created.PlaintextKey);
-        request.Headers.Add(TenantHeader, "kiraci-a");
+        request.Headers.Add(TenantHeader, "tenant-a");
 
         using var response = await host.Client.SendAsync(request);
 
@@ -159,7 +160,7 @@ public sealed class ApiKeyAuthenticationTests
     }
 
     [Fact]
-    public async Task Baslik_anahtarin_kiracisindan_farkliysa_403_alir()
+    public async Task Header_gets_403_when_it_differs_from_the_keys_tenant()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.UseTenancy(static options =>
@@ -171,24 +172,24 @@ public sealed class ApiKeyAuthenticationTests
         var store = host.Services.GetRequiredService<IApiKeyStore>();
         var created = await store.CreateAsync(new ApiKeyDraft
         {
-            TenantId = "kiraci-a",
+            TenantId = "tenant-a",
             Name = "ci",
             Scopes = [ApiKeyScope.AgentsRead],
         });
 
         using var request = new HttpRequestMessage(HttpMethod.Get, "/agentprism/api/agents");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", created.PlaintextKey);
-        request.Headers.Add(TenantHeader, "kiraci-b");
+        request.Headers.Add(TenantHeader, "tenant-b");
 
         using var response = await host.Client.SendAsync(request);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // --- Kapsam denetimi (bolum 53.3) ---
+    // --- Scope enforcement (section 53.3) ---
 
     [Fact]
-    public async Task Yetersiz_kapsamli_anahtar_403_alir()
+    public async Task Insufficiently_scoped_key_gets_403()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
@@ -197,7 +198,7 @@ public sealed class ApiKeyAuthenticationTests
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "/agentprism/api/agents/kod-agent/run")
         {
-            Content = JsonContent.Create(new AgentRunRequest { Message = "merhaba" }),
+            Content = JsonContent.Create(new AgentRunRequest { Message = "hello" }),
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", created.PlaintextKey);
 
@@ -207,7 +208,7 @@ public sealed class ApiKeyAuthenticationTests
     }
 
     [Fact]
-    public async Task Dogru_kapsamli_anahtar_calistirmayi_baslatir()
+    public async Task Correctly_scoped_key_starts_the_run()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));
@@ -216,7 +217,7 @@ public sealed class ApiKeyAuthenticationTests
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "/agentprism/api/agents/kod-agent/run")
         {
-            Content = JsonContent.Create(new AgentRunRequest { Message = "merhaba" }),
+            Content = JsonContent.Create(new AgentRunRequest { Message = "hello" }),
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", created.PlaintextKey);
 
@@ -226,10 +227,10 @@ public sealed class ApiKeyAuthenticationTests
     }
 
     [Fact]
-    public async Task Kapsamsiz_ucta_denetim_yoktur()
+    public async Task No_enforcement_on_a_scopeless_endpoint()
     {
-        // /api/tenants/current korumali grubun ARKASINDAKI TEK kapsamsiz uctur
-        // (§7.2, Aile F) — herhangi bir kapsamli anahtarla erisilebilmelidir.
+        // /api/tenants/current is the ONLY scopeless endpoint BEHIND the protected
+        // group (§7.2, Family F) — it must be reachable with any scoped key.
         await using var host = await AgentPrismTestHost.StartAsync();
 
         var created = await ApiKeyEndpointTests.CreateKeyAsync(host, "reader", "AgentsRead");
@@ -243,10 +244,10 @@ public sealed class ApiKeyAuthenticationTests
     }
 
     [Fact]
-    public async Task Kapsamli_ucta_yanlis_kapsam_403_doner()
+    public async Task Wrong_scope_on_a_scoped_endpoint_returns_403()
     {
-        // /api/api-keys artik SecurityAdmin gerektirir (Aile F); AgentsRead
-        // kapsamli bir anahtar erisemez.
+        // /api/api-keys now requires SecurityAdmin (Family F); a key scoped
+        // to AgentsRead cannot access it.
         await using var host = await AgentPrismTestHost.StartAsync();
 
         var created = await ApiKeyEndpointTests.CreateKeyAsync(host, "reader", "AgentsRead");
@@ -259,10 +260,10 @@ public sealed class ApiKeyAuthenticationTests
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // --- Dis yuzey kilidi (bolum 53.4) ---
+    // --- External surface lockdown (section 53.4) ---
 
     [Fact]
-    public async Task AllowRemoteAccess_acikken_external_invoke_anahtari_yoksa_MCP_acilamaz()
+    public async Task MCP_cannot_start_when_AllowRemoteAccess_is_on_and_there_is_no_external_invoke_key()
     {
         await Should.ThrowAsync<InvalidOperationException>(async () =>
         {
@@ -276,7 +277,7 @@ public sealed class ApiKeyAuthenticationTests
     }
 
     [Fact]
-    public async Task AllowRemoteAccess_acikken_external_invoke_anahtariyla_MCP_acilir()
+    public async Task MCP_starts_when_AllowRemoteAccess_is_on_and_an_external_invoke_key_exists()
     {
         await using var host = await AgentPrismTestHost.StartAsync(
             configureAgentPrism: static builder => builder

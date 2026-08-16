@@ -5,25 +5,24 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace AgentPrism.Core.UnitTests.Guards;
 
 /// <summary>
-/// Guard kararlarinin calistirma kaydina ve denetim izine yazilmasini dogrular.
+/// Verifies that guard decisions are written to the run record and to the audit trail.
 /// </summary>
 /// <remarks>
-/// Testler gercek yoldan — <see cref="RunRecordingAgent"/> uzerinden — kosar:
-/// olay yazicisi calistirma kapsamindan (<see cref="AgentPrismRunContext"/>)
-/// okunur ve kapsam yalnizca orada kurulur. Dogrudan kurulan bir boru hatti bu
-/// zinciri hic kanitlamazdi.
+/// Tests run through the real path — via <see cref="RunRecordingAgent"/> — because the
+/// event writer reads from the run scope (<see cref="AgentPrismRunContext"/>) and the
+/// scope is only established there. A directly wired pipeline would never prove this chain.
 /// </remarks>
 public sealed class ContentGuardRecordingTests
 {
     private const string CardNumber = "4539578763621486";
 
     [Fact]
-    public async Task Maskeleme_ContentMasked_olayi_yazar()
+    public async Task Masking_writes_a_ContentMasked_event()
     {
         var store = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
         var agent = Agent(store, new FakeChatClient(), StubContentGuard.Masking(CardNumber, "[redacted]"));
 
-        await agent.RunAsync($"kart numaram {CardNumber}");
+        await agent.RunAsync($"my card number is {CardNumber}");
 
         var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
         run.Status.ShouldBe(RunStatus.Completed);
@@ -36,13 +35,13 @@ public sealed class ContentGuardRecordingTests
     }
 
     [Fact]
-    public async Task Olay_yuku_maskelenen_icerigi_tasimaz()
+    public async Task Event_payload_does_not_carry_the_masked_content()
     {
-        // 🚨 Olay maskelemenin YAPILDIGINI bildirir, ne maskelendigini bildirmez.
+        // 🚨 The event reports THAT masking happened, not WHAT was masked.
         var store = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
         var agent = Agent(store, new FakeChatClient(), StubContentGuard.Masking(CardNumber, "[redacted]"));
 
-        await agent.RunAsync($"kart numaram {CardNumber}");
+        await agent.RunAsync($"my card number is {CardNumber}");
 
         var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
 
@@ -57,13 +56,13 @@ public sealed class ContentGuardRecordingTests
     }
 
     [Fact]
-    public async Task Engelleme_calistirmayi_content_blocked_ile_dusurur()
+    public async Task Blocking_fails_the_run_with_content_blocked()
     {
         var store = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
-        var agent = Agent(store, new FakeChatClient(), StubContentGuard.Blocking("gizli-proje"));
+        var agent = Agent(store, new FakeChatClient(), StubContentGuard.Blocking("secret-project"));
 
         await Should.ThrowAsync<AgentPrismContentBlockedException>(
-            () => agent.RunAsync("gizli-proje nedir"));
+            () => agent.RunAsync("what is secret-project"));
 
         var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
 
@@ -78,14 +77,14 @@ public sealed class ContentGuardRecordingTests
     }
 
     [Fact]
-    public async Task Engelleme_denetim_izine_yazilir()
+    public async Task Blocking_is_written_to_the_audit_trail()
     {
         var auditLog = new InMemoryAuditLog();
         var store = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
-        var agent = Agent(store, new FakeChatClient(), StubContentGuard.Blocking("gizli-proje"), auditLog);
+        var agent = Agent(store, new FakeChatClient(), StubContentGuard.Blocking("secret-project"), auditLog);
 
         await Should.ThrowAsync<AgentPrismContentBlockedException>(
-            () => agent.RunAsync("gizli-proje nedir"));
+            () => agent.RunAsync("what is secret-project"));
 
         var entry = (await auditLog.QueryAsync(new AuditQuery { TenantId = "default" })).ShouldHaveSingleItem();
 
@@ -97,50 +96,51 @@ public sealed class ContentGuardRecordingTests
     }
 
     [Fact]
-    public async Task Denetim_izi_engellenen_metni_tasimaz()
+    public async Task Audit_trail_does_not_carry_the_blocked_text()
     {
-        // 🚨 Engellenen icerik tanimi geregi hassastir. Denetim izine yazmak
-        // sorunu KALICI hale getirir (K-059'un ruhu).
+        // 🚨 Blocked content is sensitive by definition. Writing it to the audit
+        // trail would make the problem PERMANENT (the spirit of K-059).
         var auditLog = new InMemoryAuditLog();
         var store = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
-        var agent = Agent(store, new FakeChatClient(), StubContentGuard.Blocking("gizli-proje"), auditLog);
+        var agent = Agent(store, new FakeChatClient(), StubContentGuard.Blocking("secret-project"), auditLog);
 
         await Should.ThrowAsync<AgentPrismContentBlockedException>(
-            () => agent.RunAsync("gizli-proje kod adiyla anilan urun"));
+            () => agent.RunAsync("the product known by the code name secret-project"));
 
         foreach (var entry in await auditLog.QueryAsync(new AuditQuery { TenantId = "default" }))
         {
-            (entry.Before ?? string.Empty).ShouldNotContain("gizli-proje", Case.Insensitive);
-            (entry.After ?? string.Empty).ShouldNotContain("gizli-proje", Case.Insensitive);
-            entry.Entity.ShouldNotContain("gizli-proje", Case.Insensitive);
+            (entry.Before ?? string.Empty).ShouldNotContain("secret-project", Case.Insensitive);
+            (entry.After ?? string.Empty).ShouldNotContain("secret-project", Case.Insensitive);
+            entry.Entity.ShouldNotContain("secret-project", Case.Insensitive);
         }
     }
 
     [Fact]
-    public async Task Maskeleme_denetim_izine_yazilmaz()
+    public async Task Masking_is_not_written_to_the_audit_trail()
     {
-        // Maskeleme calistirma olayina yazilir; denetim izi engelleme kararlarina
-        // ayrilmistir (calistirma kaydi silinse de izlenebilir kalmalidir).
+        // Masking is written to the run event; the audit trail is reserved for
+        // blocking decisions (it must stay traceable even if the run record is deleted).
         var auditLog = new InMemoryAuditLog();
         var store = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
         var agent = Agent(store, new FakeChatClient(), StubContentGuard.Masking(CardNumber, "***"), auditLog);
 
-        await agent.RunAsync($"kart {CardNumber}");
+        await agent.RunAsync($"card {CardNumber}");
 
         (await auditLog.QueryAsync(new AuditQuery { TenantId = "default" })).ShouldBeEmpty();
     }
 
     [Fact]
-    public async Task RunStarted_olayi_maskelenen_girdiyi_ham_tasimaz()
+    public async Task RunStarted_event_does_not_carry_the_masked_input_raw()
     {
-        // HATA-S3-006: ContentGuardingChatClient modele giden metni maskeler,
-        // ama RunRecordingAgent.BeginRunAsync RunStarted olayini modele
-        // ULASMADAN, kendi yazdigi HAM `messages` listesinden yazardi.
+        // HATA-S3-006: ContentGuardingChatClient masks the text sent to the
+        // model, but RunRecordingAgent.BeginRunAsync used to write the
+        // RunStarted event from its own RAW `messages` list BEFORE it reached
+        // the model.
         var store = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
         var pipeline = TestData.ContentGuards(guards: StubContentGuard.Masking(CardNumber, "[redacted]"));
         var agent = Agent(store, new FakeChatClient(), pipeline);
 
-        await agent.RunAsync($"kart numaram {CardNumber}");
+        await agent.RunAsync($"my card number is {CardNumber}");
 
         var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
 
@@ -153,17 +153,17 @@ public sealed class ContentGuardRecordingTests
     }
 
     [Fact]
-    public async Task RunStarted_olayi_engellenen_girdiyi_ham_tasimaz()
+    public async Task RunStarted_event_does_not_carry_the_blocked_input_raw()
     {
-        // Ayni kok neden engelleme icin de gecerli (HATA-S3-006, MT-GUARD-043
-        // kapsam genislemesi): RunStarted, gercek engelleme modele giderken
-        // olusmadan ONCE zaten ham metni yazardi.
+        // The same root cause applies to blocking (HATA-S3-006, MT-GUARD-043
+        // scope expansion): RunStarted used to write the raw text BEFORE the
+        // actual block happened on the way to the model.
         var store = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
-        var pipeline = TestData.ContentGuards(guards: StubContentGuard.Blocking("gizli-proje"));
+        var pipeline = TestData.ContentGuards(guards: StubContentGuard.Blocking("secret-project"));
         var agent = Agent(store, new FakeChatClient(), pipeline);
 
         await Should.ThrowAsync<AgentPrismContentBlockedException>(
-            () => agent.RunAsync("gizli-proje hakkinda bilgi ver"));
+            () => agent.RunAsync("give me information about secret-project"));
 
         var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
         run.Status.ShouldBe(RunStatus.Failed);
@@ -172,18 +172,18 @@ public sealed class ContentGuardRecordingTests
             .Where(static runEvent => runEvent.Type == RunEventType.RunStarted)
             .ShouldHaveSingleItem();
 
-        (started.Text ?? string.Empty).ShouldNotContain("gizli-proje", Case.Sensitive);
+        (started.Text ?? string.Empty).ShouldNotContain("secret-project", Case.Sensitive);
     }
 
     [Fact]
-    public async Task Guard_baglami_calistirma_kimligini_ve_kiraciyi_tasir()
+    public async Task Guard_context_carries_the_run_id_and_the_tenant()
     {
-        // Kiraci bazli kural yazilabilmesinin sarti.
+        // A prerequisite for writing tenant-scoped rules.
         var store = new InMemoryRunStore(tenantContext: FixedTenantContext.Default);
-        var guard = StubContentGuard.Blocking("asla-eslesmez");
+        var guard = StubContentGuard.Blocking("never-matches");
         var agent = Agent(store, new FakeChatClient(), guard);
 
-        await agent.RunAsync("selam");
+        await agent.RunAsync("hello");
 
         var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
 
