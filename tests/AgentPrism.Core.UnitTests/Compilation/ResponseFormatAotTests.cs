@@ -1,20 +1,20 @@
 namespace AgentPrism.Core.UnitTests.Compilation;
 
 /// <summary>
-/// <c>ChatResponseFormat.ForJsonSchema(Type, ...)</c> ve
-/// <c>ForJsonSchema(JsonSerializerOptions, ...)</c> asiri yuklemeleri yansimaya
-/// dayanir (<c>AIJsonUtilities.CreateJsonSchema</c>) ve <c>AgentPrism.Abstractions</c>
-/// ile <c>.Core</c>'un AOT duruşunu bozar. Bu test kaynak agacini tarayarak bu
-/// asiri yuklemelerin hic cagrilmadigini doğrular. Bkz. docs/38-YAPILANDIRILMIS-CIKTI.md, 38.4.
+/// The <c>ChatResponseFormat.ForJsonSchema(Type, ...)</c> and
+/// <c>ForJsonSchema(JsonSerializerOptions, ...)</c> overloads rely on reflection
+/// (<c>AIJsonUtilities.CreateJsonSchema</c>) and break the AOT stance of
+/// <c>AgentPrism.Abstractions</c> and <c>.Core</c>. This test scans the source
+/// tree to verify these overloads are never called. See docs/38-YAPILANDIRILMIS-CIKTI.md, 38.4.
 /// </summary>
 public sealed class ResponseFormatAotTests
 {
     [Fact]
-    public void ForJsonSchema_Type_asiri_yuklemesi_kaynak_agacinda_yoktur()
+    public void ForJsonSchema_Type_overload_is_absent_from_source_tree()
         => AssertNoMatch("ForJsonSchema(typeof(", "ForJsonSchema<");
 
     [Fact]
-    public void ForJsonSchema_JsonSerializerOptions_asiri_yuklemesi_yoktur()
+    public void ForJsonSchema_JsonSerializerOptions_overload_is_absent()
         => AssertNoMatch("ForJsonSchema(serializerOptions", "ForJsonSchema(options", "ForJsonSchema(jsonOptions");
 
     private static void AssertNoMatch(params string[] forbiddenSnippets)
@@ -61,6 +61,6 @@ public sealed class ResponseFormatAotTests
         }
 
         throw new InvalidOperationException(
-            $"Depo koku bulunamadi. '{AppContext.BaseDirectory}' konumundan yukari dogru AgentPrism.slnx arandi.");
+            $"Repository root not found. Searched upward from '{AppContext.BaseDirectory}' for AgentPrism.slnx.");
     }
 }
