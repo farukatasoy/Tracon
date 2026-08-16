@@ -5,20 +5,20 @@ using Microsoft.CodeAnalysis.CSharp;
 
 namespace AgentPrism.Generators.UnitTests;
 
-/// <summary>Ureteci sentetik bir derleme uzerinde calistiran test yardimcisi.</summary>
+/// <summary>Test helper that runs the generator against a synthetic compilation.</summary>
 internal static class GeneratorTestHelper
 {
     private static readonly ImmutableArray<MetadataReference> References = BuildReferences();
 
-    /// <summary>Verilen kaynagi <see cref="ToolRegistrationGenerator"/>'den gecirir.</summary>
+    /// <summary>Runs the given source through <see cref="ToolRegistrationGenerator"/>.</summary>
     public static GeneratorRunResult Run(string source)
         => RunWithDriver(CreateDriver(), source);
 
     /// <summary>
-    /// Ureteci once <paramref name="firstSource"/>, sonra AYNI SURUCUYLE
-    /// (onbellek korunarak) <paramref name="secondSource"/> uzerinde calistirir.
-    /// Artimlilik (52.5, <c>IIncrementalGenerator</c> sozlesmesi) bu ikinci kosumun
-    /// adim onbellek nedenlerine bakilarak dogrulanir.
+    /// Runs the generator against <paramref name="firstSource"/>, then against
+    /// <paramref name="secondSource"/> with the SAME DRIVER (preserving the cache).
+    /// Incrementality (52.5, the <c>IIncrementalGenerator</c> contract) is verified by
+    /// inspecting the step cache reasons of this second run.
     /// </summary>
     public static (GeneratorRunResult First, GeneratorRunResult Second) RunIncremental(string firstSource, string secondSource)
     {
@@ -70,37 +70,37 @@ internal static class GeneratorTestHelper
     }
 }
 
-/// <summary>Bir ureteç kosumunun sonucu.</summary>
+/// <summary>The result of one generator run.</summary>
 internal sealed record GeneratorRunResult(
     CSharpCompilation InputCompilation,
     CSharpCompilation OutputCompilation,
     ImmutableArray<Diagnostic> Diagnostics,
     GeneratorDriverRunResult RunResult)
 {
-    /// <summary>Uretilen tum kaynak dosyalarinin metnini (dosya adi -&gt; icerik) doner.</summary>
+    /// <summary>Returns the text of every generated source file (file name -&gt; content).</summary>
     public IReadOnlyDictionary<string, string> GeneratedFiles()
         => RunResult.Results
             .SelectMany(r => r.GeneratedSources)
             .ToDictionary(s => s.HintName, s => s.SourceText.ToString(), StringComparer.Ordinal);
 
-    /// <summary>Yalnizca belirli bir tanı kimligine (ornek: APG0001) sahip tanilari doner.</summary>
+    /// <summary>Returns only the diagnostics with a specific id (example: APG0001).</summary>
     public IReadOnlyList<Diagnostic> DiagnosticsWithId(string id)
         => [.. Diagnostics.Where(d => string.Equals(d.Id, id, StringComparison.Ordinal))];
 
-    /// <summary>Aggregator disindaki TEK wrapper dosyasinin metnini doner (tek-tool testleri icin).</summary>
+    /// <summary>Returns the text of the SINGLE wrapper file outside the aggregator (for single-tool tests).</summary>
     public string SingleWrapperFile()
         => GeneratedFiles().Single(kv => !string.Equals(kv.Key, "AgentPrismGeneratedTools.g.cs", StringComparison.Ordinal)).Value;
 
     /// <summary>
-    /// Birden fazla tool uretildiginde, hint adi <paramref name="hintNamePrefix"/> ile
-    /// baslayan TEK wrapper dosyasinin metnini doner.
+    /// When more than one tool is generated, returns the text of the SINGLE wrapper file
+    /// whose hint name starts with <paramref name="hintNamePrefix"/>.
     /// </summary>
     public string SingleWrapperFile(string hintNamePrefix)
         => GeneratedFiles().Single(kv => kv.Key.StartsWith(hintNamePrefix, StringComparison.Ordinal)).Value;
 
     /// <summary>
-    /// <paramref name="trackingName"/> ile isaretlenmis adimin bu kosumdaki onbellek
-    /// nedenlerini (<see cref="IncrementalStepRunReason"/>) doner.
+    /// Returns the cache reasons (<see cref="IncrementalStepRunReason"/>) for this run,
+    /// for the step marked with <paramref name="trackingName"/>.
     /// </summary>
     public IReadOnlyList<IncrementalStepRunReason> StepReasons(string trackingName)
         => [.. RunResult.Results

@@ -1,10 +1,10 @@
 namespace AgentPrism.Generators.UnitTests;
 
-/// <summary>Basariyla siniflandirilan tool'lar icin uretilen kaynagi dogrular.</summary>
+/// <summary>Verifies the source generated for successfully classified tools.</summary>
 public sealed class GeneratedOutputTests
 {
     [Fact]
-    public void Isaretli_statik_metot_icin_kayit_uretilir()
+    public void A_registration_is_generated_for_a_marked_static_method()
     {
         const string Source = """
             using AgentPrism;
@@ -13,7 +13,7 @@ public sealed class GeneratedOutputTests
 
             internal static class OrderTools
             {
-                [AgentPrismTool("get_order_status", "Bir siparisin durumunu dondurur.")]
+                [AgentPrismTool("get_order_status", "Returns the status of an order.")]
                 public static string GetOrderStatus(string orderId) => orderId;
             }
             """;
@@ -28,12 +28,12 @@ public sealed class GeneratedOutputTests
 
         var wrapperFile = result.SingleWrapperFile();
         wrapperFile.ShouldContain("public override string Name => \"get_order_status\";");
-        wrapperFile.ShouldContain("Bir siparisin durumunu dondurur.");
+        wrapperFile.ShouldContain("Returns the status of an order.");
         wrapperFile.ShouldContain("MyApp.OrderTools.GetOrderStatus(");
     }
 
     [Fact]
-    public void Isaret_adsizsa_metot_adi_kullanilir()
+    public void The_method_name_is_used_when_the_attribute_is_unnamed()
     {
         const string Source = """
             using AgentPrism;
@@ -54,7 +54,7 @@ public sealed class GeneratedOutputTests
     }
 
     [Fact]
-    public void Onay_gereksinimi_uretilen_kayda_gecer()
+    public void The_approval_requirement_carries_into_the_generated_registration()
     {
         const string Source = """
             using AgentPrism;
@@ -63,8 +63,8 @@ public sealed class GeneratedOutputTests
 
             internal static class Tools
             {
-                [AgentPrismTool("sil", "Kalici siler.", RequiresApproval = true)]
-                public static void Sil(string id) { }
+                [AgentPrismTool("delete", "Deletes permanently.", RequiresApproval = true)]
+                public static void Delete(string id) { }
             }
             """;
 
@@ -75,7 +75,7 @@ public sealed class GeneratedOutputTests
     }
 
     [Fact]
-    public void Json_semasi_parametreleri_ve_zorunlulugu_icerir()
+    public void The_JSON_schema_contains_parameters_and_required()
     {
         const string Source = """
             using AgentPrism;
@@ -84,46 +84,46 @@ public sealed class GeneratedOutputTests
 
             internal static class Tools
             {
-                [AgentPrismTool("ara", "Arar.")]
-                public static string Ara(string sorgu, int adet = 10) => sorgu;
+                [AgentPrismTool("search", "Searches.")]
+                public static string Search(string query, int count = 10) => query;
             }
             """;
 
         var result = GeneratorTestHelper.Run(Source);
 
         var wrapper = result.SingleWrapperFile();
-        wrapper.ShouldContain("\\\"sorgu\\\":{\\\"type\\\":\\\"string\\\"}");
-        wrapper.ShouldContain("\\\"adet\\\":{\\\"type\\\":\\\"integer\\\"}");
-        wrapper.ShouldContain("\\\"required\\\":[\\\"sorgu\\\"]");
-        wrapper.ShouldContain("GetOptional(arguments, \"adet\", static e => e.GetInt32(), 10)");
+        wrapper.ShouldContain("\\\"query\\\":{\\\"type\\\":\\\"string\\\"}");
+        wrapper.ShouldContain("\\\"count\\\":{\\\"type\\\":\\\"integer\\\"}");
+        wrapper.ShouldContain("\\\"required\\\":[\\\"query\\\"]");
+        wrapper.ShouldContain("GetOptional(arguments, \"count\", static e => e.GetInt32(), 10)");
     }
 
     [Fact]
-    public void Enum_parametresi_string_sema_ve_Enum_Parse_uretir()
+    public void An_enum_parameter_generates_a_string_schema_and_Enum_Parse()
     {
         const string Source = """
             using AgentPrism;
 
             namespace MyApp;
 
-            internal enum Durum { Acik, Kapali }
+            internal enum Status { Open, Closed }
 
             internal static class Tools
             {
-                [AgentPrismTool("durum_ayarla", "Durumu ayarlar.")]
-                public static void Ayarla(Durum durum) { }
+                [AgentPrismTool("set_status", "Sets the status.")]
+                public static void SetStatus(Status status) { }
             }
             """;
 
         var result = GeneratorTestHelper.Run(Source);
 
         var wrapper = result.SingleWrapperFile();
-        wrapper.ShouldContain("\\\"enum\\\":[\\\"Acik\\\",\\\"Kapali\\\"]");
-        wrapper.ShouldContain("global::System.Enum.Parse<global::MyApp.Durum>(e.GetString()!, ignoreCase: true)");
+        wrapper.ShouldContain("\\\"enum\\\":[\\\"Open\\\",\\\"Closed\\\"]");
+        wrapper.ShouldContain("global::System.Enum.Parse<global::MyApp.Status>(e.GetString()!, ignoreCase: true)");
     }
 
     [Fact]
-    public void Dizi_parametresi_array_semasi_ve_GetArray_uretir()
+    public void An_array_parameter_generates_an_array_schema_and_GetArray()
     {
         const string Source = """
             using AgentPrism;
@@ -132,8 +132,8 @@ public sealed class GeneratedOutputTests
 
             internal static class Tools
             {
-                [AgentPrismTool("etiketle", "Etiketler.")]
-                public static void Etiketle(string[] etiketler) { }
+                [AgentPrismTool("tag", "Tags.")]
+                public static void Tag(string[] tags) { }
             }
             """;
 
@@ -141,16 +141,16 @@ public sealed class GeneratedOutputTests
 
         var wrapper = result.SingleWrapperFile();
         wrapper.ShouldContain("\\\"type\\\":\\\"array\\\"");
-        wrapper.ShouldContain("GetArray(arguments, \"etiketler\", static e => e.GetString()!, required: true, defaultValue: null)");
+        wrapper.ShouldContain("GetArray(arguments, \"tags\", static e => e.GetString()!, required: true, defaultValue: null)");
     }
 
     [Fact]
-    public void Ciplak_dizi_parametresi_ToArray_ile_cevrilir_ve_uretilen_kod_derlenir()
+    public void A_bare_array_parameter_is_converted_with_ToArray_and_the_generated_code_compiles()
     {
-        // GetArray IReadOnlyList<T> doner; T[] parametreye ortuk donusum yoktur.
-        // Bu test yalnizca metni degil, CIKTI DERLEMESININ HATASIZ oldugunu da
-        // dogrular - MT-PKG-044'te bulunan CS1503 regresyonunu yakalar. Diger
-        // testler yalnizca uretilen metni kontrol eder, derlemeyi hic calistirmaz.
+        // GetArray returns IReadOnlyList<T>; there is no implicit conversion to a T[] parameter.
+        // This test verifies not just the text but also that the OUTPUT COMPILATION IS ERROR-FREE -
+        // it catches the CS1503 regression found in MT-PKG-044. Other tests only check the
+        // generated text and never run the compilation at all.
         const string Source = """
             using AgentPrism;
 
@@ -158,24 +158,24 @@ public sealed class GeneratedOutputTests
 
             internal static class Tools
             {
-                [AgentPrismTool("etiketle", "Etiketler.")]
-                public static void Etiketle(string[] etiketler) { }
+                [AgentPrismTool("tag", "Tags.")]
+                public static void Tag(string[] tags) { }
 
-                [AgentPrismTool("sayilari_topla", "Sayilari toplar.")]
-                public static int SayilariTopla(int[] sayilar) { var toplam = 0; foreach (var s in sayilar) { toplam += s; } return toplam; }
+                [AgentPrismTool("sum_numbers", "Sums numbers.")]
+                public static int SumNumbers(int[] numbers) { var sum = 0; foreach (var n in numbers) { sum += n; } return sum; }
 
-                [AgentPrismTool("liste_de_calisir", "IReadOnlyList<T> hala GetArray'i dogrudan kullanmali.")]
-                public static int ListeDeCalisir(System.Collections.Generic.IReadOnlyList<int> sayilar) => sayilar.Count;
+                [AgentPrismTool("list_also_works", "IReadOnlyList<T> should still use GetArray directly.")]
+                public static int ListAlsoWorks(System.Collections.Generic.IReadOnlyList<int> numbers) => numbers.Count;
             }
             """;
 
         var result = GeneratorTestHelper.Run(Source);
 
-        var wrapper = result.SingleWrapperFile(hintNamePrefix: "Etiketle_");
+        var wrapper = result.SingleWrapperFile(hintNamePrefix: "Tag_");
         wrapper.ShouldContain("global::System.Linq.Enumerable.ToArray(global::AgentPrism.AgentPrismGeneratedToolArguments.GetArray(");
 
-        var listeWrapper = result.SingleWrapperFile(hintNamePrefix: "ListeDeCalisir_");
-        listeWrapper.ShouldNotContain("ToArray");
+        var listWrapper = result.SingleWrapperFile(hintNamePrefix: "ListAlsoWorks_");
+        listWrapper.ShouldNotContain("ToArray");
 
         var errors = result.OutputCompilation.GetDiagnostics()
             .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
@@ -184,7 +184,7 @@ public sealed class GeneratedOutputTests
     }
 
     [Fact]
-    public void CancellationToken_parametresi_semadan_haric_tutulur_ve_dogrudan_baglanir()
+    public void A_CancellationToken_parameter_is_excluded_from_the_schema_and_bound_directly()
     {
         const string Source = """
             using System.Threading;
@@ -194,8 +194,8 @@ public sealed class GeneratedOutputTests
 
             internal static class Tools
             {
-                [AgentPrismTool("bekle", "Bekler.")]
-                public static void Bekle(string id, CancellationToken cancellationToken) { }
+                [AgentPrismTool("wait", "Waits.")]
+                public static void Wait(string id, CancellationToken cancellationToken) { }
             }
             """;
 
@@ -203,11 +203,11 @@ public sealed class GeneratedOutputTests
 
         var wrapper = result.SingleWrapperFile();
         wrapper.ShouldNotContain("cancellationToken\\\"");
-        wrapper.ShouldContain("MyApp.Tools.Bekle(@id, cancellationToken)");
+        wrapper.ShouldContain("MyApp.Tools.Wait(@id, cancellationToken)");
     }
 
     [Fact]
-    public void Async_Task_donen_metot_await_ile_uretilir()
+    public void An_async_Task_returning_method_is_generated_with_await()
     {
         const string Source = """
             using System.Threading.Tasks;
@@ -217,8 +217,8 @@ public sealed class GeneratedOutputTests
 
             internal static class Tools
             {
-                [AgentPrismTool("getir", "Getirir.")]
-                public static async Task<string> GetirAsync(string id)
+                [AgentPrismTool("get", "Gets.")]
+                public static async Task<string> GetAsync(string id)
                 {
                     await Task.Yield();
                     return id;
@@ -232,11 +232,11 @@ public sealed class GeneratedOutputTests
 
         var wrapper = result.SingleWrapperFile();
         wrapper.ShouldContain("async global::System.Threading.Tasks.ValueTask<object?> InvokeCoreAsync");
-        wrapper.ShouldContain("await global::MyApp.Tools.GetirAsync(@id).ConfigureAwait(false);");
+        wrapper.ShouldContain("await global::MyApp.Tools.GetAsync(@id).ConfigureAwait(false);");
     }
 
     [Fact]
-    public void Iki_farkli_sinifta_tool_varsa_ikisi_de_uretilir()
+    public void Both_tools_are_generated_when_they_live_in_two_different_classes()
     {
         const string Source = """
             using AgentPrism;
@@ -245,13 +245,13 @@ public sealed class GeneratedOutputTests
 
             internal static class OrderTools
             {
-                [AgentPrismTool("get_order", "Siparis getirir.")]
+                [AgentPrismTool("get_order", "Returns an order.")]
                 public static string GetOrder(string id) => id;
             }
 
             internal static class UserTools
             {
-                [AgentPrismTool("get_user", "Kullanici getirir.")]
+                [AgentPrismTool("get_user", "Returns a user.")]
                 public static string GetUser(string id) => id;
             }
             """;
